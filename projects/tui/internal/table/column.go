@@ -1,8 +1,9 @@
 // The column menu: a click on a column's name in the header drops it under the name, as does a right click where the
 // terminal sends one. Many terminals keep option, ctrl, and the right button with a click for their own selection and
-// menu, so the menu holds what those would do: the column's sort, a radio that shows it, None, Ascending, or
-// Descending, a column that did not sort coming after the keys there are, one that did keeping its place, and Clear
-// Sort, which no column sorts after; the rows grouped by it too, innermost, or no longer; the column hidden; and the
+// menu, so the menu holds what those would do: the column's sort, a radio that shows it, Ascending or Descending, a
+// column that did not sort coming after the keys there are, one that did keeping its place, or Unsorted, which takes
+// it out of the keys, as a shift-click on its sort does; the rows grouped by it too, innermost, or no longer; the
+// column hidden; and the
 // field's popover, which leaves the sort to the menu. The menu's title is the column's name, so no line names it
 // again. Shift with left or right moves the column a place among those the header shows, the menu with it.
 package table
@@ -29,15 +30,13 @@ type ColumnMenu struct {
 // ColAct is what a line of the column menu does.
 type ColAct int
 
-// What the column menu's lines do: none, the rules; the radio of the column's sort, None, Ascending and Descending;
-// every column's sort cleared; the rows grouped by the column, innermost, or no longer; the column hidden; and More,
-// the field's popover.
+// What the column menu's lines do: none, the rules; the radio of the column's sort, Ascending, Descending, and
+// Unsorted; the rows grouped by the column, innermost, or no longer; the column hidden; and More, the field's popover.
 const (
 	ActRule ColAct = iota
-	ActNone
 	ActUp
 	ActDown
-	ActClear
+	ActUnsorted
 	ActGroup
 	ActUngroup
 	ActHide
@@ -45,9 +44,9 @@ const (
 )
 
 // The words of the column menu's lines, and their glyphs: grouping's is the mark a column grouping the rows has,
-// hiding's the box of a hidden column in the columns dialog, and clearing's a sweep, as a menu that clears sweeps.
+// hiding's the box of a hidden column in the columns dialog; and a sweep, which a menu line that clears draws.
 const (
-	ClearSort = "Clear Sort"
+	Unsorted  = "Unsorted"
 	GroupIt   = "Group"
 	UngroupIt = "Ungroup"
 	Hide      = "Hide"
@@ -74,7 +73,8 @@ func OpenColumnMenu(h Host, column string, heading bool) ColumnMenu {
 	return c
 }
 
-// lines gives the column menu's lines. The radio's choice picked is the column's sort, None where it does not sort.
+// lines gives the column menu's lines. The radio's choice picked is the column's sort, Unsorted where it does not
+// sort.
 // Where something else orders the rows, a group or another key, its triangles carry ⁿ and ₙ, as the header's mark
 // carries the place the column takes, raised after ▲ and lowered after ▼. A section the field cannot use is left out,
 // with its rule: the sort, for one that cannot sort, and Group and Ungroup, for one that cannot group. A line the
@@ -93,9 +93,9 @@ func (c ColumnMenu) lines(h Host) []colLine {
 	}
 	var lines []colLine
 	if p.Sortable[column] {
-		lines = append(lines, radio(d == grid.Unsorted, "None", ActNone), radio(d == grid.Ascending, "▲"+up+" Ascending", ActUp),
-			radio(d == grid.Descending, "▼"+down+" Descending", ActDown),
-			colLine{shell.Item{Glyph: Sweep, Name: ClearSort}, ActClear}, colLine{act: ActRule})
+		lines = append(lines, radio(d == grid.Ascending, "▲"+up+" Ascending", ActUp),
+			radio(d == grid.Descending, "▼"+down+" Descending", ActDown), radio(d == grid.Unsorted, Unsorted, ActUnsorted),
+			colLine{act: ActRule})
 	}
 	if p.Groupable[column] {
 		lines = append(lines, colLine{shell.Item{Glyph: GroupGlyph, Name: GroupIt}, ActGroup},
@@ -120,7 +120,7 @@ func (c ColumnMenu) LineOf(h Host, act ColAct) int {
 }
 
 // Enabled says whether the column menu's line k acts: the radio always, as the menu has it only for a column that
-// sorts; Clear Sort while a column sorts the rows; Group on one that does not group yet, Ungroup on one that does; and
+// sorts; Group on one that does not group yet, Ungroup on one that does; and
 // Hide and Options… always; the rules never do.
 func (c ColumnMenu) Enabled(h Host, k int) bool {
 	lines := c.lines(h)
@@ -130,10 +130,8 @@ func (c ColumnMenu) Enabled(h Host, k int) bool {
 	p := h.Panel()
 	grouped := slices.Contains(p.Groups(), c.Column)
 	switch lines[k].act {
-	case ActNone, ActUp, ActDown, ActHide, ActMore:
+	case ActUp, ActDown, ActUnsorted, ActHide, ActMore:
 		return true
-	case ActClear:
-		return len(p.ColumnKeys()) > 0
 	case ActGroup:
 		return !grouped
 	case ActUngroup:
@@ -239,12 +237,10 @@ func (c *ColumnMenu) Act(h Host, k int) (Popover, bool) {
 	}
 	p := h.Panel()
 	switch act := was.lines(h)[k].act; act {
-	case ActNone, ActUp, ActDown:
-		// a column that did not sort comes after the keys there are; one that did turns in its place
-		p = p.SortedAs(was.Column, map[ColAct]grid.Direction{ActNone: grid.Unsorted, ActUp: grid.Ascending,
+	case ActUp, ActDown, ActUnsorted:
+		// a column that did not sort comes after the keys there are; one that did turns in its place, or leaves them
+		p = p.SortedAs(was.Column, map[ColAct]grid.Direction{ActUnsorted: grid.Unsorted, ActUp: grid.Ascending,
 			ActDown: grid.Descending}[act])
-	case ActClear:
-		p = p.Unsorted()
 	case ActHide:
 		p = p.Placed(was.Column, grid.Hidden)
 	case ActGroup, ActUngroup:

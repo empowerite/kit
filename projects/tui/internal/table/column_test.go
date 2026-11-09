@@ -3,6 +3,7 @@ package table
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -22,11 +23,14 @@ func names(c ColumnMenu, h Host) []string {
 func TestTheColumnMenuSortsGroupsAndHidesItsColumn(t *testing.T) {
 	h := listing()
 	c := OpenColumnMenu(h, "state", false)
-	if got := names(c, h); !slices.Equal(got, []string{"None", "▲ Ascending", "▼ Descending", ClearSort, "", GroupIt,
+	if got := names(c, h); !slices.Equal(got, []string{"▲ Ascending", "▼ Descending", Unsorted, "", GroupIt,
 		UngroupIt, "", Hide, More}) || c.At != 0 {
 		t.Fatalf("state's menu, at %d: %q", c.At, got)
 	}
-	if c.Enabled(h, c.LineOf(h, ActClear)) || c.Enabled(h, c.LineOf(h, ActUngroup)) || c.Enabled(h, 4) ||
+	if !strings.Contains(c.Items(h)[c.LineOf(h, ActUnsorted)].Glyph, grid.Picked) {
+		t.Errorf("Unsorted is not picked on a column that sorts nothing: %+v", c.Items(h))
+	}
+	if c.Enabled(h, c.LineOf(h, ActUngroup)) || c.Enabled(h, 3) ||
 		c.Enabled(h, -1) || !c.Enabled(h, c.LineOf(h, ActHide)) {
 		t.Error("what acts with nothing sorted or grouped")
 	}
@@ -34,7 +38,7 @@ func TestTheColumnMenuSortsGroupsAndHidesItsColumn(t *testing.T) {
 	if got := names(OpenColumnMenu(h, "title", false), h); !slices.Equal(got, []string{Hide, More}) {
 		t.Errorf("title's menu: %q", got)
 	}
-	// Ascending sorts; a key after another carries ⁿ; Clear Sort clears every key
+	// Ascending sorts; a key after another carries ⁿ; Unsorted takes the column out of the keys, the others staying
 	if _, ok := c.Act(h, c.LineOf(h, ActUp)); ok || c.Open || h.panel.Field("state").Sort != grid.Ascending {
 		t.Fatalf("ascending: %+v", h.panel.Field("state"))
 	}
@@ -53,16 +57,14 @@ func TestTheColumnMenuSortsGroupsAndHidesItsColumn(t *testing.T) {
 	// with another key sorting the rows, state's sort carries ⁿ and ₙ
 	h.panel.Sortable["title"] = true
 	h.panel = h.panel.SortedAs("title", grid.Ascending)
-	if got := names(OpenColumnMenu(h, "state", false), h)[2]; got != "▼ₙ Descending" {
+	if got := names(OpenColumnMenu(h, "state", false), h)[1]; got != "▼ₙ Descending" {
 		t.Errorf("a key with another: %q", got)
 	}
 	c = OpenColumnMenu(h, "state", false)
-	c.Act(h, c.LineOf(h, ActClear))
-	if len(h.panel.ColumnKeys()) != 0 {
-		t.Errorf("cleared: %v", h.panel.ColumnKeys())
+	c.Act(h, c.LineOf(h, ActUnsorted))
+	if keys := h.panel.ColumnKeys(); len(keys) != 1 || keys[0].Column != "title" {
+		t.Errorf("state unsorted: %v", keys)
 	}
-	c = OpenColumnMenu(h, "state", false)
-	c.Act(h, c.LineOf(h, ActNone))
 	c = OpenColumnMenu(h, "state", false)
 	c.Act(h, c.LineOf(h, ActHide))
 	if h.panel.Field("state").Placement != grid.Hidden {
@@ -121,10 +123,10 @@ func TestTheColumnMenuHangsFromItsNameAndTakesKeysAndClicks(t *testing.T) {
 	if top != 6 || len(box) != len(c.Items(h))+2 {
 		t.Fatalf("from the header: %d, %d, %d lines", top, left, len(box))
 	}
-	// a key moves through the menu; enter on Ascending sorts
+	// a key moves through the menu; enter on Descending sorts
 	c.Key(h, key("down"))
-	if _, ok := c.Key(h, tea.KeyPressMsg{Code: tea.KeyEnter}); ok || h.panel.Field("state").Sort != grid.Ascending {
-		t.Errorf("enter on ascending: %+v", h.panel.Field("state"))
+	if _, ok := c.Key(h, tea.KeyPressMsg{Code: tea.KeyEnter}); ok || h.panel.Field("state").Sort != grid.Descending {
+		t.Errorf("enter on descending: %+v", h.panel.Field("state"))
 	}
 	c = OpenColumnMenu(h, "state", false)
 	if c.Key(h, key("esc")); c.Open {

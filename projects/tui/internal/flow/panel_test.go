@@ -272,7 +272,7 @@ func TestSortByInAColumnsMenuSortsTheRows(t *testing.T) {
 		x := ansi.StringWidth(lines(m)[m.headerTop()][:at(name)])
 		return strings.Trim(ansi.Strip(ansi.Cut(lines(m)[ruleY(m)], x, x+ansi.StringWidth(name)+1)), "─"+Sortable)
 	}
-	if m = drive(m, testkit.Click(at("age"), m.headerTop()), down, press(tea.KeyEnter)); under("age") != "▲" {
+	if m = drive(m, testkit.Click(at("age"), m.headerTop()), press(tea.KeyEnter)); under("age") != "▲" {
 		t.Fatalf("a click on age: %s\n%s", order(), view(m))
 	}
 	if got := order(); got != "#45 #46 #7" {
@@ -293,7 +293,7 @@ func TestSortByInAColumnsMenuSortsTheRows(t *testing.T) {
 	// builds' commit does not sort
 	m = drive(m, esc)
 	m = drive(m, slices.Repeat([]tea.Msg{right}, 5)...)
-	if m = drive(m, testkit.Click(at("commit"), m.headerTop())); m.colMenu.Enabled(&m, m.colMenu.LineOf(&m, table.ActUp)) || m.colMenu.At <= m.colMenu.LineOf(&m, table.ActClear) ||
+	if m = drive(m, testkit.Click(at("commit"), m.headerTop())); m.colMenu.Enabled(&m, m.colMenu.LineOf(&m, table.ActUp)) || m.colMenu.At <= m.colMenu.LineOf(&m, table.ActUnsorted) ||
 		m.stages[m.stage].name != "builds" {
 		t.Errorf("commit's menu sorts: %+v", m.colMenu)
 	}
@@ -323,7 +323,7 @@ func TestGroupingNestsAndIndentsTheRows(t *testing.T) {
 		t.Errorf("a row grouped two deep is not indented four cells, or keeps its source:\n%s", view(m))
 	}
 	// a click on a name in the indented header drops its menu, whose ▲ Ascending sorts by it, ▲ on the rule under it
-	if m = drive(m, esc, testkit.Click(strings.Index(lines(m)[m.headerTop()], "age"), m.headerTop()), down, press(tea.KeyEnter)); m.panel(m.stage).Mark("age") != "▲" ||
+	if m = drive(m, esc, testkit.Click(strings.Index(lines(m)[m.headerTop()], "age"), m.headerTop()), press(tea.KeyEnter)); m.panel(m.stage).Mark("age") != "▲" ||
 		ansi.Cut(lines(m)[ruleY(m)], strings.Index(lines(m)[m.headerTop()], "age"), strings.Index(lines(m)[m.headerTop()], "age")+1) != "▲" {
 		t.Errorf("a click on age in the indented header:\n%s", view(m))
 	}
@@ -622,7 +622,7 @@ func TestAClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 		t.Fatalf("a second click on age: %+v, menu %v", sorts(), m.colMenu.Open)
 	}
 	click("age", 0)
-	if m = drive(m, down, press(tea.KeyEnter)); !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}}) {
+	if m = drive(m, press(tea.KeyEnter)); !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}}) {
 		t.Fatalf("▲ Ascending on age: %+v", sorts())
 	}
 	click("age", 0)

@@ -81,21 +81,22 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   - ⏎ on a field in the columns dialog opens its popover: the checklist of values its filter lets through or holds back,
     for an enum or a person, and its rendering; the sort is the column menu's. What it sets applies at once. A click on
     a column's name drops down its menu, around the name, as ='s and :'s hang around theirs, titled by the name, which
-    no line repeats: its sort, a radio that shows it, None, Ascending, or Descending, and 🧹 Clear Sort; ▤ Group and ▢
-    Ungroup; ☐ Hide; and ⋯ Options…, its popover, titled over the name. A column's menu, and a group heading's, which
-    has Ungroup too, take shift with ← or →, which moves the column a place among those the header names, or a depth
-    among the groups, the menu with it. Sorting always adds to the keys: a column that did not sort comes after the
-    others, and one that did turns in its place; grouping always adds the column innermost, and the columns dialog
-    orders both. The groups order the rows before any key, the outermost 1, so a column's ▲ or ▼ carries its place after
-    them, raised after ▲ and lowered after ▼, as each points, ▲² and ▼₂, wherever more than one thing orders the rows;
-    the menu's triangles carry ⁿ and ₙ there. The line under the keyboard in a menu or a dialog stands on the menu's
-    bright cyan, in black, and a dialog's keys are the keys bar's alone. A column's sort mark stands on the rule under
-    the first cell of its name, wherever the name aligns. A dim · there says the column can sort and does not; a
-    column that cannot sort has the rule alone. A plain click on the rule under the name turns the sort a step:
-    ascending, after the other keys; descending, in its place; then off. A terminal such as iTerm keeps ⌥, ⌃, shift,
-    and the right button with a click for its own selection and menu, so a plain click and the menu are the ways that
-    work everywhere. Where the terminal sends them, ⌥ with a click turns a sort, ⌃ groups or ungroups, and the right
-    button drops the menu too. The presets' menu hangs around the preset line's selector the same way.
+    no line repeats: its sort, a radio that shows it, Ascending, Descending, or Unsorted, which takes it out of the
+    keys, as a shift-click on its sort does; ▤ Group and ▢ Ungroup; ☐ Hide; and ⋯ Options…, its popover, titled over the
+    name. A column's menu, and a group heading's, which has Ungroup too, take shift with ← or →, which moves the column
+    a place among those the header names, or a depth among the groups, the menu with it. Sorting always adds to the
+    keys: a column that did not sort comes after the others, and one that did turns in its place; grouping always adds
+    the column innermost, and the columns dialog orders both. The groups order the rows before any key, the outermost 1,
+    so a column's ▲ or ▼ carries its place after them, raised after ▲ and lowered after ▼, as each points, ▲² and ▼₂,
+    wherever more than one thing orders the rows; the menu's triangles carry ⁿ and ₙ there. The line under the keyboard
+    in a menu or a dialog stands on the menu's bright cyan, in black, and a dialog's keys are the keys bar's alone. A
+    column's sort mark stands on the rule under the first cell of its name, wherever the name aligns. A dim · there says
+    the column can sort and does not; a column that cannot sort has the rule alone. A plain click on the rule under the
+    name turns the sort a step: ascending, after the other keys; descending, in its place; then off. A terminal such as
+    iTerm keeps ⌥, ⌃, shift, and the right button with a click for its own selection and menu, so a plain click and the
+    menu are the ways that work everywhere. Where the terminal sends them, ⌥ with a click turns a sort, ⌃ groups or
+    ungroups, and the right button drops the menu too. The presets' menu hangs around the preset line's selector the
+    same way.
   - A field whose rendering is auto drops a glyph every row shown shares, and, while the columns are short of width,
     steps down to its next, shorter rendering, from the rightmost column leftward. A glyph that links, to a page or to
     another stage's row, is a button, so it stays, and a field drawn without its glyph links from nothing. The title
