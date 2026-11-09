@@ -902,13 +902,14 @@ func TestTheTitleNamesTheRepositoryWhenKnown(t *testing.T) {
 			t.Errorf("repoOf(%q) = %q, want %q", url, got, want)
 		}
 	}
-	if m, _ := fake(t); !strings.HasPrefix(view(m), "  "+shell.App+" kit welcome · 📚 empowerite/kit ") ||
-		!strings.HasSuffix(strings.Split(view(m), "\n")[0], shell.Find+" search") {
+	if m, _ := fake(t); !strings.HasPrefix(view(m), "  "+shell.App+" kit welcome · - empowerite/kit ") ||
+		!strings.HasSuffix(strings.Split(view(m), "\n")[0], shell.Find+" "+shell.Idle) {
 		t.Errorf("title:\n%s", view(m))
 	}
-	// with no repository known, the control is 📚 alone, which still drops down what to switch to
+	// with no repository known, the control is - alone, which still drops down what to switch to
 	if got := strings.Split(view(New(testkit.Runner(t, "welcome"), "")), "\n")[0]; !strings.HasPrefix(got,
-		"  "+shell.App+" kit welcome · "+shell.Books+" ") || strings.Contains(got, "/") {
+		"  "+shell.App+" kit welcome · "+shell.Workspaces+" ") ||
+		strings.Contains(strings.ReplaceAll(got, shell.Idle, ""), "/") {
 		t.Errorf("title without a repository:\n%s", got)
 	}
 }

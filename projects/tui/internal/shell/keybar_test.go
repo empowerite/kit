@@ -16,6 +16,14 @@ import (
 // rows is a control under the screen with its own keys, as a stage's rows are.
 var rows = Segment{Bindings: []Binding{Bind("↑↓", "move", "up", "down"), Bind("␣", "select", "space")}}
 
+// A screen with a workspace menu names - after =, in the title's order, then the search and its own keys.
+func TestAWorkspaceScreenNamesMinusAfterEquals(t *testing.T) {
+	if got := ansi.Strip(Path{WorkspaceScreenKeys(Bind("?", "legend"))}.Line(80)); got !=
+		" = menu - workspace / search ? legend" {
+		t.Errorf("the bar: %q", got)
+	}
+}
+
 func TestEachControlsKeysStandBetweenRules(t *testing.T) {
 	path := Path{ScreenKeys(Bind("?", "legend")), {}, rows}
 	if got := ansi.Strip(path.Line(80)); got != " = menu / search ? legend │ ↑↓ move ␣ select" {

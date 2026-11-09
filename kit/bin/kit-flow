@@ -121,7 +121,7 @@
 # row in another stage, and a dim 🔗 that a click opens the glyph's page.
 #
 # kit:generate legend `k=$(command -v kit); jq -nr -L "${k%/bin/kit}/modules/jq" 'import "glyphs" as g; g::legend'`
-#   📚  the workspace: owner/name or a group, in kittui's title
+#   📚  the workspace: a group, in the workspace menu that drops down from - in kittui's title
 #
 # backlog:
 #

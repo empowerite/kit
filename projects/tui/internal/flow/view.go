@@ -132,7 +132,7 @@ func (m Model) keys() shell.Path {
 	}
 	legend := shell.Bind("?", "legend", "?", "f1")
 	if len(m.stages) == 0 {
-		return shell.Path{shell.ScreenKeys(legend)}
+		return shell.Path{shell.WorkspaceScreenKeys(legend)}
 	}
 	down := "rows"
 	if m.presets(m.stage) {
@@ -143,7 +143,7 @@ func (m Model) keys() shell.Path {
 		// the bar is not there to move along
 		bar.Bindings = slices.DeleteFunc(bar.Bindings, func(b shell.Binding) bool { return b.Key == "←→" })
 	}
-	path := shell.Path{shell.ScreenKeys(legend), bar}
+	path := shell.Path{shell.WorkspaceScreenKeys(legend), bar}
 	switch {
 	case m.inPanel:
 		return append(path, shell.Segment{Bindings: []shell.Binding{shell.Bind("esc", "back"), shell.Bind("⏎", "back", "enter")}},
@@ -234,12 +234,12 @@ func (m Model) rowKeys() shell.Segment {
 	return seg
 }
 
-// title gives the title line: as internal/shell draws it, the app's menu's glyph before kit flow; then the 📚
-// control, which names the workspace; and, maximized, the selected tab, as the bar draws it, its : last.
+// title gives the title line: as internal/shell draws it, the app's menu's glyph before kit flow; then the workspace
+// menu, which names the workspace; and, maximized, the selected tab, as the bar draws it, its : last.
 func (m Model) title() string {
-	title := shell.Title(style.Label(appLabel), m.appMenu.Open) + " · " + m.books.Label()
+	title := shell.Title(style.Label(appLabel), m.appMenu.Open) + shell.Between + m.books.Label()
 	if m.maximized {
-		title += " · " + m.bar().Label()
+		title += shell.Between + m.bar().Label()
 	}
 	return title
 }

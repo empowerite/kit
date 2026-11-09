@@ -4,14 +4,15 @@
 // the bar the keyboard. Down enters a stage's rows and up on the first row leaves them; in the rows, right opens a row
 // and left closes it, space selects it as one of several, shift with up or down selects as it moves, and ctrl+a selects
 // every row, and a click on a row puts the cursor there, and on the row under it opens or closes it; = drops the app's
-// menu down, as a click on = or the screen's name does, and : or ; the selected tab's, as a click anywhere on the tab
-// does; F1 or ? shows the legend over the rows, and again hides it; / or a click on the search, always on the screen's
-// top right, gives the search the keyboard. A click on a linked glyph, as an issue's before its title, opens its page
-// in the browser, and one on a glyph that names a row of another stage, as underway's pull request, selects that stage
-// with the row under the cursor. The rows take the screen's width. Maximize, in the tab's menu, gives the rows the
-// bar's lines but one, the tab named in the title, and Restore puts the bar back. Esc goes back one level: from the
-// search, then from the rows to the bar. Ctrl-c quits with 130 from anywhere, and ctrl-q quits with 0; esc never quits.
-// A stage's command has two minutes; past them it is a refusal, and quitting kills the commands still running.
+// menu down, as a click on = or the screen's name does, - the workspace menu, and : or ; the selected tab's, as a click
+// anywhere on the tab does; F1 or ? shows the legend over the rows, and again hides it; / or a click on the search,
+// always on the screen's top right, gives the search the keyboard. A click on a linked glyph, as an issue's before its
+// title, opens its page in the browser, and one on a glyph that names a row of another stage, as underway's pull
+// request, selects that stage with the row under the cursor. The rows take the screen's width. Maximize, in the tab's
+// menu, gives the rows the bar's lines but one, the tab named in the title, and Restore puts the bar back. Esc goes
+// back one level: from the search, then from the rows to the bar. Ctrl-c quits with 130 from anywhere, and ctrl-q quits
+// with 0; esc never quits. A stage's command has two minutes; past them it is a refusal, and quitting kills the
+// commands still running.
 package flow
 
 import (
@@ -37,9 +38,9 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
-// Options is how the screen opens: the stages in the picture's order; origin, when known, for the URLs and for the 📚
-// control until kit says the workspace; whether the fetch is skipped; the filters backlog, underway, and changes take;
-// and whether every stage's headers are hidden, as a test of the rows alone asks.
+// Options is how the screen opens: the stages in the picture's order; origin, when known, for the URLs and for the
+// workspace menu until kit says the workspace; whether the fetch is skipped; the filters backlog, underway, and
+// changes take; and whether every stage's headers are hidden, as a test of the rows alone asks.
 type Options struct {
 	Stages    []string
 	Origin    Origin
@@ -110,7 +111,7 @@ type Model struct {
 	tabMenu       shell.Dropdown            // the selected tab's menu: whether it is open, and then has the keyboard, and its line under it
 	maximized     bool                      // whether the tab's rows have the bar's lines but one, for the session
 	appMenu       shell.Menu                // the app's menu, internal/shell's, which has the keyboard while it is open
-	books         shell.BooksMenu           // the title's 📚 control, which has the keyboard while it is open
+	books         shell.BooksMenu           // the title's workspace menu, which has the keyboard while it is open
 	pop           table.Popover             // a field's popover, which has the keyboard while it is open
 	width, height int
 	interrupted   bool
@@ -623,6 +624,8 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
 	case "/":
 		return m, m.enterPanel()
+	case shell.Workspaces:
+		m.books = m.books.Opened()
 	case "esc":
 		if m.inRows {
 			s := &m.stages[m.stage]

@@ -1,24 +1,24 @@
-  = kit flow · 📚 empowerite/kit · 🎫 backlog ╭╴:╶────────────────────────────────╮                           🔎 search
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│ 🔄 Refresh                      r │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  ▾ source ▾ 3                                │ 🔭 Watch                        w │                         Default ▼
-                                              │ ⤡  Restore                      m │
-  ▾ github 3                                  │ ───────────────────────────────── │
-                                              │ ⏬ Expand All                     │
-       id  assignees         age  branch      │ ⏫ Collapse All                   │
-      ─·───·─────────────────·────·───────────│ ⏫ Collapse Others                │────────────────────────────────────
-    ▸ #45                     2h              │ ───────────────────────────────── │picture: five stages, interactive o…
-    ▸ #46  jeffrey-aguilera   2d  🌿 46-a-noun│ 📋 Select All                  ⌃A │ with a verb acts
-    ▸  #7  ada           +1  40d              │ 🧹 Clear Selection                │
-                                              │ ───────────────────────────────── │
-                                              │ 📝 New…                         n │
-                                              │ 🌱 Start Local Work for Each      │
-                                              │ 🌿 Start Local Work Together…     │
-                                              │ 🔀 Add to Pull Request…           │
-                                              │ 👤 Assign to Me                 a │
-                                              │ 👥 Assign to…                     │
-                                              │ 🚶 Unassign                       │
-                                              │ 🧺 Gather Under a Parent…         │
-                                              │ 🚫 Close as Not Planned           │
-                                              │ ♊ Close as Duplicate of…         │
-                                              ╰─────────────────────────────────▾─╯
+  = kit flow · - empowerite/kit · 🎫 backlog ╭╴:╶────────────────────────────────╮                           🔎 /search
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│ 🔄 Refresh                      r │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ▾ source ▾ 3                               │ 🔭 Watch                        w │                          Default ▼
+                                             │ ⤡  Restore                      m │
+  ▾ github 3                                 │ ───────────────────────────────── │
+                                             │ ⏬ Expand All                     │
+       id  assignees         age  branch     │ ⏫ Collapse All                   │
+      ─·───·─────────────────·────·──────────│ ⏫ Collapse Others                │─────────────────────────────────────
+    ▸ #45                     2h             │ ───────────────────────────────── │ picture: five stages, interactive o…
+    ▸ #46  jeffrey-aguilera   2d  🌿 46-a-nou│ 📋 Select All                  ⌃A │n with a verb acts
+    ▸  #7  ada           +1  40d             │ 🧹 Clear Selection                │
+                                             │ ───────────────────────────────── │
+                                             │ 📝 New…                         n │
+                                             │ 🌱 Start Local Work for Each      │
+                                             │ 🌿 Start Local Work Together…     │
+                                             │ 🔀 Add to Pull Request…           │
+                                             │ 👤 Assign to Me                 a │
+                                             │ 👥 Assign to…                     │
+                                             │ 🚶 Unassign                       │
+                                             │ 🧺 Gather Under a Parent…         │
+                                             │ 🚫 Close as Not Planned           │
+                                             │ ♊ Close as Duplicate of…         │
+                                             ╰─────────────────────────────────▾─╯
  esc close ↑↓ move ⏎ choose

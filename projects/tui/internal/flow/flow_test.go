@@ -332,7 +332,7 @@ func TestWithoutIncomingEveryStageLoadsAtOnce(t *testing.T) {
 	if got := calls(t, record); strings.Join(got, "\n") != "flow changes --json\nflow worktrees --json" {
 		t.Errorf("the calls: %q", got)
 	}
-	if first := lines(m)[0]; first != "  "+shell.App+" kit flow · "+shell.Books {
+	if first := lines(m)[0]; first != "  "+shell.App+" kit flow · "+shell.Workspaces {
 		t.Errorf("the title without incoming: %q", first)
 	}
 	if labels := squeeze(lines(m)[2]); !strings.Contains(labels, "changes 3") || !strings.Contains(labels, "worktrees 4") ||
@@ -697,7 +697,7 @@ func fit(keys string, room int) string {
 // The keys bar on the bar, over the legend there, and in the rows, on a row that opens, closed and open: the screen's
 // keys, the stages' bar's, then the rows', each control's between rules; ? and F1 show the legend from anywhere.
 const (
-	screenKeys = "= menu / search ? legend │ "
+	screenKeys = "= menu - workspace / search ? legend │ "
 	barKeys    = screenKeys + "←→ tab ↓ rows 1-8 jump : tab menu"
 	inRows     = screenKeys + "1-8 jump : tab menu │ esc tabs ↑↓ move ␣·⇧↑↓ select ⌃A all"
 	opens      = inRows + " → expand"
@@ -801,10 +801,11 @@ func TestQuitKillsTheStagesStillRunning(t *testing.T) {
 
 func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 	m := loaded(t, options())
-	if first := lines(m)[0]; first != "  "+shell.App+" kit flow · "+shell.Books+" empowerite/kit" {
+	if first := lines(m)[0]; first != "  "+shell.App+" kit flow · "+shell.Workspaces+" empowerite/kit" {
 		t.Errorf("the title: %q", first)
 	}
-	if !strings.Contains(m.View().Content, shell.Books+" "+style.Repo("empowerite/kit")) {
+	// the dot between the title's parts is dim, so the menus' glyphs stand out
+	if !strings.Contains(m.View().Content, style.Off("·")+" "+shell.Workspaces+" "+style.Repo("empowerite/kit")) {
 		t.Errorf("the repository is not in its own color: %q", lines(m)[0])
 	}
 	// the bar comes right under the title
@@ -820,7 +821,7 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 	o := options()
 	o.NoFetch, o.Origin = true, Origin{}
 	m = loaded(t, o, right, right, right, right, right, right)
-	if first := lines(m)[0]; first != "  "+shell.App+" kit flow · "+shell.Books {
+	if first := lines(m)[0]; first != "  "+shell.App+" kit flow · "+shell.Workspaces {
 		t.Errorf("the title with --no-fetch: %q", first)
 	}
 	// without the fetch, each remote's heading says not fetched, and its tab has no count
@@ -845,7 +846,7 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 		t.Errorf("no remote with --no-fetch:\n%s", view(m))
 	}
 	m = loaded(t, Options{Stages: []string{"releases"}})
-	if first := lines(m)[0]; first != "  "+shell.App+" kit flow · "+shell.Books {
+	if first := lines(m)[0]; first != "  "+shell.App+" kit flow · "+shell.Workspaces {
 		t.Errorf("the title alone: %q", first)
 	}
 }

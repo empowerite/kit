@@ -81,7 +81,7 @@ func TestMaximizeGivesTheRowsTwoLines(t *testing.T) {
 
 func TestMaximizeTitleNamesTheTabAndItsCount(t *testing.T) {
 	m := maximize(t, loaded(t, viewing("")))
-	want := "  " + shell.App + " kit flow · " + shell.Books + " empowerite/kit · 🎫 backlog 3 " + tabs.Menu
+	want := "  " + shell.App + " kit flow · " + shell.Workspaces + " empowerite/kit · 🎫 backlog 3 " + tabs.Menu
 	if got := lines(m)[0]; got != want {
 		t.Errorf("the title:\n%q\nwant\n%q", got, want)
 	}
@@ -95,7 +95,7 @@ func TestMaximizeTitleNamesTheTabAndItsCount(t *testing.T) {
 		t.Errorf("after 2, the title: %q", lines(m)[0])
 	}
 	// the search stays at its right
-	if !strings.Contains(raw(m), "🔎 search") {
+	if !strings.Contains(raw(m), "🔎 "+shell.Idle) {
 		t.Errorf("the search went:\n%s", raw(m))
 	}
 }

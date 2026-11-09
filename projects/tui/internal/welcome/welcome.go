@@ -138,7 +138,7 @@ type Model struct {
 	cancel    context.CancelFunc                        // ends ctx
 	exec      func(*exec.Cmd, tea.ExecCallback) tea.Cmd // hands the terminal to a fix; tea.ExecProcess but in tests
 	workspace kit.Workspace                             // the workspace kittui opened the screen on, zero while unknown
-	books     shell.BooksMenu                           // the title's 📚 control, which has the keyboard while open
+	books     shell.BooksMenu                           // the title's workspace menu, which has the keyboard while open
 	tabs      []tab                                     // the steps, in order: the known ones until the pages are read
 	step      int                                       // the selected step
 	inPane    bool                                      // whether the pane, a check's row or the page, has the keyboard
@@ -201,7 +201,7 @@ func (m Model) chose(c shell.Choice) tea.Cmd {
 	return nil
 }
 
-// Books gives the title's 📚 control.
+// Books gives the title's workspace menu.
 func (m Model) Books() shell.BooksMenu { return m.books }
 
 // Init runs the checks and reads the pages, at once.
@@ -451,7 +451,8 @@ func (m *Model) fixed(msg fixedMsg) {
 	}
 }
 
-// key takes a key press: the quitting keys, the app's menu's while it is open, = for it, the bar's, then the pane's.
+// key takes a key press: the quitting keys, the app's menu's while it is open, = for it, - for the workspace menu,
+// the bar's, then the pane's.
 func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
 	case "ctrl+c":
@@ -496,6 +497,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
 	case "=":
 		m.appMenu = m.appMenu.Opened()
+		return m, nil
+	case shell.Workspaces:
+		m.books = m.books.Opened()
 		return m, nil
 	case "/":
 		m.focusSearch(true)

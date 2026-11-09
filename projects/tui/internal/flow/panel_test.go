@@ -131,8 +131,8 @@ func glyphAt(m Model) int {
 // click on it gives it the keyboard; down then has nothing to move to. What is typed past its room grows it leftward.
 func TestTheSearchStandsOnTheTopRight(t *testing.T) {
 	m := loaded(t, options(), down)
-	idle := m.width - 1 - ansi.StringWidth(grid.Search+" search")
-	if top := strings.Split(raw(m), "\n")[0]; !strings.HasSuffix(top, grid.Search+" search") ||
+	idle := m.width - 1 - ansi.StringWidth(grid.Search+" "+shell.Idle)
+	if top := strings.Split(raw(m), "\n")[0]; !strings.HasSuffix(top, grid.Search+" "+shell.Idle) ||
 		ansi.StringWidth(top) != m.width-1 || glyphAt(m) != idle || m.bar().Width != 120 {
 		t.Fatalf("the search is not right-aligned, or the bar is %d wide: %q", m.bar().Width, top)
 	}

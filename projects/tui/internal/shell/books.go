@@ -1,6 +1,6 @@
-// The 📚 control is the workspace on every screen's title line, after the screen's label: 📚 owner/repo for one
-// repository, 📚 and a group's name and its count of members, the count dim, for a group, both in the repository's
-// color, and 📚 alone, dim, with none. Until kit says which workspace it is, it names the origin's owner/repo, as the
+// The workspace menu is the workspace on every screen's title line, after the screen's label: - owner/repo for one
+// repository, - and a group's name and its count of members, the count dim, for a group, both in the repository's
+// color, and - alone, dim, with none. Until kit says which workspace it is, it names the origin's owner/repo, as the
 // title did before. A plain click on it drops down what to switch to: the groups the repository belongs to, first;
 // the favorites; and Browse…, New workspace…, and Manage workspaces…. A line that cannot switch now stays, dim: the
 // workspace shown, a repository not cloned, and the three that open what is still to come. When kit could not say,
@@ -9,6 +9,7 @@ package shell
 
 import (
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -19,7 +20,19 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
-// Books is the workspace's glyph, on the title line and beside each group in its dropdown.
+// Workspaces is the workspace menu's glyph: on the title line, before the workspace it names, and the glyph its
+// dropdown hangs from; -, the key that drops it down, as = is the app menu's glyph and its key.
+const Workspaces = "-"
+
+// WorkspaceScreenKeys gives a screen's segment, as ScreenKeys does, on a screen with a workspace menu: - drops it down,
+// named after =, in the title's order.
+func WorkspaceScreenKeys(own ...Binding) Segment {
+	s := ScreenKeys(own...)
+	s.Bindings = slices.Insert(s.Bindings, 1, Bind(Workspaces, "workspace"))
+	return s
+}
+
+// Books is a group's glyph, beside its line in the dropdown: two cells wide, as every glyph in a menu is.
 const Books = "📚"
 
 // The glyphs of the dropdown's lines besides the groups': a favorite, and the three that open what is still to come.
@@ -48,7 +61,7 @@ func Pick(workspace string) tea.Cmd {
 	return func() tea.Msg { return PickMsg{workspace} }
 }
 
-// BooksMenu is the 📚 control on a screen's title line: the workspace it names, the origin's owner/repo it names
+// BooksMenu is the workspace menu on a screen's title line: the workspace it names, the origin's owner/repo it names
 // until kit says, kit's line when kit could not, and its dropdown.
 type BooksMenu struct {
 	Workspace kit.Workspace
@@ -78,13 +91,13 @@ func (b BooksMenu) Label() string {
 	ws := b.Workspace
 	switch {
 	case ws.Kind == "group":
-		return Books + " " + style.Repo(ws.Name) + " " + style.Off(strconv.Itoa(len(ws.Members)))
+		return Workspaces + " " + style.Repo(ws.Name) + " " + style.Off(strconv.Itoa(len(ws.Members)))
 	case ws.Kind == "repository":
-		return Books + " " + style.Repo(repoName(ws.Member, ws.Checkout))
+		return Workspaces + " " + style.Repo(repoName(ws.Member, ws.Checkout))
 	case ws.Kind == "" && b.Fallback != "":
-		return Books + " " + style.Repo(b.Fallback)
+		return Workspaces + " " + style.Repo(b.Fallback)
 	}
-	return style.Off(Books)
+	return style.Off(Workspaces)
 }
 
 // repoName gives a repository's short name: its member's owner/repo, the last two segments of host/path; with no
@@ -97,8 +110,12 @@ func repoName(member, checkout string) string {
 	return strings.Join(segments[max(1, len(segments)-2):], "/")
 }
 
-// BooksAt gives the column the 📚 starts at on a title line drawn as the title given, then " · ", then the control.
-func BooksAt(title string) int { return ansi.StringWidth(title) + 3 }
+// Between stands between the title line's parts, the screen's name, the workspace menu, and a maximized tab: a dot, dim,
+// a space either side, so the menus' glyphs beside it stand out as what is clicked.
+var Between = " " + style.Off("·") + " "
+
+// BooksAt gives the column the - starts at on a title line drawn as the title given, then Between, then the control.
+func BooksAt(title string) int { return ansi.StringWidth(title + Between) }
 
 // On says whether a click at x, y is on the control drawn from the column at on the title line.
 func (b BooksMenu) On(x, y, at int) bool {
@@ -176,11 +193,11 @@ func (b BooksMenu) Opened() BooksMenu {
 // for none.
 func (b BooksMenu) Key(k tea.KeyPressMsg) (BooksMenu, string) {
 	var at int
-	b.Dropdown, at = b.Dropdown.Key(k, b.Items(), b.enabled)
+	b.Dropdown, at = b.Dropdown.Key(k, b.Items(), b.enabled, Workspaces)
 	return b, b.target(at)
 }
 
-// Click takes a left click while the dropdown is open, hanging from the 📚 at the column at, the screen's rows as
+// Click takes a left click while the dropdown is open, hanging from the - at the column at, the screen's rows as
 // wide as room, as a dropdown does; it gives the control and the workspace picked, "" for none.
 func (b BooksMenu) Click(x, y, at, room int) (BooksMenu, string) {
 	box, left := b.box(at, room)
@@ -189,7 +206,7 @@ func (b BooksMenu) Click(x, y, at, room int) (BooksMenu, string) {
 	return b, b.target(k)
 }
 
-// Overlay draws the open dropdown over the screen's lines, hanging from the 📚 at the column at, the rows as wide as
+// Overlay draws the open dropdown over the screen's lines, hanging from the - at the column at, the rows as wide as
 // room.
 func (b BooksMenu) Overlay(lines []string, at, room int) []string {
 	if !b.Open {
@@ -201,5 +218,5 @@ func (b BooksMenu) Overlay(lines []string, at, room int) []string {
 
 // box gives the open dropdown's lines and the column its left edge is drawn at.
 func (b BooksMenu) box(at, room int) ([]string, int) {
-	return Box(b.Items(), b.enabled, b.At, Books, at, room)
+	return Box(b.Items(), b.enabled, b.At, Workspaces, at, room)
 }

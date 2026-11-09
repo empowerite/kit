@@ -74,13 +74,13 @@ func (m Model) bar() tabs.Bar {
 // paneHeight gives the lines the pane has.
 func (m Model) paneHeight() int { return max(1, m.height-fixed) }
 
-// title gives the title line: as internal/shell draws it, the app's menu's glyph before kit welcome; then the 📚
-// control, which names the workspace.
+// title gives the title line: as internal/shell draws it, the app's menu's glyph before kit welcome; then the workspace
+// menu, which names the workspace.
 func (m Model) title() string {
-	return shell.Title(style.Label(appLabel), m.appMenu.Open) + " · " + m.books.Label()
+	return shell.Title(style.Label(appLabel), m.appMenu.Open) + shell.Between + m.books.Label()
 }
 
-// booksAt gives the column the title's 📚 control starts at.
+// booksAt gives the column the title's workspace menu starts at.
 func (m Model) booksAt() int { return shell.BooksAt(shell.Title(style.Label(appLabel), false)) }
 
 // keys gives the path to the keyboard, which the keys bar is drawn from: the screen; the steps' bar, whose down enters
@@ -94,7 +94,7 @@ func (m Model) keys() shell.Path {
 	if m.hasRows() {
 		down = "checks"
 	}
-	path := shell.Path{shell.ScreenKeys(), m.bar().Keys(down)}
+	path := shell.Path{shell.WorkspaceScreenKeys(), m.bar().Keys(down)}
 	switch {
 	case m.search().Focused:
 		search := shell.SearchKeys(m.recalls())

@@ -46,7 +46,7 @@ under the earliest root, is the one kit uses. A member with no checkout is still
 3. Outside any repository, it is the last group used.
 4. With no group used yet, there is none.
 
-`kit workspaces --current` says which one, and why. With `--json` it also gives what kittui's 📚 control draws: a
+`kit workspaces --current` says which one, and why. With `--json` it also gives what kittui's workspace menu draws: a
 group's members with their checkouts, the groups a repository belongs to, and the favorites.
 
 ## Commands
@@ -69,6 +69,6 @@ form prints JSON with `--json`; `kit help workspaces` gives the shapes.
 ## Still to come
 
 Groups made by queries (an owner, public or private, a name pattern such as `homebrew-*`, forge topics), groups made
-from a GitHub Project, `kit flow --workspace` with a 📚 repos tab, and the 📚 control in kittui that switches between
+from a GitHub Project, `kit flow --workspace` with a 📚 repos tab, and the workspace menu in kittui that switches between
 workspaces are designed in [the workspaces design](superpowers/specs/2026-11-08-workspaces-design.md), and are not
 built yet.

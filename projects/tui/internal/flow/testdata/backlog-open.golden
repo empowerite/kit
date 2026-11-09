@@ -1,4 +1,4 @@
-  = kit flow · 📚 empowerite/kit                                      🔎 search
+  = kit flow · - empowerite/kit                                      🔎 /search
   ➊╶────────────────╮➁╶─────────────────╮➂╶─────────────╮➃╶──────────────────╮➄╶
   │ 🎫 backlog  3 : │  🛫 underway    4 │  💻 desk    1 │  🌿 worktrees    4 │
   ╵                 ╰───────────────────╰───────────────╰────────────────────╰──
@@ -21,4 +21,4 @@
     ▸  #7  ada           +1  40d                            🎫 Fix the thing
 
 
- = menu / search ? legend │ … │ esc tabs ↑↓ move ␣·⇧↑↓ select ⌃A all ← collapse
+ = menu - workspace / search ? legend │ … │ esc tabs ↑↓ move ␣·⇧↑↓ select ⌃A al…

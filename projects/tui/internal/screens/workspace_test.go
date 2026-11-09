@@ -61,7 +61,7 @@ func drive(m Model, msgs ...tea.Msg) Model {
 
 func TestTheWorkspaceReachesEveryScreenMade(t *testing.T) {
 	m, _, _ := workspaced(t, map[string]string{"current.json": repoJSON})
-	if got := title(m); !strings.Contains(got, "📚 o/a") {
+	if got := title(m); !strings.Contains(got, "- o/a") {
 		t.Errorf("the welcome, made first: %q", got)
 	}
 	m = drive(m, shell.SwitchMsg{Screen: shell.Help}, shell.SwitchMsg{Screen: shell.Tutorials})
@@ -95,7 +95,7 @@ func TestPickingAGroupRemembersItAndRemakesTheScreens(t *testing.T) {
 	if got, _ := os.ReadFile(record); !strings.Contains(string(got), "use w") {
 		t.Errorf("kit was not told: %q", got)
 	}
-	if got := title(m); !strings.Contains(got, "📚 w 1") || strings.Contains(got, "xyz") {
+	if got := title(m); !strings.Contains(got, "- w 1") || strings.Contains(got, "xyz") {
 		t.Errorf("the welcome is not made anew on w: %q", got)
 	}
 	m = drive(m, shell.SwitchMsg{Screen: shell.Help})
@@ -123,7 +123,7 @@ func TestTheFirstLoadInsideARepositoryRemakesNothing(t *testing.T) {
 	}
 	// started where kit says the last group is, the screens are made again over it
 	m = drive(m, workspaceMsg{gen: 0, ws: kit.Workspace{Kind: "group", Name: "w"}})
-	if strings.Contains(title(m), "xyz") || !strings.Contains(title(m), "📚 w") {
+	if strings.Contains(title(m), "xyz") || !strings.Contains(title(m), "- w") {
 		t.Errorf("a group first: %q", title(m))
 	}
 }

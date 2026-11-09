@@ -91,7 +91,7 @@ func group(t *testing.T, msgs ...tea.Msg) (Model, *ran, string, string) {
 func TestAGroupsChecksDrawTogetherWithTheUnclonedNamed(t *testing.T) {
 	m, _, _, _ := group(t)
 	v := view(m)
-	if !strings.Contains(v, "not cloned: o/c") || strings.Contains(v, "☁") || !strings.Contains(v, "📚 w 3") {
+	if !strings.Contains(v, "not cloned: o/c") || strings.Contains(v, "☁") || !strings.Contains(v, "- w 3") {
 		t.Errorf("the intro:\n%s", v)
 	}
 	m = drive(m, press('3'))

@@ -132,7 +132,7 @@ dialog's typing. A type that drew their lines too would hold four looks for four
 
 Every screen has the same frame, in three parts, in the same places (#96):
 
-- The menu bar, the first line: the kit menu `=`, the screen's name, a separator, the workspace menu 📚 and the
+- The menu bar, the first line: the kit menu `=`, the screen's name, a separator, the workspace menu `-` and the
   workspace's name, a separator and the tab menu while a tab is maximized, space, and the search field at the right
   end. Another menu may come to stand right of the search field.
 - The status bar, the last line: the key hints, space, and the quota meter. A notice or an alert stands over the key
@@ -157,9 +157,9 @@ used in the code today that differs is in the last column, to be renamed as the 
 | | `=` | kit menu | app's menu |
 | | `kit flow` | screen name | title |
 | | `·` | separator | dot |
-| | `📚` and `empowerite/kit` | workspace menu, workspace name | the 📚 control |
+| | `-` and `empowerite/kit` | workspace menu, workspace name | the workspace menu |
 | | `🎫 backlog :` while a tab is maximized | tab menu | tab's menu |
-| | `🔎 search` | search field | the search |
+| | `🔎 /search` | search field | the search |
 | last line | the whole line | status bar | keys bar |
 | | the keys, at the left | key hints | keys bar |
 | | the rate limits, at the right | quota meter | quota |

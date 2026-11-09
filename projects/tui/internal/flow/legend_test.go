@@ -319,7 +319,7 @@ func TestTheSelectedTabIsDrawnInItsGroupsColor(t *testing.T) {
 	}
 }
 
-// The title's glyph is the 📚 control's, and the legend says it names the workspace.
+// The legend's glyph for the workspace is a group's in the workspace menu, 📚, and it says it names the workspace.
 func TestTheTitlesGlyphIsTheWorkspaces(t *testing.T) {
 	if title != (entry{shell.Books, "the workspace"}) {
 		t.Errorf("the title's entry: %+v", title)

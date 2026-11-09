@@ -1,4 +1,4 @@
-// The picture's title carries the 📚 control, as every screen's does: it names the workspace kit says, drops down
+// The picture's title carries the workspace menu, as every screen's does: it names the workspace kit says, drops down
 // what to switch to on a plain click, and a pick asks kittui to switch.
 package flow
 
@@ -21,13 +21,24 @@ func leftAt(x, y int) tea.MouseClickMsg { return tea.MouseClickMsg{X: x, Y: y, B
 
 func TestThePicturesTitleIsTheBooksControl(t *testing.T) {
 	m := loaded(t, options())
-	if title := lines(m)[0]; !strings.Contains(title, "kit flow · 📚 empowerite/kit") {
+	if title := lines(m)[0]; !strings.Contains(title, "kit flow · - empowerite/kit") {
 		t.Errorf("before kit says, origin's owner/repo: %q", title)
 	}
 	m = drive(m, shell.WorkspaceMsg{Workspace: kit.Workspace{Kind: "group", Name: "w",
 		Members: []kit.WorkspaceMember{{Repository: "github.com/o/a"}, {Repository: "github.com/o/b"}}}})
-	if title := lines(m)[0]; !strings.Contains(title, "kit flow · 📚 w 2") {
+	if title := lines(m)[0]; !strings.Contains(title, "kit flow · - w 2") {
 		t.Errorf("a group: %q", title)
+	}
+}
+
+// - drops the workspace menu down, as a click on it does, and - again closes it.
+func TestMinusDropsTheWorkspaceMenuDown(t *testing.T) {
+	m := loaded(t, options(), shell.WorkspaceMsg{Workspace: inW})
+	if m = drive(m, typed(shell.Workspaces)...); !m.books.Open {
+		t.Fatalf("- did not drop the workspace menu down:\n%s", view(m))
+	}
+	if m = drive(m, typed(shell.Workspaces)...); m.books.Open {
+		t.Errorf("- again left it open")
 	}
 }
 

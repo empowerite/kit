@@ -1,4 +1,4 @@
-// The title's 📚 is the workspace control: it names the workspace kit says, drops down what to switch to on a plain
+// The title's - is the workspace menu: it names the workspace kit says, drops down what to switch to on a plain
 // click, and a pick asks kittui to switch.
 package welcome
 
@@ -24,17 +24,29 @@ func click(x, y int) tea.MouseClickMsg {
 
 func TestTheTitleIsTheBooksControl(t *testing.T) {
 	m, _ := loaded(t)
-	if title := strings.Split(view(m), "\n")[0]; !strings.Contains(title, "kit welcome · 📚 empowerite/kit") {
+	if title := strings.Split(view(m), "\n")[0]; !strings.Contains(title, "kit welcome · - empowerite/kit") {
 		t.Errorf("before kit says, the title names origin's owner/repo: %q", title)
 	}
 	w := kit.Workspace{Kind: "group", Name: "w", Members: []kit.WorkspaceMember{{Repository: "github.com/o/a"},
 		{Repository: "github.com/o/b"}}}
 	m = drive(m, shell.WorkspaceMsg{Workspace: w})
-	if title := strings.Split(view(m), "\n")[0]; !strings.Contains(title, "kit welcome · 📚 w 2") {
+	if title := strings.Split(view(m), "\n")[0]; !strings.Contains(title, "kit welcome · - w 2") {
 		t.Errorf("a group: %q", title)
 	}
 	if m.Books().Workspace.Name != "w" {
 		t.Errorf("the control: %+v", m.Books())
+	}
+}
+
+// - drops the workspace menu down, as a click on it does, and - again closes it.
+func TestMinusDropsTheWorkspaceMenuDown(t *testing.T) {
+	m, _ := loaded(t, shell.WorkspaceMsg{Workspace: inW})
+	minus := tea.KeyPressMsg{Code: '-', Text: shell.Workspaces}
+	if m = drive(m, minus); !m.books.Open {
+		t.Fatalf("- did not drop the workspace menu down:\n%s", view(m))
+	}
+	if m = drive(m, minus); m.books.Open {
+		t.Errorf("- again left it open")
 	}
 }
 

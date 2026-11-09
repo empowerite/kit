@@ -347,7 +347,7 @@ workspaces:current() {
 }
 
 # workspaces:menu-json <current> prints the current workspace's JSON, as workspaces:current prints it, with what the
-# 📚 control draws added: members, a group's fixed members as --show gives each; groups, for a repository with a
+# workspace menu draws added: members, a group's fixed members as --show gives each; groups, for a repository with a
 # member, each group whose fixed members hold it, {name, members}, members a count; and favorites, each that names a
 # group in the file or a repository, {name, kind, members, checkout}, members a group's count and checkout a
 # repository's. The roots are walked once, and only when a member or a favorite needs a checkout.

@@ -1,4 +1,4 @@
-  = kit flow · 📚 empowerite/kit                                                                              🔎 search
+  = kit flow · - empowerite/kit                                                                              🔎 /search
   ➀╶────────────────╴➋╶─────────────────╮➂╶─────────────╮➃╶──────────────────╮➄╶────────────────╮➅╶───────────────╮➆╶───
     🎫 backlog    3  │ 🛫 underway  4 : │  💻 desk    1 │  🌿 worktrees    4 │  🔀 changes    3 │  🏭 builds    4 │    ▹
   ───────────────────╯                  ╰───────────────╰────────────────────╰──────────────────╰─────────────────╰─────
@@ -21,4 +21,4 @@
     ▸  #8                     2d  🔀 #11  🔨 draft          🌱 local              2h                 🎫 Lint the modul…
     ▸ #31  ada                3h  🔀 #12  💬 comments:open  👤 ada                                   🎫 kit commit, ki…
 
- = menu / search ? legend │ 1-8 jump : tab menu │ esc tabs ↑↓ move ␣·⇧↑↓ select ⌃A all ← collapse
+ = menu - workspace / search ? legend │ 1-8 jump : tab menu │ esc tabs ↑↓ move ␣·⇧↑↓ select ⌃A all ← collapse

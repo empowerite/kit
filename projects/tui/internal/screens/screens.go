@@ -6,7 +6,7 @@
 // a screen shown again is told the size the terminal has now.
 //
 // The root reads the workspace from kit once kittui starts, and tells every screen made, as it tells the settings. A
-// screen's 📚 control asks for another; the root asks kit for it, keeping a group as the last used, and tells every
+// screen's workspace menu asks for another; the root asks kit for it, keeping a group as the last used, and tells every
 // screen again. When the place the screens read moves, to another repository or onto or off a group, the screens made
 // are made anew there, all but the tutorials and the help, which read kit alone. Only the latest ask lands.
 package screens

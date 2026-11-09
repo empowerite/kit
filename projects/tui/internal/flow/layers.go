@@ -1,7 +1,7 @@
 // The picture's layers: what it opens over itself, in the one order the keys, the clicks, the keys bar, and the drawing
 // follow, as shell.Layers says, the topmost first: what a backlog action asks, which takes every key and click until it
 // is answered; a field's popover; the fields dialog, which the popover opens over; the presets' menu; the column menu;
-// the searches remembered under the search's ▾; the app's menu; the 📚 control's dropdown; and the tab's menu. The
+// the searches remembered under the search's ▾; the app's menu; the workspace menu's dropdown; and the tab's menu. The
 // two menus that hang from the bar take a left click, and leave the others to the screen, as a right click under them
 // groups.
 package flow
@@ -147,7 +147,7 @@ func (m Model) layers() shell.Layers[Model] {
 			Keys: menu,
 			Draw: func(m Model, lines []string) []string { return m.appMenu.Overlay(lines, m.paneWidth()) },
 		},
-		{ // the 📚 control's dropdown, a pick asking kittui to switch
+		{ // the workspace menu's dropdown, a pick asking kittui to switch
 			Open: func(m Model) bool { return m.books.Open },
 			Key: func(m Model, k tea.KeyPressMsg) (Model, tea.Cmd) {
 				var picked string
@@ -184,7 +184,7 @@ func (m Model) layers() shell.Layers[Model] {
 	}
 }
 
-// booksAt gives the column the title's 📚 control starts at.
+// booksAt gives the column the title's workspace menu starts at.
 func (m Model) booksAt() int { return shell.BooksAt(shell.Title(style.Label(appLabel), false)) }
 
 // model gives a layer's key from one of the picture's own, which gives the picture as a tea.Model.

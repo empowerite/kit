@@ -1,6 +1,6 @@
 {
   "glyphs": [
-    {"name": "Workspace", "glyph": "📚", "meaning": "the workspace", "more": "owner/name or a group, in kittui's title"},
+    {"name": "Workspace", "glyph": "📚", "meaning": "the workspace", "more": "a group, in the workspace menu that drops down from - in kittui's title"},
     {"name": "Issue", "glyph": "🎫", "meaning": "an issue", "more": "its number and title"},
     {"name": "GitHub", "glyph": "🐙", "meaning": "on GitHub", "more": "the tracker that holds an issue"},
     {"name": "GitLab", "glyph": "🦊", "meaning": "on GitLab", "more": "the tracker that holds an issue"},

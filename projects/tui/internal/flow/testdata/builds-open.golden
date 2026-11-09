@@ -1,4 +1,4 @@
-  = kit flow · 📚 empowerite/kit                                                                              🔎 search
+  = kit flow · - empowerite/kit                                                                              🔎 /search
   ➀╶────────────────╮➁╶─────────────────╮➂╶─────────────╮➃╶──────────────────╮➄╶────────────────╴➏╶───────────────╮➆╶───
     🎫 backlog    3 │  🛫 underway    4 │  💻 desk    1 │  🌿 worktrees    4 │  🔀 changes    3  │ 🏭 builds  4 : │    ▹
   ──────────────────╰───────────────────╰───────────────╰────────────────────╰───────────────────╯                ╰─────
@@ -21,4 +21,4 @@
 
 
 
- = menu / search ? legend │ 1-8 jump : tab menu │ esc tabs ↑↓ move ␣·⇧↑↓ select ⌃A all ← collapse
+ = menu - workspace / search ? legend │ 1-8 jump : tab menu │ esc tabs ↑↓ move ␣·⇧↑↓ select ⌃A all ← collapse

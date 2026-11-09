@@ -1,4 +1,4 @@
-// The 📚 control names the workspace on the title line and drops down the groups and the favorites to switch to.
+// The workspace menu names the workspace on the title line and drops down the groups and the favorites to switch to.
 package shell
 
 import (
@@ -33,13 +33,13 @@ func TestBooksNamesARepositoryAGroupAndNone(t *testing.T) {
 		want  string
 	}{
 		{BooksMenu{Workspace: kit.Workspace{Kind: "repository", Member: "github.com/empowerite/kit"}},
-			"📚 empowerite/kit"},
+			"- empowerite/kit"},
 		{BooksMenu{Workspace: kit.Workspace{Kind: "repository", Name: "/code/scratch", Checkout: "/code/scratch"}},
-			"📚 scratch"},
-		{BooksMenu{Workspace: group("empowerite", 5)}, "📚 empowerite 5"},
-		{BooksMenu{Fallback: "empowerite/kit"}, "📚 empowerite/kit"},
-		{BooksMenu{Workspace: kit.Workspace{Kind: "none"}, Fallback: "empowerite/kit"}, "📚"},
-		{BooksMenu{}, "📚"},
+			"- scratch"},
+		{BooksMenu{Workspace: group("empowerite", 5)}, "- empowerite 5"},
+		{BooksMenu{Fallback: "empowerite/kit"}, "- empowerite/kit"},
+		{BooksMenu{Workspace: kit.Workspace{Kind: "none"}, Fallback: "empowerite/kit"}, "-"},
+		{BooksMenu{}, "-"},
 	} {
 		if got := ansi.Strip(c.books.Label()); got != c.want {
 			t.Errorf("%+v: %q, want %q", c.books.Workspace, got, c.want)
@@ -49,8 +49,8 @@ func TestBooksNamesARepositoryAGroupAndNone(t *testing.T) {
 		!strings.Contains(label, style.Repo("empowerite")) {
 		t.Errorf("a group's name is the repository's color and its count dim: %q", label)
 	}
-	if label := (BooksMenu{}).Label(); label != style.Off(Books) {
-		t.Errorf("no workspace is 📚 alone, dim: %q", label)
+	if label := (BooksMenu{}).Label(); label != style.Off(Workspaces) {
+		t.Errorf("no workspace is - alone, dim: %q", label)
 	}
 }
 
@@ -116,7 +116,7 @@ func TestBooksPicksAGroupByClickAndByKey(t *testing.T) {
 		t.Error("esc leaves it open")
 	}
 	lines := b.Opened().Overlay(make([]string, 12), at, 120)
-	if !strings.Contains(ansi.Strip(lines[Top]), Books) || !strings.Contains(ansi.Strip(lines[Top+1]), "w 2") {
+	if !strings.Contains(ansi.Strip(lines[Top]), Workspaces) || !strings.Contains(ansi.Strip(lines[Top+1]), "w 2") {
 		t.Errorf("drawn:\n%s", ansi.Strip(strings.Join(lines, "\n")))
 	}
 	if lines := (BooksMenu{Workspace: inGroups}).Overlay(make([]string, 3), at, 120); lines[0] != "" {
@@ -126,7 +126,7 @@ func TestBooksPicksAGroupByClickAndByKey(t *testing.T) {
 
 func TestBooksSaysKitsLineWhenKitCouldNot(t *testing.T) {
 	b := BooksMenu{Fallback: "empowerite/kit"}.Told(WorkspaceMsg{Refusal: "no kit verb 'workspaces'"})
-	if ansi.Strip(b.Label()) != "📚 empowerite/kit" {
+	if ansi.Strip(b.Label()) != "- empowerite/kit" {
 		t.Errorf("the label: %q", ansi.Strip(b.Label()))
 	}
 	if items := b.Items(); items[0].Glyph != "❌" || items[0].Name != "no kit verb 'workspaces'" || b.enabled(0) {
@@ -152,7 +152,7 @@ func TestBooksIsClickedOnItsCells(t *testing.T) {
 		t.Errorf("on its cells %d..%d", at, end)
 	}
 	if line := title + " · " + b.Label(); ansi.StringWidth(title)+3 != at || !strings.HasPrefix(ansi.Strip(
-		from(line, at)), Books) {
+		from(line, at)), Workspaces) {
 		t.Errorf("BooksAt: %d in %q", at, ansi.Strip(line))
 	}
 }

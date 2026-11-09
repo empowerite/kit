@@ -161,12 +161,12 @@ func TestTheSearchIsTheSameOnEveryScreen(t *testing.T) {
 		t.Error("backspace on nothing")
 	}
 	if SearchLine("co", true) != Find+" co▏" || SearchLine("co", false) != Find+" co" ||
-		SearchLine("", false) != Find+" "+style.Off("search") {
+		SearchLine("", false) != Find+" "+style.Off(Idle) {
 		t.Error("the search's line")
 	}
 	// right-aligned a cell short of the edge, idle or with the keyboard, until what is typed needs more room; then it
 	// grows leftward, as far as the screen's first cell
-	idle := 80 - 1 - ansi.StringWidth(Find+" search")
+	idle := 80 - 1 - ansi.StringWidth(Find+" "+Idle)
 	for _, line := range []string{SearchLine("", false), SearchLine("", true), SearchLine("co", true)} {
 		if at := SearchAt(80, line); at != idle {
 			t.Errorf("%q at %d", line, at)
