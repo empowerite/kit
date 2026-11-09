@@ -172,6 +172,21 @@ func TestARowOfOneCellSpansTheWidthAndOpensWhenItsTextIsCut(t *testing.T) {
 	}
 }
 
+// An open row of one cell is drawn no wider than the pane: the wrap keeps lines ten cells wide where the pane leaves
+// fewer, and a word wider than the pane stands alone, so each line is clipped, as an open row of several cells is.
+func TestAnOpenRowOfOneCellIsNoWiderThanThePane(t *testing.T) {
+	rows := []Row{{Key: "h", Cells: []Cell{{Values: []string{"📡 origin · github · github.com"}, Wrap: true}}}}
+	open := plain(Draw(rows, nil, 12, -1, func(Row) bool { return true }, nil))
+	if len(open) < 2 || !strings.HasPrefix(open[0], "  ▾ 📡") {
+		t.Fatalf("the row does not open: %q", open)
+	}
+	for _, l := range open {
+		if n := ansi.StringWidth(l); n > 12 {
+			t.Errorf("a line of %d cells in a pane of 12: %q", n, l)
+		}
+	}
+}
+
 // Step moves a field a place: within its section, a column changes position and a group depth; past its section's end,
 // its placement, a column up into the groups' last depth where it can group, and down into the hidden, a group down
 // into the first column, a hidden field up into the last column. A field that cannot move that way stays, and says so.

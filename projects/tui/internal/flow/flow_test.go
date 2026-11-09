@@ -1063,7 +1063,8 @@ func TestEveryLineFitsTheWidthInCells(t *testing.T) {
 }
 
 // everyLineFits opens each stage's first row in turn, at the width, with the legend or without, and holds every line to
-// the width; at 80 columns or fewer, a long title is clipped.
+// the width; at 80 columns or fewer, a long title is clipped. Esc leaves the rows for the bar, whence right is the next
+// stage; up would stop on the control line, and right there opens a level.
 func everyLineFits(t *testing.T, width int, legend bool) {
 	// one load for the eight: each stage in turn, its first row open, then back to the bar
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: width, Height: 40})
@@ -1072,7 +1073,10 @@ func everyLineFits(t *testing.T, width int, legend bool) {
 	}
 	for i := range eight {
 		if i > 0 {
-			m = drive(m, up, right)
+			m = drive(m, esc, right)
+		}
+		if m.stage != i {
+			t.Fatalf("at %d, legend %v: on stage %d, not %s's", width, legend, m.stage, eight[i])
 		}
 		m = drive(intoRows(m), toggle)
 		clipped := false

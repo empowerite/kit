@@ -663,10 +663,15 @@ func closedLine(r []Cell, widths []int, left, width int, chosen bool) string {
 
 // openLines draws an open row: as many lines as its tallest cell, each value on a line of its own in its column, a value
 // wider than its column broken across lines in it, and the text that wraps wrapped in its; the chosen row's first cell
-// is drawn as choose says, as a closed row's is.
+// is drawn as choose says, as a closed row's is. Every line is clipped to the width, a row of one cell's too: the wrap
+// keeps lines ten cells wide where the width is less, and a word wider than the width stands alone.
 func openLines(r []Cell, widths []int, left, width int, chosen bool) []string {
 	if len(r) == 1 {
-		return wrapped(r[0], width)
+		lines := wrapped(r[0], width)
+		for k, l := range lines {
+			lines[k] = pane.Clip(l, width)
+		}
+		return lines
 	}
 	columns := make([][]string, len(r))
 	height := 1
