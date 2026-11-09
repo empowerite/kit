@@ -259,7 +259,7 @@ func (m *Model) presetKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 		}
 	}
 	switch key {
-	case "left":
+	case "shift+tab":
 		n := len(m.stops())
 		if n == 0 {
 			return nil, false

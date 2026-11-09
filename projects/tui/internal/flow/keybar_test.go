@@ -18,8 +18,8 @@ func TestEveryKeyTheBarNamesDoesSomething(t *testing.T) {
 	// the presets dropped down from the preset line, up past the view the line is set to, Save As…, and the dim Save,
 	// to Fields…, chosen: the columns dialog; from the bar, down to the preset line first
 	fromLine := []tea.Msg{press(tea.KeyEnter), up, up, press(tea.KeyEnter)}
-	// down reaches source's name in the heading over the groups; right twice, past the rows', the preset picker
-	line := []tea.Msg{down, right, right}
+	// down reaches source's name in the heading over the groups; tab twice, past the rows', the preset picker
+	line := []tea.Msg{down, tab, tab}
 	columns := append(slices.Clone(line), fromLine...)
 	for _, c := range []struct {
 		where   string
@@ -48,7 +48,7 @@ func TestEveryKeyTheBarNamesDoesSomething(t *testing.T) {
 			press(tea.KeyEnter)), slices.Repeat([]tea.Msg{down}, 20)...), press(tea.KeySpace), up, up), true},
 		{"on the bar, over a preset line", nil, true},
 		{"on the heading over the groups, on a name", []tea.Msg{down}, true},
-		{"on the heading over the groups, on the rows'", []tea.Msg{down, right}, true},
+		{"on the heading over the groups, on the rows'", []tea.Msg{down, tab}, true},
 		{"on the preset line", line, true},
 		{"on the preset line, the table changed", append(append(slices.Clone(line), fromLine...), down,
 			press(tea.KeySpace), esc), true},

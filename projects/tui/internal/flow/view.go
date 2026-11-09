@@ -193,6 +193,10 @@ func (m Model) presetKeys() shell.Segment {
 	if len(m.rows(m.stage)) > 0 {
 		s.Bindings = append(s.Bindings, shell.Bind("↓", "rows", "down"))
 	}
+	// shift-tab goes back to the heading over the groups, where the rows group
+	if len(m.stops()) > 0 {
+		s.Bindings = append(s.Bindings, shell.Bind("⇧⇥", "groups", "shift+tab"))
+	}
 	return s.With(shell.Bind("⏎", "presets", "enter", "space"))
 }
 

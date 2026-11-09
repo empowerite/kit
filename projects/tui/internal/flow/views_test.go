@@ -23,10 +23,10 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
-// toPresets gives the preset picker the keyboard from the bar: down onto the control line's first stop, then right
+// toPresets gives the preset picker the keyboard from the bar: down onto the control line's first stop, then tab
 // past the stops of the heading over the groups.
 func toPresets(m Model) Model {
-	for m = drive(m, down); ; m = drive(m, right) {
+	for m = drive(m, down); ; m = drive(m, tab) {
 		if _, on := m.atStop(); !on {
 			return m
 		}
