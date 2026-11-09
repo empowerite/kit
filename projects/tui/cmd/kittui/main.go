@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"golang.org/x/term"
@@ -50,6 +51,9 @@ func run(args []string, stderr io.Writer) int {
 		return 2
 	}
 	r := kit.New()
+	if verb == "flow" {
+		r.Group, words = workspaceOf(words)
+	}
 	first, m, err := open(r, verb, words)
 	if err != nil {
 		return refuse(err, stderr)
@@ -93,6 +97,24 @@ func open(r kit.Runner, verb string, words []string) (shell.Screen, tea.Model, e
 	}
 	m, err := app.Open(r, verb, words)
 	return shell.Help, m, err
+}
+
+// workspaceOf takes the workspace kit flow was given, --workspace <w> or --workspace=<w>, out of its words: the group
+// the picture's reads span, which kit refuses to give empty, and the words without it.
+func workspaceOf(words []string) (string, []string) {
+	group, rest := "", []string{}
+	for k := 0; k < len(words); k++ {
+		switch w := words[k]; {
+		case w == "--workspace" && k+1 < len(words):
+			group = words[k+1]
+			k++
+		case strings.HasPrefix(w, "--workspace="):
+			group = strings.TrimPrefix(w, "--workspace=")
+		default:
+			rest = append(rest, w)
+		}
+	}
+	return group, rest
 }
 
 // failed says the program could not run, and ends with 1.

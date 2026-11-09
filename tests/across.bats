@@ -52,6 +52,15 @@ workspaces:
 EOF
 }
 
+# fake-tui puts the fake go and the fake kittui first on PATH, as flow.bats does: kit builds kittui from projects/tui/
+# with the fake go, which writes a script that prints "kittui native-native" and its arguments.
+fake-tui() {
+  mkdir -p "${BATS_TEST_TMPDIR}/fake"
+  ln -s "${BATS_TEST_DIRNAME}/fakes/fake-kittui" "${BATS_TEST_TMPDIR}/fake/kittui"
+  ln -s "${BATS_TEST_DIRNAME}/fakes/fake-go" "${BATS_TEST_TMPDIR}/fake/go"
+  export FAKES="${BATS_TEST_TMPDIR}/fake" PATH="${BATS_TEST_TMPDIR}/fake:${PATH}"
+}
+
 @test "across:members gives each member and its checkout, in the group's order, empty for one not cloned" {
   clone-at "${BATS_TEST_TMPDIR}/code/b" https://github.com/o/b.git
   clone-at "${BATS_TEST_TMPDIR}/code/a dir/a" https://github.com/o/a.git
@@ -314,4 +323,20 @@ local-desks() {
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = repos ]
   [ "${#lines[@]}" -eq 9 ]
+}
+
+@test "on a terminal, kit flow --workspace hands off to kittui; --json, --text, and a stage stay across the members" {
+  fake-tui
+  two-desks
+  cd "${BATS_TEST_TMPDIR}"
+  run pty "'${kit_root}/bin/kit' flow --workspace w --no-fetch"
+  [[ "$output" == *"kittui native-native flow --workspace w --no-fetch"* ]]
+  run pty "'${kit_root}/bin/kit' flow --workspace=w"
+  [[ "$output" == *"kittui native-native flow --workspace w"* ]]
+  run pty "'${kit_root}/bin/kit' flow --workspace w --json --no-fetch"
+  [[ "$output" == *'"stages":'* && "$output" != *"kittui"* ]]
+  run pty "'${kit_root}/bin/kit' flow --workspace w --text --no-fetch"
+  [[ "$output" != *"kittui"* ]]
+  run pty "'${kit_root}/bin/kit' flow desk --workspace w"
+  [[ "$output" != *"kittui"* ]]
 }

@@ -340,3 +340,16 @@ func TestTutorialsOpensItsScreen(t *testing.T) {
 	}
 	m.(tutorials.Model).Close()
 }
+
+func TestFlowTakesTheWorkspaceFromItsWords(t *testing.T) {
+	for _, words := range [][]string{{"--workspace", "w", "--no-fetch"}, {"--workspace=w", "--no-fetch"},
+		{"--no-fetch", "--workspace", "w"}} {
+		group, rest := workspaceOf(words)
+		if group != "w" || strings.Join(rest, " ") != "--no-fetch" {
+			t.Errorf("%q gives %q and %q", words, group, rest)
+		}
+	}
+	if group, rest := workspaceOf([]string{"--no-fetch"}); group != "" || len(rest) != 1 {
+		t.Errorf("no workspace gives %q and %q", group, rest)
+	}
+}
