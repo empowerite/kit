@@ -79,6 +79,7 @@ kit flow repos                                    # the repository you are in, a
 GitLab member beside GitHub ones keeps its forges and trackers. With `--json`, a stage prints `{rows, errors}`: each
 row, or each desk, worktrees, or incoming object, gains `member`, its host and path; a member that could not be read
 is `{member, error}` under `errors`, and the others still draw. A member with no checkout draws no stage but `repos`.
+Over a workspace, the stages are `repos` and kit's eight, whatever the `kit.yml` where you run it says.
 `--stages`, `--marks`, and `--quota` span the members too; a pull request's number, and `--me`, name one repository's,
 and are refused.
 

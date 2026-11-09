@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # kit-flow - shows where the work stands, from backlog to releases (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit flow [--workspace <workspace>] [--no-fetch] [--fresh] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]
+# kit flow [--no-fetch] [--fresh] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]] [--workspace <workspace>]
 #
 # Draws the picture of the work. It changes nothing. Work moves left to right through eight stages:
 #
@@ -74,21 +74,21 @@
 #
 # kit flow --marks [--workspace <workspace>]
 #
-# kit flow backlog [--workspace <workspace>] [--json | --jq] [--cached] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]]
+# kit flow backlog [--json | --jq] [--cached] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]] [--workspace <workspace>]
 #
-# kit flow underway [--workspace <workspace>] [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]]
+# kit flow underway [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]] [--workspace <workspace>]
 #
-# kit flow incoming [--workspace <workspace>] [--no-fetch] [--json | --jq] [--cached]
+# kit flow incoming [--no-fetch] [--json | --jq] [--cached] [--workspace <workspace>]
 #
-# kit flow desk [--workspace <workspace>] [--json | --jq] [--cached]
+# kit flow desk [--json | --jq] [--cached] [--workspace <workspace>]
 #
-# kit flow worktrees [--workspace <workspace>] [--json | --jq] [--cached]
+# kit flow worktrees [--json | --jq] [--cached] [--workspace <workspace>]
 #
-# kit flow changes [--workspace <workspace>] [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]] [<number>…]
+# kit flow changes [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]] [--workspace <workspace>] [<number>…]
 #
-# kit flow builds [--workspace <workspace>] [--json | --jq] [--cached]
+# kit flow builds [--json | --jq] [--cached] [--workspace <workspace>]
 #
-# kit flow releases [--workspace <workspace>] [--json | --jq] [--cached]
+# kit flow releases [--json | --jq] [--cached] [--workspace <workspace>]
 #
 # kit flow repos [--workspace <workspace>] [--json | --jq]
 #
@@ -119,6 +119,22 @@
 # run on a tag. sha is the commit's short hash and title the forge's headline for the run, each empty when the forge
 # gives none. state is running, passed, failed, or cancelled. took is null while the run runs. jobs is empty when the
 # forge does not report them cheaply; each is {name, state, took, step}, step the failed step's name, or null.
+#
+# Over a workspace
+#
+# --workspace names a group, or a repository by its host and path, as kit workspaces names them. Each form then runs
+# in every member's checkout at once, each under that checkout's own kit.yml, and the stages are repos and kit's eight,
+# whatever the kit.yml where it runs says. With --json, a stage prints {rows, errors}: each row, or each desk,
+# worktrees, or incoming object, gains member, its host and path; a member that could not be read is {member, error},
+# its line, under errors, and every other member still draws, so the stage exits 0. The picture prints {stages, repos,
+# <stage>…}, each stage so. As text, the picture draws repos, then each cloned member's picture under its member, and
+# exits 1 when one of them did. A member with no checkout draws only its repos row. --marks and --quota span the
+# members; a pull request's number names one repository's, and is refused.
+#
+# repos lists the workspace's members, or with no --workspace the repository here: a row per member, {repository,
+# host, path, forge, remotes, checkout, checkouts, by, branch, ahead, behind, error}. remotes is [{name, url, forge}];
+# by is fixed for a group's member, given for a repository named, and here for the one kit runs in. branch, ahead, and
+# behind are its desk's, and null for a member not cloned; error is the desk's line where it could not be read.
 #
 # Legend
 #
@@ -239,9 +255,20 @@ words=()
 while (( $# > 0 ))
 do
   case "$1" in
-    (--workspace)
-      workspace=$2
-      shift 2
+    (--workspace | --workspace=*)
+      if [[ "$1" == --workspace ]]
+      then
+        workspace=${2:-}
+        (( $# > 1 )) && shift
+      else
+        workspace=${1#--workspace=}
+      fi
+      shift
+      if [[ -z "${workspace}" ]]
+      then
+        error "--workspace names a workspace: a group's name, or a repository's host and path; run: kit workspaces"
+        exit 2
+      fi
       ;;
     (*)
       words+=("$1")

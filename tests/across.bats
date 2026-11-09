@@ -254,3 +254,64 @@ local-desks() {
   run "${kit_root}/bin/kit" flow --me --workspace w
   [ "$status" -eq 2 ]
 }
+
+@test "the repos text keeps each field in its place, an empty one left out" {
+  two-desks
+  git -C "${BATS_TEST_TMPDIR}/code/a" commit --quiet --allow-empty --message ahead
+  cd "${BATS_TEST_TMPDIR}"
+  run "${kit_root}/bin/kit" flow repos --workspace w
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "📚 github.com/o/a  github  main ↑1  ${BATS_TEST_TMPDIR}/code/a" ]
+  [ "${lines[2]}" = "📚 github.com/o/c  github  not cloned" ]
+}
+
+@test "--workspace=w is --workspace w, and an empty workspace is refused with 2" {
+  two-desks
+  cd "${BATS_TEST_TMPDIR}"
+  run "${kit_root}/bin/kit" flow desk --workspace=w --json
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '[.rows[].member]' <<<"$output")" = '["github.com/o/a","github.com/o/b"]' ]
+  run "${kit_root}/bin/kit" flow desk --workspace '' --json
+  [ "$status" -eq 2 ]
+}
+
+@test "a command over a workspace walks the roots once, and the JSON picture reads no member's desk twice" {
+  local-desks
+  cd "${BATS_TEST_TMPDIR}"
+  calls=${BATS_TEST_TMPDIR}/calls
+  for words in "--marks" "--no-fetch --json" "--no-fetch --text"
+  do
+    : > "${calls}"
+    kit-bash "use across; workspaces:checkouts() { printf walk >> '${calls}'; printf '\\n' >> '${calls}'
+      printf '%s\\t%s\\n' github.com/o/a '${BATS_TEST_TMPDIR}/code/a' github.com/o/b '${BATS_TEST_TMPDIR}/code/b b'; }
+      run() { printf '%s\\n' \"\$*\" >> '${calls}'; \"\${kit_root}/bin/\$1\" \"\${@:2}\"; }
+      across:flow w ${words}" >/dev/null 2>&1 || true
+    [ "$(grep -c '^walk$' "${calls}")" -eq 1 ]
+    [[ "${words}" != *--json* ]] || [ "$(grep -c '^kit flow desk' "${calls}")" -eq 0 ]
+  done
+}
+
+@test "a stage as text over a workspace kit does not know exits 2" {
+  cd "${BATS_TEST_TMPDIR}"
+  run "${kit_root}/bin/kit" flow desk --workspace bogus
+  [ "$status" -eq 2 ]
+  [[ "$output" != *"none of bogus"* ]]
+}
+
+@test "across:merge keeps what a member printed when it exited 1, and names an exit with nothing said" {
+  d=${BATS_TEST_TMPDIR}/m && mkdir -p "$d"
+  printf 'github.com/o/a' > "$d/0.member"; printf '{"fetched":true}' > "$d/0.out"; printf 1 > "$d/0.status"
+  : > "$d/0.err"
+  printf 'github.com/o/b' > "$d/1.member"; : > "$d/1.out"; printf 3 > "$d/1.status"; : > "$d/1.err"
+  run kit-bash "across:merge '$d' object incoming"
+  [ "$output" = '{"rows":[{"fetched":true,"member":"github.com/o/a"}],"errors":[{"member":"github.com/o/b","error":"kit flow incoming exited 3"}]}' ]
+}
+
+@test "over a workspace, the stages are kit's eight, whatever the kit.yml where kit runs says" {
+  local-desks
+  cd "${BATS_TEST_TMPDIR}/code/a"
+  run "${kit_root}/bin/kit" flow --stages --workspace w
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = repos ]
+  [ "${#lines[@]}" -eq 9 ]
+}
