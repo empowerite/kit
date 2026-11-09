@@ -14,19 +14,19 @@
 
 
 
-
-
-                                                                                           ╭─ changes legend ─ ↖ ↗ ↙ ↘ ╮
-                                                                                           │ 🔀 a pull request 🔗      │
-                                                                                           │ 🏃 running                │
-                                                                                           │ ✅ passed                 │
-                                                                                           │ ❌ failed                 │
-                                                                                           │ 💬 threads unresolved     │
-                                                                                           │                           │
-                                                                                           │ state 🔗                  │
-                                                                                           │ 🔨 draft                  │
-                                                                                           │ 🔥 failing:gate           │
-                                                                                           │ 💬 comments:open          │
-                                                                                           │ 🏁 ready                  │
-                                                                                           ╰───────────────────────────╯
+                                                  ╭─ changes legend ────────────────────────────────────────── ↖ ↗ ↙ ↘ ╮
+                                                  │ =  the kit menu                      ▹  more tabs: a click scrolls │
+                                                  │ ·  a separator                       ▼  the presets' menu          │
+                                                  │ -  the workspace menu                ·  sortable: a click sorts    │
+                                                  │ 🔎 the search: / or a click          ▸  closed: a click opens it   │
+                                                  │ ➀  a tab's number, which selects it  🔀 a pull request 🔗          │
+                                                  │ ➎  the selected tab's number         🏁 ready 🔗                   │
+                                                  │ 🎫 the backlog stage                 ✅ passed                     │
+                                                  │ 🛫 the underway stage                🔨 draft 🔗                   │
+                                                  │ 💻 the desk stage                    🏃 running                    │
+                                                  │ 🌿 the worktrees stage               💬 threads unresolved         │
+                                                  │ 🔀 the changes stage                 💬 comments:open 🔗           │
+                                                  │ :  the tab's menu                    🔥 failing:gate 🔗            │
+                                                  │ 🏭 the builds stage                  ❌ failed                     │
+                                                  ╰────────────────────────────────────────────────────────────────────╯
  = menu - workspace / search ? legend │ ←→ tab ↓ preset 1-8 jump : tab menu

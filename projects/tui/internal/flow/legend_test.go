@@ -16,8 +16,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
@@ -150,7 +152,7 @@ func stateOf(glyph string) string {
 }
 
 // F1 or ? floats the legend over the rows, in the bottom right corner as it opens, titled by the stage: it says what
-// each glyph the rows draw now means, and nothing of a glyph they do not draw. An arrow on its top edge moves it to
+// each glyph the rows draw now means, beside it, and nothing of a glyph they do not draw. An arrow on its top edge moves it to
 // that corner, the one it stands in dim; a click elsewhere on it does nothing, and one off it is the screen's.
 func TestTheLegendFloatsInACornerWithTheGlyphsOnTheScreen(t *testing.T) {
 	for _, width := range []int{80, 120, 200} {
@@ -172,7 +174,7 @@ func TestTheLegendFloatsInACornerWithTheGlyphsOnTheScreen(t *testing.T) {
 			for _, e := range entries {
 				on, shown := strings.Contains(drawn, e.glyph), false
 				for _, l := range box {
-					shown = shown || strings.Contains(l, e.glyph) && strings.Contains(ansi.Strip(l), " "+e.meaning)
+					shown = shown || explains(l, e)
 				}
 				if on != shown {
 					t.Errorf("at %d, %s: %s %q drawn %v, in the legend %v:\n%s", width, name, e.glyph, e.meaning, on,
@@ -206,6 +208,26 @@ func TestTheLegendFloatsInACornerWithTheGlyphsOnTheScreen(t *testing.T) {
 	if m = loaded(t, Options{}, press('?')); m.legend.open {
 		t.Error("a legend with no stage")
 	}
+}
+
+// explains says whether a legend's line, in one of its columns, says what the entry says: its glyph, then its meaning,
+// and after it nothing but a mark, the gap before the next column, or the box's edge.
+func explains(line string, e entry) bool {
+	plain, want := ansi.Strip(line), pane.Pad(e.glyph, 2, false)+" "+e.meaning
+	for at := strings.Index(plain, want); at >= 0; {
+		rest := plain[at+len(want):]
+		for _, end := range []string{"  ", " │", " " + ToPage, " " + ToRow} {
+			if rest == "" || strings.HasPrefix(rest, end) {
+				return true
+			}
+		}
+		next := strings.Index(rest, want)
+		if next < 0 {
+			break
+		}
+		at += len(want) + next
+	}
+	return false
 }
 
 // cellOf gives the screen cell a text starts at in a line, or -1.
@@ -323,5 +345,34 @@ func TestTheSelectedTabIsDrawnInItsGroupsColor(t *testing.T) {
 func TestTheTitlesGlyphIsTheWorkspaces(t *testing.T) {
 	if title != (entry{shell.Books, "the workspace"}) {
 		t.Errorf("the title's entry: %+v", title)
+	}
+}
+
+// The legend explains every glyph on the screen, the frame's and the controls' too, each where it means what it says,
+// in the order each first appears, reading from the top left: the kit menu's =, the workspace menu's -, the search,
+// the tabs' numbers, a stage's glyph, the presets' ▼ on the control line, and a sortable column's · on the rule.
+func TestTheLegendExplainsEveryGlyphOnTheScreenInOrder(t *testing.T) {
+	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 120, Height: 40}, press('?'))
+	var order []string
+	for _, l := range m.legendLines() {
+		order = append(order, ansi.Strip(l))
+	}
+	want := []string{shell.App + "  the kit menu", shell.Workspaces + "  the workspace menu",
+		grid.Search + " the search: / or a click", tabs.Marker(0, true) + "  the selected tab's number",
+		tabs.Marker(1, false) + "  a tab's number, which selects it", Issue + " the backlog stage",
+		table.Presets + "  the presets' menu", Sortable + "  sortable: a click sorts"}
+	at := -1
+	for _, w := range want {
+		k := slices.Index(order, w)
+		if k < 0 || k < at {
+			t.Errorf("%q is not in the legend after the line before it:\n%s", w, strings.Join(order, "\n"))
+		}
+		at = k
+	}
+	// a glyph the screen does not show is not listed: no tab is stale, and nothing sorts
+	for _, absent := range []string{tabs.Stale, "▲", "▼  descending"} {
+		if slices.ContainsFunc(order, func(l string) bool { return strings.HasPrefix(l, absent) }) {
+			t.Errorf("the legend lists %q, which the screen does not show", absent)
+		}
 	}
 }

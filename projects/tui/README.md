@@ -70,8 +70,12 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     heading over them, the column grouping on its own; a group the person chooses overrides that, and the rows then
     group as chosen alone. Auto-group, which turns that on or off, and Repeated emoji, which shows an emoji every row
     has instead of dropping it, are kittui's settings, in = Settings…, every view's alike.
-  - The legend, in `legend.go`, floats over the rows while F1 or ? shows it: what each glyph the selected stage's rows
-    draw now means, and nothing of a glyph they do not, each glyph a click leads somewhere from marked. It opens in
+  - The legend, in `legend.go`, floats over the rows while F1 or ? shows it: what each glyph on the screen under it
+    means, the menu bar's, the tab bar's, the control line's, the rule's, the rows', and the status bar's, in the order
+    each first appears, reading from the top left, and nothing of a glyph the screen does not show, each glyph a click
+    leads somewhere from marked. A glyph means what the line it stands on says: · is a separator in the menu bar and a
+    sortable column on the rule, and ▼ the presets' menu on the control line and a descending sort on the rule. A
+    legend taller than the room under the tab bar stands in columns. It opens in
     the bottom right corner; the arrows on its top edge, ↖ ↗ ↙ ↘, move it to another, the one it stands in dim. It
     takes no other key or click, so the rows under it go on as they were.
   - ⏎ on a field in the columns dialog opens its popover: the checklist of values its filter lets through or holds back,

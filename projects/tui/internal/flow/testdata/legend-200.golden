@@ -6,27 +6,27 @@
 
   ▾ github 3
 
-      id   assignees         age  branch              labels  title
-      ·────·─────────────────·────·───────────────────────────·────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-    ▸ #45                     2h                      3       🎫 kit flow is the one picture: five stages, interactive on a terminal, and the listing verbs fold into it
-      #46  jeffrey-aguilera   2d  🌿 46-a-noun-lists  bug   🎫 A noun lists, a noun with a verb acts
-    ▸ #7   ada           +1  40d                              🎫 Fix the thing
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                                                                                                                                                                           ╭─ backlog legend ─ ↖ ↗ ↙ ↘ ╮
-                                                                                                                                                                           │ 🎫 an issue 🔗            │
-                                                                                                                                                                           │ 🌿 a branch or a worktree │
-                                                                                                                                                                           ╰───────────────────────────╯
+      id   assignees         age  branch              labels  title                                                                                              ╭─ backlog legend ─────────── ↖ ↗ ↙ ↘ ╮
+      ·────·─────────────────·────·───────────────────────────·──────────────────────────────────────────────────────────────────────────────────────────────────│ =  the kit menu                     │
+    ▸ #45                     2h                      3       🎫 kit flow is the one picture: five stages, interactive on a terminal, and the listing verbs fold │ ·  a separator                      │
+      #46  jeffrey-aguilera   2d  🌿 46-a-noun-lists  bug   🎫 A noun lists, a noun with a verb acts                                                           │ -  the workspace menu               │
+    ▸ #7   ada           +1  40d                              🎫 Fix the thing                                                                                   │ 🔎 the search: / or a click         │
+                                                                                                                                                                 │ ➊  the selected tab's number        │
+                                                                                                                                                                 │ ➁  a tab's number, which selects it │
+                                                                                                                                                                 │ 🎫 the backlog stage                │
+                                                                                                                                                                 │ :  the tab's menu                   │
+                                                                                                                                                                 │ 🛫 the underway stage               │
+                                                                                                                                                                 │ 💻 the desk stage                   │
+                                                                                                                                                                 │ 🌿 the worktrees stage              │
+                                                                                                                                                                 │ 🔀 the changes stage                │
+                                                                                                                                                                 │ 🏭 the builds stage                 │
+                                                                                                                                                                 │ 🛬 the incoming stage               │
+                                                                                                                                                                 │ 📦 the releases stage               │
+                                                                                                                                                                 │ ▾  open: a click closes it          │
+                                                                                                                                                                 │ ▼  the presets' menu                │
+                                                                                                                                                                 │ ·  sortable: a click sorts          │
+                                                                                                                                                                 │ ▸  closed: a click opens it         │
+                                                                                                                                                                 │ 🎫 an issue 🔗                      │
+                                                                                                                                                                 │ 🌿 a branch or a worktree           │
+                                                                                                                                                                 ╰─────────────────────────────────────╯
  = menu - workspace / search ? legend │ ←→ tab ↓ preset 1-8 jump : tab menu

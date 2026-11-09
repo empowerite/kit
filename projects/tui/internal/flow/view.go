@@ -47,14 +47,24 @@ func (m Model) banner() string {
 // stage is watched, then each forge's rate limit. A screen too short for all of them keeps the bar, and cuts the rest
 // from the bottom.
 func (m Model) View() tea.View {
+	return shell.View(m.layers().Draw(m, m.overLegend(m.frame())), m.height, m.bottom())
+}
+
+// frame gives the screen's lines over its last, before the legend and the layers are drawn over them: the title, the
+// tab bar, or the banner of a maximized tab, and the pane.
+func (m Model) frame() []string {
 	lines := []string{m.titled()}
 	if m.maximized {
 		lines = append(lines, m.banner())
 	} else {
 		lines = append(lines, strings.Split(m.bar().View(), "\n")...)
 	}
-	lines = append(lines, m.pane()...)
-	lines = m.layers().Draw(m, m.overLegend(lines))
+	return append(lines, m.pane()...)
+}
+
+// bottom gives the screen's last line: the keys bar, each forge's rate limit and whether the stage is watched at its
+// right end; or a notice in its place.
+func (m Model) bottom() string {
 	right := quotaText(m.quota.Value, time.Now())
 	if watched := m.watchedText(); watched != "" {
 		right = strings.TrimSpace(watched + "  " + right)
@@ -66,7 +76,7 @@ func (m Model) View() tea.View {
 	case m.note.Text != "":
 		bottom = " " + style.Refusal(pane.Clip(m.note.Text, m.width-1))
 	}
-	return shell.View(lines, m.height, bottom)
+	return bottom
 }
 
 // bar gives the stages' tab bar, from the screen's second line, as wide as barWidth says: each stage's glyph, name,

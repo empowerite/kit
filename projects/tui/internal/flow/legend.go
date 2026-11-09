@@ -1,17 +1,23 @@
 // The legend: a box that floats over the screen, F1 or ? showing it and hiding it, which says what each glyph the
-// selected stage's rows draw now means, and marks those a click on leads somewhere. It stands in a corner of the rows,
+// screen shows under it means, the frame's, the controls', and the selected stage's rows', in the order each first
+// appears, and marks those a click on leads somewhere. It stands in a corner of the rows,
 // the bottom right as it opens; the corners' arrows on its top edge move it to another, its own dim. It takes no key
 // but F1 and ?, and no click but its arrows', so the rows under it go on as they were.
 package flow
 
 import (
+	"cmp"
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
+	"github.com/empowerite/kit/projects/tui/internal/table"
+	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
 // corner is where the legend stands: one of the rows' corners.
@@ -50,28 +56,112 @@ func (m Model) drawn() string {
 	return strings.Join(out, "\n")
 }
 
-// legendLines gives the selected stage's legend: each glyph its rows draw now, two cells wide, a space, what it
-// means, and its mark when a click on it leads somewhere; changes' states the rows draw, after a gap under state,
-// marked; or, where the rows draw none of them, a dim line that says so.
-func (m Model) legendLines() []string {
-	name, drawn := m.stages[m.stage].name, m.drawn()
-	lines := func(entries []entry, mark map[string]string) []string {
-		var out []string
-		for _, e := range entries {
-			if strings.Contains(drawn, e.glyph) {
-				out = append(out, pane.Pad(e.glyph, 2, false)+" "+e.meaning+marked(mark[e.glyph]))
-			}
-		}
-		return out
+// part is a glyph the legend explains where the screen shows it: the glyph, or those that mean the same, as the tabs'
+// numbers; what it means; its mark, when a click on it leads somewhere; and the screen lines it means that on, as one
+// glyph means one thing on the rule and another on the control line.
+type part struct {
+	glyphs        []string
+	meaning, mark string
+	on            func(y int) bool
+}
+
+// parts gives every glyph the legend can explain on a screen whose last line, the keys bar's, is the line last: the
+// frame's and the controls', then the selected stage's rows' and its tab's, each on the lines it stands on.
+func (m Model) parts(last int) []part {
+	top := m.top()
+	menuBar := func(y int) bool { return y == 0 }
+	tabBar := func(y int) bool { return !m.maximized && y > 0 && y < top }
+	control := func(y int) bool { return m.controls() && y == top }
+	rule := func(y int) bool { return y >= top && y < last && m.onRule(y) }
+	rows := func(y int) bool { return y >= top && y < last }
+	headings := func(y int) bool { return rows(y) && !rule(y) && !control(y) }
+	status := func(y int) bool { return y == last }
+	var numbers, selected, places []string
+	for i := range 10 {
+		numbers, selected = append(numbers, tabs.Marker(i, false)), append(selected, tabs.Marker(i, true))
 	}
-	out := lines(legends[name], marks[name])
-	if name == "changes" {
-		if shown := lines(states, nil); len(shown) > 0 {
-			if len(out) > 0 {
-				out = append(out, "")
-			}
-			out = append(append(out, style.Off("state")+marked(ToPage)), shown...)
+	for _, d := range strings.Split("¹²³⁴⁵⁶⁷⁸⁹₁₂₃₄₅₆₇₈₉", "") {
+		places = append(places, d)
+	}
+	one := func(glyph, meaning string, on func(int) bool) part { return part{[]string{glyph}, meaning, "", on} }
+	out := []part{
+		one(shell.App, "the kit menu", menuBar),
+		one(shell.Workspaces, "the workspace menu", menuBar),
+		one("·", "a separator", func(y int) bool { return menuBar(y) || headings(y) }),
+		one(grid.Search, "the search: / or a click", menuBar),
+		one(shell.Recall, "the searches typed before", menuBar),
+		one(tabs.Menu, "the tab's menu", func(y int) bool { return tabBar(y) || m.maximized && menuBar(y) }),
+		{selected, "the selected tab's number", "", tabBar},
+		{numbers, "a tab's number, which selects it", "", tabBar},
+		{[]string{tabs.Before, tabs.After}, "more tabs: a click scrolls", "", tabBar},
+		one(tabs.Stale, "stale: the tab reads again", tabBar),
+		one(grid.Unfolded, "open: a click closes it", rows),
+		one(grid.Folded, "closed: a click opens it", rows),
+		one("¬", "held back by the filter", control),
+		one(table.Presets, "the presets' menu", control),
+		one(Sortable, "sortable: a click sorts", rule),
+		one("▲", "ascending: a click turns it", rule),
+		one("▼", "descending: a click stops it", rule),
+		{places, "its place among the sorts", "", rule},
+		one(grid.Chosen, "all of the group's rows selected", rows),
+		one(grid.Partly, "some of the group's rows selected", rows),
+		one(Unwatched, "watched", status),
+	}
+	for _, g := range []string{GitHub, GitLab} {
+		out = append(out, one(g, "the forge's requests left", status))
+	}
+	name := m.stages[m.stage].name
+	for _, s := range m.stages {
+		if g := stageGlyphs[s.name]; g != "" {
+			out = append(out, one(g, "the "+s.name+" stage", tabBar))
 		}
+	}
+	for _, e := range legends[name] {
+		out = append(out, part{[]string{e.glyph}, e.meaning, marks[name][e.glyph], headings})
+	}
+	if name == "changes" {
+		for _, e := range states {
+			out = append(out, part{[]string{e.glyph}, e.meaning, ToPage, headings})
+		}
+	}
+	return out
+}
+
+// legendLines gives the legend: every glyph the screen shows under it that the legend can explain, in the order each
+// first appears, reading from the top left, each two cells wide, a space, what it means, and its mark when a click on
+// it leads somewhere; or, where the screen shows none, a dim line that says so.
+func (m Model) legendLines() []string {
+	screen := m.frame()
+	screen = append(screen, m.bottom())
+	type found struct {
+		line  string
+		y, at int
+	}
+	var shown []found
+	for _, p := range m.parts(len(screen) - 1) {
+		first := found{y: -1}
+		for y, l := range screen {
+			if !p.on(y) {
+				continue
+			}
+			plain := ansi.Strip(l)
+			for _, g := range p.glyphs {
+				if at := strings.Index(plain, g); at >= 0 && (first.y < 0 || y < first.y || y == first.y && at < first.at) {
+					first = found{pane.Pad(g, 2, false) + " " + p.meaning + marked(p.mark), y, at}
+				}
+			}
+			if first.y >= 0 {
+				break
+			}
+		}
+		if first.y >= 0 {
+			shown = append(shown, first)
+		}
+	}
+	slices.SortStableFunc(shown, func(a, b found) int { return cmp.Or(cmp.Compare(a.y, b.y), cmp.Compare(a.at, b.at)) })
+	var out []string
+	for _, f := range shown {
+		out = append(out, f.line)
 	}
 	if len(out) == 0 {
 		return []string{style.Off("no glyph on the screen")}
@@ -87,6 +177,35 @@ func marked(mark string) string {
 	return " " + style.Off(mark)
 }
 
+// columned lays a legend's lines out in as few columns as hold them in rows lines, side by side, two cells apart, each
+// as wide as its widest line, so a legend taller than the room under the tab bar shows whole.
+func columned(lines []string, rows int) []string {
+	if rows < 1 || len(lines) <= rows {
+		return lines
+	}
+	columns := (len(lines) + rows - 1) / rows
+	rows = (len(lines) + columns - 1) / columns
+	out := make([]string, rows)
+	for c := range columns {
+		part := lines[c*rows : min(len(lines), (c+1)*rows)]
+		width := 0
+		for _, l := range part {
+			width = max(width, ansi.StringWidth(l))
+		}
+		for k := range rows {
+			l := ""
+			if k < len(part) {
+				l = part[k]
+			}
+			if c < columns-1 {
+				l = pane.Pad(l, width, false) + "  "
+			}
+			out[k] += l
+		}
+	}
+	return out
+}
+
 // legendBox gives the legend's lines, a dialog titled by the stage, the corners' arrows at its top edge's right end,
 // the one it stands in dim; and the screen line and column it is drawn from, in its corner of the rows, under the bar
 // and over the keys bar.
@@ -94,7 +213,7 @@ func (m Model) legendBox() (lines []string, top, left int) {
 	title := m.stages[m.stage].name + " legend"
 	// a blank line, dropped once drawn, wide enough that the title, a dash, and the arrows fit on the top edge
 	room := strings.Repeat(" ", ansi.StringWidth(title)+len(arrows)*2+3)
-	lines = shell.Dialog(title, append(m.legendLines(), room), m.width)
+	lines = shell.Dialog(title, append(columned(m.legendLines(), m.height-1-m.top()-2), room), m.width)
 	width := ansi.StringWidth(lines[0])
 	// the arrows, a space before each, on the top edge, a cell short of its right corner
 	var buttons []string
