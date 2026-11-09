@@ -639,7 +639,7 @@ func TestAGroupIsTheRawValueAndItsHeadingTheDrawnOne(t *testing.T) {
 		t.Errorf("the headings by state: %q", got)
 	}
 	// grouped by checks, the rows group by its raw value, every row's SUCCESS, the heading saying its Head
-	if got := headings(p.Grouped("checks", false)); !slices.Equal(got, []string{"▾ checks ▾ 3", "▾ ✅ SUCCESS 3"}) {
+	if got := headings(p.Grouped("checks", false)); !slices.Equal(got, []string{"▾ checks 3", "▾ ✅ SUCCESS 3"}) {
 		t.Errorf("the heading by checks: %q", got)
 	}
 }
@@ -669,7 +669,7 @@ func TestAViewAsItLoadsGroupsByEachColumnTheSameOnEveryRow(t *testing.T) {
 			headings = append(headings, ansi.Strip(r.Cells[0].first()))
 		}
 	}
-	if want := []string{"▾ source ▾ where ▾ 3", "▾ github · here 3"}; !slices.Equal(headings, want) {
+	if want := []string{"▾ source · where 3", "▾ github · here 3"}; !slices.Equal(headings, want) {
 		t.Errorf("the headings: %q", headings)
 	}
 	if got := q.Grouped("source", true).Groups(); !slices.Equal(got, []string{"where"}) {

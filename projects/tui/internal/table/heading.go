@@ -9,6 +9,7 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"unicode"
 
 	"github.com/charmbracelet/x/ansi"
 	"github.com/empowerite/kit/projects/tui/internal/grid"
@@ -50,8 +51,12 @@ func NamesIn(text string, groups []string) []NameSpot {
 				break
 			}
 			at := from + k + 1
+			// a name ends at the line's end, the gap after it, the fold or the separator after it, or, where the rows'
+			// fold is not drawn, the count
 			if end := at + len(column); end == len(text) || strings.HasPrefix(text[end:], "  ") ||
-				strings.HasPrefix(text[end:], " "+grid.Unfolded) || strings.HasPrefix(text[end:], " "+grid.Folded) {
+				strings.HasPrefix(text[end:], " "+grid.Unfolded) || strings.HasPrefix(text[end:], " "+grid.Folded) ||
+				strings.HasPrefix(text[end:], " "+grid.Joined) || len(text) > end+1 && text[end] == ' ' &&
+				unicode.IsDigit(rune(text[end+1])) {
 				x := BarLeft + ansi.StringWidth(text[:at])
 				out = append(out, NameSpot{column, x, x + ansi.StringWidth(column)})
 				break
@@ -100,9 +105,13 @@ func NameAt(h Host, x int) (NameSpot, bool) {
 
 // LevelAt gives the level of the groups, from 0 the outermost, whose ▾ or ▸ before its column's name in the heading
 // over the groups the screen column x falls on, or the rows' level, under the last group, whose ▾ or ▸ follows the
-// last name; and whether one does.
+// last name; and whether one does. A dim separator in a fold's place, where the level folds as the one before does,
+// is no fold, and neither is the room of a rows' fold the heading does not draw.
 func LevelAt(h Host, x int) (int, bool) {
 	names, groups := BarNames(h), h.Panel().Groups()
+	if g := ansi.Cut(ansi.Strip(BarText(h.Rows())), x-BarLeft, x-BarLeft+1); g != grid.Unfolded && g != grid.Folded {
+		return 0, false
+	}
 	for _, n := range names {
 		if x == n.From-2 {
 			return slices.Index(groups, n.Column), true

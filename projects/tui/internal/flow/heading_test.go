@@ -169,48 +169,40 @@ func glyph(m Model, column string) string {
 }
 
 // A click on the ▾ before a column's name in the heading over the groups closes its level: its headings, and
-// everything under them, no longer show, and the levels under it show ▸ too; nothing else changes, so a click on its
-// ▸ shows the level again as it was, each heading open or closed as it was left. With the outermost level closed,
-// nothing shows under the heading over the groups; and the header stands under the last line, where no row shows.
+// everything under them, no longer show. A level whose every level over it has one value, its headings frozen over
+// the header, folds as the first level does, so it shows a dim · where its fold would stand, which a click does
+// nothing on; the rows' fold stands after the last name while a level has more than one value. With the outermost
+// level closed, nothing shows under the heading over the groups, and a click on the rows' ▸ shows every level again,
+// each heading open or closed as it was left.
 func TestALevelsFoldInTheHeadingOverTheGroupsOpensAndClosesIt(t *testing.T) {
 	m := nested(t)
 	all := len(m.rows(0))
 	spots := table.BarNames(&m)
 	s0, a0, r0 := levels(m)
-	if glyph(m, "source") != grid.Unfolded || glyph(m, "assignees") != grid.Unfolded || glyph(m, "") != grid.Unfolded {
+	// source has one value, github, so the assignees fold as the sources do
+	if glyph(m, "source") != grid.Unfolded || glyph(m, "assignees") != grid.Joined || glyph(m, "") != grid.Unfolded {
 		t.Fatalf("the folds: %q", ansi.Strip(lines(m)[m.top()]))
+	}
+	if m = drive(m, testkit.Click(spots[1].From-2, m.top())); len(m.rows(0)) != all || m.colMenu.Open {
+		t.Fatalf("a click on assignees' ·: %d rows of %d, menu %v", len(m.rows(0)), all, m.colMenu.Open)
 	}
 	// one assignee's heading closed by hand, to be found closed again
 	ada := slices.IndexFunc(m.rows(0), func(r row) bool { return strings.HasSuffix(r.Key, "\x00ada") })
 	m = drive(m, testkit.Click(table.FoldAt(m.rows(0)[ada]), rowY(m, m.rows(0)[ada].Key)))
 	_, _, r1 := levels(m)
-	// assignees' closes the assignees: the sources stand alone, each ▸, as nothing shows under it
-	m = drive(m, testkit.Click(spots[1].From-2, m.top()))
-	if s, a, r := levels(m); s != s0 || a != 0 || r != 0 || m.colMenu.Open || glyph(m, "assignees") != grid.Folded ||
-		glyph(m, "") != grid.Folded || glyph(m, "source") != grid.Unfolded ||
-		!strings.Contains(lines(m)[m.rowsTop()], grid.Folded+" github") {
-		t.Fatalf("assignees closed: %d sources, %d assignees, %d rows\n%s", s, a, r, view(m))
+	// the rows' fold closes the rows alone: the headings stand, each assignee ▸
+	if m = drive(m, testkit.Click(spots[1].Until+1, m.top())); func() bool { s, a, r := levels(m); return s != s0 || a != a0 || r != 0 }() ||
+		glyph(m, "") != grid.Folded {
+		s, a, r := levels(m)
+		t.Fatalf("the rows closed: %d sources, %d assignees, %d rows\n%s", s, a, r, view(m))
 	}
 	// source's closes the sources: nothing shows under the heading over the groups, nor the header, over no row
 	if m = drive(m, testkit.Click(spots[0].From-2, m.top())); len(m.rows(0)) != 1 || glyph(m, "source") != grid.Folded ||
 		m.headerTop() != -1 {
 		t.Fatalf("source closed: %d rows, header at %d\n%s", len(m.rows(0)), m.headerTop(), view(m))
 	}
-	// source's again shows the sources, the assignees still closed, as they were
-	if m = drive(m, testkit.Click(spots[0].From-2, m.top())); func() bool { s, a, r := levels(m); return s != s0 || a != 0 || r != 0 }() ||
-		glyph(m, "assignees") != grid.Folded {
-		s, a, r := levels(m)
-		t.Fatalf("source opened again: %d sources, %d assignees, %d rows\n%s", s, a, r, view(m))
-	}
-	// assignees' again shows everything as it was: ada's heading still closed
-	if m = drive(m, testkit.Click(spots[1].From-2, m.top())); func() bool { s, a, r := levels(m); return s != s0 || a != a0 || r != r1 }() ||
-		m.stages[0].Open.Open(m.rows(0)[ada]) {
-		s, a, r := levels(m)
-		t.Fatalf("assignees opened again: %d sources, %d assignees, %d rows, were %d %d %d\n%s", s, a, r, s0, a0, r1,
-			view(m))
-	}
 	// with the outermost closed, a click on the rows' ▸ opens every level over them, and they show as they were
-	m = drive(m, testkit.Click(spots[0].From-2, m.top()), testkit.Click(spots[1].Until+1, m.top()))
+	m = drive(m, testkit.Click(spots[1].Until+1, m.top()))
 	if s, a, r := levels(m); s != s0 || a != a0 || r != r1 || glyph(m, "source") != grid.Unfolded {
 		t.Fatalf("the rows' ▸ under every level closed: %d sources, %d assignees, %d rows", s, a, r)
 	}
@@ -227,7 +219,7 @@ func TestTheFoldAfterTheLastNameOpensAndClosesTheRows(t *testing.T) {
 	s0, a0, _ := levels(m)
 	rows := table.BarNames(&m)[len(table.BarNames(&m))-1].Until + 1
 	if m = drive(m, testkit.Click(rows, m.top())); func() bool { s, a, r := levels(m); return s != s0 || a != a0 || r != 0 }() ||
-		glyph(m, "") != grid.Folded || glyph(m, "assignees") != grid.Unfolded || m.headerTop() != -1 {
+		glyph(m, "") != grid.Folded || glyph(m, "assignees") != grid.Joined || m.headerTop() != -1 {
 		s, a, r := levels(m)
 		t.Fatalf("the rows closed: %d sources, %d assignees, %d rows, the header at %d\n%s", s, a, r, m.headerTop(),
 			view(m))

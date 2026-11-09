@@ -2,7 +2,7 @@
   ➊╶────────────────╮➁╶─────────────────╮➂╶─────────────╮➃╶──────────────────╮➄╶
   │ 🎫 backlog  3 : │  🛫 underway  4   │  💻 desk  1   │  🌿 worktrees  4   │
   ╵                 ╰───────────────────╰───────────────╰────────────────────╰──
-  ▾ source ▾ 3                           ╭─ backlog legend ─────────── ↖ ↗ ↙ ↘ ╮
+  ▾ source 3                             ╭─ backlog legend ─────────── ↖ ↗ ↙ ↘ ╮
                                          │ =  the kit menu                     │
   ▾ github 3                             │ ·  a separator                      │
                                          │ -  the workspace menu               │

@@ -613,11 +613,33 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 			}
 			return Folded
 		}
+		// a level whose every level over it has one value folds as the first does, those over it standing frozen over
+		// the header, so its fold is a dim separator; and the rows' fold, where every level has one value, is not drawn
+		values := make([]int, len(at))
+		for _, h := range heads {
+			values[h.depth]++
+		}
+		single := func(depth int) bool { // every level over depth has one value
+			for d := range depth {
+				if values[d] != 1 {
+					return false
+				}
+			}
+			return true
+		}
 		var titles []string
 		for depth, j := range at {
-			titles = append(titles, fold(depth)+" "+style.Label(columns[j]))
+			glyph := fold(depth)
+			if depth > 0 && single(depth) {
+				glyph = style.Off(Joined)
+			}
+			titles = append(titles, glyph+" "+style.Label(columns[j]))
 		}
-		heading := strings.Join(titles, " ") + " " + fold(len(at)) + " " + style.Off(strconv.Itoa(len(grouped)))
+		heading := strings.Join(titles, " ") + " "
+		if !single(len(at)) {
+			heading += fold(len(at)) + " "
+		}
+		heading += style.Off(strconv.Itoa(len(grouped)))
 		out[0].Cells = []Cell{{Values: []string{heading}, Wrap: true}}
 	}
 	return append(out, rest...)
