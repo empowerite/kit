@@ -18,6 +18,7 @@ import (
 // which then has the keyboard, the first line that acts under it.
 func (m *Model) openFieldMenu(column string) {
 	m.onPreset, m.inRows, m.inPanel = m.presets(m.stage), false, false
+	m.stop = slices.IndexFunc(m.stops(), func(s table.Stop) bool { return s.Column == column })
 	m.colMenu = table.OpenColumnMenu(m, column, true)
 }
 

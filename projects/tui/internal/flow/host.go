@@ -112,9 +112,13 @@ func (m *Model) PaneHeight() int { return m.paneHeight() }
 // Controls says whether the control line stands over the selected stage's rows.
 func (m *Model) Controls() bool { return m.controls() }
 
-// LeaveRows gives up the rows' keyboard, past their first row: to the preset line, or the bar where the stage has
-// none.
-func (m *Model) LeaveRows() { m.inRows, m.onPreset = false, m.presets(m.stage) }
+// LeaveRows gives up the rows' keyboard, past their first row: to the control line, on its first stop, or the bar
+// where the stage has none.
+func (m *Model) LeaveRows() {
+	if m.inRows = false; m.presets(m.stage) || len(m.stops()) > 0 {
+		m.toControls()
+	}
+}
 
 // EnterRows gives the rows the keyboard.
 func (m *Model) EnterRows() { m.inRows = true }

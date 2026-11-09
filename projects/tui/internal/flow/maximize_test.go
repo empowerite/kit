@@ -201,7 +201,7 @@ func TestANarrowTitleHidesTheKebabAndColonStillDropsTheMenu(t *testing.T) {
 func TestMaximizedTheKeysDropTheBars(t *testing.T) {
 	m := maximize(t, loaded(t, viewing("")))
 	if bar := lines(m)[len(lines(m))-1]; strings.Contains(bar, "←→") || !strings.Contains(bar, "1-8") ||
-		!strings.Contains(bar, ": tab menu") || !strings.Contains(bar, "↓ preset") {
+		!strings.Contains(bar, ": tab menu") || !strings.Contains(bar, "↓ groups") {
 		t.Errorf("the keys bar: %q", bar)
 	}
 	// left and right move along no bar, and change nothing

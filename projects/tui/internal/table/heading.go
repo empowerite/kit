@@ -62,6 +62,31 @@ func NamesIn(text string, groups []string) []NameSpot {
 	return out
 }
 
+// Stop is where the keyboard stands on the heading over the groups: a group's name, with the fold before it, which
+// drops its column's menu; or the rows', the fold after the last name and the count after it. Level is the level its
+// fold opens or closes, from 0 the outermost, the rows' under the last group; From and Until the screen columns it
+// takes, from its first to the one past it.
+type Stop struct {
+	Column      string // the group's column, "" for the rows
+	Level       int
+	From, Until int
+}
+
+// Stops gives the stops of the heading over the groups, left to right: each group's name, then the rows'; none where
+// the rows group by nothing.
+func Stops(h Host) []Stop {
+	names, groups := BarNames(h), h.Panel().Groups()
+	if len(names) == 0 {
+		return nil
+	}
+	var out []Stop
+	for _, n := range names {
+		out = append(out, Stop{n.Column, slices.Index(groups, n.Column), n.From - 2, n.Until})
+	}
+	last, end := names[len(names)-1], BarLeft+ansi.StringWidth(ansi.Strip(BarText(h.Rows())))
+	return append(out, Stop{"", len(groups), last.Until + 1, end})
+}
+
 // NameAt gives the column's name in the heading over the groups that the screen column x falls on, and whether one
 // does.
 func NameAt(h Host, x int) (NameSpot, bool) {

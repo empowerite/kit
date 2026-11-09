@@ -37,7 +37,7 @@ func TestTheOutlineOpensClosesAndStepsAlongItsTree(t *testing.T) {
 	m := nested(t)
 	all := len(m.rows(0))
 	// down lands past the headings on a row; left steps out to its heading, and again closes that heading
-	m = drive(m, down)
+	m = intoRows(m)
 	if grid.Heads(at(m)) {
 		t.Fatalf("down landed on a heading")
 	}
@@ -261,7 +261,7 @@ func TestARowGroupedUnderSeveralValuesIsOneRow(t *testing.T) {
 // [ and ] move the cursor to the heading of the group before and after it, { and } to the first and the last, as the
 // palette's keys move between its groups; the key hints name [] group while the rows group.
 func TestBracketsMoveBetweenTheGroupsHeadings(t *testing.T) {
-	m := drive(nested(t), down)
+	m := intoRows(nested(t))
 	var heads []int
 	for i, r := range m.rows(0) {
 		if i >= table.First(m.rows(0)) && grid.Heads(r) {

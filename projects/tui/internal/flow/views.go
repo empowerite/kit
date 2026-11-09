@@ -259,6 +259,12 @@ func (m *Model) presetKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 		}
 	}
 	switch key {
+	case "left":
+		n := len(m.stops())
+		if n == 0 {
+			return nil, false
+		}
+		m.stop = n - 1
 	case "esc", "up":
 		m.onPreset = false
 	case "down":
@@ -382,7 +388,7 @@ func (m *Model) choosePreset(k int) {
 		if k == table.ItemRename {
 			s.Renaming = v.Name
 		}
-		m.onPreset, m.inRows, m.inPanel = true, false, false
+		m.onPreset, m.inRows, m.inPanel, m.stop = true, false, false, -1
 	case table.ItemDelete:
 		m.deletePreset()
 	default:
@@ -395,7 +401,7 @@ func (m *Model) choosePreset(k int) {
 // presetClick takes a click on the preset line, which then has the keyboard: on the selector, its name or ▼, it drops
 // the presets down.
 func (m *Model) presetClick(x int) tea.Cmd {
-	m.onPreset, m.inRows, m.inPanel = true, false, false
+	m.onPreset, m.inRows, m.inPanel, m.stop = true, false, false, -1
 	if x >= m.dropStart() && x < m.dropEnd() {
 		m.presetsMenu = m.presetsMenu.Drop(m)
 	}

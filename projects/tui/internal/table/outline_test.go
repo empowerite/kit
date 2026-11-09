@@ -219,6 +219,26 @@ func TestTheFoldsOfARowAndAHeadingStandWhereTheyAreDrawn(t *testing.T) {
 	}
 }
 
+// The heading over the groups' stops are each group's name, from its fold, then the rows' fold and count to its end,
+// each with the level its fold opens or closes, and where it is clicked; rows that group by nothing have none.
+func TestTheHeadingOverTheGroupsHasAStopPerNameThenTheRows(t *testing.T) {
+	h := outlined()
+	names, stops := BarNames(h), Stops(h)
+	want := []Stop{{"state", 0, names[0].From - 2, names[0].Until}, {"who", 1, names[1].From - 2, names[1].Until},
+		{"", 2, names[1].Until + 1, BarLeft + ansi.StringWidth(ansi.Strip(BarText(h.Rows())))}}
+	if !slices.Equal(stops, want) {
+		t.Errorf("the stops: %+v, want %+v", stops, want)
+	}
+	for _, s := range stops {
+		if level, ok := LevelAt(h, s.From); !ok || level != s.Level {
+			t.Errorf("%q's fold at %d: level %d", s.Column, s.From, level)
+		}
+	}
+	if Stops(listing()) != nil {
+		t.Error("rows that group by nothing have stops")
+	}
+}
+
 func TestTheHeadingOverTheGroupsOpensAndClosesTheirLevels(t *testing.T) {
 	h := outlined()
 	names := BarNames(h)

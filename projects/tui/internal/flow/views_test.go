@@ -23,10 +23,20 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
+// toPresets gives the preset picker the keyboard from the bar: down onto the control line's first stop, then right
+// past the stops of the heading over the groups.
+func toPresets(m Model) Model {
+	for m = drive(m, down); ; m = drive(m, right) {
+		if _, on := m.atStop(); !on {
+			return m
+		}
+	}
+}
+
 // onDropdown gives backlog with the keyboard on its preset line, its views kept in file.
 func onDropdown(t *testing.T, file string) Model {
 	t.Helper()
-	m := loaded(t, viewing(file), tea.WindowSizeMsg{Width: 140, Height: 40}, down)
+	m := toPresets(loaded(t, viewing(file), tea.WindowSizeMsg{Width: 140, Height: 40}))
 	if !m.onPreset || m.inRows || m.bar().Focused {
 		t.Fatalf("the keyboard is not on the preset line\n%s", view(m))
 	}
@@ -65,10 +75,10 @@ func TestThePresetLineStandsOnTheControlLineAndNamesTheView(t *testing.T) {
 		t.Errorf("one row selected: %q", got)
 	}
 	m.stages[0].Picked = map[string]bool{}
-	if !strings.Contains(keysOf(m), "↓ preset") {
-		t.Errorf("down on the bar does not say it reaches the preset line: %q", keysOf(m))
+	if !strings.Contains(keysOf(m), "↓ groups") {
+		t.Errorf("down on the bar does not say it reaches the heading over the groups: %q", keysOf(m))
 	}
-	m = drive(m, down)
+	m = toPresets(m)
 	keys := keysOf(m)
 	for _, want := range []string{"↑·esc tabs", "↓ rows", "⏎ presets"} {
 		if !strings.Contains(keys, want) {
@@ -370,7 +380,7 @@ func TestAPresetsFileThatDoesNotReadIsSaidAndLeftAsItIs(t *testing.T) {
 	}
 	m := loaded(t, viewing(file), tea.WindowSizeMsg{Width: 140, Height: 40})
 	// an empty name saves nothing; a file that cannot be written is said
-	m = drive(m, down)
+	m = toPresets(m)
 	m.stages[0].SavingAs, m.stages[0].Naming = true, "  "
 	if m = drive(m, press(tea.KeyEnter)); !strings.Contains(lines(m)[len(lines(m))-1], "needs a name") {
 		t.Errorf("an empty name: %q", lines(m)[len(lines(m))-1])

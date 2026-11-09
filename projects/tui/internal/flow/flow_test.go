@@ -51,6 +51,18 @@ func options() Options {
 		Clock: &testkit.Clock{}}
 }
 
+// intoRows gives the selected stage's rows the keyboard from the bar: down, past the control line's stops, where the
+// stage has a control line, as many times as it takes.
+func intoRows(m Model) Model {
+	for range 3 {
+		if m.inRows {
+			break
+		}
+		m = drive(m, down)
+	}
+	return m
+}
+
 // answer gives a stage's first load's answer, the JSON its command printed.
 func answer(stage, data string) source.Answer[[]byte] {
 	return source.Answer[[]byte]{Name: stage, Value: []byte(data)}
@@ -698,7 +710,7 @@ func fit(keys string, room int) string {
 // keys, the stages' bar's, then the rows', each control's between rules; ? and F1 show the legend from anywhere.
 const (
 	screenKeys = "= menu - workspace / search ? legend │ "
-	barKeys    = screenKeys + "←→ tab ↓ rows 1-8 jump : tab menu"
+	barKeys    = screenKeys + "←→ tab ↓ groups 1-8 jump : tab menu"
 	inRows     = screenKeys + "1-8 jump : tab menu │ esc tabs ↑↓ move ␣·⇧↑↓ select ⌃A all"
 	opens      = inRows + " → expand"
 	closes     = inRows + " ← collapse"
@@ -744,7 +756,7 @@ func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
 	}
 	// at a width too narrow for it, the bar keeps the stages' bar's keys, after …, clipped, never wrapped
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 30, Height: 12})
-	if got := lines(m); len(got) != 12 || !strings.HasPrefix(got[11], " … │ ←→ tab ↓ rows ") ||
+	if got := lines(m); len(got) != 12 || !strings.HasPrefix(got[11], " … │ ←→ tab ↓ groups ") ||
 		ansi.StringWidth(got[11]) > 30 || !strings.HasSuffix(got[11], "…") {
 		t.Errorf("the bar at 30 columns: %q", got[len(got)-1])
 	}
@@ -1061,7 +1073,7 @@ func everyLineFits(t *testing.T, width int, legend bool) {
 		if i > 0 {
 			m = drive(m, up, right)
 		}
-		m = drive(m, down, toggle)
+		m = drive(intoRows(m), toggle)
 		clipped := false
 		for _, l := range strings.Split(m.View().Content, "\n") {
 			if n := ansi.StringWidth(l); n > width {
@@ -1120,7 +1132,7 @@ func TestOpenReadsTheStagesAndTheWords(t *testing.T) {
 }
 
 func TestTheSelectedRowIsChosen(t *testing.T) {
-	m := loaded(t, options(), down)
+	m := intoRows(loaded(t, options()))
 	chosen, _, _ := strings.Cut(style.Mark("#"), "#")
 	if !strings.Contains(m.View().Content, chosen+"#") || !strings.HasPrefix(cursor(m), "#45") {
 		t.Errorf("the row under the cursor is not drawn as chosen:\n%s", m.View().Content)
@@ -1576,7 +1588,7 @@ func TestUnderwayRefusesADocumentWithoutPullRequests(t *testing.T) {
 // A click on underway's pull request glyph selects changes, the cursor on that pull request's row; a click on its
 // state's glyph opens its page; without changes in the picture, the pull request's glyph opens the page too.
 func TestUnderwaysPullRequestLeadsToItsRowUnderChangesAndItsStateToItsPage(t *testing.T) {
-	m := loaded(t, bare(), right, down, down)
+	m := drive(intoRows(loaded(t, bare(), right)), down)
 	at := func(m Model, glyph string) int {
 		return cellsOf(lines(m)[m.rowLine(m.find("underway").Cursor)], glyph)[0]
 	}

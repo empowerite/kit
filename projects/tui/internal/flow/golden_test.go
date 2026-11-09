@@ -54,7 +54,7 @@ func TestGoldenViews(t *testing.T) {
 	source.Filter = grid.Filter{Values: []string{"gitlab"}, Exclude: true}
 	p.Fields["source"] = source
 	m.setPanel(p)
-	testkit.Golden(t, filepath.Join("testdata", "preset-line.golden"), raw(drive(m, down)))
+	testkit.Golden(t, filepath.Join("testdata", "preset-line.golden"), raw(toPresets(m)))
 	// the columns dialog: source grouped, age sorted descending, and assignees filtered to @me and hidden
 	m = loaded(t, viewing(""))
 	m.setPanel(m.panel(0).SortedAs("age", grid.Descending).Grouped("source", true))

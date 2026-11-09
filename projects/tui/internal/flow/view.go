@@ -144,8 +144,12 @@ func (m Model) keys() shell.Path {
 	if len(m.stages) == 0 {
 		return shell.Path{shell.WorkspaceScreenKeys(legend)}
 	}
+	// down reaches the control line's first stop: the heading over the groups, or the preset picker
 	down := "rows"
-	if m.presets(m.stage) {
+	switch {
+	case len(m.stops()) > 0:
+		down = "groups"
+	case m.presets(m.stage):
 		down = "preset"
 	}
 	bar := m.bar().Keys(down)
@@ -159,6 +163,9 @@ func (m Model) keys() shell.Path {
 		return append(path, shell.Segment{Bindings: []shell.Binding{shell.Bind("esc", "back"), shell.Bind("⏎", "back", "enter")}},
 			shell.SearchKeys(len(m.recent.Items) > 0))
 	case m.onPreset:
+		if stop, on := m.atStop(); on {
+			return append(path, m.headingKeys(stop))
+		}
 		return append(path, m.presetKeys())
 	case m.inRows:
 		return append(path, m.rowKeys())
@@ -365,7 +372,7 @@ func (m Model) control() (string, int) {
 	if n := m.selected(); n > 0 {
 		right = style.Tint(strconv.Itoa(n)+" selected") + "  "
 	}
-	left := strings.Repeat(" ", table.BarLeft) + m.barText()
+	left := m.focusStop(strings.Repeat(" ", table.BarLeft) + m.barText())
 	if m.presets(m.stage) {
 		tail = m.presetLine()
 		if chips := table.Chips(&m); len(chips) > 0 {
@@ -533,4 +540,7 @@ func (m Model) dropEnd() int { return m.dropStart() + ansi.StringWidth(m.presetL
 
 // presetLine gives the preset's selector, at the right end of the control line, as table.PresetLine draws it, the
 // line having the keyboard while it does and the search does not.
-func (m Model) presetLine() string { return table.PresetLine(&m, m.onPreset && !m.inPanel) }
+func (m Model) presetLine() string {
+	_, on := m.atStop()
+	return table.PresetLine(&m, m.onPreset && !m.inPanel && !on)
+}

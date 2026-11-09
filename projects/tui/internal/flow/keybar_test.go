@@ -18,7 +18,9 @@ func TestEveryKeyTheBarNamesDoesSomething(t *testing.T) {
 	// the presets dropped down from the preset line, up past the view the line is set to, Save As…, and the dim Save,
 	// to Fields…, chosen: the columns dialog; from the bar, down to the preset line first
 	fromLine := []tea.Msg{press(tea.KeyEnter), up, up, press(tea.KeyEnter)}
-	columns := append([]tea.Msg{down}, fromLine...)
+	// down reaches source's name in the heading over the groups; right twice, past the rows', the preset picker
+	line := []tea.Msg{down, right, right}
+	columns := append(slices.Clone(line), fromLine...)
 	for _, c := range []struct {
 		where   string
 		msgs    []tea.Msg
@@ -45,14 +47,16 @@ func TestEveryKeyTheBarNamesDoesSomething(t *testing.T) {
 		{"in a field's popover, on auto, a rendering pinned", append(append(append(slices.Clone(columns), down, down,
 			press(tea.KeyEnter)), slices.Repeat([]tea.Msg{down}, 20)...), press(tea.KeySpace), up, up), true},
 		{"on the bar, over a preset line", nil, true},
-		{"on the preset line", []tea.Msg{down}, true},
-		{"on the preset line, the table changed", append(append([]tea.Msg{down}, fromLine...), down,
+		{"on the heading over the groups, on a name", []tea.Msg{down}, true},
+		{"on the heading over the groups, on the rows'", []tea.Msg{down, right}, true},
+		{"on the preset line", line, true},
+		{"on the preset line, the table changed", append(append(slices.Clone(line), fromLine...), down,
 			press(tea.KeySpace), esc), true},
-		{"naming for Save As… on the preset line", append([]tea.Msg{down, press(tea.KeyEnter), up, press(tea.KeyEnter)},
+		{"naming for Save As… on the preset line", append(append(slices.Clone(line), press(tea.KeyEnter), up, press(tea.KeyEnter)),
 			typed("Mine")...), true},
-		{"with the presets dropped down", []tea.Msg{down, press(tea.KeyEnter)}, true},
+		{"with the presets dropped down", append(slices.Clone(line), press(tea.KeyEnter)), true},
 		{"in the rows, under a preset line", []tea.Msg{down, down}, true},
-		{"in the search, from the preset line", append([]tea.Msg{down}, typed("/")...), true},
+		{"in the search, from the preset line", append(slices.Clone(line), typed("/")...), true},
 	} {
 		t.Run(c.where, func(t *testing.T) {
 			t.Parallel()

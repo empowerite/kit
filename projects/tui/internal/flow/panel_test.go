@@ -90,14 +90,14 @@ func TestSlashGivesTheSearchTheKeyboardAndTypingNarrowsTheRowsAndTheCount(t *tes
 	if m = drive(m, esc); m.inPanel || !m.bar().Focused {
 		t.Errorf("esc: in panel %v", m.inPanel)
 	}
-	m = drive(m, down, typed("/")[0], press(tea.KeyEnter))
+	m = drive(intoRows(m), typed("/")[0], press(tea.KeyEnter))
 	if m.inPanel || !m.inRows {
 		t.Errorf("/ from the rows and enter: in panel %v, in rows %v", m.inPanel, m.inRows)
 	}
 }
 
 func TestSlashFindsAndANumberWithAltLeavesTheSearchForItsStage(t *testing.T) {
-	m := loaded(t, options(), down, down)
+	m := drive(intoRows(loaded(t, options())), down)
 	m = drive(m, typed("/")...)
 	if !m.inPanel || !m.inRows {
 		t.Fatalf("/: in panel %v, in rows %v", m.inPanel, m.inRows)

@@ -91,6 +91,7 @@ type Model struct {
 	barView       int                       // the cells the stages' bar's view has scrolled past, as the bar last chose
 	inRows        bool                      // whether the rows have the keyboard, not the bar
 	onPreset      bool                      // whether the preset line has the keyboard, not the bar or the rows
+	stop          int                       // while onPreset, the heading over the groups' stop the keyboard is on, -1 the preset picker
 	inPanel       bool                      // whether the panel has the keyboard, before the rows, the line, or the bar
 	me            string                    // the caller's login, once kit has said it, which a filter's @me matches
 	asked         bool                      // whether kit has been asked for the caller's login
@@ -607,7 +608,11 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.panelKey(k)
 	}
 	if m.onPreset {
-		if cmd, ok := m.presetKey(k); ok {
+		key := m.presetKey
+		if _, on := m.atStop(); on {
+			key = m.headingKey
+		}
+		if cmd, ok := key(k); ok {
 			return m, cmd
 		}
 	}
@@ -651,9 +656,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "up":
 		m.up(1)
 	case "down":
-		if !m.inRows && m.presets(m.stage) {
-			// from the bar, down reaches the preset line first
-			m.onPreset = true
+		if !m.inRows && (m.presets(m.stage) || len(m.stops()) > 0) {
+			// from the bar, down reaches the control line first, on the heading over the groups' first stop
+			m.toControls()
 			return m, nil
 		}
 		m.down(1)
