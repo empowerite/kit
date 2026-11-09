@@ -126,3 +126,50 @@ func TestOverOneRepositoryTheStagesDecodeAsBefore(t *testing.T) {
 		t.Errorf("the desk: %q", got)
 	}
 }
+
+// twoMembers is backlog's document over the group w: an issue of a and one of b.
+const twoMembers = `{"rows": [{"number": 1, "title": "a1", "member": "github.com/o/a"},
+	{"number": 2, "title": "b2", "member": "github.com/o/b"}], "errors": []}`
+
+func TestOverAGroupTheRowsGroupByMemberAsTheyLoad(t *testing.T) {
+	m := drive(over(t, "backlog"), answer("backlog", twoMembers))
+	if groups := m.panel(0).Groups(); len(groups) == 0 || groups[0] != "member" {
+		t.Fatalf("the groups as backlog loads: %q", groups)
+	}
+	member := m.records(*m.find("backlog"))[0].values["member"]
+	if member.Of != "a" || !slices.Equal(member.Raw, []string{"github.com/o/a"}) {
+		t.Errorf("a's member: %+v", member)
+	}
+	if v := view(m); !strings.Contains(v, "▾ a") || !strings.Contains(v, "▾ b") {
+		t.Errorf("the headings name the members short:\n%s", v)
+	}
+}
+
+func TestAMembersNameLeadsToItsReposRow(t *testing.T) {
+	m := drive(over(t, "backlog"), answer("backlog", twoMembers))
+	if got := m.records(*m.find("backlog"))[1].values["member"].Link; got != jumpTo("repos", "github.com/o/b") {
+		t.Errorf("b's member links to %q", got)
+	}
+}
+
+func TestMembersOfTwoOwnersAreNamedInFull(t *testing.T) {
+	m := over(t, "backlog")
+	two := group
+	two.Members = []kit.WorkspaceMember{{Repository: "github.com/o/a"}, {Repository: "github.com/p/b"}}
+	m = drive(m, shell.WorkspaceMsg{Workspace: two}, answer("backlog", `{"rows": [
+		{"number": 1, "title": "a1", "member": "github.com/o/a"},
+		{"number": 2, "title": "b2", "member": "github.com/p/b"}], "errors": []}`))
+	if got := m.records(*m.find("backlog"))[1].values["member"].Of; got != "github.com/p/b" {
+		t.Errorf("b of another owner is named %q", got)
+	}
+}
+
+func TestOverOneRepositoryARowHasNoMember(t *testing.T) {
+	m := loaded(t, options())
+	if v := m.records(*m.find("backlog"))[0].values["member"]; len(v.Raw) != 0 || v.Link != "" {
+		t.Errorf("a repository's issue has a member: %+v", v)
+	}
+	if groups := m.panel(0).Groups(); slices.Contains(groups, "member") {
+		t.Errorf("a repository's rows group by member: %q", groups)
+	}
+}

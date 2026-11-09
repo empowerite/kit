@@ -922,6 +922,11 @@ func (m *Model) autoGroup(name string) {
 	}
 	p := m.panel(i)
 	next := p.AutoGrouped(all, columnsOf(s.name))
+	if m.runner.Group != "" && p.Fold && p.Groupable["member"] && len(p.Groups()) == 0 {
+		// over a group, the rows stand under their member first, then under what they share
+		ids := slices.DeleteFunc(next.Groups(), func(id string) bool { return id == "member" })
+		next = p.GroupedBy(append([]string{"member"}, ids...))
+	}
 	if len(next.Groups()) == len(p.Groups()) {
 		return
 	}

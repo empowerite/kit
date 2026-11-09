@@ -193,9 +193,9 @@ func (p Panel) sortedBy(keys []SortKey) Panel {
 	})
 }
 
-// groupedBy gives the panel grouping the rows by the fields alone, the outermost first; a field it no longer groups
+// GroupedBy gives the panel grouping the rows by the fields alone, the outermost first; a field it no longer groups
 // by is a column again.
-func (p Panel) groupedBy(ids []string) Panel {
+func (p Panel) GroupedBy(ids []string) Panel {
 	return p.with(func(fields map[string]Field) {
 		for id, f := range fields {
 			if f.Placement == Group {
@@ -213,7 +213,7 @@ func (p Panel) groupedBy(ids []string) Panel {
 
 // Placed gives the panel with a field a column or hidden; a group it leaves, and those under it move out a level.
 func (p Panel) Placed(id string, at Placement) Panel {
-	p = p.groupedBy(slices.DeleteFunc(p.Groups(), func(g string) bool { return g == id }))
+	p = p.GroupedBy(slices.DeleteFunc(p.Groups(), func(g string) bool { return g == id }))
 	return p.with(func(fields map[string]Field) {
 		f := fields[id]
 		f.Placement = at
@@ -417,7 +417,7 @@ func (p Panel) Grouped(column string, nest bool) Panel {
 	default:
 		groups = []string{column}
 	}
-	return p.groupedBy(groups)
+	return p.GroupedBy(groups)
 }
 
 // Levels gives how many levels of headings the rows stand under, as group draws them: one each column they group by,
@@ -879,7 +879,7 @@ func (p Panel) AutoGrouped(rows []Row, columns []string) Panel {
 	if len(ids) == 0 {
 		return p
 	}
-	return p.groupedBy(ids)
+	return p.GroupedBy(ids)
 }
 
 // constant gives those of the columns whose value is the same on every one of the rows, as their sort key says, each
@@ -1019,7 +1019,7 @@ func (p Panel) Moved(id string, to Placement, k int) (Panel, bool) {
 		p = p.Placed(id, Hidden)
 	case Group:
 		groups := without(p.section(Group))
-		p = p.groupedBy(slices.Insert(groups, min(max(k, 0), len(groups)), id))
+		p = p.GroupedBy(slices.Insert(groups, min(max(k, 0), len(groups)), id))
 	default:
 		columns := without(p.section(Column))
 		k = min(max(k, 0), len(columns))

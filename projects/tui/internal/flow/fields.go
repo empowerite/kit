@@ -128,6 +128,7 @@ func init() {
 		"checks":      {checksCells, true},
 		"threads":     {table.Each(threadsText), true},
 		"where":       {whereCells, true},
+		"member":      {table.Each(memberName), false},
 	} {
 		table.Register(name, r.draw, r.glyph)
 	}
@@ -193,6 +194,14 @@ func checksCells(f table.Field, vs []table.Value) []cell {
 		out[k].Head = f.Glyphed(v.Raw, true)[0]
 	}
 	return out
+}
+
+// memberName draws a row's member by its short name, as its value's Of holds it.
+func memberName(f table.Field, v table.Value) []string {
+	if name, ok := v.Of.(string); ok {
+		return []string{name}
+	}
+	return v.Raw
 }
 
 // plainName draws a checkout's name as checkoutName does, without the field's glyph.

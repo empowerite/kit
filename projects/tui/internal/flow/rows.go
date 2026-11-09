@@ -485,6 +485,15 @@ func (m Model) keyOf(member, key string) string {
 	return member + " " + key
 }
 
+// memberValue gives a row's value in member: none over a repository; over a group, the member, host/path, drawn by its
+// short name, leading to its row on the repos tab.
+func (m Model) memberValue(member string) table.Value {
+	if member == "" {
+		return table.Value{}
+	}
+	return table.Value{Raw: []string{member}, Of: m.short(member), Link: jumpTo("repos", member)}
+}
+
 // originOf gives the origin a row's links are built from: the screen's, for a row of no member, else the member's
 // host and path.
 func (m Model) originOf(member string) Origin {
@@ -527,6 +536,7 @@ func (m Model) backlogRows(s stage) []record {
 			"repository": table.Some(i.Repository), "assignees": {Raw: i.Assignees}, "age": table.Seconds(i.Age),
 			"branch": table.Some(i.Branch), "labels": table.Labelled(i.Labels),
 			"title": {Raw: []string{i.Title}, Link: m.originOf(i.Member).issue(i.Number, i.URL)},
+			"member": m.memberValue(i.Member),
 		}})
 	}
 	return out
@@ -570,7 +580,7 @@ func (m Model) underwayRows(s stage) []record {
 			"repository": table.Some(u.Repository), "assignees": {Raw: u.Assignees}, "age": table.Seconds(u.Age),
 			"change": {Raw: []string{pr}, Link: change}, "state": {Raw: []string{u.PR.State}, Link: page},
 			"where": where, "fork": table.Some(u.PR.Fork), "pushed": pushed, "by": by, "labels": table.Labelled(u.Labels),
-			"title": {Raw: []string{u.Title}, Link: o.issue(u.Number, u.URL)},
+			"title": {Raw: []string{u.Title}, Link: o.issue(u.Number, u.URL)}, "member": m.memberValue(u.Member),
 		}})
 	}
 	return out
@@ -753,7 +763,7 @@ func (m Model) checkoutRow(c checkout, desk bool) record {
 	r := record{row{Key: c.Path}, map[string]table.Value{
 		"branch": {Raw: []string{name}, Of: c}, "ahead": {Raw: []string{strconv.Itoa(c.Ahead)}, Of: c},
 		"lines": {Raw: []string{strconv.Itoa(c.Added)}, Of: c}, "change": change, "state": state,
-		"uncommitted": table.One(strconv.Itoa(c.Uncommitted)),
+		"uncommitted": table.One(strconv.Itoa(c.Uncommitted)), "member": m.memberValue(c.Member),
 	}}
 	for _, change := range c.Changes {
 		r.Detail = append(r.Detail, span(style.Warn(fmt.Sprintf("%-2s", change.Status))+" "+change.Path))
@@ -845,6 +855,7 @@ func (m Model) changeRows(s stage) []record {
 			"change": {Raw: []string{ref(p)}, Link: page}, "title": table.One(p.Title), "author": table.Some(p.Author),
 			"state": {Raw: []string{p.State}, Link: page}, "age": table.Seconds(&p.Age), "checks": checked,
 			"threads": table.One(strconv.Itoa(p.Unresolved)), "branch": table.Some(p.Branch), "labels": table.Labelled(p.Labels),
+			"member": m.memberValue(p.Member),
 		}}
 		for _, i := range p.Closes {
 			r.Detail = append(r.Detail, []cell{number("#" + strconv.Itoa(i.Number)), owners(i.Assignees),
@@ -880,7 +891,7 @@ func (m Model) buildRows(s stage) []record {
 		r := record{row{Key: m.keyOf(b.Member, strconv.FormatInt(b.ID, 10))}, map[string]table.Value{
 			"status": {Raw: []string{b.State}, Link: b.URL}, "workflow": table.One(b.Workflow), "run": table.Some(number),
 			"event": table.Some(eventOf(b)), "branch": table.One(b.Branch), "commit": table.Some(b.SHA), "title": table.One(title),
-			"age": table.Seconds(&b.Age), "took": lasted,
+			"age": table.Seconds(&b.Age), "took": lasted, "member": m.memberValue(b.Member),
 		}}
 		if b.Attempt > 1 {
 			r.Detail = append(r.Detail, span(style.Off(fmt.Sprintf("attempt %d", b.Attempt))))
@@ -930,7 +941,7 @@ func (m Model) releaseRows(s stage) []record {
 		r := record{row{Key: m.keyOf(rel.Member, rel.Tag)}, map[string]table.Value{
 			"version": table.One(rel.Version), "kind": {Raw: []string{rel.Kind},
 				Link: m.originOf(rel.Member).release(rel.Tag, rel.URL)},
-			"age": table.Seconds(&rel.Age), "latest": latest,
+			"age": table.Seconds(&rel.Age), "latest": latest, "member": m.memberValue(rel.Member),
 		}}
 		r.Detail = [][]cell{span(rel.Name), span(style.Off(rel.Tag)), span(style.Off(rel.At))}
 		out = append(out, r)

@@ -213,7 +213,7 @@ func TestAPresetSetsThePanel(t *testing.T) {
 		"assignees": {Sort: "asc", Priority: 2, Filter: &table.ValueFilter{Exclude: []string{caller}}},
 	}}
 	g := p.Panel(fields, grid.Panel{Owner: ownerOf("backlog")})
-	if got := g.Arrange(columnsOf("backlog")); !slices.Equal(got, []string{"title", "id", "source", "organization", "repository", "assignees", "age", "branch", "labels"}) ||
+	if got := g.Arrange(columnsOf("backlog")); !slices.Equal(got, []string{"title", "id", "member", "source", "organization", "repository", "assignees", "age", "branch", "labels"}) ||
 		!slices.Equal(g.Groups(), []string{"source"}) || g.Field("branch").Placement != grid.Hidden ||
 		!slices.Equal(g.SortKeys(), []grid.SortKey{{Column: "age", Desc: true}, {Column: "assignees"}}) ||
 		g.Showing() != grid.Others || g.Field("branch").Rendering != "text" {
@@ -224,14 +224,15 @@ func TestAPresetSetsThePanel(t *testing.T) {
 		back.Fields["source"] != (table.Setting{Placement: table.PlaceGroup, Depth: 1}) || back.Fields["title"].Position != 1 {
 		t.Errorf("the preset again: %+v", back)
 	}
-	// the stage's own: Default shows every column; Compact, the few that say what a row is
+	// the stage's own: Default shows every column but member, which only a group's rows hold; Compact, the few that say
+	// what a row is
 	builds := catalog["builds"]
 	if d := builds.Presets[0].Panel(builds.Fields, grid.Panel{}); builds.Presets[0].Name != Opening ||
-		hiddenOf(grid.Panel{Fields: d.Fields, Columns: columnsOf("builds")}) != nil {
+		!slices.Equal(hiddenOf(grid.Panel{Fields: d.Fields, Columns: columnsOf("builds")}), []string{"member"}) {
 		t.Errorf("Default: %+v", d.Fields)
 	}
 	if c := builds.Presets[1].Panel(builds.Fields, grid.Panel{Columns: columnsOf("builds")}); builds.Presets[1].Name != "Compact" ||
-		!slices.Equal(hiddenOf(c), []string{"run", "event", "branch", "commit", "took"}) {
+		!slices.Equal(hiddenOf(c), []string{"member", "run", "event", "branch", "commit", "took"}) {
 		t.Errorf("Compact: %+v", c.Fields)
 	}
 	// a rendering pinned draws the field
@@ -283,6 +284,15 @@ func TestARefIsLeftAlignedAndATimeRight(t *testing.T) {
 			if f.Type == "ref" && f.Right || f.Type == "time" && !f.Right {
 				t.Errorf("%s: %s, a %s, right-aligned %v", name, f.ID, f.Type, f.Right)
 			}
+		}
+	}
+}
+
+// Every stage drawn from records has member, hidden, which groups and filters: over a group, the rows group by it.
+func TestEveryStageHasAMemberField(t *testing.T) {
+	for _, stage := range []string{"backlog", "underway", "desk", "worktrees", "changes", "builds", "releases"} {
+		if f := fieldIn(stage, "member"); f.Placement != table.PlaceHidden || !f.Filter || !f.Group || !f.Sort {
+			t.Errorf("%s.member: %+v", stage, f)
 		}
 	}
 }

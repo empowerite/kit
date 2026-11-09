@@ -5,6 +5,8 @@
       "fields": [
         {"id": "id", "label": "id", "type": "ref", "path": ".number", "sort": true, "renderings": ["text"],
          "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
         {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
          "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
          "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
@@ -36,6 +38,8 @@
       "fields": [
         {"id": "id", "label": "id", "type": "ref", "path": ".number", "sort": true, "renderings": ["text"],
          "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
         {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
          "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
          "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
@@ -84,6 +88,8 @@
       "fields": [
         {"id": "branch", "label": "branch", "type": "text", "path": ".branch, .relative, .path", "sort": true,
          "glyph": "💻", "renderings": ["checkout", "name"], "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
         {"id": "ahead", "label": "ahead", "type": "number", "path": ".ahead, .behind", "sort": true,
          "renderings": ["counts"], "placement": "column"},
         {"id": "lines", "label": "lines", "type": "number", "path": ".added, .removed", "sort": true,
@@ -111,6 +117,8 @@
       "fields": [
         {"id": "branch", "label": "branch", "type": "text", "path": ".branch, .relative, .path", "sort": true,
          "glyph": "🌿", "renderings": ["checkout", "name"], "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
         {"id": "ahead", "label": "ahead", "type": "number", "path": ".ahead, .behind", "sort": true,
          "renderings": ["counts"], "placement": "column"},
         {"id": "lines", "label": "lines", "type": "number", "path": ".added, .removed", "sort": true,
@@ -138,6 +146,8 @@
       "fields": [
         {"id": "change", "label": "change", "type": "ref", "path": ".ref, .number", "sort": true, "glyph": "🔀",
          "renderings": ["glyph+text", "text"], "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
         {"id": "title", "label": "title", "type": "text", "path": ".title", "sort": true, "renderings": ["text"],
          "wrap": true, "placement": "column"},
         {"id": "author", "label": "author", "type": "person", "path": ".author", "sort": true, "group": true,
@@ -177,6 +187,8 @@
            {"value": "running", "glyph": "🏃"}, {"value": "passed", "glyph": "✅"}, {"value": "failed", "glyph": "❌"},
            {"value": "cancelled", "glyph": "🛑"}], "other": "🔳",
          "renderings": ["glyph"], "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
         {"id": "workflow", "label": "workflow", "type": "text", "path": ".workflow", "sort": true, "group": true,
          "renderings": ["text"], "placement": "column"},
         {"id": "run", "label": "run", "type": "ref", "path": ".number", "sort": true, "renderings": ["text"],
@@ -208,6 +220,8 @@
       "fields": [
         {"id": "version", "label": "version", "type": "text", "path": ".version", "sort": true, "renderings": ["text"],
          "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
         {"id": "kind", "label": "kind", "type": "enum", "path": ".kind", "sort": true, "group": true, "filter": true,
          "values": [{"value": "release", "glyph": "📦"}, {"value": "pre-release", "glyph": "🧪"},
                     {"value": "draft", "glyph": "📝"}], "other": "📦",
