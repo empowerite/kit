@@ -61,10 +61,12 @@
 #   changes             the open pull requests, each with the issues it closes
 #   builds              the runs not owned by any pull request: the default branch, tags, schedules
 #   releases            the releases on the forge, newest first
+#   repos               the repositories of the workspace, or the one here: each one's forge, remotes, checkout, and
+#                       its desk's branch
 #
 # The filters combine: --mine --owner=bob. --mine alone leaves out the owner column.
 #
-# kit flow --stages
+# kit flow --stages [--workspace <workspace>]
 #
 # kit flow --me
 #
@@ -87,6 +89,8 @@
 # kit flow builds [--workspace <workspace>] [--json | --jq] [--cached]
 #
 # kit flow releases [--workspace <workspace>] [--json | --jq] [--cached]
+#
+# kit flow repos [--workspace <workspace>] [--json | --jq]
 #
 # One stage prints without its heading. With --json, a stage prints what the picture holds under its name: an array
 # for backlog, underway, changes, builds, and releases; an object for desk, worktrees, and incoming. Above desks,
@@ -245,7 +249,7 @@ do
   esac
 done
 set -- "${words[@]}"
-if [[ -n "${workspace}" ]]
+if [[ -n "${workspace}" || "${1:-}" == repos ]]
 then
   use across
   across:flow "${workspace}" "${words[@]}"

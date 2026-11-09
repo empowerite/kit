@@ -140,3 +140,45 @@ EOF
   [ "$status" -eq 0 ]
   [ "$(jq -r 'type' <<<"$output")" = object ]
 }
+
+@test "kit flow repos --workspace gives a row per member, cloned or not, with its desk's branch" {
+  two-desks
+  git -C "${BATS_TEST_TMPDIR}/code/a" commit --quiet --allow-empty --message ahead
+  cd "${BATS_TEST_TMPDIR}"
+  run "${kit_root}/bin/kit" flow repos --workspace w --json
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '[.rows[] | [.repository, .by, .branch, .ahead, .checkout != null, .error]]' <<<"$output")" = \
+    '[["github.com/o/a","fixed","main",1,true,null],["github.com/o/b","fixed","main",0,true,null],["github.com/o/c","fixed",null,null,false,null]]' ]
+  [ "$(jq -c .errors <<<"$output")" = '[]' ]
+}
+
+@test "kit flow repos in a repository lists it alone; outside one, without --workspace, it refuses with 2" {
+  desk-at "${BATS_TEST_TMPDIR}/code/a" github.com/o/a
+  cd "${BATS_TEST_TMPDIR}/code/a"
+  run "${kit_root}/bin/kit" flow repos --json
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '[.rows[] | [.repository, .by, .branch]]' <<<"$output")" = '[["github.com/o/a","here","main"]]' ]
+  cd "${BATS_TEST_TMPDIR}"
+  run "${kit_root}/bin/kit" flow repos --json
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"repos lists a workspace's repositories"* ]]
+}
+
+@test "kit flow repos draws a line per member, its branch with what it is ahead, and not cloned" {
+  two-desks
+  git -C "${BATS_TEST_TMPDIR}/code/a" commit --quiet --allow-empty --message ahead
+  cd "${BATS_TEST_TMPDIR}"
+  run "${kit_root}/bin/kit" flow repos --workspace w
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"github.com/o/a"*"main ↑1"* ]]
+  [[ "$output" == *"github.com/o/c"*"not cloned"* ]]
+}
+
+@test "kit flow --stages --workspace puts repos first" {
+  workspaces-file <<<'workspaces: {w: {repos: [github.com/o/a]}}'
+  cd "${BATS_TEST_TMPDIR}"
+  run "${kit_root}/bin/kit" flow --stages --workspace w
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = repos ]
+  [ "${#lines[@]}" -eq 9 ]
+}
