@@ -699,7 +699,7 @@ func TestEveryLineFitsTheWidth(t *testing.T) {
 	}
 }
 
-// At 130 columns every tab is whole; at 100 the bar scrolls, no name cut, and ▹, which would cut basics, is hidden.
+// At 130 columns every tab is whole; at 100 the bar scrolls, ▹ after the tab it cuts, and basics stays whole.
 func TestEveryTabIsWholeAt130AndScrollsAt100(t *testing.T) {
 	m, _ := atBasics(t, tea.WindowSizeMsg{Width: 130, Height: 30})
 	labels := strings.Split(view(m), "\n")[2]
@@ -710,7 +710,8 @@ func TestEveryTabIsWholeAt130AndScrollsAt100(t *testing.T) {
 	}
 	m = drive(m, tea.WindowSizeMsg{Width: 100, Height: 30})
 	labels = strings.Split(view(m), "\n")[2]
-	if !strings.Contains(labels, "│ 🧱 basics 2") || strings.Contains(labels, "…") || strings.Contains(labels, tabs.After) {
+	if !strings.Contains(labels, "│ 🧱 basics  2 │") || strings.Contains(labels, "…") ||
+		!strings.HasSuffix(labels, tabs.After) {
 		t.Errorf("at 100: %q", labels)
 	}
 }

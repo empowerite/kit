@@ -1,7 +1,7 @@
 // Package tabs is the tab bar kit flow and kit welcome share: three lines, as tabs on folders. Each tab's part starts
 // with a cell of its own, which holds its number on the line above; then a space, its glyph, a space, and its name on
-// the middle line, and its count right-aligned at the tab's end, the menu's glyph after it on the selected tab of a
-// bar with menus; then a cell between it and the next. Each line over a tab starts with a half line, ╶, apart
+// the middle line, the stale dot's cell, a space, and its count, and the menu's glyph at the tab's end on the selected
+// tab of a bar with menus; then a cell between it and the next. Each line over a tab starts with a half line, ╶, apart
 // from the number before it. Each tab but the selected one has a dim border: a line from its number over it to ╮ in
 // that cell, │ under that, and ╰ under that, out to the right over the line under the tab, or a half line, ╵, on the
 // last tab; the tab before the selected
@@ -64,16 +64,16 @@ type Tab struct {
 
 // Bar is the tab bar as a screen has it now: the tabs, the selected one, whether the bar has the keyboard, the
 // screen's width, and the screen line it starts on, which a click is matched against. Reserve is the cells a tab's
-// count is laid out for at least, so a count that grows, as one a filter narrows to n/m, does not move the tabs;
-// Reserves is the same for each tab, by index, beside it.
+// count is laid out for at least, so a count that grows, as one that loads, does not move the tabs; Reserves is the
+// same for each tab, by index, beside it.
 // Menus says whether the selected tab draws Menu after its count; every tab keeps the room for it, so moving along
 // the bar moves nothing. MenuOpen says whether the tab's menu is open: the glyph is then in the menu's color, and the
 // count blank. Joined says a line runs
 // down from the bar's last column, as a rule beside what is under the bar: the last cell of the bar's last line turns
 // down into it. Color is what the selected tab, and the line under the others, are drawn in, a 256-color number, as a
 // stage's group has one; none is the accent. Alert says, by index, which tabs' counts want attention, as a step's
-// failed checks do. Stale says, by index, which tabs show what is stale: each has Stale after its name, in a cell of
-// the room before its count, so the dot moves no tab; a tab with no room to spare draws none. Scroll is the cells of
+// failed checks do. Stale says, by index, which tabs show what is stale: each has Stale after its name, in the cell
+// every tab with a count keeps there, so the dot moves no tab; a tab with no count and no reserve draws none. Scroll is the cells of
 // the bar the view has scrolled past on its left, as the screen keeps it from
 // what Update chose, so a triangle's scroll stays; the view goes on from there while the selected tab shows whole.
 type Bar struct {
@@ -193,11 +193,10 @@ func Marker(i int, selected bool) string {
 	return string(rune('➀' + i))
 }
 
-// label gives a tab's label on the middle line, as two ends: its glyph and a space, when it has one, and its name, in
-// the accent when selected; then, right-aligned in the tab, its count, dim, or bold and red when it wants attention,
-// and the menu's glyph after a space on the selected tab, when the bar has menus, its count blank while the menu is
-// open. Its number is on the line above.
-func (b Bar) label(i int) (name, end string) {
+// label gives a tab's label on the middle line, as three parts: its glyph and a space, when it has one, and its name,
+// in the accent when selected; its count, dim, or bold and red when it wants attention; and the menu's glyph on the
+// selected tab, when the bar has menus, its count blank while the menu is open. Its number is on the line above.
+func (b Bar) label(i int) (name, count, menu string) {
 	t := b.Tabs[i]
 	if t.Glyph != "" {
 		name = t.Glyph + " "
@@ -208,19 +207,18 @@ func (b Bar) label(i int) (name, end string) {
 	} else {
 		name += t.Name
 	}
-	end = style.Off(t.Count)
+	count = style.Off(t.Count)
 	if b.alert(i) {
-		end = style.Loss(t.Count)
+		count = style.Loss(t.Count)
 	}
 	if b.Menus && i == b.Selected {
-		glyph := mark(Menu) // bold, as the tab's name is, so the narrow : reads as a button
+		menu = mark(Menu) // bold, as the tab's name is, so the narrow : reads as a button
 		if b.MenuOpen {
 			// the open menu hangs from the glyph, and the count would show beside its edge: its cells stay, blank
-			end, glyph = strings.Repeat(" ", ansi.StringWidth(t.Count)), style.Menu(Menu)
+			count, menu = strings.Repeat(" ", ansi.StringWidth(t.Count)), style.Menu(Menu)
 		}
-		end += " " + glyph
 	}
-	return name, end
+	return name, count, menu
 }
 
 // Label gives the selected tab's label as the bar draws it on its middle line, on one line with a space between its
@@ -230,25 +228,31 @@ func (b Bar) Label() string {
 	if len(b.Tabs) == 0 {
 		return ""
 	}
-	name, end := b.label(b.Selected)
-	if ansi.StringWidth(b.Tabs[b.Selected].Count) > 0 {
-		name += " "
+	name, count, menu := b.label(b.Selected)
+	for _, part := range []string{count, menu} {
+		if ansi.StringWidth(part) > 0 {
+			name += " " + part
+		}
 	}
-	return name + end
+	return name
 }
 
-// wants gives the cells a tab's label takes at least: its name, a space and its count, or the bar's reserve or the
-// tab's own in Reserves when the count is narrower, room for a space and the menu's glyph on every tab when the bar
-// has menus, and a space after them.
-func (b Bar) wants(i int) int {
-	name, _ := b.label(i)
-	n := ansi.StringWidth(name)
-	reserve := b.Reserve
+// reserve gives the cells a tab's count is laid out for at least: the bar's Reserve, or the tab's own in Reserves.
+func (b Bar) reserve(i int) int {
 	if i < len(b.Reserves) {
-		reserve = max(reserve, b.Reserves[i])
+		return max(b.Reserve, b.Reserves[i])
 	}
-	if count := ansi.StringWidth(b.Tabs[i].Count); count > 0 || reserve > 0 {
-		n += 1 + max(count, reserve)
+	return b.Reserve
+}
+
+// wants gives the cells a tab's label takes at least: its name; the stale dot's cell, a space, and its count, or its
+// reserve when the count is narrower; room for a space and the menu's glyph on every tab when the bar has menus; and
+// a space after them.
+func (b Bar) wants(i int) int {
+	name, _, _ := b.label(i)
+	n := ansi.StringWidth(name)
+	if count := ansi.StringWidth(b.Tabs[i].Count); count > 0 || b.reserve(i) > 0 {
+		n += 2 + max(count, b.reserve(i))
 	}
 	if b.Menus {
 		n += 1 + ansi.StringWidth(Menu)
@@ -383,18 +387,26 @@ func (b Bar) View() string {
 	}
 	for i := range b.Tabs {
 		// the tab's first cell holds its number, and the selected tab's corner, edge, and curve under it
+		// the label: the name, then the stale dot's cell, a space, and the count, the room the tab spares after the
+		// count, and the menu's glyph at the tab's end; the dot stays yellow, and a count that wants attention bold and
+		// red, while the rest of the tab dims
 		cells := l.parts[i] - 1
-		name, end := b.label(i)
-		room := cells - 2 - ansi.StringWidth(end)
-		head := pane.Pad(" "+name, room, false)
-		label := head + end + " "
-		dimmed, dimHead := b.dim(label), b.dim(head)
-		if lead := " " + name; b.stale(i) && ansi.StringWidth(lead)+1 <= room {
-			// the dot stays yellow while the rest of the tab dims
-			gap := strings.Repeat(" ", room-ansi.StringWidth(lead)-1)
-			head, dimHead = lead+style.Warn(Stale)+gap, b.dim(lead)+style.Warn(Stale)+gap
-			label, dimmed = head+end+" ", dimHead+b.dim(end)+" "
+		name, count, menu := b.label(i)
+		tail := ""
+		if menu != "" {
+			tail = " " + menu
 		}
+		room := cells - 2 - ansi.StringWidth(tail)
+		body, dimBody := " "+name, b.dim(" "+name)
+		if ansi.StringWidth(b.Tabs[i].Count) > 0 || b.reserve(i) > 0 {
+			dot := " "
+			if b.stale(i) {
+				dot = style.Warn(Stale)
+			}
+			body, dimBody = body+dot+" "+count, dimBody+dot+" "+count
+		}
+		label := pane.Pad(body, room, false) + tail + " "
+		dimmed := pane.Pad(dimBody, room, false) + tail + " "
 		if i == b.Selected {
 			cell(mark(cmp.Or(Marker(i, true), "╭")), mark("│"), curve("╯", i == 0))
 			cell(mark(top(cells-1)), label, strings.Repeat(" ", cells-1))
@@ -408,10 +420,6 @@ func (b Bar) View() string {
 			number = style.Off("─")
 		}
 		cell(number, " ", mark(strings.Repeat("─", cells)))
-		if b.alert(i) {
-			// a count that wants attention stays bold and red, wherever the keyboard is
-			dimmed = dimHead + end + " "
-		}
 		cell(style.Off(top(cells-1)), dimmed, "")
 		switch {
 		case i+1 == b.Selected:

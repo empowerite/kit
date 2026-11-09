@@ -1,7 +1,7 @@
   = kit welcome · - empowerite/kit                                                                           🔎 /search
-  ➀╶─────────╮➁╶────────────╮➂╶────────────────╴➍╶───────────╮➄╶───────────────────╮➅╶─────────╮➆╶─────────────────╮
-    👋 intro │  🧱 basics 2 │  🧰 toolchains 1  │ 🔧 setup 2 │  🧭 lay of the land │  📖 terms │  🎨 make it yours │
-  ───────────╰──────────────╰───────────────────╯            ╰─────────────────────╰───────────╰───────────────────╰────
+  ➀╶─────────╮➁╶─────────────╮➂╶─────────────────╴➍╶────────────╮➄╶───────────────────╮➅╶─────────╮➆╶─────────────────╮
+    👋 intro │  🧱 basics  2 │  🧰 toolchains  1  │ 🔧 setup  2 │  🧭 lay of the land │  📖 terms │  🎨 make it yours │
+  ───────────╰───────────────╰────────────────────╯             ╰─────────────────────╰───────────╰───────────────────╰─
    Setup
 
    Each line is a check. When one fails and kit knows the fix, choose now to run it or later to move on.

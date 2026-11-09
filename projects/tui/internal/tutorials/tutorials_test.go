@@ -207,8 +207,8 @@ func TestATagFromTheCommandLineSelectsItsTab(t *testing.T) {
 // tutorials, and down enters the cards only where there are some.
 func TestTheBarSelectsATabAndCountsItsTutorials(t *testing.T) {
 	m, _ := loaded(t)
-	if bar := lines(m)[2]; !strings.Contains(bar, "All 2") || !strings.Contains(bar, "Just starting 2") ||
-		!strings.Contains(bar, "UI 1") || !strings.Contains(bar, "Maintainer 0") {
+	if bar := lines(m)[2]; !strings.Contains(bar, "All  2") || !strings.Contains(bar, "Just starting  2") ||
+		!strings.Contains(bar, "UI  1") || !strings.Contains(bar, "Maintainer  0") {
 		t.Errorf("the counts: %q", bar)
 	}
 	if m = drive(m, up, right); m.tab != 1 || m.inPane {
@@ -239,7 +239,7 @@ func TestTheBarSelectsATabAndCountsItsTutorials(t *testing.T) {
 func TestThePaneSaysWhatKitDid(t *testing.T) {
 	m, _ := fake(t)
 	m = drive(m, at120)
-	if v := view(m); !strings.Contains(v, "reading…") || !strings.Contains(lines(m)[2], "All …") {
+	if v := view(m); !strings.Contains(v, "reading…") || !strings.Contains(lines(m)[2], "All  …") {
 		t.Errorf("before kit answers:\n%s", v)
 	}
 	if m = drive(m, enter, down, right); m.cursor != 0 {

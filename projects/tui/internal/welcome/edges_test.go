@@ -111,7 +111,7 @@ func TestUpOnTheBarAndDownBeforeTheChecksAnswerDoNothing(t *testing.T) {
 func TestOnAScreenTooNarrowTheBarScrolls(t *testing.T) {
 	m, _ := atBasics(t, tea.WindowSizeMsg{Width: 40, Height: 30})
 	bar := strings.Split(view(m), "\n")[2]
-	if !strings.Contains(bar, "│ 🧱 basics 2 │") || !strings.HasSuffix(bar, tabs.After) {
+	if !strings.Contains(bar, "│ 🧱 basics  2 │") || !strings.HasSuffix(bar, tabs.After) {
 		t.Errorf("at 40 columns, the bar does not scroll to basics: %q", bar)
 	}
 }

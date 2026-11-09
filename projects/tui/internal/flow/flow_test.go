@@ -1281,7 +1281,7 @@ func TestTheBarScrollsToTheSelectedStage(t *testing.T) {
 	dim, _, _ := strings.Cut(style.Off("x"), "x")
 	mark, _ := style.In(stageColors["incoming"])
 	if bar := strings.Split(m.View().Content, "\n")[2]; !strings.Contains(bar, mark("incoming")) ||
-		!strings.Contains(bar, dim+" 🛫 underway ") {
+		!strings.Contains(bar, dim+" 🛫 underway") {
 		t.Errorf("with the rows' keyboard, the selected stage left its color, or the others are not dim: %q", bar)
 	}
 	// at 120, ◃ says tabs are hidden on the left; at 80 it is blank, as moving the view back would cut incoming

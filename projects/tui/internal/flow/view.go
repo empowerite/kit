@@ -70,7 +70,7 @@ func (m Model) View() tea.View {
 }
 
 // bar gives the stages' tab bar, from the screen's second line, as wide as barWidth says: each stage's glyph, name,
-// and count, the room for the widest count of n/m its rows allow and the menu's glyph kept for each, the keyboard on it unless the rows or the
+// and count, the room for its count and the menu's glyph kept for each, the keyboard on it unless the rows or the
 // panel have it, its view where it was left, the selected stage's group's color, and a dot on each stage that is stale.
 func (m Model) bar() tabs.Bar {
 	b := tabs.Bar{Selected: m.stage, Focused: !m.inRows && !m.inPanel && !m.onPreset, Scroll: m.barView,
@@ -260,13 +260,12 @@ func (m Model) count(i int) string {
 	return strconv.Itoa(m.shown(i).all)
 }
 
-// reserve gives the cells a stage's count is laid out for: the count's, or one while it loads or after a refusal, and
-// a cell more, which the tab's stale dot takes when it has one, so the dot moves no tab.
+// reserve gives the cells a stage's count is laid out for: the count's, or one while it loads or after a refusal.
 func (m Model) reserve(i int) int {
 	if m.stages[i].src.Loading || m.stages[i].refusal != "" {
-		return 1 + 1
+		return 1
 	}
-	return len(strconv.Itoa(m.shown(i).all)) + 1
+	return len(strconv.Itoa(m.shown(i).all))
 }
 
 // names gives the labels of a stage's columns that its panel shows, in its order, as its header stands them over its

@@ -110,8 +110,8 @@ func TestTheBarIsThreeLinesWithinTheScreenAndKeepsEveryNumberWhenItFits(t *testi
 func natural() int { return stages(0, 1000).layout().width + Gutter }
 
 func TestEveryTabIsWholeAtItsOwnWidthAndTheLineUnderRunsOnPastThem(t *testing.T) {
-	want := "  │ 🎫 backlog 15 │  🛫 underway 58 │  🛬 incoming 2 │  💻 desk 1 │  🌿 worktrees 4 │  🔀 changes 3 │  " +
-		"🏭 builds 4 │  📦 releases 3 │"
+	want := "  │ 🎫 backlog  15 │  🛫 underway  58 │  🛬 incoming  2 │  💻 desk  1 │  🌿 worktrees  4 │  🔀 changes  3 │  " +
+		"🏭 builds  4 │  📦 releases  3 │"
 	// a wider screen draws them as wide, and the line under them runs on to its edge
 	for _, width := range []int{natural(), 170} {
 		if got := row(stages(0, width), 1); got != want {
@@ -136,12 +136,12 @@ func TestEveryTabIsWholeAtItsOwnWidthAndTheLineUnderRunsOnPastThem(t *testing.T)
 // runs on.
 func TestTheSelectedTabIsOpenBelowAndItsEdgesCurve(t *testing.T) {
 	want := []string{
-		"  ➀╶──────────────╮➁╶───────────────╮➂╶──────────────╴➍╶──────────╮➄╶───────────────╮➅╶─────────────╮" +
-			"➆╶────────────╮➇╶──────────────╮",
-		"    🎫 backlog 15 │  🛫 underway 58 │  🛬 incoming 2  │ 💻 desk 1 │  🌿 worktrees 4 │  🔀 changes 3 │  " +
-			"🏭 builds 4 │  📦 releases 3 │",
-		"  ────────────────╰─────────────────╰─────────────────╯           ╰─────────────────╰───────────────╰" +
-			"──────────────╰────────────────╵",
+		"  ➀╶───────────────╮➁╶────────────────╮➂╶───────────────╴➍╶───────────╮➄╶────────────────╮➅╶──────────────╮" +
+			"➆╶─────────────╮➇╶───────────────╮",
+		"    🎫 backlog  15 │  🛫 underway  58 │  🛬 incoming  2  │ 💻 desk  1 │  🌿 worktrees  4 │  🔀 changes  3 │  " +
+			"🏭 builds  4 │  📦 releases  3 │",
+		"  ─────────────────╰──────────────────╰──────────────────╯            ╰──────────────────╰────────────────╰" +
+			"───────────────╰─────────────────╵",
 	}
 	b := stages(3, natural())
 	if got := strings.Split(plain(b), "\n"); !slices.Equal(got, want) {
@@ -176,7 +176,7 @@ func TestTheSelectedTabIsOpenBelowAndItsEdgesCurve(t *testing.T) {
 // before it and ▹ where they are hidden after it, a tab at either edge cut there; a triangle that would cut the
 // selected tab is hidden, the cut tab alone saying more stand past the edge.
 func TestANarrowScreenScrollsToCenterTheSelectedTab(t *testing.T) {
-	if got, want := row(stages(5, 40), 1), " ◃rktrees 4  │ 🔀 changes 3 │  🏭 buil ▹"; got != want {
+	if got, want := row(stages(5, 40), 1), " ◃ktrees  4  │ 🔀 changes  3 │  🏭 bui ▹"; got != want {
 		t.Errorf("at 40, tab 5:\n got %q\nwant %q", got, want)
 	}
 	if got := row(stages(0, 40), 1); strings.Contains(got, Before) || strings.Contains(got, After) {
@@ -247,10 +247,10 @@ func TestATriangleScrollsOneTabAndNeverSelects(t *testing.T) {
 			}
 		}
 	}
-	// from tab 0 at 40, ▹ shows whole the tab it cut, and the next, until the selected tab would be cut
-	b := stages(0, 40)
-	b, _ = b.Update(testkit.Click(39, 2))
-	if got := row(b, 1); !strings.Contains(got, "🛫 underway 58 │") || !strings.Contains(got, "🎫 backlog 15") {
+	// from tab 0 at 42, ▹ shows whole the tab it cut, and the next, until the selected tab would be cut
+	b := stages(0, 42)
+	b, _ = b.Update(testkit.Click(41, 2))
+	if got := row(b, 1); !strings.Contains(got, "🛫 underway  58 │") || !strings.Contains(got, "🎫 backlog  15") {
 		t.Errorf("▹ from tab 0: %q", got)
 	}
 	if got := row(b, 1); strings.Contains(got, After) {
@@ -341,12 +341,12 @@ func TestAClickOnTheBarSelectsTheTabUnderIt(t *testing.T) {
 func TestTheOtherTabsAreDimWhileThePaneHasTheKeyboard(t *testing.T) {
 	b := stages(0, 80)
 	dim, _, _ := strings.Cut(style.Off("x"), "x")
-	if strings.Contains(b.View(), dim+" 🛬 incoming 2") {
+	if strings.Contains(b.View(), dim+" 🛬 incoming") {
 		t.Errorf("an other tab is dim while the bar has the keyboard: %q", b.View())
 	}
 	b.Focused = false
 	got := b.View()
-	if !strings.Contains(got, dim+" 🛬 incoming 2") || !strings.Contains(got, dim+"➂") || !strings.Contains(got, dim+"╶─") ||
+	if !strings.Contains(got, dim+" 🛬 incoming") || !strings.Contains(got, dim+"➂") || !strings.Contains(got, dim+"╶─") ||
 		!strings.Contains(got, style.Mark("backlog")) {
 		t.Errorf("the other tabs and their lines are not dim beside the selected one: %q", got)
 	}
@@ -401,7 +401,7 @@ func TestTheBarsEdges(t *testing.T) {
 	}
 	// a tab without a glyph has its name under its number
 	bare := Bar{Selected: 1, Width: 40, Tabs: []Tab{{"", "nonesuch", "!"}, {"🎫", "backlog", "3"}}}
-	if got := plain(bare); !strings.HasPrefix(got, "  ➀╶") || !strings.HasPrefix(row(bare, 1), "    nonesuch !  │") {
+	if got := plain(bare); !strings.HasPrefix(got, "  ➀╶") || !strings.HasPrefix(row(bare, 1), "    nonesuch  !  │") {
 		t.Errorf("a tab without a glyph: %q", got)
 	}
 }
@@ -420,8 +420,9 @@ func TestTheReserveAndTheMenuKeepEveryTabWhereItIs(t *testing.T) {
 			t.Errorf("the tabs moved: %v, want %v", got, base)
 		}
 	}
-	if got := row(bar(1, "3"), 1); strings.Count(got, Menu) != 1 || !strings.Contains(got, "4 "+Menu+" │") {
-		t.Errorf("the menu's glyph is not on the selected tab alone, after its count: %q", got)
+	if got := row(bar(1, "3"), 1); strings.Count(got, Menu) != 1 || !strings.Contains(got, "underway  4 ") ||
+		!strings.Contains(got, " "+Menu+" │") {
+		t.Errorf("the menu's glyph is not on the selected tab alone, at its end: %q", got)
 	}
 	// the glyph is bold in the tab's color while the menu is closed, as the tab's name is, and in the menu's own
 	// while it is open, the count then blank, the glyph in its column
@@ -553,8 +554,8 @@ func TestACountThatWantsAttentionStandsOut(t *testing.T) {
 // with a small reserve stays narrow.
 func TestATabsOwnReserveKeepsItsCountsRoomAndNoMore(t *testing.T) {
 	b := Bar{Tabs: []Tab{{"🎫", "backlog", "3"}, {"🛫", "underway", "12"}}, Width: 200, Reserves: []int{3, 5}}
-	if got := []int{b.wants(0), b.wants(1)}; !slices.Equal(got, []int{ansi.StringWidth("🎫 backlog") + 1 + 3 + 1,
-		ansi.StringWidth("🛫 underway") + 1 + 5 + 1}) {
+	if got := []int{b.wants(0), b.wants(1)}; !slices.Equal(got, []int{ansi.StringWidth("🎫 backlog") + 2 + 3 + 1,
+		ansi.StringWidth("🛫 underway") + 2 + 5 + 1}) {
 		t.Errorf("wants: %v", got)
 	}
 	before := row(b, 0)
@@ -585,5 +586,21 @@ func TestTheBarNamesItsKeys(t *testing.T) {
 	}
 	if got := keys(Bar{}, ""); got != "" {
 		t.Errorf("no tabs: %q", got)
+	}
+}
+
+// A tab's count follows its name after two cells, the first the stale dot's, blank on a tab that is not stale; the
+// room a reserve keeps, or a wider tab spares, comes after the count, and the menu's glyph ends the selected tab.
+func TestACountFollowsItsNameAfterTheDotsCellAndASpace(t *testing.T) {
+	b := Bar{Width: 200, Menus: true, Reserves: []int{4, 1}, Stale: []bool{false, true},
+		Tabs: []Tab{{"🎫", "backlog", "3"}, {"🛫", "underway", "12"}}}
+	got := row(b, 1)
+	for _, want := range []string{"🎫 backlog  3    " + Menu + " │", "🛫 underway" + Stale + " 12   │"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the tabs lack %q: %q", want, got)
+		}
+	}
+	if w := b.wants(0); w != ansi.StringWidth("🎫 backlog")+2+4+1+ansi.StringWidth(Menu)+1 {
+		t.Errorf("backlog wants %d", w)
 	}
 }
