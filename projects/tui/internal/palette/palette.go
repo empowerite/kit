@@ -7,7 +7,7 @@
 // the first and the last verb. The right arrow trades the purposes for the highlighted verb's page beside the names,
 // and the left arrow brings them back. Enter opens the verb's form, and a form that cannot open leaves kit's line under
 // the title; = or a click on the = before the title drops the app's menu down, internal/shell's, as every screen of kittui
-// has it; esc clears what is typed, or, with nothing typed, quits, and ctrl-c quits as interrupted. Where the tree or
+// has it; esc clears what is typed and never quits; ctrl-q quits, and ctrl-c quits as interrupted. Where the tree or
 // the page is cut, a dim line says how many verbs or lines are hidden. The keys bar is the last line. Widths are
 // terminal cells, so a two-cell glyph never pushes a row past the edge.
 package palette
@@ -117,7 +117,7 @@ func (m Model) At(name string) Model {
 }
 
 // chose does what a choice from the app's menu asks: a screen asks kittui to show it in the palette's place, which
-// stays as it is; and quit ends the palette, as esc does.
+// stays as it is; and quit ends the palette, as ctrl-q does.
 func (m Model) chose(c shell.Choice) tea.Cmd {
 	switch {
 	case c.Quit:
@@ -140,7 +140,7 @@ func (m Model) searchLine() string {
 // Interrupted says whether ctrl-c ended the palette.
 func (m Model) Interrupted() bool { return m.interrupted }
 
-// Cancelled says whether esc ended the palette.
+// Cancelled says whether ctrl-q, or Quit in the app's menu, ended the palette.
 func (m Model) Cancelled() bool { return m.cancelled }
 
 // Refuse shows kit's line, why the verb opened did not open, in red under the title, until the search changes or
@@ -194,7 +194,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.KeyPressMsg:
 		visible := m.Visible()
-		if k := msg.String(); k == "alt+esc" || k == "super+esc" {
+		if msg.String() == shell.Quit {
 			// quit, as on every screen, the app's menu open or not
 			m.cancelled = true
 			return m, tea.Quit
@@ -219,12 +219,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "/":
 			// the search has the keyboard already, and no verb's name holds a /
 		case "esc":
+			// esc cancels what was typed, and never quits
 			if m.search.Query != "" {
 				m = m.typed("")
-				break
 			}
-			m.cancelled = true
-			return m, tea.Quit
 		case "ctrl+c":
 			m.interrupted = true
 			return m, tea.Quit
@@ -411,7 +409,7 @@ func verbs(rows []row) int {
 // arrow, the names beside the highlighted verb's page. The rows shown are the window that holds the cursor's row, with
 // a dim line for the verbs it hides above and one for those below, each in a row's place; a page cut short says how
 // many lines it hides. The keys bar is the last line, one line clipped to the width, so neither searching nor a refusal
-// moves it: esc, which clears what is typed or quits, the menu, typing, and the keys that act on the list; while the
+// moves it: esc, which clears what is typed, the menu, typing, and the keys that act on the list; while the
 // app's menu is open it is the menu's.
 func (m Model) View() tea.View {
 	visible := m.Visible()
@@ -484,7 +482,7 @@ func (m Model) View() tea.View {
 	return shell.View(drawn, m.height, m.keys().Line(m.width))
 }
 
-// keys gives the path to the keyboard, which the keys bar is drawn from: the screen, which esc quits; the verbs' list,
+// keys gives the path to the keyboard, which the keys bar is drawn from: the screen; the verbs' list,
 // whose keys move, open the verb under the cursor, and turn to the verbs' pages and back; and the search, which always
 // has the keyboard, = and / apart: esc clears what it has typed. An open menu takes every press, and is the path alone.
 func (m Model) keys() shell.Path {
@@ -504,7 +502,7 @@ func (m Model) keys() shell.Path {
 	if m.search.Query != "" {
 		search.Bindings = append([]shell.Binding{shell.Bind("esc", "clear")}, search.Bindings...)
 	}
-	return shell.Path{shell.ScreenKeys(shell.Bind("esc", "quit")), list, search}
+	return shell.Path{shell.ScreenKeys(), list, search}
 }
 
 // page wraps a text to the width, keeping each line's indent, and gives its lines. A width counts what shows, so the

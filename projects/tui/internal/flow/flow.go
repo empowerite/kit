@@ -10,7 +10,7 @@
 // another stage, as underway's pull request, selects that stage with the row under the cursor. The rows take the
 // screen's width. Maximize, in the tab's menu, gives the rows the bar's lines but one, the tab named in the title, and
 // Restore puts the bar back. Esc goes back one level: from the search, then from the rows to the bar. Ctrl-c quits with
-// 130 from anywhere, and alt-esc or super-esc, as a terminal that reports it sends command-esc, quits with 0. A stage's
+// 130 from anywhere, and ctrl-q quits with 0; esc never quits. A stage's
 // command has two minutes; past them it is a refusal, and quitting kills the commands still running.
 package flow
 
@@ -587,7 +587,7 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+c":
 		m.interrupted = true
 		return m, m.quit()
-	case "alt+esc", "super+esc":
+	case shell.Quit:
 		return m, m.quit()
 	}
 	// an open layer, the topmost, takes the key, as layers.go orders them

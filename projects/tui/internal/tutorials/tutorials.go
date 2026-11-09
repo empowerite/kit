@@ -13,7 +13,7 @@
 // on a card opens that one. The bar is internal/tabs: while it has the keyboard, left and right move between the tabs,
 // and down or enter gives the cards the keyboard, on a tab that has some; a tab's number, 1 to 9, or a click on it,
 // selects it from anywhere and gives the bar the keyboard. = or a click on the = drops the app's menu down. Ctrl-c quits
-// with 130 from anywhere, and alt-esc or super-esc, as a terminal that reports it sends command-esc, quits with 0.
+// with 130 from anywhere, and ctrl-q quits with 0; esc never quits.
 //
 // Opening a tutorial says so in place of the keys, for Fades or until a key; when the browser cannot be asked, the
 // tutorial's link stands there instead until a key, to open by hand. The browser cannot be asked over SSH, where an
@@ -214,7 +214,7 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+c":
 		m.interrupted = true
 		return m, m.quit()
-	case "alt+esc", "super+esc":
+	case shell.Quit:
 		return m, m.quit()
 	}
 	if m.appMenu.Open {

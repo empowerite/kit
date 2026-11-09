@@ -1,5 +1,5 @@
 // The binary refuses without a terminal, and ends as the form ended: silent on esc and ctrl-c, with the transcript
-// before the verb on run; the picture and the guide end silent too, 0 on alt-esc and 130 on ctrl-c.
+// before the verb on run; the picture and the guide end silent too, 0 on ctrl-q and 130 on ctrl-c.
 package main
 
 import (
@@ -59,7 +59,7 @@ func TestThePictureEndsZeroOnQuitAnd130OnCtrlC(t *testing.T) {
 		key  tea.KeyPressMsg
 		code int
 	}{
-		{tea.KeyPressMsg{Code: tea.KeyEscape, Mod: tea.ModAlt}, 0},
+		{tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl}, 0},
 		{tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}, 130},
 	} {
 		m, err := flow.Open(testkit.Runner(t, "flow"), nil)
@@ -81,7 +81,7 @@ func TestTheGuideEndsZeroOnQuitAnd130OnCtrlC(t *testing.T) {
 		key  tea.KeyPressMsg
 		code int
 	}{
-		{tea.KeyPressMsg{Code: tea.KeyEscape, Mod: tea.ModAlt}, 0},
+		{tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl}, 0},
 		{tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}, 130},
 	} {
 		next, cmd := welcome.Open(testkit.Runner(t, "welcome"), kit.Workspace{}).Update(c.key)
@@ -185,11 +185,11 @@ func onTerminal(t *testing.T, run func(tea.Model) (tea.Model, error)) *[]string 
 	return ran
 }
 
-// On a terminal, each screen opens and ends as the person ended it: the palette and kit help with 0 on esc, a form
-// with 1, the picture and the guide with 0 on alt-esc, and every one of them with 130 on ctrl-c.
+// On a terminal, each screen opens and ends as the person ended it: with 0 on ctrl-q, a form with 1, and every one of
+// them with 130 on ctrl-c.
 func TestEveryScreenOpensOnATerminalAndEndsAsThePersonEndedIt(t *testing.T) {
 	esc, ctrlC := tea.KeyPressMsg{Code: tea.KeyEscape}, tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
-	altEsc := tea.KeyPressMsg{Code: tea.KeyEscape, Mod: tea.ModAlt}
+	ctrlQ := tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl}
 	for _, c := range []struct {
 		args       []string
 		key        tea.KeyPressMsg
@@ -197,14 +197,14 @@ func TestEveryScreenOpensOnATerminalAndEndsAsThePersonEndedIt(t *testing.T) {
 		stderrHas  string
 		stderrNone bool
 	}{
-		{nil, esc, 0, "", true},
-		{[]string{"help"}, esc, 0, "", true},
-		{[]string{"help", "commit"}, esc, 0, "", true},
-		{[]string{"--", "commit"}, esc, 1, "", true},
+		{nil, ctrlQ, 0, "", true},
+		{[]string{"help"}, ctrlQ, 0, "", true},
+		{[]string{"help", "commit"}, ctrlQ, 0, "", true},
+		{[]string{"--", "commit"}, ctrlQ, 1, "", true},
 		{[]string{"--", "commit", "--message", "hi"}, tea.KeyPressMsg{Code: tea.KeyEnter, Mod: tea.ModShift}, 0,
 			"kit commit ", false},
-		{[]string{"flow"}, altEsc, 0, "", true},
-		{[]string{"welcome"}, altEsc, 0, "", true},
+		{[]string{"flow"}, ctrlQ, 0, "", true},
+		{[]string{"welcome"}, ctrlQ, 0, "", true},
 		{nil, ctrlC, 130, "", true},
 		{[]string{"flow"}, ctrlC, 130, "", true},
 		{[]string{"welcome"}, ctrlC, 130, "", true},
@@ -333,8 +333,8 @@ func TestTutorialsOpensItsScreen(t *testing.T) {
 		}
 	}
 	r := testkit.Runner(t, "tutorials")
-	for key, code := range map[string]int{"alt-esc": 0, "ctrl-c": 130} {
-		k := tea.KeyPressMsg{Code: tea.KeyEscape, Mod: tea.ModAlt}
+	for key, code := range map[string]int{"ctrl-q": 0, "ctrl-c": 130} {
+		k := tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl}
 		if code == 130 {
 			k = tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
 		}

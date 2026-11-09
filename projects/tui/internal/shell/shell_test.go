@@ -205,27 +205,27 @@ func TestABoxInAGroupsColorSaysWhatTheMenusOwnDoes(t *testing.T) {
 }
 
 // A menu shows each line's keys at its right, flush with the widest, dim but under the keyboard, where the line is
-// drawn as one; a menu with no keys has no room for them; and quit's are ⌥esc, on every screen.
+// drawn as one; a menu with no keys has no room for them; and quit's are ⌃Q, on every screen.
 func TestAMenuShowsEachLinesKeysAtItsRight(t *testing.T) {
-	items := []Item{{Glyph: "✅", Name: "Select All", Keys: "⌃A"}, {Name: "Quit", Keys: "⌥esc"}, {Name: "Refresh"}, {},
+	items := []Item{{Glyph: "✅", Name: "Select All", Keys: "⌃A"}, {Name: "Find", Keys: "⇧⌃F"}, {Name: "Refresh"}, {},
 		{Name: "Off", Keys: "⌃O"}}
 	enabled := func(k int) bool { return k < 3 }
 	box, _ := Box(items, enabled, 1, "", -1, 40)
-	for k, want := range map[int]string{1: "│ ✅ Select All    ⌃A │", 2: "│    Quit        ⌥esc │",
-		3: "│    Refresh          │", 5: "│    Off           ⌃O │"} {
+	for k, want := range map[int]string{1: "│ ✅ Select All   ⌃A │", 2: "│    Find        ⇧⌃F │",
+		3: "│    Refresh         │", 5: "│    Off          ⌃O │"} {
 		if got := ansi.Strip(box[k]); got != want {
 			t.Errorf("line %d: %q, want %q", k, got, want)
 		}
 	}
 	_, under := style.MenuIn("")
-	if !strings.Contains(box[1], style.Off("    ⌃A")) || !strings.Contains(box[2], under("    Quit        ⌥esc ")) ||
-		!strings.Contains(box[5], style.Off("    Off           ⌃O ")) {
+	if !strings.Contains(box[1], style.Off("   ⌃A")) || !strings.Contains(box[2], under("    Find        ⇧⌃F ")) ||
+		!strings.Contains(box[5], style.Off("    Off          ⌃O ")) {
 		t.Errorf("the keys' styles:\n%q", box)
 	}
 	if plain, _ := Box([]Item{{Name: "Refresh"}}, Every, 0, "", -1, 40); ansi.Strip(plain[1]) != "│    Refresh │" {
 		t.Errorf("no keys: %q", ansi.Strip(plain[1]))
 	}
-	if quit := (Menu{}).Items(); quit[len(quit)-1].Keys != "⌥esc" {
+	if quit := (Menu{}).Items(); quit[len(quit)-1].Keys != "⌃Q" {
 		t.Errorf("quit: %+v", quit[len(quit)-1])
 	}
 }

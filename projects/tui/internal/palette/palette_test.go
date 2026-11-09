@@ -249,7 +249,7 @@ func TestRightShowsThePagesAndLeftTheListAgain(t *testing.T) {
 
 func TestTheKeysBarIsTheLastLineWhateverTheContent(t *testing.T) {
 	// the screen's keys, the list's, then the search's, which has the keyboard
-	const bar = " = menu esc quit │ ↑↓ move ⇞⇟ page ⇧↑↓ group → pages ⏎ open │ type to search"
+	const bar = " = menu │ ↑↓ move ⇞⇟ page ⇧↑↓ group → pages ⏎ open │ type to search"
 	long := strings.Repeat("kit commit refuses for the test, at length; ", 8) + "run: kit help commit"
 	for _, height := range []int{30, 12, 6, 5, 4, 3, 2, 1} {
 		for name, msgs := range map[string][]tea.Msg{
@@ -268,8 +268,8 @@ func TestTheKeysBarIsTheLastLineWhateverTheContent(t *testing.T) {
 				}
 			}
 		}
-		// with something typed, esc clears it rather than quitting, and the bar says so, where the search's keys are
-		cleared := strings.Replace(strings.Replace(bar, " esc quit", "", 1), "│ type", "│ esc clear type", 1)
+		// with something typed, esc clears it, and the bar says so, where the search's keys are
+		cleared := strings.Replace(bar, "│ type", "│ esc clear type", 1)
 		for name, text := range map[string]string{"filtered": "co", "empty": "zz"} {
 			m, _ := drive(open(t), append([]tea.Msg{tea.WindowSizeMsg{Width: 100, Height: height}}, search(text)...)...)
 			for _, refused := range []bool{false, true} {
@@ -422,12 +422,16 @@ func TestARefusalShowsRedUnderTheFilterUntilTheFilterChangesOrAVerbOpens(t *test
 	}
 }
 
-// Esc with nothing typed quits, and with something typed clears it; ctrl-c interrupts; a letter is typed in the search
-// from the start, and / and =, which no verb's name holds, are not.
-func TestEscClearsOrQuitsCtrlCInterruptsAndALetterIsTyped(t *testing.T) {
+// Esc with something typed clears it, and never quits; ctrl-q quits; ctrl-c interrupts; a letter is typed in the
+// search from the start, and / and =, which no verb's name holds, are not.
+func TestEscClearsCtrlQQuitsCtrlCInterruptsAndALetterIsTyped(t *testing.T) {
 	m, produced := drive(open(t), tea.KeyPressMsg{Code: tea.KeyEscape})
+	if len(produced) != 0 || m.Cancelled() || m.Interrupted() {
+		t.Errorf("esc with nothing typed: %v", produced)
+	}
+	m, produced = drive(open(t), tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl})
 	if _, quit := produced[len(produced)-1].(tea.QuitMsg); !quit || !m.Cancelled() || m.Interrupted() {
-		t.Errorf("esc: %v", produced)
+		t.Errorf("ctrl-q: %v", produced)
 	}
 	m, produced = drive(open(t), tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 	if _, quit := produced[len(produced)-1].(tea.QuitMsg); !quit || !m.Interrupted() {
@@ -437,7 +441,7 @@ func TestEscClearsOrQuitsCtrlCInterruptsAndALetterIsTyped(t *testing.T) {
 	if len(produced) != 0 || m.search.Query != "q" || m.appMenu.Open {
 		t.Errorf("q/: %v, search %q", produced, m.search.Query)
 	}
-	// esc clears what is typed and leaves the search the keyboard; a second esc quits
+	// esc clears what is typed and leaves the search the keyboard; a second esc does nothing more
 	m, produced = drive(m, tea.KeyPressMsg{Code: tea.KeyEscape})
 	if len(produced) != 0 || m.search.Query != "" || !m.search.Focused || m.Cancelled() {
 		t.Errorf("esc with q typed: %v, search %q", produced, m.search.Query)
@@ -446,18 +450,23 @@ func TestEscClearsOrQuitsCtrlCInterruptsAndALetterIsTyped(t *testing.T) {
 		t.Errorf("con after esc: %q", names(m))
 	}
 	m, produced = drive(m, tea.KeyPressMsg{Code: tea.KeyEscape}, tea.KeyPressMsg{Code: tea.KeyEscape})
-	if _, quit := produced[len(produced)-1].(tea.QuitMsg); !quit || !m.Cancelled() {
+	if len(produced) != 0 || m.Cancelled() || m.search.Query != "" {
 		t.Errorf("esc twice: %v", produced)
 	}
 }
 
-// ⌥esc quits, as on every screen, with something typed, and with the app's menu open, as its Quit line says.
-func TestOptionEscQuitsWhateverIsOpen(t *testing.T) {
-	optEsc := tea.KeyPressMsg{Code: tea.KeyEscape, Mod: tea.ModAlt}
+// ctrl-q quits, as on every screen, with something typed, and with the app's menu open, as its Quit line says; ⌥esc,
+// which a terminal with its default settings sends as esc, does not.
+func TestCtrlQQuitsWhateverIsOpen(t *testing.T) {
+	ctrlQ, optEsc := tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl}, tea.KeyPressMsg{Code: tea.KeyEscape, Mod: tea.ModAlt}
 	for name, before := range map[string][]tea.Msg{"typed": testkit.Typed("q"), "menu": testkit.Typed("=")} {
-		m, produced := drive(open(t), append(before, optEsc)...)
+		m, produced := drive(open(t), append(before, ctrlQ)...)
 		if _, quit := produced[len(produced)-1].(tea.QuitMsg); !quit || !m.Cancelled() || m.Interrupted() {
-			t.Errorf("%s, then ⌥esc: %v", name, produced)
+			t.Errorf("%s, then ctrl-q: %v", name, produced)
+		}
+		if m, produced = drive(open(t), append(before, optEsc)...); m.Cancelled() || len(produced) > 0 &&
+			produced[len(produced)-1] == tea.Msg(tea.QuitMsg{}) {
+			t.Errorf("%s, then ⌥esc quit", name)
 		}
 	}
 }

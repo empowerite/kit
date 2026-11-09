@@ -2,7 +2,7 @@
 // fields, left and right along a row or flip a toggle, space toggles or picks, backspace erases, Enter takes the next
 // field or line and, on the command line, runs; shift-Enter runs from anywhere a terminal reports it, and the keys bar
 // names it only where the terminal said it does; esc goes back
-// to the palette or cancels, and ctrl-c quits as interrupted. In a list, page down and page up move the cursor a page,
+// to the palette and never quits; ctrl-q quits, and ctrl-c quits as interrupted. In a list, page down and page up move the cursor a page,
 // and home and end to the first and last row. Where a window hides rows, a dim line says how many. The keys bar is
 // the last line.
 package form
@@ -74,7 +74,7 @@ type Model struct {
 	args                   []string
 }
 
-// New opens the form over the fields; back is true when esc returns to the palette, false when it cancels.
+// New opens the form over the fields; back is true when esc returns to the palette, false when the form stands alone.
 func New(spec syntax.Spec, fields []Field, r kit.Runner, back bool) Model {
 	m := Model{spec: spec, runner: r, back: back, fields: fields, width: 80, lists: map[string][]kit.Choice{}, sets: map[string]bool{},
 		stale: map[string]bool{}, seeded: map[string]bool{}, failed: map[string]bool{}, extSeen: map[string]bool{}}
@@ -149,19 +149,19 @@ func (m Model) View() tea.View {
 	return v
 }
 
-// keys gives the path to the keyboard, which the keys bar is drawn from: the form, whose esc goes back to the palette
-// or cancels, up and down move between fields, and enter takes the next field; and the field under the keyboard, with
+// keys gives the path to the keyboard, which the keys bar is drawn from: the form, whose esc goes back to the palette,
+// or, opened on its own, whose ctrl-q quits, as esc never does; up and down move between fields, and enter takes the next field; and the field under the keyboard, with
 // the keys its kind takes: the arrows across a row of options, the space where it toggles, backspace where it erases
 // or clears, and the page keys on a list. On the command line, enter runs. Tab, which moves as down and up do, is left
 // unnamed. Shift-Enter is named only where the terminal answered Bubble Tea's ask for the kitty keyboard protocol;
 // elsewhere, Terminal.app among them, it arrives as Enter, and the way to run is Enter on the command line.
 func (m Model) keys() shell.Path {
-	end := "cancel"
+	end := shell.Bind("⌃Q", "quit", shell.Quit)
 	if m.back {
-		end = "back"
+		end = shell.Bind("esc", "back")
 	}
 	form := shell.Segment{Takes: []string{"tab", "shift+tab"}, Bindings: []shell.Binding{
-		shell.Bind("esc", end), shell.Bind("↑↓", "move", "up", "down"), shell.Bind("⏎", "next", "enter")}}
+		end, shell.Bind("↑↓", "move", "up", "down"), shell.Bind("⏎", "next", "enter")}}
 	if m.shift {
 		form.Bindings = append(form.Bindings, shell.Bind("⇧⏎", "run", "shift+enter"))
 	}
@@ -206,12 +206,15 @@ func (m *Model) key(k tea.KeyPressMsg) tea.Cmd {
 	case "ctrl+c":
 		m.interrupted, m.done = true, true
 		return tea.Quit
+	case shell.Quit:
+		m.done = true
+		return tea.Quit
 	case "esc":
+		// esc goes back to the palette, when the form came from it, and never quits
 		if m.back {
 			return func() tea.Msg { return BackMsg{} }
 		}
-		m.done = true
-		return tea.Quit
+		return nil
 	case "shift+enter":
 		return m.tryRun()
 	}

@@ -610,13 +610,16 @@ func TestADocumentOfAnotherShapeIsOneRefusalLine(t *testing.T) {
 }
 
 func TestQuitCodes(t *testing.T) {
-	// alt-esc and super-esc quit from anywhere with 0
-	for _, mod := range []tea.KeyMod{tea.ModAlt, tea.ModSuper} {
-		for _, at := range [][]tea.Msg{nil, {down}} {
-			m := loaded(t, options(), at...)
-			next, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape, Mod: mod})
-			if m = next.(Model); cmd == nil || cmd() != tea.Quit() || m.Interrupted() || m.ctx.Err() == nil {
-				t.Errorf("%v esc after %v: cmd %v, interrupted %v, context %v", mod, at, cmd, m.Interrupted(), m.ctx.Err())
+	// ctrl-q quits from anywhere with 0; esc, with a modifier or none, never quits
+	for _, at := range [][]tea.Msg{nil, {down}} {
+		m := loaded(t, options(), at...)
+		next, cmd := m.Update(tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl})
+		if m = next.(Model); cmd == nil || cmd() != tea.Quit() || m.Interrupted() || m.ctx.Err() == nil {
+			t.Errorf("ctrl-q after %v: cmd %v, interrupted %v, context %v", at, cmd, m.Interrupted(), m.ctx.Err())
+		}
+		for _, mod := range []tea.KeyMod{tea.ModAlt, tea.ModSuper} {
+			if _, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape, Mod: mod}); cmd != nil && cmd() == tea.Quit() {
+				t.Errorf("%v esc after %v quit", mod, at)
 			}
 		}
 	}
@@ -768,13 +771,13 @@ func TestQuitKillsTheStagesStillRunning(t *testing.T) {
 	answers := make(chan tea.Msg, 1)
 	load := m.load("releases", false)
 	go func() { answers <- load() }()
-	// the fake records its call before it sleeps: alt-esc comes once it runs
+	// the fake records its call before it sleeps: ctrl-q comes once it runs
 	for start := time.Now(); calls(t, record) == nil; time.Sleep(10 * time.Millisecond) {
 		if time.Since(start) > 2*time.Second {
 			t.Fatal("the stage did not start")
 		}
 	}
-	m = drive(m, tea.KeyPressMsg{Code: tea.KeyEscape, Mod: tea.ModAlt})
+	m = drive(m, tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl})
 	select {
 	case msg := <-answers:
 		if err := msg.(source.Answer[[]byte]).Err; !errors.Is(err, context.Canceled) {

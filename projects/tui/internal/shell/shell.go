@@ -85,15 +85,21 @@ type SwitchMsg struct{ Screen Screen }
 // Switch gives the command that asks for the screen.
 func Switch(to Screen) tea.Cmd { return func() tea.Msg { return SwitchMsg{to} } }
 
+// Quit is the key that quits kittui on every screen, the app's menu open or not, as its Quit line says; ctrl-c quits
+// too, as an interrupt. No modifier on esc quits: a macOS terminal with its default settings sends ⌥esc, ⌃esc, and
+// ⇧esc as a plain esc, which only cancels or goes back, and keeps ⌘ for itself. Raw mode turns flow control off, so
+// ctrl-q reaches kittui.
+const Quit = "ctrl+q"
+
 // Items gives the menu's lines, top to bottom: kit's screens; a rule; the screen's own items, when it has any, and the
-// settings; a rule; and quit, which ⌥esc does on every screen.
+// settings; a rule; and quit, which ⌃Q does on every screen.
 func (m Menu) Items() []Item {
 	var items []Item
 	for _, s := range screens {
 		items = append(items, s.item)
 	}
 	items = append(append(items, Item{}), m.Own...)
-	return append(items, settingsItem, Item{}, Item{Glyph: Leave, Name: "Quit", Keys: "⌥esc"})
+	return append(items, settingsItem, Item{}, Item{Glyph: Leave, Name: "Quit", Keys: "⌃Q"})
 }
 
 // settingsItem is the menu's line that opens the Settings dialog.

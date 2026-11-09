@@ -152,7 +152,7 @@ func tags(words []string) []string {
 	return out
 }
 
-// finishTutorials ends as the tutorials ended: 130 on ctrl-c, 0 on alt-esc; nothing is printed either way.
+// finishTutorials ends as the tutorials ended: 130 on ctrl-c, 0 on ctrl-q; nothing is printed either way.
 func finishTutorials(m tutorials.Model) int {
 	if m.Interrupted() {
 		return 130
@@ -160,7 +160,7 @@ func finishTutorials(m tutorials.Model) int {
 	return 0
 }
 
-// finishWelcome ends as the guide ended: 130 on ctrl-c, 0 on alt-esc; nothing is printed either way.
+// finishWelcome ends as the guide ended: 130 on ctrl-c, 0 on ctrl-q; nothing is printed either way.
 func finishWelcome(m welcome.Model) int {
 	if m.Interrupted() {
 		return 130
@@ -168,7 +168,7 @@ func finishWelcome(m welcome.Model) int {
 	return 0
 }
 
-// finishFlow ends as the picture ended: 130 on ctrl-c, 0 on alt-esc; nothing is printed either way.
+// finishFlow ends as the picture ended: 130 on ctrl-c, 0 on ctrl-q; nothing is printed either way.
 func finishFlow(m flow.Model) int {
 	if m.Interrupted() {
 		return 130
@@ -176,8 +176,8 @@ func finishFlow(m flow.Model) int {
 	return 0
 }
 
-// finish ends as the screen ended: 130 and nothing printed on ctrl-c; 0 and nothing printed when esc leaves the
-// palette, as kit help ends; 1 and nothing printed when esc cancels a form; and on run the command line to stderr, and
+// finish ends as the screen ended: 130 and nothing printed on ctrl-c; 0 and nothing printed when ctrl-q leaves the
+// palette, as kit help ends; 1 and nothing printed when ctrl-q cancels a form; and on run the command line to stderr, and
 // the verb exec'd in its place, where the command was typed.
 func finish(m app.Model, stderr io.Writer, exec func(verb string, args []string) error) int {
 	if m.Interrupted() {

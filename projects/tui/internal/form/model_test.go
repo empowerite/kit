@@ -43,6 +43,8 @@ func key(name string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
 	case "ctrl+n":
 		return tea.KeyPressMsg{Code: 'n', Mod: tea.ModCtrl}
+	case "ctrl+q":
+		return tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl}
 	}
 	return tea.KeyPressMsg{}
 }
@@ -197,11 +199,16 @@ func TestStatefulPickIsSeededAndANoteUndoesTheFlip(t *testing.T) {
 	}
 }
 
-func TestEscCancelsOrGoesBack(t *testing.T) {
+// Esc goes back to the palette, and on a form standing alone does nothing; ctrl-q cancels the form and quits.
+func TestEscGoesBackAndCtrlQCancels(t *testing.T) {
 	m := newForm(t, "flow", Answers{}, false)
 	m, produced := drive(t, m, key("esc"))
-	if run, args := m.Done(); run || args != nil || len(produced) == 0 {
-		t.Errorf("esc without a way back: %v %v %v", run, args, produced)
+	if len(produced) != 0 || m.done {
+		t.Errorf("esc without a way back: %v", produced)
+	}
+	m, produced = drive(t, m, key("ctrl+q"))
+	if run, args := m.Done(); run || args != nil || len(produced) == 0 || !m.done {
+		t.Errorf("ctrl-q: %v %v %v", run, args, produced)
 	}
 	m = newForm(t, "flow", Answers{}, true)
 	_, produced = drive(t, m, key("esc"))
@@ -394,7 +401,7 @@ func TestTheWayBackIsOnTopTheKeysLastAndThePurposeNamesTheCommand(t *testing.T) 
 	}
 	m = newForm(t, "flow", Answers{}, false)
 	lines = screen(m)
-	if !strings.HasPrefix(lines[0], " kit flow - ") || !strings.HasPrefix(lines[len(lines)-1], " esc cancel ") {
+	if !strings.HasPrefix(lines[0], " kit flow - ") || !strings.HasPrefix(lines[len(lines)-1], " ⌃Q quit ") {
 		t.Errorf("without the way back, the first line %q, the last %q", lines[0], lines[len(lines)-1])
 	}
 }

@@ -261,7 +261,7 @@ func TestThePaneSaysWhatKitDid(t *testing.T) {
 }
 
 // = or a click on the = drops the app's menu down, its Tutorials dim: a screen asks kittui to show it in this one's place,
-// quit ends the screen, and alt-esc quits as well, not interrupted; Close ends what the screen started.
+// quit ends the screen, and ctrl-q quits as well, not interrupted; Close ends what the screen started.
 func TestTheAppMenuSwitchesAndQuits(t *testing.T) {
 	m, _ := loaded(t)
 	m = drive(m, tea.KeyPressMsg{Code: '=', Text: "="})
@@ -288,9 +288,9 @@ func TestTheAppMenuSwitchesAndQuits(t *testing.T) {
 	if m.chose(shell.Choice{}) != nil {
 		t.Error("no choice did something")
 	}
-	next, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape, Mod: tea.ModAlt})
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl})
 	if cmd == nil || cmd() != tea.Quit() || next.(Model).Interrupted() {
-		t.Error("alt-esc did not quit with 0")
+		t.Error("ctrl-q did not quit with 0")
 	}
 	m.Close()
 	if m.ctx.Err() == nil {

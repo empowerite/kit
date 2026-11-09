@@ -16,7 +16,7 @@
 // pane the keyboard: a step's rows, or the intro's links, where up on the first gives it back, or its page, which up
 // and down then scroll, and up at the top gives it back; a click on a check's line puts the cursor there. Inside a row
 // with choices, left and right move between now and later. Esc gives the bar the keyboard back. Ctrl-c quits with 130
-// from anywhere, and alt-esc or super-esc, as a terminal that reports it sends command-esc, quits with 0. The screen
+// from anywhere, and ctrl-q quits with 0; esc never quits. The screen
 // opens on the intro while the checks run, and stays there when they answer. A step with failed checks counts them in
 // red on the bar, which every step shows.
 package welcome
@@ -457,7 +457,7 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+c":
 		m.interrupted = true
 		return m, m.quit()
-	case "alt+esc", "super+esc":
+	case shell.Quit:
 		return m, m.quit()
 	}
 	if m.appMenu.Open {

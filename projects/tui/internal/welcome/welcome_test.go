@@ -423,12 +423,16 @@ func TestEscGivesTheBarTheKeyboardAndNeverQuits(t *testing.T) {
 	}
 }
 
-func TestAltOrSuperEscQuits(t *testing.T) {
-	for _, mod := range []tea.KeyMod{tea.ModAlt, tea.ModSuper} {
-		m, _ := loaded(t)
-		next, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape, Mod: mod})
-		if cmd == nil || cmd() != tea.Quit() || next.(Model).Interrupted() {
-			t.Errorf("%v esc did not quit", mod)
+// ctrl-q quits; esc with a modifier, which a terminal with its default settings sends as esc, does not.
+func TestCtrlQQuitsAndNoEscDoes(t *testing.T) {
+	m, _ := loaded(t)
+	next, cmd := m.Update(tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl})
+	if cmd == nil || cmd() != tea.Quit() || next.(Model).Interrupted() {
+		t.Error("ctrl-q did not quit")
+	}
+	for _, mod := range []tea.KeyMod{0, tea.ModAlt, tea.ModSuper} {
+		if _, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape, Mod: mod}); cmd != nil && cmd() == tea.Quit() {
+			t.Errorf("%v esc quit", mod)
 		}
 	}
 }
@@ -583,9 +587,9 @@ func TestTheCursorsRowStaysInViewOnAShortScreen(t *testing.T) {
 	}
 }
 
-// Leaving the screen, with alt-esc or ctrl-c, ends the checks still running, and what they started with them.
+// Leaving the screen, with ctrl-q or ctrl-c, ends the checks still running, and what they started with them.
 func TestLeavingTheScreenEndsTheChecksStillRunning(t *testing.T) {
-	for _, key := range []tea.KeyPressMsg{{Code: tea.KeyEscape, Mod: tea.ModAlt}, {Code: 'c', Mod: tea.ModCtrl}} {
+	for _, key := range []tea.KeyPressMsg{{Code: 'q', Mod: tea.ModCtrl}, {Code: 'c', Mod: tea.ModCtrl}} {
 		t.Setenv("FAKE_WELCOME_SLOW", "1")
 		m, _ := fake(t)
 		answers := make(chan tea.Msg, 1)
