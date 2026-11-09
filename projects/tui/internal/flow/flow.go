@@ -75,7 +75,7 @@ type stage struct {
 	runs        []run
 	rels        []release
 	failed      []failure // over a group, the members whose read of the stage failed
-	table.Table // its table's state: the panel, the view, the outline, the rows selected, and where the cursor is
+	table.Table           // its table's state: the panel, the view, the outline, the rows selected, and where the cursor is
 }
 
 // known names the stages kittui draws.
@@ -1032,7 +1032,9 @@ func across(name string, data []byte) error {
 }
 
 // fetched says whether the fetch ran in any member incoming read.
-func fetched(ins []incoming) bool { return slices.ContainsFunc(ins, func(in incoming) bool { return in.Fetched }) }
+func fetched(ins []incoming) bool {
+	return slices.ContainsFunc(ins, func(in incoming) bool { return in.Fetched })
+}
 
 // expected is each stage's document, as kit flow's page says: an array of objects for backlog, underway,
 // changes, builds, and releases, each object with the stage's key fields; an object for incoming, desk, and

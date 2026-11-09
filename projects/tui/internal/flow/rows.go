@@ -535,7 +535,7 @@ func (m Model) backlogRows(s stage) []record {
 			"id": table.One(key), "source": table.Some(i.Source), "organization": table.Some(i.Organization),
 			"repository": table.Some(i.Repository), "assignees": {Raw: i.Assignees}, "age": table.Seconds(i.Age),
 			"branch": table.Some(i.Branch), "labels": table.Labelled(i.Labels),
-			"title": {Raw: []string{i.Title}, Link: m.originOf(i.Member).issue(i.Number, i.URL)},
+			"title":  {Raw: []string{i.Title}, Link: m.originOf(i.Member).issue(i.Number, i.URL)},
 			"member": m.memberValue(i.Member),
 		}})
 	}
