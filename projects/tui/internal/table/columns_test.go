@@ -109,23 +109,23 @@ func TestTheColumnsDialogTakesClicksAndNamesItsKeys(t *testing.T) {
 	}
 	// on who's line: its sort cell does nothing, its group cell groups by it, its box hides it, its label moves there
 	y := top + 4
-	c.Click(h, left+4+LabelCells+SortCells, y)
+	c.Click(h, left+4+LabelCells+SortCells, y, false)
 	if !slices.Equal(h.panel.Groups(), []string{"state", "who"}) {
 		t.Errorf("a click on who's group: %q", h.panel.Groups())
 	}
-	c.Click(h, left+4+LabelCells, top+2)
+	c.Click(h, left+4+LabelCells, top+2, false)
 	if h.panel.Field("state").Sort != grid.Ascending {
 		t.Errorf("a click on state's sort: %+v", h.panel.Field("state"))
 	}
-	c.Click(h, left+3, top+2)
+	c.Click(h, left+3, top+2, false)
 	if h.panel.Field("state").Placement != grid.Hidden {
 		t.Errorf("a click on state's box: %+v", h.panel.Field("state"))
 	}
-	c.Click(h, left+6, top+2)
+	c.Click(h, left+6, top+2, false)
 	if c.At != 0 {
 		t.Errorf("a click on a label: at %d", c.At)
 	}
-	if c.Click(h, left, top+1); !c.Open {
+	if c.Click(h, left, top+1, false); !c.Open {
 		t.Error("a click on the headings closed it")
 	}
 	keys := (shell.Path{c.Keys(h)}).String()
@@ -139,7 +139,32 @@ func TestTheColumnsDialogTakesClicksAndNamesItsKeys(t *testing.T) {
 		!strings.Contains(keys, "order") {
 		t.Errorf("state's keys: %q", keys)
 	}
-	if c.Click(h, 0, 0); c.Open {
+	if c.Click(h, 0, 0, false); c.Open {
 		t.Error("a click off it left it open")
+	}
+}
+
+// A click on a key's sort before the last turns it between ascending and descending, and a shift-click turns it off;
+// on the last key, a click turns it off after descending.
+func TestAClickTurnsASortOffOnlyOnTheLastKeyAndAShiftClickAnywhere(t *testing.T) {
+	h := listing()
+	h.panel.Sortable["who"] = true
+	c := Columns{Open: true}
+	_, top, left := c.Box(h)
+	state, who := top+2, top+3
+	sort := left + 4 + LabelCells
+	c.Click(h, sort, state, false)
+	c.Click(h, sort, who, false)
+	c.Click(h, sort, state, false)
+	if c.Click(h, sort, state, false); h.panel.Field("state").Sort != grid.Ascending {
+		t.Errorf("state, before who, clicked twice more: %+v", h.panel.Field("state"))
+	}
+	if c.Click(h, sort, state, true); h.panel.Field("state").Sort != grid.Unsorted ||
+		h.panel.Field("who").Sort != grid.Ascending {
+		t.Errorf("state shift-clicked: %+v, who %+v", h.panel.Field("state"), h.panel.Field("who"))
+	}
+	c.Click(h, sort, who, false)
+	if c.Click(h, sort, who, false); h.panel.Field("who").Sort != grid.Unsorted {
+		t.Errorf("who, the last, clicked twice more: %+v", h.panel.Field("who"))
 	}
 }

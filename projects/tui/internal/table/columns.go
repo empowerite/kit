@@ -3,9 +3,10 @@
 // as the rows stand them, then the hidden, each a line: whether it shows, its label, its sort, ▲ or ▼ and its place
 // among the keys, and its group's depth. What it sets applies at once. Up and down move between the lines; shift with
 // either moves the field a place, across into the groups or out of them, or into the hidden; space shows or hides it,
-// s turns its sort, none, ascending, descending, none again, a key after the others, and g groups by it, within the
-// groups there are, or no longer; enter opens its Options…, and esc closes the dialog. A click on a line's box, its
-// sort, or its group does what space, s, or g does; one off the dialog closes it.
+// s turns its sort, as the panel's Sorted says: ascending, as a key after the others, descending, then none on the
+// last key and ascending again on any other; and g groups by it, within the groups there are, or no longer; enter
+// opens its Options…, and esc closes the dialog. A click on a line's box, its sort, or its group does what space, s,
+// or g does, and a shift-click on its sort turns the sort off; one off the dialog closes it.
 package table
 
 import (
@@ -120,8 +121,7 @@ func (c *Columns) Act(h Host, key string) {
 		if !p.Sortable[id] {
 			return
 		}
-		p = p.SortedAs(id, map[grid.Direction]grid.Direction{grid.Unsorted: grid.Ascending, grid.Ascending: grid.Descending,
-			grid.Descending: grid.Unsorted}[p.Field(id).Sort])
+		p = p.Sorted(id)
 	case "g":
 		p = p.Grouped(id, true)
 	case "shift+up", "shift+down":
@@ -157,10 +157,11 @@ func (c *Columns) Key(h Host, k tea.KeyPressMsg) (Popover, bool) {
 	return Popover{}, false
 }
 
-// Click takes a click while the columns dialog is open: on a field's box, its sort, or its group, it acts as
-// space, s, or g does, the keyboard on the field; on its label, the keyboard goes there; on the dialog elsewhere, its
-// edges among it, nothing; off it, the dialog closes.
-func (c *Columns) Click(h Host, x, y int) {
+// Click takes a click while the columns dialog is open, shift held or not: on a field's box, its sort, or its group,
+// it acts as space, s, or g does, the keyboard on the field, but that a shift-click on its sort turns the sort off;
+// on its label, the keyboard goes there; on the dialog elsewhere, its edges among it, nothing; off it, the dialog
+// closes.
+func (c *Columns) Click(h Host, x, y int, shift bool) {
 	box, top, left := c.Box(h)
 	line, on := (shell.Placed{Lines: box, Top: top, Left: left}).Hit(x, y)
 	if !on {
@@ -177,6 +178,8 @@ func (c *Columns) Click(h Host, x, y int) {
 		c.Act(h, "space")
 	case cell >= 2+LabelCells+SortCells:
 		c.Act(h, "g")
+	case cell >= 2+LabelCells && shift:
+		h.SetPanel(h.Panel().SortedAs(c.Listed(h)[k], grid.Unsorted))
 	case cell >= 2+LabelCells:
 		c.Act(h, "s")
 	}

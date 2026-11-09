@@ -262,20 +262,24 @@ func (p Panel) Filtering() bool {
 	return false
 }
 
-// Sorted gives the panel with the column's sort turned, as an option-click on its name asks: a column not sorting sorts
-// ascending, as one more key after the others, then descending in its place, then not at all. A column that cannot
-// sort changes nothing.
+// Sorted gives the panel with the column's sort turned, as a click on its sort, or an option-click on its name, asks:
+// a column not sorting sorts ascending, as one more key after the others, then descending in its place; then, the
+// last of what sorts the rows, as Place counts, not at all, and any other ascending again, so a turn never moves the
+// keys after it up a place. A column that cannot sort changes nothing.
 func (p Panel) Sorted(column string) Panel {
 	if !p.Sortable[column] {
 		return p
 	}
 	keys := p.SortKeys()
 	k := slices.IndexFunc(keys, func(s SortKey) bool { return s.Column == column })
+	place, total := p.Place(column)
 	switch {
 	case k < 0:
 		keys = append(keys, SortKey{Column: column})
 	case !keys[k].Desc:
 		keys[k].Desc = true
+	case place < total:
+		keys[k].Desc = false
 	default:
 		keys = slices.Delete(keys, k, k+1)
 	}

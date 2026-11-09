@@ -1156,3 +1156,28 @@ func TestHeadingsOfTheSameRowsStandAcrossOnOneLine(t *testing.T) {
 		t.Errorf("where closed: %q", got)
 	}
 }
+
+// A sort turns off only on the last of the keys: a key before it turns between ascending and descending, so a turn
+// never moves the keys after it up a place. A group that sorts comes before every column's key.
+func TestASortTurnsOffOnlyOnTheLastKey(t *testing.T) {
+	p := Panel{Sortable: map[string]bool{"id": true, "age": true, "state": true}}.Sorted("age").Sorted("id")
+	if got := p.Sorted("age").Sorted("age").SortKeys(); len(got) != 2 || got[0] != (SortKey{"age", false}) {
+		t.Errorf("age, not last, turned twice: %+v", got)
+	}
+	if got := p.Sorted("id").Sorted("id").SortKeys(); len(got) != 1 || got[0].Column != "age" {
+		t.Errorf("id, last, turned twice: %+v", got)
+	}
+	// once id is off, age is the last, and turns off in its turn
+	if got := p.Sorted("id").Sorted("id").Sorted("age").Sorted("age").SortKeys(); len(got) != 0 {
+		t.Errorf("age, last now, turned twice: %+v", got)
+	}
+	// a group that sorts, with a column's key after it, is not the last
+	g := Panel{Sortable: map[string]bool{"id": true, "state": true}, Groupable: map[string]bool{"state": true}}.
+		Grouped("state", true).SortedAs("state", Ascending).Sorted("id")
+	if place, total := g.Place("state"); place != 1 || total != 2 {
+		t.Errorf("the group sorts %d of %d", place, total)
+	}
+	if got := g.Sorted("state").Sorted("state"); got.Field("state").Sort != Ascending {
+		t.Errorf("the group, before id, turned twice: %+v", got.Field("state"))
+	}
+}

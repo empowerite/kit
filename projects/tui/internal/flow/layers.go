@@ -57,7 +57,7 @@ func (m Model) layers() shell.Layers[Model] {
 				return m, nil
 			},
 			Click: func(m Model, c tea.MouseClickMsg) (Model, tea.Cmd, bool) {
-				m.cols.Click(&m, c.X, c.Y)
+				m.cols.Click(&m, c.X, c.Y, c.Mod&tea.ModShift != 0)
 				return m, nil, true
 			},
 			Keys: func(m Model) shell.Segment { return m.cols.Keys(&m) },
