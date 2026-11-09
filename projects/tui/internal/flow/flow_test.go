@@ -666,10 +666,22 @@ func TestEscWalksBackFromTheRowsToTheBarAndKeepsTheLegend(t *testing.T) {
 // at80 gives the keys bar as a screen of 80 columns draws it, from the bar as wide as it takes.
 func at80(keys string) string { return fit(keys, 79) }
 
-// fit gives the keys bar in the room a screen has for it, from the bar as wide as it takes: whole controls dropped from
-// the screen's end, … in their place, until it fits, and the last alone clipped.
+// fit gives the keys bar in the room a screen has for it, from the bar as wide as it takes: the screen's keys kept and
+// whole controls dropped after them, … in their place, until it fits, and the last clipped; too narrow for the
+// screen's keys, those dropped too, from the screen's end on.
 func fit(keys string, room int) string {
 	segments := strings.Split(keys, " │ ")
+	if len(segments) > 1 && ansi.StringWidth(segments[0]+" │ … │ ") <= room {
+		for k := 1; k < len(segments); k++ {
+			line := segments[0] + " │ " + strings.Join(segments[k:], " │ ")
+			if k > 1 {
+				line = segments[0] + " │ … │ " + strings.Join(segments[k:], " │ ")
+			}
+			if ansi.StringWidth(line) <= room || k == len(segments)-1 {
+				return ansi.Truncate(line, room, "…")
+			}
+		}
+	}
 	for k := 0; k < len(segments); k++ {
 		line := strings.Join(segments[k:], " │ ")
 		if k > 0 {
@@ -720,7 +732,7 @@ func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
 				for _, height := range []int{24, 12, 8, 7, 6, 5, 4, 3, 2, 1} {
 					m := loaded(t, options(), append([]tea.Msg{tea.WindowSizeMsg{Width: width, Height: height}},
 						c.msgs...)...)
-					// a bar too narrow for every key drops the screen's, then the next control's, … in their place
+					// a bar too narrow for every key keeps the screen's and drops the next control's, … in its place
 					want := fit(keysFor(m, c.keys), width-1)
 					got := lines(m)
 					if len(got) != height || got[height-1] != " "+want {

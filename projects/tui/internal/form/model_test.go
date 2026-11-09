@@ -407,9 +407,9 @@ func TestTheWayBackIsOnTopTheKeysLastAndThePurposeNamesTheCommand(t *testing.T) 
 }
 
 func TestTheKeysBarIsTheLastLineWhereverTheKeyboardIs(t *testing.T) {
-	// the form's keys, then the field's; too narrow for both, the field's alone
+	// the form's keys, then the field's; too narrow for both, the form's and the field's clipped
 	const text = " esc back ↑↓ move ⏎ next ⇧⏎ run │ ⌫ erase"
-	const many = " … │ ⇞⇟ page ␣ toggle ⌫ erase"
+	const many = " esc back ↑↓ move ⏎ next ⇧⏎ run │ ⇞⇟ page ␣ toggl…"
 	const command = " esc back │ ↑ move ⏎ run"
 	long := strings.Repeat("kit commit refuses for the test, at length; ", 6) + "run: kit help commit"
 	for _, height := range []int{40, 12, 7, 3, 2, 1} {

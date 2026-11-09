@@ -284,14 +284,15 @@ func TestTheKeysBarIsTheLastLineWhateverTheContent(t *testing.T) {
 			}
 		}
 	}
-	// the pages' bar names the way back, on the same line; at a narrow width the bar keeps the search's keys alone
+	// the pages' bar names the way back, on the same line; at a narrow width the bar keeps the screen's keys and the
+	// search's, the list's dropped between them
 	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 12}, tea.KeyPressMsg{Code: tea.KeyRight})
 	if lines := strings.Split(stripANSI(m.View().Content), "\n"); len(lines) != 12 ||
 		!strings.Contains(lines[11], "← purposes") {
 		t.Errorf("the pages' bar: %q", lines[len(lines)-1])
 	}
 	m, _ = drive(open(t), tea.WindowSizeMsg{Width: 40, Height: 12})
-	if lines := strings.Split(stripANSI(m.View().Content), "\n"); len(lines) != 12 || lines[11] != " … │ type to search" {
+	if lines := strings.Split(stripANSI(m.View().Content), "\n"); len(lines) != 12 || lines[11] != " = menu │ … │ type to search" {
 		t.Errorf("the bar at 40 columns: %q", lines[len(lines)-1])
 	}
 	// a height not yet known draws everything, then the bar

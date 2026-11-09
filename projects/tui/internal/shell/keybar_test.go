@@ -1,5 +1,5 @@
 // The keys bar is made from the path to the keyboard: each control's keys between rules, a deeper control's press
-// hiding an ancestor's key for it, and, too narrow, whole controls dropped from the screen's end.
+// hiding an ancestor's key for it, and, too narrow, whole controls dropped between the screen's and the last.
 package shell
 
 import (
@@ -70,7 +70,9 @@ func TestADeeperControlHidesTheKeysItTakes(t *testing.T) {
 	}
 }
 
-func TestTooNarrowTheBarDropsWholeControlsFromTheScreensEnd(t *testing.T) {
+// Too narrow, the bar keeps the screen's keys and the last control's, and drops the controls between them; too narrow
+// for those two, it clips the last; too narrow for the screen's alone, it drops it too.
+func TestTooNarrowTheBarKeepsTheScreensKeysAndDropsTheControlsBetween(t *testing.T) {
 	path := Path{ScreenKeys(), {Bindings: []Binding{Bind("←→", "tab", "left", "right")}}, rows}
 	for _, c := range []struct {
 		width int
@@ -78,8 +80,11 @@ func TestTooNarrowTheBarDropsWholeControlsFromTheScreensEnd(t *testing.T) {
 	}{
 		{80, " = menu / search │ ←→ tab │ ↑↓ move ␣ select"},
 		{44, " = menu / search │ ←→ tab │ ↑↓ move ␣ select"},
-		{43, " … │ ←→ tab │ ↑↓ move ␣ select"},
-		{29, " … │ ↑↓ move ␣ select"},
+		{43, " = menu / search │ … │ ↑↓ move ␣ select"},
+		{39, " = menu / search │ … │ ↑↓ move ␣ select"},
+		{38, " = menu / search │ … │ ↑↓ move ␣ sele…"},
+		{23, " = menu / search │ … │…"},
+		{22, " … │ ↑↓ move ␣ select"},
 		{19, " … │ ↑↓ move ␣ sel…"},
 		{1, ""},
 	} {

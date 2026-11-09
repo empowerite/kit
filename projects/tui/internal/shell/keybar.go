@@ -103,41 +103,59 @@ const (
 )
 
 // Line draws the keys bar for the path on a screen so wide: a cell of gutter, then each segment the bar draws, the one
-// the keyboard is in last, its keys brighter than the rest. Too narrow, it drops the segments from the first on, …
-// and a rule in their place; the last alone too wide is clipped with ….
+// the keyboard is in last, its keys brighter than the rest. Too narrow, it keeps the screen's own segment, the first,
+// and the last, and drops the segments between them from the second on, … and a rule in their place, so the screen's
+// keys stay wherever the keyboard is; what is still too wide is clipped with …, the last segment's end first. Only a
+// screen too narrow for the screen's segment alone drops it, as it drops the others, from the first on.
 func (p Path) Line(width int) string {
 	if width < 2 {
 		return ""
 	}
 	var segments [][]Binding
-	for _, s := range p.Shown() {
+	shown := p.Shown()
+	for _, s := range shown {
 		if len(s) > 0 {
 			segments = append(segments, merged(s))
 		}
 	}
+	// the screen's segment stays, while it is drawn at all and another follows it
+	screen := len(shown) > 0 && len(shown[0]) > 0 && len(segments) > 1
 	room := width - 1
-	plain := func(from int) string {
+	// kept gives the segments drawn, the screen's or none and then those from the from'th on, each part drawn by draw,
+	// with … in place of those dropped
+	kept := func(keep bool, from int, draw func(i int) string, cutter string) []string {
 		var parts []string
-		for _, s := range segments[from:] {
-			parts = append(parts, plainSegment(s))
+		if keep {
+			parts = append(parts, draw(0))
 		}
-		line := strings.Join(parts, rule)
-		if from > 0 {
-			line = cut + rule + line
+		if keep && from > 1 || !keep && from > 0 {
+			parts = append(parts, cutter)
 		}
-		return line
+		for i := from; i < len(segments); i++ {
+			parts = append(parts, draw(i))
+		}
+		return parts
 	}
-	from := 0
-	for from < len(segments)-1 && ansi.StringWidth(plain(from)) > room {
-		from++
+	plain := func(keep bool, from int) string {
+		return strings.Join(kept(keep, from, func(i int) string { return plainSegment(segments[i]) }, cut), rule)
 	}
-	var parts []string
-	if from > 0 {
-		parts = append(parts, style.Off(cut))
+	keep, from := screen, 0
+	if keep {
+		from = 1
+		for from < len(segments)-1 && ansi.StringWidth(plain(true, from)) > room {
+			from++
+		}
 	}
-	for i, s := range segments[from:] {
-		parts = append(parts, drawSegment(s, from+i == len(segments)-1))
+	if keep && ansi.StringWidth(plainSegment(segments[0])+rule+cut+rule) > room {
+		keep, from = false, 0
 	}
+	if !keep {
+		for from < len(segments)-1 && ansi.StringWidth(plain(false, from)) > room {
+			from++
+		}
+	}
+	parts := kept(keep, from, func(i int) string { return drawSegment(segments[i], i == len(segments)-1) },
+		style.Off(cut))
 	line := strings.Join(parts, style.BarRule(rule))
 	return " " + ansi.Truncate(line, room, cut)
 }
