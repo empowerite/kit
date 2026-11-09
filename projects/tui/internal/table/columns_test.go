@@ -168,3 +168,35 @@ func TestAClickTurnsASortOffOnlyOnTheLastKeyAndAShiftClickAnywhere(t *testing.T)
 		t.Errorf("who, the last, clicked twice more: %+v", h.panel.Field("who"))
 	}
 }
+
+// A dim rule stands between the fields that show and the hidden ones, where there is at least one of each, as one
+// stands under the groups; a click on it chooses no field.
+func TestTheColumnsDialogSetsTheHiddenFieldsApart(t *testing.T) {
+	h := listing()
+	c := Columns{Open: true}
+	rule := func() []int {
+		box, _, _ := c.Box(h)
+		var at []int
+		for k, l := range box {
+			if strings.Contains(ansi.Strip(l), "───") && !strings.HasPrefix(ansi.Strip(l), "╭") &&
+				!strings.HasPrefix(ansi.Strip(l), "╰") {
+				at = append(at, k)
+			}
+		}
+		return at
+	}
+	if got := rule(); len(got) != 0 {
+		t.Fatalf("a rule with nothing hidden and nothing grouped: %v", got)
+	}
+	c.At = slices.Index(c.Listed(h), "title")
+	c.Key(h, press("space")) // title hidden: the rule stands over it
+	_, top, _ := c.Box(h)
+	if got := rule(); len(got) != 1 || c.Row(h, top+got[0]) != -1 || c.Listed(h)[c.Row(h, top+got[0]+1)] != "title" {
+		t.Fatalf("title hidden: rules at %v", got)
+	}
+	c.At = 0
+	c.Key(h, press("g")) // state grouped too: a rule under the groups, and one over the hidden
+	if got := rule(); len(got) != 2 {
+		t.Errorf("grouped and hidden: rules at %v", got)
+	}
+}

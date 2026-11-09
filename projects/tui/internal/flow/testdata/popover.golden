@@ -12,10 +12,10 @@
                                                                                       │ ☑ branch│ ☐ none               │
                                                                                       │ ☑ labels│ rendering            │
                                                                                       │ ☑ title │ ⦿ auto glyph+text    │
-                                                                                      │ ☐ organi│ ⦾ glyph+text         │
-                                                                                      │ ☐ reposi│ ⦾ text               │
-                                                                                      ╰─────────╰──────────────────────╯
-
+                                                                                      │ ────────│ ⦾ glyph+text         │
+                                                                                      │ ☐ organi│ ⦾ text               │
+                                                                                      │ ☐ reposi╰──────────────────────╯
+                                                                                      ╰───────────────────────────────╯
 
 
 

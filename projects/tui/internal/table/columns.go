@@ -1,6 +1,6 @@
 // The columns dialog: Fields… in the presets' menu opens it under the header's right end, titled by the table's
 // fields. It lists every field of the table, those the rows group by first, the outermost first, then the columns
-// as the rows stand them, then the hidden, each a line: whether it shows, its label, its sort, ▲ or ▼ and its place
+// as the rows stand them, then the hidden, a dim rule between each two of those it has, each a line: whether it shows, its label, its sort, ▲ or ▼ and its place
 // among the keys, and its group's depth. What it sets applies at once. Up and down move between the lines; shift with
 // either moves the field a place, across into the groups or out of them, or into the hidden; space shows or hides it,
 // s turns its sort, as the panel's Sorted says: ascending, as a key after the others, descending, then none on the
@@ -66,16 +66,32 @@ func (c Columns) Line(h Host, id string) string {
 	return box + " " + pane.Pad(label, LabelCells, false) + pane.Pad(sort, SortCells, false) + group
 }
 
+// rules gives the fields of the columns dialog a dim rule stands before, as indexes into those it lists: the first
+// column, under the groups, where there are both; and the first hidden field, under those that show, where there are
+// both, one rule where the two stand together.
+func (c Columns) rules(h Host) []int {
+	p, listed := h.Panel(), c.Listed(h)
+	var out []int
+	if groups := len(p.Groups()); groups > 0 && groups < len(listed) {
+		out = append(out, groups)
+	}
+	if hidden := slices.IndexFunc(listed, func(id string) bool { return p.Field(id).Placement == grid.Hidden }); hidden > 0 &&
+		!slices.Contains(out, hidden) {
+		out = append(out, hidden)
+	}
+	return out
+}
+
 // Box gives the columns dialog's lines, titled by the table's fields, as it lists the groups and the hidden
-// too, the headings of its cells dim over its fields, a rule under the groups; the line under the keyboard on the
+// too, the headings of its cells dim over its fields, a rule under the groups and one over the hidden, as rules says;
+// the line under the keyboard on the
 // menu's color; and the screen line and column it is drawn from: under the header's right end, its right edge at the
 // pane's.
 func (c Columns) Box(h Host) (lines []string, top, left int) {
-	p := h.Panel()
 	body := []string{style.Off("  " + pane.Pad("field", LabelCells, false) + pane.Pad("sort", SortCells, false) + "group")}
-	groups := len(p.Groups())
+	rules := c.rules(h)
 	for k, id := range c.Listed(h) {
-		if k == groups && groups > 0 {
+		if slices.Contains(rules, k) {
 			body = append(body, style.Off(strings.Repeat("─", 2+LabelCells+SortCells+5)))
 		}
 		line := c.Line(h, id)
@@ -90,20 +106,23 @@ func (c Columns) Box(h Host) (lines []string, top, left int) {
 }
 
 // Row gives the field a screen line of the columns dialog draws, as an index into the fields it lists, or -1 for
-// its edges, its headings, and its rule.
+// its edges, its headings, and its rules.
 func (c Columns) Row(h Host, y int) int {
 	_, top, _ := c.Box(h)
-	k := y - top - 2 // the top edge and the headings
-	if groups := len(h.Panel().Groups()); groups > 0 && k >= groups {
-		if k == groups {
-			return -1
+	line, rules := y-top-2, c.rules(h) // past the top edge and the headings
+	for k := range c.Listed(h) {
+		if slices.Contains(rules, k) {
+			if line == 0 {
+				return -1
+			}
+			line--
 		}
-		k--
+		if line == 0 {
+			return k
+		}
+		line--
 	}
-	if k < 0 || k >= len(c.Listed(h)) {
-		return -1
-	}
-	return k
+	return -1
 }
 
 // Act does to the field under the keyboard what a key asks: space shows it or hides it; s turns its sort; g

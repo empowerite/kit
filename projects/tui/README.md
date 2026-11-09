@@ -53,7 +53,8 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     for five seconds or until a key; why something was not done stays until a key.
   - The columns dialog, in `columns.go`, titled by the stage's fields, opens from Fields… in the presets' menu, the
     header drawing no icon of its own: every field a line, those the rows group by first, then the columns as they
-    stand, then the hidden, each with whether it shows, its sort and its place among the keys, and its group's depth.
+    stand, then the hidden, a dim rule between each two of those it has, each with whether it shows, its sort and its
+    place among the keys, and its group's depth.
     What it sets applies at once: space shows or hides, s turns the sort, g groups, ⇧↑↓ moves a field, into the groups
     or out, and ⏎ opens its Options…; a click on a line's box, sort, or group does as space, s, or g.
   - Maximize, first in the tab's menu, gives the rows the bar's lines but one, for the session: the title names the
