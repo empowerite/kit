@@ -26,6 +26,32 @@ workspaces-file() {
   cat > "${XDG_CONFIG_HOME}/kit/workspaces.yml"
 }
 
+# desk-at <path> <member> makes a desk at <path>, cloned from a bare origin elsewhere with one commit pushed, and then
+# points origin at <member> on its forge, so workspaces finds its member; nothing fetches it again.
+desk-at() {
+  local origin
+  origin="${BATS_TEST_TMPDIR}/origins/${2//\//_}.git"
+  mkdir -p "${BATS_TEST_TMPDIR}/origins" "$(dirname "$1")"
+  git init --quiet --bare --initial-branch=main "${origin}"
+  git clone --quiet "${origin}" "$1" 2>/dev/null
+  printf 'one\n' > "$1/a"
+  git -C "$1" add a && git -C "$1" commit --quiet --message one && git -C "$1" push --quiet origin main
+  git -C "$1" remote set-head origin main
+  git -C "$1" remote set-url origin "https://$2.git"
+}
+
+# two-desks makes the desks of github.com/o/a and github.com/o/b, the second's path with a space, and the group w of
+# a, b, and github.com/o/c, which has none.
+two-desks() {
+  desk-at "${BATS_TEST_TMPDIR}/code/a" github.com/o/a
+  desk-at "${BATS_TEST_TMPDIR}/code/b b" github.com/o/b
+  workspaces-file <<EOF
+roots: [${BATS_TEST_TMPDIR}/code]
+workspaces:
+  w: {repos: [github.com/o/a, github.com/o/b, github.com/o/c]}
+EOF
+}
+
 @test "across:members gives each member and its checkout, in the group's order, empty for one not cloned" {
   clone-at "${BATS_TEST_TMPDIR}/code/b" https://github.com/o/b.git
   clone-at "${BATS_TEST_TMPDIR}/code/a dir/a" https://github.com/o/a.git
@@ -67,4 +93,50 @@ EOF
   : > "$d/0.err"
   run kit-bash "across:merge '$d' object"
   [ "$output" = '{"rows":[{"branch":"main","member":"github.com/o/a"}],"errors":[]}' ]
+}
+
+@test "kit flow desk --workspace prints each cloned member's desk, tagged, in the group's order" {
+  two-desks
+  cd "${BATS_TEST_TMPDIR}"
+  run "${kit_root}/bin/kit" flow desk --workspace w --json
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '[.rows[] | [.member, .branch]]' <<<"$output")" = '[["github.com/o/a","main"],["github.com/o/b","main"]]' ]
+  [ "$(jq -c .errors <<<"$output")" = '[]' ]
+}
+
+@test "a member whose checkout is gone since the roots were walked is its line in errors, and the others still draw" {
+  two-desks
+  cd "${BATS_TEST_TMPDIR}"
+  run kit-bash "across:members() { printf '%s\t%s\n' github.com/o/a '${BATS_TEST_TMPDIR}/code/a' \
+    github.com/o/b '${BATS_TEST_TMPDIR}/gone'; }; across:stage w desk --json"
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '[.rows[].member]' <<<"$output")" = '["github.com/o/a"]' ]
+  [ "$(jq -r '.errors[0].member' <<<"$output")" = github.com/o/b ]
+  [ "$(jq -r '.errors[0].error' <<<"$output")" = "${BATS_TEST_TMPDIR}/gone is gone; run: kit workspaces --show w" ]
+}
+
+@test "a group with no member cloned prints no rows and no errors, and exits 0" {
+  workspaces-file <<<'workspaces: {w: {repos: [github.com/o/a]}}'
+  cd "${BATS_TEST_TMPDIR}"
+  run "${kit_root}/bin/kit" flow desk --workspace w --json
+  [ "$status" -eq 0 ]
+  [ "$output" = '{"rows":[],"errors":[]}' ]
+}
+
+@test "kit flow --workspace refuses a workspace it does not know, and a pull request's number, with 2" {
+  workspaces-file <<<'workspaces: {w: {repos: [github.com/o/a]}}'
+  cd "${BATS_TEST_TMPDIR}"
+  run "${kit_root}/bin/kit" flow desk --workspace nosuch --json
+  [ "$status" -eq 2 ]
+  run "${kit_root}/bin/kit" flow changes --workspace w --json 7
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"run kit flow changes <number> in it"* ]]
+}
+
+@test "without --workspace, kit flow desk --json prints the desk's object as before" {
+  desk-at "${BATS_TEST_TMPDIR}/code/a" github.com/o/a
+  cd "${BATS_TEST_TMPDIR}/code/a"
+  run "${kit_root}/bin/kit" flow desk --json
+  [ "$status" -eq 0 ]
+  [ "$(jq -r 'type' <<<"$output")" = object ]
 }

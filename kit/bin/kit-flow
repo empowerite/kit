@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # kit-flow - shows where the work stands, from backlog to releases (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit flow [--no-fetch] [--fresh] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]
+# kit flow [--workspace <workspace>] [--no-fetch] [--fresh] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]
 #
 # Draws the picture of the work. It changes nothing. Work moves left to right through eight stages:
 #
@@ -43,6 +43,8 @@
 #   --others            everyone else's; unassigned issues included
 #   --all               every issue and pull request (the default); it stands alone
 #   --owner=<login>     only the named login's; give it once or more
+#   --workspace         draws each stage across a workspace's members with checkouts, a group's name or a repository's
+#                       host and path, as kit workspaces names it; see Over a workspace
 #   --stages            prints the stages the picture draws, one per line, in order
 #   --me                prints the caller's login on the primary's forge, the login --mine and --others match
 #   --quota             prints the caller's rate limits on the primary's forge, as one JSON array: each forge's
@@ -70,21 +72,21 @@
 #
 # kit flow --marks
 #
-# kit flow backlog [--json | --jq] [--cached] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]]
+# kit flow backlog [--workspace <workspace>] [--json | --jq] [--cached] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]]
 #
-# kit flow underway [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]]
+# kit flow underway [--workspace <workspace>] [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]]
 #
-# kit flow incoming [--no-fetch] [--json | --jq] [--cached]
+# kit flow incoming [--workspace <workspace>] [--no-fetch] [--json | --jq] [--cached]
 #
-# kit flow desk [--json | --jq] [--cached]
+# kit flow desk [--workspace <workspace>] [--json | --jq] [--cached]
 #
-# kit flow worktrees [--json | --jq] [--cached]
+# kit flow worktrees [--workspace <workspace>] [--json | --jq] [--cached]
 #
-# kit flow changes [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]] [<number>…]
+# kit flow changes [--workspace <workspace>] [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]] [<number>…]
 #
-# kit flow builds [--json | --jq] [--cached]
+# kit flow builds [--workspace <workspace>] [--json | --jq] [--cached]
 #
-# kit flow releases [--json | --jq] [--cached]
+# kit flow releases [--workspace <workspace>] [--json | --jq] [--cached]
 #
 # One stage prints without its heading. With --json, a stage prints what the picture holds under its name: an array
 # for backlog, underway, changes, builds, and releases; an object for desk, worktrees, and incoming. Above desks,
@@ -225,6 +227,30 @@ kit:enter
 use flow tui
 guard:arguments flow "$@" || exit $?
 guard:require tool:git
+
+# Over a workspace, every form runs in each member's checkout, under that checkout's settings, before this one's are
+# read; see modules/bash/across.sh.
+workspace=''
+words=()
+while (( $# > 0 ))
+do
+  case "$1" in
+    (--workspace)
+      workspace=$2
+      shift 2
+      ;;
+    (*)
+      words+=("$1")
+      shift
+  esac
+done
+set -- "${words[@]}"
+if [[ -n "${workspace}" ]]
+then
+  use across
+  across:flow "${workspace}" "${words[@]}"
+  exit $?
+fi
 
 # A remote's name from kit.yml reaches git as an argument, so a wrong one stops every stage before git sees it.
 forge:primary >/dev/null || exit $?

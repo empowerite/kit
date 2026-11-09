@@ -45,4 +45,77 @@ across:merge() {
     --argjson errors "$(printf '%s\n' "${errors[@]}" | jq --slurp --compact-output .)" '{rows: $rows, errors: $errors}'
 }
 
+# across:flow <workspace> <word>… draws what kit flow's words ask for across the workspace: a stage with --json or --jq
+# as across:stage gives it. A pull request's number names one repository's, so it is refused, with 2.
+across:flow() {
+  local workspace=$1 stage='' word form=''
+  shift
+  case "${1:-}" in
+    (backlog | underway | desk | worktrees | changes | incoming | builds | releases)
+      stage=$1
+      shift
+  esac
+  for word in "$@"
+  do
+    case "${word}" in
+      (--json | --jq) form=${word} ;;
+      ([0-9]* | '#'[0-9]*)
+        error "a number names a pull request in one repository; run kit flow changes <number> in it"
+        return 2
+    esac
+  done
+  if [[ -n "${stage}" && -n "${form}" ]]
+  then
+    across:stage "${workspace}" "${stage}" "$@" | if [[ "${form}" == --jq ]]; then jq .; else cat; fi
+    return "${PIPESTATUS[0]}"
+  fi
+  error "--workspace draws with --json for now"
+  return 2
+}
+
+# across:stage <workspace> <stage> <argument>… runs kit flow <stage> with the arguments, --jq as --json, in every
+# cloned member's checkout at once, and prints the document across:merge makes of them. It returns 0 whatever a member
+# did, and 2 for a workspace across:members refuses.
+across:stage() {
+  local workspace=$1 stage=$2 members dir member checkout n=0 kind=array arg
+  local -a args=()
+  shift 2
+  for arg in "$@"
+  do
+    [[ "${arg}" == --jq ]] && arg=--json
+    args+=("${arg}")
+  done
+  members=$(across:members "${workspace}") || return 2
+  file:scratch dir
+  while IFS=$'\t' read -r member checkout
+  do
+    [[ -n "${checkout}" ]] || continue
+    printf '%s' "${member}" > "${dir}/${n}.member"
+    across:run "${checkout}" "${dir}/${n}" "${workspace}" "${stage}" "${args[@]}" &
+    n=$(( n + 1 ))
+  done <<<"${members}"
+  wait || true
+  case "${stage}" in
+    (desk | worktrees | incoming) kind=object
+  esac
+  across:merge "${dir}" "${kind}"
+}
+
+# across:run <checkout> <prefix> <workspace> <word>… runs kit flow with the words in the checkout, its output in
+# <prefix>.out and <prefix>.err and its exit in <prefix>.status. A checkout gone since the roots were walked is its
+# line.
+across:run() {
+  local checkout=$1 prefix=$2 workspace=$3 code
+  shift 3
+  if [[ ! -d "${checkout}" ]]
+  then
+    printf '❌ %s is gone; run: kit workspaces --show %s\n' "${checkout}" "${workspace}" > "${prefix}.err"
+    : > "${prefix}.out"
+    printf 1 > "${prefix}.status"
+    return 0
+  fi
+  ( cd "${checkout}" && run kit flow "$@" ) > "${prefix}.out" 2> "${prefix}.err" && code=0 || code=$?
+  printf '%s' "${code}" > "${prefix}.status"
+}
+
 # ----------------------------------------------------------------------------------------------------------------------
