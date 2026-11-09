@@ -6,6 +6,7 @@ package shell
 import (
 	"slices"
 	"strings"
+	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -220,6 +221,29 @@ func NextItem(items []Item, enabled func(int) bool, k int, typed string) int {
 		}
 	}
 	return k
+}
+
+// Press gives the key press a menu line's keys stand for, as Bubble Tea names it: ⌃ and a letter is ctrl with the
+// letter, and a single character is itself, a letter in lower case; "" for keys that are neither.
+func Press(keys string) string {
+	if letter, ok := strings.CutPrefix(keys, "⌃"); ok && utf8.RuneCountInString(letter) == 1 {
+		return "ctrl+" + strings.ToLower(letter)
+	}
+	if utf8.RuneCountInString(keys) == 1 {
+		return strings.ToLower(keys)
+	}
+	return ""
+}
+
+// Shortcut gives the line that acts whose keys a press stands for, or -1. A line's keys do the same with its menu open
+// as with it closed, so a menu takes them before a letter moves to the next line that starts with it.
+func Shortcut(items []Item, enabled func(int) bool, press string) int {
+	for k, item := range items {
+		if item.Keys != "" && Press(item.Keys) == press && enabled(k) {
+			return k
+		}
+	}
+	return -1
 }
 
 // Box gives a menu's lines, a rounded box in the menu's color around its items, each after the room for a glyph, the

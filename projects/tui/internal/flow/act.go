@@ -41,11 +41,11 @@ func (m Model) actions() []shell.Item {
 		return nil
 	}
 	return []shell.Item{
-		{Glyph: Write, Name: "New…"},
+		{Glyph: Write, Name: "New…", Keys: "n"},
 		{Glyph: Sprout, Name: "Start Local Work for Each"},
 		{Glyph: Branch, Name: "Start Local Work Together…"},
 		{Glyph: Change, Name: "Add to Pull Request…"},
-		{Glyph: Owner, Name: "Assign to Me"},
+		{Glyph: Owner, Name: "Assign to Me", Keys: "a"},
 		{Glyph: Hand, Name: "Assign to…"},
 		{Glyph: Leave, Name: "Unassign"},
 		{Glyph: Gather, Name: "Gather Under a Parent…"},

@@ -1,7 +1,8 @@
 // A dropdown is a menu that drops down from what it hangs from, as each of kittui's menus does. It holds whether it is
 // open and the line under the keyboard; its lines, and which of them act, are its owner's, given to each call, since
 // they follow what the screen shows. While it is open it has the keyboard: up and down move to the next line that acts,
-// a letter to the next that starts with it, enter and space choose the line under the keyboard, and esc, or a key its
+// a line's shortcut chooses it, as it does with the menu closed, any other letter moves to the next line that starts
+// with it, enter and space choose the line under the keyboard, and esc, or a key its
 // owner names, closes it. A click on a line that acts chooses it, one on a line that does not does nothing, and one off
 // the box closes it. A line that cannot act stays, dim, and the keyboard passes it by.
 package shell
@@ -36,6 +37,8 @@ func (d Dropdown) Key(k tea.KeyPressMsg, items []Item, enabled func(int) bool, c
 		return d.choose(d.At, items, enabled)
 	case key == "esc" || slices.Contains(closes, key):
 		d.Open = false
+	case Shortcut(items, enabled, key) >= 0:
+		return d.choose(Shortcut(items, enabled, key), items, enabled)
 	default:
 		d.At = NextItem(items, enabled, d.At, k.Text)
 	}

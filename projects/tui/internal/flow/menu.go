@@ -40,17 +40,28 @@ const (
 // tabItems gives the tab's menu's lines, top to bottom: the stage loaded again; watched, or no longer, as watch.go
 // says; the tab maximized, or restored once it is; a rule; the outline expanded, collapsed, and collapsed but for the
 // selection, as folds names them; a rule; every row selected and none; a rule; and what acts on the rows selected: on
-// backlog, the actions there, then each one's page opened.
+// backlog, the actions there, then each one's page opened. A line with a key shows it at its right; the key does the
+// same with the menu closed, as shortcut says.
 func (m Model) tabItems() []shell.Item {
-	size := shell.Item{Glyph: Maximize, Name: "Maximize"}
+	size := shell.Item{Glyph: Maximize, Name: "Maximize", Keys: "m"}
 	if m.maximized {
-		size = shell.Item{Glyph: Restore, Name: "Restore"}
+		size = shell.Item{Glyph: Restore, Name: "Restore", Keys: "m"}
 	}
-	items := append([]shell.Item{{Glyph: Reload, Name: "Refresh"}, m.watchItem(m.stage), size, {}}, m.folds()...)
+	items := append([]shell.Item{{Glyph: Reload, Name: "Refresh", Keys: "r"}, m.watchItem(m.stage), size, {}},
+		m.folds()...)
 	items = append(items, shell.Item{},
 		shell.Item{Glyph: Every, Name: "Select All", Keys: "⌃A"}, shell.Item{Glyph: Sweep, Name: "Clear Selection"},
 		shell.Item{})
-	return append(append(items, m.actions()...), shell.Item{Glyph: Browse, Name: "Open Selected"})
+	return append(append(items, m.actions()...), shell.Item{Glyph: Browse, Name: "Open Selected", Keys: "o"})
+}
+
+// shortcut gives the tab's menu's line whose key the press is, when it acts now, or -1; with the menu closed, the key
+// does what choosing the line does.
+func (m Model) shortcut(press string) int {
+	if len(m.stages) == 0 {
+		return -1
+	}
+	return shell.Shortcut(m.tabItems(), m.enabled, press)
 }
 
 // openMenu drops the tab's menu down, its first item that does something under the keyboard.

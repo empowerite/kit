@@ -248,8 +248,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.cursor < len(visible)-1 {
 				m.cursor++
 			}
-		case "shift+up":
-			// to the first verb of the cursor's group, or, from there, of the group before; the first group stays
+		case "[", "{", "shift+up":
+			// to the first verb of the cursor's group, or, from there, of the group before; the first group stays;
+			// { goes on to the first group's
+			if msg.String() == "{" {
+				m.cursor = 0
+				break
+			}
 			if m.cursor < len(visible) {
 				if f := first(visible, m.cursor); f < m.cursor {
 					m.cursor = f
@@ -257,9 +262,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.cursor = first(visible, f-1)
 				}
 			}
-		case "shift+down":
+		case "]", "shift+down":
 			if n := next(visible, m.cursor); n < len(visible) {
 				m.cursor = n
+			}
+		case "}":
+			// to the first verb of the last group
+			if len(visible) > 0 {
+				m.cursor = first(visible, len(visible)-1)
 			}
 		case "pgdown", "pgup", "home", "end":
 			page := len(visible)
@@ -496,12 +506,12 @@ func (m Model) keys() shell.Path {
 	if m.showPages {
 		turn = shell.Bind("←", "purposes", "left")
 	}
-	list := shell.Segment{Takes: []string{"left", "right", "home", "end"}, Bindings: []shell.Binding{
+	list := shell.Segment{Takes: []string{"left", "right", "home", "end", "{", "}"}, Bindings: []shell.Binding{
 		shell.Bind("↑↓", "move", "up", "down"), shell.Bind("⇞⇟", "page", "pgup", "pgdown"),
-		shell.Bind("⇧↑↓", "group", "shift+up", "shift+down"), turn, shell.Bind("⏎", "open", "enter"),
+		shell.Bind("[]", "group", "[", "]", "shift+up", "shift+down"), turn, shell.Bind("⏎", "open", "enter"),
 	}}
 	search := shell.SearchKeys(len(m.recent.Items) > 0)
-	search.Passes, search.Takes = []string{"="}, append(search.Takes, "/")
+	search.Passes, search.Takes = []string{"=", "[", "]", "{", "}"}, append(search.Takes, "/")
 	if m.search.Query != "" {
 		search.Bindings = append([]shell.Binding{shell.Bind("esc", "clear")}, search.Bindings...)
 	}

@@ -617,6 +617,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.choose(bar)
 		return m, nil
 	}
+	if j := m.shortcut(k.String()); j >= 0 {
+		return m, m.pick(j)
+	}
 	switch k.String() {
 	case "/":
 		return m, m.enterPanel()
@@ -655,6 +658,10 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.page(-1)
 	case "pgdown":
 		m.page(1)
+	case "[", "]", "{", "}":
+		if len(m.stages) > 0 {
+			table.Group(&m, k.String())
+		}
 	case "home":
 		m.end(-1)
 	case "end":

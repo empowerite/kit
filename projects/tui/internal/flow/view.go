@@ -179,6 +179,17 @@ func (m Model) presetKeys() shell.Segment {
 	return s.With(shell.Bind("⏎", "presets", "enter", "space"))
 }
 
+// groupHeadings gives how many headings of groups the cursor can stand on in the selected stage's rows.
+func (m Model) groupHeadings() int {
+	n, all := 0, m.rows(m.stage)
+	for _, r := range all[min(table.First(all), len(all)):] {
+		if grid.Heads(r) {
+			n++
+		}
+	}
+	return n
+}
+
 // rowKeys gives the segment of the rows while they have the keyboard: esc gives the bar the keyboard, named by the
 // stage it has selected; up and down move,
 // a page at a time too while the rows are more than the pane shows, and home and end to the first and the last, unnamed
@@ -189,6 +200,11 @@ func (m Model) rowKeys() shell.Segment {
 		Bindings: []shell.Binding{shell.Bind("esc", m.stages[m.stage].name), shell.Bind("↑↓", "move", "up", "down")}}
 	if len(m.lines(m.stage)) > m.rowsHeight() {
 		seg.Bindings = append(seg.Bindings, shell.Bind("⇞⇟", "page", "pgup", "pgdown"))
+	}
+	if m.groupHeadings() > 1 {
+		// [ and ] move between the groups' headings, { and } to the first and the last, unnamed
+		seg.Bindings = append(seg.Bindings, shell.Bind("[]", "group", "[", "]"))
+		seg.Takes = append(seg.Takes, "{", "}")
 	}
 	seg.Bindings = append(seg.Bindings, shell.Bind("␣", "select", "space"),
 		shell.Bind("⇧↑↓", "select", "shift+up", "shift+down"), shell.Bind("⌃A", "all", "ctrl+a"))

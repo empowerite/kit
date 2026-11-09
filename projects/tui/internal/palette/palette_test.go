@@ -116,7 +116,7 @@ func TestTheVerbsAreATreeUnderTheirGroupsHeadings(t *testing.T) {
 	if !strings.Contains(view, " "+style.Off("WORKFLOW")+"\n") {
 		t.Errorf("the heading is not dimmed on a line of its own:\n%s", view)
 	}
-	if bar := last(m); !strings.Contains(bar, "↑↓ move ⇞⇟ page ⇧↑↓ group") {
+	if bar := last(m); !strings.Contains(bar, "↑↓ move ⇞⇟ page [] group") {
 		t.Errorf("the keys do not say what shift does: %q", bar)
 	}
 }
@@ -249,7 +249,7 @@ func TestRightShowsThePagesAndLeftTheListAgain(t *testing.T) {
 
 func TestTheKeysBarIsTheLastLineWhateverTheContent(t *testing.T) {
 	// the screen's keys, the list's, then the search's, which has the keyboard
-	const bar = " = menu │ ↑↓ move ⇞⇟ page ⇧↑↓ group → pages ⏎ open │ type to search"
+	const bar = " = menu │ ↑↓ move ⇞⇟ page [] group → pages ⏎ open │ type to search"
 	long := strings.Repeat("kit commit refuses for the test, at length; ", 8) + "run: kit help commit"
 	for _, height := range []int{30, 12, 6, 5, 4, 3, 2, 1} {
 		for name, msgs := range map[string][]tea.Msg{
@@ -472,14 +472,14 @@ func TestCtrlQQuitsWhateverIsOpen(t *testing.T) {
 	}
 }
 
-// No verb's name holds a / or a =, the keys the search does not type: each is a kit/bin/kit-<verb> of the real kit.
+// No verb's name holds a /, a =, or a bracket, the keys the search does not type: each is a kit/bin/kit-<verb> of the real kit.
 func TestNoVerbsNameHoldsTheKeysThatAreNotTyped(t *testing.T) {
 	bins, err := filepath.Glob(filepath.Join("..", "..", "..", "..", "kit", "bin", "kit-*"))
 	if err != nil || len(bins) == 0 {
 		t.Fatalf("no verb under kit/bin: %v", err)
 	}
 	for _, bin := range bins {
-		if verb := strings.TrimPrefix(filepath.Base(bin), "kit-"); strings.ContainsAny(verb, "/=") {
+		if verb := strings.TrimPrefix(filepath.Base(bin), "kit-"); strings.ContainsAny(verb, "/=[]{}") {
 			t.Errorf("the verb %q holds a key the search does not type", verb)
 		}
 	}
@@ -721,5 +721,28 @@ func TestThePalettesSearchIsRememberedAndRecalled(t *testing.T) {
 	_, left := m.recent.Box(m.recallAt(), m.width)
 	if m, _ = drive(m, testkit.Click(left+3, 1)); m.recent.Open || m.search.Query != "co" {
 		t.Errorf("a click on co: open %v, %q", m.recent.Open, m.search.Query)
+	}
+}
+
+// [ and ] move to the group before and after, as shift with up and down does, and { and } to the first group and the
+// last; none of them is typed into the search, and the key hints name [] group.
+func TestBracketsMoveBetweenTheGroups(t *testing.T) {
+	m, _ := drive(open(t))
+	visible := m.Visible()
+	lastGroup := first(visible, len(visible)-1)
+	if m, _ = drive(m, testkit.Typed("}")...); m.cursor != lastGroup || m.search.Query != "" {
+		t.Errorf("}: cursor %d, want %d, search %q", m.cursor, lastGroup, m.search.Query)
+	}
+	if m, _ = drive(m, testkit.Typed("[")...); m.cursor != first(visible, lastGroup-1) {
+		t.Errorf("[: cursor %d, want %d", m.cursor, first(visible, lastGroup-1))
+	}
+	if m, _ = drive(m, testkit.Typed("]")...); m.cursor != lastGroup {
+		t.Errorf("]: cursor %d, want %d", m.cursor, lastGroup)
+	}
+	if m, _ = drive(m, testkit.Typed("{")...); m.cursor != 0 || m.search.Query != "" {
+		t.Errorf("{: cursor %d, search %q", m.cursor, m.search.Query)
+	}
+	if !strings.Contains(stripANSI(m.View().Content), "[] group") {
+		t.Errorf("the key hints do not name [] group")
 	}
 }

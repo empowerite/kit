@@ -27,9 +27,9 @@ const (
 // watchItem gives the tab's menu's line for the stage at i: Watch, or Stop Watching while it is watched.
 func (m Model) watchItem(i int) shell.Item {
 	if i < len(m.stages) && m.stages[i].src.Watch {
-		return shell.Item{Glyph: StopWatched, Name: StopIt}
+		return shell.Item{Glyph: StopWatched, Name: StopIt, Keys: "w"}
 	}
-	return shell.Item{Glyph: Unwatched, Name: WatchIt}
+	return shell.Item{Glyph: Unwatched, Name: WatchIt, Keys: "w"}
 }
 
 // watching gives how many of the stages kittui draws are watched, and how many it draws.

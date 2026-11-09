@@ -257,3 +257,34 @@ func TestARowGroupedUnderSeveralValuesIsOneRow(t *testing.T) {
 		t.Errorf("opened under its last label: cursor %d, want %d", m.stages[0].Cursor, at[len(at)-1])
 	}
 }
+
+// [ and ] move the cursor to the heading of the group before and after it, { and } to the first and the last, as the
+// palette's keys move between its groups; the key hints name [] group while the rows group.
+func TestBracketsMoveBetweenTheGroupsHeadings(t *testing.T) {
+	m := drive(nested(t), down)
+	var heads []int
+	for i, r := range m.rows(0) {
+		if i >= table.First(m.rows(0)) && grid.Heads(r) {
+			heads = append(heads, i)
+		}
+	}
+	if len(heads) < 2 {
+		t.Fatalf("backlog grouped two deep has %d headings to move between", len(heads))
+	}
+	cursor := func() int { return m.stages[m.stage].Cursor }
+	if m = drive(m, testkit.Typed("}")...); cursor() != heads[len(heads)-1] {
+		t.Errorf("}: cursor %d, want the last heading, %d", cursor(), heads[len(heads)-1])
+	}
+	if m = drive(m, testkit.Typed("[")...); cursor() != heads[len(heads)-2] {
+		t.Errorf("[: cursor %d, want %d", cursor(), heads[len(heads)-2])
+	}
+	if m = drive(m, testkit.Typed("{")...); cursor() != heads[0] {
+		t.Errorf("{: cursor %d, want the first heading, %d", cursor(), heads[0])
+	}
+	if m = drive(m, testkit.Typed("]")...); cursor() != heads[1] {
+		t.Errorf("]: cursor %d, want %d", cursor(), heads[1])
+	}
+	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "[] group") {
+		t.Errorf("the key hints in grouped rows: %q", last)
+	}
+}

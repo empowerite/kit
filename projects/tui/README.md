@@ -5,7 +5,8 @@
 
 It has five screens:
 
-- **The palette.** Bare `kit` opens it. It lists every verb under its group, filtered as you type.
+- **The palette.** Bare `kit` opens it. It lists every verb under its group, filtered as you type. [ and ] move to the
+  group before and after, { and } to the first and the last.
 - **A verb's form.** It opens when a verb at a terminal is short of its arguments. It finishes the command line.
 - **The flow picture.** `kit flow` at a terminal draws its stages here.
 - **The welcome guide.** `kit welcome` at a terminal walks its steps here.
@@ -59,6 +60,11 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     tab, its count, and its :, and a click anywhere on them drops the tab's menu as the bar's does; a line in the tab's
     color runs under it, and the header follows; Restore, in its place, puts the bar back as it was, and a tab's
     number selects a tab either way.
+  - A menu line's key stands at its right, dim, and does the same with the menu closed as choosing the line does with
+    it open: r Refresh, w Watch, m Maximize or Restore, o Open Selected, ⌃A Select All, and on backlog n New… and a
+    Assign to Me. With a menu open, a line's key chooses it before a letter moves to the next line starting with it.
+    [ and ] move the cursor to the group heading before and after it, { and } to the first and the last, as they move
+    between the palette's groups.
   - The search stands at the title line's right end, and / or a click on it gives it the keyboard. There is no sidebar:
     the rows take the screen's width. While the person groups by no column, a value every row shares moves into one
     heading over them, the column grouping on its own; a group the person chooses overrides that, and the rows then

@@ -1,7 +1,7 @@
   = kit flow · 📚 empowerite/kit · 🎫 backlog ╭╴:╶────────────────────────────────╮                           🔎 search
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│ 🔄 Refresh                        │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  ▾ source ▾ 3                                │ 🔭 Watch                          │                         Default ▼
-                                              │ ⤡  Restore                        │
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│ 🔄 Refresh                      r │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ▾ source ▾ 3                                │ 🔭 Watch                        w │                         Default ▼
+                                              │ ⤡  Restore                      m │
   ▾ github 3                                  │ ───────────────────────────────── │
                                               │ ⏬ Expand All                     │
        id  assignees         age  branch      │ ⏫ Collapse All                   │
@@ -10,11 +10,11 @@
     ▸ #46  jeffrey-aguilera   2d  🌿 46-a-noun│ 📋 Select All                  ⌃A │ with a verb acts
     ▸  #7  ada           +1  40d              │ 🧹 Clear Selection                │
                                               │ ───────────────────────────────── │
-                                              │ 📝 New…                           │
+                                              │ 📝 New…                         n │
                                               │ 🌱 Start Local Work for Each      │
                                               │ 🌿 Start Local Work Together…     │
                                               │ 🔀 Add to Pull Request…           │
-                                              │ 👤 Assign to Me                   │
+                                              │ 👤 Assign to Me                 a │
                                               │ 👥 Assign to…                     │
                                               │ 🚶 Unassign                       │
                                               │ 🧺 Gather Under a Parent…         │

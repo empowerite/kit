@@ -1,7 +1,11 @@
 // A dropdown keeps whether it is open and the line under the keyboard; the lines, and which act, are its owner's.
 package shell
 
-import "testing"
+import (
+	"testing"
+
+	tea "charm.land/bubbletea/v2"
+)
 
 // lines is a dropdown's lines: Alpha, a rule, Beta, which does not act, Bravo, and Charlie.
 var lines = []Item{
@@ -83,5 +87,30 @@ func TestADropdownTakesAClickOnALineOrOffItsBox(t *testing.T) {
 	}
 	if d, chosen := (Dropdown{Open: true}).ClickIn(12, 8, 5, 10, 12, 3, 2, lines, acts); chosen != -1 || d.Open {
 		t.Errorf("a click past a scrolled box's lines: chosen %d, open %v", chosen, d.Open)
+	}
+}
+
+// A line's keys stand for a press, as Bubble Tea names it; with the dropdown open, the press chooses the line, when it
+// acts, before a letter moves to the next line that starts with it.
+func TestALinesKeysChooseItWithTheDropdownOpen(t *testing.T) {
+	for keys, want := range map[string]string{"⌃A": "ctrl+a", "⌃Q": "ctrl+q", "r": "r", "M": "m", "⇧⌃F": "", "": ""} {
+		if got := Press(keys); got != want {
+			t.Errorf("Press(%q): %q, want %q", keys, got, want)
+		}
+	}
+	items := []Item{{Name: "Refresh", Keys: "r"}, {Name: "Rename"}, {Name: "Off", Keys: "o"}, {Name: "Select All", Keys: "⌃A"}}
+	acting := func(k int) bool { return k != 2 }
+	d := Dropdown{}.Opened(items, acting)
+	if _, chosen := d.Key(key("r"), items, acting); chosen != 0 {
+		t.Errorf("r chose %d, not Refresh", chosen)
+	}
+	if d, chosen := d.Key(key("o"), items, acting); chosen != -1 || !d.Open {
+		t.Errorf("o, the key of a line that does not act, chose %d", chosen)
+	}
+	if _, chosen := d.Key(tea.KeyPressMsg{Code: 'a', Mod: tea.ModCtrl}, items, acting); chosen != 3 {
+		t.Errorf("ctrl+a chose %d, not Select All", chosen)
+	}
+	if d, chosen := d.Key(key("s"), items, acting); chosen != -1 || d.At != 3 {
+		t.Errorf("s, no line's key, chose %d and moved to %d, not to Select All", chosen, d.At)
 	}
 }

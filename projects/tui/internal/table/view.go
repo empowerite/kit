@@ -260,6 +260,42 @@ func End(h Host, d int) {
 	Fit(h)
 }
 
+// Group moves the cursor to a group's heading: [ to the one before it, ] to the one after it, { to the first, and } to
+// the last, as the palette's keys move between its groups. A table with no heading the cursor can stand on, or
+// without the keyboard, stays as it is.
+func Group(h Host, press string) {
+	if !h.InRows() {
+		return
+	}
+	t, all := h.Table(), h.Rows()
+	var heads []int
+	for i := First(all); i < len(all); i++ {
+		if grid.Heads(all[i]) {
+			heads = append(heads, i)
+		}
+	}
+	if len(heads) == 0 {
+		return
+	}
+	switch press {
+	case "{":
+		t.Cursor = heads[0]
+	case "}":
+		t.Cursor = heads[len(heads)-1]
+	case "[":
+		if k := slices.IndexFunc(heads, func(i int) bool { return i >= t.Cursor }); k > 0 {
+			t.Cursor = heads[k-1]
+		} else if k < 0 {
+			t.Cursor = heads[len(heads)-1]
+		}
+	case "]":
+		if k := slices.IndexFunc(heads, func(i int) bool { return i > t.Cursor }); k >= 0 {
+			t.Cursor = heads[k]
+		}
+	}
+	Fit(h)
+}
+
 // rowLines gives the first and the last of the lines the row draws, -1 for a row that draws none.
 func rowLines(lines []Line, row int) (first, last int) {
 	first, last = -1, -1
