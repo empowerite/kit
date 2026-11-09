@@ -1,6 +1,7 @@
 # kittui components: design
 
-Status: built, 2026-11-08: every move done, as each says.
+Status: built, 2026-11-08: every move done, as each says. The frame, its terms, and the rules for keys decided,
+2026-11-09 (#94); #95 to #106 build them.
 
 ## Intent
 
@@ -129,12 +130,86 @@ dialog's typing. A type that drew their lines too would hold four looks for four
 
 ### Frame
 
-What the screens share of their frame is two parts of `shell`. `shell.View` ends a screen: its lines over the last
-line, on the alternate screen, with the mouse on; `flow`, `tutorials`, `welcome`, and `palette` end in it, and the
-form, which takes no click, keeps its own. `shell.Notice` is what stands in the keys bar's place: what was done, which
-fades after a while unless a key or a later notice takes its place, or why something was not done, which stays until
-a key; `flow` and `tutorials` keep one each. The tab bar is `tabs`' already. The title line and its search stay each
-screen's own: each lays the search out in its own room, and one shared line would move it on some of them.
+Every screen has the same frame, in three parts, in the same places (#96):
+
+- The menu bar, the first line: the kit menu `=`, the screen's name, a separator, the workspace menu 📚 and the
+  workspace's name, a separator and the tab menu while a tab is maximized, space, and the search field at the right
+  end. Another menu may come to stand right of the search field.
+- The status bar, the last line: the key hints, space, and the quota meter. A notice or an alert stands over the key
+  hints.
+- The view, between them, which is each screen's own: a tab bar, a control line, a table, cards, a form.
+
+What the screens share of it is in `shell`. `shell.View` ends a screen: its lines over the last line, on the
+alternate screen, with the mouse on; `flow`, `tutorials`, `welcome`, and `palette` end in it, and the form keeps its
+own until #96 brings it into the frame. `shell.Notice` is what stands over the key hints: a notice, what was done,
+which goes away after a while unless a key or a later notice takes its place; or an alert, why something was not done,
+which stays until esc. `flow` and `tutorials` keep one each. The tab bar is `tabs`'. The menu bar is each screen's
+own today, each laying the search field out in its own room; #96 makes it one line every screen draws alike.
+
+### Terms
+
+These are the names the code, the docs, the key hints, and the tutorials use for what the person sees. A name
+used in the code today that differs is in the last column, to be renamed as the code it is in is touched.
+
+| Where | What it is | Term | Today |
+| --- | --- | --- | --- |
+| first line | the whole line | menu bar | title line |
+| | `=` | kit menu | app's menu |
+| | `kit flow` | screen name | title |
+| | `·` | separator | dot |
+| | `📚` and `empowerite/kit` | workspace menu, workspace name | the 📚 control |
+| | `🎫 backlog :` while a tab is maximized | tab menu | tab's menu |
+| | `🔎 search` | search field | the search |
+| last line | the whole line | status bar | keys bar |
+| | the keys, at the left | key hints | keys bar |
+| | the rate limits, at the right | quota meter | quota |
+| | a message that goes away on its own | notice | notice, done |
+| | a message that stays until esc | alert | notice, not done |
+| between | everything else | view | pane, screen |
+| view | `➊ 🎫 backlog 3 :` | tab bar, tab number, tab menu | same |
+| | `◃` and `▹` | scroll arrows | triangles |
+| | `▾ source ▾ 3 … Default ▼` | control line | same |
+| | `▾ source ▾ 3` | group path | heading over the groups |
+| | `source: ¬gitlab` | filter chip | chip |
+| | `Default ▼` | preset picker | preset line, pill, selector |
+| | the column names and the rule under them | header | same |
+| | `▾ github 3` | group heading | heading |
+| | `▸` and `▾` | disclosure triangle | fold |
+| | the band the arrows move, and the rows space picks | cursor, selection | same, picked |
+| over the view | a list hung from the glyph or name that opens it | menu | menu, dropdown |
+| | a titled box that takes focus until esc | dialog | same |
+| | a dialog hung from the control it sets | popover | same |
+| | a box that floats and takes no focus | legend | same |
+| | a dialog that asks one question | prompt | ask |
+| everywhere | where the keys go | focus | has the keyboard |
+
+A screen is one of kittui's four: Flow, Welcome, Tutorials, and Help, which the kit menu moves between. They are
+screens of one program, not applications.
+
+### Keys
+
+These rules hold on every screen, in every control.
+
+- **esc only cancels or goes back** (#95). It closes what is open, or moves focus back one level. At the top level
+  it does nothing. It never quits.
+- **⌃C and ⌃Q quit** (#95), on every screen. Raw mode turns off flow control, so ⌃Q reaches kittui. No modifier on
+  esc quits: macOS terminals with default settings send ⌥esc, ⌃esc, and ⇧esc as a plain esc, and keep ⌘ keys for
+  themselves.
+- **Search works the same everywhere** (#97). `/` or a click on the search field gives it focus; typing filters as it
+  goes; ⏎ or ↓ gives focus to the view and keeps the filter; esc does too; ⌃U clears the field; ⌃R recalls the past
+  searches.
+- **⇞ and ⇟ come with Home and End** (#98). Wherever ⇞ and ⇟ page, Home goes to the first item and End to the last.
+- **Groups move by brackets** (#102). `[` and `]` move to the previous and the next group, `{` and `}` to the first and
+  the last.
+- **A shortcut works where it is shown** (#102). A menu line shows its key at its right, dim, to teach it, and the key
+  does the same with the menu open as with it closed: with a menu open, a line's shortcut chooses that line, and any
+  other letter jumps to the next line starting with it. A shortcut is the line's first letter where it can be.
+- **No key or click is shown that a terminal may not send** (#103). A key or click is shown when a test shows it
+  arrives in Terminal.app and iTerm with their default settings, or when kittui asked the terminal and it answered, as
+  ⇧⏎ is shown only when the kitty keyboard protocol answers. Every action has a plain key and a plain click; a
+  modifier or right-button click may stay as an unnamed extra.
+- **The status bar keeps the screen's keys** (#99). When the key hints do not fit, they drop the controls between the
+  screen and the one with focus, never the screen's own.
 
 ### Table
 
@@ -222,6 +297,8 @@ Watch, issue #88's third step, is built now as designed: it reads like `source`'
 
 - A table reads each record as a map of values by field id, as it does now. An interface a table asks for its values
   is not needed yet.
+- One frame for every screen, its terms, and the rules for keys, as the Frame section says (2026-11-09, #94). They
+  replace an earlier decision that each screen keeps its own title line.
 
 ## Left to the builder
 
