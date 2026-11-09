@@ -240,6 +240,34 @@ func TestATutorialNamedHasTheCursor(t *testing.T) {
 	}
 }
 
+// The search is every screen's: / gives it focus, typing narrows the cards to those whose id, title, or summary holds
+// it, every tab still counting all of its own, ⌃U clears it, and enter gives the cards focus, the filter kept. A click
+// on it gives it focus too.
+func TestTheSearchNarrowsTheCards(t *testing.T) {
+	m, _ := fake(t)
+	m = drive(m, testkit.Start(m, at120)...)
+	m = drive(m, press('/'))
+	if !m.search.Focused || !strings.Contains(m.keys().String(), "⏎ cards type to search") {
+		t.Fatalf("/: focused %v, keys %q", m.search.Focused, m.keys().String())
+	}
+	m = drive(m, testkit.Typed("TOUR")...)
+	if cards := m.cards(); len(cards) != 1 || cards[0].ID != "kittui-tour" || !strings.Contains(lines(m)[2], "All  2") {
+		t.Errorf("tour: %v\n%s", cards, view(m))
+	}
+	if m = drive(m, tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}); m.search.Query != "" || len(m.cards()) != 2 {
+		t.Errorf("⌃U: %q, %d cards", m.search.Query, len(m.cards()))
+	}
+	m = drive(m, append(testkit.Typed("nothing"), enter)...)
+	if m.search.Focused || m.search.Query != "nothing" || len(m.cards()) != 0 {
+		t.Errorf("a search no card holds, then enter: %+v, %d cards", m.search, len(m.cards()))
+	}
+	m = drive(m, testkit.Click(m.searchAt()+1, 0), tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}, testkit.Typed("k")[0],
+		enter)
+	if m.search.Focused || !m.focused() || len(m.cards()) != 2 {
+		t.Errorf("a click, k, and enter: %+v, cards focused %v", m.search, m.focused())
+	}
+}
+
 // The bar selects a tab by its number, by a click, or, while it has the keyboard, by the arrows; each tab counts its
 // tutorials, and down enters the cards only where there are some.
 func TestTheBarSelectsATabAndCountsItsTutorials(t *testing.T) {
@@ -251,7 +279,7 @@ func TestTheBarSelectsATabAndCountsItsTutorials(t *testing.T) {
 	if m = drive(m, up, right); m.tab != 1 || m.inPane {
 		t.Fatalf("right on the bar: tab %d, in the pane %v", m.tab, m.inPane)
 	}
-	if keys := m.keys().String(); keys != "= menu │ ←→ tab ↓ cards 1-4 jump" {
+	if keys := m.keys().String(); keys != "= menu / search │ ←→ tab ↓ cards 1-4 jump" {
 		t.Errorf("the bar's keys: %q", keys)
 	}
 	x := strings.Index(lines(m)[2], "Maintainer")
@@ -261,13 +289,13 @@ func TestTheBarSelectsATabAndCountsItsTutorials(t *testing.T) {
 	if m = drive(m, down, enter); m.inPane {
 		t.Error("down entered a tab with no tutorials")
 	}
-	if keys := m.keys().String(); keys != "= menu │ ←→ tab 1-4 jump" {
+	if keys := m.keys().String(); keys != "= menu / search │ ←→ tab 1-4 jump" {
 		t.Errorf("the keys of an empty tab: %q", keys)
 	}
 	if m = drive(m, press('2'), down); !m.inPane || m.tab != 1 {
 		t.Errorf("2 and down: tab %d, in the pane %v", m.tab, m.inPane)
 	}
-	if keys := m.keys().String(); keys != "= menu │ 1-4 jump │ esc tabs ←→↑↓ move ⏎ open" {
+	if keys := m.keys().String(); keys != "= menu / search │ 1-4 jump │ esc tabs ←→↑↓ move ⏎ open" {
 		t.Errorf("the cards' keys: %q", keys)
 	}
 }

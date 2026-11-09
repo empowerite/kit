@@ -42,7 +42,7 @@ func TestAScreenIsMadeWhenFirstShownAndKeptAsItWasLeft(t *testing.T) {
 		t.Fatalf("the help's palette, alone:\n%s", ansi.Strip(m.View().Content))
 	}
 	// the filter typed in the palette stays there while the picture is shown, and when the palette is shown again
-	m, _ = testkit.Drive(m, nil, typed("/com")...)
+	m, _ = testkit.Drive(m, nil, typed("com")...)
 	m, _ = testkit.Drive(m, nil, shell.SwitchMsg{Screen: shell.Flow})
 	if m.here != shell.Flow || !strings.Contains(ansi.Strip(m.View().Content), "kit flow") {
 		t.Fatalf("the picture is not shown:\n%s", ansi.Strip(m.View().Content))
@@ -136,7 +136,11 @@ func TestTheSettingsDialogHidesTheKeysBarAndKeepsItHidden(t *testing.T) {
 		}
 		return lines[29]
 	}
-	if !strings.Contains(bar(m), "= menu") {
+	// hints says whether the line holds key hints: the screen's, or the palette's search's, which has focus
+	hints := func(line string) bool {
+		return strings.Contains(line, "= menu") || strings.Contains(line, "type to search")
+	}
+	if !hints(bar(m)) {
 		t.Fatalf("the keys bar is not shown: %q", bar(m))
 	}
 	m, _ = testkit.Drive(m, nil, shell.SwitchMsg{Screen: shell.SettingsScreen})
@@ -145,7 +149,7 @@ func TestTheSettingsDialogHidesTheKeysBarAndKeepsItHidden(t *testing.T) {
 		t.Fatalf("the dialog is not open over the screen:\n%s", v)
 	}
 	m, _ = testkit.Drive(m, nil, tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}, tea.KeyPressMsg{Code: tea.KeyEscape})
-	if m.dialog.Open || m.settings.KeysBar || strings.Contains(bar(m), "= menu") {
+	if m.dialog.Open || m.settings.KeysBar || hints(bar(m)) {
 		t.Errorf("the keys bar was not hidden: open %v, shown %v, last line %q", m.dialog.Open, m.settings.KeysBar,
 			bar(m))
 	}
@@ -154,7 +158,7 @@ func TestTheSettingsDialogHidesTheKeysBarAndKeepsItHidden(t *testing.T) {
 	}
 	// the next screen shown has the line too, and so has the next run
 	m, _ = testkit.Drive(m, nil, shell.SwitchMsg{Screen: shell.Welcome})
-	if strings.Contains(bar(m), "= menu") {
+	if hints(bar(m)) {
 		t.Errorf("the welcome draws the keys bar: %q", bar(m))
 	}
 	if New(m.runner, shell.Help, m.made[shell.Help]).settings.KeysBar {
@@ -162,7 +166,7 @@ func TestTheSettingsDialogHidesTheKeysBarAndKeepsItHidden(t *testing.T) {
 	}
 	m, _ = testkit.Drive(m, nil, shell.SwitchMsg{Screen: shell.SettingsScreen}, tea.KeyPressMsg{Code: tea.KeySpace,
 		Text: " "}, tea.KeyPressMsg{Code: tea.KeyEscape})
-	if !strings.Contains(bar(m), "= menu") {
+	if !hints(bar(m)) {
 		t.Errorf("the keys bar is not shown again: %q", bar(m))
 	}
 	m.Close()

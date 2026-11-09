@@ -1,15 +1,17 @@
 // Package palette is what bare kit opens: every verb but tui, as a tree under the groups kit help lists them in, each
-// verb with its whole purpose, narrowed by the search, internal/shell's, on the title line, over the keys bar. The
-// search has the keyboard from the start and keeps it, so a key typed narrows the verbs at once, and backspace takes
-// one back; / and =, which no verb's name holds, are never typed. The keys that act on the list act on it while the
-// search has the keyboard: the up and down arrows move over the verbs, never onto a heading, and shift with either
-// jumps to the first verb of the previous or the next group. Page down and page up move a page, and home and end to
-// the first and the last verb. The right arrow trades the purposes for the highlighted verb's page beside the names,
-// and the left arrow brings them back. Enter opens the verb's form, and a form that cannot open leaves kit's line under
-// the title; = or a click on the = before the title drops the app's menu down, internal/shell's, as every screen of kittui
-// has it; esc clears what is typed and never quits; ctrl-q quits, and ctrl-c quits as interrupted. Where the tree or
-// the page is cut, a dim line says how many verbs or lines are hidden. The keys bar is the last line. Widths are
-// terminal cells, so a two-cell glyph never pushes a row past the edge.
+// verb with its whole purpose, narrowed by the search, internal/shell's, on the menu bar, over the status bar. The
+// search works as it does on every screen, and has focus from the start: a key typed narrows the verbs at once,
+// backspace takes one back, and ⌃U clears; ⏎, ↓, esc, or tab gives the verbs focus, the filter kept, and / or a click
+// on the search gives it focus again; ⌃R recalls a past search. The up arrow, the page keys, and the left and right
+// arrows act on the verbs while the search has focus too. With the verbs focused, the up and down arrows move over the
+// verbs, never onto a heading; [ and ] jump to the first verb of the group before and after, { and } to the first and
+// the last group, and shift with an arrow does as a bracket. Page down and page up move a page, and home and end to the
+// first and the last verb. The right arrow trades the purposes for the highlighted verb's page beside the names, and
+// the left arrow brings them back. Enter opens the verb's form, and a form that cannot open leaves kit's line under the
+// menu bar; = or a click on the = before the screen's name drops the kit menu down, internal/shell's, as every screen
+// of kittui has it; esc there does nothing and never quits; ctrl-q quits, and ctrl-c quits as interrupted. Where the
+// tree or the page is cut, a dim line says how many verbs or lines are hidden. The status bar is the last line. Widths
+// are terminal cells, so a two-cell glyph never pushes a row past the edge.
 package palette
 
 import (
@@ -49,7 +51,7 @@ const minPage = 12
 type Model struct {
 	verbs         []kit.Verb
 	runner        kit.Runner
-	search        shell.Search // the search, internal/shell's, which has the keyboard and narrows the verbs to its text
+	search        shell.Search // the search, internal/shell's, which narrows the verbs to its text
 	recent        shell.Recent // the searches remembered, every screen's, and their dropdown
 	cursor        int
 	pages         map[string]string // the pages kit gave, by verb
@@ -65,7 +67,7 @@ type Model struct {
 
 // New opens the palette on the verbs, leaving out tui itself, in the order the tree draws them: by group as kit help
 // orders the groups, a group kit help does not name after them by its name, and within a group as kit listed them.
-// The search has the keyboard, with nothing typed.
+// The search has focus, with nothing typed.
 func New(verbs []kit.Verb, r kit.Runner) Model {
 	m := Model{runner: r, pages: map[string]string{}, asked: map[string]bool{}, failed: map[string]string{}, width: 100,
 		height: 30, search: shell.Search{Focused: true}, appMenu: shell.Menu{Here: shell.Help}}
@@ -190,8 +192,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.recent, query = m.recent.Click(msg.X, msg.Y, m.recallAt(), m.width); query != "" {
 				m = m.typed(query)
 			}
-		case msg.Y == 0 && len(m.recent.Items) > 0 && msg.X == m.recallAt():
+		case msg.Y == 0 && m.search.Focused && len(m.recent.Items) > 0 && msg.X == m.recallAt():
 			m.recent = m.recent.Opened()
+		case msg.Y == 0 && msg.X >= m.searchAt():
+			m.search.Focused = true
 		case shell.OnApp(msg.X, msg.Y, appLabel):
 			m.appMenu = m.appMenu.Opened()
 		}
@@ -214,26 +218,34 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, m.page()
 		}
+		if msg.String() == "ctrl+c" {
+			m.interrupted = true
+			return m, tea.Quit
+		}
+		if m.search.Focused {
+			// the search takes what it takes on every screen; the up arrow, the page keys, and the left and right
+			// arrows are the verbs'
+			s, did := m.search.Key(msg)
+			switch did {
+			case shell.Typed:
+				return m.typed(s.Query), m.page()
+			case shell.Left:
+				m.search, m.recent = s, m.recent.Remember(s.Query)
+				return m, m.page()
+			case shell.Recalled:
+				m.recent = m.recent.Opened()
+				return m, nil
+			}
+		}
 		switch msg.String() {
-		case "ctrl+r":
-			m.recent = m.recent.Opened()
 		case "=":
 			m.appMenu = m.appMenu.Opened()
 		case "/":
-			// the search has the keyboard already, and no verb's name holds a /
-		case "esc":
-			// esc cancels what was typed, and never quits
-			if m.search.Query != "" {
-				m = m.typed("")
-			}
-		case "ctrl+c":
-			m.interrupted = true
-			return m, tea.Quit
+			m.search.Focused = true
 		case "enter":
 			if m.cursor < len(visible) {
 				verb := visible[m.cursor].Name
 				m.refusal = ""
-				m.recent = m.recent.Remember(m.search.Query)
 				return m, func() tea.Msg { return OpenMsg{Verb: verb} }
 			}
 		case "right":
@@ -287,10 +299,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor = len(visible) - 1
 			}
 			m.cursor = max(0, min(m.cursor, len(visible)-1))
-		default:
-			if query, ok := shell.Type(m.search.Query, msg); ok {
-				m = m.typed(query)
-			}
 		}
 		return m, m.page()
 	}
@@ -298,7 +306,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // Remembering gives the palette remembering its searches in the file, as every screen of kittui does: one is
-// remembered when a verb opens with it typed, and ctrl+r, or a click on the search's Recall glyph, drops them down.
+// remembered when the search gives the verbs focus with it typed, and ctrl+r, or a click on the search's Recall glyph,
+// drops them down.
 func (m Model) Remembering(path string) Model {
 	m.recent = shell.Recent{Path: path}.Loaded()
 	return m
@@ -495,9 +504,10 @@ func (m Model) View() tea.View {
 	return shell.View(drawn, m.height, m.keys().Line(m.width))
 }
 
-// keys gives the path to the keyboard, which the keys bar is drawn from: the screen; the verbs' list,
-// whose keys move, open the verb under the cursor, and turn to the verbs' pages and back; and the search, which always
-// has the keyboard, = and / apart: esc clears what it has typed. An open menu takes every press, and is the path alone.
+// keys gives the path to the keyboard, which the status bar's key hints are drawn from: the screen; and the verbs'
+// list, whose keys move, open the verb under the cursor, and turn to the verbs' pages and back, or, while it has focus,
+// the search, as every screen's is, whose ⏎ gives the verbs focus. An open menu takes every press, and is the path
+// alone.
 func (m Model) keys() shell.Path {
 	if m.appMenu.Open || m.recent.Open {
 		return shell.Path{shell.MenuKeys()}
@@ -510,12 +520,12 @@ func (m Model) keys() shell.Path {
 		shell.Bind("↑↓", "move", "up", "down"), shell.Bind("⇞⇟", "page", "pgup", "pgdown"),
 		shell.Bind("[]", "group", "[", "]", "shift+up", "shift+down"), turn, shell.Bind("⏎", "open", "enter"),
 	}}
-	search := shell.SearchKeys(len(m.recent.Items) > 0)
-	search.Passes, search.Takes = []string{"=", "[", "]", "{", "}"}, append(search.Takes, "/")
-	if m.search.Query != "" {
-		search.Bindings = append([]shell.Binding{shell.Bind("esc", "clear")}, search.Bindings...)
+	if m.search.Focused {
+		search := shell.SearchKeys("verbs", m.search.Query, len(m.recent.Items) > 0)
+		search.Takes = append(search.Takes, "up", "pgup", "pgdown", "left", "right")
+		return shell.Path{shell.ScreenKeys(), search}
 	}
-	return shell.Path{shell.ScreenKeys(), list, search}
+	return shell.Path{shell.ScreenKeys(), list}
 }
 
 // page wraps a text to the width, keeping each line's indent, and gives its lines. A width counts what shows, so the

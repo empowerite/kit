@@ -13,8 +13,11 @@
 // first row, or esc, gives the bar the keyboard. Enter opens the tutorial under the cursor in the browser, and a click
 // on a card opens that one. The bar is internal/tabs: while it has the keyboard, left and right move between the tabs,
 // and down or enter gives the cards the keyboard, on a tab that has some; a tab's number, 1 to 9, or a click on it,
-// selects it from anywhere and gives the bar the keyboard. = or a click on the = drops the app's menu down. Ctrl-c quits
-// with 130 from anywhere, and ctrl-q quits with 0; esc never quits.
+// selects it from anywhere and gives the bar the keyboard. = or a click on the = drops the app's menu down. The search
+// on the menu bar's right is every screen's, internal/shell's: / or a click on it gives it focus, typing narrows every
+// tab's cards to the tutorials whose id, title, or summary holds it, the tabs still counting all of theirs, and ⏎, ↓,
+// esc, or tab gives the cards focus, the filter kept. Ctrl-c quits with 130 from anywhere, and ctrl-q quits with 0; esc
+// never quits.
 //
 // Opening a tutorial says so in place of the keys, for Fades or until a key; when the browser cannot be asked, the
 // tutorial's link stands there instead until a key, to open by hand. The browser cannot be asked over SSH, where an
@@ -73,6 +76,8 @@ type Model struct {
 	height  int
 	appMenu shell.Menu   // the app's menu, internal/shell's, which has the keyboard while it is open
 	note    shell.Notice // what opened, or the link to open by hand, in place of the keys
+	search  shell.Search // the search, internal/shell's, which narrows the cards to its text
+	recent  shell.Recent // the searches remembered, every screen's, and their dropdown
 
 	interrupted bool
 }
@@ -82,7 +87,7 @@ type Model struct {
 func Open(r kit.Runner, words []string) Model {
 	tags, focus := parse(words)
 	m := New(r, tags)
-	m.focus = focus
+	m.focus, m.recent = focus, shell.Recent{Path: shell.RecentFile()}.Loaded()
 	return m
 }
 
@@ -231,10 +236,19 @@ func (m Model) focused() bool { return m.inPane && len(m.cards()) > 0 }
 // cards gives the selected tab's tutorials, as cardsOf does.
 func (m Model) cards() []kit.Tutorial { return m.cardsOf(m.tab) }
 
-// cardsOf gives a tab's tutorials, in the catalogue's order: every one under All, else those for its audience.
+// cardsOf gives a tab's tutorials the search lets through, as allOf gives them: those whose id, title, or summary
+// holds what is typed, without regard to case.
 func (m Model) cardsOf(tab int) []kit.Tutorial {
+	query := strings.ToLower(m.search.Query)
+	return slices.DeleteFunc(m.allOf(tab), func(t kit.Tutorial) bool {
+		return !strings.Contains(strings.ToLower(t.ID+"\n"+t.Title+"\n"+t.Summary), query)
+	})
+}
+
+// allOf gives a tab's tutorials, in the catalogue's order: every one under All, else those for its audience.
+func (m Model) allOf(tab int) []kit.Tutorial {
 	if tab == 0 {
-		return m.catalog.Tutorials
+		return slices.Clone(m.catalog.Tutorials)
 	}
 	id := m.catalog.Audiences[tab-1].ID
 	var out []kit.Tutorial
@@ -246,7 +260,8 @@ func (m Model) cardsOf(tab int) []kit.Tutorial {
 	return out
 }
 
-// key takes a key press: the quitting keys, the app's menu's while it is open, = for it, the bar's, then the cards'.
+// key takes a key press: the quitting keys, the app's menu's while it is open, the searches' dropdown's while it is,
+// the search's while it has focus, = for the menu, / for the search, the bar's, then the cards'.
 func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
 	case "ctrl+c":
@@ -260,8 +275,36 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.appMenu, c = m.appMenu.Key(k)
 		return m, m.chose(c)
 	}
-	if k.String() == "=" {
+	if m.recent.Open {
+		var query string
+		if m.recent, query = m.recent.Key(k); query != "" {
+			m.typed(query)
+		}
+		return m, nil
+	}
+	if m.search.Focused {
+		// the search takes what it takes on every screen; what it does not, as the arrows but down, the bar takes
+		s, did := m.search.Key(k)
+		switch did {
+		case shell.Typed:
+			m.typed(s.Query)
+			return m, nil
+		case shell.Left:
+			m.search, m.recent = s, m.recent.Remember(s.Query)
+			m.inPane = len(m.cards()) > 0
+			m.fit()
+			return m, nil
+		case shell.Recalled:
+			m.recent = m.recent.Opened()
+			return m, nil
+		}
+	}
+	switch k.String() {
+	case "=":
 		m.appMenu = m.appMenu.Opened()
+		return m, nil
+	case "/":
+		m.search.Focused = true
 		return m, nil
 	}
 	if bar, ok := m.bar().Update(k); ok {
@@ -305,8 +348,20 @@ func (m Model) click(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 		var c shell.Choice
 		m.appMenu, c = m.appMenu.Click(msg.X, msg.Y, m.width)
 		return m, m.chose(c)
+	case m.recent.Open:
+		var query string
+		if m.recent, query = m.recent.Click(msg.X, msg.Y, m.recallAt(), m.width); query != "" {
+			m.typed(query)
+		}
+		return m, nil
 	case shell.OnApp(msg.X, msg.Y, appLabel):
 		m.appMenu = m.appMenu.Opened()
+		return m, nil
+	case msg.Y == shell.Top && m.recalls() && msg.X == m.recallAt():
+		m.recent = m.recent.Opened()
+		return m, nil
+	case msg.Y == shell.Top && msg.X >= m.searchAt():
+		m.search.Focused = true
 		return m, nil
 	}
 	if bar, ok := m.bar().Update(msg); ok {
@@ -320,6 +375,30 @@ func (m Model) click(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 		return m, m.open(m.cards()[i])
 	}
 	return m, nil
+}
+
+// typed puts the text in the search, the cursor on the first card it lets through and the pane at its top, when it
+// differs.
+func (m *Model) typed(query string) {
+	if query != m.search.Query {
+		m.search.Query, m.cursor, m.offset = query, 0, 0
+	}
+	m.fit()
+}
+
+// recalls says whether the search, with focus, offers searches to recall.
+func (m Model) recalls() bool { return m.search.Focused && len(m.recent.Items) > 0 }
+
+// recallAt gives the screen column of the search's Recall glyph.
+func (m Model) recallAt() int { return shell.RecallAt(m.searchAt()) }
+
+// searchAt gives the column the search starts at on the menu bar, as internal/shell puts every screen's.
+func (m Model) searchAt() int { return shell.SearchAt(m.width, m.searchLine()) }
+
+// searchLine gives the search as the menu bar draws it, its cursor showing while it has focus and the app's menu is
+// closed.
+func (m Model) searchLine() string {
+	return shell.RecallLine(m.search.Query, m.search.Focused && !m.appMenu.Open, len(m.recent.Items) > 0)
 }
 
 // choose takes what the bar chose: where its view is scrolled, the tab it selected, and the keyboard. Another tab

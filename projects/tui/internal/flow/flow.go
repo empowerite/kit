@@ -733,16 +733,24 @@ func (m Model) recallAt() int {
 	return shell.RecallAt(m.searchAt())
 }
 
-// panelKeys takes a key while the search has the keyboard, as panelKey says: tab, esc, and enter leave it, what is
-// typed kept; a printable key is typed, and backspace takes one back; any other key the bar takes, as a stage's number
-// does not while it is typed, gives the bar the keyboard.
+// panelKeys takes a key while the search has the keyboard, as panelKey says, and as shell.SearchKey takes it on every
+// screen: enter, down, esc, and tab give the rows focus, the filter kept, where the stage has rows to stand on, else
+// focus goes back where it was; a printable key is typed, backspace takes one back, and ctrl+u clears; any other key
+// the bar takes, as a stage's number does not while it is typed, gives the bar the keyboard.
 func (m Model) panelKeys(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	switch k.String() {
-	case "tab", "esc", "enter":
+	p := m.panel(m.stage)
+	query, did := shell.SearchKey(p.Query, k)
+	switch did {
+	case shell.Left:
 		m.inPanel = false
+		if rows := m.rows(m.stage); m.first(m.stage) < len(rows) {
+			m.inRows, m.onPreset = true, false
+			m.clamp(m.stage)
+			m.fit()
+		}
 		return m, nil
-	}
-	if p, ok := m.panel(m.stage).Update(k); ok {
+	case shell.Typed:
+		p.Query = query
 		m.setPanel(p)
 		return m, nil
 	}

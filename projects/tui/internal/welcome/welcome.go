@@ -481,15 +481,17 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if s := m.search(); s.Focused {
-		// the search has the keyboard: what it does not take, as the arrows, is nobody's; ctrl+r drops the searches
-		// remembered down, and what was typed is remembered when the search gives up the keyboard
-		if k.String() == "ctrl+r" {
+		// the search has the keyboard, as shell.SearchKey says: what it does not take, as the arrows but down, is
+		// nobody's; ctrl+r drops the searches remembered down; and what was typed is remembered when the search gives
+		// the pane focus
+		s, did := s.Key(k)
+		switch did {
+		case shell.Recalled:
 			m.recent = m.recent.Opened()
 			return m, nil
-		}
-		s, _ = s.Key(k)
-		if !s.Focused {
+		case shell.Left:
 			m.recent = m.recent.Remember(s.Query)
+			m.inPane = true
 		}
 		m.setSearch(s)
 		return m, nil

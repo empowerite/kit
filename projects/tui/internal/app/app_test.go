@@ -44,21 +44,22 @@ func TestPaletteOpensAFormAndTakesItBack(t *testing.T) {
 	}
 }
 
-// Back from a verb's form, the palette's search has the keyboard again, with what was typed before it opened.
-func TestBackFromAFormTheSearchHasTheKeyboardWithWhatWasTyped(t *testing.T) {
+// Back from a verb's form, the palette is as it was left: the verbs with focus, under the search's filter, and / gives
+// the search focus with what was typed before the form opened.
+func TestBackFromAFormThePaletteKeepsWhatWasTyped(t *testing.T) {
 	m, err := Open(testkit.Runner(t, "kit"), "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	m = drive(m, append(testkit.Typed("sub"), press(tea.KeyEnter))...)
+	m = drive(m, append(testkit.Typed("sub"), press(tea.KeyEnter), press(tea.KeyEnter))...)
 	if !m.InForm() {
-		t.Fatalf("sub and enter did not open a form:\n%s", m.View().Content)
+		t.Fatalf("sub and enter twice did not open a form:\n%s", m.View().Content)
 	}
 	m = drive(m, press(tea.KeyEscape))
-	if m.InForm() || !strings.Contains(ansi.Strip(m.View().Content), "sub▏") {
-		t.Fatalf("back in the palette, the search is not as it was:\n%s", ansi.Strip(m.View().Content))
+	if v := ansi.Strip(m.View().Content); m.InForm() || !strings.Contains(v, "🔎 sub") || strings.Contains(v, "sub▏") {
+		t.Fatalf("back in the palette, the search is not as it was:\n%s", v)
 	}
-	m = drive(m, testkit.Typed("mit")...)
+	m = drive(m, append(testkit.Typed("/"), testkit.Typed("mit")...)...)
 	if visible := m.palette.Visible(); len(visible) != 1 || visible[0].Name != "submit" {
 		t.Errorf("submit typed after coming back: %v", visible)
 	}
@@ -138,7 +139,8 @@ func TestAVerbWhoseFormCannotOpenLeavesKitsLineInThePalette(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m = drive(m, press(tea.KeyDown), press(tea.KeyEnter))
+	// down gives the verbs focus from the search, and down again moves to submit
+	m = drive(m, press(tea.KeyDown), press(tea.KeyDown), press(tea.KeyEnter))
 	view := m.View().Content
 	if m.InForm() || !strings.Contains(view, "❌ kit submit refuses for the test; run: kit help submit") {
 		t.Fatalf("the palette does not show why submit did not open:\n%s", view)
@@ -183,7 +185,7 @@ func TestAUsageThatDoesNotParseOpensNoForm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m = drive(m, press(tea.KeyEnter))
+	m = drive(m, press(tea.KeyEnter), press(tea.KeyEnter))
 	if m.InForm() || !strings.Contains(m.View().Content, "usage does not parse") {
 		t.Errorf("the palette does not say why commit did not open:\n%s", m.View().Content)
 	}

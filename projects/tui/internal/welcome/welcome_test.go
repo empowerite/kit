@@ -1016,7 +1016,7 @@ func TestTheGuidesSearchNarrowsEachStep(t *testing.T) {
 	}
 	all := len(m.rows(m.step))
 	m = drive(m, tea.KeyPressMsg{Code: '/', Text: "/"})
-	if !m.search().Focused || !strings.HasSuffix(view(m), "\n esc back type to search") {
+	if !m.search().Focused || !strings.HasSuffix(view(m), "\n ⏎ checks type to search") {
 		t.Fatalf("/ did not give the search the keyboard:\n%s", view(m))
 	}
 	first := m.checks[m.rows(m.step)[0]].ID
@@ -1028,11 +1028,19 @@ func TestTheGuidesSearchNarrowsEachStep(t *testing.T) {
 	if len(m.rows(m.step)) != 0 || !strings.Contains(view(m), "no check matches the search") {
 		t.Errorf("a search no check matches:\n%s", view(m))
 	}
-	// esc leaves the search, what is typed kept; another step has a search of its own
-	if m = drive(m, tea.KeyPressMsg{Code: tea.KeyEscape}); m.search().Focused || m.search().Query == "" {
-		t.Errorf("esc: %+v", m.search())
+	// ⌃U clears what is typed, and the hint names it while there is some
+	if !strings.Contains(view(m), "⌃U clear") {
+		t.Errorf("⌃U is not named:\n%s", view(m))
 	}
-	m = drive(m, tea.KeyPressMsg{Code: tea.KeyLeft})
+	if m = drive(m, tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}); m.search().Query != "" || !m.search().Focused {
+		t.Errorf("⌃U: %+v", m.search())
+	}
+	m = drive(m, testkit.Typed("zzz")...)
+	// esc gives the pane focus, what is typed kept; another step has a search of its own
+	if m = drive(m, tea.KeyPressMsg{Code: tea.KeyEscape}); m.search().Focused || m.search().Query == "" || !m.inPane {
+		t.Errorf("esc: %+v, the pane focused %v", m.search(), m.inPane)
+	}
+	m = drive(m, tea.KeyPressMsg{Code: tea.KeyEscape}, tea.KeyPressMsg{Code: tea.KeyLeft})
 	if m.search().Query != "" {
 		t.Errorf("the step before shares the search: %q", m.search().Query)
 	}

@@ -13,25 +13,52 @@ const Find = "🔎"
 // Idle is what an idle, empty search reads, dim: /search, its key before its name.
 const Idle = "/search"
 
-// Search is the search every screen of kittui has, the same on each: on the title line's right, 🔎 and what is
-// typed, which the screen narrows what it shows to. / or a click on it gives it the keyboard; then a printable key is
-// typed, / and = too, and backspace takes one back; esc, tab, and enter leave it, what is typed kept.
+// Search is the search every screen of kittui has, the same on each: on the menu bar's right, 🔎 and what is typed,
+// which the screen narrows its view to. / or a click on it gives it focus, and a screen may open with focus there; then
+// a printable key is typed, / and = too, as the filter goes, backspace takes one back, and ⌃U clears it; ⏎, ↓, esc,
+// and tab give the view focus, the filter kept; and ⌃R recalls the past searches.
 type Search struct {
 	Query   string
 	Focused bool
 }
 
-// Key takes a key while the search has the keyboard, and says whether it was the search's: what types and erases,
-// and what leaves it. Any other key, as the arrows, is the screen's.
-func (s Search) Key(k tea.KeyPressMsg) (Search, bool) {
-	switch k.String() {
-	case "esc", "tab", "enter":
-		s.Focused = false
-		return s, true
-	}
-	q, ok := Type(s.Query, k)
+// SearchDid says what a key did to a search with focus.
+type SearchDid int
+
+// What a key does to a search with focus: nothing, the key the screen's, as the arrows but ↓ are; it typed, erased, or
+// cleared; it gave the view focus, the filter kept; or it asks for the past searches.
+const (
+	NotSearch SearchDid = iota
+	Typed
+	Left
+	Recalled
+)
+
+// Key takes a key while the search has focus, as SearchKey says, and loses focus when the key gives the view focus.
+func (s Search) Key(k tea.KeyPressMsg) (Search, SearchDid) {
+	q, did := SearchKey(s.Query, k)
 	s.Query = q
-	return s, ok
+	if did == Left {
+		s.Focused = false
+	}
+	return s, did
+}
+
+// SearchKey gives what is typed after a key pressed in a search with focus, and what the key did: ⏎, ↓, esc, and tab
+// leave for the view, ⌃U clears, ⌃R recalls, and the rest types or erases as Type does. Any other key is the screen's.
+func SearchKey(query string, k tea.KeyPressMsg) (string, SearchDid) {
+	switch k.String() {
+	case "enter", "down", "esc", "tab":
+		return query, Left
+	case "ctrl+u":
+		return "", Typed
+	case "ctrl+r":
+		return query, Recalled
+	}
+	if q, ok := Type(query, k); ok {
+		return q, Typed
+	}
+	return query, NotSearch
 }
 
 // Type gives what is typed after a key: a printable key added, backspace taking the last one back; and whether the key

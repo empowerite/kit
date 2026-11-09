@@ -21,7 +21,7 @@ import (
 
 // searchKeys is the keys bar while the search has the keyboard: esc or enter leaves it, then the search's own, which
 // hides every key of the screen's and the bar's it types.
-const searchKeys = "esc·⏎ back │ type to search"
+const searchKeys = "⏎ rows type to search"
 
 // menuKeys is the keys bar while a menu is open.
 var menuKeys = shell.Path{shell.MenuKeys()}.String()
@@ -87,13 +87,21 @@ func TestSlashGivesTheSearchTheKeyboardAndTypingNarrowsTheRowsAndTheCount(t *tes
 	if m = drive(m, press(tea.KeyPgDown)); !m.inPanel {
 		t.Error("pgdown left the search")
 	}
-	// esc gives the keyboard back to the bar; / from the rows, and enter, back to them
-	if m = drive(m, esc); m.inPanel || !m.bar().Focused {
-		t.Errorf("esc: in panel %v", m.inPanel)
+	// ⌃U clears what is typed, and the hint names it while there is some
+	if m = drive(m, typed("NO")...); !strings.Contains(lines(m)[23], "⌃U clear") {
+		t.Errorf("⌃U is not named: %q", lines(m)[23])
 	}
-	m = drive(intoRows(m), typed("/")[0], press(tea.KeyEnter))
-	if m.inPanel || !m.inRows {
-		t.Errorf("/ from the rows and enter: in panel %v, in rows %v", m.inPanel, m.inRows)
+	if m = drive(m, tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}); m.panel(m.stage).Query != "" || !m.inPanel {
+		t.Errorf("⌃U: %q, in panel %v", m.panel(m.stage).Query, m.inPanel)
+	}
+	// esc, enter, down, and tab each give the rows focus, the filter kept
+	m = drive(m, esc)
+	for _, k := range []tea.KeyPressMsg{esc, press(tea.KeyEnter), down, press(tea.KeyTab)} {
+		m = drive(m, typed("/")[0], typed("N")[0])
+		if m = drive(m, k); m.inPanel || !m.inRows || m.panel(m.stage).Query == "" {
+			t.Errorf("%s: in panel %v, in rows %v, %q", k, m.inPanel, m.inRows, m.panel(m.stage).Query)
+		}
+		m = drive(m, typed("/")[0], tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}, esc)
 	}
 }
 
@@ -145,8 +153,8 @@ func TestTheSearchStandsOnTheTopRight(t *testing.T) {
 		if at := glyphAt(m); at != idle {
 			t.Errorf("%v: the search moved to %d from %d", enter, at, idle)
 		}
-		if m = drive(m, down, press(tea.KeyPgDown)); !m.inPanel {
-			t.Errorf("down in the search left it")
+		if m = drive(m, press(tea.KeyPgDown)); !m.inPanel {
+			t.Errorf("pgdown in the search left it")
 		}
 	}
 	if m = drive(m, typed("noun")...); !slices.Equal(keys(m), []string{"#46"}) || glyphAt(m) != idle ||

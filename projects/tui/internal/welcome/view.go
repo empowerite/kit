@@ -97,9 +97,8 @@ func (m Model) keys() shell.Path {
 	path := shell.Path{shell.WorkspaceScreenKeys(), m.bar().Keys(down)}
 	switch {
 	case m.search().Focused:
-		search := shell.SearchKeys(m.recalls())
+		search := shell.SearchKeys(down, m.search().Query, m.recalls())
 		search.Owns = true
-		search.Bindings = append([]shell.Binding{shell.Bind("esc", "back", "esc", "tab", "enter")}, search.Bindings...)
 		return append(path, search)
 	case m.inPane:
 		return append(path, m.paneKeys())

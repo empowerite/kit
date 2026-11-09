@@ -139,23 +139,31 @@ func TestABoxKeepsToTheRoomItHas(t *testing.T) {
 	}
 }
 
-// The search types what is pressed, erases with backspace, and leaves on esc, tab, or enter, what is typed kept; it
-// stands right-aligned while idle, and in use over the tab bar's rightmost number that leaves room to type.
+// The search types what is pressed, erases with backspace, clears with ⌃U, recalls with ⌃R, and gives the view focus
+// on enter, down, esc, or tab, what is typed kept; it stands right-aligned while idle, and in use over the tab bar's
+// rightmost number that leaves room to type.
 func TestTheSearchIsTheSameOnEveryScreen(t *testing.T) {
 	s := Search{Focused: true}
 	for _, k := range []string{"c", "o", "=", "/"} {
 		s, _ = s.Key(key(k))
 	}
-	if s, ok := s.Key(tea.KeyPressMsg{Code: tea.KeyBackspace}); !ok || s.Query != "co=" {
+	if s, did := s.Key(tea.KeyPressMsg{Code: tea.KeyBackspace}); did != Typed || s.Query != "co=" {
 		t.Errorf("typing and backspace: %q", s.Query)
 	}
-	if _, ok := s.Key(key("up")); ok {
+	if _, did := s.Key(key("up")); did != NotSearch {
 		t.Error("up was the search's")
 	}
-	for _, k := range []tea.KeyPressMsg{key("esc"), {Code: tea.KeyTab}, key("enter")} {
-		if left, ok := s.Key(k); !ok || left.Focused || left.Query != s.Query {
-			t.Errorf("%s did not leave the search, what is typed kept: %+v", k, left)
+	for _, k := range []tea.KeyPressMsg{key("esc"), {Code: tea.KeyTab}, key("enter"), key("down")} {
+		if left, did := s.Key(k); did != Left || left.Focused || left.Query != s.Query {
+			t.Errorf("%s did not give the view focus, what is typed kept: %+v", k, left)
 		}
+	}
+	if cleared, did := s.Key(tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}); did != Typed || cleared.Query != "" ||
+		!cleared.Focused {
+		t.Errorf("⌃U: %+v", cleared)
+	}
+	if recalled, did := s.Key(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl}); did != Recalled || recalled.Query != s.Query {
+		t.Errorf("⌃R: %+v", recalled)
 	}
 	if q, _ := Type("", tea.KeyPressMsg{Code: tea.KeyBackspace}); q != "" {
 		t.Error("backspace on nothing")

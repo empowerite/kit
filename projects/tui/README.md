@@ -5,12 +5,17 @@
 
 It has five screens:
 
-- **The palette.** Bare `kit` opens it. It lists every verb under its group, filtered as you type. [ and ] move to the
-  group before and after, { and } to the first and the last.
+- **The palette.** Bare `kit` opens it, focus in the search. It lists every verb under its group, filtered as you
+  type; ⏎ or ↓ gives the verbs focus, and ⏎ there opens one. [ and ] move to the group before and after, { and } to the
+  first and the last.
 - **A verb's form.** It opens when a verb at a terminal is short of its arguments. It finishes the command line.
 - **The flow picture.** `kit flow` at a terminal draws its stages here.
 - **The welcome guide.** `kit welcome` at a terminal walks its steps here.
 - **The tutorials.** `kit tutorials` at a terminal shows a card for each tutorial here, tabbed by audience.
+
+Search works the same on every screen. `/` or a click on the search field at the menu bar's right gives it focus, and
+typing filters as it goes. ⏎, ↓, esc, or tab gives the view focus and keeps the filter, ⌃U clears it, and ⌃R recalls
+a past search.
 
 `kit x y` opens screen x on y. `kit flow backlog` opens the picture with the backlog stage maximized, and
 `kit tutorials screens` opens the tutorials with the cursor on that card. `kit help commit` opens the palette on the
@@ -73,7 +78,7 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     Assign to Me. With a menu open, a line's key chooses it before a letter moves to the next line starting with it.
     [ and ] move the cursor to the group heading before and after it, { and } to the first and the last, as they move
     between the palette's groups.
-  - The search stands at the title line's right end, and / or a click on it gives it the keyboard. There is no sidebar:
+  - The search stands at the menu bar's right end, every screen's, and ⏎ or esc there gives the rows focus. No sidebar:
     the rows take the screen's width. While the person groups by no column, a value every row shares moves into one
     heading over them, the column grouping on its own; a group the person chooses overrides that, and the rows then
     group as chosen alone. Auto-group, which turns that on or off, and Repeated emoji, which shows an emoji every row

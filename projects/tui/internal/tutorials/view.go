@@ -48,10 +48,12 @@ const lead = "  "
 
 // View draws the screen on the alternate screen, with the mouse on for the bar and the cards.
 func (m Model) View() tea.View {
-	title := pane.Clip(shell.Title(style.Label(appLabel), m.appMenu.Open), m.width-1)
+	at := m.searchAt()
+	title := pane.Pad(pane.Clip(shell.Title(style.Label(appLabel), m.appMenu.Open), at-2), at, false) + m.searchLine()
 	lines := append([]string{title}, strings.Split(m.bar().View(), "\n")...)
 	lines = append(lines, m.pane()...)
-	lines = m.appMenu.Overlay(append(lines, ""), m.width)
+	lines = m.recent.Overlay(append(lines, ""), m.recallAt(), m.width)
+	lines = m.appMenu.Overlay(lines, m.width)
 	return shell.View(lines, m.height, m.bottom())
 }
 
@@ -81,7 +83,7 @@ func (m Model) bar() tabs.Bar {
 		names = append(names, a.Label)
 	}
 	for i, name := range names {
-		count := strconv.Itoa(len(m.cardsOf(i)))
+		count := strconv.Itoa(len(m.allOf(i)))
 		switch {
 		case m.reading.Loading:
 			count = "…"
@@ -94,19 +96,22 @@ func (m Model) bar() tabs.Bar {
 	return b
 }
 
-// keys gives the path to the keyboard, which the keys bar is drawn from: the screen, whose = drops the app's menu down;
-// the bar, whose down enters the cards where the tab has some; and the cards while they have the keyboard: esc gives
-// the bar the keyboard, named by the tab it has selected, the arrows move, and enter opens. An open menu takes every
-// press, and is the path alone.
+// keys gives the path to the keyboard, which the key hints are drawn from: the screen, whose = drops the app's menu
+// down and / gives the search focus; the bar, whose down enters the cards where the tab has some; and the search while
+// it has focus, or the cards while they have it: esc gives the bar the keyboard, named by the tab it has selected, the
+// arrows move, and enter opens. An open menu takes every press, and is the path alone.
 func (m Model) keys() shell.Path {
-	if m.appMenu.Open {
+	if m.appMenu.Open || m.recent.Open {
 		return shell.Path{shell.MenuKeys()}
 	}
 	down := ""
 	if len(m.cards()) > 0 {
 		down = "cards"
 	}
-	path := shell.Path{{Bindings: []shell.Binding{shell.Bind("=", "menu")}}, m.bar().Keys(down)}
+	path := shell.Path{shell.ScreenKeys(), m.bar().Keys(down)}
+	if m.search.Focused {
+		return append(path, shell.SearchKeys("cards", m.search.Query, len(m.recent.Items) > 0))
+	}
 	if m.focused() {
 		path = append(path, shell.Segment{Bindings: []shell.Binding{shell.Bind("esc", "tabs"),
 			shell.Bind("←→↑↓", "move", "left", "right", "up", "down"), shell.Bind("⏎", "open", "enter")}})

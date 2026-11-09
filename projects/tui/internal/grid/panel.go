@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/shell"
@@ -1045,16 +1044,6 @@ func (p Panel) Moved(id string, to Placement, k int) (Panel, bool) {
 	}
 	after := [][]string{p.section(Group), p.section(Column), p.section(Hidden)}
 	return p, !slices.EqualFunc(before, after, slices.Equal)
-}
-
-// Update takes a key while the search has the keyboard, and says whether it took it: a printable key is typed, / too,
-// and backspace takes one back.
-func (p Panel) Update(k tea.KeyPressMsg) (Panel, bool) {
-	if k.String() != "backspace" && k.Text == "" {
-		return p, false
-	}
-	p.Query, _ = shell.Type(p.Query, k)
-	return p, true
 }
 
 // Find puts the search under the keyboard.

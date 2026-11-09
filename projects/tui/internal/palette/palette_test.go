@@ -1,5 +1,6 @@
-// The palette lists the verbs as a tree of their groups, filters them as they are typed, moves over the verbs and
-// between the groups while the search has the keyboard, shows the highlighted one's page, and opens it.
+// The palette lists the verbs as a tree of their groups, filters them as they are typed in the search it opens with
+// focus in, moves over the verbs and between the groups once they have focus, shows the highlighted one's page, and
+// opens it.
 package palette
 
 import (
@@ -30,6 +31,14 @@ func open(t *testing.T) Model {
 	return New(verbs, r)
 }
 
+// listing gives the palette over the fake kit with the verbs focused, as esc leaves it from the search it opens in.
+func listing(t *testing.T) Model {
+	t.Helper()
+	m := open(t)
+	m.search.Focused = false
+	return m
+}
+
 // drive sends the messages to the palette from its start, as the program would, and gives the model and every
 // message the commands produced; an OpenMsg is the palette's answer, so it is produced and not fed back.
 func drive(m Model, msgs ...tea.Msg) (Model, []tea.Msg) {
@@ -38,13 +47,16 @@ func drive(m Model, msgs ...tea.Msg) (Model, []tea.Msg) {
 }
 
 var (
+	esc       = tea.KeyPressMsg{Code: tea.KeyEscape}
+	slash     = tea.KeyPressMsg{Code: '/', Text: "/"}
+	ctrlU     = tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}
 	up        = tea.KeyPressMsg{Code: tea.KeyUp}
 	down      = tea.KeyPressMsg{Code: tea.KeyDown}
 	shiftUp   = tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModShift}
 	shiftDown = tea.KeyPressMsg{Code: tea.KeyDown, Mod: tea.ModShift}
 )
 
-// search gives the keys that search for the text: the text alone, as the search has the keyboard.
+// search gives the keys that search for the text: the text alone, as the search has focus.
 func search(text string) []tea.Msg { return testkit.Typed(text) }
 
 func names(m Model) string {
@@ -108,7 +120,7 @@ func TestAGroupKitHelpDoesNotNameFollowsTheOthers(t *testing.T) {
 }
 
 func TestTheVerbsAreATreeUnderTheirGroupsHeadings(t *testing.T) {
-	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 120, Height: 30})
+	m, _ := drive(listing(t), tea.WindowSizeMsg{Width: 120, Height: 30})
 	if drawn(m) != "WORKFLOW ▸commit submit FILES context CHECKS check INSTALLATION version" {
 		t.Errorf("tree: %q", drawn(m))
 	}
@@ -122,7 +134,7 @@ func TestTheVerbsAreATreeUnderTheirGroupsHeadings(t *testing.T) {
 }
 
 func TestUpAndDownMoveOverTheVerbsAndSkipTheHeadings(t *testing.T) {
-	m, _ := drive(open(t), down, down)
+	m, _ := drive(listing(t), down, down)
 	if drawn(m) != "WORKFLOW commit submit FILES ▸context CHECKS check INSTALLATION version" {
 		t.Errorf("down twice: %q", drawn(m))
 	}
@@ -169,7 +181,7 @@ func TestAFilterThatEmptiesAGroupHidesItsHeading(t *testing.T) {
 }
 
 func TestTheWindowCountsTheHeadingsSoTheCursorStaysOnScreen(t *testing.T) {
-	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 120, Height: 8}, down, down, down, down)
+	m, _ := drive(listing(t), tea.WindowSizeMsg{Width: 120, Height: 8}, down, down, down, down)
 	if highlighted(m) != "version" || !strings.HasSuffix(drawn(m), "▸version") {
 		t.Errorf("the cursor's row is off the screen: %q", drawn(m))
 	}
@@ -194,7 +206,7 @@ func TestFilterNarrows(t *testing.T) {
 }
 
 func TestEnterOpensHighlighted(t *testing.T) {
-	_, produced := drive(open(t), down, tea.KeyPressMsg{Code: tea.KeyEnter})
+	_, produced := drive(listing(t), down, tea.KeyPressMsg{Code: tea.KeyEnter})
 	if got, ok := produced[len(produced)-1].(OpenMsg); !ok || got.Verb != "submit" {
 		t.Fatalf("produced %v", produced)
 	}
@@ -227,7 +239,7 @@ func TestARowWiderThanTheScreenIsClippedAtItsEdge(t *testing.T) {
 }
 
 func TestRightShowsThePagesAndLeftTheListAgain(t *testing.T) {
-	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 120, Height: 30}, down, tea.KeyPressMsg{Code: tea.KeyRight})
+	m, _ := drive(listing(t), tea.WindowSizeMsg{Width: 120, Height: 30}, down, tea.KeyPressMsg{Code: tea.KeyRight})
 	view := m.View().Content
 	if !strings.Contains(view, "kit submit - a purpose for the test") || strings.Contains(view, "commits what is staged") {
 		t.Fatalf("right did not show the page alone:\n%s", view)
@@ -248,8 +260,10 @@ func TestRightShowsThePagesAndLeftTheListAgain(t *testing.T) {
 }
 
 func TestTheKeysBarIsTheLastLineWhateverTheContent(t *testing.T) {
-	// the screen's keys, the list's, then the search's, which has the keyboard
-	const bar = " = menu │ ↑↓ move ⇞⇟ page [] group → pages ⏎ open │ type to search"
+	// the search's keys, which has focus and types, so the screen's are not named; then, once down gives the verbs
+	// focus, the screen's and the list's
+	const bar = " ⏎ verbs type to search"
+	const listBar = " = menu / search │ ↑↓ move ⇞⇟ page [] group → pages ⏎ open"
 	long := strings.Repeat("kit commit refuses for the test, at length; ", 8) + "run: kit help commit"
 	for _, height := range []int{30, 12, 6, 5, 4, 3, 2, 1} {
 		for name, msgs := range map[string][]tea.Msg{
@@ -261,15 +275,19 @@ func TestTheKeysBarIsTheLastLineWhateverTheContent(t *testing.T) {
 				if refused {
 					m = m.Refuse(long)
 				}
+				want := bar
+				if name == "moved" {
+					want = listBar
+				}
 				lines := strings.Split(stripANSI(m.View().Content), "\n")
-				if len(lines) != height || lines[height-1] != bar {
+				if len(lines) != height || lines[height-1] != want {
 					t.Errorf("%s at %d, refused %v: %d lines, the last %q", name, height, refused, len(lines),
 						lines[len(lines)-1])
 				}
 			}
 		}
-		// with something typed, esc clears it, and the bar says so, where the search's keys are
-		cleared := strings.Replace(bar, "│ type", "│ esc clear type", 1)
+		// with something typed, ⌃U clears it, and the bar says so
+		cleared := bar + " ⌃U clear"
 		for name, text := range map[string]string{"filtered": "co", "empty": "zz"} {
 			m, _ := drive(open(t), append([]tea.Msg{tea.WindowSizeMsg{Width: 100, Height: height}}, search(text)...)...)
 			for _, refused := range []bool{false, true} {
@@ -284,15 +302,15 @@ func TestTheKeysBarIsTheLastLineWhateverTheContent(t *testing.T) {
 			}
 		}
 	}
-	// the pages' bar names the way back, on the same line; at a narrow width the bar keeps the screen's keys and the
-	// search's, the list's dropped between them
-	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 12}, tea.KeyPressMsg{Code: tea.KeyRight})
+	// the pages' bar names the way back, on the same line; at a narrow width the bar keeps the screen's keys, and cuts
+	// the list's at its end
+	m, _ := drive(listing(t), tea.WindowSizeMsg{Width: 100, Height: 12}, tea.KeyPressMsg{Code: tea.KeyRight})
 	if lines := strings.Split(stripANSI(m.View().Content), "\n"); len(lines) != 12 ||
 		!strings.Contains(lines[11], "← purposes") {
 		t.Errorf("the pages' bar: %q", lines[len(lines)-1])
 	}
-	m, _ = drive(open(t), tea.WindowSizeMsg{Width: 40, Height: 12})
-	if lines := strings.Split(stripANSI(m.View().Content), "\n"); len(lines) != 12 || lines[11] != " = menu │ … │ type to search" {
+	m, _ = drive(listing(t), tea.WindowSizeMsg{Width: 40, Height: 12})
+	if lines := strings.Split(stripANSI(m.View().Content), "\n"); len(lines) != 12 || lines[11] != " = menu / search │ ↑↓ move ⇞⇟ page [] g…" {
 		t.Errorf("the bar at 40 columns: %q", lines[len(lines)-1])
 	}
 	// a height not yet known draws everything, then the bar
@@ -398,10 +416,10 @@ func TestARefusalShowsRedUnderTheFilterUntilTheFilterChangesOrAVerbOpens(t *test
 		t.Errorf("the refusal is not red:\n%s", m.View().Content)
 	}
 	// moving keeps it; searching, erasing, clearing, or opening a verb clears it
-	if m, _ = drive(m, down); !strings.Contains(m.View().Content, line) {
+	if m, _ = drive(m, down, down); !strings.Contains(m.View().Content, line) {
 		t.Errorf("down cleared the refusal")
 	}
-	if m, _ = drive(m, tea.KeyPressMsg{Code: 'c', Text: "c"}); strings.Contains(m.View().Content, line) {
+	if m, _ = drive(m, slash, tea.KeyPressMsg{Code: 'c', Text: "c"}); strings.Contains(m.View().Content, line) {
 		t.Errorf("typing left the refusal")
 	}
 	m = m.Refuse(line)
@@ -410,8 +428,8 @@ func TestARefusalShowsRedUnderTheFilterUntilTheFilterChangesOrAVerbOpens(t *test
 	}
 	m, _ = drive(m, tea.KeyPressMsg{Code: 'c', Text: "c"})
 	m = m.Refuse(line)
-	if m, _ = drive(m, tea.KeyPressMsg{Code: tea.KeyEscape}); strings.Contains(m.View().Content, line) || m.Cancelled() {
-		t.Errorf("esc left the refusal")
+	if m, _ = drive(m, ctrlU); strings.Contains(m.View().Content, line) || m.Cancelled() {
+		t.Errorf("⌃U left the refusal")
 	}
 	m, _ = drive(m, tea.KeyPressMsg{Code: tea.KeyEnter})
 	m = m.Refuse(line)
@@ -423,12 +441,12 @@ func TestARefusalShowsRedUnderTheFilterUntilTheFilterChangesOrAVerbOpens(t *test
 	}
 }
 
-// Esc with something typed clears it, and never quits; ctrl-q quits; ctrl-c interrupts; a letter is typed in the
-// search from the start, and / and =, which no verb's name holds, are not.
-func TestEscClearsCtrlQQuitsCtrlCInterruptsAndALetterIsTyped(t *testing.T) {
-	m, produced := drive(open(t), tea.KeyPressMsg{Code: tea.KeyEscape})
-	if len(produced) != 0 || m.Cancelled() || m.Interrupted() {
-		t.Errorf("esc with nothing typed: %v", produced)
+// Esc gives the verbs focus, what is typed kept, and never quits, nor does it from the verbs; ctrl-q quits; ctrl-c
+// interrupts; a letter is typed in the search from the start, and so are / and =.
+func TestEscLeavesCtrlQQuitsCtrlCInterruptsAndALetterIsTyped(t *testing.T) {
+	m, produced := drive(open(t), esc)
+	if len(produced) != 0 || m.Cancelled() || m.Interrupted() || m.search.Focused {
+		t.Errorf("esc with nothing typed: %v, focused %v", produced, m.search.Focused)
 	}
 	m, produced = drive(open(t), tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl})
 	if _, quit := produced[len(produced)-1].(tea.QuitMsg); !quit || !m.Cancelled() || m.Interrupted() {
@@ -438,21 +456,25 @@ func TestEscClearsCtrlQQuitsCtrlCInterruptsAndALetterIsTyped(t *testing.T) {
 	if _, quit := produced[len(produced)-1].(tea.QuitMsg); !quit || !m.Interrupted() {
 		t.Errorf("ctrl-c: %v", produced)
 	}
-	m, produced = drive(open(t), testkit.Typed("q/")...)
-	if len(produced) != 0 || m.search.Query != "q" || m.appMenu.Open {
-		t.Errorf("q/: %v, search %q", produced, m.search.Query)
+	m, produced = drive(open(t), testkit.Typed("q/=")...)
+	if len(produced) != 0 || m.search.Query != "q/=" || m.appMenu.Open {
+		t.Errorf("q/=: %v, search %q", produced, m.search.Query)
 	}
-	// esc clears what is typed and leaves the search the keyboard; a second esc does nothing more
-	m, produced = drive(m, tea.KeyPressMsg{Code: tea.KeyEscape})
-	if len(produced) != 0 || m.search.Query != "" || !m.search.Focused || m.Cancelled() {
-		t.Errorf("esc with q typed: %v, search %q", produced, m.search.Query)
+	// esc gives the verbs focus and keeps what is typed; a second esc does nothing more
+	m, produced = drive(m, ctrlU, testkit.Typed("con")[0], testkit.Typed("con")[1], testkit.Typed("con")[2], esc)
+	if len(produced) != 0 || m.search.Query != "con" || m.search.Focused || m.Cancelled() || names(m) != "context" {
+		t.Errorf("esc with con typed: %v, search %q, focused %v", produced, m.search.Query, m.search.Focused)
 	}
-	if m, _ = drive(m, testkit.Typed("con")...); names(m) != "context" {
-		t.Errorf("con after esc: %q", names(m))
-	}
-	m, produced = drive(m, tea.KeyPressMsg{Code: tea.KeyEscape}, tea.KeyPressMsg{Code: tea.KeyEscape})
-	if len(produced) != 0 || m.Cancelled() || m.search.Query != "" {
+	m, produced = drive(m, esc)
+	if len(produced) != 0 || m.Cancelled() || m.search.Query != "con" {
 		t.Errorf("esc twice: %v", produced)
+	}
+	// with the verbs focused, a letter is not typed, and / gives the search focus again
+	if m, _ = drive(m, testkit.Typed("x")...); m.search.Query != "con" {
+		t.Errorf("x typed in the verbs: %q", m.search.Query)
+	}
+	if m, _ = drive(m, slash); !m.search.Focused || m.search.Query != "con" {
+		t.Errorf("/: focused %v, search %q", m.search.Focused, m.search.Query)
 	}
 }
 
@@ -460,7 +482,7 @@ func TestEscClearsCtrlQQuitsCtrlCInterruptsAndALetterIsTyped(t *testing.T) {
 // which a terminal with its default settings sends as esc, does not.
 func TestCtrlQQuitsWhateverIsOpen(t *testing.T) {
 	ctrlQ, optEsc := tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl}, tea.KeyPressMsg{Code: tea.KeyEscape, Mod: tea.ModAlt}
-	for name, before := range map[string][]tea.Msg{"typed": testkit.Typed("q"), "menu": testkit.Typed("=")} {
+	for name, before := range map[string][]tea.Msg{"typed": testkit.Typed("q"), "menu": {esc, testkit.Typed("=")[0]}} {
 		m, produced := drive(open(t), append(before, ctrlQ)...)
 		if _, quit := produced[len(produced)-1].(tea.QuitMsg); !quit || !m.Cancelled() || m.Interrupted() {
 			t.Errorf("%s, then ctrl-q: %v", name, produced)
@@ -468,19 +490,6 @@ func TestCtrlQQuitsWhateverIsOpen(t *testing.T) {
 		if m, produced = drive(open(t), append(before, optEsc)...); m.Cancelled() || len(produced) > 0 &&
 			produced[len(produced)-1] == tea.Msg(tea.QuitMsg{}) {
 			t.Errorf("%s, then ⌥esc quit", name)
-		}
-	}
-}
-
-// No verb's name holds a /, a =, or a bracket, the keys the search does not type: each is a kit/bin/kit-<verb> of the real kit.
-func TestNoVerbsNameHoldsTheKeysThatAreNotTyped(t *testing.T) {
-	bins, err := filepath.Glob(filepath.Join("..", "..", "..", "..", "kit", "bin", "kit-*"))
-	if err != nil || len(bins) == 0 {
-		t.Fatalf("no verb under kit/bin: %v", err)
-	}
-	for _, bin := range bins {
-		if verb := strings.TrimPrefix(filepath.Base(bin), "kit-"); strings.ContainsAny(verb, "/=[]{}") {
-			t.Errorf("the verb %q holds a key the search does not type", verb)
 		}
 	}
 }
@@ -506,7 +515,7 @@ func forty(height int) Model {
 		}
 		verbs = append(verbs, kit.Verb{Name: fmt.Sprintf("v%02d", i), Purpose: "a purpose", Group: group})
 	}
-	m, _ := drive(New(verbs, kit.Runner{}), tea.WindowSizeMsg{Width: 100, Height: height})
+	m, _ := drive(New(verbs, kit.Runner{}), tea.WindowSizeMsg{Width: 100, Height: height}, esc)
 	return m
 }
 
@@ -538,7 +547,7 @@ func TestPageKeysMoveAPageAndTheWindowFollows(t *testing.T) {
 		}
 	}
 	// a filter narrows the page keys to the verbs it leaves: v03, then v30 to v39
-	m, _ = drive(m, append(search("v3"), end)...)
+	m, _ = drive(m, append(append([]tea.Msg{slash}, search("v3")...), end)...)
 	if highlighted(m) != "v39" {
 		t.Errorf("end under the filter v3: %q", highlighted(m))
 	}
@@ -636,7 +645,7 @@ func TestAtOpensOnAVerbsPageOrAGroupsFirstVerb(t *testing.T) {
 // show it in the palette's place, and quit ends the palette; while it is open, the keys bar is the menu's.
 func TestEqualsDropsTheAppsMenuDownOverThePalette(t *testing.T) {
 	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 30})
-	m, _ = testkit.Drive(m, nil, append(testkit.Typed("co"), tea.KeyPressMsg{Code: '=', Text: "="})...)
+	m, _ = testkit.Drive(m, nil, append(testkit.Typed("co"), esc, tea.KeyPressMsg{Code: '=', Text: "="})...)
 	if v := stripANSI(m.View().Content); !m.appMenu.Open || !strings.Contains(v, "Welcome") ||
 		!strings.HasSuffix(v, shell.Path{shell.MenuKeys()}.String()) || m.search.Query != "co" {
 		t.Fatalf("= did not drop the app's menu down:\n%s", v)
@@ -668,9 +677,9 @@ func TestEqualsDropsTheAppsMenuDownOverThePalette(t *testing.T) {
 	}
 }
 
-// The palette opens with the search's cursor showing and the keys bar saying what typing does; a letter typed narrows
-// the verbs at once, the arrows still move over the ones it leaves, and enter opens the highlighted one. A click on
-// the search leaves it as it is.
+// The palette opens with the search's cursor showing and the key hints saying what typing does; a letter typed narrows
+// the verbs at once, down gives them focus, the filter kept, the arrows move over the ones it leaves, and enter opens
+// the highlighted one. A click on the search gives it focus, or leaves it as it is.
 func TestThePaletteOpensWithTheSearchFocused(t *testing.T) {
 	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 30})
 	title := strings.Split(stripANSI(m.View().Content), "\n")[0]
@@ -690,22 +699,25 @@ func TestThePaletteOpensWithTheSearchFocused(t *testing.T) {
 	if !m.search.Focused || m.search.Query != "c" {
 		t.Errorf("a click on the search: focused %v, search %q", m.search.Focused, m.search.Query)
 	}
-	m, produced := drive(m, down, tea.KeyPressMsg{Code: tea.KeyEnter})
+	m, produced := drive(m, down, down, tea.KeyPressMsg{Code: tea.KeyEnter})
 	if got, ok := produced[len(produced)-1].(OpenMsg); !ok || got.Verb != "context" || m.search.Query != "c" ||
-		!m.search.Focused {
-		t.Errorf("down and enter in the search: %v, search %q", produced, m.search.Query)
+		m.search.Focused {
+		t.Errorf("down, down, and enter from the search: %v, search %q", produced, m.search.Query)
+	}
+	if m, _ = testkit.Drive(m, nil, testkit.Click(m.searchAt()+1, shell.Top)); !m.search.Focused {
+		t.Error("a click on the search did not give it focus")
 	}
 }
 
-// A search a verb opens with is remembered, as on every screen; ctrl+r or a click on ▾ drops the searches down, and
-// choosing one types it.
+// A search is remembered when it gives the verbs focus, as on every screen; in the search, ctrl+r or a click on ▾
+// drops the searches down, and choosing one types it.
 func TestThePalettesSearchIsRememberedAndRecalled(t *testing.T) {
 	m := open(t).Remembering(filepath.Join(t.TempDir(), "search-history.json"))
 	m, _ = drive(m, append(search("co"), tea.KeyPressMsg{Code: tea.KeyEnter})...)
 	if !slices.Equal(m.recent.Items, []string{"co"}) {
 		t.Fatalf("remembered: %q", m.recent.Items)
 	}
-	m, _ = drive(m, tea.KeyPressMsg{Code: tea.KeyEscape}, tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
+	m, _ = drive(m, slash, ctrlU, tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
 	if lines := strings.Split(stripANSI(m.View().Content), "\n"); !m.recent.Open || !strings.Contains(lines[0], shell.Recall) ||
 		!strings.Contains(lines[len(lines)-1], "esc close") {
 		t.Fatalf("ctrl+r: open %v\n%s", m.recent.Open, stripANSI(m.View().Content))
@@ -713,7 +725,6 @@ func TestThePalettesSearchIsRememberedAndRecalled(t *testing.T) {
 	if m, _ = drive(m, tea.KeyPressMsg{Code: tea.KeyEnter}); m.recent.Open || m.search.Query != "co" {
 		t.Errorf("choosing co: %q", m.search.Query)
 	}
-	m, _ = drive(m, tea.KeyPressMsg{Code: tea.KeyEscape})
 	if lines := strings.Split(stripANSI(m.View().Content), "\n"); !strings.Contains(lines[len(lines)-1], "⌃R recent") {
 		t.Errorf("the keys: %q", lines[len(lines)-1])
 	}
@@ -725,9 +736,9 @@ func TestThePalettesSearchIsRememberedAndRecalled(t *testing.T) {
 }
 
 // [ and ] move to the group before and after, as shift with up and down does, and { and } to the first group and the
-// last; none of them is typed into the search, and the key hints name [] group.
+// last, while the verbs have focus; and the key hints name [] group.
 func TestBracketsMoveBetweenTheGroups(t *testing.T) {
-	m, _ := drive(open(t))
+	m, _ := drive(listing(t))
 	visible := m.Visible()
 	lastGroup := first(visible, len(visible)-1)
 	if m, _ = drive(m, testkit.Typed("}")...); m.cursor != lastGroup || m.search.Query != "" {

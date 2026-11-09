@@ -248,10 +248,15 @@ func ScreenKeys(own ...Binding) Segment {
 	return Segment{Bindings: append([]Binding{Bind("=", "menu"), Bind("/", "search")}, own...)}
 }
 
-// SearchKeys gives the segment of the search while it has the keyboard: it types, and ctrl+r recalls a search when
-// there are some to recall. What leaves it is the screen's to say, as where the keyboard goes then is.
-func SearchKeys(recalls bool) Segment {
-	s := Segment{Types: true, Takes: []string{"backspace"}, Bindings: []Binding{Bind("", "type to search")}}
+// SearchKeys gives the segment of the search while it has focus, as SearchKey takes its keys on every screen: ⏎ gives
+// focus to the view, named, and ↓, esc, and tab do too, unnamed; it types; ⌃U clears what is typed, named while there is
+// some; and ⌃R recalls a search, named when there are some to recall.
+func SearchKeys(view, query string, recalls bool) Segment {
+	s := Segment{Types: true, Takes: []string{"backspace", "down", "esc", "tab", "ctrl+u"}, Bindings: []Binding{
+		Bind("⏎", view, "enter"), Bind("", "type to search")}}
+	if query != "" {
+		s.Bindings = append(s.Bindings, Bind("⌃U", "clear", "ctrl+u"))
+	}
 	if recalls {
 		s.Bindings = append(s.Bindings, Bind("⌃R", "recent", "ctrl+r"))
 	}

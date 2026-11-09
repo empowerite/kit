@@ -160,8 +160,7 @@ func (m Model) keys() shell.Path {
 	path := shell.Path{shell.WorkspaceScreenKeys(legend), bar}
 	switch {
 	case m.inPanel:
-		return append(path, shell.Segment{Bindings: []shell.Binding{shell.Bind("esc", "back"), shell.Bind("⏎", "back", "enter")}},
-			shell.SearchKeys(len(m.recent.Items) > 0))
+		return append(path, shell.SearchKeys("rows", m.panel(m.stage).Query, len(m.recent.Items) > 0))
 	case m.onPreset:
 		if stop, on := m.atStop(); on {
 			return append(path, m.headingKeys(stop))

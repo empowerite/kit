@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/style"
@@ -958,8 +957,8 @@ func TestAnOpenRowHangsTheLinesAfterAGlyph(t *testing.T) {
 	}
 }
 
-// The columns dialog lists the groups, the outermost first, then the columns as they stand, then the hidden; the
-// search takes what is typed and backspace, and leaves any other key.
+// The columns dialog lists the groups, the outermost first, then the columns as they stand, then the hidden; Find
+// gives the search the keyboard.
 func TestThePanelListsItsFieldsAndTypesInItsSearch(t *testing.T) {
 	columns := []string{"id", "state", "who", "title"}
 	p := Panel{Columns: columns, Groupable: map[string]bool{"state": true}, Fields: map[string]Field{
@@ -969,14 +968,6 @@ func TestThePanelListsItsFieldsAndTypesInItsSearch(t *testing.T) {
 	}
 	if p = p.Find(); !p.Focused {
 		t.Error("Find left the search without the keyboard")
-	}
-	p, _ = p.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
-	p, _ = p.Update(tea.KeyPressMsg{Code: 'b', Text: "b"})
-	if p, _ = p.Update(tea.KeyPressMsg{Code: tea.KeyBackspace}); p.Query != "a" {
-		t.Errorf("typed ab and backspace: %q", p.Query)
-	}
-	if _, ok := p.Update(tea.KeyPressMsg{Code: tea.KeyDown}); ok {
-		t.Error("the search took down")
 	}
 }
 

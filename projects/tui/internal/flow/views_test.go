@@ -110,14 +110,16 @@ func TestDownAndUpPassThroughThePresetLine(t *testing.T) {
 	if m = drive(m, down, esc); m.onPreset || !m.bar().Focused {
 		t.Fatalf("esc from the line: on the line %v", m.onPreset)
 	}
-	// / from the line gives the search the keyboard, and esc gives it back to the line
+	// / from the line gives the search the keyboard, and esc gives the rows focus, as on every screen; up from the first
+	// row is the line again
 	m = drive(m, down, typed("/")[0])
-	if !m.inPanel || !strings.Contains(keysOf(m), "esc·⏎ back") {
+	if !m.inPanel || !strings.Contains(keysOf(m), "⏎ rows") {
 		t.Fatalf("/ from the line: in panel %v, %q", m.inPanel, keysOf(m))
 	}
-	if m = drive(m, esc); m.inPanel || !m.onPreset {
-		t.Errorf("esc from the search: in panel %v, on the line %v", m.inPanel, m.onPreset)
+	if m = drive(m, esc); m.inPanel || !m.inRows || m.onPreset {
+		t.Errorf("esc from the search: in panel %v, in rows %v, on the line %v", m.inPanel, m.inRows, m.onPreset)
 	}
+	m = drive(m, up)
 	// naming for Save As…, a number is typed, as a name may hold one; a click on a row leaves the line
 	m.choosePreset(table.ItemSaveAs)
 	if m = drive(m, typed("2")...); !m.onPreset || m.stage != 0 || m.stages[0].Naming != "2" {
