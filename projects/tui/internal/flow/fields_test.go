@@ -16,7 +16,8 @@ import (
 )
 
 func TestTheCatalogNamesOnlyWhatIsRegistered(t *testing.T) {
-	if len(catalog) != len(eight)-1 || catalog["incoming"] != nil {
+	// every stage but incoming, whose rows are drawn by hand, and the repos tab
+	if len(catalog) != len(eight) || catalog["incoming"] != nil || catalog["repos"] == nil {
 		t.Errorf("the catalog's stages: %d, incoming %v", len(catalog), catalog["incoming"] != nil)
 	}
 	var glyphs []string

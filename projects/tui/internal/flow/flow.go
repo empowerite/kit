@@ -75,11 +75,12 @@ type stage struct {
 	runs        []run
 	rels        []release
 	failed      []failure // over a group, the members whose read of the stage failed
+	repos       []repo    // the repos tab's members
 	table.Table           // its table's state: the panel, the view, the outline, the rows selected, and where the cursor is
 }
 
 // known names the stages kittui draws.
-var known = map[string]bool{"backlog": true, "underway": true, "incoming": true, "desk": true, "worktrees": true,
+var known = map[string]bool{"repos": true, "backlog": true, "underway": true, "incoming": true, "desk": true, "worktrees": true,
 	"changes": true, "builds": true, "releases": true}
 
 // deadline is how long a stage's command may take: past it, the stage is a refusal, and Refresh All runs it again.
@@ -160,6 +161,10 @@ func Open(r kit.Runner, words []string) (Model, error) {
 	stages, err := r.Stages()
 	if err != nil {
 		return Model{}, err
+	}
+	if !slices.Contains(stages, "repos") {
+		// the repos tab stands first over a repository too, where kit's stages do not name it
+		stages = append([]string{"repos"}, stages...)
 	}
 	o := Options{Stages: stages, Origin: ReadOrigin(r.Dir), Presets: table.PresetsPath(), History: shell.RecentFile()}
 	for _, word := range words {
@@ -851,7 +856,7 @@ func (m *Model) restart(name string) tea.Cmd {
 	}
 	s.src.Loading, s.refusal = true, ""
 	s.issues, s.under, s.ins, s.desks, s.trees, s.pulls, s.runs, s.rels = nil, nil, nil, nil, nil, nil, nil, nil
-	s.failed = nil
+	s.failed, s.repos = nil, nil
 	m.rebuild()
 	return cmd
 }
@@ -944,12 +949,12 @@ func (m *Model) autoGroup(name string) {
 	m.rebuild()
 }
 
-// decode keeps what the stage's command printed: over a group, kit's {rows, errors}, its rows the stage's, one object
+// decode keeps what the stage's command printed: over a group, and for the repos tab always, kit's {rows, errors}, its rows the stage's, one object
 // a member for an object's stage; else the stage's document, an object's stage's object its one entry. A document of
 // another shape, as kit prints above repositories, is an error naming it, and JSON that does not decode is one too.
 func (s *stage) decode(data []byte, over bool) error {
 	s.failed = nil
-	if over {
+	if over || s.name == "repos" {
 		var doc struct {
 			Rows   json.RawMessage `json:"rows"`
 			Errors []failure       `json:"errors"`
@@ -999,6 +1004,8 @@ func (s *stage) decodeRows(data []byte, many bool) error {
 		err = json.Unmarshal(data, &s.runs)
 	case "releases":
 		err = json.Unmarshal(data, &s.rels)
+	case "repos":
+		err = json.Unmarshal(data, &s.repos)
 	}
 	if err != nil {
 		return fmt.Errorf("kit flow %s --json: %v", s.name, err)
@@ -1219,8 +1226,11 @@ func (m Model) rowLine(k int) int {
 
 // jump follows a link to a row of another stage, its name and the row's key: the stage is selected, its rows have the
 // keyboard, and the cursor is on the row, or where it was when the panel hides the row or the stage has not loaded
-// it.
+// it. A link to a stage filtered to a member, as onlyTo gives one, selects it as only says.
 func (m *Model) jump(to string) {
+	if m.only(to) {
+		return
+	}
 	name, key, _ := strings.Cut(to, "/")
 	i := slices.IndexFunc(m.stages, func(s stage) bool { return s.name == name })
 	if i < 0 {

@@ -89,7 +89,7 @@ case "${1:-}" in
     fi
     printf '%s\n' "${FAKE_FLOW_ME-ada}"
     ;;
-  (backlog | underway | desk | worktrees | changes | incoming | builds | releases)
+  (repos | backlog | underway | desk | worktrees | changes | incoming | builds | releases)
     stage=$1
     shift
     if [[ "${1:-}" != --json ]]

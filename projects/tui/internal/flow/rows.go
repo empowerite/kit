@@ -458,6 +458,8 @@ func (m Model) records(s stage) []record {
 		out = m.buildRows(s)
 	case "releases":
 		out = m.releaseRows(s)
+	case "repos":
+		out = m.repoRows(s)
 	}
 	for _, r := range m.failures(s) {
 		out = append(out, record{row: r})
@@ -466,12 +468,13 @@ func (m Model) records(s stage) []record {
 }
 
 // failures gives a line for each member whose read of the stage failed, over a group: ❌, the member's short name, and
-// kit's line, in red, an aside, as a remote whose fetch failed is.
+// kit's line, in red, an aside, as a remote whose fetch failed is, which a filter keeps, so a member filtered to shows
+// why it has no rows.
 func (m Model) failures(s stage) []row {
 	var out []row
 	for _, f := range s.failed {
 		out = append(out, row{Key: m.keyOf(f.Member, "failed"),
-			Cells: span(style.Refusal(Failed + " " + m.short(f.Member) + ": " + f.Error)), Aside: true})
+			Cells: span(style.Refusal(Failed + " " + m.short(f.Member) + ": " + f.Error)), Aside: true, Lone: true})
 	}
 	return out
 }
@@ -971,6 +974,8 @@ func empty(s stage) string {
 		return "no build since the last 20 runs"
 	case "releases":
 		return "no release"
+	case "repos":
+		return "no repository"
 	}
 	return "nothing"
 }

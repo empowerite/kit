@@ -1122,7 +1122,9 @@ func TestOpenReadsTheStagesAndTheWords(t *testing.T) {
 	for _, s := range m.stages {
 		names = append(names, s.name)
 	}
-	if strings.Join(names, " ") != strings.Join(eight, " ") || !m.noFetch || strings.Join(m.filters, " ") != "--mine" {
+	// the repos tab first, which kit's stages do not name over a repository
+	if strings.Join(names, " ") != "repos "+strings.Join(eight, " ") || !m.noFetch ||
+		strings.Join(m.filters, " ") != "--mine" {
 		t.Errorf("Open: %q, no fetch %v, filters %q", names, m.noFetch, m.filters)
 	}
 	if got := calls(t, record); strings.Join(got, "\n") != "flow --stages" {
@@ -1135,7 +1137,7 @@ func TestOpenReadsTheStagesAndTheWords(t *testing.T) {
 	if m.stages[m.stage].name != "underway" || !m.maximized || strings.Join(m.filters, " ") != "--mine" {
 		t.Errorf("Open underway: on %q, maximized %v, filters %q", m.stages[m.stage].name, m.maximized, m.filters)
 	}
-	if !strings.Contains(lines(m)[0], " · ➋ underway") {
+	if !strings.Contains(lines(m)[0], " · ➌ underway") {
 		t.Errorf("Open underway, the title: %q", lines(m)[0])
 	}
 	t.Setenv("FAKE_FLOW_REFUSE", "stages")

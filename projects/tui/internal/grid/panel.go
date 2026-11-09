@@ -1076,11 +1076,12 @@ func (p Panel) Filter(rows []Row, columns []string) []Row {
 	return out
 }
 
-// dropBare leaves out each aside that heads no row: one the next aside, or the end, follows at once.
+// dropBare leaves out each aside that heads no row: one the next aside, or the end, follows at once; one that stands
+// for itself stays.
 func dropBare(rows []Row) []Row {
 	var out []Row
 	for i, r := range rows {
-		if r.Aside && (i+1 == len(rows) || rows[i+1].Aside) {
+		if r.Aside && !r.Lone && (i+1 == len(rows) || rows[i+1].Aside) {
 			continue
 		}
 		out = append(out, r)

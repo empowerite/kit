@@ -83,8 +83,17 @@ Over a workspace, the stages are `repos` and kit's eight, whatever the `kit.yml`
 `--stages`, `--marks`, and `--quota` span the members too; a pull request's number, and `--me`, name one repository's,
 and are refused.
 
+## Flow over a workspace in kittui
+
+On a terminal, `kit flow --workspace empowerite` opens kittui's picture over the group, as picking the group from the
+📚 workspace menu does. Every tab gathers its rows from every cloned member, grouped by member as they load, and a
+member whose read failed is one red line among them. The 📚 repos tab comes first, always, a single repository's
+picture included: a row per member, with its forge, remotes, checkout or `not cloned`, its desk's branch, and a count
+of each tab's rows of the member. A click on a count opens that tab filtered to the member. A member that is not
+cloned counts a dim `-`, never 0.
+
 ## Still to come
 
-The 📚 repos tab in kittui's Flow, groups made by queries (an owner, public or private, a name pattern such as
+Groups made by queries (an owner, public or private, a name pattern such as
 `homebrew-*`, forge topics), members read from the forge without a checkout, and groups made from a GitHub Project are
 designed in [the workspaces design](superpowers/specs/2026-11-08-workspaces-design.md), and are not built yet.

@@ -53,6 +53,13 @@ var title = entry{Workspace, "the workspace"}
 
 // legends gives each stage's legend: every glyph the stage draws, its own first. A glyph may be in several.
 var legends = map[string][]entry{
+	"repos": {
+		{Workspace, "the workspace"},
+		{GitHub, "on GitHub"},
+		{GitLab, "on GitLab"},
+		{Desk, "the desk"},
+		{Failed, "failed"},
+	},
 	"backlog": {
 		{Issue, "an issue"},
 		{GitHub, "on GitHub"},
@@ -150,6 +157,7 @@ var states = []entry{
 
 // stageGlyphs gives each stage's glyph, drawn beside its name on the line of stages.
 var stageGlyphs = map[string]string{
+	"repos":     Workspace,
 	"backlog":   Issue,
 	"underway":  InFlight,
 	"desk":      Desk,
@@ -162,6 +170,7 @@ var stageGlyphs = map[string]string{
 
 // stageColors gives each stage its group's color, which the bar draws the stage's tab in while it is selected.
 var stageColors = map[string]string{
+	"repos":     "13",
 	"backlog":   "75",
 	"underway":  "75",
 	"desk":      "114",

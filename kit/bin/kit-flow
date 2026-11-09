@@ -145,6 +145,14 @@
 # kit:generate legend `k=$(command -v kit); jq -nr -L "${k%/bin/kit}/modules/jq" 'import "glyphs" as g; g::legend'`
 #   📚  the workspace: a group, in the workspace menu that drops down from - in kittui's title
 #
+# repos:
+#
+#   📚  the workspace: a group, in the workspace menu that drops down from - in kittui's title
+#   🐙  on GitHub: the tracker that holds an issue
+#   🦊  on GitLab: the tracker that holds an issue
+#   💻  the desk: the root checkout
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
 # backlog:
 #
 #   🎫  an issue: its number and title
