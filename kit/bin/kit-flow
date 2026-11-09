@@ -70,9 +70,9 @@
 #
 # kit flow --me
 #
-# kit flow --quota
+# kit flow --quota [--workspace <workspace>]
 #
-# kit flow --marks
+# kit flow --marks [--workspace <workspace>]
 #
 # kit flow backlog [--workspace <workspace>] [--json | --jq] [--cached] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]]
 #

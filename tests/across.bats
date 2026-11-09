@@ -182,3 +182,75 @@ EOF
   [ "${lines[0]}" = repos ]
   [ "${#lines[@]}" -eq 9 ]
 }
+
+# local-desks makes two-desks' desks draw only desk and worktrees, which read no forge.
+local-desks() {
+  two-desks
+  local d
+  for d in "${BATS_TEST_TMPDIR}/code/a" "${BATS_TEST_TMPDIR}/code/b b"
+  do
+    printf 'flow: [desk, worktrees]\n' > "${d}/kit.yml"
+    git -C "${d}" add kit.yml && git -C "${d}" commit --quiet --message settings
+  done
+}
+
+@test "kit flow --workspace --json is one object: the stages, repos, and each stage across the members" {
+  local-desks
+  cd "${BATS_TEST_TMPDIR}"
+  run "${kit_root}/bin/kit" flow --workspace w --no-fetch --json
+  [ "$status" -eq 0 ]
+  [ "$(jq -r '.stages[0]' <<<"$output")" = repos ]
+  [ "$(jq -c '[.desk.rows[].member]' <<<"$output")" = '["github.com/o/a","github.com/o/b"]' ]
+  [ "$(jq -c '[.worktrees.rows[].member]' <<<"$output")" = '["github.com/o/a","github.com/o/b"]' ]
+  [ "$(jq -c '[.repos.rows[].repository]' <<<"$output")" = '["github.com/o/a","github.com/o/b","github.com/o/c"]' ]
+  [ "$(jq -c '.backlog.rows' <<<"$output")" = '[]' ]
+}
+
+@test "kit flow --workspace as text draws repos, then each cloned member's picture under it" {
+  local-desks
+  cd "${BATS_TEST_TMPDIR}"
+  run "${kit_root}/bin/kit" flow --workspace w --no-fetch --text
+  [ "$status" -eq 0 ]
+  [ "$(grep -c "^📚 github.com/o/[ab]$" <<<"$output")" -eq 2 ]
+  [[ "$output" == *"github.com/o/c"*"not cloned"* ]]
+}
+
+@test "kit flow --workspace as text with no member cloned says so once" {
+  workspaces-file <<<'workspaces: {w: {repos: [github.com/o/a]}}'
+  cd "${BATS_TEST_TMPDIR}"
+  run "${kit_root}/bin/kit" flow --workspace w --no-fetch --text
+  [ "$status" -eq 0 ]
+  [ "$(grep -c "none of w's members is cloned" <<<"$output")" -eq 1 ]
+}
+
+@test "kit flow --marks --workspace changes a stage's mark when one member's changes" {
+  local-desks
+  cd "${BATS_TEST_TMPDIR}"
+  run "${kit_root}/bin/kit" flow --marks --workspace w
+  [ "$status" -eq 0 ]
+  before=$(jq -r .desk <<<"$output")
+  repos=$(jq -r .repos <<<"$output")
+  [ "${before}" != null ]
+  printf 'x\n' > "${BATS_TEST_TMPDIR}/code/b b/x"
+  git -C "${BATS_TEST_TMPDIR}/code/a" switch --quiet --create other
+  run "${kit_root}/bin/kit" flow --marks --workspace w
+  [ "$(jq -r .desk <<<"$output")" != "${before}" ]
+  [ "$(jq -r .repos <<<"$output")" != "${repos}" ]
+}
+
+@test "across:quota-merge lists every forge the members touch once" {
+  d=${BATS_TEST_TMPDIR}/q && mkdir -p "$d"
+  printf '[{"forge":"github","limits":[]}]' > "$d/0.out"; printf 0 > "$d/0.status"
+  printf '[{"forge":"github","limits":[]},{"forge":"gitlab","limits":[]}]' > "$d/1.out"; printf 0 > "$d/1.status"
+  : > "$d/2.out"; printf 1 > "$d/2.status"
+  run kit-bash "across:quota-merge '$d'"
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '[.[].forge]' <<<"$output")" = '["github","gitlab"]' ]
+}
+
+@test "kit flow --me --workspace refuses with 2" {
+  workspaces-file <<<'workspaces: {w: {repos: [github.com/o/a]}}'
+  cd "${BATS_TEST_TMPDIR}"
+  run "${kit_root}/bin/kit" flow --me --workspace w
+  [ "$status" -eq 2 ]
+}

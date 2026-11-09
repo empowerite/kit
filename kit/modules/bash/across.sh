@@ -1,7 +1,8 @@
 # shellcheck shell=bash
 # across.sh - kit flow across a workspace: its members, their checkouts, and their stages merged (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-# shellcheck disable=SC2154  # flow_glyphs is set by modules/bash/flow.sh
+# shellcheck disable=SC2154  # flow_glyphs and out_color are set by modules/bash/flow.sh and 1st.sh
+#
 # A workspace's stage is the stage as kit flow draws it in each member's checkout, each under that checkout's own
 # kit.yml, run at once, and merged into one document, {rows, errors}: every row, or every object of a stage that draws
 # one, tagged with its member, host and path; and a member that could not be read as {member, error}, its line. The
@@ -52,9 +53,10 @@ across:line() {
   printf '%s\n' "${line#❌ }"
 }
 
-# across:flow <workspace> <word>… draws what kit flow's words ask for across the workspace: --stages, repos first; repos;
-# and a stage with --json or --jq as across:stage gives it. No workspace is the repository here, for repos alone. A
-# pull request's number names one repository's, so it is refused, with 2.
+# across:flow <workspace> <word>… draws what kit flow's words ask for across the workspace: --stages, repos first;
+# --marks and --quota, spanning the members; repos; a stage with --json or --jq as across:stage gives it; the picture
+# as JSON, as across:picture gives it; and a stage or the picture as text, each member's under it. No workspace is the
+# repository here, for repos alone. A pull request's number names one repository's, so it is refused, with 2.
 across:flow() {
   local workspace=$1 stage='' word form=''
   shift
@@ -65,6 +67,15 @@ across:flow() {
     settings:stages
     return
   fi
+  case "${1:-}" in
+    (--marks)
+      across:marks "${workspace}"
+      return
+      ;;
+    (--quota)
+      across:quota "${workspace}"
+      return
+  esac
   case "${1:-}" in
     (repos | backlog | underway | desk | worktrees | changes | incoming | builds | releases)
       stage=$1
@@ -89,8 +100,12 @@ across:flow() {
     across:stage "${workspace}" "${stage}" "$@" | if [[ "${form}" == --jq ]]; then jq .; else cat; fi
     return "${PIPESTATUS[0]}"
   fi
-  error "--workspace draws with --json for now"
-  return 2
+  if [[ -n "${form}" ]]
+  then
+    across:picture "${workspace}" "$@" | if [[ "${form}" == --jq ]]; then jq .; else cat; fi
+    return "${PIPESTATUS[0]}"
+  fi
+  across:text "${workspace}" "${stage}" "$@"
 }
 
 # across:stage <workspace> <stage> <argument>… runs kit flow <stage> with the arguments, --jq as --json, in every
@@ -226,6 +241,168 @@ across:repos-text() {
       "${where}" >&2
   done < <(jq --raw-output '.rows[] | [.repository, (.forge // ""), (.branch // ""), (.ahead // 0), (.behind // 0),
     (.checkout // ""), (.error // "")] | @tsv' <<<"$1")
+}
+
+# across:start <workspace> <dir> <word>… runs kit flow with the words, --jq as --json, in every cloned member's
+# checkout at once, as across:run runs one, the n-th's in <dir>/<n>, and waits for them. It prints each cloned member's
+# number and member, tab-separated, in the workspace's order; it returns 2 for a workspace across:members refuses.
+across:start() {
+  local workspace=$1 dir=$2 members member checkout n=0 arg
+  local -a args=()
+  shift 2
+  for arg in "$@"
+  do
+    [[ "${arg}" == --jq ]] && arg=--json
+    args+=("${arg}")
+  done
+  members=$(across:members "${workspace}") || return 2
+  while IFS=$'\t' read -r member checkout
+  do
+    [[ -n "${checkout}" ]] || continue
+    printf '%s' "${member}" > "${dir}/${n}.member"
+    printf '%s' "${checkout}" > "${dir}/${n}.checkout"
+    across:run "${checkout}" "${dir}/${n}" "${workspace}" "${args[@]}" &
+    printf '%s\t%s\n' "${n}" "${member}"
+    n=$(( n + 1 ))
+  done <<<"${members}"
+  wait || true
+}
+
+# across:picture <workspace> <word>… prints the picture across the workspace as one JSON object: stages, repos and then
+# the stages where kit runs; repos, as across:repos gives it; and each stage's document, {rows, errors}, cut from the
+# picture each member's kit flow --json printed. A stage a member's flow setting leaves out adds nothing; one it could
+# not draw, null in its picture, is its last line under errors.
+across:picture() {
+  local workspace=$1 dir stages repos stage kind
+  local -a named=()
+  shift
+  file:scratch dir
+  stages=$(across:flow "${workspace}" --stages) || return $?
+  across:start "${workspace}" "${dir}" "$@" >/dev/null || return $?
+  repos=$(across:repos "${workspace}") || return $?
+  while IFS= read -r stage
+  do
+    [[ "${stage}" != repos ]] || continue
+    kind=array
+    case "${stage}" in
+      (desk | worktrees | incoming) kind=object
+    esac
+    named+=(--argjson "${stage}" "$(across:cut "${dir}" "${stage}" "${kind}")")
+  done <<<"${stages}"
+  jq --null-input --compact-output --argjson stages "$(workspaces:lines-json <<<"${stages}")" \
+    --argjson repos "${repos}" "${named[@]}" '{stages: $stages, repos: $repos} + ($ARGS.named | del(.repos))'
+}
+
+# across:cut <dir> <stage> <kind> prints a stage's document from the pictures the members printed in <dir>, as
+# across:picture says.
+across:cut() {
+  local dir=$1 stage=$2 kind=$3 n=0 member value
+  local -a rows=() errors=()
+  while [[ -f "${dir}/${n}.member" ]]
+  do
+    member=$(<"${dir}/${n}.member")
+    if value=$(jq --compact-output --arg stage "${stage}" 'if has($stage) then .[$stage] else "absent" end' \
+      "${dir}/${n}.out" 2>/dev/null) && [[ -n "${value}" && "${value}" != null ]]
+    then
+      [[ "${value}" == '"absent"' ]] || rows+=("$(jq --compact-output --arg member "${member}" --arg kind "${kind}" \
+        'if $kind == "array" then map(. + {member: $member})[] else . + {member: $member} end' <<<"${value}")")
+    else
+      errors+=("$(jq --null-input --compact-output --arg member "${member}" \
+        --arg error "$(across:line "${dir}/${n}.err")" '{member: $member, error: $error}')")
+    fi
+    n=$(( n + 1 ))
+  done
+  jq --null-input --compact-output \
+    --argjson rows "$(printf '%s\n' "${rows[@]}" | grep -v '^$' | jq --slurp --compact-output .)" \
+    --argjson errors "$(printf '%s\n' "${errors[@]}" | jq --slurp --compact-output .)" '{rows: $rows, errors: $errors}'
+}
+
+# across:text <workspace> <stage> <word>… draws a stage, or with none the picture, as text across the workspace: for the
+# picture, repos first; then each cloned member's, as kit flow draws it in that checkout, under its member, as
+# flow:above draws each desk's under its path. With none cloned, one dim line says so. It returns 1 when a member's
+# kit flow did.
+across:text() {
+  local workspace=$1 stage=$2 dir n member line failed=false first=true color=''
+  local -a started=()
+  shift 2
+  file:scratch dir
+  [[ -z "${stage}" ]] || set -- "${stage}" "$@"
+  if [[ -z "${stage}" ]]
+  then
+    across:repos-form "${workspace}" '' || return $?
+    first=false
+  fi
+  [[ "${out_color}" == 1 ]] && color=1
+  readarray -t started < <(COLUMNS=$(flow:width) CLICOLOR_FORCE=${color} across:start "${workspace}" "${dir}" "$@")
+  if (( ${#started[@]} == 0 ))
+  then
+    [[ "${first}" == true ]] || printf '\n' >&2
+    printf '%s\n' "$(flow:paint 90 "none of ${workspace}'s members is cloned under the roots; run: kit workspaces \
+--show ${workspace}")" >&2
+    return 0
+  fi
+  for line in "${started[@]}"
+  do
+    IFS=$'\t' read -r n member <<<"${line}"
+    [[ "${first}" == true ]] || printf '\n' >&2
+    first=false
+    printf '%s %s\n' "${flow_glyphs[Workspace]}" "${member}" >&2
+    cat "${dir}/${n}.err" "${dir}/${n}.out" >&2
+    [[ "$(<"${dir}/${n}.status")" == 0 ]] || failed=true
+  done
+  [[ "${failed}" == false ]]
+}
+
+# across:marks <workspace> prints a mark per stage across the workspace, as one JSON object: each the members' marks
+# for the stage, in their order, so it changes when any member's does; and repos', each member's checkout and branch.
+across:marks() {
+  local workspace=$1 dir members member checkout branch
+  file:scratch dir
+  across:start "${workspace}" "${dir}" --marks >/dev/null || return $?
+  members=$(across:members "${workspace}") || return 2
+  while IFS=$'\t' read -r member checkout
+  do
+    branch=''
+    [[ -z "${checkout}" ]] || branch=$(git -C "${checkout}" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+    printf '%s\t%s\t%s\n' "${member}" "${checkout}" "${branch}"
+  done <<<"${members}" > "${dir}/repos.mark"
+  across:marks-merge "${dir}" "$(git hash-object --stdin < "${dir}/repos.mark")"
+}
+
+# across:marks-merge <dir> <repos> joins the marks each member printed in <dir>, in the members' order, under each
+# stage any of them names, and adds repos' mark.
+across:marks-merge() {
+  local dir=$1 n=0
+  local -a marks=()
+  while [[ -f "${dir}/${n}.member" ]]
+  do
+    marks+=("$(jq --compact-output 'if type == "object" then . else {} end' "${dir}/${n}.out" 2>/dev/null || echo '{}')")
+    n=$(( n + 1 ))
+  done
+  printf '%s\n' "${marks[@]}" | grep -v '^$' | jq --slurp --compact-output --arg repos "$2" '
+    . as $all | ([$all[] | keys[]] | unique) as $stages
+    | reduce $stages[] as $s ({}; .[$s] = ([$all[] | .[$s] // "null" | tostring] | join(" ")))
+    | . + {repos: $repos}'
+}
+
+# across:quota <workspace> prints every forge the workspace's members touch, each once, as kit flow --quota prints a
+# repository's.
+across:quota() {
+  local dir
+  file:scratch dir
+  across:start "$1" "${dir}" --quota >/dev/null || return $?
+  across:quota-merge "${dir}"
+}
+
+# across:quota-merge <dir> joins the arrays kit flow --quota printed in <dir>, each forge once, in the order first met.
+across:quota-merge() {
+  local dir=$1 out
+  for out in "${dir}"/*.out
+  do
+    [[ -e "${out}" && "$(<"${out%.out}.status")" == 0 ]] || continue
+    jq --compact-output 'if type == "array" then . else [] end' "${out}" 2>/dev/null || true
+  done | jq --slurp --compact-output 'add // [] | reduce .[] as $q ([]; if any(.[]; .forge == $q.forge) then . else
+    . + [$q] end)'
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

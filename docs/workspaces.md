@@ -66,9 +66,24 @@ kit workspaces --unfavorite empowerite
 `--new` and `--add` take a member, a git URL, or a checkout's directory, as `.` for the repository you are in. Each
 form prints JSON with `--json`; `kit help workspaces` gives the shapes.
 
+## kit flow over a workspace
+
+```sh
+kit flow --workspace empowerite                   # repos, then each cloned member's picture under it
+kit flow backlog --workspace empowerite --json    # every member's backlog, each row tagged with its member
+kit flow repos --workspace empowerite             # each member: its forge, branch, and checkout, or not cloned
+kit flow repos                                    # the repository you are in, alone
+```
+
+`--workspace` runs `kit flow` in every member's checkout at once, each under that checkout's own `kit.yml`, so a
+GitLab member beside GitHub ones keeps its forges and trackers. With `--json`, a stage prints `{rows, errors}`: each
+row, or each desk, worktrees, or incoming object, gains `member`, its host and path; a member that could not be read
+is `{member, error}` under `errors`, and the others still draw. A member with no checkout draws no stage but `repos`.
+`--stages`, `--marks`, and `--quota` span the members too; a pull request's number, and `--me`, name one repository's,
+and are refused.
+
 ## Still to come
 
-Groups made by queries (an owner, public or private, a name pattern such as `homebrew-*`, forge topics), groups made
-from a GitHub Project, `kit flow --workspace` with a 📚 repos tab, and the workspace menu in kittui that switches between
-workspaces are designed in [the workspaces design](superpowers/specs/2026-11-08-workspaces-design.md), and are not
-built yet.
+The 📚 repos tab in kittui's Flow, groups made by queries (an owner, public or private, a name pattern such as
+`homebrew-*`, forge topics), members read from the forge without a checkout, and groups made from a GitHub Project are
+designed in [the workspaces design](superpowers/specs/2026-11-08-workspaces-design.md), and are not built yet.
