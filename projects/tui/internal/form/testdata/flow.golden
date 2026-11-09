@@ -1,28 +1,37 @@
  kit flow - shows where the work stands, from backlog to releases
 
-   required
-   --no-fetch --fresh [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]
-   --stages                  prints the stages the picture draws, one per line, in order
-   --me                      prints the caller's login on the primary's forge, the login --mine and
-                             --others match
-   --quota                   prints the caller's rate limits on the primary's forge, as one JSON
-                             array: each forge's {forge, limits}, each limit {name, limit,
-                             remaining, reset}; reading them costs a request at most
-   --marks                   prints a mark per stage, as one JSON object, which changes when what
-                             the stage draws does: read again, a mark that differs says the stage is
-                             stale; on GitHub, nothing changed costs no request
-   backlog                   the open issues not closed by any open pull request, oldest first;
-                             underway has the rest
-   underway                  the open issues closed by an open pull request: who works on each, and
-                             where
-   incoming                  what fetching every remote brought: default-branch commits, branches
-                             new and gone
-   desk                      the root checkout: branch, ahead and behind, uncommitted paths
-   worktrees                 every linked worktree: branch, ahead and behind, uncommitted paths
-   changes                   the open pull requests, each with the issues it closes
-   builds                    the runs not owned by any pull request: the default branch, tags,
-                             schedules
-   releases                  the releases on the forge, newest first
+   one of
+   *kit flow*                   shows where the work stands, from backlog to releases
+
+     --no-fetch   --fresh     fetches nothing; incoming says so
+
+     --text   --json   --jq   prints the picture as text, even on a terminal
+
+     one of
+     --all                    every issue and pull request (the default); it stands alone
+     --mine --others --owner
+
+   --stages                   prints the stages the picture draws, one per line, in order
+   --me                       prints the caller's login on the primary's forge, the login --mine and
+                              --others match
+   --quota                    prints the caller's rate limits on the primary's forge, as one JSON
+                              array: each forge's {forge, limits}, each limit {name, limit,
+                              remaining, reset}; reading them costs a request at most
+   --marks                    prints a mark per stage, as one JSON object, which changes when what
+                              the stage draws does: read again, a mark that differs says the stage
+                              is stale; on GitHub, nothing changed costs no request
+   backlog                    the open issues not closed by any open pull request, oldest first;
+                              underway has the rest
+   underway                   the open issues closed by an open pull request: who works on each, and
+                              where
+   incoming                   what fetching every remote brought: default-branch commits, branches
+                              new and gone
+   desk                       the root checkout: branch, ahead and behind, uncommitted paths
+   worktrees                  every linked worktree: branch, ahead and behind, uncommitted paths
+   changes                    the open pull requests, each with the issues it closes
+   builds                     the runs not owned by any pull request: the default branch, tags,
+                              schedules
+   releases                   the releases on the forge, newest first
 
 
  kit flow

@@ -2,7 +2,7 @@
 
    --all      stages every tracked change first, as git commit --all does
 
-   required
+   one of required
    --message  the message; the first is the subject, the rest are paragraphs
    --file     the message from a file; its first line is the subject
 

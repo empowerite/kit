@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -112,10 +113,17 @@ func TestOneOfArrows(t *testing.T) {
 	if m.fields[0].Chosen != 1 || len(m.fields) != 3 || m.fields[1].Key != "select | add | remove" || m.fields[2].Key != "<package>" {
 		t.Fatalf("right twice: %+v", m.fields)
 	}
-	// kit packages needs one of its lines, so backspace leaves the choice where it is.
+	// kit packages alone lists, so its row is optional, and backspace gives it back the line that adds no word.
 	m, _ = drive(t, m, keys("backspace")...)
-	if m.fields[0].Chosen != 1 || len(m.fields) != 3 {
+	if m.fields[0].Chosen != 0 || len(m.fields) != 4 {
 		t.Errorf("backspace: %+v", m.fields)
+	}
+	// kit commit needs one of its lines, so backspace leaves the choice where it is.
+	m = newForm(t, "commit", Answers{Chosen: map[int]int{0: 0}}, false)
+	m.focus = slices.IndexFunc(m.fields, func(f Field) bool { return f.Kind == OneOf })
+	m, _ = drive(t, m, keys("backspace")...)
+	if f := m.fields[m.focus]; f.Kind != OneOf || f.Chosen != 0 {
+		t.Errorf("backspace on a required row: %+v", f)
 	}
 	// kit flow's owner row, under the picture's line, is optional, so backspace clears it.
 	m = newForm(t, "flow", Answers{Chosen: map[int]int{0: 0}}, false)

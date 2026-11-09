@@ -1,7 +1,19 @@
  kit tools - lists, installs, and updates what the chosen toolchain and the dependencies pin
 
-   required
-   [--outdated [--check]] --toolchain [--json | --jq]
+   one of
+   *kit tools*                 lists, installs, and updates what the chosen toolchain and the
+                             dependencies pin
+
+     --outdated              only the tools behind their latest version; reaches the network
+
+     --check                 with --outdated: fails when any tool is behind
+
+     --toolchain             uses this toolchain for the run, as KIT_TOOLCHAIN does; kit takes it
+                             even after run's command
+
+     --json   --jq           one JSON object per tool: name, pinned, installed, latest with
+                             --outdated, and from
+
    --toolchain (install | update | path | run <command>…)
 
 

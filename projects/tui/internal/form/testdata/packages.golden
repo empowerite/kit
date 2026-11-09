@@ -1,7 +1,14 @@
  kit packages - lists the packages in reach, and changes which are active
 
-   required
-   [--active | --inactive] [--json | --jq] <package>
+   one of
+   *kit packages*              lists the packages in reach, and changes which are active
+
+     --active   --inactive   only the active packages
+
+     --json   --jq           one JSON object per package: name, origin, state, and description
+
+     <package>…              a name, such as style/bash, or a glob, such as 'style/*'
+
    (select | add | remove) <package>
 
 

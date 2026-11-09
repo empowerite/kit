@@ -104,8 +104,10 @@ func TestPackagesLiteralChoosesItsAlternative(t *testing.T) {
 	if fields[2].Key != "<package>" || fields[2].Choices != "closed" || !fields[2].Required {
 		t.Errorf("the packages: %+v", fields[2])
 	}
+	// bare, kit packages lists: the line that adds no word is chosen, named kit packages, and the row is optional
 	fields, _ = Fields(specs(t)["packages"], Answers{})
-	if kinds(fields) != "OneOf" || fields[0].Chosen != -1 {
+	if kinds(fields) != "OneOf OneOf OneOf PickMany" || fields[0].Chosen != 0 || fields[0].Options[0] != "kit packages" ||
+		fields[0].Required || fields[0].Description != specs(t)["packages"].Purpose {
 		t.Errorf("bare packages: %s %+v", kinds(fields), fields[0])
 	}
 	// a judged kit packages add style/bash chooses the acting line by its word alone: add opens the line through the
@@ -261,10 +263,10 @@ func TestARequiredFieldIsTaggedUntilItHasAnAnswer(t *testing.T) {
 	if view = RenderStatic(release, fields, 100); !strings.Contains(view, "\n   <version>           the version") {
 		t.Errorf("release 1.0.0: the description moved:\n%s", view)
 	}
-	// a one-of row drawn one name per line is headed by the tag until one is chosen
+	// a one-of row drawn one name per line is headed by one of, and the tag after it until one is chosen
 	commit := specs(t)["commit"]
 	fields, _ = Fields(commit, Answers{})
-	if view = RenderStatic(commit, fields, 100); !strings.Contains(view, "\n   required\n   --message  the message") {
+	if view = RenderStatic(commit, fields, 100); !strings.Contains(view, "\n   one of required\n   --message  the message") {
 		t.Errorf("commit: the row is not headed by the tag:\n%s", view)
 	}
 	fields, _ = Fields(commit, Answers{Chosen: map[int]int{0: 0}})

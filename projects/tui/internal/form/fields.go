@@ -7,6 +7,7 @@ package form
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/empowerite/kit/projects/tui/internal/syntax"
@@ -226,6 +227,8 @@ func (w *walker) wildcardValues() []string {
 
 // group adds a one-of row for a group of alternatives, and walks the chosen alternative after it, whose nodes the
 // command line then needs. A group of one alternative has no row: its nodes stand on their own, optional inside [ ].
+// At the top, an alternative that adds no word, every node of it inside [ ], as kit flow's picture with its options,
+// makes the row optional: it is chosen while no other is, and named by the command it leaves, kit and the verb.
 func (w *walker) group(n syntax.Node, parent int, required bool) {
 	required = required && !n.Optional
 	if len(n.Alternatives) == 1 {
@@ -241,12 +244,24 @@ func (w *walker) group(n syntax.Node, parent int, required bool) {
 	}
 	ordinal := w.groups
 	w.groups++
-	f := Field{Kind: OneOf, Required: required, Chosen: -1, Group: parent}
+	bare := -1
+	if parent < 0 {
+		bare = bareAlternative(n.Alternatives)
+	}
+	f := Field{Kind: OneOf, Required: required && bare < 0, Chosen: -1, Group: parent}
 	f.Options = labels(n.Alternatives)
+	if bare >= 0 {
+		f.Options[bare] = "kit " + w.spec.Verb
+	}
 	f.Key = strings.Join(f.Options, " | ")
 	f.Label = f.Key
-	f.Chosen = w.choose(n.Alternatives, ordinal)
-	if f.Chosen >= 0 {
+	if f.Chosen = w.choose(n.Alternatives, ordinal); f.Chosen < 0 {
+		f.Chosen = bare
+	}
+	switch {
+	case f.Chosen >= 0 && f.Chosen == bare:
+		f.Description = w.spec.Purpose
+	case f.Chosen >= 0:
 		first := n.Alternatives[f.Chosen][0]
 		f.Description, _ = w.describe(syntax.Key(first))
 	}
@@ -255,6 +270,16 @@ func (w *walker) group(n syntax.Node, parent int, required bool) {
 	if f.Chosen >= 0 {
 		w.sequence(n.Alternatives[f.Chosen], index, true)
 	}
+}
+
+// bareAlternative gives the alternative that adds no word to the command line, every node of it inside [ ], or -1.
+func bareAlternative(alternatives [][]syntax.Node) int {
+	for i, alternative := range alternatives {
+		if !slices.ContainsFunc(alternative, func(n syntax.Node) bool { return n.Kind != "group" || !n.Optional }) {
+			return i
+		}
+	}
+	return -1
 }
 
 // choose picks the alternative the answers select: the one chosen by hand for this row, else the one the next

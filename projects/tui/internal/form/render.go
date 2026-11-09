@@ -34,6 +34,7 @@ const (
 	gap      = 2          // between the label column and the content
 	sep      = "   "      // between the names of a row
 	required = "required" // the dim tag after a required field's label until the field has an answer
+	oneOf    = "one of"   // the heading over a one-of row's names, one per line
 )
 
 // Options say how a form is drawn: its width; the field that has the keyboard (-1 for none) and the option under the
@@ -387,7 +388,12 @@ func (d *drawer) row(i int, lead string) {
 		return
 	}
 	nested := d.nested(i)
-	if unanswered(f) {
+	switch {
+	case f.Kind == OneOf && unanswered(f):
+		d.b.WriteString(strings.Repeat(" ", ansi.StringWidth(lead)) + oneOf + " " + d.st.Dim(required) + "\n")
+	case f.Kind == OneOf:
+		d.b.WriteString(strings.Repeat(" ", ansi.StringWidth(lead)) + oneOf + "\n")
+	case unanswered(f):
 		d.b.WriteString(strings.Repeat(" ", ansi.StringWidth(lead)) + d.st.Dim(required) + "\n")
 	}
 	room := d.width - ansi.StringWidth(lead) // a name wider than the screen, a whole usage line, is clipped
@@ -397,6 +403,7 @@ func (d *drawer) row(i int, lead string) {
 		if !on(k) || f.Kind != OneOf {
 			continue
 		}
+		apart := false // a blank line sets the alternative's own fields apart from its name, and each ends with one
 		for _, j := range nested {
 			g := d.fields[j]
 			if g.Key == option && g.Kind == Toggle {
@@ -406,14 +413,21 @@ func (d *drawer) row(i int, lead string) {
 				d.values(j, g, strings.Repeat(" ", d.column)) // the option's own value: no second label
 				continue
 			}
-			d.b.WriteString("\n")
+			if !apart {
+				d.b.WriteString("\n")
+				apart = true
+			}
 			d.block(j, gutter+2)
 		}
 	}
 }
 
-// optionDescription gives the header's text for a row's name, when the name is an argument's key.
+// optionDescription gives the header's text for a row's name, when the name is an argument's key, or the verb's
+// purpose for kit and the verb, the alternative that adds no word.
 func (d *drawer) optionDescription(option string) string {
+	if option == "kit "+d.spec.Verb {
+		return d.spec.Purpose
+	}
 	return d.spec.Arguments[option].Description
 }
 
