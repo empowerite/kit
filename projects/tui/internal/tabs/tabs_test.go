@@ -33,18 +33,18 @@ func TestLabelIsTheSelectedTabAsTheBarDrawsIt(t *testing.T) {
 	b := stages(1, 120)
 	b.Menus, b.Color = true, "33"
 	mark, _ := style.In("33")
-	// the stale dot's cell stands after the name, as the bar keeps it, blank while the tab is fresh
-	if got := b.Label(); ansi.Strip(got) != "🛫 underway  58 "+Menu || !strings.Contains(got, mark("underway")) ||
+	// one space after the name, the stale dot's cell not kept, as the bar keeps it
+	if got := b.Label(); ansi.Strip(got) != "🛫 underway 58 "+Menu || !strings.Contains(got, mark("underway")) ||
 		!strings.Contains(b.View(), mark("underway")) {
 		t.Errorf("the label: %q", got)
 	}
 	b.MenuOpen = true
-	if got := ansi.Strip(b.Label()); got != "🛫 underway     "+Menu {
+	if got := ansi.Strip(b.Label()); got != "🛫 underway    "+Menu {
 		t.Errorf("the menu open, the count blank: %q", got)
 	}
 	b.MenuOpen, b.Stale = false, []bool{false, true}
 	if got := ansi.Strip(b.Label()); got != "🛫 underway"+Stale+" 58 "+Menu {
-		t.Errorf("stale, the dot in its cell: %q", got)
+		t.Errorf("stale, the dot after the name: %q", got)
 	}
 	b.Stale = nil
 	b.MenuOpen, b.Tabs[1].Count = false, ""
@@ -617,11 +617,11 @@ func TestANumberedLabelShowsTheTabsNumberInPlaceOfItsGlyph(t *testing.T) {
 	b := stages(1, 120)
 	b.Menus, b.Color = true, "33"
 	mark, _ := style.In("33")
-	if got := b.NumberedLabel(); ansi.Strip(got) != "➋ underway  58 "+Menu || !strings.Contains(got, mark("➋")) {
+	if got := b.NumberedLabel(); ansi.Strip(got) != "➋ underway 58 "+Menu || !strings.Contains(got, mark("➋")) {
 		t.Errorf("underway's: %q", got)
 	}
 	ten := Bar{Selected: 9, Tabs: slices.Repeat([]Tab{{"🎫", "backlog", "3"}}, 10)}
-	if got := ansi.Strip(ten.NumberedLabel()); got != "🎫 backlog  3" {
+	if got := ansi.Strip(ten.NumberedLabel()); got != "🎫 backlog 3" {
 		t.Errorf("the tenth's: %q", got)
 	}
 	if got := (Bar{}).NumberedLabel(); got != "" {
