@@ -86,6 +86,20 @@ func TestThePresetsMenuDropsFromTheSelectorAndTakesKeysAndClicks(t *testing.T) {
 	}
 }
 
+// A preset the table has changed from is struck through, every letter of its name, and never italic; one it is set as
+// is neither.
+func TestAChangedPresetIsStruckThrough(t *testing.T) {
+	changed, set := SelectorPill("Grouped", "75", true), SelectorPill("Grouped", "75", false)
+	for _, letter := range "Grouped" {
+		if !strings.Contains(changed, ";9m"+string(letter)) {
+			t.Errorf("%c is not struck through: %q", letter, changed)
+		}
+	}
+	if strings.Contains(set, ";9m") || strings.Contains(changed+set, ";3m") || strings.Contains(changed+set, ";3;") {
+		t.Errorf("set as: %q; changed: %q", set, changed)
+	}
+}
+
 func TestThePresetLineNamesTheViewTheTableIsSetAs(t *testing.T) {
 	h := presetting()
 	if got := PresetLine(h, false); got != SelectorPill(Opening, "75", false) {
@@ -94,7 +108,7 @@ func TestThePresetLineNamesTheViewTheTableIsSetAs(t *testing.T) {
 	if got := PresetLine(h, true); got != SelectorPill(Opening, SelectorFocus, false) {
 		t.Errorf("with the keyboard: %q", ansi.Strip(got))
 	}
-	// changed from every view, the one it was set to, in italics
+	// changed from every view, the one it was set to, struck through
 	h.tbl.View = h.tbl.View.Placed("state", grid.Hidden).Placed("title", grid.Hidden)
 	if got := PresetLine(h, false); got != SelectorPill(Opening, "75", true) {
 		t.Errorf("changed: %q", ansi.Strip(got))

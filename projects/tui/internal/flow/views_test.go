@@ -140,7 +140,7 @@ func TestAChipStandsForEachFilter(t *testing.T) {
 	}
 }
 
-func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
+func TestChoosingAViewSetsThePanelAndAChangeStrikesTheNameThrough(t *testing.T) {
 	m := onDropdown(t, "")
 	m = drive(m, press(tea.KeyEnter))
 	if !m.presetsMenu.Open {
@@ -177,15 +177,15 @@ func TestChoosingAViewSetsThePanelAndAChangeItalicizesTheName(t *testing.T) {
 		presetText(m) != selector("Compact") {
 		t.Fatalf("Compact: %q, %q", shownNow(m), presetText(m))
 	}
-	// a column shown again differs from every view: the line names the one it was set to, in italics
+	// a column shown again differs from every view: the line names the one it was set to, struck through
 	m.setPanel(m.panel(0).Placed("age", grid.Column))
 	color := stageColors["backlog"]
 	if got := presetText(m); m.is(0) != "" || got != selector("Compact") ||
 		!strings.Contains(controlLine(m), table.SelectorPill("Compact", table.SelectorFocus, true)) {
-		t.Errorf("a change does not italicize the view: %q", got)
+		t.Errorf("a change does not strike the view through: %q", got)
 	}
 	if m.onPreset = false; !strings.Contains(controlLine(m), table.SelectorPill("Compact", color, true)) {
-		t.Errorf("off the line, the view is not in italics, on the tab's color: %q", controlLine(m))
+		t.Errorf("off the line, the view is not struck through, on the tab's color: %q", controlLine(m))
 	}
 	m.onPreset = true
 	if m.dropEnd() != m.dropStart()+ansi.StringWidth(selector("Compact")) || m.dropStart() < m.paneWidth()/2 {

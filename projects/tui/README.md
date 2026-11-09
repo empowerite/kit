@@ -43,7 +43,7 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   - The tab's view starts with the control line: the heading over the groups at its left, where the rows group, and the
     preset line at its right end. After how many rows are selected and a chip per filter, it names the preset the table
     is set as and ▼, a pill on the tab's color, as a label is, on the menus' cyan while the line has the keyboard; the
-    name is in italics once the table differs from every preset. ↓ from the tabs reaches it, and ⏎ or a click on the
+    name is struck through once the table differs from every preset. ↓ from the tabs reaches it, and ⏎ or a click on the
     pill drops down the presets' menu, in the tab's color, as the pill is, titled Presets at its left as a dialog is,
     from the control line, its right edge over the ▼: 📇 Fields…, the columns dialog, then Save, Save As…, Rename…,
     Delete, and the presets. Save As… takes a name in the selector's place, the person's preset the line was set to
