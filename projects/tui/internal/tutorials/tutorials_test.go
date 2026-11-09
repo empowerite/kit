@@ -230,7 +230,7 @@ func TestTheBarSelectsATabAndCountsItsTutorials(t *testing.T) {
 	if m = drive(m, press('2'), down); !m.inPane || m.tab != 1 {
 		t.Errorf("2 and down: tab %d, in the pane %v", m.tab, m.inPane)
 	}
-	if keys := m.keys().String(); keys != "= menu │ 1-4 jump │ esc Just starting ←→↑↓ move ⏎ open" {
+	if keys := m.keys().String(); keys != "= menu │ 1-4 jump │ esc tabs ←→↑↓ move ⏎ open" {
 		t.Errorf("the cards' keys: %q", keys)
 	}
 }

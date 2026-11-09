@@ -70,7 +70,7 @@ func TestThePresetLineStandsOnTheControlLineAndNamesTheView(t *testing.T) {
 	}
 	m = drive(m, down)
 	keys := keysOf(m)
-	for _, want := range []string{"↑·esc backlog", "↓ rows", "⏎ presets"} {
+	for _, want := range []string{"↑·esc tabs", "↓ rows", "⏎ presets"} {
 		if !strings.Contains(keys, want) {
 			t.Errorf("the keys on the preset line lack %q: %q", want, keys)
 		}

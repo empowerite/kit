@@ -175,12 +175,12 @@ func TestAClickFlipsASettingAndOneOutsideTheDialogClosesIt(t *testing.T) {
 	m, _ = testkit.Drive(m, nil, shell.SwitchMsg{Screen: shell.SettingsScreen})
 	lines := strings.Split(ansi.Strip(m.View().Content), "\n")
 	top := slices.IndexFunc(lines, func(l string) bool { return strings.Contains(l, "╭─ Settings ") })
-	if top < 0 || !strings.Contains(lines[top+1], "Key bar") {
+	if top < 0 || !strings.Contains(lines[top+1], "Key hints") {
 		t.Fatalf("the dialog:\n%s", strings.Join(lines, "\n"))
 	}
 	x := ansi.StringWidth(lines[top][:strings.Index(lines[top], "╭")])
 	if m, _ = testkit.Drive(m, nil, testkit.Click(x+4, top+1)); !m.dialog.Open || m.settings.KeysBar {
-		t.Errorf("a click on Key bar: open %v, shown %v", m.dialog.Open, m.settings.KeysBar)
+		t.Errorf("a click on Key hints: open %v, shown %v", m.dialog.Open, m.settings.KeysBar)
 	}
 	if m, _ = testkit.Drive(m, nil, testkit.Click(x, top)); !m.dialog.Open || m.settings.KeysBar {
 		t.Errorf("a click on the corner: open %v, shown %v", m.dialog.Open, m.settings.KeysBar)

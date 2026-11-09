@@ -118,7 +118,7 @@ func (m Model) paneKeys() shell.Segment {
 	if !m.hasRows() {
 		move = "scroll"
 	}
-	s := shell.Segment{Takes: []string{"home", "end"}, Bindings: []shell.Binding{shell.Bind("esc", m.tabs[m.step].name),
+	s := shell.Segment{Takes: []string{"home", "end"}, Bindings: []shell.Binding{shell.Bind("esc", "tabs"),
 		shell.Bind("↑↓", move, "up", "down"), shell.Bind("⇞⇟", "page", "pgup", "pgdown")}}
 	switch {
 	case m.onLink():

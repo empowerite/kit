@@ -1047,11 +1047,11 @@ func TestTheGuidesSearchNarrowsEachStep(t *testing.T) {
 	}
 }
 
-// In the pane, esc names the step whose tab it gives the keyboard back to.
-func TestEscNamesTheStepItGoesBackTo(t *testing.T) {
+// In the pane, esc says it goes back to the tabs, as it does on every screen with a tab bar.
+func TestEscSaysItGoesBackToTheTabs(t *testing.T) {
 	m, _ := loaded(t)
 	m = drive(m, down)
-	if want := "│ esc " + m.tabs[m.step].name + " "; !m.inPane || !strings.Contains(m.keys().String(), want) {
+	if want := "│ esc tabs "; !m.inPane || !strings.Contains(m.keys().String(), want) {
 		t.Errorf("in the pane %v: %q does not hold %q", m.inPane, m.keys().String(), want)
 	}
 }

@@ -130,16 +130,13 @@ func calls(t *testing.T, path string) []string {
 const (
 	stepKeys   = "= menu / search │ ←→ tab ↓ checks 1-7 jump"
 	pageKeys   = "= menu / search │ ←→ tab ↓ page 1-7 jump"
-	paneKeys   = "= menu / search │ 1-7 jump │ esc STEP ↑↓ move ⇞⇟ page"
+	paneKeys   = "= menu / search │ 1-7 jump │ esc tabs ↑↓ move ⇞⇟ page"
 	rowKeys    = paneKeys
 	choiceKeys = paneKeys + " ←→ now or later n now l later ⏎ choose"
 	showKeys   = paneKeys + " l later"
 	linkKeys   = paneKeys + " ⏎ go to the check"
-	scrollKeys = "= menu / search │ 1-7 jump │ esc STEP ↑↓ scroll ⇞⇟ page"
+	scrollKeys = "= menu / search │ 1-7 jump │ esc tabs ↑↓ scroll ⇞⇟ page"
 )
 
-// keysAt gives the keys bar where the keyboard is, as the path to it draws it, the selected step's name after esc as
-// STEP, so the bars above stand for every step.
-func keysAt(m Model) string {
-	return strings.Replace(m.keys().String(), "esc "+m.tabs[m.step].name+" ", "esc STEP ", 1)
-}
+// keysAt gives the keys bar where the keyboard is, as the path to it draws it.
+func keysAt(m Model) string { return m.keys().String() }

@@ -108,7 +108,7 @@ func (m Model) keys() shell.Path {
 	}
 	path := shell.Path{{Bindings: []shell.Binding{shell.Bind("=", "menu")}}, m.bar().Keys(down)}
 	if m.focused() {
-		path = append(path, shell.Segment{Bindings: []shell.Binding{shell.Bind("esc", m.bar().Tabs[m.tab].Name),
+		path = append(path, shell.Segment{Bindings: []shell.Binding{shell.Bind("esc", "tabs"),
 			shell.Bind("←→↑↓", "move", "left", "right", "up", "down"), shell.Bind("⏎", "open", "enter")}})
 	}
 	return path

@@ -170,14 +170,18 @@ func (m Model) presetKeys() shell.Segment {
 		s.Bindings = append(s.Bindings, shell.Bind("⏎", does, "enter"), shell.Bind("esc", "cancel"))
 		return s.With(shell.Bind("", "type the preset's name"))
 	}
+	// up and esc give the tab bar the keyboard, named as the components spec names it
 	var s shell.Segment
-	name := m.stages[m.stage].name
-	s.Bindings = append(s.Bindings, shell.Bind("↑", name, "up"), shell.Bind("esc", name))
+	s.Bindings = append(s.Bindings, shell.Bind("↑", tabsHint, "up"), shell.Bind("esc", tabsHint))
 	if len(m.rows(m.stage)) > 0 {
 		s.Bindings = append(s.Bindings, shell.Bind("↓", "rows", "down"))
 	}
 	return s.With(shell.Bind("⏎", "presets", "enter", "space"))
 }
+
+// tabsHint is what the key hints say esc does where it gives the tab bar the keyboard, from the rows or the preset
+// picker: it goes back to the tabs, whichever is selected.
+const tabsHint = "tabs"
 
 // groupHeadings gives how many headings of groups the cursor can stand on in the selected stage's rows.
 func (m Model) groupHeadings() int {
@@ -197,7 +201,7 @@ func (m Model) groupHeadings() int {
 // opens the row under the cursor, or unfolds a group's heading, and left closes or folds it, the one that acts named.
 func (m Model) rowKeys() shell.Segment {
 	seg := shell.Segment{Takes: []string{"left", "right", "alt+left", "alt+right", "home", "end"},
-		Bindings: []shell.Binding{shell.Bind("esc", m.stages[m.stage].name), shell.Bind("↑↓", "move", "up", "down")}}
+		Bindings: []shell.Binding{shell.Bind("esc", tabsHint), shell.Bind("↑↓", "move", "up", "down")}}
 	if len(m.lines(m.stage)) > m.rowsHeight() {
 		seg.Bindings = append(seg.Bindings, shell.Bind("⇞⇟", "page", "pgup", "pgdown"))
 	}

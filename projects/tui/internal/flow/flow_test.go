@@ -699,14 +699,13 @@ func fit(keys string, room int) string {
 const (
 	screenKeys = "= menu / search ? legend │ "
 	barKeys    = screenKeys + "←→ tab ↓ rows 1-8 jump : tab menu"
-	inRows     = screenKeys + "1-8 jump : tab menu │ esc STAGE ↑↓ move ␣·⇧↑↓ select ⌃A all"
+	inRows     = screenKeys + "1-8 jump : tab menu │ esc tabs ↑↓ move ␣·⇧↑↓ select ⌃A all"
 	opens      = inRows + " → expand"
 	closes     = inRows + " ← collapse"
 )
 
-// keysFor gives the keys bar for the screen as it is: esc in the rows names the stage selected, as STAGE stands for; and in rows more than the pane shows, the page keys move a page at a time.
+// keysFor gives the keys bar for the screen as it is: in rows more than the pane shows, the page keys move a page at a time.
 func keysFor(m Model, keys string) string {
-	keys = strings.Replace(keys, "STAGE", m.stages[m.stage].name, 1)
 	if m.inRows && len(m.lines(m.stage)) > m.rowsHeight() {
 		keys = strings.Replace(keys, "↑↓ move ", "↑↓ move ⇞⇟ page ", 1)
 	}

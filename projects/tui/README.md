@@ -68,8 +68,8 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   - The search stands at the title line's right end, and / or a click on it gives it the keyboard. There is no sidebar:
     the rows take the screen's width. While the person groups by no column, a value every row shares moves into one
     heading over them, the column grouping on its own; a group the person chooses overrides that, and the rows then
-    group as chosen alone. Auto-group, which turns that on or off, and Repeated emoji, which keeps an emoji every row
-    shows instead of dropping it, are kittui's settings, in = Settings…, every view's alike.
+    group as chosen alone. Auto-group, which turns that on or off, and Repeated emoji, which shows an emoji every row
+    has instead of dropping it, are kittui's settings, in = Settings…, every view's alike.
   - The legend, in `legend.go`, floats over the rows while F1 or ? shows it: what each glyph the selected stage's rows
     draw now means, and nothing of a glyph they do not, each glyph a click leads somewhere from marked. It opens in
     the bottom right corner; the arrows on its top edge, ↖ ↗ ↙ ↘, move it to another, the one it stands in dim. It

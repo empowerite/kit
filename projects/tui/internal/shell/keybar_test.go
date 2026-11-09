@@ -109,8 +109,8 @@ func TestTheSettingsDialogFlipsASettingAndSavesIt(t *testing.T) {
 	}
 	lines := d.Overlay(strings.Split(strings.Repeat(strings.Repeat(" ", 100)+"\n", 10), "\n"), s, 100)
 	if v := ansi.Strip(strings.Join(lines, "\n")); !strings.Contains(v, "╭─ Settings ") ||
-		!strings.Contains(v, style.Unpicked+" Key bar") || strings.Contains(v, "esc close") ||
-		!strings.Contains(strings.Join(lines, "\n"), style.Selected(style.Unpicked+" Key bar")) {
+		!strings.Contains(v, style.Unpicked+" Key hints") || strings.Contains(v, "esc close") ||
+		!strings.Contains(strings.Join(lines, "\n"), style.Selected(style.Unpicked+" Key hints")) {
 		t.Errorf("the dialog:\n%s", v)
 	}
 	if got := (Path{ScreenKeys(), d.Keys()}).String(); got != "esc close ↑↓ move ␣ toggle" {
