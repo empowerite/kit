@@ -64,6 +64,13 @@ func (m *Model) page(d int) {
 	}
 }
 
+// end moves the cursor to the first row or the last, as table.End says.
+func (m *Model) end(d int) {
+	if len(m.stages) > 0 {
+		table.End(m, d)
+	}
+}
+
 // fit scrolls the pane so the row under the cursor shows, as table.Fit says.
 func (m *Model) fit() {
 	if len(m.stages) > 0 {

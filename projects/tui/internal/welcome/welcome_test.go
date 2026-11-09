@@ -521,6 +521,14 @@ func TestUpAndDownMoveOverTheStepsRowsAndLeaveThemAtTheTop(t *testing.T) {
 	if m = drive(m, up, pgdown, pgup); m.inPane {
 		t.Errorf("a page on the bar entered the rows")
 	}
+	// home and end go to the step's first row and its last, as far as pages go
+	if m = drive(m, enter, press(tea.KeyEnd)); !m.inPane || m.cursor != 5 {
+		t.Errorf("end: in the pane %v, cursor %d", m.inPane, m.cursor)
+	}
+	if m = drive(m, press(tea.KeyHome)); !m.inPane || m.cursor != 0 {
+		t.Errorf("home: in the pane %v, cursor %d", m.inPane, m.cursor)
+	}
+	m = drive(m, up)
 	if m = drive(m, enter); !m.inPane {
 		t.Errorf("enter on the line did not enter the rows")
 	}
@@ -572,6 +580,13 @@ func TestAPageScrollsWithWhatIsHiddenCounted(t *testing.T) {
 	}
 	if m = drive(m, pgup, pgup, pgup, pgup, up); m.offsets[terms] != 0 {
 		t.Errorf("back to the top: offset %d", m.offsets[terms])
+	}
+	// end scrolls a page to its last line, and home back to its first
+	if m = drive(m, down, press(tea.KeyEnd)); !strings.Contains(pane()[5], "kit flow --stages") {
+		t.Errorf("end:\n%s", strings.Join(pane(), "\n"))
+	}
+	if m = drive(m, press(tea.KeyHome), up); m.offsets[terms] != 0 {
+		t.Errorf("home: offset %d", m.offsets[terms])
 	}
 	// each step keeps its own place
 	m = drive(m, down, pgdown, esc, left, right)

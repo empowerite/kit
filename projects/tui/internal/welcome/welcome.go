@@ -526,6 +526,10 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.page(-max(1, m.paneHeight()-1))
 	case "pgdown":
 		m.page(max(1, m.paneHeight()-1))
+	case "home":
+		m.page(-ends)
+	case "end":
+		m.page(ends)
 	case "enter":
 		switch {
 		case !m.inPane:
@@ -696,6 +700,9 @@ func (m *Model) page(n int) {
 		m.cursor, m.choice = rows[min(max(at+n, 0), len(rows)-1)], now
 	}
 }
+
+// ends is more lines or rows than a step ever has, so a page of it reaches the first or the last, as home and end do.
+const ends = 1 << 30
 
 // scroll moves a page's pane n lines, never past its ends.
 func (m *Model) scroll(n int) {

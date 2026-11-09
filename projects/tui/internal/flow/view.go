@@ -181,11 +181,12 @@ func (m Model) presetKeys() shell.Segment {
 
 // rowKeys gives the segment of the rows while they have the keyboard: esc gives the bar the keyboard, named by the
 // stage it has selected; up and down move,
-// a page at a time too while the rows are more than the pane shows; space selects a row, shift with up or down selects as it moves, and ctrl+a every row; right
+// a page at a time too while the rows are more than the pane shows, and home and end to the first and the last, unnamed
+// until a test shows the keys arrive in Terminal.app and iTerm; space selects a row, shift with up or down selects as it moves, and ctrl+a every row; right
 // opens the row under the cursor, or unfolds a group's heading, and left closes or folds it, the one that acts named.
 func (m Model) rowKeys() shell.Segment {
-	seg := shell.Segment{Takes: []string{"left", "right", "alt+left", "alt+right"}, Bindings: []shell.Binding{
-		shell.Bind("esc", m.stages[m.stage].name), shell.Bind("↑↓", "move", "up", "down")}}
+	seg := shell.Segment{Takes: []string{"left", "right", "alt+left", "alt+right", "home", "end"},
+		Bindings: []shell.Binding{shell.Bind("esc", m.stages[m.stage].name), shell.Bind("↑↓", "move", "up", "down")}}
 	if len(m.lines(m.stage)) > m.rowsHeight() {
 		seg.Bindings = append(seg.Bindings, shell.Bind("⇞⇟", "page", "pgup", "pgdown"))
 	}

@@ -652,6 +652,10 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.page(-1)
 	case "pgdown":
 		m.page(1)
+	case "home":
+		m.end(-1)
+	case "end":
+		m.end(1)
 	case "right", "alt+right":
 		table.Expand(&m, true, k.String() == "alt+right")
 	case "left", "alt+left":

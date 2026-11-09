@@ -1025,6 +1025,17 @@ func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
 	if m.find("worktrees").Cursor != 3 {
 		t.Errorf("page down past the last row: cursor %d", m.find("worktrees").Cursor)
 	}
+	// home goes to the first row, at the top, and end to the last; on the bar neither does anything
+	if m = drive(m, press(tea.KeyHome)); !m.inRows || m.find("worktrees").Cursor != 0 ||
+		!strings.Contains(view(m), "1-the-first-release") {
+		t.Errorf("home: in rows %v, cursor %d:\n%s", m.inRows, m.find("worktrees").Cursor, view(m))
+	}
+	if m = drive(m, press(tea.KeyEnd)); !m.inRows || m.find("worktrees").Cursor != 3 {
+		t.Errorf("end: in rows %v, cursor %d", m.inRows, m.find("worktrees").Cursor)
+	}
+	if b := drive(m, press(tea.KeyEscape), press(tea.KeyEnd)); b.inRows {
+		t.Errorf("end on the bar entered the rows")
+	}
 }
 
 func TestEveryLineFitsTheWidthInCells(t *testing.T) {

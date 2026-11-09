@@ -109,7 +109,8 @@ func (m Model) keys() shell.Path {
 
 // paneKeys gives the segment of the pane while it has the keyboard: esc gives the bar the keyboard, named by the step
 // it has selected; up and down move
-// between the rows, or scroll a page with none, a page at a time too; enter on a link goes to its check; and on a
+// between the rows, or scroll a page with none, a page at a time too, and home and end to the first and the last,
+// unnamed until a test shows the keys arrive in Terminal.app and iTerm; enter on a link goes to its check; and on a
 // check whose fix kit runs, left and right choose now or later, n and l take one at once, and enter the one chosen; on
 // one whose fix kit only shows, l takes later.
 func (m Model) paneKeys() shell.Segment {
@@ -117,8 +118,8 @@ func (m Model) paneKeys() shell.Segment {
 	if !m.hasRows() {
 		move = "scroll"
 	}
-	s := shell.Segment{Bindings: []shell.Binding{shell.Bind("esc", m.tabs[m.step].name), shell.Bind("↑↓", move, "up", "down"),
-		shell.Bind("⇞⇟", "page", "pgup", "pgdown")}}
+	s := shell.Segment{Takes: []string{"home", "end"}, Bindings: []shell.Binding{shell.Bind("esc", m.tabs[m.step].name),
+		shell.Bind("↑↓", move, "up", "down"), shell.Bind("⇞⇟", "page", "pgup", "pgdown")}}
 	switch {
 	case m.onLink():
 		s.Bindings = append(s.Bindings, shell.Bind("⏎", "go to the check", "enter"))

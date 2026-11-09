@@ -245,6 +245,21 @@ func Page(h Host, d int) {
 	}
 }
 
+// End moves the cursor to the first row, d below 0, as Home does, or to the last, as End does, wherever ⇞ and ⇟ page;
+// without the keyboard it does nothing. At the first row the pane scrolls to its top, over the headings too.
+func End(h Host, d int) {
+	if !h.InRows() {
+		return
+	}
+	t, all := h.Table(), h.Rows()
+	if first := First(all); d < 0 {
+		t.Cursor, t.Offset = first, 0
+	} else if len(all) > first {
+		t.Cursor = len(all) - 1
+	}
+	Fit(h)
+}
+
 // rowLines gives the first and the last of the lines the row draws, -1 for a row that draws none.
 func rowLines(lines []Line, row int) (first, last int) {
 	first, last = -1, -1
