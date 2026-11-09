@@ -30,8 +30,8 @@ const FoldCell = 2
 func FoldAt(r grid.Row) int { return FoldsAt(r)[0] }
 
 // FoldsAt gives the screen columns of every ▾ or ▸ that opens or closes a row or a heading, as FoldAt places the first:
-// a heading that holds the headings under it on its line, across, has one before each value, each of which opens and
-// closes it alike.
+// one for each, as a heading that holds the headings under it on its line, across, has one fold, before its first
+// value, and a separator before each value after it.
 func FoldsAt(r grid.Row) []int {
 	if !grid.Heads(r) {
 		return []int{FoldCell}

@@ -111,8 +111,9 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     whether all are or some. What stands open lasts the session; a preset does not keep it. Grouped rows stand under
     one heading that names the grouped columns, `▾ source ▾ assignees ▾ 3`, at the control line's left, apart from the
     rows, a blank line under it, and a heading per value under the line. A heading whose one heading under it heads
-    the same rows takes it onto its line, across, `▾ jeffrey-aguilera ▾ github ▾ #2 53`, and so on down: one node,
-    whose every fold opens and closes it alike. In the heading over the groups, the ▾ or ▸ before each name opens or
+    the same rows takes it onto its line, across, `▾ jeffrey-aguilera · github · #2 53`, and so on down: one node,
+    with one fold, before its first value, which opens and closes it, and a dim · before each value after it. In the
+    heading over the groups, the ▾ or ▸ before each name opens or
     closes that level, and the one after the last name the rows under the groups: a level closed hides its headings
     and everything under them, and the levels under it show ▸ too; nothing else changes, so each level and each
     heading keeps its own state, and opening a level again shows what was under it as it was left. With the first

@@ -292,20 +292,25 @@ func TestTheCursorsBandRunsThePanesWidth(t *testing.T) {
 }
 
 // Grouped by assignees, then source, each assignee's one source heads the same rows, so it stands on the assignee's
-// line, across: one node, which a click on either fold opens and closes.
-func TestAHeadingAcrossFoldsByEitherFold(t *testing.T) {
+// line, across: one node, with one fold, before the assignee, which a click opens and closes; a dim · stands before the
+// source, and a click on it folds nothing.
+func TestAHeadingAcrossHasOneFold(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30})
 	m.setPanel(regroup(m.panel(m.stage), "assignees", "source"))
 	k := slices.IndexFunc(m.rows(0), func(r row) bool { return strings.HasSuffix(r.Key, "\x00ada") })
 	folds, text := table.FoldsAt(m.rows(0)[k]), ansi.Strip(m.rows(0)[k].Cells[0].Values[0])
-	if len(folds) != 2 || !strings.HasPrefix(text, grid.Unfolded+" ada "+grid.Unfolded+" ") {
+	if len(folds) != 1 || !strings.HasPrefix(text, grid.Unfolded+" ada "+grid.Joined+" ") {
 		t.Fatalf("ada's line: %q, folds at %v", text, folds)
 	}
 	all, y := len(m.rows(0)), rowY(m, m.rows(0)[k].Key)
-	if m = drive(m, testkit.Click(folds[1], y)); len(m.rows(0)) != all-1 || m.stages[0].Open.Open(m.rows(0)[k]) {
-		t.Fatalf("a click on github's fold on ada's line: %d rows of %d", len(m.rows(0)), all)
+	joined := folds[0] + ansi.StringWidth(grid.Unfolded+" ada ")
+	if m = drive(m, testkit.Click(joined, y)); len(m.rows(0)) != all {
+		t.Fatalf("a click on the · on ada's line folded it: %d rows of %d", len(m.rows(0)), all)
+	}
+	if m = drive(m, testkit.Click(folds[0], y)); len(m.rows(0)) != all-1 || m.stages[0].Open.Open(m.rows(0)[k]) {
+		t.Fatalf("a click on ada's fold: %d rows of %d", len(m.rows(0)), all)
 	}
 	if m = drive(m, testkit.Click(folds[0], y)); len(m.rows(0)) != all {
-		t.Errorf("a click on ada's fold: %d rows of %d", len(m.rows(0)), all)
+		t.Errorf("a click on ada's fold again: %d rows of %d", len(m.rows(0)), all)
 	}
 }

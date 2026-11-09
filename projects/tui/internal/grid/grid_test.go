@@ -579,7 +579,7 @@ func TestThePanelGroupsTheRows(t *testing.T) {
 		got = append(got, text)
 	}
 	// draft's one heading, bob's, heads the same row, so it stands on draft's line, across
-	want := []string{"▾ state ▾ who ▾ 3", "▾ draft ▾ bob 1", "#1", "▾ ready 2", "  ▾ ada 1", "#3", "  ▾ none 1", "#2",
+	want := []string{"▾ state ▾ who ▾ 3", "▾ draft · bob 1", "#1", "▾ ready 2", "  ▾ ada 1", "#3", "  ▾ none 1", "#2",
 		"gone"}
 	if !slices.Equal(got, want) {
 		t.Errorf("grouped:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
@@ -669,7 +669,7 @@ func TestAViewAsItLoadsGroupsByEachColumnTheSameOnEveryRow(t *testing.T) {
 			headings = append(headings, ansi.Strip(r.Cells[0].first()))
 		}
 	}
-	if want := []string{"▾ source ▾ where ▾ 3", "▾ github ▾ here 3"}; !slices.Equal(headings, want) {
+	if want := []string{"▾ source ▾ where ▾ 3", "▾ github · here 3"}; !slices.Equal(headings, want) {
 		t.Errorf("the headings: %q", headings)
 	}
 	if got := q.Grouped("source", true).Groups(); !slices.Equal(got, []string{"where"}) {
@@ -769,12 +769,12 @@ func TestAGroupsHeadingFoldsItsRowsAway(t *testing.T) {
 		}
 		return p
 	}
-	want := []string{"▾ state ▾ who ▾ 3", "▾ draft ▾ bob 1", "#1", "▸ ready 2", "gone"}
+	want := []string{"▾ state ▾ who ▾ 3", "▾ draft · bob 1", "#1", "▸ ready 2", "gone"}
 	if got := texts(shut(p, ready)); !slices.Equal(got, want) {
 		t.Errorf("ready folded:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 	// a nested heading folds only its own rows
-	want = []string{"▾ state ▾ who ▾ 3", "▾ draft ▾ bob 1", "#1", "▾ ready 2", "  ▸ ada 1", "  ▾ none 1", "#2",
+	want = []string{"▾ state ▾ who ▾ 3", "▾ draft · bob 1", "#1", "▾ ready 2", "  ▸ ada 1", "  ▾ none 1", "#2",
 		"gone"}
 	if got := texts(shut(p, ready+"\x00ada")); !slices.Equal(got, want) {
 		t.Errorf("ada folded:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
@@ -1020,7 +1020,7 @@ func TestARowOfSeveralValuesStandsUnderEachOfThem(t *testing.T) {
 	if got := texts(p); !slices.Equal(got, want) {
 		t.Errorf("by who:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
-	want = []string{"▾ state ▾ who ▾ 3", "▾ draft ▾ bob 1", "#2", "▾ ready 2", "  ▾ ada 1", "#1", "  ▾ bob 1", "#1",
+	want = []string{"▾ state ▾ who ▾ 3", "▾ draft · bob 1", "#2", "▾ ready 2", "  ▾ ada 1", "#1", "  ▾ bob 1", "#1",
 		"  ▾ none 1", "#3"}
 	if got := texts(p.Grouped("state", false).Grouped("who", true)); !slices.Equal(got, want) {
 		t.Errorf("by state, then who:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
@@ -1094,7 +1094,7 @@ func TestALevelThatDoesNotShowFoldsAway(t *testing.T) {
 		return out
 	}
 	p.Outline = Outline{LevelKey(2): false}
-	if got, want := texts(p), []string{"▾ state ▾ who ▸ 3", "▸ draft ▸ bob 1", "▾ ready 2", "  ▸ ada 1", "  ▸ none 1",
+	if got, want := texts(p), []string{"▾ state ▾ who ▸ 3", "▸ draft · bob 1", "▾ ready 2", "  ▸ ada 1", "  ▸ none 1",
 		"gone"}; !slices.Equal(got, want) {
 		t.Errorf("the rows closed:\n%s", strings.Join(got, "\n"))
 	}
@@ -1116,7 +1116,8 @@ func TestALevelThatDoesNotShowFoldsAway(t *testing.T) {
 }
 
 // A heading whose one heading under it heads the same rows takes it onto its line, across, as the heading over the
-// groups names its levels, and so on down: one node, the outermost's, whose every fold stands as it does. A heading
+// groups names its levels, and so on down: one node, the outermost's, with one fold, before its first value, and a dim
+// · before each value after it. A heading
 // with more than one under it, though each heads as many rows as it does, as a row of several values may, keeps them
 // apart; so does one whose next level does not show.
 func TestHeadingsOfTheSameRowsStandAcrossOnOneLine(t *testing.T) {
@@ -1139,14 +1140,14 @@ func TestHeadingsOfTheSameRowsStandAcrossOnOneLine(t *testing.T) {
 		}
 		return out
 	}
-	want := []string{"▾ state ▾ where ▾ who ▾ 3", "▾ draft ▾ there ▾ cy 2", "#2", "#3", "▾ ready ▾ here 1", "    ▾ ada 1",
+	want := []string{"▾ state ▾ where ▾ who ▾ 3", "▾ draft · there · cy 2", "#2", "#3", "▾ ready · here 1", "    ▾ ada 1",
 		"#1", "    ▾ bob 1", "#1"}
 	if got := texts(p); !slices.Equal(got, want) {
 		t.Errorf("across:\n%s", strings.Join(got, "\n"))
 	}
 	// the line is one node, draft's: closed, every fold on it is ▸, and it folds everything under it
 	p.Outline = Outline{byFields + "\x00draft": false}
-	if got := texts(p); got[1] != "▸ draft ▸ there ▸ cy 2" || got[2] != "▾ ready ▾ here 1" {
+	if got := texts(p); got[1] != "▸ draft · there · cy 2" || got[2] != "▾ ready · here 1" {
 		t.Errorf("draft closed: %q", got)
 	}
 	// where's level closed, nothing joins the line from it

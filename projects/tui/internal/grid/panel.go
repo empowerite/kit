@@ -373,6 +373,10 @@ func (p Panel) Mark(id string) string {
 	return mark
 }
 
+// Joined is the dim separator before each value after the first on a heading that takes the headings under it onto
+// its line: the line is one node, with one fold, the first value's.
+const Joined = "·"
+
 // GroupMark gives what stands for a field the rows are grouped by at a depth: the grouping glyph and the depth as a
 // subscript, ▤₁ for the outermost, as Mark carries a sort's place.
 func GroupMark(depth int) string { return Grouping + subscript(depth) }
@@ -558,7 +562,8 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 	}
 	// a heading whose one heading under it heads the same rows takes it into its line, as the heading over the groups
 	// names its levels across, and so on down while the next does too, of a level that shows; the headings taken in
-	// stand as one node, the outermost's, which every fold on the line opens and closes
+	// stand as one node, the outermost's, which its one fold, before the first value, opens and closes: a dim separator
+	// stands before each value after it, so the line shows no fold it does not have
 	var combined []Row
 	for i := 0; i < len(out); i++ {
 		h, ok := heads[i]
@@ -585,7 +590,11 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 			fold = style.Off(Folded)
 		}
 		for k := range texts {
-			texts[k] = fold + " " + texts[k]
+			if k == 0 {
+				texts[k] = fold + " " + texts[k]
+			} else {
+				texts[k] = style.Off(Joined) + " " + texts[k]
+			}
 		}
 		text := strings.Repeat("  ", h.depth) + strings.Join(texts, " ") + " " + style.Off(strconv.Itoa(h.n))
 		r.Cells = []Cell{{Values: []string{text}, Wrap: true}}
