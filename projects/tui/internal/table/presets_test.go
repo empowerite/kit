@@ -2,6 +2,7 @@
 package table
 
 import (
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -86,18 +87,33 @@ func TestThePresetsMenuDropsFromTheSelectorAndTakesKeysAndClicks(t *testing.T) {
 	}
 }
 
-// A preset the table has changed from is struck through, every letter of its name, and never italic; one it is set as
-// is neither.
-func TestAChangedPresetIsStruckThrough(t *testing.T) {
+// A preset the table has changed from is struck through and italic, every letter of its name, as a terminal has no
+// bolder strikethrough; one it is set as is neither, and Presets after the name never is.
+func TestAChangedPresetIsStruckThroughAndItalic(t *testing.T) {
 	changed, set := SelectorPill("Grouped", "75", true), SelectorPill("Grouped", "75", false)
 	for _, letter := range "Grouped" {
-		if !strings.Contains(changed, ";9m"+string(letter)) {
-			t.Errorf("%c is not struck through: %q", letter, changed)
+		if got := sgrBefore(changed, string(letter)); !got["3"] || !got["9"] {
+			t.Errorf("%c is not struck through and italic: %q", letter, changed)
+		}
+		if got := sgrBefore(set, string(letter)); got["3"] || got["9"] {
+			t.Errorf("set as, %c is struck or italic: %q", letter, set)
 		}
 	}
-	if strings.Contains(set, ";9m") || strings.Contains(changed+set, ";3m") || strings.Contains(changed+set, ";3;") {
-		t.Errorf("set as: %q; changed: %q", set, changed)
+	if got := sgrBefore(changed, " "+Presets); got["3"] || got["9"] {
+		t.Errorf("Presets struck or italic: %q", changed)
 	}
+}
+
+// sgrBefore gives the parameters of the SGR sequence just before the first text given in s.
+func sgrBefore(s, text string) map[string]bool {
+	m := regexp.MustCompile(`\x1b\[([0-9;]*)m` + regexp.QuoteMeta(text)).FindStringSubmatch(s)
+	out := map[string]bool{}
+	if m != nil {
+		for _, p := range strings.Split(m[1], ";") {
+			out[p] = true
+		}
+	}
+	return out
 }
 
 func TestThePresetLineNamesTheViewTheTableIsSetAs(t *testing.T) {

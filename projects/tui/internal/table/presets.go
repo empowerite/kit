@@ -164,12 +164,13 @@ func PresetLine(h Host, focused bool) string {
 	return SelectorPill(v.Chosen(t.ViewName).Name, back, true)
 }
 
-// SelectorPill draws the preset line's selector: the preset's name, struck through once the table has changed from it,
-// and Presets, bold black on back, between half circles in back.
+// SelectorPill draws the preset line's selector: the preset's name, struck through and italic once the table has
+// changed from it, as a terminal has no bolder strikethrough, and Presets, bold black on back, between half circles
+// in back.
 func SelectorPill(name, back string, changed bool) string {
 	text := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("0")).Background(lipgloss.Color(back))
-	return style.PillEnd(style.PillLeft, back) + text.Strikethrough(changed).Render(name) + text.Render(" "+Presets) +
-		style.PillEnd(style.PillRight, back)
+	return style.PillEnd(style.PillLeft, back) + text.Strikethrough(changed).Italic(changed).Render(name) +
+		text.Render(" "+Presets) + style.PillEnd(style.PillRight, back)
 }
 
 // Chips gives a chip per field the table's panel filters by, in the catalog's order: its label, a colon, and the
