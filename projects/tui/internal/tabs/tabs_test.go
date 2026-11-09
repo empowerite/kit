@@ -610,3 +610,21 @@ func TestACountFollowsItsNameAfterTheDotsCellAndASpace(t *testing.T) {
 		t.Errorf("backlog wants %d", w)
 	}
 }
+
+// A maximized tab's label, which a screen draws in its title, shows the tab's number, solid, in the tab's color, in
+// place of its glyph, for a tab numbered 1 to 9; any other keeps its glyph.
+func TestANumberedLabelShowsTheTabsNumberInPlaceOfItsGlyph(t *testing.T) {
+	b := stages(1, 120)
+	b.Menus, b.Color = true, "33"
+	mark, _ := style.In("33")
+	if got := b.NumberedLabel(); ansi.Strip(got) != "➋ underway  58 "+Menu || !strings.Contains(got, mark("➋")) {
+		t.Errorf("underway's: %q", got)
+	}
+	ten := Bar{Selected: 9, Tabs: slices.Repeat([]Tab{{"🎫", "backlog", "3"}}, 10)}
+	if got := ansi.Strip(ten.NumberedLabel()); got != "🎫 backlog  3" {
+		t.Errorf("the tenth's: %q", got)
+	}
+	if got := (Bar{}).NumberedLabel(); got != "" {
+		t.Errorf("no tabs: %q", got)
+	}
+}

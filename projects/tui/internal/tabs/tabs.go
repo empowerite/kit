@@ -29,6 +29,7 @@ package tabs
 import (
 	"cmp"
 	"fmt"
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -242,6 +243,20 @@ func (b Bar) Label() string {
 		name += " " + menu
 	}
 	return name
+}
+
+// NumberedLabel gives the selected tab's label as Label does, but for a tab numbered 1 to 9 its number, solid, as the
+// bar draws the selected tab's, in the tab's color, in place of its glyph: what a screen draws in its title while the
+// tab is maximized, so the number that selects it stands where its glyph would.
+func (b Bar) NumberedLabel() string {
+	if len(b.Tabs) == 0 || b.Selected >= 9 {
+		return b.Label()
+	}
+	mark, _ := style.In(b.Color)
+	numbered := b
+	numbered.Tabs = slices.Clone(b.Tabs)
+	numbered.Tabs[b.Selected].Glyph = mark(Marker(b.Selected, true))
+	return numbered.Label()
 }
 
 // reserve gives the cells a tab's count is laid out for at least: the bar's Reserve, or the tab's own in Reserves.

@@ -363,7 +363,7 @@ func (m Model) onMenu(x, y int) bool {
 		return m.bar().OnSelected(x, y)
 	}
 	end := ansi.StringWidth(m.title())
-	start := end - ansi.StringWidth(m.bar().Label())
+	start := end - ansi.StringWidth(m.bar().NumberedLabel())
 	return y == shell.Top && x >= start && x < min(end, m.titleWidth())
 }
 

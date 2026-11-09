@@ -82,17 +82,18 @@ func TestMaximizeGivesTheRowsTwoLines(t *testing.T) {
 // The title names the tab as the bar does: its name, the stale dot's cell, blank while fresh, a space, and its count.
 func TestMaximizeTitleNamesTheTabAndItsCount(t *testing.T) {
 	m := maximize(t, loaded(t, viewing("")))
-	want := "  " + shell.App + " kit flow · " + shell.Workspaces + " empowerite/kit · 🎫 backlog  3 " + tabs.Menu
+	want := "  " + shell.App + " kit flow · " + shell.Workspaces + " empowerite/kit · ➊ backlog  3 " + tabs.Menu
 	if got := lines(m)[0]; got != want {
 		t.Errorf("the title:\n%q\nwant\n%q", got, want)
 	}
-	// the tab's name in its color, as the bar draws it
+	// the tab's number and name in its color, the name as the bar draws it
 	mark, _ := style.In(stageColors["backlog"])
-	if !strings.Contains(strings.Split(m.View().Content, "\n")[0], mark("backlog")) {
+	if first := strings.Split(m.View().Content, "\n")[0]; !strings.Contains(first, mark("backlog")) ||
+		!strings.Contains(first, mark("➊")) {
 		t.Errorf("the tab's name is not in its color: %q", strings.Split(m.View().Content, "\n")[0])
 	}
 	// a number selects a tab, still maximized, and the title names it
-	if m = drive(m, press('2')); !m.maximized || !strings.HasSuffix(lines(m)[0], " · 🛫 underway  4 "+tabs.Menu) {
+	if m = drive(m, press('2')); !m.maximized || !strings.HasSuffix(lines(m)[0], " · ➋ underway  4 "+tabs.Menu) {
 		t.Errorf("after 2, the title: %q", lines(m)[0])
 	}
 	// the search stays at its right
@@ -155,7 +156,7 @@ func TestClicksFollowTheTop(t *testing.T) {
 		t.Fatalf("the title's : at %d: %q", glyph, lines(m)[0])
 	}
 	// so does a click on the tab's first cell in the title
-	if m := drive(m, testkit.Click(ansi.StringWidth(m.title())-ansi.StringWidth(m.bar().Label()), 0)); !m.tabMenu.Open {
+	if m := drive(m, testkit.Click(ansi.StringWidth(m.title())-ansi.StringWidth(m.bar().NumberedLabel()), 0)); !m.tabMenu.Open {
 		t.Errorf("a click on the title's tab:\n%s", raw(m))
 	}
 	if m = drive(m, testkit.Click(glyph, 0)); !m.tabMenu.Open {
@@ -176,11 +177,11 @@ func TestClicksFollowTheTop(t *testing.T) {
 // Where the title is clipped short of the tab's :, : still drops the menu, against the rows' right edge, and so does a
 // click on what the title shows of the tab.
 func TestANarrowTitleHidesTheKebabAndColonStillDropsTheMenu(t *testing.T) {
-	m := maximize(t, loaded(t, viewing(""), tea.WindowSizeMsg{Width: 60, Height: 24}))
+	m := maximize(t, loaded(t, viewing(""), tea.WindowSizeMsg{Width: 59, Height: 24}))
 	if m.tabMenuAt() != -1 || strings.Contains(lines(m)[0], tabs.Menu) {
 		t.Fatalf("the : at %d: %q", m.tabMenuAt(), lines(m)[0])
 	}
-	if start := ansi.StringWidth(m.title()) - ansi.StringWidth(m.bar().Label()); start >= m.titleWidth()-1 {
+	if start := ansi.StringWidth(m.title()) - ansi.StringWidth(m.bar().NumberedLabel()); start >= m.titleWidth()-1 {
 		t.Fatalf("the tab starts at %d, past the title's %d", start, m.titleWidth())
 	}
 	if m := drive(m, testkit.Click(m.titleWidth()-1, 0)); !m.tabMenu.Open {

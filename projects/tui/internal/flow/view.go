@@ -245,11 +245,12 @@ func (m Model) rowKeys() shell.Segment {
 }
 
 // title gives the title line: as internal/shell draws it, the app's menu's glyph before kit flow; then the workspace
-// menu, which names the workspace; and, maximized, the selected tab, as the bar draws it, its : last.
+// menu, which names the workspace; and, maximized, the selected tab, as the bar draws it but its number in place of its
+// glyph, its : last.
 func (m Model) title() string {
 	title := shell.Title(style.Label(appLabel), m.appMenu.Open) + shell.Between + m.books.Label()
 	if m.maximized {
-		title += shell.Between + m.bar().Label()
+		title += shell.Between + m.bar().NumberedLabel()
 	}
 	return title
 }
