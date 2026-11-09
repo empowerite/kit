@@ -60,13 +60,14 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     is, on the menus' cyan while the line has the keyboard; the name is struck through and italic once the table differs
     from every preset. ↓ from the tabs reaches the line, on the heading over the groups' first stop; ⇥ and ⇧⇥ move
     between the groups' names, the rows' ▾ and count after them, and the pill; → opens the level of the stop under the
-    keyboard and ← closes it, as ␣ turns it. On a name ⏎ drops the column's menu; on the rows' ⏎ opens or closes them. ⏎
-    or a click on the pill drops down the presets' menu, in the tab's color, as the pill is, titled Presets at its left
-    as a dialog is, from the control line, its right edge over the ▼: 📇 Fields…, the columns dialog, then Save, Save
-    As…, Rename…, Delete, and the presets. Save As… takes a name in the selector's place, the person's preset the line
-    was set to typed already, and ⏎ saves; Rename… takes a new name the same way. Save, Rename…, and Delete act on the
-    person's preset the line was set to, and are dim on Default and Compact. What was done is said in place of the keys,
-    for five seconds or until a key; why something was not done stays until a key.
+    keyboard and ← closes it, as ␣ turns it. ↓ from the line enters the rows on the outline's first line, the first
+    group's heading where the rows group, as ↑ from there comes back. On a name ⏎ drops the column's menu; on the rows'
+    ⏎ opens or closes them. ⏎ or a click on the pill drops down the presets' menu, in the tab's color, as the pill is,
+    titled Presets at its left as a dialog is, from the control line, its right edge over the ▼: 📇 Fields…, the columns
+    dialog, then Save, Save As…, Rename…, Delete, and the presets. Save As… takes a name in the selector's place, the
+    person's preset the line was set to typed already, and ⏎ saves; Rename… takes a new name the same way. Save,
+    Rename…, and Delete act on the person's preset the line was set to, and are dim on Default and Compact. What was
+    done is said in place of the keys, for five seconds or until a key; why something was not done stays until a key.
   - The columns dialog, in `columns.go`, titled by the stage's fields, opens from Fields… in the presets' menu, the
     header drawing no icon of its own: every field a line, those the rows group by first, then the columns as they
     stand, then the hidden, a dim rule between each two of those it has, each with whether it shows, its sort and its

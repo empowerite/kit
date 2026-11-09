@@ -108,6 +108,22 @@ func TestTheCursorMovesThroughTheRowsAndTheWindowFollows(t *testing.T) {
 	}
 }
 
+// Entering the rows from the line over them, the control line, puts the cursor on the outline's first line, the first
+// group's heading, wherever it stood before; a table without a row stays as it is.
+func TestEnteringTheRowsLandsOnTheOutlinesFirstLine(t *testing.T) {
+	h := viewing()
+	h.keys, h.tbl.Cursor = false, at(h, "#2")
+	Enter(h)
+	if first := h.Rows()[h.tbl.Cursor]; !h.keys || h.tbl.Cursor != First(h.Rows()) || !grid.Heads(first) {
+		t.Errorf("entered on %q, at %d", first.Key, h.tbl.Cursor)
+	}
+	empty := viewing()
+	empty.all, empty.keys = nil, false
+	if Enter(empty); empty.keys {
+		t.Error("entered a table with no row")
+	}
+}
+
 func TestAPageScrollsThroughATallRowBeforeMovingOn(t *testing.T) {
 	h := viewing()
 	h.all[3].Cells[3].Values = []string{strings.Repeat("a long title ", 60)}

@@ -97,11 +97,12 @@ func TestThePresetLineStandsOnTheControlLineAndNamesTheView(t *testing.T) {
 
 func TestDownAndUpPassThroughThePresetLine(t *testing.T) {
 	m := onDropdown(t, "")
-	if m = drive(m, down); !m.inRows || m.onPreset {
-		t.Fatalf("down from the line: in rows %v, on the line %v", m.inRows, m.onPreset)
+	if m = drive(m, down); !m.inRows || m.onPreset || !onFirstHeading(m) {
+		t.Fatalf("down from the line: in rows %v, on the line %v, on the first heading %v", m.inRows, m.onPreset,
+			onFirstHeading(m))
 	}
-	// up past source's heading, over the first row, the heading over the groups standing on the control line
-	if m = drive(m, up, up); !m.onPreset || m.inRows {
+	// up from the outline's first line, source's first heading, the heading over the groups standing on the control line
+	if m = drive(m, up); !m.onPreset || m.inRows {
 		t.Fatalf("up from the first row: in rows %v, on the line %v", m.inRows, m.onPreset)
 	}
 	if m = drive(m, up); m.onPreset || !m.bar().Focused {

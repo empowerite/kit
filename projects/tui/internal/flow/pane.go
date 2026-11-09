@@ -57,6 +57,14 @@ func (m *Model) down(n int) {
 	}
 }
 
+// enter gives the rows the keyboard from the control line, the cursor on the outline's first line, as table.Enter says.
+func (m *Model) enter() {
+	if len(m.stages) > 0 {
+		m.onPreset = false
+		table.Enter(m)
+	}
+}
+
 // page moves a page down or up, as table.Page says.
 func (m *Model) page(d int) {
 	if len(m.stages) > 0 {

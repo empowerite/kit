@@ -117,8 +117,9 @@ func TestTheRuleIsTheTabsColor(t *testing.T) {
 }
 
 func TestRestorePutsTheBarBack(t *testing.T) {
-	// the rows scrolled, the cursor on the last row, one row selected
-	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 120, Height: 10}, down, down, press(tea.KeySpace), down,
+	// the rows scrolled, the cursor on the last row, one row selected: down to the control line, the first group's
+	// heading, and the first row
+	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 120, Height: 10}, down, down, down, press(tea.KeySpace), down,
 		down)
 	before, cursor, offset := m.View().Content, m.stages[m.stage].Cursor, m.stages[m.stage].Offset
 	if offset == 0 || m.selected() != 1 {

@@ -269,8 +269,7 @@ func (m *Model) presetKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 		m.onPreset = false
 	case "down":
 		if len(m.rows(m.stage)) > 0 {
-			m.onPreset = false
-			m.down(1)
+			m.enter()
 		}
 	case "enter", "space":
 		m.presetsMenu = m.presetsMenu.Drop(m)

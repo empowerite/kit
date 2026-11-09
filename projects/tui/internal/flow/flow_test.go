@@ -51,11 +51,18 @@ func options() Options {
 		Clock: &testkit.Clock{}}
 }
 
-// intoRows gives the selected stage's rows the keyboard from the bar: down, past the control line's stops, where the
-// stage has a control line, as many times as it takes.
+// intoRows gives the selected stage's rows the keyboard from the bar, the cursor on the first row: down, past the
+// control line's stops, where the stage has a control line, which lands on the outline's first line, then past the
+// groups' headings over the first row, as many times as it takes.
 func intoRows(m Model) Model {
 	for range 3 {
 		if m.inRows {
+			break
+		}
+		m = drive(m, down)
+	}
+	for range 4 {
+		if rows, k := m.rows(m.stage), m.stages[m.stage].Cursor; !m.inRows || k >= len(rows) || !grid.Heads(rows[k]) {
 			break
 		}
 		m = drive(m, down)

@@ -30,11 +30,8 @@ func TestGoldenViews(t *testing.T) {
 			m = drive(m, right)
 		}
 		testkit.Golden(t, filepath.Join("testdata", name+".golden"), raw(m))
-		// down reaches the preset line first, where the stage has one, and the rows after it
-		if m = drive(m, down); !m.inRows {
-			m = drive(m, down)
-		}
-		m = drive(m, toggle)
+		// down reaches the control line first, where the stage has one, then the rows, their first opened
+		m = drive(intoRows(m), toggle)
 		testkit.Golden(t, filepath.Join("testdata", name+"-open.golden"), raw(m))
 	}
 	golden := func(file string, msgs ...tea.Msg) {

@@ -199,6 +199,19 @@ func Up(h Host, n int) {
 	Fit(h)
 }
 
+// Enter gives the rows the keyboard from the line over them, the control line, the cursor on the outline's first line:
+// the first group's heading where the rows group, else the first row, as up from it leads back to the line; a table
+// without a row stays as it is.
+func Enter(h Host) {
+	t, all := h.Table(), h.Rows()
+	if len(all) <= First(all) {
+		return
+	}
+	h.EnterRows()
+	t.Cursor = First(all)
+	Fit(h)
+}
+
 // Down moves the cursor n rows down; without the keyboard, the rows take it, when the table has any, past the
 // headings of groups over the row under the cursor, so it lands on a row.
 func Down(h Host, n int) {

@@ -80,8 +80,7 @@ func (m *Model) headingKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 		m.onPreset = false
 	case "down":
 		if len(m.rows(m.stage)) > 0 {
-			m.onPreset = false
-			m.down(1)
+			m.enter()
 		}
 	default:
 		return nil, false

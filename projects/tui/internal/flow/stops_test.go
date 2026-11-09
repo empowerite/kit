@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/table"
 )
@@ -89,11 +90,11 @@ func TestEnterAndSpaceActOnTheStop(t *testing.T) {
 
 func TestTheStopsLeadToTheRowsAndBackAndToTheBar(t *testing.T) {
 	m := onStops(t)
-	if m = drive(m, down); !m.inRows || m.onPreset {
-		t.Fatalf("down from a stop: in rows %v", m.inRows)
+	if m = drive(m, down); !m.inRows || m.onPreset || !onFirstHeading(m) {
+		t.Fatalf("down from a stop: in rows %v, on the first heading %v", m.inRows, onFirstHeading(m))
 	}
-	// up past the first row lands on the first stop again
-	if m = drive(m, up, up); !isOnStop(m) || m.stop != 0 {
+	// up from the outline's first line, the first group's heading, lands on the first stop again
+	if m = drive(m, up); !isOnStop(m) || m.stop != 0 {
 		t.Errorf("up from the first row: on a stop %v, %d", isOnStop(m), m.stop)
 	}
 	if m = drive(m, up); m.onPreset || !m.bar().Focused {
@@ -119,6 +120,13 @@ var (
 	tab     = tea.KeyPressMsg{Code: tea.KeyTab}
 	backTab = tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}
 )
+
+// onFirstHeading says whether the cursor is on the outline's first line, a group's heading, the rows having the
+// keyboard: where down from the control line lands.
+func onFirstHeading(m Model) bool {
+	rows, k := m.rows(m.stage), m.stages[m.stage].Cursor
+	return m.inRows && k == table.First(rows) && k < len(rows) && grid.Heads(rows[k])
+}
 
 // isOnStop says whether the keyboard is on a stop of the heading over the groups.
 func isOnStop(m Model) bool {
