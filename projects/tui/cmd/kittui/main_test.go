@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 
@@ -320,18 +319,8 @@ func TestWordsAfterADoubleDash(t *testing.T) {
 	_ = os.Stdin
 }
 
-// The words after tutorials are --tag pairs; the tags are the values, and anything else is ignored.
+// The words after tutorials are kit tutorials' own, which the screen reads.
 func TestTutorialsOpensItsScreen(t *testing.T) {
-	for words, want := range map[string][]string{
-		"":                        nil,
-		"--tag a --tag b":         {"a", "b"},
-		"stray --tag a --tag":     {"a"},
-		"--tag a --other --tag c": {"a", "c"},
-	} {
-		if got := tags(strings.Fields(words)); !slices.Equal(got, want) {
-			t.Errorf("%q: tags %q, want %q", words, got, want)
-		}
-	}
 	r := testkit.Runner(t, "tutorials")
 	for key, code := range map[string]int{"ctrl-q": 0, "ctrl-c": 130} {
 		k := tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl}

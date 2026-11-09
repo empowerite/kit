@@ -5,8 +5,9 @@
 #
 # The tutorials are a site of short lessons, each for some audiences. On a terminal, it opens kittui's tutorials
 # screen, a button for each tutorial, the audiences as filters. Without a terminal, or with --text, it prints each
-# tutorial: its glyph and title, its summary, its audiences, and its link. A tutorial named opens in the browser; its
-# title and link print first, so a machine with no browser has the link.
+# tutorial: its glyph and title, its summary, its audiences, and its link. A tutorial named opens kittui's screen on
+# its card, on a terminal; without one, or with --text, it opens in the browser, its title and link printed first, so a
+# machine with no browser has the link.
 #
 # A link depends on this kit's version: a release's own tutorials, the site's main branch for a checkout, and for a
 # pre-release the one built for it. Each link ends with ?kit=<version>, so a page can tell you when your kit is too old
@@ -18,7 +19,7 @@
 #   --jq              the same JSON, formatted by jq for a person
 #   --tag <audience>  keeps the tutorials for that audience; given again, it keeps the tutorials for either
 #   <audience>        an audience's id, as --json names it: newcomer, ui, maintainer
-#   <tutorial>        a tutorial's id, as --json names it; it opens in the browser, with a title and link first
+#   <tutorial>        a tutorial's id, as --json names it; kittui opens on its card, or it opens in the browser
 #
 # KIT_TUTORIALS_BASE replaces the site the links start from, as a site served on this machine; KIT_TUTORIALS_CATALOGUE
 # names another catalogue.
@@ -48,7 +49,23 @@ do
   shift
 done
 
-# A tutorial named opens in the browser, after its title and link print, for a machine that cannot open one.
+# screen [<tutorial>] puts kittui's tutorials screen in this process's place, on the tutorial's card when one is named,
+# the tags given selecting their tab: on a terminal, with no form chosen, with a kittui to run; else it returns.
+screen() {
+  local binary tag
+  local -a args=()
+  [[ -z "${form}" && -t 0 && -t 1 && -t 2 ]] && tui:binary --probe >/dev/null 2>&1 || return 0
+  binary=$(tui:binary) || exit 1
+  export KIT="${kit_root}/bin/kit"
+  for tag in "${tags[@]}"
+  do
+    args+=(--tag "${tag}")
+  done
+  exec "${binary}" tutorials "${args[@]}" "$@"
+}
+
+# A tutorial named opens kittui's screen on its card, or, without it, in the browser, after its title and link print,
+# for a machine that cannot open one.
 if [[ -n "${tutorial}" ]]
 then
   if [[ "${form}" == --json ]]
@@ -63,6 +80,7 @@ then
     error "'${tutorial}' is not a tutorial; run: kit help tutorials"
     exit 2
   fi
+  screen "${tutorial}"
   jq --raw-output '"\(.glyph) \(.title)\n\(.url)"' <<<"${entry}"
   new:browse "$(jq --raw-output .url <<<"${entry}")"
   exit 0
@@ -78,17 +96,7 @@ fi
 
 # On a terminal, with no form chosen, the screen is kittui's, which runs this kit. Without a kittui, the list prints,
 # as it does without a terminal.
-if [[ -z "${form}" && -t 0 && -t 1 && -t 2 ]] && tui:binary --probe >/dev/null 2>&1
-then
-  binary=$(tui:binary) || exit 1
-  export KIT="${kit_root}/bin/kit"
-  args=()
-  for tag in "${tags[@]}"
-  do
-    args+=(--tag "${tag}")
-  done
-  exec "${binary}" tutorials "${args[@]}"
-fi
+screen
 
 tutorials:text "${json}" "${tags[@]}"
 

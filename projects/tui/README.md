@@ -12,6 +12,10 @@ It has five screens:
 - **The welcome guide.** `kit welcome` at a terminal walks its steps here.
 - **The tutorials.** `kit tutorials` at a terminal shows a card for each tutorial here, tabbed by audience.
 
+`kit x y` opens screen x on y. `kit flow backlog` opens the picture with the backlog stage maximized, and
+`kit tutorials screens` opens the tutorials with the cursor on that card. `kit help commit` opens the palette on the
+commit verb's page, and `kit tui commit` opens its form.
+
 Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb>`, and the picture reads
 `kit flow <stage> --json`. `kittui` never parses kit's text.
 

@@ -479,7 +479,7 @@ fake-tui() {
     '[null,null,null,null,"main"]' ]
 }
 
-@test "on a terminal, kit flow hands off to kittui with its arguments; a stage, --text, --json, or no terminal stays in text" {
+@test "on a terminal, kit flow hands off to kittui with its arguments; --text, --json, or no terminal stays in text" {
   fake-tui
   stages 'desk'
   run pty "'${kit_root}/bin/kit' flow --no-fetch --mine"
@@ -490,7 +490,7 @@ fake-tui() {
   [[ "$output" == *"DESK 1"* && "$output" != *"kittui"* ]]
   run pty "'${kit_root}/bin/kit' flow --json --no-fetch"
   [[ "$output" == *'"stages":["desk"]'* && "$output" != *"kittui"* ]]
-  run pty "'${kit_root}/bin/kit' flow desk"
+  run pty "'${kit_root}/bin/kit' flow desk --json"
   [[ "$output" == *"main"* && "$output" != *"kittui"* && "$output" != *"DESK"* ]]
   run "${kit_root}/bin/kit" flow --no-fetch </dev/null
   [ "$status" -eq 0 ]
@@ -505,6 +505,19 @@ fake-tui() {
   run pty "env PATH='$(without-kittui)' '${kit_root}/bin/kit' flow --no-fetch"
   [[ "$output" == *"DESK 1"* ]]
   [[ "$output" != *"kittui"* && "$output" != *"mise install"* ]]
+}
+
+@test "on a terminal, kit flow <stage> hands off to kittui on that stage; a stage not drawn, --today, or a number stays in text" {
+  fake-tui
+  stages 'backlog, desk, changes'
+  run pty "'${kit_root}/bin/kit' flow desk"
+  [[ "$output" == *"kittui native-native flow desk"* && "$output" != *"DESK"* ]]
+  run pty "'${kit_root}/bin/kit' flow builds"
+  [[ "$output" != *"kittui"* ]]
+  run pty "'${kit_root}/bin/kit' flow backlog --today"
+  [[ "$output" != *"kittui"* ]]
+  run pty "'${kit_root}/bin/kit' flow changes 7"
+  [[ "$output" != *"kittui"* ]]
 }
 
 @test "kittui runs the kit that handed off, named in KIT" {

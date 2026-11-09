@@ -15,8 +15,8 @@
 # host does. The forge setting names the primary's.
 #
 # The flow setting in kit.yml names the stages drawn, in order. On a terminal, kit flow opens the picture in
-# kittui. Without one, or with --text, it prints the stages as text. Where it runs decides what worktrees and
-# changes draw:
+# kittui, and kit flow <stage> opens it with that stage maximized. Without one, or with --text, --json, or --jq, it
+# prints the stages as text. Where it runs decides what worktrees and changes draw:
 #
 #   - at a desk: every linked worktree, and every open pull request
 #   - in a worktree: that worktree, and the pull request its branch holds
@@ -314,9 +314,20 @@ then
   exit 0
 fi
 
-# On a terminal inside a repository, with no stage asked for and no form chosen, the picture is kittui's, which
-# runs this kit. Without a kittui, or above desks, the text picture prints, as it does without a terminal.
-if [[ -z "${syntax_literals[0]:-}${syntax_options[--text]+x}${syntax_options[--json]+x}" && -t 0 && -t 1 && -t 2 ]] \
+# On a terminal inside a repository, with no form chosen, the picture is kittui's, which runs this kit: the whole
+# picture, or, with a stage the picture draws named alone, with no number and no --today, the picture with that stage
+# maximized. Without a kittui, or above desks, the text picture prints, as it does without a terminal.
+pictured=false
+# shellcheck disable=SC2154  # syntax_operands is set by guard:arguments
+if [[ -z "${syntax_literals[0]:-}" ]]
+then
+  pictured=true
+elif (( ${#syntax_literals[@]} == 1 && ${#syntax_operands[@]} == 0 )) && [[ -z "${syntax_options[--today]+x}" ]] \
+  && settings:stages | grep --quiet --line-regexp --fixed-strings -- "${syntax_literals[0]}"
+then
+  pictured=true
+fi
+if [[ "${pictured}" == true && -z "${syntax_options[--text]+x}${syntax_options[--json]+x}" && -t 0 && -t 1 && -t 2 ]] \
   && git rev-parse --git-dir >/dev/null 2>&1 && tui:binary --probe >/dev/null 2>&1
 then
   binary=$(tui:binary) || exit 1

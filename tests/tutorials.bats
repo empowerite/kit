@@ -216,4 +216,9 @@ https://kit.empowerite.dev/tutorials/0.4/releasing/?kit=0.4.7" ]
   [[ "$output" == *"kittui native-native tutorials --tag newcomer --tag ui"* ]]
   run pty "'${kit_root}/bin/kit' tutorials --text"
   [[ "$output" == *"The first tutorial"* && "$output" != *"native-native"* ]]
+  # a tutorial named opens the screen on its card, the browser left alone
+  fake-openers
+  run pty "'${kit_root}/bin/kit' tutorials --tag ui screens"
+  [[ "$output" == *"kittui native-native tutorials --tag ui screens"* ]]
+  [ ! -e "${BATS_TEST_TMPDIR}/opened" ]
 }

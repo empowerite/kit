@@ -203,6 +203,43 @@ func TestATagFromTheCommandLineSelectsItsTab(t *testing.T) {
 	}
 }
 
+// kit tutorials' words are --tag pairs, whose values are the tags, and the tutorial named, the first other word that is
+// no option; anything else is ignored.
+func TestTheWordsAreTheTagsAndTheTutorialNamed(t *testing.T) {
+	for words, want := range map[string]struct {
+		tags  []string
+		focus string
+	}{
+		"":                           {nil, ""},
+		"--tag a --tag b":            {[]string{"a", "b"}, ""},
+		"stray --tag a --tag":        {[]string{"a"}, "stray"},
+		"--tag a --other --tag c t9": {[]string{"a", "c"}, "t9"},
+	} {
+		if tags, focus := parse(strings.Fields(words)); !slices.Equal(tags, want.tags) || focus != want.focus {
+			t.Errorf("%q: tags %q and %q, want %q and %q", words, tags, focus, want.tags, want.focus)
+		}
+	}
+}
+
+// A tutorial named on the command line, as kit tutorials <tutorial> names it, has the cursor on its card once the
+// catalogue is read, the cards with the keyboard: in the tab a tag selects when it holds the card, else in All.
+func TestATutorialNamedHasTheCursor(t *testing.T) {
+	for _, c := range []struct {
+		words       string
+		tab, cursor int
+	}{
+		{"kittui-tour", 0, 1}, {"--tag ui kittui-tour", 2, 0}, {"--tag newcomer kittui-tour", 1, 1},
+		{"--tag ui kit-tutorials", 0, 0}, {"nonesuch", 0, 0},
+	} {
+		m := Open(testkit.Runner(t, "tutorials"), strings.Fields(c.words))
+		m = drive(m, testkit.Start(m, at120)...)
+		if m.tab != c.tab || m.cursor != c.cursor || !m.focused() {
+			t.Errorf("%q: tab %d, cursor %d, cards focused %v; want tab %d, cursor %d", c.words, m.tab, m.cursor,
+				m.focused(), c.tab, c.cursor)
+		}
+	}
+}
+
 // The bar selects a tab by its number, by a click, or, while it has the keyboard, by the arrows; each tab counts its
 // tutorials, and down enters the cards only where there are some.
 func TestTheBarSelectsATabAndCountsItsTutorials(t *testing.T) {

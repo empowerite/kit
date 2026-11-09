@@ -72,7 +72,7 @@ func run(args []string, stderr io.Writer) int {
 }
 
 // open makes the screen kittui opens on: the picture for flow, with kit flow's words; the guide for welcome; the cards
-// for tutorials, with its --tag words; the palette on a verb's page or a group for help; and, as the help's screen, the
+// for tutorials, with its --tag words and the tutorial named; the palette on a verb's page or a group for help; and, as the help's screen, the
 // palette, or the form of the verb named.
 func open(r kit.Runner, verb string, words []string) (shell.Screen, tea.Model, error) {
 	switch verb {
@@ -82,7 +82,7 @@ func open(r kit.Runner, verb string, words []string) (shell.Screen, tea.Model, e
 	case "welcome":
 		return shell.Welcome, welcome.Open(r, kit.Workspace{}), nil
 	case "tutorials":
-		return shell.Tutorials, tutorials.Open(r, tags(words)), nil
+		return shell.Tutorials, tutorials.Open(r, words), nil
 	case "help":
 		name := ""
 		if len(words) > 0 {
@@ -138,18 +138,6 @@ func refuse(err error, stderr io.Writer) int {
 	}
 	fmt.Fprintf(stderr, "❌ kittui %s: %v\n", version, err)
 	return 1
-}
-
-// tags gives the values of the --tag words kit tutorials passes on; any other word is ignored.
-func tags(words []string) []string {
-	var out []string
-	for i := 0; i+1 < len(words); i++ {
-		if words[i] == "--tag" {
-			out = append(out, words[i+1])
-			i++
-		}
-	}
-	return out
 }
 
 // finishTutorials ends as the tutorials ended: 130 on ctrl-c, 0 on ctrl-q; nothing is printed either way.

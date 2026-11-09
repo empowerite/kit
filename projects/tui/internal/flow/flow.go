@@ -38,11 +38,13 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
-// Options is how the screen opens: the stages in the picture's order; origin, when known, for the URLs and for the
-// workspace menu until kit says the workspace; whether the fetch is skipped; the filters backlog, underway, and
-// changes take; and whether every stage's headers are hidden, as a test of the rows alone asks.
+// Options is how the screen opens: the stages in the picture's order; the stage it opens on, maximized, when one is
+// named; origin, when known, for the URLs and for the workspace menu until kit says the workspace; whether the fetch
+// is skipped; the filters backlog, underway, and changes take; and whether every stage's headers are hidden, as a test
+// of the rows alone asks.
 type Options struct {
 	Stages    []string
+	Focus     string
 	Origin    Origin
 	NoFetch   bool
 	Filters   []string
@@ -144,8 +146,9 @@ func (m *Model) rebuild() {
 	m.built = &built{width: m.paneWidth(), stages: map[int]shown{}, lines: map[int]drawnLines{}}
 }
 
-// Open reads the stages from kit and origin from git, and opens the screen on them. The words are kit flow's own:
-// --no-fetch, and the filters backlog, underway, and changes take. Kit's refusal of --stages is the error.
+// Open reads the stages from kit and origin from git, and opens the screen on them. The words are kit flow's own: a
+// stage of the picture, which it opens on, maximized, as kit flow <stage> asks; --no-fetch; and the filters backlog,
+// underway, and changes take. Kit's refusal of --stages is the error.
 func Open(r kit.Runner, words []string) (Model, error) {
 	stages, err := r.Stages()
 	if err != nil {
@@ -153,9 +156,12 @@ func Open(r kit.Runner, words []string) (Model, error) {
 	}
 	o := Options{Stages: stages, Origin: ReadOrigin(r.Dir), Presets: table.PresetsPath(), History: shell.RecentFile()}
 	for _, word := range words {
-		if word == "--no-fetch" {
+		switch {
+		case word == "--no-fetch":
 			o.NoFetch = true
-		} else {
+		case o.Focus == "" && slices.Contains(stages, word):
+			o.Focus = word
+		default:
 			o.Filters = append(o.Filters, word)
 		}
 	}
@@ -163,7 +169,8 @@ func Open(r kit.Runner, words []string) (Model, error) {
 }
 
 // New opens the screen on the options; every stage loads once Init starts it, its panel set as its Default preset
-// says. A stage kittui does not know shows a line saying so, and runs nothing.
+// says. A stage kittui does not know shows a line saying so, and runs nothing. The stage named to focus on is
+// selected and maximized, the bar's keys on its title as they are on any maximized tab's.
 func New(r kit.Runner, o Options) Model {
 	m := Model{runner: r, limit: deadline, origin: o.Origin, noFetch: o.NoFetch, filters: o.Filters, width: 80, height: 24,
 		browse: browser, appMenu: shell.Menu{Here: shell.Flow}, books: shell.BooksMenu{Fallback: o.Origin.Repo},
@@ -190,6 +197,10 @@ func New(r kit.Runner, o Options) Model {
 			s.View = c.Presets[slices.IndexFunc(c.Presets, func(p table.Preset) bool { return p.Name == Opening })].Panel(c.Fields, s.View)
 		}
 		m.stages = append(m.stages, s)
+	}
+	if k := slices.IndexFunc(m.stages, func(s stage) bool { return s.name == o.Focus }); o.Focus != "" && k >= 0 {
+		m.stage = k
+		m.maximize(true)
 	}
 	m.syncOwn()
 	return m

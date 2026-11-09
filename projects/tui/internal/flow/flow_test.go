@@ -1128,6 +1128,16 @@ func TestOpenReadsTheStagesAndTheWords(t *testing.T) {
 	if got := calls(t, record); strings.Join(got, "\n") != "flow --stages" {
 		t.Errorf("Open ran %q", got)
 	}
+	// a stage of the picture named opens on it, maximized, as kit flow <stage> does; the filters still reach the stages
+	if m, err = Open(runner(t), []string{"underway", "--mine"}); err != nil {
+		t.Fatal(err)
+	}
+	if m.stages[m.stage].name != "underway" || !m.maximized || strings.Join(m.filters, " ") != "--mine" {
+		t.Errorf("Open underway: on %q, maximized %v, filters %q", m.stages[m.stage].name, m.maximized, m.filters)
+	}
+	if !strings.Contains(lines(m)[0], " · ➋ underway") {
+		t.Errorf("Open underway, the title: %q", lines(m)[0])
+	}
 	t.Setenv("FAKE_FLOW_REFUSE", "stages")
 	_, err = Open(runner(t), nil)
 	refusal, ok := err.(*kit.ExitError)

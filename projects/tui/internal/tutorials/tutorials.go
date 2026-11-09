@@ -1,7 +1,8 @@
 // Package tutorials is kit tutorials on a terminal: the tutorials kit knows, as kit tutorials --json gives them, a
 // card each, tabbed by audience, and the keys bar last. The tabs are All, then each audience in the catalogue's order,
 // each counting its tutorials; a tag given on the command line, kit tutorials --tag <audience>, selects its audience's
-// tab once the catalogue is read. Under the bar, the pane draws the selected tab's tutorials as a grid of cards, as
+// tab once the catalogue is read, and a tutorial's id given, kit tutorials <tutorial>, puts the cursor on its card, in
+// that tab when it holds it, else in All. Under the bar, the pane draws the selected tab's tutorials as a grid of cards, as
 // many columns as fit and at least one: each card has the tutorial's glyph and title in bold, a blank line, its summary
 // on three lines with … where it runs over, and its audiences as pills in their colors on its bottom edge. The card
 // under the cursor is drawn in the menus' bright cyan, and the pane scrolls a row of cards at a time so that card is
@@ -24,6 +25,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -57,6 +59,7 @@ type Model struct {
 	cancel  context.CancelFunc         // ends ctx
 	browse  func(string) error         // opens a link in the browser; a recorder in tests
 	tags    []string                   // the tags from the command line, the first that names an audience selecting its tab
+	focus   string                     // the tutorial named on the command line, whose card the cursor starts on
 	tagged  bool                       // whether the tags have selected a tab, which they do once
 	reading source.Load[kit.Catalogue] // kit tutorials --json: loading until kit answers
 	refusal string                     // kit's line, when it did not print the catalogue
@@ -74,8 +77,28 @@ type Model struct {
 	interrupted bool
 }
 
-// Open opens the screen as kittui does, as New does: the tags are kit tutorials' --tag words.
-func Open(r kit.Runner, tags []string) Model { return New(r, tags) }
+// Open opens the screen as kittui does, as New does, from kit tutorials' words: the value of each --tag, and the
+// tutorial named, the first other word that is no option, which the cursor starts on. Anything else is ignored.
+func Open(r kit.Runner, words []string) Model {
+	tags, focus := parse(words)
+	m := New(r, tags)
+	m.focus = focus
+	return m
+}
+
+// parse gives the values of the --tag words, and the first other word that is no option.
+func parse(words []string) (tags []string, focus string) {
+	for i := 0; i < len(words); i++ {
+		switch {
+		case words[i] == "--tag" && i+1 < len(words):
+			tags = append(tags, words[i+1])
+			i++
+		case focus == "" && !strings.HasPrefix(words[i], "-"):
+			focus = words[i]
+		}
+	}
+	return tags, focus
+}
 
 // New opens the screen with the cards' keyboard, reading. Init asks kit for the catalogue.
 func New(r kit.Runner, tags []string) Model {
@@ -155,8 +178,8 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// take keeps the catalogue, or kit's refusal. The first catalogue selects the tab the tags name; the cursor stays in
-// the selected tab's cards.
+// take keeps the catalogue, or kit's refusal. The first catalogue selects the tab the tags name, and puts the cursor
+// on the card of the tutorial named; the cursor stays in the selected tab's cards.
 func (m *Model) take(msg source.Answer[kit.Catalogue]) {
 	if _, landed := m.reading.Take(msg); landed != source.Shown {
 		return
@@ -174,9 +197,24 @@ func (m *Model) take(msg source.Answer[kit.Catalogue]) {
 				break
 			}
 		}
+		m.toFocus()
 	}
 	m.tab = min(m.tab, len(m.catalog.Audiences))
 	m.cursor = min(m.cursor, max(0, len(m.cards())-1))
+}
+
+// toFocus puts the cursor on the card of the tutorial named on the command line, the cards given the keyboard: in the
+// selected tab when it holds the card, else in All. A name that is no tutorial's moves nothing.
+func (m *Model) toFocus() {
+	if m.focus == "" {
+		return
+	}
+	for _, tab := range []int{m.tab, 0} {
+		if k := slices.IndexFunc(m.cardsOf(tab), func(t kit.Tutorial) bool { return t.ID == m.focus }); k >= 0 {
+			m.tab, m.cursor, m.inPane = tab, k, true
+			return
+		}
+	}
 }
 
 // refusalOf gives the line to show when kit did not print the catalogue: kit's line, or that it failed.
