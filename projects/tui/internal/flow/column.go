@@ -80,8 +80,7 @@ type sortSpot struct {
 }
 
 // sortSpots gives the sort target of each column the header names that can sort, under its name on the rule, the mark
-// at the name's aligned edge: under its first cell, or under its last where the column aligns right, over numbers;
-// none while the header draws no names.
+// under the name's first cell, wherever the name aligns; none while the header draws no names.
 func (m Model) sortSpots() []sortSpot {
 	if len(m.stages) == 0 || m.noHeaders || m.stages[m.stage].src.Loading || m.stages[m.stage].refusal != "" {
 		return nil
@@ -99,11 +98,8 @@ func (m Model) sortSpots() []sortSpot {
 		if !sorts {
 			mark = Sortable
 		}
-		x, at := in+start, in+start
-		if grid.HeaderRight(rows, j) {
-			at = max(x, x+ansi.StringWidth(first)-ansi.StringWidth(mark))
-		}
-		out = append(out, sortSpot{column, mark, sorts, at, x, x + max(ansi.StringWidth(first), ansi.StringWidth(mark))})
+		x := in + start
+		out = append(out, sortSpot{column, mark, sorts, x, x, x + max(ansi.StringWidth(first), ansi.StringWidth(mark))})
 	}
 	return out
 }

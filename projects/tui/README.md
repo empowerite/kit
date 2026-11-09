@@ -86,13 +86,12 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     them, raised after ▲ and lowered after ▼, as each points, ▲² and ▼₂, wherever more than one thing orders the rows;
     the menu's triangles carry ⁿ and ₙ there. The line under the keyboard in a menu or a dialog stands on the menu's
     bright cyan, in black, and a dialog's keys are the keys bar's alone. A column's sort mark stands on the rule under
-    its name, at the name's aligned edge: under its first cell, or under its last where the column aligns right, over
-    numbers. A dim · there says the column can sort and does not; a column that cannot sort has the rule alone. A plain
-    click on the rule under the name turns the sort a step: ascending, after the other keys; descending, in its place;
-    then off. A terminal such as iTerm keeps ⌥, ⌃, shift, and the right button with a click for its own selection and
-    menu, so a plain click and the menu are the ways that work everywhere. Where the terminal sends them, ⌥ with a
-    click turns a sort, ⌃ groups or ungroups, and the right button drops the menu too. The presets' menu hangs around
-    the preset line's selector the same way.
+    the first cell of its name, wherever the name aligns. A dim · there says the column can sort and does not; a
+    column that cannot sort has the rule alone. A plain click on the rule under the name turns the sort a step:
+    ascending, after the other keys; descending, in its place; then off. A terminal such as iTerm keeps ⌥, ⌃, shift,
+    and the right button with a click for its own selection and menu, so a plain click and the menu are the ways that
+    work everywhere. Where the terminal sends them, ⌥ with a click turns a sort, ⌃ groups or ungroups, and the right
+    button drops the menu too. The presets' menu hangs around the preset line's selector the same way.
   - A field whose rendering is auto drops a glyph every row shown shares, and, while the columns are short of width,
     steps down to its next, shorter rendering, from the rightmost column leftward. A glyph that links, to a page or to
     another stage's row, is a button, so it stays, and a field drawn without its glyph links from nothing. The title

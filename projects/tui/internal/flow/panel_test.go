@@ -266,8 +266,8 @@ func TestSortByInAColumnsMenuSortsTheRows(t *testing.T) {
 	unfold(&m) // the source, one tracker's on every row, a column
 	at := func(name string) int { return strings.Index(lines(m)[m.headerTop()], name) }
 	order := func() string { return strings.Join(keys(m), " ") }
-	// under gives the mark the rule draws under a column's name, at its first cell or its last, past the rule and the
-	// dim mark of a column that does not sort
+	// under gives the mark the rule draws under a column's name, from its first cell, past the rule and the dim mark of
+	// a column that does not sort
 	under := func(name string) string {
 		x := ansi.StringWidth(lines(m)[m.headerTop()][:at(name)])
 		return strings.Trim(ansi.Strip(ansi.Cut(lines(m)[ruleY(m)], x, x+ansi.StringWidth(name)+1)), "─"+Sortable)
@@ -323,9 +323,8 @@ func TestGroupingNestsAndIndentsTheRows(t *testing.T) {
 		t.Errorf("a row grouped two deep is not indented four cells, or keeps its source:\n%s", view(m))
 	}
 	// a click on a name in the indented header drops its menu, whose ▲ Ascending sorts by it, ▲ on the rule under it
-	// (age aligns right, over its numbers, so its mark stands under the name's last cell)
 	if m = drive(m, esc, testkit.Click(strings.Index(lines(m)[m.headerTop()], "age"), m.headerTop()), down, press(tea.KeyEnter)); m.panel(m.stage).Mark("age") != "▲" ||
-		ansi.Cut(lines(m)[ruleY(m)], strings.Index(lines(m)[m.headerTop()], "age")+2, strings.Index(lines(m)[m.headerTop()], "age")+3) != "▲" {
+		ansi.Cut(lines(m)[ruleY(m)], strings.Index(lines(m)[m.headerTop()], "age"), strings.Index(lines(m)[m.headerTop()], "age")+1) != "▲" {
 		t.Errorf("a click on age in the indented header:\n%s", view(m))
 	}
 	// g on a column grouping alone stops it

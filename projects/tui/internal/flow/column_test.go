@@ -128,8 +128,8 @@ func TestARightClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 // and on one sorting turns it in its place; None takes it out. The groups order the rows before any key, the outermost
 // first, those that sort, so the rule numbers the keys after them; a group that does not sort, as a group does not by
 // default, takes no number. Each mark stands on the rule under its column's name, so the names stand where they stood.
-// A mark stands at its name's aligned edge, under the last cell of a name over numbers, as age and id are. A plain
-// click on a column's ▲ turns it to ▼, and one on ▼ stops the sort; the menu stays shut.
+// A mark stands under its name's first cell, as a name over numbers does too. A plain click on a column's ▲ turns it
+// to ▼, and one on ▼ stops the sort; the menu stays shut.
 func TestTheSortMarkTurnsAndTheMenuSorts(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 140, Height: 40})
 	header := func() string { return lines(m)[m.headerTop()] }
@@ -153,7 +153,7 @@ func TestTheSortMarkTurnsAndTheMenuSorts(t *testing.T) {
 	}
 	m.colMenu = table.ColumnMenu{}
 	if !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}, {Column: "id"}}) || !strings.Contains(rule(), "▲¹") ||
-		onRule("▲¹") != at("age")+1 || onRule("▲²") != at("id") || header() != unsorted {
+		onRule("▲¹") != at("age") || onRule("▲²") != at("id") || header() != unsorted {
 		t.Fatalf("then by age, then by id: %+v\n%s\n%s", sorts(), header(), rule())
 	}
 	// the ▲ of age turns, and age keeps its place among the keys; the menu stays shut
@@ -198,7 +198,7 @@ func TestTheSortMarkTurnsAndTheMenuSorts(t *testing.T) {
 		t.Errorf("age under a group that does not sort:\n%s", rule())
 	}
 	m.setPanel(m.panel(m.stage).SortedAs("source", grid.Descending))
-	if !strings.Contains(rule(), "▼₂") || onRule("▼₂") != at("age")+1 {
+	if !strings.Contains(rule(), "▼₂") || onRule("▼₂") != at("age") {
 		t.Errorf("age under a group that sorts:\n%s\n%s", header(), rule())
 	}
 	if m.colMenu.Column = "id"; m.colMenu.Items(&m)[1].Name != "▲ⁿ Ascending" {

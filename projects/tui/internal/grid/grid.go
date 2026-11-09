@@ -407,12 +407,6 @@ func HeaderName(rows []Row, names []string, width, j int) (int, string) {
 	return -1, ""
 }
 
-// HeaderRight says whether the header aligns the name of the column j right, over a number, as HeaderName places it.
-func HeaderRight(rows []Row, j int) bool {
-	shape := shapeOf(rows)
-	return j >= 0 && j < len(shape) && shape[j].Right
-}
-
 // Hides says whether a row hides something while it is closed: lines it opens to, a cell with more than one value, or
 // with a summary in their place, or a text wider than the cells its column leaves it, the title's or one cut to give
 // the title room.
