@@ -3,6 +3,7 @@ package grid
 import (
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -232,10 +233,13 @@ func TestStepMovesAFieldAcrossTheSections(t *testing.T) {
 
 func TestTheFilterKeepsWhatTheSearchAndShowLetThroughAndDropsHiddenColumns(t *testing.T) {
 	columns := []string{"number", "who", "age", "title"}
+	// the keys of the rows let through, past the heading over them, which stands though they group by nothing
 	keys := func(rows []Row) []string {
 		var out []string
 		for _, r := range rows {
-			out = append(out, r.Key)
+			if !OverGroups(r) {
+				out = append(out, r.Key)
+			}
 		}
 		return out
 	}
@@ -605,8 +609,8 @@ func TestThePanelGroupsTheRows(t *testing.T) {
 	if got := desc.group(rows, columns); ansi.Strip(got[1].Cells[0].first()) != "▾ ready 2" {
 		t.Errorf("the groups descending: %q", ansi.Strip(got[1].Cells[0].first()))
 	}
-	if got := (Panel{}).group(rows, columns); len(got) != len(rows) {
-		t.Error("grouping by nothing changed the rows")
+	if got := (Panel{}).group(rows, columns); len(got) != len(rows)+1 || !OverGroups(got[0]) {
+		t.Error("grouping by nothing changed the rows, or stood them under no heading")
 	}
 	q := Panel{Columns: columns, Groupable: p.Groupable}
 	q, _ = q.Step("state", -1)
@@ -715,9 +719,28 @@ func TestAViewAsItLoadsGroupsByEachColumnTheSameOnEveryRow(t *testing.T) {
 	if got := (Panel{Groupable: groupable}).AutoGrouped(rows, columns).Groups(); len(got) != 0 {
 		t.Errorf("not folding: %q", got)
 	}
-	// grouping by nothing, the rows stand as they came
-	if got := p.group(rows, columns); len(got) != len(rows) || Levels(got) != 0 {
-		t.Errorf("grouped by nothing: %d rows, %d levels", len(got), Levels(got))
+	// grouping by nothing, the rows stand as they came, under the heading over the groups: the rows' fold and how many
+	// rows of several cells there are, which alone fold, as a row of one cell is no row the heading counts
+	n := 0
+	for _, r := range rows {
+		if len(r.Cells) > 1 {
+			n++
+		}
+	}
+	got := p.group(rows, columns)
+	if len(got) != len(rows)+1 || Levels(got) != 0 || !OverGroups(got[0]) || got[1].Key != rows[0].Key ||
+		ansi.Strip(got[0].Cells[0].Values[0]) != Unfolded+" "+strconv.Itoa(n) {
+		t.Errorf("grouped by nothing: %d rows, %d levels, %q", len(got), Levels(got), got[0].Cells[0].Values)
+	}
+	// the rows' level closed, its fold is ▸ and the rows fold away under the heading; rows of one cell have none
+	closed := p
+	closed.Outline = Outline{LevelKey(0): false}
+	if got := closed.group(rows, columns); ansi.Strip(got[0].Cells[0].Values[0]) != Folded+" "+strconv.Itoa(n) ||
+		len(closed.FoldAway(got)) != 1+len(rows)-n || len(closed.FoldAway(got)[0].Folded) != n {
+		t.Errorf("the rows closed: %q, %d", got[0].Cells[0].Values, len(closed.FoldAway(got)))
+	}
+	if got := p.group([]Row{{Key: "a", Cells: []Cell{{Values: []string{"a"}}}}}, columns); len(got) != 1 || OverGroups(got[0]) {
+		t.Errorf("rows of one cell under a heading: %d rows", len(got))
 	}
 }
 

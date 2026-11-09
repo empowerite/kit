@@ -465,7 +465,8 @@ func (p Panel) Heading(r Row) string {
 // heads, dim. A row groups by a cell's sort key, or under none when the cell has none, which follows every value; a cell of several values groups
 // the row under each, the same row under every heading it belongs to, nested under each pair of its values, each
 // heading over it counting it once. A row of one cell, as a heading, has no value: those follow the groups. Where the
-// panel groups by nothing, the rows stand as they came.
+// panel groups by nothing, the rows stand as they came, under the heading over the groups all the same: the rows'
+// fold alone and their count, so they fold as a level does.
 func (p Panel) group(rows []Row, columns []string) []Row {
 	var at []int
 	var desc []bool
@@ -483,7 +484,15 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 		}
 	}
 	if len(at) == 0 {
-		return rows
+		if len(grouped) == 0 {
+			return rows
+		}
+		fold := Unfolded
+		if !p.Outline.Shows(0) {
+			fold = Folded
+		}
+		heading := fold + " " + style.Off(strconv.Itoa(len(grouped)))
+		return append([]Row{{Key: byFields, Aside: true, Cells: []Cell{{Values: []string{heading}, Wrap: true}}}}, rows...)
 	}
 	// an entry is a row under one value of each column, as many entries as the pairs of its values
 	type entry struct {
@@ -725,6 +734,8 @@ func (p Panel) fold(key string) string {
 // Folded, which lay the columns out still.
 func (p Panel) FoldAway(rows []Row) []Row {
 	groups := Levels(rows)
+	// the rows stand at a level of their own under the heading over the groups, though nothing groups
+	over := len(rows) > 0 && OverGroups(rows[0])
 	var out []Row
 	closed := 0 // the level of the closed heading the rows stand under, or none
 	for _, r := range rows {
@@ -734,7 +745,7 @@ func (p Panel) FoldAway(rows []Row) []Row {
 		switch {
 		case level >= 2:
 			depth = level - 2
-		case level == 0 && len(r.Cells) > 1 && groups > 0:
+		case level == 0 && len(r.Cells) > 1 && (groups > 0 || over):
 			depth = groups
 		}
 		hidden := depth >= 0 && !p.Outline.Shows(depth)

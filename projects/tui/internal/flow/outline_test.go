@@ -209,10 +209,12 @@ func TestTheOutlinesKeysWithNothingToActOn(t *testing.T) {
 		t.Errorf("keys over no rows: %d rows, %d selected", len(m.rows(0)), m.selected())
 	}
 	m = loaded(t, options(), slices.Repeat([]tea.Msg{right}, 6)...)
-	if m.stages[m.stage].name != "incoming" || !m.rows(m.stage)[0].Aside || grid.Heads(m.rows(m.stage)[0]) {
+	// under the heading over the rows, which group by nothing, the first row is a remote's aside
+	first := table.First(m.rows(m.stage))
+	if m.stages[m.stage].name != "incoming" || !m.rows(m.stage)[first].Aside || grid.Heads(m.rows(m.stage)[first]) {
 		t.Fatalf("incoming does not start with a remote's aside")
 	}
-	m.inRows = true
+	m.inRows, m.stages[m.stage].Cursor = true, first
 	if m = drive(m, press(tea.KeySpace)); m.selected() != 0 {
 		t.Errorf("space on a remote's aside selected %d", m.selected())
 	}

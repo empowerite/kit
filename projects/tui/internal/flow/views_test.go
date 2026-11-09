@@ -88,9 +88,9 @@ func TestThePresetLineStandsOnTheControlLineAndNamesTheView(t *testing.T) {
 	if strings.Contains(keys, "save") || strings.Contains(keys, "rename") {
 		t.Errorf("the line names a save or a rename before Save As…: %q", keys)
 	}
-	// a stage with no columns has no preset line, and down on the bar says it reaches the rows
+	// a stage with no columns has no preset line, and down on the bar says it reaches the heading over its rows
 	m = drive(m, esc, press('7'))
-	if m.stages[m.stage].name != "incoming" || m.presets(m.stage) || !strings.Contains(keysOf(m), "↓ rows") {
+	if m.stages[m.stage].name != "incoming" || m.presets(m.stage) || !strings.Contains(keysOf(m), "↓ groups") {
 		t.Errorf("%s has a preset line: %q", m.stages[m.stage].name, keysOf(m))
 	}
 }

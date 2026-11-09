@@ -2,7 +2,7 @@
   ╮➄╶────────────────╮➅╶───────────────╮➆╶─────────────────╴➑╶─────────────────╮
   │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  6    │ 📦 releases  3 : │
   ╰──────────────────╰─────────────────╰────────────────────╯                  ╵
-                                                                    Default ▼
+  ▾ 3                                                               Default ▼
 
     version     kind            age  latest
     ·───────────·───────────────·──────────────────────────────────────────────
@@ -21,4 +21,4 @@
 
 
 
- = menu - workspace / search ? legend │ ←→ tab ↓ preset 1-8 jump : tab menu
+ = menu - workspace / search ? legend │ ←→ tab ↓ groups 1-8 jump : tab menu

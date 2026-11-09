@@ -2,20 +2,20 @@
   ────────╮➃╶──────────────────╴➎╶────────────────╮➅╶───────────────╮➆╶─────────
  ◃sk  1   │  🌿 worktrees  4    │ 🔀 changes  3 : │  🏭 builds  4   │  🛬 inco ▹
   ────────╰─────────────────────╯                 ╰─────────────────╰───────────
-                                                                    Default ▼
-                                         ╭─ changes legend ─────────── ↖ ↗ ↙ ↘ ╮
-    change  title         author  state  │ =  the kit menu                     │
-    ·───────·─────────────·───────·──────│ ·  a separator                      │
-  ▸ 🔀 #2   The first r…  jeffr…  🏁     │ -  the workspace menu               │
-  ▸ 🔀 #3   A spike on …  ada     🔨     │ 🔎 the search: / or a click         │
-  ▸ 🔀 #4   Lint every …  bob     🔥     │ ➃  a tab's number, which selects it │
-                                         │ ➎  the selected tab's number        │
+  ▾ 3                                    ╭─ changes legend ─────────── ↖ ↗ ↙ ↘ ╮
+                                         │ =  the kit menu                     │
+    change  title         author  state  │ ·  a separator                      │
+    ·───────·─────────────·───────·──────│ -  the workspace menu               │
+  ▸ 🔀 #2   The first r…  jeffr…  🏁     │ 🔎 the search: / or a click         │
+  ▸ 🔀 #3   A spike on …  ada     🔨     │ ➃  a tab's number, which selects it │
+  ▸ 🔀 #4   Lint every …  bob     🔥     │ ➎  the selected tab's number        │
                                          │ ◃  more tabs: a click scrolls       │
                                          │ 🌿 the worktrees stage              │
                                          │ 🔀 the changes stage                │
                                          │ :  the tab's menu                   │
                                          │ 🏭 the builds stage                 │
                                          │ 🛬 the incoming stage               │
+                                         │ ▾  open: a click closes it          │
                                          │ ▼  the presets' menu                │
                                          │ ·  sortable: a click sorts          │
                                          │ ▸  closed: a click opens it         │
@@ -29,4 +29,4 @@
                                          │ 🔥 failing:gate 🔗                  │
                                          │ ❌ failed                           │
                                          ╰─────────────────────────────────────╯
- = menu - workspace / search ? legend │ ←→ tab ↓ preset 1-8 jump : tab menu
+ = menu - workspace / search ? legend │ ←→ tab ↓ groups 1-8 jump : tab menu

@@ -78,14 +78,18 @@ type Stop struct {
 }
 
 // Stops gives the stops of the heading over the groups, left to right: each group's name, then the rows' where their
-// fold is drawn; none where the rows group by nothing. A name whose fold is a dim separator, as its level folds as
-// the first does, folds the first level.
+// fold is drawn; the rows' alone, their fold and count, where the rows group by nothing; none where there is no
+// heading, as over no rows. A name whose fold is a dim separator, as its level folds as the first does, folds the
+// first level.
 func Stops(h Host) []Stop {
-	names, groups := BarNames(h), h.Panel().Groups()
-	if len(names) == 0 {
+	text := ansi.Strip(BarText(h.Rows()))
+	if text == "" {
 		return nil
 	}
-	text := ansi.Strip(BarText(h.Rows()))
+	names, groups := BarNames(h), h.Panel().Groups()
+	if len(names) == 0 {
+		return []Stop{{"", len(groups), BarLeft, BarLeft + ansi.StringWidth(text)}}
+	}
 	at := func(x int) string { return ansi.Cut(text, x-BarLeft, x-BarLeft+1) }
 	var out []Stop
 	for _, n := range names {
@@ -127,7 +131,7 @@ func LevelAt(h Host, x int) (int, bool) {
 			return slices.Index(groups, n.Column), true
 		}
 	}
-	if len(names) > 0 && x == names[len(names)-1].Until+1 {
+	if len(names) > 0 && x == names[len(names)-1].Until+1 || len(names) == 0 && x == BarLeft {
 		return len(groups), true
 	}
 	return 0, false

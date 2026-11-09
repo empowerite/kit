@@ -6,6 +6,7 @@ package flow
 import (
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -420,7 +421,7 @@ func TestAViewAsItLoadsGroupsByAColumnTheSameOnEveryRow(t *testing.T) {
 	}
 	// ungrouped, it stays so through a load; the preset line names the view, as the panel is as it says
 	m.setPanel(m.panel(m.stage).Grouped("source", true))
-	if m = drive(m, m.again("underway", false)()); len(m.panel(m.stage).Groups()) > 0 || heading(m) != "" ||
+	if m = drive(m, m.again("underway", false)()); len(m.panel(m.stage).Groups()) > 0 || !rowsAlone(heading(m)) ||
 		!strings.Contains(lines(m)[m.headerTop()], "source") {
 		t.Errorf("ungrouped, then loaded again: %q\n%s", m.panel(m.stage).Groups(), view(m))
 	}
@@ -428,7 +429,7 @@ func TestAViewAsItLoadsGroupsByAColumnTheSameOnEveryRow(t *testing.T) {
 	if m.apply(m.chosen(m.stage)); !slices.Equal(m.panel(m.stage).Groups(), []string{"source"}) {
 		t.Errorf("the view set again: %q", m.panel(m.stage).Groups())
 	}
-	if unfold(&m); heading(m) != "" || m.panel(m.stage).Fold || len(m.panel(m.stage).Groups()) > 0 ||
+	if unfold(&m); !rowsAlone(heading(m)) || m.panel(m.stage).Fold || len(m.panel(m.stage).Groups()) > 0 ||
 		!strings.Contains(lines(m)[m.headerTop()], "source") {
 		t.Errorf("Auto-group off: heading %q, groups %q\n%s", heading(m), m.panel(m.stage).Groups(), view(m))
 	}
@@ -638,4 +639,12 @@ func TestAClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 	if click("source", tea.ModAlt); len(sorts()) != 2 || m.colMenu.Open {
 		t.Errorf("an option-click on source: %+v, menu %v", sorts(), m.colMenu.Open)
 	}
+}
+
+// rowsAlone says whether the heading over the groups is the rows' alone, as over rows that group by nothing: their
+// fold and their count.
+func rowsAlone(heading string) bool {
+	fold, count, ok := strings.Cut(heading, " ")
+	_, err := strconv.Atoi(count)
+	return ok && (fold == grid.Unfolded || fold == grid.Folded) && err == nil
 }

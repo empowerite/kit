@@ -2,6 +2,8 @@
   ╮➄╶────────────────╮➅╶───────────────╴➐╶─────────────────╮➇╶─────────────────╮
   │  🔀 changes  3   │  🏭 builds  4    │ 🛬 incoming  6 : │  📦 releases  3   │
   ╰──────────────────╰──────────────────╯                  ╰───────────────────╵
+  ▾ 6                                                                          
+
     📡 origin · github · github.com
     a1b2c3d  #1 docs: the docs say what the code does
   ▸ e4f5a6b  #1 yaml: yq reads every YAML file, cached under XDG_CACHE_HOME, a…
@@ -19,6 +21,4 @@
 
 
 
-
-
- = menu - workspace / search ? legend │ ←→ tab ↓ rows 1-8 jump : tab menu
+ = menu - workspace / search ? legend │ ←→ tab ↓ groups 1-8 jump : tab menu

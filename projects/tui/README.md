@@ -41,19 +41,19 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   placement, its sort, its filter, and the rendering it pins. The person's presets are kept in
   `~/.config/kit/presets.json`, version 2. Where there is none, kittui reads the `views.json` beside it once, maps
   each column's label to its field's id, notes a label the catalog no longer knows, and leaves the old file as it is.
-  - The tab's view starts with the control line: the heading over the groups at its left, where the rows group, and the
-    preset line at its right end. After how many rows are selected and a chip per filter, it names the preset the table
-    is set as and ▼, a pill on the tab's color, as a label is, on the menus' cyan while the line has the keyboard; the
-    name is struck through and italic once the table differs from every preset. ↓ from the tabs reaches the line, on the
-    heading over the groups' first name where the rows group, else on the pill; ⇥ and ⇧⇥ move between the groups' names,
-    the rows' ▾ and count after them, and the pill; → opens the level of the stop under the keyboard and ← closes it, as
-    ␣ turns it. On a name ⏎ drops the column's menu; on the rows' ⏎ opens or closes them. ⏎ or a click on the pill drops
-    down the presets' menu, in the tab's color, as the pill is, titled Presets at its left as a dialog is, from the
-    control line, its right edge over the ▼: 📇 Fields…, the columns dialog, then Save, Save As…, Rename…, Delete, and
-    the presets. Save As… takes a name in the selector's place, the person's preset the line was set to typed already,
-    and ⏎ saves; Rename… takes a new name the same way. Save, Rename…, and Delete act on the person's preset the line
-    was set to, and are dim on Default and Compact. What was done is said in place of the keys, for five seconds or
-    until a key; why something was not done stays until a key.
+  - The tab's view starts with the control line: the heading over the groups at its left, which, where the rows group by
+    nothing, is the rows' ▾ and their count alone, and the preset line at its right end. After how many rows are
+    selected and a chip per filter, it names the preset the table is set as and ▼, a pill on the tab's color, as a label
+    is, on the menus' cyan while the line has the keyboard; the name is struck through and italic once the table differs
+    from every preset. ↓ from the tabs reaches the line, on the heading over the groups' first stop; ⇥ and ⇧⇥ move
+    between the groups' names, the rows' ▾ and count after them, and the pill; → opens the level of the stop under the
+    keyboard and ← closes it, as ␣ turns it. On a name ⏎ drops the column's menu; on the rows' ⏎ opens or closes them. ⏎
+    or a click on the pill drops down the presets' menu, in the tab's color, as the pill is, titled Presets at its left
+    as a dialog is, from the control line, its right edge over the ▼: 📇 Fields…, the columns dialog, then Save, Save
+    As…, Rename…, Delete, and the presets. Save As… takes a name in the selector's place, the person's preset the line
+    was set to typed already, and ⏎ saves; Rename… takes a new name the same way. Save, Rename…, and Delete act on the
+    person's preset the line was set to, and are dim on Default and Compact. What was done is said in place of the keys,
+    for five seconds or until a key; why something was not done stays until a key.
   - The columns dialog, in `columns.go`, titled by the stage's fields, opens from Fields… in the presets' menu, the
     header drawing no icon of its own: every field a line, those the rows group by first, then the columns as they
     stand, then the hidden, a dim rule between each two of those it has, each with whether it shows, its sort and its

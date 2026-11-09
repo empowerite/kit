@@ -234,8 +234,23 @@ func TestTheHeadingOverTheGroupsHasAStopPerNameThenTheRows(t *testing.T) {
 			t.Errorf("%q's fold at %d: level %d", s.Column, s.From, level)
 		}
 	}
-	if Stops(listing()) != nil {
-		t.Error("rows that group by nothing have stops")
+	// rows that group by nothing stand under the rows' fold and count alone, one stop, its fold the rows' level
+	bare := listing()
+	bare.panel.Columns, bare.panel.Labels["n"], bare.all = h.panel.Columns, "n", h.all
+	text := ansi.Strip(BarText(bare.Rows()))
+	if got := Stops(bare); !slices.Equal(got, []Stop{{"", 0, BarLeft, BarLeft + ansi.StringWidth(text)}}) {
+		t.Errorf("rows that group by nothing: %+v under %q", got, text)
+	}
+	if level, ok := LevelAt(bare, BarLeft); !ok || level != 0 {
+		t.Errorf("the rows' fold over rows that group by nothing: %d, %v", level, ok)
+	}
+	if _, ok := LevelAt(bare, BarLeft+2); ok {
+		t.Error("the count is a fold")
+	}
+	// no rows, no heading, and no stop
+	bare.all = nil
+	if Stops(bare) != nil {
+		t.Error("no rows have stops")
 	}
 }
 

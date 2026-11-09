@@ -2,7 +2,7 @@
   ➀╶────────────────╮➁╶─────────────────╮➂╶─────────────╮➃╶──────────────────╮➄╶────────────────╴➏╶───────────────╮➆╶───
     🎫 backlog  3   │  🛫 underway  4   │  💻 desk  1   │  🌿 worktrees  4   │  🔀 changes  3    │ 🏭 builds  4 : │    ▹
   ──────────────────╰───────────────────╰───────────────╰────────────────────╰───────────────────╯                ╰─────
-                                                                                                            Default ▼
+  ▾ 4                                                                                                       Default ▼
 
         workflow  run   event     branch         commit   title                                             age    took
     ────·─────────·─────·─────────·─────────────────────────────────────────────────────────────────────────·──────·───
@@ -21,4 +21,4 @@
 
 
 
- = menu - workspace / search ? legend │ ←→ tab ↓ preset 1-8 jump : tab menu
+ = menu - workspace / search ? legend │ ←→ tab ↓ groups 1-8 jump : tab menu

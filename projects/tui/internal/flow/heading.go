@@ -97,8 +97,11 @@ func (m *Model) headingKeys(stop table.Stop) shell.Segment {
 	if len(m.rows(m.stage)) > 0 {
 		s.Bindings = append(s.Bindings, shell.Bind("↓", "rows", "down"))
 	}
-	s.Bindings = append(s.Bindings, shell.Bind("⇥·⇧⇥", "move", "tab", "shift+tab"),
-		shell.Bind("←→", "fold", "left", "right"))
+	// tab and shift-tab move where there is another stop, or the preset picker, to move to
+	if len(m.stops()) > 1 || m.presets(m.stage) {
+		s.Bindings = append(s.Bindings, shell.Bind("⇥·⇧⇥", "move", "tab", "shift+tab"))
+	}
+	s.Bindings = append(s.Bindings, shell.Bind("←→", "fold", "left", "right"))
 	if stop.Column != "" {
 		return s.With(shell.Bind("⏎", "menu", "enter"))
 	}

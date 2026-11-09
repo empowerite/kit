@@ -111,7 +111,7 @@ func TestAStagesLinesAreDrawnOnceForWhatItShows(t *testing.T) {
 	for m.stages[m.stage].name != "worktrees" {
 		m = drive(m, right)
 	}
-	m = drive(m, down, right)
+	m = drive(intoRows(m), right)
 	first := m.allLines(m.stage)
 	_ = m.View()
 	m = drive(m, press(tea.KeyPgDown), press(tea.KeyPgDown), press(tea.KeyPgUp))

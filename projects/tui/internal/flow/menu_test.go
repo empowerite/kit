@@ -382,9 +382,9 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 	// the panel not folding, the rows stand under no heading
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 140, Height: 24})
 	unfold(&m)
-	m = drive(m, down, press(tea.KeySpace))
+	m = drive(intoRows(m), press(tea.KeySpace))
 	gutter := func(k int) string { return string([]rune(lines(m)[m.headerTop()+2+k])[0]) }
-	if m.selected() != 1 || gutter(0) != grid.Chosen || !strings.Contains(lines(m)[ruleY(m)], " 1 selected ") {
+	if m.selected() != 1 || gutter(0) != grid.Chosen || !strings.Contains(lines(m)[m.top()], " 1 selected") {
 		t.Fatalf("space on the first row:\n%s", view(m))
 	}
 	if marked, _ := style.In(stageColors["backlog"]); !strings.Contains(m.View().Content, marked(grid.Chosen)) {
@@ -394,10 +394,10 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 		t.Errorf("space again: %d selected", m.selected())
 	}
 	m = drive(m, tea.KeyPressMsg{Code: tea.KeyDown, Mod: tea.ModShift})
-	if m.selected() != 2 || m.stages[0].Cursor != 1 || gutter(1) != grid.Chosen {
+	if m.selected() != 2 || m.stages[0].Cursor != 2 || gutter(1) != grid.Chosen {
 		t.Errorf("shift-down: %d selected, cursor %d\n%s", m.selected(), m.stages[0].Cursor, view(m))
 	}
-	if m = drive(m, tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModShift}); m.selected() != 2 || m.stages[0].Cursor != 0 {
+	if m = drive(m, tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModShift}); m.selected() != 2 || m.stages[0].Cursor != 1 {
 		t.Errorf("shift-up: %d selected, cursor %d", m.selected(), m.stages[0].Cursor)
 	}
 	ctrlA := tea.KeyPressMsg{Code: 'a', Mod: tea.ModCtrl}
@@ -408,7 +408,7 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 		t.Errorf("ctrl+a again: %d selected", m.selected())
 	}
 	// a click moves the cursor and selects nothing
-	if m = drive(m, testkit.Click(10, rowY(m, "#7"))); m.selected() != 0 || m.stages[0].Cursor != 2 {
+	if m = drive(m, testkit.Click(10, rowY(m, "#7"))); m.selected() != 0 || m.stages[0].Cursor != 3 {
 		t.Errorf("a click: %d selected, cursor %d", m.selected(), m.stages[0].Cursor)
 	}
 	// the tab's menu: open selected and clear selection are dim with nothing selected
@@ -459,11 +459,11 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 
 // With rows selected, the tab's menu expands and collapses the selected rows alone, and collapses the others.
 func TestExpandAndCollapseActOnTheSelectedRowsWhenThereAreAny(t *testing.T) {
-	m := loaded(t, options(), right, right, right, down, press(tea.KeySpace), press(':'))
+	m := loaded(t, options(), right, right, right, down, down, press(tea.KeySpace), press(':'))
 	if m.tabItems()[4].Name != "Expand Selected" || m.tabItems()[5].Name != "Collapse Selected" || m.enabled(5) {
 		t.Fatalf("the items with a row selected: %+v", m.tabItems()[4:6])
 	}
-	if m = drive(m, typed("e")[0], press(tea.KeyEnter)); openRows(m) != 1 || !m.stages[m.stage].Open[m.rows(m.stage)[0].Key] {
+	if m = drive(m, typed("e")[0], press(tea.KeyEnter)); openRows(m) != 1 || !m.stages[m.stage].Open[m.rows(m.stage)[1].Key] {
 		t.Errorf("expand selected opened %d", openRows(m))
 	}
 	if m = drive(m, press(':')); m.enabled(4) || !m.enabled(5) {
@@ -474,13 +474,13 @@ func TestExpandAndCollapseActOnTheSelectedRowsWhenThereAreAny(t *testing.T) {
 	}
 	// collapse others closes the rows not selected, the selected ones left open; with none of those open, it is dim
 	s, rows := &m.stages[m.stage], m.rows(m.stage)
-	s.Open[rows[0].Key], s.Open[rows[1].Key] = true, true
+	s.Open[rows[1].Key], s.Open[rows[2].Key] = true, true
 	if m = drive(m, press(':')); m.tabItems()[6].Name != "Collapse Others" || !m.enabled(6) {
 		t.Fatalf("collapse others with a row not selected open: %+v, %v", m.tabItems()[6], m.enabled(6))
 	}
 	if m = drive(m, typed("c")[0], typed("c")[0], press(tea.KeyEnter)); openRows(m) != 1 ||
-		!m.stages[m.stage].Open[rows[0].Key] || m.tabMenu.Open {
-		t.Errorf("collapse others left %d open, the selected one %v", openRows(m), m.stages[m.stage].Open[rows[0].Key])
+		!m.stages[m.stage].Open[rows[1].Key] || m.tabMenu.Open {
+		t.Errorf("collapse others left %d open, the selected one %v", openRows(m), m.stages[m.stage].Open[rows[1].Key])
 	}
 	if m = drive(m, press(':')); m.enabled(item(m, "Collapse Others")) {
 		t.Error("collapse others with no row not selected open is not dim")
