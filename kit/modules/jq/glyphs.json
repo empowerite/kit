@@ -1,6 +1,6 @@
 {
   "glyphs": [
-    {"name": "Repository", "glyph": "📚", "meaning": "the repository", "more": "owner/name, in kittui's title"},
+    {"name": "Workspace", "glyph": "📚", "meaning": "the workspace", "more": "owner/name or a group, in kittui's title"},
     {"name": "Issue", "glyph": "🎫", "meaning": "an issue", "more": "its number and title"},
     {"name": "GitHub", "glyph": "🐙", "meaning": "on GitHub", "more": "the tracker that holds an issue"},
     {"name": "GitLab", "glyph": "🦊", "meaning": "on GitLab", "more": "the tracker that holds an issue"},
@@ -44,7 +44,7 @@
     {"glyph": "👀", "state": "blocked:approval", "more": "a review blocks the merge"},
     {"glyph": "🏁", "state": "ready", "more": "nothing is left to decide"}
   ],
-  "title": "Repository",
+  "title": "Workspace",
   "groups": [
     {"name": "issues", "color": "75", "stages": ["backlog", "underway"]},
     {"name": "branches", "color": "114", "stages": ["desk", "worktrees"]},

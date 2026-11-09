@@ -16,6 +16,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
@@ -315,5 +316,12 @@ func TestTheSelectedTabIsDrawnInItsGroupsColor(t *testing.T) {
 	}
 	if stageColors["backlog"] != stageColors["underway"] || stageColors["backlog"] == stageColors["desk"] {
 		t.Errorf("the groups' colors: %v", stageColors)
+	}
+}
+
+// The title's glyph is the 📚 control's, and the legend says it names the workspace.
+func TestTheTitlesGlyphIsTheWorkspaces(t *testing.T) {
+	if title != (entry{shell.Books, "the workspace"}) {
+		t.Errorf("the title's entry: %+v", title)
 	}
 }

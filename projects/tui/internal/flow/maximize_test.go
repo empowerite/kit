@@ -81,7 +81,7 @@ func TestMaximizeGivesTheRowsTwoLines(t *testing.T) {
 
 func TestMaximizeTitleNamesTheTabAndItsCount(t *testing.T) {
 	m := maximize(t, loaded(t, viewing("")))
-	want := "  " + shell.App + " kit flow · " + Repository + " empowerite/kit · 🎫 backlog 3 " + tabs.Menu
+	want := "  " + shell.App + " kit flow · " + shell.Books + " empowerite/kit · 🎫 backlog 3 " + tabs.Menu
 	if got := lines(m)[0]; got != want {
 		t.Errorf("the title:\n%q\nwant\n%q", got, want)
 	}

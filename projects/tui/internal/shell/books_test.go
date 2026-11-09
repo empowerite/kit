@@ -32,7 +32,8 @@ func TestBooksNamesARepositoryAGroupAndNone(t *testing.T) {
 		books BooksMenu
 		want  string
 	}{
-		{BooksMenu{Workspace: kit.Workspace{Kind: "repository", Member: "github.com/empowerite/kit"}}, "📚 empowerite/kit"},
+		{BooksMenu{Workspace: kit.Workspace{Kind: "repository", Member: "github.com/empowerite/kit"}},
+			"📚 empowerite/kit"},
 		{BooksMenu{Workspace: kit.Workspace{Kind: "repository", Name: "/code/scratch", Checkout: "/code/scratch"}},
 			"📚 scratch"},
 		{BooksMenu{Workspace: group("empowerite", 5)}, "📚 empowerite 5"},
@@ -107,6 +108,9 @@ func TestBooksPicksAGroupByClickAndByKey(t *testing.T) {
 	}
 	if msg := Pick("w")(); msg != (PickMsg{"w"}) {
 		t.Errorf("a pick asks kittui: %#v", msg)
+	}
+	if Pick("") != nil {
+		t.Error("no pick asks kittui to switch")
 	}
 	if b2, _ := b.Opened().Key(key("esc")); b2.Open {
 		t.Error("esc leaves it open")

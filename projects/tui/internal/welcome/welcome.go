@@ -137,13 +137,12 @@ type Model struct {
 	ctx       context.Context                           // ends with the screen, and the checks still running with it
 	cancel    context.CancelFunc                        // ends ctx
 	exec      func(*exec.Cmd, tea.ExecCallback) tea.Cmd // hands the terminal to a fix; tea.ExecProcess but in tests
-	repo      string                                    // owner/repo, for the title until kit says, empty when unknown
 	workspace kit.Workspace                             // the workspace kittui opened the screen on, zero while unknown
-	books     shell.BooksMenu                           // the title's 📚 control, which has the keyboard while it is open
+	books     shell.BooksMenu                           // the title's 📚 control, which has the keyboard while open
 	tabs      []tab                                     // the steps, in order: the known ones until the pages are read
 	step      int                                       // the selected step
-	inPane    bool                                      // whether the pane has the keyboard, a check's row or the page, not the bar
-	barView   int                                       // the cells the bar's view has scrolled past, as the bar last chose
+	inPane    bool                                      // whether the pane, a check's row or the page, has the keyboard
+	barView   int                                       // the cells the bar's view scrolled past, as the bar last chose
 	places    []string                                  // the check each step's cursor was on when it was left
 	checking  source.Load[[]kit.Check]                  // kit welcome --checks --json: loading until it first answers
 	checks    []kit.Check
@@ -175,7 +174,7 @@ func Open(r kit.Runner, ws kit.Workspace) Model {
 // New opens the screen on the first step, checking. Init runs the checks and reads the pages.
 func New(r kit.Runner, repo string) Model {
 	checks := func(ctx context.Context, _ bool) ([]kit.Check, error) { return r.WelcomeChecks(ctx) }
-	m := Model{runner: r, exec: tea.ExecProcess, repo: repo, checking: source.NewLoad("checks", checks, nil),
+	m := Model{runner: r, exec: tea.ExecProcess, checking: source.NewLoad("checks", checks, nil),
 		deferred: map[string]bool{},
 		notes:    map[string]note{}, width: 80, height: 24, tabs: slices.Clone(known),
 		places: make([]string, len(known)), offsets: make([]int, len(known)), appMenu: shell.Menu{Here: shell.Welcome},
@@ -200,14 +199,6 @@ func (m Model) chose(c shell.Choice) tea.Cmd {
 		return shell.Switch(c.Screen)
 	}
 	return nil
-}
-
-// pick asks kittui to switch to the workspace picked from the 📚 control, when one was.
-func (m Model) pick(workspace string) tea.Cmd {
-	if workspace == "" {
-		return nil
-	}
-	return shell.Pick(workspace)
 }
 
 // Books gives the title's 📚 control.
@@ -267,7 +258,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case m.books.Open && msg.Button == tea.MouseLeft:
 			var picked string
 			m.books, picked = m.books.Click(msg.X, msg.Y, m.booksAt(), m.width)
-			return m, m.pick(picked)
+			return m, shell.Pick(picked)
 		case m.recent.Open && msg.Button == tea.MouseLeft:
 			var query string
 			if m.recent, query = m.recent.Click(msg.X, msg.Y, m.recallAt(), m.width); query != "" {
@@ -477,7 +468,7 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.books.Open {
 		var picked string
 		m.books, picked = m.books.Key(k)
-		return m, m.pick(picked)
+		return m, shell.Pick(picked)
 	}
 	if m.recent.Open {
 		var query string

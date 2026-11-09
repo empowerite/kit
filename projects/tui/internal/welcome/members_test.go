@@ -42,7 +42,8 @@ func TestComposeShowsACheckThatDiffersPerMember(t *testing.T) {
 	for _, c := range got {
 		keys = append(keys, c.Key()+"@"+strings.Join(c.Dirs, " "))
 	}
-	want := "bash@/a /b|github.com/o/a toolchain-project@/a|github.com/o/b toolchain-project@/b|github.com/o/b only-b@/b"
+	want := "bash@/a /b|github.com/o/a toolchain-project@/a|github.com/o/b toolchain-project@/b|" +
+		"github.com/o/b only-b@/b"
 	if strings.Join(keys, "|") != want {
 		t.Errorf("composed: %s", strings.Join(keys, "|"))
 	}
@@ -58,8 +59,8 @@ func TestComposeTurnsARefusalIntoItsMembersFailedCheck(t *testing.T) {
 		t.Errorf("composed: %+v", got)
 	}
 	// a single member that answered says each check once, with its checkout
-	if got := compose([]run{{member: "github.com/o/a", dir: "/a", checks: []kit.Check{check("jq", true, "jq")}}}); len(got) != 1 ||
-		got[0].Member != "" || strings.Join(got[0].Dirs, " ") != "/a" {
+	one := []run{{member: "github.com/o/a", dir: "/a", checks: []kit.Check{check("jq", true, "jq")}}}
+	if got := compose(one); len(got) != 1 || got[0].Member != "" || strings.Join(got[0].Dirs, " ") != "/a" {
 		t.Errorf("one member: %+v", got)
 	}
 }
@@ -75,7 +76,8 @@ func group(t *testing.T, msgs ...tea.Msg) (Model, *ran, string, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	mine := strings.Replace(string(fixture), "several toolchains are usable for the project", "a's toolchain differs", 1)
+	mine := strings.Replace(string(fixture), "several toolchains are usable for the project",
+		"a's toolchain differs", 1)
 	if err := os.WriteFile(filepath.Join(a, "checks.json"), []byte(mine), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -88,11 +90,12 @@ func group(t *testing.T, msgs ...tea.Msg) (Model, *ran, string, string) {
 
 func TestAGroupsChecksDrawTogetherWithTheUnclonedNamed(t *testing.T) {
 	m, _, _, _ := group(t)
-	if v := view(m); !strings.Contains(v, "not cloned: o/c") || strings.Contains(v, "☁") || !strings.Contains(v, "📚 w 3") {
+	v := view(m)
+	if !strings.Contains(v, "not cloned: o/c") || strings.Contains(v, "☁") || !strings.Contains(v, "📚 w 3") {
 		t.Errorf("the intro:\n%s", v)
 	}
 	m = drive(m, press('3'))
-	v := view(m)
+	v = view(m)
 	if !strings.Contains(v, "a's toolchain differs: mise, brew; choose one · a") ||
 		!strings.Contains(v, "usable for the project: mise, brew; choose one · b") {
 		t.Errorf("the toolchains step:\n%s", v)

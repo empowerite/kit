@@ -23,7 +23,8 @@ type run struct {
 // compose gives the checks of every member's run as one list, in the order each id first appears. A check every
 // member that answered reports alike, its result, line, and fix the same, is said once, with no member, its fix
 // running in every member's checkout in turn; any other is said once per member that reports it, in the members'
-// order, each with its member and checkout. A run kit refused is one failed check of its own, kit, with kit's line and no fix.
+// order, each with its member and checkout. A run kit refused is one failed check of its own, kit, with kit's line
+// and no fix.
 func compose(runs []run) []kit.Check {
 	var order []string
 	seen := map[string][]kit.Check{}

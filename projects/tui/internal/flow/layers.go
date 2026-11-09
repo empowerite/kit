@@ -1,8 +1,9 @@
 // The picture's layers: what it opens over itself, in the one order the keys, the clicks, the keys bar, and the drawing
 // follow, as shell.Layers says, the topmost first: what a backlog action asks, which takes every key and click until it
 // is answered; a field's popover; the fields dialog, which the popover opens over; the presets' menu; the column menu;
-// the searches remembered under the search's ▾; the app's menu; the 📚 control's dropdown; and the tab's menu. The two menus that hang from the
-// bar take a left click, and leave the others to the screen, as a right click under them groups.
+// the searches remembered under the search's ▾; the app's menu; the 📚 control's dropdown; and the tab's menu. The
+// two menus that hang from the bar take a left click, and leave the others to the screen, as a right click under them
+// groups.
 package flow
 
 import (
@@ -151,7 +152,7 @@ func (m Model) layers() shell.Layers[Model] {
 			Key: func(m Model, k tea.KeyPressMsg) (Model, tea.Cmd) {
 				var picked string
 				m.books, picked = m.books.Key(k)
-				return m, pick(picked)
+				return m, shell.Pick(picked)
 			},
 			Click: func(m Model, c tea.MouseClickMsg) (Model, tea.Cmd, bool) {
 				if c.Button != tea.MouseLeft {
@@ -159,7 +160,7 @@ func (m Model) layers() shell.Layers[Model] {
 				}
 				var picked string
 				m.books, picked = m.books.Click(c.X, c.Y, m.booksAt(), m.paneWidth())
-				return m, pick(picked), true
+				return m, shell.Pick(picked), true
 			},
 			Keys: menu,
 			Draw: func(m Model, lines []string) []string { return m.books.Overlay(lines, m.booksAt(), m.paneWidth()) },
@@ -181,14 +182,6 @@ func (m Model) layers() shell.Layers[Model] {
 			},
 		},
 	}
-}
-
-// pick asks kittui to switch to the workspace picked from the 📚 control, when one was.
-func pick(workspace string) tea.Cmd {
-	if workspace == "" {
-		return nil
-	}
-	return shell.Pick(workspace)
 }
 
 // booksAt gives the column the title's 📚 control starts at.

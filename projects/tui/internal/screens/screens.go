@@ -41,7 +41,7 @@ type Model struct {
 	home      string               // where kittui was started, which the screens read over anything but a repository
 	workspace kit.Workspace        // the workspace kit said last, zero until it says
 	refused   string               // kit's line, when kit could not say the workspace last asked for
-	asked     int                  // the latest ask for the workspace, from 0, kittui's start: an earlier one's answer is dropped
+	asked     int                  // the latest ask, 0 at kittui's start: an older ask's answer is dropped
 	epochs    map[shell.Screen]int // how many times each screen was made again: an answer to one closed is dropped
 }
 

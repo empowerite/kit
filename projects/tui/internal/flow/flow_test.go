@@ -787,10 +787,10 @@ func TestQuitKillsTheStagesStillRunning(t *testing.T) {
 
 func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 	m := loaded(t, options())
-	if first := lines(m)[0]; first != "  "+shell.App+" kit flow · "+Repository+" empowerite/kit" {
+	if first := lines(m)[0]; first != "  "+shell.App+" kit flow · "+shell.Books+" empowerite/kit" {
 		t.Errorf("the title: %q", first)
 	}
-	if !strings.Contains(m.View().Content, Repository+" "+style.Repo("empowerite/kit")) {
+	if !strings.Contains(m.View().Content, shell.Books+" "+style.Repo("empowerite/kit")) {
 		t.Errorf("the repository is not in its own color: %q", lines(m)[0])
 	}
 	// the bar comes right under the title

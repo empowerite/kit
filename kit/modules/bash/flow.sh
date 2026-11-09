@@ -84,7 +84,7 @@ flow_change_sgr=35
 # flow_glyphs gives each glyph by its name, flow_stage_glyphs each stage's by the stage, and flow_state_glyphs a
 # pull request state's by its word; a state word not among them draws flow_glyphs[Other].
 declare -gA flow_glyphs=(
-  [Repository]='📚'
+  [Workspace]='📚'
   [Issue]='🎫'
   [GitHub]='🐙'
   [GitLab]='🦊'

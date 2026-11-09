@@ -3,8 +3,8 @@
 // color, and 📚 alone, dim, with none. Until kit says which workspace it is, it names the origin's owner/repo, as the
 // title did before. A plain click on it drops down what to switch to: the groups the repository belongs to, first;
 // the favorites; and Browse…, New workspace…, and Manage workspaces…. A line that cannot switch now stays, dim: the
-// workspace shown, a repository not cloned, and the three that open what is still to come. When kit could not say, its
-// line comes first, dim. A pick asks kittui to switch, by the workspace's name as kit names it.
+// workspace shown, a repository not cloned, and the three that open what is still to come. When kit could not say,
+// its line comes first, dim. A pick asks kittui to switch, by the workspace's name as kit names it.
 package shell
 
 import (
@@ -40,8 +40,13 @@ type WorkspaceMsg struct {
 // PickMsg asks kittui to switch to a workspace: a group's name or a repository's host/path, as kit names it.
 type PickMsg struct{ Workspace string }
 
-// Pick gives the command that asks kittui to switch to the workspace.
-func Pick(workspace string) tea.Cmd { return func() tea.Msg { return PickMsg{workspace} } }
+// Pick gives the command that asks kittui to switch to the workspace, or none for none.
+func Pick(workspace string) tea.Cmd {
+	if workspace == "" {
+		return nil
+	}
+	return func() tea.Msg { return PickMsg{workspace} }
+}
 
 // BooksMenu is the 📚 control on a screen's title line: the workspace it names, the origin's owner/repo it names
 // until kit says, kit's line when kit could not, and its dropdown.
@@ -175,8 +180,8 @@ func (b BooksMenu) Key(k tea.KeyPressMsg) (BooksMenu, string) {
 	return b, b.target(at)
 }
 
-// Click takes a left click while the dropdown is open, hanging from the 📚 at the column at, the screen's rows as wide
-// as room, as a dropdown does; it gives the control and the workspace picked, "" for none.
+// Click takes a left click while the dropdown is open, hanging from the 📚 at the column at, the screen's rows as
+// wide as room, as a dropdown does; it gives the control and the workspace picked, "" for none.
 func (b BooksMenu) Click(x, y, at, room int) (BooksMenu, string) {
 	box, left := b.box(at, room)
 	var k int

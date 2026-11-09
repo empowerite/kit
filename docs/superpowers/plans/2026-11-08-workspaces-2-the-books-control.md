@@ -245,8 +245,8 @@ func (b BooksMenu) Overlay(lines []string, at, room int) []string
     `📚 empowerite/kit`; group `empowerite` of 5 members → `📚 empowerite 5`; kind `""`, fallback `empowerite/kit` →
     `📚 empowerite/kit`; none → `📚`. Assert `Label()` of the group holds `style.Off("5")` unstripped.
   - `TestBooksDropsDownTheGroupsThenTheFavorites`: a repository in groups `w` (2) and `v` (1), favorites a group `w`
-    and a repository with no checkout. Assert the names, in order: `w 2`, `v 1`, a rule, `w 2`, `o/b ☁️`, a rule, `Browse…`,
-    `New workspace…`, `Manage workspaces…`; enabled: only indexes 0, 1, 3.
+    and a repository with no checkout. Assert the names, in order: `w 2`, `v 1`, a rule, `w 2`, `o/b ☁️`, a rule,
+    `Browse…`, `New workspace…`, `Manage workspaces…`; enabled: only indexes 0, 1, 3.
   - `TestBooksPicksAGroupByClickAndByKey`: `Opened()` puts `At` on 0; a Key `down` then `enter` gives `"v"`; a click
     on the box's line for `w 2` gives `"w"` and closes it; a click on the dim `Browse…` gives `""` and keeps it open; a
     click off the box gives `""` and closes it.

@@ -37,9 +37,9 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
-// Options is how the screen opens: the stages in the picture's order, origin for the title and the URLs when known,
-// whether the fetch is skipped, the filters backlog, underway, and changes take, whether every stage's headers are
-// hidden, as a test of the rows alone asks.
+// Options is how the screen opens: the stages in the picture's order; origin, when known, for the URLs and for the 📚
+// control until kit says the workspace; whether the fetch is skipped; the filters backlog, underway, and changes take;
+// and whether every stage's headers are hidden, as a test of the rows alone asks.
 type Options struct {
 	Stages    []string
 	Origin    Origin
@@ -162,8 +162,8 @@ func Open(r kit.Runner, words []string) (Model, error) {
 // says. A stage kittui does not know shows a line saying so, and runs nothing.
 func New(r kit.Runner, o Options) Model {
 	m := Model{runner: r, limit: deadline, origin: o.Origin, noFetch: o.NoFetch, filters: o.Filters, width: 80, height: 24,
-		browse: browser, appMenu: shell.Menu{Here: shell.Flow}, books: shell.BooksMenu{Fallback: o.Origin.Repo}, fold: true,
-		legend: legend{at: bottomRight}}
+		browse: browser, appMenu: shell.Menu{Here: shell.Flow}, books: shell.BooksMenu{Fallback: o.Origin.Repo},
+		fold: true, legend: legend{at: bottomRight}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.clock = o.Clock
 	m.quota = source.NewPoll("quota", QuotaEvery, r.Quota)

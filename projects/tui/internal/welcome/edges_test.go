@@ -27,15 +27,17 @@ func TestAPageThatIsNotThereGivesThePathItWasLookedFor(t *testing.T) {
 // it in a repository with no origin.
 func TestOpenReadsTheRepositoryFromOrigin(t *testing.T) {
 	r := repoWith(t, nil)
-	if m := Open(r, kit.Workspace{}); m.repo != "" {
-		t.Errorf("no origin, and the repo is %q", m.repo)
+	if m := Open(r, kit.Workspace{}); m.books.Fallback != "" {
+		t.Errorf("no origin, and the repo is %q", m.books.Fallback)
 	}
 	if out, err := exec.Command("git", "-C", r.Dir, "remote", "add", "origin",
 		"https://github.com/empowerite/kit.git").CombinedOutput(); err != nil {
 		t.Fatalf("git remote add: %v\n%s", err, out)
 	}
-	if m := Open(r, kit.Workspace{}); m.repo != "empowerite/kit" || !strings.Contains(view(drive(m, at120)), "empowerite/kit") {
-		t.Errorf("origin's repo is %q:\n%s", m.repo, view(drive(m, at120)))
+	m := Open(r, kit.Workspace{})
+	shown := view(drive(m, at120))
+	if m.books.Fallback != "empowerite/kit" || !strings.Contains(shown, "empowerite/kit") {
+		t.Errorf("origin's repo is %q:\n%s", m.books.Fallback, shown)
 	}
 }
 

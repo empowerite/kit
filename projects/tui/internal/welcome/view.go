@@ -354,9 +354,9 @@ func memberOf(c kit.Check) string {
 	return style.Off(" · " + short(c.Member, 1))
 }
 
-// checkLines gives a check's lines: ✅ or ❌ and its line, then its member's name, the cursor's row drawn as chosen with
-// now and later on it when it offers them; under a failed check, its fix, dim, then where to read more; and the note
-// its fix left.
+// checkLines gives a check's lines: ✅ or ❌ and its line, then its member's name, the cursor's row drawn as chosen
+// with now and later on it when it offers them; under a failed check, its fix, dim, then where to read more; and the
+// note its fix left.
 func (m Model) checkLines(i int, key string) []line {
 	c, w := m.checks[i], m.width-1
 	focused := m.hasRows() && m.inPane && i == m.cursor

@@ -20,8 +20,10 @@ import (
 // The workspaces the tests' kit says: the repository github.com/o/a, at the directory checkout stands for, and the
 // group w of it.
 const (
-	repoJSON  = `{"kind":"repository","name":"github.com/o/a","member":"github.com/o/a","checkout":CHECKOUT,"why":"repository","members":[],"groups":[{"name":"w","members":1}],"favorites":[]}`
-	groupJSON = `{"kind":"group","name":"w","member":null,"checkout":null,"why":"given","members":[{"repository":"github.com/o/a","checkout":CHECKOUT}],"groups":[],"favorites":[]}`
+	repoJSON = `{"kind":"repository","name":"github.com/o/a","member":"github.com/o/a","checkout":CHECKOUT,` +
+		`"why":"repository","members":[],"groups":[{"name":"w","members":1}],"favorites":[]}`
+	groupJSON = `{"kind":"group","name":"w","member":null,"checkout":null,"why":"given",` +
+		`"members":[{"repository":"github.com/o/a","checkout":CHECKOUT}],"groups":[],"favorites":[]}`
 )
 
 // workspaced gives the root on the welcome, over the kit package's fake kit, at 120×30, kit workspaces answering with
@@ -192,7 +194,8 @@ func TestAnAnswerForAScreenMadeAgainIsDropped(t *testing.T) {
 	if n := len(strings.Split(m.made[shell.Welcome].View().Content, "\n")); n != 30 {
 		t.Errorf("an old answer reached the welcome: %d lines", n)
 	}
-	m = drive(m, tagged{to: shell.Welcome, epoch: m.epochs[shell.Welcome], msg: tea.WindowSizeMsg{Width: 70, Height: 20}})
+	own := tagged{to: shell.Welcome, epoch: m.epochs[shell.Welcome], msg: tea.WindowSizeMsg{Width: 70, Height: 20}}
+	m = drive(m, own)
 	if n := len(strings.Split(m.made[shell.Welcome].View().Content, "\n")); n != 20 {
 		t.Errorf("the welcome's own answer: %d lines", n)
 	}

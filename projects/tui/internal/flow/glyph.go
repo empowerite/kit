@@ -17,39 +17,39 @@ const (
 // kit:generate glyphs `jq -nr -L projects/tui/internal/flow 'import "legend" as l; l::go' | gofmt | sed 1,2d; echo`
 // The glyphs, as the legend draws them, each beside its meaning.
 const (
-	Repository = "📚" // the repository
-	Issue      = "🎫" // an issue
-	GitHub     = "🐙" // on GitHub
-	GitLab     = "🦊" // on GitLab
-	InFlight   = "🛫" // underway
-	Desk       = "💻" // the desk
-	Branch     = "🌿" // a branch or a worktree
-	Sprout     = "🌱" // a local branch
-	Change     = "🔀" // a pull request
-	Owner      = "👤" // assignees or author
-	Fork       = "🍴" // a fork's owner
-	Pushed     = "📤" // the last push
-	Path       = "📂" // a desk's path
-	Fetched    = "🛬" // the fetch
-	Remote     = "📡" // a remote
-	Gone       = "🔖" // a branch gone
-	Tag        = "📌" // a new tag
-	Detached   = "❗" // not on any branch
-	Threads    = "💬" // threads unresolved
-	Running    = "🏃" // running
-	Passed     = "✅" // passed
-	Failed     = "❌" // failed
-	Cancelled  = "🛑" // cancelled or skipped
-	Build      = "🏭" // a build
-	Release    = "📦" // a release
-	Pre        = "🧪" // a pre-release
-	Draft      = "📝" // a draft release
-	Latest     = "⭐" // the latest release
-	Other      = "🔳" // any other state
+	Workspace = "📚" // the workspace
+	Issue     = "🎫" // an issue
+	GitHub    = "🐙" // on GitHub
+	GitLab    = "🦊" // on GitLab
+	InFlight  = "🛫" // underway
+	Desk      = "💻" // the desk
+	Branch    = "🌿" // a branch or a worktree
+	Sprout    = "🌱" // a local branch
+	Change    = "🔀" // a pull request
+	Owner     = "👤" // assignees or author
+	Fork      = "🍴" // a fork's owner
+	Pushed    = "📤" // the last push
+	Path      = "📂" // a desk's path
+	Fetched   = "🛬" // the fetch
+	Remote    = "📡" // a remote
+	Gone      = "🔖" // a branch gone
+	Tag       = "📌" // a new tag
+	Detached  = "❗" // not on any branch
+	Threads   = "💬" // threads unresolved
+	Running   = "🏃" // running
+	Passed    = "✅" // passed
+	Failed    = "❌" // failed
+	Cancelled = "🛑" // cancelled or skipped
+	Build     = "🏭" // a build
+	Release   = "📦" // a release
+	Pre       = "🧪" // a pre-release
+	Draft     = "📝" // a draft release
+	Latest    = "⭐" // the latest release
+	Other     = "🔳" // any other state
 )
 
 // title is the title's glyph, which no stage draws.
-var title = entry{Repository, "the repository"}
+var title = entry{Workspace, "the workspace"}
 
 // legends gives each stage's legend: every glyph the stage draws, its own first. A glyph may be in several.
 var legends = map[string][]entry{
