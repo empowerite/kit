@@ -31,6 +31,13 @@ const (
 // directory. No files leaves kit without kit workspaces.
 func workspaced(t *testing.T, files map[string]string) (Model, string, string) {
 	t.Helper()
+	return workspacedOver(t, "", files)
+}
+
+// workspacedOver gives the root as workspaced does, its runner reading over the group given, as kittui started with
+// --workspace does.
+func workspacedOver(t *testing.T, group string, files map[string]string) (Model, string, string) {
+	t.Helper()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	checkout, dir, record := t.TempDir(), t.TempDir(), filepath.Join(t.TempDir(), "record")
 	t.Setenv("FAKE_KIT_RECORD", record)
@@ -45,6 +52,7 @@ func workspaced(t *testing.T, files map[string]string) (Model, string, string) {
 		}
 	}
 	r := testkit.Runner(t, "kit")
+	r.Group = group
 	root := New(r, shell.Welcome, welcome.Open(r, kit.Workspace{}))
 	m, _ := testkit.Drive(root, nil, testkit.Start(root, tea.WindowSizeMsg{Width: 120, Height: 30})...)
 	return m, record, checkout
@@ -198,5 +206,34 @@ func TestAnAnswerForAScreenMadeAgainIsDropped(t *testing.T) {
 	m = drive(m, own)
 	if n := len(strings.Split(m.made[shell.Welcome].View().Content, "\n")); n != 20 {
 		t.Errorf("the welcome's own answer: %d lines", n)
+	}
+}
+
+func TestTheRunnerFollowsTheGroupKitSays(t *testing.T) {
+	m, _, checkout := workspaced(t, map[string]string{"current.json": repoJSON, "github.com_o_a.json": repoJSON,
+		"w.json": groupJSON})
+	if m.runner.Group != "" {
+		t.Errorf("inside a repository, the runner spans %q", m.runner.Group)
+	}
+	m = drive(m, shell.PickMsg{Workspace: "w"})
+	if m.runner.Group != "w" {
+		t.Errorf("over w, the runner spans %q", m.runner.Group)
+	}
+	m = drive(m, shell.PickMsg{Workspace: "github.com/o/a"})
+	if m.runner.Group != "" || m.runner.Dir != checkout {
+		t.Errorf("back on a, the runner spans %q in %q", m.runner.Group, m.runner.Dir)
+	}
+}
+
+func TestAGroupGivenAtStartIsAskedAndNotMadeTwice(t *testing.T) {
+	// kit has no current workspace here: only an ask for w is answered
+	m, _, _ := workspacedOver(t, "w", map[string]string{"w.json": groupJSON})
+	if m.workspace.Name != "w" || m.runner.Group != "w" {
+		t.Fatalf("the ask at the start: %+v, the runner over %q", m.workspace, m.runner.Group)
+	}
+	m = drive(m, typed("/xyz")...)
+	m = drive(m, workspaceMsg{gen: 0, ws: kit.Workspace{Kind: "group", Name: "w"}})
+	if !strings.Contains(title(m), "xyz") {
+		t.Errorf("the screen made over w was made again: %q", title(m))
 	}
 }

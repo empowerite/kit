@@ -429,3 +429,22 @@ func TestTutorialsDecodesTheCatalogue(t *testing.T) {
 		t.Errorf("a kit that exits 2: %v", err)
 	}
 }
+
+// A group's reads carry the workspace after their words, and a runner with no group reads where it is.
+func TestAGroupsReadsCarryTheWorkspace(t *testing.T) {
+	r := fake(t, "")
+	r.Group = "w"
+	ctx := context.Background()
+	out, err := r.Status(ctx, "backlog", []string{"--mine"})
+	if err != nil || strings.TrimSpace(string(out)) != `{"stage": "backlog", "args": "--json --mine --workspace w"}` {
+		t.Errorf("Status over w: %v, %q", err, out)
+	}
+	if stages, err := r.Stages(); err != nil || strings.Join(stages, " ") != "backlog incoming" {
+		t.Errorf("Stages over w: %v, %q", err, stages)
+	}
+	r.Group = ""
+	out, err = r.Status(ctx, "backlog", []string{"--mine"})
+	if err != nil || strings.TrimSpace(string(out)) != `{"stage": "backlog", "args": "--json --mine"}` {
+		t.Errorf("Status here: %v, %q", err, out)
+	}
+}

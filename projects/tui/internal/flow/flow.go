@@ -113,6 +113,7 @@ type Model struct {
 	maximized     bool                      // whether the tab's rows have the bar's lines but one, for the session
 	appMenu       shell.Menu                // the app's menu, internal/shell's, which has the keyboard while it is open
 	books         shell.BooksMenu           // the title's workspace menu, which has the keyboard while it is open
+	ws            kit.Workspace             // the workspace kit said last: over a group, its members and their checkouts
 	pop           table.Popover             // a field's popover, which has the keyboard while it is open
 	width, height int
 	interrupted   bool
@@ -286,6 +287,9 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case shell.WorkspaceMsg:
 		m.books = m.books.Told(msg)
+		if msg.Refusal == "" {
+			m.ws = msg.Workspace
+		}
 	case shell.SettingsMsg:
 		m.fold, m.glyphs = msg.Settings.FoldShared, msg.Settings.SharedEmoji
 		m.rebuild()

@@ -18,10 +18,20 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/syntax"
 )
 
-// Runner names the kit to run and the directory the command was typed in, which every call runs from.
+// Runner names the kit to run and the directory the command was typed in, which every call runs from, and the group
+// kit flow's reads span, when they span one.
 type Runner struct {
-	Kit string // the kit executable: $KIT, which kit tui names as the kit that ran it, else kit on PATH
-	Dir string // where the command was typed: $kit_invoked_in, which kit's verbs export, else the current directory
+	Kit   string // the kit executable: $KIT, which kit tui names as the kit that ran it, else kit on PATH
+	Dir   string // where the command was typed: $kit_invoked_in, which kit's verbs export, else the current directory
+	Group string // the group kit flow's reads span, as --workspace <Group>; none reads the place Dir is
+}
+
+// over gives kit flow's words as a read takes them: with --workspace <Group> after them, while the reads span a group.
+func (r Runner) over(words ...string) []string {
+	if r.Group == "" {
+		return words
+	}
+	return append(words, "--workspace", r.Group)
 }
 
 // New reads the runner from the environment.
@@ -200,9 +210,10 @@ func (r Runner) Match(verb string, words []string) (syntax.Match, error) {
 	return syntax.DecodeMatch(bytes.NewReader(out))
 }
 
-// Stages gives the stages kit flow draws, in the picture's order, as kit flow --stages prints them, one per line.
+// Stages gives the stages kit flow draws, in the picture's order, as kit flow --stages prints them, one per line;
+// over a group, the group's.
 func (r Runner) Stages() ([]string, error) {
-	out, err := r.run("flow", "--stages")
+	out, err := r.run(r.over("flow", "--stages")...)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +257,7 @@ type Limit struct {
 // Quota asks kit for the caller's rate limits on each forge kit flow reads, as kit flow --quota prints them; reading
 // them costs a request of each forge at most. ctx ends it with the screen.
 func (r Runner) Quota(ctx context.Context) ([]Quota, error) {
-	out, err := r.within(ctx, callLimit, append(os.Environ(), "NO_COLOR=1"), "flow", "--quota")
+	out, err := r.within(ctx, callLimit, append(os.Environ(), "NO_COLOR=1"), r.over("flow", "--quota")...)
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +271,7 @@ func (r Runner) Quota(ctx context.Context) ([]Quota, error) {
 // Marks asks kit for a mark per stage, as kit flow --marks prints them, by the stage's name: a text that changes when
 // what the stage draws does; a stage kit cannot read a mark of has none. ctx ends it with the screen.
 func (r Runner) Marks(ctx context.Context) (map[string]string, error) {
-	out, err := r.within(ctx, callLimit, append(os.Environ(), "NO_COLOR=1"), "flow", "--marks")
+	out, err := r.within(ctx, callLimit, append(os.Environ(), "NO_COLOR=1"), r.over("flow", "--marks")...)
 	if err != nil {
 		return nil, err
 	}
@@ -285,7 +296,7 @@ const waitDelay = 2 * time.Second
 // A stage kit cannot draw is kit's refusal, an ExitError. Kit runs in a process group of its own until ctx ends: then
 // the group is sent SIGTERM, so a gh or an ssh kit started dies with it, and the error is ctx's.
 func (r Runner) Status(ctx context.Context, stage string, args []string) ([]byte, error) {
-	cmd := grouped(ctx, r.Kit, append([]string{"flow", stage, "--json"}, args...)...)
+	cmd := grouped(ctx, r.Kit, r.over(append([]string{"flow", stage, "--json"}, args...)...)...)
 	cmd.Env = append(os.Environ(), "NO_COLOR=1")
 	out, err := r.output(cmd)
 	if err != nil && ctx.Err() != nil {

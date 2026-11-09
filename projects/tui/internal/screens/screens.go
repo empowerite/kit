@@ -39,6 +39,7 @@ type Model struct {
 	settings  shell.Settings
 	dialog    shell.SettingsDialog
 	home      string               // where kittui was started, which the screens read over anything but a repository
+	start     string               // the group the first screen was made over, as kittui started with --workspace
 	workspace kit.Workspace        // the workspace kit said last, zero until it says
 	refused   string               // kit's line, when kit could not say the workspace last asked for
 	asked     int                  // the latest ask, 0 at kittui's start: an older ask's answer is dropped
@@ -56,7 +57,8 @@ type workspaceMsg struct {
 // keeps.
 func New(r kit.Runner, first shell.Screen, m tea.Model) Model {
 	root := Model{runner: r, here: first, made: map[shell.Screen]tea.Model{first: m},
-		settings: shell.LoadSettings(shell.SettingsFile()), home: r.Dir, epochs: map[shell.Screen]int{}}
+		settings: shell.LoadSettings(shell.SettingsFile()), home: r.Dir, start: r.Group,
+		epochs: map[shell.Screen]int{}}
 	root.made[first], _ = m.Update(shell.SettingsMsg{Settings: root.settings})
 	return root
 }
@@ -84,8 +86,9 @@ func (m Model) Close() {
 	}
 }
 
-// Init starts the screen shown, and asks kit for the workspace.
-func (m Model) Init() tea.Cmd { return tea.Batch(m.tag(m.here, m.made[m.here].Init()), m.ask("")) }
+// Init starts the screen shown, and asks kit for the workspace: the group the runner spans, as kittui started with
+// --workspace, else the one kit starts on.
+func (m Model) Init() tea.Cmd { return tea.Batch(m.tag(m.here, m.made[m.here].Init()), m.ask(m.start)) }
 
 // ask gives the command that asks kit for the workspace given, "" for the one kit starts on, as the latest ask: a
 // group given is kept as the last used first.
@@ -115,13 +118,16 @@ func (m Model) answered(msg workspaceMsg) (tea.Model, tea.Cmd) {
 		m.refused = refusalLine(msg.err)
 		return m.tellWorkspace()
 	}
-	moved := msg.ws.Kind == "group"
+	moved := msg.ws.Kind == "group" && msg.ws.Name != m.start
 	if msg.gen > 0 {
 		moved = msg.ws.Kind != m.workspace.Kind || msg.ws.Name != m.workspace.Name
 	}
 	m.workspace, m.refused = msg.ws, ""
-	m.runner.Dir = m.home
-	if msg.ws.Kind == "repository" && msg.ws.Checkout != "" {
+	m.runner.Dir, m.runner.Group = m.home, ""
+	switch {
+	case msg.ws.Kind == "group":
+		m.runner.Group = msg.ws.Name
+	case msg.ws.Kind == "repository" && msg.ws.Checkout != "":
 		m.runner.Dir = msg.ws.Checkout
 	}
 	if !moved {

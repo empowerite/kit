@@ -1701,3 +1701,21 @@ func ruleY(m Model) int {
 	lines, _ := m.header()
 	return m.headerTop() + len(lines) - 1
 }
+
+func TestOverAGroupEveryLoadCarriesTheWorkspace(t *testing.T) {
+	record := filepath.Join(t.TempDir(), "calls")
+	t.Setenv("FAKE_FLOW_CALLS", record)
+	r := runner(t)
+	r.Group = "w"
+	m := New(r, options())
+	m = drive(m, m.Init()())
+	got := calls(t, record)
+	if len(got) == 0 {
+		t.Fatal("nothing loaded")
+	}
+	for _, c := range got {
+		if !strings.HasSuffix(c, " --workspace w") {
+			t.Errorf("a call without the workspace: %q", c)
+		}
+	}
+}
