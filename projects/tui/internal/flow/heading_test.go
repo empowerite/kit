@@ -186,6 +186,13 @@ func TestALevelsFoldInTheHeadingOverTheGroupsOpensAndClosesIt(t *testing.T) {
 	if m = drive(m, testkit.Click(spots[1].From-2, m.top())); len(m.rows(0)) != all || m.colMenu.Open {
 		t.Fatalf("a click on assignees' ·: %d rows of %d, menu %v", len(m.rows(0)), all, m.colMenu.Open)
 	}
+	// from the keyboard, assignees' stop folds as source's does, and the rows' stop stands where its fold is drawn
+	if stops := m.stops(); len(stops) != 3 || stops[1].Level != 0 || stops[2].Level != 2 {
+		t.Fatalf("the stops: %+v", stops)
+	}
+	if single := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30}); len(single.stops()) != 1 {
+		t.Errorf("one level of one value, ▾ source 3: stops %+v", single.stops())
+	}
 	// one assignee's heading closed by hand, to be found closed again
 	ada := slices.IndexFunc(m.rows(0), func(r row) bool { return strings.HasSuffix(r.Key, "\x00ada") })
 	m = drive(m, testkit.Click(table.FoldAt(m.rows(0)[ada]), rowY(m, m.rows(0)[ada].Key)))

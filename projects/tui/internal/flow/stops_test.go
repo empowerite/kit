@@ -14,12 +14,15 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
-// onStops gives backlog, grouped by source, with the keyboard on the heading over the groups' first stop.
+// onStops gives backlog, grouped by assignees, of several values, so the rows' fold is drawn after the name, with the
+// keyboard on the heading over the groups' first stop.
 func onStops(t *testing.T) Model {
 	t.Helper()
-	m := drive(loaded(t, viewing(""), tea.WindowSizeMsg{Width: 140, Height: 40}), down)
-	if stop, on := m.atStop(); !on || stop.Column != "source" || m.bar().Focused || m.inRows {
-		t.Fatalf("down from the bar is not on source's name: %+v, on %v\n%s", stop, on, view(m))
+	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 140, Height: 40})
+	m.setPanel(regroup(m.panel(m.stage), "assignees"))
+	m = drive(m, down)
+	if stop, on := m.atStop(); !on || stop.Column != "assignees" || m.bar().Focused || m.inRows {
+		t.Fatalf("down from the bar is not on assignees' name: %+v, on %v\n%s", stop, on, view(m))
 	}
 	return m
 }
@@ -29,7 +32,7 @@ func TestDownFromTheBarReachesTheGroupsNamesAndRightThePresetPicker(t *testing.T
 	// the stop is drawn as the line under the keyboard in a menu is, the preset picker not
 	control, _ := m.control()
 	if !strings.Contains(control, style.Selected(grid0(m))) || m.presetLine() != table.PresetLine(&m, false) {
-		t.Errorf("source's stop is not drawn under the keyboard: %q", control)
+		t.Errorf("assignees's stop is not drawn under the keyboard: %q", control)
 	}
 	for _, want := range []string{"⇥·⇧⇥ move", "←→ fold", "⏎ menu", "↓ rows"} {
 		if !strings.Contains(keysOf(m), want) {
@@ -38,7 +41,7 @@ func TestDownFromTheBarReachesTheGroupsNamesAndRightThePresetPicker(t *testing.T
 	}
 	// tab reaches the rows' stop, then the preset picker; shift-tab goes back, and stops at the first
 	if m = drive(m, tab); !onRows(m) || strings.Contains(keysOf(m), "⏎ menu") {
-		t.Errorf("tab from source: %q", keysOf(m))
+		t.Errorf("tab from assignees: %q", keysOf(m))
 	}
 	if m = drive(m, tab); !m.onPreset || isOnStop(m) || m.presetLine() != table.PresetLine(&m, true) ||
 		!strings.Contains(keysOf(m), "⏎ presets") || !strings.Contains(keysOf(m), "⇧⇥ groups") {
@@ -57,30 +60,30 @@ func TestDownFromTheBarReachesTheGroupsNamesAndRightThePresetPicker(t *testing.T
 
 func TestEnterAndSpaceActOnTheStop(t *testing.T) {
 	m := onStops(t)
-	// left closes source's level, again leaves it closed, and right opens it, again leaving it open
+	// left closes assignees' level, again leaves it closed, and right opens it, again leaving it open
 	if m = drive(m, left, left); m.stages[0].Open.Shows(0) || !isOnStop(m) || m.stop != 0 {
-		t.Errorf("left on source left its level open: %v", m.stages[0].Open)
+		t.Errorf("left on assignees left its level open: %v", m.stages[0].Open)
 	}
 	if m = drive(m, right, right); !m.stages[0].Open.Shows(0) || m.stop != 0 {
-		t.Errorf("right on source left its level closed: %v", m.stages[0].Open)
+		t.Errorf("right on assignees left its level closed: %v", m.stages[0].Open)
 	}
-	// space on source folds its level, and again opens it; enter on the rows' stop folds theirs
+	// space on assignees folds its level, and again opens it; enter on the rows' stop folds theirs
 	if m = drive(m, press(tea.KeySpace)); m.stages[0].Open.Shows(0) || !isOnStop(m) {
-		t.Errorf("space on source left its level open: %v", m.stages[0].Open)
+		t.Errorf("space on assignees left its level open: %v", m.stages[0].Open)
 	}
 	if m = drive(m, press(tea.KeySpace)); !m.stages[0].Open.Shows(0) {
-		t.Errorf("space again left source's level closed")
+		t.Errorf("space again left assignees's level closed")
 	}
 	if m = drive(m, tab, press(tea.KeyEnter)); m.stages[0].Open.Shows(1) || !onRows(m) {
 		t.Errorf("enter on the rows' stop left them open: %v", m.stages[0].Open)
 	}
 	m = drive(m, press(tea.KeyEnter))
 	// enter on a name drops its column's menu; esc closes it, the keyboard back on the name
-	if m = drive(m, backTab, press(tea.KeyEnter)); !m.colMenu.Open || m.colMenu.Column != "source" {
-		t.Fatalf("enter on source: menu %v, %q", m.colMenu.Open, m.colMenu.Column)
+	if m = drive(m, backTab, press(tea.KeyEnter)); !m.colMenu.Open || m.colMenu.Column != "assignees" {
+		t.Fatalf("enter on assignees: menu %v, %q", m.colMenu.Open, m.colMenu.Column)
 	}
 	if m = drive(m, esc); m.colMenu.Open || !isOnStop(m) || m.stop != 0 {
-		t.Errorf("esc in source's menu: open %v, stop %d", m.colMenu.Open, m.stop)
+		t.Errorf("esc in assignees's menu: open %v, stop %d", m.colMenu.Open, m.stop)
 	}
 }
 
@@ -107,7 +110,7 @@ func TestTheStopsLeadToTheRowsAndBackAndToTheBar(t *testing.T) {
 	m = drive(onStops(t), tab, tab)
 	stops := m.stops()
 	if m = drive(m, leftAt(stops[0].From+3, m.top()), esc); !isOnStop(m) || m.stop != 0 {
-		t.Errorf("a click on source's name: on a stop %v, %d", isOnStop(m), m.stop)
+		t.Errorf("a click on assignees's name: on a stop %v, %d", isOnStop(m), m.stop)
 	}
 }
 
