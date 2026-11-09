@@ -459,6 +459,29 @@ func TestMenuAtIsWhereTheGlyphIsDrawn(t *testing.T) {
 	}
 }
 
+// OnSelected takes every cell of the selected tab, on each of the bar's lines, and none of the tabs either side of it,
+// none off the bar, and none on a bar without menus.
+func TestOnSelectedIsTheSelectedTabWhole(t *testing.T) {
+	b := stages(2, 170)
+	b.Menus, b.Row = true, 4
+	l := b.layout()
+	first, last := Gutter+l.at[2]-l.scroll, Gutter+l.at[2]+l.parts[2]-1-l.scroll
+	for y := b.Row; y < b.Row+Height; y++ {
+		for _, x := range []int{first, b.MenuAt(), last} {
+			if !b.OnSelected(x, y) {
+				t.Errorf("%d, %d is not on the selected tab, %d to %d", x, y, first, last)
+			}
+		}
+	}
+	if b.OnSelected(first-1, b.Row+1) || b.OnSelected(last+1, b.Row+1) || b.OnSelected(first, b.Row-1) ||
+		b.OnSelected(first, b.Row+Height) {
+		t.Errorf("a cell off the selected tab, %d to %d, is on it", first, last)
+	}
+	if b.Menus = false; b.OnSelected(first, b.Row+1) || (Bar{Menus: true}).OnSelected(Gutter, 0) {
+		t.Error("a bar without menus, or without tabs, takes the click")
+	}
+}
+
 // A joined bar's last line turns down in its last column into a line under the bar: the line under the tabs as ┐, the
 // last tab's edge as ┤ where the line under it runs up to it, and as │ under the selected tab, open to the pane.
 func TestAJoinedBarTurnsDownInItsLastColumn(t *testing.T) {

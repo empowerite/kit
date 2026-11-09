@@ -166,8 +166,11 @@ func (m Menu) Click(x, y, room int) (Menu, Choice) {
 	return m, m.choice(at)
 }
 
-// OnApp says whether a click at x, y is on App before the title, or the cell either side of it.
-func OnApp(x, y int) bool { return y == Top && x <= At+ansi.StringWidth(App) }
+// OnApp says whether a click at x, y is on App before the title, the cells either side of it, or the screen's name after
+// it, the label Title is given, so a click anywhere on "= kit flow" drops the app's menu down.
+func OnApp(x, y int, label string) bool {
+	return y == Top && x < At+ansi.StringWidth(App)+1+ansi.StringWidth(label)
+}
 
 // box gives the open menu's lines and the column its left edge is drawn at, the screen's rows as wide as room.
 func (m Menu) box(room int) ([]string, int) {

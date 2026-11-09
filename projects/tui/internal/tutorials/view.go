@@ -17,6 +17,9 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
+// appLabel is the screen's name on the title line, after the app menu's =; a click on either drops the menu down.
+const appLabel = "kit tutorials"
+
 // Failed is the glyph before kit's refusal.
 const Failed = "❌"
 
@@ -45,7 +48,7 @@ const lead = "  "
 
 // View draws the screen on the alternate screen, with the mouse on for the bar and the cards.
 func (m Model) View() tea.View {
-	title := pane.Clip(shell.Title(style.Label("kit tutorials"), m.appMenu.Open), m.width-1)
+	title := pane.Clip(shell.Title(style.Label(appLabel), m.appMenu.Open), m.width-1)
 	lines := append([]string{title}, strings.Split(m.bar().View(), "\n")...)
 	lines = append(lines, m.pane()...)
 	lines = m.appMenu.Overlay(append(lines, ""), m.width)

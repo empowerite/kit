@@ -22,6 +22,9 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
+// appLabel is the screen's name on the title line, after the app menu's =; a click on either drops the menu down.
+const appLabel = "kit flow"
+
 // top gives the screen line the pane starts on: right under the bar, which is open there to the selected tab; or,
 // maximized, under the title and the banner, the line under it in the tab's color.
 func (m Model) top() int {
@@ -211,7 +214,7 @@ func (m Model) rowKeys() shell.Segment {
 // title gives the title line: as internal/shell draws it, the app's menu's glyph before kit flow; then the 📚
 // control, which names the workspace; and, maximized, the selected tab, as the bar draws it, its : last.
 func (m Model) title() string {
-	title := shell.Title(style.Label("kit flow"), m.appMenu.Open) + " · " + m.books.Label()
+	title := shell.Title(style.Label(appLabel), m.appMenu.Open) + " · " + m.books.Label()
 	if m.maximized {
 		title += " · " + m.bar().Label()
 	}

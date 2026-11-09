@@ -185,7 +185,7 @@ func (m Model) layers() shell.Layers[Model] {
 }
 
 // booksAt gives the column the title's 📚 control starts at.
-func (m Model) booksAt() int { return shell.BooksAt(shell.Title(style.Label("kit flow"), false)) }
+func (m Model) booksAt() int { return shell.BooksAt(shell.Title(style.Label(appLabel), false)) }
 
 // model gives a layer's key from one of the picture's own, which gives the picture as a tea.Model.
 func model(key func(Model, tea.KeyPressMsg) (tea.Model, tea.Cmd)) func(Model, tea.KeyPressMsg) (Model, tea.Cmd) {

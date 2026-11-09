@@ -1,5 +1,6 @@
-// The menus: the app's, which = or a click on = before the title drops down, internal/shell's, the same on every screen
-// with refresh all first; and the selected tab's, which : or ; or a click on the tab's : drops down. Each hangs from
+// The menus: the app's, which = or a click on = or on the screen's name after it drops down, internal/shell's, the same
+// on every screen with refresh all first; and the selected tab's, which : or ; or a click anywhere on the tab drops
+// down. Each hangs from
 // its glyph, which takes a cell of the box's top edge, two in from its left corner, or from its right one when the box
 // would run off the screen. While one is open it has the keyboard: up and down move, a letter moves to the next item
 // that starts with it, enter and space choose, and esc or the key that opened it closes it; a click on an item chooses

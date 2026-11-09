@@ -267,7 +267,7 @@ func (m Model) click(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 		var c shell.Choice
 		m.appMenu, c = m.appMenu.Click(msg.X, msg.Y, m.width)
 		return m, m.chose(c)
-	case shell.OnApp(msg.X, msg.Y):
+	case shell.OnApp(msg.X, msg.Y, appLabel):
 		m.appMenu = m.appMenu.Opened()
 		return m, nil
 	}

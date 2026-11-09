@@ -518,6 +518,12 @@ func (b Bar) MenuAt() int {
 	return x
 }
 
+// OnSelected says whether a click at x, y is on the selected tab, anywhere on its part of the bar, on any of the bar's
+// lines, while the bar draws the menus' glyph: a click there drops the tab's menu down, as one on the glyph does.
+func (b Bar) OnSelected(x, y int) bool {
+	return b.Menus && len(b.Tabs) > 0 && y >= b.Row && y < b.Row+Height && b.hit(x) == b.Selected
+}
+
 // hit gives the tab a column of the screen falls on: the one whose part covers it. A triangle, which Update takes
 // first, and the margin without one are no tab's: -1.
 func (b Bar) hit(x int) int {

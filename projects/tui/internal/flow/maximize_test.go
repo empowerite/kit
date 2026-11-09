@@ -153,6 +153,10 @@ func TestClicksFollowTheTop(t *testing.T) {
 	if glyph < 0 || ansi.Cut(lines(m)[0], glyph, glyph+1) != tabs.Menu {
 		t.Fatalf("the title's : at %d: %q", glyph, lines(m)[0])
 	}
+	// so does a click on the tab's first cell in the title
+	if m := drive(m, testkit.Click(ansi.StringWidth(m.title())-ansi.StringWidth(m.bar().Label()), 0)); !m.tabMenu.Open {
+		t.Errorf("a click on the title's tab:\n%s", raw(m))
+	}
 	if m = drive(m, testkit.Click(glyph, 0)); !m.tabMenu.Open {
 		t.Fatalf("a click on the title's ::\n%s", raw(m))
 	}
@@ -168,15 +172,21 @@ func TestClicksFollowTheTop(t *testing.T) {
 	}
 }
 
-// Where the title is clipped short of the tab's :, : still drops the menu, against the rows' right edge, and a click on
-// the title drops none.
+// Where the title is clipped short of the tab's :, : still drops the menu, against the rows' right edge, and so does a
+// click on what the title shows of the tab.
 func TestANarrowTitleHidesTheKebabAndColonStillDropsTheMenu(t *testing.T) {
 	m := maximize(t, loaded(t, viewing(""), tea.WindowSizeMsg{Width: 60, Height: 24}))
 	if m.tabMenuAt() != -1 || strings.Contains(lines(m)[0], tabs.Menu) {
 		t.Fatalf("the : at %d: %q", m.tabMenuAt(), lines(m)[0])
 	}
-	if m = drive(m, testkit.Click(m.titleWidth()-1, 0)); m.tabMenu.Open {
-		t.Errorf("a click on the clipped title dropped the menu")
+	if start := ansi.StringWidth(m.title()) - ansi.StringWidth(m.bar().Label()); start >= m.titleWidth()-1 {
+		t.Fatalf("the tab starts at %d, past the title's %d", start, m.titleWidth())
+	}
+	if m := drive(m, testkit.Click(m.titleWidth()-1, 0)); !m.tabMenu.Open {
+		t.Errorf("a click on what the clipped title shows of the tab dropped no menu")
+	}
+	if m := drive(m, testkit.Click(m.titleWidth(), 0)); m.tabMenu.Open {
+		t.Errorf("a click past the clipped title dropped the menu")
 	}
 	if m = drive(m, press(':')); !m.tabMenu.Open {
 		t.Fatalf(": did not drop the menu")

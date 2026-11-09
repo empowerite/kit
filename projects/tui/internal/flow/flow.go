@@ -4,14 +4,14 @@
 // the bar the keyboard. Down enters a stage's rows and up on the first row leaves them; in the rows, right opens a row
 // and left closes it, space selects it as one of several, shift with up or down selects as it moves, and ctrl+a selects
 // every row, and a click on a row puts the cursor there, and on the row under it opens or closes it; = drops the app's
-// menu down, and : or ; the selected tab's, as a click on = or : does; F1 or ? shows the legend over the rows, and again
-// hides it; / or a click on the search, always on the screen's top right, gives the search the keyboard. A click on a
-// linked glyph, as an issue's before its title, opens its page in the browser, and one on a glyph that names a row of
-// another stage, as underway's pull request, selects that stage with the row under the cursor. The rows take the
-// screen's width. Maximize, in the tab's menu, gives the rows the bar's lines but one, the tab named in the title, and
-// Restore puts the bar back. Esc goes back one level: from the search, then from the rows to the bar. Ctrl-c quits with
-// 130 from anywhere, and ctrl-q quits with 0; esc never quits. A stage's
-// command has two minutes; past them it is a refusal, and quitting kills the commands still running.
+// menu down, as a click on = or the screen's name does, and : or ; the selected tab's, as a click anywhere on the tab
+// does; F1 or ? shows the legend over the rows, and again hides it; / or a click on the search, always on the screen's
+// top right, gives the search the keyboard. A click on a linked glyph, as an issue's before its title, opens its page
+// in the browser, and one on a glyph that names a row of another stage, as underway's pull request, selects that stage
+// with the row under the cursor. The rows take the screen's width. Maximize, in the tab's menu, gives the rows the
+// bar's lines but one, the tab named in the title, and Restore puts the bar back. Esc goes back one level: from the
+// search, then from the rows to the bar. Ctrl-c quits with 130 from anywhere, and ctrl-q quits with 0; esc never quits.
+// A stage's command has two minutes; past them it is a refusal, and quitting kills the commands still running.
 package flow
 
 import (
@@ -319,7 +319,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case msg.Button == tea.MouseLeft && m.onMenu(msg.X, msg.Y):
 			return m, m.dropDown(false)
-		case msg.Button == tea.MouseLeft && shell.OnApp(msg.X, msg.Y):
+		case msg.Button == tea.MouseLeft && shell.OnApp(msg.X, msg.Y, appLabel):
 			m.appMenu = m.appMenu.Opened()
 		case msg.Button == tea.MouseLeft && m.books.On(msg.X, msg.Y, m.booksAt()):
 			m.books = m.books.Opened()
@@ -351,11 +351,16 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// onMenu says whether a click at x, y is on the selected tab's menu glyph: its cells on the bar's middle line, or, once
-// maximized, on the title, or the blank cell either side of them, so a click a little off still drops the menu.
+// onMenu says whether a click at x, y is on the selected tab, which drops its menu down, as its : does: anywhere on
+// its part of the bar, on any of the bar's lines; or, maximized, anywhere on its label at the title's end, as much of it
+// as the title shows.
 func (m Model) onMenu(x, y int) bool {
-	at := m.tabMenuAt()
-	return at >= 0 && y == m.menuTop() && x >= at-1 && x <= at+ansi.StringWidth(tabs.Menu)
+	if !m.maximized {
+		return m.bar().OnSelected(x, y)
+	}
+	end := ansi.StringWidth(m.title())
+	start := end - ansi.StringWidth(m.bar().Label())
+	return y == shell.Top && x >= start && x < min(end, m.titleWidth())
 }
 
 // barTakes gives what the bar makes of a message, as its Update says, and whether it took it; while maximized, the bar

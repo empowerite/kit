@@ -112,7 +112,9 @@ func TestTheMenuHangsFromTheTitlesGlyphAndAClickChooses(t *testing.T) {
 	if m, c := m.Click(50, 15, 60); c != (Choice{}) || m.Open {
 		t.Errorf("a click off the menu: %v %+v", m.Open, c)
 	}
-	if !OnApp(At, Top) || !OnApp(0, Top) || OnApp(At, Top+1) || OnApp(5, Top) {
+	// = and the name after it, "kit", take the click, on the title line alone
+	if !OnApp(At, Top, "kit") || !OnApp(0, Top, "kit") || !OnApp(At+4, Top, "kit") || OnApp(At+5, Top, "kit") ||
+		OnApp(At, Top+1, "kit") {
 		t.Error("OnApp")
 	}
 	if Title("kit", false) != "  "+style.Tint(App)+" kit" || Title("kit", true) != "  "+style.Menu(App)+" kit" {

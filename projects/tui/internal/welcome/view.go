@@ -16,6 +16,9 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
+// appLabel is the screen's name on the title line, after the app menu's =; a click on either drops the menu down.
+const appLabel = "kit welcome"
+
 // The glyphs the screen draws besides the tabs'.
 const (
 	Passed = "✅" // a check that passed
@@ -74,11 +77,11 @@ func (m Model) paneHeight() int { return max(1, m.height-fixed) }
 // title gives the title line: as internal/shell draws it, the app's menu's glyph before kit welcome; then the 📚
 // control, which names the workspace.
 func (m Model) title() string {
-	return shell.Title(style.Label("kit welcome"), m.appMenu.Open) + " · " + m.books.Label()
+	return shell.Title(style.Label(appLabel), m.appMenu.Open) + " · " + m.books.Label()
 }
 
 // booksAt gives the column the title's 📚 control starts at.
-func (m Model) booksAt() int { return shell.BooksAt(shell.Title(style.Label("kit welcome"), false)) }
+func (m Model) booksAt() int { return shell.BooksAt(shell.Title(style.Label(appLabel), false)) }
 
 // keys gives the path to the keyboard, which the keys bar is drawn from: the screen; the steps' bar, whose down enters
 // the step's checks or its page; and the pane while it has the keyboard, or the search, which takes every press while

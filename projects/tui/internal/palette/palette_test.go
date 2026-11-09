@@ -649,11 +649,11 @@ func TestEqualsDropsTheAppsMenuDownOverThePalette(t *testing.T) {
 	if !slices.Contains(msgs, tea.Msg(shell.SwitchMsg{Screen: shell.Welcome})) {
 		t.Errorf("welcome asked %v", msgs)
 	}
-	// a click on = drops it down, one on quit ends the palette, and one off it closes it
+	// a click on the screen's name drops it down, as one on = does, one on quit ends the palette, and one off it closes it
 	m, _ = testkit.Drive(m, nil, tea.KeyPressMsg{Code: tea.KeyEscape})
-	m, _ = testkit.Drive(m, nil, testkit.Click(shell.At, shell.Top), tea.MouseClickMsg{Button: tea.MouseRight})
+	m, _ = testkit.Drive(m, nil, testkit.Click(shell.At+ansi.StringWidth(shell.App)+len(appLabel), shell.Top), tea.MouseClickMsg{Button: tea.MouseRight})
 	if !m.appMenu.Open {
-		t.Fatal("a click on = did not drop the menu down")
+		t.Fatal("a click on the screen's name did not drop the menu down")
 	}
 	quit := testkit.Click(3, shell.Top+8)
 	if _, msgs := testkit.Drive(m, nil, quit); !slices.Contains(msgs, tea.Msg(tea.QuitMsg{})) {

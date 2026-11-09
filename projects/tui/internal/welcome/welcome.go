@@ -267,7 +267,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.setSearch(s)
 			}
 			return m, nil
-		case msg.Button == tea.MouseLeft && shell.OnApp(msg.X, msg.Y):
+		case msg.Button == tea.MouseLeft && shell.OnApp(msg.X, msg.Y, appLabel):
 			m.appMenu = m.appMenu.Opened()
 			return m, nil
 		case msg.Button == tea.MouseLeft && m.books.On(msg.X, msg.Y, m.booksAt()):

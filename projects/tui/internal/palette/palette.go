@@ -27,6 +27,9 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
+// appLabel is the screen's name on the title line, after the app menu's =; a click on either drops the menu down.
+const appLabel = "kit help"
+
 // OpenMsg asks for the verb's form.
 type OpenMsg struct{ Verb string }
 
@@ -189,7 +192,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case msg.Y == 0 && len(m.recent.Items) > 0 && msg.X == m.recallAt():
 			m.recent = m.recent.Opened()
-		case shell.OnApp(msg.X, msg.Y):
+		case shell.OnApp(msg.X, msg.Y, appLabel):
 			m.appMenu = m.appMenu.Opened()
 		}
 	case tea.KeyPressMsg:
@@ -374,7 +377,7 @@ func (m Model) widest() int {
 // search on its right, its cursor showing except while the app's menu has the keyboard; kit's line under it when a
 // verb did not open; and a gap.
 func (m Model) top() []string {
-	title, at := shell.Title(style.Label("kit help"), m.appMenu.Open), m.searchAt()
+	title, at := shell.Title(style.Label(appLabel), m.appMenu.Open), m.searchAt()
 	top := []string{pane.Pad(pane.Clip(title, at-1), at, false) + m.searchLine()}
 	if m.refusal != "" {
 		for _, line := range page(style.Excluded+" "+m.refusal, m.width-2) {

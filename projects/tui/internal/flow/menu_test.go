@@ -122,10 +122,11 @@ func TestEqualsDropsTheAppsMenuDownToRefreshAnotherScreenOrQuit(t *testing.T) {
 		len(got) < len(eight) {
 		t.Errorf("refresh all ran %q", got)
 	}
-	// welcome asks for the welcome, the picture kept as it is; quit ends it, not interrupted
+	// a click on the screen's name drops it down too, its last letter; welcome asks for the welcome, the picture kept
+	// as it is; quit ends it, not interrupted
 	welcome := shell.Top + 1 + slices.IndexFunc(m.appMenu.Items(), func(it shell.Item) bool { return it.Name == "Welcome" })
 	_, msgs := testkit.Drive(m, func(msg tea.Msg) bool { _, ok := msg.(shell.SwitchMsg); return ok },
-		testkit.Click(shell.At, shell.Top), testkit.Click(3, welcome))
+		testkit.Click(shell.At+ansi.StringWidth(shell.App)+len(appLabel), shell.Top), testkit.Click(3, welcome))
 	if !slices.Contains(msgs, tea.Msg(shell.SwitchMsg{Screen: shell.Welcome})) {
 		t.Errorf("welcome asked %v", msgs)
 	}
@@ -175,6 +176,31 @@ func TestAClickOnTheMenuGlyphDropsItDownAndAClickChoosesOrCloses(t *testing.T) {
 	before := m.stages[m.stage].Cursor
 	if m = drive(m, glyph, testkit.Click(2, m.top()+8)); m.tabMenu.Open || m.stages[m.stage].Cursor != before {
 		t.Errorf("a click off the menu: menu %v", m.tabMenu.Open)
+	}
+}
+
+// A click anywhere on the selected tab, its number as well as its :, on any of the bar's lines, drops its menu down; a
+// click on the tab before it selects that one, its menu closed.
+func TestAClickAnywhereOnTheSelectedTabDropsItsMenu(t *testing.T) {
+	m := loaded(t, options(), right, right, right)
+	b := m.bar()
+	first := -1
+	for x := range m.width {
+		if b.OnSelected(x, b.Row+1) {
+			first = x
+			break
+		}
+	}
+	if first < 0 || first >= b.MenuAt() {
+		t.Fatalf("the selected tab starts at %d, its : at %d", first, b.MenuAt())
+	}
+	for y := b.Row; y < b.Row+tabs.Height; y++ {
+		if m := drive(m, testkit.Click(first, y)); !m.tabMenu.Open || m.stage != 3 {
+			t.Errorf("a click on the tab at %d, %d: menu %v, stage %d", first, y, m.tabMenu.Open, m.stage)
+		}
+	}
+	if m := drive(m, testkit.Click(first-1, b.Row+1)); m.tabMenu.Open || m.stage != 2 {
+		t.Errorf("a click on the tab before: menu %v, stage %d", m.tabMenu.Open, m.stage)
 	}
 }
 

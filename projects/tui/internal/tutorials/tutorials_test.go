@@ -274,9 +274,9 @@ func TestTheAppMenuSwitchesAndQuits(t *testing.T) {
 	if !slices.Contains(msgs, tea.Msg(shell.SwitchMsg{Screen: shell.Help})) {
 		t.Errorf("help asked %v", msgs)
 	}
-	m = drive(m, esc, testkit.Click(shell.At, shell.Top))
+	m = drive(m, esc, testkit.Click(shell.At+ansi.StringWidth(shell.App)+len(appLabel), shell.Top))
 	if !m.appMenu.Open {
-		t.Fatal("a click on = did not drop the menu down")
+		t.Fatal("a click on the screen's name did not drop the menu down")
 	}
 	_, msgs = testkit.Drive(m, switched, testkit.Click(4, shell.Top+3))
 	if !slices.Contains(msgs, tea.Msg(shell.SwitchMsg{Screen: shell.Flow})) {
