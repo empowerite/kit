@@ -2,7 +2,8 @@
 # fake-kit - stands in for kit in the flow tests: answers flow --stages and flow <stage> --json (test helper)
 # ----------------------------------------------------------------------------------------------------------------------
 # Each stage's JSON is the fixture beside this file, <stage>.json. FAKE_FLOW_CALLS names a file every call's words
-# are appended to, one line each, so a test reads the order the stages ran in. FAKE_FLOW_STAGES is what --stages
+# are appended to, one line each, so a test reads the order the stages ran in; FAKE_FLOW_DIRS names one each call's
+# directory, as pwd -P gives it, and its words are appended to, a tab between them. FAKE_FLOW_STAGES is what --stages
 # prints, space-separated; unset, it prints the eight. FAKE_FLOW_REFUSE names a stage whose --json answer is a
 # refusal, exit 1, or stages to refuse --stages with exit 2. FAKE_FLOW_SILENT names a stage that exits 1 with
 # nothing on stderr. FAKE_FLOW_SLOW names a stage that sleeps five seconds before it answers. FAKE_FLOW_ABOVE
@@ -21,6 +22,7 @@ set -o errexit -o nounset -o pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
 [[ -z "${FAKE_FLOW_CALLS:-}" ]] || printf '%s\n' "$*" >> "${FAKE_FLOW_CALLS}"
+[[ -z "${FAKE_FLOW_DIRS:-}" ]] || printf '%s\t%s\n' "$(pwd -P)" "$*" >> "${FAKE_FLOW_DIRS}"
 
 case "${1:-}" in
   (assign | unassign | close | gather | work)

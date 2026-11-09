@@ -12,6 +12,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
@@ -272,5 +273,83 @@ func TestNewOffersTheTrackersAndOpensThePagePicked(t *testing.T) {
 	t.Setenv("FAKE_FLOW_REFUSE", "new")
 	if m = choose(t, m, "New…"); m.ask != nil || !strings.Contains(lines(m)[len(lines(m))-1], "the forge cannot be read") {
 		t.Errorf("a refusal: %+v, %q", m.ask, lines(m)[len(lines(m))-1])
+	}
+}
+
+// overMembers gives the picture over a group of a and b, each cloned at a directory of its own, backlog loaded with an
+// issue of each, and the file each call's directory and words are recorded in, and the two directories, as pwd -P
+// gives them.
+func overMembers(t *testing.T) (Model, string, string, string) {
+	t.Helper()
+	dirs := filepath.Join(t.TempDir(), "dirs")
+	t.Setenv("FAKE_FLOW_DIRS", dirs)
+	a, _ := filepath.EvalSymlinks(t.TempDir())
+	b, _ := filepath.EvalSymlinks(t.TempDir())
+	ws := group
+	ws.Members = []kit.WorkspaceMember{{Repository: "github.com/o/a", Checkout: a}, {Repository: "github.com/o/b", Checkout: b}}
+	m := over(t, "backlog")
+	m = drive(m, shell.WorkspaceMsg{Workspace: ws}, answer("backlog", twoMembers), tea.WindowSizeMsg{Width: 120, Height: 40})
+	return m, dirs, a, b
+}
+
+// ranIn gives the calls the fake recorded that are not the stages' reads, each its directory, a tab, and its words.
+func ranIn(t *testing.T, dirs string) []string {
+	t.Helper()
+	var out []string
+	for _, c := range calls(t, dirs) {
+		if _, words, _ := strings.Cut(c, "\t"); !strings.HasPrefix(words, "flow ") {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+func TestAssignToMeRunsOnceInEachMember(t *testing.T) {
+	m, dirs, a, b := overMembers(t)
+	m.stages[0].Picked["github.com/o/a #1"], m.stages[0].Picked["github.com/o/b #2"] = true, true
+	if got := m.refs(); !slices.Equal(got, []string{"#1", "#2"}) {
+		t.Fatalf("the refs: %q", got)
+	}
+	choose(t, m, "Assign to Me")
+	want := []string{a + "\tassign #1", b + "\tassign #2"}
+	if got := ranIn(t, dirs); !slices.Equal(got, want) {
+		t.Errorf("the calls:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+func TestTheActionsOfOneMemberAreDimAcrossTwo(t *testing.T) {
+	m, _, _, _ := overMembers(t)
+	one := []string{"Start Local Work Together…", "Add to Pull Request…", "Gather Under a Parent…", "Close as Duplicate of…"}
+	m.stages[0].Picked["github.com/o/a #1"], m.stages[0].Picked["github.com/o/b #2"] = true, true
+	for _, name := range append(one, "Assign to Me") {
+		k := item(m, name)
+		if k < 0 {
+			t.Fatalf("%s is not in the menu", name)
+		}
+		if dim := !m.enabled(k); dim != slices.Contains(one, name) {
+			t.Errorf("%s across two members: dim %v", name, dim)
+		}
+	}
+	delete(m.stages[0].Picked, "github.com/o/b #2")
+	for _, name := range []string{"Start Local Work Together…", "Gather Under a Parent…", "Close as Duplicate of…"} {
+		if !m.enabled(item(m, name)) {
+			t.Errorf("%s with a's issue alone is dim", name)
+		}
+	}
+}
+
+func TestOverAGroupMeIsAskedInAMember(t *testing.T) {
+	m, dirs, a, _ := overMembers(t)
+	if msg, ok := m.whoami()().(meMsg); !ok || msg.err != nil {
+		t.Fatalf("whoami: %+v", msg)
+	}
+	var me []string
+	for _, c := range calls(t, dirs) {
+		if strings.HasSuffix(c, "\tflow --me") {
+			me = append(me, c)
+		}
+	}
+	if want := a + "\tflow --me"; !slices.Equal(me, []string{want}) {
+		t.Errorf("--me ran %q, want %q", me, want)
 	}
 }

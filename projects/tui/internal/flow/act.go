@@ -66,9 +66,60 @@ type ask struct {
 	pick   []string // each line's answer, when one is picked
 	at     int      // the line under the keyboard
 	does   string   // what enter does with the line picked, as the keys bar names it: add, by default
-	run    func(answer string) [][]string
+	run    func(answer string) []call
 	then   func(answer string) tea.Cmd
 }
+
+// call is one kit command an action runs: the checkout it runs in, none for where the screen reads, and its words.
+type call struct {
+	dir   string
+	words []string
+}
+
+// memberRefs is the issues selected in one member's backlog: the member, none over a repository, its checkout, and
+// the issues' references.
+type memberRefs struct {
+	member, dir string
+	refs        []string
+}
+
+// refOf gives a backlog row's member and its issue's reference, #45, from the row's key, which holds the member
+// before the reference over a group.
+func refOf(key string) (member, ref string) {
+	if k := strings.LastIndex(key, " "); k >= 0 {
+		return key[:k], key[k+1:]
+	}
+	return "", key
+}
+
+// checkoutOf gives a member's checkout, as kit said the workspace, or none: over a repository, where the screen reads.
+func (m Model) checkoutOf(member string) string {
+	for _, w := range m.ws.Members {
+		if w.Repository == member {
+			return w.Checkout
+		}
+	}
+	return ""
+}
+
+// refsByMember gives the issues selected in backlog, a member's together, the members in the rows' order.
+func (m Model) refsByMember() []memberRefs {
+	var out []memberRefs
+	for _, r := range m.selectedRows() {
+		member, ref := refOf(r.Key)
+		k := slices.IndexFunc(out, func(g memberRefs) bool { return g.member == member })
+		if k < 0 {
+			out = append(out, memberRefs{member: member, dir: m.checkoutOf(member)})
+			k = len(out) - 1
+		}
+		out[k].refs = append(out[k].refs, ref)
+	}
+	return out
+}
+
+// oneMember names the actions that act in one member, which a selection across two cannot take.
+var oneMember = []string{"Start Local Work Together…", "Add to Pull Request…", "Gather Under a Parent…",
+	"Close as Duplicate of…"}
 
 // trackersMsg is what kit said of the trackers a new issue can be filed in, or why it could not say.
 type trackersMsg struct {
@@ -82,23 +133,29 @@ type actedMsg struct {
 	err error
 }
 
-// refs gives the references of the issues selected in backlog, in the rows' order: #45.
+// refs gives the references of the issues selected in backlog, in the rows' order: #45, whatever their member.
 func (m Model) refs() []string {
 	var out []string
 	for _, r := range m.selectedRows() {
-		out = append(out, r.Key)
+		_, ref := refOf(r.Key)
+		out = append(out, ref)
 	}
 	return out
 }
 
-// mine gives the caller's open pull requests, as the changes stage read them: each one's number and line.
+// mine gives the caller's open pull requests, as the changes stage read them, in the member of the issues selected:
+// each one's number and line.
 func (m Model) mine() (numbers []int, lines []string) {
+	member := ""
+	if groups := m.refsByMember(); len(groups) > 0 {
+		member = groups[0].member
+	}
 	for _, s := range m.stages {
 		if s.name != "changes" {
 			continue
 		}
 		for _, p := range s.pulls {
-			if m.me != "" && p.Author == m.me {
+			if m.me != "" && p.Author == m.me && p.Member == member {
 				numbers = append(numbers, p.Number)
 				lines = append(lines, fmt.Sprintf("%s #%d %s", Change, p.Number, p.Title))
 			}
@@ -115,9 +172,9 @@ func (m Model) acting(name string) (action, enabled bool) {
 		return false, false
 	}
 	if name == "New…" {
-		return true, true
+		return true, m.runner.Group == "" || m.cursorMember() != ""
 	}
-	if m.selected() == 0 {
+	if m.selected() == 0 || slices.Contains(oneMember, name) && len(m.refsByMember()) > 1 {
 		return true, false
 	}
 	if name == "Add to Pull Request…" {
@@ -127,35 +184,62 @@ func (m Model) acting(name string) (action, enabled bool) {
 	return true, true
 }
 
-// act does what the backlog's action named asks: it runs kit at once, or asks first.
+// cursorMember gives the member of the backlog row under the cursor, over a group, or none.
+func (m Model) cursorMember() string {
+	rows, k := m.rows(m.stage), m.stages[m.stage].Cursor
+	if k < 0 || k >= len(rows) || rows[k].Aside {
+		return ""
+	}
+	member, _ := refOf(rows[k].Key)
+	return member
+}
+
+// act does what the backlog's action named asks: it runs kit at once, or asks first. Over a group, an action on the
+// issues runs in each member's checkout, with that member's issues; one that acts in one member runs in its.
 func (m *Model) act(name string) tea.Cmd {
-	refs := m.refs()
-	each := func(words ...string) func(string) [][]string {
-		return func(string) [][]string { return [][]string{append(words, refs...)} }
+	refs, groups := m.refs(), m.refsByMember()
+	dir := ""
+	if len(groups) > 0 {
+		dir = groups[0].dir
+	}
+	one := func(words ...string) []call { return []call{{dir, words}} }
+	each := func(words ...string) func(string) []call {
+		return func(string) []call {
+			var out []call
+			for _, g := range groups {
+				out = append(out, call{g.dir, append(slices.Clone(words), g.refs...)})
+			}
+			return out
+		}
 	}
 	confirm := func(title string, words ...string) {
-		m.ask = &ask{title: title, lines: m.listed(refs), run: each(words...)}
+		m.ask = &ask{title: title, lines: m.listed(), run: each(words...)}
 	}
-	question := func(title string, run func(answer string) [][]string) {
+	question := func(title string, run func(answer string) []call) {
 		m.ask = &ask{title: title, typing: true, run: run}
 	}
 	switch name {
 	case "New…":
 		m.note.Text, m.note.Done = "→ kit new issue --list …", true
 		r, ctx := m.runner, m.ctx
+		if member := m.cursorMember(); member != "" {
+			r.Dir = m.checkoutOf(member)
+		}
 		return func() tea.Msg {
 			trackers, err := r.Trackers(ctx)
 			return trackersMsg{trackers, err}
 		}
 	case "Start Local Work for Each":
-		var cmds [][]string
-		for _, r := range refs {
-			cmds = append(cmds, []string{"work", r})
+		var calls []call
+		for _, g := range groups {
+			for _, r := range g.refs {
+				calls = append(calls, call{g.dir, []string{"work", r}})
+			}
 		}
-		return m.run(cmds)
+		return m.run(calls)
 	case "Start Local Work Together…":
-		question("Title of the parent issue", func(t string) [][]string {
-			return [][]string{append([]string{"work", "--title", t}, refs...)}
+		question("Title of the parent issue", func(t string) []call {
+			return one(append([]string{"work", "--title", t}, refs...)...)
 		})
 	case "Add to Pull Request…":
 		numbers, lines := m.mine()
@@ -164,24 +248,22 @@ func (m *Model) act(name string) tea.Cmd {
 			picks = append(picks, strconv.Itoa(n))
 		}
 		m.ask = &ask{title: "Add to which of your pull requests?", lines: lines, pick: picks,
-			run: func(n string) [][]string { return [][]string{append([]string{"work", "--pr", n}, refs...)} }}
+			run: func(n string) []call { return one(append([]string{"work", "--pr", n}, refs...)...) }}
 	case "Assign to Me":
 		return m.run(each("assign")(""))
 	case "Assign to…":
-		question("Assign to which login?", func(login string) [][]string {
-			return [][]string{append([]string{"assign", "--to", login}, refs...)}
-		})
+		question("Assign to which login?", func(login string) []call { return each("assign", "--to", login)("") })
 	case "Unassign":
 		confirm("Take yourself off these issues?", "unassign")
 	case "Gather Under a Parent…":
-		question("Title of the parent issue", func(t string) [][]string {
-			return [][]string{append([]string{"gather", "--title", t}, refs...)}
+		question("Title of the parent issue", func(t string) []call {
+			return one(append([]string{"gather", "--title", t}, refs...)...)
 		})
 	case "Close as Not Planned":
 		confirm("Close these issues as not planned?", "close", "--not-planned")
 	case "Close as Duplicate of…":
-		question("Duplicate of which issue?", func(original string) [][]string {
-			return [][]string{append([]string{"close", "--duplicate-of", original}, refs...)}
+		question("Duplicate of which issue?", func(original string) []call {
+			return one(append([]string{"close", "--duplicate-of", original}, refs...)...)
 		})
 	case "Copy Links":
 		m.done(fmt.Sprintf("%s copied %d links", ToPage, len(refs)))
@@ -216,22 +298,28 @@ func (m *Model) newIssue(msg trackersMsg) tea.Cmd {
 	return nil
 }
 
-// listed gives a line for each issue, its reference and title, as the dialog that confirms an action lists them.
-func (m Model) listed(refs []string) []string {
+// listed gives a line for each issue selected, its reference and title, after its member's short name over a group,
+// as the dialog that confirms an action lists them.
+func (m Model) listed() []string {
 	var out []string
-	for _, r := range refs {
-		out = append(out, r+" "+m.issueTitle(r))
+	for _, r := range m.selectedRows() {
+		member, ref := refOf(r.Key)
+		line := ref + " " + m.issueTitle(member, ref)
+		if member != "" {
+			line = m.short(member) + " " + line
+		}
+		out = append(out, line)
 	}
 	return out
 }
 
-// issueTitle gives a backlog issue's title, by its reference, or nothing.
-func (m Model) issueTitle(ref string) string {
+// issueTitle gives a member's backlog issue's title, by its reference, or nothing.
+func (m Model) issueTitle(member, ref string) string {
 	n, _ := strconv.Atoi(strings.TrimPrefix(ref, "#"))
 	for _, s := range m.stages {
 		if s.name == "backlog" {
 			for _, i := range s.issues {
-				if i.Number == n {
+				if i.Number == n && i.Member == member {
 					return i.Title
 				}
 			}
@@ -245,7 +333,8 @@ func (m Model) issueTitle(ref string) string {
 func (m Model) links() string {
 	var out []string
 	for _, r := range m.selectedRows() {
-		text := r.Key + " " + m.issueTitle(r.Key)
+		member, ref := refOf(r.Key)
+		text := ref + " " + m.issueTitle(member, ref)
 		page := ""
 		for _, c := range r.Cells {
 			if strings.Contains(c.Link, "://") {
@@ -262,17 +351,22 @@ func (m Model) links() string {
 	return strings.Join(out, "\n")
 }
 
-// run runs kit's commands, one after another, the keys bar saying so until kit answers; a refusal stops the rest.
-func (m *Model) run(cmds [][]string) tea.Cmd {
-	if len(cmds) == 0 {
+// run runs kit's commands, one after another, each in its checkout, the keys bar saying so until kit answers; a
+// refusal stops the rest.
+func (m *Model) run(calls []call) tea.Cmd {
+	if len(calls) == 0 {
 		return nil
 	}
-	m.note.Text, m.note.Done = "→ kit "+strings.Join(cmds[0], " ")+" …", true
+	m.note.Text, m.note.Done = "→ kit "+strings.Join(calls[0].words, " ")+" …", true
 	r, ctx := m.runner, m.ctx
 	return func() tea.Msg {
 		var out strings.Builder
-		for _, c := range cmds {
-			o, err := r.Act(ctx, c...)
+		for _, c := range calls {
+			in := r
+			if c.dir != "" {
+				in.Dir = c.dir
+			}
+			o, err := in.Act(ctx, c.words...)
 			out.WriteString(o)
 			if err != nil {
 				return actedMsg{out.String(), err}

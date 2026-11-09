@@ -608,6 +608,15 @@ func (m *Model) askMe() tea.Cmd {
 // whoami asks kit for the caller's login.
 func (m Model) whoami() tea.Cmd {
 	r, ctx, limit := m.runner, m.ctx, m.limit
+	// over a group, the caller's login is the one a member's forge knows, read in the first member cloned
+	if r.Group != "" {
+		for _, w := range m.ws.Members {
+			if w.Checkout != "" {
+				r.Dir = w.Checkout
+				break
+			}
+		}
+	}
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(ctx, limit)
 		defer cancel()
