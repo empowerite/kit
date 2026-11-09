@@ -206,7 +206,9 @@ func (m Model) rowKeys() shell.Segment {
 	case grid.Parent(rows, s.Cursor) >= m.first(m.stage):
 		seg.Bindings = append(seg.Bindings, shell.Bind("←", "group", "left"))
 	}
-	if grid.Heads(rows[s.Cursor]) {
+	// ⌥ with an arrow is named only where the terminal said it tells it apart, as the kitty keyboard protocol does: a
+	// macOS terminal with its default settings sends it as another key, or as the arrow alone
+	if grid.Heads(rows[s.Cursor]) && m.altArrows {
 		seg.Bindings = append(seg.Bindings, shell.Bind("⌥←→", "a level", "alt+left", "alt+right"))
 	}
 	return seg

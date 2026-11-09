@@ -83,6 +83,7 @@ type Model struct {
 	limit         time.Duration      // how long a stage's command may take: the deadline, shorter in a test
 	origin        Origin
 	noFetch       bool
+	altArrows     bool // the terminal answered the kitty keyboard protocol, so ⌥ with an arrow arrives as itself
 	filters       []string
 	stages        []stage
 	stage         int                       // the selected stage
@@ -251,6 +252,8 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.tookMarks(cmd, took)
 	}
 	switch msg := msg.(type) {
+	case tea.KeyboardEnhancementsMsg:
+		m.altArrows = msg.SupportsKeyDisambiguation()
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		m.rebuild()

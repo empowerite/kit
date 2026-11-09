@@ -96,6 +96,8 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     until changed. → opens the node under the cursor, or steps into an open heading's first row; ← closes it, or steps
     out to the heading over it; ⌥ with → opens one level more under the node, every branch alike, and ⌥ with ← closes
     the deepest open level under it, a level each press; ⌥ with a click on its ▸ or ▾ does the same, a level each click.
+    The key hints name ⌥ with an arrow only where the terminal answered the kitty keyboard protocol: a macOS terminal
+    with its default settings sends it as another key, or as the arrow alone.
     The tab's menu has Expand, Collapse, and Collapse Others, which act on everything, or on the selection while rows
     are selected: Expand Selected opens the groups over them too, and Collapse Others folds every group without one.
     Space on a heading selects every row of its group, or none once all are, and the heading's mark, ▣ or ◩, says

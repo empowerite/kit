@@ -3,6 +3,7 @@
 package flow
 
 import (
+	"github.com/charmbracelet/x/ansi"
 	"slices"
 	"strings"
 	"testing"
@@ -88,8 +89,13 @@ func TestTheOutlineOpensClosesAndStepsAlongItsTree(t *testing.T) {
 	if m = drive(m, optioned(tea.KeyLeft)); len(m.rows(0)) != 1+s0 {
 		t.Errorf("option-left a third time left the heading open: %d rows", len(m.rows(0)))
 	}
+	// ⌥ with an arrow is named only where the terminal said it tells it apart, as the kitty keyboard protocol does
+	if last := lines(m)[len(lines(m))-1]; strings.Contains(last, "← collapse") || strings.Contains(last, "⌥←→") {
+		t.Errorf("the keys on the heading over the groups, the terminal silent: %q", last)
+	}
+	m = drive(m, tea.KeyboardEnhancementsMsg{Flags: ansi.KittyDisambiguateEscapeCodes})
 	if last := lines(m)[len(lines(m))-1]; strings.Contains(last, "← collapse") || !strings.Contains(last, "⌥←→ a level") {
-		t.Errorf("the keys on the heading over the groups: %q", last)
+		t.Errorf("the keys on the heading over the groups, the protocol answered: %q", last)
 	}
 	if m = drive(m, optioned(tea.KeyRight)); func() bool { s, a, r := levels(); return s != s0 || a != a0 || r != 0 }() {
 		s, a, r := levels()
