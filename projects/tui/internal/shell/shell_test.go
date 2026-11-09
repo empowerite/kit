@@ -264,3 +264,31 @@ func TestADialogBoxesItsLinesUnderItsTitle(t *testing.T) {
 		}
 	}
 }
+
+// The menu bar is every screen's: the kit menu and the screen's name, each part given after a separator, and the
+// search field at the right end; the left part is clipped two cells short of it, and what the view stands on is found
+// where it is drawn, whole or cut.
+func TestTheMenuBarIsEveryScreens(t *testing.T) {
+	b := MenuBar{Screen: "kit flow", Workspace: "- o/r", On: "➊ backlog 3 :", Search: SearchLine("", false)}
+	line := ansi.Strip(b.Line(60))
+	if !strings.HasPrefix(line, "  "+App+" kit flow · - o/r · ➊ backlog 3 :") || !strings.HasSuffix(line, Find+" "+Idle) ||
+		ansi.StringWidth(line) != 59 {
+		t.Errorf("the menu bar at 60: %q", line)
+	}
+	from, until, whole := b.OnSpan(60)
+	if !whole || ansi.Strip(ansi.Cut(b.Line(60), from, until)) != b.On {
+		t.Errorf("what the view stands on spans %d to %d, whole %v", from, until, whole)
+	}
+	if _, _, whole = b.OnSpan(35); whole {
+		t.Error("at 35 what the view stands on is cut, not whole")
+	}
+	if from, _, _ = b.OnSpan(15); from != -1 {
+		t.Errorf("at 15 what the view stands on does not show, yet starts at %d", from)
+	}
+	if bare := (MenuBar{Screen: "kit flow"}); bare.SearchAt(60) != 60 || ansi.Strip(bare.Line(60)) != "  "+App+" kit flow" {
+		t.Errorf("with no part and no search: %q", ansi.Strip(bare.Line(60)))
+	}
+	if at := b.WorkspaceAt(); ansi.Strip(ansi.Cut(b.Line(60), at, at+1)) != Workspaces {
+		t.Errorf("the workspace menu is not at %d", at)
+	}
+}

@@ -9,7 +9,7 @@
 // first and the last verb. The right arrow trades the purposes for the highlighted verb's page beside the names, and
 // the left arrow brings them back. Enter opens the verb's form, and a form that cannot open leaves kit's line under the
 // menu bar; = or a click on the = before the screen's name drops the kit menu down, internal/shell's, as every screen
-// of kittui has it; esc there does nothing and never quits; ctrl-q quits, and ctrl-c quits as interrupted. Where the
+// of kittui has it, and - or a click on the workspace menu after it drops that down; esc there does nothing and never quits; ctrl-q quits, and ctrl-c quits as interrupted. Where the
 // tree or the page is cut, a dim line says how many verbs or lines are hidden. The status bar is the last line. Widths
 // are terminal cells, so a two-cell glyph never pushes a row past the edge.
 package palette
@@ -62,7 +62,8 @@ type Model struct {
 	width, height int
 	cancelled     bool
 	interrupted   bool
-	appMenu       shell.Menu // the app's menu, internal/shell's, which has the keyboard while it is open
+	appMenu       shell.Menu      // the app's menu, internal/shell's, which has the keyboard while it is open
+	books         shell.BooksMenu // the menu bar's workspace menu, which has the keyboard while it is open
 }
 
 // New opens the palette on the verbs, leaving out tui itself, in the order the tree draws them: by group as kit help
@@ -133,8 +134,29 @@ func (m Model) chose(c shell.Choice) tea.Cmd {
 	return nil
 }
 
-// searchAt gives the column the search starts at on the title line, as internal/shell puts every screen's.
-func (m Model) searchAt() int { return shell.SearchAt(m.width, m.searchLine()) }
+// menuBar gives the menu bar, as internal/shell draws every screen's: the kit menu's = before kit help; the workspace
+// menu, which names the workspace; and the search field.
+func (m Model) menuBar() shell.MenuBar {
+	return shell.MenuBar{Screen: appLabel, Open: m.appMenu.Open, Workspace: m.books.Label(), Search: m.searchLine()}
+}
+
+// searchAt gives the column the search starts at on the menu bar, as internal/shell puts every screen's.
+func (m Model) searchAt() int { return m.menuBar().SearchAt(m.width) }
+
+// booksAt gives the column the menu bar's workspace menu starts at.
+func (m Model) booksAt() int { return m.menuBar().WorkspaceAt() }
+
+// Find gives the search focus, what is typed as it is, as a form's search field asks.
+func (m Model) Find() Model {
+	m.search.Focused = true
+	return m
+}
+
+// Told gives the palette what kittui says of the workspace, which its menu bar names.
+func (m Model) Told(msg shell.WorkspaceMsg) Model {
+	m.books = m.books.Told(msg)
+	return m
+}
 
 // searchLine gives the search as the title line draws it, its cursor showing except while the app's menu has the
 // keyboard.
@@ -180,6 +202,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.pages[msg.verb] = msg.page
 			delete(m.failed, msg.verb)
 		}
+	case shell.WorkspaceMsg:
+		m = m.Told(msg)
 	case tea.MouseClickMsg:
 		switch {
 		case msg.Button != tea.MouseLeft:
@@ -187,6 +211,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var c shell.Choice
 			m.appMenu, c = m.appMenu.Click(msg.X, msg.Y, m.width)
 			return m, m.chose(c)
+		case m.books.Open:
+			var picked string
+			m.books, picked = m.books.Click(msg.X, msg.Y, m.booksAt(), m.width)
+			return m, shell.Pick(picked)
+		case m.books.On(msg.X, msg.Y, m.booksAt()):
+			m.books = m.books.Opened()
 		case m.recent.Open:
 			var query string
 			if m.recent, query = m.recent.Click(msg.X, msg.Y, m.recallAt(), m.width); query != "" {
@@ -210,6 +240,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var c shell.Choice
 			m.appMenu, c = m.appMenu.Key(msg)
 			return m, m.chose(c)
+		}
+		if m.books.Open && msg.String() != "ctrl+c" {
+			var picked string
+			m.books, picked = m.books.Key(msg)
+			return m, shell.Pick(picked)
 		}
 		if m.recent.Open && msg.String() != "ctrl+c" {
 			var query string
@@ -240,6 +275,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "=":
 			m.appMenu = m.appMenu.Opened()
+		case shell.Workspaces:
+			m.books = m.books.Opened()
 		case "/":
 			m.search.Focused = true
 		case "enter":
@@ -396,8 +433,7 @@ func (m Model) widest() int {
 // search on its right, its cursor showing except while the app's menu has the keyboard; kit's line under it when a
 // verb did not open; and a gap.
 func (m Model) top() []string {
-	title, at := shell.Title(style.Label(appLabel), m.appMenu.Open), m.searchAt()
-	top := []string{pane.Pad(pane.Clip(title, at-1), at, false) + m.searchLine()}
+	top := []string{m.menuBar().Line(m.width)}
 	if m.refusal != "" {
 		for _, line := range page(style.Excluded+" "+m.refusal, m.width-2) {
 			top = append(top, " "+style.Refusal(line))
@@ -501,6 +537,7 @@ func (m Model) View() tea.View {
 	}
 	drawn = m.recent.Overlay(drawn, m.recallAt(), m.width)
 	drawn = m.appMenu.Overlay(drawn, m.width)
+	drawn = m.books.Overlay(drawn, m.booksAt(), m.width)
 	return shell.View(drawn, m.height, m.keys().Line(m.width))
 }
 
@@ -509,7 +546,7 @@ func (m Model) View() tea.View {
 // the search, as every screen's is, whose ⏎ gives the verbs focus. An open menu takes every press, and is the path
 // alone.
 func (m Model) keys() shell.Path {
-	if m.appMenu.Open || m.recent.Open {
+	if m.appMenu.Open || m.recent.Open || m.books.Open {
 		return shell.Path{shell.MenuKeys()}
 	}
 	turn := shell.Bind("→", "pages", "right")
@@ -523,9 +560,9 @@ func (m Model) keys() shell.Path {
 	if m.search.Focused {
 		search := shell.SearchKeys("verbs", m.search.Query, len(m.recent.Items) > 0)
 		search.Takes = append(search.Takes, "up", "pgup", "pgdown", "left", "right")
-		return shell.Path{shell.ScreenKeys(), search}
+		return shell.Path{shell.WorkspaceScreenKeys(), search}
 	}
-	return shell.Path{shell.ScreenKeys(), list}
+	return shell.Path{shell.WorkspaceScreenKeys(), list}
 }
 
 // page wraps a text to the width, keeping each line's indent, and gives its lines. A width counts what shows, so the

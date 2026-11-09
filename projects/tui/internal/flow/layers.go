@@ -10,7 +10,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/empowerite/kit/projects/tui/internal/shell"
-	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
@@ -185,7 +184,7 @@ func (m Model) layers() shell.Layers[Model] {
 }
 
 // booksAt gives the column the title's workspace menu starts at.
-func (m Model) booksAt() int { return shell.BooksAt(shell.Title(style.Label(appLabel), false)) }
+func (m Model) booksAt() int { return m.menuBar().WorkspaceAt() }
 
 // model gives a layer's key from one of the picture's own, which gives the picture as a tea.Model.
 func model(key func(Model, tea.KeyPressMsg) (tea.Model, tea.Cmd)) func(Model, tea.KeyPressMsg) (Model, tea.Cmd) {

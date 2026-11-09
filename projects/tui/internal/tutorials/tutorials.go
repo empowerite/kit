@@ -13,7 +13,8 @@
 // first row, or esc, gives the bar the keyboard. Enter opens the tutorial under the cursor in the browser, and a click
 // on a card opens that one. The bar is internal/tabs: while it has the keyboard, left and right move between the tabs,
 // and down or enter gives the cards the keyboard, on a tab that has some; a tab's number, 1 to 9, or a click on it,
-// selects it from anywhere and gives the bar the keyboard. = or a click on the = drops the app's menu down. The search
+// selects it from anywhere and gives the bar the keyboard. = or a click on the = drops the app's menu down, and - or a
+// click on the workspace menu after the screen's name drops it down, as on every screen. The search
 // on the menu bar's right is every screen's, internal/shell's: / or a click on it gives it focus, typing narrows every
 // tab's cards to the tutorials whose id, title, or summary holds it, the tabs still counting all of theirs, and ⏎, ↓,
 // esc, or tab gives the cards focus, the filter kept. Ctrl-c quits with 130 from anywhere, and ctrl-q quits with 0; esc
@@ -74,10 +75,11 @@ type Model struct {
 	offset  int  // the first row of cards the pane shows
 	width   int
 	height  int
-	appMenu shell.Menu   // the app's menu, internal/shell's, which has the keyboard while it is open
-	note    shell.Notice // what opened, or the link to open by hand, in place of the keys
-	search  shell.Search // the search, internal/shell's, which narrows the cards to its text
-	recent  shell.Recent // the searches remembered, every screen's, and their dropdown
+	appMenu shell.Menu      // the app's menu, internal/shell's, which has the keyboard while it is open
+	note    shell.Notice    // what opened, or the link to open by hand, in place of the keys
+	books   shell.BooksMenu // the menu bar's workspace menu, which has the keyboard while open
+	search  shell.Search    // the search, internal/shell's, which narrows the cards to its text
+	recent  shell.Recent    // the searches remembered, every screen's, and their dropdown
 
 	interrupted bool
 }
@@ -173,6 +175,8 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.note.Text, m.note.Done = "Open "+msg.tutorial.URL+" in a browser", false
 		}
+	case shell.WorkspaceMsg:
+		m.books = m.books.Told(msg)
 	case tea.KeyPressMsg:
 		m.note.Text = ""
 		return m.key(msg)
@@ -275,6 +279,11 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.appMenu, c = m.appMenu.Key(k)
 		return m, m.chose(c)
 	}
+	if m.books.Open {
+		var picked string
+		m.books, picked = m.books.Key(k)
+		return m, shell.Pick(picked)
+	}
 	if m.recent.Open {
 		var query string
 		if m.recent, query = m.recent.Key(k); query != "" {
@@ -302,6 +311,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
 	case "=":
 		m.appMenu = m.appMenu.Opened()
+		return m, nil
+	case shell.Workspaces:
+		m.books = m.books.Opened()
 		return m, nil
 	case "/":
 		m.search.Focused = true
@@ -348,6 +360,10 @@ func (m Model) click(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 		var c shell.Choice
 		m.appMenu, c = m.appMenu.Click(msg.X, msg.Y, m.width)
 		return m, m.chose(c)
+	case m.books.Open:
+		var picked string
+		m.books, picked = m.books.Click(msg.X, msg.Y, m.booksAt(), m.width)
+		return m, shell.Pick(picked)
 	case m.recent.Open:
 		var query string
 		if m.recent, query = m.recent.Click(msg.X, msg.Y, m.recallAt(), m.width); query != "" {
@@ -356,6 +372,9 @@ func (m Model) click(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case shell.OnApp(msg.X, msg.Y, appLabel):
 		m.appMenu = m.appMenu.Opened()
+		return m, nil
+	case m.books.On(msg.X, msg.Y, m.booksAt()):
+		m.books = m.books.Opened()
 		return m, nil
 	case msg.Y == shell.Top && m.recalls() && msg.X == m.recallAt():
 		m.recent = m.recent.Opened()
@@ -393,7 +412,10 @@ func (m Model) recalls() bool { return m.search.Focused && len(m.recent.Items) >
 func (m Model) recallAt() int { return shell.RecallAt(m.searchAt()) }
 
 // searchAt gives the column the search starts at on the menu bar, as internal/shell puts every screen's.
-func (m Model) searchAt() int { return shell.SearchAt(m.width, m.searchLine()) }
+func (m Model) searchAt() int { return m.menuBar().SearchAt(m.width) }
+
+// booksAt gives the column the menu bar's workspace menu starts at.
+func (m Model) booksAt() int { return m.menuBar().WorkspaceAt() }
 
 // searchLine gives the search as the menu bar draws it, its cursor showing while it has focus and the app's menu is
 // closed.

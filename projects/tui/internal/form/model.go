@@ -3,8 +3,12 @@
 // field or line and, on the command line, runs; shift-Enter runs from anywhere a terminal reports it, and the keys bar
 // names it only where the terminal said it does; esc goes back
 // to the palette and never quits; ctrl-q quits, and ctrl-c quits as interrupted. In a list, page down and page up move the cursor a page,
-// and home and end to the first and last row. Where a window hides rows, a dim line says how many. The keys bar is
-// the last line.
+// and home and end to the first and last row. Where a window hides rows, a dim line says how many.
+//
+// The form stands in the frame every screen has: the menu bar first, kit help's, its kit menu, its workspace menu, the
+// verb's name, and the search field; the status bar last. A click on the kit menu or the workspace menu drops it down,
+// and = or - does where the field with the keyboard types no text; a click on the search field, or / where no text is
+// typed, asks for the palette's search, the Help screen's, as FindMsg.
 package form
 
 import (
@@ -25,6 +29,12 @@ import (
 
 // BackMsg asks the palette to take the form back: esc on a form opened from the palette.
 type BackMsg struct{}
+
+// FindMsg asks for the palette's search, with focus, in the form's place: a click on the form's search field, or /.
+type FindMsg struct{}
+
+// appLabel is the screen's name on the menu bar, the Help screen's, which the form is a view of.
+const appLabel = "kit help"
 
 // choicesMsg brings a list's rows; flipped names the value whose flip asked for them again, and asked holds the other
 // answers the rows were asked with.
@@ -56,8 +66,10 @@ type Model struct {
 	note    string // the line under the focused field: a list's line about a row, or what kit refused
 	refusal string // the line under the command line
 	width   int
-	height  int  // the terminal's lines; zero before it says, and nothing is clipped
-	shift   bool // the terminal tells shift-Enter from Enter, so the keys bar names it
+	height  int             // the terminal's lines; zero before it says, and nothing is clipped
+	shift   bool            // the terminal tells shift-Enter from Enter, so the keys bar names it
+	appMenu shell.Menu      // the kit menu, internal/shell's, which has the keyboard while it is open
+	books   shell.BooksMenu // the menu bar's workspace menu, which has the keyboard while it is open
 
 	lists  map[string][]kit.Choice
 	sets   map[string]bool
@@ -77,7 +89,8 @@ type Model struct {
 // New opens the form over the fields; back is true when esc returns to the palette, false when the form stands alone.
 func New(spec syntax.Spec, fields []Field, r kit.Runner, back bool) Model {
 	m := Model{spec: spec, runner: r, back: back, fields: fields, width: 80, lists: map[string][]kit.Choice{}, sets: map[string]bool{},
-		stale: map[string]bool{}, seeded: map[string]bool{}, failed: map[string]bool{}, extSeen: map[string]bool{}}
+		stale: map[string]bool{}, seeded: map[string]bool{}, failed: map[string]bool{}, extSeen: map[string]bool{},
+		appMenu: shell.Menu{Here: shell.Help}}
 	if spec.Extends {
 		m.refreshExtension()
 		m.rebuild(Collect(m.fields))
@@ -122,11 +135,71 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case matchedMsg:
 		cmd := m.matched(msg)
 		return m, cmd
+	case shell.WorkspaceMsg:
+		m.books = m.books.Told(msg)
+	case tea.MouseClickMsg:
+		return m, m.click(msg)
 	case tea.KeyPressMsg:
 		cmd := m.key(msg)
 		return m, cmd
 	}
 	return m, nil
+}
+
+// menuBar gives the menu bar, as internal/shell draws every screen's: the kit menu's = before kit help, the workspace
+// menu, the verb's name, and the search field, idle, as the palette's search is the Help screen's.
+func (m Model) menuBar() shell.MenuBar {
+	return shell.MenuBar{Screen: appLabel, Open: m.appMenu.Open, Workspace: m.books.Label(), On: m.spec.Verb,
+		Search: shell.SearchLine("", false)}
+}
+
+// chose does what a choice from the kit menu asks: a screen asks kittui to show it in the form's place, and quit ends
+// the form, as ctrl-q does.
+func (m *Model) chose(c shell.Choice) tea.Cmd {
+	switch {
+	case c.Quit:
+		m.done = true
+		return tea.Quit
+	case c.Screen != "":
+		return shell.Switch(c.Screen)
+	}
+	return nil
+}
+
+// click takes a click on the menu bar: an open menu's, the kit menu's =, the workspace menu, or the search field.
+// Anywhere else it does nothing.
+func (m *Model) click(msg tea.MouseClickMsg) tea.Cmd {
+	booksAt := m.menuBar().WorkspaceAt()
+	switch {
+	case msg.Button != tea.MouseLeft:
+	case m.appMenu.Open:
+		var c shell.Choice
+		m.appMenu, c = m.appMenu.Click(msg.X, msg.Y, m.width)
+		return m.chose(c)
+	case m.books.Open:
+		var picked string
+		m.books, picked = m.books.Click(msg.X, msg.Y, booksAt, m.width)
+		return shell.Pick(picked)
+	case shell.OnApp(msg.X, msg.Y, appLabel):
+		m.appMenu = m.appMenu.Opened()
+	case m.books.On(msg.X, msg.Y, booksAt):
+		m.books = m.books.Opened()
+	case msg.Y == shell.Top && msg.X >= m.menuBar().SearchAt(m.width):
+		return func() tea.Msg { return FindMsg{} }
+	}
+	return nil
+}
+
+// typing says whether the field with the keyboard types what is pressed: a value, a line, or a list's filter.
+func (m Model) typing() bool {
+	if m.focus >= len(m.fields) {
+		return false
+	}
+	switch m.fields[m.focus].Kind {
+	case Text, Lines, Wildcard, Pick, PickMany:
+		return true
+	}
+	return false
 }
 
 // View draws the form on the alternate screen, clipped to the terminal's lines so the way back and the focused field
@@ -141,21 +214,26 @@ func (m Model) View() tea.View {
 		CommandRefusal: m.refusal, Back: m.back})
 	room := 0
 	if m.height > 0 {
-		room = max(1, m.height-2) // the gap and the keys bar under the form
+		room = max(1, m.height-3) // the menu bar over the form, and the gap and the status bar under it
 	}
 	lines := strings.Split(strings.TrimSuffix(window(content, room, header, first, last, at, live.Dim), "\n"), "\n")
-	v := tea.NewView(strings.Join(style.Bottom(lines, m.height, m.keys().Line(m.width)), "\n"))
-	v.AltScreen = true
-	return v
+	lines = append([]string{m.menuBar().Line(m.width)}, lines...)
+	lines = m.appMenu.Overlay(lines, m.width)
+	lines = m.books.Overlay(lines, m.menuBar().WorkspaceAt(), m.width)
+	return shell.View(lines, m.height, m.keys().Line(m.width))
 }
 
-// keys gives the path to the keyboard, which the keys bar is drawn from: the form, whose esc goes back to the palette,
+// keys gives the path to the keyboard, which the key hints are drawn from, the form's own first, as a field may type
+// =, -, and /, which the menu bar's glyphs show: the form, whose esc goes back to the palette,
 // or, opened on its own, whose ctrl-q quits, as esc never does; up and down move between fields, and enter takes the next field; and the field under the keyboard, with
 // the keys its kind takes: the arrows across a row of options, the space where it toggles, backspace where it erases
 // or clears, and the page keys on a list. On the command line, enter runs. Tab, which moves as down and up do, is left
 // unnamed. Shift-Enter is named only where the terminal answered Bubble Tea's ask for the kitty keyboard protocol;
 // elsewhere, Terminal.app among them, it arrives as Enter, and the way to run is Enter on the command line.
 func (m Model) keys() shell.Path {
+	if m.appMenu.Open || m.books.Open {
+		return shell.Path{shell.MenuKeys()}
+	}
 	end := shell.Bind("⌃Q", "quit", shell.Quit)
 	if m.back {
 		end = shell.Bind("esc", "back")
@@ -202,6 +280,19 @@ func (m Model) keys() shell.Path {
 // key takes a key press.
 func (m *Model) key(k tea.KeyPressMsg) tea.Cmd {
 	s := k.String()
+	// an open menu takes every press but the quitting ones
+	if s != "ctrl+c" && s != shell.Quit {
+		switch {
+		case m.appMenu.Open:
+			var c shell.Choice
+			m.appMenu, c = m.appMenu.Key(k)
+			return m.chose(c)
+		case m.books.Open:
+			var picked string
+			m.books, picked = m.books.Key(k)
+			return shell.Pick(picked)
+		}
+	}
 	switch s {
 	case "ctrl+c":
 		m.interrupted, m.done = true, true
@@ -217,6 +308,18 @@ func (m *Model) key(k tea.KeyPressMsg) tea.Cmd {
 		return nil
 	case "shift+enter":
 		return m.tryRun()
+	}
+	// where no text is typed, =, -, and / reach the menu bar
+	switch {
+	case m.typing():
+	case s == "=":
+		m.appMenu = m.appMenu.Opened()
+		return nil
+	case s == shell.Workspaces:
+		m.books = m.books.Opened()
+		return nil
+	case s == "/":
+		return func() tea.Msg { return FindMsg{} }
 	}
 	if m.focus >= len(m.fields) {
 		switch s {

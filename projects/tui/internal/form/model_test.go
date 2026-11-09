@@ -15,6 +15,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/syntax"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
@@ -396,21 +398,27 @@ func screen(m Model) []string { return strings.Split(stripANSI(m.View().Content)
 // disambiguates is a terminal's answer that it tells shift-Enter from Enter, as kitty, iTerm2, and VS Code's do.
 var disambiguates = tea.KeyboardEnhancementsMsg{Flags: ansi.KittyDisambiguateEscapeCodes}
 
+// The menu bar is first, kit help's, naming the verb, the search field at its right; the way back under it, and the
+// status bar last.
 func TestTheWayBackIsOnTopTheKeysLastAndThePurposeNamesTheCommand(t *testing.T) {
 	m := newForm(t, "flow", Answers{}, true)
 	m, _ = drive(t, m, disambiguates)
 	lines := screen(m)
 	bar := lines[len(lines)-1]
-	if strings.TrimSpace(lines[0]) != "‹ verbs" || !strings.HasPrefix(bar, " esc back ↑↓ move ⏎ next ⇧⏎ run │ ") {
-		t.Errorf("with the way back, the first line %q, the last %q", lines[0], bar)
+	if !strings.HasPrefix(lines[0], "  "+shell.App+" kit help · "+shell.Workspaces+" · flow ") ||
+		!strings.HasSuffix(lines[0], shell.Find+" "+shell.Idle) {
+		t.Errorf("the menu bar: %q", lines[0])
+	}
+	if strings.TrimSpace(lines[1]) != "‹ verbs" || !strings.HasPrefix(bar, " esc back ↑↓ move ⏎ next ⇧⏎ run │ ") {
+		t.Errorf("with the way back, the second line %q, the last %q", lines[1], bar)
 	}
 	if !strings.Contains(stripANSI(m.View().Content), "\n kit flow - "+m.spec.Purpose[:20]) {
 		t.Errorf("the purpose does not name the command:\n%s", stripANSI(m.View().Content))
 	}
 	m = newForm(t, "flow", Answers{}, false)
 	lines = screen(m)
-	if !strings.HasPrefix(lines[0], " kit flow - ") || !strings.HasPrefix(lines[len(lines)-1], " ⌃Q quit ") {
-		t.Errorf("without the way back, the first line %q, the last %q", lines[0], lines[len(lines)-1])
+	if !strings.HasPrefix(lines[1], " kit flow - ") || !strings.HasPrefix(lines[len(lines)-1], " ⌃Q quit ") {
+		t.Errorf("without the way back, the second line %q, the last %q", lines[1], lines[len(lines)-1])
 	}
 }
 
@@ -520,8 +528,8 @@ func TestAShortTerminalKeepsTheKeysAndTheFocusedField(t *testing.T) {
 		if len(lines) != 9 {
 			t.Errorf("focus %d: %d lines on a screen of 9", m.focus, len(lines))
 		}
-		if strings.TrimSpace(lines[0]) != "‹ verbs" || !strings.Contains(lines[8], "↑↓ move") {
-			t.Errorf("focus %d: the way back or the keys moved: %q, %q", m.focus, lines[0], lines[8])
+		if strings.TrimSpace(lines[1]) != "‹ verbs" || !strings.Contains(lines[8], "↑↓ move") {
+			t.Errorf("focus %d: the way back or the keys moved: %q, %q", m.focus, lines[1], lines[8])
 		}
 		focused := m.focus >= len(m.fields) && strings.Contains(lines[len(lines)-3], "kit new")
 		for _, line := range lines {
@@ -650,8 +658,8 @@ func TestAShortScreenSaysHowManyLinesItHidesAndKeepsTheListsCursor(t *testing.T)
 			}
 			lines := screen(m)
 			if len(lines) != height || !strings.Contains(lines[height-1], "│ ⇞⇟ page ") ||
-				strings.TrimSpace(lines[0]) != "‹ verbs" {
-				t.Fatalf("at %d: %d lines, the first %q, the last %q", height, len(lines), lines[0],
+				strings.TrimSpace(lines[1]) != "‹ verbs" {
+				t.Fatalf("at %d: %d lines, the second %q, the last %q", height, len(lines), lines[1],
 					lines[len(lines)-1])
 			}
 			cursor := false
@@ -771,5 +779,52 @@ func TestRowsAskedBeforeAnAnswerChangedAreAskedAgain(t *testing.T) {
 		if _, again := step(m, key("down")); again == nil {
 			t.Errorf("rows arriving after --iterations changed (late %v) are not asked for again", late)
 		}
+	}
+}
+
+// The form's menu bar is every screen's: it names the workspace kittui says; a click on = or on the workspace menu
+// drops it down, and = or - does where the field with the keyboard types no text, as on a toggle, while on a text
+// field they are typed; esc closes an open menu and does not go back. A click on the search field, or / where no text
+// is typed, asks for the palette's search.
+func TestTheFormsMenuBarIsEveryScreens(t *testing.T) {
+	m := newForm(t, "tidy", Answers{}, true)
+	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 100, Height: 30},
+		shell.WorkspaceMsg{Workspace: kit.Workspace{Kind: "repository", Member: "github.com/o/r"}})
+	if first := screen(m)[0]; !strings.Contains(first, " · "+shell.Workspaces+" o/r · tidy ") {
+		t.Errorf("the menu bar does not name the workspace: %q", first)
+	}
+	toggle := slices.IndexFunc(m.fields, func(f Field) bool { return f.Kind == Toggle })
+	if toggle < 0 {
+		t.Fatal("tidy's form has no toggle")
+	}
+	m.focus = toggle
+	if m, _ = drive(t, m, testkit.Typed("=")[0]); !m.appMenu.Open || !strings.Contains(screen(m)[len(screen(m))-1], "esc close") {
+		t.Fatalf("= on a toggle: the kit menu open %v", m.appMenu.Open)
+	}
+	m, produced := drive(t, m, key("esc"))
+	if m.appMenu.Open || slices.ContainsFunc(produced, func(msg tea.Msg) bool { _, ok := msg.(BackMsg); return ok }) {
+		t.Errorf("esc with the menu open: open %v, produced %v", m.appMenu.Open, produced)
+	}
+	if m, _ = drive(t, m, testkit.Typed("-")[0]); !m.books.Open {
+		t.Error("- on a toggle did not drop the workspace menu down")
+	}
+	m, _ = drive(t, m, key("esc"))
+	if _, produced = drive(t, m, testkit.Typed("/")[0]); !slices.Contains(produced, tea.Msg(FindMsg{})) {
+		t.Errorf("/ on a toggle: %v", produced)
+	}
+	if _, produced = drive(t, m, testkit.Click(m.menuBar().SearchAt(m.width)+1, shell.Top)); !slices.Contains(produced,
+		tea.Msg(FindMsg{})) {
+		t.Errorf("a click on the search field: %v", produced)
+	}
+	if m, _ = drive(t, m, testkit.Click(shell.At, shell.Top)); !m.appMenu.Open {
+		t.Error("a click on = did not drop the kit menu down")
+	}
+	text := newForm(t, "rebase", Answers{}, true)
+	text.focus = slices.IndexFunc(text.fields, func(f Field) bool { return f.Kind == Text })
+	if text.focus < 0 {
+		t.Fatal("rebase's form has no text field")
+	}
+	if text, _ = drive(t, text, testkit.Typed("=")[0]); text.appMenu.Open || text.input != "=" {
+		t.Errorf("= on a text field: the menu open %v, input %q", text.appMenu.Open, text.input)
 	}
 }

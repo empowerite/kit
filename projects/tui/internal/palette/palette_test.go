@@ -263,7 +263,7 @@ func TestTheKeysBarIsTheLastLineWhateverTheContent(t *testing.T) {
 	// the search's keys, which has focus and types, so the screen's are not named; then, once down gives the verbs
 	// focus, the screen's and the list's
 	const bar = " ⏎ verbs type to search"
-	const listBar = " = menu / search │ ↑↓ move ⇞⇟ page [] group → pages ⏎ open"
+	const listBar = " = menu - workspace / search │ ↑↓ move ⇞⇟ page [] group → pages ⏎ open"
 	long := strings.Repeat("kit commit refuses for the test, at length; ", 8) + "run: kit help commit"
 	for _, height := range []int{30, 12, 6, 5, 4, 3, 2, 1} {
 		for name, msgs := range map[string][]tea.Msg{
@@ -310,7 +310,7 @@ func TestTheKeysBarIsTheLastLineWhateverTheContent(t *testing.T) {
 		t.Errorf("the pages' bar: %q", lines[len(lines)-1])
 	}
 	m, _ = drive(listing(t), tea.WindowSizeMsg{Width: 40, Height: 12})
-	if lines := strings.Split(stripANSI(m.View().Content), "\n"); len(lines) != 12 || lines[11] != " = menu / search │ ↑↓ move ⇞⇟ page [] g…" {
+	if lines := strings.Split(stripANSI(m.View().Content), "\n"); len(lines) != 12 || lines[11] != " = menu - workspace / search │ ↑↓ move …" {
 		t.Errorf("the bar at 40 columns: %q", lines[len(lines)-1])
 	}
 	// a height not yet known draws everything, then the bar
@@ -755,5 +755,26 @@ func TestBracketsMoveBetweenTheGroups(t *testing.T) {
 	}
 	if !strings.Contains(stripANSI(m.View().Content), "[] group") {
 		t.Errorf("the key hints do not name [] group")
+	}
+}
+
+// The menu bar names the workspace kittui says, as every screen's does; - drops its menu down while the verbs have
+// focus, and is typed while the search has it; a click on it drops it down too.
+func TestThePalettesMenuBarHasTheWorkspaceMenu(t *testing.T) {
+	ws := shell.WorkspaceMsg{Workspace: kit.Workspace{Kind: "repository", Member: "github.com/o/r"}}
+	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 30}, ws)
+	if first := strings.Split(stripANSI(m.View().Content), "\n")[0]; !strings.HasPrefix(first,
+		"  "+shell.App+" kit help · "+shell.Workspaces+" o/r ") {
+		t.Errorf("the menu bar: %q", first)
+	}
+	if m, _ = drive(m, testkit.Typed("-")...); m.books.Open || m.search.Query != "-" {
+		t.Errorf("- in the search: open %v, %q", m.books.Open, m.search.Query)
+	}
+	if m, _ = drive(m, ctrlU, esc, testkit.Typed("-")[0]); !m.books.Open || !strings.Contains(last(m), "esc close") {
+		t.Errorf("- in the verbs: open %v, keys %q", m.books.Open, last(m))
+	}
+	m, _ = drive(m, esc)
+	if m, _ = drive(m, testkit.Click(m.booksAt(), shell.Top)); !m.books.Open {
+		t.Error("a click on the workspace menu did not drop it down")
 	}
 }

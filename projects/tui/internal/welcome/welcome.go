@@ -374,7 +374,7 @@ func (m Model) recalls() bool { return m.search().Focused && len(m.recent.Items)
 func (m Model) recallAt() int { return shell.RecallAt(m.searchAt()) }
 
 // searchAt gives the column the search starts at on the title line, as internal/shell puts every screen's.
-func (m Model) searchAt() int { return shell.SearchAt(m.width, m.searchLine()) }
+func (m Model) searchAt() int { return m.menuBar().SearchAt(m.width) }
 
 // searchLine gives the search as the title line draws it.
 func (m Model) searchLine() string {

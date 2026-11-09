@@ -24,6 +24,7 @@ type Model struct {
 	verb          string
 	width, height int
 	keyboard      tea.KeyboardEnhancementsMsg // what the terminal said of its keyboard, once, for each form opened later
+	workspace     shell.WorkspaceMsg          // what kittui said of the workspace last, for each form opened later
 }
 
 // Open opens the palette when no verb is named, else the verb's form filled from the words given, with no way back.
@@ -108,6 +109,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.KeyboardEnhancementsMsg:
 		m.keyboard = msg
+	case shell.WorkspaceMsg:
+		// the workspace reaches the palette under an open form too, and the form, which names it as the palette does
+		m.workspace = msg
+		if m.inForm && m.hasPalette {
+			m.palette = m.palette.Told(msg)
+		}
 	case palette.OpenMsg:
 		return m.open(msg.Verb)
 	case openedMsg:
@@ -117,6 +124,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.inForm = false
 			return m, nil
 		}
+	case form.FindMsg:
+		return m.find()
 	}
 	if m.inForm {
 		next, cmd := m.form.Update(msg)
@@ -126,6 +135,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	next, cmd := m.palette.Update(msg)
 	m.palette = next.(palette.Model)
 	return m, cmd
+}
+
+// find gives the palette's search focus in the form's place, as the form's search field asks: the palette the form
+// came from, or, for a form that stood alone, a palette made now, told the terminal's size and the workspace. A
+// palette that cannot be made, kit not listing its verbs, leaves the form.
+func (m Model) find() (tea.Model, tea.Cmd) {
+	if !m.hasPalette {
+		verbs, err := m.runner.List()
+		if err != nil {
+			return m, nil
+		}
+		m.palette, m.hasPalette = palette.New(verbs, m.runner).Remembering(shell.RecentFile()), true
+		if m.width > 0 {
+			next, _ := m.palette.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
+			m.palette = next.(palette.Model)
+		}
+		m.palette = m.palette.Told(m.workspace)
+	}
+	m.inForm, m.palette = false, m.palette.Find()
+	return m, nil
 }
 
 // openedMsg brings a verb's grammar and its empty fields, or why its form cannot open.
@@ -163,6 +192,8 @@ func (m Model) opened(msg openedMsg) (tea.Model, tea.Cmd) {
 		m.form = next.(form.Model)
 	}
 	next, _ := m.form.Update(m.keyboard)
+	m.form = next.(form.Model)
+	next, _ = m.form.Update(m.workspace)
 	m.form = next.(form.Model)
 	return m, init
 }

@@ -156,7 +156,7 @@ func TestClicksFollowTheTop(t *testing.T) {
 		t.Fatalf("the title's : at %d: %q", glyph, lines(m)[0])
 	}
 	// so does a click on the tab's first cell in the title
-	if m := drive(m, testkit.Click(ansi.StringWidth(m.title())-ansi.StringWidth(m.bar().NumberedLabel()), 0)); !m.tabMenu.Open {
+	if m := drive(m, testkit.Click(onFrom(m), 0)); !m.tabMenu.Open {
 		t.Errorf("a click on the title's tab:\n%s", raw(m))
 	}
 	if m = drive(m, testkit.Click(glyph, 0)); !m.tabMenu.Open {
@@ -181,13 +181,13 @@ func TestANarrowTitleHidesTheKebabAndColonStillDropsTheMenu(t *testing.T) {
 	if m.tabMenuAt() != -1 || strings.Contains(lines(m)[0], tabs.Menu) {
 		t.Fatalf("the : at %d: %q", m.tabMenuAt(), lines(m)[0])
 	}
-	if start := ansi.StringWidth(m.title()) - ansi.StringWidth(m.bar().NumberedLabel()); start >= m.titleWidth()-1 {
-		t.Fatalf("the tab starts at %d, past the title's %d", start, m.titleWidth())
+	if start := onFrom(m); start >= m.menuBar().TitleWidth(m.width)-1 {
+		t.Fatalf("the tab starts at %d, past the title's %d", start, m.menuBar().TitleWidth(m.width))
 	}
-	if m := drive(m, testkit.Click(m.titleWidth()-1, 0)); !m.tabMenu.Open {
+	if m := drive(m, testkit.Click(m.menuBar().TitleWidth(m.width)-1, 0)); !m.tabMenu.Open {
 		t.Errorf("a click on what the clipped title shows of the tab dropped no menu")
 	}
-	if m := drive(m, testkit.Click(m.titleWidth(), 0)); m.tabMenu.Open {
+	if m := drive(m, testkit.Click(m.menuBar().TitleWidth(m.width), 0)); m.tabMenu.Open {
 		t.Errorf("a click past the clipped title dropped the menu")
 	}
 	if m = drive(m, press(':')); !m.tabMenu.Open {
@@ -238,4 +238,11 @@ func TestATabMenuLinesKeyChoosesItOpenOrClosed(t *testing.T) {
 	if m = drive(m, press(':'), press('m')); m.maximized || m.tabMenu.Open {
 		t.Errorf("m with the menu open: maximized %v, menu open %v", m.maximized, m.tabMenu.Open)
 	}
+}
+
+// onFrom gives the column the maximized tab starts at on the menu bar, drawn whole or not.
+func onFrom(m Model) int {
+	b := m.menuBar()
+	return ansi.StringWidth(shell.MenuBar{Screen: b.Screen, Workspace: b.Workspace, On: b.On}.Line(1000)) -
+		ansi.StringWidth(b.On)
 }

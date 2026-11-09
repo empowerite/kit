@@ -48,13 +48,18 @@ const lead = "  "
 
 // View draws the screen on the alternate screen, with the mouse on for the bar and the cards.
 func (m Model) View() tea.View {
-	at := m.searchAt()
-	title := pane.Pad(pane.Clip(shell.Title(style.Label(appLabel), m.appMenu.Open), at-2), at, false) + m.searchLine()
-	lines := append([]string{title}, strings.Split(m.bar().View(), "\n")...)
+	lines := append([]string{m.menuBar().Line(m.width)}, strings.Split(m.bar().View(), "\n")...)
 	lines = append(lines, m.pane()...)
 	lines = m.recent.Overlay(append(lines, ""), m.recallAt(), m.width)
 	lines = m.appMenu.Overlay(lines, m.width)
+	lines = m.books.Overlay(lines, m.booksAt(), m.width)
 	return shell.View(lines, m.height, m.bottom())
+}
+
+// menuBar gives the menu bar, as internal/shell draws every screen's: the kit menu's = before kit tutorials; the
+// workspace menu, which names the workspace; and the search field.
+func (m Model) menuBar() shell.MenuBar {
+	return shell.MenuBar{Screen: appLabel, Open: m.appMenu.Open, Workspace: m.books.Label(), Search: m.searchLine()}
 }
 
 // bottom gives the screen's last line: the notice while there is one, else the keys bar. The link to open by hand
@@ -101,14 +106,14 @@ func (m Model) bar() tabs.Bar {
 // it has focus, or the cards while they have it: esc gives the bar the keyboard, named by the tab it has selected, the
 // arrows move, and enter opens. An open menu takes every press, and is the path alone.
 func (m Model) keys() shell.Path {
-	if m.appMenu.Open || m.recent.Open {
+	if m.appMenu.Open || m.recent.Open || m.books.Open {
 		return shell.Path{shell.MenuKeys()}
 	}
 	down := ""
 	if len(m.cards()) > 0 {
 		down = "cards"
 	}
-	path := shell.Path{shell.ScreenKeys(), m.bar().Keys(down)}
+	path := shell.Path{shell.WorkspaceScreenKeys(), m.bar().Keys(down)}
 	if m.search.Focused {
 		return append(path, shell.SearchKeys("cards", m.search.Query, len(m.recent.Items) > 0))
 	}

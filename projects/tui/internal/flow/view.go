@@ -53,7 +53,7 @@ func (m Model) View() tea.View {
 // frame gives the screen's lines over its last, before the legend and the layers are drawn over them: the title, the
 // tab bar, or the banner of a maximized tab, and the pane.
 func (m Model) frame() []string {
-	lines := []string{m.titled()}
+	lines := []string{m.menuBar().Line(m.width)}
 	if m.maximized {
 		lines = append(lines, m.banner())
 	} else {
@@ -100,32 +100,13 @@ func (m Model) bar() tabs.Bar {
 // pane's last line at once.
 func (m Model) paneHeight() int { return max(1, m.height-m.top()-1) }
 
-// titleWidth gives the cells the title has: all up to two spaces before the search, which is always there.
-func (m Model) titleWidth() int { return max(0, m.searchAt()-2) }
+// searchAt gives the screen column the search starts at, on the menu bar, where internal/shell puts every screen's.
+func (m Model) searchAt() int { return m.menuBar().SearchAt(m.width) }
 
-// searchAt gives the screen column the search starts at, on the screen's first line, where internal/shell puts every
-// screen's.
-func (m Model) searchAt() int {
-	if len(m.stages) == 0 {
-		return m.width
-	}
-	return shell.SearchAt(m.width, m.searchLine())
-}
-
-// searchLine gives the search as the title line draws it.
+// searchLine gives the search as the menu bar draws it.
 func (m Model) searchLine() string {
 	p := m.panel(m.stage)
 	return shell.RecallLine(p.Query, p.Focused, len(m.recent.Items) > 0)
-}
-
-// titled gives the title line: the title, clipped, and two spaces after it the search, from searchAt; none with no
-// stage.
-func (m Model) titled() string {
-	title := pane.Clip(m.title(), m.titleWidth())
-	if len(m.stages) == 0 {
-		return title
-	}
-	return pane.Pad(title, m.titleWidth(), false) + "  " + pane.Clip(m.searchLine(), m.width-1-m.searchAt())
 }
 
 // paneWidth gives the cells the rows have: the screen's, but its last cell.
@@ -254,15 +235,18 @@ func (m Model) rowKeys() shell.Segment {
 	return seg
 }
 
-// title gives the title line: as internal/shell draws it, the app's menu's glyph before kit flow; then the workspace
-// menu, which names the workspace; and, maximized, the selected tab, as the bar draws it but its number in place of its
-// glyph, its : last.
-func (m Model) title() string {
-	title := shell.Title(style.Label(appLabel), m.appMenu.Open) + shell.Between + m.books.Label()
+// menuBar gives the menu bar, as internal/shell draws every screen's: the kit menu's = before kit flow; the workspace
+// menu, which names the workspace; maximized, the selected tab, as the bar draws it but its number in place of its
+// glyph, its : last; and the search field, with a stage to search.
+func (m Model) menuBar() shell.MenuBar {
+	b := shell.MenuBar{Screen: appLabel, Open: m.appMenu.Open, Workspace: m.books.Label()}
 	if m.maximized {
-		title += shell.Between + m.bar().NumberedLabel()
+		b.On = m.bar().NumberedLabel()
 	}
-	return title
+	if len(m.stages) > 0 {
+		b.Search = m.searchLine()
+	}
+	return b
 }
 
 // count gives a stage's count for its tab: … while it loads, ! when its command failed, nothing for an incoming

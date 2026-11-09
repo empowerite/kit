@@ -221,7 +221,7 @@ func lines(m Model) []string {
 		switch {
 		case k == len(out)-1:
 		case k == 0:
-			out[k] = strings.TrimRight(ansi.Cut(l, 0, m.titleWidth()), " ")
+			out[k] = strings.TrimRight(ansi.Cut(l, 0, m.menuBar().TitleWidth(m.width)), " ")
 		default:
 			out[k] = strings.TrimRight(l, " ")
 		}

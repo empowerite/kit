@@ -139,12 +139,20 @@ Every screen has the same frame, in three parts, in the same places (#96):
   hints.
 - The view, between them, which is each screen's own: a tab bar, a control line, a table, cards, a form.
 
-What the screens share of it is in `shell`. `shell.View` ends a screen: its lines over the last line, on the
-alternate screen, with the mouse on; `flow`, `tutorials`, `welcome`, and `palette` end in it, and the form keeps its
-own until #96 brings it into the frame. `shell.Notice` is what stands over the key hints: a notice, what was done,
-which goes away after a while unless a key or a later notice takes its place; or an alert, why something was not done,
-which stays until esc. `flow` and `tutorials` keep one each. The tab bar is `tabs`'. The menu bar is each screen's
-own today, each laying the search field out in its own room; #96 makes it one line every screen draws alike.
+What the screens share of it is in `shell`. `shell.MenuBar` is the menu bar: a screen gives it its name, the
+workspace menu's label, what the view stands on, and the search field, and it lays them out alike on every screen,
+the left part clipped two cells short of the search field. `shell.View` ends a screen: its lines over the last line,
+on the alternate screen, with the mouse on; every screen ends in it, the form too. `shell.Notice` is what stands over
+the key hints: a notice, what was done, which goes away after a while unless a key or a later notice takes its place;
+or an alert, why something was not done, which stays until esc. `flow` and `tutorials` keep one each. The tab bar is
+`tabs`'.
+
+A verb's form is a view of the Help screen: its menu bar is kit help's, with the verb's name where a maximized tab's
+menu stands. A click on the kit menu or the workspace menu drops it down, and `=` or `-` does where the field with
+focus types no text; the search field is the palette's, so a click on it, or `/` where no text is typed, gives the
+palette's search focus in the form's place, making the palette for a form that stood alone. The form's key hints
+keep its own keys first, since a field may type `=`, `-`, and `/`. The quota meter stands on Flow's status bar, the
+one screen that spends the forges' limits.
 
 ### Terms
 
@@ -299,6 +307,11 @@ Watch, issue #88's third step, is built now as designed: it reads like `source`'
   is not needed yet.
 - One frame for every screen, its terms, and the rules for keys, as the Frame section says (2026-11-09, #94). They
   replace an earlier decision that each screen keeps its own title line.
+- Search follows one rule on every screen, the palette's included: it opens with focus in the search, and ⏎ there
+  gives the verbs focus rather than opening one (2026-11-09, #97).
+- `kit x y` opens screen x on y: `kit flow <stage>` maximizes the stage, `kit tutorials <tutorial>` puts the cursor on
+  its card, as `kit help <verb>` and `kit tui <verb>` already did (2026-11-09, #123).
+- An open row keeps its columns at a narrow width; a word wider than its column breaks inside it (2026-11-09, #105).
 
 ## Left to the builder
 

@@ -238,11 +238,10 @@ func (m Model) tabMenuAt() int {
 	if !m.maximized {
 		return m.bar().MenuAt()
 	}
-	end := ansi.StringWidth(m.title())
-	if end > m.titleWidth() {
-		return -1
+	if _, until, whole := m.menuBar().OnSpan(m.width); whole {
+		return until - ansi.StringWidth(tabs.Menu)
 	}
-	return end - ansi.StringWidth(tabs.Menu)
+	return -1
 }
 
 // maximize gives the rows the bar's lines but one, the bar no longer drawn, or, restored, takes them back, the bar as it

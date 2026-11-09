@@ -1,4 +1,4 @@
-  = kit tutorials                                🔎 /search
+  = kit tutorials · -                            🔎 /search
   ➊╶───────╮➁╶─────────────────╮➂╶──────╮➃╶──────────────╮
   │ All  2 │  Just starting  2 │  UI  1 │  Maintainer  0 │
   ╵        ╰───────────────────╰────────╰────────────────╰──
@@ -17,4 +17,4 @@
 
 
 
- = menu / search │ 1-4 jump │ esc tabs ←→↑↓ move ⏎ open
+ = menu - workspace / search │ … │ esc tabs ←→↑↓ move ⏎ open

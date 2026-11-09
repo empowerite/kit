@@ -11,8 +11,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/form"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/palette"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
@@ -235,5 +237,25 @@ func TestCtrlCIsAnInterruptInThePaletteAndInTheForm(t *testing.T) {
 	}
 	if !drive(m, press(tea.KeyDown), press(tea.KeyEnter), tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}).Interrupted() {
 		t.Error("ctrl-c in the form is not an interrupt")
+	}
+}
+
+// The form's search field asks for the palette's search: from a form the palette opened, the palette comes back with
+// its search focused; a form that stood alone gets a palette made then, told the workspace, its search focused.
+func TestTheFormsSearchFieldIsThePalettes(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir()) // no searches remembered, here or in the person's file
+	ws := shell.WorkspaceMsg{Workspace: kit.Workspace{Kind: "repository", Member: "github.com/o/r"}}
+	m, err := Open(testkit.Runner(t, "kit"), "commit", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m = drive(m, tea.WindowSizeMsg{Width: 100, Height: 30}, ws, form.FindMsg{})
+	if v := ansi.Strip(m.View().Content); m.InForm() || !m.hasPalette || !strings.Contains(v, "🔎 ▏") ||
+		!strings.Contains(v, "kit help · - o/r") || len(m.palette.Visible()) == 0 {
+		t.Errorf("a form that stood alone, then its search field: in form %v, palette %v\n%s", m.InForm(), m.hasPalette, v)
+	}
+	m = drive(m, press(tea.KeyEnter), press(tea.KeyEnter), form.FindMsg{})
+	if v := ansi.Strip(m.View().Content); m.InForm() || !strings.Contains(v, "🔎 ▏") {
+		t.Errorf("a form the palette opened, then its search field:\n%s", v)
 	}
 }

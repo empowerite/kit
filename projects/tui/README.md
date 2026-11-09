@@ -175,12 +175,13 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   while after each answer, as `kit flow` reads the rate limits and the stages' marks each minute. Every wait goes
   through a clock: the program's is a `tea.Tick`, and a test's fires none until the test says.
 - `internal/transcript/` writes the command line that `kittui` ran into the scrollback.
-- `internal/shell/` is what every screen shares: the title line and the app's menu, the search, the Settings dialog
-  and kittui's settings file, and the keys bar. A screen never writes its
-  keys bar. It gives the path from the screen to the control that has the keyboard, and each control on the path names
-  the keys it answers. A deeper control hides an ancestor's key for a press it takes. The bar draws each control's keys
-  between rules. When the line is too narrow, it keeps the screen's keys and drops the controls between them and the
-  one with the keyboard, then clips that one's end.
+- `internal/shell/` is what every screen shares: the menu bar, with the kit menu, the workspace menu, and the search
+  field, laid out alike on every screen, a verb's form included; the Settings dialog and kittui's settings file; and
+  the key hints on the status bar. A screen never writes its key hints. It gives the path from the screen to the
+  control that has the keyboard, and each control on the path names the keys it answers. A deeper control hides an
+  ancestor's key for a press it takes. The bar draws each control's keys between rules. When the line is too narrow,
+  it keeps the screen's keys and drops the controls between them and the one with the keyboard, then clips that one's
+  end.
 - `internal/style/` is the look: one accent color, the glyphs, the keys bar's styles, and the pill a label or an
   audience is drawn as, its text on its color between half circles. It honors `NO_COLOR`.
 - `internal/testkit/` holds what the tests share, the test's clock among them. Only tests import it.

@@ -49,9 +49,7 @@ type line struct {
 
 // View draws the screen on the alternate screen, with the mouse on for the bar.
 func (m Model) View() tea.View {
-	at := m.searchAt()
-	title := pane.Pad(pane.Clip(m.title(), at-2), at, false) + m.searchLine()
-	lines := append([]string{title}, strings.Split(m.bar().View(), "\n")...)
+	lines := append([]string{m.menuBar().Line(m.width)}, strings.Split(m.bar().View(), "\n")...)
 	lines = append(lines, m.pane()...)
 	lines = m.recent.Overlay(append(lines, ""), m.recallAt(), m.width)
 	lines = m.appMenu.Overlay(lines, m.width)
@@ -74,14 +72,14 @@ func (m Model) bar() tabs.Bar {
 // paneHeight gives the lines the pane has.
 func (m Model) paneHeight() int { return max(1, m.height-fixed) }
 
-// title gives the title line: as internal/shell draws it, the app's menu's glyph before kit welcome; then the workspace
-// menu, which names the workspace.
-func (m Model) title() string {
-	return shell.Title(style.Label(appLabel), m.appMenu.Open) + shell.Between + m.books.Label()
+// menuBar gives the menu bar, as internal/shell draws every screen's: the kit menu's = before kit welcome; the
+// workspace menu, which names the workspace; and the search field.
+func (m Model) menuBar() shell.MenuBar {
+	return shell.MenuBar{Screen: appLabel, Open: m.appMenu.Open, Workspace: m.books.Label(), Search: m.searchLine()}
 }
 
-// booksAt gives the column the title's workspace menu starts at.
-func (m Model) booksAt() int { return shell.BooksAt(shell.Title(style.Label(appLabel), false)) }
+// booksAt gives the column the menu bar's workspace menu starts at.
+func (m Model) booksAt() int { return m.menuBar().WorkspaceAt() }
 
 // keys gives the path to the keyboard, which the keys bar is drawn from: the screen; the steps' bar, whose down enters
 // the step's checks or its page; and the pane while it has the keyboard, or the search, which takes every press while

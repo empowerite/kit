@@ -27,7 +27,6 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
@@ -390,9 +389,8 @@ func (m Model) onMenu(x, y int) bool {
 	if !m.maximized {
 		return m.bar().OnSelected(x, y)
 	}
-	end := ansi.StringWidth(m.title())
-	start := end - ansi.StringWidth(m.bar().NumberedLabel())
-	return y == shell.Top && x >= start && x < min(end, m.titleWidth())
+	from, until, _ := m.menuBar().OnSpan(m.width)
+	return y == shell.Top && from >= 0 && x >= from && x < until
 }
 
 // barTakes gives what the bar makes of a message, as its Update says, and whether it took it; while maximized, the bar

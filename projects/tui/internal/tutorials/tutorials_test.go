@@ -279,7 +279,7 @@ func TestTheBarSelectsATabAndCountsItsTutorials(t *testing.T) {
 	if m = drive(m, up, right); m.tab != 1 || m.inPane {
 		t.Fatalf("right on the bar: tab %d, in the pane %v", m.tab, m.inPane)
 	}
-	if keys := m.keys().String(); keys != "= menu / search │ ←→ tab ↓ cards 1-4 jump" {
+	if keys := m.keys().String(); keys != "= menu - workspace / search │ ←→ tab ↓ cards 1-4 jump" {
 		t.Errorf("the bar's keys: %q", keys)
 	}
 	x := strings.Index(lines(m)[2], "Maintainer")
@@ -289,13 +289,13 @@ func TestTheBarSelectsATabAndCountsItsTutorials(t *testing.T) {
 	if m = drive(m, down, enter); m.inPane {
 		t.Error("down entered a tab with no tutorials")
 	}
-	if keys := m.keys().String(); keys != "= menu / search │ ←→ tab 1-4 jump" {
+	if keys := m.keys().String(); keys != "= menu - workspace / search │ ←→ tab 1-4 jump" {
 		t.Errorf("the keys of an empty tab: %q", keys)
 	}
 	if m = drive(m, press('2'), down); !m.inPane || m.tab != 1 {
 		t.Errorf("2 and down: tab %d, in the pane %v", m.tab, m.inPane)
 	}
-	if keys := m.keys().String(); keys != "= menu / search │ 1-4 jump │ esc tabs ←→↑↓ move ⏎ open" {
+	if keys := m.keys().String(); keys != "= menu - workspace / search │ 1-4 jump │ esc tabs ←→↑↓ move ⏎ open" {
 		t.Errorf("the cards' keys: %q", keys)
 	}
 }
@@ -496,5 +496,21 @@ func TestAnAnswerThatIsNotTheLatestReadsIsDropped(t *testing.T) {
 	stray.Gen = m.reading.Gen() + 1
 	if m = drive(m, stray); before == 0 || len(m.catalog.Tutorials) != before {
 		t.Errorf("a stray answer replaced the catalogue: %d tutorials, %d before", len(m.catalog.Tutorials), before)
+	}
+}
+
+// The menu bar names the workspace kittui says, as every screen's does, and - or a click on it drops its menu down.
+func TestTheTutorialsMenuBarHasTheWorkspaceMenu(t *testing.T) {
+	m, _ := fake(t)
+	m = drive(m, append(testkit.Start(m, at120),
+		shell.WorkspaceMsg{Workspace: kit.Workspace{Kind: "repository", Member: "github.com/o/r"}})...)
+	if first := lines(m)[0]; !strings.HasPrefix(first, "  "+shell.App+" kit tutorials · "+shell.Workspaces+" o/r ") {
+		t.Errorf("the menu bar: %q", first)
+	}
+	if m = drive(m, press('-')); !m.books.Open || !strings.Contains(m.keys().String(), "esc close") {
+		t.Errorf("-: open %v, keys %q", m.books.Open, m.keys().String())
+	}
+	if m = drive(m, esc, testkit.Click(m.booksAt(), shell.Top)); !m.books.Open {
+		t.Error("a click on the workspace menu did not drop it down")
 	}
 }
