@@ -15,31 +15,34 @@ import (
 )
 
 // A right click on a column's name drops the column menu down under it, as a terminal that keeps ctrl and option with
-// a click for itself still sends the right button, titled by the name alone: its sort, a radio, and Clear Sort; the
-// rows grouped by it, innermost, or no longer; table.Hide; and its options. A line the column cannot act on stays, dim.
+// a click for itself still sends the right button, titled by the name alone: its sort, a radio, and Clear Sort; for
+// a list, flattened here so it sorts, its rows gathered again; the rows grouped by it, innermost, or no longer;
+// table.Hide; and its options. A line the column cannot act on stays, dim.
 func TestARightClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 140, Height: 40})
+	m.setPanel(m.panel(m.stage).Flattened("assignees", true))
 	at := func(name string) int { return strings.Index(lines(m)[m.headerTop()], name) }
 	rightClick := func(name string) tea.MouseClickMsg {
 		return tea.MouseClickMsg{X: at(name), Y: m.headerTop(), Button: tea.MouseRight}
 	}
 	group := func() []string { return m.panel(m.stage).Groups() }
 	sorts := func() int { return len(m.panel(m.stage).SortKeys()) }
-	if m = drive(m, rightClick("assignees")); !m.colMenu.Open || m.colMenu.Column != "assignees" ||
+	if m = drive(m, rightClick("assignee")); !m.colMenu.Open || m.colMenu.Column != "assignees" ||
 		m.colMenu.At != m.colMenu.LineOf(&m, table.ActUp) {
-		t.Fatalf("a right click on assignees: %+v\n%s", m.colMenu, raw(m))
+		t.Fatalf("a right click on assignee: %+v\n%s", m.colMenu, raw(m))
 	}
 	var names, glyphs []string
 	for _, it := range m.colMenu.Items(&m) {
 		names, glyphs = append(names, it.Name), append(glyphs, it.Glyph)
 	}
-	want := []string{"▲ Ascending", "▼ Descending", table.Unsorted, "", table.GroupIt, table.UngroupIt, "", table.Hide,
-		table.More}
+	want := []string{"▲ Ascending", "▼ Descending", table.Unsorted, "", table.FlattenIt("assignee"),
+		table.GatherIt("assignees"), "", table.GroupIt, table.UngroupIt, "", table.Hide, table.More}
 	if !slices.Equal(names, want) || !strings.Contains(raw(m), table.GroupGlyph+"  "+table.GroupIt) ||
-		strings.Contains(strings.Join(names, " "), "assignees") || !strings.Contains(keysOf(m), "esc close") {
+		slices.Contains(names, "assignee") || !strings.Contains(keysOf(m), "esc close") {
 		t.Fatalf("the menu: %q, %q", names, keysOf(m))
 	}
-	if !slices.Equal(glyphs[3:], []string{"", table.GroupGlyph, table.UngroupGlyph, "", table.HideGlyph, table.MoreGlyph}) {
+	if !slices.Equal(glyphs[3:], []string{"", table.FlattenGlyph, table.GatherGlyph, "", table.GroupGlyph,
+		table.UngroupGlyph, "", table.HideGlyph, table.MoreGlyph}) {
 		t.Errorf("the glyphs: %q", glyphs)
 	}
 	// the radio has Unsorted picked, and Ungroup is dim on a column not grouping; enter on ▲ Ascending sorts by it
@@ -63,7 +66,7 @@ func TestARightClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 	// Group groups within the groups, innermost, and Ungroup takes it out wherever it stands; a letter moves to the
 	// next line it starts
 	m.setPanel(regroup(m.panel(m.stage), "source"))
-	m = drive(m, rightClick("assignees"), down, down, down)
+	m = drive(m, rightClick("assignee"), down, down, down, down)
 	if m.colMenu.At != m.colMenu.LineOf(&m, table.ActGroup) {
 		t.Fatalf("down to Group: %d", m.colMenu.At)
 	}
@@ -250,7 +253,11 @@ func TestAClickOnTheRuleUnderAColumnsNameSortsByIt(t *testing.T) {
 			t.Fatalf("another click under age: %d keys, age %q, want %q", keys(m), mark(m, "age"), want)
 		}
 	}
-	if m = drive(m, testkit.Click(under(m, "assignees"), ruleY(m))); keys(m) != 2 || mark(m, "assignees") != "▲²" {
+	if m = drive(m, testkit.Click(under(m, "branch"), ruleY(m))); keys(m) != 2 || mark(m, "branch") != "▲²" {
+		t.Errorf("a click under branch: %d keys, branch %q", keys(m), mark(m, "branch"))
+	}
+	// a list sorts nothing while a row holds all its values, so the rule under it is no target
+	if m = drive(m, testkit.Click(under(m, "assignees"), ruleY(m))); keys(m) != 2 || mark(m, "assignees") != "" {
 		t.Errorf("a click under assignees: %d keys, assignees %q", keys(m), mark(m, "assignees"))
 	}
 	if got := lines(m)[m.headerTop()]; got != header {
@@ -327,8 +334,8 @@ func TestShiftWithLeftOrRightMovesTheColumnOfAnOpenMenu(t *testing.T) {
 }
 
 // The column menu holds only the sections a field can use: one that cannot sort has no sort, its radio and Clear Sort
-// gone, and one that cannot group has no Group or Ungroup; each section's rule goes with it. What a field can do but
-// cannot now stays, dim.
+// gone, as a list has none until it is flat; one that holds no list cannot flatten; and one that cannot group has no
+// Group or Ungroup; each section's rule goes with it. What a field can do but cannot now stays, dim.
 func TestTheColumnMenuLeavesOutWhatTheFieldCannotDo(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 140, Height: 40})
 	names := func(column string) []string {
@@ -343,8 +350,9 @@ func TestTheColumnMenuLeavesOutWhatTheFieldCannotDo(t *testing.T) {
 		table.More}) || m.colMenu.LineOf(&m, table.ActGroup) != -1 || m.colMenu.LineOf(&m, table.ActUngroup) != -1 {
 		t.Errorf("title, which sorts and cannot group: %q", got)
 	}
-	if got := names("labels"); !slices.Equal(got, []string{table.GroupIt, table.UngroupIt, "", table.Hide, table.More}) || m.colMenu.LineOf(&m, table.ActUp) != -1 {
-		t.Errorf("labels, which groups and cannot sort: %q", got)
+	if got := names("labels"); !slices.Equal(got, []string{table.FlattenIt("label"), table.GatherIt("labels"), "",
+		table.GroupIt, table.UngroupIt, "", table.Hide, table.More}) || m.colMenu.LineOf(&m, table.ActUp) != -1 {
+		t.Errorf("labels, a list, which groups and cannot sort: %q", got)
 	}
 	at := m.stage
 	m.stage = slices.IndexFunc(m.stages, func(s stage) bool { return s.name == "builds" })
@@ -352,8 +360,9 @@ func TestTheColumnMenuLeavesOutWhatTheFieldCannotDo(t *testing.T) {
 		t.Errorf("builds' commit, which neither sorts nor groups: %q", got)
 	}
 	m.stage = at
-	if got := names("assignees"); !slices.Contains(got, table.GroupIt) || !slices.Contains(got, table.Unsorted) {
-		t.Errorf("assignees, which sorts and groups, nothing sorting: %q", got)
+	if got := names("assignees"); !slices.Contains(got, table.GroupIt) || slices.Contains(got, table.Unsorted) ||
+		got[0] != table.FlattenIt("assignee") {
+		t.Errorf("assignees, a list, which groups and sorts only flat: %q", got)
 	}
 	m.colMenu = table.ColumnMenu{}
 }

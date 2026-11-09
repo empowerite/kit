@@ -1,6 +1,8 @@
 // The field catalog, fields.json: for each stage with columns, where its records are in kit flow <stage> --json, its
 // fields, and its own presets. A field is declared once: a stable id, which presets and the code use, and a label,
-// which only the header shows; the type of value it holds; whether its rows can sort, group, and be filtered by it; an
+// which only the header shows, with, for a field that holds a list, the name of one of its values, which never sorts
+// until the rows stand once per value; the type of value it holds; whether its rows can sort, group, and be filtered
+// by it; an
 // enum's known values, each with its glyph; its renderings, each a renderer by name, in order of preference; the record
 // path its value is read from; and the placement it takes where a preset says none. The catalog is the data's
 // description, read as internal/table reads one; the value types and the renderers, its behavior, are Go's: table's
@@ -10,7 +12,6 @@ package flow
 import (
 	_ "embed"
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -60,15 +61,6 @@ func columnsOf(stage string) []string {
 	return out
 }
 
-// labelOf gives the label the header draws over a stage's column, by the field's id; an id the stage does not know
-// is its own label.
-func labelOf(stage, id string) string {
-	if k := slices.IndexFunc(fieldsOf(stage), func(f table.Field) bool { return f.ID == id }); k >= 0 {
-		return fieldsOf(stage)[k].Label
-	}
-	return id
-}
-
 // labelsOf gives the label of each of a stage's fields that has one, by its id, as the panel lists them.
 func labelsOf(stage string) map[string]string {
 	out := map[string]string{}
@@ -94,6 +86,17 @@ func able(stage string, can func(table.Field) bool) map[string]bool {
 // sortableOf names a stage's columns its rows can sort by: a value that orders.
 func sortableOf(stage string) map[string]bool {
 	return able(stage, func(f table.Field) bool { return f.Sort })
+}
+
+// onesOf names one value of each of a stage's fields that holds a list, by its id: a field the rows can flatten.
+func onesOf(stage string) map[string]string {
+	out := map[string]string{}
+	for _, f := range fieldsOf(stage) {
+		if f.Label != "" && f.One != "" {
+			out[f.ID] = f.One
+		}
+	}
+	return out
 }
 
 // groupableOf names a stage's columns its rows can group by: a value many rows share.

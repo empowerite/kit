@@ -47,12 +47,13 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
 - `internal/form/` turns a verb's grammar into form fields, and the fields back into a command line.
 - `internal/syntax/` decodes the grammar `kit syntax` prints.
 - `internal/flow/` draws `kit flow`: the stages as tabs, and each stage's rows. `fields.json` is the catalog. It
-  declares each stage's fields, each by a stable id, with its label, its type, what it can sort, group, and filter
-  by, and its renderings in order, and the stage's own presets, Default and Compact. The renderers are Go functions,
-  registered by name with `internal/table`, which has those every table shares. A preset says, per field by id, its
-  placement, its sort, its filter, and the rendering it pins. The person's presets are kept in
-  `~/.config/kit/presets.json`, version 2. Where there is none, kittui reads the `views.json` beside it once, maps
-  each column's label to its field's id, notes a label the catalog no longer knows, and leaves the old file as it is.
+  declares each stage's fields, each by a stable id, with its label, its type, what it can sort, group, and filter by,
+  and its renderings in order, and the stage's own presets, Default and Compact. A field that holds a list, as assignees
+  or labels, names one of its values, assignee or label, and never sorts while a row holds all of them. The renderers
+  are Go functions, registered by name with `internal/table`, which has those every table shares. A preset says, per
+  field by id, its placement, its sort, its filter, and the rendering it pins. The person's presets are kept in
+  `~/.config/kit/presets.json`, version 2. Where there is none, kittui reads the `views.json` beside it once, maps each
+  column's label to its field's id, notes a label the catalog no longer knows, and leaves the old file as it is.
   - The tab's view starts with the control line: the heading over the groups at its left, which, where the rows group by
     nothing, is the rows' ▾ and their count alone, and the preset line at its right end. After how many rows are
     selected and a chip per filter, it names the preset the table is set as and ▼, a pill on the tab's color, as a label
@@ -98,22 +99,26 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     for an enum or a person, and its rendering; the sort is the column menu's. What it sets applies at once. A click on
     a column's name drops down its menu, around the name, as ='s and :'s hang around theirs, titled by the name, which
     no line repeats: its sort, a radio that shows it, Ascending, Descending, or Unsorted, which takes it out of the
-    keys, as a shift-click on its sort does; ▤ Group and ▢ Ungroup; ☐ Hide; and ⋯ Options…, its popover, titled over the
-    name. A column's menu, and a group heading's, which has Ungroup too, take shift with ← or →, which moves the column
-    a place among those the header names, or a depth among the groups, the menu with it. Sorting always adds to the
-    keys: a column that did not sort comes after the others, and one that did turns in its place; grouping always adds
-    the column innermost, and the columns dialog orders both. The groups order the rows before any key, the outermost 1,
-    so a column's ▲ or ▼ carries its place after them, raised after ▲ and lowered after ▼, as each points, ▲² and ▼₂,
-    wherever more than one thing orders the rows; the menu's triangles carry ⁿ and ₙ there. The line under the keyboard
-    in a menu or a dialog stands on the menu's bright cyan, in black, and a dialog's keys are the keys bar's alone. A
-    column's sort mark stands on the rule under the first cell of its name, wherever the name aligns. A dim · there says
-    the column can sort and does not; a column that cannot sort has the rule alone. A plain click on the rule under the
-    name turns the sort a step: ascending, after the other keys; descending, in its place; then off on the last key, and
-    ascending again on any other, so a turn never moves the keys after it. A shift-click turns it off wherever it
-    stands, as Unsorted in the menu does. A terminal such as iTerm keeps ⌥, ⌃, and the right button with a click for its
-    own selection and menu, and others keep shift, so a plain click and the menu are the ways that work everywhere.
-    Where the terminal sends them, ⌥ with a click turns a sort, ⌃ groups or ungroups, and the right button drops the
-    menu too. The presets' menu hangs around the preset line's selector the same way.
+    keys, as a shift-click on its sort does; for a list, ⇊ One row per assignee, which flattens it, and ⇈ All assignees
+    on one row, which gathers it again; ▤ Group and ▢ Ungroup; ☐ Hide; and ⋯ Options…, its popover, titled over the
+    name. Flattened, a row stands once per value it holds, and once where it holds none, the header names one value, and
+    the column sorts; a preset keeps it flat. Grouping by a list places a row under each of its values as flattening
+    does, so a list the rows group by sorts its groups. Every count, the tab's and each heading's, counts a row once,
+    however many copies of it stand. A column's menu, and a group heading's, which has Ungroup too, take shift with ← or
+    →, which moves the column a place among those the header names, or a depth among the groups, the menu with it.
+    Sorting always adds to the keys: a column that did not sort comes after the others, and one that did turns in its
+    place; grouping always adds the column innermost, and the columns dialog orders both. The groups order the rows
+    before any key, the outermost 1, so a column's ▲ or ▼ carries its place after them, raised after ▲ and lowered after
+    ▼, as each points, ▲² and ▼₂, wherever more than one thing orders the rows; the menu's triangles carry ⁿ and ₙ
+    there. The line under the keyboard in a menu or a dialog stands on the menu's bright cyan, in black, and a dialog's
+    keys are the keys bar's alone. A column's sort mark stands on the rule under the first cell of its name, wherever
+    the name aligns. A dim · there says the column can sort and does not; a column that cannot sort has the rule alone.
+    A plain click on the rule under the name turns the sort a step: ascending, after the other keys; descending, in its
+    place; then off on the last key, and ascending again on any other, so a turn never moves the keys after it. A
+    shift-click turns it off wherever it stands, as Unsorted in the menu does. A terminal such as iTerm keeps ⌥, ⌃, and
+    the right button with a click for its own selection and menu, and others keep shift, so a plain click and the menu
+    are the ways that work everywhere. Where the terminal sends them, ⌥ with a click turns a sort, ⌃ groups or ungroups,
+    and the right button drops the menu too. The presets' menu hangs around the preset line's selector the same way.
   - A field whose rendering is auto drops a glyph every row shown shares, and, while the columns are short of width,
     steps down to its next, shorter rendering, from the rightmost column leftward. A glyph that links, to a page or to
     another stage's row, is a button, so it stays, and a field drawn without its glyph links from nothing. The title

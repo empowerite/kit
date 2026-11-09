@@ -24,7 +24,9 @@ type Schema struct {
 // Path is where its value is read from in the stage's record, as jq names it: several, comma-separated, for a value
 // made of several, and one after a stage's name and a colon for a value read from another stage's records, as a
 // checkout's pull request from changes. Sort, Group, and Filter say whether the rows can sort, group, and be filtered
-// by it, and Owns that the rows belong to the people it names. Values are an enum's known values, none for one whose
+// by it, and Owns that the rows belong to the people it names. One names one of its values, as assignee, for a field
+// that holds a list, as assignees: such a field never sorts while a row holds all its values, but flattened, the rows
+// standing once per value of it, it sorts, and the header names it so. Values are an enum's known values, none for one whose
 // values only the rows know, as an issue's repository, and Other the glyph of one it does not know, if any. Glyph is
 // the glyph drawn before each value of a Field that is not an enum. Renderings names the renderers that can draw it,
 // the first preferred. Dim, Right, and Wrap say how its column is drawn: dim, right-aligned, or as the one column that
@@ -38,6 +40,7 @@ type Field struct {
 	Group      bool        `json:"group"`
 	Filter     bool        `json:"filter"`
 	Owns       bool        `json:"owns"`
+	One        string      `json:"one"`
 	Values     []EnumValue `json:"values"`
 	Other      string      `json:"other"`
 	Glyph      string      `json:"glyph"`
@@ -66,7 +69,8 @@ type Preset struct {
 // Setting is what a preset says of one field, three things apart: its placement, a column at a position, from 1, a
 // group at a depth, from 1, the outermost first, or hidden, or none for the catalog's; its sort, asc or desc at a
 // priority, from 1, or none; and, for a field a filter can narrow, the values to include or to exclude. A person's
-// filter also knows @me, the caller's login, and none. Rendering pins one of the field's renderings.
+// filter also knows @me, the caller's login, and none. Rendering pins one of the field's renderings, and Flat says
+// that a field that holds a list stands once per value.
 type Setting struct {
 	Placement string       `json:"placement,omitempty"`
 	Position  int          `json:"position,omitempty"`
@@ -75,6 +79,7 @@ type Setting struct {
 	Priority  int          `json:"priority,omitempty"`
 	Filter    *ValueFilter `json:"filter,omitempty"`
 	Rendering string       `json:"rendering,omitempty"`
+	Flat      bool         `json:"flat,omitempty"`
 }
 
 // ValueFilter is a preset's filter on a field: the values its rows must hold one of, or those they must hold none of.

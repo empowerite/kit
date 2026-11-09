@@ -62,8 +62,8 @@ const (
 // outermost first, or hidden. Position is where it stands among the named columns, from 1, those with none after them
 // in the stage's order; a field grouped or hidden keeps its own, so it stands where it was once it is a column again.
 // Its sort: none, or a direction at a Priority, from 1, the first key first; sorting a grouped field orders its groups.
-// Its filter, which a row's raw values in it must pass. And the rendering it pins, which draws it, none for the
-// one the rows and the width choose.
+// Its filter, which a row's raw values in it must pass. The rendering it pins, which draws it, none for the one the
+// rows and the width choose. And, for a field that holds a list, Flat: whether the rows stand once per value of it.
 type Field struct {
 	Placement Placement
 	Position  int
@@ -72,6 +72,7 @@ type Field struct {
 	Priority  int
 	Filter    Filter
 	Rendering string
+	Flat      bool
 }
 
 // Filter is a field's filter: the values a row must hold one of, or, with Exclude, none of; with no values, it lets
@@ -95,7 +96,9 @@ const (
 // one. Fold says whether a view, as it loads, groups the rows by each column whose value is the same on every row, as
 // AutoGrouped says, where it groups by none. Glyphs says whether a glyph every row shown shares is drawn still, where
 // the screen would drop it as saying nothing. Sortable and Groupable name the columns that can sort and group, which the
-// stage says. Owner is the field that names the people the rows belong to, none when they belong to nobody; a filter's
+// stage says. Ones names one value of each field that holds a list, as assignee of assignees: such a field never
+// sorts the rows while a row holds all its values, but flattened, or grouped by, it stands once per value, and sorts,
+// as Sorts says, and the header names one value. Owner is the field that names the people the rows belong to, none when they belong to nobody; a filter's
 // Caller is the caller's login, Me, which matches no one while it is unknown. Focused says whether the search has the
 // keyboard. Recall says whether there are searches to recall, which the search, with the keyboard, offers with its
 // Recall glyph. Outline says which groups' headings stand open, as FoldAway folds the rows of those that do not; the
@@ -109,6 +112,7 @@ type Panel struct {
 	Glyphs    bool
 	Sortable  map[string]bool
 	Groupable map[string]bool
+	Ones      map[string]string
 	Recall    bool
 	Outline   Outline
 	Owner     string
@@ -136,6 +140,38 @@ func (p Panel) with(change func(fields map[string]Field)) Panel {
 	return p
 }
 
+// Lists says whether a field holds a list, as the name of one of its values says.
+func (p Panel) Lists(id string) bool { return p.Ones[id] != "" }
+
+// Sorts says whether the rows can sort by a field: one the stage says sorts, or one that holds a list while the rows
+// stand once per value of it, flattened or grouped by it, so each has one value there to sort by.
+func (p Panel) Sorts(id string) bool {
+	f := p.Fields[id]
+	return p.Sortable[id] || p.Lists(id) && (f.Flat || f.Placement == Group)
+}
+
+// Label gives the name the header and the columns dialog give a field: one of its values' while the rows stand once
+// per value of it, else its label, else its id.
+func (p Panel) Label(id string) string {
+	if p.Lists(id) && p.Fields[id].Flat {
+		return p.Ones[id]
+	}
+	return cmp.Or(p.Labels[id], id)
+}
+
+// Flattened gives the panel with the rows standing once per value of a field that holds a list, or, unflattened, once
+// with all of them; a field that holds no list changes nothing.
+func (p Panel) Flattened(id string, flat bool) Panel {
+	if !p.Lists(id) {
+		return p
+	}
+	return p.with(func(fields map[string]Field) {
+		f := fields[id]
+		f.Flat = flat
+		fields[id] = f
+	})
+}
+
 // ranked gives the ids of the fields rank gives a rank to, from 1, by it, the lower first.
 func (p Panel) ranked(rank func(Field) int) []string {
 	var out []string
@@ -160,7 +196,8 @@ func (p Panel) Groups() []string {
 	})
 }
 
-// SortKeys gives the fields the rows sort by, the first first.
+// SortKeys gives the fields the rows sort by, the first first: none that holds a list while a row holds all its
+// values, which keeps its sort for when it stands once per value again.
 func (p Panel) SortKeys() []SortKey {
 	var out []SortKey
 	for _, id := range p.ranked(func(f Field) int {
@@ -169,7 +206,9 @@ func (p Panel) SortKeys() []SortKey {
 		}
 		return 0
 	}) {
-		out = append(out, SortKey{id, p.Fields[id].Sort == Descending})
+		if !p.Lists(id) || p.Sorts(id) {
+			out = append(out, SortKey{id, p.Fields[id].Sort == Descending})
+		}
 	}
 	return out
 }
@@ -266,7 +305,7 @@ func (p Panel) Filtering() bool {
 // last of what sorts the rows, as Place counts, not at all, and any other ascending again, so a turn never moves the
 // keys after it up a place. A column that cannot sort changes nothing.
 func (p Panel) Sorted(column string) Panel {
-	if !p.Sortable[column] {
+	if !p.Sorts(column) {
 		return p
 	}
 	keys := p.SortKeys()
@@ -289,7 +328,7 @@ func (p Panel) Sorted(column string) Panel {
 // keeps its place among them, in the new direction, or leaves them for Unsorted; one not among them comes after the
 // others. A field that cannot sort changes nothing.
 func (p Panel) SortedAs(id string, d Direction) Panel {
-	if !p.Sortable[id] {
+	if !p.Sorts(id) {
 		return p
 	}
 	keys := p.SortKeys()
@@ -475,9 +514,10 @@ func (p Panel) Heading(r Row) string {
 // rows draw it or as their cell's Head says it, indented by its depth, the outermost not at all, and how many rows it
 // heads, dim. A row groups by a cell's sort key, or under none when the cell has none, which follows every value; a cell of several values groups
 // the row under each, the same row under every heading it belongs to, nested under each pair of its values, each
-// heading over it counting it once. A row of one cell, as a heading, has no value: those follow the groups. Where the
-// panel groups by nothing, the rows stand as they came, under the heading over the groups all the same: the rows'
-// fold alone and their count, so they fold as a level does.
+// heading over it counting it once, as every count does a row flattened to a copy per value, by its key. A row of one
+// cell, as a heading, has no value: those follow the groups. Where the panel groups by nothing, the rows stand as they
+// came, under the heading over the groups all the same: the rows' fold alone and their count, so they fold as a level
+// does.
 func (p Panel) group(rows []Row, columns []string) []Row {
 	var at []int
 	var desc []bool
@@ -502,7 +542,7 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 		if !p.Outline.Shows(0) {
 			fold = Folded
 		}
-		heading := fold + " " + style.Off(strconv.Itoa(len(grouped)))
+		heading := fold + " " + style.Off(strconv.Itoa(distinct(grouped)))
 		return append([]Row{{Key: byFields, Aside: true, Cells: []Cell{{Values: []string{heading}, Wrap: true}}}}, rows...)
 	}
 	// an entry is a row under one value of each column, as many entries as the pairs of its values
@@ -673,16 +713,25 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 			if depth > 0 && single(depth) {
 				glyph = style.Off(Joined)
 			}
-			titles = append(titles, glyph+" "+style.Label(columns[j]))
+			titles = append(titles, glyph+" "+style.Label(p.Label(columns[j])))
 		}
 		heading := strings.Join(titles, " ") + " "
 		if !single(len(at)) {
 			heading += fold(len(at)) + " "
 		}
-		heading += style.Off(strconv.Itoa(len(grouped)))
+		heading += style.Off(strconv.Itoa(distinct(grouped)))
 		out[0].Cells = []Cell{{Values: []string{heading}, Wrap: true}}
 	}
 	return append(out, rest...)
+}
+
+// distinct gives how many rows there are, each once by its key, as a row flattened stands once per value.
+func distinct(rows []Row) int {
+	keys := map[string]bool{}
+	for _, r := range rows {
+		keys[r.Key] = true
+	}
+	return len(keys)
 }
 
 // alone says whether the heading at k of n rows is the only one of its depth under the heading over it: none of its
@@ -1052,14 +1101,15 @@ func (p Panel) Find() Panel {
 	return p
 }
 
-// Filter gives the rows the panel lets through: those whose text has the search, without regard to case, and whose
-// raw values pass the filter on each field, sorted by its keys, grouped as group says, each with its cells in its
-// order and without those of the columns it does not show. columns names each cell's column, in the stage's order.
-// While the search or a filter narrows the rows, an aside that heads none of them is left out with them.
+// Filter gives the rows the panel lets through: each once per value of every field flattened, as flatten gives them;
+// those whose text has the search, without regard to case, and whose raw values pass the filter on each field, sorted
+// by its keys, grouped as group says, each with its cells in its order and without those of the columns it does not
+// show. columns names each cell's column, in the stage's order. While the search or a filter narrows the rows, an
+// aside that heads none of them is left out with them.
 func (p Panel) Filter(rows []Row, columns []string) []Row {
 	query := strings.ToLower(p.Query)
 	var out []Row
-	for _, r := range rows {
+	for _, r := range p.flatten(rows, columns) {
 		if r.Aside || p.matches(r, columns, query) {
 			out = append(out, r)
 		}
@@ -1072,6 +1122,43 @@ func (p Panel) Filter(rows []Row, columns []string) []Row {
 		if !r.Aside {
 			out[k] = p.hide(r, columns)
 		}
+	}
+	return out
+}
+
+// flatten gives each row once for each value it holds in every field flattened, as grouping by them places it under
+// each, every pair of values where two are, and once where it holds one or none, each copy's cell holding its value
+// alone, as each gives it. A copy is the same row, its key the same, so what is done to it is done to the row. A row
+// of one cell, as a heading, stands as it is.
+func (p Panel) flatten(rows []Row, columns []string) []Row {
+	var at []int
+	for j, id := range columns {
+		if p.Lists(id) && p.Fields[id].Flat {
+			at = append(at, j)
+		}
+	}
+	if len(at) == 0 {
+		return rows
+	}
+	var out []Row
+	for _, r := range rows {
+		copies := []Row{r}
+		for _, j := range at {
+			if len(r.Cells) < 2 || j >= len(r.Cells) {
+				continue
+			}
+			var next []Row
+			for _, c := range copies {
+				for _, cell := range c.Cells[j].each() {
+					d := c
+					d.Cells = slices.Clone(c.Cells)
+					d.Cells[j] = cell
+					next = append(next, d)
+				}
+			}
+			copies = next
+		}
+		out = append(out, copies...)
 	}
 	return out
 }

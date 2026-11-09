@@ -13,7 +13,7 @@
                                                                                       │ ───────────────────────────── │
                                                                                       │ ☐ organization    ·     ·     │
                                                                                       │ ☐ repository      ·     ·     │
-                                                                                      │ ☐ assignees ⊘     ·     ·     │
+                                                                                      │ ☐ assignees ⊘           ·     │
                                                                                       ╰───────────────────────────────╯
 
 
@@ -21,4 +21,4 @@
 
 
 
- esc close ↑↓ move ⇧↑↓ order ␣ show/hide s sort g group ⏎ options
+ esc close ↑↓ move ⇧↑↓ order ␣ show/hide g group ⏎ options

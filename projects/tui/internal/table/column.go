@@ -2,13 +2,14 @@
 // terminal sends one. Many terminals keep option, ctrl, and the right button with a click for their own selection and
 // menu, so the menu holds what those would do: the column's sort, a radio that shows it, Ascending or Descending, a
 // column that did not sort coming after the keys there are, one that did keeping its place, or Unsorted, which takes
-// it out of the keys, as a shift-click on its sort does; the rows grouped by it too, innermost, or no longer; the
-// column hidden; and the
-// field's popover, which leaves the sort to the menu. The menu's title is the column's name, so no line names it
+// it out of the keys, as a shift-click on its sort does; for a column that holds a list, the rows standing once per
+// value of it, or once with all of them; the rows grouped by it too, innermost, or no longer; the column hidden; and
+// the field's popover, which leaves the sort to the menu. The menu's title is the column's name, so no line names it
 // again. Shift with left or right moves the column a place among those the header shows, the menu with it.
 package table
 
 import (
+	"cmp"
 	"slices"
 
 	tea "charm.land/bubbletea/v2"
@@ -31,20 +32,24 @@ type ColumnMenu struct {
 type ColAct int
 
 // What the column menu's lines do: none, the rules; the radio of the column's sort, Ascending, Descending, and
-// Unsorted; the rows grouped by the column, innermost, or no longer; the column hidden; and More, the field's popover.
+// Unsorted; the rows once per value of a column that holds a list, or once with all of them; the rows grouped by the
+// column, innermost, or no longer; the column hidden; and More, the field's popover.
 const (
 	ActRule ColAct = iota
 	ActUp
 	ActDown
 	ActUnsorted
+	ActFlatten
+	ActGather
 	ActGroup
 	ActUngroup
 	ActHide
 	ActMore
 )
 
-// The words of the column menu's lines, and their glyphs: grouping's is the mark a column grouping the rows has,
-// hiding's the box of a hidden column in the columns dialog; and a sweep, which a menu line that clears draws.
+// The words of the column menu's lines, and their glyphs: flattening's, the rows spreading down, and gathering's, their
+// coming together; grouping's is the mark a column grouping the rows has, hiding's the box of a hidden column in the
+// columns dialog; and a sweep, which a menu line that clears draws.
 const (
 	Unsorted  = "Unsorted"
 	GroupIt   = "Group"
@@ -53,11 +58,19 @@ const (
 	More      = "Options…"
 
 	Sweep        = "🧹"
+	FlattenGlyph = "⇊"
+	GatherGlyph  = "⇈"
 	GroupGlyph   = grid.Grouping
 	UngroupGlyph = "▢"
 	HideGlyph    = grid.Unticked
 	MoreGlyph    = "⋯"
 )
+
+// FlattenIt gives the words of the line that flattens a column that holds a list, by the name of one of its values.
+func FlattenIt(one string) string { return "One row per " + one }
+
+// GatherIt gives the words of the line that gathers a column's values onto one row again, by its label.
+func GatherIt(label string) string { return "All " + label + " on one row" }
 
 // colLine is a line of the column menu: what it draws, and what it does.
 type colLine struct {
@@ -77,8 +90,9 @@ func OpenColumnMenu(h Host, column string, heading bool) ColumnMenu {
 // sort.
 // Where something else orders the rows, a group or another key, its triangles carry ⁿ and ₙ, as the header's mark
 // carries the place the column takes, raised after ▲ and lowered after ▼. A section the field cannot use is left out,
-// with its rule: the sort, for one that cannot sort, and Group and Ungroup, for one that cannot group. A line the
-// field can use but that cannot act now stays, dim.
+// with its rule: the sort, for one that cannot sort now, as a list cannot until it is flat; flattening, for one that
+// holds no list; and Group and Ungroup, for one that cannot group. A line the field can use but that cannot act now
+// stays, dim.
 func (c ColumnMenu) lines(h Host) []colLine {
 	p, column := h.Panel(), c.Column
 	d, up, down := p.Field(column).Sort, "", ""
@@ -92,9 +106,14 @@ func (c ColumnMenu) lines(h Host) []colLine {
 		return colLine{shell.Item{Glyph: style.Off(grid.Unpicked), Name: name}, act}
 	}
 	var lines []colLine
-	if p.Sortable[column] {
+	if p.Sorts(column) {
 		lines = append(lines, radio(d == grid.Ascending, "▲"+up+" Ascending", ActUp),
 			radio(d == grid.Descending, "▼"+down+" Descending", ActDown), radio(d == grid.Unsorted, Unsorted, ActUnsorted),
+			colLine{act: ActRule})
+	}
+	if p.Lists(column) {
+		lines = append(lines, colLine{shell.Item{Glyph: FlattenGlyph, Name: FlattenIt(p.Ones[column])}, ActFlatten},
+			colLine{shell.Item{Glyph: GatherGlyph, Name: GatherIt(cmp.Or(p.Labels[column], column))}, ActGather},
 			colLine{act: ActRule})
 	}
 	if p.Groupable[column] {
@@ -120,8 +139,8 @@ func (c ColumnMenu) LineOf(h Host, act ColAct) int {
 }
 
 // Enabled says whether the column menu's line k acts: the radio always, as the menu has it only for a column that
-// sorts; Group on one that does not group yet, Ungroup on one that does; and
-// Hide and Options… always; the rules never do.
+// sorts; flattening on a list not flat yet, gathering on one that is; Group on one that does not group yet, Ungroup
+// on one that does; and Hide and Options… always; the rules never do.
 func (c ColumnMenu) Enabled(h Host, k int) bool {
 	lines := c.lines(h)
 	if k < 0 || k >= len(lines) {
@@ -132,6 +151,8 @@ func (c ColumnMenu) Enabled(h Host, k int) bool {
 	switch lines[k].act {
 	case ActUp, ActDown, ActUnsorted, ActHide, ActMore:
 		return true
+	case ActFlatten, ActGather:
+		return p.Field(c.Column).Flat == (lines[k].act == ActGather)
 	case ActGroup:
 		return !grouped
 	case ActUngroup:
@@ -241,6 +262,8 @@ func (c *ColumnMenu) Act(h Host, k int) (Popover, bool) {
 		// a column that did not sort comes after the keys there are; one that did turns in its place, or leaves them
 		p = p.SortedAs(was.Column, map[ColAct]grid.Direction{ActUnsorted: grid.Unsorted, ActUp: grid.Ascending,
 			ActDown: grid.Descending}[act])
+	case ActFlatten, ActGather:
+		p = p.Flattened(was.Column, act == ActFlatten)
 	case ActHide:
 		p = p.Placed(was.Column, grid.Hidden)
 	case ActGroup, ActUngroup:

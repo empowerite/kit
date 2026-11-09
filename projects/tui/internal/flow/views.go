@@ -148,7 +148,7 @@ func (v named) preset(stage string) (table.Preset, []string) {
 		}
 		return fields[k].ID
 	}
-	p := grid.Panel{Groupable: groupableOf(stage), Sortable: sortableOf(stage), Owner: ownerOf(stage),
+	p := grid.Panel{Groupable: groupableOf(stage), Sortable: sortableOf(stage), Ones: onesOf(stage), Owner: ownerOf(stage),
 		Fields: map[string]grid.Field{}}
 	// the columns the order names stand first, in its order, the rest after them, in the stage's
 	for _, label := range v.Order {

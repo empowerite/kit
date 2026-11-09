@@ -280,9 +280,9 @@ func (m Model) names(i int) []string {
 	if m.noHeaders {
 		return nil
 	}
-	names := m.shownColumns(i)
+	names, p := m.shownColumns(i), m.filter(i)
 	for k, name := range names {
-		names[k] = labelOf(m.stages[i].name, name)
+		names[k] = p.Label(name)
 	}
 	return names
 }

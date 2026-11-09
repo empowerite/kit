@@ -7,7 +7,7 @@
   ▾ github 3                             │ ·  a separator                      │
                                          │ -  the workspace menu               │
       id   assignees         age  branch │ 🔎 the search: / or a click         │
-      ·────·─────────────────·────·──────│ ➊  the selected tab's number        │
+      ·──────────────────────·────·──────│ ➊  the selected tab's number        │
     ▸ #45                     2h         │ ➁  a tab's number, which selects it │
     ▸ #46  jeffrey-aguilera   2d  🌿 46-a│ 🎫 the backlog stage                │
     ▸ #7   ada           +1  40d         │ :  the tab's menu                   │

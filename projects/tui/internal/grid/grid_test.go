@@ -1218,3 +1218,80 @@ func TestASortTurnsOffOnlyOnTheLastKey(t *testing.T) {
 		t.Errorf("the group, before id, turned twice: %+v", got.Field("state"))
 	}
 }
+
+// A field that holds a list, which names one of its values, sorts only while the rows stand once per value of it:
+// flattened, a row stands once for each value it holds there, and once where it holds none, the copy holding that
+// value alone, without the count a cell of several shows; or grouped by it, which places a row under each. The header
+// names one value while it is flat. Unflattened, a sort it kept no longer orders the rows.
+func TestAListFlattensToARowPerValueAndThenSorts(t *testing.T) {
+	columns := []string{"id", "who", "age", "title"}
+	p := Panel{Labels: map[string]string{"who": "assignees"}, Ones: map[string]string{"who": "assignee"},
+		Sortable: map[string]bool{"id": true}, Groupable: map[string]bool{"who": true}}
+	plain := func(q Panel) (keys, who []string) {
+		for _, r := range q.Filter(issues(), columns) {
+			if !r.Aside {
+				keys, who = append(keys, r.Key), append(who, strings.Join(r.Cells[1].Raw, "+"))
+			}
+		}
+		return keys, who
+	}
+	if p.Sorts("who") || !p.Sorts("id") || p.Sorted("who").Field("who").Sort != Unsorted || p.Label("who") != "assignees" {
+		t.Errorf("a list, not flat: sorts %v, label %q", p.Sorts("who"), p.Label("who"))
+	}
+	if keys, _ := plain(p); !slices.Equal(keys, []string{"#1", "#22", "#3"}) {
+		t.Errorf("not flat: %q", keys)
+	}
+	flat := p.Flattened("who", true)
+	if !flat.Sorts("who") || flat.Label("who") != "assignee" || !flat.Field("who").Flat {
+		t.Errorf("flat: sorts %v, label %q", flat.Sorts("who"), flat.Label("who"))
+	}
+	keys, who := plain(flat.SortedAs("who", Descending))
+	if !slices.Equal(keys, []string{"#22", "#1", "#1", "#3"}) || !slices.Equal(who, []string{"carol", "bob", "ada", ""}) {
+		t.Errorf("flat, sorted descending: %q %q", keys, who)
+	}
+	// the copy draws its value alone; a filter on the field lets through the copies that hold one it names
+	for _, r := range flat.Filter(issues(), columns) {
+		if !r.Aside && len(r.Cells[1].Raw) == 1 && len(r.Cells[1].Values) != 1 {
+			t.Errorf("the copy %s draws %q", r.Key, r.Cells[1].Values)
+		}
+	}
+	if keys, who := plain(flat.FilteredBy("who", Filter{Values: []string{"bob"}})); !slices.Equal(keys, []string{"#1"}) ||
+		!slices.Equal(who, []string{"bob"}) {
+		t.Errorf("flat, filtered to bob: %q %q", keys, who)
+	}
+	// unflattened, the sort it kept no longer orders the rows, and the panel keeps no key of it
+	back := flat.SortedAs("who", Descending).Flattened("who", false)
+	if keys, _ := plain(back); !slices.Equal(keys, []string{"#1", "#22", "#3"}) || len(back.SortKeys()) != 0 ||
+		back.Label("who") != "assignees" {
+		t.Errorf("flat no more: %q, keys %v", keys, back.SortKeys())
+	}
+	// grouped by it, a list sorts, which orders its groups
+	if g := p.Grouped("who", true); !g.Sorts("who") {
+		t.Errorf("grouped by the list: it does not sort")
+	}
+	// a field that holds no list never flattens; a row too short for the column, as a heading's, stands as it is
+	if q := p.Flattened("id", true); q.Field("id").Flat || len(q.Fields) != 0 {
+		t.Errorf("id flattened: %+v", q.Fields)
+	}
+	short := []Row{{Key: "#9", Cells: []Cell{one("#9"), one("x")}}}
+	if got := flat.Filter(short, []string{"id", "age", "who"}); len(got) != 2 || got[1].Key != "#9" {
+		t.Errorf("a row without the flat column: %+v", got)
+	}
+}
+
+// A cell of labels, which draws a pill for each and says how many there are, flattened draws its one label's pill,
+// says no count, and heads a group by it as the pill.
+func TestAFlattenedLabelDrawsItsPillAlone(t *testing.T) {
+	labels := Cell{Values: []string{"[bug]", "[ui]"}, Raw: []string{"bug", "ui"}, Head: "[bug]", Summary: "2"}
+	rows := []Row{{Key: "#1", Cells: []Cell{one("#1"), labels}}}
+	p := Panel{Ones: map[string]string{"labels": "label"}}.Flattened("labels", true)
+	var got []Cell
+	for _, r := range p.Filter(rows, []string{"id", "labels"}) {
+		if !r.Aside {
+			got = append(got, r.Cells[1])
+		}
+	}
+	if len(got) != 2 || got[1].Values[0] != "[ui]" || got[1].Head != "[ui]" || got[1].Summary != "" || got[1].Raw[0] != "ui" {
+		t.Errorf("the labels flattened: %+v", got)
+	}
+}

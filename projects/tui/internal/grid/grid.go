@@ -99,6 +99,29 @@ func (c Cell) groups() (values, heads []string) {
 	return values, heads
 }
 
+// each gives the cell once for each value a row groups by in it, as groups gives them, each copy holding that value
+// alone: its raw value, the value drawn for it, and no count of them; where the cell's Head says its value as it draws
+// it, as a label's pill, the copy's says its own. A cell of one value or none is given as it is.
+func (c Cell) each() []Cell {
+	values, heads := c.groups()
+	if len(c.Raw) < 2 || len(values) == 1 && values[0] == "" {
+		return []Cell{c}
+	}
+	out := make([]Cell, len(values))
+	for k, v := range values {
+		one := c
+		one.Raw, one.Values, one.Summary = []string{v}, []string{v}, ""
+		if len(c.Values) == len(c.Raw) {
+			one.Values = []string{c.Values[slices.Index(c.Raw, v)]}
+		}
+		if c.Head != "" {
+			one.Head = heads[k]
+		}
+		out[k] = one
+	}
+	return out
+}
+
 // natural compares two texts as a person reads them: each run of digits by its number, the rest without regard to
 // case, so 7 comes before 31 and a2 before a10.
 func natural(a, b string) int {

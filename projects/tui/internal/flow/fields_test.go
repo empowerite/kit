@@ -201,8 +201,8 @@ func TestTheRowsGiveAValueInEachFieldAndCellsInItsOrder(t *testing.T) {
 	}
 }
 
-// A preset says, per field, its placement, its sort, and its filter; the panel is set as it says, and gives back a
-// preset that sets it alike.
+// A preset says, per field, its placement, its sort, and its filter, and whether a list is flat, as assignees, which
+// sorts while it is; the panel is set as it says, and gives back a preset that sets it alike.
 func TestAPresetSetsThePanel(t *testing.T) {
 	fields := fieldsOf("backlog")
 	p := table.Preset{Name: "Triage", Fields: map[string]table.Setting{
@@ -211,9 +211,9 @@ func TestAPresetSetsThePanel(t *testing.T) {
 		"source":    {Placement: table.PlaceGroup, Depth: 1},
 		"branch":    {Placement: table.PlaceHidden, Rendering: "text"},
 		"age":       {Sort: "desc", Priority: 1},
-		"assignees": {Sort: "asc", Priority: 2, Filter: &table.ValueFilter{Exclude: []string{caller}}},
+		"assignees": {Flat: true, Sort: "asc", Priority: 2, Filter: &table.ValueFilter{Exclude: []string{caller}}},
 	}}
-	g := p.Panel(fields, grid.Panel{Owner: ownerOf("backlog")})
+	g := p.Panel(fields, grid.Panel{Owner: ownerOf("backlog"), Ones: onesOf("backlog")})
 	if got := g.Arrange(columnsOf("backlog")); !slices.Equal(got, []string{"title", "id", "member", "source", "organization", "repository", "assignees", "age", "branch", "labels"}) ||
 		!slices.Equal(g.Groups(), []string{"source"}) || g.Field("branch").Placement != grid.Hidden ||
 		!slices.Equal(g.SortKeys(), []grid.SortKey{{Column: "age", Desc: true}, {Column: "assignees"}}) ||

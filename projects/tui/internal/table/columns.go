@@ -10,7 +10,6 @@
 package table
 
 import (
-	"cmp"
 	"slices"
 	"strings"
 
@@ -43,7 +42,7 @@ func (c Columns) Listed(h Host) []string { return h.Panel().Listed() }
 func (c Columns) Line(h Host, id string) string {
 	p := h.Panel()
 	f := p.Field(id)
-	box, label := style.Mark(grid.Ticked), cmp.Or(p.Labels[id], id)
+	box, label := style.Mark(grid.Ticked), p.Label(id)
 	if f.Placement == grid.Hidden {
 		box, label = style.Off(grid.Unticked), style.Off(label)
 	}
@@ -53,7 +52,7 @@ func (c Columns) Line(h Host, id string) string {
 	sort := style.Off("·")
 	if mark := p.Mark(id); mark != "" {
 		sort = style.Tint(mark)
-	} else if !p.Sortable[id] {
+	} else if !p.Sorts(id) {
 		sort = " "
 	}
 	group := style.Off("·")
@@ -137,7 +136,7 @@ func (c *Columns) Act(h Host, key string) {
 			p = p.Placed(id, grid.Hidden)
 		}
 	case "s":
-		if !p.Sortable[id] {
+		if !p.Sorts(id) {
 			return
 		}
 		p = p.Sorted(id)
@@ -230,7 +229,7 @@ func (c Columns) Keys(h Host) shell.Segment {
 		s.Bindings = append(s.Bindings, shell.Bind("⇧↑↓", "order", orders...))
 	}
 	s.Bindings = append(s.Bindings, shell.Bind("␣", "show/hide", "space"))
-	if p.Sortable[id] {
+	if p.Sorts(id) {
 		s.Bindings = append(s.Bindings, shell.Bind("s", "sort"))
 	}
 	if p.Groupable[id] {

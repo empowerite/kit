@@ -11,7 +11,8 @@ import (
 // Panel gives a stage's Panel set as a preset says, of the stage's fields, the rest of it as p has it: each field placed,
 // sorted, filtered, and drawn as the preset says, a field it does not name placed as the catalog says, and folding
 // unless the preset says it does not. What a field cannot do it is not set to do: a field without a label is never
-// hidden, nor grouped, sorted, or filtered unless it can be, nor drawn by a rendering not its own.
+// hidden, nor grouped, sorted, or filtered unless it can be, nor drawn by a rendering not its own, nor flat unless it
+// holds a list; a list keeps its sort, which sorts the rows while it is flat, or grouped by.
 func (pr Preset) Panel(fields []Field, p grid.Panel) grid.Panel {
 	p.Fields = map[string]grid.Field{}
 	for _, f := range fields {
@@ -29,7 +30,7 @@ func (pr Preset) Panel(fields []Field, p grid.Panel) grid.Panel {
 		default:
 			g.Position = s.Position
 		}
-		if f.Sort && (s.Sort == "asc" || s.Sort == "desc") {
+		if (f.Sort || f.One != "") && (s.Sort == "asc" || s.Sort == "desc") {
 			g.Sort, g.Priority = grid.Ascending, s.Priority
 			if s.Sort == "desc" {
 				g.Sort = grid.Descending
@@ -46,6 +47,7 @@ func (pr Preset) Panel(fields []Field, p grid.Panel) grid.Panel {
 		if slices.Contains(f.Renderings, s.Rendering) {
 			g.Rendering = s.Rendering
 		}
+		g.Flat = s.Flat && f.One != ""
 		p.Fields[f.ID] = g
 	}
 	return p
@@ -93,7 +95,7 @@ func PresetOf(p grid.Panel, fields []Field) Preset {
 				s.Filter = &ValueFilter{Exclude: slices.Clone(g.Filter.Values)}
 			}
 		}
-		s.Rendering = g.Rendering
+		s.Rendering, s.Flat = g.Rendering, g.Flat
 		if s != (Setting{}) {
 			if out.Fields == nil {
 				out.Fields = map[string]Setting{}

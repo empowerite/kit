@@ -489,7 +489,7 @@ func (m Model) filter(i int) grid.Panel {
 	s := m.stages[i]
 	p := s.View
 	p.Owner, p.Me, p.Sortable, p.Groupable = ownerOf(s.name), m.me, sortableOf(s.name), groupableOf(s.name)
-	p.Labels = labelsOf(s.name)
+	p.Labels, p.Ones = labelsOf(s.name), onesOf(s.name)
 	p.Focused, p.Outline, p.Fold, p.Glyphs = m.inPanel && i == m.stage, s.Open, m.fold, m.glyphs
 	return p
 }

@@ -91,7 +91,7 @@ func (m Model) sortSpots() []sortSpot {
 	var out []sortSpot
 	for j, column := range m.shownColumns(m.stage) {
 		start, first := grid.HeaderName(rows, names, width, j)
-		if start < 0 || !p.Sortable[column] {
+		if start < 0 || !p.Sorts(column) {
 			continue
 		}
 		mark := p.Mark(column)
