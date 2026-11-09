@@ -33,14 +33,20 @@ func TestLabelIsTheSelectedTabAsTheBarDrawsIt(t *testing.T) {
 	b := stages(1, 120)
 	b.Menus, b.Color = true, "33"
 	mark, _ := style.In("33")
-	if got := b.Label(); ansi.Strip(got) != "🛫 underway 58 "+Menu || !strings.Contains(got, mark("underway")) ||
+	// the stale dot's cell stands after the name, as the bar keeps it, blank while the tab is fresh
+	if got := b.Label(); ansi.Strip(got) != "🛫 underway  58 "+Menu || !strings.Contains(got, mark("underway")) ||
 		!strings.Contains(b.View(), mark("underway")) {
 		t.Errorf("the label: %q", got)
 	}
 	b.MenuOpen = true
-	if got := ansi.Strip(b.Label()); got != "🛫 underway    "+Menu {
+	if got := ansi.Strip(b.Label()); got != "🛫 underway     "+Menu {
 		t.Errorf("the menu open, the count blank: %q", got)
 	}
+	b.MenuOpen, b.Stale = false, []bool{false, true}
+	if got := ansi.Strip(b.Label()); got != "🛫 underway"+Stale+" 58 "+Menu {
+		t.Errorf("stale, the dot in its cell: %q", got)
+	}
+	b.Stale = nil
 	b.MenuOpen, b.Tabs[1].Count = false, ""
 	if got := ansi.Strip(b.Label()); got != "🛫 underway "+Menu {
 		t.Errorf("no count: %q", got)

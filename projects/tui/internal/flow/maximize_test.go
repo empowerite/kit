@@ -79,9 +79,10 @@ func TestMaximizeGivesTheRowsTwoLines(t *testing.T) {
 	}
 }
 
+// The title names the tab as the bar does: its name, the stale dot's cell, blank while fresh, a space, and its count.
 func TestMaximizeTitleNamesTheTabAndItsCount(t *testing.T) {
 	m := maximize(t, loaded(t, viewing("")))
-	want := "  " + shell.App + " kit flow · " + shell.Workspaces + " empowerite/kit · 🎫 backlog 3 " + tabs.Menu
+	want := "  " + shell.App + " kit flow · " + shell.Workspaces + " empowerite/kit · 🎫 backlog  3 " + tabs.Menu
 	if got := lines(m)[0]; got != want {
 		t.Errorf("the title:\n%q\nwant\n%q", got, want)
 	}
@@ -91,7 +92,7 @@ func TestMaximizeTitleNamesTheTabAndItsCount(t *testing.T) {
 		t.Errorf("the tab's name is not in its color: %q", strings.Split(m.View().Content, "\n")[0])
 	}
 	// a number selects a tab, still maximized, and the title names it
-	if m = drive(m, press('2')); !m.maximized || !strings.HasSuffix(lines(m)[0], " · 🛫 underway 4 "+tabs.Menu) {
+	if m = drive(m, press('2')); !m.maximized || !strings.HasSuffix(lines(m)[0], " · 🛫 underway  4 "+tabs.Menu) {
 		t.Errorf("after 2, the title: %q", lines(m)[0])
 	}
 	// the search stays at its right

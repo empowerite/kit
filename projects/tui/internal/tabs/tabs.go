@@ -221,18 +221,25 @@ func (b Bar) label(i int) (name, count, menu string) {
 	return name, count, menu
 }
 
-// Label gives the selected tab's label as the bar draws it on its middle line, on one line with a space between its
-// parts: its glyph, its name in the bar's color, its count, and the menu's glyph, as label says; a screen that draws the
-// tab without the bar draws it so. No tabs give nothing.
+// Label gives the selected tab's label as the bar draws it on its middle line: its glyph, its name in the bar's color,
+// the stale dot's cell, a space, and its count, then a space and the menu's glyph, as label says, so the count stands
+// where it stands whether the tab is stale or not; a screen that draws the tab without the bar, as a maximized tab's
+// title does, draws it so. No tabs give nothing.
 func (b Bar) Label() string {
 	if len(b.Tabs) == 0 {
 		return ""
 	}
 	name, count, menu := b.label(b.Selected)
-	for _, part := range []string{count, menu} {
-		if ansi.StringWidth(part) > 0 {
-			name += " " + part
-		}
+	// the stale dot's cell, as the bar keeps it, so the count stands where it stands whether the tab is stale or not
+	dot := " "
+	if b.stale(b.Selected) {
+		dot = style.Warn(Stale)
+	}
+	if ansi.StringWidth(count) > 0 {
+		name += dot + " " + count
+	}
+	if ansi.StringWidth(menu) > 0 {
+		name += " " + menu
 	}
 	return name
 }
