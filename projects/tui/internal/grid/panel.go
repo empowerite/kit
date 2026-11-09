@@ -420,9 +420,8 @@ func (p Panel) Grouped(column string, nest bool) Panel {
 	return p.groupedBy(groups)
 }
 
-// Levels gives how many levels of headings the rows stand under, as group draws them, which a screen indents them by:
-// one each column they group by, the heading over the groups apart, which a screen draws apart from them; none where
-// nothing groups them.
+// Levels gives how many levels of headings the rows stand under, as group draws them: one each column they group by,
+// the heading over the groups apart, which a screen draws apart from them; none where nothing groups them.
 func Levels(rows []Row) int {
 	n := 0
 	for _, r := range rows {
@@ -431,6 +430,19 @@ func Levels(rows []Row) int {
 		}
 	}
 	return n
+}
+
+// Indents gives how many steps in the rows stand under the headings of their groups, as group draws them, which a
+// screen indents them by: one each depth a heading's line starts at, so the levels a line takes across, as a path of
+// one value each, are one step, not one each.
+func Indents(rows []Row) int {
+	depths := map[int]bool{}
+	for _, r := range rows {
+		if Heads(r) && !OverGroups(r) {
+			depths[Level(r)] = true
+		}
+	}
+	return len(depths)
 }
 
 // byFields is the key of the heading over the groups, which names their columns, and which every heading of a value
@@ -578,6 +590,7 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 	// stand as one node, the outermost's, which its one fold, before the first value, opens and closes: a dim separator
 	// stands before each value after it, so the line shows no fold it does not have
 	var combined []Row
+	lines := map[int]int{} // the depth each heading's line starts at, by its index in combined
 	for i := 0; i < len(out); i++ {
 		h, ok := heads[i]
 		if !ok {
@@ -609,9 +622,28 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 				texts[k] = style.Off(Joined) + " " + texts[k]
 			}
 		}
-		text := strings.Repeat("  ", h.depth) + strings.Join(texts, " ") + " " + style.Off(strconv.Itoa(h.n))
+		text := strings.Join(texts, " ") + " " + style.Off(strconv.Itoa(h.n))
 		r.Cells = []Cell{{Values: []string{text}, Wrap: true}}
+		lines[len(combined)] = h.depth
 		combined = append(combined, r)
+	}
+	// a line stands in a step for each depth a line starts at over it, not for each level: the levels a line takes
+	// across stand on it, and indent nothing under it
+	steps := map[int]int{}
+	for _, d := range lines {
+		steps[d] = 0
+	}
+	for d := range steps {
+		for e := range steps {
+			if e < d {
+				steps[d]++
+			}
+		}
+	}
+	for k, d := range lines {
+		cell := combined[k].Cells[0]
+		cell.Values = []string{strings.Repeat("  ", steps[d]) + cell.Values[0]}
+		combined[k].Cells = []Cell{cell}
 	}
 	out = combined
 	if len(out) > 0 {

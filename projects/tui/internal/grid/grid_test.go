@@ -1163,10 +1163,18 @@ func TestHeadingsOfTheSameRowsStandAcrossOnOneLine(t *testing.T) {
 		}
 		return out
 	}
-	want := []string{"▾ state ▾ where ▾ who ▾ 3", "▾ draft · there · cy 2", "#2", "#3", "▾ ready · here 1", "    ▾ ada 1",
-		"#1", "    ▾ bob 1", "#1"}
+	// a heading under a line that takes levels across stands one step in from it, not a step for each level it took
+	want := []string{"▾ state ▾ where ▾ who ▾ 3", "▾ draft · there · cy 2", "#2", "#3", "▾ ready · here 1", "  ▾ ada 1",
+		"#1", "  ▾ bob 1", "#1"}
 	if got := texts(p); !slices.Equal(got, want) {
 		t.Errorf("across:\n%s", strings.Join(got, "\n"))
+	}
+	// the rows stand in two steps, the lines' two depths, though they group three levels deep
+	if grouped := p.group(rows, columns); Indents(grouped) != 2 || Levels(grouped) != 3 {
+		t.Errorf("the rows' indents: %d, levels %d", Indents(grouped), Levels(grouped))
+	}
+	if Indents(Panel{}.group(rows, columns)) != 0 {
+		t.Error("rows that group by nothing stand in")
 	}
 	// the line is one node, draft's: closed, every fold on it is ▸, and it folds everything under it
 	p.Outline = Outline{byFields + "\x00draft": false}
