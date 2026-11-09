@@ -32,7 +32,7 @@ func (m *Model) takeKept(msg source.Answer[[]byte]) {
 	if s == nil {
 		return
 	}
-	if _, landed := s.src.Take(msg); landed != source.Stands || s.decode(msg.Value) != nil {
+	if _, landed := s.src.Take(msg); landed != source.Stands || s.decode(msg.Value, m.runner.Group != "") != nil {
 		return
 	}
 	s.src.Loading, s.src.Stale = false, true

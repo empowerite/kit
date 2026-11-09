@@ -27,6 +27,7 @@ type issue struct {
 	Source       string        `json:"source"`
 	Organization string        `json:"organization"`
 	Repository   string        `json:"repository"`
+	Member       string        `json:"member"` // over a group, the member kit read it in, host/path
 }
 
 // commit is one commit: its short hash and its subject.
@@ -67,6 +68,7 @@ type underway struct {
 	Here     bool   `json:"here"`
 	Local    bool   `json:"local"`
 	Worktree string `json:"worktree"`
+	Member   string `json:"member"`
 }
 
 // incoming is what the fetch brought from every remote, the primary named; with --no-fetch, Fetched is false and the
@@ -75,6 +77,7 @@ type incoming struct {
 	Fetched bool     `json:"fetched"`
 	Primary string   `json:"primary"`
 	Remotes []remote `json:"remotes"`
+	Member  string   `json:"member"`
 }
 
 // remote is one remote and what the fetch brought from it: the commits new on its default branch, its branches new,
@@ -99,6 +102,7 @@ type remote struct {
 type worktrees struct {
 	Worktrees    []checkout `json:"worktrees"`
 	GoneBranches []string   `json:"goneBranches"`
+	Member       string     `json:"member"`
 }
 
 // checkout is one checkout: its branch, its lines against the default branch, the commits ahead of it, newest first,
@@ -118,6 +122,7 @@ type checkout struct {
 		Status string `json:"status"`
 		Path   string `json:"path"`
 	} `json:"changes"`
+	Member string `json:"member"`
 }
 
 // pull is one open pull request, with its labels and the issues it closes.
@@ -134,6 +139,7 @@ type pull struct {
 	Branch     string        `json:"branch"`
 	Labels     []table.Label `json:"labels"`
 	Closes     []issue       `json:"closes"`
+	Member     string        `json:"member"`
 }
 
 // checks is a pull request's checks: SUCCESS, FAILURE, or PENDING, the counts, the failing check's name, and how long
@@ -166,6 +172,7 @@ type run struct {
 	Took     *int64 `json:"took"`
 	URL      string `json:"url"`
 	Jobs     []job  `json:"jobs"`
+	Member   string `json:"member"`
 }
 
 // job is one job of a build: its name, its state as a build's, how long it took, nil while it runs, and the step that
@@ -187,6 +194,7 @@ type release struct {
 	At      string `json:"at"`
 	Age     int64  `json:"age"`
 	URL     string `json:"url"`
+	Member  string `json:"member"`
 }
 
 // cell is one column of a row, and row one row, as internal/grid lays them out: a cell's values, a number
@@ -345,7 +353,7 @@ type shown struct {
 func (m Model) build(i int) shown {
 	s, names, p := m.stages[i], columnsOf(m.stages[i].name), m.filter(i)
 	if s.name == "incoming" {
-		all := incomingRows(s)
+		all := m.incomingRows(s)
 		rows := p.Filter(all, names)
 		return shown{p.FoldAway(rows), filled(all, names), grid.Indents(rows), table.Counted(all), nil}
 	}
@@ -431,25 +439,81 @@ func filled(rows []row, names []string) []string {
 	return out
 }
 
-// records gives a stage's records from what it loaded; none for a stage kittui does not draw.
+// records gives a stage's records from what it loaded, then, over a group, a line for each member whose read failed;
+// none for a stage kittui does not draw.
 func (m Model) records(s stage) []record {
+	var out []record
 	switch s.name {
 	case "backlog":
-		return m.backlogRows(s)
+		out = m.backlogRows(s)
 	case "underway":
-		return m.underwayRows(s)
+		out = m.underwayRows(s)
 	case "desk":
-		return m.deskRows(s)
+		out = m.deskRows(s)
 	case "worktrees":
-		return m.worktreeRows(s)
+		out = m.worktreeRows(s)
 	case "changes":
-		return m.changeRows(s)
+		out = m.changeRows(s)
 	case "builds":
-		return m.buildRows(s)
+		out = m.buildRows(s)
 	case "releases":
-		return m.releaseRows(s)
+		out = m.releaseRows(s)
 	}
-	return nil
+	for _, r := range m.failures(s) {
+		out = append(out, record{row: r})
+	}
+	return out
+}
+
+// failures gives a line for each member whose read of the stage failed, over a group: ❌, the member's short name, and
+// kit's line, in red, an aside, as a remote whose fetch failed is.
+func (m Model) failures(s stage) []row {
+	var out []row
+	for _, f := range s.failed {
+		out = append(out, row{Key: m.keyOf(f.Member, "failed"),
+			Cells: span(style.Refusal(Failed + " " + m.short(f.Member) + ": " + f.Error)), Aside: true})
+	}
+	return out
+}
+
+// keyOf gives a row's key: the stage's own over a repository, and after the row's member over a group, so the rows of
+// two members that share a number stay apart.
+func (m Model) keyOf(member, key string) string {
+	if member == "" {
+		return key
+	}
+	return member + " " + key
+}
+
+// originOf gives the origin a row's links are built from: the screen's, for a row of no member, else the member's
+// host and path.
+func (m Model) originOf(member string) Origin {
+	if member == "" {
+		return m.origin
+	}
+	return parseRemote("https://" + member)
+}
+
+// short gives a member's short name: its path past the owner where every member of the workspace shares its host and
+// owner, else its host and path, as kit names it, until kit has said the members.
+func (m Model) short(member string) string {
+	owner := func(r string) string {
+		parts := strings.SplitN(r, "/", 3)
+		if len(parts) < 3 {
+			return ""
+		}
+		return parts[0] + "/" + parts[1]
+	}
+	of := owner(member)
+	if of == "" || len(m.ws.Members) == 0 {
+		return member
+	}
+	for _, w := range m.ws.Members {
+		if owner(w.Repository) != of {
+			return member
+		}
+	}
+	return strings.TrimPrefix(member, of+"/")
 }
 
 // backlogRows gives each issue: number, source, organization, repository, assignees, age, branch, labels, title, its
@@ -458,11 +522,11 @@ func (m Model) backlogRows(s stage) []record {
 	var out []record
 	for _, i := range s.issues {
 		key := "#" + strconv.Itoa(i.Number)
-		out = append(out, record{row{Key: key}, map[string]table.Value{
+		out = append(out, record{row{Key: m.keyOf(i.Member, key)}, map[string]table.Value{
 			"id": table.One(key), "source": table.Some(i.Source), "organization": table.Some(i.Organization),
 			"repository": table.Some(i.Repository), "assignees": {Raw: i.Assignees}, "age": table.Seconds(i.Age),
 			"branch": table.Some(i.Branch), "labels": table.Labelled(i.Labels),
-			"title": {Raw: []string{i.Title}, Link: m.origin.issue(i.Number, i.URL)},
+			"title": {Raw: []string{i.Title}, Link: m.originOf(i.Member).issue(i.Number, i.URL)},
 		}})
 	}
 	return out
@@ -480,7 +544,8 @@ func (m Model) backlogRows(s stage) []record {
 func (m Model) underwayRows(s stage) []record {
 	var out []record
 	for _, u := range s.under {
-		issue, pr, page := "#"+strconv.Itoa(u.Number), "#"+strconv.Itoa(u.PR.Number), m.origin.pull(u.PR.Number, u.PR.URL)
+		o := m.originOf(u.Member)
+		issue, pr, page := "#"+strconv.Itoa(u.Number), "#"+strconv.Itoa(u.PR.Number), o.pull(u.PR.Number, u.PR.URL)
 		var where, pushed, by table.Value
 		switch {
 		case u.Here:
@@ -498,14 +563,14 @@ func (m Model) underwayRows(s stage) []record {
 		}
 		change := page
 		if m.find("changes") != nil {
-			change = jumpTo("changes", m.pullKey(u.PR.Number))
+			change = jumpTo("changes", m.pullKey(u.Member, u.PR.Number))
 		}
-		out = append(out, record{row{Key: issue + " " + pr}, map[string]table.Value{
+		out = append(out, record{row{Key: m.keyOf(u.Member, issue+" "+pr)}, map[string]table.Value{
 			"id": table.One(issue), "source": table.Some(u.Source), "organization": table.Some(u.Organization),
 			"repository": table.Some(u.Repository), "assignees": {Raw: u.Assignees}, "age": table.Seconds(u.Age),
 			"change": {Raw: []string{pr}, Link: change}, "state": {Raw: []string{u.PR.State}, Link: page},
 			"where": where, "fork": table.Some(u.PR.Fork), "pushed": pushed, "by": by, "labels": table.Labelled(u.Labels),
-			"title": {Raw: []string{u.Title}, Link: m.origin.issue(u.Number, u.URL)},
+			"title": {Raw: []string{u.Title}, Link: o.issue(u.Number, u.URL)},
 		}})
 	}
 	return out
@@ -516,7 +581,7 @@ func (m Model) underwayRows(s stage) []record {
 // stage in the picture, its glyph leads nowhere.
 func (m Model) here(path string) table.Value {
 	stage, where := "worktrees", "here"
-	if d := m.find("desk"); d != nil && d.desk != nil && d.desk.Path == path {
+	if d := m.find("desk"); d != nil && slices.ContainsFunc(d.desks, func(c checkout) bool { return c.Path == path }) {
 		stage, where = "desk", "desk"
 	}
 	v := table.Value{Raw: []string{where}, Of: where}
@@ -532,32 +597,44 @@ const jumps = "kittui:"
 // jumpTo gives the link to a row of a stage: the stage's name and the row's key.
 func jumpTo(stage, key string) string { return jumps + stage + "/" + key }
 
-// pullKey gives the key of a pull request's row under changes: its reference as kit printed it, else #<number>.
-func (m Model) pullKey(number int) string {
+// pullKey gives the key of a member's pull request's row under changes: its reference as kit printed it, else
+// #<number>, after the member over a group.
+func (m Model) pullKey(member string, number int) string {
 	if s := m.find("changes"); s != nil {
 		for _, p := range s.pulls {
-			if p.Number == number {
-				return ref(p)
+			if p.Number == number && p.Member == member {
+				return m.keyOf(member, ref(p))
 			}
 		}
 	}
-	return "#" + strconv.Itoa(number)
+	return m.keyOf(member, "#"+strconv.Itoa(number))
 }
 
-// incomingRows draws what the fetch brought from each remote, the primary first. Each remote has a dim heading, its
-// name, forge, and host, then its rows in kit flow's order: each commit on its default branch, each branch updated,
-// new, or gone, and each new tag. A remote whose fetch failed shows git's line, in red; one with nothing new says
-// unchanged; and without the fetch each says not fetched. Every row is a leaf; the headings and those lines are
-// asides.
-func incomingRows(s stage) []row {
-	if s.in == nil {
-		return nil
-	}
+// incomingRows draws what the fetch brought from each remote, the primary first, of each member over a group. Each
+// remote has a dim heading, its name, forge, and host, after its member's short name over a group, then its rows in kit
+// flow's order: each commit on its default branch, each branch updated, new, or gone, and each new tag. A remote whose
+// fetch failed shows git's line, in red; one with nothing new says unchanged; and without the fetch each says not
+// fetched. Every row is a leaf; the headings and those lines are asides. Last, over a group, a line for each member
+// whose read failed.
+func (m Model) incomingRows(s stage) []row {
 	var rows []row
-	for _, r := range primaryFirst(*s.in) {
-		rows = append(rows, row{Key: "remote " + r.Name, Cells: span(style.Off(heading(r))), Aside: true})
-		before, key := len(rows), r.Name+" "
-		if s.in.Fetched {
+	for _, in := range s.ins {
+		rows = append(rows, m.memberIncoming(in)...)
+	}
+	return append(rows, m.failures(s)...)
+}
+
+// memberIncoming draws one member's incoming, or the repository's, as incomingRows says.
+func (m Model) memberIncoming(in incoming) []row {
+	var rows []row
+	for _, r := range primaryFirst(in) {
+		title := heading(r)
+		if in.Member != "" {
+			title = m.short(in.Member) + " · " + title
+		}
+		rows = append(rows, row{Key: m.keyOf(in.Member, "remote "+r.Name), Cells: span(style.Off(title)), Aside: true})
+		before, key := len(rows), m.keyOf(in.Member, r.Name+" ")
+		if in.Fetched {
 			for _, c := range r.Commits {
 				rows = append(rows, row{Key: key + c.SHA, Cells: []cell{dim(c.SHA), fill(c.Subject)}})
 			}
@@ -583,7 +660,7 @@ func incomingRows(s stage) []row {
 			rows = append(rows, row{Key: key + "error", Cells: failed, Aside: true})
 		} else if len(rows) == before {
 			word := "unchanged"
-			if !s.in.Fetched {
+			if !in.Fetched {
 				word = "not fetched"
 			}
 			rows = append(rows, row{Key: key + word, Cells: span(style.Off(word)), Aside: true})
@@ -622,26 +699,36 @@ func heading(r remote) string {
 	return strings.Join(parts, " · ")
 }
 
-// deskRows gives the desk, the root checkout, in one row, as worktreeRows gives a worktree.
+// deskRows gives the desk, the root checkout, in one row, as worktreeRows gives a worktree: each member's, over a
+// group.
 func (m Model) deskRows(s stage) []record {
-	if s.desk == nil {
-		return nil
+	var out []record
+	for _, c := range s.desks {
+		out = append(out, m.checkoutRow(c, true))
 	}
-	return []record{m.checkoutRow(*s.desk, true)}
+	return out
 }
 
 // worktreeRows gives each linked worktree, as checkoutRow does. Last, dim, the branches whose upstream is gone, when
 // there are any; open, one row per branch.
 func (m Model) worktreeRows(s stage) []record {
-	if s.trees == nil {
-		return nil
-	}
 	var out []record
-	for _, c := range s.trees.Worktrees {
-		out = append(out, m.checkoutRow(c, false))
+	for _, t := range s.trees {
+		for _, c := range t.Worktrees {
+			c.Member = t.Member
+			out = append(out, m.checkoutRow(c, false))
+		}
 	}
-	if gone := s.trees.GoneBranches; len(gone) > 0 {
-		r := row{Key: "gone", Cells: span(style.Off(Gone + " gone: " + strings.Join(gone, ", ")))}
+	for _, t := range s.trees {
+		gone := t.GoneBranches
+		if len(gone) == 0 {
+			continue
+		}
+		what := Gone + " gone: " + strings.Join(gone, ", ")
+		if t.Member != "" {
+			what = Gone + " " + m.short(t.Member) + " gone: " + strings.Join(gone, ", ")
+		}
+		r := row{Key: m.keyOf(t.Member, "gone"), Cells: span(style.Off(what))}
 		for _, b := range gone {
 			r.Detail = append(r.Detail, span(Gone+" "+b+" "+style.Off("upstream gone · kit tidy removes it")))
 		}
@@ -662,7 +749,7 @@ func (m Model) checkoutRow(c checkout, desk bool) record {
 	if name == "" {
 		name = c.Path
 	}
-	change, state := m.pullOf(c.Branch, desk)
+	change, state := m.pullOf(c.Member, c.Branch, desk)
 	r := record{row{Key: c.Path}, map[string]table.Value{
 		"branch": {Raw: []string{name}, Of: c}, "ahead": {Raw: []string{strconv.Itoa(c.Ahead)}, Of: c},
 		"lines": {Raw: []string{strconv.Itoa(c.Added)}, Of: c}, "change": change, "state": state,
@@ -715,7 +802,7 @@ func uncommitted(n int) cell {
 // says … while changes loads; both say nothing when changes is not in the picture or failed, or for the desk or a
 // detached checkout without one; and the state says no pull request yet for a worktree without one, so the
 // references' column stays narrow.
-func (m Model) pullOf(branch string, desk bool) (change, state table.Value) {
+func (m Model) pullOf(member, branch string, desk bool) (change, state table.Value) {
 	s := m.find("changes")
 	if s == nil || s.refusal != "" {
 		return table.Value{}, table.Value{}
@@ -724,9 +811,9 @@ func (m Model) pullOf(branch string, desk bool) (change, state table.Value) {
 		return table.Value{Else: "…"}, table.Value{}
 	}
 	for _, p := range s.pulls {
-		if p.Branch == branch && branch != "" {
-			return table.Value{Raw: []string{ref(p)}, Link: jumpTo("changes", ref(p))},
-				table.Value{Raw: []string{p.State}, Link: m.origin.pull(p.Number, "")}
+		if p.Branch == branch && branch != "" && p.Member == member {
+			return table.Value{Raw: []string{ref(p)}, Link: jumpTo("changes", m.keyOf(member, ref(p)))},
+				table.Value{Raw: []string{p.State}, Link: m.originOf(member).pull(p.Number, "")}
 		}
 	}
 	if desk || branch == "" {
@@ -749,12 +836,12 @@ func ref(p pull) string {
 func (m Model) changeRows(s stage) []record {
 	var out []record
 	for _, p := range s.pulls {
-		page := m.origin.pull(p.Number, "")
+		page := m.originOf(p.Member).pull(p.Number, "")
 		var checked table.Value
 		if p.Checks != nil {
 			checked = table.Value{Raw: []string{p.Checks.State}, Of: p.Checks}
 		}
-		r := record{row{Key: ref(p)}, map[string]table.Value{
+		r := record{row{Key: m.keyOf(p.Member, ref(p))}, map[string]table.Value{
 			"change": {Raw: []string{ref(p)}, Link: page}, "title": table.One(p.Title), "author": table.Some(p.Author),
 			"state": {Raw: []string{p.State}, Link: page}, "age": table.Seconds(&p.Age), "checks": checked,
 			"threads": table.One(strconv.Itoa(p.Unresolved)), "branch": table.Some(p.Branch), "labels": table.Labelled(p.Labels),
@@ -790,7 +877,7 @@ func (m Model) buildRows(s stage) []record {
 		if b.Took == nil {
 			lasted.Else = table.Took(nil)
 		}
-		r := record{row{Key: strconv.FormatInt(b.ID, 10)}, map[string]table.Value{
+		r := record{row{Key: m.keyOf(b.Member, strconv.FormatInt(b.ID, 10))}, map[string]table.Value{
 			"status": {Raw: []string{b.State}, Link: b.URL}, "workflow": table.One(b.Workflow), "run": table.Some(number),
 			"event": table.Some(eventOf(b)), "branch": table.One(b.Branch), "commit": table.Some(b.SHA), "title": table.One(title),
 			"age": table.Seconds(&b.Age), "took": lasted,
@@ -840,8 +927,9 @@ func (m Model) releaseRows(s stage) []record {
 		if rel.Latest {
 			latest = table.One("latest")
 		}
-		r := record{row{Key: rel.Tag}, map[string]table.Value{
-			"version": table.One(rel.Version), "kind": {Raw: []string{rel.Kind}, Link: m.origin.release(rel.Tag, rel.URL)},
+		r := record{row{Key: m.keyOf(rel.Member, rel.Tag)}, map[string]table.Value{
+			"version": table.One(rel.Version), "kind": {Raw: []string{rel.Kind},
+				Link: m.originOf(rel.Member).release(rel.Tag, rel.URL)},
 			"age": table.Seconds(&rel.Age), "latest": latest,
 		}}
 		r.Detail = [][]cell{span(rel.Name), span(style.Off(rel.Tag)), span(style.Off(rel.At))}
@@ -858,7 +946,7 @@ func empty(s stage) string {
 	case "underway":
 		return "no issue is underway"
 	case "incoming":
-		if s.in != nil && !s.in.Fetched {
+		if len(s.ins) > 0 && !fetched(s.ins) {
 			return "not fetched: kit flow --no-fetch skips the fetch"
 		}
 		return "no remote to fetch"

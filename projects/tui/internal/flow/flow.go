@@ -55,6 +55,12 @@ type Options struct {
 	Clock     source.Clock // what the screen's waits go through: the program's, where none is given
 }
 
+// failure is a member whose read of a stage failed, over a group: its host and path, and kit's line.
+type failure struct {
+	Member string `json:"member"`
+	Error  string `json:"error"`
+}
+
 // stage is one stage of the picture: its name, what kit printed for it, and where the person is in its rows.
 type stage struct {
 	name        string
@@ -62,12 +68,13 @@ type stage struct {
 	refusal     string              // kit's line, when the command failed
 	issues      []issue
 	under       []underway
-	in          *incoming
-	desk        *checkout
-	trees       *worktrees
+	ins         []incoming  // incoming's, one a member: one over a repository
+	desks       []checkout  // the desk, one a member: one over a repository
+	trees       []worktrees // the worktrees, one a member: one over a repository
 	pulls       []pull
 	runs        []run
 	rels        []release
+	failed      []failure // over a group, the members whose read of the stage failed
 	table.Table // its table's state: the panel, the view, the outline, the rows selected, and where the cursor is
 }
 
@@ -280,7 +287,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !m.take(msg) || msg.Name != "incoming" {
 			return m, nil
 		}
-		if in := m.find("incoming").in; in != nil && in.Fetched {
+		if fetched(m.find("incoming").ins) {
 			// the fetch, at the start or on Refresh All, moved what some stages read: they load again
 			return m, m.reloads()
 		}
@@ -835,7 +842,8 @@ func (m *Model) restart(name string) tea.Cmd {
 		return cmd
 	}
 	s.src.Loading, s.refusal = true, ""
-	s.issues, s.under, s.in, s.desk, s.trees, s.pulls, s.runs, s.rels = nil, nil, nil, nil, nil, nil, nil, nil
+	s.issues, s.under, s.ins, s.desks, s.trees, s.pulls, s.runs, s.rels = nil, nil, nil, nil, nil, nil, nil, nil
+	s.failed = nil
 	m.rebuild()
 	return cmd
 }
@@ -877,7 +885,7 @@ func (m *Model) take(msg source.Answer[[]byte]) bool {
 	}
 	err := msg.Err
 	if err == nil {
-		err = s.decode(msg.Value)
+		err = s.decode(msg.Value, m.runner.Group != "")
 	}
 	if err != nil {
 		s.refusal = refusalOf(s.name, err)
@@ -908,7 +916,7 @@ func (m *Model) autoGroup(name string) {
 	s.Grouping = false
 	var all []row
 	if s.name == "incoming" {
-		all = incomingRows(*s)
+		all = m.incomingRows(*s)
 	} else {
 		all = laid(s.name, m.records(*s), func(id string) string { return s.View.Field(id).Rendering })
 	}
@@ -923,11 +931,39 @@ func (m *Model) autoGroup(name string) {
 	m.rebuild()
 }
 
-// decode keeps what the stage's command printed. A document of another shape, as kit prints above repositories, is
-// an error naming it, and JSON that does not decode is one too.
-func (s *stage) decode(data []byte) error {
+// decode keeps what the stage's command printed: over a group, kit's {rows, errors}, its rows the stage's, one object
+// a member for an object's stage; else the stage's document, an object's stage's object its one entry. A document of
+// another shape, as kit prints above repositories, is an error naming it, and JSON that does not decode is one too.
+func (s *stage) decode(data []byte, over bool) error {
+	s.failed = nil
+	if over {
+		var doc struct {
+			Rows   json.RawMessage `json:"rows"`
+			Errors []failure       `json:"errors"`
+		}
+		if err := across(s.name, data); err != nil {
+			return err
+		}
+		if err := json.Unmarshal(data, &doc); err != nil {
+			return fmt.Errorf("kit flow %s --workspace --json: %v", s.name, err)
+		}
+		s.failed = doc.Errors
+		return s.decodeRows(doc.Rows, true)
+	}
 	if err := shape(s.name, data); err != nil {
 		return err
+	}
+	return s.decodeRows(data, false)
+}
+
+// decodeRows keeps the stage's rows: an array of the stage's objects; for an object's stage, its object, or, across
+// members, an array of them, one a member.
+func (s *stage) decodeRows(data []byte, many bool) error {
+	one := func(data []byte, into any) error {
+		if many {
+			return json.Unmarshal(data, into)
+		}
+		return json.Unmarshal([]byte("["+string(bytes.TrimSpace(data))+"]"), into)
 	}
 	var err error
 	switch s.name {
@@ -936,14 +972,14 @@ func (s *stage) decode(data []byte) error {
 	case "underway":
 		err = json.Unmarshal(data, &s.under)
 	case "incoming":
-		s.in = &incoming{}
-		err = json.Unmarshal(data, s.in)
+		s.ins = nil
+		err = one(data, &s.ins)
 	case "desk":
-		s.desk = &checkout{}
-		err = json.Unmarshal(data, s.desk)
+		s.desks = nil
+		err = one(data, &s.desks)
 	case "worktrees":
-		s.trees = &worktrees{}
-		err = json.Unmarshal(data, s.trees)
+		s.trees = nil
+		err = one(data, &s.trees)
 	case "changes":
 		err = json.Unmarshal(data, &s.pulls)
 	case "builds":
@@ -956,6 +992,34 @@ func (s *stage) decode(data []byte) error {
 	}
 	return nil
 }
+
+// across refuses a document over a group that is not kit's {rows, errors}: anything but an object with rows.
+func across(name string, data []byte) error {
+	printed := ""
+	switch data = bytes.TrimSpace(data); {
+	case len(data) == 0:
+		printed = "nothing"
+	case data[0] == '[':
+		printed = "an array"
+	case data[0] != '{':
+		return nil
+	default:
+		var object map[string]json.RawMessage
+		if json.Unmarshal(data, &object) != nil {
+			return nil
+		}
+		if _, ok := object["rows"]; !ok {
+			printed = `an object without "rows"`
+		}
+	}
+	if printed == "" {
+		return nil
+	}
+	return fmt.Errorf("kit flow %s --workspace --json printed %s where {rows, errors} was expected", name, printed)
+}
+
+// fetched says whether the fetch ran in any member incoming read.
+func fetched(ins []incoming) bool { return slices.ContainsFunc(ins, func(in incoming) bool { return in.Fetched }) }
 
 // expected is each stage's document, as kit flow's page says: an array of objects for backlog, underway,
 // changes, builds, and releases, each object with the stage's key fields; an object for incoming, desk, and

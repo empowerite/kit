@@ -140,7 +140,7 @@ func TestEveryEmptyStageSaysWhatItLacks(t *testing.T) {
 		"releases":  "no release",
 		"nonesuch":  "nothing",
 	} {
-		if got := empty(stage{name: name, in: &incoming{Fetched: true}}); got != want {
+		if got := empty(stage{name: name, ins: []incoming{{Fetched: true}}}); got != want {
 			t.Errorf("an empty %s says %q, not %q", name, got, want)
 		}
 	}

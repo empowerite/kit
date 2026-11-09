@@ -249,13 +249,13 @@ func TestTheLegendMarksEveryGlyphAClickLeadsSomewhereFrom(t *testing.T) {
 		asCatalog(&m, i)
 		if name == "desk" {
 			// the desk, on main, has no pull request; on a branch with one, it leads to it
-			m.find("desk").desk.Branch = "1-the-first-release-v0-1-0"
+			m.find("desk").desks[0].Branch = "1-the-first-release-v0-1-0"
 			m.rebuild()
 		}
 		if name == "underway" {
 			// a row whose work is on the desk leads to the desk, as one in a worktree leads to the worktree
 			s := m.find("underway")
-			s.under[1].Here, s.under[1].Worktree = true, m.find("desk").desk.Path
+			s.under[1].Here, s.under[1].Worktree = true, m.find("desk").desks[0].Path
 			m.rebuild()
 		}
 		drawn := map[string]string{}

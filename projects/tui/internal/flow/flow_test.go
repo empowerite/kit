@@ -852,7 +852,7 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 		t.Errorf("not fetched is not dim")
 	}
 	// with no remote at all, the pane says why it is empty
-	m.find("incoming").in.Remotes = nil
+	m.find("incoming").ins[0].Remotes = nil
 	m.rebuild()
 	if !strings.Contains(view(m), "   not fetched: kit flow --no-fetch skips the fetch") {
 		t.Errorf("no remote with --no-fetch:\n%s", view(m))
@@ -902,19 +902,19 @@ func TestIncomingGroupsItsRowsByRemoteThePrimaryFirst(t *testing.T) {
 		t.Errorf("an incoming row opened: %v", m.find("incoming").Open)
 	}
 	// a remote whose fetch failed shows git's line, in red, and is no row of the count
-	m.find("incoming").in.Remotes[0].Error = "fatal: could not read from remote repository"
-	m.find("incoming").in.Remotes[0].Branches.Gone, m.find("incoming").in.Remotes[0].Tags = nil, nil
+	m.find("incoming").ins[0].Remotes[0].Error = "fatal: could not read from remote repository"
+	m.find("incoming").ins[0].Remotes[0].Branches.Gone, m.find("incoming").ins[0].Remotes[0].Tags = nil, nil
 	m.rebuild()
 	failed := Failed + " fatal: could not read from remote repository"
 	if v := view(m); !strings.Contains(v, Remote+" upstream · gitlab · git.example.org\n    "+failed+"\n") ||
 		!strings.Contains(m.View().Content, style.Refusal(failed)) || m.count(6) != "4" {
 		t.Errorf("a failed fetch: count %s\n%s", m.count(6), v)
 	}
-	m.find("incoming").in.Remotes[0].Error = ""
+	m.find("incoming").ins[0].Remotes[0].Error = ""
 	m.rebuild()
 	// with every remote unchanged, each says so and the count is zero
-	for i := range m.find("incoming").in.Remotes {
-		r := &m.find("incoming").in.Remotes[i]
+	for i := range m.find("incoming").ins[0].Remotes {
+		r := &m.find("incoming").ins[0].Remotes[i]
 		r.Commits, r.Branches.New, r.Branches.Updated, r.Branches.Gone, r.Tags = nil, nil, nil, nil, nil
 	}
 	m.rebuild()
@@ -922,7 +922,7 @@ func TestIncomingGroupsItsRowsByRemoteThePrimaryFirst(t *testing.T) {
 		t.Errorf("three remotes unchanged: count %s\n%s", m.count(6), v)
 	}
 	// with no remote at all, the pane says so
-	m.find("incoming").in.Remotes = nil
+	m.find("incoming").ins[0].Remotes = nil
 	m.rebuild()
 	if !strings.Contains(view(m), "   no remote to fetch") {
 		t.Errorf("no remote:\n%s", view(m))
@@ -1241,7 +1241,7 @@ func TestTheDeskIsOneRowThatOpensToItsPathsThenItsCommits(t *testing.T) {
 		t.Errorf("an uncommitted path's status is not yellow")
 	}
 	// a desk on a branch with a pull request shows it, as a worktree does
-	m.find("desk").desk.Branch = "1-the-first-release-v0-1-0"
+	m.find("desk").desks[0].Branch = "1-the-first-release-v0-1-0"
 	m.rebuild()
 	if !strings.Contains(view(m), "#2  🏁 ready") {
 		t.Errorf("the desk does not show its pull request:\n%s", view(m))
@@ -1252,7 +1252,7 @@ func TestTheDeskIsOneRowThatOpensToItsPathsThenItsCommits(t *testing.T) {
 		t.Errorf("the desk's links: %q %q", r.Cells[3].Link, r.Cells[4].Link)
 	}
 	// a clean desk says so, dim
-	m.find("desk").desk.Uncommitted = 0
+	m.find("desk").desks[0].Uncommitted = 0
 	m.rebuild()
 	if !strings.Contains(m.View().Content, style.Off("clean")) {
 		t.Errorf("a clean desk does not say clean")

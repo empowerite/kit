@@ -276,7 +276,7 @@ func (m Model) count(i int) string {
 		return "…"
 	case s.refusal != "":
 		return "!"
-	case s.name == "incoming" && s.in != nil && !s.in.Fetched:
+	case s.name == "incoming" && len(s.ins) > 0 && !fetched(s.ins):
 		return ""
 	}
 	return strconv.Itoa(m.shown(i).all)
