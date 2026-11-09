@@ -173,3 +173,38 @@ func TestOverOneRepositoryARowHasNoMember(t *testing.T) {
 		t.Errorf("a repository's rows group by member: %q", groups)
 	}
 }
+
+func TestOverAGroupOnlyRowsAndErrorsAreTheStagesDocument(t *testing.T) {
+	for data, want := range map[string]string{
+		``: "kit flow backlog --workspace --json printed nothing where {rows, errors} was expected",
+		`{"errors": []}`: `kit flow backlog --workspace --json printed an object without "rows" where ` +
+			"{rows, errors} was expected",
+		`{"rows": 1}`: "kit flow backlog --json: json: cannot unmarshal number into Go value of type []flow.issue",
+		`{bad`: "kit flow backlog --workspace --json: invalid character 'b' looking for beginning of object " +
+			"key string",
+		`nope`: "kit flow backlog --workspace --json: invalid character 'o' in literal null (expecting 'u')",
+	} {
+		m := drive(over(t, "backlog"), answer("backlog", data))
+		if got := m.find("backlog").refusal; got != want {
+			t.Errorf("%q: %q, want %q", data, got, want)
+		}
+	}
+}
+
+func TestOverAGroupAMembersGoneBranchesSayWhose(t *testing.T) {
+	m := drive(over(t, "worktrees"), answer("worktrees", `{"rows": [
+		{"worktrees": [], "goneBranches": ["old"], "member": "github.com/o/a"},
+		{"worktrees": [], "goneBranches": [], "member": "github.com/o/b"}], "errors": []}`))
+	records := m.records(*m.find("worktrees"))
+	if len(records) != 1 || records[0].Key != "github.com/o/a gone" ||
+		!strings.Contains(records[0].Cells[0].Values[0], Gone+" a gone: old") {
+		t.Errorf("the gone branches: %+v", records)
+	}
+}
+
+func TestAMemberOfNoOwnerIsNamedAsKitNamesIt(t *testing.T) {
+	m := over(t, "backlog")
+	if got := m.short("local"); got != "local" {
+		t.Errorf("local is named %q", got)
+	}
+}

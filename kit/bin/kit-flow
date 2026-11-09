@@ -284,10 +284,12 @@ do
   esac
 done
 set -- "${words[@]}"
-# On a terminal, the picture over a workspace is kittui's, as it is inside a repository; a stage, a form, or no kittui
-# stays in text.
+# On a terminal, the picture over a workspace is kittui's, as it is inside a repository; a stage, a form, what prints
+# a list or a line (--stages, --marks, --quota, --me), or no kittui stays in text.
 if [[ -n "${workspace}" && -z "${syntax_literals[0]:-}${syntax_options[--text]+x}${syntax_options[--json]+x}" \
-  && -z "${syntax_options[--jq]+x}" && -t 0 && -t 1 && -t 2 ]] && tui:binary --probe >/dev/null 2>&1
+  && -z "${syntax_options[--jq]+x}${syntax_options[--stages]+x}${syntax_options[--marks]+x}" \
+  && -z "${syntax_options[--quota]+x}${syntax_options[--me]+x}" && -t 0 && -t 1 && -t 2 ]] \
+  && tui:binary --probe >/dev/null 2>&1
 then
   binary=$(tui:binary) || exit 1
   export KIT="${kit_root}/bin/kit"

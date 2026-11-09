@@ -339,4 +339,12 @@ local-desks() {
   [[ "$output" != *"kittui"* ]]
   run pty "'${kit_root}/bin/kit' flow desk --workspace w"
   [[ "$output" != *"kittui"* ]]
+  run pty "'${kit_root}/bin/kit' flow --stages --workspace w"
+  [[ "$output" == *"repos"* && "$output" != *"kittui"* ]]
+  run pty "'${kit_root}/bin/kit' flow --marks --workspace w"
+  [[ "$output" == *'"repos":'* && "$output" != *"kittui"* ]]
+  run pty "'${kit_root}/bin/kit' flow --quota --workspace w"
+  [[ "$output" != *"kittui"* ]]
+  run pty "'${kit_root}/bin/kit' flow --me --workspace w"
+  [[ "$output" != *"kittui"* ]]
 }

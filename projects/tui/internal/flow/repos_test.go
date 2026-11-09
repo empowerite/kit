@@ -10,6 +10,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/source"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
@@ -56,7 +58,8 @@ func TestReposDrawsAMemberARow(t *testing.T) {
 
 func TestACountOpensItsTabFilteredToTheMember(t *testing.T) {
 	m := drive(over(t, "repos", "backlog"), answer("repos", reposOf(true)), answer("backlog", `{"rows": [
-		{"number": 1, "title": "a1", "member": "github.com/o/a"}, {"number": 2, "title": "a2", "member": "github.com/o/a"},
+		{"number": 1, "title": "a1", "member": "github.com/o/a"},
+		{"number": 2, "title": "a2", "member": "github.com/o/a"},
 		{"number": 3, "title": "b3", "member": "github.com/o/b"}], "errors": []}`))
 	if n, _ := repoCount(m, "github.com/o/a", "backlog"); n != "2" {
 		t.Errorf("a's backlog counts %q", n)
@@ -142,5 +145,85 @@ func TestOverOneRepositoryACountOpensItsTab(t *testing.T) {
 	m = follow(m, link)
 	if m.stages[m.stage].name != "desk" || len(m.panel(m.stage).Field("member").Filter.Values) != 0 {
 		t.Errorf("the count selected %s, filtered %+v", m.stages[m.stage].name, m.panel(m.stage).Field("member").Filter)
+	}
+}
+
+func TestACountSaysWhileItsStageLoadsOrRefusesOrIsNotInThePicture(t *testing.T) {
+	m := drive(over(t, "repos", "backlog", "changes"), answer("repos", reposOf(true)))
+	if n, link := repoCount(m, "github.com/o/a", "backlog"); n != "…" || link != "" {
+		t.Errorf("while backlog loads: %q, %q", n, link)
+	}
+	if n, _ := repoCount(m, "github.com/o/a", "builds"); n != "" {
+		t.Errorf("builds, not in the picture: %q", n)
+	}
+	m = drive(m, source.Answer[[]byte]{Name: "changes", Err: &kit.ExitError{Code: 2, Stderr: "❌ no workspace w"}})
+	n, link := repoCount(m, "github.com/o/b", "changes")
+	if n != Failed || link != onlyTo("changes", "github.com/o/b") {
+		t.Errorf("changes refused: %q, %q", n, link)
+	}
+}
+
+func TestIncomingCountsWhatTheFetchBroughtAMember(t *testing.T) {
+	m := drive(over(t, "repos", "incoming"), answer("repos", reposOf(true)), answer("incoming", `{"rows": [
+		{"fetched": true, "primary": "origin", "member": "github.com/o/a", "remotes": [{"name": "origin",
+		 "commits": [{"sha": "c1", "subject": "one"}], "branches": {"new": ["n"], "updated": [], "gone": ["g"]},
+		 "tags": ["v1"]}]},
+		{"fetched": true, "primary": "origin", "member": "github.com/o/b", "remotes": [{"name": "origin"}]}],
+		"errors": []}`))
+	if n, _ := repoCount(m, "github.com/o/a", "incoming"); n != "4" {
+		t.Errorf("a's incoming counts %q", n)
+	}
+	if n, _ := repoCount(m, "github.com/o/b", "incoming"); n != "0" {
+		t.Errorf("b's incoming counts %q", n)
+	}
+	m = drive(m, right)
+	if v := view(m); !strings.Contains(v, "a · "+Remote+" origin") || !strings.Contains(v, "b · "+Remote+" origin") {
+		t.Errorf("each member's remotes under its name:\n%s", v)
+	}
+}
+
+func TestARepoWhoseDeskFailedSaysSo(t *testing.T) {
+	m := drive(over(t, "repos"), answer("repos", `{"rows": [{"repository": "github.com/o/a", "checkout": "/code/a",
+		"remotes": [{"name": "origin"}], "branch": "main", "ahead": 2, "behind": 1, "by": "fixed",
+		"error": "git cannot read /code/a"}], "errors": []}`))
+	r := m.records(*m.find("repos"))[0]
+	if got := r.values["checkout"].Raw; !slices.Equal(got, []string{Failed + " /code/a"}) {
+		t.Errorf("the checkout: %q", got)
+	}
+	if len(r.Detail) != 1 || !strings.Contains(r.Detail[0][0].Values[0], "git cannot read /code/a") {
+		t.Errorf("the detail: %+v", r.Detail)
+	}
+	if c := r.values["ahead"].Of.(checkout); c.Ahead != 2 || c.Behind != 1 {
+		t.Errorf("ahead and behind: %+v", c)
+	}
+}
+
+func TestACountsLinkToAStageNotInThePictureStaysPut(t *testing.T) {
+	m := drive(over(t, "repos", "backlog"), answer("repos", reposOf(true)))
+	if m = follow(m, onlyTo("builds", "github.com/o/a")); m.stages[m.stage].name != "repos" {
+		t.Errorf("a link to builds, not in the picture, selected %s", m.stages[m.stage].name)
+	}
+	if got := empty(*m.find("repos")); got != "no repository" {
+		t.Errorf("an empty repos tab says %q", got)
+	}
+}
+
+func TestAnIncomingCountOpensIncomingAtTheMembersRemotesUnfiltered(t *testing.T) {
+	m := drive(over(t, "repos", "incoming"), answer("repos", reposOf(true)), answer("incoming", `{"rows": [
+		{"fetched": true, "primary": "origin", "member": "github.com/o/a", "remotes": [{"name": "origin",
+		 "tags": ["v1"]}]},
+		{"fetched": true, "primary": "origin", "member": "github.com/o/b", "remotes": [{"name": "origin",
+		 "tags": ["v2"]}]}], "errors": []}`))
+	_, link := repoCount(m, "github.com/o/b", "incoming")
+	m = follow(m, link)
+	if m.stages[m.stage].name != "incoming" || len(m.panel(m.stage).Field("member").Filter.Values) != 0 {
+		t.Fatalf("on %s, filtered %+v", m.stages[m.stage].name, m.panel(m.stage).Field("member").Filter)
+	}
+	rows := m.rows(m.stage)
+	if k := m.stages[m.stage].Cursor; k >= len(rows) || rows[k].Key != "github.com/o/b remote origin" {
+		t.Errorf("the cursor is not on b's remote: %d", k)
+	}
+	if v := view(m); !strings.Contains(v, "v1") || !strings.Contains(v, "v2") {
+		t.Errorf("incoming shows every member's:\n%s", v)
 	}
 }

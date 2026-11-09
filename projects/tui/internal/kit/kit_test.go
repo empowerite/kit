@@ -448,3 +448,36 @@ func TestAGroupsReadsCarryTheWorkspace(t *testing.T) {
 		t.Errorf("Status here: %v, %q", err, out)
 	}
 }
+
+// The rate limits and the marks over a group are the group's, as every read of kit flow is.
+func TestAGroupsQuotaAndMarksCarryTheWorkspace(t *testing.T) {
+	t.Setenv("FAKE_KIT_POLLS", "1")
+	r := fake(t, "")
+	r.Group = "w"
+	ctx := context.Background()
+	quotas, err := r.Quota(ctx)
+	if err != nil || len(quotas) != 1 || quotas[0].Forge != "--workspace w" || quotas[0].Limits[0].Remaining != 4999 {
+		t.Errorf("Quota over w: %v, %+v", err, quotas)
+	}
+	marks, err := r.Marks(ctx)
+	if _, desk := marks["desk"]; err != nil || marks["backlog"] != "--workspace w" || desk {
+		t.Errorf("Marks over w: %v, %+v", err, marks)
+	}
+	r.Group = ""
+	if marks, err := r.Marks(ctx); err != nil || marks["backlog"] != "" {
+		t.Errorf("Marks here: %v, %+v", err, marks)
+	}
+}
+
+// Without a forge to read, kit refuses the rate limits and the marks, and so does the runner.
+func TestQuotaAndMarksAreKitsRefusal(t *testing.T) {
+	r := fake(t, "")
+	_, err := r.Quota(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "does not answer --quota") {
+		t.Errorf("Quota: %v", err)
+	}
+	_, err = r.Marks(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "does not answer --marks") {
+		t.Errorf("Marks: %v", err)
+	}
+}

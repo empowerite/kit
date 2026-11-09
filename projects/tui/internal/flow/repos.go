@@ -86,7 +86,7 @@ func (m Model) repoRows(s stage) []record {
 // countOf gives a member's count of a stage's rows: none for a stage not in the picture; a dim - for a member not
 // cloned, whose rows step 4 reads; a dim … while the stage loads; ❌ where the stage refused, or failed for the member;
 // else its rows, the asides apart, incoming's what the fetch brought. ❌ and the count lead to the stage, filtered to
-// the member over a group.
+// the member over a group; incoming's count, to the member's first remote.
 func (m Model) countOf(name string, r repo) table.Value {
 	s := m.find(name)
 	switch {
@@ -112,11 +112,16 @@ func (m Model) countOf(name string, r repo) table.Value {
 	}
 	n := 0
 	if name == "incoming" {
+		// incoming's rows hold no member to filter by: the count leads to the member's first remote, every member's
+		// remotes under their headings
 		for _, in := range s.ins {
 			if in.Member != member {
 				continue
 			}
-			for _, rm := range in.Remotes {
+			for k, rm := range primaryFirst(in) {
+				if k == 0 {
+					link = jumpTo(name, m.keyOf(member, "remote "+rm.Name))
+				}
 				n += len(rm.Commits) + len(rm.Branches.New) + len(rm.Branches.Updated) + len(rm.Branches.Gone) +
 					len(rm.Tags)
 			}

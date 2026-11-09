@@ -26,13 +26,19 @@ func (m Model) kept(name string) tea.Cmd { return m.find(name).src.Kept(m.env())
 
 // takeKept draws a stage from what kit kept, stale, while its first load runs, as source.Load lets it stand: not once
 // the load has landed, nor after it began again; a stage kit kept nothing of, or kept what no longer decodes, goes on
-// loading, and its load replaces whatever the decode left.
+// loading, and its load replaces whatever the decode left; so does one over a group that some member kept nothing of.
 func (m *Model) takeKept(msg source.Answer[[]byte]) {
 	s := m.find(msg.Name)
 	if s == nil {
 		return
 	}
 	if _, landed := s.src.Take(msg); landed != source.Stands || s.decode(msg.Value, m.runner.Group != "") != nil {
+		return
+	}
+	if len(s.failed) > 0 {
+		// over a group, a member kit kept nothing of says so as a failure: what was kept is not the whole picture,
+		// which the load draws
+		s.failed = nil
 		return
 	}
 	s.src.Loading, s.src.Stale = false, true

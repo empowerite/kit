@@ -16,7 +16,8 @@
 # written to the file FAKE_KIT_RECORD names when it is set; FAKE_KIT_REFUSE=tutorials refuses it with exit 2.
 # workspaces --current prints FAKE_WORKSPACES/<workspace>.json, / in the name as _, current.json with no --workspace,
 # and refuses with exit 2 when that file is not there; workspaces --use <name> adds "use <name>" to FAKE_KIT_RECORD's
-# file when it is set, and refuses with exit 2 when FAKE_KIT_REFUSE=workspaces.
+# file when it is set, and refuses with exit 2 when FAKE_KIT_REFUSE=workspaces. With FAKE_KIT_POLLS set, flow --quota
+# and flow --marks answer, each naming the words after its flag.
 
 set -o errexit -o nounset -o pipefail
 
@@ -133,6 +134,14 @@ case "${1:-}" in
     then
       echo "❌ kit flow: no stage 'nonesuch'; run: kit help flow" >&2
       exit 2
+    elif [[ -n "${FAKE_KIT_POLLS:-}" && "${1:-}" == --quota ]]
+    then
+      # with FAKE_KIT_POLLS set, the rate limits name the words after --quota as their forge
+      printf '[{"forge": "%s", "limits": [{"name": "core", "limit": 5000, "remaining": 4999, "reset": 0}]}]\n' "${*:2}"
+    elif [[ -n "${FAKE_KIT_POLLS:-}" && "${1:-}" == --marks ]]
+    then
+      # and the marks give the words after --marks as backlog's, and none for desk
+      printf '{"backlog": "%s", "desk": null}\n' "${*:2}"
     elif [[ "${1:-}" == --* ]]
     then
       # a flag the fake does not answer is refused, as kit refuses one it cannot read, so a screen that asks for

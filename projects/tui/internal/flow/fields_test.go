@@ -214,7 +214,8 @@ func TestAPresetSetsThePanel(t *testing.T) {
 		"assignees": {Flat: true, Sort: "asc", Priority: 2, Filter: &table.ValueFilter{Exclude: []string{caller}}},
 	}}
 	g := p.Panel(fields, grid.Panel{Owner: ownerOf("backlog"), Ones: onesOf("backlog")})
-	if got := g.Arrange(columnsOf("backlog")); !slices.Equal(got, []string{"title", "id", "member", "source", "organization", "repository", "assignees", "age", "branch", "labels"}) ||
+	if got := g.Arrange(columnsOf("backlog")); !slices.Equal(got, []string{"title", "id", "member", "source",
+		"organization", "repository", "assignees", "age", "branch", "labels"}) ||
 		!slices.Equal(g.Groups(), []string{"source"}) || g.Field("branch").Placement != grid.Hidden ||
 		!slices.Equal(g.SortKeys(), []grid.SortKey{{Column: "age", Desc: true}, {Column: "assignees"}}) ||
 		g.Showing() != grid.Others || g.Field("branch").Rendering != "text" {

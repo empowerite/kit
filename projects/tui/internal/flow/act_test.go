@@ -15,6 +15,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
@@ -286,9 +287,11 @@ func overMembers(t *testing.T) (Model, string, string, string) {
 	a, _ := filepath.EvalSymlinks(t.TempDir())
 	b, _ := filepath.EvalSymlinks(t.TempDir())
 	ws := group
-	ws.Members = []kit.WorkspaceMember{{Repository: "github.com/o/a", Checkout: a}, {Repository: "github.com/o/b", Checkout: b}}
+	ws.Members = []kit.WorkspaceMember{{Repository: "github.com/o/a", Checkout: a},
+		{Repository: "github.com/o/b", Checkout: b}}
 	m := over(t, "backlog")
-	m = drive(m, shell.WorkspaceMsg{Workspace: ws}, answer("backlog", twoMembers), tea.WindowSizeMsg{Width: 120, Height: 40})
+	m = drive(m, shell.WorkspaceMsg{Workspace: ws}, answer("backlog", twoMembers),
+		tea.WindowSizeMsg{Width: 120, Height: 40})
 	return m, dirs, a, b
 }
 
@@ -319,7 +322,8 @@ func TestAssignToMeRunsOnceInEachMember(t *testing.T) {
 
 func TestTheActionsOfOneMemberAreDimAcrossTwo(t *testing.T) {
 	m, _, _, _ := overMembers(t)
-	one := []string{"Start Local Work Together…", "Add to Pull Request…", "Gather Under a Parent…", "Close as Duplicate of…"}
+	one := []string{"Start Local Work Together…", "Add to Pull Request…", "Gather Under a Parent…",
+		"Close as Duplicate of…"}
 	m.stages[0].Picked["github.com/o/a #1"], m.stages[0].Picked["github.com/o/b #2"] = true, true
 	for _, name := range append(one, "Assign to Me") {
 		k := item(m, name)
@@ -351,5 +355,95 @@ func TestOverAGroupMeIsAskedInAMember(t *testing.T) {
 	}
 	if want := a + "\tflow --me"; !slices.Equal(me, []string{want}) {
 		t.Errorf("--me ran %q, want %q", me, want)
+	}
+}
+
+func TestOverAGroupAConfirmNamesEachIssuesMemberAndRunsInEach(t *testing.T) {
+	m, dirs, a, b := overMembers(t)
+	m.stages[0].Picked["github.com/o/a #1"], m.stages[0].Picked["github.com/o/b #2"] = true, true
+	m = choose(t, m, "Unassign")
+	if m.ask == nil || !slices.Equal(m.ask.lines, []string{"a #1 a1", "b #2 b2"}) {
+		t.Fatalf("the dialog: %+v", m.ask)
+	}
+	m = drive(m, press(tea.KeyEnter))
+	want := []string{a + "\tunassign #1", b + "\tunassign #2"}
+	if got := ranIn(t, dirs); !slices.Equal(got, want) {
+		t.Errorf("the calls:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+func TestOverAGroupNewAsksInTheMemberUnderTheCursor(t *testing.T) {
+	m, dirs, _, b := overMembers(t)
+	k := slices.IndexFunc(m.rows(0), func(r row) bool { return r.Key == "github.com/o/b #2" })
+	if k < 0 {
+		t.Fatalf("no row of b:\n%s", view(m))
+	}
+	m.stages[0].Cursor = k
+	m = choose(t, m, "New…")
+	var asked []string
+	for _, c := range calls(t, dirs) {
+		if strings.HasSuffix(c, "\tnew issue --list --json") {
+			asked = append(asked, c)
+		}
+	}
+	if want := b + "\tnew issue --list --json"; !slices.Equal(asked, []string{want}) {
+		t.Errorf("the trackers were asked %q, want %q", asked, want)
+	}
+	// with no row under the cursor, New… has no member to file in
+	m.stages[0].Cursor = -1
+	if m.enabled(item(m, "New…")) {
+		t.Error("New… with no row under the cursor is not dim")
+	}
+}
+
+func TestNoCommandRunsNothing(t *testing.T) {
+	m := loaded(t, options())
+	if cmd := m.run(nil); cmd != nil || m.note.Text != "" {
+		t.Errorf("run with no command: %v, %q", cmd != nil, m.note.Text)
+	}
+	// a label a row holds is the row's, with its color; one no row holds is its name alone
+	if l := m.Label("labels", "bug"); l.Name != "bug" || l.Color == "" {
+		t.Errorf("bug: %+v", l)
+	}
+	if l := m.Label("labels", "nonesuch"); l != (table.Label{Name: "nonesuch"}) {
+		t.Errorf("nonesuch: %+v", l)
+	}
+}
+
+func TestOverARepositoryGivenAnActionRunsInItsCheckout(t *testing.T) {
+	dirs := filepath.Join(t.TempDir(), "dirs")
+	t.Setenv("FAKE_FLOW_DIRS", dirs)
+	a, _ := filepath.EvalSymlinks(t.TempDir())
+	r := runner(t)
+	r.Group = "github.com/o/a"
+	m := New(r, Options{Stages: []string{"backlog"}, NoPresets: true, Clock: &testkit.Clock{}})
+	ws := kit.Workspace{Kind: "repository", Name: "github.com/o/a", Member: "github.com/o/a", Checkout: a}
+	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 40}, shell.WorkspaceMsg{Workspace: ws},
+		answer("backlog", `{"rows": [{"number": 1, "title": "a1", "member": "github.com/o/a"}], "errors": []}`))
+	m.stages[0].Picked["github.com/o/a #1"] = true
+	choose(t, m, "Assign to Me")
+	if got, want := ranIn(t, dirs), []string{a + "\tassign #1"}; !slices.Equal(got, want) {
+		t.Errorf("the calls: %q, want %q", got, want)
+	}
+	// and the caller's login is read there
+	m.whoami()()
+	if got := calls(t, dirs); !slices.Contains(got, a+"\tflow --me") {
+		t.Errorf("--me ran: %q", got)
+	}
+}
+
+func TestAMemberWhoseCheckoutKitHasNotSaidIsNotActedOn(t *testing.T) {
+	dirs := filepath.Join(t.TempDir(), "dirs")
+	t.Setenv("FAKE_FLOW_DIRS", dirs)
+	// kit has not said the workspace yet: no member's checkout is known
+	m := drive(over(t, "backlog"), shell.WorkspaceMsg{Workspace: kit.Workspace{Kind: "group", Name: "w"}},
+		answer("backlog", twoMembers))
+	m.stages[0].Picked["github.com/o/a #1"] = true
+	m = choose(t, m, "Assign to Me")
+	if got := ranIn(t, dirs); len(got) != 0 {
+		t.Errorf("ran where a is not: %q", got)
+	}
+	if !strings.Contains(m.note.Text, "where github.com/o/a is checked out") {
+		t.Errorf("the note: %q", m.note.Text)
 	}
 }

@@ -86,3 +86,25 @@ func TestTheStartReadsWhatWasKeptOfEveryStage(t *testing.T) {
 		t.Errorf("backlog after the start: stale %v, %d issues", s.src.Stale, len(s.issues))
 	}
 }
+
+// Over a group, a member kit kept nothing of is no failure: what was kept is not drawn, and the stage goes on loading.
+func TestOverAGroupWhatWasKeptOfOnlySomeMembersIsNotDrawn(t *testing.T) {
+	dir := t.TempDir()
+	kept := `{"rows": [{"number": 7, "title": "kept of a", "member": "github.com/o/a"}], "errors": [{"member":
+		"github.com/o/b", "error": "kit flow backlog has printed nothing here yet; run it without --cached"}]}`
+	if err := os.WriteFile(filepath.Join(dir, "backlog.json"), []byte(kept), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("FAKE_FLOW_KEPT", dir)
+	m := drive(over(t, "repos", "backlog"), answer("repos", reposOf(true)))
+	m = drive(m, m.kept("backlog")())
+	if s := m.find("backlog"); !s.src.Loading || s.src.Stale {
+		t.Errorf("backlog: loading %v, stale %v", s.src.Loading, s.src.Stale)
+	}
+	if n, _ := repoCount(m, "github.com/o/b", "backlog"); n != "…" {
+		t.Errorf("b's backlog counts %q while it loads", n)
+	}
+	if v := view(m); strings.Contains(v, "printed nothing here yet") {
+		t.Errorf("a kept failure is drawn:\n%s", v)
+	}
+}

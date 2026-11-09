@@ -92,8 +92,12 @@ func refOf(key string) (member, ref string) {
 	return "", key
 }
 
-// checkoutOf gives a member's checkout, as kit said the workspace, or none: over a repository, where the screen reads.
+// checkoutOf gives a member's checkout, as kit said the workspace: a group's member's, or the repository's given by
+// --workspace; none for a row of no member, which runs where the screen reads, and none where kit has not said.
 func (m Model) checkoutOf(member string) string {
+	if m.ws.Member == member && m.ws.Checkout != "" {
+		return m.ws.Checkout
+	}
 	for _, w := range m.ws.Members {
 		if w.Repository == member {
 			return w.Checkout
@@ -184,6 +188,15 @@ func (m Model) acting(name string) (action, enabled bool) {
 	return true, true
 }
 
+// nowhere says an action does not run, as kit has not said where the member it acts in is checked out, and running
+// where the screen reads would act on another repository's issues.
+func (m *Model) nowhere(member string) tea.Cmd {
+	m.note.Text = fmt.Sprintf("%s kit has not said where %s is checked out; pick the workspace again from %s", Failed,
+		member, shell.Workspaces)
+	m.note.Done = false
+	return nil
+}
+
 // cursorMember gives the member of the backlog row under the cursor, over a group, or none.
 func (m Model) cursorMember() string {
 	rows, k := m.rows(m.stage), m.stages[m.stage].Cursor
@@ -198,6 +211,11 @@ func (m Model) cursorMember() string {
 // issues runs in each member's checkout, with that member's issues; one that acts in one member runs in its.
 func (m *Model) act(name string) tea.Cmd {
 	refs, groups := m.refs(), m.refsByMember()
+	for _, g := range groups {
+		if g.member != "" && g.dir == "" {
+			return m.nowhere(g.member)
+		}
+	}
 	dir := ""
 	if len(groups) > 0 {
 		dir = groups[0].dir
@@ -223,7 +241,9 @@ func (m *Model) act(name string) tea.Cmd {
 		m.note.Text, m.note.Done = "→ kit new issue --list …", true
 		r, ctx := m.runner, m.ctx
 		if member := m.cursorMember(); member != "" {
-			r.Dir = m.checkoutOf(member)
+			if r.Dir = m.checkoutOf(member); r.Dir == "" {
+				return m.nowhere(member)
+			}
 		}
 		return func() tea.Msg {
 			trackers, err := r.Trackers(ctx)
