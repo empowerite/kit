@@ -85,11 +85,12 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     orders both. The groups order the rows before any key, the outermost 1, so a column's ▲ or ▼ carries its place after
     them, raised after ▲ and lowered after ▼, as each points, ▲² and ▼₂, wherever more than one thing orders the rows;
     the menu's triangles carry ⁿ and ₙ there. The line under the keyboard in a menu or a dialog stands on the menu's
-    bright cyan, in black, and a dialog's keys are the keys bar's alone. A click on the cell right after a column's
-    name, or on the cell after that unless it stands against the next name, sorts by the column, ascending, after the
-    others, and on a column that sorts already turns its sort around; that is where its ▲ or ▼ stands, and a shift-click
-    on the mark stops the sort. A terminal such as iTerm keeps ⌥, ⌃, shift, and the right button with a click for its
-    own selection and menu, so the menu is the one way that works everywhere. Where the terminal sends them, ⌥ with a
+    bright cyan, in black, and a dialog's keys are the keys bar's alone. A column's sort mark stands on the rule under
+    its name, at the name's aligned edge: under its first cell, or under its last where the column aligns right, over
+    numbers. A dim · there says the column can sort and does not; a column that cannot sort has the rule alone. A plain
+    click on the rule under the name turns the sort a step: ascending, after the other keys; descending, in its place;
+    then off. A terminal such as iTerm keeps ⌥, ⌃, shift, and the right button with a click for its own selection and
+    menu, so a plain click and the menu are the ways that work everywhere. Where the terminal sends them, ⌥ with a
     click turns a sort, ⌃ groups or ungroups, and the right button drops the menu too. The presets' menu hangs around
     the preset line's selector the same way.
   - A field whose rendering is auto drops a glyph every row shown shares, and, while the columns are short of width,

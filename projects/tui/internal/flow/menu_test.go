@@ -297,8 +297,8 @@ func TestTheHeaderStandsTheColumnsNamesOverTheRows(t *testing.T) {
 	}
 	drawn, top := lines(m), m.headerTop()
 	if !strings.Contains(drawn[top], "branch") || !strings.Contains(drawn[top], "uncommitted") ||
-		!strings.HasPrefix(drawn[top+1], "    ───") ||
-		!strings.Contains(m.View().Content, strings.TrimSuffix(style.Off("─"), "─\x1b[m")+"───") {
+		!strings.HasPrefix(drawn[top+1], "    "+Sortable+"───") ||
+		!strings.Contains(m.View().Content, strings.TrimSuffix(style.Off("─"), "─\x1b[m")+Sortable+"───") {
 		t.Fatalf("the headers:\n%s", view(m))
 	}
 	// the header stays over the rows while they scroll under it

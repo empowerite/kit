@@ -128,8 +128,8 @@ func TestARightClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 // and on one sorting turns it in its place; None takes it out. The groups order the rows before any key, the outermost
 // first, those that sort, so the rule numbers the keys after them; a group that does not sort, as a group does not by
 // default, takes no number. Each mark stands on the rule under its column's name, so the names stand where they stood.
-// A click on a column's ▲ turns it to ▼ and back, and a shift-click on it, where the terminal sends shift, stops the
-// sort; the menu stays shut.
+// A mark stands at its name's aligned edge, under the last cell of a name over numbers, as age and id are. A plain
+// click on a column's ▲ turns it to ▼, and one on ▼ stops the sort; the menu stays shut.
 func TestTheSortMarkTurnsAndTheMenuSorts(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 140, Height: 40})
 	header := func() string { return lines(m)[m.headerTop()] }
@@ -153,7 +153,7 @@ func TestTheSortMarkTurnsAndTheMenuSorts(t *testing.T) {
 	}
 	m.colMenu = table.ColumnMenu{}
 	if !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}, {Column: "id"}}) || !strings.Contains(rule(), "▲¹") ||
-		onRule("▲¹") != at("age") || onRule("▲²") != at("id") || header() != unsorted {
+		onRule("▲¹") != at("age")+1 || onRule("▲²") != at("id") || header() != unsorted {
 		t.Fatalf("then by age, then by id: %+v\n%s\n%s", sorts(), header(), rule())
 	}
 	// the ▲ of age turns, and age keeps its place among the keys; the menu stays shut
@@ -161,12 +161,22 @@ func TestTheSortMarkTurnsAndTheMenuSorts(t *testing.T) {
 		!slices.Equal(sorts(), []grid.SortKey{{Column: "age", Desc: true}, {Column: "id"}}) {
 		t.Fatalf("a click on age's ▲: %+v, menu %v\n%s", sorts(), m.colMenu.Open, header())
 	}
-	if m = drive(m, testkit.Click(onRule("▼₁")+1, ruleY(m))); !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}, {Column: "id"}}) {
+	// a click on age's ▼, its ₁ too, stops age's sort, and id is the one key, with no number
+	if m = drive(m, testkit.Click(onRule("▼₁")+1, ruleY(m))); !slices.Equal(sorts(), []grid.SortKey{{Column: "id"}}) {
 		t.Fatalf("a click on age's ₁: %+v\n%s", sorts(), rule())
 	}
-	shift := tea.MouseClickMsg{X: onRule("▲²"), Y: ruleY(m), Button: tea.MouseLeft, Mod: tea.ModShift}
-	if m = drive(m, shift); !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}}) || m.colMenu.Open {
-		t.Fatalf("a shift-click on id's ▲: %+v\n%s", sorts(), rule())
+	// id's ▲ turns to ▼, then off, a plain click each; then age sorts again, the one key
+	for _, want := range [][]grid.SortKey{{{Column: "id", Desc: true}}, nil} {
+		mark := "▲"
+		if len(sorts()) == 1 && sorts()[0].Desc {
+			mark = "▼"
+		}
+		if m = drive(m, testkit.Click(onRule(mark), ruleY(m))); !slices.Equal(sorts(), want) || m.colMenu.Open {
+			t.Fatalf("a click on id's %s: %+v\n%s", mark, sorts(), rule())
+		}
+	}
+	if m = drive(m, testkit.Click(at("age"), ruleY(m))); !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}}) {
+		t.Fatalf("a click under age: %+v\n%s", sorts(), rule())
 	}
 	// ▼ on id, not a key, comes after age; Descending is picked; ▲ on age turns it in its place
 	if menu("id", table.ActDown); !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}, {Column: "id", Desc: true}}) {
@@ -188,7 +198,7 @@ func TestTheSortMarkTurnsAndTheMenuSorts(t *testing.T) {
 		t.Errorf("age under a group that does not sort:\n%s", rule())
 	}
 	m.setPanel(m.panel(m.stage).SortedAs("source", grid.Descending))
-	if !strings.Contains(rule(), "▼₂") || onRule("▼₂") != at("age") {
+	if !strings.Contains(rule(), "▼₂") || onRule("▼₂") != at("age")+1 {
 		t.Errorf("age under a group that sorts:\n%s\n%s", header(), rule())
 	}
 	if m.colMenu.Column = "id"; m.colMenu.Items(&m)[1].Name != "▲ⁿ Ascending" {
@@ -198,7 +208,7 @@ func TestTheSortMarkTurnsAndTheMenuSorts(t *testing.T) {
 }
 
 // A click on the rule under a column's name sorts by it, ascending, after the other keys, where it does not sort yet,
-// and turns its sort around where it does, never off; the names stand where they stood, as the marks do not widen
+// turns it descending where it sorts ascending, and stops it where it sorts descending, a step each click; the names stand where they stood, as the marks do not widen
 // them. The cells after a name on the names' line sort nothing, and the rule off every name sorts nothing.
 func TestAClickOnTheRuleUnderAColumnsNameSortsByIt(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30})
@@ -223,10 +233,10 @@ func TestAClickOnTheRuleUnderAColumnsNameSortsByIt(t *testing.T) {
 	if m = drive(m, testkit.Click(under(m, "age"), ruleY(m))); keys(m) != 1 || mark(m, "age") != "▲" || m.colMenu.Open {
 		t.Fatalf("a click under age: %d keys, age %q, menu %v", keys(m), mark(m, "age"), m.colMenu.Open)
 	}
-	// again turns it around, and again back, never off, its last cell as its first
-	for _, want := range []string{"▼", "▲"} {
-		if m = drive(m, testkit.Click(after(m, "age")-1, ruleY(m))); keys(m) != 1 || mark(m, "age") != want {
-			t.Fatalf("another click under age: %d keys, age %q", keys(m), mark(m, "age"))
+	// again turns it descending, again off, and again ascending, its last cell as its first
+	for _, want := range []string{"▼", "", "▲"} {
+		if m = drive(m, testkit.Click(after(m, "age")-1, ruleY(m))); keys(m) != len([]rune(want)) || mark(m, "age") != want {
+			t.Fatalf("another click under age: %d keys, age %q, want %q", keys(m), mark(m, "age"), want)
 		}
 	}
 	if m = drive(m, testkit.Click(under(m, "assignees"), ruleY(m))); keys(m) != 2 || mark(m, "assignees") != "▲²" {

@@ -66,16 +66,22 @@ func (m Model) headerColumn(x, y int) string {
 	return m.shownColumns(m.stage)[j]
 }
 
+// Sortable is the dim mark on the rule under the name of a column that can sort and does not, so the rule says where a
+// click sorts; a column that cannot sort has the rule alone.
+const Sortable = "·"
+
 // sortSpot is a column's sort target on the rule under the header: the screen columns under its name, from its first
-// to the one past it, as wide as the name's first line or its mark, whichever is wider, and the mark drawn there,
-// none where the column does not sort.
+// to the one past it, as wide as the name's first line or its mark, whichever is wider; the mark drawn there, its sort's
+// where it sorts, and Sortable where it does not; whether it sorts; and the screen column the mark starts on.
 type sortSpot struct {
-	column, mark string
-	from, until  int
+	column, mark    string
+	sorts           bool
+	at, from, until int
 }
 
 // sortSpots gives the sort target of each column the header names that can sort, under its name on the rule, the mark
-// starting under the name's first cell; none while the header draws no names.
+// at the name's aligned edge: under its first cell, or under its last where the column aligns right, over numbers;
+// none while the header draws no names.
 func (m Model) sortSpots() []sortSpot {
 	if len(m.stages) == 0 || m.noHeaders || m.stages[m.stage].src.Loading || m.stages[m.stage].refusal != "" {
 		return nil
@@ -89,24 +95,32 @@ func (m Model) sortSpots() []sortSpot {
 			continue
 		}
 		mark := p.Mark(column)
-		x := in + start
-		out = append(out, sortSpot{column, mark, x, x + max(ansi.StringWidth(first), ansi.StringWidth(mark))})
+		sorts := mark != ""
+		if !sorts {
+			mark = Sortable
+		}
+		x, at := in+start, in+start
+		if grid.HeaderRight(rows, j) {
+			at = max(x, x+ansi.StringWidth(first)-ansi.StringWidth(mark))
+		}
+		out = append(out, sortSpot{column, mark, sorts, at, x, x + max(ansi.StringWidth(first), ansi.StringWidth(mark))})
 	}
 	return out
 }
 
 // ruleFill gives the rule's dim line, fill cells from the screen column from on, each sort's mark on it under its
-// column's name, as sortSpots places them, not dim, where the whole mark fits on the line.
+// column's name, as sortSpots places them, not dim, where the whole mark fits on the line, and Sortable, dim, under a
+// column that can sort and does not.
 func (m Model) ruleFill(from, fill int) string {
 	cells := slices.Repeat([]string{"─"}, fill)
 	marked := make([]bool, fill)
 	for _, s := range m.sortSpots() {
-		at, glyphs := s.from-from, strings.Split(s.mark, "")
-		if s.mark == "" || at < 0 || at+len(glyphs) > fill {
+		at, glyphs := s.at-from, strings.Split(s.mark, "")
+		if at < 0 || at+len(glyphs) > fill {
 			continue
 		}
 		for k, g := range glyphs {
-			cells[at+k], marked[at+k] = g, true
+			cells[at+k], marked[at+k] = g, s.sorts
 		}
 	}
 	var out strings.Builder
@@ -139,17 +153,16 @@ func (m Model) sortAt(x int) string {
 	return ""
 }
 
-// sortBy turns a column's sort, as a click on its target on the rule asks: ascending where it does not sort yet, after
-// the other keys; around where it does; or, with drop, as shift asks, off.
-func (m *Model) sortBy(column string, drop bool) {
+// sortBy turns a column's sort, as a plain click on its target on the rule asks, a step each click: ascending where it
+// does not sort yet, after the other keys; descending where it sorts ascending, in its place; and off where it sorts
+// descending.
+func (m *Model) sortBy(column string) {
 	p, d := m.panel(m.stage), grid.Descending
 	switch {
 	case p.Mark(column) == "":
 		d = grid.Ascending
-	case drop:
-		d = grid.Unsorted
 	case strings.Contains(p.Mark(column), "▼"):
-		d = grid.Ascending
+		d = grid.Unsorted
 	}
 	m.setPanel(p.SortedAs(column, d))
 }

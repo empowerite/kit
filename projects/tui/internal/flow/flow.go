@@ -339,7 +339,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.controlClick(msg.X)
 		case len(m.stages) > 0 && m.onRule(msg.Y) && msg.X < m.paneWidth():
 			if column := m.sortAt(msg.X); column != "" {
-				m.sortBy(column, msg.Mod&tea.ModShift != 0)
+				m.sortBy(column)
 			}
 		case len(m.stages) > 0 && msg.X < m.paneWidth() && m.inHeader(msg.Y):
 			return m, m.clickHeader(msg.X, msg.Y, extends(msg), false)
