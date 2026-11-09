@@ -4,7 +4,7 @@
       "stage": "backlog", "record": ".[]",
       "fields": [
         {"id": "id", "label": "id", "type": "ref", "path": ".number", "sort": true, "renderings": ["text"],
-         "right": true, "placement": "column"},
+         "placement": "column"},
         {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
          "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
          "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
@@ -35,7 +35,7 @@
       "stage": "underway", "record": ".[]",
       "fields": [
         {"id": "id", "label": "id", "type": "ref", "path": ".number", "sort": true, "renderings": ["text"],
-         "right": true, "placement": "column"},
+         "placement": "column"},
         {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
          "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
          "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
@@ -180,7 +180,7 @@
         {"id": "workflow", "label": "workflow", "type": "text", "path": ".workflow", "sort": true, "group": true,
          "renderings": ["text"], "placement": "column"},
         {"id": "run", "label": "run", "type": "ref", "path": ".number", "sort": true, "renderings": ["text"],
-         "dim": true, "right": true, "placement": "column"},
+         "dim": true, "placement": "column"},
         {"id": "event", "label": "event", "type": "enum", "path": ".event, .tag", "sort": true, "group": true,
          "filter": true, "values": [
            {"value": "push"}, {"value": "tag"}, {"value": "schedule"}, {"value": "manual"}, {"value": "pull_request"}],

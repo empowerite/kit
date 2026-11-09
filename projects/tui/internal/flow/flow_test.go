@@ -958,7 +958,7 @@ func TestBacklogAndReleasesOpenToTheirDetail(t *testing.T) {
 	// the title has what the other columns leave, with its glyph, which leads to the issue's page, and the branch, which
 	// one row alone has, with its own
 	for _, want := range []string{"#45", "#46  jeffrey-aguilera   2d  🌿 46-a-noun-li…  " + Issue + " A noun lists",
-		"#7  ada           +1  40d", "picture: five stages,", "interactive on a terminal,"} {
+		"#7   ada           +1  40d", "picture: five stages,", "interactive on a terminal,"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the backlog lacks %q:\n%s", want, v)
 		}
@@ -1349,10 +1349,10 @@ func TestBuildsCarryTheirStateAndOpenToTheirCommitAttemptJobsFailedFirstThenThei
 	}
 	rows := lines(m)[m.rowsTop() : m.rowsTop()+4]
 	for i, want := range [][]string{
-		{Running + "  release    #7  tag       release/0.1.0  1a2b3c4", "5m", "…"},
+		{Running + "  release  #7    tag       release/0.1.0  1a2b3c4", "5m", "…"},
 		{Failed + "  kit      #160  push      main           8e817bf  #45 status: the builds", "2h", "4m 02s"},
 		{Passed + "  kit      #159  push      main           5d376dd  #49 status: an underway stage", "24h", "3m 36s"},
-		{Cancelled + "  nightly   #12  schedule  main           5d376dd", "2d", "12s"},
+		{Cancelled + "  nightly  #12   schedule  main           5d376dd", "2d", "12s"},
 	} {
 		for _, text := range want {
 			if !strings.Contains(rows[i], text) {
@@ -1457,7 +1457,7 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	}
 	rows := lines(m)[m.rowsTop() : m.rowsTop()+4]
 	for i, want := range [][]string{
-		{"#1  " + Owner + " jeffrey-agui…", "8d", Change + " #2 ", "🏁 ready", Branch + " here", Pushed + " 60m",
+		{"#1   " + Owner + " jeffrey-agui…", "8d", Change + " #2 ", "🏁 ready", Branch + " here", Pushed + " 60m",
 			Issue + " The first release"},
 		{"#8", "2d", Change + " #4 ", "🔥 failing:gate", Owner + " bob", Fork + " bob", Pushed + " 25h", Owner + " cy",
 			Issue + " Lint the modules"},
@@ -1470,10 +1470,9 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 			}
 		}
 	}
-	// the numbers and the ages are right-aligned, and the pull requests and where line up
-	if cellsOf(rows[3], "#31")[0] != cellsOf(rows[0], "#1")[0]-1 ||
-		cellsOf(rows[3], "3h")[0] != cellsOf(rows[0], "8d")[0] {
-		t.Errorf("the numbers or the ages do not line up on the right:\n%s", strings.Join(rows, "\n"))
+	// the numbers are left-aligned and the ages right-aligned, and the pull requests and where line up
+	if cellsOf(rows[3], "#31")[0] != cellsOf(rows[0], "#1")[0] || cellsOf(rows[3], "3h")[0] != cellsOf(rows[0], "8d")[0] {
+		t.Errorf("the numbers do not line up on the left, or the ages on the right:\n%s", strings.Join(rows, "\n"))
 	}
 	for _, text := range []string{Change, Pushed} {
 		if slices.Max(cellsOf(rows[0], text)) != slices.Max(cellsOf(rows[2], text)) {
@@ -1501,7 +1500,7 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	// under changes
 	m = drive(m, down, toggle)
 	v := view(m)
-	order := []string{style.Opened + "  #1",
+	order := []string{style.Opened + " #1",
 		"The first release, v0.1.0:", "the kit verbs, the", "picture, and the forge", "seam on GitHub and GitLab",
 		"#8"}
 	if strings.Contains(v, Change+" #2 The first release") {

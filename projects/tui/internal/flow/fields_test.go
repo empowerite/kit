@@ -274,3 +274,15 @@ func TestAnIssuesOrganizationAndRepositoryAreFields(t *testing.T) {
 		t.Errorf("underway's organization: %q", got)
 	}
 }
+
+// A ref names a thing, an issue's id or a run's number, and is no quantity to compare: its column is left-aligned, so
+// its # stands in one column on every row. A time, a quantity, is right-aligned.
+func TestARefIsLeftAlignedAndATimeRight(t *testing.T) {
+	for name, s := range catalog {
+		for _, f := range s.Fields {
+			if f.Type == "ref" && f.Right || f.Type == "time" && !f.Right {
+				t.Errorf("%s: %s, a %s, right-aligned %v", name, f.ID, f.Type, f.Right)
+			}
+		}
+	}
+}
