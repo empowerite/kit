@@ -165,9 +165,16 @@ func TestTheSortMarkTurnsAndTheMenuSorts(t *testing.T) {
 		!slices.Equal(sorts(), []grid.SortKey{{Column: "age", Desc: true}, {Column: "id"}}) {
 		t.Fatalf("a click on age's ▲: %+v, menu %v\n%s", sorts(), m.colMenu.Open, header())
 	}
-	// a click on age's ▼, its ₁ too, stops age's sort, and id is the one key, with no number
-	if m = drive(m, testkit.Click(onRule("▼₁")+1, ruleY(m))); !slices.Equal(sorts(), []grid.SortKey{{Column: "id"}}) {
+	// age is not the last key: a click on its ▼, its ₁ too, turns it ascending again, in its place
+	if m = drive(m, testkit.Click(onRule("▼₁")+1, ruleY(m))); !slices.Equal(sorts(), []grid.SortKey{{Column: "age"},
+		{Column: "id"}}) {
 		t.Fatalf("a click on age's ₁: %+v\n%s", sorts(), rule())
+	}
+	// a shift-click on age's ▲ stops age's sort, and id is the one key, with no number
+	shift := testkit.Click(onRule("▲¹"), ruleY(m))
+	shift.Mod = tea.ModShift
+	if m = drive(m, shift); !slices.Equal(sorts(), []grid.SortKey{{Column: "id"}}) {
+		t.Fatalf("a shift-click on age's ▲: %+v\n%s", sorts(), rule())
 	}
 	// id's ▲ turns to ▼, then off, a plain click each; then age sorts again, the one key
 	for _, want := range [][]grid.SortKey{{{Column: "id", Desc: true}}, nil} {

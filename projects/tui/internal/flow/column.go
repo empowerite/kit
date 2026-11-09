@@ -149,16 +149,14 @@ func (m Model) sortAt(x int) string {
 	return ""
 }
 
-// sortBy turns a column's sort, as a plain click on its target on the rule asks, a step each click: ascending where it
-// does not sort yet, after the other keys; descending where it sorts ascending, in its place; and off where it sorts
-// descending.
-func (m *Model) sortBy(column string) {
-	p, d := m.panel(m.stage), grid.Descending
-	switch {
-	case p.Mark(column) == "":
-		d = grid.Ascending
-	case strings.Contains(p.Mark(column), "▼"):
-		d = grid.Unsorted
+// sortBy turns a column's sort, as a click on its target on the rule asks, a step each click, as the panel's Sorted
+// says: ascending where it does not sort yet, after the other keys; descending where it sorts ascending, in its place;
+// then off on the last key, and ascending again on any other. A shift-click turns it off, wherever it stands.
+func (m *Model) sortBy(column string, shift bool) {
+	p := m.panel(m.stage)
+	if shift {
+		m.setPanel(p.SortedAs(column, grid.Unsorted))
+		return
 	}
-	m.setPanel(p.SortedAs(column, d))
+	m.setPanel(p.Sorted(column))
 }

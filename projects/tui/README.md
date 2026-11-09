@@ -92,11 +92,12 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     in a menu or a dialog stands on the menu's bright cyan, in black, and a dialog's keys are the keys bar's alone. A
     column's sort mark stands on the rule under the first cell of its name, wherever the name aligns. A dim · there says
     the column can sort and does not; a column that cannot sort has the rule alone. A plain click on the rule under the
-    name turns the sort a step: ascending, after the other keys; descending, in its place; then off. A terminal such as
-    iTerm keeps ⌥, ⌃, shift, and the right button with a click for its own selection and menu, so a plain click and the
-    menu are the ways that work everywhere. Where the terminal sends them, ⌥ with a click turns a sort, ⌃ groups or
-    ungroups, and the right button drops the menu too. The presets' menu hangs around the preset line's selector the
-    same way.
+    name turns the sort a step: ascending, after the other keys; descending, in its place; then off on the last key, and
+    ascending again on any other, so a turn never moves the keys after it. A shift-click turns it off wherever it
+    stands, as Unsorted in the menu does. A terminal such as iTerm keeps ⌥, ⌃, and the right button with a click for its
+    own selection and menu, and others keep shift, so a plain click and the menu are the ways that work everywhere.
+    Where the terminal sends them, ⌥ with a click turns a sort, ⌃ groups or ungroups, and the right button drops the
+    menu too. The presets' menu hangs around the preset line's selector the same way.
   - A field whose rendering is auto drops a glyph every row shown shares, and, while the columns are short of width,
     steps down to its next, shorter rendering, from the rightmost column leftward. A glyph that links, to a page or to
     another stage's row, is a button, so it stays, and a field drawn without its glyph links from nothing. The title
