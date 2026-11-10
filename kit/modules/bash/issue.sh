@@ -208,7 +208,7 @@ issue:join() {
     ref=$(tracker:normal "${ref}") || return 2
     refs+=("${ref}")
   done
-  IFS=$'\t' read -r sigil noun < <(forge:noun)
+  IFS=$'\t' read -r sigil noun < <(forge:noun) || return 1
   state=$(forge:pr-state "${pr}") || return 1
   state=${state%%$'\t'*}
   if [[ "${state}" != OPEN ]]
@@ -231,9 +231,9 @@ issue:join() {
 # issue:settle <change> settles the issues a closed pull request names, as kit settle describes. It is safe to run
 # again: an issue already closed, or no longer assigned, is left as it is.
 issue:settle() {
-  local pr=${1#[#!]} line state sha sigil noun url body author repo ref login number istate owner failed=0
-  local -a refs=()
-  IFS=$'\t' read -r sigil noun < <(forge:noun)
+  local pr=${1#[#!]} line state sha sigil noun url body author repo ref login number istate owner failed=0 row
+  local -a refs=() closing
+  IFS=$'\t' read -r sigil noun < <(forge:noun) || return 1
   line=$(forge:pr-state "${pr}") || return 1
   state=${line%%$'\t'*}
   sha=${line#*$'\t'}
@@ -258,10 +258,12 @@ issue:settle() {
     CLOSED)
       author=$(forge:pr-author "${pr}") || return 1
       repo=$(forge:repo) || return 1
-      while read -r number istate owner
+      list:read closing forge:pr-closing-issues "${pr}" || return 1
+      for row in "${closing[@]}"
       do
+        read -r number istate owner <<<"${row}"
         [[ "${owner}" == "${repo}" && "${istate}" == OPEN ]] && refs+=("#${number}")
-      done < <(forge:pr-closing-issues "${pr}")
+      done
       while IFS= read -r ref
       do
         [[ -z "${ref}" ]] || refs+=("${ref}")
@@ -590,7 +592,7 @@ issue:start() {
   pr=$(issue:pull-request "${branch}" "${default_branch}" "${title}") || return
   (( ${#in_body[@]} > 0 )) && issue:link-in-body "${pr}" "${in_body[@]}"
 
-  IFS=$'\t' read -r sigil noun < <(forge:noun)
+  IFS=$'\t' read -r sigil noun < <(forge:noun) || return 1
   ok "Draft ${noun} ${sigil}${pr} on ${branch}, primary ${primary}${2:+, secondaries: ${*:2}}"
   ok "Worktree ready: ${wt}"
   step "cd '${wt}'    # do all work there; this checkout stays on ${desk_branch}"

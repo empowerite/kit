@@ -48,15 +48,16 @@ do
     (*) paths+=("${arg}")
   esac
 done
+declare -a under rules
 # git's lists are root-relative already, and NUL-separated so that a name with a space or a non-ASCII character
 # survives.
 if (( ${#paths[@]} == 0 ))
 then
   if [[ "${all}" == true ]]
   then
-    readarray -d '' -t paths < <(git ls-files -z)
+    list:read0 paths git ls-files -z || exit 1
   else
-    readarray -d '' -t paths < <(git diff --cached --name-only --diff-filter=ACMR -z)
+    list:read0 paths git diff --cached --name-only --diff-filter=ACMR -z || exit 1
   fi
 else
   named=("${paths[@]}")
@@ -66,7 +67,7 @@ else
     path=$(context:relative "${path}")
     if [[ -d "${path}" ]]
     then
-      readarray -d '' -t under < <(git ls-files -z -- "${path}")
+      list:read0 under git ls-files -z -- "${path}" || exit 1
       paths+=("${under[@]}")
     else
       paths+=("${path}")
@@ -85,11 +86,12 @@ context:load
 for path in "${paths[@]}"
 do
   [[ -f "${path}" && ! "${path}" =~ (^|/)\.kit/templates/ ]] || continue
-  while IFS= read -r rule
+  list:read rules context:rules "${path}" --direct || exit 1
+  for rule in "${rules[@]}"
   do
     [[ -n "${rule}" ]] || continue
     governed[${rule}]+="${path}"$'\n'
-  done < <(context:rules "${path}" --direct)
+  done
 done
 
 refused=0

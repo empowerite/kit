@@ -301,7 +301,7 @@ commit:named() {
   git rev-parse --verify --quiet HEAD >/dev/null && known=(--with-tree=HEAD)
   for path in "$@"
   do
-    readarray -d '' -t files < <(git ls-files -z "${known[@]}" -- ":(literal)${path}")
+    list:read0 files git ls-files -z "${known[@]}" -- ":(literal)${path}" || return 1
     if (( ${#files[@]} == 0 ))
     then
       error "${path} is not known to git; run: git add '${path}'"
@@ -413,7 +413,7 @@ commit:commit() {
     fi
   else
     [[ "${commit_all}" == false ]] || git add --update
-    readarray -d '' -t staged < <(git diff --cached --name-only --diff-filter=ACMRD -z)
+    list:read0 staged git diff --cached --name-only --diff-filter=ACMRD -z || return 1
     if (( ${#staged[@]} == 0 ))
     then
       error "nothing is staged; run: git add <path>…, or kit commit --all for every change to a tracked file"
@@ -499,7 +499,7 @@ commit:submit() {
   commit:parse "$@" || return 2
   branch=$(commit:branch) || return 1
   [[ "${commit_all}" == false ]] || git add --update
-  readarray -d '' -t staged < <(git diff --cached --name-only -z)
+  list:read0 staged git diff --cached --name-only -z || return 1
   if (( ${#commit_paths[@]} > 0 )) && commit:paths-unchanged "${commit_paths[@]}"
   then
     step "nothing to commit: the named paths are as HEAD has them; pushing ${branch}"
@@ -589,7 +589,7 @@ commit:choices() {
     printf 'open\n'
     return 0
   fi
-  readarray -d '' -t records < <(git status --porcelain=v1 -z)
+  list:read0 records git status --porcelain=v1 -z || return 1
   for record in "${records[@]}"
   do
     # a rename's or copy's old name is the record after it

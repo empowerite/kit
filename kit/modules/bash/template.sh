@@ -68,15 +68,18 @@ template:file() {
 # template:applies <rule-file> <path> prints the variants whose path glob matches <path>, or that have no glob. It
 # prints them in order, in the same format as template:variants.
 template:applies() {
-  local variant glob executable
-  while IFS=$'\x1f' read -r variant glob executable
+  local variant glob executable row
+  local -a variants
+  list:read variants template:variants "$1" || return 1
+  for row in "${variants[@]}"
   do
+    IFS=$'\x1f' read -r variant glob executable <<<"${row}"
     [[ -n "${variant}" ]] || continue
     if [[ -z "${glob}" ]] || context:glob-matches "$2" "${glob}"
     then
       printf '%s\x1f%s\x1f%s\n' "${variant}" "${glob}" "${executable}"
     fi
-  done < <(template:variants "$1")
+  done
 }
 
 # template:settings <template>… prints, as one JSON object, the value kit.yml gives each hole the templates
@@ -161,8 +164,10 @@ template:render() {
 # only by the file's first line sorts last.
 template:rules() {
   local path=$1 rule glob best literal kind
+  local -a rules
   context:load
-  while IFS= read -r rule
+  list:read rules context:rules "${path}" --direct || return 1
+  for rule in "${rules[@]}"
   do
     [[ -n "${rule}" && -n "$(template:variants "${rule}")" ]] || continue
     best=0
@@ -178,7 +183,7 @@ template:rules() {
       done <<<"${context_kind_paths[${kind}]-}"
     done
     printf '%s\t%s\n' "${best}" "${rule}"
-  done < <(context:rules "${path}" --direct) | LC_ALL=C sort -t $'\t' -k1,1nr -k2,2 | cut -f2
+  done | LC_ALL=C sort -t $'\t' -k1,1nr -k2,2 | cut -f2
 }
 
 # template:check <rule-file> <path>… is true when every file matches a variant the rule allows at its path. For
@@ -187,12 +192,14 @@ template:rules() {
 # holes and nothing between them, or a region that never closes, is refused. Every file, and the variants its path
 # allows, are judged in one jq pass.
 template:check() {
-  local rule=$1 variant glob executable file line failed=0 path variants where verdicts
+  local rule=$1 variant glob executable file line failed=0 path variants where verdicts row
   shift
   local -A files=()
-  local -a globs=()
-  while IFS=$'\x1f' read -r variant glob executable
+  local -a globs=() rows
+  list:read rows template:variants "${rule}" || return 1
+  for row in "${rows[@]}"
   do
+    IFS=$'\x1f' read -r variant glob executable <<<"${row}"
     [[ -n "${variant}" ]] || continue
     file=$(template:file "${rule}" "${variant}")
     if [[ ! -f "${file}" ]]
@@ -209,7 +216,7 @@ template:check() {
     fi
     files[${variant}]=${file}
     globs+=("${variant}" "$(if [[ -n "${glob}" ]]; then context:glob-ere "${glob}"; fi)")
-  done < <(template:variants "${rule}")
+  done
   (( ${#files[@]} > 0 )) || return 0
   verdicts=$(jq -L "${kit_jq}" --null-input --raw-output \
       --rawfile templates <(for variant in "${!files[@]}"

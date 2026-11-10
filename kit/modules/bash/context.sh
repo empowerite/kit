@@ -333,7 +333,7 @@ context:rules() {
   local -a kinds=() embedded=()
   local -A seen=()
   context:load
-  readarray -t kinds < <(context:kinds "${path}")
+  list:read kinds context:kinds "${path}" || return 1
   (( ${#kinds[@]} > 0 )) || return 0
   while IFS= read -r file
   do
@@ -363,7 +363,7 @@ context:log() {
 # prints each rule's path once. With --json, it prints one object per path with its kinds and its rules.
 context:render() {
   local json=false arg path rule
-  local -a paths=()
+  local -a paths=() rules
   local -A seen=()
   for arg in "$@"
   do
@@ -387,12 +387,13 @@ context:render() {
            rules: [split("\n")[] | select(. != "")] }'
       continue
     fi
-    while IFS= read -r rule
+    list:read rules context:rules "${path}" || return 1
+    for rule in "${rules[@]}"
     do
       [[ -n "${rule}" && -z "${seen[${rule}]:-}" ]] || continue
       seen[${rule}]=1
       printf '%s\n' "${rule}"
-    done < <(context:rules "${path}")
+    done
   done
 }
 
