@@ -300,26 +300,36 @@ list:read0() {
 }
 
 # list:fill <delimiter> <array> <command> [<argument>…] is list:read's work, for items that end in <delimiter>. The
-# command runs in a process substitution, as in `< <(…)`, and its status travels in band: after the command returns,
-# the subshell prints a mark unique to the call, then the status, as one last item, and the mark is taken off the list
-# before the trailing empty item is. wait "$!" after a process substitution can lose the status under load, when the
-# command ends before the shell has recorded it, so success never waits. lastpipe, with PIPESTATUS, is not used: bash
-# can hang in a lastpipe pipeline under load. Where errexit is on, it ends the command at a failure inside it, as in
-# `< <(…)`. A command ended so, or one that exits, prints no mark, and its status is wait's, which under load can be
-# 127 for a status wait lost: still a failure.
+# command runs in a process substitution, as in `< <(…)`, under errexit whoever calls it, so a failure inside it ends
+# it there. A command that returns 0 has its status travel in band: the subshell prints a mark unique to the call and
+# the status as one last item, and the mark is taken off the list before the trailing empty item is. A command that
+# fails, exits, or execs prints no mark, and its status is wait "$!"'s, which under load can lose it: 127, still a
+# failure. Where wait answers 0, output written after the command ended, as by an EXIT trap, can hold the mark, and
+# the read fails. lastpipe, with PIPESTATUS, is not used: bash can hang in a lastpipe pipeline under load. It returns 1
+# where readarray fails, and 2, after a line that says so, for a name that is not an identifier or starts list_fill_.
 list:fill() {
-  local list_fill_delimiter=$1 list_fill_status=0 list_fill_format='\n%s\n' list_fill_mark
+  local list_fill_delimiter=$1 list_fill_status=0 list_fill_format='\n%s\n' list_fill_mark list_fill_item
+  if [[ ! "$2" =~ ^[A-Za-z_][A-Za-z0-9_]*$ || "$2" == list_fill_* ]]
+  then
+    error "list:read: '$2' is not a name of an array it may fill: an identifier, not list_fill_…"
+    return 2
+  fi
   local -n list_fill_items=$2
   shift 2
   [[ -n "${list_fill_delimiter}" ]] || list_fill_format='\0%s\0'
   list_fill_mark="list:fill ${BASHPID} ${RANDOM}${RANDOM} "
   list_fill_items=()
   # shellcheck disable=SC2059  # the format is one of the two above, chosen by the delimiter
-  readarray -t -d "${list_fill_delimiter}" list_fill_items < <("$@" ; list_fill_status=$?
+  if ! readarray -t -d "${list_fill_delimiter}" list_fill_items < <(set -o errexit; "$@"; list_fill_status=$?
     printf "${list_fill_format}" "${list_fill_mark}${list_fill_status}")
+  then
+    list_fill_items=()
+    return 1
+  fi
   if (( ${#list_fill_items[@]} )) && [[ "${list_fill_items[-1]}" == "${list_fill_mark}"* ]]
   then
     list_fill_status=${list_fill_items[-1]#"${list_fill_mark}"}
+    [[ "${list_fill_status}" =~ ^[0-9]+$ ]] || list_fill_status=1
     unset 'list_fill_items[-1]'
     # The delimiter printed in front of the mark ends the command's last item, or, after one that ended, adds an
     # empty one, which is not the command's.
@@ -329,6 +339,17 @@ list:fill() {
     fi
   else
     wait "$!" 2>/dev/null || list_fill_status=$?
+    if (( list_fill_status == 0 ))
+    then
+      for list_fill_item in "${list_fill_items[@]}"
+      do
+        if [[ "${list_fill_item}" =~ ^"${list_fill_mark}"[0-9]+$ ]]
+        then
+          list_fill_status=1
+          break
+        fi
+      done
+    fi
   fi
   if (( list_fill_status != 0 ))
   then

@@ -221,17 +221,60 @@ child() {
   [ "$output" = "1 0" ]
 }
 
-@test "list:read gives the status of a command that exits, keeps the lines of one with its own EXIT trap, and the data" {
+@test "a midway failure read by a function run through \$(…) is a failed read, with errexit on in the caller or off" {
+  local script='midway() { printf "a\n"; false; printf "b\n"; }
+    reads() { local -a rows; local st=0; list:read rows midway || st=$?; echo "$(( st != 0 )) ${#rows[@]}"; }
+    echo "$(reads)"'
+  run kit-bash "set -o errexit; ${script}"
+  [ "$output" = "1 0" ]
+  run kit-bash "${script}"
+  [ "$output" = "1 0" ]
+}
+
+@test "list:read gives an exit's status, keeps the lines of a command with an EXIT trap, and keeps mark-like data" {
   run kit-bash 'quits() { printf "a\nb\n"; exit 7; }; trapped() { trap "rm -f no-such-file" EXIT; printf "a\nb\n"; }
-    marks() { printf "list:fill\nlist:fill %s 1 0\nz\n" "${BASHPID}"; }; empty() { printf "x\0\0y\0"; }
+    marks() { printf "list:fill\nlist:fill %s 1 0\n" "$1"; }; empty() { printf "x\0\0y\0"; }
     list:read rows quits; echo "$? ${#rows[@]}"
     list:read rows trapped; echo "$? ${rows[*]}"
-    list:read rows marks; echo "$? ${#rows[@]} [${rows[0]}] [${rows[2]}]"
+    caller=${BASHPID}; list:read rows marks "${caller}"; echo "$? ${#rows[@]} [${rows[0]}] [${rows[1]}]"
     list:read0 items empty; echo "$? ${#items[@]} [${items[1]}] [${items[2]}]"'
   [ "${lines[0]}" = "7 0" ]
   [ "${lines[1]}" = "0 a b" ]
-  [ "${lines[2]}" = "0 3 [list:fill] [z]" ]
+  [[ "${lines[2]}" =~ ^"0 2 [list:fill] [list:fill "[0-9]+" 1 0]"$ ]]
   [ "${lines[3]}" = "0 3 [] [y]" ]
+}
+
+@test "output after the command's end, as an EXIT trap's, fails the read rather than leave the mark among the lines" {
+  run kit-bash 'late() { trap "echo cleanup" EXIT; printf "a\n"; }
+    st=0; list:read rows late || st=$?; echo "${st} ${#rows[@]}"'
+  [ "$output" = "1 0" ]
+}
+
+@test "list:read keeps a last item with no delimiter, drops one trailing empty item, and reads stdin and a signal" {
+  run kit-bash 'killed() { printf "a\n"; kill -TERM "${BASHPID}"; }
+    list:read rows printf "a\nb"; echo "$? ${#rows[@]} [${rows[1]}]"
+    list:read0 items printf "a\0b"; echo "$? ${#items[@]} [${items[1]}]"
+    list:read rows printf "a\n\n"; echo "$? ${#rows[@]} [${rows[0]}]"
+    list:read rows printf ""; echo "$? ${#rows[@]}"
+    list:read0 items printf "a\nb\0c\0"; echo "$? ${#items[@]} [${items[0]}]"
+    st=0; list:read rows killed || st=$?; echo "$(( st > 128 )) ${#rows[@]}"
+    list:read rows cat <<<$'"'"'s1\ns2'"'"'; echo "$? ${rows[*]}"'
+  [ "${lines[0]}" = "0 2 [b]" ]
+  [ "${lines[1]}" = "0 2 [b]" ]
+  [ "${lines[2]}" = "0 1 [a]" ]
+  [ "${lines[3]}" = "0 0" ]
+  [ "${lines[4]}" = "0 2 [a" ]
+  [ "${lines[5]}" = "b]" ]
+  [ "${lines[6]}" = "1 0" ]
+  [ "${lines[7]}" = "0 s1 s2" ]
+}
+
+@test "list:read refuses with 2 a name that is not an array's it may fill" {
+  run kit-bash 'list:read "a b" printf "x\n"; echo "$?"; list:read list_fill_x printf "x\n"; echo "$?"'
+  [ "${lines[0]}" = "❌ list:read: 'a b' is not a name of an array it may fill: an identifier, not list_fill_…" ]
+  [ "${lines[1]}" = 2 ]
+  [[ "${lines[2]}" == *"'list_fill_x' is not a name"* ]]
+  [ "${lines[3]}" = 2 ]
 }
 
 @test "a kit.yml yq cannot read fails packages and excludes, said once; absent or with no version, it declares none" {

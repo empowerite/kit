@@ -27,11 +27,13 @@ setup() {
 }
 
 @test "no verb or module reads a command's lines through < <(…), which loses its status, unless it cannot fail" {
-  local pure='jq|awk|sed|printf|cat|find|compgen|for|while|"\$@"|list:without|use:find|use:modules|help:[a-z-]+'
+  local pure='jq|awk|sed|printf|cat|find|compgen|for|while|list:without|use:find|use:modules|help:[a-z-]+'
   pure+='|region:markers|flow:(label|stage-args|fetch-diff)|context:(governed-by|embedded|read-kinds)'
   pure+='|commit:placed|welcome:[a-z-]+|serve:(watched|changed|resources)|new:seam-calls|generate:twice'
   pure+='|tracker:body-refs'
   local kept="< <\\((${pure})[ )]|(^|[ ;])read -r [^<]*< <\\(.*\\) \\|\\| (return|exit|continue)|^[^:]+:[0-9]+: *#"
+  # list:fill's own read, whose command's status travels in band, after the lines, and is read back from there
+  kept+='|/modules/bash/1st\.sh:[0-9]+: +if ! readarray -t -d "\$\{list_fill_delimiter\}" list_fill_items < <\('
   run bash -c 'grep --recursive --line-number "< <(" "$1/bin" "$1/modules/bash" | grep --invert-match -E "$2"' \
     scan "${kit_root}" "${kept}"
   [ -z "$output" ] || { printf '%s\n' "$output"; return 1; }
