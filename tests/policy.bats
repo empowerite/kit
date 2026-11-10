@@ -2,6 +2,8 @@
 # policy.bats - the facts, the patterns and their defaults, and two engines that refuse the same things the same way
 # ----------------------------------------------------------------------------------------------------------------------
 
+bats_require_minimum_version 1.5.0
+
 load helper
 
 setup() {
@@ -58,19 +60,57 @@ change() {
   [ -z "$(find "${TMPDIR}" -mindepth 1 -maxdepth 1 -name 'kit.*')" ]
 }
 
-@test "a change whose title cannot be read fails the facts, and the policy judges nothing" {
+@test "a change whose title cannot be read is an error in the facts, and the policy judges nothing" {
   branch 7-fix-the-thing "#7 cli: fix the thing"
   change "Fix the thing"
   # the read of the title fails; the first route that matches answers, so it goes first
   printf '%s\t%s\n' 'pr view 3 --json title*' '!1' | cat - "${FAKE_DIR}/gh.routes" > "${FAKE_DIR}/gh.routes.new"
   mv "${FAKE_DIR}/gh.routes.new" "${FAKE_DIR}/gh.routes"
-  run "${kit_root}/bin/kit" policy --input
-  [ "$status" -eq 1 ]
-  [[ "$output" == *"the change 3 could not be read from the forge, so the policy cannot judge it"* ]]
-  [[ "$output" != *'"change"'* ]]
+  run --separate-stderr "${kit_root}/bin/kit" policy --input
+  [ "$status" -eq 0 ]
+  [ "$(jq --raw-output '.change | keys[]' <<<"$output")" = error ]
+  [[ "$(jq --raw-output .change.error <<<"$output")" == *"could not be read"* ]]
   run "${kit_root}/bin/kit" policy
   [ "$status" -eq 1 ]
+  [[ "$output" == *"the change could not be read, so its title is unchecked: "*"could not be read"*"; then run: kit policy"* ]]
   [[ "$output" != *"policy allows"* ]]
+}
+
+@test "a forge that cannot answer is an error in the facts, and kit policy refuses it" {
+  branch 7-fix-the-thing "#7 cli: fix the thing"
+  change "Fix the thing"
+  : > "${FAKE_DIR}/gh.routes"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the change could not be read, so its title is unchecked"* ]]
+  [[ "$output" != *"policy allows"* ]]
+  [ "$("${kit_root}/bin/kit" policy --input | jq --raw-output '.change | keys[]')" = error ]
+  # the error is the provider's line, less its ❌ and its color
+  error=$(CLICOLOR_FORCE=1 "${kit_root}/bin/kit" policy --input 2>/dev/null | jq --raw-output .change.error)
+  [[ "${error}" == "run: gh auth status ("*"could not be read)" ]]
+  [[ "${error}" != *$'\x1b'* ]]
+  # a document that holds the error is refused as kit policy refuses the one it gathers, before either engine runs
+  "${kit_root}/bin/kit" policy --input > "${BATS_TEST_TMPDIR}/facts.json" 2>/dev/null
+  run "${kit_root}/bin/kit" policy --facts="${BATS_TEST_TMPDIR}/facts.json"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the change could not be read, so its title is unchecked: ${error}; then run: kit policy"* ]]
+  [[ "$output" != *"refusal(s) by the"* ]]
+}
+
+@test "with no forge, and with a forge that says there is no change, the change is null" {
+  branch 7-fix-the-thing "#7 cli: fix the thing"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 0 ]
+  [ "$("${kit_root}/bin/kit" policy --input | jq --compact-output .change)" = null ]
+  # no forge is asked: origin is a local path, and no setting names one
+  [ ! -s "${FAKE_DIR}/gh.calls" ]
+  printf 'forge: github\n' > kit.yml
+  fixture none.json <<<'[]'
+  route gh 'pr list --head * --state open --json number*' none.json
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 0 ]
+  [ "$("${kit_root}/bin/kit" policy --input | jq --compact-output .change)" = null ]
+  grep --quiet 'pr list --head 7-fix-the-thing --state open' "${FAKE_DIR}/gh.calls"
 }
 
 @test "the defaults refuse a branch, a commit subject, and a title off the loop's shape, each named" {

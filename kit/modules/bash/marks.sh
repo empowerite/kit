@@ -13,15 +13,19 @@
 #   - incoming: what every remote has, as git ls-remote lists its branches and tags
 #
 # The forge's marks are its seam's, as modules/bash/forge.sh says. A stage whose mark cannot be read has none, null,
-# which never makes it stale. Reaching a remote asks no one for a password: a remote that would ask has no mark.
+# which never makes it stale. Where the primary has no forge, the forge's stages have none and nothing is said; where
+# the forge cannot answer, its stages have none, the provider's line is said, and the marks fail, every local stage's
+# mark still printed. Reaching a remote asks no one for a password: a remote that would ask has no mark.
 #
 # see: modules/bash/forge.sh, kit/bin/kit-flow
 
 use forge settings
 
-# marks:stages prints one JSON object, a mark for each stage the flow setting names, as the header says.
+# marks:stages prints one JSON object, a mark for each stage the flow setting names, as the header says. It returns 1,
+# after the object, when the forge's marks cannot be read.
 marks:stages() {
   local stage forge='' text
+  local -i unread=0
   local -a stages=() args=()
   text=$(settings:stages) || return 1
   readarray -t stages <<<"${text}"
@@ -29,7 +33,15 @@ marks:stages() {
   do
     case "${stage}" in
       (backlog | underway | changes | builds | releases)
-        [[ -n "${forge}" ]] || forge=$(forge:marks 2>/dev/null) || forge='{}'
+        [[ -z "${forge}" ]] || continue
+        if forge:none
+        then
+          forge='{}'
+        elif ! forge=$(forge:marks)
+        then
+          forge='{}'
+          unread=1
+        fi
     esac
   done
   [[ -n "${forge}" ]] || forge='{}'
@@ -52,7 +64,8 @@ marks:stages() {
             elif . == "builds" then $forge.runs
             elif . == "releases" then $forge.releases
             else $local[.] end)} ]
-    | from_entries' "${stages[@]}"
+    | from_entries' "${stages[@]}" || return 1
+  return "${unread}"
 }
 
 # marks:sum prints a short sum of what it reads, the mark a stage's local state makes.

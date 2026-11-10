@@ -254,6 +254,15 @@ forge:provider() {
   printf '%s\n' "${provider}"
 }
 
+# forge:none succeeds when the primary has no forge, the last answer of the file header's list. It fails when the
+# primary has a forge, and when the settings that choose it cannot be read, so a wrong setting is never taken for none.
+forge:none() {
+  local primary forge
+  primary=$(forge:primary 2>/dev/null) || return 1
+  forge=$(forge:of "${primary}" 2>/dev/null) || return 1
+  [[ -z "${forge}" ]]
+}
+
 # forge:providers prints the providers on the module path, space-separated.
 forge:providers() {
   use:modules 'forge/*' | sed 's|^forge/||' | paste -s -d ' ' -

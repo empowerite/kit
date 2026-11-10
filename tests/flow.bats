@@ -654,6 +654,13 @@ fake-tui() {
   commits-in ../other 1
   git -C ../other push --quiet origin main
   [ "$(jq -r .incoming <<<"$(marks)")" != "$(jq -r .incoming <<<"${third}")" ]
+  # a forge that cannot answer: its stages have no mark, the local ones keep theirs, and the provider's line is said
+  printf 'forge: github\n' > kit.yml
+  PATH=$(shims gh) run --separate-stderr marks
+  [ "$status" -eq 1 ]
+  [ "$(jq --compact-output '[.backlog, .underway, .changes, .builds, .releases]' <<<"$output")" = '[null,null,null,null,null]' ]
+  [ "$(jq --raw-output '.desk | type' <<<"$output")" = string ]
+  [[ "$stderr" == *"could not be read"* ]]
 }
 
 @test "the worktrees stage ends with the branches whose upstream is gone, in text and as goneBranches" {

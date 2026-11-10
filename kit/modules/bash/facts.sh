@@ -8,11 +8,14 @@
 #   - `branch` and `default_branch`; the branch is null on the default branch or a detached HEAD
 #   - `commits`: at ci, those past the fork from origin's default branch, merges excluded, or null when the fork is not
 #     here, as in a shallow clone; at commit, the one commit
-#   - `change`: at ci, the open change on the branch, with its title, body, and author; at commit, always null
+#   - `change`: at ci, the open change on the branch, with its title, body, and author; null where the primary has no
+#     forge or the forge answered that there is no open change; {"error": "<line>"}, the provider's line, where a read
+#     of the forge failed; at commit, always null
 #   - `tree`: at ci, HEAD; at commit, the tree the commit will make
 #   - `policy`: the policy settings, with the kit's defaults filled in
 #
-# A fact a moment cannot know is null, so a rule over a change's title never fires at commit.
+# A fact a moment cannot know is null, so a rule over a change's title never fires at commit. A change that could not
+# be read is never null: kit policy refuses a document whose change holds an error.
 #
 # facts:tree prints the `tree`: the files git holds, as an object keyed by repository-relative path. Each entry has:
 #
@@ -54,12 +57,11 @@ facts:choices() {
 
 # facts:document <moment> [<tree-ish>] prints the document described in the file header. At ci, the tree is read from
 # the tree-ish, HEAD by default, and is empty while HEAD has no commit. When the fork point is missing, as in a
-# shallow clone, it warns and gives null for the commits instead of guessing. The change is read from the forge (GitHub or
-# GitLab), and is null when there is no forge or no open change; an open change whose title, body, or author cannot be
-# read fails the document. At commit, the tree is the index, as facts:tree reads it; commits is empty and change is
-# null, so the caller fills in the commit it makes.
+# shallow clone, it warns and gives null for the commits instead of guessing. The change is facts:change's. At commit,
+# the tree is the index, as facts:tree reads it; commits is empty and change is null, so the caller fills in the
+# commit it makes.
 facts:document() {
-  local moment=$1 treeish=${2:-HEAD} default_branch branch commits='[]' change='null' rules number title body author
+  local moment=$1 treeish=${2:-HEAD} default_branch branch commits='[]' change='null' rules
   local moments
   if ! list:among "${moment}" "${facts_moments[@]}"
   then
@@ -82,19 +84,7 @@ facts:document() {
       commits=null
       warn "the fork from origin/${default_branch} is not here, so no commit is checked; fetch with full history"
     fi
-    if use forge 2>/dev/null && number=$(forge:pr-here 2>/dev/null) && [[ -n "${number}" ]]
-    then
-      # The rules judge the change's title, body, and author, so one that cannot be read fails the facts.
-      if ! title=$(forge:pr-title "${number}") || ! body=$(forge:pr-body "${number}") \
-        || ! author=$(forge:pr-author "${number}")
-      then
-        error "the change ${number} could not be read from the forge, so the policy cannot judge it; see above"
-        return 1
-      fi
-      change=$(jq --null-input --argjson number "${number}" --arg title "${title}" --arg body "${body}" \
-        --arg author "${author}" \
-        '{number: $number, title: $title, body: $body, author: (if $author == "" then null else $author end)}')
-    fi
+    change=$(facts:change)
   fi
   # The tree can be large, so it reaches jq on stdin, never as an argument. Each stage's status is checked, since a
   # caller may not set pipefail.
@@ -105,6 +95,65 @@ facts:document() {
         commits: $commits, change: $change, tree: ., policy: $policy}'
   local -a statuses=("${PIPESTATUS[@]}")
   (( statuses[0] == 0 && statuses[1] == 0 ))
+}
+
+# facts:change prints the change for facts:document, and returns 0: null where the primary has no forge or the forge
+# answered that there is no open change; the change's object, its number, title, body, and author; or
+# {"error": "<line>"}, the line the provider said, less its ❌, when a read failed. The rules judge the title, body,
+# and author, so a change found whose title, body, or author cannot be read is an error, never null.
+facts:change() {
+  local said number title body author
+  if ! use forge || ! file:temp said forge
+  then
+    facts:unread ''
+    return 0
+  fi
+  if forge:none
+  then
+    printf 'null\n'
+    return 0
+  fi
+  if ! facts:ask number "${said}" forge:pr-here
+  then
+    facts:unread "${said}"
+    return 0
+  fi
+  if [[ -z "${number}" ]]
+  then
+    printf 'null\n'
+    return 0
+  fi
+  if [[ ! "${number}" =~ ^[0-9]+$ ]] || ! facts:ask title "${said}" forge:pr-title "${number}" \
+    || ! facts:ask body "${said}" forge:pr-body "${number}" || ! facts:ask author "${said}" forge:pr-author "${number}"
+  then
+    facts:unread "${said}"
+    return 0
+  fi
+  jq --null-input --compact-output --argjson number "${number}" --arg title "${title}" --arg body "${body}" \
+    --arg author "${author}" \
+    '{number: $number, title: $title, body: $body, author: (if $author == "" then null else $author end)}' \
+    || facts:unread ''
+}
+
+# facts:ask <name> <said> <command> [<argument>…] runs a read of the forge, its answer put in the variable <name> and
+# what it says on stderr written to the file <said>. It returns the read's status. A read that answers passes on what
+# it said, so a warning still reaches stderr.
+facts:ask() {
+  local facts_ask_into=$1 facts_ask_said=$2 facts_ask_out
+  shift 2
+  facts_ask_out=$("$@" 2>"${facts_ask_said}") || return 1
+  cat "${facts_ask_said}" >&2
+  printf -v "${facts_ask_into}" '%s' "${facts_ask_out}"
+}
+
+# facts:unread <said> prints the change that could not be read, {"error": "<line>"}: the last ❌ line in the file
+# <said>, less its ❌ and its colors, or "the change could not be read" where there is none.
+facts:unread() {
+  local line=''
+  [[ ! -s "$1" ]] || line=$(sed -n $'s/\x1b\\[[0-9;]*m//g; s/^❌ //p' "$1" | tail -n 1)
+  [[ -n "${line}" ]] || line='the change could not be read'
+  jq --null-input --compact-output --arg error "${line}" '{error: $error}' \
+    || printf '%s\n' '{"error": "the change could not be read"}'
 }
 
 # facts:document-tree <moment> <tree-ish> prints the tree for the moment: the index at commit, and the tree-ish at

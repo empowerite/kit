@@ -12,7 +12,9 @@
 #   - the tree of files at HEAD
 #
 # The policy engine then reports every refusal and every warning. A warning is printed and never fails. The engine
-# is patterns (the default) or Open Policy Agent.
+# is patterns (the default) or Open Policy Agent. Before the engine runs, kit policy refuses facts it cannot judge: a
+# branch whose commits are null, as the fork is not here, and a change that holds an error, as the forge could not
+# answer for it. Either engine, and a document given with --facts, is refused the same way.
 #
 #   --input           prints the facts as JSON instead of judging them
 #   --facts=<file>    judges the facts document in <file>, and gathers nothing; for testing a rule against a fixture
@@ -26,8 +28,8 @@
 #
 # kit ci runs kit policy alongside the gate. On a CI runner, refusals are also written to the step summary.
 #
-# Exits 0 when the policy refuses nothing, with or without warnings, 1 on any refusal or when linked_exempt in kit.yml
-# or a fact, such as the open change's title, cannot be read, and 2 on a usage error.
+# Exits 0 when the policy refuses nothing, with or without warnings, 1 on any refusal, when the forge cannot answer for
+# the open change, or when linked_exempt in kit.yml or another fact cannot be read, and 2 on a usage error.
 #
 # see: modules/bash/policy.sh, docs/policy.md
 
@@ -65,6 +67,13 @@ then
   error "no commit was checked: the fork from origin's default branch is not here; fetch it with full history" \
     "(fetch-depth: 0 in a GitHub checkout), then run: kit policy"
   summary "### ❌ No commit was checked" "" "The fork from origin's default branch is not in the clone; fetch it with full history."
+  exit 1
+fi
+if jq --exit-status '.change | type == "object" and has("error")' "${input}" >/dev/null
+then
+  unread=$(jq --raw-output '.change.error | tostring' "${input}")
+  error "the change could not be read, so its title is unchecked: ${unread}; then run: kit policy"
+  summary "### ❌ The change could not be read" "" "Its title is unchecked: ${unread}."
   exit 1
 fi
 author=$(jq --raw-output '.change.author // empty' "${input}")
