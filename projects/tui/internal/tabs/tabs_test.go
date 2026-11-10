@@ -46,7 +46,14 @@ func TestLabelIsTheSelectedTabAsTheBarDrawsIt(t *testing.T) {
 	if got := ansi.Strip(b.Label()); got != "🛫 underway"+Stale+" 58 "+Menu {
 		t.Errorf("stale, the dot after the name: %q", got)
 	}
+	// the numbered label's dot, as a click on it needs it, after the number, a space, and the name
+	if got := b.LabelStaleAt(); got != ansi.StringWidth(Marker(1, true)+" underway") {
+		t.Errorf("the numbered label's dot at %d: %q", got, ansi.Strip(b.NumberedLabel()))
+	}
 	b.Stale = nil
+	if got := b.LabelStaleAt(); got != -1 {
+		t.Errorf("a label without a dot has it at %d", got)
+	}
 	b.MenuOpen, b.Tabs[1].Count = false, ""
 	if got := ansi.Strip(b.Label()); got != "🛫 underway "+Menu {
 		t.Errorf("no count: %q", got)
@@ -393,6 +400,37 @@ func TestAStaleTabHasADotAfterItsNameAndMovesNothing(t *testing.T) {
 			t.Errorf("focused %v: the dot moved the tabs:\n%s\nwas\n%s", focused, strings.Join(lines, "\n"),
 				strings.Join(fresh, "\n"))
 		}
+	}
+}
+
+// StaleAt says which tab's stale dot is drawn at a cell of the screen, as a click needs it: each dot the bar draws,
+// on its middle line, right after its name, or what the view shows of it, and no other cell, whatever the view
+// scrolls to; a tab that is not stale has none.
+func TestStaleAtIsWhereEachDotIsDrawn(t *testing.T) {
+	for _, width := range []int{40, 80, 170} {
+		for selected := range 8 {
+			b := stages(selected, width)
+			b.Menus, b.Stale = true, []bool{true, false, true, true, false, true, true, true}
+			lines := strings.Split(ansi.Strip(b.View()), "\n")
+			for y := range Height {
+				x := 0
+				for _, r := range lines[y] {
+					got, cell := b.StaleAt(x, b.Row+y), string(r)
+					before := strings.Fields(ansi.Cut(lines[y], 0, x))
+					switch {
+					case cell == Stale && (got < 0 || !b.Stale[got] || len(before) == 0 ||
+						!strings.HasSuffix(b.Tabs[got].Name, strings.TrimLeft(before[len(before)-1], Before))):
+						t.Errorf("at %d, tab %d: the dot at %d, %d is tab %d's", width, selected, x, y, got)
+					case cell != Stale && got >= 0:
+						t.Errorf("at %d, tab %d: no dot at %d, %d, but tab %d", width, selected, x, y, got)
+					}
+					x += ansi.StringWidth(cell)
+				}
+			}
+		}
+	}
+	if (Bar{}).StaleAt(Gutter, 1) != -1 {
+		t.Error("a bar without tabs has a dot")
 	}
 }
 

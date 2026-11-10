@@ -94,7 +94,7 @@ func (m Model) parts(last int) []part {
 		{selected, "the selected tab's number", "", tabBar},
 		{numbers, "a tab's number, which selects it", "", tabBar},
 		{[]string{tabs.Before, tabs.After}, "more tabs: a click scrolls", "", tabBar},
-		one(tabs.Stale, "stale: the tab reads again", tabBar),
+		one(tabs.Stale, "stale: a click reads it again", tabBar),
 		one(grid.Unfolded, "open: a click closes it", rows),
 		one(grid.Folded, "closed: a click opens it", rows),
 		one("¬", "held back by the filter", control),

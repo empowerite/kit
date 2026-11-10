@@ -11,10 +11,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
+
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
+	"github.com/empowerite/kit/projects/tui/internal/tabs"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
@@ -202,5 +205,43 @@ func TestWatchingAStaleStageLoadsItAtOnce(t *testing.T) {
 	l.src.Stale, l.src.Loading = true, true
 	if cmd := m.toggleWatch(slices.IndexFunc(m.stages, func(s stage) bool { return s.name == "worktrees" })); cmd != nil {
 		t.Error("watching a stage still loading loaded it again")
+	}
+}
+
+// A click on a stale tab's dot loads the stage again, as its menu's Refresh does, and neither selects the tab nor drops
+// its menu; maximized, the dot after the title's name does the same. A tab that is not stale has no dot to click.
+func TestAClickOnAStaleTabsDotRefreshesIt(t *testing.T) {
+	m := loaded(t, options())
+	desk := slices.IndexFunc(m.stages, func(s stage) bool { return s.name == "desk" })
+	// dotAt gives the screen column of the dot after a name on a screen line, or -1
+	dotAt := func(m Model, y int, name string) int {
+		line := ansi.Strip(lines(m)[y])
+		k := strings.Index(line, name+tabs.Stale)
+		if k < 0 {
+			return -1
+		}
+		return ansi.StringWidth(line[:k] + name)
+	}
+	for x := range m.width {
+		if dotAt(m, 2, "desk") >= 0 || m.staleAt(x, 2) >= 0 {
+			t.Fatalf("a fresh bar has a dot at %d", x)
+		}
+	}
+	m.stages[desk].src.Stale = true
+	m.rebuild()
+	x := dotAt(m, 2, "desk")
+	next, cmd := m.Update(testkit.Click(x, 2))
+	if m = next.(Model); cmd == nil || m.stage == desk || m.tabMenu.Open {
+		t.Fatalf("a click on desk's dot at %d: loads %v, selected %d, menu %v", x, cmd != nil, m.stage, m.tabMenu.Open)
+	}
+	if m = drive(m, cmd()); m.stages[desk].src.Stale {
+		t.Error("desk is still stale after it loaded again")
+	}
+	m.maximize(true)
+	m.stages[m.stage].src.Stale = true
+	m.rebuild()
+	x = dotAt(m, 0, m.stages[m.stage].name)
+	if next, cmd = m.Update(testkit.Click(x, 0)); cmd == nil || next.(Model).tabMenu.Open {
+		t.Errorf("a click on the title's dot at %d: loads %v, menu %v", x, cmd != nil, next.(Model).tabMenu.Open)
 	}
 }

@@ -246,15 +246,28 @@ func (b Bar) Label() string {
 // NumberedLabel gives the selected tab's label as Label does, but for a tab numbered 1 to 9 its number, solid, as the
 // bar draws the selected tab's, in the tab's color, in place of its glyph: what a screen draws in its title while the
 // tab is maximized, so the number that selects it stands where its glyph would.
-func (b Bar) NumberedLabel() string {
+func (b Bar) NumberedLabel() string { return b.numbered().Label() }
+
+// numbered gives the bar with the selected tab's glyph its number, as NumberedLabel draws it, where it has one.
+func (b Bar) numbered() Bar {
 	if len(b.Tabs) == 0 || b.Selected >= 9 {
-		return b.Label()
+		return b
 	}
 	mark, _ := style.In(b.Color)
 	numbered := b
 	numbered.Tabs = slices.Clone(b.Tabs)
 	numbered.Tabs[b.Selected].Glyph = mark(Marker(b.Selected, true))
-	return numbered.Label()
+	return numbered
+}
+
+// LabelStaleAt gives the cell of NumberedLabel the stale dot stands at, from its first, right after the name, as a
+// click on it needs it; -1 while the selected tab is not stale.
+func (b Bar) LabelStaleAt() int {
+	if len(b.Tabs) == 0 || !b.stale(b.Selected) {
+		return -1
+	}
+	name, _, _ := b.numbered().label(b.Selected)
+	return ansi.StringWidth(name)
 }
 
 // reserve gives the cells a tab's count is laid out for at least: the bar's Reserve, or the tab's own in Reserves.
@@ -544,6 +557,26 @@ func (b Bar) MenuAt() int {
 		return -1
 	}
 	return x
+}
+
+// StaleAt gives the tab whose stale dot the bar draws at x, y, on its middle line, as a click on it needs, or -1 off
+// every dot: a tab that is not stale has none, and nor does one that keeps no cell for it, without a count, or one the
+// view cuts at the dot or under a triangle.
+func (b Bar) StaleAt(x, y int) int {
+	if len(b.Tabs) == 0 || y != b.Row+1 {
+		return -1
+	}
+	i := b.hit(x)
+	if i < 0 || !b.stale(i) || ansi.StringWidth(b.Tabs[i].Count) == 0 && b.reserve(i) == 0 {
+		return -1
+	}
+	l := b.layout()
+	name, _, _ := b.label(i)
+	// after the tab's number cell, a space, and its name
+	if x != Gutter+l.at[i]+2+ansi.StringWidth(name)-l.scroll {
+		return -1
+	}
+	return i
 }
 
 // OnSelected says whether a click at x, y is on the selected tab, anywhere on its part of the bar, on any of the bar's

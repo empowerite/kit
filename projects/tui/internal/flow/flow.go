@@ -349,6 +349,8 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		switch {
+		case msg.Button == tea.MouseLeft && m.staleAt(msg.X, msg.Y) >= 0:
+			return m, m.refresh(m.stages[m.staleAt(msg.X, msg.Y)].name)
 		case msg.Button == tea.MouseLeft && m.onMenu(msg.X, msg.Y):
 			return m, m.dropDown(false)
 		case msg.Button == tea.MouseLeft && shell.OnApp(msg.X, msg.Y, appLabel):
@@ -385,6 +387,20 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 	return m, nil
+}
+
+// staleAt gives the stage whose stale dot a click at x, y falls on, which loads it again, as its menu's Refresh does:
+// one on the bar, or, maximized, the selected stage's, after its name at the title's end, where the title shows it;
+// -1 off every dot.
+func (m Model) staleAt(x, y int) int {
+	if !m.maximized {
+		return m.bar().StaleAt(x, y)
+	}
+	from, until, _ := m.menuBar().OnSpan(m.width)
+	if at := m.bar().LabelStaleAt(); y == shell.Top && from >= 0 && at >= 0 && x == from+at && x < until {
+		return m.stage
+	}
+	return -1
 }
 
 // onMenu says whether a click at x, y is on the selected tab, which drops its menu down, as its : does: anywhere on

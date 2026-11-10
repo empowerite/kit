@@ -181,7 +181,9 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
 - `internal/kit/` runs the `kit` CLI for the other packages.
 - `internal/source/` reads kit for a screen. A load is a read the screen shows, as each of `kit flow`'s stages is: a
   read started again supersedes and ends the one before, the copy kit kept stands in, stale, while the first runs,
-  and the marks say when what it shows has changed, a watched load read again at once. A poll is a read asked again a
+  and the marks say when what it shows has changed, a watched load read again at once. A stale tab has a yellow • after
+  its name, on the bar or a maximized tab's title, and a plain click on it reads the stage again, as its menu's Refresh
+  does. A poll is a read asked again a
   while after each answer, as `kit flow` reads the rate limits and the stages' marks each minute. Every wait goes
   through a clock: the program's is a `tea.Tick`, and a test's fires none until the test says.
 - `internal/transcript/` writes the command line that `kittui` ran into the scrollback.
