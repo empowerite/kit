@@ -467,7 +467,7 @@ func (m Model) records(s stage) []record {
 		out = m.buildRows(s)
 	case "releases":
 		out = m.releaseRows(s)
-	case "repos":
+	case "workspace/repos":
 		out = m.repoRows(s)
 	default:
 		if ofWorkspace(s.name) {
@@ -502,12 +502,16 @@ func (m Model) keyOf(member, key string) string {
 }
 
 // memberValue gives a row's value in member: none over a repository; over a group, the member, host/path, drawn by its
-// short name, leading to its row on the repos tab.
+// short name, leading, in kit workspace's picture, to its row on the repos tab.
 func (m Model) memberValue(member string) table.Value {
 	if member == "" {
 		return table.Value{}
 	}
-	return table.Value{Raw: []string{member}, Of: m.short(member), Link: jumpTo("repos", member)}
+	v := table.Value{Raw: []string{member}, Of: m.short(member)}
+	if m.verb == workspaceVerb {
+		v.Link = jumpTo("workspace/repos", member)
+	}
+	return v
 }
 
 // originOf gives the origin a row's links are built from: the screen's, for a row of no member, else the member's
@@ -987,7 +991,7 @@ func empty(s stage) string {
 		return "no build since the last 20 runs"
 	case "releases":
 		return "no release"
-	case "repos":
+	case "workspace/repos":
 		return "no repository"
 	}
 	return "nothing"

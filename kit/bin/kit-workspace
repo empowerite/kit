@@ -3,17 +3,18 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # kit workspace [--text | --json | --jq] [--workspace <workspace>]
 #
-# Draws what git holds across a workspace, a stage for each of git's entities. It changes nothing, and asks no remote:
-# what a remote has is what the last fetch left. The stages, in order:
+# Draws what git holds across a workspace: its members, then a stage for each of git's entities. It changes nothing,
+# and asks no remote: what a remote has is what the last fetch left. The stages, in order:
 #
-#   remotes → branches → worktrees → commits → tags
+#   repos → remotes → branches → worktrees → commits → tags
 #
 # HEAD is no stage of its own. A remote's HEAD is its default branch, ⚓ on its row and on the branch's; a worktree's
 # is its branch, or its commit where it is detached, and a commit's row names the worktrees whose HEAD it is.
 #
 # Without --workspace, the workspace is the repository here, read from its main checkout, so a linked worktree draws
-# what the desk draws. On a terminal, kit workspace opens the picture in kittui, and kit workspace <stage> opens it
-# with that stage maximized. Without one, or with --text, --json, or --jq, it prints the stages as text.
+# what the desk draws, and repos lists it alone. On a terminal, kit workspace opens the picture in kittui, and kit
+# workspace <stage> opens it with that stage maximized. Without one, or with --text, --json, or --jq, it prints the
+# stages as text.
 #
 #   --text              prints the picture as text, even on a terminal
 #   --json              the picture as one JSON object: stages, then each stage's document under its name
@@ -22,7 +23,9 @@
 #                       host and path, as kit workspaces names it
 #   --stages            prints the stages the picture draws, one per line, in order
 #   --marks             prints a mark per stage, as one JSON object, which changes when what the stage draws does
-#   remotes             each remote: its forge, its repository, its URL, its default branch, and how many branches it has
+#   repos               each member of the workspace, cloned or not: its forge, its clone, its desk's branch, its
+#                       worktrees, and the local branches no checkout has
+#   remotes             each remote: its forge, its repository, its URL, its default branch, and its branches, counted
 #   branches            each branch: a remote's, with the local branches that pull from it, and each local branch whose
 #                       upstream is gone or that has none, with its commit and the worktree it is checked out in
 #   worktrees           each worktree, the desk first: its branch, what it is ahead and behind its upstream and the
@@ -34,6 +37,8 @@
 # kit workspace --stages
 #
 # kit workspace --marks [--workspace <workspace>]
+#
+# kit workspace repos [--text | --json | --jq] [--workspace <workspace>]
 #
 # kit workspace remotes [--text | --json | --jq] [--workspace <workspace>]
 #
@@ -50,11 +55,18 @@
 # workspace, each row gains member, its host and path, and a member that could not be read is {member, error} under
 # errors, while every other member still draws.
 #
+#   repos               {repository, host, path, forge, remotes, checkout, checkouts, by, branch, ahead, behind,
+#                       worktrees, branches, error}: remotes is [{name, url, forge}]; by is fixed for a group's member,
+#                       given for a repository named, and here for the one kit runs in; checkout is the clone, also
+#                       from one of its linked worktrees; branch, ahead, and behind are its desk's; worktrees is
+#                       [{branch, path}]; branches is the local branches no checkout has; each is null for a member not
+#                       cloned; error is the desk's line where it could not be read. Its rows have no key or links
 #   remotes             {remote, forge, repository, host, url, push, default, branches, primary}: repository is the
 #                       path the URL names past its host; push is null where it is the URL; primary is "primary" or null
-#   branches            {kind, branch, remote, local, upstream, default, commit, age, subject, worktree}: kind is remote,
-#                       gone, or local; local is the local branches; upstream is [ahead, behind] of the first, or null;
-#                       default is "default" for the remote's default branch, else null; worktree is the paths
+#   branches            {kind, branch, remote, local, upstream, default, commit, age, subject, worktree}: kind is
+#                       remote, gone, or local; local is the local branches; upstream is [ahead, behind] of the
+#                       first, or null; default is "default" for the remote's default branch, else null; worktree is
+#                       the paths
 #   worktrees           {kind, path, branch, detached, head, upstream, track, base, changes, untracked, locked,
 #                       prunable}: kind is desk or linked; track and base are [ahead, behind] of the upstream and of the
 #                       primary's default branch, or null
@@ -73,6 +85,15 @@
 #
 # kit:generate legend `k=$(command -v kit); jq -nr -L "${k%/bin/kit}/modules/jq" 'import "glyphs" as g; g::legend_for("workspace")'`
 #   📚  the workspace: a group, in the workspace menu that drops down from - in kittui's title
+#
+# repos:
+#
+#   📚  the workspace: a group, in the workspace menu that drops down from - in kittui's title
+#   🐙  on GitHub: the forge of a remote, or the tracker that holds an issue
+#   🦊  on GitLab: the forge of a remote, or the tracker that holds an issue
+#   🌿  a branch or a worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
+#   🌱  a local branch: this desk has it: under underway, and no checkout does; under branches, and no remote does
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # remotes:
 #
@@ -201,7 +222,7 @@ marks() {
   fi
   file:scratch into
   across:start "${workspace}" "${into}" --marks >/dev/null || return $?
-  across:marks-merge "${into}"
+  across:marks-merge "${into}" "$(across:repos-mark "${workspace}")"
 }
 
 if [[ -n "${syntax_options[--marks]+x}" ]]
@@ -210,9 +231,15 @@ then
   exit $?
 fi
 
-# document <stage> prints the stage's {rows, errors}: the repository here's rows, or every member's, merged.
+# document <stage> prints the stage's {rows, errors}: the repository here's rows, or every member's, merged; repos
+# lists the members, cloned or not, or the repository here alone.
 document() {
   local rows into
+  if [[ "$1" == repos ]]
+  then
+    across:repos "${workspace}"
+    return
+  fi
   if [[ -n "${workspace}" ]]
   then
     file:scratch into

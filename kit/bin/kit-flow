@@ -61,8 +61,6 @@
 #   changes             the open pull requests, each with the issues it closes
 #   builds              the runs not owned by any pull request: the default branch, tags, schedules
 #   releases            the releases on the forge, newest first
-#   repos               the repositories of the workspace, or the one here: each one's forge, remotes, checkout, and
-#                       its desk's branch
 #
 # The filters combine: --mine --owner=bob. --mine alone leaves out the owner column.
 #
@@ -89,8 +87,6 @@
 # kit flow builds [--json | --jq] [--cached] [--workspace <workspace>]
 #
 # kit flow releases [--json | --jq] [--cached] [--workspace <workspace>]
-#
-# kit flow repos [--workspace <workspace>] [--json | --jq]
 #
 # One stage prints without its heading. With --json, a stage prints what the picture holds under its name: an array
 # for backlog, underway, changes, builds, and releases; an object for desk, worktrees, and incoming. Above desks,
@@ -123,20 +119,13 @@
 # Over a workspace
 #
 # --workspace names a group, or a repository by its host and path, as kit workspaces names them. Each form then runs
-# in every member's checkout at once, each under that checkout's own kit.yml, and the stages are repos and kit's eight,
-# whatever the kit.yml where it runs says. With --json, a stage prints {rows, errors}: each row, or each desk,
+# in every member's checkout at once, each under that checkout's own kit.yml, and the stages are kit's eight, whatever
+# the kit.yml where it runs says. With --json, a stage prints {rows, errors}: each row, or each desk,
 # worktrees, or incoming object, gains member, its host and path; a member that could not be read is {member, error},
-# its line, under errors, and every other member still draws, so the stage exits 0. The picture prints {stages, repos,
-# <stage>…}, each stage so. As text, the picture draws repos, then each cloned member's picture under its member, and
-# exits 1 when one of them did. A member with no checkout draws only its repos row. --marks and --quota span the
-# members; a pull request's number names one repository's, and is refused.
-#
-# repos lists the workspace's members, or with no --workspace the repository here: a row per member, {repository,
-# host, path, forge, remotes, checkout, checkouts, by, branch, ahead, behind, worktrees, branches, error}. remotes is
-# [{name, url, forge}]; by is fixed for a group's member, given for a repository named, and here for the one kit runs
-# in. checkout is the clone, also from one of its linked worktrees. branch, ahead, and behind are its desk's; worktrees
-# is its linked worktrees, [{branch, path}], branch null for one on no branch; branches is its local branches that no
-# checkout has; each is null for a member not cloned. error is the desk's line where it could not be read.
+# its line, under errors, and every other member still draws, so the stage exits 0. The picture prints {stages,
+# <stage>…}, each stage so. As text, the picture draws each cloned member's picture under its member, and exits 1 when
+# one of them did. A member with no checkout draws nothing; kit workspace repos lists every member, cloned or not.
+# --marks and --quota span the members; a pull request's number names one repository's, and is refused.
 #
 # Legend
 #
@@ -146,14 +135,6 @@
 #
 # kit:generate legend `k=$(command -v kit); jq -nr -L "${k%/bin/kit}/modules/jq" 'import "glyphs" as g; g::legend'`
 #   📚  the workspace: a group, in the workspace menu that drops down from - in kittui's title
-#
-# repos:
-#
-#   📚  the workspace: a group, in the workspace menu that drops down from - in kittui's title
-#   🐙  on GitHub: the forge of a remote, or the tracker that holds an issue
-#   🦊  on GitLab: the forge of a remote, or the tracker that holds an issue
-#   💻  the desk: the root checkout
-#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # backlog:
 #
@@ -299,7 +280,7 @@ then
   export KIT="${kit_root}/bin/kit"
   exec "${binary}" flow --workspace "${workspace}" "$@"
 fi
-if [[ -n "${workspace}" || "${1:-}" == repos ]]
+if [[ -n "${workspace}" ]]
 then
   use across
   across:flow "${workspace}" "${words[@]}"

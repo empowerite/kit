@@ -1,5 +1,5 @@
-// The 📚 repos tab, first in the picture: a row per member of the workspace, as kit flow repos --json gives it: where it
-// is cloned, its branch, its worktrees, and the branches no checkout has.
+// The 📚 repos tab, first in kit workspace's picture: a row per member of the workspace, as kit workspace repos --json
+// gives it: where it is cloned, its branch, its worktrees, and the branches no checkout has.
 package flow
 
 import (

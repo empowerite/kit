@@ -36,8 +36,6 @@
    builds                     the runs not owned by any pull request: the default branch, tags,
                               schedules
    releases                   the releases on the forge, newest first
-   repos                      the repositories of the workspace, or the one here: each one's forge,
-                              remotes, checkout, and its desk's branch
 
 
  kit flow

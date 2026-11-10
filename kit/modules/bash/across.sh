@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# across.sh - kit flow across a workspace: its members, their checkouts, and their stages merged (sourced module)
+# across.sh - kit flow and kit workspace across a workspace: members, checkouts, and stages merged (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # flow_glyphs, settings_stages, and out_color are set by flow.sh, settings.sh, and 1st.sh
 #
@@ -41,9 +41,10 @@ across:members() {
 
 # across:merge <dir> <kind> [<stage>] prints the document of what each member printed, from <dir>'s <n>.member, <n>.out,
 # <n>.err, and <n>.status, for n from 0 up. For an array stage, each row a member printed gains its member; for an
-# object stage, the object does; for a document, {rows, errors}, each of its rows does. What a member printed is kept whenever it parses as the stage's kind, as an incoming
-# whose fetch failed prints the remotes and exits 1. One that does not is its stderr's last line, less a leading ❌,
-# under errors; with nothing said, that kit flow <stage> exited as it did.
+# object stage, the object does; for a document, {rows, errors}, each of its rows does. What a member printed is kept
+# whenever it parses as the stage's kind, as an incoming whose fetch failed prints the remotes and exits 1. One that
+# does not is its stderr's last line, less a leading ❌, under errors; with nothing said, that kit flow <stage> exited as
+# it did.
 across:merge() {
   local dir=$1 kind=$2 stage=${3:-} n=0 member out
   local -a rows=() errors=()
@@ -89,19 +90,18 @@ across:line() {
   printf '%s\n' "${line#❌ }"
 }
 
-# across:flow <workspace> <word>… draws what kit flow's words ask for across the workspace: --stages, repos and then
-# kit's eight stages, whatever the kit.yml where kit runs says; --marks and --quota, spanning the members; repos; a
-# stage with --json or --jq as across:stage gives it; the picture as JSON, as across:picture gives it; and a stage or
-# the picture as text, each member's under it. No workspace is the repository here, for repos alone. It resolves the
-# workspace once, and returns 2 for one that is neither a group nor a repository, and for a pull request's number,
-# which names one repository's.
+# across:flow <workspace> <word>… draws what kit flow's words ask for across the workspace: --stages, kit's eight
+# stages, whatever the kit.yml where kit runs says; --marks and --quota, spanning the members; a stage with --json or
+# --jq as across:stage gives it; the picture as JSON, as across:picture gives it; and a stage or the picture as text,
+# each member's under it. It resolves the workspace once, and returns 2 for one that is neither a group nor a
+# repository, and for a pull request's number, which names one repository's.
 across:flow() {
   local workspace=$1 stage='' word form=''
   shift
   if [[ "${1:-}" == --stages ]]
   then
     workspaces:kind "${workspace}" >/dev/null || return 2
-    printf '%s\n' repos "${settings_stages[@]}"
+    printf '%s\n' "${settings_stages[@]}"
     return
   fi
   if [[ -n "${workspace}" ]]
@@ -117,7 +117,7 @@ across:flow() {
       across:quota "${workspace}"
       return
       ;;
-    (repos | backlog | underway | desk | worktrees | changes | incoming | builds | releases)
+    (backlog | underway | desk | worktrees | changes | incoming | builds | releases)
       stage=$1
       shift
   esac
@@ -130,11 +130,6 @@ across:flow() {
         return 2
     esac
   done
-  if [[ "${stage}" == repos ]]
-  then
-    across:repos-form "${workspace}" "${form}"
-    return
-  fi
   if [[ -n "${stage}" && -n "${form}" ]]
   then
     across:stage "${workspace}" "${stage}" "$@" | if [[ "${form}" == --jq ]]; then jq .; else cat; fi
@@ -186,8 +181,8 @@ across:start() {
   wait || true
 }
 
-# across:run <checkout> <prefix> <workspace> <word>… runs kit's across_verb with the words in the checkout, its output in
-# <prefix>.out and <prefix>.err and its exit in <prefix>.status. A checkout gone since the roots were walked is its
+# across:run <checkout> <prefix> <workspace> <word>… runs kit's across_verb with the words in the checkout, its output
+# in <prefix>.out and <prefix>.err and its exit in <prefix>.status. A checkout gone since the roots were walked is its
 # line.
 across:run() {
   local checkout=$1 prefix=$2 workspace=$3 code
@@ -203,21 +198,19 @@ across:run() {
   printf '%s' "${code}" > "${prefix}.status"
 }
 
-# across:picture <workspace> <word>… prints the picture across the workspace as one JSON object: stages, as
-# across:flow --stages gives them; repos, as across:repos gives it, each member's desk read from its picture; and each
-# stage's document, {rows, errors}, cut from the picture each member's kit flow --json printed. A stage a member's flow
-# setting leaves out adds nothing; one it could not draw, null in its picture, is its last line under errors.
+# across:picture <workspace> <word>… prints the picture across the workspace as one JSON object: stages, as across:flow
+# --stages gives them, and each stage's document, {rows, errors}, cut from the picture each member's kit flow --json
+# printed. A stage a member's flow setting leaves out adds nothing; one it could not draw, null in its picture, is its
+# last line under errors.
 across:picture() {
-  local workspace=$1 dir stages repos stage kind
+  local workspace=$1 dir stages stage kind
   local -a named=()
   shift
   file:scratch dir
   stages=$(across:flow "${workspace}" --stages) || return $?
   across:start "${workspace}" "${dir}" "$@" >/dev/null || return $?
-  repos=$(across:repos "${workspace}" "${dir}") || return $?
   while IFS= read -r stage
   do
-    [[ "${stage}" != repos ]] || continue
     kind=array
     case "${stage}" in
       (desk | worktrees | incoming) kind=object
@@ -225,7 +218,7 @@ across:picture() {
     named+=(--argjson "${stage}" "$(across:cut "${dir}" "${stage}" "${kind}")")
   done <<<"${stages}"
   jq --null-input --compact-output --argjson stages "$(workspaces:lines-json <<<"${stages}")" \
-    --argjson repos "${repos}" "${named[@]}" '{stages: $stages, repos: $repos} + ($ARGS.named | del(.repos))'
+    "${named[@]}" '{stages: $stages} + $ARGS.named'
 }
 
 # across:cut <dir> <stage> <kind> prints a stage's document from the pictures the members printed in <dir>, as
@@ -247,17 +240,6 @@ across:cut() {
     n=$(( n + 1 ))
   done
   across:document rows errors
-}
-
-# across:repos-form <workspace> <form> prints the repos stage, as JSON for --json, formatted for --jq, else drawn.
-across:repos-form() {
-  local doc
-  doc=$(across:repos "$1") || return $?
-  case "$2" in
-    (--json) printf '%s\n' "${doc}" ;;
-    (--jq) jq . <<<"${doc}" ;;
-    (*) across:repos-text "${doc}"
-  esac
 }
 
 # across:repos <workspace> [<pictures>] prints the repos stage's document, {rows, errors}: a row per member, in the
@@ -310,7 +292,7 @@ across:repos-of() {
       printf 0 > "${dir}/${n}.status"
       : > "${dir}/${n}.err"
     else
-      across:run "${checkouts[${n}]}" "${dir}/${n}" "${workspace}" desk --json &
+      across_verb=flow across:run "${checkouts[${n}]}" "${dir}/${n}" "${workspace}" desk --json &
     fi
   done
   wait || true
@@ -327,7 +309,7 @@ across:repos-of() {
       then
         desk=$(<"${dir}/${n}.out")
       else
-        error=$(across:error "${dir}/${n}" "${members[${n}]}" desk | jq --raw-output .error)
+        error=$(across_verb=flow across:error "${dir}/${n}" "${members[${n}]}" desk | jq --raw-output .error)
       fi
     fi
     rows+=("$(jq --compact-output --argjson n "${n}" --argjson desk "${desk}" --arg error "${error}" \
@@ -366,39 +348,8 @@ across:picture-of() {
   done
 }
 
-# across:repos-text <doc> draws the repos stage, a line per member, its parts two spaces apart: the workspace's glyph
-# and the member; its forge; its branch, with ↑ the commits it is ahead and ↓ those it is behind where either is not 0;
-# and its checkout, or not cloned, dim. A member whose desk could not be read says why, after ❌.
-across:repos-text() {
-  local repository forge branch ahead behind checkout error line part
-  local -a parts
-  while IFS=$'\x1f' read -r repository forge branch ahead behind checkout error
-  do
-    if [[ -n "${branch}" ]]
-    then
-      [[ "${ahead}" == 0 ]] || branch+=" ↑${ahead}"
-      [[ "${behind}" == 0 ]] || branch+=" ↓${behind}"
-    fi
-    parts=("${flow_glyphs[Workspace]} ${repository}" "${forge:-no forge}" "${branch}")
-    if [[ -n "${checkout}" ]]
-    then
-      parts+=("${checkout}")
-    else
-      parts+=("$(flow:paint 90 "not cloned")")
-    fi
-    [[ -z "${error}" ]] || parts+=("${flow_glyphs[Failed]} ${error}")
-    line=''
-    for part in "${parts[@]}"
-    do
-      [[ -z "${part}" ]] || line+="${line:+  }${part}"
-    done
-    printf '%s\n' "${line}" >&2
-  done < <(jq --raw-output '.rows[] | [.repository, (.forge // ""), (.branch // ""), (.ahead // 0 | tostring),
-    (.behind // 0 | tostring), (.checkout // ""), (.error // "")] | join("\u001f")' <<<"$1")
-}
-
-# across:text <workspace> <stage> <word>… draws a stage, or with none the picture, as text across the workspace: for the
-# picture, repos first; then each cloned member's, as kit flow draws it in that checkout, under its member, as
+# across:text <workspace> <stage> <word>… draws a stage, or with none the picture, as text across the workspace: each
+# cloned member's, as kit flow draws it in that checkout, under its member, as
 # flow:above draws each desk's under its path. With none cloned, one dim line says so. It returns 1 when a member's
 # kit flow did.
 across:text() {
@@ -407,11 +358,6 @@ across:text() {
   shift 2
   file:scratch dir
   [[ -z "${stage}" ]] || set -- "${stage}" "$@"
-  if [[ -z "${stage}" ]]
-  then
-    across:repos-form "${workspace}" '' || return $?
-    first=false
-  fi
   [[ "${out_color}" == 1 ]] && color=1
   readarray -t started < <(COLUMNS=$(flow:width) CLICOLOR_FORCE=${color} across:start "${workspace}" "${dir}" "$@")
   if (( ${#started[@]} == 0 ))
@@ -434,19 +380,25 @@ across:text() {
 }
 
 # across:marks <workspace> prints a mark per stage across the workspace, as one JSON object: each the members' marks
-# for the stage, in their order, so it changes when any member's does; and repos', each member's checkout and branch.
+# for the stage, in their order, so it changes when any member's does.
 across:marks() {
-  local workspace=$1 dir members member checkout branch
+  local workspace=$1 dir
   file:scratch dir
   across:start "${workspace}" "${dir}" --marks >/dev/null || return $?
-  members=$(across:members "${workspace}") || return 2
+  across:marks-merge "${dir}"
+}
+
+# across:repos-mark <workspace> prints the repos stage's mark across the workspace: the hash of each member, its
+# checkout, its branch, and its worktrees and branches, so it changes when any of them does.
+across:repos-mark() {
+  local members member checkout
+  members=$(across:members "$1") || return 2
   while IFS=$'\t' read -r member checkout
   do
-    branch=''
-    [[ -z "${checkout}" ]] || branch=$(git -C "${checkout}" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
-    printf '%s\t%s\t%s\n' "${member}" "${checkout}" "${branch}"
-  done <<<"${members}" > "${dir}/repos.mark"
-  across:marks-merge "${dir}" "$(git hash-object --stdin < "${dir}/repos.mark")"
+    printf '%s\t%s\n' "${member}" "${checkout}"
+    [[ -z "${checkout}" ]] || git -C "${checkout}" worktree list --porcelain 2>/dev/null || true
+    [[ -z "${checkout}" ]] || git -C "${checkout}" for-each-ref --format='%(refname)' refs/heads 2>/dev/null || true
+  done <<<"${members}" | git hash-object --stdin
 }
 
 # across:marks-merge <dir> [<repos>] joins the marks each member printed in <dir>, in the members' order, under each

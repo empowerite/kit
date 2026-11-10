@@ -9,16 +9,16 @@ It has six screens:
   type; ⏎ or ↓ gives the verbs focus, and ⏎ there opens one. [ and ] move to the group before and after, { and } to the
   first and the last.
 - **A verb's form.** It opens when a verb at a terminal is short of its arguments. It finishes the command line.
-- **The flow picture.** `kit flow` at a terminal draws its stages here. Its 📚 repos tab comes first, a row per
-  member of the workspace. Over a group, `kit flow --workspace <group>` or one picked from the 📚 workspace menu,
-  every tab gathers every cloned member's rows, grouped by member as they load. An action on rows runs in each row's
-  member's checkout.
-- **The workspace picture.** `kit workspace` at a terminal draws what git holds across the workspace here, a tab for
-  each of git's entities: remotes, branches, worktrees, commits, and tags. It is the flow picture's screen on kit
-  workspace's stages, which kittui knows after `workspace/`, so their fields and presets stay apart from kit flow's
-  worktrees. A stage's rows are drawn from the catalog alone: kit prints each row's values by the field's id, and
-  where a value leads, a page on the forge or a row of another tab, so a stage needs no Go of its own. It reads no
-  forge, so it spends no rate limit, and a tab is stale, its dot lit, when `kit workspace --marks` moves.
+- **The flow picture.** `kit flow` at a terminal draws its stages here. Over a group, `kit flow --workspace <group>`
+  or one picked from the 📚 workspace menu, every tab gathers every cloned member's rows, grouped by member as they
+  load. An action on rows runs in each row's member's checkout.
+- **The workspace picture.** `kit workspace` at a terminal draws what git holds across the workspace here: the 📚
+  repos tab first, a row per member of the workspace, then a tab for each of git's entities, remotes, branches,
+  worktrees, commits, and tags. It is the flow picture's screen on kit workspace's stages, which kittui knows after
+  `workspace/`, so their fields and presets stay apart from kit flow's worktrees. A stage's rows are drawn from the
+  catalog alone: kit prints each row's values by the field's id, and where a value leads, a page on the forge or a row
+  of another tab, so a stage needs no Go of its own. It reads no forge, so it spends no rate limit, and a tab is
+  stale, its dot lit, when `kit workspace --marks` moves.
 - **The welcome guide.** `kit welcome` at a terminal walks its steps here.
 - **The tutorials.** `kit tutorials` at a terminal shows a card for each tutorial here, tabbed by audience.
 

@@ -60,10 +60,10 @@ fake-tui() {
   export FAKES="${BATS_TEST_TMPDIR}/fake" PATH="${BATS_TEST_TMPDIR}/fake:${PATH}"
 }
 
-@test "kit workspace --stages prints the five stages, in order" {
+@test "kit workspace --stages prints the six stages, in order" {
   run "${kit_root}/bin/kit" workspace --stages
   [ "$status" -eq 0 ]
-  [ "$output" = $'remotes\nbranches\nworktrees\ncommits\ntags' ]
+  [ "$output" = $'repos\nremotes\nbranches\nworktrees\ncommits\ntags' ]
 }
 
 @test "remotes gives each remote: its forge, its repository past the host, its default branch, and its branches" {
@@ -136,11 +136,12 @@ fake-tui() {
   [ "${lines[1]}" = 'origin  o/r         github  https://github.com/o/r.git  main     2' ]
   run "${kit_root}/bin/kit" workspace --text
   [ "$status" -eq 0 ]
-  [ "$(grep -c ':$' <<<"$output")" -eq 5 ]
-  [[ "$output" == *$'remotes:\nremote '* && "$output" == *$'\n\ntags:\ntag '* ]]
+  [ "$(grep -c ':$' <<<"$output")" -eq 6 ]
+  [[ "$output" == *$'repos:\nrepository '* && "$output" == *$'\n\nremotes:\nremote '* ]]
+  [[ "$output" == *$'\n\ntags:\ntag '* ]]
   run "${kit_root}/bin/kit" workspace --json
   [ "$(jq -c '[.stages, (.stages | map(length > 0))]' <<<"$output")" \
-    = '[["remotes","branches","worktrees","commits","tags"],[true,true,true,true,true]]' ]
+    = '[["repos","remotes","branches","worktrees","commits","tags"],[true,true,true,true,true,true]]' ]
   [ "$(jq '.tags.rows | length' <<<"$output")" -eq 2 ]
 }
 
@@ -178,7 +179,7 @@ EOF
   cd "${BATS_TEST_TMPDIR}/r"
   run "${kit_root}/bin/kit" workspace --marks
   [ "$status" -eq 0 ]
-  [ "$(jq -c 'keys' <<<"$output")" = '["branches","commits","remotes","tags","worktrees"]' ]
+  [ "$(jq -c 'keys' <<<"$output")" = '["branches","commits","remotes","repos","tags","worktrees"]' ]
   before=$output
   git tag v2
   run "${kit_root}/bin/kit" workspace --marks

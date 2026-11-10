@@ -119,7 +119,6 @@ declare -gA flow_glyphs=(
   [Other]='🔳'
 )
 declare -gA flow_stage_glyphs=(
-  [repos]='📚'
   [backlog]='🎫'
   [underway]='🛫'
   [desk]='💻'

@@ -69,17 +69,15 @@ form prints JSON with `--json`; `kit help workspaces` gives the shapes.
 ## kit flow over a workspace
 
 ```sh
-kit flow --workspace empowerite                   # repos, then each cloned member's picture under it
+kit flow --workspace empowerite                   # each cloned member's picture under its name
 kit flow backlog --workspace empowerite --json    # every member's backlog, each row tagged with its member
-kit flow repos --workspace empowerite             # each member: its forge, branch, and checkout, or not cloned
-kit flow repos                                    # the repository you are in, alone
 ```
 
 `--workspace` runs `kit flow` in every member's checkout at once, each under that checkout's own `kit.yml`, so a
 GitLab member beside GitHub ones keeps its forges and trackers. With `--json`, a stage prints `{rows, errors}`: each
 row, or each desk, worktrees, or incoming object, gains `member`, its host and path; a member that could not be read
-is `{member, error}` under `errors`, and the others still draw. A member with no checkout draws no stage but `repos`.
-Over a workspace, the stages are `repos` and kit's eight, whatever the `kit.yml` where you run it says.
+is `{member, error}` under `errors`, and the others still draw. A member with no checkout draws no stage; `kit workspace
+repos` lists it. Over a workspace, the stages are kit's eight, whatever the `kit.yml` where you run it says.
 `--stages`, `--marks`, and `--quota` span the members too; a pull request's number, and `--me`, name one repository's,
 and are refused.
 
@@ -87,25 +85,25 @@ and are refused.
 
 On a terminal, `kit flow --workspace empowerite` opens kittui's picture over the group, as picking the group from the
 📚 workspace menu does. Every tab gathers its rows from every cloned member, grouped by member as they load, and a
-member whose read failed is one red line among them. The 📚 repos tab comes first, always, a single repository's
-picture included: a row per member, with its forge, remotes, clone or `not cloned`, its desk's branch, its linked
-worktrees by branch, and the local branches no checkout has. The clone reads `~` for the home folder, and a closed
-row shows `…` and its last two folders; open, the row shows the whole path.
+member whose read failed is one red line among them.
 
 ## kit workspace
 
 ```sh
 kit workspace                                     # the git of the repository here: every stage
+kit workspace repos --workspace empowerite        # each member: its forge, branch, and checkout, or not cloned
 kit workspace branches                            # its branches, local and on each remote
 kit workspace commits --workspace empowerite      # the commits not on the default branch, in every member
 kit workspace worktrees --json                    # {rows, errors}, each row a worktree
 ```
 
-`kit workspace` draws what git holds across a workspace, a stage for each of git's entities: remotes, branches,
-worktrees, commits, and tags. It reads git alone, from each repository's main checkout, and asks no remote, so a
-remote's side is what the last fetch left. HEAD is no stage: a remote's is its default branch, ⚓ on its row and on
-the branch's, and a worktree's is its branch, or its commit where it is detached.
+`kit workspace` draws what git holds across a workspace: its members, then a stage for each of git's entities:
+remotes, branches, worktrees, commits, and tags. It reads git alone, from each repository's main checkout, and asks
+no remote, so a remote's side is what the last fetch left. HEAD is no stage: a remote's is its default branch, ⚓ on
+its row and on the branch's, and a worktree's is its branch, or its commit where it is detached.
 
+- repos: each member, cloned or not, with its forge, remotes, clone or `not cloned`, its desk's branch, its linked
+  worktrees by branch, and the local branches no checkout has; with no `--workspace`, the repository here alone.
 - remotes: each remote, its forge, the repository its URL names, its default branch, and how many branches it has.
 - branches: each branch on a remote, with the local branches that pull from it and what the first is ahead and
   behind; and each local branch whose upstream is gone, or that has none. A branch checked out names its worktree.
@@ -116,8 +114,10 @@ the branch's, and a worktree's is its branch, or its commit where it is detached
 - tags: each tag, the newest first, annotated or lightweight, with its commit and its tagger.
 
 `--workspace` reads every cloned member's checkout at once, as `kit flow --workspace` does, and every row gains its
-member. On a terminal, `kit workspace` opens kittui's workspace picture, a tab per stage, and the app menu moves
-between it and the flow's.
+member. On a terminal, `kit workspace` opens kittui's workspace picture, a tab per stage, the 📚 repos tab first,
+and the app menu moves between it and the flow's. On the repos tab, a clone reads `~` for the home folder, and a
+closed row shows `…` and its last two folders; open, the row shows the whole path. A member's name on any tab leads
+to its row there.
 
 ## Still to come
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 # across.bats - kit flow across a workspace: its members and their checkouts, each member's kit flow merged into one
-# document per stage, every row tagged with its member, and the repos stage
+# document per stage, every row tagged with its member, and kit workspace's repos stage
 # ----------------------------------------------------------------------------------------------------------------------
 # Each test runs with HOME, XDG_CONFIG_HOME, and XDG_CACHE_HOME of its own, as helper:isolate sets them, so the
 # workspace file starts missing.
@@ -150,70 +150,76 @@ EOF
   [ "$(jq -r 'type' <<<"$output")" = object ]
 }
 
-@test "kit flow repos --workspace gives a row per member, cloned or not, with its desk's branch" {
+@test "kit workspace repos --workspace gives a row per member, cloned or not, with its desk's branch" {
   two-desks
   git -C "${BATS_TEST_TMPDIR}/code/a" commit --quiet --allow-empty --message ahead
   cd "${BATS_TEST_TMPDIR}"
-  run "${kit_root}/bin/kit" flow repos --workspace w --json
+  run "${kit_root}/bin/kit" workspace repos --workspace w --json
   [ "$status" -eq 0 ]
   [ "$(jq -c '[.rows[] | [.repository, .by, .branch, .ahead, .checkout != null, .error]]' <<<"$output")" = \
     '[["github.com/o/a","fixed","main",1,true,null],["github.com/o/b","fixed","main",0,true,null],["github.com/o/c","fixed",null,null,false,null]]' ]
   [ "$(jq -c .errors <<<"$output")" = '[]' ]
 }
 
-@test "kit flow repos in a repository lists it alone; outside one, without --workspace, it refuses with 2" {
+@test "kit workspace repos in a repository lists it alone; outside one, without --workspace, it refuses with 2" {
   desk-at "${BATS_TEST_TMPDIR}/code/a" github.com/o/a
   cd "${BATS_TEST_TMPDIR}/code/a"
-  run "${kit_root}/bin/kit" flow repos --json
+  run "${kit_root}/bin/kit" workspace repos --json
   [ "$status" -eq 0 ]
   [ "$(jq -c '[.rows[] | [.repository, .by, .branch]]' <<<"$output")" = '[["github.com/o/a","here","main"]]' ]
   cd "${BATS_TEST_TMPDIR}"
-  run "${kit_root}/bin/kit" flow repos --json
+  run "${kit_root}/bin/kit" workspace repos --json
   [ "$status" -eq 2 ]
-  [[ "$output" == *"repos lists a workspace's repositories"* ]]
+  [[ "$output" == *"kit workspace reads a repository: run it in one, or give --workspace"* ]]
 }
 
-@test "kit flow repos in a linked worktree gives the clone as the checkout, as its branch is the clone's" {
+@test "kit workspace repos in a linked worktree gives the clone as the checkout, as its branch is the clone's" {
   desk-at "${BATS_TEST_TMPDIR}/code/a" github.com/o/a
   git -C "${BATS_TEST_TMPDIR}/code/a" worktree add --quiet -b topic "${BATS_TEST_TMPDIR}/code/a/worktrees/topic"
   cd "${BATS_TEST_TMPDIR}/code/a/worktrees/topic"
-  run "${kit_root}/bin/kit" flow repos --json
+  run "${kit_root}/bin/kit" workspace repos --json
   [ "$status" -eq 0 ]
   [ "$(jq -c '[.rows[] | [.checkout, .checkouts, .branch]]' <<<"$output")" = \
     "$(jq -nc --arg a "$(cd ../.. && pwd -P)" '[[$a, [$a], "main"]]')" ]
 }
 
-@test "kit flow repos lists a member's linked worktrees, and its local branches no checkout has; none, not cloned" {
+@test "kit workspace repos lists a member's linked worktrees, and its local branches no checkout has; none, not cloned" {
   two-desks
   local a="${BATS_TEST_TMPDIR}/code/a"
   git -C "${a}" worktree add --quiet -b topic "${a}/worktrees/topic"
   git -C "${a}" worktree add --quiet --detach "${a}/worktrees/loose"
   git -C "${a}" branch idle
   cd "${BATS_TEST_TMPDIR}"
-  run "${kit_root}/bin/kit" flow repos --workspace w --json
+  run "${kit_root}/bin/kit" workspace repos --workspace w --json
   [ "$status" -eq 0 ]
   [ "$(jq -c '[.rows[] | [.worktrees, .branches]]' <<<"$output")" = "$(jq -nc --arg a "$(cd "${a}" && pwd -P)" \
     '[[[{branch: null, path: "\($a)/worktrees/loose"}, {branch: "topic", path: "\($a)/worktrees/topic"}], ["idle"]],
       [[], []], [null, null]]')" ]
 }
 
-@test "kit flow repos draws a line per member, its branch with what it is ahead, and not cloned" {
+@test "kit workspace repos draws a line per member, its branch with what it is ahead, and not cloned" {
   two-desks
   git -C "${BATS_TEST_TMPDIR}/code/a" commit --quiet --allow-empty --message ahead
   cd "${BATS_TEST_TMPDIR}"
-  run "${kit_root}/bin/kit" flow repos --workspace w
+  run "${kit_root}/bin/kit" workspace repos --workspace w --text
   [ "$status" -eq 0 ]
-  [[ "$output" == *"github.com/o/a"*"main ↑1"* ]]
-  [[ "$output" == *"github.com/o/c"*"not cloned"* ]]
+  [[ "${lines[0]}" == "repository "*" forge "*" branch "*" ahead "*" checkout "* ]]
+  [[ "${lines[1]}" =~ ^github\.com/o/a\ +github\ +main\ +1\ +0\ +${BATS_TEST_TMPDIR}/code/a ]]
+  [[ "${lines[3]}" =~ ^github\.com/o/c\ +github\ +not\ cloned ]]
 }
 
-@test "kit flow --stages --workspace puts repos first" {
+@test "kit flow --stages --workspace lists kit's eight stages, and repos is kit workspace's first" {
   workspaces-file <<<'workspaces: {w: {repos: [github.com/o/a]}}'
   cd "${BATS_TEST_TMPDIR}"
   run "${kit_root}/bin/kit" flow --stages --workspace w
   [ "$status" -eq 0 ]
+  [ "${lines[0]}" = backlog ]
+  [ "${#lines[@]}" -eq 8 ]
+  [[ "$output" != *repos* ]]
+  run "${kit_root}/bin/kit" workspace --stages
   [ "${lines[0]}" = repos ]
-  [ "${#lines[@]}" -eq 9 ]
+  run "${kit_root}/bin/kit" flow repos --json
+  [ "$status" -eq 2 ]
 }
 
 # local-desks makes two-desks' desks draw only desk and worktrees, which read no forge.
@@ -227,25 +233,25 @@ local-desks() {
   done
 }
 
-@test "kit flow --workspace --json is one object: the stages, repos, and each stage across the members" {
+@test "kit flow --workspace --json is one object: the stages, and each stage across the members" {
   local-desks
   cd "${BATS_TEST_TMPDIR}"
   run "${kit_root}/bin/kit" flow --workspace w --no-fetch --json
   [ "$status" -eq 0 ]
-  [ "$(jq -r '.stages[0]' <<<"$output")" = repos ]
+  [ "$(jq -r '.stages[0]' <<<"$output")" = backlog ]
+  [ "$(jq -r 'has("repos")' <<<"$output")" = false ]
   [ "$(jq -c '[.desk.rows[].member]' <<<"$output")" = '["github.com/o/a","github.com/o/b"]' ]
   [ "$(jq -c '[.worktrees.rows[].member]' <<<"$output")" = '["github.com/o/a","github.com/o/b"]' ]
-  [ "$(jq -c '[.repos.rows[].repository]' <<<"$output")" = '["github.com/o/a","github.com/o/b","github.com/o/c"]' ]
   [ "$(jq -c '.backlog.rows' <<<"$output")" = '[]' ]
 }
 
-@test "kit flow --workspace as text draws repos, then each cloned member's picture under it" {
+@test "kit flow --workspace as text draws each cloned member's picture under its name, and no member not cloned" {
   local-desks
   cd "${BATS_TEST_TMPDIR}"
   run "${kit_root}/bin/kit" flow --workspace w --no-fetch --text
   [ "$status" -eq 0 ]
   [ "$(grep -c "^📚 github.com/o/[ab]$" <<<"$output")" -eq 2 ]
-  [[ "$output" == *"github.com/o/c"*"not cloned"* ]]
+  [[ "$output" != *"github.com/o/c"* ]]
 }
 
 @test "kit flow --workspace as text with no member cloned says so once" {
@@ -262,12 +268,15 @@ local-desks() {
   run "${kit_root}/bin/kit" flow --marks --workspace w
   [ "$status" -eq 0 ]
   before=$(jq -r .desk <<<"$output")
-  repos=$(jq -r .repos <<<"$output")
   [ "${before}" != null ]
+  [ "$(jq -r 'has("repos")' <<<"$output")" = false ]
+  run "${kit_root}/bin/kit" workspace --marks --workspace w
+  repos=$(jq -r .repos <<<"$output")
   printf 'x\n' > "${BATS_TEST_TMPDIR}/code/b b/x"
   git -C "${BATS_TEST_TMPDIR}/code/a" switch --quiet --create other
   run "${kit_root}/bin/kit" flow --marks --workspace w
   [ "$(jq -r .desk <<<"$output")" != "${before}" ]
+  run "${kit_root}/bin/kit" workspace --marks --workspace w
   [ "$(jq -r .repos <<<"$output")" != "${repos}" ]
 }
 
@@ -288,15 +297,6 @@ local-desks() {
   [ "$status" -eq 2 ]
 }
 
-@test "the repos text keeps each field in its place, an empty one left out" {
-  two-desks
-  git -C "${BATS_TEST_TMPDIR}/code/a" commit --quiet --allow-empty --message ahead
-  cd "${BATS_TEST_TMPDIR}"
-  run "${kit_root}/bin/kit" flow repos --workspace w
-  [ "$status" -eq 0 ]
-  [ "${lines[0]}" = "📚 github.com/o/a  github  main ↑1  ${BATS_TEST_TMPDIR}/code/a" ]
-  [ "${lines[2]}" = "📚 github.com/o/c  github  not cloned" ]
-}
 
 @test "--workspace=w is --workspace w, and an empty workspace is refused with 2" {
   two-desks
@@ -345,8 +345,8 @@ local-desks() {
   cd "${BATS_TEST_TMPDIR}/code/a"
   run "${kit_root}/bin/kit" flow --stages --workspace w
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = repos ]
-  [ "${#lines[@]}" -eq 9 ]
+  [ "${lines[0]}" = backlog ]
+  [ "${#lines[@]}" -eq 8 ]
 }
 
 @test "on a terminal, kit flow --workspace hands off to kittui; --json, --text, and a stage stay across the members" {
@@ -364,9 +364,9 @@ local-desks() {
   run pty "'${kit_root}/bin/kit' flow desk --workspace w"
   [[ "$output" != *"kittui"* ]]
   run pty "'${kit_root}/bin/kit' flow --stages --workspace w"
-  [[ "$output" == *"repos"* && "$output" != *"kittui"* ]]
+  [[ "$output" == *"backlog"* && "$output" != *"kittui"* ]]
   run pty "'${kit_root}/bin/kit' flow --marks --workspace w"
-  [[ "$output" == *'"repos":'* && "$output" != *"kittui"* ]]
+  [[ "$output" == *'"desk":'* && "$output" != *"kittui"* ]]
   run pty "'${kit_root}/bin/kit' flow --quota --workspace w"
   [[ "$output" != *"kittui"* ]]
   run pty "'${kit_root}/bin/kit' flow --me --workspace w"

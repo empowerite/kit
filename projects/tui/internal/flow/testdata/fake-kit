@@ -16,7 +16,7 @@
 # before the stage has printed. new issue --list --json
 # prints trackers.json beside this file; FAKE_FLOW_REFUSE=new refuses it with exit 1. The verbs that act,
 # assign, unassign, close, gather, and work, say what they were asked on stderr, as kit says what it did; one that
-# FAKE_FLOW_REFUSE names refuses with exit 1. workspace --stages prints kit workspace's five, and workspace <stage>
+# FAKE_FLOW_REFUSE names refuses with exit 1. workspace --stages prints kit workspace's six, and workspace <stage>
 # --json prints workspace-<stage>.json beside this file, or refuses with exit 1 where FAKE_FLOW_REFUSE names
 # workspace/<stage>; workspace --marks prints FAKE_WORKSPACE_MARKS, a file it reads again each time, and refuses with
 # exit 1 without one.
@@ -54,7 +54,7 @@ fi
 if [[ "${1:-}" == workspace ]]
 then
   case "${2:-}" in
-    (--stages) printf '%s\n' remotes branches worktrees commits tags ;;
+    (--stages) printf '%s\n' repos remotes branches worktrees commits tags ;;
     (--marks)
       if [[ -z "${FAKE_WORKSPACE_MARKS:-}" || ! -f "${FAKE_WORKSPACE_MARKS}" ]]
       then
@@ -117,7 +117,7 @@ case "${1:-}" in
     fi
     printf '%s\n' "${FAKE_FLOW_ME-ada}"
     ;;
-  (repos | backlog | underway | desk | worktrees | changes | incoming | builds | releases)
+  (backlog | underway | desk | worktrees | changes | incoming | builds | releases)
     stage=$1
     shift
     if [[ "${1:-}" != --json ]]

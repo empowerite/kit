@@ -53,9 +53,10 @@ def remotes($primary):
 # branches($remotes; $now) reads git for-each-ref's lines for refs/heads and refs/remotes, each refname, symref,
 # upstream:remotename, upstream:remoteref, upstream:track, worktreepath, objectname:short, committerdate:unix, and
 # subject, and gives a row per branch: each a remote has, with the local branches that pull from it, remote; each local
-# branch whose upstream is gone, gone; and each with no upstream on a remote, local. $remotes is each remote's
-# {name, forge, web, default}; a remote's name may hold a slash, so the longest that starts a ref names it. A row's
-# ahead and behind are its first local branch's, [0, 0] where git says nothing, as it does of one even with it; a remote's branch leads to its page, and its commit to its own.
+# branch whose upstream is gone, gone; and each with no upstream on a remote, local. $remotes is each remote's {name,
+# forge, web, default}; a remote's name may hold a slash, so the longest that starts a ref names it. A row's ahead and
+# behind are its first local branch's, [0, 0] where git says nothing, as it does of one even with it; a remote's branch
+# leads to its page, and its commit to its own.
 def branches($remotes; $now):
   [lines | fields | {ref: .[0], symref: .[1], remote: .[2], merge: .[3], track: .[4], worktree: .[5], commit: .[6],
                      date: (.[7] | tonumber? // null), subject: .[8]}] as $refs
@@ -155,20 +156,24 @@ def tags($now):
       subject: (.[6] | some), links: {}}];
 
 # shown($as) reads a row's value and gives it as text prints it: an age; ahead and behind, as track, ↑3 ↓1, or = for
-# neither; a list, its values apart by commas; nothing for none.
+# neither; a clone, as checkout, or not cloned; worktrees, as worktrees, each by its branch, or its folder; a list, its
+# values apart by commas; nothing for none.
 def shown($as):
-  if . == null then ""
+  if . == null then (if $as == "checkout" then "not cloned" else "" end)
   elif $as == "age" then (if . < 120 then "\(.)s" elif . < 7200 then "\(. / 60 | floor)m"
                           elif . < 172800 then "\(. / 3600 | floor)h" else "\(. / 86400 | floor)d" end)
   elif $as == "track" then
     (if . == [0, 0] then "="
      else [(select(.[0] > 0) | "↑\(.[0])"), (select(.[1] > 0) | "↓\(.[1])")] | join(" ") end)
+  elif $as == "worktrees" then map(.branch // (.path | split("/") | last)) | join(", ")
   elif type == "array" then join(", ")
   else tostring end;
 
 # columns($stage) gives the columns a stage's text draws, each {id, label, as}, as shown takes it.
 def columns($stage):
-  {remotes: [{id: "remote"}, {id: "repository"}, {id: "forge"}, {id: "url"}, {id: "default"},
+  {repos: [{id: "repository"}, {id: "forge"}, {id: "branch"}, {id: "ahead"}, {id: "behind"},
+          {id: "checkout", as: "checkout"}, {id: "worktrees", as: "worktrees"}, {id: "branches"}, {id: "error"}],
+   remotes: [{id: "remote"}, {id: "repository"}, {id: "forge"}, {id: "url"}, {id: "default"},
              {id: "branches"}],
    branches: [{id: "branch"}, {id: "kind"}, {id: "remote"}, {id: "local"}, {id: "upstream", as: "track"},
               {id: "commit"}, {id: "age", as: "age"}, {id: "worktree"}],

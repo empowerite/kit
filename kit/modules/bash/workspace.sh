@@ -12,13 +12,14 @@ use forge git workspaces
 
 # workspace_stages are kit workspace's stages, in its order.
 # shellcheck disable=SC2034  # read by bin/kit-workspace
-workspace_stages=(remotes branches worktrees commits tags)
+workspace_stages=(repos remotes branches worktrees commits tags)
 
 # workspace_commits is the most commits the commits stage lists, and workspace_tags the most tags, the newest first.
 workspace_commits=200
 workspace_tags=100
 
-# workspace:stage <stage> prints the stage's rows, as a JSON array, read from the main checkout.
+# workspace:stage <stage> prints the stage's rows, as a JSON array, read from the main checkout. repos is no stage of
+# one repository's: across:repos lists the workspace's members.
 workspace:stage() {
   local stage=$1
   (
@@ -149,12 +150,14 @@ workspace:tags() {
 }
 
 # workspace:marks prints a mark per stage, as one JSON object, read from the main checkout: each the hash of what git
-# says of what the stage draws, so it changes when that does.
+# says of what the stage draws, so it changes when that does; repos', the checkout's worktrees and branches.
 workspace:marks() {
   (
     cd "$(git:main-root)" || exit 1
     local path
     jq --null-input --compact-output \
+      --arg repos "$({ pwd; git worktree list --porcelain; git for-each-ref --format='%(refname)' refs/heads; } \
+        | git hash-object --stdin)" \
       --arg remotes "$({ git remote -v; git for-each-ref --format='%(refname) %(symref)' refs/remotes; } \
         | git hash-object --stdin)" \
       --arg branches "$(git for-each-ref --format='%(refname) %(objectname) %(upstream) %(worktreepath)' \
@@ -167,7 +170,7 @@ workspace:marks() {
       --arg commits "$(git for-each-ref --format='%(refname) %(objectname)' refs/heads refs/remotes \
         | git hash-object --stdin)" \
       --arg tags "$(git for-each-ref --format='%(refname) %(objectname)' refs/tags | git hash-object --stdin)" \
-      '{remotes: $remotes, branches: $branches, worktrees: $worktrees, commits: $commits, tags: $tags}'
+      '{repos: $repos, remotes: $remotes, branches: $branches, worktrees: $worktrees, commits: $commits, tags: $tags}'
   )
 }
 

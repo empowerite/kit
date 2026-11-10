@@ -19,7 +19,7 @@ import (
 )
 
 // workspaceStages are kit workspace's stages, as kittui knows them.
-var workspaceStages = []string{"workspace/remotes", "workspace/branches", "workspace/worktrees", "workspace/commits",
+var workspaceStages = []string{"workspace/repos", "workspace/remotes", "workspace/branches", "workspace/worktrees", "workspace/commits",
 	"workspace/tags"}
 
 // workspaceOptions gives kit workspace's stages, as a test knows them, the tables without their preset line.
@@ -134,8 +134,8 @@ func TestTheWorkspacesStagesDrawKitsRows(t *testing.T) {
 	if issues != 1 {
 		t.Errorf("%d commits name an issue", issues)
 	}
-	if !strings.Contains(view(m), "remotes") || m.count(0) != "1" {
-		t.Errorf("the remotes tab: count %q\n%s", m.count(0), view(m))
+	if !strings.Contains(view(m), "remotes") || m.count(1) != "1" {
+		t.Errorf("the remotes tab: count %q\n%s", m.count(1), view(m))
 	}
 }
 
@@ -205,6 +205,6 @@ func (testError) Error() string { return "" }
 
 // The picture of the workspace's branches, its tabs, and its rows, as the screen draws them.
 func TestGoldenWorkspace(t *testing.T) {
-	m := loaded(t, workspaceOptions(), tea.WindowSizeMsg{Width: 120, Height: 16}, testkit.Press("tab"))
+	m := loaded(t, workspaceOptions(), tea.WindowSizeMsg{Width: 120, Height: 16}, testkit.Press("tab"), testkit.Press("tab"))
 	testkit.Golden(t, "testdata/workspace-branches.golden", view(m))
 }

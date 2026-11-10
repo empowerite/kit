@@ -26,7 +26,11 @@ func over(t *testing.T, stages ...string) Model {
 	t.Helper()
 	r := runner(t)
 	r.Group = "w"
-	m := New(r, Options{Stages: stages, NoPresets: true, Clock: &testkit.Clock{}})
+	o := Options{Stages: stages, NoPresets: true, Clock: &testkit.Clock{}}
+	if slices.ContainsFunc(stages, ofWorkspace) {
+		o.Verb = workspaceVerb
+	}
+	m := New(r, o)
 	return drive(m, tea.WindowSizeMsg{Width: 120, Height: 24}, shell.WorkspaceMsg{Workspace: group})
 }
 
@@ -145,10 +149,17 @@ func TestOverAGroupTheRowsGroupByMemberAsTheyLoad(t *testing.T) {
 	}
 }
 
+// In kit workspace's picture, a member's name leads to its row on the repos tab; kit flow's has no repos tab, so there it
+// leads nowhere.
 func TestAMembersNameLeadsToItsReposRow(t *testing.T) {
-	m := drive(over(t, "backlog"), answer("backlog", twoMembers))
-	if got := m.records(*m.find("backlog"))[1].values["member"].Link; got != jumpTo("repos", "github.com/o/b") {
+	m := drive(over(t, "workspace/repos", "workspace/remotes"), answer("workspace/remotes",
+		`{"rows": [{"key": "origin", "remote": "origin", "member": "github.com/o/b"}], "errors": []}`))
+	if got := m.records(*m.find("workspace/remotes"))[0].values["member"].Link; got != jumpTo("workspace/repos", "github.com/o/b") {
 		t.Errorf("b's member links to %q", got)
+	}
+	m = drive(over(t, "backlog"), answer("backlog", twoMembers))
+	if got := m.records(*m.find("backlog"))[1].values["member"].Link; got != "" {
+		t.Errorf("in kit flow's picture, b's member links to %q", got)
 	}
 }
 

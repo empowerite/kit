@@ -14,8 +14,7 @@
     "kit flow worktrees [--json | --jq] [--cached] [--workspace <workspace>]",
     "kit flow changes [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]] [--workspace <workspace>] [<number>…]",
     "kit flow builds [--json | --jq] [--cached] [--workspace <workspace>]",
-    "kit flow releases [--json | --jq] [--cached] [--workspace <workspace>]",
-    "kit flow repos [--workspace <workspace>] [--json | --jq]"
+    "kit flow releases [--json | --jq] [--cached] [--workspace <workspace>]"
   ],
   "syntax": [
     [
@@ -955,50 +954,6 @@
         ],
         "repeat": false
       }
-    ],
-    [
-      {
-        "kind": "literal",
-        "name": "repos",
-        "repeat": false
-      },
-      {
-        "kind": "group",
-        "optional": true,
-        "alternatives": [
-          [
-            {
-              "kind": "option",
-              "inline": false,
-              "name": "workspace",
-              "value": "workspace",
-              "repeat": false
-            }
-          ]
-        ],
-        "repeat": false
-      },
-      {
-        "kind": "group",
-        "optional": true,
-        "alternatives": [
-          [
-            {
-              "kind": "flag",
-              "name": "json",
-              "repeat": false
-            }
-          ],
-          [
-            {
-              "kind": "flag",
-              "name": "jq",
-              "repeat": false
-            }
-          ]
-        ],
-        "repeat": false
-      }
     ]
   ],
   "arguments": {
@@ -1076,9 +1031,6 @@
     },
     "releases": {
       "description": "the releases on the forge, newest first"
-    },
-    "repos": {
-      "description": "the repositories of the workspace, or the one here: each one's forge, remotes, checkout, and its desk's branch"
     }
   }
 }

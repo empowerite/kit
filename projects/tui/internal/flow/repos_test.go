@@ -1,4 +1,4 @@
-// The 📚 repos tab: first, a row per member of the workspace, with its forge, remotes, checkout, branch, worktrees, and
+// The 📚 repos tab: first in kit workspace's picture, a row per member of the workspace, with its forge, remotes, checkout, branch, worktrees, and
 // the branches no checkout has.
 package flow
 
@@ -29,37 +29,45 @@ func reposOf(cloned bool) string {
 }
 
 func TestReposDrawsAMemberARow(t *testing.T) {
-	m := loaded(t, Options{Stages: []string{"repos", "backlog", "desk"}, NoPresets: true, Clock: &testkit.Clock{}},
-		tea.WindowSizeMsg{Width: 120, Height: 24})
-	if s := m.find("repos"); s.refusal != "" || len(s.repos) != 2 {
+	o := workspaceOptions()
+	o.Stages = []string{"workspace/repos", "workspace/remotes", "workspace/branches"}
+	m := loaded(t, o, tea.WindowSizeMsg{Width: 120, Height: 24})
+	if s := m.find("workspace/repos"); s.refusal != "" || len(s.repos) != 2 {
 		t.Fatalf("repos: %q, %d rows", s.refusal, len(s.repos))
 	}
-	testkit.Golden(t, filepath.Join("testdata", "repos.golden"), raw(m))
+	testkit.Golden(t, filepath.Join("testdata", "workspace-repos.golden"), raw(m))
 }
 
-func TestOpenPutsReposFirst(t *testing.T) {
-	for given, want := range map[string]string{"backlog desk": "repos backlog desk", "repos backlog": "repos backlog"} {
-		t.Setenv("FAKE_FLOW_STAGES", given)
-		m, err := Open(runner(t), nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		var names []string
-		for _, s := range m.stages {
-			names = append(names, s.name)
-		}
-		if got := strings.Join(names, " "); got != want {
-			t.Errorf("kit's %q opens %q", given, got)
-		}
-		m.Close()
+// kit workspace's picture opens on its repos tab first, as kit workspace --stages names it; kit flow's has none.
+func TestReposIsTheWorkspacesFirstTabAndNotTheFlows(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	m, err := OpenWorkspace(runner(t), nil)
+	if err != nil {
+		t.Fatal(err)
 	}
+	if m.stages[0].name != "workspace/repos" {
+		t.Errorf("the workspace opens on %q first", m.stages[0].name)
+	}
+	m.Close()
+	t.Setenv("FAKE_FLOW_STAGES", "backlog desk")
+	if m, err = Open(runner(t), nil); err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, s := range m.stages {
+		names = append(names, s.name)
+	}
+	if got := strings.Join(names, " "); got != "backlog desk" {
+		t.Errorf("kit flow opens %q", got)
+	}
+	m.Close()
 }
 
 func TestARepoWhoseDeskFailedSaysSo(t *testing.T) {
-	m := drive(over(t, "repos"), answer("repos", `{"rows": [{"repository": "github.com/o/a", "checkout": "/code/a",
+	m := drive(over(t, "workspace/repos"), answer("workspace/repos", `{"rows": [{"repository": "github.com/o/a", "checkout": "/code/a",
 		"remotes": [{"name": "origin"}], "branch": "main", "ahead": 2, "behind": 1, "by": "fixed",
 		"error": "git cannot read /code/a"}], "errors": []}`))
-	r := m.records(*m.find("repos"))[0]
+	r := m.records(*m.find("workspace/repos"))[0]
 	if got := r.values["checkout"].Raw; !slices.Equal(got, []string{"/code/a"}) {
 		t.Errorf("the checkout: %q", got)
 	}
@@ -72,25 +80,24 @@ func TestARepoWhoseDeskFailedSaysSo(t *testing.T) {
 }
 
 func TestIncomingDrawsEachMembersRemotesUnderItsName(t *testing.T) {
-	m := drive(over(t, "repos", "incoming"), answer("repos", reposOf(true)), answer("incoming", `{"rows": [
+	m := drive(over(t, "incoming"), answer("incoming", `{"rows": [
 		{"fetched": true, "primary": "origin", "member": "github.com/o/a", "remotes": [{"name": "origin",
 		 "tags": ["v1"]}]},
 		{"fetched": true, "primary": "origin", "member": "github.com/o/b", "remotes": [{"name": "origin"}]}],
 		"errors": []}`))
-	m = drive(m, tab)
 	if v := view(m); !strings.Contains(v, "a · "+Remote+" origin") || !strings.Contains(v, "b · "+Remote+" origin") {
 		t.Errorf("each member's remotes under its name:\n%s", v)
 	}
 }
 
 func TestAnEmptyReposTabSaysSo(t *testing.T) {
-	if got := empty(stage{name: "repos"}); got != "no repository" {
+	if got := empty(stage{name: "workspace/repos"}); got != "no repository" {
 		t.Errorf("an empty repos tab says %q", got)
 	}
 }
 
 func TestTheReposTabCountsNoOtherTab(t *testing.T) {
-	for _, f := range fieldsOf("repos") {
+	for _, f := range fieldsOf("workspace/repos") {
 		if f.ID == "backlog" || f.ID == "releases" {
 			t.Errorf("the repos tab has a field %s", f.ID)
 		}
@@ -101,15 +108,15 @@ func TestTheReposTabCountsNoOtherTab(t *testing.T) {
 func checkoutCell(t *testing.T, path string, failed bool) cell {
 	t.Helper()
 	t.Setenv("HOME", "/home/u")
-	m := drive(over(t, "repos"))
+	m := drive(over(t, "workspace/repos"))
 	r := repo{Repository: "github.com/o/a", Checkout: &path}
 	if failed {
 		line := "git cannot read it"
 		r.Error = &line
 	}
-	m.find("repos").repos = []repo{r}
-	v := m.records(*m.find("repos"))[0].values["checkout"]
-	return fieldIn("repos", "checkout").Draw([]table.Value{v}, "")[0]
+	m.find("workspace/repos").repos = []repo{r}
+	v := m.records(*m.find("workspace/repos"))[0].values["checkout"]
+	return fieldIn("workspace/repos", "checkout").Draw([]table.Value{v}, "")[0]
 }
 
 func TestACheckoutUnderHomeReadsTildeAndClosedItsLastTwoFolders(t *testing.T) {
@@ -145,14 +152,14 @@ func TestACheckoutWhoseDeskFailedReadsAFailureOpenAndClosed(t *testing.T) {
 
 func TestAClosedCheckoutKeepsTheColumnsNarrow(t *testing.T) {
 	t.Setenv("HOME", "/home/u")
-	m := drive(over(t, "repos"), answer("repos", `{"rows": [{"repository": "github.com/o/a", "remotes": [],
+	m := drive(over(t, "workspace/repos"), answer("workspace/repos", `{"rows": [{"repository": "github.com/o/a", "remotes": [],
 		"checkout": "/home/u/Code/github.com/deeply/nested/folders/all/the/way/down/o/a", "by": "fixed",
 		"branch": "main", "ahead": 0, "behind": 0}], "errors": []}`))
 	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 24})
 	if v := view(m); !strings.Contains(v, "…/o/a") || strings.Contains(v, "deeply") {
 		t.Errorf("the closed row:\n%s", v)
 	}
-	m.find("repos").Open["github.com/o/a"] = true
+	m.find("workspace/repos").Open["github.com/o/a"] = true
 	if v := view(m); !strings.Contains(v, "~/Code/github.com/deeply/nested") {
 		t.Errorf("the open row:\n%s", v)
 	}
@@ -167,33 +174,33 @@ func TestAPathWithNoHomeReadsAsItIs(t *testing.T) {
 }
 
 func TestARepoListsItsWorktreesByBranchAndItsBranchesNoCheckoutHas(t *testing.T) {
-	m := drive(over(t, "repos"), answer("repos", `{"rows": [{"repository": "github.com/o/a", "remotes": [],
+	m := drive(over(t, "workspace/repos"), answer("workspace/repos", `{"rows": [{"repository": "github.com/o/a", "remotes": [],
 		"checkout": "/code/a", "by": "fixed", "branch": "main", "ahead": 0, "behind": 0,
 		"worktrees": [{"branch": null, "path": "/code/a/worktrees/loose"}, {"branch": "topic", "path": "/code/a/worktrees/topic"}],
 		"branches": ["idle", "old"]}], "errors": []}`))
-	r := m.records(*m.find("repos"))[0]
+	r := m.records(*m.find("workspace/repos"))[0]
 	if got := r.values["worktrees"].Raw; !slices.Equal(got, []string{"loose", "topic"}) {
 		t.Errorf("the worktrees: %q", got)
 	}
 	if got := r.values["branches"].Raw; !slices.Equal(got, []string{"idle", "old"}) {
 		t.Errorf("the branches: %q", got)
 	}
-	c := fieldIn("repos", "worktrees").Draw([]table.Value{r.values["worktrees"]}, "")[0]
+	c := fieldIn("workspace/repos", "worktrees").Draw([]table.Value{r.values["worktrees"]}, "")[0]
 	if !slices.Equal(c.Values, []string{Branch + " loose " + Detached, Branch + " topic"}) || ansi.Strip(c.Summary) != "2" {
 		t.Errorf("the worktrees draw %q, closed %q", c.Values, c.Summary)
 	}
-	c = fieldIn("repos", "branches").Draw([]table.Value{r.values["branches"]}, "")[0]
+	c = fieldIn("workspace/repos", "branches").Draw([]table.Value{r.values["branches"]}, "")[0]
 	if !slices.Equal(c.Values, []string{Sprout + " idle", Sprout + " old"}) {
 		t.Errorf("the branches draw %q", c.Values)
 	}
-	if f := fieldIn("repos", "worktrees"); f.One != "worktree" || fieldIn("repos", "branches").One != "branch" {
-		t.Errorf("the lists name one %q and %q", f.One, fieldIn("repos", "branches").One)
+	if f := fieldIn("workspace/repos", "worktrees"); f.One != "worktree" || fieldIn("workspace/repos", "branches").One != "branch" {
+		t.Errorf("the lists name one %q and %q", f.One, fieldIn("workspace/repos", "branches").One)
 	}
 }
 
 func TestARepoNotClonedListsNoWorktreeAndNoBranch(t *testing.T) {
-	m := drive(over(t, "repos"), answer("repos", reposOf(false)))
-	r := m.records(*m.find("repos"))[0]
+	m := drive(over(t, "workspace/repos"), answer("workspace/repos", reposOf(false)))
+	r := m.records(*m.find("workspace/repos"))[0]
 	if len(r.values["worktrees"].Raw) != 0 || len(r.values["branches"].Raw) != 0 {
 		t.Errorf("not cloned, it lists %q and %q", r.values["worktrees"].Raw, r.values["branches"].Raw)
 	}
@@ -203,12 +210,12 @@ func TestARepoNotClonedListsNoWorktreeAndNoBranch(t *testing.T) {
 }
 
 func TestARepoBranchIsABranchsGlyph(t *testing.T) {
-	m := drive(over(t, "repos"), answer("repos", reposOf(true)))
-	v := m.records(*m.find("repos"))[0].values["branch"]
+	m := drive(over(t, "workspace/repos"), answer("workspace/repos", reposOf(true)))
+	v := m.records(*m.find("workspace/repos"))[0].values["branch"]
 	if v.Raw == nil {
 		v = table.Value{Raw: []string{"main"}, Of: checkout{Branch: "main"}}
 	}
-	if c := fieldIn("repos", "branch").Draw([]table.Value{v}, ""); !strings.HasPrefix(c[0].Values[0], Branch+" ") {
+	if c := fieldIn("workspace/repos", "branch").Draw([]table.Value{v}, ""); !strings.HasPrefix(c[0].Values[0], Branch+" ") {
 		t.Errorf("the branch draws %q", c[0].Values[0])
 	}
 }

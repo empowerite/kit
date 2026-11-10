@@ -78,15 +78,15 @@ type stage struct {
 	runs    []run
 	rels    []release
 	failed  []failure         // over a group, the members whose read of the stage failed
-	repos   []repo            // the repos tab's members
+	repos   []repo            // kit workspace's repos tab's members
 	rows    []json.RawMessage // a kit workspace stage's rows, each its key, its member, its fields' values, and links
 	// its table's state: the panel, the view, the outline, the rows selected, and where the cursor is
 	table.Table
 }
 
 // known names the stages kittui draws: kit flow's, and kit workspace's after workspace/.
-var known = map[string]bool{"repos": true, "backlog": true, "underway": true, "incoming": true, "desk": true,
-	"worktrees": true, "changes": true, "builds": true, "releases": true, "workspace/remotes": true,
+var known = map[string]bool{"backlog": true, "underway": true, "incoming": true, "desk": true,
+	"worktrees": true, "changes": true, "builds": true, "releases": true, "workspace/repos": true, "workspace/remotes": true,
 	"workspace/branches": true, "workspace/worktrees": true, "workspace/commits": true, "workspace/tags": true}
 
 // workspaceVerb is kit workspace's verb, whose stages kittui knows after it and a slash.
@@ -186,10 +186,6 @@ func Open(r kit.Runner, words []string) (Model, error) {
 	stages, err := r.Stages()
 	if err != nil {
 		return Model{}, err
-	}
-	if !slices.Contains(stages, "repos") {
-		// the repos tab stands first over a repository too, where kit's stages do not name it
-		stages = append([]string{"repos"}, stages...)
 	}
 	return open(r, Options{Stages: stages}, words), nil
 }
@@ -1043,14 +1039,13 @@ func (m *Model) autoGroup(name string) {
 	m.rebuild()
 }
 
-// decode keeps what the stage's command printed: over a group, and for the repos tab and kit workspace's stages
-// always, kit's {rows, errors}, its
+// decode keeps what the stage's command printed: over a group, and for kit workspace's stages always, kit's {rows, errors}, its
 // rows the stage's, one object a member for an object's stage; else the stage's document, an object's stage's object
 // its one entry. A document of another shape, as kit prints above repositories, is an error naming it, and JSON that
 // does not decode is one too.
 func (s *stage) decode(data []byte, over bool) error {
 	s.failed = nil
-	if over || s.name == "repos" || ofWorkspace(s.name) {
+	if over || ofWorkspace(s.name) {
 		var doc struct {
 			Rows   json.RawMessage `json:"rows"`
 			Errors []failure       `json:"errors"`
@@ -1100,7 +1095,7 @@ func (s *stage) decodeRows(data []byte, many bool) error {
 		err = json.Unmarshal(data, &s.runs)
 	case "releases":
 		err = json.Unmarshal(data, &s.rels)
-	case "repos":
+	case "workspace/repos":
 		err = json.Unmarshal(data, &s.repos)
 	default:
 		if ofWorkspace(s.name) {

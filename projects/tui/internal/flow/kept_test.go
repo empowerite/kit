@@ -96,7 +96,7 @@ func TestOverAGroupWhatWasKeptOfOnlySomeMembersIsNotDrawn(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("FAKE_FLOW_KEPT", dir)
-	m := drive(over(t, "repos", "backlog"), answer("repos", reposOf(true)))
+	m := over(t, "backlog")
 	m = drive(m, m.kept("backlog")())
 	if s := m.find("backlog"); !s.src.Loading || s.src.Stale {
 		t.Errorf("backlog: loading %v, stale %v", s.src.Loading, s.src.Stale)

@@ -1,7 +1,7 @@
 {
   "stages": [
     {
-      "stage": "repos", "record": ".rows[]",
+      "stage": "workspace/repos", "record": ".rows[]",
       "fields": [
         {"id": "repository", "label": "repository", "type": "text", "path": ".repository", "sort": true,
          "renderings": ["member"], "placement": "column"},

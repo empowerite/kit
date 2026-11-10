@@ -1,7 +1,7 @@
   = kit workspace · - empowerite/kit
-  ➀╶────────────────╴➋╶─────────────────╮➂╶──────────────────╮➃╶────────────────╮➄╶─────────────╮
-    📡 remotes  1    │ 🌿 branches  4 : │  🌳 worktrees  2   │  🔘 commits  2   │  📌 tags  2   │
-  ───────────────────╯                  ╰────────────────────╰──────────────────╰───────────────╰───────────────────────
+  ➀╶──────────────╮➁╶────────────────╴➌╶─────────────────╮➃╶──────────────────╮➄╶────────────────╮➅╶─────────────╮
+    📚 repos  2   │  📡 remotes  1    │ 🌿 branches  4 : │  🌳 worktrees  2   │  🔘 commits  2   │  📌 tags  2   │
+  ────────────────╰───────────────────╯                  ╰────────────────────╰──────────────────╰───────────────╰──────
   ▾ 4
 
     kind  branch   default  remote  local    ahead  commit      age  worktree              subject
@@ -13,4 +13,4 @@
 
 
 
- = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-5 jump : tab menu
+ = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-6 jump : tab menu
