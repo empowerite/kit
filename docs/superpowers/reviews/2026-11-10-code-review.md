@@ -172,3 +172,44 @@ The writers also found what no reviewer did:
   `incoming-no-fetch.json` has a key that kit prints only after a fetch.
 - `kit toolchains --json` and `kit tools --json` print one object a line, not an array, and `kit tools --json`
   exits 1 in this repository, where mise and nix are both usable and neither is chosen.
+
+## The plans, as they are built
+
+### Refusals that hold
+
+The plan is built, under #141, in the 23 commits from `5861f1fd` to `99dad853`. The suite holds 779 tests, 43 of
+them this plan's, and one fails, `tests/underway.bats:199`, as it did before the plan. Everything ran on macOS, and
+one fix was also shown in a Linux container.
+
+Its four decisions stand on their defaults. Where the plan was silent, or one part of it spoke against another, these
+were ruled:
+
+- `kit serve` has seven tools that read only. `toolchains` and `tools` join `check` and `lint` among those that run
+  what the repository's files name: `tools` evaluates a flake, and `toolchains` runs `mise bin-paths` over the
+  repository's `mise.toml`.
+- A refusal changes nothing, so `kit uninstall`, `kit packages remove`, and `kit update` judge every region before
+  the first write. The plan's task said to count the refusals during the sweep, which left a kit half removed.
+- `kit packages remove` leaves an edited copy under the home base too, as `kit uninstall` does. An older test
+  expected the copy gone, and puts the delivered content back before it removes the package.
+- `kit serve` judges a path as the kernel reads it and as a shell's `cd` does, and refuses unless both are inside.
+  The verbs' own reading of a path, in `context:relative`, is as it was.
+- The whole-plan review found what no task had: `kit work`'s first push followed `push.default`, `kit rebase`
+  unsigned the commits it rewrote, and `kit submit` called a branch at its remote when the remote had none. All
+  three are fixed.
+
+These are left as they are:
+
+- A signer that fails during `kit rebase` is reported as a conflict, and a full disk during a signed commit as a
+  failure to sign.
+- A take over history that another session rewrote keeps the empty start commit twice.
+- `kit rebase` given a path in another clone reads `require_signing` and the signing key from the directory it runs
+  in.
+- `kit work` can make or push the issue's branch before it refuses a desk that has that branch checked out, when the
+  desk's branch was never pushed.
+- An interrupt in the moment between `kit work`'s stash and its record of it, or between that record's end and the
+  apply, leaves the work in the stash without a word.
+- An unreadable `kit.yml`, or an unstaged one without the key, turns signing off for a commit; the plan Fail Closed
+  owns that read.
+- The length limit of a path given to `kit serve` counts the repository's root, so a real file deep under a long
+  root is refused.
+- Three commits name their co-author as `Claude Sonnet 5.5`, and the others as `Claude`.
