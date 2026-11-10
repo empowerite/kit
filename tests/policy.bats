@@ -57,6 +57,21 @@ change() {
   [ -z "$(find "${TMPDIR}" -mindepth 1 -maxdepth 1 -name 'kit.*')" ]
 }
 
+@test "a change whose title cannot be read fails the facts, and the policy judges nothing" {
+  branch 7-fix-the-thing "#7 cli: fix the thing"
+  change "Fix the thing"
+  # the read of the title fails; the first route that matches answers, so it goes first
+  printf '%s\t%s\n' 'pr view 3 --json title*' '!1' | cat - "${FAKE_DIR}/gh.routes" > "${FAKE_DIR}/gh.routes.new"
+  mv "${FAKE_DIR}/gh.routes.new" "${FAKE_DIR}/gh.routes"
+  run "${kit_root}/bin/kit" policy --input
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the change 3 could not be read from the forge, so the policy cannot judge it"* ]]
+  [[ "$output" != *'"change"'* ]]
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" != *"policy allows"* ]]
+}
+
 @test "the defaults refuse a branch, a commit subject, and a title off the loop's shape, each named" {
   branch topic "#7 cli: fine" "wip"
   change ""

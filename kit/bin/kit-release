@@ -20,8 +20,8 @@
 # Versions compare by semantic-version precedence. --lower is for a fix to an older line: kit asks nothing itself, so
 # the confirmation is this flag.
 #
-# Exits 0 when the tag is on the primary, 1 on a refusal, a primary that names no remote among them, and 2 on a
-# usage error.
+# Exits 0 when the tag is on the primary, 1 on a refusal, a primary that names no remote among them, or release tags
+# on the primary that cannot be read, and 2 on a usage error.
 #
 # see: modules/bash/releases.sh, modules/jq/version.jq, kit-flow
 

@@ -179,7 +179,7 @@ flow:width() {
     cols=$(( 10#${COLUMNS} ))
   elif [[ -t 2 ]]
   then
-    cols=$(stty size <&2 2>/dev/null | cut -d' ' -f2 || true)
+    cols=$(stty size <&2 2>/dev/null | cut -d' ' -f2 || true)  # a size stty cannot read gives the default
   fi
   if [[ "${cols}" =~ ^[0-9]+$ ]] && (( cols >= 60 ))
   then
@@ -319,6 +319,7 @@ flow:fetch-json() {
   while IFS=' ' read -r kind ref old new
   do
     case "${kind}:${ref}" in
+      # A range git cannot walk, as after a forced push, lists no commit; the picture says only that it moved.
       (moved:"${default_ref}") commits=$(git log --format='%h%x09%s' "${old}..${new}" 2>/dev/null || true) ;;
       (moved:"refs/remotes/${remote}/"*) updated+=("${ref#"refs/remotes/${remote}/"}") ;;
       (new:"refs/remotes/${remote}/"*) added+=("${ref#"refs/remotes/${remote}/"}") ;;
@@ -379,6 +380,7 @@ flow:incoming-text() {
     [[ -n "${remote}" ]] || continue
     IFS=$'\x1f' read -r name forge host < <(jq --raw-output '[.name, (.forge // "no forge"), (.host // "")]
       | join("\u001f")' <<<"${remote}")
+    # A remote with no URL git can give is drawn with none.
     [[ -n "${host}" ]] || host=$(git remote get-url --end-of-options "${name}" 2>/dev/null || true)
     if [[ "${first}" == true ]]
     then first=false
@@ -433,7 +435,7 @@ flow:incoming() {
       fi
     else
       failed=true
-      said=$(grep --max-count=1 . <<<"${said}" || true)
+      said=$(grep --max-count=1 . <<<"${said}" || true)  # grep's exit 1: git said nothing, named below
       docs+=("$(flow:fetch-json "${remote}" '' '' '' \
         | jq --compact-output --arg error "${said:-git fetch failed}" '. + {error: $error}')")
     fi
@@ -548,6 +550,7 @@ flow:select() {
 flow:fork() {
   local primary
   primary=$(forge:primary) || return $?
+  # A branch with no fork from either has none, and prints nothing.
   git merge-base --end-of-options "${primary}/$2" "$1" 2>/dev/null \
     || git merge-base --end-of-options "$2" "$1" 2>/dev/null || true
 }
@@ -621,7 +624,11 @@ flow:checkout() {
     [[ -n "${a}" && "${a}" != '-' ]] && added=$(( added + a ))
     [[ -n "${r}" && "${r}" != '-' ]] && removed=$(( removed + r ))
   done
-  changes=$(git -C "${path}" status --porcelain 2>/dev/null || true)
+  if ! changes=$(git -C "${path}" status --porcelain)
+  then
+    error "run: git -C '${path}' status (the uncommitted paths in ${path} could not be read)"
+    return 1
+  fi
   {
     [[ -n "${fork}" ]] && git -C "${path}" log --format='%h%x09%s' "${fork}..${branch}" 2>/dev/null
     true
@@ -906,7 +913,7 @@ flow:desk() {
   local main_root branch doc default_branch
   default_branch=$(git:default-branch) || return $?
   main_root=$(git:main-root)
-  branch=$(git -C "${main_root}" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
+  branch=$(git -C "${main_root}" symbolic-ref --quiet --short HEAD 2>/dev/null || true)  # detached: none
   doc=$(flow:checkout "${main_root}" "${branch}" "${default_branch}") || return $?
   if [[ " $* " == *" --json "* ]]
   then
@@ -979,7 +986,7 @@ flow:worktrees() {
   if flow:in-worktree
   then
     here=$(git rev-parse --show-toplevel)
-    branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)
+    branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)  # detached: none
     doc=$(flow:checkout "${here}" "${branch}" "${default_branch}") || return 1
     flow_worktrees=("${doc}")
   else
@@ -1351,7 +1358,7 @@ flow:above() {
       > "${scratch}/${index}.out" 2> "${scratch}/${index}.err" &
     index=$(( index + 1 ))
   done
-  wait || true
+  wait
   if [[ "${json}" == true ]]
   then
     for index in "${!desks[@]}"

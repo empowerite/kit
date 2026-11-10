@@ -214,6 +214,7 @@ serve:watched() {
 serve:changed() {
   local -a dirs
   readarray -t dirs < <(serve:watched)
+  # A watched directory that is gone has nothing changed in it; find says so with its status.
   find "${dirs[@]}" -type f -newer "${serve_marker}" 2>/dev/null || true
 }
 
@@ -285,7 +286,7 @@ serve:resume() {
   unset kit_serve_era kit_serve_pending
   [[ -f "${file}" ]] && pending=$(<"${file}")
   rm -f "${file}"
-  rmdir "${file%/*}" 2>/dev/null || true
+  rmdir "${file%/*}" 2>/dev/null || true  # a directory left behind costs only tidiness
   [[ -n "${pending}" ]] || return 0
   if [[ "${pending}" != *'"initialize"'* ]]
   then
@@ -605,7 +606,7 @@ serve:inside() {
   root=$(pwd -P 2>/dev/null) && [[ "${root}" == /* && -d "${root}" ]] || return 1
   if [[ -z "${serve_path_max}" ]]
   then
-    serve_path_max=$(getconf PATH_MAX / 2>/dev/null) || true
+    serve_path_max=$(getconf PATH_MAX / 2>/dev/null) || true  # with no answer, the default below
     [[ "${serve_path_max}" =~ ^[0-9]+$ ]] || serve_path_max=1024
   fi
   [[ "${path}" == /* ]] || path=${root}/${path}
@@ -730,7 +731,11 @@ serve:resources-read() {
   fi
   if [[ "${path}" == help:* ]]
   then
-    text=$(NO_COLOR=1 help:page "${path#help:}") || true
+    if ! text=$(NO_COLOR=1 help:page "${path#help:}")
+    then
+      serve:error "$1" -32603 "Internal error: kit help ${path#help:} could not be read"
+      return 0
+    fi
     serve:complete "$1" "$(printf '%s\n' "${text}" | jq --raw-input --slurp --compact-output --arg uri "${uri}" \
       --arg mime "${mime}" '{contents: [{uri: $uri, mimeType: $mime, text: .}]}')" cacheable
     return 0

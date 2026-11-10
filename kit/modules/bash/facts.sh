@@ -83,9 +83,13 @@ facts:document() {
     fi
     if use forge 2>/dev/null && number=$(forge:pr-here 2>/dev/null) && [[ -n "${number}" ]]
     then
-      title=$(forge:pr-title "${number}" 2>/dev/null || true)
-      body=$(forge:pr-body "${number}" 2>/dev/null || true)
-      author=$(forge:pr-author "${number}" 2>/dev/null || true)
+      # The rules judge the change's title, body, and author, so one that cannot be read fails the facts.
+      if ! title=$(forge:pr-title "${number}") || ! body=$(forge:pr-body "${number}") \
+        || ! author=$(forge:pr-author "${number}")
+      then
+        error "the change ${number} could not be read from the forge, so the policy cannot judge it; see above"
+        return 1
+      fi
       change=$(jq --null-input --argjson number "${number}" --arg title "${title}" --arg body "${body}" \
         --arg author "${author}" \
         '{number: $number, title: $title, body: $body, author: (if $author == "" then null else $author end)}')

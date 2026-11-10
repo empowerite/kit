@@ -33,6 +33,7 @@ git:desks() {
 git:default-branch() {
   local branch primary
   primary=$(forge:primary) || return $?
+  # A primary whose HEAD git has not recorded falls back to main.
   branch=$(git -C "${1:-.}" symbolic-ref --quiet --short "refs/remotes/${primary}/HEAD" 2>/dev/null || true)
   branch=${branch#"${primary}"/}
   [[ -n "${branch}" ]] || branch=main
@@ -328,13 +329,14 @@ git:tidy() {
   [[ "${found}" == true ]] || ok "none"
 
   section "worktree bookkeeping"
-  if [[ "${dry_run}" == true ]]
+  local -a prune=(--verbose)
+  [[ "${dry_run}" != true ]] || prune+=(--dry-run)
+  if git worktree prune "${prune[@]}"
   then
-    git worktree prune --verbose --dry-run || true
+    ok "pruned"
   else
-    git worktree prune --verbose || true
+    warn "git worktree prune failed, so the records of removed worktrees stay; see above"
   fi
-  ok "pruned"
 
   section "local branches whose upstream is gone"
   checked_out=$(git worktree list --porcelain | sed -n 's@^branch refs/heads/@@p')
@@ -386,8 +388,9 @@ git:tidy() {
 # upstream or one of another name, as a branch started from origin/main has, it prints origin and returns 1.
 git:pushes-to() {
   local branch=$1 path=${2:-.} remote merge
+  # git config --get exits 1 for a key that is not set: a branch with no upstream.
   remote=$(git -C "${path}" config --get "branch.${branch}.remote" 2>/dev/null || true)
-  merge=$(git -C "${path}" config --get "branch.${branch}.merge" 2>/dev/null || true)
+  merge=$(git -C "${path}" config --get "branch.${branch}.merge" 2>/dev/null || true)  # as above
   if [[ -n "${remote}" && "${merge}" == "refs/heads/${branch}" ]]
   then
     printf '%s\n' "${remote}"
@@ -445,7 +448,7 @@ git:push() {
 # a conflict it aborts the rebase and leaves the worktree as it was.
 git:rebase() {
   local worktree=${1:-.} branch default_branch primary remote before theirs target targets=() sign=()
-  branch=$(git -C "${worktree}" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
+  branch=$(git -C "${worktree}" symbolic-ref --quiet --short HEAD 2>/dev/null || true)  # detached is refused below
   if [[ -z "${branch}" ]]
   then
     error "${worktree} has no branch checked out, so there is nothing to rebase"
@@ -473,11 +476,13 @@ git:rebase() {
     sign=(--gpg-sign)
   fi
   primary=$(forge:primary) || return $?
+  # git:pushes-to returns 1 for an upstream of another name, and prints the remote to use all the same.
   remote=$(git:pushes-to "${branch}" "${worktree}") || true
   section "kit rebase ${branch} onto ${primary}/${default_branch}"
   before=$(git -C "${worktree}" rev-parse HEAD)
   git -C "${worktree}" fetch --quiet --prune --end-of-options "${primary}"
   [[ "${remote}" == "${primary}" ]] || git -C "${worktree}" fetch --quiet --prune --end-of-options "${remote}"
+  # A branch the remote does not have gives no tip, and there is nothing of theirs to take.
   theirs=$(git -C "${worktree}" rev-parse --quiet --verify "refs/remotes/${remote}/${branch}^{commit}" || true)
   if [[ -n "${theirs}" ]] && ! git -C "${worktree}" merge-base --is-ancestor "${theirs}" HEAD
   then
@@ -490,6 +495,7 @@ git:rebase() {
   do
     if ! git -C "${worktree}" rebase --quiet "${sign[@]}" "${target}"
     then
+      # A rebase that stopped before it began has nothing to abort; the reset puts the worktree back either way.
       git -C "${worktree}" rebase --abort 2>/dev/null || true
       git -C "${worktree}" reset --quiet --hard "${before}"
       error "${branch} conflicts with ${target}; the rebase was aborted and the worktree is as it was"

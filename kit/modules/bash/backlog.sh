@@ -31,11 +31,11 @@ backlog:collect() {
   primary=$(forge:primary) || return $?
   issues=$(forge:open-issues) || return 1
   changes=$(forge:open-prs) || return 1
-  heads=$(git for-each-ref --format='%(refname:lstrip=3)' -- "refs/remotes/${primary}/" | grep -v '^HEAD$' || true)
+  heads=$(git for-each-ref --format='%(refname:lstrip=3)' -- "refs/remotes/${primary}/") || return 1
   jq --compact-output --slurp -L "${kit_jq}" --argjson changes "$(jq --slurp . <<<"${changes}")" \
     --arg heads "${heads}" --arg logins "$*" --argjson except "${except}" '
     import "backlog" as backlog;
-    backlog::unclaimed($changes; $heads | split("\n") | map(select(. != ""));
+    backlog::unclaimed($changes; $heads | split("\n") | map(select(. != "" and . != "HEAD"));
       $logins | split(" ") | map(select(. != "")); $except)' <<<"${issues}"
 }
 

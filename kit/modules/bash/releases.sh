@@ -21,7 +21,11 @@ releases:valid() {
 releases:on-origin() {
   local ref version primary refs
   primary=$(forge:primary) || return $?
-  refs=$(git ls-remote --tags --end-of-options "${primary}" 'refs/tags/release/*' 2>/dev/null || true)
+  if ! refs=$(git ls-remote --tags --end-of-options "${primary}" 'refs/tags/release/*')
+  then
+    error "run: git ls-remote --tags ${primary} (the release tags on ${primary} could not be read)"
+    return 1
+  fi
   while read -r _ ref
   do
     version=${ref#refs/tags/release/}
@@ -55,6 +59,7 @@ releases:release() {
   if [[ "${version}" != *-* ]]
   then
     default=$(git:default-branch) || return 1
+    # A fetch that fails leaves the default branch as last fetched, and a HEAD past it is refused below.
     git fetch --quiet --end-of-options "${primary}" "${default}" 2>/dev/null || true
     if ! git merge-base --is-ancestor HEAD "${primary}/${default}" 2>/dev/null
     then

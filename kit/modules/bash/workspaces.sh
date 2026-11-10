@@ -310,13 +310,17 @@ workspaces:list-json() {
       workspaces: map(select(. != null) | . + {favorite: (.name as $n | $favorites | index($n) != null)})}'
 }
 
-# workspaces:last prints the last group used, or nothing: none was, or the file no longer has it.
+# workspaces:last prints the last group used, or nothing: none was, or the file no longer has it. It fails when the
+# file's groups cannot be read.
 workspaces:last() {
   local file last
+  local -a names
   file=$(workspaces:cache)/last
   [[ -f "${file}" ]] || return 0
-  IFS= read -r last < "${file}" || true
-  [[ -n "${last}" ]] && workspaces:names | grep --line-regexp --fixed-strings -- "${last}" || true
+  IFS= read -r last < "${file}" || true  # a last line with no newline is read, and returns 1
+  [[ -n "${last}" ]] || return 0
+  list:read names workspaces:names || return 1
+  ! list:among "${last}" "${names[@]}" || printf '%s\n' "${last}"
 }
 
 # workspaces:remember <name> keeps <name> as the last group used.
@@ -329,7 +333,7 @@ workspaces:remember() {
 # workspaces:current [<workspace>] prints the workspace kit starts on as JSON: {kind, name, member, checkout, why}. A
 # workspace given is it, why given, and none names none; else, inside a repository, that repository, named by its
 # member or, with none, by its path; else the last group used; else none. It returns 2 for a workspace given that is
-# unknown.
+# unknown, and 1 when the file's groups cannot be read.
 workspaces:current() {
   local given=${1:-} kind='' name='' member='' checkout='' why json
   if [[ "${given}" == none ]]
@@ -349,7 +353,8 @@ workspaces:current() {
     kind=repository why=repository member=$(workspaces:member-of "${checkout}")
     name=${member:-${checkout}}
   else
-    checkout='' name=$(workspaces:last)
+    checkout=''
+    name=$(workspaces:last) || return 1
     if [[ -n "${name}" ]]
     then
       kind=group why=last

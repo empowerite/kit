@@ -91,6 +91,18 @@ on-origin() { git ls-remote origin "refs/tags/$1*" | awk -v want="refs/tags/$1^{
   [ "$status" -eq 0 ]
 }
 
+@test "a release whose tags on origin cannot be read is refused, and nothing is tagged" {
+  "${kit_root}/bin/kit" release 0.3.0
+  # origin is read from a repository that is not there, and pushed to the one that is
+  git remote set-url origin "${repo}/gone.git"
+  git remote set-url --push origin "${repo}/origin.git"
+  run "${kit_root}/bin/kit" release 0.2.0-rc.1
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"run: git ls-remote --tags origin (the release tags on origin could not be read)"* ]]
+  [ -z "$(git tag --list release/0.2.0-rc.1)" ]
+  [ -z "$(git ls-remote "${repo}/origin.git" 'refs/tags/release/0.2.0-rc.1')" ]
+}
+
 @test "kit flow releases lists the forge's releases newest first: version, kind, age, and the latest" {
   printf 'forge: github\n' > .kit-settings && mkdir -p .kit && mv .kit-settings kit.yml
   : > "${FAKE_DIR}/gh.routes"

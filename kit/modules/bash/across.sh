@@ -86,7 +86,7 @@ across:document() {
 # across:line <file> prints the last line of what a member said on stderr, less a leading ❌.
 across:line() {
   local line
-  line=$(grep -v '^[[:space:]]*$' "$1" | tail -n 1 || true)
+  line=$(grep -v '^[[:space:]]*$' "$1" | tail -n 1 || true)  # grep's exit 1: the member said nothing
   printf '%s\n' "${line#❌ }"
 }
 
@@ -178,7 +178,7 @@ across:start() {
     printf '%s\t%s\n' "${n}" "${member}"
     n=$(( n + 1 ))
   done <<<"${members}"
-  wait || true
+  wait
 }
 
 # across:run <checkout> <prefix> <workspace> <word>… runs kit's across_verb with the words in the checkout, its output
@@ -295,7 +295,7 @@ across:repos-of() {
       across_verb=flow across:run "${checkouts[${n}]}" "${dir}/${n}" "${workspace}" desk --json &
     fi
   done
-  wait || true
+  wait
   for n in "${!checkouts[@]}"
   do
     desk=null error='' lists='{"worktrees": null, "branches": null}'
@@ -397,8 +397,10 @@ across:repos-mark() {
   while IFS=$'\t' read -r member checkout
   do
     printf '%s\t%s\n' "${member}" "${checkout}"
-    [[ -z "${checkout}" ]] || git -C "${checkout}" worktree list --porcelain 2>/dev/null || true
-    [[ -z "${checkout}" ]] || git -C "${checkout}" for-each-ref --format='%(refname)' refs/heads 2>/dev/null || true
+    [[ -n "${checkout}" ]] || continue
+    # A list git cannot give changes what is hashed, so the mark changes and the stage is read again.
+    git -C "${checkout}" worktree list --porcelain 2>/dev/null || true
+    git -C "${checkout}" for-each-ref --format='%(refname)' refs/heads 2>/dev/null || true  # as above
   done <<<"${members}" | git hash-object --stdin
 }
 
@@ -433,6 +435,7 @@ across:quota-merge() {
   for out in "${dir}"/*.out
   do
     [[ -e "${out}" && "$(<"${out%.out}.status")" == 0 ]] || continue
+    # A member's output jq cannot read adds no quota; the member's own error says why.
     jq --compact-output 'if type == "array" then . else [] end' "${out}" 2>/dev/null || true
   done | jq --slurp --compact-output 'add // [] | reduce .[] as $q ([]; if any(.[]; .forge == $q.forge) then . else
     . + [$q] end)'

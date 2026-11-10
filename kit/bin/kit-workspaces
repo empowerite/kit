@@ -183,12 +183,13 @@ case "${action}" in
     ;;
   (favorite | unfavorite)
     read -r _ name < <(workspaces:kind "${target}") || exit 2
-    favored=$(workspaces:favorites | grep --line-regexp --fixed-strings -- "${name}" || true)
-    if [[ "${action}" == favorite && -z "${favored}" ]]
+    declare -a favorites
+    list:read favorites workspaces:favorites || exit 1
+    if [[ "${action}" == favorite ]] && ! list:among "${name}" "${favorites[@]}"
     then
       workspaces:favor "${name}" || exit 1
       step "★ 📚 ${name} is a favorite"
-    elif [[ "${action}" == unfavorite && -n "${favored}" ]]
+    elif [[ "${action}" == unfavorite ]] && list:among "${name}" "${favorites[@]}"
     then
       workspaces:disfavor "${name}" || exit 1
       step "📚 ${name} is no longer a favorite"
