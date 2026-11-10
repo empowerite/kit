@@ -156,6 +156,20 @@ SH
   grep --quiet '^linked$' real/x.sh
 }
 
+@test "a named path that is not there is refused" {
+  printf '<!-- kit:generate a `./lines.sh fresh` -->\nstale\n<!-- kit:end a -->\n' > a.md
+  run "${kit_checkout}/bin/kit" generate --check typo/AGENTS.md
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"'typo/AGENTS.md' is not a file or a directory here"* ]]
+  [[ "$output" != *"✅"* ]]
+  run "${kit_checkout}/bin/kit" generate a.md nosuch.md
+  [ "$status" -eq 2 ]
+  grep --quiet '^stale$' a.md
+  printf 'no directive here\n' > c.md
+  run "${kit_checkout}/bin/kit" generate --check c.md
+  [ "$status" -eq 0 ]
+}
+
 @test "a bare directive means kit region, which reads the name, so the kit's regions carry no command and need only kit on PATH" {
   run "${kit_checkout}/bin/kit" install agents/generic
   [ "$status" -eq 0 ]

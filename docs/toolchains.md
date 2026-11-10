@@ -163,7 +163,9 @@ top, such as markdownlint-cli2 in `package.json`. Each is a dependency provider,
 What kit delivers under `.kit/` is not committed. `kit hydrate` places it from the declaration in `kit.yml`, and
 every verb that reads a delivered file does the same first. A shell can also hydrate when it enters the repository,
 so a fresh worktree is complete before its first command. `kit hydrate --quick` is made for that: it does not start
-or print anything when everything is in place, and does the whole job otherwise.
+or print anything when everything is in place, and does the whole job otherwise. Everything is not in place when a
+delivered path is missing or changed, or when `kit.yml` or a file under `.kit/packages/` is newer than the last full
+run, as after a pull that brings a repository package's new rule.
 
 - mise can run it from an enter hook; see [using mise](toolchains/using-mise.md#hydrating-on-cd).
 - nix can run it from a dev shell's `shellHook`; see [using nix](toolchains/using-nix.md#entering-the-shell).

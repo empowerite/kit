@@ -28,13 +28,14 @@
 #
 # see: docs/context.md
 
-use yaml syntax
+use yaml syntax settings
 shopt -s extglob
 
 # The kinds and the frontmatter, read once per process by context:load: each kind's globs, patterns, and embedded
-# kinds, newline-separated, by kind; and each rule's and style's kinds, space-separated, by file.
+# kinds, newline-separated, by kind, and the kinds file that defines it; and each rule's and style's kinds,
+# space-separated, by file.
 declare -gA context_kind_paths=() context_kind_content=() context_kind_embeds=() context_kind_members=()
-declare -gA context_file_kinds=()
+declare -gA context_kind_file=() context_file_kinds=()
 declare -g context_loaded=false
 
 # context:log-path prints the path of the context log. It is under the repository's common git directory, so every
@@ -76,10 +77,12 @@ context:glob-matches() {
 
 # context:load reads every kind under .kit/kinds/ and the kind: list of every rule and style, once. It runs from
 # the repository root. A caller that loops over paths calls it first, so the subshells of the loop inherit the
-# tables instead of each reading the files again.
+# tables instead of each reading the files again. In a repository that declares a kit version, the kit's own
+# package defines kinds, so none at all is a .kit/ not yet in place, and it returns 1 naming kit hydrate; a
+# repository that declares no kit has no kinds, and nothing is governed there.
 context:load() {
   [[ "${context_loaded}" == true ]] && return 0
-  local file kind field value
+  local file kind field value version
   local -A defined=()
   while IFS=$'\x1f' read -r file kind field value
   do
@@ -95,6 +98,7 @@ context:load() {
           return 1
         fi
         defined[${kind}]=${file}
+        context_kind_file[${kind}]=${file}
         context_kind_paths[${kind}]='' context_kind_content[${kind}]='' context_kind_embeds[${kind}]=''
         context_kind_members[${kind}]=''
         ;;
@@ -104,6 +108,15 @@ context:load() {
       (kinds) context_kind_members[${kind}]+=${value}$'\n'
     esac
   done < <(context:read-kinds .kit/kinds/*.yml)
+  if (( ${#defined[@]} == 0 ))
+  then
+    version=$(settings:version) || return 1
+    if [[ -n "${version}" ]]
+    then
+      error "no kind is defined under .kit/kinds; run: kit hydrate"
+      return 1
+    fi
+  fi
   for file in .kit/rules/*.md .kit/styles/*.md
   do
     [[ -f "${file}" ]] || continue
@@ -182,7 +195,9 @@ context:awk-string() {
 # "<path>\t<1 when the path is a regular file, else 0>" line per path, and for each it prints "<path>\t<kinds>", the
 # kinds space-separated in name order. Each kind is one test of the path against its globs, joined into one regular
 # expression, then of the file's first line against its patterns; the kinds made of others follow until none grows.
-# A repository with no kinds at all gets a program of no tests, so every path is of no kind.
+# A repository with no kinds at all gets a program of no tests, so every path is of no kind. Each content pattern is
+# compiled by awk first, alone, since awk dies on a pattern that is no regular expression only when a first line
+# reaches it; for such a pattern it names the kinds file, the kind, and the pattern, and returns 1.
 # shellcheck disable=SC2016  # the $1 and $2 it prints are awk's fields, not the shell's
 context:compile() {
   local kind glob pattern member ere test member_test
@@ -211,6 +226,11 @@ context:compile() {
       ere=''
       for pattern in "${patterns[@]}"
       do
+        context:pattern-compiles "${pattern}" || {
+          error "${context_kind_file[${kind}]}: the kind ${kind}'s content pattern '${pattern}' is not a regular" \
+            "expression"
+          return 1
+        }
         ere+="${ere:+|}(${pattern})"
       done
       test+="${test:+ || }(has && first ~ $(context:awk-string "${ere}"))"
@@ -238,22 +258,34 @@ context:compile() {
   printf '  print path "\\t" out\n}\n'
 }
 
+# context:pattern-compiles <pattern> is true when awk compiles <pattern> as a dynamic regular expression, as the
+# compiled classifier matches a first line against it.
+context:pattern-compiles() {
+  awk "BEGIN { if (\"\" ~ $(context:awk-string "$1")) exit 0 }" < /dev/null 2> /dev/null
+}
+
 # context:matcher prints the path of the compiled classifier for the kinds under .kit/kinds/, compiling it first when
 # the kinds have changed. It is kept in the repository's common git directory, named by a checksum of the kinds
-# files' names and text, so every worktree shares it and an edit to a kind compiles afresh.
+# files' names and text and of this module, which compiles them, so every worktree shares it, and an edit to a kind
+# or a release that compiles differently compiles afresh.
+# shellcheck disable=SC2154  # kit_root is exported by modules/bash/1st.sh
 context:matcher() {
   local dir key file
   dir="$(git rev-parse --path-format=absolute --git-common-dir)/kit"
-  key=$( { printf '%s\n' .kit/kinds/*.yml; cat .kit/kinds/*.yml 2>/dev/null; } | cksum | cut -d ' ' -f 1)
+  key=$( { printf '%s\n' .kit/kinds/*.yml; cat "${kit_root}/modules/bash/context.sh" .kit/kinds/*.yml 2>/dev/null; } \
+    | cksum | cut -d ' ' -f 1)
   file="${dir}/kinds-${key}.awk"
   if [[ ! -f "${file}" ]]
   then
     # Two processes may compile at once, so each writes a file of its own, by BASHPID, which a subshell does not
-    # share, and moves it into place whole; a matcher of other kinds is removed, never the one being placed. Both may
-    # prune the same old matcher, so rm -f takes it, which says nothing of one the other took first.
+    # share, and moves it into place whole. Worktrees whose kinds differ share the directory, so a matcher of other
+    # kinds, or a file a compile left half-written, is removed only once it is a day old: one younger may be another
+    # worktree's in use. Both may prune the same old file, so rm -f takes it, which says nothing of one the other
+    # took first.
     mkdir -p "${dir}"
     context:compile > "${file}.${BASHPID}" || { rm -f "${file}.${BASHPID}"; return 1; }
-    find "${dir}" -name 'kinds-*.awk' ! -name "kinds-${key}.awk" -exec rm -f {} +
+    find "${dir}" \( -name 'kinds-*.awk' -o -name 'kinds-*.awk.*' \) ! -name "kinds-${key}.awk" -mmin +1440 \
+      -exec rm -f {} +
     mv "${file}.${BASHPID}" "${file}"
   fi
   printf '%s\n' "${file}"
@@ -262,9 +294,26 @@ context:matcher() {
 # context:classify reads repository-relative paths on stdin, one per line, and prints "<path>\t<kinds>" for each, in
 # one process however many there are: every kind with a glob that matches the path, or a pattern that matches the
 # first line of a file that exists, and every kind made of one of those under kinds:, space-separated in name order.
+# It reads the compiled matcher whole before awk runs it, and a matcher another worktree pruned between the lookup and
+# the read is looked up, and so compiled, once more. It returns 1, after saying so, when the kinds cannot be compiled,
+# the matcher cannot be read, or awk cannot run it: no path is then taken for one of no kind.
 context:classify() {
-  local matcher path
-  matcher=$(context:matcher) || return 1
+  local matcher program path loaded=false
+  for _ in 1 2
+  do
+    matcher=$(context:matcher) || return 1
+    # a matcher pruned since the lookup is the next attempt's to compile; the second failure is said below
+    if program=$(cat -- "${matcher}" 2> /dev/null)
+    then
+      loaded=true
+      break
+    fi
+  done
+  if [[ "${loaded}" == false ]]
+  then
+    error "${matcher}: the compiled kinds cannot be read"
+    return 1
+  fi
   while IFS= read -r path
   do
     if [[ -f "${path}" ]]
@@ -273,7 +322,10 @@ context:classify() {
     else
       printf '%s\t0\n' "${path}"
     fi
-  done | awk -f "${matcher}"
+  done | awk "${program}" || {
+    error "${matcher}: awk cannot run the compiled kinds; see above"
+    return 1
+  }
 }
 
 # context:kinds <path> prints the kinds <path> is of, one per line in name order, as context:classify finds them.
@@ -332,7 +384,7 @@ context:rules() {
   local path=$1 mode=${2:-} file
   local -a kinds=() embedded=()
   local -A seen=()
-  context:load
+  context:load || return 1
   list:read kinds context:kinds "${path}" || return 1
   (( ${#kinds[@]} > 0 )) || return 0
   while IFS= read -r file
@@ -374,7 +426,7 @@ context:render() {
     esac
   done
   cd "$(git rev-parse --show-toplevel)" || return 1
-  context:load
+  context:load || return 1
   for path in "${paths[@]}"
   do
     path=$(context:relative "${path}")

@@ -51,7 +51,8 @@ setup() {
   "${kit_checkout}/bin/kit" packages add toml >/dev/null 2>&1
   run "${kit_checkout}/bin/kit" kinds a.toml
   [ "$output" = $'any\ntoml' ]
-  [ "$(find .git/kit -name 'kinds-*.awk' | wc -l)" -eq 1 ]
+  # the matcher of the kinds before is younger than a day, so the compile keeps it: another worktree may read it
+  [ "$(find .git/kit -name 'kinds-*.awk' | wc -l)" -eq 2 ]
   printf 'name: toml\npaths:\n  - "**/*.tml"\n' > .kit/packages/toml/files/repo/.kit/kinds/toml.yml
   run "${kit_checkout}/bin/kit" kinds a.toml
   [ "$output" = 'any' ]

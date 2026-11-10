@@ -599,7 +599,8 @@ welcome:judge() {
       then
         welcome:record kit-hydrated true ".kit/ is in place: every file kit placed there is present"
       else
-        welcome:record kit-hydrated false ".kit/ is not in place: a file kit placed there is missing or changed" \
+        welcome:record kit-hydrated false \
+          ".kit/ is not in place: a file kit placed there is missing or changed, or a package's file is newer" \
           'kit hydrate'
       fi
       ;;

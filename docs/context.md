@@ -47,6 +47,15 @@ are compiled into one awk program, once per change, kept in the repository's git
 is classified in one process: `kit kinds` over every tracked file of this repository takes a fraction of a second.
 `kit context`, `kit lint`, and `kit new` classify through the same program, so they cannot disagree about a file.
 
+A classification that cannot be made fails, and is never read as a path of no kind:
+
+- A `content:` pattern that is no extended regular expression fails the compile, naming the kinds file, the kind,
+  and the pattern, so `kit lint`, `kit context`, and `kit check` fail with it.
+- A repository that declares a kit version and has no kind under `.kit/kinds/` fails with `run: kit hydrate`. A
+  repository that declares no kit has no kinds, and nothing governs its paths.
+- Every worktree shares the compiled programs. A compile removes the program of other kinds once it is a day old, so
+  a program another worktree reads stays, and a program removed before it is read is compiled again.
+
 A kinds file holds one kind, or several as a YAML stream: one document per kind, separated by `---` lines. Two
 kinds with the same name, in one file or in two, are refused, and so is a document without a name.
 
@@ -89,9 +98,11 @@ sentence in one rule pointing at another. `--json` reports the kinds beside the 
 
 `kit lint` runs each rule's `lint:` command once over the paths of that rule's kinds, and never follows `embeds:`, so
 no linter runs over a file it cannot parse. The paths are the staged paths, the paths you name, or every tracked path
-with `--all-files`. A linter that is not on `PATH` is a failure, not a skip. The kit does not assume a hook manager;
-the `hooks/lefthook` package adds a pre-commit hook that runs `kit lint`. `kit new file` chooses a template through
-the same classification.
+with `--all-files`. A named path that is neither a file nor a directory is refused with exit 2, before anything is
+linted; the staged paths leave out a deletion. Where no rule governs any of the paths, `kit lint` says that nothing
+was linted. A linter that is not on `PATH` is a failure, not a skip. The kit does not assume a hook manager; the
+`hooks/lefthook` package adds a pre-commit hook that runs `kit lint`. `kit new file` chooses a template through the
+same classification.
 
 The kit package delivers the kinds its rules and styles name, one file each, named for its kind. `kit kinds` lists
 every kind with the file that defines it and what makes a path of it. A repository adds a kind by delivering a kinds

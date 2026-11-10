@@ -208,6 +208,72 @@ setup() {
     done'
   [ "$status" -eq 0 ]
   [ -z "$output" ]
+  # the matcher of other kinds is younger than a day, so another worktree may be using it
+  [ -f "$(git rev-parse --path-format=absolute --git-common-dir)/kit/kinds-0.awk" ]
+}
+
+@test "a compile prunes a matcher of other kinds older than a day, and only that one" {
+  local dir
+  dir="$(git rev-parse --path-format=absolute --git-common-dir)/kit"
+  mkdir -p "${dir}"
+  rm -f "${dir}"/kinds-*.awk
+  : > "${dir}/kinds-1.awk"
+  : > "${dir}/kinds-2.awk"
+  touch -t 202001010000 "${dir}/kinds-1.awk"
+  run "${kit_checkout}/bin/kit" context README.md
+  [ "$status" -eq 0 ]
+  [ "$output" = ".kit/rules/markdown.md" ]
+  [ ! -e "${dir}/kinds-1.awk" ]
+  [ -f "${dir}/kinds-2.awk" ]
+}
+
+@test "a matcher another compile prunes between its lookup and its read is compiled again, never read as no kinds" {
+  # the first lookup's matcher is taken away before classify reads it, as another worktree's prune would
+  kit_bash_modules=context run kit-bash '
+    eval "$(declare -f context:matcher | sed "1s/^context:matcher /context:matcher-real /")"
+    context:matcher() {
+      local file
+      file=$(context:matcher-real) || return 1
+      if [[ ! -e "${file}.taken" ]]
+      then
+        : > "${file}.taken"
+        rm -f "${file}"
+      fi
+      printf "%s\n" "${file}"
+    }
+    printf "README.md\n" | context:classify'
+  [ "$status" -eq 0 ]
+  [[ "$output" == "README.md"$'\t'*"markdown"* ]]
+}
+
+@test "a compiled matcher awk cannot run fails the lookup, and is never read as no kinds" {
+  local dir file
+  "${kit_checkout}/bin/kit" context README.md >/dev/null
+  dir="$(git rev-parse --path-format=absolute --git-common-dir)/kit"
+  for file in "${dir}"/kinds-*.awk
+  do
+    printf 'BEGIN {\n' > "${file}"
+  done
+  run "${kit_checkout}/bin/kit" context README.md
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"awk cannot run the compiled kinds"* ]]
+  [[ "$output" != *".kit/rules/"* ]]
+}
+
+@test "a repository that declares a kit version and has no kind says so, and names kit hydrate" {
+  # a verb hydrates first and puts the kinds back, so the lookup runs alone, as a hook's would under kit serve
+  rm -f .kit/kinds/*.yml
+  kit_bash_modules=context run kit-bash 'context:load'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"no kind is defined under .kit/kinds; run: kit hydrate"* ]]
+  kit_bash_modules=context run kit-bash 'printf "README.md\n" | context:classify'
+  [ "$status" -eq 1 ]
+  [[ "$output" != *"README.md"$'\t'* ]]
+  # a verb puts the kinds back, and finds them
+  run --separate-stderr "${kit_checkout}/bin/kit" context README.md
+  [ "$status" -eq 0 ]
+  [ "$output" = ".kit/rules/markdown.md" ]
+  [ -f .kit/kinds/markdown.yml ]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

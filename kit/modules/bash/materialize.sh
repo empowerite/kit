@@ -267,17 +267,25 @@ materialize:all() {
 
 # materialize:hydrated succeeds when .kit/.gitignore exists and every path it names is there, as a link or without the
 # write bit, and .kit/manifest exists. cache/ and logs/ are named but never placed, so they are skipped. Where this
-# release is itself inside the worktree, as the kit's own kit/ is, every path must be a link: a copy there came from a kit outside the
-# worktree, and the full run turns it into a link. It starts one process, to resolve the release's root, so a reading
-# verb asks on every run. A fresh clone, a `git clean -fdx`, a link an editor's save replaced, and a copy with its write
-# bit back all fail it, and the full materialize:all follows, as it does when kit.yml is newer than .kit/.gitignore: a
-# declaration edited by hand or pulled since the last full run, whose packages may have come or gone. A copy changed and
-# put back without the write bit passes it: kit check judges that. A template rendered under .kit/ is a copy even
+# release is itself inside the worktree, as the kit's own kit/ is, every path must be a link: a copy there came from a
+# kit outside the worktree, and the full run turns it into a link. It starts two processes, to resolve the release's
+# root and to look under .kit/packages/, so a reading verb asks on every run. A fresh clone, a `git clean -fdx`, a link
+# an editor's save replaced, and a copy with its write bit back all fail it, and the full materialize:all follows, as
+# it does when kit.yml is newer than .kit/.gitignore: a declaration edited by hand or pulled since the last full run,
+# whose packages may have come or gone. So does a file or directory under .kit/packages/ newer than .kit/.gitignore,
+# or a look there that fails: a repository package's file added, changed, or removed since, by hand or by a pull,
+# which .kit/.gitignore cannot name yet. A caller takes a failure for work to do, never for an error. A copy changed
+# and put back without the write bit passes it: kit check judges that. A template rendered under .kit/ is a copy even
 # inside, so a release that delivers one there takes the full run every time; none does.
 materialize:hydrated() {
-  local line path inside=false
+  local line path newer inside=false
   [[ -f .kit/.gitignore && -f .kit/manifest ]] || return 1
   [[ ! kit.yml -nt .kit/.gitignore ]] || return 1
+  if [[ -d .kit/packages ]]
+  then
+    newer=$(find .kit/packages -newer .kit/.gitignore -print -quit) || return 1
+    [[ -z "${newer}" ]] || return 1
+  fi
   # Both are kit's to write, so both are without the write bit, except as root, where the bit says nothing.
   [[ ! -w .kit/.gitignore && ! -w .kit/manifest ]] || (( EUID == 0 )) || return 1
   ! materialize:within "$(readlink -f "${kit_root}")" || inside=true

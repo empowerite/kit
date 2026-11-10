@@ -79,6 +79,36 @@ script() {
   [[ "$output" != *"untracked"* ]]
 }
 
+@test "a path that is not there is refused by name" {
+  run "${kit_checkout}/bin/kit" lint nosuch.sh
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"'nosuch.sh' is not a file or a directory here"* ]]
+  [[ "$output" != *"✅"* ]]
+  run "${kit_checkout}/bin/kit" lint good.sh nosuch.sh
+  [ "$status" -eq 2 ]
+  [[ "$output" != *"shellcheck"* ]]
+}
+
+@test "a path no rule governs is said to be linted by nothing" {
+  printf 'png\n' > logo.png
+  run "${kit_checkout}/bin/kit" lint logo.png
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"no rule governs the 1 path(s); nothing was linted"* ]]
+  [[ "$output" != *"every governed path passes"* ]]
+}
+
+@test "a kind whose pattern is no regular expression fails the lint, and names the kind" {
+  "${kit_checkout}/bin/kit" new kind odd --content='^#!.*(odd'
+  "${kit_checkout}/bin/kit" packages add local
+  run "${kit_checkout}/bin/kit" lint bad.sh
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the kind odd's content pattern"* ]]
+  [[ "$output" != *"✅ every governed"* ]]
+  run "${kit_checkout}/bin/kit" context bad.sh
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the kind odd's content pattern '^#!.*(odd' is not a regular expression"* ]]
+}
+
 @test "a named path is taken from the directory the command was typed in, and the staged list from the root" {
   mkdir sub && cp bad.sh sub/bad.sh && git add sub/bad.sh
   cd sub

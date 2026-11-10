@@ -165,7 +165,7 @@ template:render() {
 template:rules() {
   local path=$1 rule glob best literal kind
   local -a rules
-  context:load
+  context:load || return 1
   list:read rules context:rules "${path}" --direct || return 1
   for rule in "${rules[@]}"
   do

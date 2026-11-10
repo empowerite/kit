@@ -367,7 +367,9 @@ generate:expand() {
 #     passes or <n>. More than one pass can be needed because a command may read another file's region.
 #   - --check runs one pass without writing and fails naming every stale file.
 #
-# A file that cannot be expanded cleanly fails the run in every mode.
+# A file that cannot be expanded cleanly fails the run in every mode. A named path that is neither a file nor a
+# directory returns 2, before anything is expanded, as kit lint refuses it: a typo never passes as a file with no
+# directive.
 generate:run() {
   local check=false limit=0 explicit=false arg file rc pass=0 changed failed stale
   local -a files=() targets=()
@@ -378,6 +380,14 @@ generate:run() {
       (--iterations=*) limit=${arg#*=} ;;
       (*) files+=("${arg}"); explicit=true ;;
     esac
+  done
+  for file in "${files[@]}"
+  do
+    if [[ ! -e "${file}" && ! -L "${file}" ]]
+    then
+      error "'${file}' is not a file or a directory here"
+      return 2
+    fi
   done
   if (( ${#files[@]} ))
   then list:read targets generate:discover "${files[@]}" || return 1

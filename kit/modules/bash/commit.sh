@@ -32,7 +32,7 @@
 #
 # see: kit/bin/kit-commit, kit/bin/kit-submit, modules/bash/policy.sh, docs/features.md
 
-use git policy facts tracker context settings
+use git policy facts tracker context settings materialize
 
 # commit:parse <argument>… reads the options both verbs share into commit_all, commit_messages, commit_file, and
 # commit_paths. guard:arguments has judged the shape of the line already, so this reads what it let through.
@@ -393,6 +393,9 @@ commit:commit() {
     return 2
   fi
   branch=$(commit:branch) || return 1
+  # The facts the policy judges name each path's kinds, read from .kit/, so .kit/ is put in place first, as every
+  # verb that reads a delivered file has it; a fresh worktree's commit is then judged by its kinds, never by none.
+  materialize:hydrate || return 1
   if [[ "$(settings:value require_signing)" == true ]]
   then
     guard:require signing-key || return 1

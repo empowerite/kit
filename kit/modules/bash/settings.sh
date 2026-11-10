@@ -130,7 +130,11 @@ settings:context() {
         IFS=$'\t' read -r name value <<<"${row}"
         [[ -n "${name}" ]] || continue
         printf '%s\t%s\n' "${key}.${name}" "${value}"
-        [[ "${key}" == answers ]] && printf '%s\t%s\n' "${name}" "${value}"
+        # an if, not &&: the last row of the last map would otherwise end the group, and the pipe, with status 1
+        if [[ "${key}" == answers ]]
+        then
+          printf '%s\t%s\n' "${name}" "${value}"
+        fi
       done
     done
   } | awk -F '\t' '{ a[$1] = $2 } END { for (k in a) print k "\t" a[k] }'

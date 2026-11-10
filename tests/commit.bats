@@ -328,6 +328,20 @@ deny contains sprintf("%s is in the tree", [path]) if {
   [ "$(git log --oneline | wc -l | tr -d ' ')" = 1 ]
 }
 
+@test "a staged deletion never reaches the checks as a named path: git rm commits, alone and beside an added file" {
+  printf 'x\n' > x.txt && git add x.txt && git commit --quiet --message '#7 x: a file' -- x.txt
+  git rm --quiet notes.txt
+  printf 'y\n' > y.txt && git add y.txt
+  run kit commit --message '#7 files: notes go, y comes'
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"is not a file or a directory here"* ]]
+  [ "$(git show --name-status --format= HEAD | sort)" = $'A\ty.txt\nD\tnotes.txt' ]
+  git rm --quiet x.txt
+  run kit commit --message '#7 x: gone'
+  [ "$status" -eq 0 ]
+  [ "$(git show --name-status --format= HEAD)" = $'D\tx.txt' ]
+}
+
 @test "a named path deleted from the disk is committed as a deletion" {
   # notes.txt is in HEAD from the start commit
   rm notes.txt
@@ -658,7 +672,7 @@ EOF
   kit commit --message 'x: a file' 2>>"${BATS_TEST_TMPDIR}/err" >/dev/null || status=$?
   [ "$status" -eq 1 ]
   [ "$(head -n 1 "${BATS_TEST_TMPDIR}/err")" = 'the first line' ]
-  grep --quiet --text 'every governed path passes its rule' "${BATS_TEST_TMPDIR}/err"
+  grep --quiet --text 'no rule governs the 1 path(s); nothing was linted' "${BATS_TEST_TMPDIR}/err"
   grep --quiet --text 'the hook says no' "${BATS_TEST_TMPDIR}/err"
   tr -d '\0' < "${BATS_TEST_TMPDIR}/err" | cmp --silent - "${BATS_TEST_TMPDIR}/err"
 }

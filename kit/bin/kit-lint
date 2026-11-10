@@ -8,7 +8,8 @@
 #   <path>…       the files to check; default: the staged files
 #   --all-files   with no paths, every tracked file instead of the staged ones
 #
-# A path is relative to the current directory; a directory stands for the tracked files under it. Each file is
+# A path is relative to the current directory; a directory stands for the tracked files under it, and a path that is
+# neither is refused before anything is linted. The staged files leave out a path the commit deletes. Each file is
 # matched to the rules of its kinds, as kit context matches. The rules of the kinds a kind embeds are left out, so
 # no linter runs over a file it cannot parse. Then, for each rule:
 #
@@ -26,8 +27,11 @@
 # Files under .kit/templates/ are templates, not files of their kind, and are not linted. kit lint needs no hook
 # manager; the hooks/lefthook package runs it from a pre-commit hook.
 #
-# Exits 0 when every rule passes, 1 when any rule refuses, kit.yml cannot be read, or git's list of the paths cannot be
-# read, and 2 on a usage error.
+# When no rule governs any of the paths, it says that nothing was linted, and passes.
+#
+# Exits 0 when every rule passes, 1 when any rule refuses, kit.yml or the kinds cannot be read, a kind's content
+# pattern is no regular expression, or git's list of the paths cannot be read, and 2 on a usage error or a path not
+# there.
 #
 # see: modules/bash/context.sh, modules/bash/lint.sh, modules/bash/template.sh, docs/context.md, docs/templates.md
 
@@ -63,9 +67,14 @@ then
 else
   named=("${paths[@]}")
   paths=()
-  for path in "${named[@]}"
+  for name in "${named[@]}"
   do
-    path=$(context:relative "${path}")
+    path=$(context:relative "${name}")
+    if [[ ! -e "${path}" && ! -L "${path}" ]]
+    then
+      error "'${name}' is not a file or a directory here"
+      exit 2
+    fi
     if [[ -d "${path}" ]]
     then
       list:read0 under git ls-files -z -- "${path}" || exit 1
@@ -138,6 +147,11 @@ if (( refused > 0 ))
 then
   error "${refused} rule(s) refused; see above"
   exit 1
+fi
+if (( ${#governed[@]} == 0 ))
+then
+  ok "no rule governs the ${#paths[@]} path(s); nothing was linted"
+  exit 0
 fi
 ok "every governed path passes its rule's linter"
 

@@ -252,6 +252,33 @@ setup() {
   [ -f .kit/rules/bash.md ]
 }
 
+@test "a file added to an active package since the last full run is placed by the next verb, as a pull brings one" {
+  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
+  mkdir -p .kit/packages/local/files/repo/.kit/rules
+  printf 'description: "This repository'"'"'s own"\ndepends:\n  - kit\n' > .kit/packages/local/package.yml
+  "${kit_checkout}/bin/kit" packages add local >/dev/null 2>&1
+  # the last full run is in the past, and kit.yml is no newer than it, so only the package's new file is
+  touch -t 202001010000 kit.yml .kit/.gitignore
+  printf -- '---\nkind: [markdown]\n---\n# Extra\n' > .kit/packages/local/files/repo/.kit/rules/extra.md
+  run "${kit_checkout}/bin/kit" context README.md
+  [ "$status" -eq 0 ]
+  [[ "$output" == *".kit/rules/extra.md"* ]]
+  [ -f .kit/rules/extra.md ]
+  run "${kit_checkout}/bin/kit" hydrate --quick
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "a kit.yml whose last key is a map other than answers hydrates" {
+  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
+  printf 'forges:\n  upstream: gitlab\n' >> kit.yml
+  rm .kit/rules/bash.md
+  run "${kit_checkout}/bin/kit" hydrate
+  [ "$status" -eq 0 ]
+  [[ "$output" == *".kit/rules/bash.md: placed"* ]]
+  [ -f .kit/rules/bash.md ]
+}
+
 @test ".kit/.gitignore lists /cache/, and a quick hydrate passes without it" {
   "${kit_checkout}/bin/kit" install
   run "${kit_checkout}/bin/kit" hydrate
