@@ -88,9 +88,9 @@ and are refused.
 On a terminal, `kit flow --workspace empowerite` opens kittui's picture over the group, as picking the group from the
 📚 workspace menu does. Every tab gathers its rows from every cloned member, grouped by member as they load, and a
 member whose read failed is one red line among them. The 📚 repos tab comes first, always, a single repository's
-picture included: a row per member, with its forge, remotes, checkout or `not cloned`, its desk's branch, and a count
-of each tab's rows of the member. A click on a count opens that tab filtered to the member. A member that is not
-cloned counts a dim `-`, never 0.
+picture included: a row per member, with its forge, remotes, clone or `not cloned`, its desk's branch, its linked
+worktrees by branch, and the local branches no checkout has. The clone reads `~` for the home folder, and a closed
+row shows `…` and its last two folders; open, the row shows the whole path.
 
 ## Still to come
 

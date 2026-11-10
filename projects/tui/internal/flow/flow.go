@@ -1236,11 +1236,8 @@ func (m Model) rowLine(k int) int {
 
 // jump follows a link to a row of another stage, its name and the row's key: the stage is selected, its rows have the
 // keyboard, and the cursor is on the row, or where it was when the panel hides the row or the stage has not loaded
-// it. A link to a stage filtered to a member, as onlyTo gives one, selects it as only says.
+// it.
 func (m *Model) jump(to string) {
-	if m.only(to) {
-		return
-	}
 	name, key, _ := strings.Cut(to, "/")
 	i := slices.IndexFunc(m.stages, func(s stage) bool { return s.name == name })
 	if i < 0 {

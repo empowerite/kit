@@ -132,9 +132,11 @@
 # members; a pull request's number names one repository's, and is refused.
 #
 # repos lists the workspace's members, or with no --workspace the repository here: a row per member, {repository,
-# host, path, forge, remotes, checkout, checkouts, by, branch, ahead, behind, error}. remotes is [{name, url, forge}];
-# by is fixed for a group's member, given for a repository named, and here for the one kit runs in. branch, ahead, and
-# behind are its desk's, and null for a member not cloned; error is the desk's line where it could not be read.
+# host, path, forge, remotes, checkout, checkouts, by, branch, ahead, behind, worktrees, branches, error}. remotes is
+# [{name, url, forge}]; by is fixed for a group's member, given for a repository named, and here for the one kit runs
+# in. checkout is the clone, also from one of its linked worktrees. branch, ahead, and behind are its desk's; worktrees
+# is its linked worktrees, [{branch, path}], branch null for one on no branch; branches is its local branches that no
+# checkout has; each is null for a member not cloned. error is the desk's line where it could not be read.
 #
 # Legend
 #

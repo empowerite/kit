@@ -257,10 +257,11 @@ across:repos-form() {
 }
 
 # across:repos <workspace> [<pictures>] prints the repos stage's document, {rows, errors}: a row per member, in the
-# workspace's order, cloned or not, as workspaces:member-json gives it, with its desk's branch, ahead, and behind, each
-# null for a member not cloned, and error, the desk's line where it could not be read, else null. A member's desk is
-# read from its picture in <pictures>, as across:start left them, where it holds one, else by kit flow desk. No
-# workspace is the repository here, by here; outside one it returns 2.
+# workspace's order, cloned or not, as workspaces:member-json gives it, with its desk's branch, ahead, and behind, its
+# worktrees and branches, as across:branches gives them, each null for a member not cloned, and error, the desk's line
+# where it could not be read, else null. A member's desk is read from its picture in <pictures>, as across:start left
+# them, where it holds one, else by kit flow desk. No workspace is the repository here, by here, its checkout the
+# clone, even from one of its linked worktrees; outside one it returns 2.
 across:repos() {
   local resolved top member row
   if [[ -n "$1" ]]
@@ -272,6 +273,7 @@ across:repos() {
       error "repos lists a workspace's repositories: run it in one, or give --workspace"
       return 2
     fi
+    top=$(git:main-root "${top}")
     member=$(workspaces:member-of "${top}")
     if [[ -n "${member}" ]]
     then
@@ -289,7 +291,7 @@ across:repos() {
 # across:repos-of <resolved> <workspace> <pictures> prints the repos document of the members <resolved> holds, as
 # across:repos says, reading at once the desks no picture holds.
 across:repos-of() {
-  local resolved=$1 workspace=$2 pictures=$3 dir checkout n=0 k desk error
+  local resolved=$1 workspace=$2 pictures=$3 dir checkout n=0 k desk error lists
   local -a checkouts=() members=() rows=()
   file:scratch dir
   readarray -t checkouts < <(jq --raw-output '.members[] | .checkout // ""' <<<"${resolved}")
@@ -310,7 +312,11 @@ across:repos-of() {
   wait || true
   for n in "${!checkouts[@]}"
   do
-    desk=null error=''
+    desk=null error='' lists='{"worktrees": null, "branches": null}'
+    if [[ -n "${checkouts[${n}]}" ]]
+    then
+      lists=$(across:branches "${checkouts[${n}]}" 2>/dev/null) || lists='{"worktrees": null, "branches": null}'
+    fi
     if [[ -f "${dir}/${n}.status" ]]
     then
       if jq --exit-status 'type == "object"' "${dir}/${n}.out" >/dev/null 2>&1
@@ -321,10 +327,26 @@ across:repos-of() {
       fi
     fi
     rows+=("$(jq --compact-output --argjson n "${n}" --argjson desk "${desk}" --arg error "${error}" \
-      '.members[$n] + {branch: ($desk.branch // null), ahead: ($desk.ahead // null), behind: ($desk.behind // null),
-        error: (if $error == "" then null else $error end)}' <<<"${resolved}")")
+      --argjson lists "${lists}" '.members[$n] + {branch: ($desk.branch // null), ahead: ($desk.ahead // null),
+        behind: ($desk.behind // null)} + $lists + {error: (if $error == "" then null else $error end)}' \
+      <<<"${resolved}")")
   done
   printf '%s\n' "${rows[@]}" | jq --slurp --compact-output '{rows: ., errors: []}'
+}
+
+# across:branches <checkout> prints the checkout's linked worktrees and its local branches as JSON, {worktrees,
+# branches}: worktrees [{branch, path}], in path order, branch null for one on no branch; branches the local branches
+# that neither the checkout nor a worktree has checked out, in name order.
+across:branches() {
+  local list heads
+  list=$(git -C "$1" worktree list --porcelain) || return 1
+  heads=$(git -C "$1" for-each-ref --format='%(refname:short)' refs/heads) || return 1
+  jq --null-input --compact-output --arg list "${list}" --arg heads "${heads}" '
+    [$list | split("\n\n")[] | select(. != "") | split("\n")
+      | {branch: (map(select(startswith("branch refs/heads/"))[18:]) | first // null),
+         path: (map(select(startswith("worktree "))[9:]) | first)}] as $all
+    | {worktrees: ($all[1:] | sort_by(.path)),
+       branches: [$heads | split("\n")[] | select(. != "") | select(. as $b | $all | any(.branch == $b) | not)]}'
 }
 
 # across:picture-of <pictures> <member> prints the number of the member's picture in <pictures>, or nothing.

@@ -1,19 +1,21 @@
-// The 📚 repos tab, first in the picture: a row per member of the workspace, as kit flow repos --json gives it, with a
-// count of each other tab's rows of the member, which opens that tab filtered to the member.
+// The 📚 repos tab, first in the picture: a row per member of the workspace, as kit flow repos --json gives it: where it
+// is cloned, its branch, its worktrees, and the branches no checkout has.
 package flow
 
 import (
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
-	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
 // repo is one member of the workspace, as kit flow repos --json gives it: its host and path, its primary remote's
-// forge, its remotes, its checkout or none, the source that made it a member, and its desk's branch, with the commits
-// it is ahead and behind, none for a member not cloned; Error is the desk's line where it failed.
+// forge, its remotes, its clone or none, the source that made it a member, and its desk's branch, with the commits it is
+// ahead and behind, its linked worktrees, each on its branch or none, and its local branches no checkout has, none for
+// a member not cloned; Error is the desk's line where it failed.
 type repo struct {
 	Repository string  `json:"repository"`
 	Forge      *string `json:"forge"`
@@ -22,20 +24,22 @@ type repo struct {
 		URL   string `json:"url"`
 		Forge string `json:"forge"`
 	} `json:"remotes"`
-	Checkout *string `json:"checkout"`
-	By       string  `json:"by"`
-	Branch   *string `json:"branch"`
-	Ahead    *int    `json:"ahead"`
-	Behind   *int    `json:"behind"`
-	Error    *string `json:"error"`
+	Checkout  *string `json:"checkout"`
+	By        string  `json:"by"`
+	Branch    *string `json:"branch"`
+	Ahead     *int    `json:"ahead"`
+	Behind    *int    `json:"behind"`
+	Worktrees []struct {
+		Branch *string `json:"branch"`
+		Path   string  `json:"path"`
+	} `json:"worktrees"`
+	Branches []string `json:"branches"`
+	Error    *string  `json:"error"`
 }
 
-// countedStages names the stages a member's row counts, each a field of the repos tab.
-var countedStages = []string{"backlog", "underway", "desk", "worktrees", "changes", "builds", "incoming", "releases"}
-
-// repoRows gives each member: its short name, forge, remotes as pills, checkout, or dim not cloned, branch with what
-// it is ahead and behind, each stage's count of its rows, and the source that made it a member. A member whose desk
-// could not be read shows ❌ before its checkout, and kit's line when it is opened.
+// repoRows gives each member: its short name, forge, remotes as pills, clone, or dim not cloned, branch with what it is
+// ahead and behind, its worktrees by branch, and the branches no checkout has, and the source that made it a member. A
+// member whose desk could not be read shows ❌ before its clone, and kit's line when it is opened.
 func (m Model) repoRows(s stage) []record {
 	var out []record
 	for _, r := range s.repos {
@@ -45,10 +49,17 @@ func (m Model) repoRows(s stage) []record {
 		}
 		where := table.Value{Else: "not cloned"}
 		if r.Checkout != nil {
-			where = table.One(*r.Checkout)
-			if r.Error != nil {
-				where = table.One(Failed + " " + *r.Checkout)
+			where = table.Value{Raw: []string{*r.Checkout}, Of: r.Error != nil}
+		}
+		var trees table.Value
+		for _, w := range r.Worktrees {
+			if w.Branch != nil {
+				trees.Raw = append(trees.Raw, *w.Branch)
+			} else {
+				trees.Raw = append(trees.Raw, filepath.Base(w.Path))
 			}
+			detached, _ := trees.Of.([]bool)
+			trees.Of = append(detached, w.Branch == nil)
 		}
 		var branch, ahead table.Value
 		if r.Branch != nil {
@@ -69,10 +80,7 @@ func (m Model) repoRows(s stage) []record {
 		values := map[string]table.Value{
 			"repository": {Raw: []string{r.Repository}, Of: m.short(r.Repository)}, "forge": table.Some(forge),
 			"remotes": table.Labelled(labels), "checkout": where, "branch": branch, "ahead": ahead,
-			"by": table.Some(r.By),
-		}
-		for _, name := range countedStages {
-			values[name] = m.countOf(name, r)
+			"worktrees": trees, "branches": {Raw: r.Branches}, "by": table.Some(r.By),
 		}
 		rec := record{row{Key: r.Repository}, values}
 		if r.Error != nil {
@@ -83,83 +91,53 @@ func (m Model) repoRows(s stage) []record {
 	return out
 }
 
-// countOf gives a member's count of a stage's rows: none for a stage not in the picture; a dim - for a member not
-// cloned, whose rows step 4 reads; a dim … while the stage loads; ❌ where the stage refused, or failed for the member;
-// else its rows, the asides apart, incoming's what the fetch brought. ❌ and the count lead to the stage, filtered to
-// the member over a group; incoming's count, to the member's first remote.
-func (m Model) countOf(name string, r repo) table.Value {
-	s := m.find(name)
-	switch {
-	case s == nil:
-		return table.Value{}
-	case r.Checkout == nil:
-		return table.Value{Else: "-"}
-	case s.src.Loading:
-		return table.Value{Else: "…"}
-	}
-	member := ""
-	if m.runner.Group != "" {
-		member = r.Repository
-	}
-	link := onlyTo(name, member)
-	for _, f := range s.failed {
-		if f.Member == member {
-			return table.Value{Raw: []string{Failed}, Link: link}
+// pathCells draws a clone's path, ~ for the home folder, after ❌ where its desk failed: whole in an open row, and in a
+// closed one, where it has more, … and its last two folders, so a deep clone keeps the columns beside it on the screen.
+func pathCells(f table.Field, vs []table.Value) []cell {
+	home, _ := os.UserHomeDir()
+	out := make([]cell, len(vs))
+	for k, v := range vs {
+		if len(v.Raw) == 0 {
+			continue
+		}
+		whole, lead := tilde(v.Raw[0], home), ""
+		if failed, _ := v.Of.(bool); failed {
+			lead = Failed + " "
+		}
+		out[k].Values = []string{lead + whole}
+		if parts := strings.Split(whole, "/"); len(parts) > 3 {
+			out[k].Summary = lead + "…/" + strings.Join(parts[len(parts)-2:], "/")
+			if f.Dim {
+				out[k].Summary = style.Off(out[k].Summary)
+			}
 		}
 	}
-	if s.refusal != "" {
-		return table.Value{Raw: []string{Failed}, Link: link}
-	}
-	n := 0
-	if name == "incoming" {
-		// incoming's rows hold no member to filter by: the count leads to the member's first remote, every member's
-		// remotes under their headings
-		for _, in := range s.ins {
-			if in.Member != member {
-				continue
-			}
-			for k, rm := range primaryFirst(in) {
-				if k == 0 {
-					link = jumpTo(name, m.keyOf(member, "remote "+rm.Name))
-				}
-				n += len(rm.Commits) + len(rm.Branches.New) + len(rm.Branches.Updated) + len(rm.Branches.Gone) +
-					len(rm.Tags)
-			}
-		}
-	} else {
-		for _, rec := range m.records(*s) {
-			if rec.values == nil || rec.Aside {
-				continue
-			}
-			if v := rec.values["member"]; member != "" && (len(v.Raw) == 0 || v.Raw[0] != member) {
-				continue
-			}
-			n++
-		}
-	}
-	return table.Value{Raw: []string{strconv.Itoa(n)}, Link: link}
+	return out
 }
 
-// onlyTo gives the link that selects a stage filtered to a member's rows; for no member, the stage alone.
-func onlyTo(stage, member string) string { return jumps + stage + "?" + member }
+// worktreeNames draws each worktree after the field's glyph, by its branch, or by its folder after ❗ where it is on
+// none.
+func worktreeNames(f table.Field, v table.Value) []string {
+	detached, _ := v.Of.([]bool)
+	out := make([]string, len(v.Raw))
+	for k, name := range v.Raw {
+		out[k] = f.Glyph + " " + name
+		if k < len(detached) && detached[k] {
+			out[k] += " " + Detached
+		}
+	}
+	return out
+}
 
-// only follows a link onlyTo gives: the stage selected, its rows filtered to the member's where it names one, the
-// member's filter set aside where it does not.
-func (m *Model) only(to string) bool {
-	name, member, ok := strings.Cut(to, "?")
-	if !ok || strings.Contains(name, "/") {
-		return false
+// tilde gives a path with ~ for the home folder it is in, or is.
+func tilde(path, home string) string {
+	switch {
+	case home == "" || home == "/":
+		return path
+	case path == home:
+		return "~"
+	case strings.HasPrefix(path, home+"/"):
+		return "~" + strings.TrimPrefix(path, home)
 	}
-	m.jump(name + "/")
-	if m.stages[m.stage].name != name {
-		return true
-	}
-	p := m.panel(m.stage)
-	if member == "" {
-		m.setPanel(p.FilteredBy("member", grid.Filter{}))
-	} else {
-		m.setPanel(p.FilteredBy("member", grid.Filter{Values: []string{member}}))
-	}
-	m.fit()
-	return true
+	return path
 }

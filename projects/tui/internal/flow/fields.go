@@ -132,6 +132,8 @@ func init() {
 		"threads":     {table.Each(threadsText), true},
 		"where":       {whereCells, true},
 		"member":      {table.Each(memberName), false},
+		"path":        {pathCells, false},
+		"worktree":    {table.Each(worktreeNames), true},
 	} {
 		table.Register(name, r.draw, r.glyph)
 	}

@@ -173,6 +173,30 @@ EOF
   [[ "$output" == *"repos lists a workspace's repositories"* ]]
 }
 
+@test "kit flow repos in a linked worktree gives the clone as the checkout, as its branch is the clone's" {
+  desk-at "${BATS_TEST_TMPDIR}/code/a" github.com/o/a
+  git -C "${BATS_TEST_TMPDIR}/code/a" worktree add --quiet -b topic "${BATS_TEST_TMPDIR}/code/a/worktrees/topic"
+  cd "${BATS_TEST_TMPDIR}/code/a/worktrees/topic"
+  run "${kit_root}/bin/kit" flow repos --json
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '[.rows[] | [.checkout, .checkouts, .branch]]' <<<"$output")" = \
+    "$(jq -nc --arg a "$(cd ../.. && pwd -P)" '[[$a, [$a], "main"]]')" ]
+}
+
+@test "kit flow repos lists a member's linked worktrees, and its local branches no checkout has; none, not cloned" {
+  two-desks
+  local a="${BATS_TEST_TMPDIR}/code/a"
+  git -C "${a}" worktree add --quiet -b topic "${a}/worktrees/topic"
+  git -C "${a}" worktree add --quiet --detach "${a}/worktrees/loose"
+  git -C "${a}" branch idle
+  cd "${BATS_TEST_TMPDIR}"
+  run "${kit_root}/bin/kit" flow repos --workspace w --json
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '[.rows[] | [.worktrees, .branches]]' <<<"$output")" = "$(jq -nc --arg a "$(cd "${a}" && pwd -P)" \
+    '[[[{branch: null, path: "\($a)/worktrees/loose"}, {branch: "topic", path: "\($a)/worktrees/topic"}], ["idle"]],
+      [[], []], [null, null]]')" ]
+}
+
 @test "kit flow repos draws a line per member, its branch with what it is ahead, and not cloned" {
   two-desks
   git -C "${BATS_TEST_TMPDIR}/code/a" commit --quiet --allow-empty --message ahead

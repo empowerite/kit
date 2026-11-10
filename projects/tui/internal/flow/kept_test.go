@@ -101,9 +101,6 @@ func TestOverAGroupWhatWasKeptOfOnlySomeMembersIsNotDrawn(t *testing.T) {
 	if s := m.find("backlog"); !s.src.Loading || s.src.Stale {
 		t.Errorf("backlog: loading %v, stale %v", s.src.Loading, s.src.Stale)
 	}
-	if n, _ := repoCount(m, "github.com/o/b", "backlog"); n != "…" {
-		t.Errorf("b's backlog counts %q while it loads", n)
-	}
 	if v := view(m); strings.Contains(v, "printed nothing here yet") {
 		t.Errorf("a kept failure is drawn:\n%s", v)
 	}
