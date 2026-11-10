@@ -355,4 +355,44 @@ desk-world() {
   [ "$(git -C "${repo}.origin.git" rev-parse 7-fix-the-thing)" = "$(git -C "${repo}.origin.git" rev-parse main)" ]
 }
 
+@test "kit work refuses the desk's branch though a tag has its name, which makes git's short name of it ambiguous" {
+  local head
+  desk-world
+  git fetch --quiet origin
+  git switch --quiet 7-fix-the-thing
+  git tag 7-fix-the-thing
+  head=$(git rev-parse HEAD)
+  run "${kit_checkout}/bin/kit" work 7
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"refusing to start #7: its branch 7-fix-the-thing is checked out on the desk"* ]]
+  [ "$(git symbolic-ref HEAD)" = refs/heads/7-fix-the-thing ]
+  [ "$(git rev-parse HEAD)" = "${head}" ]
+  [ ! -e worktrees/7-fix-the-thing ]
+}
+
+@test "a stash another session pushes on top of the sweep's is not taken for it: nothing is swept, and both stay" {
+  local mine
+  desk-world
+  printf 'mine\n' > notes.txt
+  # git stands in for the real one, and pushes another session's stash right after the sweep's
+  run kit-bash "use issue
+    git() {
+      local status=0
+      command git \"\$@\" || status=\$?
+      if [[ \"\$*\" == *'stash push'*'kit work'* ]]
+      then
+        printf 'theirs\n' > theirs.txt
+        command git stash push --quiet --include-untracked --message theirs
+      fi
+      return \${status}
+    }
+    issue:sweep-push '${PWD}' 'kit work #7 → 7-fix-the-thing'"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"is not the one kit work pushed, so nothing is swept"* ]]
+  [[ "$output" != *"$(git rev-parse 'stash@{0}')"* ]]
+  [ "$(git stash list --format=%gs)" = "$(printf 'On main: theirs\nOn main: kit work #7 → 7-fix-the-thing')" ]
+  mine=$(git rev-parse 'stash@{1}')
+  [ "$(git show "${mine}:notes.txt")" = mine ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

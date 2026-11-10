@@ -20,6 +20,8 @@
 # before it assigns, stashes, or commits anything. Uncommitted work on the desk is swept into the new worktree. When
 # the swept work conflicts there, it stays in the stash, kit work names the command that applies it, and stops. When
 # kit work stops before the worktree has that work otherwise, the work goes back to the desk, staged work staged.
+# When another session's stash lands on top of the sweep's, kit work sweeps nothing, and names the stash that holds
+# the desk's work.
 #
 #   <reference>…     the issues, each named with its tracker: 7, #7, or AB#4521; the first is the primary, and the
 #                    one pull request closes them all

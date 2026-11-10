@@ -30,7 +30,9 @@
 #     The desk is left clean, and is fast-forwarded when it is on the default branch. If the work cannot be
 #     applied in the worktree, it stays in the stash and the command stops. When the command stops before the
 #     worktree has the work, by a refusal, a failed command, or an interrupt, the work goes back to the desk. Work a
-#     stash does not take, such as work inside a submodule, stays on the desk, and no other stash is touched.
+#     stash does not take, such as work inside a submodule, stays on the desk, and no other stash is touched. When
+#     another session's stash lands on top of the sweep's, nothing is swept, and the work stays in the stash under
+#     the sweep's subject.
 #   - in any other checkout: left in place, since it belongs to that checkout's issue
 #
 # The desk never holds the issue's branch while the command works: when the desk has the branch checked out,
@@ -398,10 +400,15 @@ issue:start-commit() {
 
 # issue:sweep-push <root> <message> stashes all uncommitted work at <root>, including untracked files, and prints
 # the new stash's commit hash. The hash stays valid even when other entries are pushed onto or dropped from the
-# stash. It prints nothing when refs/stash is the same before and after the push: the work, such as work inside a
-# submodule, is not work a stash takes, and the stash on top is one that was there before.
+# stash. It prints nothing, and says why, when the stash on top is not the one it pushed:
+#
+#   - refs/stash is the same before and after the push: the work, such as work inside a submodule, is not work a
+#     stash takes, and the stash on top is one that was there before
+#   - the stash on top has another subject than the one git gives the push, "On <branch>: <message>": another
+#     session pushed it meanwhile, which the stash every worktree shares allows, so nothing is swept, and the
+#     desk's work stays in the stash under its subject
 issue:sweep-push() {
-  local root=$1 message=$2 before after
+  local root=$1 message=$2 before after ref branch subject
   before=$(git -C "${root}" rev-parse --quiet --verify refs/stash) || before=''
   if ! git -C "${root}" stash push --include-untracked --message "${message}" >/dev/null
   then
@@ -409,7 +416,21 @@ issue:sweep-push() {
     return 1
   fi
   after=$(git -C "${root}" rev-parse --quiet --verify refs/stash) || after=''
-  [[ "${after}" == "${before}" ]] || printf '%s\n' "${after}"
+  ref=$(git -C "${root}" symbolic-ref --quiet HEAD) || ref=''
+  branch=${ref#refs/heads/}
+  if [[ "${after}" == "${before}" ]]
+  then
+    warn "Nothing to sweep: what is uncommitted on ${branch:-HEAD} is not work a stash takes"
+    return 0
+  fi
+  subject="On ${branch:-(no branch)}: ${message}"
+  if [[ "$(git -C "${root}" log -1 --format=%s "${after}")" != "${subject}" ]]
+  then
+    warn "the stash on top, ${after:0:12}, is not the one kit work pushed, so nothing is swept; the desk's work is" \
+      "in the stash as \"${subject}\": git -C '${root}' stash list"
+    return 0
+  fi
+  printf '%s\n' "${after}"
 }
 
 # issue:sweep-restore <root> puts the stash in issue_swept back on the desk at <root>, staged work staged again, and
@@ -538,7 +559,7 @@ issue:start() {
   section "Starting ${primary}: ${title}"
 
   branch=$(issue:branch "${primary}" "${default_branch}" "${title}") || return
-  if [[ "$(git -C "${main_root}" symbolic-ref --quiet --short HEAD)" == "${branch}" ]]
+  if [[ "$(git -C "${main_root}" symbolic-ref --quiet HEAD)" == "refs/heads/${branch}" ]]
   then
     error "refusing to start ${primary}: its branch ${branch} is checked out on the desk, ${main_root}, which is the" \
       "human's; switch the desk to another branch, then run kit work again"
@@ -549,10 +570,8 @@ issue:start() {
   then
     step "Sweeping the uncommitted work on ${desk_branch} into the worktree"
     stash=$(issue:sweep-push "${desk}" "kit work ${primary} → ${branch}") || return
-    if [[ -z "${stash}" ]]
+    if [[ -n "${stash}" ]]
     then
-      warn "Nothing to sweep: what is uncommitted on ${desk_branch} is not work a stash takes"
-    else
       issue_swept=${stash}
       file:at-exit issue:sweep-restore "${desk}"
     fi
