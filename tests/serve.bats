@@ -113,14 +113,35 @@ call() {
   run ! grep --quiet 'ignored null byte' "${BATS_TEST_TMPDIR}/err"
 }
 
+@test "a raw NUL byte on a line is a parse error, never served, and the server goes on" {
+  local line
+  # the NUL is a byte on the line, not an escape inside a string, so the lines are written with printf
+  {
+    printf '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"_meta":%s,"name":"vers\0ion"}}\n' \
+      '{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}'
+    printf '{"jsonrpc":"2.0","id":2,"method":"pi\0ng"}\n'
+    call 3 version
+  } | "${kit_checkout}/bin/kit" serve >"${BATS_TEST_TMPDIR}/out" 2>"${BATS_TEST_TMPDIR}/err"
+  [ "$(wc -l < "${BATS_TEST_TMPDIR}/out")" -eq 3 ]
+  for line in 1 2
+  do
+    sed -n "${line}p" "${BATS_TEST_TMPDIR}/out" | jq --exit-status '.id == null and .error.code == -32700'
+    sed -n "${line}p" "${BATS_TEST_TMPDIR}/out" | jq --exit-status '.error.message | contains("a NUL byte")'
+  done
+  answer 3 | jq --exit-status '.result.isError == false'
+  [ "$(grep --count ' kit version' .kit/logs/mcp-*.log)" -eq 1 ]
+  [ "$(grep --count 'outcome=error=-32700$' .kit/logs/mcp-*.log)" -eq 2 ]
+}
+
 @test "a result over a megabyte, and a request line over a megabyte, are answered, and the server goes on" {
   serve "$(call 1 syntax "{\"verb\": $(jq --null-input --compact-output '[range(50) | "flow"]')}")" "$(call 2 version)"
   answer 1 | jq --exit-status '.result | .isError == false and (.content[0].text | length > 1000000)'
   answer 2 | jq --exit-status '.result.isError == false'
   # call would put the path on jq's command line, so the line is written with printf
   {
-    printf '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"_meta":%s,"name":"context","arguments":{"path":["' \
+    printf '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"_meta":%s,"name":"context",' \
       '{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}'
+    printf '"arguments":{"path":["'
     head -c 1500000 /dev/zero | tr '\0' a
     printf '"]}}}\n'
     call 4 version
@@ -361,6 +382,27 @@ call() {
     done
   done
   run ! grep --quiet 'secret.sh' .kit/logs/mcp-*.log
+}
+
+@test "a path whose last part is .. is judged as a verb reads it too, and a dangling link is refused" {
+  local tool id
+  mkdir -p sub/inner sub/linkout "${BATS_TEST_TMPDIR}/outside"
+  ln -s sub/inner deep
+  ln -s "${BATS_TEST_TMPDIR}/outside" linkout
+  ln -s missing.sh dangling.sh
+  for tool in context kinds lint
+  do
+    serve "$(call 1 "${tool}" '{"path":["deep/../linkout/.."]}')" "$(call 2 "${tool}" '{"path":["dangling.sh"]}')" \
+      "$(call 3 "${tool}" '{"path":["sub/inner/.."]}')"
+    # the kernel reads deep/../linkout/.. as sub, and a shell as the root; a verb cds to deep/../linkout as a shell
+    # does, which is outside, then applies the last .. as the kernel does, which leads further out
+    for id in 1 2
+    do
+      answer "${id}" | jq --exit-status '.error.code == -32602'
+      answer "${id}" | jq --exit-status '.error.message | contains("is outside the repository")'
+    done
+    answer 3 | jq --exit-status 'has("result")'
+  done
 }
 
 @test "a path is refused when the server's directory is gone, so the root cannot be read" {

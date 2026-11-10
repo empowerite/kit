@@ -132,8 +132,8 @@ def argv($args; $opts):
   | ([$a | to_entries[] | select(.value | nul) | .key] | first) as $nul
   | if $nul then {error: "\($nul | cut)'s value holds a NUL, which no command line carries"}
     elif ($unknown | length) > 0 then
-      {error: ("unknown argument\(if ($unknown | length) > 1 then "s" else "" end) \($unknown | map(cut) | join(", ")); "
-        + "kit \($spec.verb) takes: \($known | join(", "))")}
+      {error: ("unknown argument\(if ($unknown | length) > 1 then "s" else "" end) "
+        + "\($unknown | map(cut) | join(", ")); kit \($spec.verb) takes: \($known | join(", "))")}
     else
       ([$a | to_entries[] | .key as $key | .value as $value | $schema.properties[$key] as $property
         | ($property.enum // $property.items.enum) as $enum

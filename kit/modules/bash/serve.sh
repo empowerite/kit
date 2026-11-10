@@ -6,9 +6,10 @@
 # serve:main reads one JSON-RPC message per line on stdin and answers each in order, one line on stdout per answer.
 # Nothing else reaches stdout: a verb a tool runs has its stdout and stderr captured, and every log line goes to
 # stderr. A message without an id is a notification, and gets no answer, even when it fails. A request whose params is
-# there and is not an object is refused with -32602 before any handler runs. Nothing a client sent, and nothing a
-# verb printed, is a word of a command line or a variable of the environment: each reaches jq on stdin or from a
-# file, and a value an error quotes is cut to 200 characters.
+# there and is neither an object nor null is refused with -32602 before any handler runs; params null is no params. A
+# line that holds a NUL byte is not JSON, and is answered with -32700. Nothing a client sent, beyond the verb's own
+# words a call's arguments become, and nothing a verb printed, is a word of a command line or a variable of the
+# environment: each reaches jq on stdin or from a file, and a value an error quotes is cut to 200 characters.
 #
 # The server answers two eras of the protocol, as the specification lets a dual-era server do:
 #
@@ -27,7 +28,8 @@
 # A tool's description is the verb's purpose and the usage lines it offers. The verb's whole page is a resource,
 # kit://help/<verb>. Its input is typed, built from the verb's syntax by modules/jq/serve.jq: a property for each
 # flag, option, and operand, and one for a line's leading word. A call's arguments become the verb's words, and a name
-# the tool does not know is refused with -32602, as is a request with a NUL anywhere, which no command line carries.
+# the tool does not know is refused with -32602, as is a request with a NUL escape anywhere, which no command line
+# carries.
 # A call runs kit <verb> <word>… in a new process with stdin at end of file, so the verb cannot read the protocol
 # stream.
 #
@@ -72,8 +74,9 @@ use context help release syntax log file materialize
 # The protocol revisions the server answers, the newest first. The first is the one without a session.
 declare -gra serve_versions=(2026-07-28 2025-11-25 2025-06-18 2025-03-26)
 
-# The tools: the verbs that read, by name, with check, lint, toolchains, and tools among them, then the workflow verbs,
-# which act on issues and pull requests. serve_acts names the ones that do not read only.
+# The tools, in three groups: the seven verbs that read only and the four that run what the repository's files name,
+# check, lint, toolchains, and tools, together by name; then the six workflow verbs, which act on issues and pull
+# requests. serve_acts holds the annotations of every tool that does not read only.
 declare -gra serve_tools=(check context flow help kinds lint packages syntax toolchains tools version
   assign close gather settle unassign work)
 
@@ -154,12 +157,24 @@ serve:main() {
   local line
   serve:watch
   serve:resume
+  serve:guard-nul
   while IFS= read -r line || [[ -n "${line}" ]]
   do
     [[ -n "${line//[[:space:]]/}" ]] || continue
     serve:reload "${line}"
     serve:answer "${line}"
   done
+}
+
+# serve:guard-nul puts jq between stdin and the server, once for the stream. bash's read drops a 0x00 byte without a
+# word, so a line that holds one would be served as the line without it. jq reads each line as it arrives and passes
+# it on, and passes a line that holds a NUL byte as a line of the one byte 0x01, which serve:handle answers as a
+# parse error. kit_serve_guarded says the filter is there, so the server started again over the same stdin keeps
+# reading from it.
+serve:guard-nul() {
+  [[ -z "${kit_serve_guarded:-}" ]] || return 0
+  export kit_serve_guarded=1
+  exec < <(jq --raw-input --raw-output --unbuffered 'if explode | any(. == 0) then "\u0001" else . end')
 }
 
 # serve:answer <line> answers one message, and logs it.
@@ -285,11 +300,17 @@ serve:notify() {
   printf '{"jsonrpc":"2.0","method":"%s"}\n' "$1"
 }
 
-# serve:handle <line> answers one message. A request that holds a NUL in any string, a key or a value at any depth,
-# is refused before any field of it reaches the shell, which would drop the NUL and serve another name than the one
-# sent; the method it logs has a space for each NUL.
+# serve:handle <line> answers one message. The line serve:guard-nul passes for one that held a NUL byte is a parse
+# error. A request that holds a NUL escape, \u0000, in any string, a key or a value at any depth, is refused before
+# any field of it reaches the shell, which would drop the NUL and serve another name than the one sent; the method it
+# logs has a space for each NUL.
 serve:handle() {
   local fields kind id method params nul quoted_id quoted_method
+  if [[ "$1" == $'\x01' ]]
+  then
+    serve:error null -32700 'Parse error: the line holds a NUL byte, which JSON text never does'
+    return 0
+  fi
   if ! fields=$(jq --raw-output '
       if type != "object" then "invalid", "null", "", "{}", false
       elif has("method") | not then "response", "null", "", "{}", false
@@ -571,14 +592,15 @@ serve_path_max=''
 # as a shell does. The two read a .. after a symbolic link differently, and a verb may use either: the kernel applies
 # .. to where the link leads, and a shell's cd removes the part before .. as text. A path with a .. is judged both
 # ways, and is inside only when both readings are; a .. that leaves nothing before it to remove leads out of /. A
-# path without one reads the same both ways, and is judged once. A . or an empty part never changes where a path
-# leads, so neither reading counts it. A path that is PATH_MAX bytes long or longer without them is outside, since
-# the system answers "too long" for it whether or not it exists, and the guard cannot judge it. A root that cannot
-# be read, as when the server's directory is gone, leaves every path outside. Each part is taken once, since a
-# pattern that cuts a part off the end takes time that grows with the square of a path's length, and a call's path
-# may be megabytes long.
+# path whose last part is .. is judged a third way, as context:relative reads it: the parts before it as a shell
+# reads them, then the .. as the kernel applies it. A path without a .. reads the same every way, and is judged
+# once. A . or an empty part never changes where a path leads, so no reading counts it. A path whose length from /,
+# the root's own length included, is PATH_MAX bytes or more without them is outside, since the system answers "too
+# long" for it whether or not it exists, and the guard cannot judge it. A root that cannot be read, as when the
+# server's directory is gone, leaves every path outside. Each part is taken once, since a pattern that cuts a part off
+# the end takes time that grows with the square of a path's length, and a call's path may be megabytes long.
 serve:inside() {
-  local LC_ALL=C root path=$1 part length=0 up=false
+  local LC_ALL=C root path=$1 part length=0 up=false last='' popped=''
   local -a parts kernel=() shell=()
   root=$(pwd -P 2>/dev/null) && [[ "${root}" == /* && -d "${root}" ]] || return 1
   if [[ -z "${serve_path_max}" ]]
@@ -594,28 +616,35 @@ serve:inside() {
     length=$(( length + ${#part} + 1 ))
     (( length < serve_path_max )) || return 1
     kernel+=("${part}")
+    last=${part}
     if [[ "${part}" == .. ]]
     then
       up=true
       (( ${#shell[@]} > 0 )) || return 1
+      popped=${shell[-1]}
       unset 'shell[-1]'
     else
       shell+=("${part}")
     fi
   done
   serve:resolves-inside "${root}" "${kernel[@]}" || return 1
-  [[ "${up}" == false ]] || serve:resolves-inside "${root}" "${shell[@]}"
+  [[ "${up}" == false ]] || serve:resolves-inside "${root}" "${shell[@]}" || return 1
+  [[ "${last}" != .. ]] || serve:resolves-inside "${root}" "${shell[@]}" "${popped}" ..
 }
 
 # serve:resolves-inside <root> [<part>…] succeeds when the path the parts make, from /, resolved by the kernel with
 # every symbolic link followed, is <root> or under it. A path that does not exist is judged by its nearest directory
-# that does, and is outside when a .. is left after that.
+# that does, and is outside when a .. is left after that. A dangling link, one whose target does not exist, is
+# outside, since where it leads cannot be judged.
 serve:resolves-inside() {
   local root=$1 part path='' found=''
   shift
   for part in "$@"
   do
-    if [[ -z "${found}" ]] && [[ -e "${path}/${part}" || -L "${path}/${part}" ]]
+    if [[ -z "${found}" && -L "${path}/${part}" && ! -e "${path}/${part}" ]]
+    then
+      return 1
+    elif [[ -z "${found}" && -e "${path}/${part}" ]]
     then
       path+=/${part}
     else
