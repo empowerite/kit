@@ -260,8 +260,8 @@ Work here follows the workflow in [.kit/workflow.md](.kit/workflow.md), from the
    - `kit submit` commits the same way, then pushes the branch; `kit rebase` rebases it onto `main` and pushes it.
    - `kit flow` draws where the work stands in eight stages: backlog, underway, desk, worktrees,
      changes, builds, incoming, releases. `kit flow <stage>` prints one.
-   - `kit`, with no verb, opens a palette of the verbs and a form for the one you pick. A verb run without an
-     argument it needs opens the same form.
+   - `kit`, with no verb, opens the welcome guide. `kit help` opens a palette of the verbs and a form for the one you
+     pick. A verb run without an argument it needs opens the same form.
 4. Run the gate, `kit gate`. It runs `bin/ci`, which lists what it checks.
 5. Mark the pull request ready for review when the work is done: `gh pr ready` on GitHub, `glab mr update --ready`
    on GitLab. The pull request body is the report.

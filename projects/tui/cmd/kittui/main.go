@@ -1,5 +1,6 @@
-// kittui is kit's interactive terminal UI: the palette of verbs that bare kit opens, the form that finishes a verb's
-// command line when the verb is short of its arguments, kit flow's picture, kit workspace's, and kit welcome's guide.
+// kittui is kit's interactive terminal UI: kit welcome's guide, which bare kit opens too; the palette of verbs, which
+// kit help opens; the form that finishes a verb's command line when the verb is short of its arguments; and kit flow's
+// picture and kit workspace's.
 // kit tui, kit flow, kit workspace, and kit welcome exec it; it runs kit for everything it knows.
 package main
 
@@ -41,9 +42,9 @@ var (
 
 func main() { exit(run(os.Args[1:], os.Stderr)) }
 
-// run opens the palette, the palette on a verb's page for help, the form of the verb named after --, an app for flow
-// or for workspace, the guide for welcome, or the cards for tutorials, under kittui's root, whose app's menu switches between
-// them, and ends as the person ended the screen shown.
+// run opens the guide for welcome or with no verb, the palette, or the palette on a verb's page, for help, the form of
+// the verb named after --, an app for flow or for workspace, or the cards for tutorials, under kittui's root, whose
+// app's menu switches between them, and ends as the person ended the screen shown.
 func run(args []string, stderr io.Writer) int {
 	verb, words := parse(args)
 	if !terminals() {
@@ -76,16 +77,16 @@ func run(args []string, stderr io.Writer) int {
 }
 
 // open makes the screen kittui opens on: for flow and for workspace, the app with a tab of the stage their words name,
-// else Issues for flow and Repositories for workspace, as flow.AppOf says; the guide for welcome; the cards
-// for tutorials, with its --tag words and the tutorial named; the palette on a verb's page or a group for help; and, as the help's screen, the
-// palette, or the form of the verb named.
+// else Issues for flow and Repositories for workspace, as flow.AppOf says; the guide for welcome and with no verb; the
+// cards for tutorials, with its --tag words and the tutorial named; the palette on a verb's page or a group for help;
+// and, as the help's screen, the form of the verb named.
 func open(r kit.Runner, verb string, words []string) (shell.Screen, tea.Model, error) {
 	switch verb {
 	case "flow", "workspace":
 		app, words := flow.AppOf(verb, words)
 		m, err := flow.OpenApp(r, app, words)
 		return app, m, err
-	case "welcome":
+	case "welcome", "":
 		return shell.Welcome, welcome.Open(r, kit.Workspace{}), nil
 	case "tutorials":
 		return shell.Tutorials, tutorials.Open(r, words), nil
@@ -143,7 +144,7 @@ func needsTerminal(verb string) string {
 	return "kit tui needs an interactive terminal; run: kit help tui"
 }
 
-// parse takes the verb and its words from [--] <verb> [<word>…]; no verb opens the palette.
+// parse takes the verb and its words from [--] <verb> [<word>…]; no verb opens the welcome guide.
 func parse(args []string) (string, []string) {
 	if len(args) > 0 && args[0] == "--" {
 		args = args[1:]

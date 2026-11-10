@@ -3,7 +3,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # kit help [--text] [<verb> | <group>]…
 #
-# Shows the help each verb's header holds. On a terminal, it opens the palette that bare kit opens: on the verb's
+# Shows the help each verb's header holds. On a terminal, it opens the palette of verbs: on the verb's
 # page, on the group's first verb, or at the top. Enter there opens a verb's form. Without a terminal, with --text,
 # or with more than one name, it prints. kit <verb> --help, or -h, prints the same page as kit help --text <verb>.
 #

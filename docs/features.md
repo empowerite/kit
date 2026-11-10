@@ -170,8 +170,8 @@ see: [architecture.md](architecture.md#the-workflow-and-the-gate)
 
 ## The terminal UI
 
-`kit` typed with no verb opens a palette of every verb with its one-line purpose, as a tree under the groups
-`kit help` lists them in, filtered as you type.
+`kit` typed with no verb opens the welcome guide, as `kit welcome` does. `kit help` at a terminal opens a palette of
+every verb with its one-line purpose, as a tree under the groups it lists them in, filtered as you type.
 
 - The up and down arrows move over the verbs, never onto a heading. Shift with either jumps to the first verb of
   the previous or the next group.

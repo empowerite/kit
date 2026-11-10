@@ -343,6 +343,23 @@ func TestTutorialsOpensItsScreen(t *testing.T) {
 	m.(tutorials.Model).Close()
 }
 
+// No verb, as bare kit runs kittui, opens the welcome guide, as kit welcome does; kit help opens the palette.
+func TestNoVerbOpensTheWelcomeGuide(t *testing.T) {
+	r := testkit.Runner(t, "kit")
+	for _, verb := range []string{"", "welcome"} {
+		if screen, m, err := open(r, verb, nil); err != nil || screen != shell.Welcome {
+			t.Errorf("%q: %s, %T, %v", verb, screen, m, err)
+		} else if _, ok := m.(welcome.Model); !ok {
+			t.Errorf("%q: %T", verb, m)
+		}
+	}
+	if screen, m, err := open(r, "help", nil); err != nil || screen != shell.Help {
+		t.Errorf("help: %s, %T, %v", screen, m, err)
+	} else if _, ok := m.(app.Model); !ok {
+		t.Errorf("help: %T", m)
+	}
+}
+
 // kit flow and kit workspace open the app with the tab their words name, maximized on it: kit flow's desk is
 // Repositories' worktrees; with no tab named, kit flow opens Issues and kit workspace Repositories.
 func TestFlowAndWorkspaceOpenTheAppWithTheTabNamed(t *testing.T) {

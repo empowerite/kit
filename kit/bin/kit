@@ -3,10 +3,10 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # kit <verb> runs bin/kit-<verb> beside this file, following any symlink to it (Homebrew links it into its own
 # bin), with the remaining arguments. Each verb sets up its own process through modules/bash/1st.sh, so it runs the same
-# when called directly. kit with no verb runs kit tui, the interactive terminal UI. kit --help and kit -h run kit help,
-# which reads each verb's usage from its header; kit <verb> --help is the verb's page, which guard:arguments in
-# modules/bash/1st.sh answers. A verb that does not exist is refused with a pointer to kit help, in the words every
-# verb uses for one.
+# when called directly. kit with no verb runs kit tui, the interactive terminal UI, on the welcome guide. kit --help
+# and kit -h run kit help, which reads each verb's usage from its header; kit <verb> --help is the verb's page, which
+# guard:arguments in modules/bash/1st.sh answers. A verb that does not exist is refused with a pointer to kit help, in
+# the words every verb uses for one.
 #
 # It runs the verb as its child, not in its place, so it can write the call to .kit/logs/kit-YYYY-MMDD.log when the
 # verb ends, with its exit status, which it then exits with. modules/bash/log.sh says what a line holds. Ctrl-C reaches

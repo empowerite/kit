@@ -1,4 +1,4 @@
-// Package app is kittui's root model: the palette when bare kit opened it, a verb's form when a verb handed off to it,
+// Package app is kittui's root model: the palette when kit help opened it, a verb's form when a verb handed off to it,
 // and the slide between them. It reports, when the program ends, what to run.
 package app
 
@@ -59,7 +59,7 @@ func Open(r kit.Runner, verb string, words []string) (Model, error) {
 }
 
 // OpenHelp opens the palette as kit help does: on the named verb's page, or on a group's first verb, or, with no
-// name, at the top. The way into a verb's form is the same as from bare kit.
+// name, at the top. Enter on a verb opens its form, as Open's palette does.
 func OpenHelp(r kit.Runner, name string) (Model, error) {
 	m, err := Open(r, "", nil)
 	if err != nil || name == "" {

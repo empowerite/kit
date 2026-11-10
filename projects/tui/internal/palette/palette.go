@@ -1,4 +1,4 @@
-// Package palette is what bare kit opens: every verb but tui, as a tree under the groups kit help lists them in, each
+// Package palette is what kit help opens: every verb but tui, as a tree under the groups kit help lists them in, each
 // verb with its whole purpose, narrowed by the search, internal/shell's, on the menu bar, over the status bar. The
 // search works as it does on every screen, and has focus from the start: a key typed narrows the verbs at once,
 // backspace takes one back, and ⌃U clears; ⏎, ↓, esc, or tab gives the verbs focus, the filter kept, and / or a click

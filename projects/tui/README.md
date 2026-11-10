@@ -5,7 +5,7 @@
 
 It has six screens:
 
-- **The palette.** Bare `kit` opens it, focus in the search. It lists every verb under its group, filtered as you
+- **The palette.** `kit help` opens it, focus in the search. It lists every verb under its group, filtered as you
   type; ⏎ or ↓ gives the verbs focus, and ⏎ there opens one. [ and ] move to the group before and after, { and } to the
   first and the last.
 - **A verb's form.** It opens when a verb at a terminal is short of its arguments. It finishes the command line.
@@ -19,7 +19,7 @@ It has six screens:
   catalog alone: kit prints each row's values by the field's id, and where a value leads, a page on the forge or a row
   of another tab, so a stage needs no Go of its own. It reads no forge, so it spends no rate limit, and a tab is
   stale, its dot lit, when `kit workspace --marks` moves.
-- **The welcome guide.** `kit welcome` at a terminal walks its steps here.
+- **The welcome guide.** `kit welcome` at a terminal walks its steps here, and bare `kit` opens it too.
 - **The tutorials.** `kit tutorials` at a terminal shows a card for each tutorial here, tabbed by audience.
 
 Search works the same on every screen. `/` or a click on the search field at the menu bar's right gives it focus, and
