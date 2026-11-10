@@ -9,16 +9,16 @@
       id   assignees         age  branch            labels  title
       ·────⇊─────────────────·────·─────────────────⇊───────·──────────────────
     ▸ #45                     2h                    3       🎫 kit flow is the…
-    ▸ #46  jeffrey-aguilera   2d  🌿 46-a-noun-li…  bug   🎫 A noun lists, a…
  ╭─ backlog legend ─────────────────────────────────────────────────── ↖ ↗ ↙ ↘ ╮
- │ =  the kit menu                      💻 the desk stage                      │
- │ ·  a separator                       🌿 the worktrees stage                 │
- │ -  the workspace menu                ▾  open: a click closes it             │
- │ 🔎 the search: / or a click          ▼  the presets' menu                   │
- │ ➊  the selected tab's number         ·  sortable: a click sorts             │
- │ ➁  a tab's number, which selects it  ⇊  a list: a click flattens or gathers │
- │ 🎫 the backlog stage                 ▸  closed: a click opens it            │
- │ :  the tab's menu                    🎫 an issue 🔗                         │
+ │ =  the kit menu                      🌿 the worktrees stage                 │
+ │ ·  a separator                       ▾  open: a click closes it             │
+ │ -  the workspace menu                ▼  the presets' menu                   │
+ │ 🔎 the search: / or a click          ·  sortable: a click sorts             │
+ │ ➊  the selected tab's number         ⇊  a list: a click flattens or gathers │
+ │ ➁  a tab's number, which selects it  ▸  closed: a click opens it            │
+ │ 🎫 the backlog stage                 🎫 an issue 🔗                         │
+ │ :  the tab's menu                    👤 assignees or author                 │
  │ 🛫 the underway stage                🌿 a branch or a worktree              │
+ │ 💻 the desk stage                    👥 assignees, how many                 │
  ╰─────────────────────────────────────────────────────────────────────────────╯
  = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-8 jump : tab menu

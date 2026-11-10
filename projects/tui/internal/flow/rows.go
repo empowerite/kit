@@ -362,7 +362,7 @@ func (m Model) build(i int) shown {
 	all := laid(s.name, records, pinned)
 	rows := p.Filter(all, names)
 	fields := m.placed(i)
-	drawn := table.Automatic(fields, shownValues(records, rows), m.paneWidth()-2*grid.Indents(rows)-len(lead), p.Glyphs)
+	drawn := table.Automatic(fields, shownValues(records, rows, p), m.paneWidth()-2*grid.Indents(rows)-len(lead), p.Glyphs)
 	if slices.ContainsFunc(fields, func(f table.Placed) bool { return drawn[f.ID] != f.DrawnBy(f.Pinned) }) {
 		passed := map[string]bool{}
 		for _, r := range rows {
@@ -402,8 +402,9 @@ func (m Model) placed(i int) []table.Placed {
 	return append(out, rest...)
 }
 
-// shownValues gives the values the records the rows let through hold in each field, by id, one a record.
-func shownValues(records []record, rows []row) map[string][]table.Value {
+// shownValues gives the values the records the rows let through hold in each field, by id, one a record; a list the
+// panel flattens or groups by, one a value, as the rows stand once per value of it.
+func shownValues(records []record, rows []row, p grid.Panel) map[string][]table.Value {
 	passed := map[string]bool{}
 	for _, r := range rows {
 		if !r.Aside {
@@ -416,7 +417,15 @@ func shownValues(records []record, rows []row) map[string][]table.Value {
 			continue
 		}
 		for id, v := range r.values {
-			out[id] = append(out[id], v)
+			if f := p.Field(id); !p.Lists(id) || !f.Flat && f.Placement != grid.Group || len(v.Raw) == 0 {
+				out[id] = append(out[id], v)
+				continue
+			}
+			for _, raw := range v.Raw {
+				one := v
+				one.Raw = []string{raw}
+				out[id] = append(out[id], one)
+			}
 		}
 	}
 	return out

@@ -80,6 +80,20 @@ func TestADrawingStylesWhatTheFieldSays(t *testing.T) {
 	if len(c.Values) != 2 || c.Head != c.Values[0] || ansi.Strip(c.Summary) != "2" {
 		t.Errorf("labels: %+v", c)
 	}
+	// people, as labels: more than one is their glyph for many and how many, dim; one is drawn, its glyph its own
+	people := Field{ID: "assignees", Type: "person", One: "assignee", Glyph: "👤", Many: "👥", Dim: true,
+		Renderings: []string{"glyph+text", "text"}}
+	cs := people.Draw([]Value{{Raw: []string{"ada", "bo"}}, One("ada")}, "")
+	if cs[0].Summary != style.Off("👥 2") || len(cs[0].Values) != 2 || cs[0].Head != "" {
+		t.Errorf("two people: %+v", cs[0])
+	}
+	if cs[1].Summary != "" || cs[1].Values[0] != style.Off("👤 ada") {
+		t.Errorf("one person: %+v", cs[1])
+	}
+	// drawn without its glyph, the count stands alone
+	if c := people.Draw([]Value{{Raw: []string{"ada", "bo"}}}, "text")[0]; c.Summary != style.Off("2") {
+		t.Errorf("two people as text: %+v", c)
+	}
 }
 
 func TestAScreenRegistersItsOwnRenderers(t *testing.T) {
@@ -233,6 +247,13 @@ func TestTheRenderingIsChosenAutomatically(t *testing.T) {
 	// a glyph a row alone draws says what the row is
 	if state.SharesGlyph([]Value{One("open"), {}}) || !state.SharesGlyph(open) || state.SharesGlyph(mixed) {
 		t.Error("shares glyph")
+	}
+	// a row of several people draws their glyph for many, so one of one and one of two share nothing
+	people := Field{ID: "assignees", Type: "person", Glyph: "👤", Many: "👥"}
+	ones := []Value{One("ada"), One("bo")}
+	if !people.SharesGlyph(ones) || people.SharesGlyph(append(ones, Value{Raw: []string{"ada", "bo"}})) ||
+		!people.SharesGlyph([]Value{{Raw: []string{"ada", "bo"}}, {Raw: []string{"cy", "di"}}}) {
+		t.Error("people share a glyph")
 	}
 }
 

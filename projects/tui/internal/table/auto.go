@@ -81,15 +81,22 @@ func Automatic(fields []Placed, vs map[string][]Value, width int, shared bool) m
 
 // SharesGlyph says whether every value the rows hold in a field draws the same glyph, so the glyph says nothing the
 // value does not: a row that holds none draws none, and does not count. Two rows at least must share it: the glyph of
-// a row alone, as the desk's, says what the row is, which nothing beside it says.
+// a row alone, as the desk's, says what the row is, which nothing beside it says. A row that holds more than one
+// value of a list with a glyph for many draws that glyph alone, as its summary does.
 func (f Field) SharesGlyph(vs []Value) bool {
 	seen, rows := "", 0
 	for _, v := range vs {
 		if len(v.Raw) > 0 {
 			rows++
 		}
-		for _, r := range v.Raw {
-			g := f.GlyphOf(r)
+		glyphs := make([]string, len(v.Raw))
+		for k, r := range v.Raw {
+			glyphs[k] = f.GlyphOf(r)
+		}
+		if f.Many != "" && len(v.Raw) > 1 {
+			glyphs = []string{f.Many}
+		}
+		for _, g := range glyphs {
 			if g == "" || seen != "" && g != seen {
 				return false
 			}

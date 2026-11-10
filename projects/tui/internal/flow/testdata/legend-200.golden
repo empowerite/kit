@@ -3,16 +3,14 @@
   │ 🎫 backlog  3 : │  🛫 underway  4   │  💻 desk  1   │  🌿 worktrees  4   │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  6   │  📦 releases  3   │
   ╵                 ╰───────────────────╰───────────────╰────────────────────╰──────────────────╰─────────────────╰───────────────────╰───────────────────╰─────────────────────────────────────────────
   ▾ source 3                                                                                                                                                                                Default ▼
-
-  ▾ github 3
                                                                                                                                                               ╭─ backlog legend ────────────── ↖ ↗ ↙ ↘ ╮
-      id   assignees         age  branch              labels  title                                                                                           │ =  the kit menu                        │
-      ·────⇊─────────────────·────·───────────────────⇊───────·───────────────────────────────────────────────────────────────────────────────────────────────│ ·  a separator                         │
-    ▸ #45                     2h                      3       🎫 kit flow is the one picture: five stages, interactive on a terminal, and the listing verbs fo│ -  the workspace menu                  │
-      #46  jeffrey-aguilera   2d  🌿 46-a-noun-lists  bug   🎫 A noun lists, a noun with a verb acts                                                        │ 🔎 the search: / or a click            │
-    ▸ #7   ada           +1  40d                              🎫 Fix the thing                                                                                │ ➊  the selected tab's number           │
-                                                                                                                                                              │ ➁  a tab's number, which selects it    │
-                                                                                                                                                              │ 🎫 the backlog stage                   │
+  ▾ github 3                                                                                                                                                  │ =  the kit menu                        │
+                                                                                                                                                              │ ·  a separator                         │
+      id   assignees            age  branch              labels  title                                                                                        │ -  the workspace menu                  │
+      ·────⇊────────────────────·────·───────────────────⇊───────·────────────────────────────────────────────────────────────────────────────────────────────│ 🔎 the search: / or a click            │
+    ▸ #45                        2h                      3       🎫 kit flow is the one picture: five stages, interactive on a terminal, and the listing verbs│ ➊  the selected tab's number           │
+      #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun-lists  bug   🎫 A noun lists, a noun with a verb acts                                                     │ ➁  a tab's number, which selects it    │
+    ▸ #7   👥 2                 40d                              🎫 Fix the thing                                                                             │ 🎫 the backlog stage                   │
                                                                                                                                                               │ :  the tab's menu                      │
                                                                                                                                                               │ 🛫 the underway stage                  │
                                                                                                                                                               │ 💻 the desk stage                      │
@@ -27,6 +25,8 @@
                                                                                                                                                               │ ⇊  a list: a click flattens or gathers │
                                                                                                                                                               │ ▸  closed: a click opens it            │
                                                                                                                                                               │ 🎫 an issue 🔗                         │
+                                                                                                                                                              │ 👤 assignees or author                 │
                                                                                                                                                               │ 🌿 a branch or a worktree              │
+                                                                                                                                                              │ 👥 assignees, how many                 │
                                                                                                                                                               ╰────────────────────────────────────────╯
  = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-8 jump : tab menu

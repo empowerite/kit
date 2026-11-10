@@ -94,6 +94,7 @@ declare -gA flow_glyphs=(
   [Sprout]='🌱'
   [Change]='🔀'
   [Owner]='👤'
+  [People]='👥'
   [Fork]='🍴'
   [Pushed]='📤'
   [Path]='📂'

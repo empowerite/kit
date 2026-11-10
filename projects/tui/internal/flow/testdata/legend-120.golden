@@ -5,14 +5,12 @@
   ▾ source 3                                                                                                Default ▼
 
   ▾ github 3
-
-      id   assignees         age  branch            labels  title
-      ·────⇊─────────────────·────·─────────────────⇊───────·─────────────────╭─ backlog legend ────────────── ↖ ↗ ↙ ↘ ╮
-    ▸ #45                     2h                    3       🎫 kit flow is the│ =  the kit menu                        │
-    ▸ #46  jeffrey-aguilera   2d  🌿 46-a-noun-li…  bug   🎫 A noun lists, a│ ·  a separator                         │
-    ▸ #7   ada           +1  40d                            🎫 Fix the thing  │ -  the workspace menu                  │
-                                                                              │ 🔎 the search: / or a click            │
-                                                                              │ ➊  the selected tab's number           │
+                                                                              ╭─ backlog legend ────────────── ↖ ↗ ↙ ↘ ╮
+      id   assignees         age  branch            labels  title             │ =  the kit menu                        │
+      ·────⇊─────────────────·────·─────────────────⇊───────·─────────────────│ ·  a separator                         │
+    ▸ #45                     2h                    3       🎫 kit flow is the│ -  the workspace menu                  │
+    ▸ #46  👤 jeffrey-agui…   2d  🌿 46-a-noun-li…  bug   🎫 A noun lists, a│ 🔎 the search: / or a click            │
+    ▸ #7   👥 2              40d                            🎫 Fix the thing  │ ➊  the selected tab's number           │
                                                                               │ ➁  a tab's number, which selects it    │
                                                                               │ 🎫 the backlog stage                   │
                                                                               │ :  the tab's menu                      │
@@ -27,6 +25,8 @@
                                                                               │ ⇊  a list: a click flattens or gathers │
                                                                               │ ▸  closed: a click opens it            │
                                                                               │ 🎫 an issue 🔗                         │
+                                                                              │ 👤 assignees or author                 │
                                                                               │ 🌿 a branch or a worktree              │
+                                                                              │ 👥 assignees, how many                 │
                                                                               ╰────────────────────────────────────────╯
  = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-8 jump : tab menu

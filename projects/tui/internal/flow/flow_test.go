@@ -976,9 +976,9 @@ func TestBacklogAndReleasesOpenToTheirDetail(t *testing.T) {
 	m = drive(intoRows(m), toggle)
 	v := view(m)
 	// the title has what the other columns leave, with its glyph, which leads to the issue's page, and the branch, which
-	// one row alone has, with its own
-	for _, want := range []string{"#45", "#46  jeffrey-aguilera   2d  🌿 46-a-noun-li…  " + Issue + " A noun lists",
-		"#7   ada           +1  40d", "picture: five stages,", "interactive on a terminal,"} {
+	// one row alone has, with its own; two assignees are People and how many, as labels are, so one is Owner and a name
+	for _, want := range []string{"#45", "#46  " + Owner + " jeffrey-agui…   2d  🌿 46-a-noun-li…  " + Issue + " A noun lists",
+		"#7   " + People + " 2              40d", "picture: five stages,", "interactive on a terminal,"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the backlog lacks %q:\n%s", want, v)
 		}
@@ -987,6 +987,10 @@ func TestBacklogAndReleasesOpenToTheirDetail(t *testing.T) {
 	if strings.Contains(v, "https://") || strings.Contains(v, "kit work 45") ||
 		last(m.rows(0)[1].Cells).Link != "https://github.com/empowerite/kit/issues/45" {
 		t.Errorf("the backlog's links:\n%s", v)
+	}
+	// open, the row of two assignees names each under its lines, as a row of labels does
+	if v = view(drive(m, down, down, toggle)); !strings.Contains(v, Owner+" ada "+Owner+" bob") {
+		t.Errorf("#7 open:\n%s", v)
 	}
 	m = loaded(t, options(), tab, tab, tab, tab, tab, tab, tab, down, down, down, toggle)
 	v = view(m)

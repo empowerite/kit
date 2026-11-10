@@ -27,6 +27,7 @@ const (
 	Sprout    = "🌱" // a local branch
 	Change    = "🔀" // a pull request
 	Owner     = "👤" // assignees or author
+	People    = "👥" // assignees, how many
 	Fork      = "🍴" // a fork's owner
 	Pushed    = "📤" // the last push
 	Path      = "📂" // a desk's path
@@ -65,12 +66,14 @@ var legends = map[string][]entry{
 		{GitHub, "on GitHub"},
 		{GitLab, "on GitLab"},
 		{Owner, "assignees or author"},
+		{People, "assignees, how many"},
 		{Branch, "a branch or a worktree"},
 		{Failed, "failed"},
 	},
 	"underway": {
 		{InFlight, "underway"},
 		{Owner, "assignees or author"},
+		{People, "assignees, how many"},
 		{Change, "a pull request"},
 		{Desk, "the desk"},
 		{Branch, "a branch or a worktree"},

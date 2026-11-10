@@ -49,7 +49,9 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
 - `internal/flow/` draws `kit flow`: the stages as tabs, and each stage's rows. `fields.json` is the catalog. It
   declares each stage's fields, each by a stable id, with its label, its type, what it can sort, group, and filter by,
   and its renderings in order, and the stage's own presets, Default and Compact. A field that holds a list, as assignees
-  or labels, names one of its values, assignee or label, and never sorts while a row holds all of them. The renderers
+  or labels, names one of its values, assignee or label, and never sorts while a row holds all of them. Where a row
+  holds more than one, its column says how many, dim, as labels' 3, or, for a list with a glyph for many, after it, as
+  assignees' 👥 2 in place of 👤 and a name; the row open lists them all under its lines. The renderers
   are Go functions, registered by name with `internal/table`, which has those every table shares. A preset says, per
   field by id, its placement, its sort, its filter, and the rendering it pins. The person's presets are kept in
   `~/.config/kit/presets.json`, version 2. Where there is none, kittui reads the `views.json` beside it once, maps each
