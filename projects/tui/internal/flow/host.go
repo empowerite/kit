@@ -82,12 +82,6 @@ func (m *Model) Settle() {
 // InRows says whether the rows have the keyboard, a stage there to take it.
 func (m *Model) InRows() bool { return m.inRows && len(m.stages) > 0 }
 
-// HeaderHides says whether the selected stage's header, closed, hides names.
-func (m *Model) HeaderHides() bool {
-	_, hides := m.headerLines()
-	return hides
-}
-
 // Views gives the selected stage's views, its own and the person's.
 func (m *Model) Views() table.Views { return m.viewsOf(m.stage) }
 

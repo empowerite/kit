@@ -138,29 +138,34 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   - The rows are an outline, in `outline.go`: a group's heading, a row, and a header of more than one line each open and
     close by its ▾ or ▸, and a click opens or closes one only there; a click elsewhere on it puts the cursor on it, so
     space selects it without folding anything. One map per stage holds which stand open, a heading open and a row closed
-    until changed. → opens the node under the cursor, or steps into an open heading's first row; ← closes it, or steps
-    out to the heading over it; ⌥ with → opens one level more under the node, every branch alike, and ⌥ with ← closes
-    the deepest open level under it, a level each press; ⌥ with a click on its ▸ or ▾ does the same, a level each click.
-    The key hints name ⌥ with an arrow only where the terminal answered the kitty keyboard protocol: a macOS terminal
-    with its default settings sends it as another key, or as the arrow alone. The tab's menu has Expand, Collapse, and
-    Collapse Others, which act on everything, or on the selection while rows are selected: Expand Selected opens the
-    groups over them too, and Collapse Others folds every group without one. Space on a heading selects every row of its
-    group, or none once all are, and the heading's mark, ▣ or ◩, says whether all are or some. What stands open lasts
-    the session; a preset does not keep it. Grouped rows stand under one heading that names the grouped columns, `▾
-    source ▾ assignees ▾ 3`, at the control line's left, apart from the rows, a blank line under it, and a heading per
-    value under the line. A heading whose one heading under it heads the same rows takes it onto its line, across, `▾
-    jeffrey-aguilera · github · #2 53`, and so on down: one node, with one fold, before its first value, which opens and
-    closes it, and a dim · before each value after it; what stands under the line steps in once from it, not once a
-    level it took. In the heading over the groups, a level whose every level over it has one value, its headings frozen
-    over the header, folds as the first does, so a dim · stands in its fold's place, and where every level has one value
-    the rows' fold is not drawn: `▾ source · assignees ▾ 3`, `▾ source 21`. Otherwise the ▾ or ▸ before each name opens
-    or closes that level, and the one after the last name the rows under the groups: a level closed hides its headings
-    and everything under them, and the levels under it show ▸ too; nothing else changes, so each level and each heading
-    keeps its own state, and opening a level again shows what was under it as it was left. With the first level closed,
-    nothing shows. A ▸ opens its level and every level over it; a value's heading opened opens the level under it too. A
-    click on a column's name there drops the column's own menu, in `heading.go`, as a name in the header does. A field
-    of several values, as assignees or labels, groups too: a row stands under each of its values, the same row, its
-    selection one.
+    until changed. Two primitives fold it. Show and Hide open or close one node and nothing under it, so Hide then
+    Show puts back exactly what showed: → shows the node under the cursor, or steps into an open heading's first row;
+    ← hides it, or steps out to the heading over it; a click on its ▸ or ▾ does either. Where the heading over the
+    groups folds a level, Show on one heading of it shows that heading's alone, the others hidden still. More and Less
+    work a level at a time: More shows the shallowest level where something hides, every node of it, and hides
+    nothing, so what stood open under them comes back as it stood; Less hides the deepest level open, down to the
+    outermost headings. > and < do them over the whole table, as the tab's menu's Show More and Show Less do; ⌥ with →
+    or ←, or with a click on a ▸ or ▾, does them under the one node, where the terminal sends ⌥. The key hints name ⌥
+    with an arrow only where the terminal answered the kitty keyboard protocol: a macOS terminal with its default
+    settings, iTerm among them, sends it as another key, or as the arrow alone, which is why > and < stand for it. The
+    tab's menu has Show Selected, which shows the selected rows and every heading over them, and Hide Selected, which
+    hides the selected rows and nothing over them, both dim while none are selected. Space on a heading selects every
+    row of its group, or none once all are, and the heading's mark, ▣ or ◩, says whether all are or some. What stands
+    open lasts the session; a preset does not keep it. Grouped rows stand under one heading that names the grouped
+    columns, `▾ source ▾ assignees ▾ 3`, at the control line's left, apart from the rows, a blank line under it, and a
+    heading per value under the line. A heading whose one heading under it heads the same rows takes it onto its line,
+    across, `▾ jeffrey-aguilera · github · #2 53`, and so on down: one node, with one fold, before its first value,
+    which opens and closes it, and a dim · before each value after it; what stands under the line steps in once from it,
+    not once a level it took. In the heading over the groups, a level whose every level over it has one value, its
+    headings frozen over the header, folds as the first does, so a dim · stands in its fold's place, and where every
+    level has one value the rows' fold is not drawn: `▾ source · assignees ▾ 3`, `▾ source 21`. Otherwise the ▾ or ▸
+    before each name opens or closes that level, and the one after the last name the rows under the groups: a level
+    closed hides its headings and everything under them, and the levels under it show ▸ too; nothing else changes, so
+    each level and each heading keeps its own state, and opening a level again shows what was under it as it was left.
+    With the first level closed, nothing shows. A ▸ opens its level and every level over it; a value's heading shown
+    shows what it holds alone, as Show does. A click on a column's name there drops the column's own menu, in
+    `heading.go`, as a name in the header does. A field of several values, as assignees or labels, groups too: a row
+    stands under each of its values, the same row, its selection one.
   - The column names and the rule under them, with each sort's mark, start at the first column. They stand under the
     headings of the outermost levels that have one value alone, the rows' context, and over the first item of the
     first level of more than one value, or over the first row, a blank line apart from those headings, as from the

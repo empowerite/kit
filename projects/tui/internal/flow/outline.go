@@ -11,13 +11,9 @@ import (
 // every gives a stage's whole outline: its rows shown, each closed group's rows after its heading.
 func (m Model) every(i int) []row { return grid.Every(m.rows(i)) }
 
-// folds gives the tab's menu's items that open and close the outline, named for what they act on: everything, or,
-// while rows are selected, the selection; Collapse Others stands always, dim while nothing is selected.
+// folds gives the tab's menu's items that show and hide the outline: a level more of the whole table and a level
+// less, as > and < do, and the selected rows shown, every heading over them too, and hidden, dim while none are.
 func (m Model) folds() []shell.Item {
-	scope := "All"
-	if m.selected() > 0 {
-		scope = "Selected"
-	}
-	return []shell.Item{{Glyph: Expand, Name: "Expand " + scope}, {Glyph: Collapse, Name: "Collapse " + scope},
-		{Glyph: Collapse, Name: "Collapse Others"}}
+	return []shell.Item{{Glyph: More, Name: "Show More", Keys: ">"}, {Glyph: Less, Name: "Show Less", Keys: "<"},
+		{Glyph: Expand, Name: "Show Selected"}, {Glyph: Collapse, Name: "Hide Selected"}}
 }

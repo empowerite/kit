@@ -219,7 +219,7 @@ func TestALevelsFoldInTheHeadingOverTheGroupsOpensAndClosesIt(t *testing.T) {
 }
 
 // The ▾ or ▸ after the last name in the heading over the groups opens and closes the rows under the groups: closed,
-// every heading stands, each ▸, and no header, as no row shows; open again, the rows show as they were.
+// every heading stands, each ▸, and no header, as no row shows; one heading shown shows its rows alone.
 func TestTheFoldAfterTheLastNameOpensAndClosesTheRows(t *testing.T) {
 	m := nested(t)
 	all := len(m.rows(0))
@@ -231,17 +231,24 @@ func TestTheFoldAfterTheLastNameOpensAndClosesTheRows(t *testing.T) {
 		t.Fatalf("the rows closed: %d sources, %d assignees, %d rows, the header at %d\n%s", s, a, r, m.headerTop(),
 			view(m))
 	}
-	// a value's heading opened shows its rows, and every other heading's with them: the level under it opens
+	// a value's heading opened shows its rows alone, as Show shows one node: every other heading stays folded
 	k := slices.IndexFunc(m.rows(0), func(r row) bool { return grid.Level(r) == 3 })
-	if m = drive(m, testkit.Click(table.FoldAt(m.rows(0)[k]), rowY(m, m.rows(0)[k].Key))); len(m.rows(0)) != all ||
-		glyph(m, "") != grid.Unfolded {
-		t.Fatalf("a heading opened under the rows closed: %d rows of %d", len(m.rows(0)), all)
+	key := m.rows(0)[k].Key
+	m = drive(m, testkit.Click(table.FoldAt(m.rows(0)[k]), rowY(m, key)))
+	folded := 0
+	for _, r := range m.rows(0) {
+		if grid.Level(r) == 3 && r.Key != key && !m.stages[0].Open.Unfolds(r) {
+			folded++
+		}
 	}
-	// Expand All opens every level
-	m = drive(m, testkit.Click(rows, m.top()))
+	if _, _, r := levels(m); r == 0 || folded == 0 || len(m.rows(0)) >= all {
+		t.Fatalf("a heading opened under the rows closed: %d rows of %d, %d others folded", len(m.rows(0)), all, folded)
+	}
+	// Show More shows the level, every heading of it
 	m.stages[0].Cursor, m.inRows = 1, true
-	if next, _ := table.Folding(&m, "Expand All"); !next.Shows(len(m.panel(0).Groups())) {
-		t.Errorf("expand all leaves the rows closed: %v", next)
+	next, _ := table.Folding(&m, "Show More")
+	if table.Reoutline(&m, next); !next.Shows(len(m.panel(0).Groups())) || len(m.rows(0)) != all {
+		t.Errorf("show more leaves rows hidden: %d rows of %d", len(m.rows(0)), all)
 	}
 }
 

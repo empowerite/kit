@@ -4,6 +4,7 @@ package flow
 
 import (
 	"github.com/charmbracelet/x/ansi"
+	"maps"
 	"slices"
 	"strings"
 	"testing"
@@ -90,11 +91,11 @@ func TestTheOutlineOpensClosesAndStepsAlongItsTree(t *testing.T) {
 		t.Errorf("option-left a third time left the heading open: %d rows", len(m.rows(0)))
 	}
 	// ⌥ with an arrow is named only where the terminal said it tells it apart, as the kitty keyboard protocol does
-	if last := lines(m)[len(lines(m))-1]; strings.Contains(last, "← collapse") || strings.Contains(last, "⌥←→") {
+	if last := lines(m)[len(lines(m))-1]; strings.Contains(last, "← hide") || strings.Contains(last, "⌥←→") {
 		t.Errorf("the keys on the heading over the groups, the terminal silent: %q", last)
 	}
 	m = drive(m, tea.KeyboardEnhancementsMsg{Flags: ansi.KittyDisambiguateEscapeCodes})
-	if last := lines(m)[len(lines(m))-1]; strings.Contains(last, "← collapse") || !strings.Contains(last, "⌥←→ a level") {
+	if last := lines(m)[len(lines(m))-1]; strings.Contains(last, "← hide") || !strings.Contains(last, "⌥←→ a level") {
 		t.Errorf("the keys on the heading over the groups, the protocol answered: %q", last)
 	}
 	if m = drive(m, optioned(tea.KeyRight)); func() bool { s, a, r := levels(); return s != s0 || a != a0 || r != 0 }() {
@@ -143,38 +144,39 @@ func TestTheOutlineOpensClosesAndStepsAlongItsTree(t *testing.T) {
 	}
 }
 
-// The tab's menu's fold items stand always, named for what they act on. With nothing selected, Collapse All folds every
-// group to the outermost heading, the cursor on what shows of its row, Expand All opens every group and every row that
-// hides something, and Collapse Others is dim. With rows selected, Expand Selected opens them and the groups they stand
-// in, and Collapse Others folds every group without a selected row and closes every row not selected.
+// The tab's menu's fold items stand always. > and <, as Show More and Show Less, show and hide a level at a time,
+// Show Less down to the outermost groups' headings, under the heading over them, which never closes, and Show More
+// up to every group and every row that hides something. Show Selected and Hide Selected are dim with nothing
+// selected; with #46 selected while its group is folded away, Show Selected shows it and the groups over it, the
+// other groups folded still, and Hide Selected hides its lines, and nothing over it.
 func TestTheTabsMenuFoldsTheGroupsAndTheSelection(t *testing.T) {
 	m := nested(t)
 	all := len(m.rows(0))
-	choose := func(m Model, name string) Model {
-		m = drive(m, press(':'))
-		if m.tabMenu.At = item(m, name); m.tabMenu.At < 0 || !m.enabled(m.tabMenu.At) {
-			t.Fatalf("%s is not in the menu, or dim: %d", name, m.tabMenu.At)
+	for _, name := range []string{"Show Selected", "Hide Selected"} {
+		if k := item(m, name); k < 0 || m.enabled(k) {
+			t.Errorf("%s with nothing selected: at %d, enabled %v", name, k, k >= 0 && m.enabled(k))
 		}
-		return drive(m, press(tea.KeyEnter))
-	}
-	if k := item(m, "Collapse Others"); k < 0 || m.enabled(k) {
-		t.Errorf("collapse others with nothing selected: at %d, enabled %v", k, k >= 0 && m.enabled(k))
 	}
 	m = drive(m, down)
-	// down to the outermost groups' headings, under the heading over them, which never closes
-	if m = choose(m, "Collapse All"); len(m.rows(0)) != 2 || m.stages[0].Cursor != 1 {
-		t.Fatalf("collapse all: %d rows, cursor %d", len(m.rows(0)), m.stages[0].Cursor)
+	// each press a level, until there is none
+	until := func(m Model, key rune) Model {
+		for range 10 {
+			was := maps.Clone(m.stages[0].Open)
+			if m = drive(m, press(key)); maps.Equal(was, m.stages[0].Open) {
+				return m
+			}
+		}
+		t.Fatalf("%c never stopped", key)
+		return m
 	}
-	if m = choose(m, "Expand All"); len(m.rows(0)) != all || openRows(m) == 0 {
-		t.Fatalf("expand all: %d rows of %d, %d open", len(m.rows(0)), all, openRows(m))
+	if m = until(m, '<'); len(m.rows(0)) != 2 || m.stages[0].Cursor != 1 {
+		t.Fatalf("show less, all the way: %d rows, cursor %d", len(m.rows(0)), m.stages[0].Cursor)
 	}
-	// #46, selected while its group is folded away, shows and opens with Expand Selected; the other groups stay folded
-	m = choose(m, "Collapse All")
+	if m = until(m, '>'); len(m.rows(0)) != all || openRows(m) == 0 {
+		t.Fatalf("show more, all the way: %d rows of %d, %d open", len(m.rows(0)), all, openRows(m))
+	}
+	m = until(m, '<')
 	m.stages[0].Picked["#46"] = true
-	if m = drive(m, press(':')); m.tabItems()[4].Name != "Expand Selected" || !m.enabled(item(m, "Collapse Others")) {
-		t.Fatalf("the items with a row selected: %+v", m.tabItems()[4:7])
-	}
-	m = drive(m, esc)
 	keys := func(m Model) []string {
 		var out []string
 		for _, r := range m.rows(0) {
@@ -184,15 +186,11 @@ func TestTheTabsMenuFoldsTheGroupsAndTheSelection(t *testing.T) {
 		}
 		return out
 	}
-	if m = choose(m, "Expand Selected"); !slices.Equal(keys(m), []string{"#46"}) {
-		t.Fatalf("expand selected shows %q", keys(m))
+	if m = choose(t, m, "Show Selected"); !slices.Equal(keys(m), []string{"#46"}) {
+		t.Fatalf("show selected shows %q", keys(m))
 	}
-	// collapse others, from everything open, leaves #46's group alone open
-	clear(m.stages[0].Picked)
-	m = choose(m, "Expand All")
-	m.stages[0].Picked["#46"] = true
-	if m = choose(m, "Collapse Others"); !slices.Equal(keys(m), []string{"#46"}) || openRows(m) > 1 {
-		t.Errorf("collapse others shows %q, %d open", keys(m), openRows(m))
+	if m = choose(t, m, "Hide Selected"); !slices.Equal(keys(m), []string{"#46"}) || m.stages[0].Open["#46"] {
+		t.Errorf("hide selected shows %q, #46 open %v", keys(m), m.stages[0].Open["#46"])
 	}
 }
 

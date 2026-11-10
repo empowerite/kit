@@ -1,11 +1,12 @@
 // The outline: what a stage's rows open and close. A group's heading, a row, and the header are each a node of it, a
-// table's open holds which stand open, and every way to open and close them goes through it alike. Right opens the node
-// under the cursor, or, on a heading already open, steps into its first row; left closes it, or, on a node closed or one
-// that hides nothing, steps out to the heading over it; with option, right opens one level more under it, as grow
-// says, and left closes the deepest open level under it, as peel says, a level each press. A click on the ▸ or ▾ of a
-// heading or a row opens or closes it, and with option a level under it, as option with right or left does. The tab's menu
-// expands and collapses everything, or, while rows are selected, the selection: the selected rows expanded with the
-// groups they stand in, or collapsed, or every other row collapsed and every group without a selected row folded. A
+// table's open holds which stand open, and every way to open and close them goes through it alike, by two primitives.
+// Show and Hide open or close one node and nothing under it, so Hide then Show puts back what showed: right shows the
+// node under the cursor, or, on a heading already open, steps into its first row; left hides it, or, on a node hidden
+// or one that hides nothing, steps out to the heading over it; a click on the ▸ or ▾ of a heading or a row does
+// either. More and Less work a level at a time: More shows the shallowest level where something hides, all of it,
+// and hides nothing; Less hides the deepest level open. > and < and the tab's menu take them over the whole table, and
+// option with right or left, or with a click on a ▸ or ▾, over the node, where the terminal sends it. The tab's menu
+// also shows the selected rows, every heading over them first, and hides them, and nothing over them. A
 // selection reaches into a group: space on its heading selects every row in it, or none once all are, and its mark says
 // whether all or some are. The levels of the groups open and close too, by the heading over the groups on the control
 // line, as the heading over the groups says, each keeping its own state, as each heading does. What stands open lasts the session, and
@@ -97,9 +98,9 @@ func Reoutline(h Host, next grid.Outline) {
 	h.Settle()
 }
 
-// Disclose opens the node under the cursor, or closes it, and with subtree every node under it as well, and says
-// whether that changed anything; a node that hides nothing stays as it is.
-func Disclose(h Host, open, subtree bool) bool {
+// Disclose shows the node under the cursor, as open says, or hides it, as Show and Hide ask, and says whether that
+// changed anything; a node that hides nothing stays as it is.
+func Disclose(h Host, open bool) bool {
 	if !h.InRows() {
 		return false
 	}
@@ -109,38 +110,60 @@ func Disclose(h Host, open, subtree bool) bool {
 	}
 	every := every(h)
 	at := slices.IndexFunc(every, func(r grid.Row) bool { return r.Key == rows[s.Cursor].Key })
-	end := at + 1
-	if subtree {
-		end = grid.Span(every, at)
+	if at < 0 || !Opens(h, every, at) || s.Open.Unfolds(every[at]) == open {
+		return false
 	}
-	next, changed := maps.Clone(s.Open), false
-	for j := at; j < end; j++ {
-		if Opens(h, every, j) && next.Unfolds(every[j]) != open {
-			UnfoldNode(next, every[j], open)
-			changed = true
-		}
+	next := maps.Clone(s.Open)
+	if open {
+		show(next, every, at)
+	} else {
+		next[every[at].Key] = false
 	}
-	if changed {
-		Reoutline(h, next)
-	}
-	return changed
+	Reoutline(h, next)
+	return true
 }
 
-// UnfoldNode opens or closes a node in an outline, as its ▸ or ▾ shows it: a heading opened shows the level under it too,
-// and every level over that, so what it holds shows, though that shows the level under every other heading open too.
-func UnfoldNode(next grid.Outline, r grid.Row, open bool) {
-	next[r.Key] = open
-	if open && grid.Heads(r) {
-		for d := 0; d < grid.Level(r); d++ {
-			delete(next, grid.LevelKey(d))
+// show opens the node at j of the outline in next, and changes nothing else that shows, so that Hide then Show puts
+// back what showed: under it, every node stands as it stood. Where the heading over the groups folds a level over
+// it, as LevelKey says, the level opens again, and every heading of the level it folds that stood open, hidden with
+// it, closes, so it stays hidden, but the node and the headings over it; what the heading over the groups holds
+// shows that way as a level of closed headings.
+func show(next grid.Outline, every []grid.Row, j int) {
+	r := every[j]
+	next[r.Key] = true
+	if !grid.Heads(r) {
+		return
+	}
+	chain := map[string]bool{}
+	for p := j; p >= 0; p = grid.Parent(every, p) {
+		chain[every[p].Key] = true
+	}
+	for d := 0; d < grid.Level(r); d++ {
+		if open, ok := next[grid.LevelKey(d)]; !ok || open {
+			continue
 		}
+		// a level closed folds what the headings of the level over it hold; the heading over the groups, at level 1,
+		// never closes, so under it the headings it shows close instead
+		folds := max(d+1, 2)
+		for _, o := range every {
+			if grid.Heads(o) && !grid.OverGroups(o) && grid.Level(o) == folds && !chain[o.Key] && next.Open(o) {
+				next[o.Key] = false
+			}
+		}
+		next[grid.LevelKey(d)] = true
 	}
 }
 
-// Expand takes right, as open says, or left, and with option either, as subtree says: the node under the cursor opened
-// or closed, as Disclose says; with option, a level more opened under it, as Grow says, or the deepest open level
-// under it closed, as Peel says; or, where that changes nothing and option is not held, right on a heading steps into
-// its first row, and left steps out to the heading over the node.
+// unfolds says whether a node shows what it holds, as Unfolds says, but the heading over the groups only while the
+// outermost level shows, as it holds that level.
+func unfolds(o grid.Outline, r grid.Row) bool {
+	return o.Unfolds(r) && (!grid.OverGroups(r) || o.Shows(grid.Level(r)-1))
+}
+
+// Expand takes right, as open says, or left, and with option either, as subtree says: the node under the cursor shown
+// or hidden, as Disclose says; with option, a level more under it, as Grow says, or a level less, as Peel says; or,
+// where that changes nothing and option is not held, right on a heading steps into its first row, and left steps out
+// to the heading over the node.
 func Expand(h Host, open, subtree bool) {
 	switch {
 	case subtree && open:
@@ -150,7 +173,7 @@ func Expand(h Host, open, subtree bool) {
 		Peel(h)
 		return
 	}
-	if Disclose(h, open, subtree) || !h.InRows() {
+	if Disclose(h, open) || !h.InRows() {
 		return
 	}
 	s, rows := h.Table(), h.Rows()
@@ -168,88 +191,113 @@ func Expand(h Host, open, subtree bool) {
 	h.Settle()
 }
 
-// under gives the outline, the index of the node under the cursor in it, and how far under that node the node at j
-// stands, with whether every node between them stands open, so that it shows; at is -1 with no node under the cursor.
-func under(h Host) (all []grid.Row, at int, depth func(j int) (int, bool)) {
-	if !h.InRows() {
-		return nil, -1, nil
-	}
-	s, rows := h.Table(), h.Rows()
-	if s.Cursor >= len(rows) {
-		return nil, -1, nil
-	}
+// scope gives the outline and the nodes ShowMore and ShowLess work over, from up to to: the whole table's, as whole
+// says, or the node under the cursor's, it and every node under it, none with no node under the cursor; and how deep
+// under them the node at j stands, the heading over the groups not counted, with whether every node over it among them
+// shows what it holds, so that it shows.
+func scope(h Host, whole bool) (all []grid.Row, from, to int, depth func(j int) (int, bool)) {
+	s := h.Table()
 	all = every(h)
-	at = slices.IndexFunc(all, func(r grid.Row) bool { return r.Key == rows[s.Cursor].Key })
+	if whole {
+		to = len(all)
+	} else {
+		rows := h.Rows()
+		if !h.InRows() || s.Cursor >= len(rows) {
+			return nil, 0, 0, nil
+		}
+		if from = slices.IndexFunc(all, func(r grid.Row) bool { return r.Key == rows[s.Cursor].Key }); from < 0 {
+			return nil, 0, 0, nil
+		}
+		to = grid.Span(all, from)
+	}
 	depth = func(j int) (int, bool) {
 		n, shows := 0, true
-		for p := grid.Parent(all, j); p >= at; p = grid.Parent(all, p) {
-			n++
-			shows = shows && s.Open.Unfolds(all[p])
+		for p := grid.Parent(all, j); p >= from; p = grid.Parent(all, p) {
+			// the heading over the groups, on the control line, is no level of what the rows show
+			if !grid.OverGroups(all[p]) {
+				n++
+			}
+			shows = shows && unfolds(s.Open, all[p])
 		}
 		return n, shows
 	}
-	return all, at, depth
+	return all, from, to, depth
 }
 
-// Grow opens one level more under the node under the cursor, as option with right asks: the deepest open node under
-// it that shows, the node itself counting, sets the level, and every node down to the level under that opens, so
-// each press shows one level more, every branch alike; with none open, the node itself opens. It says whether that
-// changed anything.
-func Grow(h Host) bool {
-	every, at, depth := under(h)
-	if at < 0 {
-		return false
-	}
+// ShowMore gives the outline with a level more shown, of the whole table's nodes, as whole says, or the node under the
+// cursor's, and whether there is one: the shallowest level where a node that shows hides something, every such node
+// of it shown, as Show shows one, and nothing hidden, so a node under them stands as it stood. The heading over the
+// groups counts, while the outermost level is folded, so More shows it again, though Less never folds it.
+func ShowMore(h Host, whole bool) (grid.Outline, bool) {
+	all, from, to, depth := scope(h, whole)
 	s := h.Table()
-	deepest := -1
-	for j := at; j < grid.Span(every, at); j++ {
-		// the heading over the groups counts as open, as it always stands so
-		if d, shows := depth(j); shows && s.Open.Unfolds(every[j]) && (Opens(h, every, j) || grid.OverGroups(every[j])) {
-			deepest = max(deepest, d)
-		}
-	}
-	next, changed := maps.Clone(s.Open), false
-	for j := at; j < grid.Span(every, at); j++ {
-		if d, _ := depth(j); d <= deepest+1 && Opens(h, every, j) && !next.Unfolds(every[j]) {
-			UnfoldNode(next, every[j], true)
-			changed = true
-		}
-	}
-	if changed {
-		Reoutline(h, next)
-	}
-	return changed
-}
-
-// Peel closes the deepest open nodes under the one under the cursor, of those that show, one level of them, as option
-// with left asks: from everything open, the rows close first, then the innermost groups' headings, and so outward, a
-// level each press, the node itself last. It says whether that changed anything.
-func Peel(h Host) bool {
-	every, at, depth := under(h)
-	if at < 0 {
-		return false
-	}
-	s := h.Table()
-	deepest, closing := -1, []int(nil)
-	for j := at; j < grid.Span(every, at); j++ {
+	shallowest, showing := -1, []int(nil)
+	for j := from; j < to; j++ {
 		d, shows := depth(j)
-		if !shows || !Opens(h, every, j) || !s.Open.Unfolds(every[j]) || d < deepest {
+		opens := Opens(h, all, j) || grid.OverGroups(all[j])
+		if !shows || !opens || unfolds(s.Open, all[j]) || shallowest >= 0 && d > shallowest {
+			continue
+		}
+		if shallowest < 0 || d < shallowest {
+			shallowest, showing = d, nil
+		}
+		showing = append(showing, j)
+	}
+	if len(showing) == 0 {
+		return nil, false
+	}
+	next := maps.Clone(s.Open)
+	for _, j := range showing {
+		show(next, all, j)
+	}
+	return next, true
+}
+
+// ShowLess gives the outline with a level less shown, of the whole table's nodes, as whole says, or the node under the
+// cursor's, and whether there is one: the deepest level where a node that shows stands open, every such node of it
+// hidden. From everything open, the rows hide first, then the innermost groups' headings, and so outward.
+func ShowLess(h Host, whole bool) (grid.Outline, bool) {
+	all, from, to, depth := scope(h, whole)
+	s := h.Table()
+	deepest, hiding := -1, []int(nil)
+	for j := from; j < to; j++ {
+		d, shows := depth(j)
+		if !shows || !Opens(h, all, j) || !s.Open.Unfolds(all[j]) || d < deepest {
 			continue
 		}
 		if d > deepest {
-			deepest, closing = d, nil
+			deepest, hiding = d, nil
 		}
-		closing = append(closing, j)
+		hiding = append(hiding, j)
 	}
-	if len(closing) == 0 {
-		return false
+	if len(hiding) == 0 {
+		return nil, false
 	}
 	next := maps.Clone(s.Open)
-	for _, j := range closing {
-		next[every[j].Key] = false
+	for _, j := range hiding {
+		next[all[j].Key] = false
 	}
-	Reoutline(h, next)
-	return true
+	return next, true
+}
+
+// Grow shows a level more under the node under the cursor, as ShowMore says, as option with right asks, the node itself
+// first, and says whether that changed anything.
+func Grow(h Host) bool {
+	next, ok := ShowMore(h, false)
+	if ok {
+		Reoutline(h, next)
+	}
+	return ok
+}
+
+// Peel shows a level less under the node under the cursor, as ShowLess says, as option with left asks, the node itself
+// last, and says whether that changed anything.
+func Peel(h Host) bool {
+	next, ok := ShowLess(h, false)
+	if ok {
+		Reoutline(h, next)
+	}
+	return ok
 }
 
 // GroupRows gives the keys of the rows a group's heading at j of the outline stands over, its headings apart.
@@ -282,18 +330,27 @@ func GroupMarks(every []grid.Row, picked map[string]bool) map[string]string {
 	return marks
 }
 
-// Folding gives the outline one of the fold items leaves the table with, and whether the name is
-// one: Expand All opens every node and every level of the groups, the header too where it hides names; Collapse All closes every one, down to the
-// outermost headings; Expand Selected opens the selected rows, every heading over them, and every level, so they show;
-// Collapse
-// Selected closes the selected rows; and Collapse Others closes every row not selected, and every heading over none.
+// Folding gives the outline one of the fold items of the tab's menu leaves the table with, and whether the name is
+// one: Show More and Show Less a level more and a level less of the whole table, as ShowMore and ShowLess say, as > and <
+// do; Show Selected shows the selected rows, every heading over them first, as Show shows a node; and Hide Selected
+// hides the selected rows, and nothing over them, so the rows beside them stay as they stand.
 func Folding(h Host, name string) (grid.Outline, bool) {
-	if !slices.Contains([]string{"Expand All", "Collapse All", "Expand Selected", "Collapse Selected", "Collapse Others"},
-		name) {
+	s := h.Table()
+	switch name {
+	case "Show More", "Show Less":
+		level := ShowMore
+		if name == "Show Less" {
+			level = ShowLess
+		}
+		if next, ok := level(h, true); ok {
+			return next, true
+		}
+		return maps.Clone(s.Open), true
+	case "Show Selected", "Hide Selected":
+	default:
 		return nil, false
 	}
-	s, every := h.Table(), every(h)
-	next := maps.Clone(s.Open)
+	every, next := every(h), maps.Clone(s.Open)
 	over := map[string]bool{} // the headings over a selected row
 	for j, r := range every {
 		if s.Picked[r.Key] && !r.Aside {
@@ -302,38 +359,16 @@ func Folding(h Host, name string) (grid.Outline, bool) {
 			}
 		}
 	}
-	if name == "Expand All" || name == "Expand Selected" {
-		ShowLevels(next, len(h.Panel().Groups()))
-	}
+	// the outline runs outermost first, so a heading shows before the headings and rows under it
 	for j, r := range every {
-		if !Opens(h, every, j) {
-			continue
-		}
 		picked := s.Picked[r.Key] && !r.Aside
-		switch name {
-		case "Expand All":
-			next[r.Key] = true
-		case "Collapse All":
+		switch {
+		case !Opens(h, every, j):
+		case name == "Hide Selected" && picked:
 			next[r.Key] = false
-		case "Expand Selected":
-			if picked || over[r.Key] {
-				next[r.Key] = true
-			}
-		case "Collapse Selected":
-			if picked {
-				next[r.Key] = false
-			}
-		case "Collapse Others":
-			if grid.Heads(r) || !picked {
-				next[r.Key] = over[r.Key]
-			}
+		case name == "Show Selected" && (picked || over[r.Key]) && !next.Unfolds(r):
+			show(next, every, j)
 		}
-	}
-	switch name {
-	case "Expand All":
-		next[HeaderKey] = h.HeaderHides()
-	case "Collapse All":
-		next[HeaderKey] = false
 	}
 	return next, true
 }
@@ -353,14 +388,6 @@ func Changes(h Host, next grid.Outline) bool {
 		}
 	}
 	return next[HeaderKey] != s.Open[HeaderKey]
-}
-
-// ShowLevels opens every level of the groups in an outline, of so many groups, the rows' too, as Expand asks, so
-// nothing a level hides stays hidden.
-func ShowLevels(next grid.Outline, groups int) {
-	for d := 0; d <= groups; d++ {
-		delete(next, grid.LevelKey(d))
-	}
 }
 
 // First gives the first of a table's rows the cursor can stand on: past the heading over the groups, which the control

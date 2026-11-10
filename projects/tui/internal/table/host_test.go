@@ -20,9 +20,8 @@ type host struct {
 	all    []grid.Row
 	tbl    Table
 	keys   bool // whether the rows have the keyboard
-	hides  bool
-	built  int // how many times the rows were built again
-	settle int // how many times the cursor was kept on a row
+	built  int  // how many times the rows were built again
+	settle int  // how many times the cursor was kept on a row
 	views  Views
 	loaded bool // whether the table has columns, loaded
 	paneH  int  // the pane's height
@@ -63,16 +62,15 @@ func (h *host) Rows() []grid.Row {
 	p.Outline = h.tbl.Open
 	return p.FoldAway(p.Filter(h.all, h.panel.Columns))
 }
-func (h *host) Names() []string   { return h.panel.Columns }
-func (h *host) GridWidth() int    { return h.w }
-func (h *host) Table() *Table     { return &h.tbl }
-func (h *host) Rebuild()          { h.built++ }
-func (h *host) Settle()           { h.settle++ }
-func (h *host) InRows() bool      { return h.keys }
-func (h *host) HeaderHides() bool { return h.hides }
-func (h *host) Views() Views      { return h.views }
-func (h *host) Columnar() bool    { return h.loaded }
-func (h *host) Color() string     { return "75" }
+func (h *host) Names() []string { return h.panel.Columns }
+func (h *host) GridWidth() int  { return h.w }
+func (h *host) Table() *Table   { return &h.tbl }
+func (h *host) Rebuild()        { h.built++ }
+func (h *host) Settle()         { h.settle++ }
+func (h *host) InRows() bool    { return h.keys }
+func (h *host) Views() Views    { return h.views }
+func (h *host) Columnar() bool  { return h.loaded }
+func (h *host) Color() string   { return "75" }
 func (h *host) Selector() (int, int) {
 	return 60, 70
 }

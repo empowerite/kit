@@ -456,7 +456,7 @@ func TestAGroupsHeadingFoldsAndUnfoldsItsRows(t *testing.T) {
 	}
 	// the cursor on source's heading, github's
 	m.stages[m.stage].Cursor = 1
-	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "← collapse") {
+	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "← hide") {
 		t.Errorf("the keys on an open heading: %q", last)
 	}
 	header, _ := m.headerLines()
@@ -470,7 +470,7 @@ func TestAGroupsHeadingFoldsAndUnfoldsItsRows(t *testing.T) {
 		m.stages[m.stage].Cursor != 1 {
 		t.Fatalf("left on the heading: %d rows, %q, count %s", len(m.rows(m.stage)), heading, m.count(m.stage))
 	}
-	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "→ expand") {
+	if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, "→ show") {
 		t.Errorf("the keys on a folded heading: %q", last)
 	}
 	if m = drive(m, right); len(m.rows(m.stage)) != rows {

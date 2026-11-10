@@ -1263,7 +1263,7 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 		table.Grow(m)
 		m.fit()
 	case fold:
-		table.Disclose(m, !s.Open.Unfolds(rows[row]), false)
+		table.Disclose(m, !s.Open.Unfolds(rows[row]))
 		m.fit()
 	default:
 		m.fit()

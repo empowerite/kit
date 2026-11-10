@@ -30,32 +30,31 @@ func openRows(m Model) int {
 	return n
 }
 
-func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
+func TestColonDropsTheTabsMenuDownAndItShowsOrHidesALevel(t *testing.T) {
 	m := loaded(t, options(), tab, tab, tab, press(':'))
 	if !m.tabMenu.Open || m.appMenu.Open || lines(m)[23] != " "+menuKeys ||
-		!strings.Contains(view(m), "│ "+Expand+" Expand All ") || strings.Contains(view(m), "Settings") {
+		!strings.Contains(view(m), "│ "+More+" Show More ") || strings.Contains(view(m), "Settings") {
 		t.Fatalf(": did not drop the tab's menu down:\n%s", view(m))
 	}
 	// the menu's left edge is two cells before the menu glyph, its top edge on the bar's middle line, through the
 	// glyph, half a line either side of it, all in the menu's color; the keyboard starts on refresh, watch and maximize
-	// after it, and collapse all, with no row open, is dim; Fields… is the presets' menu's, not this one's
+	// after it, and show less, with no row open, is dim; Fields… is the presets' menu's, not this one's
 	glyph, cells := m.bar().MenuAt(), ansi.StringWidth(tabs.Menu)
 	if box, left := m.menuBox(); left != glyph-2 || len(box) != len(m.tabItems())+2 || m.tabMenu.At != 0 ||
 		ansi.Cut(lines(m)[m.menuTop()], glyph-1, glyph+cells+1) != "╴"+tabs.Menu+"╶" ||
 		!strings.Contains(box[1], " "+Reload+" Refresh") || !strings.Contains(box[2], " "+Unwatched+" Watch") ||
 		!strings.Contains(box[3], " "+Maximize+"  Maximize") ||
 		strings.Contains(view(m), FieldsIt) ||
-		!strings.Contains(box[6], strings.TrimSuffix(style.Off("x"), "x\x1b[m")+" "+Collapse+" Collapse All ") ||
+		!strings.Contains(box[6], strings.TrimSuffix(style.Off("x"), "x\x1b[m")+" "+Less+" Show Less ") ||
 		box[0] != style.Menu(ansi.Strip(box[0])) {
 		t.Errorf("the menu's left edge %d, the glyph at %d, the keyboard on %d:\n%s", left, glyph, m.tabMenu.At, view(m))
 	}
 	// a letter moves to the next enabled item that starts with it; one no enabled item starts with moves nothing, as c
-	// does while collapse all, collapse others, and clear selection are dim; down passes the rule, and collapse all
-	// while it is dim
+	// does while clear selection is dim; down passes the dim items and the rule, and up comes back
 	for _, step := range []struct {
 		letter string
 		want   int
-	}{{"c", 0}, {"E", 4}, {"z", 4}} {
+	}{{"c", 0}, {"S", 4}, {"z", 4}} {
 		if m = drive(m, tea.KeyPressMsg{Code: rune(step.letter[0]), Text: step.letter}); m.tabMenu.At != step.want {
 			t.Errorf("%s: item %d, want %d", step.letter, m.tabMenu.At, step.want)
 		}
@@ -63,27 +62,27 @@ func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
 	if m = drive(m, down, up); m.tabMenu.At != 4 {
 		t.Errorf("up and down moved to a dim item: %d", m.tabMenu.At)
 	}
-	// enter on expand all expands every worktree row that hides something; the menu closes
-	if m = drive(m, press(tea.KeyEnter)); m.tabMenu.Open || openRows(m) == 0 || strings.Contains(view(m), "Expand All") {
-		t.Fatalf("expand all: menu %v, open %d", m.tabMenu.Open, openRows(m))
+	// enter on show more shows every worktree row's lines, the one level they make; the menu closes
+	if m = drive(m, press(tea.KeyEnter)); m.tabMenu.Open || openRows(m) == 0 || strings.Contains(view(m), "Show Selected") {
+		t.Fatalf("show more: menu %v, open %d", m.tabMenu.Open, openRows(m))
 	}
 	opened := openRows(m)
-	// now expand all is dim, and c finds collapse all, which space chooses; ; drops the menu down too
-	if m = drive(m, press(';'), typed("c")[0]); !m.tabMenu.Open || m.tabMenu.At != 5 || m.enabled(4) {
-		t.Errorf("with every row expanded, c is on %d", m.tabMenu.At)
+	// now show more is dim, and s finds show less, which space chooses; ; drops the menu down too
+	if m = drive(m, press(';'), typed("s")[0]); !m.tabMenu.Open || m.tabMenu.At != 5 || m.enabled(4) {
+		t.Errorf("with every row shown, s is on %d", m.tabMenu.At)
 	}
-	// down passes the dim collapse others and the rule to select all; up passes them, the dim expand all, and the
-	// rule, to watch
-	if m = drive(m, down); m.tabMenu.At != 8 {
-		t.Errorf("down from collapse all: item %d", m.tabMenu.At)
+	// down passes the dim selection's items and the rule to select all; up passes them, the dim show more, and the
+	// rule, to maximize
+	if m = drive(m, down); m.tabMenu.At != 9 {
+		t.Errorf("down from show less: item %d", m.tabMenu.At)
 	}
 	if m = drive(m, up, up); m.tabMenu.At != 2 {
-		t.Errorf("up past expand all: item %d", m.tabMenu.At)
+		t.Errorf("up past show more: item %d", m.tabMenu.At)
 	}
 	if m = drive(m, down, press(tea.KeySpace)); openRows(m) != 0 || m.tabMenu.Open {
-		t.Errorf("collapse all: open %d", openRows(m))
+		t.Errorf("show less: open %d", openRows(m))
 	}
-	m = drive(m, press(':'), typed("e")[0], press(tea.KeyEnter))
+	m = drive(m, press(':'), typed("s")[0], press(tea.KeyEnter))
 	// esc, :, and ; close it, choosing nothing, and = does not
 	for _, closing := range []tea.Msg{esc, press(':'), press(';')} {
 		if m = drive(m, press(':'), closing); m.tabMenu.Open || openRows(m) != opened {
@@ -266,22 +265,22 @@ func TestTheMenuOnTheRightmostTabEndsUnderTheGlyphAndLeavesTheRestInPlace(t *tes
 	}
 }
 
-// After Expand All, the rows have the keyboard, so left closes the row under the cursor even once the wheel has
-// scrolled its first line away; and a click on that first line, pinned atop the pane, closes it too.
-func TestAfterExpandAllTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T) {
+// After Show More, the rows have the keyboard, so left hides the row under the cursor even once the wheel has
+// scrolled its first line away; and a click on that first line, pinned atop the pane, hides it too.
+func TestAfterShowMoreTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T) {
 	wheel := tea.MouseWheelMsg{X: 10, Y: Model{}.top() + 2, Button: tea.MouseWheelDown}
 	size := tea.WindowSizeMsg{Width: 100, Height: 12}
-	m := loaded(t, options(), size, tab, tab, tab, press(':'), typed("e")[0], press(tea.KeyEnter), wheel)
+	m := loaded(t, options(), size, tab, tab, tab, press(':'), typed("s")[0], press(tea.KeyEnter), wheel)
 	pinned := func(m Model) int { return m.rowLine(m.stages[m.stage].Cursor) }
 	if s := m.stages[m.stage]; !m.inRows || s.Offset == 0 || pinned(m) != m.headerTop()+2 ||
 		!strings.HasPrefix(lines(m)[pinned(m)], "  "+style.Opened) {
-		t.Fatalf("after expand all and the wheel: in rows %v, offset %d:\n%s", m.inRows, s.Offset, view(m))
+		t.Fatalf("after show more and the wheel: in rows %v, offset %d:\n%s", m.inRows, s.Offset, view(m))
 	}
 	opened := openRows(m)
 	if m = drive(m, left); openRows(m) != opened-1 || m.stages[m.stage].name != "worktrees" {
-		t.Errorf("left after expand all: open %d of %d, on %s", openRows(m), opened, m.stages[m.stage].name)
+		t.Errorf("left after show more: open %d of %d, on %s", openRows(m), opened, m.stages[m.stage].name)
 	}
-	m = loaded(t, options(), size, tab, tab, tab, press(':'), typed("e")[0], press(tea.KeyEnter), wheel)
+	m = loaded(t, options(), size, tab, tab, tab, press(':'), typed("s")[0], press(tea.KeyEnter), wheel)
 	if m = drive(m, testkit.Click(table.FoldCell, pinned(m))); openRows(m) != opened-1 {
 		t.Errorf("a click on the pinned line: open %d of %d:\n%s", openRows(m), opened, view(m))
 	}
@@ -325,7 +324,8 @@ func TestTheHeaderStandsTheColumnsNamesOverTheRows(t *testing.T) {
 }
 
 // A header whose names take more than a line shows its first alone, with ▸ before it, until it is opened: by a click
-// on its gutter, as a row's, or by Expand All, which Collapse All undoes; the rows then start under every line of it.
+// on its gutter, as a row's, a node of its own that Show More and Show Less leave as it stands; the rows then start
+// under every line of it.
 func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
 	backlog := catalog["backlog"]
 	defer func(was []table.Field) { backlog.Fields = was }(backlog.Fields)
@@ -349,19 +349,9 @@ func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
 	if m = drive(m, testkit.Click(len(in)+2, top)); m.stages[0].Open[table.HeaderKey] {
 		t.Error("a second click did not close it")
 	}
-	// Expand All opens it with the rows, and Collapse All closes it, the group over the rows folded with them
-	m = drive(m, press(':'))
-	if !m.enabled(item(m, "Expand All")) {
-		t.Errorf("expand all %v over a closed header", m.enabled(item(m, "Expand All")))
-	}
-	if m = drive(m, typed("e")[0], press(tea.KeyEnter)); !m.stages[0].Open[table.HeaderKey] {
-		t.Error("expand all left the header closed")
-	}
-	if m = drive(m, press(':')); !m.enabled(item(m, "Collapse All")) {
-		t.Error("collapse all is dim over an open header")
-	}
-	if m = drive(m, typed("c")[0], typed("c")[0], press(tea.KeyEnter)); m.stages[0].Open[table.HeaderKey] || tall(m) != 2 {
-		t.Errorf("collapse all left the header open:\n%s", view(m))
+	// Show More shows the rows, and leaves the header closed
+	if m = drive(m, press('>')); m.stages[0].Open[table.HeaderKey] || tall(m) != 2 {
+		t.Errorf("show more opened the header:\n%s", view(m))
 	}
 	// a click on the header off its gutter, or on its rule, does nothing; the group open again, down has a row to go to
 	m.stages[0].Open = grid.Outline{}
@@ -457,32 +447,29 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 	}
 }
 
-// With rows selected, the tab's menu expands and collapses the selected rows alone, and collapses the others.
-func TestExpandAndCollapseActOnTheSelectedRowsWhenThereAreAny(t *testing.T) {
-	m := loaded(t, options(), tab, tab, tab, down, down, press(tea.KeySpace), press(':'))
-	if m.tabItems()[4].Name != "Expand Selected" || m.tabItems()[5].Name != "Collapse Selected" || m.enabled(5) {
-		t.Fatalf("the items with a row selected: %+v", m.tabItems()[4:6])
+// With rows selected, the tab's menu shows and hides the selected rows alone; with none, both are dim.
+func TestShowAndHideSelectedActOnTheSelectedRowsAlone(t *testing.T) {
+	m := loaded(t, options(), tab, tab, tab, press(':'))
+	if m.tabItems()[6].Name != "Show Selected" || m.tabItems()[7].Name != "Hide Selected" || m.enabled(6) || m.enabled(7) {
+		t.Fatalf("the items with no row selected: %+v", m.tabItems()[6:8])
 	}
-	if m = drive(m, typed("e")[0], press(tea.KeyEnter)); openRows(m) != 1 || !m.stages[m.stage].Open[m.rows(m.stage)[1].Key] {
-		t.Errorf("expand selected opened %d", openRows(m))
+	m = loaded(t, options(), tab, tab, tab, down, down, press(tea.KeySpace))
+	if m = drive(m, press(':')); !m.enabled(6) || m.enabled(7) {
+		t.Fatalf("with a row selected, hidden: show %v, hide %v", m.enabled(6), m.enabled(7))
 	}
-	if m = drive(m, press(':')); m.enabled(4) || !m.enabled(5) {
-		t.Errorf("with the selected row open: expand %v, collapse %v", m.enabled(4), m.enabled(5))
+	m = drive(m, esc)
+	if m = choose(t, m, "Show Selected"); openRows(m) != 1 || !m.stages[m.stage].Open[m.rows(m.stage)[1].Key] {
+		t.Errorf("show selected opened %d", openRows(m))
 	}
-	if m = drive(m, typed("c")[0], press(tea.KeyEnter)); openRows(m) != 0 {
-		t.Errorf("collapse selected left %d open", openRows(m))
+	if m = drive(m, press(':')); m.enabled(6) || !m.enabled(7) {
+		t.Errorf("with the selected row shown: show %v, hide %v", m.enabled(6), m.enabled(7))
 	}
-	// collapse others closes the rows not selected, the selected ones left open; with none of those open, it is dim
+	// hide selected hides the selected row alone, the others as they stood
+	m = drive(m, esc)
 	s, rows := &m.stages[m.stage], m.rows(m.stage)
-	s.Open[rows[1].Key], s.Open[rows[2].Key] = true, true
-	if m = drive(m, press(':')); m.tabItems()[6].Name != "Collapse Others" || !m.enabled(6) {
-		t.Fatalf("collapse others with a row not selected open: %+v, %v", m.tabItems()[6], m.enabled(6))
-	}
-	if m = drive(m, typed("c")[0], typed("c")[0], press(tea.KeyEnter)); openRows(m) != 1 ||
-		!m.stages[m.stage].Open[rows[1].Key] || m.tabMenu.Open {
-		t.Errorf("collapse others left %d open, the selected one %v", openRows(m), m.stages[m.stage].Open[rows[1].Key])
-	}
-	if m = drive(m, press(':')); m.enabled(item(m, "Collapse Others")) {
-		t.Error("collapse others with no row not selected open is not dim")
+	s.Open[rows[2].Key] = true
+	if m = choose(t, m, "Hide Selected"); openRows(m) != 1 || m.stages[m.stage].Open[rows[1].Key] ||
+		!m.stages[m.stage].Open[rows[2].Key] {
+		t.Errorf("hide selected left %d open, the selected one %v", openRows(m), m.stages[m.stage].Open[rows[1].Key])
 	}
 }

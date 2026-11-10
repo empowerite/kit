@@ -30,6 +30,22 @@ func outlined() *host {
 	return h
 }
 
+// opened says whether the node of the key stands open in an outline, a heading by default, as Outline.Open says.
+func opened(h *host, o grid.Outline, key string) bool {
+	every := grid.Every(h.Rows())
+	k := slices.IndexFunc(every, func(r grid.Row) bool { return r.Key == key })
+	return k >= 0 && o.Open(every[k])
+}
+
+// keys gives the keys of the host's rows, in order.
+func keys(h *host) []string {
+	var out []string
+	for _, r := range h.Rows() {
+		out = append(out, r.Key)
+	}
+	return out
+}
+
 // at gives the index of the row of the key among the host's rows.
 func at(h *host, key string) int {
 	return slices.IndexFunc(h.Rows(), func(r grid.Row) bool { return r.Key == key })
@@ -69,11 +85,15 @@ func TestTheOutlineOpensAndClosesTheNodeUnderTheCursor(t *testing.T) {
 	if Expand(h, false, false); h.Rows()[h.tbl.Cursor].Key != heading("open", "ada") {
 		t.Errorf("left on #1: on %q", h.Rows()[h.tbl.Cursor].Key)
 	}
-	// on a heading, the subtree under it closes with it
+	// on a heading, Hide then Show puts back what showed: #4 opened under it stays open
 	h.tbl.Open["#4"] = true
 	h.tbl.Cursor = at(h, heading("open"))
-	if !Disclose(h, false, true) || h.tbl.Open["#4"] || h.tbl.Open[heading("open", "ada")] {
-		t.Errorf("the subtree closed: %v", h.tbl.Open)
+	was := keys(h)
+	if !Disclose(h, false) || !h.tbl.Open["#4"] || at(h, "#4") >= 0 {
+		t.Errorf("hide: %v", h.tbl.Open)
+	}
+	if !Disclose(h, true) || !slices.Equal(keys(h), was) || !h.tbl.Open["#4"] {
+		t.Errorf("hide then show: %v, want %v", keys(h), was)
 	}
 	// a cursor on no row stays where it was, for the host to keep on a row
 	h.tbl.Open = grid.Outline{}
@@ -84,7 +104,7 @@ func TestTheOutlineOpensAndClosesTheNodeUnderTheCursor(t *testing.T) {
 	}
 	// without the keyboard, nothing
 	h.keys = false
-	if Disclose(h, false, false) {
+	if Disclose(h, false) {
 		t.Error("closed without the keyboard")
 	}
 	if Expand(h, true, false); Grow(h) || Peel(h) {
@@ -123,7 +143,7 @@ func TestOptionOpensOrClosesALevelAtATime(t *testing.T) {
 	}
 	// a cursor past the rows stands on none
 	h.tbl.Cursor = 99
-	if Disclose(h, true, false) || Grow(h) {
+	if Disclose(h, true) || Grow(h) {
 		t.Error("a node past the rows")
 	}
 	if Expand(h, true, false); h.tbl.Cursor != 99 {
@@ -131,42 +151,119 @@ func TestOptionOpensOrClosesALevelAtATime(t *testing.T) {
 	}
 }
 
-func TestTheFoldsActOnEverythingOrTheSelection(t *testing.T) {
+// Show on a heading whose level the heading over the groups folds shows what it holds and nothing else: the other
+// headings of its level stay as they showed, and Hide then Show puts it back.
+func TestShowUnderAFoldedLevelShowsOnlyItsNode(t *testing.T) {
 	h := outlined()
-	h.hides = true
+	h.tbl.Open = grid.Outline{grid.LevelKey(1): false}
+	Reoutline(h, h.tbl.Open)
+	if at(h, heading("open", "ada")) >= 0 || at(h, heading("closed", "ada")) >= 0 {
+		t.Fatalf("the level folded: %v", keys(h))
+	}
+	h.tbl.Cursor = at(h, heading("open"))
+	if !Disclose(h, true) || at(h, heading("open", "ada")) < 0 || at(h, heading("closed", "ada")) >= 0 {
+		t.Fatalf("show under a folded level: %v", keys(h))
+	}
+	was := keys(h)
+	if Disclose(h, false); !Disclose(h, true) || !slices.Equal(keys(h), was) {
+		t.Errorf("hide then show: %v, want %v", keys(h), was)
+	}
+}
+
+// Show More shows the shallowest level where something hides, every node of it, and hides nothing; what stood open
+// under a node it shows comes back as it stood. Show Less hides the deepest level open.
+func TestShowMoreFillsTheShallowestLevelAndShowLessTrimsTheDeepest(t *testing.T) {
+	h := outlined()
+	// one branch open all the way to #4, the other closed: the closed heading shows first, the rows stay as they are
+	h.tbl.Open = grid.Outline{heading("closed"): false, "#4": true}
+	Reoutline(h, h.tbl.Open)
+	next, ok := ShowMore(h, true)
+	if !ok || !next.Unfolds(h.Rows()[at(h, heading("closed"))]) || !next["#4"] || next["#1"] {
+		t.Fatalf("show more: %v", next)
+	}
+	for _, r := range grid.Every(h.Rows()) {
+		if h.tbl.Open.Unfolds(r) && !next.Unfolds(r) {
+			t.Errorf("show more hid %q", r.Key)
+		}
+	}
+	// hidden, open keeps #4 open under it, and shows it again when it shows
+	h.tbl.Cursor = at(h, heading("open"))
+	Disclose(h, false)
+	if next, _ := ShowMore(h, true); !opened(h, next, heading("open")) || !next["#4"] {
+		t.Errorf("show more after hide: %v", next)
+	}
+	// show less hides the deepest level that stands open, #4 alone of the rows
+	Disclose(h, true)
+	if next, _ := ShowLess(h, true); next["#4"] || !opened(h, next, heading("open", "ada")) {
+		t.Errorf("show less: %v", next)
+	}
+}
+
+func TestTheFoldsActOnTheWholeTableOrTheSelection(t *testing.T) {
+	h := outlined()
 	if _, ok := Folding(h, "Nonesuch"); ok {
 		t.Error("a name that folds nothing")
 	}
-	next, _ := Folding(h, "Collapse All")
-	if next[heading("open")] || next[HeaderKey] || !Changes(h, next) {
-		t.Errorf("collapse all: %v", next)
+	// from the outset, the headings open and the rows closed: Show Less hides the headings of who, Show More shows them
+	next, _ := Folding(h, "Show Less")
+	if opened(h, next, heading("open", "ada")) || opened(h, next, heading("closed", "ada")) || !opened(h, next, heading("open")) || !Changes(h, next) {
+		t.Errorf("show less: %v", next)
 	}
 	Reoutline(h, next)
-	if got := len(h.Rows()); got != 3 {
-		t.Errorf("collapsed, %d rows", got)
+	// closed holds its one heading of who on its line, so #3 shows under it still
+	if at(h, heading("open", "ada")) < 0 || at(h, "#1") >= 0 || at(h, "#3") < 0 {
+		t.Errorf("a level less: %q", keys(h))
 	}
-	next, _ = Folding(h, "Expand All")
-	if !next[heading("open")] || !next["#4"] || !next[HeaderKey] {
-		t.Errorf("expand all: %v", next)
+	if next, _ = Folding(h, "Show More"); !opened(h, next, heading("open", "ada")) || next["#4"] {
+		t.Errorf("show more: %v", next)
 	}
-	h.tbl.Open = grid.Outline{grid.LevelKey(0): false}
-	if next, _ := Folding(h, "Expand All"); !next.Shows(1) || !Changes(h, next) {
-		t.Errorf("expand all shows every level: %v", next)
+	// with everything shown, Show More changes nothing
+	h.tbl.Open = grid.Outline{"#4": true}
+	if next, ok := Folding(h, "Show More"); !ok || Changes(h, next) {
+		t.Errorf("show more with everything shown: %v", next)
 	}
-	// with #4 picked: expanded, collapsed, and the others collapsed
-	h.tbl = Table{Open: grid.Outline{}, Picked: map[string]bool{"#4": true}}
-	Reoutline(h, grid.Outline{heading("open"): false})
-	next, _ = Folding(h, "Expand Selected")
-	if !next[heading("open")] || !next[heading("open", "ada")] || !next["#4"] {
-		t.Errorf("expand selected: %v", next)
+	// with #4 picked and open hidden: Show Selected shows open, ada under it, and #4, and leaves closed as it stood
+	h.tbl = Table{Open: grid.Outline{heading("open"): false, heading("closed"): false}, Picked: map[string]bool{"#4": true}}
+	Reoutline(h, h.tbl.Open)
+	next, _ = Folding(h, "Show Selected")
+	if !opened(h, next, heading("open")) || !opened(h, next, heading("open", "ada")) || !next["#4"] || opened(h, next, heading("closed")) {
+		t.Errorf("show selected: %v", next)
 	}
 	h.tbl.Open = next
-	if next, _ := Folding(h, "Collapse Selected"); next["#4"] {
-		t.Errorf("collapse selected: %v", next)
+	if next, _ := Folding(h, "Hide Selected"); next["#4"] || !opened(h, next, heading("open", "ada")) || !opened(h, next, heading("open")) {
+		t.Errorf("hide selected: %v", next)
 	}
-	if next, _ := Folding(h, "Collapse Others"); next[heading("closed")] || !next[heading("open")] || next[heading("open", "bob")] {
-		t.Errorf("collapse others: %v", next)
+	// under a folded level, Show Selected shows the selected row's heading, and the others stay hidden
+	h.tbl.Open = grid.Outline{grid.LevelKey(1): false}
+	Reoutline(h, h.tbl.Open)
+	next, _ = Folding(h, "Show Selected")
+	if !next.Unfolds(h.Rows()[at(h, heading("open"))]) || next.Unfolds(h.Rows()[at(h, heading("closed"))]) {
+		t.Errorf("show selected under a folded level: %v", next)
 	}
+	// with the outermost level folded, nothing but the heading over the groups shows; Show More shows the level again,
+	// and Show Selected shows the selected row's headings, the others hidden
+	h.tbl.Open = grid.Outline{grid.LevelKey(0): false}
+	Reoutline(h, h.tbl.Open)
+	if next, _ := Folding(h, "Show More"); !next.Shows(0) || opened(h, next, heading("open")) ||
+		opened(h, next, heading("closed")) || !Changes(h, next) {
+		t.Errorf("show more with the outermost level folded: %v", next)
+	}
+	if next, _ := Folding(h, "Show Selected"); !next.Shows(2) || !next["#4"] || opened(h, next, heading("closed")) {
+		t.Errorf("show selected with the outermost level folded: %v", next)
+	}
+	if next, ok := Folding(h, "Show Less"); !ok || Changes(h, next) {
+		t.Errorf("show less folded the heading over the groups: %v", next)
+	}
+	// with nothing picked, the selection's folds change nothing
+	h.tbl.Picked = map[string]bool{}
+	for _, name := range []string{"Show Selected", "Hide Selected"} {
+		if next, _ := Folding(h, name); Changes(h, next) {
+			t.Errorf("%s with nothing picked: %v", name, next)
+		}
+	}
+	h.tbl = Table{Open: grid.Outline{heading("open"): true, heading("open", "ada"): true, "#4": false},
+		Picked: map[string]bool{}}
+	Reoutline(h, h.tbl.Open)
 	if Changes(h, h.tbl.Open) {
 		t.Error("the same outline changes it")
 	}

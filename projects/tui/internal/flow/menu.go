@@ -19,15 +19,17 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
-// The glyphs beside the tab's menu's items, the tab maximized and restored, one cell each, the stage loaded again, every
-// row expanded and every row collapsed, all the way down and up as ▾ and ▸ are one row's, the selected rows' pages
-// opened, every row selected, and the selection swept away; beside the presets' menu's, the one the table stands as,
-// two cells wide as the others; beside the app's menu's own, every stage loaded again; and the line under the title of
-// a maximized tab, in the tab's color, a cell of it.
+// The glyphs beside the tab's menu's items, the tab maximized and restored, one cell each, the stage loaded again, a
+// level more shown and a level less, the selected rows shown, all the way down to them, and hidden, the selected rows'
+// pages opened, every row selected, and the selection swept away; beside the presets' menu's, the one the table
+// stands as, two cells wide as the others; beside the app's menu's own, every stage loaded again; and the line under
+// the title of a maximized tab, in the tab's color, a cell of it.
 const (
 	Maximize = "⤢"
 	Restore  = "⤡"
 	Banner   = "━"
+	More     = "🔽"
+	Less     = "🔼"
 	Expand   = "⏬"
 	Collapse = "⏫"
 	Checked  = table.Checked
@@ -38,9 +40,9 @@ const (
 )
 
 // tabItems gives the tab's menu's lines, top to bottom: the stage loaded again; watched, or no longer, as watch.go
-// says; the tab maximized, or restored once it is; a rule; the outline expanded, collapsed, and collapsed but for the
-// selection, as folds names them; a rule; every row selected and none; a rule; and what acts on the rows selected: on
-// backlog, the actions there, then each one's page opened. A line with a key shows it at its right; the key does the
+// says; the tab maximized, or restored once it is; a rule; a level more of the outline and a level less, and the
+// selection shown and hidden, as folds names them; a rule; every row selected and none; a rule; and what acts on the
+// rows selected: on backlog, the actions there, then each one's page opened. A line with a key shows it at its right; the key does the
 // same with the menu closed, as shortcut says.
 func (m Model) tabItems() []shell.Item {
 	size := shell.Item{Glyph: Maximize, Name: "Maximize", Keys: "M"}
@@ -114,15 +116,15 @@ func (m *Model) chose(c shell.Choice) tea.Cmd {
 }
 
 // enabled says whether the tab's menu's line k does something to the selected stage's rows now: a fold item while it
-// would open or close a node of the outline, as folding says; the rule never does.
+// would show or hide a node of the outline, as Folding says, so Show Selected and Hide Selected are dim while no row
+// is selected; the rule never does.
 func (m Model) enabled(k int) bool {
 	s := m.stages[m.stage]
 	if action, on := m.acting(m.tabItems()[k].Name); action {
 		return on
 	}
 	if next, fold := table.Folding(&m, m.tabItems()[k].Name); fold {
-		// Collapse Others, with nothing selected, would collapse everything, as Collapse All does
-		return (m.selected() > 0 || m.tabItems()[k].Name != "Collapse Others") && table.Changes(&m, next)
+		return table.Changes(&m, next)
 	}
 	switch m.tabItems()[k].Name {
 	case "Maximize", "Restore":

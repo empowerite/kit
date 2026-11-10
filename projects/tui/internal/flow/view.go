@@ -205,7 +205,8 @@ func (m Model) groupHeadings() int {
 // stage it has selected; up and down move,
 // a page at a time too while the rows are more than the pane shows, and home and end to the first and the last, unnamed
 // until a test shows the keys arrive in Terminal.app and iTerm; space selects a row, shift with up or down selects as it moves, and ctrl+a every row; right
-// opens the row under the cursor, or unfolds a group's heading, and left closes or folds it, the one that acts named.
+// shows what the node under the cursor holds, a row's lines or a group's rows, and left hides it, the one that acts
+// named.
 func (m Model) rowKeys() shell.Segment {
 	seg := shell.Segment{Takes: []string{"left", "right", "alt+left", "alt+right", "home", "end"},
 		Bindings: []shell.Binding{shell.Bind("esc", tabsHint), shell.Bind("↑↓", "move", "up", "down")}}
@@ -227,9 +228,9 @@ func (m Model) rowKeys() shell.Segment {
 	at := slices.IndexFunc(every, func(r row) bool { return r.Key == rows[s.Cursor].Key })
 	switch {
 	case table.Opens(&m, every, at) && s.Open.Unfolds(rows[s.Cursor]):
-		seg.Bindings = append(seg.Bindings, shell.Bind("←", "collapse", "left"))
+		seg.Bindings = append(seg.Bindings, shell.Bind("←", "hide", "left"))
 	case table.Opens(&m, every, at):
-		seg.Bindings = append(seg.Bindings, shell.Bind("→", "expand", "right"))
+		seg.Bindings = append(seg.Bindings, shell.Bind("→", "show", "right"))
 	case grid.Parent(rows, s.Cursor) >= m.first(m.stage):
 		seg.Bindings = append(seg.Bindings, shell.Bind("←", "group", "left"))
 	}

@@ -720,8 +720,8 @@ const (
 	screenKeys = "= menu - workspace / search ? legend │ "
 	barKeys    = screenKeys + "⇥·⇧⇥ tab ↓ groups 1-8 jump : tab menu"
 	inRows     = screenKeys + "1-8 jump : tab menu │ esc tabs ↑↓ move ␣·⇧↑↓ select ⌃A all"
-	opens      = inRows + " → expand"
-	closes     = inRows + " ← collapse"
+	opens      = inRows + " → show"
+	closes     = inRows + " ← hide"
 )
 
 // keysFor gives the keys bar for the screen as it is: in rows more than the pane shows, the page keys move a page at a time.
