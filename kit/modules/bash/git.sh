@@ -120,13 +120,14 @@ git:clean() {
 # leaves out what the head reaches too, so a squash-merged branch whose remote branch is gone counts 0 when its tip
 # is the head. When the forge gives a head this clone does not have, it leaves nothing more out, and prints the head
 # after the count and a tab: the commits counted may be ones the head reaches, which a fetch of the head would show.
+# It returns 1 when the commits cannot be counted, or the change's head cannot be read.
 git:unpushed() {
   local branch=$1 count head missing=''
   count=$(git rev-list --count "refs/heads/${branch}" --not --remotes) \
     || { error "the commits of ${branch} could not be counted"; return 1; }
   if (( count > 0 ))
   then
-    head=$(forge:pr-head-for-branch "${branch}")
+    head=$(forge:pr-head-for-branch "${branch}") || return 1
     if [[ "${head}" =~ ^[0-9a-f]+$ ]] && git cat-file -e "${head}^{commit}" 2>/dev/null
     then
       count=$(git rev-list --count "refs/heads/${branch}" --not --remotes "${head}") \
@@ -157,11 +158,15 @@ git:unpushed-why() {
 
 # git:tidy-settle <branch> settles the issues of the branch's latest pull request, as kit settle does, once kit tidy
 # has removed its worktree: what the forge does not close itself is closed or put back here, in case nothing else did.
-# A failure is said and does not stop the sweep.
+# A failure is said and does not stop the sweep; it returns 1.
 git:tidy-settle() {
   local pr
   [[ -n "$1" ]] || return 0
-  pr=$(forge:pr-last-for-branch "$1")
+  if ! pr=$(forge:pr-last-for-branch "$1")
+  then
+    warn "the change of $1 could not be read, so its issues are not settled; settle them with: kit settle <number>"
+    return 1
+  fi
   [[ -n "${pr}" ]] || return 0
   use issue
   issue:settle "${pr}" || warn "the issues of change ${pr} could not all be settled; run: kit settle ${pr}"
@@ -186,7 +191,11 @@ git:tidy-worktree() {
   fi
   if [[ -n "${branch}" ]]
   then
-    state=$(forge:pr-state-for-branch "${branch}")
+    if ! state=$(forge:pr-state-for-branch "${branch}")
+    then
+      step "keeping ${path} (${branch}, its change could not be read)"
+      return 1
+    fi
     if [[ -z "${state}" ]]
     then
       use tracker
@@ -210,7 +219,11 @@ git:tidy-worktree() {
     (MERGED | CLOSED | DETACHED)
       if [[ -n "${branch}" ]]
       then
-        counted=$(git:unpushed "${branch}") || return 1
+        if ! counted=$(git:unpushed "${branch}")
+        then
+          step "keeping ${path} (${branch}, change ${state}, its commits could not be counted)"
+          return 1
+        fi
         IFS=$'\t' read -r unpushed missing <<<"${counted}"
         if (( unpushed > 0 ))
         then
@@ -328,7 +341,11 @@ git:tidy() {
       step "keeping ${branch} (checked out in a worktree)"
       continue
     fi
-    counted=$(git:unpushed "${branch}") || continue
+    if ! counted=$(git:unpushed "${branch}")
+    then
+      step "keeping ${branch} (its commits could not be counted)"
+      continue
+    fi
     IFS=$'\t' read -r unpushed missing <<<"${counted}"
     if (( unpushed > 0 ))
     then
@@ -433,7 +450,7 @@ git:rebase() {
     error "refusing to rebase ${branch}: it is the root checkout, the human's desk; rebase in the branch's worktree"
     return 1
   fi
-  default_branch=$(git:default-branch "${worktree}")
+  default_branch=$(git:default-branch "${worktree}") || return 1
   if [[ "${branch}" == "${default_branch}" ]]
   then
     error "refusing to rebase ${branch}: it is the default branch; it advances by: git pull --ff-only"

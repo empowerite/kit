@@ -106,7 +106,7 @@ package:add() {
     readarray -t excluded < <(list:without "${package}" "${excluded[@]}")
   done
   list:read wanted resolve:active "${kit_root}" "${excluded[*]}" "${active[@]}" "${named[@]}" || return 1
-  render:all "${kit_root}" "${wanted[@]}"
+  render:all "${kit_root}" "${wanted[@]}" || return 1
   section "kit packages add ${named[*]}"
   for base in $(release:bases)
   do
@@ -125,8 +125,8 @@ package:add() {
     return 1
   fi
   list:read excluded resolve:exclusions "${excluded[*]}" "${wanted[@]}" || return 1
-  manifest:write-all "${excluded[*]}" "${wanted[@]}"
-  materialize:all "${wanted[@]}"
+  manifest:write-all "${excluded[*]}" "${wanted[@]}" || return 1
+  materialize:all "${wanted[@]}" || return 1
   ok "packages: ${wanted[*]}"
   release:say-unmet "${wanted[@]}" || return 1
   release:say-notices "${wanted[@]}"
@@ -162,7 +162,7 @@ package:remove() {
       return 1
     fi
   done
-  render:all "${kit_root}" "${active[@]}"
+  render:all "${kit_root}" "${active[@]}" || return 1
   section "kit packages remove ${named[*]}"
   list:read defaults resolve:defaults "${kit_root}" || return 1
   for package in "${named[@]}"
@@ -210,8 +210,8 @@ package:remove() {
       "kit packages remove ${named[*]}"
     return 1
   fi
-  manifest:write-all "${excluded[*]}" "${remaining[@]}"
-  materialize:all "${remaining[@]}"
+  manifest:write-all "${excluded[*]}" "${remaining[@]}" || return 1
+  materialize:all "${remaining[@]}" || return 1
   ok "packages: ${remaining[*]:-none}"
 }
 

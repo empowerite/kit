@@ -181,6 +181,18 @@ desk-world() {
   grep -q '^issue edit 7 --remove-assignee bob$' "${FAKE_DIR}/gh.calls"
 }
 
+@test "kit assign exits 1 when an issue could not be assigned" {
+  git commit --quiet --allow-empty --message init
+  world
+  printf 'forge: github\n' >> kit.yml
+  sed -i.bak '/^issue edit 7 --add-assignee/d' "${FAKE_DIR}/gh.routes"
+  route 'issue edit 7 --add-assignee *' '!1'
+  run "${kit_checkout}/bin/kit" assign 7
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"could not be assigned"* ]]
+  grep -q '^issue edit 7 --add-assignee ada$' "${FAKE_DIR}/gh.calls"
+}
+
 @test "kit close closes as not planned, or as a duplicate, never an issue as its own, and leaves a closed one be" {
   git commit --quiet --allow-empty --message init
   world

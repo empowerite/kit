@@ -24,9 +24,9 @@
 #
 #   --dry-run   prints what it would take out, and changes nothing
 #
-# Exits 0 on success, 1 when kit.yml declares no kit version, so there is nothing to take out, when a region is
-# refused, when a path could not be taken out, or when a list it reads, such as the packages kit.yml declares,
-# cannot be read, and 2 on a usage error.
+# Exits 0 on success, 1 when kit.yml cannot be read, when it declares no kit version, so there is nothing to take
+# out, when a region is refused, when a path could not be taken out, or when a list it reads, such as the packages
+# kit.yml declares, cannot be read, and 2 on a usage error.
 #
 # see: modules/bash/uninstall.sh, modules/bash/place.sh
 
@@ -39,7 +39,8 @@ use uninstall settings
 guard:arguments uninstall "$@" || exit $?
 
 guard:require tool:jq
-if [[ -z "$(settings:version)" ]]
+declared=$(settings:version) || exit 1
+if [[ -z "${declared}" ]]
 then
   error "nothing to uninstall: kit.yml declares no kit version here"
   exit 1

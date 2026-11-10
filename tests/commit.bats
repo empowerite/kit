@@ -239,6 +239,24 @@ forge-world() {
   [[ "$output" == *"committed "* && "$output" == *"#9"*"no open change"* ]]
 }
 
+@test "a body that cannot be read is never replaced: the commit stands, and kit says to add the line by hand" {
+  forge-world
+  sed -i.bak '/^pr view 3 /d' "${FAKE_DIR}/gh.routes"
+  printf 'x\n' > x && git add x
+  run kit commit --message '#9 x: a file' x
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"could not be added to change 3's body"* ]]
+  run ! grep --quiet '^pr edit' "${FAKE_DIR}/gh.calls"
+}
+
+@test "with a primary that names no remote, kit commit refuses, since the default branch could not be read" {
+  printf 'primary: upstream\n' >> kit.yml
+  printf 'x\n' > x && git add x
+  run kit commit --message '#9 x: a file' x
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"is not a remote"* && "$output" != *"✅ committed"* ]]
+}
+
 # opa-rule <rego> adds the policy/opa package and writes <rego> as a rule of package kit.policy beside its kit.rego,
 # so the opa engine judges the commit. It skips the test when opa is not on PATH.
 opa-rule() {

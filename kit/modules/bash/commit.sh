@@ -62,7 +62,8 @@ commit:parse() {
   done
 }
 
-# commit:branch prints the branch checked out here, or refuses: no branch, the root checkout, or the default branch.
+# commit:branch prints the branch checked out here, or refuses: no branch, the root checkout, the default branch, or
+# a default branch that cannot be read.
 commit:branch() {
   local branch default_branch
   branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)
@@ -77,7 +78,7 @@ commit:branch() {
       "kit work <N>"
     return 1
   fi
-  default_branch=$(git:default-branch)
+  default_branch=$(git:default-branch) || return 1
   if [[ "${branch}" == "${default_branch}" ]]
   then
     error "refusing to commit on ${branch}: it is the default branch, which advances by a merged change"
@@ -143,8 +144,10 @@ commit:attach() {
   [[ "${ref}" != "$(tracker:branch-ref "${branch}")" ]] || return 0
   use issue
   forge:provider >/dev/null 2>&1 || return 0
-  pr=$(forge:pr-for-branch "${branch}")
-  if [[ -z "${pr}" ]]
+  if ! pr=$(forge:pr-for-branch "${branch}")
+  then
+    warn "${ref} is not closed by a change: ${branch}'s change could not be read; add Closes ${ref} to its body by hand"
+  elif [[ -z "${pr}" ]]
   then
     warn "${ref} is not closed by a change: ${branch} has no open change; add Closes ${ref} to its body when it has one"
   else

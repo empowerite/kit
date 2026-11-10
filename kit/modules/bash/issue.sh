@@ -61,21 +61,38 @@ issue:create() {
 }
 
 # issue:assign <reference>… adds the caller (as each issue's tracker identifies the caller) to each issue's
-# assignees. It warns when someone else is already assigned, and when the assignment fails.
+# assignees. It warns when someone else is already assigned. An issue it cannot assign, because the caller, the
+# issue's assignees, or the assignment cannot be read or made, is named in a warning, and it goes on to the next; it
+# returns 1 when any issue could not be assigned.
 issue:assign() {
-  local ref prefix me assignees
+  local ref prefix me assignees failed=0
   local -A me_in=()
   for ref in "$@"
   do
     prefix=$(tracker:parse "${ref}" | cut -f 1)
-    [[ -n "${me_in[${prefix}]:-}" ]] || me_in[${prefix}]=$(tracker:at "${prefix}" me) || return 1
+    if [[ -z "${me_in[${prefix}]:-}" ]] && ! me_in[${prefix}]=$(tracker:at "${prefix}" me)
+    then
+      warn "${ref} could not be assigned: its tracker could not say who you are; assign it by hand."
+      failed=1
+      continue
+    fi
     me=${me_in[${prefix}]}
-    assignees=$(tracker:of "${ref}" assignees)
+    if ! assignees=$(tracker:of "${ref}" assignees)
+    then
+      warn "${ref} could not be assigned to ${me}: its assignees could not be read; assign it by hand."
+      failed=1
+      continue
+    fi
     [[ " ${assignees} " == *" ${me} "* ]] && continue
     [[ -z "${assignees}" ]] \
       || warn "${ref} is already assigned to ${assignees}; adding you as well. Coordinate before continuing."
-    tracker:of "${ref}" assign "${me}" || warn "${ref} could not be assigned to ${me}; assign it by hand."
+    if ! tracker:of "${ref}" assign "${me}"
+    then
+      warn "${ref} could not be assigned to ${me}; assign it by hand."
+      failed=1
+    fi
   done
+  return "${failed}"
 }
 
 # issue:assign-to <login> <reference>… adds the login to each issue's assignees, as kit assign --to does: one login
@@ -127,7 +144,7 @@ issue:unassign() {
 # issue in the same tracker is closed as its tracker closes a duplicate; of one in another tracker, it gets a comment
 # naming the original and is closed as not planned. An issue already closed is left as it is.
 issue:close() {
-  local reason original='' ref same failed=0
+  local reason original='' ref same state failed=0
   case ${1:-} in
     --not-planned) reason=not-planned; shift ;;
     --duplicate-of) reason=duplicate; original=$(tracker:normal "${2:-}") || return 2; shift 2 ;;
@@ -142,7 +159,13 @@ issue:close() {
       failed=1
       continue
     fi
-    [[ "$(tracker:of "${ref}" state)" != CLOSED ]] || { info "${ref} is closed already"; continue; }
+    if ! state=$(tracker:of "${ref}" state)
+    then
+      error "${ref} could not be closed: its state could not be read"
+      failed=1
+      continue
+    fi
+    [[ "${state}" != CLOSED ]] || { info "${ref} is closed already"; continue; }
     same=''
     [[ -z "${original}" || "$(tracker:parse "${ref}" | cut -f 1)" != "$(tracker:parse "${original}" | cut -f 1)" ]] \
       || same=$(tracker:parse "${original}" | cut -f 2)
@@ -223,8 +246,13 @@ issue:join() {
     error "${noun} ${sigil}${pr} is ${author}'s; hand the issues over instead: kit assign --to ${author} ${refs[*]}"
     return 1
   fi
-  issue:assign "${refs[@]}" || return
-  issue:link-in-body "${pr}" "${refs[@]}"
+  issue:assign "${refs[@]}" \
+    || warn "the issues are added to ${noun} ${sigil}${pr} without every assignment; each one is named above"
+  if ! issue:link-in-body "${pr}" "${refs[@]}"
+  then
+    error "run: kit work --pr ${pr} ${refs[*]} (${refs[*]} could not be linked in ${noun} ${sigil}${pr}'s body)"
+    return 1
+  fi
   ok "Added ${refs[*]} to ${noun} ${sigil}${pr}"
 }
 
@@ -232,12 +260,13 @@ issue:join() {
 # again: an issue already closed, or no longer assigned, is left as it is.
 issue:settle() {
   local pr=${1#[#!]} line state sha sigil noun url body author repo ref login number istate owner failed=0 row
+  local current assignees
   local -a refs=() closing
   IFS=$'\t' read -r sigil noun < <(forge:noun) || return 1
   line=$(forge:pr-state "${pr}") || return 1
   state=${line%%$'\t'*}
   sha=${line#*$'\t'}
-  url=$(forge:pr-url "${pr}")
+  url=$(forge:pr-url "${pr}") || return 1
   body=$(forge:pr-body "${pr}") || return 1
   case ${state} in
     MERGED)
@@ -245,7 +274,13 @@ issue:settle() {
       for ref in "${closing[@]}"
       do
         [[ -n "${ref}" ]] || continue
-        [[ "$(tracker:of "${ref}" state)" != CLOSED ]] || continue
+        if ! current=$(tracker:of "${ref}" state)
+        then
+          error "${ref} could not be closed: its state could not be read"
+          failed=1
+          continue
+        fi
+        [[ "${current}" != CLOSED ]] || continue
         if tracker:of "${ref}" comment "Closed by ${noun} ${sigil}${pr}, merged as ${sha:0:12}: ${url}" \
           && tracker:of "${ref}" close completed
         then
@@ -276,7 +311,13 @@ issue:settle() {
         then login=${author}
         else login=$(tracker:at "$(tracker:parse "${ref}" | cut -f 1)" me 2>/dev/null) || continue
         fi
-        [[ " $(tracker:of "${ref}" assignees) " == *" ${login} "* ]] || continue
+        if ! assignees=$(tracker:of "${ref}" assignees)
+        then
+          error "${ref} could not be put back: its assignees could not be read"
+          failed=1
+          continue
+        fi
+        [[ " ${assignees} " == *" ${login} "* ]] || continue
         if tracker:of "${ref}" comment "${noun} ${sigil}${pr} closed without merging; this is backlog again: ${url}" \
           && tracker:of "${ref}" unassign "${login}"
         then
@@ -307,7 +348,7 @@ issue:settle() {
 issue:branch() {
   local ref=$1 default_branch=$2 title=$3 key branch slug
   key=$(tracker:key "${ref}") || return 2
-  branch=$(forge:branch-for-issue "${key}")
+  branch=$(forge:branch-for-issue "${key}") || return 1
   [[ -n "${branch}" ]] \
     || branch=$(git ls-remote --heads origin "${key}-*" 2>/dev/null | sed -n '1s@.*refs/heads/@@p')
   if [[ -z "${branch}" ]] && tracker:is-forge "${ref}"
@@ -480,7 +521,7 @@ issue:sweep-apply() {
 # opening a draft if there is none.
 issue:pull-request() {
   local branch=$1 default_branch=$2 title=$3 pr
-  pr=$(forge:pr-for-branch "${branch}")
+  pr=$(forge:pr-for-branch "${branch}") || return 1
   if [[ -z "${pr}" ]]
   then
     step "Opening a draft change"
@@ -491,11 +532,11 @@ issue:pull-request() {
 
 # issue:link-in-body <change> <reference>… adds a `Closes <reference>` line to the pull request's body for each
 # reference the body does not already close, fix, or resolve. The references are the secondary issues, and a
-# primary issue the forge cannot link by itself.
+# primary issue the forge cannot link by itself. It returns 1, and changes nothing, when the body cannot be read.
 issue:link-in-body() {
   local pr=$1 ref escaped body changed=false
   shift
-  body=$(forge:pr-body "${pr}")
+  body=$(forge:pr-body "${pr}") || return 1
   for ref in "$@"
   do
     escaped=$(ere:quote "${ref}")
@@ -555,7 +596,7 @@ issue:start() {
   in_body+=("${@:2}")
 
   git fetch --quiet --prune origin
-  default_branch=$(git:default-branch)
+  default_branch=$(git:default-branch) || return 1
   main_root=$(git:main-root)
   desk=$(git rev-parse --show-toplevel)
   desk_branch=$(git -C "${desk}" rev-parse --abbrev-ref HEAD)
@@ -569,7 +610,8 @@ issue:start() {
       "human's; switch the desk to another branch, then run kit work again"
     return 1
   fi
-  issue:assign "$@" || return
+  issue:assign "$@" \
+    || warn "the work starts without every assignment; each issue that could not be assigned is named above"
   if [[ "${desk}" == "${main_root}" ]] && ! git:clean "${desk}"
   then
     step "Sweeping the uncommitted work on ${desk_branch} into the worktree"
@@ -592,7 +634,11 @@ issue:start() {
     issue:sweep-apply "${desk}" "${wt}" "${stash}" "${default_branch}" || return
   fi
   pr=$(issue:pull-request "${branch}" "${default_branch}" "${title}") || return
-  (( ${#in_body[@]} > 0 )) && issue:link-in-body "${pr}" "${in_body[@]}"
+  if (( ${#in_body[@]} > 0 )) && ! issue:link-in-body "${pr}" "${in_body[@]}"
+  then
+    error "run: kit work $* (${in_body[*]} could not be linked in the change's body)"
+    return 1
+  fi
 
   IFS=$'\t' read -r sigil noun < <(forge:noun) || return 1
   ok "Draft ${noun} ${sigil}${pr} on ${branch}, primary ${primary}${2:+, secondaries: ${*:2}}"

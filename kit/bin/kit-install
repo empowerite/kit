@@ -35,9 +35,10 @@ expanded=$(resolve:expand "${kit_root}" "$@") || exit 2
 readarray -t named < <(awk 'NF' <<<"${expanded}")
 set -- "${named[@]}"
 resolve:require "${kit_root}" "$@"
-if [[ -n "$(settings:version)" ]]
+declared=$(settings:version) || exit 1
+if [[ -n "${declared}" ]]
 then
-  error "run: kit update (this repository already declares kit $(settings:version))"
+  error "run: kit update (this repository already declares kit ${declared})"
   exit 1
 fi
 declare -a defaults packages

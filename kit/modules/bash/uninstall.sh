@@ -22,7 +22,7 @@ uninstall:run() {
   local -a packages rows
   [[ "${1:-}" != --dry-run ]] || dry=true
   list:read packages settings:packages || return 1
-  render:all "${kit_root}" "${packages[@]}"
+  render:all "${kit_root}" "${packages[@]}" || return 1
   if [[ "${dry}" == true ]]
   then section "kit uninstall --dry-run: what would be taken out"
   else section "kit uninstall, packages: ${packages[*]}"

@@ -54,7 +54,7 @@ releases:release() {
   fi
   if [[ "${version}" != *-* ]]
   then
-    default=$(git:default-branch)
+    default=$(git:default-branch) || return 1
     git fetch --quiet --end-of-options "${primary}" "${default}" 2>/dev/null || true
     if ! git merge-base --is-ancestor HEAD "${primary}/${default}" 2>/dev/null
     then

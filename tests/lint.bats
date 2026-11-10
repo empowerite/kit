@@ -37,6 +37,20 @@ script() {
   [[ "$output" == *"every governed path passes"* ]]
 }
 
+@test "a kit.yml yq cannot read stops kit lint and kit hydrate, never as a repository with no kit" {
+  printf 'packages: [kit\n' > kit.yml
+  run "${kit_checkout}/bin/kit" lint good.sh
+  [ "$status" -eq 1 ]
+  [[ "$output" != *"✅"* ]]
+  run "${kit_checkout}/bin/kit" hydrate
+  [ "$status" -eq 1 ]
+  [[ "$output" != *"✅"* ]]
+  [[ "$output" != *"run: kit install"* ]]
+  run "${kit_checkout}/bin/kit" hydrate --quick
+  [ "$status" -eq 1 ]
+  [[ "$output" != *"✅"* ]]
+}
+
 @test "a named path is linted by the rule its first line names, and --all-files reads every tracked path" {
   run "${kit_checkout}/bin/kit" lint tool
   [ "$status" -eq 1 ]

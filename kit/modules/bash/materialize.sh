@@ -303,7 +303,8 @@ materialize:hydrated() {
 # repository that declares a kit version, and does nothing elsewhere. Every verb that reads a delivered file calls it
 # first, so a fresh clone or worktree, a `git clean -fdx`, or a link an editor's save replaced heals on the next kit
 # command. Where materialize:hydrated finds everything in place it does nothing more, so the common run costs nothing;
-# with --full, as kit hydrate calls it, it always does the whole job and says what it finds. It warns when this
+# with --full, as kit hydrate calls it, it always does the whole job and says what it finds. It returns 1 when kit.yml
+# cannot be read, before it places anything, and when a package cannot be rendered or placed. It warns when this
 # release is not the declared one, since what it places is this release's. It rewrites .kit/manifest, so what the
 # declaration added is recorded, and a later release's change to it is kit's to replace. Where the declaration still
 # sits on the manifest's lines, from a release before it, it moves into kit.yml first.
@@ -312,16 +313,18 @@ materialize:hydrated() {
 # .kit/ already, and places it again when kit.yml changes, so a tool reads and never writes.
 materialize:hydrate() {
   [[ -z "${kit_serve_hydrated:-}" ]] || return 0
-  local declared
-  local -a packages
-  declared=$(settings:version)
+  local declared in_file
+  local -a packages excluded
+  declared=$(settings:version) || return 1
   [[ -n "${declared}" ]] || return 0
-  if [[ -z "$(settings:value version)" ]]
+  in_file=$(settings:value version) || return 1
+  if [[ -z "${in_file}" ]]
   then
     # A manifest from a release before the declaration still carries it. It moves into kit.yml now, before
     # anything rewrites the manifest, which would drop its only copy.
     list:read packages settings:packages || return 1
-    settings:declare "${declared}" "$(settings:excludes | paste -s -d ' ' -)" "${packages[@]}"
+    list:read excluded settings:excludes || return 1
+    settings:declare "${declared}" "${excluded[*]}" "${packages[@]}" || return 1
     step "kit.yml: the declaration moved here from .kit/manifest"
   fi
   if [[ "${1:-}" != --full ]] && materialize:hydrated
@@ -335,7 +338,7 @@ materialize:hydrate() {
   fi
   list:read packages settings:packages || return 1
   render:all "${kit_root}" "${packages[@]}" || return 1
-  materialize:all "${packages[@]}"
+  materialize:all "${packages[@]}" || return 1
   manifest:write repo '' "${packages[@]}"
 }
 

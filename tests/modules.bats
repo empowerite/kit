@@ -37,6 +37,17 @@ setup() {
   [ -z "$output" ] || { printf '%s\n' "$output"; return 1; }
 }
 
+@test "no module assigns a forge or tracker read unguarded" {
+  local read='=\$\((forge:(pr-|issue-|branch-for-issue|repo|me)|tracker:(of|at) |git:default-branch|forge/gitlab:api )'
+  # A line that ends in a backslash joins the next, so a guard on the continuation counts.
+  run bash -c 'find "$1/modules/bash" -name "*.sh" -exec awk '"'"'
+      FNR == 1 { held = "" }
+      /\\$/ { held = held substr($0, 1, length($0) - 1); next }
+      { print FILENAME ":" FNR ": " held $0; held = "" }
+    '"'"' {} + | grep -E "$2" | grep --invert-match -E "\|\||(^|[^a-z])if "' scan "${kit_root}" "${read}"
+  [ -z "$output" ] || { printf '%s\n' "$output"; return 1; }
+}
+
 @test "the release is read, rendered, placed, and recorded by one module each, and use release loads none of them but resolve" {
   local module function
   while IFS=' ' read -r module function

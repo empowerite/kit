@@ -4,8 +4,8 @@
 # kit assign [--to <login>] <reference>…
 #
 # Adds the caller to each issue's assignees, as each issue's tracker identifies the caller; with --to, adds that
-# login instead. Someone already assigned stays, and is named in a warning. To hand an issue over, take yourself off
-# with kit unassign.
+# login instead. Someone already assigned stays, and is named in a warning. An issue that could not be assigned is
+# named, and the others are still assigned. To hand an issue over, take yourself off with kit unassign.
 #
 #   --to <login>     the login to assign, in every issue's tracker; default: the caller
 #   <reference>…     the issues, each named with its tracker: 7, #7, or AB#4521

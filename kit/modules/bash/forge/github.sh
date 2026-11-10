@@ -299,13 +299,15 @@ forge/github:require() {
 # newest runs and keeps those forge.jq's builds keeps. A run's jobs cost a call each, so only the 5 newest runs carry
 # them; a run whose jobs cannot be read keeps none.
 forge/github:runs() {
-  local answer runs id jobs index=0
+  local answer runs id jobs index=0 default tags
   local fields=databaseId,number,attempt,workflowName,headBranch,headSha,displayTitle,event,status,conclusion
   fields+=,createdAt,startedAt,updatedAt,url
   forge/github:ask answer 'the runs' run list --limit 50 --json "${fields}" || return 1
+  default=$(git:default-branch) || return 1
+  tags=$(forge:tags) || return 1
   # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
-  runs=$(jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" --arg default "$(git:default-branch)" \
-    --argjson tags "$(forge:tags)" 'import "forge" as forge; forge::github_builds($now; $default; $tags)' \
+  runs=$(jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" --arg default "${default}" \
+    --argjson tags "${tags}" 'import "forge" as forge; forge::github_builds($now; $default; $tags)' \
     <<<"${answer}") || return 1
   while IFS= read -r id
   do

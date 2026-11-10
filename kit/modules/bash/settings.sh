@@ -209,44 +209,55 @@ settings:declaration-text() {
 
 # settings:version prints the kit version the repository declares in kit.yml. A manifest that
 # still carries a version line, from a release before the declaration, is read as the declaration until kit update
-# moves it, and so are its packages and excludes lines below.
+# moves it, and so are its packages and excludes lines below. A kit.yml that is absent, or declares no version,
+# declares no kit, and it prints nothing; it returns 1, after yq's line, when kit.yml cannot be read.
 settings:version() {
   local version
-  version=$(settings:value version)
+  version=$(settings:value version) || return 1
   [[ -n "${version}" ]] || version=$(sed -n 's/^version //p' .kit/manifest 2>/dev/null)
   printf '%s\n' "${version}"
 }
 
 # settings:declared-line <key> prints the items of an old manifest's <key> line, one per line, where kit.yml
 # declares no version. Where there is no manifest either, nothing is declared, and it prints nothing. It returns 1
-# when the manifest is there and cannot be read.
+# when kit.yml, or the manifest that is there, cannot be read.
 settings:declared-line() {
-  [[ -z "$(settings:value version)" ]] || return 0
+  local version
+  version=$(settings:value version) || return 1
+  [[ -z "${version}" ]] || return 0
   [[ -e .kit/manifest ]] || return 0
   sed -n "s/^$1 *//p" .kit/manifest | tr ' ' '\n' | awk 'NF'
 }
 
-# settings:packages prints the active packages the repository declares in kit.yml, one per line.
+# settings:packages prints the active packages the repository declares in kit.yml, one per line. It returns 1 when
+# kit.yml cannot be read.
 settings:packages() {
-  if [[ -n "$(settings:value version)" ]]
+  local version
+  version=$(settings:value version) || return 1
+  if [[ -n "${version}" ]]
   then yaml:list "$(settings:file)" packages
   else settings:declared-line packages
   fi
 }
 
 # settings:excludes prints the packages the repository declares as excluded in kit.yml, one per
-# line: members of an active bundle that were removed, which kit update leaves out.
+# line: members of an active bundle that were removed, which kit update leaves out. It returns 1 when kit.yml cannot
+# be read.
 settings:excludes() {
-  if [[ -n "$(settings:value version)" ]]
+  local version
+  version=$(settings:value version) || return 1
+  if [[ -n "${version}" ]]
   then yaml:list "$(settings:file)" excludes
   else settings:declared-line excludes
   fi
 }
 
 # settings:require fails in a repository where the kit was never installed: its kit.yml
-# declares no kit version.
+# declares no kit version. It fails, after yq's line alone, when kit.yml cannot be read.
 settings:require() {
-  if [[ -z "$(settings:version)" ]]
+  local version
+  version=$(settings:version) || return 1
+  if [[ -z "${version}" ]]
   then
     error "run: kit install (kit.yml declares no kit version in this repository)"
     return 1

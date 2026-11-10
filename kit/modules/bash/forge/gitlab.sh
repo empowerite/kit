@@ -162,9 +162,9 @@ forge/gitlab:open-prs() {
     mr=$(forge/gitlab:api "merge_requests/${iid}") || return 1
     pipeline=$(jq --raw-output '.head_pipeline.id // empty' <<<"${mr}")
     jobs='[]'
-    [[ -n "${pipeline}" ]] && jobs=$(forge/gitlab:api "pipelines/${pipeline}/jobs?per_page=100")
-    discussions=$(forge/gitlab:api "merge_requests/${iid}/discussions?per_page=100")
-    closes=$(forge/gitlab:api "merge_requests/${iid}/closes_issues?per_page=100")
+    [[ -z "${pipeline}" ]] || jobs=$(forge/gitlab:api "pipelines/${pipeline}/jobs?per_page=100") || return 1
+    discussions=$(forge/gitlab:api "merge_requests/${iid}/discussions?per_page=100") || return 1
+    closes=$(forge/gitlab:api "merge_requests/${iid}/closes_issues?per_page=100") || return 1
     source=$(jq --raw-output 'select(.source_project_id != .target_project_id) | .source_project_id // empty' \
       <<<"${mr}")
     # The fork's project is not under this one, so glab reads it by its id, past forge/gitlab:api.
@@ -300,11 +300,13 @@ forge/gitlab:require() {
 # forge/gitlab:runs prints the builds stage's runs as one JSON array, as the seam's header says: the 50 newest
 # pipelines, those forge.jq's builds keeps. A pipeline's jobs would cost a call each, so every run carries none.
 forge/gitlab:runs() {
-  local list
+  local list default tags
   list=$(forge/gitlab:api "pipelines?per_page=50" 2>/dev/null) \
     || { error "run: glab auth status (the pipelines could not be read)"; return 1; }
-  jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" --arg default "$(git:default-branch)" \
-    --argjson tags "$(forge:tags)" 'import "forge" as forge; forge::gitlab_builds($now; $default; $tags)' \
+  default=$(git:default-branch) || return 1
+  tags=$(forge:tags) || return 1
+  jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" --arg default "${default}" \
+    --argjson tags "${tags}" 'import "forge" as forge; forge::gitlab_builds($now; $default; $tags)' \
     <<<"${list}"
 }
 

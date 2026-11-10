@@ -67,7 +67,7 @@ facts:document() {
     return 2
   fi
   rules=$(policy:rules) || return 1
-  default_branch=$(git:default-branch)
+  default_branch=$(git:default-branch) || return 1
   branch=$(policy:branch)
   [[ "${branch}" != "${default_branch}" ]] || branch=''
   if [[ "${moment}" == ci && -n "${branch}" ]]

@@ -424,11 +424,12 @@ flow:incoming() {
     then
       if [[ "${remote}" == "${primary}" ]]
       then
-        primary_default=$(git:default-branch)
+        primary_default=$(git:default-branch) || return 1
         docs+=("$(flow:fetch-json "${remote}" "${before}" "$(flow:refs "${remote}")" "${primary_default}")")
       else
+        [[ -n "${primary_default:-}" ]] || primary_default=$(git:default-branch) || return 1
         docs+=("$(flow:fetch-json "${remote}" "${before}" "$(flow:refs "${remote}")" \
-          "$(flow:remote-default "${remote}" "${primary_default:-$(git:default-branch)}")")")
+          "$(flow:remote-default "${remote}" "${primary_default}")")")
       fi
     else
       failed=true
@@ -604,9 +605,13 @@ flow:checkout() {
     ahead=$(git rev-list --count "${fork}..${branch}" 2>/dev/null || printf 0)
     behind=$(git rev-list --count "${fork}..${primary}/${default_branch}" 2>/dev/null || printf 0)
   fi
-  # A checkout's lines are counted where git can count them: one with no commit has no HEAD to diff against, and
-  # counts no line.
-  list:read numstat git -C "${path}" diff --numstat "${fork:-HEAD}" 2>/dev/null || true
+  # A checkout with no commit has no HEAD to diff against, and counts no line. Any other's lines are counted, and a
+  # diff git cannot make fails the measure.
+  if git -C "${path}" rev-parse --verify --quiet HEAD >/dev/null
+  then
+    list:read numstat git -C "${path}" diff --numstat "${fork:-HEAD}" \
+      || { error "the lines changed in ${path} could not be counted"; return 1; }
+  fi
   for row in "${numstat[@]}"
   do
     IFS=$'\t' read -r a r _ <<<"${row}"
@@ -919,7 +924,7 @@ flow:draw-desk() {
 # flow:linked <default-branch> measures every linked worktree, from the primary's default branch, into
 # flow_worktrees.
 flow:linked() {
-  local path branch row text
+  local path branch row text doc
   local -a rows
   flow_worktrees=()
   list:read rows git:linked-worktrees || return 1
@@ -929,7 +934,8 @@ flow:linked() {
   do
     IFS=$'\t' read -r path _ branch <<<"${row}"
     [[ -n "${path}" ]] || continue
-    flow_worktrees+=("$(flow:checkout "${path}" "${branch}" "$1")")
+    doc=$(flow:checkout "${path}" "${branch}" "$1") || return 1
+    flow_worktrees+=("${doc}")
   done
 }
 
@@ -964,14 +970,15 @@ flow:in-worktree() {
 # every one in issue-number order, and the branches whose upstream is gone; in a worktree, that worktree alone.
 # With --json it prints flow:worktrees-json's object instead.
 flow:worktrees() {
-  local default_branch here branch
+  local default_branch here branch doc
   default_branch=$(git:default-branch) || return $?
   flow_gone='' flow_worktrees=()
   if flow:in-worktree
   then
     here=$(git rev-parse --show-toplevel)
     branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)
-    flow_worktrees=("$(flow:checkout "${here}" "${branch}" "${default_branch}")")
+    doc=$(flow:checkout "${here}" "${branch}" "${default_branch}") || return 1
+    flow_worktrees=("${doc}")
   else
     flow:linked "${default_branch}" || return 1
     flow_gone=$(git:gone-branches)

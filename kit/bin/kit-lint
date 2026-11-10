@@ -26,8 +26,8 @@
 # Files under .kit/templates/ are templates, not files of their kind, and are not linted. kit lint needs no hook
 # manager; the hooks/lefthook package runs it from a pre-commit hook.
 #
-# Exits 0 when every rule passes, 1 when any rule refuses or git's list of the paths cannot be read, and 2 on a usage
-# error.
+# Exits 0 when every rule passes, 1 when any rule refuses, kit.yml cannot be read, or git's list of the paths cannot be
+# read, and 2 on a usage error.
 #
 # see: modules/bash/context.sh, modules/bash/lint.sh, modules/bash/template.sh, docs/context.md, docs/templates.md
 

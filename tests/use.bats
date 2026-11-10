@@ -2,6 +2,8 @@
 # use.bats - the module path: every <module>.sh on it is sourced in order, and a verb runs with or without bin/kit
 # ----------------------------------------------------------------------------------------------------------------------
 
+bats_require_minimum_version 1.5.0
+
 load helper
 
 setup() {
@@ -211,6 +213,28 @@ child() {
     list:read rows printf "a\nb\n"; echo "$? ${#rows[@]} [${rows[1]}]"
     list:read rows bad; echo "$? ${#rows[@]}"'
   [ "$output" = $'0 2 [b]\n3 0' ]
+}
+
+@test "a kit.yml yq cannot read fails packages and excludes, said once; absent or with no version, it declares none" {
+  local both='use settings; list:read p settings:packages; echo "$? ${#p[@]}"'
+  both+='; list:read e settings:excludes; echo "$? ${#e[@]}"'
+  printf 'packages: [kit\n' > kit.yml
+  run --separate-stderr kit-bash 'use settings; list:read p settings:packages; echo "$? ${#p[@]}"'
+  [ "$output" = "1 0" ]
+  [ "$(grep -c '❌' <<<"$stderr")" -eq 1 ]
+  run --separate-stderr kit-bash 'use settings; list:read e settings:excludes; echo "$? ${#e[@]}"'
+  [ "$output" = "1 0" ]
+  [ "$(grep -c '❌' <<<"$stderr")" -eq 1 ]
+  run --separate-stderr kit-bash 'use settings; settings:require; echo "$?"'
+  [ "$output" = 1 ]
+  [ "$(grep -c '❌' <<<"$stderr")" -eq 1 ]
+  [[ "$stderr" != *"run: kit install"* ]]
+  printf 'forge: github\n' > kit.yml
+  run kit-bash "${both}"
+  [ "$output" = $'0 0\n0 0' ]
+  rm kit.yml
+  run kit-bash "${both}"
+  [ "$output" = $'0 0\n0 0' ]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
