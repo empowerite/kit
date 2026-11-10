@@ -300,10 +300,11 @@ list:read0() {
 }
 
 # list:fill <delimiter> <array> <command> [<argument>…] is list:read's work, for items that end in <delimiter>. The
-# command runs in a subshell, as in `< <(…)`, at the head of a pipeline whose end, readarray, runs in this
-# shell under lastpipe, and PIPESTATUS gives its status. wait "$!" after a process substitution can lose the status
-# when the command ends before the shell has recorded it: under load, one call in a few thousand. With job control
-# on, as in a terminal's shell, lastpipe does nothing, and the command runs in a process substitution.
+# command runs in a subshell, as in `< <(…)`, at the head of a pipeline whose end, readarray, runs in this shell under
+# lastpipe, and PIPESTATUS gives its status. The command's subshell turns lastpipe off again, unless the caller had it
+# on, so a pipeline inside the command runs as it does in $(…). wait "$!" after a process substitution can lose the
+# status when the command ends before the shell has recorded it: under load, one call in a few thousand. With job
+# control on, as in a terminal's shell, lastpipe does nothing, and the command runs in a process substitution.
 list:fill() {
   local list_fill_delimiter=$1 list_fill_status=0 list_fill_lastpipe=on
   local -n list_fill_items=$2
@@ -316,7 +317,8 @@ list:fill() {
   else
     shopt -q lastpipe || list_fill_lastpipe=off
     shopt -s lastpipe
-    "$@" | readarray -t -d "${list_fill_delimiter}" list_fill_items
+    { [[ "${list_fill_lastpipe}" == on ]] || shopt -u lastpipe; "$@"; } \
+      | readarray -t -d "${list_fill_delimiter}" list_fill_items
     list_fill_status=${PIPESTATUS[0]}
     [[ "${list_fill_lastpipe}" == on ]] || shopt -u lastpipe
   fi

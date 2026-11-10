@@ -105,7 +105,6 @@ toolchain:key() {
       for row in "${inputs[@]}"
       do
         IFS=$'\t' read -r kind name <<<"${row}"
-
         case "${kind}" in
           (tool) printf 'tool\t%s\t%s\n' "${name}" "$(command -v "${name}" 2>/dev/null)" ;;
           (env) printf 'env\t%s\t%s\n' "${name}" "${!name:-}" ;;

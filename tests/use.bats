@@ -197,4 +197,20 @@ child() {
   [ "$output" = $'0 3 [b c]\n3 0\n0 2 [x y]\n4 0' ]
 }
 
+@test "list:read runs a command as \$(…) runs it: a loop at a pipeline's end is in a subshell of its own" {
+  run kit-bash 'first() { printf "a\nb\n" | while read -r line; do printf "%s\n" "${line}"; return 0; done
+      printf "after\n"; }
+    list:read rows first; echo "$? ${rows[*]}"
+    echo "0 $(first | paste -s -d " " -)"'
+  [ "${lines[0]}" = "0 a after" ]
+  [ "${lines[1]}" = "${lines[0]}" ]
+}
+
+@test "with job control on, list:read fills the array, and returns the command's status with the array empty" {
+  run kit-bash 'set -m; bad() { printf "a\n"; return 3; }
+    list:read rows printf "a\nb\n"; echo "$? ${#rows[@]} [${rows[1]}]"
+    list:read rows bad; echo "$? ${#rows[@]}"'
+  [ "$output" = $'0 2 [b]\n3 0' ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------
