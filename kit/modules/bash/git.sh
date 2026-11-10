@@ -359,12 +359,14 @@ git:push() {
 #   - the root checkout (the desk, which belongs to the human), whatever branch it has
 #   - the default branch, in any checkout
 #   - a worktree with uncommitted changes
+#   - with require_signing true, a git with no signing key
 #
 # When that remote's branch has commits this checkout lacks, another session's, it takes them first: it rebases onto
-# that tip, then onto the default branch. The push forces only over the tip it read, so a commit pushed after the
-# fetch makes the push fail rather than vanish. On a conflict it aborts the rebase and leaves the worktree as it was.
+# that tip, then onto the default branch. With require_signing true, every commit the rebase rewrites is signed. The
+# push forces only over the tip it read, so a commit pushed after the fetch makes the push fail rather than vanish. On
+# a conflict it aborts the rebase and leaves the worktree as it was.
 git:rebase() {
-  local worktree=${1:-.} branch default_branch primary remote before theirs target targets=()
+  local worktree=${1:-.} branch default_branch primary remote before theirs target targets=() sign=()
   branch=$(git -C "${worktree}" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
   if [[ -z "${branch}" ]]
   then
@@ -387,6 +389,11 @@ git:rebase() {
     error "refusing to rebase ${branch}: the worktree has uncommitted changes; commit or stash them first"
     return 1
   fi
+  if [[ "$(settings:value require_signing)" == true ]]
+  then
+    guard:require signing-key || return 1
+    sign=(--gpg-sign)
+  fi
   primary=$(forge:primary) || return $?
   remote=$(git:pushes-to "${branch}" "${worktree}") || true
   section "kit rebase ${branch} onto ${primary}/${default_branch}"
@@ -403,7 +410,7 @@ git:rebase() {
   targets+=("${primary}/${default_branch}")
   for target in "${targets[@]}"
   do
-    if ! git -C "${worktree}" rebase --quiet "${target}"
+    if ! git -C "${worktree}" rebase --quiet "${sign[@]}" "${target}"
     then
       git -C "${worktree}" rebase --abort 2>/dev/null || true
       git -C "${worktree}" reset --quiet --hard "${before}"

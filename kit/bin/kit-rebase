@@ -7,13 +7,15 @@
 # name on its remote: the remote of its upstream when the upstream has the branch's name, else origin, which becomes
 # its upstream. push.default never decides where it goes. The primary is the primary setting in kit.yml, else origin.
 # When the branch's remote has commits this checkout lacks, another session's, kit rebase takes them first: it
-# rebases onto them, then onto the default branch. The push forces only over the tip kit rebase read, so a commit
-# pushed after it read makes the push fail rather than vanish. kit rebase refuses:
+# rebases onto them, then onto the default branch. With require_signing true in kit.yml, every commit the rebase
+# rewrites is signed. The push forces only over the tip kit rebase read, so a commit pushed after it read makes the
+# push fail rather than vanish. kit rebase refuses, before it fetches or rewrites anything:
 #
 #   - a checkout with no branch checked out
 #   - the root checkout, the desk, which belongs to the human, whatever branch it has
 #   - the default branch, in any checkout
 #   - a worktree with uncommitted changes
+#   - with require_signing true, a git with no signing key
 #
 #   <path>   the checkout whose branch to rebase; default: the current one
 #

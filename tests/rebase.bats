@@ -127,6 +127,42 @@ other-commits() {
   [ "$status" -eq 0 ]
   [ "$(git -C ../origin.git rev-parse main)" = "${main}" ]
   [ "$(git -C ../wt rev-parse --abbrev-ref '@{upstream}')" = origin/1-x ]
+  [ "$(git -C ../origin.git rev-parse 1-x)" = "$(git -C ../wt rev-parse HEAD)" ]
+}
+
+@test "with require_signing true, rebase signs every commit it rewrites, here and on origin" {
+  printf 'require_signing: true\n' > kit.yml
+  signer
+  worktree
+  printf 'two\n' > ../wt/b && git -C ../wt add b && git -C ../wt commit --quiet --gpg-sign --message b
+  git -C ../wt push --quiet --set-upstream origin 1-x
+  git -C ../wt cat-file commit HEAD | grep --quiet '^gpgsig '
+  commit-in . c three && git push --quiet origin main
+  run "${kit_checkout}/bin/kit" rebase ../wt
+  [ "$status" -eq 0 ]
+  [ "$(git -C ../wt rev-parse HEAD~1)" = "$(git rev-parse origin/main)" ]
+  git -C ../wt cat-file commit HEAD | grep --quiet '^gpgsig '
+  [ "$(git -C ../origin.git rev-parse 1-x)" = "$(git -C ../wt rev-parse HEAD)" ]
+  git -C ../origin.git cat-file commit 1-x | grep --quiet '^gpgsig '
+}
+
+@test "with require_signing true and no signing key, rebase refuses before it fetches or moves anything" {
+  local head origin_main
+  printf 'require_signing: true\n' > kit.yml
+  worktree
+  commit-in ../wt b two && git -C ../wt push --quiet --set-upstream origin 1-x
+  # origin's main moves on in another clone, so a fetch here would show
+  git clone --quiet ../origin.git ../other 2>/dev/null
+  commit-in ../other c three && git -C ../other push --quiet origin main
+  head=$(git -C ../wt rev-parse HEAD)
+  origin_main=$(git rev-parse origin/main)
+  run "${kit_checkout}/bin/kit" rebase ../wt
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"run: git config user.signingkey <key> (every commit here is signed, and none is configured)"* ]]
+  [ "$(git -C ../wt rev-parse HEAD)" = "${head}" ]
+  [ "$(git rev-parse origin/main)" = "${origin_main}" ]
+  [ "$(git -C ../origin.git rev-parse 1-x)" = "${head}" ]
+  [ -z "$(git -C ../wt status --porcelain)" ]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
