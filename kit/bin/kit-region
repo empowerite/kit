@@ -13,7 +13,8 @@
 # Only one active package delivers a region at a given path, so kit region prints that package's
 # regions/<base>/<path>.
 #
-# Exits 0 when it prints the region, 1 when no active package delivers a region at <path>, and 2 on a usage error.
+# Exits 0 when it prints the region, 1 when no active package delivers a region at <path> or the packages kit.yml
+# declares cannot be read, and 2 on a usage error.
 #
 # see: modules/bash/generate.sh, modules/bash/render.sh, modules/bash/place.sh
 

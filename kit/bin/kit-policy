@@ -26,7 +26,8 @@
 #
 # kit ci runs kit policy alongside the gate. On a CI runner, refusals are also written to the step summary.
 #
-# Exits 0 when the policy refuses nothing, with or without warnings, 1 on any refusal, and 2 on a usage error.
+# Exits 0 when the policy refuses nothing, with or without warnings, 1 on any refusal or when linked_exempt in kit.yml
+# cannot be read, and 2 on a usage error.
 #
 # see: modules/bash/policy.sh, docs/policy.md
 

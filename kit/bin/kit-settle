@@ -17,8 +17,8 @@
 # when a pull request closes, and kit tidy before it removes a finished worktree, so an issue is settled however the
 # pull request was closed.
 #
-# Exits 0 when every issue is settled, 1 when the forge cannot be read or an issue could not be settled, and 2 on a
-# usage error.
+# Exits 0 when every issue is settled, 1 when the forge or the trackers in kit.yml cannot be read or an issue could not
+# be settled, and 2 on a usage error.
 #
 # see: modules/bash/issue.sh, modules/bash/tracker.sh
 

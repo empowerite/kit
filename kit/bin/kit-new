@@ -89,7 +89,8 @@
 # A kind needs at least one --path, --content, or --kinds. kit new refuses an existing path, and a kind's name
 # already defined.
 #
-# Exits 0 when it is made, 1 when the path exists or a template is missing or malformed, and 2 on a usage error.
+# Exits 0 when it is made, 1 when the path exists, a template is missing or malformed, or a list it reads, such as the
+# rules that govern the path, cannot be read, and 2 on a usage error.
 #
 # see: modules/bash/new.sh, modules/bash/template.sh, docs/templates.md
 

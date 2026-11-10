@@ -24,7 +24,8 @@
 #
 #   --dry-run   prints what kit tidy would do, and changes nothing
 #
-# Exits 0 when the sweep is done, 1 when the forge cannot be read, and 2 on a usage error.
+# Exits 0 when the sweep is done, 1 when the forge or git's list of the worktrees cannot be read, and 2 on a usage
+# error.
 #
 # see: modules/bash/git.sh
 

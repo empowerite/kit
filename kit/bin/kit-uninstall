@@ -25,7 +25,8 @@
 #   --dry-run   prints what it would take out, and changes nothing
 #
 # Exits 0 on success, 1 when kit.yml declares no kit version, so there is nothing to take out, when a region is
-# refused, or when a path could not be taken out, and 2 on a usage error.
+# refused, when a path could not be taken out, or when a list it reads, such as the packages kit.yml declares,
+# cannot be read, and 2 on a usage error.
 #
 # see: modules/bash/uninstall.sh, modules/bash/place.sh
 
