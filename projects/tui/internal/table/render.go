@@ -102,6 +102,7 @@ func (f Field) Draw(vs []Value, pinned string) []grid.Cell {
 			c.Values = []string{style.Off(v.Else)}
 		}
 		c.Right, c.Wrap, c.Raw, c.Hang = f.Right, f.Wrap, v.Raw, glyphed[rendering]
+		c.Whole = f.Width == WidthWhole
 		if f.Type == "label" && len(c.Values) > 0 {
 			c.Head = c.Values[0]
 		}

@@ -41,7 +41,8 @@ import (
 // first value. Hang says its values start with a glyph, so a line an open row breaks one onto starts under the text
 // after the glyph, not under the glyph: a hanging indent. Summary is what its column shows in place of its values, as
 // how many labels an issue has: the column is as wide as the summary, and an open row draws the values after its own
-// lines, side by side across the width, so values too wide for a column stand whole.
+// lines, side by side across the width, so values too wide for a column stand whole. Whole says its column keeps the
+// width of its widest value while the title can keep minFill cells, and gives way only after the title, as fit says.
 type Cell struct {
 	Values  []string
 	Right   bool
@@ -51,6 +52,7 @@ type Cell struct {
 	Head    string
 	Hang    bool
 	Summary string
+	Whole   bool
 }
 
 // key gives what a cell sorts and groups by: its first raw value, else its first value's text without its styles.
@@ -199,9 +201,9 @@ const Chosen = "▣"
 const Partly = "◩"
 
 // gap is the cells between two columns. The cell that wraps, the title, is the last to give up room: while it has less
-// than its widest text needs, every other column wider than capWidth gives up the cells past it, the widest first;
-// while it has fewer than minFill, they give up more, down to floorWidth; only then does the title have less, never
-// fewer than floorWidth, the row then clipped.
+// than its widest text needs, every other column wider than capWidth gives up the cells past it, the widest first, a
+// column of Whole cells apart; while it has fewer than minFill, they give up more, down to floorWidth, and then the
+// Whole columns do too; only then does the title have less, never fewer than floorWidth, the row then clipped.
 const (
 	gap        = 2
 	minFill    = 12
@@ -592,8 +594,8 @@ func Fits(needs []int, wraps bool, width int) bool {
 // fit lays a row's columns out in a width: each column but the title takes its widest need, and the title, the cell
 // that wraps, the width they and the gaps between them leave, never more than its widest text needs, so a narrow text
 // leaves the room after the last column, not in the middle of the row. While that leaves the title less than its text
-// needs, the other columns give up room, as capWidth and floorWidth say. It gives the columns' widths and the title's
-// cells. A row of one cell spans the width.
+// needs, the other columns give up room, as capWidth and floorWidth say, a column of Whole cells after every other. It
+// gives the columns' widths and the title's cells. A row of one cell spans the width.
 func fit(r []Cell, widths []int, width int) ([]int, int) {
 	if len(r) == 1 {
 		return widths, width
@@ -615,9 +617,10 @@ func fit(r []Cell, widths []int, width int) ([]int, int) {
 		return widths, title(room-used(r, widths), need, minFill)
 	}
 	widths = slices.Clone(widths)
-	shrink(r, widths, room-need, capWidth)
+	shrink(r, widths, room-need, capWidth, false)
 	if room-used(r, widths) < minFill {
-		shrink(r, widths, room-minFill, floorWidth)
+		shrink(r, widths, room-minFill, floorWidth, false)
+		shrink(r, widths, room-minFill, floorWidth, true)
 	}
 	return widths, title(room-used(r, widths), need, floorWidth)
 }
@@ -644,12 +647,13 @@ func used(r []Cell, widths []int) int {
 }
 
 // shrink narrows a row's columns but the title, the widest first, each to no fewer cells than least, until they take
-// no more than budget, or every one is down to least.
-func shrink(r []Cell, widths []int, budget, least int) {
+// no more than budget, or every one is down to least; a column of a Whole cell only with whole.
+func shrink(r []Cell, widths []int, budget, least int, whole bool) {
 	for used(r, widths) > budget {
 		widest := -1
 		for j, c := range r {
-			if !c.Wrap && j < len(widths) && widths[j] > least && (widest < 0 || widths[j] > widths[widest]) {
+			if !c.Wrap && (whole || !c.Whole) && j < len(widths) && widths[j] > least &&
+				(widest < 0 || widths[j] > widths[widest]) {
 				widest = j
 			}
 		}

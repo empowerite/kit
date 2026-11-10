@@ -230,3 +230,24 @@ func TestTheEdgesOfTheTermsStep(t *testing.T) {
 		t.Error("a click under a page's pane")
 	}
 }
+
+func TestATermAndItsCommandStandWholeWhileTheMeaningGivesWay(t *testing.T) {
+	// at 80 columns no term and no command is cut: the meaning gives way
+	m, _ := loaded(t, tea.WindowSizeMsg{Width: 80, Height: 40}, press('6'))
+	got := view(m)
+	for _, whole := range []string{"▸ remote and primary  A remote is another co…  git remote --verbose",
+		"▸ code forge          The service that hosts…  kit flow incoming --no-fetch"} {
+		if !strings.Contains(got, whole) {
+			t.Errorf("at 80, no %q in:\n%s", whole, got)
+		}
+	}
+	// at 60, the meaning keeps a few cells, and the widest of the others, the command, gives way after it
+	m = drive(m, tea.WindowSizeMsg{Width: 60, Height: 40})
+	got = view(m)
+	for _, want := range []string{"▸ remote and primary  A remote is…  git remote --verbo…",
+		"▸ code forge          The service…  kit flow incoming …"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("at 60, no %q in:\n%s", want, got)
+		}
+	}
+}

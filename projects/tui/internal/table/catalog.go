@@ -32,7 +32,10 @@ type Schema struct {
 // before how many values a row holds where it holds more than one, as 👥 for people, as labels draw the count alone.
 // Renderings names the renderers that can draw it,
 // the first preferred. Dim, Right, and Wrap say how its column is drawn: dim, right-aligned, or as the one column that
-// takes the width left and wraps. Placement is where a preset that names none puts it: a column, a group, or hidden.
+// takes the width left and wraps. Width says how its column gives way to the one that wraps: none, the column gives up
+// the cells past its share as soon as the wrapping one is short; WidthWhole, it keeps its widest value while the
+// wrapping one keeps a few cells, and gives way only after it, as a glossary's term does. Placement is where a preset
+// that names none puts it: a column, a group, or hidden.
 type Field struct {
 	ID         string      `json:"id"`
 	Label      string      `json:"label"`
@@ -51,6 +54,7 @@ type Field struct {
 	Dim        bool        `json:"dim"`
 	Right      bool        `json:"right"`
 	Wrap       bool        `json:"wrap"`
+	Width      string      `json:"width"`
 	Placement  string      `json:"placement"`
 }
 
@@ -90,6 +94,9 @@ type ValueFilter struct {
 	Include []string `json:"include,omitempty"`
 	Exclude []string `json:"exclude,omitempty"`
 }
+
+// WidthWhole is the width of a field whose column keeps its widest value, as Field's Width says.
+const WidthWhole = "whole"
 
 // The placements a field can take.
 const (

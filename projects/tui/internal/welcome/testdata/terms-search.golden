@@ -10,12 +10,12 @@
 
   ▾ kit flow 4                                                                                                         
 
-      term        meaning                                                                              command
-      ▲────────────────────────────────────────────────────────────────────────────────────────────────·───────────────
-    ▸ code forge  The service that hosts the repository, its issues, its pull requests, and its buil…  kit flow incomi…
-    ▸ desk        Your root checkout, where you cloned the repository. It is yours; agents never cha…  kit flow desk
-    ▸ stage       One part of the picture kit flow draws, such as the backlog or the builds. The flo…  kit flow --stag…
-    ▸ worktree    A checkout of its own, under worktrees/, on one issue's branch. kit work makes one…  kit flow worktr…
+      term        meaning                                                                  command
+      ▲────────────────────────────────────────────────────────────────────────────────────·───────────────────────────
+    ▸ code forge  The service that hosts the repository, its issues, its pull requests, …  kit flow incoming --no-fetch
+    ▸ desk        Your root checkout, where you cloned the repository. It is yours; agen…  kit flow desk
+    ▸ stage       One part of the picture kit flow draws, such as the backlog or the bui…  kit flow --stages
+    ▸ worktree    A checkout of its own, under worktrees/, on one issue's branch. kit wo…  kit flow worktrees
 
 
 

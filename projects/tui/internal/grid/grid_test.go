@@ -1295,3 +1295,21 @@ func TestAFlattenedLabelDrawsItsPillAlone(t *testing.T) {
 		t.Errorf("the labels flattened: %+v", got)
 	}
 }
+
+func TestAWholeColumnGivesWayOnlyAfterTheTitle(t *testing.T) {
+	// a whole column of 20, a title that needs 60, and a plain column of 20
+	r := []Cell{{Whole: true}, {Wrap: true}, {}}
+	widths := []int{20, 60, 20}
+	// short of the title's need, the plain column gives way to capWidth, and the whole one keeps its 20
+	if got, fill := fit(r, widths, 70); got[0] != 20 || got[2] != capWidth || fill != 70-2*gap-20-capWidth {
+		t.Errorf("at 70: %v, the title %d", got, fill)
+	}
+	// short of minFill for the title, the plain column gives way to floorWidth first, then the whole one
+	if got, fill := fit(r, widths, 40); got[2] != floorWidth || got[0] != 40-2*gap-floorWidth-minFill ||
+		fill != minFill {
+		t.Errorf("at 40: %v, the title %d", got, fill)
+	}
+	if got, _ := fit(r, widths, 20); got[0] != floorWidth || got[2] != floorWidth {
+		t.Errorf("at 20: %v", got)
+	}
+}

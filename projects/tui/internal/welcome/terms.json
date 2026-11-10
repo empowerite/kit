@@ -4,11 +4,11 @@
       "stage": "welcome/terms", "record": "## <term>",
       "fields": [
         {"id": "term", "label": "term", "type": "text", "path": "## <term>", "sort": true, "renderings": ["text"],
-         "placement": "column"},
+         "width": "whole", "placement": "column"},
         {"id": "meaning", "label": "meaning", "type": "text", "path": "the paragraphs", "renderings": ["text"],
          "wrap": true, "placement": "column"},
         {"id": "command", "label": "command", "type": "text", "path": "`<command>`", "sort": true,
-         "renderings": ["text"], "dim": true, "placement": "column"},
+         "renderings": ["text"], "dim": true, "width": "whole", "placement": "column"},
         {"id": "verb", "label": "verb", "type": "enum", "path": "the command's tool and verb", "sort": true,
          "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "column"}
       ],
