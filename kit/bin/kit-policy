@@ -69,16 +69,18 @@ fi
 author=$(jq --raw-output '.change.author // empty' "${input}")
 if [[ -n "${author}" ]]
 then
-  while IFS= read -r login
+  declare -a exempt
+  list:read exempt yaml:list "$(settings:file)" linked_exempt || exit 1
+  for login in "${exempt[@]}"
   do
     [[ -n "${login}" && "${login}" == "${author}" ]] || continue
     use forge
-    IFS=$'\t' read -r sigil noun < <(forge:noun)
+    IFS=$'\t' read -r sigil noun < <(forge:noun) || exit 1
     number=$(jq --raw-output '.change.number' "${input}")
     ok "${noun} ${sigil}${number} is ${author}'s, exempt from the policy by kit.yml"
     summary "✅ The ${noun} ${sigil}${number} is ${author}'s, exempt from the policy by kit.yml."
     exit 0
-  done < <(yaml:list "$(settings:file)" linked_exempt)
+  done
 fi
 engine=$(policy:engine)
 warnings=$(policy:warn "${input}") || exit 1

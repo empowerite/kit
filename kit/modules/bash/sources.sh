@@ -100,20 +100,26 @@ sources:fetch() {
 
 # sources:fetch-all fetches every source the settings name that is not in the cache yet. It returns 1 when one fails.
 sources:fetch-all() {
-  local name url digest
-  while IFS=$'\x1f' read -r name url digest
+  local name url digest row
+  local -a rows
+  list:read rows sources:list || return 1
+  for row in "${rows[@]}"
   do
+    IFS=$'\x1f' read -r name url digest <<<"${row}"
     [[ -n "${name}" ]] || continue
     sources:fetch "${name}" "${url}" "${digest}" >/dev/null || return 1
-  done < <(sources:list)
+  done
 }
 
 # sources:roots prints "<name>\t<root>" for each source in the cache, in the settings' order: <root> is the directory
 # that holds its packages/. A source not fetched yet is left out; sources:fetch-all fetches it.
 sources:roots() {
-  local name url digest cache
-  while IFS=$'\x1f' read -r name url digest
+  local name url digest cache row
+  local -a rows
+  list:read rows sources:list || return 1
+  for row in "${rows[@]}"
   do
+    IFS=$'\x1f' read -r name url digest <<<"${row}"
     [[ -n "${name}" ]] || continue
     cache=$(sources:cache "${digest}")
     if [[ -d "${cache}/packages" ]]
@@ -123,7 +129,7 @@ sources:roots() {
     then
       printf '%s\t%s\n' "${name}" "${cache}/kit"
     fi
-  done < <(sources:list)
+  done
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

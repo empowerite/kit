@@ -50,7 +50,8 @@ remedy=$(printf '%s\n' \
   "2. re-run the check: linking fires no event, so it does not re-run on its own" "" \
   "\`kit work <N>\` makes this link when it starts the work.")
 # The author is asked for only when a login is exempt, so a repository with none makes no extra call.
-readarray -t exempt < <(yaml:list "$(settings:file)" linked_exempt)
+declare -a exempt
+list:read exempt yaml:list "$(settings:file)" linked_exempt || exit 1
 if (( ${#exempt[@]} > 0 ))
 then
   author=$(forge:pr-author "${number}") || exit 1

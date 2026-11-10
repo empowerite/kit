@@ -175,12 +175,13 @@ facts:tree-in() {
 # kit.yml, the value being the blob read from git. It reads <dir>/entries.json. A link and a submodule have no text.
 # A binary blob or one over the limit is skipped with a warning naming it.
 facts:texts() {
-  local dir=$1 settings glob path blob size matched
+  local dir=$1 settings glob path blob size matched doc
   local -a globs=()
   : > "${dir}/texts.json"
   settings=$(settings:file)
   [[ -f "${settings}" ]] || return 0
-  mapfile -t globs < <(yaml:json "${settings}" | jq --raw-output '.facts.read // [] | .[]')
+  doc=$(yaml:json "${settings}") || return 1
+  list:read globs jq --raw-output '.facts.read // [] | .[]' <<<"${doc}" || return 1
   (( ${#globs[@]} > 0 )) || return 0
   while IFS= read -r -d '' path && IFS= read -r -d '' blob
   do

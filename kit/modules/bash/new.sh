@@ -10,7 +10,8 @@ use template file settings
 # --rule=<rule>, or else of every rule with templates for the path they name with <path>=<path>, each with its glob.
 # Both sets are closed. With neither a rule nor a path, --variant has no list yet, and it returns 1.
 new:choices() {
-  local key=$1 answer rule='' path='' file name glob variants
+  local key=$1 answer rule='' path='' file name glob variants row
+  local -a rows
   local -A seen=()
   shift
   case "${key}" in
@@ -53,17 +54,19 @@ new:choices() {
       done)
   elif [[ -n "${path}" ]]
   then
-    readarray -t files < <(template:rules "${path}")
+    list:read files template:rules "${path}" || return 1
   fi
   (( ${#files[@]} )) || return 1
   for file in "${files[@]}"
   do
-    while IFS=$'\x1f' read -r name glob _
+    list:read rows template:variants "${file}" || return 1
+    for row in "${rows[@]}"
     do
+      IFS=$'\x1f' read -r name glob _ <<<"${row}"
       [[ -n "${name}" && -z "${seen[${name}]+x}" ]] || continue
       seen[${name}]=1
       printf '%s\t%s\t\t\n' "${name}" "${glob}"
-    done < <(template:variants "${file}")
+    done
   done
 }
 
@@ -88,7 +91,7 @@ new:resolve() {
       return 2
     fi
   else
-    readarray -t rules < <(template:rules "${path}")
+    list:read rules template:rules "${path}" || return 1
     if (( ${#rules[@]} == 0 ))
     then
       error "no template governs ${path}: a style package delivers them;" \
@@ -143,6 +146,7 @@ new:resolve() {
 # {"description": "", "extended": true}}. Before the template is known, it prints {}.
 new:extend() {
   local answer path='' rule='' variant='' resolved template hole
+  local -a holes
   for answer in "$@"
   do
     case "${answer}" in
@@ -157,13 +161,14 @@ new:extend() {
     return 0
   fi
   template=${resolved##*$'\x1f'}
-  while IFS= read -r hole
+  list:read holes template:holes "${template}" || return 1
+  for hole in "${holes[@]}"
   do
     case "${hole}" in
       ('' | path | name | stem) continue
     esac
     printf -- '--%s\n' "${hole}"
-  done < <(template:holes "${template}") |
+  done |
     jq --raw-input --slurp 'split("\n") | map(select(. != "") | {key: ., value: {description: "", extended: true}})
       | from_entries'
 }
@@ -285,7 +290,7 @@ new:ensure-package() {
 # active, which kit hydrate then places, or the command that activates it.
 new:offer() {
   local -a packages
-  readarray -t packages < <(settings:packages)
+  list:read packages settings:packages || return 1
   if list:among "$1" "${packages[@]}"
   then
     run kit hydrate >/dev/null
@@ -597,11 +602,17 @@ new:issue() {
 # that says where, and the page new:issue opens, a line each, tab-separated; with json true, an array of {prefix,
 # provider, label, url, error}, url null and error the tracker's refusal where it gives no page.
 new:trackers() {
-  local prefix provider url error label out='[]' refusal
+  local prefix provider url error label out='[]' refusal row text
+  local -a rows
   use file forge
   file:temp refusal new-issue || return 1
-  while IFS=$'\x1f' read -r prefix provider
+  list:read rows tracker:records || return 1
+  printf -v text '%s\n' "${rows[@]}"
+  list:read rows new:forge-first <<<"${text}" || return 1
+  for row in "${rows[@]}"
   do
+    IFS=$'\x1f' read -r prefix provider <<<"${row}"
+    [[ -n "${prefix}" ]] || continue
     error='' label=${provider}
     url=$(NO_COLOR=1 tracker:at "${prefix}" new-url 2>"${refusal}") || url=''
     [[ -n "${url}" ]] || error=$(tail -n 1 "${refusal}" | sed 's/^❌ //')
@@ -615,7 +626,7 @@ new:trackers() {
       --arg url "${url}" --arg error "${error}" \
       '. + [{prefix: $prefix, provider: $provider, label: $label, url: ($url | select(. != "") // null),
         error: ($error | select(. != "") // null)}]' <<<"${out}")
-  done < <(tracker:records | new:forge-first)
+  done
   if [[ "$1" == true ]]
   then
     jq . <<<"${out}"

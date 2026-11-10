@@ -42,11 +42,13 @@ place:kind() {
 # is found.
 place:delivered() {
   local layer path src
-  while IFS= read -r layer
+  local -a layers
+  list:read layers render:layers "$@" || return 1
+  for layer in "${layers[@]}"
   do
     (cd "${layer}" && find . \( -type f -o -type l \) | sed 's@^\./@@' \
-      | awk -v l="${layer}" '{ print $0 "\t" l "/" $0 }')
-  done < <(render:layers "$@") | awk -F '\t' '{ src[$1] = $2 } END { for (p in src) print p "\t" src[p] }' \
+      | awk -v l="${layer}" '{ print $0 "\t" l "/" $0 }') || return 1
+  done | awk -F '\t' '{ src[$1] = $2 } END { for (p in src) print p "\t" src[p] }' \
     | LC_ALL=C sort \
     | while IFS=$'\t' read -r path src
   do
@@ -69,12 +71,13 @@ place:source-of() {
 # place:beyond <root> <base> <before> <after> prints the paths under the base that the package set <after>
 # delivers and <before> does not. Each set is passed as one space-separated word.
 place:beyond() {
-  local root=$1 base=$2
+  local root=$1 base=$2 had has
   local -a before after
   read -r -a before <<<"$3"
   read -r -a after <<<"$4"
-  LC_ALL=C comm -13 <(place:delivered "${root}" "${base}" "${before[@]}" | cut -f 1) \
-    <(place:delivered "${root}" "${base}" "${after[@]}" | cut -f 1)
+  had=$(place:delivered "${root}" "${base}" "${before[@]}" | cut -f 1) || return 1
+  has=$(place:delivered "${root}" "${base}" "${after[@]}" | cut -f 1) || return 1
+  LC_ALL=C comm -13 <(printf '%s' "${had}${had:+$'\n'}") <(printf '%s' "${has}${has:+$'\n'}")
 }
 
 # place:merged <path> succeeds for a destination that is merged by key instead of copied: a .json settings
@@ -187,15 +190,18 @@ place:new() {
 declare -ga place_placed=()
 
 # place:all <root> <base> <package>… places every path the packages deliver under the base. A path where a
-# different file exists fails. It returns the number of failures.
+# different file exists fails. It returns the number of failures, or 1 when the delivered paths cannot be read.
 place:all() {
-  local root=$1 base=$2 path src refused=0
+  local root=$1 base=$2 path src refused=0 row
+  local -a rows
   shift 2
-  while IFS=$'\t' read -r path src
+  list:read rows place:delivered "${root}" "${base}" "$@" || return 1
+  for row in "${rows[@]}"
   do
+    IFS=$'\t' read -r path src <<<"${row}"
     [[ -n "${path}" ]] || continue
     place:new "${src}" "$(release:dest "${base}" "${path}")" || refused=$(( refused + 1 ))
-  done < <(place:delivered "${root}" "${base}" "$@")
+  done
   return "${refused}"
 }
 

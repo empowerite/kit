@@ -134,16 +134,18 @@ materialize:ignore-text() {
 # which a person settles; an empty directory left behind by a removed package is removed without a word. With
 # --check it changes nothing: each of those is an error, and it prints how many on stdout.
 materialize:all() {
-  local check=false path src dir entry state did ignore findings=0
-  local -a owned=() tracked=()
+  local check=false path src dir entry state did ignore findings=0 row
+  local -a owned=() tracked=() rows
   local -A source=() within=()
   if [[ "${1:-}" == --check ]]
   then
     check=true
     shift
   fi
-  while IFS=$'\t' read -r path src
+  list:read rows place:delivered "${kit_root}" repo "$@" || return 1
+  for row in "${rows[@]}"
   do
+    IFS=$'\t' read -r path src <<<"${row}"
     [[ -n "${path}" ]] || continue
     materialize:owned repo "${path}" || continue
     [[ "$(place:kind "${src}" "${path}")" == copy ]] || continue
@@ -155,10 +157,11 @@ materialize:all() {
       within[${dir}]=1
       dir=$(dirname "${dir}")
     done
-  done < <(place:delivered "${kit_root}" repo "$@")
+  done
   # A path the manifest records that no active package delivers any more, as after a pulled declaration dropped a
   # package: removed, and the directories it leaves empty with it.
-  while IFS= read -r path
+  list:read rows manifest:paths repo || return 1
+  for path in "${rows[@]}"
   do
     [[ -n "${path}" ]] || continue
     materialize:owned repo "${path}" || continue
@@ -173,7 +176,7 @@ materialize:all() {
       rm -f "${path}"
       materialize:prune "${path}"
     fi
-  done < <(manifest:paths repo)
+  done
   for path in "${owned[@]}"
   do
     src=${source[${path}]}
@@ -229,7 +232,7 @@ materialize:all() {
   done
   if (( ${#owned[@]} > 0 )) && git rev-parse --is-inside-work-tree >/dev/null 2>&1
   then
-    readarray -t tracked < <(git ls-files -- "${owned[@]}" .kit/manifest .kit/.gitignore)
+    list:read tracked git ls-files -- "${owned[@]}" .kit/manifest .kit/.gitignore || return 1
     for path in "${tracked[@]}"
     do
       [[ -n "${path}" ]] || continue
@@ -317,7 +320,7 @@ materialize:hydrate() {
   then
     # A manifest from a release before the declaration still carries it. It moves into kit.yml now, before
     # anything rewrites the manifest, which would drop its only copy.
-    readarray -t packages < <(settings:packages)
+    list:read packages settings:packages || return 1
     settings:declare "${declared}" "$(settings:excludes | paste -s -d ' ' -)" "${packages[@]}"
     step "kit.yml: the declaration moved here from .kit/manifest"
   fi
@@ -330,7 +333,7 @@ materialize:hydrate() {
     warn "kit.yml declares kit ${declared}, and this is kit $(release:version); what is placed is this" \
       "kit's; run: kit update"
   fi
-  readarray -t packages < <(settings:packages)
+  list:read packages settings:packages || return 1
   render:all "${kit_root}" "${packages[@]}" || return 1
   materialize:all "${packages[@]}"
   manifest:write repo '' "${packages[@]}"

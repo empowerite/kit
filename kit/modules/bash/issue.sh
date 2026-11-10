@@ -241,7 +241,8 @@ issue:settle() {
   body=$(forge:pr-body "${pr}") || return 1
   case ${state} in
     MERGED)
-      while IFS= read -r ref
+      list:read closing tracker:body-refs "${body}" || return 1
+      for ref in "${closing[@]}"
       do
         [[ -n "${ref}" ]] || continue
         [[ "$(tracker:of "${ref}" state)" != CLOSED ]] || continue
@@ -253,7 +254,7 @@ issue:settle() {
           error "${ref} could not be closed"
           failed=1
         fi
-      done < <(tracker:body-refs "${body}")
+      done
       ;;
     CLOSED)
       author=$(forge:pr-author "${pr}") || return 1
@@ -264,10 +265,11 @@ issue:settle() {
         read -r number istate owner <<<"${row}"
         [[ "${owner}" == "${repo}" && "${istate}" == OPEN ]] && refs+=("#${number}")
       done
-      while IFS= read -r ref
+      list:read closing tracker:body-refs "${body}" || return 1
+      for ref in "${closing[@]}"
       do
         [[ -z "${ref}" ]] || refs+=("${ref}")
-      done < <(tracker:body-refs "${body}")
+      done
       for ref in "${refs[@]}"
       do
         if tracker:is-forge "${ref}"

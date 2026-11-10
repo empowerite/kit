@@ -42,7 +42,8 @@ then
   exit 2
 fi
 settings:require
-readarray -t packages < <(settings:packages)
+declare -a packages
+list:read packages settings:packages || exit 1
 render:all "${kit_root}" "${packages[@]}"
 src=$(place:source-of "${kit_root}" "${base}" "${path}" "${packages[@]}")
 if [[ -z "${src}" ]] || [[ "$(place:kind "${src}" "${path}")" != region ]]

@@ -66,15 +66,18 @@ declare -gr policy_default_change_title='^[^[:cntrl:]]{1,120}$'
 
 # policy:rules prints the policy settings with the kit's defaults filled in, as a JSON object.
 policy:rules() {
-  local settings key value
+  local settings key value row
+  local -a rows
   local -A rule=(
     [branch]=${policy_default_branch}
     [commit_subject]=${policy_default_commit_subject}
     [change_title]=${policy_default_change_title}
   )
   settings=$(settings:file)
-  while IFS=$'\t' read -r key value
+  list:read rows yaml:map "${settings}" policy || return 1
+  for row in "${rows[@]}"
   do
+    IFS=$'\t' read -r key value <<<"${row}"
     [[ -n "${key}" ]] || continue
     if [[ -z "${rule[${key}]+x}" ]]
     then
@@ -83,7 +86,7 @@ policy:rules() {
       return 1
     fi
     rule[${key}]=${value}
-  done < <(yaml:map "${settings}" policy)
+  done
   jq --null-input --arg branch "${rule[branch]}" --arg commit_subject "${rule[commit_subject]}" \
     --arg change_title "${rule[change_title]}" \
     '{branch: $branch, commit_subject: $commit_subject, change_title: $change_title}'

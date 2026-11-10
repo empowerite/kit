@@ -30,7 +30,8 @@ render:tmp() {
 # A placeholder is written @key@ (autoconf's form), which cannot be confused with bash's ${var} or GitHub's
 # ${{ }}. A key can be dotted: @answers.key@. A key with no value fails, and the error names the key.
 render:package() {
-  local root=$1 package=$2 kind=$3 base=$4 source out key value text file rel map memo="$1|$2|$3|$4"
+  local root=$1 package=$2 kind=$3 base=$4 source out key value text file rel map memo="$1|$2|$3|$4" row
+  local -a rows
   local -A answer=()
   # A render already done in this process, or in the parent of this subshell, answers from render_rendered, with
   # no fork: render:layers asks for every package's layers each time a path is resolved.
@@ -51,12 +52,14 @@ render:package() {
   out="${render_tmp}/${render_root_digest[${root}]}/packages/${package}/${kind}/${base}"
   if [[ ! -d "${out}" ]]
   then
+    list:read rows settings:context "${root}" "${package}" || return 1
+    for row in "${rows[@]}"
+    do
+      IFS=$'\t' read -r key value <<<"${row}"
+      [[ -n "${key}" ]] && answer[${key}]=${value}
+    done
     # Made before the loop, so a kind with a directory and no file left in it is still a layer that exists.
     mkdir -p "${out}"
-    while IFS=$'\t' read -r key value
-    do
-      [[ -n "${key}" ]] && answer[${key}]=${value}
-    done < <(settings:context "${root}" "${package}")
     while IFS= read -r file
     do
       rel=${file#"${source}"/}

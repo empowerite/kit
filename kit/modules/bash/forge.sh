@@ -98,7 +98,8 @@ declare -g forge_snapshot_seconds=60 forge_snapshot_wait=1200 forge_fresh_since=
 #
 # A forges key may name a remote this desk does not have; it is only ever compared with a remote's name.
 forge:primary() {
-  local primary remotes name
+  local primary remotes name row
+  local -a rows
   primary=$(settings:value primary)
   if [[ -n "${primary}" ]]
   then
@@ -109,31 +110,34 @@ forge:primary() {
       return 1
     fi
   fi
-  while IFS=$'\t' read -r name _
+  list:read rows yaml:map "$(settings:file)" forges || return 1
+  for row in "${rows[@]}"
   do
+    IFS=$'\t' read -r name _ <<<"${row}"
     [[ -n "${name}" ]] || continue
     if [[ "${name}" == -* || ! "${name}" =~ ^[A-Za-z0-9._/-]+$ ]]
     then
       error "'${name}' in forges in kit.yml is not a remote name; name a remote, as git remote lists them"
       return 1
     fi
-  done < <(yaml:map "$(settings:file)" forges)
+  done
   printf '%s\n' "${primary:-origin}"
 }
 
 # forge:remotes prints every remote, one per line: the primary first, when it is there, then the rest in git's order.
 forge:remotes() {
   local primary remote
-  local -a rest=()
+  local -a remotes rest=()
   primary=$(forge:primary) || return $?
-  while IFS= read -r remote
+  list:read remotes git remote || return 1
+  for remote in "${remotes[@]}"
   do
     [[ -n "${remote}" ]] || continue
     if [[ "${remote}" == "${primary}" ]]
     then printf '%s\n' "${remote}"
     else rest+=("${remote}")
     fi
-  done < <(git remote 2>/dev/null)
+  done
   (( ${#rest[@]} == 0 )) || printf '%s\n' "${rest[@]}"
 }
 
@@ -172,15 +176,18 @@ forge:logged-in() {
 # forge:of <remote> prints the remote's forge, the first answer of the file header's list, or nothing for a remote
 # with no forge.
 forge:of() {
-  local remote=$1 forge='' name value host hosts primary
+  local remote=$1 forge='' name value host hosts primary row
+  local -a rows
   primary=$(forge:primary) || return $?
   [[ "${remote}" != "${primary}" ]] || forge=$(settings:value forge)
   if [[ -z "${forge}" ]]
   then
-    while IFS=$'\t' read -r name value
+    list:read rows yaml:map "$(settings:file)" forges || return 1
+    for row in "${rows[@]}"
     do
+      IFS=$'\t' read -r name value <<<"${row}"
       [[ "${name}" == "${remote}" ]] && forge=${value}
-    done < <(yaml:map "$(settings:file)" forges)
+    done
   fi
   if [[ -z "${forge}" ]]
   then

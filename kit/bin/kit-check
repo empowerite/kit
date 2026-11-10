@@ -31,7 +31,8 @@ use release generate template settings resolve render region place materialize m
 guard:arguments check "$@" || exit $?
 
 settings:require
-readarray -t packages < <(settings:packages)
+declare -a packages unmet_lines
+list:read packages settings:packages || exit 1
 version=$(settings:version)
 render:all "${kit_root}" "${packages[@]}"
 findings=0
@@ -102,14 +103,16 @@ do
   done <<<"${delivered}"
 done
 # Every materialized path, .kit/.gitignore, a stray file under a delivered directory, and a tracked delivered path.
-findings=$(( findings + $(materialize:all --check "${packages[@]}") ))
+count=$(materialize:all --check "${packages[@]}") || exit 1
+findings=$(( findings + count ))
 # The kit never writes a line a package expects in a file the repository owns; it only reports one that is missing.
-while IFS= read -r unmet
+list:read unmet_lines resolve:unmet "${kit_root}" "${packages[@]}" || exit 1
+for unmet in "${unmet_lines[@]}"
 do
   [[ -n "${unmet}" ]] || continue
   error "${unmet}"
   findings=$(( findings + 1 ))
-done < <(resolve:unmet "${kit_root}" "${packages[@]}")
+done
 # Every generated region, the kit's and the repository's own.
 generate:run --check || findings=$(( findings + 1 ))
 if (( findings > 0 ))

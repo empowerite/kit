@@ -18,10 +18,10 @@ use release file settings render place materialize manifest resolve
 # --dry-run too. A path that still cannot be taken out is named, the manifests and the declaration stay as they are,
 # and it returns 1.
 uninstall:run() {
-  local dry=false base path src count refused=0
-  local -a packages
+  local dry=false base path src count refused=0 row
+  local -a packages rows
   [[ "${1:-}" != --dry-run ]] || dry=true
-  readarray -t packages < <(settings:packages)
+  list:read packages settings:packages || return 1
   render:all "${kit_root}" "${packages[@]}"
   if [[ "${dry}" == true ]]
   then section "kit uninstall --dry-run: what would be taken out"
@@ -37,11 +37,13 @@ uninstall:run() {
   then
     for base in $(release:bases)
     do
-      while IFS=$'\t' read -r path src
+      list:read rows place:delivered "${kit_root}" "${base}" "${packages[@]}" || return 1
+      for row in "${rows[@]}"
       do
+        IFS=$'\t' read -r path src <<<"${row}"
         [[ -n "${path}" ]] || continue
         uninstall:path "${dry}" "${base}" "${path}" "${src}" || refused=$(( refused + 1 ))
-      done < <(place:delivered "${kit_root}" "${base}" "${packages[@]}")
+      done
     done
   fi
   if (( refused > 0 ))
@@ -51,20 +53,24 @@ uninstall:run() {
   fi
   uninstall:manifests "${dry}"
   uninstall:declaration "${dry}"
-  uninstall:left "${packages[@]}"
+  uninstall:left "${packages[@]}" || return 1
   [[ "${dry}" == true ]] || ok "kit is uninstalled; commit what changed. kit install takes it again."
 }
 
 # uninstall:left <package>… names what the kit leaves for the person, since the kit never writes it: each line a
-# package expected in a file the repository owns, and a pre-commit hook that still runs lefthook.
+# package expected in a file the repository owns, and a pre-commit hook that still runs lefthook. It returns 1 when
+# the expectations cannot be read.
 uninstall:left() {
-  local path pattern _
-  while IFS=$'\x1f' read -r path pattern _
+  local path pattern _ row
+  local -a rows
+  list:read rows resolve:expectations "${kit_root}" "$@" || return 1
+  for row in "${rows[@]}"
   do
+    IFS=$'\x1f' read -r path pattern _ <<<"${row}"
     [[ -n "${path}" && -f "${path}" ]] || continue
     grep --quiet --extended-regexp -- "${pattern}" "${path}" || continue
     warn "left to do in ${path}: take out the line that names ${pattern//\\/}"
-  done < <(resolve:expectations "${kit_root}" "$@")
+  done
   if list:among hooks/lefthook "$@" && grep --quiet lefthook "$(git rev-parse --git-path hooks/pre-commit)" 2>/dev/null
   then
     warn "left to do: the pre-commit hook still runs lefthook; run: lefthook uninstall"

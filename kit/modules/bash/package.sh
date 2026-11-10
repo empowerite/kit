@@ -128,7 +128,7 @@ package:add() {
   manifest:write-all "${excluded[*]}" "${wanted[@]}"
   materialize:all "${wanted[@]}"
   ok "packages: ${wanted[*]}"
-  release:say-unmet "${wanted[@]}"
+  release:say-unmet "${wanted[@]}" || return 1
   release:say-notices "${wanted[@]}"
 }
 

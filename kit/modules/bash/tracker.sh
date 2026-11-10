@@ -55,25 +55,29 @@ use yaml settings
 # tracker:records prints "<prefix>\x1f<provider>" for every declared tracker, then "#\x1fforge" for the forge's
 # own tracker, unless a record declares the prefix `#`.
 tracker:records() {
-  local prefix provider forge_claimed=false
-  while IFS=$'\x1f' read -r prefix provider
+  local prefix provider forge_claimed=false row
+  local -a rows
+  list:read rows yaml:records "$(settings:file)" trackers prefix provider || return 1
+  for row in "${rows[@]}"
   do
+    IFS=$'\x1f' read -r prefix provider <<<"${row}"
     [[ -n "${prefix}" ]] || continue
     [[ "${prefix}" == '#' ]] && forge_claimed=true
     printf '%s\x1f%s\n' "${prefix}" "${provider}"
-  done < <(yaml:records "$(settings:file)" trackers prefix provider)
+  done
   [[ "${forge_claimed}" == true ]] || printf '#\x1fforge\n'
 }
 
-# tracker:field <prefix> <field> prints a field of the prefix's record, or nothing. Every while loop over records
-# here reads every record, even after a match, so the command feeding it never writes into a pipe that nobody
-# reads.
+# tracker:field <prefix> <field> prints a field of the prefix's record, or nothing.
 tracker:field() {
-  local prefix value found=''
-  while IFS=$'\x1f' read -r prefix value
+  local prefix value found='' row
+  local -a rows
+  list:read rows yaml:records "$(settings:file)" trackers prefix "$2" || return 1
+  for row in "${rows[@]}"
   do
+    IFS=$'\x1f' read -r prefix value <<<"${row}"
     [[ -z "${found}" && "${prefix}" == "$1" ]] && found=${value}
-  done < <(yaml:records "$(settings:file)" trackers prefix "$2")
+  done
   [[ -z "${found}" ]] || printf '%s\n' "${found}"
 }
 
@@ -81,19 +85,22 @@ tracker:field() {
 # with, and the digits after it. A bare number is in the forge's own tracker. When no tracker matches the
 # reference, it fails and lists the prefixes.
 tracker:parse() {
-  local ref=$1 prefix best='' provider
+  local ref=$1 prefix best='' provider row
+  local -a rows
   [[ "${ref}" =~ ^[0-9]+$ ]] && ref="#${ref}"
-  while IFS=$'\x1f' read -r prefix provider
+  list:read rows tracker:records || return 1
+  for row in "${rows[@]}"
   do
+    IFS=$'\x1f' read -r prefix provider <<<"${row}"
     if [[ "${ref}" == "${prefix}"* && "${ref#"${prefix}"}" =~ ^[0-9]+$ && ${#prefix} -gt ${#best} ]]
     then
       best=${prefix}
     fi
-  done < <(tracker:records)
+  done
   if [[ -z "${best}" ]]
   then
-    error "'$1' is not an issue reference here; the trackers answer $(tracker:records | cut -d $'\x1f' -f 1 \
-      | sed 's/$/<number>/' | paste -s -d ' ' -) (trackers in kit.yml)"
+    error "'$1' is not an issue reference here; the trackers answer $(printf '%s\n' "${rows[@]}" \
+      | cut -d $'\x1f' -f 1 | sed 's/$/<number>/' | paste -s -d ' ' -) (trackers in kit.yml)"
     return 2
   fi
   printf '%s\t%s\n' "${best}" "${ref#"${best}"}"
@@ -101,11 +108,14 @@ tracker:parse() {
 
 # tracker:provider <prefix> prints the provider for the prefix.
 tracker:provider() {
-  local prefix provider found=''
-  while IFS=$'\x1f' read -r prefix provider
+  local prefix provider found='' row
+  local -a rows
+  list:read rows tracker:records || return 1
+  for row in "${rows[@]}"
   do
+    IFS=$'\x1f' read -r prefix provider <<<"${row}"
     [[ -z "${found}" && "${prefix}" == "$1" ]] && found=${provider}
-  done < <(tracker:records)
+  done
   if [[ -z "${found}" ]]
   then
     error "no tracker answers '$1'"
@@ -180,9 +190,12 @@ tracker:key() {
 # tracker:branch-ref <branch> prints the reference a branch was made for, read back from the key the branch name
 # starts with, or nothing.
 tracker:branch-ref() {
-  local branch=$1 prefix provider key found=''
-  while IFS=$'\x1f' read -r prefix provider
+  local branch=$1 prefix provider key found='' row
+  local -a rows
+  list:read rows tracker:records || return 1
+  for row in "${rows[@]}"
   do
+    IFS=$'\x1f' read -r prefix provider <<<"${row}"
     [[ -z "${found}" ]] || continue
     if [[ "${provider}" == forge ]]
     then
@@ -191,22 +204,25 @@ tracker:branch-ref() {
       key=$(tr '[:upper:]' '[:lower:]' <<<"${prefix}" | tr -cd 'a-z0-9')
       [[ "${branch}" =~ ^${key}([0-9]+)- ]] && found="${prefix}${BASH_REMATCH[1]}"
     fi
-  done < <(tracker:records)
+  done
   [[ -z "${found}" ]] || printf '%s\n' "${found}"
 }
 
 # tracker:body-refs <body> prints every reference that follows a closing keyword in a change's body, for the
 # trackers the forge does not link by itself: `Closes AB#4521`, `fixes AB#4521`, `Resolves: AB#4521`.
 tracker:body-refs() {
-  local body=$1 prefix provider escaped
-  while IFS=$'\x1f' read -r prefix provider
+  local body=$1 prefix provider escaped row
+  local -a rows
+  list:read rows tracker:records || return 1
+  for row in "${rows[@]}"
   do
+    IFS=$'\x1f' read -r prefix provider <<<"${row}"
     [[ "${provider}" == forge ]] && continue
     escaped=$(ere:quote "${prefix}")
     grep --only-matching --ignore-case --extended-regexp \
       "(close[sd]?|fix(e[sd])?|resolve[sd]?):? ${escaped}[0-9]+" <<<"${body}" \
       | grep --only-matching --extended-regexp "[0-9]+\$" | sed "s/^/${prefix//\//\\/}/" || true
-  done < <(tracker:records)
+  done
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

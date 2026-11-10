@@ -33,7 +33,8 @@ settings:value() { yaml:value "$(settings:file)" "$1"; }
 # The gate validates this repository's settings against .kit/kit.schema.json in full. The kit delivers the
 # schema so an editor can validate against it anywhere.
 settings:validate() {
-  local settings key value
+  local settings key value doc row
+  local -a rows
   settings=$(settings:file)
   [[ -f "${settings}" ]] || return 0
   for key in $(yaml:keys "${settings}")
@@ -63,33 +64,39 @@ settings:validate() {
     error "${settings}: log_days must be a whole number of days, 0 for no logs, not '${value}'"
     return 1
   fi
-  while IFS= read -r key
+  doc=$(yaml:json "${settings}") || return 1
+  list:read rows jq --raw-output '.facts | if type == "object" then keys[] else empty end' <<<"${doc}" || return 1
+  for key in "${rows[@]}"
   do
     [[ "${key}" == read ]] && continue
     error "${settings}: facts has a key the kit does not know: ${key}; the only one is read, a list of globs"
     return 1
-  done < <(yaml:json "${settings}" | jq --raw-output '.facts | if type == "object" then keys[] else empty end')
-  while IFS=$'\t' read -r key value
+  done
+  list:read rows yaml:map "${settings}" answers || return 1
+  for row in "${rows[@]}"
   do
+    IFS=$'\t' read -r key value <<<"${row}"
     [[ -z "${key}" || "${key}" =~ ^[a-z_]+$ ]] && continue
     error "${settings}: the answer key '${key}' is not letters and underscores, as a template's @key@ must be"
     return 1
-  done < <(yaml:map "${settings}" answers)
+  done
   value=$(yaml:value "${settings}" linked_exempt)
   if [[ -n "${value}" ]]
   then
     error "${settings}: linked_exempt must be a list of logins, one per line under it, not '${value}'"
     return 1
   fi
-  while IFS=$'\x1f' read -r key value
+  list:read rows yaml:records "${settings}" trackers prefix provider || return 1
+  for row in "${rows[@]}"
   do
+    IFS=$'\x1f' read -r key value <<<"${row}"
     [[ -n "${key}${value}" ]] || continue
     if [[ -z "${key}" || ! "${key}" =~ ^[A-Za-z]*#?$ || -z "${value}" ]]
     then
       error "${settings}: a tracker needs a prefix, letters and an optional #, and a provider (prefix '${key}')"
       return 1
     fi
-  done < <(yaml:records "${settings}" trackers prefix provider)
+  done
 }
 
 # settings:context <root> <package> prints "<key>\t<value>" for every key a template or region of the package can
@@ -99,26 +106,32 @@ settings:validate() {
 #   2. kit.yml: each top-level scalar as <key>, each map entry as <map>.<name>, and each entry of the
 #      answers map also as <name>
 #
-# A later source overrides an earlier one, so the repository's answer wins over the package's default.
+# A later source overrides an earlier one, so the repository's answer wins over the package's default. It returns 1
+# when a map cannot be read.
 settings:context() {
-  local settings key name value
+  local settings key name value row
+  local -a rows
   settings=$(settings:file)
   {
-    while IFS=$'\t' read -r name value
+    list:read rows yaml:map "$(resolve:meta "$1" "$2")" answers || exit 1
+    for row in "${rows[@]}"
     do
+      IFS=$'\t' read -r name value <<<"${row}"
       [[ -n "${name}" ]] || continue
       printf '%s\t%s\n%s\t%s\n' "${name}" "${value}" "answers.${name}" "${value}"
-    done < <(yaml:map "$(resolve:meta "$1" "$2")" answers)
+    done
     for key in $(yaml:keys "${settings}")
     do
       value=$(yaml:value "${settings}" "${key}")
       [[ -n "${value}" ]] && printf '%s\t%s\n' "${key}" "${value}"
-      while IFS=$'\t' read -r name value
+      list:read rows yaml:map "${settings}" "${key}" || exit 1
+      for row in "${rows[@]}"
       do
+        IFS=$'\t' read -r name value <<<"${row}"
         [[ -n "${name}" ]] || continue
         printf '%s\t%s\n' "${key}.${name}" "${value}"
         [[ "${key}" == answers ]] && printf '%s\t%s\n' "${name}" "${value}"
-      done < <(yaml:map "${settings}" "${key}")
+      done
     done
   } | awk -F '\t' '{ a[$1] = $2 } END { for (k in a) print k "\t" a[k] }'
 }
@@ -254,7 +267,7 @@ settings:stages() {
   case "${type}" in
     ('' | '!!null') stages=("${settings_stages[@]}") ;;
     ('!!seq')
-      readarray -t stages < <(yaml:list "${settings}" flow)
+      list:read stages yaml:list "${settings}" flow || return 1
       if (( ${#stages[@]} == 0 ))
       then
         error "flow in ${settings} names no stage; the stages are: ${settings_stages[*]}"

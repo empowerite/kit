@@ -80,12 +80,14 @@ generate:markdown() {
 # paths, it prints each named file that contains a directive, wherever it is.
 generate:discover() {
   local path
+  local -a paths
   if (( $# == 0 ))
   then
-    while IFS= read -r -d '' path
+    list:read0 paths git ls-files -z --cached --others --exclude-standard || return 1
+    for path in "${paths[@]}"
     do
       generate:carries "${path}" && printf '%s\n' "${path}"
-    done < <(git ls-files -z --cached --others --exclude-standard)
+    done
     return 0
   fi
   for path in "$@"
@@ -113,23 +115,25 @@ declare -g generate_regions_read=false
 # per region would render them again for each. It prints the same refusal as kit region, and returns 1, when no
 # active package delivers a region there.
 generate:region() {
-  local path src
-  local -a packages
+  local path src row
+  local -a packages rows
   if [[ "${generate_regions_read}" == false ]]
   then
     use release
     settings:require || return 1
-    readarray -t packages < <(settings:packages)
+    list:read packages settings:packages || return 1
     render:all "${kit_root}" "${packages[@]}" || return 1
-    while IFS=$'\t' read -r path src
+    list:read rows place:delivered "${kit_root}" repo "${packages[@]}" || return 1
+    for row in "${rows[@]}"
     do
+      IFS=$'\t' read -r path src <<<"${row}"
       [[ -n "${path}" && "$(place:kind "${src}" "${path}")" == region ]] && generate_regions[${path}]=${src}
-    done < <(place:delivered "${kit_root}" repo "${packages[@]}")
+    done
     generate_regions_read=true
   fi
   if [[ -z "${generate_regions[$1]+x}" ]]
   then
-    readarray -t packages < <(settings:packages)
+    list:read packages settings:packages || return 1
     error "no active package delivers a region at $1 (packages: ${packages[*]}); see kit.yml"
     return 1
   fi
@@ -376,8 +380,8 @@ generate:run() {
     esac
   done
   if (( ${#files[@]} ))
-  then readarray -t targets < <(generate:discover "${files[@]}")
-  else readarray -t targets < <(generate:discover)
+  then list:read targets generate:discover "${files[@]}" || return 1
+  else list:read targets generate:discover || return 1
   fi
   if (( ${#targets[@]} == 0 ))
   then

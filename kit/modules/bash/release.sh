@@ -141,8 +141,8 @@ release:fetch() {
 release:finish() {
   local read=' Every agent reads .kit/1st.md first.'
   ok "kit $(release:version) is installed, packages: ${*:-none}; kit.yml declares them."
-  release:say-unmet "$@"
-  release:say-notices "$@"
+  release:say-unmet "$@" || return 1
+  release:say-notices "$@" || return 1
   [[ " $* " != *" workflow "* ]] || read=' The workflow is in .kit/workflow.md.'
   step "Commit kit.yml and what kit changed outside .kit/; what it placed under .kit/ is ignored.${read}"
 }
@@ -150,17 +150,20 @@ release:finish() {
 # release:say-notices <package>… prints each notice of the packages whose path this process placed afresh, or merged
 # a new entry into: what happens next, such as a harness asking once whether to use a server the file names.
 release:say-notices() {
-  local package path text placed
+  local package path text placed row
+  local -a rows
   for package in "$@"
   do
-    while IFS=$'\x1f' read -r path text
+    list:read rows yaml:records "$(resolve:meta "${kit_root}" "${package}")" notices path text || return 1
+    for row in "${rows[@]}"
     do
+      IFS=$'\x1f' read -r path text <<<"${row}"
       [[ -n "${path}" ]] || continue
       for placed in "${place_placed[@]}"
       do
         [[ "${placed}" == "${path}" ]] && step "${path}: ${text}"
       done
-    done < <(yaml:records "$(resolve:meta "${kit_root}" "${package}")" notices path text)
+    done
   done
   return 0
 }
@@ -168,10 +171,12 @@ release:say-notices() {
 # release:say-unmet <package>… warns about each unmet expectation of the packages, as a step left to do.
 release:say-unmet() {
   local line
-  while IFS= read -r line
+  local -a lines
+  list:read lines resolve:unmet "${kit_root}" "$@" || return 1
+  for line in "${lines[@]}"
   do
     [[ -n "${line}" ]] && warn "left to do in ${line}"
-  done < <(resolve:unmet "${kit_root}" "$@")
+  done
   return 0
 }
 

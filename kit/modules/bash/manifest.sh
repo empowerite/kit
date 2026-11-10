@@ -22,16 +22,19 @@ manifest:path() { release:dest "$1" .kit/manifest; }
 # no longer exist, and removes the file once no line is left.
 manifest:write() {
   local base=$1 excluded=$2 manifest path src delivered kept
+  local -a paths
   shift 2
   manifest=$(manifest:path "${base}")
-  delivered=$(place:delivered "${kit_root}" "${base}" "$@")
+  delivered=$(place:delivered "${kit_root}" "${base}" "$@") || return 1
   if [[ "${base}" != repo && -z "${delivered}" ]]
   then
     [[ -f "${manifest}" ]] || return 0
-    kept=$(while IFS= read -r path
+    list:read paths manifest:paths "${base}" || return 1
+    # A path that is gone, or that grep does not find, keeps no line.
+    kept=$(for path in "${paths[@]}"
       do
         [[ -n "${path}" && -e "$(release:dest "${base}" "${path}")" ]] && grep -F "  ${path}" "${manifest}"
-      done < <(manifest:paths "${base}"); true)
+      done; true)
     if [[ -z "${kept}" ]]
     then
       rm -f "${manifest}"
