@@ -149,20 +149,43 @@ tree() {
 }
 
 @test "uninstall refuses a region that never closes, keeps every line after it, and keeps the declaration" {
-  local before
+  local before sound
   printf 'mine-before\n' > .gitignore
-  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
+  "${kit_checkout}/bin/kit" install github/ci >/dev/null 2>&1
   printf 'mine-after-1\nmine-after-2\n' >> .gitignore
+  sound=$(cat .gitignore)
   grep --invert-match --line-regexp --fixed-strings '# kit:end .gitignore' .gitignore > gitignore.new
   mv gitignore.new .gitignore
   before=$(cat .gitignore)
+  run "${kit_checkout}/bin/kit" uninstall --dry-run
+  [ "$status" -eq 1 ]
+  [[ "$output" == *".gitignore: the kit's region opens with '# kit:generate .gitignore' and never closes"* ]]
   run "${kit_checkout}/bin/kit" uninstall
   [ "$status" -eq 1 ]
   [[ "$output" == *"1 path(s) could not be taken out"* ]]
   [[ "$output" == *".gitignore: the kit's region opens with '# kit:generate .gitignore' and never closes"* ]]
   [ "$(cat .gitignore)" = "${before}" ]
   grep --quiet '^version: ' kit.yml
+  # the refusal comes before anything is taken out
+  [ -f .kit/1st.md ]
+  [ -f .kit/manifest ]
+  [ -f .github/workflows/kit-ci.yml ]
+  [ "$(declared packages)" = "kit github/ci" ]
+  run "${kit_checkout}/bin/kit" packages remove github/ci
+  [ "$status" -eq 0 ]
   run "${kit_checkout}/bin/kit" packages remove kit
   [ "$status" -eq 1 ]
+  [[ "$output" == *"1 path(s) could not be taken out"* ]]
+  [[ "$output" == *"then run: kit packages remove kit"* ]]
   [ "$(cat .gitignore)" = "${before}" ]
+  [ -f .kit/1st.md ]
+  [ -f .kit/rules/bash.md ]
+  [ "$(declared packages)" = "kit" ]
+  # with the end line back, the same uninstall takes everything out and keeps the repository's lines
+  printf '%s\n' "${sound}" > .gitignore
+  run "${kit_checkout}/bin/kit" uninstall
+  [ "$status" -eq 0 ]
+  [ "$(cat .gitignore)" = "$(printf 'mine-before\nmine-after-1\nmine-after-2')" ]
+  [ ! -e .kit/1st.md ]
+  [ ! -e .github/workflows/kit-ci.yml ]
 }

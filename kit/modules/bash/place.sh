@@ -224,6 +224,23 @@ place:remove() {
   esac
 }
 
+# place:refusals <base> <package>… reads the paths under the base that a removal would take out, one per line, and
+# judges the markers of each the packages deliver as a region, as region:remove judges them, so a removal refuses
+# before it takes anything out. region:has names each file it refuses. It prints how many it refuses.
+place:refusals() {
+  local base=$1 path src dest status refused=0
+  shift
+  while IFS=$'\t' read -r path src
+  do
+    [[ "$(place:kind "${src}" "${path}")" == region ]] || continue
+    dest=$(release:dest "${base}" "${path}")
+    status=0
+    region:has "${dest}" "$(release:target "${dest}")" || status=$?
+    (( status != 2 )) || refused=$(( refused + 1 ))
+  done < <(awk -F '\t' 'NR == FNR { wanted[$0]; next } $1 in wanted' - <(place:delivered "${kit_root}" "${base}" "$@"))
+  printf '%s\n' "${refused}"
+}
+
 # place:retire <base-root> <base> <previous> <current> <package>… handles the paths that the base's manifest
 # records and the current release no longer delivers. <base-root> is the base release (the previous version), or
 # empty when it is not available. For each such path that still exists:

@@ -13,10 +13,12 @@
 use release file settings render place materialize manifest resolve
 
 # uninstall:run [--dry-run] takes out what every active package delivered, under the repository and under home, then
-# the manifests, then the declaration. With --dry-run it prints what it would do and changes nothing. A path whose
-# content cannot be taken out is named, the manifests and the declaration stay as they are, and it returns 1.
+# the manifests, then the declaration. With --dry-run it prints what it would do and changes nothing. First it judges
+# every region it would take out (place:refusals): with any it cannot, it takes nothing out and returns 1, with
+# --dry-run too. A path that still cannot be taken out is named, the manifests and the declaration stay as they are,
+# and it returns 1.
 uninstall:run() {
-  local dry=false base path src refused=0
+  local dry=false base path src count refused=0
   local -a packages
   [[ "${1:-}" != --dry-run ]] || dry=true
   readarray -t packages < <(settings:packages)
@@ -27,12 +29,21 @@ uninstall:run() {
   fi
   for base in $(release:bases)
   do
-    while IFS=$'\t' read -r path src
-    do
-      [[ -n "${path}" ]] || continue
-      uninstall:path "${dry}" "${base}" "${path}" "${src}" || refused=$(( refused + 1 ))
-    done < <(place:delivered "${kit_root}" "${base}" "${packages[@]}")
+    count=$(place:delivered "${kit_root}" "${base}" "${packages[@]}" | cut -f 1 \
+      | place:refusals "${base}" "${packages[@]}") || return 1
+    refused=$(( refused + count ))
   done
+  if (( refused == 0 ))
+  then
+    for base in $(release:bases)
+    do
+      while IFS=$'\t' read -r path src
+      do
+        [[ -n "${path}" ]] || continue
+        uninstall:path "${dry}" "${base}" "${path}" "${src}" || refused=$(( refused + 1 ))
+      done < <(place:delivered "${kit_root}" "${base}" "${packages[@]}")
+    done
+  fi
   if (( refused > 0 ))
   then
     error "${refused} path(s) could not be taken out, each named above; settle each, then run: kit uninstall"
@@ -79,10 +90,10 @@ uninstall:path() {
     # A merged file holding nothing once the kit's entries are out held only the kit's, so it goes as a copy goes.
     if [[ "${kind}" == merge && -f "${dest}" ]] && jq --exit-status 'length == 0' "${dest}" >/dev/null 2>&1
     then
-      rm -f "${dest}"
+      rm -f "${dest}" || return 1
       step "${dest}: removed; only the kit's entries were in it"
     fi
-    [[ -e "${dest}" ]] || uninstall:prune "${dest}"
+    [[ -e "${dest}" ]] || uninstall:prune "${dest}" || return 1
     return 0
   fi
   case "${kind}" in
@@ -99,7 +110,7 @@ uninstall:prune() {
   while [[ "${dir}" != . && "${dir}" != "${KIT_HOME:-${HOME}}" && -d "${dir}" ]] \
     && [[ -z "$(find "${dir}" -mindepth 1 -maxdepth 1 | head -n 1)" ]]
   do
-    rmdir "${dir}"
+    rmdir "${dir}" || return 1
     dir=$(dirname "${dir}")
   done
 }
