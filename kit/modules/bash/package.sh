@@ -134,9 +134,10 @@ package:add() {
 # package:remove <package>… takes out what the packages delivered (files, the kit's JSON entries, and the kit's
 # regions) and rewrites the manifests. A package that an active package depends on is refused, and it returns 1. A
 # member of a bundle that stays active, and a package that is on by default, is recorded as excluded, so that kit
-# update does not bring it back.
+# update does not bring it back. A path whose content cannot be taken out is named, the manifests and the declaration
+# stay as they are, and it returns 1.
 package:remove() {
-  local package base path newly='' names
+  local package base path newly='' names refused=0
   local -a named active excluded remaining dependents includers defaults
   guard:require tool:jq || return 1
   names=$(package:named "$@") || return 2
@@ -182,9 +183,15 @@ package:remove() {
     do
       [[ -n "${path}" ]] || continue
       place:remove "$(place:source-of "${kit_root}" "${base}" "${path}" "${active[@]}")" \
-        "$(release:dest "${base}" "${path}")"
+        "$(release:dest "${base}" "${path}")" || refused=$(( refused + 1 ))
     done < <(place:beyond "${kit_root}" "${base}" "${remaining[*]}" "${active[*]}")
   done
+  if (( refused > 0 ))
+  then
+    error "${refused} path(s) could not be taken out, each named above; settle each, then run:" \
+      "kit packages remove ${named[*]}"
+    return 1
+  fi
   manifest:write-all "${excluded[*]}" "${remaining[@]}"
   materialize:all "${remaining[@]}"
   ok "packages: ${remaining[*]:-none}"

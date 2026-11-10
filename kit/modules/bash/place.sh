@@ -200,7 +200,8 @@ place:all() {
 }
 
 # place:remove <source> <path> removes the release's content from <path>: the kit's entries from a .json
-# file, the kit's region from a region file, and otherwise the file itself.
+# file, the kit's region from a region file, and otherwise the file itself. It fails when it cannot take the content
+# out, as for a region whose markers region:has refuses, and the file is left as it is.
 place:remove() {
   local src=$1 path=$2
   case "$(place:kind "${src}" "${path}")" in
@@ -210,12 +211,12 @@ place:remove() {
       place:json-write "${path}" 'merge::remove(.; $base[0])' --slurpfile base "${src}"
       ;;
     (region)
+      region:remove "${path}" "${src}" || return $?
       step "${path}: the kit's region taken out"
-      region:remove "${path}" "${src}"
       ;;
     (*)
       step "removing ${path}"
-      rm -f "${path}"
+      rm -f "${path}" || return 1
       if materialize:owned repo "${path}"
       then
         materialize:prune "${path}"

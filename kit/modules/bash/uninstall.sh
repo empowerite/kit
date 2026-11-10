@@ -13,9 +13,10 @@
 use release file settings render place materialize manifest resolve
 
 # uninstall:run [--dry-run] takes out what every active package delivered, under the repository and under home, then
-# the manifests, then the declaration. With --dry-run it prints what it would do and changes nothing.
+# the manifests, then the declaration. With --dry-run it prints what it would do and changes nothing. A path whose
+# content cannot be taken out is named, the manifests and the declaration stay as they are, and it returns 1.
 uninstall:run() {
-  local dry=false base path src
+  local dry=false base path src refused=0
   local -a packages
   [[ "${1:-}" != --dry-run ]] || dry=true
   readarray -t packages < <(settings:packages)
@@ -29,9 +30,14 @@ uninstall:run() {
     while IFS=$'\t' read -r path src
     do
       [[ -n "${path}" ]] || continue
-      uninstall:path "${dry}" "${base}" "${path}" "${src}"
+      uninstall:path "${dry}" "${base}" "${path}" "${src}" || refused=$(( refused + 1 ))
     done < <(place:delivered "${kit_root}" "${base}" "${packages[@]}")
   done
+  if (( refused > 0 ))
+  then
+    error "${refused} path(s) could not be taken out, each named above; settle each, then run: kit uninstall"
+    return 1
+  fi
   uninstall:manifests "${dry}"
   uninstall:declaration "${dry}"
   uninstall:left "${packages[@]}"
@@ -55,7 +61,8 @@ uninstall:left() {
 }
 
 # uninstall:path <dry> <base> <path> <source> takes one delivered path out, or says what it would do. A copy outside
-# .kit/ that differs from the release's file was edited by the repository: it is named and left as it is.
+# .kit/ that differs from the release's file was edited by the repository: it is named and left as it is. It fails
+# when place:remove cannot take the path's content out.
 uninstall:path() {
   local dry=$1 base=$2 path=$3 src=$4 dest kind
   dest=$(release:dest "${base}" "${path}")
@@ -68,7 +75,7 @@ uninstall:path() {
   fi
   if [[ "${dry}" == false ]]
   then
-    place:remove "${src}" "${dest}"
+    place:remove "${src}" "${dest}" || return 1
     # A merged file holding nothing once the kit's entries are out held only the kit's, so it goes as a copy goes.
     if [[ "${kind}" == merge && -f "${dest}" ]] && jq --exit-status 'length == 0' "${dest}" >/dev/null 2>&1
     then

@@ -18,9 +18,13 @@
 # Then it drops version, packages, and excludes from kit.yml, and removes kit.yml when nothing else is in it.
 # worktrees/ and every other file of the repository's own stay. Commit what changed; kit install takes the kit again.
 #
+# A path whose content cannot be taken out, such as a region whose markers are not one directive with one end line
+# after it, is named and left as it is; the manifests and kit.yml then stay as they are, so the run can be repeated.
+#
 #   --dry-run   prints what it would take out, and changes nothing
 #
-# Exits 0 on success, 1 when kit.yml declares no kit version, so there is nothing to take out, and 2 on a usage error.
+# Exits 0 on success, 1 when kit.yml declares no kit version, so there is nothing to take out, or when a path could
+# not be taken out, and 2 on a usage error.
 #
 # see: modules/bash/uninstall.sh, modules/bash/place.sh
 

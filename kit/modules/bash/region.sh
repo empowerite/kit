@@ -67,18 +67,33 @@ region:known() {
   esac
 }
 
-# region:has <dest> succeeds when the file contains the region's directive. A directive with no end
-# marker fails (status 2) and names the file, because a write would drop everything after the directive.
+# region:has <dest> [<file>] judges the region's markers in <file>, <dest> when it is not given, in one pass. The
+# markers are <dest>'s, so a linked file is judged by its link's name, and each is compared with a whole line as
+# plain text. It returns 0 when the file holds exactly one directive with exactly one end line after it, and 1 when
+# it holds neither line, or there is no file. Any other shape, or a file it cannot read, returns 2 and names the file,
+# because a write would drop the repository's lines after a directive that does not close where the kit expects.
 region:has() {
-  local path=$1 begin end
+  local path=${2:-$1} begin end status=0
   [[ -f "${path}" ]] || return 1
   { read -r begin; read -r end; } < <(region:markers "$1")
-  grep --quiet --line-regexp --fixed-strings "${begin}" "${path}" || return 1
-  if ! grep --quiet --line-regexp --fixed-strings "${end}" "${path}"
-  then
-    error "${path}: the kit's region opens with '${begin}' and never closes; add '${end}' where it ends"
-    return 2
-  fi
+  region_begin=${begin} region_end=${end} awk '
+    BEGIN { b = ENVIRON["region_begin"]; e = ENVIRON["region_end"] }
+    $0 == b { opens++; opened = NR }
+    $0 == e { closes++; closed = NR }
+    END {
+      if (!opens && !closes) exit 1
+      if (opens == 1 && closes == 1 && closed > opened) exit 0
+      if (opens == 1 && !closes) exit 3
+      exit 4
+    }' "${path}" || status=$?
+  case "${status}" in
+    (0 | 1) return "${status}" ;;
+    (3) error "${path}: the kit's region opens with '${begin}' and never closes; add '${end}' where it ends" ;;
+    (4) error "${path}: the kit's region is marked wrongly: '${begin}' and '${end}' must each be there once, in" \
+      "that order" ;;
+    (*) error "${path}: the kit cannot read it, so its region is left as it is" ;;
+  esac
+  return 2
 }
 
 # region:read <dest> prints the region's content, between its directive and its end marker. It fails
@@ -156,12 +171,14 @@ region:host-inserted() {
 #   - between the directive and the end marker, when the file has them
 #   - after a blank line at the end of the file, when the file has no region and the package states no host
 #   - as the whole file, when there is no file and no host
+#
+# A file whose markers region:has refuses is left as it is, and region:write fails.
 region:write() {
   local path content=$2 begin end status=0 host
   path=$(release:target "$1")
   { read -r begin; read -r end; } < <(region:markers "$1")
   host=$(region:host "${content}")
-  region:has "${path}" || status=$?
+  region:has "$1" "${path}" || status=$?
   (( status == 2 )) && return 1
   if [[ -n "${host}" ]] && (( status == 1 ))
   then
@@ -203,11 +220,14 @@ region:filled() {
 
 # region:remove <dest> [<content-file>] removes the region, its directive, its end marker, and the blank line
 # before it. A file left empty is deleted, and so is one left as the package's host template made it, holes at their
-# defaults, when <content-file> names the region's source and its package states a host.
+# defaults, when <content-file> names the region's source and its package states a host. A file with no region, or
+# none at all, is left as it is. A file whose markers region:has refuses is left as it is, and region:remove fails.
 region:remove() {
-  local path begin end host made stripped
+  local path begin end host made stripped status=0
   path=$(release:target "$1")
-  [[ -f "${path}" ]] || return 0
+  region:has "$1" "${path}" || status=$?
+  (( status != 2 )) || return 1
+  (( status == 0 )) || return 0
   { read -r begin; read -r end; } < <(region:markers "$1")
   # The x keeps the trailing newlines a command substitution would drop.
   stripped=$(region:strip "${begin}" "${end}" < "${path}" && printf x) || return 1
@@ -216,7 +236,7 @@ region:remove() {
   if [[ -n "${host}" ]]
   then
     use template
-    made=$(template:render "${host}" '{}' | region:strip "${begin}" "${end}")
+    made=$(template:render "${host}" '{}' | region:strip "${begin}" "${end}") || return 1
     [[ "$(printf '%s' "${stripped}")" != "${made}" ]] || stripped=''
   fi
   if [[ -n "${stripped}" ]]

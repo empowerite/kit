@@ -147,3 +147,22 @@ tree() {
   [ ! -e .kit/manifest ]
   [ "$(ls -A .kit)" = "packages" ]
 }
+
+@test "uninstall refuses a region that never closes, keeps every line after it, and keeps the declaration" {
+  local before
+  printf 'mine-before\n' > .gitignore
+  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
+  printf 'mine-after-1\nmine-after-2\n' >> .gitignore
+  grep --invert-match --line-regexp --fixed-strings '# kit:end .gitignore' .gitignore > gitignore.new
+  mv gitignore.new .gitignore
+  before=$(cat .gitignore)
+  run "${kit_checkout}/bin/kit" uninstall
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"1 path(s) could not be taken out"* ]]
+  [[ "$output" == *".gitignore: the kit's region opens with '# kit:generate .gitignore' and never closes"* ]]
+  [ "$(cat .gitignore)" = "${before}" ]
+  grep --quiet '^version: ' kit.yml
+  run "${kit_checkout}/bin/kit" packages remove kit
+  [ "$status" -eq 1 ]
+  [ "$(cat .gitignore)" = "${before}" ]
+}

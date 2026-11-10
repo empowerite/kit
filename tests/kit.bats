@@ -364,6 +364,50 @@ setup() {
   [[ "$output" == *"no active package delivers a region at README.md"* ]]
 }
 
+@test "a region in a linked file is found under the link's name, so an update never adds a second" {
+  mkdir shared && printf 'build/\n' > shared/gitignore && ln -s shared/gitignore .gitignore
+  run "${kit_checkout}/bin/kit" install
+  [ "$status" -eq 0 ]
+  run env PATH="$(shims mise curl)" "${kit_checkout}/bin/kit" update
+  [ "$status" -eq 0 ]
+  run env PATH="$(shims mise curl)" "${kit_checkout}/bin/kit" update
+  [ "$status" -eq 0 ]
+  [ -L .gitignore ]
+  [ "$(grep --count --line-regexp --fixed-strings '# kit:generate .gitignore' shared/gitignore)" -eq 1 ]
+  grep --quiet --line-regexp 'build/' shared/gitignore
+}
+
+@test "markers out of order, or doubled, refuse the write and leave the file; a marker that starts with -- is text" {
+  local before sound
+  run "${kit_checkout}/bin/kit" install
+  [ "$status" -eq 0 ]
+  sound=$(cat .gitignore)
+  printf 'top\n# kit:end .gitignore\nmiddle\n# kit:generate .gitignore\nold\nbottom-1\nbottom-2\n' > .gitignore
+  before=$(cat .gitignore)
+  run env PATH="$(shims mise curl)" "${kit_checkout}/bin/kit" update
+  [ "$status" -eq 1 ]
+  [ "$(cat .gitignore)" = "${before}" ]
+  [[ "$output" == *"'# kit:generate .gitignore' and '# kit:end .gitignore' must each be there once, in that order"* ]]
+  printf '# kit:generate .gitignore\n/worktrees/\n# kit:end .gitignore\nmine\n# kit:generate .gitignore\ntail\n' \
+    > .gitignore
+  before=$(cat .gitignore)
+  run env PATH="$(shims mise curl)" "${kit_checkout}/bin/kit" update
+  [ "$status" -eq 1 ]
+  [ "$(cat .gitignore)" = "${before}" ]
+  [[ "$output" == *"'# kit:generate .gitignore' and '# kit:end .gitignore' must each be there once, in that order"* ]]
+  grep --quiet --line-regexp 'tail' .gitignore
+  printf '%s\n' "${sound}" > .gitignore
+  mkdir -p .kit/packages/extra/regions/repo
+  printf 'description: "x"\ndepends:\n  - kit\n' > .kit/packages/extra/package.yml
+  printf 'create table t (id int);\n' > .kit/packages/extra/regions/repo/schema.sql
+  run "${kit_checkout}/bin/kit" packages add extra
+  [ "$status" -eq 0 ]
+  run env PATH="$(shims mise curl)" "${kit_checkout}/bin/kit" update
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"grep:"* ]]
+  [ "$(grep --count --line-regexp --fixed-strings -e '-- kit:generate schema.sql' schema.sql)" -eq 1 ]
+}
+
 @test "a region makes the file where there is none, and one holding different content is regenerated" {
   run "${kit_checkout}/bin/kit" install agents/generic
   [ "$status" -eq 0 ]
