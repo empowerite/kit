@@ -212,6 +212,19 @@ JSON
   run ! grep --quiet 'upgrade jq' "${FAKE_DIR}/brew.calls"
 }
 
+@test "brew filling in fails when the Brewfile's tools cannot be read" {
+  touch mise.toml Brewfile
+  fixture ls.json <<<'{"jq": [{"version": "1.8.2", "requested_version": "1.8", "installed": true}]}'
+  route mise 'ls --json --current' ls.json
+  route mise 'install --quiet' '!0'
+  route mise 'trust --quiet mise.toml' '!0'
+  route brew 'bundle list --file Brewfile --formula --cask' '!1'
+  run "${kit_root}/bin/kit" tools install
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"could not be read"* && "$output" != *"✅ brew installed"* ]]
+  run ! grep --quiet '^install' "${FAKE_DIR}/brew.calls"
+}
+
 @test "mise installs, reports, updates, and puts its bin paths first" {
   touch mise.toml
   fixture ls.json <<<'{"jq": [{"version": "1.8.0", "requested_version": "1.8", "installed": true}]}'

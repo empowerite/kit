@@ -164,10 +164,12 @@ then
     || { error "${chosen}: the pinned tools could not be read"; exit 1; }
   layers+=("toolchain/${filler}")
 fi
-while IFS= read -r provider
+declare -a usable
+list:read usable dependencies:usable "${toolchain_dirs}" || exit 1
+for provider in "${usable[@]}"
 do
   [[ -z "${provider}" ]] || layers+=("dependencies/${provider}")
-done < <(dependencies:usable "${toolchain_dirs}")
+done
 # several is true when more than one table is drawn, so each is headed by the name of what it lists.
 several=false
 (( ${#layers[@]} + $([[ "${chosen}" == ambient ]] && echo 1 || echo 0) < 2 )) || several=true
@@ -290,7 +292,11 @@ case "${verb}" in
     for layer in "${layers[@]}"
     do
       name=${layer#*/}
-      call "${layer}" update || exit 1
+      if ! call "${layer}" update
+      then
+        error "${name}: the tools could not be updated; see above"
+        exit 1
+      fi
       ok "${name} moved every tool to its latest; commit the pins and the lock it rewrote"
     done
     [[ "${chosen}" != ambient ]] || ambient

@@ -23,15 +23,20 @@ toolchain/brew:inputs() { printf 'tool\tbrew\nfile\tBrewfile\nenv\tOSTYPE\n'; }
 # toolchain/brew:install installs from the Brewfile without upgrading. Filling in, it installs only the tools it acts
 # on that are missing, by name, so a tool the other toolchain pins is left to it.
 toolchain/brew:install() {
-  local brew
-  local -a missing
+  local brew row
+  local -a pins missing=()
   brew=$(toolchain/brew:brew) || return 1
   if [[ -z "${toolchain_pinned+x}" ]]
   then
     "${brew}" bundle install --file "$(toolchain/brew:file)" --no-upgrade --quiet
     return
   fi
-  readarray -t missing < <(toolchain/brew:pins | awk -F '\t' '$3 == "" { print $1 }') || return 1
+  list:read pins toolchain/brew:pins || return 1
+  # A row is "<name>\t<pinned>\t<installed>", and a tool is missing when nothing follows its second tab.
+  for row in "${pins[@]}"
+  do
+    [[ "${row}" != *$'\t'*$'\t' ]] || missing+=("${row%%$'\t'*}")
+  done
   (( ${#missing[@]} == 0 )) || "${brew}" install --quiet "${missing[@]}"
 }
 
@@ -58,7 +63,11 @@ toolchain/brew:pins() {
   local brew names versions
   brew=$(toolchain/brew:brew) || return 1
   names=$(toolchain/brew:names) || return 1
-  versions=$(HOMEBREW_NO_AUTO_UPDATE=1 "${brew}" list --versions 2>/dev/null) || return 1
+  if ! versions=$(HOMEBREW_NO_AUTO_UPDATE=1 "${brew}" list --versions 2>/dev/null)
+  then
+    error "run: brew list --versions (the installed formulae could not be read)"
+    return 1
+  fi
   jq -L "${kit_jq}" --raw-input --slurp --raw-output --arg names "${names}" \
     'import "toolchain" as toolchain; toolchain::brew_pins($names)' <<<"${versions}"
 }
@@ -112,8 +121,12 @@ toolchain/brew:prefixed() {
 toolchain/brew:names() {
   local brew names
   brew=$(toolchain/brew:brew) || return 1
-  names=$(HOMEBREW_NO_AUTO_UPDATE=1 "${brew}" bundle list --file "$(toolchain/brew:file)" --formula --cask \
-    2>/dev/null) || return 1
+  if ! names=$(HOMEBREW_NO_AUTO_UPDATE=1 "${brew}" bundle list --file "$(toolchain/brew:file)" --formula --cask \
+    2>/dev/null)
+  then
+    error "run: brew bundle list --file $(toolchain/brew:file) (the Brewfile's tools could not be read)"
+    return 1
+  fi
   if [[ -z "${toolchain_pinned+x}" ]]
   then
     printf '%s\n' "${names}"

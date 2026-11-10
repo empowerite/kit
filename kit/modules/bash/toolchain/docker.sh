@@ -30,10 +30,13 @@ toolchain/docker:install() {
 }
 
 toolchain/docker:outdated() {
-  local base pinned latest status=0
+  local base pinned latest status=0 row
+  local -a bases
   toolchain/docker:require || return 1
-  while IFS=$'\t' read -r base pinned
+  list:read bases toolchain/docker:bases || return 1
+  for row in "${bases[@]}"
   do
+    IFS=$'\t' read -r base pinned <<<"${row}"
     [[ -n "${base}" ]] || continue
     if ! latest=$(toolchain/docker:latest "${base}")
     then
@@ -42,7 +45,7 @@ toolchain/docker:outdated() {
       continue
     fi
     [[ "${latest}" == "${pinned}" ]] || printf '%s\t%s\t%s\n' "${base}" "${pinned:-unpinned}" "${latest}"
-  done < <(toolchain/docker:bases)
+  done
   return "${status}"
 }
 
@@ -53,21 +56,24 @@ toolchain/docker:path() { return 0; }
 # the file is present, each base is installed at its pin, or as built when it has none. Only a local daemon is asked
 # whether the image is present; with a remote one, nothing is reported installed.
 toolchain/docker:pins() {
-  local tag present=false base pinned
+  local tag present=false base pinned row
+  local -a bases
   toolchain/docker:require || return 1
   tag=$(toolchain/docker:tag) || return 1
   if toolchain/docker:local && docker image inspect "${tag}" >/dev/null 2>&1
   then
     present=true
   fi
-  while IFS=$'\t' read -r base pinned
+  list:read bases toolchain/docker:bases || return 1
+  for row in "${bases[@]}"
   do
+    IFS=$'\t' read -r base pinned <<<"${row}"
     [[ -n "${base}" ]] || continue
     if [[ "${present}" == true ]]
     then printf '%s\t%s\t%s\n' "${base}" "${pinned}" "${pinned:-built}"
     else printf '%s\t%s\t\n' "${base}" "${pinned}"
     fi
-  done < <(toolchain/docker:bases)
+  done
 }
 
 toolchain/docker:require() {

@@ -33,11 +33,14 @@ toolchain/nix:install() {
 # not asked. An input nix cannot read is reported by name on stderr, and the others are still asked. Then it fails
 # on purpose, after printing what it read: kit tools keeps those rows, and says it could not tell about the rest.
 toolchain/nix:outdated() {
-  local name ref locked doc latest status=0
+  local name ref locked doc latest status=0 row
+  local -a refs
   toolchain/nix:require || return 1
   [[ -f flake.lock ]] || return 0
-  while IFS=$'\t' read -r name ref locked
+  list:read refs toolchain/nix:lock nix_refs || return 1
+  for row in "${refs[@]}"
   do
+    IFS=$'\t' read -r name ref locked <<<"${row}"
     if ! doc=$(nix flake metadata --json "${ref}" 2>/dev/null)
     then
       error "nix could not read ${ref}, the source of ${name}; see: nix flake metadata ${ref}"
@@ -47,7 +50,7 @@ toolchain/nix:outdated() {
     latest=$(jq --raw-output '.locked.rev // empty' <<<"${doc}")
     [[ -z "${latest}" || "${latest}" == "${locked}" ]] && continue
     printf '%s\t%s\t%s\n' "${name}" "${locked:0:7}" "${latest:0:7}"
-  done < <(toolchain/nix:lock nix_refs)
+  done
   return "${status}"
 }
 

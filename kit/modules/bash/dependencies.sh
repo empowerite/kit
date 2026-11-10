@@ -94,10 +94,12 @@ dependencies:toolchain-dirs() {
 # dependencies:usable takes them.
 dependencies:path() {
   local provider
-  while IFS= read -r provider
+  local -a usable
+  list:read usable dependencies:usable "$@" || return 1
+  for provider in "${usable[@]}"
   do
     dependencies:call "${provider}" path
-  done < <(dependencies:usable "$@")
+  done
 }
 
 # dependencies:installed <provider> succeeds when every package the provider pins is installed at its pinned version.

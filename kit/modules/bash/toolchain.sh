@@ -62,6 +62,7 @@ toolchain:providers() {
 # Otherwise it probes, and rewrites the cache where .kit/.gitignore lists /cache/, so git never sees it.
 toolchain:detect() {
   local key found provider role usable active
+  local -a roles
   key=$(toolchain:key) || return 1
   if [[ -f .kit/cache/toolchains.tsv && "$(cat .kit/cache/toolchains.key 2>/dev/null)" == "${key}" ]]
   then
@@ -73,12 +74,13 @@ toolchain:detect() {
     do
       active=no
       toolchain:call "${provider}" active && active=yes
-      while IFS= read -r role
+      list:read roles toolchain:call "${provider}" roles || exit 1
+      for role in "${roles[@]}"
       do
         usable=no
         toolchain:call "${provider}" usable "${role}" && usable=yes
         printf '%s\t%s\t%s\t%s\n' "${provider}" "${role}" "${usable}" "${active}"
-      done < <(toolchain:call "${provider}" roles)
+      done
     done
   ) || return 1
   printf '%s\n' "${found}"
@@ -93,20 +95,24 @@ toolchain:detect() {
 # toolchain:key prints the cache key: a digest of PATH, and of every provider's inputs. A tool counts by where it
 # resolves on PATH, a file by its modification time or absent, and a variable by its value.
 toolchain:key() {
-  local provider kind name
+  local provider kind name row
+  local -a inputs
   {
     printf 'PATH\t%s\n' "${PATH}"
     for provider in $(toolchain:providers)
     do
-      while IFS=$'\t' read -r kind name
+      list:read inputs toolchain:call "${provider}" inputs || exit 1
+      for row in "${inputs[@]}"
       do
+        IFS=$'\t' read -r kind name <<<"${row}"
+
         case "${kind}" in
           (tool) printf 'tool\t%s\t%s\n' "${name}" "$(command -v "${name}" 2>/dev/null)" ;;
           (env) printf 'env\t%s\t%s\n' "${name}" "${!name:-}" ;;
           (file) printf 'file\t%s\t%s\n' "${name}" "$(toolchain:modified "${name}")" ;;
           (*) ;;
         esac
-      done < <(toolchain:call "${provider}" inputs)
+      done
     done
   } | file:digest
 }
@@ -207,13 +213,13 @@ toolchain:pinned-names() {
 # never records. Where nothing is chosen, as with several usable, it prints nothing and returns 0.
 toolchain:chosen() {
   local role=$1 mode=${2:-} named='' found active recorded choice answer
-  local -a usable
+  local -a usable=()
   toolchain:role "${role}" || return 1
   # The run names one toolchain, the project's: CI names its own, and the system one is found or chosen.
   [[ "${role}" != project ]] || named=${KIT_TOOLCHAIN:-}
   found=$(toolchain:detect) || return 1
   active=$(toolchain:ranked "${role}" active <<<"${found}" | head -n 1)
-  readarray -t usable < <(toolchain:ranked "${role}" usable <<<"${found}")
+  list:read usable toolchain:ranked "${role}" usable <<<"${found}" || return 1
   if [[ -n "${active}" ]]
   then
     if [[ -n "${named}" && "${named}" != "${active}" && "${mode}" != list ]]
@@ -324,10 +330,10 @@ toolchain:refuse() {
 #   - project, in a linked worktree: <its git dir>/kit/toolchain, which only that worktree reads
 toolchain:choose() {
   local role=$1 provider=$2 settings found kept
-  local -a usable
+  local -a usable=()
   toolchain:role "${role}" || return 1
   found=$(toolchain:detect) || return 1
-  readarray -t usable < <(toolchain:ranked "${role}" usable <<<"${found}")
+  list:read usable toolchain:ranked "${role}" usable <<<"${found}" || return 1
   if [[ "${role}" == project && "${provider}" == brew && ${#usable[@]} -gt 0 ]] \
     && grep --quiet --line-regexp $'brew\tproject\tyes\t.*' <<<"${found}"
   then
