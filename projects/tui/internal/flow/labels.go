@@ -5,14 +5,7 @@ package flow
 import "github.com/empowerite/kit/projects/tui/internal/table"
 
 // labelNamed gives the label of a name, with its color, as one of the rows the selected stage loaded holds it in the
-// field, by id; a name no row holds is a label without a color.
+// field, by id, as table.LabelNamed finds it; a name no row holds is a label without a color.
 func (m Model) labelNamed(id, name string) table.Label {
-	for _, r := range m.records(m.stages[m.stage]) {
-		for _, l := range table.LabelsIn(r.values[id]) {
-			if l.Name == name {
-				return l
-			}
-		}
-	}
-	return table.Label{Name: name}
+	return table.LabelNamed(entries(m.records(m.stages[m.stage])), id, name)
 }

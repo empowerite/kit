@@ -290,26 +290,16 @@ type record struct {
 	values map[string]table.Value
 }
 
-// laid gives a stage's rows from its records: each record's values drawn in the stage's fields, in the order their
-// columns stand, as each field's renderer draws its column, so a renderer can line a column up, or the one pinned gives
-// it by id; a row of one cell as it is.
+// laid gives a stage's rows from its records, as table.Lay lays them out in the stage's fields.
 func laid(stage string, records []record, pinned func(id string) string) []row {
-	out := make([]row, len(records))
-	var at []int
+	return table.Lay(fieldsOf(stage), entries(records), pinned)
+}
+
+// entries gives the records as internal/table holds them: each its row and its values.
+func entries(records []record) []table.Record {
+	out := make([]table.Record, len(records))
 	for k, r := range records {
-		out[k] = r.row
-		if r.values != nil {
-			at = append(at, k)
-		}
-	}
-	for _, f := range fieldsOf(stage) {
-		vs := make([]table.Value, len(at))
-		for n, k := range at {
-			vs[n] = records[k].values[f.ID]
-		}
-		for n, c := range f.Draw(vs, pinned(f.ID)) {
-			out[at[n]].Cells = append(out[at[n]].Cells, c)
-		}
+		out[k] = table.Record{Row: r.row, Values: r.values}
 	}
 	return out
 }
@@ -346,107 +336,17 @@ type shown struct {
 	drawn  map[string]string
 }
 
-// build gives a stage's rows from what it loaded, as its panel lets them through, and what the panel shows of them.
-// The rows are laid out twice: first as the panel pins each field's rendering, or by its first, which says the rows
-// the panel lets through; then by the renderings automatic chooses for those rows and the width, when they differ.
-// The second time lets through the rows the first did, so a search keeps the rows whose text had it, though a field
-// now draws less of it.
+// build gives a stage's rows from what it loaded, as its panel lets them through, and what the panel shows of them,
+// as table.Build builds them; incoming's, which has no fields, are its commits and branches as they stand.
 func (m Model) build(i int) shown {
 	s, names, p := m.stages[i], columnsOf(m.stages[i].name), m.filter(i)
 	if s.name == "incoming" {
 		all := m.incomingRows(s)
 		rows := p.Filter(all, names)
-		return shown{p.FoldAway(rows), filled(all, names), grid.Indents(rows), table.Counted(all), nil}
+		return shown{p.FoldAway(rows), table.Filled(all, names), grid.Indents(rows), table.Counted(all), nil}
 	}
-	records := m.records(s)
-	pinned := func(id string) string { return s.View.Field(id).Rendering }
-	all := laid(s.name, records, pinned)
-	rows := p.Filter(all, names)
-	fields := m.placed(i)
-	drawn := table.Automatic(fields, shownValues(records, rows, p), m.paneWidth()-2*grid.Indents(rows)-len(lead), p.Glyphs)
-	if slices.ContainsFunc(fields, func(f table.Placed) bool { return drawn[f.ID] != f.DrawnBy(f.Pinned) }) {
-		passed := map[string]bool{}
-		for _, r := range rows {
-			passed[r.Key] = true
-		}
-		all = laid(s.name, records, func(id string) string { return drawn[id] })
-		q := p
-		q.Query = ""
-		rows = q.Filter(slices.DeleteFunc(slices.Clone(all), func(r row) bool { return !passed[r.Key] }), names)
-	}
-	return shown{p.FoldAway(rows), filled(all, names), grid.Indents(rows), table.Counted(all), drawn}
-}
-
-// placed gives a stage's fields as its panel places them, for automatic: its columns, in the order they stand, each
-// with the name the header stands over it while it shows, then the fields grouped or hidden.
-func (m Model) placed(i int) []table.Placed {
-	s, p := m.stages[i], m.filter(i)
-	fields := fieldsOf(s.name)
-	heads := m.names(i)
-	var out, rest []table.Placed
-	for k, id := range p.Arrange(columnsOf(s.name)) {
-		f := fields[k]
-		if id != "" {
-			f = fields[slices.IndexFunc(fields, func(f table.Field) bool { return f.ID == id })]
-		}
-		pin := p.Field(f.ID).Rendering
-		if id != "" && !p.Shows(id) {
-			rest = append(rest, table.Placed{Field: f, Pinned: pin})
-			continue
-		}
-		name := ""
-		if len(out) < len(heads) {
-			name = heads[len(out)]
-		}
-		out = append(out, table.Placed{Field: f, Pinned: pin, Column: true, Name: name})
-	}
-	return append(out, rest...)
-}
-
-// shownValues gives the values the records the rows let through hold in each field, by id, one a record; a list the
-// panel flattens or groups by, one a value, as the rows stand once per value of it.
-func shownValues(records []record, rows []row, p grid.Panel) map[string][]table.Value {
-	passed := map[string]bool{}
-	for _, r := range rows {
-		if !r.Aside {
-			passed[r.Key] = true
-		}
-	}
-	out := map[string][]table.Value{}
-	for _, r := range records {
-		if r.values == nil || !passed[r.Key] {
-			continue
-		}
-		for id, v := range r.values {
-			if f := p.Field(id); !p.Lists(id) || !f.Flat && f.Placement != grid.Group || len(v.Raw) == 0 {
-				out[id] = append(out[id], v)
-				continue
-			}
-			for _, raw := range v.Raw {
-				one := v
-				one.Raw = []string{raw}
-				out[id] = append(out[id], one)
-			}
-		}
-	}
-	return out
-}
-
-// filled gives a stage's columns as its panel offers them: each named column that one of the rows loaded has a value
-// in, and no name for the rest, as backlog's branch while no issue has one, since a line there would hide nothing.
-func filled(rows []row, names []string) []string {
-	out := make([]string, len(names))
-	for _, r := range rows {
-		if len(r.Cells) < 2 {
-			continue
-		}
-		for j, c := range r.Cells {
-			if j < len(names) && len(c.Values) > 0 && c.Values[0] != "" {
-				out[j] = names[j]
-			}
-		}
-	}
-	return out
+	b := table.Build(catalog[s.name], entries(m.records(s)), p, m.names(i), m.paneWidth())
+	return shown{b.Rows, b.Names, b.Levels, b.All, b.Drawn}
 }
 
 // records gives a stage's records from what it loaded, then, over a group, a line for each member whose read failed;

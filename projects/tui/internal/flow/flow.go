@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -557,9 +556,8 @@ func (m Model) panel(i int) grid.Panel {
 // people, and the caller's login; the columns it offers are drawn from the rows, so it has none.
 func (m Model) filter(i int) grid.Panel {
 	s := m.stages[i]
-	p := s.View
-	p.Owner, p.Me, p.Sortable, p.Groupable = ownerOf(s.name), m.me, sortableOf(s.name), groupableOf(s.name)
-	p.Labels, p.Ones = labelsOf(s.name), onesOf(s.name)
+	p := catalog[s.name].Ready(s.View)
+	p.Me = m.me
 	p.Focused, p.Outline, p.Fold, p.Glyphs = m.inPanel && i == m.stage, s.Open, m.fold, m.glyphs
 	return p
 }
@@ -623,24 +621,12 @@ func (m *Model) groupClick(x, y int, nest, right bool) {
 // also, as option asks, turns the column's sort, as the panel's Sorted says, and group, as ctrl asks, groups the rows
 // by it within the groups they have, innermost, or no longer, as the panel's Grouped says. Elsewhere it does nothing.
 func (m *Model) clickHeader(x, y int, also, group bool) tea.Cmd {
-	s := &m.stages[m.stage]
-	x -= m.indent(m.stage)
-	h, ok := m.headerLine(y)
-	if !ok || m.onRule(y) {
-		return nil
-	}
-	if _, hides := m.header(); hides && !group && h == 0 && x == table.FoldCell {
-		next := maps.Clone(s.Open)
-		next[table.HeaderKey] = !s.Open[table.HeaderKey]
-		table.Reoutline(m, next)
-		return nil
-	}
-	j := grid.HeaderAt(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), x)
-	if j < 0 {
-		return nil
-	}
-	column, p := m.shownColumns(m.stage)[j], m.panel(m.stage)
-	switch {
+	on, fold, column := table.HeaderHit(m, x, y)
+	switch p := m.panel(m.stage); {
+	case !on:
+	case fold && !group:
+		table.ToggleHeader(m)
+	case column == "":
 	case group:
 		m.setPanel(p.Grouped(column, true))
 	case also:
@@ -1237,21 +1223,11 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 	if len(m.stages) == 0 || x >= m.paneWidth() {
 		return nil
 	}
-	lines, s := m.allLines(m.stage), &m.stages[m.stage]
-	k, ok := m.placeAt(y)
-	if !ok || k < 0 || lines[k].Row < 0 {
+	row, link, fold, ok := table.RowAt(m, x, y)
+	if !ok {
 		return nil
 	}
-	rows := m.rows(m.stage)
-	row, first := lines[k].Row, k == 0 || lines[k-1].Row != lines[k].Row
-	link := ""
-	if first {
-		if !rows[row].Aside {
-			x -= m.indent(m.stage)
-		}
-		link = grid.LinkAt(rows, m.names(m.stage), row, m.gridWidth(m.stage), x)
-	}
-	fold := first && link == "" && slices.Contains(table.FoldsAt(rows[row]), x)
+	s, rows := &m.stages[m.stage], m.rows(m.stage)
 	s.Cursor, m.inRows, m.inPanel, m.onPreset = row, true, false, false
 	switch {
 	case strings.HasPrefix(link, jumps):

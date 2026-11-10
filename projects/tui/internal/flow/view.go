@@ -14,7 +14,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
@@ -159,88 +158,12 @@ func (m Model) keys() shell.Path {
 	return path
 }
 
-// presetKeys gives the segment of the preset line while it has the keyboard: up or esc gives the bar the keyboard,
-// named by the stage it has selected, and down the rows, when the stage has some; enter or space drops the presets
-// down. While a name is typed for Save As… or Rename…, what is typed is the name, = : and ; apart, which the menus
-// take; enter saves under it, or renames, and esc stops.
-func (m Model) presetKeys() shell.Segment {
-	if st := m.stages[m.stage]; st.SavingAs {
-		s := shell.Segment{Types: true, Takes: []string{"backspace"}, Passes: []string{"=", ":", ";"}}
-		does := "save"
-		if st.Renaming != "" {
-			does = "rename"
-		}
-		s.Bindings = append(s.Bindings, shell.Bind("⏎", does, "enter"), shell.Bind("esc", "cancel"))
-		return s.With(shell.Bind("", "type the preset's name"))
-	}
-	// up and esc give the tab bar the keyboard, named as the components spec names it
-	var s shell.Segment
-	s.Bindings = append(s.Bindings, shell.Bind("↑", tabsHint, "up"), shell.Bind("esc", tabsHint))
-	if len(m.rows(m.stage)) > 0 {
-		s.Bindings = append(s.Bindings, shell.Bind("↓", "rows", "down"))
-	}
-	// shift-tab goes back to the heading over the groups, where the rows group
-	if len(m.stops()) > 0 {
-		s.Bindings = append(s.Bindings, shell.Bind("⇧⇥", "groups", "shift+tab"))
-	}
-	return s.With(shell.Bind("⏎", "presets", "enter", "space"))
-}
+// presetKeys gives the segment of the preset line while it has the keyboard, as table.PresetKeys says.
+func (m Model) presetKeys() shell.Segment { return table.PresetKeys(&m) }
 
-// tabsHint is what the key hints say esc does where it gives the tab bar the keyboard, from the rows or the preset
-// picker: it goes back to the tabs, whichever is selected.
-const tabsHint = "tabs"
-
-// groupHeadings gives how many headings of groups the cursor can stand on in the selected stage's rows.
-func (m Model) groupHeadings() int {
-	n, all := 0, m.rows(m.stage)
-	for _, r := range all[min(table.First(all), len(all)):] {
-		if grid.Heads(r) {
-			n++
-		}
-	}
-	return n
-}
-
-// rowKeys gives the segment of the rows while they have the keyboard: esc gives the bar the keyboard, named by the
-// stage it has selected; up and down move,
-// a page at a time too while the rows are more than the pane shows, and home and end to the first and the last, unnamed
-// until a test shows the keys arrive in Terminal.app and iTerm; space selects a row, shift with up or down selects as it moves, and ctrl+a every row; right
-// shows what the node under the cursor holds, a row's lines or a group's rows, and left hides it, the one that acts
-// named.
-func (m Model) rowKeys() shell.Segment {
-	seg := shell.Segment{Takes: []string{"left", "right", "alt+left", "alt+right", "home", "end"},
-		Bindings: []shell.Binding{shell.Bind("esc", tabsHint), shell.Bind("↑↓", "move", "up", "down")}}
-	if len(m.lines(m.stage)) > m.rowsHeight() {
-		seg.Bindings = append(seg.Bindings, shell.Bind("⇞⇟", "page", "pgup", "pgdown"))
-	}
-	if m.groupHeadings() > 1 {
-		// [ and ] move between the groups' headings, { and } to the first and the last, unnamed
-		seg.Bindings = append(seg.Bindings, shell.Bind("[]", "group", "[", "]"))
-		seg.Takes = append(seg.Takes, "{", "}")
-	}
-	seg.Bindings = append(seg.Bindings, shell.Bind("␣", "select", "space"),
-		shell.Bind("⇧↑↓", "select", "shift+up", "shift+down"), shell.Bind("⌃A", "all", "ctrl+a"))
-	s, rows := m.stages[m.stage], m.rows(m.stage)
-	if s.Cursor >= len(rows) {
-		return seg
-	}
-	every := m.every(m.stage)
-	at := slices.IndexFunc(every, func(r row) bool { return r.Key == rows[s.Cursor].Key })
-	switch {
-	case table.Opens(&m, every, at) && s.Open.Unfolds(rows[s.Cursor]):
-		seg.Bindings = append(seg.Bindings, shell.Bind("←", "hide", "left"))
-	case table.Opens(&m, every, at):
-		seg.Bindings = append(seg.Bindings, shell.Bind("→", "show", "right"))
-	case grid.Parent(rows, s.Cursor) >= m.first(m.stage):
-		seg.Bindings = append(seg.Bindings, shell.Bind("←", "group", "left"))
-	}
-	// ⌥ with an arrow is named only where the terminal said it tells it apart, as the kitty keyboard protocol does: a
-	// macOS terminal with its default settings sends it as another key, or as the arrow alone
-	if grid.Heads(rows[s.Cursor]) && m.altArrows {
-		seg.Bindings = append(seg.Bindings, shell.Bind("⌥←→", "a level", "alt+left", "alt+right"))
-	}
-	return seg
-}
+// rowKeys gives the segment of the rows while they have the keyboard, as table.RowKeys says, ⌥ with an arrow named
+// where the terminal answered the kitty keyboard protocol.
+func (m Model) rowKeys() shell.Segment { return table.RowKeys(&m, m.altArrows) }
 
 // menuBar gives the menu bar, as internal/shell draws every screen's: the kit menu's = before kit flow; the workspace
 // menu, which names the workspace; maximized, the selected tab, as the bar draws it but its number in place of its
@@ -282,31 +205,18 @@ func (m Model) reserve(i int) int {
 	return len(strconv.Itoa(m.shown(i).all))
 }
 
-// names gives the labels of a stage's columns that its panel shows, in its order, as its header stands them over its
-// rows, which widen its columns; none while the headers are hidden, as a test of the rows alone asks. A sort's mark
-// stands on the rule under the name, not after it, so sorting never widens a column.
+// names gives the labels of a stage's columns that its panel shows, in its order, as table.HeaderNames gives them;
+// none while the headers are hidden, as a test of the rows alone asks.
 func (m Model) names(i int) []string {
 	if m.noHeaders {
 		return nil
 	}
-	names, p := m.shownColumns(i), m.filter(i)
-	for k, name := range names {
-		names[k] = p.Label(name)
-	}
-	return names
+	return table.HeaderNames(m.filter(i), columnsOf(m.stages[i].name))
 }
 
-// shownColumns gives the ids of a stage's columns its panel shows, in its order, one a cell of its rows, and none for a
-// column without a label.
+// shownColumns gives the ids of a stage's columns its panel shows, in its order, as table.ShownColumns gives them.
 func (m Model) shownColumns(i int) []string {
-	p := m.filter(i)
-	var names []string
-	for _, name := range p.Arrange(columnsOf(m.stages[i].name)) {
-		if name == "" || p.Shows(name) {
-			names = append(names, name)
-		}
-	}
-	return names
+	return table.ShownColumns(m.filter(i), columnsOf(m.stages[i].name))
 }
 
 // header gives the lines that stand over the selected stage's rows, as laid places them, and whether they hide lines
@@ -321,16 +231,14 @@ func (m Model) header() (lines []string, hides bool) {
 }
 
 // headerLines gives the header's lines and whether they hide lines while closed, as header says, whether a row shows or
-// not.
+// not: as table.Headed gives them, then the rule under them, as rule draws it.
 func (m Model) headerLines() (lines []string, hides bool) {
 	if len(m.stages) == 0 {
 		return nil, false
 	}
 	if s := m.stages[m.stage]; !m.noHeaders && !s.src.Loading && s.refusal == "" && !s.planned {
-		lines, hides = grid.Header(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), s.Open[table.HeaderKey])
-		for k := range lines {
-			lines[k] = strings.Repeat(" ", m.indent(m.stage)) + lines[k]
-		}
+		lines, hides = table.Headed(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), m.indent(m.stage),
+			s.Open[table.HeaderKey])
 	}
 	if len(lines) == 0 {
 		return nil, false
@@ -338,19 +246,8 @@ func (m Model) headerLines() (lines []string, hides bool) {
 	return append(lines, m.rule()), hides
 }
 
-// rule gives the line under the header, as wide as the pane: blank up to the first column, past the gutter and the
-// rows' indent, then a thin dim line, each sort's mark on it under its column's name, as sortSpots places them, where
-// the line reaches; and, where there is no control line to say it, how many rows are selected at its right end, in
-// the accent, when some are.
-func (m Model) rule() string {
-	right := ""
-	if n := m.selected(); n > 0 && !m.controls() {
-		right = style.Tint(" "+strconv.Itoa(n)+" selected ") + style.Off("─")
-	}
-	from := m.indent(m.stage) + len(lead)
-	fill := max(1, m.paneWidth()-from-ansi.StringWidth(right))
-	return ansi.Truncate(strings.Repeat(" ", from)+m.ruleFill(from, fill)+right, m.paneWidth(), "")
-}
+// rule gives the line under the header, as table.Rule draws it, each sort's mark on it as sortSpots places them.
+func (m Model) rule() string { return table.Rule(&m, m.sortSpots()) }
 
 // controls says whether the selected stage's pane starts with its control line: where its rows group, or it has a
 // preset line.
@@ -358,35 +255,16 @@ func (m Model) controls() bool {
 	return len(m.stages) > 0 && (m.presets(m.stage) || m.barText() != "")
 }
 
-// control gives the control line, the pane's first, as wide as the pane, and the screen column the preset's selector
-// starts on, -1 where the stage has no preset line: the heading over the groups, from table.BarLeft, where the rows group,
-// as internal/grid draws it; and at the line's right end, how many rows are selected, in the accent, when some are,
-// then, where the stage has a preset line, a chip per filter the panel sets, as chips gives them, and the selector, as
-// presetLine draws it. The chips are clipped first where the line is short, then the heading.
+// control gives the control line, the pane's first, as table.Control draws it, and the screen column the preset's
+// selector starts on, -1 where the stage has no preset line: the heading over the groups, from table.BarLeft, where the
+// rows group, the stop the keyboard stands on drawn as focusStop says; and, where the stage has a preset line, the
+// selector, as presetLine draws it.
 func (m Model) control() (string, int) {
-	width, right, tail := m.paneWidth(), "", ""
-	if n := m.selected(); n > 0 {
-		right = style.Tint(strconv.Itoa(n)+" selected") + "  "
-	}
-	left := m.focusStop(strings.Repeat(" ", table.BarLeft) + m.barText())
+	left, tail := m.focusStop(strings.Repeat(" ", table.BarLeft)+m.barText()), ""
 	if m.presets(m.stage) {
 		tail = m.presetLine()
-		if chips := table.Chips(&m); len(chips) > 0 {
-			// two spaces either side of the chips
-			room := width - ansi.StringWidth(left) - 2 - ansi.StringWidth(right) - 2 - ansi.StringWidth(tail)
-			if room > 1 {
-				right += ansi.Truncate(strings.Join(chips, "  "), room, "…") + "  "
-			}
-		}
 	}
-	room := max(0, width-ansi.StringWidth(right)-ansi.StringWidth(tail)-1)
-	left = ansi.Truncate(left, room, "…")
-	fill := max(1, width-ansi.StringWidth(left)-ansi.StringWidth(right)-ansi.StringWidth(tail))
-	line := ansi.Truncate(left+strings.Repeat(" ", fill)+right+tail, width, "")
-	if tail == "" {
-		return line, -1
-	}
-	return line, ansi.StringWidth(left) + fill + ansi.StringWidth(right)
+	return table.Control(&m, left, tail)
 }
 
 // presetTop gives the screen line the preset line is drawn on, the control line.
@@ -472,35 +350,13 @@ func (m Model) drawnFor(i int, rows []row, chosen int) string {
 	return b.String()
 }
 
-// draw draws a stage's rows as allLines says, the one under the cursor, chosen, on a band; -1 for none.
+// draw draws a stage's rows as allLines says, the one under the cursor, chosen, on a band; -1 for none: as a
+// table.Drawing draws them, in the stage's color.
 func (m Model) draw(i int, rows []row, chosen int) []table.Line {
 	s := m.stages[i]
-	marked, _ := style.In(stageColors[s.name])
-	groups := table.GroupMarks(m.every(i), m.stages[i].Picked)
-	drawn := grid.Draw(rows, m.names(i), m.gridWidth(i), chosen, s.Open.Open,
-		func(r row) string {
-			switch {
-			case grid.Heads(r) && groups[r.Key] != "":
-				return marked(groups[r.Key])
-			case s.Picked[r.Key] && !r.Aside:
-				return marked(grid.Chosen)
-			}
-			return ""
-		})
-	out := make([]table.Line, len(drawn))
-	indent := strings.Repeat(" ", m.indent(i))
-	for k, l := range drawn {
-		text := l.Text
-		if !rows[l.Row].Aside {
-			text = indent + text
-		}
-		if l.Row == chosen {
-			// the band runs the pane's width, over the indent and past a heading's end, as the grid lays it out narrower
-			text = style.Band(text, m.paneWidth())
-		}
-		out[k] = table.Line{Row: l.Row, Text: text}
-	}
-	return out
+	d := table.Drawing{Names: m.names(i), Width: m.gridWidth(i), Pane: m.paneWidth(), Indent: m.indent(i), Open: s.Open,
+		Picked: s.Picked, Color: stageColors[s.name]}
+	return d.Draw(rows, chosen)
 }
 
 // indent gives the cells a stage's rows, and its header, stand in by, under the headings of its groups: two a level,
@@ -514,9 +370,8 @@ func (m Model) gridWidth(i int) int { return m.paneWidth() - m.indent(i) }
 // keeps it on the screen while the keys bar is hidden.
 func (m Model) Noticing() bool { return m.note.Text != "" }
 
-// lead is what stands before the rule under the header: the gutter the rows' marks and folds take, as internal/grid
-// lays it out, two cells for the selection and two for the ▸ or ▾.
-const lead = "    "
+// lead is what stands before the rule under the header, as table.Lead says.
+const lead = table.Lead
 
 // presets says whether a stage's table has a preset line: one with columns, the views of which it names.
 func (m Model) presets(i int) bool { return !m.noPresets && m.columnar(i) }

@@ -3,10 +3,8 @@ package flow
 
 import (
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/shell"
-	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
@@ -48,72 +46,21 @@ func (m *Model) toControls() {
 	}
 }
 
-// headingKey takes a key while the keyboard stands on a stop of the heading over the groups: tab and shift-tab move
-// between the stops, and tab past the last to the preset picker; right opens the stop's level and left closes it;
-// enter on a name drops its column's menu, and on the rows' opens or closes their level, as space does on any stop;
-// up or esc gives the bar the keyboard, and down the rows, when the stage has some.
-func (m *Model) headingKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
-	stop, _ := m.atStop()
-	switch k.String() {
-	case "shift+tab":
-		m.stop = max(0, m.stop-1)
-	case "tab":
-		if m.stop < len(m.stops())-1 {
-			m.stop++
-		} else if m.presets(m.stage) {
-			m.stop = -1
-		}
-	case "right", "left":
-		// right opens a level closed, and left closes one open; either leaves it as it is otherwise
-		if open := m.stages[m.stage].Open.Shows(stop.Level); open == (k.String() == "left") {
-			table.ToggleLevel(m, stop.Level)
-		}
-	case "enter":
-		if stop.Column != "" {
-			m.openFieldMenu(stop.Column)
-			return nil, true
-		}
-		table.ToggleLevel(m, stop.Level)
-	case "space":
-		table.ToggleLevel(m, stop.Level)
-	case "esc", "up":
-		m.onPreset = false
-	case "down":
-		if len(m.rows(m.stage)) > 0 {
-			m.enter()
-		}
-	default:
-		return nil, false
-	}
-	return nil, true
-}
+// headingKey takes a key while the keyboard stands on a stop of the heading over the groups, as table.HeadingKey says.
+func (m *Model) headingKey(k tea.KeyPressMsg) (tea.Cmd, bool) { return nil, table.HeadingKey(m, k) }
 
-// headingKeys gives the segment of a stop of the heading over the groups while it has the keyboard: up or esc gives
-// the bar the keyboard, down the rows, tab and shift-tab move, left and right close and open the stop's level, and
-// enter drops a name's column menu.
+// headingKeys gives the segment of a stop of the heading over the groups while it has the keyboard, as
+// table.HeadingKeys says.
 func (m *Model) headingKeys(stop table.Stop) shell.Segment {
-	s := shell.Segment{Bindings: []shell.Binding{shell.Bind("↑", tabsHint, "up"), shell.Bind("esc", tabsHint)}}
-	if len(m.rows(m.stage)) > 0 {
-		s.Bindings = append(s.Bindings, shell.Bind("↓", "rows", "down"))
-	}
-	// tab and shift-tab move where there is another stop, or the preset picker, to move to
-	if len(m.stops()) > 1 || m.presets(m.stage) {
-		s.Bindings = append(s.Bindings, shell.Bind("⇥·⇧⇥", "move", "tab", "shift+tab"))
-	}
-	s.Bindings = append(s.Bindings, shell.Bind("←→", "fold", "left", "right"))
-	if stop.Column != "" {
-		return s.With(shell.Bind("⏎", "menu", "enter"))
-	}
-	return s
+	return table.HeadingKeys(m, stop, m.presets(m.stage))
 }
 
-// focusStop draws the stop the keyboard stands on in the control line's left part, as the line under the keyboard in a
-// menu is drawn; the rest as it is.
+// focusStop draws the stop the keyboard stands on in the control line's left part, as table.FocusStop draws it; the
+// rest as it is.
 func (m *Model) focusStop(left string) string {
 	stop, ok := m.atStop()
 	if !ok {
 		return left
 	}
-	return ansi.Cut(left, 0, stop.From) + style.Selected(ansi.Cut(left, stop.From, stop.Until)) +
-		ansi.Cut(left, stop.Until, ansi.StringWidth(left))
+	return table.FocusStop(left, stop)
 }

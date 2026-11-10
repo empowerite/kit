@@ -123,3 +123,20 @@ func (m *Model) openPopover(id string, x, y int, header bool) tea.Cmd {
 	m.pop = table.OpenPopover(m, id, x, y, header)
 	return m.askMe()
 }
+
+var _ table.Keyboard = (*Model)(nil)
+
+// Stop gives the stop of the heading over the groups the keyboard stands on, -1 the preset picker.
+func (m *Model) Stop() int { return m.stop }
+
+// SetStop puts the keyboard on a stop of the heading over the groups, -1 the preset picker.
+func (m *Model) SetStop(k int) { m.stop = k }
+
+// LeaveControls gives up the control line's keyboard, to the bar.
+func (m *Model) LeaveControls() { m.onPreset = false }
+
+// OpenFieldMenu drops the column menu around a column's name in the heading over the groups, as openFieldMenu does.
+func (m *Model) OpenFieldMenu(column string) { m.openFieldMenu(column) }
+
+// HasPresets says whether the selected stage's table has a preset line.
+func (m *Model) HasPresets() bool { return m.presets(m.stage) }

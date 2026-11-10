@@ -39,81 +39,26 @@ func readCatalog(data []byte) table.Catalog {
 	return c
 }
 
-// fieldsOf gives a stage's fields, in the order its columns stand; none for a stage without columns.
-func fieldsOf(stage string) []table.Field {
-	if s := catalog[stage]; s != nil {
-		return s.Fields
-	}
-	return nil
-}
+// fieldsOf gives a stage's fields, in the order its columns stand, as table.Schema's Of says; none for a stage without
+// columns.
+func fieldsOf(stage string) []table.Field { return catalog[stage].Of() }
 
-// columnsOf gives the names the panel knows a stage's columns by, in the order they stand: each field's id, and none
-// for a field without a label, which the panel's editor never lists nor moves, and never sorts or groups by.
-func columnsOf(stage string) []string {
-	var out []string
-	for _, f := range fieldsOf(stage) {
-		if f.Label == "" {
-			out = append(out, "")
-			continue
-		}
-		out = append(out, f.ID)
-	}
-	return out
-}
+// columnsOf gives the names the panel knows a stage's columns by, in the order they stand, as table.Schema's Columns
+// says.
+func columnsOf(stage string) []string { return catalog[stage].Columns() }
 
-// labelsOf gives the label of each of a stage's fields that has one, by its id, as the panel lists them.
-func labelsOf(stage string) map[string]string {
-	out := map[string]string{}
-	for _, f := range fieldsOf(stage) {
-		if f.Label != "" {
-			out[f.ID] = f.Label
-		}
-	}
-	return out
-}
+// sortableOf names a stage's columns its rows can sort by, as table.Schema's Sortable says.
+func sortableOf(stage string) map[string]bool { return catalog[stage].Sortable() }
 
-// able gives the ids of a stage's fields that can, as can says, as a set.
-func able(stage string, can func(table.Field) bool) map[string]bool {
-	out := map[string]bool{}
-	for _, f := range fieldsOf(stage) {
-		if f.Label != "" && can(f) {
-			out[f.ID] = true
-		}
-	}
-	return out
-}
+// onesOf names one value of each of a stage's fields that holds a list, as table.Schema's Ones says.
+func onesOf(stage string) map[string]string { return catalog[stage].Ones() }
 
-// sortableOf names a stage's columns its rows can sort by: a value that orders.
-func sortableOf(stage string) map[string]bool {
-	return able(stage, func(f table.Field) bool { return f.Sort })
-}
+// groupableOf names a stage's columns its rows can group by, as table.Schema's Groupable says.
+func groupableOf(stage string) map[string]bool { return catalog[stage].Groupable() }
 
-// onesOf names one value of each of a stage's fields that holds a list, by its id: a field the rows can flatten.
-func onesOf(stage string) map[string]string {
-	out := map[string]string{}
-	for _, f := range fieldsOf(stage) {
-		if f.Label != "" && f.One != "" {
-			out[f.ID] = f.One
-		}
-	}
-	return out
-}
-
-// groupableOf names a stage's columns its rows can group by: a value many rows share.
-func groupableOf(stage string) map[string]bool {
-	return able(stage, func(f table.Field) bool { return f.Group })
-}
-
-// ownerOf gives the id of the person field that names the people a stage's rows belong to, whose filter the panel
-// sets as every row, the caller's, or everyone else's; none for a stage whose rows belong to nobody.
-func ownerOf(stage string) string {
-	for _, f := range fieldsOf(stage) {
-		if f.Owns {
-			return f.ID
-		}
-	}
-	return ""
-}
+// ownerOf gives the id of the person field that names the people a stage's rows belong to, as table.Schema's Owner
+// says; none for a stage whose rows belong to nobody.
+func ownerOf(stage string) string { return catalog[stage].Owner() }
 
 // The renderers of kit flow's own values, registered with the table's by the names fields.json gives them, and whether
 // each draws a glyph before a value.

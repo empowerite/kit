@@ -16,7 +16,7 @@ import (
 // layers gives the picture's layers, the topmost first.
 func (m Model) layers() shell.Layers[Model] {
 	menu := func(Model) shell.Segment { return shell.MenuKeys() }
-	return shell.Layers[Model]{
+	layers := shell.Layers[Model]{
 		{ // what a backlog action asks
 			Open: func(m Model) bool { return m.ask != nil },
 			Key:  model(Model.askKey),
@@ -29,91 +29,17 @@ func (m Model) layers() shell.Layers[Model] {
 				return shell.Over(lines, box, m.top()+1, left)
 			},
 		},
-		{ // a field's popover
-			Open: func(m Model) bool { return m.pop.Open },
-			Key: func(m Model, k tea.KeyPressMsg) (Model, tea.Cmd) {
-				m.pop.Key(&m, k)
-				return m, nil
-			},
-			Click: func(m Model, c tea.MouseClickMsg) (Model, tea.Cmd, bool) {
-				m.pop.Click(&m, c.X, c.Y)
-				return m, nil, true
-			},
-			Keys: func(m Model) shell.Segment { return m.pop.Keys(&m) },
-			Draw: func(m Model, lines []string) []string {
-				box, top, left := m.pop.Box(&m)
-				return shell.Over(lines, box, top, left)
-			},
-		},
-		{ // the fields dialog
-			Open: func(m Model) bool { return m.cols.Open },
-			Key: func(m Model, k tea.KeyPressMsg) (Model, tea.Cmd) {
-				// enter opens the field's popover over it, which asks kit for the caller's login
-				if pop, ok := m.cols.Key(&m, k); ok {
-					m.pop = pop
-					return m, m.askMe()
-				}
-				return m, nil
-			},
-			Click: func(m Model, c tea.MouseClickMsg) (Model, tea.Cmd, bool) {
-				m.cols.Click(&m, c.X, c.Y, c.Mod&tea.ModShift != 0)
-				return m, nil, true
-			},
-			Keys: func(m Model) shell.Segment { return m.cols.Keys(&m) },
-			Draw: func(m Model, lines []string) []string {
-				box, top, left := m.cols.Box(&m)
-				return shell.Over(lines, box, top, left)
-			},
-		},
-		{ // the presets' menu
-			Open: func(m Model) bool { return m.presetsMenu.Open },
-			Key: func(m Model, k tea.KeyPressMsg) (Model, tea.Cmd) {
-				if chosen := m.presetsMenu.Key(&m, k); chosen >= 0 {
-					m.choosePreset(chosen)
-				}
-				return m, nil
-			},
-			Click: func(m Model, c tea.MouseClickMsg) (Model, tea.Cmd, bool) {
-				if chosen := m.presetsMenu.Click(&m, c.X, c.Y); chosen >= 0 {
-					m.choosePreset(chosen)
-				}
-				return m, nil, true
-			},
-			Keys: menu,
-			Draw: func(m Model, lines []string) []string {
-				box, top, left := m.presetsMenu.Box(&m)
-				return shell.Over(lines, box, top, left)
-			},
-		},
-		{ // the column menu, which moves its column too
-			Open: func(m Model) bool { return m.colMenu.Open },
-			Key: func(m Model, k tea.KeyPressMsg) (Model, tea.Cmd) {
-				// Options… opens the field's popover, which asks kit for the caller's login
-				if pop, ok := m.colMenu.Key(&m, k); ok {
-					m.pop = pop
-					return m, m.askMe()
-				}
-				return m, nil
-			},
-			Click: func(m Model, c tea.MouseClickMsg) (Model, tea.Cmd, bool) {
-				if pop, ok := m.colMenu.Click(&m, c.X, c.Y); ok {
-					m.pop = pop
-					return m, m.askMe(), true
-				}
-				return m, nil, true
-			},
-			Keys: func(m Model) shell.Segment {
-				keys := shell.MenuKeys()
-				keys.Bindings = append(keys.Bindings, table.ShiftKeys(&m, m.colMenu.Column)...)
-				return keys
-			},
-			Draw: func(m Model, lines []string) []string {
-				if box, top, left := m.colMenu.Box(&m); len(box) > 0 {
-					return shell.Over(lines, box, top, left)
-				}
-				return lines
-			},
-		},
+	}
+	layers = append(layers, table.Overlays[Model]{
+		Host:    func(m *Model) table.Host { return m },
+		Pop:     func(m *Model) *table.Popover { return &m.pop },
+		Cols:    func(m *Model) *table.Columns { return &m.cols },
+		Presets: func(m *Model) *table.PresetMenu { return &m.presetsMenu },
+		Column:  func(m *Model) *table.ColumnMenu { return &m.colMenu },
+		Popped:  (*Model).askMe,
+		Choose:  (*Model).choosePreset,
+	}.Layers()...)
+	return append(layers, shell.Layers[Model]{
 		{ // the searches remembered, one chosen searched again
 			Open: func(m Model) bool { return m.recent.Open },
 			Key: func(m Model, k tea.KeyPressMsg) (Model, tea.Cmd) {
@@ -180,7 +106,7 @@ func (m Model) layers() shell.Layers[Model] {
 				return shell.Over(lines, box, m.menuTop(), left)
 			},
 		},
-	}
+	}...)
 }
 
 // booksAt gives the column the title's workspace menu starts at.

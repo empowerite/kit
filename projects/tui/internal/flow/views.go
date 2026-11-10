@@ -25,7 +25,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
-	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
@@ -232,51 +231,19 @@ func (m *Model) apply(v table.Preset) {
 	m.fit()
 }
 
-// presetKey takes a key while the keyboard is on the preset line, and says whether it did: up and esc give the bar the
-// keyboard, and down the rows, when the stage has some; enter and space drop the presets down. While a name is typed
-// for Save As… or Rename…, what is typed is the name, = : and ; apart, which the menus take; enter saves under it, or
-// renames, esc stops, and up and down stop too, and move as ever.
+// presetKey takes a key while the keyboard is on the preset line, and says whether it did, as table.PresetKey says;
+// it saves under the name typed, or renames, or drops the presets down, where the key asks it to.
 func (m *Model) presetKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
-	s := &m.stages[m.stage]
-	key := k.String()
-	if s.SavingAs {
-		switch {
-		case key == "up" || key == "down":
-			s.SavingAs, s.Naming, s.Renaming = false, "", ""
-		case key == "esc":
-			s.SavingAs, s.Naming, s.Renaming = false, "", ""
-			return nil, true
-		case key == "enter" && s.Renaming != "":
-			m.renamePreset()
-			return nil, true
-		case key == "enter":
-			return m.savePreset(), true
-		case key == "backspace" || k.Text != "" && !strings.ContainsAny(k.Text, "=:;"):
-			s.Naming, _ = shell.Type(s.Naming, k)
-			return nil, true
-		default:
-			return nil, false
-		}
-	}
-	switch key {
-	case "shift+tab":
-		n := len(m.stops())
-		if n == 0 {
-			return nil, false
-		}
-		m.stop = n - 1
-	case "esc", "up":
-		m.onPreset = false
-	case "down":
-		if len(m.rows(m.stage)) > 0 {
-			m.enter()
-		}
-	case "enter", "space":
+	do, took := table.PresetKey(m, k)
+	switch do {
+	case table.DoSave:
+		return m.savePreset(), true
+	case table.DoRename:
+		m.renamePreset()
+	case table.DoDrop:
 		m.presetsMenu = m.presetsMenu.Drop(m)
-	default:
-		return nil, false
 	}
-	return nil, true
+	return nil, took
 }
 
 // own gives the person's view the selected stage's preset line was set to, and whether it is one: a stage's own is
