@@ -186,6 +186,24 @@ and stderr, nothing opens: a verb short of an argument refuses in one line, as b
 
 see: [modules.md](modules.md#writing-a-verb)
 
+kittui's app menu, under `=` on every screen's title line, lists the guides, then the apps. Each app is built around
+one entity: its first tab is that entity's home, and its other tabs the entities around it. A tab kit has no data
+source for yet says so, and loads nothing.
+
+| App | Its entity | Its tabs |
+| --- | --- | --- |
+| Issues | the issue | backlog, underway, iterations, milestones |
+| Changes | the pull or merge request | changes, reviews, checks, merged |
+| Repositories | the repository | repos, worktrees, branches, commits, tags, remotes, incoming |
+| Delivery | the release | releases, builds, artifacts, environments, deployments |
+| People | the person | people, teams, agents |
+| Trust | the evidence | evidence, findings, controls, waivers, policy |
+| Platform | the service | services, toolchains, tools, settings |
+
+`kit flow` opens Issues, and `kit flow <stage>` the app with that tab, on the tab; `kit flow desk` is Repositories'
+worktrees, the desk first. `kit workspace` opens Repositories. Iterations, milestones, reviews, checks, merged,
+artifacts, environments, deployments, and every tab of People, Trust, and Platform have no data source yet.
+
 ## Code forges and trackers
 
 - A code forge is the service that hosts the repository. kit works with GitHub through `gh` and with GitLab through

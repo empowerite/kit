@@ -25,7 +25,7 @@ var workspaceStages = []string{"workspace/repos", "workspace/remotes", "workspac
 // workspaceOptions gives kit workspace's stages, as a test knows them, the tables without their preset line.
 func workspaceOptions() Options {
 	o := options()
-	o.Verb, o.Stages = workspaceVerb, workspaceStages
+	o.App, o.Stages = shell.Repositories, workspaceStages
 	return o
 }
 
@@ -49,13 +49,14 @@ func valueOf(t *testing.T, m Model, name, key, id string) string {
 	return ""
 }
 
-// OpenWorkspace reads kit workspace's stages, names them after workspace/, and opens on the one the words name,
-// maximized; the title, the tabs, and the app's menu say the workspace's names, not the workspace/ kittui knows.
-func TestOpenWorkspaceReadsKitWorkspacesStages(t *testing.T) {
+// Repositories reads kit workspace's stages and kit flow's, names kit workspace's after workspace/, keeps them in its
+// own order, incoming last, and opens on the one the words name, maximized; the title, the tabs, and the app's menu
+// say the app's names, not the workspace/ kittui knows.
+func TestRepositoriesReadsKitWorkspacesStagesAndIncoming(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
-	m, err := OpenWorkspace(runner(t), nil)
+	m, err := OpenApp(runner(t), shell.Repositories, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,14 +64,16 @@ func TestOpenWorkspaceReadsKitWorkspacesStages(t *testing.T) {
 	for _, s := range m.stages {
 		names = append(names, s.name)
 	}
-	if !slices.Equal(names, workspaceStages) || m.appMenu.Here != shell.Workspace {
+	want := []string{"workspace/repos", "workspace/worktrees", "workspace/branches", "workspace/commits",
+		"workspace/tags", "workspace/remotes", "incoming"}
+	if !slices.Equal(names, want) || m.appMenu.Here != shell.Repositories {
 		t.Errorf("the stages %q, the menu on %q", names, m.appMenu.Here)
 	}
-	if got := calls(t, record); strings.Join(got, "\n") != "workspace --stages" {
-		t.Errorf("OpenWorkspace ran %q", got)
+	if got := calls(t, record); strings.Join(got, "\n") != "workspace --stages\nflow --stages" {
+		t.Errorf("OpenApp ran %q", got)
 	}
 	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 24})
-	if top := lines(m)[0]; !strings.Contains(top, "kit workspace") {
+	if top := lines(m)[0]; !strings.Contains(top, "kit repositories") {
 		t.Errorf("the title: %q", top)
 	}
 	for _, s := range m.bar().Tabs {
@@ -78,11 +81,11 @@ func TestOpenWorkspaceReadsKitWorkspacesStages(t *testing.T) {
 			t.Errorf("a tab named %q", s.Name)
 		}
 	}
-	if m, err = OpenWorkspace(runner(t), []string{"branches"}); err != nil {
+	if m, err = OpenApp(runner(t), shell.Repositories, []string{"branches"}); err != nil {
 		t.Fatal(err)
 	}
 	if m.stages[m.stage].name != "workspace/branches" || !m.maximized {
-		t.Errorf("OpenWorkspace branches: on %q, maximized %v", m.stages[m.stage].name, m.maximized)
+		t.Errorf("OpenApp branches: on %q, maximized %v", m.stages[m.stage].name, m.maximized)
 	}
 }
 

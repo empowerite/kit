@@ -22,9 +22,14 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
-// appLabel gives the screen's name on the title line, after the app menu's =, its verb's command; a click on either
-// drops the menu down.
-func (m Model) appLabel() string { return "kit " + m.verb }
+// appLabel gives the screen's name on the title line, after the app menu's =, kit and its app's name, or kit flow for
+// the picture alone; a click on either drops the menu down.
+func (m Model) appLabel() string {
+	if m.app == "" {
+		return "kit flow"
+	}
+	return "kit " + string(m.app)
+}
 
 // top gives the screen line the pane starts on: right under the bar, which is open there to the selected tab; or,
 // maximized, under the title and the banner, the line under it in the tab's color.
@@ -250,12 +255,14 @@ func (m Model) menuBar() shell.MenuBar {
 	return b
 }
 
-// count gives a stage's count for its tab: … while it loads, ! when its command failed, nothing for an incoming
-// that did not fetch, else the rows it loaded but the asides, as incoming's headings, however few the panel lets
-// through.
+// count gives a stage's count for its tab: nothing for one planned, … while it loads, ! when its command failed,
+// nothing for an incoming that did not fetch, else the rows it loaded but the asides, as incoming's headings, however
+// few the panel lets through.
 func (m Model) count(i int) string {
 	s := m.stages[i]
 	switch {
+	case s.planned:
+		return ""
 	case s.src.Loading:
 		return "…"
 	case s.refusal != "":
@@ -318,7 +325,7 @@ func (m Model) headerLines() (lines []string, hides bool) {
 	if len(m.stages) == 0 {
 		return nil, false
 	}
-	if s := m.stages[m.stage]; !m.noHeaders && !s.src.Loading && s.refusal == "" {
+	if s := m.stages[m.stage]; !m.noHeaders && !s.src.Loading && s.refusal == "" && !s.planned {
 		lines, hides = grid.Header(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), s.Open[table.HeaderKey])
 		for k := range lines {
 			lines[k] = strings.Repeat(" ", m.indent(m.stage)) + lines[k]
@@ -405,12 +412,14 @@ func (m Model) pane() []string {
 	return out
 }
 
-// allLines gives a stage's lines: loading, kit's line when it failed, the dim line of an empty stage, or of one whose
-// panel lets no row through, or its rows as the grid draws them, the one under the cursor on a band while the rows have
-// the keyboard.
+// allLines gives a stage's lines: the dim line of one planned, loading, kit's line when it failed, the dim line of an
+// empty stage, or of one whose panel lets no row through, or its rows as the grid draws them, the one under the cursor
+// on a band while the rows have the keyboard.
 func (m Model) allLines(i int) []table.Line {
 	s := m.stages[i]
 	switch {
+	case s.planned:
+		return []table.Line{{Row: -1, Text: lead + style.Off(label(s.name)+" has no data source yet")}}
 	case s.src.Loading:
 		return []table.Line{{Row: -1, Text: lead + style.Off("loading")}}
 	case s.refusal != "":

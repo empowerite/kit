@@ -38,21 +38,21 @@ func typed(text string) []tea.Msg { return testkit.Typed(text) }
 
 func TestAScreenIsMadeWhenFirstShownAndKeptAsItWasLeft(t *testing.T) {
 	m := help(t)
-	if _, made := m.made[shell.Flow]; made || !strings.Contains(ansi.Strip(m.View().Content), "kit help") {
+	if _, made := m.made[shell.Issues]; made || !strings.Contains(ansi.Strip(m.View().Content), "kit help") {
 		t.Fatalf("the help's palette, alone:\n%s", ansi.Strip(m.View().Content))
 	}
 	// the filter typed in the palette stays there while the picture is shown, and when the palette is shown again
 	m, _ = testkit.Drive(m, nil, typed("com")...)
-	m, _ = testkit.Drive(m, nil, shell.SwitchMsg{Screen: shell.Flow})
-	if m.here != shell.Flow || !strings.Contains(ansi.Strip(m.View().Content), "kit flow") {
+	m, _ = testkit.Drive(m, nil, shell.SwitchMsg{Screen: shell.Issues})
+	if m.here != shell.Issues || !strings.Contains(ansi.Strip(m.View().Content), "kit issues") {
 		t.Fatalf("the picture is not shown:\n%s", ansi.Strip(m.View().Content))
 	}
 	if _, ok := m.Shown().(flow.Model); !ok {
 		t.Errorf("the screen shown is %T", m.Shown())
 	}
-	// the workspace's picture is a screen of its own, beside the flow's, on kit workspace's stages
-	m, _ = testkit.Drive(m, nil, shell.SwitchMsg{Screen: shell.Workspace})
-	if v := ansi.Strip(m.View().Content); m.here != shell.Workspace || !strings.Contains(v, "kit workspace") ||
+	// Repositories is a screen of its own, beside Issues, on kit workspace's stages
+	m, _ = testkit.Drive(m, nil, shell.SwitchMsg{Screen: shell.Repositories})
+	if v := ansi.Strip(m.View().Content); m.here != shell.Repositories || !strings.Contains(v, "kit repositories") ||
 		!strings.Contains(v, "branches") {
 		t.Fatalf("the workspace is not shown:\n%s", v)
 	}
@@ -65,8 +65,8 @@ func TestAScreenIsMadeWhenFirstShownAndKeptAsItWasLeft(t *testing.T) {
 		t.Errorf("the palette shown again has %d lines", len(lines))
 	}
 	// an answer for the hidden picture reaches it, not the palette
-	m, _ = testkit.Drive(m, nil, tagged{to: shell.Flow, msg: tea.WindowSizeMsg{Width: 70, Height: 20}})
-	if lines := strings.Split(m.made[shell.Flow].View().Content, "\n"); len(lines) != 20 || m.here != shell.Help {
+	m, _ = testkit.Drive(m, nil, tagged{to: shell.Issues, msg: tea.WindowSizeMsg{Width: 70, Height: 20}})
+	if lines := strings.Split(m.made[shell.Issues].View().Content, "\n"); len(lines) != 20 || m.here != shell.Help {
 		t.Errorf("the hidden picture has %d lines, %s shown", len(lines), m.here)
 	}
 	// the welcome is made on its first showing too, beside the palette, the picture, and the workspace's, and an ask
@@ -108,25 +108,25 @@ func TestAScreenThatCannotOpenLeavesTheOneShown(t *testing.T) {
 // another, and what the program takes, as quitting, are not.
 func TestWhatAScreenStartsIsTaggedForIt(t *testing.T) {
 	type answer struct{}
-	if tag(shell.Flow, 0, nil) != nil {
+	if tag(shell.Issues, 0, nil) != nil {
 		t.Error("no command was tagged")
 	}
 	for _, c := range []struct {
 		cmd  tea.Cmd
 		want tea.Msg
 	}{
-		{func() tea.Msg { return answer{} }, tagged{to: shell.Flow, msg: answer{}}},
+		{func() tea.Msg { return answer{} }, tagged{to: shell.Issues, msg: answer{}}},
 		{func() tea.Msg { return nil }, nil},
 		{shell.Switch(shell.Help), shell.SwitchMsg{Screen: shell.Help}},
 		{tea.Quit, tea.QuitMsg{}},
 	} {
-		if got := tag(shell.Flow, 0, c.cmd)(); got != c.want {
+		if got := tag(shell.Issues, 0, c.cmd)(); got != c.want {
 			t.Errorf("tagged %#v, want %#v", got, c.want)
 		}
 	}
-	batch := tag(shell.Flow, 0, tea.Batch(func() tea.Msg { return answer{} }, func() tea.Msg { return answer{} }))()
+	batch := tag(shell.Issues, 0, tea.Batch(func() tea.Msg { return answer{} }, func() tea.Msg { return answer{} }))()
 	if cmds, ok := batch.(tea.BatchMsg); !ok || len(cmds) != 2 ||
-		!slices.ContainsFunc(cmds, func(c tea.Cmd) bool { return c() == tagged{to: shell.Flow, msg: answer{}} }) {
+		!slices.ContainsFunc(cmds, func(c tea.Cmd) bool { return c() == tagged{to: shell.Issues, msg: answer{}} }) {
 		t.Errorf("the batch: %#v", batch)
 	}
 }
@@ -220,18 +220,18 @@ func (t told) View() tea.View { return tea.NewView("") }
 // the root follows itself, so a table folds and draws as they say in every view.
 func TestEveryScreenIsToldTheSettings(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	m := New(testkit.Runner(t, "kit"), shell.Flow, told{})
-	if got := m.made[shell.Flow].(told).settings; len(got) != 1 || !got[0].FoldShared {
+	m := New(testkit.Runner(t, "kit"), shell.Issues, told{})
+	if got := m.made[shell.Issues].(told).settings; len(got) != 1 || !got[0].FoldShared {
 		t.Fatalf("made: %+v", got)
 	}
 	m, _ = testkit.Drive(m, nil, tea.WindowSizeMsg{Width: 120, Height: 30}, shell.SwitchMsg{Screen: shell.SettingsScreen},
 		tea.KeyPressMsg{Code: tea.KeyDown}, tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
-	if got := m.made[shell.Flow].(told).settings; len(got) != 2 || got[1].FoldShared {
+	if got := m.made[shell.Issues].(told).settings; len(got) != 2 || got[1].FoldShared {
 		t.Errorf("Auto-group flipped: %+v", got)
 	}
 	// the keys bar flipped is the root's own: the screen is told its size, not the settings
 	m, _ = testkit.Drive(m, nil, tea.KeyPressMsg{Code: tea.KeyUp}, tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
-	if got := m.made[shell.Flow].(told).settings; len(got) != 2 {
+	if got := m.made[shell.Issues].(told).settings; len(got) != 2 {
 		t.Errorf("the keys bar flipped told the screen: %+v", got)
 	}
 }

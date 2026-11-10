@@ -62,7 +62,7 @@ func TestThePictureEndsZeroOnQuitAnd130OnCtrlC(t *testing.T) {
 		{tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl}, 0},
 		{tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}, 130},
 	} {
-		m, err := flow.Open(testkit.Runner(t, "flow"), nil)
+		m, err := flow.OpenApp(testkit.Runner(t, "flow"), shell.Issues, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -96,7 +96,7 @@ func TestTheGuideEndsZeroOnQuitAnd130OnCtrlC(t *testing.T) {
 
 func TestARefusalOfTheStagesPrintsKitsLineWithItsCode(t *testing.T) {
 	t.Setenv("FAKE_FLOW_REFUSE", "stages")
-	_, err := flow.Open(testkit.Runner(t, "flow"), nil)
+	_, err := flow.OpenApp(testkit.Runner(t, "flow"), shell.Issues, nil)
 	var stderr bytes.Buffer
 	if code := refuse(err, &stderr); code != 2 || stderr.String() != "❌ kit flow refuses for the test; run: kit help flow\n" {
 		t.Errorf("exit %d, stderr %q", code, stderr.String())
@@ -341,6 +341,28 @@ func TestTutorialsOpensItsScreen(t *testing.T) {
 		t.Errorf("open: %s, %T, %v", screen, m, err)
 	}
 	m.(tutorials.Model).Close()
+}
+
+// kit flow and kit workspace open the app with the tab their words name, maximized on it: kit flow's desk is
+// Repositories' worktrees; with no tab named, kit flow opens Issues and kit workspace Repositories.
+func TestFlowAndWorkspaceOpenTheAppWithTheTabNamed(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	r := testkit.Runner(t, "flow")
+	for _, c := range []struct {
+		verb  string
+		words []string
+		want  shell.Screen
+	}{
+		{"flow", nil, shell.Issues}, {"flow", []string{"changes"}, shell.Changes},
+		{"flow", []string{"desk"}, shell.Repositories}, {"workspace", nil, shell.Repositories},
+	} {
+		screen, m, err := open(r, c.verb, c.words)
+		if _, ok := m.(flow.Model); err != nil || !ok || screen != c.want {
+			t.Errorf("kit %s %q: %s, %T, %v", c.verb, c.words, screen, m, err)
+			continue
+		}
+		m.(flow.Model).Close()
+	}
 }
 
 func TestFlowTakesTheWorkspaceFromItsWords(t *testing.T) {

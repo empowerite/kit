@@ -344,10 +344,10 @@ func TestTheAppMenuSwitchesAndQuits(t *testing.T) {
 		t.Fatal("a click on the screen's name did not drop the menu down")
 	}
 	_, msgs = testkit.Drive(m, switched, testkit.Click(4, shell.Top+5))
-	if !slices.Contains(msgs, tea.Msg(shell.SwitchMsg{Screen: shell.Flow})) {
-		t.Errorf("a click on Flow asked %v", msgs)
+	if !slices.Contains(msgs, tea.Msg(shell.SwitchMsg{Screen: shell.Issues})) {
+		t.Errorf("a click on Issues asked %v", msgs)
 	}
-	if _, msgs := testkit.Drive(m, nil, testkit.Click(4, shell.Top+10)); !slices.Contains(msgs, tea.Msg(tea.QuitMsg{})) {
+	if _, msgs := testkit.Drive(m, nil, testkit.Click(4, shell.Top+15)); !slices.Contains(msgs, tea.Msg(tea.QuitMsg{})) {
 		t.Errorf("a click on quit: %v", msgs)
 	}
 	if m.chose(shell.Choice{}) != nil {

@@ -17,7 +17,6 @@ package flow
 
 import (
 	"bytes"
-	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -38,13 +37,13 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
-// Options is how the screen opens: the verb whose picture it is, kit flow's, the default, or kit workspace's; the
+// Options is how the screen opens: the app it is, as apps.go defines it, or none for kit flow's picture alone; the
 // stages in the picture's order; the stage it opens on, maximized, when one is
 // named; origin, when known, for the URLs and for the workspace menu until kit says the workspace; whether the fetch
 // is skipped; the filters backlog, underway, and changes take; and whether every stage's headers are hidden, as a test
 // of the rows alone asks.
 type Options struct {
-	Verb      string
+	App       shell.Screen
 	Stages    []string
 	Focus     string
 	Origin    Origin
@@ -69,6 +68,7 @@ type stage struct {
 	name    string
 	src     source.Load[[]byte] // its read, kit flow <stage> --json: loading, stale, its mark, and Watch
 	refusal string              // kit's line, when the command failed
+	planned bool                // whether kit has no data source for the stage yet, so it loads nothing
 	issues  []issue
 	under   []underway
 	ins     []incoming  // incoming's, one a member: one over a repository
@@ -96,8 +96,13 @@ const workspaceVerb = "workspace"
 func ofWorkspace(name string) bool { return strings.HasPrefix(name, workspaceVerb+"/") }
 
 // label gives the name a stage goes by, as kit names it, on its tab and in what the screen says of it: kit
-// workspace's without workspace/.
-func label(name string) string { return strings.TrimPrefix(name, workspaceVerb+"/") }
+// workspace's without workspace/, and one planned without planned/.
+func label(name string) string {
+	if _, after, ok := strings.Cut(name, "/"); ok {
+		return after
+	}
+	return name
+}
 
 // command gives the command line that reads a stage, as the screen names it when the stage fails.
 func command(name string) string {
@@ -112,7 +117,7 @@ const deadline = 2 * time.Minute
 
 // Model is the picture on the screen.
 type Model struct {
-	verb          string // the verb whose picture this is: flow, or workspace
+	app           shell.Screen // the app this is, or none for kit flow's picture alone
 	runner        kit.Runner
 	ctx           context.Context    // ends with the screen, and every stage's command with it
 	cancel        context.CancelFunc // ends ctx
@@ -179,32 +184,9 @@ func (m *Model) rebuild() {
 	m.built = &built{width: m.paneWidth(), stages: map[int]shown{}, lines: map[int]drawnLines{}}
 }
 
-// Open reads the stages from kit and origin from git, and opens the screen on them. The words are kit flow's own: a
-// stage of the picture, which it opens on, maximized, as kit flow <stage> asks; --no-fetch; and the filters backlog,
-// underway, and changes take. Kit's refusal of --stages is the error.
-func Open(r kit.Runner, words []string) (Model, error) {
-	stages, err := r.Stages()
-	if err != nil {
-		return Model{}, err
-	}
-	return open(r, Options{Stages: stages}, words), nil
-}
-
-// OpenWorkspace reads kit workspace's stages from kit, and opens the screen on them, as Open does kit flow's: a stage
-// named among the words is the one it opens on, maximized.
-func OpenWorkspace(r kit.Runner, words []string) (Model, error) {
-	stages, err := r.StagesOf(workspaceVerb)
-	if err != nil {
-		return Model{}, err
-	}
-	for k, name := range stages {
-		stages[k] = workspaceVerb + "/" + name
-	}
-	return open(r, Options{Verb: workspaceVerb, Stages: stages}, words), nil
-}
-
-// open opens the screen on the stages the options name, as Open says, origin read from git, and the words taken: a
-// stage, by the name kit gives it, --no-fetch, and the filters.
+// open opens the screen on the stages the options name, origin read from git, and the words taken, kit flow's own: a
+// stage, by the name its tab gives it, which it opens on, maximized, as kit flow <stage> asks; --no-fetch; and the
+// filters backlog, underway, and changes take.
 func open(r kit.Runner, o Options, words []string) Model {
 	o.Origin, o.Presets, o.History = ReadOrigin(r.Dir), table.PresetsPath(), shell.RecentFile()
 	for _, word := range words {
@@ -225,25 +207,29 @@ func open(r kit.Runner, o Options, words []string) Model {
 // says. A stage kittui does not know shows a line saying so, and runs nothing. The stage named to focus on is
 // selected and maximized, the bar's keys on its title as they are on any maximized tab's.
 func New(r kit.Runner, o Options) Model {
-	m := Model{verb: cmp.Or(o.Verb, "flow"), runner: r, limit: deadline, origin: o.Origin, noFetch: o.NoFetch,
-		filters: o.Filters, width: 80, height: 24, browse: browser, appMenu: shell.Menu{Here: shell.Flow},
+	m := Model{app: o.App, runner: r, limit: deadline, origin: o.Origin, noFetch: o.NoFetch,
+		filters: o.Filters, width: 80, height: 24, browse: browser, appMenu: shell.Menu{Here: o.App},
 		books: shell.BooksMenu{Fallback: o.Origin.Repo}, fold: true, legend: legend{at: bottomRight}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.clock = o.Clock
 	m.quota = source.NewPoll("quota", QuotaEvery, r.Quota)
-	m.marks = source.NewPoll("marks", MarksEvery, r.Marks)
-	if m.verb == workspaceVerb {
-		// its marks are its own stages', named as kittui knows them
-		m.appMenu.Here = shell.Workspace
-		m.marks = source.NewPoll("marks", MarksEvery, func(ctx context.Context) (map[string]string, error) {
-			marks, err := r.MarksOf(ctx, workspaceVerb)
-			named := map[string]string{}
+	// its marks are those of the verbs its stages are of, each named as kittui knows the stage
+	verbs := verbsOf(o.Stages)
+	m.marks = source.NewPoll("marks", MarksEvery, func(ctx context.Context) (map[string]string, error) {
+		named := map[string]string{}
+		var errs []error
+		for _, verb := range verbs {
+			marks, err := r.MarksOf(ctx, verb)
+			errs = append(errs, err)
 			for name, mark := range marks {
-				named[workspaceVerb+"/"+name] = mark
+				if verb == workspaceVerb {
+					name = workspaceVerb + "/" + name
+				}
+				named[name] = mark
 			}
-			return named, err
-		})
-	}
+		}
+		return named, errors.Join(errs...)
+	})
 	m.noHeaders, m.presetsPath, m.noPresets = o.NoHeaders, o.Presets, o.NoPresets
 	m.recent = shell.Recent{Path: o.History}.Loaded()
 	var err error
@@ -255,7 +241,10 @@ func New(r kit.Runner, o Options) Model {
 	for _, name := range o.Stages {
 		s := stage{name: name, src: m.stageLoad(name),
 			Table: table.Table{Open: grid.Outline{}, Picked: map[string]bool{}, ViewName: Opening, Grouping: true}}
-		if !known[name] {
+		switch {
+		case ofPlanned(name):
+			s.src.Loading, s.planned = false, true
+		case !known[name]:
 			s.src.Loading, s.refusal = false, fmt.Sprintf("kittui does not draw the stage '%s'", label(name))
 		}
 		if c := catalog[name]; c != nil {
@@ -298,9 +287,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	n := next.(Model)
 	if a, ok := msg.(source.Answer[[]byte]); ok && !a.Kept {
 		// a load spends the rate limits, and the stage takes the next mark as its own: both are read again; kit
-		// workspace reads no forge, so its picture spends none and reads none
+		// workspace reads no forge, so its stages' loads spend none and read none
 		cmd = tea.Batch(cmd, n.marks.Ask(n.env()))
-		if n.verb != workspaceVerb {
+		if !ofWorkspace(a.Name) {
 			cmd = tea.Batch(cmd, n.quota.Ask(n.env()))
 		}
 	}

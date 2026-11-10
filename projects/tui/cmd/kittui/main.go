@@ -41,8 +41,8 @@ var (
 
 func main() { exit(run(os.Args[1:], os.Stderr)) }
 
-// run opens the palette, the palette on a verb's page for help, the form of the verb named after --, the picture for
-// flow or for workspace, the guide for welcome, or the cards for tutorials, under kittui's root, whose app's menu switches between
+// run opens the palette, the palette on a verb's page for help, the form of the verb named after --, an app for flow
+// or for workspace, the guide for welcome, or the cards for tutorials, under kittui's root, whose app's menu switches between
 // them, and ends as the person ended the screen shown.
 func run(args []string, stderr io.Writer) int {
 	verb, words := parse(args)
@@ -75,18 +75,16 @@ func run(args []string, stderr io.Writer) int {
 	return finish(root.Shown().(app.Model), stderr, func(verb string, args []string) error { return execKit(r, verb, args) })
 }
 
-// open makes the screen kittui opens on: the picture for flow, with kit flow's words, and for workspace, with kit
-// workspace's; the guide for welcome; the cards
+// open makes the screen kittui opens on: for flow and for workspace, the app with a tab of the stage their words name,
+// else Issues for flow and Repositories for workspace, as flow.AppOf says; the guide for welcome; the cards
 // for tutorials, with its --tag words and the tutorial named; the palette on a verb's page or a group for help; and, as the help's screen, the
 // palette, or the form of the verb named.
 func open(r kit.Runner, verb string, words []string) (shell.Screen, tea.Model, error) {
 	switch verb {
-	case "flow":
-		m, err := flow.Open(r, words)
-		return shell.Flow, m, err
-	case "workspace":
-		m, err := flow.OpenWorkspace(r, words)
-		return shell.Workspace, m, err
+	case "flow", "workspace":
+		app, words := flow.AppOf(verb, words)
+		m, err := flow.OpenApp(r, app, words)
+		return app, m, err
 	case "welcome":
 		return shell.Welcome, welcome.Open(r, kit.Workspace{}), nil
 	case "tutorials":

@@ -176,7 +176,7 @@ func TestAGroupKitWillNotKeepIsNotSwitchedTo(t *testing.T) {
 
 func TestAScreenThatCannotOpenOverTheNewWorkspaceGivesWayToTheWelcome(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	m := New(testkit.Runner(t, "kit"), shell.Flow, told{})
+	m := New(testkit.Runner(t, "kit"), shell.Issues, told{})
 	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 30})
 	// kit cannot run where the picture would open now, so it cannot be made there
 	m.runner.Kit = filepath.Join(t.TempDir(), "no-kit")

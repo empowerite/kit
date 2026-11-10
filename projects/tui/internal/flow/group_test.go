@@ -28,7 +28,7 @@ func over(t *testing.T, stages ...string) Model {
 	r.Group = "w"
 	o := Options{Stages: stages, NoPresets: true, Clock: &testkit.Clock{}}
 	if slices.ContainsFunc(stages, ofWorkspace) {
-		o.Verb = workspaceVerb
+		o.App = shell.Repositories
 	}
 	m := New(r, o)
 	return drive(m, tea.WindowSizeMsg{Width: 120, Height: 24}, shell.WorkspaceMsg{Workspace: group})

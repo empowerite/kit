@@ -36,27 +36,27 @@ func TestTheMenuHasItsScreensOwnItemsKitsScreensTheSettingsAndQuit(t *testing.T)
 	for _, item := range m.Items() {
 		names = append(names, item.Name)
 	}
-	if got := strings.Join(names, "|"); got != "Welcome|Tutorials|Help||Flow|Workspace||Refresh All|Settings…||Quit" {
+	if got := strings.Join(names, "|"); got != "Welcome|Tutorials|Help||Issues|Changes|Repositories|Delivery|People|Trust|Platform||Refresh All|Settings…||Quit" {
 		t.Fatalf("the items: %q", got)
 	}
 	// its own, another screen, the settings, and quit do something; the screen it is on and the rules do not
-	for k, want := range []bool{false, true, true, false, true, true, false, true, true, false, true} {
+	for k, want := range []bool{false, true, true, false, true, true, true, true, true, true, true, false, true, true, false, true} {
 		if m.enabled(k) != want {
 			t.Errorf("item %d (%s) enabled %v", k, names[k], !want)
 		}
 	}
-	if (Menu{}).Items()[7].Name != "Settings…" || m.At != 1 || !m.Open {
+	if (Menu{}).Items()[12].Name != "Settings…" || m.At != 1 || !m.Open {
 		t.Errorf("a menu with no items of its screen's, or the keyboard on its first that acts: %+v", m)
 	}
 }
 
 func TestTheMenusKeysMoveChooseAndClose(t *testing.T) {
-	m := Menu{Here: Flow}.Opened()
+	m := Menu{Here: Issues}.Opened()
 	for _, step := range []struct {
 		key  string
 		want int
-	}{{"down", 1}, {"down", 2}, {"down", 5}, {"down", 7}, {"down", 9}, {"down", 9}, {"up", 7}, {"w", 0}, {"q", 9},
-		{"z", 9}} {
+	}{{"down", 1}, {"down", 2}, {"down", 5}, {"down", 6}, {"down", 7}, {"down", 8}, {"down", 9}, {"down", 10},
+		{"down", 12}, {"down", 14}, {"down", 14}, {"up", 12}, {"w", 0}, {"q", 14}, {"z", 14}} {
 		if m, _ = m.Key(key(step.key)); m.At != step.want {
 			t.Errorf("%s: item %d, want %d", step.key, m.At, step.want)
 		}
@@ -79,7 +79,7 @@ func TestTheMenusKeysMoveChooseAndClose(t *testing.T) {
 		t.Errorf("its own: %+v", c)
 	}
 	// enter on nothing chosen does nothing; esc and = close
-	if m, c := (Menu{Here: Flow, Dropdown: Dropdown{Open: true, At: -1}}).Key(key("enter")); !m.Open || c != (Choice{}) {
+	if m, c := (Menu{Here: Issues, Dropdown: Dropdown{Open: true, At: -1}}).Key(key("enter")); !m.Open || c != (Choice{}) {
 		t.Errorf("enter on nothing: %v %+v", m.Open, c)
 	}
 	for _, k := range []string{"esc", "="} {
@@ -93,7 +93,7 @@ func TestTheMenusKeysMoveChooseAndClose(t *testing.T) {
 }
 
 func TestTheMenuHangsFromTheTitlesGlyphAndAClickChooses(t *testing.T) {
-	m := Menu{Here: Flow}.Opened()
+	m := Menu{Here: Issues}.Opened()
 	screen := strings.Split(strings.Repeat(strings.Repeat("x", 60)+"\n", 20), "\n")
 	drawn := m.Overlay(screen, 60)
 	if !strings.HasPrefix(ansi.Strip(drawn[Top]), "╭╴"+App+"╶") || !strings.HasPrefix(ansi.Strip(drawn[1]), "│ "+Home+" Welcome") ||
@@ -103,12 +103,12 @@ func TestTheMenuHangsFromTheTitlesGlyphAndAClickChooses(t *testing.T) {
 	if got := (Menu{}).Overlay([]string{"a"}, 60); got[0] != "a" {
 		t.Errorf("a closed menu drew: %q", got)
 	}
-	// a click on welcome chooses it; on flow, where it is, nothing, the menu open; off the box, it closes
+	// a click on welcome chooses it; on issues, where it is, nothing, the menu open; off the box, it closes
 	if m, c := m.Click(3, Top+1, 60); c != (Choice{Screen: Welcome}) || m.Open {
 		t.Errorf("a click on welcome: %v %+v", m.Open, c)
 	}
 	if m, c := m.Click(3, Top+5, 60); c != (Choice{}) || !m.Open {
-		t.Errorf("a click on flow: %v %+v", m.Open, c)
+		t.Errorf("a click on issues: %v %+v", m.Open, c)
 	}
 	if m, c := m.Click(50, 15, 60); c != (Choice{}) || m.Open {
 		t.Errorf("a click off the menu: %v %+v", m.Open, c)

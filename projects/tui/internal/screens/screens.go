@@ -1,5 +1,5 @@
-// Package screens is kittui's root: kit's screens, the picture of kit flow, the welcome's guide, and the help's
-// palette, one shown at a time, which the app's menu on each switches between. Each is made the first time it is
+// Package screens is kittui's root: kit's screens, the apps over kit flow's and kit workspace's pictures, the welcome's
+// guide, and the help's palette, one shown at a time, which the app's menu on each switches between. Each is made the first time it is
 // shown, and loads what it draws then, so kit help reads nothing of kit flow's until the picture is asked for; and each
 // is kept as it was left while another is shown, nothing loaded again. What a screen started goes on while it is
 // hidden: its answers reach it, not the screen shown. Keys, clicks, and the terminal's size reach the screen shown, and
@@ -299,11 +299,11 @@ func (m Model) place(to shell.Screen, s tea.Model) (tea.Model, tea.Cmd) {
 
 // open makes a screen, on what kit and git say where kittui runs.
 func (m Model) open(to shell.Screen) (tea.Model, error) {
+	switch {
+	case flow.IsApp(to):
+		return flow.OpenApp(m.runner, to, nil)
+	}
 	switch to {
-	case shell.Flow:
-		return flow.Open(m.runner, nil)
-	case shell.Workspace:
-		return flow.OpenWorkspace(m.runner, nil)
 	case shell.Welcome:
 		return welcome.Open(m.runner, m.workspace), nil
 	case shell.Tutorials:

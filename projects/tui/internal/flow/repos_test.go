@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/table"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
@@ -38,10 +39,10 @@ func TestReposDrawsAMemberARow(t *testing.T) {
 	testkit.Golden(t, filepath.Join("testdata", "workspace-repos.golden"), raw(m))
 }
 
-// kit workspace's picture opens on its repos tab first, as kit workspace --stages names it; kit flow's has none.
-func TestReposIsTheWorkspacesFirstTabAndNotTheFlows(t *testing.T) {
+// Repositories opens on its repos tab first; Issues has none, and keeps of kit flow's stages those --stages names.
+func TestReposIsRepositoriesFirstTabAndNotIssues(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	m, err := OpenWorkspace(runner(t), nil)
+	m, err := OpenApp(runner(t), shell.Repositories, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,15 +51,15 @@ func TestReposIsTheWorkspacesFirstTabAndNotTheFlows(t *testing.T) {
 	}
 	m.Close()
 	t.Setenv("FAKE_FLOW_STAGES", "backlog desk")
-	if m, err = Open(runner(t), nil); err != nil {
+	if m, err = OpenApp(runner(t), shell.Issues, nil); err != nil {
 		t.Fatal(err)
 	}
 	var names []string
 	for _, s := range m.stages {
 		names = append(names, s.name)
 	}
-	if got := strings.Join(names, " "); got != "backlog desk" {
-		t.Errorf("kit flow opens %q", got)
+	if got := strings.Join(names, " "); got != "backlog planned/iterations planned/milestones" {
+		t.Errorf("Issues opens %q", got)
 	}
 	m.Close()
 }

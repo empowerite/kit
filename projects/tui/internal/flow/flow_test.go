@@ -119,8 +119,9 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// refreshAll drops the app's menu down and chooses Refresh All, the item r moves to.
-var refreshAll = []tea.Msg{press('='), typed("r")[0], press(tea.KeyEnter)}
+// refreshAll drops the app's menu down and chooses Refresh All, the item r moves to after Repositories, or at once on
+// Repositories, where Repositories is dim.
+var refreshAll = []tea.Msg{press('='), typed("r")[0], typed("r")[0], press(tea.KeyEnter)}
 
 // toggleMsg stands, in drive, for the key that opens the row under the cursor or closes it: toggle.
 type toggleMsg struct{}
@@ -529,7 +530,7 @@ func TestRightOpensARowAndLeftClosesIt(t *testing.T) {
 func TestRefreshAllRunsEveryStageAgain(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
-	m := loaded(t, options(), tab, tab, tab, tab, tab, tab, tab, press('='), typed("r")[0])
+	m := loaded(t, options(), tab, tab, tab, tab, tab, tab, tab, press('='), typed("r")[0], typed("r")[0])
 	next, cmd := m.Update(press(tea.KeyEnter))
 	m = next.(Model)
 	// releases keeps its rows, stale, its dot on its tab, until the answer comes
@@ -1122,10 +1123,10 @@ func TestAnUnknownStageIsRefusedWithoutRunning(t *testing.T) {
 	}
 }
 
-func TestOpenReadsTheStagesAndTheWords(t *testing.T) {
+func TestOpenAppReadsTheStagesAndTheWords(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
-	m, err := Open(runner(t), []string{"--no-fetch", "--mine"})
+	m, err := OpenApp(runner(t), shell.Delivery, []string{"--no-fetch", "--mine"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1133,25 +1134,25 @@ func TestOpenReadsTheStagesAndTheWords(t *testing.T) {
 	for _, s := range m.stages {
 		names = append(names, s.name)
 	}
-	if strings.Join(names, " ") != strings.Join(eight, " ") || !m.noFetch ||
-		strings.Join(m.filters, " ") != "--mine" {
-		t.Errorf("Open: %q, no fetch %v, filters %q", names, m.noFetch, m.filters)
+	want := "releases builds planned/artifacts planned/environments planned/deployments"
+	if strings.Join(names, " ") != want || !m.noFetch || strings.Join(m.filters, " ") != "--mine" {
+		t.Errorf("OpenApp: %q, no fetch %v, filters %q", names, m.noFetch, m.filters)
 	}
 	if got := calls(t, record); strings.Join(got, "\n") != "flow --stages" {
-		t.Errorf("Open ran %q", got)
+		t.Errorf("OpenApp ran %q", got)
 	}
 	// a stage of the picture named opens on it, maximized, as kit flow <stage> does; the filters still reach the stages
-	if m, err = Open(runner(t), []string{"underway", "--mine"}); err != nil {
+	if m, err = OpenApp(runner(t), shell.Issues, []string{"underway", "--mine"}); err != nil {
 		t.Fatal(err)
 	}
 	if m.stages[m.stage].name != "underway" || !m.maximized || strings.Join(m.filters, " ") != "--mine" {
-		t.Errorf("Open underway: on %q, maximized %v, filters %q", m.stages[m.stage].name, m.maximized, m.filters)
+		t.Errorf("OpenApp underway: on %q, maximized %v, filters %q", m.stages[m.stage].name, m.maximized, m.filters)
 	}
-	if !strings.Contains(lines(m)[0], " · ➋ underway") {
-		t.Errorf("Open underway, the title: %q", lines(m)[0])
+	if !strings.Contains(lines(m)[0], "kit issues · ") || !strings.Contains(lines(m)[0], " · ➋ underway") {
+		t.Errorf("OpenApp underway, the title: %q", lines(m)[0])
 	}
 	t.Setenv("FAKE_FLOW_REFUSE", "stages")
-	_, err = Open(runner(t), nil)
+	_, err = OpenApp(runner(t), shell.Issues, nil)
 	refusal, ok := err.(*kit.ExitError)
 	if !ok || refusal.Code != 2 || refusal.Error() != "kit flow refuses for the test; run: kit help flow" {
 		t.Errorf("Open on a refusal: %v", err)

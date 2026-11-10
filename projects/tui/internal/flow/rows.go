@@ -502,13 +502,13 @@ func (m Model) keyOf(member, key string) string {
 }
 
 // memberValue gives a row's value in member: none over a repository; over a group, the member, host/path, drawn by its
-// short name, leading, in kit workspace's picture, to its row on the repos tab.
+// short name, leading to its row on the repos tab where the screen has one.
 func (m Model) memberValue(member string) table.Value {
 	if member == "" {
 		return table.Value{}
 	}
 	v := table.Value{Raw: []string{member}, Of: m.short(member)}
-	if m.verb == workspaceVerb {
+	if m.find("workspace/repos") != nil {
 		v.Link = jumpTo("workspace/repos", member)
 	}
 	return v

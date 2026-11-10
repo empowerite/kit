@@ -28,24 +28,35 @@ const (
 // Screen names one of kit's screens, which the app's menu moves between.
 type Screen string
 
-// kit's screens: the picture of where the work stands, the picture of what git holds across the workspace, the
-// welcome's guide, the help's palette of verbs, and the tutorials' cards.
+// kit's screens: the guides, the welcome's guide, the help's palette of verbs, and the tutorials' cards; and the apps,
+// each built around one entity: issues, changes, repositories, delivery's releases, people, trust's evidence, and the
+// platform's services.
 const (
-	Flow      Screen = "flow"
-	Workspace Screen = "workspace"
-	Welcome   Screen = "welcome"
-	Help      Screen = "help"
-	Tutorials Screen = "tutorials"
+	Welcome      Screen = "welcome"
+	Help         Screen = "help"
+	Tutorials    Screen = "tutorials"
+	Issues       Screen = "issues"
+	Changes      Screen = "changes"
+	Repositories Screen = "repositories"
+	Delivery     Screen = "delivery"
+	People       Screen = "people"
+	Trust        Screen = "trust"
+	Platform     Screen = "platform"
 )
 
-// The glyphs beside the app's menu's items: the picture, the workspace's git, the welcome, the help, the tutorials, the
-// settings, and goodbye.
+// The glyphs beside the app's menu's items: the welcome, the help, the tutorials; each app's; the settings, and
+// goodbye. A repository is one book, as a workspace, 📚, is many.
 const (
-	Map       = "🧭"
-	Git       = "📚"
 	Home      = "🏠"
 	Asking    = "❓"
 	Learn     = "🎓"
+	Ticket    = "🎫"
+	Shuffle   = "🔀"
+	Book      = "📘"
+	Truck     = "🚚"
+	Busts     = "👥"
+	Sealed    = "🔏"
+	Toolbox   = "🧰"
 	Configure = "🔧"
 	Leave     = "👋"
 )
@@ -63,11 +74,14 @@ type screenItem struct {
 }
 
 // sections are the app's menu's screens, in its order, a rule between each group: the guides, which come with kit
-// whatever the work is, then the apps, each a picture of the work.
+// whatever the work is, then the apps, each a picture of the work around one entity.
 var sections = [][]screenItem{
 	{{Item{Glyph: Home, Name: "Welcome"}, Welcome}, {Item{Glyph: Learn, Name: "Tutorials"}, Tutorials},
 		{Item{Glyph: Asking, Name: "Help"}, Help}},
-	{{Item{Glyph: Map, Name: "Flow"}, Flow}, {Item{Glyph: Git, Name: "Workspace"}, Workspace}},
+	{{Item{Glyph: Ticket, Name: "Issues"}, Issues}, {Item{Glyph: Shuffle, Name: "Changes"}, Changes},
+		{Item{Glyph: Book, Name: "Repositories"}, Repositories}, {Item{Glyph: Truck, Name: "Delivery"}, Delivery},
+		{Item{Glyph: Busts, Name: "People"}, People}, {Item{Glyph: Sealed, Name: "Trust"}, Trust},
+		{Item{Glyph: Toolbox, Name: "Platform"}, Platform}},
 }
 
 // screens are the app's menu's screens, in its order, without the rules.

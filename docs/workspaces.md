@@ -83,9 +83,9 @@ and are refused.
 
 ## Flow over a workspace in kittui
 
-On a terminal, `kit flow --workspace empowerite` opens kittui's picture over the group, as picking the group from the
-📚 workspace menu does. Every tab gathers its rows from every cloned member, grouped by member as they load, and a
-member whose read failed is one red line among them.
+On a terminal, `kit flow --workspace empowerite` opens kittui's Issues app over the group, as picking the group from
+the 📚 workspace menu does, and every other app follows the same group. Every tab gathers its rows from every cloned
+member, grouped by member as they load, and a member whose read failed is one red line among them.
 
 ## kit workspace
 
@@ -114,8 +114,8 @@ its row and on the branch's, and a worktree's is its branch, or its commit where
 - tags: each tag, the newest first, annotated or lightweight, with its commit and its tagger.
 
 `--workspace` reads every cloned member's checkout at once, as `kit flow --workspace` does, and every row gains its
-member. On a terminal, `kit workspace` opens kittui's workspace picture, a tab per stage, the 📚 repos tab first,
-and the app menu moves between it and the flow's. On the repos tab, a clone reads `~` for the home folder, and a
+member. On a terminal, `kit workspace` opens kittui's Repositories app, a tab per stage, the 📚 repos tab first and
+kit flow's incoming last. On the repos tab, a clone reads `~` for the home folder, and a
 closed row shows `…` and its last two folders; open, the row shows the whole path. A member's name on any tab leads
 to its row there.
 
