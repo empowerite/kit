@@ -12,6 +12,21 @@ setup() {
   fresh-repo
 }
 
+# tree-digest prints each file and link in the repository, with a digest of what it holds: a link's target, a file's
+# bytes. .git and the log every kit command appends to are left out.
+tree-digest() {
+  local path
+  while IFS= read -r path
+  do
+    if [[ -L "${path}" ]]
+    then
+      printf '%s -> %s\n' "${path}" "$(readlink "${path}")"
+    else
+      printf '%s %s\n' "${path}" "$(cksum < "${path}")"
+    fi
+  done < <(find . \( -path ./.git -o -path ./.kit/logs \) -prune -o \( -type f -o -type l \) -print | LC_ALL=C sort)
+}
+
 @test "install with no package writes the kit package and nothing else" {
   run "${kit_checkout}/bin/kit" install
   [ "$status" -eq 0 ]
@@ -407,6 +422,24 @@ setup() {
   [ "$status" -eq 0 ]
   [[ "$output" != *"grep:"* ]]
   [ "$(grep --count --line-regexp --fixed-strings -e '-- kit:generate schema.sql' schema.sql)" -eq 1 ]
+}
+
+@test "update refuses a region marked wrongly before it writes anything: every other file and the manifest stay" {
+  local before
+  run "${kit_checkout}/bin/kit" install github/ci agents/claude
+  [ "$status" -eq 0 ]
+  # .gitignore's markers are out of order, and two delivered files are missing, so an update would write them
+  printf 'top\n# kit:end .gitignore\nmiddle\n# kit:generate .gitignore\nold\n' > .gitignore
+  rm .github/workflows/kit-ci.yml .claude/settings.json
+  before=$(tree-digest)
+  run env PATH="$(shims mise curl)" "${kit_checkout}/bin/kit" update
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"'# kit:generate .gitignore' and '# kit:end .gitignore' must each be there once, in that order"* ]]
+  [ "$(tree-digest)" = "${before}" ]
+  [ ! -e .github/workflows/kit-ci.yml ]
+  [ ! -e .claude/settings.json ]
+  [[ "$output" == *"1 region(s) cannot be written, each named above"* ]]
+  [[ "$output" != *"the region regenerated"* ]]
 }
 
 @test "a region makes the file where there is none, and one holding different content is regenerated" {

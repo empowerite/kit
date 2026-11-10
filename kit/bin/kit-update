@@ -22,10 +22,13 @@
 #   3. the previous release, from the kit's cache, from mise, or downloaded from its public tarball; never for an
 #      unreleased previous version
 #
-# kit update checks that every merge has its base before it writes anything. When a base is missing, it writes
-# nothing and the declared version stays the previous one, so the next run starts from the same place.
+# kit update checks, before it writes anything, that every merge has its base and that every region it regenerates
+# is marked rightly: one directive with one end line after it, or neither. When a base is missing, or a region's
+# markers are out of order, doubled, or never closed, it names each path, writes nothing, and the declared version
+# stays the previous one, so the next run starts from the same place.
 #
-# Exits 0 when the update is complete, and 1 when a base is missing or a file needs to be resolved by hand.
+# Exits 0 when the update is complete, and 1 when a base is missing, a region is marked wrongly, or a file needs to be
+# resolved by hand.
 #
 # see: modules/bash/place.sh, modules/bash/manifest.sh, modules/bash/release.sh
 
@@ -116,8 +119,10 @@ lacks-base() {
     && [[ "${recorded}" != "$(place:installed "${src}" "${dest}" | file:digest)" ]]
 }
 
-# Find every path that lacks its base before writing anything, so an update is all or nothing.
+# Find every path that lacks its base, and every region a write would refuse, before writing anything, so an update
+# is all or nothing.
 skipped=0
+refused=0
 base_delivered=""
 for base in $(release:bases)
 do
@@ -132,10 +137,19 @@ do
       skipped=$(( skipped + 1 ))
     fi
   done < <(place:delivered "${kit_root}" "${base}" "${packages[@]}")
+  count=$(place:delivered "${kit_root}" "${base}" "${packages[@]}" | cut -f 1 \
+    | place:refusals "${base}" "${packages[@]}")
+  refused=$(( refused + count ))
 done
 if (( skipped > 0 ))
 then
   error "${skipped} path(s) stay at ${previous}, and so does the manifest; set KIT_BASE, then run: kit update"
+  exit 1
+fi
+if (( refused > 0 ))
+then
+  error "${refused} region(s) cannot be written, each named above; nothing is written, and the manifest stays at" \
+    "${previous}; mend the markers, then run: kit update"
   exit 1
 fi
 
@@ -174,8 +188,8 @@ do
     elif [[ "${kind}" == region ]]
     then
       # A region's content comes from its command, so it is regenerated, never merged.
-      step "${dest}: the region regenerated"
       place:content "${src}" "${dest}"
+      step "${dest}: the region regenerated"
     elif ! place:installed "${src}" "${dest}" >/dev/null 2>&1
     then
       step "${dest}: missing, written"
