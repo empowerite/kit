@@ -111,10 +111,12 @@ git:clean() {
 }
 
 # git:unpushed <branch> prints how many commits of the local <branch> no remote-tracking branch reaches. When some are
-# left, it asks the forge for the head commit of the branch's latest pull request, and when this clone has that
-# commit, it leaves out what the head reaches too: a squash-merged branch whose remote branch is gone counts 0.
+# left, it asks the forge for the head commit of the branch's latest pull request. When this clone has that commit, it
+# leaves out what the head reaches too, so a squash-merged branch whose remote branch is gone counts 0 when its tip
+# is the head. When the forge gives a head this clone does not have, it leaves nothing more out, and prints the head
+# after the count and a tab: the commits counted may be ones the head reaches, which a fetch of the head would show.
 git:unpushed() {
-  local branch=$1 count head
+  local branch=$1 count head missing=''
   count=$(git rev-list --count "refs/heads/${branch}" --not --remotes) \
     || { error "the commits of ${branch} could not be counted"; return 1; }
   if (( count > 0 ))
@@ -124,9 +126,28 @@ git:unpushed() {
     then
       count=$(git rev-list --count "refs/heads/${branch}" --not --remotes "${head}") \
         || { error "the commits of ${branch} could not be counted"; return 1; }
+    elif [[ "${head}" =~ ^[0-9a-f]+$ ]]
+    then
+      missing=${head}
     fi
   fi
-  printf '%s\n' "${count}"
+  printf '%s\t%s\n' "${count}" "${missing}"
+}
+
+# git:unpushed-why <count> [<head>] prints why a branch with <count> commits git:unpushed counted is kept: commits no
+# remote ever had, or, given the change's head this clone lacks, commits no remote-tracking branch here reaches, and
+# how to fetch that head, which may reach them.
+git:unpushed-why() {
+  local primary
+  if [[ -z "${2:-}" ]]
+  then
+    printf '%s commit(s) no remote ever had\n' "$1"
+    return 0
+  fi
+  primary=$(forge:primary 2>/dev/null) || primary=origin
+  printf "%s commit(s) no remote-tracking branch here reaches; this clone lacks the change's head %s; fetch it, then" \
+    "$1" "$2"
+  printf ' run kit tidy again: git fetch %s %s\n' "${primary}" "$2"
 }
 
 # git:tidy-settle <branch> settles the issues of the branch's latest pull request, as kit settle does, once kit tidy
@@ -147,6 +168,7 @@ git:tidy-settle() {
 # git's refusal to remove it included.
 git:tidy-worktree() {
   local path=$1 branch=$2 detached=$3 default_branch=$4 self_root=$5 dry_run=$6 state="" ref primary unpushed
+  local counted missing
   if [[ "${path}" == "${self_root}" ]]
   then
     step "keeping ${path} (this command runs in it)"
@@ -183,10 +205,11 @@ git:tidy-worktree() {
     (MERGED | CLOSED | DETACHED)
       if [[ -n "${branch}" ]]
       then
-        unpushed=$(git:unpushed "${branch}") || return 1
+        counted=$(git:unpushed "${branch}") || return 1
+        IFS=$'\t' read -r unpushed missing <<<"${counted}"
         if (( unpushed > 0 ))
         then
-          step "keeping ${path} (${branch}, change ${state}, ${unpushed} commit(s) no remote ever had)"
+          step "keeping ${path} (${branch}, change ${state}, $(git:unpushed-why "${unpushed}" "${missing}"))"
           return 1
         fi
       fi
@@ -223,7 +246,8 @@ git:tidy-worktree() {
 #   - the default branch
 #   - a branch checked out in a worktree it keeps
 #   - a branch with commits no remote ever had, and the worktree it is checked out in, whatever its change's state;
-#     a commit the change's head reaches, as the forge saw it, was pushed
+#     a commit the change's head reaches, as the forge saw it, was pushed. When this clone lacks that head, the
+#     branch is kept, and kit tidy names the head and the fetch that brings it
 #   - a worktree with uncommitted changes
 #   - a detached worktree whose commit nothing else reaches
 #   - a worktree git will not remove, as a locked one
@@ -232,7 +256,7 @@ git:tidy-worktree() {
 # --dry-run prints what it would do and changes nothing.
 git:tidy() {
   local dry_run=false flag repo default_branch self_root found=false path branch detached remote remotes
-  local removed_worktrees=0 removed_branches=0 checked_out unpushed
+  local removed_worktrees=0 removed_branches=0 checked_out unpushed counted missing
   local -A freed=()
   for flag in "$@"
   do
@@ -296,10 +320,11 @@ git:tidy() {
       step "keeping ${branch} (checked out in a worktree)"
       continue
     fi
-    unpushed=$(git:unpushed "${branch}") || continue
+    counted=$(git:unpushed "${branch}") || continue
+    IFS=$'\t' read -r unpushed missing <<<"${counted}"
     if (( unpushed > 0 ))
     then
-      step "keeping ${branch} (${unpushed} commit(s) no remote ever had)"
+      step "keeping ${branch} ($(git:unpushed-why "${unpushed}" "${missing}"))"
       continue
     fi
     if [[ "${dry_run}" == true ]]
@@ -339,6 +364,27 @@ git:pushes-to() {
   fi
   printf 'origin\n'
   return 1
+}
+
+# git:commit <path> <what> <argument>… runs git commit with the arguments in the checkout at <path>, its output shown
+# as git writes it, and returns git's status. When the commit is not made and --gpg-sign is among the arguments, it
+# says why, naming the commit as <what>: refused as one git could not sign when git's words say the signing failed
+# (the signing program failed to sign the data, or git could not write the commit object, which it writes once it is
+# signed), and failed otherwise, as when a hook refuses it. git's own words above say more.
+git:commit() {
+  local path=$1 what=$2 status=0 said
+  shift 2
+  { said=$(git -C "${path}" commit "$@" 2>&1 1>&3 3>&- | tee /dev/stderr; exit "${PIPESTATUS[0]}"); } 3>&1 \
+    || status=$?
+  (( status != 0 )) || return 0
+  list:among --gpg-sign "$@" || return "${status}"
+  if grep --quiet --ignore-case --regexp 'failed to sign' --regexp 'failed to write commit object' <<<"${said}"
+  then
+    error "${what} is refused: require_signing is true and git could not sign it; see above"
+  else
+    error "${what} failed; see above"
+  fi
+  return "${status}"
 }
 
 # git:push <path> <branch> [<option>…] pushes refs/heads/<branch> of the checkout at <path>, quietly and with the

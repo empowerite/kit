@@ -380,7 +380,8 @@ issue:hydrate() {
 # no commits beyond the default branch, because a forge cannot open a pull request with nothing to compare. --only
 # keeps the commit empty, so work already staged in a reused worktree stays in the index. The subject starts with
 # the reference, as the workflow's commit subjects do: "<reference> start: <title>", kept whatever commit.cleanup
-# says. With require_signing true, the commit is signed, and refused when git cannot sign it.
+# says. With require_signing true, the commit is signed, and refused when git cannot sign it; a commit that fails for
+# another reason, as when a hook refuses it, is said to have failed.
 issue:start-commit() {
   local wt=$1 default_branch=$2 ref=$3 title=$4
   local -a sign=()
@@ -391,13 +392,8 @@ issue:start-commit() {
     sign=(--gpg-sign)
   fi
   step "Adding the start commit"
-  git -C "${wt}" commit --quiet --allow-empty --only --cleanup=whitespace "${sign[@]}" \
-    --message "${ref} start: ${title}" && return 0
-  if (( ${#sign[@]} > 0 ))
-  then
-    error "the start commit is refused: require_signing is true and git could not sign it; see above"
-  fi
-  return 1
+  git:commit "${wt}" "the start commit" --quiet --allow-empty --only --cleanup=whitespace "${sign[@]}" \
+    --message "${ref} start: ${title}" || return 1
 }
 
 # issue:sweep-push <root> <message> stashes all uncommitted work at <root>, including untracked files, and prints

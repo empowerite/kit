@@ -41,6 +41,21 @@ tree() {
   [[ "$output" == *"run: kit install"* ]]
 }
 
+@test "uninstall says a region is taken out only of a file that held one" {
+  "${kit_checkout}/bin/kit" install agents/claude >/dev/null 2>&1
+  # the repository took the kit's region out of .gitignore by hand, and kept a line of its own
+  printf 'mine\n' > .gitignore
+  run "${kit_checkout}/bin/kit" uninstall --dry-run
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"AGENTS.md: the kit's region would be taken out"* ]]
+  [[ "$output" != *".gitignore: the kit's region would be taken out"* ]]
+  run "${kit_checkout}/bin/kit" uninstall
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"AGENTS.md: the kit's region taken out"* ]]
+  [[ "$output" != *".gitignore: the kit's region taken out"* ]]
+  [ "$(cat .gitignore)" = mine ]
+}
+
 @test "uninstall removes a JSON file of the kit's entries alone, and names what is left in lefthook.yml and the hook" {
   rm .claude/settings.json
   "${kit_checkout}/bin/kit" install agents/claude hooks/lefthook >/dev/null 2>&1

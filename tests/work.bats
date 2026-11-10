@@ -341,4 +341,18 @@ desk-world() {
   [ "$(git -C worktrees/7-fix-the-thing log -1 --format=%s)" = "#7 start: Fix the thing" ]
 }
 
+@test "with require_signing, a start commit a hook refuses is said to have failed, never to be one git could not sign" {
+  printf 'require_signing: true\n' > kit.yml
+  desk-world
+  signer
+  printf '#!/bin/sh\necho "the hook says no" >&2\nexit 1\n' > .git/hooks/pre-commit
+  chmod +x .git/hooks/pre-commit
+  run "${kit_checkout}/bin/kit" work 7
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the hook says no"* ]]
+  [[ "$output" == *"the start commit failed; see above"* ]]
+  [[ "$output" != *"could not sign"* ]]
+  [ "$(git -C "${repo}.origin.git" rev-parse 7-fix-the-thing)" = "$(git -C "${repo}.origin.git" rev-parse main)" ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

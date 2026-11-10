@@ -15,7 +15,8 @@
 #   - the default branch
 #   - a branch checked out in a live worktree
 #   - a branch with commits no remote ever had, and the worktree it is checked out in, whatever its change's state;
-#     a commit the change's head reaches, as the forge saw it, was pushed
+#     a commit the change's head reaches, as the forge saw it, was pushed. When this clone lacks that head, the
+#     branch is kept, and kit tidy names the head and the fetch that brings it
 #   - a worktree with uncommitted changes
 #   - a detached worktree whose commit nothing else reaches
 #   - a worktree git will not remove, as a locked one

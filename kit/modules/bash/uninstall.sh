@@ -98,7 +98,13 @@ uninstall:path() {
   fi
   case "${kind}" in
     (merge) step "${dest}: the kit's entries would be taken out" ;;
-    (region) step "${dest}: the kit's region would be taken out" ;;
+    (region)
+      # A file that holds no region has nothing to take out; one region:has refuses is refused before this.
+      if region:has "${dest}" "$(release:target "${dest}")"
+      then
+        step "${dest}: the kit's region would be taken out"
+      fi
+      ;;
     (*) step "${dest}: would be removed"
   esac
 }

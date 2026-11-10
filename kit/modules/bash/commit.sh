@@ -480,16 +480,14 @@ commit:commit() {
 
 # commit:git <message> [--gpg-sign] [-- <path>…] runs git commit with the message file as written: --cleanup=whitespace
 # keeps a line that starts with #, whatever commit.cleanup says. It removes the message file either way. With
-# --gpg-sign, a commit git fails to make is refused as one git could not sign, and git's own words above say why.
+# --gpg-sign, a commit git fails to make is refused as one git could not sign when git's words say the signing failed,
+# and said to have failed otherwise, as when a hook refuses it (git:commit).
 commit:git() {
   local message=$1 status=0
   shift
-  git commit --quiet --cleanup=whitespace --file "${message}" "$@" || status=$?
+  git:commit . "the commit" --quiet --cleanup=whitespace --file "${message}" "$@" || status=$?
   rm -f "${message}"
-  (( status != 0 )) || return 0
-  [[ "${1:-}" != --gpg-sign ]] \
-    || error "the commit is refused: require_signing is true and git could not sign it; see above"
-  return 1
+  (( status == 0 )) || return 1
 }
 
 # commit:submit <argument>… commits when something is staged, or when --all or paths say what to take, then pushes the

@@ -211,6 +211,29 @@ idea-on() {
   [ "$(git rev-parse refs/heads/8-idea)" = "${idea}" ]
 }
 
+@test "kit tidy keeps a branch whose change's head this clone lacks, and names the fetch that brings the head" {
+  local missing=0123456789abcdef0123456789abcdef01234567
+  world
+  worktree-on 7-fix-the-thing
+  lost=$(commit-in worktrees/7-fix-the-thing work.txt)
+  gone 7-fix-the-thing
+  change-on 7-fix-the-thing MERGED "${missing}"
+  idea-on 8-idea
+  idea=$(git rev-parse 8-idea)
+  gone 8-idea
+  change-on 8-idea MERGED "${missing}"
+  run "${kit_root}/bin/kit" tidy
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"(7-fix-the-thing, change MERGED, 1 commit(s) no remote-tracking branch here reaches;"* ]]
+  [[ "$output" == *"keeping 8-idea (1 commit(s) no remote-tracking branch here reaches;"* ]]
+  [[ "$output" == *"this clone lacks the change's head ${missing}; fetch it, then run kit tidy again:"* ]]
+  [[ "$output" == *"git fetch origin ${missing}"* ]]
+  [[ "$output" != *"no remote ever had"* ]]
+  [ -d worktrees/7-fix-the-thing ]
+  [ "$(git rev-parse refs/heads/7-fix-the-thing)" = "${lost}" ]
+  [ "$(git rev-parse refs/heads/8-idea)" = "${idea}" ]
+}
+
 @test "kit tidy removes a worktree, and deletes a gone branch, whose commits were pushed before the branch went" {
   world
   worktree-on 7-fix-the-thing

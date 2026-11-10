@@ -604,6 +604,23 @@ EOF
   [ "$(git diff --cached --name-only)" = y ]
 }
 
+@test "with require_signing, a commit a hook refuses is said to have failed, never to be one git could not sign" {
+  local head
+  printf 'require_signing: true\n' >> kit.yml
+  signer
+  printf '#!/bin/sh\necho "the hook says no" >&2\nexit 1\n' > "$(git rev-parse --git-common-dir)/hooks/pre-commit"
+  chmod +x "$(git rev-parse --git-common-dir)/hooks/pre-commit"
+  head=$(git rev-parse HEAD)
+  printf 'x\n' > x && git add x
+  run kit commit --message 'x: a file'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the hook says no"* ]]
+  [[ "$output" == *"the commit failed; see above"* ]]
+  [[ "$output" != *"could not sign"* ]]
+  [ "$(git rev-parse HEAD)" = "${head}" ]
+  [ "$(git diff --cached --name-only)" = x ]
+}
+
 @test "facts that cannot be gathered refuse the commit" {
   printf 'policy:\n  colour: blue\n' >> kit.yml
   git add kit.yml
