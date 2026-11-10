@@ -335,6 +335,34 @@ call() {
   run ! grep --quiet 'bad.sh' .kit/logs/mcp-*.log
 }
 
+@test "a .. after a link is judged as the kernel reads it and as a shell does, and refused unless both are inside" {
+  local tool id
+  mkdir -p sub/inner
+  printf '#!/usr/bin/env bash\necho $1\n' > sub/beside.sh
+  ln -s sub/inner deep
+  ln -s kit.yml alias.yml
+  printf '#!/usr/bin/env bash\necho $1\n' > "${BATS_TEST_TMPDIR}/secret.sh"
+  [ -f ../secret.sh ] && [ ! -e secret.sh ] && [ ! -e beside.sh ]
+  for tool in context kinds lint
+  do
+    serve "$(call 1 "${tool}" '{"path":["deep/../../secret.sh"]}')" \
+      "$(call 2 "${tool}" '{"path":["deep/../beside.sh"]}')" \
+      "$(call 3 "${tool}" '{"path":["sub/../kit.yml"]}')" "$(call 4 "${tool}" '{"path":["alias.yml"]}')" \
+      "$(call 5 "${tool}" '{"path":["./././kit.yml"]}')"
+    # the kernel reads deep/../../secret.sh as secret.sh at the root, which is missing; a shell reads it as the file
+    # above the root, so the shell's reading refuses it
+    answer 1 | jq --exit-status '.error.code == -32602'
+    answer 1 | jq --exit-status '.error.message | contains("is outside the repository")'
+    # the kernel reads deep/../beside.sh as sub/beside.sh, and a shell as beside.sh at the root, which is missing and
+    # so judged by the root: both readings are inside, and it is accepted
+    for id in 2 3 4 5
+    do
+      answer "${id}" | jq --exit-status 'has("result")'
+    done
+  done
+  run ! grep --quiet 'secret.sh' .kit/logs/mcp-*.log
+}
+
 @test "a path is refused when the server's directory is gone, so the root cannot be read" {
   local outside=${BATS_TEST_TMPDIR}/outside.sh arguments id
   printf '#!/usr/bin/env bash\necho $1\n' > "${outside}"

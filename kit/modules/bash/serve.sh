@@ -567,16 +567,19 @@ serve:tools-call() {
 # serve_path_max is the longest path the system resolves, PATH_MAX, once serve:inside has asked for it.
 serve_path_max=''
 
-# serve:inside <path> succeeds when the path, read from the root with every symbolic link followed, is the root or
-# under it. A path that does not exist is judged by its nearest directory that does, and is outside when a .. is left
-# after that. A root that cannot be read, as when the server's directory is gone, leaves every path outside. A . or an
-# empty part never changes where a path leads, so the walk skips it; a path that is PATH_MAX bytes long or longer
-# without them is outside, since the system answers "too long" for it whether or not it exists, and the guard cannot
-# judge it. The walk takes each part once, since a pattern that cuts a part off the end takes time that grows with the
-# square of a path's length, and a call's path may be megabytes long.
+# serve:inside <path> succeeds when the path, read from the root, is the root or under it, as the kernel reads it and
+# as a shell does. The two read a .. after a symbolic link differently, and a verb may use either: the kernel applies
+# .. to where the link leads, and a shell's cd removes the part before .. as text. A path with a .. is judged both
+# ways, and is inside only when both readings are; a .. that leaves nothing before it to remove leads out of /. A
+# path without one reads the same both ways, and is judged once. A . or an empty part never changes where a path
+# leads, so neither reading counts it. A path that is PATH_MAX bytes long or longer without them is outside, since
+# the system answers "too long" for it whether or not it exists, and the guard cannot judge it. A root that cannot
+# be read, as when the server's directory is gone, leaves every path outside. Each part is taken once, since a
+# pattern that cuts a part off the end takes time that grows with the square of a path's length, and a call's path
+# may be megabytes long.
 serve:inside() {
-  local LC_ALL=C root path=$1 part found='' length=0
-  local -a parts
+  local LC_ALL=C root path=$1 part length=0 up=false
+  local -a parts kernel=() shell=()
   root=$(pwd -P 2>/dev/null) && [[ "${root}" == /* && -d "${root}" ]] || return 1
   if [[ -z "${serve_path_max}" ]]
   then
@@ -585,12 +588,33 @@ serve:inside() {
   fi
   [[ "${path}" == /* ]] || path=${root}/${path}
   readarray -d / -t parts < <(printf '%s' "${path}")
-  path=''
   for part in "${parts[@]}"
   do
     [[ -n "${part}" && "${part}" != . ]] || continue
     length=$(( length + ${#part} + 1 ))
     (( length < serve_path_max )) || return 1
+    kernel+=("${part}")
+    if [[ "${part}" == .. ]]
+    then
+      up=true
+      (( ${#shell[@]} > 0 )) || return 1
+      unset 'shell[-1]'
+    else
+      shell+=("${part}")
+    fi
+  done
+  serve:resolves-inside "${root}" "${kernel[@]}" || return 1
+  [[ "${up}" == false ]] || serve:resolves-inside "${root}" "${shell[@]}"
+}
+
+# serve:resolves-inside <root> [<part>…] succeeds when the path the parts make, from /, resolved by the kernel with
+# every symbolic link followed, is <root> or under it. A path that does not exist is judged by its nearest directory
+# that does, and is outside when a .. is left after that.
+serve:resolves-inside() {
+  local root=$1 part path='' found=''
+  shift
+  for part in "$@"
+  do
     if [[ -z "${found}" ]] && [[ -e "${path}/${part}" || -L "${path}/${part}" ]]
     then
       path+=/${part}

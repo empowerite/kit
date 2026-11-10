@@ -77,7 +77,8 @@ help, the syntax, and the server cannot drift apart.
     tool's error says to run the verb in a terminal
   - a value off its property's `enum`, a glob among them
   - a path outside the repository, given to `context`, `kinds`, or `lint`: absolute, through `..`, or through a
-    symbolic link, judged with every link followed; a path that does not exist is judged by its nearest directory
+    symbolic link, judged with every link followed, and a `..` after a link judged both as the kernel reads it and
+    as a shell's `cd` does, inside only when both are; a path that does not exist is judged by its nearest directory
     that does, and is outside when a `..` is left after it; a path the system cannot judge because it is too long,
     `PATH_MAX` or more without its `.` parts, is outside too
   - `workspace` for `flow`, a name it does not take, because it reads other clones
