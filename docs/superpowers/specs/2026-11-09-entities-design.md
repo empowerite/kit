@@ -406,9 +406,26 @@ a change in the forge, and a thread in Slack. Either side can answer, and kit ca
   and the thread is bound to it from then on.
 - Authors are people: the identity capability maps a Slack account and a forge account to one handle, so a mirrored
   message names its author in each service's own terms.
-- Two-way chat needs something always listening for both services' events. It is the first part of kit that is not a
-  command: a relay, run by the organization, that a webhook from each side calls. Where the forge's own chat
-  integration covers a route, kit configures it instead of relaying.
+- Two-way chat needs something always listening for both services' events, which no kit command is.
+
+### The companion bot
+
+Chat is not part of kit's first version. When it comes, it comes as a companion bot: a Slack app, released apart from
+kit, that a team adds to its channels. The bot is the listener that two-way threads need, and it assists as well as
+relays:
+
+- It answers questions about the work in the channel it is asked in: what is underway, why a check failed, where a
+  release is deployed, which issue a commit is for.
+- It carries messages between a Slack thread and the forge's comments on the thread's subject, and promotes a thread
+  to an issue when asked.
+- It posts the events that routes send to a channel, each in its subject's thread.
+
+The bot reaches kit only through `kit serve`, the Model Context Protocol server kit already has
+([serve.md](../../serve.md)). It gets the same verbs, the same refusals, and the same logs as an agent at a desk, and
+kit gains no interface of its own for it. The bot acts for the person who asked: the identity capability resolves
+their Slack account to a person, and the forge sees that person's act, with the bot as their agent. A verb `kit serve`
+marks destructive asks the person to confirm in Slack before it runs. The bot holds no evidence and signs nothing:
+what it reports from a desk-like process is a finding.
 
 ## kit's content
 
@@ -450,7 +467,7 @@ files, and kittui already depend on them:
 4. Platform: services and bindings beyond the forge and trackers; `kit platform` and `kit config`.
 5. Delivery: environments and deployments read from the cd service, with the provenance chain.
 6. Tools: the catalog.
-7. Conversation: one-way routes first, then the relay for two-way threads.
+7. Conversation: the companion bot, answering and posting events first, then two-way threads.
 8. Fleet: targets and drift.
 
 ## My calls
@@ -464,14 +481,15 @@ files, and kittui already depend on them:
 - The workspace file keeps holding only membership; configuration refers to workspaces by name.
 - At the same reach, a person's preference wins over the repository's.
 - A fork's run or an unprotected branch's run makes findings, not evidence.
+- The companion bot is released apart from kit, and reaches kit through `kit serve` alone.
 - Fleet comes last.
 
 ## Open questions
 
 1. Which evidence store, and how long evidence must be kept. Compliance retention decides between a registry beside
    the artifacts, a transparency log, and storage of the organization's own.
-2. Who runs the chat relay, and where: a service the organization hosts, a serverless function, or the forge's own
-   app platform.
+2. Who runs the companion bot, and where: a service the organization hosts, a serverless function, or Slack's own
+   app platform; and whether it runs `kit serve` over a checkout of its own or reads the forge alone.
 3. Whether the organization's settings reach repositories by selector through a source package, or through a
    repository of the organization's read at its head.
 4. Which work fields matter first, beyond iteration.
