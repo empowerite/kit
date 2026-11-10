@@ -215,6 +215,19 @@ child() {
   [ "$output" = $'0 2 [b]\n3 0' ]
 }
 
+@test "list:read gives the status of a command that exits, keeps the lines of one with its own EXIT trap, and the data" {
+  run kit-bash 'quits() { printf "a\nb\n"; exit 7; }; trapped() { trap "rm -f no-such-file" EXIT; printf "a\nb\n"; }
+    marks() { printf "list:fill\nlist:fill %s 1 0\nz\n" "${BASHPID}"; }; empty() { printf "x\0\0y\0"; }
+    list:read rows quits; echo "$? ${#rows[@]}"
+    list:read rows trapped; echo "$? ${rows[*]}"
+    list:read rows marks; echo "$? ${#rows[@]} [${rows[0]}] [${rows[2]}]"
+    list:read0 items empty; echo "$? ${#items[@]} [${items[1]}] [${items[2]}]"'
+  [ "${lines[0]}" = "7 0" ]
+  [ "${lines[1]}" = "0 a b" ]
+  [ "${lines[2]}" = "0 3 [list:fill] [z]" ]
+  [ "${lines[3]}" = "0 3 [] [y]" ]
+}
+
 @test "a kit.yml yq cannot read fails packages and excludes, said once; absent or with no version, it declares none" {
   local both='use settings; list:read p settings:packages; echo "$? ${#p[@]}"'
   both+='; list:read e settings:excludes; echo "$? ${#e[@]}"'

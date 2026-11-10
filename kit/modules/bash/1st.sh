@@ -300,27 +300,35 @@ list:read0() {
 }
 
 # list:fill <delimiter> <array> <command> [<argument>…] is list:read's work, for items that end in <delimiter>. The
-# command runs in a subshell, as in `< <(…)`, at the head of a pipeline whose end, readarray, runs in this shell under
-# lastpipe, and PIPESTATUS gives its status. The command's subshell turns lastpipe off again, unless the caller had it
-# on, so a pipeline inside the command runs as it does in $(…). wait "$!" after a process substitution can lose the
-# status when the command ends before the shell has recorded it: under load, one call in a few thousand. With job
-# control on, as in a terminal's shell, lastpipe does nothing, and the command runs in a process substitution.
+# command runs in a process substitution, as in `< <(…)`, and its status travels in band: after the command returns,
+# the subshell prints a mark unique to the call, then the status, as one last item, and the mark is taken off the list
+# before the trailing empty item is. wait "$!" after a process substitution can lose the status under load, when the
+# command ends before the shell has recorded it, so success never waits; only a command that exits, which prints no
+# mark, has its status from wait. lastpipe, with PIPESTATUS, is not used: bash can hang in a lastpipe pipeline under
+# load. The command runs as under ||, so errexit does not end it at a failure inside it: its status is its last
+# command's, or the one it returns.
 list:fill() {
-  local list_fill_delimiter=$1 list_fill_status=0 list_fill_lastpipe=on
+  local list_fill_delimiter=$1 list_fill_status=0 list_fill_format='\n%s\n' list_fill_mark
   local -n list_fill_items=$2
   shift 2
+  [[ -n "${list_fill_delimiter}" ]] || list_fill_format='\0%s\0'
+  list_fill_mark="list:fill ${BASHPID} ${RANDOM}${RANDOM} "
   list_fill_items=()
-  if [[ -o monitor ]]
+  # shellcheck disable=SC2059  # the format is one of the two above, chosen by the delimiter
+  readarray -t -d "${list_fill_delimiter}" list_fill_items < <("$@" || list_fill_status=$?
+    printf "${list_fill_format}" "${list_fill_mark}${list_fill_status}")
+  if (( ${#list_fill_items[@]} )) && [[ "${list_fill_items[-1]}" == "${list_fill_mark}"* ]]
   then
-    readarray -t -d "${list_fill_delimiter}" list_fill_items < <("$@")
-    wait "$!" || list_fill_status=$?
+    list_fill_status=${list_fill_items[-1]#"${list_fill_mark}"}
+    unset 'list_fill_items[-1]'
+    # The delimiter printed in front of the mark ends the command's last item, or, after one that ended, adds an
+    # empty one, which is not the command's.
+    if (( ${#list_fill_items[@]} )) && [[ -z "${list_fill_items[-1]}" ]]
+    then
+      unset 'list_fill_items[-1]'
+    fi
   else
-    shopt -q lastpipe || list_fill_lastpipe=off
-    shopt -s lastpipe
-    { [[ "${list_fill_lastpipe}" == on ]] || shopt -u lastpipe; "$@"; } \
-      | readarray -t -d "${list_fill_delimiter}" list_fill_items
-    list_fill_status=${PIPESTATUS[0]}
-    [[ "${list_fill_lastpipe}" == on ]] || shopt -u lastpipe
+    wait "$!" || list_fill_status=$?
   fi
   if (( list_fill_status != 0 ))
   then
