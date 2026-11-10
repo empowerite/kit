@@ -57,6 +57,19 @@ setup() {
   [ ! -e .cursor/rules/kit-bash.mdc ]
 }
 
+@test "remove leaves a copied file the repository edited, names it, and takes out the rest" {
+  "${kit_checkout}/bin/kit" install github/ci agents/cursor
+  [ -f .github/workflows/kit-ci.yml ]
+  [ -f .cursor/rules/kit-bash.mdc ]
+  printf '# edited\n' >> .github/workflows/kit-ci.yml
+  run "${kit_checkout}/bin/kit" packages remove github/ci agents/cursor
+  [ "$status" -eq 0 ]
+  grep --quiet --line-regexp '# edited' .github/workflows/kit-ci.yml
+  [[ "$output" == *".github/workflows/kit-ci.yml: edited since the kit placed it; it is left as it is"* ]]
+  [ ! -e .cursor/rules/kit-bash.mdc ]
+  [[ "$(declared packages)" != *"github/ci"* ]]
+}
+
 @test "select keeps a member removed earlier out of its bundle unless the member is named" {
   "${kit_checkout}/bin/kit" install empowerite
   "${kit_checkout}/bin/kit" packages remove hooks/lefthook

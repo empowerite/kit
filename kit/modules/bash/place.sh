@@ -224,6 +224,18 @@ place:remove() {
   esac
 }
 
+# place:edited <base> <path> <source> succeeds when the delivered <path> exists as a copy the repository owns and
+# differs from the release's <source>, which means the repository edited it since the kit placed it. A path under
+# .kit/ is the kit's own, so it is never edited.
+place:edited() {
+  local base=$1 path=$2 src=$3 dest
+  dest=$(release:dest "${base}" "${path}")
+  [[ -e "${dest}" || -L "${dest}" ]] || return 1
+  [[ "$(place:kind "${src}" "${dest}")" == copy ]] || return 1
+  ! materialize:owned "${base}" "${path}" || return 1
+  ! cmp --silent "${src}" "${dest}"
+}
+
 # place:refusals <base> <package>… reads the paths under the base that a removal would take out, one per line, and
 # judges the markers of each the packages deliver as a region, as region:remove judges them, so a removal refuses
 # before it takes anything out. region:has names each file it refuses. It prints how many it refuses.

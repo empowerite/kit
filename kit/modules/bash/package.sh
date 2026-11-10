@@ -138,7 +138,7 @@ package:add() {
 # cannot, it takes nothing out and returns 1. A path that still cannot be taken out is named, the manifests and the
 # declaration stay as they are, and it returns 1.
 package:remove() {
-  local package base path newly='' names count refused=0
+  local package base path src dest newly='' names count refused=0
   local -a named active excluded remaining dependents includers defaults
   guard:require tool:jq || return 1
   names=$(package:named "$@") || return 2
@@ -191,8 +191,14 @@ package:remove() {
       while IFS= read -r path
       do
         [[ -n "${path}" ]] || continue
-        place:remove "$(place:source-of "${kit_root}" "${base}" "${path}" "${active[@]}")" \
-          "$(release:dest "${base}" "${path}")" || refused=$(( refused + 1 ))
+        src=$(place:source-of "${kit_root}" "${base}" "${path}" "${active[@]}")
+        dest=$(release:dest "${base}" "${path}")
+        if place:edited "${base}" "${path}" "${src}"
+        then
+          warn "${dest}: edited since the kit placed it; it is left as it is"
+          continue
+        fi
+        place:remove "${src}" "${dest}" || refused=$(( refused + 1 ))
       done < <(place:beyond "${kit_root}" "${base}" "${remaining[*]}" "${active[*]}")
     done
   fi

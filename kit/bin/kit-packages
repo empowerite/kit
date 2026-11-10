@@ -11,8 +11,9 @@
 #
 #   - add places the files the new packages deliver and rewrites the manifests. A different file already at a
 #     delivered path is named and left alone, and no manifest is written. A package named here is no longer excluded.
-#   - remove takes out the files, the kit's JSON entries, and the kit's regions, and rewrites the manifests. A member
-#     of a bundle that stays active is recorded as excluded, so kit update does not bring it back.
+#   - remove takes out the files, the kit's JSON entries, and the kit's regions, and rewrites the manifests. A
+#     copied file the repository edited is named and left. A member of a bundle that stays active is recorded as
+#     excluded, so kit update does not bring it back.
 #   - select is remove, then add, to reach the named set. It says what it kept for another package's sake. With
 #     nothing to change, it says the set.
 #

@@ -79,7 +79,7 @@ uninstall:path() {
   dest=$(release:dest "${base}" "${path}")
   [[ -e "${dest}" || -L "${dest}" ]] || return 0
   kind=$(place:kind "${src}" "${dest}")
-  if [[ "${kind}" == copy ]] && ! materialize:owned "${base}" "${path}" && ! cmp --silent "${src}" "${dest}"
+  if place:edited "${base}" "${path}" "${src}"
   then
     warn "${dest}: edited since the kit placed it; it is left as it is"
     return 0
