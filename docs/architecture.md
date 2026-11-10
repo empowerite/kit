@@ -189,6 +189,10 @@ forge is named in the `forge` or `forges` setting, or found from a host `gh` or 
 - The core verbs never call the code forge, so a repository with no code forge can still install, update, check, and run
   `kit context`. Only a provider needs its code forge's tool.
 
+[integrations/1st.md](integrations/1st.md) lists the providers of each category, code forges, trackers, CI, and CD,
+the ones kit has and the ones it has not. For each, it gives what its tool reads and writes in kit's scope, and the
+schemas it publishes.
+
 ### The checks
 
 `kit ci` is the delivered check. The delivered GitHub Actions job runs it on every pull request into the default

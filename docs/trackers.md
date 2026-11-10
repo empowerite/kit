@@ -87,6 +87,9 @@ trackers:
     url: https://linear.app/example/issue/ENG-{id}
 ```
 
+[integrations/trackers.md](integrations/trackers.md) lists the other trackers, what each one's command line answers
+for these calls, and the schemas each one publishes.
+
 A provider is `kit/modules/bash/tracker/<name>.sh`. It implements these calls:
 
 | Call | Prints |

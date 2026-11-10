@@ -222,7 +222,8 @@ artifacts, environments, deployments, and every tab of People, Trust, and Platfo
 - Only the workflow verbs and two checks, `kit linked` and `kit policy`, call a code forge. A repository with none
   can still install, update, check, and run `kit context`.
 
-see: [trackers.md](trackers.md), [architecture.md](architecture.md#code-forges-seams-and-providers)
+see: [trackers.md](trackers.md), [architecture.md](architecture.md#code-forges-seams-and-providers),
+[integrations/1st.md](integrations/1st.md)
 
 ## Workspaces
 
