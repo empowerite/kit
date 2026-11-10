@@ -111,6 +111,14 @@ type SwitchMsg struct{ Screen Screen }
 // Switch gives the command that asks for the screen.
 func Switch(to Screen) tea.Cmd { return func() tea.Msg { return SwitchMsg{to} } }
 
+// JumpMsg asks kittui to show an app with a row of one of its tabs under the cursor, as a link in another app leads:
+// the app, and where in it, the tab's stage as the app knows it, a slash, and the row's key. kittui shows the app, as
+// SwitchMsg asks, then gives it the message, and the app selects the tab and the row, once the row has loaded.
+type JumpMsg struct {
+	Screen Screen
+	To     string
+}
+
 // Quit is the key that quits kittui on every screen, the app's menu open or not, as its Quit line says; ctrl-c quits
 // too, as an interrupt. No modifier on esc quits: a macOS terminal with its default settings sends ⌥esc, ⌃esc, and
 // ⇧esc as a plain esc, which only cancels or goes back, and keeps ⌘ for itself. Raw mode turns flow control off, so

@@ -158,6 +158,7 @@ type Model struct {
 	width, height int
 	interrupted   bool
 	built         *built // each stage's rows as last built, shared by the model's copies until it is replaced
+	landing       string // a jump to a row whose stage has not loaded it yet: the stage, a slash, and the row's key
 
 	clock source.Clock                   // what the screen's waits go through
 	quota source.Poll[[]kit.Quota]       // each forge's rate limits on the caller, as quota.go reads them
@@ -354,6 +355,8 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case msg.err != nil:
 			m.note.Text, m.note.Done = fmt.Sprintf("%s could not open %s: %v", Failed, msg.url, msg.err), false
 		}
+	case shell.JumpMsg:
+		return m, m.jump(msg.To)
 	case shell.WorkspaceMsg:
 		m.books = m.books.Told(msg)
 		if msg.Refusal == "" {
@@ -987,6 +990,7 @@ func (m *Model) take(msg source.Answer[[]byte]) bool {
 	for i := range m.stages {
 		m.clamp(i)
 	}
+	m.land(s.name, true)
 	m.fit()
 	return true
 }
@@ -1252,7 +1256,7 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 	switch {
 	case strings.HasPrefix(link, jumps):
 		m.fit()
-		m.jump(strings.TrimPrefix(link, jumps))
+		return m.jump(strings.TrimPrefix(link, jumps))
 	case link != "":
 		m.fit()
 		return m.openPage(link)
@@ -1309,19 +1313,38 @@ func (m Model) rowLine(k int) int {
 	return -1
 }
 
-// jump follows a link to a row of another stage, its name and the row's key: the stage is selected, its rows have the
-// keyboard, and the cursor is on the row, or where it was when the panel hides the row or the stage has not loaded
-// it.
-func (m *Model) jump(to string) {
-	// a stage's name may hold a slash, as kit workspace's do, so the stage is the one the link starts with
+// jump follows a link to a row of another stage, from the link's text after kittui:, the stage's name, a slash, and
+// the row's key: the stage is selected, its rows have the keyboard, and the cursor is on the row, or where it was when
+// the panel hides the row. A stage's name may hold a slash, as kit workspace's do, so the stage is the one the link
+// starts with. A row its stage has not loaded yet is under the cursor once it loads. A stage this app does not draw is
+// another app's: the jump gives the command that asks kittui for that app, at that row.
+func (m *Model) jump(to string) tea.Cmd {
 	i := slices.IndexFunc(m.stages, func(s stage) bool { return strings.HasPrefix(to, s.name+"/") })
 	if i < 0 {
+		if app := appWith(to); app != "" && app != m.app {
+			return func() tea.Msg { return shell.JumpMsg{Screen: app, To: to} }
+		}
+		return nil
+	}
+	m.choose(tabs.Bar{Selected: i, Scroll: m.barView})
+	m.landing = to
+	m.land(m.stages[i].name, false)
+	m.fit()
+	return nil
+}
+
+// land puts the row a jump waits for under the cursor, once the stage named has it. The jump is done then, or once
+// the stage's load is done, with the row or without it; it waits while the stage loads, or shows what kit kept.
+func (m *Model) land(name string, done bool) {
+	key, ok := strings.CutPrefix(m.landing, name+"/")
+	i := slices.IndexFunc(m.stages, func(s stage) bool { return s.name == name })
+	if !ok || i < 0 {
 		return
 	}
-	key := strings.TrimPrefix(to, m.stages[i].name+"/")
-	m.choose(tabs.Bar{Selected: i, Scroll: m.barView})
 	if k := slices.IndexFunc(m.rows(i), func(r row) bool { return r.Key == key }); k >= 0 {
-		m.stages[i].Cursor = k
+		m.stages[i].Cursor, done = k, true
 	}
-	m.fit()
+	if done || (!m.stages[i].src.Loading && !m.stages[i].src.Stale) {
+		m.landing = ""
+	}
 }

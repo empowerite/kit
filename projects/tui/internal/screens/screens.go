@@ -186,7 +186,8 @@ func (m Model) workspaceMsg() shell.WorkspaceMsg {
 	return shell.WorkspaceMsg{Workspace: m.workspace, Refusal: m.refused}
 }
 
-// Update takes a message: a screen's ask for another, shown in its place, or for the Settings dialog, opened over it;
+// Update takes a message: a screen's ask for another, shown in its place, or for a row of another, which is shown and
+// then given the ask; or for the Settings dialog, opened over it;
 // an answer to what a screen started, for that screen; while the dialog is open, a key or a click for it, which closes
 // it outside it, and any other mouse event nowhere;
 // and anything else for the screen shown, the terminal's size as the screen has it.
@@ -198,6 +199,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		return m.show(msg.Screen)
+	case shell.JumpMsg:
+		next, shown := m.show(msg.Screen)
+		if next.(Model).here != msg.Screen {
+			return next, shown
+		}
+		next, landed := next.(Model).deliver(msg.Screen, msg)
+		return next, tea.Batch(shown, landed)
 	case tagged:
 		if msg.epoch != m.epochs[msg.to] {
 			return m, nil
@@ -382,7 +390,7 @@ type tagged struct {
 func (m Model) tag(to shell.Screen, cmd tea.Cmd) tea.Cmd { return tag(to, m.epochs[to], cmd) }
 
 // tag gives the command whose answer reaches the screen that started it: a batch's commands each tagged so; a
-// screen's ask for another, and what the program itself takes, as quitting, as they are.
+// screen's ask for another, or for a row of another, and what the program itself takes, as quitting, as they are.
 func tag(to shell.Screen, epoch int, cmd tea.Cmd) tea.Cmd {
 	if cmd == nil {
 		return nil
@@ -390,7 +398,7 @@ func tag(to shell.Screen, epoch int, cmd tea.Cmd) tea.Cmd {
 	return func() tea.Msg {
 		msg := cmd()
 		switch msg := msg.(type) {
-		case nil, shell.SwitchMsg, shell.PickMsg:
+		case nil, shell.SwitchMsg, shell.JumpMsg, shell.PickMsg:
 			return msg
 		case tea.BatchMsg:
 			out := make(tea.BatchMsg, len(msg))

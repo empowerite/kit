@@ -47,5 +47,6 @@ func (m *Model) takeKept(msg source.Answer[[]byte]) {
 	for i := range m.stages {
 		m.clamp(i)
 	}
+	m.land(s.name, false)
 	m.fit()
 }

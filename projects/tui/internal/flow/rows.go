@@ -53,6 +53,7 @@ type underway struct {
 	Organization string        `json:"organization"`
 	Repository   string        `json:"repository"`
 	PR           struct {
+		Source string `json:"source"`
 		Number int    `json:"number"`
 		Title  string `json:"title"`
 		Author string `json:"author"`
@@ -502,13 +503,13 @@ func (m Model) keyOf(member, key string) string {
 }
 
 // memberValue gives a row's value in member: none over a repository; over a group, the member, host/path, drawn by its
-// short name, leading to its row on the repos tab where the screen has one.
+// short name, leading to its row on the repos tab, where the screen reaches one.
 func (m Model) memberValue(member string) table.Value {
 	if member == "" {
 		return table.Value{}
 	}
 	v := table.Value{Raw: []string{member}, Of: m.short(member)}
-	if m.find("workspace/repos") != nil {
+	if m.reaches("workspace/repos") {
 		v.Link = jumpTo("workspace/repos", member)
 	}
 	return v
@@ -567,8 +568,8 @@ func (m Model) backlogRows(s stage) []record {
 // when last pushed, its age right-aligned after the glyph, by whom when not the author, the issue's labels, and the
 // title. Where is here
 // when a checkout on this desk has the branch, as here draws it, local when this desk has the branch but no checkout of
-// it, else the author. The pull request's glyph leads to its row under changes, or to its page when changes is not in
-// the picture; the state's glyph to its page, and the title's to the issue's. Open, every assignee and the issue's
+// it, else the author. The pull request's glyph leads to its row under changes, or to its page when no app draws
+// changes; the state's glyph to its page, and the title's to the issue's. Open, every assignee and the issue's
 // title wrapped; the pull request's title is under changes, and the checkout's path under desk or worktrees. A row
 // belongs to the issue's assignees, whoever opened the pull request, as kit flow --mine says.
 func (m Model) underwayRows(s stage) []record {
@@ -579,7 +580,7 @@ func (m Model) underwayRows(s stage) []record {
 		var where, pushed, by table.Value
 		switch {
 		case u.Here:
-			where = m.here(u.Worktree)
+			where = m.here(u.Member, u.Worktree)
 		case u.Local:
 			where = table.Value{Raw: []string{"local"}, Of: "local"}
 		case u.PR.Author != "":
@@ -592,8 +593,8 @@ func (m Model) underwayRows(s stage) []record {
 			}
 		}
 		change := page
-		if m.find("changes") != nil {
-			change = jumpTo("changes", m.pullKey(u.Member, u.PR.Number))
+		if m.reaches("changes") {
+			change = jumpTo("changes", m.pullKey(u.Member, u.PR.Source, u.PR.Number))
 		}
 		out = append(out, record{row{Key: m.keyOf(u.Member, issue+" "+pr)}, map[string]table.Value{
 			"id": table.One(issue), "source": table.Some(u.Source), "organization": table.Some(u.Organization),
@@ -606,17 +607,21 @@ func (m Model) underwayRows(s stage) []record {
 	return out
 }
 
-// here gives underway's where for work in a checkout on this desk, at path: the desk, when the desk is that
-// checkout, leading to its row under desk, else here, a worktree, leading to its row under worktrees; without the
-// stage in the picture, its glyph leads nowhere.
-func (m Model) here(path string) table.Value {
+// here gives underway's where for work in a member's checkout on this desk, at path: the desk, when the desk is that
+// checkout, leading to its row under desk, else here, a worktree, leading to its row under worktrees; without those
+// stages, to its row on Repositories' worktrees tab, kit workspace's, where the screen reaches it, else nowhere.
+func (m Model) here(member, path string) table.Value {
 	stage, where := "worktrees", "here"
 	if d := m.find("desk"); d != nil && slices.ContainsFunc(d.desks, func(c checkout) bool { return c.Path == path }) {
 		stage, where = "desk", "desk"
 	}
 	v := table.Value{Raw: []string{where}, Of: where}
-	if m.find(stage) != nil && path != "" {
+	switch {
+	case path == "":
+	case m.find(stage) != nil:
 		v.Link = jumpTo(stage, path)
+	case m.reaches("workspace/worktrees"):
+		v.Link = jumpTo("workspace/worktrees", m.keyOf(member, path))
 	}
 	return v
 }
@@ -627,15 +632,18 @@ const jumps = "kittui:"
 // jumpTo gives the link to a row of a stage: the stage's name and the row's key.
 func jumpTo(stage, key string) string { return jumps + stage + "/" + key }
 
-// pullKey gives the key of a member's pull request's row under changes: its reference as kit printed it, else
-// #<number>, after the member over a group.
-func (m Model) pullKey(member string, number int) string {
+// pullKey gives the key of a member's pull request's row under changes: its reference as kit printed it, else, as
+// where changes is another app's, #<number>, or !<number> for a GitLab merge request, after the member over a group.
+func (m Model) pullKey(member, source string, number int) string {
 	if s := m.find("changes"); s != nil {
 		for _, p := range s.pulls {
 			if p.Number == number && p.Member == member {
 				return m.keyOf(member, ref(p))
 			}
 		}
+	}
+	if source == "gitlab" {
+		return m.keyOf(member, "!"+strconv.Itoa(number))
 	}
 	return m.keyOf(member, "#"+strconv.Itoa(number))
 }

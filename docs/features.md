@@ -200,6 +200,10 @@ source for yet says so, and loads nothing.
 | Trust | the evidence | evidence, findings, controls, waivers, policy |
 | Platform | the service | services, toolchains, tools, settings |
 
+A link to a row of another app's tab opens that app, on the tab, with the row under the cursor once it loads: an
+underway issue's pull request leads to Changes, the checkout it is worked in to Repositories' worktrees, and a
+member's name, over a group, to Repositories' repos.
+
 `kit flow` opens Issues, and `kit flow <stage>` the app with that tab, on the tab; `kit flow desk` is Repositories'
 worktrees, the desk first. `kit workspace` opens Repositories. Iterations, milestones, reviews, checks, merged,
 artifacts, environments, deployments, and every tab of People, Trust, and Platform have no data source yet.

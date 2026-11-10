@@ -98,3 +98,62 @@ func TestAPlannedTabLoadsNothingAndSaysSo(t *testing.T) {
 			m.stages[0].refusal)
 	}
 }
+
+// In an app, a link to a stage another app draws leads there: underway's pull request to its row on Changes, and its
+// where, for work in a checkout here, to the worktree's row on Repositories. Following it asks kittui for that app at
+// that row; a stage of no app's, or one this app should draw and does not, leads nowhere.
+func TestALinkToAnotherAppsTabAsksKittuiForThatAppAtTheRow(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	o := options()
+	o.App, o.Stages = shell.Issues, []string{"backlog", "underway"}
+	m := loaded(t, o)
+	values := map[string]map[string]string{}
+	for _, r := range m.records(*m.find("underway")) {
+		values[r.Key] = map[string]string{"change": r.values["change"].Link, "where": r.values["where"].Link}
+	}
+	if got := values["#1 #2"]["change"]; got != jumpTo("changes", "#2") {
+		t.Errorf("the change leads to %q", got)
+	}
+	here := jumpTo("workspace/worktrees", "/home/kit/worktrees/1-the-first-release-v0-1-0")
+	if got := values["#1 #2"]["where"]; got != here {
+		t.Errorf("here leads to %q", got)
+	}
+	cmd := m.jump("changes/#2")
+	if cmd == nil {
+		t.Fatal("a jump to Changes asked for nothing")
+	}
+	if got := cmd(); got != (shell.JumpMsg{Screen: shell.Changes, To: "changes/#2"}) {
+		t.Errorf("a jump to Changes asked %+v", got)
+	}
+	if m.jump("nowhere/x") != nil || m.jump("planned/iterations/x") != nil {
+		t.Error("a jump to a stage of no app's, or of Issues' own, asked for an app")
+	}
+	// the picture alone, as kit flow's tests draw it, reaches no other app: its links lead where they always did
+	bare := loaded(t, Options{Stages: []string{"underway"}, NoPresets: true, Clock: o.Clock})
+	if got := bare.records(*bare.find("underway"))[0].values["change"].Link; strings.HasPrefix(got, jumps) {
+		t.Errorf("the picture alone leads to %q", got)
+	}
+}
+
+// A jump that comes before its stage's rows waits for them, and the row is under the cursor once they load; a jump to
+// a row the stage does not have is done once it loads.
+func TestAJumpLandsOnTheRowOnceItsStageLoads(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	o := options()
+	o.App, o.Stages = shell.Changes, []string{"changes"}
+	m := New(runner(t), o)
+	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 24}, shell.JumpMsg{Screen: shell.Changes, To: "changes/#4"})
+	if m.landing != "changes/#4" {
+		t.Fatalf("the jump waits for %q", m.landing)
+	}
+	m = drive(m, m.Init()())
+	rows := m.rows(0)
+	k := slices.IndexFunc(rows, func(r row) bool { return r.Key == "#4" })
+	if k <= 0 || m.stages[0].Cursor != k || m.landing != "" {
+		t.Errorf("the cursor on %d, #4 at %d, waiting for %q", m.stages[0].Cursor, k, m.landing)
+	}
+	m = drive(m, shell.JumpMsg{Screen: shell.Changes, To: "changes/#99"})
+	if m.landing != "" || m.stages[0].Cursor != k {
+		t.Errorf("a jump to no row: the cursor on %d, waiting for %q", m.stages[0].Cursor, m.landing)
+	}
+}

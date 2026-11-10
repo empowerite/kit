@@ -91,6 +91,24 @@ func TestTheMenuOpensTheTutorials(t *testing.T) {
 	m.Close()
 }
 
+// A jump to a row of another app shows that app, made on its first showing, and gives it the jump, which selects the
+// tab the row is on, here the second; a jump to a screen that cannot open leaves the one shown.
+func TestAJumpShowsTheAppAndGivesItTheJump(t *testing.T) {
+	m := help(t)
+	m, _ = testkit.Drive(m, nil, shell.JumpMsg{Screen: shell.Repositories, To: "workspace/remotes/origin"})
+	if m.here != shell.Repositories {
+		t.Fatalf("shown: %s", m.here)
+	}
+	if v := ansi.Strip(m.View().Content); !strings.Contains(v, "kit repositories · ") || !strings.Contains(v, "➋╶") {
+		t.Errorf("the jump did not select remotes, the second tab:\n%s", v)
+	}
+	m, _ = testkit.Drive(m, nil, shell.JumpMsg{Screen: "nowhere", To: "x/y"})
+	if m.here != shell.Repositories {
+		t.Errorf("a jump to no screen shows %s", m.here)
+	}
+	m.Close()
+}
+
 // A screen kit does not have leaves the one shown, with kit's line on its last line until the next key.
 func TestAScreenThatCannotOpenLeavesTheOneShown(t *testing.T) {
 	m := help(t)

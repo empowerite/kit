@@ -99,6 +99,23 @@ func OpenApp(r kit.Runner, app shell.Screen, words []string) (Model, error) {
 	return open(r, Options{App: app, Stages: stages}, words), nil
 }
 
+// appWith gives the app with the stage a link names, its text after kittui:, the stage's name, a slash, and the row's
+// key; none when no app draws it.
+func appWith(to string) shell.Screen {
+	for _, a := range apps {
+		if slices.ContainsFunc(a.stages, func(name string) bool { return strings.HasPrefix(to, name+"/") }) {
+			return a.screen
+		}
+	}
+	return ""
+}
+
+// reaches says whether a link to a row of the stage leads anywhere: the stage is this screen's, or, in an app,
+// another app's.
+func (m Model) reaches(name string) bool {
+	return m.find(name) != nil || (m.app != "" && appWith(name+"/") != "")
+}
+
 // verbsOf gives the verbs whose stages are among the stages, kit flow's and kit workspace's, each once.
 func verbsOf(stages []string) []string {
 	var verbs []string
