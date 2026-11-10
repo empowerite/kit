@@ -38,6 +38,7 @@ then
   [[ "${verb}" != -- ]] || verb=${2:-}
   case "${verb}" in
     (flow) error "kit flow needs an interactive terminal for its picture; run: kit flow --text" ;;
+    (workspace) error "kit workspace needs an interactive terminal for its picture; run: kit workspace --text" ;;
     (welcome) error "kit welcome needs an interactive terminal; run: kit welcome --text" ;;
     (help) error "kit help needs an interactive terminal for its palette; run: kit help --text" ;;
     (*) error "kit tui needs an interactive terminal; run: kit help tui"

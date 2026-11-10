@@ -655,7 +655,8 @@ func TestEqualsDropsTheAppsMenuDownOverThePalette(t *testing.T) {
 		t.Errorf("the search under the menu: %q", title)
 	}
 	_, msgs := testkit.Drive(m, func(msg tea.Msg) bool { _, ok := msg.(shell.SwitchMsg); return ok },
-		testkit.Typed("w")[0], tea.KeyPressMsg{Code: tea.KeyEnter})
+		testkit.Typed("w")[0], testkit.Typed("w")[0], tea.KeyPressMsg{Code: tea.KeyEnter})
+	// w moves to the next item that starts with it, Workspace, then round to Welcome
 	if !slices.Contains(msgs, tea.Msg(shell.SwitchMsg{Screen: shell.Welcome})) {
 		t.Errorf("welcome asked %v", msgs)
 	}
@@ -665,7 +666,7 @@ func TestEqualsDropsTheAppsMenuDownOverThePalette(t *testing.T) {
 	if !m.appMenu.Open {
 		t.Fatal("a click on the screen's name did not drop the menu down")
 	}
-	quit := testkit.Click(3, shell.Top+8)
+	quit := testkit.Click(3, shell.Top+9)
 	if _, msgs := testkit.Drive(m, nil, quit); !slices.Contains(msgs, tea.Msg(tea.QuitMsg{})) {
 		t.Errorf("a click on quit: %v", msgs)
 	}

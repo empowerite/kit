@@ -25,6 +25,9 @@ const (
 	Desk      = "💻" // the desk
 	Branch    = "🌿" // a branch or a worktree
 	Sprout    = "🌱" // a local branch
+	Worktree  = "🌳" // a worktree
+	Commit    = "🔘" // a commit
+	Default   = "⚓" // the default branch
 	Change    = "🔀" // a pull request
 	Owner     = "👤" // assignees or author
 	People    = "👥" // assignees, how many
@@ -34,7 +37,7 @@ const (
 	Fetched   = "🛬" // the fetch
 	Remote    = "📡" // a remote
 	Gone      = "🔖" // a branch gone
-	Tag       = "📌" // a new tag
+	Tag       = "📌" // a tag
 	Detached  = "❗" // not on any branch
 	Threads   = "💬" // threads unresolved
 	Running   = "🏃" // running
@@ -120,7 +123,7 @@ var legends = map[string][]entry{
 		{Remote, "a remote"},
 		{Branch, "a branch or a worktree"},
 		{Gone, "a branch gone"},
-		{Tag, "a new tag"},
+		{Tag, "a tag"},
 		{Failed, "failed"},
 	},
 	"releases": {
@@ -130,18 +133,58 @@ var legends = map[string][]entry{
 		{Latest, "the latest release"},
 		{Failed, "failed"},
 	},
+	"workspace/remotes": {
+		{Remote, "a remote"},
+		{GitHub, "on GitHub"},
+		{GitLab, "on GitLab"},
+		{Default, "the default branch"},
+		{Failed, "failed"},
+	},
+	"workspace/branches": {
+		{Branch, "a branch or a worktree"},
+		{Sprout, "a local branch"},
+		{Gone, "a branch gone"},
+		{Default, "the default branch"},
+		{Worktree, "a worktree"},
+		{Commit, "a commit"},
+		{Failed, "failed"},
+	},
+	"workspace/worktrees": {
+		{Desk, "the desk"},
+		{Worktree, "a worktree"},
+		{Branch, "a branch or a worktree"},
+		{Detached, "not on any branch"},
+		{Commit, "a commit"},
+		{Failed, "failed"},
+	},
+	"workspace/commits": {
+		{Commit, "a commit"},
+		{Issue, "an issue"},
+		{Branch, "a branch or a worktree"},
+		{Worktree, "a worktree"},
+		{Failed, "failed"},
+	},
+	"workspace/tags": {
+		{Tag, "a tag"},
+		{Commit, "a commit"},
+		{Failed, "failed"},
+	},
 }
 
 // marks gives the mark after a glyph's meaning in a stage's legend, for each glyph a click on leads somewhere:
 // to the row of another stage, or to a page.
 var marks = map[string]map[string]string{
-	"backlog":   {Issue: ToPage},
-	"underway":  {Change: ToRow, Desk: ToRow, Branch: ToRow, Issue: ToPage},
-	"desk":      {Change: ToRow},
-	"worktrees": {Change: ToRow},
-	"changes":   {Change: ToPage},
-	"builds":    {Running: ToPage, Passed: ToPage, Failed: ToPage, Cancelled: ToPage},
-	"releases":  {Release: ToPage, Pre: ToPage, Draft: ToPage},
+	"backlog":             {Issue: ToPage},
+	"underway":            {Change: ToRow, Desk: ToRow, Branch: ToRow, Issue: ToPage},
+	"desk":                {Change: ToRow},
+	"worktrees":           {Change: ToRow},
+	"changes":             {Change: ToPage},
+	"builds":              {Running: ToPage, Passed: ToPage, Failed: ToPage, Cancelled: ToPage},
+	"releases":            {Release: ToPage, Pre: ToPage, Draft: ToPage},
+	"workspace/remotes":   {GitHub: ToPage, GitLab: ToPage, Default: ToRow},
+	"workspace/branches":  {Branch: ToPage, Worktree: ToRow, Commit: ToPage},
+	"workspace/worktrees": {Branch: ToRow},
+	"workspace/commits":   {Commit: ToPage, Issue: ToPage, Worktree: ToRow},
 }
 
 // states gives a pull request's glyph by its state word, the last for any other; it hangs under changes' legend,
@@ -160,28 +203,38 @@ var states = []entry{
 
 // stageGlyphs gives each stage's glyph, drawn beside its name on the line of stages.
 var stageGlyphs = map[string]string{
-	"repos":     Workspace,
-	"backlog":   Issue,
-	"underway":  InFlight,
-	"desk":      Desk,
-	"worktrees": Branch,
-	"changes":   Change,
-	"builds":    Build,
-	"incoming":  Fetched,
-	"releases":  Release,
+	"repos":               Workspace,
+	"backlog":             Issue,
+	"underway":            InFlight,
+	"desk":                Desk,
+	"worktrees":           Branch,
+	"changes":             Change,
+	"builds":              Build,
+	"incoming":            Fetched,
+	"releases":            Release,
+	"workspace/remotes":   Remote,
+	"workspace/branches":  Branch,
+	"workspace/worktrees": Worktree,
+	"workspace/commits":   Commit,
+	"workspace/tags":      Tag,
 }
 
 // stageColors gives each stage its group's color, which the bar draws the stage's tab in while it is selected.
 var stageColors = map[string]string{
-	"repos":     "13",
-	"backlog":   "75",
-	"underway":  "75",
-	"desk":      "114",
-	"worktrees": "114",
-	"changes":   "221",
-	"builds":    "221",
-	"incoming":  "177",
-	"releases":  "177",
+	"repos":               "13",
+	"backlog":             "75",
+	"underway":            "75",
+	"desk":                "114",
+	"worktrees":           "114",
+	"changes":             "221",
+	"builds":              "221",
+	"incoming":            "177",
+	"releases":            "177",
+	"workspace/remotes":   "114",
+	"workspace/branches":  "114",
+	"workspace/worktrees": "75",
+	"workspace/commits":   "177",
+	"workspace/tags":      "177",
 }
 
 // kit:end glyphs

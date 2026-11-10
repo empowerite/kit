@@ -38,6 +38,7 @@ func TestNoTerminalRefuses(t *testing.T) {
 	for args, want := range map[string]string{
 		"-- commit": "❌ kit tui needs an interactive terminal; run: kit help tui\n",
 		"flow":      "❌ kit flow needs an interactive terminal for its picture; run: kit flow --text\n",
+		"workspace": "❌ kit workspace needs an interactive terminal for its picture; run: kit workspace --text\n",
 		"welcome":   "❌ kit welcome needs an interactive terminal; run: kit welcome --text\n",
 		"tutorials": "❌ kit tutorials needs an interactive terminal; run: kit tutorials --text\n",
 	} {
@@ -274,6 +275,7 @@ func TestOffATerminalEachScreenNamesItsTextForm(t *testing.T) {
 		"help":      "kit help needs an interactive terminal for its palette; run: kit help --text",
 		"":          "kit tui needs an interactive terminal; run: kit help tui",
 		"flow":      "kit flow needs an interactive terminal for its picture; run: kit flow --text",
+		"workspace": "kit workspace needs an interactive terminal for its picture; run: kit workspace --text",
 		"tutorials": "kit tutorials needs an interactive terminal; run: kit tutorials --text",
 		"-- commit": "kit tui needs an interactive terminal; run: kit help tui",
 	} {

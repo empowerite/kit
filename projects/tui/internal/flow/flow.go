@@ -17,6 +17,7 @@ package flow
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -37,11 +38,13 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
-// Options is how the screen opens: the stages in the picture's order; the stage it opens on, maximized, when one is
+// Options is how the screen opens: the verb whose picture it is, kit flow's, the default, or kit workspace's; the
+// stages in the picture's order; the stage it opens on, maximized, when one is
 // named; origin, when known, for the URLs and for the workspace menu until kit says the workspace; whether the fetch
 // is skipped; the filters backlog, underway, and changes take; and whether every stage's headers are hidden, as a test
 // of the rows alone asks.
 type Options struct {
+	Verb      string
 	Stages    []string
 	Focus     string
 	Origin    Origin
@@ -60,7 +63,8 @@ type failure struct {
 	Error  string `json:"error"`
 }
 
-// stage is one stage of the picture: its name, what kit printed for it, and where the person is in its rows.
+// stage is one stage of the picture: its name, as kittui knows it, kit flow's own and kit workspace's after workspace/,
+// what kit printed for it, and where the person is in its rows.
 type stage struct {
 	name    string
 	src     source.Load[[]byte] // its read, kit flow <stage> --json: loading, stale, its mark, and Watch
@@ -73,21 +77,42 @@ type stage struct {
 	pulls   []pull
 	runs    []run
 	rels    []release
-	failed  []failure // over a group, the members whose read of the stage failed
-	repos   []repo    // the repos tab's members
+	failed  []failure         // over a group, the members whose read of the stage failed
+	repos   []repo            // the repos tab's members
+	rows    []json.RawMessage // a kit workspace stage's rows, each its key, its member, its fields' values, and links
 	// its table's state: the panel, the view, the outline, the rows selected, and where the cursor is
 	table.Table
 }
 
-// known names the stages kittui draws.
+// known names the stages kittui draws: kit flow's, and kit workspace's after workspace/.
 var known = map[string]bool{"repos": true, "backlog": true, "underway": true, "incoming": true, "desk": true,
-	"worktrees": true, "changes": true, "builds": true, "releases": true}
+	"worktrees": true, "changes": true, "builds": true, "releases": true, "workspace/remotes": true,
+	"workspace/branches": true, "workspace/worktrees": true, "workspace/commits": true, "workspace/tags": true}
+
+// workspaceVerb is kit workspace's verb, whose stages kittui knows after it and a slash.
+const workspaceVerb = "workspace"
+
+// ofWorkspace says whether a stage, as kittui knows it, is kit workspace's.
+func ofWorkspace(name string) bool { return strings.HasPrefix(name, workspaceVerb+"/") }
+
+// label gives the name a stage goes by, as kit names it, on its tab and in what the screen says of it: kit
+// workspace's without workspace/.
+func label(name string) string { return strings.TrimPrefix(name, workspaceVerb+"/") }
+
+// command gives the command line that reads a stage, as the screen names it when the stage fails.
+func command(name string) string {
+	if ofWorkspace(name) {
+		return "kit workspace " + label(name)
+	}
+	return "kit flow " + name
+}
 
 // deadline is how long a stage's command may take: past it, the stage is a refusal, and Refresh All runs it again.
 const deadline = 2 * time.Minute
 
 // Model is the picture on the screen.
 type Model struct {
+	verb          string // the verb whose picture this is: flow, or workspace
 	runner        kit.Runner
 	ctx           context.Context    // ends with the screen, and every stage's command with it
 	cancel        context.CancelFunc // ends ctx
@@ -166,31 +191,63 @@ func Open(r kit.Runner, words []string) (Model, error) {
 		// the repos tab stands first over a repository too, where kit's stages do not name it
 		stages = append([]string{"repos"}, stages...)
 	}
-	o := Options{Stages: stages, Origin: ReadOrigin(r.Dir), Presets: table.PresetsPath(), History: shell.RecentFile()}
+	return open(r, Options{Stages: stages}, words), nil
+}
+
+// OpenWorkspace reads kit workspace's stages from kit, and opens the screen on them, as Open does kit flow's: a stage
+// named among the words is the one it opens on, maximized.
+func OpenWorkspace(r kit.Runner, words []string) (Model, error) {
+	stages, err := r.StagesOf(workspaceVerb)
+	if err != nil {
+		return Model{}, err
+	}
+	for k, name := range stages {
+		stages[k] = workspaceVerb + "/" + name
+	}
+	return open(r, Options{Verb: workspaceVerb, Stages: stages}, words), nil
+}
+
+// open opens the screen on the stages the options name, as Open says, origin read from git, and the words taken: a
+// stage, by the name kit gives it, --no-fetch, and the filters.
+func open(r kit.Runner, o Options, words []string) Model {
+	o.Origin, o.Presets, o.History = ReadOrigin(r.Dir), table.PresetsPath(), shell.RecentFile()
 	for _, word := range words {
+		named := func(name string) bool { return label(name) == word }
 		switch {
 		case word == "--no-fetch":
 			o.NoFetch = true
-		case o.Focus == "" && slices.Contains(stages, word):
-			o.Focus = word
+		case o.Focus == "" && slices.ContainsFunc(o.Stages, named):
+			o.Focus = o.Stages[slices.IndexFunc(o.Stages, named)]
 		default:
 			o.Filters = append(o.Filters, word)
 		}
 	}
-	return New(r, o), nil
+	return New(r, o)
 }
 
 // New opens the screen on the options; every stage loads once Init starts it, its panel set as its Default preset
 // says. A stage kittui does not know shows a line saying so, and runs nothing. The stage named to focus on is
 // selected and maximized, the bar's keys on its title as they are on any maximized tab's.
 func New(r kit.Runner, o Options) Model {
-	m := Model{runner: r, limit: deadline, origin: o.Origin, noFetch: o.NoFetch, filters: o.Filters, width: 80, height: 24,
-		browse: browser, appMenu: shell.Menu{Here: shell.Flow}, books: shell.BooksMenu{Fallback: o.Origin.Repo},
-		fold: true, legend: legend{at: bottomRight}}
+	m := Model{verb: cmp.Or(o.Verb, "flow"), runner: r, limit: deadline, origin: o.Origin, noFetch: o.NoFetch,
+		filters: o.Filters, width: 80, height: 24, browse: browser, appMenu: shell.Menu{Here: shell.Flow},
+		books: shell.BooksMenu{Fallback: o.Origin.Repo}, fold: true, legend: legend{at: bottomRight}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.clock = o.Clock
 	m.quota = source.NewPoll("quota", QuotaEvery, r.Quota)
 	m.marks = source.NewPoll("marks", MarksEvery, r.Marks)
+	if m.verb == workspaceVerb {
+		// its marks are its own stages', named as kittui knows them
+		m.appMenu.Here = shell.Workspace
+		m.marks = source.NewPoll("marks", MarksEvery, func(ctx context.Context) (map[string]string, error) {
+			marks, err := r.MarksOf(ctx, workspaceVerb)
+			named := map[string]string{}
+			for name, mark := range marks {
+				named[workspaceVerb+"/"+name] = mark
+			}
+			return named, err
+		})
+	}
 	m.noHeaders, m.presetsPath, m.noPresets = o.NoHeaders, o.Presets, o.NoPresets
 	m.recent = shell.Recent{Path: o.History}.Loaded()
 	var err error
@@ -203,7 +260,7 @@ func New(r kit.Runner, o Options) Model {
 		s := stage{name: name, src: m.stageLoad(name),
 			Table: table.Table{Open: grid.Outline{}, Picked: map[string]bool{}, ViewName: Opening, Grouping: true}}
 		if !known[name] {
-			s.src.Loading, s.refusal = false, fmt.Sprintf("kittui does not draw the stage '%s'", name)
+			s.src.Loading, s.refusal = false, fmt.Sprintf("kittui does not draw the stage '%s'", label(name))
 		}
 		if c := catalog[name]; c != nil {
 			s.View = c.Presets[slices.IndexFunc(c.Presets, func(p table.Preset) bool { return p.Name == Opening })].Panel(c.Fields, s.View)
@@ -244,8 +301,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	next, cmd := m.update(msg)
 	n := next.(Model)
 	if a, ok := msg.(source.Answer[[]byte]); ok && !a.Kept {
-		// a load spends the rate limits, and the stage takes the next mark as its own: both are read again
-		cmd = tea.Batch(cmd, n.quota.Ask(n.env()), n.marks.Ask(n.env()))
+		// a load spends the rate limits, and the stage takes the next mark as its own: both are read again; kit
+		// workspace reads no forge, so its picture spends none and reads none
+		cmd = tea.Batch(cmd, n.marks.Ask(n.env()))
+		if n.verb != workspaceVerb {
+			cmd = tea.Batch(cmd, n.quota.Ask(n.env()))
+		}
 	}
 	if !n.onPreset {
 		for i := range n.stages {
@@ -353,7 +414,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.refresh(m.stages[m.staleAt(msg.X, msg.Y)].name)
 		case msg.Button == tea.MouseLeft && m.onMenu(msg.X, msg.Y):
 			return m, m.dropDown(false)
-		case msg.Button == tea.MouseLeft && shell.OnApp(msg.X, msg.Y, appLabel):
+		case msg.Button == tea.MouseLeft && shell.OnApp(msg.X, msg.Y, m.appLabel()):
 			m.appMenu = m.appMenu.Opened()
 		case msg.Button == tea.MouseLeft && m.books.On(msg.X, msg.Y, m.booksAt()):
 			m.books = m.books.Opened()
@@ -857,6 +918,10 @@ func (m Model) stageLoad(name string) source.Load[[]byte] {
 	kept := func(ctx context.Context) ([]byte, error) {
 		return r.Status(ctx, name, append(slices.Clone(args), "--cached"))
 	}
+	if ofWorkspace(name) {
+		// kit workspace keeps nothing of a stage's last read: what git holds here reads at once
+		kept = nil
+	}
 	return source.NewLoad(name, read, kept)
 }
 
@@ -885,7 +950,7 @@ func (m *Model) restart(name string) tea.Cmd {
 	}
 	s.src.Loading, s.refusal = true, ""
 	s.issues, s.under, s.ins, s.desks, s.trees, s.pulls, s.runs, s.rels = nil, nil, nil, nil, nil, nil, nil, nil
-	s.failed, s.repos = nil, nil
+	s.failed, s.repos, s.rows = nil, nil, nil
 	m.rebuild()
 	return cmd
 }
@@ -978,13 +1043,14 @@ func (m *Model) autoGroup(name string) {
 	m.rebuild()
 }
 
-// decode keeps what the stage's command printed: over a group, and for the repos tab always, kit's {rows, errors}, its
+// decode keeps what the stage's command printed: over a group, and for the repos tab and kit workspace's stages
+// always, kit's {rows, errors}, its
 // rows the stage's, one object a member for an object's stage; else the stage's document, an object's stage's object
 // its one entry. A document of another shape, as kit prints above repositories, is an error naming it, and JSON that
 // does not decode is one too.
 func (s *stage) decode(data []byte, over bool) error {
 	s.failed = nil
-	if over || s.name == "repos" {
+	if over || s.name == "repos" || ofWorkspace(s.name) {
 		var doc struct {
 			Rows   json.RawMessage `json:"rows"`
 			Errors []failure       `json:"errors"`
@@ -993,7 +1059,7 @@ func (s *stage) decode(data []byte, over bool) error {
 			return err
 		}
 		if err := json.Unmarshal(data, &doc); err != nil {
-			return fmt.Errorf("kit flow %s --workspace --json: %v", s.name, err)
+			return fmt.Errorf("%s --workspace --json: %v", command(s.name), err)
 		}
 		s.failed = doc.Errors
 		return s.decodeRows(doc.Rows, true)
@@ -1036,9 +1102,14 @@ func (s *stage) decodeRows(data []byte, many bool) error {
 		err = json.Unmarshal(data, &s.rels)
 	case "repos":
 		err = json.Unmarshal(data, &s.repos)
+	default:
+		if ofWorkspace(s.name) {
+			s.rows = nil
+			err = json.Unmarshal(data, &s.rows)
+		}
 	}
 	if err != nil {
-		return fmt.Errorf("kit flow %s --json: %v", s.name, err)
+		return fmt.Errorf("%s --json: %v", command(s.name), err)
 	}
 	return nil
 }
@@ -1065,7 +1136,7 @@ func across(name string, data []byte) error {
 	if printed == "" {
 		return nil
 	}
-	return fmt.Errorf("kit flow %s --workspace --json printed %s where {rows, errors} was expected", name, printed)
+	return fmt.Errorf("%s --workspace --json printed %s where {rows, errors} was expected", command(name), printed)
 }
 
 // fetched says whether the fetch ran in any member incoming read.
@@ -1145,14 +1216,14 @@ func refusalOf(name string, err error) string {
 	var exit *kit.ExitError
 	switch {
 	case errors.Is(err, context.DeadlineExceeded):
-		return fmt.Sprintf("kit flow %s took longer than %d minutes; the menu's Refresh All runs it again", name,
+		return fmt.Sprintf("%s took longer than %d minutes; the menu's Refresh All runs it again", command(name),
 			int(deadline.Minutes()))
 	case err.Error() != "":
 		return err.Error()
 	case errors.As(err, &exit) && exit.Code >= 0:
-		return fmt.Sprintf("kit flow %s exited %d with nothing on stderr", name, exit.Code)
+		return fmt.Sprintf("%s exited %d with nothing on stderr", command(name), exit.Code)
 	}
-	return fmt.Sprintf("kit flow %s was killed", name)
+	return fmt.Sprintf("%s was killed", command(name))
 }
 
 // clamp keeps a stage's cursor within its rows, and, while they have the keyboard, past the heading over the groups,
@@ -1258,11 +1329,12 @@ func (m Model) rowLine(k int) int {
 // keyboard, and the cursor is on the row, or where it was when the panel hides the row or the stage has not loaded
 // it.
 func (m *Model) jump(to string) {
-	name, key, _ := strings.Cut(to, "/")
-	i := slices.IndexFunc(m.stages, func(s stage) bool { return s.name == name })
+	// a stage's name may hold a slash, as kit workspace's do, so the stage is the one the link starts with
+	i := slices.IndexFunc(m.stages, func(s stage) bool { return strings.HasPrefix(to, s.name+"/") })
 	if i < 0 {
 		return
 	}
+	key := strings.TrimPrefix(to, m.stages[i].name+"/")
 	m.choose(tabs.Bar{Selected: i, Scroll: m.barView})
 	if k := slices.IndexFunc(m.rows(i), func(r row) bool { return r.Key == key }); k >= 0 {
 		m.stages[i].Cursor = k

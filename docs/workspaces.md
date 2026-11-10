@@ -92,6 +92,33 @@ picture included: a row per member, with its forge, remotes, clone or `not clone
 worktrees by branch, and the local branches no checkout has. The clone reads `~` for the home folder, and a closed
 row shows `…` and its last two folders; open, the row shows the whole path.
 
+## kit workspace
+
+```sh
+kit workspace                                     # the git of the repository here: every stage
+kit workspace branches                            # its branches, local and on each remote
+kit workspace commits --workspace empowerite      # the commits not on the default branch, in every member
+kit workspace worktrees --json                    # {rows, errors}, each row a worktree
+```
+
+`kit workspace` draws what git holds across a workspace, a stage for each of git's entities: remotes, branches,
+worktrees, commits, and tags. It reads git alone, from each repository's main checkout, and asks no remote, so a
+remote's side is what the last fetch left. HEAD is no stage: a remote's is its default branch, ⚓ on its row and on
+the branch's, and a worktree's is its branch, or its commit where it is detached.
+
+- remotes: each remote, its forge, the repository its URL names, its default branch, and how many branches it has.
+- branches: each branch on a remote, with the local branches that pull from it and what the first is ahead and
+  behind; and each local branch whose upstream is gone, or that has none. A branch checked out names its worktree.
+- worktrees: each worktree, the desk first: its branch, what it is ahead and behind its upstream and the default
+  branch, and its paths changed and untracked.
+- commits: the commits the local branches hold and the default branch does not, the newest first, each with its
+  branches, whether a remote has it, and the issue its subject starts with.
+- tags: each tag, the newest first, annotated or lightweight, with its commit and its tagger.
+
+`--workspace` reads every cloned member's checkout at once, as `kit flow --workspace` does, and every row gains its
+member. On a terminal, `kit workspace` opens kittui's workspace picture, a tab per stage, and the app menu moves
+between it and the flow's.
+
 ## Still to come
 
 Groups made by queries (an owner, public or private, a name pattern such as

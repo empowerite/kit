@@ -114,7 +114,7 @@ func (m Model) parts(last int) []part {
 	name := m.stages[m.stage].name
 	for _, s := range m.stages {
 		if g := stageGlyphs[s.name]; g != "" {
-			out = append(out, one(g, "the "+s.name+" stage", tabBar))
+			out = append(out, one(g, "the "+label(s.name)+" stage", tabBar))
 		}
 	}
 	for _, e := range legends[name] {

@@ -266,6 +266,161 @@
         {"name": "Compact", "fields": {
           "age": {"placement": "hidden"}, "latest": {"placement": "hidden"}}}
       ]
+    },
+    {
+      "stage": "workspace/remotes", "record": ".rows[]",
+      "fields": [
+        {"id": "remote", "label": "remote", "type": "text", "path": ".remote", "sort": true, "glyph": "📡",
+         "renderings": ["glyph+text", "text"], "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "forge", "label": "forge", "type": "enum", "path": ".forge", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
+         "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
+        {"id": "repository", "label": "repository", "type": "text", "path": ".repository", "sort": true,
+         "renderings": ["text"], "placement": "column"},
+        {"id": "host", "label": "host", "type": "enum", "path": ".host", "sort": true, "group": true, "filter": true,
+         "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "url", "label": "url", "type": "text", "path": ".url", "sort": true, "renderings": ["text"], "dim": true,
+         "placement": "column"},
+        {"id": "push", "label": "push url", "type": "text", "path": ".push", "sort": true, "renderings": ["text"],
+         "dim": true, "placement": "hidden"},
+        {"id": "default", "label": "default", "type": "text", "path": ".default", "sort": true, "glyph": "⚓",
+         "renderings": ["glyph+text", "text"], "placement": "column"},
+        {"id": "branches", "label": "branches", "type": "number", "path": ".branches", "sort": true,
+         "renderings": ["text"], "right": true, "placement": "column"},
+        {"id": "primary", "label": "primary", "type": "enum", "path": ".primary", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "primary"}], "renderings": ["text"], "dim": true, "placement": "hidden"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {"url": {"placement": "hidden"}, "branches": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "workspace/branches", "record": ".rows[]",
+      "fields": [
+        {"id": "kind", "label": "kind", "type": "enum", "path": ".kind", "sort": true, "group": true, "filter": true,
+         "values": [{"value": "remote", "glyph": "🌿"}, {"value": "local", "glyph": "🌱"},
+                    {"value": "gone", "glyph": "🔖"}], "renderings": ["glyph", "glyph+text", "text"],
+         "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "branch", "label": "branch", "type": "text", "path": ".branch", "sort": true, "renderings": ["text"],
+         "placement": "column"},
+        {"id": "default", "label": "default", "type": "enum", "path": ".default", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "default", "glyph": "⚓"}], "renderings": ["glyph", "text"],
+         "placement": "column"},
+        {"id": "remote", "label": "remote", "type": "enum", "path": ".remote", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
+        {"id": "local", "label": "local", "one": "local branch", "type": "label", "path": ".local[]", "filter": true,
+         "group": true, "renderings": ["text"], "placement": "column"},
+        {"id": "upstream", "label": "ahead", "type": "number", "path": ".upstream", "sort": true,
+         "renderings": ["track"], "placement": "column"},
+        {"id": "commit", "label": "commit", "type": "ref", "path": ".commit", "sort": true, "glyph": "🔘",
+         "renderings": ["glyph+text", "text"], "dim": true, "placement": "column"},
+        {"id": "age", "label": "age", "type": "time", "path": ".age", "sort": true, "renderings": ["age"], "dim": true,
+         "right": true, "placement": "column"},
+        {"id": "worktree", "label": "worktree", "type": "text", "path": ".worktree[]", "sort": true, "glyph": "🌳",
+         "renderings": ["tree", "text"], "dim": true, "placement": "column"},
+        {"id": "subject", "label": "subject", "type": "text", "path": ".subject", "sort": true, "renderings": ["text"],
+         "wrap": true, "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {
+          "remote": {"placement": "hidden"}, "commit": {"placement": "hidden"}, "subject": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "workspace/worktrees", "record": ".rows[]",
+      "fields": [
+        {"id": "kind", "label": "kind", "type": "enum", "path": ".kind", "sort": true, "group": true, "filter": true,
+         "values": [{"value": "desk", "glyph": "💻"}, {"value": "linked", "glyph": "🌳"}],
+         "renderings": ["glyph", "glyph+text", "text"], "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "path", "label": "path", "type": "text", "path": ".path", "sort": true, "renderings": ["path", "text"],
+         "dim": true, "placement": "column"},
+        {"id": "branch", "label": "branch", "type": "text", "path": ".branch", "sort": true, "glyph": "🌿",
+         "renderings": ["glyph+text", "text"], "placement": "column"},
+        {"id": "detached", "label": "detached", "type": "enum", "path": ".detached", "group": true, "filter": true,
+         "values": [{"value": "detached", "glyph": "❗"}], "renderings": ["glyph", "text"], "placement": "column"},
+        {"id": "head", "label": "head", "type": "ref", "path": ".head", "sort": true, "glyph": "🔘",
+         "renderings": ["glyph+text", "text"], "dim": true, "placement": "column"},
+        {"id": "upstream", "label": "upstream", "type": "text", "path": ".upstream", "sort": true,
+         "renderings": ["text"], "dim": true, "placement": "column"},
+        {"id": "track", "label": "ahead", "type": "number", "path": ".track", "sort": true, "renderings": ["track"],
+         "placement": "column"},
+        {"id": "base", "label": "default", "type": "number", "path": ".base", "sort": true, "renderings": ["track"],
+         "placement": "column"},
+        {"id": "changes", "label": "changes", "type": "number", "path": ".changes", "sort": true,
+         "renderings": ["text"], "right": true, "placement": "column"},
+        {"id": "untracked", "label": "untracked", "type": "number", "path": ".untracked", "sort": true,
+         "renderings": ["text"], "right": true, "placement": "column"},
+        {"id": "locked", "label": "locked", "type": "enum", "path": ".locked", "group": true, "filter": true,
+         "values": [{"value": "locked"}], "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "prunable", "label": "prunable", "type": "enum", "path": ".prunable", "group": true, "filter": true,
+         "values": [{"value": "prunable"}], "renderings": ["text"], "dim": true, "placement": "hidden"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {
+          "head": {"placement": "hidden"}, "upstream": {"placement": "hidden"}, "untracked": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "workspace/commits", "record": ".rows[]",
+      "fields": [
+        {"id": "commit", "label": "commit", "type": "ref", "path": ".commit", "sort": true, "glyph": "🔘",
+         "renderings": ["glyph+text", "text"], "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "age", "label": "age", "type": "time", "path": ".age", "sort": true, "renderings": ["age"], "dim": true,
+         "right": true, "placement": "column"},
+        {"id": "author", "label": "author", "type": "enum", "path": ".author", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
+        {"id": "pushed", "label": "pushed", "type": "enum", "path": ".pushed", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "pushed"}, {"value": "local"}], "renderings": ["text"], "dim": true,
+         "placement": "column"},
+        {"id": "issue", "label": "issue", "type": "ref", "path": ".issue", "sort": true, "glyph": "🎫",
+         "renderings": ["glyph+text", "text"], "placement": "column"},
+        {"id": "branches", "label": "branches", "one": "branch", "type": "label", "path": ".branches[]",
+         "filter": true, "group": true, "glyph": "🌿", "renderings": ["glyph+text", "text"], "placement": "column"},
+        {"id": "worktrees", "label": "head of", "type": "text", "path": ".worktrees[]", "sort": true, "glyph": "🌳",
+         "renderings": ["tree", "text"], "dim": true, "placement": "column"},
+        {"id": "subject", "label": "subject", "type": "text", "path": ".subject", "sort": true, "renderings": ["text"],
+         "wrap": true, "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {
+          "author": {"placement": "hidden"}, "branches": {"placement": "hidden"}, "worktrees": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "workspace/tags", "record": ".rows[]",
+      "fields": [
+        {"id": "tag", "label": "tag", "type": "text", "path": ".tag", "sort": true, "glyph": "📌",
+         "renderings": ["glyph+text", "text"], "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "kind", "label": "kind", "type": "enum", "path": ".kind", "sort": true, "group": true, "filter": true,
+         "values": [{"value": "annotated"}, {"value": "lightweight"}], "renderings": ["text"], "dim": true,
+         "placement": "column"},
+        {"id": "commit", "label": "commit", "type": "ref", "path": ".commit", "sort": true, "glyph": "🔘",
+         "renderings": ["glyph+text", "text"], "dim": true, "placement": "column"},
+        {"id": "age", "label": "age", "type": "time", "path": ".age", "sort": true, "renderings": ["age"], "dim": true,
+         "right": true, "placement": "column"},
+        {"id": "tagger", "label": "tagger", "type": "enum", "path": ".tagger", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
+        {"id": "subject", "label": "subject", "type": "text", "path": ".subject", "sort": true, "renderings": ["text"],
+         "wrap": true, "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {"tagger": {"placement": "hidden"}, "commit": {"placement": "hidden"}}}
+      ]
     }
   ]
 }

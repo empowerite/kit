@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# fake-kit - stands in for kit in the flow tests: answers flow --stages and flow <stage> --json (test helper)
+# fake-kit - stands in for kit in the flow tests: answers flow and workspace --stages and <stage> --json (test helper)
 # ----------------------------------------------------------------------------------------------------------------------
 # Each stage's JSON is the fixture beside this file, <stage>.json. FAKE_FLOW_CALLS names a file every call's words
 # are appended to, one line each, so a test reads the order the stages ran in; FAKE_FLOW_DIRS names one each call's
@@ -16,7 +16,10 @@
 # before the stage has printed. new issue --list --json
 # prints trackers.json beside this file; FAKE_FLOW_REFUSE=new refuses it with exit 1. The verbs that act,
 # assign, unassign, close, gather, and work, say what they were asked on stderr, as kit says what it did; one that
-# FAKE_FLOW_REFUSE names refuses with exit 1.
+# FAKE_FLOW_REFUSE names refuses with exit 1. workspace --stages prints kit workspace's five, and workspace <stage>
+# --json prints workspace-<stage>.json beside this file, or refuses with exit 1 where FAKE_FLOW_REFUSE names
+# workspace/<stage>; workspace --marks prints FAKE_WORKSPACE_MARKS, a file it reads again each time, and refuses with
+# exit 1 without one.
 
 set -o errexit -o nounset -o pipefail
 
@@ -45,6 +48,29 @@ then
     exit 1
   fi
   cat "${here}/trackers.json"
+  exit 0
+fi
+
+if [[ "${1:-}" == workspace ]]
+then
+  case "${2:-}" in
+    (--stages) printf '%s\n' remotes branches worktrees commits tags ;;
+    (--marks)
+      if [[ -z "${FAKE_WORKSPACE_MARKS:-}" || ! -f "${FAKE_WORKSPACE_MARKS}" ]]
+      then
+        echo "❌ kit workspace: the marks cannot be read; run: kit help workspace" >&2
+        exit 1
+      fi
+      cat "${FAKE_WORKSPACE_MARKS}"
+      ;;
+    (*)
+      if [[ "${FAKE_FLOW_REFUSE:-}" == "workspace/${2:-}" ]]
+      then
+        echo "❌ kit workspace ${2:-} refuses for the test; run: kit help workspace" >&2
+        exit 1
+      fi
+      cat "${here}/workspace-${2:-}.json"
+  esac
   exit 0
 fi
 

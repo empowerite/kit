@@ -1,0 +1,43 @@
+{
+  "rows": [
+    {
+      "key": "dd07ce223069f644ea864010dc7b3451d8ecfa33",
+      "commit": "dd07ce2",
+      "subject": "more of it",
+      "author": "Ada",
+      "age": 10,
+      "issue": null,
+      "branches": [
+        "7-fix"
+      ],
+      "pushed": "local",
+      "worktrees": [
+        "/src/r/worktrees/7-fix"
+      ],
+      "links": {
+        "commit": null,
+        "issue": null,
+        "worktrees": "row:worktrees//src/r/worktrees/7-fix"
+      }
+    },
+    {
+      "key": "0553f99e2d1e1da2c9cbb14bb16e317710beb4cc",
+      "commit": "0553f99",
+      "subject": "#7 fix the thing",
+      "author": "Ada",
+      "age": 11,
+      "issue": "#7",
+      "branches": [
+        "7-fix"
+      ],
+      "pushed": "pushed",
+      "worktrees": [],
+      "links": {
+        "commit": "https://github.com/o/r/commit/0553f99e2d1e1da2c9cbb14bb16e317710beb4cc",
+        "issue": "https://github.com/o/r/issues/7",
+        "worktrees": null
+      }
+    }
+  ],
+  "errors": []
+}

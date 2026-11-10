@@ -150,16 +150,16 @@
 # repos:
 #
 #   📚  the workspace: a group, in the workspace menu that drops down from - in kittui's title
-#   🐙  on GitHub: the tracker that holds an issue
-#   🦊  on GitLab: the tracker that holds an issue
+#   🐙  on GitHub: the forge of a remote, or the tracker that holds an issue
+#   🦊  on GitLab: the forge of a remote, or the tracker that holds an issue
 #   💻  the desk: the root checkout
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # backlog:
 #
 #   🎫  an issue: its number and title
-#   🐙  on GitHub: the tracker that holds an issue
-#   🦊  on GitLab: the tracker that holds an issue
+#   🐙  on GitHub: the forge of a remote, or the tracker that holds an issue
+#   🦊  on GitLab: the forge of a remote, or the tracker that holds an issue
 #   👤  assignees or author: an issue's assignees, a pull request's author, or who pushed last when not the author
 #   👥  assignees, how many: an issue's, where it has more than one
 #   🌿  a branch or a worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
@@ -173,12 +173,12 @@
 #   🔀  a pull request: a merge request, on GitLab
 #   💻  the desk: the root checkout
 #   🌿  a branch or a worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
-#   🌱  a local branch: this desk has it, and no checkout does
+#   🌱  a local branch: this desk has it: under underway, and no checkout does; under branches, and no remote does
 #   🍴  a fork's owner: the pull request's branch is in their repository
 #   📤  the last push: how long ago
 #   🎫  an issue: its number and title
-#   🐙  on GitHub: the tracker that holds an issue
-#   🦊  on GitLab: the tracker that holds an issue
+#   🐙  on GitHub: the forge of a remote, or the tracker that holds an issue
+#   🦊  on GitLab: the forge of a remote, or the tracker that holds an issue
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # desk:
@@ -233,7 +233,7 @@
 #   📡  a remote: its name, its forge or no forge, and its host
 #   🌿  a branch or a worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
 #   🔖  a branch gone: its upstream is gone; kit tidy removes it
-#   📌  a new tag: the fetch brought it
+#   📌  a tag: a name on a commit; under incoming, one the fetch brought
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # releases:

@@ -4,7 +4,7 @@
 # The syntax answers come from the syntax package's fixtures, and --list names a few verbs with their purposes and
 # groups as the kit prints them; help is a fixed page; flow --stages names two stages, flow --me prints ada, another
 # flag of flow is refused, and a stage echoes its words as JSON, after sleeping FAKE_KIT_SLEEP seconds when it is set, with the sleep's pid written to the
-# file FAKE_KIT_RECORD names; root prints a fixed directory, and welcome --checks the welcome screen's fixture; any
+# file FAKE_KIT_RECORD names; workspace --stages names two stages, and a stage answers with no rows; root prints a fixed directory, and welcome --checks the welcome screen's fixture; any
 # other verb's arguments and working directory, welcome --fix's too, are written to that file, for the exec test to
 # read. Every syntax answer about the verb FAKE_KIT_REFUSE names (its grammar, choices, extension, and match) is a
 # refusal instead, as the kit prints one, with exit 2. The grammar of the verb FAKE_KIT_UNPARSED names carries a usage
@@ -156,6 +156,20 @@ case "${1:-}" in
         wait
       fi
       printf '{"stage": "%s", "args": "%s"}\n' "$1" "${*:2}"
+    fi
+    ;;
+  (workspace)
+    # --stages names two stages, a stage answers with no rows, and every other flag is refused, as flow's are
+    shift
+    if [[ "${1:-}" == --stages ]]
+    then
+      printf 'remotes\nbranches\n'
+    elif [[ "${1:-}" == --* ]]
+    then
+      echo "❌ kit workspace: the fake does not answer $1; run: kit help workspace" >&2
+      exit 1
+    else
+      printf '{"rows": [], "errors": []}\n'
     fi
     ;;
   (new)

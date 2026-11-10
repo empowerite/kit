@@ -347,7 +347,7 @@ func TestTheAppMenuSwitchesAndQuits(t *testing.T) {
 	if !slices.Contains(msgs, tea.Msg(shell.SwitchMsg{Screen: shell.Flow})) {
 		t.Errorf("a click on Flow asked %v", msgs)
 	}
-	if _, msgs := testkit.Drive(m, nil, testkit.Click(4, shell.Top+8)); !slices.Contains(msgs, tea.Msg(tea.QuitMsg{})) {
+	if _, msgs := testkit.Drive(m, nil, testkit.Click(4, shell.Top+9)); !slices.Contains(msgs, tea.Msg(tea.QuitMsg{})) {
 		t.Errorf("a click on quit: %v", msgs)
 	}
 	if m.chose(shell.Choice{}) != nil {

@@ -25,18 +25,31 @@ import (
 )
 
 // legendText reads the Legend of kit-flow's header, from its heading to the exit codes.
-func legendText(t *testing.T) string {
+func legendText(t *testing.T) string { return legendOf(t, "kit-flow") }
+
+// legendOf reads the Legend of a verb's header, kit-flow's or kit-workspace's, from its heading to the exit codes.
+func legendOf(t *testing.T, verb string) string {
 	t.Helper()
-	page, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "kit", "bin", "kit-flow"))
+	page, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "kit", "bin", verb))
 	if err != nil {
 		t.Fatal(err)
 	}
 	_, after, ok := strings.Cut(string(page), "# Legend")
 	if !ok {
-		t.Fatal("kit-flow has no Legend")
+		t.Fatalf("%s has no Legend", verb)
 	}
 	before, _, _ := strings.Cut(after, "# Exits")
 	return before
+}
+
+// helpOf gives the legend of the verb that draws a stage: kit help workspace's for kit workspace's, else kit help
+// flow's.
+func helpOf(t *testing.T, stage string) string {
+	t.Helper()
+	if ofWorkspace(stage) {
+		return legendOf(t, "kit-workspace")
+	}
+	return legendText(t)
 }
 
 // glyphsOf gives the glyphs in a text: the pictographs and symbols, and the media symbols as 🛑, not the arrows, the
@@ -53,17 +66,19 @@ func glyphsOf(text string) map[string]bool {
 
 func TestEveryGlyphIsInTheLegend(t *testing.T) {
 	text := legendText(t)
-	all := []entry{title}
-	for _, entries := range legends {
-		all = append(all, entries...)
-	}
-	all = append(all, states...)
-	for _, g := range stageGlyphs {
-		all = append(all, entry{g, "a stage"})
-	}
+	all := append([]entry{title}, states...)
 	for _, e := range all {
 		if !strings.Contains(text, e.glyph) {
 			t.Errorf("the legend has no %s (%s)", e.glyph, e.meaning)
+		}
+	}
+	// each stage's glyphs are in the legend of its verb's help: kit flow's, or kit workspace's
+	for stage, entries := range legends {
+		help := helpOf(t, stage)
+		for _, e := range append(entries, entry{stageGlyphs[stage], "the stage's"}) {
+			if !strings.Contains(help, e.glyph) {
+				t.Errorf("%s: the legend has no %s (%s)", stage, e.glyph, e.meaning)
+			}
 		}
 	}
 	for state, glyph := range stateGlyphs {

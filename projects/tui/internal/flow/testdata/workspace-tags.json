@@ -1,0 +1,25 @@
+{
+  "rows": [
+    {
+      "key": "wip",
+      "tag": "wip",
+      "kind": "lightweight",
+      "commit": "dd07ce2",
+      "tagger": null,
+      "age": 10,
+      "subject": "more of it",
+      "links": {}
+    },
+    {
+      "key": "v1",
+      "tag": "v1",
+      "kind": "annotated",
+      "commit": "5d469b3",
+      "tagger": "Ada",
+      "age": 11,
+      "subject": "release 1",
+      "links": {}
+    }
+  ],
+  "errors": []
+}

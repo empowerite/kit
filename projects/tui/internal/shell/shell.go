@@ -28,19 +28,21 @@ const (
 // Screen names one of kit's screens, which the app's menu moves between.
 type Screen string
 
-// kit's screens: the picture of where the work stands, the welcome's guide, the help's palette of verbs, and the
-// tutorials' cards.
+// kit's screens: the picture of where the work stands, the picture of what git holds across the workspace, the
+// welcome's guide, the help's palette of verbs, and the tutorials' cards.
 const (
 	Flow      Screen = "flow"
+	Workspace Screen = "workspace"
 	Welcome   Screen = "welcome"
 	Help      Screen = "help"
 	Tutorials Screen = "tutorials"
 )
 
-// The glyphs beside the app's menu's items: the picture, the welcome, the help, the tutorials, the settings, and
-// goodbye.
+// The glyphs beside the app's menu's items: the picture, the workspace's git, the welcome, the help, the tutorials, the
+// settings, and goodbye.
 const (
 	Map       = "🧭"
+	Git       = "📚"
 	Home      = "🏠"
 	Asking    = "❓"
 	Learn     = "🎓"
@@ -59,7 +61,8 @@ var screens = []struct {
 	screen Screen
 }{
 	{Item{Glyph: Home, Name: "Welcome"}, Welcome}, {Item{Glyph: Learn, Name: "Tutorials"}, Tutorials},
-	{Item{Glyph: Map, Name: "Flow"}, Flow}, {Item{Glyph: Asking, Name: "Help"}, Help},
+	{Item{Glyph: Map, Name: "Flow"}, Flow}, {Item{Glyph: Git, Name: "Workspace"}, Workspace},
+	{Item{Glyph: Asking, Name: "Help"}, Help},
 }
 
 // Menu is the app's menu on a screen: the screen it is on, whose item is dim; the screen's own items, which come

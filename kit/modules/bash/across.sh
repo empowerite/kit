@@ -12,6 +12,9 @@
 # see: docs/workspaces.md, modules/bash/workspaces.sh
 use workspaces flow settings
 
+# across_verb is the verb each member's checkout runs: kit flow's, or kit workspace's, which sets it.
+across_verb=flow
+
 # across_resolved is the workspace across:flow resolved, as workspaces:resolve prints it, so a command walks the roots
 # once; empty until it does.
 across_resolved=''
@@ -38,7 +41,7 @@ across:members() {
 
 # across:merge <dir> <kind> [<stage>] prints the document of what each member printed, from <dir>'s <n>.member, <n>.out,
 # <n>.err, and <n>.status, for n from 0 up. For an array stage, each row a member printed gains its member; for an
-# object stage, the object does. What a member printed is kept whenever it parses as the stage's kind, as an incoming
+# object stage, the object does; for a document, {rows, errors}, each of its rows does. What a member printed is kept whenever it parses as the stage's kind, as an incoming
 # whose fetch failed prints the remotes and exits 1. One that does not is its stderr's last line, less a leading ❌,
 # under errors; with nothing said, that kit flow <stage> exited as it did.
 across:merge() {
@@ -50,6 +53,7 @@ across:merge() {
     if [[ -s "${dir}/${n}.out" ]] && out=$(jq --compact-output --arg member "${member}" --arg kind "${kind}" '
       if $kind == "array" and type == "array" then map(. + {member: $member})[]
       elif $kind == "object" and type == "object" then . + {member: $member}
+      elif $kind == "document" and type == "object" and has("rows") then .rows | map(. + {member: $member})[]
       else error("not the stage") end' "${dir}/${n}.out" 2>/dev/null)
     then
       [[ -z "${out}" ]] || rows+=("${out}")
@@ -65,7 +69,7 @@ across:merge() {
 across:error() {
   local line
   line=$(across:line "$1.err")
-  [[ -n "${line}" ]] || line="kit flow${3:+ $3} exited $(<"$1.status")"
+  [[ -n "${line}" ]] || line="kit ${across_verb}${3:+ $3} exited $(<"$1.status")"
   jq --null-input --compact-output --arg member "$2" --arg error "${line}" '{member: $member, error: $error}'
 }
 
@@ -158,7 +162,7 @@ across:stage() {
   across:merge "${dir}" "${kind}" "${stage}"
 }
 
-# across:start <workspace> <dir> <word>… runs kit flow with the words, --jq as --json, in every cloned member's
+# across:start <workspace> <dir> <word>… runs kit's across_verb with the words, --jq as --json, in every cloned member's
 # checkout at once, as across:run runs one, the n-th's in <dir>/<n>, and waits for them. It prints each cloned member's
 # number and member, tab-separated, in the workspace's order; it returns 2 for a workspace across:members refuses.
 across:start() {
@@ -182,7 +186,7 @@ across:start() {
   wait || true
 }
 
-# across:run <checkout> <prefix> <workspace> <word>… runs kit flow with the words in the checkout, its output in
+# across:run <checkout> <prefix> <workspace> <word>… runs kit's across_verb with the words in the checkout, its output in
 # <prefix>.out and <prefix>.err and its exit in <prefix>.status. A checkout gone since the roots were walked is its
 # line.
 across:run() {
@@ -195,7 +199,7 @@ across:run() {
     printf 1 > "${prefix}.status"
     return 0
   fi
-  ( cd "${checkout}" && run kit flow "$@" ) > "${prefix}.out" 2> "${prefix}.err" && code=0 || code=$?
+  ( cd "${checkout}" && run kit "${across_verb}" "$@" ) > "${prefix}.out" 2> "${prefix}.err" && code=0 || code=$?
   printf '%s' "${code}" > "${prefix}.status"
 }
 
@@ -445,8 +449,8 @@ across:marks() {
   across:marks-merge "${dir}" "$(git hash-object --stdin < "${dir}/repos.mark")"
 }
 
-# across:marks-merge <dir> <repos> joins the marks each member printed in <dir>, in the members' order, under each
-# stage any of them names, and adds repos' mark.
+# across:marks-merge <dir> [<repos>] joins the marks each member printed in <dir>, in the members' order, under each
+# stage any of them names, and adds repos' mark, when there is one.
 across:marks-merge() {
   local dir=$1 n=0
   local -a marks=()
@@ -455,10 +459,10 @@ across:marks-merge() {
     marks+=("$(jq --compact-output 'if type == "object" then . else {} end' "${dir}/${n}.out" 2>/dev/null || echo '{}')")
     n=$(( n + 1 ))
   done
-  printf '%s\n' "${marks[@]}" | grep -v '^$' | jq --slurp --compact-output --arg repos "$2" '
+  printf '%s\n' "${marks[@]}" | grep -v '^$' | jq --slurp --compact-output --arg repos "${2:-}" '
     . as $all | ([$all[] | keys[]] | unique) as $stages
     | reduce $stages[] as $s ({}; .[$s] = ([$all[] | .[$s] // "null" | tostring] | join(" ")))
-    | . + {repos: $repos}'
+    | if $repos == "" then . else . + {repos: $repos} end'
 }
 
 # across:quota <workspace> prints every forge the workspace's members touch, each once, as kit flow --quota prints a

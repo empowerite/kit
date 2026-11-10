@@ -126,7 +126,7 @@ func TestEqualsDropsTheAppsMenuDownToRefreshAnotherScreenOrQuit(t *testing.T) {
 	// as it is; quit ends it, not interrupted
 	welcome := shell.Top + 1 + slices.IndexFunc(m.appMenu.Items(), func(it shell.Item) bool { return it.Name == "Welcome" })
 	_, msgs := testkit.Drive(m, func(msg tea.Msg) bool { _, ok := msg.(shell.SwitchMsg); return ok },
-		testkit.Click(shell.At+ansi.StringWidth(shell.App)+len(appLabel), shell.Top), testkit.Click(3, welcome))
+		testkit.Click(shell.At+ansi.StringWidth(shell.App)+len(m.appLabel()), shell.Top), testkit.Click(3, welcome))
 	if !slices.Contains(msgs, tea.Msg(shell.SwitchMsg{Screen: shell.Welcome})) {
 		t.Errorf("welcome asked %v", msgs)
 	}

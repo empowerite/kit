@@ -1,0 +1,60 @@
+# workspace.test - the workspace jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line. An input of
+# git's lines holds their fields apart by the unit separator, \u001f, as the module reads them.
+
+# What a branch is ahead and behind is read either way git says it; nothing said, or gone, is none.
+import "workspace" as workspace; map(workspace::track)
+["[ahead 3, behind 1]", "[behind 2]", "+4 -0", "", "[gone]"]
+[[3,1],[0,2],[4,0],null,null]
+
+# A branch's or a commit's page is GitHub's or GitLab's; another forge, or no page, gives none.
+import "workspace" as workspace; [workspace::page({forge: "github", web: "https://github.com/o/r"}; "tree"; "main"), workspace::page({forge: "gitlab", web: "https://gitlab.com/g/r"}; "commit"; "abc"), workspace::page({forge: "gitea", web: "https://x/o/r"}; "tree"; "main"), workspace::page({forge: null, web: null}; "tree"; "main")]
+null
+["https://github.com/o/r/tree/main","https://gitlab.com/g/r/-/commit/abc",null,null]
+
+# A remote's row has its repository past the host, a push URL only where it differs, and the primary marked; it
+# links to the repository's page and to its default branch's row.
+import "workspace" as workspace; workspace::remotes("origin")
+[{"name": "origin", "url": "https://github.com/o/r", "push": "https://github.com/o/r", "forge": "github", "member": "github.com/o/r", "default": "main", "branches": 2}, {"name": "mirror", "url": "/srv/r.git", "push": "git@github.com:o/r.git", "forge": null, "member": null, "default": null, "branches": 0}]
+[{"key":"origin","remote":"origin","forge":"github","repository":"o/r","host":"github.com","url":"https://github.com/o/r","push":null,"default":"main","branches":2,"primary":"primary","links":{"repository":"https://github.com/o/r","default":"row:branches/origin/main"}},{"key":"mirror","remote":"mirror","forge":null,"repository":null,"host":null,"url":"/srv/r.git","push":"git@github.com:o/r.git","default":null,"branches":0,"primary":null,"links":{"repository":null,"default":null}}]
+
+# A remote's branch has the local branches that pull from it, the longest remote name taken first, and its HEAD is
+# no row; a local branch whose upstream is gone has a row of its own, and so does one with no upstream.
+import "workspace" as workspace; workspace::branches([{"name": "origin", "forge": "github", "web": "https://github.com/o/r", "default": "main"}, {"name": "my/fork", "forge": null, "web": null, "default": null}]; 1000) | map({key, kind, branch, remote, local, upstream, default, commit, age, worktree, links})
+"refs/heads/main\u001f\u001forigin\u001frefs/heads/main\u001f\u001f/src/r\u001faaaa\u001f900\u001ffirst\nrefs/heads/7-fix\u001f\u001forigin\u001frefs/heads/7-fix\u001f[ahead 2, behind 1]\u001f/src/r/worktrees/7-fix\u001fbbbb\u001f800\u001fsecond\nrefs/heads/old\u001f\u001forigin\u001frefs/heads/old\u001f[gone]\u001f\u001fcccc\u001f700\u001fthird\nrefs/heads/scratch\u001f\u001f\u001f\u001f\u001f\u001fdddd\u001f600\u001ffourth\nrefs/remotes/origin/HEAD\u001frefs/remotes/origin/main\u001f\u001f\u001f\u001f\u001faaaa\u001f900\u001ffirst\nrefs/remotes/origin/main\u001f\u001f\u001f\u001f\u001f\u001faaaa\u001f900\u001ffirst\nrefs/remotes/origin/7-fix\u001f\u001f\u001f\u001f\u001f\u001feeee\u001f850\u001ffifth\nrefs/remotes/my/fork/topic\u001f\u001f\u001f\u001f\u001f\u001fffff\u001f500\u001fsixth\n"
+[{"key":"origin/main","kind":"remote","branch":"main","remote":"origin","local":["main"],"upstream":[0,0],"default":"default","commit":"aaaa","age":100,"worktree":["/src/r"],"links":{"branch":"https://github.com/o/r/tree/main","commit":"https://github.com/o/r/commit/aaaa","worktree":"row:worktrees//src/r"}},{"key":"origin/7-fix","kind":"remote","branch":"7-fix","remote":"origin","local":["7-fix"],"upstream":[2,1],"default":null,"commit":"eeee","age":150,"worktree":["/src/r/worktrees/7-fix"],"links":{"branch":"https://github.com/o/r/tree/7-fix","commit":"https://github.com/o/r/commit/eeee","worktree":"row:worktrees//src/r/worktrees/7-fix"}},{"key":"my/fork/topic","kind":"remote","branch":"topic","remote":"my/fork","local":[],"upstream":null,"default":null,"commit":"ffff","age":500,"worktree":[],"links":{"branch":null,"commit":null,"worktree":null}},{"key":"origin/old","kind":"gone","branch":"old","remote":"origin","local":["old"],"upstream":null,"default":null,"commit":"cccc","age":300,"worktree":[],"links":{"branch":null,"commit":null,"worktree":null}},{"key":"scratch","kind":"local","branch":"scratch","remote":null,"local":["scratch"],"upstream":null,"default":null,"commit":"dddd","age":400,"worktree":[],"links":{"branch":null,"commit":null,"worktree":null}}]
+
+# A status counts the paths changed, staged or not, and those untracked, and reads the upstream and the branch's
+# ahead and behind.
+import "workspace" as workspace; workspace::status
+"# branch.oid abc\n# branch.head main\n# branch.upstream origin/main\n# branch.ab +1 -2\n1 .M N... 100644 100644 100644 a b x\n2 R. N... 100644 100644 100644 a b R100 y\tz\nu UU N... 1 2 3 4 a b c w\n? new\n? other\n"
+{"upstream":"origin/main","track":[1,2],"changes":3,"untracked":2}
+
+# The desk is the first worktree; each has its status and its ahead and behind of the default branch, a detached
+# one no branch, and one on a branch links to its upstream's row.
+import "workspace" as workspace; workspace::worktrees({"/src/r": "# branch.upstream origin/main\n# branch.ab +0 -0\n? x\n"}; {"/src/r": "1\t3"}) | map({key, kind, branch, detached, head, upstream, track, base, changes, untracked, locked, links})
+"worktree /src/r\nHEAD 0123456789abcdef\nbranch refs/heads/main\n\nworktree /src/r/worktrees/x\nHEAD fedcba9876543210\ndetached\nlocked\n\n"
+[{"key":"/src/r","kind":"desk","branch":"main","detached":null,"head":"01234567","upstream":"origin/main","track":[0,0],"base":[3,1],"changes":0,"untracked":1,"locked":null,"links":{"branch":"row:branches/origin/main"}},{"key":"/src/r/worktrees/x","kind":"linked","branch":null,"detached":"detached","head":"fedcba98","upstream":null,"track":null,"base":null,"changes":null,"untracked":null,"locked":"locked","links":{"branch":null}}]
+
+# A commit has the issue its subject starts with, its branches, whether a remote has it, and the worktrees whose
+# HEAD it is; a pushed one links to its page, and its issue to the issue's.
+import "workspace" as workspace; workspace::commits(1000; {"a1": ["7-fix"]}; {"b2": true}; {"a1": ["/src/r"]}; {forge: "github", web: "https://github.com/o/r"}) | map({key, commit, issue, branches, pushed, worktrees, age, links})
+"a1\u001fa\u001f990\u001fAda\u001f#7 kittui: fix the thing\nb2\u001fb\u001f400\u001fBob\u001fno issue here #8\n"
+[{"key":"a1","commit":"a","issue":"#7","branches":["7-fix"],"pushed":"pushed","worktrees":["/src/r"],"age":10,"links":{"commit":"https://github.com/o/r/commit/a1","issue":"https://github.com/o/r/issues/7","worktrees":"row:worktrees//src/r"}},{"key":"b2","commit":"b","issue":null,"branches":[],"pushed":"local","worktrees":[],"age":600,"links":{"commit":null,"issue":null,"worktrees":null}}]
+
+# An annotated tag is told from a lightweight one, and each names its commit.
+import "workspace" as workspace; workspace::tags(1000)
+"v1\u001ftag\u001fc0ffee\u001f7a9\u001fAda\u001f900\u001frelease 1\nwip\u001fcommit\u001f\u001fbeef\u001f\u001f800\u001fa commit\n"
+[{"key":"v1","tag":"v1","kind":"annotated","commit":"c0ffee","tagger":"Ada","age":100,"subject":"release 1","links":{}},{"key":"wip","tag":"wip","kind":"lightweight","commit":"beef","tagger":null,"age":200,"subject":"a commit","links":{}}]
+
+# Hashes, the branches that hold each, and the worktrees whose HEAD each is are read by hash.
+import "workspace" as workspace; [("a\nb\n" | workspace::hashes), ("a\tx\nb\tx\na\ty\n" | workspace::held), ("worktree /r\nHEAD a\nbranch refs/heads/m\n\nworktree /r/w\nHEAD a\ndetached\n\n" | workspace::heads)]
+null
+[{"a":true,"b":true},{"a":["x","y"],"b":["x"]},{"a":["/r","/r/w"]}]
+
+# A stage's text has its columns as wide as their widest, two spaces apart, and an age, ahead and behind, and a
+# list as text.
+import "workspace" as workspace; [workspace::text("branches")]
+[{"branch": "main", "kind": "remote", "remote": "origin", "local": ["main", "m2"], "upstream": [0, 0], "commit": "aaaa", "age": 7300, "worktree": ["/r"]}, {"branch": "x", "kind": "local", "remote": null, "local": ["x"], "upstream": [2, 1], "commit": "b", "age": 30, "worktree": []}]
+["branch  kind    remote  local     upstream  commit  age  worktree","main    remote  origin  main, m2  =         aaaa    2h   /r","x       local           x         ↑2 ↓1     b       30s"]

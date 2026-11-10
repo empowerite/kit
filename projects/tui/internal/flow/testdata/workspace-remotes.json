@@ -1,0 +1,21 @@
+{
+  "rows": [
+    {
+      "key": "origin",
+      "remote": "origin",
+      "forge": "github",
+      "repository": "o/r",
+      "host": "github.com",
+      "url": "https://github.com/o/r.git",
+      "push": null,
+      "default": "main",
+      "branches": 2,
+      "primary": "primary",
+      "links": {
+        "repository": "https://github.com/o/r",
+        "default": "row:branches/origin/main"
+      }
+    }
+  ],
+  "errors": []
+}

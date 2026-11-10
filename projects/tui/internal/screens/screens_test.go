@@ -50,6 +50,12 @@ func TestAScreenIsMadeWhenFirstShownAndKeptAsItWasLeft(t *testing.T) {
 	if _, ok := m.Shown().(flow.Model); !ok {
 		t.Errorf("the screen shown is %T", m.Shown())
 	}
+	// the workspace's picture is a screen of its own, beside the flow's, on kit workspace's stages
+	m, _ = testkit.Drive(m, nil, shell.SwitchMsg{Screen: shell.Workspace})
+	if v := ansi.Strip(m.View().Content); m.here != shell.Workspace || !strings.Contains(v, "kit workspace") ||
+		!strings.Contains(v, "branches") {
+		t.Fatalf("the workspace is not shown:\n%s", v)
+	}
 	m, _ = testkit.Drive(m, nil, tea.WindowSizeMsg{Width: 100, Height: 24}, shell.SwitchMsg{Screen: shell.Help})
 	if v := ansi.Strip(m.View().Content); !strings.Contains(v, shell.Find+" com") || !strings.Contains(v, "search") {
 		t.Errorf("the palette was not kept as it was left:\n%s", v)
@@ -63,9 +69,10 @@ func TestAScreenIsMadeWhenFirstShownAndKeptAsItWasLeft(t *testing.T) {
 	if lines := strings.Split(m.made[shell.Flow].View().Content, "\n"); len(lines) != 20 || m.here != shell.Help {
 		t.Errorf("the hidden picture has %d lines, %s shown", len(lines), m.here)
 	}
-	// the welcome is made on its first showing too, and an ask for a screen kittui never made goes nowhere
+	// the welcome is made on its first showing too, beside the palette, the picture, and the workspace's, and an ask
+	// for a screen kittui never made goes nowhere
 	m, _ = testkit.Drive(m, nil, shell.SwitchMsg{Screen: shell.Welcome})
-	if _, ok := m.Shown().(welcome.Model); !ok || len(m.made) != 3 {
+	if _, ok := m.Shown().(welcome.Model); !ok || len(m.made) != 4 {
 		t.Errorf("the welcome: %T, %d made", m.Shown(), len(m.made))
 	}
 	if next, cmd := m.deliver("nonesuch", tea.WindowSizeMsg{}); cmd != nil || next.(Model).here != shell.Welcome {

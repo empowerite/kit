@@ -22,8 +22,9 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
-// appLabel is the screen's name on the title line, after the app menu's =; a click on either drops the menu down.
-const appLabel = "kit flow"
+// appLabel gives the screen's name on the title line, after the app menu's =, its verb's command; a click on either
+// drops the menu down.
+func (m Model) appLabel() string { return "kit " + m.verb }
 
 // top gives the screen line the pane starts on: right under the bar, which is open there to the selected tab; or,
 // maximized, under the title and the banner, the line under it in the tab's color.
@@ -89,7 +90,7 @@ func (m Model) bar() tabs.Bar {
 		b.Color = stageColors[m.stages[m.stage].name]
 	}
 	for i, s := range m.stages {
-		b.Tabs = append(b.Tabs, tabs.Tab{Glyph: stageGlyphs[s.name], Name: s.name, Count: m.count(i)})
+		b.Tabs = append(b.Tabs, tabs.Tab{Glyph: stageGlyphs[s.name], Name: label(s.name), Count: m.count(i)})
 		b.Reserves = append(b.Reserves, m.reserve(i))
 		b.Stale = append(b.Stale, s.src.Stale)
 	}
@@ -239,7 +240,7 @@ func (m Model) rowKeys() shell.Segment {
 // menu, which names the workspace; maximized, the selected tab, as the bar draws it but its number in place of its
 // glyph, its : last; and the search field, with a stage to search.
 func (m Model) menuBar() shell.MenuBar {
-	b := shell.MenuBar{Screen: appLabel, Open: m.appMenu.Open, Workspace: m.books.Label()}
+	b := shell.MenuBar{Screen: m.appLabel(), Open: m.appMenu.Open, Workspace: m.books.Label()}
 	if m.maximized {
 		b.On = m.bar().NumberedLabel()
 	}

@@ -1,9 +1,9 @@
 # kittui
 
-`kittui` is the kit's interactive terminal UI. It is a Go binary, and `kit tui`, `kit flow`, `kit welcome`, and
-`kit tutorials` exec it. It runs `kit` for everything it knows, so it holds no verb by name.
+`kittui` is the kit's interactive terminal UI. It is a Go binary, and `kit tui`, `kit flow`, `kit workspace`,
+`kit welcome`, and `kit tutorials` exec it. It runs `kit` for everything it knows, so it holds no verb by name.
 
-It has five screens:
+It has six screens:
 
 - **The palette.** Bare `kit` opens it, focus in the search. It lists every verb under its group, filtered as you
   type; ⏎ or ↓ gives the verbs focus, and ⏎ there opens one. [ and ] move to the group before and after, { and } to the
@@ -13,6 +13,12 @@ It has five screens:
   member of the workspace. Over a group, `kit flow --workspace <group>` or one picked from the 📚 workspace menu,
   every tab gathers every cloned member's rows, grouped by member as they load. An action on rows runs in each row's
   member's checkout.
+- **The workspace picture.** `kit workspace` at a terminal draws what git holds across the workspace here, a tab for
+  each of git's entities: remotes, branches, worktrees, commits, and tags. It is the flow picture's screen on kit
+  workspace's stages, which kittui knows after `workspace/`, so their fields and presets stay apart from kit flow's
+  worktrees. A stage's rows are drawn from the catalog alone: kit prints each row's values by the field's id, and
+  where a value leads, a page on the forge or a row of another tab, so a stage needs no Go of its own. It reads no
+  forge, so it spends no rate limit, and a tab is stale, its dot lit, when `kit workspace --marks` moves.
 - **The welcome guide.** `kit welcome` at a terminal walks its steps here.
 - **The tutorials.** `kit tutorials` at a terminal shows a card for each tutorial here, tabbed by audience.
 
@@ -24,8 +30,8 @@ a past search.
 `kit tutorials screens` opens the tutorials with the cursor on that card. `kit help commit` opens the palette on the
 commit verb's page, and `kit tui commit` opens its form.
 
-Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb>`, and the picture reads
-`kit flow <stage> --json`. `kittui` never parses kit's text.
+Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb>`, the picture reads
+`kit flow <stage> --json`, and the workspace's reads `kit workspace <stage> --json`. `kittui` never parses kit's text.
 
 ## Where kit finds it
 

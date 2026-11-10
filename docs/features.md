@@ -130,6 +130,12 @@ release workflow. It refuses:
 
 `kit flow releases` lists the releases on the code forge, newest first, with each one's kind and age.
 
+`kit workspace` draws what git holds across a workspace, a stage for each of git's entities: remotes, branches,
+worktrees, commits, and tags. It reads git alone and asks no remote, so a remote's side is what the last fetch left.
+Branches pair each remote's branch with the local ones that pull from it, worktrees list the desk first, commits are
+the ones the local branches hold and the default branch does not, and tags tell an annotated tag from a lightweight
+one. `kit workspace <stage>` prints one, and `--workspace` spans a group's members.
+
 The `agents/claude` and `agents/gemini` packages each deliver a deny list that refuses the raw git commands these
 verbs replace, such as `git commit`, `git push`, `git rebase`, `git worktree add`, and `git branch -D`. It matches
 literal patterns, so a form it does not list, such as `git -C <dir> commit`, passes. Other harnesses get none.

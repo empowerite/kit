@@ -36,6 +36,7 @@ What else kit provides:
   updates the tools the chosen one pins, and the packages npm or uv pins on top, and runs commands with them.
 - `kit flow`, which draws where the work stands in eight stages: backlog, underway, desk, worktrees,
   changes, builds, incoming, releases.
+- `kit workspace`, which draws what git holds across a workspace: its remotes, branches, worktrees, commits, and tags.
 - Adapters for Claude Code, Cursor, GitHub Copilot, and Gemini CLI, which put the rules where each harness looks.
   The Claude Code and Gemini CLI adapters also add a deny list that refuses the raw git commands the rules forbid,
   such as `git rebase`, by literal pattern. `git -C <dir> commit` and `git merge` pass it.

@@ -1,0 +1,53 @@
+{
+  "rows": [
+    {
+      "key": "/src/r",
+      "kind": "desk",
+      "path": "/src/r",
+      "branch": "main",
+      "detached": null,
+      "head": "5d469b31",
+      "upstream": "origin/main",
+      "track": [
+        0,
+        0
+      ],
+      "base": [
+        0,
+        0
+      ],
+      "changes": 0,
+      "untracked": 0,
+      "locked": null,
+      "prunable": null,
+      "links": {
+        "branch": "row:branches/origin/main"
+      }
+    },
+    {
+      "key": "/src/r/worktrees/7-fix",
+      "kind": "linked",
+      "path": "/src/r/worktrees/7-fix",
+      "branch": "7-fix",
+      "detached": null,
+      "head": "dd07ce22",
+      "upstream": "origin/7-fix",
+      "track": [
+        1,
+        0
+      ],
+      "base": [
+        2,
+        0
+      ],
+      "changes": 0,
+      "untracked": 1,
+      "locked": null,
+      "prunable": null,
+      "links": {
+        "branch": "row:branches/origin/7-fix"
+      }
+    }
+  ],
+  "errors": []
+}

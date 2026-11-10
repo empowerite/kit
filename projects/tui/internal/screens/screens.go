@@ -302,6 +302,8 @@ func (m Model) open(to shell.Screen) (tea.Model, error) {
 	switch to {
 	case shell.Flow:
 		return flow.Open(m.runner, nil)
+	case shell.Workspace:
+		return flow.OpenWorkspace(m.runner, nil)
 	case shell.Welcome:
 		return welcome.Open(m.runner, m.workspace), nil
 	case shell.Tutorials:

@@ -469,6 +469,10 @@ func (m Model) records(s stage) []record {
 		out = m.releaseRows(s)
 	case "repos":
 		out = m.repoRows(s)
+	default:
+		if ofWorkspace(s.name) {
+			out = m.workspaceRows(s)
+		}
 	}
 	for _, r := range m.failures(s) {
 		out = append(out, record{row: r})

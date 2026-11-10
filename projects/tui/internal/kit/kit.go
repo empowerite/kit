@@ -212,8 +212,11 @@ func (r Runner) Match(verb string, words []string) (syntax.Match, error) {
 
 // Stages gives the stages kit flow draws, in the picture's order, as kit flow --stages prints them, one per line;
 // over a group, the group's.
-func (r Runner) Stages() ([]string, error) {
-	out, err := r.run(r.over("flow", "--stages")...)
+func (r Runner) Stages() ([]string, error) { return r.StagesOf("flow") }
+
+// StagesOf gives the stages a verb's picture draws, kit flow's or kit workspace's, as <verb> --stages prints them.
+func (r Runner) StagesOf(verb string) ([]string, error) {
+	out, err := r.run(r.over(verb, "--stages")...)
 	if err != nil {
 		return nil, err
 	}
@@ -270,14 +273,18 @@ func (r Runner) Quota(ctx context.Context) ([]Quota, error) {
 
 // Marks asks kit for a mark per stage, as kit flow --marks prints them, by the stage's name: a text that changes when
 // what the stage draws does; a stage kit cannot read a mark of has none. ctx ends it with the screen.
-func (r Runner) Marks(ctx context.Context) (map[string]string, error) {
-	out, err := r.within(ctx, callLimit, append(os.Environ(), "NO_COLOR=1"), r.over("flow", "--marks")...)
+func (r Runner) Marks(ctx context.Context) (map[string]string, error) { return r.MarksOf(ctx, "flow") }
+
+// MarksOf asks kit for a mark per stage of a verb's picture, kit flow's or kit workspace's, as <verb> --marks prints
+// them, as Marks says.
+func (r Runner) MarksOf(ctx context.Context, verb string) (map[string]string, error) {
+	out, err := r.within(ctx, callLimit, append(os.Environ(), "NO_COLOR=1"), r.over(verb, "--marks")...)
 	if err != nil {
 		return nil, err
 	}
 	var marks map[string]*string
 	if err := json.Unmarshal(out, &marks); err != nil {
-		return nil, fmt.Errorf("kit flow --marks: %w", err)
+		return nil, fmt.Errorf("kit %s --marks: %w", verb, err)
 	}
 	kept := map[string]string{}
 	for stage, mark := range marks {
@@ -292,11 +299,16 @@ func (r Runner) Marks(ctx context.Context) (map[string]string, error) {
 // are closed for it.
 const waitDelay = 2 * time.Second
 
-// Status gives one stage's JSON, as kit flow <stage> --json <args>… prints it; the args are the stage's own flags.
-// A stage kit cannot draw is kit's refusal, an ExitError. Kit runs in a process group of its own until ctx ends: then
+// Status gives one stage's JSON, as kit flow <stage> --json <args>… prints it; the args are the stage's own flags. A
+// stage of another verb's picture is named after the verb and a slash, as workspace/branches, which kit workspace
+// branches --json prints. A stage kit cannot draw is kit's refusal, an ExitError. Kit runs in a process group of its own until ctx ends: then
 // the group is sent SIGTERM, so a gh or an ssh kit started dies with it, and the error is ctx's.
 func (r Runner) Status(ctx context.Context, stage string, args []string) ([]byte, error) {
-	cmd := grouped(ctx, r.Kit, r.over(append([]string{"flow", stage, "--json"}, args...)...)...)
+	verb, name, ok := strings.Cut(stage, "/")
+	if !ok {
+		verb, name = "flow", stage
+	}
+	cmd := grouped(ctx, r.Kit, r.over(append([]string{verb, name, "--json"}, args...)...)...)
 	cmd.Env = append(os.Environ(), "NO_COLOR=1")
 	out, err := r.output(cmd)
 	if err != nil && ctx.Err() != nil {

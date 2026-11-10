@@ -15,6 +15,10 @@ def quote: tojson;
 # glyph($d; $name) gives the glyph named $name in the table $d.
 def glyph($d; $name): $d.glyphs[] | select(.name == $name);
 
+# id reads a stage, or a group, and gives the name kittui knows a stage by: kit flow's own, and a stage of kit
+# workspace's after workspace/, so the two screens' worktrees stay apart.
+def id($stage): if .screen then "\(.screen)/\($stage)" else $stage end;
+
 # go($d) gives the Go the glyphs region holds for the table $d, unformatted, after flow's package clause, so gofmt
 # takes it: a constant per glyph, its meaning as its comment; the title's entry; each stage's legend and marks; the
 # states, then any other; each stage's glyph; and each stage's group's color.
@@ -32,7 +36,7 @@ def go($d):
     "// legends gives each stage's legend: every glyph the stage draws, its own first. A glyph may be in several.",
     "var legends = map[string][]entry{",
     ($d.stages[]
-     | "\t\(.stage | quote): {",
+     | "\t\(id(.stage) | quote): {",
        (.legend[] | "\t\t{\(.name), \(.name as $n | glyph($d; $n).meaning | quote)},"),
        "\t},"),
     "}",
@@ -42,7 +46,7 @@ def go($d):
     "var marks = map[string]map[string]string{",
     ($d.stages[] | select(any(.legend[]; .link))
      | [.legend[] | select(.link) | "\(.name): \(if .link == "row" then "ToRow" else "ToPage" end)"] as $marks
-     | "\t\(.stage | quote): {\($marks | join(", "))},"),
+     | "\t\(id(.stage) | quote): {\($marks | join(", "))},"),
     "}",
     "",
     "// states gives a pull request's glyph by its state word, the last for any other; it hangs under changes' legend,",
@@ -54,12 +58,12 @@ def go($d):
     "",
     "// stageGlyphs gives each stage's glyph, drawn beside its name on the line of stages.",
     "var stageGlyphs = map[string]string{",
-    ($d.stages[] | "\t\(.stage | quote): \(.glyph),"),
+    ($d.stages[] | "\t\(id(.stage) | quote): \(.glyph),"),
     "}",
     "",
     "// stageColors gives each stage its group's color, which the bar draws the stage's tab in while it is selected.",
     "var stageColors = map[string]string{",
-    ($d.groups[] | .color as $color | .stages[] | "\t\(quote): \($color | quote),"),
+    ($d.groups[] | . as $group | .stages[] as $stage | "\t\($group | id($stage) | quote): \($group.color | quote),"),
     "}";
 
 # go gives the Go of glyphs.json, as go($d) does.

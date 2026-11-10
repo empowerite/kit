@@ -8,11 +8,11 @@
 #   states    a pull request's states, the first that holds as kit flow reads them: glyph, state, and more
 #   title     the name of the title's glyph, which no stage draws
 #   groups    the stages in pairs that are about one thing: name; color, a 256-color number, which kittui draws a
-#             selected tab of the group in; and stages, the group's
-#   stages    each stage in kit flow's order: stage; glyph, the name of the one beside its tab; legend, the glyphs
+#             selected tab of the group in; stages, the group's; and screen, as a stage's
+#   stages    each stage in its verb's order: stage; glyph, the name of the one beside its tab; legend, the glyphs
 #             it draws, each by name, with link, row or page, when a click on it in kittui leads to a row of another
-#             stage or to a page; and states, page, when the stage's legend lists the states, and a click on one opens
-#             the pull request's page
+#             stage or to a page; states, page, when the stage's legend lists the states, and a click on one opens
+#             the pull request's page; and screen, the verb that draws it, kit workspace's workspace, else kit flow's
 #
 # A meaning is one glyph's wherever it is drawn, so a stage's legend never words it otherwise.
 #
@@ -40,19 +40,28 @@ def wrap($width; $indent):
 def line($glyph; $meaning; $more):
   "#   \($glyph)  \($meaning)\(if $more then ": " + $more else "" end)" | wrap(118; "#       ");
 
-# legend($d) gives the legend of the table $d as kit help flow prints it, the comment lines of kit/bin/kit-flow's
-# header: the title's glyph, then each stage's glyphs under its name, and under a stage that lists them the states,
-# then any other.
-def legend($d):
+# screen($screen) gives a stage or a group of the table if its verb is $screen: flow, else its screen.
+def screen($screen): select((.screen // "flow") == $screen);
+
+# legend($d; $screen) gives the legend of the table $d as kit help flow, or kit help workspace for the workspace
+# screen, prints it, the comment lines of its verb's header: the title's glyph, then each of the screen's stages' glyphs
+# under its name, and under a stage that lists them the states, then any other.
+def legend($d; $screen):
   glyph($d; "Other") as $other
   | (glyph($d; $d.title) | line(.glyph; .meaning; .more)), "#",
-    ($d.stages[]
+    ($d.stages[] | screen($screen)
      | "# \(.stage):", "#", (.legend[] | glyph($d; .name) | line(.glyph; .meaning; .more)), "#",
        (select(.states) | "# \(.stage): a pull request's state, the first of these that holds:", "#",
           ($d.states[] | line(.glyph; .state; .more)), line($other.glyph; $other.meaning; null), "#"));
 
-# legend gives glyphs.json's legend, as legend($d) does.
+# legend($d) gives the legend of the table $d for kit flow, as legend($d; $screen) does.
+def legend($d): legend($d; "flow");
+
+# legend gives glyphs.json's legend for kit flow.
 def legend: legend(data);
+
+# legend_for($screen) gives glyphs.json's legend for a screen, as kit help workspace prints workspace's.
+def legend_for($screen): legend(data; $screen);
 
 # quote reads a string and gives it as a bash word in single quotes.
 def quote: "'" + gsub("'"; "'\\''") + "'";
@@ -66,7 +75,7 @@ def bash($d):
   ($d.glyphs[] | "  [\(.name)]=\(.glyph | quote)"),
   ")",
   "declare -gA flow_stage_glyphs=(",
-  ($d.stages[] | "  [\(.stage)]=\(glyph($d; .glyph).glyph | quote)"),
+  ($d.stages[] | screen("flow") | "  [\(.stage)]=\(glyph($d; .glyph).glyph | quote)"),
   ")",
   "declare -gA flow_state_glyphs=(",
   ($d.states[] | "  [\(.state)]=\(.glyph | quote)"),
