@@ -55,15 +55,22 @@ const (
 // keys bar would have to name one key apiece. A line with no name is the rule between groups of items.
 type Item struct{ Glyph, Name, Keys string }
 
-// screens are the app's menu's screens, in its order, with the item each is chosen by.
-var screens = []struct {
+// screenItem is one of the app's menu's screens, with the item it is chosen by.
+type screenItem struct {
 	item   Item
 	screen Screen
-}{
-	{Item{Glyph: Home, Name: "Welcome"}, Welcome}, {Item{Glyph: Learn, Name: "Tutorials"}, Tutorials},
-	{Item{Glyph: Map, Name: "Flow"}, Flow}, {Item{Glyph: Git, Name: "Workspace"}, Workspace},
-	{Item{Glyph: Asking, Name: "Help"}, Help},
 }
+
+// sections are the app's menu's screens, in its order, a rule between each group: the guides, which come with kit
+// whatever the work is, then the apps, each a picture of the work.
+var sections = [][]screenItem{
+	{{Item{Glyph: Home, Name: "Welcome"}, Welcome}, {Item{Glyph: Learn, Name: "Tutorials"}, Tutorials},
+		{Item{Glyph: Asking, Name: "Help"}, Help}},
+	{{Item{Glyph: Map, Name: "Flow"}, Flow}, {Item{Glyph: Git, Name: "Workspace"}, Workspace}},
+}
+
+// screens are the app's menu's screens, in its order, without the rules.
+var screens = slices.Concat(sections...)
 
 // Menu is the app's menu on a screen: the screen it is on, whose item is dim; the screen's own items, which come
 // after kit's screens, and the names of those that do nothing now, dim; and, as a dropdown, whether it is open, and
@@ -95,14 +102,17 @@ func Switch(to Screen) tea.Cmd { return func() tea.Msg { return SwitchMsg{to} } 
 // ctrl-q reaches kittui.
 const Quit = "ctrl+q"
 
-// Items gives the menu's lines, top to bottom: kit's screens; a rule; the screen's own items, when it has any, and the
-// settings; a rule; and quit, which ⌃Q does on every screen.
+// Items gives the menu's lines, top to bottom: kit's screens, a rule after each section of them; the screen's own
+// items, when it has any, and the settings; a rule; and quit, which ⌃Q does on every screen.
 func (m Menu) Items() []Item {
 	var items []Item
-	for _, s := range screens {
-		items = append(items, s.item)
+	for _, section := range sections {
+		for _, s := range section {
+			items = append(items, s.item)
+		}
+		items = append(items, Item{})
 	}
-	items = append(append(items, Item{}), m.Own...)
+	items = append(items, m.Own...)
 	return append(items, settingsItem, Item{}, Item{Glyph: Leave, Name: "Quit", Keys: "⌃Q"})
 }
 

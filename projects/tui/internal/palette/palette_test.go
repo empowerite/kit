@@ -666,7 +666,7 @@ func TestEqualsDropsTheAppsMenuDownOverThePalette(t *testing.T) {
 	if !m.appMenu.Open {
 		t.Fatal("a click on the screen's name did not drop the menu down")
 	}
-	quit := testkit.Click(3, shell.Top+9)
+	quit := testkit.Click(3, shell.Top+10)
 	if _, msgs := testkit.Drive(m, nil, quit); !slices.Contains(msgs, tea.Msg(tea.QuitMsg{})) {
 		t.Errorf("a click on quit: %v", msgs)
 	}

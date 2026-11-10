@@ -1,4 +1,4 @@
-// The app's menu is the same on every screen: its own items first, kit's screens, the one it is on dim, the
+// The app's menu is the same on every screen: kit's screens, the guides then the apps, the one it is on dim, the
 // settings, and quit; its keys and clicks choose, and the box hangs from its glyph, whatever is under it kept in its
 // columns.
 package shell
@@ -36,16 +36,16 @@ func TestTheMenuHasItsScreensOwnItemsKitsScreensTheSettingsAndQuit(t *testing.T)
 	for _, item := range m.Items() {
 		names = append(names, item.Name)
 	}
-	if got := strings.Join(names, "|"); got != "Welcome|Tutorials|Flow|Workspace|Help||Refresh All|Settings…||Quit" {
+	if got := strings.Join(names, "|"); got != "Welcome|Tutorials|Help||Flow|Workspace||Refresh All|Settings…||Quit" {
 		t.Fatalf("the items: %q", got)
 	}
 	// its own, another screen, the settings, and quit do something; the screen it is on and the rules do not
-	for k, want := range []bool{false, true, true, true, true, false, true, true, false, true} {
+	for k, want := range []bool{false, true, true, false, true, true, false, true, true, false, true} {
 		if m.enabled(k) != want {
 			t.Errorf("item %d (%s) enabled %v", k, names[k], !want)
 		}
 	}
-	if (Menu{}).Items()[6].Name != "Settings…" || m.At != 1 || !m.Open {
+	if (Menu{}).Items()[7].Name != "Settings…" || m.At != 1 || !m.Open {
 		t.Errorf("a menu with no items of its screen's, or the keyboard on its first that acts: %+v", m)
 	}
 }
@@ -55,8 +55,8 @@ func TestTheMenusKeysMoveChooseAndClose(t *testing.T) {
 	for _, step := range []struct {
 		key  string
 		want int
-	}{{"down", 1}, {"down", 3}, {"down", 4}, {"down", 6}, {"down", 8}, {"down", 8}, {"up", 6}, {"w", 0}, {"q", 8},
-		{"z", 8}} {
+	}{{"down", 1}, {"down", 2}, {"down", 5}, {"down", 7}, {"down", 9}, {"down", 9}, {"up", 7}, {"w", 0}, {"q", 9},
+		{"z", 9}} {
 		if m, _ = m.Key(key(step.key)); m.At != step.want {
 			t.Errorf("%s: item %d, want %d", step.key, m.At, step.want)
 		}
@@ -107,7 +107,7 @@ func TestTheMenuHangsFromTheTitlesGlyphAndAClickChooses(t *testing.T) {
 	if m, c := m.Click(3, Top+1, 60); c != (Choice{Screen: Welcome}) || m.Open {
 		t.Errorf("a click on welcome: %v %+v", m.Open, c)
 	}
-	if m, c := m.Click(3, Top+3, 60); c != (Choice{}) || !m.Open {
+	if m, c := m.Click(3, Top+5, 60); c != (Choice{}) || !m.Open {
 		t.Errorf("a click on flow: %v %+v", m.Open, c)
 	}
 	if m, c := m.Click(50, 15, 60); c != (Choice{}) || m.Open {
