@@ -256,9 +256,32 @@ func TestAClickOnTheRuleUnderAColumnsNameSortsByIt(t *testing.T) {
 	if m = drive(m, testkit.Click(under(m, "branch"), ruleY(m))); keys(m) != 2 || mark(m, "branch") != "▲²" {
 		t.Errorf("a click under branch: %d keys, branch %q", keys(m), mark(m, "branch"))
 	}
-	// a list sorts nothing while a row holds all its values, so the rule under it is no target
-	if m = drive(m, testkit.Click(under(m, "assignees"), ruleY(m))); keys(m) != 2 || mark(m, "assignees") != "" {
-		t.Errorf("a click under assignees: %d keys, assignees %q", keys(m), mark(m, "assignees"))
+	// a list sorts nothing while a row holds all its values: the rule has the dim flatten mark under its name's first
+	// cell, alone, and the cells after it sort nothing
+	marks := func(m Model, column string, cells int) string {
+		return ansi.Strip(ansi.Cut(m.rule(), under(m, column), under(m, column)+cells))
+	}
+	if got := marks(m, "assignees", 2); got != table.FlattenGlyph+"─" {
+		t.Errorf("the rule under assignees: %q", got)
+	}
+	if m = drive(m, testkit.Click(under(m, "assignees")+1, ruleY(m))); keys(m) != 2 || m.panel(m.stage).Field("assignees").Flat {
+		t.Errorf("a click past assignees' flatten mark: %d keys, flat %v", keys(m), m.panel(m.stage).Field("assignees").Flat)
+	}
+	// a click on it flattens the list, a row per value, which sorts: the sort's mark stands after the flatten mark
+	if m = drive(m, testkit.Click(under(m, "assignees"), ruleY(m))); !m.panel(m.stage).Field("assignees").Flat ||
+		marks(m, "assignees", 2) != table.FlattenGlyph+Sortable {
+		t.Fatalf("a click on assignees' flatten mark: flat %v, %q", m.panel(m.stage).Field("assignees").Flat,
+			marks(m, "assignees", 2))
+	}
+	if m = drive(m, testkit.Click(under(m, "assignees")+1, ruleY(m))); keys(m) != 3 || mark(m, "assignees") != "▲³" ||
+		marks(m, "assignees", 3) != table.FlattenGlyph+"▲³" {
+		t.Errorf("a click after it sorts: %d keys, assignees %q, %q", keys(m), mark(m, "assignees"),
+			marks(m, "assignees", 3))
+	}
+	// and a click on it again gathers the values back on one row, which keeps its sort for when it is flat again
+	if m = drive(m, testkit.Click(under(m, "assignees"), ruleY(m))); m.panel(m.stage).Field("assignees").Flat ||
+		keys(m) != 2 || marks(m, "assignees", 2) != table.FlattenGlyph+"─" {
+		t.Errorf("a click on the flatten mark, flat: %d keys, %q", keys(m), marks(m, "assignees", 2))
 	}
 	if got := lines(m)[m.headerTop()]; got != header {
 		t.Errorf("sorting moved the names:\n%s\n%s", header, got)

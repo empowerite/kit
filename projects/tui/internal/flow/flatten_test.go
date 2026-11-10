@@ -70,8 +70,9 @@ func TestTheColumnMenuFlattensAListAndItsRowsSort(t *testing.T) {
 			t.Errorf("a count is no longer the rows': no %q\n%s", want, raw(m))
 		}
 	}
+	// the sort's target stands after the flatten mark, under the name's first cell
 	x, _ := m.columnName("assignees")
-	if m = drive(m, testkit.Click(x, ruleY(m))); m.panel(m.stage).Mark("assignees") != "▲" {
+	if m = drive(m, testkit.Click(x+1, ruleY(m))); m.panel(m.stage).Mark("assignees") != "▲" {
 		t.Errorf("a click under assignee: %q", m.panel(m.stage).Mark("assignees"))
 	}
 	if pr := table.PresetOf(m.panel(m.stage), fieldsOf("backlog")); !pr.Fields["assignees"].Flat ||

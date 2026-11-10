@@ -2,31 +2,31 @@
   ────────╮➃╶──────────────────╴➎╶────────────────╮➅╶───────────────╮➆╶─────────
  ◃sk  1   │  🌿 worktrees  4    │ 🔀 changes  3 : │  🏭 builds  4   │  🛬 inco ▹
   ────────╰─────────────────────╯                 ╰─────────────────╰───────────
-  ▾ 3                                    ╭─ changes legend ─────────── ↖ ↗ ↙ ↘ ╮
-                                         │ =  the kit menu                     │
-    change  title         author  state  │ ·  a separator                      │
-    ·───────·─────────────·───────·──────│ -  the workspace menu               │
-  ▸ 🔀 #2   The first r…  jeffr…  🏁     │ 🔎 the search: / or a click         │
-  ▸ 🔀 #3   A spike on …  ada     🔨     │ ➃  a tab's number, which selects it │
-  ▸ 🔀 #4   Lint every …  bob     🔥     │ ➎  the selected tab's number        │
-                                         │ ◃  more tabs: a click scrolls       │
-                                         │ 🌿 the worktrees stage              │
-                                         │ 🔀 the changes stage                │
-                                         │ :  the tab's menu                   │
-                                         │ 🏭 the builds stage                 │
-                                         │ 🛬 the incoming stage               │
-                                         │ ▾  open: a click closes it          │
-                                         │ ▼  the presets' menu                │
-                                         │ ·  sortable: a click sorts          │
-                                         │ ▸  closed: a click opens it         │
-                                         │ 🔀 a pull request 🔗                │
-                                         │ 🏁 ready 🔗                         │
-                                         │ ✅ passed                           │
-                                         │ 🔨 draft 🔗                         │
-                                         │ 🏃 running                          │
-                                         │ 💬 threads unresolved               │
-                                         │ 💬 comments:open 🔗                 │
-                                         │ 🔥 failing:gate 🔗                  │
-                                         │ ❌ failed                           │
-                                         ╰─────────────────────────────────────╯
+  ▾ 3                                                               Default ▼
+
+    change  title         author  state  age  checks  threads  labels   branch
+    ·───────·─────────────·───────·──────·────·───────·────────⇊────────·──────
+  ▸ 🔀 #2   The first r…  jeffr…  🏁      8d  ✅               kind=f…  1-the-…
+  ▸ 🔀 #3   A spike on …  ada     🔨     90m  🏃      💬 2 u…           3-a-sp…
+  ▸ 🔀 #4   Lint every …  bob     🔥     25h  ❌                        4-lint…
+
+
+
+
+
+ ╭─ changes legend ─────────────────────────────────────────────────── ↖ ↗ ↙ ↘ ╮
+ │ =  the kit menu                      ▼  the presets' menu                   │
+ │ ·  a separator                       ·  sortable: a click sorts             │
+ │ -  the workspace menu                ⇊  a list: a click flattens or gathers │
+ │ 🔎 the search: / or a click          ▸  closed: a click opens it            │
+ │ ➃  a tab's number, which selects it  🔀 a pull request 🔗                   │
+ │ ➎  the selected tab's number         🏁 ready 🔗                            │
+ │ ◃  more tabs: a click scrolls        ✅ passed                              │
+ │ 🌿 the worktrees stage               🔨 draft 🔗                            │
+ │ 🔀 the changes stage                 🏃 running                             │
+ │ :  the tab's menu                    💬 threads unresolved                  │
+ │ 🏭 the builds stage                  💬 comments:open 🔗                    │
+ │ 🛬 the incoming stage                🔥 failing:gate 🔗                     │
+ │ ▾  open: a click closes it           ❌ failed                              │
+ ╰─────────────────────────────────────────────────────────────────────────────╯
  = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-8 jump : tab menu

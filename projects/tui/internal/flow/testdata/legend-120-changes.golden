@@ -5,7 +5,7 @@
   ▾ 3                                                                                                       Default ▼
 
     change  title                     author            state  age  checks  threads          labels    branch
-    ·───────·─────────────────────────·─────────────────·──────·────·───────·──────────────────────────·───────────────
+    ·───────·─────────────────────────·─────────────────·──────·────·───────·────────────────⇊─────────·───────────────
   ▸ 🔀 #2   The first release, v0.1…  jeffrey-aguilera  🏁      8d  ✅                       kind=fix  1-the-first-rel…
   ▸ 🔀 #3   A spike on the settings…  ada               🔨     90m  🏃      💬 2 unresolved            3-a-spike
   ▸ 🔀 #4   Lint every module         bob               🔥     25h  ❌                                 4-lint-every-mo…
@@ -13,20 +13,20 @@
 
 
 
-                                                    ╭─ changes legend ──────────────────────────────────────── ↖ ↗ ↙ ↘ ╮
-                                                    │ =  the kit menu                      ▾  open: a click closes it  │
-                                                    │ ·  a separator                       ▼  the presets' menu        │
-                                                    │ -  the workspace menu                ·  sortable: a click sorts  │
-                                                    │ 🔎 the search: / or a click          ▸  closed: a click opens it │
-                                                    │ ➀  a tab's number, which selects it  🔀 a pull request 🔗        │
-                                                    │ ➎  the selected tab's number         🏁 ready 🔗                 │
-                                                    │ 🎫 the backlog stage                 ✅ passed                   │
-                                                    │ 🛫 the underway stage                🔨 draft 🔗                 │
-                                                    │ 💻 the desk stage                    🏃 running                  │
-                                                    │ 🌿 the worktrees stage               💬 threads unresolved       │
-                                                    │ 🔀 the changes stage                 💬 comments:open 🔗         │
-                                                    │ :  the tab's menu                    🔥 failing:gate 🔗          │
-                                                    │ 🏭 the builds stage                  ❌ failed                   │
-                                                    │ ▹  more tabs: a click scrolls                                    │
-                                                    ╰──────────────────────────────────────────────────────────────────╯
+                                         ╭─ changes legend ─────────────────────────────────────────────────── ↖ ↗ ↙ ↘ ╮
+                                         │ =  the kit menu                      ▾  open: a click closes it             │
+                                         │ ·  a separator                       ▼  the presets' menu                   │
+                                         │ -  the workspace menu                ·  sortable: a click sorts             │
+                                         │ 🔎 the search: / or a click          ⇊  a list: a click flattens or gathers │
+                                         │ ➀  a tab's number, which selects it  ▸  closed: a click opens it            │
+                                         │ ➎  the selected tab's number         🔀 a pull request 🔗                   │
+                                         │ 🎫 the backlog stage                 🏁 ready 🔗                            │
+                                         │ 🛫 the underway stage                ✅ passed                              │
+                                         │ 💻 the desk stage                    🔨 draft 🔗                            │
+                                         │ 🌿 the worktrees stage               🏃 running                             │
+                                         │ 🔀 the changes stage                 💬 threads unresolved                  │
+                                         │ :  the tab's menu                    💬 comments:open 🔗                    │
+                                         │ 🏭 the builds stage                  🔥 failing:gate 🔗                     │
+                                         │ ▹  more tabs: a click scrolls        ❌ failed                              │
+                                         ╰─────────────────────────────────────────────────────────────────────────────╯
  = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-8 jump : tab menu

@@ -2,23 +2,23 @@
   ➊╶────────────────╮➁╶─────────────────╮➂╶─────────────╮➃╶──────────────────╮➄╶
   │ 🎫 backlog  3 : │  🛫 underway  4   │  💻 desk  1   │  🌿 worktrees  4   │
   ╵                 ╰───────────────────╰───────────────╰────────────────────╰──
-  ▾ source 3                             ╭─ backlog legend ─────────── ↖ ↗ ↙ ↘ ╮
-                                         │ =  the kit menu                     │
-  ▾ github 3                             │ ·  a separator                      │
-                                         │ -  the workspace menu               │
-      id   assignees         age  branch │ 🔎 the search: / or a click         │
-      ·──────────────────────·────·──────│ ➊  the selected tab's number        │
-    ▸ #45                     2h         │ ➁  a tab's number, which selects it │
-    ▸ #46  jeffrey-aguilera   2d  🌿 46-a│ 🎫 the backlog stage                │
-    ▸ #7   ada           +1  40d         │ :  the tab's menu                   │
-                                         │ 🛫 the underway stage               │
-                                         │ 💻 the desk stage                   │
-                                         │ 🌿 the worktrees stage              │
-                                         │ ▾  open: a click closes it          │
-                                         │ ▼  the presets' menu                │
-                                         │ ·  sortable: a click sorts          │
-                                         │ ▸  closed: a click opens it         │
-                                         │ 🎫 an issue 🔗                      │
-                                         │ 🌿 a branch or a worktree           │
-                                         ╰─────────────────────────────────────╯
+  ▾ source 3                                                        Default ▼
+
+  ▾ github 3
+
+      id   assignees         age  branch            labels  title
+      ·────⇊─────────────────·────·─────────────────⇊───────·──────────────────
+    ▸ #45                     2h                    3       🎫 kit flow is the…
+    ▸ #46  jeffrey-aguilera   2d  🌿 46-a-noun-li…  bug   🎫 A noun lists, a…
+ ╭─ backlog legend ─────────────────────────────────────────────────── ↖ ↗ ↙ ↘ ╮
+ │ =  the kit menu                      💻 the desk stage                      │
+ │ ·  a separator                       🌿 the worktrees stage                 │
+ │ -  the workspace menu                ▾  open: a click closes it             │
+ │ 🔎 the search: / or a click          ▼  the presets' menu                   │
+ │ ➊  the selected tab's number         ·  sortable: a click sorts             │
+ │ ➁  a tab's number, which selects it  ⇊  a list: a click flattens or gathers │
+ │ 🎫 the backlog stage                 ▸  closed: a click opens it            │
+ │ :  the tab's menu                    🎫 an issue 🔗                         │
+ │ 🛫 the underway stage                🌿 a branch or a worktree              │
+ ╰─────────────────────────────────────────────────────────────────────────────╯
  = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-8 jump : tab menu

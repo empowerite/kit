@@ -103,6 +103,7 @@ func (m Model) parts(last int) []part {
 		one("▲", "ascending: a click turns it", rule),
 		one("▼", "descending: a click stops it", rule),
 		{places, "its place among the sorts", "", rule},
+		one(table.FlattenGlyph, "a list: a click flattens or gathers", rule),
 		one(grid.Chosen, "all of the group's rows selected", rows),
 		one(grid.Partly, "some of the group's rows selected", rows),
 		one(Unwatched, "watched", status),

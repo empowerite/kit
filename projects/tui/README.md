@@ -114,6 +114,8 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     there. The line under the keyboard in a menu or a dialog stands on the menu's bright cyan, in black, and a dialog's
     keys are the keys bar's alone. A column's sort mark stands on the rule under the first cell of its name, wherever
     the name aligns. A dim · there says the column can sort and does not; a column that cannot sort has the rule alone.
+    A list has ⇊ under that first cell, dim while a row holds all its values, not once flattened, and its sort's mark
+    after it; a plain click on the ⇊ flattens the list, or gathers it again.
     A plain click on the rule under the name turns the sort a step: ascending, after the other keys; descending, in its
     place; then off on the last key, and ascending again on any other, so a turn never moves the keys after it. A
     shift-click turns it off wherever it stands, as Unsorted in the menu does. A terminal such as iTerm keeps ⌥, ⌃, and

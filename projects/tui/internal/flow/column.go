@@ -71,17 +71,22 @@ func (m Model) headerColumn(x, y int) string {
 // click sorts; a column that cannot sort has the rule alone.
 const Sortable = "·"
 
-// sortSpot is a column's sort target on the rule under the header: the screen columns under its name, from its first
-// to the one past it, as wide as the name's first line or its mark, whichever is wider; the mark drawn there, its sort's
-// where it sorts, and Sortable where it does not; whether it sorts; and the screen column the mark starts on.
+// sortSpot is a column's targets on the rule under the header, from the screen column under its name's first cell: a
+// column that holds a list has the flatten mark there, dim while a row holds all its values, not once flattened, and a
+// click on it flattens or gathers; after it, or from that first cell for another column, the sort's, its mark where it
+// sorts, Sortable where it can and does not, and none where it cannot. The sort's target runs to the end of the
+// name's first line, or of the marks, whichever is wider.
 type sortSpot struct {
-	column, mark    string
-	sorts           bool
-	at, from, until int
+	column, mark, flat string
+	sorts, flattened   bool
+	at, until          int
 }
 
-// sortSpots gives the sort target of each column the header names that can sort, under its name on the rule, the mark
-// under the name's first cell, wherever the name aligns; none while the header draws no names.
+// sortFrom gives the screen column the sort's mark and target start on: after the flatten mark, where there is one.
+func (s sortSpot) sortFrom() int { return s.at + ansi.StringWidth(s.flat) }
+
+// sortSpots gives the targets of each column the header names that can sort or flatten, under its name on the rule,
+// wherever the name aligns; none while the header draws no names.
 func (m Model) sortSpots() []sortSpot {
 	if len(m.stages) == 0 || m.noHeaders || m.stages[m.stage].src.Loading || m.stages[m.stage].refusal != "" {
 		return nil
@@ -91,32 +96,41 @@ func (m Model) sortSpots() []sortSpot {
 	var out []sortSpot
 	for j, column := range m.shownColumns(m.stage) {
 		start, first := grid.HeaderName(rows, names, width, j)
-		if start < 0 || !p.Sorts(column) {
+		if start < 0 || !p.Sorts(column) && !p.Lists(column) {
 			continue
 		}
-		mark := p.Mark(column)
-		sorts := mark != ""
-		if !sorts {
-			mark = Sortable
+		s := sortSpot{column: column, at: in + start}
+		if p.Lists(column) {
+			s.flat, s.flattened = table.FlattenGlyph, p.Field(column).Flat
 		}
-		x := in + start
-		out = append(out, sortSpot{column, mark, sorts, x, x, x + max(ansi.StringWidth(first), ansi.StringWidth(mark))})
+		if p.Sorts(column) {
+			s.mark = p.Mark(column)
+			if s.sorts = s.mark != ""; !s.sorts {
+				s.mark = Sortable
+			}
+		}
+		s.until = s.at + max(ansi.StringWidth(first), ansi.StringWidth(s.flat+s.mark))
+		out = append(out, s)
 	}
 	return out
 }
 
-// ruleFill gives the rule's dim line, fill cells from the screen column from on, each sort's mark on it under its
-// column's name, as sortSpots places them, not dim, where the whole mark fits on the line, and Sortable, dim, under a
-// column that can sort and does not.
+// ruleFill gives the rule's dim line, fill cells from the screen column from on, each column's marks on it under its
+// name, as sortSpots places them, where the whole of them fits on the line: a sort's not dim, nor a flattened list's;
+// Sortable, and the flatten mark of a list not flat, dim.
 func (m Model) ruleFill(from, fill int) string {
 	cells := slices.Repeat([]string{"─"}, fill)
 	marked := make([]bool, fill)
 	for _, s := range m.sortSpots() {
-		at, glyphs := s.at-from, strings.Split(s.mark, "")
-		if at < 0 || at+len(glyphs) > fill {
+		at := s.at - from
+		if at < 0 || at+ansi.StringWidth(s.flat+s.mark) > fill {
 			continue
 		}
-		for k, g := range glyphs {
+		for k, g := range strings.Split(s.flat, "") {
+			cells[at+k], marked[at+k] = g, s.flattened
+		}
+		at = s.sortFrom() - from
+		for k, g := range strings.Split(s.mark, "") {
 			cells[at+k], marked[at+k] = g, s.sorts
 		}
 	}
@@ -136,18 +150,24 @@ func (m Model) ruleFill(from, fill int) string {
 	return out.String()
 }
 
-// sortAt gives the column whose sort a click at the screen column x on the rule under the header turns: the one whose
-// target, under its name, as sortSpots gives them, x falls on, short of the rule's right end, where the selected count
-// may stand. Where a column does not sort yet, its target is the rule's line, and still sorts it.
-// Nothing elsewhere.
-func (m Model) sortAt(x int) string {
+// sortAt gives the column whose target a click at the screen column x on the rule under the header falls on, as
+// sortSpots gives them, short of the rule's right end, where the selected count may stand, and whether it is the
+// flatten mark, which flattens or gathers, rather than the sort's, which turns it. Where a column does not sort yet,
+// its target is the rule's line, and still sorts it; a list not flat has the flatten mark alone. Nothing elsewhere.
+func (m Model) sortAt(x int) (column string, flatten bool) {
 	line := ansi.Strip(m.rule())
+	if x >= ansi.StringWidth(line) || ansi.Cut(line, x, x+1) == " " {
+		return "", false
+	}
 	for _, s := range m.sortSpots() {
-		if x >= s.from && x < s.until && ansi.Cut(line, x, x+1) != " " && x < ansi.StringWidth(line) {
-			return s.column
+		switch {
+		case s.flat != "" && x >= s.at && x < s.sortFrom():
+			return s.column, true
+		case s.mark != "" && x >= s.sortFrom() && x < s.until:
+			return s.column, false
 		}
 	}
-	return ""
+	return "", false
 }
 
 // sortBy turns a column's sort, as a click on its target on the rule asks, a step each click, as the panel's Sorted

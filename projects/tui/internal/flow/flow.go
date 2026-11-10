@@ -367,7 +367,11 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case len(m.stages) > 0 && m.controls() && msg.Y == m.top() && msg.X < m.paneWidth():
 			return m, m.controlClick(msg.X)
 		case len(m.stages) > 0 && m.onRule(msg.Y) && msg.X < m.paneWidth():
-			if column := m.sortAt(msg.X); column != "" {
+			switch column, flatten := m.sortAt(msg.X); {
+			case flatten:
+				p := m.panel(m.stage)
+				m.setPanel(p.Flattened(column, !p.Field(column).Flat))
+			case column != "":
 				m.sortBy(column, msg.Mod&tea.ModShift != 0)
 			}
 		case len(m.stages) > 0 && msg.X < m.paneWidth() && m.inHeader(msg.Y):

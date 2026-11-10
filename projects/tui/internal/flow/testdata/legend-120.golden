@@ -7,26 +7,26 @@
   ▾ github 3
 
       id   assignees         age  branch            labels  title
-      ·──────────────────────·────·─────────────────────────·──────────────────────────────────────────────────────────
-    ▸ #45                     2h                    3       🎫 kit flow is the on╭─ backlog legend ─────────── ↖ ↗ ↙ ↘ ╮
-    ▸ #46  jeffrey-aguilera   2d  🌿 46-a-noun-li…  bug   🎫 A noun lists, a no│ =  the kit menu                     │
-    ▸ #7   ada           +1  40d                            🎫 Fix the thing     │ ·  a separator                      │
-                                                                                 │ -  the workspace menu               │
-                                                                                 │ 🔎 the search: / or a click         │
-                                                                                 │ ➊  the selected tab's number        │
-                                                                                 │ ➁  a tab's number, which selects it │
-                                                                                 │ 🎫 the backlog stage                │
-                                                                                 │ :  the tab's menu                   │
-                                                                                 │ 🛫 the underway stage               │
-                                                                                 │ 💻 the desk stage                   │
-                                                                                 │ 🌿 the worktrees stage              │
-                                                                                 │ 🔀 the changes stage                │
-                                                                                 │ 🏭 the builds stage                 │
-                                                                                 │ ▾  open: a click closes it          │
-                                                                                 │ ▼  the presets' menu                │
-                                                                                 │ ·  sortable: a click sorts          │
-                                                                                 │ ▸  closed: a click opens it         │
-                                                                                 │ 🎫 an issue 🔗                      │
-                                                                                 │ 🌿 a branch or a worktree           │
-                                                                                 ╰─────────────────────────────────────╯
+      ·────⇊─────────────────·────·─────────────────⇊───────·─────────────────╭─ backlog legend ────────────── ↖ ↗ ↙ ↘ ╮
+    ▸ #45                     2h                    3       🎫 kit flow is the│ =  the kit menu                        │
+    ▸ #46  jeffrey-aguilera   2d  🌿 46-a-noun-li…  bug   🎫 A noun lists, a│ ·  a separator                         │
+    ▸ #7   ada           +1  40d                            🎫 Fix the thing  │ -  the workspace menu                  │
+                                                                              │ 🔎 the search: / or a click            │
+                                                                              │ ➊  the selected tab's number           │
+                                                                              │ ➁  a tab's number, which selects it    │
+                                                                              │ 🎫 the backlog stage                   │
+                                                                              │ :  the tab's menu                      │
+                                                                              │ 🛫 the underway stage                  │
+                                                                              │ 💻 the desk stage                      │
+                                                                              │ 🌿 the worktrees stage                 │
+                                                                              │ 🔀 the changes stage                   │
+                                                                              │ 🏭 the builds stage                    │
+                                                                              │ ▾  open: a click closes it             │
+                                                                              │ ▼  the presets' menu                   │
+                                                                              │ ·  sortable: a click sorts             │
+                                                                              │ ⇊  a list: a click flattens or gathers │
+                                                                              │ ▸  closed: a click opens it            │
+                                                                              │ 🎫 an issue 🔗                         │
+                                                                              │ 🌿 a branch or a worktree              │
+                                                                              ╰────────────────────────────────────────╯
  = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-8 jump : tab menu
