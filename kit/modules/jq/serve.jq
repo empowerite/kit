@@ -109,8 +109,9 @@ def emit($a; $word):
   end;
 
 # argv($args; $opts) gives {argv} for a call's arguments, the words of the first line they fit, with the flags the
-# server gives itself; or {error}, saying what is wrong: an unknown name, a value of the wrong type, a value that
-# starts with -, or arguments that fit no line.
+# server gives itself; or {error}, saying what is wrong: an unknown name, a value of the wrong type, an operand's value
+# that starts with -, an operand's value that is a literal of the verb's syntax, offered or not, a value off its
+# property's enum, or arguments that fit no line.
 def argv($args; $opts):
   . as $spec
   | schema($opts) as $schema
@@ -119,20 +120,30 @@ def argv($args; $opts):
   | ($args | given) as $a
   | ($schema.properties | keys_unsorted) as $known
   | [lines($opts)[].sequence | nodes[] | select(.kind == "operand") | .name] as $operands
+  | [$spec.syntax[] | nodes[] | select(.kind == "literal") | .name] as $literals
   | [$a | keys_unsorted[] | select(IN($known[]) | not)] as $unknown
   | if ($unknown | length) > 0 then
       {error: ("unknown argument\(if ($unknown | length) > 1 then "s" else "" end) \($unknown | join(", ")); "
         + "kit \($spec.verb) takes: \($known | join(", "))")}
     else
       ([$a | to_entries[] | .key as $key | .value as $value | $schema.properties[$key] as $property
+        | ($property.enum // $property.items.enum) as $enum
         | if $property.type == "boolean" then
             (if ($value | type) != "boolean" then "\($key) is true or false" else empty end)
           elif $property.type == "array" and (($value | type) != "array" or any($value[]; type != "string")) then
             "\($key) is a list of strings"
           elif $property.type == "string" and ($value | type) != "string" then "\($key) is a string"
-          elif ($key | IN($operands[])) then ([$value] | flatten | map(select(startswith("-"))) | first // empty)
-            | "\($key)'s value \(.) starts with -, so the verb would read it as a flag"
-          else empty
+          else
+            ([$value] | flatten) as $values
+            | first(
+                (if ($key | IN($operands[])) then
+                  ($values[] | select(startswith("-"))
+                    | "\($key)'s value \(.) starts with -, so the verb would read it as a flag"),
+                  ($values[] | select(IN($literals[])) | "\($key)'s value \(.) is a word kit \($spec.verb) acts on")
+                else empty end),
+                (if $enum then
+                  $values[] | select(IN($enum[]) | not) | "\($key)'s value \(.) is not one of: \($enum | join(", "))"
+                else empty end))
           end] | first // null) as $wrong
       | if $wrong then {error: $wrong}
         else

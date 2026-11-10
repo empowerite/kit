@@ -79,8 +79,10 @@ Before you change a file:
 2. Read every file it prints.
 
 No harness keeps a copy of the rules. `kit context` is how every harness, and every person, finds them. Where the
-harness has the kit's MCP server, `kit serve`, the read-only verbs are tools, `context` and `lint` among them, and
-the rules are resources, starting at `kit://1st.md`.
+harness has the kit's MCP server, `kit serve`, the rules are resources, starting at `kit://1st.md`, and the verbs are
+tools in three groups: `context`, `flow`, `help`, `kinds`, `packages`, `syntax`, `toolchains`, `tools`, and
+`version` read only; `check` and `lint` run the commands the repository's files name; and `assign`, `close`,
+`gather`, `settle`, `unassign`, and `work` act on issues and pull requests.
 
 Where a template governs a new file, create it with `kit new file <path>`, giving the path from the repository
 root, and never write it from nothing. `kit new file`:

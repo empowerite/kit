@@ -31,9 +31,15 @@ are.
 rules that govern the file; see [docs/context.md](../../context.md).
 
 The package merges one more entry, `mcpServers.kit`, into `.mcp.json`: the kit's MCP server, `kit serve`, which
-offers the read-only verbs as tools and the rules as resources; see [docs/serve.md](../../serve.md). Claude Code
-asks once, at the start of the next session, whether to use a project's servers. The kit says so when it places the
-entry. The hook stays: it fires before every edit, while a tool fires only when the agent calls it.
+offers the rules as resources and the verbs as tools in three groups; see [docs/serve.md](../../serve.md):
+
+- `context`, `flow`, `help`, `kinds`, `packages`, `syntax`, `toolchains`, `tools`, and `version` read only.
+- `check` and `lint` run the commands the repository's files name.
+- `assign`, `close`, `gather`, `settle`, `unassign`, and `work` act on issues and pull requests.
+
+Claude Code asks once, at the start of the next session, whether to use a project's servers, and the kit says so
+when it places the entry. A yes to that question offers the tools that close issues too. The hook stays: it fires
+before every edit, while a tool fires only when the agent calls it.
 
 `.claude/rules/` belongs to the repository. `AGENTS.md` does not contain an `@` import for Claude Code, because every
 harness reads `AGENTS.md`.

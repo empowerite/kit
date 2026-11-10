@@ -14,21 +14,30 @@
 #   - The revisions before it, which a client selects by opening with initialize. From then on a request needs no
 #     _meta, and ping is answered.
 #
-# A tool is a verb. Most read and report, and change nothing; the workflow tools act on issues and pull requests, and
-# say so in their annotations, so a client can ask before it calls one. Its description is the verb's purpose and the
-# usage lines it offers. The verb's whole page is a resource, kit://help/<verb>. Its input is typed, built from the
-# verb's syntax by modules/jq/serve.jq: a property for each flag, option, and operand, and one for a line's leading
-# word. A call's arguments become the verb's words, and a name the tool does not know is refused with -32602. A call
-# runs kit <verb> <word>… in a new process with stdin at end of file, so the verb cannot read the protocol stream.
+# A tool is a verb, in one of three groups, and its annotations say which, so a client can ask before it calls one:
 #
-# A tool that reads never writes the repository and never fetches; of the workflow tools, only work writes the
-# repository, as it makes a branch, a worktree, and a pull request:
+#   - context, flow, help, kinds, packages, syntax, toolchains, tools, and version read only
+#   - check and lint run the commands the repository's files name: each generated region's, and each rule's linter
+#   - assign, close, gather, settle, unassign, and work act on issues and pull requests
+#
+# A tool's description is the verb's purpose and the usage lines it offers. The verb's whole page is a resource,
+# kit://help/<verb>. Its input is typed, built from the verb's syntax by modules/jq/serve.jq: a property for each
+# flag, option, and operand, and one for a line's leading word. A call's arguments become the verb's words, and a name
+# the tool does not know is refused with -32602. A call runs kit <verb> <word>… in a new process with stdin at end of
+# file, so the verb cannot read the protocol stream.
+#
+# A tool that reads only runs no command the repository's files name, takes no word that acts, reads no path outside
+# the repository, changes no file git sees, and never fetches. Of the workflow tools, only work writes the repository,
+# as it makes a branch, a worktree, and a pull request:
 #
 #   - The server places .kit/ as it starts, and again between messages when kit.yml changed. A call does not place
 #     anything; kit_serve_hydrated tells the verb so.
 #   - kit flow is always given --no-fetch, so incoming reads the refs as they are.
 #   - A word that acts is never offered: packages, toolchains, and tools are listings only, and context's hook mode,
-#     --claude, is the harness's own.
+#     --claude, is the harness's own. An operand's value that is a word of the verb's syntax is refused, offered or
+#     not, and so is a value off its property's enum.
+#   - A path stays inside the repository: each word given to context, kinds, or lint that is not a flag is refused
+#     when it leads outside the root, and flow does not offer --workspace, which reads other clones.
 #
 # A tool's verb still writes the kit's log, and a verb's cache under .kit/cache/, which git never sees.
 #
@@ -57,16 +66,20 @@ use context help release syntax log file materialize
 # The protocol revisions the server answers, the newest first. The first is the one without a session.
 declare -gra serve_versions=(2026-07-28 2025-11-25 2025-06-18 2025-03-26)
 
-# The tools: the verbs that read and change nothing, then the workflow verbs, which act on issues and pull requests.
+# The tools: the verbs that read, by name, with check and lint among them, then the workflow verbs, which act on issues
+# and pull requests. serve_acts names the ones that do not read only.
 declare -gra serve_tools=(check context flow help kinds lint packages syntax toolchains tools version
   assign close gather settle unassign work)
 
 # The tools that ask the forge, over the network, rather than reading the repository alone.
 declare -gra serve_open_world=(flow assign close gather settle unassign work)
 
-# The workflow tools' annotations: each changes something, and so is not read-only. A destructive one closes issues or
-# takes people off them; an idempotent one called again with the same arguments changes nothing more.
+# The annotations of the tools that do not read only. check and lint run the commands the repository's files name;
+# each workflow tool changes something. A destructive one closes issues or takes people off them; an idempotent one
+# called again with the same arguments changes nothing more.
 declare -grA serve_acts=(
+  [check]='{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true}'
+  [lint]='{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true}'
   [assign]='{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true}'
   [close]='{"readOnlyHint": false, "destructiveHint": true, "idempotentHint": true}'
   [gather]='{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false}'
@@ -90,10 +103,16 @@ declare -grA serve_listing_acts=(
   [tools]='install, update, or run the tools, or ask which are outdated'
 )
 
-# The words a tool does not offer for another reason: context's hook mode is the harness's own.
+# The words a tool does not offer for another reason: context's hook mode is the harness's own, and flow's workspace
+# reads other clones.
 declare -grA serve_hidden=(
   [context]='--claude'
+  [flow]='--workspace'
 )
+
+# The tools whose operands are paths. A call to one is refused when a word it makes, but a flag, leads outside the
+# repository.
+declare -gra serve_paths=(context kinds lint)
 
 # The flags the server gives a tool's verb itself, on any line that takes them, and never offers: flow never fetches.
 declare -grA serve_implied=(
@@ -426,9 +445,10 @@ serve:tool() {
 
 # serve:tools-call <id> <params> runs the tool's verb with the words its arguments make, and answers with what it
 # printed. Arguments the tool does not take are refused with -32602, and the verb never runs; a listing-only tool's
-# refusal says what it does not offer. A verb that exits non-zero sets isError, and the text names its exit status.
+# refusal says what it does not offer. A tool whose operands are paths refuses, the same way, a word outside the
+# repository. A verb that exits non-zero sets isError, and the text names its exit status.
 serve:tools-call() {
-  local name status=0 out err quoted made problem
+  local name status=0 out err quoted made problem tool word
   local -a words
   name=$(jq --raw-output '.name // "" | strings' <<<"$2")
   if ! serve:is-tool "${name}"
@@ -448,7 +468,8 @@ serve:tools-call() {
   problem=$(jq --raw-output '.error // empty' <<<"${made}")
   if [[ -n "${problem}" ]]
   then
-    if [[ -n "${serve_listing_only[${name}]+x}" && "${problem}" == 'unknown argument'* ]]
+    if [[ -n "${serve_listing_only[${name}]+x}" \
+      && ( "${problem}" == 'unknown argument'* || "${problem}" == *" is a word kit ${name} acts on" ) ]]
     then
       problem+="; kit serve offers kit ${name} as a listing only; run it in a terminal to ${serve_listing_acts[${name}]}"
     fi
@@ -456,6 +477,18 @@ serve:tools-call() {
     return 0
   fi
   readarray -d '' -t words < <(jq --raw-output0 '.argv[]' <<<"${made}")
+  for tool in "${serve_paths[@]}"
+  do
+    [[ "${tool}" == "${name}" ]] || continue
+    for word in "${words[@]}"
+    do
+      if [[ "${word}" != -* ]] && ! serve:inside "${word}"
+      then
+        serve:error "$1" -32602 "Invalid params: ${word} is outside the repository kit serve runs in"
+        return 0
+      fi
+    done
+  done
   printf -v quoted ' %q' "${name}" "${words[@]}"
   serve_log_last="kit${quoted}"
   file:temp out out || return 1
@@ -475,6 +508,24 @@ serve:tools-call() {
       isError: ($status != 0)
     }')"
   rm -f "${out}" "${err}"
+}
+
+# serve:inside <path> succeeds when the path, read from the root with every symbolic link followed, is the root or
+# under it. A path that does not exist is judged by its nearest directory that does, and is outside when a .. is left
+# after that.
+serve:inside() {
+  local root path=$1 rest='' resolved
+  root=$(pwd -P)
+  [[ "${path}" == /* ]] || path=${root}/${path}
+  until [[ -e "${path}" || -L "${path}" ]]
+  do
+    rest=/${path##*/}${rest}
+    path=${path%/*}
+    path=${path:-/}
+  done
+  [[ "${rest}/" != */../* ]] || return 1
+  resolved=$(readlink -f "${path}") || return 1
+  [[ "${resolved}" == "${root}" || "${resolved}" == "${root}"/* ]]
 }
 
 # serve:is-tool <name> is true when the server has a tool of that name.

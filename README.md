@@ -199,8 +199,11 @@ read from the verbs themselves; see [docs/completion.md](docs/completion.md).
 
 - Before an agent changes a file, it runs `kit context "${path}"` to find the rules that apply. The `agents/claude`
   package makes this call automatically through a Claude Code hook; see [docs/context.md](docs/context.md).
-- `kit serve` offers the same read-only verbs, and the rules, to any agent over the Model Context Protocol. Each
-  `agents/<harness>` package registers it with its harness; see [docs/serve.md](docs/serve.md).
+- `kit serve` offers the rules, and the verbs in three groups, to any agent over the Model Context Protocol:
+  `context`, `flow`, `help`, `kinds`, `packages`, `syntax`, `toolchains`, `tools`, and `version` read only; `check`
+  and `lint` run the commands the repository's files name; and `assign`, `close`, `gather`, `settle`, `unassign`,
+  and `work` act on issues and pull requests. Each `agents/<harness>` package registers it with its harness; see
+  [docs/serve.md](docs/serve.md).
 - `kit new file "${path}"` creates a file from its style's template, and `kit lint` checks that every file keeps the
   shape of a template; see [docs/templates.md](docs/templates.md).
 

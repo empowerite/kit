@@ -13,11 +13,17 @@
 # starts itself again from any file of its release that changed, and tells the client to list the tools and the
 # resources again; modules/bash/serve.sh says how.
 #
-# Its tools are the verbs that read and report, and do not change anything: check, context, flow, help, kinds, lint,
-# packages, syntax, toolchains, tools, and version. A tool's description is the verb's purpose and usage lines. Its
-# input is typed from the verb's usage: a boolean per flag, a string per option, and a string or a list per operand. A
-# call with a name the tool does not take is refused. A call does not place .kit/, and flow does not fetch. Its
-# resources are the kit's files, and each tool's help page:
+# Its tools are verbs, in three groups, and each tool's annotations say which:
+#
+#   - context, flow, help, kinds, packages, syntax, toolchains, tools, and version, which read only
+#   - check and lint, which run the commands the repository's files name
+#   - assign, close, gather, settle, unassign, and work, which act on issues and pull requests
+#
+# A tool that reads only runs no command the repository's files name, takes no word that acts, reads no path outside
+# the repository, changes no file git sees, and never fetches. A tool's description is the verb's purpose and usage
+# lines. Its input is typed from the verb's usage: a boolean per flag, a string per option, and a string or a list per
+# operand. A call that does not fit is refused unrun: a name the tool does not take, a word the verb acts on, a value
+# off its choices, or a path outside the repository. Its resources are the kit's files, and each tool's help page:
 #
 #   - kit://1st.md
 #   - kit://workflow.md, with the workflow package

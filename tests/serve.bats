@@ -106,14 +106,14 @@ call() {
     | (.stage.enum | index("backlog") and index("releases")) and (has("no-fetch") | not) and .owner.type == "array"'
   answer 1 | jq --exit-status '.result.tools[] | select(.name == "packages") | .inputSchema.properties.package.items.enum
     | index("kit") and index("workflow")'
-  # the workflow tools act, and say how: none reads only, close, unassign, and settle are destructive, and each asks
-  # the forge
+  # check and lint run the repository's commands, and the workflow tools act: none of them reads only; close,
+  # unassign, and settle are destructive, and each workflow tool asks the forge
   answer 1 | jq --exit-status '[.result.tools[] | select(.annotations.readOnlyHint | not) | .name]
-    == ["assign", "close", "gather", "settle", "unassign", "work"]'
+    == ["check", "lint", "assign", "close", "gather", "settle", "unassign", "work"]'
   answer 1 | jq --exit-status '[.result.tools[] | select(.annotations.destructiveHint) | .name]
     == ["close", "settle", "unassign"]'
-  answer 1 | jq --exit-status '[.result.tools[] | select(.annotations.readOnlyHint | not) | .annotations.openWorldHint]
-    | all'
+  answer 1 | jq --exit-status '[.result.tools[] | select(.name | IN("assign", "close", "gather", "settle", "unassign",
+    "work")) | .annotations.openWorldHint] | length == 6 and all'
   answer 1 | jq --exit-status '.result.tools[] | select(.name == "close") | .inputSchema.properties
     | has("not-planned") and has("duplicate-of") and .reference.type == "array"'
   # the whole list fits in well under half the size it had when each description was the verb's whole page
@@ -187,7 +187,7 @@ call() {
   answer 3 | jq --exit-status '.result.content[0].text == "unreleased\n"'
 }
 
-@test "a tool changes nothing: a call never hydrates, flow never fetches, and every tool says it reads only" {
+@test "a tool that reads only changes nothing: a call never hydrates, flow never fetches, and each says it reads only" {
   git init --quiet --bare --initial-branch=main "${BATS_TEST_TMPDIR}/origin.git"
   git remote add origin "${BATS_TEST_TMPDIR}/origin.git"
   git add --all && git commit --quiet --message 'start' && git push --quiet origin HEAD:main 2>/dev/null
@@ -212,8 +212,50 @@ call() {
   [ ! -e .kit/rules/json.md ]
   [ "$(git rev-parse origin/main)" = "${seen}" ]
   answer 3 | jq --exit-status '.result.content[0].text | fromjson | .fetched == false'
-  answer 1 | jq --exit-status '[.result.tools[] | select(.name | IN("assign", "close", "gather", "settle", "unassign",
-    "work") | not) | .annotations] | all(.readOnlyHint and (.destructiveHint | not))'
+  answer 1 | jq --exit-status '[.result.tools[] | select(.name | IN("check", "lint", "assign", "close", "gather",
+    "settle", "unassign", "work") | not) | .annotations] | length == 9 and all(.readOnlyHint and (.destructiveHint | not))'
+}
+
+@test "a listing-only tool refuses an action given as an operand's value, and a value off its enum, unrun" {
+  local before
+  before=$(cksum kit.yml)
+  serve "$(call 1 packages '{"package":["add","style/yaml"]}')" "$(call 2 packages '{"package":["nosuch"]}')"
+  answer 1 | jq --exit-status '.error | .code == -32602 and (.message | contains("add is a word kit packages acts on"))
+    and (.message | contains("kit serve offers kit packages as a listing only"))'
+  answer 2 | jq --exit-status '.error.message | contains("value nosuch is not one of: ")'
+  [ "$(cksum kit.yml)" = "${before}" ]
+  [ ! -e .kit/styles/yaml.md ]
+}
+
+@test "check and lint say they run the repository's commands; a tool that reads only leaves the repository" {
+  printf '# notes\n\n<!-- kit:generate x `touch ran; echo hi` -->\nhi\n<!-- kit:end x -->\n' > notes.md
+  local before
+  before=$(git status --porcelain; cksum kit.yml)
+  serve "$(modern 1 tools/list)" "$(call 2 context '{"path":["notes.md"]}')" "$(call 3 kinds)" "$(call 4 packages)" \
+    "$(call 5 help)" "$(call 6 version)"
+  answer 1 | jq --exit-status '[.result.tools[] | select(.annotations.readOnlyHint | not) | .name]
+    == ["check", "lint", "assign", "close", "gather", "settle", "unassign", "work"]'
+  jq --exit-status --slurp '[.[] | select(.id >= 2) | .result.isError] == [false, false, false, false, false]' \
+    "${BATS_TEST_TMPDIR}/out"
+  [ ! -e ran ]
+  [ "$(git status --porcelain; cksum kit.yml)" = "${before}" ]
+}
+
+@test "a path outside the repository is refused however it is spelled, and flow offers no workspace" {
+  local outside=${BATS_TEST_TMPDIR}/outside.sh id
+  printf '#!/usr/bin/env bash\necho $1\n' > "${outside}"
+  ln -s "${outside}" link.sh
+  serve "$(call 1 lint "$(jq --null-input --compact-output --arg path "${outside}" '{path: [$path]}')")" \
+    "$(call 2 context '{"path":["../outside.sh"]}')" "$(call 3 kinds '{"path":["link.sh"]}')" \
+    "$(call 4 context '{"path":["nosuch/../../outside.sh"]}')" \
+    "$(call 5 kinds "$(jq --null-input --compact-output --arg path "${outside}" '{kind: [$path]}')")" \
+    "$(call 6 flow '{"workspace":"x","stage":"desk"}')" "$(call 7 context '{"path":["kit.yml"]}')"
+  for id in 1 2 3 4 5
+  do
+    answer "${id}" | jq --exit-status '.error | .code == -32602 and (.message | contains("is outside the repository"))'
+  done
+  answer 6 | jq --exit-status '.error | .code == -32602 and (.message | contains("unknown argument workspace"))'
+  answer 7 | jq --exit-status '.result.isError == false'
 }
 
 @test "kit.yml changed between messages is placed by the server, which tells the client the resources changed" {
