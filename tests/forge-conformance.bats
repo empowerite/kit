@@ -127,8 +127,8 @@ world-gitlab() {
   fixture mr.json <<'JSON'
 {"iid": 3, "title": "Fix the thing", "draft": false, "source_branch": "7-fix-the-thing",
  "created_at": "2026-10-01T09:00:00.000Z", "author": {"username": "ada"}, "has_conflicts": false,
- "detailed_merge_status": "mergeable", "description": "Closes #7", "head_pipeline": {"id": 11, "status": "success"},
- "labels": ["kind=fix"]}
+ "detailed_merge_status": "mergeable", "description": "Closes #7", "source_project_id": 1, "target_project_id": 1,
+ "head_pipeline": {"id": 11, "project_id": 1, "status": "success"}, "labels": ["kind=fix"]}
 JSON
   fixture jobs.json <<'JSON'
 [{"name": "a", "status": "failed",
@@ -169,7 +169,7 @@ JSON
   route glab "api ${p}/merge_requests/3/closes_issues?per_page=100*" "${GITLAB_CLOSES:-closes.json}"
   route glab "api ${p}/merge_requests/3/discussions*" discussions.json
   route glab "api ${p}/merge_requests/3" mr.json
-  route glab "api ${p}/pipelines/11/jobs*" jobs.json
+  route glab 'api projects/1/pipelines/11/jobs*' jobs.json
   route glab "api ${p}/repository/branches --method POST*" '!0'
   route glab 'mr create --draft --source-branch 7-fix-the-thing --target-branch main --title Fix the thing*' mr-url.txt
 }
@@ -801,8 +801,8 @@ SH
     printf 'repo view*\trepo.json\n' | tee "${FAKE_DIR}/gh.routes" > "${FAKE_DIR}/glab.routes"
     for call in 'branch-for-issue 7' 'pr-for-branch 7-fix-the-thing' 'pr-last-for-branch 7-fix-the-thing' \
       'pr-state-for-branch 7-fix-the-thing' 'pr-head-for-branch 7-fix-the-thing' pr-here 'pr-title 3' 'pr-body 3' \
-      'pr-author 3' 'pr-closing-issues 3' 'issue-state 7' 'issue-assignees 7' 'issue-title 7' open-prs open-issues \
-      releases
+      'pr-author 3' 'pr-closing-issues 3' 'pr-state 3' 'issue-state 7' 'issue-assignees 7' 'issue-title 7' open-prs \
+      open-issues releases marks quota runs me
     do
       read -r -a words <<<"${call}" && run --separate-stderr call "${words[@]}"
       [[ "$status" -eq 1 && -z "$output" && "$stderr" == *"could not be read)"* ]] \
@@ -821,6 +821,56 @@ SH
   run call open-prs
   [ "$status" -eq 1 ]
   [ ! -f "$(snapshot gitlab open-prs)" ]
+}
+
+@test "a merge request's own pipeline whose jobs cannot be read fails the open changes, and says so" {
+  world gitlab
+  { printf '%s\t%s\n' 'api projects/1/pipelines/11/jobs*' '!1'
+    cat "${FAKE_DIR}/glab.routes"; } > "${FAKE_DIR}/routes.tmp" && mv "${FAKE_DIR}/routes.tmp" "${FAKE_DIR}/glab.routes"
+  run --separate-stderr call open-prs
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [ "$(grep --count '❌' <<<"$stderr")" -eq 1 ]
+  [[ "$stderr" == *"run: glab auth status (the jobs of pipeline 11 could not be read)"* ]]
+}
+
+@test "a merge request list that is not a list fails the read, never reads as none" {
+  world gitlab
+  fixture mr-by-branch.json <<<'null'
+  fixture mr-states.json <<<'null'
+  for call in pr-for-branch pr-last-for-branch pr-state-for-branch pr-head-for-branch
+  do
+    run --separate-stderr call "${call}" 7-fix-the-thing
+    [[ "$status" -eq 1 && -z "$output" && "$stderr" == *"could not be read)"* ]] \
+      || { echo "${call}: exit ${status}, printed '${output}', said '${stderr}'"; return 1; }
+  done
+}
+
+@test "a read stopped by an answer kit cannot use says the remedy, then what could not be read" {
+  world github
+  printf 'HTTP/2.0 200 OK\r\n\r\n[]\n' > "${FAKE_DIR}/no-etag.txt"
+  route gh 'api --include*' no-etag.txt
+  run --separate-stderr call marks
+  [ "$status" -eq 1 ]
+  [[ "$stderr" == *"GitHub gave no ETag for repos/{owner}/{repo}/issues"*"(the marks could not be read)" ]]
+  # a GitLab checkout with no origin names the remote to add
+  world gitlab
+  git remote remove origin
+  mkdir -p .kit && printf 'forge: gitlab\n' > kit.yml
+  run --separate-stderr call issue-title 7
+  [ "$status" -eq 1 ]
+  [[ "$stderr" == *"run: git remote add origin <url>"*"(the project could not be read)" ]]
+}
+
+@test "a change's state that GitHub's rate limit stops says which limit, never gh auth status" {
+  world github
+  fixture limited.txt <<<'gh: You have exceeded a secondary rate limit. Please wait a few minutes before you try again.'
+  { printf '%s\t%s\n' 'pr view 5 --json state,mergeCommit*' '!1 limited.txt'
+    cat "${FAKE_DIR}/gh.routes"; } > "${FAKE_DIR}/routes.tmp" && mv "${FAKE_DIR}/routes.tmp" "${FAKE_DIR}/gh.routes"
+  run --separate-stderr call pr-state 5
+  [ "$status" -eq 1 ]
+  [[ "$stderr" == *"GitHub's secondary rate limit refused the read (pull request #5 could not be read)"* ]]
+  [[ "$stderr" != *"gh auth status"* ]]
 }
 
 @test "a list in pages is read whole" {

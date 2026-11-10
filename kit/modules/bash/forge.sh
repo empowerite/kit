@@ -425,6 +425,26 @@ forge:tags() {
     'split("\n") | map(select(. != ""))'
 }
 
+# forge:json <text> succeeds when the text is one JSON document or more, as a provider's tool answers.
+forge:json() {
+  jq --exit-status true <<<"$1" >/dev/null 2>&1
+}
+
+# forge:fold <remedy> <what> <answer> <jq argument>… prints what jq, given the kit's jq modules, makes of a provider's
+# answer. When jq fails, as on an answer not in the shape asked for, it prints nothing, says the remedy and that <what>
+# could not be read, and returns 1.
+forge:fold() {
+  local remedy=$1 what=$2 answer=$3 out
+  shift 3
+  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
+  if ! out=$(jq -L "${kit_jq}" "$@" <<<"${answer}" 2>/dev/null)
+  then
+    error "${remedy} (${what} could not be read)"
+    return 1
+  fi
+  [[ -z "${out}" ]] || printf '%s\n' "${out}"
+}
+
 # forge:whole <what> <count> succeeds when a provider's list of <what>, <count> items long, is whole, and otherwise
 # says so and fails: a list that reaches forge_list_limit may hold more than kit reads.
 forge:whole() {

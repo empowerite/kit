@@ -109,7 +109,7 @@ forge/github:me() {
     return 0
   fi
   forge/github:limited "the caller's login" "$(<"${said}")" \
-    || error "run: gh auth login (the GitHub CLI is not authenticated)"
+    || error "run: gh auth login (the caller's login could not be read)"
   return 1
 }
 
@@ -291,8 +291,10 @@ forge/github:pr-set-body() {
 }
 
 forge/github:pr-state() {
-  gh pr view "$1" --json state,mergeCommit --jq '"\(.state)\t\(.mergeCommit.oid // "")"' 2>/dev/null \
-    || { error "run: gh auth status (pull request #$1 could not be read)"; return 1; }
+  local state
+  forge/github:ask state "pull request #$1" pr view "$1" --json state,mergeCommit \
+    --jq '"\(.state)\t\(.mergeCommit.oid // "")"' || return 1
+  printf '%s\n' "${state}"
 }
 
 forge/github:pr-state-for-branch() {
@@ -361,6 +363,8 @@ forge/github:runs() {
     'import "forge" as forge; forge::github_builds($now; $default; $tags)') || return 1
   while IFS= read -r id
   do
+    # The run's own state stands whatever its jobs say, and the jobs are a detail of the picture, so a run whose jobs
+    # cannot be read is drawn with none.
     jobs=$(gh run view "${id}" --json jobs 2>/dev/null | jq -L "${kit_jq}" --compact-output \
       'import "forge" as forge; forge::github_jobs' 2>/dev/null) || jobs='[]'
     runs=$(forge/github:fold 'the runs' "${runs}" --compact-output --argjson index "${index}" \
@@ -396,7 +400,7 @@ forge/github:mark() {
       etag=$(tr -d '\r' <<<"${answer}" | sed -n 's/^[Ee][Tt][Aa][Gg]: *//p' | head -n 1)
       if [[ -z "${etag}" ]]
       then
-        error "run: gh auth status (GitHub gave no ETag for ${path})"
+        error "run: gh auth status; GitHub gave no ETag for ${path} (the marks could not be read)"
         return 1
       fi
       # An ETag that cannot be kept costs only the next read, which asks GitHub for the whole answer.
@@ -453,7 +457,7 @@ forge/github:ask() {
   do
     [[ "${ask_arg}" != --jq ]] || ask_filtered=true
   done
-  if [[ "${ask_filtered}" == false ]] && ! jq --exit-status true <<<"${ask_out}" >/dev/null 2>&1
+  if [[ "${ask_filtered}" == false ]] && ! forge:json "${ask_out}"
   then
     error "run: gh auth status (${ask_what} could not be read)"
     return 1
@@ -461,19 +465,8 @@ forge/github:ask() {
   printf -v "${ask_into}" '%s' "${ask_out}"
 }
 
-# forge/github:fold <what> <answer> <jq argument>… prints what jq, given the kit's jq modules, makes of the answer.
-# When jq fails, as on an answer not in the shape asked for, it prints nothing, names gh auth status for <what>, and
-# returns 1.
-forge/github:fold() {
-  local what=$1 answer=$2 out
-  shift 2
-  if ! out=$(jq -L "${kit_jq}" "$@" <<<"${answer}" 2>/dev/null)
-  then
-    error "run: gh auth status (${what} could not be read)"
-    return 1
-  fi
-  [[ -z "${out}" ]] || printf '%s\n' "${out}"
-}
+# forge/github:fold <what> <answer> <jq argument>… is forge:fold, naming gh auth status.
+forge/github:fold() { forge:fold 'run: gh auth status' "$@"; }
 
 # forge/github:limited <what> <said> says, when what gh said is that a rate limit stopped the read of <what>, which
 # limit it is and when it resets, and succeeds; for anything else it says nothing and fails. GitHub answers a
