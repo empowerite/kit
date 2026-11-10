@@ -282,10 +282,11 @@ desk-world() {
   [ "$(git -C "${repo}.origin.git" rev-parse 7-fix-the-thing)" = "${origin_head}" ]
 }
 
-@test "kit work that stops after the sweep puts the desk's work back, and leaves no stash" {
+@test "kit work that stops after the sweep puts the desk's work back, staged work staged, and leaves no stash" {
   desk-world
-  printf 'mine\n' > notes.txt
+  printf 'mine\n' > notes.txt && git add notes.txt
   printf 'scratch\n' > scratch.txt
+  printf 'staged\n' > staged.txt && git add staged.txt
   # a leftover directory where the worktree goes, which is not a worktree, stops kit work after the sweep
   mkdir -p worktrees/7-fix-the-thing
   run "${kit_checkout}/bin/kit" work 7
@@ -293,6 +294,8 @@ desk-world() {
   [[ "$output" == *"The swept work is back on main."* ]]
   [ "$(cat notes.txt)" = mine ]
   [ "$(cat scratch.txt)" = scratch ]
+  [ "$(cat staged.txt)" = staged ]
+  [ "$(git status --porcelain)" = "$(printf 'M  notes.txt\nA  staged.txt\n?? scratch.txt')" ]
   [ -z "$(git stash list)" ]
 }
 
@@ -313,6 +316,7 @@ desk-world() {
   [[ "$output" == *"Nothing to sweep"* ]]
   [ "$(git stash list --format=%gs)" = "On main: an old idea" ]
   [ ! -e worktrees/7-fix-the-thing/idea.txt ]
+  [ "$(cat lib/l)" = "$(printf 'lib\nwip')" ]
 }
 
 @test "kit work pushes the branch to its own name on origin, whatever push.default and its upstream say" {
@@ -393,6 +397,24 @@ desk-world() {
   [ "$(git stash list --format=%gs)" = "$(printf 'On main: theirs\nOn main: kit work #7 → 7-fix-the-thing')" ]
   mine=$(git rev-parse 'stash@{1}')
   [ "$(git show "${mine}:notes.txt")" = mine ]
+}
+
+@test "a start commit git cannot sign stops kit work, which pushes nothing; a rerun with a signer finishes" {
+  local origin_head
+  printf 'require_signing: true\n' > kit.yml
+  desk-world
+  signer 2
+  origin_head=$(git -C "${repo}.origin.git" rev-parse 7-fix-the-thing)
+  run "${kit_checkout}/bin/kit" work 7
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the start commit is refused: require_signing is true and git could not sign it; see above"* ]]
+  [ "$(git -C "${repo}.origin.git" rev-parse 7-fix-the-thing)" = "${origin_head}" ]
+  signer
+  run "${kit_checkout}/bin/kit" work 7
+  [ "$status" -eq 0 ]
+  [ "$(git -C worktrees/7-fix-the-thing log -1 --format=%s)" = "#7 start: Fix the thing" ]
+  git -C worktrees/7-fix-the-thing cat-file commit HEAD | grep --quiet '^gpgsig '
+  [ "$(git -C "${repo}.origin.git" rev-parse 7-fix-the-thing)" = "$(git -C worktrees/7-fix-the-thing rev-parse HEAD)" ]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

@@ -161,6 +161,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   run kit submit --message 'y: a file'
   [ "$status" -eq 0 ]
   [[ "$output" == *"pushed 7-fix-the-thing: 1 commit(s)"* ]]
+  [ "$(git -C "${work}/origin.git" rev-parse 7-fix-the-thing)" = "$(git rev-parse HEAD)" ]
   [ "$(git -C "${work}/origin.git" rev-parse main)" = "${main}" ]
 }
 
@@ -585,9 +586,12 @@ EOF
   printf 'require_signing: true\n' >> kit.yml
   git config commit.cleanup strip
   printf 'x\n' > x && git add x
+  head=$(git rev-parse HEAD)
   run kit commit --message 'x: a file'
   [ "$status" -eq 1 ]
   [[ "$output" == *"git config user.signingkey"* ]]
+  [ "$(git rev-parse HEAD)" = "${head}" ]
+  [ "$(git diff --cached --name-only)" = x ]
   signer
   run kit commit --message 'x: a file' --message 'WIP'
   [ "$status" -eq 0 ]

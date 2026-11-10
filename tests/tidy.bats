@@ -277,6 +277,22 @@ idea-on() {
   run ! git show-ref --verify --quiet refs/heads/7-fix-the-thing
 }
 
+@test "kit tidy keeps a gone branch whose change's head the forge cannot be read for, though the head was pushed" {
+  local idea
+  world
+  idea-on 8-idea
+  git push --quiet origin 8-idea
+  idea=$(git rev-parse 8-idea)
+  gone 8-idea
+  # a read of the change that worked would give the branch's tip as its head, and the branch would go
+  route 'pr list --head 8-idea --state all*' '!1'
+  run "${kit_root}/bin/kit" tidy
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"keeping 8-idea (1 commit(s) no remote ever had)"* ]]
+  [[ "$output" == *"removed 0 worktree(s) and 0 branch(es)."* ]]
+  [ "$(git rev-parse refs/heads/8-idea)" = "${idea}" ]
+}
+
 @test "kit tidy keeps a worktree git will not remove, says so, and goes on to the next" {
   world
   worktree-on 7-fix-the-thing && gone 7-fix-the-thing

@@ -118,6 +118,56 @@ other-commits() {
   [ "$(git -C ../origin.git rev-parse 1-x)" = "${theirs}" ]
 }
 
+@test "rebase takes origin's branch, then conflicts with origin/main: the worktree and origin's branch stay" {
+  local before theirs
+  worktree
+  git -C ../wt push --quiet --set-upstream origin 1-x
+  other-commits theirs.txt theirs
+  commit-in ../wt a mine
+  commit-in . a ours && git push --quiet origin main
+  before=$(git -C ../wt rev-parse HEAD)
+  theirs=$(git -C ../other rev-parse HEAD)
+  run "${kit_checkout}/bin/kit" rebase ../wt
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"taking 1 commit(s) origin/1-x has and this checkout lacks"* ]]
+  [[ "$output" == *"1-x conflicts with origin/main; the rebase was aborted and the worktree is as it was"* ]]
+  [ "$(git -C ../wt rev-parse HEAD)" = "${before}" ]
+  [ -z "$(git -C ../wt status --porcelain)" ]
+  [ ! -e ../wt/theirs.txt ]
+  [ "$(git -C ../origin.git rev-parse 1-x)" = "${theirs}" ]
+}
+
+@test "rebase never overwrites a push that lands after its fetch: the push fails, and a second run takes it" {
+  local theirs
+  worktree
+  commit-in ../wt mine.txt mine && git -C ../wt push --quiet --set-upstream origin 1-x
+  git clone --quiet ../origin.git ../other 2>/dev/null
+  git -C ../other switch --quiet 1-x
+  commit-in ../other theirs.txt theirs
+  theirs=$(git -C ../other rev-parse HEAD)
+  commit-in . c three && git push --quiet origin main
+  # another session's push lands between kit rebase's fetch and its push, once: git runs the pre-rebase hook after
+  # the fetch, and a push that git began would see the new tip, so only the lease can refuse to overwrite it
+  cat > "$(git rev-parse --git-common-dir)/hooks/pre-rebase" <<HOOK
+#!/bin/sh
+unset \$(git rev-parse --local-env-vars)
+[ -e "${work}/raced" ] || { : > "${work}/raced"; git -C "${work}/other" push --quiet; }
+HOOK
+  chmod +x "$(git rev-parse --git-common-dir)/hooks/pre-rebase"
+  run "${kit_checkout}/bin/kit" rebase ../wt
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"1-x is rebased here and was not pushed; see above, then run: kit rebase"* ]]
+  [ "$(git -C ../origin.git rev-parse 1-x)" = "${theirs}" ]
+  run "${kit_checkout}/bin/kit" rebase ../wt
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"commit(s) origin/1-x has and this checkout lacks"* ]]
+  # main moved, so their commit is rewritten onto it, and kept
+  [ "$(git -C ../origin.git show 1-x:theirs.txt)" = theirs ]
+  [ "$(git -C ../origin.git show 1-x:mine.txt)" = mine ]
+  [ "$(git -C ../origin.git rev-parse 1-x)" = "$(git -C ../wt rev-parse HEAD)" ]
+  [ "$(git -C ../wt rev-parse HEAD~2)" = "$(git rev-parse origin/main)" ]
+}
+
 @test "rebase pushes the branch to its own name on origin, never where push.default points" {
   git worktree add --quiet ../wt -b 1-x origin/main
   git -C ../wt config push.default upstream

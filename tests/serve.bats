@@ -145,9 +145,21 @@ call() {
     head -c 1500000 /dev/zero | tr '\0' a
     printf '"]}}}\n'
     call 4 version
+    # a title past what one command line holds: the verb cannot be run at all, so nothing reaches the forge
+    printf '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"_meta":%s,"name":"work",' \
+      '{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}'
+    printf '"arguments":{"title":"'
+    head -c 1500000 /dev/zero | tr '\0' a
+    printf '"}}}\n'
+    call 6 version
   } | "${kit_checkout}/bin/kit" serve >"${BATS_TEST_TMPDIR}/out" 2>"${BATS_TEST_TMPDIR}/err"
-  answer 3 | jq --exit-status '.error.code == -32602 or .result.isError'
+  answer 3 | jq --exit-status '.error.code == -32602'
+  answer 3 | jq --exit-status '.error.message | contains("is outside the repository")'
   answer 4 | jq --exit-status '.result.isError == false'
+  answer 5 | jq --exit-status '.result.isError'
+  answer 5 | jq --exit-status '.result.content[0].text | contains("exited with status 126")'
+  grep --quiet 'id=5 .*outcome=status=126 ' .kit/logs/mcp-*.log
+  answer 6 | jq --exit-status '.result.isError == false'
 }
 
 @test "tools/list names every tool, with its purpose, its usage, its page's resource, and typed inputs from its syntax" {
@@ -336,22 +348,24 @@ call() {
   printf -v dots '%*s' $(( (max - ${#root}) / 2 + 1 )) ''
   near=${dots// /./}linkout/bad.sh
   (( ${#root} + 1 + ${#near} > max && ${#near} < max ))
-  # and a path that is itself longer than PATH_MAX
+  # and a path of real parts, each a directory that does not exist, longer than PATH_MAX: inside but for its length
   printf -v dots '%*s' $(( max / 2 + 1 )) ''
-  far=${dots// /./}linkout/bad.sh
+  far=${dots// /d/}x.sh
   (( ${#far} > max ))
   near=$(jq --null-input --compact-output --arg path "${near}" '{path: [$path]}')
   far=$(jq --null-input --compact-output --arg path "${far}" '{path: [$path]}')
   for tool in context kinds lint
   do
     serve "$(call 1 "${tool}" "${near}")" "$(call 2 "${tool}" "${far}")" \
-      "$(call 3 "${tool}" '{"path":["./././kit.yml"]}')"
+      "$(call 3 "${tool}" '{"path":["./././kit.yml"]}')" "$(call 4 "${tool}" '{"path":["d/d/x.sh"]}')"
     for id in 1 2
     do
       answer "${id}" | jq --exit-status '.error.code == -32602'
       answer "${id}" | jq --exit-status '.error.message | contains("is outside the repository")'
     done
     answer 3 | jq --exit-status '.result.isError == false'
+    # the same shape, short, is inside: the length alone refuses the long one
+    answer 4 | jq --exit-status 'has("result")'
   done
   run ! grep --quiet 'bad.sh' .kit/logs/mcp-*.log
 }
@@ -462,7 +476,8 @@ call() {
 
 @test "resources list the kit's files on disk, a read returns one, and a URI that names none is refused" {
   serve "$(modern 1 resources/list)" "$(modern 2 resources/read '{"uri":"kit://rules/bash"}')" \
-    "$(modern 3 resources/read '{"uri":"kit://rules/../../etc/passwd"}')" "$(modern 4 resources/read '{"uri":"kit://1st.md"}')"
+    "$(modern 3 resources/read '{"uri":"kit://rules/../../etc/passwd"}')" \
+    "$(modern 4 resources/read '{"uri":"kit://1st.md"}')" "$(modern 5 resources/read '{"uri":"kit://rules/ba\\163h"}')"
   local expected
   expected=$( { printf 'kit://1st.md\n'
     [[ ! -f .kit/workflow.md ]] || printf 'kit://workflow.md\n'
@@ -475,6 +490,8 @@ call() {
   answer 2 | jq --exit-status '.result.contents[0].mimeType == "text/markdown"'
   answer 3 | jq --exit-status '.error.code == -32602'
   answer 4 | jq --exit-status '.result.contents[0].text | startswith("<!--")'
+  # a backslash is no escape a URI names a file by: \163 is not an s
+  answer 5 | jq --exit-status '.error | .code == -32602 and (.message | contains("Resource not found"))'
 }
 
 @test "the workflow package's file is a resource beside the entry file when the package is active, and not before" {

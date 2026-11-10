@@ -208,6 +208,19 @@ tree-digest() {
   [ ! -e "${KIT_HOME}/.kit/manifest" ]
 }
 
+@test "kit packages remove names a home-base copy the person edited, and leaves it" {
+  later-release "${repo}.later"
+  mkdir -p "${repo}.later/packages/agents/claude/files/home/.kit"
+  printf 'user level\n' > "${repo}.later/packages/agents/claude/files/home/.kit/claude"
+  run "${repo}.later/bin/kit" install agents/claude
+  [ "$status" -eq 0 ]
+  printf 'edited\n' >> "${KIT_HOME}/.kit/claude"
+  run "${repo}.later/bin/kit" packages remove agents/claude
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"${KIT_HOME}/.kit/claude: edited since the kit placed it; it is left as it is"* ]]
+  [ "$(cat "${KIT_HOME}/.kit/claude")" = "$(printf 'user level\nedited')" ]
+}
+
 @test "check skips the home base where nothing was installed there, and says so" {
   later-release "${repo}.later"
   mkdir -p "${repo}.later/packages/kit/files/home/.kit" && printf 'x\n' > "${repo}.later/packages/kit/files/home/.kit/x"
