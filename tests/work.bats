@@ -35,6 +35,15 @@ world() {
   route 'pr view 3 --json *' pr.json
 }
 
+# desk-world installs the kit on the desk, declares the forge, commits notes.txt with it, and makes the world.
+desk-world() {
+  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
+  printf 'forge: github\n' >> kit.yml
+  printf 'notes\n' > notes.txt
+  git add --all && git commit --quiet --message init
+  world
+}
+
 @test "kit work makes the worktree, hydrates it, and the start commit carries nothing kit placed" {
   "${kit_checkout}/bin/kit" install >/dev/null 2>&1
   printf 'forge: github\n' >> kit.yml
@@ -223,11 +232,7 @@ world() {
 }
 
 @test "kit work sweeps the desk's uncommitted work into the worktree, and leaves the desk and the stash clean" {
-  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
-  printf 'forge: github\n' >> kit.yml
-  printf 'notes\n' > notes.txt
-  git add --all && git commit --quiet --message init
-  world
+  desk-world
   printf 'mine\n' > notes.txt
   printf 'scratch\n' > scratch.txt
   run "${kit_checkout}/bin/kit" work 7
@@ -243,11 +248,7 @@ world() {
 }
 
 @test "a sweep that conflicts in the worktree keeps the stash, names the command that applies it, and stops" {
-  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
-  printf 'forge: github\n' >> kit.yml
-  printf 'notes\n' > notes.txt
-  git add --all && git commit --quiet --message init
-  world
+  desk-world
   # the branch on origin changes notes.txt one way, and the desk another
   git switch --quiet --create theirs && printf 'theirs\n' > notes.txt && git commit --quiet --all --message theirs
   git push --quiet --force origin theirs:7-fix-the-thing
@@ -261,6 +262,57 @@ world() {
   [ "$(git stash list | wc -l | tr -d ' ')" -eq 1 ]
   [ "$(cat notes.txt)" = notes ]
   [ -z "$(git status --porcelain)" ]
+}
+
+@test "kit work refuses when the desk has the issue's branch checked out, before it assigns, sweeps, or commits" {
+  local head origin_head
+  desk-world
+  git fetch --quiet origin
+  git switch --quiet 7-fix-the-thing
+  printf 'mine\n' > notes.txt
+  head=$(git rev-parse HEAD)
+  origin_head=$(git -C "${repo}.origin.git" rev-parse 7-fix-the-thing)
+  run "${kit_checkout}/bin/kit" work 7
+  [ "$status" -eq 1 ]
+  [ "$(git status --porcelain)" = " M notes.txt" ]
+  [ -z "$(git stash list)" ]
+  [[ "$output" == *"refusing to start #7: its branch 7-fix-the-thing is checked out on the desk"* ]]
+  run ! grep --quiet 'add-assignee' "${FAKE_DIR}/gh.calls"
+  [ "$(git rev-parse HEAD)" = "${head}" ]
+  [ "$(git -C "${repo}.origin.git" rev-parse 7-fix-the-thing)" = "${origin_head}" ]
+}
+
+@test "kit work that stops after the sweep puts the desk's work back, and leaves no stash" {
+  desk-world
+  printf 'mine\n' > notes.txt
+  printf 'scratch\n' > scratch.txt
+  # a leftover directory where the worktree goes, which is not a worktree, stops kit work after the sweep
+  mkdir -p worktrees/7-fix-the-thing
+  run "${kit_checkout}/bin/kit" work 7
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"The swept work is back on main."* ]]
+  [ "$(cat notes.txt)" = mine ]
+  [ "$(cat scratch.txt)" = scratch ]
+  [ -z "$(git stash list)" ]
+}
+
+@test "a desk whose only uncommitted work is inside a submodule sweeps nothing, and the human's own stash stays" {
+  git init --quiet --initial-branch=main "${BATS_TEST_TMPDIR}/lib"
+  printf 'lib\n' > "${BATS_TEST_TMPDIR}/lib/l"
+  git -C "${BATS_TEST_TMPDIR}/lib" add l
+  git -C "${BATS_TEST_TMPDIR}/lib" commit --quiet --message lib
+  git -c protocol.file.allow=always submodule --quiet add "${BATS_TEST_TMPDIR}/lib" lib
+  desk-world
+  # the human has an old, unrelated stash, and work inside the submodule
+  printf 'half an idea\n' > idea.txt
+  git add idea.txt
+  git stash push --quiet --message 'an old idea'
+  printf 'wip\n' >> lib/l
+  run "${kit_checkout}/bin/kit" work 7
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Nothing to sweep"* ]]
+  [ "$(git stash list --format=%gs)" = "On main: an old idea" ]
+  [ ! -e worktrees/7-fix-the-thing/idea.txt ]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

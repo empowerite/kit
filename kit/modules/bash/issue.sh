@@ -28,13 +28,22 @@
 #
 #   - in the root checkout (the desk, which belongs to the human): moved into the new worktree, still uncommitted.
 #     The desk is left clean, and is fast-forwarded when it is on the default branch. If the work cannot be
-#     applied in the worktree, it stays in the stash and the command stops.
+#     applied in the worktree, it stays in the stash and the command stops. When the command stops before the
+#     worktree has the work, by a refusal, a failed command, or an interrupt, the work goes back to the desk. Work a
+#     stash does not take, such as work inside a submodule, stays on the desk, and no other stash is touched.
 #   - in any other checkout: left in place, since it belongs to that checkout's issue
+#
+# The desk never holds the issue's branch while the command works: when the desk has the branch checked out,
+# issue:start refuses before it assigns, stashes, or commits anything.
 #
 # Every forge call goes through modules/bash/forge.sh, and every issue call through modules/bash/tracker.sh. Each helper below
 # prints its one result on stdout and its messages on stderr, so issue:start can capture the results in order.
 
-use git forge tracker settings yaml
+use git forge tracker settings yaml file
+
+# issue_swept is the hash of the stash issue:start swept the desk's work into, from the push until the stash is
+# applied in the worktree; empty, nothing swept is waiting. issue:sweep-restore reads it at exit.
+declare -g issue_swept=''
 
 # issue:create <title> creates an issue with the title in the forge's tracker, and prints its reference.
 issue:create() {
@@ -318,7 +327,7 @@ issue:branch() {
 }
 
 # issue:worktree <main-root> <branch> prints the worktree the branch is checked out in. If there is none, it
-# creates <main-root>/worktrees/<branch>.
+# creates <main-root>/worktrees/<branch>. It refuses, and returns 1, when that path exists and is not a worktree.
 issue:worktree() {
   local main_root=$1 branch=$2 wt
   wt=$(git worktree list --porcelain 2>/dev/null \
@@ -331,15 +340,15 @@ issue:worktree() {
     if [[ -e "${wt}" ]]
     then
       error "${wt} exists but is not a worktree of ${branch}; remove it (or run: kit tidy) and re-run."
-      return 2
+      return 1
     fi
     step "Creating worktree ${wt}"
-    mkdir -p "${main_root}/worktrees"
+    mkdir -p "${main_root}/worktrees" || return 1
     if git show-ref --verify --quiet "refs/heads/${branch}"
     then
-      git worktree add --quiet "${wt}" "${branch}"
+      git worktree add --quiet "${wt}" "${branch}" || return 1
     else
-      git worktree add --quiet "${wt}" -b "${branch}" "origin/${branch}"
+      git worktree add --quiet "${wt}" -b "${branch}" "origin/${branch}" || return 1
     fi
   fi
   printf '%s\n' "${wt}"
@@ -381,15 +390,40 @@ issue:start-commit() {
 }
 
 # issue:sweep-push <root> <message> stashes all uncommitted work at <root>, including untracked files, and prints
-# the stash's commit hash. The hash stays valid even when other entries are pushed onto or dropped from the stash.
+# the new stash's commit hash. The hash stays valid even when other entries are pushed onto or dropped from the
+# stash. It prints nothing when refs/stash is the same before and after the push: the work, such as work inside a
+# submodule, is not work a stash takes, and the stash on top is one that was there before.
 issue:sweep-push() {
-  local root=$1 message=$2
+  local root=$1 message=$2 before after
+  before=$(git -C "${root}" rev-parse --quiet --verify refs/stash) || before=''
   if ! git -C "${root}" stash push --include-untracked --message "${message}" >/dev/null
   then
     error "the uncommitted work at ${root} could not be stashed; resolve it by hand and re-run."
     return 1
   fi
-  git -C "${root}" rev-parse 'stash@{0}'
+  after=$(git -C "${root}" rev-parse --quiet --verify refs/stash) || after=''
+  [[ "${after}" == "${before}" ]] || printf '%s\n' "${after}"
+}
+
+# issue:sweep-restore <root> puts the stash in issue_swept back on the desk at <root>, staged work staged again, and
+# drops it once it is applied. It does nothing when issue_swept is empty. issue:start registers it to run at exit,
+# so work swept from the desk goes back there when the command stops before the worktree has it.
+issue:sweep-restore() {
+  local root=$1 slot branch
+  [[ -n "${issue_swept}" ]] || return 0
+  if ! git -C "${root}" stash apply --index "${issue_swept}" >/dev/null 2>&1
+  then
+    error "the desk's uncommitted work is in the stash: git -C '${root}' stash apply ${issue_swept}"
+    return 1
+  fi
+  slot=$(git -C "${root}" stash list --format='%gd %H' | awk -v h="${issue_swept}" '$2 == h { print $1; exit }')
+  if [[ -n "${slot}" ]] && ! git -C "${root}" stash drop "${slot}" >/dev/null
+  then
+    warn "the swept work is back, and its stash ${issue_swept} is left; drop it by hand: git -C '${root}' stash list"
+  fi
+  issue_swept=''
+  branch=$(git -C "${root}" rev-parse --abbrev-ref HEAD) || branch=HEAD
+  ok "The swept work is back on ${branch}."
 }
 
 # issue:sweep-apply <root> <worktree> <stash> <default-branch> applies the stash in the worktree, uncommitted, and
@@ -494,14 +528,27 @@ issue:start() {
   desk=$(git rev-parse --show-toplevel)
   desk_branch=$(git -C "${desk}" rev-parse --abbrev-ref HEAD)
   title=$(tracker:of "${primary}" title) || return 1
-  issue:assign "$@" || return
   section "Starting ${primary}: ${title}"
 
   branch=$(issue:branch "${primary}" "${default_branch}" "${title}") || return
+  if [[ "$(git -C "${main_root}" symbolic-ref --quiet --short HEAD)" == "${branch}" ]]
+  then
+    error "refusing to start ${primary}: its branch ${branch} is checked out on the desk, ${main_root}, which is the" \
+      "human's; switch the desk to another branch, then run kit work again"
+    return 1
+  fi
+  issue:assign "$@" || return
   if [[ "${desk}" == "${main_root}" ]] && ! git:clean "${desk}"
   then
     step "Sweeping the uncommitted work on ${desk_branch} into the worktree"
     stash=$(issue:sweep-push "${desk}" "kit work ${primary} → ${branch}") || return
+    if [[ -z "${stash}" ]]
+    then
+      warn "Nothing to sweep: what is uncommitted on ${desk_branch} is not work a stash takes"
+    else
+      issue_swept=${stash}
+      file:at-exit issue:sweep-restore "${desk}"
+    fi
   fi
   wt=$(issue:worktree "${main_root}" "${branch}") || return
   git -C "${main_root}" check-ignore --quiet worktrees 2>/dev/null \
@@ -511,6 +558,7 @@ issue:start() {
   git -C "${wt}" push --quiet --set-upstream origin "${branch}"
   if [[ -n "${stash}" ]]
   then
+    issue_swept=''
     issue:sweep-apply "${desk}" "${wt}" "${stash}" "${default_branch}" || return
   fi
   pr=$(issue:pull-request "${branch}" "${default_branch}" "${title}") || return

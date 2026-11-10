@@ -16,6 +16,10 @@
 #
 # Every issue it starts is assigned to the caller, whose worktree it is.
 #
+# The desk, the root checkout, is the human's. kit work refuses an issue whose branch the desk has checked out,
+# before it assigns, stashes, or commits anything. Uncommitted work on the desk is swept into the new worktree; when
+# kit work stops before the worktree has that work, the work goes back to the desk.
+#
 #   <reference>…     the issues, each named with its tracker: 7, #7, or AB#4521; the first is the primary, and the
 #                    one pull request closes them all
 #   --title <text>   creates an issue with that title and starts it; with references, creates it as their parent,
