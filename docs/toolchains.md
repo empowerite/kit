@@ -139,6 +139,9 @@ top, such as markdownlint-cli2 in `package.json`. Each is a dependency provider,
 - Only the manifest at the repository root counts. Workspaces are not read yet.
 - `kit tools` acts on the toolchain first, then each provider: it lists, installs, updates, and asks what is behind.
   With several, each table is headed by the name of what it lists. A JSON row's `from` names it.
+- `kit tools install` installs the toolchain first, then looks for each provider again, so the npm or uv the
+  toolchain has just installed counts. A provider whose lock is here and whose tool is still not on `PATH` fails
+  the run, named, before any provider installs.
 - `kit tools path`, `kit tools run`, and `kit gate` put the toolchain's directories first, then the providers'.
 - `kit tools --outdated` asks `npm outdated` and `uv pip list --outdated`. `kit tools update` installs each npm
   package behind at its latest, and runs `uv lock --upgrade`, which stays within `pyproject.toml`'s bounds.

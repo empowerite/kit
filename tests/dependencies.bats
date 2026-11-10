@@ -24,6 +24,25 @@ npm-here() {
   printf '{"packages": {"node_modules/left-pad": {"version": "1.3.0"}}}\n' > node_modules/.package-lock.json
 }
 
+# without-on-path <tool> takes <tool> off PATH, so a test decides where it is found: a directory that holds it is
+# replaced by a copy of its links without it, as hide-system-toolchains does.
+without-on-path() {
+  local dir kept='' copy n=0 IFS=:
+  for dir in ${PATH}
+  do
+    if [[ -x "${dir}/$1" ]]
+    then
+      copy="${BATS_TEST_TMPDIR}/without-$1-$(( n++ ))"
+      mkdir -p "${copy}"
+      ln -s "${dir}"/* "${copy}/" 2>/dev/null || true
+      rm -f "${copy}/$1"
+      dir=${copy}
+    fi
+    kept+="${kept:+:}${dir}"
+  done
+  export PATH=${kept}
+}
+
 # uv-here writes a pyproject.toml and a uv.lock: the project itself, then ruff and PyYAML; only PyYAML is installed.
 uv-here() {
   printf '[project]\nname = "demo"\nversion = "0.1.0"\n' > pyproject.toml
@@ -167,6 +186,35 @@ $(pwd -P)/node_modules/.bin" ]
   [ "$status" -eq 1 ]
   [[ "$output" == *"npm: the tools could not be installed"* ]]
   [[ "$output" != *"uv installed"* ]]
+}
+
+@test "the first kit tools install finds npm where the toolchain put it, and refuses a lock whose tool is not on PATH" {
+  local node="${BATS_TEST_TMPDIR}/node/bin"
+  touch mise.toml
+  npm-here
+  # npm is on no PATH until mise installs it: then mise's bin-paths names the directory that holds it
+  mkdir -p "${node}" "${FAKE_DIR}/real"
+  rm "${FAKE_DIR}/bin/npm" "${FAKE_DIR}/bin/uv" "${FAKE_DIR}/bin/mise"
+  without-on-path npm
+  ln -s "${BATS_TEST_DIRNAME}/fakes/fake-tool" "${node}/npm"
+  ln -s "${BATS_TEST_DIRNAME}/fakes/fake-tool" "${FAKE_DIR}/real/mise"
+  printf '#!/usr/bin/env bash\n[[ "$1" != install ]] || printf "%%s\\n" %q > %q\nexec %q "$@"\n' \
+    "${node}" "${FAKE_DIR}/bin-paths.txt" "${FAKE_DIR}/real/mise" > "${FAKE_DIR}/bin/mise"
+  chmod +x "${FAKE_DIR}/bin/mise"
+  : > "${FAKE_DIR}/bin-paths.txt"
+  route mise 'install*' '!0'
+  route mise 'bin-paths' bin-paths.txt
+  route npm 'ci --no-audit --no-fund' '!0'
+  run "${kit_root}/bin/kit" tools install
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"npm installed the tools package-lock.json pins"* ]]
+  grep --quiet --line-regexp 'ci --no-audit --no-fund' "${FAKE_DIR}/npm.calls"
+  # a toolchain that leaves npm off PATH: the lock is here, so install fails, naming npm, and npm never runs
+  rm "${FAKE_DIR}/npm.calls" "${node}/npm"
+  run "${kit_root}/bin/kit" tools install
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"package-lock.json is here, but npm is not on PATH"* ]]
+  [ ! -e "${FAKE_DIR}/npm.calls" ]
 }
 
 @test "--outdated asks each layer, and update moves each behind package to its latest" {

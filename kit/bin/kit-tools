@@ -29,6 +29,10 @@
 #
 # With --outdated, a source the toolchain cannot read is named, and the run fails, even with no tool behind.
 #
+# install installs the toolchain first, then finds the dependency providers again, so a tool the toolchain has just
+# installed, such as node's npm, counts. It fails, naming each, when a provider's lock is here and its tool is still
+# not on PATH, and then installs no provider.
+#
 # Ambient, install installs nothing. It fails when a tool is missing from PATH, and names each one. A JSON row then
 # has name and path.
 #
@@ -141,19 +145,25 @@ join() {
   printf '%s %s' "${glyph}" "${out}"
 }
 
+# locked-dirs prints the toolchain's directories, joined by colons, when some provider's manifest and lock are here,
+# and nothing otherwise.
+locked-dirs() {
+  local provider
+  for provider in $(dependencies:providers)
+  do
+    if dependencies:locked "${provider}"
+    then
+      dependencies:toolchain-dirs
+      return
+    fi
+  done
+}
+
 # layers holds what this run acts on, in order: toolchain/<name> for the chosen toolchain, unless ambient, then
 # toolchain/brew where brew fills in for it, then dependencies/<name> for each usable dependency provider.
 # toolchain_dirs holds the toolchain's directories, joined by colons, found only where a dependency provider's manifest
 # and lock are here. toolchain_pinned names what the chosen toolchain pins, so brew filling in leaves those tools to it.
-toolchain_dirs=''
-for provider in $(dependencies:providers)
-do
-  if dependencies:locked "${provider}"
-  then
-    toolchain_dirs=$(dependencies:toolchain-dirs)
-    break
-  fi
-done
+toolchain_dirs=$(locked-dirs)
 layers=()
 [[ "${chosen}" == ambient ]] || layers+=("toolchain/${chosen}")
 filler=$(toolchain:filler "${chosen}") || exit 1
@@ -261,6 +271,22 @@ ambient() {
   printf '%s' "${rows}" | draw $'name\tfound'
 }
 
+# install-layer <layer> installs what the layer pins, and says so. It returns 1, naming the layer, when it cannot.
+install-layer() {
+  local layer=$1 name file rest=''
+  name=${layer#*/}
+  file=$(source_of "${layer}")
+  [[ "${layer}" != "toolchain/${filler}" ]] || rest=" that ${chosen} does not"
+  step "${name}: installing from ${file}"
+  if ! call "${layer}" install
+  then
+    error "${name}: the tools could not be installed; see above"
+    return 1
+  fi
+  ok "${name} installed the tools ${file} pins${rest}"
+  summary "✅ Tools installed with ${name}, from ${file}."
+}
+
 # shellcheck disable=SC2154  # the syntax_ arrays are set by guard:arguments
 case "${verb}" in
   (path)
@@ -274,16 +300,26 @@ case "${verb}" in
   (install)
     for layer in "${layers[@]}"
     do
-      name=${layer#*/} file=$(source_of "${layer}") rest=''
-      [[ "${layer}" != "toolchain/${filler}" ]] || rest=" that ${chosen} does not"
-      step "${name}: installing from ${file}"
-      if ! call "${layer}" install
-      then
-        error "${name}: the tools could not be installed; see above"
-        exit 1
-      fi
-      ok "${name} installed the tools ${file} pins${rest}"
-      summary "✅ Tools installed with ${name}, from ${file}."
+      [[ "${layer}" == toolchain/* ]] || continue
+      install-layer "${layer}" || exit 1
+    done
+    # The toolchain may have just installed a provider's tool, such as node's npm, so the providers are found again,
+    # with the toolchain's directories as they are after the install.
+    toolchain_dirs=$(locked-dirs)
+    list:read usable dependencies:usable "${toolchain_dirs}" || exit 1
+    unusable=0
+    for provider in $(dependencies:providers)
+    do
+      dependencies:locked "${provider}" || continue
+      ! list:among "${provider}" "${usable[@]}" || continue
+      error "install ${provider}, or pin it in the toolchain ($(dependencies:call "${provider}" lock) is here, but" \
+        "${provider} is not on PATH)"
+      unusable=1
+    done
+    (( unusable == 0 )) || exit 1
+    for provider in "${usable[@]}"
+    do
+      [[ -z "${provider}" ]] || install-layer "dependencies/${provider}" || exit 1
     done
     [[ "${chosen}" != ambient ]] || ambient
     exit
