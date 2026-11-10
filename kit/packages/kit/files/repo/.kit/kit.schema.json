@@ -54,7 +54,7 @@
     },
     "require_signing": {
       "type": "boolean",
-      "description": "When true, kit work fails before writing anything if git has no signing key configured."
+      "description": "When true, kit commit, kit work's start commit, and kit rebase sign every commit they make, and refuse before writing anything when git has no signing key configured; kit release signs its tag."
     },
     "log_days": {
       "type": "integer",

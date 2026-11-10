@@ -16,8 +16,10 @@ repository's own rules in `AGENTS.md` apply as well. Where the two differ, `AGEN
    - a draft pull request
 3. Work in that worktree. Commit with `kit commit`. A commit's subject starts with its issue's reference, as in
    `#<N> <subject>`, and `kit commit` supplies `#<N>` from the branch when the subject lacks it.
-   `kit commit` warns when commits here are not signed. Push with `kit submit`. Run `kit rebase` to bring the
-   branch up to date with the default branch and push it.
+   With `require_signing: true` in `kit.yml`, `kit commit`, `kit work`'s start commit, and `kit rebase` sign every
+   commit they make, and refuse when git has no signing key; otherwise `kit commit` warns when commits here are not
+   signed. Push with `kit submit`. Run `kit rebase` to bring the branch up to date with the default branch and push
+   it.
 4. Mark the pull request ready for review when the work is done: `gh pr ready` on GitHub, `glab mr update --ready`
    on GitLab. The pull request body is the report. It states:
    - what changed

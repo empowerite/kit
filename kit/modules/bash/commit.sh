@@ -23,11 +23,12 @@
 # kit commit then adds a `Closes <reference>` line to the change's body, and assigns the caller to the issue when no
 # one is assigned. The commit exists by then, so a forge that fails only warns.
 #
-# kit submit commits when there is something to commit, then pushes the branch to the branch of its own name on
-# origin, setting the upstream on the first push. It names the refspec, so push.default and an upstream of another
-# name, such as the origin/main a branch started from, never decide where the branch goes. It never rebases: a push
-# origin refuses as not fast-forward names kit rebase as the remedy, so one verb does one thing and a conflict with the
-# default branch never blocks sharing work.
+# kit submit commits when there is something to commit, then pushes the branch to the branch of its own name on its
+# remote, setting the upstream on the first push. Its remote is origin, unless its upstream is a branch of its own
+# name on another remote. It names the refspec, so push.default and an upstream of another name, such as the
+# origin/main a branch started from, never decide where the branch goes. It never rebases: a push the remote refuses
+# as not fast-forward names kit rebase as the remedy, so one verb does one thing and a conflict with the default
+# branch never blocks sharing work.
 #
 # see: kit/bin/kit-commit, kit/bin/kit-submit, modules/bash/policy.sh, docs/features.md
 
@@ -493,7 +494,7 @@ commit:git() {
 
 # commit:submit <argument>… commits when something is staged, or when --all or paths say what to take, then pushes the
 # branch with git:push, to its own name on the remote git:pushes-to prints, setting the upstream on the first push. It
-# never forces: when origin refuses the push, the remedy is kit rebase.
+# never forces: when the remote refuses the push, the remedy is kit rebase.
 commit:submit() {
   local branch remote first=false ahead refused
   local -a staged=()

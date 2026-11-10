@@ -5,18 +5,19 @@
 #
 # Runs in a worktree, never on the desk or the default branch. When something is staged, or --all or <path>… say
 # what to take, it commits as kit commit does, with the same checks and options. Then it pushes the branch to its own
-# name on origin, whatever git's push configuration and the branch's upstream say, and sets that as the upstream on
-# the first push. With nothing to commit and nothing to push, it says so.
+# name on its remote, whatever git's push configuration and the branch's upstream say, and sets that as the upstream
+# on the first push. Its remote is origin, unless its upstream is a branch of its own name on another remote. With
+# nothing to commit and nothing to push, it says so.
 #
 #   --all              stages every tracked change first, as git commit --all does
 #   --message <text>   the message; the first is the subject, the rest are paragraphs
 #   --file <path>      the message from a file; its first line is the subject
 #   <path>…            commits these paths alone; each must be known to git
 #
-# kit submit never forces. When origin has commits this branch lacks, the push is refused and the remedy is kit
+# kit submit never forces. When the remote has commits this branch lacks, the push is refused and the remedy is kit
 # rebase. A conflict with the default branch never blocks sharing the work that was done.
 #
-# Exits 0 when the branch is at origin, 1 on a refusal, and 2 on a usage error.
+# Exits 0 when the branch is at its remote, 1 on a refusal, and 2 on a usage error.
 #
 # see: modules/bash/commit.sh, kit-commit, kit-rebase
 

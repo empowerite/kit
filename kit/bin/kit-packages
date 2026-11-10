@@ -13,7 +13,9 @@
 #     delivered path is named and left alone, and no manifest is written. A package named here is no longer excluded.
 #   - remove takes out the files, the kit's JSON entries, and the kit's regions, and rewrites the manifests. A
 #     copied file the repository edited is named and left. A member of a bundle that stays active is recorded as
-#     excluded, so kit update does not bring it back.
+#     excluded, so kit update does not bring it back. Before it takes anything out, it judges every region it would
+#     take out: a region whose markers are out of order, doubled, or never closed is named, nothing is taken out,
+#     and it exits 1.
 #   - select is remove, then add, to reach the named set. It says what it kept for another package's sake. With
 #     nothing to change, it says the set.
 #
@@ -26,8 +28,9 @@
 #   remove <package>…   deactivates the packages; refuses one an active package needs
 #   <package>…          a name, such as style/bash, or a glob, such as 'style/*'
 #
-# Exits 0 when it did it, 1 when it could not, as when a source in kit.yml cannot be fetched or has another digest,
-# and 2 on a usage error or a package name the kit does not know.
+# Exits 0 when it did it, 1 when it could not, as when a source in kit.yml cannot be fetched or has another digest, a
+# region is marked wrongly, or a path could not be taken out, and 2 on a usage error or a package name the kit does
+# not know.
 #
 # see: modules/bash/package.sh, modules/bash/settings.sh, docs/packages.md
 

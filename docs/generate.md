@@ -140,7 +140,9 @@ the file's comment syntax: the bare directive naming the path, the rendered cont
 [packages.md](packages.md#regions) says where the block goes, and what `kit update` and `kit packages remove` do
 with it. In addition:
 
-- A directive with no end marker is refused, by name.
+- A directive with no end marker, and markers out of order or doubled, are refused, by name. `kit update`,
+  `kit uninstall`, and `kit packages remove` judge every region before they write or take out anything, and with
+  one refused they change nothing and exit 1.
 - A region under `home` must spell out its command, `kit region --home <path>`, because the bare directive cannot
   select the home directory.
 

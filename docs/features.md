@@ -78,6 +78,9 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
 
 1. `kit work <N>` creates the worktree `worktrees/<N>-<slug>`, a branch linked to the issue, and a draft pull
    request. It moves any uncommitted work on the desk into the new worktree, and never switches the desk's branch.
+   It refuses an issue whose branch the desk has checked out, before it assigns, stashes, or commits anything. When
+   it stops before the worktree has the swept work, the work goes back to the desk, staged work staged; when the
+   work conflicts in the worktree, it stays in the stash, and `kit work` names the command that applies it.
 2. `kit commit` commits what is staged, after the checks a commit's rule requires: the linters over the staged paths,
    no path the kit placed, and a subject the policy allows. It supplies the issue's reference from the branch, and
    refuses the desk and the default branch. A subject that names another issue adds that issue to the ones the pull
