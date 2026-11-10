@@ -33,8 +33,17 @@
 # snapshot. A lock whose process is gone is taken over. forge:fresh makes a process read afresh, and a call that
 # changes an issue or a change drops the snapshot.
 #
-# Every provider implements the calls below. Each prints its result on stdout. On failure it prints a remedy on
-# stderr. A call marked "or nothing" prints nothing when there is no match.
+# Every provider implements the calls below, and each call holds to one contract: it answers, answers none, or fails.
+#
+#   - A call returns 0 and prints its answer on stdout.
+#   - A call marked "or nothing" returns 0 and prints nothing only when the forge answered that there is none.
+#   - Otherwise the call returns 1, prints nothing on stdout, and says one ❌ line on stderr, the remedy and then what
+#     could not be read: "run: gh auth status (the pull requests could not be read)". An answer that is not the JSON
+#     asked for is a read that failed.
+#   - A list is whole or the call fails: the call reads every page, and a list that reaches forge_list_limit items
+#     fails, saying "kit reads at most 10000".
+#
+# A call that changes the forge returns 0 when the change is made and 1 when it is not.
 #
 #   require                       the provider's own tool is present and authenticated
 #   repo                          the repository as owner/name
@@ -87,6 +96,10 @@ use settings file
 # tenths of a second, a process waits for another's read before it reads on its own. forge_fresh_since, set by
 # forge:fresh, is the second a snapshot must have been read in or after; empty, the last forge_snapshot_seconds do.
 declare -g forge_snapshot_seconds=60 forge_snapshot_wait=1200 forge_fresh_since=''
+
+# forge_list_limit is the most items a provider reads of one list; a list that reaches it fails, as the file header
+# says.
+declare -g forge_list_limit=10000
 
 # forge:primary prints the name of the primary remote: the primary setting in kit.yml, else origin. A name from a
 # setting reaches git as an argument, so it must be safe first. It refuses, and returns 1, as kit cannot go on with a
@@ -410,6 +423,14 @@ forge:unlock() {
 forge:tags() {
   git for-each-ref --format='%(refname:lstrip=2)' refs/tags | jq --raw-input --slurp --compact-output \
     'split("\n") | map(select(. != ""))'
+}
+
+# forge:whole <what> <count> succeeds when a provider's list of <what>, <count> items long, is whole, and otherwise
+# says so and fails: a list that reaches forge_list_limit may hold more than kit reads.
+forge:whole() {
+  [[ "$2" =~ ^[0-9]+$ ]] && (( $2 < forge_list_limit )) && return 0
+  error "kit reads at most ${forge_list_limit} items of a list (${1} could not be read)"
+  return 1
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

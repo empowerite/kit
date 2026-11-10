@@ -146,3 +146,13 @@ import "forge" as forge; [forge::gitlab_branch_for_issue(7)]
 import "forge" as forge; [.[] | [.] | forge::gitlab_pr_state]
 [{"state": "merged"}, {"state": "locked"}, {"state": "opened"}]
 ["MERGED","CLOSED","OPEN"]
+
+# A pull request whose review threads or checks run past the nodes the answer holds is named; one held whole is not.
+import "forge" as forge; [forge::github_partial]
+{"data": {"repository": {"pullRequests": {"nodes": [{"number": 3, "reviewThreads": {"totalCount": 1, "nodes": [{}]}, "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]}}, {"number": 4, "reviewThreads": {"nodes": []}, "commits": {"nodes": [{"commit": {"statusCheckRollup": {"contexts": {"totalCount": 101, "nodes": [{}]}}}}]}}]}}}}
+[4]
+
+# A merge request's head pipeline is one job, pipeline, of its own status, where its jobs cannot be read.
+import "forge" as forge; forge::gitlab_pipeline_jobs | map({name, status})
+{"head_pipeline": {"id": 11, "project_id": 99, "status": "failed"}}
+[{"name":"pipeline","status":"failed"}]

@@ -85,7 +85,7 @@ JSON
 JSON
   route 'api user*' user.json
   route 'repo view*' repo.json
-  route 'issue list --state open --limit 1000 --json *' issues.json
+  route 'issue list --state open --limit 10000 --json *' issues.json
   route 'api graphql*' open-prs.json
   fixture runs.json <<'JSON'
 [{"databaseId": 12, "workflowName": "kit", "headBranch": "7-fix-the-thing", "event": "pull_request",
@@ -95,7 +95,7 @@ JSON
   "status": "completed", "conclusion": "success", "createdAt": "2026-10-01T10:00:00Z",
   "startedAt": "2026-10-01T10:00:00Z", "updatedAt": "2026-10-01T10:03:36Z", "url": "https://github.com/r/11"}]
 JSON
-  route 'release list --limit 1000 --json *' releases.json
+  route 'release list --limit 10000 --json *' releases.json
   route 'run list --limit 50 --json *' runs.json
 }
 

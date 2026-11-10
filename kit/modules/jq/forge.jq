@@ -136,6 +136,16 @@ def github_prs($now):
                  + place(.repository.nameWithOwner)] }
   | document($now);
 
+# github_partial reads the answer to forge/github:open-prs's GraphQL query and gives the number of the first pull
+# request whose review threads, or the checks on whose head commit, the answer does not hold whole, as each list's
+# totalCount tells; nothing when it holds them all.
+def github_partial:
+  def short: . != null and (.totalCount // 0) > (.nodes // [] | length);
+  [ .data.repository.pullRequests.nodes[]
+    | select((.reviewThreads | short) or (.commits.nodes[0].commit.statusCheckRollup.contexts | short))
+    | .number ]
+  | first // empty;
+
 # github_spent($now) reads the answer of GitHub's rate_limit endpoint and gives the wait for the limit that is spent,
 # GraphQL's or REST's, the later to reset when both are: when it resets, in local time, and how long that is from
 # $now. It gives nothing when neither is spent.
@@ -185,6 +195,11 @@ def gitlab_runs:
         since: (.started_at // .created_at // null | if . == null then null else epoch end),
         took: (if .started_at != null and .finished_at != null
                then (.finished_at | epoch) - (.started_at | epoch) else null end) });
+
+# gitlab_pipeline_jobs reads a merge request and gives its head pipeline as one job, named pipeline, with the
+# pipeline's own status and times: the checks of a pipeline whose jobs cannot be read, as a fork's may not be.
+def gitlab_pipeline_jobs:
+  [.head_pipeline | {name: "pipeline", status, created_at, started_at, finished_at}];
 
 # gitlab_pr($now; $jobs; $discussions; $closes; $fork) reads a merge request, with its pipeline's jobs, its
 # discussions, the issues it closes, and the owner of the fork its branch lives in, or null, and gives its document.

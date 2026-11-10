@@ -33,7 +33,8 @@ change() {
   fixture pr.json <<<"{\"number\": 3, \"title\": \"$1\", \"body\": \"Closes #7\"}"
   fixture repo.json <<<'{"nameWithOwner": "empowerite/example"}'
   fixture pull.json <<<"{\"user\": {\"login\": \"${2:-ada}\"}}"
-  route gh 'pr view --json number*' pr.json
+  fixture open.json <<<'[{"number": 3}]'
+  route gh 'pr list --head * --state open --json number*' open.json
   route gh 'pr view 3 --json *' pr.json
   route gh 'repo view*' repo.json
   route gh 'api repos/empowerite/example/pulls/3 *' pull.json

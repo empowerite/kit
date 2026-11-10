@@ -1,6 +1,7 @@
 # shellcheck shell=bash
 # github.sh - the GitHub forge provider, through the gh CLI (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
+# shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh, forge_list_limit set by modules/bash/forge.sh
 # shellcheck disable=SC2016  # jq filters and GraphQL queries name their variables with $, in single quotes on purpose
 #
 # modules/bash/forge.sh loads this provider when the repository's forge is github. It implements the calls listed in the
@@ -14,9 +15,12 @@
 # forge/github:branch-for-issue reads the branch from an open pull request's head, so a second run never creates
 # a duplicate <N>-<slug>-1 branch.
 forge/github:branch-for-issue() {
-  # A failed read is read as none; the forge seam's contract decides this.
-  gh pr list --state open --json headRefName \
-    --jq "[.[] | select(.headRefName | test(\"^$1-\"))] | .[0].headRefName // empty" 2>/dev/null || true
+  local heads
+  forge/github:ask heads 'the open pull requests' pr list --state open --json headRefName \
+    --limit "${forge_list_limit}" || return 1
+  forge:whole 'the open pull requests' "$(jq length <<<"${heads}")" || return 1
+  forge/github:fold 'the open pull requests' "${heads}" --raw-output --arg n "$1" \
+    '[.[] | select(.headRefName | startswith("\($n)-"))] | .[0].headRefName // empty'
 }
 
 # forge/github:issue-add-sub makes the second issue a sub-issue of the first, as the issue page's Relationships do.
@@ -29,7 +33,10 @@ forge/github:issue-assign() {
 }
 
 forge/github:issue-assignees() {
-  gh issue view "$1" --json assignees --jq '[.assignees[].login] | join(" ")' 2>/dev/null
+  local assignees
+  forge/github:ask assignees "the assignees of #$1" issue view "$1" --json assignees \
+    --jq '[.assignees[].login] | join(" ")' || return 1
+  printf '%s\n' "${assignees}"
 }
 
 # forge/github:issue-close closes the issue with GitHub's reason: completed, not planned, or duplicate of the third
@@ -56,7 +63,9 @@ forge/github:issue-create() {
 }
 
 forge/github:issue-state() {
-  gh issue view "$1" --json state --jq .state 2>/dev/null
+  local state
+  forge/github:ask state "the state of #$1" issue view "$1" --json state --jq .state || return 1
+  printf '%s\n' "${state}"
 }
 
 forge/github:issue-title() {
@@ -107,15 +116,15 @@ forge/github:me() {
 forge/github:noun() { printf '#\tpull request\n'; }
 
 # forge/github:open-issues prints one document per open issue, oldest first, as the seam's header says. gh issue list
-# answers with issues alone, never pull requests.
+# answers with issues alone, never pull requests, and reads every page up to its --limit.
 forge/github:open-issues() {
   local answer
-  forge/github:ask answer 'the issues' issue list --state open --limit 1000 \
+  forge/github:ask answer 'the issues' issue list --state open --limit "${forge_list_limit}" \
     --json number,title,assignees,labels,createdAt,url \
     || return 1
-  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
-  jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" 'import "forge" as forge; forge::github_issues($now)' \
-    <<<"${answer}"
+  forge:whole 'the issues' "$(jq length <<<"${answer}")" || return 1
+  forge/github:fold 'the issues' "${answer}" --compact-output --argjson now "$(date +%s)" \
+    'import "forge" as forge; forge::github_issues($now)'
 }
 
 # forge/github:open-prs makes one GraphQL request for every open pull request, with its labels, the issues it closes
@@ -132,16 +141,22 @@ forge/github:open-issues() {
 # puts the request at 16 points of the GraphQL rate limit; without any labels, it costs 5, and with the labels under
 # the first 100 issues each closes, 106. A pull request that closes more than 10 says so, as its list's next page, and
 # forge/github:rest-of-closes reads the rest of it, 100 at a time, a point each.
+#
+# The pull requests come 100 a request, each page after the cursor the one before ended on, until the list ends. A
+# pull request with more than 100 review threads, or more than 100 checks on its head commit, fails the read, as
+# GitHub's totalCount tells.
 forge/github:open-prs() {
-  local repo query answer number cursor rest
+  local repo query answer='' page number cursor rest
+  local -a after=()
   repo=$(forge/github:repo) || return 1
-  query='query($owner: String!, $name: String!) {
+  query='query($owner: String!, $name: String!, $after: String) {
     repository(owner: $owner, name: $name) {
       nameWithOwner
       issues(states: OPEN, first: 100, filterBy: {assignee: "*"}, orderBy: {field: UPDATED_AT, direction: DESC}) {
         nodes { number assignees(first: 10) { nodes { login } } }
       }
-      pullRequests(states: OPEN, first: 100, orderBy: {field: CREATED_AT, direction: ASC}) {
+      pullRequests(states: OPEN, first: 100, after: $after, orderBy: {field: CREATED_AT, direction: ASC}) {
+        pageInfo { hasNextPage endCursor }
         nodes {
           number title isDraft headRefName createdAt mergeStateStatus reviewDecision isCrossRepository
           author { login }
@@ -150,10 +165,10 @@ forge/github:open-prs() {
           closingIssuesReferences(first: 10) { pageInfo { hasNextPage endCursor } nodes {
             number title createdAt repository { nameWithOwner } labels(first: 20) { nodes { name color } }
           } }
-          reviewThreads(first: 100) { nodes { isResolved } }
+          reviewThreads(first: 100) { totalCount nodes { isResolved } }
           commits(last: 1) { nodes { commit {
             committedDate author { user { login } }
-            statusCheckRollup { contexts(first: 100) { nodes {
+            statusCheckRollup { contexts(first: 100) { totalCount nodes {
               __typename
               ... on CheckRun { name status conclusion startedAt completedAt }
               ... on StatusContext { context state createdAt }
@@ -163,21 +178,43 @@ forge/github:open-prs() {
       }
     }
   }'
-  forge/github:ask answer 'the pull requests' api graphql --field owner="${repo%%/*}" --field name="${repo#*/}" \
-    --raw-field query="${query}" || return 1
+  while :
+  do
+    forge/github:ask page 'the pull requests' api graphql --field owner="${repo%%/*}" --field name="${repo#*/}" \
+      "${after[@]}" --raw-field query="${query}" || return 1
+    if [[ -z "${answer}" ]]
+    then
+      answer=${page}
+    else
+      answer=$(forge/github:fold 'the pull requests' "${answer}"$'\n'"${page}" --slurp --compact-output \
+        '.[0].data.repository.pullRequests.nodes += .[1].data.repository.pullRequests.nodes | .[0]') || return 1
+    fi
+    forge:whole 'the pull requests' "$(jq '.data.repository.pullRequests.nodes | length' <<<"${answer}")" || return 1
+    cursor=$(forge/github:fold 'the pull requests' "${page}" --raw-output \
+      '.data.repository.pullRequests.pageInfo // {} | select(.hasNextPage == true) | .endCursor') || return 1
+    [[ -n "${cursor}" ]] || break
+    after=(--raw-field after="${cursor}")
+  done
+  number=$(forge/github:fold 'the pull requests' "${answer}" --raw-output \
+    'import "forge" as forge; forge::github_partial') || return 1
+  if [[ -n "${number}" ]]
+  then
+    error "kit reads at most 100 review threads and 100 checks of a pull request" \
+      "(pull request #${number} could not be read)"
+    return 1
+  fi
   while IFS=$'\t' read -r number cursor
   do
     [[ -n "${number}" ]] || continue
     rest=$(forge/github:rest-of-closes "${repo}" "${number}" "${cursor}") || return 1
-    answer=$(jq --compact-output --argjson number "${number}" --argjson rest "${rest}" \
-      '.data.repository.pullRequests.nodes |= map(if .number == $number then .closingIssuesReferences.nodes += $rest
-                                                  else . end)' <<<"${answer}")
+    answer=$(forge/github:fold 'the pull requests' "${answer}" --compact-output --argjson number "${number}" \
+      --argjson rest "${rest}" '.data.repository.pullRequests.nodes
+        |= map(if .number == $number then .closingIssuesReferences.nodes += $rest else . end)') || return 1
   done < <(jq --raw-output '.data.repository.pullRequests.nodes[]
     | select(.closingIssuesReferences.pageInfo.hasNextPage) | "\(.number)\t\(.closingIssuesReferences.pageInfo.endCursor)"' \
     <<<"${answer}")
-  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
-  jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" 'import "forge" as forge; forge::github_prs($now)' \
-    <<<"${answer}"
+  forge/github:fold 'the pull requests' "${answer}" --compact-output --argjson now "$(date +%s)" \
+    'import "forge" as forge; forge::github_prs($now)'
 }
 
 # The REST API names a bot by the login the pull request page shows, dependabot[bot]. gh's own JSON names the same
@@ -190,24 +227,28 @@ forge/github:pr-author() {
 }
 
 forge/github:pr-body() {
-  gh pr view "$1" --json body --jq '.body // ""'
+  local body
+  forge/github:ask body "the body of pull request #$1" pr view "$1" --json body --jq '.body // ""' || return 1
+  printf '%s\n' "${body}"
 }
 
+# forge/github:pr-closing-issues reads the first 100 issues the pull request closes, and fails for one that closes
+# more, as GitHub's totalCount tells.
 forge/github:pr-closing-issues() {
   local repo query issues
   repo=$(forge/github:repo) || return 1
   query='query($owner: String!, $name: String!, $number: Int!) {
     repository(owner: $owner, name: $name) {
       pullRequest(number: $number) {
-        closingIssuesReferences(first: 100) { nodes { number state repository { nameWithOwner } } }
+        closingIssuesReferences(first: 100) { totalCount nodes { number state repository { nameWithOwner } } }
       }
     }
   }'
   forge/github:ask issues "pull request #$1" api graphql --field owner="${repo%%/*}" --field name="${repo#*/}" \
-    --field number="$1" --raw-field query="${query}" \
-    --jq '.data.repository.pullRequest.closingIssuesReferences.nodes[]
-          | "\(.number) \(.state) \(.repository.nameWithOwner)"' || return 1
-  [[ -z "${issues}" ]] || printf '%s\n' "${issues}"
+    --field number="$1" --raw-field query="${query}" || return 1
+  forge/github:fold "pull request #$1" "${issues}" --raw-output '.data.repository.pullRequest.closingIssuesReferences
+    | if (.totalCount // 0) > (.nodes | length) then error("more than kit reads")
+      else .nodes[] | "\(.number) \(.state) \(.repository.nameWithOwner)" end'
 }
 
 forge/github:pr-create() {
@@ -217,33 +258,32 @@ forge/github:pr-create() {
 }
 
 forge/github:pr-for-branch() {
-  # A failed read is read as none; the forge seam's contract decides this.
-  gh pr list --head "$1" --state open --json number --jq '.[0].number // empty' 2>/dev/null || true
+  forge/github:on-branch "the open pull request on $1" "$1" open number
 }
 
 forge/github:pr-head-for-branch() {
-  # A failed read is read as none; the forge seam's contract decides this.
-  gh pr list --head "$1" --state all --json headRefOid --jq '.[0].headRefOid // empty' 2>/dev/null || true
+  forge/github:on-branch "the pull requests on $1" "$1" all headRefOid
 }
 
-# On a GitHub Actions runner, the event payload gives the pull request. Otherwise gh finds the pull request for
-# the current branch.
+# On a GitHub Actions runner, the event payload gives the pull request. Otherwise it is the open pull request for the
+# current branch; a detached HEAD has none.
 forge/github:pr-here() {
-  local number=''
+  local number='' branch
   if [[ -n "${GITHUB_EVENT_PATH:-}" ]]
   then
-    # A payload with no pull request gives none, and gh is asked.
+    # A payload with no pull request, or none that can be read, gives none, and the branch is asked about.
     number=$(jq --raw-output '.pull_request.number // empty' "${GITHUB_EVENT_PATH}" 2>/dev/null || true)
   fi
-  # gh's exit 1 is a branch with no pull request, and also a read that failed: both read as none, as the forge seam's
-  # contract decides.
-  [[ -n "${number}" ]] || number=$(gh pr view --json number --jq .number 2>/dev/null || true)
-  printf '%s\n' "${number}"
+  if [[ -z "${number}" ]]
+  then
+    branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)  # a detached HEAD has no pull request
+    [[ -z "${branch}" ]] || number=$(forge/github:pr-for-branch "${branch}") || return 1
+  fi
+  [[ -z "${number}" ]] || printf '%s\n' "${number}"
 }
 
 forge/github:pr-last-for-branch() {
-  # A failed read is read as none; the forge seam's contract decides this.
-  gh pr list --head "$1" --state all --json number --jq '.[0].number // empty' 2>/dev/null || true
+  forge/github:on-branch "the pull requests on $1" "$1" all number
 }
 
 forge/github:pr-set-body() {
@@ -256,34 +296,37 @@ forge/github:pr-state() {
 }
 
 forge/github:pr-state-for-branch() {
-  # A failed read is read as none; the forge seam's contract decides this.
-  gh pr list --head "$1" --state all --json state --jq '.[0].state // empty' 2>/dev/null || true
+  forge/github:on-branch "the pull requests on $1" "$1" all state
 }
 
 forge/github:pr-title() {
-  gh pr view "$1" --json title --jq '.title'
+  local title
+  forge/github:ask title "the title of pull request #$1" pr view "$1" --json title --jq '.title' || return 1
+  printf '%s\n' "${title}"
 }
 
-forge/github:pr-url() { printf '%s/pull/%s\n' "$(forge/github:repo-url)" "$1"; }
+forge/github:pr-url() {
+  local url
+  url=$(forge/github:repo-url) || return 1
+  printf '%s/pull/%s\n' "${url}" "$1"
+}
 
 # forge/github:quota reads the rate_limit endpoint, which no limit counts, and keeps the two kit spends: GraphQL's
 # points and REST's requests.
 forge/github:quota() {
   local limits
   forge/github:ask limits 'the rate limits' api rate_limit || return 1
-  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
-  jq -L "${kit_jq}" --compact-output 'import "forge" as forge; forge::github_quota' <<<"${limits}"
+  forge/github:fold 'the rate limits' "${limits}" --compact-output 'import "forge" as forge; forge::github_quota'
 }
 
 # forge/github:releases prints one document per release, newest first, as the seam's header says.
 forge/github:releases() {
   local answer
-  forge/github:ask answer 'the releases' release list --limit 1000 \
+  forge/github:ask answer 'the releases' release list --limit "${forge_list_limit}" \
     --json tagName,name,isPrerelease,isDraft,isLatest,publishedAt,createdAt || return 1
-  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
-  jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" \
-    'import "forge" as forge; forge::github_releases($now)' \
-    <<<"${answer}"
+  forge:whole 'the releases' "$(jq length <<<"${answer}")" || return 1
+  forge/github:fold 'the releases' "${answer}" --compact-output --argjson now "$(date +%s)" \
+    'import "forge" as forge; forge::github_releases($now)'
 }
 
 forge/github:repo() {
@@ -313,22 +356,29 @@ forge/github:runs() {
   forge/github:ask answer 'the runs' run list --limit 50 --json "${fields}" || return 1
   default=$(git:default-branch) || return 1
   tags=$(forge:tags) || return 1
-  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
-  runs=$(jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" --arg default "${default}" \
-    --argjson tags "${tags}" 'import "forge" as forge; forge::github_builds($now; $default; $tags)' \
-    <<<"${answer}") || return 1
+  runs=$(forge/github:fold 'the runs' "${answer}" --compact-output --argjson now "$(date +%s)" \
+    --arg default "${default}" --argjson tags "${tags}" \
+    'import "forge" as forge; forge::github_builds($now; $default; $tags)') || return 1
   while IFS= read -r id
   do
     jobs=$(gh run view "${id}" --json jobs 2>/dev/null | jq -L "${kit_jq}" --compact-output \
       'import "forge" as forge; forge::github_jobs' 2>/dev/null) || jobs='[]'
-    runs=$(jq --compact-output --argjson index "${index}" --argjson jobs "${jobs:-[]}" '.[$index].jobs = $jobs' \
-      <<<"${runs}")
+    runs=$(forge/github:fold 'the runs' "${runs}" --compact-output --argjson index "${index}" \
+      --argjson jobs "${jobs:-[]}" '.[$index].jobs = $jobs') || return 1
     index=$(( index + 1 ))
   done < <(jq --raw-output '.[:5][].id' <<<"${runs}")
   printf '%s\n' "${runs}"
 }
 
 # The seam's calls end here; what follows is this provider's own.
+
+# forge/github:on-branch <what> <branch> <state> <field> prints the field of the newest pull request on the branch,
+# among those open or all, or nothing when there is none.
+forge/github:on-branch() {
+  local found
+  forge/github:ask found "$1" pr list --head "$2" --state "$3" --json "$4" --jq ".[0].$4 // empty" || return 1
+  [[ -z "${found}" ]] || printf '%s\n' "${found}"
+}
 
 # forge/github:mark <path> [<file>] prints the ETag of GitHub's answer for <path>: the one kept in <file> when GitHub
 # answers 304 Not Modified to it, else the new one, which it keeps there. gh exits 1 on a 304, so the answer's status
@@ -378,8 +428,8 @@ forge/github:rest-of-closes() {
     forge/github:ask page "the rest of the issues #${number} closes" api graphql --field owner="${repo%%/*}" \
       --field name="${repo#*/}" --field pr="${number}" --raw-field after="${cursor}" --raw-field query="${query}" \
       || return 1
-    all=$(jq --compact-output --argjson all "${all}" '$all + .data.repository.pullRequest.closingIssuesReferences.nodes' \
-      <<<"${page}")
+    all=$(forge/github:fold "the rest of the issues #${number} closes" "${all}"$'\n'"${page}" --slurp \
+      --compact-output '.[0] + .[1].data.repository.pullRequest.closingIssuesReferences.nodes') || return 1
     more=$(jq --raw-output '.data.repository.pullRequest.closingIssuesReferences.pageInfo.hasNextPage' <<<"${page}")
     cursor=$(jq --raw-output '.data.repository.pullRequest.closingIssuesReferences.pageInfo.endCursor // ""' <<<"${page}")
   done
@@ -387,18 +437,42 @@ forge/github:rest-of-closes() {
 }
 
 # forge/github:ask <name> <what> <gh argument>… runs gh and puts what it printed in the variable <name>. When gh
-# fails, it says why, as forge/github:limited does, or else names gh auth status, for <what>, and returns 1.
+# fails, it says why, as forge/github:limited does, or else names gh auth status, for <what>, and returns 1. An answer
+# gh is not asked to filter with --jq must be JSON, or the read fails; gh parses the one it filters itself.
 forge/github:ask() {
-  local into=$1 what=$2 said out
+  local ask_into=$1 ask_what=$2 ask_said ask_out ask_arg ask_filtered=false
   shift 2
-  file:temp said gh || return 1
-  if ! out=$(gh "$@" 2>"${said}")
+  file:temp ask_said gh || return 1
+  if ! ask_out=$(gh "$@" 2>"${ask_said}")
   then
-    forge/github:limited "${what}" "${out}"$'\n'"$(<"${said}")" \
-      || error "run: gh auth status (${what} could not be read)"
+    forge/github:limited "${ask_what}" "${ask_out}"$'\n'"$(<"${ask_said}")" \
+      || error "run: gh auth status (${ask_what} could not be read)"
     return 1
   fi
-  printf -v "${into}" '%s' "${out}"
+  for ask_arg in "$@"
+  do
+    [[ "${ask_arg}" != --jq ]] || ask_filtered=true
+  done
+  if [[ "${ask_filtered}" == false ]] && ! jq --exit-status true <<<"${ask_out}" >/dev/null 2>&1
+  then
+    error "run: gh auth status (${ask_what} could not be read)"
+    return 1
+  fi
+  printf -v "${ask_into}" '%s' "${ask_out}"
+}
+
+# forge/github:fold <what> <answer> <jq argument>… prints what jq, given the kit's jq modules, makes of the answer.
+# When jq fails, as on an answer not in the shape asked for, it prints nothing, names gh auth status for <what>, and
+# returns 1.
+forge/github:fold() {
+  local what=$1 answer=$2 out
+  shift 2
+  if ! out=$(jq -L "${kit_jq}" "$@" <<<"${answer}" 2>/dev/null)
+  then
+    error "run: gh auth status (${what} could not be read)"
+    return 1
+  fi
+  [[ -z "${out}" ]] || printf '%s\n' "${out}"
 }
 
 # forge/github:limited <what> <said> says, when what gh said is that a rate limit stopped the read of <what>, which
@@ -415,7 +489,6 @@ forge/github:limited() {
   fi
   [[ "${said}" == *rate_limited* || "${said}" == *'rate limit'* ]] || return 1
   limits=$(gh api rate_limit 2>/dev/null) || limits='{}'
-  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
   wait=$(jq -L "${kit_jq}" --raw-output --argjson now "$(date +%s)" \
     'import "forge" as forge; forge::github_spent($now)' <<<"${limits}" 2>/dev/null) || wait=''
   [[ -n "${wait}" ]] || wait="wait for GitHub's rate limit to reset; run: gh api rate_limit"

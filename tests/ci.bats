@@ -30,7 +30,8 @@ setup() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"gate ran"* ]]
   [[ "$output" == *"every delivered file matches"* ]]
-  [[ "$output" == *"kit linked <number>"* ]]
+  # gh fails, so kit linked cannot tell which pull request this checkout is working on, and refuses, naming the read
+  [[ "$output" == *"run: gh auth status (the open pull request on main could not be read)"* ]]
   [[ "$output" == *"the patterns policy allows"* ]]
   [[ "$output" == *"1 of 4 checks refused"* ]]
   # a stray file under a delivered directory: check reports it, and no verb heals it

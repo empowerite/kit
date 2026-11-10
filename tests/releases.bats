@@ -116,7 +116,7 @@ on-origin() { git ls-remote origin "refs/tags/$1*" | awk -v want="refs/tags/$1^{
 JSON
   printf '{"login": "ada"}\n' > "${FAKE_DIR}/user.json"
   printf '%s\t%s\n' 'api user*' user.json >> "${FAKE_DIR}/gh.routes"
-  printf '%s\t%s\n' 'release list --limit 1000 --json *' releases.json >> "${FAKE_DIR}/gh.routes"
+  printf '%s\t%s\n' 'release list --limit 10000 --json *' releases.json >> "${FAKE_DIR}/gh.routes"
   run "${kit_root}/bin/kit" flow releases
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "0.1.0-rc.7  📝 draft "* ]]

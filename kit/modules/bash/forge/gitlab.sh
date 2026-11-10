@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # gitlab.sh - the GitLab forge provider, through the glab CLI (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-# shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
+# shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh, forge_list_limit set by modules/bash/forge.sh
 # shellcheck disable=SC2016  # jq filters name their variables with $, in single quotes on purpose
 #
 # modules/bash/forge.sh loads this provider when the repository's forge is gitlab:
@@ -18,16 +18,16 @@
 #   checks          the jobs of its pipeline
 #   review threads  its resolvable discussions
 #
-# Only this file requires glab. It reads the REST API through `glab api` and shapes every result with jq, so a
-# fake glab can drive it in a test.
+# Only this file requires glab. It reads the REST API through `glab api`, a list's every page, and shapes every result
+# with jq, so a fake glab can drive it in a test.
 #
 # see: modules/bash/forge.sh
 
 forge/gitlab:branch-for-issue() {
-  # A failed read is read as none; the forge seam's contract decides this.
-  forge/gitlab:api "merge_requests?state=opened&per_page=100" 2>/dev/null \
-    | jq --raw-output -L "${kit_jq}" --arg n "$1" 'import "forge" as forge; forge::gitlab_branch_for_issue($n)' \
-    || true
+  local open
+  forge/gitlab:pages open 'the open merge requests' 'merge_requests?state=opened&per_page=100' || return 1
+  forge/gitlab:fold 'the open merge requests' "${open}" --raw-output --arg n "$1" \
+    'import "forge" as forge; forge::gitlab_branch_for_issue($n)'
 }
 
 # forge/gitlab:issue-add-sub links the second issue to the first as a related item: GitLab gives an issue no
@@ -44,7 +44,9 @@ forge/gitlab:issue-assign() {
 }
 
 forge/gitlab:issue-assignees() {
-  forge/gitlab:api "issues/$1" 2>/dev/null | jq --raw-output '[.assignees[]?.username] | join(" ")'
+  local issue
+  forge/gitlab:ask issue "the assignees of #$1" "issues/$1" || return 1
+  forge/gitlab:fold "the assignees of #$1" "${issue}" --raw-output '[.assignees[].username] | join(" ")'
 }
 
 # forge/gitlab:issue-close closes the issue. GitLab keeps no reason, so completed and not planned close it alike; a
@@ -74,13 +76,17 @@ forge/gitlab:issue-create() {
   printf '%s\n' "${number}"
 }
 
+# forge/gitlab:issue-state says GitLab's opened and closed as OPEN and CLOSED; an answer with neither fails.
 forge/gitlab:issue-state() {
-  forge/gitlab:api "issues/$1" 2>/dev/null | jq --raw-output 'if .state == "closed" then "CLOSED" else "OPEN" end'
+  local issue
+  forge/gitlab:ask issue "the state of #$1" "issues/$1" || return 1
+  forge/gitlab:fold "the state of #$1" "${issue}" --raw-output '{opened: "OPEN", closed: "CLOSED"}[.state] // error'
 }
 
 forge/gitlab:issue-title() {
-  forge/gitlab:api "issues/$1" 2>/dev/null | jq --raw-output '.title' \
-    || { error "run: glab auth status (the title of #$1 could not be read)"; return 1; }
+  local issue
+  forge/gitlab:ask issue "the title of #$1" "issues/$1" || return 1
+  forge/gitlab:fold "the title of #$1" "${issue}" --raw-output '.title | strings // error'
 }
 
 forge/gitlab:issue-unassign() {
@@ -103,22 +109,19 @@ forge/gitlab:link-branch() {
 # each read, four in all.
 forge/gitlab:marks() {
   local issues mrs runs releases
-  if ! issues=$(forge/gitlab:api "issues?order_by=updated_at&sort=desc&per_page=1" 2>/dev/null) \
-    || ! mrs=$(forge/gitlab:api "merge_requests?order_by=updated_at&sort=desc&per_page=1" 2>/dev/null) \
-    || ! runs=$(forge/gitlab:api "pipelines?per_page=10" 2>/dev/null) \
-    || ! releases=$(forge/gitlab:api "releases?per_page=1" 2>/dev/null)
-  then
-    error "run: glab auth status (the marks could not be read)"
-    return 1
-  fi
-  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
-  jq -L "${kit_jq}" --null-input --compact-output --argjson issues "${issues}" --argjson mrs "${mrs}" \
+  forge/gitlab:ask issues 'the marks' 'issues?order_by=updated_at&sort=desc&per_page=1' || return 1
+  forge/gitlab:ask mrs 'the marks' 'merge_requests?order_by=updated_at&sort=desc&per_page=1' || return 1
+  forge/gitlab:ask runs 'the marks' 'pipelines?per_page=10' || return 1
+  forge/gitlab:ask releases 'the marks' 'releases?per_page=1' || return 1
+  forge/gitlab:fold 'the marks' '' --null-input --compact-output --argjson issues "${issues}" --argjson mrs "${mrs}" \
     --argjson runs "${runs}" --argjson releases "${releases}" \
     'import "forge" as forge; forge::gitlab_marks($issues; $mrs; $runs; $releases)'
 }
 
 forge/gitlab:me() {
-  glab api user 2>/dev/null | jq --raw-output '.username' && return 0
+  local user
+  user=$(glab api user 2>/dev/null) && jq --exit-status --raw-output '.username | strings' <<<"${user}" 2>/dev/null \
+    && return 0
   error "run: glab auth login (the GitLab CLI is not authenticated)"
   return 1
 }
@@ -129,46 +132,66 @@ forge/gitlab:noun() { printf '!\tmerge request\n'; }
 # each label's color only with its details.
 forge/gitlab:open-issues() {
   local list
-  list=$(forge/gitlab:api "issues?state=opened&per_page=100&order_by=created_at&sort=asc&with_labels_details=true" \
-    2>/dev/null) \
-    || { error "run: glab auth status (the issues could not be read)"; return 1; }
-  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
-  jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" 'import "forge" as forge; forge::gitlab_issues($now)' \
-    <<<"${list}"
+  forge/gitlab:pages list 'the issues' \
+    'issues?state=opened&per_page=100&order_by=created_at&sort=asc&with_labels_details=true' || return 1
+  forge/gitlab:fold 'the issues' "${list}" --compact-output --argjson now "$(date +%s)" \
+    'import "forge" as forge; forge::gitlab_issues($now)'
 }
 
 # forge/gitlab:open-prs prints one JSON object per open merge request: the document kit flow renders, which
 # modules/jq/forge.jq folds the answers into. Of several jobs of one name in the pipeline, as after a retry, only
 # the latest counts. GitLab's REST API needs one read for the project's labels, whose colors the merge requests and
-# the issues they close name only by name, the first 100 of them; then four reads per merge request, and one per fork:
+# the issues they close name only by name; then four reads per merge request, and one per fork:
 #
 #   - the merge request, whose head pipeline also says when the branch was last pushed, and by whom
-#   - its pipeline's jobs
+#   - its pipeline's jobs, read under the project the pipeline names, a fork's for a merge request from one; jobs that
+#     cannot be read are one check, pipeline, of the pipeline's own status
 #   - its discussions
 #   - the issues it closes
 #   - the project its branch lives in, when that is not this project, once for each such project: its namespace's
 #     path names the fork's owner, and a project the caller cannot read names none
+#
+# Any other read that fails fails the call, which then prints none of the merge requests.
 forge/gitlab:open-prs() {
-  local list iid mr jobs discussions closes pipeline source fork colors
+  local list labels colors iid mr jobs discussions closes pipeline home source fork doc docs=''
+  local -a iids
   local -A owners=()
-  list=$(forge/gitlab:api "merge_requests?state=opened&per_page=100&order_by=created_at&sort=asc" 2>/dev/null) \
-    || { error "run: glab auth status (the merge requests could not be read)"; return 1; }
+  forge/gitlab:pages list 'the merge requests' 'merge_requests?state=opened&per_page=100&order_by=created_at&sort=asc' \
+    || return 1
   # A label whose color cannot be read is drawn without it, so the labels' read never fails the merge requests'.
-  colors=$(forge/gitlab:api "labels?per_page=100" 2>/dev/null \
-    | jq --compact-output 'map({key: .name, value: .color}) | from_entries' 2>/dev/null) || colors=''
-  [[ -n "${colors}" ]] || colors='{}'
-  while IFS= read -r iid
+  if ! forge/gitlab:pages labels 'the labels' 'labels?per_page=100' 2>/dev/null \
+    || ! colors=$(jq --compact-output 'map({key: .name, value: .color}) | from_entries' <<<"${labels}" 2>/dev/null)
+  then
+    colors='{}'
+  fi
+  list:read iids forge/gitlab:fold 'the merge requests' "${list}" --raw-output '.[].iid' || return 1
+  for iid in "${iids[@]}"
   do
     [[ -n "${iid}" ]] || continue
-    mr=$(forge/gitlab:api "merge_requests/${iid}") || return 1
-    pipeline=$(jq --raw-output '.head_pipeline.id // empty' <<<"${mr}")
+    forge/gitlab:ask mr "merge request !${iid}" "merge_requests/${iid}" || return 1
+    pipeline=$(forge/gitlab:fold "merge request !${iid}" "${mr}" --raw-output '.head_pipeline.id // empty') || return 1
+    home=$(forge/gitlab:fold "merge request !${iid}" "${mr}" --raw-output '.head_pipeline.project_id // empty') \
+      || return 1
     jobs='[]'
-    [[ -z "${pipeline}" ]] || jobs=$(forge/gitlab:api "pipelines/${pipeline}/jobs?per_page=100") || return 1
-    discussions=$(forge/gitlab:api "merge_requests/${iid}/discussions?per_page=100") || return 1
-    closes=$(forge/gitlab:api "merge_requests/${iid}/closes_issues?per_page=100") || return 1
-    source=$(jq --raw-output 'select(.source_project_id != .target_project_id) | .source_project_id // empty' \
-      <<<"${mr}")
-    # The fork's project is not under this one, so glab reads it by its id, past forge/gitlab:api.
+    if [[ -n "${pipeline}" ]]
+    then
+      # A fork's pipeline lives in the fork's project, which the caller may not be able to read; its jobs are then
+      # the pipeline's own status, so the read's failure is said by the check it gives, not on stderr.
+      if ! forge/gitlab:pages jobs "the jobs of pipeline ${pipeline}" \
+        "${home:+/projects/${home}/}pipelines/${pipeline}/jobs?per_page=100" 2>/dev/null
+      then
+        jobs=$(forge/gitlab:fold "merge request !${iid}" "${mr}" --compact-output \
+          'import "forge" as forge; forge::gitlab_pipeline_jobs') || return 1
+      fi
+    fi
+    forge/gitlab:pages discussions "the discussions of merge request !${iid}" \
+      "merge_requests/${iid}/discussions?per_page=100" || return 1
+    forge/gitlab:pages closes "the issues merge request !${iid} closes" \
+      "merge_requests/${iid}/closes_issues?per_page=100" || return 1
+    source=$(forge/gitlab:fold "merge request !${iid}" "${mr}" --raw-output \
+      'select(.source_project_id != .target_project_id) | .source_project_id // empty') || return 1
+    # The fork's project is not under this one, so glab reads it by its id, past forge/gitlab:api. A fork the caller
+    # cannot read names no owner, as the list above says.
     if [[ -n "${source}" && -z "${owners[${source}]+x}" ]]
     then
       owners[${source}]=$(glab api "projects/${source}" 2>/dev/null \
@@ -176,28 +199,35 @@ forge/gitlab:open-prs() {
     fi
     fork=null
     [[ -n "${source}" ]] && fork=${owners[${source}]:-null}
-    # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
-    jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" --argjson jobs "${jobs}" \
-      --argjson discussions "${discussions}" --argjson closes "${closes}" --argjson fork "${fork}" \
-      --argjson colors "${colors}" \
-      'import "forge" as forge; forge::gitlab_pr($now; $jobs; $discussions; $closes; $fork) | forge::colored($colors)' \
-      <<<"${mr}"
-  done < <(jq --raw-output '.[].iid' <<<"${list}")
+    doc=$(forge/gitlab:fold "merge request !${iid}" "${mr}" --compact-output --argjson now "$(date +%s)" \
+      --argjson jobs "${jobs}" --argjson discussions "${discussions}" --argjson closes "${closes}" \
+      --argjson fork "${fork}" --argjson colors "${colors}" \
+      'import "forge" as forge; forge::gitlab_pr($now; $jobs; $discussions; $closes; $fork)
+       | forge::colored($colors)') || return 1
+    docs+=${doc}$'\n'
+  done
+  printf '%s' "${docs}"
 }
 
 forge/gitlab:pr-author() {
-  forge/gitlab:api "merge_requests/$1" | jq --raw-output '.author.username'
+  local mr
+  forge/gitlab:ask mr "the author of merge request !$1" "merge_requests/$1" || return 1
+  forge/gitlab:fold "the author of merge request !$1" "${mr}" --raw-output '.author.username | strings // error'
 }
 
 forge/gitlab:pr-body() {
-  forge/gitlab:api "merge_requests/$1" | jq --raw-output '.description // ""'
+  local mr body
+  forge/gitlab:ask mr "the body of merge request !$1" "merge_requests/$1" || return 1
+  body=$(forge/gitlab:fold "the body of merge request !$1" "${mr}" --raw-output \
+    '.description // "" | strings // error') || return 1
+  printf '%s\n' "${body}"
 }
 
 forge/gitlab:pr-closing-issues() {
-  forge/gitlab:api "merge_requests/$1/closes_issues?per_page=100" 2>/dev/null \
-    | jq --raw-output '.[] | "\(.iid) \(if .state == "closed" then "CLOSED" else "OPEN" end) \(.references.full
-        | sub("#[0-9]+$"; ""))"' \
-    || { error "run: glab auth status (merge request !$1 could not be read)"; return 1; }
+  local closes
+  forge/gitlab:pages closes "merge request !$1" "merge_requests/$1/closes_issues?per_page=100" || return 1
+  forge/gitlab:fold "merge request !$1" "${closes}" --raw-output '.[] | "\(.iid) \(if .state == "closed" then "CLOSED"
+    else "OPEN" end) \(.references.full | sub("#[0-9]+$"; ""))"'
 }
 
 forge/gitlab:pr-create() {
@@ -209,33 +239,29 @@ forge/gitlab:pr-create() {
 }
 
 forge/gitlab:pr-for-branch() {
-  # A failed read is read as none; the forge seam's contract decides this.
-  forge/gitlab:api "merge_requests?state=opened&source_branch=$1" 2>/dev/null \
-    | jq --raw-output '.[0].iid // empty' || true
+  local open
+  forge/gitlab:ask open "the open merge request on $1" "merge_requests?state=opened&source_branch=$1" || return 1
+  forge/gitlab:fold "the open merge request on $1" "${open}" --raw-output '.[0].iid // empty'
 }
 
 forge/gitlab:pr-head-for-branch() {
-  # A failed read is read as none; the forge seam's contract decides this.
-  forge/gitlab:api "merge_requests?state=all&source_branch=$1&order_by=created_at&sort=desc" 2>/dev/null \
-    | jq --raw-output '.[0].sha // empty' || true
+  forge/gitlab:on-branch "$1" '.[0].sha // empty'
 }
 
 # On a GitLab CI runner, CI_MERGE_REQUEST_IID gives the merge request. Otherwise it is the open merge request for
-# the current branch.
+# the current branch; a detached HEAD has none.
 forge/gitlab:pr-here() {
   local number=${CI_MERGE_REQUEST_IID:-} branch
   if [[ -z "${number}" ]]
   then
     branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)  # a detached HEAD has no merge request
-    [[ -n "${branch}" ]] && number=$(forge/gitlab:pr-for-branch "${branch}")
+    [[ -z "${branch}" ]] || number=$(forge/gitlab:pr-for-branch "${branch}") || return 1
   fi
-  printf '%s\n' "${number}"
+  [[ -z "${number}" ]] || printf '%s\n' "${number}"
 }
 
 forge/gitlab:pr-last-for-branch() {
-  # A failed read is read as none; the forge seam's contract decides this.
-  forge/gitlab:api "merge_requests?state=all&source_branch=$1&order_by=created_at&sort=desc" 2>/dev/null \
-    | jq --raw-output '.[0].iid // empty' || true
+  forge/gitlab:on-branch "$1" '.[0].iid // empty'
 }
 
 forge/gitlab:pr-set-body() {
@@ -243,24 +269,28 @@ forge/gitlab:pr-set-body() {
 }
 
 forge/gitlab:pr-state() {
-  forge/gitlab:api "merge_requests/$1" 2>/dev/null \
-    | jq --raw-output '"\(.state | if . == "merged" then "MERGED" elif . == "closed" then "CLOSED" else "OPEN" end
-        )\t\(.merge_commit_sha // .squash_commit_sha // "")"' \
-    || { error "run: glab auth status (merge request !$1 could not be read)"; return 1; }
+  local mr
+  forge/gitlab:ask mr "merge request !$1" "merge_requests/$1" || return 1
+  forge/gitlab:fold "merge request !$1" "${mr}" --raw-output '"\(.state | strings // error
+    | if . == "merged" then "MERGED" elif . == "closed" then "CLOSED" else "OPEN" end
+    )\t\(.merge_commit_sha // .squash_commit_sha // "")"'
 }
 
 forge/gitlab:pr-state-for-branch() {
-  # A failed read is read as none; the forge seam's contract decides this.
-  forge/gitlab:api "merge_requests?state=all&source_branch=$1&order_by=created_at&sort=desc" 2>/dev/null \
-    | jq --raw-output -L "${kit_jq}" 'import "forge" as forge; forge::gitlab_pr_state' \
-    || true
+  forge/gitlab:on-branch "$1" 'import "forge" as forge; forge::gitlab_pr_state'
 }
 
 forge/gitlab:pr-title() {
-  forge/gitlab:api "merge_requests/$1" | jq --raw-output '.title'
+  local mr
+  forge/gitlab:ask mr "the title of merge request !$1" "merge_requests/$1" || return 1
+  forge/gitlab:fold "the title of merge request !$1" "${mr}" --raw-output '.title | strings // error'
 }
 
-forge/gitlab:pr-url() { printf '%s/-/merge_requests/%s\n' "$(forge/gitlab:repo-url)" "$1"; }
+forge/gitlab:pr-url() {
+  local url
+  url=$(forge/gitlab:repo-url) || return 1
+  printf '%s/-/merge_requests/%s\n' "${url}" "$1"
+}
 
 # forge/gitlab:quota reads the caller's user, one request, for the RateLimit headers GitLab sends with every answer:
 # the limit that throttles the caller, by name, what is left of it, and when it resets. A GitLab that sends none has
@@ -269,28 +299,26 @@ forge/gitlab:quota() {
   local answer
   answer=$(glab api --include user 2>/dev/null) \
     || { error "run: glab auth status (the rate limits could not be read)"; return 1; }
-  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
-  jq -L "${kit_jq}" --raw-input --slurp --compact-output 'import "forge" as forge; forge::gitlab_quota' <<<"${answer}"
+  forge/gitlab:fold 'the rate limits' "${answer}" --raw-input --slurp --compact-output \
+    'import "forge" as forge; forge::gitlab_quota'
 }
 
 # forge/gitlab:releases prints one document per release, newest first, as the seam's header says.
 forge/gitlab:releases() {
   local list
-  list=$(forge/gitlab:api "releases?per_page=100" 2>/dev/null) \
-    || { error "run: glab auth status (the releases could not be read)"; return 1; }
-  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
-  jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" \
-    'import "forge" as forge; forge::gitlab_releases($now)' \
-    <<<"${list}"
+  forge/gitlab:pages list 'the releases' 'releases?per_page=100' || return 1
+  forge/gitlab:fold 'the releases' "${list}" --compact-output --argjson now "$(date +%s)" \
+    'import "forge" as forge; forge::gitlab_releases($now)'
 }
 
 forge/gitlab:repo() { forge/gitlab:project; }
 
 forge/gitlab:repo-url() {
-  local host primary
+  local host primary project
   primary=$(forge:primary) || return $?
   host=$(forge:host "${primary}")
-  printf 'https://%s/%s\n' "${host}" "$(forge/gitlab:project)"
+  project=$(forge/gitlab:project) || return 1
+  printf 'https://%s/%s\n' "${host}" "${project}"
 }
 
 forge/gitlab:require() {
@@ -306,13 +334,11 @@ forge/gitlab:require() {
 # pipelines, those forge.jq's builds keeps. A pipeline's jobs would cost a call each, so every run carries none.
 forge/gitlab:runs() {
   local list default tags
-  list=$(forge/gitlab:api "pipelines?per_page=50" 2>/dev/null) \
-    || { error "run: glab auth status (the pipelines could not be read)"; return 1; }
+  forge/gitlab:ask list 'the pipelines' 'pipelines?per_page=50' || return 1
   default=$(git:default-branch) || return 1
   tags=$(forge:tags) || return 1
-  jq -L "${kit_jq}" --compact-output --argjson now "$(date +%s)" --arg default "${default}" \
-    --argjson tags "${tags}" 'import "forge" as forge; forge::gitlab_builds($now; $default; $tags)' \
-    <<<"${list}"
+  forge/gitlab:fold 'the pipelines' "${list}" --compact-output --argjson now "$(date +%s)" --arg default "${default}" \
+    --argjson tags "${tags}" 'import "forge" as forge; forge::gitlab_builds($now; $default; $tags)'
 }
 
 # The seam's calls end here; what follows is this provider's own.
@@ -326,13 +352,70 @@ forge/gitlab:project() {
   sed -E 's#^[a-z]+://[^/]+/##; s#^[^@/]+@[^:]+:##; s#\.git$##' <<<"${url}"
 }
 
-# forge/gitlab:api <path-under-the-project> [<glab api option>…] calls the REST API under the project, with the
-# project's path URL-encoded as GitLab expects.
+# forge/gitlab:api <path> [<glab api option>…] calls the REST API at <path> under the project, with the project's
+# path URL-encoded as GitLab expects; a <path> that starts with / is read from the API's root, as a fork's project is.
 forge/gitlab:api() {
   local path=$1 project
   shift
+  if [[ "${path}" == /* ]]
+  then
+    glab api "${path#/}" "$@"
+    return
+  fi
   project=$(forge/gitlab:project) || return 1
   glab api "projects/${project//\//%2F}/${path}" "$@"
+}
+
+# forge/gitlab:ask <name> <what> <path> [<glab api option>…] reads <path> as forge/gitlab:api does and puts the answer
+# in the variable <name>. When glab fails, or answers with anything but JSON, it names glab auth status for <what>, and
+# returns 1.
+forge/gitlab:ask() {
+  local ask_into=$1 ask_what=$2 ask_path=$3 ask_out
+  shift 3
+  # The project is read first, so a checkout with no remote says so, not glab.
+  [[ "${ask_path}" == /* ]] || forge/gitlab:project >/dev/null || return 1
+  if ! ask_out=$(forge/gitlab:api "${ask_path}" "$@" 2>/dev/null) \
+    || ! jq --exit-status true <<<"${ask_out}" >/dev/null 2>&1
+  then
+    error "run: glab auth status (${ask_what} could not be read)"
+    return 1
+  fi
+  printf -v "${ask_into}" '%s' "${ask_out}"
+}
+
+# forge/gitlab:fold <what> <answer> <jq argument>… prints what jq, given the kit's jq modules, makes of the answer.
+# When jq fails, as on an answer not in the shape asked for, it prints nothing, names glab auth status for <what>, and
+# returns 1.
+forge/gitlab:fold() {
+  local what=$1 answer=$2 out
+  shift 2
+  if ! out=$(jq -L "${kit_jq}" "$@" <<<"${answer}" 2>/dev/null)
+  then
+    error "run: glab auth status (${what} could not be read)"
+    return 1
+  fi
+  [[ -z "${out}" ]] || printf '%s\n' "${out}"
+}
+
+# forge/gitlab:on-branch <branch> <jq filter> prints what the filter makes of the merge requests on the branch, in any
+# state, newest first, or nothing when it makes nothing of them.
+forge/gitlab:on-branch() {
+  local mrs
+  forge/gitlab:ask mrs "the merge requests on $1" \
+    "merge_requests?state=all&source_branch=$1&order_by=created_at&sort=desc" || return 1
+  forge/gitlab:fold "the merge requests on $1" "${mrs}" --raw-output "$2"
+}
+
+# forge/gitlab:pages <name> <what> <path> reads every page of the list at <path>, as glab api --paginate asks for
+# them, and puts the list, one JSON array, in the variable <name>. glab prints each page's array after the one before,
+# or one array of every page's items; either is joined into one. A list that is not whole fails, as forge:whole says.
+forge/gitlab:pages() {
+  local pages_into=$1 pages_what=$2 pages_answer pages_joined
+  forge/gitlab:ask pages_answer "${pages_what}" "$3" --paginate || return 1
+  pages_joined=$(forge/gitlab:fold "${pages_what}" "${pages_answer}" --slurp --compact-output \
+    'if all(.[]; type == "array") then add // [] else error end') || return 1
+  forge:whole "${pages_what}" "$(jq length <<<"${pages_joined}")" || return 1
+  printf -v "${pages_into}" '%s' "${pages_joined}"
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

@@ -34,8 +34,8 @@
 # Azure DevOps work item, when kit.yml declares that tracker. kit work asks nothing itself; kit tui asks for the
 # title when kit work is given neither.
 #
-# Exits 0 when the work is started or resumed, 1 on a refusal, and 2 on a usage error or a reference no declared
-# tracker reads.
+# Exits 0 when the work is started or resumed, 1 on a refusal or when the forge cannot be read, and 2 on a usage error
+# or a reference no declared tracker reads.
 #
 # see: modules/bash/issue.sh, modules/bash/forge.sh, modules/bash/tracker.sh
 

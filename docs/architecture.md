@@ -179,11 +179,13 @@ branch linked to it, a pull request and its state, checks, review threads, and l
 forge is named in the `forge` or `forges` setting, or found from a host `gh` or `glab` has logged in to.
 
 - Every provider returns the same shape, so `kit flow` shows the same picture on either code forge.
+- Every call answers, answers none, or fails with one line that says what could not be read, and a list is whole or
+  the call fails; the header of `kit/modules/bash/forge.sh` holds the contract.
 - Each provider uses its code forge's own name for a change: pull request `#3` on GitHub, merge request `!3` on GitLab.
 - A repository with one origin has one code forge. A repository on two code forges is a mirror or a migration, and
   the setting picks the one the workflow uses.
 - `tests/forge-conformance.bats` runs every provider against a fake of its tool and checks that each returns the
-  same shape.
+  same shape, and that each holds to the contract when its tool cannot answer.
 - The core verbs never call the code forge, so a repository with no code forge can still install, update, check, and run
   `kit context`. Only a provider needs its code forge's tool.
 

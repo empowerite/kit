@@ -213,6 +213,9 @@ idea-on() {
   idea-on 8-idea
   idea=$(git rev-parse 8-idea)
   gone 8-idea
+  # the forge has no change on 8-idea
+  fixture none.json <<<'[]'
+  route 'pr list --head 8-idea --state all*' none.json
   run "${kit_root}/bin/kit" tidy
   [ "$status" -eq 0 ]
   [[ "$output" == *"(7-fix-the-thing, change MERGED, 1 commit(s) no remote ever had)"* ]]
@@ -300,7 +303,8 @@ idea-on() {
   route 'pr list --head 8-idea --state all*' '!1'
   run "${kit_root}/bin/kit" tidy
   [ "$status" -eq 0 ]
-  [[ "$output" == *"keeping 8-idea (1 commit(s) no remote ever had)"* ]]
+  [[ "$output" == *"run: gh auth status (the pull requests on 8-idea could not be read)"* ]]
+  [[ "$output" == *"keeping 8-idea (its commits could not be counted)"* ]]
   [[ "$output" == *"removed 0 worktree(s) and 0 branch(es)."* ]]
   [ "$(git rev-parse refs/heads/8-idea)" = "${idea}" ]
 }

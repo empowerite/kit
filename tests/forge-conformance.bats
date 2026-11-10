@@ -8,6 +8,8 @@
 # standing in for its tool, so what is proven is the provider's own folding of its forge's answers into the seam's
 # shape. What only a real forge can prove, that the API answers as the fixtures do, is not proven here.
 
+bats_require_minimum_version 1.5.0
+
 load helper
 
 setup() {
@@ -99,7 +101,7 @@ JSON
   "url": "https://github.com/empowerite/example/issues/7"}]
 JSON
   route gh 'issue edit 7 --add-assignee ada' '!0'
-  route gh 'issue list --state open --limit 1000 --json *' issues.json
+  route gh 'issue list --state open --limit 10000 --json *' issues.json
   route gh 'pr list --state open --json headRefName*' open-heads.json
   route gh 'pr list --head 7-fix-the-thing --state open*' pr-open.json
   route gh 'pr list --head 7-fix-the-thing --state all*' pr-all.json
@@ -157,14 +159,14 @@ JSON
   "references": {"full": "empowerite/example#9"}}]
 JSON
   route glab 'issue update 7 --assignee +ada' '!0'
-  route glab "api ${p}/issues?state=opened&per_page=100&order_by=created_at&sort=asc&with_labels_details=true" \
+  route glab "api ${p}/issues?state=opened&per_page=100&order_by=created_at&sort=asc&with_labels_details=true*" \
     issues.json
-  route glab "api ${p}/labels?per_page=100" labels.json
+  route glab "api ${p}/labels?per_page=100*" labels.json
   route glab "api ${p}/merge_requests?state=opened&per_page=100&order_by=*" mrs-list.json
-  route glab "api ${p}/merge_requests?state=opened&per_page=100" mrs-open.json
+  route glab "api ${p}/merge_requests?state=opened&per_page=100*" mrs-open.json
   route glab "api ${p}/merge_requests?state=opened&source_branch=7-fix-the-thing" mr-by-branch.json
   route glab "api ${p}/merge_requests?state=all&source_branch=7-fix-the-thing*" mr-states.json
-  route glab "api ${p}/merge_requests/3/closes_issues?per_page=100" "${GITLAB_CLOSES:-closes.json}"
+  route glab "api ${p}/merge_requests/3/closes_issues?per_page=100*" "${GITLAB_CLOSES:-closes.json}"
   route glab "api ${p}/merge_requests/3/discussions*" discussions.json
   route glab "api ${p}/merge_requests/3" mr.json
   route glab "api ${p}/pipelines/11/jobs*" jobs.json
@@ -542,8 +544,8 @@ JSON
   for forge in github gitlab
   do
     world "${forge}"
-    route gh 'release list --limit 1000 --json *' gh-releases.json
-    route glab 'api projects/empowerite%2Fexample/releases?per_page=100' gl-releases.json
+    route gh 'release list --limit 10000 --json *' gh-releases.json
+    route glab 'api projects/empowerite%2Fexample/releases?per_page=100*' gl-releases.json
     run call releases
     [ "$status" -eq 0 ]
     [ "$(jq --compact-output --sort-keys --slurp 'map(del(.age, .at))' <<<"$output")" \
@@ -790,6 +792,105 @@ SH
   run call open-prs
   [ "$status" -eq 1 ]
   [[ "$output" == *"run: gh auth status (the pull requests could not be read)"* ]]
+}
+
+@test "a forge that cannot answer fails every read with one line, and never answers nothing" {
+  for forge in github gitlab
+  do
+    world "${forge}"
+    printf 'repo view*\trepo.json\n' | tee "${FAKE_DIR}/gh.routes" > "${FAKE_DIR}/glab.routes"
+    for call in 'branch-for-issue 7' 'pr-for-branch 7-fix-the-thing' 'pr-last-for-branch 7-fix-the-thing' \
+      'pr-state-for-branch 7-fix-the-thing' 'pr-head-for-branch 7-fix-the-thing' pr-here 'pr-title 3' 'pr-body 3' \
+      'pr-author 3' 'pr-closing-issues 3' 'issue-state 7' 'issue-assignees 7' 'issue-title 7' open-prs open-issues \
+      releases
+    do
+      read -r -a words <<<"${call}" && run --separate-stderr call "${words[@]}"
+      [[ "$status" -eq 1 && -z "$output" && "$stderr" == *"could not be read)"* ]] \
+        || { echo "${forge} ${call}: exit ${status}, printed '${output}', said '${stderr}'"; return 1; }
+    done
+  done
+}
+
+@test "one merge request's read that fails fails the open changes, and no part is kept as the snapshot" {
+  world gitlab
+  local p='projects/empowerite%2Fexample'
+  fixture mrs-list.json <<<'[{"iid": 3}, {"iid": 4}]'
+  { printf '%s\t%s\n' "api ${p}/merge_requests/4/discussions*" '!1' "api ${p}/merge_requests/4/closes_issues*" \
+      closes.json "api ${p}/merge_requests/4" mr.json
+    cat "${FAKE_DIR}/glab.routes"; } > "${FAKE_DIR}/routes.tmp" && mv "${FAKE_DIR}/routes.tmp" "${FAKE_DIR}/glab.routes"
+  run call open-prs
+  [ "$status" -eq 1 ]
+  [ ! -f "$(snapshot gitlab open-prs)" ]
+}
+
+@test "a list in pages is read whole" {
+  world gitlab
+  # glab prints each page's array after the one before
+  fixture issues.json <<'JSON'
+[{"iid": 7, "title": "Fix the thing", "assignees": [], "created_at": "2026-09-20T09:00:00.000Z"}]
+[{"iid": 9, "title": "Other thing", "assignees": [], "created_at": "2026-09-25T09:00:00.000Z"}]
+JSON
+  run call open-issues
+  [ "$(jq --slurp length <<<"$output")" -eq 2 ]
+  grep --quiet 'issues?state=opened.* --paginate$' "${FAKE_DIR}/glab.calls"
+}
+
+@test "a fork's pipeline that cannot be read is one check, the pipeline's own status" {
+  world gitlab
+  jq '.head_pipeline = {id: 11, project_id: 99, status: "failed"}' "${FAKE_DIR}/mr.json" > "${FAKE_DIR}/fork.json"
+  mv "${FAKE_DIR}/fork.json" "${FAKE_DIR}/mr.json"
+  route glab 'api projects/99/pipelines/11/jobs*' '!1'
+  run call open-prs
+  [ "$(jq --compact-output '[.checks.total, .checks.failing]' <<<"$output")" = '[1,"pipeline"]' ]
+}
+
+@test "an answer that is not JSON fails the read" {
+  world github
+  fixture issues.json <<<'<html>'
+  run --separate-stderr call open-issues
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [[ "$stderr" == *"run: gh auth status (the issues could not be read)"* ]]
+}
+
+@test "GitHub's open pull requests are read page after page, each after the cursor the one before ended on" {
+  world github
+  jq '.data.repository.pullRequests.pageInfo = {hasNextPage: true, endCursor: "p1"}' "${FAKE_DIR}/open-prs.json" \
+    > "${FAKE_DIR}/page-1.json"
+  jq '.data.repository.pullRequests.nodes[0].number = 5
+      | .data.repository.pullRequests.pageInfo = {hasNextPage: false, endCursor: "p2"}' "${FAKE_DIR}/open-prs.json" \
+    > "${FAKE_DIR}/page-2.json"
+  { printf '%s\t%s\n' 'api graphql*after=p1*' page-2.json 'api graphql*' page-1.json
+    cat "${FAKE_DIR}/gh.routes"; } > "${FAKE_DIR}/routes.tmp" && mv "${FAKE_DIR}/routes.tmp" "${FAKE_DIR}/gh.routes"
+  run call open-prs
+  [ "$status" -eq 0 ]
+  [ "$(jq --slurp --compact-output 'map(.number)' <<<"$output")" = '[3,5]' ]
+}
+
+@test "a pull request with more checks than GitHub gave fails the read, naming the pull request" {
+  world github
+  jq '.data.repository.pullRequests.nodes[0].commits.nodes[0].commit.statusCheckRollup.contexts.totalCount = 101' \
+    "${FAKE_DIR}/open-prs.json" > "${FAKE_DIR}/many.json"
+  mv "${FAKE_DIR}/many.json" "${FAKE_DIR}/open-prs.json"
+  run --separate-stderr call open-prs
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [[ "$stderr" == *"(pull request #3 could not be read)"* ]]
+}
+
+@test "a list that reaches the most kit reads fails, on either forge, saying so" {
+  for forge in github gitlab
+  do
+    world "${forge}"
+    # gh is asked for no more than the most kit reads, and gives its two issues
+    route gh 'issue list --state open --limit 2 --json *' issues.json
+    run --separate-stderr bash -c 'source "${kit_root}/modules/bash/1st.sh" && use forge && forge_list_limit=2 \
+      && forge:open-issues'
+    [ "$status" -eq 1 ]
+    [ -z "$output" ]
+    [[ "$stderr" == *"kit reads at most 2 items of a list (the issues could not be read)"* ]] \
+      || { echo "${forge}: ${stderr}"; return 1; }
+  done
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

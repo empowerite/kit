@@ -46,7 +46,7 @@ JSON
 JSON
   route 'api user*' user.json
   route 'repo view*' repo.json
-  route 'issue list --state open --limit 1000 --json *' issues.json
+  route 'issue list --state open --limit 10000 --json *' issues.json
   route 'api graphql*' open-prs.json
 }
 

@@ -16,8 +16,8 @@
 # The repository says which logins it trusts that way; the kit decides nothing for it.
 #
 # Exits 0 when at least one linked issue counts or the author is exempt, 1 when neither holds, there is no pull
-# request to check, the pull request's body cannot be read, or linked_exempt in kit.yml cannot be read, and 2 on a
-# usage error.
+# request to check, the forge cannot say which pull request this checkout is working on, the pull request's body
+# cannot be read, or linked_exempt in kit.yml cannot be read, and 2 on a usage error.
 #
 # see: modules/bash/forge.sh
 
@@ -35,7 +35,7 @@ then
 fi
 
 number=${1:-}
-[[ -n "${number}" ]] || number=$(forge:pr-here)
+[[ -n "${number}" ]] || number=$(forge:pr-here) || exit 1
 if [[ ! "${number}" =~ ^[0-9]+$ ]]
 then
   error "name the change: kit linked <number> (none was given, and this checkout is working on none)"
