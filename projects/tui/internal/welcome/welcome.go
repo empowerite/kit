@@ -11,11 +11,11 @@
 // of its step. Enter or a click on a link goes to that check, on its step, with the cursor on it. When kit refused
 // the checks, the intro says what kit said.
 //
-// The steps are a tab bar, internal/tabs. While it has the keyboard, left and right move between the steps; a step's
+// The steps are a tab bar, internal/tabs. While it has the keyboard, tab and shift-tab move between the steps; a step's
 // number, or a click on the bar, selects it from anywhere and gives the bar the keyboard. Down, or enter, gives the
 // pane the keyboard: a step's rows, or the intro's links, where up on the first gives it back, or its page, which up
 // and down then scroll, and up at the top gives it back; a click on a check's line puts the cursor there. Inside a row
-// with choices, left and right move between now and later. Esc gives the bar the keyboard back. Ctrl-c quits with 130
+// with choices, tab and shift-tab move between now and later, its stops, as they move between the stops on any line. Esc gives the bar the keyboard back. Ctrl-c quits with 130
 // from anywhere, and ctrl-q quits with 0; esc never quits. The screen
 // opens on the intro while the checks run, and stays there when they answer. A step with failed checks counts them in
 // red on the bar, which every step shows.
@@ -516,11 +516,11 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
 	case "esc":
 		m.back()
-	case "left":
+	case "shift+tab":
 		if choosing {
 			m.choice = now
 		}
-	case "right":
+	case "tab":
 		if choosing {
 			m.choice = later
 		}

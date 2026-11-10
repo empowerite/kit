@@ -1,5 +1,7 @@
-// The live form: a Bubble Tea model over the fields, the runner, and the keyboard. Up, down, and tab move between
-// fields, left and right along a row or flip a toggle, space toggles or picks, backspace erases, Enter takes the next
+// The live form: a Bubble Tea model over the fields, the runner, and the keyboard. Up and down move between fields, as
+// tab and shift-tab do but along a row of options, whose options are the stops on its line: there they move between
+// the options, and on to the field after the last or before the first; space toggles, picks, or chooses the option
+// under the cursor, backspace erases, Enter takes the next
 // field or line and, on the command line, runs; shift-Enter runs from anywhere a terminal reports it, and the keys bar
 // names it only where the terminal said it does; esc goes back
 // to the palette and never quits; ctrl-q quits, and ctrl-c quits as interrupted. In a list, page down and page up move the cursor a page,
@@ -255,10 +257,11 @@ func (m Model) keys() shell.Path {
 			field.Bindings = append(field.Bindings, shell.Bind("␣", "toggle", "space"))
 		}
 	case AnyOf:
-		field.Bindings = append(field.Bindings, shell.Bind("←→", "option", "left", "right"),
+		field.Bindings = append(field.Bindings, shell.Bind("⇥·⇧⇥", "option", "tab", "shift+tab"),
 			shell.Bind("␣", "toggle", "space"))
 	case OneOf:
-		field.Bindings = append(field.Bindings, shell.Bind("←→", "choose", "left", "right"))
+		field.Bindings = append(field.Bindings, shell.Bind("⇥·⇧⇥", "option", "tab", "shift+tab"),
+			shell.Bind("␣", "choose", "space"))
 		if !f.Required {
 			field.Bindings = append(field.Bindings, shell.Bind("⌫", "clear", "backspace"))
 		}
@@ -377,7 +380,7 @@ func (m *Model) enter() tea.Cmd {
 func (m *Model) toggle(s string) tea.Cmd {
 	f := &m.fields[m.focus]
 	switch s {
-	case "space", "left", "right":
+	case "space":
 		if !f.Required {
 			if len(f.Values) > 0 {
 				f.Values = nil
@@ -394,43 +397,62 @@ func (m *Model) toggle(s string) tea.Cmd {
 	return nil
 }
 
+// row takes a key on a row of options, whose options are the stops on its line: tab and shift-tab move the cursor
+// between them, and past the last or the first to the next field or the one before; space toggles the option under
+// the cursor, or chooses it on a one-of row, and enter chooses it too and goes on; backspace clears an optional
+// one-of row; up and down move between fields. Moving the cursor never chooses, so tabbing through a row changes
+// nothing.
 func (m *Model) row(s string) tea.Cmd {
 	f := &m.fields[m.focus]
-	last := len(f.Options) - 1
 	switch s {
-	case "left", "right":
-		if s == "left" && m.cursor > 0 {
-			m.cursor--
-		} else if s == "right" && m.cursor < last {
-			m.cursor++
-		} else if m.cursor < 0 {
-			m.cursor = 0
+	case "tab":
+		if m.cursor >= len(f.Options)-1 {
+			return m.move(1)
 		}
-		if f.Kind == OneOf {
-			f.Chosen = m.cursor
-			m.changed(f.Key)
+		m.cursor++
+	case "shift+tab":
+		if m.cursor <= 0 {
+			return m.move(-1)
 		}
+		m.cursor--
 	case "space":
-		if f.Kind == AnyOf && m.cursor >= 0 {
-			option := f.Options[m.cursor]
-			if i := index(f.Values, option); i >= 0 {
-				f.Values = append(append([]string{}, f.Values[:i]...), f.Values[i+1:]...)
-			} else {
-				f.Values = append(f.Values, option)
-			}
-			m.changed(f.Key)
-		}
+		m.pickOption(f)
 	case "backspace":
 		if f.Kind == OneOf && !f.Required {
 			f.Chosen, m.cursor = -1, -1
 			m.changed(f.Key)
 		}
-	case "enter", "down", "tab":
+	case "enter":
+		if f.Kind == OneOf && f.Chosen != m.cursor {
+			m.pickOption(f)
+		}
 		return m.move(1)
-	case "up", "shift+tab":
+	case "down":
+		return m.move(1)
+	case "up":
 		return m.move(-1)
 	}
 	return nil
+}
+
+// pickOption toggles the option under the cursor on an any-of row, or chooses it on a one-of row; with no option
+// under the cursor, it does nothing.
+func (m *Model) pickOption(f *Field) {
+	if m.cursor < 0 || m.cursor >= len(f.Options) {
+		return
+	}
+	switch f.Kind {
+	case AnyOf:
+		option := f.Options[m.cursor]
+		if i := index(f.Values, option); i >= 0 {
+			f.Values = append(append([]string{}, f.Values[:i]...), f.Values[i+1:]...)
+		} else {
+			f.Values = append(f.Values, option)
+		}
+	case OneOf:
+		f.Chosen = m.cursor
+	}
+	m.changed(f.Key)
 }
 
 func (m *Model) text(k tea.KeyPressMsg, s string) tea.Cmd {

@@ -39,7 +39,7 @@ func TestAPictureWithNoStageTakesEveryKeyQuietly(t *testing.T) {
 // Refresh All runs no stage kittui does not draw, and down into a stage with no rows stays on the bar.
 func TestRefreshAndDownDoNothingWhereThereIsNothingToLoadOrEnter(t *testing.T) {
 	m := loaded(t, Options{Stages: []string{"nonesuch", "builds"}})
-	m = drive(m, right, answer("builds", "[]"), down)
+	m = drive(m, tab, answer("builds", "[]"), down)
 	if m.inRows || !strings.Contains(view(m), "no build since the last 20 runs") {
 		t.Errorf("down into an empty stage: in rows %v\n%s", m.inRows, view(m))
 	}
@@ -71,7 +71,7 @@ func TestADocumentKitFlowCannotDecodeIsARefusal(t *testing.T) {
 
 // Page up inside an open row taller than the pane scrolls back through that row, the cursor staying on it.
 func TestPageUpInsideATallOpenRowScrollsBackThroughIt(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 12}, right, right, right, down, down, toggle,
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 12}, tab, tab, tab, down, down, toggle,
 		press(tea.KeyPgDown))
 	s := m.find("worktrees")
 	if s.Cursor != 1 || s.Offset == 0 {

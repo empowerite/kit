@@ -39,7 +39,7 @@ func TestAStagesRowsAreBuiltOnceForItsDataAndTheWidth(t *testing.T) {
 	i := slices.IndexFunc(m.stages, func(s stage) bool { return s.name == "backlog" })
 	first := m.rows(i)
 	_ = m.View()
-	m = drive(m, down, down, esc, right, left)
+	m = drive(m, down, down, esc, tab, backTab)
 	_ = m.View()
 	if again := m.rows(i); &again[0] != &first[0] {
 		t.Error("the rows were built again for the same data and width")
@@ -76,7 +76,7 @@ func TestADrawingOfThreeHundredIssuesIsWellUnderAFramesTime(t *testing.T) {
 		t.Errorf("a drawing takes %v, over %v", per, budget)
 	}
 	if per := best(func() {
-		next, _ := m.Update(right)
+		next, _ := m.Update(tab)
 		m = next.(Model)
 		_ = m.View()
 	}); per > budget {
@@ -109,7 +109,7 @@ func TestAStagesLinesAreDrawnOnceForWhatItShows(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 40})
 	m = drive(m, longWorktree(m, 100))
 	for m.stages[m.stage].name != "worktrees" {
-		m = drive(m, right)
+		m = drive(m, tab)
 	}
 	m = drive(intoRows(m), right)
 	first := m.allLines(m.stage)
@@ -142,7 +142,7 @@ func TestPagingThroughAWorktreeOfSevenHundredCommitsIsWellUnderAFramesTime(t *te
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 40})
 	m = drive(m, longWorktree(m, 700))
 	for m.stages[m.stage].name != "worktrees" {
-		m = drive(m, right)
+		m = drive(m, tab)
 	}
 	m = drive(m, down, right)
 	for _, key := range []tea.KeyPressMsg{press(tea.KeyPgDown), press(tea.KeyPgUp)} {

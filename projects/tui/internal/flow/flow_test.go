@@ -366,29 +366,29 @@ func TestLeftAndRightMoveAlongTheBarOnlyWhileItHasTheKeyboard(t *testing.T) {
 		t.Fatalf("the first stage is not selected:\n%s", view(m))
 	}
 	// left at the first stage stays there, and right at the last
-	m = drive(m, left)
+	m = drive(m, backTab)
 	if m.stage != 0 {
 		t.Errorf("left at the first stage: stage %d", m.stage)
 	}
-	if last := drive(m, right, right, right, right, right, right, right, right); last.stage != 7 {
+	if last := drive(m, tab, tab, tab, tab, tab, tab, tab, tab); last.stage != 7 {
 		t.Errorf("right at the last stage: stage %d", last.stage)
 	}
-	m = drive(m, right, right)
+	m = drive(m, tab, tab)
 	if mark, _ := style.In(stageColors["desk"]); m.stage != 2 || !strings.Contains(m.View().Content, Desk+" "+mark("desk")) {
 		t.Errorf("right twice: stage %d\n%s", m.stage, view(m))
 	}
 	// inside the rows, left and right are the rows' own, and move nothing
-	m = drive(m, right, down, down, right, left)
+	m = drive(m, tab, down, down, right, left)
 	if m.stage != 3 || !m.inRows {
 		t.Errorf("left and right inside the rows: stage %d, in rows %v", m.stage, m.inRows)
 	}
 	// esc gives the bar the keyboard back, and right moves again, onto the next stage's first row
-	m = drive(m, esc, right, down, down)
+	m = drive(m, esc, tab, down, down)
 	if m.stage != 4 || !strings.HasPrefix(cursor(m), "🔀 #2") {
 		t.Errorf("the next stage's first row is not under the cursor:\n%s", view(m))
 	}
 	// from changes, five to the right stops at the end: builds, incoming, releases, and there
-	m = drive(m, esc, right, right, right, right, right)
+	m = drive(m, esc, tab, tab, tab, tab, tab)
 	if m.stage != 7 {
 		t.Errorf("right past the end of the bar: %d", m.stage)
 	}
@@ -398,7 +398,7 @@ func TestLeftAndRightMoveAlongTheBarOnlyWhileItHasTheKeyboard(t *testing.T) {
 // a click on its ▸ opens it, and on its ▾ closes it. A click on a … line, on the legend, or off the pane does nothing.
 func TestAClickOnARowSelectsItAndAgainOpensOrClosesIt(t *testing.T) {
 	click := testkit.Click
-	m := loaded(t, bare(), right, right, right)
+	m := loaded(t, bare(), tab, tab, tab)
 	// the screen line the row is drawn on, as the person sees it
 	if y := slices.IndexFunc(strings.Split(raw(m), "\n"), func(l string) bool { return strings.Contains(l, "42-settings") }); y != m.rowsTop()+1 {
 		t.Fatalf("the second row is drawn on line %d, not %d", y, m.rowsTop()+1)
@@ -430,7 +430,7 @@ func TestAClickOnARowSelectsItAndAgainOpensOrClosesIt(t *testing.T) {
 		t.Errorf("the clicks changed the screen:\n%s", view(m))
 	}
 	// on a short pane, the … line above is no row's
-	m = loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 10}, right, right, right, down, down, down, down)
+	m = loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 10}, tab, tab, tab, down, down, down, down)
 	if m.find("worktrees").Cursor != 3 || !strings.Contains(lines(m)[m.rowsTop()], "above") {
 		t.Fatalf("the short pane: cursor %d\n%s", m.find("worktrees").Cursor, view(m))
 	}
@@ -464,7 +464,7 @@ func TestANumberOrAClickSelectsAStageFromAnywhere(t *testing.T) {
 }
 
 func TestDownEntersTheRowsAndUpOnTheFirstRowReturnsToTheBar(t *testing.T) {
-	m := loaded(t, options(), right, right, right)
+	m := loaded(t, options(), tab, tab, tab)
 	if m.inRows || cursor(m) != "" {
 		t.Fatalf("on the bar, a row has the focus:\n%s", view(m))
 	}
@@ -495,7 +495,7 @@ func TestDownEntersTheRowsAndUpOnTheFirstRowReturnsToTheBar(t *testing.T) {
 }
 
 func TestRightOpensARowAndLeftClosesIt(t *testing.T) {
-	m := loaded(t, options(), right, right, right, down, down, right)
+	m := loaded(t, options(), tab, tab, tab, down, down, right)
 	v := view(m)
 	for _, want := range []string{"f6f51bc #1 materialize", "… and 263 more", " M kit/bin/kit-flow",
 		"?? docs/flow.md"} {
@@ -520,7 +520,7 @@ func TestRightOpensARowAndLeftClosesIt(t *testing.T) {
 		t.Errorf("enter on the bar opened a row")
 	}
 	// an incoming row is a leaf
-	m = drive(m, right, right, down, toggle)
+	m = drive(m, tab, tab, down, toggle)
 	if n := len(lines(m)); n != 24 || len(m.find("incoming").Open) != 0 {
 		t.Errorf("a leaf opened: %d lines, open %v", n, m.find("incoming").Open)
 	}
@@ -529,7 +529,7 @@ func TestRightOpensARowAndLeftClosesIt(t *testing.T) {
 func TestRefreshAllRunsEveryStageAgain(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
-	m := loaded(t, options(), right, right, right, right, right, right, right, press('='), typed("r")[0])
+	m := loaded(t, options(), tab, tab, tab, tab, tab, tab, tab, press('='), typed("r")[0])
 	next, cmd := m.Update(press(tea.KeyEnter))
 	m = next.(Model)
 	// releases keeps its rows, stale, its dot on its tab, until the answer comes
@@ -548,7 +548,7 @@ func TestRefreshAllRunsEveryStageAgain(t *testing.T) {
 
 func TestARefusedStageShowsKitsLineAndRefreshTriesAgain(t *testing.T) {
 	t.Setenv("FAKE_FLOW_REFUSE", "changes")
-	m := loaded(t, options(), right, right, right, right)
+	m := loaded(t, options(), tab, tab, tab, tab)
 	v := view(m)
 	refusal := Failed + " kit flow changes: the forge cannot be read; run: kit help flow"
 	if !shows(m, Change, "!") || !strings.Contains(v, refusal) {
@@ -558,12 +558,12 @@ func TestARefusedStageShowsKitsLineAndRefreshTriesAgain(t *testing.T) {
 		t.Errorf("the refusal is not red")
 	}
 	// with no pull requests known, the worktrees show none
-	m = drive(m, left)
+	m = drive(m, backTab)
 	if v := strings.Join(lines(m)[4:], "\n"); strings.Contains(v, "no pull request yet") || strings.Contains(v, Change) {
 		t.Errorf("the worktrees claim pull requests after changes failed:\n%s", v)
 	}
 	t.Setenv("FAKE_FLOW_REFUSE", "")
-	m = drive(m, append([]tea.Msg{right}, refreshAll...)...)
+	m = drive(m, append([]tea.Msg{tab}, refreshAll...)...)
 	if v := view(m); !shows(m, Change, "3") || strings.Contains(v, "cannot be read") {
 		t.Errorf("Refresh All did not try again:\n%s", v)
 	}
@@ -588,7 +588,7 @@ func TestAStageThatDiesSilentlyIsARefusalNotAnEmptyStage(t *testing.T) {
 
 func TestADocumentOfAnotherShapeIsOneRefusalLine(t *testing.T) {
 	t.Setenv("FAKE_FLOW_ABOVE", "incoming")
-	m := loaded(t, options(), right, right, right, right, right, right)
+	m := loaded(t, options(), tab, tab, tab, tab, tab, tab)
 	v := view(m)
 	// the line wraps at the pane's width, as every refusal does
 	want := "kit flow incoming --json printed an array where an object of remotes was expected; run kit flow " +
@@ -607,7 +607,7 @@ func TestADocumentOfAnotherShapeIsOneRefusalLine(t *testing.T) {
 		t.Errorf("desks for backlog: %q\n%s", m.stages[0].refusal, v)
 	}
 	t.Setenv("FAKE_FLOW_ABOVE", "desk")
-	m = loaded(t, options(), right, right)
+	m = loaded(t, options(), tab, tab)
 	want = "kit flow desk --json printed an array where an object was expected; run kit flow inside a repository"
 	if m.find("desk").refusal != want || !shows(m, Desk, "!") || strings.Contains(view(m), Desk+" main") {
 		t.Errorf("desks above desks: %q\n%s", m.find("desk").refusal, view(m))
@@ -661,7 +661,7 @@ func TestQuitCodes(t *testing.T) {
 
 // Esc walks back from the rows to the bar and leaves the legend as it is: only F1 or ? takes it away.
 func TestEscWalksBackFromTheRowsToTheBarAndKeepsTheLegend(t *testing.T) {
-	m := loaded(t, options(), right, right, right, down, down, press('?'))
+	m := loaded(t, options(), tab, tab, tab, down, down, press('?'))
 	if !m.legend.open || !strings.Contains(view(m), "worktrees legend") {
 		t.Fatalf("? did not show the legend:\n%s", view(m))
 	}
@@ -717,7 +717,7 @@ func fit(keys string, room int) string {
 // keys, the stages' bar's, then the rows', each control's between rules; ? and F1 show the legend from anywhere.
 const (
 	screenKeys = "= menu - workspace / search ? legend │ "
-	barKeys    = screenKeys + "←→ tab ↓ groups 1-8 jump : tab menu"
+	barKeys    = screenKeys + "⇥·⇧⇥ tab ↓ groups 1-8 jump : tab menu"
 	inRows     = screenKeys + "1-8 jump : tab menu │ esc tabs ↑↓ move ␣·⇧↑↓ select ⌃A all"
 	opens      = inRows + " → expand"
 	closes     = inRows + " ← collapse"
@@ -737,9 +737,9 @@ func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
 		keys string
 	}{
 		{nil, barKeys},
-		{[]tea.Msg{right, right, right, down, down}, opens},
+		{[]tea.Msg{tab, tab, tab, down, down}, opens},
 		{[]tea.Msg{down, down, down, down, down}, opens},
-		{[]tea.Msg{right, right, right, down, down, right}, closes},
+		{[]tea.Msg{tab, tab, tab, down, down, right}, closes},
 		{[]tea.Msg{press('?')}, barKeys},
 		{[]tea.Msg{press('?'), press(tea.KeyPgDown)}, barKeys},
 	} {
@@ -763,7 +763,7 @@ func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
 	}
 	// at a width too narrow for it, the bar keeps the stages' bar's keys, after …, clipped, never wrapped
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 30, Height: 12})
-	if got := lines(m); len(got) != 12 || !strings.HasPrefix(got[11], " … │ ←→ tab ↓ groups ") ||
+	if got := lines(m); len(got) != 12 || !strings.HasPrefix(got[11], " … │ ⇥·⇧⇥ tab ↓ groups ") ||
 		ansi.StringWidth(got[11]) > 30 || !strings.HasSuffix(got[11], "…") {
 		t.Errorf("the bar at 30 columns: %q", got[len(got)-1])
 	}
@@ -773,7 +773,7 @@ func TestAStageThatOutlastsTheLimitIsARefusalAndRRunsItAgain(t *testing.T) {
 	t.Setenv("FAKE_FLOW_SLOW", "releases")
 	m := New(runner(t), options())
 	m.limit = 100 * time.Millisecond
-	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 24}, right, right, right, right, right, right, right)
+	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 24}, tab, tab, tab, tab, tab, tab, tab)
 	start := time.Now()
 	msg := m.load("releases", false)()
 	// the fake sleeps five seconds: the answer comes at the limit only when the sleep is killed with the kit
@@ -839,7 +839,7 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 	}
 	o := options()
 	o.NoFetch, o.Origin = true, Origin{}
-	m = loaded(t, o, right, right, right, right, right, right)
+	m = loaded(t, o, tab, tab, tab, tab, tab, tab)
 	if first := lines(m)[0]; first != "  "+shell.App+" kit flow · "+shell.Workspaces {
 		t.Errorf("the title with --no-fetch: %q", first)
 	}
@@ -871,7 +871,7 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 }
 
 func TestIncomingGroupsItsRowsByRemoteThePrimaryFirst(t *testing.T) {
-	m := loaded(t, options(), right, right, right, right, right, right)
+	m := loaded(t, options(), tab, tab, tab, tab, tab, tab)
 	want := []string{
 		Remote + " origin · github · github.com",
 		"a1b2c3d  #1 docs: the docs say what the code does",
@@ -937,7 +937,7 @@ func TestIncomingGroupsItsRowsByRemoteThePrimaryFirst(t *testing.T) {
 }
 
 func TestTheGoneBranchesAreOneRowThatOpensToEach(t *testing.T) {
-	m := loaded(t, options(), right, right, right, down, down, down, down, down, toggle)
+	m := loaded(t, options(), tab, tab, tab, down, down, down, down, down, toggle)
 	v := view(m)
 	for _, want := range []string{style.Opened + " " + Gone + " gone: old-experiment, 44-a-spike",
 		"      " + Gone + " old-experiment upstream gone · kit tidy removes it",
@@ -953,7 +953,7 @@ func TestTheGoneBranchesAreOneRowThatOpensToEach(t *testing.T) {
 
 func TestChangesCarryTheirChecksThreadsAndIssues(t *testing.T) {
 	// a change's row is wide: at 80 columns its right end is clipped, so the screen is wider here
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24}, right, right, right, right, down, down, toggle)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24}, tab, tab, tab, tab, down, down, toggle)
 	v := view(m)
 	// the checks of the failing one are cut at the cap, to give the title room
 	for _, want := range []string{style.Opened + " 🔀 #2", "jeffrey-aguilera  🏁 ready", Passed + " 1 / 1 3m",
@@ -988,7 +988,7 @@ func TestBacklogAndReleasesOpenToTheirDetail(t *testing.T) {
 		last(m.rows(0)[1].Cells).Link != "https://github.com/empowerite/kit/issues/45" {
 		t.Errorf("the backlog's links:\n%s", v)
 	}
-	m = loaded(t, options(), right, right, right, right, right, right, right, down, down, down, toggle)
+	m = loaded(t, options(), tab, tab, tab, tab, tab, tab, tab, down, down, down, toggle)
 	v = view(m)
 	for _, want := range []string{"0.2.0       " + Draft + " draft", "0.1.0       " + Release + " release",
 		Latest + " latest",
@@ -1004,7 +1004,7 @@ func TestBacklogAndReleasesOpenToTheirDetail(t *testing.T) {
 }
 
 func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
-	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 10}, right, right, right, down, down, down, down)
+	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 10}, tab, tab, tab, down, down, down, down)
 	got := lines(m)
 	if len(got) != 10 {
 		t.Fatalf("%d lines on a screen of 10:\n%s", len(got), view(m))
@@ -1080,7 +1080,7 @@ func everyLineFits(t *testing.T, width int, legend bool) {
 	}
 	for i := range eight {
 		if i > 0 {
-			m = drive(m, esc, right)
+			m = drive(m, esc, tab)
 		}
 		if m.stage != i {
 			t.Fatalf("at %d, legend %v: on stage %d, not %s's", width, legend, m.stage, eight[i])
@@ -1104,7 +1104,7 @@ func everyLineFits(t *testing.T, width int, legend bool) {
 func TestAnUnknownStageIsRefusedWithoutRunning(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
-	m := loaded(t, Options{Stages: []string{"worktrees", "nonesuch"}}, right)
+	m := loaded(t, Options{Stages: []string{"worktrees", "nonesuch"}}, tab)
 	if v := view(m); !strings.Contains(squeeze(v), "nonesuch !") ||
 		!strings.Contains(v, "kittui does not draw the stage 'nonesuch'") {
 		t.Errorf("the unknown stage:\n%s", v)
@@ -1173,7 +1173,7 @@ func TestAgeIsKitStatuss(t *testing.T) {
 }
 
 func TestAPaneTooShortSaysHowManyLinesAreAboveAndBelow(t *testing.T) {
-	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 11}, right, right, right, down, down, down, toggle)
+	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 11}, tab, tab, tab, down, down, down, toggle)
 	got := lines(m)
 	if len(got) != 11 || got[10] != " "+at80(keysFor(m, closes)) {
 		t.Fatalf("the screen is not 11 lines with the keys last:\n%s", view(m))
@@ -1184,14 +1184,14 @@ func TestAPaneTooShortSaysHowManyLinesAreAboveAndBelow(t *testing.T) {
 		t.Errorf("the open row is not shown between its … lines:\n%s", v)
 	}
 	// a pane that holds every line says nothing of the kind
-	m = loaded(t, options(), right, right, right)
+	m = loaded(t, options(), tab, tab, tab)
 	if strings.Contains(view(m), " above") || strings.Contains(view(m), " more") {
 		t.Errorf("a pane that fits says lines are hidden:\n%s", view(m))
 	}
 }
 
 func TestWorktreesShowTheirPullRequestsAndTheirUncommittedCountButNotTheDesk(t *testing.T) {
-	m := loaded(t, bare(), right, right, right)
+	m := loaded(t, bare(), tab, tab, tab)
 	rows := lines(m)[m.rowsTop() : m.rowsTop()+3]
 	for i, want := range [][]string{
 		{" 1-the-first-release-v0-1-0", "↑266 ↓0", "#2  🏁 ready", "3 uncommitted"},
@@ -1220,7 +1220,7 @@ func TestWorktreesShowTheirPullRequestsAndTheirUncommittedCountButNotTheDesk(t *
 }
 
 func TestTheDeskIsOneRowThatOpensToItsPathsThenItsCommits(t *testing.T) {
-	m := loaded(t, bare(), right, right)
+	m := loaded(t, bare(), tab, tab)
 	pane := lines(m)[m.rowsTop():]
 	for _, text := range []string{" main", "↑12 ↓1", "2 uncommitted"} {
 		if !strings.Contains(pane[0], text) {
@@ -1269,7 +1269,7 @@ func TestTheDeskIsOneRowThatOpensToItsPathsThenItsCommits(t *testing.T) {
 }
 
 func TestAnOpenCheckoutFillsThePaneAndPagesThroughEveryCommit(t *testing.T) {
-	m := loaded(t, options(), right, right, down, down, toggle, tea.WindowSizeMsg{Width: 80, Height: 13})
+	m := loaded(t, options(), tab, tab, down, down, toggle, tea.WindowSizeMsg{Width: 80, Height: 13})
 	got := lines(m)
 	// the pane runs to the keys bar, its last line, right over it, counting what is below
 	if len(got) != 13 || !strings.Contains(got[11], "more") {
@@ -1313,7 +1313,7 @@ func TestTheBarScrollsToTheSelectedStage(t *testing.T) {
 	if mark, _ := style.In(stageColors["backlog"]); !strings.Contains(m.View().Content, Issue+" "+mark("backlog")) {
 		t.Errorf("the selected name is not marked: %q", lines(m)[2])
 	}
-	m = drive(m, right, right, right, right, right, right, down)
+	m = drive(m, tab, tab, tab, tab, tab, tab, down)
 	dim, _, _ := strings.Cut(style.Off("x"), "x")
 	mark, _ := style.In(stageColors["incoming"])
 	if bar := strings.Split(m.View().Content, "\n")[2]; !strings.Contains(bar, mark("incoming")) ||
@@ -1336,7 +1336,7 @@ func TestTheBarScrollsToTheSelectedStage(t *testing.T) {
 
 func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testing.T) {
 	// worktrees is the fourth stage; its first row, opened, is taller than a pane on a short screen
-	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 120, Height: 12}, right, right, right, down, down, toggle)
+	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 120, Height: 12}, tab, tab, tab, down, down, toggle)
 	if m.stage != 3 || m.find("worktrees").Cursor != 1 || !strings.Contains(view(m), " more") {
 		t.Fatalf("the open row does not overflow the pane:\n%s", view(m))
 	}
@@ -1379,7 +1379,7 @@ func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testi
 
 func TestBuildsCarryTheirStateAndOpenToTheirCommitAttemptJobsFailedFirstThenTheirURL(t *testing.T) {
 	// builds is the seventh stage, between incoming and releases
-	m := loaded(t, bare(), right, right, right, right, right)
+	m := loaded(t, bare(), tab, tab, tab, tab, tab)
 	if m.stages[m.stage].name != "builds" || !shows(m, Build, "4") {
 		t.Fatalf("builds is not the seventh stage:\n%s", view(m))
 	}
@@ -1456,7 +1456,7 @@ func TestBuildsCarryTheirStateAndOpenToTheirCommitAttemptJobsFailedFirstThenThei
 
 func TestBuildsRefuseADocumentWithoutIDs(t *testing.T) {
 	t.Setenv("FAKE_FLOW_ABOVE", "builds")
-	m := loaded(t, options(), right, right, right, right, right)
+	m := loaded(t, options(), tab, tab, tab, tab, tab)
 	want := `kit flow builds --json printed an array of objects without "id" where an array of builds was ` +
 		"expected; run kit flow inside a repository"
 	if m.stages[5].refusal != want || !shows(m, Build, "!") {
@@ -1484,7 +1484,7 @@ func TestTookIsToTheSecond(t *testing.T) {
 
 func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	// underway is the second stage, between backlog and incoming
-	m := loaded(t, bare(), right)
+	m := loaded(t, bare(), tab)
 	// the source and labels columns have tests of their own
 	m.setPanel(m.panel(m.stage).Placed("source", grid.Hidden).Placed("labels", grid.Hidden))
 	asCatalog(&m, m.stage) // auto_test has what the screen chooses
@@ -1591,7 +1591,7 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 
 func TestUnderwayRefusesADocumentWithoutPullRequests(t *testing.T) {
 	t.Setenv("FAKE_FLOW_ABOVE", "underway")
-	m := loaded(t, options(), right)
+	m := loaded(t, options(), tab)
 	want := `kit flow underway --json printed an array of objects without "number" where an array of issues ` +
 		"underway was expected; run kit flow inside a repository"
 	if m.stages[1].refusal != want || !shows(m, InFlight, "!") {
@@ -1612,7 +1612,7 @@ func TestUnderwayRefusesADocumentWithoutPullRequests(t *testing.T) {
 // A click on underway's pull request glyph selects changes, the cursor on that pull request's row; a click on its
 // state's glyph opens its page; without changes in the picture, the pull request's glyph opens the page too.
 func TestUnderwaysPullRequestLeadsToItsRowUnderChangesAndItsStateToItsPage(t *testing.T) {
-	m := drive(intoRows(loaded(t, bare(), right)), down)
+	m := drive(intoRows(loaded(t, bare(), tab)), down)
 	at := func(m Model, glyph string) int {
 		return cellsOf(lines(m)[m.rowLine(m.find("underway").Cursor)], glyph)[0]
 	}
@@ -1638,7 +1638,7 @@ func TestUnderwaysPullRequestLeadsToItsRowUnderChangesAndItsStateToItsPage(t *te
 	// without changes, the pull request's glyph opens its page
 	o := options()
 	o.Stages = slices.DeleteFunc(slices.Clone(o.Stages), func(s string) bool { return s == "changes" })
-	m = loaded(t, o, right)
+	m = loaded(t, o, tab)
 	// the first row stands under the heading over the groups and source's value, as the view grouped it as it loaded
 	first := m.rows(1)[2]
 	link := ""
@@ -1674,7 +1674,7 @@ func TestBacklogAndUnderwaySayWhichTrackerHoldsEachIssue(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
 	for i, name := range []string{"backlog", "underway"} {
 		if i > 0 {
-			m = drive(m, right)
+			m = drive(m, tab)
 			folding(&m, true)
 			m.apply(m.chosen(m.stage))
 		}

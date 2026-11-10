@@ -53,7 +53,7 @@ func TestACheckOfAStepWithoutChecksShowsUnderTheLastStepThatHasThem(t *testing.T
 
 // Pages that make no step change nothing; pages without the selected step's select the first step, on the bar.
 func TestNewPagesWithoutTheSelectedStepSelectTheFirst(t *testing.T) {
-	m, _ := atBasics(t, esc, right, down)
+	m, _ := atBasics(t, esc, tabKey, down)
 	before := m.tabs
 	if m.setTabs(nil); len(m.tabs) != len(before) || m.step != chains || !m.inPane {
 		t.Fatalf("no pages changed the steps: %d steps, step %d", len(m.tabs), m.step)
@@ -97,7 +97,7 @@ func TestUpOnTheBarAndDownBeforeTheChecksAnswerDoNothing(t *testing.T) {
 		t.Errorf("up on the bar: in the pane %v, step %d", m.inPane, m.step)
 	}
 	m, _ = fake(t)
-	m = drive(m, at120, right, right, right, down)
+	m = drive(m, at120, tabKey, tabKey, tabKey, down)
 	if m.inPane {
 		t.Error("down entered the rows of a step whose checks have not answered")
 	}
@@ -125,7 +125,7 @@ func TestAStepWhoseChecksAnsweredWithNoneOfItsOwnShowsItsPageAlone(t *testing.T)
 			basicsOnly = append(basicsOnly, c)
 		}
 	}
-	m = drive(m, source.Answer[[]kit.Check]{Name: "checks", Value: basicsOnly}, right, right)
+	m = drive(m, source.Answer[[]kit.Check]{Name: "checks", Value: basicsOnly}, tabKey, tabKey)
 	if v := view(m); m.step != setup || strings.Contains(v, "checking…") || strings.Contains(v, "gh is not logged in") {
 		t.Errorf("setup with no checks of its own:\n%s", v)
 	}
@@ -134,7 +134,7 @@ func TestAStepWhoseChecksAnsweredWithNoneOfItsOwnShowsItsPageAlone(t *testing.T)
 // The pane scrolls back up to the cursor's row when its offset has gone past it, and leaves a cursor that is not on
 // the step as it is.
 func TestThePaneScrollsBackToTheCursorsRow(t *testing.T) {
-	m, _ := atBasics(t, tea.WindowSizeMsg{Width: 120, Height: 9}, esc, right, right, down)
+	m, _ := atBasics(t, tea.WindowSizeMsg{Width: 120, Height: 9}, esc, tabKey, tabKey, down)
 	if !m.inPane {
 		t.Fatal("not in the rows")
 	}

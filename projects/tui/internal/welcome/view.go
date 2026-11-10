@@ -108,7 +108,7 @@ func (m Model) keys() shell.Path {
 // it has selected; up and down move
 // between the rows, or scroll a page with none, a page at a time too, and home and end to the first and the last,
 // unnamed until a test shows the keys arrive in Terminal.app and iTerm; enter on a link goes to its check; and on a
-// check whose fix kit runs, left and right choose now or later, n and l take one at once, and enter the one chosen; on
+// check whose fix kit runs, tab and shift-tab choose now or later, n and l take one at once, and enter the one chosen; on
 // one whose fix kit only shows, l takes later.
 func (m Model) paneKeys() shell.Segment {
 	move := "move"
@@ -121,7 +121,7 @@ func (m Model) paneKeys() shell.Segment {
 	case m.onLink():
 		s.Bindings = append(s.Bindings, shell.Bind("⏎", "go to the check", "enter"))
 	case m.choosing():
-		s.Bindings = append(s.Bindings, shell.Bind("←→", "now or later", "left", "right"), shell.Bind("n", "now"),
+		s.Bindings = append(s.Bindings, shell.Bind("⇥·⇧⇥", "now or later", "tab", "shift+tab"), shell.Bind("n", "now"),
 			shell.Bind("l", "later"), shell.Bind("⏎", "choose", "enter"))
 	case m.showOnly():
 		s.Bindings = append(s.Bindings, shell.Bind("l", "later"))

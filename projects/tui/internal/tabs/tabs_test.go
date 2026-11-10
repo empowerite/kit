@@ -270,9 +270,9 @@ func TestTheViewStaysWhileTheSelectedTabShowsWhole(t *testing.T) {
 	b := stages(3, 60)
 	l := b.layout()
 	b.Scroll = l.scroll
-	b, _ = b.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	b, _ = b.Update(tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift})
 	if b.Selected != 2 || b.layout().scroll != l.scroll {
-		t.Errorf("left to a tab the view shows: tab %d, scroll %d, was %d", b.Selected, b.layout().scroll, l.scroll)
+		t.Errorf("shift-tab to a tab the view shows: tab %d, scroll %d, was %d", b.Selected, b.layout().scroll, l.scroll)
 	}
 	b.Selected = 7
 	if got := b.layout(); !got.shows(got.scroll, b.screen(), 7) {
@@ -280,19 +280,32 @@ func TestTheViewStaysWhileTheSelectedTabShowsWhole(t *testing.T) {
 	}
 }
 
-func TestLeftAndRightMoveOnlyWhileTheBarHasTheKeyboard(t *testing.T) {
+func TestTabAndShiftTabMoveOnlyWhileTheBarHasTheKeyboard(t *testing.T) {
 	b := stages(0, 80)
-	if got, ok := b.Update(tea.KeyPressMsg{Code: tea.KeyLeft}); !ok || got.Selected != 0 {
-		t.Errorf("left at the first tab: %d, %v", got.Selected, ok)
+	if got, ok := b.Update(tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}); !ok || got.Selected != 0 {
+		t.Errorf("shift-tab at the first tab: %d, %v", got.Selected, ok)
+	}
+	if got, ok := b.Update(tea.KeyPressMsg{Code: tea.KeyTab}); !ok || got.Selected != 1 {
+		t.Errorf("tab from the first tab: %d, %v", got.Selected, ok)
 	}
 	b.Selected = 7
-	if got, ok := b.Update(tea.KeyPressMsg{Code: tea.KeyRight}); !ok || got.Selected != 7 {
-		t.Errorf("right at the last tab: %d, %v", got.Selected, ok)
+	if got, ok := b.Update(tea.KeyPressMsg{Code: tea.KeyTab}); !ok || got.Selected != 7 {
+		t.Errorf("tab at the last tab: %d, %v", got.Selected, ok)
 	}
 	b.Selected = 0
 	b.Focused = false
-	if got, ok := b.Update(tea.KeyPressMsg{Code: tea.KeyRight}); ok || got.Selected != 0 {
-		t.Errorf("right without the keyboard: %d, %v", got.Selected, ok)
+	if got, ok := b.Update(tea.KeyPressMsg{Code: tea.KeyTab}); ok || got.Selected != 0 {
+		t.Errorf("tab without the keyboard: %d, %v", got.Selected, ok)
+	}
+}
+
+// Left and right fold and unfold, and nothing folds on the bar: they move nothing on it.
+func TestLeftAndRightAreNotTheBars(t *testing.T) {
+	b := stages(3, 80)
+	for _, k := range []tea.KeyPressMsg{{Code: tea.KeyLeft}, {Code: tea.KeyRight}} {
+		if got, ok := b.Update(k); ok || got.Selected != 3 {
+			t.Errorf("%s on the bar: %d, %v", k, got.Selected, ok)
+		}
 	}
 }
 
@@ -583,7 +596,7 @@ func TestTheBarNamesItsKeys(t *testing.T) {
 	}
 	b := stages(0, 120)
 	b.Focused, b.Menus = true, true
-	if got := keys(b, "preset"); got != "←→ tab, ↓ preset, 1-8 jump, : tab menu" {
+	if got := keys(b, "preset"); got != "⇥·⇧⇥ tab, ↓ preset, 1-8 jump, : tab menu" {
 		t.Errorf("focused, with menus: %q", got)
 	}
 	b.Focused, b.Menus = false, false

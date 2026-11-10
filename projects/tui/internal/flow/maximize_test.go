@@ -201,14 +201,14 @@ func TestANarrowTitleHidesTheKebabAndColonStillDropsTheMenu(t *testing.T) {
 
 func TestMaximizedTheKeysDropTheBars(t *testing.T) {
 	m := maximize(t, loaded(t, viewing("")))
-	if bar := lines(m)[len(lines(m))-1]; strings.Contains(bar, "←→") || !strings.Contains(bar, "1-8") ||
+	if bar := lines(m)[len(lines(m))-1]; strings.Contains(bar, "⇥·⇧⇥") || !strings.Contains(bar, "1-8") ||
 		!strings.Contains(bar, ": tab menu") || !strings.Contains(bar, "↓ groups") {
 		t.Errorf("the keys bar: %q", bar)
 	}
-	// left and right move along no bar, and change nothing
+	// tab and shift-tab move along no bar, nor left and right, and change nothing
 	before := raw(m)
-	if m = drive(m, right, right, left); m.stage != 0 || raw(m) != before {
-		t.Errorf("right and left moved to stage %d:\n%s", m.stage, raw(m))
+	if m = drive(m, tab, tab, backTab, right, left); m.stage != 0 || raw(m) != before {
+		t.Errorf("tab and the arrows moved to stage %d:\n%s", m.stage, raw(m))
 	}
 	// down reaches the preset line, and up from it leaves it
 	if m = drive(m, down); !m.onPreset {

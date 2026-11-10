@@ -1,6 +1,6 @@
 // Package flow is kit flow on a terminal: the stages as a tab bar, internal/tabs, the selected stage's rows under it,
 // and a row opened in place. It draws from kit flow <stage> --json and never parses kit's text. While the bar has the
-// keyboard, left and right move along it; a stage's number, or a click on the bar, selects it from anywhere and gives
+// keyboard, tab and shift-tab move along it, as they move between the stops on any line; a stage's number, or a click on the bar, selects it from anywhere and gives
 // the bar the keyboard. Down enters a stage's rows and up on the first row leaves them; in the rows, right opens a row
 // and left closes it, space selects it as one of several, shift with up or down selects as it moves, and ctrl+a selects
 // every row, and a click on a row puts the cursor there, and on the row under it opens or closes it; = drops the app's
@@ -395,10 +395,10 @@ func (m Model) onMenu(x, y int) bool {
 }
 
 // barTakes gives what the bar makes of a message, as its Update says, and whether it took it; while maximized, the bar
-// is not drawn, so a click is never on it, and left and right have no tabs to move along: it takes a tab's number
+// is not drawn, so a click is never on it, and tab and shift-tab have no tabs to move along: it takes a tab's number
 // alone.
 func (m Model) barTakes(msg tea.Msg) (tabs.Bar, bool) {
-	if k, ok := msg.(tea.KeyPressMsg); m.maximized && (!ok || k.String() == "left" || k.String() == "right") {
+	if k, ok := msg.(tea.KeyPressMsg); m.maximized && (!ok || k.String() == "tab" || k.String() == "shift+tab") {
 		return tabs.Bar{}, false
 	}
 	return m.bar().Update(msg)

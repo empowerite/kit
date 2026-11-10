@@ -15,7 +15,7 @@ import (
 func anyOf(t *testing.T) (Model, int) {
 	t.Helper()
 	m := newForm(t, "flow", Answers{Chosen: map[int]int{0: 0}}, false)
-	m = send(m, key("down"), key("down"), key("down"), key("right"), key("right"))
+	m = send(m, key("down"), key("down"), key("down"), key("tab"), key("tab"), key("space"))
 	i := slices.IndexFunc(m.fields, func(f Field) bool { return f.Kind == AnyOf && slices.Contains(f.Options, "--others") })
 	if i < 0 {
 		t.Fatalf("no any-of row: %s", kinds(m.fields))
@@ -23,15 +23,15 @@ func anyOf(t *testing.T) (Model, int) {
 	return m, i
 }
 
-// On an any-of row, the keys bar names the arrows across its flags and the space that turns one on; the flag under the
+// On an any-of row, the keys bar names tab and shift-tab across its flags and the space that turns one on; the flag under the
 // cursor is drawn inverse, and a flag on is drawn chosen, live and on a plain form alike.
 func TestAnAnyOfRowNamesItsKeysAndDrawsTheCursorAndWhatIsOn(t *testing.T) {
 	m, i := anyOf(t)
 	m = focusOn(m, i)
-	if bar := m.keys().String(); !strings.Contains(bar, "←→ option ␣ toggle") {
+	if bar := m.keys().String(); !strings.Contains(bar, "⇥·⇧⇥ option ␣ toggle") {
 		t.Errorf("the any-of row's keys: %q", bar)
 	}
-	m = send(m, key("right"), key("space"))
+	m = send(m, key("tab"), key("space"))
 	if v := m.View().Content; !strings.Contains(v, style.Cursor(style.Chosen("--others"))) {
 		t.Errorf("--others, on and under the cursor, is not drawn inverse and chosen")
 	}

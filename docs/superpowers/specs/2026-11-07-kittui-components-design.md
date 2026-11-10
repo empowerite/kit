@@ -206,6 +206,13 @@ These rules hold on every screen, in every control.
 - **Search works the same everywhere** (#97). `/` or a click on the search field gives it focus; typing filters as it
   goes; ⏎ or ↓ gives focus to the view and keeps the filter; esc does too; ⌃U clears the field; ⌃R recalls the past
   searches.
+- **Each key moves one way** (#128). ⇥ and ⇧⇥ move to the next and the previous stop on the line the keyboard is on,
+  stopping at its ends, or going on to the line after or before where the line is one field of several, as a form's
+  row of options does. A stop is anything on the line the keyboard can stand on: the tab bar's tabs, the heading's
+  levels and names and the preset picker after them, Welcome's now and later, Tutorials' cards, a row's options.
+  ↑ and ↓ move between rows, or to the line before or after: the tab bar, the control line, the rows, a form's
+  fields. ← and → fold and unfold, a row's level or a heading's, or the palette's purposes into a verb's page; where
+  nothing folds, they do nothing. Moving a cursor never chooses: on a one-of row ␣ chooses the option under it.
 - **⇞ and ⇟ come with Home and End** (#98). Wherever ⇞ and ⇟ page, Home goes to the first item and End to the last.
 - **Groups move by brackets** (#102). `[` and `]` move to the previous and the next group, `{` and `}` to the first and
   the last.
@@ -312,6 +319,8 @@ Watch, issue #88's third step, is built now as designed: it reads like `source`'
 - `kit x y` opens screen x on y: `kit flow <stage>` maximizes the stage, `kit tutorials <tutorial>` puts the cursor on
   its card, as `kit help <verb>` and `kit tui <verb>` already did (2026-11-09, #123).
 - An open row keeps its columns at a narrow width; a word wider than its column breaks inside it (2026-11-09, #105).
+- ⇥ and ⇧⇥ move along a line, ↑ and ↓ between lines, ← and → fold, on every screen: the tab bar takes ⇥ in place of
+  ←→, and a form's one-of row chooses on ␣, not as its cursor moves (2026-11-09, #128).
 
 ## Left to the builder
 

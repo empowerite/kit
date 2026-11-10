@@ -114,7 +114,7 @@ func (m Model) paneWidth() int { return max(1, m.width-1) }
 
 // keys gives the path to the keyboard, which the keys bar is drawn from: the screen, whose ? and F1 show or hide the
 // legend; the stages' bar, whose down reaches the preset line, or the rows where the stage has none, and which,
-// maximized, has no left or right; and the part the keyboard is in, the preset line, the rows, or the search.
+// maximized, has no tab or shift-tab; and the part the keyboard is in, the preset line, the rows, or the search.
 // An open menu, dialog, or field's popover takes every press, and is the path alone.
 func (m Model) keys() shell.Path {
 	// an open layer, the topmost, names its keys alone, as layers.go orders them
@@ -136,7 +136,7 @@ func (m Model) keys() shell.Path {
 	bar := m.bar().Keys(down)
 	if m.maximized {
 		// the bar is not there to move along
-		bar.Bindings = slices.DeleteFunc(bar.Bindings, func(b shell.Binding) bool { return b.Key == "←→" })
+		bar.Bindings = slices.DeleteFunc(bar.Bindings, func(b shell.Binding) bool { return b.Key == "⇥·⇧⇥" })
 	}
 	path := shell.Path{shell.WorkspaceScreenKeys(legend), bar}
 	switch {

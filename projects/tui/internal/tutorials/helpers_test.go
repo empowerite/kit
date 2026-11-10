@@ -34,12 +34,12 @@ var (
 func press(code rune) tea.KeyPressMsg { return tea.KeyPressMsg{Code: code} }
 
 var (
-	up    = press(tea.KeyUp)
-	down  = press(tea.KeyDown)
-	left  = press(tea.KeyLeft)
-	right = press(tea.KeyRight)
-	enter = press(tea.KeyEnter)
-	esc   = press(tea.KeyEscape)
+	up      = press(tea.KeyUp)
+	down    = press(tea.KeyDown)
+	backTab = tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}
+	tabKey  = press(tea.KeyTab)
+	enter   = press(tea.KeyEnter)
+	esc     = press(tea.KeyEscape)
 )
 
 // browser is what the screen asked the browser to open, and why it fails, when it does.

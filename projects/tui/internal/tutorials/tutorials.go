@@ -8,10 +8,11 @@
 // under the cursor is drawn in the menus' bright cyan, and the pane scrolls a row of cards at a time so that card is
 // always whole. A tab with no tutorial says so.
 //
-// The cards have the keyboard as the screen opens. The arrows move the cursor between them: left and right in reading
-// order, on along the next row; up and down a column, down to the last card from a row it is not under; and up from the
+// The cards have the keyboard as the screen opens. Tab and shift-tab move the cursor between them, its stops, in
+// reading order, on along the next row, as they move between the stops on any line; up and down a column, down to the last card from a row it is not under; and up from the
 // first row, or esc, gives the bar the keyboard. Enter opens the tutorial under the cursor in the browser, and a click
-// on a card opens that one. The bar is internal/tabs: while it has the keyboard, left and right move between the tabs,
+// on a card opens that one; left and right, which fold and unfold, have nothing to fold. The bar is internal/tabs: while
+// it has the keyboard, tab and shift-tab move between the tabs,
 // and down or enter gives the cards the keyboard, on a tab that has some; a tab's number, 1 to 9, or a click on it,
 // selects it from anywhere and gives the bar the keyboard. = or a click on the = drops the app's menu down, and - or a
 // click on the workspace menu after the screen's name drops it down, as on every screen. The search
@@ -334,9 +335,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case k.String() == "esc":
 		m.inPane = false
 	case n == 0:
-	case k.String() == "left":
+	case k.String() == "shift+tab":
 		m.cursor = max(m.cursor-1, 0)
-	case k.String() == "right":
+	case k.String() == "tab":
 		m.cursor = min(m.cursor+1, n-1)
 	case k.String() == "up" && m.cursor < cols:
 		m.inPane = false

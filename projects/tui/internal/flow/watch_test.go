@@ -82,7 +82,7 @@ func TestWatchInTheTabsMenuWatchesTheStageThenReadsStopWatching(t *testing.T) {
 		m.watchedText() != style.Tint(Unwatched+" watching") {
 		t.Errorf("the keys bar while the stage is watched: %q", last)
 	}
-	if n := drive(m, right); strings.Contains(lines(n)[len(lines(n))-1], "watching") {
+	if n := drive(m, tab); strings.Contains(lines(n)[len(lines(n))-1], "watching") {
 		t.Errorf("the keys bar on a stage not watched: %q", lines(n)[len(lines(n))-1])
 	}
 	// one stage watched: both of the app's Watch lines act

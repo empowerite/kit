@@ -358,7 +358,7 @@ func (d *drawer) row(i int, lead string) {
 		if on(k) {
 			text = d.st.Chosen(f.Options[k])
 		}
-		if i == d.focus && k == d.cursor && f.Kind == AnyOf {
+		if i == d.focus && k == d.cursor {
 			text = d.st.Cursor(text)
 		}
 		return text

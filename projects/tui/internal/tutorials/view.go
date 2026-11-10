@@ -103,8 +103,8 @@ func (m Model) bar() tabs.Bar {
 
 // keys gives the path to the keyboard, which the key hints are drawn from: the screen, whose = drops the app's menu
 // down and / gives the search focus; the bar, whose down enters the cards where the tab has some; and the search while
-// it has focus, or the cards while they have it: esc gives the bar the keyboard, named by the tab it has selected, the
-// arrows move, and enter opens. An open menu takes every press, and is the path alone.
+// it has focus, or the cards while they have it: esc gives the bar the keyboard, named by the tab it has selected, up
+// and down move between the rows of cards, tab and shift-tab between the cards, and enter opens. An open menu takes every press, and is the path alone.
 func (m Model) keys() shell.Path {
 	if m.appMenu.Open || m.recent.Open || m.books.Open {
 		return shell.Path{shell.MenuKeys()}
@@ -119,7 +119,8 @@ func (m Model) keys() shell.Path {
 	}
 	if m.focused() {
 		path = append(path, shell.Segment{Bindings: []shell.Binding{shell.Bind("esc", "tabs"),
-			shell.Bind("←→↑↓", "move", "left", "right", "up", "down"), shell.Bind("⏎", "open", "enter")}})
+			shell.Bind("↑↓", "move", "up", "down"),
+			shell.Bind("⇥·⇧⇥", "card", "tab", "shift+tab"), shell.Bind("⏎", "open", "enter")}})
 	}
 	return path
 }

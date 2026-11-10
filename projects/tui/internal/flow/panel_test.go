@@ -252,7 +252,7 @@ func TestAColumnNoRowFillsHasNoCheckbox(t *testing.T) {
 }
 
 func TestTheWheelScrollsTheRowsAndLeavesTheCursor(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 9}, right, right, right, down)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 9}, tab, tab, tab, down)
 	turn := func(b tea.MouseButton) tea.Msg { return tea.MouseWheelMsg{X: 10, Y: m.headerTop() + 1, Button: b} }
 	if m = drive(m, turn(tea.MouseWheelDown)); m.find("worktrees").Offset == 0 || m.find("worktrees").Cursor != 0 {
 		t.Fatalf("the wheel down: offset %d, cursor %d\n%s", m.find("worktrees").Offset, m.find("worktrees").Cursor, view(m))
@@ -301,7 +301,7 @@ func TestSortByInAColumnsMenuSortsTheRows(t *testing.T) {
 	}
 	// builds' commit does not sort
 	m = drive(m, esc)
-	m = drive(m, slices.Repeat([]tea.Msg{right}, 5)...)
+	m = drive(m, slices.Repeat([]tea.Msg{tab}, 5)...)
 	if m = drive(m, testkit.Click(at("commit"), m.headerTop())); m.colMenu.Enabled(&m, m.colMenu.LineOf(&m, table.ActUp)) || m.colMenu.At <= m.colMenu.LineOf(&m, table.ActUnsorted) ||
 		m.stages[m.stage].name != "builds" {
 		t.Errorf("commit's menu sorts: %+v", m.colMenu)
@@ -312,7 +312,7 @@ func TestSortByInAColumnsMenuSortsTheRows(t *testing.T) {
 // leaves the header and the rows, whose heading names its value, and the rows and the header stand in two cells a
 // level, a click on a name finding its column there.
 func TestGroupingNestsAndIndentsTheRows(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, tab)
 	m.setPanel(regroup(m.panel(m.stage)))
 	m.cols = table.Columns{Open: true}
 	for _, id := range []string{"source", "assignees"} {
@@ -346,7 +346,7 @@ func TestGroupingNestsAndIndentsTheRows(t *testing.T) {
 // within the groups there are. The same click, or a right click, on a group's heading stops grouping by its column
 // alone, the other groups kept; on a row, it does nothing.
 func TestACtrlClickGroupsAndOnAHeadingUngroups(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, tab)
 	unfold(&m) // the source, one tracker's on every row, a column
 	at := func(name string) int { return strings.Index(lines(m)[m.headerTop()], name) }
 	heading := func(text string) int {
@@ -381,7 +381,7 @@ func TestACtrlClickGroupsAndOnAHeadingUngroups(t *testing.T) {
 // Underway groups by change: the issues one pull request carries stand under its heading, and those without one under
 // none.
 func TestUnderwayGroupsByChange(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, tab)
 	m.setPanel(regroup(m.panel(m.stage), "change"))
 	if got := m.panel(m.stage).Groups(); !slices.Equal(got, []string{"change"}) {
 		t.Fatalf("grouped by change: %q", got)
@@ -403,7 +403,7 @@ func TestUnderwayGroupsByChange(t *testing.T) {
 // rows loaded again, change nothing, and Ungroup ungroups it for good. Setting the view again groups again; with
 // kittui's setting, Auto-group, off, a view set groups nothing.
 func TestAViewAsItLoadsGroupsByAColumnTheSameOnEveryRow(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, tab)
 	heading := func(m Model) string {
 		if rows := m.rows(m.stage); len(rows) > 1 && grid.OverGroups(rows[0]) {
 			return ansi.Strip(rows[0].Cells[0].Values[0])
@@ -447,7 +447,7 @@ func TestAViewAsItLoadsGroupsByAColumnTheSameOnEveryRow(t *testing.T) {
 // heading, and a click on its ▾ or ▸, and there alone, does either; ▾ turns ▸, the keys say which, and the tab's count
 // stays the rows the panel lets through, folded or not. The heading over the groups never folds.
 func TestAGroupsHeadingFoldsAndUnfoldsItsRows(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, right)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, tab)
 	count, rows := m.count(m.stage), len(m.rows(m.stage))
 	// left on the heading over the groups folds nothing
 	m.stages[m.stage].Cursor, m.inRows = 0, true
@@ -582,7 +582,7 @@ func TestAFieldsPopoverFiltersAndDrawsIt(t *testing.T) {
 		t.Errorf("a click off the popover: open %v", m.pop.Open)
 	}
 	// an enum's values are the catalog's, with their glyphs, then none
-	m = popoverOf(drive(m, esc, esc, right), "state")
+	m = popoverOf(drive(m, esc, esc, tab), "state")
 	if v := view(m); m.pop.Field != "state" || !strings.Contains(v, grid.Unticked+" 🔨 draft") ||
 		!strings.Contains(v, grid.Unticked+" 🏁 ready") || !strings.Contains(v, grid.Unticked+" none") {
 		t.Errorf("state's popover:\n%s", v)

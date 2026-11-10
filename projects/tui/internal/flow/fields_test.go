@@ -272,7 +272,7 @@ func TestAnIssuesOrganizationAndRepositoryAreFields(t *testing.T) {
 	if n := table.Counted(m.every(0)); n != 1 {
 		t.Errorf("a filter on jig lets %d rows through", n)
 	}
-	m = drive(m, right)
+	m = drive(m, tab)
 	if got := m.records(m.stages[m.stage])[0].values["organization"].Raw; !slices.Equal(got, []string{"empowerite"}) {
 		t.Errorf("underway's organization: %q", got)
 	}

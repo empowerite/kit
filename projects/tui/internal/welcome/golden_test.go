@@ -18,9 +18,9 @@ func TestGoldenViews(t *testing.T) {
 		"intro-links.golden":     {down, down},
 		"basics.golden":          {down, enter},
 		"basics-later.golden":    {down, enter, press('l')},
-		"toolchains.golden":      {right, right, down},
-		"setup.golden":           {right, right, right, down},
-		"lay-of-the-land.golden": {right, right, right, right},
+		"toolchains.golden":      {tabKey, tabKey, down},
+		"setup.golden":           {tabKey, tabKey, tabKey, down},
+		"lay-of-the-land.golden": {tabKey, tabKey, tabKey, tabKey},
 		"terms.golden":           {press('6')},
 		"make-it-yours.golden":   {press('7')},
 	} {

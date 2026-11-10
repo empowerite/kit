@@ -27,7 +27,7 @@ func TestGoldenViews(t *testing.T) {
 		}
 		m := loaded(t, viewing(""), size)
 		for range i {
-			m = drive(m, right)
+			m = drive(m, tab)
 		}
 		testkit.Golden(t, filepath.Join("testdata", name+".golden"), raw(m))
 		// down reaches the control line first, where the stage has one, then the rows, their first opened
@@ -40,7 +40,7 @@ func TestGoldenViews(t *testing.T) {
 	golden("legend.golden", at80, press('?'))
 	golden("bar-120.golden", tea.WindowSizeMsg{Width: 120, Height: 24})
 	golden("legend-120.golden", tea.WindowSizeMsg{Width: 120, Height: 32}, press('?'))
-	toChanges := []tea.Msg{press('?'), right, right, right, right}
+	toChanges := []tea.Msg{press('?'), tab, tab, tab, tab}
 	golden("legend-120-changes.golden", append([]tea.Msg{tea.WindowSizeMsg{Width: 120, Height: 32}}, toChanges...)...)
 	golden("legend-80-changes.golden", append([]tea.Msg{tea.WindowSizeMsg{Width: 80, Height: 32}}, toChanges...)...)
 	golden("legend-200.golden", tea.WindowSizeMsg{Width: 200, Height: 32}, press('?'))

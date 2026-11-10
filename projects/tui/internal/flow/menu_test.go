@@ -31,7 +31,7 @@ func openRows(m Model) int {
 }
 
 func TestColonDropsTheTabsMenuDownAndItOpensOrClosesEveryRow(t *testing.T) {
-	m := loaded(t, options(), right, right, right, press(':'))
+	m := loaded(t, options(), tab, tab, tab, press(':'))
 	if !m.tabMenu.Open || m.appMenu.Open || lines(m)[23] != " "+menuKeys ||
 		!strings.Contains(view(m), "│ "+Expand+" Expand All ") || strings.Contains(view(m), "Settings") {
 		t.Fatalf(": did not drop the tab's menu down:\n%s", view(m))
@@ -139,7 +139,7 @@ func TestEqualsDropsTheAppsMenuDownToRefreshAnotherScreenOrQuit(t *testing.T) {
 // On incoming, where no row hides anything, the keyboard starts on maximize, as everywhere, and expand all and collapse
 // all, dim, are never under it.
 func TestTheMenuOfAStageWithNothingToOpenHasRefreshAlone(t *testing.T) {
-	m := loaded(t, options(), slices.Repeat([]tea.Msg{right}, 6)...)
+	m := loaded(t, options(), slices.Repeat([]tea.Msg{tab}, 6)...)
 	if m = drive(m, press(':'), down, up, typed("e")[0]); !m.tabMenu.Open || m.tabMenu.At != 0 || m.enabled(4) || m.enabled(5) {
 		t.Errorf("on %s the keyboard is on %d:\n%s", m.stages[m.stage].name, m.tabMenu.At, view(m))
 	}
@@ -154,7 +154,7 @@ func TestTheMenuOfAStageWithNothingToOpenHasRefreshAlone(t *testing.T) {
 }
 
 func TestAClickOnTheMenuGlyphDropsItDownAndAClickChoosesOrCloses(t *testing.T) {
-	m := loaded(t, options(), right, right, right)
+	m := loaded(t, options(), tab, tab, tab)
 	glyph := testkit.Click(m.bar().MenuAt(), m.bar().Row+1)
 	if m = drive(m, glyph); !m.tabMenu.Open {
 		t.Fatalf("a click on the menu glyph:\n%s", view(m))
@@ -182,7 +182,7 @@ func TestAClickOnTheMenuGlyphDropsItDownAndAClickChoosesOrCloses(t *testing.T) {
 // A click anywhere on the selected tab, its number as well as its :, on any of the bar's lines, drops its menu down; a
 // click on the tab before it selects that one, its menu closed.
 func TestAClickAnywhereOnTheSelectedTabDropsItsMenu(t *testing.T) {
-	m := loaded(t, options(), right, right, right)
+	m := loaded(t, options(), tab, tab, tab)
 	b := m.bar()
 	first := -1
 	for x := range m.width {
@@ -252,7 +252,7 @@ func TestTheMenuOnTheRightmostTabEndsUnderTheGlyphAndLeavesTheRestInPlace(t *tes
 					t.Errorf("at %d, legend %v, tab %d: the box spans %d to %d, the glyph at %d:\n%s", width, legend, i,
 						left, end-1, glyph, view(m))
 				}
-				m = drive(m, esc, right)
+				m = drive(m, esc, tab)
 			}
 		}
 	}
@@ -271,7 +271,7 @@ func TestTheMenuOnTheRightmostTabEndsUnderTheGlyphAndLeavesTheRestInPlace(t *tes
 func TestAfterExpandAllTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T) {
 	wheel := tea.MouseWheelMsg{X: 10, Y: Model{}.top() + 2, Button: tea.MouseWheelDown}
 	size := tea.WindowSizeMsg{Width: 100, Height: 12}
-	m := loaded(t, options(), size, right, right, right, press(':'), typed("e")[0], press(tea.KeyEnter), wheel)
+	m := loaded(t, options(), size, tab, tab, tab, press(':'), typed("e")[0], press(tea.KeyEnter), wheel)
 	pinned := func(m Model) int { return m.rowLine(m.stages[m.stage].Cursor) }
 	if s := m.stages[m.stage]; !m.inRows || s.Offset == 0 || pinned(m) != m.headerTop()+2 ||
 		!strings.HasPrefix(lines(m)[pinned(m)], "  "+style.Opened) {
@@ -281,7 +281,7 @@ func TestAfterExpandAllTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T
 	if m = drive(m, left); openRows(m) != opened-1 || m.stages[m.stage].name != "worktrees" {
 		t.Errorf("left after expand all: open %d of %d, on %s", openRows(m), opened, m.stages[m.stage].name)
 	}
-	m = loaded(t, options(), size, right, right, right, press(':'), typed("e")[0], press(tea.KeyEnter), wheel)
+	m = loaded(t, options(), size, tab, tab, tab, press(':'), typed("e")[0], press(tea.KeyEnter), wheel)
 	if m = drive(m, testkit.Click(table.FoldCell, pinned(m))); openRows(m) != opened-1 {
 		t.Errorf("a click on the pinned line: open %d of %d:\n%s", openRows(m), opened, view(m))
 	}
@@ -291,7 +291,7 @@ func TestAfterExpandAllTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T
 // has no item to hide them: a header that never scrolls, a thin dim line under it, and no row of its own, so a click
 // on it chooses nothing. Incoming, whose rows are no columns, has none.
 func TestTheHeaderStandsTheColumnsNamesOverTheRows(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 10}, right, right, right)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 10}, tab, tab, tab)
 	if slices.ContainsFunc(m.tabItems(), func(i shell.Item) bool { return strings.Contains(i.Name, "Header") }) {
 		t.Errorf("the tab's menu offers the headers: %+v", m.tabItems())
 	}
@@ -318,7 +318,7 @@ func TestTheHeaderStandsTheColumnsNamesOverTheRows(t *testing.T) {
 	if strings.Contains(lines(m)[m.headerTop()], "uncommitted") {
 		t.Errorf("a hidden column's name:\n%s", view(m))
 	}
-	m = loaded(t, options(), slices.Repeat([]tea.Msg{right}, 6)...)
+	m = loaded(t, options(), slices.Repeat([]tea.Msg{tab}, 6)...)
 	if m.stages[m.stage].name != "incoming" || m.headerTop() != -1 {
 		t.Errorf("%s has a header:\n%s", m.stages[m.stage].name, view(m))
 	}
@@ -459,7 +459,7 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 
 // With rows selected, the tab's menu expands and collapses the selected rows alone, and collapses the others.
 func TestExpandAndCollapseActOnTheSelectedRowsWhenThereAreAny(t *testing.T) {
-	m := loaded(t, options(), right, right, right, down, down, press(tea.KeySpace), press(':'))
+	m := loaded(t, options(), tab, tab, tab, down, down, press(tea.KeySpace), press(':'))
 	if m.tabItems()[4].Name != "Expand Selected" || m.tabItems()[5].Name != "Collapse Selected" || m.enabled(5) {
 		t.Fatalf("the items with a row selected: %+v", m.tabItems()[4:6])
 	}

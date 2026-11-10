@@ -84,7 +84,7 @@ func opened(t *testing.T, i int) Model {
 	t.Helper()
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 200, Height: 80}, press('?'))
 	for range i {
-		m = drive(m, right)
+		m = drive(m, tab)
 	}
 	for range m.rows(i) {
 		m = drive(m, down, toggle)
@@ -159,7 +159,7 @@ func TestTheLegendFloatsInACornerWithTheGlyphsOnTheScreen(t *testing.T) {
 		m := loaded(t, options(), tea.WindowSizeMsg{Width: width, Height: 40}, tea.KeyPressMsg{Code: tea.KeyF1})
 		for i, name := range eight {
 			if i > 0 {
-				m = drive(m, right)
+				m = drive(m, tab)
 			}
 			box, top, left := m.legendBox()
 			drawn := m.drawn()
@@ -334,7 +334,7 @@ func TestTheSelectedTabIsDrawnInItsGroupsColor(t *testing.T) {
 		if !strings.Contains(bar[1], mark(name)) || !strings.Contains(bar[2], open+"─") {
 			t.Errorf("tab %d, %s, is not drawn in its group's color, %s", i, name, stageColors[name])
 		}
-		m = drive(m, right)
+		m = drive(m, tab)
 	}
 	if stageColors["backlog"] != stageColors["underway"] || stageColors["backlog"] == stageColors["desk"] {
 		t.Errorf("the groups' colors: %v", stageColors)

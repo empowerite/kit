@@ -39,20 +39,21 @@ func focusOn(m Model, i int) Model {
 	return m
 }
 
-// A flag on its own flips on the space and on either arrow, and Enter, down, and tab move on; up and shift-tab move
-// back, never past the first field.
-func TestAToggleFlipsOnTheSpaceAndTheArrows(t *testing.T) {
+// A flag on its own flips on the space, and the arrows, which fold and unfold, leave it; Enter, down, and tab move on;
+// up and shift-tab move back, never past the first field.
+func TestAToggleFlipsOnTheSpace(t *testing.T) {
 	m := focusOn(newForm(t, "commit", Answers{}, true), 0)
 	on := func(m Model) bool { return slices.Contains(m.CommandLine(), "--all") }
 	if m = send(m, key("space")); !on(m) {
 		t.Fatalf("space did not turn --all on: %q", m.CommandLine())
 	}
-	if m = send(m, key("left")); on(m) {
-		t.Errorf("left did not turn --all off: %q", m.CommandLine())
+	if m = send(m, key("left"), key("right")); !on(m) {
+		t.Errorf("an arrow turned --all off: %q", m.CommandLine())
 	}
-	if m = send(m, key("right")); !on(m) {
-		t.Errorf("right did not turn --all on: %q", m.CommandLine())
+	if m = send(m, key("space")); on(m) {
+		t.Errorf("space did not turn --all off: %q", m.CommandLine())
 	}
+	m = send(m, key("space"))
 	for _, msg := range []tea.Msg{key("enter"), key("down"), tab} {
 		m.focus = 0
 		if m = send(m, msg); m.focus != 1 {

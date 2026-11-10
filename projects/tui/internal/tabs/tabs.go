@@ -19,8 +19,9 @@
 // wherever the keyboard is; while the pane under the bar has it, the other tabs are dim, all but a count that wants
 // attention. Widths are terminal cells, so a two-cell glyph never pushes the line past the edge.
 //
-// The bar holds no state of its own: a screen builds it from its own, each time, and reads back what Update chose. Left
-// and right move along it while it has the keyboard, and stop at its ends; a number, 1 to 9 or 0 for the tenth, typed,
+// The bar holds no state of its own: a screen builds it from its own, each time, and reads back what Update chose. Tab
+// and shift-tab move along it while it has the keyboard, as they move between the stops on any line, and stop at its
+// ends; left and right, which fold and unfold, have nothing to fold on it; a number, 1 to 9 or 0 for the tenth, typed,
 // on the keypad, with alt, or with super, which a terminal that reports it sends for command, selects that tab from
 // anywhere, as a click on the bar does, and gives the bar the keyboard; a click on a triangle scrolls the view, and
 // leaves the selected tab and the keyboard as they were.
@@ -94,8 +95,8 @@ type Bar struct {
 	Stale    []bool
 }
 
-// Update takes a message the bar acts on, and says whether it did: left and right while the bar has the keyboard, at an
-// end too, where they move nothing; a number that names a tab; and a left click on any of the bar's lines. A number
+// Update takes a message the bar acts on, and says whether it did: tab and shift-tab while the bar has the keyboard, at
+// an end too, where they move nothing; a number that names a tab; and a left click on any of the bar's lines. A number
 // and a click give the bar the keyboard.
 func (b Bar) Update(msg tea.Msg) (Bar, bool) {
 	n := len(b.Tabs)
@@ -105,10 +106,10 @@ func (b Bar) Update(msg tea.Msg) (Bar, bool) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		switch k := msg.String(); {
-		case b.Focused && k == "left":
+		case b.Focused && k == "shift+tab":
 			b.Scroll, b.Selected = b.layout().scroll, max(b.Selected-1, 0)
 			return b, true
-		case b.Focused && k == "right":
+		case b.Focused && k == "tab":
 			b.Scroll, b.Selected = b.layout().scroll, min(b.Selected+1, n-1)
 			return b, true
 		}
@@ -146,7 +147,7 @@ func (b Bar) Update(msg tea.Msg) (Bar, bool) {
 	return b, false
 }
 
-// Keys gives the bar's segment of the keys bar: while it has the keyboard, left and right move along it, and down, when
+// Keys gives the bar's segment of the keys bar: while it has the keyboard, tab and shift-tab move along it, and down, when
 // it says what down enters, enters it; a tab's number selects it from anywhere; and where the bar has menus, : or ;
 // drops the selected tab's down, as the screen takes it.
 func (b Bar) Keys(down string) shell.Segment {
@@ -155,7 +156,7 @@ func (b Bar) Keys(down string) shell.Segment {
 		return s
 	}
 	if b.Focused {
-		s.Bindings = append(s.Bindings, shell.Bind("←→", "tab", "left", "right"))
+		s.Bindings = append(s.Bindings, shell.Bind("⇥·⇧⇥", "tab", "tab", "shift+tab"))
 		if down != "" {
 			s.Bindings = append(s.Bindings, shell.Bind("↓", down, "down"))
 		}

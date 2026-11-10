@@ -208,7 +208,7 @@ func TestTheOutlinesKeysWithNothingToActOn(t *testing.T) {
 		tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModAlt}, press(tea.KeySpace)); len(m.rows(0)) != 0 || m.selected() != 0 {
 		t.Errorf("keys over no rows: %d rows, %d selected", len(m.rows(0)), m.selected())
 	}
-	m = loaded(t, options(), slices.Repeat([]tea.Msg{right}, 6)...)
+	m = loaded(t, options(), slices.Repeat([]tea.Msg{tab}, 6)...)
 	// under the heading over the rows, which group by nothing, the first row is a remote's aside
 	first := table.First(m.rows(m.stage))
 	if m.stages[m.stage].name != "incoming" || !m.rows(m.stage)[first].Aside || grid.Heads(m.rows(m.stage)[first]) {

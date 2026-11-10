@@ -81,7 +81,7 @@ func TestTheBacklogsActionsAreInItsMenuDimUntilIssuesAreSelected(t *testing.T) {
 		t.Errorf("the last section: %+v", got)
 	}
 	// another tab offers none of them, even with rows selected there
-	m = drive(m, esc, right, down, press(tea.KeySpace))
+	m = drive(m, esc, tab, down, press(tea.KeySpace))
 	if item(m, "Assign to Me") >= 0 {
 		t.Error("underway offers the backlog's actions")
 	}

@@ -21,7 +21,7 @@ func to(t *testing.T, m Model, name string) Model {
 		if m.stages[m.stage].name == name {
 			return m
 		}
-		m = drive(m, right)
+		m = drive(m, tab)
 	}
 	t.Fatalf("no stage %s", name)
 	return m

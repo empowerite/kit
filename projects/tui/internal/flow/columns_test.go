@@ -151,7 +151,7 @@ func TestTheColumnsDialogAppliesAtOnce(t *testing.T) {
 	}
 	// builds' commit does not sort: its sort cell is blank, and s changes nothing
 	m = drive(m, esc)
-	m = drive(m, slices.Repeat([]tea.Msg{right}, 5)...)
+	m = drive(m, slices.Repeat([]tea.Msg{tab}, 5)...)
 	m.cols = table.Columns{Open: true}
 	at("commit")
 	if m.stages[m.stage].name != "builds" || strings.TrimSpace(ansi.Strip(m.cols.Line(&m, "commit"))[len("☑ ")+table.LabelCells:]) != "" {

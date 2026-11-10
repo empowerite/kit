@@ -42,6 +42,10 @@ func key(name string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyLeft}
 	case "right":
 		return tea.KeyPressMsg{Code: tea.KeyRight}
+	case "tab":
+		return tea.KeyPressMsg{Code: tea.KeyTab}
+	case "shift+tab":
+		return tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}
 	case "ctrl+c":
 		return tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
 	case "ctrl+n":
@@ -101,7 +105,7 @@ func TestKeyboardLandsOnTheFirstEmptyRequiredField(t *testing.T) {
 	if m.focus != 1 {
 		t.Errorf("focus = %d", m.focus)
 	}
-	m, _ = drive(t, m, keys("right")...)
+	m, _ = drive(t, m, keys("tab", "space")...)
 	m, _ = drive(t, m, keys("down")...)
 	m, _ = drive(t, m, testkit.Typed("#1 tui: x")...)
 	if got := strings.Join(m.CommandLine(), "\x00"); got != "--message\x00#1 tui: x" {
@@ -109,12 +113,29 @@ func TestKeyboardLandsOnTheFirstEmptyRequiredField(t *testing.T) {
 	}
 }
 
-func TestOneOfArrows(t *testing.T) {
+// On a one-of row, tab and shift-tab move the cursor between its options, the stops on its line, choosing none; the
+// space chooses the one under it, and enter too, going on; tab past the last goes on to the next field, and shift-tab
+// before the first back to the one before.
+func TestOneOfTabsAndChoosesOnTheSpace(t *testing.T) {
 	m := newForm(t, "packages", Answers{}, false)
-	m, _ = drive(t, m, keys("right", "right")...)
-	if m.fields[0].Chosen != 1 || len(m.fields) != 3 || m.fields[1].Key != "select | add | remove" || m.fields[2].Key != "<package>" {
-		t.Fatalf("right twice: %+v", m.fields)
+	before := m.fields[0].Chosen
+	if m, _ = drive(t, m, keys("tab")...); m.fields[0].Chosen != before || m.focus != 0 || m.cursor != before+1 {
+		t.Fatalf("tab chose, or left the row: chosen %d, focus %d, cursor %d", m.fields[0].Chosen, m.focus, m.cursor)
 	}
+	m, _ = drive(t, m, keys("space")...)
+	if m.fields[0].Chosen != 1 || len(m.fields) != 3 || m.fields[1].Key != "select | add | remove" || m.fields[2].Key != "<package>" {
+		t.Fatalf("the space on the second: %+v", m.fields)
+	}
+	if m, _ = drive(t, m, keys("tab")...); m.focus != 1 || m.fields[0].Chosen != 1 {
+		t.Errorf("tab past the last option: focus %d, chosen %d", m.focus, m.fields[0].Chosen)
+	}
+	if m, _ = drive(t, m, keys("shift+tab")...); m.focus != 0 || m.cursor != 1 {
+		t.Errorf("shift-tab back onto the row: focus %d, cursor %d", m.focus, m.cursor)
+	}
+	if m, _ = drive(t, m, keys("shift+tab", "enter")...); m.fields[0].Chosen != 0 || m.focus != 1 {
+		t.Errorf("enter on the first: chosen %d, focus %d", m.fields[0].Chosen, m.focus)
+	}
+	m, _ = drive(t, m, keys("shift+tab", "tab", "space")...)
 	// kit packages alone lists, so its row is optional, and backspace gives it back the line that adds no word.
 	m, _ = drive(t, m, keys("backspace")...)
 	if m.fields[0].Chosen != 0 || len(m.fields) != 4 {
@@ -129,9 +150,9 @@ func TestOneOfArrows(t *testing.T) {
 	}
 	// kit flow's owner row, under the picture's line, is optional, so backspace clears it.
 	m = newForm(t, "flow", Answers{Chosen: map[int]int{0: 0}}, false)
-	m, _ = drive(t, m, keys("down", "down", "down", "right")...)
+	m, _ = drive(t, m, keys("down", "down", "down", "tab", "space")...)
 	if m.fields[3].Chosen != 0 {
-		t.Fatalf("right on the owner row: %+v", m.fields[3])
+		t.Fatalf("the space on the owner row: %+v", m.fields[3])
 	}
 	m, _ = drive(t, m, keys("backspace")...)
 	if m.fields[3].Chosen != -1 {
@@ -143,7 +164,7 @@ func TestAnyOfSpace(t *testing.T) {
 	// flow's owner row, under the picture's line, its second alternative chosen, opens an any-of row of --mine and
 	// --others
 	m := newForm(t, "flow", Answers{Chosen: map[int]int{0: 0}}, false)
-	m, _ = drive(t, m, keys("down", "down", "down", "right", "right", "down", "space", "right", "space")...)
+	m, _ = drive(t, m, keys("down", "down", "down", "tab", "tab", "space", "down", "space", "tab", "space")...)
 	if got := strings.Join(m.CommandLine(), " "); got != "--mine --others" {
 		t.Errorf("toggled: %q", got)
 	}
@@ -154,13 +175,13 @@ func TestAnyOfSpace(t *testing.T) {
 }
 
 func TestJSONAndJQAreOneOrTheOther(t *testing.T) {
-	// the picture's output row is --text | --json | --jq: right moves the choice along it, so one flag stands at a time
+	// the picture's output row is --text | --json | --jq: the space chooses along it, so one flag stands at a time
 	m := newForm(t, "flow", Answers{Chosen: map[int]int{0: 0}}, false)
-	m, _ = drive(t, m, keys("down", "down", "right", "right")...)
+	m, _ = drive(t, m, keys("down", "down", "tab", "tab", "space")...)
 	if got := strings.Join(m.CommandLine(), " "); got != "--json" {
 		t.Errorf("the output row on --json: %q", got)
 	}
-	m, _ = drive(t, m, keys("right")...)
+	m, _ = drive(t, m, keys("tab", "space")...)
 	if got := strings.Join(m.CommandLine(), " "); got != "--jq" {
 		t.Errorf("the output row on --jq: %q", got)
 	}
@@ -333,7 +354,7 @@ func TestHintsWrapAtFiftyColumns(t *testing.T) {
 		keys []string
 	}{
 		{"lint", Answers{}, []string{"down"}},
-		{"commit", Answers{}, []string{"right", "down"}},
+		{"commit", Answers{}, []string{"tab", "space", "down"}},
 		{"packages", Answers{Literals: []string{"select"}, Chosen: map[int]int{0: 1}}, nil},
 	} {
 		m := newForm(t, c.verb, c.a, false)
@@ -436,8 +457,8 @@ func TestTheKeysBarIsTheLastLineWhereverTheKeyboardIs(t *testing.T) {
 			command bool   // the keyboard on the command line, with a long refusal under it
 			want    string // the bar, at 50 columns
 		}{
-			{"commit", Answers{}, []string{"right", "down"}, false, text}, // --message's lines, with their hint
-			{"lint", Answers{}, []string{"down"}, false, many},            // a list of 3000 rows, with its count
+			{"commit", Answers{}, []string{"tab", "space", "down"}, false, text}, // --message's lines, with their hint
+			{"lint", Answers{}, []string{"down"}, false, many},                   // a list of 3000 rows, with its count
 			{"packages", Answers{Literals: []string{"select"}, Chosen: map[int]int{0: 1}}, nil, false, many},
 			{"flow", Answers{}, nil, true, command},
 		} {
@@ -460,7 +481,7 @@ func TestTheKeysBarIsTheLastLineWhereverTheKeyboardIs(t *testing.T) {
 	// at 80 columns the bar is whole; a height not yet known draws the form, a gap, and the bar
 	m := newForm(t, "commit", Answers{}, true)
 	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 80, Height: 0}, disambiguates)
-	m, _ = drive(t, m, keys("right", "down")...)
+	m, _ = drive(t, m, keys("tab", "space", "down")...)
 	lines := screen(m)
 	if lines[len(lines)-1] != text || lines[len(lines)-2] != "" || !strings.Contains(lines[len(lines)-3], "kit commit") {
 		t.Errorf("with no height, the last lines: %q", lines[len(lines)-3:])
@@ -472,7 +493,7 @@ func TestTheKeysBarIsTheLastLineWhereverTheKeyboardIs(t *testing.T) {
 }
 
 // On every field of every verb, the keys bar names the keys that field takes, and no other: the arrows across only
-// where they move across options, the space where it toggles, backspace where it erases or clears, and the page keys
+// where they move across options, the space where it toggles or chooses, backspace where it erases or clears, and the page keys
 // only on a list.
 func TestTheKeysBarNamesOnlyTheKeysTheFieldTakes(t *testing.T) {
 	for verb, spec := range specs(t) {
@@ -485,14 +506,14 @@ func TestTheKeysBarNamesOnlyTheKeysTheFieldTakes(t *testing.T) {
 			m.focus = i
 			bar := m.keys().String()
 			across := f.Kind == AnyOf || f.Kind == OneOf
-			space := f.Kind == AnyOf || f.Kind == PickMany || f.Kind == Toggle && !f.Required
+			space := f.Kind == AnyOf || f.Kind == OneOf || f.Kind == PickMany || f.Kind == Toggle && !f.Required
 			erase := f.Kind == Text || f.Kind == Lines || f.Kind == Wildcard || f.Kind == Pick || f.Kind == PickMany ||
 				f.Kind == OneOf && !f.Required
 			page := f.Kind == Pick || f.Kind == PickMany
 			for _, c := range []struct {
 				key  string
 				want bool
-			}{{"←→", across}, {"␣", space}, {"⌫", erase}, {"⇞⇟", page}} {
+			}{{"⇥·⇧⇥", across}, {"←→", false}, {"␣", space}, {"⌫", erase}, {"⇞⇟", page}} {
 				if strings.Contains(bar, c.key) != c.want {
 					t.Errorf("%s %s (kind %d, required %v): %q names %s: %v", verb, f.Key, f.Kind, f.Required, bar,
 						c.key, !c.want)
@@ -508,7 +529,7 @@ func TestTheKeysBarNamesOnlyTheKeysTheFieldTakes(t *testing.T) {
 
 func TestQIsTypedNotAQuit(t *testing.T) {
 	m := newForm(t, "commit", Answers{}, true)
-	m, _ = drive(t, m, keys("right", "down")...)
+	m, _ = drive(t, m, keys("tab", "space", "down")...)
 	m, produced := drive(t, m, testkit.Typed("q")...)
 	if len(produced) != 0 || m.input != "q" {
 		t.Errorf("q: %v, input %q", produced, m.input)

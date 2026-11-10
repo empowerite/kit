@@ -77,7 +77,7 @@ func TestIncomingDrawsEachMembersRemotesUnderItsName(t *testing.T) {
 		 "tags": ["v1"]}]},
 		{"fetched": true, "primary": "origin", "member": "github.com/o/b", "remotes": [{"name": "origin"}]}],
 		"errors": []}`))
-	m = drive(m, right)
+	m = drive(m, tab)
 	if v := view(m); !strings.Contains(v, "a · "+Remote+" origin") || !strings.Contains(v, "b · "+Remote+" origin") {
 		t.Errorf("each member's remotes under its name:\n%s", v)
 	}

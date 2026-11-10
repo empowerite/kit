@@ -29,8 +29,8 @@ func TestArrowsMoveBetweenCardsAndRows(t *testing.T) {
 		key    tea.KeyPressMsg
 		cursor int
 	}{
-		{left, 0}, {right, 1}, {right, 2}, {right, 3}, {down, 6}, {right, 7}, {right, 7}, {down, 7}, {up, 4},
-		{left, 3}, {left, 2}, {down, 5}, {down, 7}, {up, 4}, {up, 1},
+		{backTab, 0}, {tabKey, 1}, {tabKey, 2}, {tabKey, 3}, {down, 6}, {tabKey, 7}, {tabKey, 7}, {down, 7}, {up, 4},
+		{backTab, 3}, {backTab, 2}, {down, 5}, {down, 7}, {up, 4}, {up, 1},
 	} {
 		if m = drive(m, step.key); m.cursor != step.cursor || !m.inPane {
 			t.Fatalf("%s: cursor %d, want %d, in the pane %v", step.key, m.cursor, step.cursor, m.inPane)
@@ -84,7 +84,7 @@ func TestTheCursorScrollsThePane(t *testing.T) {
 		t.Errorf("at the bottom:\n%s", view(m))
 	}
 	for k := 6; k >= 0; k-- {
-		m = drive(m, left)
+		m = drive(m, backTab)
 		whole(k)
 	}
 	if m.offset != 0 {
@@ -122,7 +122,7 @@ func TestEnterAndAClickOpenTheCardsURL(t *testing.T) {
 	if m = drive(m, older); !m.Noticing() {
 		t.Error("an older notice's time took the newer one")
 	}
-	if m = drive(m, right); m.Noticing() || m.cursor != 1 {
+	if m = drive(m, tabKey); m.Noticing() || m.cursor != 1 {
 		t.Errorf("a key kept the notice: %q", lines(m)[29])
 	}
 	// a click on the second card, on its summary, opens it
@@ -145,7 +145,7 @@ func TestEnterAndAClickOpenTheCardsURL(t *testing.T) {
 func TestABrowserThatFailsShowsTheLink(t *testing.T) {
 	m, b := loaded(t)
 	b.fail = errors.New("no opener")
-	m = drive(m, right, enter)
+	m = drive(m, tabKey, enter)
 	want := " Open https://empowerite.github.io/kit/tutorials/main/kittui-tour/?kit=unreleased in a browser"
 	if last := lines(m)[29]; last != want || !m.Noticing() {
 		t.Fatalf("the notice: %q", last)
@@ -159,7 +159,7 @@ func TestABrowserThatFailsShowsTheLink(t *testing.T) {
 	if m = drive(m, tea.WindowSizeMsg{Width: 100, Height: 20}); lines(m)[19] != want {
 		t.Errorf("at 100: %q", lines(m)[19])
 	}
-	if m = drive(m, left); m.Noticing() {
+	if m = drive(m, backTab); m.Noticing() {
 		t.Error("a key kept the link")
 	}
 }
@@ -276,10 +276,10 @@ func TestTheBarSelectsATabAndCountsItsTutorials(t *testing.T) {
 		!strings.Contains(bar, "UI  1") || !strings.Contains(bar, "Maintainer  0") {
 		t.Errorf("the counts: %q", bar)
 	}
-	if m = drive(m, up, right); m.tab != 1 || m.inPane {
-		t.Fatalf("right on the bar: tab %d, in the pane %v", m.tab, m.inPane)
+	if m = drive(m, up, tabKey); m.tab != 1 || m.inPane {
+		t.Fatalf("tab on the bar: tab %d, in the pane %v", m.tab, m.inPane)
 	}
-	if keys := m.keys().String(); keys != "= menu - workspace / search │ ←→ tab ↓ cards 1-4 jump" {
+	if keys := m.keys().String(); keys != "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ cards 1-4 jump" {
 		t.Errorf("the bar's keys: %q", keys)
 	}
 	x := strings.Index(lines(m)[2], "Maintainer")
@@ -289,13 +289,13 @@ func TestTheBarSelectsATabAndCountsItsTutorials(t *testing.T) {
 	if m = drive(m, down, enter); m.inPane {
 		t.Error("down entered a tab with no tutorials")
 	}
-	if keys := m.keys().String(); keys != "= menu - workspace / search │ ←→ tab 1-4 jump" {
+	if keys := m.keys().String(); keys != "= menu - workspace / search │ ⇥·⇧⇥ tab 1-4 jump" {
 		t.Errorf("the keys of an empty tab: %q", keys)
 	}
 	if m = drive(m, press('2'), down); !m.inPane || m.tab != 1 {
 		t.Errorf("2 and down: tab %d, in the pane %v", m.tab, m.inPane)
 	}
-	if keys := m.keys().String(); keys != "= menu - workspace / search │ 1-4 jump │ esc tabs ←→↑↓ move ⏎ open" {
+	if keys := m.keys().String(); keys != "= menu - workspace / search │ 1-4 jump │ esc tabs ↑↓ move ⇥·⇧⇥ card ⏎ open" {
 		t.Errorf("the cards' keys: %q", keys)
 	}
 }
@@ -307,7 +307,7 @@ func TestThePaneSaysWhatKitDid(t *testing.T) {
 	if v := view(m); !strings.Contains(v, "reading…") || !strings.Contains(lines(m)[2], "All  …") {
 		t.Errorf("before kit answers:\n%s", v)
 	}
-	if m = drive(m, enter, down, right); m.cursor != 0 {
+	if m = drive(m, enter, down, tabKey); m.cursor != 0 {
 		t.Errorf("keys with no cards moved the cursor to %d", m.cursor)
 	}
 	t.Setenv("FAKE_TUTORIALS_REFUSE", "1")
@@ -378,7 +378,7 @@ func TestCtrlCIsInterrupted(t *testing.T) {
 func TestAwayFromTheDeskTheScreenGivesTheLink(t *testing.T) {
 	m, _ := loaded(t)
 	m.browse = func(string) error { return shell.ErrNoDisplay }
-	m = drive(m, right, enter)
+	m = drive(m, tabKey, enter)
 	want := " Open https://empowerite.github.io/kit/tutorials/main/kittui-tour/?kit=unreleased in a browser"
 	if last := lines(m)[29]; last != want || !m.Noticing() {
 		t.Errorf("the notice: %q", last)

@@ -39,8 +39,8 @@ func TestWelcomesSearchIsRememberedAndRecalled(t *testing.T) {
 	if !m.recent.Open {
 		t.Fatal("a click on ▾ did not drop the searches down")
 	}
-	_, left := m.recent.Box(m.recallAt(), m.width)
-	if m = drive(m, testkit.Click(left+3, 1)); m.recent.Open || m.search().Query != "jq" {
+	_, backTab := m.recent.Box(m.recallAt(), m.width)
+	if m = drive(m, testkit.Click(backTab+3, 1)); m.recent.Open || m.search().Query != "jq" {
 		t.Errorf("a click on jq: %q", m.search().Query)
 	}
 	if got := Open(m.runner, kit.Workspace{}); got.recent.Path != shell.RecentFile() {
