@@ -60,8 +60,10 @@ workspace:remote-facts() {
       push=$(git remote get-url --push --end-of-options "${remote}" 2>/dev/null) || push=${url}
       forge=$(forge:of "${remote}" 2>/dev/null) || forge=''
       member=$(workspaces:url-member "${url}")
+      # A remote whose HEAD git has not recorded names no default branch.
       default=$(git symbolic-ref --quiet --short "refs/remotes/${remote}/HEAD" 2>/dev/null || true)
       default=${default#"${remote}"/}
+      # grep --count prints 0, and exits 1, for a remote with no branch.
       branches=$(git for-each-ref --format='%(symref)' "refs/remotes/${remote}/" | grep --count '^$' || true)
       jq --null-input --compact-output -L "${kit_jq}" --arg name "${remote}" --arg url "${url}" --arg push "${push}" \
         --arg forge "${forge}" --arg member "${member}" --arg default "${default}" --argjson branches "${branches}" '
@@ -185,6 +187,7 @@ workspace:marks() {
         list:read paths workspace:paths || exit 1
         for path in "${paths[@]}"
         do
+          # A checkout git cannot read changes what is hashed, as the comment above says.
           [[ ! -d "${path}" ]] || git -C "${path}" status --porcelain=v2 --branch 2>/dev/null || true
         done; } | git hash-object --stdin)" \
       --arg commits "$(git for-each-ref --format='%(refname) %(objectname)' refs/heads refs/remotes \

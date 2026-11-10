@@ -70,6 +70,7 @@ tui:binary() {
     printf '%s\n' "${out}"
     return 0
   fi
+  # A platform kit builds no kittui for has none in libexec; a kittui on PATH is looked for next.
   platform=$(tui:platform || true)
   if [[ -n "${platform}" && -x "${kit_root}/libexec/kittui-${platform}" ]]
   then

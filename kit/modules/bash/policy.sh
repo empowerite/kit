@@ -96,6 +96,7 @@ policy:rules() {
 # branch, or nothing on a detached HEAD.
 policy:branch() {
   local branch=${GITHUB_HEAD_REF:-${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME:-}}
+  # A detached HEAD has no branch, and prints nothing.
   [[ -n "${branch}" ]] || branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)
   printf '%s\n' "${branch}"
 }
@@ -131,6 +132,7 @@ policy:engine() {
 policy:from() {
   local rev=$1 dir=$2 rego target root
   mkdir -p "${dir}/rego" || return 1
+  # A tree with no kit.yml reads as an empty one.
   git show "${rev}:kit.yml" > "${dir}/kit.yml" 2>/dev/null || : > "${dir}/kit.yml"
   root=$(git rev-parse --show-toplevel) || return 1
   for rego in .kit/policy/*.rego

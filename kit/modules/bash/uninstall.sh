@@ -148,7 +148,7 @@ uninstall:manifests() {
   if [[ -n "${choice}" ]]
   then
     rm -f "${choice}"
-    rmdir "$(dirname "${choice}")" 2>/dev/null || true
+    rmdir "$(dirname "${choice}")" 2>/dev/null || true  # a directory that holds anything else stays
   fi
   if [[ -d .kit && -z "$(find .kit -mindepth 1 -maxdepth 1 | head -n 1)" ]]
   then

@@ -55,8 +55,9 @@ facts:choices() {
 # facts:document <moment> [<tree-ish>] prints the document described in the file header. At ci, the tree is read from
 # the tree-ish, HEAD by default, and is empty while HEAD has no commit. When the fork point is missing, as in a
 # shallow clone, it warns and gives null for the commits instead of guessing. The change is read from the forge (GitHub or
-# GitLab), and is null when there is no forge or no open change. At commit, the tree is the index, as facts:tree
-# reads it; commits is empty and change is null, so the caller fills in the commit it makes.
+# GitLab), and is null when there is no forge or no open change; an open change whose title, body, or author cannot be
+# read fails the document. At commit, the tree is the index, as facts:tree reads it; commits is empty and change is
+# null, so the caller fills in the commit it makes.
 facts:document() {
   local moment=$1 treeish=${2:-HEAD} default_branch branch commits='[]' change='null' rules number title body author
   local moments

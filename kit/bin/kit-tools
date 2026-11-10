@@ -69,6 +69,7 @@ needed() {
     tool=${tool%% *}
     [[ -n "${tool}" && -z "${seen[${tool}]+x}" ]] || continue
     seen[${tool}]=1
+    # An empty path is a linter that is not on PATH.
     printf '%s\t%s\n' "${tool}" "$(command -v "${tool}" 2>/dev/null || true)"
   done
 }

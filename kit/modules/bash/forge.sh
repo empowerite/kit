@@ -103,6 +103,7 @@ forge:primary() {
   primary=$(settings:value primary)
   if [[ -n "${primary}" ]]
   then
+    # Outside a repository there is no remote, and the primary is refused below as none.
     remotes=$(git remote 2>/dev/null || true)
     if ! grep --quiet --line-regexp --fixed-strings -- "${primary}" <<<"${remotes}"
     then
@@ -170,7 +171,7 @@ forge:host() {
 # missing or unreadable names no host.
 forge:logged-in() {
   [[ -f "$1" ]] || return 0
-  yaml:run "$1" "$2" 2>/dev/null || true
+  yaml:run "$1" "$2" 2>/dev/null || true  # an unreadable file names no host, as the comment above says
 }
 
 # forge:of <remote> prints the remote's forge, the first answer of the file header's list, or nothing for a remote
@@ -393,6 +394,7 @@ forge:snapshot-take() {
   local taken answer
   taken=$(date +%s)
   answer=$(forge:call "$1") || return 1
+  # A snapshot that cannot be kept costs only the next read, which asks the forge again.
   file:replace "$2" printf '%s\n' "${taken}" ${answer:+"${answer}"} || true
   [[ -z "${answer}" ]] || printf '%s\n' "${answer}"
 }

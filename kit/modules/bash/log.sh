@@ -48,6 +48,7 @@ log:days() {
 
 # log:prune <dir> <days> removes each log in <dir> last written more than <days> whole days ago.
 log:prune() {
+  # A log that cannot be removed costs only space.
   find "$1" -maxdepth 1 -type f -name '*.log' -mtime "+$2" -exec rm -f {} + 2>/dev/null || true
 }
 
@@ -57,6 +58,7 @@ log:write() {
   local root ignore='' days file
   log:root root || return 0
   [[ -f "${root}/.kit/.gitignore" ]] || return 0
+  # read -d '' meets the end of the file before any NUL, so it returns 1, the whole of it read.
   IFS= read -r -d '' ignore < "${root}/.kit/.gitignore" || true
   [[ $'\n'"${ignore}"$'\n' == *$'\n/logs/\n'* ]] || return 0
   printf -v file '%s/.kit/logs/%s-%(%Y-%m%d)T.log' "${root}" "$1" -1
@@ -67,7 +69,7 @@ log:write() {
     mkdir -p "${root}/.kit/logs" 2>/dev/null || return 0
     log:prune "${root}/.kit/logs" "${days}"
   fi
-  { printf '%s\n' "$2" >> "${file}"; } 2>/dev/null || true
+  { printf '%s\n' "$2" >> "${file}"; } 2>/dev/null || true  # a log never fails the command it logs
 }
 
 # log:now <var> sets <var> to the time now in microseconds, or in whole seconds times a million where the shell has

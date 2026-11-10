@@ -88,7 +88,7 @@ underway:draw() {
     flow:none 'no issue is underway'
     return 0
   fi
-  sigil=$(forge:noun 2>/dev/null | cut -f 1) || true
+  sigil=$(forge:noun 2>/dev/null | cut -f 1) || true  # with no forge's noun, the rows draw with no sigil
   # The desk is the first checkout git lists; underway:checkouts names each checkout's path as git lists it.
   desk=$(git worktree list --porcelain 2>/dev/null | sed -n '1s/^worktree //p') || true
   readarray -t rows < <(jq --raw-output --arg desk "${desk}" '.[] | ["#\(.number)", (.assignees | join(" ")),

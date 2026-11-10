@@ -78,6 +78,8 @@ then
   base_root=${kit_root}
 elif [[ "${previous}" != "$(release:unreleased)" ]]
 then
+  # A base that cannot be fetched has said so. The update goes on without it, and refuses each edited file that
+  # needs it.
   base_root=$(release:fetch "${previous}" || true)
 fi
 # The base is read, not validated: the current release was validated above, and a package the base predates renders

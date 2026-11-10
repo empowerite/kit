@@ -99,9 +99,9 @@ use:load-path() {
   then
     root=$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)
   fi
-  # read, a builtin, takes the file's text with no process; at the end of a file with no NUL it returns 1
   if [[ -f "${root}/kit.yml" ]]
   then
+    # read, a builtin, takes the file's text with no process; at the end of a file with no NUL it returns 1
     IFS= read -r -d '' settings < "${root}/kit.yml" || true
   fi
   printf -v from '%s\n' "${kit_root}" "${HOME}" "${XDG_CACHE_HOME:-}" "${root}" "${settings}"

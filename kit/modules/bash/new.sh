@@ -639,8 +639,9 @@ new:trackers() {
 new:forge-first() {
   local records
   records=$(cat)
+  # grep's exit 1 is a list with no record of that kind.
   grep "$(printf '\x1fforge$')" <<<"${records}" || true
-  grep --invert-match "$(printf '\x1fforge$')" <<<"${records}" || true
+  grep --invert-match "$(printf '\x1fforge$')" <<<"${records}" || true  # as above
 }
 
 # new:browse <url> opens the page in the browser: open on macOS, xdg-open elsewhere; without either, it warns, and the

@@ -66,7 +66,7 @@ commit:parse() {
 # a default branch that cannot be read.
 commit:branch() {
   local branch default_branch
-  branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)
+  branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)  # detached is refused below
   if [[ -z "${branch}" ]]
   then
     error "no branch is checked out here, so there is nothing to commit to; run: kit work <N>"
@@ -279,6 +279,7 @@ commit:behind() {
   do
     last=$(git log -1 --format=%H HEAD -- ":(literal)${path}")
     [[ -n "${last}" ]] || continue
+    # A path the commit added has no blob before it, which reads as absent.
     before=$(git rev-parse --verify --quiet "${last}^:${path}" || true)
     staged=$(git ls-files --stage -- ":(literal)${path}" | cut -d ' ' -f 2)
     [[ "${staged}" == "${before}" ]] || continue
@@ -346,7 +347,7 @@ commit:tree() {
 # the tree it makes. Git refuses a HEAD that moves during its own hook.
 commit:moved() {
   local head
-  head=$(git rev-parse --verify --quiet HEAD || true)
+  head=$(git rev-parse --verify --quiet HEAD || true)  # a repository with no commit has no HEAD: empty
   [[ "${head}" != "$1" ]] || return 0
   error "HEAD moved to $(git log -1 --format='%h %s') while kit commit checked; nothing is committed; run kit commit again"
   return 1
@@ -370,7 +371,7 @@ commit:commit() {
   local branch subject path rest message head tree names
   local -a staged=() named=() sign=()
   commit:parse "$@" || return 2
-  head=$(git rev-parse --verify --quiet HEAD || true)
+  head=$(git rev-parse --verify --quiet HEAD || true)  # a repository with no commit has no HEAD: empty
   if (( ${#commit_messages[@]} == 0 )) && [[ -z "${commit_file}" ]]
   then
     error "say what the commit is: --message <text>, or --file <path>; kit commit opens no editor; run: kit help commit"

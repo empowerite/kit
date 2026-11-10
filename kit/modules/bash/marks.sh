@@ -58,12 +58,14 @@ marks:stages() {
 # marks:sum prints a short sum of what it reads, the mark a stage's local state makes.
 marks:sum() { cksum | cut -d ' ' -f 1; }
 
-# marks:refs prints the remote-tracking refs, each with the commit it names, as a fetch moves them.
+# marks:refs prints the remote-tracking refs, each with the commit it names, as a fetch moves them. A repository git
+# cannot read gives none: a mark only tells a picture when to read a stage again.
 marks:refs() { git for-each-ref --format='%(objectname) %(refname)' refs/remotes 2>/dev/null || true; }
 
 # marks:status <path> prints a checkout's status as git reports it with its branch: the commit, the branch, what it
 # tracks and how far apart they are, and each path changed.
 marks:status() {
+  # A checkout git cannot read gives nothing: a mark only tells a picture when to read a stage again.
   git -C "$1" status --porcelain=v2 --branch 2>/dev/null || true
 }
 

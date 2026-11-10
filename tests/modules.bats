@@ -61,6 +61,26 @@ setup() {
   [ -z "$output" ] || { printf '%s\n' "$output"; return 1; }
 }
 
+@test "every || true says why it swallows" {
+  # A statement's || true or || : ends in a comment, or the line before the statement is one. A line that ends in a
+  # backslash, a pipe, or && joins the next, so the comment above the statement's first line counts.
+  run bash -c 'find "$1/bin" "$1/modules/bash" -type f -exec awk '"'"'
+      FNR == 1 { held = ""; prev = "" }
+      held == "" { before = prev }
+      { prev = $0 }
+      /^[[:space:]]*#/ { next }
+      /(\\|\||&&)[[:space:]]*$/ { held = held $0 " "; next }
+      {
+        line = held $0
+        held = ""
+        if (line !~ /\|\| *(true|:)([ ;)}]|$)/) next
+        if (line ~ /\|\| *(true|:)([ ;)}][^#]*)?[[:space:]]#/ || before ~ /^[[:space:]]*#/) next
+        print FILENAME ":" FNR ": " line
+      }
+    '"'"' {} +' scan "${kit_root}"
+  [ -z "$output" ] || { printf '%s\n' "$output"; return 1; }
+}
+
 @test "the release is read, rendered, placed, and recorded by one module each, and use release loads none of them but resolve" {
   local module function
   while IFS=' ' read -r module function

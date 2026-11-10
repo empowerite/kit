@@ -40,6 +40,7 @@ toolchain/mise:inputs() {
 
 toolchain/mise:install() {
   toolchain/mise:require || return 1
+  # A file mise cannot trust makes mise install fail below, and say why.
   mise trust --quiet "$(toolchain/mise:file)" >/dev/null 2>&1 || true
   mise install --quiet
 }

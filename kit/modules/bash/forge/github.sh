@@ -14,6 +14,7 @@
 # forge/github:branch-for-issue reads the branch from an open pull request's head, so a second run never creates
 # a duplicate <N>-<slug>-1 branch.
 forge/github:branch-for-issue() {
+  # A failed read is read as none; the forge seam's contract decides this.
   gh pr list --state open --json headRefName \
     --jq "[.[] | select(.headRefName | test(\"^$1-\"))] | .[0].headRefName // empty" 2>/dev/null || true
 }
@@ -216,10 +217,12 @@ forge/github:pr-create() {
 }
 
 forge/github:pr-for-branch() {
+  # A failed read is read as none; the forge seam's contract decides this.
   gh pr list --head "$1" --state open --json number --jq '.[0].number // empty' 2>/dev/null || true
 }
 
 forge/github:pr-head-for-branch() {
+  # A failed read is read as none; the forge seam's contract decides this.
   gh pr list --head "$1" --state all --json headRefOid --jq '.[0].headRefOid // empty' 2>/dev/null || true
 }
 
@@ -229,13 +232,17 @@ forge/github:pr-here() {
   local number=''
   if [[ -n "${GITHUB_EVENT_PATH:-}" ]]
   then
+    # A payload with no pull request gives none, and gh is asked.
     number=$(jq --raw-output '.pull_request.number // empty' "${GITHUB_EVENT_PATH}" 2>/dev/null || true)
   fi
+  # gh's exit 1 is a branch with no pull request, and also a read that failed: both read as none, as the forge seam's
+  # contract decides.
   [[ -n "${number}" ]] || number=$(gh pr view --json number --jq .number 2>/dev/null || true)
   printf '%s\n' "${number}"
 }
 
 forge/github:pr-last-for-branch() {
+  # A failed read is read as none; the forge seam's contract decides this.
   gh pr list --head "$1" --state all --json number --jq '.[0].number // empty' 2>/dev/null || true
 }
 
@@ -249,6 +256,7 @@ forge/github:pr-state() {
 }
 
 forge/github:pr-state-for-branch() {
+  # A failed read is read as none; the forge seam's contract decides this.
   gh pr list --head "$1" --state all --json state --jq '.[0].state // empty' 2>/dev/null || true
 }
 
@@ -330,7 +338,7 @@ forge/github:mark() {
   local -a header=()
   [[ -z "${file}" || ! -f "${file}" ]] || etag=$(<"${file}")
   [[ -z "${etag}" ]] || header=(--header "If-None-Match: ${etag}")
-  answer=$(gh api --include "${header[@]}" "${path}" 2>/dev/null) || true
+  answer=$(gh api --include "${header[@]}" "${path}" 2>/dev/null) || true  # the status line decides, below
   status=$(sed -n '1s@^HTTP/[0-9.]* \([0-9]*\).*@\1@p' <<<"${answer}")
   case "${status}" in
     (304) printf '%s\n' "${etag}" ;;
@@ -341,6 +349,7 @@ forge/github:mark() {
         error "run: gh auth status (GitHub gave no ETag for ${path})"
         return 1
       fi
+      # An ETag that cannot be kept costs only the next read, which asks GitHub for the whole answer.
       [[ -z "${file}" ]] || file:replace "${file}" printf '%s\n' "${etag}" || true
       printf '%s\n' "${etag}"
       ;;

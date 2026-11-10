@@ -24,6 +24,7 @@
 # see: modules/bash/forge.sh
 
 forge/gitlab:branch-for-issue() {
+  # A failed read is read as none; the forge seam's contract decides this.
   forge/gitlab:api "merge_requests?state=opened&per_page=100" 2>/dev/null \
     | jq --raw-output -L "${kit_jq}" --arg n "$1" 'import "forge" as forge; forge::gitlab_branch_for_issue($n)' \
     || true
@@ -208,11 +209,13 @@ forge/gitlab:pr-create() {
 }
 
 forge/gitlab:pr-for-branch() {
+  # A failed read is read as none; the forge seam's contract decides this.
   forge/gitlab:api "merge_requests?state=opened&source_branch=$1" 2>/dev/null \
     | jq --raw-output '.[0].iid // empty' || true
 }
 
 forge/gitlab:pr-head-for-branch() {
+  # A failed read is read as none; the forge seam's contract decides this.
   forge/gitlab:api "merge_requests?state=all&source_branch=$1&order_by=created_at&sort=desc" 2>/dev/null \
     | jq --raw-output '.[0].sha // empty' || true
 }
@@ -223,13 +226,14 @@ forge/gitlab:pr-here() {
   local number=${CI_MERGE_REQUEST_IID:-} branch
   if [[ -z "${number}" ]]
   then
-    branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)
+    branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)  # a detached HEAD has no merge request
     [[ -n "${branch}" ]] && number=$(forge/gitlab:pr-for-branch "${branch}")
   fi
   printf '%s\n' "${number}"
 }
 
 forge/gitlab:pr-last-for-branch() {
+  # A failed read is read as none; the forge seam's contract decides this.
   forge/gitlab:api "merge_requests?state=all&source_branch=$1&order_by=created_at&sort=desc" 2>/dev/null \
     | jq --raw-output '.[0].iid // empty' || true
 }
@@ -246,6 +250,7 @@ forge/gitlab:pr-state() {
 }
 
 forge/gitlab:pr-state-for-branch() {
+  # A failed read is read as none; the forge seam's contract decides this.
   forge/gitlab:api "merge_requests?state=all&source_branch=$1&order_by=created_at&sort=desc" 2>/dev/null \
     | jq --raw-output -L "${kit_jq}" 'import "forge" as forge; forge::gitlab_pr_state' \
     || true

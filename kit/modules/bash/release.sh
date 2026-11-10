@@ -93,6 +93,7 @@ release:fetch() {
   fi
   if command -v mise >/dev/null 2>&1
   then
+    # A version mise has not installed has no root there, and is fetched below.
     root=$(mise where "github:empowerite/kit@${version}" 2>/dev/null || true)
     if [[ -x "${root}/bin/kit" ]]
     then

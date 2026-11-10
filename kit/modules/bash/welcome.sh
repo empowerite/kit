@@ -540,7 +540,7 @@ welcome:where() {
     return 0
   fi
   dirs=$(git rev-parse --path-format=absolute --git-dir --git-common-dir)
-  branch=$(git branch --show-current 2>/dev/null || true)
+  branch=$(git branch --show-current 2>/dev/null || true)  # the line names no branch where git gives none
   if [[ "${dirs%%$'\n'*}" == "${dirs#*$'\n'}" ]]
   then
     welcome:record where true "you are at the desk, your own checkout; work on an issue goes in a worktree"
@@ -722,11 +722,12 @@ welcome:fix() {
   fi
   step "${fix}"
   read -r -a command <<<"${fix}"
+  # A fix that fails shows in the check judged again below, which then fails.
   if [[ "${command[0]}" == kit ]]
   then
-    run "${command[@]}" || true
+    run "${command[@]}" || true  # as above
   else
-    "${command[@]}" || true
+    "${command[@]}" || true  # as above
   fi
   # A fix can choose a toolchain, so the toolchains are found again.
   welcome:find project

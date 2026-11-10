@@ -153,9 +153,11 @@ yaml:yq() {
     return
   fi
   store=${yaml_cache}/${name}
+  # read -d '' meets the end of a file before any NUL, so it returns 1 on every file, the whole of it read.
   IFS= read -r -d '' text < "${file}" || true
   if [[ -f "${store}" && ! -L "${store}" && -O "${store}" ]]
   then
+    # Each read stops at a NUL, and the last at the end of the file, where it returns 1 with its text read.
     { IFS= read -r -d '' kept || true; IFS= read -r -d '' out || true; } < "${store}"
     if [[ "${kept}" == "${text}" ]]
     then
@@ -174,7 +176,7 @@ yaml:yq() {
 yaml:eval() {
   local first=''
   [[ -f "$1" ]] || return 0
-  IFS= read -r first < "$1" || true
+  IFS= read -r first < "$1" || true  # a first line with no newline is read, and returns 1
   if [[ "${first%$'\r'}" == '---' ]]
   then
     yaml:yq "$@" --front-matter=extract

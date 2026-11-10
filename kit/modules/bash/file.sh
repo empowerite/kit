@@ -78,10 +78,10 @@ file:sweep() {
   local command
   for command in "${file_at_exit[@]}"
   do
-    ( eval "${command}" ) || true
+    ( eval "${command}" ) || true  # one that fails stops none of the rest
   done
-  (( ${#file_partial[@]} == 0 )) || rm -f "${file_partial[@]}" || true
-  (( ${#file_scratch[@]} == 0 )) || rm -rf "${file_scratch[@]}" || true
+  (( ${#file_partial[@]} == 0 )) || rm -f "${file_partial[@]}" || true  # one left behind costs only tidiness
+  (( ${#file_scratch[@]} == 0 )) || rm -rf "${file_scratch[@]}" || true  # as above
 }
 
 # file:partial <name> <path> puts in the variable <name> the temporary a write of <path> uses in this process, and

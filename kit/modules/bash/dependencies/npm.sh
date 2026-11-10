@@ -15,7 +15,7 @@ dependencies/npm:lock() { printf 'package-lock.json\n'; }
 # status, says whether it could ask.
 dependencies/npm:outdated() {
   local doc
-  doc=$(npm outdated --json 2>/dev/null) || true
+  doc=$(npm outdated --json 2>/dev/null) || true  # its status is 1 when a package is behind; the answer says more
   if ! jq --exit-status 'type == "object" and (has("error") | not)' <<<"${doc:-{\}}" >/dev/null 2>&1
   then
     error "npm outdated could not ask the registry"
