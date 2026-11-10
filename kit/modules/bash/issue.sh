@@ -566,7 +566,7 @@ issue:start() {
     || warn "worktrees/ is not ignored; add /worktrees/ to .gitignore so a worktree never appears in a commit"
   issue:hydrate "${wt}" || return 1
   issue:start-commit "${wt}" "${default_branch}" "${primary}" "${title}" || return 1
-  git -C "${wt}" push --quiet --set-upstream origin "${branch}"
+  git:push "${wt}" "${branch}" || return 1
   if [[ -n "${stash}" ]]
   then
     issue_swept=''

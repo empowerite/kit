@@ -315,6 +315,21 @@ desk-world() {
   [ ! -e worktrees/7-fix-the-thing/idea.txt ]
 }
 
+@test "kit work pushes the branch to its own name on origin, whatever push.default and its upstream say" {
+  local main
+  desk-world
+  # the branch was made by hand from origin/main, which git sets as its upstream, and the desk pushes by upstream
+  git fetch --quiet origin
+  git branch --quiet 7-fix-the-thing origin/main
+  git config push.default upstream
+  main=$(git -C "${repo}.origin.git" rev-parse main)
+  run "${kit_checkout}/bin/kit" work 7
+  [ "$status" -eq 0 ]
+  [ "$(git -C "${repo}.origin.git" rev-parse main)" = "${main}" ]
+  [ "$(git -C "${repo}.origin.git" log -1 --format=%s 7-fix-the-thing)" = "#7 start: Fix the thing" ]
+  [ "$(git -C "${repo}.origin.git" rev-parse 7-fix-the-thing)" = "$(git -C worktrees/7-fix-the-thing rev-parse HEAD)" ]
+}
+
 @test "kit work's start commit keeps its subject under commit.cleanup=strip, and is signed when signing is required" {
   printf 'require_signing: true\n' > kit.yml
   desk-world
