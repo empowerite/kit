@@ -75,11 +75,13 @@ deny list stops one.
 On a branch past the default one, `kit policy` and `kit linked` judge by the policy on the branch's base,
 `origin/<default>`, the ref the commits are counted from. A branch cannot loosen the rule that judges it: a pattern it
 blanks, a login it adds under `linked_exempt`, an engine it names, a file it stops a rule from reading, a `forge` it
-drops, and a `.rego` file it removes, adds, or edits change nothing.
+drops or a `forges` entry it changes, and a `.rego` file it removes, adds, or edits change nothing.
 
-- `policy`, `policy_engine`, `linked_exempt`, `facts`, and `forge` come from the base's `kit.yml`. Where the base has
-  none of one, it is absent, and the kit's default applies, not the branch's: for `forge`, the provider the remote's
-  host names.
+- `policy`, `policy_engine`, `linked_exempt`, `facts`, `forge`, and `forges` come from the base's `kit.yml`. Where
+  the base has none of one, it is absent, and the kit's default applies, not the branch's: for `forge` and `forges`,
+  the provider the remote's host names.
+- `forges`, the map from remotes to providers, is the base's as `forge` is, so a branch cannot point the primary at
+  a forge that reads no change.
 - Every other setting is the checkout's. `primary` among them names the remote the base is read from, and a `primary`
   that names no remote fails.
 - A branch that adds a file to `facts.read`, for a rule of its own, changes nothing until it is merged, as the rule

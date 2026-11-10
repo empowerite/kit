@@ -621,7 +621,7 @@ func TestADocumentOfAnotherShapeIsOneRefusalLine(t *testing.T) {
 		}
 	}
 	for name, data := range map[string]string{"backlog": "[]", "incoming": `{"fetched": false, "remotes": []}`,
-		"underway": `[{"number": 1, "pr": {}}]`, "changes": "null",
+		"underway": `[{"number": 1, "pr": {}}]`, "changes": "[]",
 		"releases": `[{"version": "1"}]`, "worktrees": " {} ", "desk": "{}", "builds": `[{"id": 1}]`} {
 		if err := shape(name, []byte(data)); err != nil {
 			t.Errorf("%s refused %s: %v", name, data, err)

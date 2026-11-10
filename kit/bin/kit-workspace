@@ -53,7 +53,8 @@
 # With --json, a stage prints {rows, errors}. A row is {key, …, links}: key is the row's own in its stage, and links
 # gives where a value leads, by its field: a page on the forge, or row:<stage>/<key>, a row of another stage. Over a
 # workspace, each row gains member, its host and path, and a member that could not be read is {member, error} under
-# errors, while every other member still draws.
+# errors, while every other member still draws. --marks over a workspace names such a member the same way, under
+# errors beside the marks, and says its line.
 #
 #   repos               {repository, host, path, forge, remotes, checkout, checkouts, by, branch, ahead, behind,
 #                       worktrees, branches, error}: remotes is [{name, url, forge}]; by is fixed for a group's member,
@@ -137,8 +138,9 @@
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # kit:end legend
-# Exits 0 when the picture is drawn, 1 when a repository or the workspace file cannot be read, and 2 on a usage
-# error, or outside a repository without --workspace.
+# Exits 0 when the picture is drawn, 1 when a repository, a member of the workspace, a member's desk, or the workspace
+# file cannot be read: with --json, what was read is still printed, and names what could not, a member under errors
+# or a repos row's error. It exits 2 on a usage error, or outside a repository without --workspace.
 #
 # see: modules/bash/workspace.sh, modules/jq/workspace.jq, modules/bash/across.sh
 
@@ -232,7 +234,8 @@ then
 fi
 
 # document <stage> prints the stage's {rows, errors}: the repository here's rows, or every member's, merged; repos
-# lists the members, cloned or not, or the repository here alone.
+# lists the members, cloned or not, or the repository here alone. It returns 1, after the document, when a part of it
+# could not be read: a member under errors, or a desk repos could not read.
 document() {
   local rows into
   if [[ "$1" == repos ]]
@@ -245,7 +248,7 @@ document() {
     file:scratch into
     across:start "${workspace}" "${into}" "$1" --json >/dev/null || return $?
     across:merge "${into}" document "$1"
-    return 0
+    return
   fi
   rows=$(workspace:stage "$1") || return 1
   jq --compact-output '{rows: ., errors: []}' <<<"${rows}"
@@ -264,18 +267,22 @@ shown() {
   fi
 }
 
+# A stage read in part is shown as far as it was read, and the verb exits 1 after it; one with no document stops it.
+status=0
 if [[ -n "${stage}" ]]
 then
-  doc=$(document "${stage}") || exit 1
+  doc=$(document "${stage}") || status=1
+  [[ -n "${doc}" ]] || exit 1
   shown "${stage}" "${doc}"
-  exit 0
+  exit "${status}"
 fi
 
 named=()
 first=true
 for each in "${stages[@]}"
 do
-  doc=$(document "${each}") || exit 1
+  doc=$(document "${each}") || status=1
+  [[ -n "${doc}" ]] || exit 1
   if [[ -n "${syntax_options[--json]+x}${syntax_options[--jq]+x}" ]]
   then
     named+=(--argjson "${each}" "${doc}")
@@ -292,5 +299,6 @@ then
     | workspaces:lines-json)" "${named[@]}" '{stages: $stages} + $ARGS.named')
   shown '' "${picture}"
 fi
+exit "${status}"
 
 # ----------------------------------------------------------------------------------------------------------------------

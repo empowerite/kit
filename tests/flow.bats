@@ -706,6 +706,22 @@ fake-tui() {
   [[ "$output" == *"no repository at or below"* ]]
 }
 
+@test "above desks, kit flow exits 1 when a desk's picture did, and still prints every desk" {
+  stages 'incoming, desk'
+  cd "${work}"
+  git clone --quiet origin.git group/two 2>/dev/null
+  git -C group/two remote set-head origin main
+  git -C desk remote add fork "${BATS_TEST_TMPDIR}/gone.git"
+  run --separate-stderr "${kit_root}/bin/kit" flow --json
+  [ "$status" -eq 1 ]
+  [ "$(jq length <<<"$output")" -eq 2 ]
+  [ "$(jq -r '.[0].status.incoming.remotes[] | select(.name == "fork") | .error != null' <<<"$output")" = true ]
+  run "${kit_root}/bin/kit" flow --no-fetch
+  [ "$status" -eq 0 ]
+  run "${kit_root}/bin/kit" flow
+  [ "$status" -eq 1 ]
+}
+
 @test "a detached checkout is marked and lists no commits" {
   git worktree add --quiet --detach worktrees/loose main
   doc=$(in_flow flow:checkout "${PWD}/worktrees/loose" '' main)

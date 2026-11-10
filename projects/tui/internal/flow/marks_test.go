@@ -98,3 +98,26 @@ func TestAKitThatCannotReadTheMarksIsAskedAgainOnRefreshAll(t *testing.T) {
 		t.Errorf("after Refresh All, asked %d times", n)
 	}
 }
+
+// A stage whose mark kit cannot read, null as kit flow --marks exits 1 when the forge cannot answer, is not known: no
+// dot, and, watched, no load, read after read; the marks kit read beside it still make their stages stale.
+func TestAStageWhoseMarkIsNullIsNeitherStaleNorLoadedAgain(t *testing.T) {
+	record := filepath.Join(t.TempDir(), "calls")
+	write := marking(t, `{"backlog": "b1", "changes": "c1"}`)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
+	m.find("backlog").src.Watch = true
+	t.Setenv("FAKE_FLOW_CALLS", record)
+	write(`{"backlog": null, "changes": "c2"}`)
+	for range 3 {
+		m = drive(m, clockOf(m).Fire()...)
+	}
+	if s := m.find("backlog"); s.src.Stale || strings.Contains(barNames(m), "backlog"+tabs.Stale) {
+		t.Errorf("backlog of a null mark: stale %v, the dots %q", s.src.Stale, barNames(m))
+	}
+	if got, _ := os.ReadFile(record); strings.Contains(string(got), "backlog") {
+		t.Errorf("a null mark loaded backlog again: %q", got)
+	}
+	if !m.find("changes").src.Stale || !strings.Contains(barNames(m), "changes"+tabs.Stale) {
+		t.Errorf("changes, whose mark moved beside the null: the dots %q", barNames(m))
+	}
+}

@@ -1342,9 +1342,9 @@ flow:render() {
 
 # flow:above <argument>… draws every desk below the current directory, each under its path, as kit flow draws it
 # at that desk, with the same arguments. The desks run at once, each fetching on its own, and are drawn in path
-# order.
+# order. It returns 1, after every desk is drawn, when a desk's kit flow did not exit 0.
 flow:above() {
-  local json=false arg desk index=0 color=''
+  local json=false arg desk index=0 color='' failed=false code
   local -a desks
   for arg in "$@"
   do
@@ -1361,11 +1361,19 @@ flow:above() {
   [[ "${out_color}" == 1 ]] && color=1
   for desk in "${desks[@]}"
   do
-    ( cd "${desk}" && COLUMNS=$(flow:width) CLICOLOR_FORCE=${color} run kit flow "$@" ) \
-      > "${scratch}/${index}.out" 2> "${scratch}/${index}.err" &
+    {
+      code=0
+      ( cd "${desk}" && COLUMNS=$(flow:width) CLICOLOR_FORCE=${color} run kit flow "$@" ) \
+        > "${scratch}/${index}.out" 2> "${scratch}/${index}.err" || code=$?
+      printf '%s' "${code}" > "${scratch}/${index}.status"
+    } &
     index=$(( index + 1 ))
   done
   wait
+  for index in "${!desks[@]}"
+  do
+    [[ -f "${scratch}/${index}.status" && "$(<"${scratch}/${index}.status")" == 0 ]] || failed=true
+  done
   if [[ "${json}" == true ]]
   then
     for index in "${!desks[@]}"
@@ -1374,8 +1382,9 @@ flow:above() {
         "${scratch}/${index}.out" 2>/dev/null || jq --null-input --compact-output \
         --arg path "$(flow:relative "${desks[${index}]}")" '{path: $path, status: null}'
       cat "${scratch}/${index}.err" >&2
-    done | jq --slurp .
-    return 0
+    done | jq --slurp . || return 1
+    [[ "${failed}" == false ]]
+    return
   fi
   for index in "${!desks[@]}"
   do
@@ -1383,6 +1392,7 @@ flow:above() {
     printf '%s\n' "$(flow:paint 1 "${flow_glyphs[Path]} $(flow:relative "${desks[${index}]}")")" >&2
     cat "${scratch}/${index}.err" "${scratch}/${index}.out" >&2
   done
+  [[ "${failed}" == false ]]
 }
 
 # flow:by-number sorts git:worktrees lines by the issue number their directory name starts with. A directory

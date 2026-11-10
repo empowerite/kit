@@ -45,13 +45,14 @@ across:members() {
 # object stage, the object does; for a document, {rows, errors}, each of its rows does. What a member printed is kept
 # whenever it parses as the stage's kind, as an incoming whose fetch failed prints the remotes and exits 1. One that
 # does not is its stderr's last line, less a leading ❌, under errors; with nothing said, that kit flow <stage> exited as
-# it did.
+# it did. It returns 1, after the document, when a member did not exit 0 or is under errors.
 across:merge() {
-  local dir=$1 kind=$2 stage=${3:-} n=0 member out
+  local dir=$1 kind=$2 stage=${3:-} n=0 member out failed=false
   local -a rows=() errors=()
   while [[ -f "${dir}/${n}.member" ]]
   do
     member=$(<"${dir}/${n}.member")
+    across:exited-0 "${dir}/${n}" || failed=true
     if [[ -s "${dir}/${n}.out" ]] && out=$(jq --compact-output --arg member "${member}" --arg kind "${kind}" '
       if $kind == "array" and type == "array" then map(. + {member: $member})[]
       elif $kind == "object" and type == "object" then . + {member: $member}
@@ -61,10 +62,17 @@ across:merge() {
       [[ -z "${out}" ]] || rows+=("${out}")
     else
       errors+=("$(across:error "${dir}/${n}" "${member}" "${stage}")")
+      failed=true
     fi
     n=$(( n + 1 ))
   done
-  across:document rows errors
+  across:document rows errors || return 1
+  [[ "${failed}" == false ]]
+}
+
+# across:exited-0 <prefix> succeeds when a member's kit exited 0, as <prefix>.status says.
+across:exited-0() {
+  [[ -f "$1.status" && "$(<"$1.status")" == 0 ]]
 }
 
 # across:error <prefix> <member> <stage> prints a member's error, {member, error}, from <prefix>.err and .status.
@@ -145,8 +153,9 @@ across:flow() {
 }
 
 # across:stage <workspace> <stage> <argument>… runs kit flow <stage> with the arguments, --jq as --json, in every
-# cloned member's checkout at once, and prints the document across:merge makes of them. It returns 0 whatever a member
-# did, and what across:members returns for a workspace it refuses.
+# cloned member's checkout at once, and prints the document across:merge makes of them. It returns 1, after the
+# document, when a member could not be read, as across:merge does, and what across:members returns for a workspace it
+# refuses.
 across:stage() {
   local workspace=$1 stage=$2 dir kind=array
   shift 2
@@ -203,28 +212,37 @@ across:run() {
 # across:picture <workspace> <word>… prints the picture across the workspace as one JSON object: stages, as across:flow
 # --stages gives them, and each stage's document, {rows, errors}, cut from the picture each member's kit flow --json
 # printed. A stage a member's flow setting leaves out adds nothing; one it could not draw, null in its picture, is its
-# last line under errors.
+# last line under errors. It returns 1, after the picture, when a member's kit flow did not exit 0, or a stage holds
+# a member under errors.
 across:picture() {
-  local workspace=$1 dir stages stage kind
+  local workspace=$1 dir stages stage kind doc n=0 failed=false
   local -a named=()
   shift
   file:scratch dir
   stages=$(across:flow "${workspace}" --stages) || return $?
   across:start "${workspace}" "${dir}" "$@" >/dev/null || return $?
+  while [[ -f "${dir}/${n}.member" ]]
+  do
+    across:exited-0 "${dir}/${n}" || failed=true
+    n=$(( n + 1 ))
+  done
   while IFS= read -r stage
   do
     kind=array
     case "${stage}" in
       (desk | worktrees | incoming) kind=object
     esac
-    named+=(--argjson "${stage}" "$(across:cut "${dir}" "${stage}" "${kind}")")
+    doc=$(across:cut "${dir}" "${stage}" "${kind}") || failed=true
+    [[ -n "${doc}" ]] || return 1
+    named+=(--argjson "${stage}" "${doc}")
   done <<<"${stages}"
   jq --null-input --compact-output --argjson stages "$(workspaces:lines-json <<<"${stages}")" \
-    "${named[@]}" '{stages: $stages} + $ARGS.named'
+    "${named[@]}" '{stages: $stages} + $ARGS.named' || return 1
+  [[ "${failed}" == false ]]
 }
 
 # across:cut <dir> <stage> <kind> prints a stage's document from the pictures the members printed in <dir>, as
-# across:picture says.
+# across:picture says. It returns 1, after the document, when a member is under errors.
 across:cut() {
   local dir=$1 stage=$2 kind=$3 n=0 member value
   local -a rows=() errors=()
@@ -241,7 +259,8 @@ across:cut() {
     fi
     n=$(( n + 1 ))
   done
-  across:document rows errors
+  across:document rows errors || return 1
+  (( ${#errors[@]} == 0 ))
 }
 
 # across:repos <workspace> [<pictures>] prints the repos stage's document, {rows, errors}: a row per member, in the
@@ -249,7 +268,8 @@ across:cut() {
 # worktrees and branches, as across:branches gives them, each null for a member not cloned, and error, the desk's line
 # where it could not be read, else null. A member's desk is read from its picture in <pictures>, as across:start left
 # them, where it holds one, else by kit flow desk. No workspace is the repository here, by here, its checkout the
-# clone, even from one of its linked worktrees; outside one it returns 2.
+# clone, even from one of its linked worktrees; outside one it returns 2. It returns 1, after the document, when a
+# member's desk could not be read.
 across:repos() {
   local resolved top member row
   if [[ -n "$1" ]]
@@ -277,9 +297,9 @@ across:repos() {
 }
 
 # across:repos-of <resolved> <workspace> <pictures> prints the repos document of the members <resolved> holds, as
-# across:repos says, reading at once the desks no picture holds.
+# across:repos says, reading at once the desks no picture holds, and returns 1 as it does.
 across:repos-of() {
-  local resolved=$1 workspace=$2 pictures=$3 dir checkout n=0 k desk error lists
+  local resolved=$1 workspace=$2 pictures=$3 dir checkout n=0 k desk error lists failed=false
   local -a checkouts=() members=() rows=()
   file:scratch dir
   readarray -t checkouts < <(jq --raw-output '.members[] | .checkout // ""' <<<"${resolved}")
@@ -312,6 +332,7 @@ across:repos-of() {
         desk=$(<"${dir}/${n}.out")
       else
         error=$(across_verb=flow across:error "${dir}/${n}" "${members[${n}]}" desk | jq --raw-output .error)
+        failed=true
       fi
     fi
     rows+=("$(jq --compact-output --argjson n "${n}" --argjson desk "${desk}" --arg error "${error}" \
@@ -319,7 +340,8 @@ across:repos-of() {
         behind: ($desk.behind // null)} + $lists + {error: (if $error == "" then null else $error end)}' \
       <<<"${resolved}")")
   done
-  printf '%s\n' "${rows[@]}" | jq --slurp --compact-output '{rows: ., errors: []}'
+  printf '%s\n' "${rows[@]}" | jq --slurp --compact-output '{rows: ., errors: []}' || return 1
+  [[ "${failed}" == false ]]
 }
 
 # across:branches <checkout> prints the checkout's linked worktrees and its local branches as JSON, {worktrees,
@@ -383,7 +405,7 @@ across:text() {
 }
 
 # across:marks <workspace> prints a mark per stage across the workspace, as one JSON object: each the members' marks
-# for the stage, in their order, so it changes when any member's does.
+# for the stage, in their order, so it changes when any member's does. It returns 1 as across:marks-merge does.
 across:marks() {
   local workspace=$1 dir
   file:scratch dir
@@ -407,19 +429,33 @@ across:repos-mark() {
 }
 
 # across:marks-merge <dir> [<repos>] joins the marks each member printed in <dir>, in the members' order, under each
-# stage any of them names, and adds repos' mark, when there is one.
+# stage any of them names, and adds repos' mark, when there is one. A member whose kit did not exit 0 is {member,
+# error} under errors, as across:merge names one, its line said on stderr, and its marks, where it printed them, are
+# joined still; then it returns 1, after the marks.
 across:marks-merge() {
-  local dir=$1 n=0
-  local -a marks=()
+  local dir=$1 n=0 member failure
+  local -a marks=() errors=()
   while [[ -f "${dir}/${n}.member" ]]
   do
+    member=$(<"${dir}/${n}.member")
+    # What a member printed that is not an object of marks is none, and its stages' marks are "null" in the join.
     marks+=("$(jq --compact-output 'if type == "object" then . else {} end' "${dir}/${n}.out" 2>/dev/null || echo '{}')")
+    if ! across:exited-0 "${dir}/${n}"
+    then
+      failure=$(across:error "${dir}/${n}" "${member}" --marks) || return 1
+      errors+=("${failure}")
+      error "${member}: $(jq --raw-output .error <<<"${failure}")"
+    fi
     n=$(( n + 1 ))
   done
-  printf '%s\n' "${marks[@]}" | grep -v '^$' | jq --slurp --compact-output --arg repos "${2:-}" '
+  (( ${#marks[@]} > 0 )) || marks=('{}')
+  printf '%s\n' "${marks[@]}" | jq --slurp --compact-output --arg repos "${2:-}" \
+    --argjson errors "$(printf '%s\n' "${errors[@]}" | jq --slurp --compact-output .)" '
     . as $all | ([$all[] | keys[]] | unique) as $stages
     | reduce $stages[] as $s ({}; .[$s] = ([$all[] | .[$s] // "null" | tostring] | join(" ")))
-    | if $repos == "" then . else . + {repos: $repos} end'
+    | if $repos == "" then . else . + {repos: $repos} end
+    | if $errors == [] then . else . + {errors: $errors} end' || return 1
+  (( ${#errors[@]} == 0 ))
 }
 
 # across:quota <workspace> prints every forge the workspace's members touch, each once, as kit flow --quota prints a
@@ -432,15 +468,29 @@ across:quota() {
 }
 
 # across:quota-merge <dir> joins the arrays kit flow --quota printed in <dir>, each forge once, in the order first met.
+# A member whose kit did not exit 0 adds none: its line is said on stderr, after its member, and it returns 1, after
+# what the others printed, or with nothing printed when no member could be read.
 across:quota-merge() {
-  local dir=$1 out
-  for out in "${dir}"/*.out
+  local dir=$1 n=0 answered=0 member line
+  local -a quotas=()
+  while [[ -f "${dir}/${n}.member" ]]
   do
-    [[ -e "${out}" && "$(<"${out%.out}.status")" == 0 ]] || continue
-    # A member that exited 0 with output jq cannot read adds no quota, and nothing says so; jq's words are dropped.
-    jq --compact-output 'if type == "array" then . else [] end' "${out}" 2>/dev/null || true
-  done | jq --slurp --compact-output 'add // [] | reduce .[] as $q ([]; if any(.[]; .forge == $q.forge) then . else
-    . + [$q] end)'
+    member=$(<"${dir}/${n}.member")
+    if across:exited-0 "${dir}/${n}"
+    then
+      # A member that exited 0 with output jq cannot read adds no quota, and nothing says so; jq's words are dropped.
+      quotas+=("$(jq --compact-output 'if type == "array" then . else [] end' "${dir}/${n}.out" 2>/dev/null || true)")
+      answered=$(( answered + 1 ))
+    else
+      line=$(across:error "${dir}/${n}" "${member}" --quota | jq --raw-output .error) || return 1
+      error "${member}: ${line}"
+    fi
+    n=$(( n + 1 ))
+  done
+  (( answered > 0 || n == 0 )) || return 1
+  printf '%s\n' "${quotas[@]}" | jq --slurp --compact-output 'add // [] | reduce .[] as $q ([];
+    if any(.[]; .forge == $q.forge) then . else . + [$q] end)' || return 1
+  (( answered == n ))
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

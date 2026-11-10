@@ -46,10 +46,12 @@ func New() Runner {
 	return r
 }
 
-// ExitError is kit's refusal: its exit code, and what it printed on stderr, the one line kit prints.
+// ExitError is kit's refusal: its exit code, what it printed on stderr, the one line kit prints, and what it printed
+// on stdout, which, with exit 1, is the part of a document kit could read.
 type ExitError struct {
 	Code   int
 	Stderr string
+	Stdout []byte
 }
 
 // Error gives kit's line without the ❌ kit prints before it, so whatever shows the line adds the glyph once.
@@ -258,9 +260,10 @@ type Limit struct {
 }
 
 // Quota asks kit for the caller's rate limits on each forge kit flow reads, as kit flow --quota prints them; reading
-// them costs a request of each forge at most. ctx ends it with the screen.
+// them costs a request of each forge at most. Over a group, the limits of the members kit could read are kept, as
+// partial says. ctx ends it with the screen.
 func (r Runner) Quota(ctx context.Context) ([]Quota, error) {
-	out, err := r.within(ctx, callLimit, append(os.Environ(), "NO_COLOR=1"), r.over("flow", "--quota")...)
+	out, err := partial(r.within(ctx, callLimit, append(os.Environ(), "NO_COLOR=1"), r.over("flow", "--quota")...))
 	if err != nil {
 		return nil, err
 	}
@@ -272,27 +275,48 @@ func (r Runner) Quota(ctx context.Context) ([]Quota, error) {
 }
 
 // Marks asks kit for a mark per stage, as kit flow --marks prints them, by the stage's name: a text that changes when
-// what the stage draws does; a stage kit cannot read a mark of has none. ctx ends it with the screen.
+// what the stage draws does; a stage kit cannot read a mark of, null where kit exits 1 as the forge cannot answer, has
+// none, and the marks kit read beside it are kept, as partial says. ctx ends it with the screen.
 func (r Runner) Marks(ctx context.Context) (map[string]string, error) { return r.MarksOf(ctx, "flow") }
 
 // MarksOf asks kit for a mark per stage of a verb's picture, kit flow's or kit workspace's, as <verb> --marks prints
-// them, as Marks says.
+// them, as Marks says. Over a group, errors, beside the marks, names the members kit could not read; it is no stage.
 func (r Runner) MarksOf(ctx context.Context, verb string) (map[string]string, error) {
-	out, err := r.within(ctx, callLimit, append(os.Environ(), "NO_COLOR=1"), r.over(verb, "--marks")...)
+	out, err := partial(r.within(ctx, callLimit, append(os.Environ(), "NO_COLOR=1"), r.over(verb, "--marks")...))
 	if err != nil {
 		return nil, err
 	}
-	var marks map[string]*string
+	var marks map[string]json.RawMessage
 	if err := json.Unmarshal(out, &marks); err != nil {
 		return nil, fmt.Errorf("kit %s --marks: %w", verb, err)
 	}
+	delete(marks, "errors")
 	kept := map[string]string{}
-	for stage, mark := range marks {
+	for stage, raw := range marks {
+		var mark *string
+		if err := json.Unmarshal(raw, &mark); err != nil {
+			return nil, fmt.Errorf("kit %s --marks: %s: %w", verb, stage, err)
+		}
 		if mark != nil {
 			kept[stage] = *mark
 		}
 	}
 	return kept, nil
+}
+
+// partial gives what kit printed, and no error, where kit exited 1 after a document that names in itself what it
+// could not read: stdout that, trimmed, is JSON and opens an object or an array. Anything else, another exit, nothing
+// printed, or what is not such JSON, is the out and the error it was given.
+func partial(out []byte, err error) ([]byte, error) {
+	var exit *ExitError
+	if !errors.As(err, &exit) || exit.Code != 1 {
+		return out, err
+	}
+	doc := bytes.TrimSpace(exit.Stdout)
+	if len(doc) == 0 || (doc[0] != '{' && doc[0] != '[') || !json.Valid(doc) {
+		return out, err
+	}
+	return exit.Stdout, nil
 }
 
 // waitDelay is how long Status waits, once ctx has ended, for kit to die and its pipes to close before the pipes
@@ -301,8 +325,9 @@ const waitDelay = 2 * time.Second
 
 // Status gives one stage's JSON, as kit flow <stage> --json <args>… prints it; the args are the stage's own flags. A
 // stage of another verb's picture is named after the verb and a slash, as workspace/branches, which kit workspace
-// branches --json prints. A stage kit cannot draw is kit's refusal, an ExitError. Kit runs in a process group of its own until ctx ends: then
-// the group is sent SIGTERM, so a gh or an ssh kit started dies with it, and the error is ctx's.
+// branches --json prints. A stage kit cannot draw is kit's refusal, an ExitError; one kit read in part, its document
+// with exit 1, is that document, as partial says. Kit runs in a process group of its own until ctx ends: then the
+// group is sent SIGTERM, so a gh or an ssh kit started dies with it, and the error is ctx's.
 func (r Runner) Status(ctx context.Context, stage string, args []string) ([]byte, error) {
 	verb, name, ok := strings.Cut(stage, "/")
 	if !ok {
@@ -314,7 +339,7 @@ func (r Runner) Status(ctx context.Context, stage string, args []string) ([]byte
 	if err != nil && ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
-	return out, err
+	return partial(out, err)
 }
 
 // Tracker is a tracker a new issue can be filed in, as kit new issue --list --json gives it: the prefix its references
@@ -566,7 +591,7 @@ func (r Runner) output(cmd *exec.Cmd) ([]byte, error) {
 	if err := cmd.Run(); err != nil {
 		var exit *exec.ExitError
 		if errors.As(err, &exit) {
-			return nil, &ExitError{Code: exit.ExitCode(), Stderr: stderr.String()}
+			return nil, &ExitError{Code: exit.ExitCode(), Stderr: stderr.String(), Stdout: stdout.Bytes()}
 		}
 		return nil, fmt.Errorf("%s: %w", r.Kit, err)
 	}

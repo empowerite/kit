@@ -6,12 +6,15 @@
 # directory, as pwd -P gives it, and its words are appended to, a tab between them. FAKE_FLOW_STAGES is what --stages
 # prints, space-separated; unset, it prints the eight. FAKE_FLOW_REFUSE names a stage whose --json answer is a
 # refusal, exit 1, or stages to refuse --stages with exit 2. FAKE_FLOW_SILENT names a stage that exits 1 with
-# nothing on stderr. FAKE_FLOW_SLOW names a stage that sleeps five seconds before it answers. FAKE_FLOW_ABOVE
-# names a stage that answers as kit does above repositories: an array of {path, status}, one per desk. With
-# --no-fetch, incoming answers incoming-no-fetch.json: fetched false, and the remotes without what a fetch brings.
+# nothing on stderr. FAKE_FLOW_PART names a stage, or workspace/<stage>, kit read in part: it prints the file
+# FAKE_FLOW_PART_JSON names and exits 1 with nothing on stderr, as incoming does when a remote's fetch fails.
+# FAKE_FLOW_SLOW names a stage that sleeps five seconds before it answers. FAKE_FLOW_ABOVE names a stage that
+# answers as kit does above repositories: an array of {path, status}, one per desk. With --no-fetch, incoming
+# answers incoming-no-fetch.json: fetched false, and the remotes without what a fetch brings.
 # --me prints FAKE_FLOW_ME, ada when it is unset; FAKE_FLOW_REFUSE=me refuses it with exit 1. --quota prints
 # FAKE_FLOW_QUOTA, and refuses with exit 1 while it is unset, as kit does with no forge to read; --marks prints
-# FAKE_FLOW_MARKS, a file it reads again each time, and refuses the same way without one. A stage given --cached
+# FAKE_FLOW_MARKS, a file it reads again each time, and refuses the same way without one; where a mark there is null,
+# it prints the marks and exits 1, as kit does when the forge cannot answer. A stage given --cached
 # prints <stage>.json from the directory FAKE_FLOW_KEPT names, and refuses with exit 1 without one, as kit does
 # before the stage has printed. new issue --list --json
 # prints trackers.json beside this file; FAKE_FLOW_REFUSE=new refuses it with exit 1. The verbs that act,
@@ -69,6 +72,11 @@ then
         echo "❌ kit workspace ${2:-} refuses for the test; run: kit help workspace" >&2
         exit 1
       fi
+      if [[ "${FAKE_FLOW_PART:-}" == "workspace/${2:-}" ]]
+      then
+        cat "${FAKE_FLOW_PART_JSON}"
+        exit 1
+      fi
       cat "${here}/workspace-${2:-}.json"
   esac
   exit 0
@@ -100,6 +108,11 @@ case "${1:-}" in
       exit 1
     fi
     cat "${FAKE_FLOW_MARKS}"
+    if grep --quiet null "${FAKE_FLOW_MARKS}"
+    then
+      echo "❌ kit flow: the forge cannot answer; run: gh auth status (the marks could not be read)" >&2
+      exit 1
+    fi
     ;;
   (--quota)
     if [[ -z "${FAKE_FLOW_QUOTA:-}" ]]
@@ -142,6 +155,11 @@ case "${1:-}" in
       exit 1
     fi
     [[ "${FAKE_FLOW_SILENT:-}" != "${stage}" ]] || exit 1
+    if [[ "${FAKE_FLOW_PART:-}" == "${stage}" ]]
+    then
+      cat "${FAKE_FLOW_PART_JSON}"
+      exit 1
+    fi
     [[ "${FAKE_FLOW_SLOW:-}" != "${stage}" ]] || sleep 5
     if [[ "${FAKE_FLOW_ABOVE:-}" == "${stage}" ]]
     then

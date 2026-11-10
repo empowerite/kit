@@ -1088,11 +1088,12 @@ func (s *stage) decodeRows(data []byte, many bool) error {
 	return nil
 }
 
-// across refuses a document over a group that is not kit's {rows, errors}: anything but an object with rows.
+// across refuses a document over a group that is not kit's {rows, errors}: anything but an object with rows. Nothing,
+// null, and rows of null are nothing printed, never an empty stage.
 func across(name string, data []byte) error {
 	printed := ""
 	switch data = bytes.TrimSpace(data); {
-	case len(data) == 0:
+	case len(data) == 0 || string(data) == "null":
 		printed = "nothing"
 	case data[0] == '[':
 		printed = "an array"
@@ -1103,8 +1104,10 @@ func across(name string, data []byte) error {
 		if json.Unmarshal(data, &object) != nil {
 			return nil
 		}
-		if _, ok := object["rows"]; !ok {
+		if rows, ok := object["rows"]; !ok {
 			printed = `an object without "rows"`
+		} else if string(bytes.TrimSpace(rows)) == "null" {
+			printed = "nothing"
 		}
 	}
 	if printed == "" {
@@ -1138,11 +1141,13 @@ var expected = map[string]struct {
 
 // shape refuses a document that is not the stage's: an array where an object is expected, an object where an array
 // is, an array whose objects lack one of the stage's key fields, as the array of desks kit prints above desks, or an
-// object without its key field, as incoming's before every remote. Anything else is left to the decoder.
+// object without its key field, as incoming's before every remote. Nothing and null are nothing printed, never an
+// empty stage. Anything else is left to the decoder.
 func shape(name string, data []byte) error {
 	want, printed := expected[name], ""
 	switch data = bytes.TrimSpace(data); {
-	case len(data) == 0:
+	case len(data) == 0 || string(data) == "null":
+		return fmt.Errorf("kit flow %s --json printed nothing where %s was expected", name, want.what)
 	case data[0] == '[' && !want.array:
 		printed = "an array"
 	case data[0] == '{' && want.array:

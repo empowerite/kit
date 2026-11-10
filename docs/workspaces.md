@@ -76,8 +76,10 @@ kit flow backlog --workspace empowerite --json    # every member's backlog, each
 `--workspace` runs `kit flow` in every member's checkout at once, each under that checkout's own `kit.yml`, so a
 GitLab member beside GitHub ones keeps its forges and trackers. With `--json`, a stage prints `{rows, errors}`: each
 row, or each desk, worktrees, or incoming object, gains `member`, its host and path; a member that could not be read
-is `{member, error}` under `errors`, and the others still draw. A member with no checkout draws no stage; `kit workspace
-repos` lists it. Over a workspace, the stages are kit's eight, whatever the `kit.yml` where you run it says.
+is `{member, error}` under `errors`, and the others still draw. kit flow exits 1 when a member cannot be read: with
+`--json`, what was read is still printed. `--marks` names such a member under `errors` beside the marks, and
+`--quota` leaves its rate limits out; both say its line on stderr. A member with no checkout draws no stage; `kit
+workspace repos` lists it. Over a workspace, the stages are kit's eight, whatever the `kit.yml` where you run it says.
 `--stages`, `--marks`, and `--quota` span the members too; a pull request's number, and `--me`, name one repository's,
 and are refused.
 
@@ -114,10 +116,11 @@ its row and on the branch's, and a worktree's is its branch, or its commit where
 - tags: each tag, the newest first, annotated or lightweight, with its commit and its tagger.
 
 `--workspace` reads every cloned member's checkout at once, as `kit flow --workspace` does, and every row gains its
-member. On a terminal, `kit workspace` opens kittui's Repositories app, a tab per stage, the 📚 repos tab first and
-kit flow's incoming last. On the repos tab, a clone reads `~` for the home folder, and a
-closed row shows `…` and its last two folders; open, the row shows the whole path. A member's name on any tab leads
-to its row there.
+member. kit workspace exits 1 when a member, or a member's desk, cannot be read: with `--json`, what was read is
+still printed, the member under `errors`, or the desk's line as its repos row's `error`. On a terminal, `kit
+workspace` opens kittui's Repositories app, a tab per stage, the 📚 repos tab first and kit flow's incoming last.
+On the repos tab, a clone reads `~` for the home folder, and a closed row shows `…` and its last two folders; open,
+the row shows the whole path. A member's name on any tab leads to its row there.
 
 ## Still to come
 

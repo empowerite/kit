@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
+	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
 // With no stage in the picture, the keys that move, open, page, and drop the tab's menu down do nothing, and the pane
@@ -50,12 +52,12 @@ func TestRefreshAndDownDoNothingWhereThereIsNothingToLoadOrEnter(t *testing.T) {
 	}
 }
 
-// A document that is empty, that does not parse, or whose fields are of the wrong type is a refusal naming the stage.
+// A document that does not parse, or whose fields are of the wrong type, is a refusal naming the stage; nothing is
+// one too, as TestNothingOrNullOnStdoutIsARefusalNotAnEmptyStage says.
 func TestADocumentKitFlowCannotDecodeIsARefusal(t *testing.T) {
 	for _, c := range []struct {
 		stage, data string
 	}{
-		{"releases", ""},
 		{"releases", `[{"version": 5}]`},
 		{"releases", `[{`},
 		{"desk", `{"path": 7}`},
@@ -154,5 +156,61 @@ func TestOnANarrowScreenTheBarScrolls(t *testing.T) {
 	if !strings.Contains(squeeze(bar), "│ 🎫 backlog 3 "+tabs.Menu+" │") || strings.Contains(bar, tabs.After) ||
 		!strings.Contains(bar, "🛫 u") {
 		t.Errorf("at 30 columns, the bar does not scroll with backlog whole: %q", bar)
+	}
+}
+
+// Nothing and null are what kit printed when it printed nothing: a refusal, the stage's line, never an empty stage.
+func TestNothingOrNullOnStdoutIsARefusalNotAnEmptyStage(t *testing.T) {
+	for what, err := range map[string]error{
+		"null for backlog":     shape("backlog", []byte("null")),
+		"nothing for incoming": shape("incoming", nil),
+		"rows of null":         across("backlog", []byte("{\"rows\": null}")),
+	} {
+		if err == nil || !strings.Contains(err.Error(), "printed nothing") {
+			t.Errorf("%s: %v", what, err)
+		}
+	}
+	m := loaded(t, Options{Stages: []string{"releases"}}, answer("releases", ""))
+	if s := m.find("releases"); s.refusal != "kit flow releases --json printed nothing where an array of releases was "+
+		"expected" {
+		t.Errorf("releases of nothing: refusal %q", s.refusal)
+	}
+}
+
+// A stage kit read in part, its document with exit 1, draws what was read and names the part that failed where it
+// stands: a remote whose fetch failed as its ❌ line among the remotes, and a member kit could not read as its ❌ line
+// among the rows. Neither is the stage's refusal, and the fetch that ran moves the stages it moves.
+func TestAStageReadInPartDrawsWhatWasReadAndNamesWhatWasNot(t *testing.T) {
+	part := filepath.Join(t.TempDir(), "part.json")
+	write := func(doc string) {
+		if err := os.WriteFile(part, []byte(doc), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("FAKE_FLOW_PART_JSON", part)
+	write(`{"fetched": true, "primary": "origin", "remotes": [
+		{"name": "origin", "forge": "github", "host": "github.com", "default": "main",
+		 "commits": [{"sha": "a1b2c3d", "subject": "#1 docs: what was fetched"}],
+		 "branches": {"new": [], "updated": [], "gone": []}, "tags": []},
+		{"name": "fork", "forge": "github", "host": "github.com", "default": null, "error": "fatal: no route to host",
+		 "commits": [], "branches": {"new": [], "updated": [], "gone": []}, "tags": []}]}`)
+	t.Setenv("FAKE_FLOW_PART", "incoming")
+	m := loaded(t, Options{Stages: []string{"incoming", "desk"}, NoPresets: true, Clock: &testkit.Clock{}})
+	s, v := m.find("incoming"), view(m)
+	if s.refusal != "" || !strings.Contains(v, Failed+" fatal: no route to host") ||
+		!strings.Contains(v, "what was fetched") {
+		t.Errorf("incoming read in part: refusal %q\n%s", s.refusal, v)
+	}
+	if !fetched(s.ins) {
+		t.Error("incoming read in part is not fetched, so nothing it moved loads again")
+	}
+	write(`{"rows": [{"key": "origin", "remote": "origin", "forge": "github", "repository": "o/a",
+		"member": "github.com/o/a", "host": "github.com", "url": "https://github.com/o/a.git", "links": {}}],
+		"errors": [{"member": "github.com/o/b", "error": "/code/b is gone; run: kit workspaces --show w"}]}`)
+	t.Setenv("FAKE_FLOW_PART", "workspace/remotes")
+	m = loaded(t, Options{Stages: []string{"workspace/remotes"}, NoPresets: true, Clock: &testkit.Clock{}})
+	if s, v := m.find("workspace/remotes"), view(m); s.refusal != "" || len(s.rows) != 1 ||
+		!strings.Contains(v, Failed+" github.com/o/b: /code/b is gone") {
+		t.Errorf("remotes read in part: refusal %q, rows %d\n%s", s.refusal, len(s.rows), v)
 	}
 }

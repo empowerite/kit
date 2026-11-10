@@ -205,6 +205,11 @@ use <module>
   - 1 when it could not, or when what it checks does not hold
   - 2 when the arguments are wrong, or a name given is not a verb, package, or path kit knows
 
+  A verb that prints JSON, as `kit flow` and `kit workspace` do, exits 1 when a part cannot be read: with `--json`,
+  what was read is still printed, and names in itself what could not, a remote's `error`, a member under `errors`,
+  or a stage of `null`. Exit 1 with nothing on stdout says nothing could be read, and the last ❌ line on stderr says
+  why. Exit 0 says the document is whole.
+
   A verb that runs another command may pass that command's status through, and says so. Every verb's header ends
   its description with one `Exits …` line stating its codes in those terms.
 - The verb finds the loader beside its own real path, so it runs through a symlink, as Homebrew installs it.

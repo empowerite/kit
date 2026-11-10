@@ -432,6 +432,20 @@ REGO
   grep --quiet 'pr view 3 --json' "${FAKE_DIR}/gh.calls"
 }
 
+@test "a branch that points the primary at another forge in forges still has its change read through the base's" {
+  change "bad title" ada
+  printf 'forges:\n  origin: github\npolicy:\n  change_title: "^Fix "\n' > kit.yml
+  git add kit.yml
+  git commit --quiet --message "#2 kit: the policy" && git push --quiet origin main
+  branch 7-fix-the-thing "#7 cli: fix the thing"
+  printf 'forges:\n  origin: gitlab\npolicy:\n  change_title: "^Fix "\n' > kit.yml
+  git commit --quiet --all --message "#7 cli: another forge"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"change title 'bad title' does not match policy.change_title"* ]]
+  grep --quiet 'pr view 3 --json' "${FAKE_DIR}/gh.calls"
+}
+
 @test "on the default branch, or detached, only the tree is under check, and kit policy says so" {
   run "${kit_root}/bin/kit" policy
   [ "$status" -eq 0 ]

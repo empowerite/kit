@@ -92,7 +92,7 @@ EOF
   printf 'a warning\n❌ gh cannot read o/b\n' > "$d/1.err"
   printf 'github.com/o/c' > "$d/2.member"; printf '[{"n":3}]' > "$d/2.out"; printf 0 > "$d/2.status"; : > "$d/2.err"
   run kit-bash "across:merge '$d' array"
-  [ "$status" -eq 0 ]
+  [ "$status" -eq 1 ]
   [ "$output" = '{"rows":[{"n":1,"member":"github.com/o/a"},{"n":2,"member":"github.com/o/a"},{"n":3,"member":"github.com/o/c"}],"errors":[{"member":"github.com/o/b","error":"gh cannot read o/b"}]}' ]
 }
 
@@ -118,7 +118,7 @@ EOF
   cd "${BATS_TEST_TMPDIR}"
   run kit-bash "across:members() { printf '%s\t%s\n' github.com/o/a '${BATS_TEST_TMPDIR}/code/a' \
     github.com/o/b '${BATS_TEST_TMPDIR}/gone'; }; across:stage w desk --json"
-  [ "$status" -eq 0 ]
+  [ "$status" -eq 1 ]
   [ "$(jq -c '[.rows[].member]' <<<"$output")" = '["github.com/o/a"]' ]
   [ "$(jq -r '.errors[0].member' <<<"$output")" = github.com/o/b ]
   [ "$(jq -r '.errors[0].error' <<<"$output")" = "${BATS_TEST_TMPDIR}/gone is gone; run: kit workspaces --show w" ]
@@ -299,12 +299,48 @@ local-desks() {
 
 @test "across:quota-merge lists every forge the members touch once" {
   d=${BATS_TEST_TMPDIR}/q && mkdir -p "$d"
-  printf '[{"forge":"github","limits":[]}]' > "$d/0.out"; printf 0 > "$d/0.status"
+  printf 'github.com/o/a' > "$d/0.member"; printf '[{"forge":"github","limits":[]}]' > "$d/0.out"
+  printf 0 > "$d/0.status"; : > "$d/0.err"
+  printf 'gitlab.com/o/b' > "$d/1.member"
   printf '[{"forge":"github","limits":[]},{"forge":"gitlab","limits":[]}]' > "$d/1.out"; printf 0 > "$d/1.status"
-  : > "$d/2.out"; printf 1 > "$d/2.status"
+  : > "$d/1.err"
   run kit-bash "across:quota-merge '$d'"
   [ "$status" -eq 0 ]
   [ "$(jq -c '[.[].forge]' <<<"$output")" = '["github","gitlab"]' ]
+}
+
+@test "across:quota-merge says each member whose rate limits could not be read, and exits 1 after the rest" {
+  d=${BATS_TEST_TMPDIR}/q && mkdir -p "$d"
+  printf 'github.com/o/a' > "$d/0.member"; printf '[{"forge":"github","limits":[]}]' > "$d/0.out"
+  printf 0 > "$d/0.status"; : > "$d/0.err"
+  printf 'gitlab.com/o/b' > "$d/1.member"; : > "$d/1.out"; printf 1 > "$d/1.status"
+  printf '❌ run: glab auth status (the rate limits could not be read)\n' > "$d/1.err"
+  run --separate-stderr kit-bash "across:quota-merge '$d'"
+  [ "$status" -eq 1 ]
+  [ "$(jq -c '[.[].forge]' <<<"$output")" = '["github"]' ]
+  [ "$stderr" = "❌ gitlab.com/o/b: run: glab auth status (the rate limits could not be read)" ]
+  printf 1 > "$d/0.status"; : > "$d/0.out"; printf '❌ run: gh auth status\n' > "$d/0.err"
+  run --separate-stderr kit-bash "across:quota-merge '$d'"
+  [ "$status" -eq 1 ]
+  [ "$output" = '' ]
+  [ "${#stderr_lines[@]}" -eq 2 ]
+}
+
+@test "kit workspace --marks over a workspace names a member it could not read, says its line, and exits 1" {
+  local-desks
+  printf 'bash_path: [nosuch:dir]\n' > "${BATS_TEST_TMPDIR}/code/b b/kit.yml"
+  cd "${BATS_TEST_TMPDIR}"
+  run --separate-stderr "${kit_root}/bin/kit" workspace --marks --workspace w
+  [ "$status" -eq 1 ]
+  [ "$(jq -c '.errors | map(.member)' <<<"$output")" = '["github.com/o/b"]' ]
+  [[ "$(jq -r '.errors[0].error' <<<"$output")" == "bash_path must start with kit:modules/bash/"* ]]
+  [ "$(jq -r '.tags | type' <<<"$output")" = string ]
+  [ "$(jq -r '.repos | type' <<<"$output")" = string ]
+  [[ "$stderr" == "❌ github.com/o/b: bash_path must start with kit:modules/bash/"* ]]
+  git -C "${BATS_TEST_TMPDIR}/code/b b" checkout --quiet kit.yml
+  run --separate-stderr "${kit_root}/bin/kit" workspace --marks --workspace w
+  [ "$status" -eq 0 ]
+  [ "$(jq -r 'has("errors")' <<<"$output")" = false ]
 }
 
 @test "kit flow --me --workspace refuses with 2" {
@@ -354,6 +390,7 @@ local-desks() {
   : > "$d/0.err"
   printf 'github.com/o/b' > "$d/1.member"; : > "$d/1.out"; printf 3 > "$d/1.status"; : > "$d/1.err"
   run kit-bash "across:merge '$d' object incoming"
+  [ "$status" -eq 1 ]
   [ "$output" = '{"rows":[{"fetched":true,"member":"github.com/o/a"}],"errors":[{"member":"github.com/o/b","error":"kit flow incoming exited 3"}]}' ]
 }
 

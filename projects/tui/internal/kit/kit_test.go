@@ -481,3 +481,62 @@ func TestQuotaAndMarksAreKitsRefusal(t *testing.T) {
 		t.Errorf("Marks: %v", err)
 	}
 }
+
+func TestAStageThatPrintsItsDocumentAndExitsOneIsItsDocument(t *testing.T) {
+	ctx := context.Background()
+	r := script(t, `echo '{"fetched": true, "remotes": [{"name": "fork", "error": "fatal: no route"}]}'; exit 1`)
+	if out, err := r.Status(ctx, "incoming", nil); err != nil || !strings.Contains(string(out), "fatal: no route") {
+		t.Fatalf("Status = %q, %v", out, err)
+	}
+	if marks, err := script(t, `echo '{"desk": "1", "changes": null}'; exit 1`).Marks(ctx); marks["desk"] != "1" {
+		t.Errorf("Marks = %v, %v", marks, err)
+	}
+}
+
+func TestARefusalWhatIsNotJSONAndAnotherExitStayTheError(t *testing.T) {
+	ctx := context.Background()
+	for _, body := range []string{`echo '❌ no gh' >&2; exit 1`, `echo 'not json'; exit 1`, `echo '{}'; exit 2`} {
+		if out, err := script(t, body).Status(ctx, "incoming", nil); err == nil {
+			t.Errorf("%s: Status = %q, nil", body, out)
+		}
+	}
+}
+
+// What kit printed with exit 1 is a part only where it is JSON that opens an object or an array: blank, a string, and
+// a brace that does not close stay kit's refusal, with what it printed on the error.
+func TestOnlyAnObjectOrAnArrayIsAPartRead(t *testing.T) {
+	for _, stdout := range []string{"  \n", `"text"`, `{"rows": `} {
+		exit := &ExitError{Code: 1, Stdout: []byte(stdout)}
+		if out, err := partial(nil, exit); err != exit || out != nil {
+			t.Errorf("%q: partial = %q, %v", stdout, out, err)
+		}
+	}
+	if out, err := partial(nil, &ExitError{Code: 1, Stdout: []byte(" [1]\n")}); err != nil || string(out) != " [1]\n" {
+		t.Errorf("an array: partial = %q, %v", out, err)
+	}
+}
+
+// Over a group, the marks name the members kit could not read under errors, which is no stage, beside the marks it
+// read; the rate limits read are kept as the marks are. A mark that is neither text nor null is not a mark.
+func TestAGroupsMarksAndQuotaKeepWhatWasReadBesideTheMembersThatFailed(t *testing.T) {
+	ctx := context.Background()
+	marks, err := script(t, `echo '{"desk": "1 2", "errors": [{"member": "github.com/o/b", "error": "no gh"}]}'
+exit 1`).MarksOf(ctx, "workspace")
+	if _, errors := marks["errors"]; err != nil || marks["desk"] != "1 2" || errors || len(marks) != 1 {
+		t.Errorf("MarksOf = %v, %v", marks, err)
+	}
+	if marks, err := script(t, `echo '{"desk": 7}'`).Marks(ctx); err == nil {
+		t.Errorf("a number as a mark: %v, nil", marks)
+	}
+	// a part that is JSON, but not the marks or the rate limits, is no answer
+	if marks, err := script(t, `echo '[1]'; exit 1`).Marks(ctx); err == nil {
+		t.Errorf("an array as the marks: %v, nil", marks)
+	}
+	if quotas, err := script(t, `echo '[1]'; exit 1`).Quota(ctx); err == nil {
+		t.Errorf("an array of numbers as the rate limits: %v, nil", quotas)
+	}
+	quotas, err := script(t, `echo '[{"forge": "github", "limits": []}]'; echo '❌ o/b: no gh' >&2; exit 1`).Quota(ctx)
+	if err != nil || len(quotas) != 1 || quotas[0].Forge != "github" {
+		t.Errorf("Quota = %+v, %v", quotas, err)
+	}
+}

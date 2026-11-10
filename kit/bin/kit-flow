@@ -122,10 +122,12 @@
 # in every member's checkout at once, each under that checkout's own kit.yml, and the stages are kit's eight, whatever
 # the kit.yml where it runs says. With --json, a stage prints {rows, errors}: each row, or each desk,
 # worktrees, or incoming object, gains member, its host and path; a member that could not be read is {member, error},
-# its line, under errors, and every other member still draws, so the stage exits 0. The picture prints {stages,
-# <stage>…}, each stage so. As text, the picture draws each cloned member's picture under its member, and exits 1 when
-# one of them did. A member with no checkout draws nothing; kit workspace repos lists every member, cloned or not.
-# --marks and --quota span the members; a pull request's number names one repository's, and is refused.
+# its line, under errors, and every other member still draws, and the stage exits 1 after it. The picture prints
+# {stages, <stage>…}, each stage so. As text, the picture draws each cloned member's picture under its member, and
+# exits 1 when one of them did. A member with no checkout draws nothing; kit workspace repos lists every member, cloned
+# or not. --marks and --quota span the members: a member that could not be read says its line, its marks are
+# {member, error} under errors beside the others', its rate limits are left out, and kit flow exits 1 after the rest.
+# A pull request's number names one repository's, and is refused.
 #
 # Legend
 #
@@ -226,11 +228,13 @@
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # kit:end legend
-# Exits 0 when the picture is drawn, 1 when the forge, the fetch, the workspace file, or git's list of the worktrees,
-# the desks, or the remote branches cannot be read, git cannot count the lines changed in a checkout or read its
-# uncommitted paths, or a setting is wrong, and 2 on a usage error. A wrong setting is a flow setting that is not a
-# list of distinct stages, a primary that names no remote, or a forges key that is no remote name. With --marks, when
-# the forge cannot answer, its stages' marks are null beside every local stage's, and kit flow exits 1.
+# Exits 0 when the picture is drawn, 1 when the forge, the fetch, the workspace file, a member of the workspace, a desk
+# below, or git's list of the worktrees, the desks, or the remote branches cannot be read: with --json, what was read
+# is still printed, and names what could not, a remote's error, a member under errors, or a stage of null. It exits 1
+# too when git cannot count the lines changed in a checkout or read its uncommitted paths, or a setting is wrong, and
+# 2 on a usage error. A wrong setting is a flow setting that is not a list of distinct stages, a primary that names
+# no remote, or a forges key that is no remote name. With --marks, when the forge cannot answer, its stages' marks are
+# null beside every local stage's, and kit flow exits 1.
 #
 # see: modules/bash/flow.sh, modules/bash/backlog.sh, modules/bash/underway.sh, modules/bash/changes.sh,
 # modules/bash/builds.sh, modules/bash/releases.sh

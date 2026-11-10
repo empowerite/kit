@@ -33,11 +33,12 @@
 # kit policy and kit linked judge a branch past the default one by the policy on its base, origin/<default>, the ref
 # the commits are counted from (policy:base), so a branch cannot loosen the rule that judges it: a pattern it blanks, a
 # login it exempts, an engine it names, a file it stops a rule from reading, a forge it drops, or a .rego file it
-# removes, adds, or edits. policy:from-base reads policy, policy_engine, linked_exempt, facts, and forge from the
-# base's kit.yml, each absent where the base has none, so the kit's default applies: for forge, the provider the
-# remote's host names. Every other setting is the disk's; primary among them, since it names the remote the base is
-# read from, and a primary that names no remote fails. A branch that adds a file to facts.read for a rule of its own
-# changes nothing until it is merged, as the rule does.
+# removes, adds, or edits. policy:from-base reads policy, policy_engine, linked_exempt, facts, forge, and forges from
+# the base's kit.yml, each absent where the base has none, so the kit's default applies: for forge and forges, the
+# provider the remote's host names. forges, the map from remotes to providers, is the base's as forge is, so a branch
+# cannot point the primary at a forge that reads no change. Every other setting is the disk's; primary among them,
+# since it names the remote the base is read from, and a primary that names no remote fails. A branch that adds a file
+# to facts.read for a rule of its own changes nothing until it is merged, as the rule does.
 #
 # The Rego that judges a branch is exactly the base's, and nothing the branch adds or changes under .kit/policy/
 # counts: each .rego file the base holds under .kit/policy/, a link resolved in the base's tree, and each .rego file a
@@ -256,7 +257,7 @@ policy:from() {
 
 # policy:from-base <dir> makes the policy read, under <dir>, what judges a branch past the default one, as the file
 # header describes: policy:from the base, then <dir>/kit.yml as the disk's kit.yml with policy, policy_engine,
-# linked_exempt, facts, and forge as the base's kit.yml has them, absent where it has none, and <dir>/rego as
+# linked_exempt, facts, forge, and forges as the base's kit.yml has them, absent where it has none, and <dir>/rego as
 # policy:base-rego makes it, the base's Rego and no other. Where the base has no kit.yml, it leaves the policy reading
 # the disk. It returns 1 when the base is not here, or a file of it, a source it names, or a package it lists cannot be
 # read.
@@ -272,7 +273,7 @@ policy:from-base() {
   base_doc=$(yaml:json "${dir}/base.yml") || return 1
   # JSON is YAML, so the settings readers read the merged document as they read kit.yml.
   if ! jq --null-input --compact-output --argjson disk "${disk_doc:-null}" --argjson base "${base_doc:-null}" '
-    ["policy", "policy_engine", "linked_exempt", "facts", "forge"] as $judging
+    ["policy", "policy_engine", "linked_exempt", "facts", "forge", "forges"] as $judging
     | (($disk // {}) | with_entries(select(.key as $key | $judging | index($key) | not)))
       + (($base // {}) | with_entries(select(.key as $key | $judging | index($key))))' > "${dir}/kit.yml"
   then
