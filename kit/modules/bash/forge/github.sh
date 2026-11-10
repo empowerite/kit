@@ -143,11 +143,11 @@ forge/github:open-issues() {
 # forge/github:rest-of-closes reads the rest of it, 100 at a time, a point each.
 #
 # The pull requests come 100 a request, each page after the cursor the one before ended on, until the list ends. A
-# pull request with more than 100 review threads, or more than 100 checks on its head commit, fails the read, as
-# GitHub's totalCount tells.
+# pull request with more than 100 review threads, or more than 100 checks on its head commit, has the rest of that
+# list read by forge/github:rest-of-pr, 100 a request, as the issues it closes are read by forge/github:rest-of-closes.
 forge/github:open-prs() {
-  local repo query answer='' page number cursor rest
-  local -a after=()
+  local repo query answer='' page number cursor rest list head row
+  local -a after=() rests=()
   repo=$(forge/github:repo) || return 1
   query='query($owner: String!, $name: String!, $after: String) {
     repository(owner: $owner, name: $name) {
@@ -165,10 +165,10 @@ forge/github:open-prs() {
           closingIssuesReferences(first: 10) { pageInfo { hasNextPage endCursor } nodes {
             number title createdAt repository { nameWithOwner } labels(first: 20) { nodes { name color } }
           } }
-          reviewThreads(first: 100) { totalCount nodes { isResolved } }
+          reviewThreads(first: 100) { pageInfo { hasNextPage endCursor } nodes { isResolved } }
           commits(last: 1) { nodes { commit {
-            committedDate author { user { login } }
-            statusCheckRollup { contexts(first: 100) { totalCount nodes {
+            oid committedDate author { user { login } }
+            statusCheckRollup { contexts(first: 100) { pageInfo { hasNextPage endCursor } nodes {
               __typename
               ... on CheckRun { name status conclusion startedAt completedAt }
               ... on StatusContext { context state createdAt }
@@ -195,14 +195,18 @@ forge/github:open-prs() {
     [[ -n "${cursor}" ]] || break
     after=(--raw-field after="${cursor}")
   done
-  number=$(forge/github:fold 'the pull requests' "${answer}" --raw-output \
-    'import "forge" as forge; forge::github_partial') || return 1
-  if [[ -n "${number}" ]]
-  then
-    error "kit reads at most 100 review threads and 100 checks of a pull request" \
-      "(pull request #${number} could not be read)"
-    return 1
-  fi
+  list:read rests forge/github:fold 'the pull requests' "${answer}" --raw-output \
+    'import "forge" as forge; forge::github_partial' || return 1
+  for row in "${rests[@]}"
+  do
+    IFS=$'\t' read -r number list cursor head <<<"${row}"
+    rest=$(forge/github:rest-of-pr "${repo}" "${number}" "${list}" "${cursor}" "${head}") || return 1
+    answer=$(forge/github:fold 'the pull requests' "${answer}" --compact-output --argjson number "${number}" \
+      --arg list "${list}" --argjson rest "${rest}" '.data.repository.pullRequests.nodes
+        |= map(if .number != $number then .
+               elif $list == "threads" then .reviewThreads.nodes += $rest
+               else .commits.nodes[0].commit.statusCheckRollup.contexts.nodes += $rest end)') || return 1
+  done
   while IFS=$'\t' read -r number cursor
   do
     [[ -n "${number}" ]] || continue
@@ -436,6 +440,60 @@ forge/github:rest-of-closes() {
       --compact-output '.[0] + .[1].data.repository.pullRequest.closingIssuesReferences.nodes') || return 1
     more=$(jq --raw-output '.data.repository.pullRequest.closingIssuesReferences.pageInfo.hasNextPage' <<<"${page}")
     cursor=$(jq --raw-output '.data.repository.pullRequest.closingIssuesReferences.pageInfo.endCursor // ""' <<<"${page}")
+  done
+  printf '%s\n' "${all}"
+}
+
+# forge/github:rest-of-pr <owner/name> <number> <list> <cursor> <commit> prints, as one JSON array, the rest of a
+# pull request's review threads (<list> threads) or of the checks on its head commit (<list> checks) after the cursor
+# its first page ended on, each as forge/github:open-prs asks for one, 100 a request, until the list ends. <commit> is
+# the head commit's oid as that first page gave it: a head commit that moved since fails the read, since its checks
+# are another commit's.
+forge/github:rest-of-pr() {
+  local repo=$1 number=$2 list=$3 cursor=$4 head=$5 query path what page moved all='[]' more=true
+  if [[ "${list}" == threads ]]
+  then
+    what="the review threads of #${number}"
+    path='.data.repository.pullRequest.reviewThreads'
+    query='query($owner: String!, $name: String!, $pr: Int!, $after: String) {
+      repository(owner: $owner, name: $name) { pullRequest(number: $pr) {
+        reviewThreads(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { isResolved } }
+      } }
+    }'
+  else
+    what="the checks of #${number}"
+    path='.data.repository.pullRequest.commits.nodes[0].commit.statusCheckRollup.contexts'
+    query='query($owner: String!, $name: String!, $pr: Int!, $after: String) {
+      repository(owner: $owner, name: $name) { pullRequest(number: $pr) {
+        commits(last: 1) { nodes { commit { oid statusCheckRollup {
+          contexts(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes {
+            __typename
+            ... on CheckRun { name status conclusion startedAt completedAt }
+            ... on StatusContext { context state createdAt }
+          } }
+        } } } }
+      } }
+    }'
+  fi
+  while [[ "${more}" == true ]]
+  do
+    forge/github:ask page "${what}" api graphql --field owner="${repo%%/*}" --field name="${repo#*/}" \
+      --field pr="${number}" --raw-field after="${cursor}" --raw-field query="${query}" || return 1
+    if [[ "${list}" == checks ]]
+    then
+      moved=$(forge/github:fold "${what}" "${page}" --raw-output --arg head "${head}" \
+        '.data.repository.pullRequest.commits.nodes[0].commit.oid != $head') || return 1
+      if [[ "${moved}" != false ]]
+      then
+        error "read them again: #${number}'s head commit moved while kit read its checks (${what} could not be read)"
+        return 1
+      fi
+    fi
+    all=$(forge/github:fold "${what}" "${all}"$'\n'"${page}" --slurp --compact-output \
+      ".[0] + (.[1] | ${path}.nodes)") || return 1
+    forge:whole "${what}" "$(jq length <<<"${all}")" || return 1
+    more=$(forge/github:fold "${what}" "${page}" --raw-output "${path}.pageInfo.hasNextPage == true") || return 1
+    cursor=$(forge/github:fold "${what}" "${page}" --raw-output "${path}.pageInfo.endCursor // \"\"") || return 1
   done
   printf '%s\n' "${all}"
 }

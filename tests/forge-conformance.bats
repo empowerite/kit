@@ -917,15 +917,51 @@ JSON
   [ "$(jq --slurp --compact-output 'map(.number)' <<<"$output")" = '[3,5]' ]
 }
 
-@test "a pull request with more checks than GitHub gave fails the read, naming the pull request" {
+# many-world makes pull request #3's review threads and checks run past their first page, its head commit abc, and
+# routes the second page of each ahead of the world's routes: the checks' at <checks-page>.
+many-world() {
   world github
-  jq '.data.repository.pullRequests.nodes[0].commits.nodes[0].commit.statusCheckRollup.contexts.totalCount = 101' \
+  jq '.data.repository.pullRequests.nodes[0]
+      |= (.reviewThreads.pageInfo = {hasNextPage: true, endCursor: "t1"}
+          | .commits.nodes[0].commit.oid = "abc"
+          | .commits.nodes[0].commit.statusCheckRollup.contexts.pageInfo = {hasNextPage: true, endCursor: "c1"})' \
     "${FAKE_DIR}/open-prs.json" > "${FAKE_DIR}/many.json"
   mv "${FAKE_DIR}/many.json" "${FAKE_DIR}/open-prs.json"
+  fixture threads-2.json <<<'{"data": {"repository": {"pullRequest": {"reviewThreads": {
+    "pageInfo": {"hasNextPage": false, "endCursor": "t2"}, "nodes": [{"isResolved": false}]}}}}}'
+  fixture checks-2.json <<'JSON'
+{"data": {"repository": {"pullRequest": {"commits": {"nodes": [{"commit": {"oid": "abc", "statusCheckRollup": {
+  "contexts": {"pageInfo": {"hasNextPage": false, "endCursor": "c2"}, "nodes": [
+    {"__typename": "CheckRun", "name": "c", "status": "COMPLETED", "conclusion": "FAILURE",
+     "startedAt": "2026-10-01T10:02:00Z", "completedAt": "2026-10-01T10:03:00Z"}]}}}}]}}}}}
+JSON
+  jq '.data.repository.pullRequest.commits.nodes[0].commit.oid = "def"' "${FAKE_DIR}/checks-2.json" \
+    > "${FAKE_DIR}/checks-moved.json"
+  { printf '%s\t%s\n' 'api graphql*pr=3 *after=t1 *' threads-2.json 'api graphql*pr=3 *after=c1 *' "$1"
+    cat "${FAKE_DIR}/gh.routes"; } > "${FAKE_DIR}/routes.tmp" && mv "${FAKE_DIR}/routes.tmp" "${FAKE_DIR}/gh.routes"
+}
+
+@test "a pull request with more review threads or checks than a page holds has the rest of each read" {
+  many-world checks-2.json
+  run call open-prs
+  [ "$status" -eq 0 ]
+  [ "$(jq --raw-output '.unresolved' <<<"$output")" -eq 2 ]
+  [[ "$(jq --compact-output '.checks' <<<"$output")" == *'"failing":"c"'* ]]
+  grep --quiet 'pr=3 --raw-field after=t1 ' "${FAKE_DIR}/gh.calls"
+  grep --quiet 'pr=3 --raw-field after=c1 ' "${FAKE_DIR}/gh.calls"
+}
+
+@test "the rest of a pull request's checks that cannot be read, or that are another commit's, fails the read" {
+  many-world '!1'
   run --separate-stderr call open-prs
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  [[ "$stderr" == *"(pull request #3 could not be read)"* ]]
+  [[ "$stderr" == *"(the checks of #3 could not be read)"* ]]
+  many-world checks-moved.json
+  run --separate-stderr call open-prs
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [[ "$stderr" == *"head commit moved"*"(the checks of #3 could not be read)"* ]]
 }
 
 @test "a list that reaches the most kit reads fails, on either forge, saying so" {

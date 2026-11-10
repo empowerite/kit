@@ -136,15 +136,18 @@ def github_prs($now):
                  + place(.repository.nameWithOwner)] }
   | document($now);
 
-# github_partial reads the answer to forge/github:open-prs's GraphQL query and gives the number of the first pull
-# request whose review threads, or the checks on whose head commit, the answer does not hold whole, as each list's
-# totalCount tells; nothing when it holds them all.
+# github_partial reads the answer to forge/github:open-prs's GraphQL query and gives a line for each list the answer
+# does not hold whole, as its page says it has a next one: a pull request's review threads, or the checks on its head
+# commit. The line's fields, split by tabs, are the pull request's number, threads or checks, the cursor the page
+# ended on, and the head commit's oid; nothing when the answer holds every list whole.
 def github_partial:
-  def short: . != null and (.totalCount // 0) > (.nodes // [] | length);
-  [ .data.repository.pullRequests.nodes[]
-    | select((.reviewThreads | short) or (.commits.nodes[0].commit.statusCheckRollup.contexts | short))
-    | .number ]
-  | first // empty;
+  .data.repository.pullRequests.nodes[]
+  | .number as $number
+  | (.commits.nodes[0].commit // {}) as $commit
+  | (.reviewThreads.pageInfo // {} | select(.hasNextPage == true)
+     | "\($number)\tthreads\t\(.endCursor)\t\($commit.oid)"),
+    ($commit.statusCheckRollup.contexts.pageInfo // {} | select(.hasNextPage == true)
+     | "\($number)\tchecks\t\(.endCursor)\t\($commit.oid)");
 
 # github_spent($now) reads the answer of GitHub's rate_limit endpoint and gives the wait for the limit that is spent,
 # GraphQL's or REST's, the later to reset when both are: when it resets, in local time, and how long that is from
