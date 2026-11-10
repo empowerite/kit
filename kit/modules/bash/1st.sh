@@ -80,7 +80,8 @@ use:yq() {
 # setting, else kit:modules/bash/ alone. An entry is kit:<dir> (in the release), an absolute directory, ~/<dir> (in
 # the home directory), <source>:<dir> (in a source the settings name), or a directory relative to the repository root.
 # A directory that does not exist is skipped, as PATH skips one. Away from the root, it reads the root's settings. It
-# returns 2 on a path that does not start with kit:modules/bash/, or a root other than kit: and the sources.
+# returns 2 on a path that does not start with kit:modules/bash/, a root other than kit: and the sources, or a kit.yml
+# yq cannot read.
 #
 # Reading bash_path starts yq, so the entries it found are exported for child processes: kit_bash_path_dirs, their
 # directories, one per line, and kit_bash_path_from, all they were resolved from: the release, the home directory, the
@@ -111,9 +112,7 @@ use:load-path() {
     return 0
   fi
   use:yq
-  # yaml.sh is read in a subshell, so this does not count as loading it.
-  # shellcheck source=SCRIPTDIR/yaml.sh
-  readarray -t entries < <(source "${kit_root}/modules/bash/yaml.sh" && yaml:list "${root}/kit.yml" bash_path)
+  list:read entries use:path-setting "${root}" || return 2
   (( ${#entries[@]} )) || entries=(kit:modules/bash/)
   if [[ "${entries[0]}" != kit:modules/bash/ ]]
   then
@@ -146,6 +145,13 @@ use:load-path() {
   printf -v kit_bash_path_dirs '%s\n' "${dirs[@]}"
   export kit_bash_path_from kit_bash_path_dirs
   use:keep-path "${dirs[@]}"
+}
+
+# use:path-setting <root> prints the entries of the bash_path setting in <root>/kit.yml, one per line. It fails, after
+# yq's line, on a kit.yml yq cannot read. yaml.sh is read in a subshell, so this does not count as loading it.
+use:path-setting() {
+  # shellcheck source=SCRIPTDIR/yaml.sh
+  (source "${kit_root}/modules/bash/yaml.sh" && yaml:list "$1/kit.yml" bash_path)
 }
 
 # use:keep-path <dir>… fills kit_bash_path with each directory that exists, by its physical path.
@@ -268,6 +274,40 @@ list:without() {
   do
     [[ "${item}" == "${needle}" ]] || printf '%s\n' "${item}"
   done
+}
+
+# list:read <array> <command> [<argument>…] empties the named array, runs the command, and fills the array with its
+# lines, a trailing empty line dropped. It returns the command's status, the array left empty when that is not 0.
+# stdin reaches the command. A read through `< <(…)` alone loses that status, so every list a command prints is read
+# here.
+list:read() {
+  list:fill $'\n' "$@"
+}
+
+# list:read0 <array> <command> [<argument>…] does what list:read does, for items that each end in a NUL.
+list:read0() {
+  list:fill '' "$@"
+}
+
+# list:fill <delimiter> <array> <command> [<argument>…] is list:read's work, for items that end in <delimiter>. The
+# command runs in a process substitution, in the place `< <(…)` gave it, and wait "$!" takes its status.
+list:fill() {
+  local list_fill_delimiter=$1 list_fill_status=0
+  local -n list_fill_items=$2
+  shift 2
+  list_fill_items=()
+  readarray -t -d "${list_fill_delimiter}" list_fill_items < <("$@")
+  wait "$!" || list_fill_status=$?
+  if (( list_fill_status != 0 ))
+  then
+    list_fill_items=()
+    return "${list_fill_status}"
+  fi
+  if (( ${#list_fill_items[@]} )) && [[ -z "${list_fill_items[-1]}" ]]
+  then
+    unset 'list_fill_items[-1]'
+  fi
+  return 0
 }
 
 # ere:quote <text> prints the text with every extended-regular-expression metacharacter escaped, so it matches

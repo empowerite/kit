@@ -61,6 +61,13 @@ setup() {
   [[ "$output" == *"bash_path entry 'other:bash/' names a root the kit does not know"* ]]
 }
 
+@test "a kit.yml yq cannot read refuses use with 2, after yq's line, and the kit's modules do not stand in" {
+  printf 'bash_path: [kit:modules/bash/\n' > kit.yml
+  run kit-bash 'use yaml && echo loaded'
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"kit.yml: "* && "$output" != *loaded* ]]
+}
+
 @test "use:modules lists the modules on the whole path that match a pattern, once each, named from their directory" {
   printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' > kit.yml
   mkdir -p bash/forge
@@ -179,6 +186,15 @@ child() {
   run kit-bash 'run kit-nonesuch'
   [ "$status" -eq 2 ]
   [[ "$output" == *"no such kit command: kit-nonesuch"* ]]
+}
+
+@test "list:read fills an array with a command's lines and returns its status, the array empty when it fails" {
+  run kit-bash 'bad() { printf "a\n"; return 3; }; nul() { printf "x y\0z\0"; return "$1"; }
+    list:read rows printf "a\n\nb c\n"; echo "$? ${#rows[@]} [${rows[2]}]"
+    list:read rows bad; echo "$? ${#rows[@]}"
+    list:read0 items nul 0; echo "$? ${#items[@]} [${items[0]}]"
+    list:read0 items nul 4; echo "$? ${#items[@]}"'
+  [ "$output" = $'0 3 [b c]\n3 0\n0 2 [x y]\n4 0' ]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
