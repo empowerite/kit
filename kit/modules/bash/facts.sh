@@ -5,7 +5,8 @@
 # gathers them into one document, which kit facts prints. It holds, in this order:
 #
 #   - `moment`: commit or ci, the point the facts are judged at
-#   - `branch` and `default_branch`; the branch is null on the default branch or a detached HEAD
+#   - `branch` and `default_branch`; the branch is null on the default branch or a detached HEAD, and is a change's
+#     head branch on a CI runner, whatever its name (policy:branch-past)
 #   - `commits`: at ci, those past the fork from origin's default branch, merges excluded, or null when the fork is not
 #     here, as in a shallow clone; at commit, the one commit
 #   - `change`: at ci, the open change on the branch, with its title, body, and author; null where the primary has no
@@ -71,8 +72,7 @@ facts:document() {
   fi
   rules=$(policy:rules) || return 1
   default_branch=$(git:default-branch) || return 1
-  branch=$(policy:branch)
-  [[ "${branch}" != "${default_branch}" ]] || branch=''
+  branch=$(policy:branch-past) || return 1
   if [[ "${moment}" == ci && -n "${branch}" ]]
   then
     if git rev-parse --verify --quiet "origin/${default_branch}" >/dev/null \

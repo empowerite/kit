@@ -20,11 +20,11 @@
 #   --facts=<file>    judges the facts document in <file>, and gathers nothing; for testing a rule against a fixture
 #
 # On a branch past the default one, the policy that judges it is its base's, origin/<default>: policy,
-# policy_engine, and linked_exempt from the base's kit.yml, and the Rego the base holds or delivers, so a branch
-# cannot loosen the rule that judges it. On a CI runner the branch is the change's source branch. A change to the
-# policy is judged by the policy before it. A base with no kit.yml, where the kit is not installed yet, leaves the
-# checkout's own settings and Rego to judge, as on the default branch, so the change that installs the kit sets its
-# first policy. --input prints the facts that policy judges; --facts judges by the disk's.
+# policy_engine, linked_exempt, and facts from the base's kit.yml, and the Rego the base holds or delivers, so a
+# branch cannot loosen the rule that judges it. On a CI runner the branch is the change's head branch, whatever its
+# name. A change to the policy is judged by the policy before it. A base with no kit.yml, where the kit is not
+# installed yet, leaves the checkout's own settings and Rego to judge, as on the default branch, so the change that
+# installs the kit sets its first policy. --input prints the facts that policy judges; --facts judges by the disk's.
 #
 # The facts are the document a policy rule is written against. A pull request by a login the repository lists under
 # linked_exempt in kit.yml passes with nothing checked, and the output says so. That is for a bot such as
@@ -37,7 +37,7 @@
 #
 # Exits 0 when the policy refuses nothing, with or without warnings, 1 on any refusal, when the forge cannot answer for
 # the open change, when linked_exempt in kit.yml or another fact cannot be read, or when the base, origin/<default>, is
-# not here or its policy cannot be read, and 2 on a usage error.
+# not here or its policy cannot be read, as when a package its kit.yml lists is not in reach, and 2 on a usage error.
 #
 # see: modules/bash/policy.sh, docs/policy.md
 

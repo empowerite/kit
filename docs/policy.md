@@ -74,17 +74,25 @@ deny list stops one.
 
 On a branch past the default one, `kit policy` and `kit linked` judge by the policy on the branch's base,
 `origin/<default>`, the ref the commits are counted from. A branch cannot loosen the rule that judges it: a pattern it
-blanks, a login it adds under `linked_exempt`, an engine it names, and a `.rego` file it removes or adds change nothing.
+blanks, a login it adds under `linked_exempt`, an engine it names, a file it stops a rule from reading, and a `.rego`
+file it removes or adds change nothing.
 
-- `policy`, `policy_engine`, and `linked_exempt` come from the base's `kit.yml`, and are absent where it has none.
-  Every other setting, such as `forge`, `primary`, and `facts`, is the checkout's.
+- `policy`, `policy_engine`, `linked_exempt`, and `facts` come from the base's `kit.yml`. Where the base has none of
+  one, it is absent, and the kit's default applies, not the branch's. Every other setting, such as `forge` and
+  `primary`, is the checkout's.
+- A branch that adds a file to `facts.read`, for a rule of its own, changes nothing until it is merged, as the rule
+  itself does not.
 - The Rego is the base's: the source of a link under `.kit/policy/` as the base holds it, a `.rego` file the base
-  holds under `.kit/policy/`, and each `.rego` file a package in the base's `packages:` delivers there. A package of
-  the repository's own is read from the base's `.kit/packages/`, and one of the release's from the release.
+  holds under `.kit/policy/`, and each `.rego` file a package in the base's `packages:` delivers there, as that
+  package delivers it.
+- A package is looked up as delivery looks it up: in the sources the base's `kit.yml` names, the last first, fetched
+  where the cache lacks them; then in the release; then in the repository's own `.kit/packages/` as the base holds it.
+  A package the base lists that is in none of them fails both verbs, naming it, so none of its rules is dropped.
 - A `.rego` file the base neither holds nor delivers is left out, so it does not choose the engine.
 - A change to the policy is judged by the policy before it, and takes effect once it is on the default branch.
-- On a runner, the branch is the change's head branch, so the detached checkout of a pull request is judged the same
-  way. On the default branch, or a detached checkout elsewhere, both read the disk.
+- On a runner, the branch is the change's head branch, whatever its name, so the detached checkout of a pull request
+  is judged the same way, a fork's `main` among them. On the default branch, or a detached checkout elsewhere, both
+  read the disk.
 - `kit policy --input` prints the facts as the base's policy has them. `kit policy --facts=<file>` judges by the
   disk's, since it tests a rule.
 
@@ -93,7 +101,7 @@ as on the default branch, so the pull request that installs the kit sets its fir
 
 A base that is not here, as in a clone that lacks `origin/<default>`, fails both verbs wherever they run. They say
 `the base, origin/<default>, is not here, so its policy cannot be read; fetch it with full history`. A read of the
-base's files that fails, for any reason other than the file not being there, fails them too.
+base's files, or of a source it names, that fails, for any reason other than the file not being there, fails them too.
 
 ### Reading a file's text
 

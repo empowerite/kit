@@ -15,8 +15,8 @@
 # output names the exemption. That is for a bot such as dependabot[bot], whose pull requests never have an issue.
 # The repository says which logins it trusts that way; the kit decides nothing for it. On a branch past the default
 # one, linked_exempt is read from the kit.yml on its base, origin/<default>, so a branch cannot exempt its own author;
-# on a CI runner the branch is the change's source branch. A base with no kit.yml, where the kit is not installed yet,
-# leaves the checkout's own kit.yml to say, as on the default branch.
+# on a CI runner the branch is the change's head branch, whatever its name. A base with no kit.yml, where the kit is
+# not installed yet, leaves the checkout's own kit.yml to say, as on the default branch.
 #
 # Exits 0 when at least one linked issue counts or the author is exempt, 1 when neither holds, there is no pull
 # request to check, the forge cannot say which pull request this checkout is working on, the pull request's body

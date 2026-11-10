@@ -23,10 +23,12 @@
 
 use yaml file
 
-# sources:list prints "<name>\x1f<url>\x1f<digest>" for each source in kit.yml, in order.
+# sources:list [<settings>] prints "<name>\x1f<url>\x1f<digest>" for each source in the settings file, kit.yml by
+# default, in order.
 sources:list() {
-  [[ -f kit.yml ]] || return 0
-  yaml:records kit.yml sources name url digest
+  local settings=${1:-kit.yml}
+  [[ -f "${settings}" ]] || return 0
+  yaml:records "${settings}" sources name url digest
 }
 
 # sources:cache <digest> prints the directory a source with that digest is unpacked into.
@@ -98,11 +100,12 @@ sources:fetch() {
   printf '%s\n' "${cache}"
 }
 
-# sources:fetch-all fetches every source the settings name that is not in the cache yet. It returns 1 when one fails.
+# sources:fetch-all [<settings>] fetches every source the settings file, kit.yml by default, names that is not in the
+# cache yet. It returns 1 when one fails.
 sources:fetch-all() {
   local name url digest row
   local -a rows
-  list:read rows sources:list || return 1
+  list:read rows sources:list "$@" || return 1
   for row in "${rows[@]}"
   do
     IFS=$'\x1f' read -r name url digest <<<"${row}"
@@ -111,12 +114,13 @@ sources:fetch-all() {
   done
 }
 
-# sources:roots prints "<name>\t<root>" for each source in the cache, in the settings' order: <root> is the directory
-# that holds its packages/. A source not fetched yet is left out; sources:fetch-all fetches it.
+# sources:roots [<settings>] prints "<name>\t<root>" for each source in the cache, in the order of the settings file,
+# kit.yml by default: <root> is the directory that holds its packages/. A source not fetched yet is left out;
+# sources:fetch-all fetches it.
 sources:roots() {
   local name url digest cache row
   local -a rows
-  list:read rows sources:list || return 1
+  list:read rows sources:list "$@" || return 1
   for row in "${rows[@]}"
   do
     IFS=$'\x1f' read -r name url digest <<<"${row}"

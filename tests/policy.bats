@@ -253,6 +253,109 @@ REGO
   [[ "$output" == *"1 refusal(s) by the patterns policy"* ]]
 }
 
+@test "a change whose head branch is named main, as a fork's can be, is judged by the policy on its base" {
+  printf 'policy:\n  commit_subject: "^#[0-9]+ "\n' > kit.yml
+  git add kit.yml
+  git commit --quiet --message "#2 kit: the policy" && git push --quiet origin main
+  git switch --quiet --create fork-main
+  printf 'policy:\n  commit_subject: ""\nlinked_exempt:\n  - ada\n' > kit.yml
+  git commit --quiet --all --message "no reference"
+  change "Fix the thing" ada
+  fixture closing.json <<<'{"data": {"repository": {"pullRequest": {"closingIssuesReferences": {"nodes": []}}}}}'
+  route gh 'api graphql*' closing.json
+  git switch --quiet --detach
+  printf '{"pull_request": {"number": 3}}\n' > "${BATS_TEST_TMPDIR}/event.json"
+  export GITHUB_HEAD_REF=main GITHUB_EVENT_PATH="${BATS_TEST_TMPDIR}/event.json"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"'no reference' does not match policy.commit_subject"* ]]
+  [[ "$output" != *"exempt"* ]]
+  run "${kit_root}/bin/kit" linked 3
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"pull request #3 is not linked to any issue"* ]]
+  [[ "$output" != *"exempt"* ]]
+}
+
+@test "the files the base's rules read are the base's facts.read: a branch that drops it blinds no rule" {
+  command -v opa >/dev/null || skip "opa, the opa policy engine, is not on PATH"
+  mkdir -p .kit/policy
+  cat > .kit/policy/ours.rego <<'REGO'
+package kit.policy
+
+import rego.v1
+
+deny contains "README.md is a template" if contains(input.tree["README.md"].text, "TEMPLATE")
+REGO
+  printf 'TEMPLATE\n' > README.md
+  printf 'policy:\n  commit_subject: ""\nfacts:\n  read:\n    - README.md\n' > kit.yml
+  git add kit.yml README.md .kit/policy/ours.rego
+  git commit --quiet --message "#2 kit: a rule over the text" && git push --quiet origin main
+  branch 7-fix-the-thing
+  printf 'policy:\n  commit_subject: ""\n' > kit.yml
+  git commit --quiet --all --message "#7 kit: read no file"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"❌ README.md is a template"* ]]
+  [ "$("${kit_root}/bin/kit" policy --input | jq --raw-output '.tree["README.md"].text')" = TEMPLATE ]
+}
+
+@test "Rego from a package of a source the base names still judges a branch" {
+  command -v opa >/dev/null || skip "opa, the opa policy engine, is not on PATH"
+  local src=${BATS_TEST_TMPDIR}/src digest
+  mkdir -p "${src}/top/packages/rules/files/repo/.kit/policy"
+  printf 'description: "rules from a source"\n' > "${src}/top/packages/rules/package.yml"
+  cat > "${src}/top/packages/rules/files/repo/.kit/policy/rules.rego" <<'REGO'
+package kit.policy
+
+import rego.v1
+
+deny contains "a commit with no reference" if {
+	some commit in input.commits
+	commit.subject == "no reference"
+}
+REGO
+  tar --create --gzip --file "${src}/source.tar.gz" --directory "${src}" top
+  digest=$(shasum -a 256 "${src}/source.tar.gz" | cut -d ' ' -f 1)
+  printf 'policy:\n  commit_subject: ""\nsources:\n  - name: team\n    url: file://%s\n    digest: sha256:%s\n' \
+    "${src}/source.tar.gz" "${digest}" > kit.yml
+  printf 'packages:\n  - rules\n' >> kit.yml
+  git add kit.yml
+  git commit --quiet --message "#2 kit: rules from a source" && git push --quiet origin main
+  branch 7-fix-the-thing "no reference"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"❌ a commit with no reference"* ]]
+  [[ "$output" == *"by the opa policy"* ]]
+}
+
+@test "a package the base lists that is in no source, the release, or the base's own packages fails, named" {
+  printf 'policy:\n  commit_subject: ""\npackages:\n  - nowhere\n' > kit.yml
+  git add kit.yml
+  git commit --quiet --message "#2 kit: a package that is nowhere" && git push --quiet origin main
+  branch 7-fix-the-thing "#7 cli: fix the thing"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the package nowhere, which its kit.yml lists, is in none of its sources"* ]]
+  [[ "$output" != *"policy allows"* ]]
+}
+
+@test "a file on the disk under a name a package of the base delivers is judged as the base delivers it" {
+  mkdir -p .kit/packages/mine/files/repo/.kit/policy
+  printf 'description: "rules of our own"\n' > .kit/packages/mine/package.yml
+  printf 'package kit.policy\n\nimport rego.v1\n\ndeny contains "x" if true\n' \
+    > .kit/packages/mine/files/repo/.kit/policy/x.rego
+  printf 'packages:\n  - mine\n' > kit.yml
+  git add kit.yml .kit/packages
+  git commit --quiet --message "#2 kit: a rule of our own" && git push --quiet origin main
+  branch 7-fix-the-thing
+  mkdir -p .kit/policy
+  printf 'package kit.policy\n\nimport rego.v1\n\ndeny contains "x" if false\n' > .kit/policy/x.rego
+  dir=${BATS_TEST_TMPDIR}/judged
+  kit_bash_modules=policy run kit-bash "policy:from-base '${dir}'"
+  [ "$status" -eq 0 ]
+  cmp "${dir}/rego/x.rego" .kit/packages/mine/files/repo/.kit/policy/x.rego
+}
+
 @test "on the default branch, or detached, only the tree is under check, and kit policy says so" {
   run "${kit_root}/bin/kit" policy
   [ "$status" -eq 0 ]
