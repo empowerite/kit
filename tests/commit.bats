@@ -250,11 +250,15 @@ forge-world() {
 }
 
 @test "with a primary that names no remote, kit commit refuses, since the default branch could not be read" {
+  local head
+  head=$(git rev-parse HEAD)
   printf 'primary: upstream\n' >> kit.yml
   printf 'x\n' > x && git add x
   run kit commit --message '#9 x: a file' x
   [ "$status" -eq 1 ]
-  [[ "$output" == *"is not a remote"* && "$output" != *"✅ committed"* ]]
+  [[ "$output" == *"is not a remote"* ]]
+  [[ "$output" != *"✅ committed"* ]]
+  [ "$(git rev-parse HEAD)" = "${head}" ]
 }
 
 # opa-rule <rego> adds the policy/opa package and writes <rego> as a rule of package kit.policy beside its kit.rego,

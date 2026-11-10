@@ -227,8 +227,9 @@
 #
 # kit:end legend
 # Exits 0 when the picture is drawn, 1 when the forge, the fetch, or git's list of the worktrees or the desks cannot be
-# read or a setting is wrong, and 2 on a usage error. A wrong setting is a flow setting that is not a list of distinct
-# stages, a primary that names no remote, or a forges key that is no remote name.
+# read, git cannot count the lines changed in a checkout, or a setting is wrong, and 2 on a usage error. A wrong
+# setting is a flow setting that is not a list of distinct stages, a primary that names no remote, or a forges key that
+# is no remote name.
 #
 # see: modules/bash/flow.sh, modules/bash/backlog.sh, modules/bash/underway.sh, modules/bash/changes.sh,
 # modules/bash/builds.sh, modules/bash/releases.sh

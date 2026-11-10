@@ -609,8 +609,11 @@ flow:checkout() {
   # diff git cannot make fails the measure.
   if git -C "${path}" rev-parse --verify --quiet HEAD >/dev/null
   then
-    list:read numstat git -C "${path}" diff --numstat "${fork:-HEAD}" \
-      || { error "the lines changed in ${path} could not be counted"; return 1; }
+    if ! list:read numstat git -C "${path}" diff --numstat "${fork:-HEAD}"
+    then
+      error "run: git -C '${path}' diff --numstat ${fork:-HEAD} (the lines changed in ${path} could not be counted)"
+      return 1
+    fi
   fi
   for row in "${numstat[@]}"
   do

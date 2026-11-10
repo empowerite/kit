@@ -38,6 +38,9 @@ script() {
 }
 
 @test "a kit.yml yq cannot read stops kit lint and kit hydrate, never as a repository with no kit" {
+  local placed
+  rm -rf .kit/rules
+  placed=$(find .kit | LC_ALL=C sort)
   printf 'packages: [kit\n' > kit.yml
   run "${kit_checkout}/bin/kit" lint good.sh
   [ "$status" -eq 1 ]
@@ -49,6 +52,8 @@ script() {
   run "${kit_checkout}/bin/kit" hydrate --quick
   [ "$status" -eq 1 ]
   [[ "$output" != *"✅"* ]]
+  # nothing is placed: the rules taken out before stay out
+  [ "$(find .kit | LC_ALL=C sort)" = "${placed}" ]
 }
 
 @test "a named path is linted by the rule its first line names, and --all-files reads every tracked path" {

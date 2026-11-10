@@ -44,7 +44,7 @@ setup() {
       FNR == 1 { held = "" }
       /\\$/ { held = held substr($0, 1, length($0) - 1); next }
       { print FILENAME ":" FNR ": " held $0; held = "" }
-    '"'"' {} + | grep -E "$2" | grep --invert-match -E "\|\||(^|[^a-z])if "' scan "${kit_root}" "${read}"
+    '"'"' {} + | grep -E "$2" | grep --invert-match -E "\|\||(^|[^a-z])(el)?if "' scan "${kit_root}" "${read}"
   [ -z "$output" ] || { printf '%s\n' "$output"; return 1; }
 }
 

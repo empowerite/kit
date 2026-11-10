@@ -157,7 +157,8 @@ commit:attach() {
   prefix=$(tracker:parse "${ref}" | cut -f 1)
   assignees=$(tracker:of "${ref}" assignees) || { warn "${ref}'s assignees could not be read"; return 0; }
   [[ -z "${assignees}" ]] || return 0
-  me=$(tracker:at "${prefix}" me) || return 0
+  me=$(tracker:at "${prefix}" me) \
+    || { warn "${ref} has no assignee, and its tracker could not say who you are; assign it by hand"; return 0; }
   if tracker:of "${ref}" assign "${me}"
   then
     ok "${ref} assigned to ${me}, as no one was"

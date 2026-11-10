@@ -309,7 +309,11 @@ issue:settle() {
       do
         if tracker:is-forge "${ref}"
         then login=${author}
-        else login=$(tracker:at "$(tracker:parse "${ref}" | cut -f 1)" me 2>/dev/null) || continue
+        elif ! login=$(tracker:at "$(tracker:parse "${ref}" | cut -f 1)" me 2>/dev/null)
+        then
+          error "${ref} could not be put back: its tracker could not say who you are"
+          failed=1
+          continue
         fi
         if ! assignees=$(tracker:of "${ref}" assignees)
         then

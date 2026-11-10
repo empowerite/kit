@@ -158,14 +158,15 @@ git:unpushed-why() {
 
 # git:tidy-settle <branch> settles the issues of the branch's latest pull request, as kit settle does, once kit tidy
 # has removed its worktree: what the forge does not close itself is closed or put back here, in case nothing else did.
-# A failure is said and does not stop the sweep; it returns 1.
+# A failure is said and does not stop the sweep.
 git:tidy-settle() {
   local pr
   [[ -n "$1" ]] || return 0
   if ! pr=$(forge:pr-last-for-branch "$1")
   then
-    warn "the change of $1 could not be read, so its issues are not settled; settle them with: kit settle <number>"
-    return 1
+    warn "the change of $1 could not be read, so its issues are not settled; settle them with kit settle and the" \
+      "change's number"
+    return 0
   fi
   [[ -n "${pr}" ]] || return 0
   use issue
@@ -178,7 +179,7 @@ git:tidy-settle() {
 # git's refusal to remove it included.
 git:tidy-worktree() {
   local path=$1 branch=$2 detached=$3 default_branch=$4 self_root=$5 dry_run=$6 state="" ref primary unpushed
-  local counted missing
+  local counted missing issue_state=''
   if [[ "${path}" == "${self_root}" ]]
   then
     step "keeping ${path} (this command runs in it)"
@@ -200,7 +201,12 @@ git:tidy-worktree() {
     then
       use tracker
       ref=$(tracker:branch-ref "${branch}")
-      [[ -n "${ref}" && "$(tracker:of "${ref}" state)" == CLOSED ]] && state=CLOSED
+      if [[ -n "${ref}" ]] && ! issue_state=$(tracker:of "${ref}" state)
+      then
+        step "keeping ${path} (${branch}, no change, and ${ref}'s state could not be read)"
+        return 1
+      fi
+      [[ -z "${ref}" || "${issue_state}" != CLOSED ]] || state=CLOSED
     fi
   elif [[ "${detached}" == true ]]
   then
