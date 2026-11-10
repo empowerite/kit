@@ -240,12 +240,15 @@ workspaces:remotes-json() {
 }
 
 # workspaces:kind <workspace> prints "group <name>" for a group's name, or "repository <member>" for a repository, host
-# and path or a git URL, without looking for a checkout. It returns 2, after a line that says so, for neither.
+# and path or a git URL, without looking for a checkout. It returns 2, after a line that says so, for neither, and 1
+# when the file's groups cannot be read.
 workspaces:kind() {
   local workspace=$1 member
+  local -a names
   if [[ "${workspace}" != */* && "${workspace}" != *:* ]]
   then
-    if ! workspaces:names | grep --quiet --line-regexp --fixed-strings -- "${workspace}"
+    list:read names workspaces:names || return 1
+    if ! list:among "${workspace}" "${names[@]}"
     then
       error "'${workspace}' is no workspace in $(workspaces:file); run: kit workspaces"
       return 2
@@ -367,10 +370,11 @@ workspaces:current() {
 # repository's. The roots are walked once, and only when a member or a favorite needs a checkout.
 workspaces:menu-json() {
   local current=$1 kind member name favorite fkind checkouts=''
-  local -a members=() groups=() favorites=() fixed=() names
+  local -a members=() groups=() favorites=() fixed=() names favored
   kind=$(jq --raw-output .kind <<<"${current}")
   member=$(jq --raw-output '.member // ""' <<<"${current}")
-  if [[ "${kind}" == group ]] || workspaces:favorites | grep --quiet /
+  list:read favored workspaces:favorites || return 1
+  if [[ "${kind}" == group || "${favored[*]}" == */* ]]
   then
     checkouts=$(workspaces:checkouts)
   fi
@@ -393,8 +397,7 @@ workspaces:menu-json() {
           '{name: $name, members: $n}')")
     done
   fi
-  list:read names workspaces:favorites || return 1
-  for favorite in "${names[@]}"
+  for favorite in "${favored[@]}"
   do
     read -r fkind name < <(workspaces:kind "${favorite}" 2>/dev/null) || continue
     if [[ "${fkind}" == group ]]

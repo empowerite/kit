@@ -327,10 +327,13 @@ pictured=false
 if [[ -z "${syntax_literals[0]:-}" ]]
 then
   pictured=true
-elif (( ${#syntax_literals[@]} == 1 && ${#syntax_operands[@]} == 0 )) && [[ -z "${syntax_options[--today]+x}" ]] \
-  && settings:stages | grep --quiet --line-regexp --fixed-strings -- "${syntax_literals[0]}"
+elif (( ${#syntax_literals[@]} == 1 && ${#syntax_operands[@]} == 0 )) && [[ -z "${syntax_options[--today]+x}" ]]
 then
-  pictured=true
+  list:read drawn_stages settings:stages || exit 1
+  if list:among "${syntax_literals[0]}" "${drawn_stages[@]}"
+  then
+    pictured=true
+  fi
 fi
 if [[ "${pictured}" == true && -z "${syntax_options[--text]+x}${syntax_options[--json]+x}" && -t 0 && -t 1 && -t 2 ]] \
   && git rev-parse --git-dir >/dev/null 2>&1 && tui:binary --probe >/dev/null 2>&1

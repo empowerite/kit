@@ -48,6 +48,19 @@ setup() {
   [ -z "$output" ] || { printf '%s\n' "$output"; return 1; }
 }
 
+@test "no pipeline ends in grep --quiet" {
+  # grep --quiet exits at its first match, the command before it dies of SIGPIPE, and pipefail makes the match a
+  # failure. A line that ends in a pipe or a backslash joins the next, so a grep on the continuation counts.
+  run bash -c 'find "$1/bin" "$1/modules/bash" -type f -exec awk '"'"'
+      FNR == 1 { held = "" }
+      /^[[:space:]]*#/ { next }
+      /\\$/ { held = held substr($0, 1, length($0) - 1); next }
+      /\|[[:space:]]*$/ { held = held $0 " "; next }
+      { print FILENAME ":" FNR ": " held $0; held = "" }
+    '"'"' {} + | grep -E "(^|[^|])\| *grep [^|]*(--quiet|-q)( |$)"' scan "${kit_root}"
+  [ -z "$output" ] || { printf '%s\n' "$output"; return 1; }
+}
+
 @test "the release is read, rendered, placed, and recorded by one module each, and use release loads none of them but resolve" {
   local module function
   while IFS=' ' read -r module function

@@ -221,6 +221,24 @@ ambient-system() {
   [ "$(jq --raw-output 'map(.id) | index("dependencies-uv")' <<<"$output")" = null ]
 }
 
+@test "a provider is found whichever the list names first" {
+  "${kit_root}/bin/kit" install >/dev/null 2>&1
+  printf '{"devDependencies": {"left-pad": "^1.3.0"}}\n' > package.json
+  printf '{"packages": {"node_modules/left-pad": {"version": "1.3.0"}}}\n' > package-lock.json
+  printf '[project]\nname = "here"\nversion = "0.1.0"\n' > pyproject.toml
+  printf 'version = 1\n' > uv.lock
+  fake-script npm 'exit 0'
+  fake-script uv 'exit 0'
+  local run
+  for run in {1..20}
+  do
+    run --separate-stderr check dependencies-npm
+    [ "$status" -eq 0 ]
+    [ -n "$output" ]
+    [[ "$(jq --raw-output .line <<<"$output")" != *"is not on PATH"* ]] || { echo "run ${run}: $output"; return 1; }
+  done
+}
+
 @test "welcome says a linter npm installed is off PATH, not missing, and names kit tools path" {
   "${kit_root}/bin/kit" install >/dev/null 2>&1
   printf '{"devDependencies": {"shellcheck": "^0.1.0"}}\n' > package.json

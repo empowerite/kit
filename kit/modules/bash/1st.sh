@@ -480,7 +480,7 @@ guard:unknown-verb() {
 # with --jq beside a --json the verb takes, guard:jq runs it in this process's place.
 # shellcheck disable=SC2154  # syntax_literals, syntax_missing, and syntax_refusal are set by modules/bash/syntax.sh
 guard:arguments() {
-  local verb=$1 status=0 argument
+  local verb=$1 status=0 argument usage form line
   shift
   for argument in "$@"
   do
@@ -497,11 +497,17 @@ guard:arguments() {
   then
     # --jq beside --json is --json read through jq ., where the form the words take, by its literals, offers --json;
     # kit new module's --jq, whose form offers none, means its own thing
-    if [[ -n "${syntax_options[--jq]+x}" ]] &&
-      help:usage "${verb}" | grep --fixed-strings -- "kit ${verb}${syntax_literals[*]:+ ${syntax_literals[*]}}" |
-      grep --quiet -- '--json'
+    if [[ -n "${syntax_options[--jq]+x}" ]]
     then
-      guard:jq "${verb}" "$@"
+      usage=$(help:usage "${verb}") || return 1
+      form="kit ${verb}${syntax_literals[*]:+ ${syntax_literals[*]}}"
+      while IFS= read -r line
+      do
+        if [[ "${line}" == *"${form}"* && "${line}" == *--json* ]]
+        then
+          guard:jq "${verb}" "$@"
+        fi
+      done <<<"${usage}"
     fi
     return 0
   fi

@@ -37,7 +37,7 @@ detect-gate() {
       summary "### ❌ The root justfile could not be read" "" "${recipes}"
       return 1
     fi
-    tr ' ' '\n' <<<"${recipes}" | grep --quiet --line-regexp ci && printf 'just ci\n' && return 0
+    grep --quiet --line-regexp ci <<<"${recipes// /$'\n'}" && printf 'just ci\n' && return 0
   fi
   if [[ -f Makefile ]] && grep --quiet '^ci:' Makefile
   then
