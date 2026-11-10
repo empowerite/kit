@@ -90,8 +90,8 @@ use:yq() {
 # is never read stale. Whether each directory exists is asked again every time.
 use:load-path() {
   (( ${#kit_bash_path[@]} )) && return 0
-  local entry dir root digest settings='' from
-  local -a entries dirs=()
+  local entry dir root digest settings='' from status=0
+  local -a entries=() dirs=()
   # A verb runs at the repository root, where kit.yml is. A just recipe, or any script that sources this
   # file, may run in a directory below it, so the settings and the relative entries are read from the root then.
   root=$(pwd -P)
@@ -112,7 +112,18 @@ use:load-path() {
     return 0
   fi
   use:yq
-  list:read entries use:path-setting "${root}" || return 2
+  # Only a kit.yml whose text names bash_path is read with yq: one that does not cannot set it, and a kit run without
+  # yq goes on to say yq is missing. yaml.sh says nothing in a subshell, so a yq that is missing is named here; a file
+  # it cannot parse has had its line.
+  if [[ "${settings}" == *bash_path* ]]
+  then
+    list:read entries use:path-setting "${root}" || status=$?
+    if (( status == 2 ))
+    then
+      error "run: mise install, or brew install yq (bash_path in kit.yml is read through yq 4, mikefarah/yq)"
+    fi
+    (( status == 0 )) || return 2
+  fi
   (( ${#entries[@]} )) || entries=(kit:modules/bash/)
   if [[ "${entries[0]}" != kit:modules/bash/ ]]
   then
