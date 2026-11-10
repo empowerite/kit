@@ -366,16 +366,17 @@ git:pushes-to() {
   return 1
 }
 
-# git:commit <path> <what> <argument>… runs git commit with the arguments in the checkout at <path>, its output shown
-# as git writes it, and returns git's status. When the commit is not made and --gpg-sign is among the arguments, it
-# says why, naming the commit as <what>: refused as one git could not sign when git's words say the signing failed
-# (the signing program failed to sign the data, or git could not write the commit object, which it writes once it is
-# signed), and failed otherwise, as when a hook refuses it. git's own words above say more.
+# git:commit <path> <what> <argument>… runs git commit with the arguments in the checkout at <path>, its standard
+# output shown as git writes it and its errors once git ends, and returns git's status. When the commit is not made
+# and --gpg-sign is among the arguments, it says why, naming the commit as <what>: refused as one git could not sign
+# when git's words say the signing failed (the signing program failed to sign the data, or git could not write the
+# commit object, which it writes once it is signed), and failed otherwise, as when a hook refuses it. git's own words
+# above say more.
 git:commit() {
   local path=$1 what=$2 status=0 said
   shift 2
-  { said=$(git -C "${path}" commit "$@" 2>&1 1>&3 3>&- | tee /dev/stderr; exit "${PIPESTATUS[0]}"); } 3>&1 \
-    || status=$?
+  { said=$(git -C "${path}" commit "$@" 2>&1 1>&3 3>&-) || status=$?; } 3>&1
+  [[ -z "${said}" ]] || printf '%s\n' "${said}" >&2
   (( status != 0 )) || return 0
   list:among --gpg-sign "$@" || return "${status}"
   if grep --quiet --ignore-case --regexp 'failed to sign' --regexp 'failed to write commit object' <<<"${said}"

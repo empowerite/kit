@@ -625,6 +625,22 @@ EOF
   [ "$(git diff --cached --name-only)" = x ]
 }
 
+# On Linux a tee to /dev/stderr truncated a regular file standing there, so this fails on Linux before the fix and
+# passes on macOS (which shares the file offset) before and after it.
+@test "kit commit leaves what was already on its standard error where it is, when that is a file" {
+  printf '#!/bin/sh\necho "the hook says no" >&2\nexit 1\n' > "$(git rev-parse --git-common-dir)/hooks/pre-commit"
+  chmod +x "$(git rev-parse --git-common-dir)/hooks/pre-commit"
+  printf 'the first line\n' > "${BATS_TEST_TMPDIR}/err"
+  printf 'x\n' > x && git add x
+  status=0
+  kit commit --message 'x: a file' 2>>"${BATS_TEST_TMPDIR}/err" >/dev/null || status=$?
+  [ "$status" -eq 1 ]
+  [ "$(head -n 1 "${BATS_TEST_TMPDIR}/err")" = 'the first line' ]
+  grep --quiet --text 'every governed path passes its rule' "${BATS_TEST_TMPDIR}/err"
+  grep --quiet --text 'the hook says no' "${BATS_TEST_TMPDIR}/err"
+  tr -d '\0' < "${BATS_TEST_TMPDIR}/err" | cmp --silent - "${BATS_TEST_TMPDIR}/err"
+}
+
 @test "facts that cannot be gathered refuse the commit" {
   printf 'policy:\n  colour: blue\n' >> kit.yml
   git add kit.yml
