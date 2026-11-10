@@ -69,6 +69,7 @@ help, the syntax, and the server cannot drift apart.
   - A line's leading word is one property too: `flow`'s `stage`, such as `backlog` or `desk`.
   - An argument every offered line needs is `required`, such as `context`'s `path`.
 - **A call that does not fit** is refused with `-32602`, and the verb does not run. The error says what is wrong:
+  - a value that holds a NUL, which no command line carries, before any other fault
   - a name the tool does not take, with the names it does take
   - a value of the wrong type
   - an operand's value that starts with `-`, which the verb would read as a flag
@@ -143,6 +144,8 @@ Either way:
 - Stdout carries only protocol messages, one JSON object per line. Every log line goes to stderr.
 - Requests are answered one at a time, in order.
 - A message without an `id` is a notification, and does not get an answer, even when it fails.
+- A request whose `params` is there and is not an object, such as an array or a string, is refused with `-32602`,
+  `Invalid params: params is an object`, before any method's handler runs. A request without `params` is served.
 - A list or a read carries `ttlMs` of 0 and `cacheScope` of `private`, because the files and the verbs' answers
   change as the agent works.
 

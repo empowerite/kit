@@ -84,6 +84,41 @@ call() {
   answer 8 | jq --exit-status '.error | .code == -32602 and (.message | contains("fit no usage of kit context: kit context <path>… [--json | --jq]"))'
 }
 
+@test "params that is not an object, and a NUL in an argument, are refused, and the server goes on" {
+  serve '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{}}}' \
+    '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":[1]}' \
+    '{"jsonrpc":"2.0","id":2,"method":"resources/read","params":"kit://1st.md"}' \
+    "$(call 3 help '{"verb":["version","a\u0000b"]}')" \
+    '{"jsonrpc":"2.0","method":"notifications/initialized","params":[1]}' \
+    '{"jsonrpc":"2.0","id":4,"method":"ping"}'
+  [ "$(wc -l < "${BATS_TEST_TMPDIR}/out")" -eq 5 ]
+  answer 4 | jq --exit-status '.result == {}'
+  local id
+  for id in 1 2
+  do
+    answer "${id}" | jq --exit-status '.error.code == -32602'
+    answer "${id}" | jq --exit-status '.error.message | contains("params is an object")'
+  done
+  answer 3 | jq --exit-status '.error | .code == -32602 and (.message | contains("holds a NUL"))'
+  run ! grep --quiet 'kit help version' .kit/logs/mcp-*.log
+}
+
+@test "a result over a megabyte, and a request line over a megabyte, are answered, and the server goes on" {
+  serve "$(call 1 syntax "{\"verb\": $(jq --null-input --compact-output '[range(50) | "flow"]')}")" "$(call 2 version)"
+  answer 1 | jq --exit-status '.result | .isError == false and (.content[0].text | length > 1000000)'
+  answer 2 | jq --exit-status '.result.isError == false'
+  # call would put the path on jq's command line, so the line is written with printf
+  {
+    printf '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"_meta":%s,"name":"context","arguments":{"path":["' \
+      '{"io.modelcontextprotocol/protocolVersion":"2026-07-28"}'
+    head -c 1500000 /dev/zero | tr '\0' a
+    printf '"]}}}\n'
+    call 4 version
+  } | "${kit_checkout}/bin/kit" serve >"${BATS_TEST_TMPDIR}/out" 2>"${BATS_TEST_TMPDIR}/err"
+  answer 3 | jq --exit-status '.error.code == -32602 or .result.isError'
+  answer 4 | jq --exit-status '.result.isError == false'
+}
+
 @test "tools/list names every tool, with its purpose, its usage, its page's resource, and typed inputs from its syntax" {
   serve "$(modern 1 tools/list)"
   answer 1 | jq --exit-status '.result | .resultType == "complete" and .cacheScope == "private"'

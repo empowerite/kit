@@ -5,7 +5,10 @@
 #
 # serve:main reads one JSON-RPC message per line on stdin and answers each in order, one line on stdout per answer.
 # Nothing else reaches stdout: a verb a tool runs has its stdout and stderr captured, and every log line goes to
-# stderr. A message without an id is a notification, and gets no answer, even when it fails.
+# stderr. A message without an id is a notification, and gets no answer, even when it fails. A request whose params is
+# there and is not an object is refused with -32602 before any handler runs. Nothing a client sent, and nothing a
+# verb printed, is a word of a command line or a variable of the environment: each reaches jq on stdin or from a
+# file, and a value an error quotes is cut to 200 characters.
 #
 # The server answers two eras of the protocol, as the specification lets a dual-era server do:
 #
@@ -24,8 +27,8 @@
 # A tool's description is the verb's purpose and the usage lines it offers. The verb's whole page is a resource,
 # kit://help/<verb>. Its input is typed, built from the verb's syntax by modules/jq/serve.jq: a property for each
 # flag, option, and operand, and one for a line's leading word. A call's arguments become the verb's words, and a name
-# the tool does not know is refused with -32602. A call runs kit <verb> <word>… in a new process with stdin at end of
-# file, so the verb cannot read the protocol stream.
+# the tool does not know is refused with -32602, as is a value that holds a NUL, which no command line carries. A call
+# runs kit <verb> <word>… in a new process with stdin at end of file, so the verb cannot read the protocol stream.
 #
 # A tool that reads only runs no command the repository's files name, takes no word that acts, reads no path outside
 # the repository, changes no file git sees, and never fetches. Of the workflow tools, only work writes the repository,
@@ -199,12 +202,13 @@ serve:changed() {
 }
 
 # serve:reload <line> starts the server again from the changed code, to answer <line>, when a file it runs has
-# changed and every changed bash file parses. It passes the era a client chose with initialize, and the line, in
-# kit_serve_era and kit_serve_pending. Otherwise it returns, and the running server answers <line>. Before that, it
-# places .kit/ again when kit.yml changed, since a call does not place anything. It sends
-# notifications/resources/list_changed when .kit/.gitignore changed, and says so on stderr when a file did not parse.
+# changed and every changed bash file parses. It passes the era a client chose with initialize in kit_serve_era, and
+# in kit_serve_pending a file that holds the line, since a line may be longer than the environment carries.
+# Otherwise it returns, and the running server answers <line>. Before that, it places .kit/ again when kit.yml
+# changed, since a call does not place anything. It sends notifications/resources/list_changed when .kit/.gitignore
+# changed, and says so on stderr when a file did not parse.
 serve:reload() {
-  local file now
+  local file now pending
   local -a changed broken=()
   readarray -t changed < <(serve:changed)
   if (( ${#changed[@]} == 0 ))
@@ -240,21 +244,33 @@ serve:reload() {
     log:call mcp "${now}" "pid=$$" event=reload-refused "${broken[@]}"
     return 0
   fi
+  # The file outlives the exec, which runs no sweep; the new process's serve:resume removes it.
+  if ! { file:temp pending pending && printf '%s\n' "$1" >"${pending}"; }
+  then
+    : > "${serve_marker}"
+    warn "kit serve: the line could not be kept for a new process; the server keeps the code it runs"
+    return 0
+  fi
   log:now now
   log:call mcp "${now}" "pid=$$" event=reload
   rm -rf "${serve_scratch}"
-  export kit_serve_era=${serve_era} kit_serve_pending=$1
+  export kit_serve_era=${serve_era} kit_serve_pending=${pending}
   exec "${kit_root}/bin/kit-serve"
 }
 
-# serve:resume picks up where the server it replaced left off, when kit_serve_pending holds the line that one read:
-# it takes the era, tells the client the tools and the resources may have changed, and answers the line. A client
-# that opens with initialize hears nothing before its answer, as the earlier revisions require.
+# serve:resume picks up where the server it replaced left off, when kit_serve_pending names the file that holds the
+# line that one read: it takes the era, reads the line, removes the file and its directory, tells the client the
+# tools and the resources may have changed, and answers the line. A client that opens with initialize hears nothing
+# before its answer, as the earlier revisions require.
 serve:resume() {
-  local pending=${kit_serve_pending:-}
-  [[ -n "${pending}" ]] || return 0
+  local file=${kit_serve_pending:-} pending=''
+  [[ -n "${file}" ]] || return 0
   serve_era=${kit_serve_era:-}
   unset kit_serve_era kit_serve_pending
+  [[ -f "${file}" ]] && pending=$(<"${file}")
+  rm -f "${file}"
+  rmdir "${file%/*}" 2>/dev/null || true
+  [[ -n "${pending}" ]] || return 0
   if [[ "${pending}" != *'"initialize"'* ]]
   then
     serve:notify notifications/tools/list_changed
@@ -278,7 +294,7 @@ serve:handle() {
         (if has("id") then "request" else "notification" end),
         (.id | tojson),
         (.method | if type == "string" then gsub("[\r\n]"; " ") else "" end),
-        (.params // {} | tojson)
+        (.params | if . == null then {} elif type == "object" then . else null end | tojson)
       end' <<<"$1" 2>/dev/null)
   then
     serve:error null -32700 'Parse error: the line is not JSON'
@@ -297,6 +313,12 @@ serve:handle() {
     (response | notification)
       return 0
   esac
+  # params null is no params; any other value that is not an object reaches no handler.
+  if [[ "${params}" == null ]]
+  then
+    serve:error "${id}" -32602 'Invalid params: params is an object'
+    return 0
+  fi
   case "${method}" in
     (initialize) serve:initialize "${id}" "${params}" ;;
     (ping) serve:reply "${id}" '{}' ;;
@@ -305,22 +327,26 @@ serve:handle() {
     (tools/call) serve:version "${id}" "${params}" && serve:tools-call "${id}" "${params}" ;;
     (resources/list) serve:version "${id}" "${params}" && serve:resources-list "${id}" ;;
     (resources/read) serve:version "${id}" "${params}" && serve:resources-read "${id}" "${params}" ;;
-    (*) serve:error "${id}" -32601 "Method not found: ${method}"
+    (*) serve:error "${id}" -32601 "Method not found: ${method:0:200}"
   esac
   return 0
 }
 
-# serve:reply <id> <result> writes the answer to request <id>, both as JSON, on one line.
+# serve:reply <id> <result> writes the answer to request <id>, both as JSON, on one line. Both reach jq on stdin,
+# since either may be longer than a command line carries.
 serve:reply() {
   serve_outcome=${serve_outcome:-ok}
-  jq --null-input --compact-output --argjson id "$1" --argjson result "$2" '{jsonrpc: "2.0", id: $id, result: $result}'
+  printf '%s\n' "$1" "$2" | jq --null-input --compact-output \
+    'input as $id | input as $result | {jsonrpc: "2.0", id: $id, result: $result}'
 }
 
-# serve:error <id> <code> <message> [<data>] writes an error answer to request <id>; <id> and <data> are JSON.
+# serve:error <id> <code> <message> [<data>] writes an error answer to request <id>; <id> and <data> are JSON. The
+# id, the data, and the message reach jq on stdin, the message as a JSON string.
 serve:error() {
   serve_outcome="error=$2"
-  jq --null-input --compact-output --argjson id "$1" --argjson code "$2" --arg message "$3" --argjson data "${4:-null}" \
-    '{jsonrpc: "2.0", id: $id, error: ({code: $code, message: $message} + if $data then {data: $data} else {} end)}'
+  { printf '%s\n' "$1" "${4:-null}"; printf '%s' "$3" | jq --raw-input --slurp .; } \
+    | jq --null-input --compact-output --argjson code "$2" 'input as $id | input as $data | input as $message
+      | {jsonrpc: "2.0", id: $id, error: ({code: $code, message: $message} + if $data then {data: $data} else {} end)}'
 }
 
 # serve:complete <id> <result> [cacheable] answers with a complete result, the resultType 2026-07-28 requires, and,
@@ -336,7 +362,8 @@ serve:complete() {
 # answers, or names none after an initialize, or is server/discover. Otherwise it writes the error and is false.
 serve:version() {
   local requested
-  requested=$(jq --raw-output '._meta["io.modelcontextprotocol/protocolVersion"] // "" | strings' <<<"$2")
+  requested=$(jq --raw-output '(._meta | objects | .["io.modelcontextprotocol/protocolVersion"]) // "" | strings' \
+    <<<"$2")
   if [[ -z "${requested}" ]]
   then
     [[ "${serve_era}" == legacy || "${3:-}" == discover ]] && return 0
@@ -344,8 +371,8 @@ serve:version() {
     return 1
   fi
   serve:known-version "${requested}" && return 0
-  serve:error "$1" -32022 'Unsupported protocol version' "$(jq --null-input --compact-output \
-    --arg requested "${requested}" '{supported: $ARGS.positional, requested: $requested}' --args "${serve_versions[@]}")"
+  serve:error "$1" -32022 'Unsupported protocol version' "$(printf '%s' "${requested}" | jq --raw-input --slurp \
+    --compact-output '{supported: $ARGS.positional, requested: .[:200]}' --args "${serve_versions[@]}")"
   return 1
 }
 
@@ -450,14 +477,19 @@ serve:tool() {
 # serve:tools-call <id> <params> runs the tool's verb with the words its arguments make, and answers with what it
 # printed. Arguments the tool does not take are refused with -32602, and the verb never runs; a listing-only tool's
 # refusal says what it does not offer. A tool whose operands are paths refuses, the same way, a word outside the
-# repository. A verb that exits non-zero sets isError, and the text names its exit status.
+# repository. A verb that exits non-zero sets isError, and the text names its exit status; one the system will not
+# run, as when its words are longer than a command line carries, has status 126. The arguments reach jq on stdin, and
+# the words, the verb's output, and the command reach the server through files in its scratch directory, which each
+# call writes over, so no call leaves a file behind.
 serve:tools-call() {
-  local name status=0 out err quoted made problem tool word
+  local name status=0 quoted made problem tool word
+  local words_file=${serve_scratch}/words out=${serve_scratch}/out err=${serve_scratch}/err
+  local command=${serve_scratch}/command
   local -a words
   name=$(jq --raw-output '.name // "" | strings' <<<"$2")
   if ! serve:is-tool "${name}"
   then
-    serve:error "$1" -32602 "Unknown tool: ${name}; the tools are ${serve_tools[*]}"
+    serve:error "$1" -32602 "Unknown tool: ${name:0:200}; the tools are ${serve_tools[*]}"
     return 0
   fi
   if ! jq --exit-status '(.arguments // {}) | type == "object"' <<<"$2" >/dev/null
@@ -466,9 +498,13 @@ serve:tools-call() {
     return 0
   fi
   serve:spec "${name}" || { serve:error "$1" -32603 "Internal error: kit ${name}'s usage does not parse"; return 0; }
-  made=$(jq --compact-output -L "${kit_jq}" --argjson args "$(jq --compact-output '.arguments // {}' <<<"$2")" \
-    --argjson opts "${serve_opts[${name}]}" 'import "serve" as serve; serve::argv($args; $opts)' \
-    <<<"${serve_specs[${name}]}")
+  if ! made=$(jq --compact-output -L "${kit_jq}" --argjson spec "${serve_specs[${name}]}" \
+    --argjson opts "${serve_opts[${name}]}" \
+    'import "serve" as serve; (.arguments // {}) as $args | $spec | serve::argv($args; $opts)' <<<"$2")
+  then
+    serve:error "$1" -32603 "Internal error: the verb's words could not be read"
+    return 0
+  fi
   problem=$(jq --raw-output '.error // empty' <<<"${made}")
   if [[ -n "${problem}" ]]
   then
@@ -480,7 +516,13 @@ serve:tools-call() {
     serve:error "$1" -32602 "Invalid params: ${problem}"
     return 0
   fi
-  readarray -d '' -t words < <(jq --raw-output0 '.argv[]' <<<"${made}")
+  # A word jq cannot write, or a file it cannot make, would leave the verb with fewer words than the call gave.
+  if ! jq --raw-output0 '.argv[]' <<<"${made}" >"${words_file}" 2>/dev/null
+  then
+    serve:error "$1" -32603 "Internal error: the verb's words could not be read"
+    return 0
+  fi
+  readarray -d '' -t words <"${words_file}"
   for tool in "${serve_paths[@]}"
   do
     [[ "${tool}" == "${name}" ]] || continue
@@ -488,15 +530,14 @@ serve:tools-call() {
     do
       if [[ "${word}" != -* ]] && ! serve:inside "${word}"
       then
-        serve:error "$1" -32602 "Invalid params: ${word} is outside the repository kit serve runs in"
+        serve:error "$1" -32602 "Invalid params: ${word:0:200} is outside the repository kit serve runs in"
         return 0
       fi
     done
   done
   printf -v quoted ' %q' "${name}" "${words[@]}"
   serve_log_last="kit${quoted}"
-  file:temp out out || return 1
-  file:temp err err || return 1
+  printf '%s' "kit ${name}${words[*]:+ ${words[*]}}" >"${command}"
   (
     export NO_COLOR=1 kit_serve_hydrated=1
     unset CLICOLOR_FORCE
@@ -504,32 +545,40 @@ serve:tools-call() {
   ) </dev/null >"${out}" 2>"${err}" || status=$?
   (( status == 0 )) || serve_outcome="status=${status}"
   serve:complete "$1" "$(jq --null-input --compact-output --rawfile out "${out}" --rawfile err "${err}" \
-    --arg command "kit ${name}${words[*]:+ ${words[*]}}" --argjson status "${status}" '{
+    --rawfile command "${command}" --argjson status "${status}" '{
       content: [{type: "text", text: (
         [$out, $err, (if $status != 0 then "\($command) exited with status \($status)\n" else empty end)]
         | map(select(length > 0)) | join("\n")
       )}],
       isError: ($status != 0)
     }')"
-  rm -f "${out}" "${err}"
 }
 
 # serve:inside <path> succeeds when the path, read from the root with every symbolic link followed, is the root or
 # under it. A path that does not exist is judged by its nearest directory that does, and is outside when a .. is left
-# after that. A root that cannot be read, as when the server's directory is gone, leaves every path outside.
+# after that. A root that cannot be read, as when the server's directory is gone, leaves every path outside. It walks
+# the path's parts from the first, once each, since a pattern that cuts a part off the end takes time that grows with
+# the square of a path's length, and a call's path may be megabytes long.
 serve:inside() {
-  local root path=$1 rest='' resolved
+  local root path=$1 part found=''
+  local -a parts
   root=$(pwd -P 2>/dev/null) && [[ "${root}" == /* && -d "${root}" ]] || return 1
   [[ "${path}" == /* ]] || path=${root}/${path}
-  until [[ -e "${path}" || -L "${path}" ]]
+  readarray -d / -t parts < <(printf '%s' "${path}")
+  path=''
+  for part in "${parts[@]}"
   do
-    rest=/${path##*/}${rest}
-    path=${path%/*}
-    path=${path:-/}
+    [[ -n "${part}" ]] || continue
+    if [[ -z "${found}" ]] && [[ -e "${path}/${part}" || -L "${path}/${part}" ]]
+    then
+      path+=/${part}
+    else
+      found=${path:-/}
+      [[ "${part}" != .. ]] || return 1
+    fi
   done
-  [[ "${rest}/" != */../* ]] || return 1
-  resolved=$(readlink -f "${path}") || return 1
-  [[ "${resolved}" == "${root}" || "${resolved}" == "${root}"/* ]]
+  found=$(readlink -f "${found:-${path:-/}}") || return 1
+  [[ "${found}" == "${root}" || "${found}" == "${root}"/* ]]
 }
 
 # serve:is-tool <name> is true when the server has a tool of that name.
@@ -584,23 +633,31 @@ serve:resources-list() {
 }
 
 # serve:resources-read <id> <params> answers resources/read with the text of the file the URI names, or of the help
-# page, without color, when it names a tool's page.
+# page, without color, when it names a tool's page. The URI is matched in the shell, and reaches jq only once it
+# names a resource, or on stdin, cut to 200 characters, when it names none.
 serve:resources-read() {
-  local uri path mime quoted
+  local uri path='' mime='' quoted candidate file type text
   uri=$(jq --raw-output '.uri // "" | strings' <<<"$2")
   printf -v quoted '%q' "${uri}"
   serve_log_last="uri=${quoted}"
-  IFS=$'\t' read -r path mime < <(serve:resources | awk -F '\t' -v uri="${uri}" '$1 == uri { print $2 "\t" $3 }') || true
-  if [[ -z "${path:-}" ]]
+  while IFS=$'\t' read -r candidate file type _
+  do
+    if [[ -z "${path}" && "${candidate}" == "${uri}" ]]
+    then
+      path=${file} mime=${type}
+    fi
+  done < <(serve:resources)
+  if [[ -z "${path}" ]]
   then
-    serve:error "$1" -32602 "Resource not found: ${uri}" "$(jq --null-input --compact-output --arg uri "${uri}" '{uri: $uri}')"
+    serve:error "$1" -32602 "Resource not found: ${uri:0:200}" \
+      "$(printf '%s' "${uri}" | jq --raw-input --slurp --compact-output '{uri: .[:200]}')"
     return 0
   fi
   if [[ "${path}" == help:* ]]
   then
-    serve:complete "$1" "$(jq --null-input --compact-output --arg uri "${uri}" --arg mime "${mime}" \
-      --arg text "$(NO_COLOR=1 help:page "${path#help:}")" '{contents: [{uri: $uri, mimeType: $mime, text: ($text + "\n")}]}')" \
-      cacheable
+    text=$(NO_COLOR=1 help:page "${path#help:}") || true
+    serve:complete "$1" "$(printf '%s\n' "${text}" | jq --raw-input --slurp --compact-output --arg uri "${uri}" \
+      --arg mime "${mime}" '{contents: [{uri: $uri, mimeType: $mime, text: .}]}')" cacheable
     return 0
   fi
   serve:complete "$1" "$(jq --null-input --compact-output --arg uri "${uri}" --arg mime "${mime}" \

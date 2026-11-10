@@ -108,10 +108,17 @@ def emit($a; $word):
       else [$values[] | "--\($node.name)", .] end
   end;
 
+# cut gives a value as an error quotes it: its first 200 characters.
+def cut: .[:200];
+
+# nul is true when a value holds a NUL in a string, at any depth.
+def nul: any(.. | strings; explode | any(. == 0));
+
 # argv($args; $opts) gives {argv} for a call's arguments, the words of the first line they fit, with the flags the
-# server gives itself; or {error}, saying what is wrong: an unknown name, a value of the wrong type, an operand's value
-# that starts with -, an operand's value that is a literal of the verb's syntax, offered or not, a value off its
-# property's enum, or arguments that fit no line.
+# server gives itself; or {error}, saying what is wrong: a value that holds a NUL, which no command line carries, an
+# unknown name, a value of the wrong type, an operand's value that starts with -, an operand's value that is a literal
+# of the verb's syntax, offered or not, a value off its property's enum, or arguments that fit no line. A value an
+# error quotes is cut to 200 characters.
 def argv($args; $opts):
   . as $spec
   | schema($opts) as $schema
@@ -122,8 +129,10 @@ def argv($args; $opts):
   | [lines($opts)[].sequence | nodes[] | select(.kind == "operand") | .name] as $operands
   | [$spec.syntax[] | nodes[] | select(.kind == "literal") | .name] as $literals
   | [$a | keys_unsorted[] | select(IN($known[]) | not)] as $unknown
-  | if ($unknown | length) > 0 then
-      {error: ("unknown argument\(if ($unknown | length) > 1 then "s" else "" end) \($unknown | join(", ")); "
+  | ([$a | to_entries[] | select(.value | nul) | .key] | first) as $nul
+  | if $nul then {error: "\($nul | cut)'s value holds a NUL, which no command line carries"}
+    elif ($unknown | length) > 0 then
+      {error: ("unknown argument\(if ($unknown | length) > 1 then "s" else "" end) \($unknown | map(cut) | join(", ")); "
         + "kit \($spec.verb) takes: \($known | join(", "))")}
     else
       ([$a | to_entries[] | .key as $key | .value as $value | $schema.properties[$key] as $property
@@ -138,11 +147,11 @@ def argv($args; $opts):
             | first(
                 (if ($key | IN($operands[])) then
                   ($values[] | select(startswith("-"))
-                    | "\($key)'s value \(.) starts with -, so the verb would read it as a flag"),
-                  ($values[] | select(IN($literals[])) | "\($key)'s value \(.) is a word kit \($spec.verb) acts on")
+                    | "\($key)'s value \(cut) starts with -, so the verb would read it as a flag"),
+                  ($values[] | select(IN($literals[])) | "\($key)'s value \(cut) is a word kit \($spec.verb) acts on")
                 else empty end),
                 (if $enum then
-                  $values[] | select(IN($enum[]) | not) | "\($key)'s value \(.) is not one of: \($enum | join(", "))"
+                  $values[] | select(IN($enum[]) | not) | "\($key)'s value \(cut) is not one of: \($enum | join(", "))"
                 else empty end))
           end] | first // null) as $wrong
       | if $wrong then {error: $wrong}
