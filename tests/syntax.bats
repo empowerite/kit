@@ -233,11 +233,13 @@ setup() {
 }
 
 @test "the Go fixtures under projects/tui/ are what kit syntax prints today" {
-  local fixture verb
+  local fixture verb printed
   for fixture in "${kit_root}"/../projects/tui/internal/syntax/testdata/*.json
   do
     verb=$(basename "${fixture}" .json)
-    diff <("${kit_root}/bin/kit" syntax "${verb}") "${fixture}" >/dev/null \
+    # kit's output is compared from a variable, not a process substitution, whose descriptor a loaded machine loses
+    printed=$("${kit_root}/bin/kit" syntax "${verb}")
+    diff - "${fixture}" <<<"${printed}" >/dev/null \
       || { echo "stale: ${verb}; rerun: kit syntax ${verb} > projects/tui/internal/syntax/testdata/${verb}.json"; return 1; }
   done
 }

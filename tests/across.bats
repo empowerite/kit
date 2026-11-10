@@ -326,6 +326,48 @@ local-desks() {
   [ "${#stderr_lines[@]}" -eq 2 ]
 }
 
+@test "a member on a host kit has no forge for draws its forge's stages as nothing to read, and the picture exits 0" {
+  local-desks
+  d="${BATS_TEST_TMPDIR}/code/b b"
+  printf 'flow: [desk, worktrees, backlog]\n' > "$d/kit.yml"
+  git -C "$d" commit --quiet --all --message settings
+  git -C "$d" remote set-url origin https://bitbucket.org/o/b.git
+  workspaces-file <<EOF
+roots: [${BATS_TEST_TMPDIR}/code]
+workspaces:
+  w: {repos: [github.com/o/a, bitbucket.org/o/b]}
+EOF
+  cd "${BATS_TEST_TMPDIR}"
+  run --separate-stderr "${kit_root}/bin/kit" flow --workspace w --no-fetch --json
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '.backlog' <<<"$output")" = '{"rows":[],"errors":[]}' ]
+  [ "$(jq -c '[.[] | objects | .errors[]]' <<<"$output")" = '[]' ]
+  [ "$(jq -c '[.desk.rows[].member]' <<<"$output")" = '["github.com/o/a","bitbucket.org/o/b"]' ]
+}
+
+@test "kit workspace over a workspace prints a stage read in part and exits 1, and repos a desk it could not read" {
+  local-desks
+  printf 'bash_path: [nosuch:dir]\n' > "${BATS_TEST_TMPDIR}/code/b b/kit.yml"
+  cd "${BATS_TEST_TMPDIR}"
+  run --separate-stderr "${kit_root}/bin/kit" workspace remotes --workspace w --json
+  [ "$status" -eq 1 ]
+  [ "$(jq -c '[.rows[].member] | unique' <<<"$output")" = '["github.com/o/a"]' ]
+  [ "$(jq -r '.errors[0].member' <<<"$output")" = github.com/o/b ]
+  [[ "$(jq -r '.errors[0].error' <<<"$output")" == "bash_path must start with kit:modules/bash/"* ]]
+  run --separate-stderr "${kit_root}/bin/kit" workspace repos --workspace w --json
+  [ "$status" -eq 1 ]
+  [ "$(jq -c '[.rows[] | [.repository, .branch]]' <<<"$output")" = \
+    '[["github.com/o/a","main"],["github.com/o/b",null],["github.com/o/c",null]]' ]
+  [ "$(jq -r '.rows[0].error' <<<"$output")" = null ]
+  [[ "$(jq -r '.rows[1].error' <<<"$output")" == "bash_path must start with kit:modules/bash/"* ]]
+  git -C "${BATS_TEST_TMPDIR}/code/b b" checkout --quiet kit.yml
+  run --separate-stderr "${kit_root}/bin/kit" workspace repos --workspace w --json
+  [ "$status" -eq 0 ]
+  run --separate-stderr "${kit_root}/bin/kit" workspace remotes --workspace w --json
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '.errors' <<<"$output")" = '[]' ]
+}
+
 @test "kit workspace --marks over a workspace names a member it could not read, says its line, and exits 1" {
   local-desks
   printf 'bash_path: [nosuch:dir]\n' > "${BATS_TEST_TMPDIR}/code/b b/kit.yml"

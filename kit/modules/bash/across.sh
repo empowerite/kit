@@ -211,9 +211,11 @@ across:run() {
 
 # across:picture <workspace> <word>… prints the picture across the workspace as one JSON object: stages, as across:flow
 # --stages gives them, and each stage's document, {rows, errors}, cut from the picture each member's kit flow --json
-# printed. A stage a member's flow setting leaves out adds nothing; one it could not draw, null in its picture, is its
-# last line under errors. It returns 1, after the picture, when a member's kit flow did not exit 0, or a stage holds
-# a member under errors.
+# printed. A stage a member's flow setting leaves out adds nothing, and so does one null in the picture of a member
+# that exited 0, as a member on a host kit has no forge for draws the forge's stages: nothing to read. One null in the
+# picture of a member that did not exit 0, which could not draw it, is its last line under errors, and so is a picture
+# that does not parse. It returns 1, after the picture, when a member's kit flow did not exit 0, or a stage holds a
+# member under errors.
 across:picture() {
   local workspace=$1 dir stages stage kind doc n=0 failed=false
   local -a named=()
@@ -250,10 +252,12 @@ across:cut() {
   do
     member=$(<"${dir}/${n}.member")
     if value=$(jq --compact-output --arg stage "${stage}" 'if has($stage) then .[$stage] else "absent" end' \
-      "${dir}/${n}.out" 2>/dev/null) && [[ -n "${value}" && "${value}" != null ]]
+      "${dir}/${n}.out" 2>/dev/null) && [[ -n "${value}" ]] \
+      && { [[ "${value}" != null ]] || across:exited-0 "${dir}/${n}"; }
     then
-      [[ "${value}" == '"absent"' ]] || rows+=("$(jq --compact-output --arg member "${member}" --arg kind "${kind}" \
-        'if $kind == "array" then map(. + {member: $member})[] else . + {member: $member} end' <<<"${value}")")
+      [[ "${value}" == '"absent"' || "${value}" == null ]] || rows+=("$(jq --compact-output --arg member "${member}" \
+        --arg kind "${kind}" 'if $kind == "array" then map(. + {member: $member})[] else . + {member: $member} end' \
+        <<<"${value}")")
     else
       errors+=("$(across:error "${dir}/${n}" "${member}" "${stage}")")
     fi

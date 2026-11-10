@@ -4,6 +4,7 @@ package flow
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -119,5 +120,32 @@ func TestAStageWhoseMarkIsNullIsNeitherStaleNorLoadedAgain(t *testing.T) {
 	}
 	if !m.find("changes").src.Stale || !strings.Contains(barNames(m), "changes"+tabs.Stale) {
 		t.Errorf("changes, whose mark moved beside the null: the dots %q", barNames(m))
+	}
+	loads := func() int {
+		got, _ := os.ReadFile(record)
+		return strings.Count(string(got), "flow backlog --json")
+	}
+	// the forge answers again with the mark backlog took: nothing moved, so nothing loads
+	write(`{"backlog": "b1", "changes": "c2"}`)
+	for range 2 {
+		m = drive(m, clockOf(m).Fire()...)
+	}
+	if n := loads(); n != 0 || m.find("backlog").src.Stale {
+		t.Errorf("back to its own mark: %d loads, stale %v", n, m.find("backlog").src.Stale)
+	}
+	// null again, then a mark that moved: one load, read after read
+	write(`{"backlog": null, "changes": "c2"}`)
+	m = drive(m, clockOf(m).Fire()...)
+	write(`{"backlog": "b2", "changes": "c2"}`)
+	for range 3 {
+		m = drive(m, clockOf(m).Fire()...)
+	}
+	if n := loads(); n != 1 {
+		t.Errorf("a mark that moved past a null loaded backlog %d times", n)
+	}
+	// a mark that holds the word null is a mark: kit reads it with exit 0
+	write(`{"backlog": "nullable", "changes": "c2"}`)
+	if err := exec.Command(runner(t).Kit, "flow", "--marks").Run(); err != nil {
+		t.Errorf("a mark holding null: %v", err)
 	}
 }

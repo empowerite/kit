@@ -108,7 +108,7 @@ case "${1:-}" in
       exit 1
     fi
     cat "${FAKE_FLOW_MARKS}"
-    if grep --quiet null "${FAKE_FLOW_MARKS}"
+    if jq --exit-status 'any(.[]; . == null)' "${FAKE_FLOW_MARKS}" >/dev/null
     then
       echo "❌ kit flow: the forge cannot answer; run: gh auth status (the marks could not be read)" >&2
       exit 1

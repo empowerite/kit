@@ -522,7 +522,7 @@ func TestAGroupsMarksAndQuotaKeepWhatWasReadBesideTheMembersThatFailed(t *testin
 	ctx := context.Background()
 	marks, err := script(t, `echo '{"desk": "1 2", "errors": [{"member": "github.com/o/b", "error": "no gh"}]}'
 exit 1`).MarksOf(ctx, "workspace")
-	if _, errors := marks["errors"]; err != nil || marks["desk"] != "1 2" || errors || len(marks) != 1 {
+	if _, named := marks["errors"]; err != nil || marks["desk"] != "1 2" || named || len(marks) != 1 {
 		t.Errorf("MarksOf = %v, %v", marks, err)
 	}
 	if marks, err := script(t, `echo '{"desk": 7}'`).Marks(ctx); err == nil {
