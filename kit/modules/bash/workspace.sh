@@ -34,13 +34,26 @@ workspace:format() {
   printf '%%(%s)' "$@" | sed 's/)%(/)%1f%(/g'
 }
 
+# workspace:paths prints the path of every worktree of the repository here, the main checkout first.
+workspace:paths() {
+  local line
+  local -a lines
+  list:read lines git worktree list --porcelain || return 1
+  for line in "${lines[@]}"
+  do
+    [[ "${line}" != 'worktree '* ]] || printf '%s\n' "${line#worktree }"
+  done
+}
+
 # workspace:remote-facts prints each remote of the repository here, the primary first, as a JSON array of
 # {name, url, push, forge, member, web, default, branches}: its fetch and push URLs, its forge, the member its URL
 # names, host and path, its page, its default branch, as its HEAD names it, and how many branches it has.
 workspace:remote-facts() {
   local remote url push forge member default branches
+  local -a remotes
   {
-    while IFS= read -r remote
+    list:read remotes forge:remotes || exit 1
+    for remote in "${remotes[@]}"
     do
       [[ -n "${remote}" ]] || continue
       url=$(git remote get-url --end-of-options "${remote}" 2>/dev/null) || url=''
@@ -57,7 +70,7 @@ workspace:remote-facts() {
         {name: $name, url: ($url | some), push: ($push | some), forge: ($forge | some), member: ($member | some),
          default: ($default | some), branches: $branches}
         | . + {web: workspace::web(.forge; .member)}'
-    done < <(forge:remotes)
+    done
   } | jq --slurp --compact-output .
 }
 
@@ -93,8 +106,10 @@ workspace:base() {
 # read in it, and what it is ahead and behind the primary's default branch.
 workspace:worktrees() {
   local base path statuses='{}' bases='{}' status counts
+  local -a paths
   base=$(workspace:base) || return $?
-  while IFS= read -r path
+  list:read paths workspace:paths || return 1
+  for path in "${paths[@]}"
   do
     [[ -d "${path}" ]] || continue
     status=$(git -C "${path}" status --porcelain=v2 --branch 2>/dev/null) || continue
@@ -103,7 +118,7 @@ workspace:worktrees() {
     [[ -n "${base}" ]] || continue
     counts=$(git -C "${path}" rev-list --left-right --count "${base}...HEAD" 2>/dev/null) || continue
     bases=$(jq --compact-output --arg path "${path}" --arg counts "${counts}" '. + {($path): $counts}' <<<"${bases}")
-  done < <(git worktree list --porcelain | sed -n 's/^worktree //p')
+  done
   git worktree list --porcelain \
     | jq --compact-output --raw-input --slurp -L "${kit_jq}" --argjson statuses "${statuses}" \
       --argjson bases "${bases}" 'import "workspace" as workspace; workspace::worktrees($statuses; $bases)'
@@ -115,16 +130,17 @@ workspace:worktrees() {
 # HEAD it is.
 workspace:commits() {
   local base primary branch held='' unpushed heads facts
-  local -a not=()
+  local -a not=() names
   base=$(workspace:base) || return $?
   [[ -z "${base}" ]] || not=(--not "${base}")
   primary=$(forge:primary) || return $?
-  while IFS= read -r branch
+  list:read names git for-each-ref --format='%(refname:short)' refs/heads || return 1
+  for branch in "${names[@]}"
   do
     [[ -n "${branch}" ]] || continue
     held+=$(git rev-list --max-count="${workspace_commits}" "refs/heads/${branch}" "${not[@]}" \
       | sed "s|\$|$(printf '\t')${branch}|")$'\n'
-  done < <(git for-each-ref --format='%(refname:short)' refs/heads)
+  done
   unpushed=$(git rev-list --max-count=1000 --branches --not --remotes \
     | jq --compact-output --raw-input --slurp -L "${kit_jq}" 'import "workspace" as workspace; workspace::hashes')
   heads=$(git worktree list --porcelain \
@@ -155,6 +171,7 @@ workspace:marks() {
   (
     cd "$(git:main-root)" || exit 1
     local path
+    local -a paths
     jq --null-input --compact-output \
       --arg repos "$({ pwd; git worktree list --porcelain; git for-each-ref --format='%(refname)' refs/heads; } \
         | git hash-object --stdin)" \
@@ -163,10 +180,13 @@ workspace:marks() {
       --arg branches "$(git for-each-ref --format='%(refname) %(objectname) %(upstream) %(worktreepath)' \
         refs/heads refs/remotes | git hash-object --stdin)" \
       --arg worktrees "$({ git worktree list --porcelain
-        while IFS= read -r path
+        # The mark only has to change when the worktrees do: a list git cannot give, or a worktree removed while it
+        # is read, changes what is hashed, and the stage is drawn again.
+        list:read paths workspace:paths || exit 1
+        for path in "${paths[@]}"
         do
           [[ ! -d "${path}" ]] || git -C "${path}" status --porcelain=v2 --branch 2>/dev/null || true
-        done < <(git worktree list --porcelain | sed -n 's/^worktree //p'); } | git hash-object --stdin)" \
+        done; } | git hash-object --stdin)" \
       --arg commits "$(git for-each-ref --format='%(refname) %(objectname)' refs/heads refs/remotes \
         | git hash-object --stdin)" \
       --arg tags "$(git for-each-ref --format='%(refname) %(objectname)' refs/tags | git hash-object --stdin)" \

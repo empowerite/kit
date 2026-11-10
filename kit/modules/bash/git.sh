@@ -50,7 +50,10 @@ git:main-root() {
 # names first. <detached> is true or false, and <branch> is empty for a detached checkout.
 git:linked-worktrees() {
   local path="" branch="" detached=false line first=true
-  while IFS= read -r line
+  local -a lines
+  list:read lines git -C "${1:-.}" worktree list --porcelain || return 1
+  # git ends each record with a blank line; one more after the last record prints it too.
+  for line in "${lines[@]}" ''
   do
     case "${line}" in
       (worktree\ *)
@@ -69,7 +72,7 @@ git:linked-worktrees() {
         [[ -n "${path}" ]] && first=false
         path=""
     esac
-  done < <(git -C "${1:-.}" worktree list --porcelain; printf '\n')
+  done
 }
 
 # git:worktrees prints "<path>\t<detached>\t<branch>" for every linked worktree under worktrees/. <detached> is
@@ -77,8 +80,10 @@ git:linked-worktrees() {
 # keeps it.
 git:worktrees() {
   local worktree_root path="" branch="" detached=false line
+  local -a lines
   worktree_root="$(git:main-root)/worktrees"
-  while IFS= read -r line
+  list:read lines git worktree list --porcelain || return 1
+  for line in "${lines[@]}" ''
   do
     case "${line}" in
       (worktree\ *)
@@ -93,11 +98,11 @@ git:worktrees() {
         detached=true
         ;;
       ("")
-        # git ends each record with a blank line. The printf below adds one more so the last record is printed too.
+        # git ends each record with a blank line. The loop adds one more so the last record is printed too.
         [[ "${path}" == "${worktree_root}"/* ]] && printf '%s\t%s\t%s\n' "${path}" "${detached}" "${branch}"
         path=""
     esac
-  done < <(git worktree list --porcelain; printf '\n')
+  done
 }
 
 # git:gone-branches prints every local branch whose upstream no longer exists.
@@ -256,7 +261,8 @@ git:tidy-worktree() {
 # --dry-run prints what it would do and changes nothing.
 git:tidy() {
   local dry_run=false flag repo default_branch self_root found=false path branch detached remote remotes
-  local removed_worktrees=0 removed_branches=0 checked_out unpushed counted missing
+  local removed_worktrees=0 removed_branches=0 checked_out unpushed counted missing row
+  local -a worktrees
   local -A freed=()
   for flag in "$@"
   do
@@ -289,15 +295,17 @@ git:tidy() {
   done <<<"${remotes}"
 
   section "worktrees whose pull request is merged or closed"
-  while IFS=$'\t' read -r path detached branch
+  list:read worktrees git:worktrees || return 1
+  for row in "${worktrees[@]}"
   do
+    IFS=$'\t' read -r path detached branch <<<"${row}"
     found=true
     if git:tidy-worktree "${path}" "${branch}" "${detached}" "${default_branch}" "${self_root}" "${dry_run}"
     then
       (( ++removed_worktrees ))
       [[ -n "${branch}" ]] && freed[${branch}]=1
     fi
-  done < <(git:worktrees)
+  done
   [[ "${found}" == true ]] || ok "none"
 
   section "worktree bookkeeping"

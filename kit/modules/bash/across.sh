@@ -359,7 +359,8 @@ across:text() {
   file:scratch dir
   [[ -z "${stage}" ]] || set -- "${stage}" "$@"
   [[ "${out_color}" == 1 ]] && color=1
-  readarray -t started < <(COLUMNS=$(flow:width) CLICOLOR_FORCE=${color} across:start "${workspace}" "${dir}" "$@")
+  COLUMNS=$(flow:width) CLICOLOR_FORCE=${color} list:read started across:start "${workspace}" "${dir}" "$@" \
+    || return $?
   if (( ${#started[@]} == 0 ))
   then
     [[ "${first}" == true ]] || printf '\n' >&2

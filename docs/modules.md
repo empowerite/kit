@@ -52,6 +52,8 @@ bash_path:
 
 - Without the setting, the path is `kit:modules/bash/` alone.
 - The path starts with `kit:modules/bash/`. A path that does not is refused.
+- A `kit.yml` that names `bash_path` is read through `yq`. One `yq` cannot parse, or one read where `yq` is
+  missing, is refused, and `use` returns 2: the kit's own modules never stand in for a path it could not read.
 - A directory that does not exist is skipped, as `PATH` skips one. A root other than `kit:` must be a source that
   `sources:` in `kit.yml` names; see [packages.md](packages.md). Any other is refused.
 - `use:path` prints the directories the path resolved to, one per line, which shows what was skipped.
@@ -82,6 +84,8 @@ jq module directory, and defines:
 | `guard:require <predicate>…` | refuses, with the remedy, when a signing key or a tool is missing |
 | `list:among <name> <name>…` | succeeds when the first name is one of the rest |
 | `list:without <name> <name>…` | prints the rest without the first name, one per line |
+| `list:read <array> <command> [<argument>…]` | fills the array with the command's lines and returns its status, the array empty when that is not 0 |
+| `list:read0 <array> <command> [<argument>…]` | does the same for items that each end in a NUL |
 | `guard:arguments <verb> <argument>…` | judges a verb's arguments against its usage line and refuses in one line, pointing to `kit help <verb>`; at a terminal with kittui installed, a missing argument hands off to `kit tui -- <verb> <argument>…` instead |
 
 Stdout carries only data, so a verb's output can be piped. Every message goes to stderr.
@@ -113,6 +117,8 @@ refused, so no module loads from outside the path. A module:
 - names each function `<module>:<name>`, so that every function says where it is defined:
   `toolchain/brew:install` in `toolchain/brew.sh`
 - loads what it needs with `use`, at the top
+- reads a command's lines with `list:read` or `list:read0`, never through `< <(…)` alone, which loses the command's
+  status: a failed read is never taken for an empty list
 - returns non-zero to refuse, and leaves `exit` to the verb
 
 A seam's providers sit in a directory named for the seam, beside it: `forge.sh` and `forge/github.sh`, and

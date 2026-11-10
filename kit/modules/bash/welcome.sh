@@ -102,8 +102,11 @@ welcome:find() {
   if ! chosen=$(toolchain:chosen "${role}" list 2>/dev/null)
   then
     chosen=''
-    readarray -t usable < <(toolchain:usable "${role}" 2>/dev/null)
-    [[ "${role}" != system || ${#usable[@]} -ne 1 ]] || chosen=${usable[0]}
+    # A list kit cannot read gives no stand-in; the role's toolchain check then says kit could not look.
+    if list:read usable toolchain:usable "${role}" 2>/dev/null
+    then
+      [[ "${role}" != system || ${#usable[@]} -ne 1 ]] || chosen=${usable[0]}
+    fi
   fi
   welcome_chosen[${role}]=${chosen}
 }
@@ -124,14 +127,19 @@ welcome:remedy() {
 # toolchain puts on PATH.
 welcome:toolchain-has() {
   local project dir
+  local -a dirs=() more
   project=$(welcome:chosen project)
-  while IFS= read -r dir
+  # Directories kit cannot read hold no tool, so the check names the install fix.
+  if [[ -n "${project}" && "${project}" != ambient ]]
+  then
+    list:read more toolchain:call "${project}" path 2>/dev/null || return 1
+    dirs+=("${more[@]}")
+  fi
+  list:read more dependencies:path 2>/dev/null || return 1
+  for dir in "${dirs[@]}" "${more[@]}"
   do
     [[ -n "${dir}" && -x "${dir}/$1" ]] && return 0
-  done < <(
-    [[ -z "${project}" || "${project}" == ambient ]] || toolchain:call "${project}" path 2>/dev/null
-    dependencies:path 2>/dev/null
-  )
+  done
   return 1
 }
 
@@ -184,7 +192,12 @@ welcome:toolchain() {
   local role=$1 chosen flag candidate names='' others=''
   local -a usable
   chosen=$(welcome:chosen "${role}")
-  readarray -t usable < <(toolchain:usable "${role}" 2>/dev/null)
+  if ! list:read usable toolchain:usable "${role}" 2>/dev/null
+  then
+    welcome:record "toolchain-${role}" false "kit could not look for a toolchain for the ${role} here" '' false \
+      "${welcome_toolchains_doc}"
+    return 0
+  fi
   flag=$(toolchain:flag "${role}")
   case "${chosen}" in
     (ambient)
@@ -325,7 +338,8 @@ welcome:delivered() {
     done
     return 0
   fi
-  readarray -t packages < <(settings:packages)
+  # welcome plans the checks it can read: settings it cannot read, or a release it cannot render, plan no linter.
+  list:read packages settings:packages 2>/dev/null || return 0
   (( ${#packages[@]} )) || return 0
   render:all "${kit_root}" "${packages[@]}" >/dev/null 2>&1 || return 0
   place:delivered "${kit_root}" repo "${packages[@]}" 2>/dev/null
@@ -351,8 +365,11 @@ welcome:linters() {
 # the primary first. A host on github.com or gitlab.com under another name is that host, where its tool logs in.
 welcome:forges() {
   local remote forge host
+  local -a remotes
   local -A seen=()
-  while IFS= read -r remote
+  # welcome plans the checks it can read: remotes it cannot read plan no forge check.
+  list:read remotes forge:remotes 2>/dev/null || return 0
+  for remote in "${remotes[@]}"
   do
     forge=$(forge:of "${remote}" 2>/dev/null) || continue
     host=$(forge:host "${remote}")
@@ -366,7 +383,7 @@ welcome:forges() {
     [[ "${host}" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ && -z "${seen[${host}]+x}" ]] || continue
     seen[${host}]=1
     printf '%s\t%s\n' "${forge}" "${host}"
-  done < <(forge:remotes 2>/dev/null)
+  done
 }
 
 # welcome:repository succeeds inside a git repository.
@@ -382,7 +399,8 @@ welcome:installed() {
 # welcome:hooks-active succeeds where the hooks/lefthook package is active.
 welcome:hooks-active() {
   local -a packages
-  readarray -t packages < <(settings:packages 2>/dev/null)
+  # welcome plans the checks it can read: settings it cannot read activate no package.
+  list:read packages settings:packages 2>/dev/null || return 1
   list:among hooks/lefthook "${packages[@]}"
 }
 

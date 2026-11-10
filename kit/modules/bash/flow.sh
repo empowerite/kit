@@ -595,7 +595,8 @@ flow:relative() {
 #
 # A detached checkout measures its lines against its own HEAD and lists no commits.
 flow:checkout() {
-  local path=$1 branch=$2 default_branch=$3 fork='' ahead=0 behind=0 added=0 removed=0 changes a r _ primary
+  local path=$1 branch=$2 default_branch=$3 fork='' ahead=0 behind=0 added=0 removed=0 changes a r _ primary row
+  local -a numstat
   primary=$(forge:primary) || return $?
   [[ -n "${branch}" ]] && fork=$(flow:fork "${branch}" "${default_branch}")
   if [[ -n "${fork}" ]]
@@ -603,11 +604,15 @@ flow:checkout() {
     ahead=$(git rev-list --count "${fork}..${branch}" 2>/dev/null || printf 0)
     behind=$(git rev-list --count "${fork}..${primary}/${default_branch}" 2>/dev/null || printf 0)
   fi
-  while IFS=$'\t' read -r a r _
+  # A checkout's lines are counted where git can count them: one with no commit has no HEAD to diff against, and
+  # counts no line.
+  list:read numstat git -C "${path}" diff --numstat "${fork:-HEAD}" 2>/dev/null || true
+  for row in "${numstat[@]}"
   do
+    IFS=$'\t' read -r a r _ <<<"${row}"
     [[ -n "${a}" && "${a}" != '-' ]] && added=$(( added + a ))
     [[ -n "${r}" && "${r}" != '-' ]] && removed=$(( removed + r ))
-  done < <(git -C "${path}" diff --numstat "${fork:-HEAD}" 2>/dev/null || true)
+  done
   changes=$(git -C "${path}" status --porcelain 2>/dev/null || true)
   {
     [[ -n "${fork}" ]] && git -C "${path}" log --format='%h%x09%s' "${fork}..${branch}" 2>/dev/null
@@ -914,13 +919,18 @@ flow:draw-desk() {
 # flow:linked <default-branch> measures every linked worktree, from the primary's default branch, into
 # flow_worktrees.
 flow:linked() {
-  local path branch
+  local path branch row text
+  local -a rows
   flow_worktrees=()
-  while IFS=$'\t' read -r path _ branch
+  list:read rows git:linked-worktrees || return 1
+  printf -v text '%s\n' "${rows[@]}"
+  list:read rows flow:by-number <<<"${text}" || return 1
+  for row in "${rows[@]}"
   do
+    IFS=$'\t' read -r path _ branch <<<"${row}"
     [[ -n "${path}" ]] || continue
     flow_worktrees+=("$(flow:checkout "${path}" "${branch}" "$1")")
-  done < <(git:linked-worktrees | flow:by-number)
+  done
 }
 
 # flow:draw-checkouts draws what flow:worktrees measured: each worktree's block, the labels and the counts in
@@ -963,7 +973,7 @@ flow:worktrees() {
     branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)
     flow_worktrees=("$(flow:checkout "${here}" "${branch}" "${default_branch}")")
   else
-    flow:linked "${default_branch}"
+    flow:linked "${default_branch}" || return 1
     flow_gone=$(git:gone-branches)
   fi
   if [[ " $* " == *" --json "* ]]
@@ -1316,7 +1326,7 @@ flow:above() {
   do
     [[ "${arg}" == --json ]] && json=true
   done
-  readarray -t desks < <(git:desks "$(pwd -P)" "${flow_walk_depth}")
+  list:read desks git:desks "$(pwd -P)" "${flow_walk_depth}" || return 1
   if (( ${#desks[@]} == 0 ))
   then
     error "no repository at or below $(pwd -P), ${flow_walk_depth} levels down; run kit flow in one"

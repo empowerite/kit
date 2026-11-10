@@ -56,32 +56,37 @@ workspaces:member-of() {
 # workspaces:roots prints each root the file names, a leading ~ as HOME, one per line, in the file's order.
 workspaces:roots() {
   local root
-  while IFS= read -r root
+  local -a roots
+  list:read roots yaml:list "$(workspaces:file)" roots || return 1
+  for root in "${roots[@]}"
   do
     case "${root}" in
       (\~) root=${HOME} ;;
       (\~/*) root=${HOME}/${root#\~/} ;;
     esac
     printf '%s\n' "${root}"
-  done < <(yaml:list "$(workspaces:file)" roots)
+  done
 }
 
 # workspaces:checkouts prints "<member>\t<path>" for every desk under the roots that has a member, the roots in
 # order and the desks in path order under each, a desk reached from two roots once.
 workspaces:checkouts() {
   local root desk member
+  local -a roots desks
   local -A seen=()
-  while IFS= read -r root
+  list:read roots workspaces:roots || return 1
+  for root in "${roots[@]}"
   do
     [[ -d "${root}" ]] || continue
-    while IFS= read -r desk
+    list:read desks git:desks "${root}" "${workspaces_walk_depth}" || return 1
+    for desk in "${desks[@]}"
     do
       [[ -z "${seen[${desk}]:-}" ]] || continue
       seen[${desk}]=1
       member=$(workspaces:member-of "${desk}")
       [[ -z "${member}" ]] || printf '%s\t%s\n' "${member}" "${desk}"
-    done < <(git:desks "${root}" "${workspaces_walk_depth}")
-  done < <(workspaces:roots)
+    done
+  done
 }
 
 # workspaces:json prints the file as JSON on one line, {} where there is none. It returns 1, after yq's line, for a file
@@ -127,24 +132,28 @@ workspaces:entries() {
 # workspaces:fixed <name> prints the group's fixed members, each once, in the file's order, without its exclusions.
 workspaces:fixed() {
   local entry member
+  local -a entries
   local -A seen=() excluded=()
-  while IFS= read -r entry
+  list:read entries workspaces:entries "$1" exclude || return 1
+  for entry in "${entries[@]}"
   do
     excluded[$(workspaces:normalize "${entry}")]=1
-  done < <(workspaces:entries "$1" exclude)
-  while IFS= read -r entry
+  done
+  list:read entries workspaces:entries "$1" repos || return 1
+  for entry in "${entries[@]}"
   do
     member=$(workspaces:normalize "${entry}")
     [[ -n "${member}" && -z "${seen[${member}]:-}" && -z "${excluded[${member}]:-}" ]] || continue
     seen[${member}]=1
     printf '%s\n' "${member}"
-  done < <(workspaces:entries "$1" repos)
+  done
 }
 
 # workspaces:check returns 1, after a line that names the file and what is wrong, for a file that does not parse, a
 # group whose name is not a name, or a repos or exclude entry that names no member; 0 for a file that holds none.
 workspaces:check() {
   local file name key entry doc wrong
+  local -a names entries
   file=$(workspaces:file)
   doc=$(workspaces:json) || return 1
   wrong=$(jq --raw-output '
@@ -162,7 +171,8 @@ workspaces:check() {
     error "${file}: ${wrong}"
     return 1
   fi
-  while IFS= read -r name
+  list:read names workspaces:names || return 1
+  for name in "${names[@]}"
   do
     if [[ ! "${name}" =~ ^[a-z0-9][a-z0-9._-]*$ ]]
     then
@@ -171,16 +181,17 @@ workspaces:check() {
     fi
     for key in repos exclude
     do
-      while IFS= read -r entry
+      list:read entries workspaces:entries "${name}" "${key}" || return 1
+      for entry in "${entries[@]}"
       do
         if [[ -z "$(workspaces:normalize "${entry}")" ]]
         then
           error "${file}: '${entry}' in ${name}'s ${key} names no repository; write host/owner/repo or a git URL"
           return 1
         fi
-      done < <(workspaces:entries "${name}" "${key}")
+      done
     done
-  done < <(workspaces:names)
+  done
 }
 
 # workspaces:member-json <member> <by> <checkouts> prints a member as JSON: {repository, host, path, forge, remotes,
@@ -215,14 +226,16 @@ workspaces:member-json() {
 # forge null for a remote with none.
 workspaces:remotes-json() {
   local remote url forge
+  local -a remotes
   {
-    while IFS= read -r remote
+    list:read remotes forge:remotes 2>/dev/null || exit 1
+    for remote in "${remotes[@]}"
     do
       url=$(git remote get-url --end-of-options "${remote}" 2>/dev/null) || url=''
       forge=$(forge:of "${remote}" 2>/dev/null) || forge=''
       jq --null-input --compact-output --arg name "${remote}" --arg url "${url}" --arg forge "${forge}" \
         '{name: $name, url: $url, forge: (if $forge == "" then null else $forge end)}'
-    done < <(forge:remotes 2>/dev/null)
+    done
   } | jq --slurp --compact-output .
 }
 
@@ -258,7 +271,7 @@ workspaces:resolve() {
   read -r kind workspace < <(workspaces:kind "$1") || return 2
   if [[ "${kind}" == group ]]
   then
-    readarray -t members < <(workspaces:fixed "${workspace}")
+    list:read members workspaces:fixed "${workspace}" || return 1
   else
     members=("${workspace}")
   fi
@@ -279,13 +292,14 @@ workspaces:lines-json() { jq --raw-input --slurp --compact-output 'split("\n") |
 # favorite}, members its count of fixed members.
 workspaces:list-json() {
   local name
-  local -a groups=()
-  local n
-  while IFS= read -r name
+  local -a groups=() names fixed
+  list:read names workspaces:names || return 1
+  for name in "${names[@]}"
   do
-    n=$(workspaces:fixed "${name}" | grep -c . || true)
-    groups+=("$(jq --null-input --compact-output --arg name "${name}" --argjson n "${n}" '{name: $name, members: $n}')")
-  done < <(workspaces:names)
+    list:read fixed workspaces:fixed "${name}" || return 1
+    groups+=("$(jq --null-input --compact-output --arg name "${name}" --argjson n "${#fixed[@]}" \
+      '{name: $name, members: $n}')")
+  done
   printf '%s\n' "${groups[@]}" | jq --slurp --compact-output --arg file "$(workspaces:file)" \
     --argjson roots "$(workspaces:roots | workspaces:lines-json)" \
     --argjson favorites "$(workspaces:favorites | workspaces:lines-json)" \
@@ -353,7 +367,7 @@ workspaces:current() {
 # repository's. The roots are walked once, and only when a member or a favorite needs a checkout.
 workspaces:menu-json() {
   local current=$1 kind member name favorite fkind checkouts=''
-  local -a members=() groups=() favorites=() fixed=()
+  local -a members=() groups=() favorites=() fixed=() names
   kind=$(jq --raw-output .kind <<<"${current}")
   member=$(jq --raw-output '.member // ""' <<<"${current}")
   if [[ "${kind}" == group ]] || workspaces:favorites | grep --quiet /
@@ -362,27 +376,30 @@ workspaces:menu-json() {
   fi
   if [[ "${kind}" == group ]]
   then
-    while IFS= read -r name
+    list:read names workspaces:fixed "$(jq --raw-output .name <<<"${current}")" || return 1
+    for name in "${names[@]}"
     do
       members+=("$(workspaces:member-json "${name}" fixed "${checkouts}")")
-    done < <(workspaces:fixed "$(jq --raw-output .name <<<"${current}")")
+    done
   fi
   if [[ "${kind}" == repository && -n "${member}" ]]
   then
-    while IFS= read -r name
+    list:read names workspaces:names || return 1
+    for name in "${names[@]}"
     do
-      readarray -t fixed < <(workspaces:fixed "${name}")
+      list:read fixed workspaces:fixed "${name}" || return 1
       [[ " ${fixed[*]} " != *" ${member} "* ]] ||
         groups+=("$(jq --null-input --compact-output --arg name "${name}" --argjson n "${#fixed[@]}" \
           '{name: $name, members: $n}')")
-    done < <(workspaces:names)
+    done
   fi
-  while IFS= read -r favorite
+  list:read names workspaces:favorites || return 1
+  for favorite in "${names[@]}"
   do
     read -r fkind name < <(workspaces:kind "${favorite}" 2>/dev/null) || continue
     if [[ "${fkind}" == group ]]
     then
-      readarray -t fixed < <(workspaces:fixed "${name}")
+      list:read fixed workspaces:fixed "${name}" || return 1
       favorites+=("$(jq --null-input --compact-output --arg name "${favorite}" --argjson n "${#fixed[@]}" \
         '{name: $name, kind: "group", members: $n, checkout: null}')")
     else
@@ -391,7 +408,7 @@ workspaces:menu-json() {
         '{name: $name, kind: "repository", members: null,
           checkout: (if $checkout == "" then null else $checkout end)}')")
     fi
-  done < <(workspaces:favorites)
+  done
   jq --compact-output \
     --argjson members "$(printf '%s\n' "${members[@]}" | jq --slurp --compact-output 'map(select(. != null))')" \
     --argjson groups "$(printf '%s\n' "${groups[@]}" | jq --slurp --compact-output 'map(select(. != null))')" \

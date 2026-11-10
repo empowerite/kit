@@ -152,7 +152,8 @@ case "${action}" in
         step "📚 ${target}: a workspace of ${#members[@]}"
         ;;
       (add)
-        readarray -t have < <(workspaces:fixed "${target}")
+        declare -a have
+        list:read have workspaces:fixed "${target}" || exit 1
         fresh=()
         for member in "${members[@]}"
         do
@@ -166,10 +167,11 @@ case "${action}" in
         ;;
       (remove)
         drop=()
-        while IFS= read -r entry
+        list:read entries workspaces:entries "${target}" repos || exit 1
+        for entry in "${entries[@]}"
         do
           [[ " ${members[*]} " != *" $(workspaces:normalize "${entry}") "* ]] || drop+=("${entry}")
-        done < <(workspaces:entries "${target}" repos)
+        done
         if (( ${#drop[@]} > 0 ))
         then
           workspaces:drop "${target}" "${drop[@]}" || exit 1
