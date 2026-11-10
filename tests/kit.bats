@@ -186,6 +186,7 @@ setup() {
   run "${repo}.later/bin/kit" check
   [ "$status" -eq 1 ]
   [[ "$output" == *"/.kit/claude differs"* ]]
+  printf 'user level\n' > "${KIT_HOME}/.kit/claude"
   run "${repo}.later/bin/kit" packages remove agents/claude
   [ "$status" -eq 0 ]
   [ ! -e "${KIT_HOME}/.kit/claude" ]
