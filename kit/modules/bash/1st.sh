@@ -289,8 +289,7 @@ list:without() {
 
 # list:read <array> <command> [<argument>…] empties the named array, runs the command, and fills the array with its
 # lines, a trailing empty line dropped. It returns the command's status, the array left empty when that is not 0.
-# stdin reaches the command. A read through `< <(…)` alone loses that status, so every list a command prints is read
-# here.
+# stdin reaches the command. A read through `< <(…)` alone loses that status.
 list:read() {
   list:fill $'\n' "$@"
 }
@@ -301,14 +300,26 @@ list:read0() {
 }
 
 # list:fill <delimiter> <array> <command> [<argument>…] is list:read's work, for items that end in <delimiter>. The
-# command runs in a process substitution, in the place `< <(…)` gave it, and wait "$!" takes its status.
+# command runs in a subshell, as it did in `< <(…)`, at the head of a pipeline whose end, readarray, runs in this
+# shell under lastpipe, and PIPESTATUS gives its status. wait "$!" after a process substitution loses the status now
+# and then, when the command ends before the shell has recorded it: under load, one call in a few thousand. With job
+# control on, as in a terminal's shell, lastpipe does nothing, and the command runs in a process substitution.
 list:fill() {
-  local list_fill_delimiter=$1 list_fill_status=0
+  local list_fill_delimiter=$1 list_fill_status=0 list_fill_lastpipe=on
   local -n list_fill_items=$2
   shift 2
   list_fill_items=()
-  readarray -t -d "${list_fill_delimiter}" list_fill_items < <("$@")
-  wait "$!" || list_fill_status=$?
+  if [[ -o monitor ]]
+  then
+    readarray -t -d "${list_fill_delimiter}" list_fill_items < <("$@")
+    wait "$!" || list_fill_status=$?
+  else
+    shopt -q lastpipe || list_fill_lastpipe=off
+    shopt -s lastpipe
+    "$@" | readarray -t -d "${list_fill_delimiter}" list_fill_items
+    list_fill_status=${PIPESTATUS[0]}
+    [[ "${list_fill_lastpipe}" == on ]] || shopt -u lastpipe
+  fi
   if (( list_fill_status != 0 ))
   then
     list_fill_items=()
