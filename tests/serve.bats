@@ -462,6 +462,15 @@ call() {
   grep --quiet '"method":"notifications/resources/list_changed"' "${BATS_TEST_TMPDIR}/out"
 }
 
+@test "a help page that cannot be read answers an internal error, not an empty page" {
+  local kit_bash_modules=serve
+  run --separate-stderr kit-bash 'help:page() { return 1; }
+    serve:resources-read 2 "{\"uri\": \"kit://help/context\"}"'
+  [ "$status" -eq 0 ]
+  jq --exit-status '.id == 2 and .error.code == -32603 and (.error.message | contains("kit help context"))
+    and (has("result") | not)' <<<"$output"
+}
+
 @test "each tool's whole help page is a resource" {
   serve "$(modern 1 resources/list)" "$(modern 2 resources/read '{"uri":"kit://help/context"}')" \
     "$(modern 3 resources/read '{"uri":"kit://help/commit"}')"

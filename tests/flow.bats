@@ -557,6 +557,19 @@ fake-tui() {
   [[ "$output" == *$'\n\n🌿 worktrees/7-fix-the-thing'* && "$output" != *"💻"* ]]
 }
 
+@test "a worktree whose directory is gone is left out of worktrees, which names kit tidy, and the rest still draw" {
+  git worktree add --quiet -b 7-topic worktrees/7-topic main
+  git worktree add --quiet -b 9-gone worktrees/9-gone main
+  rm -rf worktrees/9-gone
+  run --separate-stderr "${kit_root}/bin/kit" flow worktrees --json
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '[.worktrees[].branch]' <<<"$output")" = '["7-topic"]' ]
+  [[ "$stderr" == *"worktrees/9-gone"*"kit tidy"* ]]
+  run "${kit_root}/bin/kit" flow worktrees
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"7-topic"* ]]
+}
+
 @test "kit flow desk is the root checkout, at the desk and from a linked worktree, in text and as its object" {
   git worktree add --quiet -b 7-topic worktrees/7-topic main
   printf 'two\n' > b && git add b && git commit --quiet --message two

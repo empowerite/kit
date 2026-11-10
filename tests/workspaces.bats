@@ -323,6 +323,32 @@ YML
   done
 }
 
+@test "a workspace file that does not parse stops --use, --favorite, and --current with 1; an unknown group is 2" {
+  workspaces-file <<<'workspaces: [x'
+  mkdir -p "${BATS_TEST_TMPDIR}/outside" && cd "${BATS_TEST_TMPDIR}/outside"
+  for args in "--use w" "--favorite w" "--unfavorite w" "--current --workspace w"
+  do
+    # shellcheck disable=SC2086  # each holds its words
+    run --separate-stderr "${kit_root}/bin/kit" workspaces ${args}
+    [ "$status" -eq 1 ]
+  done
+  [ "$(cat "${XDG_CONFIG_HOME}/kit/workspaces.yml")" = 'workspaces: [x' ]
+  workspaces-file <<<'workspaces: {w: {repos: [github.com/a/one]}}'
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --use nosuch
+  [ "$status" -eq 2 ]
+}
+
+@test "the last group used, and the menu's favorites, fail when the file's groups or favorites cannot be read" {
+  workspaces-file <<<'workspaces: foo'
+  run --separate-stderr kit-bash 'workspaces:remember w && workspaces:last'
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  workspaces-file <<<'favorites: foo'
+  run --separate-stderr kit-bash 'workspaces:menu-json "{\"kind\": \"none\", \"member\": null}"'
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+}
+
 @test "--current --json gives a group's members with their checkouts, and the favorites" {
   clone-at "${BATS_TEST_TMPDIR}/code/a" git@github.com:o/a.git
   workspaces-file <<YML

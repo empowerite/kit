@@ -482,10 +482,11 @@ guard:unknown-verb() {
 # refuses in one place and in the same words: an unknown flag or argument, an option without its value, two
 # alternatives of one group together, or a required argument missing, each in one line that points to kit help <verb>.
 # A --help or -h among the arguments, before any --, is answered with that page in this process's place, so every
-# verb has the --help a person types first. A verb short of a required argument hands off instead, when stdin, stdout, and stderr are all terminals and kittui
-# can be found (modules/bash/tui.sh): it execs kit tui -- <verb> <argument>…, whose form asks for the rest. It
-# returns 2 on a refusal, and 0 when the arguments complete the syntax, which the verb then parses as it does today;
-# with --jq beside a --json the verb takes, guard:jq runs it in this process's place.
+# verb has the --help a person types first. A verb short of a required argument hands off instead, when stdin,
+# stdout, and stderr are all terminals and kittui can be found (modules/bash/tui.sh): it execs kit tui -- <verb>
+# <argument>…, whose form asks for the rest. It returns 2 on a refusal, 1 when the verb's usage cannot be read to
+# judge a --jq, and 0 when the arguments complete the syntax, which the verb then parses itself; with --jq beside a
+# --json the verb takes, guard:jq runs it in this process's place.
 # shellcheck disable=SC2154  # syntax_literals, syntax_missing, and syntax_refusal are set by modules/bash/syntax.sh
 guard:arguments() {
   local verb=$1 status=0 argument usage form line

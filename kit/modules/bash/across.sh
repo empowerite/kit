@@ -20,22 +20,23 @@ across_verb=flow
 across_resolved=''
 
 # across:resolved <workspace> prints the workspace resolved: across_resolved when across:flow has resolved it, else
-# workspaces:resolve's. It returns 2 for a workspace that is neither a group nor a repository.
+# workspaces:resolve's. It returns 2 for a workspace that is neither a group nor a repository, and 1 when the
+# workspace file cannot be read.
 across:resolved() {
   if [[ -n "${across_resolved}" ]]
   then
     printf '%s\n' "${across_resolved}"
   else
-    workspaces:resolve "$1" || return 2
+    workspaces:resolve "$1" || return $?
   fi
 }
 
 # across:members <workspace> prints "<member>\t<checkout>" for each of the workspace's members, in its order, the
 # checkout empty for a member not cloned under the roots. It returns 2, after workspaces' line, for a workspace that
-# is neither a group nor a repository.
+# is neither a group nor a repository, and 1 when the workspace file cannot be read.
 across:members() {
   local resolved
-  resolved=$(across:resolved "$1") || return 2
+  resolved=$(across:resolved "$1") || return $?
   jq --raw-output '.members[] | [.repository, (.checkout // "")] | @tsv' <<<"${resolved}"
 }
 
@@ -94,19 +95,19 @@ across:line() {
 # stages, whatever the kit.yml where kit runs says; --marks and --quota, spanning the members; a stage with --json or
 # --jq as across:stage gives it; the picture as JSON, as across:picture gives it; and a stage or the picture as text,
 # each member's under it. It resolves the workspace once, and returns 2 for one that is neither a group nor a
-# repository, and for a pull request's number, which names one repository's.
+# repository, and for a pull request's number, which names one repository's; 1 when the workspace file cannot be read.
 across:flow() {
   local workspace=$1 stage='' word form=''
   shift
   if [[ "${1:-}" == --stages ]]
   then
-    workspaces:kind "${workspace}" >/dev/null || return 2
+    workspaces:kind "${workspace}" >/dev/null || return $?
     printf '%s\n' "${settings_stages[@]}"
     return
   fi
   if [[ -n "${workspace}" ]]
   then
-    across_resolved=$(workspaces:resolve "${workspace}") || return 2
+    across_resolved=$(workspaces:resolve "${workspace}") || return $?
   fi
   case "${1:-}" in
     (--marks)
@@ -145,12 +146,12 @@ across:flow() {
 
 # across:stage <workspace> <stage> <argument>… runs kit flow <stage> with the arguments, --jq as --json, in every
 # cloned member's checkout at once, and prints the document across:merge makes of them. It returns 0 whatever a member
-# did, and 2 for a workspace across:members refuses.
+# did, and what across:members returns for a workspace it refuses.
 across:stage() {
   local workspace=$1 stage=$2 dir kind=array
   shift 2
   file:scratch dir
-  across:start "${workspace}" "${dir}" "${stage}" "$@" >/dev/null || return 2
+  across:start "${workspace}" "${dir}" "${stage}" "$@" >/dev/null || return $?
   case "${stage}" in
     (desk | worktrees | incoming) kind=object
   esac
@@ -159,7 +160,8 @@ across:stage() {
 
 # across:start <workspace> <dir> <word>… runs kit's across_verb with the words, --jq as --json, in every cloned member's
 # checkout at once, as across:run runs one, the n-th's in <dir>/<n>, and waits for them. It prints each cloned member's
-# number and member, tab-separated, in the workspace's order; it returns 2 for a workspace across:members refuses.
+# number and member, tab-separated, in the workspace's order; it returns what across:members returns for a workspace
+# it refuses.
 across:start() {
   local workspace=$1 dir=$2 members member checkout n=0 arg
   local -a args=()
@@ -169,7 +171,7 @@ across:start() {
     [[ "${arg}" == --jq ]] && arg=--json
     args+=("${arg}")
   done
-  members=$(across:members "${workspace}") || return 2
+  members=$(across:members "${workspace}") || return $?
   while IFS=$'\t' read -r member checkout
   do
     [[ -n "${checkout}" ]] || continue
@@ -252,7 +254,7 @@ across:repos() {
   local resolved top member row
   if [[ -n "$1" ]]
   then
-    resolved=$(across:resolved "$1") || return 2
+    resolved=$(across:resolved "$1") || return $?
   else
     if ! top=$(git rev-parse --show-toplevel 2>/dev/null)
     then
@@ -393,7 +395,7 @@ across:marks() {
 # checkout, its branch, and its worktrees and branches, so it changes when any of them does.
 across:repos-mark() {
   local members member checkout
-  members=$(across:members "$1") || return 2
+  members=$(across:members "$1") || return $?
   while IFS=$'\t' read -r member checkout
   do
     printf '%s\t%s\n' "${member}" "${checkout}"
@@ -435,7 +437,7 @@ across:quota-merge() {
   for out in "${dir}"/*.out
   do
     [[ -e "${out}" && "$(<"${out%.out}.status")" == 0 ]] || continue
-    # A member's output jq cannot read adds no quota; the member's own error says why.
+    # A member that exited 0 with output jq cannot read adds no quota, and nothing says so; jq's words are dropped.
     jq --compact-output 'if type == "array" then . else [] end' "${out}" 2>/dev/null || true
   done | jq --slurp --compact-output 'add // [] | reduce .[] as $q ([]; if any(.[]; .forge == $q.forge) then . else
     . + [$q] end)'

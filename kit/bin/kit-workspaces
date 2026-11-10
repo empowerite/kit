@@ -108,7 +108,8 @@ case "${action}" in
       [.why]))"'
     ;;
   (use)
-    read -r kind _ < <(workspaces:kind "${target}") || exit 2
+    line=$(workspaces:kind "${target}") || exit $?
+    read -r kind _ <<<"${line}"
     if [[ "${kind}" != group ]]
     then
       error "kit workspaces --use remembers a group; a repository is the workspace inside it"
@@ -182,7 +183,8 @@ case "${action}" in
     esac
     ;;
   (favorite | unfavorite)
-    read -r _ name < <(workspaces:kind "${target}") || exit 2
+    line=$(workspaces:kind "${target}") || exit $?
+    read -r _ name <<<"${line}"
     declare -a favorites
     list:read favorites workspaces:favorites || exit 1
     if [[ "${action}" == favorite ]] && ! list:among "${name}" "${favorites[@]}"

@@ -267,11 +267,12 @@ workspaces:kind() {
 
 # workspaces:resolve <workspace> prints a workspace as JSON: {name, kind, members}. A group's name gives its fixed
 # members, by fixed; host and path, or a git URL, gives that one repository, by given. It returns 2, after a line that
-# says so, for a workspace that is neither.
+# says so, for a workspace that is neither, and 1 when the file cannot be read.
 workspaces:resolve() {
-  local kind workspace member checkouts
+  local kind workspace member checkouts line
   local -a members=() json=()
-  read -r kind workspace < <(workspaces:kind "$1") || return 2
+  line=$(workspaces:kind "$1") || return $?
+  read -r kind workspace <<<"${line}"
   if [[ "${kind}" == group ]]
   then
     list:read members workspaces:fixed "${workspace}" || return 1
@@ -310,8 +311,8 @@ workspaces:list-json() {
       workspaces: map(select(. != null) | . + {favorite: (.name as $n | $favorites | index($n) != null)})}'
 }
 
-# workspaces:last prints the last group used, or nothing: none was, or the file no longer has it. It fails when the
-# file's groups cannot be read.
+# workspaces:last prints the last group used, or nothing: none was, or the file has no group of that name. It fails
+# when the file's groups cannot be read.
 workspaces:last() {
   local file last
   local -a names

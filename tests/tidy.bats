@@ -103,6 +103,18 @@ gone() { git push --quiet origin --delete "$1"; }
   [ "$(git worktree list | wc -l | tr -d ' ')" -eq 1 ]
 }
 
+@test "a worktree prune that fails is warned of, and kit tidy does not say it pruned" {
+  world
+  # shellcheck disable=SC2016  # the script is single-quoted for bash -c
+  run bash -c 'source "${kit_root}/modules/bash/1st.sh" && use git
+    git() { [[ "$1 $2" != "worktree prune" ]] || { echo "fatal: no prune" >&2; return 1; }; command git "$@"; }
+    git:tidy'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"fatal: no prune"* ]]
+  [[ "$output" == *"git worktree prune failed, so the records of removed worktrees stay; see above"* ]]
+  [[ "$output" != *"pruned"* ]]
+}
+
 @test "kit tidy --dry-run says what it would remove and delete, and changes nothing" {
   world
   worktree-on 7-fix-the-thing && gone 7-fix-the-thing

@@ -57,7 +57,7 @@ setup() {
       /\\$/ { held = held substr($0, 1, length($0) - 1); next }
       /\|[[:space:]]*$/ { held = held $0 " "; next }
       { print FILENAME ":" FNR ": " held $0; held = "" }
-    '"'"' {} + | grep -E "(^|[^|])\| *grep [^|]*(--quiet|-q)( |$)"' scan "${kit_root}"
+    '"'"' {} + | grep -E "(^|[^|])\| *grep [^|]*(--quiet|-[A-Za-z]*q[A-Za-z]*)( |$)"' scan "${kit_root}"
   [ -z "$output" ] || { printf '%s\n' "$output"; return 1; }
 }
 

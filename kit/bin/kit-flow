@@ -226,10 +226,10 @@
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # kit:end legend
-# Exits 0 when the picture is drawn, 1 when the forge, the fetch, or git's list of the worktrees, the desks, or the
-# remote branches cannot be read, git cannot count the lines changed in a checkout or read its uncommitted paths, or a
-# setting is wrong, and 2 on a usage error. A wrong setting is a flow setting that is not a list of distinct stages, a
-# primary that names no remote, or a forges key that is no remote name.
+# Exits 0 when the picture is drawn, 1 when the forge, the fetch, the workspace file, or git's list of the worktrees,
+# the desks, or the remote branches cannot be read, git cannot count the lines changed in a checkout or read its
+# uncommitted paths, or a setting is wrong, and 2 on a usage error. A wrong setting is a flow setting that is not a
+# list of distinct stages, a primary that names no remote, or a forges key that is no remote name.
 #
 # see: modules/bash/flow.sh, modules/bash/backlog.sh, modules/bash/underway.sh, modules/bash/changes.sh,
 # modules/bash/builds.sh, modules/bash/releases.sh

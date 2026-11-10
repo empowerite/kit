@@ -137,8 +137,8 @@
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # kit:end legend
-# Exits 0 when the picture is drawn, 1 when a repository cannot be read, and 2 on a usage error, or outside a
-# repository without --workspace.
+# Exits 0 when the picture is drawn, 1 when a repository or the workspace file cannot be read, and 2 on a usage
+# error, or outside a repository without --workspace.
 #
 # see: modules/bash/workspace.sh, modules/jq/workspace.jq, modules/bash/across.sh
 
@@ -209,7 +209,7 @@ across_verb=workspace
 if [[ -n "${workspace}" ]]
 then
   # shellcheck disable=SC2034  # read by modules/bash/across.sh
-  across_resolved=$(workspaces:resolve "${workspace}") || exit 2
+  across_resolved=$(workspaces:resolve "${workspace}") || exit $?
 fi
 
 # marks prints a mark per stage: the repository here's, or every member's, joined.

@@ -142,6 +142,23 @@ EOF
   [[ "$output" == *"run kit flow changes <number> in it"* ]]
 }
 
+@test "a workspace file that does not parse stops kit flow and kit workspace over a workspace with 1, not 2" {
+  workspaces-file <<<'workspaces: [x'
+  cd "${BATS_TEST_TMPDIR}"
+  run --separate-stderr "${kit_root}/bin/kit" flow desk --workspace w --json
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  run --separate-stderr "${kit_root}/bin/kit" flow --stages --workspace w
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  run --separate-stderr "${kit_root}/bin/kit" workspace repos --workspace w --json
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  run --separate-stderr "${kit_root}/bin/kit" workspace --workspace w --json
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+}
+
 @test "without --workspace, kit flow desk --json prints the desk's object as before" {
   desk-at "${BATS_TEST_TMPDIR}/code/a" github.com/o/a
   cd "${BATS_TEST_TMPDIR}/code/a"

@@ -254,13 +254,15 @@ welcome:dependencies() {
   local -a usable
   file=$(dependencies:call "${provider}" file)
   lock=$(dependencies:call "${provider}" lock)
-  list:read usable dependencies:usable || return 1
   if [[ ! -f "${lock}" ]]
   then
     welcome:record "dependencies-${provider}" false \
       "${file} is here without ${lock}, so ${provider} pins nothing; write the lock with ${provider}, and commit it" \
       '' false "${welcome_toolchains_doc}"
-  elif ! list:among "${provider}" "${usable[@]}"
+    return 0
+  fi
+  list:read usable dependencies:usable || return 1
+  if ! list:among "${provider}" "${usable[@]}"
   then
     welcome:record "dependencies-${provider}" false "${lock} is here, but ${provider} is not on PATH" '' false \
       "${welcome_toolchains_doc}"

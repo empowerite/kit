@@ -319,7 +319,8 @@ flow:fetch-json() {
   while IFS=' ' read -r kind ref old new
   do
     case "${kind}:${ref}" in
-      # A range git cannot walk, as after a forced push, lists no commit; the picture says only that it moved.
+      # A range git cannot walk, from an old commit that is not here as in a shallow clone, lists no commit; the
+      # picture says only that the branch moved.
       (moved:"${default_ref}") commits=$(git log --format='%h%x09%s' "${old}..${new}" 2>/dev/null || true) ;;
       (moved:"refs/remotes/${remote}/"*) updated+=("${ref#"refs/remotes/${remote}/"}") ;;
       (new:"refs/remotes/${remote}/"*) added+=("${ref#"refs/remotes/${remote}/"}") ;;
@@ -932,7 +933,8 @@ flow:draw-desk() {
 }
 
 # flow:linked <default-branch> measures every linked worktree, from the primary's default branch, into
-# flow_worktrees.
+# flow_worktrees. A worktree whose directory is gone, which git lists as prunable, is left out with a warning that
+# names kit tidy, which prunes it.
 flow:linked() {
   local path branch row text doc
   local -a rows
@@ -944,6 +946,11 @@ flow:linked() {
   do
     IFS=$'\t' read -r path _ branch <<<"${row}"
     [[ -n "${path}" ]] || continue
+    if [[ ! -d "${path}" ]]
+    then
+      warn "$(flow:relative "${path}"): the worktree's directory is gone; run: kit tidy"
+      continue
+    fi
     doc=$(flow:checkout "${path}" "${branch}" "$1") || return 1
     flow_worktrees+=("${doc}")
   done
