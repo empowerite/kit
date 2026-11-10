@@ -15,8 +15,9 @@
 #
 # Its tools are verbs, in three groups, and each tool's annotations say which:
 #
-#   - context, flow, help, kinds, packages, syntax, toolchains, tools, and version, which read only
-#   - check and lint, which run the commands the repository's files name
+#   - context, flow, help, kinds, packages, syntax, and version, which read only
+#   - check, lint, toolchains, and tools, which run what the repository's files name: the commands of its generated
+#     regions, the linters its rules name, and the toolchain's own definition, such as mise.toml or a flake
 #   - assign, close, gather, settle, unassign, and work, which act on issues and pull requests
 #
 # A tool that reads only runs no command the repository's files name, takes no word that acts, reads no path outside

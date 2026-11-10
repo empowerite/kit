@@ -106,10 +106,10 @@ call() {
     | (.stage.enum | index("backlog") and index("releases")) and (has("no-fetch") | not) and .owner.type == "array"'
   answer 1 | jq --exit-status '.result.tools[] | select(.name == "packages") | .inputSchema.properties.package.items.enum
     | index("kit") and index("workflow")'
-  # check and lint run the repository's commands, and the workflow tools act: none of them reads only; close,
-  # unassign, and settle are destructive, and each workflow tool asks the forge
+  # check, lint, toolchains, and tools run what the repository's files name, and the workflow tools act: none of them
+  # reads only; close, unassign, and settle are destructive, and each workflow tool asks the forge
   answer 1 | jq --exit-status '[.result.tools[] | select(.annotations.readOnlyHint | not) | .name]
-    == ["check", "lint", "assign", "close", "gather", "settle", "unassign", "work"]'
+    == ["check", "lint", "toolchains", "tools", "assign", "close", "gather", "settle", "unassign", "work"]'
   answer 1 | jq --exit-status '[.result.tools[] | select(.annotations.destructiveHint) | .name]
     == ["close", "settle", "unassign"]'
   answer 1 | jq --exit-status '[.result.tools[] | select(.name | IN("assign", "close", "gather", "settle", "unassign",
@@ -212,8 +212,9 @@ call() {
   [ ! -e .kit/rules/json.md ]
   [ "$(git rev-parse origin/main)" = "${seen}" ]
   answer 3 | jq --exit-status '.result.content[0].text | fromjson | .fetched == false'
-  answer 1 | jq --exit-status '[.result.tools[] | select(.name | IN("check", "lint", "assign", "close", "gather",
-    "settle", "unassign", "work") | not) | .annotations] | length == 9 and all(.readOnlyHint and (.destructiveHint | not))'
+  answer 1 | jq --exit-status '[.result.tools[] | select(.name | IN("check", "lint", "toolchains", "tools", "assign",
+    "close", "gather", "settle", "unassign", "work") | not) | .annotations]
+    | length == 7 and all(.readOnlyHint and (.destructiveHint | not))'
 }
 
 @test "a listing-only tool refuses an action given as an operand's value, and a value off its enum, unrun" {
@@ -227,14 +228,14 @@ call() {
   [ ! -e .kit/styles/yaml.md ]
 }
 
-@test "check and lint say they run the repository's commands; a tool that reads only leaves the repository" {
+@test "check, lint, toolchains, and tools say they run the repository's commands; a tool that reads only leaves it" {
   printf '# notes\n\n<!-- kit:generate x `touch ran; echo hi` -->\nhi\n<!-- kit:end x -->\n' > notes.md
   local before
   before=$(git status --porcelain; cksum kit.yml)
   serve "$(modern 1 tools/list)" "$(call 2 context '{"path":["notes.md"]}')" "$(call 3 kinds)" "$(call 4 packages)" \
     "$(call 5 help)" "$(call 6 version)"
   answer 1 | jq --exit-status '[.result.tools[] | select(.annotations.readOnlyHint | not) | .name]
-    == ["check", "lint", "assign", "close", "gather", "settle", "unassign", "work"]'
+    == ["check", "lint", "toolchains", "tools", "assign", "close", "gather", "settle", "unassign", "work"]'
   jq --exit-status --slurp '[.[] | select(.id >= 2) | .result.isError] == [false, false, false, false, false]' \
     "${BATS_TEST_TMPDIR}/out"
   [ ! -e ran ]
@@ -256,6 +257,30 @@ call() {
   done
   answer 6 | jq --exit-status '.error | .code == -32602 and (.message | contains("unknown argument workspace"))'
   answer 7 | jq --exit-status '.result.isError == false'
+}
+
+@test "a path is refused when the server's directory is gone, so the root cannot be read" {
+  local outside=${BATS_TEST_TMPDIR}/outside.sh arguments id
+  printf '#!/usr/bin/env bash\necho $1\n' > "${outside}"
+  arguments=$(jq --null-input --compact-output --arg path "${outside}" '{path: [$path]}')
+  mkfifo "${BATS_TEST_TMPDIR}/in"
+  "${kit_checkout}/bin/kit" serve <"${BATS_TEST_TMPDIR}/in" >"${BATS_TEST_TMPDIR}/out" 2>"${BATS_TEST_TMPDIR}/err" &
+  server=$!
+  exec 7>"${BATS_TEST_TMPDIR}/in"
+  modern 1 server/discover >&7
+  await 1
+  cd "${BATS_TEST_TMPDIR}"
+  rm -rf "${repo}"
+  call 2 context "${arguments}" >&7
+  call 3 kinds "${arguments}" >&7
+  call 4 lint "${arguments}" >&7
+  await 4
+  exec 7>&-
+  wait "${server}" || true
+  for id in 2 3 4
+  do
+    answer "${id}" | jq --exit-status '.error | .code == -32602 and (.message | contains("is outside the repository"))'
+  done
 }
 
 @test "kit.yml changed between messages is placed by the server, which tells the client the resources changed" {

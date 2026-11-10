@@ -1,9 +1,9 @@
 # Serve
 
 `kit serve` is a local Model Context Protocol (MCP) server. It offers the kit's verbs to an agent as tools, in three
-groups: the verbs that read only, `check` and `lint`, which run the repository's commands, and the workflow verbs,
-which act on issues and pull requests. It offers the kit's files as resources. It reads requests on stdin and
-answers on stdout, in the repository it starts in, and does not open a network port.
+groups: the verbs that read only; `check`, `lint`, `toolchains`, and `tools`, which run what the repository's files
+name; and the workflow verbs, which act on issues and pull requests. It offers the kit's files as resources. It reads
+requests on stdin and answers on stdout, in the repository it starts in, and does not open a network port.
 
 A tool is its verb, with typed input. Each flag, option, and operand of the verb is a property of the tool's input
 schema, built from the verb's own usage lines. So an agent calls a tool without knowing the verb's grammar:
@@ -16,7 +16,7 @@ The server turns those arguments into the verb's words, here `kit context README
 
 ## What it offers
 
-Nine tools read only:
+Seven tools read only:
 
 | Tool | Runs |
 | --- | --- |
@@ -26,16 +26,16 @@ Nine tools read only:
 | `kinds` | `kit kinds` |
 | `packages` | `kit packages` |
 | `syntax` | `kit syntax` |
-| `toolchains` | `kit toolchains` |
-| `tools` | `kit tools` |
 | `version` | `kit version` |
 
-Two tools run the commands the repository's files name, so they do not say they read only:
+Four tools run what the repository's files name, so they do not say they read only:
 
-| Tool | Runs | The commands it runs |
+| Tool | Runs | What it runs |
 | --- | --- | --- |
-| `check` | `kit check` | each generated region's command, to compare the region with what it makes |
-| `lint` | `kit lint` | each rule's linter, over the paths the rule governs |
+| `check` | `kit check` | the command of each generated region, to compare the region with what it makes |
+| `lint` | `kit lint` | the linter each rule names, over the paths the rule governs |
+| `toolchains` | `kit toolchains` | the toolchain's own definition, such as `mise.toml`, to see which is active |
+| `tools` | `kit tools` | the toolchain's own definition, such as `mise.toml` or a flake, to list its tools |
 
 Each carries `readOnlyHint` false, `destructiveHint` false, `idempotentHint` true, and `openWorldHint` false. A
 client that asks before a call that does not read only asks before these too.
@@ -84,22 +84,24 @@ help, the syntax, and the server cannot drift apart.
   The result's text is the verb's stdout, then its stderr. A verb that exits non-zero sets `isError`, and the text
   names its exit status.
 
-The nine tools that read only carry `readOnlyHint`, and it holds. Such a tool runs no command the repository's files
+The seven tools that read only carry `readOnlyHint`, and it holds. Such a tool runs no command the repository's files
 name, takes no word that acts, reads no path outside the repository, changes no file git sees, and never fetches:
 
 - A call does not place anything under `.kit/`. The server places `.kit/` when it starts, and again before a
   message when `kit.yml` changed since.
 - `flow` never fetches. The server gives it `--no-fetch`, so `incoming` shows the refs as they are. Run `kit flow`
   in a terminal to fetch.
-- An action is never offered. `packages`, `toolchains`, and `tools` are listings only:
+- An action is never offered. `packages` is a listing only, and so are `toolchains` and `tools`, which run the
+  toolchain's definition and so do not read only:
   - `packages` does not offer `select`, `add`, or `remove`.
   - `toolchains` does not offer `choose`.
   - `tools` does not offer `install`, `update`, `path`, `run`, or `--outdated`, which reaches the network.
 
   A call that names one of these is refused, and the error says to run the verb in a terminal.
 - `context` does not offer `--claude`, the hook mode. It is the harness's own.
-- A path stays inside the repository. `context` and `kinds` refuse a path that leads outside it, as `lint` does, and
-  `flow` does not offer `--workspace`, which reads other clones.
+- A path stays inside the repository. `context` and `kinds` refuse a path that leads outside it, as `lint` does,
+  and every path when the server cannot read its own directory, as when that directory is gone. `flow` does not
+  offer `--workspace`, which reads other clones.
 
 A tool's verb still writes the kit's own records, which git never sees: its line in `.kit/logs/`, the context log,
 and a toolchain's detection cache under `.kit/cache/`.

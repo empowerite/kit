@@ -16,8 +16,9 @@
 #
 # A tool is a verb, in one of three groups, and its annotations say which, so a client can ask before it calls one:
 #
-#   - context, flow, help, kinds, packages, syntax, toolchains, tools, and version read only
-#   - check and lint run the commands the repository's files name: each generated region's, and each rule's linter
+#   - context, flow, help, kinds, packages, syntax, and version read only
+#   - check, lint, toolchains, and tools run what the repository's files name: check each generated region's command,
+#     lint each rule's linter, and toolchains and tools the toolchain's own definition, such as mise.toml or a flake
 #   - assign, close, gather, settle, unassign, and work act on issues and pull requests
 #
 # A tool's description is the verb's purpose and the usage lines it offers. The verb's whole page is a resource,
@@ -37,7 +38,8 @@
 #     --claude, is the harness's own. An operand's value that is a word of the verb's syntax is refused, offered or
 #     not, and so is a value off its property's enum.
 #   - A path stays inside the repository: each word given to context, kinds, or lint that is not a flag is refused
-#     when it leads outside the root, and flow does not offer --workspace, which reads other clones.
+#     when it leads outside the root, or when the root cannot be read, and flow does not offer --workspace, which
+#     reads other clones.
 #
 # A tool's verb still writes the kit's log, and a verb's cache under .kit/cache/, which git never sees.
 #
@@ -66,20 +68,22 @@ use context help release syntax log file materialize
 # The protocol revisions the server answers, the newest first. The first is the one without a session.
 declare -gra serve_versions=(2026-07-28 2025-11-25 2025-06-18 2025-03-26)
 
-# The tools: the verbs that read, by name, with check and lint among them, then the workflow verbs, which act on issues
-# and pull requests. serve_acts names the ones that do not read only.
+# The tools: the verbs that read, by name, with check, lint, toolchains, and tools among them, then the workflow verbs,
+# which act on issues and pull requests. serve_acts names the ones that do not read only.
 declare -gra serve_tools=(check context flow help kinds lint packages syntax toolchains tools version
   assign close gather settle unassign work)
 
 # The tools that ask the forge, over the network, rather than reading the repository alone.
 declare -gra serve_open_world=(flow assign close gather settle unassign work)
 
-# The annotations of the tools that do not read only. check and lint run the commands the repository's files name;
-# each workflow tool changes something. A destructive one closes issues or takes people off them; an idempotent one
-# called again with the same arguments changes nothing more.
+# The annotations of the tools that do not read only. check, lint, toolchains, and tools run what the repository's
+# files name; each workflow tool changes something. A destructive one closes issues or takes people off them; an
+# idempotent one called again with the same arguments changes nothing more.
 declare -grA serve_acts=(
   [check]='{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true}'
   [lint]='{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true}'
+  [toolchains]='{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true}'
+  [tools]='{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true}'
   [assign]='{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true}'
   [close]='{"readOnlyHint": false, "destructiveHint": true, "idempotentHint": true}'
   [gather]='{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false}'
@@ -512,10 +516,10 @@ serve:tools-call() {
 
 # serve:inside <path> succeeds when the path, read from the root with every symbolic link followed, is the root or
 # under it. A path that does not exist is judged by its nearest directory that does, and is outside when a .. is left
-# after that.
+# after that. A root that cannot be read, as when the server's directory is gone, leaves every path outside.
 serve:inside() {
   local root path=$1 rest='' resolved
-  root=$(pwd -P)
+  root=$(pwd -P 2>/dev/null) && [[ "${root}" == /* && -d "${root}" ]] || return 1
   [[ "${path}" == /* ]] || path=${root}/${path}
   until [[ -e "${path}" || -L "${path}" ]]
   do

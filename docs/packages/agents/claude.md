@@ -33,8 +33,8 @@ rules that govern the file; see [docs/context.md](../../context.md).
 The package merges one more entry, `mcpServers.kit`, into `.mcp.json`: the kit's MCP server, `kit serve`, which
 offers the rules as resources and the verbs as tools in three groups; see [docs/serve.md](../../serve.md):
 
-- `context`, `flow`, `help`, `kinds`, `packages`, `syntax`, `toolchains`, `tools`, and `version` read only.
-- `check` and `lint` run the commands the repository's files name.
+- `context`, `flow`, `help`, `kinds`, `packages`, `syntax`, and `version` read only.
+- `check`, `lint`, `toolchains`, and `tools` run what the repository's files name.
 - `assign`, `close`, `gather`, `settle`, `unassign`, and `work` act on issues and pull requests.
 
 Claude Code asks once, at the start of the next session, whether to use a project's servers, and the kit says so
