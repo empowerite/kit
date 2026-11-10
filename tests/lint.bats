@@ -104,6 +104,8 @@ script() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"the kind odd's content pattern"* ]]
   [[ "$output" != *"✅ every governed"* ]]
+  # bad.sh fails shellcheck too, so the status alone proves nothing: no linter ran
+  [[ "$output" != *".kit/rules/bash.md: shellcheck"* ]]
   run "${kit_checkout}/bin/kit" context bad.sh
   [ "$status" -eq 1 ]
   [[ "$output" == *"the kind odd's content pattern '^#!.*(odd' is not a regular expression"* ]]

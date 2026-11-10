@@ -227,6 +227,35 @@ setup() {
   [ -f "${dir}/kinds-2.awk" ]
 }
 
+@test "a lookup touches the matcher it uses, so its age is the time since its last use" {
+  local dir file
+  "${kit_checkout}/bin/kit" context README.md >/dev/null
+  dir="$(git rev-parse --path-format=absolute --git-common-dir)/kit"
+  for file in "${dir}"/kinds-*.awk
+  do
+    touch -t 202001010000 "${file}"
+  done
+  run --separate-stderr "${kit_checkout}/bin/kit" context README.md
+  [ "$status" -eq 0 ]
+  [ "$output" = ".kit/rules/markdown.md" ]
+  [ -n "$(find "${dir}" -name 'kinds-*.awk' -mmin -1440)" ]
+}
+
+@test "a matcher of no kinds that a repository with no kit compiled is never taken where a kit is declared" {
+  rm -f .kit/kinds/*.yml
+  mv kit.yml kit.yml.off
+  mv .kit/manifest manifest.off
+  kit_bash_modules=context run kit-bash 'printf "README.md\n" | context:classify'
+  [ "$status" -eq 0 ]
+  [ "$output" = "README.md"$'\t' ]
+  mv kit.yml.off kit.yml
+  mv manifest.off .kit/manifest
+  kit_bash_modules=context run kit-bash 'printf "README.md\n" | context:classify'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"no kind is defined under .kit/kinds; run: kit hydrate"* ]]
+  [[ "$output" != *"README.md"$'\t'* ]]
+}
+
 @test "a matcher another compile prunes between its lookup and its read is compiled again, never read as no kinds" {
   # the first lookup's matcher is taken away before classify reads it, as another worktree's prune would
   kit_bash_modules=context run kit-bash '

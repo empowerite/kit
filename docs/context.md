@@ -53,8 +53,9 @@ A classification that cannot be made fails, and is never read as a path of no ki
   and the pattern, so `kit lint`, `kit context`, and `kit check` fail with it.
 - A repository that declares a kit version and has no kind under `.kit/kinds/` fails with `run: kit hydrate`. A
   repository that declares no kit has no kinds, and nothing governs its paths.
-- Every worktree shares the compiled programs. A compile removes the program of other kinds once it is a day old, so
-  a program another worktree reads stays, and a program removed before it is read is compiled again.
+- Every worktree shares the compiled programs, and each lookup touches the one it uses. A compile removes the
+  program of other kinds once a day has passed since its last use, and a program removed between a lookup and its
+  read is compiled again.
 
 A kinds file holds one kind, or several as a YAML stream: one document per kind, separated by `---` lines. Two
 kinds with the same name, in one file or in two, are refused, and so is a document without a name.

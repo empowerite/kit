@@ -4,8 +4,9 @@
 # kit generate [--check] [--iterations=<n>] [<path>…]
 #
 # Expands each kit:generate region in the given files to what its command makes, and writes the result in place.
-# With no path, it takes every tracked file and every untracked file git does not ignore, and repeats until a pass
-# changes nothing.
+# A named directory stands for the tracked files under it, and a named path that is neither is refused. With no
+# path, it takes every tracked file and every untracked file git does not ignore, and repeats until a pass changes
+# nothing.
 #
 #   --check             writes nothing, and fails naming every stale file
 #   --iterations=<n>    expands the named files <n> times instead of once
@@ -27,14 +28,25 @@ guard:arguments generate "$@" || exit $?
 materialize:hydrate
 
 args=()
+named=()
 for arg in "$@"
 do
   case "${arg}" in
     (--) ;;
     (--check | --iterations=*) args+=("${arg}") ;;
-    (*) args+=("$(context:relative "${arg}")")
+    (*) named+=("${arg}")
   esac
 done
-generate:run "${args[@]}"
+# shellcheck disable=SC2154  # context_named is set by context:named
+if (( ${#named[@]} > 0 ))
+then
+  context:named "${named[@]}" || exit $?
+  if (( ${#context_named[@]} == 0 ))
+  then
+    ok "generate: no kit:generate directive to expand"
+    exit 0
+  fi
+fi
+generate:run "${args[@]}" "${context_named[@]}"
 
 # ----------------------------------------------------------------------------------------------------------------------

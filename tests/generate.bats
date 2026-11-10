@@ -168,6 +168,26 @@ SH
   printf 'no directive here\n' > c.md
   run "${kit_checkout}/bin/kit" generate --check c.md
   [ "$status" -eq 0 ]
+  mkdir sub && cd sub
+  run "${kit_checkout}/bin/kit" generate --check typo.md
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"'typo.md' is not a file or a directory here"* ]]
+}
+
+@test "a named directory stands for the tracked files under it, so a stale one there fails --check" {
+  mkdir -p docs/deep
+  printf '<!-- kit:generate a `./lines.sh fresh` -->\nstale\n<!-- kit:end a -->\n' > docs/deep/a.md
+  printf '<!-- kit:generate b `./lines.sh fresh` -->\nstale\n<!-- kit:end b -->\n' > docs/untracked.md
+  git add docs/deep/a.md
+  run "${kit_checkout}/bin/kit" generate --check docs
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"docs/deep/a.md: stale; run: kit generate"* ]]
+  [[ "$output" != *"untracked.md"* ]]
+  grep --quiet '^stale$' docs/deep/a.md
+  mkdir empty
+  run "${kit_checkout}/bin/kit" generate --check empty
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"no kit:generate directive to expand"* ]]
 }
 
 @test "a bare directive means kit region, which reads the name, so the kit's regions carry no command and need only kit on PATH" {

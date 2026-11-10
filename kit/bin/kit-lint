@@ -53,7 +53,7 @@ do
     (*) paths+=("${arg}")
   esac
 done
-declare -a under rules
+declare -a rules
 # git's lists are root-relative already, and NUL-separated so that a name with a space or a non-ASCII character
 # survives.
 if (( ${#paths[@]} == 0 ))
@@ -65,24 +65,9 @@ then
     list:read0 paths git diff --cached --name-only --diff-filter=ACMR -z || exit 1
   fi
 else
-  named=("${paths[@]}")
-  paths=()
-  for name in "${named[@]}"
-  do
-    path=$(context:relative "${name}")
-    if [[ ! -e "${path}" && ! -L "${path}" ]]
-    then
-      error "'${name}' is not a file or a directory here"
-      exit 2
-    fi
-    if [[ -d "${path}" ]]
-    then
-      list:read0 under git ls-files -z -- "${path}" || exit 1
-      paths+=("${under[@]}")
-    else
-      paths+=("${path}")
-    fi
-  done
+  context:named "${paths[@]}" || exit $?
+  # shellcheck disable=SC2154  # context_named is set by context:named
+  paths=("${context_named[@]}")
 fi
 if (( ${#paths[@]} == 0 ))
 then

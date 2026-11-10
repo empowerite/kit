@@ -38,6 +38,9 @@ declare -gA context_kind_paths=() context_kind_content=() context_kind_embeds=()
 declare -gA context_kind_file=() context_file_kinds=()
 declare -g context_loaded=false
 
+# The paths context:named fills: what a command line named, as root-relative files.
+declare -ga context_named=()
+
 # context:log-path prints the path of the context log. It is under the repository's common git directory, so every
 # worktree shares it.
 context:log-path() {
@@ -62,6 +65,37 @@ context:relative() {
   dir=$(cd "${dir:-/}" && pwd -P)
   path="${dir}/${rest}"
   printf '%s\n' "${path#"${root}"/}"
+}
+
+# context:named <path>… fills context_named with the paths a command line names, root-relative, as context:relative
+# takes each: a directory stands for the tracked files under it, and any other path is itself. It runs from the
+# repository root. It returns 2 when a path is neither a file nor a directory, naming it as it was typed, before any
+# directory is listed, and 1 when git's list of a directory's files cannot be read. kit lint and kit generate take
+# their named paths through it.
+context:named() {
+  local name path
+  local -a resolved=() under
+  context_named=()
+  for name in "$@"
+  do
+    path=$(context:relative "${name}") || return 1
+    if [[ ! -e "${path}" && ! -L "${path}" ]]
+    then
+      error "'${name}' is not a file or a directory here"
+      return 2
+    fi
+    resolved+=("${path}")
+  done
+  for path in "${resolved[@]}"
+  do
+    if [[ -d "${path}" ]]
+    then
+      list:read0 under git ls-files -z -- ":(literal)${path}" || return 1
+      context_named+=("${under[@]}")
+    else
+      context_named+=("${path}")
+    fi
+  done
 }
 
 # context:glob-matches <path> <glob> is true when the repository-relative path matches the glob. ** matches any
@@ -267,10 +301,14 @@ context:pattern-compiles() {
 # context:matcher prints the path of the compiled classifier for the kinds under .kit/kinds/, compiling it first when
 # the kinds have changed. It is kept in the repository's common git directory, named by a checksum of the kinds
 # files' names and text and of this module, which compiles them, so every worktree shares it, and an edit to a kind
-# or a release that compiles differently compiles afresh.
+# or a release that compiles differently compiles afresh. Each lookup that finds it touches it, so its age is the
+# time since its last use. Where no kinds file exists, context:load runs first, so a matcher of no kinds that a
+# repository with no kit compiled is never taken where a kit is declared.
 # shellcheck disable=SC2154  # kit_root is exported by modules/bash/1st.sh
 context:matcher() {
   local dir key file
+  local -a files=(.kit/kinds/*.yml)
+  [[ -f "${files[0]}" ]] || context:load || return 1
   dir="$(git rev-parse --path-format=absolute --git-common-dir)/kit"
   key=$( { printf '%s\n' .kit/kinds/*.yml; cat "${kit_root}/modules/bash/context.sh" .kit/kinds/*.yml 2>/dev/null; } \
     | cksum | cut -d ' ' -f 1)
@@ -279,14 +317,17 @@ context:matcher() {
   then
     # Two processes may compile at once, so each writes a file of its own, by BASHPID, which a subshell does not
     # share, and moves it into place whole. Worktrees whose kinds differ share the directory, so a matcher of other
-    # kinds, or a file a compile left half-written, is removed only once it is a day old: one younger may be another
-    # worktree's in use. Both may prune the same old file, so rm -f takes it, which says nothing of one the other
-    # took first.
+    # kinds, or a file a compile left half-written, is removed only once a day has passed since it was last used or
+    # written: a worktree that uses its matcher keeps it, and one that finds it removed between its lookup and its
+    # read compiles it again. Both may prune the same old file, so rm -f takes it, which says nothing of one the
+    # other took first.
     mkdir -p "${dir}"
     context:compile > "${file}.${BASHPID}" || { rm -f "${file}.${BASHPID}"; return 1; }
     find "${dir}" \( -name 'kinds-*.awk' -o -name 'kinds-*.awk.*' \) ! -name "kinds-${key}.awk" -mmin +1440 \
       -exec rm -f {} +
     mv "${file}.${BASHPID}" "${file}"
+  else
+    touch -c "${file}" 2> /dev/null || true  # the age steers the prune alone; a matcher kept untouched still classifies
   fi
   printf '%s\n' "${file}"
 }
@@ -294,7 +335,8 @@ context:matcher() {
 # context:classify reads repository-relative paths on stdin, one per line, and prints "<path>\t<kinds>" for each, in
 # one process however many there are: every kind with a glob that matches the path, or a pattern that matches the
 # first line of a file that exists, and every kind made of one of those under kinds:, space-separated in name order.
-# It reads the compiled matcher whole before awk runs it, and a matcher another worktree pruned between the lookup and
+# It reads the compiled matcher whole before awk runs it, through a pipe, not an argument, which Linux caps at 128 KiB,
+# and a matcher another worktree pruned between the lookup and
 # the read is looked up, and so compiled, once more. It returns 1, after saying so, when the kinds cannot be compiled,
 # the matcher cannot be read, or awk cannot run it: no path is then taken for one of no kind.
 context:classify() {
@@ -322,7 +364,7 @@ context:classify() {
     else
       printf '%s\t0\n' "${path}"
     fi
-  done | awk "${program}" || {
+  done | awk -f <(printf '%s\n' "${program}") || {
     error "${matcher}: awk cannot run the compiled kinds; see above"
     return 1
   }

@@ -369,7 +369,8 @@ generate:expand() {
 #
 # A file that cannot be expanded cleanly fails the run in every mode. A named path that is neither a file nor a
 # directory returns 2, before anything is expanded, as kit lint refuses it: a typo never passes as a file with no
-# directive.
+# directive. kit generate refuses it first, naming it as it was typed, and hands a named directory over as the
+# tracked files under it.
 generate:run() {
   local check=false limit=0 explicit=false arg file rc pass=0 changed failed stale
   local -a files=() targets=()

@@ -93,9 +93,10 @@ replaced along with the rest of the region's content.
 
 `kit generate [<path>…]` expands the regions in files.
 
-- Named paths are relative to the directory you typed the command in. Each named file gets one pass, or up to
-  `--iterations=<n>` passes. A named path that is neither a file nor a directory is refused with exit 2, before
-  anything is expanded, so a typo never passes as a file with no directive.
+- Named paths are relative to the directory you typed the command in, and a named directory stands for the tracked
+  files under it. Each named file gets one pass, or up to `--iterations=<n>` passes. A named path that is neither a
+  file nor a directory is refused with exit 2, by the name you typed, before anything is expanded, so a typo never
+  passes as a file with no directive.
 - With no paths, it expands every tracked file and every untracked file git does not ignore, but a template: a file
   under `.kit/templates/` or a package's `hosts/` is skipped, since its directive belongs to the file made from it.
   It repeats passes until a pass does not change anything, up to twenty passes or `--iterations=<n>`, because one
