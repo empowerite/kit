@@ -146,4 +146,16 @@ setup() {
   run ! grep --quiet '^excludes:' kit.yml
 }
 
+@test "a cycle among the packages refuses packages add with 1, and kit.yml stays as it was" {
+  mkdir -p .kit/packages/a .kit/packages/b
+  printf 'description: "A, which needs B"\ndepends:\n  - b\n' > .kit/packages/a/package.yml
+  printf 'description: "B, which needs A"\ndepends:\n  - a\n' > .kit/packages/b/package.yml
+  "${kit_checkout}/bin/kit" install
+  cp kit.yml before.yml
+  run "${kit_checkout}/bin/kit" packages add a
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"form a cycle among"* && "$output" != *"✅"* ]]
+  cmp kit.yml before.yml
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

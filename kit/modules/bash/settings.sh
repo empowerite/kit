@@ -205,10 +205,12 @@ settings:version() {
 }
 
 # settings:declared-line <key> prints the items of an old manifest's <key> line, one per line, where kit.yml
-# declares no version.
+# declares no version. Where there is no manifest either, nothing is declared, and it prints nothing. It returns 1
+# when the manifest is there and cannot be read.
 settings:declared-line() {
   [[ -z "$(settings:value version)" ]] || return 0
-  sed -n "s/^$1 *//p" .kit/manifest 2>/dev/null | tr ' ' '\n' | awk 'NF'
+  [[ -e .kit/manifest ]] || return 0
+  sed -n "s/^$1 *//p" .kit/manifest | tr ' ' '\n' | awk 'NF'
 }
 
 # settings:packages prints the active packages the repository declares in kit.yml, one per line.

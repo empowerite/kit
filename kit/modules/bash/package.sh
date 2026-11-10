@@ -37,8 +37,8 @@ package:list() {
       (*) patterns+=("${arg}")
     esac
   done
-  readarray -t active < <(settings:packages)
-  readarray -t excluded < <(settings:excludes)
+  list:read active settings:packages || return 1
+  list:read excluded settings:excludes || return 1
   for package in $(resolve:reach)
   do
     if (( ${#patterns[@]} ))
@@ -94,28 +94,29 @@ package:matches() {
 # file is already at a delivered path, it is named and left alone, no manifest is written, and it returns 1.
 package:add() {
   local package base path refused=0 names
-  local -a named active excluded wanted
+  local -a named active excluded wanted paths
   guard:require tool:jq || return 1
   names=$(package:named "$@") || return 2
   readarray -t named <<<"${names}"
-  readarray -t active < <(settings:packages)
-  readarray -t excluded < <(settings:excludes)
+  list:read active settings:packages || return 1
+  list:read excluded settings:excludes || return 1
   # A package named here is wanted, whatever was recorded about it.
   for package in "${named[@]}"
   do
     readarray -t excluded < <(list:without "${package}" "${excluded[@]}")
   done
-  readarray -t wanted < <(resolve:active "${kit_root}" "${excluded[*]}" "${active[@]}" "${named[@]}")
+  list:read wanted resolve:active "${kit_root}" "${excluded[*]}" "${active[@]}" "${named[@]}" || return 1
   render:all "${kit_root}" "${wanted[@]}"
   section "kit packages add ${named[*]}"
   for base in $(release:bases)
   do
-    while IFS= read -r path
+    list:read paths place:beyond "${kit_root}" "${base}" "${active[*]}" "${wanted[*]}" || return 1
+    for path in "${paths[@]}"
     do
       [[ -n "${path}" ]] || continue
       place:new "$(place:source-of "${kit_root}" "${base}" "${path}" "${wanted[@]}")" \
         "$(release:dest "${base}" "${path}")" "placed" || refused=$(( refused + 1 ))
-    done < <(place:beyond "${kit_root}" "${base}" "${active[*]}" "${wanted[*]}")
+    done
   done
   if (( refused > 0 ))
   then
@@ -123,7 +124,7 @@ package:add() {
       "kit packages add ${named[*]}"
     return 1
   fi
-  readarray -t excluded < <(resolve:exclusions "${excluded[*]}" "${wanted[@]}")
+  list:read excluded resolve:exclusions "${excluded[*]}" "${wanted[@]}" || return 1
   manifest:write-all "${excluded[*]}" "${wanted[@]}"
   materialize:all "${wanted[@]}"
   ok "packages: ${wanted[*]}"
@@ -139,12 +140,12 @@ package:add() {
 # declaration stay as they are, and it returns 1.
 package:remove() {
   local package base path src dest newly='' names count refused=0
-  local -a named active excluded remaining dependents includers defaults
+  local -a named active excluded remaining dependents includers defaults paths
   guard:require tool:jq || return 1
   names=$(package:named "$@") || return 2
   readarray -t named <<<"${names}"
-  readarray -t active < <(settings:packages)
-  readarray -t excluded < <(settings:excludes)
+  list:read active settings:packages || return 1
+  list:read excluded settings:excludes || return 1
   remaining=("${active[@]}")
   for package in "${named[@]}"
   do
@@ -154,7 +155,7 @@ package:remove() {
   # Dependents are checked against the packages that remain, so the order of the named packages does not matter.
   for package in "${named[@]}"
   do
-    readarray -t dependents < <(resolve:dependents "${kit_root}" "${package}" "${remaining[@]}")
+    list:read dependents resolve:dependents "${kit_root}" "${package}" "${remaining[@]}" || return 1
     if (( ${#dependents[@]} > 0 ))
     then
       error "${package} cannot be removed while ${dependents[*]} depend(s) on it"
@@ -163,10 +164,10 @@ package:remove() {
   done
   render:all "${kit_root}" "${active[@]}"
   section "kit packages remove ${named[*]}"
-  readarray -t defaults < <(resolve:defaults "${kit_root}")
+  list:read defaults resolve:defaults "${kit_root}" || return 1
   for package in "${named[@]}"
   do
-    readarray -t includers < <(resolve:includers "${kit_root}" "${package}" "${remaining[@]}")
+    list:read includers resolve:includers "${kit_root}" "${package}" "${remaining[@]}" || return 1
     if (( ${#includers[@]} > 0 ))
     then
       newly+=" ${package}"
@@ -177,7 +178,7 @@ package:remove() {
       step "${package}: excluded, so an update does not bring it back as a default"
     fi
   done
-  readarray -t excluded < <(resolve:exclusions "${excluded[*]}${newly}" "${remaining[@]}")
+  list:read excluded resolve:exclusions "${excluded[*]}${newly}" "${remaining[@]}" || return 1
   for base in $(release:bases)
   do
     count=$(place:beyond "${kit_root}" "${base}" "${remaining[*]}" "${active[*]}" \
@@ -188,7 +189,8 @@ package:remove() {
   then
     for base in $(release:bases)
     do
-      while IFS= read -r path
+      list:read paths place:beyond "${kit_root}" "${base}" "${remaining[*]}" "${active[*]}" || return 1
+      for path in "${paths[@]}"
       do
         [[ -n "${path}" ]] || continue
         src=$(place:source-of "${kit_root}" "${base}" "${path}" "${active[@]}")
@@ -199,7 +201,7 @@ package:remove() {
           continue
         fi
         place:remove "${src}" "${dest}" || refused=$(( refused + 1 ))
-      done < <(place:beyond "${kit_root}" "${base}" "${remaining[*]}" "${active[*]}")
+      done
     done
   fi
   if (( refused > 0 ))
@@ -222,14 +224,14 @@ package:select() {
   local -a named active excluded wanted drop=() take=() dependents includers
   names=$(package:named "$@") || return 2
   readarray -t named <<<"${names}"
-  readarray -t active < <(settings:packages)
-  readarray -t excluded < <(settings:excludes)
+  list:read active settings:packages || return 1
+  list:read excluded settings:excludes || return 1
   # A member removed earlier stays out of its bundle unless it is named here, as kit packages add keeps it out.
   for package in "${named[@]}"
   do
     readarray -t excluded < <(list:without "${package}" "${excluded[@]}")
   done
-  readarray -t wanted < <(resolve:active "${kit_root}" "${excluded[*]}" "${named[@]}")
+  list:read wanted resolve:active "${kit_root}" "${excluded[*]}" "${named[@]}" || return 1
   for package in "${active[@]}"
   do
     list:among "${package}" "${wanted[@]}" || drop+=("${package}")
@@ -242,8 +244,8 @@ package:select() {
   do
     list:among "${package}" "${named[@]}" && continue
     list:among "${package}" "${wanted[@]}" || continue
-    readarray -t dependents < <(resolve:dependents "${kit_root}" "${package}" "${wanted[@]}")
-    readarray -t includers < <(resolve:includers "${kit_root}" "${package}" "${wanted[@]}")
+    list:read dependents resolve:dependents "${kit_root}" "${package}" "${wanted[@]}" || return 1
+    list:read includers resolve:includers "${kit_root}" "${package}" "${wanted[@]}" || return 1
     if (( ${#dependents[@]} > 0 ))
     then
       step "${package}: kept, ${dependents[*]} depend(s) on it"
@@ -302,8 +304,8 @@ package:choices() {
       [[ -f "$(resolve:meta "${kit_root}" "${package}")" ]] && known+=("${package}")
     done
   done
-  readarray -t active < <(settings:packages)
-  readarray -t excluded < <(settings:excludes)
+  list:read active settings:packages || return 1
+  list:read excluded settings:excludes || return 1
   if (( ${#known[@]} > 0 ))
   then
     local -a kept=("${excluded[@]}")
@@ -311,7 +313,7 @@ package:choices() {
     do
       readarray -t kept < <(list:without "${package}" "${kept[@]}")
     done
-    readarray -t wanted < <(resolve:active "${kit_root}" "${kept[*]}" "${known[@]}")
+    list:read wanted resolve:active "${kit_root}" "${kept[*]}" "${known[@]}" || return 1
   fi
   for package in $(resolve:reach)
   do
@@ -327,8 +329,8 @@ package:choices() {
     then
       word='comes along'
       [[ "${state}" != active ]] || word=kept
-      readarray -t dependents < <(resolve:dependents "${kit_root}" "${package}" "${wanted[@]}")
-      readarray -t includers < <(resolve:includers "${kit_root}" "${package}" "${wanted[@]}")
+      list:read dependents resolve:dependents "${kit_root}" "${package}" "${wanted[@]}" || return 1
+      list:read includers resolve:includers "${kit_root}" "${package}" "${wanted[@]}" || return 1
       if (( ${#dependents[@]} > 0 ))
       then
         note="${package}: ${word}, ${dependents[*]} depend(s) on it"

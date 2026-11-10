@@ -40,8 +40,9 @@ then
   error "run: kit update (this repository already declares kit $(settings:version))"
   exit 1
 fi
-readarray -t defaults < <(resolve:defaults "${kit_root}")
-readarray -t packages < <(resolve:active "${kit_root}" '' "${defaults[@]}" "$@")
+declare -a defaults packages
+list:read defaults resolve:defaults "${kit_root}" || exit 1
+list:read packages resolve:active "${kit_root}" '' "${defaults[@]}" "$@" || exit 1
 render:all "${kit_root}" "${packages[@]}"
 section "kit install $(release:version), packages: ${packages[*]}"
 refused=0

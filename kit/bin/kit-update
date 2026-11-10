@@ -42,9 +42,10 @@ guard:arguments update "$@" || exit $?
 
 guard:require tool:jq
 settings:require
-readarray -t recorded < <(settings:packages)
-readarray -t excluded < <(settings:excludes)
-readarray -t defaults < <(resolve:defaults "${kit_root}")
+declare -a recorded excluded defaults packages delivered
+list:read recorded settings:packages || exit 1
+list:read excluded settings:excludes || exit 1
+list:read defaults resolve:defaults "${kit_root}" || exit 1
 # A default removed by kit packages remove is excluded, and stays out.
 for package in "${excluded[@]}"
 do
@@ -52,7 +53,7 @@ do
 done
 resolve:require "${kit_root}" "${recorded[@]}"
 # The active set is resolved again from this release; the header says what comes in and what stays out.
-readarray -t packages < <(resolve:active "${kit_root}" "${excluded[*]}" "${defaults[@]}" "${recorded[@]}")
+list:read packages resolve:active "${kit_root}" "${excluded[*]}" "${defaults[@]}" "${recorded[@]}" || exit 1
 for package in "${excluded[@]}"
 do
   if list:among "${package}" "${packages[@]}"
@@ -61,7 +62,7 @@ do
     warn "${package} was excluded, but ${needed} depends on it, so it is back"
   fi
 done
-readarray -t excluded < <(resolve:exclusions "${excluded[*]}" "${packages[@]}")
+list:read excluded resolve:exclusions "${excluded[*]}" "${packages[@]}" || exit 1
 previous=$(settings:version)
 current=$(release:version)
 render:all "${kit_root}" "${packages[@]}"
@@ -127,8 +128,10 @@ base_delivered=""
 for base in $(release:bases)
 do
   [[ -z "${base_root}" ]] || base_delivered=$(place:delivered "${base_root}" "${base}" "${packages[@]}")
-  while IFS=$'\t' read -r path src
+  list:read delivered place:delivered "${kit_root}" "${base}" "${packages[@]}" || exit 1
+  for row in "${delivered[@]}"
   do
+    IFS=$'\t' read -r path src <<<"${row}"
     [[ -n "${path}" ]] || continue
     if lacks-base "${base}" "${path}" "${src}"
     then
@@ -136,7 +139,7 @@ do
         "set KIT_BASE to a copy of it"
       skipped=$(( skipped + 1 ))
     fi
-  done < <(place:delivered "${kit_root}" "${base}" "${packages[@]}")
+  done
   count=$(place:delivered "${kit_root}" "${base}" "${packages[@]}" | cut -f 1 \
     | place:refusals "${base}" "${packages[@]}")
   refused=$(( refused + count ))
@@ -157,8 +160,10 @@ conflicts=0
 for base in $(release:bases)
 do
   [[ -z "${base_root}" ]] || base_delivered=$(place:delivered "${base_root}" "${base}" "${packages[@]}")
-  while IFS=$'\t' read -r path src
+  list:read delivered place:delivered "${kit_root}" "${base}" "${packages[@]}" || exit 1
+  for row in "${delivered[@]}"
   do
+    IFS=$'\t' read -r path src <<<"${row}"
     [[ -n "${path}" ]] || continue
     dest=$(release:dest "${base}" "${path}")
     recorded=$(recorded-digest "${base}" "${path}")
@@ -206,7 +211,7 @@ do
         conflicts=$(( conflicts + 1 ))
       fi
     fi
-  done < <(place:delivered "${kit_root}" "${base}" "${packages[@]}")
+  done
   place:retire "${base_root}" "${base}" "${previous}" "${current}" "${packages[@]}"
 done
 

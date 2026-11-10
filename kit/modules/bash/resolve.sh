@@ -21,7 +21,7 @@ declare -gr resolve_local=.kit
 # kit, or style/bash. A package's own subdirectories are never packages.
 resolve:reach() {
   local root=${1:-${kit_root}} dir
-  resolve:roots
+  resolve:roots || return 1
   for dir in "${root}" "${resolve_source_dirs[@]}" "${resolve_local}"
   do
     [[ -d "${dir}/packages" ]] || continue
@@ -38,6 +38,7 @@ resolve:reach() {
 # plain name to resolve:require.
 resolve:expand() {
   local root=$1 name package matched
+  local -a reach
   shift
   for name in "$@"
   do
@@ -47,7 +48,8 @@ resolve:expand() {
       continue
     fi
     matched=0
-    while IFS= read -r package
+    list:read reach resolve:reach "${root}" || return 1
+    for package in "${reach[@]}"
     do
       # shellcheck disable=SC2053  # the glob is the point
       if [[ "${package}" == ${name} ]]
@@ -55,10 +57,10 @@ resolve:expand() {
         printf '%s\n' "${package}"
         matched=1
       fi
-    done < <(resolve:reach "${root}")
+    done
     if (( matched == 0 ))
     then
-      error "'${name}' matches no package in reach; the packages are: $(resolve:reach "${root}" | paste -s -d ' ' -)"
+      error "'${name}' matches no package in reach; the packages are: ${reach[*]}"
       return 2
     fi
   done
@@ -73,14 +75,18 @@ declare -g resolve_sources_read=false
 # source's digest is checked before anything of it is read. A source that cannot be fetched is named, and left out.
 resolve:roots() {
   [[ "${resolve_sources_read}" == false ]] || return 0
-  local name dir
+  local name dir row
+  local -a rows
+  # A source that cannot be fetched has said so, and is left out: sources:roots lists only what is in the cache.
   sources:fetch-all || true
-  while IFS=$'\t' read -r name dir
+  list:read rows sources:roots || return 1
+  for row in "${rows[@]}"
   do
+    IFS=$'\t' read -r name dir <<<"${row}"
     [[ -n "${name}" ]] || continue
     resolve_source_names+=("${name}")
     resolve_source_dirs+=("${dir}")
-  done < <(sources:roots)
+  done
   resolve_sources_read=true
 }
 
@@ -89,7 +95,7 @@ resolve:roots() {
 # <home>/packages/<package>/.
 resolve:home() {
   local i
-  resolve:roots
+  resolve:roots || return 1
   for (( i = ${#resolve_source_dirs[@]} - 1; i >= 0; i-- ))
   do
     if [[ -f "${resolve_source_dirs[i]}/packages/$2/package.yml" ]]
@@ -108,8 +114,8 @@ resolve:home() {
 # source it comes from.
 resolve:origin() {
   local home i
-  resolve:roots
-  home=$(resolve:home "$1" "$2")
+  resolve:roots || return 1
+  home=$(resolve:home "$1" "$2") || return 1
   for i in "${!resolve_source_dirs[@]}"
   do
     if [[ "${home}" == "${resolve_source_dirs[i]}" ]]
@@ -140,7 +146,9 @@ resolve:includes() { yaml:list "$(resolve:meta "$1" "$2")" includes; }
 # resolve:defaults <root> prints the packages whose default is true. They are active unless removed.
 resolve:defaults() {
   local package
-  for package in $(resolve:reach "$1")
+  local -a reach
+  list:read reach resolve:reach "$1" || return 1
+  for package in "${reach[@]}"
   do
     [[ "$(yaml:value "$(resolve:meta "$1" "${package}")" default)" == true ]] && printf '%s\n' "${package}"
   done
@@ -171,7 +179,7 @@ resolve:active() {
   shift 2
   (( $# > 0 )) || return 0
   local -A wanted=() placed=()
-  local -a queue=("$@") names=()
+  local -a queue=("$@") names=() order=()
   while (( ${#queue[@]} > 0 ))
   do
     package=${queue[0]}
@@ -210,8 +218,10 @@ resolve:active() {
     fi
     placed[${ready}]=1
     placed_count=$(( placed_count + 1 ))
-    printf '%s\n' "${ready}"
+    order+=("${ready}")
   done
+  # Nothing is printed until the order is whole, so a reader that loses the status still reads no partial set.
+  printf '%s\n' "${order[@]}"
 }
 
 # resolve:dependents <root> <package> <active>… prints the active packages that depend on <package>.
@@ -312,24 +322,28 @@ resolve:expectations() {
   shift
   for package in "$@"
   do
-    yaml:records "$(resolve:meta "${root}" "${package}")" expects path pattern remedy
+    yaml:records "$(resolve:meta "${root}" "${package}")" expects path pattern remedy || return 1
   done
 }
 
 # resolve:unmet <root> <package>… prints the remedy for each expectation the repository does not meet, one per
 # line. An expectation is unmet when its file is missing, or when no line in the file matches its pattern (an
-# extended regular expression). The kit never writes to such a file; it only reports what is missing.
+# extended regular expression). The kit never writes to such a file; it only reports what is missing. It returns 1
+# when the expectations cannot be read.
 resolve:unmet() {
-  local root=$1 path pattern remedy
+  local root=$1 path pattern remedy row
+  local -a rows
   shift
-  while IFS=$'\x1f' read -r path pattern remedy
+  list:read rows resolve:expectations "${root}" "$@" || return 1
+  for row in "${rows[@]}"
   do
+    IFS=$'\x1f' read -r path pattern remedy <<<"${row}"
     [[ -n "${path}" ]] || continue
     if [[ ! -f "${path}" ]] || ! grep --quiet --extended-regexp -- "${pattern}" "${path}"
     then
       printf '%s: %s\n' "${path}" "${remedy:-a line matching ${pattern} is expected}"
     fi
-  done < <(resolve:expectations "${root}" "$@")
+  done
   return 0
 }
 
