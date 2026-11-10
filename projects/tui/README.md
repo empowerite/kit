@@ -192,7 +192,10 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   selection. It also builds a table's rows from its records, draws their lines, the header, the rule with each sort's
   mark, and the control line, names the keys of the rows, the preset line, and the heading over the groups, takes
   their keys and clicks, and gives a screen the table's layers in their order. `flow` is the host of each of its
-  stages' tables.
+  stages' tables. A `Sheet`, in `sheet.go`, is one table on a screen, whole, the host of its own controls: a screen
+  gives it a catalog's table and its records, places it in a pane, hands it the keys and the clicks the pane takes,
+  and draws its lines and its layers; it keeps the person's presets of it in the presets file under its name, beside
+  every other table's.
 - `internal/kit/` runs the `kit` CLI for the other packages.
 - `internal/source/` reads kit for a screen. A load is a read the screen shows, as each of `kit flow`'s stages is: a
   read started again supersedes and ends the one before, the copy kit kept stands in, stale, while the first runs,
