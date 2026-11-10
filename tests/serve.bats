@@ -89,9 +89,12 @@ call() {
     '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":[1]}' \
     '{"jsonrpc":"2.0","id":2,"method":"resources/read","params":"kit://1st.md"}' \
     "$(call 3 help '{"verb":["version","a\u0000b"]}')" \
+    "$(modern 5 tools/call '{"name":"version\u0000"}')" \
+    "$(modern 6 resources/read '{"uri":"kit://1st\u0000.md"}')" \
+    '{"jsonrpc":"2.0","id":7,"method":"ping\u0000"}' \
     '{"jsonrpc":"2.0","method":"notifications/initialized","params":[1]}' \
     '{"jsonrpc":"2.0","id":4,"method":"ping"}'
-  [ "$(wc -l < "${BATS_TEST_TMPDIR}/out")" -eq 5 ]
+  [ "$(wc -l < "${BATS_TEST_TMPDIR}/out")" -eq 8 ]
   answer 4 | jq --exit-status '.result == {}'
   local id
   for id in 1 2
@@ -99,8 +102,15 @@ call() {
     answer "${id}" | jq --exit-status '.error.code == -32602'
     answer "${id}" | jq --exit-status '.error.message | contains("params is an object")'
   done
-  answer 3 | jq --exit-status '.error | .code == -32602 and (.message | contains("holds a NUL"))'
+  # a NUL anywhere in a request, an argument's value, the tool's name, a resource's URI, or the method, runs nothing
+  for id in 3 5 6 7
+  do
+    answer "${id}" | jq --exit-status '.error | .code == -32602 and (.message | contains("holds a NUL"))'
+    grep --quiet "id=${id} .*outcome=error=-32602$" .kit/logs/mcp-*.log
+  done
   run ! grep --quiet 'kit help version' .kit/logs/mcp-*.log
+  run ! grep --quiet ' kit version' .kit/logs/mcp-*.log
+  run ! grep --quiet 'ignored null byte' "${BATS_TEST_TMPDIR}/err"
 }
 
 @test "a result over a megabyte, and a request line over a megabyte, are answered, and the server goes on" {
@@ -292,6 +302,37 @@ call() {
   done
   answer 6 | jq --exit-status '.error | .code == -32602 and (.message | contains("unknown argument workspace"))'
   answer 7 | jq --exit-status '.result.isError == false'
+}
+
+@test "a run of ./ is no way through a link out of the repository, and a path too long to judge is refused" {
+  local outside=${BATS_TEST_TMPDIR}/outside max root dots near far id tool
+  mkdir -p "${outside}"
+  printf '#!/usr/bin/env bash\necho $1\n' > "${outside}/bad.sh"
+  ln -s "${outside}" linkout
+  max=$(getconf PATH_MAX / 2>/dev/null) || max=1024
+  root=$(pwd -P)
+  # enough ./ that the absolute path passes PATH_MAX, while the path as the client spells it stays under it
+  printf -v dots '%*s' $(( (max - ${#root}) / 2 + 1 )) ''
+  near=${dots// /./}linkout/bad.sh
+  (( ${#root} + 1 + ${#near} > max && ${#near} < max ))
+  # and a path that is itself longer than PATH_MAX
+  printf -v dots '%*s' $(( max / 2 + 1 )) ''
+  far=${dots// /./}linkout/bad.sh
+  (( ${#far} > max ))
+  near=$(jq --null-input --compact-output --arg path "${near}" '{path: [$path]}')
+  far=$(jq --null-input --compact-output --arg path "${far}" '{path: [$path]}')
+  for tool in context kinds lint
+  do
+    serve "$(call 1 "${tool}" "${near}")" "$(call 2 "${tool}" "${far}")" \
+      "$(call 3 "${tool}" '{"path":["./././kit.yml"]}')"
+    for id in 1 2
+    do
+      answer "${id}" | jq --exit-status '.error.code == -32602'
+      answer "${id}" | jq --exit-status '.error.message | contains("is outside the repository")'
+    done
+    answer 3 | jq --exit-status '.result.isError == false'
+  done
+  run ! grep --quiet 'bad.sh' .kit/logs/mcp-*.log
 }
 
 @test "a path is refused when the server's directory is gone, so the root cannot be read" {

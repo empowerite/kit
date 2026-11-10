@@ -69,7 +69,7 @@ help, the syntax, and the server cannot drift apart.
   - A line's leading word is one property too: `flow`'s `stage`, such as `backlog` or `desk`.
   - An argument every offered line needs is `required`, such as `context`'s `path`.
 - **A call that does not fit** is refused with `-32602`, and the verb does not run. The error says what is wrong:
-  - a value that holds a NUL, which no command line carries, before any other fault
+  - a NUL anywhere in the request, an argument's value among them, which no command line carries
   - a name the tool does not take, with the names it does take
   - a value of the wrong type
   - an operand's value that starts with `-`, which the verb would read as a flag
@@ -78,7 +78,8 @@ help, the syntax, and the server cannot drift apart.
   - a value off its property's `enum`, a glob among them
   - a path outside the repository, given to `context`, `kinds`, or `lint`: absolute, through `..`, or through a
     symbolic link, judged with every link followed; a path that does not exist is judged by its nearest directory
-    that does, and is outside when a `..` is left after it
+    that does, and is outside when a `..` is left after it; a path the system cannot judge because it is too long,
+    `PATH_MAX` or more without its `.` parts, is outside too
   - `workspace` for `flow`, a name it does not take, because it reads other clones
   - arguments that fit none of the usage lines, which the error lists
 - **A call runs the verb** in a new process with stdin at end of file, so the verb cannot read the protocol stream.
@@ -144,6 +145,8 @@ Either way:
 - Stdout carries only protocol messages, one JSON object per line. Every log line goes to stderr.
 - Requests are answered one at a time, in order.
 - A message without an `id` is a notification, and does not get an answer, even when it fails.
+- A request that holds a NUL anywhere, in its method, a name, a URI, or an argument, a key or a value, is refused
+  with `-32602`, `Invalid params: the request holds a NUL, which no command line carries`, and nothing runs.
 - A request whose `params` is there and is not an object, such as an array or a string, is refused with `-32602`,
   `Invalid params: params is an object`, before any method's handler runs. A request without `params` is served.
 - A list or a read carries `ttlMs` of 0 and `cacheScope` of `private`, because the files and the verbs' answers

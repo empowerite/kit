@@ -27,8 +27,9 @@
 # A tool's description is the verb's purpose and the usage lines it offers. The verb's whole page is a resource,
 # kit://help/<verb>. Its input is typed, built from the verb's syntax by modules/jq/serve.jq: a property for each
 # flag, option, and operand, and one for a line's leading word. A call's arguments become the verb's words, and a name
-# the tool does not know is refused with -32602, as is a value that holds a NUL, which no command line carries. A call
-# runs kit <verb> <word>… in a new process with stdin at end of file, so the verb cannot read the protocol stream.
+# the tool does not know is refused with -32602, as is a request with a NUL anywhere, which no command line carries.
+# A call runs kit <verb> <word>… in a new process with stdin at end of file, so the verb cannot read the protocol
+# stream.
 #
 # A tool that reads only runs no command the repository's files name, takes no word that acts, reads no path outside
 # the repository, changes no file git sees, and never fetches. Of the workflow tools, only work writes the repository,
@@ -284,23 +285,27 @@ serve:notify() {
   printf '{"jsonrpc":"2.0","method":"%s"}\n' "$1"
 }
 
-# serve:handle <line> answers one message.
+# serve:handle <line> answers one message. A request that holds a NUL in any string, a key or a value at any depth,
+# is refused before any field of it reaches the shell, which would drop the NUL and serve another name than the one
+# sent; the method it logs has a space for each NUL.
 serve:handle() {
-  local fields kind id method params quoted_id quoted_method
+  local fields kind id method params nul quoted_id quoted_method
   if ! fields=$(jq --raw-output '
-      if type != "object" then "invalid", "null", "", "{}"
-      elif has("method") | not then "response", "null", "", "{}"
+      if type != "object" then "invalid", "null", "", "{}", false
+      elif has("method") | not then "response", "null", "", "{}", false
       else
         (if has("id") then "request" else "notification" end),
         (.id | tojson),
-        (.method | if type == "string" then gsub("[\r\n]"; " ") else "" end),
-        (.params | if . == null then {} elif type == "object" then . else null end | tojson)
+        (.method | if type == "string" then gsub("[\r\n]"; " ") | explode | map(if . == 0 then 32 else . end)
+          | implode else "" end),
+        (.params | if . == null then {} elif type == "object" then . else null end | tojson),
+        any(.. | strings, (objects | keys[]); explode | any(. == 0))
       end' <<<"$1" 2>/dev/null)
   then
     serve:error null -32700 'Parse error: the line is not JSON'
     return 0
   fi
-  { read -r kind; read -r id; read -r method; read -r params; } <<<"${fields}"
+  { read -r kind; read -r id; read -r method; read -r params; read -r nul; } <<<"${fields}"
   printf -v quoted_id '%q' "${id}"
   printf -v quoted_method '%q' "${method:-none}"
   serve_log_fields=("method=${quoted_method}")
@@ -313,6 +318,11 @@ serve:handle() {
     (response | notification)
       return 0
   esac
+  if [[ "${nul}" == true ]]
+  then
+    serve:error "${id}" -32602 'Invalid params: the request holds a NUL, which no command line carries'
+    return 0
+  fi
   # params null is no params; any other value that is not an object reaches no handler.
   if [[ "${params}" == null ]]
   then
@@ -554,21 +564,33 @@ serve:tools-call() {
     }')"
 }
 
+# serve_path_max is the longest path the system resolves, PATH_MAX, once serve:inside has asked for it.
+serve_path_max=''
+
 # serve:inside <path> succeeds when the path, read from the root with every symbolic link followed, is the root or
 # under it. A path that does not exist is judged by its nearest directory that does, and is outside when a .. is left
-# after that. A root that cannot be read, as when the server's directory is gone, leaves every path outside. It walks
-# the path's parts from the first, once each, since a pattern that cuts a part off the end takes time that grows with
-# the square of a path's length, and a call's path may be megabytes long.
+# after that. A root that cannot be read, as when the server's directory is gone, leaves every path outside. A . or an
+# empty part never changes where a path leads, so the walk skips it; a path that is PATH_MAX bytes long or longer
+# without them is outside, since the system answers "too long" for it whether or not it exists, and the guard cannot
+# judge it. The walk takes each part once, since a pattern that cuts a part off the end takes time that grows with the
+# square of a path's length, and a call's path may be megabytes long.
 serve:inside() {
-  local root path=$1 part found=''
+  local LC_ALL=C root path=$1 part found='' length=0
   local -a parts
   root=$(pwd -P 2>/dev/null) && [[ "${root}" == /* && -d "${root}" ]] || return 1
+  if [[ -z "${serve_path_max}" ]]
+  then
+    serve_path_max=$(getconf PATH_MAX / 2>/dev/null) || true
+    [[ "${serve_path_max}" =~ ^[0-9]+$ ]] || serve_path_max=1024
+  fi
   [[ "${path}" == /* ]] || path=${root}/${path}
   readarray -d / -t parts < <(printf '%s' "${path}")
   path=''
   for part in "${parts[@]}"
   do
-    [[ -n "${part}" ]] || continue
+    [[ -n "${part}" && "${part}" != . ]] || continue
+    length=$(( length + ${#part} + 1 ))
+    (( length < serve_path_max )) || return 1
     if [[ -z "${found}" ]] && [[ -e "${path}/${part}" || -L "${path}/${part}" ]]
     then
       path+=/${part}
