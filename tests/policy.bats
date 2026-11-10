@@ -150,7 +150,7 @@ change() {
 }
 
 @test "a branch is judged by the policy on its base: a pattern it loosens, and a login it exempts, change nothing" {
-  printf 'policy:\n  commit_subject: "^#[0-9]+ "\n' > kit.yml
+  printf 'forge: github\npolicy:\n  commit_subject: "^#[0-9]+ "\n' > kit.yml
   git add kit.yml
   git commit --quiet --message "#2 kit: the policy" && git push --quiet origin main
   branch 7-fix-the-thing "no reference"
@@ -160,14 +160,14 @@ change() {
   [ "$status" -eq 1 ]
   [[ "$output" == *"does not match policy.commit_subject"* ]]
   [[ "$output" != *"exempt"* ]]
-  # the forge and the facts stay the checkout's: the base names no forge, and the change was read
+  # the forge is the base's, and the change was read through it
   grep --quiet 'pr view 3 --json' "${FAKE_DIR}/gh.calls"
   # the facts kit policy --input prints are the ones it judges
   [ "$("${kit_root}/bin/kit" policy --input | jq --raw-output .policy.commit_subject)" = '^#[0-9]+ ' ]
 }
 
 @test "on a runner, the pull request's detached checkout is judged by the policy on its base" {
-  printf 'policy:\n  commit_subject: "^#[0-9]+ "\n' > kit.yml
+  printf 'forge: github\npolicy:\n  commit_subject: "^#[0-9]+ "\n' > kit.yml
   git add kit.yml
   git commit --quiet --message "#2 kit: the policy" && git push --quiet origin main
   branch 7-fix-the-thing "no reference"
@@ -254,7 +254,7 @@ REGO
 }
 
 @test "a change whose head branch is named main, as a fork's can be, is judged by the policy on its base" {
-  printf 'policy:\n  commit_subject: "^#[0-9]+ "\n' > kit.yml
+  printf 'forge: github\npolicy:\n  commit_subject: "^#[0-9]+ "\n' > kit.yml
   git add kit.yml
   git commit --quiet --message "#2 kit: the policy" && git push --quiet origin main
   git switch --quiet --create fork-main
@@ -354,6 +354,82 @@ REGO
   kit_bash_modules=policy run kit-bash "policy:from-base '${dir}'"
   [ "$status" -eq 0 ]
   cmp "${dir}/rego/x.rego" .kit/packages/mine/files/repo/.kit/policy/x.rego
+}
+
+@test "a link a branch adds under .kit/policy/, to Rego the base holds elsewhere, does not judge it" {
+  mkdir -p docs
+  printf 'package kit.policy\n\nimport rego.v1\n\ndeny contains "never" if false\n' > docs/lax.rego
+  printf 'policy:\n  commit_subject: "^#[0-9]+ "\n' > kit.yml
+  git add kit.yml docs/lax.rego
+  git commit --quiet --message "#2 kit: the policy" && git push --quiet origin main
+  branch 7-fix-the-thing
+  mkdir -p .kit/policy
+  ln -s ../../docs/lax.rego .kit/policy/lax.rego
+  git add --force .kit/policy/lax.rego
+  git commit --quiet --message "no reference"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"'no reference' does not match policy.commit_subject"* ]]
+  [[ "$output" == *"1 refusal(s) by the patterns policy"* ]]
+}
+
+@test "a link the base holds under .kit/policy/ judges by its target as the base holds it" {
+  mkdir -p docs .kit/policy
+  printf 'package kit.policy\n\nimport rego.v1\n\ndeny contains "x" if true\n' > docs/ours.rego
+  ln -s ../../docs/ours.rego .kit/policy/ours.rego
+  printf 'policy:\n  commit_subject: ""\n' > kit.yml
+  git add kit.yml docs/ours.rego .kit/policy/ours.rego
+  git commit --quiet --message "#2 kit: a rule of our own" && git push --quiet origin main
+  branch 7-fix-the-thing
+  printf 'package kit.policy\n\nimport rego.v1\n\ndeny contains "x" if false\n' > docs/ours.rego
+  git rm --quiet .kit/policy/ours.rego
+  git commit --quiet --all --message "#7 kit: a lax rule, and no link to it"
+  dir=${BATS_TEST_TMPDIR}/judged
+  kit_bash_modules=policy run kit-bash "policy:from-base '${dir}'"
+  [ "$status" -eq 0 ]
+  cmp "${dir}/rego/ours.rego" <(git show origin/main:docs/ours.rego)
+}
+
+@test "a branch of the kit itself that edits the Rego its release delivers is judged by the base's" {
+  command -v opa >/dev/null || skip "opa, the opa policy engine, is not on PATH"
+  # the release is inside the repository, as in a checkout of the kit, and delivers a package the base lists
+  (cd "${kit_root}/.." && git ls-files -z kit | tar --null --create --files-from - --file -) | tar --extract --file -
+  mkdir -p kit/packages/rules/files/repo/.kit/policy
+  printf 'description: "rules of the release"\n' > kit/packages/rules/package.yml
+  cat > kit/packages/rules/files/repo/.kit/policy/rules.rego <<'REGO'
+package kit.policy
+
+import rego.v1
+
+deny contains "a commit with no reference" if {
+	some commit in input.commits
+	commit.subject == "no reference"
+}
+REGO
+  printf 'policy:\n  commit_subject: ""\npackages:\n  - rules\n' > kit.yml
+  git add kit.yml kit
+  git commit --quiet --message "#2 kit: the release's rules" && git push --quiet origin main
+  branch 7-fix-the-thing
+  printf 'package kit.policy\n\nimport rego.v1\n\ndeny contains "never" if false\n' \
+    > kit/packages/rules/files/repo/.kit/policy/rules.rego
+  git commit --quiet --all --message "no reference"
+  run kit/bin/kit policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"❌ a commit with no reference"* ]]
+}
+
+@test "a branch that drops the forge its base names still has its change judged" {
+  printf 'forge: github\npolicy:\n  change_title: "^Fix "\n' > kit.yml
+  change "bad title" ada
+  git add kit.yml
+  git commit --quiet --message "#2 kit: the policy" && git push --quiet origin main
+  branch 7-fix-the-thing "#7 cli: fix the thing"
+  printf 'policy:\n  change_title: "^Fix "\n' > kit.yml
+  git commit --quiet --all --message "#7 cli: drop the forge"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"change title 'bad title' does not match policy.change_title"* ]]
+  grep --quiet 'pr view 3 --json' "${FAKE_DIR}/gh.calls"
 }
 
 @test "on the default branch, or detached, only the tree is under check, and kit policy says so" {

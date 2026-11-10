@@ -74,25 +74,31 @@ deny list stops one.
 
 On a branch past the default one, `kit policy` and `kit linked` judge by the policy on the branch's base,
 `origin/<default>`, the ref the commits are counted from. A branch cannot loosen the rule that judges it: a pattern it
-blanks, a login it adds under `linked_exempt`, an engine it names, a file it stops a rule from reading, and a `.rego`
-file it removes or adds change nothing.
+blanks, a login it adds under `linked_exempt`, an engine it names, a file it stops a rule from reading, a `forge` it
+drops, and a `.rego` file it removes, adds, or edits change nothing.
 
-- `policy`, `policy_engine`, `linked_exempt`, and `facts` come from the base's `kit.yml`. Where the base has none of
-  one, it is absent, and the kit's default applies, not the branch's. Every other setting, such as `forge` and
-  `primary`, is the checkout's.
+- `policy`, `policy_engine`, `linked_exempt`, `facts`, and `forge` come from the base's `kit.yml`. Where the base has
+  none of one, it is absent, and the kit's default applies, not the branch's: for `forge`, the provider the remote's
+  host names.
+- Every other setting is the checkout's. `primary` among them names the remote the base is read from, and a `primary`
+  that names no remote fails.
 - A branch that adds a file to `facts.read`, for a rule of its own, changes nothing until it is merged, as the rule
   itself does not.
-- The Rego is the base's: the source of a link under `.kit/policy/` as the base holds it, a `.rego` file the base
-  holds under `.kit/policy/`, and each `.rego` file a package in the base's `packages:` delivers there, as that
-  package delivers it.
+- The Rego is exactly the base's, and nothing the branch adds or changes under `.kit/policy/` counts. It is each
+  `.rego` file the base holds under `.kit/policy/`, a link resolved in the base's tree, and each `.rego` file a
+  package in the base's `packages:` delivers there.
 - A package is looked up as delivery looks it up: in the sources the base's `kit.yml` names, the last first, fetched
-  where the cache lacks them; then in the release; then in the repository's own `.kit/packages/` as the base holds it.
-  A package the base lists that is in none of them fails both verbs, naming it, so none of its rules is dropped.
-- A `.rego` file the base neither holds nor delivers is left out, so it does not choose the engine.
+  where the cache lacks them; then in the release; then in the repository's own `.kit/packages/`. A package under the
+  repository's root, the repository's own or the release in a checkout of the kit, is read as the base holds it.
+- A package the base lists that is in none of those places fails both verbs, naming it, so none of its rules is
+  dropped.
+- The packages are the ones `packages:` lists, as `kit hydrate` delivers them. `kit install` writes every package the
+  set needs there; a bundle listed alone, without its members, delivers none of their Rego.
 - A change to the policy is judged by the policy before it, and takes effect once it is on the default branch.
 - On a runner, the branch is the change's head branch, whatever its name, so the detached checkout of a pull request
-  is judged the same way, a fork's `main` among them. On the default branch, or a detached checkout elsewhere, both
-  read the disk.
+  is judged the same way. On the default branch, or a detached checkout elsewhere, both read the disk.
+- A fork's pull request from its own `main` has `main` as its branch, which the default `branch` pattern refuses.
+  A `policy.branch` on the default branch that matches `main` allows it.
 - `kit policy --input` prints the facts as the base's policy has them. `kit policy --facts=<file>` judges by the
   disk's, since it tests a rule.
 
