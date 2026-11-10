@@ -315,4 +315,15 @@ desk-world() {
   [ ! -e worktrees/7-fix-the-thing/idea.txt ]
 }
 
+@test "kit work's start commit keeps its subject under commit.cleanup=strip, and is signed when signing is required" {
+  printf 'require_signing: true\n' > kit.yml
+  desk-world
+  git config --global commit.cleanup strip
+  signer
+  run "${kit_checkout}/bin/kit" work 7
+  [ "$status" -eq 0 ]
+  git -C worktrees/7-fix-the-thing cat-file commit HEAD | grep --quiet '^gpgsig '
+  [ "$(git -C worktrees/7-fix-the-thing log -1 --format=%s)" = "#7 start: Fix the thing" ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

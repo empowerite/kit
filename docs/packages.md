@@ -267,7 +267,7 @@ answers:
 | `forges` | The code forge of each other remote, by name: `forges: {upstream: gitlab}`. A remote not named takes the code forge its host names, or none. |
 | `primary` | The primary remote. Ahead and behind, the default branch, pull requests, builds, releases, and issues are read from it. `kit work` and `kit submit` fetch from and push to `origin` whatever it is. Default: `origin`. |
 | `gate` | What `kit gate` runs. When absent, the kit detects a justfile `ci` recipe, a Makefile `ci` target, or a `package.json` `ci` script. |
-| `require_signing` | `true` makes `kit work` refuse to start when git has no `user.signingkey`, and makes `kit release` sign its tag. |
+| `require_signing` | `true` makes `kit work` refuse to start when git has no `user.signingkey`, makes `kit commit` and `kit work`'s start commit sign, refusing the commit when git cannot sign it, and makes `kit release` sign its tag. |
 | `log_days` | How many days kit keeps its logs under `.kit/logs/`, 14 when absent; `0` turns them off. See [logs.md](logs.md). |
 | `linked_exempt` | Logins, one per line, whose pull requests `kit linked` passes without an issue and `kit policy` passes unchecked, each saying so by name: a bot such as `dependabot[bot]`. |
 | `answers` | The values a package's templates use, overriding the package's own defaults. |

@@ -320,6 +320,23 @@ in-order() {
   done
 }
 
+# signer [<status>] stands a script in for gpg in the repository here: it sets the script as gpg.program, and sets
+# user.signingkey. The script reads all git hands it to sign, and exits <status> when that is not 0. Otherwise it
+# writes the status line git looks for after a newline, [GNUPG:] SIG_CREATED, on stderr, and a signature on stdout.
+signer() {
+  local code=${1:-0} script="${BATS_TEST_TMPDIR}/signer"
+  cat > "${script}" <<EOF
+#!/usr/bin/env bash
+cat >/dev/null
+(( ${code} == 0 )) || exit ${code}
+printf '\n[GNUPG:] SIG_CREATED \n' >&2
+printf -- '-----BEGIN PGP SIGNATURE-----\n\nc2lnbmVk\n-----END PGP SIGNATURE-----\n'
+EOF
+  chmod +x "${script}"
+  git config gpg.program "${script}"
+  git config user.signingkey "${code}-signer"
+}
+
 # declared <key> prints a top-level key of kit.yml: a scalar's value, or a list's items on one line.
 declared() {
   awk -v key="$1" '

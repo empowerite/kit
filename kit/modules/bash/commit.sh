@@ -13,19 +13,25 @@
 #   - supplies the issue's reference from the branch when the subject carries none
 #   - judges the subject, and the tree the commit will make, by the repository's policy through the policy seam, as
 #     kit policy judges them in CI
-#   - warns when commits here are not signed; it cannot make a key appear, so it does not refuse
+#   - with require_signing true in kit.yml, refuses when git has no user.signingkey; otherwise it warns when commits
+#     here are not signed
+#
+# The commit keeps its message as kit commit judged it: --cleanup=whitespace, so a commit.cleanup of strip never drops
+# a subject that starts with #. With require_signing true it is signed, and refused when git cannot sign it.
 #
 # A commit whose subject names an issue other than the branch's own attaches that issue to the branch's change, so
 # kit commit then adds a `Closes <reference>` line to the change's body, and assigns the caller to the issue when no
 # one is assigned. The commit exists by then, so a forge that fails only warns.
 #
-# kit submit commits when there is something to commit, then pushes, setting the upstream on the first push. It never
-# rebases: a push origin refuses as not fast-forward names kit rebase as the remedy, so one verb does one thing and a
-# conflict with the default branch never blocks sharing work.
+# kit submit commits when there is something to commit, then pushes the branch to the branch of its own name on
+# origin, setting the upstream on the first push. It names the refspec, so push.default and an upstream of another
+# name, such as the origin/main a branch started from, never decide where the branch goes. It never rebases: a push
+# origin refuses as not fast-forward names kit rebase as the remedy, so one verb does one thing and a conflict with the
+# default branch never blocks sharing work.
 #
 # see: kit/bin/kit-commit, kit/bin/kit-submit, modules/bash/policy.sh, docs/features.md
 
-use git policy facts tracker context
+use git policy facts tracker context settings
 
 # commit:parse <argument>… reads the options both verbs share into commit_all, commit_messages, commit_file, and
 # commit_paths. guard:arguments has judged the shape of the line already, so this reads what it let through.
@@ -357,7 +363,7 @@ commit:same-tree() {
 # git commit -- <path>… does. It returns 2 on a usage error and 1 on a refusal.
 commit:commit() {
   local branch subject path rest message head tree names
-  local -a staged=() named=()
+  local -a staged=() named=() sign=()
   commit:parse "$@" || return 2
   head=$(git rev-parse --verify --quiet HEAD || true)
   if (( ${#commit_messages[@]} == 0 )) && [[ -z "${commit_file}" ]]
@@ -381,6 +387,11 @@ commit:commit() {
     return 2
   fi
   branch=$(commit:branch) || return 1
+  if [[ "$(settings:value require_signing)" == true ]]
+  then
+    guard:require signing-key || return 1
+    sign=(--gpg-sign)
+  fi
   if (( ${#commit_paths[@]} > 0 ))
   then
     for path in "${commit_paths[@]}"
@@ -431,7 +442,7 @@ commit:commit() {
   else
     commit:judge "${branch}" "${subject}" || return 1
   fi
-  if [[ "$(git config --type=bool commit.gpgsign 2>/dev/null)" != true ]]
+  if (( ${#sign[@]} == 0 )) && [[ "$(git config --type=bool commit.gpgsign 2>/dev/null)" != true ]]
   then
     warn "commits here are not signed; set commit.gpgsign to true, with user.signingkey, so the work is signed"
   fi
@@ -456,21 +467,35 @@ commit:commit() {
   if (( ${#commit_paths[@]} > 0 ))
   then
     commit:same-tree "${tree}" "${staged[@]}" || { rm -f "${message}"; return 1; }
-    git commit --quiet --file "${message}" -- "${staged[@]/#/:(literal)}" || { rm -f "${message}"; return 1; }
+    commit:git "${message}" "${sign[@]}" -- "${staged[@]/#/:(literal)}" || return 1
   else
     commit:same-tree "${tree}" || { rm -f "${message}"; return 1; }
-    git commit --quiet --file "${message}" || { rm -f "${message}"; return 1; }
+    commit:git "${message}" "${sign[@]}" || return 1
   fi
-  rm -f "${message}"
+  subject=$(git log -1 --format=%s HEAD)
   ok "committed $(git rev-parse --short HEAD): ${subject}"
   commit:attach "${branch}" "${subject}"
 }
 
+# commit:git <message> [--gpg-sign] [-- <path>…] runs git commit with the message file as written: --cleanup=whitespace
+# keeps a line that starts with #, whatever commit.cleanup says. It removes the message file either way. With
+# --gpg-sign, a commit git fails to make is refused as one git could not sign, and git's own words above say why.
+commit:git() {
+  local message=$1 status=0
+  shift
+  git commit --quiet --cleanup=whitespace --file "${message}" "$@" || status=$?
+  rm -f "${message}"
+  (( status != 0 )) || return 0
+  [[ "${1:-}" != --gpg-sign ]] \
+    || error "the commit is refused: require_signing is true and git could not sign it; see above"
+  return 1
+}
+
 # commit:submit <argument>… commits when something is staged, or when --all or paths say what to take, then pushes the
-# branch, setting the upstream on the first push. It never forces: when origin refuses the push, the remedy is kit
-# rebase.
+# branch with git:push, to its own name on the remote git:pushes-to prints, setting the upstream on the first push. It
+# never forces: when origin refuses the push, the remedy is kit rebase.
 commit:submit() {
-  local branch upstream ahead refused
+  local branch remote first=false ahead refused
   local -a staged=()
   commit:parse "$@" || return 2
   branch=$(commit:branch) || return 1
@@ -486,24 +511,25 @@ commit:submit() {
   then
     step "nothing is staged, so there is nothing to commit; pushing ${branch}"
   fi
-  upstream=$(git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || true)
-  if [[ -z "${upstream}" ]]
+  # A branch with no upstream of its own name, such as one started from origin/main, has its first push here.
+  remote=$(git:pushes-to "${branch}") || first=true
+  if [[ "${first}" == true ]]
   then
-    if ! refused=$(git push --quiet --set-upstream origin "${branch}" 2>&1)
+    if ! refused=$(git:push . "${branch}" 2>&1)
     then
       commit:push-refused "${branch}" "${refused}"
       return 1
     fi
-    ok "pushed ${branch} to origin, which is its upstream from now on"
+    ok "pushed ${branch} to ${remote}, which is its upstream from now on"
     return 0
   fi
-  ahead=$(git rev-list --count "${upstream}..HEAD" 2>/dev/null || echo 0)
+  ahead=$(git rev-list --count "refs/remotes/${remote}/${branch}..HEAD" 2>/dev/null || echo 0)
   if (( ahead == 0 ))
   then
-    ok "nothing to submit: ${branch} is at ${upstream}"
+    ok "nothing to submit: ${branch} is at ${remote}/${branch}"
     return 0
   fi
-  if ! refused=$(git push --quiet 2>&1)
+  if ! refused=$(git:push . "${branch}" 2>&1)
   then
     commit:push-refused "${branch}" "${refused}"
     return 1

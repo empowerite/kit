@@ -4,8 +4,9 @@
 # kit submit [--all] [--message <text>… | --file <path>] [<path>…]
 #
 # Runs in a worktree, never on the desk or the default branch. When something is staged, or --all or <path>… say
-# what to take, it commits as kit commit does, with the same checks and options. Then it pushes the branch to
-# origin, setting the upstream on the first push. With nothing to commit and nothing to push, it says so.
+# what to take, it commits as kit commit does, with the same checks and options. Then it pushes the branch to its own
+# name on origin, whatever git's push configuration and the branch's upstream say, and sets that as the upstream on
+# the first push. With nothing to commit and nothing to push, it says so.
 #
 #   --all              stages every tracked change first, as git commit --all does
 #   --message <text>   the message; the first is the subject, the rest are paragraphs

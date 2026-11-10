@@ -9,7 +9,11 @@
 #   - runs kit lint and kit generate --check over the staged paths; no hook manager is needed
 #   - puts the branch's issue in front of a subject that names none: 7-fix-the-thing gives #7
 #   - judges the subject and the tree the commit will make by the repository's policy, as kit policy does in CI
-#   - warns when commits here are not signed
+#   - with require_signing true in kit.yml, refuses when git has no user.signingkey; otherwise it warns when commits
+#     here are not signed
+#
+# With require_signing true, the commit is signed, and refused when git cannot sign it. The message is committed as
+# kit commit judged it, whatever commit.cleanup says: a subject that starts with # stays the subject.
 #
 # Without paths, kit commit never undoes a commit the index did not see. It refuses a staged path that is as it was
 # before the last commit that changed it, while the disk holds something else.

@@ -148,6 +148,22 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ "$(git log -1 --format=%s)" = "#7 x: mine" ]
 }
 
+@test "kit submit pushes the branch to its own name on origin, whatever push.default and its upstream say" {
+  git branch --quiet --set-upstream-to=origin/main
+  git config push.default upstream
+  main=$(git -C "${work}/origin.git" rev-parse main)
+  printf 'x\n' > x && git add x
+  run kit submit --message 'x: a file'
+  [ "$status" -eq 0 ]
+  [ "$(git rev-parse --abbrev-ref '@{upstream}')" = origin/7-fix-the-thing ]
+  [ "$(git -C "${work}/origin.git" rev-parse 7-fix-the-thing)" = "$(git rev-parse HEAD)" ]
+  printf 'y\n' > y && git add y
+  run kit submit --message 'y: a file'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"pushed 7-fix-the-thing: 1 commit(s)"* ]]
+  [ "$(git -C "${work}/origin.git" rev-parse main)" = "${main}" ]
+}
+
 # forge-world routes a fake gh for change 3, open on this branch with the body "Closes #7", and issue 9 with the
 # assignees given, if any; ada is the caller. Every gh call lands in ${FAKE_DIR}/gh.calls.
 forge-world() {
@@ -547,6 +563,29 @@ EOF
   run kit commit --message '#7 x: a file'
   [ "$status" -eq 0 ]
   [[ "$output" == *"commits here are not signed"* ]]
+}
+
+@test "with require_signing, kit commit signs or refuses; commit.cleanup=strip cannot drop the subject it judged" {
+  printf 'require_signing: true\n' >> kit.yml
+  git config commit.cleanup strip
+  printf 'x\n' > x && git add x
+  run kit commit --message 'x: a file'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"git config user.signingkey"* ]]
+  signer
+  run kit commit --message 'x: a file' --message 'WIP'
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"commits here are not signed"* ]]
+  [ "$(git log -1 --format=%s)" = "#7 x: a file" ]
+  git cat-file commit HEAD | grep --quiet '^gpgsig '
+  signer 2
+  head=$(git rev-parse HEAD)
+  printf 'y\n' > y && git add y
+  run kit commit --message 'y: a file'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"require_signing is true and git could not sign it"* ]]
+  [ "$(git rev-parse HEAD)" = "${head}" ]
+  [ "$(git diff --cached --name-only)" = y ]
 }
 
 @test "facts that cannot be gathered refuse the commit" {
