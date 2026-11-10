@@ -13,25 +13,37 @@
 #
 # A pull request by a login the repository lists under linked_exempt in kit.yml passes without an issue, and the
 # output names the exemption. That is for a bot such as dependabot[bot], whose pull requests never have an issue.
-# The repository says which logins it trusts that way; the kit decides nothing for it.
+# The repository says which logins it trusts that way; the kit decides nothing for it. On a branch past the default
+# one, linked_exempt is read from the kit.yml on its base, origin/<default>, so a branch cannot exempt its own author;
+# on a CI runner the branch is the change's source branch. A base with no kit.yml, where the kit is not installed yet,
+# leaves the checkout's own kit.yml to say, as on the default branch.
 #
 # Exits 0 when at least one linked issue counts or the author is exempt, 1 when neither holds, there is no pull
 # request to check, the forge cannot say which pull request this checkout is working on, the pull request's body
-# cannot be read, or linked_exempt in kit.yml cannot be read, and 2 on a usage error.
+# cannot be read, linked_exempt in kit.yml cannot be read, or the base, origin/<default>, is not here or its kit.yml
+# cannot be read, and 2 on a usage error.
 #
-# see: modules/bash/forge.sh
+# see: modules/bash/forge.sh, modules/bash/policy.sh
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use forge tracker yaml settings
+use forge tracker yaml settings policy file
 guard:arguments linked "$@" || exit $?
 
 if (( $# > 0 )) && [[ ! "$1" =~ ^[0-9]+$ ]]
 then
   error "'$1' is not a number; run: kit help linked"
   exit 2
+fi
+# On a branch past the default one, linked_exempt is the base's.
+past=$(policy:branch-past) || exit 1
+if [[ -n "${past}" ]]
+then
+  file:scratch judged
+  # shellcheck disable=SC2154  # judged is set by file:scratch
+  policy:from-base "${judged}" || exit 1
 fi
 
 number=${1:-}

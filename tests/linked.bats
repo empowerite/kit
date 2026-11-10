@@ -26,4 +26,40 @@ setup() {
   [[ "$output" != *"kit linked <number>"* ]]
 }
 
+@test "on a branch, kit linked exempts the logins its base's kit.yml lists, and on the default branch the disk's" {
+  fake-tools gh
+  fixture repo.json <<<'{"nameWithOwner": "empowerite/example", "url": "https://github.com/empowerite/example"}'
+  fixture pull.json <<<'{"user": {"login": "ada"}}'
+  fixture pr.json <<<'{"body": ""}'
+  fixture closing.json <<<'{"data": {"repository": {"pullRequest": {"closingIssuesReferences": {"nodes": []}}}}}'
+  route gh 'repo view*' repo.json
+  route gh 'api repos/empowerite/example/pulls/3 *' pull.json
+  route gh 'pr view 3 --json *' pr.json
+  route gh 'api graphql*' closing.json
+  printf 'linked_exempt:\n  - bob\n' > kit.yml
+  git add kit.yml
+  git commit --quiet --message "#1 kit: bob is exempt"
+  git update-ref refs/remotes/origin/main HEAD
+  git switch --quiet --create 7-fix-the-thing
+  printf 'linked_exempt:\n  - ada\n' > kit.yml
+  run "${kit_checkout}/bin/kit" linked 3
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"pull request #3 is not linked to any issue"* ]]
+  [[ "$output" != *"exempt"* ]]
+  git switch --quiet main
+  run "${kit_checkout}/bin/kit" linked 3
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"pull request #3 is ada's, exempt from the linked-issue check by kit.yml"* ]]
+}
+
+@test "on a branch, kit linked fails when the base is not here, since the logins it exempts cannot be read" {
+  fake-tools gh
+  git commit --quiet --allow-empty --message "#1 start: the first"
+  git switch --quiet --create 7-fix-the-thing
+  run "${kit_checkout}/bin/kit" linked 3
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the base, origin/main, is not here, so its policy cannot be read"* ]]
+  [ ! -s "${FAKE_DIR}/gh.calls" ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

@@ -276,7 +276,7 @@ answers:
 | `gate` | What `kit gate` runs. When absent, the kit detects a justfile `ci` recipe, a Makefile `ci` target, or a `package.json` `ci` script. |
 | `require_signing` | `true` makes `kit commit`, `kit work`, and `kit rebase` refuse before writing anything when git has no `user.signingkey`, makes `kit commit`, `kit work`'s start commit, and `kit rebase` sign every commit they make, refusing the commit when git cannot sign it, and makes `kit release` sign its tag. |
 | `log_days` | How many days kit keeps its logs under `.kit/logs/`, 14 when absent; `0` turns them off. See [logs.md](logs.md). |
-| `linked_exempt` | Logins, one per line, whose pull requests `kit linked` passes without an issue and `kit policy` passes unchecked, each saying so by name: a bot such as `dependabot[bot]`. |
+| `linked_exempt` | Logins, one per line, whose pull requests `kit linked` passes without an issue and `kit policy` passes unchecked, each saying so by name: a bot such as `dependabot[bot]`. On a branch, the list on its base counts; see [policy.md](policy.md#what-judges-a-branch). |
 | `answers` | The values a package's templates use, overriding the package's own defaults. |
 | `policy` | The patterns a branch, a commit subject, and a change title must match; see [policy.md](policy.md). |
 | `policy_engine` | `patterns` or `opa`; see [policy.md](policy.md). |

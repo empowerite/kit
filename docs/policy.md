@@ -70,6 +70,31 @@ deny list stops one.
   `.kit/policy/` does not change the verdict.
 - Warnings print, and the commit still goes through.
 
+### What judges a branch
+
+On a branch past the default one, `kit policy` and `kit linked` judge by the policy on the branch's base,
+`origin/<default>`, the ref the commits are counted from. A branch cannot loosen the rule that judges it: a pattern it
+blanks, a login it adds under `linked_exempt`, an engine it names, and a `.rego` file it removes or adds change nothing.
+
+- `policy`, `policy_engine`, and `linked_exempt` come from the base's `kit.yml`, and are absent where it has none.
+  Every other setting, such as `forge`, `primary`, and `facts`, is the checkout's.
+- The Rego is the base's: the source of a link under `.kit/policy/` as the base holds it, a `.rego` file the base
+  holds under `.kit/policy/`, and each `.rego` file a package in the base's `packages:` delivers there. A package of
+  the repository's own is read from the base's `.kit/packages/`, and one of the release's from the release.
+- A `.rego` file the base neither holds nor delivers is left out, so it does not choose the engine.
+- A change to the policy is judged by the policy before it, and takes effect once it is on the default branch.
+- On a runner, the branch is the change's head branch, so the detached checkout of a pull request is judged the same
+  way. On the default branch, or a detached checkout elsewhere, both read the disk.
+- `kit policy --input` prints the facts as the base's policy has them. `kit policy --facts=<file>` judges by the
+  disk's, since it tests a rule.
+
+A base with no `kit.yml` is one the kit is not installed on. There, both read the checkout's own settings and Rego,
+as on the default branch, so the pull request that installs the kit sets its first policy.
+
+A base that is not here, as in a clone that lacks `origin/<default>`, fails both verbs wherever they run. They say
+`the base, origin/<default>, is not here, so its policy cannot be read; fetch it with full history`. A read of the
+base's files that fails, for any reason other than the file not being there, fails them too.
+
 ### Reading a file's text
 
 A rule that judges content needs `text`. Name the files in `kit.yml` by glob:

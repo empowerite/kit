@@ -149,6 +149,110 @@ change() {
   [[ "$output" == *"branch 'dependabot/github-actions/actions-1a2b3c' does not match policy.branch"* ]]
 }
 
+@test "a branch is judged by the policy on its base: a pattern it loosens, and a login it exempts, change nothing" {
+  printf 'policy:\n  commit_subject: "^#[0-9]+ "\n' > kit.yml
+  git add kit.yml
+  git commit --quiet --message "#2 kit: the policy" && git push --quiet origin main
+  branch 7-fix-the-thing "no reference"
+  printf 'policy:\n  commit_subject: ""\nlinked_exempt:\n  - ada\n' > kit.yml
+  change "Fix the thing" ada
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"does not match policy.commit_subject"* ]]
+  [[ "$output" != *"exempt"* ]]
+  # the forge and the facts stay the checkout's: the base names no forge, and the change was read
+  grep --quiet 'pr view 3 --json' "${FAKE_DIR}/gh.calls"
+  # the facts kit policy --input prints are the ones it judges
+  [ "$("${kit_root}/bin/kit" policy --input | jq --raw-output .policy.commit_subject)" = '^#[0-9]+ ' ]
+}
+
+@test "on a runner, the pull request's detached checkout is judged by the policy on its base" {
+  printf 'policy:\n  commit_subject: "^#[0-9]+ "\n' > kit.yml
+  git add kit.yml
+  git commit --quiet --message "#2 kit: the policy" && git push --quiet origin main
+  branch 7-fix-the-thing "no reference"
+  printf 'policy:\n  commit_subject: ""\nlinked_exempt:\n  - ada\n' > kit.yml
+  change "Fix the thing" ada
+  git switch --quiet --detach
+  printf '{"pull_request": {"number": 3}}\n' > "${BATS_TEST_TMPDIR}/event.json"
+  GITHUB_HEAD_REF=7-fix-the-thing GITHUB_EVENT_PATH="${BATS_TEST_TMPDIR}/event.json" run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"'no reference' does not match policy.commit_subject"* ]]
+  [[ "$output" != *"exempt"* ]]
+}
+
+@test "a base with no kit.yml, as before the kit is installed there, leaves the branch's own policy to judge it" {
+  branch 7-install-the-kit "no reference"
+  printf 'policy:\n  commit_subject: "^no "\n' > kit.yml
+  git add kit.yml
+  git commit --quiet --message "no kit until this one"
+  [ -z "$(git ls-tree origin/main -- kit.yml)" ]
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"the patterns policy allows the branch, 2 commit(s)"* ]]
+  printf 'policy:\n  commit_subject: "^#"\n' > kit.yml
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"'no reference' does not match policy.commit_subject"* ]]
+}
+
+@test "Rego a branch removes still judges it" {
+  mkdir -p .kit/packages/mine/files/repo/.kit/policy
+  printf 'description: "rules of our own"\n' > .kit/packages/mine/package.yml
+  printf 'package kit.policy\n\nimport rego.v1\n\ndeny contains "x" if false\n' \
+    > .kit/packages/mine/files/repo/.kit/policy/x.rego
+  printf 'packages:\n  - mine\n' > kit.yml
+  git add kit.yml .kit/packages
+  git commit --quiet --message "#2 kit: a rule of our own" && git push --quiet origin main
+  branch 7-fix-the-thing
+  git rm --quiet -r .kit/packages/mine
+  printf 'packages: []\n' > kit.yml
+  git commit --quiet --all --message "#7 kit: no rule of our own"
+  dir=${BATS_TEST_TMPDIR}/judged
+  kit_bash_modules=policy run kit-bash "policy:from-base '${dir}'"
+  [ "$status" -eq 0 ]
+  [ -f "${dir}/rego/x.rego" ]
+  cmp "${dir}/rego/x.rego" <(git show origin/main:.kit/packages/mine/files/repo/.kit/policy/x.rego)
+}
+
+@test "a rule in Rego the base holds judges a branch that deletes it" {
+  command -v opa >/dev/null || skip "opa, the opa policy engine, is not on PATH"
+  mkdir -p .kit/policy
+  cat > .kit/policy/ours.rego <<'REGO'
+package kit.policy
+
+import rego.v1
+
+deny contains "a commit with no reference" if {
+	some commit in input.commits
+	commit.subject == "no reference"
+}
+REGO
+  printf 'policy:\n  commit_subject: ""\n' > kit.yml
+  git add kit.yml .kit/policy/ours.rego
+  git commit --quiet --message "#2 kit: a rule of our own" && git push --quiet origin main
+  branch 7-fix-the-thing "no reference"
+  git rm --quiet .kit/policy/ours.rego
+  git commit --quiet --message "#7 kit: no rule of our own"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"❌ a commit with no reference"* ]]
+  [[ "$output" == *"1 refusal(s) by the opa policy"* ]]
+}
+
+@test "Rego a branch adds does not choose the engine that judges it" {
+  printf 'policy:\n  commit_subject: "^#[0-9]+ "\n' > kit.yml
+  git add kit.yml
+  git commit --quiet --message "#2 kit: the policy" && git push --quiet origin main
+  branch 7-fix-the-thing "no reference"
+  mkdir -p .kit/policy
+  printf 'package kit.policy\n\nimport rego.v1\n\ndeny contains "never" if false\n' > .kit/policy/lax.rego
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"'no reference' does not match policy.commit_subject"* ]]
+  [[ "$output" == *"1 refusal(s) by the patterns policy"* ]]
+}
+
 @test "on the default branch, or detached, only the tree is under check, and kit policy says so" {
   run "${kit_root}/bin/kit" policy
   [ "$status" -eq 0 ]
@@ -283,9 +387,20 @@ REGO
 
 @test "at ci, a branch whose fork from the default branch is not here fails, since no commit could be checked" {
   branch 7-fix-the-thing "#7 cli: fix the thing"
-  git update-ref -d refs/remotes/origin/main
+  # origin/main is here, as in a shallow clone, and shares no commit with the branch
+  git update-ref refs/remotes/origin/main "$(git commit-tree "$(git mktree </dev/null)" -m unrelated)"
   run "${kit_root}/bin/kit" policy
   [ "$status" -eq 1 ]
   [[ "$output" == *"no commit was checked"*"fetch"* ]]
+}
+
+@test "a base that is not here fails" {
+  branch 7-fix-the-thing "#7 cli: fix the thing"
+  git update-ref -d refs/remotes/origin/main
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"its policy cannot be read"* ]]
+  [[ "$output" == *"the base, origin/main, is not here"* ]]
+  [[ "$output" != *"policy allows"* ]]
 }
 

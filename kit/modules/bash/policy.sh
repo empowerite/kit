@@ -27,8 +27,23 @@
 # kit commit reads the policy from the tree it will commit, never from the disk: kit.yml as that tree holds it, and
 # each .rego file under .kit/policy/ from that tree when its source is a file of the repository's, such as a package
 # of its own. A file the release delivers is read as placed, since the pinned release cannot change under a commit.
-# So an edit on the disk that is not staged cannot weaken the judgment of the commit. kit policy reads the disk, which
-# in CI is the change's HEAD. policy:from sets this up; policy:from-disk puts it back.
+# So an edit on the disk that is not staged cannot weaken the judgment of the commit. policy:from sets this up;
+# policy:from-disk puts it back.
+#
+# kit policy and kit linked judge a branch past the default one by the policy on its base, origin/<default>, the ref
+# the commits are counted from (policy:base), so a branch cannot loosen the rule that judges it: a pattern it blanks, a
+# login it exempts, an engine it names, or a .rego file it removes. policy:from-base reads policy, policy_engine, and
+# linked_exempt from the base's kit.yml, and every other setting, such as forge, primary, and facts, from the disk's.
+# The Rego is the base's: a link into the repository is read as the base holds its source, a .rego file the base holds
+# under .kit/policy/ as the base holds it, and a .rego file that a package the base's kit.yml lists delivers to
+# .kit/policy/, and the disk lacks, from the base's .kit/packages/ or from the release; a .rego file the base neither
+# holds nor delivers is left out. A change to the policy is judged by the policy before it, and takes effect once it is
+# on the default branch. On a CI runner the branch is the change's source branch, so a detached checkout of the change
+# is judged the same way. On the default branch, or a detached HEAD outside a runner, both read the disk.
+#
+# A base with no kit.yml is one the kit is not installed on: there, both read the checkout's own settings and Rego, as
+# on the default branch, so the change that installs the kit sets its first policy. A base that is not here, as in a
+# clone without it, fails both, since its policy cannot be read; so does a read of the base's files that fails.
 #
 # The providers:
 #
@@ -126,14 +141,87 @@ policy:engine() {
   printf '%s\n' "${engine}"
 }
 
+# policy:branch-past prints the branch policy:branch names when it is past the default one, and nothing on the default
+# branch or a detached HEAD, telling them apart as facts:document does. It returns 1 when the default branch cannot be
+# read.
+policy:branch-past() {
+  local branch default_branch
+  branch=$(policy:branch)
+  [[ -n "${branch}" ]] || return 0
+  default_branch=$(git:default-branch) || return 1
+  [[ "${branch}" == "${default_branch}" ]] || printf '%s\n' "${branch}"
+}
+
+# policy:base prints origin/<default branch>, the ref facts:document counts commits from, whose policy judges a branch
+# past it. It returns 1, saying so, when the ref is not here.
+policy:base() {
+  local default_branch
+  default_branch=$(git:default-branch) || return 1
+  if ! git rev-parse --verify --quiet "origin/${default_branch}^{commit}" >/dev/null
+  then
+    error "the base, origin/${default_branch}, is not here, so its policy cannot be read; fetch it with full history"
+    return 1
+  fi
+  printf 'origin/%s\n' "${default_branch}"
+}
+
+# policy:object <rev> <path> prints the object name of <path> in <rev>, an empty <rev> being the index, and nothing
+# when <rev> holds no such path. It returns 1, saying so, when git cannot list it.
+policy:object() {
+  local rev=$1 path=$2 entry
+  local -a entries
+  if [[ -n "${rev}" ]]
+  then
+    if ! entry=$(git ls-tree --full-tree "${rev}" -- "${path}" 2>/dev/null)
+    then
+      error "run: git fsck (${path} in ${rev} could not be read)"
+      return 1
+    fi
+    # "<mode> <type> <object>\t<path>"
+    entry=${entry#* * }
+    printf '%s\n' "${entry%%$'\t'*}"
+    return 0
+  fi
+  if ! list:read entries git ls-files --stage -- "${path}" 2>/dev/null
+  then
+    error "run: git fsck (${path} in the index could not be read)"
+    return 1
+  fi
+  # "<mode> <object> <stage>\t<path>", of which stage 0 is the one git show :<path> reads
+  for entry in "${entries[@]}"
+  do
+    entry=${entry#* }
+    [[ "${entry}" == *" 0"$'\t'* ]] || continue
+    printf '%s\n' "${entry%% *}"
+    return 0
+  done
+  printf '\n'
+}
+
+# policy:blob <object> <file> <what> writes the blob <object> to <file>. It returns 1, naming <what>, when git cannot
+# read it.
+policy:blob() {
+  if ! git cat-file blob "$1" > "$2" 2>/dev/null
+  then
+    error "run: git fsck ($3 could not be read)"
+    return 1
+  fi
+}
+
 # policy:from <rev> <dir> makes the policy read its settings and its Rego as <rev> holds them, an empty <rev> being the
 # index that GIT_INDEX_FILE names, or the default one. It writes them under <dir>, which it makes. A tree with no
-# kit.yml reads as one with no settings, the kit's defaults.
+# kit.yml reads as one with no settings, the kit's defaults, and a source of a link under .kit/policy/ that the tree
+# lacks is not part of its policy. It returns 1 when a file the tree holds cannot be read.
 policy:from() {
-  local rev=$1 dir=$2 rego target root
+  local rev=$1 dir=$2 rego target root object where=${1:-the index}
   mkdir -p "${dir}/rego" || return 1
-  # A tree with no kit.yml reads as an empty one.
-  git show "${rev}:kit.yml" > "${dir}/kit.yml" 2>/dev/null || : > "${dir}/kit.yml"
+  object=$(policy:object "${rev}" kit.yml) || return 1
+  if [[ -z "${object}" ]]
+  then
+    : > "${dir}/kit.yml"
+  else
+    policy:blob "${object}" "${dir}/kit.yml" "kit.yml in ${where}" || return 1
+  fi
   root=$(git rev-parse --show-toplevel) || return 1
   for rego in .kit/policy/*.rego
   do
@@ -141,8 +229,10 @@ policy:from() {
     target=$(readlink -f "${rego}")
     if [[ -L "${rego}" && "${target}" == "${root}/"* ]]
     then
-      # a source the judged tree lacks is not part of its policy
-      git show "${rev}:${target#"${root}/"}" > "${dir}/rego/${rego##*/}" 2>/dev/null || rm -f "${dir}/rego/${rego##*/}"
+      object=$(policy:object "${rev}" "${target#"${root}/"}") || return 1
+      rm -f "${dir}/rego/${rego##*/}"
+      [[ -z "${object}" ]] || policy:blob "${object}" "${dir}/rego/${rego##*/}" \
+        "${target#"${root}/"} in ${where}" || return 1
     else
       cp "${rego}" "${dir}/rego/" || return 1
     fi
@@ -150,6 +240,92 @@ policy:from() {
   # shellcheck disable=SC2034  # settings:file reads settings_file
   settings_file=${dir}/kit.yml
   policy_rego=${dir}/rego
+}
+
+# policy:from-base <dir> makes the policy read, under <dir>, what judges a branch past the default one, as the file
+# header describes: policy:from the base, then <dir>/kit.yml as the disk's kit.yml with policy, policy_engine, and
+# linked_exempt as the base's kit.yml has them, absent where it has none, and <dir>/rego as policy:base-rego makes it:
+# with each .rego file a package the base's kit.yml lists delivers to .kit/policy/ and the disk lacks. Where the base
+# has no kit.yml, it leaves the policy reading the disk. It returns 1 when the base is not here, or a file of it cannot
+# be read.
+policy:from-base() {
+  local dir=$1 base object disk_doc base_doc
+  base=$(policy:base) || return 1
+  object=$(policy:object "${base}" kit.yml) || return 1
+  # The kit is not installed on the base, so the branch that installs it sets the first policy.
+  [[ -n "${object}" ]] || return 0
+  policy:from "${base}" "${dir}" || return 1
+  mv "${dir}/kit.yml" "${dir}/base.yml" || return 1
+  disk_doc=$(yaml:json kit.yml) || return 1
+  base_doc=$(yaml:json "${dir}/base.yml") || return 1
+  # JSON is YAML, so the settings readers read the merged document as they read kit.yml.
+  if ! jq --null-input --compact-output --argjson disk "${disk_doc:-null}" --argjson base "${base_doc:-null}" '
+    ["policy", "policy_engine", "linked_exempt"] as $judging
+    | (($disk // {}) | with_entries(select(.key as $key | $judging | index($key) | not)))
+      + (($base // {}) | with_entries(select(.key as $key | $judging | index($key))))' > "${dir}/kit.yml"
+  then
+    error "run: kit check (kit.yml on the disk or on ${base} is not a map of settings, so the policy cannot be read)"
+    return 1
+  fi
+  # shellcheck disable=SC2034  # settings:file reads settings_file
+  settings_file=${dir}/kit.yml
+  policy:base-rego "${base}" "${dir}"
+}
+
+# policy:base-rego <base> <dir> makes <dir>/rego, which policy:from filled, hold the Rego <base> holds or delivers, and
+# no other: a link into the repository as policy:from read it, a .rego file <base> holds under .kit/policy/, and each
+# .rego file that a package <dir>/base.yml lists under packages delivers to .kit/policy/, from the release,
+# ${kit_root}/packages/, for a package the release has, and otherwise from the repository's own, .kit/packages/ as
+# <base> holds it. A file of the disk's that <base> neither holds nor delivers, such as a rule the branch adds, is
+# taken out, so the engine is the one the base's Rego chooses. It returns 1 when a list or a file cannot be read.
+policy:base-rego() {
+  local base=$1 dir=$2 package rego entry path root
+  local -a packages entries
+  local -A held=()
+  root=$(git rev-parse --show-toplevel) || return 1
+  for rego in .kit/policy/*.rego
+  do
+    [[ -L "${rego}" && "$(readlink -f "${rego}")" == "${root}/"* && -e "${dir}/rego/${rego##*/}" ]] || continue
+    held[${rego##*/}]=1
+  done
+  list:read packages yaml:list "${dir}/base.yml" packages || return 1
+  # The base's own .kit/policy/ comes first, an empty name standing for it, then each package the base lists.
+  for package in '' "${packages[@]}"
+  do
+    # shellcheck disable=SC2154  # kit_root is exported by modules/bash/1st.sh
+    if [[ -n "${package}" && -f "${kit_root}/packages/${package}/package.yml" ]]
+    then
+      for rego in "${kit_root}/packages/${package}/files/repo/.kit/policy/"*.rego
+      do
+        [[ -e "${rego}" ]] || continue
+        held[${rego##*/}]=1
+        [[ -e "${dir}/rego/${rego##*/}" ]] || cp "${rego}" "${dir}/rego/" || return 1
+      done
+      continue
+    fi
+    path=.kit/policy/
+    [[ -z "${package}" ]] || path=.kit/packages/${package}/files/repo/.kit/policy/
+    if ! list:read0 entries git ls-tree -z --full-tree "${base}" -- "${path}" 2>/dev/null
+    then
+      error "run: git fsck (${path} in ${base} could not be read)"
+      return 1
+    fi
+    for entry in "${entries[@]}"
+    do
+      # "<mode> <type> <object>\t<path>"; a regular file counts, since the links the kit places are ones git ignores
+      rego=${entry#*$'\t'}
+      [[ "${rego}" == *.rego && "${entry}" == 100* ]] || continue
+      held[${rego##*/}]=1
+      # The base's own .kit/policy/ file is read as the base holds it; a package's fills a gap.
+      [[ -z "${package}" || ! -e "${dir}/rego/${rego##*/}" ]] || continue
+      entry=${entry#* * }
+      policy:blob "${entry%%$'\t'*}" "${dir}/rego/${rego##*/}" "${rego} in ${base}" || return 1
+    done
+  done
+  for rego in "${dir}/rego/"*.rego
+  do
+    [[ ! -e "${rego}" || -n "${held[${rego##*/}]:-}" ]] || rm -f "${rego}" || return 1
+  done
 }
 
 # policy:from-disk makes the policy read kit.yml and .kit/policy from the disk again.
