@@ -523,6 +523,18 @@ commit:submit() {
     ok "pushed ${branch} to ${remote}, which is its upstream from now on"
     return 0
   fi
+  # A remote-tracking ref that is gone, as after a prune once the remote's branch was deleted, is no measure of what
+  # the remote has: the push is a first push in effect.
+  if ! git rev-parse --quiet --verify "refs/remotes/${remote}/${branch}^{commit}" >/dev/null
+  then
+    if ! refused=$(git:push . "${branch}" 2>&1)
+    then
+      commit:push-refused "${branch}" "${refused}"
+      return 1
+    fi
+    ok "pushed ${branch} to ${remote}; this clone had no ${remote}/${branch}"
+    return 0
+  fi
   ahead=$(git rev-list --count "refs/remotes/${remote}/${branch}..HEAD" 2>/dev/null || echo 0)
   if (( ahead == 0 ))
   then

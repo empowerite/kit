@@ -164,6 +164,22 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ "$(git -C "${work}/origin.git" rev-parse main)" = "${main}" ]
 }
 
+@test "kit submit pushes a branch whose remote-tracking ref is gone, and never says it is at origin" {
+  printf 'x\n' > x && git add x
+  run kit submit --message 'x: a file'
+  [ "$status" -eq 0 ]
+  # the forge deletes the branch, and a fetch with --prune takes origin/7-fix-the-thing away
+  git -C "${work}/origin.git" branch --quiet --delete --force 7-fix-the-thing
+  git fetch --quiet --prune origin
+  run ! git rev-parse --quiet --verify refs/remotes/origin/7-fix-the-thing
+  printf 'y\n' > y && git add y
+  run kit submit --message 'y: a file'
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"nothing to submit"* ]]
+  [ "$(git -C "${work}/origin.git" rev-parse 7-fix-the-thing)" = "$(git rev-parse HEAD)" ]
+  [ "$(git rev-parse refs/remotes/origin/7-fix-the-thing)" = "$(git rev-parse HEAD)" ]
+}
+
 # forge-world routes a fake gh for change 3, open on this branch with the body "Closes #7", and issue 9 with the
 # assignees given, if any; ada is the caller. Every gh call lands in ${FAKE_DIR}/gh.calls.
 forge-world() {
