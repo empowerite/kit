@@ -72,7 +72,8 @@ change() {
   [[ "$(jq --raw-output .change.error <<<"$output")" == *"could not be read"* ]]
   run "${kit_root}/bin/kit" policy
   [ "$status" -eq 1 ]
-  [[ "$output" == *"the change could not be read, so its title is unchecked: "*"could not be read"*"; then run: kit policy"* ]]
+  refusal='the change could not be read, so its title is unchecked: '
+  [[ "$output" == *"${refusal}"*"could not be read"*"; then run: kit policy"* ]]
   [[ "$output" != *"policy allows"* ]]
 }
 

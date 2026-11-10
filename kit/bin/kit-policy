@@ -12,9 +12,9 @@
 #   - the tree of files at HEAD
 #
 # The policy engine then reports every refusal and every warning. A warning is printed and never fails. The engine
-# is patterns (the default) or Open Policy Agent. Before the engine runs, kit policy refuses facts it cannot judge: a
-# branch whose commits are null, as the fork is not here, and a change that holds an error, as the forge could not
-# answer for it. Either engine, and a document given with --facts, is refused the same way.
+# is patterns (the default) or Open Policy Agent. kit policy first refuses facts it cannot judge: a branch whose
+# commits are null, as the fork is not here, and a change that holds an error, as the forge could not answer for it.
+# The refusal comes before either engine runs, and a document given with --facts is refused the same way.
 #
 #   --input           prints the facts as JSON instead of judging them
 #   --facts=<file>    judges the facts document in <file>, and gathers nothing; for testing a rule against a fixture

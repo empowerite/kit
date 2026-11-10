@@ -630,10 +630,12 @@ fake-tui() {
 
 @test "kit flow --marks gives each stage a mark that changes when what it draws does, and none a stage it cannot read" {
   marks() { "${kit_root}/bin/kit" flow --marks; }
-  run marks
+  run --separate-stderr marks
   [ "$status" -eq 0 ]
+  # origin here has no forge, so nothing is said
+  [ -z "$stderr" ]
   first=$output
-  # every stage the picture draws has a mark, or null; origin here has no forge
+  # every stage the picture draws has a mark, or null
   [ "$(jq --compact-output 'keys' <<<"${first}")" \
     = '["backlog","builds","changes","desk","incoming","releases","underway","worktrees"]' ]
   [ "$(jq --compact-output '[.backlog, .underway, .changes, .builds, .releases]' <<<"${first}")" = '[null,null,null,null,null]' ]
@@ -658,7 +660,8 @@ fake-tui() {
   printf 'forge: github\n' > kit.yml
   PATH=$(shims gh) run --separate-stderr marks
   [ "$status" -eq 1 ]
-  [ "$(jq --compact-output '[.backlog, .underway, .changes, .builds, .releases]' <<<"$output")" = '[null,null,null,null,null]' ]
+  forged=$(jq --compact-output '[.backlog, .underway, .changes, .builds, .releases]' <<<"$output")
+  [ "${forged}" = '[null,null,null,null,null]' ]
   [ "$(jq --raw-output '.desk | type' <<<"$output")" = string ]
   [[ "$stderr" == *"could not be read"* ]]
 }
