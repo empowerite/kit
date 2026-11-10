@@ -4,6 +4,7 @@ package table
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -76,4 +77,20 @@ func WritePresets(path string, tables map[string][]Preset) error {
 		return err
 	}
 	return os.Rename(tmp, path)
+}
+
+// KeepPresets keeps one table's presets in the file, the person's presets of every other table as the file holds them
+// now: it reads the file again, so what another screen saved since it was first read stays, sets the table's presets
+// under its name, and writes the file whole, as WritePresets does. It gives every table's presets, as written. A file
+// that is not there yet is written new; one that does not read is the error, and nothing is written.
+func KeepPresets(path, name string, saved []Preset) (map[string][]Preset, error) {
+	all, err := ReadPresets(path)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
+	all[name] = saved
+	if err := WritePresets(path, all); err != nil {
+		return nil, err
+	}
+	return all, nil
 }

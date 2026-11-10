@@ -694,3 +694,41 @@ func TestTheEdgesOfAnEmptyTableAndAMenuThatLostItsName(t *testing.T) {
 		t.Errorf("a menu without its name drew %q", got)
 	}
 }
+
+func TestTwoWritersOfThePresetsFileKeepEachOthersPresets(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "presets.json")
+	// two tables open on one file, each read before the other saved
+	a := sheet(path)
+	b := NewSheet(&Schema{Stage: "others", Fields: things.Fields, Presets: things.Presets}, "others", "75", path)
+	b.Place(4, 16, 80, 24)
+	b.SetRecords(stock())
+	a.saveAs("ours")
+	b.saveAs("theirs")
+	a.saveAs("ours too")
+	all, err := ReadPresets(path)
+	if err != nil || len(all["things"]) != 2 || len(all["others"]) != 1 || all["others"][0].Name != "theirs" {
+		t.Fatalf("both writers' presets: %v %+v", err, all)
+	}
+	// a writer that keeps its own presets keeps what is there, and a file that does not read is not written over
+	if got, err := KeepPresets(path, "third", []Preset{{Name: "x"}}); err != nil || len(got) != 3 {
+		t.Errorf("a third writer: %v %+v", err, got)
+	}
+	if err := os.WriteFile(path, []byte("{"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := KeepPresets(path, "third", nil); err == nil {
+		t.Error("kept over a file that does not read")
+	}
+	if data, _ := os.ReadFile(path); string(data) != "{" {
+		t.Errorf("the file was written over: %s", data)
+	}
+	// a file not there yet in a directory that cannot be written to is the error
+	locked := t.TempDir()
+	if err := os.Chmod(locked, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o700) })
+	if _, err := KeepPresets(filepath.Join(locked, "presets.json"), "third", nil); err == nil {
+		t.Error("kept in a directory that cannot be written to")
+	}
+}

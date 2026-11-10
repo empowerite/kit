@@ -716,16 +716,11 @@ func (s *Sheet) rename() {
 	s.tbl.SavingAs, s.tbl.Naming, s.tbl.Renaming = false, "", ""
 }
 
-// keep writes the person's presets of the table as they are given, under its store, with every other table's read from
-// the file as it stands, so another screen's saved since are kept; and says whether it could. When it could not, the
-// notice says why, and nothing changes.
+// keep writes the person's presets of the table as they are given, under its store, into the file as it stands, as
+// KeepPresets does, so another screen's saved since are kept; and says whether it could. When it could not, the notice
+// says why, and nothing changes.
 func (s *Sheet) keep(saved []Preset, what string) bool {
-	all, err := ReadPresets(s.path)
-	if err == nil || errors.Is(err, os.ErrNotExist) {
-		all[s.store] = saved
-		err = WritePresets(s.path, all)
-	}
-	if err != nil {
+	if _, err := KeepPresets(s.path, s.store, saved); err != nil {
 		s.note.Text, s.note.Done = fmt.Sprintf("%s the preset could not be %s: %v", Failed, what, err), false
 		return false
 	}

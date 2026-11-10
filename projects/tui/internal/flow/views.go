@@ -250,15 +250,12 @@ func (m *Model) presetKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 // not, nor is a view since deleted.
 func (m Model) own() (table.Preset, bool) { return m.viewsOf(m.stage).Mine(m.stages[m.stage].ViewName) }
 
-// keep writes the person's views of the selected stage as they are given, and says whether it could; when it could
-// not, the notice says why, and nothing changes.
+// keep writes the person's views of the selected stage as they are given into the file as it stands, as
+// table.KeepPresets does, so what another screen saved since stays, and says whether it could; when it could not, the
+// notice says why, and nothing changes.
 func (m *Model) keep(saved []table.Preset, what string) bool {
-	all := map[string][]table.Preset{}
-	for stage, vs := range m.saved {
-		all[stage] = vs
-	}
-	all[m.stages[m.stage].name] = saved
-	if err := table.WritePresets(m.presetsPath, all); err != nil {
+	all, err := table.KeepPresets(m.presetsPath, m.stages[m.stage].name, saved)
+	if err != nil {
 		m.note.Text, m.note.Done = fmt.Sprintf("%s the preset could not be %s: %v", Failed, what, err), false
 		return false
 	}
