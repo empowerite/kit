@@ -303,10 +303,10 @@ list:read0() {
 # command runs in a process substitution, as in `< <(…)`, and its status travels in band: after the command returns,
 # the subshell prints a mark unique to the call, then the status, as one last item, and the mark is taken off the list
 # before the trailing empty item is. wait "$!" after a process substitution can lose the status under load, when the
-# command ends before the shell has recorded it, so success never waits; only a command that exits, which prints no
-# mark, has its status from wait. lastpipe, with PIPESTATUS, is not used: bash can hang in a lastpipe pipeline under
-# load. The command runs as under ||, so errexit does not end it at a failure inside it: its status is its last
-# command's, or the one it returns.
+# command ends before the shell has recorded it, so success never waits. lastpipe, with PIPESTATUS, is not used: bash
+# can hang in a lastpipe pipeline under load. Where errexit is on, it ends the command at a failure inside it, as in
+# `< <(…)`. A command ended so, or one that exits, prints no mark, and its status is wait's, which under load can be
+# 127 for a status wait lost: still a failure.
 list:fill() {
   local list_fill_delimiter=$1 list_fill_status=0 list_fill_format='\n%s\n' list_fill_mark
   local -n list_fill_items=$2
@@ -315,7 +315,7 @@ list:fill() {
   list_fill_mark="list:fill ${BASHPID} ${RANDOM}${RANDOM} "
   list_fill_items=()
   # shellcheck disable=SC2059  # the format is one of the two above, chosen by the delimiter
-  readarray -t -d "${list_fill_delimiter}" list_fill_items < <("$@" || list_fill_status=$?
+  readarray -t -d "${list_fill_delimiter}" list_fill_items < <("$@" ; list_fill_status=$?
     printf "${list_fill_format}" "${list_fill_mark}${list_fill_status}")
   if (( ${#list_fill_items[@]} )) && [[ "${list_fill_items[-1]}" == "${list_fill_mark}"* ]]
   then
@@ -328,7 +328,7 @@ list:fill() {
       unset 'list_fill_items[-1]'
     fi
   else
-    wait "$!" || list_fill_status=$?
+    wait "$!" 2>/dev/null || list_fill_status=$?
   fi
   if (( list_fill_status != 0 ))
   then

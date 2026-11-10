@@ -215,6 +215,12 @@ child() {
   [ "$output" = $'0 2 [b]\n3 0' ]
 }
 
+@test "a command that fails at a command in its middle fills nothing, whatever its last command does" {
+  run kit-bash 'set -o errexit; midway() { printf "a\n"; false; printf "b\n"; }
+    st=0; list:read rows midway || st=$?; echo "$(( st != 0 )) ${#rows[@]}"'
+  [ "$output" = "1 0" ]
+}
+
 @test "list:read gives the status of a command that exits, keeps the lines of one with its own EXIT trap, and the data" {
   run kit-bash 'quits() { printf "a\nb\n"; exit 7; }; trapped() { trap "rm -f no-such-file" EXIT; printf "a\nb\n"; }
     marks() { printf "list:fill\nlist:fill %s 1 0\nz\n" "${BASHPID}"; }; empty() { printf "x\0\0y\0"; }
