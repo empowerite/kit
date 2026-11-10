@@ -86,9 +86,10 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     tab, its count, and its :, and a click anywhere on them drops the tab's menu as the bar's does; a line in the tab's
     color runs under it, and the header follows; Restore, in its place, puts the bar back as it was, and a tab's
     number selects a tab either way.
-  - A menu line's key stands at its right, dim, and does the same with the menu closed as choosing the line does with
-    it open: r Refresh, w Watch, m Maximize or Restore, o Open Selected, ⌃A Select All, and on backlog n New… and a
-    Assign to Me. With a menu open, a line's key chooses it before a letter moves to the next line starting with it.
+  - A menu line's key stands at its right, dim, a letter in upper case, R as ⌃A, as a macOS menu draws it, and the
+    letter alone does the same with the menu closed as choosing the line does with it open: r Refresh, w Watch, m
+    Maximize or Restore, o Open Selected, ⌃A Select All, and on backlog n New… and a Assign to Me. With a menu open, a
+    line's key chooses it before a letter moves to the next line starting with it.
     [ and ] move the cursor to the group heading before and after it, { and } to the first and the last, as they move
     between the palette's groups.
   - The search stands at the menu bar's right end, every screen's, and ⏎ or esc there gives the rows focus. No sidebar:

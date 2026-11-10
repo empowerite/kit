@@ -226,11 +226,11 @@ func TestGoldenMaximized(t *testing.T) {
 	testkit.Golden(t, filepath.Join("testdata", "backlog-max-menu.golden"), raw(m))
 }
 
-// A tab's menu line shows its key at its right, and the key chooses the line with the menu closed, as m maximizes and
-// restores, and with it open, before a letter moves to the next line that starts with it.
+// A tab's menu line shows its key at its right, a letter in upper case, and the key chooses the line with the menu
+// closed, as m maximizes and restores, and with it open, before a letter moves to the next line that starts with it.
 func TestATabMenuLinesKeyChoosesItOpenOrClosed(t *testing.T) {
 	m := loaded(t, viewing(""))
-	if got := m.tabItems()[:3]; got[0].Keys != "r" || got[1].Keys != "w" || got[2].Keys != "m" {
+	if got := m.tabItems()[:3]; got[0].Keys != "R" || got[1].Keys != "W" || got[2].Keys != "M" {
 		t.Fatalf("the tab's menu's keys: %+v", got)
 	}
 	if m = drive(m, testkit.Typed("m")...); !m.maximized || m.tabMenu.Open {

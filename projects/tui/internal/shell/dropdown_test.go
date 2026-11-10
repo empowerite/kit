@@ -98,7 +98,7 @@ func TestALinesKeysChooseItWithTheDropdownOpen(t *testing.T) {
 			t.Errorf("Press(%q): %q, want %q", keys, got, want)
 		}
 	}
-	items := []Item{{Name: "Refresh", Keys: "r"}, {Name: "Rename"}, {Name: "Off", Keys: "o"}, {Name: "Select All", Keys: "⌃A"}}
+	items := []Item{{Name: "Refresh", Keys: "R"}, {Name: "Rename"}, {Name: "Off", Keys: "O"}, {Name: "Select All", Keys: "⌃A"}}
 	acting := func(k int) bool { return k != 2 }
 	d := Dropdown{}.Opened(items, acting)
 	if _, chosen := d.Key(key("r"), items, acting); chosen != 0 {

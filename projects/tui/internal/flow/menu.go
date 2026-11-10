@@ -43,16 +43,16 @@ const (
 // backlog, the actions there, then each one's page opened. A line with a key shows it at its right; the key does the
 // same with the menu closed, as shortcut says.
 func (m Model) tabItems() []shell.Item {
-	size := shell.Item{Glyph: Maximize, Name: "Maximize", Keys: "m"}
+	size := shell.Item{Glyph: Maximize, Name: "Maximize", Keys: "M"}
 	if m.maximized {
-		size = shell.Item{Glyph: Restore, Name: "Restore", Keys: "m"}
+		size = shell.Item{Glyph: Restore, Name: "Restore", Keys: "M"}
 	}
-	items := append([]shell.Item{{Glyph: Reload, Name: "Refresh", Keys: "r"}, m.watchItem(m.stage), size, {}},
+	items := append([]shell.Item{{Glyph: Reload, Name: "Refresh", Keys: "R"}, m.watchItem(m.stage), size, {}},
 		m.folds()...)
 	items = append(items, shell.Item{},
 		shell.Item{Glyph: Every, Name: "Select All", Keys: "⌃A"}, shell.Item{Glyph: Sweep, Name: "Clear Selection"},
 		shell.Item{})
-	return append(append(items, m.actions()...), shell.Item{Glyph: Browse, Name: "Open Selected", Keys: "o"})
+	return append(append(items, m.actions()...), shell.Item{Glyph: Browse, Name: "Open Selected", Keys: "O"})
 }
 
 // shortcut gives the tab's menu's line whose key the press is, when it acts now, or -1; with the menu closed, the key

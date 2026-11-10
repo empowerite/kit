@@ -35,7 +35,7 @@ func TestNothingIsWatchedAtTheStart(t *testing.T) {
 			t.Errorf("%s is watched at the start", s.name)
 		}
 	}
-	if got := m.watchItem(m.stage); got != (shell.Item{Glyph: Unwatched, Name: WatchIt, Keys: "w"}) {
+	if got := m.watchItem(m.stage); got != (shell.Item{Glyph: Unwatched, Name: WatchIt, Keys: "W"}) {
 		t.Errorf("the tab's Watch: %+v", got)
 	}
 	// Watch All acts and Stop Watching All is dim, both under Refresh All
@@ -77,7 +77,7 @@ func TestWatchInTheTabsMenuWatchesTheStageThenReadsStopWatching(t *testing.T) {
 	}
 	m.tabMenu.At = k
 	if m = drive(m, press(tea.KeyEnter)); !m.stages[m.stage].src.Watch || m.tabMenu.Open ||
-		m.watchItem(m.stage) != (shell.Item{Glyph: StopWatched, Name: StopIt, Keys: "w"}) {
+		m.watchItem(m.stage) != (shell.Item{Glyph: StopWatched, Name: StopIt, Keys: "W"}) {
 		t.Fatalf("Watch: watched %v, menu %v, item %+v", m.stages[m.stage].src.Watch, m.tabMenu.Open, m.watchItem(m.stage))
 	}
 	// the keys bar's right end says the stage is watched, in the accent; another stage, not watched, says nothing

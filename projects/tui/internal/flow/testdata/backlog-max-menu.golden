@@ -1,7 +1,7 @@
   = kit flow · - empowerite/kit · ➊ backlog ╭╴:╶────────────────────────────────╮                            🔎 /search
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│ 🔄 Refresh                      r │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  ▾ source 3                                │ 🔭 Watch                        w │                           Default ▼
-                                            │ ⤡  Restore                      m │
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│ 🔄 Refresh                      R │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ▾ source 3                                │ 🔭 Watch                        W │                           Default ▼
+                                            │ ⤡  Restore                      M │
   ▾ github 3                                │ ───────────────────────────────── │
                                             │ ⏬ Expand All                     │
       id   assignees         age  branch    │ ⏫ Collapse All                   │
@@ -10,11 +10,11 @@
     ▸ #46  👤 jeffrey-agui…   2d  🌿 46-a-no│ 📋 Select All                  ⌃A │un with a verb acts
     ▸ #7   👥 2              40d            │ 🧹 Clear Selection                │
                                             │ ───────────────────────────────── │
-                                            │ 📝 New…                         n │
+                                            │ 📝 New…                         N │
                                             │ 🌱 Start Local Work for Each      │
                                             │ 🌿 Start Local Work Together…     │
                                             │ 🔀 Add to Pull Request…           │
-                                            │ 👤 Assign to Me                 a │
+                                            │ 👤 Assign to Me                 A │
                                             │ 👥 Assign to…                     │
                                             │ 🚶 Unassign                       │
                                             │ 🧺 Gather Under a Parent…         │

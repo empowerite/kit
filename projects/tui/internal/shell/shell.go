@@ -52,7 +52,8 @@ const (
 
 // Item is one line of a menu: a glyph, which may be none; the name it is chosen by; and the keys that do the same with
 // the menu closed, as the keys bar names keys, none when no key does: the menu shows them at its right, dim, where the
-// keys bar would have to name one key apiece. A line with no name is the rule between groups of items.
+// keys bar would have to name one key apiece, a letter in upper case, R as ⌃A, as a macOS menu draws it, though the
+// press is the letter alone. A line with no name is the rule between groups of items.
 type Item struct{ Glyph, Name, Keys string }
 
 // screenItem is one of the app's menu's screens, with the item it is chosen by.
