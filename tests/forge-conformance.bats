@@ -917,6 +917,31 @@ JSON
   [ "$(jq --slurp --compact-output 'map(.number)' <<<"$output")" = '[3,5]' ]
 }
 
+@test "the issues a pull request closes are read page after page, past the first 100, and a pull request not there fails" {
+  world github
+  fixture closing-1.json <<'JSON'
+{"data": {"repository": {"pullRequest": {"closingIssuesReferences": {
+  "pageInfo": {"hasNextPage": true, "endCursor": "i1"},
+  "nodes": [{"number": 7, "state": "OPEN", "repository": {"nameWithOwner": "empowerite/example"}}]}}}}}
+JSON
+  fixture closing-2.json <<'JSON'
+{"data": {"repository": {"pullRequest": {"closingIssuesReferences": {
+  "pageInfo": {"hasNextPage": false, "endCursor": "i2"},
+  "nodes": [{"number": 8, "state": "CLOSED", "repository": {"nameWithOwner": "empowerite/example"}}]}}}}}
+JSON
+  fixture closing-gone.json <<<'{"data": {"repository": {"pullRequest": null}}}'
+  { printf '%s\t%s\n' 'api graphql*number=3 --raw-field after=i1 *' closing-2.json 'api graphql*number=3 *' \
+      closing-1.json 'api graphql*number=4 *' closing-gone.json
+    cat "${FAKE_DIR}/gh.routes"; } > "${FAKE_DIR}/routes.tmp" && mv "${FAKE_DIR}/routes.tmp" "${FAKE_DIR}/gh.routes"
+  run call pr-closing-issues 3
+  [ "$status" -eq 0 ]
+  [ "$output" = $'7 OPEN empowerite/example\n8 CLOSED empowerite/example' ]
+  run --separate-stderr call pr-closing-issues 4
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [[ "$stderr" == *"(pull request #4 could not be read)"* ]]
+}
+
 # many-world makes pull request #3's review threads and checks run past their first page, its head commit abc, and
 # routes the second page of each ahead of the world's routes: the checks' at <checks-page>.
 many-world() {

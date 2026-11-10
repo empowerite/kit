@@ -236,23 +236,36 @@ forge/github:pr-body() {
   printf '%s\n' "${body}"
 }
 
-# forge/github:pr-closing-issues reads the first 100 issues the pull request closes, and fails for one that closes
-# more, as GitHub's totalCount tells.
+# forge/github:pr-closing-issues reads every issue the pull request closes, 100 a request, each page after the cursor
+# the one before ended on, until the list ends. A pull request GitHub does not have fails the read.
 forge/github:pr-closing-issues() {
-  local repo query issues
+  local repo query page all='[]' more=true cursor
+  local -a after=()
   repo=$(forge/github:repo) || return 1
-  query='query($owner: String!, $name: String!, $number: Int!) {
+  query='query($owner: String!, $name: String!, $number: Int!, $after: String) {
     repository(owner: $owner, name: $name) {
       pullRequest(number: $number) {
-        closingIssuesReferences(first: 100) { totalCount nodes { number state repository { nameWithOwner } } }
+        closingIssuesReferences(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes {
+          number state repository { nameWithOwner }
+        } }
       }
     }
   }'
-  forge/github:ask issues "pull request #$1" api graphql --field owner="${repo%%/*}" --field name="${repo#*/}" \
-    --field number="$1" --raw-field query="${query}" || return 1
-  forge/github:fold "pull request #$1" "${issues}" --raw-output '.data.repository.pullRequest.closingIssuesReferences
-    | if (.totalCount // 0) > (.nodes | length) then error("more than kit reads")
-      else .nodes[] | "\(.number) \(.state) \(.repository.nameWithOwner)" end'
+  while [[ "${more}" == true ]]
+  do
+    forge/github:ask page "pull request #$1" api graphql --field owner="${repo%%/*}" --field name="${repo#*/}" \
+      --field number="$1" "${after[@]}" --raw-field query="${query}" || return 1
+    all=$(forge/github:fold "pull request #$1" "${all}"$'\n'"${page}" --slurp --compact-output \
+      '.[0] + (.[1].data.repository.pullRequest // error("no such pull request")).closingIssuesReferences.nodes') \
+      || return 1
+    forge:whole "the issues pull request #$1 closes" "$(jq length <<<"${all}")" || return 1
+    more=$(forge/github:fold "pull request #$1" "${page}" --raw-output \
+      '.data.repository.pullRequest.closingIssuesReferences.pageInfo.hasNextPage == true') || return 1
+    cursor=$(forge/github:fold "pull request #$1" "${page}" --raw-output \
+      '.data.repository.pullRequest.closingIssuesReferences.pageInfo.endCursor // ""') || return 1
+    after=(--raw-field after="${cursor}")
+  done
+  forge/github:fold "pull request #$1" "${all}" --raw-output '.[] | "\(.number) \(.state) \(.repository.nameWithOwner)"'
 }
 
 forge/github:pr-create() {
