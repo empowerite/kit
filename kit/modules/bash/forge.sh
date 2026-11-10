@@ -68,6 +68,7 @@
 #   pr-last-for-branch <branch>   the number of the latest pull request on the branch, in any state, or nothing
 #   pr-state <n>                  MERGED, CLOSED, or OPEN, a tab, and the merge commit when it is merged
 #   pr-state-for-branch <branch>  MERGED, CLOSED, or OPEN for the latest pull request on the branch, or nothing
+#   pr-head-for-branch <branch>   the head commit of the latest pull request on the branch, in any state, or nothing
 #   pr-here                       the number of the pull request this checkout is working on, or nothing
 #   pr-closing-issues <n>         one line per issue the pull request closes: "<number> <state> <owner/name>"
 #   open-prs                      one JSON object per open pull request, the documents kit flow draws
@@ -283,6 +284,7 @@ forge:pr-author()           { forge:call pr-author "$@"; }
 forge:pr-last-for-branch()  { forge:call pr-last-for-branch "$@"; }
 forge:pr-state()            { forge:call pr-state "$@"; }
 forge:pr-state-for-branch() { forge:call pr-state-for-branch "$@"; }
+forge:pr-head-for-branch()  { forge:call pr-head-for-branch "$@"; }
 forge:pr-here()             { forge:call pr-here "$@"; }
 forge:pr-closing-issues()   { forge:call pr-closing-issues "$@"; }
 forge:open-prs()            { forge:snapshot open-prs; }

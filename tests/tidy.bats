@@ -74,9 +74,10 @@ world() {
   route 'repo view*' repo.json
 }
 
-# change-on <branch> <state> routes the latest change on <branch> as <state>: MERGED, CLOSED, or OPEN.
+# change-on <branch> <state> [<head>] routes the latest change on <branch> as <state>, MERGED, CLOSED, or OPEN, with
+# <head> as the commit the forge saw last on the branch.
 change-on() {
-  fixture "pr-$1.json" <<<"[{\"state\": \"$2\"}]"
+  fixture "pr-$1.json" <<<"[{\"state\": \"$2\", \"headRefOid\": \"${3:-}\"}]"
   route "pr list --head $1 --state all*" "pr-$1.json"
 }
 
@@ -173,6 +174,102 @@ gone() { git push --quiet origin --delete "$1"; }
   [[ "$output" == *"keeping 7-fix-the-thing (checked out in a worktree)"* ]]
   [ -f worktrees/7-fix-the-thing/x ]
   git show-ref --verify --quiet refs/heads/7-fix-the-thing
+}
+
+# commit-in <dir> <file> commits a new file in the checkout at <dir> and prints the commit.
+commit-in() {
+  printf '%s\n' "$2" > "$1/$2"
+  git -C "$1" add "$2"
+  git -C "$1" commit --quiet --message "$2"
+  git -C "$1" rev-parse HEAD
+}
+
+# idea-on <branch> makes <branch> track origin's, as a branch of the human's does, and moves it to a commit no remote
+# has, made with git commit-tree.
+idea-on() {
+  git push --quiet origin "main:$1"
+  git branch --quiet --track "$1" "origin/$1"
+  git update-ref "refs/heads/$1" "$(git commit-tree -p main -m "$1" 'main^{tree}')"
+}
+
+@test "kit tidy keeps a worktree, and a gone branch, whose commits no remote ever had, though the change merged" {
+  world
+  worktree-on 7-fix-the-thing
+  lost=$(commit-in worktrees/7-fix-the-thing work.txt)
+  gone 7-fix-the-thing
+  change-on 7-fix-the-thing MERGED "$(git rev-parse main)"
+  idea-on 8-idea
+  idea=$(git rev-parse 8-idea)
+  gone 8-idea
+  run "${kit_root}/bin/kit" tidy
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"(7-fix-the-thing, change MERGED, 1 commit(s) no remote ever had)"* ]]
+  [[ "$output" == *"keeping 8-idea (1 commit(s) no remote ever had)"* ]]
+  [[ "$output" == *"removed 0 worktree(s) and 0 branch(es)."* ]]
+  [ -d worktrees/7-fix-the-thing ]
+  [ "$(git rev-parse refs/heads/7-fix-the-thing)" = "${lost}" ]
+  [ "$(git rev-parse refs/heads/8-idea)" = "${idea}" ]
+}
+
+@test "kit tidy removes a worktree, and deletes a gone branch, whose commits were pushed before the branch went" {
+  world
+  worktree-on 7-fix-the-thing
+  pushed=$(commit-in worktrees/7-fix-the-thing work.txt)
+  git -C worktrees/7-fix-the-thing push --quiet origin 7-fix-the-thing
+  gone 7-fix-the-thing
+  change-on 7-fix-the-thing MERGED "${pushed}"
+  idea-on 8-idea
+  git push --quiet origin 8-idea
+  change-on 8-idea CLOSED "$(git rev-parse 8-idea)"
+  gone 8-idea
+  run "${kit_root}/bin/kit" tidy
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"removing "*"/worktrees/7-fix-the-thing (7-fix-the-thing, MERGED)"* ]]
+  [[ "$output" == *"deleting 7-fix-the-thing"* ]]
+  [[ "$output" == *"deleting 8-idea"* ]]
+  [[ "$output" == *"removed 1 worktree(s) and 2 branch(es)."* ]]
+  [[ "$output" != *"no remote ever had"* ]]
+  [ ! -e worktrees/7-fix-the-thing ]
+  run ! git show-ref --verify --quiet refs/heads/7-fix-the-thing
+  run ! git show-ref --verify --quiet refs/heads/8-idea
+}
+
+@test "kit tidy removes a squash-merged worktree, its commits on no branch of origin's, its tip the change's head" {
+  world
+  worktree-on 7-fix-the-thing
+  commit-in worktrees/7-fix-the-thing one.txt >/dev/null
+  head=$(commit-in worktrees/7-fix-the-thing two.txt)
+  git -C worktrees/7-fix-the-thing push --quiet origin 7-fix-the-thing
+  # the forge squashes the change's two commits into one new commit on main, then deletes the branch
+  squash=$(git commit-tree -p origin/main -m '#7 Fix the thing (#3)' "${head}^{tree}")
+  git push --quiet origin "${squash}:refs/heads/main"
+  gone 7-fix-the-thing
+  change-on 7-fix-the-thing MERGED "${head}"
+  run "${kit_root}/bin/kit" tidy
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"removing "*"/worktrees/7-fix-the-thing (7-fix-the-thing, MERGED)"* ]]
+  [[ "$output" == *"deleting 7-fix-the-thing"* ]]
+  [[ "$output" == *"removed 1 worktree(s) and 1 branch(es)."* ]]
+  [ ! -e worktrees/7-fix-the-thing ]
+  run ! git show-ref --verify --quiet refs/heads/7-fix-the-thing
+}
+
+@test "kit tidy keeps a worktree git will not remove, says so, and goes on to the next" {
+  world
+  worktree-on 7-fix-the-thing && gone 7-fix-the-thing
+  change-on 7-fix-the-thing MERGED
+  worktree-on 8-next && gone 8-next
+  change-on 8-next MERGED
+  git worktree lock worktrees/7-fix-the-thing
+  run "${kit_root}/bin/kit" tidy
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"(7-fix-the-thing, MERGED, git would not remove it)"* ]]
+  [[ "$output" == *"keeping 7-fix-the-thing (checked out in a worktree)"* ]]
+  [[ "$output" == *"removed 1 worktree(s) and 1 branch(es)."* ]]
+  [ -d worktrees/7-fix-the-thing ]
+  git show-ref --verify --quiet refs/heads/7-fix-the-thing
+  [ ! -e worktrees/8-next ]
+  run ! git show-ref --verify --quiet refs/heads/8-next
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

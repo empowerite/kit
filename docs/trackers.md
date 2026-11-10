@@ -60,7 +60,7 @@ and the error lists the known prefixes.
   reference in another tracker comments with the original, and closes the issue as not planned.
 - `kit settle` does for a closed change what the code forge does not: when it merged, it closes the work items its
   body closes, with a comment naming the merge commit; when it closed without merging, it puts every issue it names
-  back in the backlog. The delivered CI runs it when a change closes, and `kit tidy` runs it before removing a
+  back in the backlog. The delivered CI runs it when a change closes, and `kit tidy` runs it once it has removed a
   finished worktree.
 - `kit new issue AB#` opens the page a person files a new issue at in that tracker, and prints its URL; with no
   prefix, the code forge's own. `--print` prints the URL alone. `kit new issue --list` lists every tracker, the

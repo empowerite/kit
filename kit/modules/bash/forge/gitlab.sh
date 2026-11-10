@@ -212,6 +212,11 @@ forge/gitlab:pr-for-branch() {
     | jq --raw-output '.[0].iid // empty' || true
 }
 
+forge/gitlab:pr-head-for-branch() {
+  forge/gitlab:api "merge_requests?state=all&source_branch=$1&order_by=created_at&sort=desc" 2>/dev/null \
+    | jq --raw-output '.[0].sha // empty' || true
+}
+
 # On a GitLab CI runner, CI_MERGE_REQUEST_IID gives the merge request. Otherwise it is the open merge request for
 # the current branch.
 forge/gitlab:pr-here() {

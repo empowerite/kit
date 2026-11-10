@@ -58,7 +58,7 @@ world-github() {
   fixture issue.json <<<'{"title": "Fix the thing", "state": "OPEN", "assignees": [{"login": "bob"}]}'
   fixture open-heads.json <<<'[{"headRefName": "9-other"}, {"headRefName": "7-fix-the-thing"}]'
   fixture pr-open.json <<<'[{"number": 3}]'
-  fixture pr-all.json <<<'[{"state": "OPEN"}]'
+  fixture pr-all.json <<<'[{"state": "OPEN", "headRefOid": "1f2e3d4"}]'
   fixture pr-url.txt <<<'https://github.com/empowerite/example/pull/3'
   fixture issue-url.txt <<<'https://github.com/empowerite/example/issues/7'
   fixture pr.json <<<'{"title": "Fix the thing", "body": "Closes #7"}'
@@ -119,7 +119,7 @@ world-gitlab() {
   fixture mrs-open.json <<<'[{"iid": 2, "source_branch": "9-other"}, {"iid": 3, "source_branch": "7-fix-the-thing"}]'
   fixture mrs-list.json <<<'[{"iid": 3}]'
   fixture mr-by-branch.json <<<'[{"iid": 3}]'
-  fixture mr-states.json <<<'[{"state": "opened"}]'
+  fixture mr-states.json <<<'[{"state": "opened", "sha": "1f2e3d4"}]'
   fixture mr-url.txt <<<'https://gitlab.com/empowerite/example/-/merge_requests/3'
   fixture issue-url.txt <<<'https://gitlab.com/empowerite/example/-/issues/7'
   fixture mr.json <<'JSON'
@@ -244,6 +244,8 @@ JSON
     [ "$output" = "3" ]
     run call pr-state-for-branch 7-fix-the-thing
     [ "$output" = "OPEN" ]
+    run call pr-head-for-branch 7-fix-the-thing
+    [ "$output" = "1f2e3d4" ]
     run call pr-create 7-fix-the-thing main "Fix the thing"
     [ "$output" = "3" ]
     run call pr-closing-issues 3

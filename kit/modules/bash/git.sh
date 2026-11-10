@@ -110,8 +110,27 @@ git:clean() {
   [[ -z "$(git -C "$1" status --porcelain 2>/dev/null)" ]]
 }
 
-# git:tidy-settle <branch> settles the issues of the branch's latest pull request, as kit settle does, before kit tidy
-# removes its worktree: what the forge does not close itself is closed or put back here, in case nothing else did.
+# git:unpushed <branch> prints how many commits of the local <branch> no remote-tracking branch reaches. When some are
+# left, it asks the forge for the head commit of the branch's latest pull request, and when this clone has that
+# commit, it leaves out what the head reaches too: a squash-merged branch whose remote branch is gone counts 0.
+git:unpushed() {
+  local branch=$1 count head
+  count=$(git rev-list --count "refs/heads/${branch}" --not --remotes) \
+    || { error "the commits of ${branch} could not be counted"; return 1; }
+  if (( count > 0 ))
+  then
+    head=$(forge:pr-head-for-branch "${branch}")
+    if [[ "${head}" =~ ^[0-9a-f]+$ ]] && git cat-file -e "${head}^{commit}" 2>/dev/null
+    then
+      count=$(git rev-list --count "refs/heads/${branch}" --not --remotes "${head}") \
+        || { error "the commits of ${branch} could not be counted"; return 1; }
+    fi
+  fi
+  printf '%s\n' "${count}"
+}
+
+# git:tidy-settle <branch> settles the issues of the branch's latest pull request, as kit settle does, once kit tidy
+# has removed its worktree: what the forge does not close itself is closed or put back here, in case nothing else did.
 # A failure is said and does not stop the sweep.
 git:tidy-settle() {
   local pr
@@ -123,10 +142,11 @@ git:tidy-settle() {
 }
 
 # git:tidy-worktree <path> <branch> <detached> <default-branch> <self-root> <dry-run> decides whether to remove
-# one worktree and prints the reason. It returns 0 when the worktree was removed (or would be, under a dry run)
-# and 1 when it is kept.
+# one worktree and prints the reason. A worktree whose branch has commits no remote ever had is kept, whatever its
+# change's state. It returns 0 when the worktree was removed (or would be, under a dry run) and 1 when it is kept,
+# git's refusal to remove it included.
 git:tidy-worktree() {
-  local path=$1 branch=$2 detached=$3 default_branch=$4 self_root=$5 dry_run=$6 state="" ref primary
+  local path=$1 branch=$2 detached=$3 default_branch=$4 self_root=$5 dry_run=$6 state="" ref primary unpushed
   if [[ "${path}" == "${self_root}" ]]
   then
     step "keeping ${path} (this command runs in it)"
@@ -161,13 +181,26 @@ git:tidy-worktree() {
   fi
   case "${state}" in
     (MERGED | CLOSED | DETACHED)
+      if [[ -n "${branch}" ]]
+      then
+        unpushed=$(git:unpushed "${branch}") || return 1
+        if (( unpushed > 0 ))
+        then
+          step "keeping ${path} (${branch}, change ${state}, ${unpushed} commit(s) no remote ever had)"
+          return 1
+        fi
+      fi
       if [[ "${dry_run}" == true ]]
       then
         step "would remove ${path} (${branch:-detached}, ${state})"
       else
         step "removing ${path} (${branch:-detached}, ${state})"
+        if ! git worktree remove "${path}"
+        then
+          step "keeping ${path} (${branch:-detached}, ${state}, git would not remove it)"
+          return 1
+        fi
         git:tidy-settle "${branch}"
-        git worktree remove "${path}"
       fi
       return 0
       ;;
@@ -189,14 +222,17 @@ git:tidy-worktree() {
 #
 #   - the default branch
 #   - a branch checked out in a worktree it keeps
+#   - a branch with commits no remote ever had, and the worktree it is checked out in, whatever its change's state;
+#     a commit the change's head reaches, as the forge saw it, was pushed
 #   - a worktree with uncommitted changes
 #   - a detached worktree whose commit nothing else reaches
+#   - a worktree git will not remove, as a locked one
 #   - the worktree it runs in
 #
 # --dry-run prints what it would do and changes nothing.
 git:tidy() {
   local dry_run=false flag repo default_branch self_root found=false path branch detached remote remotes
-  local removed_worktrees=0 removed_branches=0 checked_out
+  local removed_worktrees=0 removed_branches=0 checked_out unpushed
   local -A freed=()
   for flag in "$@"
   do
@@ -260,12 +296,22 @@ git:tidy() {
       step "keeping ${branch} (checked out in a worktree)"
       continue
     fi
+    unpushed=$(git:unpushed "${branch}") || continue
+    if (( unpushed > 0 ))
+    then
+      step "keeping ${branch} (${unpushed} commit(s) no remote ever had)"
+      continue
+    fi
     if [[ "${dry_run}" == true ]]
     then
       step "would delete ${branch}"
     else
       step "deleting ${branch}"
-      git branch -D "${branch}" >/dev/null
+      if ! git branch -D "${branch}" >/dev/null
+      then
+        warn "${branch} could not be deleted; see above"
+        continue
+      fi
     fi
     (( ++removed_branches ))
   done <<<"$(git:gone-branches)"

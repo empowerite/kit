@@ -219,6 +219,10 @@ forge/github:pr-for-branch() {
   gh pr list --head "$1" --state open --json number --jq '.[0].number // empty' 2>/dev/null || true
 }
 
+forge/github:pr-head-for-branch() {
+  gh pr list --head "$1" --state all --json headRefOid --jq '.[0].headRefOid // empty' 2>/dev/null || true
+}
+
 # On a GitHub Actions runner, the event payload gives the pull request. Otherwise gh finds the pull request for
 # the current branch.
 forge/github:pr-here() {

@@ -20,6 +20,7 @@ forge/«stem»:pr-body()«call_pr_body…= { error "not written yet"; return 1; 
 forge/«stem»:pr-closing-issues()«call_pr_closing_issues…= { error "not written yet"; return 1; }»
 forge/«stem»:pr-create()«call_pr_create…= { error "not written yet"; return 1; }»
 forge/«stem»:pr-for-branch()«call_pr_for_branch…= { error "not written yet"; return 1; }»
+forge/«stem»:pr-head-for-branch()«call_pr_head_for_branch…= { error "not written yet"; return 1; }»
 forge/«stem»:pr-here()«call_pr_here…= { error "not written yet"; return 1; }»
 forge/«stem»:pr-last-for-branch()«call_pr_last_for_branch…= { error "not written yet"; return 1; }»
 forge/«stem»:pr-set-body()«call_pr_set_body…= { error "not written yet"; return 1; }»
