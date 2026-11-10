@@ -279,17 +279,46 @@ git:tidy() {
   fi
 }
 
+# git:pushes-to <branch> [<path>] prints the remote that <branch>, in the repository at <path>, pushes to. When the
+# branch's upstream is the branch of the same name, it prints branch.<branch>.remote and returns 0. Otherwise, with no
+# upstream or one of another name, as a branch started from origin/main has, it prints origin and returns 1.
+git:pushes-to() {
+  local branch=$1 path=${2:-.} remote merge
+  remote=$(git -C "${path}" config --get "branch.${branch}.remote" 2>/dev/null || true)
+  merge=$(git -C "${path}" config --get "branch.${branch}.merge" 2>/dev/null || true)
+  if [[ -n "${remote}" && "${merge}" == "refs/heads/${branch}" ]]
+  then
+    printf '%s\n' "${remote}"
+    return 0
+  fi
+  printf 'origin\n'
+  return 1
+}
+
+# git:push <path> <branch> [<option>…] pushes refs/heads/<branch> of the checkout at <path>, quietly and with the
+# options, to the same name on the remote git:pushes-to prints, and sets that as the upstream when git:pushes-to
+# returned 1. It names the refspec, so push.default never decides where the branch goes.
+git:push() {
+  local path=$1 branch=$2 remote upstream=()
+  shift 2
+  remote=$(git:pushes-to "${branch}" "${path}") || upstream=(--set-upstream)
+  git -C "${path}" push --quiet "${upstream[@]}" "$@" --end-of-options "${remote}" \
+    "refs/heads/${branch}:refs/heads/${branch}"
+}
+
 # git:rebase [<path>] rebases the branch checked out at <path> (default: the current checkout) onto the default
-# branch at the primary remote, then pushes it with --force-with-lease. It refuses:
+# branch at the primary remote, then pushes it to its own name on the remote git:pushes-to prints. It refuses:
 #
 #   - a checkout with no branch checked out
 #   - the root checkout (the desk, which belongs to the human), whatever branch it has
 #   - the default branch, in any checkout
 #   - a worktree with uncommitted changes
 #
-# On a conflict it aborts the rebase and leaves the worktree as it was.
+# When that remote's branch has commits this checkout lacks, another session's, it takes them first: it rebases onto
+# that tip, then onto the default branch. The push forces only over the tip it read, so a commit pushed after the
+# fetch makes the push fail rather than vanish. On a conflict it aborts the rebase and leaves the worktree as it was.
 git:rebase() {
-  local worktree=${1:-.} branch default_branch primary
+  local worktree=${1:-.} branch default_branch primary remote before theirs target targets=()
   branch=$(git -C "${worktree}" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
   if [[ -z "${branch}" ]]
   then
@@ -313,16 +342,34 @@ git:rebase() {
     return 1
   fi
   primary=$(forge:primary) || return $?
+  remote=$(git:pushes-to "${branch}" "${worktree}") || true
   section "kit rebase ${branch} onto ${primary}/${default_branch}"
+  before=$(git -C "${worktree}" rev-parse HEAD)
   git -C "${worktree}" fetch --quiet --prune --end-of-options "${primary}"
-  if ! git -C "${worktree}" rebase --quiet "${primary}/${default_branch}"
+  [[ "${remote}" == "${primary}" ]] || git -C "${worktree}" fetch --quiet --prune --end-of-options "${remote}"
+  theirs=$(git -C "${worktree}" rev-parse --quiet --verify "refs/remotes/${remote}/${branch}^{commit}" || true)
+  if [[ -n "${theirs}" ]] && ! git -C "${worktree}" merge-base --is-ancestor "${theirs}" HEAD
   then
-    git -C "${worktree}" rebase --abort 2>/dev/null || true
-    error "${branch} conflicts with ${primary}/${default_branch};" \
-      "the rebase was aborted and the worktree is as it was"
+    step "taking $(git -C "${worktree}" rev-list --count "HEAD..${theirs}") commit(s)" \
+      "${remote}/${branch} has and this checkout lacks"
+    targets+=("${remote}/${branch}")
+  fi
+  targets+=("${primary}/${default_branch}")
+  for target in "${targets[@]}"
+  do
+    if ! git -C "${worktree}" rebase --quiet "${target}"
+    then
+      git -C "${worktree}" rebase --abort 2>/dev/null || true
+      git -C "${worktree}" reset --quiet --hard "${before}"
+      error "${branch} conflicts with ${target}; the rebase was aborted and the worktree is as it was"
+      return 1
+    fi
+  done
+  if ! git:push "${worktree}" "${branch}" "--force-with-lease=refs/heads/${branch}:${theirs}"
+  then
+    error "${branch} is rebased here and was not pushed; see above, then run: kit rebase"
     return 1
   fi
-  git -C "${worktree}" push --quiet --force-with-lease
   ok "${branch} is rebased onto ${primary}/${default_branch} and pushed."
 }
 

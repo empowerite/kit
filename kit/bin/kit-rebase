@@ -3,8 +3,12 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # kit rebase [<path>]
 #
-# Rebases the branch checked out at <path> onto the default branch at the primary remote, and pushes it with
-# --force-with-lease. The primary is the primary setting in kit.yml, else origin. kit rebase refuses:
+# Rebases the branch checked out at <path> onto the default branch at the primary remote, and pushes it to its own
+# name on its remote: the remote of its upstream when the upstream has the branch's name, else origin, which becomes
+# its upstream. push.default never decides where it goes. The primary is the primary setting in kit.yml, else origin.
+# When the branch's remote has commits this checkout lacks, another session's, kit rebase takes them first: it
+# rebases onto them, then onto the default branch. The push forces only over the tip kit rebase read, so a commit
+# pushed after it read makes the push fail rather than vanish. kit rebase refuses:
 #
 #   - a checkout with no branch checked out
 #   - the root checkout, the desk, which belongs to the human, whatever branch it has
@@ -15,7 +19,8 @@
 #
 # On a conflict, kit rebase aborts and leaves the worktree as it was.
 #
-# Exits 0 when the branch is rebased and pushed, 1 on a refusal or a conflict, and 2 on a usage error.
+# Exits 0 when the branch is rebased and pushed, 1 on a refusal, a conflict, or a failed push, and 2 on a usage
+# error.
 #
 # see: modules/bash/git.sh
 

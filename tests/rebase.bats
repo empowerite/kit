@@ -83,4 +83,50 @@ commit-in() {
   [ -z "$(git -C ../wt status --porcelain)" ]
 }
 
+# other-commits <file> <content> commits the file on 1-x in a second clone, ../other, and pushes it, as another
+# session does.
+other-commits() {
+  git clone --quiet ../origin.git ../other 2>/dev/null
+  git -C ../other switch --quiet 1-x
+  commit-in ../other "$1" "$2" && git -C ../other push --quiet
+}
+
+@test "rebase takes the commits origin's branch has and this checkout lacks, and pushes both" {
+  worktree
+  git -C ../wt push --quiet --set-upstream origin 1-x
+  other-commits theirs.txt theirs
+  commit-in ../wt mine.txt mine
+  run "${kit_checkout}/bin/kit" rebase ../wt
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"taking 1 commit(s) origin/1-x has and this checkout lacks"* ]]
+  git -C ../origin.git merge-base --is-ancestor "$(git -C ../other rev-parse HEAD)" 1-x
+  [ "$(git -C ../origin.git rev-parse 1-x)" = "$(git -C ../wt rev-parse HEAD)" ]
+}
+
+@test "rebase aborts on a conflict with origin's branch and leaves the worktree and origin's branch as they were" {
+  worktree
+  git -C ../wt push --quiet --set-upstream origin 1-x
+  other-commits a theirs
+  commit-in ../wt a mine
+  before=$(git -C ../wt rev-parse HEAD)
+  theirs=$(git -C ../other rev-parse HEAD)
+  run "${kit_checkout}/bin/kit" rebase ../wt
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"1-x conflicts with origin/1-x"* ]]
+  [ "$(git -C ../wt rev-parse HEAD)" = "${before}" ]
+  [ -z "$(git -C ../wt status --porcelain)" ]
+  [ "$(git -C ../origin.git rev-parse 1-x)" = "${theirs}" ]
+}
+
+@test "rebase pushes the branch to its own name on origin, never where push.default points" {
+  git worktree add --quiet ../wt -b 1-x origin/main
+  git -C ../wt config push.default upstream
+  commit-in ../wt b two
+  main=$(git -C ../origin.git rev-parse main)
+  run "${kit_checkout}/bin/kit" rebase ../wt
+  [ "$status" -eq 0 ]
+  [ "$(git -C ../origin.git rev-parse main)" = "${main}" ]
+  [ "$(git -C ../wt rev-parse --abbrev-ref '@{upstream}')" = origin/1-x ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

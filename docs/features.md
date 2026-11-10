@@ -84,8 +84,10 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
    request closes, and assigns it to the caller when no one is assigned.
 3. `kit submit` commits the same way when something is staged, then pushes the branch, setting the upstream the
    first time. It never forces: when origin has moved, the remedy is `kit rebase`.
-4. `kit rebase` rebases the worktree's branch onto the default branch at the primary remote and pushes it. It
-   refuses the desk, the default branch, and a worktree with uncommitted changes.
+4. `kit rebase` rebases the worktree's branch onto the default branch at the primary remote and pushes it to its own
+   name, never where `push.default` points. When origin's branch has commits the worktree lacks, it takes them
+   first, and it forces only over the tip it read, so a commit pushed meanwhile is never overwritten. It refuses the
+   desk, the default branch, and a worktree with uncommitted changes.
 5. `kit gate` runs the gate locally, with the same tools CI uses.
 6. A human merges, and `kit tidy` removes the finished worktrees and the branches whose upstream is gone.
 
