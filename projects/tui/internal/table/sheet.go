@@ -3,7 +3,7 @@
 // keyboard among them. A screen places it in a pane, gives it the keys and clicks the pane takes, draws its lines and
 // its layers, names its keys, and sets its search; the sheet is the host of its own controls. Its rows have no links,
 // as a screen that opens pages has none to follow, and it reads no caller's login, so @me names no one. The person's
-// presets of it are kept in the presets file under its name, beside every other table's.
+// presets of it are kept in the presets file under its catalog's name for it, beside every other table's.
 package table
 
 import (
@@ -29,16 +29,16 @@ const Failed = "❌"
 // why something was not done stays until a key.
 const Fades = 5 * time.Second
 
-// Sheet is one table on a screen: its catalog's part, its name, which titles its dialogs and keys its presets in the
-// file, its color, and that file; its records; its state; the person's presets of it; whether it folds a value every
-// row shares and draws an emoji every row shows, as kittui's settings say; the pane it is placed in, its first line,
-// its height, and the screen's width and height; where the keyboard is in it, the rows, or the control line on a stop
-// of the heading over the groups, -1 the preset picker; its layers; what it did, or why not, in place of the keys; and
-// its rows as last built.
+// Sheet is one table on a screen: its catalog's part, its name, which titles its dialogs, its color, the presets file,
+// and the name its presets are kept under in it; its records; its state; the person's presets of it; whether it folds
+// a value every row shares and draws an emoji every row shows, as kittui's settings say; the pane it is placed in, its
+// first line, its height, and the screen's width and height; where the keyboard is in it, the rows, or the control
+// line on a stop of the heading over the groups, -1 the preset picker; its layers; what it did, or why not, in place
+// of the keys; and its rows as last built.
 type Sheet struct {
 	schema        *Schema
 	name, color   string
-	path          string
+	path, store   string
 	records       []Record
 	tbl           Table
 	saved         []Preset
@@ -59,18 +59,23 @@ type Sheet struct {
 var _ Keyboard = (*Sheet)(nil)
 
 // NewSheet gives a sheet of the catalog's table, named and colored, its rows folding as kittui's settings do until
-// told otherwise, set as the table's Default preset, with the person's presets of it read from the file at path; none
-// keeps them for the session alone. A file that does not read is said in place of the keys, and left as it is.
+// told otherwise, set as the table's Default preset, with the person's presets of it read from the file at path, under
+// the catalog's name for the table, or the sheet's where the catalog names it not; none keeps them for the session
+// alone. A file that does not read is said in place of the keys, and left as it is.
 func NewSheet(schema *Schema, name, color, path string) Sheet {
-	s := Sheet{schema: schema, name: name, color: color, path: path, fold: true, stop: -1, width: 80, screen: 24,
-		height: 20, tbl: Table{Open: grid.Outline{}, Picked: map[string]bool{}, ViewName: Opening, Grouping: true}}
+	s := Sheet{schema: schema, name: name, color: color, path: path, store: name, fold: true, stop: -1, width: 80,
+		screen: 24, height: 20, tbl: Table{Open: grid.Outline{}, Picked: map[string]bool{}, ViewName: Opening,
+			Grouping: true}}
+	if schema != nil && schema.Stage != "" {
+		s.store = schema.Stage
+	}
 	all, err := ReadPresets(path)
 	switch {
 	case errors.Is(err, os.ErrNotExist):
 	case err != nil:
 		s.note.Text = fmt.Sprintf("%s %v; the file is left as it is", Failed, err)
 	}
-	s.saved = all[name]
+	s.saved = all[s.store]
 	s.tbl.View = s.Views().Chosen(Opening).Panel(schema.Of(), grid.Panel{})
 	return s
 }
@@ -711,13 +716,13 @@ func (s *Sheet) rename() {
 	s.tbl.SavingAs, s.tbl.Naming, s.tbl.Renaming = false, "", ""
 }
 
-// keep writes the person's presets of the table as they are given, read with every other table's from the file as
-// it stands, so another screen's saved since are kept; and says whether it could. When it could not, the notice says
-// why, and nothing changes.
+// keep writes the person's presets of the table as they are given, under its store, with every other table's read from
+// the file as it stands, so another screen's saved since are kept; and says whether it could. When it could not, the
+// notice says why, and nothing changes.
 func (s *Sheet) keep(saved []Preset, what string) bool {
 	all, err := ReadPresets(s.path)
 	if err == nil || errors.Is(err, os.ErrNotExist) {
-		all[s.name] = saved
+		all[s.store] = saved
 		err = WritePresets(s.path, all)
 	}
 	if err != nil {

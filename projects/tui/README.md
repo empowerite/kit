@@ -178,7 +178,13 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     the preset line still names the view.
   - An open row breaks a value too wide for its column across lines, and one a field draws with a glyph hangs: the
     lines after its first start under the text, not under the glyph.
-- `internal/welcome/` draws `kit welcome`: one tab per page under `.kit/welcome/`.
+- `internal/welcome/` draws `kit welcome`: one tab per page under `.kit/welcome/`. The terms' page, in `terms.go`,
+  stands as a table, a `Sheet` of `internal/table`'s, as the flow picture's stages stand, its fields in `terms.json`:
+  each `## <term>` heading is a row, its term, its meaning, the paragraphs under it as one line, its command, the line
+  of one backticked command, and its verb, what the command is run with, its tool and its verb, as `kit flow`. Default
+  groups the terms by verb, sorted by term, and Compact hides the command and the verb. The text before the first
+  heading stands over the table, where the pane has room for it. A page with no such heading, as a house package's may
+  be, is drawn as a page.
 - `internal/tutorials/` draws `kit tutorials`: a card for each tutorial, one tab for each audience.
 - `internal/tabs/` is the tab bar `kit flow`, `kit welcome`, and `kit tutorials` share: three lines of numbered tabs,
   and the keys and the clicks that select them.
@@ -194,8 +200,8 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   their keys and clicks, and gives a screen the table's layers in their order. `flow` is the host of each of its
   stages' tables. A `Sheet`, in `sheet.go`, is one table on a screen, whole, the host of its own controls: a screen
   gives it a catalog's table and its records, places it in a pane, hands it the keys and the clicks the pane takes,
-  and draws its lines and its layers; it keeps the person's presets of it in the presets file under its name, beside
-  every other table's.
+  and draws its lines and its layers; it keeps the person's presets of it in the presets file under its catalog's
+  name for it, beside every other table's.
 - `internal/kit/` runs the `kit` CLI for the other packages.
 - `internal/source/` reads kit for a screen. A load is a read the screen shows, as each of `kit flow`'s stages is: a
   read started again supersedes and ends the one before, the copy kit kept stands in, stale, while the first runs,

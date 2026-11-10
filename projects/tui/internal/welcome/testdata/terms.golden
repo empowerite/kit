@@ -4,27 +4,27 @@
   ───────────╰───────────────╰───────────────────╰──────────────╰──────────────────────╯          ╰───────────────────╰─
    Terms
 
-   • desk: the root checkout, where people read and review. kit flow desk
-   • worktree: a checkout of its own for one issue, where the work happens. kit flow worktrees
-   • forge: where a remote lives, GitHub or GitLab, with its command-line tool. kit flow incoming
-   • remote and primary: a remote is a git remote; the primary is the one issues and pull requests live on.
-   • package: a set of rules, styles, and templates a repository takes. kit packages
-   • kind: a sort of file kit knows, by its name. kit kinds
-   • rule: what a kind of file must hold, checked on commit. kit context <path>
-   • style: how a kind of file is written, for people and agents. kit context <path>
-   • template: the start of a new file of a kind. kit new
-   • region: a part of a file kit keeps, between markers. kit region
-   • gate: a check the build runs before a change may land. kit gate
-   • stage: one part of the picture kit flow draws. kit flow --stages
+   The words kit uses, one or two sentences each, and the command that shows each one.
 
+  ▾ verb ▾ 12                                                                                               Default ▼
 
+      term              meaning                                                                        command
+      ▲────────────────────────────────────────────────────────────────────────────────────────────────·───────────────
+  ▾ git remote 1
+    ▸ remote and prim…  A remote is another copy of the repository, as git names it. The primary is …  git remote --ve…
+  ▾ kit context 2
+    ▸ rule              What a file of one kind must do to be trusted, and the linter that checks it…  kit context REA…
+    ▸ style             How a file of one kind looks. A style package places it in .kit/styles/.       kit context REA…
+  ▾ kit flow 4
+    ▸ code forge        The service that hosts the repository, its issues, its pull requests, and it…  kit flow incomi…
+    ▸ desk              Your root checkout, where you cloned the repository. It is yours; agents nev…  kit flow desk
+    ▸ stage             One part of the picture kit flow draws, such as the backlog or the builds. T…  kit flow --stag…
+    ▸ worktree          A checkout of its own, under worktrees/, on one issue's branch. kit work mak…  kit flow worktr…
+  ▾ kit gate 1
+    ▸ gate              The repository's own CI command, such as just ci. The delivered CI job runs …  kit gate
+  ▾ kit generate 1
+    ▸ region            A part of a file you own that a command writes, from a kit:generate line to …  kit generate --…
+  ▾ kit help 1
+   … 5 more
 
-
-
-
-
-
-
-
-
- = menu - workspace / search │ ⇥·⇧⇥ tab ↓ page 1-7 jump
+ = menu - workspace / search │ ⇥·⇧⇥ tab ↓ terms 1-7 jump

@@ -6,10 +6,11 @@
 // welcome --fix <id> with the terminal handed over, then reads the checks again; later leaves it for this session and
 // moves to the step's next failed check. A fix kit only shows, as one that must run in the person's own shell, is
 // drawn with its lines and no choices: n and enter do nothing there, and l still leaves it for later. The other steps
-// are markdown pages drawn as text. The intro's page ends with what the checks found: checking… while they run, then
-// that all of them pass, or how many need the person, each failed check's line a link to it, with the glyph and name
-// of its step. Enter or a click on a link goes to that check, on its step, with the cursor on it. When kit refused
-// the checks, the intro says what kit said.
+// are markdown pages drawn as text, but the terms, whose page of terms is a table, as terms.go draws it, its keys and
+// clicks its own while the pane has the keyboard. The intro's page ends with what the checks found: checking… while
+// they run, then that all of them pass, or how many need the person, each failed check's line a link to it, with the
+// glyph and name of its step. Enter or a click on a link goes to that check, on its step, with the cursor on it. When
+// kit refused the checks, the intro says what kit said.
 //
 // The steps are a tab bar, internal/tabs. While it has the keyboard, tab and shift-tab move between the steps; a step's
 // number, or a click on the bar, selects it from anywhere and gives the bar the keyboard. Down, or enter, gives the
@@ -36,6 +37,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/source"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
@@ -43,12 +45,15 @@ import (
 const introID = "intro"
 
 // tab is a step: the id its checks name, its tab's glyph and name, the file of its page, whether it has checks, and
-// its page's markdown, or, when the page could not be read, where it was looked for. Each glyph is two cells wide with
-// no variation selector.
+// its page's markdown, or, when the page could not be read, where it was looked for; and, for the terms, whether the
+// page is drawn as a table, of its terms, and the text before them, its lead. Each glyph is two cells wide with no
+// variation selector.
 type tab struct {
 	id, glyph, name, file string
 	checked               bool
 	page, missing         string
+	gridded               bool
+	lead                  string
 }
 
 // known gives the pages kit knows, in the kit package's order. A check whose step has no page shows under the last
@@ -157,6 +162,9 @@ type Model struct {
 	appMenu   shell.Menu              // the app's menu, internal/shell's, which has the keyboard while it is open
 	searches  map[string]shell.Search // each step's search, internal/shell's, by the step's id
 	recent    shell.Recent            // the searches remembered, every screen's, and their dropdown
+	terms     table.Sheet             // the terms step's table, where its page has terms
+	presets   string                  // the file the person's presets are kept in; none keeps them for the session
+	settings  shell.Settings          // kittui's settings, as the screen was last told them
 
 	interrupted bool
 }
@@ -168,6 +176,7 @@ func Open(r kit.Runner, ws kit.Workspace) Model {
 	m.workspace, m.books.Workspace = ws, ws
 	m.checking = source.NewLoad("checks", checksOver(r, ws), nil)
 	m.recent = shell.Recent{Path: shell.RecentFile()}.Loaded()
+	m.presets = table.PresetsPath()
 	return m
 }
 
@@ -178,7 +187,8 @@ func New(r kit.Runner, repo string) Model {
 		deferred: map[string]bool{},
 		notes:    map[string]note{}, width: 80, height: 24, tabs: slices.Clone(known),
 		places: make([]string, len(known)), offsets: make([]int, len(known)), appMenu: shell.Menu{Here: shell.Welcome},
-		books: shell.BooksMenu{Fallback: repo}, searches: map[string]shell.Search{}}
+		books: shell.BooksMenu{Fallback: repo}, searches: map[string]shell.Search{},
+		settings: shell.Settings{KeysBar: true, FoldShared: true}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	return m
 }
@@ -233,13 +243,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
+		m.placeTerms()
 		m.fit()
+	case shell.SettingsMsg:
+		m.settings = msg.Settings
+		if i := indexOf(m.tabs, "terms"); i >= 0 && m.tabs[i].gridded {
+			m.terms.Settings(msg.Settings.FoldShared, msg.Settings.SharedEmoji)
+		}
+	case shell.FadedMsg:
+		m.terms.Faded(msg)
 	case shell.WorkspaceMsg:
 		m.books = m.books.Told(msg)
 	case source.Answer[[]kit.Check]:
 		m.take(msg)
 	case pagesMsg:
 		m.setTabs(msg.tabs)
+		m.takeTerms()
 		m.fit()
 	case fixingMsg:
 		return m, m.fixIn(msg.id, msg.key, msg.dirs)
@@ -267,6 +286,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.setSearch(s)
 			}
 			return m, nil
+		case m.gridded() && m.terms.Layered():
+			return m.termsClick(msg)
 		case msg.Button == tea.MouseLeft && shell.OnApp(msg.X, msg.Y, appLabel):
 			m.appMenu = m.appMenu.Opened()
 			return m, nil
@@ -280,9 +301,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.focusSearch(true)
 			return m, nil
 		}
-		if bar, ok := m.bar().Update(msg); ok {
+		bar, ok := m.bar().Update(msg)
+		switch {
+		case ok:
 			m.choose(bar)
-		} else if msg.Button == tea.MouseLeft {
+		case m.gridded():
+			return m.termsClick(msg)
+		case msg.Button == tea.MouseLeft:
 			m.click(msg.Y)
 		}
 		m.fit()
@@ -354,6 +379,9 @@ func (m *Model) setSearch(s shell.Search) {
 		m.offsets[m.step] = 0
 	}
 	m.searches[id] = s
+	if m.gridded() {
+		m.terms.Search(s.Query)
+	}
 	if m.cursor < len(m.checks) {
 		m.cursor = m.find(m.step, m.checks[m.cursor].Key())
 	}
@@ -494,7 +522,21 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.inPane = true
 		}
 		m.setSearch(s)
+		if did == shell.Left && m.gridded() {
+			// the terms' rows take the keyboard, as a search gives up a stage's to its rows
+			m.terms.FocusRows()
+			m.inPane = m.terms.Focused()
+		}
 		return m, nil
+	}
+	if m.gridded() && (m.inPane || m.terms.Layered()) {
+		// the terms' table takes what it answers first, a layer of its every key
+		before := m.terms.Notice()
+		took := m.terms.Key(k)
+		m.inPane = m.terms.Focused()
+		if took {
+			return m, m.fading(before)
+		}
 	}
 	switch k.String() {
 	case "=":
@@ -510,6 +552,14 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if bar, ok := m.bar().Update(k); ok {
 		m.choose(bar)
 		m.fit()
+		return m, nil
+	}
+	if m.gridded() {
+		// down or enter from the bar gives the terms' table the keyboard, on its control line
+		if key := k.String(); !m.inPane && (key == "down" || key == "enter") {
+			m.terms.Focus()
+			m.inPane = m.terms.Focused()
+		}
 		return m, nil
 	}
 	choosing := m.choosing()
@@ -559,6 +609,22 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	m.fit()
 	return m, nil
 }
+
+// termsClick gives a click to the terms' table, which then has the keyboard where it took it, and the notice it puts
+// up fades in its while.
+func (m Model) termsClick(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
+	before := m.terms.Notice()
+	if m.terms.Click(msg) {
+		m.inPane = m.terms.Focused()
+	}
+	return m, m.fading(before)
+}
+
+// fades is how long the screen waits for table.Fades: Fades, as a test waits less.
+var fades = table.Fades
+
+// fading gives the command that fades the terms' table's notice in its while, where it put one up since before.
+func (m Model) fading(before shell.Notice) tea.Cmd { return m.terms.Notice().Fading(before, fades) }
 
 // click takes a left click on the pane, on the screen line y: on a check's line, the cursor goes to that check and the
 // pane has the keyboard; on a link in the intro, the screen goes to its check; on a page, the page has the keyboard. A
@@ -644,6 +710,10 @@ func (m *Model) choose(bar tabs.Bar) {
 		m.choice = now
 	}
 	m.inPane = !bar.Focused
+	if !m.inPane || !m.gridded() {
+		// the terms' table holds no keyboard while the bar, or another step, has it
+		m.terms.Blur()
+	}
 }
 
 // up moves the cursor n rows up in a step with rows, and past its first row gives the bar the keyboard; on a page

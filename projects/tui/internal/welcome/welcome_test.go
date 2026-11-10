@@ -404,19 +404,19 @@ func TestEscGivesTheBarTheKeyboardAndNeverQuits(t *testing.T) {
 		t.Errorf("esc on the bar did something")
 	}
 	// a page takes the keyboard on down, and esc gives it back, the page still scrolled
-	m = drive(m, backTab, tea.WindowSizeMsg{Width: 120, Height: 12}, press('6'))
-	if m.step != terms || keysAt(m) != pageKeys {
+	m = drive(m, backTab, tea.WindowSizeMsg{Width: 120, Height: 12}, press('5'))
+	if m.step != land || keysAt(m) != pageKeys {
 		t.Fatalf("step %d, keys %q", m.step, keysAt(m))
 	}
-	if m = drive(m, down); !m.inPane || keysAt(m) != scrollKeys || m.offsets[terms] != 0 {
-		t.Fatalf("down on a page's bar: in the pane %v, keys %q, offset %d", m.inPane, keysAt(m), m.offsets[terms])
+	if m = drive(m, down); !m.inPane || keysAt(m) != scrollKeys || m.offsets[land] != 0 {
+		t.Fatalf("down on a page's bar: in the pane %v, keys %q, offset %d", m.inPane, keysAt(m), m.offsets[land])
 	}
-	if m = drive(m, down, esc); m.inPane || m.offsets[terms] != 1 {
-		t.Errorf("esc in a page: in the pane %v, offset %d", m.inPane, m.offsets[terms])
+	if m = drive(m, down, esc); m.inPane || m.offsets[land] != 1 {
+		t.Errorf("esc in a page: in the pane %v, offset %d", m.inPane, m.offsets[land])
 	}
 	// up at the page's top gives the bar the keyboard
-	if m = drive(m, down, up); !m.inPane || m.offsets[terms] != 0 {
-		t.Fatalf("up in a page: in the pane %v, offset %d", m.inPane, m.offsets[terms])
+	if m = drive(m, down, up); !m.inPane || m.offsets[land] != 0 {
+		t.Fatalf("up in a page: in the pane %v, offset %d", m.inPane, m.offsets[land])
 	}
 	if m = drive(m, up); m.inPane {
 		t.Errorf("up at the page's top kept the keyboard in the page")
@@ -471,7 +471,7 @@ func TestAClickOnACheckSelectsIt(t *testing.T) {
 	if m = drive(m, click(paneTop)); m.cursor != want {
 		t.Errorf("a click on the page's title moved the cursor to %d", m.cursor)
 	}
-	if m = drive(m, esc, press('6'), click(paneTop+2)); m.step != terms || !m.inPane || keysAt(m) != scrollKeys {
+	if m = drive(m, esc, press('5'), click(paneTop+2)); m.step != land || !m.inPane || keysAt(m) != scrollKeys {
 		t.Errorf("a click on a page: step %d, in the pane %v", m.step, m.inPane)
 	}
 	if m = drive(m, esc, click(0)); m.inPane {
@@ -560,13 +560,13 @@ func TestARefusalOfTheChecksShowsInRed(t *testing.T) {
 	}
 }
 func TestAPageScrollsWithWhatIsHiddenCounted(t *testing.T) {
-	m, _ := loaded(t, tea.WindowSizeMsg{Width: 120, Height: 12}, esc, press('6'))
-	if m.step != terms {
+	m, _ := loaded(t, tea.WindowSizeMsg{Width: 120, Height: 12}, esc, press('5'))
+	if m.step != land {
 		t.Fatal(m.step)
 	}
-	all := len(m.pageLines(terms))
+	all := len(m.pageLines(land))
 	pane := func() []string { return strings.Split(view(m), "\n")[4:10] }
-	if got := pane(); got[0] != "   Terms" || got[5] != "   … "+strconv.Itoa(all-5)+" more" {
+	if got := pane(); got[0] != "   The lay of the land" || got[5] != "   … "+strconv.Itoa(all-5)+" more" {
 		t.Fatalf("top:\n%s", strings.Join(got, "\n"))
 	}
 	// the first down gives the page the keyboard, the next scrolls it
@@ -574,23 +574,23 @@ func TestAPageScrollsWithWhatIsHiddenCounted(t *testing.T) {
 	if got := pane(); got[0] != "   … 1 above" || got[5] != "   … "+strconv.Itoa(all-5)+" more" {
 		t.Errorf("one down:\n%s", strings.Join(got, "\n"))
 	}
-	m = drive(m, pgdown, pgdown, pgdown, pgdown)
-	if got := pane(); !strings.HasPrefix(got[0], "   … ") || !strings.Contains(got[5], "kit flow --stages") {
+	m = drive(m, pgdown, pgdown, pgdown, pgdown, pgdown, pgdown)
+	if got := pane(); !strings.HasPrefix(got[0], "   … ") || !strings.Contains(got[5], "kit flow desk") {
 		t.Errorf("the end:\n%s", strings.Join(got, "\n"))
 	}
-	if m = drive(m, pgup, pgup, pgup, pgup, up); m.offsets[terms] != 0 {
-		t.Errorf("back to the top: offset %d", m.offsets[terms])
+	if m = drive(m, pgup, pgup, pgup, pgup, pgup, up); m.offsets[land] != 0 {
+		t.Errorf("back to the top: offset %d", m.offsets[land])
 	}
 	// end scrolls a page to its last line, and home back to its first
-	if m = drive(m, down, press(tea.KeyEnd)); !strings.Contains(pane()[5], "kit flow --stages") {
+	if m = drive(m, down, press(tea.KeyEnd)); !strings.Contains(pane()[5], "kit flow desk") {
 		t.Errorf("end:\n%s", strings.Join(pane(), "\n"))
 	}
-	if m = drive(m, press(tea.KeyHome), up); m.offsets[terms] != 0 {
-		t.Errorf("home: offset %d", m.offsets[terms])
+	if m = drive(m, press(tea.KeyHome), up); m.offsets[land] != 0 {
+		t.Errorf("home: offset %d", m.offsets[land])
 	}
 	// each step keeps its own place
 	m = drive(m, down, pgdown, esc, backTab, tabKey)
-	if m.offsets[terms] == 0 {
+	if m.offsets[land] == 0 {
 		t.Errorf("the place was lost")
 	}
 }

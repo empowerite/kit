@@ -87,16 +87,21 @@ func render(md string, width int) []string {
 	return out
 }
 
-// inline gives a paragraph's words, each drawn: `code` in the accent, **strong** bold, and a link as its text. A
-// word is what lies between spaces, so a code span with spaces in it wraps as words do.
-func inline(text string) []string {
-	text = link.ReplaceAllStringFunc(text, func(s string) string {
+// unlinked gives a text with each link in it as its text, with its URL after it when it is a web address.
+func unlinked(text string) string {
+	return link.ReplaceAllStringFunc(text, func(s string) string {
 		parts := link.FindStringSubmatch(s)
 		if strings.HasPrefix(parts[2], "http://") || strings.HasPrefix(parts[2], "https://") {
 			return parts[1] + " (" + parts[2] + ")"
 		}
 		return parts[1]
 	})
+}
+
+// inline gives a paragraph's words, each drawn: `code` in the accent, **strong** bold, and a link as its text, as
+// unlinked gives it. A word is what lies between spaces, so a code span with spaces in it wraps as words do.
+func inline(text string) []string {
+	text = unlinked(text)
 	var words []string
 	var word, frag strings.Builder
 	code, strong := false, false

@@ -1,6 +1,6 @@
 // Every step's screen at 120×30, the design width, is pinned as a golden file without its escapes; so are the intro
-// with the cursor on its second link, and the first step with checks, as its first link opens it, with its failed
-// check left for later.
+// with the cursor on its second link, the first step with checks, as its first link opens it, with its failed check
+// left for later, and the terms searched for kit flow, the rows with the keyboard.
 package welcome
 
 import (
@@ -22,9 +22,15 @@ func TestGoldenViews(t *testing.T) {
 		"setup.golden":           {tabKey, tabKey, tabKey, down},
 		"lay-of-the-land.golden": {tabKey, tabKey, tabKey, tabKey},
 		"terms.golden":           {press('6')},
+		"terms-search.golden":    searched("kit flow"),
 		"make-it-yours.golden":   {press('7')},
 	} {
 		m, _ := loaded(t, keys...)
 		testkit.Golden(t, filepath.Join("testdata", file), view(m))
 	}
+}
+
+// searched gives the keys that select the terms and search them for the text, then give their rows the keyboard.
+func searched(text string) []tea.Msg {
+	return append([]tea.Msg{press('6'), press('/')}, append(testkit.Typed(text), enter)...)
 }
