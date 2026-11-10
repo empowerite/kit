@@ -248,10 +248,13 @@ place:edited() {
 
 # place:refusals <base> <package>… reads the paths under the base that a removal would take out, one per line, and
 # judges the markers of each the packages deliver as a region, as region:remove judges them, so a removal refuses
-# before it takes anything out. region:has names each file it refuses. It prints how many it refuses.
+# before it takes anything out. region:has names each file it refuses. It prints how many it refuses, and fails,
+# printing nothing, when the paths the release delivers cannot be read.
 place:refusals() {
-  local base=$1 path src dest status refused=0
+  local base=$1 path src dest status refused=0 delivered
   shift
+  # The release's list is read before the loop, whose input loses its status, so a list that cannot be read fails.
+  delivered=$(place:delivered "${kit_root}" "${base}" "$@") || return 1
   while IFS=$'\t' read -r path src
   do
     [[ "$(place:kind "${src}" "${path}")" == region ]] || continue
@@ -259,7 +262,7 @@ place:refusals() {
     status=0
     region:has "${dest}" "$(release:target "${dest}")" || status=$?
     (( status != 2 )) || refused=$(( refused + 1 ))
-  done < <(awk -F '\t' 'NR == FNR { wanted[$0]; next } $1 in wanted' - <(place:delivered "${kit_root}" "${base}" "$@"))
+  done < <(awk -F '\t' 'NR == FNR { wanted[$0]; next } $1 in wanted' - <(printf '%s' "${delivered}${delivered:+$'\n'}"))
   printf '%s\n' "${refused}"
 }
 
@@ -273,17 +276,23 @@ place:refusals() {
 #     warns that the file was edited and leaves it as it is
 #
 # Under home, whose manifest every repository shares, it touches only paths the previous release delivered for
-# these packages, and nothing without the base release.
+# these packages, and nothing without the base release. It fails, and touches nothing, when the manifest or a
+# release's paths cannot be read.
 place:retire() {
-  local base_root=$1 base=$2 previous=$3 current=$4 path dest previous_src candidates
+  local base_root=$1 base=$2 previous=$3 current=$4 path dest previous_src candidates recorded delivered
   shift 4
-  candidates=$(LC_ALL=C comm -23 <(manifest:paths "${base}" | LC_ALL=C sort) \
-    <(place:delivered "${kit_root}" "${base}" "$@" | cut -f 1 | LC_ALL=C sort))
+  # Each list is read before comm compares them, since comm cannot see a list's status: one that cannot be read
+  # would make every recorded path a candidate.
+  recorded=$(manifest:paths "${base}" | LC_ALL=C sort) || return 1
+  delivered=$(place:delivered "${kit_root}" "${base}" "$@" | cut -f 1 | LC_ALL=C sort) || return 1
+  candidates=$(LC_ALL=C comm -23 <(printf '%s' "${recorded}${recorded:+$'\n'}") \
+    <(printf '%s' "${delivered}${delivered:+$'\n'}"))
   if [[ "${base}" != repo ]]
   then
     [[ -n "${base_root}" ]] || return 0
-    candidates=$(LC_ALL=C comm -12 <(printf '%s\n' "${candidates}" | LC_ALL=C sort) \
-      <(place:delivered "${base_root}" "${base}" "$@" | cut -f 1 | LC_ALL=C sort))
+    delivered=$(place:delivered "${base_root}" "${base}" "$@" | cut -f 1 | LC_ALL=C sort) || return 1
+    candidates=$(LC_ALL=C comm -12 <(printf '%s' "${candidates}${candidates:+$'\n'}") \
+      <(printf '%s' "${delivered}${delivered:+$'\n'}"))
   fi
   while IFS= read -r path
   do

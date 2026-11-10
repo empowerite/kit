@@ -810,6 +810,25 @@ tree-digest() {
   [ "$status" -eq 0 ]
 }
 
+@test "update retires nothing when the paths the release delivers cannot be read" {
+  "${kit_checkout}/bin/kit" install
+  local before kit_bash_modules=place
+  before=$(tree-digest)
+  # kit update runs place:retire under pipefail, as every verb does
+  run kit-bash 'set -o pipefail && place:delivered() { return 1; } && place:retire "" repo unreleased 9.9.9 kit'
+  [ "$status" -eq 1 ]
+  [[ "$output" != *"retired in"* ]]
+  [ "$(tree-digest)" = "${before}" ]
+}
+
+@test "a removal counts no refusal when the paths the release delivers cannot be read: it fails" {
+  "${kit_checkout}/bin/kit" install
+  local kit_bash_modules=place
+  run kit-bash 'set -o pipefail && place:delivered() { return 1; } && printf ".kit/1st.md\n" | place:refusals repo kit'
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+}
+
 @test "update without the base release refuses an edited file outside .kit/, names the base, and leaves the declared version" {
   later-release "${repo}.later"
   "${repo}.later/bin/kit" install agents/claude github/ci
