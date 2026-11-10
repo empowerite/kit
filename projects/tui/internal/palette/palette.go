@@ -9,7 +9,7 @@
 // first and the last verb. The right arrow trades the purposes for the highlighted verb's page beside the names, and
 // the left arrow brings them back. Enter opens the verb's form, and a form that cannot open leaves kit's line under the
 // menu bar; = or a click on the = before the screen's name drops the kit menu down, internal/shell's, as every screen
-// of kittui has it, and - or a click on the workspace menu after it drops that down; esc there does nothing and never quits; ctrl-q quits, and ctrl-c quits as interrupted. Where the
+// of kittui has it, while the search has focus too, since no verb's name holds =, and - or a click on the workspace menu after it drops that down; esc there does nothing and never quits; ctrl-q quits, and ctrl-c quits as interrupted. Where the
 // tree or the page is cut, a dim line says how many verbs or lines are hidden. The status bar is the last line. Widths
 // are terminal cells, so a two-cell glyph never pushes a row past the edge.
 package palette
@@ -257,9 +257,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.interrupted = true
 			return m, tea.Quit
 		}
-		if m.search.Focused {
+		if m.search.Focused && msg.String() != "=" {
 			// the search takes what it takes on every screen; the up arrow, the page keys, and the left and right
-			// arrows are the verbs'
+			// arrows are the verbs', and =, which no verb's name holds, is the menu's
 			s, did := m.search.Key(msg)
 			switch did {
 			case shell.Typed:
@@ -560,6 +560,7 @@ func (m Model) keys() shell.Path {
 	if m.search.Focused {
 		search := shell.SearchKeys("verbs", m.search.Query, len(m.recent.Items) > 0)
 		search.Takes = append(search.Takes, "up", "pgup", "pgdown", "left", "right")
+		search.Passes = append(search.Passes, "=")
 		return shell.Path{shell.WorkspaceScreenKeys(), search}
 	}
 	return shell.Path{shell.WorkspaceScreenKeys(), list}

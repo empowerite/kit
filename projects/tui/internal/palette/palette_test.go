@@ -260,9 +260,9 @@ func TestRightShowsThePagesAndLeftTheListAgain(t *testing.T) {
 }
 
 func TestTheKeysBarIsTheLastLineWhateverTheContent(t *testing.T) {
-	// the search's keys, which has focus and types, so the screen's are not named; then, once down gives the verbs
-	// focus, the screen's and the list's
-	const bar = " ⏎ verbs type to search"
+	// the search's keys, which has focus and types, so the screen's are not named but =, which the search passes to the
+	// menu; then, once down gives the verbs focus, the screen's and the list's
+	const bar = " = menu │ ⏎ verbs type to search"
 	const listBar = " = menu - workspace / search │ ↑↓ move ⇞⇟ page [] group → pages ⏎ open"
 	long := strings.Repeat("kit commit refuses for the test, at length; ", 8) + "run: kit help commit"
 	for _, height := range []int{30, 12, 6, 5, 4, 3, 2, 1} {
@@ -442,7 +442,7 @@ func TestARefusalShowsRedUnderTheFilterUntilTheFilterChangesOrAVerbOpens(t *test
 }
 
 // Esc gives the verbs focus, what is typed kept, and never quits, nor does it from the verbs; ctrl-q quits; ctrl-c
-// interrupts; a letter is typed in the search from the start, and so are / and =.
+// interrupts; a letter is typed in the search from the start, and so is /, while = drops the app's menu down.
 func TestEscLeavesCtrlQQuitsCtrlCInterruptsAndALetterIsTyped(t *testing.T) {
 	m, produced := drive(open(t), esc)
 	if len(produced) != 0 || m.Cancelled() || m.Interrupted() || m.search.Focused {
@@ -457,9 +457,10 @@ func TestEscLeavesCtrlQQuitsCtrlCInterruptsAndALetterIsTyped(t *testing.T) {
 		t.Errorf("ctrl-c: %v", produced)
 	}
 	m, produced = drive(open(t), testkit.Typed("q/=")...)
-	if len(produced) != 0 || m.search.Query != "q/=" || m.appMenu.Open {
-		t.Errorf("q/=: %v, search %q", produced, m.search.Query)
+	if len(produced) != 0 || m.search.Query != "q/" || !m.appMenu.Open {
+		t.Errorf("q/=: %v, search %q, menu %v", produced, m.search.Query, m.appMenu.Open)
 	}
+	m, _ = drive(m, esc)
 	// esc gives the verbs focus and keeps what is typed; a second esc does nothing more
 	m, produced = drive(m, ctrlU, testkit.Typed("con")[0], testkit.Typed("con")[1], testkit.Typed("con")[2], esc)
 	if len(produced) != 0 || m.search.Query != "con" || m.search.Focused || m.Cancelled() || names(m) != "context" {
