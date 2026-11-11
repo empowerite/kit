@@ -21,13 +21,18 @@ descriptions of its API and its configuration files the provider publishes.
 
 | Category | Providers | Selected by |
 | --- | --- | --- |
-| code forge | `github` over `gh`, `gitlab` over `glab` | the `forge` setting, else the primary remote's host |
-| tracker | `forge`, `ado` over `az boards`, `web` | the reference's prefix |
+| code forge | `github` over `gh`, `gitlab` over `glab`, `ado` over `az` | the `forge` setting, else the primary remote's host |
+| tracker | `forge`, which is Azure Boards on an `ado` forge, `ado` over `az boards`, `web` | the reference's prefix |
 | CI | the code forge's own, through the forge seam | the code forge |
 | CD | the code forge's releases, through the forge seam | the code forge |
 
 A CI or CD system that is not the code forge's own reaches kit today only through the code forge: it reports a
 commit status or a check run there, and kit reads it with the change's checks.
+
+A forge provider declares what its forge lacks, in the forge seam's contract version 2, and `kit flow
+--capabilities` prints the declaration; [architecture.md](../architecture.md#code-forges-seams-and-providers) says how
+a verb answers a call of a feature the forge lacks. [aws.md](aws.md) is the plan for AWS's developer services, which
+kit has no provider for: what each lacks, and the stand-ins a repository on AWS would configure.
 
 ## How a page reads
 

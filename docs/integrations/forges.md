@@ -354,6 +354,7 @@ AWS closed CodeCommit to new customers in July 2024 and returned it to general a
 customers can create repositories in 29 regions. See
 [AWS CodeCommit returns to general availability](https://aws.amazon.com/blogs/devops/aws-codecommit-returns-to-general-availability/)
 and the [CodeCommit document history](https://docs.aws.amazon.com/codecommit/latest/userguide/history.html).
+kit's plan for CodeCommit and AWS's other developer services is [aws.md](aws.md).
 
 ### Read from AWS CodeCommit
 
