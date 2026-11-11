@@ -95,6 +95,60 @@ JSON
   [ "$(grep -c 'pullRequests(states: MERGED' "${FAKE_DIR}/gh.calls")" -eq 1 ]
 }
 
+@test "reviews and checks given --fresh read the open changes afresh, not the snapshot of the last minute" {
+  github-world
+  reads() { grep -c 'pullRequests(states: OPEN' "${FAKE_DIR}/gh.calls"; }
+  "${kit_root}/bin/kit" changes reviews --json > /dev/null
+  "${kit_root}/bin/kit" changes checks --json > /dev/null
+  [ "$(reads)" -eq 1 ]
+  # a snapshot read in the second the stage began counts as fresh, so each fresh read begins a second later
+  sleep 1
+  run --separate-stderr "${kit_root}/bin/kit" changes reviews --json --fresh
+  [ "$status" -eq 0 ]
+  [ "$(jq '.rows | length' <<<"$output")" -eq 2 ]
+  [ "$(reads)" -eq 2 ]
+  sleep 1
+  run --separate-stderr "${kit_root}/bin/kit" changes checks --json --fresh
+  [ "$status" -eq 0 ]
+  [ "$(jq '.rows | length' <<<"$output")" -eq 2 ]
+  [ "$(reads)" -eq 3 ]
+  # merged keeps no snapshot, so it takes no --fresh
+  run --separate-stderr "${kit_root}/bin/kit" changes merged --json --fresh
+  [ "$status" -eq 2 ]
+  # over a workspace, each member reads afresh
+  mkdir -p "${BATS_TEST_TMPDIR}/code/o"
+  git -C "${BATS_TEST_TMPDIR}/r" commit --quiet --allow-empty --message one
+  git clone --quiet "${BATS_TEST_TMPDIR}/r" "${BATS_TEST_TMPDIR}/code/o/a"
+  git -C "${BATS_TEST_TMPDIR}/code/o/a" remote set-url origin https://github.com/o/a.git
+  mkdir -p "${XDG_CONFIG_HOME}/kit"
+  printf 'roots: [%s]\nworkspaces: {w: {repos: [github.com/o/a]}}\n' "${BATS_TEST_TMPDIR}/code" \
+    > "${XDG_CONFIG_HOME}/kit/workspaces.yml"
+  "${kit_root}/bin/kit" --workspace=w changes reviews --json > /dev/null
+  "${kit_root}/bin/kit" --workspace=w changes reviews --json > /dev/null
+  [ "$(reads)" -eq 4 ]
+  sleep 1
+  run --separate-stderr "${kit_root}/bin/kit" --workspace=w changes reviews --json --fresh
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '[.rows[].member] | unique' <<<"$output")" = '["github.com/o/a"]' ]
+  [ "$(reads)" -eq 5 ]
+}
+
+@test "checks on a provider that lacks check-runs, as one written to contract 3, draws none and says it lacks them" {
+  mkdir -p "${BATS_TEST_TMPDIR}/r/bash/forge"
+  git init --quiet --initial-branch=main "${BATS_TEST_TMPDIR}/r"
+  cd "${BATS_TEST_TMPDIR}/r"
+  git remote add origin https://code.example/team/example.git
+  printf 'forge: plain\nbash_path:\n  - kit:modules/bash/\n  - bash/\n' > kit.yml
+  printf '%s\n' 'forge/plain:contract() { printf "3\n"; }' 'forge/plain:require() { :; }' \
+    'forge/plain:open-prs() { printf "%s\n" "{\"number\": 3, \"title\": \"x\"}"; }' > bash/forge/plain.sh
+  run --separate-stderr "${kit_root}/bin/kit" changes checks --json
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$output" = '{"rows":[],"errors":[{"feature":"check-runs","off":true,"lacked":true}]}' ]
+  run --separate-stderr "${kit_root}/bin/kit" changes checks --text
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"check-runs is lacked by the provider of the forge here"* ]]
+}
+
 @test "merged is the changes merged last, each keyed by its number, its page the title's link" {
   github-world
   run --separate-stderr "${kit_root}/bin/kit" changes merged --json

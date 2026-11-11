@@ -30,8 +30,17 @@ declare -gA changes_elsewhere=([changes]='kit flow changes')
 apps/changes:reviews() { apps:forge reviewers open-prs review; }
 
 # apps/changes:checks prints the checks document: each open change's runs, the latest of each name, through
-# apps::check.
-apps/changes:checks() { apps:forge checks open-prs check; }
+# apps::check. A forge whose provider lacks check-runs, as one written to a contract before 4, prints no runs on its
+# changes, though it has their checks, which kit flow changes counts: the document has no rows, and check-runs off and
+# lacked under errors, which is no failure.
+apps/changes:checks() {
+  if ! forge:none && forge:lacks >/dev/null 2>&1 && forge:has checks && ! forge:has check-runs
+  then
+    printf '{"rows":[],"errors":[{"feature":"check-runs","off":true,"lacked":true}]}\n'
+    return 0
+  fi
+  apps:forge check-runs open-prs check
+}
 
 # apps/changes:merged prints the merged document, through apps::merged, as the forge's merged-prs call gives them,
 # limited when the forge holds more than it read.

@@ -5,8 +5,8 @@
     "kit changes [--text | --json | --jq]",
     "kit changes --stages",
     "kit changes --marks",
-    "kit changes reviews [--text | --json | --jq]",
-    "kit changes checks [--text | --json | --jq]",
+    "kit changes reviews [--text | --json | --jq] [--fresh]",
+    "kit changes checks [--text | --json | --jq] [--fresh]",
     "kit changes merged [--text | --json | --jq]",
     "kit changes changes [--text | --json | --jq]"
   ],
@@ -88,6 +88,20 @@
           ]
         ],
         "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "fresh",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
       }
     ],
     [
@@ -118,6 +132,20 @@
             {
               "kind": "flag",
               "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "fresh",
               "repeat": false
             }
           ]
@@ -212,11 +240,14 @@
     "--marks": {
       "description": "prints a mark per stage, as one JSON object, which changes when what the stage draws does: for each, the forge's own marks of its issues, which move with its changes, and of its runs"
     },
+    "--fresh": {
+      "description": "reviews and checks read the open changes afresh, not the snapshot of the last minute"
+    },
     "reviews": {
       "description": "{change, title, login, state, at, unresolved}, keyed by the change's number and the login: state is requested while the reviewer is asked and has not answered, else approved, changes, or commented; at is when they answered, in seconds since the epoch, null while asked and on Azure DevOps, whose votes have no time; unresolved counts the change's unresolved threads. The author's own comments are no review"
     },
     "checks": {
-      "description": "{change, title, name, verdict, at, took}, keyed by the change's number and the check's name: verdict is passed, failed, or pending; at is when the run started, in seconds since the epoch, or null; took is how long it ran, in seconds, null while it runs"
+      "description": "{change, title, name, verdict, at, took}, keyed by the change's number and the check's name: verdict is passed, failed, or pending; at is when the run started, in seconds since the epoch, or null; took is how long it ran, in seconds, null while it runs. A forge whose provider lacks check-runs, as one written to a contract before 4, has no runs on its changes: the document has no rows, and {feature: check-runs, off: true, lacked: true} under errors"
     },
     "merged": {
       "description": "{number, title, author, branch, merged, by}, keyed by its number: merged is when, in seconds since the epoch, and by who merged it; the title links to its page. Where the forge holds more, the document is limited, at how many it drew: a forge that lists them by update, as GitHub does, keeps only those merged since the oldest update it read, as one merged before may be missing"

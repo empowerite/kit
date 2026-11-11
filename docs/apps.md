@@ -74,8 +74,9 @@ or outside a repository's working tree with no workspace.
   last day, both `null` for an iteration with no dates. `current` is true for the one that holds now. The title links
   to the page of the project, the iteration, or the team's sprints. GitHub's come from the projects linked to the
   repository, none when none is linked, and need `gh`'s `read:project` scope; GitLab's include its groups', and a tier
-  without iterations is the error `{feature: iterations, off: true}`; Azure DevOps' are its team's, the team `forge_settings.ado.team`
-  in `kit.yml` names, else the project's default team. It has no mark, so kittui reads it again only on Refresh.
+  without iterations is the error `{feature: iterations, off: true}`; Azure DevOps' are its team's, the team
+  `forge_settings.ado.team` in `kit.yml` names, else the project's default team. It has no mark, so kittui reads it
+  again only on Refresh.
 
 ## Changes: kit changes
 
@@ -94,15 +95,21 @@ or outside a repository's working tree with no workspace.
   requests. GitLab reads each open merge request's approvals beside its discussions, a request each, in every read of
   the open changes: `kit flow changes`, `underway`, and `backlog` pay it as well. On GitHub, a token without
   `read:org` is refused a team asked to review; the read asks again without teams, and draws no team among them.
+  With `--fresh`, each reads the open changes afresh, as `kit flow changes --fresh` does, so kittui's Refresh on
+  either tab shows a review given within the minute.
 - `reviews` keys each row by the change's number and the reviewer's login, `3 bob`. `state` is `requested` while the
   reviewer is asked and has not answered, else the reviewer's latest review: `approved`, `changes`, or `commented`.
   `at` is when they answered, in seconds since the epoch, `null` while asked. `unresolved` is the change's unresolved
-  threads, on each of its rows. The author's own comments are no review. GitHub names a team asked by its slug, and a
-  dismissed review stands as a comment. GitLab's reviewer is `approved` with an approval, else `requested`. Azure
+  threads, on each of its rows. The author's own comments are no review. GitHub names a team asked by its slug; a
+  reviewer's latest approval or request for changes stands though they commented after it, and a dismissed review
+  stands as a comment. GitLab's reviewer is `approved` with an approval, else `requested`. Azure
   DevOps' votes 10 and 5 are `approved`, -5 and -10 `changes`, 0 `requested`, and it keeps no time of a vote.
 - `checks` keys each row by the change's number and the check's name, `3 a`. Of the runs of one name on the head
   commit, the latest by its start counts, so a rerun that passed supersedes a run that failed. `verdict` is `passed`,
-  `failed`, or `pending`; `at` is when the run started and `took` how long it ran, in seconds.
+  `failed`, or `pending`; `at` is when the run started and `took` how long it ran, in seconds. A forge whose provider
+  lacks `check-runs`, as one written to a contract before 4, prints no runs on its changes: the stage has no rows,
+  and `{feature: check-runs, off: true, lacked: true}` under `errors` says why, though `kit flow changes` counts
+  their checks.
 - `merged` keys each row by its number, and its title links to its page. `merged` is when, in seconds since the
   epoch, and `by` who merged it. GitHub reads the 50 pull requests updated last, as a merge updates one, and orders
   them by merge; GitLab orders by `merged_at`, from GitLab 17.2, and an older GitLab is read by update, as GitHub is;

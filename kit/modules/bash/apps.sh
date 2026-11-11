@@ -21,9 +21,9 @@
 # see: modules/jq/apps.jq, bin/kit-workspace, modules/bash/across.sh
 use workspaces across tui forge file
 
-# apps_forge_marks holds the forge's marks once apps:forge-mark has read them in this process, so the stages that
-# share them read the forge once.
-apps_forge_marks=''
+# apps_forge_marks holds the forge's marks of each kind apps:forge-mark has read in this process, so the stages that
+# share a kind read the forge for it once; apps_forge_served says, once read, whether the forge serves marks.
+apps_forge_marks='{}' apps_forge_served=''
 
 # apps:main <verb> <word>… is an app verb's body, after guard:arguments: --stages prints the stages; --marks a mark per
 # stage, as one JSON object, a stage with none null; <stage> with --json its document, with --jq formatted, and with
@@ -33,7 +33,7 @@ apps_forge_marks=''
 # and 1 when a stage could not be read, after what was.
 apps:main() {
   local verb=$1 workspace stage form command status=0 doc each first=true
-  local -a named=()
+  local -a named=() fresh=()
   shift
   use "apps/${verb}" || return 2
   local -n apps_main_stages="${verb}_stages"
@@ -83,9 +83,15 @@ apps:main() {
     apps:marks "${verb}" "${workspace}"
     return
   fi
+  # --fresh, where a stage takes it, reads the forge afresh, here and in each member's checkout.
+  if [[ -n "${syntax_options[--fresh]+x}" ]]
+  then
+    forge:fresh
+    fresh=(--fresh)
+  fi
   if [[ -n "${stage}" ]]
   then
-    doc=$(apps:document "${verb}" "${stage}" "${workspace}") || status=1
+    doc=$(apps:document "${verb}" "${stage}" "${workspace}" "${fresh[@]}") || status=1
     [[ -n "${doc}" ]] || return 1
     apps:shown "${form}" "${doc}"
     return "${status}"
@@ -122,28 +128,31 @@ apps:elsewhere() {
   printf '%s' "${apps_elsewhere_of[${stage}]:-}"
 }
 
-# apps:document <verb> <stage> <workspace> prints the stage's document: the repository here's, or with a workspace,
-# every member's, merged. It returns 1 when it could not be read, or a member could not, after what was read.
+# apps:document <verb> <stage> <workspace> [<word>…] prints the stage's document: the repository here's, or with a
+# workspace, every member's, merged, each member's verb given the words. It returns 1 when it could not be read, or a
+# member could not, after what was read.
 apps:document() {
   local verb=$1 stage=$2 workspace=$3
+  shift 3
   if [[ -n "${workspace}" ]]
   then
-    apps:across "${workspace}" "${stage}"
+    apps:across "${workspace}" "${stage}" "$@"
     return
   fi
   "apps/${verb}:${stage}"
 }
 
-# apps:across <workspace> <stage> runs the stage, with --json, in every cloned member's checkout at once, as
-# across:start runs kit's across_verb, and prints one document of what they printed: each row and each error tagged
-# with its member, and limited the least. A member whose document does not parse is {member, error}, its line, under
-# errors. It returns 1, after the document, when a member did not exit 0, and what across:start returns for a
-# workspace it refuses.
+# apps:across <workspace> <stage> [<word>…] runs the stage, with --json and the words, in every cloned member's
+# checkout at once, as across:start runs kit's across_verb, and prints one document of what they printed: each row and
+# each error tagged with its member, and limited the least. A member whose document does not parse is {member,
+# error}, its line, under errors. It returns 1, after the document, when a member did not exit 0, and what
+# across:start returns for a workspace it refuses.
 apps:across() {
   local workspace=$1 stage=$2 dir n=0 member doc failed=false
   local -a docs=()
+  shift 2
   file:scratch dir
-  across:start "${workspace}" "${dir}" "${stage}" --json >/dev/null || return $?
+  across:start "${workspace}" "${dir}" "${stage}" --json "$@" >/dev/null || return $?
   while [[ -f "${dir}/${n}.member" ]]
   do
     member=$(<"${dir}/${n}.member")
@@ -176,14 +185,17 @@ apps:shown() {
 }
 
 # apps:text <document> prints a stage's document as text: its rows, under each member's name where they have one, then
-# each of its errors, one line each: a feature off here, or a member that could not be read; then, for a document
-# limited at N, a line that kit read the first N and the forge holds more, whatever order the forge lists them in.
+# each of its errors, one line each: a feature the forge's provider lacks, a feature off here, or a member that could
+# not be read; then, for a document limited at N, a line that kit read the first N and the forge holds more, whatever
+# order the forge lists them in.
 apps:text() {
   jq --raw-output -L "${kit_jq}" '
     import "apps" as apps;
     (.rows | group_by(.member // "") | .[]
      | (if .[0].member then "📚 \(.[0].member)" else empty end), apps::text),
-    (.errors[] | if .off then "\(.feature) is off here\(if .member then " in \(.member)" else "" end)"
+    (.errors[] | if .lacked then "\(.feature) is lacked by the provider of the forge here\(if .member
+                                 then " in \(.member)" else "" end)"
+                 elif .off then "\(.feature) is off here\(if .member then " in \(.member)" else "" end)"
                  else "❌ \(if .member then "\(.member): " else "" end)\(.error)" end),
     (if .limited != null then "kit read the first \(.limited); the forge holds more" else empty end)' <<<"$1"
 }
@@ -297,23 +309,41 @@ apps:hash() {
 
 # apps:forge-mark <kind>… prints the forge's marks of the kinds, issues, runs, releases, milestones, deployments,
 # environments, or alerts, apart by a space, or nothing when any is null, the primary has no forge, or the forge
-# serves no marks. It returns 1, after the forge's line, when the marks cannot be read.
+# serves no marks. Each kind is read once a process, and only those a stage asks for, so a verb pays for what it
+# draws; one the forge cannot answer is null, and the others are still read. It returns 1, after the forge's line,
+# when a kind it asked for could not be read.
 apps:forge-mark() {
-  local kind
-  if [[ -z "${apps_forge_marks}" ]]
+  local kind marks status=0
+  local -a unread=()
+  if [[ -z "${apps_forge_served}" ]]
   then
+    apps_forge_served=true
     if forge:none || ! forge:serves marks 2>/dev/null
     then
-      apps_forge_marks='{}'
-    else
-      apps_forge_marks=$(forge:marks) || { apps_forge_marks=''; return 1; }
+      apps_forge_served=false
     fi
+  fi
+  [[ "${apps_forge_served}" == true ]] || return 0
+  for kind in "$@"
+  do
+    jq --exit-status --arg kind "${kind}" 'has($kind)' <<<"${apps_forge_marks}" >/dev/null || unread+=("${kind}")
+  done
+  if (( ${#unread[@]} > 0 ))
+  then
+    marks=$(forge:marks "${unread[@]}") || status=1
+    jq --exit-status 'type == "object"' <<<"${marks}" >/dev/null 2>&1 || marks='{}'
+    # A kind the forge printed nothing of is null, so it is not asked again in this process.
+    apps_forge_marks=$(jq --compact-output --argjson marks "${marks}" \
+      '. + ($ARGS.positional | map({key: ., value: null}) | from_entries) + $marks' --args "${unread[@]}" \
+      <<<"${apps_forge_marks}") || return 1
   fi
   for kind in "$@"
   do
-    jq --exit-status --arg kind "${kind}" '.[$kind] | strings' <<<"${apps_forge_marks}" >/dev/null 2>&1 || return 0
+    jq --exit-status --arg kind "${kind}" '.[$kind] | strings' <<<"${apps_forge_marks}" >/dev/null 2>&1 \
+      || return "${status}"
   done
   jq --raw-output --args '[.[$ARGS.positional[]]] | join(" ")' "$@" <<<"${apps_forge_marks}"
+  return "${status}"
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

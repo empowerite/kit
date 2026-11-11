@@ -206,4 +206,46 @@ JSON
   [ "$output" = '{"evidence":null,"findings":null,"controls":null,"waivers":null,"policy":null}' ]
 }
 
+# two-members makes the workspace w of two members under code/o: a, on GitHub, as github-world answers for it, and b,
+# on GitLab, which the fake glab, answering nothing, refuses.
+two-members() {
+  github-world
+  fake-tools glab
+  git commit --quiet --allow-empty --message one
+  mkdir -p "${BATS_TEST_TMPDIR}/code/o"
+  mv "${BATS_TEST_TMPDIR}/r" "${BATS_TEST_TMPDIR}/code/o/a"
+  git clone --quiet "${BATS_TEST_TMPDIR}/code/o/a" "${BATS_TEST_TMPDIR}/code/o/b"
+  git -C "${BATS_TEST_TMPDIR}/code/o/a" remote set-url origin https://github.com/o/a.git
+  git -C "${BATS_TEST_TMPDIR}/code/o/b" remote set-url origin https://gitlab.com/o/b.git
+  mkdir -p "${XDG_CONFIG_HOME}/kit"
+  printf 'roots: [%s]\nworkspaces: {w: {repos: [github.com/o/a, gitlab.com/o/b]}}\n' "${BATS_TEST_TMPDIR}/code" \
+    > "${XDG_CONFIG_HOME}/kit/workspaces.yml"
+  cd "${BATS_TEST_TMPDIR}"
+}
+
+@test "over a group, a member the forge refuses is its scanners' lines under errors, each with its member" {
+  two-members
+  run --separate-stderr "${kit_root}/bin/kit" --workspace=w audit findings --json
+  [ "$status" -eq 1 ]
+  # the member that answers draws its rows, each its own
+  [ "$(jq --compact-output '[.rows[] | [.member, .key]]' <<<"$output")" \
+    = '[["github.com/o/a","code-scanning 4"],["github.com/o/a","dependabot 1"]]' ]
+  # its scanner off is said as off; the refused member's three scanners each say their line
+  [ "$(jq --compact-output '[.errors[] | [.member, .feature, (.off // .error)]]' <<<"$output")" = \
+    '[["github.com/o/a","secret-scanning",true],'\
+'["gitlab.com/o/b","code-scanning","run: glab auth status (the code scanning alerts could not be read)"],'\
+'["gitlab.com/o/b","dependabot","run: glab auth status (the Dependabot alerts could not be read)"],'\
+'["gitlab.com/o/b","secret-scanning","run: glab auth status (the secret scanning alerts could not be read)"]]' ]
+}
+
+@test "an app verb's marks over a group join each member's, and name the member they could not be read of" {
+  two-members
+  run --separate-stderr "${kit_root}/bin/kit" --workspace=w issues --marks
+  [ "$status" -eq 1 ]
+  [ "$(jq --compact-output .milestones <<<"$output")" = '"W/\"m1\" null"' ]
+  [ "$(jq --compact-output '.errors' <<<"$output")" \
+    = '[{"member":"gitlab.com/o/b","error":"run: glab auth status (the milestones mark could not be read)"}]' ]
+  [[ "$stderr" == *"gitlab.com/o/b: run: glab auth status (the milestones mark could not be read)"* ]]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

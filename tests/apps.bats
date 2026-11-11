@@ -87,6 +87,26 @@ setup() {
   [ "$output" != "${before}" ]
 }
 
+@test "apps:forge-mark asks the forge for each kind once, only those asked, and one that fails leaves the others" {
+  run --separate-stderr kit-bash 'forge:marks() {
+      printf "asked %s\n" "$*" >&2
+      if [[ " $* " == *" environments "* ]]
+      then
+        error "run: gh auth status (the environments mark could not be read)"
+        jq --null-input --compact-output "[\$ARGS.positional[] | {key: ., value: (if . == \"environments\" then null
+          else . end)}] | from_entries" --args "$@"
+        return 1
+      fi
+      jq --null-input --compact-output "[\$ARGS.positional[] | {key: ., value: .}] | from_entries" --args "$@"
+    }
+    apps:forge-mark runs; printf "|"; apps:forge-mark environments runs; printf "|%s|" "$?"
+    apps:forge-mark deployments runs; printf "|"; apps:forge-mark runs'
+  [ "$status" -eq 0 ]
+  [ "$output" = $'runs\n||1|deployments runs\n|runs' ]
+  local said='❌ run: gh auth status (the environments mark could not be read)'
+  [ "$stderr" = "asked runs"$'\n'"asked environments"$'\n'"${said}"$'\n'"asked deployments" ]
+}
+
 @test "apps:forge-mark joins the forge's marks of the kinds, and is nothing when one is null or there is no forge" {
   run kit-bash 'forge:marks() { printf "%s\n" "{\"issues\":\"i\",\"runs\":\"r\",\"releases\":null}"; }
     apps:forge-mark issues runs; printf "|"; apps:forge-mark issues releases; printf "|"'

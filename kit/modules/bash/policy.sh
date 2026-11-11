@@ -132,7 +132,9 @@ policy:rules() {
 
 # policy:listed prints each rule as "<rule>\t<pattern>\t<from>", for branch, commit_subject, and change_title in that
 # order: <from> is kit.yml where the policy: map sets the rule, an empty pattern included, else default. Read as
-# fields on a tab, an empty pattern is a field of its own. It reads no facts or forge, and fails as policy:rules does.
+# fields on a tab, an empty pattern is a field of its own. It reads the kit.yml settings:file names, which is the
+# base's once policy:from-base has read it, as bin/kit-policy does with --rules on a branch past the default; it
+# judges nothing, and fails as policy:rules does.
 policy:listed() {
   local rules row key
   local -A set=()

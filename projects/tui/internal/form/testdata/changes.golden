@@ -18,7 +18,9 @@
    checks       {change, title, name, verdict, at, took}, keyed by the change's number and the
                 check's name: verdict is passed, failed, or pending; at is when the run started, in
                 seconds since the epoch, or null; took is how long it ran, in seconds, null while it
-                runs
+                runs. A forge whose provider lacks check-runs, as one written to a contract before
+                4, has no runs on its changes: the document has no rows, and {feature: check-runs,
+                off: true, lacked: true} under errors
    merged       {number, title, author, branch, merged, by}, keyed by its number: merged is when, in
                 seconds since the epoch, and by who merged it; the title links to its page. Where
                 the forge holds more, the document is limited, at how many it drew: a forge that

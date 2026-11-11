@@ -1,13 +1,13 @@
 # shellcheck shell=bash
 # issues.sh - kit issues' stages: the forge's milestones and iterations (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-# Issues is the app whose other tabs, the backlog and what is underway, are kit flow's. The two stages here ask the forge
-# through the seam of modules/bash/forge.sh, and read nothing else:
+# Issues is the app whose other tabs, the backlog and what is underway, are kit flow's. The two stages here ask the
+# forge through the seam of modules/bash/forge.sh, and read nothing else:
 #
-#   milestones    a row per milestone, open and closed, by number: its title, state, due date, and how many of its issues
-#                 are open and closed, GitLab's and GitHub's; Azure DevOps has none
-#   iterations    a row per iteration, by start: GitHub's, from the projects linked to the repository, GitLab's, with the
-#                 groups', and Azure DevOps' team's, where the iteration that holds now is current
+#   milestones    a row per milestone, open and closed, by number: its title, state, due date, and how many of its
+#                 issues are open and closed, GitLab's and GitHub's; Azure DevOps has none
+#   iterations    a row per iteration, by start: GitHub's, from the projects linked to the repository, GitLab's, with
+#                 the groups', and Azure DevOps' team's, where the iteration that holds now is current
 #
 # milestones' mark is the forge's own mark of its milestones, as the forge's marks read it; iterations has none, which
 # kittui reads again only on Refresh.
