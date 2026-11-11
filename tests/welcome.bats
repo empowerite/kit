@@ -239,7 +239,7 @@ ambient-system() {
   done
 }
 
-@test "welcome says a linter npm installed is off PATH, not missing, and names kit tools path" {
+@test "welcome holds a linter npm installed, off PATH, since kit lint looks in its directory" {
   "${kit_root}/bin/kit" install >/dev/null 2>&1
   printf '{"devDependencies": {"shellcheck": "^0.1.0"}}\n' > package.json
   printf '{"packages": {}}\n' > package-lock.json
@@ -250,7 +250,7 @@ ambient-system() {
   printf '#!/bin/sh\n' > node_modules/.bin/shellcheck && chmod +x node_modules/.bin/shellcheck
   run --separate-stderr check linter-shellcheck
   [ "$(jq --raw-output '[.ok, .line] | @tsv' <<<"$output")" = \
-    $'false\tshellcheck is installed, but not on PATH; kit tools path names its directory' ]
+    $'true\tshellcheck is installed in node_modules/.bin; kit lint runs it for .kit/rules/bash.md' ]
 }
 
 @test "welcome fixes a missing tool with kit tools install, or the system toolchain's command when ambient" {

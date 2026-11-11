@@ -102,6 +102,19 @@ dependencies:path() {
   done
 }
 
+# dependencies:installed-path prints the directory of each provider whose manifest and lock are here, one per line,
+# where that directory is on the disk. It finds no toolchain and needs no provider's tool, so a verb that runs only
+# what is already installed, as kit lint does, can call it on every run.
+dependencies:installed-path() {
+  local provider dir
+  for provider in $(dependencies:providers)
+  do
+    dependencies:locked "${provider}" || continue
+    dir=$(dependencies:call "${provider}" path)
+    [[ ! -d "${dir}" ]] || printf '%s\n' "${dir}"
+  done
+}
+
 # dependencies:installed <provider> succeeds when every package the provider pins is installed at its pinned version.
 dependencies:installed() {
   local pins

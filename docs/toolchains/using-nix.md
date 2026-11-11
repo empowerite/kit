@@ -71,11 +71,11 @@ Set `ci_toolchain: nix` under `answers:` in `kit.yml`. The workflow installs nix
 - `devShells.ci` holds the tools the gate runs, as `mise.toml` does.
 - `devShells.default` adds lefthook, as `mise.desk.toml` does. `nix develop` and kit enter it.
 - Both put `kit/bin` on `PATH` and hydrate `.kit/`.
+- Neither holds the npm tools, ajv-cli and markdownlint-cli2. `package.json` pins them for every toolchain, and
+  `kit tools install` runs `npm ci` with the shell's node.
 
 Where it differs from mise:
 
-- nixpkgs does not package ajv-cli, so the flake builds it from `.nix/ajv-cli/`, whose `package-lock.json` pins it.
-  After that lock changes, set `npmDepsHash` to `lib.fakeHash`, build, and copy in the hash nix reports.
 - The versions follow nixpkgs, so some sit a minor version off mise's pins. go is `go_1_27`, because nixpkgs' default
   `go` is older.
 - An Intel Mac is left out. nixpkgs 26.11 dropped `x86_64-darwin`.

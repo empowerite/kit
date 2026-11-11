@@ -5,7 +5,8 @@
 #   - mise.desk.toml when MISE_ENV=desk, which a desk exports in its shell profile
 #   - mise.ci.toml when MISE_ENV=ci, which the CI workflow sets
 #
-# Put a tool in the file for whoever runs it. Lefthook runs only on a desk; no tool runs only on the runner.
+# Put a tool in the file for whoever runs it. Lefthook runs only on a desk; no tool runs only on the runner. The npm
+# tools, ajv-cli and markdownlint-cli2, are pinned in package.json, which every toolchain shares.
 # `lockfile = true` records each pin's exact version in a lock file beside its file. git and bash come from the
 # machine.
 
@@ -33,9 +34,8 @@ enter = "kit hydrate --quick"
 #   jq                  reads and writes JSON: the merged .claude/settings.json, the forge's documents, kit flow
 #   just                tests/gate.bats runs a justfile ci recipe, as kit gate finds it in a repository that uses just
 #   lychee              checks every link in the markdown, offline, fragments included, in the gate
-#   ajv-cli             validates every package.yml and kit.yml against their schemas, in the gate
-#   markdownlint-cli2   the markdown style's linter, over every .md file, in kit lint and the gate
-#   node                builds and tests projects/tutorials/, the tutorials site, with npm, in the gate
+#   node                runs the npm tools package.json pins, and builds and tests projects/tutorials/, the tutorials
+#                       site, with npm, in the gate
 #   opa                 the OPA policy engine; tests/policy.bats checks it matches the patterns engine
 #   parallel            GNU parallel, which bats --jobs runs the suite's tests on; conda-forge packages it with its perl
 #   shellcheck          the bash rule's linter, over kit/, bin/, and tests/fakes/, in kit lint and the gate
@@ -49,8 +49,6 @@ jq = "1.8"
 just = "1.59"
 lychee = "0.24"
 node = "24"
-"npm:ajv-cli" = "5"
-"npm:markdownlint-cli2" = "0.24"
 opa = "1.21"
 "conda:parallel" = "20260922"
 shellcheck = "0.11"

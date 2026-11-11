@@ -150,6 +150,8 @@ top, such as markdownlint-cli2 in `package.json`. Each is a dependency provider,
   toolchain has just installed counts. A provider whose lock is here and whose tool is still not on `PATH` fails
   the run, named, before any provider installs.
 - `kit tools path`, `kit tools run`, and `kit gate` put the toolchain's directories first, then the providers'.
+- `kit lint` and `kit welcome` look in each provider's directory before `PATH`, wherever its manifest, its lock, and
+  the directory are here. They find no toolchain to do it, so a linter that `package.json` pins needs no `PATH` entry.
 - `kit tools --outdated` asks `npm outdated` and `uv pip list --outdated`. `kit tools update` installs each npm
   package behind at its latest, and runs `uv lock --upgrade`, which stays within `pyproject.toml`'s bounds.
 - `kit welcome` checks each provider whose manifest is here, at setup. Its fix is `kit tools install`.

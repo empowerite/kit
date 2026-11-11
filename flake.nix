@@ -11,8 +11,8 @@
 # Both put kit/bin on PATH and hydrate .kit/, as mise.toml's [env] and enter hook do. git and bash come from the
 # machine. Nix ignores a flake.nix git does not track, so a new file here needs `git add` before `nix develop`.
 #
-# nixpkgs does not package ajv-cli, so it is built here from .nix/ajv-cli/, whose package-lock.json pins it and its
-# dependencies.
+# The npm tools, ajv-cli and markdownlint-cli2, are pinned in package.json, which every toolchain shares; the shell
+# brings node, and kit tools install runs npm ci.
 
 {
   description = "kit: keep it trustworthy";
@@ -25,18 +25,6 @@
       systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" ];
       forEachSystem = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
 
-      ajv-cli = pkgs: pkgs.buildNpmPackage {
-        pname = "ajv-cli";
-        version = "5.0.0";
-        src = ./.nix/ajv-cli;
-        npmDepsHash = "sha256-iEYIsU4nhNk0X2khfTdfXpjktivN7Dlum5yUb9JleR0=";
-        dontNpmBuild = true;
-        postInstall = ''
-          makeWrapper ${pkgs.nodejs}/bin/node $out/bin/ajv \
-            --add-flags $out/lib/node_modules/kit-ajv-cli/node_modules/ajv-cli/dist/index.js
-        '';
-      };
-
       # Why each tool is here: see mise.toml, which says it for each.
       gate = pkgs: [
         pkgs.actionlint
@@ -46,8 +34,6 @@
         pkgs.jq
         pkgs.just
         pkgs.lychee
-        (ajv-cli pkgs)
-        pkgs.markdownlint-cli2
         pkgs.nodejs_24
         pkgs.open-policy-agent
         pkgs.parallel

@@ -298,18 +298,6 @@ url = "https://nodejs.org/dist/v24.22.2/node-v24.22.2-darwin-arm64.tar.gz"
 checksum = "sha256:d5e336d588c45be0c37dbd52cc29895593009ca4997a77a1fd02815131ed0e52"
 url = "https://nodejs.org/dist/v24.22.2/node-v24.22.2-darwin-x64.tar.gz"
 
-[[tools."npm:ajv-cli"]]
-version = "5.0.0"
-aube = { path = ".mise/locks/npm-ajv-cli/5.0.0", digest = "sha256:36d7da953aa2dac85d8e85af560d39cd2802e0b55dbc19ab9416b6ca0a1c3f9e" }
-backend = "npm:ajv-cli"
-specifiers = ["5"]
-
-[[tools."npm:markdownlint-cli2"]]
-version = "0.24.0"
-aube = { path = ".mise/locks/npm-markdownlint-cli2/0.24.0", digest = "sha256:689e86a3f956c317400e5d3bcf0915902a43dbbb8aeec7210a3aa3efb6859684" }
-backend = "npm:markdownlint-cli2"
-specifiers = ["0.24"]
-
 [[tools.opa]]
 version = "1.21.4"
 backend = "aqua:open-policy-agent/opa"

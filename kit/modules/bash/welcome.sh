@@ -293,6 +293,24 @@ welcome:tool() {
   fi
 }
 
+# welcome:linter <id> <tool> <rule> prints the check of a linter the rule names. kit lint looks in each installed
+# dependency provider's directory before PATH, so a linter there holds, wherever PATH leads.
+welcome:linter() {
+  local id=$1 tool=$2 rule=$3 dir
+  local -a dirs=()
+  # Directories kit cannot read hold no linter, so the check falls back to PATH.
+  list:read dirs dependencies:installed-path 2>/dev/null || dirs=()
+  for dir in "${dirs[@]}"
+  do
+    if [[ -n "${dir}" && -x "${dir}/${tool}" ]]
+    then
+      welcome:record "${id}" true "${tool} is installed in ${dir#"${PWD}/"}; kit lint runs it for ${rule}"
+      return 0
+    fi
+  done
+  welcome:tool "${id}" "${tool}" "kit lint runs it for ${rule}" "${rule}"
+}
+
 # welcome:bash prints the check of the bash that runs kit. The loader refuses one before 4.4, so it always holds.
 welcome:bash() {
   welcome:record tool-bash true "bash ${BASH_VERSION%%(*} runs kit; it needs 4.4 or later"
@@ -564,10 +582,7 @@ welcome:judge() {
     (toolchain-system) welcome:toolchain system ;;
     (tool-lefthook) welcome:tool tool-lefthook lefthook "it runs the git hooks" ;;
     (dependencies-*) welcome:dependencies "${id#dependencies-}" ;;
-    (linter-*)
-      welcome:tool "${id}" "${id#linter-}" "kit lint runs it for ${welcome_linter_rule[${id#linter-}]}" \
-        "${welcome_linter_rule[${id#linter-}]}"
-      ;;
+    (linter-*) welcome:linter "${id}" "${id#linter-}" "${welcome_linter_rule[${id#linter-}]}" ;;
     (forge-cli-*) welcome:forge-cli "${id#forge-cli-}" ;;
     (forge-login-*) welcome:forge-login "${id#forge-login-}" ;;
     (repo-git)

@@ -1,0 +1,9 @@
+{
+  "name": "kit",
+  "private": true,
+  "description": "The gate's npm tools, which every toolchain shares: ajv-cli validates the schemas, and markdownlint-cli2 lints the markdown; see: bin/ci",
+  "devDependencies": {
+    "ajv-cli": "5.0.0",
+    "markdownlint-cli2": "0.24.0"
+  }
+}

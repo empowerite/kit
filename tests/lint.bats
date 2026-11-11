@@ -199,4 +199,25 @@ YAML
   [[ "$output" == *"shellcheck is not on PATH"* ]]
 }
 
+@test "a linter a dependency provider installed is run from its directory, though PATH lacks it" {
+  mkdir -p "${BATS_TEST_TMPDIR}/path" node_modules/.bin
+  for tool in git bash jq yq awk sed grep sort cut paste tr find head tail cat mkdir rm mv cp dirname basename date \
+    env uname readlink comm cksum
+  do
+    p=$(command -v "${tool}") && ln -s "${p}" "${BATS_TEST_TMPDIR}/path/${tool}" || true
+  done
+  printf '{}\n' > package.json && printf '{}\n' > package-lock.json
+  printf '#!/usr/bin/env bash\necho "installed shellcheck over $#"\n' > node_modules/.bin/shellcheck
+  chmod +x node_modules/.bin/shellcheck
+  git add good.sh
+  run env PATH="${BATS_TEST_TMPDIR}/path" "${kit_checkout}/bin/kit" lint
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"installed shellcheck over"* ]]
+  # a lock with no manifest pins nothing, so its directory is not looked in
+  rm package.json
+  run env PATH="${BATS_TEST_TMPDIR}/path" "${kit_checkout}/bin/kit" lint
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"shellcheck is not on PATH"* ]]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

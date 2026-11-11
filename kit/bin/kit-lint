@@ -14,8 +14,8 @@
 # file is matched to the rules of its kinds, as kit context matches. The rules of the kinds a kind embeds are left
 # out, so no linter runs over a file it cannot parse. Then, for each rule:
 #
-#   - a `lint:` command in the rule's frontmatter runs once over all the rule's files; a linter that is not on PATH
-#     is a failure, not a skip
+#   - a `lint:` command in the rule's frontmatter runs once over all the rule's files; a linter that is neither in an
+#     installed dependency provider's directory nor on PATH is a failure, not a skip
 #   - each name under `checks:` in the frontmatter runs one of the kit's own checks over the rule's files
 #   - when the rule has templates, each file must have the shape of one of them
 #
@@ -40,9 +40,13 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use context lint template yaml materialize
+use context dependencies lint template yaml materialize
 guard:arguments lint "$@" || exit $?
 materialize:hydrate
+
+# A linter a dependency provider installed, such as markdownlint-cli2 from package.json, is found in its directory.
+installed=$(dependencies:installed-path | paste -s -d ':' -)
+[[ -z "${installed}" ]] || PATH="${installed}:${PATH}"
 
 all=false
 paths=()
