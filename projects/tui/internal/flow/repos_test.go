@@ -57,7 +57,7 @@ func TestReposIsRepositoriesFirstTabAndNotIssues(t *testing.T) {
 	for _, s := range m.stages {
 		names = append(names, s.name)
 	}
-	if got := strings.Join(names, " "); got != "backlog planned/iterations planned/milestones" {
+	if got := strings.Join(names, " "); got != "backlog issues/milestones issues/iterations" {
 		t.Errorf("Issues opens %q", got)
 	}
 	m.Close()

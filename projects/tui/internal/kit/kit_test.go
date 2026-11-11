@@ -517,7 +517,8 @@ func TestARunnerWithNoGroupReadsWithWorkspaceNone(t *testing.T) {
 	}
 }
 
-// The rate limits and the marks over a group are the group's, as every read of kit flow is.
+// The rate limits and the marks over a group are the group's, as every read of kit flow is; a null mark is an empty
+// one.
 func TestAGroupsQuotaAndMarksCarryTheWorkspace(t *testing.T) {
 	t.Setenv("FAKE_KIT_POLLS", "1")
 	r := fake(t, "")
@@ -528,7 +529,7 @@ func TestAGroupsQuotaAndMarksCarryTheWorkspace(t *testing.T) {
 		t.Errorf("Quota over w: %v, %+v", err, quotas)
 	}
 	marks, err := r.Marks(ctx)
-	if _, desk := marks["desk"]; err != nil || marks["backlog"] != "--workspace w" || desk {
+	if desk, ok := marks["desk"]; err != nil || marks["backlog"] != "--workspace w" || !ok || desk != "" {
 		t.Errorf("Marks over w: %v, %+v", err, marks)
 	}
 	r.Group = ""
@@ -556,7 +557,8 @@ func TestAStageThatPrintsItsDocumentAndExitsOneIsItsDocument(t *testing.T) {
 	if out, err := r.Status(ctx, "incoming", nil); err != nil || !strings.Contains(string(out), "fatal: no route") {
 		t.Fatalf("Status = %q, %v", out, err)
 	}
-	if marks, err := script(t, `echo '{"desk": "1", "changes": null}'; exit 1`).Marks(ctx); marks["desk"] != "1" {
+	if marks, err := script(t, `echo '{"desk": "1", "changes": null}'; exit 1`).Marks(ctx); marks["desk"] != "1" ||
+		len(marks) != 2 || marks["changes"] != "" {
 		t.Errorf("Marks = %v, %v", marks, err)
 	}
 }

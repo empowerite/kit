@@ -4,7 +4,9 @@
 # The syntax answers come from the syntax package's fixtures, and --list names a few verbs with their purposes and
 # groups as the kit prints them; help is a fixed page; flow --stages names two stages, flow --me prints ada, another
 # flag of flow is refused, and a stage echoes its words as JSON, after sleeping FAKE_KIT_SLEEP seconds when it is set, with the sleep's pid written to the
-# file FAKE_KIT_RECORD names; workspace --stages names two stages, and a stage answers with no rows; root prints a fixed directory, and welcome --checks the welcome screen's fixture; any
+# file FAKE_KIT_RECORD names; workspace --stages names two stages, each other app verb's --stages its own, as kit
+# audit's five, and a stage of theirs answers with no rows; root prints a fixed directory, and welcome --checks the
+# welcome screen's fixture; any
 # other verb's arguments and working directory, welcome --fix's too, are written to that file, for the exec test to
 # read. Every syntax answer about the verb FAKE_KIT_REFUSE names (its grammar, choices, extension, and match) is a
 # refusal instead, as the kit prints one, with exit 2. The grammar of the verb FAKE_KIT_UNPARSED names carries a usage
@@ -178,15 +180,25 @@ case "${1:-}" in
       printf '{"stage": "%s", "args": "%s"}\n' "$1" "${*:2}"
     fi
     ;;
-  (workspace)
-    # --stages names two stages, a stage answers with no rows, and every other flag is refused, as flow's are
+  (workspace | issues | changes | delivery | people | audit | platform)
+    # workspace --stages names two stages, and each other app verb's its own; a stage answers with no rows, and every
+    # other flag is refused, as flow's are
+    verb=$1
     shift
     if [[ "${1:-}" == --stages ]]
     then
-      printf 'remotes\nbranches\n'
+      case "${verb}" in
+        (workspace) printf 'remotes\nbranches\n' ;;
+        (issues) printf 'milestones\niterations\n' ;;
+        (changes) printf 'reviews\nchecks\nmerged\n' ;;
+        (delivery) printf 'artifacts\nenvironments\ndeployments\n' ;;
+        (people) printf 'people\nteams\nagents\n' ;;
+        (audit) printf 'evidence\nfindings\ncontrols\nwaivers\npolicy\n' ;;
+        (platform) printf 'services\ntoolchains\ntools\nsettings\n' ;;
+      esac
     elif [[ "${1:-}" == --* ]]
     then
-      echo "❌ kit workspace: the fake does not answer $1; run: kit help workspace" >&2
+      echo "❌ kit ${verb}: the fake does not answer $1; run: kit help ${verb}" >&2
       exit 1
     else
       printf '{"rows": [], "errors": []}\n'

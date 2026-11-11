@@ -282,8 +282,9 @@ func (r Runner) Quota(ctx context.Context) ([]Quota, error) {
 }
 
 // Marks asks kit for a mark per stage, as kit flow --marks prints them, by the stage's name: a text that changes when
-// what the stage draws does; a stage kit cannot read a mark of, null where kit exits 1 as the forge cannot answer, has
-// none, and the marks kit read beside it are kept, as partial says. ctx ends it with the screen.
+// what the stage draws does; a stage kit prints null for, as one kit cannot read a mark of where kit exits 1 as the
+// forge cannot answer, or one that has none, has an empty one, and the marks kit read beside it are kept, as partial
+// says. ctx ends it with the screen.
 func (r Runner) Marks(ctx context.Context) (map[string]string, error) { return r.MarksOf(ctx, "flow") }
 
 // MarksOf asks kit for a mark per stage of a verb's picture, kit flow's or kit workspace's, as <verb> --marks prints
@@ -300,13 +301,11 @@ func (r Runner) MarksOf(ctx context.Context, verb string) (map[string]string, er
 	delete(marks, "errors")
 	kept := map[string]string{}
 	for stage, raw := range marks {
-		var mark *string
+		var mark string // null leaves it empty
 		if err := json.Unmarshal(raw, &mark); err != nil {
 			return nil, fmt.Errorf("kit %s --marks: %s: %w", verb, stage, err)
 		}
-		if mark != nil {
-			kept[stage] = *mark
-		}
+		kept[stage] = mark
 	}
 	return kept, nil
 }

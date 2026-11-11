@@ -1,0 +1,4 @@
+{"rows": [
+  {"key": "branch", "rule": "branch", "pattern": "^[a-z0-9]+-[a-z0-9][a-z0-9-]*$", "from": "default", "engine": "opa", "links": {}},
+  {"key": "commit_subject", "rule": "commit_subject", "pattern": "", "from": "kit.yml", "engine": "opa", "links": {}}
+], "errors": []}

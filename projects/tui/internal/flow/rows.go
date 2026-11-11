@@ -353,16 +353,40 @@ func (m Model) records(s stage) []record {
 	return out
 }
 
-// failures gives a line for each member whose read of the stage failed, over a group: ❌, the member's short name, and
-// kit's line, in red, an aside, as a remote whose fetch failed is, which a filter keeps, so a member filtered to shows
-// why it has no rows.
+// failures gives a line for each part of the stage kit could not read, as its errors name it: ❌, over a group the
+// member's short name, and kit's line, in red, as a member whose read failed, or a feature the forge refused, as one
+// scanner of the waivers'; then, dim, each feature the forge has off here, as offText says it, which is no failure.
+// Each is an aside, as a remote whose fetch failed is, which a filter keeps, so a member filtered to shows why it has
+// no rows.
 func (m Model) failures(s stage) []row {
 	var out []row
+	for k, f := range s.failed {
+		if f.Off {
+			continue
+		}
+		text := Failed + " " + f.Error
+		if f.Member != "" {
+			text = Failed + " " + m.short(f.Member) + ": " + f.Error
+		}
+		out = append(out, row{Key: m.keyOf(f.Member, "failed "+strconv.Itoa(k)), Cells: span(style.Refusal(text)),
+			Aside: true, Lone: true})
+	}
 	for _, f := range s.failed {
-		out = append(out, row{Key: m.keyOf(f.Member, "failed"),
-			Cells: span(style.Refusal(Failed + " " + m.short(f.Member) + ": " + f.Error)), Aside: true, Lone: true})
+		if f.Off {
+			out = append(out, row{Key: m.keyOf(f.Member, "off "+f.Feature), Cells: span(style.Off(m.offText(f))),
+				Aside: true, Lone: true})
+		}
 	}
 	return out
+}
+
+// offText says a feature the forge has off here, as kit's text does: secret-scanning is off here, and over a group,
+// after in, the member's short name.
+func (m Model) offText(f failure) string {
+	if f.Member == "" {
+		return f.Feature + " is off here"
+	}
+	return f.Feature + " is off here in " + m.short(f.Member)
 }
 
 // keyOf gives a row's key: the stage's own over a repository, and after the row's member over a group, so the rows of

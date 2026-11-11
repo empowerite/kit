@@ -178,14 +178,12 @@ func (m Model) menuBar() shell.MenuBar {
 	return b
 }
 
-// count gives a stage's count for its tab: nothing for one planned, … while it loads, ! when its command failed, else
-// the rows it loaded but the asides, however few the panel lets through, and, for incoming, but its remotes' own rows,
-// so a fetch that brought nothing counts none.
+// count gives a stage's count for its tab: … while it loads, ! when its command failed, else the rows it loaded but
+// the asides, however few the panel lets through, and, for incoming, but its remotes' own rows, so a fetch that brought
+// nothing counts none; after a +, where kit read those of more the forge holds, as the document's limited says.
 func (m Model) count(i int) string {
 	s := m.stages[i]
 	switch {
-	case s.planned:
-		return ""
 	case s.src.Loading:
 		return "…"
 	case s.refusal != "":
@@ -200,18 +198,28 @@ func (m Model) count(i int) string {
 		}
 		return strconv.Itoa(n)
 	}
-	return strconv.Itoa(m.shown(i).all)
+	return strconv.Itoa(m.shown(i).all) + m.capped(i)
+}
+
+// capped gives what a stage's count ends with: + where kit read only some of the rows the forge holds, as the
+// document's limited says, so the tab counts those it drew and more; nothing else.
+func (m Model) capped(i int) string {
+	if m.stages[i].limited > 0 {
+		return "+"
+	}
+	return ""
 }
 
 // incomingKind is the field incoming's count reads its rows' kinds from.
 var incomingKind = table.Field{ID: "kind", Path: ".kind"}
 
-// reserve gives the cells a stage's count is laid out for: the count's, or one while it loads or after a refusal.
+// reserve gives the cells a stage's count is laid out for: the count's, its + among them, or one while it loads or
+// after a refusal.
 func (m Model) reserve(i int) int {
 	if m.stages[i].src.Loading || m.stages[i].refusal != "" {
 		return 1
 	}
-	return len(strconv.Itoa(m.shown(i).all))
+	return len(strconv.Itoa(m.shown(i).all) + m.capped(i))
 }
 
 // names gives the labels of a stage's columns that its panel shows, in its order, as table.HeaderNames gives them;
@@ -245,7 +253,7 @@ func (m Model) headerLines() (lines []string, hides bool) {
 	if len(m.stages) == 0 {
 		return nil, false
 	}
-	if s := m.stages[m.stage]; !m.noHeaders && !s.src.Loading && s.refusal == "" && !s.planned {
+	if s := m.stages[m.stage]; !m.noHeaders && !s.src.Loading && s.refusal == "" {
 		lines, hides = table.Headed(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), s.Shift, m.indent(m.stage),
 			s.Open[table.HeaderKey])
 	}
@@ -300,14 +308,12 @@ func (m Model) pane() []string {
 	return out
 }
 
-// allLines gives a stage's lines: the dim line of one planned, loading, kit's line when it failed, the dim line of an
-// empty stage, or of one whose panel lets no row through, or its rows as the grid draws them, the one under the cursor
-// on a band while the rows have the keyboard.
+// allLines gives a stage's lines: loading, kit's line when it failed, the dim line of an empty stage, then, dim, each
+// feature the forge has off here, where kit said so, or the dim line of one whose panel lets no row through, or its
+// rows as the grid draws them, the one under the cursor on a band while the rows have the keyboard.
 func (m Model) allLines(i int) []table.Line {
 	s := m.stages[i]
 	switch {
-	case s.planned:
-		return []table.Line{{Row: -1, Text: lead + style.Off(label(s.name)+" has no data source yet")}}
 	case s.src.Loading:
 		return []table.Line{{Row: -1, Text: lead + style.Off("loading")}}
 	case s.refusal != "":
@@ -319,6 +325,13 @@ func (m Model) allLines(i int) []table.Line {
 	}
 	rows := m.rows(i)
 	switch p := m.panel(i); {
+	case len(s.parsed) == 0 && len(s.failed) > 0 && !s.failing():
+		// nothing but features off here: the empty line, and what is off under it, in place of the asides' rows
+		out := []table.Line{{Row: -1, Text: lead + style.Off(empty(s))}}
+		for _, f := range s.failed {
+			out = append(out, table.Line{Row: -1, Text: lead + style.Off(m.offText(f))})
+		}
+		return out
 	case len(rows) > 0:
 	case p.Query != "" || p.Filtering():
 		return []table.Line{{Row: -1, Text: lead + style.Off("no row matches the panel")}}

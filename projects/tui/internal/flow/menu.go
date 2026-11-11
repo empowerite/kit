@@ -129,8 +129,10 @@ func (m Model) enabled(k int) bool {
 	switch m.tabItems()[k].Name {
 	case "Maximize", "Restore":
 		return true
-	case "Refresh", WatchIt, StopIt:
+	case "Refresh", StopIt:
 		return sourced(s.name)
+	case WatchIt:
+		return m.watchable(m.stage)
 	case "Open Selected":
 		return len(m.pages()) > 0
 	case "Select All":
@@ -198,6 +200,7 @@ func (m Model) pages() []string {
 // that shares kit's one read of the open issues and pull requests, every stage in the picture that shares it, so they
 // stay one snapshot.
 func (m *Model) refresh(name string) tea.Cmd {
+	// a stage that takes fresh is one that shares kit's one snapshot: kit flow's are the only ones that take it
 	if !takes(name, "fresh") {
 		return m.restart(name)
 	}

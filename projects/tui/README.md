@@ -19,7 +19,13 @@ It has six screens:
   so their fields and presets stay apart from another verb's stage of the same name. A stage's rows are drawn from the
   catalog alone: kit prints each row's values by the field's id, and where a value leads, a page on the forge or a row
   of another tab, so a stage needs no Go of its own. It reads no forge, so it spends no rate limit, and a tab is stale,
-  its dot lit, when `kit workspace --marks` moves.
+  its dot lit, when `kit workspace --marks` moves. The other apps are the same screen: `kit issues`, `kit changes`,
+  `kit delivery`, `kit people`, `kit audit`, and `kit platform` at a terminal open Issues, Changes, Delivery, People,
+  Trust, and Platform, each on its verb's stages beside kit flow's, which kittui knows after the verb, as
+  `audit/findings`, each drawn from the catalog as kit workspace's are. A tab of a stage that reads the forge reads
+  the rate limits again as it loads. A tab kit read only part of, as a capped list, counts what it drew with a +,
+  `50+`; a feature the forge has off here, as secret scanning, says so, dim, under the rows, and is no failure; and a
+  tab whose mark is null, as People's, is never stale, so its Watch is dim.
 - **The welcome guide.** `kit welcome` at a terminal walks its steps here, and bare `kit` opens it too.
 - **The tutorials.** `kit tutorials` at a terminal shows a card for each tutorial here, tabbed by audience.
 

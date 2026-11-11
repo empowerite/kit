@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# fake-kit - stands in for kit in the flow tests: answers flow, workspace, and packages, as their stages (test helper)
+# fake-kit - stands in for kit in the flow tests: answers flow and the app verbs, as their stages (test helper)
 # ----------------------------------------------------------------------------------------------------------------------
 # Each stage's JSON is the fixture beside this file, <stage>.json. FAKE_FLOW_CALLS names a file every call's words
 # are appended to, one line each, so a test reads the order the stages ran in; FAKE_FLOW_DIRS names one each call's
@@ -25,8 +25,11 @@
 # exit 1 without one. packages --stages prints kit packages' one stage, packages <stage> --json prints
 # packages-<stage>.json beside this file, or refuses with exit 1 where FAKE_FLOW_REFUSE names packages/<stage>;
 # packages --marks prints FAKE_PACKAGES_MARKS, as workspace --marks does; and packages select, add, and remove say what
-# they were asked on stderr, or refuse with exit 1 where FAKE_FLOW_REFUSE names packages <verb>. A
-# --workspace=<workspace> before the verb is handed to the verb's words, and one after it is refused.
+# they were asked on stderr, or refuse with exit 1 where FAKE_FLOW_REFUSE names packages <verb>. The app verbs, issues,
+# changes, delivery, people, audit, and platform, answer as kit packages does: --stages prints the verb's stages,
+# <stage> --json prints <verb>-<stage>.json beside this file, or refuses with exit 1 where FAKE_FLOW_REFUSE names
+# <verb>/<stage>, and --marks prints the file FAKE_<VERB>_MARKS names, as FAKE_PEOPLE_MARKS, and refuses with exit 1
+# without one. A --workspace=<workspace> before the verb is handed to the verb's words, and one after it is refused.
 
 set -o errexit -o nounset -o pipefail
 
@@ -129,6 +132,37 @@ then
         exit 1
       fi
       cat "${here}/packages-${2:-}.json"
+  esac
+  exit 0
+fi
+
+declare -A app_stages=([issues]="milestones iterations" [changes]="reviews checks merged"
+  [delivery]="artifacts environments deployments" [people]="people teams agents"
+  [audit]="evidence findings controls waivers policy" [platform]="services toolchains tools settings")
+if [[ -n "${app_stages[${1:-flow}]:-}" ]]
+then
+  verb=$1
+  case "${2:-}" in
+    (--stages)
+      read -r -a stages <<<"${app_stages[${verb}]}"
+      printf '%s\n' "${stages[@]}"
+      ;;
+    (--marks)
+      marks="FAKE_${verb^^}_MARKS"
+      if [[ -z "${!marks:-}" || ! -f "${!marks}" ]]
+      then
+        echo "❌ kit ${verb}: the marks cannot be read; run: kit help ${verb}" >&2
+        exit 1
+      fi
+      cat "${!marks}"
+      ;;
+    (*)
+      if [[ "${FAKE_FLOW_REFUSE:-}" == "${verb}/${2:-}" ]]
+      then
+        echo "❌ kit ${verb} ${2:-} refuses for the test; run: kit help ${verb}" >&2
+        exit 1
+      fi
+      cat "${here}/${verb}-${2:-}.json"
   esac
   exit 0
 fi

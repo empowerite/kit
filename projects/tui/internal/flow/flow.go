@@ -54,10 +54,14 @@ type Options struct {
 	Clock     source.Clock // what the screen's waits go through: the program's, where none is given
 }
 
-// failure is a member whose read of a stage failed, over a group: its host and path, and kit's line.
+// failure is what kit could not read of a stage, as its document's errors name it: over a group, the member, its host
+// and path; and kit's line, or, for a feature the forge has off here, as secret scanning disabled, the feature and off,
+// which is no failure.
 type failure struct {
-	Member string `json:"member"`
-	Error  string `json:"error"`
+	Member  string `json:"member"`
+	Error   string `json:"error"`
+	Feature string `json:"feature"`
+	Off     bool   `json:"off"`
 }
 
 // stage is one stage of the picture: its name, as kittui knows it, kit flow's own and kit workspace's after workspace/,
@@ -66,11 +70,11 @@ type stage struct {
 	name    string
 	src     source.Load[[]byte] // its read, its catalog entry's command: loading, stale, its mark, and Watch
 	refusal string              // kit's line, when the command failed
-	planned bool                // whether kit has no data source for the stage yet, so it loads nothing
 	rows    []json.RawMessage   // its records, as its catalog entry reads them, each its own bytes
 	parsed  []parsed            // its records as decode read them, once each, one a record
 	typed   any                 // its records as Go holds them, for a stage whose rows Go builds, as builders says
-	failed  []failure           // over a group, the members whose read of the stage failed
+	failed  []failure           // what kit could not read of it: over a group, the members, and the features off here
+	limited int                 // how many rows kit read of more the forge holds, as a capped read says; none, all
 	// its table's state: the panel, the view, the outline, the rows selected, and where the cursor is
 	table.Table
 }
@@ -121,12 +125,8 @@ func verbOf(name string) (verb, stage string) {
 // workspaceVerb is kit workspace's verb, whose stages kittui knows after it and a slash.
 const workspaceVerb = "workspace"
 
-// appVerbs are the verbs besides kit flow that open an app of their own, as AppOf takes them: kit workspace's, and
-// kit packages'.
-var appVerbs = []string{workspaceVerb, packagesVerb}
-
-// label gives the name a stage goes by, as kit names it, on its tab and in what the screen says of it: kit
-// workspace's without workspace/, and one planned without planned/.
+// label gives the name a stage goes by, as kit names it, on its tab and in what the screen says of it: kit flow's as
+// it is, and another verb's without the verb and a slash, as workspace/branches is branches.
 func label(name string) string {
 	if _, after, ok := strings.Cut(name, "/"); ok {
 		return after
@@ -271,10 +271,7 @@ func New(r kit.Runner, o Options) Model {
 	for _, name := range o.Stages {
 		s := stage{name: name, src: m.stageLoad(name),
 			Table: table.Table{Open: grid.Outline{}, Picked: map[string]bool{}, ViewName: Opening, Grouping: true}}
-		switch {
-		case ofPlanned(name):
-			s.src.Loading, s.planned = false, true
-		case !sourced(name):
+		if !sourced(name) {
 			s.src.Loading, s.refusal = false, fmt.Sprintf("kittui does not draw the stage '%s'", label(name))
 		}
 		if c := catalog[name]; c != nil {
@@ -305,9 +302,9 @@ func (m Model) Close() { m.cancel() }
 func (m Model) env() source.Env { return source.Env{Ctx: m.ctx, Limit: m.limit, Clock: m.clock} }
 
 // Update takes a message, as update does; then a name typed for Save As… or Rename… on a preset line that no longer
-// has the keyboard is dropped, so the line does not come back to it; a stage that loaded has the rate limits read
-// again; and a notice that says what was done, new, goes after Fades, unless a key or another notice took its place
-// first.
+// has the keyboard is dropped, so the line does not come back to it; a stage that loaded has the marks read again, and
+// the rate limits, where it reads the forge; and a notice that says what was done, new, goes after Fades, unless a key
+// or another notice took its place first.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if f, ok := msg.(shell.FadedMsg); ok {
 		m.note = m.note.Faded(f)
@@ -316,10 +313,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	next, cmd := m.update(msg)
 	n := next.(Model)
 	if a, ok := msg.(source.Answer[[]byte]); ok && !a.Kept {
-		// a load spends the rate limits, and the stage takes the next mark as its own: both are read again; a load
-		// of a command that is not kit flow's, as kit workspace's and kit packages', reads no forge, so spends none
+		// the stage takes the next mark as its own, so the marks are read again; a load of a command that reads the
+		// forge, as its catalog entry's forge says, spends the rate limits, which are read again too; one that reads
+		// none, as kit workspace's, spends none
 		cmd = tea.Batch(cmd, n.marks.Ask(n.env()))
-		if c := commandOf(a.Name); len(c) > 0 && c[0] == "flow" {
+		if c := catalog[a.Name]; c != nil && c.Forge {
 			cmd = tea.Batch(cmd, n.quota.Ask(n.env()))
 		}
 	}
@@ -965,7 +963,7 @@ func (m *Model) restart(name string) tea.Cmd {
 		return cmd
 	}
 	s.src.Loading, s.refusal = true, ""
-	s.rows, s.parsed, s.typed, s.failed = nil, nil, nil, nil
+	s.rows, s.parsed, s.typed, s.failed, s.limited = nil, nil, nil, nil, 0
 	m.rebuild()
 	return cmd
 }
@@ -1039,9 +1037,10 @@ func (m *Model) autoGroup(name string) {
 // its records are read from it, each taking its member. Each record is decoded once, as parsed holds it. A refusal,
 // named with the command: a document of another shape, as nothing, null, or an array where an object is expected; a
 // record without its key, as the key's paths read it; two records of one key; and a record whose member or links are
-// not what kit prints them as. Then the members whose read failed, in the document's errors, and, for a stage whose
-// rows Go builds, the records as Go holds them, as builders decodes them. Each replaces what the stage held whole; a
-// refusal leaves it as it was.
+// not what kit prints them as. Then what kit could not read, in the document's errors: the members whose read failed,
+// and the features the forge has off here; how many rows kit read of more, where the document is limited; and, for a
+// stage whose rows Go builds, the records as Go holds them, as builders decodes them. Each replaces what the stage held
+// whole; a refusal leaves it as it was.
 func (s *stage) decode(data []byte, over bool) error {
 	c := catalog[s.name]
 	if c == nil {
@@ -1087,7 +1086,8 @@ func (s *stage) decode(data []byte, over bool) error {
 			return fmt.Errorf("%s: %w", command(s.name), err)
 		}
 	}
-	s.rows, s.parsed, s.typed, s.failed = rows, all, typed, failedIn(data)
+	s.rows, s.parsed, s.typed = rows, all, typed
+	s.failed, s.limited = failedIn(data)
 	return nil
 }
 
@@ -1150,16 +1150,25 @@ func membersRecords(rows []json.RawMessage, record string) []json.RawMessage {
 	return out
 }
 
-// failedIn gives the members whose read failed, as a document that is an object names them under errors, each with
-// kit's line; none for another document.
-func failedIn(data []byte) []failure {
+// failedIn gives what kit could not read, as a document that is an object names it under errors: each member whose
+// read failed, with kit's line, and each feature the forge has off here, over a group with its member; and how many
+// rows kit read where the forge holds more, as the document's limited says. A document of another shape has neither,
+// and an entry that says neither is dropped.
+func failedIn(data []byte) (failed []failure, limited int) {
 	var doc struct {
-		Errors []failure `json:"errors"`
+		Errors  []failure `json:"errors"`
+		Limited int       `json:"limited"`
 	}
 	if json.Unmarshal(data, &doc) != nil {
-		return nil
+		return nil, 0
 	}
-	return slices.DeleteFunc(doc.Errors, func(f failure) bool { return f.Error == "" })
+	return slices.DeleteFunc(doc.Errors, func(f failure) bool { return f.Error == "" && !f.Off }), doc.Limited
+}
+
+// failing says whether kit could not read a part of a stage: a member whose read failed, as its errors say, beside
+// any feature off here, which is no failure.
+func (s stage) failing() bool {
+	return slices.ContainsFunc(s.failed, func(f failure) bool { return !f.Off })
 }
 
 // refusalOf gives a stage's refusal from its error: that the stage took longer than the deadline and the menu's
@@ -1267,13 +1276,26 @@ func (m Model) rowLine(k int) int {
 	return -1
 }
 
+// stageOf gives the stage a link leads to, from the link's text after kittui:, as jump reads it: the stage whose name
+// and a slash it starts with, the longest where two do, as changes/reviews/3 bob is changes/reviews's, not changes';
+// -1 for none.
+func (m Model) stageOf(to string) int {
+	at := -1
+	for i, s := range m.stages {
+		if strings.HasPrefix(to, s.name+"/") && (at < 0 || len(s.name) > len(m.stages[at].name)) {
+			at = i
+		}
+	}
+	return at
+}
+
 // jump follows a link to a row of another stage, from the link's text after kittui:, the stage's name, a slash, and
 // the row's key: the stage is selected, its rows have the keyboard, and the cursor is on the row, or where it was when
 // the panel hides the row. A stage's name may hold a slash, as kit workspace's do, so the stage is the one the link
-// starts with. A row its stage has not loaded yet is under the cursor once it loads. A stage this app does not draw is
-// another app's: the jump gives the command that asks kittui for that app, at that row.
+// starts with, as stageOf finds it. A row its stage has not loaded yet is under the cursor once it loads. A stage this
+// app does not draw is another app's: the jump gives the command that asks kittui for that app, at that row.
 func (m *Model) jump(to string) tea.Cmd {
-	i := slices.IndexFunc(m.stages, func(s stage) bool { return strings.HasPrefix(to, s.name+"/") })
+	i := m.stageOf(to)
 	if i < 0 {
 		if app := appWith(to); app != "" && app != m.app {
 			return func() tea.Msg { return shell.JumpMsg{Screen: app, To: to} }
@@ -1290,11 +1312,11 @@ func (m *Model) jump(to string) tea.Cmd {
 // land puts the row a jump waits for under the cursor, once the stage named has it. The jump is done then, or once
 // the stage's load is done, with the row or without it; it waits while the stage loads, or shows what kit kept.
 func (m *Model) land(name string, done bool) {
-	key, ok := strings.CutPrefix(m.landing, name+"/")
-	i := slices.IndexFunc(m.stages, func(s stage) bool { return s.name == name })
-	if !ok || i < 0 {
+	i := m.stageOf(m.landing)
+	if i < 0 || m.stages[i].name != name {
 		return
 	}
+	key := strings.TrimPrefix(m.landing, name+"/")
 	if k := slices.IndexFunc(m.rows(i), func(r row) bool { return r.Key == key }); k >= 0 {
 		m.stages[i].Cursor, done = k, true
 	}

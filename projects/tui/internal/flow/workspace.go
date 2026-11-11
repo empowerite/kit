@@ -27,6 +27,7 @@ func (m Model) catalogRows(s stage) []record {
 	for _, f := range fields {
 		named[f.ID] = true
 	}
+	verb, _ := verbOf(s.name)
 	out := make([]record, 0, len(s.parsed))
 	for _, p := range s.parsed {
 		rec := record{row{Key: m.keyOf(p.member, p.key)}, make(map[string]table.Value, len(fields))}
@@ -41,7 +42,7 @@ func (m Model) catalogRows(s stage) []record {
 				continue
 			}
 			v := f.ReadFrom(p.value)
-			m.linkValue(&v, p.links[f.ID], p.member)
+			m.linkValue(&v, verb, p.links[f.ID], p.member)
 			rec.values[f.ID] = v
 		}
 		out = append(out, rec)
@@ -68,16 +69,16 @@ func otherValues(values map[string]any, named map[string]bool) table.Value {
 	return out
 }
 
-// linkValue gives a value where it leads, as a row's links say for its field, as decode read them: one link, the
-// value's; a list, one a raw value, each where that value leads, and the value's own where it holds one alone; null,
-// or none, nowhere.
-func (m Model) linkValue(v *table.Value, link any, member string) {
+// linkValue gives a value where it leads, as a row's links say for its field, as decode read them, from a row of the
+// verb's: one link, the value's; a list, one a raw value, each where that value leads, and the value's own where it
+// holds one alone; null, or none, nowhere.
+func (m Model) linkValue(v *table.Value, verb string, link any, member string) {
 	switch link := link.(type) {
 	case string:
-		v.Link = m.workspaceLink(link, member)
+		v.Link = m.rowLink(verb, link, member)
 	case []any:
 		for _, l := range link {
-			v.Links = append(v.Links, m.workspaceLink(l.(string), member))
+			v.Links = append(v.Links, m.rowLink(verb, l.(string), member))
 		}
 		if len(v.Links) == 1 {
 			v.Link = v.Links[0]
@@ -85,15 +86,27 @@ func (m Model) linkValue(v *table.Value, link any, member string) {
 	}
 }
 
-// workspaceLink gives where a row's value leads: a page as it is, and row:<stage>/<key> as the link to that row of the
-// workspace's stage, its key after the row's member, over a group.
-func (m Model) workspaceLink(link, member string) string {
+// rowLink gives where a value of a row of the verb's leads: a page as it is, and row:<stage>/<key> as the link to that
+// row of the verb's stage, as kittui names it, its key after the row's member, over a group.
+func (m Model) rowLink(verb, link, member string) string {
 	to, ok := strings.CutPrefix(link, "row:")
 	if !ok {
 		return link
 	}
 	name, key, _ := strings.Cut(to, "/")
-	return jumpTo(workspaceVerb+"/"+name, m.keyOf(member, key))
+	return jumpTo(stageNamed(verb, name), m.keyOf(member, key))
+}
+
+// stageNamed gives the name kittui knows a verb's stage by, as the stage's catalog entry's command names the verb and
+// the stage: environments of kit delivery's is delivery/environments, and kit flow's own stages go by their names. A
+// stage the catalog does not name goes by the verb, a slash, and its name.
+func stageNamed(verb, stage string) string {
+	for name := range catalog {
+		if v, s := verbOf(name); v == verb && s == stage {
+			return name
+		}
+	}
+	return verb + "/" + stage
 }
 
 // The renderers of kit workspace's own values, registered with the table's by the names fields.json gives them.

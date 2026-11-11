@@ -35,7 +35,7 @@ func (m *Model) takeKept(msg source.Answer[[]byte]) {
 	if _, landed := s.src.Take(msg); landed != source.Stands || s.decode(msg.Value, m.runner.Group != "") != nil {
 		return
 	}
-	if len(s.failed) > 0 {
+	if s.failing() {
 		// over a group, a member kit kept nothing of says so as a failure: what was kept is not the whole picture,
 		// which the load draws
 		s.failed = nil

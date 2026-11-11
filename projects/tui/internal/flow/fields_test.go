@@ -16,10 +16,19 @@ import (
 )
 
 func TestTheCatalogNamesOnlyWhatIsRegistered(t *testing.T) {
-	// every stage, incoming among them, kit workspace's, its repos tab among them, and kit packages'
-	if len(catalog) != len(six)+len(workspaceStages)+1 || catalog["incoming"] == nil ||
-		catalog["workspace/repos"] == nil || catalog[packagesStage] == nil {
-		t.Errorf("the catalog's stages: %d, incoming %v", len(catalog), catalog["incoming"] != nil)
+	// every stage, incoming among them, kit workspace's, its repos tab among them, kit packages', and every other app's
+	every := map[string]bool{}
+	for _, name := range six {
+		every[name] = true
+	}
+	for _, a := range apps {
+		for _, name := range a.stages {
+			every[name] = true
+		}
+	}
+	if len(catalog) != len(every) || catalog["incoming"] == nil || catalog["workspace/repos"] == nil ||
+		catalog[packagesStage] == nil || len(every) != len(six)+len(workspaceStages)+1+20 {
+		t.Errorf("the catalog's stages: %d of %d, incoming %v", len(catalog), len(every), catalog["incoming"] != nil)
 	}
 	// each names the command that prints it, a stage of its verb's, and each stage Go builds is the catalog's
 	for name := range catalog {

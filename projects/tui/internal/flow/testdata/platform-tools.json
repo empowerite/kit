@@ -1,0 +1,5 @@
+{"rows": [
+  {"key": "mise jq", "name": "jq", "pinned": "1.8.2", "installed": "1.8.2", "from": "mise", "links": {}},
+  {"key": "mise go", "name": "go", "pinned": "1.27.3", "installed": null, "from": "mise", "links": {}},
+  {"key": "ambient git", "name": "git", "path": "/usr/bin/git", "from": "ambient", "links": {}}
+], "errors": []}

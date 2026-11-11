@@ -1,0 +1,4 @@
+{"rows": [
+  {"key": "mise project", "provider": "mise", "role": "project", "usable": true, "active": true, "chosen": true, "fills": true, "links": {}},
+  {"key": "brew system", "provider": "brew", "role": "system", "usable": true, "active": false, "chosen": false, "fills": false, "links": {}}
+], "errors": []}

@@ -33,7 +33,7 @@
       ]
     },
     {
-      "stage": "backlog", "command": ["flow", "backlog", "--json"], "staged": true,
+      "stage": "backlog", "command": ["flow", "backlog", "--json"], "staged": true, "forge": true,
       "takes": ["owner", "fresh", "cached", "workspace"], "record": ".[]", "key": ".number",
       "empty": "no open issue without a pull request",
       "fields": [
@@ -68,7 +68,7 @@
       ]
     },
     {
-      "stage": "underway", "command": ["flow", "underway", "--json"], "staged": true,
+      "stage": "underway", "command": ["flow", "underway", "--json"], "staged": true, "forge": true,
       "takes": ["owner", "fresh", "cached", "workspace"], "record": ".[]", "key": ".number, .pr.number",
       "empty": "no issue is underway",
       "fields": [
@@ -120,7 +120,7 @@
       ]
     },
     {
-      "stage": "changes", "command": ["flow", "changes", "--json"], "staged": true,
+      "stage": "changes", "command": ["flow", "changes", "--json"], "staged": true, "forge": true,
       "takes": ["owner", "fresh", "cached", "workspace"], "record": ".[]", "key": ".number",
       "empty": "no open pull request",
       "fields": [
@@ -161,7 +161,7 @@
       ]
     },
     {
-      "stage": "builds", "command": ["flow", "builds", "--json"], "staged": true,
+      "stage": "builds", "command": ["flow", "builds", "--json"], "staged": true, "forge": true,
       "takes": ["cached", "workspace"], "record": ".[]", "key": ".id",
       "empty": "no build since the last 20 runs",
       "fields": [
@@ -264,7 +264,7 @@
       ]
     },
     {
-      "stage": "releases", "command": ["flow", "releases", "--json"], "staged": true,
+      "stage": "releases", "command": ["flow", "releases", "--json"], "staged": true, "forge": true,
       "takes": ["cached", "workspace"], "record": ".[]",
       "empty": "no release",
       "fields": [
@@ -492,6 +492,482 @@
         {"name": "Default"},
         {"name": "Compact", "fields": {"origin": {"placement": "hidden"}, "depends": {"placement": "hidden"},
                                        "dependents": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "issues/milestones", "command": ["issues", "milestones", "--json"], "staged": true, "forge": true,
+      "takes": ["workspace"], "record": ".rows[]", "empty": "no milestone",
+      "fields": [
+        {"id": "number", "label": "number", "type": "ref", "path": ".number", "sort": true, "renderings": ["text"],
+         "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "state", "label": "state", "type": "enum", "path": ".state", "sort": true, "group": true, "filter": true,
+         "values": [{"value": "open"}, {"value": "closed"}], "dim": true, "renderings": ["text"],
+         "placement": "column"},
+        {"id": "title", "label": "title", "type": "text", "path": ".title", "sort": true, "renderings": ["text"],
+         "placement": "column"},
+        {"id": "due", "label": "due", "type": "text", "path": ".due", "sort": true, "dim": true, "renderings": ["date"],
+         "placement": "column"},
+        {"id": "open", "label": "open", "type": "number", "path": ".open", "sort": true, "filter": true,
+         "renderings": ["text"], "placement": "column"},
+        {"id": "closed", "label": "closed", "type": "number", "path": ".closed", "sort": true, "filter": true,
+         "dim": true, "renderings": ["text"], "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {"due": {"placement": "hidden"}, "closed": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "issues/iterations", "command": ["issues", "iterations", "--json"], "staged": true, "forge": true,
+      "takes": ["workspace"], "record": ".rows[]", "empty": "no iteration",
+      "fields": [
+        {"id": "title", "label": "title", "type": "text", "path": ".title", "sort": true, "renderings": ["text"],
+         "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "current", "label": "current", "type": "enum", "path": ".current", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "current"}], "renderings": ["text"], "placement": "column"},
+        {"id": "start", "label": "start", "type": "text", "path": ".start", "sort": true, "dim": true,
+         "renderings": ["date"], "placement": "column"},
+        {"id": "end", "label": "end", "type": "text", "path": ".end", "sort": true, "dim": true, "renderings": ["date"],
+         "placement": "column"},
+        {"id": "id", "label": "id", "type": "ref", "path": ".id", "sort": true, "dim": true, "renderings": ["text"],
+         "placement": "hidden"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {"end": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "changes/reviews", "command": ["changes", "reviews", "--json"], "staged": true, "forge": true,
+      "takes": ["workspace"], "record": ".rows[]", "empty": "no review asked for or given on an open change",
+      "fields": [
+        {"id": "change", "label": "change", "type": "ref", "path": ".change", "sort": true, "group": true,
+         "glyph": "🔀", "renderings": ["glyph+text", "text"], "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "login", "label": "reviewer", "type": "person", "path": ".login", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "placement": "column"},
+        {"id": "state", "label": "state", "type": "enum", "path": ".state", "sort": true, "group": true, "filter": true,
+         "values": [{"value": "requested"}, {"value": "approved"}, {"value": "changes"}, {"value": "commented"}],
+         "renderings": ["text"], "placement": "column"},
+        {"id": "at", "label": "at", "type": "text", "path": ".at", "sort": true, "dim": true, "renderings": ["date"],
+         "placement": "column"},
+        {"id": "unresolved", "label": "threads", "type": "number", "path": ".unresolved", "sort": true, "filter": true,
+         "glyph": "💬", "renderings": ["threads"], "placement": "column"},
+        {"id": "title", "label": "title", "type": "text", "path": ".title", "sort": true, "dim": true,
+         "renderings": ["text"], "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {"at": {"placement": "hidden"}, "unresolved": {"placement": "hidden"},
+          "title": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "changes/checks", "command": ["changes", "checks", "--json"], "staged": true, "forge": true,
+      "takes": ["workspace"], "record": ".rows[]", "empty": "no check on an open change",
+      "fields": [
+        {"id": "change", "label": "change", "type": "ref", "path": ".change", "sort": true, "group": true,
+         "glyph": "🔀", "renderings": ["glyph+text", "text"], "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "name", "label": "check", "type": "text", "path": ".name", "sort": true, "group": true,
+         "renderings": ["text"], "placement": "column"},
+        {"id": "verdict", "label": "verdict", "type": "enum", "path": ".verdict", "sort": true, "group": true,
+         "filter": true, "values": [
+           {"value": "passed", "glyph": "✅"}, {"value": "failed", "glyph": "❌"}, {"value": "pending", "glyph": "🏃"}
+         ], "renderings": ["glyph+text", "text", "glyph"], "placement": "column"},
+        {"id": "at", "label": "started", "type": "text", "path": ".at", "sort": true, "dim": true,
+         "renderings": ["date"], "placement": "column"},
+        {"id": "took", "label": "took", "type": "time", "path": ".took", "sort": true, "filter": true, "dim": true,
+         "right": true, "renderings": ["took", "age"], "placement": "column"},
+        {"id": "title", "label": "title", "type": "text", "path": ".title", "sort": true, "dim": true,
+         "renderings": ["text"], "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {"at": {"placement": "hidden"}, "took": {"placement": "hidden"},
+          "title": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "changes/merged", "command": ["changes", "merged", "--json"], "staged": true, "forge": true,
+      "takes": ["workspace"], "record": ".rows[]", "empty": "no change merged",
+      "fields": [
+        {"id": "number", "label": "number", "type": "ref", "path": ".number", "sort": true, "glyph": "🔀",
+         "renderings": ["glyph+text", "text"], "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "title", "label": "title", "type": "text", "path": ".title", "sort": true, "renderings": ["text"],
+         "placement": "column"},
+        {"id": "author", "label": "author", "type": "person", "path": ".author", "sort": true, "group": true,
+         "filter": true, "glyph": "👤", "dim": true, "renderings": ["glyph+text", "text"], "placement": "column"},
+        {"id": "branch", "label": "branch", "type": "text", "path": ".branch", "sort": true, "glyph": "🌿", "dim": true,
+         "renderings": ["glyph+text", "text"], "placement": "column"},
+        {"id": "merged", "label": "merged", "type": "text", "path": ".merged", "sort": true, "dim": true,
+         "renderings": ["date"], "placement": "column"},
+        {"id": "by", "label": "merged by", "type": "person", "path": ".by", "sort": true, "group": true, "filter": true,
+         "dim": true, "renderings": ["text"], "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {"author": {"placement": "hidden"}, "branch": {"placement": "hidden"},
+          "by": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "delivery/artifacts", "command": ["delivery", "artifacts", "--json"], "staged": true, "forge": true,
+      "takes": ["workspace"], "record": ".rows[]", "empty": "no artifact",
+      "fields": [
+        {"id": "name", "label": "name", "type": "text", "path": ".name", "sort": true, "renderings": ["text"],
+         "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "size", "label": "size", "type": "number", "path": ".size", "sort": true, "filter": true, "right": true,
+         "renderings": ["bytes", "text"], "placement": "column"},
+        {"id": "age", "label": "age", "type": "time", "path": ".age", "sort": true, "filter": true, "dim": true,
+         "right": true, "renderings": ["age"], "placement": "column"},
+        {"id": "expires", "label": "expires", "type": "text", "path": ".expires", "sort": true, "dim": true,
+         "renderings": ["date"], "placement": "column"},
+        {"id": "run", "label": "run", "type": "ref", "path": ".run", "sort": true, "group": true, "dim": true,
+         "renderings": ["text"], "placement": "column"},
+        {"id": "digest", "label": "digest", "type": "ref", "path": ".digest", "sort": true, "dim": true,
+         "renderings": ["text"], "placement": "column"},
+        {"id": "id", "label": "id", "type": "ref", "path": ".id", "sort": true, "dim": true, "renderings": ["text"],
+         "placement": "hidden"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {"expires": {"placement": "hidden"}, "run": {"placement": "hidden"},
+          "digest": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "delivery/environments", "command": ["delivery", "environments", "--json"], "staged": true,
+      "forge": true, "takes": ["workspace"], "record": ".rows[]", "empty": "no environment",
+      "fields": [
+        {"id": "name", "label": "name", "type": "text", "path": ".name", "sort": true, "renderings": ["text"],
+         "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "protection", "label": "protection", "type": "label", "path": ".protection[]", "one": "rule",
+         "group": true, "filter": true, "renderings": ["pills", "text"], "placement": "column"},
+        {"id": "approvers", "label": "approvers", "type": "person", "path": ".approvers[]", "one": "approver",
+         "group": true, "filter": true, "renderings": ["text"], "placement": "column"},
+        {"id": "branches", "label": "branches", "type": "label", "path": ".branches[]", "one": "branch", "group": true,
+         "filter": true, "glyph": "🌿", "dim": true, "renderings": ["glyph+text", "text"], "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {"approvers": {"placement": "hidden"}, "branches": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "delivery/deployments", "command": ["delivery", "deployments", "--json"], "staged": true, "forge": true,
+      "takes": ["workspace"], "record": ".rows[]", "empty": "no deployment",
+      "fields": [
+        {"id": "state", "label": "state", "type": "enum", "path": ".state", "sort": true, "group": true, "filter": true,
+         "values": [
+           {"value": "success", "glyph": "✅"}, {"value": "failure", "glyph": "❌"},
+           {"value": "running", "glyph": "🏃"}, {"value": "waiting"}, {"value": "cancelled", "glyph": "🛑"},
+           {"value": "inactive"}
+         ], "renderings": ["glyph+text", "text", "glyph"], "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "environment", "label": "environment", "type": "enum", "path": ".environment", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "placement": "column"},
+        {"id": "ref", "label": "ref", "type": "text", "path": ".ref", "sort": true, "group": true,
+         "renderings": ["text"], "placement": "column"},
+        {"id": "sha", "label": "commit", "type": "ref", "path": ".sha", "sort": true, "glyph": "🔘", "dim": true,
+         "renderings": ["glyph+text", "text"], "placement": "column"},
+        {"id": "actor", "label": "actor", "type": "person", "path": ".actor", "sort": true, "group": true,
+         "filter": true, "dim": true, "renderings": ["text"], "placement": "column"},
+        {"id": "age", "label": "age", "type": "time", "path": ".age", "sort": true, "filter": true, "dim": true,
+         "right": true, "renderings": ["age"], "placement": "column"},
+        {"id": "id", "label": "id", "type": "ref", "path": ".id", "sort": true, "dim": true, "renderings": ["text"],
+         "placement": "hidden"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {"ref": {"placement": "hidden"}, "sha": {"placement": "hidden"},
+          "actor": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "people/people", "command": ["people", "people", "--json"], "staged": true, "forge": true,
+      "takes": ["workspace"], "record": ".rows[]", "empty": "no one has access",
+      "fields": [
+        {"id": "login", "label": "login", "type": "person", "path": ".login", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "name", "label": "name", "type": "text", "path": ".name", "sort": true, "dim": true,
+         "renderings": ["text"], "placement": "column"},
+        {"id": "role", "label": "role", "type": "enum", "path": ".role", "sort": true, "group": true, "filter": true,
+         "renderings": ["text"], "placement": "column"},
+        {"id": "kind", "label": "kind", "type": "enum", "path": ".kind", "sort": true, "group": true, "filter": true,
+         "values": [{"value": "user"}, {"value": "bot"}, {"value": "group"}], "dim": true, "renderings": ["text"],
+         "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {"name": {"placement": "hidden"}, "kind": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "people/teams", "command": ["people", "teams", "--json"], "staged": true, "forge": true,
+      "takes": ["workspace"], "record": ".rows[]", "empty": "no team has access",
+      "fields": [
+        {"id": "team", "label": "team", "type": "text", "path": ".team", "sort": true, "renderings": ["text"],
+         "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "role", "label": "role", "type": "enum", "path": ".role", "sort": true, "group": true, "filter": true,
+         "renderings": ["text"], "placement": "column"},
+        {"id": "members", "label": "members", "type": "person", "path": ".members[]", "one": "member", "group": false,
+         "filter": true, "renderings": ["text"], "placement": "column"},
+        {"id": "name", "label": "name", "type": "text", "path": ".name", "sort": true, "dim": true,
+         "renderings": ["text"], "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {"members": {"placement": "hidden"}, "name": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "people/agents", "command": ["people", "agents", "--json"], "staged": true, "forge": true,
+      "takes": ["workspace"], "record": ".rows[]", "empty": "no bot acted lately",
+      "fields": [
+        {"id": "login", "label": "bot", "type": "person", "path": ".login", "sort": true, "group": true, "filter": true,
+         "renderings": ["text"], "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "acted", "label": "acted", "type": "label", "path": ".acted[]", "one": "act", "group": true,
+         "filter": true, "renderings": ["pills", "text"], "placement": "column"},
+        {"id": "last", "label": "last acted", "type": "text", "path": ".last", "sort": true, "dim": true,
+         "renderings": ["date"], "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {"last": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "audit/evidence", "command": ["audit", "evidence", "--json"], "staged": true, "forge": true,
+      "takes": ["workspace"], "record": ".rows[]", "empty": "no attestation",
+      "fields": [
+        {"id": "subject", "label": "subject", "type": "text", "path": ".subject", "sort": true, "group": true,
+         "renderings": ["text"], "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "kind", "label": "kind", "type": "enum", "path": ".kind", "sort": true, "group": true, "filter": true,
+         "dim": true, "renderings": ["text"], "placement": "column"},
+        {"id": "signer", "label": "signer", "type": "enum", "path": ".signer", "sort": true, "group": true,
+         "filter": true, "dim": true, "renderings": ["text"], "placement": "column"},
+        {"id": "age", "label": "age", "type": "time", "path": ".age", "sort": true, "filter": true, "dim": true,
+         "right": true, "renderings": ["age"], "placement": "column"},
+        {"id": "digest", "label": "digest", "type": "ref", "path": ".digest", "sort": true, "dim": true,
+         "renderings": ["text"], "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {"kind": {"placement": "hidden"}, "signer": {"placement": "hidden"},
+          "digest": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "audit/findings", "command": ["audit", "findings", "--json"], "staged": true, "forge": true,
+      "takes": ["workspace"], "record": ".rows[]", "empty": "no alert",
+      "fields": [
+        {"id": "tool", "label": "tool", "type": "enum", "path": ".tool", "sort": true, "group": true, "filter": true,
+         "values": [{"value": "code-scanning"}, {"value": "dependabot"}, {"value": "secret-scanning"}],
+         "renderings": ["text"], "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "number", "label": "number", "type": "ref", "path": ".number", "sort": true, "dim": true,
+         "renderings": ["text"], "placement": "column"},
+        {"id": "severity", "label": "severity", "type": "enum", "path": ".severity", "sort": true, "group": true,
+         "filter": true, "values": [
+           {"value": "critical"}, {"value": "high"}, {"value": "medium"}, {"value": "low"}, {"value": "error"},
+           {"value": "warning"}, {"value": "note"}
+         ], "order": "given", "renderings": ["text"], "placement": "column"},
+        {"id": "state", "label": "state", "type": "enum", "path": ".state", "sort": true, "group": true, "filter": true,
+         "values": [{"value": "open"}, {"value": "dismissed"}], "renderings": ["text"], "placement": "column"},
+        {"id": "rule", "label": "rule", "type": "text", "path": ".rule", "sort": true, "group": true,
+         "renderings": ["text"], "placement": "column"},
+        {"id": "path", "label": "path", "type": "text", "path": ".path", "sort": true, "dim": true,
+         "renderings": ["text"], "placement": "column"},
+        {"id": "age", "label": "age", "type": "time", "path": ".age", "sort": true, "filter": true, "dim": true,
+         "right": true, "renderings": ["age"], "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {"number": {"placement": "hidden"}, "path": {"placement": "hidden"},
+          "age": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "audit/controls", "command": ["audit", "controls", "--json"], "staged": true, "forge": true,
+      "takes": ["workspace"], "record": ".rows[]", "empty": "no control guards the default branch",
+      "fields": [
+        {"id": "control", "label": "control", "type": "text", "path": ".control", "sort": true, "renderings": ["text"],
+         "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "enforcement", "label": "enforcement", "type": "enum", "path": ".enforcement", "sort": true,
+         "group": true, "filter": true, "values": [{"value": "active"}, {"value": "evaluate"}, {"value": "disabled"}],
+         "renderings": ["text"], "placement": "column"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "ruleset"}, {"value": "protection"}], "dim": true, "renderings": ["text"],
+         "placement": "column"},
+        {"id": "target", "label": "target", "type": "label", "path": ".target[]", "one": "ref", "group": true,
+         "filter": true, "renderings": ["pills", "text"], "placement": "column"},
+        {"id": "rules", "label": "rules", "type": "label", "path": ".rules[]", "one": "rule", "group": true,
+         "filter": true, "dim": true, "renderings": ["pills", "text"], "placement": "column"},
+        {"id": "id", "label": "id", "type": "ref", "path": ".id", "sort": true, "dim": true, "renderings": ["text"],
+         "placement": "hidden"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {"target": {"placement": "hidden"}, "rules": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "audit/waivers", "command": ["audit", "waivers", "--json"], "staged": true, "forge": true,
+      "takes": ["workspace"], "record": ".rows[]", "empty": "no waiver",
+      "fields": [
+        {"id": "waives", "label": "waives", "type": "text", "path": ".waives", "sort": true, "group": true,
+         "renderings": ["text"], "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "kind", "label": "kind", "type": "enum", "path": ".kind", "sort": true, "group": true, "filter": true,
+         "values": [{"value": "bypass"}, {"value": "dismissal"}], "renderings": ["text"], "placement": "column"},
+        {"id": "actor", "label": "actor", "type": "enum", "path": ".actor", "sort": true, "group": true, "filter": true,
+         "renderings": ["text"], "placement": "column"},
+        {"id": "reason", "label": "reason", "type": "text", "path": ".reason", "sort": true, "renderings": ["text"],
+         "placement": "column"},
+        {"id": "by", "label": "dismissed by", "type": "person", "path": ".by", "sort": true, "group": true,
+         "filter": true, "dim": true, "renderings": ["text"], "placement": "column"},
+        {"id": "until", "label": "until", "type": "text", "path": ".until", "sort": true, "dim": true,
+         "renderings": ["date"], "placement": "column"},
+        {"id": "hidden", "label": "hidden bypassers", "type": "number", "path": ".hidden", "sort": true, "filter": true,
+         "dim": true, "renderings": ["text"], "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {"by": {"placement": "hidden"}, "until": {"placement": "hidden"},
+          "hidden": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "audit/policy", "command": ["audit", "policy", "--json"], "staged": true, "takes": ["workspace"],
+      "record": ".rows[]", "empty": "no rule",
+      "fields": [
+        {"id": "rule", "label": "rule", "type": "text", "path": ".rule", "sort": true, "renderings": ["text"],
+         "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "pattern", "label": "pattern", "type": "text", "path": ".pattern", "renderings": ["text"],
+         "placement": "column"},
+        {"id": "from", "label": "from", "type": "enum", "path": ".from", "sort": true, "group": true, "filter": true,
+         "dim": true, "renderings": ["text"], "placement": "column"},
+        {"id": "engine", "label": "engine", "type": "enum", "path": ".engine", "sort": true, "group": true,
+         "filter": true, "dim": true, "renderings": ["text"], "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {"from": {"placement": "hidden"}, "engine": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "platform/services", "command": ["platform", "services", "--json"], "staged": true,
+      "takes": ["workspace"], "record": ".rows[]", "empty": "no capability",
+      "fields": [
+        {"id": "capability", "label": "capability", "type": "text", "path": ".capability", "sort": true,
+         "renderings": ["text"], "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "service", "label": "service", "type": "enum", "path": ".service", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "placement": "column"},
+        {"id": "ready", "label": "ready", "type": "enum", "path": ".ready", "sort": true, "group": true, "filter": true,
+         "values": [{"value": "ready"}], "renderings": ["text"], "placement": "column"},
+        {"id": "chosen", "label": "chosen", "type": "enum", "path": ".chosen", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "set"}, {"value": "inferred"}], "dim": true, "renderings": ["text"],
+         "placement": "column"},
+        {"id": "provider", "label": "provider", "type": "text", "path": ".provider", "sort": true, "dim": true,
+         "renderings": ["text"], "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {"chosen": {"placement": "hidden"}, "provider": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "platform/toolchains", "command": ["platform", "toolchains", "--json"], "staged": true,
+      "takes": ["workspace"], "record": ".rows[]", "empty": "no toolchain",
+      "fields": [
+        {"id": "provider", "label": "provider", "type": "enum", "path": ".provider", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "role", "label": "role", "type": "enum", "path": ".role", "sort": true, "group": true, "filter": true,
+         "values": [{"value": "system"}, {"value": "project"}], "renderings": ["text"], "placement": "column"},
+        {"id": "usable", "label": "usable", "type": "enum", "path": ".usable", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "usable"}], "dim": true, "renderings": ["text"], "placement": "column"},
+        {"id": "active", "label": "active", "type": "enum", "path": ".active", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "active"}], "dim": true, "renderings": ["text"], "placement": "column"},
+        {"id": "chosen", "label": "chosen", "type": "enum", "path": ".chosen", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "chosen"}], "dim": true, "renderings": ["text"], "placement": "column"},
+        {"id": "fills", "label": "fills", "type": "enum", "path": ".fills", "sort": true, "group": true, "filter": true,
+         "values": [{"value": "fills"}], "dim": true, "renderings": ["text"], "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {"active": {"placement": "hidden"}, "fills": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "platform/tools", "command": ["platform", "tools", "--json"], "staged": true, "takes": ["workspace"],
+      "record": ".rows[]", "empty": "no tool is pinned",
+      "fields": [
+        {"id": "name", "label": "name", "type": "text", "path": ".name", "sort": true, "renderings": ["text"],
+         "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "from", "label": "from", "type": "enum", "path": ".from", "sort": true, "group": true, "filter": true,
+         "renderings": ["text"], "placement": "column"},
+        {"id": "installed", "label": "installed", "type": "text", "path": ".installed", "sort": true,
+         "renderings": ["text"], "placement": "column"},
+        {"id": "pinned", "label": "pinned", "type": "text", "path": ".pinned", "sort": true, "dim": true,
+         "renderings": ["text"], "placement": "column"},
+        {"id": "path", "label": "path", "type": "text", "path": ".path", "sort": true, "dim": true,
+         "renderings": ["text"], "placement": "hidden"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {"pinned": {"placement": "hidden"}}}
+      ]
+    },
+    {
+      "stage": "platform/settings", "command": ["platform", "settings", "--json"], "staged": true,
+      "takes": ["workspace"], "record": ".rows[]", "empty": "no setting",
+      "fields": [
+        {"id": "setting", "label": "setting", "type": "text", "path": ".setting", "sort": true, "renderings": ["text"],
+         "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "values", "label": "value", "type": "text", "path": "*", "one": "value", "renderings": ["text"],
+         "placement": "column"},
+        {"id": "from", "label": "from", "type": "enum", "path": ".from", "sort": true, "group": true, "filter": true,
+         "values": [{"value": "set"}, {"value": "default"}], "dim": true, "renderings": ["text"], "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {"from": {"placement": "hidden"}}}
       ]
     }
   ]

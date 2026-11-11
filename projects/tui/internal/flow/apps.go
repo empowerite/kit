@@ -1,7 +1,7 @@
 // kittui's apps: Flow, the picture kit flow draws, every stage of the flow setting in its order; and the apps built
 // around one entity each, whose first tab is that entity's home, and its other tabs the entities around it. Each app
-// is this screen over its own stages, kit flow's and kit workspace's together, and a tab whose entity kit has no data
-// source for yet is planned: it shows that it has none, and loads nothing.
+// is this screen over its own stages, kit flow's and its own verb's together, each tab a stage of kit's, read as its
+// catalog entry says.
 package flow
 
 import (
@@ -12,28 +12,29 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 )
 
-// planned is how a stage kit has no data source for yet begins, before its tab's name.
-const planned = "planned"
-
-// ofPlanned says whether a stage, as kittui knows it, is planned.
-func ofPlanned(name string) bool { return strings.HasPrefix(name, planned+"/") }
-
-// apps are kittui's apps built around one entity, in the app menu's order, each with its stages in its tabs' order:
-// kit flow's by their own names, kit workspace's after workspace/, and those planned after planned/.
-var apps = []struct {
+// entityApp is an app built around one entity: its screen; the verb besides kit flow that opens it, and whose stages
+// it draws; and its stages in its tabs' order, kit flow's by their own names, the verb's after it and a slash, as each
+// one's catalog entry's command names it.
+type entityApp struct {
 	screen shell.Screen
+	verb   string
 	stages []string
-}{
-	{shell.Issues, []string{"backlog", "underway", "planned/iterations", "planned/milestones"}},
-	{shell.Changes, []string{"changes", "planned/reviews", "planned/checks", "planned/merged"}},
-	{shell.Repositories, []string{"workspace/repos", "workspace/worktrees", "workspace/branches", "workspace/commits",
-		"workspace/tags", "workspace/remotes", "incoming"}},
-	{shell.Delivery, []string{"releases", "builds", "planned/artifacts", "planned/environments", "planned/deployments"}},
-	{shell.People, []string{"planned/people", "planned/teams", "planned/agents"}},
-	{shell.Trust, []string{"planned/evidence", "planned/findings", "planned/controls", "planned/waivers",
-		"planned/policy"}},
-	{shell.Platform, []string{"planned/services", "planned/toolchains", "planned/tools", "planned/settings"}},
-	{shell.Packages, []string{"packages/packages"}},
+}
+
+// apps are kittui's apps built around one entity, in the app menu's order.
+var apps = []entityApp{
+	{shell.Issues, "issues", []string{"backlog", "underway", "issues/milestones", "issues/iterations"}},
+	{shell.Changes, "changes", []string{"changes", "changes/reviews", "changes/checks", "changes/merged"}},
+	{shell.Repositories, workspaceVerb, []string{"workspace/repos", "workspace/worktrees", "workspace/branches",
+		"workspace/commits", "workspace/tags", "workspace/remotes", "incoming"}},
+	{shell.Delivery, "delivery", []string{"releases", "builds", "delivery/artifacts", "delivery/environments",
+		"delivery/deployments"}},
+	{shell.People, "people", []string{"people/people", "people/teams", "people/agents"}},
+	{shell.Trust, "audit", []string{"audit/evidence", "audit/findings", "audit/controls", "audit/waivers",
+		"audit/policy"}},
+	{shell.Platform, "platform", []string{"platform/services", "platform/toolchains", "platform/tools",
+		"platform/settings"}},
+	{shell.Packages, packagesVerb, []string{"packages/packages"}},
 }
 
 // IsApp says whether a screen is one of kittui's apps: Flow, or one built around an entity.
@@ -52,10 +53,11 @@ func stagesIn(s shell.Screen) []string {
 
 // AppOf gives the app kit flow's or an app verb's words open on, and the words: Flow for kit flow, which opens on
 // the stage named among them; for an app verb, the app with a tab of a stage named among them, else the verb's home,
-// as homes says.
+// the app whose verb it is.
 func AppOf(verb string, words []string) (shell.Screen, []string) {
 	words = slices.Clone(words)
-	if !slices.Contains(appVerbs, verb) {
+	home := slices.IndexFunc(apps, func(a entityApp) bool { return a.verb == verb })
+	if home < 0 {
 		return shell.Flow, words
 	}
 	for _, w := range words {
@@ -65,18 +67,19 @@ func AppOf(verb string, words []string) (shell.Screen, []string) {
 			}
 		}
 	}
-	return homes[verb], words
+	return apps[home].screen, words
 }
 
-// homes gives the app each app verb opens on with no tab of its named: Repositories for kit workspace, Packages for kit
-// packages.
-var homes = map[string]shell.Screen{workspaceVerb: shell.Repositories, packagesVerb: shell.Packages}
+// AppVerb says whether a verb besides kit flow opens one of kittui's apps, as kit workspace opens Repositories and kit
+// audit Trust.
+func AppVerb(verb string) bool {
+	return slices.ContainsFunc(apps, func(a entityApp) bool { return a.verb == verb })
+}
 
 // OpenApp opens an app: Flow on every stage kit flow --stages prints that kittui draws, in its order, as kit flow's
-// desk and worktrees are not; another on its stages that the repository's picture draws: a staged one where its verb's
-// --stages prints it, as its catalog entry's command names the verb and the stage, one that is not staged, and every
-// one planned. A stage named among the words is the one it opens on, maximized, as open says. Kit's refusal of
-// --stages is the error.
+// desk and worktrees are not; another on its stages that the repository's picture draws, each where its verb's
+// --stages prints it, as its catalog entry's command names the verb and the stage; every one is staged. A stage named
+// among the words is the one it opens on, maximized, as open says. Kit's refusal of --stages is the error.
 func OpenApp(r kit.Runner, app shell.Screen, words Words) (Model, error) {
 	if app == shell.Flow {
 		stages, err := r.StagesOf("flow")
@@ -90,10 +93,6 @@ func OpenApp(r kit.Runner, app shell.Screen, words Words) (Model, error) {
 	var stages []string
 	for _, name := range stagesIn(app) {
 		verb, stage := verbOf(name)
-		if verb == "" {
-			stages = append(stages, name)
-			continue
-		}
 		if _, ok := drawn[verb]; !ok {
 			names, err := r.StagesOf(verb)
 			if err != nil {

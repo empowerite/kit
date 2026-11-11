@@ -3,7 +3,9 @@
 // menu under Refresh All, watches every stage, and is dim once every one is; Stop Watching All, after it, stops them
 // all, and is dim while none is. The keys bar's right end says watching while the selected stage is watched. Nothing
 // is watched at the start. A stage that loads again keeps its rows on the screen, and its dot, until the new ones
-// come; it reads the forge afresh, as the change its mark says of is newer than the snapshot the stages share.
+// come; it reads the forge afresh, as the change its mark says of is newer than the snapshot the stages share. A stage
+// kit gives a null mark, as kit people gives each of its own, never goes stale, so it offers no Watch: Watch is dim on
+// its tab's menu, and Watch All passes it by.
 package flow
 
 import (
@@ -32,10 +34,18 @@ func (m Model) watchItem(i int) shell.Item {
 	return shell.Item{Glyph: Unwatched, Name: WatchIt, Keys: "W"}
 }
 
-// watching gives how many of the stages kittui draws are watched, and how many it draws.
+// watchable says whether the stage at i can be watched: kittui draws it, and kit's last read of the marks gave it
+// one, or none yet; a stage kit gives a null mark never goes stale, so Watch would wait on nothing.
+func (m Model) watchable(i int) bool {
+	mark, read := m.marks.Value[m.stages[i].name]
+	return sourced(m.stages[i].name) && (!read || mark != "")
+}
+
+// watching gives how many of the stages kittui draws are watched, and how many it can watch, as watchable says, or
+// watches already.
 func (m Model) watching() (watched, all int) {
-	for _, s := range m.stages {
-		if sourced(s.name) {
+	for i, s := range m.stages {
+		if m.watchable(i) || s.src.Watch {
 			all++
 			if s.src.Watch {
 				watched++
@@ -74,13 +84,13 @@ func (m *Model) toggleWatch(i int) tea.Cmd {
 	return nil
 }
 
-// watchAll watches every stage kittui draws, or, with on false, stops them all; each stale stage watched loads again
-// at once.
+// watchAll watches every stage it can, as watchable says, or, with on false, stops them all; each stale stage watched
+// loads again at once.
 func (m *Model) watchAll(on bool) tea.Cmd {
 	var cmds []tea.Cmd
 	for i := range m.stages {
 		s := &m.stages[i]
-		if !sourced(s.name) {
+		if on && !m.watchable(i) || !sourced(s.name) {
 			continue
 		}
 		if on && !s.src.Watch && s.src.Stale && !s.src.Loading {

@@ -92,11 +92,12 @@ func TestTheCatalogRefusesWhatATableCannotIndexBy(t *testing.T) {
 		return `{"stage": "` + name + `"` + extra + `, "fields": [` + fields + `], "presets": [` + presets + `]}`
 	}
 	ok := stage("a", `, "record": ".rows[]", "command": ["flow", "a", "--json"], "takes": ["owner", "no-fetch",
-		"fresh", "cached", "workspace"], "staged": true, "slurp": true, "key": ".x", "empty": "no a"`, field,
+		"fresh", "cached", "workspace"], "staged": true, "forge": true, "slurp": true, "key": ".x",
+		"empty": "no a"`, field,
 		`{"name": "Default"}`)
 	c, err := ReadCatalog([]byte(`{"stages": [` + ok + `]}`))
 	if a := c["a"]; err != nil || !slices.Equal(a.Command, []string{"flow", "a", "--json"}) || len(a.Takes) != 5 ||
-		!a.Staged || !a.Slurp || a.Key != ".x" || a.Empty != "no a" {
+		!a.Staged || !a.Forge || !a.Slurp || a.Key != ".x" || a.Empty != "no a" {
 		t.Fatalf("the schema's keys: %v %+v", err, c["a"])
 	}
 	// a schema without a command, as a screen's own, names its record as it likes
@@ -117,6 +118,7 @@ func TestTheCatalogRefusesWhatATableCannotIndexBy(t *testing.T) {
 		"names no stage":                     stage("", "", field, def),
 		"staged":                             plain(`, "record": ".", "command": ["t", "--json"], "staged": true`),
 		"takes, but no command":              plain(`, "takes": ["owner"]`),
+		"names no command that reads it":     plain(`, "forge": true`),
 	} {
 		if _, err := ReadCatalog([]byte(`{"stages": [` + stages + `]}`)); err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("%s: %v", want, err)

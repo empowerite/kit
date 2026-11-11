@@ -15,7 +15,8 @@ import (
 
 // Schema is one stage's part of the catalog: the stage; the kit command that prints its rows, kit's words after kit,
 // as ["toolchains", "--json"], and the words it takes beside them, as Takes names them; whether it is staged, a stage
-// its verb's --stages and --marks name, which its command's second word is; whether the command prints a document a
+// its verb's --stages and --marks name, which its command's second word is; whether the command reads the forge, and
+// so spends its rate limits; whether the command prints a document a
 // line, read as jq --slurp reads them; the record its rows are read from, as Records reads them; the paths of each
 // record's key, as KeyOf reads them; the line an empty table shows; its fields, in the order its columns stand; and its
 // own presets, in the order its preset line lists them. A schema without a command is a screen's own, which reads its
@@ -25,6 +26,7 @@ type Schema struct {
 	Command []string `json:"command"`
 	Takes   []string `json:"takes"`
 	Staged  bool     `json:"staged"`
+	Forge   bool     `json:"forge"`
 	Slurp   bool     `json:"slurp"`
 	Record  string   `json:"record"`
 	Key     string   `json:"key"`
@@ -160,7 +162,7 @@ func ReadCatalog(data []byte) (Catalog, error) {
 // check refuses a schema a table cannot index by: one that names no stage; a field declared twice, or without a
 // rendering; fields without a Default preset; and, for a schema with a command, a record Records does not read, a word
 // it takes that Takes does not name, and staged with no stage after the verb, a command of three words at least, as
-// flow backlog --json. Words taken without a command are refused too.
+// flow backlog --json. Words taken, staged, or the forge read without a command are refused too.
 func (s *Schema) check() error {
 	var errs []error
 	if s.Stage == "" {
@@ -182,6 +184,9 @@ func (s *Schema) check() error {
 	if len(s.Command) == 0 {
 		if len(s.Takes) > 0 || s.Staged {
 			errs = append(errs, fmt.Errorf("stage %q takes, but no command takes them", s.Stage))
+		}
+		if s.Forge {
+			errs = append(errs, fmt.Errorf("stage %q reads the forge, but names no command that reads it", s.Stage))
 		}
 		return errors.Join(errs...)
 	}

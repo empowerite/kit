@@ -1144,11 +1144,11 @@ func TestOpenAppReadsTheStagesAndTheWords(t *testing.T) {
 	for _, s := range m.stages {
 		names = append(names, s.name)
 	}
-	want := "releases builds planned/artifacts planned/environments planned/deployments"
+	want := "releases builds delivery/artifacts delivery/environments delivery/deployments"
 	if strings.Join(names, " ") != want || !m.noFetch || strings.Join(m.filters, " ") != "--mine" {
 		t.Errorf("OpenApp: %q, no fetch %v, filters %q", names, m.noFetch, m.filters)
 	}
-	if got := calls(t, record); strings.Join(got, "\n") != "flow --stages" {
+	if got := calls(t, record); strings.Join(got, "\n") != "flow --stages\ndelivery --stages" {
 		t.Errorf("OpenApp ran %q", got)
 	}
 	// a stage of the picture named opens on it, maximized, as kit flow <stage> does; the filters still reach the stages

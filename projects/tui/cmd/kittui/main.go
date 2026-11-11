@@ -43,8 +43,8 @@ var (
 func main() { exit(run(os.Args[1:], os.Stderr)) }
 
 // run opens the guide for welcome or with no verb, the palette, or the palette on a verb's page, for help, the form of
-// the verb named after --, an app for flow, workspace, or packages, or the cards for tutorials, under kittui's root,
-// whose app's menu switches between them, and ends as the person ended the screen shown.
+// the verb named after --, an app for flow or an app verb, as workspace or audit, or the cards for tutorials, under
+// kittui's root, whose app's menu switches between them, and ends as the person ended the screen shown.
 func run(args []string, stderr io.Writer) int {
 	verb, words := parse(args)
 	if !terminals() {
@@ -76,17 +76,18 @@ func run(args []string, stderr io.Writer) int {
 	return ended(root.Shown())
 }
 
-// open makes the screen kittui opens on: for flow, Flow, on the stage its words name; for workspace or packages, the
-// app with a tab of the stage its words name, else the verb's first app, Repositories or Packages, as flow.AppOf says,
-// each taking kit flow's words, as flow.ParseWords reads them;
+// open makes the screen kittui opens on: for flow, Flow, on the stage its words name; for an app verb, as workspace or
+// audit, the app with a tab of the stage its words name, else the verb's own, Repositories or Trust, as flow.AppOf
+// says, each taking kit flow's words, as flow.ParseWords reads them;
 // the guide for welcome and with no verb; the cards for tutorials, with its --tag words and the tutorial named; the
 // palette on a verb's page or a group for help; and, as the help's screen, the form of the verb named.
 func open(r kit.Runner, verb string, words []string) (shell.Screen, tea.Model, error) {
-	switch verb {
-	case "flow", "workspace", "packages":
+	if appVerb(verb) {
 		app, words := flow.AppOf(verb, words)
 		m, err := flow.OpenApp(r, app, flow.ParseWords(words))
 		return app, m, err
+	}
+	switch verb {
 	case "welcome", "":
 		return shell.Welcome, welcome.Open(r, kit.Workspace{}), nil
 	case "tutorials":
@@ -103,9 +104,10 @@ func open(r kit.Runner, verb string, words []string) (shell.Screen, tea.Model, e
 	return shell.Help, m, err
 }
 
-// appVerb says whether a verb opens one of kittui's apps: kit flow, kit workspace, and kit packages, each of which
-// takes the workspace, before the verb, and has a text form for a picture off a terminal.
-func appVerb(verb string) bool { return verb == "flow" || verb == "workspace" || verb == "packages" }
+// appVerb says whether a verb opens one of kittui's apps: kit flow, and each app verb, as kit workspace, kit packages,
+// and kit audit, as flow.AppVerb names them, each of which takes the workspace, before the verb, and has a text form
+// for a picture off a terminal.
+func appVerb(verb string) bool { return verb == "flow" || flow.AppVerb(verb) }
 
 // workspaceOf takes the workspace kit flow or an app verb was given, --workspace <w> or --workspace=<w>, out of its
 // words: the group the picture's reads span, which kit refuses to give empty, and the words without it.

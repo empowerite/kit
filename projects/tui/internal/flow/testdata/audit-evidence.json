@@ -1,0 +1,4 @@
+{"rows": [
+  {"key": "sha256:ab12 https://slsa.dev/provenance/v1", "subject": "kit-0.1.0.tar.gz", "digest": "sha256:ab12", "kind": "https://slsa.dev/provenance/v1", "signer": "o/r/.github/workflows/release.yml@refs/tags/v0.1.0", "age": 86400, "links": {"subject": "https://github.com/o/r/attestations"}},
+  {"key": "sha256:ab12 https://in-toto.io/attestation/release/v0.2", "subject": "kit-0.1.0.tar.gz", "digest": "sha256:ab12", "kind": "https://in-toto.io/attestation/release/v0.2", "signer": "github", "age": 86400, "links": {"subject": "https://github.com/o/r/attestations"}}
+], "errors": []}

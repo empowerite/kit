@@ -160,10 +160,11 @@ func TestAWorkspaceLinkLeadsToItsRow(t *testing.T) {
 	if m.stages[m.stage].name != "workspace/worktrees" || m.rows(m.stage)[m.stages[m.stage].Cursor].Key != "/src/r/worktrees/7-fix" {
 		t.Errorf("the jump: on %q, row %d", m.stages[m.stage].name, m.stages[m.stage].Cursor)
 	}
-	if got := m.workspaceLink("row:worktrees//src/r", "github.com/o/r"); got != jumpTo("workspace/worktrees", "github.com/o/r /src/r") {
+	if got := m.rowLink(workspaceVerb, "row:worktrees//src/r", "github.com/o/r"); got != jumpTo("workspace/worktrees",
+		"github.com/o/r /src/r") {
 		t.Errorf("a link over a group: %q", got)
 	}
-	if got := m.workspaceLink("https://github.com/o/r", "github.com/o/r"); got != "https://github.com/o/r" {
+	if got := m.rowLink(workspaceVerb, "https://github.com/o/r", "github.com/o/r"); got != "https://github.com/o/r" {
 		t.Errorf("a page: %q", got)
 	}
 }

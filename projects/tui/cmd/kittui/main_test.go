@@ -279,6 +279,7 @@ func TestOffATerminalEachScreenNamesItsTextForm(t *testing.T) {
 		"flow":      "kit flow needs an interactive terminal for its picture; run: kit flow --text",
 		"workspace": "kit workspace needs an interactive terminal for its picture; run: kit workspace --text",
 		"packages":  "kit packages needs an interactive terminal for its picture; run: kit packages --text",
+		"audit":     "kit audit needs an interactive terminal for its picture; run: kit audit --text",
 		"tutorials": "kit tutorials needs an interactive terminal; run: kit tutorials --text",
 		"-- commit": "kit tui needs an interactive terminal; run: kit help tui",
 	} {
@@ -376,6 +377,9 @@ func TestFlowAndWorkspaceOpenTheAppWithTheTabNamed(t *testing.T) {
 		{"flow", nil, shell.Flow}, {"flow", []string{"changes"}, shell.Flow}, {"flow", []string{"desk"}, shell.Flow},
 		{"workspace", nil, shell.Repositories}, {"workspace", []string{"branches"}, shell.Repositories},
 		{"packages", nil, shell.Packages}, {"packages", []string{"packages"}, shell.Packages},
+		{"issues", nil, shell.Issues}, {"issues", []string{"backlog"}, shell.Issues},
+		{"changes", []string{"changes"}, shell.Changes}, {"delivery", []string{"deployments"}, shell.Delivery},
+		{"people", nil, shell.People}, {"audit", []string{"waivers"}, shell.Trust}, {"platform", nil, shell.Platform},
 	} {
 		screen, m, err := open(r, c.verb, c.words)
 		if _, ok := m.(flow.Model); err != nil || !ok || screen != c.want {

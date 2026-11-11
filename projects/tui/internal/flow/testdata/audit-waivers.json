@@ -1,0 +1,5 @@
+{"rows": [
+  {"key": "7 release", "waives": 7, "actor": "release", "kind": "bypass", "reason": "always", "by": null, "until": null, "hidden": null, "links": {"waives": "row:controls/7", "reason": "https://github.com/o/r/rules/7"}},
+  {"key": "7 hidden", "waives": 7, "actor": null, "kind": "bypass", "reason": null, "by": null, "until": null, "hidden": 2, "links": {"waives": "row:controls/7", "reason": "https://github.com/o/r/rules/7"}},
+  {"key": "dependabot 1", "waives": "dependabot 1", "actor": null, "kind": "dismissal", "reason": "tolerable_risk", "by": "ada", "until": null, "hidden": null, "links": {"waives": "row:findings/dependabot 1", "reason": "https://github.com/o/r/security/dependabot/1"}}
+], "errors": [{"feature": "secret-scanning", "off": true}]}

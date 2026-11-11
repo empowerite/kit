@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/table"
@@ -77,6 +78,8 @@ func init() {
 		"member":    {table.Each(memberName), false},
 		"path":      {pathCells, false},
 		"worktree":  {table.Each(worktreeNames), true},
+		"date":      {table.Each(dates), false},
+		"bytes":     {table.Each(sizes), false},
 	} {
 		table.Register(name, r.draw, r.glyph)
 	}
@@ -174,4 +177,28 @@ func whereCells(f table.Field, vs []table.Value) []cell {
 		}
 	}
 	return out
+}
+
+// dates draws a time kit gives in seconds since the epoch, as a milestone's due or a change's merge, by its day, here:
+// 2026-11-10.
+func dates(f table.Field, v table.Value) []string {
+	return table.Mapped(v.Raw, func(s int64) string { return time.Unix(s, 0).Format(time.DateOnly) })
+}
+
+// sizes draws a size kit gives in bytes, as an artifact's, in the unit that keeps it under 1024, one decimal past
+// bytes: 512 B, 2.0 KiB, 1.5 MiB.
+func sizes(f table.Field, v table.Value) []string {
+	return table.Mapped(v.Raw, func(n int64) string {
+		if n < 1024 {
+			return strconv.FormatInt(n, 10) + " B"
+		}
+		size, unit := float64(n)/1024, "KiB"
+		for _, next := range []string{"MiB", "GiB", "TiB"} {
+			if size < 1024 {
+				break
+			}
+			size, unit = size/1024, next
+		}
+		return fmt.Sprintf("%.1f %s", size, unit)
+	})
 }
