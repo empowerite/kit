@@ -543,7 +543,7 @@
     },
     {
       "stage": "changes/reviews", "command": ["changes", "reviews", "--json"], "staged": true, "forge": true,
-      "takes": ["workspace"], "record": ".rows[]", "empty": "no review asked for or given on an open change",
+      "takes": ["fresh", "workspace"], "record": ".rows[]", "empty": "no review asked for or given on an open change",
       "fields": [
         {"id": "change", "label": "change", "type": "ref", "path": ".change", "sort": true, "group": true,
          "glyph": "🔀", "renderings": ["glyph+text", "text"], "placement": "column"},
@@ -569,7 +569,7 @@
     },
     {
       "stage": "changes/checks", "command": ["changes", "checks", "--json"], "staged": true, "forge": true,
-      "takes": ["workspace"], "record": ".rows[]", "empty": "no check on an open change",
+      "takes": ["fresh", "workspace"], "record": ".rows[]", "empty": "no check on an open change",
       "fields": [
         {"id": "change", "label": "change", "type": "ref", "path": ".change", "sort": true, "group": true,
          "glyph": "🔀", "renderings": ["glyph+text", "text"], "placement": "column"},

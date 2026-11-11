@@ -56,12 +56,13 @@ type Options struct {
 
 // failure is what kit could not read of a stage, as its document's errors name it: over a group, the member, its host
 // and path; and kit's line, or, for a feature the forge has off here, as secret scanning disabled, the feature and off,
-// which is no failure.
+// which is no failure, and lacked too where the forge's provider lacks the feature.
 type failure struct {
 	Member  string `json:"member"`
 	Error   string `json:"error"`
 	Feature string `json:"feature"`
 	Off     bool   `json:"off"`
+	Lacked  bool   `json:"lacked"`
 }
 
 // stage is one stage of the picture: its name, as kittui knows it, kit flow's own and kit workspace's after workspace/,
@@ -248,7 +249,7 @@ func New(r kit.Runner, o Options) Model {
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.clock = o.Clock
 	m.quota = source.NewPoll("quota", QuotaEvery, r.Quota)
-	// its marks are those of the verbs its staged stages are of, each named as kittui knows the stage
+	// its marks are those of the verbs its staged stages are of, as verbsOf gives them, each named as kittui knows it
 	verbs := verbsOf(o.Stages)
 	m.marks = source.NewPoll("marks", MarksEvery, func(ctx context.Context) (map[string]string, error) {
 		named := map[string]string{}

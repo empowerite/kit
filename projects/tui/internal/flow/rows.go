@@ -380,13 +380,18 @@ func (m Model) failures(s stage) []row {
 	return out
 }
 
-// offText says a feature the forge has off here, as kit's text does: secret-scanning is off here, and over a group,
-// after in, the member's short name.
+// offText says a feature the forge has off here, as kit's text does: secret-scanning is off here, or, for one the
+// forge's provider lacks, check-runs is lacked by the provider of the forge here; and over a group, after in, the
+// member's short name.
 func (m Model) offText(f failure) string {
-	if f.Member == "" {
-		return f.Feature + " is off here"
+	text := f.Feature + " is off here"
+	if f.Lacked {
+		text = f.Feature + " is lacked by the provider of the forge here"
 	}
-	return f.Feature + " is off here in " + m.short(f.Member)
+	if f.Member == "" {
+		return text
+	}
+	return text + " in " + m.short(f.Member)
 }
 
 // keyOf gives a row's key: the stage's own over a repository, and after the row's member over a group, so the rows of

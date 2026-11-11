@@ -162,12 +162,13 @@ func appWith(to string) shell.Screen {
 func (m Model) reaches(name string) bool { return m.find(name) != nil || appWith(name+"/") != "" }
 
 // verbsOf gives the verbs whose staged stages are among the stages, as their catalog entries' commands name them,
-// each once.
+// each once; a verb none of whose stages among them kit ever marks, as kit people's, is not, as its --marks would
+// print null for each.
 func verbsOf(stages []string) []string {
 	var verbs []string
 	for _, name := range stages {
 		verb, _ := verbOf(name)
-		if verb != "" && !slices.Contains(verbs, verb) {
+		if verb != "" && everMarked(name) && !slices.Contains(verbs, verb) {
 			verbs = append(verbs, verb)
 		}
 	}

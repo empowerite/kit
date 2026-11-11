@@ -221,6 +221,24 @@ func TestATabOffHereSaysSo(t *testing.T) {
 	}
 }
 
+// Checks on a forge whose provider lacks check-runs, as one written to a contract before 4, says so, dim, under its
+// empty line, as a feature off here is, and no failure; over a group, the member it is lacked for is named.
+func TestATabWhoseFeatureTheProviderLacksSaysSo(t *testing.T) {
+	m := to(t, appOf(t, shell.Changes, tea.WindowSizeMsg{Width: 160, Height: 30}), "changes/checks")
+	m = drive(m, reanswer(m, "changes/checks",
+		`{"rows": [], "errors": [{"feature": "check-runs", "off": true, "lacked": true}]}`))
+	got := m.lines(m.stage)
+	if len(got) != 2 || !strings.Contains(got[0].Text, "no check") ||
+		got[1].Text != lead+style.Off("check-runs is lacked by the provider of the forge here") ||
+		strings.Contains(view(m), Failed) || m.count(m.stage) != "0" {
+		t.Errorf("checks with check-runs lacked, count %q: %+v", m.count(m.stage), got)
+	}
+	if got := m.offText(failure{Member: "github.com/o/a", Feature: "check-runs", Off: true, Lacked: true}); got !=
+		"check-runs is lacked by the provider of the forge here in github.com/o/a" {
+		t.Errorf("over a group: %q", got)
+	}
+}
+
 // A document kit capped, limited at N, makes its tab's count N+: kit read N of more.
 func TestACappedTabCountsWithAPlus(t *testing.T) {
 	m := appOf(t, shell.Delivery)
@@ -325,6 +343,26 @@ func TestATabWithANullMarkIsNeverStale(t *testing.T) {
 		if got := i.find(name).src.Watch; got != want {
 			t.Errorf("Watch All watches %s: %v", name, got)
 		}
+	}
+}
+
+// kittui asks no verb for its marks whose every tab its catalog entry says kit never marks: People's --marks is never
+// run, as it prints null for every tab; Issues', whose milestones kit marks, is.
+func TestAVerbThatNeverMarksItsTabsIsNotAskedForTheirMarks(t *testing.T) {
+	if got := verbsOf([]string{"people/people", "people/teams", "people/agents"}); len(got) != 0 {
+		t.Errorf("People's marks are read of %q", got)
+	}
+	record := filepath.Join(t.TempDir(), "calls")
+	t.Setenv("FAKE_FLOW_CALLS", record)
+	m := appOf(t, shell.People, tea.WindowSizeMsg{Width: 160, Height: 30})
+	drive(m, clockOf(m).Fire()...)
+	if got := calls(t, record); slices.Contains(got, "people --marks") {
+		t.Errorf("People ran %q", got)
+	}
+	i := appOf(t, shell.Issues, tea.WindowSizeMsg{Width: 160, Height: 30})
+	drive(i, clockOf(i).Fire()...)
+	if got := calls(t, record); !slices.Contains(got, "issues --marks") {
+		t.Errorf("Issues ran %q", got)
 	}
 }
 

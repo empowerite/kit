@@ -203,7 +203,7 @@ func (m Model) pages() []string {
 // that shares kit's one read of the open issues and pull requests, every stage in the picture that shares it, so they
 // stay one snapshot.
 func (m *Model) refresh(name string) tea.Cmd {
-	// a stage that takes fresh is one that shares kit's one snapshot: kit flow's are the only ones that take it
+	// a stage that takes fresh is one that shares kit's one snapshot: kit flow's, and kit changes' reviews and checks
 	if !takes(name, "fresh") {
 		return m.restart(name)
 	}

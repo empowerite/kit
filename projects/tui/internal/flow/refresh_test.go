@@ -10,6 +10,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/source"
 )
 
@@ -92,6 +93,31 @@ func TestRefreshInTheTabsMenuRunsItsStageAndTheStagesThatShareItsRead(t *testing
 		got := calls(t, record)
 		slices.Sort(got)
 		if !slices.Equal(got, c.want) || m.tabMenu.Open {
+			t.Errorf("refresh on %s ran %q, not %q", c.stage, got, c.want)
+		}
+	}
+}
+
+// On Changes, Refresh on reviews or checks reads the forge afresh, as changes does, and runs the three again, as they
+// share kit's one read of the open changes, so a review given within the minute shows; merged reads no snapshot and
+// runs alone.
+func TestRefreshOnReviewsOrChecksReadsTheOpenChangesAfresh(t *testing.T) {
+	shared := []string{"changes checks --json --fresh", "changes reviews --json --fresh", "flow changes --json --fresh"}
+	for _, c := range []struct {
+		stage string
+		want  []string
+	}{
+		{"changes/reviews", shared},
+		{"changes/checks", shared},
+		{"changes/merged", []string{"changes merged --json"}},
+	} {
+		record := filepath.Join(t.TempDir(), "calls")
+		m := to(t, appOf(t, shell.Changes, tea.WindowSizeMsg{Width: 160, Height: 30}), c.stage)
+		t.Setenv("FAKE_FLOW_CALLS", record)
+		m = choose(t, m, "Refresh")
+		got := calls(t, record)
+		slices.Sort(got)
+		if !slices.Equal(got, c.want) {
 			t.Errorf("refresh on %s ran %q, not %q", c.stage, got, c.want)
 		}
 	}
