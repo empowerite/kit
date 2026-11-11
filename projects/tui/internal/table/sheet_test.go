@@ -243,6 +243,32 @@ func TestTheKeyboardMovesThroughTheControlLineAndTheRows(t *testing.T) {
 // shellLine gives a segment's keys as the keys bar names them.
 func shellLine(seg shell.Segment) string { return shell.Path{seg}.String() }
 
+func TestGreaterAndLessShowALevelMoreAndLessOfTheWholeSheet(t *testing.T) {
+	s := sheet("")
+	s.Focus()
+	pressed(&s, "down")
+	open := len(s.Rows())
+	// < closes a level of the whole table, from the rows; > opens it again
+	if took := pressed(&s, "<"); !took[0] || len(s.Rows()) >= open {
+		t.Fatalf("< in the rows: took %v, %d rows of %d", took, len(s.Rows()), open)
+	}
+	if took := pressed(&s, ">"); !took[0] || len(s.Rows()) != open {
+		t.Errorf("> in the rows: took %v, %d rows of %d", took, len(s.Rows()), open)
+	}
+	// the control line takes them too
+	pressed(&s, "esc")
+	s.Focus()
+	if pressed(&s, "<"); len(s.Rows()) >= open {
+		t.Errorf("< on the control line: %d rows of %d", len(s.Rows()), open)
+	}
+	pressed(&s, ">")
+	// while a preset's name is typed, < folds nothing
+	s.tbl.SavingAs = true
+	if pressed(&s, "<"); len(s.Rows()) != open {
+		t.Errorf("< while a name is typed: %d rows of %d", len(s.Rows()), open)
+	}
+}
+
 func TestThePresetsAreChosenSavedRenamedAndDeleted(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "presets.json")

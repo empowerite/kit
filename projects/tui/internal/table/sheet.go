@@ -446,6 +446,11 @@ func (s *Sheet) key(k tea.KeyPressMsg) bool {
 		*s = next
 		return true
 	}
+	// > and < show a level more and less of the whole table from the rows and the control line, as they do on a
+	// stage of flow, unless a preset's name is being typed
+	if (s.inRows || s.onControls) && !s.tbl.SavingAs && Fold(s, k.String()) {
+		return true
+	}
 	switch {
 	case s.onControls:
 		if _, on := s.atStop(); on {

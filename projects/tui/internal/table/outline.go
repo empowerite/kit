@@ -330,6 +330,24 @@ func GroupMarks(every []grid.Row, picked map[string]bool) map[string]string {
 	return marks
 }
 
+// Fold takes > and <, a level more and a level less of the whole table, as Show More and Show Less do, and says
+// whether the key is one of them. A key that would open or close nothing is taken all the same, and does nothing.
+func Fold(h Host, key string) bool {
+	name := ""
+	switch key {
+	case ">":
+		name = "Show More"
+	case "<":
+		name = "Show Less"
+	default:
+		return false
+	}
+	if next, _ := Folding(h, name); Changes(h, next) {
+		Reoutline(h, next)
+	}
+	return true
+}
+
 // Folding gives the outline one of the fold items of the tab's menu leaves the table with, and whether the name is
 // one: Show More and Show Less a level more and a level less of the whole table, as ShowMore and ShowLess say, as > and <
 // do; Show Selected shows the selected rows, every heading over them first, as Show shows a node; and Hide Selected

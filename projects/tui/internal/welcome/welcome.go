@@ -549,6 +549,10 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.focusSearch(true)
 		return m, nil
 	}
+	// > and < show a level more and less of the step's table from the bar too, as from a stage's tab bar in flow
+	if m.gridded() && table.Fold(m.sheet(), k.String()) {
+		return m, nil
+	}
 	if bar, ok := m.bar().Update(k); ok {
 		m.choose(bar)
 		m.fit()

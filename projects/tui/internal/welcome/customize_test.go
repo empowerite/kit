@@ -90,6 +90,21 @@ func TestCustomizeIsATableOfItsPartsInThePagesOrder(t *testing.T) {
 	}
 }
 
+func TestGreaterAndLessShowALevelMoreAndLessOfTheParts(t *testing.T) {
+	m, _ := loaded(t, press('6'))
+	// from the step bar, as from a stage's tab bar in flow: > opens each part, < closes them
+	if m = drive(m, press('>')); !strings.Contains(view(m), "▾ Packages") || m.inPane {
+		t.Errorf("> from the bar: in the pane %v\n%s", m.inPane, view(m))
+	}
+	if m = drive(m, press('<')); !strings.Contains(view(m), "▸ Packages") {
+		t.Errorf("< from the bar:\n%s", view(m))
+	}
+	// and from the rows
+	if m = drive(m, down, down, press('>')); !strings.Contains(view(m), "▾ Packages") || !m.sheet().InRows() {
+		t.Errorf("> in the rows:\n%s", view(m))
+	}
+}
+
 func TestThePartsPresetsGroupThemByCommandAndCompactThem(t *testing.T) {
 	m, _ := loaded(t, press('6'))
 	m = drive(m, clickOn(t, m, "Default ▼"))
