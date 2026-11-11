@@ -176,7 +176,8 @@ exists.
 
 Every code forge call the workflow makes goes through `forge:` in `kit/modules/bash/forge.sh`: an issue's title, the
 branch linked to it, a pull request and its state, checks, review threads, and linked issues. A self-hosted code
-forge is named in the `forge` or `forges` setting, or found from a host `gh` or `glab` has logged in to.
+forge is named in the `forge` or `forges` setting, or found from a CI runner's own server or from a host `gh` or
+`glab` has logged in to.
 
 - Every provider returns the same shape, so `kit flow` shows the same picture on either code forge.
 - Every call answers, answers none, fails with one line that says what could not be read, or is unsupported, and a

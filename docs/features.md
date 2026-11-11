@@ -121,9 +121,15 @@ builds, releases, and issues are read from it. `kit work` and `kit submit` still
 whatever the primary is. Each remote has a code forge, or none:
 
 1. the `forges` setting names it: `forges: {upstream: gitlab}`; for the primary, the `forge` setting wins
-2. else its host: `github.com` is GitHub, `gitlab.com` is GitLab
-3. else a host `gh` or `glab` has logged in to, which tells a self-hosted code forge apart
-4. else it has no code forge: kit fetches it and counts its branches, and asks no code forge about it
+2. else its host: `github.com` is GitHub, `gitlab.com` is GitLab, `dev.azure.com` is Azure DevOps
+3. else, on a CI runner, the runner's own server when its host is the remote's: `GITHUB_SERVER_URL` names GitHub,
+   `CI_SERVER_HOST` GitLab, and `SYSTEM_COLLECTIONURI` Azure DevOps
+4. else a host `gh` or `glab` has logged in to, which tells a self-hosted code forge apart
+5. else it has no code forge: kit fetches it and counts its branches, and asks no code forge about it
+
+The primary is the exception to the last: on a host nothing names, its code forge is one kit cannot tell, never
+none, so a read of its pull request fails and names the `forge` setting. A primary that is a path on this machine has
+no code forge.
 
 `kit release <version>` tags HEAD as `release/<version>` and pushes that tag alone, which starts the repository's
 release workflow. It refuses:

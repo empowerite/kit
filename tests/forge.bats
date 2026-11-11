@@ -131,6 +131,43 @@ in-forge() {
   [ "$output" = gitlab ]
 }
 
+@test "on a runner, the server's host names the primary's forge, and a real host nothing names is never none" {
+  unset GITHUB_SERVER_URL CI_SERVER_HOST SYSTEM_COLLECTIONURI
+  git remote add origin https://ghe.example.com/o/r.git
+  GITHUB_SERVER_URL=https://ghe.example.com run forge-of origin
+  [ "$output" = github ]
+  GITHUB_SERVER_URL=https://github.com run forge-of origin
+  [ -z "$output" ]
+  CI_SERVER_HOST=ghe.example.com run forge-of origin
+  [ "$output" = gitlab ]
+  SYSTEM_COLLECTIONURI=https://ghe.example.com/tfs/DefaultCollection/ run forge-of origin
+  [ "$output" = ado ]
+  # nothing names the host: the primary has a forge the kit cannot tell, so it is not taken for none
+  run in-forge forge:none
+  [ "$status" -eq 1 ]
+  GITHUB_SERVER_URL=https://ghe.example.com run in-forge forge:none
+  [ "$status" -eq 1 ]
+  # a local path, and a primary with no remote, have no host, and no forge
+  git remote set-url origin "${BATS_TEST_TMPDIR}/origin.git"
+  run in-forge forge:none
+  [ "$status" -eq 0 ]
+  git remote remove origin
+  run in-forge forge:none
+  [ "$status" -eq 0 ]
+}
+
+@test "a primary whose remotes git cannot list is refused, saying the remotes could not be read" {
+  git remote add origin https://github.com/empowerite/kit.git
+  printf 'primary: origin\n' > kit.yml
+  run bash -c 'source "${kit_root}/modules/bash/1st.sh" && use forge
+    git() { [[ "$1" != remote ]] || return 1; command git "$@"; }
+    forge:primary'
+  [ "$status" -eq 1 ]
+  said="run: git remote (the remotes could not be read, so primary 'origin' in kit.yml cannot be checked)"
+  [[ "$output" == *"${said}"* ]]
+  [[ "$output" != *"is not a remote"* ]]
+}
+
 @test "the primary is the primary setting, else origin; it comes first among the remotes, and names the provider" {
   git remote add zeta https://gitlab.com/team/kit.git
   git remote add origin https://github.com/empowerite/kit.git

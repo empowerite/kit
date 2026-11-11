@@ -15,10 +15,16 @@
 #   3. the remote's host, from git remote get-url, which applies url.*.insteadOf: github.com or a host under it is
 #      github; gitlab.com or a host under it is gitlab; dev.azure.com, ssh.dev.azure.com, or a host under
 #      visualstudio.com is ado
-#   4. the forge tools' login files: a host gh has logged in to, in hosts.yml under GH_CONFIG_DIR, is github; a host
+#   4. on a CI runner, the server the runner belongs to, when its host is the remote's: the host of GITHUB_SERVER_URL
+#      is github, CI_SERVER_HOST gitlab, and the host of SYSTEM_COLLECTIONURI, Azure Pipelines' collection, ado
+#   5. the forge tools' login files: a host gh has logged in to, in hosts.yml under GH_CONFIG_DIR, is github; a host
 #      glab has, in config.yml under GLAB_CONFIG_DIR, is gitlab. Each directory defaults to its tool's own, under
-#      XDG_CONFIG_HOME or ~/.config. This is what tells a self-hosted forge apart.
-#   5. otherwise the remote has no forge: kit fetches it and counts its branches, and asks no forge about it
+#      XDG_CONFIG_HOME or ~/.config. This and the runner's server are what tell a self-hosted forge apart.
+#   6. otherwise the remote has no forge: kit fetches it and counts its branches, and asks no forge about it
+#
+# A primary on a host that nothing names is not taken for one with no forge: forge:none fails for it, so a read of
+# its change fails, naming forge in kit.yml, and a rule that judges the change never passes it unread. A primary that
+# is a path on this machine, or no remote at all, has no host, and no forge.
 #
 # The provider is the primary's forge.
 #
@@ -162,6 +168,7 @@ declare -g forge_lacking='' forge_lacking_read=false
 #
 #   - a primary that names no remote here; git remote add refuses a name that starts with -, so a remote is never an
 #     option
+#   - a primary set where git cannot list the remotes, as outside a repository: it cannot be checked
 #   - a key of the forges map that is no remote name: one that starts with -, or holds a character git refuses
 #
 # A forges key may name a remote this desk does not have; it is only ever compared with a remote's name.
@@ -171,8 +178,11 @@ forge:primary() {
   primary=$(settings:value primary)
   if [[ -n "${primary}" ]]
   then
-    # Outside a repository there is no remote, and the primary is refused below as none.
-    remotes=$(git remote 2>/dev/null || true)
+    if ! remotes=$(git remote 2>/dev/null)
+    then
+      error "run: git remote (the remotes could not be read, so primary '${primary}' in kit.yml cannot be checked)"
+      return 1
+    fi
     if ! grep --quiet --line-regexp --fixed-strings -- "${primary}" <<<"${remotes}"
     then
       error "primary '${primary}' in kit.yml is not a remote; the remotes are: $(paste -s -d ' ' - <<<"${remotes}")"
@@ -242,10 +252,44 @@ forge:logged-in() {
   yaml:run "$1" "$2" 2>/dev/null || true  # an unreadable file names no host, as the comment above says
 }
 
+# forge:runner-of <host> prints the forge of the CI server whose host is <host>, as the file header's list says, or
+# nothing off a runner or for another host.
+forge:runner-of() {
+  local host=$1
+  if [[ -n "${GITHUB_SERVER_URL:-}" && "$(forge:url-host "${GITHUB_SERVER_URL}")" == "${host}" ]]
+  then
+    printf 'github\n'
+  elif [[ -n "${CI_SERVER_HOST:-}" && "${CI_SERVER_HOST}" == "${host}" ]]
+  then
+    printf 'gitlab\n'
+  elif [[ -n "${SYSTEM_COLLECTIONURI:-}" && "$(forge:url-host "${SYSTEM_COLLECTIONURI}")" == "${host}" ]]
+  then
+    printf 'ado\n'
+  fi
+}
+
+# forge:login-of <host> prints the forge whose tool has logged in to <host>, as the file header's list says, or
+# nothing.
+forge:login-of() {
+  local host=$1 hosts
+  hosts=$(forge:logged-in "${GH_CONFIG_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/gh}/hosts.yml" 'keys | .[]')
+  if grep --quiet --line-regexp --fixed-strings "${host}" <<<"${hosts}"
+  then
+    printf 'github\n'
+    return 0
+  fi
+  hosts=$(forge:logged-in "${GLAB_CONFIG_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/glab-cli}/config.yml" \
+    '.hosts | keys | .[]')
+  if grep --quiet --line-regexp --fixed-strings "${host}" <<<"${hosts}"
+  then
+    printf 'gitlab\n'
+  fi
+}
+
 # forge:of <remote> prints the remote's forge, the first answer of the file header's list, or nothing for a remote
 # with no forge.
 forge:of() {
-  local remote=$1 forge='' name value host hosts primary row
+  local remote=$1 forge='' name value host primary row
   local -a rows
   primary=$(forge:primary) || return $?
   [[ "${remote}" != "${primary}" ]] || forge=$(settings:value forge)
@@ -267,15 +311,8 @@ forge:of() {
       (gitlab.com | *.gitlab.com) forge=gitlab ;;
       (dev.azure.com | ssh.dev.azure.com | *.visualstudio.com) forge=ado ;;
       (*)
-        hosts=$(forge:logged-in "${GH_CONFIG_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/gh}/hosts.yml" 'keys | .[]')
-        if grep --quiet --line-regexp --fixed-strings "${host}" <<<"${hosts}"
-        then
-          forge=github
-        else
-          hosts=$(forge:logged-in "${GLAB_CONFIG_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/glab-cli}/config.yml" \
-            '.hosts | keys | .[]')
-          grep --quiet --line-regexp --fixed-strings "${host}" <<<"${hosts}" && forge=gitlab
-        fi
+        forge=$(forge:runner-of "${host}")
+        [[ -n "${forge}" ]] || forge=$(forge:login-of "${host}")
     esac
   fi
   [[ -z "${forge}" ]] || printf '%s\n' "${forge}"
@@ -311,12 +348,14 @@ forge:provider() {
 }
 
 # forge:none succeeds when the primary has no forge, the last answer of the file header's list. It fails when the
-# primary has a forge, and when the settings that choose it cannot be read, so a wrong setting is never taken for none.
+# primary has a forge, when the settings that choose it cannot be read, so a wrong setting is never taken for none,
+# and when the primary is on a host that nothing names, whose forge the kit cannot tell.
 forge:none() {
   local primary forge
   primary=$(forge:primary 2>/dev/null) || return 1
   forge=$(forge:of "${primary}" 2>/dev/null) || return 1
-  [[ -z "${forge}" ]]
+  [[ -z "${forge}" ]] || return 1
+  [[ -z "$(forge:host "${primary}")" ]]
 }
 
 # forge:providers prints the providers on the module path, space-separated.

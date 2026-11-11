@@ -114,6 +114,21 @@ change() {
   grep --quiet 'pr list --head 7-fix-the-thing --state open' "${FAKE_DIR}/gh.calls"
 }
 
+@test "a primary on a host nothing names is a change that cannot be read, never one that passes unchecked" {
+  unset GITHUB_SERVER_URL CI_SERVER_HOST SYSTEM_COLLECTIONURI
+  branch 7-fix-the-thing "#7 cli: fix the thing"
+  git remote set-url origin https://ghe.example.com/o/r.git
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the change could not be read, so its title is unchecked: set forge in kit.yml; origin's host"* ]]
+  [[ "$output" != *"policy allows"* ]]
+  [ "$("${kit_root}/bin/kit" policy --input 2>/dev/null | jq --raw-output '.change | keys[]')" = error ]
+  [ ! -s "${FAKE_DIR}/gh.calls" ]
+  # a local path stays a primary with no forge
+  git remote set-url origin "${work}/origin.git"
+  [ "$("${kit_root}/bin/kit" policy --input | jq --compact-output .change)" = null ]
+}
+
 @test "the defaults refuse a branch, a commit subject, and a title off the loop's shape, each named" {
   branch topic "#7 cli: fine" "wip"
   change ""
