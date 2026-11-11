@@ -34,8 +34,9 @@ func TestAStageIsDrawnStaleFromWhatWasKeptUntilItsLoadLands(t *testing.T) {
 	m := drive(New(runner(t), options()), tea.WindowSizeMsg{Width: 160, Height: 24})
 	m = drive(m, m.kept("backlog")(), m.kept("changes")())
 	s := m.find("backlog")
-	if s.src.Loading || !s.src.Stale || len(s.issues) != 1 || !strings.Contains(raw(m), "Fix the thing, as kept") {
-		t.Fatalf("the kept backlog: loading %v, stale %v, %d issues\n%s", s.src.Loading, s.src.Stale, len(s.issues), raw(m))
+	if s.src.Loading || !s.src.Stale || len(of[issue](*s)) != 1 || !strings.Contains(raw(m), "Fix the thing, as kept") {
+		t.Fatalf("the kept backlog: loading %v, stale %v, %d issues\n%s", s.src.Loading, s.src.Stale,
+			len(of[issue](*s)), raw(m))
 	}
 	if names := barNames(m); !strings.Contains(names, "backlog"+tabs.Stale) || strings.Contains(names, "changes"+tabs.Stale) {
 		t.Errorf("the dots: %q", names)
@@ -45,9 +46,9 @@ func TestAStageIsDrawnStaleFromWhatWasKeptUntilItsLoadLands(t *testing.T) {
 		t.Errorf("changes without a kept picture: loading %v, stale %v", d.src.Loading, d.src.Stale)
 	}
 	m = drive(m, m.load("backlog", false)())
-	if s := m.find("backlog"); s.src.Stale || len(s.issues) != 3 || strings.Contains(raw(m), "as kept") ||
+	if s := m.find("backlog"); s.src.Stale || len(of[issue](*s)) != 3 || strings.Contains(raw(m), "as kept") ||
 		strings.Contains(barNames(m), "backlog"+tabs.Stale) {
-		t.Errorf("after its load: stale %v, %d issues\n%s", s.src.Stale, len(s.issues), raw(m))
+		t.Errorf("after its load: stale %v, %d issues\n%s", s.src.Stale, len(of[issue](*s)), raw(m))
 	}
 }
 
@@ -55,8 +56,8 @@ func TestALoadThatLandsFirstLeavesWhatWasKeptUnread(t *testing.T) {
 	keeping(t)
 	m := drive(New(runner(t), options()), tea.WindowSizeMsg{Width: 160, Height: 24})
 	m = drive(m, m.load("backlog", false)(), m.kept("backlog")())
-	if s := m.find("backlog"); s.src.Stale || len(s.issues) != 3 || strings.Contains(raw(m), "as kept") {
-		t.Errorf("kept after the load: stale %v, %d issues", s.src.Stale, len(s.issues))
+	if s := m.find("backlog"); s.src.Stale || len(of[issue](*s)) != 3 || strings.Contains(raw(m), "as kept") {
+		t.Errorf("kept after the load: stale %v, %d issues", s.src.Stale, len(of[issue](*s)))
 	}
 	// what a load that began before the one now running kept is not drawn either
 	n := drive(New(runner(t), options()), tea.WindowSizeMsg{Width: 160, Height: 24})
@@ -75,15 +76,15 @@ func TestTheStartReadsWhatWasKeptOfEveryStage(t *testing.T) {
 	m := loaded(t, options())
 	got, _ := os.ReadFile(record)
 	for _, s := range m.stages {
-		if known[s.name] && !strings.Contains(string(got), "flow "+s.name+" --json") {
+		if sourced(s.name) && !strings.Contains(string(got), "flow "+s.name+" --json") {
 			t.Errorf("%s was not read", s.name)
 		}
 	}
 	if n := strings.Count(string(got), " --cached\n"); n != len(m.stages) {
 		t.Errorf("%d stages' kept pictures read, of %d:\n%s", n, len(m.stages), got)
 	}
-	if s := m.find("backlog"); s.src.Stale || len(s.issues) != 3 {
-		t.Errorf("backlog after the start: stale %v, %d issues", s.src.Stale, len(s.issues))
+	if s := m.find("backlog"); s.src.Stale || len(of[issue](*s)) != 3 {
+		t.Errorf("backlog after the start: stale %v, %d issues", s.src.Stale, len(of[issue](*s)))
 	}
 }
 

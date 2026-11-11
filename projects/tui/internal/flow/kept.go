@@ -14,7 +14,7 @@ import (
 func (m Model) keptAll() []tea.Cmd {
 	var cmds []tea.Cmd
 	for _, s := range m.stages {
-		if known[s.name] {
+		if sourced(s.name) {
 			cmds = append(cmds, s.src.Kept(m.env()))
 		}
 	}

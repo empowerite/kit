@@ -46,7 +46,8 @@ func legendOf(t *testing.T, verb string) string {
 // else kit help flow's.
 func helpOf(t *testing.T, stage string) string {
 	t.Helper()
-	if verb, _ := verbOf(stage); verb != "flow" {
+	// a stage kittui no longer draws, as desk, is kit flow's: kit's glyph table keeps it for kit flow --text
+	if verb, _ := verbOf(stage); verb != "" && verb != "flow" {
 		return legendOf(t, "kit-"+verb)
 	}
 	return legendText(t)
@@ -266,8 +267,8 @@ func TestTheLegendMarksEveryGlyphAClickLeadsSomewhereFrom(t *testing.T) {
 			// a row whose work is on the desk, as one in a worktree here, leads to its row on Repositories' worktrees
 			// tab
 			s := m.find("underway")
-			s.under[1].Here, s.under[1].Worktree = true, "/home/kit/worktrees/8-eight"
-			m.ws.Checkout = s.under[1].Worktree
+			of[underway](*s)[1].Here, of[underway](*s)[1].Worktree = true, "/home/kit/worktrees/8-eight"
+			m.ws.Checkout = of[underway](*s)[1].Worktree
 			m.rebuild()
 		}
 		drawn := map[string]string{}

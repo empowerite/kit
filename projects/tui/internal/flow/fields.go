@@ -1,12 +1,13 @@
-// The field catalog, fields.json: for each stage with columns, where its records are in kit flow <stage> --json, its
-// fields, and its own presets. A field is declared once: a stable id, which presets and the code use, and a label,
-// which only the header shows, with, for a field that holds a list, the name of one of its values, which sorts by size
-// until the rows stand once per value, then by value; the type of value it holds; whether its rows can sort, group, and be filtered
-// by it; an
-// enum's known values, each with its glyph; its renderings, each a renderer by name, in order of preference; the record
-// path its value is read from; and the placement it takes where a preset says none. The catalog is the data's
-// description, read as internal/table reads one; the value types and the renderers, its behavior, are Go's: table's
-// own, and kit flow's, registered here by name, and a test fails on a name the catalog gives that is not registered.
+// The field catalog, fields.json: for each stage, the kit command that prints its rows, the words it takes beside its
+// own, whether its verb's --stages and --marks name it, where its records are in what the command prints, the paths of
+// each record's key, the line it shows empty, its fields, and its own presets. A field is declared once: a stable id,
+// which presets and the code use, and a label, which only the header shows, with, for a field that holds a list, the
+// name of one of its values, which sorts by size until the rows stand once per value, then by value; the type of value
+// it holds; whether its rows can sort, group, and be filtered by it; an enum's known values, each with its glyph; its
+// renderings, each a renderer by name, in order of preference; the record path its value is read from; and the
+// placement it takes where a preset says none. The catalog is the data's description, read as internal/table reads
+// one; the value types and the renderers, its behavior, are Go's: table's own, and kit flow's, registered here by
+// name, and a test fails on a name the catalog gives that is not registered.
 package flow
 
 import (
@@ -25,8 +26,7 @@ const caller = grid.Caller
 //go:embed fields.json
 var fieldsJSON []byte
 
-// catalog is fields.json, each stage's fields and presets by the stage's name. A stage it does not name, as incoming,
-// whose rows are commits and branches, has no columns.
+// catalog is fields.json, each stage's entry by the stage's name. A stage it does not name kittui does not draw.
 var catalog = readCatalog(fieldsJSON)
 
 // readCatalog reads the catalog, as table.ReadCatalog does; one that does not read is kittui's own fault, which the

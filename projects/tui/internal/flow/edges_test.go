@@ -58,9 +58,9 @@ func TestADocumentKitFlowCannotDecodeIsARefusal(t *testing.T) {
 	for _, c := range []struct {
 		stage, data string
 	}{
-		{"releases", `[{"version": 5}]`},
+		{"releases", `[{"key": "v", "version": 5}]`},
 		{"releases", `[{`},
-		{"incoming", `{"remotes": 7}`},
+		{"backlog", `[{"number": "x"}]`},
 		{"incoming", `{`},
 		{"builds", `[{"id": "x"}]`},
 	} {
@@ -125,15 +125,18 @@ func TestTheCellsDrawWhatIsMissingOrUnknown(t *testing.T) {
 // Every stage that is empty says what it lacks, in its own words.
 func TestEveryEmptyStageSaysWhatItLacks(t *testing.T) {
 	for name, want := range map[string]string{
-		"backlog":  "no open issue without a pull request",
-		"underway": "no issue is underway",
-		"incoming": "no remote to fetch",
-		"changes":  "no open pull request",
-		"builds":   "no build since the last 20 runs",
-		"releases": "no release",
-		"nonesuch": "nothing",
+		"backlog":           "no open issue without a pull request",
+		"underway":          "no issue is underway",
+		"incoming":          "no remote to fetch",
+		"changes":           "no open pull request",
+		"builds":            "no build since the last 20 runs",
+		"releases":          "no release",
+		"workspace/repos":   "no repository",
+		"workspace/remotes": "nothing",
+		"packages/packages": "no package in reach",
+		"nonesuch":          "nothing",
 	} {
-		if got := empty(stage{name: name, ins: []incoming{{Fetched: true}}}); got != want {
+		if got := empty(stage{name: name}); got != want {
 			t.Errorf("an empty %s says %q, not %q", name, got, want)
 		}
 	}
@@ -153,17 +156,16 @@ func TestOnANarrowScreenTheBarScrolls(t *testing.T) {
 // Nothing and null are what kit printed when it printed nothing: a refusal, the stage's line, never an empty stage.
 func TestNothingOrNullOnStdoutIsARefusalNotAnEmptyStage(t *testing.T) {
 	for what, err := range map[string]error{
-		"null for backlog":     shape("backlog", []byte("null")),
-		"nothing for incoming": shape("incoming", nil),
-		"rows of null":         across("backlog", []byte("{\"rows\": null}")),
+		"null for backlog":     (&stage{name: "backlog"}).decode([]byte("null"), false),
+		"nothing for incoming": (&stage{name: "incoming"}).decode(nil, false),
+		"rows of null":         (&stage{name: "backlog"}).decode([]byte(`{"rows": null}`), true),
 	} {
-		if err == nil || !strings.Contains(err.Error(), "printed nothing") {
+		if err == nil || !strings.Contains(err.Error(), "printed n") {
 			t.Errorf("%s: %v", what, err)
 		}
 	}
 	m := loaded(t, Options{Stages: []string{"releases"}}, answer("releases", ""))
-	if s := m.find("releases"); s.refusal != "kit flow releases --json printed nothing where an array of releases was "+
-		"expected" {
+	if s := m.find("releases"); s.refusal != "kit flow releases --json printed nothing where an array was expected" {
 		t.Errorf("releases of nothing: refusal %q", s.refusal)
 	}
 }

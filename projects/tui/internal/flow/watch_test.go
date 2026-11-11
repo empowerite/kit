@@ -158,8 +158,9 @@ func TestAWatchedStageLoadsAgainOnceItsMarkMoves(t *testing.T) {
 	next, cmd := next.(Model).Update(ask())
 	m = next.(Model)
 	b := m.find("backlog")
-	if !b.src.Stale || b.src.Loading || len(b.issues) == 0 || cmd == nil {
-		t.Fatalf("backlog while it loads again: stale %v, loading %v, %d issues", b.src.Stale, b.src.Loading, len(b.issues))
+	if !b.src.Stale || b.src.Loading || len(of[issue](*b)) == 0 || cmd == nil {
+		t.Fatalf("backlog while it loads again: stale %v, loading %v, %d issues", b.src.Stale, b.src.Loading,
+			len(of[issue](*b)))
 	}
 	if !strings.Contains(raw(m), "Fix the thing") {
 		t.Errorf("backlog's rows did not stay:\n%s", raw(m))
@@ -169,8 +170,8 @@ func TestAWatchedStageLoadsAgainOnceItsMarkMoves(t *testing.T) {
 	if !strings.Contains(string(got), "flow backlog --json --fresh\n") {
 		t.Errorf("backlog did not load again afresh:\n%s", got)
 	}
-	if b := m.find("backlog"); b.src.Stale || len(b.issues) != 3 {
-		t.Errorf("backlog after it loaded again: stale %v, %d issues", b.src.Stale, len(b.issues))
+	if b := m.find("backlog"); b.src.Stale || len(of[issue](*b)) != 3 {
+		t.Errorf("backlog after it loaded again: stale %v, %d issues", b.src.Stale, len(of[issue](*b)))
 	}
 	if r := m.find("releases"); !r.src.Stale || strings.Contains(string(got), "flow releases --json --fresh") {
 		t.Errorf("releases, not watched: stale %v", r.src.Stale)

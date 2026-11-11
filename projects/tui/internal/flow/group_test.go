@@ -34,6 +34,9 @@ func over(t *testing.T, stages ...string) Model {
 	return drive(m, tea.WindowSizeMsg{Width: 120, Height: 24}, shell.WorkspaceMsg{Workspace: group})
 }
 
+// ofWorkspace says whether a stage, as kittui knows it, is kit workspace's.
+func ofWorkspace(name string) bool { return strings.HasPrefix(name, workspaceVerb+"/") }
+
 // recordKeys gives the keys of a stage's records, in their order.
 func recordKeys(m Model, name string) []string {
 	var out []string
@@ -105,7 +108,7 @@ func TestAPullRequestsLinkLandsOnItsMembersRow(t *testing.T) {
 func TestOverAGroupAnArrayIsNoEnvelope(t *testing.T) {
 	m := over(t, "backlog")
 	m = drive(m, answer("backlog", `[]`))
-	want := "kit flow backlog --workspace --json printed an array where {rows, errors} was expected"
+	want := `kit flow backlog --json printed an array where an object with "rows" was expected`
 	if got := m.find("backlog").refusal; got != want {
 		t.Errorf("the refusal: %q", got)
 	}
@@ -174,13 +177,14 @@ func TestOverOneRepositoryARowHasNoMember(t *testing.T) {
 
 func TestOverAGroupOnlyRowsAndErrorsAreTheStagesDocument(t *testing.T) {
 	for data, want := range map[string]string{
-		``: "kit flow backlog --workspace --json printed nothing where {rows, errors} was expected",
-		`{"errors": []}`: `kit flow backlog --workspace --json printed an object without "rows" where ` +
-			"{rows, errors} was expected",
-		`{"rows": 1}`: "kit flow backlog --json: json: cannot unmarshal number into Go value of type []flow.issue",
-		`{bad`: "kit flow backlog --workspace --json: invalid character 'b' looking for beginning of object " +
-			"key string",
-		`nope`: "kit flow backlog --workspace --json: invalid character 'o' in literal null (expecting 'u')",
+		``: `kit flow backlog --json printed nothing where an object with "rows" was expected`,
+		`{"errors": []}`: `kit flow backlog --json printed an object without "rows" where an object with "rows" ` +
+			"was expected",
+		`{"rows": 1}`: `kit flow backlog --json printed a number "rows" where an object with "rows" was expected`,
+		`{"rows": [{"number": "1"}]}`: "kit flow backlog --json: json: cannot unmarshal string into Go struct " +
+			"field issue.number of type int",
+		`{bad`: "kit flow backlog --json: invalid character 'b' looking for beginning of object key string",
+		`nope`: "kit flow backlog --json: invalid character 'o' in literal null (expecting 'u')",
 	} {
 		m := drive(over(t, "backlog"), answer("backlog", data))
 		if got := m.find("backlog").refusal; got != want {

@@ -21,6 +21,17 @@ func TestTheCatalogNamesOnlyWhatIsRegistered(t *testing.T) {
 		catalog["workspace/repos"] == nil || catalog[packagesStage] == nil {
 		t.Errorf("the catalog's stages: %d, incoming %v", len(catalog), catalog["incoming"] != nil)
 	}
+	// each names the command that prints it, a stage of its verb's, and each stage Go builds is the catalog's
+	for name := range catalog {
+		if verb, stage := verbOf(name); !sourced(name) || verb == "" || label(name) != stage {
+			t.Errorf("%s reads %q", name, commandOf(name))
+		}
+	}
+	for name := range builders {
+		if catalog[name] == nil {
+			t.Errorf("Go builds %s, which the catalog does not name", name)
+		}
+	}
 	var glyphs []string
 	for _, l := range legends {
 		for _, e := range l {
@@ -294,14 +305,22 @@ func TestARefIsLeftAlignedAndATimeRight(t *testing.T) {
 	}
 }
 
-// Every stage drawn from records has member, hidden, which groups and filters: over a group, the rows group by it.
+// Every stage whose command reads a group's members has member, hidden, which groups and filters: over a group, the
+// rows group by it.
 func TestEveryStageHasAMemberField(t *testing.T) {
-	// the repos tab lists the members themselves
-	for _, stage := range append([]string{"backlog", "underway", "changes", "builds", "releases"},
-		workspaceStages[1:]...) {
+	n := 0
+	for stage := range catalog {
+		// the repos tab lists the members themselves
+		if !takes(stage, "workspace") || stage == "workspace/repos" {
+			continue
+		}
+		n++
 		if f := fieldIn(stage, "member"); f.Placement != table.PlaceHidden || !f.Filter || !f.Group || !f.Sort {
 			t.Errorf("%s.member: %+v", stage, f)
 		}
+	}
+	if n != len(catalog)-1 {
+		t.Errorf("%d stages of %d take workspace", n, len(catalog)-1)
 	}
 }
 

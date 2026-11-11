@@ -1,7 +1,9 @@
 {
   "stages": [
     {
-      "stage": "workspace/repos", "record": ".rows[]",
+      "stage": "workspace/repos", "command": ["workspace", "repos", "--json"], "staged": true,
+      "takes": ["workspace"], "record": ".rows[]", "key": ".repository",
+      "empty": "no repository",
       "fields": [
         {"id": "repository", "label": "repository", "type": "text", "path": ".repository", "sort": true,
          "renderings": ["member"], "placement": "column"},
@@ -31,7 +33,9 @@
       ]
     },
     {
-      "stage": "backlog", "record": ".[]",
+      "stage": "backlog", "command": ["flow", "backlog", "--json"], "staged": true,
+      "takes": ["owner", "fresh", "cached", "workspace"], "record": ".[]", "key": ".number",
+      "empty": "no open issue without a pull request",
       "fields": [
         {"id": "id", "label": "id", "type": "ref", "path": ".number", "sort": true, "renderings": ["text"],
          "placement": "column"},
@@ -64,7 +68,9 @@
       ]
     },
     {
-      "stage": "underway", "record": ".[]",
+      "stage": "underway", "command": ["flow", "underway", "--json"], "staged": true,
+      "takes": ["owner", "fresh", "cached", "workspace"], "record": ".[]", "key": ".number, .pr.number",
+      "empty": "no issue is underway",
       "fields": [
         {"id": "id", "label": "id", "type": "ref", "path": ".number", "sort": true, "renderings": ["text"],
          "placement": "column"},
@@ -114,7 +120,9 @@
       ]
     },
     {
-      "stage": "changes", "record": ".[]",
+      "stage": "changes", "command": ["flow", "changes", "--json"], "staged": true,
+      "takes": ["owner", "fresh", "cached", "workspace"], "record": ".[]", "key": ".number",
+      "empty": "no open pull request",
       "fields": [
         {"id": "change", "label": "change", "type": "ref", "path": ".ref, .number", "sort": true, "glyph": "🔀",
          "renderings": ["glyph+text", "text"], "placement": "column"},
@@ -153,7 +161,9 @@
       ]
     },
     {
-      "stage": "builds", "record": ".[]",
+      "stage": "builds", "command": ["flow", "builds", "--json"], "staged": true,
+      "takes": ["cached", "workspace"], "record": ".[]", "key": ".id",
+      "empty": "no build since the last 20 runs",
       "fields": [
         {"id": "status", "label": "", "type": "enum", "path": ".state", "filter": true, "values": [
            {"value": "running", "glyph": "🏃"}, {"value": "passed", "glyph": "✅"}, {"value": "failed", "glyph": "❌"},
@@ -188,7 +198,9 @@
       ]
     },
     {
-      "stage": "incoming", "record": ".rows[]",
+      "stage": "incoming", "command": ["flow", "incoming", "--json"], "staged": true,
+      "takes": ["no-fetch", "cached", "workspace"], "record": ".rows[]",
+      "empty": "no remote to fetch",
       "fields": [
         {"id": "kind", "label": "kind", "type": "enum", "path": ".kind", "order": "given", "sort": true, "group": true,
          "filter": true,
@@ -252,7 +264,9 @@
       ]
     },
     {
-      "stage": "releases", "record": ".[]",
+      "stage": "releases", "command": ["flow", "releases", "--json"], "staged": true,
+      "takes": ["cached", "workspace"], "record": ".[]",
+      "empty": "no release",
       "fields": [
         {"id": "version", "label": "version", "type": "text", "path": ".version", "sort": true, "renderings": ["text"],
          "placement": "column"},
@@ -289,7 +303,8 @@
       ]
     },
     {
-      "stage": "workspace/remotes", "record": ".rows[]",
+      "stage": "workspace/remotes", "command": ["workspace", "remotes", "--json"], "staged": true,
+      "takes": ["workspace"], "record": ".rows[]",
       "fields": [
         {"id": "remote", "label": "remote", "type": "text", "path": ".remote", "sort": true, "glyph": "📡",
          "renderings": ["glyph+text", "text"], "placement": "column"},
@@ -319,7 +334,8 @@
       ]
     },
     {
-      "stage": "workspace/branches", "record": ".rows[]",
+      "stage": "workspace/branches", "command": ["workspace", "branches", "--json"], "staged": true,
+      "takes": ["workspace"], "record": ".rows[]",
       "fields": [
         {"id": "kind", "label": "kind", "type": "enum", "path": ".kind", "sort": true, "group": true, "filter": true,
          "values": [{"value": "remote", "glyph": "🌿"}, {"value": "local", "glyph": "🌱"},
@@ -354,7 +370,8 @@
       ]
     },
     {
-      "stage": "workspace/worktrees", "record": ".rows[]",
+      "stage": "workspace/worktrees", "command": ["workspace", "worktrees", "--json"], "staged": true,
+      "takes": ["workspace"], "record": ".rows[]",
       "fields": [
         {"id": "kind", "label": "kind", "type": "enum", "path": ".kind", "sort": true, "group": true, "filter": true,
          "values": [{"value": "desk", "glyph": "💻"}, {"value": "linked", "glyph": "🌳"}],
@@ -391,7 +408,8 @@
       ]
     },
     {
-      "stage": "workspace/commits", "record": ".rows[]",
+      "stage": "workspace/commits", "command": ["workspace", "commits", "--json"], "staged": true,
+      "takes": ["workspace"], "record": ".rows[]",
       "fields": [
         {"id": "commit", "label": "commit", "type": "ref", "path": ".commit", "sort": true, "glyph": "🔘",
          "renderings": ["glyph+text", "text"], "placement": "column"},
@@ -420,7 +438,8 @@
       ]
     },
     {
-      "stage": "workspace/tags", "record": ".rows[]",
+      "stage": "workspace/tags", "command": ["workspace", "tags", "--json"], "staged": true,
+      "takes": ["workspace"], "record": ".rows[]",
       "fields": [
         {"id": "tag", "label": "tag", "type": "text", "path": ".tag", "sort": true, "glyph": "📌",
          "renderings": ["glyph+text", "text"], "placement": "column"},
@@ -444,7 +463,9 @@
       ]
     },
     {
-      "stage": "packages/packages", "record": ".rows[]",
+      "stage": "packages/packages", "command": ["packages", "packages", "--json"], "staged": true,
+      "takes": ["workspace"], "record": ".rows[]",
+      "empty": "no package in reach",
       "fields": [
         {"id": "name", "label": "package", "type": "text", "path": ".name", "sort": true, "glyph": "🧩",
          "renderings": ["glyph+text", "text"], "placement": "column"},

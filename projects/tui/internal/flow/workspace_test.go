@@ -196,7 +196,7 @@ func TestARefusedWorkspaceStageNamesItsCommand(t *testing.T) {
 	if s := stageOf(m, "workspace/tags"); !strings.Contains(s.refusal, "kit workspace tags refuses") {
 		t.Errorf("the refusal: %q", s.refusal)
 	}
-	if got := refusalOf("workspace/tags", &testError{}); got != "kit workspace tags was killed" {
+	if got := refusalOf("workspace/tags", &testError{}); got != "kit workspace tags --json was killed" {
 		t.Errorf("a stage killed: %q", got)
 	}
 }

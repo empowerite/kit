@@ -161,7 +161,7 @@ func (m Model) mine() (numbers []int, lines []string) {
 		if s.name != "changes" {
 			continue
 		}
-		for _, p := range s.pulls {
+		for _, p := range of[pull](s) {
 			if m.me != "" && p.Author == m.me && p.Member == member {
 				numbers = append(numbers, p.Number)
 				lines = append(lines, fmt.Sprintf("%s #%d %s", Change, p.Number, p.Title))
@@ -347,7 +347,7 @@ func (m Model) issueTitle(member, ref string) string {
 	n, _ := strconv.Atoi(strings.TrimPrefix(ref, "#"))
 	for _, s := range m.stages {
 		if s.name == "backlog" {
-			for _, i := range s.issues {
+			for _, i := range of[issue](s) {
 				if i.Number == n && i.Member == member {
 					return i.Title
 				}

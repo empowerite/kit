@@ -330,17 +330,27 @@ func partial(out []byte, err error) ([]byte, error) {
 // are closed for it.
 const waitDelay = 2 * time.Second
 
-// Status gives one stage's JSON, as kit flow <stage> --json <args>… prints it; the args are the stage's own flags. A
-// stage of another verb's picture is named after the verb and a slash, as workspace/branches, which kit workspace
-// branches --json prints. A stage kit cannot draw is kit's refusal, an ExitError; one kit read in part, its document
-// with exit 1, is that document, as partial says. Kit runs in a process group of its own until ctx ends: then the
-// group is sent SIGTERM, so a gh or an ssh kit started dies with it, and the error is ctx's.
+// Status gives one stage's JSON, as kit flow <stage> --json <args>… prints it, as Rows reads it, over the group the
+// runner spans; the args are the stage's own flags. A stage of another verb's picture is named after the verb and a
+// slash, as workspace/branches, which kit workspace branches --json prints.
 func (r Runner) Status(ctx context.Context, stage string, args []string) ([]byte, error) {
 	verb, name, ok := strings.Cut(stage, "/")
 	if !ok {
 		verb, name = "flow", stage
 	}
-	cmd := grouped(ctx, r.Kit, r.over(append([]string{verb, name, "--json"}, args...)...)...)
+	return r.Rows(ctx, append([]string{verb, name, "--json"}, args...), true)
+}
+
+// Rows gives what a kit command prints, kit's words after kit, as a stage's catalog entry names them: with over, the
+// workspace the runner reads, before the verb, as over says, so a command that reads a group's members reads every
+// one. A command kit refuses is kit's refusal, an ExitError; one kit read in part, its document with exit 1, is that
+// document, as partial says. Kit runs in a process group of its own until ctx ends: then the group is sent SIGTERM, so
+// a gh or an ssh kit started dies with it, and the error is ctx's.
+func (r Runner) Rows(ctx context.Context, words []string, over bool) ([]byte, error) {
+	if over {
+		words = r.over(words...)
+	}
+	cmd := grouped(ctx, r.Kit, words...)
 	cmd.Env = append(os.Environ(), "NO_COLOR=1")
 	out, err := r.output(cmd)
 	if err != nil && ctx.Err() != nil {

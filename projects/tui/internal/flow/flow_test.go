@@ -511,11 +511,11 @@ func TestAStageThatDiesSilentlyIsARefusalNotAnEmptyStage(t *testing.T) {
 	m := loaded(t, options())
 	v := view(m)
 	if !shows(m, Issue, "!") || strings.Contains(v, "no open issue") ||
-		!strings.Contains(v, Failed+" kit flow backlog exited 1 with nothing on stderr") {
+		!strings.Contains(v, Failed+" kit flow backlog --json exited 1 with nothing on stderr") {
 		t.Errorf("the silent failure:\n%s", v)
 	}
 	// a kit killed by a signal has no code; one with a line keeps it
-	if got := refusalOf("backlog", &kit.ExitError{Code: -1}); got != "kit flow backlog was killed" {
+	if got := refusalOf("backlog", &kit.ExitError{Code: -1}); got != "kit flow backlog --json was killed" {
 		t.Errorf("killed: %q", got)
 	}
 	if got := refusalOf("backlog", &kit.ExitError{Code: 1, Stderr: "❌ the line\n"}); got != "the line" {
@@ -528,32 +528,30 @@ func TestADocumentOfAnotherShapeIsOneRefusalLine(t *testing.T) {
 	m := loaded(t, options(), tab, tab, tab, tab)
 	v := view(m)
 	// the line wraps at the pane's width, as every refusal does
-	want := "kit flow incoming --json printed an array where an object of remotes was expected; run kit flow " +
-		"inside a repository"
+	want := `kit flow incoming --json printed an array where an object with "rows" was expected`
 	if m.find("incoming").refusal != want || !shows(m, Fetched, "!") ||
-		!strings.Contains(v, Failed+" kit flow incoming --json printed an array where an object of remotes was") {
+		!strings.Contains(v, Failed+" kit flow incoming --json printed an array where an object with") {
 		t.Errorf("an array for incoming: %q\n%s", m.find("incoming").refusal, v)
 	}
 	t.Setenv("FAKE_FLOW_ABOVE", "backlog")
 	m = loaded(t, options())
 	v = view(m)
-	want = `kit flow backlog --json printed an array of objects without "number" where an array of issues was ` +
-		"expected; run kit flow inside a repository"
+	want = "kit flow backlog --json printed a record without .number"
 	if m.stages[0].refusal != want || !shows(m, Issue, "!") || strings.Contains(v, "#0") ||
-		!strings.Contains(v, Failed+` kit flow backlog --json printed an array of objects without "number"`) {
+		!strings.Contains(v, Failed+" "+want) {
 		t.Errorf("desks for backlog: %q\n%s", m.stages[0].refusal, v)
 	}
 	for name, data := range map[string]string{"changes": "{}",
 		"releases": `[{"version": "1"}, {}]`, "builds": `{"id": 1}`, "incoming": `{"fetched": false}`,
-		"underway": `[{"number": 1}]`} {
-		if shape(name, []byte(data)) == nil {
+		"underway": `[{"number": 1, "pr": {}}]`} {
+		if (&stage{name: name}).decode([]byte(data), false) == nil {
 			t.Errorf("%s took %s", name, data)
 		}
 	}
-	for name, data := range map[string]string{"backlog": "[]", "incoming": `{"fetched": false, "remotes": []}`,
-		"underway": `[{"number": 1, "pr": {}}]`, "changes": "[]",
-		"releases": `[{"version": "1"}]`, "builds": `[{"id": 1}]`} {
-		if err := shape(name, []byte(data)); err != nil {
+	for name, data := range map[string]string{"backlog": "[]", "incoming": `{"fetched": false, "rows": []}`,
+		"underway": `[{"number": 1, "pr": {"number": 2}}]`, "changes": "[]",
+		"releases": `[{"key": "release/1", "version": "1"}]`, "builds": `[{"id": 1}]`} {
+		if err := (&stage{name: name}).decode([]byte(data), false); err != nil {
 			t.Errorf("%s refused %s: %v", name, data, err)
 		}
 	}
@@ -718,7 +716,8 @@ func TestAStageThatOutlastsTheLimitIsARefusalAndRRunsItAgain(t *testing.T) {
 	m = drive(m, msg)
 	v := view(m)
 	if !shows(m, Release, "!") ||
-		!strings.Contains(v, Failed+" kit flow releases took longer than 2 minutes; the menu's Refresh All runs it again") {
+		!strings.Contains(v, Failed+" kit flow releases --json took longer than 2 minutes; the menu's Refresh All runs it "+
+			"again") {
 		t.Fatalf("the stage past its limit:\n%s", v)
 	}
 	t.Setenv("FAKE_FLOW_SLOW", "")
@@ -779,21 +778,20 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 		t.Errorf("the title with --no-fetch: %q", first)
 	}
 	// without the fetch, each remote's row says not fetched, the local branch behind stands as the last fetch left it,
-	// and the tab has no count
+	// and the tab counts that branch alone
 	pane := view(m)
 	if strings.Count(pane, "main  not fetched") != 3 || !strings.Contains(pane, Behind+"    origin    main  behind") {
 		t.Errorf("the incoming pane with --no-fetch:\n%s", pane)
 	}
-	if shows(m, Fetched, "0") || !shows(m, Fetched, "") {
-		t.Errorf("the incoming label with --no-fetch: %q", lines(m)[2])
+	if !shows(m, Fetched, "1") {
+		t.Errorf("the incoming label with --no-fetch counts the branch behind alone: %q", lines(m)[2])
 	}
 	if !strings.Contains(m.View().Content, style.Off("not fetched")) {
 		t.Errorf("not fetched is not dim")
 	}
-	// with no remote at all, the pane says why it is empty
-	m.find("incoming").ins[0].Remotes, m.find("incoming").ins[0].Rows = nil, nil
-	m.rebuild()
-	if !strings.Contains(view(m), "   not fetched: kit flow --no-fetch skips the fetch") {
+	// with no remote at all, the pane says so, fetched or not: there is none to fetch
+	setRows(t, &m)
+	if !strings.Contains(view(m), "   no remote to fetch") {
 		t.Errorf("no remote with --no-fetch:\n%s", view(m))
 	}
 	m = loaded(t, Options{App: shell.Flow, Stages: []string{"releases"}})
@@ -876,8 +874,7 @@ func TestIncomingIsATableOfEverythingIncoming(t *testing.T) {
 		t.Errorf("more: %q", got)
 	}
 	// with no remote at all, the pane says so
-	m.find("incoming").ins[0].Remotes, m.find("incoming").ins[0].Rows = nil, nil
-	m.rebuild()
+	setRows(t, &m)
 	if !strings.Contains(view(m), "   no remote to fetch") {
 		t.Errorf("no remote:\n%s", view(m))
 	}
@@ -892,19 +889,17 @@ func remoteRow(remote, kind, change, subject string) map[string]any {
 	return r
 }
 
-// setRows puts the rows in incoming's place, as kit prints them, and draws them.
+// setRows answers incoming with the rows, as kit prints them, and draws them.
 func setRows(t *testing.T, m *Model, rows ...map[string]any) {
 	t.Helper()
-	in := &m.find("incoming").ins[0]
-	in.Rows = nil
-	for _, r := range rows {
-		data, err := json.Marshal(r)
-		if err != nil {
-			t.Fatal(err)
-		}
-		in.Rows = append(in.Rows, data)
+	if rows == nil {
+		rows = []map[string]any{}
 	}
-	m.rebuild()
+	data, err := json.Marshal(map[string]any{"fetched": true, "primary": "origin", "remotes": []any{}, "rows": rows})
+	if err != nil {
+		t.Fatal(err)
+	}
+	*m = drive(*m, reanswer(*m, "incoming", string(data)))
 }
 
 func TestChangesCarryTheirChecksThreadsAndIssues(t *testing.T) {
@@ -1369,8 +1364,7 @@ func TestBuildsCarryTheirStateAndOpenToTheirCommitAttemptJobsFailedFirstThenThei
 		t.Errorf("a build without jobs opens:\n%s", view(m))
 	}
 	// an empty stage says how far it looked
-	m.find("builds").runs = nil
-	m.rebuild()
+	m = drive(m, reanswer(m, "builds", "[]"))
 	if !strings.Contains(view(m), "   no build since the last 20 runs") || !shows(m, Build, "0") {
 		t.Errorf("the empty builds:\n%s", view(m))
 	}
@@ -1379,12 +1373,12 @@ func TestBuildsCarryTheirStateAndOpenToTheirCommitAttemptJobsFailedFirstThenThei
 func TestBuildsRefuseADocumentWithoutIDs(t *testing.T) {
 	t.Setenv("FAKE_FLOW_ABOVE", "builds")
 	m := loaded(t, options(), tab, tab, tab)
-	want := `kit flow builds --json printed an array of objects without "id" where an array of builds was ` +
-		"expected; run kit flow inside a repository"
+	want := "kit flow builds --json printed a record without .id"
 	if m.stages[3].refusal != want || !shows(m, Build, "!") {
 		t.Errorf("desks for builds: %q\n%s", m.stages[3].refusal, view(m))
 	}
-	if err := shape("builds", []byte(`{"id": 1}`)); err == nil || !strings.Contains(err.Error(), "printed an object") {
+	if err := (&stage{name: "builds"}).decode([]byte(`{"id": 1}`), false); err == nil ||
+		!strings.Contains(err.Error(), "printed an object where an array was expected") {
 		t.Errorf("builds took an object: %v", err)
 	}
 }
@@ -1496,16 +1490,15 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	}
 	// the URLs kit prints win, as a merge request's on GitLab
 	s := m.find("underway")
-	s.under[1].URL = "https://git.example.org/g/kit/-/issues/8"
-	s.under[1].PR.URL = "https://git.example.org/g/kit/-/merge_requests/4"
+	of[underway](*s)[1].URL = "https://git.example.org/g/kit/-/issues/8"
+	of[underway](*s)[1].PR.URL = "https://git.example.org/g/kit/-/merge_requests/4"
 	m.rebuild()
 	if pr, issue := links(m); issue != "https://git.example.org/g/kit/-/issues/8" ||
 		pr != "https://git.example.org/g/kit/-/merge_requests/4" {
 		t.Errorf("kit's URLs do not win: %q %q", pr, issue)
 	}
 	// an empty stage says no issue is underway
-	s.under = nil
-	m.rebuild()
+	m = drive(m, reanswer(m, "underway", "[]"))
 	if !strings.Contains(view(m), "   no issue is underway") || !shows(m, InFlight, "0") {
 		t.Errorf("the empty underway:\n%s", view(m))
 	}
@@ -1514,20 +1507,19 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 func TestUnderwayRefusesADocumentWithoutPullRequests(t *testing.T) {
 	t.Setenv("FAKE_FLOW_ABOVE", "underway")
 	m := loaded(t, options(), tab)
-	want := `kit flow underway --json printed an array of objects without "number" where an array of issues ` +
-		"underway was expected; run kit flow inside a repository"
+	want := "kit flow underway --json printed a record without .number, .pr.number"
 	if m.stages[1].refusal != want || !shows(m, InFlight, "!") {
 		t.Errorf("desks for underway: %q\n%s", m.stages[1].refusal, view(m))
 	}
 	// backlog's issues are not underway's: each needs its pull request
-	err := shape("underway", []byte(`[{"number": 1}]`))
-	if err == nil || !strings.Contains(err.Error(), `without "pr"`) {
+	err := (&stage{name: "underway"}).decode([]byte(`[{"number": 1}]`), false)
+	if err == nil || !strings.Contains(err.Error(), "without .number, .pr.number") {
 		t.Errorf("underway took issues without pull requests: %v", err)
 	}
-	// incoming before every remote is refused
-	if err := shape("incoming", []byte(`{"fetched": true, "commits": []}`)); err == nil ||
-		!strings.Contains(err.Error(), `printed an object without "remotes"`) {
-		t.Errorf("incoming took the document before every remote: %v", err)
+	// incoming before its rows is refused
+	if err := (&stage{name: "incoming"}).decode([]byte(`{"fetched": true, "commits": []}`), false); err == nil ||
+		!strings.Contains(err.Error(), `printed an object without "rows"`) {
+		t.Errorf("incoming took the document before its rows: %v", err)
 	}
 }
 
@@ -1616,8 +1608,8 @@ func TestBacklogAndUnderwaySayWhichTrackerHoldsEachIssue(t *testing.T) {
 		t.Errorf("the source cells: %q %q %q", c[0].Values, c[1].Values, c[2].Values)
 	}
 	s := m.find("underway")
-	for k := range s.under {
-		s.under[k].Source = ""
+	for k := range of[underway](*s) {
+		of[underway](*s)[k].Source = ""
 	}
 	m.rebuild()
 	if strings.Contains(lines(m)[m.top()], "source") {
@@ -1663,3 +1655,72 @@ func TestOverAGroupEveryLoadCarriesTheWorkspace(t *testing.T) {
 
 // tabsTo gives the tabs from the bar's first stage to the named one, in options()' six.
 func tabsTo(name string) []tea.Msg { return slices.Repeat([]tea.Msg{tab}, slices.Index(six, name)) }
+
+// reloaded gives backlog alone, answered with the first document, then the second as its latest load's answer: after
+// a restart, or, kept, the first is what kit kept and the second its load's.
+func reloaded(t *testing.T, kept bool, first, second string) Model {
+	t.Helper()
+	o := options()
+	o.Stages = []string{"backlog"}
+	a := answer("backlog", first)
+	a.Kept = kept
+	m := drive(New(runner(t), o), a)
+	if !kept {
+		m.restart("backlog")
+	}
+	return drive(m, source.Answer[[]byte]{Name: "backlog", Gen: m.find("backlog").src.Gen(), Value: []byte(second)})
+}
+
+// A reload whose rows hold null where the rows before held a value shows nothing there: each row is read fresh.
+func TestAReloadKeepsNoFieldOfTheRowThatStoodThere(t *testing.T) {
+	for _, kept := range []bool{false, true} {
+		m := reloaded(t, kept,
+			`[{"number":5,"title":"five","branch":"5-five","source":"github"},{"number":7,"title":"seven","branch":null}]`,
+			`[{"number":7,"title":"seven","branch":null,"source":null}]`)
+		got := m.records(*m.find("backlog"))
+		if len(got) != 1 || got[0].Key != "#7" || got[0].values["branch"].Raw != nil || got[0].values["source"].Raw != nil {
+			t.Errorf("kept %v: the reloaded rows %+v", kept, got)
+		}
+	}
+}
+
+// TestAFreshAnswerKeepsNoFieldOfTheKeptCopy is the kept case of the test above, by the plan's name.
+func TestAFreshAnswerKeepsNoFieldOfTheKeptCopy(t *testing.T) {
+	m := reloaded(t, true, `[{"number":5,"title":"five","branch":"5-five","source":"github"}]`,
+		`[{"number":5,"title":"five","branch":null,"source":null}]`)
+	if got := m.records(*m.find("backlog")); len(got) != 1 || got[0].values["branch"].Raw != nil ||
+		got[0].values["source"].Raw != nil || m.find("backlog").src.Stale {
+		t.Errorf("the fresh rows over the kept: %+v", got)
+	}
+}
+
+// Nothing printed, null, or {"rows": null} is a refusal naming the command, and so is a record without its key; an
+// empty array is the empty stage.
+func TestANullOrEmptyDocumentIsARefusal(t *testing.T) {
+	for name, doc := range map[string]string{"backlog": "null", "changes": "", "incoming": "null",
+		"workspace/tags": `{"rows":null}`, "builds": `[{"number":3}]`} {
+		if err := (&stage{name: name}).decode([]byte(doc), false); err == nil ||
+			!strings.HasPrefix(err.Error(), command(name)+" printed ") {
+			t.Errorf("%s %q: %v", name, doc, err)
+		}
+	}
+	s := stage{name: "backlog"}
+	if err := s.decode([]byte("[]"), false); err != nil || len(s.rows) != 0 {
+		t.Errorf("an empty backlog: %v, %d rows", err, len(s.rows))
+	}
+	// a stage the catalog does not name decodes nothing, and its command is its name's
+	if err := (&stage{name: "nonesuch"}).decode([]byte("[]"), false); err == nil || command("nonesuch") != "kit nonesuch" {
+		t.Errorf("a stage kittui does not draw: %v, %q", err, command("nonesuch"))
+	}
+	// a row whose member or links are not what kit prints them as is left out
+	s = stage{name: "workspace/tags"}
+	if err := s.decode([]byte(`{"rows": [{"key": "a", "member": 5}, {"key": "b"}]}`), false); err != nil ||
+		len(Model{}.catalogRows(s)) != 1 {
+		t.Errorf("a row of another shape: %v, %d records", err, len(Model{}.catalogRows(s)))
+	}
+}
+
+// reanswer gives a stage's answer as its latest load's: the JSON its command printed.
+func reanswer(m Model, name, doc string) source.Answer[[]byte] {
+	return source.Answer[[]byte]{Name: name, Gen: m.find(name).src.Gen(), Value: []byte(doc)}
+}

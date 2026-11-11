@@ -178,9 +178,9 @@ func (m Model) menuBar() shell.MenuBar {
 	return b
 }
 
-// count gives a stage's count for its tab: nothing for one planned, … while it loads, ! when its command failed,
-// nothing for an incoming that did not fetch, else the rows it loaded but the asides, however few the panel lets
-// through, and, for incoming, but its remotes' own rows, so a fetch that brought nothing counts none.
+// count gives a stage's count for its tab: nothing for one planned, … while it loads, ! when its command failed, else
+// the rows it loaded but the asides, however few the panel lets through, and, for incoming, but its remotes' own rows,
+// so a fetch that brought nothing counts none.
 func (m Model) count(i int) string {
 	s := m.stages[i]
 	switch {
@@ -190,8 +190,6 @@ func (m Model) count(i int) string {
 		return "…"
 	case s.refusal != "":
 		return "!"
-	case s.name == "incoming" && len(s.ins) > 0 && !fetched(s.ins):
-		return ""
 	case s.name == "incoming":
 		n := 0
 		for _, r := range m.records(s) {

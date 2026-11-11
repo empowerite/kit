@@ -16,7 +16,6 @@
 package flow
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -64,51 +63,53 @@ type failure struct {
 // what kit printed for it, and where the person is in its rows.
 type stage struct {
 	name    string
-	src     source.Load[[]byte] // its read, kit flow <stage> --json: loading, stale, its mark, and Watch
+	src     source.Load[[]byte] // its read, its catalog entry's command: loading, stale, its mark, and Watch
 	refusal string              // kit's line, when the command failed
 	planned bool                // whether kit has no data source for the stage yet, so it loads nothing
-	issues  []issue
-	under   []underway
-	ins     []incoming // incoming's, one a member: one over a repository
-	pulls   []pull
-	runs    []run
-	failed  []failure         // over a group, the members whose read of the stage failed
-	repos   []repo            // kit workspace's repos tab's members
-	rows    []json.RawMessage // kit workspace's stages' rows, and releases': each its key, member, values, and links
+	rows    []json.RawMessage   // its records, as its catalog entry reads them, each its own bytes
+	typed   any                 // its records as Go holds them, for a stage whose rows Go builds, as builders says
+	failed  []failure           // over a group, the members whose read of the stage failed
 	// its table's state: the panel, the view, the outline, the rows selected, and where the cursor is
 	table.Table
 }
 
-// known names the stages kittui draws: kit flow's, and each app verb's after its verb and a slash.
-var known = map[string]bool{"packages/packages": true,
-	"backlog": true, "underway": true, "incoming": true, "changes": true, "builds": true, "releases": true,
-	"workspace/repos": true, "workspace/remotes": true, "workspace/branches": true, "workspace/worktrees": true,
-	"workspace/commits": true, "workspace/tags": true}
+// commandOf gives the kit command that prints a stage's rows, kit's words after kit, as its catalog entry names it;
+// none for a stage the catalog does not name.
+func commandOf(name string) []string {
+	if c := catalog[name]; c != nil {
+		return c.Command
+	}
+	return nil
+}
+
+// sourced says whether kittui draws a stage: its catalog entry names the command that prints its rows.
+func sourced(name string) bool { return len(commandOf(name)) > 0 }
+
+// staged says whether a stage is one its verb's --stages and --marks name, as its catalog entry says.
+func staged(name string) bool { return catalog[name] != nil && catalog[name].Staged }
+
+// takes says whether a stage's command takes a word beside its own, as its catalog entry's takes names them: owner,
+// no-fetch, fresh, cached, or workspace.
+func takes(name, word string) bool {
+	return catalog[name] != nil && slices.Contains(catalog[name].Takes, word)
+}
+
+// verbOf gives the verb that prints a staged stage, and the stage's name to that verb, as its catalog entry's command
+// names them: workspace and branches for workspace/branches. A stage that is not staged has neither.
+func verbOf(name string) (verb, stage string) {
+	if !staged(name) {
+		return "", ""
+	}
+	c := catalog[name].Command
+	return c[0], c[1]
+}
 
 // workspaceVerb is kit workspace's verb, whose stages kittui knows after it and a slash.
 const workspaceVerb = "workspace"
 
-// ofWorkspace says whether a stage, as kittui knows it, is kit workspace's.
-func ofWorkspace(name string) bool { return strings.HasPrefix(name, workspaceVerb+"/") }
-
-// appVerbs are the verbs besides kit flow whose stages kittui draws, each stage's document {rows, errors}, its rows
-// drawn from the catalog: kit workspace's, and kit packages'. kittui knows such a stage after its verb and a slash.
+// appVerbs are the verbs besides kit flow that open an app of their own, as AppOf takes them: kit workspace's, and
+// kit packages'.
 var appVerbs = []string{workspaceVerb, packagesVerb}
-
-// verbOf gives the verb that prints a stage, as kittui knows the stage, and the stage's name to that verb: an app
-// verb's after its verb and a slash, else kit flow's by its own name.
-func verbOf(name string) (verb, stage string) {
-	if v, s, ok := strings.Cut(name, "/"); ok && slices.Contains(appVerbs, v) {
-		return v, s
-	}
-	return "flow", name
-}
-
-// ofAppVerb says whether a stage, as kittui knows it, is an app verb's, not kit flow's.
-func ofAppVerb(name string) bool {
-	verb, _ := verbOf(name)
-	return verb != "flow"
-}
 
 // label gives the name a stage goes by, as kit names it, on its tab and in what the screen says of it: kit
 // workspace's without workspace/, and one planned without planned/.
@@ -119,12 +120,13 @@ func label(name string) string {
 	return name
 }
 
-// command gives the command line that reads a stage, as the screen names it when the stage fails.
+// command gives the command line that reads a stage, as the screen names it when the stage fails: kit and its catalog
+// entry's command, or kit and the stage's name for one kittui does not draw.
 func command(name string) string {
-	if verb, stage := verbOf(name); verb != "flow" {
-		return "kit " + verb + " " + stage
+	if c := commandOf(name); len(c) > 0 {
+		return "kit " + strings.Join(c, " ")
 	}
-	return "kit flow " + name
+	return "kit " + name
 }
 
 // deadline is how long a stage's command may take: past it, the stage is a refusal, and Refresh All runs it again.
@@ -229,7 +231,7 @@ func New(r kit.Runner, o Options) Model {
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.clock = o.Clock
 	m.quota = source.NewPoll("quota", QuotaEvery, r.Quota)
-	// its marks are those of the verbs its stages are of, each named as kittui knows the stage
+	// its marks are those of the verbs its staged stages are of, each named as kittui knows the stage
 	verbs := verbsOf(o.Stages)
 	m.marks = source.NewPoll("marks", MarksEvery, func(ctx context.Context) (map[string]string, error) {
 		named := map[string]string{}
@@ -237,11 +239,12 @@ func New(r kit.Runner, o Options) Model {
 		for _, verb := range verbs {
 			marks, err := r.MarksOf(ctx, verb)
 			errs = append(errs, err)
-			for name, mark := range marks {
-				if verb != "flow" {
-					name = verb + "/" + name
+			for _, name := range o.Stages {
+				if v, stage := verbOf(name); v == verb {
+					if mark, ok := marks[stage]; ok {
+						named[name] = mark
+					}
 				}
-				named[name] = mark
 			}
 		}
 		return named, errors.Join(errs...)
@@ -260,7 +263,7 @@ func New(r kit.Runner, o Options) Model {
 		switch {
 		case ofPlanned(name):
 			s.src.Loading, s.planned = false, true
-		case !known[name]:
+		case !sourced(name):
 			s.src.Loading, s.refusal = false, fmt.Sprintf("kittui does not draw the stage '%s'", label(name))
 		}
 		if c := catalog[name]; c != nil {
@@ -302,10 +305,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	next, cmd := m.update(msg)
 	n := next.(Model)
 	if a, ok := msg.(source.Answer[[]byte]); ok && !a.Kept {
-		// a load spends the rate limits, and the stage takes the next mark as its own: both are read again; kit
-		// workspace and kit packages read no forge, so their stages' loads spend none and read none
+		// a load spends the rate limits, and the stage takes the next mark as its own: both are read again; a load
+		// of a command that is not kit flow's, as kit workspace's and kit packages', reads no forge, so spends none
 		cmd = tea.Batch(cmd, n.marks.Ask(n.env()))
-		if !ofAppVerb(a.Name) {
+		if c := commandOf(a.Name); len(c) > 0 && c[0] == "flow" {
 			cmd = tea.Batch(cmd, n.quota.Ask(n.env()))
 		}
 	}
@@ -891,38 +894,38 @@ func (m Model) find(name string) *stage {
 	return nil
 }
 
-// args gives the words a stage's command takes after --json: --no-fetch for incoming, the filters for backlog,
-// underway, and changes, nothing for the rest.
+// args gives the words a stage's command takes beside its own, as its catalog entry's takes names them: the owner's
+// flags, as kit flow's filters; and --no-fetch, where the fetch is skipped.
 func (m Model) args(name string) []string {
-	switch name {
-	case "incoming":
-		if m.noFetch {
-			return []string{"--no-fetch"}
-		}
-	case "backlog", "underway", "changes":
-		return m.filters
+	var out []string
+	if takes(name, "owner") {
+		out = append(out, m.filters...)
 	}
-	return nil
+	if takes(name, "no-fetch") && m.noFetch {
+		out = append(out, "--no-fetch")
+	}
+	return out
 }
 
-// stageLoad gives a stage's read: kit flow <stage> --json, with the stage's words, for the limit at most, --fresh where
-// it reads the forge afresh, as again asks, since kit shares one read of the open issues and pull requests a minute
-// between the stages that need it, and a read without it takes that read; and what kit kept of the stage's last JSON,
-// with --cached, as kept.go draws it.
+// stageLoad gives a stage's read: its catalog entry's command, with the words it takes, for the limit at most, over
+// the group the runner spans where it takes workspace; --fresh where it takes it and reads the forge afresh, as again
+// asks, since kit shares one read of the open issues and pull requests a minute between the stages that need it, and a
+// read without it takes that read; and, where it takes cached, what kit kept of the stage's last JSON, with --cached,
+// as kept.go draws it. A stage that takes no cached keeps nothing of its last read: what git and kit.yml hold reads at
+// once.
 func (m Model) stageLoad(name string) source.Load[[]byte] {
-	r, args := m.runner, m.args(name)
+	r, words, over := m.runner, append(slices.Clone(commandOf(name)), m.args(name)...), takes(name, "workspace")
 	read := func(ctx context.Context, fresh bool) ([]byte, error) {
-		if fresh && shared[name] {
-			return r.Status(ctx, name, append(slices.Clone(args), "--fresh"))
+		if fresh && takes(name, "fresh") {
+			return r.Rows(ctx, append(slices.Clone(words), "--fresh"), over)
 		}
-		return r.Status(ctx, name, args)
+		return r.Rows(ctx, words, over)
 	}
-	kept := func(ctx context.Context) ([]byte, error) {
-		return r.Status(ctx, name, append(slices.Clone(args), "--cached"))
-	}
-	if ofAppVerb(name) {
-		// an app verb keeps nothing of a stage's last read: what git and kit.yml hold here reads at once
-		kept = nil
+	var kept func(ctx context.Context) ([]byte, error)
+	if takes(name, "cached") {
+		kept = func(ctx context.Context) ([]byte, error) {
+			return r.Rows(ctx, append(slices.Clone(words), "--cached"), over)
+		}
 	}
 	return source.NewLoad(name, read, kept)
 }
@@ -934,7 +937,7 @@ func (m Model) load(name string, fresh bool) tea.Cmd { return m.find(name).src.R
 func (m Model) loads() []tea.Cmd {
 	var cmds []tea.Cmd
 	for _, s := range m.stages {
-		if known[s.name] {
+		if sourced(s.name) {
 			cmds = append(cmds, m.load(s.name, false))
 		}
 	}
@@ -951,8 +954,7 @@ func (m *Model) restart(name string) tea.Cmd {
 		return cmd
 	}
 	s.src.Loading, s.refusal = true, ""
-	s.issues, s.under, s.ins, s.pulls, s.runs = nil, nil, nil, nil, nil
-	s.failed, s.repos, s.rows = nil, nil, nil
+	s.rows, s.typed, s.failed = nil, nil, nil
 	m.rebuild()
 	return cmd
 }
@@ -960,10 +962,6 @@ func (m *Model) restart(name string) tea.Cmd {
 // again runs a stage's command again as its latest load, fresh or not, ending the one before when it still runs; the
 // stage keeps what it shows until the answer replaces it.
 func (m *Model) again(name string, fresh bool) tea.Cmd { return m.find(name).src.Again(m.env(), fresh) }
-
-// shared names the stages that read kit's shared snapshot of the open issues and pull requests, which --fresh reads
-// afresh.
-var shared = map[string]bool{"backlog": true, "underway": true, "changes": true}
 
 // take keeps what a stage's command printed, decoded by the stage, or the refusal when it failed. The answer of a
 // load a later one superseded is dropped, as is one for a stage the screen does not have. The cursor stays within the
@@ -1024,170 +1022,89 @@ func (m *Model) autoGroup(name string) {
 	m.rebuild()
 }
 
-// decode keeps what the stage's command printed: over a group, and for an app verb's stages always, kit's {rows, errors}, its
-// rows the stage's, one object a member for an object's stage; else the stage's document, an object's stage's object
-// its one entry. A document of another shape, as kit prints above repositories, is an error naming it, and JSON that
-// does not decode is one too.
+// decode keeps what the stage's command printed, as its catalog entry reads it: its records, by the entry's record,
+// or, over a group, for a stage that takes workspace, by .rows[] of kit's {rows, errors}, as table.Records reads
+// them, fresh; over a group, a record that holds the entry's record, as incoming's object, is a member's document, and
+// its records are read from it, each taking its member. A record its key's paths are not all in is a refusal; so is a
+// document of another shape, as nothing, null, or an array where an object is expected, each named with the command.
+// Then the members whose read failed, in the document's errors, and, for a stage whose rows Go builds, the records as
+// Go holds them, as builders decodes them. Each replaces what the stage held whole; a refusal leaves it as it was.
 func (s *stage) decode(data []byte, over bool) error {
-	s.failed = nil
-	if over || ofAppVerb(s.name) {
-		var doc struct {
-			Rows   json.RawMessage `json:"rows"`
-			Errors []failure       `json:"errors"`
-		}
-		if err := across(s.name, data); err != nil {
-			return err
-		}
-		if err := json.Unmarshal(data, &doc); err != nil {
-			return fmt.Errorf("%s --workspace --json: %v", command(s.name), err)
-		}
-		s.failed = doc.Errors
-		return s.decodeRows(doc.Rows, true)
+	c := catalog[s.name]
+	if c == nil {
+		return fmt.Errorf("kittui does not draw the stage '%s'", label(s.name))
 	}
-	if err := shape(s.name, data); err != nil {
-		return err
+	over = over && takes(s.name, "workspace")
+	record := c.Record
+	if over {
+		record = ".rows[]"
 	}
-	return s.decodeRows(data, false)
-}
-
-// decodeRows keeps the stage's rows: an array of the stage's objects; for an object's stage, its object, or, across
-// members, an array of them, one a member.
-func (s *stage) decodeRows(data []byte, many bool) error {
-	one := func(data []byte, into any) error {
-		if many {
-			return json.Unmarshal(data, into)
-		}
-		return json.Unmarshal([]byte("["+string(bytes.TrimSpace(data))+"]"), into)
+	rows, err := table.Records(data, record, c.Slurp && !over)
+	var shape *table.ShapeError
+	switch {
+	case errors.As(err, &shape):
+		return fmt.Errorf("%s %w", command(s.name), err)
+	case err != nil:
+		return fmt.Errorf("%s: %w", command(s.name), err)
+	case over && c.Record != ".[]":
+		rows = membersRecords(rows, c.Record)
 	}
-	var err error
-	switch s.name {
-	case "backlog":
-		err = json.Unmarshal(data, &s.issues)
-	case "underway":
-		err = json.Unmarshal(data, &s.under)
-	case "incoming":
-		s.ins = nil
-		err = one(data, &s.ins)
-	case "changes":
-		err = json.Unmarshal(data, &s.pulls)
-	case "builds":
-		err = json.Unmarshal(data, &s.runs)
-	case "releases":
-		// the rows are drawn from the catalog, by their raw JSON, once they decode as releases
-		s.rows = nil
-		if err = json.Unmarshal(data, &[]release{}); err == nil {
-			err = json.Unmarshal(data, &s.rows)
-		}
-	case "workspace/repos":
-		err = json.Unmarshal(data, &s.repos)
-	default:
-		if ofAppVerb(s.name) {
-			s.rows = nil
-			err = json.Unmarshal(data, &s.rows)
+	key := c.Key
+	if key == "" {
+		key = ".key"
+	}
+	for _, r := range rows {
+		if _, ok := c.KeyOf(r); !ok {
+			return fmt.Errorf("%s printed a record without %s", command(s.name), key)
 		}
 	}
-	if err != nil {
-		return fmt.Errorf("%s --json: %v", command(s.name), err)
+	var typed any
+	if b, ok := builders[s.name]; ok && b.decode != nil {
+		if typed, err = b.decode(rows); err != nil {
+			return fmt.Errorf("%s: %w", command(s.name), err)
+		}
 	}
+	s.rows, s.typed, s.failed = rows, typed, failedIn(data)
 	return nil
 }
 
-// across refuses a document over a group that is not kit's {rows, errors}: anything but an object with rows. Nothing,
-// null, and rows of null are nothing printed, never an empty stage.
-func across(name string, data []byte) error {
-	printed := ""
-	switch data = bytes.TrimSpace(data); {
-	case len(data) == 0 || string(data) == "null":
-		printed = "nothing"
-	case data[0] == '[':
-		printed = "an array"
-	case data[0] != '{':
-		return nil
-	default:
-		var object map[string]json.RawMessage
-		if json.Unmarshal(data, &object) != nil {
-			return nil
+// membersRecords gives the records of each member's document over a group, as its record reads them, each taking the
+// member its document names where it names none of its own; a row that is no such document is a member's record, kept
+// as it is.
+func membersRecords(rows []json.RawMessage, record string) []json.RawMessage {
+	var out []json.RawMessage
+	for _, doc := range rows {
+		inner, err := table.Records(doc, record, false)
+		if err != nil {
+			out = append(out, doc)
+			continue
 		}
-		if rows, ok := object["rows"]; !ok {
-			printed = `an object without "rows"`
-		} else if string(bytes.TrimSpace(rows)) == "null" {
-			printed = "nothing"
+		var of struct {
+			Member string `json:"member"`
 		}
-	}
-	if printed == "" {
-		return nil
-	}
-	return fmt.Errorf("%s --workspace --json printed %s where {rows, errors} was expected", command(name), printed)
-}
-
-// fetched says whether the fetch ran in any member incoming read.
-func fetched(ins []incoming) bool {
-	return slices.ContainsFunc(ins, func(in incoming) bool { return in.Fetched })
-}
-
-// expected is each stage's document, as kit flow's page says: an array of objects for backlog, underway,
-// changes, builds, and releases, each object with the stage's key fields; an object for incoming, with its remotes.
-var expected = map[string]struct {
-	what  string
-	array bool
-	keys  []string
-}{
-	"backlog":  {"an array of issues", true, []string{"number"}},
-	"underway": {"an array of issues underway", true, []string{"number", "pr"}},
-	"changes":  {"an array of pull requests", true, []string{"number"}},
-	"builds":   {"an array of builds", true, []string{"id"}},
-	"releases": {"an array of releases", true, []string{"version"}},
-	"incoming": {"an object of remotes", false, []string{"remotes"}},
-}
-
-// shape refuses a document that is not the stage's: an array where an object is expected, an object where an array
-// is, an array whose objects lack one of the stage's key fields, as the array of {path, status} kit prints above repositories, or an
-// object without its key field, as incoming's before every remote. Nothing and null are nothing printed, never an
-// empty stage. Anything else is left to the decoder.
-func shape(name string, data []byte) error {
-	want, printed := expected[name], ""
-	switch data = bytes.TrimSpace(data); {
-	case len(data) == 0 || string(data) == "null":
-		return fmt.Errorf("kit flow %s --json printed nothing where %s was expected", name, want.what)
-	case data[0] == '[' && !want.array:
-		printed = "an array"
-	case data[0] == '{' && want.array:
-		printed = "an object"
-	case data[0] == '[':
-		var objects []map[string]json.RawMessage
-		if json.Unmarshal(data, &objects) != nil {
-			return nil
-		}
-		for _, o := range objects {
-			if key := lacking(o, want.keys); key != "" {
-				printed = fmt.Sprintf("an array of objects without %q", key)
-				break
+		_ = json.Unmarshal(doc, &of) // a document Records read is an object
+		for _, r := range inner {
+			var fields map[string]json.RawMessage
+			if json.Unmarshal(r, &fields) == nil && fields["member"] == nil && of.Member != "" {
+				fields["member"], _ = json.Marshal(of.Member)
+				r, _ = json.Marshal(fields)
 			}
-		}
-	case data[0] == '{':
-		var object map[string]json.RawMessage
-		if json.Unmarshal(data, &object) != nil {
-			return nil
-		}
-		if key := lacking(object, want.keys); key != "" {
-			printed = fmt.Sprintf("an object without %q", key)
+			out = append(out, r)
 		}
 	}
-	if printed == "" {
-		return nil
-	}
-	return fmt.Errorf("kit flow %s --json printed %s where %s was expected; run kit flow inside a repository",
-		name, printed, want.what)
+	return out
 }
 
-// lacking gives the first of the keys an object lacks, or nothing.
-func lacking(o map[string]json.RawMessage, keys []string) string {
-	for _, key := range keys {
-		if _, ok := o[key]; !ok {
-			return key
-		}
+// failedIn gives the members whose read failed, as a document that is an object names them under errors, each with
+// kit's line; none for another document.
+func failedIn(data []byte) []failure {
+	var doc struct {
+		Errors []failure `json:"errors"`
 	}
-	return ""
+	if json.Unmarshal(data, &doc) != nil {
+		return nil
+	}
+	return slices.DeleteFunc(doc.Errors, func(f failure) bool { return f.Error == "" })
 }
 
 // refusalOf gives a stage's refusal from its error: that the stage took longer than the deadline and the menu's

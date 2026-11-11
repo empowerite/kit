@@ -25,7 +25,7 @@ func TestEveryAppInTheMenuHasTabsAndNoStageIsInTwo(t *testing.T) {
 				t.Errorf("%s is a tab of %s and of %s", label(name), other, a.screen)
 			}
 			seen[label(name)] = a.screen
-			if !ofPlanned(name) && !known[name] {
+			if !ofPlanned(name) && !sourced(name) {
 				t.Errorf("%s draws %s, which kittui does not know", a.screen, name)
 			}
 		}

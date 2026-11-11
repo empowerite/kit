@@ -217,7 +217,7 @@ func TestAClickOnATitlesGlyphOpensTheIssuesPage(t *testing.T) {
 		t.Fatalf("a click on the glyph: %v, in rows %v", browsed, m.inRows)
 	}
 	// a page the browser cannot open says why in place of the keys, until the next key
-	m.find("backlog").issues[0].URL = "https://refuse.example/45"
+	of[issue](*m.find("backlog"))[0].URL = "https://refuse.example/45"
 	m.rebuild()
 	m = drive(m, testkit.Click(x, y))
 	if last := lines(m)[23]; !strings.Contains(last, "could not open https://refuse.example/45") || !m.Noticing() {
@@ -242,8 +242,8 @@ func TestAColumnNoRowFillsHasNoCheckbox(t *testing.T) {
 	if !strings.Contains(view(m), grid.Ticked+" branch") {
 		t.Fatalf("backlog's branch has no checkbox while an issue has one:\n%s", view(m))
 	}
-	for k := range m.find("backlog").issues {
-		m.find("backlog").issues[k].Branch = ""
+	for k := range of[issue](*m.find("backlog")) {
+		of[issue](*m.find("backlog"))[k].Branch = ""
 	}
 	m.rebuild()
 	if strings.Contains(view(m), grid.Ticked+" branch") || !strings.Contains(view(m), grid.Ticked+" title") {

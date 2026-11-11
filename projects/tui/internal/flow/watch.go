@@ -35,7 +35,7 @@ func (m Model) watchItem(i int) shell.Item {
 // watching gives how many of the stages kittui draws are watched, and how many it draws.
 func (m Model) watching() (watched, all int) {
 	for _, s := range m.stages {
-		if known[s.name] {
+		if sourced(s.name) {
 			all++
 			if s.src.Watch {
 				watched++
@@ -80,7 +80,7 @@ func (m *Model) watchAll(on bool) tea.Cmd {
 	var cmds []tea.Cmd
 	for i := range m.stages {
 		s := &m.stages[i]
-		if !known[s.name] {
+		if !sourced(s.name) {
 			continue
 		}
 		if on && !s.src.Watch && s.src.Stale && !s.src.Loading {

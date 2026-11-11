@@ -106,7 +106,7 @@ func (m *Model) chose(c shell.Choice) tea.Cmd {
 		m.marks.Reset()
 		var cmds []tea.Cmd
 		for _, s := range m.stages {
-			if known[s.name] {
+			if sourced(s.name) {
 				cmds = append(cmds, m.restart(s.name))
 			}
 		}
@@ -130,7 +130,7 @@ func (m Model) enabled(k int) bool {
 	case "Maximize", "Restore":
 		return true
 	case "Refresh", WatchIt, StopIt:
-		return known[s.name]
+		return sourced(s.name)
 	case "Open Selected":
 		return len(m.pages()) > 0
 	case "Select All":
@@ -198,12 +198,12 @@ func (m Model) pages() []string {
 // that shares kit's one read of the open issues and pull requests, every stage in the picture that shares it, so they
 // stay one snapshot.
 func (m *Model) refresh(name string) tea.Cmd {
-	if !shared[name] {
+	if !takes(name, "fresh") {
 		return m.restart(name)
 	}
 	var cmds []tea.Cmd
 	for _, s := range m.stages {
-		if shared[s.name] {
+		if takes(s.name, "fresh") {
 			cmds = append(cmds, m.restart(s.name))
 		}
 	}

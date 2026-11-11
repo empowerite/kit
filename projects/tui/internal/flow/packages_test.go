@@ -59,7 +59,7 @@ func TestKitPackagesOpensPackagesOnItsOneTabWhichDrawsEveryPackageInReach(t *tes
 	if app, _ := AppOf(workspaceVerb, nil); app != shell.Repositories {
 		t.Errorf("kit workspace opens %s", app)
 	}
-	if !IsApp(shell.Packages) || command(packagesStage) != "kit packages packages" {
+	if !IsApp(shell.Packages) || command(packagesStage) != "kit packages packages --json" {
 		t.Errorf("Packages is an app: %v; its tab reads %q", IsApp(shell.Packages), command(packagesStage))
 	}
 	m, record := packaged(t)

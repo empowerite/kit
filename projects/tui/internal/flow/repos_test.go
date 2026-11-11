@@ -32,8 +32,8 @@ func TestReposDrawsAMemberARow(t *testing.T) {
 	o := workspaceOptions()
 	o.Stages = []string{"workspace/repos", "workspace/remotes", "workspace/branches"}
 	m := loaded(t, o, tea.WindowSizeMsg{Width: 120, Height: 24})
-	if s := m.find("workspace/repos"); s.refusal != "" || len(s.repos) != 2 {
-		t.Fatalf("repos: %q, %d rows", s.refusal, len(s.repos))
+	if s := m.find("workspace/repos"); s.refusal != "" || len(of[repo](*s)) != 2 {
+		t.Fatalf("repos: %q, %d rows", s.refusal, len(of[repo](*s)))
 	}
 	testkit.Golden(t, filepath.Join("testdata", "workspace-repos.golden"), raw(m))
 }
@@ -121,7 +121,7 @@ func checkoutCell(t *testing.T, path string, failed bool) cell {
 		line := "git cannot read it"
 		r.Error = &line
 	}
-	m.find("workspace/repos").repos = []repo{r}
+	m.find("workspace/repos").typed = []repo{r}
 	v := m.records(*m.find("workspace/repos"))[0].values["checkout"]
 	return fieldIn("workspace/repos", "checkout").Draw([]table.Value{v}, "")[0]
 }
@@ -172,7 +172,7 @@ func TestAMemberClonedTwiceNamesItsOtherCloneOpenAndCountsItClosed(t *testing.T)
 	}
 	// a first clone of two folders or fewer reads whole before the count
 	short := "/home/u/a"
-	m.find("workspace/repos").repos = []repo{{Repository: "github.com/o/a", Checkout: &short,
+	m.find("workspace/repos").typed = []repo{{Repository: "github.com/o/a", Checkout: &short,
 		Checkouts: []string{short, "/srv/a", "/srv/b"}}}
 	v = m.records(*m.find("workspace/repos"))[0].values["checkout"]
 	if c := fieldIn("workspace/repos", "checkout").Draw([]table.Value{v}, "")[0]; c.Summary != style.Off("~/a +2") {

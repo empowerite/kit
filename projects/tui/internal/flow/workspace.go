@@ -10,49 +10,41 @@ import (
 	"maps"
 	"os"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
-// workspaceRow is a row of a kit workspace stage as kit prints it: its key, its stage's own; its member, over a group;
-// and where each field's value leads, by the field's id: a page, or row:<stage>/<key>, a row of another of its stages,
-// or, for a list whose values lead apart, as a release's assets, a list of them, one a value. Its values are the row's
-// other keys, by the field's id.
-type workspaceRow struct {
-	Key    string                     `json:"key"`
+// catalogRow is what a row a stage's catalog draws holds beside its values: its member, over a group, and where each
+// field's value leads, by the field's id: a page, or row:<stage>/<key>, a row of another of its stages, or, for a list
+// whose values lead apart, as a release's assets, a list of them, one a value.
+type catalogRow struct {
 	Member string                     `json:"member"`
 	Links  map[string]json.RawMessage `json:"links"`
 }
 
-// workspaceRows gives a kit workspace stage's records, as rowRecords reads them.
-func (m Model) workspaceRows(s stage) []record { return m.rowRecords(s.name, s.rows, "") }
-
-// rowRecords gives the records of a stage whose rows kit prints flat, as kit workspace's stages and incoming's: each
-// row's value in each of the stage's fields, by the field's id, as rawValue reads it; its member's as every stage's, the
-// row's own, else member, as incoming's rows carry none of their own; its links, a row of another stage after the
-// member, as keyOf names it; and, in a field whose path is *, every value of the row no other field names, as
-// otherValues gives them, so a row can say more than its catalog announces.
-func (m Model) rowRecords(stage string, raws []json.RawMessage, member string) []record {
-	fields := fieldsOf(stage)
+// catalogRows gives the records of a stage whose rows the catalog draws, as kit prints them flat: each row's key, as
+// the entry's key reads it, after its member over a group, as keyOf names it; its value in each of the stage's
+// fields, as the field's path reads it, and where it leads, as the row's links say; its member's as every stage's;
+// and, in a field whose path is *, every value of the row no other field names, as otherValues gives them, so a row
+// can say more than its catalog announces.
+func (m Model) catalogRows(s stage) []record {
+	c := catalog[s.name]
 	named := map[string]bool{"key": true, "member": true, "links": true}
-	for _, f := range fields {
+	for _, f := range c.Of() {
 		named[f.ID] = true
 	}
 	var out []record
-	for _, raw := range raws {
-		var r workspaceRow
+	for _, raw := range s.rows {
+		var r catalogRow
 		var values map[string]json.RawMessage
 		if json.Unmarshal(raw, &r) != nil || json.Unmarshal(raw, &values) != nil {
 			continue
 		}
-		if r.Member == "" {
-			r.Member = member
-		}
-		rec := record{row{Key: m.keyOf(r.Member, r.Key)}, map[string]table.Value{}}
-		for _, f := range fields {
+		key, _ := c.KeyOf(raw)
+		rec := record{row{Key: m.keyOf(r.Member, key)}, map[string]table.Value{}}
+		for _, f := range c.Of() {
 			switch {
 			case f.ID == "member":
 				rec.values[f.ID] = m.memberValue(r.Member)
@@ -61,7 +53,7 @@ func (m Model) rowRecords(stage string, raws []json.RawMessage, member string) [
 				rec.values[f.ID] = otherValues(values, named)
 				continue
 			}
-			v := rawValue(values[f.ID])
+			v := f.Read(raw)
 			m.linkValue(&v, r.Links[f.ID], r.Member)
 			rec.values[f.ID] = v
 		}
@@ -84,37 +76,6 @@ func otherValues(values map[string]json.RawMessage, named map[string]bool) table
 		}
 	}
 	return out
-}
-
-// rawValue reads a value as kit workspace prints it: none for null; one text, or a number's digits, for one; and one
-// each for a list of them.
-func rawValue(data json.RawMessage) table.Value {
-	var one any
-	if json.Unmarshal(data, &one) != nil {
-		return table.Value{}
-	}
-	text := func(v any) string {
-		switch v := v.(type) {
-		case string:
-			return v
-		case float64:
-			return strconv.FormatFloat(v, 'f', -1, 64)
-		case bool:
-			return strconv.FormatBool(v)
-		}
-		return ""
-	}
-	switch v := one.(type) {
-	case nil:
-		return table.Value{}
-	case []any:
-		var out table.Value
-		for _, each := range v {
-			out.Raw = append(out.Raw, text(each))
-		}
-		return out
-	}
-	return table.Some(text(one))
 }
 
 // linkValue gives a value where it leads, as a row's links say for its field: one link, the value's; a list, one a raw

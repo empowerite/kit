@@ -485,6 +485,22 @@ func TestAGroupsReadsCarryTheWorkspace(t *testing.T) {
 	}
 }
 
+// Rows runs a command's words as a stage's catalog entry names them: over the group with over, and as they are without,
+// as a command that reads no group's members is run.
+func TestRowsCarryTheWorkspaceOnlyWhereTheCommandReadsAGroup(t *testing.T) {
+	r := fake(t, "")
+	r.Group = "w"
+	ctx := context.Background()
+	out, err := r.Rows(ctx, []string{"flow", "backlog", "--json", "--mine"}, true)
+	if err != nil || strings.TrimSpace(string(out)) != `{"stage": "backlog", "args": "--json --mine --workspace w"}` {
+		t.Errorf("Rows over w: %v, %q", err, out)
+	}
+	out, err = r.Rows(ctx, []string{"flow", "backlog", "--json"}, false)
+	if err != nil || strings.TrimSpace(string(out)) != `{"stage": "backlog", "args": "--json"}` {
+		t.Errorf("Rows not over w: %v, %q", err, out)
+	}
+}
+
 // A runner whose workspace is no group reads with --workspace none, so kit draws where Dir is and never the last group
 // used; a group's name still wins.
 func TestARunnerWithNoGroupReadsWithWorkspaceNone(t *testing.T) {

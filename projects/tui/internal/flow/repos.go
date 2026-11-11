@@ -45,7 +45,7 @@ type repo struct {
 // it is opened.
 func (m Model) repoRows(s stage) []record {
 	var out []record
-	for _, r := range s.repos {
+	for _, r := range of[repo](s) {
 		var labels []table.Label
 		for _, remote := range r.Remotes {
 			labels = append(labels, table.Label{Name: remote.Name})

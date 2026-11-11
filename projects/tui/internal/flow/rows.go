@@ -31,12 +31,6 @@ type issue struct {
 	Member       string        `json:"member"` // over a group, the member kit read it in, host/path
 }
 
-// commit is one commit: its short hash and its subject.
-type commit struct {
-	SHA     string `json:"sha"`
-	Subject string `json:"subject"`
-}
-
 // underway is one issue an open pull request closes, with that pull request: one per issue and pull request, so an
 // issue two pull requests close is two. Here says a worktree on this desk has the pull request's branch, and
 // Worktree is its path; Local says this desk has the branch, but no checkout of it. The pull request's Fork is the
@@ -71,35 +65,6 @@ type underway struct {
 	Local    bool   `json:"local"`
 	Worktree string `json:"worktree"`
 	Member   string `json:"member"`
-}
-
-// incoming is what the fetch brought from every remote, the primary named; with --no-fetch, Fetched is false and the
-// remotes carry no commits, branches, or tags. Rows are what is incoming, one a thing, each a remote, a commit, a
-// branch, a tag, or a local branch behind its upstream, as kit flow prints them flat, which the catalog draws.
-type incoming struct {
-	Fetched bool              `json:"fetched"`
-	Primary string            `json:"primary"`
-	Remotes []remote          `json:"remotes"`
-	Rows    []json.RawMessage `json:"rows"`
-	Member  string            `json:"member"`
-}
-
-// remote is one remote and what the fetch brought from it: the commits new on its default branch, its branches new,
-// updated, and gone, and its tags new. Forge is empty when the remote has none. Error is git's line when its fetch
-// failed, and then nothing came.
-type remote struct {
-	Name     string   `json:"name"`
-	Error    string   `json:"error"`
-	Forge    string   `json:"forge"`
-	Host     string   `json:"host"`
-	Default  string   `json:"default"`
-	Commits  []commit `json:"commits"`
-	Branches struct {
-		New     []string `json:"new"`
-		Updated []string `json:"updated"`
-		Gone    []string `json:"gone"`
-	} `json:"branches"`
-	Tags []string `json:"tags"`
 }
 
 // checkout is one checkout, as a member of the workspace has its desk: its branch, or none where it is detached, and
@@ -335,31 +300,52 @@ func (m Model) build(i int) shown {
 	return shown{b.Rows, b.Names, b.Levels, b.All, b.Drawn}
 }
 
-// records gives a stage's records from what it loaded, then, over a group, a line for each member whose read failed;
-// none for a stage kittui does not draw.
+// builder is how Go builds the rows of a stage it builds: decode gives its records as Go holds them, fresh, and rows
+// its records from them; a builder without rows has its records drawn from the catalog, as catalogRows draws them,
+// once they decode, as releases'.
+type builder struct {
+	decode func([]json.RawMessage) (any, error)
+	rows   func(Model, stage) []record
+}
+
+// builders are the stages whose rows Go builds, by name: kit flow's but incoming, whose rows kit prints flat, and the
+// repos tab. Every other stage's rows are drawn from the catalog alone.
+var builders = map[string]builder{
+	"backlog":         {decoding[issue], Model.backlogRows},
+	"underway":        {decoding[underway], Model.underwayRows},
+	"changes":         {decoding[pull], Model.changeRows},
+	"builds":          {decoding[run], Model.buildRows},
+	"releases":        {decoding[release], nil},
+	"workspace/repos": {decoding[repo], Model.repoRows},
+}
+
+// decoding gives each record decoded into a fresh T, so no field of one record, nor of a load before, stands in
+// another; a record that does not decode as a T is the error.
+func decoding[T any](records []json.RawMessage) (any, error) {
+	out := make([]T, len(records))
+	for k, r := range records {
+		if err := json.Unmarshal(r, &out[k]); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+// of gives a stage's records as Go holds them, as its builder decoded them; none for a stage of another T, or one that
+// has not loaded.
+func of[T any](s stage) []T {
+	out, _ := s.typed.([]T)
+	return out
+}
+
+// records gives a stage's records from what it loaded, as its builder builds them, else as the catalog draws them,
+// then, over a group, a line for each member whose read failed; none for a stage kittui does not draw.
 func (m Model) records(s stage) []record {
 	var out []record
-	switch s.name {
-	case "backlog":
-		out = m.backlogRows(s)
-	case "underway":
-		out = m.underwayRows(s)
-	case "changes":
-		out = m.changeRows(s)
-	case "builds":
-		out = m.buildRows(s)
-	case "releases":
-		out = m.releaseRows(s)
-	case "incoming":
-		for _, in := range s.ins {
-			out = append(out, m.rowRecords(s.name, in.Rows, in.Member)...)
-		}
-	case "workspace/repos":
-		out = m.repoRows(s)
-	default:
-		if ofAppVerb(s.name) {
-			out = m.workspaceRows(s)
-		}
+	if b := builders[s.name]; b.rows != nil {
+		out = b.rows(m, s)
+	} else {
+		out = m.catalogRows(s)
 	}
 	for _, r := range m.failures(s) {
 		out = append(out, record{row: r})
@@ -436,7 +422,7 @@ func (m Model) short(member string) string {
 // glyph leading to the issue's page; open, every assignee, the title wrapped, and every label. An issue belongs to its assignees.
 func (m Model) backlogRows(s stage) []record {
 	var out []record
-	for _, i := range s.issues {
+	for _, i := range of[issue](s) {
 		key := "#" + strconv.Itoa(i.Number)
 		out = append(out, record{row{Key: m.keyOf(i.Member, key)}, map[string]table.Value{
 			"id": table.One(key), "source": table.Some(i.Source), "organization": table.Some(i.Organization),
@@ -460,7 +446,7 @@ func (m Model) backlogRows(s stage) []record {
 // tab. A row belongs to the issue's assignees, whoever opened the pull request, as kit flow --mine says.
 func (m Model) underwayRows(s stage) []record {
 	var out []record
-	for _, u := range s.under {
+	for _, u := range of[underway](s) {
 		o := m.originOf(u.Member)
 		issue, pr, page := "#"+strconv.Itoa(u.Number), "#"+strconv.Itoa(u.PR.Number), o.pull(u.PR.Number, u.PR.URL)
 		var where, pushed, by table.Value
@@ -527,7 +513,7 @@ func jumpTo(stage, key string) string { return jumps + stage + "/" + key }
 // where changes is another app's, #<number>, or !<number> for a GitLab merge request, after the member over a group.
 func (m Model) pullKey(member, source string, number int) string {
 	if s := m.find("changes"); s != nil {
-		for _, p := range s.pulls {
+		for _, p := range of[pull](*s) {
 			if p.Number == number && p.Member == member {
 				return m.keyOf(member, ref(p))
 			}
@@ -567,7 +553,7 @@ func ref(p pull) string {
 // page. A pull request belongs to its author.
 func (m Model) changeRows(s stage) []record {
 	var out []record
-	for _, p := range s.pulls {
+	for _, p := range of[pull](s) {
 		page := m.originOf(p.Member).pull(p.Number, "")
 		var checked table.Value
 		if p.Checks != nil {
@@ -598,7 +584,7 @@ func (m Model) changeRows(s stage) []record {
 // one, the step that failed.
 func (m Model) buildRows(s stage) []record {
 	var out []record
-	for _, b := range s.runs {
+	for _, b := range of[run](s) {
 		number, title := "", b.Title
 		if b.Number != nil {
 			number = "#" + strconv.FormatInt(*b.Number, 10)
@@ -651,31 +637,10 @@ func failedFirst(j job) int {
 	return 1
 }
 
-// releaseRows gives each release's record, as rowRecords reads a row kit prints flat.
-func (m Model) releaseRows(s stage) []record { return m.rowRecords(s.name, s.rows, "") }
-
-// empty gives the dim line an empty stage shows.
+// empty gives the dim line an empty stage shows: its catalog entry's, else nothing.
 func empty(s stage) string {
-	switch s.name {
-	case "backlog":
-		return "no open issue without a pull request"
-	case "underway":
-		return "no issue is underway"
-	case "incoming":
-		if len(s.ins) > 0 && !fetched(s.ins) {
-			return "not fetched: kit flow --no-fetch skips the fetch"
-		}
-		return "no remote to fetch"
-	case "changes":
-		return "no open pull request"
-	case "builds":
-		return "no build since the last 20 runs"
-	case "releases":
-		return "no release"
-	case "workspace/repos":
-		return "no repository"
-	case "packages/packages":
-		return "no package in reach"
+	if c := catalog[s.name]; c != nil && c.Empty != "" {
+		return c.Empty
 	}
 	return "nothing"
 }
