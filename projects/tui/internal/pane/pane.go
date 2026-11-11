@@ -123,10 +123,15 @@ func Above(n int) string { return fmt.Sprintf("… %d above", n) }
 // More says how many rows a window hides below it.
 func More(n int) string { return fmt.Sprintf("… %d more", n) }
 
-// Clip shortens a text to n cells, with … at the cut.
+// Clip shortens a text to n cells, with … at the cut. A text that ends a pill, as style draws one, keeps that end, in
+// its color, after the cut, so the pill still reads as one, where n leaves room for it and a cell of text.
 func Clip(s string, n int) string {
 	if n < 1 {
 		return ""
+	}
+	w := ansi.StringWidth(s)
+	if w > n && n >= 3 && strings.HasSuffix(ansi.Strip(s), style.PillRight) {
+		return ansi.Truncate(s, n-1, "…") + ansi.TruncateLeft(s, w-1, "")
 	}
 	return ansi.Truncate(s, n, "…")
 }

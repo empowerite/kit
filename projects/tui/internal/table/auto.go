@@ -27,7 +27,8 @@ type Placed struct {
 // every one does, or the panel shows the emoji every row shares, as shared says. And a table short of width steps down:
 // while the columns do not fit, as grid.Fits says, each column, from the rightmost leftward and a step each in turn,
 // takes its next rendering that is narrower, until they fit or none can step. The column that wraps takes what is left,
-// as it always does, and never steps.
+// as it always does, and never steps; nor does a column drawn as pills, which keeps them however short the width, its
+// names alone had only where a preset pins text.
 func Automatic(fields []Placed, vs map[string][]Value, width int, shared bool) map[string]string {
 	out, ladders := map[string]string{}, map[string][]string{}
 	for _, f := range fields {
@@ -44,7 +45,10 @@ func Automatic(fields []Placed, vs map[string][]Value, width int, shared bool) m
 		case len(plain) > 0 && !shared && f.SharesGlyph(vs[f.ID]):
 			ladder = plain
 		}
-		out[f.ID], ladders[f.ID] = ladder[0], ladder[1:]
+		out[f.ID] = ladder[0]
+		if ladder[0] != "pills" {
+			ladders[f.ID] = ladder[1:]
+		}
 	}
 	needs := map[string]int{}
 	need := func(f Placed, rendering string) int { return grid.Need(f.Draw(vs[f.ID], rendering), f.Name) }

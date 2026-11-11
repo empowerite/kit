@@ -160,6 +160,17 @@ func TestClipCutsInCellsWithAnEllipsis(t *testing.T) {
 			t.Errorf("Clip(%q, %d) = %q, want %q", c.in, c.n, got, c.want)
 		}
 	}
+	// a pill cut keeps its right end, in its color, so it still reads as a pill; too narrow for the end and a cell of
+	// text, it is cut as any text is
+	pill := style.Pill("package", "#1d4ed8")
+	got := Clip(pill, 7)
+	if ansi.StringWidth(got) != 7 || ansi.Strip(got) != style.PillLeft+"pack…"+style.PillRight ||
+		!strings.HasSuffix(got, style.PillEnd(style.PillRight, "#1d4ed8")) {
+		t.Errorf("a pill cut: %q", got)
+	}
+	if got := Clip(pill, 2); ansi.Strip(got) != style.PillLeft+"…" {
+		t.Errorf("a pill cut to two cells: %q", ansi.Strip(got))
+	}
 }
 
 func TestWrapBreaksAtSpacesAndKeepsALongWordWhole(t *testing.T) {

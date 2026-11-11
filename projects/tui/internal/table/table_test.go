@@ -256,6 +256,18 @@ func TestTheRenderingIsChosenAutomatically(t *testing.T) {
 		got["title"] != "text" {
 		t.Errorf("short of width: %v", got)
 	}
+	// a column drawn as pills keeps them, however short the width; the others still step, and text is had pinned
+	labels := Field{ID: "labels", Label: "labels", Type: "label", Renderings: []string{"pills", "text"}}
+	vs["labels"] = []Value{One("enhancement"), One("documentation")}
+	if got := Automatic([]Placed{column(state), column(labels), column(title)}, vs, 12, false); got["labels"] != "pills" ||
+		got["state"] != "glyph" {
+		t.Errorf("pills, short of width: %v", got)
+	}
+	pinnedText := column(labels)
+	pinnedText.Pinned = "text"
+	if got := Automatic([]Placed{pinnedText}, vs, 100, false); got["labels"] != "text" {
+		t.Errorf("pills, pinned text: %v", got)
+	}
 	// a glyph a row alone draws says what the row is
 	if state.SharesGlyph([]Value{One("open"), {}}) || !state.SharesGlyph(open) || state.SharesGlyph(mixed) {
 		t.Error("shares glyph")

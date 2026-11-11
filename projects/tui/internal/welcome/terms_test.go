@@ -374,12 +374,12 @@ func TestTheCommandTermsAndExamplesStandWholeWhileTheMeaningGivesWay(t *testing.
 			t.Errorf("at 80, no %q in:\n%s", whole, got)
 		}
 	}
-	// at 60, the terms are drawn as text, not pills; the meaning keeps a few cells, and the widest of the others,
-	// the examples, give way after it
+	// at 60, the terms keep their pills, which never step down to text; the meaning keeps a few cells, and the
+	// command and the examples give way after it
 	m = drive(m, tea.WindowSizeMsg{Width: 60, Height: 40})
 	got = view(m)
-	for _, want := range []string{"▸ git remote    2           A remote is…  git remote -…",
-		"▸ kit flow      worktree    A checkout …  kit flow … +1"} {
+	for _, want := range []string{"▸ git remote   2             A remote is…  git remote …",
+		"▸ kit flow     " + pill("worktree") + "    A checkout …  kit flow… +1"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("at 60, no %q in:\n%s", want, got)
 		}

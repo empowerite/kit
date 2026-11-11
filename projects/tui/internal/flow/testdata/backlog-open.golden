@@ -8,10 +8,10 @@
 
       id   assignees        age  branch           labels           title
       ·────×·───────────────·────·────────────────×·───────────────·───────────
-    ▾ #45                    2h                   kind=feature     🎫 kit flow 
-                                                  area::tui        is the one  
-                                                  good first       picture:    
-                                                  issue            five stages,
+    ▾ #45                    2h                   kindfeature   🎫 kit flow 
+                                                  areatui       is the one  
+                                                  good first      picture:    
+                                                  issue           five stages,
                                                                    interactive 
                                                                    on a        
                                                                    terminal,   
@@ -19,6 +19,6 @@
                                                                    listing     
                                                                    verbs fold  
                                                                    into it     
-    ▸ #46  jeffrey-aguile…   2d  46-a-noun-lists  bug              🎫 A noun l…
+    ▸ #46  jeffrey-aguile…   2d  46-a-noun-lists  bug            🎫 A noun l…
     ▸ #7   2                40d                                    🎫 Fix the …
  = menu - workspace / search ? legend │ … │ esc tabs ↑↓ move ␣·⇧↑↓ select ⌃A al…
