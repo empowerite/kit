@@ -780,3 +780,71 @@ func TestThePalettesMenuBarHasTheWorkspaceMenu(t *testing.T) {
 		t.Error("a click on the workspace menu did not drop it down")
 	}
 }
+
+// turn gives a turn of the mouse wheel at the cell, down or up.
+func turn(x, y int, down bool) tea.MouseWheelMsg {
+	if down {
+		return tea.MouseWheelMsg{X: x, Y: y, Button: tea.MouseWheelDown}
+	}
+	return tea.MouseWheelMsg{X: x, Y: y, Button: tea.MouseWheelUp}
+}
+
+func TestTheWheelScrollsTheTreeAndLeavesTheCursor(t *testing.T) {
+	m := forty(12) // the tree's window is the 8 lines from the third
+	for _, c := range []struct {
+		turns []tea.Msg
+		drawn string
+	}{
+		{[]tea.Msg{turn(5, 4, true)}, "… v02 v03 v04 v05 v06 v07 …"},
+		{[]tea.Msg{turn(5, 4, true), turn(5, 4, false)}, "WORKFLOW ▸v00 v01 v02 v03 v04 v05 …"},
+		{[]tea.Msg{turn(5, 4, true), turn(5, 4, true)}, "… v05 v06 v07 v08 v09 v10 …"},
+		// past the end the window stops where it shows the most, and a turn back moves it at once
+		{slices.Repeat([]tea.Msg{turn(5, 4, true)}, 20), "… v33 v34 v35 v36 v37 v38 v39"},
+		{append(slices.Repeat([]tea.Msg{turn(5, 4, true)}, 20), turn(5, 4, false)), "… v30 v31 v32 v33 v34 v35 …"},
+		// a key moves the cursor, and the window follows it again
+		{[]tea.Msg{turn(5, 4, true), turn(5, 4, true), down}, "WORKFLOW v00 ▸v01 v02 v03 v04 v05 …"},
+		// a turn off the tree, on the title line or the keys bar, scrolls nothing
+		{[]tea.Msg{turn(5, 0, true), turn(5, 11, true)}, "WORKFLOW ▸v00 v01 v02 v03 v04 v05 …"},
+	} {
+		got, _ := drive(m, c.turns...)
+		if drawn(got) != c.drawn {
+			t.Errorf("%d turns: drawn %q, want %q", len(c.turns), drawn(got), c.drawn)
+		}
+	}
+}
+
+func TestTheWheelScrollsThePageAndAnotherVerbsPageStartsAtItsTop(t *testing.T) {
+	m, _ := drive(listing(t), tea.WindowSizeMsg{Width: 100, Height: 8}, tea.KeyPressMsg{Code: tea.KeyRight})
+	left := 3 + m.widest() + 2
+	column := func(m Model) []string { // the page's column on the 4 lines of the window
+		var out []string
+		for _, line := range strings.Split(stripANSI(m.View().Content), "\n")[2:6] {
+			out = append(out, strings.TrimSpace(string([]rune(line)[left:])))
+		}
+		return out
+	}
+	whole := page(m.pages["commit"], 100-left-1)
+	if len(whole) < 7 {
+		t.Fatalf("commit's page is %d lines, too short to scroll in 4", len(whole))
+	}
+	m, _ = drive(m, turn(left+5, 3, true))
+	if got := column(m); got[0] != "… 3 above" || got[1] != strings.TrimSpace(ansi.Strip(whole[3])) {
+		t.Errorf("a turn down over the page: %q", got)
+	}
+	// a turn over the names scrolls the tree, not the page
+	if n, _ := drive(m, turn(5, 3, false)); column(n)[0] != "… 3 above" {
+		t.Errorf("a turn over the names: %q", column(n))
+	}
+	if n, _ := drive(m, turn(left+5, 3, false)); column(n)[0] != strings.TrimSpace(ansi.Strip(whole[0])) {
+		t.Errorf("a turn back up: %q", column(n))
+	}
+	// the next verb's page shows from its top, and so does commit's when the cursor comes back
+	m, _ = drive(m, down)
+	if got := column(m); strings.HasSuffix(got[0], "above") {
+		t.Errorf("the next verb's page: %q", got)
+	}
+	m, _ = drive(m, up)
+	if got := column(m); got[0] != strings.TrimSpace(ansi.Strip(whole[0])) {
+		t.Errorf("commit's page again: %q", got)
+	}
+}

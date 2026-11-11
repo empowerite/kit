@@ -10,7 +10,9 @@
 // the left arrow brings them back. Enter opens the verb's form, and a form that cannot open leaves kit's line under the
 // menu bar; = or a click on the = before the screen's name drops the kit menu down, internal/shell's, as every screen
 // of kittui has it, while the search has focus too, since no verb's name holds =, and - or a click on the workspace menu after it drops that down; esc there does nothing and never quits; ctrl-q quits, and ctrl-c quits as interrupted. Where the
-// tree or the page is cut, a dim line says how many verbs or lines are hidden. The status bar is the last line. Widths
+// tree or the page is cut, a dim line says how many verbs or lines are hidden. The mouse wheel scrolls the tree, the
+// cursor left where it is, or, beside the names, the page; a key brings the tree's window back to the cursor and the
+// page to its top. The status bar is the last line. Widths
 // are terminal cells, so a two-cell glyph never pushes a row past the edge.
 package palette
 
@@ -64,6 +66,10 @@ type Model struct {
 	interrupted   bool
 	appMenu       shell.Menu      // the app's menu, internal/shell's, which has the keyboard while it is open
 	books         shell.BooksMenu // the menu bar's workspace menu, which has the keyboard while it is open
+	scrolled      bool            // the wheel moved the tree's window, which starts at treeAt until a key moves the cursor
+	treeAt        int
+	pageOf        string // the verb whose page the wheel scrolled, which starts at pageAt until a key is pressed
+	pageAt        int
 }
 
 // New opens the palette on the verbs, leaving out tui itself, in the order the tree draws them: by group as kit help
@@ -229,8 +235,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case shell.OnApp(msg.X, msg.Y, appLabel):
 			m.appMenu = m.appMenu.Opened()
 		}
+	case tea.MouseWheelMsg:
+		return m.wheeled(msg), nil
 	case tea.KeyPressMsg:
 		visible := m.Visible()
+		// a key moves the cursor: the tree's window follows it again, and the page shows from its top
+		m.scrolled, m.pageOf = false, ""
 		if msg.String() == shell.Quit {
 			// quit, as on every screen, the app's menu open or not
 			m.cancelled = true
@@ -340,6 +350,82 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.page()
 	}
 	return m, nil
+}
+
+// wheel is the lines a turn of the mouse wheel scrolls the tree or the page.
+const wheel = 3
+
+// wheeled scrolls what the turn is over, never past its ends: the tree, its cursor left where it is, or, beside the
+// names, the highlighted verb's page. A turn off them, or while a menu is open, scrolls nothing.
+func (m Model) wheeled(msg tea.MouseWheelMsg) Model {
+	d := 0
+	switch msg.Button {
+	case tea.MouseWheelUp:
+		d = -wheel
+	case tea.MouseWheelDown:
+		d = wheel
+	}
+	top, rows := len(m.top()), m.rows()
+	if d == 0 || m.appMenu.Open || m.books.Open || m.recent.Open || msg.Y < top || (rows > 0 && msg.Y >= top+rows) {
+		return m
+	}
+	if msg.X < m.leftWidth() {
+		lines := tree(m.Visible())
+		want := min(max(m.window(lines).Start+d, 0), max(len(lines)-1, 0))
+		m.scrolled, m.treeAt = true, pane.Frame(len(lines), rows, want, want, want).Start
+		return m
+	}
+	if verb, lines, ok := m.shownPage(); ok {
+		want := min(max(m.pageWindow(verb, len(lines)).Start+d, 0), max(len(lines)-1, 0))
+		m.pageOf, m.pageAt = verb, pane.Frame(len(lines), rows, want, want, want).Start
+	}
+	return m
+}
+
+// leftWidth gives the cells the names take, with the cursor's lead and the gap after them.
+func (m Model) leftWidth() int { return 3 + m.widest() + 2 }
+
+// window gives the rows of the tree its window shows: from where the wheel left it, or those that hold the cursor's
+// row.
+func (m Model) window(lines []row) pane.Span {
+	if m.scrolled {
+		return pane.Frame(len(lines), m.rows(), m.treeAt, m.treeAt, m.treeAt)
+	}
+	at := 0
+	for i, r := range lines {
+		if r.index == m.cursor {
+			at = i
+		}
+	}
+	return pane.Frame(len(lines), m.rows(), 0, at, at)
+}
+
+// shownPage gives the highlighted verb and its page's lines, as wide as the column beside the names, when the page is
+// drawn: the pages shown, and the screen wide enough for one.
+func (m Model) shownPage() (string, []string, bool) {
+	visible := m.Visible()
+	width := m.width - m.leftWidth()
+	if !m.showPages || width < minPage {
+		return "", nil, false
+	}
+	if m.cursor >= len(visible) {
+		return "", page("", width-1), true
+	}
+	name := visible[m.cursor].Name
+	text := m.pages[name]
+	if line, ok := m.failed[name]; ok {
+		text = line
+	}
+	return name, page(text, width-1), true
+}
+
+// pageWindow gives the lines of the verb's page the window shows: from where the wheel left it, or from the top.
+func (m Model) pageWindow(verb string, n int) pane.Span {
+	at := 0
+	if verb == m.pageOf {
+		at = m.pageAt
+	}
+	return pane.Frame(n, m.rows(), at, at, at)
 }
 
 // Remembering gives the palette remembering its searches in the file, as every screen of kittui does: one is
@@ -464,24 +550,17 @@ func verbs(rows []row) int {
 
 // View draws the title and the search, kit's line under them when a verb did not open, and the tree: each group's
 // heading, dimmed, over its verbs, each with its whole purpose, clipped at the screen's edge, or, after the right
-// arrow, the names beside the highlighted verb's page. The rows shown are the window that holds the cursor's row, with
-// a dim line for the verbs it hides above and one for those below, each in a row's place; a page cut short says how
-// many lines it hides. The keys bar is the last line, one line clipped to the width, so neither searching nor a refusal
+// arrow, the names beside the highlighted verb's page. The rows shown are the window that holds the cursor's row, or
+// where the wheel left it, with a dim line for the verbs it hides above and one for those below, each in a row's place;
+// a page cut short, or scrolled, says how many lines it hides below and above. The keys bar is the last line, one line clipped to the width, so neither searching nor a refusal
 // moves it: esc, which clears what is typed, the menu, typing, and the keys that act on the list; while the
 // app's menu is open it is the menu's.
 func (m Model) View() tea.View {
 	visible := m.Visible()
 	top := m.top()
 	widest := m.widest()
-	rows := m.rows()
 	lines := tree(visible)
-	at := 0
-	for i, r := range lines {
-		if r.index == m.cursor {
-			at = i
-		}
-	}
-	span := pane.Frame(len(lines), rows, 0, at, at)
+	span := m.window(lines)
 	var list []string
 	if len(visible) == 0 {
 		list = append(list, "   "+style.Off("no verb matches"))
@@ -509,26 +588,19 @@ func (m Model) View() tea.View {
 	if span.Below {
 		list = append(list, "   "+style.Off(pane.More(verbs(lines[span.End:]))))
 	}
-	leftWidth := 3 + widest + 2
-	rightWidth := m.width - leftWidth
-	if m.showPages && rightWidth >= minPage {
-		right := ""
-		if m.cursor < len(visible) {
-			name := visible[m.cursor].Name
-			right = m.pages[name]
-			if line, ok := m.failed[name]; ok {
-				right = line
-			}
+	if verb, pageLines, ok := m.shownPage(); ok {
+		cut := m.pageWindow(verb, len(pageLines))
+		var shown []string
+		if cut.Above {
+			shown = append(shown, style.Off(pane.Above(cut.Start)))
 		}
-		pageLines := page(right, rightWidth-1)
-		if cut := pane.Frame(len(pageLines), rows, 0, 0, 0); cut.Below {
-			pageLines = append(pageLines[:cut.End], style.Off(pane.More(len(pageLines)-cut.End)))
-		} else {
-			pageLines = pageLines[:cut.End]
+		shown = append(shown, pageLines[cut.Start:cut.End]...)
+		if cut.Below {
+			shown = append(shown, style.Off(pane.More(len(pageLines)-cut.End)))
 		}
 		list = strings.Split(lipgloss.JoinHorizontal(lipgloss.Top,
-			lipgloss.NewStyle().Width(leftWidth).Render(strings.Join(list, "\n")),
-			lipgloss.NewStyle().Width(rightWidth).Render(strings.Join(pageLines, "\n"))), "\n")
+			lipgloss.NewStyle().Width(m.leftWidth()).Render(strings.Join(list, "\n")),
+			lipgloss.NewStyle().Width(m.width-m.leftWidth()).Render(strings.Join(shown, "\n"))), "\n")
 	}
 	// a screen narrower than the names' column cuts every line at its edge
 	var drawn []string
