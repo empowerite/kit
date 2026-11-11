@@ -20,8 +20,8 @@ repository's own rules in `AGENTS.md` apply as well. Where the two differ, `AGEN
    commit they make, and refuse when git has no signing key; otherwise `kit commit` warns when commits here are not
    signed. Push with `kit submit`. Run `kit rebase` to bring the branch up to date with the default branch and push
    it.
-4. Mark the pull request ready for review when the work is done: `gh pr ready` on GitHub, `glab mr update --ready`
-   on GitLab. The pull request body is the report. It states:
+4. Mark the pull request ready for review when the work is done: `kit ready`, on any forge, which also takes off the
+   draft's stand-in where `kit.yml` chooses one. The pull request body is the report. It states:
    - what changed
    - what was checked, and how
    - what was left out, and why
@@ -44,8 +44,7 @@ A worker is whoever implements one issue, in the worktree named for that issue.
 5. Push as you go.
 6. Before you call anything done, run `kit gate`: the repository's gate (its own CI command, such as `just ci`)
    with the tools the chosen toolchain pins.
-7. Finish by marking the pull request ready for review: `gh pr ready` on GitHub, `glab mr update --ready` on
-   GitLab, with the report in the pull request body.
+7. Finish by marking the pull request ready for review with `kit ready`, with the report in the pull request body.
 8. If the gate fails or the work is partial, leave the pull request as a draft and say why.
 9. Never merge.
 10. Report what ran and what it printed. Nothing more.

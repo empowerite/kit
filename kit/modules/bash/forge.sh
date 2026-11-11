@@ -55,33 +55,6 @@
 #
 # A call that changes the forge returns 0 when the change is made, 1 when it is not, and 3 when the forge lacks it.
 #
-# The contract has a version, forge_contract. A provider declares the version it implements and the features its forge
-# lacks, before any call is made:
-#
-#   forge/<name>:contract         the version it implements; a provider without one implements version 1
-#   forge/<name>:lacks            the features its forge does not have, one per line; without one, it lacks none
-#
-# A feature is a set of calls, or of fields of a document, that a forge has whole or not at all. Each feature names
-# the contract version that added it, and a provider that implements an older version lacks it:
-#
-#   feature          since  calls, or the fields kit reads
-#   issues           1      issue-create, issue-title, issue-state, issue-assignees, issue-assign, issue-unassign,
-#                           issue-close, issue-comment, open-issues: the forge's own tracker
-#   sub-issues       1      issue-add-sub
-#   linked-branches  1      link-branch: a branch the forge links to an issue
-#   drafts           1      pr-create opens a draft; without it, a change open for review
-#   closing-issues   1      pr-closing-issues: the issues the forge says a change closes
-#   review-threads   1      open-prs: each change's threads and whether they are resolved
-#   checks           1      open-prs: each change's checks
-#   quota            1      quota
-#   marks            1      marks
-#   releases         1      releases
-#   runs             1      runs
-#
-# forge:capabilities prints the declaration as one JSON object, which kit flow --capabilities gives kittui: {contract,
-# forge, provider, features}, provider being the version the provider implements, features each feature's state,
-# native or none. A primary with no forge has every feature none.
-#
 #   require                       the provider's own tool is present and authenticated
 #   repo                          the repository as owner/name
 #   repo-url                      the repository's browser URL
@@ -106,10 +79,15 @@
 #   branch-for-issue <n>          the branch an open pull request for issue <n> is on, or nothing
 #   link-branch <n> <default>     makes a branch linked to the issue, from <default>, pushed to the forge
 #   pr-for-branch <branch>        the number of the open pull request on the branch, or nothing
-#   pr-create <branch> <default> <title>   opens a draft pull request and prints its number
+#   pr-create <branch> <default> <title> [<draft>]   opens a pull request and prints its number: a draft, unless
+#                                 <draft> is false (since version 3), when it opens ready for review
+#   pr-ready <n>                  makes the draft ready for review (since 3)
 #   pr-title <n>                  the pull request's title
+#   pr-set-title <n> <title>      replaces it (since 3)
 #   pr-body <n>                   the pull request's body
 #   pr-set-body <n> <body>        replaces it
+#   pr-label-add <n> <label>      puts the label on the pull request (since 3)
+#   pr-label-remove <n> <label>   takes it off (since 3)
 #   pr-author <n>                 the login of the change's author, as the forge shows it: dependabot[bot]
 #   pr-last-for-branch <branch>   the number of the latest pull request on the branch, in any state, or nothing
 #   pr-state <n>                  MERGED, CLOSED, or OPEN, a tab, and the merge commit when it is merged
@@ -124,6 +102,50 @@
 #                                 newest at most: pushes to the default branch or a tag, scheduled and manual runs;
 #                                 each is {id, number, attempt, workflow, branch, tag, event, sha, title, state, age,
 #                                 took, url, jobs}, what the builds stage draws; each job is {name, state, took, step}
+#
+# The contract has a version, forge_contract. A provider declares the version it implements and the features its forge
+# lacks, before any call is made:
+#
+#   forge/<name>:contract         the version it implements; a provider without one implements version 1
+#   forge/<name>:lacks            the features its forge does not have, one per line; without one, it lacks none
+#
+# A call marked "since" above is unsupported for a provider that implements an older version, as the seam answers it.
+# A feature is a set of calls, or of fields of a document, that a forge has whole or not at all. Each feature names
+# the contract version that added it, and a provider that implements an older version lacks it:
+#
+#   feature          since  calls, or the fields kit reads
+#   issues           1      issue-create, issue-title, issue-state, issue-assignees, issue-assign, issue-unassign,
+#                           issue-close, issue-comment, open-issues: the forge's own tracker
+#   sub-issues       1      issue-add-sub
+#   linked-branches  1      link-branch: a branch the forge links to an issue
+#   drafts           1      pr-create opens a draft, pr-ready ends it; without it, a change open for review
+#   closing-issues   1      pr-closing-issues: the issues the forge says a change closes
+#   review-threads   1      open-prs: each change's threads and whether they are resolved
+#   checks           1      open-prs: each change's checks
+#   quota            1      quota
+#   marks            1      marks
+#   releases         1      releases
+#   runs             1      runs
+#   labels           3      pr-label-add, pr-label-remove
+#
+# A repository chooses a stand-in for a feature in kit.yml, under the forge it is for, and the seam then answers the
+# feature's calls itself, from the forge's other calls, whether the forge has the feature or not:
+#
+#   forge_settings:
+#     ado:
+#       stand_ins:
+#         drafts: {label: draft}       # a change is a draft while it has the label; or {title_prefix: "[draft] "},
+#                                      # while its title starts with the prefix, which pr-title leaves off
+#         closing-issues: body         # the forge's own issues the change's body closes: Closes #7
+#         marks: {every: 60}           # a mark that changes every 60 seconds, 10 at the least
+#
+# A stand-in that needs what the forge lacks is refused: a label on a forge without labels, a title prefix on a
+# provider older than version 3, which can neither open a change ready nor set its title.
+#
+# forge:capabilities prints the declaration as one JSON object, which kit flow --capabilities gives kittui: {contract,
+# forge, provider, features, stand_ins}, provider being the version the provider implements, features each feature's
+# state, native, none, or stand-in, and stand_ins the repository's choices. A primary with no forge has every feature
+# none.
 #
 # see: docs/architecture.md
 
@@ -151,16 +173,21 @@ declare -g forge_list_limit=10000
 # forge_contract is the version of the contract the file header states. forge_features lists each feature with the
 # version that added it, in the header's order, and forge_feature_of names the feature each gated call belongs to.
 # forge_lacking holds, once read, the features the primary's forge lacks, one per line; forge_lacking_read says it was.
-declare -gr forge_contract=2
+declare -gr forge_contract=3
 declare -gra forge_features=(issues:1 sub-issues:1 linked-branches:1 drafts:1 closing-issues:1 review-threads:1
-  checks:1 quota:1 marks:1 releases:1 runs:1)
+  checks:1 quota:1 marks:1 releases:1 runs:1 labels:3)
 declare -grA forge_feature_of=(
   [issue-create]=issues [issue-title]=issues [issue-state]=issues [issue-assignees]=issues [issue-assign]=issues
   [issue-unassign]=issues [issue-close]=issues [issue-comment]=issues [open-issues]=issues
   [issue-add-sub]=sub-issues [link-branch]=linked-branches [pr-closing-issues]=closing-issues
-  [quota]=quota [marks]=marks [releases]=releases [runs]=runs
+  [quota]=quota [marks]=marks [releases]=releases [runs]=runs [pr-ready]=drafts
+  [pr-label-add]=labels [pr-label-remove]=labels
 )
-declare -g forge_lacking='' forge_lacking_read=false
+# forge_call_since names the version that added each call added after the first; forge_provider_contract holds, once
+# forge:lacks has read it, the version the provider implements. forge_stand_ins holds the stand-ins, as one JSON object,
+# once forge:stand-ins has read them.
+declare -grA forge_call_since=([pr-ready]=3 [pr-set-title]=3 [pr-label-add]=3 [pr-label-remove]=3)
+declare -g forge_lacking='' forge_lacking_read=false forge_provider_contract=1 forge_stand_ins=''
 
 # forge:primary prints the name of the primary remote: the primary setting in kit.yml, else origin. A name from a
 # setting reaches git as an argument, so it must be safe first. It refuses, and returns 1, as kit cannot go on with a
@@ -373,9 +400,10 @@ forge:call() {
   shift
   provider=$(forge:provider) || return 1
   use "forge/${provider}"
+  forge:lacks >/dev/null || return 1
+  (( ${forge_call_since[${call}]:-1} <= forge_provider_contract )) || return 3
   if [[ -n "${feature}" ]]
   then
-    forge:lacks >/dev/null || return 1
     forge:has "${feature}" || return 3
   fi
   CLICOLOR_FORCE=0 GH_FORCE_TTY='' "forge/${provider}:${call}" "$@"
@@ -405,6 +433,7 @@ forge:lacks() {
     then
       list:read declared "forge/${provider}:lacks" || return 1
     fi
+    forge_provider_contract=${version}
     forge_lacking=''
     for feature in "${declared[@]}"
     do
@@ -432,9 +461,62 @@ forge:has() {
   [[ $'\n'"${forge_lacking}" != *$'\n'"$1"$'\n'* ]]
 }
 
+# forge:stand-ins prints the stand-ins the repository chose for the primary's forge, as one JSON object of feature to
+# choice, {} for none, read once a process. It refuses a stand-in the file header does not list, or one that needs what
+# the forge lacks, naming the setting.
+forge:stand-ins() {
+  local provider doc choices refusal
+  if [[ -z "${forge_stand_ins}" ]]
+  then
+    provider=$(forge:provider) || return 1
+    forge:lacks >/dev/null || return 1
+    doc=$(yaml:json "$(settings:file)" 2>/dev/null) || doc=null
+    choices=$(jq --compact-output --arg forge "${provider}" '.forge_settings[$forge].stand_ins // {}' \
+      <<<"${doc:-null}" 2>/dev/null) || choices='{}'
+    refusal=$(jq --raw-output --arg lacking "${forge_lacking}" --argjson version "${forge_provider_contract}" '
+      ($lacking | split("\n")) as $lacks
+      | first(to_entries[] | .key as $f | .value as $v
+      | if $f == "drafts" then
+          if ($v | type) == "object" and ($v | keys) == ["label"] and ($v.label | type) == "string" and $v.label != ""
+          then (if IN($lacks[]; "labels") then "a label, which the forge lacks" else empty end)
+          elif ($v | type) == "object" and ($v | keys) == ["title_prefix"] and ($v.title_prefix | type) == "string"
+            and $v.title_prefix != ""
+          then (if $version < 3 then "a title prefix, which needs a provider of version 3" else empty end)
+          else "{label: <name>} or {title_prefix: <text>}, not \($v | tojson)" end
+        elif $f == "closing-issues" then (if $v == "body" then empty else "body, not \($v | tojson)" end)
+        elif $f == "marks" then
+          (if ($v | type) == "object" and ($v | keys) == ["every"] and ($v.every | type) == "number" and $v.every >= 10
+           then empty else "{every: <seconds>}, 10 at the least, not \($v | tojson)" end)
+        else "no stand-in: the stand-ins are drafts, closing-issues, and marks" end
+      | "\($f): \(.)") // empty' <<<"${choices}" 2>/dev/null) \
+      || refusal='the stand-ins are no map'
+    if [[ -n "${refusal}" ]]
+    then
+      error "forge_settings.${provider}.stand_ins in kit.yml: ${refusal}"
+      return 1
+    fi
+    forge_stand_ins=${choices}
+  fi
+  printf '%s\n' "${forge_stand_ins}"
+}
+
+# forge:stand-in <feature> prints the repository's stand-in for the feature as JSON, or nothing when it chose none. It
+# fails as forge:stand-ins does.
+forge:stand-in() {
+  forge:stand-ins >/dev/null || return 1
+  jq --compact-output --arg f "$1" '.[$f] // empty' <<<"${forge_stand_ins}"
+}
+
+# forge:serves <feature> succeeds when the primary's forge answers the feature, natively or through a stand-in.
+forge:serves() {
+  local choice
+  choice=$(forge:stand-in "$1") || return 1
+  [[ -n "${choice}" ]] || forge:has "$1"
+}
+
 # forge:capabilities prints the declaration of the primary's forge as one JSON object, as the file header says.
 forge:capabilities() {
-  local provider='' version=0 lacking entry
+  local provider='' version=0 lacking entry stand_ins='{}'
   local -a names=()
   for entry in "${forge_features[@]}"
   do
@@ -447,15 +529,17 @@ forge:capabilities() {
     provider=$(forge:provider) || return 1
     forge:lacks >/dev/null || return 1
     lacking=${forge_lacking}
-    version=1
-    declare -F "forge/${provider}:contract" >/dev/null && version=$("forge/${provider}:contract")
+    version=${forge_provider_contract}
+    stand_ins=$(forge:stand-ins) || return 1
   fi
   jq --null-input --compact-output --argjson contract "${forge_contract}" --arg forge "${provider}" \
-    --argjson provider "${version}" --arg lacking "${lacking}" '
+    --argjson provider "${version}" --arg lacking "${lacking}" --argjson stand_ins "${stand_ins}" '
     ($lacking | split("\n") | map(select(. != ""))) as $lacks
     | {contract: $contract, forge: (if $forge == "" then null else $forge end), provider: $provider,
-       features: ($ARGS.positional | map({key: ., value: (if IN($lacks[]) then "none" else "native" end)})
-         | from_entries)}' --args "${names[@]}"
+       features: ($ARGS.positional | map({key: ., value: (if $stand_ins[.] != null then "stand-in"
+                                                          elif IN($lacks[]) then "none" else "native" end)})
+         | from_entries),
+       stand_ins: $stand_ins}' --args "${names[@]}"
 }
 
 forge:require()             { forge:call require "$@"; }
@@ -465,9 +549,18 @@ forge:me()                  { forge:call me "$@"; }
 forge:quota()               { forge:call quota "$@"; }
 
 # forge:marks prints the forge's marks, as the seam's header says, keeping what makes the next read cheaper beside the
-# snapshots, or nowhere when they have no place.
+# snapshots, or nowhere when they have no place. With the marks stand-in, each mark is the span of its seconds that now
+# falls in, so a stage is stale once that span is past.
 forge:marks() {
-  local dir=''
+  local dir='' choice span
+  forge:stand-ins >/dev/null || return 1
+  choice=$(forge:stand-in marks) || return 1
+  if [[ -n "${choice}" ]]
+  then
+    span=$(( $(date +%s) / $(jq .every <<<"${choice}") ))
+    printf '{"issues":"%s","runs":"%s","releases":"%s"}\n' "${span}" "${span}" "${span}"
+    return 0
+  fi
   dir=$(forge:snapshots 2>/dev/null) && mkdir -p "${dir}" 2>/dev/null || dir=''
   forge:call marks "${dir}"
 }
@@ -485,8 +578,59 @@ forge:issue-add-sub()       { forge:changing issue-add-sub "$@"; }
 forge:branch-for-issue()    { forge:call branch-for-issue "$@"; }
 forge:link-branch()         { forge:changing link-branch "$@"; }
 forge:pr-for-branch()       { forge:call pr-for-branch "$@"; }
-forge:pr-create()           { forge:changing pr-create "$@"; }
-forge:pr-title()            { forge:call pr-title "$@"; }
+# forge:pr-create <branch> <default> <title> opens the change as a draft, the forge's own or the stand-in the repository
+# chose: a change opened ready, then labelled, or titled with the prefix. It prints the change's number.
+forge:pr-create() {
+  local choice number
+  forge:stand-ins >/dev/null || return 1
+  choice=$(forge:stand-in drafts) || return 1
+  case "${choice}" in
+    ('') forge:changing pr-create "$@" ;;
+    (*'"label"'*)
+      number=$(forge:changing pr-create "$1" "$2" "$3" false) || return $?
+      forge:changing pr-label-add "${number}" "$(jq --raw-output .label <<<"${choice}")" \
+        || warn "${number} could not be labelled a draft; label it by hand"
+      printf '%s\n' "${number}"
+      ;;
+    (*) forge:changing pr-create "$1" "$2" "$(jq --raw-output .title_prefix <<<"${choice}")$3" false ;;
+  esac
+}
+
+# forge:pr-ready <n> makes the draft ready for review: the forge's own draft, or the stand-in's label or prefix taken
+# off. A forge without drafts, and no stand-in, answers unsupported.
+forge:pr-ready() {
+  local choice title prefix
+  forge:stand-ins >/dev/null || return 1
+  choice=$(forge:stand-in drafts) || return 1
+  case "${choice}" in
+    ('') forge:changing pr-ready "$@" ;;
+    (*'"label"'*) forge:changing pr-label-remove "$1" "$(jq --raw-output .label <<<"${choice}")" ;;
+    (*)
+      prefix=$(jq --raw-output .title_prefix <<<"${choice}")
+      title=$(forge:call pr-title "$1") || return $?
+      [[ "${title}" == "${prefix}"* ]] || return 0
+      forge:changing pr-set-title "$1" "${title#"${prefix}"}"
+      ;;
+  esac
+}
+
+# forge:pr-title <n> prints the change's title, without the prefix a title-prefix stand-in for drafts puts on it, so a
+# policy judges the title a person wrote.
+forge:pr-title() {
+  local choice title prefix
+  forge:stand-ins >/dev/null || return 1
+  choice=$(forge:stand-in drafts) || return 1
+  title=$(forge:call pr-title "$@") || return $?
+  if [[ "${choice}" == *'"title_prefix"'* ]]
+  then
+    prefix=$(jq --raw-output .title_prefix <<<"${choice}")
+    title=${title#"${prefix}"}
+  fi
+  printf '%s\n' "${title}"
+}
+forge:pr-set-title()        { forge:changing pr-set-title "$@"; }
+forge:pr-label-add()        { forge:changing pr-label-add "$@"; }
+forge:pr-label-remove()     { forge:changing pr-label-remove "$@"; }
 forge:pr-body()             { forge:call pr-body "$@"; }
 forge:pr-set-body()         { forge:changing pr-set-body "$@"; }
 forge:pr-author()           { forge:call pr-author "$@"; }
@@ -495,8 +639,47 @@ forge:pr-state()            { forge:call pr-state "$@"; }
 forge:pr-state-for-branch() { forge:call pr-state-for-branch "$@"; }
 forge:pr-head-for-branch()  { forge:call pr-head-for-branch "$@"; }
 forge:pr-here()             { forge:call pr-here "$@"; }
-forge:pr-closing-issues()   { forge:call pr-closing-issues "$@"; }
-forge:open-prs()            { forge:snapshot open-prs; }
+# forge:pr-closing-issues <n> prints the issues the change closes, as the forge says, or, with the closing-issues stand-in,
+# as its body says: each issue of the forge's own a closing keyword names, with its state, as the repository's.
+forge:pr-closing-issues() {
+  local choice body repo numbers number state
+  forge:stand-ins >/dev/null || return 1
+  choice=$(forge:stand-in closing-issues) || return 1
+  if [[ -z "${choice}" ]]
+  then
+    forge:call pr-closing-issues "$@"
+    return
+  fi
+  body=$(forge:pr-body "$1") || return 1
+  repo=$(forge:call repo) || return 1
+  numbers=$(grep --only-matching --ignore-case --extended-regexp '(close[sd]?|fix(e[sd])?|resolve[sd]?):? #[0-9]+' \
+    <<<"${body}" | grep --only-matching --extended-regexp '[0-9]+$' | LC_ALL=C sort --unique --numeric-sort) \
+    || numbers=''  # grep's exit 1 is a body that names no issue of the forge's own
+  for number in ${numbers}
+  do
+    state=$(forge:issue-state "${number}") || return 1
+    printf '%s %s %s\n' "${number}" "${state}" "${repo}"
+  done
+}
+
+# forge:open-prs prints the open changes, as the forge's snapshot keeps them, each drawn as a draft while the drafts
+# stand-in says it is one: it has the label, or its title the prefix, which the document then leaves off.
+forge:open-prs() {
+  local choice docs
+  forge:stand-ins >/dev/null || return 1
+  choice=$(forge:stand-in drafts) || return 1
+  if [[ -z "${choice}" ]]
+  then
+    forge:snapshot open-prs
+    return
+  fi
+  docs=$(forge:snapshot open-prs) || return $?
+  [[ -z "${docs}" ]] || jq --compact-output --argjson choice "${choice}" '
+    if $choice.label != null and any(.labels[]?; .name == $choice.label) then .state = "draft"
+    elif $choice.title_prefix != null and (.title | startswith($choice.title_prefix))
+    then .state = "draft" | .title |= ltrimstr($choice.title_prefix)
+    else . end' <<<"${docs}"
+}
 forge:open-issues()         { forge:snapshot open-issues; }
 forge:releases()            { forge:call releases "$@"; }
 forge:runs()                { use git; forge:call runs "$@"; }

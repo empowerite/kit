@@ -39,26 +39,26 @@ provider() {
   } > "bash/forge/${name}.sh"
 }
 
-@test "GitHub and GitLab implement contract 2 and lack none of its features" {
+@test "GitHub and GitLab implement contract 3 and lack none of its features" {
   git remote set-url origin https://github.com/empowerite/example.git
   run "${kit_root}/bin/kit" flow --capabilities
   [ "$status" -eq 0 ]
-  [ "$(jq -c '{contract, forge, provider}' <<<"$output")" = '{"contract":2,"forge":"github","provider":2}' ]
+  [ "$(jq -c '{contract, forge, provider}' <<<"$output")" = '{"contract":3,"forge":"github","provider":3}' ]
   [ "$(jq -c '[.features[]] | unique' <<<"$output")" = '["native"]' ]
   [ "$(jq -r '.features | keys_unsorted | join(" ")' <<<"$output")" \
-    = 'issues sub-issues linked-branches drafts closing-issues review-threads checks quota marks releases runs' ]
+    = 'issues sub-issues linked-branches drafts closing-issues review-threads checks quota marks releases runs labels' ]
   git remote set-url origin https://gitlab.com/empowerite/example.git
   run "${kit_root}/bin/kit" flow --capabilities
   [ "$(jq -c '{forge, provider, none: [.features[] | select(. == "none")]}' <<<"$output")" \
-    = '{"forge":"gitlab","provider":2,"none":[]}' ]
+    = '{"forge":"gitlab","provider":3,"none":[]}' ]
 }
 
-@test "a provider that declares nothing implements contract 1, with every feature of it" {
+@test "a provider that declares nothing implements contract 1: every feature of it, none added since" {
   provider plain -
   run "${kit_root}/bin/kit" flow --capabilities
   [ "$status" -eq 0 ]
-  [ "$(jq -c '{forge, provider, none: [.features[] | select(. == "none")]}' <<<"$output")" \
-    = '{"forge":"plain","provider":1,"none":[]}' ]
+  [ "$(jq -c '{forge, provider, none: [.features | to_entries[] | select(.value == "none") | .key]}' <<<"$output")" \
+    = '{"forge":"plain","provider":1,"none":["labels"]}' ]
   run call quota
   [ "$status" -eq 0 ]
   [ "$output" = answered ]
@@ -76,7 +76,7 @@ provider() {
   [ ! -e calls.log ]
   run "${kit_root}/bin/kit" flow --capabilities
   [ "$(jq -c '[.features | to_entries[] | select(.value == "none") | .key]' <<<"$output")" \
-    = '["issues","closing-issues","quota","marks","releases","runs"]' ]
+    = '["issues","closing-issues","quota","marks","releases","runs","labels"]' ]
 }
 
 @test "a forge without rate limits gives kit flow --quota none, and asks it nothing" {
@@ -116,10 +116,10 @@ provider() {
 }
 
 @test "a declaration of a contract above the kit's, or of a feature the contract does not have, is refused" {
-  provider ahead 3
+  provider ahead 4
   run call quota
   [ "$status" -eq 1 ]
-  [[ "$output" == *"the ahead forge implements contract '3', and this kit knows 1 to 2; run: kit update"* ]]
+  [[ "$output" == *"the ahead forge implements contract '4', and this kit knows 1 to 3; run: kit update"* ]]
   provider odd 2 telepathy
   run call quota
   [ "$status" -eq 1 ]

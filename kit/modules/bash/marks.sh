@@ -35,7 +35,7 @@ marks:stages() {
       (backlog | underway | changes | builds | releases)
         [[ -z "${forge}" ]] || continue
         # A forge without marks has none, which is no failure: its stages are read again only when asked.
-        if forge:none || ! forge:has marks 2>/dev/null
+        if forge:none || ! forge:serves marks 2>/dev/null
         then
           forge='{}'
         elif ! forge=$(forge:marks)

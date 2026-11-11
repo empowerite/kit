@@ -304,7 +304,7 @@ JSON
   run "${kit_root}/bin/kit" flow --capabilities
   [ "$status" -eq 0 ]
   [ "$(jq -c '{forge, provider, none: [.features | to_entries[] | select(.value == "none") | .key]}' <<<"$output")" \
-    = '{"forge":"ado","provider":2,"none":["linked-branches","quota","marks","releases"]}' ]
+    = '{"forge":"ado","provider":3,"none":["linked-branches","quota","marks","releases"]}' ]
   for c in quota marks releases 'link-branch 7 main'
   do
     read -r -a words <<<"${c}" && run --separate-stderr call "${words[@]}"

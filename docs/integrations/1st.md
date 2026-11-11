@@ -29,7 +29,7 @@ descriptions of its API and its configuration files the provider publishes.
 A CI or CD system that is not the code forge's own reaches kit today only through the code forge: it reports a
 commit status or a check run there, and kit reads it with the change's checks.
 
-A forge provider declares what its forge lacks, in the forge seam's contract version 2, and `kit flow
+A forge provider declares what its forge lacks, in the forge seam's contract version 3, and `kit flow
 --capabilities` prints the declaration; [architecture.md](../architecture.md#code-forges-seams-and-providers) says how
 a verb answers a call of a feature the forge lacks. [aws.md](aws.md) is the plan for AWS's developer services, which
 kit has no provider for: what each lacks, and the stand-ins a repository on AWS would configure.

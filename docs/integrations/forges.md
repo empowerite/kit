@@ -193,7 +193,7 @@ the default output, and `--query` filters it with JMESPath. A list takes `--top`
 any URL. kit's `ado` tracker already uses `az boards`; see [trackers.md](trackers.md).
 
 kit's provider, `forge/ado.sh`, reads the organization, the project, and the repository from the primary remote's
-URL. It implements contract 2 and declares that Azure DevOps lacks rate limits it shows, cheap marks, releases, and
+URL. It implements contract 3 and declares that Azure DevOps lacks rate limits it shows, cheap marks, releases, and
 branches linked to a work item: `kit work` pushes the branch it names, and the pull request it opens links the work
 item. Azure Boards is the forge's own tracker, as `#7` and `AB#7` alike, and `forge_settings.ado` in `kit.yml` names
 the work item type and the closing states of the project's process.

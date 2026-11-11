@@ -237,7 +237,9 @@ forge/gitlab:pr-closing-issues() {
 
 forge/gitlab:pr-create() {
   local number
-  number=$(glab mr create --draft --source-branch "$1" --target-branch "$2" --title "$3" --description "" --yes \
+  local -a draft=(--draft)
+  [[ "${4:-true}" != false ]] || draft=()
+  number=$(glab mr create "${draft[@]}" --source-branch "$1" --target-branch "$2" --title "$3" --description "" --yes \
     | sed -n 's@.*/-/merge_requests/\([0-9]*\).*@\1@p' | tail -n 1) || return 1
   [[ "${number}" =~ ^[0-9]+$ ]] || { error "the merge request could not be opened; see above"; return 1; }
   printf '%s\n' "${number}"
@@ -264,12 +266,28 @@ forge/gitlab:pr-here() {
   [[ -z "${number}" ]] || printf '%s\n' "${number}"
 }
 
+forge/gitlab:pr-label-add() {
+  glab mr update "$1" --label "$2" >/dev/null 2>&1
+}
+
+forge/gitlab:pr-label-remove() {
+  glab mr update "$1" --unlabel "$2" >/dev/null 2>&1
+}
+
 forge/gitlab:pr-last-for-branch() {
   forge/gitlab:on-branch "the merge requests on $1" "$(forge/gitlab:latest-on "$1")" '.[0].iid // empty'
 }
 
+forge/gitlab:pr-ready() {
+  glab mr update "$1" --ready >/dev/null 2>&1
+}
+
 forge/gitlab:pr-set-body() {
   forge/gitlab:api "merge_requests/$1" --method PUT --raw-field "description=$2" >/dev/null
+}
+
+forge/gitlab:pr-set-title() {
+  forge/gitlab:api "merge_requests/$1" --method PUT --raw-field "title=$2" >/dev/null
 }
 
 forge/gitlab:pr-state() {
@@ -342,8 +360,8 @@ forge/gitlab:runs() {
     --argjson tags "${tags}" 'import "forge" as forge; forge::gitlab_builds($now; $default; $tags)'
 }
 
-# The provider implements contract 2 and its forge lacks none of its features.
-forge/gitlab:contract() { printf '2\n'; }
+# The provider implements contract 3 and its forge lacks none of its features.
+forge/gitlab:contract() { printf '3\n'; }
 
 # The seam's calls end here; what follows is this provider's own.
 

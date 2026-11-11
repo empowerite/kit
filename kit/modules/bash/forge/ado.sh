@@ -49,8 +49,8 @@ forge/ado:branch-for-issue() {
     '[.[] | (.sourceRefName | ltrimstr("refs/heads/")) | select(startswith("\($n)-"))] | .[0] // empty'
 }
 
-# The provider implements contract 2, and its forge lacks these features.
-forge/ado:contract() { printf '2\n'; }
+# The provider implements contract 3, and its forge lacks these features.
+forge/ado:contract() { printf '3\n'; }
 
 forge/ado:lacks() { printf '%s\n' quota marks releases linked-branches; }
 
@@ -215,14 +215,14 @@ forge/ado:pr-closing-issues() {
     'import "forge" as forge; .[] | "\(.id) \(if forge::ado_closed then "CLOSED" else "OPEN" end) \($repo)"'
 }
 
-# forge/ado:pr-create opens the draft and links the work item the branch is named for, <id>-<slug>, so the pull
-# request closes it as the forge's own tracker closes an issue.
+# forge/ado:pr-create opens the draft, or the change ready for review when the draft is false, and links the work
+# item the branch is named for, <id>-<slug>, so the pull request closes it as the forge's own tracker closes an issue.
 forge/ado:pr-create() {
   local pr project repo
   local -a items=()
   IFS=$'\t' read -r _ project repo < <(forge/ado:place) || return 1
   [[ "$1" =~ ^([0-9]+)- ]] && items=(--work-items "${BASH_REMATCH[1]}")
-  if ! pr=$(forge/ado:az repos pr create --draft true --source-branch "$1" --target-branch "$2" --title "$3" \
+  if ! pr=$(forge/ado:az repos pr create --draft "${4:-true}" --source-branch "$1" --target-branch "$2" --title "$3" \
     --project "${project}" --repository "${repo}" "${items[@]}" 2>/dev/null) || ! forge:json "${pr}"
   then
     error "run: az login (the pull request could not be opened)"
@@ -252,13 +252,33 @@ forge/ado:pr-here() {
   [[ -z "${number}" ]] || printf '%s\n' "${number}"
 }
 
+forge/ado:pr-label-add() {
+  local dir
+  file:scratch dir || return 1
+  # shellcheck disable=SC2154  # dir is set by file:scratch
+  jq --null-input --compact-output --arg name "$2" '{name: $name}' > "${dir}/label.json" || return 1
+  forge/ado:labels "$1" POST --in-file "${dir}/label.json"
+}
+
+forge/ado:pr-label-remove() {
+  forge/ado:labels "$1" DELETE "labelIdOrName=$2"
+}
+
 forge/ado:pr-last-for-branch() {
   forge/ado:on-branch "the pull requests on $1" "$1" all \
     'import "forge" as forge; forge::ado_latest | .pullRequestId // empty'
 }
 
+forge/ado:pr-ready() {
+  forge/ado:az repos pr update --id "$1" --draft false --output none >/dev/null 2>&1
+}
+
 forge/ado:pr-set-body() {
   forge/ado:az repos pr update --id "$1" --description "$2" --output none >/dev/null 2>&1
+}
+
+forge/ado:pr-set-title() {
+  forge/ado:az repos pr update --id "$1" --title "$2" --output none >/dev/null 2>&1
 }
 
 forge/ado:pr-state() {
@@ -433,6 +453,20 @@ forge/ado:prs() {
     prs_skip+=100
   done
   printf -v "${prs_into}" '%s' "${prs_all}"
+}
+
+# forge/ado:labels <n> <method> [<route parameter>] [<az devops invoke argument>…] changes the pull request's labels
+# through the REST API, which az names no command for: POST adds the label the input file names, DELETE takes off the
+# label the route parameter labelIdOrName names.
+forge/ado:labels() {
+  local id=$1 method=$2 project repo
+  local -a route=()
+  shift 2
+  [[ "${1:-}" != labelIdOrName=* ]] || { route=("$1"); shift; }
+  IFS=$'\t' read -r _ project repo < <(forge/ado:place) || return 1
+  forge/ado:az devops invoke --area git --resource pullRequestLabels --http-method "${method}" --api-version 7.1 \
+    --route-parameters "project=${project}" "repositoryId=${repo}" "pullRequestId=${id}" "${route[@]}" "$@" \
+    --output none >/dev/null 2>&1
 }
 
 # forge/ado:on-branch <what> <branch> <status> <jq filter> reads the pull requests on the branch in the status and

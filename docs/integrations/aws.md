@@ -34,7 +34,7 @@ login --tool npm` or `--tool pip` points npm or uv at it, and kit's dependency s
 A host under `amazonaws.com` that starts with `git-codecommit.` names the forge, as `dev.azure.com` names Azure DevOps.
 `forge_settings.aws` gives what the URL cannot: the profile, when the URL names none, and the stand-ins below.
 
-It would implement contract 2 and declare that CodeCommit lacks these features:
+It would implement contract 3 and declare that CodeCommit lacks these features:
 
 | Feature | Why CodeCommit lacks it | What kit does without it |
 | --- | --- | --- |
@@ -72,8 +72,9 @@ forge_settings:
   takes, is refused here.
 - `closing-issues: body` reads the issues a change closes from its body's closing keywords, `Closes #7`, and asks the
   tracker each one's state.
-- `checks: {codebuild: […]}` reads the named CodeBuild projects' builds of the change's source commit as its checks:
-  `aws codebuild list-builds-for-project`, then `aws codebuild batch-get-builds`.
+- `checks: {codebuild: […]}`, the one stand-in this plan adds, would read the named CodeBuild projects' builds of
+  the change's source commit as its checks: `aws codebuild list-builds-for-project`, then
+  `aws codebuild batch-get-builds`.
 - `marks: {every: 60}` gives the forge's stages a mark that changes once a minute, so kittui reloads them on that
   timer rather than never.
 
@@ -98,8 +99,8 @@ rule that writes each pull request event where `marks` can read it, so the stage
 ## What must be true to start
 
 - A repository that needs it: a team on CodeCommit that uses kit, and names the tracker it keeps its issues in.
-- The stand-ins: the forge seam reads `forge_settings.<forge>.stand_ins`, and the seam's contract has the calls the
-  `drafts` stand-in takes, `pr-set-title` and `pr-ready`, with `kit ready` to call the second; issue #148 holds them.
+- The `checks` stand-in: the forge seam reads `drafts`, `closing-issues`, and `marks` stand-ins under
+  `forge_settings.<forge>.stand_ins`, with `kit ready` to end a draft, and `checks` is the one this plan adds.
 - The tests: a fake `aws` in `tests/forge-conformance.bats`, answering from the botocore model's shapes, as the fakes
   of `gh`, `glab`, and `az` answer from their tools'.
 - CodeDeploy waits for a seam of its own, with kittui's environments and deployments tabs; see [cd.md](cd.md).

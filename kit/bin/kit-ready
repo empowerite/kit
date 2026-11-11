@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# kit-ready - marks a draft pull request ready for review (kit verb: workflow)
+# ----------------------------------------------------------------------------------------------------------------------
+# kit ready [<number>]
+#
+# Marks the pull request ready for review, the last step of the workflow: the forge's own draft ends, or the stand-in
+# the repository chose for drafts in kit.yml is taken off, its label or its title's prefix. A forge without drafts, and
+# no stand-in, opened the pull request ready already, and kit ready says so.
+#
+#   <number>   the pull request to mark; default: this checkout's
+#
+# Exits 0 when the pull request is ready for review, 1 when there is none to mark, the forge cannot say which this
+# checkout is working on, or it could not be marked, and 2 on a usage error.
+#
+# see: modules/bash/forge.sh
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use forge
+
+guard:arguments ready "$@" || exit $?
+# shellcheck disable=SC2154  # syntax_operands is set by guard:arguments
+number=${syntax_operands[0]:-}
+if [[ -n "${number}" && ! "${number}" =~ ^[0-9]+$ ]]
+then
+  error "'${number}' is not a number; run: kit help ready"
+  exit 2
+fi
+forge:require || exit 1
+[[ -n "${number}" ]] || number=$(forge:pr-here) || exit 1
+if [[ -z "${number}" ]]
+then
+  error "name the change: kit ready <number> (none was given, and this checkout is working on none)"
+  exit 1
+fi
+IFS=$'\t' read -r sigil noun < <(forge:noun) || exit 1
+change="${noun} ${sigil}${number}"
+status=0
+forge:pr-ready "${number}" || status=$?
+case "${status}" in
+  (0) ok "${change} is ready for review" ;;
+  (3) ok "${change} is open for review already: the $(forge:provider) forge has no drafts, and kit.yml chooses no stand-in" ;;
+  (*)
+    error "${change} could not be marked ready for review; mark it on the forge, $(forge:pr-url "${number}")"
+    exit 1
+esac
+
+# ----------------------------------------------------------------------------------------------------------------------

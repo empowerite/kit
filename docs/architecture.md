@@ -182,10 +182,15 @@ forge is named in the `forge` or `forges` setting, or found from a CI runner's o
 - Every provider returns the same shape, so `kit flow` shows the same picture on either code forge.
 - Every call answers, answers none, fails with one line that says what could not be read, or is unsupported, and a
   list is whole or the call fails; the header of `kit/modules/bash/forge.sh` holds the contract.
-- A provider declares the contract's version it implements and the features its forge lacks: issues, sub-issues,
-  linked branches, drafts, closing issues, review threads, checks, quota, marks, releases, and runs. A call of a
-  feature the forge lacks is unsupported: it exits 3 and runs nothing, and the verb answers as for none, such as no
-  releases to list or no rate limits to draw. `kit flow --capabilities` prints the declaration for kittui.
+- A provider declares the contract's version it implements, 3 today, and the features its forge lacks: issues,
+  sub-issues, linked branches, drafts, closing issues, review threads, checks, quota, marks, releases, runs, and
+  labels. A call of a feature the forge lacks, or one added after the provider's version, is unsupported: it exits 3
+  and runs nothing, and the verb answers as for none, such as no releases to list or no rate limits to draw.
+  `kit flow --capabilities` prints the declaration for kittui.
+- A repository chooses a stand-in for a feature under `forge_settings.<forge>.stand_ins` in `kit.yml`, shared by
+  everyone who clones it, and the seam then answers the feature itself, whether the forge has it or not: a draft as a
+  label or a title prefix, the issues a change closes as its body names them, and marks on a timer. `kit ready` marks
+  a draft ready for review on every forge, its stand-in taken off.
 - Each provider uses its code forge's own name for a change: pull request `#3` on GitHub, merge request `!3` on GitLab,
   pull request `!3` on Azure DevOps.
 - A repository with one origin has one code forge. A repository on two code forges is a mirror or a migration, and

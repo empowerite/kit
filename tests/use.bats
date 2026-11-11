@@ -77,7 +77,7 @@ setup() {
   : > bash/forge/github.sh
   run kit-bash 'use:modules "forge/*"'
   [ "$status" -eq 0 ]
-  [ "$output" = $'forge/github\nforge/gitlab\nforge/local' ]
+  [ "$output" = $'forge/ado\nforge/github\nforge/gitlab\nforge/local' ]
 }
 
 @test "a module in a subdirectory loads by its path, every copy on the path in order, and names its functions so" {

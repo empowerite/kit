@@ -46,9 +46,67 @@
     },
     "forge_settings": {
       "type": "object",
-      "description": "Each forge's own settings, by forge, read only when that forge is the primary's: {ado: {type: Bug}}.",
+      "description": "Each forge's own settings, by forge, read only when that forge is the primary's: {ado: {type: Bug}}, and stand_ins for any forge.",
       "additionalProperties": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "stand_ins": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Stand-ins for features the forge lacks, or that the repository marks its own way; each is used even where the forge has the feature.",
+            "properties": {
+              "drafts": {
+                "description": "A change is a draft while it has the label, or while its title starts with the prefix, which kit leaves off the title it judges; kit ready takes either off.",
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "label"
+                    ],
+                    "properties": {
+                      "label": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "title_prefix"
+                    ],
+                    "properties": {
+                      "title_prefix": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              "closing-issues": {
+                "description": "The issues a change closes are the forge's own its body names with a closing keyword: Closes #7.",
+                "const": "body"
+              },
+              "marks": {
+                "description": "The forge's stages are stale every so many seconds, 10 at the least, for a forge without cheap marks.",
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "every"
+                ],
+                "properties": {
+                  "every": {
+                    "type": "number",
+                    "minimum": 10
+                  }
+                }
+              }
+            }
+          }
+        }
       },
       "properties": {
         "ado": {
@@ -67,6 +125,62 @@
             "removed_state": {
               "type": "string",
               "description": "The state a work item closed as not planned or a duplicate is set to. Default: Removed."
+            },
+            "stand_ins": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "Stand-ins for features the forge lacks, or that the repository marks its own way; each is used even where the forge has the feature.",
+              "properties": {
+                "drafts": {
+                  "description": "A change is a draft while it has the label, or while its title starts with the prefix, which kit leaves off the title it judges; kit ready takes either off.",
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "label"
+                      ],
+                      "properties": {
+                        "label": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "title_prefix"
+                      ],
+                      "properties": {
+                        "title_prefix": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  ]
+                },
+                "closing-issues": {
+                  "description": "The issues a change closes are the forge's own its body names with a closing keyword: Closes #7.",
+                  "const": "body"
+                },
+                "marks": {
+                  "description": "The forge's stages are stale every so many seconds, 10 at the least, for a forge without cheap marks.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "every"
+                  ],
+                  "properties": {
+                    "every": {
+                      "type": "number",
+                      "minimum": 10
+                    }
+                  }
+                }
+              }
             }
           }
         }

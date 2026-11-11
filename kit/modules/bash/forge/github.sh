@@ -270,7 +270,9 @@ forge/github:pr-closing-issues() {
 
 forge/github:pr-create() {
   local url
-  url=$(gh pr create --draft --base "$2" --head "$1" --title "$3" --body "") || return 1
+  local -a draft=(--draft)
+  [[ "${4:-true}" != false ]] || draft=()
+  url=$(gh pr create "${draft[@]}" --base "$2" --head "$1" --title "$3" --body "") || return 1
   printf '%s\n' "${url##*/}"
 }
 
@@ -299,12 +301,28 @@ forge/github:pr-here() {
   [[ -z "${number}" ]] || printf '%s\n' "${number}"
 }
 
+forge/github:pr-label-add() {
+  gh pr edit "$1" --add-label "$2" >/dev/null 2>&1
+}
+
+forge/github:pr-label-remove() {
+  gh pr edit "$1" --remove-label "$2" >/dev/null 2>&1
+}
+
 forge/github:pr-last-for-branch() {
   forge/github:on-branch "the pull requests on $1" "$1" all number
 }
 
+forge/github:pr-ready() {
+  gh pr ready "$1" >/dev/null 2>&1
+}
+
 forge/github:pr-set-body() {
   gh pr edit "$1" --body "$2" >/dev/null
+}
+
+forge/github:pr-set-title() {
+  gh pr edit "$1" --title "$2" >/dev/null 2>&1
 }
 
 forge/github:pr-state() {
@@ -391,8 +409,8 @@ forge/github:runs() {
   printf '%s\n' "${runs}"
 }
 
-# The provider implements contract 2 and its forge lacks none of its features.
-forge/github:contract() { printf '2\n'; }
+# The provider implements contract 3 and its forge lacks none of its features.
+forge/github:contract() { printf '3\n'; }
 
 # The seam's calls end here; what follows is this provider's own.
 
