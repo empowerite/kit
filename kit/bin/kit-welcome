@@ -34,9 +34,10 @@
 #
 # A check is the machine's, judged once, or a folder's, judged in each folder of the workspace. The workspace is the
 # one kit workspaces --current names, or kit --workspace=<workspace> welcome: for a repository, its desk, then each
-# of its worktrees; for a group, every member's desk and worktrees, in the group's order. With no workspace, only the
-# machine checks run. Each folder is judged on its own, as each may have a kit.yml or none, and pin its own kit: kit
-# check runs there on the release it pins.
+# of its worktrees; for a group, every member's desk and worktrees, in the group's order. --workspace=none names no
+# group, as for kit flow, so it is the repository here. With no workspace, outside a repository and with no group
+# used, or with --workspace=none there, only the machine checks run. Each folder is judged on its own, as each may
+# have a kit.yml or none, and pin its own kit: kit check runs there on the release it pins.
 #
 # A check in the JSON is {id, step, ok, line, fix, interactive, more, runs, folder, repository, desk, branch, kit}:
 #

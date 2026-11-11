@@ -27,7 +27,8 @@
 #
 # The folders are the workspace's, as kit workspaces --current names it, or kit --workspace=<workspace>: for a
 # repository, its desk, then each of its worktrees, as git worktree list gives them; for a group, each member's, in
-# the group's order, for every checkout of it under the roots. With no workspace there is no folder, and only the
+# the group's order, for every checkout of it under the roots. --workspace=none names no group, as for kit flow: the
+# repository here. With no workspace, outside a repository and with no group used, there is no folder, and only the
 # machine checks run.
 #
 # The checks run in this order:
@@ -585,15 +586,20 @@ welcome:repository-folder() {
 }
 
 # welcome:folders fills welcome_folders with the folders of the workspace, as workspaces:current names it, or the
-# KIT_WORKSPACE that kit --workspace= sets: none has none; a repository, its desk and worktrees, where it has a
-# checkout; a group, those of every checkout of each member, in the group's order. Each folder is there once. It returns
-# what workspaces:current and workspaces:resolve return for a workspace they refuse.
+# KIT_WORKSPACE that kit --workspace= sets: a repository, its desk and worktrees, where it has a checkout; a group,
+# those of every checkout of each member, in the group's order; none, as for kit flow, no group: the repository here,
+# and outside one, no folder. Each folder is there once. It returns what workspaces:current and workspaces:resolve
+# return for a workspace they refuse.
 welcome:folders() {
-  local current kind name member checkout resolved record
+  local given=${KIT_WORKSPACE:-} current kind name member checkout resolved record top
   local -a records=()
   local -A seen=()
   welcome_folders=()
-  current=$(workspaces:current "${KIT_WORKSPACE:-}") || return $?
+  if [[ "${given}" == none ]] && top=$(workspaces:in-repository)
+  then
+    given=${top}
+  fi
+  current=$(workspaces:current "${given}") || return $?
   IFS=$'\x1f' read -r kind name member checkout < <(jq --raw-output \
     '[.kind, (.name // ""), (.member // ""), (.checkout // "")] | join("\u001f")' <<<"${current}")
   case "${kind}" in

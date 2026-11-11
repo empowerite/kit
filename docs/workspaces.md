@@ -217,7 +217,7 @@ the row shows the whole path. A member's name on any tab leads to its row there.
 ```sh
 kit welcome --checks --json                       # the machine's checks, then each folder of the repository here
 kit --workspace=empowerite welcome --checks       # each member's desk and worktrees, in the group's order
-kit --workspace=none welcome --checks             # the machine's checks alone
+kit --workspace=none welcome --checks             # no group: the repository here, else the machine's checks alone
 ```
 
 `kit welcome`'s setup checks each folder of the workspace on its own, since each branch can have a `kit.yml` or none,

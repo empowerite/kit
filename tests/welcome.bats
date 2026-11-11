@@ -462,16 +462,23 @@ folders() {
   [[ "$output" == *$'\n'"repo, a worktree on pinned, kit 9.9.9: ${desk}/worktrees/pinned"$'\n'* ]]
 }
 
-@test "with no workspace only the machine's checks run, outside a repository or with kit --workspace=none" {
+@test "with no workspace only the machine's checks run, and --workspace=none names no group: the repository here" {
   git remote add origin https://github.com/acme/widget.git
   fake-gh
+  touch "${BATS_TEST_TMPDIR}/logged-in"
+  # none is no group, as kit flow reads it: inside a repository, that repository
   run --separate-stderr "${kit_root}/bin/kit" --workspace=none welcome --checks --json
   [ "$status" -eq 0 ]
-  [ "$(jq --raw-output 'map(.id) | join(" ")' <<<"$output")" = "tool-bash tool-git tool-jq tool-yq toolchain-system" ]
-  [ "$(jq --raw-output 'map(.folder == null) | all' <<<"$output")" = true ]
+  [ "$(jq --raw-output '[.[] | select(.folder) | .folder] | unique | join(" ")' <<<"$output")" = "$(pwd -P)" ]
+  # outside one, with no group used, there is no folder: the machine's checks alone, and no forge host to check
   cd "${BATS_TEST_TMPDIR}"
-  run --separate-stderr checks
-  [ "$(jq --raw-output 'map(.id) | join(" ")' <<<"$output")" = "tool-bash tool-git tool-jq tool-yq toolchain-system" ]
+  for workspace in '' none
+  do
+    run --separate-stderr "${kit_root}/bin/kit" ${workspace:+--workspace="${workspace}"} welcome --checks --json
+    [ "$(jq --raw-output 'map(.id) | join(" ")' <<<"$output")" = \
+      "tool-bash tool-git tool-jq tool-yq toolchain-system" ]
+    [ "$(jq --raw-output 'map(.folder == null) | all' <<<"$output")" = true ]
+  done
   # and the text guide's setup step has no check
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
   [ "$status" -eq 0 ]
