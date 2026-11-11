@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh api repos/{owner}/{repo}/branches/${branch}/protection",
+  "description": "The default branch's own protection, which kit reads in `modules/bash/forge/github.sh` (forge/github:controls) where the branch says it has one, and folds in `modules/jq/forge.jq` (forge::github_protection_rules, forge::github_bypasses). A caller who is no admin answers 404 Not Found, checked live on kubernetes/kubernetes, so its rules are unknown; a branch with none answers 404 Branch not protected. The types are those of GET /repos/{owner}/{repo}/branches/{branch}/protection in GitHub's REST OpenAPI, as https://docs.github.com/rest/branches/branch-protection#get-branch-protection describes them.",
+  "type": "object",
+  "properties": {
+    "required_status_checks": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {},
+      "additionalProperties": true
+    },
+    "required_pull_request_reviews": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "bypass_pull_request_allowances": {
+          "type": "object",
+          "properties": {
+            "users": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "login": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "teams": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "slug": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "apps": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "slug": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true
+              }
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "allow_deletions": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "allow_force_pushes": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "required_linear_history": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "enforce_admins": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true,
+  "examples": [
+    {
+      "required_status_checks": {
+        "strict": true,
+        "contexts": [
+          "ci"
+        ]
+      },
+      "enforce_admins": {
+        "enabled": false
+      },
+      "required_pull_request_reviews": {
+        "required_approving_review_count": 1,
+        "bypass_pull_request_allowances": {
+          "users": [
+            {
+              "login": "ada"
+            }
+          ],
+          "teams": [],
+          "apps": []
+        }
+      },
+      "restrictions": null,
+      "required_linear_history": {
+        "enabled": true
+      },
+      "allow_force_pushes": {
+        "enabled": false
+      },
+      "allow_deletions": {
+        "enabled": false
+      }
+    }
+  ]
+}

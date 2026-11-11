@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh api repos/{owner}/{repo}/branches/${branch}",
+  "description": "The default branch, which kit reads in `modules/bash/forge/github.sh` (forge/github:controls) for protection.enabled, true where the branch has a protection of its own, as every reader may see; protected is also true where a ruleset guards it, checked live on empowerite/kit. The types are those of GET /repos/{owner}/{repo}/branches/{branch} in GitHub's REST OpenAPI, as https://docs.github.com/rest/branches/branches#get-a-branch describes them.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "protected": {
+      "type": "boolean"
+    },
+    "protection": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "additionalProperties": true,
+  "examples": [
+    {
+      "name": "main",
+      "protected": true,
+      "protection": {
+        "enabled": false,
+        "required_status_checks": {
+          "enforcement_level": "off",
+          "contexts": [],
+          "checks": []
+        }
+      }
+    }
+  ]
+}

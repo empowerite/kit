@@ -126,6 +126,7 @@ JSON
   route gh 'api --paginate --slurp repos/{owner}/{repo}/milestones?state=all&per_page=100' gh-milestones.json
   delivery-github
   people-github
+  audit-github
   fixture gh-merged.json <<'JSON'
 {"data": {"repository": {"pullRequests": {"totalCount": 1, "nodes": [
   {"number": 2, "title": "Do the other thing", "url": "https://github.com/empowerite/example/pull/2",
@@ -197,6 +198,7 @@ JSON
 JSON
   fixture gl-forbidden.txt <<<'glab: 403 Forbidden'
   people-gitlab
+  audit-gitlab
   route glab 'api graphql*' "${GITLAB_MILESTONES:-gl-milestones.json}"
   route glab "api ${p}/iterations?include_ancestors=true&per_page=100*" "${GITLAB_ITERATIONS:-gl-iterations.json}"
   route glab "api ${p}/issues/7" issue.json
@@ -537,7 +539,12 @@ JSON
   printf 'HTTP/2.0 200 OK\r\nETag: W/"%s"\r\n\r\n[]\n' m1 > "${FAKE_DIR}/milestones-200.txt"
   printf 'HTTP/2.0 200 OK\r\nETag: W/"%s"\r\n\r\n[]\n' d1 > "${FAKE_DIR}/deployments-200.txt"
   printf 'HTTP/2.0 200 OK\r\nETag: W/"%s"\r\n\r\n{}\n' e1 > "${FAKE_DIR}/environments-200.txt"
+  printf 'HTTP/2.0 200 OK\r\nETag: W/"%s"\r\n\r\n[]\n' c1 > "${FAKE_DIR}/code-200.txt"
+  printf 'HTTP/2.0 200 OK\r\nETag: W/"%s"\r\n\r\n[]\n' b1 > "${FAKE_DIR}/dependabot-200.txt"
+  printf 'HTTP/2.0 404 Not Found\r\n\r\n{"message":"Secret scanning is disabled on this repository."}\n' \
+    > "${FAKE_DIR}/secret-404.txt"
   printf 'HTTP/2.0 304 Not Modified\r\n\r\n' > "${FAKE_DIR}/304.txt"
+  local probe='alerts?sort=updated&direction=desc&per_page=1'
   world github
   route gh 'api --include --header If-None-Match: W/"i1" repos/{owner}/{repo}/issues*' '!1 >304.txt'
   route gh 'api --include --header If-None-Match: W/"r1" repos/{owner}/{repo}/actions/runs*' '!1 >304.txt'
@@ -550,17 +557,25 @@ JSON
   route gh 'api --include*repos/{owner}/{repo}/milestones?state=all&per_page=100' milestones-200.txt
   route gh 'api --include repos/{owner}/{repo}/deployments?per_page=50' deployments-200.txt
   route gh 'api --include repos/{owner}/{repo}/environments?per_page=100' environments-200.txt
+  # the alerts' mark is of the alert each scanner updated last, in any state, and off for a scanner that is off
+  route gh "api --include --header If-None-Match: W/\"c1\" repos/{owner}/{repo}/code-scanning/${probe}" '!1 >304.txt'
+  route gh "api --include --header If-None-Match: W/\"b1\" repos/{owner}/{repo}/dependabot/${probe}" '!1 >304.txt'
+  route gh "api --include repos/{owner}/{repo}/code-scanning/${probe}" code-200.txt
+  route gh "api --include repos/{owner}/{repo}/dependabot/${probe}" dependabot-200.txt
+  route gh "api --include repos/{owner}/{repo}/secret-scanning/${probe}" '!1 >secret-404.txt'
+  local marks='{"issues":"W/\"i1\"","runs":"W/\"r1\"","releases":"W/\"v1\"","milestones":"W/\"m1\"",'
+  marks+='"deployments":"W/\"d1\"","environments":"W/\"e1\"","alerts":"W/\"c1\" W/\"b1\" off"}'
   run call marks
   [ "$status" -eq 0 ]
-  [ "$output" = '{"issues":"W/\"i1\"","runs":"W/\"r1\"","releases":"W/\"v1\"","milestones":"W/\"m1\"",'\
-'"deployments":"W/\"d1\"","environments":"W/\"e1\""}' ]
+  [ "$output" = "${marks}" ]
   # the second read sends each ETag kept, and a 304 keeps the mark
   : > "${FAKE_DIR}/gh.calls"
   run call marks
   [ "$status" -eq 0 ]
-  [ "$output" = '{"issues":"W/\"i1\"","runs":"W/\"r1\"","releases":"W/\"v1\"","milestones":"W/\"m1\"",'\
-'"deployments":"W/\"d1\"","environments":"W/\"e1\""}' ]
-  [ "$(grep --count 'If-None-Match' "${FAKE_DIR}/gh.calls")" -eq 6 ]
+  [ "$output" = "${marks}" ]
+  [ "$(grep --count 'If-None-Match' "${FAKE_DIR}/gh.calls")" -eq 8 ]
+  # a request a kind, and one a scanner, none asked twice
+  [ "$(grep --count '^api --include' "${FAKE_DIR}/gh.calls")" -eq 9 ]
   # a change gives a new ETag, which is the new mark
   printf 'HTTP/2.0 200 OK\r\nEtag: W/"%s"\r\n\r\n[]\n' i2 > "${FAKE_DIR}/issues-200.txt"
   printf '%s\n' 'api --include --header If-None-Match: W/"i1" repos/{owner}/{repo}/issues*'$'\t''issues-200.txt' \
@@ -586,13 +601,15 @@ JSON
   route glab "api ${p}/environments?per_page=100" gl-environments.json
   run call marks
   [ "$status" -eq 0 ]
-  [ "$(jq --raw-output '.issues, .runs, .releases, .milestones, .deployments, .environments' <<<"$output")" = \
+  [ "$(jq --raw-output '.issues, .runs, .releases, .milestones, .deployments, .environments, .alerts' <<<"$output")" = \
     '[[7,"2026-11-01T09:00:00.000Z"],[3,"2026-11-02T09:00:00.000Z"]]
 [[11,"success","2026-11-03T09:00:00.000Z"]]
 [["v1","2026-11-04T09:00:00.000Z"]]
 [[2,"2026-11-05T09:00:00.000Z"],[7,"2026-11-01T09:00:00.000Z"]]
 [[9,"success","2026-11-06T09:00:00.000Z"]]
-[[1,"production","available","2026-11-07"]]' ]
+[[1,"production","available","2026-11-07"]]
+{"open":{"critical":0,"high":1,"medium":0,"low":0,"info":0,"unknown":0},'\
+'"dismissed":{"critical":0,"high":1,"medium":0,"low":0,"info":0,"unknown":0}}' ]
 }
 
 @test "a provider that cannot read the rate limits says how to fix it, and kit flow --quota prints nothing" {
@@ -1881,6 +1898,432 @@ JSON
     [[ "$stderr" == *"kit reads at most 2 items of a list (the issues could not be read)"* ]] \
       || { echo "${forge}: ${stderr}"; return 1; }
   done
+}
+
+# audit-github adds to world-github's routes what Trust reads: the release v0.1.0 offers kit-0.1.0.tar.gz, whose
+# digest, sha256:ab12, the artifact 13 has too, and which the release workflow attested as SLSA provenance; code
+# scanning's alert 4 is open, and bob dismissed its alert 2 as a false positive; ada dismissed Dependabot's alert 1 as
+# a tolerable risk; secret scanning is off; and the ruleset main guards the default branch with two rules, which the
+# team release may bypass, beside the ruleset releases, which guards the release branches alone. The default branch
+# has no protection of its own.
+audit-github() {
+  local statement alerts='sort=updated&direction=desc&per_page=100'
+  fixture gh-evidence-releases.json <<'JSON'
+[{"tag_name": "v0.1.0", "html_url": "https://github.com/empowerite/example/releases/tag/v0.1.0",
+  "assets": [{"name": "kit-0.1.0.tar.gz", "digest": "sha256:ab12", "created_at": "2026-10-01T10:00:00Z"},
+             {"name": "notes.txt", "digest": null, "created_at": "2026-10-01T10:00:00Z"}]}]
+JSON
+  statement=$(jq --null-input --raw-output '{_type: "https://in-toto.io/Statement/v1",
+    subject: [{name: "kit-0.1.0.tar.gz", digest: {sha256: "ab12"}}], predicateType: "https://slsa.dev/provenance/v1",
+    predicate: {buildDefinition: {externalParameters: {workflow: {ref: "refs/tags/v0.1.0",
+      repository: "https://github.com/empowerite/example", path: ".github/workflows/release.yml"}}}}}
+    | tojson | @base64')
+  jq --null-input --arg payload "${statement}" '[{attestations: [{repository_id: 1, initiator: "user",
+    bundle: {mediaType: "application/vnd.dev.sigstore.bundle.v0.3+json",
+             verificationMaterial: {tlogEntries: [{integratedTime: "1790845200"}]},
+             dsseEnvelope: {payload: $payload, payloadType: "application/vnd.in-toto+json"}}}]}]' \
+    | fixture gh-attestations.json
+  fixture gh-attest-404.txt <<<'gh: Not Found (HTTP 404)'
+  fixture gh-code-open.json <<'JSON'
+[[{"number": 4, "state": "open", "created_at": "2026-10-01T09:00:00Z",
+   "html_url": "https://github.com/empowerite/example/security/code-scanning/4",
+   "rule": {"id": "js/xss", "severity": "error", "security_severity_level": "high"},
+   "most_recent_instance": {"location": {"path": "src/app.js"}},
+   "dismissed_by": null, "dismissed_reason": null, "dismissed_comment": null}]]
+JSON
+  fixture gh-code-dismissed.json <<'JSON'
+[[{"number": 2, "state": "dismissed", "created_at": "2026-09-01T09:00:00Z",
+   "html_url": "https://github.com/empowerite/example/security/code-scanning/2",
+   "rule": {"id": "js/unused-local-variable", "severity": "note", "security_severity_level": null},
+   "most_recent_instance": {"location": {"path": "src/old.js"}},
+   "dismissed_by": {"login": "bob"}, "dismissed_reason": "false positive", "dismissed_comment": null}]]
+JSON
+  fixture gh-dependabot.json <<'JSON'
+[[{"number": 1, "state": "dismissed", "created_at": "2026-09-15T09:00:00Z",
+   "html_url": "https://github.com/empowerite/example/security/dependabot/1",
+   "dependency": {"package": {"ecosystem": "npm", "name": "lodash"}, "manifest_path": "package-lock.json"},
+   "security_advisory": {"ghsa_id": "GHSA-35jh-r3h4-6jhm", "severity": "high"},
+   "security_vulnerability": {"severity": "high"},
+   "dismissed_by": {"login": "ada"}, "dismissed_reason": "tolerable_risk", "dismissed_comment": "only in tests"}]]
+JSON
+  fixture gh-secret-off.txt <<<'gh: Secret scanning is disabled on this repository. (HTTP 404)'
+  fixture gh-rulesets.json <<'JSON'
+{"data": {"repository": {"url": "https://github.com/empowerite/example", "defaultBranchRef": {"name": "main"},
+  "rulesets": {"totalCount": 2, "nodes": [
+    {"databaseId": 7, "name": "main", "enforcement": "ACTIVE",
+     "conditions": {"refName": {"include": ["~DEFAULT_BRANCH"], "exclude": []}},
+     "rules": {"totalCount": 2, "nodes": [{"type": "PULL_REQUEST"}, {"type": "DELETION"}]},
+     "bypassActors": {"totalCount": 1, "nodes": [
+       {"bypassMode": "ALWAYS", "organizationAdmin": false, "repositoryRoleName": null, "deployKey": false,
+        "enterpriseOwner": false, "actor": {"__typename": "Team", "slug": "release"}}]}},
+    {"databaseId": 8, "name": "releases", "enforcement": "EVALUATE",
+     "conditions": {"refName": {"include": ["refs/heads/release/*"], "exclude": []}},
+     "rules": {"totalCount": 1, "nodes": [{"type": "NON_FAST_FORWARD"}]},
+     "bypassActors": {"totalCount": 0, "nodes": []}}]}}}}
+JSON
+  fixture gh-branch.json <<'JSON'
+{"name": "main", "protected": true,
+ "protection": {"enabled": false, "required_status_checks": {"enforcement_level": "off", "contexts": [], "checks": []}}}
+JSON
+  fixture gh-protection.json <<'JSON'
+{"required_status_checks": {"strict": true, "contexts": ["ci"]}, "enforce_admins": {"enabled": false},
+ "required_pull_request_reviews": {"required_approving_review_count": 1,
+   "bypass_pull_request_allowances": {"users": [{"login": "ada"}], "teams": [], "apps": [{"slug": "release-bot"}]}},
+ "restrictions": null, "required_linear_history": {"enabled": true}, "allow_force_pushes": {"enabled": false},
+ "allow_deletions": {"enabled": false}, "block_creations": {"enabled": false},
+ "required_conversation_resolution": {"enabled": false}, "lock_branch": {"enabled": false},
+ "required_signatures": {"enabled": false}}
+JSON
+  route gh 'api repos/{owner}/{repo}/releases?per_page=6' "${GITHUB_EVIDENCE_RELEASES:-gh-evidence-releases.json}"
+  route gh 'api repos/{owner}/{repo}/actions/artifacts?per_page=20' "${GITHUB_EVIDENCE_ARTIFACTS:-gh-artifacts.json}"
+  route gh 'api --paginate --slurp repos/{owner}/{repo}/attestations/sha256:ab12?per_page=100' \
+    "${GITHUB_ATTESTATIONS:-gh-attestations.json}"
+  route gh 'api --paginate --slurp repos/{owner}/{repo}/attestations/*' '!1 gh-attest-404.txt'
+  route gh "api --paginate --slurp repos/{owner}/{repo}/code-scanning/alerts?state=open&${alerts}" \
+    "${GITHUB_CODE_OPEN:-gh-code-open.json}"
+  route gh "api --paginate --slurp repos/{owner}/{repo}/code-scanning/alerts?state=dismissed&${alerts}" \
+    "${GITHUB_CODE_DISMISSED:-gh-code-dismissed.json}"
+  route gh "api --paginate --slurp repos/{owner}/{repo}/dependabot/alerts?state=*&${alerts}" \
+    "${GITHUB_DEPENDABOT:-gh-dependabot.json}"
+  route gh "api --paginate --slurp repos/{owner}/{repo}/secret-scanning/alerts?state=open&${alerts}" \
+    "${GITHUB_SECRET_OPEN:-!1 gh-secret-off.txt}"
+  route gh "api --paginate --slurp repos/{owner}/{repo}/secret-scanning/alerts?state=resolved&*" \
+    "${GITHUB_SECRET_RESOLVED:-!1 gh-secret-off.txt}"
+  route gh 'api graphql*rulesets(first: 100*' "${GITHUB_RULESETS:-gh-rulesets.json}"
+  route gh 'api repos/{owner}/{repo}/branches/main' "${GITHUB_BRANCH:-gh-branch.json}"
+  route gh 'api repos/{owner}/{repo}/branches/main/protection' "${GITHUB_PROTECTION:-gh-protection.json}"
+}
+
+# audit-gitlab is audit-github's world, seen through GitLab's vulnerability report: SAST found alert 4 open, and ada
+# dismissed the dependency scanning alert 1 as an acceptable risk; secret detection found nothing. The protected
+# branch main, and the wildcard ma*, guard the default branch, release/* does not, and the push rules hold two.
+audit-gitlab() {
+  local p='projects/empowerite%2Fexample'
+  fixture gl-vulns-sast.json <<'JSON'
+{"data": {"project": {"vulnerabilities": {"pageInfo": {"hasNextPage": false, "endCursor": null}, "nodes": [
+  {"id": "gid://gitlab/Vulnerability/4", "title": "Cross-site scripting", "severity": "HIGH", "state": "DETECTED",
+   "detectedAt": "2026-10-01T09:00:00Z", "primaryIdentifier": {"name": "CWE-79"}, "location": {"file": "src/app.js"},
+   "dismissedBy": null, "dismissalReason": null, "stateComment": null,
+   "webUrl": "https://gitlab.com/empowerite/example/-/security/vulnerabilities/4"}]}}}}
+JSON
+  fixture gl-vulns-deps.json <<'JSON'
+{"data": {"project": {"vulnerabilities": {"pageInfo": {"hasNextPage": false, "endCursor": null}, "nodes": [
+  {"id": "gid://gitlab/Vulnerability/1", "title": "Prototype pollution in lodash", "severity": "HIGH",
+   "state": "DISMISSED", "detectedAt": "2026-09-15T09:00:00.000Z",
+   "primaryIdentifier": {"name": "GHSA-35jh-r3h4-6jhm"}, "location": {"file": "package-lock.json"},
+   "dismissedBy": {"username": "ada"}, "dismissalReason": "ACCEPTABLE_RISK", "stateComment": "only in tests",
+   "webUrl": "https://gitlab.com/empowerite/example/-/security/vulnerabilities/1"}]}}}}
+JSON
+  fixture gl-vulns-none.json <<'JSON'
+{"data": {"project": {"vulnerabilities": {"pageInfo": {"hasNextPage": false, "endCursor": null}, "nodes": []}}}}
+JSON
+  fixture gl-protected-branches.json <<'JSON'
+[{"id": 11, "name": "main", "push_access_levels": [{"access_level": 40, "access_level_description": "Maintainers"}],
+  "merge_access_levels": [{"access_level": 30, "access_level_description": "Developers + Maintainers"}],
+  "allow_force_push": false, "code_owner_approval_required": true},
+ {"id": 12, "name": "release/*",
+  "push_access_levels": [{"access_level": 40, "access_level_description": "Maintainers"}],
+  "merge_access_levels": [], "allow_force_push": false, "code_owner_approval_required": false},
+ {"id": 13, "name": "ma*", "push_access_levels": [{"access_level": 0, "access_level_description": "No one"}],
+  "merge_access_levels": [{"access_level": 40, "access_level_description": "Maintainers"}],
+  "allow_force_push": true, "code_owner_approval_required": false}]
+JSON
+  fixture gl-push-rule.json <<'JSON'
+{"id": 3, "project_id": 1, "created_at": "2026-09-01T09:00:00.000Z", "commit_message_regex": "",
+ "commit_message_negative_regex": null, "branch_name_regex": "", "deny_delete_tag": true, "member_check": false,
+ "prevent_secrets": true, "author_email_regex": "", "file_name_regex": "", "max_file_size": 0,
+ "commit_committer_check": null, "commit_committer_name_check": false, "reject_unsigned_commits": null,
+ "reject_non_dco_commits": null}
+JSON
+  fixture gl-severities.json <<'JSON'
+{"data": {"project": {"open": {"critical": 0, "high": 1, "medium": 0, "low": 0, "info": 0, "unknown": 0},
+  "dismissed": {"critical": 0, "high": 1, "medium": 0, "low": 0, "info": 0, "unknown": 0}}}}
+JSON
+  route glab 'api graphql*vulnerabilitySeveritiesCount*' "${GITLAB_SEVERITIES:-gl-severities.json}"
+  route glab 'api graphql*type=SAST*' "${GITLAB_SAST:-gl-vulns-sast.json}"
+  route glab 'api graphql*type=DEPENDENCY_SCANNING*' "${GITLAB_DEPENDENCIES:-gl-vulns-deps.json}"
+  route glab 'api graphql*type=SECRET_DETECTION*' "${GITLAB_SECRETS:-gl-vulns-none.json}"
+  route glab "api ${p}/protected_branches?per_page=100 --paginate" \
+    "${GITLAB_PROTECTED_BRANCHES:-gl-protected-branches.json}"
+  route glab "api ${p}/push_rule" "${GITLAB_PUSH_RULE:-gl-push-rule.json}"
+}
+
+@test "GitHub lists the attestations of its newest releases' assets and artifacts, each digest read once" {
+  world github
+  : > "${FAKE_DIR}/gh.calls"
+  run --separate-stderr call attestations
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  local expected='{"subject":"kit-0.1.0.tar.gz","digest":"sha256:ab12","kind":"https://slsa.dev/provenance/v1",'
+  expected+='"signer":"empowerite/example/.github/workflows/release.yml@refs/tags/v0.1.0",'
+  expected+='"url":"https://github.com/empowerite/example/attestations"}'
+  [ "$(jq --compact-output 'del(.age)' <<<"$output")" = "${expected}" ] || { echo "${output}"; return 1; }
+  # its age is from the transparency log's entry, the attestation's own time
+  [ "$(jq --raw-output '.age > 3000000' <<<"$output")" = true ]
+  # the release asset and the artifact share the digest, which is asked for once; an asset without one is not
+  [ "$(grep -c 'attestations/' "${FAKE_DIR}/gh.calls")" -eq 1 ]
+  # GitLab and Azure DevOps keep no attestations kit reads
+  world gitlab
+  run --separate-stderr call attestations
+  [ "$status" -eq 3 ]
+  [ -z "$output$stderr" ]
+}
+
+@test "an attestation GitHub keeps apart has no kind kit can read, and more releases or artifacts say limited" {
+  world github
+  # GitHub may answer with no bundle, only a link to one compressed, which kit does not read: the kind and the
+  # signer are unknown, but for one GitHub made itself
+  jq '.[0].attestations = [{repository_id: 1, initiator: "github", bundle: null, bundle_url: "https://b"}]' \
+    "${FAKE_DIR}/gh-attestations.json" | fixture gh-attestations-apart.json
+  GITHUB_ATTESTATIONS=gh-attestations-apart.json world github
+  run --separate-stderr call attestations
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --compact-output '[.subject, .kind, .signer, (.age > 0)]' <<<"$output")" \
+    = '["kit-0.1.0.tar.gz",null,"github",true]' ]
+  # a sixth release, or more artifacts than the 20 read, say the attestations drawn are not all there are
+  jq '. + [range(5) as $i | .[0] | .tag_name = "v0.0.\($i)" | .assets = []]' "${FAKE_DIR}/gh-evidence-releases.json" \
+    | fixture gh-evidence-releases-6.json
+  GITHUB_EVIDENCE_RELEASES=gh-evidence-releases-6.json world github
+  run --separate-stderr call attestations
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --slurp --compact-output '[length, .[-1]]' <<<"$output")" = '[2,{"limited":1}]' ] \
+    || { echo "${output}"; return 1; }
+  jq '.total_count = 30' "${FAKE_DIR}/gh-artifacts.json" | fixture gh-artifacts-30.json
+  GITHUB_EVIDENCE_ARTIFACTS=gh-artifacts-30.json world github
+  run --separate-stderr call attestations
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --slurp --compact-output '[length, .[-1]]' <<<"$output")" = '[2,{"limited":1}]' ]
+  # 60 digests are read 50 at most
+  jq '.[0].assets[0] as $a | .[0].assets = [range(60) as $i | $a | .name = "f\($i)" | .digest = "sha256:\(1000 + $i)"]' \
+    "${FAKE_DIR}/gh-evidence-releases.json" | fixture gh-evidence-releases-60.json
+  GITHUB_EVIDENCE_RELEASES=gh-evidence-releases-60.json world github
+  : > "${FAKE_DIR}/gh.calls"
+  run --separate-stderr call attestations
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$output" = '{"limited":0}' ]
+  [ "$(grep -c 'attestations/' "${FAKE_DIR}/gh.calls")" -eq 50 ]
+  # a read GitHub refuses fails, saying so
+  GITHUB_ATTESTATIONS='!1' world github
+  run --separate-stderr call attestations
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [ "$stderr" = '❌ run: gh auth status (the attestations of kit-0.1.0.tar.gz could not be read)' ]
+}
+
+@test "every provider lists its alerts in one shape, open and dismissed, and one off here answers 3" {
+  world github
+  run --separate-stderr call code-scanning-alerts
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --compact-output 'del(.age)' <<<"$output" | paste -sd, -)" \
+    = '{"number":4,"rule":"js/xss","severity":"high","state":"open","path":"src/app.js",'\
+'"url":"https://github.com/empowerite/example/security/code-scanning/4"},'\
+'{"number":2,"rule":"js/unused-local-variable","severity":"note","state":"dismissed","path":"src/old.js",'\
+'"url":"https://github.com/empowerite/example/security/code-scanning/2"}' ]
+  [ "$(jq --raw-output '.age > 0' <<<"$output" | sort -u)" = true ]
+  run --separate-stderr call dependabot-alerts
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --compact-output 'del(.age)' <<<"$output")" \
+    = '{"number":1,"rule":"GHSA-35jh-r3h4-6jhm","severity":"high","state":"dismissed","path":"package-lock.json",'\
+'"url":"https://github.com/empowerite/example/security/dependabot/1"}' ]
+  run --separate-stderr call secret-scanning-alerts
+  [ "$status" -eq 3 ]
+  [ -z "$output$stderr" ]
+  # code scanning takes one state a read, so the open and the dismissed are two, each sorted by its update; a
+  # dismissed secret is a resolved one, of the resolutions that waive it
+  grep --quiet 'code-scanning/alerts?state=open&sort=updated&direction=desc&per_page=100' "${FAKE_DIR}/gh.calls"
+  grep --quiet 'dependabot/alerts?state=open,dismissed&sort=updated' "${FAKE_DIR}/gh.calls"
+  printf '[[{"number": 9, "state": "resolved", "resolution": "wont_fix", "secret_type": "github_personal_access_token",
+    "created_at": "2026-10-01T09:00:00Z", "html_url": "s", "first_location_detected": {"path": ".env"}}]]\n' \
+    | fixture gh-secret-resolved.json
+  fixture gh-none.json <<<'[[]]'
+  GITHUB_SECRET_OPEN=gh-none.json GITHUB_SECRET_RESOLVED=gh-secret-resolved.json world github
+  run --separate-stderr call secret-scanning-alerts
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --compact-output 'del(.age)' <<<"$output")" \
+    = '{"number":9,"rule":"github_personal_access_token","severity":null,"state":"dismissed","path":".env","url":"s"}' ]
+  grep --quiet 'state=resolved&resolution=false_positive,wont_fix,used_in_tests&sort=updated' "${FAKE_DIR}/gh.calls"
+  # GitLab reads its vulnerability report, a scanner each, in GraphQL
+  world gitlab
+  run --separate-stderr call code-scanning-alerts
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --compact-output 'del(.age)' <<<"$output")" \
+    = '{"number":4,"rule":"CWE-79","severity":"high","state":"open","path":"src/app.js",'\
+'"url":"https://gitlab.com/empowerite/example/-/security/vulnerabilities/4"}' ]
+  run --separate-stderr call dependabot-alerts
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --compact-output '[.number, .state, .path, (.age > 0)]' <<<"$output")" \
+    = '[1,"dismissed","package-lock.json",true]' ]
+  run --separate-stderr call secret-scanning-alerts
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ -z "$output" ]
+  grep --quiet 'state: \[DETECTED, CONFIRMED, DISMISSED\]' "${FAKE_DIR}/glab.calls"
+  # a GitLab tier without the vulnerability report, or one that refuses it, has it off
+  fixture gl-vulns-null.json <<<'{"data": {"project": {"vulnerabilities": null}}}'
+  for said in gl-vulns-null.json '!1 gl-forbidden.txt'
+  do
+    GITLAB_SAST=${said} world gitlab
+    run --separate-stderr call code-scanning-alerts
+    [ "$status" -eq 3 ] || { echo "${said}: ${status} ${stderr}"; return 1; }
+    [ -z "$output$stderr" ]
+  done
+}
+
+@test "a GitHub scanner off for the repository is off, and a refusal names who can lift it, never gh auth status" {
+  local said
+  for said in 'gh: no analysis found (HTTP 404)' 'gh: no default branch found (HTTP 404)' \
+    'gh: Code Security must be enabled for this repository to use code scanning. (HTTP 403)' \
+    'gh: Advanced Security must be enabled for this repository to use code scanning. (HTTP 403)'
+  do
+    printf '%s\n' "${said}" | fixture gh-said.txt
+    GITHUB_CODE_OPEN='!1 gh-said.txt' world github
+    run --separate-stderr call code-scanning-alerts
+    [ "$status" -eq 3 ] || { echo "${said}: ${status} ${stderr}"; return 1; }
+    [ -z "$output$stderr" ]
+  done
+  printf '%s\n' 'gh: Dependabot alerts are disabled for this repository. (HTTP 403)' | fixture gh-said.txt
+  GITHUB_DEPENDABOT='!1 gh-said.txt' world github
+  run --separate-stderr call dependabot-alerts
+  [ "$status" -eq 3 ]
+  # a login without a scope GitHub accepts for the alerts is told the one to add
+  printf '%s\n' 'gh: Resource not accessible by integration (HTTP 403)' | fixture gh-said.txt
+  printf 'HTTP/2.0 403 Forbidden\r\nX-Oauth-Scopes: gist, read:org\r\n%s\r\n\r\n{}\n' \
+    'X-Accepted-Oauth-Scopes: repo, security_events' | fixture gh-head-scopes.txt
+  GITHUB_DEPENDABOT='!1 gh-said.txt' world github
+  route gh 'api --include repos/{owner}/{repo}/dependabot/alerts*' '!1 >gh-head-scopes.txt'
+  run --separate-stderr call dependabot-alerts
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [ "$stderr" = '❌ run: gh auth refresh --scopes security_events (the Dependabot alerts could not be read)' ]
+  # a login that has the scope, or a token whose scopes GitHub does not say, is refused the alerts by its role
+  printf '%s\n' 'gh: You are not authorized to read code scanning alerts. (HTTP 403)' | fixture gh-said.txt
+  printf 'HTTP/2.0 403 Forbidden\r\nX-Oauth-Scopes: repo, read:org\r\n%s\r\n\r\n{}\n' \
+    'X-Accepted-Oauth-Scopes: repo, security_events' | fixture gh-head-role.txt
+  GITHUB_CODE_OPEN='!1 gh-said.txt' world github
+  route gh 'api --include repos/{owner}/{repo}/code-scanning/alerts*' '!1 >gh-head-role.txt'
+  run --separate-stderr call code-scanning-alerts
+  [ "$status" -eq 1 ]
+  [ "$stderr" = '❌ ask an admin of empowerite/example to let you see its security alerts'\
+' (the code scanning alerts could not be read)' ]
+}
+
+@test "every provider lists the controls on its default branch in one shape: the rules, and how each is enforced" {
+  world github
+  run --separate-stderr call rulesets
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$output" = '{"id":7,"control":"main","target":["~DEFAULT_BRANCH"],"enforcement":"active",'\
+'"rules":["deletion","pull_request"],"source":"ruleset","url":"https://github.com/empowerite/example/rules/7"}' ]
+  grep --quiet 'rulesets(first: 100, includeParents: true, targets: \[BRANCH\]) { totalCount' "${FAKE_DIR}/gh.calls"
+  # a branch protection of its own is read for the rules, which GitHub shows only to an admin
+  jq '.protection.enabled = true' "${FAKE_DIR}/gh-branch.json" | fixture gh-branch-protected.json
+  GITHUB_BRANCH=gh-branch-protected.json world github
+  run --separate-stderr call rulesets
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "${lines[1]}" = '{"id":"protection","control":"main","target":["main"],"enforcement":"active",'\
+'"rules":["deletion","non_fast_forward","pull_request","required_linear_history","required_status_checks"],'\
+'"source":"protection","url":"https://github.com/empowerite/example/settings/branches"}' ]
+  fixture gh-404.txt <<<'gh: Not Found (HTTP 404)'
+  GITHUB_BRANCH=gh-branch-protected.json GITHUB_PROTECTION='!1 gh-404.txt' world github
+  run --separate-stderr call rulesets
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --compact-output 'select(.source == "protection") | [.id, .rules]' <<<"$output")" = '["protection",null]' ]
+  # a ruleset of a pattern that names the default branch guards it, one that excludes it does not
+  jq '.data.repository.rulesets.nodes[1].conditions.refName.include = ["refs/heads/ma*"]
+      | .data.repository.rulesets.nodes[0].conditions.refName.exclude = ["refs/heads/main"]' \
+    "${FAKE_DIR}/gh-rulesets.json" | fixture gh-rulesets-patterns.json
+  GITHUB_RULESETS=gh-rulesets-patterns.json world github
+  run --separate-stderr call rulesets
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --compact-output '[.id, .enforcement]' <<<"$output")" = '[8,"evaluate"]' ]
+  # more rulesets than one read holds fails, as the list would be partial; so does an answer with no repository
+  jq '.data.repository.rulesets.totalCount = 101' "${FAKE_DIR}/gh-rulesets.json" | fixture gh-rulesets-101.json
+  GITHUB_RULESETS=gh-rulesets-101.json world github
+  run --separate-stderr call rulesets
+  [ "$status" -eq 1 ]
+  [ "$stderr" = '❌ kit reads at most 100 rulesets, and 100 rules and bypass actors of each'\
+' (the rulesets could not be read)' ]
+  fixture gh-null.json <<<'{"data": {"repository": null}}'
+  GITHUB_RULESETS=gh-null.json world github
+  run --separate-stderr call rulesets
+  [ "$status" -eq 1 ]
+  [ "$stderr" = '❌ run: gh auth status (the rulesets could not be read)' ]
+  # GitLab's are the protected branches that name the default branch, and the push rules
+  world gitlab
+  run --separate-stderr call rulesets
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  local settings='"url":"https://gitlab.com/empowerite/example/-/settings/repository"}'
+  [ "$output" = '{"id":11,"control":"main","target":["main"],"enforcement":"active",'\
+'"rules":["code_owner_review","merge: Developers + Maintainers","non_fast_forward","push: Maintainers"],'\
+'"source":"protection",'"${settings}"$'\n''{"id":13,"control":"ma*","target":["ma*"],"enforcement":"active",'\
+'"rules":["merge: Maintainers","push: No one"],"source":"protection",'"${settings}"$'\n'\
+'{"id":"push_rule","control":"push rules","target":["*"],"enforcement":"active",'\
+'"rules":["deny_delete_tag","prevent_secrets"],"source":"ruleset",'"${settings}" ]
+  # a project with no push rules answers null, and a tier without them refuses them: either is none
+  fixture gl-null.txt <<<'null'
+  for said in gl-null.txt '!1 gl-forbidden.txt'
+  do
+    GITLAB_PUSH_RULE=${said} world gitlab
+    run --separate-stderr call rulesets
+    [ "$status" -eq 0 ] || { echo "${said}: ${stderr}"; return 1; }
+    [ "$(jq --slurp 'length' <<<"$output")" -eq 2 ]
+  done
+}
+
+@test "GitHub lists the waivers: who may bypass each control, and each alert dismissed, by whom and why" {
+  world github
+  run --separate-stderr call bypasses
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  local expected='{"waives":7,"actor":"release","kind":"bypass","reason":"always","by":null,"until":null,'
+  expected+='"url":"https://github.com/empowerite/example/rules/7"}'$'\n'
+  expected+='{"waives":"code-scanning 2","actor":null,"kind":"dismissal","reason":"false positive","by":"bob",'
+  expected+='"until":null,"url":"https://github.com/empowerite/example/security/code-scanning/2"}'$'\n'
+  expected+='{"waives":"dependabot 1","actor":null,"kind":"dismissal","reason":"tolerable_risk: only in tests",'
+  expected+='"by":"ada","until":null,"url":"https://github.com/empowerite/example/security/dependabot/1"}'
+  [ "$output" = "${expected}" ] || { echo "${output}"; return 1; }
+  # the dismissed alerts alone are read again, secret scanning's being off
+  grep --quiet 'dependabot/alerts?state=dismissed&sort=updated' "${FAKE_DIR}/gh.calls"
+  # a branch protection's own allowances bypass its pull request rule
+  jq '.protection.enabled = true' "${FAKE_DIR}/gh-branch.json" | fixture gh-branch-protected.json
+  GITHUB_BRANCH=gh-branch-protected.json world github
+  run --separate-stderr call bypasses
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --compact-output 'select(.waives == "protection") | [.actor, .reason]' <<<"$output" | paste -sd, -)" \
+    = '["ada","pull_request"],["release-bot","pull_request"]' ]
+  # GitHub hides a ruleset's bypass actors from who may not edit it: a bypass is there, by someone unknown, in a mode
+  # unknown; an organization's admins and a role are named as such
+  jq '.data.repository.rulesets.nodes[0].bypassActors.nodes = [null,
+        {bypassMode: "PULL_REQUEST", organizationAdmin: true, actor: null},
+        {bypassMode: "EXEMPT", repositoryRoleName: "maintain", actor: null}]
+      | .data.repository.rulesets.nodes[0].bypassActors.totalCount = 3' "${FAKE_DIR}/gh-rulesets.json" \
+    | fixture gh-rulesets-hidden.json
+  GITHUB_RULESETS=gh-rulesets-hidden.json world github
+  run --separate-stderr call bypasses
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --compact-output 'select(.kind == "bypass") | [.actor, .reason]' <<<"$output" | paste -sd, -)" \
+    = '[null,null],["organization admins","pull_request"],["maintain role","exempt"]' ] \
+    || { echo "${output}"; return 1; }
+  # a dismissed alert's read refused fails the waivers, which would be partial
+  fixture gh-said.txt <<<'gh: Server Error (HTTP 500)'
+  GITHUB_DEPENDABOT='!1 gh-said.txt' world github
+  run --separate-stderr call bypasses
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [ "$stderr" = '❌ run: gh auth status (the dismissed Dependabot alerts could not be read)' ]
+  # GitLab keeps no waivers kit reads
+  world gitlab
+  run --separate-stderr call bypasses
+  [ "$status" -eq 3 ]
+}
+
+@test "a GitHub scanner that refuses the caller leaves the mark of the alerts unknown, and the other marks stand" {
+  printf 'HTTP/2.0 403 Forbidden\r\n\r\n{"message":"You are not authorized to read code scanning alerts."}\n' \
+    > "${FAKE_DIR}/code-403.txt"
+  printf 'HTTP/2.0 200 OK\r\nETag: W/"x"\r\n\r\n[]\n' > "${FAKE_DIR}/other-200.txt"
+  world github
+  route gh 'api --include repos/{owner}/{repo}/code-scanning/alerts?sort=updated&direction=desc&per_page=1' \
+    '!1 >code-403.txt'
+  route gh 'api --include*' other-200.txt
+  run --separate-stderr call marks
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --compact-output '[.alerts, .runs]' <<<"$output")" = '[null,"W/\"x\""]' ]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

@@ -23,7 +23,56 @@ forge/github:artifacts() {
     'import "forge" as forge; forge::github_artifacts($now; $url)'
 }
 
-forge/github:attestations() { return 3; }
+# forge/github:attestations prints one document per attestation of the newest release assets and artifacts, as the
+# seam's header says: one REST request for the 6 newest releases, the 6th saying there are more than the 5 read, one
+# for the 20 newest artifacts, then one for the attestations of each digest among the 5 releases' assets and the
+# artifacts, newest first, each once, 50 at most. A digest GitHub holds none of answers 404, and has none.
+# {"limited": N} follows the N drawn where there are more releases, artifacts, or digests than those read.
+forge/github:attestations() {
+  local releases artifacts subjects url now row name digest made answer said more=false out=
+  local -i drawn=0
+  local -a rows
+  url=$(forge/github:repo-url) || return 1
+  now=$(date +%s)
+  forge/github:ask releases 'the attestations' api 'repos/{owner}/{repo}/releases?per_page=6' || return 1
+  forge/github:ask artifacts 'the attestations' api 'repos/{owner}/{repo}/actions/artifacts?per_page=20' || return 1
+  subjects=$(forge/github:fold 'the attestations' "${releases}"$'\n'"${artifacts}" --slurp --compact-output '
+    (.[0] | arrays) as $releases | (.[1].artifacts | arrays) as $artifacts | (.[1].total_count // 0) as $total
+    | ([$releases[:5][] | .assets[]? | {name, digest, made: .created_at}]
+       + [$artifacts[] | {name, digest, made: .created_at}])
+    | map(select((.digest | type) == "string")) | reduce .[] as $s ([]; if any(.[]; .digest == $s.digest) then .
+                                                                         else . + [$s] end)
+    | {subjects: .[:50],
+       more: (($releases | length) > 5 or $total > ($artifacts | length) or length > 50)}') \
+    || return 1
+  [[ "$(jq --raw-output '.more' <<<"${subjects}")" == false ]] || more=true
+  file:temp said gh || return 1
+  list:read rows jq --raw-output '.subjects[] | [.name, .digest, (.made // "")] | @tsv' <<<"${subjects}" || return 1
+  for row in "${rows[@]}"
+  do
+    [[ -n "${row}" ]] || continue
+    IFS=$'\t' read -r name digest made <<<"${row}"
+    if ! answer=$(gh api --paginate --slurp "repos/{owner}/{repo}/attestations/${digest}?per_page=100" 2>"${said}")
+    then
+      # A digest GitHub keeps no attestation of answers 404.
+      [[ "$(<"${said}")" == *'(HTTP 404)'* ]] && continue
+      forge/github:limited 'the attestations' "${answer}"$'\n'"$(<"${said}")" \
+        || forge/github:scoped 'the attestations' "$(<"${said}")" \
+        || error "run: gh auth status (the attestations of ${name} could not be read)"
+      return 1
+    fi
+    answer=$(forge/github:fold "the attestations of ${name}" "${answer}" --compact-output --arg subject "${name}" \
+      --arg digest "${digest}" --arg made "${made}" --argjson now "${now}" --arg url "${url}/attestations" \
+      'import "forge" as forge;
+       if all(.[]; type == "object") then . else error end
+       | forge::github_attestations($subject; $digest; (if $made == "" then null else $made end); $now; $url)') \
+      || return 1
+    [[ -z "${answer}" ]] || { out+=${answer}$'\n'; drawn+=$(wc -l <<<"${answer}"); }
+  done
+  # Nothing is printed until every digest is read, so a read that fails prints nothing.
+  [[ "${more}" == false ]] || out+=$(printf '{"limited":%d}' "${drawn}")$'\n'
+  printf '%s' "${out}"
+}
 
 # forge/github:bots prints one document per bot that acted in the repository, the last to act first, as the seam's
 # header says: one GraphQL request, two points, for the authors of the 100 newest commits on the default branch, and
@@ -70,9 +119,49 @@ forge/github:branch-for-issue() {
     '[.[] | select(.headRefName | startswith("\($n)-"))] | .[0].headRefName // empty'
 }
 
-forge/github:bypasses() { return 3; }
+# forge/github:bypasses prints one document per waiver of the default branch's controls, as the seam's header says:
+# the bypass actors of each ruleset that guards it, and those its own protection lets bypass a pull request, read as
+# forge/github:rulesets reads them; then each dismissed alert of the code scanning, Dependabot, and secret scanning
+# alerts, a REST read of every page each, a secret's dismissal being its resolution as a false positive, as won't
+# fix, or as used in tests. A scanner off for the repository has none; one that refuses the read fails it.
+forge/github:bypasses() {
+  local answer protection pages status out feature what path each
+  local alerts='sort=updated&direction=desc&per_page=100' waived='resolution=false_positive,wont_fix,used_in_tests'
+  local -a reads=(
+    "code-scanning|the dismissed code scanning alerts|code-scanning/alerts?state=dismissed&${alerts}"
+    "dependabot|the dismissed Dependabot alerts|dependabot/alerts?state=dismissed&${alerts}"
+    "secret-scanning|the resolved secret scanning alerts|secret-scanning/alerts?state=resolved&${waived}&${alerts}"
+  )
+  forge/github:controls answer protection || return 1
+  out=$(forge/github:fold 'the bypasses' "${answer}" --compact-output --argjson protection "${protection}" \
+    'import "forge" as forge; forge::github_bypasses($protection | if type == "object" then .full else null end)') \
+    || return 1
+  # Nothing is printed until every read is made, so a read that fails prints nothing.
+  for each in "${reads[@]}"
+  do
+    IFS='|' read -r feature what path <<<"${each}"
+    status=0
+    forge/github:alert-pages pages "${what}" "repos/{owner}/{repo}/${path}" || status=$?
+    (( status != 1 )) || return 1
+    (( status == 3 )) && continue
+    pages=$(forge/github:fold "${what}" "${pages}" --compact-output --arg feature "${feature}" \
+      'import "forge" as forge; forge::github_dismissals($feature)') || return 1
+    out+=${out:+${pages:+$'\n'}}${pages}
+  done
+  [[ -z "${out}" ]] || printf '%s\n' "${out}"
+}
 
-forge/github:code-scanning-alerts() { return 3; }
+# forge/github:code-scanning-alerts prints one document per code scanning alert, open or dismissed, as the seam's
+# header says: GitHub takes one state a read, so two REST reads, every page of each, each by its last update. A
+# repository with no analysis, or without code scanning, has it off, and answers 3.
+forge/github:code-scanning-alerts() {
+  local pages alerts='sort=updated&direction=desc&per_page=100'
+  forge/github:alert-pages pages 'the code scanning alerts' \
+    "repos/{owner}/{repo}/code-scanning/alerts?state=open&${alerts}" \
+    "repos/{owner}/{repo}/code-scanning/alerts?state=dismissed&${alerts}" || return $?
+  forge/github:fold 'the code scanning alerts' "${pages}" --compact-output --argjson now "$(date +%s)" \
+    'import "forge" as forge; forge::github_code_scanning($now)'
+}
 
 # forge/github:collaborators prints one document per person or bot with access to the repository, as the seam's header
 # says: every page of the REST list, which holds those with access of their own, through a team, and as the
@@ -90,7 +179,17 @@ forge/github:collaborators() {
     'import "forge" as forge; forge::github_collaborators'
 }
 
-forge/github:dependabot-alerts() { return 3; }
+# forge/github:dependabot-alerts prints one document per Dependabot alert, open or dismissed, as the seam's header
+# says: one REST read of both states, every page, by its last update. A repository with Dependabot alerts disabled
+# has them off, and answers 3.
+forge/github:dependabot-alerts() {
+  local pages
+  forge/github:alert-pages pages 'the Dependabot alerts' \
+    'repos/{owner}/{repo}/dependabot/alerts?state=open,dismissed&sort=updated&direction=desc&per_page=100' \
+    || return $?
+  forge/github:fold 'the Dependabot alerts' "${pages}" --compact-output --argjson now "$(date +%s)" \
+    'import "forge" as forge; forge::github_dependabot($now)'
+}
 
 # forge/github:deployments prints one document per deployment, newest first, as the seam's header says: one GraphQL
 # request, a point, for the 50 created last, each with its latest status, and {"limited": 50} after them when GitHub
@@ -255,12 +354,14 @@ forge/github:link-branch() {
 # of the issue or pull request updated last, as GitHub lists them together; runs, of the ten newest workflow runs;
 # releases, of the newest release; milestones, of the first 100 milestones, the page the read takes first, so an edit
 # to a milestone past the first 100 goes unseen; deployments, of the 50 newest deployments, each of which a new status
-# updates, whoever made it; environments, of the first 100 environments, with their protection. A mark is GitHub's
+# updates, whoever made it; environments, of the first 100 environments, with their protection; alerts, of the alert
+# each scanner, code scanning, Dependabot, and secret scanning, updated last, in any state, which a new alert, a fix,
+# and a dismissal each update, off for a scanner off here, and null where one refuses the caller. A mark is GitHub's
 # ETag for the answer. With <dir>, each ETag is kept there and the next read sends it, so GitHub answers 304 Not
 # Modified while nothing changed, which counts against no rate limit.
 # gh names the repository from the checkout's remote, as {owner}/{repo}, which costs no request.
 forge/github:marks() {
-  local dir=${1:-} issues runs releases milestones deployments environments
+  local dir=${1:-} issues runs releases milestones deployments environments alerts='' kind mark
   issues=$(forge/github:mark 'repos/{owner}/{repo}/issues?state=all&sort=updated&direction=desc&per_page=1' \
     "${dir:+${dir}/marks-issues.etag}") || return 1
   runs=$(forge/github:mark 'repos/{owner}/{repo}/actions/runs?per_page=10' "${dir:+${dir}/marks-runs.etag}") \
@@ -273,10 +374,24 @@ forge/github:marks() {
     "${dir:+${dir}/marks-deployments.etag}") || return 1
   environments=$(forge/github:mark 'repos/{owner}/{repo}/environments?per_page=100' \
     "${dir:+${dir}/marks-environments.etag}") || return 1
-  jq --null-input --compact-output --arg issues "${issues}" --arg runs "${runs}" --arg releases "${releases}" \
+  # A scanner's mark is of the alert it updated last, in any state; one off here is off, and one that refuses the
+  # caller leaves the mark of the alerts unknown, null.
+  for kind in code-scanning dependabot secret-scanning
+  do
+    mark=$(forge/github:alerts-mark "repos/{owner}/{repo}/${kind}/alerts?sort=updated&direction=desc&per_page=1" \
+      "${dir:+${dir}/marks-${kind}.etag}") || return 1
+    if [[ -z "${mark}" ]]
+    then
+      alerts=''
+      break
+    fi
+    alerts+=${alerts:+ }${mark}
+  done
+  jq --null-input --compact-output --arg alerts "${alerts}" --arg issues "${issues}" --arg runs "${runs}" \
+    --arg releases "${releases}" \
     --arg milestones "${milestones}" --arg deployments "${deployments}" --arg environments "${environments}" \
     '{issues: $issues, runs: $runs, releases: $releases, milestones: $milestones, deployments: $deployments,
-      environments: $environments}'
+      environments: $environments, alerts: (if $alerts == "" then null else $alerts end)}'
 }
 
 forge/github:me() {
@@ -623,7 +738,15 @@ forge/github:require() {
   forge/github:me >/dev/null
 }
 
-forge/github:rulesets() { return 3; }
+# forge/github:rulesets prints one document per control on the default branch, as the seam's header says: the
+# rulesets that guard it, its own and those of its organization, read as forge/github:controls reads them, then the
+# branch's own protection, where it has one.
+forge/github:rulesets() {
+  local answer protection
+  forge/github:controls answer protection || return 1
+  forge/github:fold 'the rulesets' "${answer}" --compact-output --argjson protection "${protection}" \
+    'import "forge" as forge; forge::github_rulesets($protection | if type == "object" then {rules} else null end)'
+}
 
 # forge/github:runs prints the builds stage's runs as one JSON array, as the seam's header says. It reads the 50
 # newest runs and keeps those forge.jq's builds keeps. A run's jobs cost a call each, so only the 5 newest runs carry
@@ -651,7 +774,19 @@ forge/github:runs() {
   printf '%s\n' "${runs}"
 }
 
-forge/github:secret-scanning-alerts() { return 3; }
+# forge/github:secret-scanning-alerts prints one document per secret scanning alert, open or dismissed, as the seam's
+# header says: two REST reads, every page of each, by its last update, the open alerts and those resolved as a false
+# positive, as won't fix, or as used in tests, which a person dismissed; one revoked, or whose pattern went, is fixed.
+# A repository with secret scanning disabled has it off, and answers 3.
+forge/github:secret-scanning-alerts() {
+  local pages alerts='sort=updated&direction=desc&per_page=100'
+  local waived='resolution=false_positive,wont_fix,used_in_tests'
+  forge/github:alert-pages pages 'the secret scanning alerts' \
+    "repos/{owner}/{repo}/secret-scanning/alerts?state=open&${alerts}" \
+    "repos/{owner}/{repo}/secret-scanning/alerts?state=resolved&${waived}&${alerts}" || return $?
+  forge/github:fold 'the secret scanning alerts' "${pages}" --compact-output --argjson now "$(date +%s)" \
+    'import "forge" as forge; forge::github_secret_scanning($now)'
+}
 
 # forge/github:teams prints one document per team with access to the repository, in GitHub's order, as the seam's
 # header says: a REST request for the first 21, then one GraphQL request, a point, for the first 100 members of each of
@@ -689,13 +824,10 @@ forge/github:teams() {
     'import "forge" as forge; forge::github_teams($members; 20)'
 }
 
-# The provider implements contract 4. A feature whose call it has not written is in lacks, which the task that writes
-# the call drops it from.
+# The provider implements contract 4, and its forge lacks none of its features.
 forge/github:contract() { printf '4\n'; }
 
-forge/github:lacks() {
-  printf '%s\n' attestations code-scanning dependabot secret-scanning rulesets bypasses
-}
+forge/github:lacks() { :; }
 
 # The seam's calls end here; what follows is this provider's own.
 
@@ -734,6 +866,178 @@ forge/github:mark() {
       error "run: gh auth status (the marks could not be read)"
       return 1
   esac
+}
+
+# forge/github:alerts-mark <path> [<file>] prints the ETag of GitHub's answer for a scanner's alerts at <path>, as
+# forge/github:mark does, in the one request: the ETag kept in <file> on a 304 Not Modified, else the new one, which
+# it keeps there; off where GitHub says the scanner is off for the repository, as forge/github:off tells it; and
+# nothing where it refuses the caller, so the mark is unknown and no failure. An answer that is none of those fails.
+forge/github:alerts-mark() {
+  local path=$1 file=${2:-} etag='' answer status
+  local -a header=()
+  [[ -z "${file}" || ! -f "${file}" ]] || etag=$(<"${file}")
+  [[ -z "${etag}" ]] || header=(--header "If-None-Match: ${etag}")
+  answer=$(gh api --include "${header[@]}" "${path}" 2>&1) || true  # the status line decides, below
+  status=$(sed -n '1s@^HTTP/[0-9.]* \([0-9]*\).*@\1@p' <<<"${answer}")
+  case "${status}" in
+    (304) printf '%s\n' "${etag}" ;;
+    (200)
+      etag=$(tr -d '\r' <<<"${answer}" | sed -n 's/^[Ee][Tt][Aa][Gg]: *//p' | head -n 1)
+      if [[ -z "${etag}" ]]
+      then
+        error "run: gh auth status; GitHub gave no ETag for ${path} (the marks could not be read)"
+        return 1
+      fi
+      # An ETag that cannot be kept costs only the next read, which asks GitHub for the whole answer.
+      [[ -z "${file}" ]] || file:replace "${file}" printf '%s\n' "${etag}" || true
+      printf '%s\n' "${etag}"
+      ;;
+    (403|404)
+      if forge/github:off "${answer}"
+      then
+        printf 'off\n'
+      fi
+      ;;
+    (*)
+      error "run: gh auth status (the marks could not be read)"
+      return 1
+  esac
+}
+
+# forge/github:off <said> succeeds when what GitHub said of a scanner's alerts is that the scanner is off for the
+# repository: code scanning with no analysis, no default branch, or Code Security, once Advanced Security, not
+# enabled; Dependabot alerts or secret scanning disabled; or a repository archived.
+forge/github:off() {
+  local said=${1,,}
+  [[ "${said}" == *'no analysis found'* || "${said}" == *'no default branch found'* \
+    || "${said}" == *'must be enabled'* || "${said}" == *' disabled '* || "${said}" == *'disabled for'* \
+    || "${said}" == *'archived'* ]]
+}
+
+# forge/github:alert-pages <name> <what> <path>… reads every page of each path, a scanner's alerts, and puts them, one
+# JSON array of the pages, each an array, in the variable <name>. It returns 3, printing nothing, where GitHub says
+# the scanner is off for the repository, and 1 after the line forge/github:alerts-refused says where GitHub refuses
+# the read.
+forge/github:alert-pages() {
+  local pages_into=$1 pages_what=$2 pages_path pages_said pages_out pages_all='[]'
+  shift 2
+  file:temp pages_said gh || return 1
+  for pages_path in "$@"
+  do
+    if ! pages_out=$(gh api --paginate --slurp "${pages_path}" 2>"${pages_said}")
+    then
+      forge/github:alerts-refused "${pages_what}" "${pages_path}" "${pages_out}"$'\n'"$(<"${pages_said}")"
+      return
+    fi
+    pages_all=$(forge/github:fold "${pages_what}" "${pages_all}"$'\n'"${pages_out}" --slurp --compact-output \
+      'if all(.[1][]; type == "array") then .[0] + .[1] else error end') || return 1
+  done
+  forge:whole "${pages_what}" "$(jq 'map(length) | add // 0' <<<"${pages_all}")" || return 1
+  printf -v "${pages_into}" '%s' "${pages_all}"
+}
+
+# forge/github:alerts-refused <what> <path> <said> says why GitHub refused the read of a scanner's alerts at <path>,
+# and returns 1, or returns 3, saying nothing, where it says the scanner is off for the repository. A refusal, 403 or
+# 404, is asked once more for its headers: a login whose scopes, X-OAuth-Scopes, hold none of those the alerts
+# accept, X-Accepted-OAuth-Scopes, is told the scope to add; a token whose scopes GitHub does not say, as a
+# fine-grained one, that GitHub says cannot reach the alerts, is told to grant it; any other caller may not see them,
+# and is told to ask the repository's admin.
+forge/github:alerts-refused() {
+  local what=$1 path=$2 said=$3 head granted accepted scope repo
+  if forge/github:off "${said}"
+  then
+    return 3
+  fi
+  if [[ "${said}" != *'(HTTP 403)'* && "${said}" != *'(HTTP 404)'* ]]
+  then
+    forge/github:limited "${what}" "${said}" || forge/github:scoped "${what}" "${said}" \
+      || error "run: gh auth status (${what} could not be read)"
+    return 1
+  fi
+  head=$(gh api --include "${path}" 2>/dev/null | tr -d '\r' | sed '/^$/q') || true  # a refusal exits 1
+  granted=$(sed -n 's/^[Xx]-[Oo][Aa]uth-[Ss]copes: *//p' <<<"${head}")
+  accepted=$(sed -n 's/^[Xx]-[Aa]ccepted-[Oo][Aa]uth-[Ss]copes: *//p' <<<"${head}")
+  if grep --quiet --ignore-case '^x-oauth-scopes:' <<<"${head}" && [[ -n "${accepted}" ]]
+  then
+    for scope in ${accepted//,/ }
+    do
+      [[ ", ${granted}, " != *", ${scope}, "* ]] || accepted=''
+    done
+    if [[ -n "${accepted}" ]]
+    then
+      error "run: gh auth refresh --scopes security_events (${what} could not be read)"
+      return 1
+    fi
+  fi
+  if [[ "${said,,}" == *'not accessible by'* ]]
+  then
+    error "grant the token GitHub was given read access to the repository's security alerts (${what} could not be" \
+      "read)"
+    return 1
+  fi
+  repo=$(forge/github:repo) || return 1
+  error "ask an admin of ${repo} to let you see its security alerts (${what} could not be read)"
+  return 1
+}
+
+# forge/github:controls <answer> <protection> reads what guards the default branch into the two variables: <answer>,
+# one GraphQL request, a point, for the repository's rulesets of branches, its own and its organization's, 100 at
+# most, each with its conditions, its first 100 rules, and its first 100 bypass actors, and the default branch; and
+# <protection>, null where the branch has no protection of its own, as the branch's REST answer says, which every
+# reader may have, else {rules, full}: the protection's REST answer and its kinds of rule, or rules and full null
+# where GitHub shows the protection only to an admin, answering 404. A list past what the request holds fails.
+forge/github:controls() {
+  local controls_into=$1 protection_into=$2 controls_repo controls_query controls_answer controls_branch
+  local controls_page controls_said controls_protection=null encoded
+  controls_repo=$(forge/github:repo) || return 1
+  controls_query='query($owner: String!, $name: String!) {
+    repository(owner: $owner, name: $name) {
+      url defaultBranchRef { name }
+      rulesets(first: 100, includeParents: true, targets: [BRANCH]) { totalCount nodes {
+        databaseId name enforcement conditions { refName { include exclude } }
+        rules(first: 100) { totalCount nodes { type } }
+        bypassActors(first: 100) { totalCount nodes {
+          bypassMode organizationAdmin repositoryRoleName deployKey enterpriseOwner
+          actor { __typename ... on Team { slug } ... on User { login } ... on App { slug } }
+        } }
+      } }
+    }
+  }'
+  forge/github:ask controls_answer 'the rulesets' api graphql --field owner="${controls_repo%%/*}" \
+    --field name="${controls_repo#*/}" --raw-field query="${controls_query}" || return 1
+  forge/github:fold 'the rulesets' "${controls_answer}" --exit-status '.data.repository.rulesets.nodes | arrays' \
+    >/dev/null || return 1
+  if ! jq --exit-status -L "${kit_jq}" 'import "forge" as forge; forge::github_whole' <<<"${controls_answer}" \
+    >/dev/null 2>&1
+  then
+    error "kit reads at most 100 rulesets, and 100 rules and bypass actors of each (the rulesets could not be read)"
+    return 1
+  fi
+  controls_branch=$(jq --raw-output '.data.repository.defaultBranchRef.name // empty' <<<"${controls_answer}")
+  if [[ -n "${controls_branch}" ]]
+  then
+    encoded=$(jq --null-input --raw-output --arg s "${controls_branch}" '$s | @uri')
+    forge/github:ask controls_page 'the protection of the default branch' api \
+      "repos/{owner}/{repo}/branches/${encoded}" || return 1
+    if [[ "$(jq --raw-output '.protection.enabled == true' <<<"${controls_page}")" == true ]]
+    then
+      file:temp controls_said gh || return 1
+      if controls_page=$(gh api "repos/{owner}/{repo}/branches/${encoded}/protection" 2>"${controls_said}")
+      then
+        controls_protection=$(forge/github:fold 'the protection of the default branch' "${controls_page}" \
+          --compact-output 'import "forge" as forge; {rules: forge::github_protection_rules, full: .}') || return 1
+      elif [[ "$(<"${controls_said}")" == *'(HTTP 404)'* ]]
+      then
+        controls_protection='{"rules": null, "full": null}'
+      else
+        forge/github:limited 'the protection of the default branch' "$(<"${controls_said}")" \
+          || error "run: gh auth status (the protection of the default branch could not be read)"
+        return 1
+      fi
+    fi
+  fi
+  printf -v "${controls_into}" '%s' "${controls_answer}"
+  printf -v "${protection_into}" '%s' "${controls_protection}"
 }
 
 # forge/github:rest-of-closes <owner/name> <number> <cursor> prints, as one JSON array, the issues the pull request

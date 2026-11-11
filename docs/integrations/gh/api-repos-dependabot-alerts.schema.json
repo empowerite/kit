@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh api --paginate --slurp repos/{owner}/{repo}/dependabot/alerts?state=${states}&sort=updated&direction=desc&per_page=100",
+  "description": "The repository's Dependabot alerts, open,dismissed, or dismissed alone, which kit asks for in `modules/bash/forge/github.sh` (forge/github:dependabot-alerts, and forge/github:bypasses for the dismissed) and folds in `modules/jq/forge.jq` (forge::github_dependabot, forge::github_dismissals). gh api --paginate --slurp prints one array of the pages, each an array of alerts. state takes a comma-separated list; the pages follow the Link header's cursor. A repository with Dependabot alerts off answers 403 `Dependabot alerts are disabled for this repository.`, checked live: the scanner is off. A classic token needs `security_events`, or `public_repo` for a public repository. The types are those of GET /repos/{owner}/{repo}/dependabot/alerts in GitHub's REST OpenAPI, as https://docs.github.com/rest/dependabot/alerts#list-dependabot-alerts-for-a-repository describes them: state is auto_dismissed, dismissed, fixed, or open; a severity low, medium, high, or critical; dismissed_reason fix_started, inaccurate, no_bandwidth, not_used, or tolerable_risk.",
+  "type": "array",
+  "items": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "properties": {
+        "number": {
+          "type": "integer"
+        },
+        "state": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "html_url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "dependency": {
+          "type": "object",
+          "properties": {
+            "manifest_path": {
+              "type": "string"
+            },
+            "package": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "additionalProperties": true
+        },
+        "security_advisory": {
+          "type": "object",
+          "properties": {
+            "ghsa_id": {
+              "type": "string"
+            },
+            "severity": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "security_vulnerability": {
+          "type": "object",
+          "properties": {
+            "severity": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "dismissed_by": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "login": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "dismissed_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dismissed_comment": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": true,
+      "required": [
+        "number",
+        "state",
+        "created_at",
+        "html_url"
+      ]
+    }
+  },
+  "examples": [
+    [
+      [
+        {
+          "number": 1,
+          "state": "dismissed",
+          "created_at": "2026-09-15T09:00:00Z",
+          "html_url": "https://github.com/o/r/security/dependabot/1",
+          "dependency": {
+            "manifest_path": "package-lock.json",
+            "package": {
+              "name": "lodash"
+            }
+          },
+          "security_advisory": {
+            "ghsa_id": "GHSA-35jh-r3h4-6jhm",
+            "severity": "high"
+          },
+          "security_vulnerability": {
+            "severity": "high"
+          },
+          "dismissed_by": {
+            "login": "ada"
+          },
+          "dismissed_reason": "tolerable_risk",
+          "dismissed_comment": null
+        }
+      ]
+    ]
+  ]
+}

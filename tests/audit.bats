@@ -1,0 +1,190 @@
+#!/usr/bin/env bats
+# audit.bats - kit audit: the forge's attestations, alerts, controls, and their waivers, and the policy's rules
+# ----------------------------------------------------------------------------------------------------------------------
+# Each test runs with HOME, XDG_CONFIG_HOME, and XDG_CACHE_HOME of its own, as helper:isolate sets them. A repository's
+# origin is a GitHub URL that nothing fetches: the fake gh answers for it.
+
+bats_require_minimum_version 1.5.0
+
+load helper
+
+setup() {
+  hide-system-toolchains
+}
+
+# github-world makes a repository whose origin is GitHub's, and the fake gh's answers: the release v0.1.0 offers
+# kit-0.1.0.tar.gz, digest sha256:ab12, which the release workflow attested as SLSA provenance; code scanning's alert
+# 4 is open; ada dismissed Dependabot's alert 1 as a tolerable risk; secret scanning is off; and the ruleset main
+# guards the default branch with two rules, which the team release may bypass.
+github-world() {
+  local statement alerts='sort=updated&direction=desc&per_page=100'
+  mkdir -p "${BATS_TEST_TMPDIR}/r"
+  git init --quiet --initial-branch=main "${BATS_TEST_TMPDIR}/r"
+  cd "${BATS_TEST_TMPDIR}/r"
+  git remote add origin https://github.com/o/r.git
+  fake-tools gh
+  fixture user.json <<<'{"login": "ada"}'
+  fixture repo.json <<<'{"nameWithOwner": "o/r", "url": "https://github.com/o/r"}'
+  fixture releases.json <<'JSON'
+[{"tag_name": "v0.1.0", "assets": [{"name": "kit-0.1.0.tar.gz", "digest": "sha256:ab12",
+  "created_at": "2026-10-01T10:00:00Z"}]}]
+JSON
+  fixture artifacts.json <<<'{"total_count": 0, "artifacts": []}'
+  statement=$(jq --null-input --raw-output '{predicateType: "https://slsa.dev/provenance/v1",
+    predicate: {buildDefinition: {externalParameters: {workflow: {ref: "refs/tags/v0.1.0",
+      repository: "https://github.com/o/r", path: ".github/workflows/release.yml"}}}}} | tojson | @base64')
+  jq --null-input --arg payload "${statement}" \
+    '[{attestations: [{initiator: "user", bundle: {dsseEnvelope: {payload: $payload}}}]}]' \
+    | fixture attestations.json
+  fixture code-open.json <<'JSON'
+[[{"number": 4, "state": "open", "created_at": "2026-10-01T09:00:00Z",
+   "html_url": "https://github.com/o/r/security/code-scanning/4",
+   "rule": {"id": "js/xss", "severity": "error", "security_severity_level": "high"},
+   "most_recent_instance": {"location": {"path": "src/app.js"}}}]]
+JSON
+  fixture none.json <<<'[[]]'
+  fixture dependabot.json <<'JSON'
+[[{"number": 1, "state": "dismissed", "created_at": "2026-09-15T09:00:00Z",
+   "html_url": "https://github.com/o/r/security/dependabot/1",
+   "dependency": {"package": {"name": "lodash"}, "manifest_path": "package-lock.json"},
+   "security_advisory": {"ghsa_id": "GHSA-35jh-r3h4-6jhm", "severity": "high"},
+   "security_vulnerability": {"severity": "high"},
+   "dismissed_by": {"login": "ada"}, "dismissed_reason": "tolerable_risk", "dismissed_comment": null}]]
+JSON
+  fixture secret-off.txt <<<'gh: Secret scanning is disabled on this repository. (HTTP 404)'
+  fixture rulesets.json <<'JSON'
+{"data": {"repository": {"url": "https://github.com/o/r", "defaultBranchRef": {"name": "main"},
+  "rulesets": {"totalCount": 1, "nodes": [
+    {"databaseId": 7, "name": "main", "enforcement": "ACTIVE",
+     "conditions": {"refName": {"include": ["~DEFAULT_BRANCH"], "exclude": []}},
+     "rules": {"totalCount": 2, "nodes": [{"type": "DELETION"}, {"type": "PULL_REQUEST"}]},
+     "bypassActors": {"totalCount": 1, "nodes": [{"bypassMode": "ALWAYS", "actor": {"__typename": "Team",
+       "slug": "release"}}]}}]}}}}
+JSON
+  fixture branch.json <<<'{"name": "main", "protection": {"enabled": false}}'
+  printf 'HTTP/2.0 200 OK\r\nETag: W/"m1"\r\n\r\n[]\n' > "${FAKE_DIR}/marks-200.txt"
+  route gh 'api user*' user.json
+  route gh 'repo view*' repo.json
+  route gh 'api --include repos/{owner}/{repo}/dependabot/alerts?state=*' "${DEPENDABOT_HEAD:-marks-200.txt}"
+  route gh 'api --include*' marks-200.txt
+  route gh 'api repos/{owner}/{repo}/releases?per_page=6' releases.json
+  route gh 'api repos/{owner}/{repo}/actions/artifacts?per_page=20' artifacts.json
+  route gh 'api --paginate --slurp repos/{owner}/{repo}/attestations/sha256:ab12?per_page=100' attestations.json
+  route gh "api --paginate --slurp repos/{owner}/{repo}/code-scanning/alerts?state=open&${alerts}" code-open.json
+  route gh "api --paginate --slurp repos/{owner}/{repo}/code-scanning/alerts?state=dismissed&${alerts}" none.json
+  route gh "api --paginate --slurp repos/{owner}/{repo}/dependabot/alerts?state=*" "${DEPENDABOT:-dependabot.json}"
+  route gh 'api --paginate --slurp repos/{owner}/{repo}/secret-scanning/alerts?state=*' '!1 secret-off.txt'
+  route gh 'api graphql*rulesets(first: 100*' rulesets.json
+  route gh 'api repos/{owner}/{repo}/branches/main' branch.json
+}
+
+@test "kit audit --stages prints its five stages, and --marks the forge's for its reads, the policy's hash for it" {
+  run "${kit_root}/bin/kit" audit --stages
+  [ "$status" -eq 0 ]
+  [ "$output" = $'evidence\nfindings\ncontrols\nwaivers\npolicy' ]
+  github-world
+  run --separate-stderr "${kit_root}/bin/kit" audit --marks
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  # evidence moves with the runs and the releases, findings with the runs and the alerts; the controls and their
+  # waivers are read again only when asked; and a repository with no kit.yml nor policy of its own has no policy mark
+  [ "$(jq -c '[.evidence, .findings, .controls, .waivers, .policy]' <<<"$output")" \
+    = '["W/\"m1\" W/\"m1\"","W/\"m1\" W/\"m1\" W/\"m1\" W/\"m1\"",null,null,null]' ]
+  printf 'policy:\n  branch: "^[0-9]+-"\n' > kit.yml
+  first=$("${kit_root}/bin/kit" audit --marks | jq -r .policy)
+  [ -n "${first}" ] && [ "${first}" != null ]
+  printf 'policy:\n  branch: "^x-"\n' > kit.yml
+  [ "$("${kit_root}/bin/kit" audit --marks | jq -r .policy)" != "${first}" ]
+}
+
+@test "evidence is a row per attestation, keyed by its digest and kind: what it attests, and who signed it" {
+  github-world
+  run --separate-stderr "${kit_root}/bin/kit" audit evidence --json
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  expected='[{"key":"sha256:ab12 https://slsa.dev/provenance/v1","subject":"kit-0.1.0.tar.gz","digest":"sha256:ab12",'
+  expected+='"kind":"https://slsa.dev/provenance/v1","signer":"o/r/.github/workflows/release.yml@refs/tags/v0.1.0",'
+  expected+='"links":{"subject":"https://github.com/o/r/attestations"}}]'
+  [ "$(jq -c '.rows | map(del(.age))' <<<"$output")" = "${expected}" ]
+  [ "$(jq -c '.errors' <<<"$output")" = '[]' ]
+}
+
+@test "findings merges the three scanners' alerts, each row its tool's, and a scanner off here says so, exit 0" {
+  github-world
+  run --separate-stderr "${kit_root}/bin/kit" audit findings --json
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  expected='[{"key":"code-scanning 4","tool":"code-scanning","number":4,"rule":"js/xss","severity":"high",'
+  expected+='"state":"open","path":"src/app.js","links":{"rule":"https://github.com/o/r/security/code-scanning/4"}},'
+  expected+='{"key":"dependabot 1","tool":"dependabot","number":1,"rule":"GHSA-35jh-r3h4-6jhm","severity":"high",'
+  expected+='"state":"dismissed","path":"package-lock.json",'
+  expected+='"links":{"rule":"https://github.com/o/r/security/dependabot/1"}}]'
+  [ "$(jq -c '.rows | map(del(.age))' <<<"$output")" = "${expected}" ]
+  [ "$(jq -c '.errors' <<<"$output")" = '[{"feature":"secret-scanning","off":true}]' ]
+  run --separate-stderr "${kit_root}/bin/kit" audit findings --text
+  [ "$status" -eq 0 ]
+  [ "${lines[-1]}" = 'secret-scanning is off here' ]
+}
+
+@test "a scanner that refuses the caller is its line under findings' errors, the others still drawn, and exit 1" {
+  DEPENDABOT='!1 refused.txt' DEPENDABOT_HEAD='!1 >scopes.txt' github-world
+  fixture refused.txt <<<'gh: Resource not accessible by integration (HTTP 403)'
+  printf 'HTTP/2.0 403 Forbidden\r\nX-Oauth-Scopes: read:org\r\n%s\r\n\r\n{}\n' \
+    'X-Accepted-Oauth-Scopes: repo, security_events' > "${FAKE_DIR}/scopes.txt"
+  run --separate-stderr "${kit_root}/bin/kit" audit findings --json
+  [ "$status" -eq 1 ]
+  [ "$(jq -c '[.rows[].key]' <<<"$output")" = '["code-scanning 4"]' ]
+  [ "$(jq -c '.errors' <<<"$output")" = '[{"feature":"dependabot","error":"run: gh auth refresh --scopes'\
+' security_events (the Dependabot alerts could not be read)"},{"feature":"secret-scanning","off":true}]' ]
+  # the picture of every stage still draws the others, the waivers, which read the dismissed alerts, null
+  run --separate-stderr "${kit_root}/bin/kit" audit --json
+  [ "$status" -eq 1 ]
+  [ "$(jq -c '[(.findings.rows | length), (.controls.rows | length), .waivers]' <<<"$output")" = '[1,1,null]' ]
+}
+
+@test "controls is a row per control on the default branch, keyed by its id, its page the control's link" {
+  github-world
+  run --separate-stderr "${kit_root}/bin/kit" audit controls --json
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  expected='[{"key":7,"id":7,"control":"main","target":["~DEFAULT_BRANCH"],"enforcement":"active",'
+  expected+='"rules":["deletion","pull_request"],"source":"ruleset",'
+  expected+='"links":{"control":"https://github.com/o/r/rules/7"}}]'
+  [ "$(jq -c '.rows' <<<"$output")" = "${expected}" ]
+}
+
+@test "waivers is a row per bypass and dismissal, keyed by what it waives and for whom, each linking its row" {
+  github-world
+  run --separate-stderr "${kit_root}/bin/kit" audit waivers --json
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  expected='[{"key":"7 release","waives":7,"actor":"release","kind":"bypass","reason":"always","by":null,"until":null,'
+  expected+='"links":{"waives":"row:controls/7","reason":"https://github.com/o/r/rules/7"}},'
+  expected+='{"key":"dependabot 1","waives":"dependabot 1","actor":null,"kind":"dismissal","reason":"tolerable_risk",'
+  expected+='"by":"ada","until":null,"links":{"waives":"row:findings/dependabot 1",'
+  expected+='"reason":"https://github.com/o/r/security/dependabot/1"}}]'
+  [ "$(jq -c '.rows' <<<"$output")" = "${expected}" ]
+}
+
+@test "policy is a row per rule the policy judges by, keyed by the rule: its pattern, where it is set, the engine" {
+  github-world
+  printf 'policy:\n  branch: "^[0-9]+-"\n' > kit.yml
+  run --separate-stderr "${kit_root}/bin/kit" audit policy --json
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq -c '.rows[0]' <<<"$output")" \
+    = '{"key":"branch","rule":"branch","pattern":"^[0-9]+-","from":"kit.yml","engine":"patterns","links":{}}' ]
+  [ "$(jq -c '[.rows[] | [.key, .from]]' <<<"$output")" \
+    = '[["branch","kit.yml"],["commit_subject","default"],["change_title","default"]]' ]
+}
+
+@test "kit audit --json draws every stage, and a repository with no forge draws only the policy's rules" {
+  mkdir -p "${BATS_TEST_TMPDIR}/r"
+  git init --quiet --initial-branch=main "${BATS_TEST_TMPDIR}/r"
+  cd "${BATS_TEST_TMPDIR}/r"
+  run --separate-stderr "${kit_root}/bin/kit" audit --json
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq -c '.stages' <<<"$output")" = '["evidence","findings","controls","waivers","policy"]' ]
+  [ "$(jq -c '[.evidence, .findings, .controls, .waivers]' <<<"$output")" = "$(printf '[%s]' \
+    '{"rows":[],"errors":[]},{"rows":[],"errors":[]},{"rows":[],"errors":[]},{"rows":[],"errors":[]}')" ]
+  [ "$(jq -c '.policy.rows | length' <<<"$output")" -eq 3 ]
+  run --separate-stderr "${kit_root}/bin/kit" audit --marks
+  [ "$status" -eq 0 ]
+  [ "$output" = '{"evidence":null,"findings":null,"controls":null,"waivers":null,"policy":null}' ]
+}
+
+# ----------------------------------------------------------------------------------------------------------------------

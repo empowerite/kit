@@ -93,6 +93,38 @@ def team: ({key: .team} + del(.url) + {links: {team: .url}}) | linked;
 # agent reads a bot the forge's bots call prints and gives it keyed by its login, its page the link of the login.
 def agent: ({key: .login} + del(.url) + {links: {login: .url}}) | linked;
 
+# keyed(f) gives the key of the values f gives, those that are not null, apart by a space.
+def keyed(f): [f | select(. != null) | tostring] | join(" ");
+
+# attestation reads an attestation the forge's attestations call prints and gives it keyed by its digest and its
+# kind, its page the link of its subject.
+def attestation: ({key: keyed(.digest, .kind)} + del(.url) + {links: {subject: .url}}) | linked;
+
+# alert($tool) reads an alert one of the forge's alerts calls prints, the call of the feature $tool, and gives it
+# keyed by the tool and its number, the tool its own field, its page the link of its rule.
+def alert($tool): ({key: "\($tool) \(.number)", tool: $tool} + del(.url) + {links: {rule: .url}}) | linked;
+
+# code_scanning_alert, dependabot_alert, and secret_scanning_alert are alert of each scanner's call.
+def code_scanning_alert: alert("code-scanning");
+def dependabot_alert: alert("dependabot");
+def secret_scanning_alert: alert("secret-scanning");
+
+# control reads a control the forge's rulesets call prints and gives it keyed by its id, its page the link of the
+# control.
+def control: ({key: .id} + del(.url) + {links: {control: .url}}) | linked;
+
+# waiver reads a waiver the forge's bypasses call prints and gives it keyed by what it waives and for whom: what it
+# waives links to that row, of the findings stage for a dismissal and of the controls stage for a bypass,
+# row:<stage>/<key>, and its page is the link of its reason.
+def waiver:
+  ({key: keyed(.waives, .actor)} + del(.url)
+   + {links: {waives: (if .kind == "dismissal" then "row:findings/\(.waives)" else "row:controls/\(.waives)" end),
+              reason: .url}})
+  | linked;
+
+# rule reads a rule kit policy --rules --json prints and gives it keyed by the rule.
+def rule: {key: .rule} + . + {links: {}};
+
 # shown reads a row's value and gives it as text prints it: nothing for none, a list's values apart by commas, an
 # object as JSON.
 def shown:

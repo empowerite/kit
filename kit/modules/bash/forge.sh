@@ -64,9 +64,10 @@
 #   pr-url <n>                    the change's browser URL
 #   me                            the caller's login
 #   marks [<dir>]                 one JSON object, a mark for each kind of the repository's data, issues (with the
-#                                 changes), runs, releases, milestones, deployments, and environments, each a text
-#                                 that changes when that data does, read cheaply; with <dir>, what makes the next read
-#                                 cheaper is kept there
+#                                 changes), runs, releases, milestones, deployments, environments, and alerts, each a
+#                                 text that changes when that data does, read cheaply, or null where the forge refuses
+#                                 the caller that kind alone; with <dir>, what makes the next read cheaper is kept
+#                                 there
 #   quota                         one JSON object, the caller's rate limits on the forge: {forge, limits}, each limit
 #                                 {name, limit, remaining, reset}, reset in seconds since the epoch; reading it costs
 #                                 at most one request
@@ -143,15 +144,27 @@
 #                                 acted a list of commit, change, and review, null where the forge does not say, last
 #                                 seconds since the epoch, or null, url its page, or null where the forge gives none
 #                                 (since 4)
-#   attestations                  one JSON object per attestation: {subject, digest, kind, signer, age, url} (since 4)
+#   attestations                  one JSON object per attestation of the 5 newest releases' assets and the 20 newest
+#                                 artifacts, by digest, 50 digests at most, then {"limited": N} where there are more
+#                                 of any: {subject, digest, kind, signer, age, url}; subject the asset's or artifact's
+#                                 name, digest sha256:…, kind the statement's predicate type, signer the workflow that
+#                                 signed it, each null where the forge does not say, age seconds since it was made,
+#                                 url its page (since 4)
 #   code-scanning-alerts          one JSON object per code scanning alert, open or dismissed: {number, rule, severity,
-#                                 state, path, age, url} (since 4)
-#   dependabot-alerts             the same, one per Dependabot alert (since 4)
+#                                 state, path, age, url}; rule what found it, severity in lower case or null, state
+#                                 open or dismissed, path where it was found or null, age seconds since it was made;
+#                                 a forge that says the scanner is off for this repository answers 3 (since 4)
+#   dependabot-alerts             the same, one per Dependabot alert, a dependency scanner's (since 4)
 #   secret-scanning-alerts        the same, one per secret scanning alert (since 4)
 #   rulesets                      one JSON object per control on the default branch: {id, control, target, enforcement,
-#                                 rules, source, url}, source ruleset or protection (since 4)
-#   bypasses                      one JSON object per waiver: {waives, actor, kind, reason, by, until, url}, kind
-#                                 bypass or dismissal (since 4)
+#                                 rules, source, url}; id unique among them, target the refs it names, enforcement
+#                                 active, evaluate, or disabled, rules its kinds of rule, sorted, or null where the
+#                                 forge does not show them, source ruleset or protection (since 4)
+#   bypasses                      one JSON object per waiver: {waives, actor, kind, reason, by, until, url}; waives the
+#                                 id of a control rulesets prints, or an alert, "<feature> <number>"; actor who may
+#                                 bypass, or null for a dismissal or where the forge hides it; kind bypass or
+#                                 dismissal; reason the bypass's mode, or the dismissal's reason and comment; by who
+#                                 dismissed it; until when it ends, or null (since 4)
 #
 # A call that lists is capped when the call says so above: it prints {"limited": N} as its last line when it stopped
 # at N items, and the N before it are the newest.
@@ -661,7 +674,8 @@ forge:marks() {
   then
     span=$(( $(date +%s) / $(jq .every <<<"${choice}") ))
     jq --null-input --compact-output --arg span "${span}" \
-      '{issues: $span, runs: $span, releases: $span, milestones: $span, deployments: $span, environments: $span}'
+      '{issues: $span, runs: $span, releases: $span, milestones: $span, deployments: $span, environments: $span,
+        alerts: $span}'
     return 0
   fi
   dir=$(forge:snapshots 2>/dev/null) && mkdir -p "${dir}" 2>/dev/null || dir=''

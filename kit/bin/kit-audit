@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+# kit-audit - lists the forge's attestations, alerts, controls, and waivers, and the policy's rules (kit verb: workflow)
+# ----------------------------------------------------------------------------------------------------------------------
+# kit audit [--text | --json | --jq]
+#
+# Draws what the forge and the policy say of what the repository can be trusted for, a stage for each of Trust's tabs
+# in kittui. It changes nothing. The stages, in order:
+#
+#   evidence → findings → controls → waivers → policy
+#
+# kit --workspace=<workspace> audit, the kit option before the verb, draws each stage across a workspace's members
+# with checkouts, as kit workspace does: a group's name, or a repository's host and path, as kit workspaces names it;
+# none names no workspace. Without it, the workspace is the repository here, and outside one, the last group used, as
+# kit workspaces --current says. On a terminal, kit audit opens Trust in kittui, and kit audit <stage> opens it on
+# that tab, maximized. Without one, or with --text, it prints the stages as text; with --json or --jq, as JSON.
+#
+#   --text              prints the stages as text, even on a terminal
+#   --json              the stages as one JSON object: stages, then each stage's document under its name, null for one
+#                       that could not be read
+#   --jq                the same JSON, formatted by jq for a person
+#   --stages            prints the stages, one per line, in order, the same over any workspace
+#   --marks             prints a mark per stage, as one JSON object: evidence's moves with the forge's runs and
+#                       releases, findings' with its runs and alerts, policy's with kit.yml and .kit/policy; controls
+#                       and waivers have none, null, as each is read again only on Refresh and Watch
+#   evidence            the attestations of the 5 newest releases' assets and the 20 newest artifacts
+#   findings            the code scanning, Dependabot, and secret scanning alerts, open and dismissed
+#   controls            the rulesets and the protection that guard the default branch
+#   waivers             who may bypass each control, and each alert dismissed
+#   policy              each rule kit policy judges by, as kit policy --rules lists them
+#
+# kit audit --stages
+#
+# kit audit --marks
+#
+# kit audit evidence [--text | --json | --jq]
+#
+# kit audit findings [--text | --json | --jq]
+#
+# kit audit controls [--text | --json | --jq]
+#
+# kit audit waivers [--text | --json | --jq]
+#
+# kit audit policy [--text | --json | --jq]
+#
+# With --json, a stage prints {rows, errors}, and limited where the forge holds more than it read. A row is {key, …,
+# links}: key is the row's own in its stage, and links gives where a value leads, by its field. Over a workspace, each
+# row gains member, its host and path, and a member that could not be read is {member, error} under errors, while
+# every other member still draws. A repository with no forge, or a forge without the stage's feature, gives no rows
+# and no errors; a feature the forge has off for this repository, as secret scanning disabled, gives no rows and
+# {feature, off: true} under errors, which is no failure.
+#
+#   evidence            {subject, digest, kind, signer, age}, keyed by the digest and the kind: subject the asset's
+#                       or artifact's name; kind the statement's predicate type, null where GitHub keeps the bundle
+#                       apart, compressed, which kit does not read; signer the workflow that signed it,
+#                       <owner>/<repo>/<path>@<ref>, github for one GitHub made itself, or null; age in seconds. The
+#                       subject links to the repository's attestations. GitHub reads a digest's attestations a
+#                       request each, 50 digests at most; past 5 releases, 20 artifacts, or 50 digests, the document
+#                       is limited. GitLab and Azure DevOps keep none kit reads
+#   findings            {tool, number, rule, severity, state, path, age}, keyed by the tool and the number: tool
+#                       code-scanning, dependabot, or secret-scanning; rule what found it, a rule's id, an advisory's,
+#                       or a secret's type; severity in lower case, null for a secret; state open or dismissed; path
+#                       where it was found. The rule links to the alert's page. GitHub reads each scanner's every
+#                       page; a refusal names the scope to add, gh auth refresh --scopes security_events, or who can
+#                       grant the access. GitLab reads its vulnerability report, SAST for code scanning, dependency
+#                       scanning for Dependabot, and secret detection, off on a tier without it. Azure DevOps keeps
+#                       none kit reads
+#   controls            {id, control, target, enforcement, rules, source}, keyed by the id: control its name;
+#                       target the refs it names; enforcement active, evaluate, or disabled; rules its kinds of rule,
+#                       null where the forge shows them only to an admin; source ruleset or protection. The control
+#                       links to its page. GitHub reads its rulesets, its own and its organization's, in one GraphQL
+#                       request, and the default branch's protection; GitLab its protected branches and push rules;
+#                       Azure DevOps the default branch's policies
+#   waivers             {waives, actor, kind, reason, by, until}, keyed by what it waives and the actor: waives a
+#                       control's id, or an alert as <tool> <number>, each linking that row; actor who may bypass,
+#                       null where the forge hides it; kind bypass or dismissal; reason the bypass's mode, or the
+#                       dismissal's reason and comment; by who dismissed it; until when it ends, null for never. The
+#                       reason links to its page. GitHub reads its rulesets' bypass actors and its dismissed alerts;
+#                       GitLab and Azure DevOps keep none kit reads
+#   policy              {rule, pattern, from, engine}, keyed by the rule, as kit policy --rules --json prints them
+#
+# Exits 0 when the stages are drawn, 1 when a stage could not be read, after what was, and 2 on a usage error, or
+# outside a repository's working tree with no workspace.
+#
+# see: modules/bash/apps.sh, modules/bash/apps/audit.sh, modules/jq/apps.jq, docs/apps.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use apps
+workspaces:misplaced audit "$@" || exit $?
+guard:arguments audit "$@" || exit $?
+apps:main audit "$@"
+
+# ----------------------------------------------------------------------------------------------------------------------

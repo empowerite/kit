@@ -54,7 +54,9 @@ forge/gitlab:branch-for-issue() {
 
 forge/gitlab:bypasses() { return 3; }
 
-forge/gitlab:code-scanning-alerts() { return 3; }
+# forge/gitlab:code-scanning-alerts prints one document per SAST vulnerability, open or dismissed, as the seam's
+# header says, read as forge/gitlab:vulnerabilities reads them.
+forge/gitlab:code-scanning-alerts() { forge/gitlab:vulnerabilities 'the code scanning alerts' SAST; }
 
 # forge/gitlab:collaborators prints one document per person or bot with access to the project, as the seam's header
 # says: its members, as forge/gitlab:members reads them, each at the highest access any membership gives them.
@@ -64,7 +66,10 @@ forge/gitlab:collaborators() {
   forge/gitlab:fold 'the members' "${members}" --compact-output 'import "forge" as forge; forge::gitlab_collaborators'
 }
 
-forge/gitlab:dependabot-alerts() { return 3; }
+# forge/gitlab:dependabot-alerts prints one document per dependency scanning vulnerability, open or dismissed, as the
+# seam's header says, read as forge/gitlab:vulnerabilities reads them: GitLab's dependency scanning is Dependabot's
+# kind.
+forge/gitlab:dependabot-alerts() { forge/gitlab:vulnerabilities 'the Dependabot alerts' DEPENDENCY_SCANNING; }
 
 # forge/gitlab:deployments prints one document per deployment, newest first, as the seam's header says: one read of 51,
 # so a 51st says GitLab holds more than the 50 printed, which end with {"limited": 50}.
@@ -197,8 +202,10 @@ forge/gitlab:link-branch() {
 # the issue and the merge request updated last; runs, of the ten newest pipelines; releases, of the newest release;
 # milestones, of the newest by update and the newest issue, as an issue closing moves no milestone's own update;
 # deployments, of the one updated last, as a deployment's status moves its update; environments, of the first 100. An
-# edit to a protected environment moves no environment's update, so it goes unseen. GitLab sends no ETag for these, so
-# each mark is what the answer says of when its items changed, and costs a request each read, seven in all.
+# edit to a protected environment moves no environment's update, so it goes unseen; alerts, of how many vulnerabilities
+# are open and how many dismissed, by severity, in one GraphQL request, so a dismissal moves it, and null where GitLab
+# answers none. GitLab sends no ETag for these, so each mark is what the answer says of when its items changed, and
+# costs a request each read, eight in all.
 forge/gitlab:marks() {
   local issues mrs runs releases milestones deployments environments
   forge/gitlab:ask issues 'the marks' 'issues?order_by=updated_at&sort=desc&per_page=1' || return 1
@@ -211,8 +218,9 @@ forge/gitlab:marks() {
   forge/gitlab:fold 'the marks' '' --null-input --compact-output --argjson issues "${issues}" --argjson mrs "${mrs}" \
     --argjson runs "${runs}" --argjson releases "${releases}" --argjson milestones "${milestones}" \
     --argjson deployments "${deployments}" --argjson environments "${environments}" \
-    'import "forge" as forge;
-     forge::gitlab_marks($issues; $mrs; $runs; $releases; $milestones; $deployments; $environments)'
+    --argjson alerts "$(forge/gitlab:alerts-mark)" 'import "forge" as forge;
+     forge::gitlab_marks($issues; $mrs; $runs; $releases; $milestones; $deployments; $environments)
+     + {alerts: $alerts}'
 }
 
 forge/gitlab:me() {
@@ -506,7 +514,29 @@ forge/gitlab:require() {
   forge/gitlab:me >/dev/null
 }
 
-forge/gitlab:rulesets() { return 3; }
+# forge/gitlab:rulesets prints one document per control on the default branch, as the seam's header says: every page
+# of the protected branches, those whose name or wildcard names the default branch, then the project's push rules,
+# which GitLab answers null where none is set, and refuses, 403 or 404, on a tier without them: either is none.
+forge/gitlab:rulesets() {
+  local list push said branch url
+  use git
+  url=$(forge/gitlab:repo-url) || return 1
+  branch=$(git:default-branch) || return 1
+  forge/gitlab:pages list 'the protected branches' 'protected_branches?per_page=100' || return 1
+  file:temp said glab || return 1
+  if push=$(forge/gitlab:api push_rule 2>"${said}") && forge:json "${push}"
+  then
+    :
+  elif grep --quiet --extended-regexp '(^|[^0-9])40[34]([^0-9]|$)' "${said}"
+  then
+    push=null
+  else
+    error "run: glab auth status (the push rules could not be read)"
+    return 1
+  fi
+  forge/gitlab:fold 'the protected branches' "${list}" --compact-output --arg branch "${branch}" \
+    --argjson push "${push}" --arg url "${url}" 'import "forge" as forge; forge::gitlab_controls($branch; $push; $url)'
+}
 
 # forge/gitlab:runs prints the builds stage's runs as one JSON array, as the seam's header says: the 50 newest
 # pipelines, those forge.jq's builds keeps. A pipeline's jobs would cost a call each, so every run carries none.
@@ -519,7 +549,9 @@ forge/gitlab:runs() {
     --argjson tags "${tags}" 'import "forge" as forge; forge::gitlab_builds($now; $default; $tags)'
 }
 
-forge/gitlab:secret-scanning-alerts() { return 3; }
+# forge/gitlab:secret-scanning-alerts prints one document per secret detection vulnerability, open or dismissed, as
+# the seam's header says, read as forge/gitlab:vulnerabilities reads them.
+forge/gitlab:secret-scanning-alerts() { forge/gitlab:vulnerabilities 'the secret scanning alerts' SECRET_DETECTION; }
 
 # forge/gitlab:teams prints one document per group the project is shared with, GitLab's teams, in GitLab's order, as
 # the seam's header says: the project, one REST request, which names them and the access each share gives, then one
@@ -554,12 +586,12 @@ forge/gitlab:teams() {
     --arg host "https://${host}" 'import "forge" as forge; forge::gitlab_teams($members; $host; 20)'
 }
 
-# The provider implements contract 4. A feature whose call it has not written is in lacks, which the task that writes
-# the call drops it from.
+# The provider implements contract 4. Its forge keeps no attestations kit can read, and no waivers: a dismissed
+# vulnerability is among the alerts.
 forge/gitlab:contract() { printf '4\n'; }
 
 forge/gitlab:lacks() {
-  printf '%s\n' attestations code-scanning dependabot secret-scanning rulesets bypasses
+  printf '%s\n' attestations bypasses
 }
 
 # The seam's calls end here; what follows is this provider's own.
@@ -654,6 +686,71 @@ forge/gitlab:members() {
       <<<"${members_page}")")
   done
   printf -v "${members_into}" '%s' "${members_nodes}"
+}
+
+# forge/gitlab:vulnerabilities <what> <type> prints one document per vulnerability of the scanner <type> in the
+# project's vulnerability report, open or dismissed, as the seam's header says of the alerts: one GraphQL query, 100
+# a page, following each page's cursor to the end. A tier without the report answers it null, and one that refuses
+# it, 403 or 404: either is the feature off for this project, and it returns 3, printing nothing. GitLab leaves out a
+# vulnerability the caller may not see, so a caller without the security dashboard sees none.
+forge/gitlab:vulnerabilities() {
+  local what=$1 type=$2 project query page said nodes='[]' more=true off
+  local -a after=()
+  project=$(forge/gitlab:project) || return 1
+  query='query($path: ID!, $type: [VulnerabilityReportType!], $after: String) {
+    project(fullPath: $path) {
+      vulnerabilities(reportType: $type, state: [DETECTED, CONFIRMED, DISMISSED], first: 100, after: $after) {
+        pageInfo { hasNextPage endCursor }
+        nodes {
+          id title severity state detectedAt webUrl primaryIdentifier { name }
+          location {
+            ... on VulnerabilityLocationSast { file }
+            ... on VulnerabilityLocationDependencyScanning { file }
+            ... on VulnerabilityLocationSecretDetection { file }
+          }
+        }
+      }
+    }
+  }'
+  file:temp said glab || return 1
+  while [[ "${more}" == true ]]
+  do
+    if ! page=$(forge/gitlab:api /graphql --raw-field path="${project}" --raw-field type="${type}" "${after[@]}" \
+      --raw-field query="${query}" 2>"${said}")
+    then
+      grep --quiet --extended-regexp '(^|[^0-9])40[34]([^0-9]|$)' "${said}" && return 3
+      error "run: glab auth status (${what} could not be read)"
+      return 1
+    fi
+    off=$(forge/gitlab:fold "${what}" "${page}" --raw-output \
+      'if (.data.project | type) != "object" then error else .data.project.vulnerabilities == null end') || return 1
+    [[ "${off}" == false ]] || return 3
+    nodes=$(forge/gitlab:fold "${what}" "${nodes}"$'\n'"${page}" --slurp --compact-output \
+      '.[0] + (.[1].data.project.vulnerabilities.nodes | arrays // error)') || return 1
+    forge:whole "${what}" "$(jq length <<<"${nodes}")" || return 1
+    more=$(jq --raw-output '.data.project.vulnerabilities.pageInfo.hasNextPage == true' <<<"${page}")
+    after=(--raw-field after="$(jq --raw-output '.data.project.vulnerabilities.pageInfo.endCursor // ""' <<<"${page}")")
+  done
+  forge/gitlab:fold "${what}" "${nodes}" --compact-output --argjson now "$(date +%s)" \
+    'import "forge" as forge; forge::gitlab_vulnerabilities($now)'
+}
+
+# forge/gitlab:alerts-mark prints, as one JSON text, how many of the project's vulnerabilities are open and how many
+# dismissed, by severity, one GraphQL request, or null where GitLab answers none, as a tier without the report does,
+# or refuses the request: the mark is then unknown, and no failure.
+forge/gitlab:alerts-mark() {
+  local project answer query counts='critical high medium low info unknown'
+  project=$(forge/gitlab:project 2>/dev/null) || { printf 'null\n'; return 0; }
+  query="query(\$path: ID!) {
+    project(fullPath: \$path) {
+      open: vulnerabilitySeveritiesCount(state: [DETECTED, CONFIRMED]) { ${counts} }
+      dismissed: vulnerabilitySeveritiesCount(state: [DISMISSED]) { ${counts} }
+    }
+  }"
+  answer=$(forge/gitlab:api /graphql --raw-field path="${project}" --raw-field query="${query}" 2>/dev/null) \
+    || answer=null
+  jq --compact-output 'if (.data.project.open? | type) == "object" then .data.project | tojson else null end' \
+    <<<"${answer}" 2>/dev/null || printf 'null\n'
 }
 
 # forge/gitlab:pages <name> <what> <path> reads every page of the list at <path>, as glab api --paginate asks for

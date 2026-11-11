@@ -87,7 +87,7 @@ forge/ado:contract() { printf '4\n'; }
 
 forge/ado:lacks() {
   printf '%s\n' quota marks releases linked-branches milestones bots attestations code-scanning dependabot \
-    secret-scanning rulesets bypasses
+    secret-scanning bypasses
 }
 
 forge/ado:bypasses() { return 3; }
@@ -477,7 +477,22 @@ forge/ado:require() {
   forge/ado:me >/dev/null
 }
 
-forge/ado:rulesets() { return 3; }
+# forge/ado:rulesets prints one document per branch policy on the default branch, as the seam's header says: a read of
+# the repository, for its id, which az repos policy list takes to filter by a branch, then a read of the policies of
+# the default branch, those the project sets for every repository among them.
+forge/ado:rulesets() {
+  local org project repo answer id branch policies url
+  use git
+  IFS=$'\t' read -r org project repo < <(forge/ado:place) || return 1
+  branch=$(git:default-branch) || return 1
+  forge/ado:ask answer 'the repository' repos show --repository "${repo}" --project "${project}" || return 1
+  id=$(forge/ado:fold 'the repository' "${answer}" --raw-output '.id | strings') || return 1
+  forge/ado:ask policies 'the branch policies' repos policy list --branch "${branch}" --repository-id "${id}" \
+    --project "${project}" || return 1
+  url="${org}/$(forge/ado:encode "${project}")/_settings/repositories?repo=${id}&_a=policiesMid"
+  forge/ado:fold 'the branch policies' "${policies}" --compact-output --arg url "${url}&refs=refs/heads/${branch}" \
+    'import "forge" as forge; if type == "array" then forge::ado_controls($url) else error end'
+}
 
 # forge/ado:runs prints the builds stage's runs as one JSON array, as the seam's header says: the 50 newest runs of
 # the project's pipelines, those forge.jq's builds keeps. A run's jobs would cost a call each, so every run carries

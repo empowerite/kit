@@ -927,3 +927,196 @@ def ado_collaborators($members; $limit):
   | $rows[],
     (if length > $limit or any($teams[]; ($members[.id] // []) | length > 100) then {limited: ($rows | length)}
      else empty end);
+
+# github_attestations($subject; $digest; $made; $now; $url) reads the pages of GitHub's attestations of one digest,
+# each an object, and gives one document per attestation of a kind: {subject, digest, kind, signer, age, url}. kind is
+# the in-toto statement's predicateType, read from the bundle's envelope, and null where GitHub keeps the bundle apart,
+# compressed, behind bundle_url, which kit does not read; signer the workflow its SLSA provenance names,
+# <owner>/<repo>/<path>@<ref>, else github for one GitHub made itself, as an immutable release's, else null; age from
+# the transparency log's entry, else from $made, when the subject was made; url the repository's attestations page.
+# Two of one kind are one.
+def github_attestations($subject; $digest; $made; $now; $url):
+  [ .[].attestations[]? | select(. != null) | . as $a
+    | (try ($a.bundle.dsseEnvelope.payload | @base64d | fromjson) catch null) as $statement
+    | ($statement.predicate.buildDefinition.externalParameters.workflow? // null) as $workflow
+    | ($a.bundle.verificationMaterial.tlogEntries[0].integratedTime? // null) as $logged
+    | { subject: $subject, digest: $digest, kind: ($statement.predicateType? // null),
+        signer: (if ($workflow | type) == "object" and $workflow.path != null
+                 then "\($workflow.repository // "" | sub("^https?://[^/]+/"; ""))/\($workflow.path)@\($workflow.ref)"
+                 elif $a.initiator == "github" then "github" else null end),
+        age: (if $logged != null then $now - ($logged | tonumber) else ($made | since($now)) end),
+        url: $url } ]
+  | unique_by(.kind)[];
+
+# severity reads a forge's severity, in any case, and gives it in lower case, or null for none.
+def severity: if . == null then null else ascii_downcase end;
+
+# github_code_scanning($now) reads the pages of GitHub's code scanning alerts, each an array, and gives one document
+# per alert: {number, rule, severity, state, path, age, url}, rule the rule's id, severity its security severity where
+# it has one, else the rule's own, path where it was last found, and age seconds since it was made.
+def github_code_scanning($now):
+  .[][]? | select(. != null)
+  | { number, rule: (.rule.id? // .rule.name? // null),
+      severity: ((.rule.security_severity_level? // .rule.severity?) | severity), state,
+      path: (.most_recent_instance.location.path? // null), age: (.created_at | since($now)), url: .html_url };
+
+# github_dependabot($now) reads the pages of GitHub's Dependabot alerts and gives one document per alert, as
+# github_code_scanning does: rule the advisory's GHSA id, severity the vulnerability's, path the manifest's.
+def github_dependabot($now):
+  .[][]? | select(. != null)
+  | { number, rule: (.security_advisory.ghsa_id? // null),
+      severity: ((.security_vulnerability.severity? // .security_advisory.severity?) | severity), state,
+      path: (.dependency.manifest_path? // null), age: (.created_at | since($now)), url: .html_url };
+
+# github_secret_scanning($now) reads the pages of GitHub's secret scanning alerts and gives one document per alert, as
+# github_code_scanning does: rule the secret's type, severity null, as GitHub gives none, a resolved alert dismissed,
+# and path where the secret was first found.
+def github_secret_scanning($now):
+  .[][]? | select(. != null)
+  | { number, rule: (.secret_type // null), severity: null,
+      state: (if .state == "resolved" then "dismissed" else .state end),
+      path: (.first_location_detected.path? // null), age: (.created_at | since($now)), url: .html_url };
+
+# github_dismissals($feature) reads the pages of a GitHub scanner's dismissed alerts and gives one waiver per alert:
+# {waives, actor, kind, reason, by, until, url}, waives "<feature> <number>", kind dismissal, reason the dismissal's
+# reason and its comment, by who dismissed it; a secret's resolution and its comment are its reason.
+def github_dismissals($feature):
+  .[][]? | select(. != null)
+  | { waives: "\($feature) \(.number)", actor: null, kind: "dismissal",
+      reason: ([(.dismissed_reason // .resolution), (.dismissed_comment // .resolution_comment)]
+               | map(select(. != null and . != "")) | if length == 0 then null else join(": ") end),
+      by: ((.dismissed_by // .resolved_by).login? // null), until: null, url: .html_url };
+
+# fnmatch($s) reads a ruleset's pattern and says whether it names the ref $s, as fnmatch does: * any characters but /,
+# ** any characters, ? any one but /; every other character is itself.
+def fnmatch($s):
+  (gsub("(?<c>[.+^$(){}|\\[\\]\\\\])"; "\\\(.c)") | gsub("\\*\\*"; "\u0001") | gsub("\\*"; "[^/]*")
+   | gsub("\\?"; "[^/]") | gsub("\u0001"; ".*")) as $re
+  | $s | test("^" + $re + "$");
+
+# github_guards($branch) reads a ruleset, as GitHub's GraphQL gives one, and says whether it guards the branch: an
+# include that names it, ~ALL or ~DEFAULT_BRANCH or a pattern, and no exclude that does; a ruleset of no ref names
+# guards every branch.
+def github_guards($branch):
+  def names: . == "~ALL" or . == "~DEFAULT_BRANCH" or fnmatch("refs/heads/\($branch)");
+  (.conditions.refName? // null) as $ref
+  | $ref == null or (any(($ref.include // [])[]; names) and (any(($ref.exclude // [])[]; names) | not));
+
+# github_whole reads the answer to forge/github:rulesets's GraphQL query and says whether it holds every ruleset, and
+# every rule and bypass actor of each.
+def github_whole:
+  .data.repository.rulesets as $sets
+  | ($sets.totalCount // 0) <= ($sets.nodes // [] | length)
+    and all(($sets.nodes // [])[] | select(. != null);
+            (.rules.totalCount // 0) <= (.rules.nodes // [] | length)
+            and (.bypassActors.totalCount // 0) <= (.bypassActors.nodes // [] | length));
+
+# github_protection_rules reads GitHub's protection of a branch and gives the kinds of rule it holds, sorted, named as
+# a ruleset names its own: deletion, non_fast_forward, pull_request, required_status_checks, and the rest.
+def github_protection_rules:
+  [ (select(.allow_deletions.enabled? == false) | "deletion"),
+    (select(.allow_force_pushes.enabled? == false) | "non_fast_forward"),
+    (select(.required_pull_request_reviews != null) | "pull_request"),
+    (select(.required_status_checks != null) | "required_status_checks"),
+    (select(.required_linear_history.enabled? == true) | "required_linear_history"),
+    (select(.required_signatures.enabled? == true) | "required_signatures"),
+    (select(.required_conversation_resolution.enabled? == true) | "required_conversation_resolution"),
+    (select(.block_creations.enabled? == true) | "creation"),
+    (select(.lock_branch.enabled? == true) | "lock_branch"),
+    (select(.restrictions != null) | "restrictions"),
+    (select(.enforce_admins.enabled? == true) | "enforce_admins") ]
+  | sort;
+
+# github_rulesets($protection) reads the answer to forge/github:rulesets's GraphQL query and gives one document per
+# control on the default branch: {id, control, target, enforcement, rules, source, url}, each ruleset that guards it,
+# in GitHub's order, its include patterns its target, and its rules' types, sorted; then the branch's own protection,
+# $protection, {rules}, its rules null where GitHub shows them only to an admin, or nothing where it has none.
+def github_rulesets($protection):
+  .data.repository as $repo
+  | ($repo.defaultBranchRef.name? // null) as $branch
+  | select($branch != null)
+  | ( ($repo.rulesets.nodes // [])[] | select(. != null and github_guards($branch))
+      | { id: .databaseId, control: .name, target: (.conditions.refName.include? // ["~ALL"]),
+          enforcement: (.enforcement // "" | ascii_downcase),
+          rules: ([.rules.nodes[]? | .type | ascii_downcase] | sort),
+          source: "ruleset", url: "\($repo.url)/rules/\(.databaseId)" } ),
+    ( $protection | select(. != null)
+      | { id: "protection", control: $branch, target: [$branch], enforcement: "active", rules,
+          source: "protection", url: "\($repo.url)/settings/branches" } );
+
+# github_bypass_actor reads a ruleset's bypass actor and names it: a team by its slug, a user by the login, an app by
+# its slug, else what it stands for, organization admins, a role, deploy keys, or enterprise owners; null where GitHub
+# hides it from who may not edit the ruleset.
+def github_bypass_actor:
+  if . == null then null
+  elif .actor != null then (.actor.slug // .actor.login // null)
+  elif .organizationAdmin == true then "organization admins"
+  elif .repositoryRoleName != null then "\(.repositoryRoleName) role"
+  elif .deployKey == true then "deploy keys"
+  elif .enterpriseOwner == true then "enterprise owners"
+  else null end;
+
+# github_bypasses($protection) reads the answer to forge/github:rulesets's GraphQL query and gives one waiver per
+# bypass actor of each ruleset that guards the default branch: {waives, actor, kind, reason, by, until, url}, waives
+# the ruleset's id, kind bypass, reason its bypass mode, always, pull_request, or exempt; then one per login, team, or
+# app the branch's own protection, $protection, lets bypass its pull request rule, waives protection.
+def github_bypasses($protection):
+  .data.repository as $repo
+  | ($repo.defaultBranchRef.name? // null) as $branch
+  | select($branch != null)
+  | ( ($repo.rulesets.nodes // [])[] | select(. != null and github_guards($branch)) | . as $set
+      | .bypassActors.nodes[]?
+      | { waives: $set.databaseId, actor: github_bypass_actor, kind: "bypass",
+          reason: (if . == null or .bypassMode == null then null else .bypassMode | ascii_downcase end),
+          by: null, until: null, url: "\($repo.url)/rules/\($set.databaseId)" } ),
+    ( $protection | select(. != null) | .required_pull_request_reviews.bypass_pull_request_allowances? // {}
+      | (.users[]?.login, .teams[]?.slug, .apps[]?.slug) | select(. != null)
+      | { waives: "protection", actor: ., kind: "bypass", reason: "pull_request", by: null, until: null,
+          url: "\($repo.url)/settings/branches" } );
+
+# gitlab_vulnerabilities($now) reads the nodes of GitLab's vulnerability report and gives one document per
+# vulnerability: {number, rule, severity, state, path, age, url}, number its id, rule its primary identifier's name, or
+# its title, state open for one detected or confirmed and dismissed for one dismissed, path the file it was found in,
+# age seconds since it was detected.
+def gitlab_vulnerabilities($now):
+  .[] | select(. != null)
+  | { number: (.id | tostring | sub("^.*/"; "") | tonumber),
+      rule: (.primaryIdentifier.name? // .title // null), severity: (.severity | severity),
+      state: (if .state == "DISMISSED" then "dismissed" else "open" end), path: (.location.file? // null),
+      age: (.detectedAt | since($now)), url: (.webUrl // null) };
+
+# gitlab_controls($branch; $push; $url) reads GitLab's protected branches and gives one document per control on the
+# branch $branch: each protected branch whose name, or wildcard, * any characters, names it, {id, control, target,
+# enforcement, rules, source, url}, its rules who may push and who may merge, non_fast_forward where force pushes are
+# not allowed, and code_owner_review where code owners approve; then the project's push rules, $push, or nothing for
+# none, its rules those set, source ruleset; each page the project's repository settings under $url.
+def gitlab_controls($branch; $push; $url):
+  def levels: [.[]?.access_level_description // empty] | join(", ");
+  def names: "^" + (gsub("(?<c>[.+^$(){}|?\\[\\]\\\\])"; "\\\(.c)") | gsub("\\*"; ".*")) + "$";
+  ( .[] | select(.name as $name | $branch | test($name | names))
+    | { id, control: .name, target: [.name], enforcement: "active",
+        rules: ([ (if (.push_access_levels // []) == [] then empty else "push: \(.push_access_levels | levels)" end),
+                  (if (.merge_access_levels // []) == [] then empty else "merge: \(.merge_access_levels | levels)" end),
+                  (select(.allow_force_push != true) | "non_fast_forward"),
+                  (select(.code_owner_approval_required == true) | "code_owner_review") ] | sort),
+        source: "protection", url: "\($url)/-/settings/repository" } ),
+  ( $push | objects
+    | { id: "push_rule", control: "push rules", target: ["*"], enforcement: "active",
+        rules: ([to_entries[] | select(.key | IN("id", "project_id", "created_at") | not)
+                 | select(.value != null and .value != false and .value != "" and .value != 0) | .key] | sort),
+        source: "ruleset", url: "\($url)/-/settings/repository" } );
+
+# ado_controls($url) reads az repos policy list's answer for the default branch and gives one document per policy:
+# {id, control, target, enforcement, rules, source, url}, control the policy's type, target each scope's ref, a
+# prefix's with * after it, enforcement active for a blocking policy, evaluate for an optional one, and disabled for
+# one turned off, rules its settings that are set, key=value, and url the branch's policies, $url.
+def ado_controls($url):
+  .[] | select(. != null and .isDeleted != true)
+  | { id, control: (.type.displayName? // null),
+      target: [(.settings.scope // [])[]? | if .refName == null then "*"
+               elif .matchKind == "Prefix" then .refName + "*" else .refName end],
+      enforcement: (if .isEnabled != true then "disabled" elif .isBlocking == true then "active" else "evaluate" end),
+      rules: ([(.settings // {}) | to_entries[] | select(.key != "scope")
+               | select((.value | type) as $t | $t == "number" or $t == "string" or $t == "boolean")
+               | select(.value != false and .value != "" and .value != 0) | "\(.key)=\(.value)"] | sort),
+      source: "protection", url: $url };

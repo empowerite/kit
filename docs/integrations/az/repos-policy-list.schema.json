@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "az repos policy list --branch ${branch} --repository-id ${id} --project ${project} --output json",
+  "description": "The policies of the default branch, which kit reads in `modules/bash/forge/ado.sh` (forge/ado:rulesets) and folds in `modules/jq/forge.jq` (forge::ado_controls); --branch matches the branch exactly and needs --repository-id, as https://learn.microsoft.com/cli/azure/repos/policy#az-repos-policy-list says. The types are the PolicyConfiguration of the Azure DevOps REST reference, https://learn.microsoft.com/rest/api/azure/devops/policy/configurations/list: isBlocking false is an optional policy, and settings.scope each one's refName, matchKind Exact or Prefix, and repositoryId, null for every repository.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "integer"
+      },
+      "isEnabled": {
+        "type": "boolean"
+      },
+      "isBlocking": {
+        "type": "boolean"
+      },
+      "isDeleted": {
+        "type": "boolean"
+      },
+      "type": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "settings": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "refName": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "matchKind": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "repositoryId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "additionalProperties": true
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "additionalProperties": true,
+    "required": [
+      "id",
+      "isEnabled",
+      "isBlocking",
+      "type"
+    ]
+  },
+  "examples": [
+    [
+      {
+        "id": 21,
+        "isEnabled": true,
+        "isBlocking": true,
+        "isDeleted": false,
+        "type": {
+          "id": "fa4e907d-c16b-4a4c-9dfa-4906e5d171dd",
+          "displayName": "Minimum number of reviewers"
+        },
+        "settings": {
+          "minimumApproverCount": 2,
+          "scope": [
+            {
+              "refName": "refs/heads/main",
+              "matchKind": "Exact",
+              "repositoryId": "e556f204-53c9-4153-9cd9-ef41a11e3345"
+            }
+          ]
+        }
+      }
+    ]
+  ]
+}

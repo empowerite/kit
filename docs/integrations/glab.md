@@ -47,6 +47,9 @@ and GraphQL fields exist, and features of the paid tiers are absent from Communi
 | Who has access | `glab api 'projects/:id/members/all?per_page=100'` (raw API) lists them, those inherited and invited among them, but its member entity says nothing of a bot; kit reads `glab api graphql` on `project(fullPath: $path) { projectMembers(first: 100, after: $after, relations: [DIRECT, INHERITED, INVITED_GROUPS, SHARED_INTO_ANCESTORS]) { pageInfo { hasNextPage endCursor } nodes { accessLevel { integerValue } user { username name bot lastActivityOn webUrl } } } }`, every page, each user at the highest level of their memberships: 10 guest, 15 planner, 20 reporter, 25 security manager, 30 developer, 40 maintainer, 50 owner; `kit people people` draws them |
 | Teams with access | `glab api "projects/${project}"`'s `shared_with_groups` (raw API), each group's `group_full_path`, `group_name`, and `group_access_level`, the first 20; then one `glab api graphql` on `g0: group(fullPath: $g0) { webUrl groupMembers(first: 100) { pageInfo { hasNextPage } nodes { user { username } } } } …`, an alias a group, its members and those inherited from its parents; a group the caller cannot see is null; past 20 groups, or 100 members of one, kit says `limited`; `kit people teams` draws them |
 | Bots | the members above with `bot` true, as a project's or a group's access token makes, and the day each last acted, `lastActivityOn`; GitLab says nothing of what a bot did; `kit people agents` draws them |
+| Security alerts | GitLab's REST `vulnerability_findings` is in the process of being deprecated, holds one pipeline's findings, and has no secret detection; kit reads the vulnerability report instead, `glab api graphql` on `project(fullPath: $path) { vulnerabilities(reportType: $type, state: [DETECTED, CONFIRMED, DISMISSED], first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { id title severity state detectedAt webUrl primaryIdentifier { name } location { … on VulnerabilityLocationSast { file } … } } } }` (raw API), every page, `SAST` for code scanning, `DEPENDENCY_SCANNING` for Dependabot's kind, and `SECRET_DETECTION`, introspected on gitlab.com; a tier without the report answers it null, or refuses it, 403 or 404, which is off; a caller who may not see a vulnerability gets none of it, checked anonymously, so the report may read empty; `kit audit findings` draws them |
+| Whether alerts changed | `glab api graphql` on `open: vulnerabilitySeveritiesCount(state: [DETECTED, CONFIRMED]) { … } dismissed: vulnerabilitySeveritiesCount(state: [DISMISSED]) { … }`, a request, null where GitLab answers none |
+| Protected branches and push rules | `glab api --paginate 'projects/:id/protected_branches?per_page=100'` (raw API), those whose `name`, or its wildcard, names the default branch, with `push_access_levels`, `merge_access_levels`, `allow_force_push`, and `code_owner_approval_required`; and `glab api 'projects/:id/push_rule'`, `null` where none was set, Premium's, refused below it; `kit audit controls` draws them |
 
 ### Write to GitLab merge requests
 
@@ -242,6 +245,8 @@ with an example the gate validates against it.
 | [api-graphql-group-members.schema.json](glab/api-graphql-group-members.schema.json) | `glab api graphql --raw-field g0=${group}… --raw-field query=${query}` |
 | [api-graphql-members.schema.json](glab/api-graphql-members.schema.json) | `glab api graphql --raw-field path=${project} [--raw-field after=${cursor}] --raw-field query=${query}` |
 | [api-graphql-milestones.schema.json](glab/api-graphql-milestones.schema.json) | `glab api graphql --field path=${project} [--field after=${cursor}] --raw-field query=${query}` |
+| [api-graphql-vulnerabilities.schema.json](glab/api-graphql-vulnerabilities.schema.json) | `glab api graphql --raw-field path=${project} --raw-field type=${type} [--raw-field after=${cursor}] --raw-field query=${query}` |
+| [api-graphql-vulnerability-counts.schema.json](glab/api-graphql-vulnerability-counts.schema.json) | `glab api graphql --raw-field path=${project} --raw-field query=${query}` |
 | [api-issue.schema.json](glab/api-issue.schema.json) | `glab api projects/${project}/issues/${n}` |
 | [api-issues.schema.json](glab/api-issues.schema.json) | `glab api projects/${project}/issues?${query} [--paginate]` |
 | [api-jobs.schema.json](glab/api-jobs.schema.json) | `glab api projects/${project}/jobs?scope[]=success&per_page=100` |
@@ -255,6 +260,8 @@ with an example the gate validates against it.
 | [api-pipeline-jobs.schema.json](glab/api-pipeline-jobs.schema.json) | `glab api projects/${home}/pipelines/${pipeline}/jobs?per_page=100 --paginate` |
 | [api-pipelines.schema.json](glab/api-pipelines.schema.json) | `glab api projects/${project}/pipelines?per_page=${n}` |
 | [api-project.schema.json](glab/api-project.schema.json) | `glab api projects/${project}` |
+| [api-protected-branches.schema.json](glab/api-protected-branches.schema.json) | `glab api projects/${project}/protected_branches?per_page=100 --paginate` |
 | [api-protected-environments.schema.json](glab/api-protected-environments.schema.json) | `glab api projects/${project}/protected_environments?per_page=100 --paginate` |
+| [api-push-rule.schema.json](glab/api-push-rule.schema.json) | `glab api projects/${project}/push_rule` |
 | [api-releases.schema.json](glab/api-releases.schema.json) | `glab api projects/${project}/releases?per_page=${n} [--paginate]` |
 | [api-user.schema.json](glab/api-user.schema.json) | `glab api user` |

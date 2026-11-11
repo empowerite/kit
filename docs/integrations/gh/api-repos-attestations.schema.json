@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh api --paginate --slurp repos/{owner}/{repo}/attestations/${digest}?per_page=100",
+  "description": "The attestations of one subject digest, sha256:…, which kit asks for in `modules/bash/forge/github.sh` (forge/github:attestations) and folds in `modules/jq/forge.jq` (forge::github_attestations). gh api --paginate --slurp prints one array of the pages, each an object. A digest GitHub holds no attestation of answers 404, checked live. GitHub's reference names repository_id, bundle_url, and initiator alone; the answer may also hold the Sigstore bundle, whose dsseEnvelope.payload is the in-toto statement in base64, with its predicateType and, for SLSA provenance, buildDefinition.externalParameters.workflow; checked live, a release asset's bundle on empowerite/kit was there, and cli/cli's were null, kept apart behind bundle_url, compressed with snappy, which kit does not read. The types follow https://docs.github.com/rest/repos/attestations#list-attestations and what GitHub answered.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "attestations": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "repository_id": {
+              "type": "integer"
+            },
+            "initiator": {
+              "type": "string"
+            },
+            "bundle_url": {
+              "type": "string"
+            },
+            "bundle": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "dsseEnvelope": {
+                  "type": "object",
+                  "properties": {
+                    "payload": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": true
+                },
+                "verificationMaterial": {
+                  "type": "object",
+                  "properties": {
+                    "tlogEntries": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "integratedTime": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": true
+                      }
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "additionalProperties": true
+        }
+      }
+    },
+    "additionalProperties": true,
+    "required": [
+      "attestations"
+    ]
+  },
+  "examples": [
+    [
+      {
+        "attestations": [
+          {
+            "repository_id": 1,
+            "initiator": "user",
+            "bundle": {
+              "dsseEnvelope": {
+                "payload": "e30="
+              },
+              "verificationMaterial": {
+                "tlogEntries": [
+                  {
+                    "integratedTime": "1790845200"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ],
+    [
+      {
+        "attestations": [
+          {
+            "repository_id": 1,
+            "initiator": "github",
+            "bundle": null,
+            "bundle_url": "https://example.blob.core.windows.net/a.json.sn"
+          }
+        ]
+      }
+    ]
+  ]
+}

@@ -194,6 +194,54 @@ refuse with 2, naming `kit flow releases --json` or `kit flow builds --json`.
 - No stage has a mark: the forge's marks are read for every app at once, and a mark of who has access would cost each
   a request more, one a caller who may not push is refused. Each is read again on Refresh and Watch.
 
+## Trust: kit audit
+
+`kit audit` prints what the repository can be trusted for: what the forge attests and finds, what guards the default
+branch and who may get past it, and the rules kit's policy judges by. Every tab of Trust is its own. Its verb is not
+`kit trust`, which trusts a clone.
+
+| Stage | A row per | Fields | Mark |
+| --- | --- | --- | --- |
+| `evidence` | attestation of the newest releases' assets and artifacts | `subject, digest, kind, signer, age` | the forge's runs and releases |
+| `findings` | code scanning, Dependabot, or secret scanning alert, open or dismissed | `tool, number, rule, severity, state, path, age` | the forge's runs and alerts |
+| `controls` | ruleset or protection that guards the default branch | `id, control, target, enforcement, rules, source` | none |
+| `waivers` | bypass of a control, and alert dismissed | `waives, actor, kind, reason, by, until` | none |
+| `policy` | rule `kit policy` judges by | `rule, pattern, from, engine` | a hash of `kit.yml` and `.kit/policy/` |
+
+- `evidence` keys each row by its digest and its kind, and the subject links to the repository's attestations.
+  GitHub reads the 5 newest releases' assets and the 20 newest artifacts, each digest once, 50 at most, and asks for
+  each digest's attestations, a request each; past those, the document is `limited`. `kind` is the in-toto
+  statement's predicate type, as `https://slsa.dev/provenance/v1`, and `signer` the workflow its provenance names,
+  `<owner>/<repo>/<path>@<ref>`, or `github` for one GitHub made itself, as an immutable release's. GitHub may keep a
+  bundle apart, compressed, which kit does not read: its kind is `null`. GitLab and Azure DevOps keep none kit reads.
+- `findings` merges three reads, one per scanner, and keys each row by its `tool`, `code-scanning`, `dependabot`, or
+  `secret-scanning`, and its number; the rule links to the alert's page. `rule` is what found it: a rule's id, an
+  advisory's GHSA id, or a secret's type. `state` is `open` or `dismissed`, a secret resolved as a false positive,
+  as won't fix, or as used in tests being dismissed. A scanner the forge has off for the repository, as secret
+  scanning disabled, is `{feature, off: true}` under `errors`, and the tab says it is off here; one that refuses the
+  caller is `{feature, error}`, its line, and the others still draw, the stage exiting 1. GitHub's line names
+  `gh auth refresh --scopes security_events` for a login without the scope, else an admin of the repository. GitLab
+  reads its vulnerability report, SAST for code scanning, dependency scanning for Dependabot's kind, and secret
+  detection; a tier without it has each off. Azure DevOps keeps none kit reads.
+- `controls` keys each row by its id. `target` is the refs it names, `enforcement` `active`, `evaluate`, or
+  `disabled`, and `rules` its kinds of rule, sorted, or `null` where only an admin may see them, as GitHub's branch
+  protection. `source` is `ruleset` or `protection`. GitHub reads its rulesets of branches, its own and its
+  organization's, in one GraphQL request, those whose patterns name the default branch, then the branch's own
+  protection where it has one; GitLab its protected branches that name it, and its push rules; Azure DevOps the
+  default branch's policies, an optional one `evaluate`.
+- `waivers` keys each row by what it waives and the actor. `waives` is a control's id, which links to its row of
+  `controls`, or an alert, `<tool> <number>`, which links to its row of `findings`; the reason links to the waiver's
+  page. A `bypass` names who may bypass, `null` where GitHub hides it from who may not edit the ruleset, and its
+  mode, `always`, `pull_request`, or `exempt`; a `dismissal` names who dismissed it, and the reason with its comment.
+  GitHub reads its rulesets' bypass actors, its protection's pull request allowances, and each scanner's dismissed
+  alerts; a refused scanner fails the stage, which would be partial. GitLab and Azure DevOps keep none kit reads.
+- `policy` is `kit policy --rules --json`, keyed by the rule. On a branch past the default, it is the base's, and the
+  mark holds the base's `kit.yml` and `.kit/policy/` too, which a fetch moves.
+- `evidence` and `findings` move with the forge's runs, as a run makes an attestation and a scan. `evidence` moves
+  with its releases too, and `findings` with its alerts: GitHub's mark of each scanner's alert updated last, which a
+  dismissal and a new advisory move without a run, and GitLab's count of open and dismissed vulnerabilities.
+  `controls` and `waivers` have none, and are read again on Refresh and Watch.
+
 ## Packages: kit packages
 
 `kit packages` keeps its own forms beside the app's, as [packages.md](packages.md) says: alone, with a filter, or

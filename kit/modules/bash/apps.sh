@@ -295,9 +295,9 @@ apps:hash() {
   done | file:digest
 }
 
-# apps:forge-mark <kind>… prints the forge's marks of the kinds, issues, runs, releases, or milestones, apart by a
-# space, or nothing when any is null, the primary has no forge, or the forge serves no marks. It returns 1, after the
-# forge's line, when the marks cannot be read.
+# apps:forge-mark <kind>… prints the forge's marks of the kinds, issues, runs, releases, milestones, deployments,
+# environments, or alerts, apart by a space, or nothing when any is null, the primary has no forge, or the forge
+# serves no marks. It returns 1, after the forge's line, when the marks cannot be read.
 apps:forge-mark() {
   local kind
   if [[ -z "${apps_forge_marks}" ]]

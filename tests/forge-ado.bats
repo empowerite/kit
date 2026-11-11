@@ -111,8 +111,9 @@ JSON
 }
 
 # added is what contract 4 adds that Azure DevOps lacks, as JSON strings: it has iterations, reviewers, the changes
-# merged, artifacts, environments, deployments, who has access, and teams, and no milestone or bot.
-added='"milestones","bots","attestations","code-scanning","dependabot","secret-scanning","rulesets","bypasses"'
+# merged, artifacts, environments, deployments, who has access, teams, and the default branch's policies, and no
+# milestone, bot, attestation, alert, or waiver.
+added='"milestones","bots","attestations","code-scanning","dependabot","secret-scanning","bypasses"'
 
 @test "dev.azure.com, its ssh host, and a host under visualstudio.com are Azure DevOps, and each names the repository" {
   run call provider
@@ -580,6 +581,40 @@ JSON
   [ "$status" -eq 3 ]
   [ -z "$output" ]
   [ -z "$stderr" ]
+}
+
+@test "the provider lists the default branch's policies as its controls, each enforced, optional, or off" {
+  fixture repo.json <<<'{"id": "r-1", "name": "example", "defaultBranch": "refs/heads/main"}'
+  fixture branch-policies.json <<'JSON'
+[{"id": 21, "isEnabled": true, "isBlocking": true, "isDeleted": false,
+  "type": {"id": "fa4e907d-c16b-4a4c-9dfa-4906e5d171dd", "displayName": "Minimum number of reviewers"},
+  "settings": {"minimumApproverCount": 2, "creatorVoteCounts": false,
+               "scope": [{"refName": "refs/heads/main", "matchKind": "Exact", "repositoryId": "r-1"}]}},
+ {"id": 22, "isEnabled": true, "isBlocking": false, "type": {"displayName": "Build"},
+  "settings": {"buildDefinitionId": 5, "displayName": "ci", "queueOnSourceUpdateOnly": true, "validDuration": 0,
+               "scope": [{"refName": "refs/heads/main", "matchKind": "Exact", "repositoryId": "r-1"}]}},
+ {"id": 23, "isEnabled": false, "isBlocking": true, "type": {"displayName": "Comment requirements"},
+  "settings": {"scope": [{"refName": "refs/heads/", "matchKind": "Prefix", "repositoryId": null}]}}]
+JSON
+  az-route 'repos show --repository example --project empowerite --output json' repo.json
+  az-route 'repos policy list --branch main --repository-id r-1 --project empowerite --output json' \
+    branch-policies.json
+  run --separate-stderr call rulesets
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  local url='"url":"https://dev.azure.com/acme/empowerite/_settings/repositories?repo=r-1&_a=policiesMid'
+  url+='&refs=refs/heads/main"}'
+  [ "$output" = '{"id":21,"control":"Minimum number of reviewers","target":["refs/heads/main"],"enforcement":"active",'\
+'"rules":["minimumApproverCount=2"],"source":"protection",'"${url}"$'\n'\
+'{"id":22,"control":"Build","target":["refs/heads/main"],"enforcement":"evaluate",'\
+'"rules":["buildDefinitionId=5","displayName=ci","queueOnSourceUpdateOnly=true"],"source":"protection",'"${url}"$'\n'\
+'{"id":23,"control":"Comment requirements","target":["refs/heads/*"],"enforcement":"disabled","rules":[],'\
+'"source":"protection",'"${url}" ]
+  # Azure DevOps keeps none of the attestations, alerts, or waivers kit reads
+  for c in attestations code-scanning-alerts dependabot-alerts secret-scanning-alerts bypasses
+  do
+    run --separate-stderr call "${c}"
+    [ "$status" -eq 3 ] || { echo "${c}: ${status}"; return 1; }
+  done
 }
 
 @test "on an Azure DevOps forge, #7 and AB#7 are both the forge's own work item, and a record still claims AB#" {

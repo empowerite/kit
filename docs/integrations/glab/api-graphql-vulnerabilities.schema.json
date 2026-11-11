@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "glab api graphql --raw-field path=${project} --raw-field type=${type} [--raw-field after=${cursor}] --raw-field query=${query}",
+  "description": "The project's vulnerability report of one scanner, vulnerabilities(reportType: $type, state: [DETECTED, CONFIRMED, DISMISSED], first: 100, after: $after), SAST, DEPENDENCY_SCANNING, or SECRET_DETECTION, every page, which kit asks for in `modules/bash/forge/gitlab.sh` (forge/gitlab:vulnerabilities) and folds in `modules/jq/forge.jq` (forge::gitlab_vulnerabilities). GitLab's REST vulnerability_findings is in the process of being deprecated, holds a pipeline's findings, and has no secret detection, so kit reads the report instead. A caller who may not see a vulnerability gets none of it, checked anonymously on gitlab.com: the nodes are empty while hasNextPage may be true. The types are the Vulnerability object of GitLab's GraphQL schema, introspected on gitlab.com: state is CONFIRMED, DETECTED, DISMISSED, or RESOLVED; severity INFO, UNKNOWN, LOW, MEDIUM, HIGH, or CRITICAL; location one of VulnerabilityLocationSast, VulnerabilityLocationDependencyScanning, VulnerabilityLocationSecretDetection, each with file, among others.",
+  "type": "object",
+  "properties": {
+    "data": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "vulnerabilities": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "pageInfo": {
+                  "type": "object",
+                  "properties": {
+                    "hasNextPage": {
+                      "type": "boolean"
+                    },
+                    "endCursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "additionalProperties": true
+                },
+                "nodes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "title": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "severity": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "state": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "detectedAt": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "format": "date-time"
+                      },
+                      "webUrl": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "primaryIdentifier": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": true
+                      },
+                      "location": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "properties": {
+                          "file": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "additionalProperties": true
+                      }
+                    },
+                    "additionalProperties": true
+                  }
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "data"
+  ],
+  "additionalProperties": true,
+  "examples": [
+    {
+      "data": {
+        "project": {
+          "vulnerabilities": {
+            "pageInfo": {
+              "hasNextPage": false,
+              "endCursor": null
+            },
+            "nodes": [
+              {
+                "id": "gid://gitlab/Vulnerability/4",
+                "title": "Cross-site scripting",
+                "severity": "HIGH",
+                "state": "DETECTED",
+                "detectedAt": "2026-10-01T09:00:00Z",
+                "webUrl": "https://gitlab.com/g/p/-/security/vulnerabilities/4",
+                "primaryIdentifier": {
+                  "name": "CWE-79"
+                },
+                "location": {
+                  "file": "src/app.js"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "data": {
+        "project": {
+          "vulnerabilities": null
+        }
+      }
+    }
+  ]
+}

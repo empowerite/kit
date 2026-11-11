@@ -52,6 +52,8 @@ older version. `--org` names the collection URL; which Server releases the exten
 | Who has access | `az devops user list --top "${n}" --skip "${m}"` lists the whole organization's users, those added through Azure AD groups left out, with no project to filter them by; kit reads instead the members of the project's teams, as Teams with access does, each once, `admin` for an administrator of any of them; one with access only through a security group no team holds is not among them; `kit people people` draws them |
 | Teams with access | `az devops team list --project "${project}" --top 21`, a 21st saying there are more than the 20 kit reads, then `az devops team list-member --team "${id}" --project "${project}" --top 101` for each, a request a team, a 101st saying there are more than the 100 kit draws: each `identity`'s `uniqueName`, `displayName`, and `isContainer` for a group, and `isTeamAdmin`; a team holds no role of its own on the repository; `kit people teams` draws them |
 | Bots | none: no command lists the bots that acted, so the provider lacks the feature, and `kit people agents` draws none |
+| Branch policies | `az repos show --repository "${repository}" --project "${project}"` for the repository's id, then `az repos policy list --branch "${default}" --repository-id "${id}" --project "${project}"`, `--branch` an exact match that needs `--repository-id`: each policy's `type.displayName`, `isEnabled`, `isBlocking`, false for an optional one, and `settings`, its `scope` the refs it names; `kit audit controls` draws them |
+| Attestations, security alerts, waivers | none kit reads: the provider lacks the features, and `kit audit` draws none of them |
 
 ### Write to Azure DevOps Repos
 
@@ -239,8 +241,10 @@ with an example the gate validates against it.
 | [devops-team-list-member.schema.json](az/devops-team-list-member.schema.json) | `az devops team list-member --team ${team} --project ${project} --top 101 --output json` |
 | [pipelines-runs-artifact-list.schema.json](az/pipelines-runs-artifact-list.schema.json) | `az pipelines runs artifact list --run-id ${id} --project ${project} --output json` |
 | [pipelines-runs-list.schema.json](az/pipelines-runs-list.schema.json) | `az pipelines runs list --project ${project} --top ${top} --query-order QueueTimeDesc --output json` |
+| [repos-policy-list.schema.json](az/repos-policy-list.schema.json) | `az repos policy list --branch ${branch} --repository-id ${id} --project ${project} --output json` |
 | [repos-pr-create.schema.json](az/repos-pr-create.schema.json) | `az repos pr create --draft ${draft} --source-branch ${branch} --target-branch ${base} --title ${title} --project ${project} --repository ${repository} [--work-items ${item}] --output json` |
 | [repos-pr-list.schema.json](az/repos-pr-list.schema.json) | `az repos pr list --project ${project} --repository ${repository} --status ${status} --top ${top} [--skip ${skip}] [--source-branch ${branch}] --output json` |
 | [repos-pr-policy-list.schema.json](az/repos-pr-policy-list.schema.json) | `az repos pr policy list --id ${id} --top ${forge_list_limit} --output json` |
 | [repos-pr-show.schema.json](az/repos-pr-show.schema.json) | `az repos pr show --id ${id} --output json` |
 | [repos-pr-work-item-list.schema.json](az/repos-pr-work-item-list.schema.json) | `az repos pr work-item list --id ${id} --output json` |
+| [repos-show.schema.json](az/repos-show.schema.json) | `az repos show --repository ${repository} --project ${project} --output json` |

@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "glab api projects/${project}/protected_branches?per_page=100 --paginate",
+  "description": "The project's protected branches, which kit reads in `modules/bash/forge/gitlab.sh` (forge/gitlab:rulesets) and folds in `modules/jq/forge.jq` (forge::gitlab_controls), those whose name or wildcard names the default branch. A wildcard is given as it is set, as https://docs.gitlab.com/api/protected_branches/ says. The types are those of its List protected branches.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "integer"
+      },
+      "name": {
+        "type": "string"
+      },
+      "push_access_levels": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "access_level": {
+              "type": "integer"
+            },
+            "access_level_description": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "merge_access_levels": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "access_level": {
+              "type": "integer"
+            },
+            "access_level_description": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "allow_force_push": {
+        "type": "boolean"
+      },
+      "code_owner_approval_required": {
+        "type": "boolean"
+      }
+    },
+    "additionalProperties": true,
+    "required": [
+      "id",
+      "name"
+    ]
+  },
+  "examples": [
+    [
+      {
+        "id": 11,
+        "name": "main",
+        "push_access_levels": [
+          {
+            "access_level": 40,
+            "access_level_description": "Maintainers"
+          }
+        ],
+        "merge_access_levels": [
+          {
+            "access_level": 30,
+            "access_level_description": "Developers + Maintainers"
+          }
+        ],
+        "allow_force_push": false,
+        "code_owner_approval_required": true
+      }
+    ]
+  ]
+}
