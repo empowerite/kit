@@ -12,10 +12,12 @@
 #   - worktrees: the linked worktrees, each one's status, and the remote-tracking refs
 #   - incoming: what every remote has, as git ls-remote lists its branches and tags
 #
-# The forge's marks are its seam's, as modules/bash/forge.sh says. A stage whose mark cannot be read has none, null,
-# which never makes it stale. Where the primary has no forge, the forge's stages have none and nothing is said; where
-# the forge cannot answer, its stages have none, the provider's line is said, and the marks fail, every local stage's
-# mark still printed. A forge that lacks marks gives its stages none, and nothing is said. Reaching a remote asks no one for a password: a remote that would ask has no mark.
+# The forge's marks are its seam's, as modules/bash/forge.sh says, of the issues, the runs, and the releases alone, so
+# kit flow pays for no mark another app draws, and a kind it does not draw cannot fail it. A stage whose mark cannot be
+# read has none, null, which never makes it stale. Where the primary has no forge, the forge's stages have none and
+# nothing is said; where the forge cannot answer a kind, the stages of that kind have none, the provider's line is
+# said, and the marks fail, every other stage's mark still printed. A forge that lacks marks gives its stages none, and
+# nothing is said. Reaching a remote asks no one for a password: a remote that would ask has no mark.
 #
 # see: modules/bash/forge.sh, kit/bin/kit-flow
 
@@ -38,10 +40,10 @@ marks:stages() {
         if forge:none || ! forge:serves marks 2>/dev/null
         then
           forge='{}'
-        elif ! forge=$(forge:marks)
-        then
-          forge='{}'
-          unread=1
+        else
+          forge=$(forge:marks issues runs releases) || unread=1
+          # A kind that could not be read is null in what the forge printed; nothing printed, every kind is.
+          jq --exit-status 'type == "object"' <<<"${forge}" >/dev/null 2>&1 || forge='{}'
         fi
     esac
   done

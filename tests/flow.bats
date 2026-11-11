@@ -672,6 +672,23 @@ fake-tui() {
   [[ "$stderr" == *"could not be read"* ]]
 }
 
+@test "kit flow --marks asks the forge only for the marks its stages draw, so a kind another app reads cannot fail it" {
+  forge-world
+  printf 'HTTP/2.0 200 OK\r\nETag: W/"x"\r\n\r\n[]\n' > "${FAKE_DIR}/mark-200.txt"
+  printf 'HTTP/2.0 404 Not Found\r\n\r\n{"message":"Not Found"}\n' > "${FAKE_DIR}/mark-404.txt"
+  route 'api --include*/environments*' '!1 >mark-404.txt'
+  route 'api --include*/milestones*' '!1 >mark-404.txt'
+  route 'api --include*/deployments*' '!1 >mark-404.txt'
+  route 'api --include*' mark-200.txt
+  run --separate-stderr "${kit_root}/bin/kit" flow --marks
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ -z "$stderr" ]
+  [ "$(jq --compact-output '[.backlog, .underway, .changes, .builds, .releases]' <<<"$output")" \
+    = '["W/\"x\"","W/\"x\"","W/\"x\" W/\"x\"","W/\"x\"","W/\"x\""]' ]
+  # the issues, the runs, and the releases: a request each, and none for what kit flow draws nothing of
+  [ "$(grep --count '^api --include' "${FAKE_DIR}/gh.calls")" -eq 3 ]
+}
+
 @test "the worktrees stage ends with the branches whose upstream is gone, in text and as goneBranches" {
   git push --quiet origin main:gone-soon
   git fetch --quiet origin

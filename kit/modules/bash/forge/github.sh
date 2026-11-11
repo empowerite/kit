@@ -329,43 +329,102 @@ forge/github:link-branch() {
   gh issue develop "$1" --base "$2" >/dev/null
 }
 
-# forge/github:marks [<dir>] reads, for each kind of the repository's data, a mark that changes when it does: issues,
-# of the issue or pull request updated last, as GitHub lists them together; runs, of the ten newest workflow runs;
-# releases, of the newest release; milestones, of the first 100 milestones, the page the read takes first, so an edit
-# to a milestone past the first 100 goes unseen; deployments, of the 50 newest deployments, each of which a new status
-# updates, whoever made it; environments, of the first 100 environments, with their protection; alerts, of the alert
-# each scanner, code scanning, Dependabot, and secret scanning, updated last, in any state, which a new alert, a fix,
-# and a dismissal each update, off for a scanner off here, and refused for one that refuses the caller. A mark is GitHub's
-# ETag for the answer. With <dir>, each ETag is kept there and the next read sends it, so GitHub answers 304 Not
-# Modified while nothing changed, which counts against no rate limit.
+# forge/github:marks <dir> [<kind>…] reads, for each kind named, or each of them without one, a mark that changes when
+# that kind of the repository's data does: issues, of the issue or pull request updated last, as GitHub lists them
+# together; runs, of the ten newest workflow runs; releases, of the newest release; milestones, of the first 100
+# milestones, the page the read takes first, so an edit to a milestone past the first 100 goes unseen; deployments, of
+# the 50 newest deployments, each of which a new status updates, whoever made it; environments, of the first 100
+# environments, with their protection; alerts, of the alert each scanner, code scanning, Dependabot, and secret
+# scanning, updated last, in any state, which a new alert, a fix, and a dismissal each update, off for a scanner off
+# here, and refused for one that refuses the caller. A mark is GitHub's ETag for the answer. With <dir>, not empty,
+# each ETag is kept there and the next read sends it, so GitHub answers 304 Not Modified while nothing changed, which
+# counts against no rate limit; and a scanner off or refused is kept there as so, and asked again only once
+# forge_github_verdict_seconds have passed, as a 403 or 404 keeps no ETag. A kind that cannot be read is null, its
+# line said, and the others are still read; it returns 1 then, after the object.
 # gh names the repository from the checkout's remote, as {owner}/{repo}, which costs no request.
 forge/github:marks() {
-  local dir=${1:-} issues runs releases milestones deployments environments alerts='' kind mark
-  issues=$(forge/github:mark 'repos/{owner}/{repo}/issues?state=all&sort=updated&direction=desc&per_page=1' \
-    "${dir:+${dir}/marks-issues.etag}") || return 1
-  runs=$(forge/github:mark 'repos/{owner}/{repo}/actions/runs?per_page=10' "${dir:+${dir}/marks-runs.etag}") \
-    || return 1
-  releases=$(forge/github:mark 'repos/{owner}/{repo}/releases?per_page=1' "${dir:+${dir}/marks-releases.etag}") \
-    || return 1
-  milestones=$(forge/github:mark 'repos/{owner}/{repo}/milestones?state=all&per_page=100' \
-    "${dir:+${dir}/marks-milestones.etag}") || return 1
-  deployments=$(forge/github:mark 'repos/{owner}/{repo}/deployments?per_page=50' \
-    "${dir:+${dir}/marks-deployments.etag}") || return 1
-  environments=$(forge/github:mark 'repos/{owner}/{repo}/environments?per_page=100' \
-    "${dir:+${dir}/marks-environments.etag}") || return 1
-  # A scanner's mark is of the alert it updated last, in any state; one off here is off, and one that refuses the
-  # caller is refused, so the mark stays live for the scanners that answer.
-  for kind in code-scanning dependabot secret-scanning
+  local dir=${1:-} kind mark marks='{}' status=0
+  local -a kinds=("${@:2}")
+  (( ${#kinds[@]} > 0 )) || kinds=(issues runs releases milestones deployments environments alerts)
+  for kind in "${kinds[@]}"
   do
-    mark=$(forge/github:mark "repos/{owner}/{repo}/${kind}/alerts?sort=updated&direction=desc&per_page=1" \
-      "${dir:+${dir}/marks-${kind}.etag}" forge/github:scanner-mark) || return 1
-    alerts+=${alerts:+ }${mark}
+    if mark=$(forge/github:mark-of "${kind}" "${dir}")
+    then
+      marks=$(jq --compact-output --arg kind "${kind}" --arg mark "${mark}" '.[$kind] = $mark' <<<"${marks}") \
+        || return 1
+    else
+      status=1
+      marks=$(jq --compact-output --arg kind "${kind}" '.[$kind] = null' <<<"${marks}") || return 1
+    fi
   done
-  jq --null-input --compact-output --arg alerts "${alerts}" --arg issues "${issues}" --arg runs "${runs}" \
-    --arg releases "${releases}" \
-    --arg milestones "${milestones}" --arg deployments "${deployments}" --arg environments "${environments}" \
-    '{issues: $issues, runs: $runs, releases: $releases, milestones: $milestones, deployments: $deployments,
-      environments: $environments, alerts: $alerts}'
+  printf '%s\n' "${marks}"
+  return "${status}"
+}
+
+# forge_github_verdict_seconds is how long a scanner's mark of off or refused is kept before GitHub is asked again.
+declare -g forge_github_verdict_seconds=600
+
+# forge/github:mark-of <kind> <dir> prints the mark of one kind, as forge/github:marks says, keeping what makes the next
+# read cheaper in <dir>, or nowhere when it is empty; it fails after its line.
+forge/github:mark-of() {
+  local kind=$1 dir=$2 path scanner mark alerts=''
+  case "${kind}" in
+    (issues) path='issues?state=all&sort=updated&direction=desc&per_page=1' ;;
+    (runs) path='actions/runs?per_page=10' ;;
+    (releases) path='releases?per_page=1' ;;
+    (milestones) path='milestones?state=all&per_page=100' ;;
+    (deployments) path='deployments?per_page=50' ;;
+    (environments) path='environments?per_page=100' ;;
+    (alerts)
+      # A scanner's mark is of the alert it updated last, in any state; one off here is off, and one that refuses
+      # the caller is refused, so the mark stays live for the scanners that answer.
+      for scanner in code-scanning dependabot secret-scanning
+      do
+        mark=$(forge/github:scanner-of "${scanner}" "${dir}") || return 1
+        alerts+=${alerts:+ }${mark}
+      done
+      printf '%s\n' "${alerts}"
+      return 0
+      ;;
+    (*)
+      error "forge/github:marks: GitHub has no mark of ${kind}"
+      return 1
+  esac
+  forge/github:mark "repos/{owner}/{repo}/${path}" "${dir:+${dir}/marks-${kind}.etag}" '' "the ${kind} mark"
+}
+
+# forge/github:scanner-of <scanner> <dir> prints a scanner's part of the alerts mark: off or refused, as it said less
+# than forge_github_verdict_seconds ago, kept in <dir>, with no request; else what forge/github:mark reads, keeping
+# off or refused there, with when it was said.
+forge/github:scanner-of() {
+  local scanner=$1 dir=$2 verdict='' at said mark
+  if [[ -n "${dir}" && -f "${dir}/marks-${scanner}.verdict" ]]
+  then
+    read -r at said < "${dir}/marks-${scanner}.verdict" || true  # one unread is checked below, and asked again
+    if [[ "${at}" =~ ^[0-9]+$ && "${said}" =~ ^(off|refused)$ ]] \
+      && (( $(date +%s) - at < forge_github_verdict_seconds ))
+    then
+      verdict=${said}
+    fi
+  fi
+  if [[ -n "${verdict}" ]]
+  then
+    printf '%s\n' "${verdict}"
+    return 0
+  fi
+  mark=$(forge/github:mark "repos/{owner}/{repo}/${scanner}/alerts?sort=updated&direction=desc&per_page=1" \
+    "${dir:+${dir}/marks-${scanner}.etag}" forge/github:scanner-mark 'the alerts mark') || return 1
+  if [[ -n "${dir}" ]]
+  then
+    case "${mark}" in
+      (off | refused)
+        file:replace "${dir}/marks-${scanner}.verdict" printf '%s %s\n' "$(date +%s)" "${mark}" \
+          || true  # a verdict that cannot be kept costs only a request at the next read
+        ;;
+      (*) rm -f "${dir}/marks-${scanner}.verdict" ;;
+    esac
+  fi
+  printf '%s\n' "${mark}"
 }
 
 forge/github:me() {
@@ -474,6 +533,7 @@ forge/github:open-prs() {
           reviewRequests(first: 20) { totalCount nodes { requestedReviewer {
             ... on User { login } @team@... on Bot { login } ... on Mannequin { login }
           } } }
+          latestOpinionatedReviews(first: 20) { totalCount nodes { author { login } state submittedAt } }
           latestReviews(first: 20) { totalCount nodes { author { login } state submittedAt } }
           reviewThreads(first: 100) { pageInfo { hasNextPage endCursor } nodes { isResolved } }
           commits(last: 1) { nodes { commit {
@@ -520,6 +580,7 @@ forge/github:open-prs() {
     >/dev/null || return 1
   jq --exit-status 'all(.data.repository.pullRequests.nodes[]?;
       (.reviewRequests.totalCount // 0) <= (.reviewRequests.nodes // [] | length)
+      and (.latestOpinionatedReviews.totalCount // 0) <= (.latestOpinionatedReviews.nodes // [] | length)
       and (.latestReviews.totalCount // 0) <= (.latestReviews.nodes // [] | length))' <<<"${answer}" >/dev/null \
     || { error "kit reads at most 20 review requests and 20 reviews of a change (the pull requests could not be read)"
          return 1; }
@@ -813,12 +874,13 @@ forge/github:on-branch() {
   [[ -z "${found}" ]] || printf '%s\n' "${found}"
 }
 
-# forge/github:mark <path> [<file>] [<refused>] prints the ETag of GitHub's answer for <path>: the one kept in <file>
-# when GitHub answers 304 Not Modified to it, else the new one, which it keeps there. gh exits 1 on a 304, so the
-# answer's status line says what came back. With <refused>, a function, a 403 or 404 is no failure: the mark is what
-# <refused> prints of the answer. An answer that is none of those fails.
+# forge/github:mark <path> [<file>] [<refused>] [<what>] prints the ETag of GitHub's answer for <path>: the one kept in
+# <file> when GitHub answers 304 Not Modified to it, else the new one, which it keeps there. gh exits 1 on a 304, so
+# the answer's status line says what came back. With <refused>, a function, a 403 or 404 is no failure: the mark is
+# what <refused> prints of the answer. An answer that is none of those fails, its line naming <what>, the marks
+# without one.
 forge/github:mark() {
-  local path=$1 file=${2:-} refused=${3:-} etag='' answer status
+  local path=$1 file=${2:-} refused=${3:-} what=${4:-the marks} etag='' answer status
   local -a header=()
   [[ -z "${file}" || ! -f "${file}" ]] || etag=$(<"${file}")
   [[ -z "${etag}" ]] || header=(--header "If-None-Match: ${etag}")
@@ -830,7 +892,7 @@ forge/github:mark() {
       etag=$(tr -d '\r' <<<"${answer}" | sed -n 's/^[Ee][Tt][Aa][Gg]: *//p' | head -n 1)
       if [[ -z "${etag}" ]]
       then
-        error "run: gh auth status; GitHub gave no ETag for ${path} (the marks could not be read)"
+        error "run: gh auth status; GitHub gave no ETag for ${path} (${what} could not be read)"
         return 1
       fi
       # An ETag that cannot be kept costs only the next read, which asks GitHub for the whole answer.
@@ -843,11 +905,11 @@ forge/github:mark() {
         "${refused}" "${answer}"
         return
       fi
-      error "run: gh auth status (the marks could not be read)"
+      error "run: gh auth status (${what} could not be read)"
       return 1
       ;;
     (*)
-      error "run: gh auth status (the marks could not be read)"
+      error "run: gh auth status (${what} could not be read)"
       return 1
   esac
 }
@@ -898,10 +960,10 @@ forge/github:alert-pages() {
 
 # forge/github:alerts-refused <what> <path> <said> says why GitHub refused the read of a scanner's alerts at <path>,
 # and returns 1, or returns 3, saying nothing, where it says the scanner is off for the repository. A rate limit says
-# which, as forge/github:limited does. Any other refusal, 403 or 404, is asked once more for its headers: a login whose scopes, X-OAuth-Scopes, hold none of those the alerts
-# accept, X-Accepted-OAuth-Scopes, is told the scope to add; a token whose scopes GitHub does not say, as a
-# fine-grained one, that GitHub says cannot reach the alerts, is told to grant it; any other caller may not see them,
-# and is told to ask the repository's admin.
+# which, as forge/github:limited does. Any other refusal, 403 or 404, is asked once more for its headers: a login
+# whose scopes, X-OAuth-Scopes, hold none of those the alerts accept, X-Accepted-OAuth-Scopes, is told the scope to
+# add; a token whose scopes GitHub does not say, as a fine-grained one, that GitHub says cannot reach the alerts, is
+# told to grant it; any other caller may not see them, and is told to ask the repository's admin.
 forge/github:alerts-refused() {
   local what=$1 path=$2 said=$3 head granted accepted scope repo
   if forge/github:off "${said}"

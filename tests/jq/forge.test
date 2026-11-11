@@ -123,12 +123,12 @@ import "forge" as forge; [.[] | forge::gitlab_quota]
 ["HTTP/2.0 200 OK\r\nRatelimit-Limit: 2000\r\nRATELIMIT-NAME: throttle_authenticated_api\r\nratelimit-remaining: 7\r\nRatelimit-Reset: 1000060\r\n\r\n{}", "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{}", "HTTP/1.1 200 OK\nRatelimit-Limit: 600\nRatelimit-Remaining: 599\n\n{}", "HTTP/1.1 200 OK\nRatelimit-Limit: lots\nRatelimit-Remaining: 9\n\n{}"]
 [{"forge":"gitlab","limits":[{"name":"throttle_authenticated_api","limit":2000,"remaining":7,"reset":1000060}]},{"forge":"gitlab","limits":[]},{"forge":"gitlab","limits":[{"name":"api","limit":600,"remaining":599,"reset":null}]},{"forge":"gitlab","limits":[]}]
 
-# GitLab's marks are what its newest items say of when they changed: the issue and the merge request updated last
-# together, the pipelines' ids, states, and updates, the release's tag and time, the milestone's number and update
-# with the newest issue's, as closing an issue moves no milestone's, the deployment updated last, and the
+# GitLab's marks, a kind each, are what its newest items say of when they changed: the issue and the merge request
+# updated last together, the pipelines' ids, states, and updates, the release's tag and time, the milestone's number
+# and update with the newest issue's, as closing an issue moves no milestone's, the deployment updated last, and the
 # environments; none says an empty list.
-import "forge" as forge; forge::gitlab_marks([{"iid": 7, "updated_at": "a", "title": "x"}]; [{"iid": 3, "updated_at": "b"}]; [{"id": 11, "status": "running", "updated_at": "c"}]; []; [{"iid": 2, "updated_at": "d"}]; [{"id": 9, "status": "success", "updated_at": "e"}]; [{"id": 1, "name": "prod", "state": "available", "updated_at": "f"}])
-null
+import "forge" as forge; . as $lists | ["issues", "runs", "releases", "milestones", "deployments", "environments"] | map({key: ., value: (. as $kind | $lists | forge::gitlab_mark($kind))}) | from_entries
+{"issues": [{"iid": 7, "updated_at": "a", "title": "x"}], "mrs": [{"iid": 3, "updated_at": "b"}], "runs": [{"id": 11, "status": "running", "updated_at": "c"}], "releases": [], "milestones": [{"iid": 2, "updated_at": "d"}], "deployments": [{"id": 9, "status": "success", "updated_at": "e"}], "environments": [{"id": 1, "name": "prod", "state": "available", "updated_at": "f"}]}
 {"issues":"[[7,\"a\"],[3,\"b\"]]","runs":"[[11,\"running\",\"c\"]]","releases":"[]","milestones":"[[2,\"d\"],[7,\"a\"]]","deployments":"[[9,\"success\",\"e\"]]","environments":"[[1,\"prod\",\"available\",\"f\"]]"}
 
 # GitHub's open issues fold into one document each, oldest first, with the assignees by login, the labels by name and

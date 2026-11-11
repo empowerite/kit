@@ -81,9 +81,11 @@ JSON
                                          "repository": {"nameWithOwner": "empowerite/example"},
                                          "labels": {"nodes": [{"name": "bug", "color": "D73A4A"}]}}]},
   "reviewRequests": {"totalCount": 1, "nodes": [{"requestedReviewer": {"login": "bob"}}]},
+  "latestOpinionatedReviews": {"totalCount": 1, "nodes": [
+    {"author": {"login": "carol"}, "state": "APPROVED", "submittedAt": "2026-10-02T09:00:00Z"}]},
   "latestReviews": {"totalCount": 2, "nodes": [
     {"author": {"login": "ada"}, "state": "COMMENTED", "submittedAt": "2026-10-01T11:00:00Z"},
-    {"author": {"login": "carol"}, "state": "APPROVED", "submittedAt": "2026-10-02T09:00:00Z"}]},
+    {"author": {"login": "carol"}, "state": "COMMENTED", "submittedAt": "2026-10-03T09:00:00Z"}]},
   "reviewThreads": {"nodes": [{"isResolved": true}, {"isResolved": false}]},
   "commits": {"nodes": [{"commit": {"statusCheckRollup": {"contexts": {"nodes": [
     {"__typename": "CheckRun", "name": "a", "status": "COMPLETED", "conclusion": "FAILURE",
@@ -322,7 +324,8 @@ JSON
   expected+='"unresolved":1,"labels":[{"name":"kind=fix","color":"#0e8a16"}],'
   expected+='"closes":[{"number":7,"title":"Fix the thing","assignees":["bob"],'
   expected+='"labels":[{"name":"bug","color":"#d73a4a"}]}],'
-  # the author's own comment is no review; bob is asked and has not answered; carol approved
+  # the author's own comment is no review; bob is asked and has not answered; carol approved, then commented, and
+  # her approval stands
   expected+='"reviewers":[{"login":"bob","state":"requested","at":null},'
   expected+='{"login":"carol","state":"approved","at":1790931600}],'
   # every run on the head commit, the failed one a rerun superseded among them
@@ -574,8 +577,15 @@ JSON
   [ "$status" -eq 0 ]
   [ "$output" = "${marks}" ]
   [ "$(grep --count 'If-None-Match' "${FAKE_DIR}/gh.calls")" -eq 8 ]
-  # a request a kind, and one a scanner, none asked twice
-  [ "$(grep --count '^api --include' "${FAKE_DIR}/gh.calls")" -eq 9 ]
+  # a request a kind, and one a scanner that answers, none asked twice: the scanner off is not asked again yet
+  [ "$(grep --count '^api --include' "${FAKE_DIR}/gh.calls")" -eq 8 ]
+  ! grep --quiet 'secret-scanning' "${FAKE_DIR}/gh.calls"
+  # the kinds named are the only ones read, in the order named
+  : > "${FAKE_DIR}/gh.calls"
+  run call marks releases issues
+  [ "$status" -eq 0 ]
+  [ "$output" = '{"releases":"W/\"v1\"","issues":"W/\"i1\""}' ]
+  [ "$(grep --count '^api --include' "${FAKE_DIR}/gh.calls")" -eq 2 ]
   # a change gives a new ETag, which is the new mark
   printf 'HTTP/2.0 200 OK\r\nEtag: W/"%s"\r\n\r\n[]\n' i2 > "${FAKE_DIR}/issues-200.txt"
   printf '%s\n' 'api --include --header If-None-Match: W/"i1" repos/{owner}/{repo}/issues*'$'\t''issues-200.txt' \
@@ -1577,14 +1587,16 @@ SH
   [ "$(grep --count '^issue list' "${FAKE_DIR}/gh.calls")" -eq 1 ]
 }
 
-@test "GitHub's open changes cost 18 points: closed issues' assignees come from the open issues, labels from each" {
+@test "GitHub's open changes cost 19 points: closed issues' assignees come from the open issues, labels from each" {
   world github
   run call open-prs
   [ "$status" -eq 0 ]
-  # the reviewers are asked in the same request, which costs 2 points more than without them: still one read
+  # the reviewers are asked in the same request, which costs 3 points more than without them: still one read
   [ "$(reads github)" -eq 1 ]
   grep --quiet 'reviewRequests(first: 20) { totalCount nodes { requestedReviewer {' "${FAKE_DIR}/gh.calls"
   grep --quiet 'latestReviews(first: 20) { totalCount nodes { author { login } state submittedAt } }' \
+    "${FAKE_DIR}/gh.calls"
+  grep --quiet 'latestOpinionatedReviews(first: 20) { totalCount nodes { author { login } state submittedAt } }' \
     "${FAKE_DIR}/gh.calls"
   [ "$(jq --compact-output '.closes | map(.assignees)' <<<"$output")" = '[["bob"]]' ]
   [ "$(jq --compact-output '[.labels, .closes[0].labels] | map(map(.name))' <<<"$output")" = '[["kind=fix"],["bug"]]' ]
@@ -1597,16 +1609,19 @@ SH
 
 @test "a pull request with more reviewers than GitHub's open changes read fails them, saying so" {
   world github
-  jq '.data.repository.pullRequests.nodes[0].latestReviews.totalCount = 21' "${FAKE_DIR}/open-prs.json" \
-    | fixture open-prs-many.json
-  : > "${FAKE_DIR}/gh.routes"
-  route gh 'repo view*' repo.json
-  route gh 'api graphql*' open-prs-many.json
-  local what='the pull requests'
-  run --separate-stderr call open-prs
-  [ "$status" -eq 1 ]
-  [ -z "$output" ]
-  [ "$stderr" = "❌ kit reads at most 20 review requests and 20 reviews of a change (${what} could not be read)" ]
+  local what='the pull requests' list
+  for list in latestReviews latestOpinionatedReviews
+  do
+    jq --arg list "${list}" '.data.repository.pullRequests.nodes[0][$list].totalCount = 21' \
+      "${FAKE_DIR}/open-prs.json" | fixture open-prs-many.json
+    : > "${FAKE_DIR}/gh.routes"
+    route gh 'repo view*' repo.json
+    route gh 'api graphql*' open-prs-many.json
+    run --separate-stderr call open-prs
+    [ "$status" -eq 1 ]
+    [ -z "$output" ]
+    [ "$stderr" = "❌ kit reads at most 20 review requests and 20 reviews of a change (${what} could not be read)" ]
+  done
 }
 
 @test "a read gh's login lacks a scope for names the command that adds the scope GitHub names" {
@@ -1698,12 +1713,17 @@ SH
     for call in 'branch-for-issue 7' 'pr-for-branch 7-fix-the-thing' 'pr-last-for-branch 7-fix-the-thing' \
       'pr-state-for-branch 7-fix-the-thing' 'pr-head-for-branch 7-fix-the-thing' pr-here 'pr-title 3' 'pr-body 3' \
       'pr-author 3' 'pr-closing-issues 3' 'pr-state 3' 'issue-state 7' 'issue-assignees 7' 'issue-title 7' open-prs \
-      open-issues releases marks quota runs me
+      open-issues releases quota runs me
     do
       read -r -a words <<<"${call}" && run --separate-stderr call "${words[@]}"
       [[ "$status" -eq 1 && -z "$output" && "$stderr" == *"could not be read)"* ]] \
         || { echo "${forge} ${call}: exit ${status}, printed '${output}', said '${stderr}'"; return 1; }
     done
+    # the marks are read a kind at a time: each kind is null, with its line
+    run --separate-stderr call marks issues runs
+    [[ "$status" -eq 1 && "$output" == '{"issues":null,"runs":null}' && "$stderr" == *"(the issues mark could not"* \
+      && "$stderr" == *"(the runs mark could not be read)" ]] \
+      || { echo "${forge} marks: exit ${status}, printed '${output}', said '${stderr}'"; return 1; }
   done
 }
 
@@ -1748,7 +1768,7 @@ SH
   route gh 'api --include*' no-etag.txt
   run --separate-stderr call marks
   [ "$status" -eq 1 ]
-  [[ "$stderr" == *"GitHub gave no ETag for repos/{owner}/{repo}/issues"*"(the marks could not be read)" ]]
+  [[ "$stderr" == *"GitHub gave no ETag for repos/{owner}/{repo}/issues"*"(the issues mark could not be read)"* ]]
   # a GitLab checkout with no origin names the remote to add
   world gitlab
   git remote remove origin
@@ -2362,6 +2382,62 @@ JSON
   run --separate-stderr call rulesets
   [ "$status" -eq 1 ]
   [ "$stderr" = '❌ run: gh auth refresh --scopes admin:org (the rulesets could not be read)' ]
+}
+
+@test "a mark that cannot be read is null, its line said, and every other kind is still read" {
+  printf 'HTTP/2.0 200 OK\r\nETag: W/"x"\r\n\r\n[]\n' > "${FAKE_DIR}/other-200.txt"
+  printf 'HTTP/2.0 404 Not Found\r\n\r\n{"message":"Not Found"}\n' > "${FAKE_DIR}/environments-404.txt"
+  world github
+  route gh 'api --include repos/{owner}/{repo}/environments?per_page=100' '!1 >environments-404.txt'
+  route gh 'api --include*' other-200.txt
+  run --separate-stderr call marks issues environments runs
+  [ "$status" -eq 1 ]
+  [ "$output" = '{"issues":"W/\"x\"","environments":null,"runs":"W/\"x\""}' ]
+  [ "$stderr" = '❌ run: gh auth status (the environments mark could not be read)' ]
+  # GitLab's, the same
+  world gitlab
+  local p='projects/empowerite%2Fexample'
+  fixture gl-pipelines.json <<<'[{"id": 11, "status": "success", "updated_at": "2026-11-03T09:00:00.000Z"}]'
+  route glab "api ${p}/environments?per_page=100" '!1'
+  route glab "api ${p}/pipelines?per_page=10" gl-pipelines.json
+  run --separate-stderr call marks environments runs
+  [ "$status" -eq 1 ]
+  [ "$output" = '{"environments":null,"runs":"[[11,\"success\",\"2026-11-03T09:00:00.000Z\"]]"}' ]
+  [ "$stderr" = '❌ run: glab auth status (the environments mark could not be read)' ]
+}
+
+@test "a GitHub scanner off or refused is asked again only once ten minutes have passed since it said so" {
+  printf 'HTTP/2.0 200 OK\r\nETag: W/"x"\r\n\r\n[]\n' > "${FAKE_DIR}/other-200.txt"
+  printf 'HTTP/2.0 404 Not Found\r\n\r\n{"message":"Secret scanning is disabled on this repository."}\n' \
+    > "${FAKE_DIR}/secret-404.txt"
+  printf 'HTTP/2.0 403 Forbidden\r\n\r\n{"message":"You are not authorized to read code scanning alerts."}\n' \
+    > "${FAKE_DIR}/code-403.txt"
+  world github
+  route gh 'api --include repos/{owner}/{repo}/secret-scanning/*' '!1 >secret-404.txt'
+  route gh 'api --include repos/{owner}/{repo}/code-scanning/*' '!1 >code-403.txt'
+  route gh 'api --include*' other-200.txt
+  run call marks alerts
+  [ "$status" -eq 0 ]
+  [ "$output" = '{"alerts":"refused W/\"x\" off"}' ]
+  run call marks alerts
+  [ "$output" = '{"alerts":"refused W/\"x\" off"}' ]
+  # two reads, a request each of the scanner that answers, one of each that does not
+  [ "$(grep --count 'secret-scanning' "${FAKE_DIR}/gh.calls")" -eq 1 ]
+  [ "$(grep --count 'code-scanning' "${FAKE_DIR}/gh.calls")" -eq 1 ]
+  [ "$(grep --count 'dependabot' "${FAKE_DIR}/gh.calls")" -eq 2 ]
+  # once ten minutes have passed, it is asked again, and a scanner turned on gives its mark
+  local kept
+  kept=$(bash -c 'source "${kit_root}/modules/bash/1st.sh" && use forge && forge:snapshots')
+  for scanner in secret-scanning code-scanning
+  do
+    printf '%s %s\n' "$(( $(date +%s) - 601 ))" "$(cut -d ' ' -f 2 "${kept}/marks-${scanner}.verdict")" \
+      > "${kept}/marks-${scanner}.verdict"
+  done
+  : > "${FAKE_DIR}/gh.routes"
+  route gh 'api --include*' other-200.txt
+  run call marks alerts
+  [ "$output" = '{"alerts":"W/\"x\" W/\"x\" W/\"x\""}' ]
+  [ "$(grep --count 'secret-scanning' "${FAKE_DIR}/gh.calls")" -eq 2 ]
 }
 
 @test "a GitHub scanner that refuses the caller marks the alerts refused, so the mark stays live for the others" {

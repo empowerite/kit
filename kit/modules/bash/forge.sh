@@ -63,10 +63,12 @@
 #   noun                          the change's reference sigil and its name, tab-separated: "#\tpull request"
 #   pr-url <n>                    the change's browser URL
 #   me                            the caller's login
-#   marks [<dir>]                 one JSON object, a mark for each kind of the repository's data, issues (with the
-#                                 changes), runs, releases, milestones, deployments, environments, and alerts, each a
-#                                 text that changes when that data does, read cheaply; with <dir>, what makes the
-#                                 next read cheaper is kept there
+#   marks <dir> [<kind>…]         one JSON object, a mark for each kind of the repository's data named, or for each
+#                                 without one: issues (with the changes), runs, releases, milestones, deployments,
+#                                 environments, and alerts, each a text that changes when that data does, read
+#                                 cheaply, or null where the forge says nothing of it; with <dir>, not empty, what
+#                                 makes the next read cheaper is kept there. A kind that cannot be read is null, its
+#                                 line said, and the others are still read: the call then returns 1, after the object
 #   quota                         one JSON object, the caller's rate limits on the forge: {forge, limits}, each limit
 #                                 {name, limit, remaining, reset}, reset in seconds since the epoch; reading it costs
 #                                 at most one request
@@ -212,6 +214,7 @@
 #   secret-scanning  4      secret-scanning-alerts
 #   rulesets         4      rulesets
 #   bypasses         4      bypasses
+#   check-runs       4      open-prs: each change's runs, [{name, verdict, at, took}], the checks by name
 #
 # A repository chooses a stand-in for a feature in kit.yml, under the forge it is for, and the seam then answers the
 # feature's calls itself, from the forge's other calls, whether the forge has the feature or not:
@@ -262,7 +265,7 @@ declare -gr forge_contract=4
 declare -gra forge_features=(issues:1 sub-issues:1 linked-branches:1 drafts:1 closing-issues:1 review-threads:1
   checks:1 quota:1 marks:1 releases:1 runs:1 labels:3
   milestones:4 iterations:4 reviewers:4 merged:4 artifacts:4 environments:4 deployments:4 collaborators:4 teams:4
-  bots:4 attestations:4 code-scanning:4 dependabot:4 secret-scanning:4 rulesets:4 bypasses:4)
+  bots:4 attestations:4 code-scanning:4 dependabot:4 secret-scanning:4 rulesets:4 bypasses:4 check-runs:4)
 declare -grA forge_feature_of=(
   [issue-create]=issues [issue-title]=issues [issue-state]=issues [issue-assignees]=issues [issue-assign]=issues
   [issue-unassign]=issues [issue-close]=issues [issue-comment]=issues [open-issues]=issues
@@ -665,23 +668,25 @@ forge:repo-url()            { forge:call repo-url "$@"; }
 forge:me()                  { forge:call me "$@"; }
 forge:quota()               { forge:call quota "$@"; }
 
-# forge:marks prints the forge's marks, as the seam's header says, keeping what makes the next read cheaper beside the
-# snapshots, or nowhere when they have no place. With the marks stand-in, each mark is the span of its seconds that now
-# falls in, so a stage is stale once that span is past.
+# forge:marks [<kind>…] prints the forge's marks of the kinds, or of each kind without one, as the seam's header says,
+# so a caller pays only for what it draws, keeping what makes the next read cheaper beside the snapshots, or nowhere
+# when they have no place. With the marks stand-in, each mark is the span of its seconds that now falls in, so a stage
+# is stale once that span is past.
 forge:marks() {
   local dir='' choice span
+  local -a kinds=("$@")
+  (( ${#kinds[@]} > 0 )) || kinds=(issues runs releases milestones deployments environments alerts)
   forge:stand-ins >/dev/null || return 1
   choice=$(forge:stand-in marks) || return 1
   if [[ -n "${choice}" ]]
   then
     span=$(( $(date +%s) / $(jq .every <<<"${choice}") ))
-    jq --null-input --compact-output --arg span "${span}" \
-      '{issues: $span, runs: $span, releases: $span, milestones: $span, deployments: $span, environments: $span,
-        alerts: $span}'
+    jq --null-input --compact-output --arg span "${span}" '[$ARGS.positional[] | {key: ., value: $span}]
+      | from_entries' --args "${kinds[@]}"
     return 0
   fi
   dir=$(forge:snapshots 2>/dev/null) && mkdir -p "${dir}" 2>/dev/null || dir=''
-  forge:call marks "${dir}"
+  forge:call marks "${dir}" "$@"
 }
 forge:noun()                { forge:call noun "$@"; }
 forge:pr-url()              { forge:call pr-url "$@"; }

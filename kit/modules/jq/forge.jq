@@ -138,8 +138,10 @@ def github_runs:
 # the answer's open issues with an assignee give it; an issue they do not name has none: one with no assignee, one
 # closed, one in another repository, or one past the hundred most recently updated. Its labels are its own, as the
 # answer gives them under it. Its reviewers are those it asks, a person by login and a team by slug, then each
-# reviewer's latest review: approved, changes, or commented, a dismissed review standing as a comment; a pending
-# review, which only its author sees, is none.
+# reviewer's latest review that approves or asks for changes, which a comment after it leaves standing, as GitHub's
+# latestOpinionatedReviews gives them, a dismissed review standing as a comment; then each other reviewer's latest
+# review, as latestReviews gives them: a comment, or one of those where the answer holds no opinionated reviews; a
+# pending review, which only its author sees, is none.
 def github_prs($now):
   .data.repository as $repository
   | ([$repository.issues.nodes[]? | {key: "\(.number)", value: [.assignees.nodes[]?.login]}] | from_entries)
@@ -156,10 +158,14 @@ def github_prs($now):
       labels: [.labels.nodes[]?],
       reviewers: ([.reviewRequests.nodes[]? | .requestedReviewer // {}
                    | {login: (.login // .slug), state: "requested", at: null}]
-                  + [.latestReviews.nodes[]? | select(.state != "PENDING")
-                     | { login: .author.login,
-                         state: ({APPROVED: "approved", CHANGES_REQUESTED: "changes"}[.state] // "commented"),
-                         at: (.submittedAt // null) }]),
+                  + ([.latestOpinionatedReviews.nodes[]?] as $opinions
+                     | [$opinions[], (.latestReviews.nodes[]?
+                                      | select(.author.login as $l | all($opinions[]; .author.login != $l)))]
+                     | map(select(. != null and .state != "PENDING")
+                           | { login: .author.login,
+                               state: ({APPROVED: "approved", CHANGES_REQUESTED: "changes"}[.state]
+                                       // "commented"),
+                               at: (.submittedAt // null) }))),
       closes: [.closingIssuesReferences.nodes[]
                | { number, title, createdAt, source: "github", labels: [.labels.nodes[]?],
                    assignees: (if .repository.nameWithOwner == $repository.nameWithOwner
@@ -212,18 +218,20 @@ def gitlab_quota:
                else [{name: ($h.name // "api"), limit: $limit, remaining: $remaining,
                       reset: ($h.reset // "" | number)}] end) };
 
-# gitlab_marks($issues; $mrs; $runs; $releases; $milestones; $deployments; $environments) reads GitLab's newest issue
-# and merge request by update, its ten newest pipelines, its newest release, its newest milestone by update, its
-# deployment updated last, and its first 100 environments, and gives a mark of each kind: what each says of its items
-# and when they changed, as one text, so a mark changes when one of them does. A milestone's own update does not move
-# when its issues close, so its mark holds the newest issue too.
-def gitlab_marks($issues; $mrs; $runs; $releases; $milestones; $deployments; $environments):
-  { issues: ([$issues[]?, $mrs[]? | [.iid, .updated_at]] | tojson),
-    runs: ([$runs[]? | [.id, .status, .updated_at]] | tojson),
-    releases: ([$releases[]? | [.tag_name, .released_at]] | tojson),
-    milestones: ([$milestones[]?, $issues[]? | [.iid, .updated_at]] | tojson),
-    deployments: ([$deployments[]? | [.id, .status, .updated_at]] | tojson),
-    environments: ([$environments[]? | [.id, .name, .state, .updated_at]] | tojson) };
+# gitlab_mark($kind) reads the lists GitLab answers a kind of mark from, {issues, mrs, runs, releases, milestones,
+# deployments, environments}, each those the kind needs: its newest issue and merge request by update, its ten newest
+# pipelines, its newest release, its newest milestone by update, its deployment updated last, and its first 100
+# environments, and gives the kind's mark: what each says of its items and when they changed, as one JSON text, so a
+# mark changes when one of them does. A milestone's own update does not move when its issues close, so its mark holds
+# the newest issue too.
+def gitlab_mark($kind):
+  if $kind == "issues" then [.issues[]?, .mrs[]? | [.iid, .updated_at]]
+  elif $kind == "runs" then [.runs[]? | [.id, .status, .updated_at]]
+  elif $kind == "releases" then [.releases[]? | [.tag_name, .released_at]]
+  elif $kind == "milestones" then [.milestones[]?, .issues[]? | [.iid, .updated_at]]
+  elif $kind == "deployments" then [.deployments[]? | [.id, .status, .updated_at]]
+  else [.environments[]? | [.id, .name, .state, .updated_at]] end
+  | tojson;
 
 # gitlab_runs reads a pipeline's jobs and gives its runs.
 def gitlab_runs:
@@ -563,7 +571,8 @@ def github_milestones:
 
 # gitlab_milestones($host) reads the nodes of GitLab's GraphQL milestones and gives the same documents, by number, its
 # iid. Its dueDate is a day, its state active or closed, active being open, and its issues are counted by the stats:
-# those open are the total less those closed, a milestone with no stats, or counts, having none. $host, as https://gitlab.com, begins the page, which is its webPath.
+# those open are the total less those closed, a milestone with no stats, or counts, having none. $host, as
+# https://gitlab.com, begins the page, which is its webPath.
 def gitlab_milestones($host):
   sort_by(.iid | tonumber)[]
   | ((.stats.totalIssuesCount // 0) as $total | (.stats.closedIssuesCount // 0) as $closed

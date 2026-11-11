@@ -198,29 +198,73 @@ forge/gitlab:link-branch() {
   forge/gitlab:api repository/branches --method POST --raw-field "branch=$1-${slug}" --raw-field "ref=$2" >/dev/null
 }
 
-# forge/gitlab:marks [<dir>] reads, for each kind of the project's data, a mark that changes when it does: issues, of
-# the issue and the merge request updated last; runs, of the ten newest pipelines; releases, of the newest release;
-# milestones, of the newest by update and the newest issue, as an issue closing moves no milestone's own update;
-# deployments, of the one updated last, as a deployment's status moves its update; environments, of the first 100. An
-# edit to a protected environment moves no environment's update, so it goes unseen; alerts, of how many vulnerabilities
-# are open and how many dismissed, by severity, in one GraphQL request, so a dismissal moves it, and null where GitLab
-# answers none. GitLab sends no ETag for these, so each mark is what the answer says of when its items changed, and
-# costs a request each read, eight in all.
+# forge/gitlab:marks <dir> [<kind>…] reads, for each kind named, or each of them without one, a mark that changes when
+# that kind of the project's data does: issues, of the issue and the merge request updated last; runs, of the ten
+# newest pipelines; releases, of the newest release; milestones, of the newest by update and the newest issue, as an
+# issue closing moves no milestone's own update; deployments, of the one updated last, as a deployment's status moves
+# its update; environments, of the first 100. An edit to a protected environment moves no environment's update, so it
+# goes unseen; alerts, of how many vulnerabilities are open and how many dismissed, by severity, in one GraphQL
+# request, so a dismissal moves it, and null where GitLab answers none. GitLab sends no ETag for these, so each mark is
+# what the answer says of when its items changed, and costs a request a list each read, eight for every kind; <dir> is
+# not used. A kind that cannot be read is null, its line said, and the others are still read; it returns 1 then, after
+# the object.
 forge/gitlab:marks() {
-  local issues mrs runs releases milestones deployments environments
-  forge/gitlab:ask issues 'the marks' 'issues?order_by=updated_at&sort=desc&per_page=1' || return 1
-  forge/gitlab:ask mrs 'the marks' 'merge_requests?order_by=updated_at&sort=desc&per_page=1' || return 1
-  forge/gitlab:ask runs 'the marks' 'pipelines?per_page=10' || return 1
-  forge/gitlab:ask releases 'the marks' 'releases?per_page=1' || return 1
-  forge/gitlab:ask milestones 'the marks' 'milestones?sort=updated_desc&per_page=1' || return 1
-  forge/gitlab:ask deployments 'the marks' 'deployments?order_by=updated_at&sort=desc&per_page=1' || return 1
-  forge/gitlab:ask environments 'the marks' 'environments?per_page=100' || return 1
-  forge/gitlab:fold 'the marks' '' --null-input --compact-output --argjson issues "${issues}" --argjson mrs "${mrs}" \
-    --argjson runs "${runs}" --argjson releases "${releases}" --argjson milestones "${milestones}" \
-    --argjson deployments "${deployments}" --argjson environments "${environments}" \
-    --argjson alerts "$(forge/gitlab:alerts-mark)" 'import "forge" as forge;
-     forge::gitlab_marks($issues; $mrs; $runs; $releases; $milestones; $deployments; $environments)
-     + {alerts: $alerts}'
+  local kind mark marks='{}' status=0
+  local -a kinds=("${@:2}")
+  declare -gA forge_gitlab_marks_read=()
+  (( ${#kinds[@]} > 0 )) || kinds=(issues runs releases milestones deployments environments alerts)
+  for kind in "${kinds[@]}"
+  do
+    if forge/gitlab:mark-of mark "${kind}"
+    then
+      marks=$(jq --compact-output --arg kind "${kind}" --argjson mark "${mark}" '.[$kind] = $mark' <<<"${marks}") \
+        || return 1
+    else
+      status=1
+      marks=$(jq --compact-output --arg kind "${kind}" '.[$kind] = null' <<<"${marks}") || return 1
+    fi
+  done
+  printf '%s\n' "${marks}"
+  return "${status}"
+}
+
+# forge_gitlab_mark_lists names, for each kind of mark, the lists GitLab answers it from, and forge_gitlab_mark_paths
+# where each list is read.
+declare -grA forge_gitlab_mark_lists=([issues]='issues mrs' [runs]=runs [releases]=releases
+  [milestones]='milestones issues' [deployments]=deployments [environments]=environments)
+declare -grA forge_gitlab_mark_paths=([issues]='issues?order_by=updated_at&sort=desc&per_page=1'
+  [mrs]='merge_requests?order_by=updated_at&sort=desc&per_page=1' [runs]='pipelines?per_page=10'
+  [releases]='releases?per_page=1' [milestones]='milestones?sort=updated_desc&per_page=1'
+  [deployments]='deployments?order_by=updated_at&sort=desc&per_page=1' [environments]='environments?per_page=100')
+
+# forge/gitlab:mark-of <name> <kind> puts the mark of one kind, as forge/gitlab:marks says, in the variable <name>, as
+# one JSON text, a string or null; each list it reads is read once a call of forge/gitlab:marks. It fails after its
+# line.
+forge/gitlab:mark-of() {
+  local mark_into=$1 mark_kind=$2 mark_list mark_answer mark_lists='{}'
+  if [[ "${mark_kind}" == alerts ]]
+  then
+    printf -v "${mark_into}" '%s' "$(forge/gitlab:alerts-mark)"
+    return 0
+  fi
+  if [[ -z "${forge_gitlab_mark_lists[${mark_kind}]+x}" ]]
+  then
+    error "forge/gitlab:marks: GitLab has no mark of ${mark_kind}"
+    return 1
+  fi
+  for mark_list in ${forge_gitlab_mark_lists[${mark_kind}]}
+  do
+    if [[ -z "${forge_gitlab_marks_read[${mark_list}]+x}" ]]
+    then
+      forge/gitlab:ask mark_answer "the ${mark_kind} mark" "${forge_gitlab_mark_paths[${mark_list}]}" || return 1
+      forge_gitlab_marks_read[${mark_list}]=${mark_answer}
+    fi
+    mark_lists=$(jq --compact-output --arg list "${mark_list}" \
+      --argjson answer "${forge_gitlab_marks_read[${mark_list}]}" '.[$list] = $answer' <<<"${mark_lists}") || return 1
+  done
+  mark_answer=$(forge/gitlab:fold "the ${mark_kind} mark" "${mark_lists}" --compact-output --arg kind "${mark_kind}" \
+    'import "forge" as forge; forge::gitlab_mark($kind)') || return 1
+  printf -v "${mark_into}" '%s' "${mark_answer}"
 }
 
 forge/gitlab:me() {
