@@ -220,8 +220,8 @@ it. Each app has a verb, `kit issues`, `kit changes`, `kit workspace`, `kit deli
 
 | App | Its entity | Its tabs |
 | --- | --- | --- |
-| Flow | the work, from backlog to releases | the `flow` setting's stages: backlog, underway, desk, worktrees, changes, builds, incoming, releases |
-| Issues | the issue | backlog, underway, iterations, milestones |
+| Flow | the work, from backlog to releases | the `flow` setting's stages: backlog, underway, changes, builds, incoming, releases |
+| Issues | the issue | backlog, underway, milestones, iterations |
 | Changes | the pull or merge request | changes, reviews, checks, merged |
 | Repositories | the repository | repos, worktrees, branches, commits, tags, remotes, incoming |
 | Delivery | the release | releases, builds, artifacts, environments, deployments |
@@ -245,9 +245,7 @@ the apps anew there. Switching tabs within an app keeps its crumb. Crumbs last f
 
 `kit flow` opens Flow, and `kit flow <stage>` opens it on that stage, maximized. `kit workspace` opens Repositories,
 and `kit workspace <stage>` the app with that tab, on the tab. `kit platform` prints Platform's tabs, services,
-toolchains, tools, and settings, each a stage, as [apps.md](apps.md) says; on a terminal it hands them to kittui, which
-does not draw them yet. Iterations, milestones, reviews, checks, merged, artifacts, environments, deployments, and
-every tab of People and Trust have no data source yet.
+toolchains, tools, and settings, each a stage, as [apps.md](apps.md) says; on a terminal it opens Platform in kittui.
 
 `kit packages` alone, on a terminal, opens Packages, a row per package in reach, and `kit packages packages` opens it
 on its one tab. Its tab menu adds, removes, and makes the only active ones the packages selected, each by running
