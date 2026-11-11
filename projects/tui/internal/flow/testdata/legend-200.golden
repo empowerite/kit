@@ -3,9 +3,9 @@
   │ 🎫 backlog  3 : │  🛫 underway  4   │  💻 desk  1   │  🌿 worktrees  4   │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  6   │  📦 releases  3   │
   ╵                 ╰───────────────────╰───────────────╰────────────────────╰──────────────────╰─────────────────╰───────────────────╰───────────────────╰─────────────────────────────────────────────
   ▾ source 3                                                                                                                                                                                Default ▼
-                                                                                                                                                              ╭─ backlog legend ────────────── ↖ ↗ ↙ ↘ ╮
-  ▾ github 3                                                                                                                                                  │ =  the kit menu                        │
-                                                                                                                                                              │ ·  a separator                         │
+
+  ▾ github 3                                                                                                                                                  ╭─ backlog legend ────────────── ↖ ↗ ↙ ↘ ╮
+                                                                                                                                                              │ =  the kit menu                        │
       id   assignees            age  branch              labels  title                                                                                        │ -  the workspace menu                  │
       ·────⇊────────────────────·────·───────────────────⇊───────·────────────────────────────────────────────────────────────────────────────────────────────│ 🔎 the search: / or a click            │
     ▸ #45                        2h                      3       🎫 kit flow is the one picture: five stages, interactive on a terminal, and the listing verbs│ ➊  the selected tab's number           │

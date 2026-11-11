@@ -10,8 +10,7 @@
       ·────⇊─────────────────·────·─────────────────⇊───────·──────────────────
     ▸ #45                     2h                    3       🎫 kit flow is the…
  ╭─ backlog legend ─────────────────────────────────────────────────── ↖ ↗ ↙ ↘ ╮
- │ =  the kit menu                      🌿 the worktrees stage                 │
- │ ·  a separator                       ▾  open: a click closes it             │
+ │ =  the kit menu                      ▾  open: a click closes it             │
  │ -  the workspace menu                ▼  the presets' menu                   │
  │ 🔎 the search: / or a click          ·  sortable: a click sorts             │
  │ ➊  the selected tab's number         ⇊  a list: a click flattens or gathers │
@@ -20,5 +19,6 @@
  │ :  the tab's menu                    👤 assignees or author                 │
  │ 🛫 the underway stage                🌿 a branch or a worktree              │
  │ 💻 the desk stage                    👥 assignees, how many                 │
+ │ 🌿 the worktrees stage                                                      │
  ╰─────────────────────────────────────────────────────────────────────────────╯
  = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-8 jump : tab menu

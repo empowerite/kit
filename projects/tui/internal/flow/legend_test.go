@@ -391,3 +391,36 @@ func TestTheLegendExplainsEveryGlyphOnTheScreenInOrder(t *testing.T) {
 		}
 	}
 }
+
+// Home and End move the legend to the top left and the bottom right, as their arrows do, and page up and page down to
+// the corner over and under it on its side; while it is hidden they are the rows'.
+func TestTheLegendsCornerKeysMoveItAsItsArrowsDo(t *testing.T) {
+	key := func(code rune) tea.KeyPressMsg { return tea.KeyPressMsg{Code: code} }
+	m := loaded(t, options(), press('?'))
+	for _, c := range []struct {
+		key  tea.KeyPressMsg
+		want corner
+	}{
+		{key(tea.KeyPgUp), topRight}, {key(tea.KeyPgUp), topRight}, {key(tea.KeyPgDown), bottomRight},
+		{key(tea.KeyHome), topLeft}, {key(tea.KeyPgDown), bottomLeft}, {key(tea.KeyPgUp), topLeft},
+		{key(tea.KeyEnd), bottomRight}, {key(tea.KeyPgDown), bottomRight},
+	} {
+		if m = drive(m, c.key); m.legend.at != c.want || !m.legend.open {
+			t.Errorf("%s: at %s, want %s", c.key, arrows[m.legend.at], arrows[c.want])
+		}
+	}
+	m = drive(m, tea.KeyPressMsg{Code: tea.KeyF1}, key(tea.KeyHome))
+	if m.legend.at != bottomRight {
+		t.Errorf("home moved the hidden legend to %s", arrows[m.legend.at])
+	}
+}
+
+// The menu bar's · between the kit menu and the workspace menu is the bar's own, and the legend does not explain it.
+func TestTheLegendLeavesTheMenuBarsSeparatorOut(t *testing.T) {
+	m := loaded(t, options(), press('?'))
+	for _, p := range m.parts(m.height - 1) {
+		if slices.Contains(p.glyphs, "·") && p.on(0) {
+			t.Errorf("the legend explains the menu bar's ·: %q", p.meaning)
+		}
+	}
+}

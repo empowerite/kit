@@ -701,6 +701,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.inPanel {
 		return m.panelKey(k)
 	}
+	if m.legendKey(k.String()) {
+		return m, nil
+	}
 	if m.onPreset {
 		key := m.presetKey
 		if _, on := m.atStop(); on {

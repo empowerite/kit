@@ -1,8 +1,9 @@
 // The legend: a box that floats over the screen, F1 or ? showing it and hiding it, which says what each glyph the
 // screen shows under it means, the frame's, the controls', and the selected stage's rows', in the order each first
 // appears, and marks those a click on leads somewhere. It stands in a corner of the rows,
-// the bottom right as it opens; the corners' arrows on its top edge move it to another, its own dim. It takes no key
-// but F1 and ?, and no click but its arrows', so the rows under it go on as they were.
+// the bottom right as it opens; the corners' arrows on its top edge move it to another, its own dim, and so do home and
+// end, to the top left and the bottom right, and page up and page down, to the corner over and under it. It takes no
+// other key but F1 and ?, and no click but its arrows', so the rows under it go on as they were.
 package flow
 
 import (
@@ -38,6 +39,32 @@ var arrows = []string{"↖", "↗", "↙", "↘"}
 type legend struct {
 	open bool
 	at   corner
+}
+
+// legendKey takes a key while the legend shows, and says whether it moved it: home to the top left and end to the
+// bottom right, as their arrows do, and page up and page down to the corner over and under it, on its side.
+func (m *Model) legendKey(k string) bool {
+	if !m.legend.open {
+		return false
+	}
+	right := m.legend.at == topRight || m.legend.at == bottomRight
+	switch {
+	case k == "home":
+		m.legend.at = topLeft
+	case k == "end":
+		m.legend.at = bottomRight
+	case k == "pgup" && right:
+		m.legend.at = topRight
+	case k == "pgup":
+		m.legend.at = topLeft
+	case k == "pgdown" && right:
+		m.legend.at = bottomRight
+	case k == "pgdown":
+		m.legend.at = bottomLeft
+	default:
+		return false
+	}
+	return true
 }
 
 // toggleLegend shows the legend, or hides it, where it stands kept.
@@ -87,7 +114,7 @@ func (m Model) parts(last int) []part {
 	out := []part{
 		one(shell.App, "the kit menu", menuBar),
 		one(shell.Workspaces, "the workspace menu", menuBar),
-		one("·", "a separator", func(y int) bool { return menuBar(y) || headings(y) }),
+		one("·", "a separator", headings), // the menu bar's, between the kit and the workspace menus, is the bar's own
 		one(grid.Search, "the search: / or a click", menuBar),
 		one(shell.Recall, "the searches typed before", menuBar),
 		one(tabs.Menu, "the tab's menu", func(y int) bool { return tabBar(y) || m.maximized && menuBar(y) }),

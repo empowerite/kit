@@ -14,8 +14,7 @@
 
 
                                          ╭─ changes legend ─────────────────────────────────────────────────── ↖ ↗ ↙ ↘ ╮
-                                         │ =  the kit menu                      ▾  open: a click closes it             │
-                                         │ ·  a separator                       ▼  the presets' menu                   │
+                                         │ =  the kit menu                      ▼  the presets' menu                   │
                                          │ -  the workspace menu                ·  sortable: a click sorts             │
                                          │ 🔎 the search: / or a click          ⇊  a list: a click flattens or gathers │
                                          │ ➀  a tab's number, which selects it  ▸  closed: a click opens it            │
@@ -28,5 +27,6 @@
                                          │ :  the tab's menu                    💬 comments:open 🔗                    │
                                          │ 🏭 the builds stage                  🔥 failing:gate 🔗                     │
                                          │ ▹  more tabs: a click scrolls        ❌ failed                              │
+                                         │ ▾  open: a click closes it                                                  │
                                          ╰─────────────────────────────────────────────────────────────────────────────╯
  = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-8 jump : tab menu
