@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # kit-policy - refuses a branch, subject, or title the policy forbids (kit verb: checks)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit policy [--input | --facts=<file>]
+# kit policy [--input | --facts=<file> | --rules [--json | --jq]]
 #
 # Fails when the branch, its commits, its change, or its tree breaks the repository's policy. kit policy collects
 # these facts once:
@@ -18,6 +18,11 @@
 #
 #   --input           prints the facts as JSON instead of judging them
 #   --facts=<file>    judges the facts document in <file>, and gathers nothing; for testing a rule against a fixture
+#   --rules           lists each rule the policy judges by: its name, its pattern, and where the pattern is set, as a
+#                     table; it reads no facts and no forge
+#   --json            with --rules, one JSON object a line: rule, pattern, from, and engine; from is kit.yml where the
+#                     policy: map sets the rule, else default, and engine is the engine that judges, patterns or opa
+#   --jq              the same JSON, formatted by jq for a person
 #
 # On a branch past the default one, the policy that judges it is its base's: policy, policy_engine, linked_exempt,
 # facts, forge, and forges from the base's kit.yml; everything the base holds or delivers under .kit/policy/, which
@@ -49,7 +54,7 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use policy settings materialize yaml file context
+use policy settings materialize yaml file context flow
 guard:arguments policy "$@" || exit $?
 materialize:hydrate
 
@@ -63,6 +68,27 @@ then
     # shellcheck disable=SC2154  # judged is set by file:scratch
     policy:from-base "${judged}" || exit 1
   fi
+fi
+
+if [[ -n "${syntax_options[--rules]:-}" ]]
+then
+  listed=$(policy:listed) || exit 1
+  engine=$(policy:engine) || exit 1
+  if [[ -n "${syntax_options[--json]:-}" ]]
+  then
+    jq --raw-input --compact-output --arg engine "${engine}" \
+      'split("\t") | {rule: .[0], pattern: .[1], from: .[2], engine: $engine}' <<<"${listed}"
+  else
+    printf '%s\n' "$(flow:paint 90 "$(printf '%-15s %-8s %-8s %s' rule from engine pattern)")"
+    while IFS= read -r line
+    do
+      # a tab is whitespace to read, which would drop an empty pattern's field, so the line is cut by hand
+      rule=${line%%$'\t'*} from=${line##*$'\t'} pattern=${line#*$'\t'}
+      pattern=${pattern%$'\t'*}
+      printf '%-15s %-8s %-8s %s\n' "${rule}" "${from}" "${engine}" "${pattern:-(off)}"
+    done <<<"${listed}"
+  fi
+  exit 0
 fi
 
 if [[ "${1:-}" == --input ]]

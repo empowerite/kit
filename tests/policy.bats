@@ -939,3 +939,11 @@ REGO
   [[ "$output" != *"policy allows"* ]]
 }
 
+
+@test "kit policy --rules --json lists each rule, its pattern, where it is set, and the engine" {
+  printf "policy:\n  branch: '^feature/[a-z-]+\$'\n  change_title: ''\n" > kit.yml
+  run "${kit_root}/bin/kit" policy --rules --json
+  [[ "$status" -eq 0 && "${#lines[@]}" -eq 3 && "$(jq --raw-output .from <<<"${lines[1]}")" == default ]]
+  [ "${lines[0]}" = '{"rule":"branch","pattern":"^feature/[a-z-]+$","from":"kit.yml","engine":"patterns"}' ]
+  [ "${lines[2]}" = '{"rule":"change_title","pattern":"","from":"kit.yml","engine":"patterns"}' ]
+}

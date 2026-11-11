@@ -188,6 +188,16 @@ policy:
   commit_subject: ''
 ```
 
+`kit policy --rules` lists each rule, its pattern, and where it is set, and reads no facts and no forge. `--json` prints
+an object a line, `{rule, pattern, from, engine}`, and `--jq` the same formatted by jq. `from` is `kit.yml` where the
+`policy:` map sets the rule, an empty pattern included, else `default`; `engine` is the engine that judges, `patterns`
+or `opa`. The patterns are the same whichever the engine: the opa package's `kit.rego` reads
+them from the facts.
+
+```sh
+kit policy --rules --json
+```
+
 A single-quoted pattern is taken literally. Write patterns in the subset that bash's extended regular expressions
 and OPA's RE2 share, so both engines read them the same way:
 

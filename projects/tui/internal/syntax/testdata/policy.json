@@ -2,7 +2,7 @@
   "verb": "policy",
   "purpose": "refuses a branch, subject, or title the policy forbids",
   "usage": [
-    "kit policy [--input | --facts=<file>]"
+    "kit policy [--input | --facts=<file> | --rules [--json | --jq]]"
   ],
   "syntax": [
     [
@@ -25,6 +25,34 @@
               "value": "file",
               "repeat": false
             }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "rules",
+              "repeat": false
+            },
+            {
+              "kind": "group",
+              "optional": true,
+              "alternatives": [
+                [
+                  {
+                    "kind": "flag",
+                    "name": "json",
+                    "repeat": false
+                  }
+                ],
+                [
+                  {
+                    "kind": "flag",
+                    "name": "jq",
+                    "repeat": false
+                  }
+                ]
+              ],
+              "repeat": false
+            }
           ]
         ],
         "repeat": false
@@ -37,6 +65,15 @@
     },
     "--facts": {
       "description": "judges the facts document in <file>, and gathers nothing; for testing a rule against a fixture"
+    },
+    "--rules": {
+      "description": "lists each rule the policy judges by: its name, its pattern, and where the pattern is set, as a table; it reads no facts and no forge"
+    },
+    "--json": {
+      "description": "with --rules, one JSON object a line: rule, pattern, from, and engine; from is kit.yml where the policy: map sets the rule, else default, and engine is the engine that judges, patterns or opa"
+    },
+    "--jq": {
+      "description": "the same JSON, formatted by jq for a person"
     }
   }
 }

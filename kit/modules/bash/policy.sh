@@ -130,6 +130,28 @@ policy:rules() {
     '{branch: $branch, commit_subject: $commit_subject, change_title: $change_title}'
 }
 
+# policy:listed prints each rule as "<rule>\t<pattern>\t<from>", for branch, commit_subject, and change_title in that
+# order: <from> is kit.yml where the policy: map sets the rule, an empty pattern included, else default. Read as
+# fields on a tab, an empty pattern is a field of its own. It reads no facts, and fails as policy:rules does.
+policy:listed() {
+  local rules row key
+  local -A set=()
+  local -a rows
+  rules=$(policy:rules) || return 1
+  list:read rows yaml:map "$(settings:file)" policy || return 1
+  for row in "${rows[@]}"
+  do
+    key=${row%%$'\t'*}
+    [[ -z "${key}" ]] || set[${key}]=kit.yml
+  done
+  for key in branch commit_subject change_title
+  do
+    printf '%s\t%s\t%s\n' "${key}" "$(jq --raw-output --arg key "${key}" '.[$key]' <<<"${rules}")" \
+      "${set[${key}]:-default}"
+  done
+}
+
+
 # policy:branch prints the branch to check: the change's source branch on a CI runner, or a merge group's head there,
 # otherwise the current branch, or nothing on a detached HEAD.
 policy:branch() {
