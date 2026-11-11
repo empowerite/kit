@@ -526,9 +526,9 @@ workspaces:menu-json() {
 # process. A lock whose target is no number, or names a process that is gone, is removed and taken. Any other waits
 # 0.1 second a turn, workspaces_lock_wait turns, and then it returns 1, naming the process that holds it.
 workspaces:lock() {
-  local dir lock holder='' waited=0
+  local dir lock aside holder='' moved waited=0
   dir=$(workspaces:cache)
-  lock=${dir}/workspaces.yml.lock
+  lock=${dir}/workspaces.yml.lock aside=${dir}/workspaces.yml.lock.$$
   [[ "$(readlink "${lock}" 2>/dev/null)" != "$$" ]] || return 0
   mkdir -p "${dir}" || return 1
   until ln -s "$$" "${lock}" 2>/dev/null
@@ -536,8 +536,25 @@ workspaces:lock() {
     if holder=$(readlink "${lock}" 2>/dev/null) \
       && { [[ ! "${holder}" =~ ^[0-9]+$ ]] || ! kill -0 "${holder}" 2>/dev/null; }
     then
-      forge:unlock "${lock}" "${holder}"
-      [[ -L "${lock}" ]] || continue
+      # A stale lock is renamed aside, under a name of this process's own, before it is removed. A rename is atomic, so
+      # of two processes that found the same dead holder, one moves the stale link; the other's move fails, as the link
+      # is gone, or moves the link the first has made since. That one finds a live process in what it moved, puts the
+      # link back by ln -s, which never replaces a link a third has made, and waits. Removed by readlink and then rm,
+      # the second would remove the first's fresh lock, and both would hold it. Only a third that makes its link in
+      # the instant the first's is aside holds the lock beside the first; no test can set that instant up.
+      rm -f "${aside}"
+      if mv "${lock}" "${aside}" 2>/dev/null
+      then
+        moved=$(readlink "${aside}" 2>/dev/null) || moved=''
+        if [[ "${moved}" == "${holder}" ]]
+        then
+          rm -f "${aside}"
+          continue
+        fi
+        [[ -z "${moved}" ]] || ln -s "${moved}" "${lock}" 2>/dev/null || true  # a lock a third made since stands
+        rm -f "${aside}"
+        holder=${moved}
+      fi
     fi
     if (( waited >= workspaces_lock_wait ))
     then

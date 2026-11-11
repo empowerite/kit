@@ -290,6 +290,30 @@ YML
   [ "$(jq -c '[.kind, .favorites]' <<<"$output")" = '["none",[]]' ]
 }
 
+@test "an edit says what it changed, or that nothing needed to, and leaves the file as it was then" {
+  workspaces-file <<<'favorites: [w]
+workspaces: {w: {repos: [github.com/a/one]}, v: {repos: [github.com/a/two]}}'
+  cp "${XDG_CONFIG_HOME}/kit/workspaces.yml" "${BATS_TEST_TMPDIR}/before.yml"
+  for each in "--add=w github.com/a/one|📚 w holds them already" "--remove=w github.com/a/two|📚 w holds none of them" \
+    "--favorite=w|📚 w is a favorite already" "--unfavorite=v|📚 v is not a favorite"
+  do
+    run "${kit_root}/bin/kit" workspaces ${each%%|*}
+    [ "$status" -eq 0 ]
+    [ "$output" = "→ ${each#*|}" ]
+  done
+  cmp "${BATS_TEST_TMPDIR}/before.yml" "${XDG_CONFIG_HOME}/kit/workspaces.yml"
+  run "${kit_root}/bin/kit" workspaces --unfavorite=w
+  [ "$output" = "→ 📚 w is not a favorite" ]
+  run "${kit_root}/bin/kit" workspaces --rename=w core
+  [ "$output" = "→ 📚 w is renamed 📚 core" ]
+  run "${kit_root}/bin/kit" workspaces --use=core
+  [ "$status" -eq 0 ]
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --show=core --json
+  [ "$(jq -c '[.name, .members[].repository]' <<<"$output")" = '["core","github.com/a/one"]' ]
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
+  [ "$(jq -c '[.name, .why, .favorites]' <<<"$output")" = '["core","last",[]]' ]
+}
+
 @test "a relative path is no member: the file refuses one, and the verb reads a directory from where it runs" {
   workspaces-file <<YML
 workspaces:

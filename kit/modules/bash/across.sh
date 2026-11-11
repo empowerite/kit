@@ -202,7 +202,7 @@ across:run() {
   shift 3
   if [[ ! -d "${checkout}" ]]
   then
-    printf '❌ %s is gone; run: kit workspaces --show %s\n' "${checkout}" "${workspace}" > "${prefix}.err"
+    printf '❌ %s is gone; run: kit workspaces --show=%s\n' "${checkout}" "${workspace}" > "${prefix}.err"
     : > "${prefix}.out"
     printf 1 > "${prefix}.status"
     return 0

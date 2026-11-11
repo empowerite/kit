@@ -3,11 +3,11 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # kit workspaces [--text | --json | --jq]
 #
-# kit workspaces --show <workspace> [--text | --json | --jq]
+# kit workspaces --show=<workspace> [--text | --json | --jq]
 #
 # kit workspaces --current [--workspace <workspace>] [--text | --json | --jq]
 #
-# kit workspaces --use <workspace>
+# kit workspaces --use=<workspace>
 #
 # kit workspaces --new=<name> [<repository>…]
 #
@@ -58,7 +58,7 @@
 # groups, favorites}: kind is repository, group, or none; why is given, repository, last, or none; members a group's,
 # as --show gives each; groups, for a repository, each group that holds it, {name, members}, members a count; and
 # favorites {name, kind, members, checkout}. Only the JSON looks for checkouts; the text names the workspace alone.
-# The forms that edit print one line, and take no --json.
+# The forms that edit print one line, which says what changed, or that nothing needed to, and take no --json.
 #
 # Each form that edits takes the file's lock first, a link in kit/workspaces/ under XDG_CACHE_HOME, else ~/.cache, so
 # two commands that edit the file at once each land. A lock whose process is gone is taken over; one held by a live
@@ -78,7 +78,8 @@ kit:enter
 use workspaces
 
 # The forms that name a group or a workspace are written --option=<value>; given as the next word, the value is joined
-# to its option first, so --add w reads as --add=w.
+# to its option first, so --add w reads as --add=w. The list below names every option the usage lines write as
+# --option=<value>, so an option given that form joins the list too.
 words=()
 while (( $# ))
 do
@@ -88,7 +89,7 @@ do
     break
   fi
   case "$1" in
-    (--new | --add | --remove | --rename | --delete | --favorite | --unfavorite)
+    (--show | --use | --new | --add | --remove | --rename | --delete | --favorite | --unfavorite)
       if (( $# > 1 )) && [[ "$2" != -* ]]
       then
         words+=("$1=$2")
@@ -178,7 +179,7 @@ case "${action}" in
       fi
       if grep --quiet --line-regexp --fixed-strings -- "${target}" <<<"${groups}"
       then
-        error "📚 ${target} is a workspace already; add to it: kit workspaces --add ${target} <repository>…"
+        error "📚 ${target} is a workspace already; add to it: kit workspaces --add=${target} <repository>…"
         exit 2
       fi
     elif ! grep --quiet --line-regexp --fixed-strings -- "${target}" <<<"${groups}"
@@ -203,7 +204,7 @@ case "${action}" in
       last=$(workspaces:last) || exit 1
       workspaces:rename "${target}" "${name}" || exit 1
       [[ "${last}" != "${target}" ]] || workspaces:remember "${name}" || exit 1
-      step "📚 ${target} is now 📚 ${name}"
+      step "📚 ${target} is renamed 📚 ${name}"
       exit 0
     fi
     if [[ "${action}" == delete ]]
@@ -240,6 +241,8 @@ case "${action}" in
         then
           workspaces:add "${target}" "${fresh[@]}" || exit 1
           step "📚 ${target}: added ${fresh[*]}"
+        else
+          step "📚 ${target} holds them already"
         fi
         ;;
       (remove)
@@ -254,6 +257,8 @@ case "${action}" in
         then
           workspaces:drop "${target}" "${drop[@]}" || exit 1
           step "📚 ${target}: removed ${drop[*]}"
+        else
+          step "📚 ${target} holds none of them"
         fi
     esac
     ;;
@@ -265,19 +270,21 @@ case "${action}" in
     if [[ "${action}" == unfavorite ]] && list:among "${target}" "${favorites[@]}"
     then
       workspaces:disfavor "${target}" || exit 1
-      step "📚 ${target} is no longer a favorite"
+      step "📚 ${target} is not a favorite"
       exit 0
     fi
     line=$(workspaces:kind "${target}") || exit $?
     read -r _ name <<<"${line}"
-    if [[ "${action}" == favorite ]] && ! list:among "${name}" "${favorites[@]}"
+    if [[ "${action}" == favorite ]] && list:among "${name}" "${favorites[@]}"
+    then
+      step "📚 ${name} is a favorite already"
+    elif [[ "${action}" == favorite ]]
     then
       workspaces:favor "${name}" || exit 1
       step "★ 📚 ${name} is a favorite"
-    elif [[ "${action}" == unfavorite ]] && list:among "${name}" "${favorites[@]}"
-    then
-      workspaces:disfavor "${name}" || exit 1
-      step "📚 ${name} is no longer a favorite"
+    else
+      ! list:among "${name}" "${favorites[@]}" || workspaces:disfavor "${name}" || exit 1
+      step "📚 ${name} is not a favorite"
     fi
 esac
 

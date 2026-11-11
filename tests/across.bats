@@ -121,7 +121,7 @@ EOF
   [ "$status" -eq 1 ]
   [ "$(jq -c '[.rows[].member]' <<<"$output")" = '["github.com/o/a"]' ]
   [ "$(jq -r '.errors[0].member' <<<"$output")" = github.com/o/b ]
-  [ "$(jq -r '.errors[0].error' <<<"$output")" = "${BATS_TEST_TMPDIR}/gone is gone; run: kit workspaces --show w" ]
+  [ "$(jq -r '.errors[0].error' <<<"$output")" = "${BATS_TEST_TMPDIR}/gone is gone; run: kit workspaces --show=w" ]
 }
 
 @test "a group with no member cloned prints no rows and no errors, and exits 0" {

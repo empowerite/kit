@@ -67,9 +67,9 @@ each desk below, as it does above desks, and `kit workspace` refuses with 2, as 
 
 ```sh
 kit workspaces                                    # the groups and the favorites
-kit workspaces --show empowerite                  # each member, with its checkout or ☁️
+kit workspaces --show=empowerite                  # each member, with its checkout or ☁️
 kit workspaces --current                          # the workspace kit starts on here, and why
-kit workspaces --use empowerite                   # start on empowerite outside a repository
+kit workspaces --use=empowerite                   # start on empowerite outside a repository
 kit workspaces --new=empowerite . github.com/empowerite/kit
 kit workspaces --add=empowerite github.com/empowerite/edge
 kit workspaces --remove=empowerite github.com/empowerite/edge
@@ -81,7 +81,11 @@ kit workspaces --unfavorite=empowerite
 
 `--new` and `--add` take a member, a git URL, or a checkout's directory, as `.` for the repository you are in. The
 forms that read print JSON with `--json`; `kit help workspaces` gives the shapes. The forms that edit print one line,
-and take no `--json`. Each takes the file's lock first, so two commands that edit the file at once each land.
+which says what changed, or that nothing needed to, as `📚 empowerite holds them already`, and take no `--json`. Each
+takes the file's lock first, so two commands that edit the file at once each land.
+
+`kit workspaces` exits 1 when the file cannot be read or edited, as when another command holds its lock past the
+wait of 30 seconds, and 2 for a usage error, an unknown workspace, or a new name that is refused or taken.
 
 ## kit flow over a workspace
 
