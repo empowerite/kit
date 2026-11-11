@@ -86,15 +86,24 @@ forge/ado:branch-for-issue() {
 forge/ado:contract() { printf '4\n'; }
 
 forge/ado:lacks() {
-  printf '%s\n' quota marks releases linked-branches milestones collaborators teams bots attestations code-scanning \
-    dependabot secret-scanning rulesets bypasses
+  printf '%s\n' quota marks releases linked-branches milestones bots attestations code-scanning dependabot \
+    secret-scanning rulesets bypasses
 }
 
 forge/ado:bypasses() { return 3; }
 
 forge/ado:code-scanning-alerts() { return 3; }
 
-forge/ado:collaborators() { return 3; }
+# forge/ado:collaborators prints one document per member of the project's teams, as the seam's header says: the
+# teams, as forge/ado:teams-read reads them, each member once, an administrator of any of them admin. Azure DevOps
+# lists its users only for the whole organization, with no project to filter them by, so the project's teams are
+# who has access here; one who has it only through a security group the teams do not hold is not among them.
+forge/ado:collaborators() {
+  local teams members
+  forge/ado:teams-read teams members || return 1
+  forge/ado:fold 'the teams' "${teams}" --compact-output --argjson members "${members}" \
+    'import "forge" as forge; forge::ado_collaborators($members; 20)'
+}
 
 forge/ado:dependabot-alerts() { return 3; }
 
@@ -504,7 +513,16 @@ forge/ado:issue-new-url() {
 
 forge/ado:secret-scanning-alerts() { return 3; }
 
-forge/ado:teams() { return 3; }
+# forge/ado:teams prints one document per team of the project, in Azure DevOps' order, as the seam's header says: the
+# teams and the first 100 members of each of the first 20, as forge/ado:teams-read reads them. A 21st team, or a team
+# past its first 100 members, ends the list with {"limited": N}.
+forge/ado:teams() {
+  local org project teams members
+  IFS=$'\t' read -r org project _ < <(forge/ado:place) || return 1
+  forge/ado:teams-read teams members || return 1
+  forge/ado:fold 'the teams' "${teams}" --compact-output --argjson members "${members}" \
+    --arg url "${org}/$(forge/ado:encode "${project}")" 'import "forge" as forge; forge::ado_teams($members; $url; 20)'
+}
 
 # The seam's calls end here; what follows is this provider's own.
 
@@ -608,6 +626,29 @@ forge/ado:environments-list() {
     return 1
   fi
   printf -v "${list_into}" '%s' "${list_answer}"
+}
+
+# forge/ado:teams-read <teams> <members> reads the project's teams, 21 of them at most, so a 21st says there are more,
+# into the variable <teams>, one JSON array, and the members of each of the first 20, 101 of them at most, so a 101st
+# says there are more, into the variable <members>, one JSON object by the team's id: a read for the teams, and one
+# for each team's members.
+forge/ado:teams-read() {
+  local read_teams=$1 read_members=$2 read_project read_list read_ids read_id read_team read_all='{}'
+  local -a read_each=()
+  IFS=$'\t' read -r _ read_project _ < <(forge/ado:place) || return 1
+  forge/ado:ask read_list 'the teams' devops team list --project "${read_project}" --top 21 || return 1
+  read_ids=$(forge/ado:fold 'the teams' "${read_list}" --raw-output \
+    'if type == "array" then .[:20][].id else error end') || return 1
+  [[ -z "${read_ids}" ]] || mapfile -t read_each <<<"${read_ids}"
+  for read_id in "${read_each[@]}"
+  do
+    forge/ado:ask read_team "the members of team ${read_id}" devops team list-member --team "${read_id}" \
+      --project "${read_project}" --top 101 || return 1
+    read_all=$(forge/ado:fold "the members of team ${read_id}" "${read_all}" --compact-output --arg id "${read_id}" \
+      --argjson team "${read_team}" '. + {($id): ($team | arrays // error)}') || return 1
+  done
+  printf -v "${read_teams}" '%s' "${read_list}"
+  printf -v "${read_members}" '%s' "${read_all}"
 }
 
 # forge/ado:labels <n> <method> [<route parameter>] [<az devops invoke argument>…] changes the pull request's labels

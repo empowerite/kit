@@ -153,6 +153,46 @@ refuse with 2, naming `kit flow releases --json` or `kit flow builds --json`.
   updated last, as another tool may deploy and a status may change. GitLab's protected environments move no mark.
   Azure DevOps has no marks, so its are `null`.
 
+## People: kit people
+
+`kit people` prints who works on the repository, as the forge says. Every tab of People is its own.
+
+| Stage | A row per | Fields | Mark |
+| --- | --- | --- | --- |
+| `people` | person or bot with access | `login, name, role, kind` | none |
+| `teams` | team with access, 20 at most | `team, name, role, members` | none |
+| `agents` | bot that acted | `login, acted, last` | none |
+
+- `people` keys each row by its login. `name` is `null` where the forge shows none, as GitHub's list mostly does.
+  `role` is the forge's own: GitHub's `admin`, `maintain`, `write`, `triage`, `read`, or a custom role, the highest
+  any source gives; GitLab's `owner`, `maintainer`, `developer`, `reporter`, `planner`, or `guest`, the highest of a
+  member's memberships, its own, its groups', and those of the groups the project is shared with or invited to; and
+  on Azure DevOps `admin` for an administrator of one of the project's teams, else `member`. `kind` is `user`, `bot`,
+  or, on Azure DevOps, `group`, for a group a team holds. GitHub reads every page of its collaborators, and shows them
+  only to a caller who may push; any other is told to ask an admin for write access. GitLab reads its members through
+  GraphQL, which says which is a bot, 100 a page. Azure DevOps lists its users only for the whole organization, so
+  its people are the members of the project's teams, as `teams` reads them, and the document is `limited` where that
+  is.
+- `teams` keys each row by the team, GitHub's slug, GitLab's group path, Azure DevOps' name, and the team links to its
+  page. `role` is the access the team has, GitHub's as its collaborators' are named, GitLab's the share's, and `null`
+  on Azure DevOps, whose teams hold none. `members` are their logins, the first 100, and `null` for a team the caller
+  cannot see. GitHub reads the teams with access, one request, then the members of all of them in one GraphQL
+  request, which needs the `read:org` scope: without it, the line names `gh auth refresh --scopes read:org`. A
+  repository a user owns has none. GitLab's teams are the groups the project is shared with, read the same way;
+  Azure DevOps reads the project's teams, then each one's members, a request each. Past 20 teams, or past 100 members
+  of one, the document is `limited`, at the teams drawn.
+- `agents` keys each row by its login, which links to its page. `acted` is what it did, `commit`, `change`, or
+  `review`, and `last` when it last did, in seconds since the epoch; the last to act comes first. GitHub reads, in one
+  GraphQL request, the authors of the 100 newest commits on the default branch, and of the 100 open changes and the 50
+  merged changes updated last, with each one's latest reviews: a bot is a `Bot` account or a login that ends `[bot]`,
+  as `dependabot[bot]`, and a commit is also a bot's when its author names itself one, as an agent's commit under a
+  person's account does. A bot that acted only before those is not among them, and past 100 open changes, or 20
+  reviewers of one, the document is `limited`, at the bots drawn. GitLab's are its bot users among the
+  members, as a project's or a group's access token makes, `acted` `null`, as GitLab does not say, and `last` the day
+  each last acted. Azure DevOps names no bots, and draws none.
+- No stage has a mark: the forge's marks are read for every app at once, and a mark of who has access would cost each
+  a request more, one a caller who may not push is refused. Each is read again on Refresh and Watch.
+
 ## Packages: kit packages
 
 `kit packages` keeps its own forms beside the app's, as [packages.md](packages.md) says: alone, with a filter, or

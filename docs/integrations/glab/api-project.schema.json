@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "glab api projects/${source}",
-  "description": "The project a merge request's branch lives in, read by its id when it is not this project, whose namespace's full path kit reads as the fork's owner in `modules/bash/forge/gitlab.sh` (forge/gitlab:open-prs). The types are APIEntitiesProjectsWithAccessAndCatalogSetting and APIEntitiesNamespaceBasic of GET /api/v4/projects/{id} in GitLab's REST OpenAPI, https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/openapi/openapi_v3.yaml, as https://docs.gitlab.com/api/projects/ describes it.",
+  "title": "glab api projects/${project}",
+  "description": "A project, read by its id, a merge request's branch's when it is not this project, whose namespace's full path kit reads as the fork's owner in `modules/bash/forge/gitlab.sh` (forge/gitlab:open-prs); or this project, read by its path, whose shared_with_groups kit draws as the teams stage's, the first 20 of them (forge/gitlab:teams, with `modules/jq/forge.jq` forge::gitlab_teams). The types are APIEntitiesProjectsWithAccessAndCatalogSetting, APIEntitiesNamespaceBasic, and the shared groups of GET /api/v4/projects/{id} in GitLab's REST OpenAPI, https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/openapi/openapi_v3.yaml, as https://docs.gitlab.com/api/projects/ describes it.",
   "type": "object",
   "properties": {
     "namespace": {
@@ -12,11 +12,49 @@
           "description": "The path of the group, with its parent groups, or of the user that owns the project."
         }
       },
-      "required": ["full_path"],
+      "required": [
+        "full_path"
+      ],
       "additionalProperties": true
+    },
+    "shared_with_groups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "group_id": {
+            "type": "integer"
+          },
+          "group_name": {
+            "type": "string"
+          },
+          "group_full_path": {
+            "type": "string"
+          },
+          "group_access_level": {
+            "type": "integer",
+            "description": "The access the share gives: 10 guest, 20 reporter, 30 developer, 40 maintainer, 50 owner."
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "group_id",
+          "group_name",
+          "group_full_path",
+          "group_access_level"
+        ],
+        "additionalProperties": true
+      }
     }
   },
-  "required": ["namespace"],
+  "required": [
+    "namespace"
+  ],
   "additionalProperties": true,
   "examples": [
     {
@@ -24,6 +62,21 @@
       "namespace": {
         "full_path": "cy"
       }
+    },
+    {
+      "id": 1,
+      "namespace": {
+        "full_path": "o"
+      },
+      "shared_with_groups": [
+        {
+          "group_id": 5,
+          "group_name": "core",
+          "group_full_path": "o/core",
+          "group_access_level": 30,
+          "expires_at": null
+        }
+      ]
     }
   ]
 }

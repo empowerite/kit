@@ -359,3 +359,48 @@ import "forge" as forge; forge::ado_deployments(1000000; {"value": [{"id": 1, "n
 import "forge" as forge; [forge::ado_deployments(1000000; {"value": []}; []; 5; false; "r"; {"name": "x", "url": "u"}) | .id]
 [{"id": 1, "environmentId": 1, "owner": {"id": 7}, "startTime": "1970-01-12T13:41:00.500000+00:00", "result": "succeeded"}, {"id": 2, "environmentId": 1, "owner": {"id": 7}, "startTime": "1970-01-12T13:40:00Z", "result": "succeeded"}, {"id": 3, "environmentId": 1, "owner": {"id": 7}, "startTime": "1970-01-12T14:39:00+01:00", "result": "succeeded"}]
 [1,2,3]
+
+# A GitHub collaborator with no name shown, or no role, has them null, and a bot account is a bot; a team's permission
+# is the role a collaborator's would name, a custom role its own name.
+import "forge" as forge; [forge::github_collaborators], [("pull", "push", "maintain", "custom", null) | forge::github_role]
+[[{"login": "ada", "type": "User"}, null, {"login": "app[bot]", "type": "Bot", "name": "App", "role_name": "write"}]]
+[{"login":"ada","name":null,"role":null,"kind":"user"},{"login":"app[bot]","name":"App","role":"write","kind":"bot"}]
+["read","write","maintain","custom",null]
+
+# A GitHub team the caller cannot see has its members null, a team cut past its members says the list stopped at the
+# teams drawn, and more teams than read say it stopped at the limit.
+import "forge" as forge; [forge::github_teams({t0: {members: {totalCount: 3, nodes: [{"login": "ada"}, null]}}}; 2)], [forge::github_teams({}; 1)]
+[{"slug": "a", "name": "A", "permission": "admin"}, {"slug": "b", "name": "B"}]
+[{"team":"a","name":"A","role":"admin","members":["ada"],"url":null},{"team":"b","name":"B","role":null,"members":null,"url":null},{"limited":2}]
+[{"team":"a","name":"A","role":"admin","members":null,"url":null},{"limited":1}]
+
+# A GitHub bot's acts merge under one login, a Bot's GraphQL login gaining [bot]; a pending review, which has no time,
+# still says it reviewed; nodes, authors, and reviews that are null are no one's; a GitHub Enterprise host names its
+# apps' pages.
+import "forge" as forge; [forge::github_bots]
+{"data": {"repository": {"url": "https://ghe.example/o/r", "defaultBranchRef": {"target": {"history": {"nodes": [null, {"committedDate": "1970-01-01T00:01:40Z", "author": {"name": "x[bot]", "user": null}}]}}}, "open": {"nodes": [null, {"createdAt": "1970-01-01T00:00:50Z", "author": {"__typename": "Bot", "login": "x"}, "latestReviews": null}]}, "merged": {"nodes": [{"createdAt": "1970-01-01T00:00:10Z", "author": null, "latestReviews": {"nodes": [null, {"submittedAt": null, "author": {"__typename": "Bot", "login": "y", "url": "https://ghe.example/apps/y"}}]}}]}}}}
+[{"login":"x[bot]","acted":["commit","change"],"last":100,"url":"https://ghe.example/apps/x"},{"login":"y[bot]","acted":["review"],"last":null,"url":"https://ghe.example/apps/y"}]
+
+# A repository with no default branch's commits and no changes has no bots.
+import "forge" as forge; [forge::github_bots]
+{"data": {"repository": {"defaultBranchRef": null, "open": null, "merged": {"nodes": []}}}}
+[]
+
+# A GitLab member with no access level shown has no role, a level GitLab adds later is its number, and a user who is no
+# bot, or a bot never seen acting, has none of that.
+import "forge" as forge; [forge::gitlab_collaborators], [forge::gitlab_bots]
+[{"accessLevel": null, "user": {"username": "a", "bot": false}}, {"accessLevel": {"integerValue": 35}, "user": {"username": "b", "name": "B", "bot": true, "lastActivityOn": null, "webUrl": null}}, {"accessLevel": {"integerValue": 10}, "user": null}]
+[{"login":"a","name":null,"role":null,"kind":"user"},{"login":"b","name":"B","role":"35","kind":"bot"}]
+[{"login":"b","acted":null,"last":null,"url":null}]
+
+# A GitLab project shared with no group, or one whose answer names none, has no teams.
+import "forge" as forge; [forge::gitlab_teams({}; "https://h"; 20)]
+{"shared_with_groups": null}
+[]
+
+# An Azure DevOps team with no members read has none, and a member with no identity is no one; an administrator of
+# one team is an admin, a member of another.
+import "forge" as forge; [forge::ado_teams({b: [{"identity": {"uniqueName": "ada"}}]}; "u"; 20)], [forge::ado_collaborators({a: [{"isTeamAdmin": true, "identity": {"uniqueName": "ada", "displayName": "Ada"}}, {"identity": null}], b: [{"identity": {"uniqueName": "ada"}}, {"identity": {"id": "g", "isContainer": true}}]}; 20)]
+[{"id": "a", "name": "A"}, {"id": "b", "name": "B"}]
+[{"team":"A","name":"A","role":null,"members":[],"url":"u/_settings/teams"},{"team":"B","name":"B","role":null,"members":["ada"],"url":"u/_settings/teams"}]
+[{"login":"ada","name":"Ada","role":"admin","kind":"user"},{"login":"g","name":null,"role":"member","kind":"group"}]

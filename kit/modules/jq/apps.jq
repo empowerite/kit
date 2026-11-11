@@ -84,6 +84,15 @@ def deployment:
               sha: .commit, state: .url}})
   | linked;
 
+# person reads one with access the forge's collaborators call prints and gives it keyed by the login.
+def person: {key: .login} + . + {links: {}};
+
+# team reads a team the forge's teams call prints and gives it keyed by the team, its page the link of the team.
+def team: ({key: .team} + del(.url) + {links: {team: .url}}) | linked;
+
+# agent reads a bot the forge's bots call prints and gives it keyed by its login, its page the link of the login.
+def agent: ({key: .login} + del(.url) + {links: {login: .url}}) | linked;
+
 # shown reads a row's value and gives it as text prints it: nothing for none, a list's values apart by commas, an
 # object as JSON.
 def shown:

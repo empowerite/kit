@@ -48,13 +48,14 @@ added+='"teams","bots","attestations","code-scanning","dependabot","secret-scann
   run "${kit_root}/bin/kit" flow --capabilities
   [ "$status" -eq 0 ]
   [ "$(jq -c '{contract, forge, provider}' <<<"$output")" = '{"contract":4,"forge":"github","provider":4}' ]
-  [ "$(jq -c '[.features | to_entries[] | select(.value == "native") | .key] | length' <<<"$output")" = 19 ]
+  [ "$(jq -c '[.features | to_entries[] | select(.value == "native") | .key] | length' <<<"$output")" = 22 ]
   [ "$(jq -c '.features.milestones' <<<"$output")" = '"native"' ]
   [ "$(jq -r '.features | keys_unsorted | join(" ")' <<<"$output")" \
     = 'issues sub-issues linked-branches drafts closing-issues review-threads checks quota marks releases runs labels milestones iterations reviewers merged artifacts environments deployments collaborators teams bots attestations code-scanning dependabot secret-scanning rulesets bypasses' ]
   git remote set-url origin https://gitlab.com/empowerite/example.git
   run "${kit_root}/bin/kit" flow --capabilities
   not_built=${added#'"milestones","iterations","reviewers","merged","artifacts","environments","deployments",'}
+  not_built=${not_built#'"collaborators","teams","bots",'}
   [ "$(jq -c '{forge, provider, none: [.features | to_entries[] | select(.value == "none") | .key]}' <<<"$output")" \
     = "{\"forge\":\"gitlab\",\"provider\":4,\"none\":[${not_built}]}" ]
 }

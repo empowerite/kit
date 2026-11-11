@@ -36,7 +36,14 @@ forge/gitlab:artifacts() {
 
 forge/gitlab:attestations() { return 3; }
 
-forge/gitlab:bots() { return 3; }
+# forge/gitlab:bots prints one document per bot user among the project's members, the last to act first, as the seam's
+# header says: the members, as forge/gitlab:members reads them, of whom GitLab marks a bot, as a project's or a group's
+# access token makes one, with the day it last acted. GitLab says nothing of what a bot did, so acted is null.
+forge/gitlab:bots() {
+  local members
+  forge/gitlab:members members || return 1
+  forge/gitlab:fold 'the members' "${members}" --compact-output 'import "forge" as forge; forge::gitlab_bots'
+}
 
 forge/gitlab:branch-for-issue() {
   local open
@@ -49,7 +56,13 @@ forge/gitlab:bypasses() { return 3; }
 
 forge/gitlab:code-scanning-alerts() { return 3; }
 
-forge/gitlab:collaborators() { return 3; }
+# forge/gitlab:collaborators prints one document per person or bot with access to the project, as the seam's header
+# says: its members, as forge/gitlab:members reads them, each at the highest access any membership gives them.
+forge/gitlab:collaborators() {
+  local members
+  forge/gitlab:members members || return 1
+  forge/gitlab:fold 'the members' "${members}" --compact-output 'import "forge" as forge; forge::gitlab_collaborators'
+}
 
 forge/gitlab:dependabot-alerts() { return 3; }
 
@@ -508,14 +521,45 @@ forge/gitlab:runs() {
 
 forge/gitlab:secret-scanning-alerts() { return 3; }
 
-forge/gitlab:teams() { return 3; }
+# forge/gitlab:teams prints one document per group the project is shared with, GitLab's teams, in GitLab's order, as
+# the seam's header says: the project, one REST request, which names them and the access each share gives, then one
+# GraphQL request for the first 100 members of each of the first 20, their own and those inherited from their parent
+# groups. A 21st group, or a group past its first 100 members, ends the list with {"limited": N}. A project shared with
+# no group asks no more.
+forge/gitlab:teams() {
+  local project answer path page members='{}' variables='' fields='' host
+  local -i index=0
+  local -a paths named=()
+  project=$(forge/gitlab:project) || return 1
+  host=$(forge:host "$(forge:primary)") || return 1
+  forge/gitlab:ask answer 'the teams' "/projects/${project//\//%2F}" || return 1
+  list:read paths forge/gitlab:fold 'the teams' "${answer}" --raw-output \
+    '.shared_with_groups | arrays | .[:20][] | .group_full_path' || return 1
+  for path in "${paths[@]}"
+  do
+    [[ -n "${path}" ]] || continue
+    variables+=", \$g${index}: ID!"
+    fields+=" g${index}: group(fullPath: \$g${index}) {"
+    fields+=" webUrl groupMembers(first: 100) { pageInfo { hasNextPage } nodes { user { username } } } }"
+    named+=(--raw-field "g${index}=${path}")
+    index+=1
+  done
+  if (( index > 0 ))
+  then
+    forge/gitlab:ask page 'the teams' /graphql "${named[@]}" \
+      --raw-field query="query(${variables#, }) {${fields} }" || return 1
+    members=$(forge/gitlab:fold 'the teams' "${page}" --compact-output '.data | objects') || return 1
+  fi
+  forge/gitlab:fold 'the teams' "${answer}" --compact-output --argjson members "${members}" \
+    --arg host "https://${host}" 'import "forge" as forge; forge::gitlab_teams($members; $host; 20)'
+}
 
 # The provider implements contract 4. A feature whose call it has not written is in lacks, which the task that writes
 # the call drops it from.
 forge/gitlab:contract() { printf '4\n'; }
 
 forge/gitlab:lacks() {
-  printf '%s\n' collaborators teams bots attestations code-scanning dependabot secret-scanning rulesets bypasses
+  printf '%s\n' attestations code-scanning dependabot secret-scanning rulesets bypasses
 }
 
 # The seam's calls end here; what follows is this provider's own.
@@ -578,6 +622,38 @@ forge/gitlab:on-branch() {
   forge/gitlab:ask mrs "$1" "$2" || return 1
   forge/gitlab:fold "$1" "${mrs}" --exit-status 'type == "array"' >/dev/null || return 1
   forge/gitlab:fold "$1" "${mrs}" --raw-output "$3"
+}
+
+# forge/gitlab:members <name> reads the project's members, as the REST API's members/all lists them, those of its own,
+# those inherited from its groups, and those of the groups it is shared with, and puts them in the variable <name>, one
+# JSON array. GitLab's REST answer does not say which is a bot, its GraphQL does, so one query reads them, 100 a page,
+# following each page's cursor to the end; a page that fails fails the call.
+forge/gitlab:members() {
+  local members_into=$1 members_project members_query members_page members_nodes='[]' members_more=true
+  local -a members_after=()
+  members_project=$(forge/gitlab:project) || return 1
+  members_query='query($path: ID!, $after: String) {
+    project(fullPath: $path) {
+      projectMembers(first: 100, after: $after,
+                     relations: [DIRECT, INHERITED, INVITED_GROUPS, SHARED_INTO_ANCESTORS]) {
+        pageInfo { hasNextPage endCursor }
+        nodes { accessLevel { integerValue } user { username name bot lastActivityOn webUrl } }
+      }
+    }
+  }'
+  while [[ "${members_more}" == true ]]
+  do
+    forge/gitlab:ask members_page 'the members' /graphql --raw-field path="${members_project}" "${members_after[@]}" \
+      --raw-field query="${members_query}" || return 1
+    members_nodes=$(forge/gitlab:fold 'the members' "${members_nodes}"$'\n'"${members_page}" --slurp --compact-output \
+      '.[0] + (.[1].data.project.projectMembers.nodes | arrays // error)') || return 1
+    forge:whole 'the members' "$(jq length <<<"${members_nodes}")" || return 1
+    members_more=$(forge/gitlab:fold 'the members' "${members_page}" --raw-output \
+      '.data.project.projectMembers.pageInfo.hasNextPage == true') || return 1
+    members_after=(--raw-field after="$(jq --raw-output '.data.project.projectMembers.pageInfo.endCursor // ""' \
+      <<<"${members_page}")")
+  done
+  printf -v "${members_into}" '%s' "${members_nodes}"
 }
 
 # forge/gitlab:pages <name> <what> <path> reads every page of the list at <path>, as glab api --paginate asks for

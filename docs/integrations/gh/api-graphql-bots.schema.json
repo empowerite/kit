@@ -1,0 +1,383 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh api graphql --field owner=${owner} --field name=${name} --raw-field query=${query}",
+  "description": "The authors of the 100 newest commits on the default branch, and of the 100 open and the 50 merged pull requests updated last, with each one's latest review by each of 20 reviewers, the open ones with their totalCount and each change's reviews with theirs, so a cut says limited, which kit draws as the agents stage's bots in `modules/bash/forge/github.sh` (forge/github:bots, with `modules/jq/forge.jq` forge::github_bots), at two points of the GraphQL rate limit. A commit's author is a GitActor: its user is the account GitHub matched, or null, and its name what the commit says, as an agent's commit names itself copilot-swe-agent[bot] under a person's account. A Bot's login has no [bot], which kit adds. The types are Repository, Commit.history, GitActor, PullRequest, PullRequestReview, and Actor in GitHub's GraphQL schema, https://docs.github.com/graphql.",
+  "type": "object",
+  "properties": {
+    "data": {
+      "type": "object",
+      "properties": {
+        "repository": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "defaultBranchRef": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "target": {
+                  "type": "object",
+                  "properties": {
+                    "history": {
+                      "type": "object",
+                      "properties": {
+                        "nodes": {
+                          "type": "array",
+                          "items": {
+                            "type": [
+                              "object",
+                              "null"
+                            ],
+                            "properties": {
+                              "committedDate": {
+                                "type": "string",
+                                "format": "date-time"
+                              },
+                              "author": {
+                                "type": [
+                                  "object",
+                                  "null"
+                                ],
+                                "properties": {
+                                  "name": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "user": {
+                                    "type": [
+                                      "object",
+                                      "null"
+                                    ],
+                                    "properties": {
+                                      "login": {
+                                        "type": "string"
+                                      },
+                                      "__typename": {
+                                        "type": "string"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            },
+                            "required": [
+                              "committedDate"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "nodes"
+                      ],
+                      "additionalProperties": true
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              },
+              "additionalProperties": true
+            },
+            "open": {
+              "type": "object",
+              "properties": {
+                "nodes": {
+                  "type": "array",
+                  "items": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "properties": {
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "author": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "properties": {
+                          "__typename": {
+                            "type": "string",
+                            "description": "User, Bot, Mannequin, Organization, or EnterpriseUserAccount."
+                          },
+                          "login": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string",
+                            "format": "uri"
+                          }
+                        },
+                        "required": [
+                          "__typename",
+                          "login"
+                        ]
+                      },
+                      "latestReviews": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "properties": {
+                          "nodes": {
+                            "type": "array",
+                            "items": {
+                              "type": [
+                                "object",
+                                "null"
+                              ],
+                              "properties": {
+                                "submittedAt": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ],
+                                  "format": "date-time",
+                                  "description": "Null for a review still pending."
+                                },
+                                "author": {
+                                  "type": [
+                                    "object",
+                                    "null"
+                                  ],
+                                  "properties": {
+                                    "__typename": {
+                                      "type": "string",
+                                      "description": "User, Bot, Mannequin, Organization, or EnterpriseUserAccount."
+                                    },
+                                    "login": {
+                                      "type": "string"
+                                    },
+                                    "url": {
+                                      "type": "string",
+                                      "format": "uri"
+                                    }
+                                  },
+                                  "required": [
+                                    "__typename",
+                                    "login"
+                                  ]
+                                }
+                              }
+                            }
+                          },
+                          "totalCount": {
+                            "type": "integer"
+                          }
+                        },
+                        "additionalProperties": true
+                      }
+                    },
+                    "required": [
+                      "createdAt",
+                      "author"
+                    ]
+                  }
+                },
+                "totalCount": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "totalCount",
+                "nodes"
+              ],
+              "additionalProperties": true
+            },
+            "merged": {
+              "type": "object",
+              "properties": {
+                "nodes": {
+                  "type": "array",
+                  "items": {
+                    "type": [
+                      "object",
+                      "null"
+                    ],
+                    "properties": {
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "author": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "properties": {
+                          "__typename": {
+                            "type": "string",
+                            "description": "User, Bot, Mannequin, Organization, or EnterpriseUserAccount."
+                          },
+                          "login": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string",
+                            "format": "uri"
+                          }
+                        },
+                        "required": [
+                          "__typename",
+                          "login"
+                        ]
+                      },
+                      "latestReviews": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "properties": {
+                          "nodes": {
+                            "type": "array",
+                            "items": {
+                              "type": [
+                                "object",
+                                "null"
+                              ],
+                              "properties": {
+                                "submittedAt": {
+                                  "type": [
+                                    "string",
+                                    "null"
+                                  ],
+                                  "format": "date-time",
+                                  "description": "Null for a review still pending."
+                                },
+                                "author": {
+                                  "type": [
+                                    "object",
+                                    "null"
+                                  ],
+                                  "properties": {
+                                    "__typename": {
+                                      "type": "string",
+                                      "description": "User, Bot, Mannequin, Organization, or EnterpriseUserAccount."
+                                    },
+                                    "login": {
+                                      "type": "string"
+                                    },
+                                    "url": {
+                                      "type": "string",
+                                      "format": "uri"
+                                    }
+                                  },
+                                  "required": [
+                                    "__typename",
+                                    "login"
+                                  ]
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "additionalProperties": true
+                      }
+                    },
+                    "required": [
+                      "createdAt",
+                      "author"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "nodes"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "required": [
+            "url",
+            "defaultBranchRef",
+            "open",
+            "merged"
+          ],
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "repository"
+      ],
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "data"
+  ],
+  "examples": [
+    {
+      "data": {
+        "repository": {
+          "url": "https://github.com/o/r",
+          "defaultBranchRef": {
+            "target": {
+              "history": {
+                "nodes": [
+                  {
+                    "committedDate": "2026-10-01T09:00:00Z",
+                    "author": {
+                      "name": "dependabot[bot]",
+                      "user": {
+                        "login": "dependabot[bot]",
+                        "__typename": "User"
+                      }
+                    }
+                  },
+                  {
+                    "committedDate": "2026-09-30T09:00:00Z",
+                    "author": {
+                      "name": "someone",
+                      "user": null
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "open": {
+            "nodes": [],
+            "totalCount": 0
+          },
+          "merged": {
+            "nodes": [
+              {
+                "createdAt": "2026-10-02T09:00:00Z",
+                "author": {
+                  "__typename": "Bot",
+                  "login": "dependabot",
+                  "url": "https://github.com/apps/dependabot"
+                },
+                "latestReviews": {
+                  "nodes": [
+                    {
+                      "submittedAt": null,
+                      "author": {
+                        "__typename": "Bot",
+                        "login": "copilot-pull-request-reviewer",
+                        "url": "https://github.com/apps/copilot-pull-request-reviewer"
+                      }
+                    }
+                  ],
+                  "totalCount": 1
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

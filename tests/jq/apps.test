@@ -89,3 +89,9 @@ import "apps" as apps; apps::environment
 import "apps" as apps; map(apps::deployment)
 [{"id": 9, "environment": "prod", "ref": "main", "sha": "abc", "state": "success", "actor": "ada", "age": 1, "url": "l", "commit": "c"}, {"id": 8, "environment": null, "ref": null, "sha": null, "state": null, "actor": null, "age": null, "url": "l", "commit": null}]
 [{"key":9,"id":9,"environment":"prod","ref":"main","sha":"abc","state":"success","actor":"ada","age":1,"links":{"environment":"row:environments/prod","sha":"c","state":"l"}},{"key":8,"id":8,"environment":null,"ref":null,"sha":null,"state":null,"actor":null,"age":null,"links":{"state":"l"}}]
+
+# One with access is keyed by the login, a team by itself, its page its link, and a bot by its login, its page the
+# login's link; a page that is null leads nowhere.
+import "apps" as apps; [(.[0] | apps::person), (.[1] | apps::team), (.[2] | apps::agent), (.[3] | apps::agent)]
+[{"login": "ada", "name": null, "role": "admin", "kind": "user"}, {"team": "core", "name": "Core", "role": "write", "members": ["ada"], "url": "t"}, {"login": "x[bot]", "acted": ["commit"], "last": 1, "url": "b"}, {"login": "y", "acted": null, "last": null, "url": null}]
+[{"key":"ada","login":"ada","name":null,"role":"admin","kind":"user","links":{}},{"key":"core","team":"core","name":"Core","role":"write","members":["ada"],"links":{"team":"t"}},{"key":"x[bot]","login":"x[bot]","acted":["commit"],"last":1,"links":{"login":"b"}},{"key":"y","login":"y","acted":null,"last":null,"links":{}}]

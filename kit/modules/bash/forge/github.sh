@@ -25,7 +25,39 @@ forge/github:artifacts() {
 
 forge/github:attestations() { return 3; }
 
-forge/github:bots() { return 3; }
+# forge/github:bots prints one document per bot that acted in the repository, the last to act first, as the seam's
+# header says: one GraphQL request, two points, for the authors of the 100 newest commits on the default branch, and
+# of the 100 open pull requests and the 50 merged pull requests updated last, with each one's latest review by each
+# reviewer. A bot is a Bot account, or a login that ends [bot]; a commit is a bot's also when its author names itself
+# one, as an agent's commit names the account of the person it works for. A commit by no account GitHub knows is no
+# one's. The bots are those that acted in what it reads, and no more: one that acted only before is not among them.
+# More than 100 open pull requests, or more than 20 reviewers of one, end the list with {"limited": N}, N those drawn.
+forge/github:bots() {
+  local repo query answer
+  repo=$(forge/github:repo) || return 1
+  query='query($owner: String!, $name: String!) {
+    repository(owner: $owner, name: $name) {
+      url
+      defaultBranchRef { target { ... on Commit { history(first: 100) { nodes {
+        committedDate author { name user { login __typename } }
+      } } } } }
+      open: pullRequests(states: OPEN, first: 100, orderBy: {field: UPDATED_AT, direction: DESC}) {
+        totalCount nodes { ...acts }
+      }
+      merged: pullRequests(states: MERGED, first: 50, orderBy: {field: UPDATED_AT, direction: DESC}) {
+        nodes { ...acts }
+      }
+    }
+  }
+  fragment acts on PullRequest {
+    createdAt author { __typename login url }
+    latestReviews(first: 20) { totalCount nodes { submittedAt author { __typename login url } } }
+  }'
+  forge/github:ask answer 'the bots' api graphql --field owner="${repo%%/*}" --field name="${repo#*/}" \
+    --raw-field query="${query}" || return 1
+  forge/github:fold 'the bots' "${answer}" --exit-status '.data.repository | objects' >/dev/null || return 1
+  forge/github:fold 'the bots' "${answer}" --compact-output 'import "forge" as forge; forge::github_bots'
+}
 
 # forge/github:branch-for-issue reads the branch from an open pull request's head, so a second run never creates
 # a duplicate <N>-<slug>-1 branch.
@@ -42,7 +74,19 @@ forge/github:bypasses() { return 3; }
 
 forge/github:code-scanning-alerts() { return 3; }
 
-forge/github:collaborators() { return 3; }
+# forge/github:collaborators prints one document per person or bot with access to the repository, as the seam's header
+# says: every page of the REST list, which holds those with access of their own, through a team, and as the
+# organization's members. GitHub shows it only to a caller who may push, and tells any other so.
+forge/github:collaborators() {
+  local repo answer
+  repo=$(forge/github:repo) || return 1
+  forge/github:pushed answer 'the collaborators' "${repo}" 'who has access' api --paginate --slurp \
+    'repos/{owner}/{repo}/collaborators?per_page=100' || return 1
+  forge:whole 'the collaborators' "$(jq 'if all(.[]; type == "array") then map(length) | add // 0 else error end' \
+    <<<"${answer}" 2>/dev/null)" || return 1
+  forge/github:fold 'the collaborators' "${answer}" --compact-output \
+    'import "forge" as forge; forge::github_collaborators'
+}
 
 forge/github:dependabot-alerts() { return 3; }
 
@@ -607,14 +651,44 @@ forge/github:runs() {
 
 forge/github:secret-scanning-alerts() { return 3; }
 
-forge/github:teams() { return 3; }
+# forge/github:teams prints one document per team with access to the repository, in GitHub's order, as the seam's
+# header says: a REST request for the first 21, then one GraphQL request, a point, for the first 100 members of each of
+# the first 20, of the organization that owns the repository. A 21st team, or a team past its first 100 members, ends
+# the list with {"limited": N}. A repository a user owns has no teams, and asks no more. GitHub shows the teams only to
+# a caller who may push, and the members only to a login with the read:org scope, which a GH_TOKEN may lack: GitHub
+# answers INSUFFICIENT_SCOPES, and the failure names the command that adds it.
+forge/github:teams() {
+  local repo answer slug page members='{}' variables='' fields=''
+  local -i index=0
+  local -a slugs named=()
+  repo=$(forge/github:repo) || return 1
+  forge/github:pushed answer 'the teams' "${repo}" 'its teams' api 'repos/{owner}/{repo}/teams?per_page=21' \
+    || return 1
+  list:read slugs forge/github:fold 'the teams' "${answer}" --raw-output '.[:20][] | .slug' || return 1
+  for slug in "${slugs[@]}"
+  do
+    [[ -n "${slug}" ]] || continue
+    variables+=", \$t${index}: String!"
+    fields+=" t${index}: team(slug: \$t${index}) { members(first: 100) { totalCount nodes { login } } }"
+    named+=(--raw-field "t${index}=${slug}")
+    index+=1
+  done
+  if (( index > 0 ))
+  then
+    forge/github:ask page 'the teams' api graphql --raw-field org="${repo%%/*}" "${named[@]}" \
+      --raw-field query="query(\$org: String!${variables}) { organization(login: \$org) {${fields} } }" || return 1
+    members=$(forge/github:fold 'the teams' "${page}" --compact-output '.data.organization // {}') || return 1
+  fi
+  forge/github:fold 'the teams' "${answer}" --compact-output --argjson members "${members}" \
+    'import "forge" as forge; forge::github_teams($members; 20)'
+}
 
 # The provider implements contract 4. A feature whose call it has not written is in lacks, which the task that writes
 # the call drops it from.
 forge/github:contract() { printf '4\n'; }
 
 forge/github:lacks() {
-  printf '%s\n' collaborators teams bots attestations code-scanning dependabot secret-scanning rulesets bypasses
+  printf '%s\n' attestations code-scanning dependabot secret-scanning rulesets bypasses
 }
 
 # The seam's calls end here; what follows is this provider's own.
@@ -763,6 +837,35 @@ forge/github:ask() {
     return 1
   fi
   printf -v "${ask_into}" '%s' "${ask_out}"
+}
+
+# forge/github:pushed <name> <what> <owner/name> <shown> <gh argument>… is forge/github:ask for a read GitHub makes
+# only for a caller who may push to the repository: when GitHub refuses it so, with 403 "Must have push access", or
+# with 404 for a list of the repository's it holds, it names who can give that access, saying GitHub shows <shown>
+# only to who may push.
+forge/github:pushed() {
+  local pushed_into=$1 pushed_what=$2 pushed_repo=$3 pushed_shown=$4 pushed_said pushed_out
+  shift 4
+  file:temp pushed_said gh || return 1
+  if ! pushed_out=$(gh "$@" 2>"${pushed_said}")
+  then
+    pushed_out=${pushed_out}$'\n'$(<"${pushed_said}")
+    if [[ "${pushed_out,,}" == *'push access'* || "${pushed_out}" == *'(HTTP 404)'* ]]
+    then
+      error "ask an admin of ${pushed_repo} for write access: GitHub shows ${pushed_shown} only to who may push" \
+        "(${pushed_what} could not be read)"
+    else
+      forge/github:limited "${pushed_what}" "${pushed_out}" || forge/github:scoped "${pushed_what}" "${pushed_out}" \
+        || error "run: gh auth status (${pushed_what} could not be read)"
+    fi
+    return 1
+  fi
+  if ! forge:json "${pushed_out}" || ! jq --exit-status 'arrays' <<<"${pushed_out}" >/dev/null 2>&1
+  then
+    error "run: gh auth status (${pushed_what} could not be read)"
+    return 1
+  fi
+  printf -v "${pushed_into}" '%s' "${pushed_out}"
 }
 
 # forge/github:fold <what> <answer> <jq argument>… is forge:fold, naming gh auth status.

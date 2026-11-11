@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh api repos/{owner}/{repo}/teams?per_page=21",
+  "description": "The teams with access to the repository that the caller can see, the first 21, so a 21st says there are more than the 20 kit draws, as the teams stage's in `modules/bash/forge/github.sh` (forge/github:teams, with `modules/jq/forge.jq` forge::github_teams). A repository a user owns answers an empty list; a caller who may not push, 404. The types are those of GET /repos/{owner}/{repo}/teams in GitHub's REST OpenAPI, https://github.com/github/rest-api-description, as https://docs.github.com/rest/repos/repos#list-repository-teams describes them.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "slug": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "permission": {
+        "type": "string",
+        "description": "pull, triage, push, maintain, or admin; kit names pull read and push write."
+      },
+      "html_url": {
+        "type": "string",
+        "format": "uri"
+      }
+    },
+    "required": [
+      "slug",
+      "name",
+      "permission",
+      "html_url"
+    ],
+    "additionalProperties": true
+  },
+  "examples": [
+    [
+      {
+        "slug": "core",
+        "name": "Core",
+        "permission": "push",
+        "html_url": "https://github.com/orgs/o/teams/core"
+      }
+    ],
+    []
+  ]
+}

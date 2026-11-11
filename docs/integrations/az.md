@@ -49,6 +49,9 @@ older version. `--org` names the collection URL; which Server releases the exten
 | Open changes | `az repos pr list --status active --top "${limit}"` |
 | Reviewers | each pull request's `reviewers` in `az repos pr list`, each `vote` 10 or 5 approved, -5 or -10 changes, 0 asked; `az repos pr reviewer list --id "${n}"` lists them alone; a vote holds no time; `kit changes reviews` draws them |
 | Merged changes | `az repos pr list --status completed --top 51`: the 50 Azure DevOps lists first, newest first in its reference's examples, though no parameter sets the order, each with its `closedDate` and `closedBy`, and a 51st that says there are more; `kit changes merged` draws them |
+| Who has access | `az devops user list --top "${n}" --skip "${m}"` lists the whole organization's users, those added through Azure AD groups left out, with no project to filter them by; kit reads instead the members of the project's teams, as Teams with access does, each once, `admin` for an administrator of any of them; one with access only through a security group no team holds is not among them; `kit people people` draws them |
+| Teams with access | `az devops team list --project "${project}" --top 21`, a 21st saying there are more than the 20 kit reads, then `az devops team list-member --team "${id}" --project "${project}" --top 101` for each, a request a team, a 101st saying there are more than the 100 kit draws: each `identity`'s `uniqueName`, `displayName`, and `isContainer` for a group, and `isTeamAdmin`; a team holds no role of its own on the repository; `kit people teams` draws them |
+| Bots | none: no command lists the bots that acted, so the provider lacks the feature, and `kit people agents` draws none |
 
 ### Write to Azure DevOps Repos
 
@@ -232,6 +235,8 @@ with an example the gate validates against it.
 | [devops-invoke-environment-deployment-records.schema.json](az/devops-invoke-environment-deployment-records.schema.json) | `az devops invoke --area distributedtask --resource environmentdeploymentrecords --route-parameters project=${project} environmentId=${id} --query-parameters top=51 --api-version 7.1 --output json` |
 | [devops-invoke-environments.schema.json](az/devops-invoke-environments.schema.json) | `az devops invoke --area distributedtask --resource environments --route-parameters project=${project} --query-parameters $top=101 --api-version 7.1 --output json` |
 | [devops-invoke-pull-request-threads.schema.json](az/devops-invoke-pull-request-threads.schema.json) | `az devops invoke --area git --resource pullRequestThreads --route-parameters project=${project} repositoryId=${repository} pullRequestId=${id} --api-version 7.1 --output json` |
+| [devops-team-list.schema.json](az/devops-team-list.schema.json) | `az devops team list --project ${project} --top 21 --output json` |
+| [devops-team-list-member.schema.json](az/devops-team-list-member.schema.json) | `az devops team list-member --team ${team} --project ${project} --top 101 --output json` |
 | [pipelines-runs-artifact-list.schema.json](az/pipelines-runs-artifact-list.schema.json) | `az pipelines runs artifact list --run-id ${id} --project ${project} --output json` |
 | [pipelines-runs-list.schema.json](az/pipelines-runs-list.schema.json) | `az pipelines runs list --project ${project} --top ${top} --query-order QueueTimeDesc --output json` |
 | [repos-pr-create.schema.json](az/repos-pr-create.schema.json) | `az repos pr create --draft ${draft} --source-branch ${branch} --target-branch ${base} --title ${title} --project ${project} --repository ${repository} [--work-items ${item}] --output json` |

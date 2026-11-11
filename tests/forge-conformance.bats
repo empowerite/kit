@@ -125,6 +125,7 @@ JSON
   fixture gh-iterations-none.json <<<'{"data": {"repository": {"projectsV2": {"nodes": []}}}}'
   route gh 'api --paginate --slurp repos/{owner}/{repo}/milestones?state=all&per_page=100' gh-milestones.json
   delivery-github
+  people-github
   fixture gh-merged.json <<'JSON'
 {"data": {"repository": {"pullRequests": {"totalCount": 1, "nodes": [
   {"number": 2, "title": "Do the other thing", "url": "https://github.com/empowerite/example/pull/2",
@@ -195,6 +196,7 @@ JSON
   "web_url": "https://gitlab.com/groups/empowerite/-/iterations/31"}]
 JSON
   fixture gl-forbidden.txt <<<'glab: 403 Forbidden'
+  people-gitlab
   route glab 'api graphql*' "${GITLAB_MILESTONES:-gl-milestones.json}"
   route glab "api ${p}/iterations?include_ancestors=true&per_page=100*" "${GITLAB_ITERATIONS:-gl-iterations.json}"
   route glab "api ${p}/issues/7" issue.json
@@ -983,6 +985,285 @@ JSON
   [ "$status" -eq 1 ]
   [ -z "$output" ]
   [[ "$stderr" == *"the deployments could not be read"* ]]
+}
+
+# people-github adds to world-github's routes what People reads: ada is an admin, bob may write, and so may
+# dependabot[bot], a bot; the team core may write, ada and bob its members; and four bots acted: dependabot opened a
+# change that was merged, github-actions[bot] committed, Copilot's agent committed, as copilot-swe-agent[bot], and
+# opened a change, and Copilot's reviewer reviewed it. A commit by no user GitHub knows, and a review by a deleted
+# account, are no one's.
+people-github() {
+  fixture gh-collaborators.json <<'JSON'
+[[{"login": "ada", "id": 1, "type": "User", "name": "Ada", "role_name": "admin",
+   "permissions": {"admin": true, "maintain": true, "push": true, "triage": true, "pull": true}},
+  {"login": "bob", "id": 2, "type": "User", "role_name": "write",
+   "permissions": {"admin": false, "maintain": false, "push": true, "triage": true, "pull": true}},
+  {"login": "dependabot[bot]", "id": 3, "type": "Bot", "name": null, "role_name": "write",
+   "permissions": {"admin": false, "maintain": false, "push": true, "triage": true, "pull": true}}]]
+JSON
+  fixture gh-teams.json <<'JSON'
+[{"id": 5, "slug": "core", "name": "Core", "permission": "push",
+  "html_url": "https://github.com/orgs/empowerite/teams/core"}]
+JSON
+  fixture gh-team-members.json <<'JSON'
+{"data": {"organization": {"t0": {"members": {"totalCount": 2, "nodes": [{"login": "ada"}, {"login": "bob"}]}}}}}
+JSON
+  fixture gh-bots.json <<'JSON'
+{"data": {"repository": {
+  "defaultBranchRef": {"target": {"history": {"nodes": [
+    {"committedDate": "2026-10-01T09:00:00Z",
+     "author": {"name": "github-actions[bot]", "user": {"login": "github-actions[bot]", "__typename": "User"}}},
+    {"committedDate": "2026-09-30T09:00:00Z",
+     "author": {"name": "copilot-swe-agent[bot]", "user": {"login": "Copilot", "__typename": "User"}}},
+    {"committedDate": "2026-09-29T09:00:00Z", "author": {"name": "someone", "user": null}},
+    {"committedDate": "2026-09-28T09:00:00Z", "author": null},
+    {"committedDate": "2026-09-27T09:00:00Z",
+     "author": {"name": "Ada", "user": {"login": "ada", "__typename": "User"}}}]}}},
+  "open": {"nodes": [
+    {"createdAt": "2026-10-03T10:00:00Z",
+     "author": {"__typename": "Bot", "login": "copilot-swe-agent", "url": "https://github.com/apps/copilot-swe-agent"},
+     "latestReviews": {"nodes": [
+       {"submittedAt": "2026-10-01T00:00:00Z", "author": {"__typename": "Bot", "login": "copilot-pull-request-reviewer",
+        "url": "https://github.com/apps/copilot-pull-request-reviewer"}},
+       {"submittedAt": "2026-10-04T00:00:00Z", "author": null}]}}]},
+  "merged": {"nodes": [
+    {"createdAt": "2026-10-02T09:00:00Z",
+     "author": {"__typename": "Bot", "login": "dependabot", "url": "https://github.com/apps/dependabot"},
+     "latestReviews": {"nodes": [
+       {"submittedAt": "2026-10-02T10:00:00Z", "author": {"__typename": "User", "login": "bob",
+        "url": "https://github.com/bob"}}]}},
+    {"createdAt": "2026-09-01T09:00:00Z", "author": null, "latestReviews": null}]}}}}
+JSON
+  route gh 'api --paginate --slurp repos/{owner}/{repo}/collaborators?per_page=100' \
+    "${GITHUB_COLLABORATORS:-gh-collaborators.json}"
+  route gh 'api repos/{owner}/{repo}/teams?per_page=21' "${GITHUB_TEAMS:-gh-teams.json}"
+  route gh 'api graphql*team(slug:*' "${GITHUB_TEAM_MEMBERS:-gh-team-members.json}"
+  route gh 'api graphql*history(first: 100)*' "${GITHUB_BOTS:-gh-bots.json}"
+}
+
+# people-gitlab is people-github's world, seen through GitLab: ada is the owner, bob a developer, inherited too as a
+# reporter, and project_1_bot_3f2a, a project access token's bot, a maintainer; the group empowerite/core, shared with
+# the project as developers, holds ada and bob.
+people-gitlab() {
+  fixture gl-members.json <<'JSON'
+{"data": {"project": {"projectMembers": {"pageInfo": {"hasNextPage": false, "endCursor": null}, "nodes": [
+  {"accessLevel": {"integerValue": 50, "stringValue": "OWNER"}, "user": {"username": "ada", "name": "Ada",
+   "bot": false, "lastActivityOn": "2026-10-03", "webUrl": "https://gitlab.com/ada"}},
+  {"accessLevel": {"integerValue": 20, "stringValue": "REPORTER"}, "user": {"username": "bob", "name": "Bob",
+   "bot": false, "lastActivityOn": null, "webUrl": "https://gitlab.com/bob"}},
+  {"accessLevel": {"integerValue": 30, "stringValue": "DEVELOPER"}, "user": {"username": "bob", "name": "Bob",
+   "bot": false, "lastActivityOn": null, "webUrl": "https://gitlab.com/bob"}},
+  {"accessLevel": {"integerValue": 40, "stringValue": "MAINTAINER"}, "user": {"username": "project_1_bot_3f2a",
+   "name": "deploy", "bot": true, "lastActivityOn": "2026-10-01", "webUrl": "https://gitlab.com/project_1_bot_3f2a"}},
+  {"accessLevel": null, "user": null}]}}}}
+JSON
+  fixture gl-project.json <<'JSON'
+{"id": 1, "path_with_namespace": "empowerite/example", "shared_with_groups": [
+  {"group_id": 5, "group_name": "core", "group_full_path": "empowerite/core", "group_access_level": 30,
+   "expires_at": null}]}
+JSON
+  fixture gl-group-members.json <<'JSON'
+{"data": {"g0": {"webUrl": "https://gitlab.com/groups/empowerite/core", "groupMembers": {
+  "pageInfo": {"hasNextPage": false}, "nodes": [{"user": {"username": "ada"}}, {"user": {"username": "bob"}}]}}}}
+JSON
+  route glab 'api graphql*projectMembers*' "${GITLAB_MEMBERS:-gl-members.json}"
+  route glab 'api projects/empowerite%2Fexample' "${GITLAB_PROJECT:-gl-project.json}"
+  route glab 'api graphql*groupMembers*' "${GITLAB_GROUP_MEMBERS:-gl-group-members.json}"
+}
+
+@test "every provider lists who has access in one shape: each one's name, role, and kind, a bot's kind bot" {
+  world github
+  run --separate-stderr call collaborators
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --compact-output '[.login, .name, .role, .kind]' <<<"$output" | paste -sd, -)" \
+    = '["ada","Ada","admin","user"],["bob",null,"write","user"],["dependabot[bot]",null,"write","bot"]' ]
+  # GitLab names each role as GitLab does, and a member inherited too has the higher of the two
+  world gitlab
+  run --separate-stderr call collaborators
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --compact-output '[.login, .name, .role, .kind]' <<<"$output" | paste -sd, -)" \
+    = '["ada","Ada","owner","user"],["bob","Bob","developer","user"],'\
+'["project_1_bot_3f2a","deploy","maintainer","bot"]' ]
+  grep --quiet 'relations: \[DIRECT, INHERITED, INVITED_GROUPS, SHARED_INTO_ANCESTORS\]' "${FAKE_DIR}/glab.calls"
+}
+
+@test "GitHub shows who has access only to who may push: a caller who may not is told so, never gh auth status" {
+  fixture gh-push.txt <<<'gh: Must have push access to view repository collaborators. (HTTP 403)'
+  GITHUB_COLLABORATORS='!1 gh-push.txt' world github
+  run --separate-stderr call collaborators
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  local ask='❌ ask an admin of empowerite/example for write access: GitHub shows'
+  [ "$stderr" = "${ask} who has access only to who may push (the collaborators could not be read)" ]
+  fixture gh-404.txt <<<'gh: Not Found (HTTP 404)'
+  GITHUB_TEAMS='!1 gh-404.txt' world github
+  run --separate-stderr call teams
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [ "$stderr" = "${ask} its teams only to who may push (the teams could not be read)" ]
+}
+
+@test "every provider lists the teams with access in one shape: the role and the members, 20 teams at most" {
+  world github
+  : > "${FAKE_DIR}/gh.calls"
+  run --separate-stderr call teams
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$output" = '{"team":"core","name":"Core","role":"write","members":["ada","bob"],'\
+'"url":"https://github.com/orgs/empowerite/teams/core"}' ]
+  # the members of every team come in one GraphQL request, the organization's, each team's slug as it is
+  [ "$(grep -c '^api graphql' "${FAKE_DIR}/gh.calls")" -eq 1 ]
+  grep --quiet -- '--raw-field org=empowerite --raw-field t0=core ' "${FAKE_DIR}/gh.calls"
+  world gitlab
+  run --separate-stderr call teams
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$output" = '{"team":"empowerite/core","name":"core","role":"developer","members":["ada","bob"],'\
+'"url":"https://gitlab.com/groups/empowerite/core"}' ]
+  # 25 teams on GitHub, of which kit asks for 21, or 25 groups shared with a GitLab project, give the first 20
+  jq '[range(21) as $i | .[0] | .slug = "t\(100 + $i)"]' "${FAKE_DIR}/gh-teams.json" | fixture gh-teams-21.json
+  jq '.data.organization = ([range(20) as $i | {key: "t\($i)", value: .data.organization.t0}] | from_entries)' \
+    "${FAKE_DIR}/gh-team-members.json" | fixture gh-team-members-20.json
+  GITHUB_TEAMS=gh-teams-21.json GITHUB_TEAM_MEMBERS=gh-team-members-20.json world github
+  run --separate-stderr call teams
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --slurp --compact-output '[length, .[0].team, .[19].team, .[20]]' <<<"$output")" \
+    = '[21,"t100","t119",{"limited":20}]' ]
+  jq '.shared_with_groups = [range(25) as $i | .shared_with_groups[0] | .group_full_path = "empowerite/g\(100 + $i)"]' \
+    "${FAKE_DIR}/gl-project.json" | fixture gl-project-25.json
+  jq '.data = ([range(20) as $i | {key: "g\($i)", value: .data.g0}] | from_entries)' \
+    "${FAKE_DIR}/gl-group-members.json" | fixture gl-group-members-20.json
+  GITLAB_PROJECT=gl-project-25.json GITLAB_GROUP_MEMBERS=gl-group-members-20.json world gitlab
+  run --separate-stderr call teams
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --slurp --compact-output '[length, .[0].team, .[19].team, .[20]]' <<<"$output")" \
+    = '[21,"empowerite/g100","empowerite/g119",{"limited":20}]' ]
+}
+
+@test "a team with more than 100 members, or one the caller cannot see, says so, and a user's repository has none" {
+  world github
+  # a team past its first 100 members is drawn with them, and the list says it stopped
+  jq '.data.organization.t0.members.totalCount = 150' "${FAKE_DIR}/gh-team-members.json" \
+    | fixture gh-team-members-150.json
+  GITHUB_TEAM_MEMBERS=gh-team-members-150.json world github
+  run --separate-stderr call teams
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --slurp --compact-output 'map(.members // .)' <<<"$output")" = '[["ada","bob"],{"limited":1}]' ]
+  world gitlab
+  jq '.data.g0.groupMembers.pageInfo.hasNextPage = true' "${FAKE_DIR}/gl-group-members.json" \
+    | fixture gl-group-members-more.json
+  GITLAB_GROUP_MEMBERS=gl-group-members-more.json world gitlab
+  run --separate-stderr call teams
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --slurp --compact-output 'map(.members // .)' <<<"$output")" = '[["ada","bob"],{"limited":1}]' ]
+  # a team the caller cannot see has its members unknown, null
+  fixture gh-team-hidden.json <<<'{"data": {"organization": {"t0": null}}}'
+  GITHUB_TEAM_MEMBERS=gh-team-hidden.json world github
+  run --separate-stderr call teams
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --compact-output '[.team, .members]' <<<"$output")" = '["core",null]' ]
+  fixture gl-group-hidden.json <<<'{"data": {"g0": null}}'
+  GITLAB_GROUP_MEMBERS=gl-group-hidden.json world gitlab
+  run --separate-stderr call teams
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --compact-output '[.team, .members, .url]' <<<"$output")" \
+    = '["empowerite/core",null,"https://gitlab.com/groups/empowerite/core"]' ]
+  # a repository a user owns, or a project shared with no group, has no teams, and asks no more
+  fixture none.json <<<'[]'
+  GITHUB_TEAMS=none.json world github
+  : > "${FAKE_DIR}/gh.calls"
+  run --separate-stderr call teams
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ -z "$output" ]
+  ! grep --quiet '^api graphql' "${FAKE_DIR}/gh.calls"
+  world gitlab
+  jq '.shared_with_groups = []' "${FAKE_DIR}/gl-project.json" | fixture gl-project-alone.json
+  GITLAB_PROJECT=gl-project-alone.json world gitlab
+  : > "${FAKE_DIR}/glab.calls"
+  run --separate-stderr call teams
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ -z "$output" ]
+  ! grep --quiet '^api graphql' "${FAKE_DIR}/glab.calls"
+}
+
+@test "GitHub's team members need the read:org scope, and name the command that adds it" {
+  local said="gh: Your token has not been granted the required scopes to execute this query. The 'team' field"
+  said+=" requires one of the following scopes: ['read:org'], but your token has only been granted the: ['repo']"
+  said+=" scopes. (INSUFFICIENT_SCOPES)"
+  printf '%s\n' "${said}" | fixture gh-org.txt
+  GITHUB_TEAM_MEMBERS='!1 gh-org.txt' world github
+  run --separate-stderr call teams
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [ "$stderr" = '❌ run: gh auth refresh --scopes read:org (the teams could not be read)' ]
+}
+
+@test "every provider lists the bots that acted, in one shape: what each did, and when last, newest first" {
+  world github
+  : > "${FAKE_DIR}/gh.calls"
+  run --separate-stderr call bots
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  local expected='{"login":"copilot-swe-agent[bot]","acted":["commit","change"],"last":1791021600,'
+  expected+='"url":"https://github.com/apps/copilot-swe-agent"}'
+  expected+=$'\n''{"login":"dependabot[bot]","acted":["change"],"last":1790931600,'
+  expected+='"url":"https://github.com/apps/dependabot"}'
+  expected+=$'\n''{"login":"github-actions[bot]","acted":["commit"],"last":1790845200,'
+  expected+='"url":"https://github.com/apps/github-actions"}'
+  expected+=$'\n''{"login":"copilot-pull-request-reviewer[bot]","acted":["review"],"last":1790812800,'
+  expected+='"url":"https://github.com/apps/copilot-pull-request-reviewer"}'
+  [ "$output" = "${expected}" ]
+  # one GraphQL request reads the commits, the changes, and their reviews
+  [ "$(grep -c '^api graphql' "${FAKE_DIR}/gh.calls")" -eq 1 ]
+  grep --quiet 'history(first: 100)' "${FAKE_DIR}/gh.calls"
+  grep --quiet 'pullRequests(states: MERGED, first: 50, orderBy: {field: UPDATED_AT, direction: DESC})' \
+    "${FAKE_DIR}/gh.calls"
+  # GitLab's are its bot users among the members, when they last acted, and no more
+  world gitlab
+  run --separate-stderr call bots
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$output" = '{"login":"project_1_bot_3f2a","acted":null,"last":1790812800,'\
+'"url":"https://gitlab.com/project_1_bot_3f2a"}' ]
+  # more open changes than the 100 read, or a change with more reviewers than the 20 read, say the list stopped there
+  for cut in '.data.repository.open.totalCount = 150' '.data.repository.merged.nodes[0].latestReviews.totalCount = 21'
+  do
+    jq "${cut}" "${FAKE_DIR}/gh-bots.json" | fixture gh-bots-cut.json
+    GITHUB_BOTS=gh-bots-cut.json world github
+    run --separate-stderr call bots
+    [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+    [ "$(jq --slurp --compact-output '[length, .[-1]]' <<<"$output")" = '[5,{"limited":4}]' ] \
+      || { echo "${cut}: ${output}"; return 1; }
+  done
+  grep --quiet 'latestReviews(first: 20) { totalCount' "${FAKE_DIR}/gh.calls"
+  # a repository with no commits has none of them, and an answer with no repository could not be read
+  jq '.data.repository.defaultBranchRef = null' "${FAKE_DIR}/gh-bots.json" | fixture gh-bots-empty.json
+  GITHUB_BOTS=gh-bots-empty.json world github
+  run --separate-stderr call bots
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --raw-output .login <<<"$output" | paste -sd, -)" \
+    = 'copilot-swe-agent[bot],dependabot[bot],copilot-pull-request-reviewer[bot]' ]
+  fixture gh-null.json <<<'{"data": {"repository": null}}'
+  GITHUB_BOTS=gh-null.json world github
+  run --separate-stderr call bots
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [ "$stderr" = '❌ run: gh auth status (the bots could not be read)' ]
+}
+
+@test "GitLab's members follow the cursor past a page, and an answer with no project fails the call" {
+  world gitlab
+  jq '.data.project.projectMembers.pageInfo = {hasNextPage: true, endCursor: "c1"}
+      | .data.project.projectMembers.nodes |= .[:1]' "${FAKE_DIR}/gl-members.json" | fixture gl-members-1.json
+  jq '.data.project.projectMembers.nodes |= .[1:]' "${FAKE_DIR}/gl-members.json" | fixture gl-members-2.json
+  : > "${FAKE_DIR}/glab.routes"
+  route glab 'api graphql*after=c1*projectMembers*' gl-members-2.json
+  route glab 'api graphql*projectMembers*' gl-members-1.json
+  run --separate-stderr call collaborators
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --raw-output .login <<<"$output" | paste -sd, -)" = 'ada,bob,project_1_bot_3f2a' ]
+  fixture gl-no-project.json <<<'{"data": {"project": null}}'
+  GITLAB_MEMBERS=gl-no-project.json world gitlab
+  run --separate-stderr call collaborators
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [ "$stderr" = '❌ run: glab auth status (the members could not be read)' ]
 }
 
 @test "GitLab's milestones follow the cursor past a page, and a failing page fails the call" {

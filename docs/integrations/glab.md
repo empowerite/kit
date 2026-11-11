@@ -44,6 +44,9 @@ and GraphQL fields exist, and features of the paid tiers are absent from Communi
 | Open changes | `glab mr list -F json --per-page 100`, or `glab api --paginate 'projects/:id/merge_requests?state=opened'` |
 | Reviewers | each open merge request's `reviewers`, from `glab api "projects/:id/merge_requests/${n}"`, and who approved it and when, from `glab api "projects/:id/merge_requests/${n}/approvals"` (raw API), which every tier answers: a request per open merge request, beside its discussions, made by every read of the open changes, so `kit flow changes`, `underway`, and `backlog` pay it as `kit changes reviews` does |
 | Merged changes | `glab api 'projects/:id/merge_requests?state=merged&order_by=merged_at&per_page=51'` (raw API): the 50 merged last, and a 51st that says there are more; `order_by=merged_at` is GitLab 17.2's, and an older GitLab, which refuses it naming `order_by`, is asked once more with `order_by=updated_at&sort=desc&per_page=51`, of whose first 50 kit keeps those merged since the oldest `updated_at`, saying `limited` when there are more; `kit changes merged` draws them |
+| Who has access | `glab api 'projects/:id/members/all?per_page=100'` (raw API) lists them, those inherited and invited among them, but its member entity says nothing of a bot; kit reads `glab api graphql` on `project(fullPath: $path) { projectMembers(first: 100, after: $after, relations: [DIRECT, INHERITED, INVITED_GROUPS, SHARED_INTO_ANCESTORS]) { pageInfo { hasNextPage endCursor } nodes { accessLevel { integerValue } user { username name bot lastActivityOn webUrl } } } }`, every page, each user at the highest level of their memberships: 10 guest, 15 planner, 20 reporter, 25 security manager, 30 developer, 40 maintainer, 50 owner; `kit people people` draws them |
+| Teams with access | `glab api "projects/${project}"`'s `shared_with_groups` (raw API), each group's `group_full_path`, `group_name`, and `group_access_level`, the first 20; then one `glab api graphql` on `g0: group(fullPath: $g0) { webUrl groupMembers(first: 100) { pageInfo { hasNextPage } nodes { user { username } } } } …`, an alias a group, its members and those inherited from its parents; a group the caller cannot see is null; past 20 groups, or 100 members of one, kit says `limited`; `kit people teams` draws them |
+| Bots | the members above with `bot` true, as a project's or a group's access token makes, and the day each last acted, `lastActivityOn`; GitLab says nothing of what a bot did; `kit people agents` draws them |
 
 ### Write to GitLab merge requests
 
@@ -236,6 +239,8 @@ with an example the gate validates against it.
 | [api-iterations.schema.json](glab/api-iterations.schema.json) | `glab api projects/${project}/iterations?include_ancestors=true&per_page=100 --paginate` |
 | [api-deployments.schema.json](glab/api-deployments.schema.json) | `glab api projects/${project}/deployments?order_by=${order}&sort=desc&per_page=${n}` |
 | [api-environments.schema.json](glab/api-environments.schema.json) | `glab api projects/${project}/environments?per_page=100 [--paginate]` |
+| [api-graphql-group-members.schema.json](glab/api-graphql-group-members.schema.json) | `glab api graphql --raw-field g0=${group}… --raw-field query=${query}` |
+| [api-graphql-members.schema.json](glab/api-graphql-members.schema.json) | `glab api graphql --raw-field path=${project} [--raw-field after=${cursor}] --raw-field query=${query}` |
 | [api-graphql-milestones.schema.json](glab/api-graphql-milestones.schema.json) | `glab api graphql --field path=${project} [--field after=${cursor}] --raw-field query=${query}` |
 | [api-issue.schema.json](glab/api-issue.schema.json) | `glab api projects/${project}/issues/${n}` |
 | [api-issues.schema.json](glab/api-issues.schema.json) | `glab api projects/${project}/issues?${query} [--paginate]` |
@@ -249,7 +254,7 @@ with an example the gate validates against it.
 | [api-milestones.schema.json](glab/api-milestones.schema.json) | `glab api projects/${project}/milestones?sort=updated_desc&per_page=1` |
 | [api-pipeline-jobs.schema.json](glab/api-pipeline-jobs.schema.json) | `glab api projects/${home}/pipelines/${pipeline}/jobs?per_page=100 --paginate` |
 | [api-pipelines.schema.json](glab/api-pipelines.schema.json) | `glab api projects/${project}/pipelines?per_page=${n}` |
-| [api-project.schema.json](glab/api-project.schema.json) | `glab api projects/${source}` |
+| [api-project.schema.json](glab/api-project.schema.json) | `glab api projects/${project}` |
 | [api-protected-environments.schema.json](glab/api-protected-environments.schema.json) | `glab api projects/${project}/protected_environments?per_page=100 --paginate` |
 | [api-releases.schema.json](glab/api-releases.schema.json) | `glab api projects/${project}/releases?per_page=${n} [--paginate]` |
 | [api-user.schema.json](glab/api-user.schema.json) | `glab api user` |

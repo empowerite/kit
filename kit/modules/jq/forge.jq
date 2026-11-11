@@ -786,3 +786,144 @@ def ado_deployments($now; $environments; $runs; $limit; $cut; $results; $repo):
                    then "\($repo.url)/commit/\($run.sourceVersion)" else null end) }
       | deployment($now))) as $rows
   | $rows[], (if $cut or ($all | length) > $limit then {limited: ($rows | length)} else empty end);
+
+# github_role reads a GitHub team's permission, pull, triage, push, maintain, or admin, and gives the role a
+# collaborator's role_name names: read, triage, write, maintain, or admin; a custom role is its own name.
+def github_role: if . == null then null else {pull: "read", push: "write"}[.] // . end;
+
+# github_collaborators reads the pages of GitHub's collaborators, each an array, and gives one document per person or
+# bot with access, in GitHub's order: {login, name, role, kind}, role the highest GitHub gives them, from any source,
+# name null where GitHub shows none, and kind bot for a Bot account, else user.
+def github_collaborators:
+  .[][]? | select(. != null)
+  | {login, name: (.name // null), role: (.role_name // null), kind: (if .type == "Bot" then "bot" else "user" end)};
+
+# cut_teams($limit) reads team documents, each with cut, true where the team's members went past those read, and gives
+# them without it, the first $limit of them, then {"limited": N}: N $limit when there were more teams, else N those
+# drawn when a team's members were cut.
+def cut_teams($limit):
+  .[:$limit] as $rows
+  | ($rows[] | del(.cut)),
+    (if length > $limit then {limited: $limit} elif any($rows[]; .cut) then {limited: ($rows | length)}
+     else empty end);
+
+# github_teams($members; $limit) reads GitHub's page of the teams with access to the repository, and gives one document
+# per team: {team, name, role, members, url}, team its slug, members their logins from $members, the organization's
+# answer, t<i> the i-th team's, null for a team the caller cannot see, url its page; then {"limited": N}, as cut_teams
+# says, a team cut past the members its answer holds.
+def github_teams($members; $limit):
+  to_entries
+  | map(($members["t\(.key)"]) as $team
+        | { team: .value.slug, name: .value.name, role: (.value.permission | github_role),
+            members: (if $team == null then null else [$team.members.nodes[]? | .login? // empty] end),
+            url: (.value.html_url // null),
+            cut: ($team != null and ($team.members.totalCount // 0) > ($team.members.nodes // [] | length)) })
+  | cut_teams($limit);
+
+# github_bot reads an actor, as GitHub's GraphQL gives one, and gives its login if it is a bot, as the REST API and a
+# pull request's page name it, dependabot[bot], else nothing: a Bot, whose GraphQL login is dependabot, or a login that
+# ends [bot].
+def github_bot:
+  select(. != null and (.__typename == "Bot" or (.login // "" | endswith("[bot]"))))
+  | if .login | endswith("[bot]") then .login else .login + "[bot]" end;
+
+# github_bots reads the answer to forge/github:bots's GraphQL query and gives one document per bot that acted among
+# those commits, changes, and reviews: {login, acted, last, url}, acted what it did, in the order commit, change,
+# review, last when it last did, in seconds since the epoch, url its app's page; the last to act first. A commit is a
+# bot's when its author's account is one, or else when its author names itself as one, dependabot[bot], as an agent's
+# commit names a person's account; a commit, a change, or a review of no account is no one's. Then {"limited": N}, N
+# those drawn, when GitHub holds more open changes than those read, or a change more reviewers.
+def github_bots:
+  .data.repository as $repo
+  | ($repo.url // "https://github.com" | capture("^(?<base>https?://[^/]+)").base) as $base
+  | [ ( ($repo.defaultBranchRef.target.history.nodes // [])[] | select(. != null) | .committedDate as $at
+        | (.author // {}) as $author
+        | (($author.user | github_bot) // ($author.name // "" | select(endswith("[bot]"))))
+        | {login: ., act: "commit", at: $at, url: null} ),
+      ( (($repo.open.nodes // []) + ($repo.merged.nodes // []))[] | select(. != null)
+        | (.createdAt as $at | .author | {login: github_bot, act: "change", at: $at, url: .url}),
+          ((.latestReviews.nodes // [])[] | select(. != null) | .submittedAt as $at | .author
+           | {login: github_bot, act: "review", at: $at, url: .url}) ) ]
+  | (($repo.open.totalCount // 0) > ($repo.open.nodes // [] | length)
+     or any(($repo.open.nodes // []) + ($repo.merged.nodes // []) | .[] | select(. != null) | .latestReviews;
+            (.totalCount? // 0) > (.nodes? // [] | length))) as $cut
+  | group_by(.login)
+  | map(map(.act) as $acts
+        | { login: .[0].login, acted: [("commit", "change", "review") | select(IN($acts[]))],
+            last: ([.[].at | select(. != null) | epoch] | max),
+            url: (first(.[].url | strings) // "\($base)/apps/\(.[0].login | rtrimstr("[bot]") | @uri)") })
+  | sort_by(-(.last // 0), .login)
+  | .[], (if $cut then {limited: length} else empty end);
+
+# gitlab_role reads a GitLab access level and gives the role GitLab names it, in lower case: guest, planner, reporter,
+# developer, maintainer, owner, and the rest; a level it does not name is its number, and none null.
+def gitlab_role:
+  if . == null then null
+  else {"5": "minimal access", "10": "guest", "15": "planner", "20": "reporter", "25": "security manager",
+        "30": "developer", "40": "maintainer", "50": "owner", "60": "admin"}[tostring] // tostring end;
+
+# gitlab_members reads the project's members, as forge/gitlab:members joins their pages, and gives each user once, at
+# the highest access any of their memberships gives them, by username; a membership of no user, as an invitation not
+# yet taken, is none.
+def gitlab_members:
+  [.[] | select(.user.username? != null)] | group_by(.user.username) | map(max_by(.accessLevel.integerValue? // 0));
+
+# gitlab_collaborators reads the project's members and gives one document per person or bot with access: {login, name,
+# role, kind}, role as gitlab_role names it, and kind bot for a bot user, as a project's access token makes, else user.
+def gitlab_collaborators:
+  gitlab_members[]
+  | { login: .user.username, name: (.user.name // null), role: (.accessLevel.integerValue? | gitlab_role),
+      kind: (if .user.bot == true then "bot" else "user" end) };
+
+# gitlab_bots reads the project's members and gives one document per bot user among them: {login, acted, last, url},
+# acted null, as GitLab says only when the bot last acted, last that day, in seconds since the epoch, or null where
+# GitLab does not show it, url its page; the last to act first.
+def gitlab_bots:
+  [gitlab_members[] | select(.user.bot == true)
+   | {login: .user.username, acted: null, last: (.user.lastActivityOn | day), url: (.user.webUrl // null)}]
+  | sort_by(-(.last // 0), .login)[];
+
+# gitlab_teams($members; $host; $limit) reads the project, as GitLab's REST API gives it, and gives one document per
+# group it is shared with, in GitLab's order: {team, name, role, members, url}, team the group's full path, role the
+# access the share gives, members the usernames from $members, the GraphQL answer, g<i> the i-th group's, null for a
+# group the caller cannot see, and url its page; then {"limited": N}, as cut_teams says.
+def gitlab_teams($members; $host; $limit):
+  (.shared_with_groups // []) | to_entries
+  | map(($members["g\(.key)"]) as $group
+        | { team: .value.group_full_path, name: (.value.group_name // null),
+            role: (.value.group_access_level | gitlab_role),
+            members: (if $group == null then null else [$group.groupMembers.nodes[]? | .user.username? // empty] end),
+            url: ($group.webUrl // "\($host)/groups/\(.value.group_full_path)"),
+            cut: ($group != null and $group.groupMembers.pageInfo.hasNextPage == true) })
+  | cut_teams($limit);
+
+# ado_teams($members; $url; $limit) reads az devops team list's answer and gives one document per team, in its order:
+# {team, name, role, members, url}, team and name its name, role null, as a team holds no role of its own, members
+# the unique names of the first 100 of its members, $members[<team id>], and url the project's teams, under $url, the
+# project's; then {"limited": N}, as cut_teams says, a team cut past 100 members.
+def ado_teams($members; $url; $limit):
+  map(($members[.id] // []) as $team
+      | { team: .name, name: .name, role: null,
+          members: [$team[:100][] | .identity.uniqueName // .identity.displayName // empty],
+          url: "\($url)/_settings/teams", cut: (($team | length) > 100) })
+  | cut_teams($limit);
+
+# ado_collaborators($members; $limit) reads az devops team list's answer and gives one document per member of the first
+# $limit teams, the first 100 members of each, $members[<team id>], once each, in the order first met: {login, name,
+# role, kind}, login the unique name, role admin for an administrator of any of the teams, else member, and kind
+# group for a group a team holds, else user; then {"limited": N}, N those drawn, when there were more teams, or a team
+# had more members.
+def ado_collaborators($members; $limit):
+  .[:$limit] as $teams
+  | reduce ($teams[] | ($members[.id] // [])[:100][] | select(.identity != null)) as $m
+      ({order: [], by: {}};
+       ($m.identity.uniqueName // $m.identity.id) as $k
+       | if .by | has($k) then .by[$k].admin = (.by[$k].admin or ($m.isTeamAdmin == true))
+         else .order += [$k] | .by[$k] = {identity: $m.identity, admin: ($m.isTeamAdmin == true)} end) as $met
+  | [$met.order[] | $met.by[.]
+     | { login: (.identity.uniqueName // .identity.id), name: (.identity.displayName // null),
+         role: (if .admin then "admin" else "member" end),
+         kind: (if .identity.isContainer == true then "group" else "user" end) }] as $rows
+  | $rows[],
+    (if length > $limit or any($teams[]; ($members[.id] // []) | length > 100) then {limited: ($rows | length)}
+     else empty end);

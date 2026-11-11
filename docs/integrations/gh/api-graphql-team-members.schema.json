@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh api graphql --raw-field org=${owner} --raw-field t0=${slug}… --raw-field query=${query}",
+  "description": "The first 100 members of each of the first 20 teams with access, one alias t<i> a team, of the organization that owns the repository, which kit draws as the teams stage's members in `modules/bash/forge/github.sh` (forge/github:teams, with `modules/jq/forge.jq` forge::github_teams); a team the caller cannot see is null. Members include those of child teams, as Team.members' membership ALL does. It needs the read:org scope, without which GitHub answers INSUFFICIENT_SCOPES. The types are Organization.team, Team.members, and User in GitHub's GraphQL schema, https://docs.github.com/graphql.",
+  "type": "object",
+  "properties": {
+    "data": {
+      "type": "object",
+      "properties": {
+        "organization": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {},
+          "additionalProperties": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "members": {
+                "type": "object",
+                "properties": {
+                  "totalCount": {
+                    "type": "integer"
+                  },
+                  "nodes": {
+                    "type": "array",
+                    "items": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "login": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "login"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "totalCount",
+                  "nodes"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "required": [
+              "members"
+            ],
+            "additionalProperties": true
+          }
+        }
+      },
+      "required": [
+        "organization"
+      ],
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "data"
+  ],
+  "examples": [
+    {
+      "data": {
+        "organization": {
+          "t0": {
+            "members": {
+              "totalCount": 2,
+              "nodes": [
+                {
+                  "login": "ada"
+                },
+                {
+                  "login": "bob"
+                }
+              ]
+            }
+          },
+          "t1": null
+        }
+      }
+    }
+  ]
+}

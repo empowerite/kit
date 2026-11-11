@@ -131,12 +131,17 @@
 #   deployments                   one JSON object per deployment, newest first, the newest 50 at most: {id, environment,
 #                                 ref, sha, state, actor, age, url, commit}; state success, failure, running, waiting,
 #                                 cancelled, or inactive; url its log or page, commit the commit's page (since 4)
-#   collaborators                 one JSON object per person with access: {login, name, role, kind}, kind user or bot
-#                                 (since 4)
-#   teams                         one JSON object per team: {team, name, role, members, url}, members their logins; 20
-#                                 teams at most, 100 members each (since 4)
-#   bots                          one JSON object per bot: {login, acted, last, url}, acted a list of commit, change,
-#                                 or review (since 4)
+#   collaborators                 one JSON object per person with access: {login, name, role, kind}; name null where
+#                                 the forge shows none, role the forge's own name for it, kind user, bot, or group, for
+#                                 a group a team holds (since 4); a forge that shows them only to who may push fails
+#                                 for any other, naming who can give that access
+#   teams                         one JSON object per team, in the forge's order: {team, name, role, members, url},
+#                                 team unique among them, role the access it has, or null, members their logins, or
+#                                 null for a team the caller cannot see; 20 teams at most, 100 members each, then
+#                                 {"limited": N} after the N drawn where there are more of either (since 4)
+#   bots                          one JSON object per bot that acted, the last to act first: {login, acted, last, url},
+#                                 acted a list of commit, change, and review, null where the forge does not say, last
+#                                 seconds since the epoch, or null, url its page (since 4)
 #   attestations                  one JSON object per attestation: {subject, digest, kind, signer, age, url} (since 4)
 #   code-scanning-alerts          one JSON object per code scanning alert, open or dismissed: {number, rule, severity,
 #                                 state, path, age, url} (since 4)

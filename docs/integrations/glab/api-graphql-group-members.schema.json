@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "glab api graphql --raw-field g0=${group}… --raw-field query=${query}",
+  "description": "The first 100 members of each of the first 20 groups the project is shared with, one alias g<i> a group, their own and those inherited from parent groups, as groupMembers' default relations are, which kit draws as the teams stage's members in `modules/bash/forge/gitlab.sh` (forge/gitlab:teams, with `modules/jq/forge.jq` forge::gitlab_teams); a group the caller cannot see is null. The types are Query.group, Group.groupMembers, and UserCore in GitLab's GraphQL schema, https://docs.gitlab.com/api/graphql/reference/.",
+  "type": "object",
+  "properties": {
+    "data": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "webUrl": {
+            "type": "string"
+          },
+          "groupMembers": {
+            "type": "object",
+            "properties": {
+              "pageInfo": {
+                "type": "object",
+                "properties": {
+                  "hasNextPage": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "hasNextPage"
+                ],
+                "additionalProperties": true
+              },
+              "nodes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "username": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "required": [
+              "pageInfo",
+              "nodes"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "webUrl",
+          "groupMembers"
+        ],
+        "additionalProperties": true
+      }
+    }
+  },
+  "required": [
+    "data"
+  ],
+  "examples": [
+    {
+      "data": {
+        "g0": {
+          "webUrl": "https://gitlab.com/groups/o/core",
+          "groupMembers": {
+            "pageInfo": {
+              "hasNextPage": false
+            },
+            "nodes": [
+              {
+                "user": {
+                  "username": "ada"
+                }
+              }
+            ]
+          }
+        },
+        "g1": null
+      }
+    }
+  ]
+}

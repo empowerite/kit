@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+# kit-people - lists who has access to the repository, its teams, and the bots that acted (kit verb: workflow)
+# ----------------------------------------------------------------------------------------------------------------------
+# kit people [--text | --json | --jq]
+#
+# Draws what the forge says of who works on the repository, a stage for each of People's tabs in kittui. It changes
+# nothing. The stages, in order:
+#
+#   people → teams → agents
+#
+# kit --workspace=<workspace> people, the kit option before the verb, draws each stage across a workspace's members
+# with checkouts, as kit workspace does: a group's name, or a repository's host and path, as kit workspaces names it;
+# none names no workspace. Without it, the workspace is the repository here, and outside one, the last group used, as
+# kit workspaces --current says. On a terminal, kit people opens People in kittui, and kit people <stage> opens it on
+# that tab, maximized. Without one, or with --text, it prints the stages as text; with --json or --jq, as JSON.
+#
+#   --text              prints the stages as text, even on a terminal
+#   --json              the stages as one JSON object: stages, then each stage's document under its name, null for one
+#                       that could not be read
+#   --jq                the same JSON, formatted by jq for a person
+#   --stages            prints the stages, one per line, in order, the same over any workspace
+#   --marks             prints a mark per stage, as one JSON object: null for each, as each is read again only on
+#                       Refresh and Watch
+#   people              who has access to the repository, people and bots, each with a role
+#   teams               the teams with access, 20 at most, each with its members, 100 at most
+#   agents              the bots that acted in the repository's newest commits, changes, and reviews
+#
+# kit people --stages
+#
+# kit people --marks
+#
+# kit people people [--text | --json | --jq]
+#
+# kit people teams [--text | --json | --jq]
+#
+# kit people agents [--text | --json | --jq]
+#
+# With --json, a stage prints {rows, errors}, and limited where the forge holds more than it read. A row is {key, …,
+# links}: key is the row's own in its stage, and links gives where a value leads, by its field. Over a workspace, each
+# row gains member, its host and path, and a member that could not be read is {member, error} under errors, while
+# every other member still draws. A repository with no forge, or a forge without the stage's feature, gives no rows
+# and no errors.
+#
+#   people              {login, name, role, kind}, keyed by the login: name null where the forge shows none; role the
+#                       forge's own name for it, as GitHub's admin, write, or read, GitLab's owner, developer, or guest,
+#                       and on Azure DevOps admin for a team's administrator, else member; kind user, bot, or, on
+#                       Azure DevOps, group. GitHub shows it only to who may push, and a caller who may not is told
+#                       so. GitLab names its members, those inherited and invited among them, each at the highest
+#                       role any gives them; Azure DevOps the members of the project's teams, as teams reads them
+#   teams               {team, name, role, members}, keyed by the team, GitHub's slug, GitLab's group path, Azure
+#                       DevOps' name: role the access the team has, null on Azure DevOps; members their logins, null
+#                       for a team the caller cannot see. The team links to its page. GitHub's need the read:org
+#                       scope; GitLab's are the groups the project is shared with. Past 20 teams, or past 100 members
+#                       of one, the document is limited, at the teams drawn
+#   agents              {login, acted, last}, keyed by the login: acted what it did, commit, change, or review; last
+#                       when it last did, in seconds since the epoch. The login links to its page. GitHub reads the
+#                       bots among the authors of the 100 newest commits on the default branch, and of the open changes
+#                       and the 50 merged last, 100 open at most, and their reviews, in one request: a bot is a Bot
+#                       account, or a login that ends [bot]; past 100 open changes, or 20 reviewers of one, the
+#                       document is limited, at the bots drawn. GitLab's are its bot users among the members, acted
+#                       null, last the day each last acted. Azure DevOps names no bots, and draws none
+#
+# Exits 0 when the stages are drawn, 1 when a stage could not be read, after what was, and 2 on a usage error, or
+# outside a repository's working tree with no workspace.
+#
+# see: modules/bash/apps.sh, modules/bash/apps/people.sh, modules/jq/apps.jq, docs/apps.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use apps
+workspaces:misplaced people "$@" || exit $?
+guard:arguments people "$@" || exit $?
+apps:main people "$@"
+
+# ----------------------------------------------------------------------------------------------------------------------

@@ -111,9 +111,8 @@ JSON
 }
 
 # added is what contract 4 adds that Azure DevOps lacks, as JSON strings: it has iterations, reviewers, the changes
-# merged, artifacts, environments, and deployments, and no milestone.
-added='"milestones","collaborators",'
-added+='"teams","bots","attestations","code-scanning","dependabot","secret-scanning","rulesets","bypasses"'
+# merged, artifacts, environments, deployments, who has access, and teams, and no milestone or bot.
+added='"milestones","bots","attestations","code-scanning","dependabot","secret-scanning","rulesets","bypasses"'
 
 @test "dev.azure.com, its ssh host, and a host under visualstudio.com are Azure DevOps, and each names the repository" {
   run call provider
@@ -520,6 +519,67 @@ ado-first() {
   ! grep --quiet 'environmentId=1 ' "${FAKE_DIR}/az.calls"
   [ "$(jq --slurp --compact-output '[length, .[0].id, .[0].environment, .[19].id, .[20]]' <<<"$output")" \
     = '[21,121,"env-20",102,{"limited":20}]' ]
+}
+
+# people-world adds to the world's routes the project's teams: its default team, empowerite Team, holds ada, its
+# administrator, and core holds ada, bob, and the group Release managers.
+people-world() {
+  local team='devops team list-member --team'
+  fixture teams.json <<'JSON'
+[{"id": "t1", "name": "empowerite Team", "description": "The default project team.", "projectName": "empowerite"},
+ {"id": "t2", "name": "core", "description": "", "projectName": "empowerite"}]
+JSON
+  fixture team-1.json <<'JSON'
+[{"isTeamAdmin": true, "identity": {"id": "a1", "displayName": "Ada", "uniqueName": "ada"}}]
+JSON
+  fixture team-2.json <<'JSON'
+[{"isTeamAdmin": false, "identity": {"id": "a1", "displayName": "Ada", "uniqueName": "ada"}},
+ {"isTeamAdmin": false, "identity": {"id": "b2", "displayName": "Bob", "uniqueName": "bob"}},
+ {"isTeamAdmin": false, "identity": {"id": "g3", "displayName": "Release managers",
+  "uniqueName": "[acme]\\Release managers", "isContainer": true}}]
+JSON
+  az-route 'devops team list --project empowerite --top 21 --output json' teams.json
+  az-route "${team} t1 --project empowerite --top 101 --output json" team-1.json
+  az-route "${team} t2 --project empowerite --top 101 --output json" team-2.json
+  az-route "${team} * --project empowerite --top 101 --output json" team-1.json
+}
+
+@test "the provider lists the project's teams, each with its members, as the others do, 20 teams at most" {
+  people-world
+  run --separate-stderr call teams
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --compact-output '[.team, .name, .role, .members]' <<<"$output" | paste -sd, -)" \
+    = '["empowerite Team","empowerite Team",null,["ada"]],'\
+'["core","core",null,["ada","bob","[acme]\\Release managers"]]' ]
+  [ "$(jq --raw-output .url <<<"$output" | sort -u)" = https://dev.azure.com/acme/empowerite/_settings/teams ]
+  # more than 20 teams give the first 20, and a team of more than 100 members its first 100, each saying so
+  jq '[range(21) as $i | .[0] | .id = "t\(100 + $i)" | .name = "team \(100 + $i)"]' "${FAKE_DIR}/teams.json" \
+    | fixture teams-21.json
+  ado-first 'devops team list --project empowerite --top 21 *' teams-21.json
+  run --separate-stderr call teams
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --slurp --compact-output '[length, .[0].team, .[19].team, .[20]]' <<<"$output")" \
+    = '[21,"team 100","team 119",{"limited":20}]' ]
+  jq '[range(101) as $i | .[1] | .identity.uniqueName = "u\($i)"]' "${FAKE_DIR}/team-2.json" | fixture team-101.json
+  ado-first 'devops team list-member --team t2 *' team-101.json
+  ado-first 'devops team list --project empowerite --top 21 *' teams.json
+  run --separate-stderr call teams
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --slurp --compact-output '[length, (.[1].members | length), .[2]]' <<<"$output")" = '[3,100,{"limited":2}]' ]
+}
+
+@test "the provider lists who has access as its teams' members, an administrator of one admin, a group a group" {
+  people-world
+  run --separate-stderr call collaborators
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --compact-output '[.login, .name, .role, .kind]' <<<"$output" | paste -sd, -)" \
+    = '["ada","Ada","admin","user"],["bob","Bob","member","user"],'\
+'["[acme]\\Release managers","Release managers","member","group"]' ]
+  # Azure DevOps names none of its bots, and kit asks it for none
+  run --separate-stderr call bots
+  [ "$status" -eq 3 ]
+  [ -z "$output" ]
+  [ -z "$stderr" ]
 }
 
 @test "on an Azure DevOps forge, #7 and AB#7 are both the forge's own work item, and a record still claims AB#" {
