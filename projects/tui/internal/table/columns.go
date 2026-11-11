@@ -27,9 +27,11 @@ type Columns struct {
 	At   int
 }
 
-// The cells of a line of the columns dialog, after its box and a space: the label, then the sort, then the group.
+// The cells of a line of the columns dialog, after its box and a space: the label, then the type, then the sort, then
+// the group.
 const (
 	LabelCells = 16
+	TypeCells  = 8
 	SortCells  = 6
 )
 
@@ -37,7 +39,7 @@ const (
 func (c Columns) Listed(h Host) []string { return h.Panel().Listed() }
 
 // Line draws a field's line in the columns dialog: its box, ticked where it shows, as a column or a group; its
-// label, dim where it is hidden, ⊘ after it while a filter on it holds rows back; its sort, ▲ or ▼, and its place among the keys while there are several, or a dim dot;
+// label, dim where it is hidden, ⊘ after it while a filter on it holds rows back; its type, dim; its sort, ▲ or ▼, and its place among the keys while there are several, or a dim dot;
 // and its group's depth, or a dim dot, or nothing where it cannot group.
 func (c Columns) Line(h Host, id string) string {
 	p := h.Panel()
@@ -62,7 +64,18 @@ func (c Columns) Line(h Host, id string) string {
 	case !p.Groupable[id]:
 		group = " "
 	}
-	return box + " " + pane.Pad(label, LabelCells, false) + pane.Pad(sort, SortCells, false) + group
+	return box + " " + pane.Pad(label, LabelCells, false) + pane.Pad(style.Off(typeOf(h, id)), TypeCells, false) +
+		pane.Pad(sort, SortCells, false) + group
+}
+
+// typeOf gives the type the table's catalog gives the field, as text or person, or nothing for a field it lacks.
+func typeOf(h Host, id string) string {
+	for _, f := range h.Fields() {
+		if f.ID == id {
+			return f.Type
+		}
+	}
+	return ""
 }
 
 // rules gives the fields of the columns dialog a dim rule stands before, as indexes into those it lists: the first
@@ -87,15 +100,16 @@ func (c Columns) rules(h Host) []int {
 // menu's color; and the screen line and column it is drawn from: under the header's right end, its right edge at the
 // pane's.
 func (c Columns) Box(h Host) (lines []string, top, left int) {
-	body := []string{style.Off("  " + pane.Pad("field", LabelCells, false) + pane.Pad("sort", SortCells, false) + "group")}
+	body := []string{style.Off("  " + pane.Pad("field", LabelCells, false) + pane.Pad("type", TypeCells, false) +
+		pane.Pad("sort", SortCells, false) + "group")}
 	rules := c.rules(h)
 	for k, id := range c.Listed(h) {
 		if slices.Contains(rules, k) {
-			body = append(body, style.Off(strings.Repeat("─", 2+LabelCells+SortCells+5)))
+			body = append(body, style.Off(strings.Repeat("─", 2+LabelCells+TypeCells+SortCells+5)))
 		}
 		line := c.Line(h, id)
 		if k == c.At {
-			line = style.Selected(pane.Pad(ansi.Strip(line), 2+LabelCells+SortCells+5, false))
+			line = style.Selected(pane.Pad(ansi.Strip(line), 2+LabelCells+TypeCells+SortCells+5, false))
 		}
 		body = append(body, line)
 	}
@@ -194,11 +208,11 @@ func (c *Columns) Click(h Host, x, y int, shift bool) {
 	switch cell := x - left - 2; {
 	case cell < 2:
 		c.Act(h, "space")
-	case cell >= 2+LabelCells+SortCells:
+	case cell >= 2+LabelCells+TypeCells+SortCells:
 		c.Act(h, "g")
-	case cell >= 2+LabelCells && shift:
+	case cell >= 2+LabelCells+TypeCells && shift:
 		h.SetPanel(h.Panel().SortedAs(c.Listed(h)[k], grid.Unsorted))
-	case cell >= 2+LabelCells:
+	case cell >= 2+LabelCells+TypeCells:
 		c.Act(h, "s")
 	}
 }

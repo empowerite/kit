@@ -99,7 +99,7 @@ func TestTheColumnsDialogAppliesAtOnce(t *testing.T) {
 	}
 	// a group's cell is the grouping glyph and its depth as a subscript, as a sort's mark carries its place
 	for id, want := range map[string]string{"source": grid.Grouping + "₁", "assignees": grid.Grouping + "₂"} {
-		if got := strings.TrimSpace(ansi.Strip(m.cols.Line(&m, id))[len("☑ ")+table.LabelCells+table.SortCells:]); got != want {
+		if got := strings.TrimSpace(ansi.Strip(m.cols.Line(&m, id))[len("☑ ")+table.LabelCells+table.TypeCells+table.SortCells:]); got != want {
 			t.Errorf("%s's group cell: %q, want %q", id, got, want)
 		}
 	}
@@ -114,11 +114,11 @@ func TestTheColumnsDialogAppliesAtOnce(t *testing.T) {
 		t.Errorf("a click on title's box: %+v", m.panel(0).Field("title"))
 	}
 	x, y = columnsAt(t, m, "age")
-	if m = drive(m, testkit.Click(x+2+table.LabelCells, y)); !strings.HasPrefix(m.panel(0).Mark("age"), "▲") {
+	if m = drive(m, testkit.Click(x+2+table.LabelCells+table.TypeCells, y)); !strings.HasPrefix(m.panel(0).Mark("age"), "▲") {
 		t.Errorf("a click on age's sort: %q", m.panel(0).Mark("age"))
 	}
 	x, y = columnsAt(t, m, "assignees")
-	if m = drive(m, testkit.Click(x+2+table.LabelCells+table.SortCells, y)); !slices.Contains(m.panel(0).Groups(), "assignees") {
+	if m = drive(m, testkit.Click(x+2+table.LabelCells+table.TypeCells+table.SortCells, y)); !slices.Contains(m.panel(0).Groups(), "assignees") {
 		t.Errorf("a click on assignees' group: %q", m.panel(0).Groups())
 	}
 	x, y = columnsAt(t, m, "assignees")
@@ -154,7 +154,7 @@ func TestTheColumnsDialogAppliesAtOnce(t *testing.T) {
 	m = drive(m, slices.Repeat([]tea.Msg{tab}, 5)...)
 	m.cols = table.Columns{Open: true}
 	at("commit")
-	if m.stages[m.stage].name != "builds" || strings.TrimSpace(ansi.Strip(m.cols.Line(&m, "commit"))[len("☑ ")+table.LabelCells:]) != "" {
+	if m.stages[m.stage].name != "builds" || strings.TrimSpace(ansi.Strip(m.cols.Line(&m, "commit"))[len("☑ ")+table.LabelCells+table.TypeCells:]) != "" {
 		t.Errorf("commit's line on %s: %q", m.stages[m.stage].name, ansi.Strip(m.cols.Line(&m, "commit")))
 	}
 	if m = drive(m, typed("s")...); len(m.panel(m.stage).SortKeys()) != 0 {

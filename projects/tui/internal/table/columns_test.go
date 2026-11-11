@@ -109,11 +109,11 @@ func TestTheColumnsDialogTakesClicksAndNamesItsKeys(t *testing.T) {
 	}
 	// on who's line: its sort cell does nothing, its group cell groups by it, its box hides it, its label moves there
 	y := top + 4
-	c.Click(h, left+4+LabelCells+SortCells, y, false)
+	c.Click(h, left+4+LabelCells+TypeCells+SortCells, y, false)
 	if !slices.Equal(h.panel.Groups(), []string{"state", "who"}) {
 		t.Errorf("a click on who's group: %q", h.panel.Groups())
 	}
-	c.Click(h, left+4+LabelCells, top+2, false)
+	c.Click(h, left+4+LabelCells+TypeCells, top+2, false)
 	if h.panel.Field("state").Sort != grid.Ascending {
 		t.Errorf("a click on state's sort: %+v", h.panel.Field("state"))
 	}
@@ -152,7 +152,7 @@ func TestAClickTurnsASortOffOnlyOnTheLastKeyAndAShiftClickAnywhere(t *testing.T)
 	c := Columns{Open: true}
 	_, top, left := c.Box(h)
 	state, who := top+2, top+3
-	sort := left + 4 + LabelCells
+	sort := left + 4 + LabelCells + TypeCells
 	c.Click(h, sort, state, false)
 	c.Click(h, sort, who, false)
 	c.Click(h, sort, state, false)
@@ -198,5 +198,21 @@ func TestTheColumnsDialogSetsTheHiddenFieldsApart(t *testing.T) {
 	c.Key(h, press("g")) // state grouped too: a rule under the groups, and one over the hidden
 	if got := rule(); len(got) != 2 {
 		t.Errorf("grouped and hidden: rules at %v", got)
+	}
+}
+
+// The columns dialog names each field's type after the field, dim, under the heading type, between field and sort.
+func TestTheColumnsDialogNamesEachFieldsType(t *testing.T) {
+	h := listing()
+	box, _, _ := Columns{Open: true}.Box(h)
+	heads := strings.Fields(strings.Trim(ansi.Strip(box[1]), "│ "))
+	if !slices.Equal(heads, []string{"field", "type", "sort", "group"}) {
+		t.Errorf("the headings: %q", heads)
+	}
+	for _, c := range []struct{ id, want string }{{"who", "person"}, {"title", title.Type}} {
+		line := ansi.Strip(Columns{}.Line(h, c.id))
+		if got := strings.TrimSpace(string([]rune(line)[2+LabelCells : 2+LabelCells+TypeCells])); got != c.want {
+			t.Errorf("%s's type: %q in %q", c.id, got, line)
+		}
 	}
 }

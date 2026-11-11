@@ -2,19 +2,19 @@
   ➊╶────────────────╮➁╶─────────────────╮➂╶─────────────╮➃╶──────────────────╮➄╶────────────────╮➅╶───────────────╮➆╶───
   │ 🎫 backlog  3 : │  🛫 underway  4   │  💻 desk  1   │  🌿 worktrees  4   │  🔀 changes  3   │  🏭 builds  4   │
   ╵                 ╰───────────────────╰───────────────╰────────────────────╰──────────────────╰─────────────────╰─────
-  ▾ 1                                                                                 ╭─ backlog fields ──────────────╮
-                                                                                      │   field           sort  group │
-    id  source     age  title                                                         │ ☑ id              ·           │
-    ·───·──────────▼────·─────────────────────────────────────────────────────────────│ ☑ source          ·     ·     │
-    #7  🐙 github  40d  🎫 Fix the thing                                              │ ☑ age             ▼           │
-                                                                                      │ ☑ branch          ·           │
-                                                                                      │ ☑ labels                ·     │
-                                                                                      │ ☑ title           ·           │
-                                                                                      │ ───────────────────────────── │
-                                                                                      │ ☐ organization    ·     ·     │
-                                                                                      │ ☐ repository      ·     ·     │
-                                                                                      │ ☐ assignees ⊘           ·     │
-                                                                                      ╰───────────────────────────────╯
+  ▾ 1                                                                         ╭─ backlog fields ──────────────────────╮
+                                                                              │   field           type    sort  group │
+    id  source     age  title                                                 │ ☑ id              ref     ·           │
+    ·───·──────────▼────·─────────────────────────────────────────────────────│ ☑ source          enum    ·     ·     │
+    #7  🐙 github  40d  🎫 Fix the thing                                      │ ☑ age             time    ▼           │
+                                                                              │ ☑ branch          text    ·           │
+                                                                              │ ☑ labels          label         ·     │
+                                                                              │ ☑ title           text    ·           │
+                                                                              │ ───────────────────────────────────── │
+                                                                              │ ☐ organization    enum    ·     ·     │
+                                                                              │ ☐ repository      enum    ·     ·     │
+                                                                              │ ☐ assignees ⊘     person        ·     │
+                                                                              ╰───────────────────────────────────────╯
 
 
 
