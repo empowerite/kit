@@ -9,7 +9,7 @@
    --stages    prints the stages, one per line, in order, the same over any workspace
    --marks     prints a mark per stage, as one JSON object, which changes when what the stage draws
                does: the forge's own mark of its milestones for milestones, null for iterations,
-               which has none
+               which has none and is read again only on Refresh
    milestones  {number, title, state, due, open, closed}: state is open or closed, due is seconds
                since the epoch or null for none, open and closed count the milestone's issues; the
                title links to its page. Azure DevOps has no milestones

@@ -418,3 +418,35 @@ func TestEveryOtherScreenEndsZeroOr130(t *testing.T) {
 		t.Errorf("a screen ctrl-c ended: %d", code)
 	}
 }
+
+// An app's verb opens its app on the tab its words name, maximized, as kit issues backlog opens Issues on backlog; with
+// none named it opens the app's first tab, the bar and the rows as they always were.
+func TestAnAppsVerbOpensItOnTheTabNamed(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	r := testkit.Runner(t, "flow")
+	for _, c := range []struct {
+		verb      string
+		words     []string
+		want      shell.Screen
+		spot      string
+		maximized bool
+	}{
+		{"issues", []string{"backlog"}, shell.Issues, "backlog", true},
+		{"audit", nil, shell.Trust, "evidence", false},
+		{"audit", []string{"waivers"}, shell.Trust, "waivers", true},
+	} {
+		screen, m, err := open(r, c.verb, c.words)
+		f, ok := m.(flow.Model)
+		if err != nil || !ok || screen != c.want {
+			t.Errorf("kit %s %q: %s, %T, %v", c.verb, c.words, screen, m, err)
+			continue
+		}
+		name, _ := f.Spot()
+		lines := strings.Split(f.View().Content, "\n")
+		banner := len(lines) > 1 && strings.Contains(lines[1], flow.Banner)
+		if !strings.HasSuffix(name, c.spot) || banner != c.maximized {
+			t.Errorf("kit %s %q opens on %q, maximized %v; want %q, %v", c.verb, c.words, name, banner, c.spot, c.maximized)
+		}
+		f.Close()
+	}
+}

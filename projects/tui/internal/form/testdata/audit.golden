@@ -10,7 +10,7 @@
    --marks    prints a mark per stage, as one JSON object: evidence's moves with the forge's runs
               and releases, findings' with its runs and alerts, each scanner's off or refused where
               it is, policy's with kit.yml and .kit/policy; controls and waivers have none, null, as
-              each is read again only on Refresh and Watch
+              each is read again only on Refresh, kittui offering no Watch for them
    evidence   {subject, digest, kind, signer, age}, keyed by the digest and the kind: subject the
               asset's or artifact's name; kind the statement's predicate type, null where GitHub
               keeps the bundle apart, compressed, which kit does not read; signer the workflow that

@@ -1,7 +1,8 @@
 # kittui
 
-`kittui` is the kit's interactive terminal UI. It is a Go binary, and `kit tui`, `kit flow`, `kit workspace`,
-`kit welcome`, and `kit tutorials` exec it. It runs `kit` for everything it knows, so it holds no verb by name.
+`kittui` is the kit's interactive terminal UI. It is a Go binary, and `kit tui`, `kit flow`, `kit workspace`, the app
+verbs below, `kit welcome`, and `kit tutorials` exec it. It runs `kit` for everything it knows, so it holds no verb by
+name.
 
 It has six screens:
 
@@ -19,13 +20,7 @@ It has six screens:
   so their fields and presets stay apart from another verb's stage of the same name. A stage's rows are drawn from the
   catalog alone: kit prints each row's values by the field's id, and where a value leads, a page on the forge or a row
   of another tab, so a stage needs no Go of its own. It reads no forge, so it spends no rate limit, and a tab is stale,
-  its dot lit, when `kit workspace --marks` moves. The other apps are the same screen: `kit issues`, `kit changes`,
-  `kit delivery`, `kit people`, `kit audit`, and `kit platform` at a terminal open Issues, Changes, Delivery, People,
-  Trust, and Platform, each on its verb's stages beside kit flow's, which kittui knows after the verb, as
-  `audit/findings`, each drawn from the catalog as kit workspace's are. A tab of a stage that reads the forge reads
-  the rate limits again as it loads. A tab kit read only part of, as a capped list, counts what it drew with a +,
-  `50+`; a feature the forge has off here, as secret scanning, says so, dim, under the rows, and is no failure; and a
-  tab whose mark is null, as People's, is never stale, so its Watch is dim.
+  its dot lit, when `kit workspace --marks` moves. The other apps are the same screen; see The apps, below.
 - **The welcome guide.** `kit welcome` at a terminal walks its steps here, and bare `kit` opens it too.
 - **The tutorials.** `kit tutorials` at a terminal shows a card for each tutorial here, tabbed by audience.
 
@@ -36,6 +31,32 @@ a past search.
 `kit x y` opens screen x on y. `kit flow backlog` opens the picture with the backlog stage maximized, and
 `kit tutorials screens` opens the tutorials with the cursor on that card. `kit help commit` opens the palette on the
 commit verb's page, and `kit tui commit` opens its form.
+
+## The apps
+
+Flow and the workspace's picture are two of eight apps, each this screen over its own tabs, one stage of kit for
+each, drawn from the catalog alone. `kit <verb>` at a terminal opens the app on its first tab, and `kit <verb> <tab>`
+opens it on that tab, maximized; a tab of kit flow's, as `kit issues backlog`, opens the same way, and the app that
+holds it opens. Each tab reads one kit command with `--json`, the entry of that stage in `internal/flow/fields.json`:
+
+| App | Verb | Tab and the command it reads |
+| --- | --- | --- |
+| Flow | `kit flow` | each stage of the `flow` setting that kittui draws, as `kit flow <stage> --json` |
+| Issues | `kit issues` | backlog and underway, `kit flow`'s; milestones and iterations, `kit issues <tab>` |
+| Changes | `kit changes` | changes, `kit flow changes`; reviews, checks, and merged, `kit changes <tab>` |
+| Repositories | `kit workspace` | repos, worktrees, branches, commits, tags, remotes: `kit workspace <tab>`; incoming: `kit flow` |
+| Delivery | `kit delivery` | releases and builds, `kit flow`'s; artifacts, environments, deployments, `kit delivery <tab>` |
+| People | `kit people` | people, teams, and agents, `kit people <tab>` |
+| Trust | `kit audit` | evidence, findings, controls, waivers, and policy, `kit audit <tab>` |
+| Platform | `kit platform` | services, toolchains, tools, and settings, `kit platform <tab>` |
+| Packages | `kit packages` | packages, `kit packages packages` |
+
+Every tab has a source, so none is drawn empty. A tab is stale, its dot lit, when its verb's `--marks` moves
+for it, and Watch reads it again then. A tab whose mark is null, as People's, is never
+stale, so its Watch is dim and it is read again on Refresh only. A tab of a stage that reads the forge reads the rate
+limits again as it loads. A tab kit read only part of, as a capped list, counts what it drew with a +, `50+`; a
+feature the forge has off here, as secret scanning, says so, dim, under the rows, and is no failure. A link to a row
+of a tab the app does not have opens the app built around that tab's entity.
 
 Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb>`, the picture reads
 `kit flow <stage> --json`, and the workspace's reads `kit workspace <stage> --json`. `kittui` never parses kit's text.

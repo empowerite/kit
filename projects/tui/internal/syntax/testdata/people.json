@@ -174,7 +174,7 @@
       "description": "prints the stages, one per line, in order, the same over any workspace"
     },
     "--marks": {
-      "description": "prints a mark per stage, as one JSON object: null for each, as each is read again only on Refresh and Watch"
+      "description": "prints a mark per stage, as one JSON object: null for each, as each is read again only on Refresh, kittui offering no Watch for a tab kit never marks"
     },
     "people": {
       "description": "{login, name, role, kind}, keyed by the login: name null where the forge shows none; role the forge's own name for it, as GitHub's admin, write, or read, GitLab's owner, developer, or guest, and on Azure DevOps admin for a team's administrator, else member; kind user, bot, or, on Azure DevOps, group. GitHub shows it only to who may push, and a caller who may not is told so. GitLab names its members, those inherited and invited among them, each at the highest role any gives them; Azure DevOps the members of the project's teams, as teams reads them"

@@ -246,7 +246,7 @@
       "description": "prints the stages, one per line, in order, the same over any workspace"
     },
     "--marks": {
-      "description": "prints a mark per stage, as one JSON object: evidence's moves with the forge's runs and releases, findings' with its runs and alerts, each scanner's off or refused where it is, policy's with kit.yml and .kit/policy; controls and waivers have none, null, as each is read again only on Refresh and Watch"
+      "description": "prints a mark per stage, as one JSON object: evidence's moves with the forge's runs and releases, findings' with its runs and alerts, each scanner's off or refused where it is, policy's with kit.yml and .kit/policy; controls and waivers have none, null, as each is read again only on Refresh, kittui offering no Watch for them"
     },
     "evidence": {
       "description": "{subject, digest, kind, signer, age}, keyed by the digest and the kind: subject the asset's or artifact's name; kind the statement's predicate type, null where GitHub keeps the bundle apart, compressed, which kit does not read; signer the workflow that signed it, <owner>/<repo>/<path>@<ref>, github for one GitHub made itself, or null; age in seconds. The subject links to the repository's attestations. GitHub reads a digest's attestations a request each, 50 digests at most; past 5 releases, 20 artifacts, or 50 digests, the document is limited. GitLab and Azure DevOps keep none kit reads"

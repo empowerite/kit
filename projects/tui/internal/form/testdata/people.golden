@@ -8,7 +8,7 @@
 
    --stages    prints the stages, one per line, in order, the same over any workspace
    --marks     prints a mark per stage, as one JSON object: null for each, as each is read again
-               only on Refresh and Watch
+               only on Refresh, kittui offering no Watch for a tab kit never marks
    people      {login, name, role, kind}, keyed by the login: name null where the forge shows none;
                role the forge's own name for it, as GitHub's admin, write, or read, GitLab's owner,
                developer, or guest, and on Azure DevOps admin for a team's administrator, else
