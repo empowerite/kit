@@ -112,6 +112,12 @@ func takes(name, word string) bool {
 	return catalog[name] != nil && slices.Contains(catalog[name].Takes, word)
 }
 
+// everMarked says whether a stage's verb ever marks it: every stage but one whose catalog entry says marked false, as
+// kit people's, whose --marks always prints null.
+func everMarked(name string) bool {
+	return catalog[name] == nil || catalog[name].Marked == nil || *catalog[name].Marked
+}
+
 // verbOf gives the verb that prints a staged stage, and the stage's name to that verb, as its catalog entry's command
 // names them: workspace and branches for workspace/branches. A stage that is not staged has neither.
 func verbOf(name string) (verb, stage string) {

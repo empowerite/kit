@@ -101,13 +101,23 @@ func (m Model) rowLink(verb, link, member string) string {
 // the stage: environments of kit delivery's is delivery/environments, and kit flow's own stages go by their names. A
 // stage the catalog does not name goes by the verb, a slash, and its name.
 func stageNamed(verb, stage string) string {
-	for name := range catalog {
-		if v, s := verbOf(name); v == verb && s == stage {
-			return name
-		}
+	if name, ok := stageNames[[2]string{verb, stage}]; ok {
+		return name
 	}
 	return verb + "/" + stage
 }
+
+// stageNames gives each staged stage's name, as kittui knows it, by its verb and its name to the verb, as stageNamed
+// reads them: read from the catalog once.
+var stageNames = func() map[[2]string]string {
+	out := map[[2]string]string{}
+	for name := range catalog {
+		if verb, stage := verbOf(name); verb != "" {
+			out[[2]string{verb, stage}] = name
+		}
+	}
+	return out
+}()
 
 // The renderers of kit workspace's own values, registered with the table's by the names fields.json gives them.
 func init() {

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -248,40 +249,82 @@ func TestACappedTabCountsWithAPlus(t *testing.T) {
 	}
 }
 
-// A tab whose mark kit prints null is never stale, and offers no Watch: Watch is dim on its tab's menu, its key does
-// nothing, and Watch All passes it by; a tab with a mark offers it.
+// The stages whose verb never marks them, as their catalog entries' marked false says, are those whose --marks prints
+// null always: kit people's three, audit's controls and waivers, and issues' iterations.
+func TestTheStagesNeverMarkedAreTheCatalogs(t *testing.T) {
+	var never []string
+	for name := range catalog {
+		if !everMarked(name) {
+			never = append(never, name)
+		}
+	}
+	slices.Sort(never)
+	if want := []string{"audit/controls", "audit/waivers", "issues/iterations", "people/agents", "people/people",
+		"people/teams"}; !slices.Equal(never, want) {
+		t.Errorf("never marked: %q", never)
+	}
+	if !everMarked("backlog") || !everMarked("nonesuch") {
+		t.Error("a stage the catalog says nothing of is not marked")
+	}
+}
+
+// A tab its verb never marks is never stale, and its tab's menu has no Watch, which Watch All passes by; a tab whose
+// mark kit's last read gave null, as kit flow's when the forge cannot answer, has Watch dim, its key doing nothing,
+// until a mark comes; a tab with a mark offers it.
 func TestATabWithANullMarkIsNeverStale(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "marks.json")
-	if err := os.WriteFile(file, []byte(`{"people": "p1", "teams": null, "agents": null}`), 0o600); err != nil {
+	if err := os.WriteFile(file, []byte(`{"people": null, "teams": null, "agents": null}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("FAKE_PEOPLE_MARKS", file)
 	m := appOf(t, shell.People, tea.WindowSizeMsg{Width: 160, Height: 30})
 	m = drive(m, clockOf(m).Fire()...)
-	if k := item(m, WatchIt); k < 0 || !m.enabled(k) {
-		t.Errorf("people, marked, offers no Watch: %d", k)
-	}
-	m = drive(m, tab)
-	if s := m.stages[m.stage]; s.name != "people/teams" || s.src.Stale {
-		t.Fatalf("on %s, stale %v", s.name, s.src.Stale)
-	}
-	if k := item(m, WatchIt); k < 0 || m.enabled(k) {
-		t.Errorf("teams, whose mark is null, offers Watch: %d", k)
-	}
-	if m = drive(m, typed("w")...); m.stages[m.stage].src.Watch {
-		t.Error("w watches teams")
-	}
-	m = drive(m, clockOf(m).Fire()...)
-	if m.stages[m.stage].src.Stale {
-		t.Error("teams went stale")
-	}
-	m.watchAll(true)
-	if !m.find("people/people").src.Watch || m.find("people/teams").src.Watch ||
-		m.find("people/agents").src.Watch {
-		t.Error("Watch All watches a tab whose mark is null")
+	for range m.stages {
+		if s := m.stages[m.stage]; item(m, WatchIt) >= 0 || item(m, StopIt) >= 0 || s.src.Stale {
+			t.Errorf("%s offers Watch, or is stale %v", s.name, s.src.Stale)
+		}
+		if m = drive(m, typed("w")...); m.stages[m.stage].src.Watch {
+			t.Errorf("w watches %s", m.stages[m.stage].name)
+		}
+		m = drive(m, tab)
 	}
 	if _, on := own(m, WatchAll); on {
-		t.Error("Watch All acts once every tab with a mark is watched")
+		t.Error("Watch All acts on People, whose every tab is never marked")
+	}
+	m.watchAll(true)
+	if slices.ContainsFunc(m.stages, func(s stage) bool { return s.src.Watch }) {
+		t.Error("Watch All watches a tab its verb never marks")
+	}
+	// Issues: backlog's mark null now, milestones marked, iterations never
+	flowMarks := filepath.Join(t.TempDir(), "flow.json")
+	issuesMarks := filepath.Join(t.TempDir(), "issues.json")
+	for path, marks := range map[string]string{flowMarks: `{"backlog": null, "underway": "u1"}`,
+		issuesMarks: `{"milestones": "m1", "iterations": null}`} {
+		if err := os.WriteFile(path, []byte(marks), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("FAKE_FLOW_MARKS", flowMarks)
+	t.Setenv("FAKE_ISSUES_MARKS", issuesMarks)
+	i := appOf(t, shell.Issues, tea.WindowSizeMsg{Width: 160, Height: 30})
+	i = drive(i, clockOf(i).Fire()...)
+	for _, c := range []struct {
+		name          string
+		offered, acts bool
+	}{{"backlog", true, false}, {"underway", true, true}, {"issues/milestones", true, true},
+		{"issues/iterations", false, false}} {
+		i.stage = slices.IndexFunc(i.stages, func(s stage) bool { return s.name == c.name })
+		k := item(i, WatchIt)
+		if k >= 0 != c.offered || k >= 0 && i.enabled(k) != c.acts {
+			t.Errorf("%s: Watch at %d, acts %v", c.name, k, k >= 0 && i.enabled(k))
+		}
+	}
+	i.watchAll(true)
+	for name, want := range map[string]bool{"backlog": false, "underway": true, "issues/milestones": true,
+		"issues/iterations": false} {
+		if got := i.find(name).src.Watch; got != want {
+			t.Errorf("Watch All watches %s: %v", name, got)
+		}
 	}
 }
 
@@ -439,7 +482,7 @@ func TestARowOfAnAppVerbLeadsToItsVerbsStage(t *testing.T) {
 	}
 }
 
-// A time kit gives since the epoch is drawn by its day, and a size in bytes in the unit that keeps it short.
+// An instant kit gives since the epoch is drawn by its day here, and a size in bytes in the unit that keeps it short.
 func TestADateIsItsDayAndASizeItsUnit(t *testing.T) {
 	day := time.Unix(1798675200, 0).Format(time.DateOnly)
 	if got := dates(table.Field{}, table.One("1798675200")); !slices.Equal(got, []string{day}) {
@@ -467,5 +510,57 @@ func TestEachAppVerbOpensItsApp(t *testing.T) {
 		if app != c.app || AppVerb(c.verb) != (c.verb != "tutorials") {
 			t.Errorf("kit %s %s opens %s", c.verb, c.words, app)
 		}
+	}
+}
+
+// A calendar day kit gives as its midnight in UTC, a milestone's due or an iteration's start, or as its last second, an
+// iteration's end, is that day wherever the screen is, west of UTC or east of it; an instant, as a change's merge, is
+// its day here.
+func TestADueDateIsItsOwnDayAnywhere(t *testing.T) {
+	local := time.Local
+	t.Cleanup(func() { time.Local = local })
+	// 2026-12-31 00:00 UTC, and 2027-01-14 23:59:59 UTC
+	start, end := "1798675200", strconv.Itoa(1798675200+15*86400-1)
+	for _, zone := range []*time.Location{time.FixedZone("west", -8*3600), time.FixedZone("east", 9*3600)} {
+		time.Local = zone
+		if got := days(table.Field{}, table.Value{Raw: []string{start, end}}); !slices.Equal(got,
+			[]string{"2026-12-31", "2027-01-14"}) {
+			t.Errorf("%s: the days %q", zone, got)
+		}
+		here := time.Unix(1798675200, 0).In(zone).Format(time.DateOnly)
+		if got := dates(table.Field{}, table.One(start)); got[0] != here {
+			t.Errorf("%s: the instant %q", zone, got)
+		}
+	}
+	for stage, ids := range map[string][]string{"issues/milestones": {"due"}, "issues/iterations": {"start", "end"}} {
+		for _, f := range fieldsOf(stage) {
+			if slices.Contains(ids, f.ID) && !slices.Equal(f.Renderings, []string{"day"}) {
+				t.Errorf("%s's %s draws by %q", stage, f.ID, f.Renderings)
+			}
+		}
+	}
+}
+
+// An environment's branches, null, are any branch: the column says any, dim; an empty list says nothing.
+func TestAnEnvironmentOfAnyBranchSaysAny(t *testing.T) {
+	m := appOf(t, shell.Delivery, tea.WindowSizeMsg{Width: 160, Height: 30})
+	values := map[string]table.Value{}
+	for _, r := range m.records(*m.find("delivery/environments")) {
+		values[r.Key] = r.values["branches"]
+	}
+	if v := values["staging"]; len(v.Raw) != 0 || v.Else != "any" {
+		t.Errorf("staging's branches: %+v", v)
+	}
+	if v := values["production"]; !slices.Equal(v.Raw, []string{"main"}) || v.Else != "" {
+		t.Errorf("production's branches: %+v", v)
+	}
+	m = drive(m, tab, tab, tab)
+	if s := m.stages[m.stage]; s.name != "delivery/environments" || !strings.Contains(raw(m), "any") {
+		t.Errorf("on %s:\n%s", s.name, view(m))
+	}
+	if !slices.ContainsFunc(m.lines(m.stage), func(l table.Line) bool {
+		return strings.Contains(l.Text, style.Off("any"))
+	}) {
+		t.Error("any is not dim")
 	}
 }

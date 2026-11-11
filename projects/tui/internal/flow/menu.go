@@ -40,17 +40,20 @@ const (
 )
 
 // tabItems gives the tab's menu's lines, top to bottom: the stage loaded again; watched, or no longer, as watch.go
-// says; the tab maximized, or restored once it is; a rule; a level more of the outline and a level less, and the
-// selection shown and hidden, as folds names them; a rule; every row selected and none; a rule; and what acts on the
-// rows selected: on backlog, the actions there, then each one's page opened. A line with a key shows it at its right; the key does the
-// same with the menu closed, as shortcut says.
+// says, where its verb marks it; the tab maximized, or restored once it is; a rule; a level more of the outline and a
+// level less, and the selection shown and hidden, as folds names them; a rule; every row selected and none; a rule;
+// and what acts on the rows selected: on backlog, the actions there, then each one's page opened. A line with a key
+// shows it at its right; the key does the same with the menu closed, as shortcut says.
 func (m Model) tabItems() []shell.Item {
 	size := shell.Item{Glyph: Maximize, Name: "Maximize", Keys: "M"}
 	if m.maximized {
 		size = shell.Item{Glyph: Restore, Name: "Restore", Keys: "M"}
 	}
-	items := append([]shell.Item{{Glyph: Reload, Name: "Refresh", Keys: "R"}, m.watchItem(m.stage), size, {}},
-		m.folds()...)
+	items := []shell.Item{{Glyph: Reload, Name: "Refresh", Keys: "R"}}
+	if len(m.stages) == 0 || everMarked(m.stages[m.stage].name) {
+		items = append(items, m.watchItem(m.stage))
+	}
+	items = append(append(items, size, shell.Item{}), m.folds()...)
 	items = append(items, shell.Item{},
 		shell.Item{Glyph: Every, Name: "Select All", Keys: "⌃A"}, shell.Item{Glyph: Sweep, Name: "Clear Selection"},
 		shell.Item{})

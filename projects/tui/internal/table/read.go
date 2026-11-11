@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -178,11 +179,15 @@ func (f Field) Read(record json.RawMessage) Value { return f.ReadFrom(Decoded(re
 // ReadFrom gives the field's value in a record decoded, as Decoded gives it, as its path names it: one path, or
 // several after commas, each .a.b, a [] after a key allowed and ignored. An array gives the value an element each,
 // and a path through one maps over it; a string is itself, a number its digits, true the field's id, and false, null,
-// or an object no value.
+// or an object no value. A field that says what null draws, as its Null, draws it for a record that holds null at a
+// path, and no value at any.
 func (f Field) ReadFrom(v any) Value {
 	var out Value
+	null := false
 	for _, path := range strings.Split(f.Path, ",") {
-		for _, each := range flat(walk(v, path)) {
+		held := walk(v, path)
+		null = null || len(held) > 0 && !slices.ContainsFunc(held, func(h any) bool { return h != nil })
+		for _, each := range flat(held) {
 			switch each := each.(type) {
 			case string:
 				out.Raw = append(out.Raw, each)
@@ -194,6 +199,9 @@ func (f Field) ReadFrom(v any) Value {
 				}
 			}
 		}
+	}
+	if null && len(out.Raw) == 0 {
+		out.Else = f.Null
 	}
 	return out
 }

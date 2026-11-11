@@ -15,8 +15,9 @@ import (
 
 // Schema is one stage's part of the catalog: the stage; the kit command that prints its rows, kit's words after kit,
 // as ["toolchains", "--json"], and the words it takes beside them, as Takes names them; whether it is staged, a stage
-// its verb's --stages and --marks name, which its command's second word is; whether the command reads the forge, and
-// so spends its rate limits; whether the command prints a document a
+// its verb's --stages and --marks name, which its command's second word is; whether its verb ever marks it, false for
+// a stage whose mark --marks always prints null, as kit people's, none for one it marks; whether the command reads
+// the forge, and so spends its rate limits; whether the command prints a document a
 // line, read as jq --slurp reads them; the record its rows are read from, as Records reads them; the paths of each
 // record's key, as KeyOf reads them; the line an empty table shows; its fields, in the order its columns stand; and its
 // own presets, in the order its preset line lists them. A schema without a command is a screen's own, which reads its
@@ -26,6 +27,7 @@ type Schema struct {
 	Command []string `json:"command"`
 	Takes   []string `json:"takes"`
 	Staged  bool     `json:"staged"`
+	Marked  *bool    `json:"marked"`
 	Forge   bool     `json:"forge"`
 	Slurp   bool     `json:"slurp"`
 	Record  string   `json:"record"`
@@ -54,7 +56,9 @@ var Takes = []string{"owner", "no-fetch", "fresh", "cached", "workspace"}
 // is drawn: dim, right-aligned, or as the one column that takes the width left and wraps. Width says how its column
 // gives way to the one that wraps: none, the column gives up the cells past its share as soon as the wrapping one is
 // short; WidthWhole, it keeps its widest value while the wrapping one keeps a few cells, and gives way only after it,
-// as a glossary's term does. Placement is where a preset that names none puts it: a column, a group, or hidden. Order
+// as a glossary's term does. Null is what a row whose value at the path is null draws, dim, where null means more
+// than nothing, as an environment's branches, any. Placement is where a preset that names none puts it: a column, a
+// group, or hidden. Order
 // says how its groups stand: none, sorted; OrderGiven, in the order the data gives them, an enum's known values first,
 // as the catalog lists them, then every other value as the records first hold it, as kit lists a repository's primary
 // remote first.
@@ -76,6 +80,7 @@ type Field struct {
 	Right      bool        `json:"right"`
 	Wrap       bool        `json:"wrap"`
 	Width      string      `json:"width"`
+	Null       string      `json:"null"`
 	Placement  string      `json:"placement"`
 	Order      string      `json:"order"`
 }
@@ -162,7 +167,8 @@ func ReadCatalog(data []byte) (Catalog, error) {
 // check refuses a schema a table cannot index by: one that names no stage; a field declared twice, or without a
 // rendering; fields without a Default preset; and, for a schema with a command, a record Records does not read, a word
 // it takes that Takes does not name, and staged with no stage after the verb, a command of three words at least, as
-// flow backlog --json. Words taken, staged, or the forge read without a command are refused too.
+// flow backlog --json, and marked on a stage that is not staged. Words taken, staged, or the forge read without a
+// command are refused too.
 func (s *Schema) check() error {
 	var errs []error
 	if s.Stage == "" {
@@ -198,6 +204,9 @@ func (s *Schema) check() error {
 			errs = append(errs, fmt.Errorf("stage %q takes %q; want one of %s", s.Stage, word,
 				strings.Join(Takes, ", ")))
 		}
+	}
+	if s.Marked != nil && !s.Staged {
+		errs = append(errs, fmt.Errorf("stage %q says whether it is marked, but is not staged", s.Stage))
 	}
 	if s.Staged && len(s.Command) < 3 {
 		errs = append(errs, fmt.Errorf("stage %q is staged, but %q names no stage after its verb", s.Stage,

@@ -507,7 +507,7 @@
          "placement": "column"},
         {"id": "title", "label": "title", "type": "text", "path": ".title", "sort": true, "renderings": ["text"],
          "placement": "column"},
-        {"id": "due", "label": "due", "type": "text", "path": ".due", "sort": true, "dim": true, "renderings": ["date"],
+        {"id": "due", "label": "due", "type": "text", "path": ".due", "sort": true, "dim": true, "renderings": ["day"],
          "placement": "column"},
         {"id": "open", "label": "open", "type": "number", "path": ".open", "sort": true, "filter": true,
          "renderings": ["text"], "placement": "column"},
@@ -520,8 +520,8 @@
       ]
     },
     {
-      "stage": "issues/iterations", "command": ["issues", "iterations", "--json"], "staged": true, "forge": true,
-      "takes": ["workspace"], "record": ".rows[]", "empty": "no iteration",
+      "stage": "issues/iterations", "command": ["issues", "iterations", "--json"], "staged": true, "marked": false,
+      "forge": true, "takes": ["workspace"], "record": ".rows[]", "empty": "no iteration",
       "fields": [
         {"id": "title", "label": "title", "type": "text", "path": ".title", "sort": true, "renderings": ["text"],
          "placement": "column"},
@@ -530,8 +530,8 @@
         {"id": "current", "label": "current", "type": "enum", "path": ".current", "sort": true, "group": true,
          "filter": true, "values": [{"value": "current"}], "renderings": ["text"], "placement": "column"},
         {"id": "start", "label": "start", "type": "text", "path": ".start", "sort": true, "dim": true,
-         "renderings": ["date"], "placement": "column"},
-        {"id": "end", "label": "end", "type": "text", "path": ".end", "sort": true, "dim": true, "renderings": ["date"],
+         "renderings": ["day"], "placement": "column"},
+        {"id": "end", "label": "end", "type": "text", "path": ".end", "sort": true, "dim": true, "renderings": ["day"],
          "placement": "column"},
         {"id": "id", "label": "id", "type": "ref", "path": ".id", "sort": true, "dim": true, "renderings": ["text"],
          "placement": "hidden"}
@@ -659,7 +659,8 @@
         {"id": "approvers", "label": "approvers", "type": "person", "path": ".approvers[]", "one": "approver",
          "group": true, "filter": true, "renderings": ["text"], "placement": "column"},
         {"id": "branches", "label": "branches", "type": "label", "path": ".branches[]", "one": "branch", "group": true,
-         "filter": true, "glyph": "🌿", "dim": true, "renderings": ["glyph+text", "text"], "placement": "column"}
+         "filter": true, "glyph": "🌿", "dim": true, "null": "any", "renderings": ["glyph+text", "text"],
+         "placement": "column"}
       ],
       "presets": [
         {"name": "Default"},
@@ -698,8 +699,8 @@
       ]
     },
     {
-      "stage": "people/people", "command": ["people", "people", "--json"], "staged": true, "forge": true,
-      "takes": ["workspace"], "record": ".rows[]", "empty": "no one has access",
+      "stage": "people/people", "command": ["people", "people", "--json"], "staged": true, "marked": false,
+      "forge": true, "takes": ["workspace"], "record": ".rows[]", "empty": "no one has access",
       "fields": [
         {"id": "login", "label": "login", "type": "person", "path": ".login", "sort": true, "group": true,
          "filter": true, "renderings": ["text"], "placement": "column"},
@@ -719,7 +720,7 @@
       ]
     },
     {
-      "stage": "people/teams", "command": ["people", "teams", "--json"], "staged": true, "forge": true,
+      "stage": "people/teams", "command": ["people", "teams", "--json"], "staged": true, "marked": false, "forge": true,
       "takes": ["workspace"], "record": ".rows[]", "empty": "no team has access",
       "fields": [
         {"id": "team", "label": "team", "type": "text", "path": ".team", "sort": true, "renderings": ["text"],
@@ -739,8 +740,8 @@
       ]
     },
     {
-      "stage": "people/agents", "command": ["people", "agents", "--json"], "staged": true, "forge": true,
-      "takes": ["workspace"], "record": ".rows[]", "empty": "no bot acted lately",
+      "stage": "people/agents", "command": ["people", "agents", "--json"], "staged": true, "marked": false,
+      "forge": true, "takes": ["workspace"], "record": ".rows[]", "empty": "no bot acted lately",
       "fields": [
         {"id": "login", "label": "bot", "type": "person", "path": ".login", "sort": true, "group": true, "filter": true,
          "renderings": ["text"], "placement": "column"},
@@ -811,8 +812,8 @@
       ]
     },
     {
-      "stage": "audit/controls", "command": ["audit", "controls", "--json"], "staged": true, "forge": true,
-      "takes": ["workspace"], "record": ".rows[]", "empty": "no control guards the default branch",
+      "stage": "audit/controls", "command": ["audit", "controls", "--json"], "staged": true, "marked": false,
+      "forge": true, "takes": ["workspace"], "record": ".rows[]", "empty": "no control guards the default branch",
       "fields": [
         {"id": "control", "label": "control", "type": "text", "path": ".control", "sort": true, "renderings": ["text"],
          "placement": "column"},
@@ -837,8 +838,8 @@
       ]
     },
     {
-      "stage": "audit/waivers", "command": ["audit", "waivers", "--json"], "staged": true, "forge": true,
-      "takes": ["workspace"], "record": ".rows[]", "empty": "no waiver",
+      "stage": "audit/waivers", "command": ["audit", "waivers", "--json"], "staged": true, "marked": false,
+      "forge": true, "takes": ["workspace"], "record": ".rows[]", "empty": "no waiver",
       "fields": [
         {"id": "waives", "label": "waives", "type": "text", "path": ".waives", "sort": true, "group": true,
          "renderings": ["text"], "placement": "column"},

@@ -67,6 +67,20 @@ func TestAFieldReadsItsPath(t *testing.T) {
 	if got := (Field{ID: "id", Path: ".a"}).Read(json.RawMessage(`not json`)).Raw; got != nil {
 		t.Errorf("a record that does not decode: %q", got)
 	}
+	// a field that says what null draws draws it where the record holds null, and nowhere else
+	for path, want := range map[string]string{".z": "any", ".z[]": "any", ".nope, .z": "any", ".f": "", ".nope": "",
+		".n, .z": "", ".u": "", ".a.z": ""} {
+		if got := (Field{ID: "id", Path: path, Null: "any"}).Read(rec); got.Else != want {
+			t.Errorf("%q with null any: %+v", path, got)
+		}
+	}
+	through := json.RawMessage(`{"l": [{"z": null}, {}]}`)
+	if got := (Field{ID: "id", Path: ".l[].z", Null: "any"}).Read(through); got.Else != "any" {
+		t.Errorf("null through a list: %+v", got)
+	}
+	if got := (Field{ID: "id", Path: ".z"}).Read(rec); got.Else != "" {
+		t.Errorf("null without a null of its own: %+v", got)
+	}
 	for _, c := range []struct {
 		schema Schema
 		rec    string
@@ -92,12 +106,12 @@ func TestTheCatalogRefusesWhatATableCannotIndexBy(t *testing.T) {
 		return `{"stage": "` + name + `"` + extra + `, "fields": [` + fields + `], "presets": [` + presets + `]}`
 	}
 	ok := stage("a", `, "record": ".rows[]", "command": ["flow", "a", "--json"], "takes": ["owner", "no-fetch",
-		"fresh", "cached", "workspace"], "staged": true, "forge": true, "slurp": true, "key": ".x",
+		"fresh", "cached", "workspace"], "staged": true, "marked": false, "forge": true, "slurp": true, "key": ".x",
 		"empty": "no a"`, field,
 		`{"name": "Default"}`)
 	c, err := ReadCatalog([]byte(`{"stages": [` + ok + `]}`))
 	if a := c["a"]; err != nil || !slices.Equal(a.Command, []string{"flow", "a", "--json"}) || len(a.Takes) != 5 ||
-		!a.Staged || !a.Forge || !a.Slurp || a.Key != ".x" || a.Empty != "no a" {
+		!a.Staged || a.Marked == nil || *a.Marked || !a.Forge || !a.Slurp || a.Key != ".x" || a.Empty != "no a" {
 		t.Fatalf("the schema's keys: %v %+v", err, c["a"])
 	}
 	// a schema without a command, as a screen's own, names its record as it likes
@@ -119,6 +133,8 @@ func TestTheCatalogRefusesWhatATableCannotIndexBy(t *testing.T) {
 		"staged":                             plain(`, "record": ".", "command": ["t", "--json"], "staged": true`),
 		"takes, but no command":              plain(`, "takes": ["owner"]`),
 		"names no command that reads it":     plain(`, "forge": true`),
+		"marked, but is not staged": plain(`, "record": ".", "command": ["t", "x", "--json"],
+			"marked": false`),
 	} {
 		if _, err := ReadCatalog([]byte(`{"stages": [` + stages + `]}`)); err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("%s: %v", want, err)

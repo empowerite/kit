@@ -79,6 +79,7 @@ func init() {
 		"path":      {pathCells, false},
 		"worktree":  {table.Each(worktreeNames), true},
 		"date":      {table.Each(dates), false},
+		"day":       {table.Each(days), false},
 		"bytes":     {table.Each(sizes), false},
 	} {
 		table.Register(name, r.draw, r.glyph)
@@ -179,10 +180,15 @@ func whereCells(f table.Field, vs []table.Value) []cell {
 	return out
 }
 
-// dates draws a time kit gives in seconds since the epoch, as a milestone's due or a change's merge, by its day, here:
-// 2026-11-10.
+// dates draws an instant kit gives in seconds since the epoch, as a change's merge, by its day here: 2026-11-10.
 func dates(f table.Field, v table.Value) []string {
 	return table.Mapped(v.Raw, func(s int64) string { return time.Unix(s, 0).Format(time.DateOnly) })
+}
+
+// days draws a calendar day kit gives in seconds since the epoch, as a milestone's due or an iteration's start, its
+// midnight in UTC, or an end's last second: the day itself, 2026-11-10, wherever the screen is.
+func days(f table.Field, v table.Value) []string {
+	return table.Mapped(v.Raw, func(s int64) string { return time.Unix(s, 0).UTC().Format(time.DateOnly) })
 }
 
 // sizes draws a size kit gives in bytes, as an artifact's, in the unit that keeps it under 1024, one decimal past

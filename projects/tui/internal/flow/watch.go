@@ -4,8 +4,9 @@
 // all, and is dim while none is. The keys bar's right end says watching while the selected stage is watched. Nothing
 // is watched at the start. A stage that loads again keeps its rows on the screen, and its dot, until the new ones
 // come; it reads the forge afresh, as the change its mark says of is newer than the snapshot the stages share. A stage
-// kit gives a null mark, as kit people gives each of its own, never goes stale, so it offers no Watch: Watch is dim on
-// its tab's menu, and Watch All passes it by.
+// its verb never marks, as its catalog entry's marked false says of kit people's, never goes stale, so its tab's menu
+// has no Watch, and Watch All passes it by; one whose mark kit's last read gave null, as kit flow's when the forge
+// cannot answer, has Watch dim until a mark comes.
 package flow
 
 import (
@@ -34,11 +35,11 @@ func (m Model) watchItem(i int) shell.Item {
 	return shell.Item{Glyph: Unwatched, Name: WatchIt, Keys: "W"}
 }
 
-// watchable says whether the stage at i can be watched: kittui draws it, and kit's last read of the marks gave it
-// one, or none yet; a stage kit gives a null mark never goes stale, so Watch would wait on nothing.
+// watchable says whether the stage at i can be watched now: kittui draws it, its verb marks it, and kit's last read
+// of the marks gave it one, or none yet; a null mark never moves, so Watch would wait on nothing.
 func (m Model) watchable(i int) bool {
 	mark, read := m.marks.Value[m.stages[i].name]
-	return sourced(m.stages[i].name) && (!read || mark != "")
+	return sourced(m.stages[i].name) && everMarked(m.stages[i].name) && (!read || mark != "")
 }
 
 // watching gives how many of the stages kittui draws are watched, and how many it can watch, as watchable says, or
