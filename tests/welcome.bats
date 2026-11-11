@@ -85,12 +85,12 @@ ambient-system() {
     "you are at the desk, your own checkout; work on an issue goes in a worktree" ]
 }
 
-@test "welcome's steps are intro, toolchains, setup, lay of the land, terms, make it yours" {
+@test "welcome's steps are introduction, toolchains, setup, applications, terms, customize" {
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
   [ "$status" -eq 1 ]
   # each step's page in order, the checks of steps 2 and 3 under their pages, then what is left
   [ "$(outline <<<"$output")" = "$(printf '%s|' '# Welcome' '# Toolchains' ✅ '# Setup' \
-    ✅ ❌ ✅ '# The lay of the land' '# Terms' '# Make it yours' '# What is left' | sed 's/|$//')" ]
+    ✅ ❌ ✅ '# Applications' '# Terms' '# Customize' '# What is left' | sed 's/|$//')" ]
   # bash, git, jq, and yq, then one check for each role, then the rest
   [ "$(under <<<"$output")" = "$(printf '%s\n' '# Toolchains|✅ bash' '# Toolchains|✅ git' \
     '# Toolchains|✅ jq' '# Toolchains|✅ yq' '# Toolchains|✅ no' '# Toolchains|✅ brew' \
@@ -415,7 +415,7 @@ ambient-system() {
   "${kit_root}/bin/kit" packages add house >/dev/null 2>&1
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
   [ "$(grep --extended-regexp '^# ' <<<"$output" | paste -s -d '|' -)" = "$(printf '%s|' '# Welcome' \
-    '# Toolchains' '# Setup' '# The lay of the land' '# Our terms' '# Make it yours' \
+    '# Toolchains' '# Setup' '# Applications' '# Our terms' '# Customize' \
     '# Our team' '# What is left' | sed 's/|$//')" ]
   [ "$(readlink .kit/welcome/5-terms.md)" = ../packages/house/files/repo/.kit/welcome/5-terms.md ]
 }
@@ -429,7 +429,7 @@ ambient-system() {
   printf '# Notes\n' > .kit/packages/house/files/repo/.kit/welcome/notes.md
   "${kit_root}/bin/kit" packages add house >/dev/null 2>&1
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
-  [[ "$(grep --extended-regexp '^# ' <<<"$output" | paste -s -d '|' -)" == *'# Make it yours|# Nine|# Ten|# Notes|# What is left' ]]
+  [[ "$(grep --extended-regexp '^# ' <<<"$output" | paste -s -d '|' -)" == *'# Customize|# Nine|# Ten|# Notes|# What is left' ]]
 }
 
 @test "on a terminal, kit welcome hands off to kittui; --text, --checks, or no terminal stays in text" {

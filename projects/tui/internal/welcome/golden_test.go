@@ -1,7 +1,7 @@
-// Every step's screen at 120×30, the design width, but make it yours's, which yours_test.go pins with its others, is
-// pinned as a golden file without its escapes; so are the intro with the cursor on its second link, the first step
-// with checks, as its first link opens it, with its failed check left for later, and the terms searched for kit flow,
-// the rows with the keyboard.
+// Every step's screen at 120×30, the design width, but customize's, which customize_test.go pins with its others, is
+// pinned as a golden file without its escapes; so are the introduction with the cursor on its second link, the first
+// step with checks, as its first link opens it, with its failed check left for later, and the terms searched for kit
+// flow, the rows with the keyboard.
 package welcome
 
 import (
@@ -15,14 +15,14 @@ import (
 
 func TestGoldenViews(t *testing.T) {
 	for file, keys := range map[string][]tea.Msg{
-		"intro.golden":            nil,
-		"intro-links.golden":      {down, down},
-		"toolchains.golden":       {down, enter},
-		"toolchains-later.golden": {down, enter, press('l')},
-		"setup.golden":            {tabKey, tabKey, down},
-		"lay-of-the-land.golden":  {tabKey, tabKey, tabKey},
-		"terms.golden":            {press('5')},
-		"terms-search.golden":     searched("kit flow"),
+		"introduction.golden":       nil,
+		"introduction-links.golden": {down, down},
+		"toolchains.golden":         {down, enter},
+		"toolchains-later.golden":   {down, enter, press('l')},
+		"setup.golden":              {tabKey, tabKey, down},
+		"applications.golden":       {tabKey, tabKey, tabKey},
+		"terms.golden":              {press('5')},
+		"terms-search.golden":       searched("kit flow"),
 	} {
 		m, _ := loaded(t, keys...)
 		testkit.Golden(t, filepath.Join("testdata", file), view(m))

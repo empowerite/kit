@@ -1,7 +1,7 @@
 {
   "stages": [
     {
-      "stage": "welcome/make-it-yours", "record": "## <part>",
+      "stage": "welcome/customize", "record": "## <part>",
       "fields": [
         {"id": "order", "label": "#", "type": "number", "path": "the section's place on the page", "sort": true,
          "renderings": ["text"], "dim": true, "right": true, "placement": "hidden"},

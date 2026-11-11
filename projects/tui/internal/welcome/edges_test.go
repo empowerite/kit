@@ -44,7 +44,7 @@ func TestOpenReadsTheRepositoryFromOrigin(t *testing.T) {
 // A check whose step has no checks, or no page, shows under the last step that has checks.
 func TestACheckOfAStepWithoutChecksShowsUnderTheLastStepThatHasThem(t *testing.T) {
 	m, _ := fake(t)
-	for _, step := range []string{"intro", "nonesuch"} {
+	for _, step := range []string{"introduction", "nonesuch"} {
 		if got := m.stepOf(kit.Check{ID: "stray", Step: step}); got != setup {
 			t.Errorf("a check of %q shows under step %d, not setup", step, got)
 		}
@@ -58,7 +58,7 @@ func TestNewPagesWithoutTheSelectedStepSelectTheFirst(t *testing.T) {
 	if m.setTabs(nil); len(m.tabs) != len(before) || m.step != chains || !m.inPane {
 		t.Fatalf("no pages changed the steps: %d steps, step %d", len(m.tabs), m.step)
 	}
-	m.setTabs([]tab{known[intro], known[terms]})
+	m.setTabs([]tab{known[introduction], known[terms]})
 	if m.step != 0 || m.inPane || len(m.tabs) != 2 {
 		t.Errorf("without the selected step: step %d, in the pane %v, %d steps", m.step, m.inPane, len(m.tabs))
 	}

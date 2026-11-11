@@ -1,8 +1,8 @@
   = kit welcome · - empowerite/kit                                                                           🔎 /search
-  ➀╶─────────╮➁╶─────────────────╮➂╶────────────╮➃╶───────────────────╮➄╶─────────╴➏╶─────────────────╮
-    👋 intro │  🧰 toolchains  3 │  🔧 setup  2 │  🧭 lay of the land │  📖 terms  │ 🎨 make it yours │
-  ───────────╰───────────────────╰──────────────╰─────────────────────╰────────────╯                  ╰─────────────────
-   Make it yours
+  ➀╶────────────────╮➁╶─────────────────╮➂╶────────────╮➃╶────────────────╮➄╶─────────╴➏╶─────────────╮
+    👋 introduction │  🧰 toolchains  3 │  🔧 setup  2 │  🧭 applications │  📖 terms  │ 🎨 customize │
+  ──────────────────╰───────────────────╰──────────────╰──────────────────╰────────────╯              ╰─────────────────
+   Customize
 
    kit is a starting point. Each part below is something teams change first, and ends with the command that shows it.
 

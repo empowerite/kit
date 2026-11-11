@@ -190,7 +190,7 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   each line of one backticked command, a list too. Default sorts the rows by command; By command flattens the terms,
   a row a term, sorted, and groups them by command; Compact flattens them too, and hides the command and the
   examples. The command, the terms, and the examples keep their whole width, `"width": "whole"` in the catalog, and
-  the meaning gives way first. The make-it-yours page, in `yours.go`, has its fields in `yours.json`: each
+  the meaning gives way first. The customize page, in `customize.go`, has its fields in `customize.json`: each
   `## <part>` heading is a row, its columns its part, the heading, a title; its settings, the `kit.yml` keys its text
   names, each backticked with its colon, as `packages:`, a list drawn as pills; what it is about, its paragraphs and
   list items as one line; and its commands. Its command, what its first command is run with, is hidden, and so is its

@@ -1,6 +1,6 @@
-<!-- kit:generated -- kit welcome's sixth step, making it yours, from the kit package -->
+<!-- kit:generated -- kit welcome's sixth step, customize, from the kit package -->
 <!-- see: "Changing what kit adds" in .kit/1st.md, to replace it -->
-# Make it yours
+# Customize
 
 kit is a starting point. Each part below is something teams change first, and ends with the command that shows it.
 

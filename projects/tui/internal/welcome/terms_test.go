@@ -81,7 +81,7 @@ func TestTheTermsAreATableOfCommandsTermsMeaningsAndExamples(t *testing.T) {
 		t.Errorf("down into the rows: keys %q", keysAt(m))
 	}
 	// a key the table does not take, as a step's number, is the screen's still
-	if m = drive(m, tea.KeyPressMsg{Code: '4', Text: "4"}); m.step != land || m.inPane || termsSheet(m).Focused() {
+	if m = drive(m, tea.KeyPressMsg{Code: '4', Text: "4"}); m.step != apps || m.inPane || termsSheet(m).Focused() {
 		t.Errorf("4 from the terms' rows: step %d, in the pane %v", m.step, m.inPane)
 	}
 	// esc in the rows gives the bar the keyboard
@@ -89,7 +89,7 @@ func TestTheTermsAreATableOfCommandsTermsMeaningsAndExamples(t *testing.T) {
 		t.Errorf("esc in the rows: in the pane %v", m.inPane)
 	}
 	// tab from the bar moves to the next step, and the table holds no keyboard there
-	if m = drive(m, tabKey); m.step != yours || termsSheet(m).Focused() {
+	if m = drive(m, tabKey); m.step != custom || termsSheet(m).Focused() {
 		t.Errorf("tab: step %d", m.step)
 	}
 	if m = drive(m, backTab, up); m.inPane {

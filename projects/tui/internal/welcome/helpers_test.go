@@ -60,8 +60,8 @@ func loaded(t *testing.T, msgs ...tea.Msg) (Model, *ran) {
 	return drive(m, append(testkit.Start(m, at120), msgs...)...), r
 }
 
-// atChains opens the screen as loaded does, then follows the intro's first link, to jq, the first failed check under
-// the toolchains, as a newcomer would. Then it sends the messages.
+// atChains opens the screen as loaded does, then follows the introduction's first link, to jq, the first failed check
+// under the toolchains, as a newcomer would. Then it sends the messages.
 func atChains(t *testing.T, msgs ...tea.Msg) (Model, *ran) {
 	t.Helper()
 	return loaded(t, append([]tea.Msg{down, enter}, msgs...)...)
@@ -123,10 +123,10 @@ func calls(t *testing.T, path string) []string {
 	return strings.Split(strings.TrimSpace(string(got)), "\n")
 }
 
-// The keys bar in each place the keyboard can be, as the path to it draws it, STEP for the step's name, which esc
-// names as it gives the bar the keyboard: on the bar over a step with checks or
-// the intro with links, and over a page; on a check's row that offers no fix, on a row that offers now and later, on
-// a row whose fix kit only shows; on a link in the intro; and in a page.
+// The keys bar in each place the keyboard can be, as the path to it draws it, STEP for the step's name, which esc names
+// as it gives the bar the keyboard: on the bar over a step with checks or the introduction with links, and over a page;
+// on a check's row that offers no fix, on a row that offers now and later, on a row whose fix kit only shows; on a link
+// in the introduction; and in a page.
 const (
 	stepKeys   = "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ checks 1-6 jump"
 	pageKeys   = "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ page 1-6 jump"

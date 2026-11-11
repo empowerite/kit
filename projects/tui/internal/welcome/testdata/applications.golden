@@ -1,8 +1,8 @@
   = kit welcome · - empowerite/kit                                                                           🔎 /search
-  ➀╶─────────╮➁╶─────────────────╮➂╶────────────╴➍╶───────────────────╮➄╶─────────╮➅╶─────────────────╮
-    👋 intro │  🧰 toolchains  3 │  🔧 setup  2  │ 🧭 lay of the land │  📖 terms │  🎨 make it yours │
-  ───────────╰───────────────────╰───────────────╯                    ╰───────────╰───────────────────╰─────────────────
-   The lay of the land
+  ➀╶────────────────╮➁╶─────────────────╮➂╶────────────╴➍╶────────────────╮➄╶─────────╮➅╶─────────────╮
+    👋 introduction │  🧰 toolchains  3 │  🔧 setup  2  │ 🧭 applications │  📖 terms │  🎨 customize │
+  ──────────────────╰───────────────────╰───────────────╯                 ╰───────────╰───────────────╰─────────────────
+   Applications
 
    Work moves through the stages that kit flow draws. Each part ends with the command that shows it live.
 

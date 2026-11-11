@@ -1,6 +1,6 @@
 // Over a group, Welcome runs the checks in every member's checkout and shows them together: a check every member
 // reports alike once, one that differs once per member, a refusal as its member's failed check, and the members not
-// cloned named in the intro. A fix runs in its member's checkout.
+// cloned named in the introduction. A fix runs in its member's checkout.
 package welcome
 
 import (
@@ -92,7 +92,7 @@ func TestAGroupsChecksDrawTogetherWithTheUnclonedNamed(t *testing.T) {
 	m, _, _, _ := group(t)
 	v := view(m)
 	if !strings.Contains(v, "not cloned: o/c") || strings.Contains(v, "☁") || !strings.Contains(v, "- w 3") {
-		t.Errorf("the intro:\n%s", v)
+		t.Errorf("the introduction:\n%s", v)
 	}
 	m = drive(m, press('2'))
 	v = view(m)

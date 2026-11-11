@@ -1,5 +1,5 @@
-// The make-it-yours step's table, drawn as sections.go draws a step's: one row a part of kit that teams change first,
-// its fields in yours.json, the catalog. Each part is a section, its heading, `## <part>`, a title, whole; its text,
+// The customize step's table, drawn as sections.go draws a step's: one row a part of kit that teams change first, its
+// fields in customize.json, the catalog. Each part is a section, its heading, `## <part>`, a title, whole; its text,
 // what the part is about; and its commands, the commands that show it. Its settings are the kit.yml keys its text
 // names, each backticked with its colon, as `packages:`, a list drawn as pills, as an issue's labels are; and its
 // command, which the rows group by, is what its first command is run with, its tool and its verb, as kit packages. Its
@@ -16,14 +16,14 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
-//go:embed yours.json
-var yoursJSON []byte
+//go:embed customize.json
+var customizeJSON []byte
 
-// yoursTable is the name of the parts' table in the catalog, which keys the person's presets of it too.
-const yoursTable = "welcome/make-it-yours"
+// customizeTable is the name of the parts' table in the catalog, which keys the person's presets of it too.
+const customizeTable = "welcome/customize"
 
-// yoursCatalog is yours.json, read.
-var yoursCatalog = readCatalog(yoursJSON)
+// customizeCatalog is customize.json, read.
+var customizeCatalog = readCatalog(customizeJSON)
 
 // settingKey is a kit.yml key as a page names it: backticked, with its colon, as `packages:`.
 var settingKey = regexp.MustCompile("`([A-Za-z][A-Za-z0-9_-]*):`")

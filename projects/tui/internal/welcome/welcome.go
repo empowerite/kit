@@ -1,26 +1,26 @@
 // Package welcome is kit welcome on a terminal: a step per page as tabs along the top, the step's content below, and
-// the keys bar last. The steps are the pages under .kit/welcome/, as kit welcome --text finds and orders them: each
-// has an id, which kit's checks name as their step, a glyph, a name, and its page. A page kit knows keeps its glyph,
-// its name, and its checks; any other, as a house package adds, is a plain page. A step with checks draws its page,
-// then its checks, one row each. A failed check with a fix offers now and later on the cursor's row: now runs kit
-// welcome --fix <id> with the terminal handed over, then reads the checks again; later leaves it for this session and
-// moves to the step's next failed check. A fix kit only shows, as one that must run in the person's own shell, is
-// drawn with its lines and no choices: n and enter do nothing there, and l still leaves it for later. The other steps
-// are markdown pages drawn as text, but the terms and make it yours, whose pages of sections are tables, as
-// sections.go draws them, each table's keys and clicks its own while the pane has the keyboard. The intro's page ends with what the checks found:
-// checking… while they run, then that all of them pass, or how many need the person, each failed check's line a link
-// to it, with the glyph and name of its step. Enter or a click on a link goes to that check, on its step, with the
-// cursor on it. When kit refused the checks, the intro says what kit said.
+// the keys bar last. The steps are the pages under .kit/welcome/, as kit welcome --text finds and orders them: each has
+// an id, which kit's checks name as their step, a glyph, a name, and its page. A page kit knows keeps its glyph, its
+// name, and its checks; any other, as a house package adds, is a plain page. A step with checks draws its page, then
+// its checks, one row each. A failed check with a fix offers now and later on the cursor's row: now runs kit welcome
+// --fix <id> with the terminal handed over, then reads the checks again; later leaves it for this session and moves to
+// the step's next failed check. A fix kit only shows, as one that must run in the person's own shell, is drawn with its
+// lines and no choices: n and enter do nothing there, and l still leaves it for later. The other steps are markdown
+// pages drawn as text, but the terms and customize, whose pages of sections are tables, as sections.go draws them, each
+// table's keys and clicks its own while the pane has the keyboard. The introduction's page ends with what the checks
+// found: checking… while they run, then that all of them pass, or how many need the person's attention, under a rule,
+// each failed check's line a link to it, with the glyph and name of its step. Enter or a click on a link goes to that
+// check, on its step, with the cursor on it. When kit refused the checks, the introduction says what kit said.
 //
 // The steps are a tab bar, internal/tabs. While it has the keyboard, tab and shift-tab move between the steps; a step's
 // number, or a click on the bar, selects it from anywhere and gives the bar the keyboard. Down, or enter, gives the
-// pane the keyboard: a step's rows, or the intro's links, where up on the first gives it back, or its page, which up
-// and down then scroll, and up at the top gives it back; a click on a check's line puts the cursor there. The mouse
-// wheel scrolls the pane under it, or the step's table, the keyboard and the cursor left where they are. Inside a row
-// with choices, tab and shift-tab move between now and later, its stops, as they move between the stops on any line. Esc gives the bar the keyboard back. Ctrl-c quits with 130
-// from anywhere, and ctrl-q quits with 0; esc never quits. The screen
-// opens on the intro while the checks run, and stays there when they answer. A step with failed checks counts them in
-// red on the bar, which every step shows.
+// pane the keyboard: a step's rows, or the introduction's links, where up on the first gives it back, or its page,
+// which up and down then scroll, and up at the top gives it back; a click on a check's line puts the cursor there. The
+// mouse wheel scrolls the pane under it, or the step's table, the keyboard and the cursor left where they are. Inside a
+// row with choices, tab and shift-tab move between now and later, its stops, as they move between the stops on any
+// line. Esc gives the bar the keyboard back. Ctrl-c quits with 130 from anywhere, and ctrl-q quits with 0; esc never
+// quits. The screen opens on the introduction while the checks run, and stays there when they answer. A step with
+// failed checks counts them in red on the bar, which every step shows.
 package welcome
 
 import (
@@ -42,8 +42,8 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
-// introID is the id of the intro, the step whose page ends with what the checks found.
-const introID = "intro"
+// introductionID is the id of the introduction, the step whose page ends with what the checks found.
+const introductionID = "introduction"
 
 // tab is a step: the id its checks name, its tab's glyph and name, the file of its page, whether it has checks, and
 // its page's markdown, or, when the page could not be read, where it was looked for; and, for a step sheetSteps names,
@@ -60,12 +60,12 @@ type tab struct {
 // known gives the pages kit knows, in the kit package's order. A check whose step has no page shows under the last
 // step with checks.
 var known = []tab{
-	{id: "intro", glyph: "👋", name: "intro", file: "1-intro.md"},
+	{id: "introduction", glyph: "👋", name: "introduction", file: "1-introduction.md"},
 	{id: "toolchains", glyph: "🧰", name: "toolchains", file: "2-toolchains.md", checked: true},
 	{id: "setup", glyph: "🔧", name: "setup", file: "3-setup.md", checked: true},
-	{id: "lay-of-the-land", glyph: "🧭", name: "lay of the land", file: "4-lay-of-the-land.md"},
+	{id: "applications", glyph: "🧭", name: "applications", file: "4-applications.md"},
 	{id: "terms", glyph: "📖", name: "terms", file: "5-terms.md"},
-	{id: "make-it-yours", glyph: "🎨", name: "make it yours", file: "6-make-it-yours.md"},
+	{id: "customize", glyph: "🎨", name: "customize", file: "6-customize.md"},
 }
 
 // pageGlyph is the glyph of a page kit does not know.
@@ -338,10 +338,11 @@ func (m *Model) take(msg source.Answer[[]kit.Check]) {
 }
 
 // rows gives the indexes of the step's checks, in order, those its search lets through: whose id, line, or fix holds
-// what is typed, without regard to case. The intro's are the links to the failed checks, in the order of their steps.
+// what is typed, without regard to case. The introduction's are the links to the failed checks, in the order of their
+// steps.
 func (m Model) rows(step int) []int {
 	query := m.searches[m.tabs[step].id].Query
-	intro := m.isIntro(step)
+	intro := m.isIntroduction(step)
 	var out []int
 	for i, c := range m.checks {
 		mine := m.stepOf(c) == step
@@ -358,8 +359,8 @@ func (m Model) rows(step int) []int {
 	return out
 }
 
-// isIntro says whether the step is the intro.
-func (m Model) isIntro(step int) bool { return m.tabs[step].id == introID }
+// isIntroduction says whether the step is the introduction.
+func (m Model) isIntroduction(step int) bool { return m.tabs[step].id == introductionID }
 
 // matches says whether a text holds what is typed in a search, without regard to case or escapes; anything holds
 // nothing typed.
@@ -422,10 +423,10 @@ func (m Model) find(step int, key string) int {
 	return 0
 }
 
-// hasRows says whether the cursor moves over rows in the selected step: a step with checks, or the intro while it links
-// to a failed check.
+// hasRows says whether the cursor moves over rows in the selected step: a step with checks, or the introduction while
+// it links to a failed check.
 func (m Model) hasRows() bool {
-	return m.tabs[m.step].checked || m.isIntro(m.step) && len(m.rows(m.step)) > 0
+	return m.tabs[m.step].checked || m.isIntroduction(m.step) && len(m.rows(m.step)) > 0
 }
 
 // checked says whether the selected step shows checks.
@@ -627,8 +628,8 @@ var fades = table.Fades
 func (m Model) fading(before shell.Notice) tea.Cmd { return m.sheet().Notice().Fading(before, fades) }
 
 // click takes a left click on the pane, on the screen line y: on a check's line, the cursor goes to that check and the
-// pane has the keyboard; on a link in the intro, the screen goes to its check; on a page, the page has the keyboard. A
-// … line, or a line that is no check's, does nothing.
+// pane has the keyboard; on a link in the introduction, the screen goes to its check; on a page, the page has the
+// keyboard. A … line, or a line that is no check's, does nothing.
 func (m *Model) click(y int) {
 	r, h := y-paneTop, m.paneHeight()
 	switch {
@@ -646,9 +647,9 @@ func (m *Model) click(y int) {
 	}
 }
 
-// onLink says whether the cursor is on a link in the intro, with the pane's keyboard.
+// onLink says whether the cursor is on a link in the introduction, with the pane's keyboard.
 func (m Model) onLink() bool {
-	return m.inPane && m.isIntro(m.step) && slices.Contains(m.rows(m.step), m.cursor)
+	return m.inPane && m.isIntroduction(m.step) && slices.Contains(m.rows(m.step), m.cursor)
 }
 
 // follow goes from the link under the cursor to its check: the check's step selected, the cursor on the check, and the

@@ -1,4 +1,4 @@
-// The make-it-yours step as a table: the page read as parts, the settings each names, the table drawn under the lead
+// The customize step as a table: the page read as parts, the settings each names, the table drawn under the lead
 // in the page's order, its presets, its search, and its keys, as the screen hands them to it; its screens pinned as
 // golden files; a page without parts stays a page.
 package welcome
@@ -17,13 +17,13 @@ import (
 )
 
 func TestAPageIsReadAsItsParts(t *testing.T) {
-	md := "<!-- kit:generated -- make it yours -->\n# Make it yours\n\nA start.\n\n## Packages\n\n`packages:` in " +
+	md := "<!-- kit:generated -- customize -->\n# Customize\n\nA start.\n\n## Packages\n\n`packages:` in " +
 		"`kit.yml` lists them.\n\n`kit packages`\n\n## Primary, and `forges`\n\n`primary:` names the remote. " +
 		"`forges:` names a forge, and `primary:` again.\n\n`kit flow incoming --no-fetch`\n\n`kit flow`\n\n" +
 		"## A house package\n\nIt holds rules.\n\n- To add a file, place it.\n- To replace one, depend\n  on it.\n" +
 		"1. A step.\n\n## The docs\n\nAt <https://github.com/empowerite/kit>, and [the guide](../1st.md).\n"
 	lead, sections := parseSections(md)
-	if lead != "# Make it yours\n\nA start." || len(sections) != 4 {
+	if lead != "# Customize\n\nA start." || len(sections) != 4 {
 		t.Fatalf("the lead %q and the sections %+v", lead, sections)
 	}
 	want := "It holds rules. To add a file, place it. To replace one, depend on it. A step."
@@ -59,13 +59,13 @@ func TestAPageIsReadAsItsParts(t *testing.T) {
 	}
 }
 
-func TestMakeItYoursIsATableOfItsPartsInThePagesOrder(t *testing.T) {
+func TestCustomizeIsATableOfItsPartsInThePagesOrder(t *testing.T) {
 	m, _ := loaded(t, press('6'))
 	if !m.gridded() || keysAt(m) != "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ parts 1-6 jump" {
-		t.Fatalf("the make-it-yours step: gridded %v, keys %q", m.gridded(), keysAt(m))
+		t.Fatalf("the customize step: gridded %v, keys %q", m.gridded(), keysAt(m))
 	}
 	got := view(m)
-	for _, want := range []string{"   Make it yours\n", "kit is a starting point.", "▾ 6 ", "Default ▼", "part ",
+	for _, want := range []string{"   Customize\n", "kit is a starting point.", "▾ 6 ", "Default ▼", "part ",
 		"settings", "about", "commands", "▸ Primary and forges", pill("packages"), "kit flow incoming --no-fetch"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("no %q in:\n%s", want, got)
@@ -138,8 +138,8 @@ func TestThePartsFollowTheSettings(t *testing.T) {
 	}
 }
 
-func TestAMakeItYoursPageWithoutPartsIsAPage(t *testing.T) {
-	r := repoWith(t, map[string]string{"6-make-it-yours.md": "# Ours\n\nWe change `policy:` first.\n"})
+func TestACustomizePageWithoutPartsIsAPage(t *testing.T) {
+	r := repoWith(t, map[string]string{"6-customize.md": "# Ours\n\nWe change `policy:` first.\n"})
 	m := New(r, "")
 	m = drive(m, append(testkit.Start(m, at120), press('6'))...)
 	if m.gridded() || !strings.Contains(view(m), "We change policy: first.") || !strings.Contains(keysAt(m), "↓ page") {
@@ -147,9 +147,9 @@ func TestAMakeItYoursPageWithoutPartsIsAPage(t *testing.T) {
 	}
 }
 
-// The make-it-yours step's screens: at 120×30, as every step's is pinned; at 120×40, as it opens, grouped by command,
+// The customize step's screens: at 120×30, as every step's is pinned; at 120×40, as it opens, grouped by command,
 // and searched for kit flow with the rows given the keyboard; and at 80×40.
-func TestMakeItYoursGoldens(t *testing.T) {
+func TestCustomizeGoldens(t *testing.T) {
 	at40 := tea.WindowSizeMsg{Width: 120, Height: 40}
 	byCommand := func(m Model) Model {
 		m = drive(m, clickOn(t, m, "Default ▼"))
@@ -159,12 +159,12 @@ func TestMakeItYoursGoldens(t *testing.T) {
 		keys []tea.Msg
 		then func(Model) Model
 	}{
-		"make-it-yours.golden":         {keys: []tea.Msg{press('6')}},
-		"make-it-yours-40.golden":      {keys: []tea.Msg{at40, press('6')}},
-		"make-it-yours-grouped.golden": {keys: []tea.Msg{at40, press('6')}, then: byCommand},
-		"make-it-yours-search.golden": {keys: append([]tea.Msg{at40, press('6'), press('/')},
+		"customize.golden":         {keys: []tea.Msg{press('6')}},
+		"customize-40.golden":      {keys: []tea.Msg{at40, press('6')}},
+		"customize-grouped.golden": {keys: []tea.Msg{at40, press('6')}, then: byCommand},
+		"customize-search.golden": {keys: append([]tea.Msg{at40, press('6'), press('/')},
 			append(testkit.Typed("kit flow"), enter)...)},
-		"make-it-yours-80.golden": {keys: []tea.Msg{tea.WindowSizeMsg{Width: 80, Height: 40}, press('6')}},
+		"customize-80.golden": {keys: []tea.Msg{tea.WindowSizeMsg{Width: 80, Height: 40}, press('6')}},
 	} {
 		m, _ := loaded(t, c.keys...)
 		if c.then != nil {

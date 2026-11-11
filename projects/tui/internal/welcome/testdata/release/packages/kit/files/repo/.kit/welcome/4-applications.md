@@ -1,4 +1,4 @@
-# The lay of the land
+# Applications
 
 <!-- the stages of kit flow, in order -->
 

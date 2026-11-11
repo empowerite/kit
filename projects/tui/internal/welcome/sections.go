@@ -122,10 +122,10 @@ type sheetStep struct {
 	records  func([]section) []table.Record
 }
 
-// sheetSteps are the steps drawn as tables: the terms, terms.go's, and the parts that make kit yours, yours.go's.
+// sheetSteps are the steps drawn as tables: the terms, terms.go's, and the parts that customize kit, customize.go's.
 var sheetSteps = []sheetStep{
 	{id: "terms", name: "terms", schema: termsCatalog[termsTable], records: termSections},
-	{id: "make-it-yours", name: "parts", schema: yoursCatalog[yoursTable], records: partRecords},
+	{id: "customize", name: "parts", schema: customizeCatalog[customizeTable], records: partRecords},
 }
 
 // sheetColor is a step's table's color, the accent's, as the steps' bar draws the selected step.

@@ -125,11 +125,10 @@ func (m Model) keys() shell.Path {
 }
 
 // paneKeys gives the segment of the pane while it has the keyboard: esc gives the bar the keyboard, named by the step
-// it has selected; up and down move
-// between the rows, or scroll a page with none, a page at a time too, and home and end to the first and the last,
-// unnamed until a test shows the keys arrive in Terminal.app and iTerm; enter on a link goes to its check; and on a
-// check whose fix kit runs, tab and shift-tab choose now or later, n and l take one at once, and enter the one chosen; on
-// one whose fix kit only shows, l takes later.
+// it has selected; up and down move between the rows, or scroll a page with none, a page at a time too, and home and
+// end to the first and the last, unnamed until a test shows the keys arrive in Terminal.app and iTerm; enter on a link
+// goes to its check; and on a check whose fix kit runs, tab and shift-tab choose now or later, n and l take one at
+// once, and enter the one chosen; on one whose fix kit only shows, l takes later.
 func (m Model) paneKeys() shell.Segment {
 	move := "move"
 	if !m.hasRows() {
@@ -194,14 +193,14 @@ func (m Model) pane() []string {
 	return out
 }
 
-// lines gives the selected step's lines: a step with checks has its page and its checks, the intro its page and what
-// the checks found, and any other step its page.
+// lines gives the selected step's lines: a step with checks has its page and its checks, the introduction its page and
+// what the checks found, and any other step its page.
 func (m Model) lines() []line {
 	switch {
 	case m.checked():
 		return m.stepLines()
-	case m.isIntro(m.step):
-		return m.introLines()
+	case m.isIntroduction(m.step):
+		return m.introductionLines()
 	}
 	var out []line
 	for _, l := range m.pageLines(m.step) {
@@ -210,12 +209,12 @@ func (m Model) lines() []line {
 	return out
 }
 
-// introLines gives the intro's lines: its page, then what the checks found. That is checking… until they first
-// answer; then ✅ when every check passed, or how many failed and a link to each, in the order of their steps: ❌, its
-// line, and the glyph and name of its step, the cursor's link drawn as chosen, and the search narrowing them as it
+// introductionLines gives the introduction's lines: its page, then what the checks found. That is checking… until they
+// first answer; then ✅ when every check passed, or how many failed and a link to each, in the order of their steps: ❌,
+// its line, and the glyph and name of its step, the cursor's link drawn as chosen, and the search narrowing them as it
 // does a step's checks. Kit's refusal, in red, comes first when kit refused them, and checking… last while they run
 // again.
-func (m Model) introLines() []line {
+func (m Model) introductionLines() []line {
 	w := m.width - 1
 	var out []line
 	for _, l := range m.pageLines(m.step) {
@@ -246,11 +245,12 @@ func (m Model) introLines() []line {
 	if failed == 0 {
 		add(-1, lead+Passed+" "+style.Label("all checks pass"))
 	} else {
-		head := strconv.Itoa(failed) + " checks need you"
+		head := strconv.Itoa(failed) + " checks need your attention"
 		if failed == 1 {
-			head = "1 check needs you"
+			head = "1 check needs your attention"
 		}
 		add(-1, lead+style.Label(head))
+		add(-1, lead+style.Off(strings.Repeat("─", ansi.StringWidth(head))))
 		rows := m.rows(m.step)
 		for _, i := range rows {
 			c := m.checks[i]

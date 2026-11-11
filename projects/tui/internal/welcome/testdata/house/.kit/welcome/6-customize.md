@@ -1,0 +1,1 @@
+../../../release/packages/kit/files/repo/.kit/welcome/6-customize.md
