@@ -59,6 +59,30 @@ func TestAPageIsReadAsItsParts(t *testing.T) {
 	}
 }
 
+// A part's line of where to change it, → and its links, is its where: each link by its text, leading to its target, a
+// file of the folder the welcome reads, or a page; it is no part of what the part is about.
+func TestAPartsWhereLeadsToItsFileAndItsDoc(t *testing.T) {
+	md := "# Customize\n\n## Packages\n\n`packages:` lists them.\n\n→ [kit.yml](kit.yml) · " +
+		"[docs/packages.md](https://x/docs/packages.md)\n\n`kit packages`\n"
+	_, sections := parseSections(md)
+	rs := rooted(partRecords(sections), "/repo")
+	where := rs[0].Values["where"]
+	if !reflect.DeepEqual(where.Raw, []string{"kit.yml", "docs/packages.md"}) ||
+		!reflect.DeepEqual(where.Links, []string{"/repo/kit.yml", "https://x/docs/packages.md"}) {
+		t.Errorf("the where: %+v", where)
+	}
+	if got := rs[0].Values["about"].Raw; !reflect.DeepEqual(got, []string{"packages: lists them."}) {
+		t.Errorf("the about keeps the where: %q", got)
+	}
+	// the kit's own page names where for every part
+	m, _ := loaded(t, stepKey(custom))
+	for _, v := range m.sheet().Values("where") {
+		if len(v.Links) != 2 || !filepath.IsAbs(v.Links[0]) || !strings.HasPrefix(v.Links[1], "https://") {
+			t.Errorf("a part with no file and doc to change it: %+v", v)
+		}
+	}
+}
+
 func TestCustomizeIsATableOfItsPartsInThePagesOrder(t *testing.T) {
 	m, _ := loaded(t, stepKey(custom))
 	if !m.gridded() || keysAt(m) != "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ parts "+jump {
@@ -122,10 +146,16 @@ func TestThePartsPresetsGroupThemByCommandAndCompactThem(t *testing.T) {
 	}
 	m = drive(m, clickOn(t, m, "By command ▼"))
 	m = drive(m, clickOn(t, m, "Compact"))
-	header := strings.Split(view(m), "\n")[paneTop+6]
+	header := ""
+	for _, l := range strings.Split(view(m), "\n") {
+		if strings.Contains(l, "  part ") {
+			header = l
+			break
+		}
+	}
 	if !strings.Contains(header, "part ") || !strings.Contains(header, "about") ||
-		strings.Contains(header, "settings") || strings.Contains(header, "commands") {
-		t.Errorf("Compact hides the settings and the commands:\n%s", view(m))
+		strings.Contains(header, "settings") || strings.Contains(header, "commands") || strings.Contains(header, "where") {
+		t.Errorf("Compact hides the settings, the where, and the commands:\n%s", view(m))
 	}
 }
 

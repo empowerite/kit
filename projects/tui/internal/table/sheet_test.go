@@ -919,3 +919,32 @@ func TestARuleUnderTheGroupsSortsThemAndFlattensAList(t *testing.T) {
 		t.Errorf("tags after ×: groups %v, flat %v", p.Groups(), p.Field("tags").Flat)
 	}
 }
+
+// A click on a value that leads somewhere, a page or a file, opens it, as the person's opener does; where none can be
+// asked, the link stands in the notice instead, to open by hand. A click elsewhere on the row opens nothing.
+func TestAClickOnALinkOpensIt(t *testing.T) {
+	linked := &Schema{Stage: "linked", Fields: []Field{
+		{ID: "name", Label: "name", Type: "text", Renderings: []string{"text"}, Placement: PlaceColumn},
+		{ID: "where", Label: "where", Type: "text", Renderings: []string{"text"}, Placement: PlaceColumn},
+	}}
+	s := NewSheet(linked, "linked", "75", "")
+	s.Place(4, 16, 80, 24)
+	s.SetRecords([]Record{{Row: grid.Row{Key: "a"}, Values: map[string]Value{"name": One("alpha"),
+		"where": {Raw: []string{"kit.yml"}, Link: "/repo/kit.yml"}}}})
+	var opened []string
+	s.SetBrowse(func(link string) error { opened = append(opened, link); return nil })
+	x, y := spot(s, "kit.yml")
+	s.click(x, y, false)
+	if !slices.Equal(opened, []string{"/repo/kit.yml"}) {
+		t.Fatalf("a click on kit.yml opened %q", opened)
+	}
+	x, y = spot(s, "alpha")
+	if s.click(x, y, false); len(opened) != 1 {
+		t.Errorf("a click on alpha opened %q", opened)
+	}
+	s.SetBrowse(func(string) error { return shell.ErrNoDisplay })
+	x, y = spot(s, "kit.yml")
+	if s.click(x, y, false); !strings.Contains(s.Notice().Text, "/repo/kit.yml") {
+		t.Errorf("no opener: %q", s.Notice().Text)
+	}
+}

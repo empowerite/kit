@@ -9,6 +9,8 @@
          "width": "whole", "placement": "column"},
         {"id": "settings", "label": "settings", "one": "setting", "type": "label", "path": "`<key>:`",
          "group": true, "filter": true, "renderings": ["pills", "text"], "placement": "column"},
+        {"id": "where", "label": "where", "one": "place", "type": "text", "path": "→ [<text>](<target>)",
+         "renderings": ["text"], "width": "whole", "placement": "column"},
         {"id": "about", "label": "about", "type": "text", "path": "the paragraphs and the list items",
          "renderings": ["text"], "wrap": true, "placement": "column"},
         {"id": "commands", "label": "commands", "one": "command", "type": "text", "path": "`<command>`",
@@ -22,6 +24,7 @@
         {"name": "By command", "fields": {"command": {"placement": "group", "depth": 1},
                                           "order": {"sort": "asc", "priority": 1}}},
         {"name": "Compact", "fields": {"settings": {"placement": "hidden"}, "commands": {"placement": "hidden"},
+                                       "where": {"placement": "hidden"},
                                        "order": {"sort": "asc", "priority": 1}}}
       ]
     }

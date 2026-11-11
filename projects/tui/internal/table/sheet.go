@@ -56,6 +56,7 @@ type Sheet struct {
 	column        ColumnMenu
 	note          shell.Notice
 	built         *Shown
+	browse        func(string) error
 }
 
 var _ Keyboard = (*Sheet)(nil)
@@ -66,6 +67,7 @@ var _ Keyboard = (*Sheet)(nil)
 // alone. A file that does not read is said in place of the keys, and left as it is.
 func NewSheet(schema *Schema, name, color, path string) Sheet {
 	s := Sheet{schema: schema, name: name, color: color, path: path, store: name, fold: true, stop: -1, width: 80,
+		browse: shell.Browse,
 		screen: 24, height: 20, tbl: Table{Open: grid.Outline{}, Picked: map[string]bool{}, ViewName: Opening,
 			Grouping: true}}
 	if schema != nil && schema.Stage != "" {
@@ -561,7 +563,7 @@ func (s *Sheet) Wheel(w tea.MouseWheelMsg) bool {
 // sort's target turns its sort, a shift-click off, and a list's ×
 // flattens or gathers it; on the header, its ▹ or ◃ scrolls the columns, its fold opens or closes it, and a column's
 // name drops the column's menu down; on a row, the cursor goes there, the rows have the keyboard, and its ▸ or ▾ opens
-// or closes it. A line about the table does nothing.
+// or closes it, and a value that leads somewhere, a page or a file, is opened, as open says. A line about the table does nothing.
 func (s *Sheet) click(x, y int, shift bool) {
 	switch _, onHeader := HeaderLine(s, y); {
 	case s.Controls() && y == s.top:
@@ -586,9 +588,12 @@ func (s *Sheet) click(x, y int, shift bool) {
 			s.column = OpenColumnMenu(s, column, false)
 		}
 	default:
-		row, _, fold, ok := RowAt(s, x, y)
+		row, link, fold, ok := RowAt(s, x, y)
 		if !ok {
 			return
+		}
+		if link != "" {
+			s.open(link)
 		}
 		s.tbl.Cursor, s.inRows, s.onControls = row, true, false
 		if fold {
@@ -757,4 +762,17 @@ func (s *Sheet) keep(saved []Preset, what string) bool {
 	}
 	s.saved = saved
 	return true
+}
+
+// SetBrowse sets what opens a link a click falls on: the person's opener, shell.Browse, unless a test records it.
+func (s *Sheet) SetBrowse(browse func(string) error) { s.browse = browse }
+
+// open opens a link, a page or a file, as the person's opener does, and says so in the notice; where no opener can be
+// asked, as over SSH, the notice holds the link instead, to open by hand.
+func (s *Sheet) open(link string) {
+	if err := s.browse(link); err != nil {
+		s.note.Text = fmt.Sprintf("%s no opener here; open it by hand: %s", Failed, link)
+		return
+	}
+	s.note = s.note.Did("opened " + link)
 }

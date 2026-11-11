@@ -205,7 +205,7 @@ func (m *Model) takeSheets() {
 			continue
 		}
 		sheet := table.NewSheet(s.schema, s.name, sheetColor, m.presets)
-		sheet.SetRecords(s.records(sections))
+		sheet.SetRecords(rooted(s.records(sections), m.runner.Dir))
 		sheet.Settings(m.settings.FoldShared, m.settings.SharedEmoji)
 		m.tabs[k].sheet, m.tabs[k].lead = &sheet, lead
 	}

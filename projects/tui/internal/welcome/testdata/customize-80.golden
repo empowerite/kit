@@ -4,20 +4,20 @@
   ──────────────────╰───────────────────╰───────────────╯              ╰────────
    Customize
 
-   kit is a starting point. Each part below is something teams change first,
-   and ends with the command that shows it.
+   kit is a starting point. Each part below is something teams change first. It
+   ends with where to change it, the file first, then the doc that explains it,
+   and with the command that shows it.
 
   ▾ 6                                                               Default ▼
   ───
-  ▸ part                    setting  about         commands
-    ·───────────────────────×·─────────────────────×·──────────────────────────
-  ▸ Packages                pack…  packages: i…  kit packages
-  ▸ Policy                  poli…  policy: in …  kit policy
-  ▸ The stages of kit flow  flow   flow: in ki…  kit flow --stages
-  ▸ Primary and forges      p… +1  primary: na…  kit flow incoming --no-fetch
-  ▸ A house package                  A house pac…  kit packages --active
-  ▸ The docs                         kit help li…  kit help
-
+  ▸ part              settin  where             about         commands
+    ·─────────────────×·──────×·──────────────────────────────×·───────────────
+  ▸ Packages          pac…  kit.yml       +1  packages: i…  kit packages
+  ▸ Policy            pol…  kit.yml       +1  policy: in …  kit policy
+  ▸ The stages of k…  flow  kit.yml       +1  flow: in ki…  kit flow --stages
+  ▸ Primary and for…  … +1  kit.yml       +1  primary: na…  kit flow incomin…
+  ▸ A house package           .kit/package… +1  A house pac…  kit packages --a…
+  ▸ The docs                  .kit/README.… +1  kit help li…  kit help
 
 
 

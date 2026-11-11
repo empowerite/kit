@@ -4,15 +4,15 @@
   ──────────────────╰───────────────────╰───────────────╯              ╰───────────╰────────────────────────────────────
    Customize
 
-   kit is a starting point. Each part below is something teams change first, and ends with the command that shows it.
+   kit is a starting point. Each part below is something teams change first. It ends with where to change it, the file
+   first, then the doc that explains it, and with the command that shows it.
 
   ▾ 2                                                                                                       Default ▼
   ───
-    part                    settings      about                                            commands
-    ·───────────────────────×·─────────────────────────────────────────────────────────────×·──────────────────────────
-  ▸ The stages of kit flow  flow        flow: in kit.yml names the stages kit flow dra…  kit flow --stages           
-  ▸ Primary and forges      primary +1  primary: names the remote kit reads pull reque…  kit flow incoming --no-fetch
-
+    part                    settings      where             about                          commands
+    ·───────────────────────×·────────────×·───────────────────────────────────────────────×·──────────────────────────
+  ▸ The stages of kit flow  flow        kit.yml       +1  flow: in kit.yml names the s…  kit flow --stages           
+  ▸ Primary and forges      primary +1  kit.yml       +1  primary: names the remote ki…  kit flow incoming --no-fetch
 
 
 
