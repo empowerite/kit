@@ -112,6 +112,13 @@ func TestWithNoGroupOnlyNewActs(t *testing.T) {
 	if slices.Contains(menu.Dim, New) || !slices.Contains(menu.Dim, Rename) || !slices.Contains(menu.Dim, DeleteOne) {
 		t.Errorf("dim: %q", menu.Dim)
 	}
+	// the app's menu drops down whole over the few lines the screen draws, its bottom edge too, the keys bar last
+	m, _ = drive(m, tea.KeyPressMsg{Code: '=', Text: "="})
+	v := view(m)
+	lines := strings.Split(v, "\n")
+	if !strings.Contains(v, Rename) || !strings.Contains(v, "╰") || len(lines) != 30 {
+		t.Errorf("the menu over no group, %d lines:\n%s", len(lines), v)
+	}
 }
 
 func TestNewTypesANameAndItsRepositoriesAndKitMakesTheGroup(t *testing.T) {

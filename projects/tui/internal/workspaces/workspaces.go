@@ -597,7 +597,12 @@ func (m Model) View() tea.View {
 		lines = append(lines, m.sheet.View()...)
 		lines = m.sheet.Over(lines)
 	}
+	// the screen's lines reach the keys bar before anything drops down over them, so a menu over the few lines of no
+	// group, or of reading them, is drawn whole
 	lines = append(lines, "")
+	for len(lines) < m.height-1 {
+		lines = append(lines, "")
+	}
 	lines = m.menu().Overlay(lines, m.width)
 	lines = m.books.Overlay(lines, m.booksAt(), m.width)
 	lines = m.prompt.overlay(lines, m.width)
