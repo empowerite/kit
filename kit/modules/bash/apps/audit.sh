@@ -11,7 +11,9 @@
 #             row its scanner's, the tool; a scanner off here, or one that refuses the caller, is its line under
 #             errors, and the others still draw
 #   controls  a row per ruleset or protection that guards the default branch: its rules, and how it is enforced
-#   waivers   a row per bypass of a control, and per alert dismissed, by whom and why
+#   waivers   a row per bypass of a control, and per alert dismissed, by whom and why: the bypasses the forge says, and
+#             the dismissed among the alerts findings reads, each scanner read once a process for both; a scanner
+#             off here, or one that refuses the caller, is under errors as in findings, and the rest still draw
 #   policy    a row per rule kit policy judges by, as kit policy --rules --json lists them
 #
 # evidence's mark holds the forge's marks of its runs and its releases, as a run or a release makes an attestation;
@@ -30,36 +32,86 @@ audit_stages=(evidence findings controls waivers policy)
 # than it read.
 apps/audit:evidence() { apps:forge attestations attestations attestation; }
 
-# apps/audit:findings prints one document of the three scanners' alerts, each through its own def, which gives the
-# row its tool. A scanner off here is {feature, off: true} under errors; one whose read fails is {feature, error}, its
-# line, and the others still draw; it returns 1 after the document then.
-apps/audit:findings() {
-  local each feature call def doc said line unread=0
-  local -a docs=()
+# apps_audit_reads is a directory this process keeps each scanner's document in, once read, so the findings and the
+# waivers of one picture share one read of each; the stages run in subshells of the shell that loads this module.
+apps_audit_reads=''
+file:scratch apps_audit_reads || apps_audit_reads=''
+
+# apps_audit_scanners are the three alerts calls: each one's feature and call, the feature being the rows' tool.
+apps_audit_scanners=('code-scanning code-scanning-alerts' 'dependabot dependabot-alerts'
+  'secret-scanning secret-scanning-alerts')
+
+# apps/audit:alerts <feature> <call> prints the document of the scanner's call, its alerts as the call prints them,
+# through apps::kept, read once a process. One whose read fails is {feature, error}, its line, under errors, with no
+# rows, and it returns 1 after it, as it does each time it is asked.
+apps/audit:alerts() {
+  local feature=$1 call=$2 kept said doc line status=0
+  kept=${apps_audit_reads:+${apps_audit_reads}/${feature}}
+  if [[ -n "${kept}" && -f "${kept}.json" && -f "${kept}.status" ]]
+  then
+    cat "${kept}.json"
+    return "$(<"${kept}.status")"
+  fi
   file:temp said audit || return 1
-  for each in 'code-scanning code-scanning-alerts code_scanning_alert' 'dependabot dependabot-alerts dependabot_alert' \
-    'secret-scanning secret-scanning-alerts secret_scanning_alert'
-  do
-    read -r feature call def <<<"${each}"
-    if doc=$(apps:forge "${feature}" "${call}" "${def}" 2>"${said}")
-    then
-      docs+=("${doc}")
-      continue
-    fi
-    unread=1
+  if ! doc=$(apps:forge "${feature}" "${call}" kept 2>"${said}")
+  then
+    status=1
     line=$(grep -v '^[[:space:]]*$' "${said}" | tail -n 1 || true)  # grep's exit 1: the read said nothing
-    docs+=("$(jq --null-input --compact-output --arg feature "${feature}" --arg error "${line#❌ }" \
-      '{rows: [], errors: [{feature: $feature, error: $error}]}')")
+    doc=$(jq --null-input --compact-output --arg feature "${feature}" --arg error "${line#❌ }" \
+      '{rows: [], errors: [{feature: $feature, error: $error}]}') || return 1
+  fi
+  # A document that cannot be kept costs only another read of it.
+  if [[ -n "${kept}" ]] && printf '%s\n' "${doc}" > "${kept}.json"
+  then
+    printf '%s\n' "${status}" > "${kept}.status" || rm -f "${kept}.json"
+  fi
+  printf '%s\n' "${doc}"
+  return "${status}"
+}
+
+# apps/audit:scanned <def> prints one document of the three scanners' alerts, each row through apps::<def>, given the
+# scanner's feature, its tool. A scanner off here is {feature, off: true} under errors; one whose read fails is
+# {feature, error}, its line, and the others still draw; it returns 1 after the document then.
+apps/audit:scanned() {
+  local def=$1 each feature call doc unread=0
+  local -a docs=()
+  for each in "${apps_audit_scanners[@]}"
+  do
+    read -r feature call <<<"${each}"
+    doc=$(apps/audit:alerts "${feature}" "${call}") || unread=1
+    doc=$(jq --compact-output -L "${kit_jq}" --arg tool "${feature}" \
+      "import \"apps\" as apps; .rows |= map(apps::${def}(\$tool))" <<<"${doc}") || return 1
+    docs+=("${doc}")
   done
   apps:merge "${docs[@]}" || return 1
   return "${unread}"
 }
 
+# apps/audit:findings prints one document of the three scanners' alerts, each row through apps::alert, which gives it
+# its tool, as apps/audit:scanned does.
+apps/audit:findings() { apps/audit:scanned alert; }
+
 # apps/audit:controls prints the controls document, through apps::control.
 apps/audit:controls() { apps:forge rulesets rulesets control; }
 
-# apps/audit:waivers prints the waivers document, through apps::waiver.
-apps/audit:waivers() { apps:forge bypasses bypasses waiver; }
+# apps/audit:waivers prints one document of the forge's bypasses, through apps::waiver, and of the dismissed alerts,
+# through apps::dismissal, as apps/audit:scanned reads them. A bypasses read that fails is {feature, error}, its line,
+# under errors, as a scanner's is, and the rest still draw; it returns 1 after the document then.
+apps/audit:waivers() {
+  local bypasses dismissed said line unread=0
+  file:temp said audit || return 1
+  if ! bypasses=$(apps:forge bypasses bypasses waiver 2>"${said}")
+  then
+    unread=1
+    line=$(grep -v '^[[:space:]]*$' "${said}" | tail -n 1 || true)  # grep's exit 1: the read said nothing
+    bypasses=$(jq --null-input --compact-output --arg error "${line#❌ }" \
+      '{rows: [], errors: [{feature: "bypasses", error: $error}]}') || return 1
+  fi
+  dismissed=$(apps/audit:scanned dismissal) || unread=1
+  [[ -n "${dismissed}" ]] || return 1
+  apps:merge "${bypasses}" "${dismissed}" || return 1
+  return "${unread}"
+}
 
 # apps/audit:policy prints the policy's document, a row per line kit policy --rules --json prints. It returns 1 when
 # kit policy fails, its line said.

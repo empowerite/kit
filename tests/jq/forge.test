@@ -405,12 +405,12 @@ import "forge" as forge; [forge::ado_teams({b: [{"identity": {"uniqueName": "ada
 [{"login":"ada","name":"Ada","role":"admin","kind":"user"},{"login":"g","name":null,"role":"member","kind":"group"}]
 
 # A GitHub alert with no rule, severity, location, or dismisser shown has none of them; code scanning's state is its
-# own, and a secret resolved is dismissed; a dismissal with no reason has none.
-import "forge" as forge; [forge::github_code_scanning(100)], [forge::github_secret_scanning(100)], [forge::github_dismissals("dependabot")]
-[[{"number": 3, "state": "open", "created_at": null, "html_url": "u", "rule": null, "most_recent_instance": null}], [{"number": 4, "state": "resolved", "html_url": "v"}]]
-[{"number":3,"rule":null,"severity":null,"state":"open","path":null,"age":null,"url":"u"},{"number":4,"rule":null,"severity":null,"state":"resolved","path":null,"age":null,"url":"v"}]
-[{"number":3,"rule":null,"severity":null,"state":"open","path":null,"age":null,"url":"u"},{"number":4,"rule":null,"severity":null,"state":"dismissed","path":null,"age":null,"url":"v"}]
-[{"waives":"dependabot 3","actor":null,"kind":"dismissal","reason":null,"by":null,"until":null,"url":"u"},{"waives":"dependabot 4","actor":null,"kind":"dismissal","reason":null,"by":null,"until":null,"url":"v"}]
+# own, and a secret resolved is dismissed, its resolution the reason; an alert on two pages is drawn once, as the
+# last page gives it, the newest number first.
+import "forge" as forge; [forge::github_code_scanning(100)], [forge::github_secret_scanning(100)]
+[[{"number": 3, "state": "open", "created_at": null, "html_url": "u", "rule": null, "most_recent_instance": null}], [{"number": 4, "state": "resolved", "html_url": "v", "resolution": "revoked"}, {"number": 3, "state": "dismissed", "html_url": "u", "dismissed_by": null, "dismissed_reason": "won't fix", "dismissed_comment": ""}]]
+[{"number":4,"rule":null,"severity":null,"state":"resolved","path":null,"age":null,"url":"v","by":null,"reason":null},{"number":3,"rule":null,"severity":null,"state":"dismissed","path":null,"age":null,"url":"u","by":null,"reason":"won't fix"}]
+[{"number":4,"rule":null,"severity":null,"state":"dismissed","path":null,"age":null,"url":"v","by":null,"reason":"revoked"},{"number":3,"rule":null,"severity":null,"state":"dismissed","path":null,"age":null,"url":"u","by":null,"reason":null}]
 
 # A pattern names a branch as fnmatch does: * within a path segment, ** across them, and a character that is a
 # regular expression's own is itself.
@@ -422,4 +422,4 @@ false
 # A GitLab vulnerability with no identifier, location, or time shown has its title for a rule, and none of the rest.
 import "forge" as forge; [forge::gitlab_vulnerabilities(100)]
 [{"id": "gid://gitlab/Vulnerability/12", "title": "T", "severity": null, "state": "CONFIRMED", "detectedAt": null, "primaryIdentifier": null, "location": null, "webUrl": null}]
-[{"number":12,"rule":"T","severity":null,"state":"open","path":null,"age":null,"url":null}]
+[{"number":12,"rule":"T","severity":null,"state":"open","path":null,"age":null,"url":null,"by":null,"reason":null}]

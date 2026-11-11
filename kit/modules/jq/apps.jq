@@ -100,27 +100,37 @@ def keyed(f): [f | select(. != null) | tostring] | join(" ");
 # kind, its page the link of its subject.
 def attestation: ({key: keyed(.digest, .kind)} + del(.url) + {links: {subject: .url}}) | linked;
 
-# alert($tool) reads an alert one of the forge's alerts calls prints, the call of the feature $tool, and gives it
-# keyed by the tool and its number, the tool its own field, its page the link of its rule.
-def alert($tool): ({key: "\($tool) \(.number)", tool: $tool} + del(.url) + {links: {rule: .url}}) | linked;
+# kept reads an object a forge call prints and gives it as it is, for a stage that reads it twice, as Trust's alerts
+# are read once for the findings and the waivers.
+def kept: .;
 
-# code_scanning_alert, dependabot_alert, and secret_scanning_alert are alert of each scanner's call.
-def code_scanning_alert: alert("code-scanning");
-def dependabot_alert: alert("dependabot");
-def secret_scanning_alert: alert("secret-scanning");
+# alert($tool) reads an alert one of the forge's alerts calls prints, the call of the feature $tool, and gives it
+# keyed by the tool and its number, the tool its own field, its page the link of its rule; who dismissed it, and why,
+# are the waivers'.
+def alert($tool):
+  ({key: "\($tool) \(.number)", tool: $tool} + del(.url, .by, .reason) + {links: {rule: .url}}) | linked;
 
 # control reads a control the forge's rulesets call prints and gives it keyed by its id, its page the link of the
 # control.
 def control: ({key: .id} + del(.url) + {links: {control: .url}}) | linked;
 
-# waiver reads a waiver the forge's bypasses call prints and gives it keyed by what it waives and for whom: what it
-# waives links to that row, of the findings stage for a dismissal and of the controls stage for a bypass,
-# row:<stage>/<key>, and its page is the link of its reason.
+# waiver reads a waiver the forge's bypasses call prints, or one dismissal gives, and gives it keyed by what it waives
+# and for whom, or for those hidden, <waives> hidden: what it waives links to that row, of the findings stage for a
+# dismissal and of the controls stage for a bypass, row:<stage>/<key>, and its page is the link of its reason.
 def waiver:
-  ({key: keyed(.waives, .actor)} + del(.url)
+  ({key: (if .hidden != null then "\(.waives) hidden" else keyed(.waives, .actor) end)} + del(.url)
    + {links: {waives: (if .kind == "dismissal" then "row:findings/\(.waives)" else "row:controls/\(.waives)" end),
               reason: .url}})
   | linked;
+
+# dismissal($tool) reads an alert one of the forge's alerts calls prints, the call of the feature $tool, and gives the
+# waiver of a dismissed one, as waiver does: waives <tool> <number>, by who dismissed it, and the reason; an open one
+# gives none.
+def dismissal($tool):
+  select(.state == "dismissed")
+  | {waives: "\($tool) \(.number)", actor: null, kind: "dismissal", reason: (.reason // null), by: (.by // null),
+     until: null, hidden: null, url}
+  | waiver;
 
 # rule reads a rule kit policy --rules --json prints and gives it keyed by the rule.
 def rule: {key: .rule} + . + {links: {}};

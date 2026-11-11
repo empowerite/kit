@@ -71,7 +71,8 @@ JSON
   route gh 'api repos/{owner}/{repo}/actions/artifacts?per_page=20' artifacts.json
   route gh 'api --paginate --slurp repos/{owner}/{repo}/attestations/sha256:ab12?per_page=100' attestations.json
   route gh "api --paginate --slurp repos/{owner}/{repo}/code-scanning/alerts?state=open&${alerts}" code-open.json
-  route gh "api --paginate --slurp repos/{owner}/{repo}/code-scanning/alerts?state=dismissed&${alerts}" none.json
+  route gh "api --paginate --slurp repos/{owner}/{repo}/code-scanning/alerts?state=dismissed&${alerts}" \
+    "${CODE_DISMISSED:-none.json}"
   route gh "api --paginate --slurp repos/{owner}/{repo}/dependabot/alerts?state=*" "${DEPENDABOT:-dependabot.json}"
   route gh 'api --paginate --slurp repos/{owner}/{repo}/secret-scanning/alerts?state=*' '!1 secret-off.txt'
   route gh 'api graphql*rulesets(first: 100*' rulesets.json
@@ -123,20 +124,36 @@ JSON
   [ "${lines[-1]}" = 'secret-scanning is off here' ]
 }
 
-@test "a scanner that refuses the caller is its line under findings' errors, the others still drawn, and exit 1" {
-  DEPENDABOT='!1 refused.txt' DEPENDABOT_HEAD='!1 >scopes.txt' github-world
+@test "a scanner that refuses the caller is its line under findings' and waivers' errors, the rest drawn, exit 1" {
+  DEPENDABOT='!1 refused.txt' DEPENDABOT_HEAD='!1 >scopes.txt' CODE_DISMISSED=code-dismissed.json github-world
+  fixture code-dismissed.json <<'JSON'
+[[{"number": 2, "state": "dismissed", "created_at": "2026-09-01T09:00:00Z",
+   "html_url": "https://github.com/o/r/security/code-scanning/2", "rule": {"id": "js/unused-local-variable"},
+   "dismissed_by": {"login": "bob"}, "dismissed_reason": "false positive", "dismissed_comment": null}]]
+JSON
   fixture refused.txt <<<'gh: Resource not accessible by integration (HTTP 403)'
   printf 'HTTP/2.0 403 Forbidden\r\nX-Oauth-Scopes: read:org\r\n%s\r\n\r\n{}\n' \
     'X-Accepted-Oauth-Scopes: repo, security_events' > "${FAKE_DIR}/scopes.txt"
   run --separate-stderr "${kit_root}/bin/kit" audit findings --json
   [ "$status" -eq 1 ]
-  [ "$(jq -c '[.rows[].key]' <<<"$output")" = '["code-scanning 4"]' ]
+  [ "$(jq -c '[.rows[].key]' <<<"$output")" = '["code-scanning 4","code-scanning 2"]' ]
   [ "$(jq -c '.errors' <<<"$output")" = '[{"feature":"dependabot","error":"run: gh auth refresh --scopes'\
 ' security_events (the Dependabot alerts could not be read)"},{"feature":"secret-scanning","off":true}]' ]
-  # the picture of every stage still draws the others, the waivers, which read the dismissed alerts, null
+  # the picture of every stage still draws the others: the waivers hold the ruleset's bypass and code scanning's
+  # dismissal, Dependabot's line under their errors too, each scanner read once for the findings and the waivers
+  : > "${FAKE_DIR}/gh.calls"
   run --separate-stderr "${kit_root}/bin/kit" audit --json
   [ "$status" -eq 1 ]
-  [ "$(jq -c '[(.findings.rows | length), (.controls.rows | length), .waivers]' <<<"$output")" = '[1,1,null]' ]
+  [ "$(jq -c '[(.findings.rows | length), (.controls.rows | length)]' <<<"$output")" = '[2,1]' ]
+  [ "$(jq -c '[.waivers.rows[].key]' <<<"$output")" = '["7 release","code-scanning 2"]' ]
+  [ "$(jq -c '[.waivers.errors[] | [.feature, (.error // .off)]]' <<<"$output")" = '[["dependabot","run: gh auth'\
+' refresh --scopes security_events (the Dependabot alerts could not be read)"],["secret-scanning",true]]' ]
+  [ "$(grep -c 'paginate --slurp repos/{owner}/{repo}/dependabot/alerts' "${FAKE_DIR}/gh.calls")" -eq 1 ]
+  [ "$(grep -c 'code-scanning/alerts?state=dismissed' "${FAKE_DIR}/gh.calls")" -eq 1 ]
+  # waivers alone read the scanners themselves, and still draw the rest
+  run --separate-stderr "${kit_root}/bin/kit" audit waivers --json
+  [ "$status" -eq 1 ]
+  [ "$(jq -c '[.rows[].key]' <<<"$output")" = '["7 release","code-scanning 2"]' ]
 }
 
 @test "controls is a row per control on the default branch, keyed by its id, its page the control's link" {
@@ -154,11 +171,13 @@ JSON
   run --separate-stderr "${kit_root}/bin/kit" audit waivers --json
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
   expected='[{"key":"7 release","waives":7,"actor":"release","kind":"bypass","reason":"always","by":null,"until":null,'
-  expected+='"links":{"waives":"row:controls/7","reason":"https://github.com/o/r/rules/7"}},'
+  expected+='"hidden":null,"links":{"waives":"row:controls/7","reason":"https://github.com/o/r/rules/7"}},'
   expected+='{"key":"dependabot 1","waives":"dependabot 1","actor":null,"kind":"dismissal","reason":"tolerable_risk",'
-  expected+='"by":"ada","until":null,"links":{"waives":"row:findings/dependabot 1",'
+  expected+='"by":"ada","until":null,"hidden":null,"links":{"waives":"row:findings/dependabot 1",'
   expected+='"reason":"https://github.com/o/r/security/dependabot/1"}}]'
   [ "$(jq -c '.rows' <<<"$output")" = "${expected}" ]
+  # the scanners off here say so on the waivers too
+  [ "$(jq -c '.errors' <<<"$output")" = '[{"feature":"secret-scanning","off":true}]' ]
 }
 
 @test "policy is a row per rule the policy judges by, keyed by the rule: its pattern, where it is set, the engine" {

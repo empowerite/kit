@@ -205,7 +205,7 @@ branch and who may get past it, and the rules kit's policy judges by. Every tab 
 | `evidence` | attestation of the newest releases' assets and artifacts | `subject, digest, kind, signer, age` | the forge's runs and releases |
 | `findings` | code scanning, Dependabot, or secret scanning alert, open or dismissed | `tool, number, rule, severity, state, path, age` | the forge's runs and alerts |
 | `controls` | ruleset or protection that guards the default branch | `id, control, target, enforcement, rules, source` | none |
-| `waivers` | bypass of a control, and alert dismissed | `waives, actor, kind, reason, by, until` | none |
+| `waivers` | bypass of a control, and alert dismissed | `waives, actor, kind, reason, by, until, hidden` | none |
 | `policy` | rule `kit policy` judges by | `rule, pattern, from, engine` | a hash of `kit.yml` and `.kit/policy/` |
 
 - `evidence` keys each row by its digest and its kind, and the subject links to the repository's attestations.
@@ -222,7 +222,8 @@ branch and who may get past it, and the rules kit's policy judges by. Every tab 
   caller is `{feature, error}`, its line, and the others still draw, the stage exiting 1. GitHub's line names
   `gh auth refresh --scopes security_events` for a login without the scope, else an admin of the repository. GitLab
   reads its vulnerability report, SAST for code scanning, dependency scanning for Dependabot's kind, and secret
-  detection; a tier without it has each off. Azure DevOps keeps none kit reads.
+  detection; a tier without it has each off. GitLab leaves out a vulnerability the caller may not see, refusing
+  nothing, so the tab reads empty for such a caller. Azure DevOps keeps none kit reads.
 - `controls` keys each row by its id. `target` is the refs it names, `enforcement` `active`, `evaluate`, or
   `disabled`, and `rules` its kinds of rule, sorted, or `null` where only an admin may see them, as GitHub's branch
   protection. `source` is `ruleset` or `protection`. GitHub reads its rulesets of branches, its own and its
@@ -231,15 +232,20 @@ branch and who may get past it, and the rules kit's policy judges by. Every tab 
   default branch's policies, an optional one `evaluate`.
 - `waivers` keys each row by what it waives and the actor. `waives` is a control's id, which links to its row of
   `controls`, or an alert, `<tool> <number>`, which links to its row of `findings`; the reason links to the waiver's
-  page. A `bypass` names who may bypass, `null` where GitHub hides it from who may not edit the ruleset, and its
-  mode, `always`, `pull_request`, or `exempt`; a `dismissal` names who dismissed it, and the reason with its comment.
-  GitHub reads its rulesets' bypass actors, its protection's pull request allowances, and each scanner's dismissed
-  alerts; a refused scanner fails the stage, which would be partial. GitLab and Azure DevOps keep none kit reads.
+  page. A `bypass` names who may bypass and its mode, `always`, `pull_request`, or `exempt`; those GitHub hides from
+  who may not edit the ruleset, and teams kit cannot name, as for a login without `read:org`, are one row of the
+  control, keyed `<id> hidden`, its actor `null` and `hidden` how many. A `dismissal` names who dismissed it, and
+  the reason with its comment. The bypasses are the forge's own: GitHub's rulesets' bypass actors and its
+  protection's pull request allowances. The dismissals are the dismissed alerts `findings` reads, each scanner read
+  once a process for both stages; a scanner off here, or one that refuses the caller, is under `errors` as in
+  `findings`, and the rest still draw, the stage exiting 1 for a refusal. GitLab's are its dismissed
+  vulnerabilities; Azure DevOps keeps none kit reads.
 - `policy` is `kit policy --rules --json`, keyed by the rule. On a branch past the default, it is the base's, and the
   mark holds the base's `kit.yml` and `.kit/policy/` too, which a fetch moves.
 - `evidence` and `findings` move with the forge's runs, as a run makes an attestation and a scan. `evidence` moves
   with its releases too, and `findings` with its alerts: GitHub's mark of each scanner's alert updated last, which a
-  dismissal and a new advisory move without a run, and GitLab's count of open and dismissed vulnerabilities.
+  dismissal and a new advisory move without a run, `off` or `refused` for a scanner that is either, so the others'
+  still move it; and GitLab's count of open and dismissed vulnerabilities.
   `controls` and `waivers` have none, and are read again on Refresh and Watch.
 
 ## Packages: kit packages

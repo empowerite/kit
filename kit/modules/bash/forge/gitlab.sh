@@ -692,7 +692,7 @@ forge/gitlab:members() {
 # project's vulnerability report, open or dismissed, as the seam's header says of the alerts: one GraphQL query, 100
 # a page, following each page's cursor to the end. A tier without the report answers it null, and one that refuses
 # it, 403 or 404: either is the feature off for this project, and it returns 3, printing nothing. GitLab leaves out a
-# vulnerability the caller may not see, so a caller without the security dashboard sees none.
+# vulnerability the caller may not see, refusing nothing, so a caller without the security dashboard sees none.
 forge/gitlab:vulnerabilities() {
   local what=$1 type=$2 project query page said nodes='[]' more=true off
   local -a after=()
@@ -703,6 +703,7 @@ forge/gitlab:vulnerabilities() {
         pageInfo { hasNextPage endCursor }
         nodes {
           id title severity state detectedAt webUrl primaryIdentifier { name }
+          dismissedBy { username } dismissalReason stateComment
           location {
             ... on VulnerabilityLocationSast { file }
             ... on VulnerabilityLocationDependencyScanning { file }

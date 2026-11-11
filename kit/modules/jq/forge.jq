@@ -951,41 +951,46 @@ def github_attestations($subject; $digest; $made; $now; $url):
 # severity reads a forge's severity, in any case, and gives it in lower case, or null for none.
 def severity: if . == null then null else ascii_downcase end;
 
+# dismissal(r; c) gives a dismissal's reason and its comment, apart by a colon, those that are there, or null.
+def dismissal(r; c): [r, c] | map(select(. != null and . != "")) | if length == 0 then null else join(": ") end;
+
+# latest_by_number reads alert documents, as they were read, and gives each number once, the last read of it, as an
+# alert updated or dismissed while its pages were read is on two of them; the newest number first.
+def latest_by_number: group_by(.number) | map(last) | sort_by(-.number);
+
 # github_code_scanning($now) reads the pages of GitHub's code scanning alerts, each an array, and gives one document
-# per alert: {number, rule, severity, state, path, age, url}, rule the rule's id, severity its security severity where
-# it has one, else the rule's own, path where it was last found, and age seconds since it was made.
+# per alert: {number, rule, severity, state, path, age, url, by, reason}, rule the rule's id, severity its security
+# severity where it has one, else the rule's own, path where it was last found, age seconds since it was made, by
+# who dismissed it, and reason the dismissal's reason and comment, each null for an open alert.
 def github_code_scanning($now):
-  .[][]? | select(. != null)
-  | { number, rule: (.rule.id? // .rule.name? // null),
-      severity: ((.rule.security_severity_level? // .rule.severity?) | severity), state,
-      path: (.most_recent_instance.location.path? // null), age: (.created_at | since($now)), url: .html_url };
+  [ .[][]? | select(. != null)
+    | { number, rule: (.rule.id? // .rule.name? // null),
+        severity: ((.rule.security_severity_level? // .rule.severity?) | severity), state,
+        path: (.most_recent_instance.location.path? // null), age: (.created_at | since($now)), url: .html_url,
+        by: (.dismissed_by.login? // null), reason: dismissal(.dismissed_reason; .dismissed_comment) } ]
+  | latest_by_number[];
 
 # github_dependabot($now) reads the pages of GitHub's Dependabot alerts and gives one document per alert, as
 # github_code_scanning does: rule the advisory's GHSA id, severity the vulnerability's, path the manifest's.
 def github_dependabot($now):
-  .[][]? | select(. != null)
-  | { number, rule: (.security_advisory.ghsa_id? // null),
-      severity: ((.security_vulnerability.severity? // .security_advisory.severity?) | severity), state,
-      path: (.dependency.manifest_path? // null), age: (.created_at | since($now)), url: .html_url };
+  [ .[][]? | select(. != null)
+    | { number, rule: (.security_advisory.ghsa_id? // null),
+        severity: ((.security_vulnerability.severity? // .security_advisory.severity?) | severity), state,
+        path: (.dependency.manifest_path? // null), age: (.created_at | since($now)), url: .html_url,
+        by: (.dismissed_by.login? // null), reason: dismissal(.dismissed_reason; .dismissed_comment) } ]
+  | latest_by_number[];
 
 # github_secret_scanning($now) reads the pages of GitHub's secret scanning alerts and gives one document per alert, as
 # github_code_scanning does: rule the secret's type, severity null, as GitHub gives none, a resolved alert dismissed,
-# and path where the secret was first found.
+# by who resolved it, the resolution and its comment the reason, and path where the secret was first found.
 def github_secret_scanning($now):
-  .[][]? | select(. != null)
-  | { number, rule: (.secret_type // null), severity: null,
-      state: (if .state == "resolved" then "dismissed" else .state end),
-      path: (.first_location_detected.path? // null), age: (.created_at | since($now)), url: .html_url };
-
-# github_dismissals($feature) reads the pages of a GitHub scanner's dismissed alerts and gives one waiver per alert:
-# {waives, actor, kind, reason, by, until, url}, waives "<feature> <number>", kind dismissal, reason the dismissal's
-# reason and its comment, by who dismissed it; a secret's resolution and its comment are its reason.
-def github_dismissals($feature):
-  .[][]? | select(. != null)
-  | { waives: "\($feature) \(.number)", actor: null, kind: "dismissal",
-      reason: ([(.dismissed_reason // .resolution), (.dismissed_comment // .resolution_comment)]
-               | map(select(. != null and . != "")) | if length == 0 then null else join(": ") end),
-      by: ((.dismissed_by // .resolved_by).login? // null), until: null, url: .html_url };
+  [ .[][]? | select(. != null)
+    | { number, rule: (.secret_type // null), severity: null,
+        state: (if .state == "resolved" then "dismissed" else .state end),
+        path: (.first_location_detected.path? // null), age: (.created_at | since($now)), url: .html_url,
+        by: (.resolved_by.login? // null),
+        reason: (if .state == "resolved" then dismissal(.resolution; .resolution_comment) else null end) } ]
+  | latest_by_number[];
 
 # fnmatch($s) reads a ruleset's pattern and says whether it names the ref $s, as fnmatch does: * any characters but /,
 # ** any characters, ? any one but /; every other character is itself.
@@ -1057,33 +1062,45 @@ def github_bypass_actor:
   else null end;
 
 # github_bypasses($protection) reads the answer to forge/github:rulesets's GraphQL query and gives one waiver per
-# bypass actor of each ruleset that guards the default branch: {waives, actor, kind, reason, by, until, url}, waives
-# the ruleset's id, kind bypass, reason its bypass mode, always, pull_request, or exempt; then one per login, team, or
-# app the branch's own protection, $protection, lets bypass its pull request rule, waives protection.
+# bypass actor of each ruleset that guards the default branch: {waives, actor, kind, reason, by, until, hidden, url},
+# waives the ruleset's id, kind bypass, reason its bypass mode, always, pull_request, or exempt; those GitHub hides
+# from who may not edit the ruleset, and those kit cannot name, as a team asked for without its slug, are one waiver,
+# actor and reason null, hidden how many; hidden is null on every other. Then one per login, team, or app the branch's
+# own protection, $protection, lets bypass its pull request rule, waives protection.
 def github_bypasses($protection):
   .data.repository as $repo
   | ($repo.defaultBranchRef.name? // null) as $branch
   | select($branch != null)
   | ( ($repo.rulesets.nodes // [])[] | select(. != null and github_guards($branch)) | . as $set
-      | .bypassActors.nodes[]?
-      | { waives: $set.databaseId, actor: github_bypass_actor, kind: "bypass",
-          reason: (if . == null or .bypassMode == null then null else .bypassMode | ascii_downcase end),
-          by: null, until: null, url: "\($repo.url)/rules/\($set.databaseId)" } ),
+      | "\($repo.url)/rules/\($set.databaseId)" as $url
+      | [ .bypassActors.nodes[]?
+          | {actor: github_bypass_actor,
+             mode: (if . == null or .bypassMode == null then null else .bypassMode | ascii_downcase end)} ] as $actors
+      | ( $actors[] | select(.actor != null)
+          | {waives: $set.databaseId, actor, kind: "bypass", reason: .mode, by: null, until: null, hidden: null,
+             url: $url} ),
+        ( [$actors[] | select(.actor == null)] | length | select(. > 0)
+          | {waives: $set.databaseId, actor: null, kind: "bypass", reason: null, by: null, until: null, hidden: .,
+             url: $url} ) ),
     ( $protection | select(. != null) | .required_pull_request_reviews.bypass_pull_request_allowances? // {}
       | (.users[]?.login, .teams[]?.slug, .apps[]?.slug) | select(. != null)
-      | { waives: "protection", actor: ., kind: "bypass", reason: "pull_request", by: null, until: null,
+      | { waives: "protection", actor: ., kind: "bypass", reason: "pull_request", by: null, until: null, hidden: null,
           url: "\($repo.url)/settings/branches" } );
 
 # gitlab_vulnerabilities($now) reads the nodes of GitLab's vulnerability report and gives one document per
-# vulnerability: {number, rule, severity, state, path, age, url}, number its id, rule its primary identifier's name, or
-# its title, state open for one detected or confirmed and dismissed for one dismissed, path the file it was found in,
-# age seconds since it was detected.
+# vulnerability: {number, rule, severity, state, path, age, url, by, reason}, number its id, rule its primary
+# identifier's name, or its title, state open for one detected or confirmed and dismissed for one dismissed, path the
+# file it was found in, age seconds since it was detected, by who dismissed it, and reason the dismissal's reason, in
+# lower case, and its comment, each null for an open one.
 def gitlab_vulnerabilities($now):
-  .[] | select(. != null)
-  | { number: (.id | tostring | sub("^.*/"; "") | tonumber),
-      rule: (.primaryIdentifier.name? // .title // null), severity: (.severity | severity),
-      state: (if .state == "DISMISSED" then "dismissed" else "open" end), path: (.location.file? // null),
-      age: (.detectedAt | since($now)), url: (.webUrl // null) };
+  [ .[] | select(. != null) | (.state == "DISMISSED") as $dismissed
+    | { number: (.id | tostring | sub("^.*/"; "") | tonumber),
+        rule: (.primaryIdentifier.name? // .title // null), severity: (.severity | severity),
+        state: (if $dismissed then "dismissed" else "open" end), path: (.location.file? // null),
+        age: (.detectedAt | since($now)), url: (.webUrl // null),
+        by: (if $dismissed then .dismissedBy.username? // null else null end),
+        reason: (if $dismissed then dismissal(.dismissalReason | severity; .stateComment) else null end) } ]
+  | latest_by_number[];
 
 # gitlab_controls($branch; $push; $url) reads GitLab's protected branches and gives one document per control on the
 # branch $branch: each protected branch whose name, or wildcard, * any characters, names it, {id, control, target,

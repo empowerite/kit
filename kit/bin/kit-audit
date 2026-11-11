@@ -20,8 +20,9 @@
 #   --jq                the same JSON, formatted by jq for a person
 #   --stages            prints the stages, one per line, in order, the same over any workspace
 #   --marks             prints a mark per stage, as one JSON object: evidence's moves with the forge's runs and
-#                       releases, findings' with its runs and alerts, policy's with kit.yml and .kit/policy; controls
-#                       and waivers have none, null, as each is read again only on Refresh and Watch
+#                       releases, findings' with its runs and alerts, each scanner's off or refused where it is,
+#                       policy's with kit.yml and .kit/policy; controls and waivers have none, null, as each is read
+#                       again only on Refresh and Watch
 #   evidence            the attestations of the 5 newest releases' assets and the 20 newest artifacts
 #   findings            the code scanning, Dependabot, and secret scanning alerts, open and dismissed
 #   controls            the rulesets and the protection that guard the default branch
@@ -62,20 +63,25 @@
 #                       where it was found. The rule links to the alert's page. GitHub reads each scanner's every
 #                       page; a refusal names the scope to add, gh auth refresh --scopes security_events, or who can
 #                       grant the access. GitLab reads its vulnerability report, SAST for code scanning, dependency
-#                       scanning for Dependabot, and secret detection, off on a tier without it. Azure DevOps keeps
-#                       none kit reads
+#                       scanning for Dependabot, and secret detection, off on a tier without it; GitLab leaves out a
+#                       vulnerability the caller may not see, so the tab reads empty, never refused. Azure DevOps
+#                       keeps none kit reads
 #   controls            {id, control, target, enforcement, rules, source}, keyed by the id: control its name;
 #                       target the refs it names; enforcement active, evaluate, or disabled; rules its kinds of rule,
 #                       null where the forge shows them only to an admin; source ruleset or protection. The control
 #                       links to its page. GitHub reads its rulesets, its own and its organization's, in one GraphQL
 #                       request, and the default branch's protection; GitLab its protected branches and push rules;
 #                       Azure DevOps the default branch's policies
-#   waivers             {waives, actor, kind, reason, by, until}, keyed by what it waives and the actor: waives a
-#                       control's id, or an alert as <tool> <number>, each linking that row; actor who may bypass,
-#                       null where the forge hides it; kind bypass or dismissal; reason the bypass's mode, or the
-#                       dismissal's reason and comment; by who dismissed it; until when it ends, null for never. The
-#                       reason links to its page. GitHub reads its rulesets' bypass actors and its dismissed alerts;
-#                       GitLab and Azure DevOps keep none kit reads
+#   waivers             {waives, actor, kind, reason, by, until, hidden}, keyed by what it waives and the actor:
+#                       waives a control's id, or an alert as <tool> <number>, each linking that row; actor who may
+#                       bypass; kind bypass or dismissal; reason the bypass's mode, or the dismissal's reason and
+#                       comment; by who dismissed it; until when it ends, null for never; hidden, on the one bypass
+#                       row of a control's bypassers the forge hides or kit cannot name, keyed <id> hidden, how many,
+#                       its actor null, else null. The reason links to its page. The bypasses are the forge's own,
+#                       GitHub's rulesets' bypass actors and its protection's; the dismissals are the alerts findings
+#                       reads, each scanner read once for both, and a scanner off here, or one that refuses the caller,
+#                       is under errors as in findings while the rest still draw. GitLab's are its dismissed
+#                       vulnerabilities; Azure DevOps keeps none kit reads
 #   policy              {rule, pattern, from, engine}, keyed by the rule, as kit policy --rules --json prints them
 #
 # Exits 0 when the stages are drawn, 1 when a stage could not be read, after what was, and 2 on a usage error, or

@@ -2093,7 +2093,8 @@ JSON
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
   [ "$(jq --slurp --compact-output '[length, .[-1]]' <<<"$output")" = '[2,{"limited":1}]' ]
   # 60 digests are read 50 at most
-  jq '.[0].assets[0] as $a | .[0].assets = [range(60) as $i | $a | .name = "f\($i)" | .digest = "sha256:\(1000 + $i)"]' \
+  jq '.[0].assets[0] as $a
+      | .[0].assets = [range(60) as $i | $a | .name = "f\($i)" | .digest = "sha256:\(1000 + $i)"]' \
     "${FAKE_DIR}/gh-evidence-releases.json" | fixture gh-evidence-releases-60.json
   GITHUB_EVIDENCE_RELEASES=gh-evidence-releases-60.json world github
   : > "${FAKE_DIR}/gh.calls"
@@ -2101,6 +2102,15 @@ JSON
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
   [ "$output" = '{"limited":0}' ]
   [ "$(grep -c 'attestations/' "${FAKE_DIR}/gh.calls")" -eq 50 ]
+  # releases that are not a list, or artifacts with none, could not be read, and print nothing
+  fixture gh-object.json <<<'{}'
+  GITHUB_EVIDENCE_RELEASES=gh-object.json world github
+  run --separate-stderr call attestations
+  [ "$status" -eq 1 ] && [ -z "$output" ] || { echo "${output}"; return 1; }
+  [ "$stderr" = '❌ run: gh auth status (the attestations could not be read)' ]
+  GITHUB_EVIDENCE_ARTIFACTS=gh-object.json world github
+  run --separate-stderr call attestations
+  [ "$status" -eq 1 ] && [ -z "$output" ] || { echo "${output}"; return 1; }
   # a read GitHub refuses fails, saying so
   GITHUB_ATTESTATIONS='!1' world github
   run --separate-stderr call attestations
@@ -2115,15 +2125,25 @@ JSON
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
   [ "$(jq --compact-output 'del(.age)' <<<"$output" | paste -sd, -)" \
     = '{"number":4,"rule":"js/xss","severity":"high","state":"open","path":"src/app.js",'\
-'"url":"https://github.com/empowerite/example/security/code-scanning/4"},'\
+'"url":"https://github.com/empowerite/example/security/code-scanning/4","by":null,"reason":null},'\
 '{"number":2,"rule":"js/unused-local-variable","severity":"note","state":"dismissed","path":"src/old.js",'\
-'"url":"https://github.com/empowerite/example/security/code-scanning/2"}' ]
+'"url":"https://github.com/empowerite/example/security/code-scanning/2","by":"bob","reason":"false positive"}' ]
   [ "$(jq --raw-output '.age > 0' <<<"$output" | sort -u)" = true ]
   run --separate-stderr call dependabot-alerts
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
   [ "$(jq --compact-output 'del(.age)' <<<"$output")" \
     = '{"number":1,"rule":"GHSA-35jh-r3h4-6jhm","severity":"high","state":"dismissed","path":"package-lock.json",'\
-'"url":"https://github.com/empowerite/example/security/dependabot/1"}' ]
+'"url":"https://github.com/empowerite/example/security/dependabot/1","by":"ada",'\
+'"reason":"tolerable_risk: only in tests"}' ]
+  # an alert dismissed between the open and the dismissed reads, or updated while its pages are read, is on two
+  # pages, and is drawn once, as the last read gives it
+  jq '.[0] += [.[0][0] | .state = "dismissed" | .dismissed_by = {login: "ada"}]' "${FAKE_DIR}/gh-code-open.json" \
+    | fixture gh-code-twice.json
+  GITHUB_CODE_DISMISSED=gh-code-twice.json world github
+  run --separate-stderr call code-scanning-alerts
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --compact-output '[.number, .state, .by]' <<<"$output" | paste -sd, -)" = '[4,"dismissed","ada"]' ]
+  world github
   run --separate-stderr call secret-scanning-alerts
   [ "$status" -eq 3 ]
   [ -z "$output$stderr" ]
@@ -2139,7 +2159,8 @@ JSON
   run --separate-stderr call secret-scanning-alerts
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
   [ "$(jq --compact-output 'del(.age)' <<<"$output")" \
-    = '{"number":9,"rule":"github_personal_access_token","severity":null,"state":"dismissed","path":".env","url":"s"}' ]
+    = '{"number":9,"rule":"github_personal_access_token","severity":null,"state":"dismissed","path":".env",'\
+'"url":"s","by":null,"reason":"wont_fix"}' ]
   grep --quiet 'state=resolved&resolution=false_positive,wont_fix,used_in_tests&sort=updated' "${FAKE_DIR}/gh.calls"
   # GitLab reads its vulnerability report, a scanner each, in GraphQL
   world gitlab
@@ -2147,11 +2168,11 @@ JSON
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
   [ "$(jq --compact-output 'del(.age)' <<<"$output")" \
     = '{"number":4,"rule":"CWE-79","severity":"high","state":"open","path":"src/app.js",'\
-'"url":"https://gitlab.com/empowerite/example/-/security/vulnerabilities/4"}' ]
+'"url":"https://gitlab.com/empowerite/example/-/security/vulnerabilities/4","by":null,"reason":null}' ]
   run --separate-stderr call dependabot-alerts
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
-  [ "$(jq --compact-output '[.number, .state, .path, (.age > 0)]' <<<"$output")" \
-    = '[1,"dismissed","package-lock.json",true]' ]
+  [ "$(jq --compact-output '[.number, .state, .path, (.age > 0), .by, .reason]' <<<"$output")" \
+    = '[1,"dismissed","package-lock.json",true,"ada","acceptable_risk: only in tests"]' ]
   run --separate-stderr call secret-scanning-alerts
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
   [ -z "$output" ]
@@ -2183,6 +2204,19 @@ JSON
   GITHUB_DEPENDABOT='!1 gh-said.txt' world github
   run --separate-stderr call dependabot-alerts
   [ "$status" -eq 3 ]
+  # a rate limit, primary or secondary, answers 403 too, and is named as one, never a refusal
+  for said in 'gh: API rate limit exceeded for user ID 1. (HTTP 403)' \
+    'gh: You have exceeded a secondary rate limit. Please wait a few minutes before you try again. (HTTP 403)'
+  do
+    printf '%s\n' "${said}" | fixture gh-said.txt
+    GITHUB_DEPENDABOT='!1 gh-said.txt' world github
+    route gh 'api rate_limit' '!1'
+    run --separate-stderr call dependabot-alerts
+    [ "$status" -eq 1 ] || { echo "${said}: ${status}"; return 1; }
+    [[ "$stderr" == *'rate limit'*'(the Dependabot alerts could not be read)' ]] || { echo "${stderr}"; return 1; }
+    [[ "$stderr" != *'admin'* ]]
+    ! grep --quiet 'api --include' "${FAKE_DIR}/gh.calls"
+  done
   # a login without a scope GitHub accepts for the alerts is told the one to add
   printf '%s\n' 'gh: Resource not accessible by integration (HTTP 403)' | fixture gh-said.txt
   printf 'HTTP/2.0 403 Forbidden\r\nX-Oauth-Scopes: gist, read:org\r\n%s\r\n\r\n{}\n' \
@@ -2267,19 +2301,14 @@ JSON
   done
 }
 
-@test "GitHub lists the waivers: who may bypass each control, and each alert dismissed, by whom and why" {
+@test "GitHub lists who may bypass each control, and the bypassers it hides, or kit cannot name, are one waiver" {
   world github
   run --separate-stderr call bypasses
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
-  local expected='{"waives":7,"actor":"release","kind":"bypass","reason":"always","by":null,"until":null,'
-  expected+='"url":"https://github.com/empowerite/example/rules/7"}'$'\n'
-  expected+='{"waives":"code-scanning 2","actor":null,"kind":"dismissal","reason":"false positive","by":"bob",'
-  expected+='"until":null,"url":"https://github.com/empowerite/example/security/code-scanning/2"}'$'\n'
-  expected+='{"waives":"dependabot 1","actor":null,"kind":"dismissal","reason":"tolerable_risk: only in tests",'
-  expected+='"by":"ada","until":null,"url":"https://github.com/empowerite/example/security/dependabot/1"}'
-  [ "$output" = "${expected}" ] || { echo "${output}"; return 1; }
-  # the dismissed alerts alone are read again, secret scanning's being off
-  grep --quiet 'dependabot/alerts?state=dismissed&sort=updated' "${FAKE_DIR}/gh.calls"
+  [ "$output" = '{"waives":7,"actor":"release","kind":"bypass","reason":"always","by":null,"until":null,'\
+'"hidden":null,"url":"https://github.com/empowerite/example/rules/7"}' ] || { echo "${output}"; return 1; }
+  # the alerts are not read: a dismissal is a row of the alerts calls
+  ! grep --quiet 'alerts' "${FAKE_DIR}/gh.calls"
   # a branch protection's own allowances bypass its pull request rule
   jq '.protection.enabled = true' "${FAKE_DIR}/gh-branch.json" | fixture gh-branch-protected.json
   GITHUB_BRANCH=gh-branch-protected.json world github
@@ -2287,33 +2316,55 @@ JSON
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
   [ "$(jq --compact-output 'select(.waives == "protection") | [.actor, .reason]' <<<"$output" | paste -sd, -)" \
     = '["ada","pull_request"],["release-bot","pull_request"]' ]
-  # GitHub hides a ruleset's bypass actors from who may not edit it: a bypass is there, by someone unknown, in a mode
-  # unknown; an organization's admins and a role are named as such
-  jq '.data.repository.rulesets.nodes[0].bypassActors.nodes = [null,
+  # GitHub hides a ruleset's bypass actors from who may not edit it: the two hidden are one waiver, by someone
+  # unknown, in a mode unknown, which says how many; an organization's admins and a role are named as such
+  jq '.data.repository.rulesets.nodes[0].bypassActors.nodes = [null, null,
         {bypassMode: "PULL_REQUEST", organizationAdmin: true, actor: null},
         {bypassMode: "EXEMPT", repositoryRoleName: "maintain", actor: null}]
-      | .data.repository.rulesets.nodes[0].bypassActors.totalCount = 3' "${FAKE_DIR}/gh-rulesets.json" \
+      | .data.repository.rulesets.nodes[0].bypassActors.totalCount = 4' "${FAKE_DIR}/gh-rulesets.json" \
     | fixture gh-rulesets-hidden.json
   GITHUB_RULESETS=gh-rulesets-hidden.json world github
   run --separate-stderr call bypasses
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
-  [ "$(jq --compact-output 'select(.kind == "bypass") | [.actor, .reason]' <<<"$output" | paste -sd, -)" \
-    = '[null,null],["organization admins","pull_request"],["maintain role","exempt"]' ] \
+  [ "$(jq --compact-output '[.actor, .reason, .hidden]' <<<"$output" | paste -sd, -)" \
+    = '["organization admins","pull_request",null],["maintain role","exempt",null],[null,null,2]' ] \
     || { echo "${output}"; return 1; }
-  # a dismissed alert's read refused fails the waivers, which would be partial
-  fixture gh-said.txt <<<'gh: Server Error (HTTP 500)'
-  GITHUB_DEPENDABOT='!1 gh-said.txt' world github
-  run --separate-stderr call bypasses
-  [ "$status" -eq 1 ]
-  [ -z "$output" ]
-  [ "$stderr" = '❌ run: gh auth status (the dismissed Dependabot alerts could not be read)' ]
-  # GitLab keeps no waivers kit reads
+  # GitLab keeps no bypasses kit reads
   world gitlab
   run --separate-stderr call bypasses
   [ "$status" -eq 3 ]
 }
 
-@test "a GitHub scanner that refuses the caller leaves the mark of the alerts unknown, and the other marks stand" {
+@test "a login without read:org is asked for the rulesets once more, without the teams, which go unnamed" {
+  local said="gh: Your token has not been granted the required scopes to execute this query. The 'slug' field"
+  said+=" requires one of the following scopes: ['read:org'], but your token has only been granted the: ['repo']"
+  said+=" scopes. (INSUFFICIENT_SCOPES)"
+  printf '%s\n' "${said}" | fixture gh-org.txt
+  world github
+  jq '.data.repository.rulesets.nodes[0].bypassActors.nodes[0].actor = {__typename: "Team"}' \
+    "${FAKE_DIR}/gh-rulesets.json" | fixture gh-rulesets-teamless.json
+  { printf '%s\t%s\n' 'api graphql*rulesets(first: 100*... on Team { slug }*' '!1 gh-org.txt' \
+      'api graphql*rulesets(first: 100*' gh-rulesets-teamless.json
+    cat "${FAKE_DIR}/gh.routes"; } > "${FAKE_DIR}/routes.tmp" && mv "${FAKE_DIR}/routes.tmp" "${FAKE_DIR}/gh.routes"
+  : > "${FAKE_DIR}/gh.calls"
+  run --separate-stderr call rulesets
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --raw-output .control <<<"$output")" = main ]
+  [ -z "$stderr" ]
+  # the query spans lines of the calls' record: one rulesets line a request, the second without the team's slug
+  [ "$(grep -c 'rulesets(first: 100' "${FAKE_DIR}/gh.calls")" -eq 2 ]
+  [ "$(grep -c '... on Team { slug }' "${FAKE_DIR}/gh.calls")" -eq 1 ]
+  run --separate-stderr call bypasses
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --compact-output '[.waives, .actor, .hidden]' <<<"$output")" = '[7,null,1]' ]
+  # a refusal that is not of a team's field fails, naming the scope GitHub names
+  printf '%s\n' "${said/'read:org'/'admin:org'}" | sed "s/The 'slug' field/The 'x' field/" | fixture gh-org.txt
+  run --separate-stderr call rulesets
+  [ "$status" -eq 1 ]
+  [ "$stderr" = '❌ run: gh auth refresh --scopes admin:org (the rulesets could not be read)' ]
+}
+
+@test "a GitHub scanner that refuses the caller marks the alerts refused, so the mark stays live for the others" {
   printf 'HTTP/2.0 403 Forbidden\r\n\r\n{"message":"You are not authorized to read code scanning alerts."}\n' \
     > "${FAKE_DIR}/code-403.txt"
   printf 'HTTP/2.0 200 OK\r\nETag: W/"x"\r\n\r\n[]\n' > "${FAKE_DIR}/other-200.txt"
@@ -2323,7 +2374,7 @@ JSON
   route gh 'api --include*' other-200.txt
   run --separate-stderr call marks
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
-  [ "$(jq --compact-output '[.alerts, .runs]' <<<"$output")" = '[null,"W/\"x\""]' ]
+  [ "$(jq --compact-output '[.alerts, .runs]' <<<"$output")" = '["refused W/\"x\" W/\"x\"","W/\"x\""]' ]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
