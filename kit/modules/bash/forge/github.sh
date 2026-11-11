@@ -208,12 +208,13 @@ forge/github:link-branch() {
 # forge/github:marks [<dir>] reads, for each kind of the repository's data, a mark that changes when it does: issues,
 # of the issue or pull request updated last, as GitHub lists them together; runs, of the ten newest workflow runs;
 # releases, of the newest release; milestones, of the first 100 milestones, the page the read takes first, so an edit
-# to a milestone past the first 100 goes unseen. A mark is GitHub's ETag for the answer. With <dir>, each ETag is
-# kept there and the next read sends it, so GitHub answers 304 Not Modified while nothing changed, which counts against
-# no rate limit.
+# to a milestone past the first 100 goes unseen; deployments, of the 50 newest deployments, each of which a new status
+# updates, whoever made it; environments, of the first 100 environments, with their protection. A mark is GitHub's
+# ETag for the answer. With <dir>, each ETag is kept there and the next read sends it, so GitHub answers 304 Not
+# Modified while nothing changed, which counts against no rate limit.
 # gh names the repository from the checkout's remote, as {owner}/{repo}, which costs no request.
 forge/github:marks() {
-  local dir=${1:-} issues runs releases milestones
+  local dir=${1:-} issues runs releases milestones deployments environments
   issues=$(forge/github:mark 'repos/{owner}/{repo}/issues?state=all&sort=updated&direction=desc&per_page=1' \
     "${dir:+${dir}/marks-issues.etag}") || return 1
   runs=$(forge/github:mark 'repos/{owner}/{repo}/actions/runs?per_page=10' "${dir:+${dir}/marks-runs.etag}") \
@@ -222,8 +223,14 @@ forge/github:marks() {
     || return 1
   milestones=$(forge/github:mark 'repos/{owner}/{repo}/milestones?state=all&per_page=100' \
     "${dir:+${dir}/marks-milestones.etag}") || return 1
+  deployments=$(forge/github:mark 'repos/{owner}/{repo}/deployments?per_page=50' \
+    "${dir:+${dir}/marks-deployments.etag}") || return 1
+  environments=$(forge/github:mark 'repos/{owner}/{repo}/environments?per_page=100' \
+    "${dir:+${dir}/marks-environments.etag}") || return 1
   jq --null-input --compact-output --arg issues "${issues}" --arg runs "${runs}" --arg releases "${releases}" \
-    --arg milestones "${milestones}" '{issues: $issues, runs: $runs, releases: $releases, milestones: $milestones}'
+    --arg milestones "${milestones}" --arg deployments "${deployments}" --arg environments "${environments}" \
+    '{issues: $issues, runs: $runs, releases: $releases, milestones: $milestones, deployments: $deployments,
+      environments: $environments}'
 }
 
 forge/github:me() {

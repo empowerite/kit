@@ -212,15 +212,18 @@ def gitlab_quota:
                else [{name: ($h.name // "api"), limit: $limit, remaining: $remaining,
                       reset: ($h.reset // "" | number)}] end) };
 
-# gitlab_marks($issues; $mrs; $runs; $releases; $milestones) reads GitLab's newest issue and merge request by update,
-# its ten newest pipelines, its newest release, and its newest milestone by update, and gives a mark of each kind: what
-# each says of its items and when they changed, as one text, so a mark changes when one of them does. A milestone's own
-# update does not move when its issues close, so its mark holds the newest issue too.
-def gitlab_marks($issues; $mrs; $runs; $releases; $milestones):
+# gitlab_marks($issues; $mrs; $runs; $releases; $milestones; $deployments; $environments) reads GitLab's newest issue
+# and merge request by update, its ten newest pipelines, its newest release, its newest milestone by update, its
+# deployment updated last, and its first 100 environments, and gives a mark of each kind: what each says of its items
+# and when they changed, as one text, so a mark changes when one of them does. A milestone's own update does not move
+# when its issues close, so its mark holds the newest issue too.
+def gitlab_marks($issues; $mrs; $runs; $releases; $milestones; $deployments; $environments):
   { issues: ([$issues[]?, $mrs[]? | [.iid, .updated_at]] | tojson),
     runs: ([$runs[]? | [.id, .status, .updated_at]] | tojson),
     releases: ([$releases[]? | [.tag_name, .released_at]] | tojson),
-    milestones: ([$milestones[]?, $issues[]? | [.iid, .updated_at]] | tojson) };
+    milestones: ([$milestones[]?, $issues[]? | [.iid, .updated_at]] | tojson),
+    deployments: ([$deployments[]? | [.id, .status, .updated_at]] | tojson),
+    environments: ([$environments[]? | [.id, .name, .state, .updated_at]] | tojson) };
 
 # gitlab_runs reads a pipeline's jobs and gives its runs.
 def gitlab_runs:
@@ -608,32 +611,36 @@ def artifact($now):
    expires: (.expires | if . == null then null else epoch end), url};
 
 # github_artifacts($now; $url) reads GitHub's page of the repository's artifacts, the newest first, and gives one
-# document per artifact, its page under $url, the repository's, beside its run's; then {"limited": N} when GitHub
-# holds more than the N on the page. An artifact of a run GitHub no longer names is its download.
+# document per artifact that has not expired, as one that has can no longer be downloaded, its page under $url, the
+# repository's, beside its run's; then {"limited": N} when GitHub holds more than the page, N those drawn. An artifact
+# of a run GitHub no longer names is its download.
 def github_artifacts($now; $url):
   (.artifacts // []) as $all
-  | ($all[] | { id, name, digest, size: .size_in_bytes, run: .workflow_run.id, made: .created_at,
-                expires: .expires_at,
-                url: (if .workflow_run.id then "\($url)/actions/runs/\(.workflow_run.id)/artifacts/\(.id)"
-                      else .archive_download_url end) }
-     | artifact($now)),
-    (if (.total_count // 0) > ($all | length) then {limited: ($all | length)} else empty end);
+  | [$all[] | select(.expired != true)
+     | { id, name, digest, size: .size_in_bytes, run: .workflow_run.id, made: .created_at, expires: .expires_at,
+         url: (if .workflow_run.id then "\($url)/actions/runs/\(.workflow_run.id)/artifacts/\(.id)"
+               else .archive_download_url end) }
+     | artifact($now)] as $rows
+  | $rows[], (if (.total_count // 0) > ($all | length) then {limited: ($rows | length)} else empty end);
 
 # gitlab_artifacts($now; $limit) reads GitLab's newest successful jobs and gives one document per job that kept an
-# archive, the job's page its url: GitLab keeps no digest of it. A job that kept none is none. When the jobs read are
-# $limit, GitLab may hold more, and {"limited": N} follows the N drawn.
+# archive, named for the job and the file, "package: artifacts.zip", as most archives share that file's name, the job's
+# page its url: GitLab keeps no digest of it. A job that kept none is none. When the jobs read are $limit, GitLab may
+# hold more, and {"limited": N} follows the N drawn.
 def gitlab_artifacts($now; $limit):
   [.[] | select(.artifacts_file != null)
-   | { id, name: .artifacts_file.filename, digest: null, size: .artifacts_file.size, run: .pipeline.id,
+   | { id, name: (if .name then "\(.name): \(.artifacts_file.filename)" else .artifacts_file.filename end),
+       digest: null, size: .artifacts_file.size, run: .pipeline.id,
        made: (.finished_at // .created_at), expires: .artifacts_expire_at, url: .web_url } | artifact($now)] as $rows
   | $rows[], (if length >= $limit then {limited: ($rows | length)} else empty end);
 
 # ado_artifacts($now; $run; $results) reads az pipelines runs artifact list's answer for the run $run, as az pipelines
-# runs list gives it, and gives one document per artifact: Azure DevOps keeps no digest and no expiry of one, its size
-# only for a pipeline artifact, and its page is the run's artifacts, under $results, the project's build results. It
-# is as old as its run's end, or its queueing while it runs.
+# runs list gives it, and gives one document per artifact: its id "<run>/<id>", as Azure DevOps numbers an artifact
+# within its run; no digest and no expiry, which it keeps none of; its size only for a pipeline artifact; and its
+# page the run's artifacts, under $results, the project's build results. It is as old as its run's end, or its
+# queueing while it runs.
 def ado_artifacts($now; $run; $results):
-  .[] | { id, name, digest: null,
+  .[] | { id: "\($run.id)/\(.id)", name, digest: null,
           size: (.resource.properties.artifactsize // null | if . == null then null else tonumber? // null end),
           run: $run.id, made: ($run.finishTime // $run.queueTime), expires: null,
           url: "\($results)?buildId=\($run.id)&view=artifacts&type=publishedArtifacts" }

@@ -76,10 +76,11 @@ def artifact: ({key: .id} + del(.url) + {links: {name: .url}}) | linked;
 def environment: ({key: .name} + del(.url) + {links: {name: .url}}) | linked;
 
 # deployment reads a deployment the forge's deployments call prints and gives it keyed by its id: its environment
-# links to that row of the environments stage, its sha to the commit's page, and its state to its log or page.
+# links to that row of the environments stage, row:environments/<name>, its sha to the commit's page, and its state to
+# its log or page.
 def deployment:
   ({key: .id} + del(.url, .commit)
-   + {links: {environment: (if .environment == null then null else "row:delivery/environments/\(.environment)" end),
+   + {links: {environment: (if .environment == null then null else "row:environments/\(.environment)" end),
               sha: .commit, state: .url}})
   | linked;
 

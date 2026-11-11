@@ -210,7 +210,7 @@ fills `{owner}` and `{repo}` from the checkout, and reads every page with `--pag
 | Whether runs changed | `gh api --include -H "If-None-Match: ${etag}" 'repos/{owner}/{repo}/actions/runs?per_page=10'`, as kit's runs mark does |
 | A change's checks | `gh pr checks "${n}" --json name,state,bucket,link,workflow`; kit reads `statusCheckRollup` through `gh api graphql` |
 | A run's log | `gh run view "${run_id}" --log-failed`, or `--log`; one job with `--job "${job_id}"` |
-| Artifacts | list: `gh api 'repos/{owner}/{repo}/actions/artifacts?per_page=100'` (raw API; no `gh` command lists them), the newest 100, each with its `digest`, `size_in_bytes`, `workflow_run`, and `expires_at`, and `total_count` past the page saying there are more; `kit delivery artifacts` draws them; one run's: `gh api repos/{owner}/{repo}/actions/runs/${run_id}/artifacts`; download: `gh run download "${run_id}" --name "${name}"` |
+| Artifacts | list: `gh api 'repos/{owner}/{repo}/actions/artifacts?per_page=100'` (raw API; no `gh` command lists them), the newest 100, each with its `digest`, `size_in_bytes`, `workflow_run`, and `expires_at`, and `total_count` past the page saying there are more; `kit delivery artifacts` draws those not `expired`; one run's: `gh api repos/{owner}/{repo}/actions/runs/${run_id}/artifacts`; download: `gh run download "${run_id}" --name "${name}"` |
 
 ### Write to GitHub Actions
 
@@ -260,6 +260,7 @@ head branch shows on that pull request. Releases can be immutable: once publishe
 | List environments | `gh api --paginate --slurp 'repos/{owner}/{repo}/environments?per_page=100'` (raw API): each one's `protection_rules`, `required_reviewers` with its `reviewers`, `wait_timer`, or `branch_policy`, and `deployment_branch_policy`; `kit delivery environments` draws them |
 | An environment's branch policies | `gh api "repos/{owner}/{repo}/environments/${environment}/deployment-branch-policies?per_page=100"` (raw API), for one whose `deployment_branch_policy` has `custom_branch_policies`, each a `branch` or a `tag` pattern; kit reads 20 environments' at most |
 | Deployments in an environment | `gh api --paginate "repos/{owner}/{repo}/deployments?environment=${environment}&per_page=100"` (raw API) |
+| Whether deployments or environments changed | the ETags of `gh api --include 'repos/{owner}/{repo}/deployments?per_page=50'` and `'repos/{owner}/{repo}/environments?per_page=100'`, sent back with `If-None-Match`, as kit's deployments and environments marks do; a new status updates a deployment |
 | A deployment's state | `gh api --paginate "repos/{owner}/{repo}/deployments/${deployment_id}/statuses"` (raw API); the first status is the newest |
 | The newest deployments, each with its latest status | `gh api graphql` on `repository.deployments(first: 50, orderBy: {field: CREATED_AT, direction: DESC}) { totalCount nodes { databaseId environment ref { name } commitOid state createdAt creator { login } commit { url } latestStatus { state logUrl environmentUrl } } }` (raw API), a point; `kit delivery deployments` draws them |
 | What is live where | `gh api graphql` on `repository.environments.nodes { name latestCompletedDeployment { sha ref { name } latestStatus { state } } }` (raw API) |

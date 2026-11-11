@@ -55,14 +55,16 @@ JSON
   route gh 'api graphql*deployments(first: 50*' deployments.json
 }
 
-@test "kit delivery --stages prints artifacts, environments, then deployments, and --marks gives each the runs mark" {
+@test "kit delivery --stages prints its three stages, and --marks gives each the runs mark, with its own kind's" {
   run "${kit_root}/bin/kit" delivery --stages
   [ "$status" -eq 0 ]
   [ "$output" = $'artifacts\nenvironments\ndeployments' ]
   github-world
   run --separate-stderr "${kit_root}/bin/kit" delivery --marks
   [ "$status" -eq 0 ]
-  [ "$output" = '{"artifacts":"W/\"m1\"","environments":"W/\"m1\"","deployments":"W/\"m1\""}' ]
+  [ "$output" = '{"artifacts":"W/\"m1\"","environments":"W/\"m1\" W/\"m1\"","deployments":"W/\"m1\" W/\"m1\""}' ]
+  grep --quiet 'api --include repos/{owner}/{repo}/deployments?per_page=50' "${FAKE_DIR}/gh.calls"
+  grep --quiet 'api --include repos/{owner}/{repo}/environments?per_page=100' "${FAKE_DIR}/gh.calls"
 }
 
 @test "artifacts is a row per artifact, keyed by its id, its page the name's link" {
@@ -90,7 +92,7 @@ JSON
   run --separate-stderr "${kit_root}/bin/kit" delivery deployments --json
   [ "$status" -eq 0 ]
   expected='[{"key":9,"id":9,"environment":"production","ref":"release/0.1.0","sha":"8e817bf0","state":"success",'
-  expected+='"actor":"ada","links":{"environment":"row:delivery/environments/production",'
+  expected+='"actor":"ada","links":{"environment":"row:environments/production",'
   expected+='"sha":"https://github.com/o/r/commit/8e817bf0","state":"https://github.com/o/r/actions/runs/103/job/1"}}]'
   [ "$(jq -c '.rows | map(del(.age))' <<<"$output")" = "${expected}" ]
   [ "$(jq -c 'has("limited")' <<<"$output")" = false ]
@@ -103,12 +105,18 @@ JSON
   [ "$(jq -c '[(.rows | length), .rows[0].key, .limited]' <<<"$output")" = '[50,100,50]' ]
 }
 
-@test "kit delivery with --text prints a stage as text" {
+@test "kit delivery with --text prints a stage as text, and says where kit stopped reading" {
   github-world
   run --separate-stderr "${kit_root}/bin/kit" delivery deployments --text
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "id  environment  ref  "*"sha  "*"state  "*"actor  "*"age" ]]
   [[ "${lines[1]}" == "9  "*"production  "*"release/0.1.0  "*"success  "*"ada  "* ]]
+  [ "${#lines[@]}" -eq 2 ]
+  jq '.data.repository.deployments.totalCount = 60' "${FAKE_DIR}/deployments.json" > "${FAKE_DIR}/deployments.new" \
+    && mv "${FAKE_DIR}/deployments.new" "${FAKE_DIR}/deployments.json"
+  run --separate-stderr "${kit_root}/bin/kit" delivery deployments --text
+  [ "$status" -eq 0 ]
+  [ "${lines[-1]}" = 'kit read the first 1; the forge holds more' ]
 }
 
 @test "the other Delivery tabs are kit flow's: kit delivery releases or builds --json refuses with 2, naming it" {

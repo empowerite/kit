@@ -182,19 +182,24 @@ forge/gitlab:link-branch() {
 
 # forge/gitlab:marks [<dir>] reads, for each kind of the project's data, a mark that changes when it does: issues, of
 # the issue and the merge request updated last; runs, of the ten newest pipelines; releases, of the newest release;
-# milestones, of the newest by update and the newest issue, as an issue closing moves no milestone's own update.
-# GitLab sends no ETag for these, so each mark is what the answer says of when its items changed, and costs a request
-# each read, five in all.
+# milestones, of the newest by update and the newest issue, as an issue closing moves no milestone's own update;
+# deployments, of the one updated last, as a deployment's status moves its update; environments, of the first 100. An
+# edit to a protected environment moves no environment's update, so it goes unseen. GitLab sends no ETag for these, so
+# each mark is what the answer says of when its items changed, and costs a request each read, seven in all.
 forge/gitlab:marks() {
-  local issues mrs runs releases milestones
+  local issues mrs runs releases milestones deployments environments
   forge/gitlab:ask issues 'the marks' 'issues?order_by=updated_at&sort=desc&per_page=1' || return 1
   forge/gitlab:ask mrs 'the marks' 'merge_requests?order_by=updated_at&sort=desc&per_page=1' || return 1
   forge/gitlab:ask runs 'the marks' 'pipelines?per_page=10' || return 1
   forge/gitlab:ask releases 'the marks' 'releases?per_page=1' || return 1
   forge/gitlab:ask milestones 'the marks' 'milestones?sort=updated_desc&per_page=1' || return 1
+  forge/gitlab:ask deployments 'the marks' 'deployments?order_by=updated_at&sort=desc&per_page=1' || return 1
+  forge/gitlab:ask environments 'the marks' 'environments?per_page=100' || return 1
   forge/gitlab:fold 'the marks' '' --null-input --compact-output --argjson issues "${issues}" --argjson mrs "${mrs}" \
     --argjson runs "${runs}" --argjson releases "${releases}" --argjson milestones "${milestones}" \
-    'import "forge" as forge; forge::gitlab_marks($issues; $mrs; $runs; $releases; $milestones)'
+    --argjson deployments "${deployments}" --argjson environments "${environments}" \
+    'import "forge" as forge;
+     forge::gitlab_marks($issues; $mrs; $runs; $releases; $milestones; $deployments; $environments)'
 }
 
 forge/gitlab:me() {

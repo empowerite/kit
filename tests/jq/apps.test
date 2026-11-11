@@ -84,7 +84,8 @@ import "apps" as apps; apps::environment
 {"name": "prod", "protection": null, "approvers": null, "branches": null, "url": null}
 {"key":"prod","name":"prod","protection":null,"approvers":null,"branches":null,"links":{}}
 
-# A deployment's environment leads to that row of the environments stage, its sha to the commit, its state to its log.
+# A deployment's environment leads to that row of the environments stage, row:environments/<name>, its sha to the
+# commit, its state to its log.
 import "apps" as apps; map(apps::deployment)
 [{"id": 9, "environment": "prod", "ref": "main", "sha": "abc", "state": "success", "actor": "ada", "age": 1, "url": "l", "commit": "c"}, {"id": 8, "environment": null, "ref": null, "sha": null, "state": null, "actor": null, "age": null, "url": "l", "commit": null}]
-[{"key":9,"id":9,"environment":"prod","ref":"main","sha":"abc","state":"success","actor":"ada","age":1,"links":{"environment":"row:delivery/environments/prod","sha":"c","state":"l"}},{"key":8,"id":8,"environment":null,"ref":null,"sha":null,"state":null,"actor":null,"age":null,"links":{"state":"l"}}]
+[{"key":9,"id":9,"environment":"prod","ref":"main","sha":"abc","state":"success","actor":"ada","age":1,"links":{"environment":"row:environments/prod","sha":"c","state":"l"}},{"key":8,"id":8,"environment":null,"ref":null,"sha":null,"state":null,"actor":null,"age":null,"links":{"state":"l"}}]

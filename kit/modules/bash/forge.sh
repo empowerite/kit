@@ -64,8 +64,9 @@
 #   pr-url <n>                    the change's browser URL
 #   me                            the caller's login
 #   marks [<dir>]                 one JSON object, a mark for each kind of the repository's data, issues (with the
-#                                 changes), runs, releases, and milestones, each a text that changes when that data
-#                                 does, read cheaply; with <dir>, what makes the next read cheaper is kept there
+#                                 changes), runs, releases, milestones, deployments, and environments, each a text
+#                                 that changes when that data does, read cheaply; with <dir>, what makes the next read
+#                                 cheaper is kept there
 #   quota                         one JSON object, the caller's rate limits on the forge: {forge, limits}, each limit
 #                                 {name, limit, remaining, reset}, reset in seconds since the epoch; reading it costs
 #                                 at most one request
@@ -116,8 +117,10 @@
 #   merged-prs                    one JSON object per merged change, the 50 merged last, merged last first: {number,
 #                                 title, author, branch, merged, by, url}, merged seconds since the epoch, by who
 #                                 merged it (since 4)
-#   artifacts                     one JSON object per artifact of a run, newest first, the newest 100 at most: {id,
-#                                 name, digest, size, run, age, expires, url}; digest sha256:… or null, size in bytes,
+#   artifacts                     one JSON object per artifact of a run that can still be downloaded, newest first,
+#                                 the newest 100 at most: {id, name, digest, size, run, age, expires, url}; id unique
+#                                 among them, as <run>/<id> where the forge numbers them within a run; digest
+#                                 sha256:… or null, size in bytes,
 #                                 run the run's id, age seconds since it was made, expires seconds since the epoch or
 #                                 null, url its page (since 4)
 #   environments                  one JSON object per deployment environment: {name, protection, approvers, branches,
@@ -651,7 +654,8 @@ forge:marks() {
   if [[ -n "${choice}" ]]
   then
     span=$(( $(date +%s) / $(jq .every <<<"${choice}") ))
-    printf '{"issues":"%s","runs":"%s","releases":"%s","milestones":"%s"}\n' "${span}" "${span}" "${span}" "${span}"
+    jq --null-input --compact-output --arg span "${span}" \
+      '{issues: $span, runs: $span, releases: $span, milestones: $span, deployments: $span, environments: $span}'
     return 0
   fi
   dir=$(forge:snapshots 2>/dev/null) && mkdir -p "${dir}" 2>/dev/null || dir=''

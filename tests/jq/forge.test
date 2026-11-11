@@ -124,11 +124,12 @@ import "forge" as forge; [.[] | forge::gitlab_quota]
 [{"forge":"gitlab","limits":[{"name":"throttle_authenticated_api","limit":2000,"remaining":7,"reset":1000060}]},{"forge":"gitlab","limits":[]},{"forge":"gitlab","limits":[{"name":"api","limit":600,"remaining":599,"reset":null}]},{"forge":"gitlab","limits":[]}]
 
 # GitLab's marks are what its newest items say of when they changed: the issue and the merge request updated last
-# together, the pipelines' ids, states, and updates, the release's tag and time, and the milestone's number and update
-# with the newest issue's, as closing an issue moves no milestone's; none says an empty list.
-import "forge" as forge; forge::gitlab_marks([{"iid": 7, "updated_at": "a", "title": "x"}]; [{"iid": 3, "updated_at": "b"}]; [{"id": 11, "status": "running", "updated_at": "c"}]; []; [{"iid": 2, "updated_at": "d"}])
+# together, the pipelines' ids, states, and updates, the release's tag and time, the milestone's number and update
+# with the newest issue's, as closing an issue moves no milestone's, the deployment updated last, and the
+# environments; none says an empty list.
+import "forge" as forge; forge::gitlab_marks([{"iid": 7, "updated_at": "a", "title": "x"}]; [{"iid": 3, "updated_at": "b"}]; [{"id": 11, "status": "running", "updated_at": "c"}]; []; [{"iid": 2, "updated_at": "d"}]; [{"id": 9, "status": "success", "updated_at": "e"}]; [{"id": 1, "name": "prod", "state": "available", "updated_at": "f"}])
 null
-{"issues":"[[7,\"a\"],[3,\"b\"]]","runs":"[[11,\"running\",\"c\"]]","releases":"[]","milestones":"[[2,\"d\"],[7,\"a\"]]"}
+{"issues":"[[7,\"a\"],[3,\"b\"]]","runs":"[[11,\"running\",\"c\"]]","releases":"[]","milestones":"[[2,\"d\"],[7,\"a\"]]","deployments":"[[9,\"success\",\"e\"]]","environments":"[[1,\"prod\",\"available\",\"f\"]]"}
 
 # GitHub's open issues fold into one document each, oldest first, with the assignees by login, the labels by name and
 # color, the age in seconds, and the organization and the repository their url names, or null without one.
@@ -282,26 +283,26 @@ import "forge" as forge; forge::gitlab_merged_by_update(2)
 {"number":9,"title":"Nine","author":"bob","branch":"b9","merged":999900,"by":"ada","url":"u9"}
 {"limited":1}
 
-# A GitHub artifact of a run GitHub no longer names is its download, and one with no digest, no time, or no expiry has
-# none; past the page, the list says it stopped at those drawn.
+# A GitHub artifact of a run GitHub no longer names is its download, one with no digest, no time, or no expiry has
+# none, and one expired is none; past the page, the list says it stopped at those drawn.
 import "forge" as forge; forge::github_artifacts(1000000; "https://github.com/o/r")
-{"total_count": 3, "artifacts": [{"id": 13, "name": "a", "size_in_bytes": 5, "digest": "sha256:ab", "created_at": "1970-01-12T13:40:00Z", "expires_at": "1970-01-12T13:50:00Z", "workflow_run": {"id": 7}}, {"id": 12, "name": "b", "size_in_bytes": 6, "digest": null, "created_at": null, "expires_at": null, "workflow_run": null, "archive_download_url": "z"}]}
+{"total_count": 4, "artifacts": [{"id": 13, "name": "a", "size_in_bytes": 5, "digest": "sha256:ab", "created_at": "1970-01-12T13:40:00Z", "expires_at": "1970-01-12T13:50:00Z", "workflow_run": {"id": 7}}, {"id": 12, "name": "b", "size_in_bytes": 6, "digest": null, "created_at": null, "expires_at": null, "workflow_run": null, "archive_download_url": "z"}, {"id": 11, "name": "c", "expired": true}]}
 {"id":13,"name":"a","digest":"sha256:ab","size":5,"run":7,"age":400,"expires":1000200,"url":"https://github.com/o/r/actions/runs/7/artifacts/13"}
 {"id":12,"name":"b","digest":null,"size":6,"run":null,"age":null,"expires":null,"url":"z"}
 {"limited":2}
 
-# A GitLab job that kept no archive is no artifact, and GitLab names no digest of one; a page of $limit jobs may not
-# be all of them.
+# A GitLab job that kept no archive is no artifact, one is named for its job and its file, and GitLab names no digest
+# of one; a page of $limit jobs may not be all of them.
 import "forge" as forge; forge::gitlab_artifacts(1000000; 2)
-[{"id": 13, "artifacts_file": {"filename": "a.zip", "size": 5}, "pipeline": {"id": 7}, "finished_at": null, "created_at": "1970-01-12T13:40:00Z", "artifacts_expire_at": null, "web_url": "u"}, {"id": 12, "artifacts": []}]
-{"id":13,"name":"a.zip","digest":null,"size":5,"run":7,"age":400,"expires":null,"url":"u"}
+[{"id": 13, "name": "package", "artifacts_file": {"filename": "a.zip", "size": 5}, "pipeline": {"id": 7}, "finished_at": null, "created_at": "1970-01-12T13:40:00Z", "artifacts_expire_at": null, "web_url": "u"}, {"id": 12, "artifacts": []}]
+{"id":13,"name":"package: a.zip","digest":null,"size":5,"run":7,"age":400,"expires":null,"url":"u"}
 {"limited":1}
 
-# An Azure DevOps artifact's size is a pipeline artifact's alone, and it is as old as its run.
+# An Azure DevOps artifact is its run's, by id, its size a pipeline artifact's alone, and it is as old as its run.
 import "forge" as forge; forge::ado_artifacts(1000000; {"id": 7, "finishTime": null, "queueTime": "1970-01-12T13:40:00Z"}; "r")
 [{"id": 1, "name": "a", "resource": {"properties": {"artifactsize": "5"}}}, {"id": 2, "name": "b", "resource": {"type": "Container"}}]
-{"id":1,"name":"a","digest":null,"size":5,"run":7,"age":400,"expires":null,"url":"r?buildId=7&view=artifacts&type=publishedArtifacts"}
-{"id":2,"name":"b","digest":null,"size":null,"run":7,"age":400,"expires":null,"url":"r?buildId=7&view=artifacts&type=publishedArtifacts"}
+{"id":"7/1","name":"a","digest":null,"size":5,"run":7,"age":400,"expires":null,"url":"r?buildId=7&view=artifacts&type=publishedArtifacts"}
+{"id":"7/2","name":"b","digest":null,"size":null,"run":7,"age":400,"expires":null,"url":"r?buildId=7&view=artifacts&type=publishedArtifacts"}
 
 # A GitHub environment with no branch policy takes any branch, one for protected branches says so, and a tag's policy
 # is its ref; the list stops before the environment past $limit of those with policies of their own.

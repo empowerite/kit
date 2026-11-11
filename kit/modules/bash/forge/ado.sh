@@ -43,10 +43,10 @@
 # see: modules/bash/forge.sh, modules/bash/tracker/ado.sh
 
 # forge/ado:artifacts prints one document per artifact of the project's 20 newest pipeline runs, newest first, as the
-# seam's header says: a read of 21 runs, then a read of each of the 20 newest's artifacts, and {"limited": N} after the
-# N drawn when a 21st says there are more runs.
+# seam's header says: a read of 21 runs, then a read of each of the 20 newest's artifacts, until 100 are drawn. It
+# prints {"limited": N} after the N drawn when it stopped at 100, or when a 21st run says there are more.
 forge/ado:artifacts() {
-  local org project runs id run artifacts results docs='' doc
+  local org project runs id run artifacts results docs='' doc drawn=0
   local -a ids
   IFS=$'\t' read -r org project _ < <(forge/ado:place) || return 1
   results="${org}/$(forge/ado:encode "${project}")/_build/results"
@@ -63,10 +63,12 @@ forge/ado:artifacts() {
       --argjson run "${run}" --arg results "${results}" \
       'import "forge" as forge; forge::ado_artifacts($now; $run; $results)') || return 1
     [[ -z "${doc}" ]] || docs+=${doc}$'\n'
+    drawn=$(jq --slurp length <<<"${docs}")
+    (( drawn < 100 )) || break
   done
-  printf '%s' "${docs}"
-  jq --compact-output --argjson drawn "$(jq --slurp length <<<"${docs}")" \
-    'if length > 20 then {limited: $drawn} else empty end' <<<"${runs}"
+  [[ -z "${docs}" ]] || sed -n '1,100p' <<<"${docs%$'\n'}"
+  jq --compact-output --argjson drawn "${drawn}" \
+    'if $drawn >= 100 then {limited: 100} elif length > 20 then {limited: $drawn} else empty end' <<<"${runs}"
 }
 
 forge/ado:attestations() { return 3; }
@@ -97,9 +99,11 @@ forge/ado:collaborators() { return 3; }
 forge/ado:dependabot-alerts() { return 3; }
 
 # forge/ado:deployments prints one document per deployment, newest first, as the seam's header says: Azure DevOps keeps
-# them as each environment's deployment records, so it reads the environments, then the newest 50 records of each of
-# the 20 changed last, and the project's 100 newest runs, which name each record's branch, commit, and who asked for
-# it. {"limited": N} follows the N drawn when more than 20 environments, or more than 50 records, are there.
+# them as each environment's deployment records, so it reads the environments, then the newest 51 records of each of
+# the 20 changed last, as Azure DevOps lists them, which its reference leaves unsaid and is taken to be newest first,
+# and the project's 100 newest runs, which name each record's branch, commit, and who asked for it. {"limited": N}
+# follows the N drawn when more than 20 environments are there, an environment gives a 51st record, or the records
+# read are more than 50.
 forge/ado:deployments() {
   local org project repo envs id records all='[]' runs cut=false base
   local -a ids
@@ -115,9 +119,10 @@ forge/ado:deployments() {
     [[ -n "${id}" ]] || continue
     forge/ado:ask records "the deployments of environment ${id}" devops invoke --area distributedtask \
       --resource environmentdeploymentrecords --route-parameters "project=${project}" "environmentId=${id}" \
-      --query-parameters top=50 --api-version 7.1 || return 1
+      --query-parameters top=51 --api-version 7.1 || return 1
     all=$(forge/ado:fold "the deployments of environment ${id}" "${all}" --compact-output \
       --argjson records "${records}" '. + ($records.value | arrays // error)') || return 1
+    [[ "$(jq '.value | length' <<<"${records}")" -le 50 ]] || cut=true
   done
   forge/ado:ask runs 'the deployments' pipelines runs list --project "${project}" --top 100 \
     --query-order QueueTimeDesc || return 1

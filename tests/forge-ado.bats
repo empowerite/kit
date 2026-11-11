@@ -411,9 +411,9 @@ JSON
 '--query-parameters $expand=settings --http-method POST --in-file * --api-version 7.1-preview.1 --output json' \
     checks.json
   az-route "${env} --resource environmentdeploymentrecords --route-parameters project=empowerite environmentId=1 \
---query-parameters top=50 --api-version 7.1 --output json" records-1.json
+--query-parameters top=51 --api-version 7.1 --output json" records-1.json
   az-route "${env} --resource environmentdeploymentrecords --route-parameters project=empowerite environmentId=* \
---query-parameters top=50 --api-version 7.1 --output json" records-none.json
+--query-parameters top=51 --api-version 7.1 --output json" records-none.json
 }
 
 # ado-first <glob> <response> puts a route for az before every other, so it answers before delivery-world's own.
@@ -424,7 +424,7 @@ ado-first() {
 
 @test "the provider lists the artifacts of the 20 newest runs, as the others do, with no digest Azure DevOps keeps" {
   delivery-world
-  expected='{"id":13,"name":"kit-0.1.0.tar.gz","digest":null,"size":2048,"run":103,"expires":null,'
+  expected='{"id":"103/13","name":"kit-0.1.0.tar.gz","digest":null,"size":2048,"run":103,"expires":null,'
   expected+='"url":"https://dev.azure.com/acme/empowerite/_build/results?buildId=103'
   expected+='&view=artifacts&type=publishedArtifacts"}'
   run --separate-stderr call artifacts
@@ -440,6 +440,15 @@ ado-first() {
   [ "$(jq --slurp --compact-output '[length, .[0].run, .[19].run, .[20]]' <<<"$output")" \
     = '[21,200,181,{"limited":20}]' ]
   [ "$(grep -c 'runs artifact list' "${FAKE_DIR}/az.calls")" -eq 20 ]
+  # past 100 artifacts, those of the newest runs are drawn and the list says it stopped, the runs past unread
+  jq '[range(6) as $i | .[0] | .id = $i]' "${FAKE_DIR}/run-artifacts.json" | fixture run-artifacts-6.json
+  ado-first 'pipelines runs artifact list *' run-artifacts-6.json
+  : > "${FAKE_DIR}/az.calls"
+  run --separate-stderr call artifacts
+  [ "$status" -eq 0 ]
+  [ "$(jq --slurp --compact-output '[length, .[0].id, .[99].id, .[100]]' <<<"$output")" \
+    = '[101,"200/0","184/3",{"limited":100}]' ]
+  [ "$(grep -c 'runs artifact list' "${FAKE_DIR}/az.calls")" -eq 17 ]
 }
 
 @test "the provider lists its environments, their approvals and branch controls read in one request for them all" {
@@ -482,6 +491,16 @@ ado-first() {
   run --separate-stderr call deployments
   [ "$status" -eq 0 ]
   [ "$(jq --slurp --compact-output '[length, .[0].id, .[1].id, .[50]]' <<<"$output")" = '[51,229,129,{"limited":50}]' ]
+  # one environment that holds more than 50 gives its 51st, and the list says it stopped
+  jq '.value = [range(51) as $i | .value[0] | .id = (300 + $i)]' "${FAKE_DIR}/records-1.json" | fixture records-51.json
+  ado-first "devops invoke --area distributedtask --resource environmentdeploymentrecords \
+--route-parameters project=empowerite environmentId=1 *" records-51.json
+  ado-first "devops invoke --area distributedtask --resource environmentdeploymentrecords \
+--route-parameters project=empowerite environmentId=2 *" records-none.json
+  run --separate-stderr call deployments
+  [ "$status" -eq 0 ]
+  [ "$(jq --slurp --compact-output '[length, .[50]]' <<<"$output")" = '[51,{"limited":50}]' ]
+  grep --quiet 'top=51' "${FAKE_DIR}/az.calls"
   # past 20 environments, the 20 changed last are read, and the list says it stopped at their deployments
   jq '.value = [range(21) as $i | .value[0] | .id = (1 + $i) | .name = "env-\($i)"
                 | .lastModifiedOn = "2026-10-\(10 + $i)T10:00:00Z"]' "${FAKE_DIR}/environments.json" \

@@ -533,24 +533,32 @@ JSON
   printf 'HTTP/2.0 200 OK\r\nETag: W/"%s"\r\n\r\n{}\n' r1 > "${FAKE_DIR}/runs-200.txt"
   printf 'HTTP/2.0 200 OK\r\netag: W/"%s"\r\n\r\n[]\n' v1 > "${FAKE_DIR}/releases-200.txt"
   printf 'HTTP/2.0 200 OK\r\nETag: W/"%s"\r\n\r\n[]\n' m1 > "${FAKE_DIR}/milestones-200.txt"
+  printf 'HTTP/2.0 200 OK\r\nETag: W/"%s"\r\n\r\n[]\n' d1 > "${FAKE_DIR}/deployments-200.txt"
+  printf 'HTTP/2.0 200 OK\r\nETag: W/"%s"\r\n\r\n{}\n' e1 > "${FAKE_DIR}/environments-200.txt"
   printf 'HTTP/2.0 304 Not Modified\r\n\r\n' > "${FAKE_DIR}/304.txt"
   world github
   route gh 'api --include --header If-None-Match: W/"i1" repos/{owner}/{repo}/issues*' '!1 >304.txt'
   route gh 'api --include --header If-None-Match: W/"r1" repos/{owner}/{repo}/actions/runs*' '!1 >304.txt'
   route gh 'api --include --header If-None-Match: W/"m1" repos/{owner}/{repo}/milestones*' '!1 >304.txt'
+  route gh 'api --include --header If-None-Match: W/"d1" repos/{owner}/{repo}/deployments*' '!1 >304.txt'
+  route gh 'api --include --header If-None-Match: W/"e1" repos/{owner}/{repo}/environments*' '!1 >304.txt'
   route gh 'api --include repos/{owner}/{repo}/issues?state=all&sort=updated&direction=desc&per_page=1' issues-200.txt
   route gh 'api --include repos/{owner}/{repo}/actions/runs?per_page=10' runs-200.txt
   route gh 'api --include*repos/{owner}/{repo}/releases?per_page=1' releases-200.txt
   route gh 'api --include*repos/{owner}/{repo}/milestones?state=all&per_page=100' milestones-200.txt
+  route gh 'api --include repos/{owner}/{repo}/deployments?per_page=50' deployments-200.txt
+  route gh 'api --include repos/{owner}/{repo}/environments?per_page=100' environments-200.txt
   run call marks
   [ "$status" -eq 0 ]
-  [ "$output" = '{"issues":"W/\"i1\"","runs":"W/\"r1\"","releases":"W/\"v1\"","milestones":"W/\"m1\""}' ]
+  [ "$output" = '{"issues":"W/\"i1\"","runs":"W/\"r1\"","releases":"W/\"v1\"","milestones":"W/\"m1\"",'\
+'"deployments":"W/\"d1\"","environments":"W/\"e1\""}' ]
   # the second read sends each ETag kept, and a 304 keeps the mark
   : > "${FAKE_DIR}/gh.calls"
   run call marks
   [ "$status" -eq 0 ]
-  [ "$output" = '{"issues":"W/\"i1\"","runs":"W/\"r1\"","releases":"W/\"v1\"","milestones":"W/\"m1\""}' ]
-  [ "$(grep --count 'If-None-Match' "${FAKE_DIR}/gh.calls")" -eq 4 ]
+  [ "$output" = '{"issues":"W/\"i1\"","runs":"W/\"r1\"","releases":"W/\"v1\"","milestones":"W/\"m1\"",'\
+'"deployments":"W/\"d1\"","environments":"W/\"e1\""}' ]
+  [ "$(grep --count 'If-None-Match' "${FAKE_DIR}/gh.calls")" -eq 6 ]
   # a change gives a new ETag, which is the new mark
   printf 'HTTP/2.0 200 OK\r\nEtag: W/"%s"\r\n\r\n[]\n' i2 > "${FAKE_DIR}/issues-200.txt"
   printf '%s\n' 'api --include --header If-None-Match: W/"i1" repos/{owner}/{repo}/issues*'$'\t''issues-200.txt' \
@@ -565,18 +573,24 @@ JSON
   fixture gl-pipelines.json <<<'[{"id": 11, "status": "success", "updated_at": "2026-11-03T09:00:00.000Z"}]'
   fixture gl-releases.json <<<'[{"tag_name": "v1", "released_at": "2026-11-04T09:00:00.000Z"}]'
   fixture gl-milestones.json <<<'[{"iid": 2, "updated_at": "2026-11-05T09:00:00.000Z"}]'
+  fixture gl-deployments.json <<<'[{"id": 9, "status": "success", "updated_at": "2026-11-06T09:00:00.000Z"}]'
+  fixture gl-environments.json <<<'[{"id": 1, "name": "production", "state": "available", "updated_at": "2026-11-07"}]'
   route glab "api ${p}/issues?order_by=updated_at&sort=desc&per_page=1" gl-issues.json
   route glab "api ${p}/merge_requests?order_by=updated_at&sort=desc&per_page=1" gl-mrs.json
   route glab "api ${p}/pipelines?per_page=10" gl-pipelines.json
   route glab "api ${p}/releases?per_page=1" gl-releases.json
   route glab "api ${p}/milestones?sort=updated_desc&per_page=1" gl-milestones.json
+  route glab "api ${p}/deployments?order_by=updated_at&sort=desc&per_page=1" gl-deployments.json
+  route glab "api ${p}/environments?per_page=100" gl-environments.json
   run call marks
   [ "$status" -eq 0 ]
-  [ "$(jq --raw-output '.issues, .runs, .releases, .milestones' <<<"$output")" = \
+  [ "$(jq --raw-output '.issues, .runs, .releases, .milestones, .deployments, .environments' <<<"$output")" = \
     '[[7,"2026-11-01T09:00:00.000Z"],[3,"2026-11-02T09:00:00.000Z"]]
 [[11,"success","2026-11-03T09:00:00.000Z"]]
 [["v1","2026-11-04T09:00:00.000Z"]]
-[[2,"2026-11-05T09:00:00.000Z"],[7,"2026-11-01T09:00:00.000Z"]]' ]
+[[2,"2026-11-05T09:00:00.000Z"],[7,"2026-11-01T09:00:00.000Z"]]
+[[9,"success","2026-11-06T09:00:00.000Z"]]
+[[1,"production","available","2026-11-07"]]' ]
 }
 
 @test "a provider that cannot read the rate limits says how to fix it, and kit flow --quota prints nothing" {
@@ -758,7 +772,10 @@ delivery-github() {
 {"total_count": 1, "artifacts": [{"id": 13, "name": "kit-0.1.0.tar.gz", "size_in_bytes": 2048,
   "digest": "sha256:ab12", "expired": false, "created_at": "2026-10-01T10:00:00Z",
   "expires_at": "2026-12-30T10:00:00Z", "workflow_run": {"id": 103, "head_branch": "main", "head_sha": "8e817bf"},
-  "archive_download_url": "https://api.github.com/repos/empowerite/example/actions/artifacts/13/zip"}]}
+  "archive_download_url": "https://api.github.com/repos/empowerite/example/actions/artifacts/13/zip"},
+ {"id": 12, "name": "old.tar.gz", "size_in_bytes": 1024, "digest": null, "expired": true,
+  "created_at": "2026-06-01T10:00:00Z", "expires_at": "2026-08-30T10:00:00Z", "workflow_run": {"id": 90},
+  "archive_download_url": "https://api.github.com/repos/empowerite/example/actions/artifacts/12/zip"}]}
 JSON
   fixture gh-environments.json <<'JSON'
 [{"total_count": 2, "environments": [
@@ -833,7 +850,7 @@ JSON
     "${GITLAB_DEPLOYMENTS:-gl-deployments.json}"
 }
 
-@test "every provider lists its artifacts in one shape, newest first, and says when it stopped" {
+@test "every provider lists its artifacts in one shape, newest first, none expired, and says when it stopped" {
   local expected='{"id":13,"name":"kit-0.1.0.tar.gz","digest":"sha256:ab12","size":2048,"run":103,'
   expected+='"expires":1798624800}'
   for forge in github gitlab
@@ -850,7 +867,10 @@ JSON
       [ "$(jq --raw-output .url <<<"$output")" \
         = 'https://github.com/empowerite/example/actions/runs/103/artifacts/13' ]
     else
-      [ "$(jq --compact-output 'del(.age, .url)' <<<"$output")" = "${expected/'"sha256:ab12"'/null}" ]
+      # nor names an archive but by its job: most are artifacts.zip
+      expected=${expected/'"sha256:ab12"'/null}
+      expected=${expected/'"kit-0.1.0.tar.gz"'/'"package: kit-0.1.0.tar.gz"'}
+      [ "$(jq --compact-output 'del(.age, .url)' <<<"$output")" = "${expected}" ]
       [ "$(jq --raw-output .url <<<"$output")" = 'https://gitlab.com/empowerite/example/-/jobs/13' ]
     fi
   done

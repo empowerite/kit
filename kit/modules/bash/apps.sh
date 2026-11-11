@@ -176,7 +176,8 @@ apps:shown() {
 }
 
 # apps:text <document> prints a stage's document as text: its rows, under each member's name where they have one, then
-# each of its errors, one line each: a feature off here, or a member that could not be read.
+# each of its errors, one line each: a feature off here, or a member that could not be read; then, for a document
+# limited at N, a line that kit read the first N and the forge holds more, whatever order the forge lists them in.
 apps:text() {
   jq --raw-output -L "${kit_jq}" '
     import "apps" as apps;
@@ -184,7 +185,7 @@ apps:text() {
      | (if .[0].member then "📚 \(.[0].member)" else empty end), apps::text),
     (.errors[] | if .off then "\(.feature) is off here\(if .member then " in \(.member)" else "" end)"
                  else "❌ \(if .member then "\(.member): " else "" end)\(.error)" end),
-    (if .limited then "the newest \(.limited), and no more" else empty end)' <<<"$1"
+    (if .limited != null then "kit read the first \(.limited); the forge holds more" else empty end)' <<<"$1"
 }
 
 # apps:marks <verb> <workspace> prints a mark per stage as one JSON object: the repository here's, each a stage's

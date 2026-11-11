@@ -143,7 +143,7 @@ failed job and its `failure_reason`.
 | A run's jobs | `glab ci get -p "${pipeline_id}" -d -F json`, or `glab api projects/:id/pipelines/${pipeline_id}/jobs` |
 | A change's checks | `glab ci get --merge-request "${n}" -F json`; kit reads the merge request's head pipeline and its jobs |
 | A job's log | `glab ci trace "${job_id}"`, which follows a running job; `glab api projects/:id/jobs/${job_id}/trace` for the raw text |
-| Artifacts | `glab job artifact "${ref}" "${job_name}"` downloads the latest; `--list-paths` lists them; `glab api projects/:id/jobs/${job_id}/artifacts` for one job; kit reads `glab api 'projects/:id/jobs?scope[]=success&per_page=100'` (raw API), the 100 newest successful jobs, each with an `artifacts_file` an archive, with no digest GitLab shows, and `kit delivery artifacts` draws them |
+| Artifacts | `glab job artifact "${ref}" "${job_name}"` downloads the latest; `--list-paths` lists them; `glab api projects/:id/jobs/${job_id}/artifacts` for one job; kit reads `glab api 'projects/:id/jobs?scope[]=success&per_page=100'` (raw API), the 100 newest successful jobs, each with an `artifacts_file` an archive, with no digest GitLab shows, and `kit delivery artifacts` draws them, each named `<job>: <file>` |
 
 ### Write to GitLab CI/CD
 
@@ -190,6 +190,7 @@ requests it shipped, and a merge request shows the environments its pipeline dep
 | List environments | `glab api --paginate 'projects/:id/environments?per_page=100'` (raw API); `kit delivery environments` draws them |
 | Who may deploy to and approve an environment | `glab api --paginate 'projects/:id/protected_environments?per_page=100'` (raw API): `deploy_access_levels`, `required_approval_count`, and `approval_rules`, on Premium and Ultimate; another tier answers 403 or 404, and kit leaves the protection unknown |
 | Deployments in an environment | `glab api --paginate "projects/:id/deployments?environment=${environment}&order_by=finished_at&sort=desc"` (raw API) |
+| Whether deployments or environments changed | `glab api 'projects/:id/deployments?order_by=updated_at&sort=desc&per_page=1'` and `glab api 'projects/:id/environments?per_page=100'` (raw API): what they say of when they changed, as kit's deployments and environments marks do; a protected environment's edit moves neither |
 | The newest deployments | `glab api 'projects/:id/deployments?order_by=created_at&sort=desc&per_page=51'` (raw API): the 50 newest, and a 51st that says there are more; `kit delivery deployments` draws them |
 | A deployment's state and approvals | `glab api "projects/:id/deployments/${deployment_id}"` (raw API); `status`, `approvals`, `pending_approval_count` |
 | What is live where | `glab api "projects/:id/environments/${environment_id}"` (raw API); `last_deployment` |
@@ -233,8 +234,8 @@ with an example the gate validates against it.
 | Schema | The command as kit runs it |
 | --- | --- |
 | [api-iterations.schema.json](glab/api-iterations.schema.json) | `glab api projects/${project}/iterations?include_ancestors=true&per_page=100 --paginate` |
-| [api-deployments.schema.json](glab/api-deployments.schema.json) | `glab api projects/${project}/deployments?order_by=created_at&sort=desc&per_page=51` |
-| [api-environments.schema.json](glab/api-environments.schema.json) | `glab api projects/${project}/environments?per_page=100 --paginate` |
+| [api-deployments.schema.json](glab/api-deployments.schema.json) | `glab api projects/${project}/deployments?order_by=${order}&sort=desc&per_page=${n}` |
+| [api-environments.schema.json](glab/api-environments.schema.json) | `glab api projects/${project}/environments?per_page=100 [--paginate]` |
 | [api-graphql-milestones.schema.json](glab/api-graphql-milestones.schema.json) | `glab api graphql --field path=${project} [--field after=${cursor}] --raw-field query=${query}` |
 | [api-issue.schema.json](glab/api-issue.schema.json) | `glab api projects/${project}/issues/${n}` |
 | [api-issues.schema.json](glab/api-issues.schema.json) | `glab api projects/${project}/issues?${query} [--paginate]` |

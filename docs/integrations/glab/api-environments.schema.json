@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "glab api projects/${project}/environments?per_page=100 --paginate",
-  "description": "The project's environments, every page, ${project} its path URL-encoded, which kit reads in `modules/bash/forge/gitlab.sh` (forge/gitlab:environments) and folds in `modules/jq/forge.jq` (forge::gitlab_environments), each one's page ${project's page}/-/environments/${id}. The list presents API::Entities::Environment, https://gitlab.com/gitlab-org/gitlab/-/raw/master/lib/api/environments.rb, as https://docs.gitlab.com/api/environments/ describes it; it holds no web_url and no branches.",
+  "title": "glab api projects/${project}/environments?per_page=100 [--paginate]",
+  "description": "The project's environments, ${project} its path URL-encoded, which kit reads in `modules/bash/forge/gitlab.sh`: the first page, whose ids, names, states, and updates make a mark (forge/gitlab:marks, with forge::gitlab_marks); and every page (forge/gitlab:environments) and folds in `modules/jq/forge.jq` (forge::gitlab_environments), each one's page ${project's page}/-/environments/${id}. The list presents API::Entities::Environment, https://gitlab.com/gitlab-org/gitlab/-/raw/master/lib/api/environments.rb, as https://docs.gitlab.com/api/environments/ describes it; it holds no web_url and no branches.",
   "type": "array",
   "items": {
     "type": "object",
@@ -23,6 +23,10 @@
       },
       "external_url": {
         "type": ["string", "null"]
+      },
+      "updated_at": {
+        "type": "string",
+        "format": "date-time"
       }
     },
     "required": ["id", "name"],
