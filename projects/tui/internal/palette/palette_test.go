@@ -17,6 +17,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
@@ -455,6 +456,12 @@ func TestThePalettesMenuBarHasTheWorkspaceMenu(t *testing.T) {
 	if m, _ = drive(m, testkit.Click(m.booksAt(), shell.Top)); !m.books.Open {
 		t.Error("a click on the workspace menu did not drop it down")
 	}
+	// a click on Open… asks kittui for the Open… dialog, and closes the menu
+	x, y := at(m, "Open…", shell.Top+1)
+	if m, produced := drive(m, testkit.Click(x, y)); m.books.Open ||
+		!slices.Contains(produced, tea.Msg(shell.OpenMsg{})) {
+		t.Errorf("a click on Open… at %d, %d: open %v, %v", x, y, m.books.Open, produced)
+	}
 }
 
 // forty gives the palette over 40 verbs, v00 to v39, in three groups, at 100 columns and the height, the rows focused.
@@ -513,5 +520,87 @@ func TestTheSettingsReachTheTable(t *testing.T) {
 	m, _ := drive(open(t), shell.SettingsMsg{Settings: shell.Settings{FoldShared: false, SharedEmoji: true}})
 	if p := m.sheet.Panel(); p.Fold || !p.Glyphs {
 		t.Errorf("the settings did not reach the table: fold %v, glyphs %v", p.Fold, p.Glyphs)
+	}
+}
+
+// Find gives the search the keyboard, as a form's search field asks, what is typed kept and the rows without it; the
+// keys bar is the search's, and a letter typed narrows the rows further.
+func TestFindGivesTheSearchTheKeyboard(t *testing.T) {
+	m, _ := drive(open(t), append(testkit.Typed("co"), enter)...)
+	if m.search.Focused || !m.sheet.Focused() {
+		t.Fatalf("co, enter: search focused %v, rows %v", m.search.Focused, m.sheet.Focused())
+	}
+	m = m.Find()
+	if !m.search.Focused || m.sheet.Focused() || m.search.Query != "co" || !strings.Contains(last(m), "type to search") {
+		t.Errorf("Find: search focused %v, rows %v, %q, keys %q", m.search.Focused, m.sheet.Focused(), m.search.Query,
+			last(m))
+	}
+	if m, _ = drive(m, testkit.Typed("nt")...); m.search.Query != "cont" || names(m) != "context" {
+		t.Errorf("nt typed after Find: %q, %q", m.search.Query, names(m))
+	}
+}
+
+// A page that says nothing past its first line, which says the purpose again, says so, dim, where the rest would be.
+func TestAPageThatSaysNoMoreSaysSo(t *testing.T) {
+	m := New([]kit.Verb{{Name: "commit", Purpose: "commits", Group: "workflow"}}, testkit.Runner(t, "kit"))
+	m, _ = drive(m, tea.WindowSizeMsg{Width: 100, Height: 20}, enter)
+	next, _ := m.Update(right)
+	m, _ = drive(next.(Model), pageMsg{verb: "commit", page: "kit commit - commits\n\n"})
+	if v := m.View().Content; !strings.Contains(v, style.Off("kit help commit says no more")) || m.asked["commit"] {
+		t.Errorf("a page with nothing past its first line:\n%s", ansi.Strip(v))
+	}
+}
+
+// at gives the cell where the text first stands on the screen, past the line from, or -1, -1 where it does not.
+func at(m Model, text string, from int) (x, y int) {
+	for k, l := range strings.Split(screen(m), "\n") {
+		if i := strings.Index(l, text); k >= from && i >= 0 {
+			return ansi.StringWidth(l[:i]), k
+		}
+	}
+	return -1, -1
+}
+
+// The control line's presets are the table's: a click on the selector drops them down, a layer whose keys are the
+// keys bar and which takes every key and click; Save As… saves the table as a preset of the person's, which the keys
+// bar says in their place until it fades, and a name it cannot take says why not, in red, until a key.
+func TestThePresetsSayWhatTheyDidInPlaceOfTheKeys(t *testing.T) {
+	fades = 0
+	t.Cleanup(func() { fades = table.Fades })
+	m := listing(t)
+	x, y := at(m, "Default ▼", 1)
+	if m, _ = drive(m, testkit.Click(x, y)); !m.sheet.Layered() || m.search.Focused {
+		t.Fatalf("a click on the selector: layered %v, search focused %v\n%s", m.sheet.Layered(), m.search.Focused,
+			screen(m))
+	}
+	if bar := last(m); strings.Contains(bar, "search") || !strings.Contains(bar, "esc") {
+		t.Errorf("the presets' keys: %q", bar)
+	}
+	// s moves to Save As…, and enter takes it; enter with no name typed says why not, in red
+	if m, _ = drive(m, testkit.Press("s"), enter, enter); m.sheet.Layered() ||
+		!strings.Contains(last(m), "a preset needs a name") ||
+		!strings.Contains(m.View().Content, style.Refusal(m.sheet.Notice().Text)) {
+		t.Fatalf("Save As…, no name: layered %v, %q", m.sheet.Layered(), last(m))
+	}
+	// the name typed is the preset's, not the search's, and saving it says so until it fades
+	m, _ = drive(m, testkit.Typed("mine")...)
+	if strings.Contains(last(m), "needs a name") || m.search.Query != "" {
+		t.Errorf("mine typed: search %q, %q", m.search.Query, last(m))
+	}
+	next, fade := m.Update(enter)
+	if m = next.(Model); !strings.Contains(last(m), "saved the preset mine") || fade == nil {
+		t.Fatalf("saved: %q", last(m))
+	}
+	if m, _ = drive(m, fade()); strings.Contains(last(m), "saved") || m.sheet.Table().ViewName != "mine" {
+		t.Errorf("the notice did not fade: %q, the preset %q", last(m), m.sheet.Table().ViewName)
+	}
+	// a click on a preset the dropdown lists, which the layer takes, applies it
+	x, y = at(m, "mine ▼", 1)
+	m, _ = drive(m, testkit.Click(x, y))
+	if x, y = at(m, "Default", y+1); y < 0 {
+		t.Fatalf("no Default in the presets:\n%s", screen(m))
+	}
+	if m, _ = drive(m, testkit.Click(x, y)); m.sheet.Layered() || m.sheet.Table().ViewName != "Default" {
+		t.Errorf("a click on Default: layered %v, %q\n%s", m.sheet.Layered(), m.sheet.Table().ViewName, screen(m))
 	}
 }

@@ -85,9 +85,6 @@ func (m Model) keys() shell.Path {
 		search.Passes = append(search.Passes, "=")
 		return shell.Path{shell.WorkspaceScreenKeys(), search}
 	}
-	if !m.sheet.Focused() {
-		return shell.Path{shell.WorkspaceScreenKeys()}
-	}
 	seg, _ := m.sheet.Keys()
 	seg.Bindings = append([]shell.Binding(nil), seg.Bindings...)
 	for k, b := range seg.Bindings {
