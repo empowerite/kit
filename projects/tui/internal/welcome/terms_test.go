@@ -171,7 +171,8 @@ func TestTheTermsAreATableOfCommandsTermsMeaningsAndExamples(t *testing.T) {
 	if m = drive(m, down); !m.inPane || !strings.Contains(keysAt(m), "↓ rows") {
 		t.Fatalf("down: in the pane %v, keys %q", m.inPane, keysAt(m))
 	}
-	if m = drive(m, down); !termsSheet(m).InRows() || !strings.Contains(keysAt(m), "␣·⇧↑↓ select") {
+	if m = drive(m, down); !termsSheet(m).InRows() || !strings.Contains(keysAt(m), "↑↓ move") ||
+		strings.Contains(keysAt(m), "select") {
 		t.Errorf("down into the rows: keys %q", keysAt(m))
 	}
 	// a key the table does not take, as a step's number, is the screen's still
