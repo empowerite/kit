@@ -151,6 +151,29 @@ func TestACheckoutWhoseDeskFailedReadsAFailureOpenAndClosed(t *testing.T) {
 	}
 }
 
+func TestAMemberClonedTwiceNamesItsOtherCloneOpenAndCountsItClosed(t *testing.T) {
+	t.Setenv("HOME", "/home/u")
+	m := drive(over(t, "workspace/repos"), answer("workspace/repos", `{"rows": [{"repository": "github.com/o/a",
+		"remotes": [], "by": "fixed", "checkout": "/home/u/Code/o/a",
+		"checkouts": ["/home/u/Code/o/a", "/home/u/old/a"]}], "errors": []}`))
+	v := m.records(*m.find("workspace/repos"))[0].values["checkout"]
+	c := fieldIn("workspace/repos", "checkout").Draw([]table.Value{v}, "")[0]
+	if !slices.Equal(c.Values, []string{style.Off("~/Code/o/a"), style.Off("~/old/a")}) {
+		t.Errorf("open, the checkouts read %q", c.Values)
+	}
+	if c.Summary != style.Off("…/o/a +1") {
+		t.Errorf("closed, the checkouts read %q", c.Summary)
+	}
+	// a first clone of two folders or fewer reads whole before the count
+	short := "/home/u/a"
+	m.find("workspace/repos").repos = []repo{{Repository: "github.com/o/a", Checkout: &short,
+		Checkouts: []string{short, "/srv/a", "/srv/b"}}}
+	v = m.records(*m.find("workspace/repos"))[0].values["checkout"]
+	if c := fieldIn("workspace/repos", "checkout").Draw([]table.Value{v}, "")[0]; c.Summary != style.Off("~/a +2") {
+		t.Errorf("closed, a short first clone reads %q", c.Summary)
+	}
+}
+
 func TestAClosedCheckoutKeepsTheColumnsNarrow(t *testing.T) {
 	t.Setenv("HOME", "/home/u")
 	m := drive(over(t, "workspace/repos"), answer("workspace/repos", `{"rows": [{"repository": "github.com/o/a", "remotes": [],

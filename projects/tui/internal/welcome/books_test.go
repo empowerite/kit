@@ -56,7 +56,7 @@ func TestAClickOnTheBooksDropsItDownAndAPickAsksKittui(t *testing.T) {
 	if !m.books.Open || keysAt(m) != (shell.Path{shell.MenuKeys()}).String() {
 		t.Fatalf("open %v, keys %q", m.books.Open, keysAt(m))
 	}
-	if v := view(m); !strings.Contains(v, "w 2") || !strings.Contains(v, "Browse…") {
+	if v := view(m); !strings.Contains(v, "w 2") {
 		t.Errorf("the dropdown is not drawn:\n%s", v)
 	}
 	next, cmd := m.Update(click(m.booksAt()+2, shell.Top+1))

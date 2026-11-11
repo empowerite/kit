@@ -67,9 +67,35 @@ func names(b BooksMenu) ([]string, []int) {
 	return out, acting
 }
 
+func TestBooksDrawsNoLineThatOpensNothing(t *testing.T) {
+	got, acting := names(BooksMenu{Workspace: inGroups})
+	if strings.Join(got, "|") != "w 2|v 1||w 2|o/b · not cloned" {
+		t.Errorf("the lines: %q", got)
+	}
+	if len(acting) != 3 {
+		t.Errorf("the lines that act: %v", acting)
+	}
+	got, acting = names(BooksMenu{Workspace: kit.Workspace{Kind: "none"}})
+	if len(got) != 1 || !strings.HasPrefix(got[0], "no group yet") || len(acting) != 0 {
+		t.Errorf("with no group: %q, acting %v", got, acting)
+	}
+	if items := (BooksMenu{}).Items(); items[0] != (Item{Glyph: Books,
+		Name: "no group yet · kit workspaces --new=<name> <repository>…"}) {
+		t.Errorf("the line with no group: %+v", items[0])
+	}
+	// kit's line alone stands without a rule after it
+	if got, _ := names(BooksMenu{Refusal: "x"}); strings.Join(got, "|") != "x" {
+		t.Errorf("kit's line alone: %q", got)
+	}
+	if got, _ := names(BooksMenu{Refusal: "x", Workspace: inGroups}); strings.Join(got, "|") !=
+		"x||w 2|v 1||w 2|o/b · not cloned" {
+		t.Errorf("kit's line, the groups, and the favorites: %q", got)
+	}
+}
+
 func TestBooksDropsDownTheGroupsThenTheFavorites(t *testing.T) {
 	got, acting := names(BooksMenu{Workspace: inGroups})
-	want := []string{"w 2", "v 1", "", "w 2", "o/b · not cloned", "", "Browse…", "New workspace…", "Manage workspaces…"}
+	want := []string{"w 2", "v 1", "", "w 2", "o/b · not cloned"}
 	if strings.Join(got, "|") != strings.Join(want, "|") {
 		t.Errorf("the lines: %q", got)
 	}
@@ -100,8 +126,8 @@ func TestBooksPicksAGroupByClickAndByKey(t *testing.T) {
 	if b2, picked := b.Opened().Click(x, Top+1, at, 120); picked != "w" || b2.Open {
 		t.Errorf("a click on w: %q, open %v", picked, b2.Open)
 	}
-	if b2, picked := b.Opened().Click(x, Top+1+6, at, 120); picked != "" || !b2.Open {
-		t.Errorf("a click on Browse…: %q, open %v", picked, b2.Open)
+	if b2, picked := b.Opened().Click(x, Top+1+4, at, 120); picked != "" || !b2.Open {
+		t.Errorf("a click on o/b · not cloned: %q, open %v", picked, b2.Open)
 	}
 	if b2, picked := b.Opened().Click(left+ansi.StringWidth(box[0])+2, Top+1, at, 120); picked != "" || b2.Open {
 		t.Errorf("a click off the box: %q, open %v", picked, b2.Open)

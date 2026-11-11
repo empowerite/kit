@@ -2,9 +2,9 @@
 // repository, - and a group's name and its count of members, the count dim, for a group, both in the repository's
 // color, and - alone, dim, with none. Until kit says which workspace it is, it names the origin's owner/repo, as the
 // title did before. A plain click on it drops down what to switch to: the groups the repository belongs to, first;
-// the favorites; and Browse…, New workspace…, and Manage workspaces…. A line that cannot switch now stays, dim: the
-// workspace shown, a repository not cloned, and the three that open what is still to come. When kit could not say,
-// its line comes first, dim. A pick asks kittui to switch, by the workspace's name as kit names it.
+// the favorites; a rule between two of those it has. A line that cannot switch now stays, dim: the workspace shown,
+// and a repository not cloned. When kit could not say, its line comes first, dim. With none of those, one line says how
+// kit makes a group, and never acts. A pick asks kittui to switch, by the workspace's name as kit names it.
 package shell
 
 import (
@@ -35,13 +35,11 @@ func WorkspaceScreenKeys(own ...Binding) Segment {
 // Books is a group's glyph, beside its line in the dropdown: two cells wide, as every glyph in a menu is.
 const Books = "📚"
 
-// The glyphs of the dropdown's lines besides the groups': a favorite, and the three that open what is still to come.
-const (
-	Favorite = "⭐"
-	browse   = "🔎"
-	create   = "➕"
-	manage   = "🧰"
-)
+// Favorite is a favorite's glyph, beside its line in the dropdown.
+const Favorite = "⭐"
+
+// noGroup is the dropdown's one line where it has no other: how kit makes a group.
+var noGroup = booksLine{item: Item{Glyph: Books, Name: "no group yet · kit workspaces --new=<name> <repository>…"}}
 
 // WorkspaceMsg tells a screen its workspace, when it is made and whenever kit says it anew; when kit could not say,
 // kit's line, and the workspace as it was.
@@ -125,16 +123,15 @@ func (b BooksMenu) On(x, y, at int) bool {
 // lines gives the dropdown's lines, top to bottom, as the header says.
 func (b BooksMenu) lines() []booksLine {
 	ws := b.Workspace
-	var out []booksLine
-	rule := booksLine{}
+	var refusal, groups, favorites []booksLine
 	if b.Refusal != "" {
-		out = append(out, booksLine{item: Item{Glyph: "❌", Name: b.Refusal}}, rule)
+		refusal = append(refusal, booksLine{item: Item{Glyph: "❌", Name: b.Refusal}})
 	}
-	if ws.Kind == "repository" && len(ws.Groups) > 0 {
+	if ws.Kind == "repository" {
 		for _, g := range ws.Groups {
-			out = append(out, booksLine{Item{Glyph: Books, Name: g.Name + " " + strconv.Itoa(g.Members)}, g.Name, true})
+			line := Item{Glyph: Books, Name: g.Name + " " + strconv.Itoa(g.Members)}
+			groups = append(groups, booksLine{line, g.Name, true})
 		}
-		out = append(out, rule)
 	}
 	for _, f := range ws.Favorites {
 		line := booksLine{target: f.Name, acts: true}
@@ -150,14 +147,22 @@ func (b BooksMenu) lines() []booksLine {
 			}
 		}
 		line.acts = line.acts && !shown
-		out = append(out, line)
+		favorites = append(favorites, line)
 	}
-	if len(ws.Favorites) > 0 {
-		out = append(out, rule)
+	var out []booksLine
+	for _, section := range [][]booksLine{refusal, groups, favorites} {
+		if len(section) == 0 {
+			continue
+		}
+		if len(out) > 0 {
+			out = append(out, booksLine{})
+		}
+		out = append(out, section...)
 	}
-	return append(out, booksLine{item: Item{Glyph: browse, Name: "Browse…"}},
-		booksLine{item: Item{Glyph: create, Name: "New workspace…"}},
-		booksLine{item: Item{Glyph: manage, Name: "Manage workspaces…"}})
+	if len(out) == 0 {
+		return []booksLine{noGroup}
+	}
+	return out
 }
 
 // Items gives the dropdown's lines.
