@@ -1712,11 +1712,54 @@ func TestANullOrEmptyDocumentIsARefusal(t *testing.T) {
 	if err := (&stage{name: "nonesuch"}).decode([]byte("[]"), false); err == nil || command("nonesuch") != "kit nonesuch" {
 		t.Errorf("a stage kittui does not draw: %v, %q", err, command("nonesuch"))
 	}
-	// a row whose member or links are not what kit prints them as is left out
+	// a row whose member or links are not what kit prints them as is a refusal naming it, as are two rows of one key,
+	// and a key of no text; over a group, two members' rows of one key are two rows
+	tags := command("workspace/tags")
+	unread := " printed the record a, whose member or links cannot be read"
+	for doc, want := range map[string]string{
+		`{"rows": [{"key": "a", "member": 5}, {"key": "b"}]}`:            tags + unread,
+		`{"rows": [{"key": "a", "links": []}]}`:                          tags + unread,
+		`{"rows": [{"key": "a", "links": {"tag": 5}}]}`:                  tags + unread,
+		`{"rows": [{"key": "a", "member": "m", "links": {"tag": [1]}}]}`: tags + strings.Replace(unread, "a,", "m a,", 1),
+		`{"rows": [{"key": "a"}, {"key": "b"}, {"key": "a"}]}`:           tags + " printed two records of the key a",
+		`{"rows": [{"key": {"name": "a"}}]}`:                             tags + " printed a record without .key",
+	} {
+		if err := (&stage{name: "workspace/tags"}).decode([]byte(doc), false); err == nil || err.Error() != want {
+			t.Errorf("%s: %v", doc, err)
+		}
+	}
 	s = stage{name: "workspace/tags"}
-	if err := s.decode([]byte(`{"rows": [{"key": "a", "member": 5}, {"key": "b"}]}`), false); err != nil ||
-		len(Model{}.catalogRows(s)) != 1 {
-		t.Errorf("a row of another shape: %v, %d records", err, len(Model{}.catalogRows(s)))
+	err := s.decode([]byte(`{"rows": [{"key": "a", "member": "m", "links": {"tag": ["x", null], "commit": null}}, `+
+		`{"key": "a", "member": "n"}]}`), false)
+	if err == nil || !strings.Contains(err.Error(), "member or links") {
+		t.Errorf("a list of links holding null: %v", err)
+	}
+	if err := s.decode([]byte(`{"rows": [{"key": "a", "member": "m", "links": {"tag": ["x"], "commit": null}}, `+
+		`{"key": "a", "member": "n"}]}`), false); err != nil || len(Model{}.catalogRows(s)) != 2 {
+		t.Errorf("two members' rows of one key: %v, %d records", err, len(Model{}.catalogRows(s)))
+	}
+}
+
+// A row the catalog draws is decoded once, as its answer lands, however many times the screen draws it, its tab's
+// count among them.
+func TestACatalogRowIsDecodedOnce(t *testing.T) {
+	n := 0
+	decodeRecord = func(r json.RawMessage) any {
+		n++
+		return table.Decoded(r)
+	}
+	defer func() { decodeRecord = table.Decoded }()
+	o := options()
+	o.Stages = []string{"incoming"}
+	m := loaded(t, o)
+	rows := len(m.find("incoming").rows)
+	for range 3 {
+		_ = m.View()
+		m.rebuild()
+		m = drive(m, down, press(tea.KeySpace), up)
+	}
+	if rows == 0 || n != rows || m.count(0) != "7" {
+		t.Errorf("%d records decoded %d times, the count %s", rows, n, m.count(0))
 	}
 }
 

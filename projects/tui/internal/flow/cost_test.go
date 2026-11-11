@@ -187,3 +187,20 @@ func BenchmarkADrawingOfThreeHundredIssues(b *testing.B) {
 		_ = m.View()
 	}
 }
+
+func BenchmarkACatalogStagesRows(b *testing.B) {
+	o := options()
+	o.Stages = []string{"incoming"}
+	m := New(kit.Runner{}, o)
+	data, err := os.ReadFile(filepath.Join("testdata", "incoming.json"))
+	if err != nil {
+		b.Fatal(err)
+	}
+	next, _ := m.Update(answer("incoming", string(data)))
+	m = next.(Model)
+	b.ResetTimer()
+	for range b.N {
+		_ = m.catalogRows(*m.find("incoming"))
+		_ = m.count(0)
+	}
+}

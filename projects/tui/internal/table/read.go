@@ -120,8 +120,10 @@ func elements(array json.RawMessage) ([]json.RawMessage, error) {
 	return out, json.Unmarshal(array, &out)
 }
 
-// decoded gives a record as Go holds it, its numbers as their digits; none for one that does not decode.
-func decoded(record json.RawMessage) any {
+// Decoded gives a record as Go holds it, its numbers as their digits, as ReadFrom and KeyFrom read it; none for one
+// that does not decode. A screen that reads a record's fields decodes it once, here, and reads each from what this
+// gives.
+func Decoded(record json.RawMessage) any {
 	d := json.NewDecoder(bytes.NewReader(record))
 	d.UseNumber()
 	var v any
@@ -170,11 +172,14 @@ func flat(values []any) []any {
 	return out
 }
 
-// Read gives the field's value in a record, as its path names it: one path, or several after commas, each .a.b, a []
-// after a key allowed and ignored. An array gives the value an element each, and a path through one maps over it; a
-// string is itself, a number its digits, true the field's id, and false, null, or an object no value.
-func (f Field) Read(record json.RawMessage) Value {
-	v := decoded(record)
+// Read gives the field's value in a record, as ReadFrom reads it from the record decoded.
+func (f Field) Read(record json.RawMessage) Value { return f.ReadFrom(Decoded(record)) }
+
+// ReadFrom gives the field's value in a record decoded, as Decoded gives it, as its path names it: one path, or
+// several after commas, each .a.b, a [] after a key allowed and ignored. An array gives the value an element each,
+// and a path through one maps over it; a string is itself, a number its digits, true the field's id, and false, null,
+// or an object no value.
+func (f Field) ReadFrom(v any) Value {
 	var out Value
 	for _, path := range strings.Split(f.Path, ",") {
 		for _, each := range flat(walk(v, path)) {
@@ -193,10 +198,17 @@ func (f Field) Read(record json.RawMessage) Value {
 	return out
 }
 
-// KeyOf gives a record's key, as the schema's key names it, its paths after commas, or .key where it names none: each
-// scalar's text, a space between, and ok when each path is there and not null. A record that is no object has none.
+// KeyOf gives a record's key, as KeyFrom reads it from the record decoded.
 func (s Schema) KeyOf(record json.RawMessage) (key string, ok bool) {
-	v, paths := decoded(record), s.Key
+	return s.KeyFrom(Decoded(record))
+}
+
+// KeyFrom gives a record's key, from the record decoded, as Decoded gives it, as the schema's key names it, its paths
+// after commas, or .key where it names none: each scalar's text, a space between, and ok when each path gives the text
+// of a scalar, a string, a number, or a boolean, at least. A path that is not there, is null, or gives only objects,
+// and a record that is no object, have none.
+func (s Schema) KeyFrom(v any) (key string, ok bool) {
+	paths := s.Key
 	if _, object := v.(map[string]any); !object {
 		return "", false
 	}
@@ -205,11 +217,8 @@ func (s Schema) KeyOf(record json.RawMessage) (key string, ok bool) {
 	}
 	var texts []string
 	for _, path := range strings.Split(paths, ",") {
-		values := walk(v, path)
-		if len(values) == 0 || values[0] == nil {
-			return "", false
-		}
-		for _, each := range flat(values) {
+		n := len(texts)
+		for _, each := range flat(walk(v, path)) {
 			switch each := each.(type) {
 			case string:
 				texts = append(texts, each)
@@ -218,6 +227,9 @@ func (s Schema) KeyOf(record json.RawMessage) (key string, ok bool) {
 			case bool:
 				texts = append(texts, fmt.Sprint(each))
 			}
+		}
+		if len(texts) == n {
+			return "", false
 		}
 	}
 	return strings.Join(texts, " "), true

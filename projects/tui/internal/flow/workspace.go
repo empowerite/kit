@@ -16,45 +16,32 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
-// catalogRow is what a row a stage's catalog draws holds beside its values: its member, over a group, and where each
-// field's value leads, by the field's id: a page, or row:<stage>/<key>, a row of another of its stages, or, for a list
-// whose values lead apart, as a release's assets, a list of them, one a value.
-type catalogRow struct {
-	Member string                     `json:"member"`
-	Links  map[string]json.RawMessage `json:"links"`
-}
-
-// catalogRows gives the records of a stage whose rows the catalog draws, as kit prints them flat: each row's key, as
-// the entry's key reads it, after its member over a group, as keyOf names it; its value in each of the stage's
-// fields, as the field's path reads it, and where it leads, as the row's links say; its member's as every stage's;
-// and, in a field whose path is *, every value of the row no other field names, as otherValues gives them, so a row
-// can say more than its catalog announces.
+// catalogRows gives the records of a stage whose rows the catalog draws, as kit prints them flat, from each record as
+// decode read it, which none of this decodes again: each row's key, after its member over a group, as keyOf names it;
+// its value in each of the stage's fields, as the field's path reads it, and where it leads, as the row's links say;
+// its member's as every stage's; and, in a field whose path is *, every value of the row no other field names, as
+// otherValues gives them, so a row can say more than its catalog announces.
 func (m Model) catalogRows(s stage) []record {
-	c := catalog[s.name]
+	fields := catalog[s.name].Of()
 	named := map[string]bool{"key": true, "member": true, "links": true}
-	for _, f := range c.Of() {
+	for _, f := range fields {
 		named[f.ID] = true
 	}
-	var out []record
-	for _, raw := range s.rows {
-		var r catalogRow
-		var values map[string]json.RawMessage
-		if json.Unmarshal(raw, &r) != nil || json.Unmarshal(raw, &values) != nil {
-			continue
-		}
-		key, _ := c.KeyOf(raw)
-		rec := record{row{Key: m.keyOf(r.Member, key)}, map[string]table.Value{}}
-		for _, f := range c.Of() {
+	out := make([]record, 0, len(s.parsed))
+	for _, p := range s.parsed {
+		rec := record{row{Key: m.keyOf(p.member, p.key)}, make(map[string]table.Value, len(fields))}
+		for _, f := range fields {
 			switch {
 			case f.ID == "member":
-				rec.values[f.ID] = m.memberValue(r.Member)
+				rec.values[f.ID] = m.memberValue(p.member)
 				continue
 			case f.Path == "*":
-				rec.values[f.ID] = otherValues(values, named)
+				object, _ := p.value.(map[string]any)
+				rec.values[f.ID] = otherValues(object, named)
 				continue
 			}
-			v := f.Read(raw)
-			m.linkValue(&v, r.Links[f.ID], r.Member)
+			v := f.ReadFrom(p.value)
+			m.linkValue(&v, p.links[f.ID], p.member)
 			rec.values[f.ID] = v
 		}
 		out = append(out, rec)
@@ -64,39 +51,37 @@ func (m Model) catalogRows(s stage) []record {
 
 // otherValues gives a row's values no field names, one a value, each as its key, a colon, and its value as JSON prints
 // it, compact, the keys in order; a value that is null, an empty list, or an empty object says nothing, and is left out.
-func otherValues(values map[string]json.RawMessage, named map[string]bool) table.Value {
+func otherValues(values map[string]any, named map[string]bool) table.Value {
 	var out table.Value
 	for _, k := range slices.Sorted(maps.Keys(values)) {
-		var compact bytes.Buffer
-		if named[k] || json.Compact(&compact, values[k]) != nil {
+		if named[k] {
 			continue
 		}
-		if text := compact.String(); text != "null" && text != "[]" && text != "{}" {
+		var compact bytes.Buffer
+		e := json.NewEncoder(&compact)
+		e.SetEscapeHTML(false)
+		_ = e.Encode(values[k]) // a value decoded from JSON encodes again
+		if text := strings.TrimSpace(compact.String()); text != "null" && text != "[]" && text != "{}" {
 			out.Raw = append(out.Raw, k+": "+strings.Trim(text, `"`))
 		}
 	}
 	return out
 }
 
-// linkValue gives a value where it leads, as a row's links say for its field: one link, the value's; a list, one a raw
-// value, each where that value leads, and the value's own where it holds one alone; null, or none, nowhere.
-func (m Model) linkValue(v *table.Value, link json.RawMessage, member string) {
-	var one *string
-	if json.Unmarshal(link, &one) == nil {
-		if one != nil {
-			v.Link = m.workspaceLink(*one, member)
+// linkValue gives a value where it leads, as a row's links say for its field, as decode read them: one link, the
+// value's; a list, one a raw value, each where that value leads, and the value's own where it holds one alone; null,
+// or none, nowhere.
+func (m Model) linkValue(v *table.Value, link any, member string) {
+	switch link := link.(type) {
+	case string:
+		v.Link = m.workspaceLink(link, member)
+	case []any:
+		for _, l := range link {
+			v.Links = append(v.Links, m.workspaceLink(l.(string), member))
 		}
-		return
-	}
-	var each []string
-	if json.Unmarshal(link, &each) != nil {
-		return
-	}
-	for _, l := range each {
-		v.Links = append(v.Links, m.workspaceLink(l, member))
-	}
-	if len(v.Links) == 1 {
-		v.Link = v.Links[0]
+		if len(v.Links) == 1 {
+			v.Link = v.Links[0]
+		}
 	}
 }
 

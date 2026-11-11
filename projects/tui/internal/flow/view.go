@@ -191,9 +191,10 @@ func (m Model) count(i int) string {
 	case s.refusal != "":
 		return "!"
 	case s.name == "incoming":
+		// from the records as decode read them, which the bar asks for on every draw: never built again here
 		n := 0
-		for _, r := range m.records(s) {
-			if kind := r.values["kind"].Raw; len(kind) > 0 && kind[0] != "remote" {
+		for _, p := range s.parsed {
+			if kind := incomingKind.ReadFrom(p.value).Raw; len(kind) > 0 && kind[0] != "remote" {
 				n++
 			}
 		}
@@ -201,6 +202,9 @@ func (m Model) count(i int) string {
 	}
 	return strconv.Itoa(m.shown(i).all)
 }
+
+// incomingKind is the field incoming's count reads its rows' kinds from.
+var incomingKind = table.Field{ID: "kind", Path: ".kind"}
 
 // reserve gives the cells a stage's count is laid out for: the count's, or one while it loads or after a refusal.
 func (m Model) reserve(i int) int {

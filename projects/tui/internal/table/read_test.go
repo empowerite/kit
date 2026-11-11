@@ -76,7 +76,9 @@ func TestAFieldReadsItsPath(t *testing.T) {
 		{Schema{Key: ".n, .a.b"}, string(rec), "3 x", true}, {Schema{}, `{"key":"v"}`, "v", true},
 		{Schema{Key: ".z"}, string(rec), "", false}, {Schema{Key: ".n, .nope"}, string(rec), "", false},
 		{Schema{}, `{"k":"v"}`, "", false}, {Schema{Key: ".t"}, string(rec), "true", true},
-		{Schema{Key: ".l"}, string(rec), "", true}, {Schema{}, `[1]`, "", false},
+		{Schema{Key: ".l"}, string(rec), "", false}, {Schema{Key: ".a"}, string(rec), "", false},
+		{Schema{Key: ".l[].name"}, string(rec), "p q", true}, {Schema{Key: ".u"}, string(rec), "1 2", true},
+		{Schema{}, `[1]`, "", false},
 	} {
 		if key, ok := c.schema.KeyOf(json.RawMessage(c.rec)); key != c.key || ok != c.ok {
 			t.Errorf("the key %q of %s: %q %v, want %q %v", c.schema.Key, c.rec, key, ok, c.key, c.ok)

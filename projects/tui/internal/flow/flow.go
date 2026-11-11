@@ -68,11 +68,24 @@ type stage struct {
 	refusal string              // kit's line, when the command failed
 	planned bool                // whether kit has no data source for the stage yet, so it loads nothing
 	rows    []json.RawMessage   // its records, as its catalog entry reads them, each its own bytes
+	parsed  []parsed            // its records as decode read them, once each, one a record
 	typed   any                 // its records as Go holds them, for a stage whose rows Go builds, as builders says
 	failed  []failure           // over a group, the members whose read of the stage failed
 	// its table's state: the panel, the view, the outline, the rows selected, and where the cursor is
 	table.Table
 }
+
+// parsed is a record as decode read it, once: its key, as the catalog entry's key reads it; its member, over a group;
+// where each field's value leads, by the field's id; and the record decoded, as table.Decoded gives it, which each
+// field's value is read from, so no draw decodes a record again.
+type parsed struct {
+	key, member string
+	links       map[string]any
+	value       any
+}
+
+// decodeRecord decodes a record once, as decode reads it: table.Decoded, which a test counts.
+var decodeRecord = table.Decoded
 
 // commandOf gives the kit command that prints a stage's rows, kit's words after kit, as its catalog entry names it;
 // none for a stage the catalog does not name.
@@ -952,7 +965,7 @@ func (m *Model) restart(name string) tea.Cmd {
 		return cmd
 	}
 	s.src.Loading, s.refusal = true, ""
-	s.rows, s.typed, s.failed = nil, nil, nil
+	s.rows, s.parsed, s.typed, s.failed = nil, nil, nil, nil
 	m.rebuild()
 	return cmd
 }
@@ -1023,10 +1036,12 @@ func (m *Model) autoGroup(name string) {
 // decode keeps what the stage's command printed, as its catalog entry reads it: its records, by the entry's record,
 // or, over a group, for a stage that takes workspace, by .rows[] of kit's {rows, errors}, as table.Records reads
 // them, fresh; over a group, a record that holds the entry's record, as incoming's object, is a member's document, and
-// its records are read from it, each taking its member. A record its key's paths are not all in is a refusal; so is a
-// document of another shape, as nothing, null, or an array where an object is expected, each named with the command.
-// Then the members whose read failed, in the document's errors, and, for a stage whose rows Go builds, the records as
-// Go holds them, as builders decodes them. Each replaces what the stage held whole; a refusal leaves it as it was.
+// its records are read from it, each taking its member. Each record is decoded once, as parsed holds it. A refusal,
+// named with the command: a document of another shape, as nothing, null, or an array where an object is expected; a
+// record without its key, as the key's paths read it; two records of one key; and a record whose member or links are
+// not what kit prints them as. Then the members whose read failed, in the document's errors, and, for a stage whose
+// rows Go builds, the records as Go holds them, as builders decodes them. Each replaces what the stage held whole; a
+// refusal leaves it as it was.
 func (s *stage) decode(data []byte, over bool) error {
 	c := catalog[s.name]
 	if c == nil {
@@ -1051,10 +1066,20 @@ func (s *stage) decode(data []byte, over bool) error {
 	if key == "" {
 		key = ".key"
 	}
-	for _, r := range rows {
-		if _, ok := c.KeyOf(r); !ok {
+	all, seen := make([]parsed, len(rows)), map[string]bool{}
+	for k, r := range rows {
+		p, ok := parsed{value: decodeRecord(r)}, false
+		if p.key, ok = c.KeyFrom(p.value); !ok {
 			return fmt.Errorf("%s printed a record without %s", command(s.name), key)
 		}
+		if p.member, p.links, ok = memberAndLinks(p.value); !ok {
+			return fmt.Errorf("%s printed the record %s, whose member or links cannot be read", command(s.name),
+				strings.TrimSpace(p.member+" "+p.key))
+		}
+		if one := p.member + " " + p.key; seen[one] {
+			return fmt.Errorf("%s printed two records of the key %s", command(s.name), strings.TrimSpace(one))
+		}
+		seen[p.member+" "+p.key], all[k] = true, p
 	}
 	var typed any
 	if b, ok := builders[s.name]; ok && b.decode != nil {
@@ -1062,8 +1087,40 @@ func (s *stage) decode(data []byte, over bool) error {
 			return fmt.Errorf("%s: %w", command(s.name), err)
 		}
 	}
-	s.rows, s.typed, s.failed = rows, typed, failedIn(data)
+	s.rows, s.parsed, s.typed, s.failed = rows, all, typed, failedIn(data)
 	return nil
+}
+
+// memberAndLinks gives a record's member and its links, by the field's id, as kit prints them: a member is a text, or
+// none; links an object of a link each, a text, a list of them, or null, or none. Anything else is not ok.
+func memberAndLinks(v any) (member string, links map[string]any, ok bool) {
+	object, _ := v.(map[string]any)
+	switch m := object["member"].(type) {
+	case string:
+		member = m
+	case nil:
+	default:
+		return "", nil, false
+	}
+	switch l := object["links"].(type) {
+	case map[string]any:
+		links = l
+	case nil:
+	default:
+		return member, nil, false
+	}
+	for _, link := range links {
+		switch link := link.(type) {
+		case string, nil:
+		case []any:
+			if slices.ContainsFunc(link, func(each any) bool { _, text := each.(string); return !text }) {
+				return member, nil, false
+			}
+		default:
+			return member, nil, false
+		}
+	}
+	return member, links, true
 }
 
 // membersRecords gives the records of each member's document over a group, as its record reads them, each taking the
