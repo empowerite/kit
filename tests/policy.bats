@@ -465,9 +465,9 @@ REGO
   [ "$status" -eq 1 ]
   [[ "$output" == *"'no reference' does not match policy.commit_subject"* ]]
   [ "$("${kit_root}/bin/kit" policy --input | jq --raw-output '.commits | length')" -eq 1 ]
-  # a merge request's runner names the base the same way
+  # a merged-results pipeline on GitLab names the target's tip the same way, and the moved ref counts for nothing
   run env -u GITHUB_HEAD_REF -u GITHUB_EVENT_PATH CI_MERGE_REQUEST_SOURCE_BRANCH_NAME=7-fix-the-thing \
-    CI_MERGE_REQUEST_DIFF_BASE_SHA="${base}" "${kit_root}/bin/kit" policy
+    CI_MERGE_REQUEST_TARGET_BRANCH_NAME=main CI_MERGE_REQUEST_TARGET_BRANCH_SHA="${base}" "${kit_root}/bin/kit" policy
   [ "$status" -eq 1 ]
   [[ "$output" == *"'no reference' does not match policy.commit_subject"* ]]
   # the head ref names a change; without its event the base cannot be read, and nothing is judged
@@ -543,7 +543,7 @@ REGO
   [[ "$output" == *"❌ key.pem is a secret"* ]]
 }
 
-@test "every file the base holds under .kit/policy/, in a subdirectory or as data, judges a branch as it judges the base" {
+@test "every file the base holds under .kit/policy/, in a subdirectory or as data, judges a branch" {
   command -v opa >/dev/null || skip "opa, the opa policy engine, is not on PATH"
   mkdir -p .kit/policy/team
   printf 'package kit.policy\n\nimport rego.v1\n\ndeny contains "never" if false\n' > .kit/policy/kit.rego
@@ -596,6 +596,76 @@ REGO
   run "${kit_root}/bin/kit" policy
   [ "$status" -eq 1 ]
   [[ "$output" == *"❌ a commit with the banned subject"* ]]
+}
+
+@test "on GitLab, the target branch's tip judges a merge request, not the merge base the branch chose by its fork" {
+  printf 'policy:\n  commit_subject: ""\n' > kit.yml
+  git add kit.yml
+  git commit --quiet --message "#2 kit: a lax policy" && git push --quiet origin main
+  old=$(git rev-parse HEAD)
+  printf 'policy:\n  commit_subject: "^#[0-9]+ "\n' > kit.yml
+  git commit --quiet --all --message "#3 kit: the strict policy" && git push --quiet origin main
+  tip=$(git rev-parse origin/main)
+  # the branch forks from the commit before the strict policy, so the merge base is the lax commit
+  git switch --quiet --create 7-fix-the-thing "${old}"
+  git commit --quiet --allow-empty --message "no reference"
+  [ "$(git merge-base origin/main HEAD)" = "${old}" ]
+  export CI_MERGE_REQUEST_SOURCE_BRANCH_NAME=7-fix-the-thing CI_MERGE_REQUEST_TARGET_BRANCH_NAME=main
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"'no reference' does not match policy.commit_subject"* ]]
+  [ "$("${kit_root}/bin/kit" policy --input | jq --raw-output '.commits | length')" -eq 1 ]
+  # the merge base alone, which the pipeline also names, names no base; the target is what counts
+  run env -u CI_MERGE_REQUEST_TARGET_BRANCH_NAME CI_MERGE_REQUEST_DIFF_BASE_SHA="${old}" "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"CI_MERGE_REQUEST_TARGET_BRANCH_NAME is not set"*"so its policy cannot be read"* ]]
+  [[ "$output" != *"policy allows"* ]]
+  # a target that is not here is fetched from origin, and the moved ref counts for nothing
+  git update-ref -d refs/remotes/origin/main
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"'no reference' does not match policy.commit_subject"* ]]
+  [ "$(git rev-parse refs/remotes/origin/main)" = "${tip}" ]
+  # a target origin does not have, and one that is no branch name, fail closed, named
+  run env CI_MERGE_REQUEST_TARGET_BRANCH_NAME=nowhere "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"origin/nowhere, the merge request's target, is not here and could not be fetched"* ]]
+  run env CI_MERGE_REQUEST_TARGET_BRANCH_NAME='-x' "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"'-x' in CI_MERGE_REQUEST_TARGET_BRANCH_NAME is not a branch name"* ]]
+  [ -z "$(git for-each-ref 'refs/remotes/origin/nowhere' 'refs/remotes/origin/-x')" ]
+}
+
+@test "a merge group is judged by the base commit its event names, as the change on the merge group's head" {
+  printf 'policy:\n  branch: ""\n  commit_subject: "^#[0-9]+ "\n' > kit.yml
+  git add kit.yml
+  git commit --quiet --message "#2 kit: the policy" && git push --quiet origin main
+  base=$(git rev-parse origin/main)
+  branch gh-readonly-queue/main/pr-3-abc
+  printf 'policy:\n  branch: ""\n  commit_subject: ""\n' > kit.yml
+  git commit --quiet --all --message "no reference"
+  printf '{"merge_group": {"base_sha": "%s", "head_ref": "refs/heads/gh-readonly-queue/main/pr-3-abc"}}\n' \
+    "${base}" > "${BATS_TEST_TMPDIR}/event.json"
+  export GITHUB_EVENT_NAME=merge_group GITHUB_EVENT_PATH="${BATS_TEST_TMPDIR}/event.json"
+  git update-ref refs/remotes/origin/main HEAD
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"'no reference' does not match policy.commit_subject"* ]]
+  # the head is the merge group's, from the event, on a detached checkout too
+  git switch --quiet --detach
+  input=$("${kit_root}/bin/kit" policy --input)
+  [ "$(jq --raw-output .branch <<<"${input}")" = gh-readonly-queue/main/pr-3-abc ]
+  [ "$(jq --raw-output '.commits | length' <<<"${input}")" -eq 1 ]
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"'no reference' does not match policy.commit_subject"* ]]
+  # an event with no base commit fails closed
+  printf '{"merge_group": {"head_ref": "refs/heads/gh-readonly-queue/main/pr-3-abc"}}\n' \
+    > "${BATS_TEST_TMPDIR}/event.json"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"merge_group.base_sha is not in the event"*"so its policy cannot be read"* ]]
+  [[ "$output" != *"policy allows"* ]]
 }
 
 @test "nothing on the disk under .kit/policy/ is read while a branch is judged" {

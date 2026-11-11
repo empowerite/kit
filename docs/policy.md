@@ -78,10 +78,16 @@ the commits are counted from. A branch cannot loosen the rule that judges it: a 
 under `linked_exempt`, an engine it names, a file it stops a rule from reading, a `forge` it drops or a `forges` entry
 it changes, a kind it redefines, and a file it removes, adds, or edits under `.kit/policy/` change nothing.
 
-- The base is `origin/<default>` at a desk. On a runner, it is the commit the change's event names as its base:
-  `pull_request.base.sha` in the event at `GITHUB_EVENT_PATH` on GitHub, `CI_MERGE_REQUEST_DIFF_BASE_SHA` on GitLab.
-  No command of the branch can move it, as the gate could move `origin/<default>`. A runner that names a change's
-  head branch and no base commit fails both verbs.
+- The base is `origin/<default>` at a desk. On a runner, it is the base the change's event names, which no command of
+  the branch can move, as the gate could move `origin/<default>`. On GitHub that is the pull request's base commit,
+  `pull_request.base.sha` in the event at `GITHUB_EVENT_PATH`, or a merge group's, `merge_group.base_sha`. On GitLab
+  it is the target branch's tip: `CI_MERGE_REQUEST_TARGET_BRANCH_SHA` in a merged-results pipeline, else
+  `origin/<target>` for the branch `CI_MERGE_REQUEST_TARGET_BRANCH_NAME` names, fetched from origin when it is not
+  here; never the merge base, `CI_MERGE_REQUEST_DIFF_BASE_SHA`, which a branch chooses by where it forks. A runner
+  that names a change and no base it can have fails both verbs, naming what is missing.
+- In a merge queue, the branch is the merge group's head, `gh-readonly-queue/<base>/pr-<n>-<sha>`, which the kit's
+  default `branch` pattern refuses. A repository that runs `kit ci` on `merge_group` events sets `policy.branch` to
+  allow it.
 - `kit ci` runs `kit linked` and `kit policy` first, before the gate and `kit check`, which run commands of the
   branch's own: the gate itself, and the commands the `kit:generate` directives name.
 - `policy`, `policy_engine`, `linked_exempt`, `facts`, `forge`, and `forges` come from the base's `kit.yml`. Where
@@ -120,8 +126,9 @@ as on the default branch, so the pull request that installs the kit sets its fir
 
 A base that is not here, as in a clone that lacks `origin/<default>` or the event's commit, fails both verbs wherever
 they run. They say `the base, <base>, is not here, so its policy cannot be read; fetch it with full history`, naming
-the ref or the commit. A read of the base's files, or of a source it names, that fails, for any reason other than the
-file not being there, fails them too.
+the ref or the commit; a merge request's target that is not here and cannot be fetched is named the same way. A read
+of the base's files, or of a source it names, that fails, for any reason other than the file not being there, fails
+them too.
 
 ### Reading a file's text
 

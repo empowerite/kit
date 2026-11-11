@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# ci.bats - kit ci runs the gate, kit check, kit linked, and kit policy, and reports every one
+# ci.bats - kit ci runs kit linked, kit policy, the gate, and kit check, in that order, and reports every one
 # ----------------------------------------------------------------------------------------------------------------------
 
 bats_require_minimum_version 1.5.0

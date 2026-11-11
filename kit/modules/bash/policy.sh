@@ -33,11 +33,13 @@
 # kit policy and kit linked judge a branch past the default one by the policy on its base, the ref the commits are
 # counted from (policy:base), so a branch cannot loosen the rule that judges it: a pattern it blanks, a login it
 # exempts, an engine it names, a file it stops a rule from reading, a forge it drops, a kind it redefines, or a file
-# it removes, adds, or edits under .kit/policy/. On a CI runner the base is the commit the change's event names as
-# its base, GitHub's pull_request.base.sha in the event at GITHUB_EVENT_PATH or GitLab's
-# CI_MERGE_REQUEST_DIFF_BASE_SHA, which no code of the branch can move, as it could move a ref; a runner that names a
-# change's head branch and no base commit fails both. Elsewhere the base is origin/<default>. kit ci runs both before
-# the gate and kit check, which run commands of the branch's own.
+# it removes, adds, or edits under .kit/policy/. On a CI runner the base is the one the change's event names, which no
+# code of the branch can move, as it could move a ref (policy:runner-base): on GitHub the pull request's base commit,
+# pull_request.base.sha in the event at GITHUB_EVENT_PATH, or a merge group's, merge_group.base_sha; on GitLab the
+# target branch's tip, CI_MERGE_REQUEST_TARGET_BRANCH_SHA, or origin/<target> fetched when it is not here, never the
+# merge base, which the branch chooses by where it forks. A runner that names a change and no base it can have fails
+# both. Elsewhere the base is origin/<default>. kit ci runs both before the gate and kit check, which run commands of
+# the branch's own.
 #
 # policy:from-base reads policy, policy_engine, linked_exempt, facts, forge, and forges from the base's kit.yml, each
 # absent where the base has none, so the kit's default applies: for forge and forges, the provider the remote's host
@@ -57,8 +59,10 @@
 # checkout of the kit, is read as the base holds it, and a source's or a release's elsewhere from where it is. A
 # package the base lists that is in none of those places fails both. A change to the policy is judged by the policy
 # before it, and takes effect once it is on the default branch. On a CI runner the branch is the change's head
-# branch, whatever its name, so a detached checkout of the change, a fork's main among them, is judged the same way.
-# On the default branch, or a detached HEAD outside a runner, both read the disk.
+# branch, whatever its name, so a detached checkout of the change, a fork's main among them, is judged the same way;
+# a merge group's is its head, gh-readonly-queue/<base>/pr-<n>-<sha>, which the kit's default branch pattern refuses,
+# so a repository that runs kit ci on a merge queue sets policy.branch to allow it. On the default branch, or a
+# detached HEAD outside a runner, both read the disk.
 #
 # A base with no kit.yml is one the kit is not installed on: there, both read the checkout's own settings and Rego, as
 # on the default branch, so the change that installs the kit sets its first policy. A base that is not here, as in a
@@ -126,13 +130,29 @@ policy:rules() {
     '{branch: $branch, commit_subject: $commit_subject, change_title: $change_title}'
 }
 
-# policy:branch prints the branch to check: the change's source branch on a CI runner, otherwise the current
-# branch, or nothing on a detached HEAD.
+# policy:branch prints the branch to check: the change's source branch on a CI runner, or a merge group's head there,
+# otherwise the current branch, or nothing on a detached HEAD.
 policy:branch() {
   local branch=${GITHUB_HEAD_REF:-${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME:-}}
+  if [[ -z "${branch}" && "${GITHUB_EVENT_NAME:-}" == merge_group ]]
+  then
+    # A merge group's event names its head, refs/heads/gh-readonly-queue/<base>/pr-<n>-<sha>; an event that cannot be
+    # read names none, which policy:branch-past refuses.
+    branch=$(jq --raw-output '.merge_group.head_ref // empty' "${GITHUB_EVENT_PATH:-/dev/null}" 2>/dev/null) \
+      || branch=''
+    printf '%s\n' "${branch#refs/heads/}"
+    return 0
+  fi
   # A detached HEAD has no branch, and prints nothing.
   [[ -n "${branch}" ]] || branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)
   printf '%s\n' "${branch}"
+}
+
+# policy:change-named succeeds where the environment names the change a CI runner builds: a pull request's head
+# branch, GITHUB_HEAD_REF; a merge request's, CI_MERGE_REQUEST_SOURCE_BRANCH_NAME; or a merge group's event,
+# GITHUB_EVENT_NAME merge_group. Such a change is past its base whatever its branch is named.
+policy:change-named() {
+  [[ -n "${GITHUB_HEAD_REF:-}${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME:-}" || "${GITHUB_EVENT_NAME:-}" == merge_group ]]
 }
 
 # policy:input prints the facts document at the ci moment, as facts:document builds it: the branch's commits, its
@@ -161,13 +181,21 @@ policy:engine() {
 }
 
 # policy:branch-past prints the branch policy:branch names when it is past the default one, and nothing on the default
-# branch or a detached HEAD. A change's head branch on a CI runner is past its base whatever its name, as a fork's
-# main is. It returns 1 when the default branch cannot be read.
+# branch or a detached HEAD. A change a CI runner names is past its base whatever its branch is named, as a fork's
+# main is (policy:change-named). It returns 1 when the default branch cannot be read, or a merge group's head is not
+# in its event.
 policy:branch-past() {
   local branch default_branch
   branch=$(policy:branch)
-  [[ -n "${branch}" ]] || return 0
-  if [[ -z "${GITHUB_HEAD_REF:-}${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME:-}" ]]
+  if [[ -z "${branch}" ]]
+  then
+    [[ "${GITHUB_EVENT_NAME:-}" == merge_group ]] || return 0
+    error "the merge group's head is not in the runner's event (merge_group.head_ref is not in" \
+      "${GITHUB_EVENT_PATH:+the event at }${GITHUB_EVENT_PATH:-GITHUB_EVENT_PATH, which is not set}), so its policy" \
+      "cannot be read"
+    return 1
+  fi
+  if ! policy:change-named
   then
     default_branch=$(git:default-branch) || return 1
     [[ "${branch}" != "${default_branch}" ]] || return 0
@@ -176,41 +204,83 @@ policy:branch-past() {
 }
 
 # policy:base-name prints the name of a branch's base, whose policy judges it and from which facts:document counts
-# its commits: on a runner, the commit the change's event names as its base, GitHub's pull_request.base.sha in the
-# event at GITHUB_EVENT_PATH or GitLab's CI_MERGE_REQUEST_DIFF_BASE_SHA, which no job can move; elsewhere
-# origin/<default>. It returns 1, saying so, where the environment names a change's head branch, GITHUB_HEAD_REF or
-# CI_MERGE_REQUEST_SOURCE_BRANCH_NAME, and no base commit, or names as the base something that is no commit.
+# its commits: on a runner, the base the change's event names (policy:runner-base); elsewhere origin/<default>. It
+# returns 1, saying so, when a runner names a change and its base cannot be had.
 policy:base-name() {
-  local head=${GITHUB_HEAD_REF:-${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME:-}} commit=${CI_MERGE_REQUEST_DIFF_BASE_SHA:-}
-  local event=${GITHUB_EVENT_PATH:-} default_branch unread=''
-  if [[ -z "${commit}" && -n "${event}" ]]
+  local base
+  base=$(policy:runner-base) || return 1
+  if [[ -z "${base}" ]]
   then
-    # An event with no pull request, as a push's, names no base; so does one that cannot be read, which fails below
-    # where a change's head branch is named.
-    commit=$(jq --raw-output '.pull_request.base.sha // empty' "${event}" 2>/dev/null) || commit=''
+    base=$(git:default-branch) || return 1
+    base=origin/${base}
   fi
-  if [[ -n "${commit}" && ! "${commit}" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]]
+  printf '%s\n' "${base}"
+}
+
+# policy:runner-base prints the base a CI runner's event names for the change it builds, which no code of the branch
+# can move, and nothing where no change is named, as at a desk or in a push build. On GitHub it is the pull request's
+# base commit, pull_request.base.sha in the event at GITHUB_EVENT_PATH, or a merge group's, merge_group.base_sha. On
+# GitLab it is the target branch's tip: CI_MERGE_REQUEST_TARGET_BRANCH_SHA where a merged-results pipeline sets it,
+# else origin/<target>, the branch CI_MERGE_REQUEST_TARGET_BRANCH_NAME names, fetched from origin when it is not here
+# (policy:target-here); never CI_MERGE_REQUEST_DIFF_BASE_SHA, the merge base, which a branch chooses by where it
+# forks. It returns 1, saying so, where a change is named (policy:change-named) and its base is not in the event, is
+# no commit, or cannot be had.
+policy:runner-base() {
+  local event=${GITHUB_EVENT_PATH:-} key=pull_request.base.sha commit='' target unread=''
+  if [[ -n "${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME:-}" ]]
+  then
+    commit=${CI_MERGE_REQUEST_TARGET_BRANCH_SHA:-}
+    target=${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-}
+    if [[ -z "${commit}" && -n "${target}" ]]
+    then
+      policy:target-here "${target}" || return 1
+      printf 'origin/%s\n' "${target}"
+      return 0
+    fi
+    [[ -n "${commit}" ]] || unread='CI_MERGE_REQUEST_TARGET_BRANCH_NAME is not set'
+  else
+    [[ "${GITHUB_EVENT_NAME:-}" != merge_group ]] || key=merge_group.base_sha
+    if [[ -n "${event}" ]]
+    then
+      # An event with no change, as a push's, names no base; so does one that cannot be read, which fails below where
+      # a change is named.
+      commit=$(jq --raw-output ".${key} // empty" "${event}" 2>/dev/null) || commit=''
+    fi
+    if [[ -z "${commit}" ]] && policy:change-named
+    then
+      unread="${key} is not in ${event:+the event at }${event:-GITHUB_EVENT_PATH, which is not set}"
+    fi
+  fi
+  if [[ -z "${unread}" && -n "${commit}" && ! "${commit}" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]]
   then
     unread="'${commit}' is not a commit"
-  elif [[ -n "${GITHUB_HEAD_REF:-}" && -z "${commit}" ]]
-  then
-    unread="pull_request.base.sha is not in ${event:+the event at }${event:-GITHUB_EVENT_PATH, which is not set}"
-  elif [[ -n "${head}" && -z "${commit}" ]]
-  then
-    unread='CI_MERGE_REQUEST_DIFF_BASE_SHA is not set'
   fi
   if [[ -n "${unread}" ]]
   then
     error "the base of the change is not in the runner's event (${unread}), so its policy cannot be read"
     return 1
   fi
-  if [[ -n "${commit}" ]]
+  [[ -z "${commit}" ]] || printf '%s\n' "${commit}"
+}
+
+# policy:target-here <branch> makes sure refs/remotes/origin/<branch>, a merge request's target, is here, fetching it
+# from origin when it is not. The name reaches git as an argument, so one git refuses as a branch name is refused
+# first, named. It returns 1, saying so, when the target cannot be had.
+policy:target-here() {
+  local target=$1
+  if [[ "${target}" == -* ]] || ! git check-ref-format --branch "${target}" >/dev/null 2>&1
   then
-    printf '%s\n' "${commit}"
-    return 0
+    error "the base of the change cannot be named ('${target}' in CI_MERGE_REQUEST_TARGET_BRANCH_NAME is not a" \
+      "branch name), so its policy cannot be read"
+    return 1
   fi
-  default_branch=$(git:default-branch) || return 1
-  printf 'origin/%s\n' "${default_branch}"
+  git rev-parse --verify --quiet "refs/remotes/origin/${target}^{commit}" >/dev/null && return 0
+  if ! git fetch --quiet origin "refs/heads/${target}:refs/remotes/origin/${target}" 2>/dev/null
+  then
+    error "the base of the change, origin/${target}, the merge request's target, is not here and could not be" \
+      "fetched, so its policy cannot be read"
+    return 1
+  fi
 }
 
 # policy:base prints a branch's base, as policy:base-name names it, once it is here. It returns 1, saying so, when the

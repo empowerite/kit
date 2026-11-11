@@ -8,8 +8,8 @@
 #   - `branch` and `default_branch`; the branch is null on the default branch or a detached HEAD, and is a change's
 #     head branch on a CI runner, whatever its name (policy:branch-past)
 #   - `commits`: at ci, those past the fork from the branch's base, merges excluded: origin's default branch, or on a
-#     runner the commit the change's event names as its base (policy:base-name), the same base whose policy judges
-#     them; or null when the fork is not here, as in a shallow clone; at commit, the one commit
+#     runner the base the change's event names (policy:base-name), the same base whose policy judges them; or null
+#     when the fork is not here, as in a shallow clone; at commit, the one commit
 #   - `change`: at ci, the open change on the branch, with its title, body, and author; null where the primary has no
 #     forge or the forge answered that there is no open change; {"error": "<line>"}, the provider's line, where a read
 #     of the forge failed; at commit, always null
