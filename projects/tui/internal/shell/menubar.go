@@ -5,6 +5,8 @@
 package shell
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/pane"
@@ -87,6 +89,17 @@ func (b MenuBar) span(part string, end, width int) (from, until int, whole bool)
 func (b MenuBar) OnCrumb(x, y, width int) bool {
 	from, until, _ := b.CrumbSpan(width)
 	return y == Top && from >= 0 && x >= from && x < until
+}
+
+// Rule is the glyph of the line under the menu bar of a screen with no tab bar right under it, as a maximized tab's
+// banner is drawn: heavy, one cell.
+const Rule = "━"
+
+// RuleLine gives the line under the menu bar of a screen with no tab bar right under it: Rule, so wide, in color, a
+// 256-color number, as a maximized tab's banner is in its tab's; no color draws it in the accent.
+func RuleLine(width int, color string) string {
+	mark, _ := style.In(color)
+	return mark(strings.Repeat(Rule, max(0, width)))
 }
 
 // Line draws the menu bar on a screen so wide: the left part, clipped two cells short of the search field, and the

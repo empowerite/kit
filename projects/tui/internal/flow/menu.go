@@ -27,7 +27,7 @@ import (
 const (
 	Maximize = "⤢"
 	Restore  = "⤡"
-	Banner   = "━"
+	Banner   = shell.Rule
 	More     = "🔽"
 	Less     = "🔼"
 	Expand   = "⏬"

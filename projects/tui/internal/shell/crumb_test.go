@@ -58,3 +58,16 @@ func TestTheKeysBarNamesTheWayBackWhileACrumbShows(t *testing.T) {
 		t.Errorf("with none: %+v", got)
 	}
 }
+
+// A screen with no tab bar under its menu bar draws the rule there across its width, one cell a glyph.
+func TestTheRuleUnderTheMenuBarSpansTheScreen(t *testing.T) {
+	if ansi.StringWidth(Rule) != 1 {
+		t.Fatalf("the rule's glyph is not one cell: %q", Rule)
+	}
+	for _, width := range []int{0, 1, 80} {
+		line := RuleLine(width, "")
+		if got := ansi.Strip(line); got != strings.Repeat(Rule, width) {
+			t.Errorf("at %d: %q", width, got)
+		}
+	}
+}

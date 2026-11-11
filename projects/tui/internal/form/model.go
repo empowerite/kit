@@ -216,10 +216,10 @@ func (m Model) View() tea.View {
 		CommandRefusal: m.refusal, Back: m.back})
 	room := 0
 	if m.height > 0 {
-		room = max(1, m.height-3) // the menu bar over the form, and the gap and the status bar under it
+		room = max(1, m.height-4) // the menu bar and its rule over the form, and the gap and the status bar under it
 	}
 	lines := strings.Split(strings.TrimSuffix(window(content, room, header, first, last, at, live.Dim), "\n"), "\n")
-	lines = append([]string{m.menuBar().Line(m.width)}, lines...)
+	lines = append([]string{m.menuBar().Line(m.width), shell.RuleLine(m.width, "")}, lines...)
 	lines = m.appMenu.Overlay(lines, m.width)
 	lines = m.books.Overlay(lines, m.menuBar().WorkspaceAt(), m.width)
 	return shell.View(lines, m.height, m.keys().Line(m.width))

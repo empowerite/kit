@@ -52,21 +52,22 @@ func (m Model) summaryHeight() int {
 // cardHeight gives the lines a card takes, its border with it.
 func (m Model) cardHeight() int { return cardLines + m.summaryHeight() }
 
-// controlTop is the screen line of the table's control line, under the menu bar; the pane has the lines from paneTop
-// on, right under it, but the gap and the keys, which fixed counts with the menu bar and the control line.
+// controlTop is the screen line of the table's control line, under the menu bar and its rule; the pane has the lines
+// from paneTop on, right under it, but the gap and the keys, which fixed counts with the menu bar, the rule, and the
+// control line.
 const (
-	controlTop = 1
+	controlTop = 2
 	paneTop    = controlTop + 1
-	fixed      = 4
+	fixed      = 5
 )
 
 // lead is what starts a line of the pane that is no card's.
 const lead = "  "
 
-// View draws the screen on the alternate screen, with the mouse on for the control line and the cards, the table's
-// layers over them.
+// View draws the screen on the alternate screen, the menu bar's rule under it, with the mouse on for the control line
+// and the cards, the table's layers over them.
 func (m Model) View() tea.View {
-	lines := append([]string{m.menuBar().Line(m.width), m.control()}, m.pane()...)
+	lines := append([]string{m.menuBar().Line(m.width), shell.RuleLine(m.width, ""), m.control()}, m.pane()...)
 	lines = m.sheet.Over(lines)
 	lines = m.recent.Overlay(append(lines, ""), m.recallAt(), m.width)
 	lines = m.appMenu.Overlay(lines, m.width)

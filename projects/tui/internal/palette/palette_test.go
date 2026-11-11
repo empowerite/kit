@@ -251,8 +251,8 @@ func TestARefusalShowsRedUnderTheMenuBarUntilTheSearchChangesOrAVerbOpens(t *tes
 	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 120, Height: 30}, slash)
 	m = m.Refuse(line)
 	lines := strings.Split(screen(m), "\n")
-	if strings.TrimSpace(lines[1]) != style.Excluded+" "+line {
-		t.Fatalf("no refusal under the menu bar:\n%s", screen(m))
+	if strings.Trim(lines[1], shell.Rule) != "" || strings.TrimSpace(lines[2]) != style.Excluded+" "+line {
+		t.Fatalf("no refusal under the menu bar's rule:\n%s", screen(m))
 	}
 	if !strings.Contains(m.View().Content, style.Refusal(style.Excluded+" "+line)) {
 		t.Errorf("the refusal is not red:\n%s", m.View().Content)

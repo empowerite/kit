@@ -583,10 +583,10 @@ func (m Model) keys() shell.Path {
 	return path
 }
 
-// View draws the screen: the menu bar, the table, or kit's line while it lists none, and the keys bar, or what kit did
-// in its place; the table's layers, the menus, and the prompt over them.
+// View draws the screen: the menu bar and its rule, the table, or kit's line while it lists none, and the keys bar, or
+// what kit did in its place; the table's layers, the menus, and the prompt over them.
 func (m Model) View() tea.View {
-	lines := []string{m.menuBar().Line(m.width), ""}
+	lines := []string{m.menuBar().Line(m.width), shell.RuleLine(m.width, "")}
 	switch {
 	case m.refusal != "":
 		lines = append(lines, "   "+style.Refusal(Failed+" "+m.refusal))

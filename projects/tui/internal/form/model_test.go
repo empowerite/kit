@@ -430,16 +430,19 @@ func TestTheWayBackIsOnTopTheKeysLastAndThePurposeNamesTheCommand(t *testing.T) 
 		!strings.HasSuffix(lines[0], shell.Find+" "+shell.Idle) {
 		t.Errorf("the menu bar: %q", lines[0])
 	}
-	if strings.TrimSpace(lines[1]) != "‹ verbs" || !strings.HasPrefix(bar, " esc back ↑↓ move ⏎ next ⇧⏎ run │ ") {
-		t.Errorf("with the way back, the second line %q, the last %q", lines[1], bar)
+	if strings.Trim(lines[1], shell.Rule) != "" {
+		t.Errorf("the menu bar's rule: %q", lines[1])
+	}
+	if strings.TrimSpace(lines[2]) != "‹ verbs" || !strings.HasPrefix(bar, " esc back ↑↓ move ⏎ next ⇧⏎ run │ ") {
+		t.Errorf("with the way back, the third line %q, the last %q", lines[2], bar)
 	}
 	if !strings.Contains(stripANSI(m.View().Content), "\n kit flow - "+m.spec.Purpose[:20]) {
 		t.Errorf("the purpose does not name the command:\n%s", stripANSI(m.View().Content))
 	}
 	m = newForm(t, "flow", Answers{}, false)
 	lines = screen(m)
-	if !strings.HasPrefix(lines[1], " kit flow - ") || !strings.HasPrefix(lines[len(lines)-1], " ⌃Q quit ") {
-		t.Errorf("without the way back, the second line %q, the last %q", lines[1], lines[len(lines)-1])
+	if !strings.HasPrefix(lines[2], " kit flow - ") || !strings.HasPrefix(lines[len(lines)-1], " ⌃Q quit ") {
+		t.Errorf("without the way back, the third line %q, the last %q", lines[2], lines[len(lines)-1])
 	}
 }
 
@@ -549,8 +552,8 @@ func TestAShortTerminalKeepsTheKeysAndTheFocusedField(t *testing.T) {
 		if len(lines) != 9 {
 			t.Errorf("focus %d: %d lines on a screen of 9", m.focus, len(lines))
 		}
-		if strings.TrimSpace(lines[1]) != "‹ verbs" || !strings.Contains(lines[8], "↑↓ move") {
-			t.Errorf("focus %d: the way back or the keys moved: %q, %q", m.focus, lines[1], lines[8])
+		if strings.TrimSpace(lines[2]) != "‹ verbs" || !strings.Contains(lines[8], "↑↓ move") {
+			t.Errorf("focus %d: the way back or the keys moved: %q, %q", m.focus, lines[2], lines[8])
 		}
 		focused := m.focus >= len(m.fields) && strings.Contains(lines[len(lines)-3], "kit new")
 		for _, line := range lines {
@@ -679,8 +682,8 @@ func TestAShortScreenSaysHowManyLinesItHidesAndKeepsTheListsCursor(t *testing.T)
 			}
 			lines := screen(m)
 			if len(lines) != height || !strings.Contains(lines[height-1], "│ ⇞⇟ page ") ||
-				strings.TrimSpace(lines[1]) != "‹ verbs" {
-				t.Fatalf("at %d: %d lines, the second %q, the last %q", height, len(lines), lines[1],
+				strings.TrimSpace(lines[2]) != "‹ verbs" {
+				t.Fatalf("at %d: %d lines, the third %q, the last %q", height, len(lines), lines[2],
 					lines[len(lines)-1])
 			}
 			cursor := false

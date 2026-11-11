@@ -35,11 +35,8 @@ func (m Model) top() int {
 }
 
 // banner gives the line under the title of a maximized tab: Banner, as wide as the pane, in the color the bar draws the
-// selected tab in.
-func (m Model) banner() string {
-	mark, _ := style.In(m.bar().Color)
-	return mark(strings.Repeat(Banner, m.paneWidth()))
-}
+// selected tab in, the line every screen with no tab bar under its menu bar has, as shell.RuleLine draws it.
+func (m Model) banner() string { return shell.RuleLine(m.paneWidth(), m.bar().Color) }
 
 // View draws the title and, on its right, the search; the bar, or, maximized, the banner; the selected stage's pane, the
 // rows the width of the screen; and a gap, over the keys bar on the last line; the legend over them while it shows; on

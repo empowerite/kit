@@ -35,13 +35,15 @@ func (m Model) searchLine() string {
 	return shell.RecallLine(m.search.Query, m.search.Focused && !m.appMenu.Open, len(m.recent.Items) > 0)
 }
 
-// top gives the lines over the table: the menu bar; kit's line under it, in red, when a verb did not open; and a gap.
+// top gives the lines over the table: the menu bar and its rule; and kit's line under them, in red, when a verb did
+// not open, and a gap.
 func (m Model) top() []string {
-	top := []string{m.menuBar().Line(m.width)}
-	if m.refusal != "" {
-		for _, line := range page(style.Excluded+" "+m.refusal, m.width-2) {
-			top = append(top, " "+style.Refusal(line))
-		}
+	top := []string{m.menuBar().Line(m.width), shell.RuleLine(m.width, "")}
+	if m.refusal == "" {
+		return top
+	}
+	for _, line := range page(style.Excluded+" "+m.refusal, m.width-2) {
+		top = append(top, " "+style.Refusal(line))
 	}
 	return append(top, "")
 }
