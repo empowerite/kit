@@ -37,8 +37,11 @@
 #   --jq              the same JSON, formatted by jq for a person
 #   --show            shows a workspace's members, each with its checkout
 #   --current         says which workspace kit starts on here, and why; under kit --workspace=<workspace>, the kit
-#                     option before the verb, that one in place of where kit runs, none naming no workspace
-#   --use             remembers a group as the last used, which kit starts on outside a repository
+#                     option before the verb, that one in place of where kit runs, none naming no workspace, and an
+#                     absolute path the repository whose working tree holds it
+#   --use             remembers a group as the last used, which kit starts on outside a repository; given a
+#                     <folder>, keeps the repository whose working tree holds it first among the recent ones, ten at
+#                     most, which the workspace menu offers
 #   --new             makes a group, with the repositories given as its members
 #   --add             adds the repositories to a group's members
 #   --remove          takes the repositories out of a group's members
@@ -47,20 +50,25 @@
 #                     checkouts are as they were
 #   --favorite        adds a workspace to the favorites
 #   --unfavorite      takes a workspace out of the favorites
-#   <workspace>       a group's name, or a repository: github.com/empowerite/edge or a git URL
+#   <workspace>       a group's name, or a repository: github.com/empowerite/edge or a git URL; for --use, a <folder>
+#                     too
 #   <name>            a group's name: a lowercase letter or a digit, then lowercase letters, digits, and . _ -, and
 #                     never none
 #   <new-name>        the name --rename gives the group, as a <name> is written and no other group's
 #   <repository>      github.com/empowerite/edge, a git URL, or a checkout's directory
+#   <folder>          a folder in a git working tree, written as a path: it starts with /, ./, ../, or ~/, or is ., ..,
+#                     or ~
 #
 # The list's JSON is {file, roots, favorites, workspaces}, each group {name, members, favorite}, members a count.
 # --show's is {name, kind, members}: kind is group or repository, and each member is {repository, host, path, forge,
 # remotes, checkout, checkouts, by}, remotes [{name, url, forge}] the primary first, checkout a path or null, and by
 # fixed for a group's member, given for a repository named. --current's is {kind, name, member, checkout, why, members,
-# groups, favorites}: kind is repository, group, or none; why is given, repository, last, or none; members a group's,
-# as --show gives each; groups, for a repository, each group that holds it, {name, members}, members a count; and
-# favorites {name, kind, members, checkout}. Only the JSON looks for checkouts; the text names the workspace alone.
-# The forms that edit print one line, which says what changed, or that nothing needed to, and take no --json.
+# groups, workspaces, favorites, recent}: kind is repository, group, or none; why is given, repository, last, or none;
+# members a group's, as --show gives each; groups, for a repository, each group that holds it, {name, members},
+# members a count; workspaces, every group in the file, as groups gives each; favorites {name, kind, members,
+# checkout}; and recent, the repositories --use kept by their folder whose working trees are still there, the newest
+# first, {name, member, checkout}. Only the JSON looks for checkouts; the text names the workspace alone. The forms
+# that edit print one line, which says what changed, or that nothing needed to, and take no --json.
 #
 # Each form that edits, and --use, takes the file's lock first, a link in kit/workspaces/ under XDG_CACHE_HOME, else
 # ~/.cache, so two commands that edit the file at once each land. A lock whose process is gone is taken over; one held
@@ -171,11 +179,19 @@ case "${action}" in
       [.why]))"'
     ;;
   (use)
+    if workspaces:folder "${target}" >/dev/null
+    then
+      checkout=$(workspaces:tree "${target}") || exit $?
+      workspaces:recall "${checkout}" || exit 1
+      step "📘 ${checkout} is among the recent repositories, which the workspace menu offers"
+      exit 0
+    fi
     line=$(workspaces:kind "${target}") || exit $?
     read -r kind _ <<<"${line}"
     if [[ "${kind}" != group ]]
     then
-      error "kit workspaces --use remembers a group; a repository is the workspace inside it"
+      error "kit workspaces --use remembers a group, or a repository by its folder; a repository is the workspace" \
+        "inside it"
       exit 2
     fi
     workspaces:remember "${target}" || exit 1

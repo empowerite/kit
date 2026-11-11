@@ -2,8 +2,8 @@
 // repository, - and a group's name and its count of members, the count dim, for a group, both in the repository's
 // color, and - alone, dim, with none. Until kit says which workspace it is, it names the origin's owner/repo, as the
 // title did before. A plain click on it drops down what to switch to: the groups the repository belongs to, first;
-// the favorites; a rule between two of those it has. A line that cannot switch now stays, dim: the workspace shown,
-// and a repository not cloned. When kit could not say, its line comes first, dim. With none of those, one line says how
+// the favorites, however many; every other group in the file; a rule between two of those it has. A line that cannot
+// switch now stays, dim: the workspace shown, and a repository not cloned. When kit could not say, its line comes first, dim. With none of those, one line says how
 // kit makes a group, and never acts. A pick asks kittui to switch, by the workspace's name as kit names it.
 package shell
 
@@ -123,7 +123,7 @@ func (b BooksMenu) On(x, y, at int) bool {
 // lines gives the dropdown's lines, top to bottom, as the header says.
 func (b BooksMenu) lines() []booksLine {
 	ws := b.Workspace
-	var refusal, groups, favorites []booksLine
+	var refusal, groups, favorites, others []booksLine
 	if b.Refusal != "" {
 		refusal = append(refusal, booksLine{item: Item{Glyph: "❌", Name: b.Refusal}})
 	}
@@ -149,8 +149,19 @@ func (b BooksMenu) lines() []booksLine {
 		line.acts = line.acts && !shown
 		favorites = append(favorites, line)
 	}
+	drawn := map[string]bool{}
+	for _, l := range slices.Concat(groups, favorites) {
+		drawn[l.target] = true
+	}
+	for _, g := range ws.Workspaces {
+		if drawn[g.Name] {
+			continue
+		}
+		line := Item{Glyph: Books, Name: g.Name + " " + strconv.Itoa(g.Members)}
+		others = append(others, booksLine{line, g.Name, ws.Kind != "group" || g.Name != ws.Name})
+	}
 	var out []booksLine
-	for _, section := range [][]booksLine{refusal, groups, favorites} {
+	for _, section := range [][]booksLine{refusal, groups, favorites, others} {
 		if len(section) == 0 {
 			continue
 		}

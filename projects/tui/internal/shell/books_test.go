@@ -2,6 +2,7 @@
 package shell
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -141,6 +142,49 @@ func TestBooksDropsDownTheGroupsThenTheFavorites(t *testing.T) {
 	b.Workspace.Favorites = inGroups.Favorites
 	if got, acting := names(b); got[0] != "w 2" || len(acting) != 0 {
 		t.Errorf("over w: %q, acting %v", got, acting)
+	}
+}
+
+// Every group in the file follows the favorites, each a line of its own, but those drawn above already: the groups the
+// repository belongs to, and the favorites. However many favorites there are, each has its line.
+func TestBooksDropsDownEveryOtherGroupAfterTheFavorites(t *testing.T) {
+	ws := inGroups
+	ws.Workspaces = []kit.WorkspaceGroup{{Name: "w", Members: 2}, {Name: "x", Members: 3}, {Name: "v", Members: 1},
+		{Name: "y", Members: 4}}
+	got, acting := names(BooksMenu{Workspace: ws})
+	want := []string{"w 2", "v 1", "", "w 2", "o/b · not cloned", "", "x 3", "y 4"}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Errorf("the lines: %q", got)
+	}
+	if len(acting) != 5 || acting[3] != 6 || acting[4] != 7 {
+		t.Errorf("the lines that act: %v", acting)
+	}
+	if items := (BooksMenu{Workspace: ws}).Items(); items[6].Glyph != Books {
+		t.Errorf("another group's glyph: %+v", items[6])
+	}
+	b := BooksMenu{Workspace: ws}.Opened()
+	for range 3 {
+		b, _ = b.Key(key("down"))
+	}
+	if _, picked := b.Key(key("enter")); picked != "x" {
+		t.Errorf("down to x, enter: %q", picked)
+	}
+	// over a group, it stands among the others, dim
+	over := group("x", 3)
+	over.Workspaces = ws.Workspaces
+	if got, acting := names(BooksMenu{Workspace: over}); strings.Join(got, "|") != "w 2|x 3|v 1|y 4" ||
+		len(acting) != 3 || acting[0] != 0 || acting[1] != 2 {
+		t.Errorf("over x: %q, acting %v", got, acting)
+	}
+	// no cap: every favorite has its line
+	many := kit.Workspace{Kind: "none"}
+	for k := range 30 {
+		name := "g" + strconv.Itoa(k)
+		many.Favorites = append(many.Favorites, kit.WorkspaceFavorite{Name: name, Kind: "group", Members: 1})
+		many.Workspaces = append(many.Workspaces, kit.WorkspaceGroup{Name: name, Members: 1})
+	}
+	if got, _ := names(BooksMenu{Workspace: many}); len(got) != 30 {
+		t.Errorf("30 favorites: %d lines", len(got))
 	}
 }
 

@@ -20,6 +20,9 @@ workspaces_walk_depth=4
 # clock.
 workspaces_lock_wait=300
 
+# workspaces_recent_most is how many repositories opened by their folder kit keeps among the recent.
+workspaces_recent_most=10
+
 # workspaces_checked is 1 once workspaces:check has passed, so a subshell does not check the file again; empty until it
 # does.
 workspaces_checked=''
@@ -42,6 +45,53 @@ workspaces:unwritable() {
 # they are outside a repository. A verb is here at its repository's top, as kit:enter moves there, or where it was run.
 workspaces:in-repository() {
   git -C "${1:-${PWD}}" rev-parse --show-toplevel 2>/dev/null || return 1
+}
+
+# workspaces:folder <word> prints the absolute path of a word written as a folder: one that starts with /, ./, ../, or
+# ~/, or is ., .., or ~, read from where kit was run, ~ as HOME. It returns 1, printing nothing, for any other word, as a
+# group's name or a member, so github.com/o/a names the member even where a folder of that name is under the one here.
+workspaces:folder() {
+  local word=$1
+  case "${word}" in
+    (/*) ;;
+    (\~ | \~/*) word=${HOME}${word#\~} ;;
+    (. | .. | ./* | ../*) word=${kit_invoked_in:-${PWD}}/${word} ;;
+    (*) return 1
+  esac
+  printf '%s\n' "${word}"
+}
+
+# workspaces:tree <word> prints the top of the git working tree that holds the folder <word> names, as
+# workspaces:folder reads it. It returns 2, after a line that says so, for a folder that is in no working tree, or is
+# not there.
+workspaces:tree() {
+  local folder
+  folder=$(workspaces:folder "$1") || folder=$1
+  if ! workspaces:in-repository "${folder}"
+  then
+    error "'$1' is no git working tree; name the folder of a clone"
+    return 2
+  fi
+}
+
+# workspaces:recent prints the repositories opened by their folder, each its working tree's top, the newest first, as
+# workspaces:recall keeps them in kit/workspaces/recent under XDG_CACHE_HOME.
+workspaces:recent() {
+  local file
+  file=$(workspaces:cache)/recent
+  [[ ! -f "${file}" ]] || grep --invert-match --line-regexp '' "${file}" || true
+}
+
+# workspaces:recall <checkout> keeps a working tree's top first among the recent repositories, each once, and
+# workspaces_recent_most of them at most. It returns 1, saying so, where workspaces:cache's directory cannot be made or
+# written.
+workspaces:recall() {
+  local dir kept
+  dir=$(workspaces:cache)
+  kept=$(workspaces:recent | grep --invert-match --line-regexp --fixed-strings -- "$1" |
+    head -n $((workspaces_recent_most - 1))) || true
+  { mkdir -p "${dir}" && printf '%s\n' "$1" ${kept:+"${kept}"} > "${dir}/recent"; } 2>/dev/null \
+    || workspaces:unwritable "the recent repositories"
 }
 
 # workspaces:spelled <member> prints a member as kit spells it, so one repository has one name: the host in lower case,
@@ -454,7 +504,8 @@ workspaces:forget() {
 }
 
 # workspaces:current [<workspace>] prints the workspace kit starts on as JSON: {kind, name, member, checkout, why}. A
-# workspace given is it, why given, and none names none; else, inside a repository, that repository, named by its
+# workspace given is it, why given, and none names none; an absolute path names the repository whose working tree holds
+# it, as workspaces:tree finds it, and returns 2 where none does; else, inside a repository, that repository, named by its
 # member or, with none, by its path; else the last group used; else none. With a workspace given other than none, and
 # outside a repository, it checks the file, as workspaces:check does, before it reads it; inside a repository with no
 # workspace given, it reads no file. It returns 2 for a workspace given that is unknown, and 1 when the file's groups
@@ -464,6 +515,11 @@ workspaces:current() {
   if [[ "${given}" == none ]]
   then
     kind=none why=given
+  elif [[ "${given}" == /* ]]
+  then
+    checkout=$(workspaces:tree "${given}") || return $?
+    kind=repository why=given member=$(workspaces:member-of "${checkout}")
+    name=${member:-${checkout}}
   elif [[ -n "${given}" ]]
   then
     workspaces:check || return 1
@@ -514,13 +570,15 @@ workspaces:across() {
 
 # workspaces:menu-json <current> prints the current workspace's JSON, as workspaces:current prints it, with what the
 # workspace menu draws added: members, a group's fixed members as --show gives each; groups, for a repository with a
-# member, each group whose fixed members hold it, {name, members}, members a count; and favorites, each that names a
-# group in the file or a repository, {name, kind, members, checkout}, members a group's count and checkout a
-# repository's. The roots are walked once, and only when a member or a favorite needs a checkout. It returns 1, saying
-# so, when the file's groups or favorites cannot be read.
+# member, each group whose fixed members hold it, {name, members}, members a count; workspaces, every group in the
+# file, in its order, {name, members}; and favorites, each that names a group in the file or a repository, {name,
+# kind, members, checkout}, members a group's count and checkout a repository's; and recent, each repository opened by
+# its folder whose working tree is still there, the newest first, {name, member, checkout}, name its member or, with
+# none, its checkout. The roots are walked once, and only when a member or a favorite needs a checkout. It returns 1, saying so, when the file's groups or favorites cannot be
+# read.
 workspaces:menu-json() {
-  local current=$1 kind member name favorite fkind line status checkouts=''
-  local -a members=() groups=() favorites=() fixed=() names favored
+  local current=$1 kind member name favorite fkind line status checkouts='' checkout
+  local -a members=() groups=() all=() favorites=() recent=() fixed=() names favored opened
   kind=$(jq --raw-output .kind <<<"${current}")
   member=$(jq --raw-output '.member // ""' <<<"${current}")
   list:read favored workspaces:favorites || return 1
@@ -536,17 +594,19 @@ workspaces:menu-json() {
       members+=("$(workspaces:member-json "${name}" fixed "${checkouts}")")
     done
   fi
-  if [[ "${kind}" == repository && -n "${member}" ]]
+  if ! list:read names workspaces:names
   then
-    list:read names workspaces:names || return 1
-    for name in "${names[@]}"
-    do
-      list:read fixed workspaces:fixed "${name}" || return 1
-      [[ " ${fixed[*]} " != *" ${member} "* ]] ||
-        groups+=("$(jq --null-input --compact-output --arg name "${name}" --argjson n "${#fixed[@]}" \
-          '{name: $name, members: $n}')")
-    done
+    error "run: kit workspaces (the groups in $(workspaces:file) could not be read, so the menu cannot list them)"
+    return 1
   fi
+  for name in "${names[@]}"
+  do
+    list:read fixed workspaces:fixed "${name}" || return 1
+    line=$(jq --null-input --compact-output --arg name "${name}" --argjson n "${#fixed[@]}" \
+      '{name: $name, members: $n}')
+    all+=("${line}")
+    [[ "${kind}" != repository || -z "${member}" || " ${fixed[*]} " != *" ${member} "* ]] || groups+=("${line}")
+  done
   for favorite in "${favored[@]}"
   do
     status=0
@@ -572,11 +632,24 @@ workspaces:menu-json() {
           checkout: (if $checkout == "" then null else $checkout end)}')")
     fi
   done
+  # a repository opened by its folder that is no longer a working tree's top, as one moved or removed, is left out
+  list:read opened workspaces:recent || return 1
+  for checkout in "${opened[@]}"
+  do
+    [[ "$(workspaces:in-repository "${checkout}")" == "${checkout}" ]] || continue
+    member=$(workspaces:member-of "${checkout}")
+    recent+=("$(jq --null-input --compact-output --arg member "${member}" --arg checkout "${checkout}" \
+      '{name: (if $member == "" then $checkout else $member end), member: (if $member == "" then null else $member end),
+        checkout: $checkout}')")
+  done
   jq --compact-output \
     --argjson members "$(printf '%s\n' "${members[@]}" | jq --slurp --compact-output 'map(select(. != null))')" \
     --argjson groups "$(printf '%s\n' "${groups[@]}" | jq --slurp --compact-output 'map(select(. != null))')" \
+    --argjson all "$(printf '%s\n' "${all[@]}" | jq --slurp --compact-output 'map(select(. != null))')" \
     --argjson favorites "$(printf '%s\n' "${favorites[@]}" | jq --slurp --compact-output 'map(select(. != null))')" \
-    '. + {members: $members, groups: $groups, favorites: $favorites}' <<<"${current}"
+    --argjson recent "$(printf '%s\n' "${recent[@]}" | jq --slurp --compact-output 'map(select(. != null))')" \
+    '. + {members: $members, groups: $groups, workspaces: $all, favorites: $favorites, recent: $recent}' \
+    <<<"${current}"
 }
 
 # workspaces:lock takes the lock on the workspace file for this command, or returns 0 when this command holds it. The

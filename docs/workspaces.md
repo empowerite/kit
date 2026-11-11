@@ -72,6 +72,13 @@ workspace` refuses.
 `kit workspaces --delete` of the last group used forgets it, so a group made later under its name is not the last
 used.
 
+`kit workspaces --use=<folder>`, with a folder written as a path, as `.`, `~/Code/edge`, or `/srv/edge`, keeps the
+repository whose working tree holds it first among the recent repositories, in `kit/workspaces/recent` under
+`XDG_CACHE_HOME`: ten at most, each once, the newest first. A recent repository is no group: kit starts on it only
+inside it, as on any other. The workspace menu offers them.
+`kit --workspace=<path> workspaces --current`, with an absolute path, names the repository whose working tree holds
+it, and refuses with 2 where none does.
+
 `kit flow`, `kit workspace`, and `kit workspaces --current` follow this rule. Every other verb runs in its folder's
 repository, or refuses outside one, and takes no `--workspace=`. `--workspace=` is an option of `kit` itself, which the
 loader, `kit/bin/kit`, reads and hands to the verb, and a verb refuses it among its own words. A call across a
@@ -79,7 +86,8 @@ workspace runs on the kit you installed, and each member's own call, in its chec
 pins, so `--workspace=` takes no `--version=`.
 
 `kit workspaces --current` says which one, and why. With `--json` it also gives what kittui's workspace menu draws: a
-group's members with their checkouts, the groups a repository belongs to, and the favorites.
+group's members with their checkouts, the groups a repository belongs to, every group in the file, the favorites, and
+the recent repositories whose working trees are still there.
 
 `kit flow` and `kit workspace` start where `kit workspaces --current` says. Outside a repository, they draw the last
 group used, as `--workspace=` with its name would. With no group used, or with `--workspace=none`, `kit flow` draws
@@ -92,6 +100,7 @@ kit workspaces                                    # the groups and the favorites
 kit workspaces --show=empowerite                  # each member, with its checkout or ☁️
 kit workspaces --current                          # the workspace kit starts on here, and why
 kit workspaces --use=empowerite                   # start on empowerite outside a repository
+kit workspaces --use=.                            # keep the repository here among the recent ones
 kit workspaces --new=empowerite . github.com/empowerite/kit
 kit workspaces --add=empowerite github.com/empowerite/edge
 kit workspaces --remove=empowerite github.com/empowerite/edge

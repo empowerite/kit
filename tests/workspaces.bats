@@ -554,12 +554,13 @@ YML
   run --separate-stderr kit-bash 'workspaces:menu-json "{\"kind\": \"none\", \"member\": null}"'
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  # a favorite whose kind needs the groups, which cannot be read, fails the menu rather than leaving the favorite out
+  # the groups, which the menu lists and a favorite's kind needs, cannot be read: the menu fails, rather than leaving
+  # them out
   printf 'favorites: [w, github.com/o/a]\nworkspaces: foo\n' | workspaces-file
   run --separate-stderr kit-bash 'workspaces:menu-json "{\"kind\": \"none\", \"member\": null}"'
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  [[ "$stderr" == *"the groups in ${XDG_CONFIG_HOME}/kit/workspaces.yml could not be read, so the favorite 'w'"* ]]
+  [[ "$stderr" == *"the groups in ${XDG_CONFIG_HOME}/kit/workspaces.yml could not be read, so the menu cannot list"* ]]
 }
 
 @test "--current --json gives a group's members with their checkouts, and the favorites" {
@@ -650,4 +651,80 @@ YML
   [ "$status" -eq 0 ]
   (( once > 0 ))
   [ "$(grep --count 'broken/kit.yml' "${calls}")" -eq "${once}" ]
+}
+
+@test "--current --json lists every group in the file, with its count, wherever kit starts" {
+  clone-at "${BATS_TEST_TMPDIR}/code/a" git@github.com:o/a.git
+  workspaces-file <<YML
+roots: [${BATS_TEST_TMPDIR}/code]
+workspaces:
+  w:
+    repos: [github.com/o/a, github.com/o/b]
+  x:
+    repos: [github.com/o/b]
+YML
+  cd "${BATS_TEST_TMPDIR}/code/a"
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
+  [ "$status" -eq 0 ]
+  [ "$(jq --compact-output .workspaces <<<"$output")" = '[{"name":"w","members":2},{"name":"x","members":1}]' ]
+  mkdir -p "${BATS_TEST_TMPDIR}/outside" && cd "${BATS_TEST_TMPDIR}/outside"
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
+  [ "$(jq --compact-output '[.kind, (.workspaces | map(.name))]' <<<"$output")" = '["none",["w","x"]]' ]
+}
+
+@test "--workspace= with a folder's absolute path names the repository whose working tree holds it" {
+  clone-at "${BATS_TEST_TMPDIR}/far/a" git@github.com:o/a.git
+  mkdir -p "${BATS_TEST_TMPDIR}/far/a/sub" "${BATS_TEST_TMPDIR}/plain"
+  git init --quiet "${BATS_TEST_TMPDIR}/far/local"
+  mkdir -p "${BATS_TEST_TMPDIR}/outside" && cd "${BATS_TEST_TMPDIR}/outside"
+  run --separate-stderr "${kit_root}/bin/kit" --workspace="${BATS_TEST_TMPDIR}/far/a/sub" workspaces --current --json
+  [ "$status" -eq 0 ]
+  top=$(cd "${BATS_TEST_TMPDIR}/far/a" && pwd -P)
+  [ "$(jq --compact-output '[.kind, .name, .member, .checkout, .why]' <<<"$output")" \
+    = '["repository","github.com/o/a","github.com/o/a","'"${top}"'","given"]' ]
+  run --separate-stderr "${kit_root}/bin/kit" --workspace="${BATS_TEST_TMPDIR}/far/local" workspaces --current --json
+  [ "$(jq --compact-output '[.kind, .name, .member]' <<<"$output")" \
+    = '["repository","'"$(cd "${BATS_TEST_TMPDIR}/far/local" && pwd -P)"'",null]' ]
+  run --separate-stderr "${kit_root}/bin/kit" --workspace="${BATS_TEST_TMPDIR}/plain" workspaces --current --json
+  [ "$status" -eq 2 ]
+  [ -z "$output" ]
+  [[ "$stderr" == *"'${BATS_TEST_TMPDIR}/plain' is no git working tree"* ]]
+  run --separate-stderr "${kit_root}/bin/kit" --workspace="${BATS_TEST_TMPDIR}/nowhere" workspaces --current --json
+  [ "$status" -eq 2 ]
+  [[ "$stderr" == *"'${BATS_TEST_TMPDIR}/nowhere' is no git working tree"* ]]
+}
+
+@test "--use with a folder remembers its repository among the recent, the newest first, each once, ten at most" {
+  for n in 0 1 2 3 4 5 6 7 8 9 10 11
+  do
+    git init --quiet "${BATS_TEST_TMPDIR}/r/${n}"
+  done
+  clone-at "${BATS_TEST_TMPDIR}/r/a" git@github.com:o/a.git
+  mkdir -p "${BATS_TEST_TMPDIR}/r/a/sub" "${BATS_TEST_TMPDIR}/plain"
+  cd "${BATS_TEST_TMPDIR}/r/a/sub"
+  run "${kit_root}/bin/kit" workspaces --use=.
+  [ "$status" -eq 0 ]
+  top=$(cd "${BATS_TEST_TMPDIR}/r/a" && pwd -P)
+  [[ "$output" == *"${top} is among the recent repositories"* ]]
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
+  [ "$(jq --compact-output .recent <<<"$output")" \
+    = '[{"name":"github.com/o/a","member":"github.com/o/a","checkout":"'"${top}"'"}]' ]
+  for n in 0 1 2 3 4 5 6 7 8 9 10 11
+  do
+    "${kit_root}/bin/kit" workspaces --use="${BATS_TEST_TMPDIR}/r/${n}" >/dev/null
+  done
+  "${kit_root}/bin/kit" workspaces --use="${BATS_TEST_TMPDIR}/r/5" >/dev/null
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
+  r=$(cd "${BATS_TEST_TMPDIR}/r" && pwd -P)
+  [ "$(jq --compact-output '[.recent[] | .checkout]' <<<"$output")" = "$(printf '%s\n' 5 11 10 9 8 7 6 4 3 2 \
+    | sed "s|^|${r}/|" | jq --raw-input --slurp --compact-output 'split("\n") | map(select(. != ""))')" ]
+  # a folder that is no longer a working tree is left out
+  rm -rf "${BATS_TEST_TMPDIR}/r/11"
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
+  [ "$(jq '.recent | length' <<<"$output")" -eq 9 ]
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --use="${BATS_TEST_TMPDIR}/plain"
+  [ "$status" -eq 2 ]
+  [[ "$stderr" == *"is no git working tree"* ]]
+  # the last group used is as it was
+  [ ! -f "${XDG_CACHE_HOME}/kit/workspaces/last" ]
 }

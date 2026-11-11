@@ -10,16 +10,18 @@ import (
 
 // Workspace is what kit workspaces --current --json prints: its kind, repository, group, or none, empty while kit has
 // not said; its name, a group's or a repository's; a repository's member, host/path, empty with no remote, and its
-// checkout; why kit starts on it; a group's members; the groups a repository belongs to; and the favorites.
+// checkout; why kit starts on it; a group's members; the groups a repository belongs to; every group in the file; and
+// the favorites.
 type Workspace struct {
-	Kind      string              `json:"kind"`
-	Name      string              `json:"name"`
-	Member    string              `json:"member"`
-	Checkout  string              `json:"checkout"`
-	Why       string              `json:"why"`
-	Members   []WorkspaceMember   `json:"members"`
-	Groups    []WorkspaceGroup    `json:"groups"`
-	Favorites []WorkspaceFavorite `json:"favorites"`
+	Kind       string              `json:"kind"`
+	Name       string              `json:"name"`
+	Member     string              `json:"member"`
+	Checkout   string              `json:"checkout"`
+	Why        string              `json:"why"`
+	Members    []WorkspaceMember   `json:"members"`
+	Groups     []WorkspaceGroup    `json:"groups"`
+	Workspaces []WorkspaceGroup    `json:"workspaces"`
+	Favorites  []WorkspaceFavorite `json:"favorites"`
 }
 
 // WorkspaceMember is one of a group's members: its host/path, and its checkout, empty when it is not cloned.
@@ -28,7 +30,7 @@ type WorkspaceMember struct {
 	Checkout   string `json:"checkout"`
 }
 
-// WorkspaceGroup is a group a repository belongs to: its name and how many members it has.
+// WorkspaceGroup is a group, one a repository belongs to or one in the file: its name and how many members it has.
 type WorkspaceGroup struct {
 	Name    string `json:"name"`
 	Members int    `json:"members"`

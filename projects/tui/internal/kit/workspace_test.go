@@ -28,6 +28,7 @@ func TestWorkspaceIsWhatKitWorkspacesCurrentSays(t *testing.T) {
 	r := workspaces(t, map[string]string{"current.json": `{"kind":"group","name":"w","member":null,"checkout":null,
 		"why":"last","members":[{"repository":"github.com/o/a","checkout":"/code/a","forge":"github"},
 		{"repository":"github.com/o/b","checkout":null}],"groups":[],
+		"workspaces":[{"name":"w","members":2},{"name":"x","members":5}],
 		"favorites":[{"name":"w","kind":"group","members":2,"checkout":null},
 		{"name":"github.com/o/a","kind":"repository","members":null,"checkout":"/code/a"}]}`})
 	ws, err := r.Workspace(context.Background(), "")
@@ -44,6 +45,9 @@ func TestWorkspaceIsWhatKitWorkspacesCurrentSays(t *testing.T) {
 	if len(ws.Favorites) != 2 || ws.Favorites[0] != (WorkspaceFavorite{"w", "group", 2, ""}) ||
 		ws.Favorites[1] != (WorkspaceFavorite{"github.com/o/a", "repository", 0, "/code/a"}) || len(ws.Groups) != 0 {
 		t.Errorf("the favorites and groups: %+v, %+v", ws.Favorites, ws.Groups)
+	}
+	if len(ws.Workspaces) != 2 || ws.Workspaces[1] != (WorkspaceGroup{"x", 5}) {
+		t.Errorf("every group: %+v", ws.Workspaces)
 	}
 }
 
