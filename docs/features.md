@@ -222,8 +222,10 @@ worked in to Repositories' worktrees; from any app but Repositories, a member's 
 Repositories' repos.
 
 `kit flow` opens Flow, and `kit flow <stage>` opens it on that stage, maximized. `kit workspace` opens Repositories,
-and `kit workspace <stage>` the app with that tab, on the tab. Iterations, milestones, reviews, checks, merged,
-artifacts, environments, deployments, and every tab of People, Trust, and Platform have no data source yet.
+and `kit workspace <stage>` the app with that tab, on the tab. `kit platform` prints Platform's tabs, services,
+toolchains, tools, and settings, each a stage, as [apps.md](apps.md) says; on a terminal it hands them to kittui, which
+does not draw them yet. Iterations, milestones, reviews, checks, merged, artifacts, environments, deployments, and
+every tab of People and Trust have no data source yet.
 
 ## Code forges and trackers
 

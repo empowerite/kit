@@ -1,0 +1,49 @@
+# apps.test - the apps jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line.
+
+# A forge call's objects are each a row, and the {"limited": N} a capped call prints last is the document's limited.
+import "apps" as apps; apps::fold({key: .n, links: {}})
+[{"n": 2}, {"n": 1}, {"limited": 2}]
+{"rows":[{"key":2,"links":{}},{"key":1,"links":{}}],"errors":[],"limited":2}
+
+# A call that stopped nowhere gives no limited.
+import "apps" as apps; apps::fold({key: .n})
+[{"n": 1}]
+{"rows":[{"key":1}],"errors":[]}
+
+# Documents merge in order, their errors joined and limited the least; none merge into no rows and no errors.
+import "apps" as apps; apps::merge
+[{"rows": [{"key": 1}], "errors": [], "limited": 50}, {"rows": [{"key": 2}], "errors": [{"feature": "x", "off": true}]}, {"rows": [], "errors": [], "limited": 20}]
+{"rows":[{"key":1},{"key":2}],"errors":[{"feature":"x","off":true}],"limited":20}
+
+import "apps" as apps; apps::merge
+[]
+{"rows":[],"errors":[]}
+
+# A toolchain is keyed by its provider and role, and a tool by where it is pinned and its name.
+import "apps" as apps; [(.[0] | apps::toolchain), (.[1] | apps::tool)]
+[{"provider": "mise", "role": "project", "usable": true}, {"name": "jq", "pinned": "1.8", "from": "mise.toml"}]
+[{"key":"mise project","provider":"mise","role":"project","usable":true,"links":{}},{"key":"mise.toml jq","name":"jq","pinned":"1.8","from":"mise.toml","links":{}}]
+
+# Each key the schema names is a row, in its order: the value kit.yml sets, else the schema's default, null for none.
+import "apps" as apps; apps::settings({properties: {primary: {type: "string"}, log_days: {default: 14}, flow: {}}}) | map([.key, .value, .from])
+{"primary": "upstream", "flow": ["backlog"]}
+[["primary","upstream","set"],["log_days",14,"default"],["flow",["backlog"],"set"]]
+
+# No kit.yml, or one that is no map, sets nothing.
+import "apps" as apps; apps::settings({properties: {primary: {}}}) | map([.key, .value, .from])
+null
+[["primary",null,"default"]]
+
+# As text, a stage is a line of its fields' names, less key, links, and member, then a line per row: a list apart by
+# commas, an object as JSON, nothing for none.
+import "apps" as apps; apps::text
+[{"key": "a", "name": "a", "list": ["x", 1], "none": null, "links": {}, "member": "m"}, {"key": "bb", "name": "bb", "list": [], "none": {"k": true}}]
+"name  list  none"
+"a     x, 1"
+"bb          {\"k\":true}"
+
+import "apps" as apps; [apps::text]
+[]
+[]
