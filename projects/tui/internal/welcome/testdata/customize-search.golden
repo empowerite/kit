@@ -7,7 +7,7 @@
    kit is a starting point. Each part below is something teams change first, and ends with the command that shows it.
 
   ▾ 2                                                                                                       Default ▼
-
+  ───
     part                    settings   about                                               commands
     ·───────────────────────×·─────────────────────────────────────────────────────────────×·──────────────────────────
   ▸ The stages of kit flow  flow     flow: in kit.yml names the stages kit flow draws,…  kit flow --stages           
@@ -37,4 +37,4 @@
 
 
 
- = menu - workspace / search │ 1-6 jump │ esc tabs ↑↓ move ␣·⇧↑↓ select ⌃A all → show
+ = menu - workspace / search │ 1-6 jump │ esc tabs ↑↓ move → show

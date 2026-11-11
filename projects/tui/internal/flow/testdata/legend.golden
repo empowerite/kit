@@ -3,7 +3,7 @@
   │ 🎫 backlog  3 : │  🛫 underway  4   │  💻 desk  1   │  🌿 worktrees  4   │
   ╵                 ╰───────────────────╰───────────────╰────────────────────╰──
   ▾ source 3                                                        Default ▼
-                             ╭─ backlog legend ─────────────────────── ↖ ↗ ↙ ↘ ╮
+  ──·───────                 ╭─ backlog legend ─────────────────────── ↖ ↗ ↙ ↘ ╮
   ▾ github 3                 │ =  the kit menu                                 │
                              │ -  the workspace menu                           │
       id   assignees        a│ 🔎 the search: / or a click                     │

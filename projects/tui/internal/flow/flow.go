@@ -435,6 +435,8 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.enterPanel()
 		case len(m.stages) > 0 && m.controls() && msg.Y == m.top() && msg.X < m.paneWidth():
 			return m, m.controlClick(msg.X)
+		case len(m.stages) > 0 && m.controls() && msg.Y == m.top()+1 && msg.X < m.paneWidth():
+			table.BarRuleClick(&m, msg.X, msg.Mod&tea.ModShift != 0)
 		case len(m.stages) > 0 && m.onRule(msg.Y) && msg.X < m.paneWidth():
 			switch column, flatten := m.sortAt(msg.X); {
 			case flatten:

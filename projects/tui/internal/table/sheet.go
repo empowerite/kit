@@ -552,7 +552,8 @@ func (s *Sheet) Wheel(w tea.MouseWheelMsg) bool {
 
 // click takes a plain click on the pane: on the control line, on a level's ▾ or ▸ it opens or closes the level, on a
 // column's name it drops the column's menu around it, and elsewhere the preset line has the keyboard, and on the
-// selector the presets drop down; on the rule, a sort's target turns its sort, a shift-click off, and a list's ×
+// selector the presets drop down; on the rule under the heading over the groups, as BarRuleClick says; on the rule, a
+// sort's target turns its sort, a shift-click off, and a list's ×
 // flattens or gathers it; on the header, its ▹ or ◃ scrolls the columns, its fold opens or closes it, and a column's
 // name drops the column's menu down; on a row, the cursor goes there, the rows have the keyboard, and its ▸ or ▾ opens
 // or closes it. A line about the table does nothing.
@@ -560,6 +561,8 @@ func (s *Sheet) click(x, y int, shift bool) {
 	switch _, onHeader := HeaderLine(s, y); {
 	case s.Controls() && y == s.top:
 		s.controlClick(x)
+	case s.Controls() && y == s.top+1:
+		BarRuleClick(s, x, shift)
 	case OnRule(s, y):
 		switch column, flatten := SortAt(Rule(s, SortSpots(s)), SortSpots(s), x); {
 		case flatten:
@@ -612,7 +615,7 @@ func (s *Sheet) View() []string {
 	var out []string
 	if s.Controls() {
 		line, _ := s.control()
-		out = append(out, line, "")
+		out = append(out, line, BarRule(s))
 	}
 	texts, _ := Laid(s)
 	out = append(out, texts...)

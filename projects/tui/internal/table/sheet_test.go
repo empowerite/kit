@@ -859,3 +859,37 @@ func TestOnlyTheHeadersFirstLineHasTriangles(t *testing.T) {
 		t.Errorf("ArrowAt on a row, under ▹ = %d, want 0", d)
 	}
 }
+
+// Under the heading over the groups stands a rule as wide as the heading, each group's marks under its name, as the
+// rule under the header places a column's: a click on the sort's sorts the groups, and on a list's × it stands as a
+// column again, flattened, a row per value.
+func TestARuleUnderTheGroupsSortsThemAndFlattensAList(t *testing.T) {
+	s := sheet("")
+	bar := BarLeft + ansi.StringWidth(ansi.Strip(BarText(s.Rows())))
+	rule := screenOf(s)[s.top+1]
+	x, _ := spot(s, "kind")
+	if ansi.StringWidth(rule) != bar || ansi.Cut(rule, x, x+1) != Sortable ||
+		strings.Trim(ansi.Cut(rule, BarLeft, ansi.StringWidth(rule)), "─"+Sortable) != "" {
+		t.Fatalf("the rule under a heading %d wide: %q", bar, rule)
+	}
+	s.click(x, s.top+1, false)
+	if s.Panel().Mark("kind") == "" || !strings.Contains(screenOf(s)[s.top+1], "▲") {
+		t.Errorf("a click on the sort's mark: %q, %q", s.Panel().Mark("kind"), screenOf(s)[s.top+1])
+	}
+	// a list grouped by: its × makes it a column again, flattened
+	grouping := *things
+	grouping.Fields = slices.Clone(things.Fields)
+	grouping.Fields[3].Group = true
+	g := NewSheet(&grouping, "things", "75", "")
+	g.Place(4, 16, 80, 24)
+	g.SetRecords(stock())
+	g.SetPanel(g.Panel().Grouped("tags", true))
+	x, _ = spot(g, "tags")
+	if r := screenOf(g)[g.top+1]; ansi.Cut(r, x, x+1) != FlattenGlyph {
+		t.Fatalf("a list's rule: %q", r)
+	}
+	g.click(x, g.top+1, false)
+	if p := g.Panel(); slices.Contains(p.Groups(), "tags") || !p.Field("tags").Flat {
+		t.Errorf("tags after ×: groups %v, flat %v", p.Groups(), p.Field("tags").Flat)
+	}
+}

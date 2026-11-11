@@ -3,7 +3,7 @@
     📚 repos  2   │  📡 remotes  1    │ 🌿 branches  4 : │  🌳 worktrees  2   │  🔘 commits  2   │  📌 tags  2   │
   ────────────────╰───────────────────╯                  ╰────────────────────╰──────────────────╰───────────────╰──────
   ▾ 4
-
+  ───
     kind  branch   default  remote  local    ahead  commit      age  worktree                   subject
     ·─────·────────·────────·───────×·───────·──────·───────────·────·──────────────────────────·──────────────────────
   ▸ 🌿    7-fix             origin  7-fix    ↑1     🔘 0553f99  10s  🌳 …/worktrees/7-fix       #7 fix the thing

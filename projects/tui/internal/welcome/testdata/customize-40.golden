@@ -7,7 +7,7 @@
    kit is a starting point. Each part below is something teams change first, and ends with the command that shows it.
 
   ▾ 6                                                                                                       Default ▼
-
+  ───
     part                    settings    about                                              commands
     ·───────────────────────×·─────────────────────────────────────────────────────────────×·──────────────────────────
   ▸ Packages                packages  packages: in kit.yml lists the active packages. …  kit packages

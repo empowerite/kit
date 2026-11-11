@@ -3,7 +3,7 @@
   │ 🎫 backlog  3 : │  🛫 underway  4   │  💻 desk  1   │  🌿 worktrees  4   │  🔀 changes  3   │  🏭 builds  4   │
   ╵                 ╰───────────────────╰───────────────╰────────────────────╰──────────────────╰─────────────────╰─────
   ▾ source 1                                                                  ╭─ backlog fields ╭─ assignees ──────────╮
-                                                                              │   field         │ filter               │
+  ──·───────                                                                  │   field         │ filter               │
   ▾ 🐙 github 1                                                               │ ☑ source        │ ⦿ include  ⦾ exclude │
                                                                               │ ────────────────│ ☑ @me ada            │
       id  assignees  age  title                                               │ ☑ id            │ ☐ ada                │

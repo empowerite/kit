@@ -154,3 +154,56 @@ func ToggleLevel(h Host, depth int) {
 	}
 	Reoutline(h, next)
 }
+
+// BarSpots gives the targets under each name of the heading over the groups, on the rule under it, as SortSpots gives
+// a column's under the header: a list's FlattenGlyph, dim, which makes it a column again, flattened, a row per value;
+// after it, or from the name's first cell, the sort's mark, which orders the groups, or Sortable where they can sort
+// and do not. A name whose column neither sorts nor holds a list has the rule alone.
+func BarSpots(h Host) []SortSpot {
+	p := h.Panel()
+	var out []SortSpot
+	for _, name := range BarNames(h) {
+		if !p.Sorts(name.Column) && !p.Lists(name.Column) {
+			continue
+		}
+		s := SortSpot{Column: name.Column, At: name.From}
+		if p.Lists(name.Column) {
+			s.Flat = FlattenGlyph
+		}
+		if p.Sorts(name.Column) {
+			if s.Mark = p.Mark(name.Column); s.Mark != "" {
+				s.Sorts = true
+			} else {
+				s.Mark = Sortable
+			}
+		}
+		s.Until = max(name.Until, s.At+ansi.StringWidth(s.Flat+s.Mark))
+		out = append(out, s)
+	}
+	return out
+}
+
+// BarRule gives the rule under the heading over the groups, on the line under the control line: blank to BarLeft, then
+// a thin dim line as wide as the heading, the marks of BarSpots on it; nothing where the rows group by nothing.
+func BarRule(h Host) string {
+	text := ansi.Strip(BarText(h.Rows()))
+	if text == "" {
+		return ""
+	}
+	return strings.Repeat(" ", BarLeft) + RuleFill(BarSpots(h), BarLeft, ansi.StringWidth(text))
+}
+
+// BarRuleClick takes a plain click at the screen column x on the rule under the heading over the groups, and says
+// whether it took it: on a sort's mark it turns the groups' sort, as SortBy does, a shift-click off; on a list's × the
+// list leaves the groups for a column, flattened. Nothing elsewhere.
+func BarRuleClick(h Host, x int, shift bool) bool {
+	switch column, flatten := SortAt(BarRule(h), BarSpots(h), x); {
+	case flatten:
+		h.SetPanel(h.Panel().Grouped(column, true).Flattened(column, true))
+	case column != "":
+		SortBy(h, column, shift)
+	default:
+		return false
+	}
+	return true
+}

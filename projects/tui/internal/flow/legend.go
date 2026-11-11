@@ -99,7 +99,8 @@ func (m Model) parts(last int) []part {
 	menuBar := func(y int) bool { return y == 0 }
 	tabBar := func(y int) bool { return !m.maximized && y > 0 && y < top }
 	control := func(y int) bool { return m.controls() && y == top }
-	rule := func(y int) bool { return y >= top && y < last && m.onRule(y) }
+	// the rule under the header, and the one under the heading over the groups, whose marks mean the same
+	rule := func(y int) bool { return y >= top && y < last && (m.onRule(y) || m.controls() && y == top+1) }
 	header := func(y int) bool { return y >= top && y < last && m.inHeader(y) }
 	rows := func(y int) bool { return y >= top && y < last }
 	headings := func(y int) bool { return rows(y) && !rule(y) && !control(y) }

@@ -281,8 +281,8 @@ func (m Model) control() (string, int) {
 // presetTop gives the screen line the preset line is drawn on, the control line.
 func (m Model) presetTop() int { return m.top() }
 
-// pane gives the pane's lines, as many as it has, each as wide as the pane: the control line, where there is one, then
-// the selected stage's rows from its offset on, with the header and its rule among them, as laid places them.
+// pane gives the pane's lines, as many as it has, each as wide as the pane: the control line, where there is one, and
+// the rule under the heading over the groups, as table.BarRule draws it, then the selected stage's rows from its offset on, with the header and its rule among them, as laid places them.
 func (m Model) pane() []string {
 	var out []string
 	switch {
@@ -291,7 +291,7 @@ func (m Model) pane() []string {
 	default:
 		if m.controls() {
 			line, _ := m.control()
-			out = append(out, line, "")
+			out = append(out, line, table.BarRule(&m))
 		}
 		texts, _ := m.laid()
 		out = append(out, texts...)

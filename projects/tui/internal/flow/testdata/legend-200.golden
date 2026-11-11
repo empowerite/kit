@@ -3,7 +3,7 @@
   │ 🎫 backlog  3 : │  🛫 underway  4   │  💻 desk  1   │  🌿 worktrees  4   │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  7    │  📦 releases  3   │
   ╵                 ╰───────────────────╰───────────────╰────────────────────╰──────────────────╰─────────────────╰────────────────────╰───────────────────╰────────────────────────────────────────────
   ▾ source 3                                                                                                                                                                                Default ▼
-
+  ──·───────
   ▾ github 3                                                                                                                                         ╭─ backlog legend ─────────────────────── ↖ ↗ ↙ ↘ ╮
                                                                                                                                                      │ =  the kit menu                                 │
       id   assignees            age  branch              labels              title                                                                   │ -  the workspace menu                           │

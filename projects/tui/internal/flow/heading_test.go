@@ -35,9 +35,10 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 			t.Errorf("%s does not stand at %d: %q", n.Column, n.From, text)
 		}
 	}
-	// the control line is no row: the first row the cursor reaches is the first source's heading, under it and a blank
-	// line
-	if m.rowsTop() != m.top()+2 || lines(m)[m.top()+1] != "" || !strings.Contains(lines(m)[m.rowsTop()], "github") {
+	// the control line is no row: the first row the cursor reaches is the first source's heading, under it and the rule
+	// under the heading over the groups, as wide as the heading
+	if m.rowsTop() != m.top()+2 || strings.TrimRight(ansi.Strip(lines(m)[m.top()+1]), " ") != ansi.Strip(table.BarRule(&m)) ||
+		!strings.Contains(lines(m)[m.rowsTop()], "github") {
 		t.Fatalf("the rows do not start under the control line:\n%s", view(m))
 	}
 	// the rule under the header starts at the first column, past the rows' indent and their gutter, with its line or,
