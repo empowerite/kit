@@ -282,7 +282,7 @@ Work here follows the workflow in [.kit/workflow.md](.kit/workflow.md), from the
 3. Work in that worktree. Commits are signed. A commit's subject starts with its issue's reference, as in
    `#<N> <subject>`, and the policy requires it.
    - `kit commit` commits what is staged, after the linters, the policy, and a check that nothing kit placed is in it.
-   - `kit submit` commits the same way, then pushes the branch; `kit rebase` rebases it onto `main` and pushes it.
+   - `kit submit` pushes the branch, and commits nothing; `kit rebase` rebases it onto `main` and pushes it.
    - `kit flow` draws where the work stands in eight stages: backlog, underway, desk, worktrees,
      changes, builds, incoming, releases. `kit flow <stage>` prints one.
    - `kit`, with no verb, opens the welcome guide. `kit help` opens a palette of the verbs and a form for the one you

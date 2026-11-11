@@ -85,8 +85,8 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
    no path the kit placed, and a subject the policy allows. It supplies the issue's reference from the branch, and
    refuses the desk and the default branch. A subject that names another issue adds that issue to the ones the pull
    request closes, and assigns it to the caller when no one is assigned.
-3. `kit submit` commits the same way when something is staged, then pushes the branch, setting the upstream the
-   first time. It never forces: when origin has moved, the remedy is `kit rebase`.
+3. `kit submit` pushes the branch, setting the upstream the first time, and commits nothing: what is staged stays
+   staged, for `kit commit`. It never forces: when origin has moved, the remedy is `kit rebase`.
 4. `kit rebase` rebases the worktree's branch onto the default branch at the primary remote and pushes it to its own
    name, never where `push.default` points. When origin's branch has commits the worktree lacks, it takes them
    first, and it forces only over the tip it read, so a commit pushed meanwhile is never overwritten. It refuses the

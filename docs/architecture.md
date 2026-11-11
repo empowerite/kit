@@ -133,7 +133,7 @@ Work starts from an issue:
 2. In the worktree:
    - `kit context` before changing a file,
    - `kit lint` to run the pre-commit linters by hand,
-   - `kit commit` to commit, with the checks its rule requires, and `kit submit` to commit and push,
+   - `kit commit` to commit, with the checks its rule requires, and `kit submit` to push,
    - `kit rebase` to rebase the branch onto the default branch at the primary remote and push it.
 3. Mark the pull request ready for review once its body holds the report: `gh pr ready` on GitHub,
    `glab mr update --ready` on GitLab.

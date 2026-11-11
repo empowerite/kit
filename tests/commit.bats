@@ -117,11 +117,12 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ "$(git status --porcelain)" = "A  b" ]
 }
 
-@test "kit submit commits what is staged and pushes, setting the upstream the first time; with nothing new it says so" {
+@test "kit submit pushes what kit commit committed, setting the upstream the first time; with nothing new it says so" {
   printf 'x\n' > x && git add x
-  run kit submit --message 'x: a file'
+  kit commit --message 'x: a file' >/dev/null 2>&1
+  run kit submit
   [ "$status" -eq 0 ]
-  [[ "$output" == *"committed "* ]]
+  [[ "$output" != *"committed "* ]]
   [[ "$output" == *"pushed 7-fix-the-thing"* ]]
   [ "$(git rev-parse --abbrev-ref '@{upstream}')" = origin/7-fix-the-thing ]
   [ "$(git rev-parse origin/7-fix-the-thing)" = "$(git rev-parse HEAD)" ]
@@ -142,7 +143,8 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   git -C "${work}/other" commit --quiet --allow-empty --message '#7 other: theirs'
   git -C "${work}/other" push --quiet
   printf 'x\n' > x && git add x
-  run kit submit --message '#7 x: mine'
+  kit commit --message '#7 x: mine' >/dev/null 2>&1
+  run kit submit
   [ "$status" -eq 1 ]
   [[ "$output" == *"run: kit rebase"* ]]
   [ "$(git log -1 --format=%s)" = "#7 x: mine" ]
@@ -153,12 +155,14 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   git config push.default upstream
   main=$(git -C "${work}/origin.git" rev-parse main)
   printf 'x\n' > x && git add x
-  run kit submit --message 'x: a file'
+  kit commit --message 'x: a file' >/dev/null 2>&1
+  run kit submit
   [ "$status" -eq 0 ]
   [ "$(git rev-parse --abbrev-ref '@{upstream}')" = origin/7-fix-the-thing ]
   [ "$(git -C "${work}/origin.git" rev-parse 7-fix-the-thing)" = "$(git rev-parse HEAD)" ]
   printf 'y\n' > y && git add y
-  run kit submit --message 'y: a file'
+  kit commit --message 'y: a file' >/dev/null 2>&1
+  run kit submit
   [ "$status" -eq 0 ]
   [[ "$output" == *"pushed 7-fix-the-thing: 1 commit(s)"* ]]
   [ "$(git -C "${work}/origin.git" rev-parse 7-fix-the-thing)" = "$(git rev-parse HEAD)" ]
@@ -167,14 +171,16 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
 
 @test "kit submit pushes a branch whose remote-tracking ref is gone, and never says it is at origin" {
   printf 'x\n' > x && git add x
-  run kit submit --message 'x: a file'
+  kit commit --message 'x: a file' >/dev/null 2>&1
+  run kit submit
   [ "$status" -eq 0 ]
   # the forge deletes the branch, and a fetch with --prune takes origin/7-fix-the-thing away
   git -C "${work}/origin.git" branch --quiet --delete --force 7-fix-the-thing
   git fetch --quiet --prune origin
   run ! git rev-parse --quiet --verify refs/remotes/origin/7-fix-the-thing
   printf 'y\n' > y && git add y
-  run kit submit --message 'y: a file'
+  kit commit --message 'y: a file' >/dev/null 2>&1
+  run kit submit
   [ "$status" -eq 0 ]
   [[ "$output" != *"nothing to submit"* ]]
   [ "$(git -C "${work}/origin.git" rev-parse 7-fix-the-thing)" = "$(git rev-parse HEAD)" ]
@@ -603,15 +609,31 @@ EOF
   [ "$(git log --oneline | wc -l | tr -d ' ')" = 1 ]
 }
 
-@test "a named path that matches HEAD is nothing to commit, said plainly; kit submit pushes anyway" {
+@test "a named path that matches HEAD is nothing to commit, said plainly" {
   run kit commit --message '#7 notes: the same' -- notes.txt
   [ "$status" -eq 1 ]
   [[ "$output" == *"nothing to commit: notes.txt is as HEAD has it"* ]]
-  printf 'x\n' > x && git add x && kit commit --message '#7 x: a file' >/dev/null 2>&1
-  run kit submit --message '#7 notes: the same' -- notes.txt
+}
+
+@test "kit submit commits nothing: what is staged stays staged and out of the push, and every word given is refused" {
+  printf 'x\n' > x && git add x
+  kit commit --message '#7 x: a file' >/dev/null 2>&1
+  head=$(git rev-parse HEAD)
+  printf 'y\n' > y && git add y
+  run kit submit
   [ "$status" -eq 0 ]
-  [[ "$output" == *"pushed 7-fix-the-thing"* ]]
-  [ "$(git rev-parse origin/7-fix-the-thing)" = "$(git rev-parse HEAD)" ]
+  [[ "$output" == *"1 staged path(s) stay staged, and are no part of the push; kit commit commits them"* ]]
+  [ "$(git rev-parse HEAD)" = "${head}" ]
+  [ "$(git rev-parse origin/7-fix-the-thing)" = "${head}" ]
+  [ "$(git diff --cached --name-only)" = y ]
+  for words in "--all" "--message=#7 y: a file" "--file=m" "y"
+  do
+    run kit submit "${words}"
+    [ "$status" -eq 2 ]
+    [[ "$output" == *"kit submit takes no arguments: it pushes, and commits nothing; commit first: kit commit"* ]]
+  done
+  [ "$(git rev-parse HEAD)" = "${head}" ]
+  [ "$(git diff --cached --name-only)" = y ]
 }
 
 @test "kit commit refuses a stale region, and a detached HEAD" {

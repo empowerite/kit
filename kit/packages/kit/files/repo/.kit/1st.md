@@ -43,8 +43,8 @@ Elsewhere, this rule is the only thing that stops it.
   `primary` in `kit.yml` names another, and pushes it.
 - `kit commit`, never `git commit`. `kit commit` refuses the desk and the default branch, runs the linters over the
   staged paths, refuses a path the kit placed, and holds the subject to the policy before the commit exists.
-- `kit submit`, never `git push`. `kit submit` commits what is staged the same way, then pushes the branch. It never
-  forces: when origin has moved, it names `kit rebase`.
+- `kit submit`, never `git push`. `kit submit` pushes the branch, and commits nothing: what is staged stays staged,
+  for `kit commit`. It never forces: when origin has moved, it names `kit rebase`.
 - `kit work`, never `git worktree add`, `git checkout -b`, or `git switch -c`.
 - `kit tidy`, never `git worktree remove` or `git branch -D`.
 - An agent never switches or resets the desk. `git checkout main`, `git switch main`, `git reset --hard`, and

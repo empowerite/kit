@@ -516,25 +516,17 @@ commit:git() {
   (( status == 0 )) || return 1
 }
 
-# commit:submit <argument>… commits when something is staged, or when --all or paths say what to take, then pushes the
-# branch with git:push, to its own name on the remote git:pushes-to prints, setting the upstream on the first push. It
-# never forces: when the remote refuses the push, the remedy is kit rebase.
+# commit:submit pushes the branch with git:push, to its own name on the remote git:pushes-to prints, setting the
+# upstream on the first push. It commits nothing: what is staged stays staged, and is said to be no part of the push.
+# It never forces: when the remote refuses the push, the remedy is kit rebase.
 commit:submit() {
   local branch remote first=false ahead refused
   local -a staged=()
-  commit:parse "$@" || return 2
   branch=$(commit:branch) || return 1
-  [[ "${commit_all}" == false ]] || git add --update
   list:read0 staged git diff --cached --name-only -z || return 1
-  if (( ${#commit_paths[@]} > 0 )) && commit:paths-unchanged "${commit_paths[@]}"
+  if (( ${#staged[@]} > 0 ))
   then
-    step "nothing to commit: the named paths are as HEAD has them; pushing ${branch}"
-  elif (( ${#staged[@]} > 0 || ${#commit_paths[@]} > 0 ))
-  then
-    commit:commit "$@" || return $?
-  elif (( ${#commit_messages[@]} > 0 )) || [[ -n "${commit_file}" ]]
-  then
-    step "nothing is staged, so there is nothing to commit; pushing ${branch}"
+    info "${#staged[@]} staged path(s) stay staged, and are no part of the push; kit commit commits them"
   fi
   # A branch with no upstream of its own name, such as one started from origin/main, has its first push here.
   remote=$(git:pushes-to "${branch}") || first=true
@@ -572,20 +564,6 @@ commit:submit() {
     return 1
   fi
   ok "pushed ${branch}: ${ahead} commit(s)"
-}
-
-# commit:paths-unchanged <path>… succeeds when git knows every named path and every file under them is as HEAD has
-# it. A path git does not know is left for kit commit to refuse.
-commit:paths-unchanged() {
-  local path names
-  local -a named=() files=()
-  for path in "$@"
-  do
-    named+=("$(context:relative "${path}")")
-  done
-  names=$(commit:named "${named[@]}" 2>/dev/null | tr '\0' '\n') || return 1
-  readarray -t files <<<"${names}"
-  commit:unchanged "${files[@]}"
 }
 
 # commit:push-refused <branch> <git-output> says why the push did not happen, with the remedy, and git's own words

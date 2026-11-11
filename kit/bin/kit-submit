@@ -1,23 +1,21 @@
 #!/usr/bin/env bash
-# kit-submit - commits what is staged, then pushes the branch (kit verb: workflow)
+# kit-submit - pushes the branch, and commits nothing (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit submit [--all] [--message <text>… | --file <path>] [<path>…]
+# kit submit
 #
-# Runs in a worktree, never on the desk or the default branch. When something is staged, or --all or <path>… say
-# what to take, it commits as kit commit does, with the same checks and options. Then it pushes the branch to its own
-# name on its remote, whatever git's push configuration and the branch's upstream say, and sets that as the upstream
-# on the first push. Its remote is origin, unless its upstream is a branch of its own name on another remote. With
-# nothing to commit and nothing to push, it says so.
+# Runs in a worktree, never on the desk or the default branch. It pushes the branch to its own name on its remote,
+# whatever git's push configuration and the branch's upstream say, and sets that as the upstream on the first push.
+# Its remote is origin, unless its upstream is a branch of its own name on another remote. With nothing to push, it
+# says so.
 #
-#   --all              stages every tracked change first, as git commit --all does
-#   --message <text>   the message; the first is the subject, the rest are paragraphs
-#   --file <path>      the message from a file; its first line is the subject
-#   <path>…            commits these paths alone; each must be known to git
+# It commits nothing. What is staged stays staged, and is no part of the push: kit commit makes the commits, and kit
+# submit shares them. In a worktree several people or agents share, the index may hold another's work.
 #
 # kit submit never forces. When the remote has commits this branch lacks, the push is refused and the remedy is kit
 # rebase. A conflict with the default branch never blocks sharing the work that was done.
 #
-# Exits 0 when the branch is at its remote, 1 on a refusal, and 2 on a usage error.
+# Exits 0 when the branch is at its remote, 1 on a refusal, and 2 on a usage error, as for a word given, which kit
+# commit takes.
 #
 # see: modules/bash/commit.sh, kit-commit, kit-rebase
 
@@ -26,9 +24,17 @@ set -o errexit -o nounset -o pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use commit
+# A word given is refused here, naming kit commit, which takes the words kit submit once took; --help and -h are the
+# verb's page, which guard:arguments answers.
+if (( $# > 0 )) && [[ "$1" != --help && "$1" != -h ]]
+then
+  error "kit submit takes no arguments: it pushes, and commits nothing; commit first: kit commit --message=<text>" \
+    "[<path>…]"
+  exit 2
+fi
 guard:arguments submit "$@" || exit $?
 
 guard:require tool:git tool:jq
-commit:submit "$@"
+commit:submit
 
 # ----------------------------------------------------------------------------------------------------------------------

@@ -31,7 +31,7 @@ see: [forges.md](forges.md), [../workspaces.md](../workspaces.md), `kit/modules/
 | Inside a repository, and its root | read | `kit:enter`, which moves every verb to the root; `welcome:repository`: `kit welcome`; `workspaces:in-repository`: `kit flow`, `kit workspace`; `context:relative`, `policy:from`, `across:repos`, `materialize:all`: `kit install`, `kit update`, `kit check` |
 | The git directory and the common one | read | `git:main-root`: `kit commit`, `kit rebase`, `kit work`, the desk stage, `kit workspace`; `flow:in-worktree`: the worktrees stage; `welcome:where`; the files kit keeps under `${common}/kit/`: `context:log-path` and `context:matcher` (`kit context`), `flow:kept` (`kit flow`), `forge:snapshots` (the forge seam), `toolchain:kept` and `toolchain:recorded` (the toolchain chosen here) |
 | The branch checked out, and HEAD's commit | read | `commit:branch`: `kit commit`, `kit submit`; `git:rebase`: `kit rebase`; `policy:branch`: `kit policy`, `kit facts`; `issue:start`: `kit work`; `changes:documents`: the changes stage; each provider's `pr-here`: `kit linked`, `kit ready`, `kit settle`; the desk and worktrees stages; `welcome:where` |
-| Uncommitted changes | read | `git:clean`: `kit tidy`, `kit rebase`, `kit work`; `flow:checkout`: the desk and worktrees stages; `commit:choices`: the paths `kit commit` and `kit submit` complete |
+| Uncommitted changes | read | `git:clean`: `kit tidy`, `kit rebase`, `kit work`; `flow:checkout`: the desk and worktrees stages; `commit:choices`: the paths `kit commit` completes |
 | A checkout's status with its branch | read | `workspace:worktrees`: the worktrees stage of `kit workspace`; `marks:status`: the desk and worktrees marks of `kit flow --marks`; `workspace:marks`: `kit workspace --marks` |
 | Every worktree, the desk first | read | `git:linked-worktrees`: the worktrees stage; `git:worktrees`: `kit tidy`; `issue:worktree`: `kit work`; `underway:checkouts`: the underway stage; `workspace:paths`, `workspace::worktrees`, `workspace::heads`: `kit workspace`; `across:branches`: `kit workspace` over a workspace; `marks:desk`, `marks:worktrees` |
 | Add a worktree for a branch | write | `issue:worktree`: `kit work` |
@@ -52,16 +52,16 @@ see: [forges.md](forges.md), [../workspaces.md](../workspaces.md), `kit/modules/
 | Ancestry | read | `flow:incoming-rows`: the incoming stage, a branch force-pushed; `git:tidy-worktree`: `kit tidy`; `git:rebase`: `kit rebase`; `releases:release`: `kit release`; `facts:document`: `kit facts`, `kit policy` |
 | Commits and their subjects | read | `facts:document`: `kit facts`, `kit policy`; `flow:fetch-json`: the incoming stage; `flow:incoming-rows`, `flow:tip`: the incoming stage's rows, each commit's author and age too; `flow:checkout`: the desk and worktrees stages; `workspace:commits`: the commits stage of `kit workspace`; `commit:behind`, `commit:moved`, `commit:commit`: `kit commit`; `releases:release`; `issue:sweep-push` |
 | The lines a checkout changes | read | `flow:checkout`: the desk and worktrees stages |
-| Make a commit | write | `git:commit`: `kit commit`, `kit submit`, and `kit work`'s empty start commit |
+| Make a commit | write | `git:commit`: `kit commit`, and `kit work`'s empty start commit |
 | Rebase onto the default branch | write | `git:rebase`: `kit rebase` |
 | The tags | read | `forge:tags`: each provider's runs, for the builds stage; `workspace:tags`: the tags stage of `kit workspace`; `flow:refs`: the incoming stage; `flow:incoming-rows`: the incoming stage's rows, a tag's commit, tagger, and subject; `workspace:marks` |
 | Tag a release and push it | write | `releases:release`: `kit release` |
-| The staged paths | read | `kit lint` with no paths; `commit:checks`, `commit:commit`, `commit:submit`: `kit commit`, `kit submit` |
+| The staged paths | read | `kit lint` with no paths; `commit:checks`, `commit:commit`: `kit commit`; `commit:submit`: `kit submit` says they stay staged |
 | The tracked paths | read | `kit lint --all`; `generate:discover`: `kit generate`; `syntax:tracked`: the paths `kit context`, `kit lint`, and `kit generate` complete; `context:named`: `kit context`; `materialize:all`: `kit install`, `kit update`, `kit check`; `commit:named`, `commit:index`: `kit commit` |
 | The files of the index or a tree, as facts | read | `facts:tree`: `kit facts`, `kit policy`, `kit commit` |
 | A file as the index or a tree holds it | read | `policy:object`, `policy:blob`, `policy:base-held`, `policy:base-tree`: `kit policy` and `kit commit` read `kit.yml` and `.kit/policy/` as the base holds them; `commit:behind`, `commit:unchanged` |
 | The tree a commit would make | write | `commit:index`, `commit:tree`, `commit:same-tree`: `kit commit` builds it in a scratch index and writes its tree objects |
-| Stage every change to a tracked file | write | `commit:commit`, `commit:submit`: `kit commit --all`, `kit submit --all` |
+| Stage every change to a tracked file | write | `commit:commit`: `kit commit --all` |
 | Sweep the desk's work into the worktree | write | `issue:sweep-push`, `issue:sweep-apply`, `issue:sweep-restore`: `kit work` |
 | A path's attributes, and whether it is ignored | read | `template:exempt`: `kit lint`; `issue:start`: `kit work` warns when `worktrees/` is not ignored |
 | Merge a delivered file the repository edited | write | `kit update`, three ways |

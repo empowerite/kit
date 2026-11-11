@@ -58,7 +58,7 @@ case "${1:-}" in
       printf 'check\tcompares the repository with the release\tchecks\n'
       printf 'commit\tcommits what is staged, after the checks a commit'"'"'s rule requires\tworkflow\n'
       printf 'context\tprints the rules that govern a file\tfiles\n'
-      printf 'submit\tcommits what is staged, as kit commit does, then pushes the branch\tworkflow\n'
+      printf 'submit\tpushes the branch, and commits nothing\tworkflow\n'
       printf 'tui\truns the interactive terminal UI\tinterfaces\n'
       printf 'version\tprints this release'"'"'s version\tinstallation\n'
     elif (( $# == 0 ))
