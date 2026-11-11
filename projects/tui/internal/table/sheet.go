@@ -554,7 +554,7 @@ func (s *Sheet) Wheel(w tea.MouseWheelMsg) bool {
 
 // click takes a plain click on the pane: on the control line, on a level's ▾ or ▸ it opens or closes the level, on a
 // column's name it drops the column's menu around it, and elsewhere the preset line has the keyboard, and on the
-// selector the presets drop down; on the rule, a sort's target turns its sort, a shift-click off, and a list's ⇊
+// selector the presets drop down; on the rule, a sort's target turns its sort, a shift-click off, and a list's ×
 // flattens or gathers it; on the header, its fold opens or closes it, and a column's name drops the column's menu
 // down; on a row, the cursor goes there, the rows have the keyboard, and its ▸ or ▾ opens or closes it. A line about
 // the table does nothing.

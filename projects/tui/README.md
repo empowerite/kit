@@ -111,7 +111,7 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     for an enum or a person, and its rendering; the sort is the column menu's. What it sets applies at once. A click on
     a column's name drops down its menu, around the name, as ='s and :'s hang around theirs, titled by the name, which
     no line repeats: its sort, a radio that shows it, Ascending, Descending, or Unsorted, which takes it out of the
-    keys, as a shift-click on its sort does; for a list, ⇊ One row per assignee, which flattens it, and ⇈ All assignees
+    keys, as a shift-click on its sort does; for a list, × One row per assignee, which flattens it, and ÷ All assignees
     on one row, which gathers it again; ▤ Group and ▢ Ungroup; ☐ Hide; and ⋯ Options…, its popover, titled over the
     name. Flattened, a row stands once per value it holds, and once where it holds none, the header names one value, and
     the column sorts; a preset keeps it flat. Grouping by a list places a row under each of its values as flattening
@@ -125,8 +125,8 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     there. The line under the keyboard in a menu or a dialog stands on the menu's bright cyan, in black, and a dialog's
     keys are the keys bar's alone. A column's sort mark stands on the rule under the first cell of its name, wherever
     the name aligns. A dim · there says the column can sort and does not; a column that cannot sort has the rule alone.
-    A list has ⇊ under that first cell, dim while a row holds all its values, not once flattened, and its sort's mark
-    after it, which sorts by size while it is whole; a plain click on the ⇊ flattens the list, or gathers it again.
+    A list has × under that first cell, dim while a row holds all its values, not once flattened, and its sort's mark
+    after it, which sorts by size while it is whole; a plain click on the × flattens the list, or gathers it again.
     Every column's menu stands in one order: its sort, by size for a list a row holds whole, then its grouping, then
     its flattening, then Hide and Options….
     A plain click on the rule under the name turns the sort a step: ascending, after the other keys; descending, in its

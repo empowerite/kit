@@ -7,7 +7,7 @@
   ▾ github 3                          │ =  the kit menu                        │
                                       │ -  the workspace menu                  │
       id   assignees        age  branc│ 🔎 the search: / or a click            │
-      ·────⇊·───────────────·────·────│ ➊  the selected tab's number           │
+      ·────×·───────────────·────·────│ ➊  the selected tab's number           │
     ▸ #45                    2h       │ ➁  a tab's number, which selects it    │
     ▸ #46  jeffrey-aguile…   2d  46-a-│ 🎫 the backlog stage                   │
     ▸ #7   2                40d       │ :  the tab's menu                      │
@@ -17,7 +17,7 @@
                                       │ ▾  open: a click closes it             │
                                       │ ▼  the presets' menu                   │
                                       │ ·  sortable: a click sorts             │
-                                      │ ⇊  a list: a click flattens or gathers │
+                                      │ ×  a list: a click flattens or gathers │
                                       │ ▸  closed: a click opens it            │
                                       │ 🎫 an issue 🔗                         │
                                       ╰────────────────────────────────────────╯

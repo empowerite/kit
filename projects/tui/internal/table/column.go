@@ -47,8 +47,9 @@ const (
 	ActMore
 )
 
-// The words of the column menu's lines, and their glyphs: flattening's, the rows spreading down, and gathering's, their
-// coming together; grouping's is the mark a column grouping the rows has, hiding's the box of a hidden column in the
+// The words of the column menu's lines, and their glyphs: flattening's, ×, a row crossed with its values, a row a pair,
+// as a cross product is, and gathering's, ÷, the rows divided back into one; grouping's is the mark a column grouping
+// the rows has, hiding's the box of a hidden column in the
 // columns dialog; and a sweep, which a menu line that clears draws.
 const (
 	Unsorted  = "Unsorted"
@@ -59,8 +60,8 @@ const (
 	More      = "Options…"
 
 	Sweep        = "🧹"
-	FlattenGlyph = "⇊"
-	GatherGlyph  = "⇈"
+	FlattenGlyph = "×"
+	GatherGlyph  = "÷"
 	GroupGlyph   = grid.Grouping
 	UngroupGlyph = "▢"
 	HideGlyph    = grid.Unticked

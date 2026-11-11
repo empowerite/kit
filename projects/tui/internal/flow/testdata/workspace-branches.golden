@@ -5,7 +5,7 @@
   ▾ 4
 
     kind  branch   default  remote  local    ahead  commit      age  worktree                   subject
-    ·─────·────────·────────·───────⇊·───────·──────·───────────·────·──────────────────────────·──────────────────────
+    ·─────·────────·────────·───────×·───────·──────·───────────·────·──────────────────────────·──────────────────────
   ▸ 🌿    7-fix             origin  7-fix    ↑1     🔘 0553f99  10s  🌳 …/worktrees/7-fix       #7 fix the thing
     🌿    main     ⚓       origin  main     =      🔘 5d469b3  10s  🌳 /src/r                  one
     🔖    old               origin  old             🔘 5d469b3  10s                             one

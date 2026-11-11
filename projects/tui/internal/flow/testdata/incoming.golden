@@ -5,7 +5,7 @@
   ▾ 10                                                              Default ▼
 
     kind  remote    ref              change     age  local         subject
-    ·─────·─────────·────────────────·──────────·────⇊·────────────·───────────
+    ·─────·─────────·────────────────·──────────·────×·────────────·───────────
     📡    origin    main             fetched
   ▸ 🔘    origin    main             new        60m                #1 docs: th…
   ▸ 🔘    origin    main             new         2h                #1 yaml: yq…

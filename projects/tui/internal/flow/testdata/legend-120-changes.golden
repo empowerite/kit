@@ -5,7 +5,7 @@
   ▾ 3                                                                                                       Default ▼
 
     change  title                     author            state  age  checks  threads          labels    branch
-    ·───────·─────────────────────────·─────────────────·──────·────·───────·────────────────⇊·────────·───────────────
+    ·───────·─────────────────────────·─────────────────·──────·────·───────·────────────────×·────────·───────────────
   ▸ 🔀 #2   The first release, v0.1…  jeffrey-aguilera  🏁      8d  ✅                       kind=fix  1-the-first-rel…
   ▸ 🔀 #3   A spike on the settings…  ada               🔨     90m  🏃      💬 2 unresolved            3-a-spike
   ▸ 🔀 #4   Lint every module         bob               🔥     25h  ❌                                 4-lint-every-mo…
@@ -16,7 +16,7 @@
                                          ╭─ changes legend ─────────────────────────────────────────────────── ↖ ↗ ↙ ↘ ╮
                                          │ =  the kit menu                      ▼  the presets' menu                   │
                                          │ -  the workspace menu                ·  sortable: a click sorts             │
-                                         │ 🔎 the search: / or a click          ⇊  a list: a click flattens or gathers │
+                                         │ 🔎 the search: / or a click          ×  a list: a click flattens or gathers │
                                          │ ➀  a tab's number, which selects it  ▸  closed: a click opens it            │
                                          │ ➎  the selected tab's number         🔀 a pull request 🔗                   │
                                          │ 🎫 the backlog stage                 🏁 ready 🔗                            │

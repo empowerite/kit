@@ -38,9 +38,9 @@ func TestAFieldThatHoldsAListNamesOneValueAndNeverSorts(t *testing.T) {
 	}
 }
 
-// A click on the name of a column that holds a list drops its menu, whose ⇊ line flattens it: the header names one
+// A click on the name of a column that holds a list drops its menu, whose × line flattens it: the header names one
 // value, a row stands once per value it holds, and once where it holds none, every count still the rows', and the rule
-// under the name sorts by it; the preset the panel is read back as says it is flat. Its ⇈ line gathers the values
+// under the name sorts by it; the preset the panel is read back as says it is flat. Its ÷ line gathers the values
 // onto one row again, and its sort no longer orders them.
 func TestTheColumnMenuFlattensAListAndItsRowsSort(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 120, Height: 30})

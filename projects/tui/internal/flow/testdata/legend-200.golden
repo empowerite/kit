@@ -7,7 +7,7 @@
   ▾ github 3                                                                                                                                                  ╭─ backlog legend ────────────── ↖ ↗ ↙ ↘ ╮
                                                                                                                                                               │ =  the kit menu                        │
       id   assignees            age  branch              labels              title                                                                            │ -  the workspace menu                  │
-      ·────⇊·───────────────────·────·───────────────────⇊·──────────────────·────────────────────────────────────────────────────────────────────────────────│ 🔎 the search: / or a click            │
+      ·────×·───────────────────·────·───────────────────×·──────────────────·────────────────────────────────────────────────────────────────────────────────│ 🔎 the search: / or a click            │
     ▸ #45                        2h                      3                   🎫 kit flow is the one picture: five stages, interactive on a terminal, and the l│ ➊  the selected tab's number           │
       #46  👤 jeffrey-aguilera   2d  🌿 46-a-noun-lists  bug               🎫 A noun lists, a noun with a verb acts                                         │ ➁  a tab's number, which selects it    │
     ▸ #7   👥 2                 40d                                          🎫 Fix the thing                                                                 │ 🎫 the backlog stage                   │
@@ -22,7 +22,7 @@
                                                                                                                                                               │ ▾  open: a click closes it             │
                                                                                                                                                               │ ▼  the presets' menu                   │
                                                                                                                                                               │ ·  sortable: a click sorts             │
-                                                                                                                                                              │ ⇊  a list: a click flattens or gathers │
+                                                                                                                                                              │ ×  a list: a click flattens or gathers │
                                                                                                                                                               │ ▸  closed: a click opens it            │
                                                                                                                                                               │ 🎫 an issue 🔗                         │
                                                                                                                                                               │ 👤 assignees or author                 │

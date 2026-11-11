@@ -7,7 +7,7 @@
   ▾ github 3
 
       id   assignees         age  branch            labels            title   ╭─ backlog legend ────────────── ↖ ↗ ↙ ↘ ╮
-      ·────⇊·────────────────·────·─────────────────⇊·────────────────·───────│ =  the kit menu                        │
+      ·────×·────────────────·────·─────────────────×·────────────────·───────│ =  the kit menu                        │
     ▸ #45                     2h                    3                 🎫 kit f│ -  the workspace menu                  │
     ▸ #46  👤 jeffrey-agui…   2d  🌿 46-a-noun-li…  bug             🎫 A nou│ 🔎 the search: / or a click            │
     ▸ #7   👥 2              40d                                      🎫 Fix t│ ➊  the selected tab's number           │
@@ -22,7 +22,7 @@
                                                                               │ ▾  open: a click closes it             │
                                                                               │ ▼  the presets' menu                   │
                                                                               │ ·  sortable: a click sorts             │
-                                                                              │ ⇊  a list: a click flattens or gathers │
+                                                                              │ ×  a list: a click flattens or gathers │
                                                                               │ ▸  closed: a click opens it            │
                                                                               │ 🎫 an issue 🔗                         │
                                                                               │ 👤 assignees or author                 │

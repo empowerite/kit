@@ -10,7 +10,7 @@
   ▾ 6                                                               Default ▼
 
   ▸ part                    setting  about         commands
-    ·───────────────────────⇊·─────────────────────⇊·──────────────────────────
+    ·───────────────────────×·─────────────────────×·──────────────────────────
   ▸ Packages                packag…  packages: i…  kit packages
   ▸ Policy                  policy   policy: in …  kit policy
   ▸ The stages of kit flow  flow     flow: in ki…  kit flow --stages
