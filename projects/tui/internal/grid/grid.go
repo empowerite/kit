@@ -5,10 +5,10 @@
 // wrapped in its column, then the lines it opens to. A cell with a summary, as an issue's labels by their count, shows
 // the summary in its column, closed or open, and an open row's values in it follow the row's lines, as many to a line
 // as the width holds. A row that hides anything, closed, has ▸ in the gutter before it,
-// and ▾ open; the row under the cursor is drawn on a faint band, its first cell bold in the accent; the band marks the
-// row, so the cell is not underlined as a chosen name is. A glyph, or a first word, whose link opens a page is
-// underlined with dots. A header can stand the columns' names over the rows, widening each column to its name; a click
-// on a name sorts by it. A row selected, one of several, has ✓ before its ▸. A panel beside the rows narrows them: a
+// and ▾ open; the row under the cursor is drawn on a faint band, its first cell bold in the accent, a pill as it is;
+// the band marks the row, so the cell is not underlined as a chosen name is. A glyph, or a first word, whose link
+// opens a page is underlined with dots. A header can stand the columns' names over the rows, widening each column to
+// its name; a click on a name sorts by it. A row selected, one of several, has ✓ before its ▸. A panel beside the rows narrows them: a
 // search, which keeps the rows whose text has it, and a field editor, each field in one of three sections, the groups,
 // the columns, and the hidden, moved within its section or across into the next. It keeps, per field, its placement, as
 // a column at a position, a group at a depth, or hidden, its sort, and its filter, each group under a heading; while it
@@ -979,9 +979,10 @@ func dotted(v string, c Cell) string {
 }
 
 // choose draws the chosen row's first cell: bold in the accent, its own styles, as dim, giving way, since the accent
-// cannot draw over them.
+// cannot draw over them. A pill keeps its own: its colors are what it is, and its half circles, stripped of them,
+// would stand bare in the accent; the band marks its row.
 func choose(s string, chosen bool) string {
-	if chosen && s != "" {
+	if chosen && s != "" && !strings.Contains(s, style.PillLeft) {
 		return style.Mark(ansi.Strip(s))
 	}
 	return s

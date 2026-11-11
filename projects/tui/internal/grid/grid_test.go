@@ -162,6 +162,19 @@ func TestAChosenCellThatIsDimIsDrawnChosenAlone(t *testing.T) {
 	}
 }
 
+// A pill is drawn by its own colors, its ends among them, so the accent would strip its color and leave its half
+// circles bare; under the cursor it stays the pill it is, and the band marks the row.
+func TestAChosenCellThatIsAPillStaysThePill(t *testing.T) {
+	pill := style.Pill("tracker", "#4338ca")
+	rows := []Row{{Key: "a", Cells: []Cell{{Values: []string{pill}}, one("x")}}}
+	chosen, _, _ := strings.Cut(style.Mark("a"), "a")
+	band, _, _ := strings.Cut(style.Band("x", 1), "x")
+	got := Draw(rows, nil, 30, 0, 0, func(Row) bool { return false }, nil)[0].Text
+	if !strings.Contains(strings.ReplaceAll(got, band, ""), pill) || strings.Contains(got, chosen) {
+		t.Errorf("a pill under the cursor: %q", got)
+	}
+}
+
 func TestARowOfOneCellSpansTheWidthAndOpensWhenItsTextIsCut(t *testing.T) {
 	rows := []Row{{Key: "h", Cells: []Cell{{Values: []string{"a heading far too long for the pane"}, Wrap: true}}}}
 	closed := plain(Draw(rows, nil, 20, 0, -1, func(Row) bool { return false }, nil))
