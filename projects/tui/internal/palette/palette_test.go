@@ -84,20 +84,21 @@ func cursorOn(m Model) string {
 
 func TestEveryVerbButTuiGroupedByGroupAndSortedByCommand(t *testing.T) {
 	m, _ := drive(open(t))
-	if names(m) != "check context version commit submit" {
+	// the groups stand in kit help's order: workflow, files, checks, …
+	if names(m) != "commit submit context check version" {
 		t.Errorf("verbs: %q", names(m))
 	}
-	// a verb with no group stands under other, as a group of its own
+	// a group kit help does not name, and other, the group of a verb with none, follow its own, as kit lists them
 	m = New([]kit.Verb{{Name: "zeta", Group: "zany"}, {Name: "bare"}, {Name: "commit", Group: "workflow"},
 		{Name: "able", Group: "workflow"}, {Name: "tui", Group: "interfaces"}}, testkit.Runner(t, "kit"))
-	if names(m) != "bare able commit zeta" {
+	if names(m) != "able commit zeta bare" {
 		t.Errorf("verbs: %q", names(m))
 	}
 }
 
 // The rows stand under a heading per group, its count beside it, under the header that names the command and the
 // description; the description is the purpose's first line; the control line names the Default preset, which groups
-// by group.
+// by group, the groups in kit help's order.
 func TestTheTableHasAGroupACommandAndADescription(t *testing.T) {
 	m := New([]kit.Verb{{Name: "commit", Purpose: "commits\nand says more", Group: "workflow"},
 		{Name: "check", Purpose: "checks", Group: "checks"}}, testkit.Runner(t, "kit"))
@@ -111,8 +112,9 @@ func TestTheTableHasAGroupACommandAndADescription(t *testing.T) {
 	if strings.Contains(v, "and says more") {
 		t.Errorf("a closed row shows more than the description's first line:\n%s", v)
 	}
-	if strings.Index(v, "checks") > strings.Index(v, "workflow") {
-		t.Errorf("the groups do not stand in their order:\n%s", v)
+	// the groups stand in kit help's order, workflow before checks, not by their names
+	if strings.Index(v, "workflow") > strings.Index(v, "checks") {
+		t.Errorf("the groups do not stand in kit help's order:\n%s", v)
 	}
 }
 
@@ -154,14 +156,15 @@ func TestOpeningARowShowsTheRestOfTheDescription(t *testing.T) {
 func TestAPageKitCouldNotGiveIsAskedForAgain(t *testing.T) {
 	m := listing(t)
 	m.runner = kit.Runner{Kit: filepath.Join(t.TempDir(), "no-kit"), Dir: t.TempDir()}
+	verb := cursorOn(m)
 	m, _ = drive(m, right)
-	line := m.failed["check"]
-	if v := m.View().Content; !strings.HasPrefix(line, style.Excluded+" ") || m.asked["check"] ||
+	line := m.failed[verb]
+	if v := m.View().Content; !strings.HasPrefix(line, style.Excluded+" ") || m.asked[verb] ||
 		!strings.Contains(v, style.Refusal(page(line, m.wrapped)[0])) {
 		t.Errorf("a failed page does not show kit's line, %q, in red:\n%s", line, ansi.Strip(v))
 	}
 	m, _ = drive(m, left)
-	if next, ask := m.Update(right); ask == nil || !next.(Model).asked["check"] {
+	if next, ask := m.Update(right); ask == nil || !next.(Model).asked[verb] {
 		t.Error("a failed page is not asked for again")
 	}
 }
@@ -394,7 +397,7 @@ func TestThePaletteOpensWithTheSearchFocused(t *testing.T) {
 	if title = strings.Split(screen(m), "\n")[0]; names(m) != "version" || !strings.HasSuffix(title, shell.Find+" vers▏") {
 		t.Errorf("vers: %q, title %q", names(m), title)
 	}
-	if m, _ = drive(m, ctrlU, testkit.Typed("files")[0]); names(m) != "context commit submit" {
+	if m, _ = drive(m, ctrlU, testkit.Typed("files")[0]); names(m) != "commit submit context" {
 		t.Errorf("f: %q", names(m))
 	}
 	m, _ = drive(m, testkit.Typed("iles")...)

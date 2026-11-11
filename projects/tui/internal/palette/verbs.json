@@ -4,8 +4,10 @@
       "stage": "help/verbs", "record": "kit syntax --list, then kit help <verb>",
       "fields": [
         {"id": "group", "label": "group", "type": "enum", "path": "the verb's group, other for none",
-         "sort": true, "group": true, "filter": true, "renderings": ["text"], "dim": true, "width": "whole",
-         "placement": "column"},
+         "order": "given", "sort": true, "group": true, "filter": true,
+         "values": [{"value": "workflow"}, {"value": "files"}, {"value": "checks"}, {"value": "installation"},
+                    {"value": "interfaces"}, {"value": "help"}, {"value": "plumbing"}],
+         "renderings": ["text"], "dim": true, "width": "whole", "placement": "column"},
         {"id": "command", "label": "command", "type": "text", "path": "the verb", "sort": true,
          "renderings": ["text"], "width": "whole", "placement": "column"},
         {"id": "description", "label": "description", "type": "text", "path": "the purpose's first line",

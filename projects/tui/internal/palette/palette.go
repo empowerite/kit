@@ -1,7 +1,8 @@
 // Package palette is what kit help opens: every verb but tui, a row each in a table, internal/table's sheet, as Flow,
 // the welcome, and the tutorials draw theirs, under the menu bar, over the keys bar. Its columns are the verb's group,
-// its command, and its description, as verbs.json, the catalog, says; its Default preset groups the rows by group and
-// sorts them by command, ascending, and the description shows its first line, the verb's purpose as kit lists it.
+// its command, and its description, as verbs.json, the catalog, says; its Default preset groups the rows by group, the
+// groups in kit help's order, workflow first, then a group it does not name and other, and sorts them by command,
+// ascending, and the description shows its first line, the verb's purpose as kit lists it.
 // Opening a row, the right arrow or a click on its ▸, shows the rest of the description: the purpose's lines past its
 // first, then the verb's page, kit help <verb> past its first line, which says the purpose again. The page is asked for
 // as the row opens, once while it is on its way, and a dim … stands in its place meanwhile; a page kit could not give
