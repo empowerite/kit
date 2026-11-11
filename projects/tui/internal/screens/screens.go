@@ -206,7 +206,9 @@ func (m Model) answered(msg workspaceMsg) (tea.Model, tea.Cmd) {
 
 // readsKitAlone says whether a screen reads kit alone, not the place the screens read, so a move leaves it as it was:
 // the tutorials, the help, and the workspaces' screen.
-func readsKitAlone(s shell.Screen) bool { return s == shell.Tutorials || s == shell.Help || s == shell.Manage }
+func readsKitAlone(s shell.Screen) bool {
+	return s == shell.Tutorials || s == shell.Help || s == shell.Manage
+}
 
 // regrouped asks kit for the workspace again once a screen had it change the groups: the group shown, or the one it was
 // renamed to, else, with it deleted or none shown, the one kit starts on.
