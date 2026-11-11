@@ -6,7 +6,7 @@ import { Route, Routes } from "react-router";
 
 import { Since } from "./components/Since";
 import { Layout } from "./Layout";
-import { SiteLink } from "./reader";
+import { PageLink, SiteLink } from "./reader";
 
 // Frontmatter is a page's front matter; frontmatter.schema.json holds it to these fields.
 export interface Frontmatter {
@@ -34,7 +34,7 @@ const pages = import.meta.glob<Page>(["./content/**/*.mdx", "./whats-new.mdx", "
   eager: true,
 });
 
-const components: MDXComponents = { a: SiteLink, Since };
+const components: MDXComponents = { a: PageLink, Since };
 
 // contentPath gives the path a file under content/ is served at: <id>/index.mdx at <id>/, a top-level tutorial,
 // and <id>/<page>.mdx at <id>/<page>/, a deeper page.
@@ -113,6 +113,19 @@ function Changelog() {
   );
 }
 
+// NotFound is the page for an address that is no page, and the build's 404.html.
+function NotFound() {
+  return (
+    <Titled title="No such page">
+      <h1>No such page</h1>
+      <p>This address is no page of these tutorials, or it is a page of another version of kit.</p>
+      <p>
+        <SiteLink href="">All tutorials</SiteLink>
+      </p>
+    </Titled>
+  );
+}
+
 export const routes: SiteRoute[] = [
   { path: "", title: "Tutorials", element: <Home /> },
   ...tutorials.map((tutorial) => ({ path: tutorial.path, title: tutorial.title, element: page(tutorial.file) })),
@@ -127,6 +140,7 @@ export function App() {
         {routes.map((route) => (
           <Route key={route.path} path={route.path} element={route.element} />
         ))}
+        <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
   );

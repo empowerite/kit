@@ -6,6 +6,7 @@ import { StrictMode } from "react";
 import { createRoot, hydrateRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 
+import { entry } from "./entry";
 import { App } from "./routes";
 
 const root = document.getElementById("root")!;
@@ -16,8 +17,11 @@ const app = (
     </BrowserRouter>
   </StrictMode>
 );
-if (root.hasChildNodes()) {
-  hydrateRoot(root, app);
-} else {
-  createRoot(root).render(app);
+switch (entry(root.firstElementChild !== null, location.pathname, import.meta.env.BASE_URL)) {
+  case "hydrate":
+    hydrateRoot(root, app);
+    break;
+  case "render":
+    createRoot(root).render(app);
+    break;
 }

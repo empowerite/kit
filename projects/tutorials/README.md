@@ -58,8 +58,10 @@ Two more pages are in each site's top navigation:
   shows every entry, newest first.
 
 Each page is pre-rendered to `dist/<path>/index.html`, so a deep link works on any host with no rewrites. A link
-between pages is written relative to the base, as `[the changelog](changelog/)` or `[marks](kit-tutorials/marks/)`,
-never with a leading `/`. The link keeps the reader's `?kit=` on the next page.
+between pages is written from the page it is on, as on the web: `[marks](marks/)` on `kit-tutorials/` and
+`[the changelog](../changelog/)` on any page one level down, never with a leading `/`. The link keeps the reader's
+`?kit=` on the next page. An address that is no page shows "No such page", and the build writes the same page as
+`dist/404.html`, which Pages serves for any address with no file.
 
 ## Front matter
 
@@ -90,5 +92,6 @@ A passage that a patch release made true is wrapped in `<Since>`, which a page n
 ```
 
 kit opens every page with its own version in the address, as `?kit=0.4.7`. A passage newer than the reader's kit
-says so: "Needs kit 0.4.9; you have 0.4.7." Without `?kit=`, or with `unreleased` or anything that is not a version,
-the passage is marked plainly, "Since 0.4.9".
+says so, "Needs kit 0.4.9; you have 0.4.7.", and how to upgrade: install that version or later, then run
+`kit update`. A pre-release of the passage's own version, `0.4.9-rc.1`, has the passage. Without `?kit=`, or with
+`unreleased` or anything that is not a version, the passage is marked plainly, "Since 0.4.9".

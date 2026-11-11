@@ -13,6 +13,7 @@ test("Since tells a reader whose kit is older which version the passage needs", 
     </MemoryRouter>,
   );
   expect(screen.getByText("Needs kit 0.4.9; you have 0.4.7.")).toBeTruthy();
+  expect(screen.getByText(/To upgrade, install kit 0\.4\.9 or later, then run/)).toBeTruthy();
   expect(screen.getByText("x")).toBeTruthy();
 });
 

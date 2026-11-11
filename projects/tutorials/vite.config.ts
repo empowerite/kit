@@ -20,9 +20,9 @@ interface Server {
   render(path: string): string;
 }
 
-// prerender writes each route's page into the shell the client build left in dist/index.html, then checks dist/. A
-// page that throws, as one with <Since version="0.4"> does, fails the build under its route's path, and so do the
-// problems verify finds.
+// prerender writes each route's page, and 404.html for an address that is no page, into the shell the client build
+// left in dist/index.html, then checks dist/. A page that throws, as one with <Since version="0.4"> does, fails the
+// build under its route's path, and so do the problems verify finds.
 async function prerender(base: string): Promise<void> {
   const shell = await readFile(join(dist, "index.html"), "utf8");
   const { routes, render }: Server = await import(pathToFileURL(join(server, "server.js")).href);
@@ -36,8 +36,11 @@ async function prerender(base: string): Promise<void> {
     await mkdir(join(dist, route.path), { recursive: true });
     await writeFile(join(dist, route.path, "index.html"), filled(shell, route, page));
   }
+  // Pages serves 404.html for any address that is no file, so it is rendered as the route `*` and holds an article.
+  const missing = { path: "404.html", title: "No such page" };
+  await writeFile(join(dist, missing.path), filled(shell, missing, render(missing.path)));
   await rm(server, { recursive: true });
-  const problems = await verify(dist, base, routes.map((route) => route.path));
+  const problems = await verify(dist, base, [...routes.map((route) => route.path), missing.path]);
   if (problems.length > 0) {
     throw new Error(problems.join("\n"));
   }

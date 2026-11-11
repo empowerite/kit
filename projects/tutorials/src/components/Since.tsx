@@ -11,6 +11,11 @@ export function Since({ version, children }: { version: string; children: ReactN
   return (
     <div className={`since since-${state}`}>
       <p className="since-mark">{state === "newer" ? `Needs kit ${version}; you have ${kit}.` : `Since ${version}`}</p>
+      {state === "newer" && (
+        <p className="since-upgrade">
+          To upgrade, install kit {version} or later, then run <code>kit update</code>.
+        </p>
+      )}
       {children}
     </div>
   );
