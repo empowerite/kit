@@ -1,6 +1,6 @@
 # Workspaces: design
 
-Status: proposed, 2026-11-08.
+Status: steps 1 to 3 built, 4 to 7 designed, 2026-11-08.
 
 ## Intent
 
@@ -126,7 +126,8 @@ A group's members are its `repos`, together with every repository its `match` en
 `project`'s open items live in, whatever their owner, without its `exclude`. A repository whose only items in the
 Project are closed is not a member through the Project. Within one `match` entry the filters must all hold; across entries,
 any one is enough. Queries that name an owner ask the forge, so they match repositories that are not cloned. `label:`
-reads checkouts alone.
+reads checkouts alone. Until steps 4 to 6 are built, kit refuses a group's `match` and `project` by name, and says to
+list its members under `repos`.
 
 A favorite is a group's name or a single repository's host and path. What kit keeps for itself, the last group used
 and the query results, is not in this file; see [State and cost](#state-and-cost).
@@ -157,14 +158,15 @@ root is its checkout, and the 📚 repos tab names the others.
 - Outside any repository with no group ever used, there is no workspace. kittui's title shows 📚 alone, dim, and its
   dropdown; `kit flow` draws what it draws above desks today, unchanged.
 - `--workspace <name>` overrides all three. `--workspace none` asks for no workspace, which gives back today's
-  above-desks picture in a folder where a group would otherwise be drawn.
+  above-desks picture in a folder where a group would otherwise be drawn. `none` is no group's name.
 
 The rule lives in kit's bash, in one function the verbs share, so every kit application resolves the same workspace.
 kittui asks kit for it rather than deciding itself.
 
-Only `kit flow` and `kit workspaces` take `--workspace` and follow the rule in this design. The verbs that act
-(`commit`, `work`, `submit`, and the rest) are unchanged: they run in the repository of the folder they are run in, or
-refuse outside one, as now. Other verbs that read can adopt the shared function later, one at a time.
+Only `kit flow`, `kit workspace`, and `kit workspaces` take `--workspace` and follow the rule in this
+design. The verbs that act (`commit`, `work`, `submit`, and the rest) are unchanged: they run in the repository of the
+folder they are run in, or refuse outside one, as now. Other verbs that read can adopt the shared function
+later, one at a time.
 
 ### `kit workspaces`
 
@@ -197,6 +199,9 @@ design decided.
     owners (every local repository under one owner is offered as a group to save, never applied unasked);
   - **New workspace…**;
   - **Manage workspaces…**, which opens the Workspaces screen.
+
+  Until step 7, the dropdown holds the favorites and, for a repository, its groups; the three lines join it with the
+  Workspaces screen.
 - Picking one tells every screen made, as settings are told now, and each loads again for the new workspace. For a
   group, the pick is recorded as the last group used.
 
@@ -280,6 +285,8 @@ Each step is usable on its own.
 5. Topics and git config labels as filters.
 6. GitHub Project workspaces.
 7. The Workspaces screen, and **New workspace…** and **Browse…** in full.
+
+Steps 1 to 3 are built; steps 4 to 7 are designed and not built.
 
 The 📚 repos tab is a stage like the others, with its fields in Flow's catalog, so step 3 does not wait on the
 components design's `table` move. It would gain from `source` (step 5 of that design) for its per-member loads.

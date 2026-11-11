@@ -50,6 +50,9 @@ under the earliest root, is the one kit uses. A member with no checkout is still
 does not parse names no primary, so it is filed under `origin` and the walk of the roots goes on; kit says so where
 its member is drawn: a warning for the member's first checkout, and its repos row's `error`.
 
+A checkout is a directory that holds a `.git` directory. A bare repository, a linked worktree, and a clone behind a
+symbolic link are no checkouts, and kit does not look inside a hidden folder.
+
 ## Which workspace kit starts on
 
 1. A workspace given with `--workspace` wins. `--workspace none` names no workspace.
@@ -57,6 +60,12 @@ its member is drawn: a warning for the member's first checkout, and its repos ro
    is the repository the worktree belongs to.
 3. Outside any repository, it is the last group used.
 4. With no group used yet, there is none.
+
+`kit workspaces --use=<name>` keeps the last group used in `kit/workspaces/last` under `XDG_CACHE_HOME`, else
+`~/.cache`: kit's own to rewrite, apart from your file. A last group the file does not hold is none.
+
+`kit flow`, `kit workspace`, and `kit workspaces --current` follow this rule. Every other verb runs in its folder's
+repository, or refuses outside one, and takes no `--workspace`.
 
 `kit workspaces --current` says which one, and why. With `--json` it also gives what kittui's workspace menu draws: a
 group's members with their checkouts, the groups a repository belongs to, and the favorites.
@@ -148,6 +157,11 @@ the row shows the whole path. A member's name on any tab leads to its row there.
 
 ## Still to come
 
-Groups made by queries (an owner, public or private, a name pattern such as
-`homebrew-*`, forge topics), members read from the forge without a checkout, and groups made from a GitHub Project are
-designed in [the workspaces design](superpowers/specs/2026-11-08-workspaces-design.md), and are not built yet.
+What is built is steps 1 to 3 of [the workspaces design](superpowers/specs/2026-11-08-workspaces-design.md): the file,
+`kit workspaces` with fixed members, checkout discovery, the startup rule, the 📚 control, and Flow across the members
+with checkouts. Steps 4 to 7 are designed and not built:
+
+- Queries, ☁️ members, batched forge reads, and the query cache. A group's `match` is refused by name until then.
+- Topics and git config labels as filters.
+- GitHub Project workspaces. A group's `project` is refused by name until then.
+- The Workspaces screen, and **New workspace…** and **Browse…** in full.
