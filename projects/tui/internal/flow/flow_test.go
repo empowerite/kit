@@ -1058,10 +1058,11 @@ func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
 	}
 	// #159, open, takes four lines, and the pane shows one between its … lines: a page down for each of the three
 	// under its first, one onto the last row, and one more, which stays there
-	m = drive(m, press(tea.KeyPgDown), press(tea.KeyPgDown), press(tea.KeyPgDown), press(tea.KeyPgDown),
-		press(tea.KeyPgDown))
-	if m.find("builds").Cursor != 4 {
-		t.Errorf("page down past the last row: cursor %d", m.find("builds").Cursor)
+	for k, want := range []int{3, 3, 3, 4, 4} {
+		if m = drive(m, press(tea.KeyPgDown)); m.find("builds").Cursor != want {
+			t.Errorf("page down %d through #159 and past the last row: cursor %d, not %d", k+1,
+				m.find("builds").Cursor, want)
+		}
 	}
 	// home goes to the first row, at the top, and end to the last; on the bar neither does anything
 	if m = drive(m, press(tea.KeyHome)); !m.inRows || m.find("builds").Cursor != 1 ||

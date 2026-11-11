@@ -215,8 +215,12 @@ func TestAPageThroughATallRowShowsEachOfItsLinesOnce(t *testing.T) {
 		shown(up)
 		Page(h, -1)
 	}
+	// at the row's top, up moves the cursor a page of rows, as it does outside a tall row
+	if want := max(First(h.Rows()), at(h, "#4")-(height-1)); h.tbl.Cursor != want {
+		t.Errorf("a page up past #4's top: cursor %d, not %d", h.tbl.Cursor, want)
+	}
 	for k := first; k <= last; k++ {
-		if down[k] != 1 || up[k] == 0 {
+		if down[k] != 1 || up[k] == 0 || up[k] > 2 {
 			t.Errorf("line %d of #4 (%d to %d) shown %d times down, %d up", k, first, last, down[k], up[k])
 		}
 	}

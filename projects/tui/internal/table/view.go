@@ -233,10 +233,11 @@ func Down(h Host, n int) {
 }
 
 // Page moves a page down or up. Inside a row taller than the pane, as an open pull request with many issues is, it
-// first scrolls through that row a window at a time, so each line it hides shows once: down, the next window starts
-// at the line under the last one shown, and up, the window before ends at the line over the first, the … lines in
-// the pane taking their places. At the row's end it moves the cursor a page of rows. A page never leaves the rows: up
-// stops at the first row, and down at the last; without the keyboard it does nothing.
+// first scrolls through that row a window at a time, so each line it hides shows at least once: down, the next window
+// starts at the line under the last one shown, and up, the window before ends at the line over the first, the … lines
+// in the pane taking their places; windows may overlap at a row's top and the table's end. At the row's end it moves
+// the cursor a page of rows. A page never leaves the rows: up stops at the first row, and down at the last; without
+// the keyboard it does nothing.
 func Page(h Host, d int) {
 	if !h.InRows() {
 		return
@@ -248,7 +249,7 @@ func Page(h Host, d int) {
 	start, end, _, _ := pane.Window(len(all), height, t.Offset)
 	switch {
 	case first >= 0 && d > 0 && last >= end:
-		t.Offset, _, _, _ = pane.Window(len(all), height, end)
+		t.Offset, _, _, _ = pane.Window(len(all), height, max(end, start+1)) // a pane with no room still moves on
 	case first >= 0 && d < 0 && first < start:
 		t.Offset = max(first, before(len(all), height, start))
 	case d > 0:
