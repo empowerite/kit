@@ -101,6 +101,11 @@ jobs:
             printf '%s/kit/bin\n' "${RUNNER_TEMP}" >> "${GITHUB_PATH}"
           fi
 
+      # kit runs nothing in a clone until it is trusted, and a runner has no one to ask: the job trusts the checkout
+      # it made, of the repository whose workflow this is.
+      - name: trust
+        run: kit trust --yes "${GITHUB_WORKSPACE}"
+
       - name: toolchain
         run: |
           set -o errexit -o nounset -o pipefail
@@ -155,6 +160,11 @@ jobs:
               --strip-components 1
             printf '%s/kit/bin\n' "${RUNNER_TEMP}" >> "${GITHUB_PATH}"
           fi
+
+      # kit runs nothing in a clone until it is trusted, and a runner has no one to ask: the job trusts the checkout
+      # it made, of the repository whose workflow this is.
+      - name: trust
+        run: kit trust --yes "${GITHUB_WORKSPACE}"
 
       - name: kit-settle
         env:

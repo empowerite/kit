@@ -54,6 +54,8 @@ helper:isolate-in() {
   export KIT_HOME="${dir}/kit-home" XDG_CACHE_HOME="${dir}/cache"
   export TMPDIR="${dir}/tmp"
   mkdir -p "${HOME}" "${XDG_CONFIG_HOME}" "${KIT_HOME}" "${XDG_CACHE_HOME}" "${TMPDIR}"
+  # every clone a test makes is trusted, as a person trusts their own; tests/trust.bats writes a trust file of its own
+  mkdir -p "${XDG_CONFIG_HOME}/kit" && printf '/\n' > "${XDG_CONFIG_HOME}/kit/trusted"
   # git reads this file as its global configuration, and no system one: a desk's hooks path, signing, aliases, and
   # global ignores stay out, and every commit a test makes has an author
   export GIT_CONFIG_GLOBAL="${HOME}/.gitconfig" GIT_CONFIG_NOSYSTEM=1

@@ -37,19 +37,114 @@ export kit_root kit_jq
 declare -Ag kit_modules=([1st]=1)
 declare -ag kit_bash_path=()
 
-# kit:enter starts a verb's process: it exports the directory the command was typed in as kit_invoked_in, for verbs
-# that take relative paths, and changes to the repository root, so every verb reads and writes the same paths
-# wherever it was typed. A repository from a release that kept its settings in .kit/settings.yml has them moved to
-# kit.yml first, before anything reads them.
+# kit:enter [--any-clone] starts a verb's process: it exports the directory the command was typed in as
+# kit_invoked_in, for verbs that take relative paths, refuses a clone you have not trusted, as kit:trust-here says,
+# and changes to the repository root, so every verb reads and writes the same paths wherever it was typed. A
+# repository from a release that kept its settings in .kit/settings.yml has them moved to kit.yml first, before
+# anything reads them. With --any-clone, a verb that runs nothing the clone names, as kit version and kit trust,
+# runs in a clone you have not trusted too, and moves nothing there.
 kit:enter() {
+  local any_clone=false
+  [[ "${1:-}" != --any-clone ]] || any_clone=true
   kit_invoked_in=$(pwd -P)
   export kit_invoked_in
+  if [[ "${any_clone}" == false ]]
+  then
+    kit:trust-here || exit 1
+  fi
   local repository
   if repository=$(git rev-parse --show-toplevel 2>/dev/null)
   then
     cd "${repository}" || return 1
   fi
-  kit:move-settings
+  [[ "${any_clone}" == true ]] || kit:move-settings
+}
+
+# kit:clone-root <dir> prints the root of the clone <dir> is in, by its physical path, as bin/kit, the loader, finds
+# it: the nearest directory at or above it that holds .git, a directory in a desk and a file in a worktree. It fails
+# outside a clone. It reads the file system alone and runs no git, so nothing a clone configures runs before it is
+# trusted.
+kit:clone-root() {
+  local dir
+  dir=$(cd "$1" 2>/dev/null && pwd -P) || return 1
+  until [[ -e "${dir}/.git" ]]
+  do
+    [[ -n "${dir}" ]] || return 1
+    dir=${dir%/*}
+  done
+  printf '%s\n' "${dir:-/}"
+}
+
+# kit:trust-name <clone-root> prints the name a clone is trusted by: its root, and for a worktree, its desk, but only
+# where the desk confirms the worktree, as bin/kit, the loader, reads it. The worktree's .git file names an admin
+# directory, which must be in the .git/worktrees/ of the desk its commondir file names, and whose gitdir file must
+# name this .git back by its absolute path; a .git file of any other kind, as a submodule's or a crafted one, leaves
+# the root as the name, so a clone cannot borrow the trust of a repository it only names. It runs no git, as
+# kit:clone-root does not.
+kit:trust-name() {
+  local name=$1 line='' admin back='' common='' dir
+  if [[ -f "$1/.git" ]] && { IFS= read -r line < "$1/.git" || [[ -n "${line}" ]]; } && [[ "${line}" == 'gitdir: '* ]]
+  then
+    admin=${line#gitdir: }
+    [[ "${admin}" == /* ]] || admin=$1/${admin}
+    if { IFS= read -r back < "${admin}/gitdir" || [[ -n "${back}" ]]; } 2>/dev/null \
+      && { IFS= read -r common < "${admin}/commondir" || [[ -n "${common}" ]]; } 2>/dev/null \
+      && [[ "${back}" == /*/.git ]] && dir=$(cd "${back%/.git}" 2>/dev/null && pwd -P) && [[ "${dir}" == "$1" ]]
+    then
+      [[ "${common}" == /* ]] || common=${admin}/${common}
+      # The admin directory must be one the desk made, in its own .git/worktrees/: one the clone made elsewhere could
+      # name any desk's .git as its common dir.
+      if common=$(cd "${common}" 2>/dev/null && pwd -P) && admin=$(cd "${admin}" 2>/dev/null && pwd -P) \
+        && [[ "${admin%/*}" == "${common}/worktrees" ]]
+      then
+        name=${common%/.git}
+      fi
+    fi
+  fi
+  printf '%s\n' "${name}"
+}
+
+# kit:trust-file prints the file that records the clones you trust: kit/trusted under XDG_CONFIG_HOME, else
+# ~/.config. modules/bash/trust.sh says what a line holds.
+kit:trust-file() {
+  printf '%s\n' "${XDG_CONFIG_HOME:-${HOME}/.config}/kit/trusted"
+}
+
+# kit:trusted <name> succeeds when the trust file holds <name>, or a folder above it: a line that ends in /. A line
+# that starts with # is a comment, and ~/ at the start of a line is the home directory, by its physical path.
+kit:trusted() {
+  local file line
+  file=$(kit:trust-file)
+  [[ -f "${file}" ]] || return 1
+  while IFS= read -r line || [[ -n "${line}" ]]
+  do
+    [[ -n "${line}" && "${line}" != '#'* ]] || continue
+    # The home directory by its physical path, as every name is compared: on macOS, /var is a link to /private/var.
+    [[ "${line}" != \~/* ]] || line=$(cd "${HOME}" 2>/dev/null && pwd -P || printf '%s' "${HOME}")/${line#\~/}
+    if [[ "${line}" == */ ]]
+    then
+      [[ "$1/" == "${line}"* ]] && return 0
+    else
+      [[ "$1" == "${line}" ]] && return 0
+    fi
+  done < "${file}"
+  return 1
+}
+
+# kit:trusted-at <dir> succeeds where kit may run what a clone asks for: outside a clone, and in a clone you trust.
+kit:trusted-at() {
+  local root
+  root=$(kit:clone-root "$1") || return 0
+  kit:trusted "$(kit:trust-name "${root}")"
+}
+
+# kit:trust-here succeeds where kit:trusted-at the working directory does. Elsewhere it says how to trust the clone,
+# in the words bin/kit uses, and fails.
+kit:trust-here() {
+  kit:trusted-at . && return 0
+  error "kit runs nothing in $(kit:trust-name "$(kit:clone-root .)") until you trust it; see what it asks kit to run," \
+    "and trust it: kit trust"
+  return 1
 }
 
 # kit:move-settings moves .kit/settings.yml to kit.yml at the root, where a release before kit.yml left it, and
@@ -104,7 +199,7 @@ use:load-path() {
     # read, a builtin, takes the file's text with no process; at the end of a file with no NUL it returns 1
     IFS= read -r -d '' settings < "${root}/kit.yml" || true
   fi
-  printf -v from '%s\n' "${kit_root}" "${HOME}" "${XDG_CACHE_HOME:-}" "${root}" "${settings}"
+  printf -v from '%s\n' "${kit_root}" "${HOME}" "${XDG_CACHE_HOME:-}" "${XDG_CONFIG_HOME:-}" "${root}" "${settings}"
   if [[ -n "${kit_bash_path_dirs:-}" && "${kit_bash_path_from:-}" == "${from}" ]]
   then
     readarray -t dirs <<<"${kit_bash_path_dirs}"
@@ -115,7 +210,9 @@ use:load-path() {
   # Only a kit.yml whose text names bash_path is read with yq: one that does not cannot set it, and a kit run without
   # yq goes on to say yq is missing. yaml.sh says nothing in a subshell, so a yq that is missing is named here; a file
   # it cannot parse has had its line.
-  if [[ "${settings}" == *bash_path* ]]
+  # A clone you have not trusted names no bash: the verbs that run there, kit help among them, load the release's
+  # own modules alone.
+  if [[ "${settings}" == *bash_path* ]] && kit:trusted-at "${root}"
   then
     list:read entries use:path-setting "${root}" || status=$?
     if (( status == 2 ))

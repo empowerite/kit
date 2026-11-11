@@ -75,10 +75,16 @@ The first of these chooses the release a call runs:
 3. `version:` in the `kit.yml` at the root of the clone you are in. Each worktree is its own root.
 4. The kit you installed, outside a clone, and in a clone that pins none.
 
-A release is named by its version, `0.1.0`, or by the path of a copy of one. The loader keeps every release it runs
-in `~/.cache/kit/`, and downloads a version the first time a repository asks for it, checked against the `.sha256`
-the release publishes beside it. A kit option it does not know is refused: a later kit may know it, so update the
-kit you installed.
+A release is named by its version, `0.1.0`; `--version=` and `KIT_VERSION` also take the path of a copy of one. The
+loader keeps every release it runs in `~/.cache/kit/`, and downloads a version the first time a repository asks for
+it, checked against the `.sha256` the release publishes beside it. A kit option it does not know is refused: a later
+kit may know it, so update the kit you installed.
+
+kit runs nothing in a clone until you trust it. `kit trust` shows what the clone asks kit to run, its pinned release,
+the bash it loads, and its gate, then asks you, and remembers your answer for the clone and all its worktrees.
+`kit trust ~/Code/` trusts every clone under that folder. Trusting a clone means you accept code from whoever can
+push to it: kit does not check each pull; review and signed commits do. The records are plain lines in
+`~/.config/kit/trusted`, and `kit trust --list` and `kit trust --revoke` read and change them.
 
 With Homebrew:
 
@@ -128,8 +134,9 @@ kit runs on Linux and macOS. On Windows, use WSL, which runs it as Linux.
 Then check the install: `kit version` prints the release, and `kit help` lists the verbs. Once a repository has
 taken the kit, `kit check` says every delivered file matches the release.
 
-New to a repository that uses kit? Run `kit welcome`. It checks your tools, your code forge logins, and the repository,
-and shows the fix for each problem. Then it walks you through how work flows, the terms, and what a team can change.
+New to a repository that uses kit? Run `kit trust`, then `kit welcome`. It checks your tools, your code forge logins,
+and the repository, and shows the fix for each problem. Then it walks you through how work flows, the terms, and
+what a team can change.
 
 `kit tutorials` lists kit's tutorials, by who each is for, and opens one in the browser; see
 [docs/tutorials.md](docs/tutorials.md).
