@@ -36,6 +36,20 @@ test("verify passes a whole dist, and names each break", async () => {
   expect(await broken({ "index.html": null })).toContain("no dist/index.html");
   expect(await broken({ "a/index.html": page('<a href="/b/gone/">x</a>') })).toContain('href="/b/gone/" has no file');
   expect(await broken({ "a/index.html": page('<img src="/out.png">') })).toContain('src="/out.png" is outside /b/');
+  expect(await broken({ "a/index.html": page("<a href='/b/gone/'>x</a>") })).toContain('href="/b/gone/" has no file');
+  expect(await broken({ "a/index.html": page("<a href=/b/gone/>x</a>") })).toContain('href="/b/gone/" has no file');
+  expect(await broken({ "a/index.html": page('<a href="/b/%zz">x</a>') })).toContain(
+    'dist/a/index.html: href="/b/%zz" is not a URL',
+  );
+  expect(await broken({ "a/index.html": page('<a href="/b/gone/">x</a><a href="/b/gone/">y</a>') })).toBe(
+    'dist/a/index.html: href="/b/gone/" has no file',
+  );
+  expect(await broken({ "a/index.html": page('<a href="/b/">home</a><a href="../../up">up</a>') })).toBe(
+    'dist/a/index.html: href="../../up" is outside /b/',
+  );
+  expect(
+    await broken({ "a/index.html": page('<a href="mailto:a@b.test">m</a><a href="//host.test/x">h</a>') }),
+  ).toBe("");
 });
 
 test("siteBase gives a base its slashes, and refuses what is not a path", () => {
@@ -45,11 +59,15 @@ test("siteBase gives a base its slashes, and refuses what is not a path", () => 
     "/k/main/",
     "/k/main/",
   ]);
-  expect(() => siteBase("https://x.test/k/")).toThrow("TUTORIALS_BASE is a path");
+  expect(["", "/"].map(siteBase)).toEqual(["/", "/"]);
+  for (const bad of ["https://x.test/k/", "/k:1/", "/k?x", "/k#x", "/k m/"]) {
+    expect(() => siteBase(bad)).toThrow("TUTORIALS_BASE is a path");
+  }
 });
 
 test("filled keeps a page's dollar signs, and refuses an empty page", () => {
   const html = filled(shell, { path: "x/", title: "$&" }, "<article>echo $$ $& $'x'</article>");
   expect(html).toContain("<article>echo $$ $& $'x'</article>");
+  expect(html).toContain("<title>$&amp; · kit tutorials</title>");
   expect(() => filled(shell, { path: "x/", title: "X" }, "")).toThrow("x/: the page rendered empty");
 });

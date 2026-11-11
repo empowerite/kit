@@ -40,16 +40,17 @@ async function isFile(path: string): Promise<boolean> {
   }
 }
 
-// verify returns the problems of dist/ built for the base, each naming its file: a route with no page or an empty
-// one, and an href or src that is outside the base or names no file. A link is resolved against its page's address.
+// verify returns the problems of dist/ built for the base, each once and naming its file: a route with no page or
+// an empty one, and an href or src that is outside the base, is no URL, or names no file. A link is resolved against
+// its page's address.
 export async function verify(dist: string, base: string, paths: string[]): Promise<string[]> {
-  const problems: string[] = [];
+  const problems = new Set<string>();
   for (const path of paths) {
     const file = path.endsWith(".html") ? path : `${path}index.html`;
     if (!(await isFile(join(dist, file)))) {
-      problems.push(`no dist/${file}`);
+      problems.add(`no dist/${file}`);
     } else if (!(await readFile(join(dist, file), "utf8")).includes("<article")) {
-      problems.push(`dist/${file}: an empty page`);
+      problems.add(`dist/${file}: an empty page`);
     }
   }
   for (const file of await readdir(dist, { recursive: true })) {
@@ -58,20 +59,28 @@ export async function verify(dist: string, base: string, paths: string[]): Promi
     }
     const html = await readFile(join(dist, file), "utf8");
     const address = new URL(`${base}${file}`, "http://site.invalid");
-    for (const [, attribute, url] of html.matchAll(/\s(href|src)="([^"]*)"/g)) {
+    const attributes = /\s(href|src)=(?:"([^"]*)"|'([^']*)'|([^\s"'<>`=]+))/g;
+    for (const [, attribute, quoted, single, bare] of html.matchAll(attributes)) {
+      const url = quoted ?? single ?? bare;
       if (url.startsWith("#") || url.startsWith("//") || /^[a-z][a-z0-9+.-]*:/i.test(url)) {
         continue;
       }
-      const target = decodeURIComponent(new URL(url, address).pathname);
+      let target: string;
+      try {
+        target = decodeURIComponent(new URL(url, address).pathname);
+      } catch {
+        problems.add(`dist/${file}: ${attribute}="${url}" is not a URL`);
+        continue;
+      }
       if (!target.startsWith(base)) {
-        problems.push(`dist/${file}: ${attribute}="${url}" is outside ${base}`);
+        problems.add(`dist/${file}: ${attribute}="${url}" is outside ${base}`);
         continue;
       }
       const name = target.slice(base.length);
       if (!(await isFile(join(dist, name === "" || name.endsWith("/") ? `${name}index.html` : name)))) {
-        problems.push(`dist/${file}: ${attribute}="${url}" has no file`);
+        problems.add(`dist/${file}: ${attribute}="${url}" has no file`);
       }
     }
   }
-  return problems;
+  return [...problems];
 }
