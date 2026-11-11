@@ -10,8 +10,9 @@ kit policy
 ```
 
 - `kit policy` gathers the facts once, then the policy engine reports every refusal and every warning.
-- `kit ci` runs it beside the gate (the repository's own CI command), so a name that breaks the policy fails the
-  delivered check like a failing test. That check blocks a merge only when a branch ruleset requires it.
+- `kit ci` runs it, after `kit linked` and before the gate (the repository's own CI command) and `kit check`, so a
+  name that breaks the policy fails the delivered check like a failing test. That check blocks a merge only when a
+  branch ruleset requires it.
 - On a runner, the refusals and the warnings also appear in the step summary.
 
 ## The facts
@@ -42,7 +43,7 @@ kit policy
 | `moment` | `commit` or `ci`: the point the facts are judged at. |
 | `branch` | On a runner, the change's head branch. Elsewhere, at the desk or in any worktree, the current branch. On the default branch or a detached checkout it is `null`, and nothing is checked. |
 | `default_branch` | The repository's default branch. |
-| `commits` | Each commit past the fork from the default branch at origin, merges excluded. The delivered workflow fetches full history for this. When the fork is not found, as in a shallow clone, `commits` is `null`, the commits cannot be checked, and `kit policy` fails. |
+| `commits` | Each commit past the fork from the branch's base, merges excluded: the default branch at origin, or on a runner the commit the change's event names as its base. The delivered workflow fetches full history for this. When the fork is not found, as in a shallow clone, `commits` is `null`, the commits cannot be checked, and `kit policy` fails. |
 | `change` | The open change, read through the code forge (the service that hosts the repository): an object with its number, title, body, and author's login. `null` when the repository has no code forge, or the code forge answered that the branch has no open change, and `null` at commit. A `null` change leaves `change_title` unchecked. When the code forge cannot answer, for which change is open or for its title, body, or author, `change` is `{"error": "<line>"}`, the line kit says for the read that failed, such as `run: gh auth status (the open pull request on 7-fix-the-thing could not be read)`. `kit policy` refuses such facts before either engine runs, and so refuses a document given with `--facts` that holds one. |
 | `tree` | The files git holds, keyed by path, read from git: the index at commit, and HEAD at ci. At either moment, a kind matched by its first line, such as a script's shebang, reads that line from the disk. |
 | `policy` | The patterns, with the kit's defaults filled in. |
@@ -55,7 +56,7 @@ Each entry in `tree` has these fields:
 | `executable` | `true` for a file of mode 100755, and `false` for everything else. |
 | `size` | The blob's bytes, and 0 for a submodule. |
 | `blob` | The blob's object name, or the commit a submodule is at. |
-| `kinds` | The kinds of file the path is, such as `bash`, or `[]` for none. |
+| `kinds` | The kinds of file the path is, such as `bash`, or `[]` for none. On a branch, the kinds are the base's; see below. |
 | `text` | The blob's content. Only a file matching a `facts.read` glob has it. |
 
 ### What kit commit judges
@@ -72,11 +73,17 @@ deny list stops one.
 
 ### What judges a branch
 
-On a branch past the default one, `kit policy` and `kit linked` judge by the policy on the branch's base,
-`origin/<default>`, the ref the commits are counted from. A branch cannot loosen the rule that judges it: a pattern it
-blanks, a login it adds under `linked_exempt`, an engine it names, a file it stops a rule from reading, a `forge` it
-drops or a `forges` entry it changes, and a `.rego` file it removes, adds, or edits change nothing.
+On a branch past the default one, `kit policy` and `kit linked` judge by the policy on the branch's base, the commit
+the commits are counted from. A branch cannot loosen the rule that judges it: a pattern it blanks, a login it adds
+under `linked_exempt`, an engine it names, a file it stops a rule from reading, a `forge` it drops or a `forges` entry
+it changes, a kind it redefines, and a file it removes, adds, or edits under `.kit/policy/` change nothing.
 
+- The base is `origin/<default>` at a desk. On a runner, it is the commit the change's event names as its base:
+  `pull_request.base.sha` in the event at `GITHUB_EVENT_PATH` on GitHub, `CI_MERGE_REQUEST_DIFF_BASE_SHA` on GitLab.
+  No command of the branch can move it, as the gate could move `origin/<default>`. A runner that names a change's
+  head branch and no base commit fails both verbs.
+- `kit ci` runs `kit linked` and `kit policy` first, before the gate and `kit check`, which run commands of the
+  branch's own: the gate itself, and the commands the `kit:generate` directives name.
 - `policy`, `policy_engine`, `linked_exempt`, `facts`, `forge`, and `forges` come from the base's `kit.yml`. Where
   the base has none of one, it is absent, and the kit's default applies, not the branch's: for `forge` and `forges`,
   the provider the remote's host names.
@@ -86,9 +93,13 @@ drops or a `forges` entry it changes, and a `.rego` file it removes, adds, or ed
   that names no remote fails.
 - A branch that adds a file to `facts.read`, for a rule of its own, changes nothing until it is merged, as the rule
   itself does not.
-- The Rego is exactly the base's, and nothing the branch adds or changes under `.kit/policy/` counts. It is each
-  `.rego` file the base holds under `.kit/policy/`, a link resolved in the base's tree, and each `.rego` file a
-  package in the base's `packages:` delivers there.
+- What `opa` loads is exactly the base's, and nothing on the disk under `.kit/policy/` is read: every file the base
+  holds under `.kit/policy/`, in a subdirectory too, a data file beside the Rego included, a link resolved in the
+  base's tree; and every file a package in the base's `packages:` delivers there, a template rendered with the base's
+  answers.
+- The `kinds` in the facts are the base's too: the kinds files the base holds under `.kit/kinds/` and those its
+  packages deliver there, compiled into a matcher of their own, apart from the disk's. A kind the branch adds or
+  redefines, to take a path out of a rule keyed on it, classifies nothing until it is merged.
 - A package is looked up as delivery looks it up: in the sources the base's `kit.yml` names, the last first, fetched
   where the cache lacks them; then in the release; then in the repository's own `.kit/packages/`. A package under the
   repository's root, the repository's own or the release in a checkout of the kit, is read as the base holds it.
@@ -101,15 +112,16 @@ drops or a `forges` entry it changes, and a `.rego` file it removes, adds, or ed
   is judged the same way. On the default branch, or a detached checkout elsewhere, both read the disk.
 - A fork's pull request from its own `main` has `main` as its branch, which the default `branch` pattern refuses.
   A `policy.branch` on the default branch that matches `main` allows it.
-- `kit policy --input` prints the facts as the base's policy has them. `kit policy --facts=<file>` judges by the
-  disk's, since it tests a rule.
+- `kit policy --input` prints the facts as the base's policy has them, the base's kinds included. `kit facts` prints
+  the disk's. `kit policy --facts=<file>` judges by the disk's, since it tests a rule.
 
 A base with no `kit.yml` is one the kit is not installed on. There, both read the checkout's own settings and Rego,
 as on the default branch, so the pull request that installs the kit sets its first policy.
 
-A base that is not here, as in a clone that lacks `origin/<default>`, fails both verbs wherever they run. They say
-`the base, origin/<default>, is not here, so its policy cannot be read; fetch it with full history`. A read of the
-base's files, or of a source it names, that fails, for any reason other than the file not being there, fails them too.
+A base that is not here, as in a clone that lacks `origin/<default>` or the event's commit, fails both verbs wherever
+they run. They say `the base, <base>, is not here, so its policy cannot be read; fetch it with full history`, naming
+the ref or the commit. A read of the base's files, or of a source it names, that fails, for any reason other than the
+file not being there, fails them too.
 
 ### Reading a file's text
 

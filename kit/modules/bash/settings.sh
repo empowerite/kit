@@ -100,20 +100,25 @@ settings:validate() {
 }
 
 # settings:context <root> <package> prints "<key>\t<value>" for every key a template or region of the package can
-# use. The keys come from:
+# use: settings:answers' rows for the package's package.yml and the settings file.
+settings:context() {
+  settings:answers "$(resolve:meta "$1" "$2")" "$(settings:file)"
+}
+
+# settings:answers <meta> <settings> prints "<key>\t<value>" for every key a template or region of the package whose
+# package.yml is <meta> can use, with the settings file <settings>. The keys come from:
 #
-#   1. the package's defaults under answers: in package.yml, as <key> and as answers.<key>
-#   2. kit.yml: each top-level scalar as <key>, each map entry as <map>.<name>, and each entry of the
+#   1. the package's defaults under answers: in <meta>, as <key> and as answers.<key>
+#   2. <settings>: each top-level scalar as <key>, each map entry as <map>.<name>, and each entry of the
 #      answers map also as <name>
 #
 # A later source overrides an earlier one, so the repository's answer wins over the package's default. It returns 1
 # when a map cannot be read.
-settings:context() {
-  local settings key name value row
+settings:answers() {
+  local meta=$1 settings=$2 key name value row
   local -a rows
-  settings=$(settings:file)
   {
-    list:read rows yaml:map "$(resolve:meta "$1" "$2")" answers || exit 1
+    list:read rows yaml:map "${meta}" answers || exit 1
     for row in "${rows[@]}"
     do
       IFS=$'\t' read -r name value <<<"${row}"

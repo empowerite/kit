@@ -7,8 +7,9 @@
 #   - `moment`: commit or ci, the point the facts are judged at
 #   - `branch` and `default_branch`; the branch is null on the default branch or a detached HEAD, and is a change's
 #     head branch on a CI runner, whatever its name (policy:branch-past)
-#   - `commits`: at ci, those past the fork from origin's default branch, merges excluded, or null when the fork is not
-#     here, as in a shallow clone; at commit, the one commit
+#   - `commits`: at ci, those past the fork from the branch's base, merges excluded: origin's default branch, or on a
+#     runner the commit the change's event names as its base (policy:base-name), the same base whose policy judges
+#     them; or null when the fork is not here, as in a shallow clone; at commit, the one commit
 #   - `change`: at ci, the open change on the branch, with its title, body, and author; null where the primary has no
 #     forge or the forge answered that there is no open change; {"error": "<line>"}, the provider's line, where a read
 #     of the forge failed; at commit, always null
@@ -24,7 +25,8 @@
 #   - `executable`: true for a file of mode 100755, and false for everything else
 #   - `size`: the bytes of the blob, and 0 for a submodule
 #   - `blob`: the object name of the blob, or of the commit a submodule is at
-#   - `kinds`: the kinds of file the path is, as context:classify finds them, and [] where there are none
+#   - `kinds`: the kinds of file the path is, as context:classify finds them, and [] where there are none; while a
+#     branch is judged, the kinds are its base's (policy:from-base)
 #   - `text`: the content of the blob, only for a file that matches a glob under `facts.read` in kit.yml
 #
 # The tree is read from a tree-ish when one is given, and otherwise from the index, so it holds what is staged and
@@ -57,12 +59,13 @@ facts:choices() {
 }
 
 # facts:document <moment> [<tree-ish>] prints the document described in the file header. At ci, the tree is read from
-# the tree-ish, HEAD by default, and is empty while HEAD has no commit. When the fork point is missing, as in a
-# shallow clone, it warns and gives null for the commits instead of guessing. The change is facts:change's. At commit,
-# the tree is the index, as facts:tree reads it; commits is empty and change is null, so the caller fills in the
-# commit it makes.
+# the tree-ish, HEAD by default, and is empty while HEAD has no commit; the commits are counted from the branch's base
+# as policy:base-name names it. When the fork point is missing, as in a shallow clone, it warns and gives null for
+# the commits instead of guessing. The change is facts:change's. At commit, the tree is the index, as facts:tree reads
+# it; commits is empty and change is null, so the caller fills in the commit it makes. It returns 1 when a fact cannot
+# be read, the base's name among them.
 facts:document() {
-  local moment=$1 treeish=${2:-HEAD} default_branch branch commits='[]' change='null' rules
+  local moment=$1 treeish=${2:-HEAD} default_branch branch base commits='[]' change='null' rules
   local moments
   if ! list:among "${moment}" "${facts_moments[@]}"
   then
@@ -75,14 +78,14 @@ facts:document() {
   branch=$(policy:branch-past) || return 1
   if [[ "${moment}" == ci && -n "${branch}" ]]
   then
-    if git rev-parse --verify --quiet "origin/${default_branch}" >/dev/null \
-      && git merge-base "origin/${default_branch}" HEAD >/dev/null 2>&1
+    base=$(policy:base-name) || return 1
+    if git rev-parse --verify --quiet "${base}^{commit}" >/dev/null && git merge-base "${base}" HEAD >/dev/null 2>&1
     then
-      commits=$(git log --no-merges --format='%H%x1f%s' "origin/${default_branch}..HEAD" \
+      commits=$(git log --no-merges --format='%H%x1f%s' "${base}..HEAD" \
         | jq --raw-input --slurp 'split("\n") | map(select(. != "") | split("\u001f") | {sha: .[0], subject: .[1]})')
     else
       commits=null
-      warn "the fork from origin/${default_branch} is not here, so no commit is checked; fetch with full history"
+      warn "the fork from ${base}, the branch's base, is not here, so no commit is checked; fetch with full history"
     fi
     change=$(facts:change)
   fi

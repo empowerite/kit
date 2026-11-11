@@ -11,7 +11,8 @@ default branch. The job:
 3. Installs the gate's tools with `kit tools install`, through the toolchain `ci_toolchain` names: mise, nix,
    Homebrew, a Docker image, a dev container, or the tools already on the runner. The gate is the repository's own
    CI command, such as `just ci`.
-4. Runs `kit ci`, which runs the gate, `kit check`, `kit linked`, and `kit policy`, and reports each one.
+4. Runs `kit ci`, which runs `kit linked`, `kit policy`, the gate, and `kit check`, in that order, and reports each
+   one. The two judgements come before any command of the branch's own runs.
 
 GitHub's hosted runners already have Homebrew and Docker. The job sets `KIT_TOOLCHAIN` to the `ci_toolchain` answer, so
 kit uses that toolchain and refuses, never replaces, one the runner cannot use. One bootstrap step runs for the

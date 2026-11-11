@@ -38,6 +38,24 @@ declare -gA context_kind_paths=() context_kind_content=() context_kind_embeds=()
 declare -gA context_kind_file=() context_file_kinds=()
 declare -g context_loaded=false
 
+# context_kinds is the directory of kinds files context:load reads: .kit/kinds, or the kinds a branch's base holds
+# while kit policy judges it (context:kinds-from). context_matcher is the file the compiled classifier of those kinds
+# is kept in, or empty for the one context:matcher keeps under the common git directory.
+declare -g context_kinds=.kit/kinds context_matcher=''
+
+# context:kinds-from <dir> <file> makes the kinds those under <dir>, and <file> the compiled classifier of them, for
+# the rest of the process: what context:load reads, and what context:matcher compiles into, so nothing is written
+# among the disk's matchers. The tables read so far are dropped, so the next load reads <dir>. kit policy takes the
+# kinds a branch's base holds or delivers this way (policy:from-base), so a kind the branch redefines classifies
+# nothing the base's rules read.
+context:kinds-from() {
+  context_kinds=$1
+  context_matcher=$2
+  context_kind_paths=() context_kind_content=() context_kind_embeds=() context_kind_members=()
+  context_kind_file=() context_file_kinds=()
+  context_loaded=false
+}
+
 # The paths context:named fills: what a command line named, as root-relative files.
 declare -ga context_named=()
 
@@ -109,11 +127,12 @@ context:glob-matches() {
   [[ "${path}" == ${glob} ]]
 }
 
-# context:load reads every kind under .kit/kinds/ and the kind: list of every rule and style, once. It runs from
-# the repository root. A caller that loops over paths calls it first, so the subshells of the loop inherit the
-# tables instead of each reading the files again. In a repository that declares a kit version, the kit's own
-# package defines kinds, so none at all is a .kit/ not yet in place, and it returns 1 naming kit hydrate; a
-# repository that declares no kit has no kinds, and nothing is governed there.
+# context:load reads every kind under the kinds directory, .kit/kinds/ or the one context:kinds-from named, and the
+# kind: list of every rule and style, once. It runs from the repository root. A caller that loops over paths calls
+# it first, so the subshells of the loop inherit the tables instead of each reading the files again. In a repository
+# that declares a kit version, the kit's own package defines kinds, so none at all under .kit/kinds/ is a .kit/ not
+# yet in place, and it returns 1 naming kit hydrate; a repository that declares no kit has no kinds, and nothing is
+# governed there. A directory context:kinds-from named holds what its caller wrote, so none there is none.
 context:load() {
   [[ "${context_loaded}" == true ]] && return 0
   local file kind field value version
@@ -141,8 +160,8 @@ context:load() {
       (embeds) context_kind_embeds[${kind}]+=${value}$'\n' ;;
       (kinds) context_kind_members[${kind}]+=${value}$'\n'
     esac
-  done < <(context:read-kinds .kit/kinds/*.yml)
-  if (( ${#defined[@]} == 0 ))
+  done < <(context:read-kinds "${context_kinds}"/*.yml)
+  if (( ${#defined[@]} == 0 )) && [[ "${context_kinds}" == .kit/kinds ]]
   then
     version=$(settings:version) || return 1
     if [[ -n "${version}" ]]
@@ -298,21 +317,25 @@ context:pattern-compiles() {
   awk "BEGIN { if (\"\" ~ $(context:awk-string "$1")) exit 0 }" < /dev/null 2> /dev/null
 }
 
-# context:matcher prints the path of the compiled classifier for the kinds under .kit/kinds/, compiling it first when
-# the kinds have changed. It is kept in the repository's common git directory, named by a checksum of the kinds
-# files' names and text and of this module, which compiles them, so every worktree shares it, and an edit to a kind
-# or a release that compiles differently compiles afresh. Each lookup that finds it touches it, so its age is the
-# time since its last use. Where no kinds file exists, context:load runs first, so a matcher of no kinds that a
-# repository with no kit compiled is never taken where a kit is declared.
+# context:matcher prints the path of the compiled classifier for the kinds under the kinds directory, compiling it
+# first when the kinds have changed. For .kit/kinds/ it is kept in the repository's common git directory, named by a
+# checksum of the kinds files' names and text and of this module, which compiles them, so every worktree shares it,
+# and an edit to a kind or a release that compiles differently compiles afresh. Each lookup that finds it touches
+# it, so its age is the time since its last use. For a directory context:kinds-from named, it is the file named with
+# it, compiled once, and nothing among the shared matchers is touched. Where no kinds file exists, context:load runs
+# first, so a matcher of no kinds that a repository with no kit compiled is never taken where a kit is declared.
 # shellcheck disable=SC2154  # kit_root is exported by modules/bash/1st.sh
 context:matcher() {
-  local dir key file
-  local -a files=(.kit/kinds/*.yml)
+  local dir key file=${context_matcher}
+  local -a files=("${context_kinds}"/*.yml)
   [[ -f "${files[0]}" ]] || context:load || return 1
-  dir="$(git rev-parse --path-format=absolute --git-common-dir)/kit"
-  key=$( { printf '%s\n' .kit/kinds/*.yml; cat "${kit_root}/modules/bash/context.sh" .kit/kinds/*.yml 2>/dev/null; } \
-    | cksum | cut -d ' ' -f 1)
-  file="${dir}/kinds-${key}.awk"
+  if [[ -z "${file}" ]]
+  then
+    dir="$(git rev-parse --path-format=absolute --git-common-dir)/kit"
+    key=$( { printf '%s\n' "${context_kinds}"/*.yml
+      cat "${kit_root}/modules/bash/context.sh" "${context_kinds}"/*.yml 2>/dev/null; } | cksum | cut -d ' ' -f 1)
+    file="${dir}/kinds-${key}.awk"
+  fi
   if [[ ! -f "${file}" ]]
   then
     # Two processes may compile at once, so each writes a file of its own, by BASHPID, which a subshell does not
@@ -321,12 +344,14 @@ context:matcher() {
     # written: a worktree that uses its matcher keeps it, and one that finds it removed between its lookup and its
     # read compiles it again. Both may prune the same old file, so rm -f takes it, which says nothing of one the
     # other took first.
-    mkdir -p "${dir}"
+    mkdir -p "${file%/*}"
     context:compile > "${file}.${BASHPID}" || { rm -f "${file}.${BASHPID}"; return 1; }
-    find "${dir}" \( -name 'kinds-*.awk' -o -name 'kinds-*.awk.*' \) ! -name "kinds-${key}.awk" -mmin +1440 \
-      -exec rm -f {} +
+    [[ -n "${context_matcher}" ]] \
+      || find "${dir}" \( -name 'kinds-*.awk' -o -name 'kinds-*.awk.*' \) ! -name "kinds-${key}.awk" -mmin +1440 \
+        -exec rm -f {} +
     mv "${file}.${BASHPID}" "${file}"
-  else
+  elif [[ -z "${context_matcher}" ]]
+  then
     touch -c "${file}" 2> /dev/null || true  # the age steers the prune alone; a matcher kept untouched still classifies
   fi
   printf '%s\n' "${file}"

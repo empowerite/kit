@@ -19,13 +19,15 @@
 #   --input           prints the facts as JSON instead of judging them
 #   --facts=<file>    judges the facts document in <file>, and gathers nothing; for testing a rule against a fixture
 #
-# On a branch past the default one, the policy that judges it is its base's, origin/<default>: policy,
-# policy_engine, linked_exempt, facts, forge, and forges from the base's kit.yml, and the Rego the base holds or
-# delivers, so a branch cannot loosen the rule that judges it. On a CI runner the branch is the change's head
-# branch, whatever its name. A change to the policy is judged by the policy before it. A base with no kit.yml, where
-# the kit is not installed yet, leaves the checkout's own settings and Rego to judge, as on the default branch, so the
-# change that installs the kit sets its first policy. --input prints the facts that policy judges; --facts judges by
-# the disk's.
+# On a branch past the default one, the policy that judges it is its base's: policy, policy_engine, linked_exempt,
+# facts, forge, and forges from the base's kit.yml; everything the base holds or delivers under .kit/policy/, which
+# is all opa loads; and the kinds the base holds or delivers, which classify the tree. So a branch cannot loosen the
+# rule that judges it. The base is origin/<default> at a desk and, on a CI runner, the commit the change's event
+# names as its base, which no command of the branch can move; a runner that names a change's head branch and no base
+# commit fails. On a runner the branch is the change's head branch, whatever its name. A change to the policy is
+# judged by the policy before it. A base with no kit.yml, where the kit is not installed yet, leaves the checkout's
+# own settings and Rego to judge, as on the default branch, so the change that installs the kit sets its first
+# policy. --input prints the facts that policy judges; --facts judges by the disk's.
 #
 # The facts are the document a policy rule is written against. A pull request by a login the repository lists under
 # linked_exempt in kit.yml passes with nothing checked, and the output says so. That is for a bot such as
@@ -34,11 +36,11 @@
 # A <file> that is relative starts from the directory the command was typed in. A file that is missing, or is not a
 # JSON object with a policy key, is refused with exit 2.
 #
-# kit ci runs kit policy alongside the gate. On a CI runner, refusals are also written to the step summary.
+# kit ci runs kit policy before the gate. On a CI runner, refusals are also written to the step summary.
 #
 # Exits 0 when the policy refuses nothing, with or without warnings, 1 on any refusal, when the forge cannot answer for
-# the open change, when linked_exempt in kit.yml or another fact cannot be read, or when the base, origin/<default>, is
-# not here or its policy cannot be read, as when a package its kit.yml lists is not in reach, and 2 on a usage error.
+# the open change, when linked_exempt in kit.yml or another fact cannot be read, or when the base cannot be named, is
+# not here, or its policy cannot be read, as when a package its kit.yml lists is not in reach, and 2 on a usage error.
 #
 # see: modules/bash/policy.sh, docs/policy.md
 
@@ -84,9 +86,10 @@ else
 fi
 if jq --exit-status '.branch != null and .commits == null' "${input}" >/dev/null
 then
-  error "no commit was checked: the fork from origin's default branch is not here; fetch it with full history" \
+  error "no commit was checked: the fork from the branch's base is not here; fetch it with full history" \
     "(fetch-depth: 0 in a GitHub checkout), then run: kit policy"
-  summary "### ❌ No commit was checked" "" "The fork from origin's default branch is not in the clone; fetch it with full history."
+  summary "### ❌ No commit was checked" "" \
+    "The fork from the branch's base is not in the clone; fetch it with full history."
   exit 1
 fi
 if jq --exit-status '.change | type == "object" and has("error")' "${input}" >/dev/null

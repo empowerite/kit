@@ -174,7 +174,8 @@ change() {
   printf 'policy:\n  commit_subject: ""\nlinked_exempt:\n  - ada\n' > kit.yml
   change "Fix the thing" ada
   git switch --quiet --detach
-  printf '{"pull_request": {"number": 3}}\n' > "${BATS_TEST_TMPDIR}/event.json"
+  printf '{"pull_request": {"number": 3, "base": {"sha": "%s"}}}\n' "$(git rev-parse origin/main)" \
+    > "${BATS_TEST_TMPDIR}/event.json"
   GITHUB_HEAD_REF=7-fix-the-thing GITHUB_EVENT_PATH="${BATS_TEST_TMPDIR}/event.json" run "${kit_root}/bin/kit" policy
   [ "$status" -eq 1 ]
   [[ "$output" == *"'no reference' does not match policy.commit_subject"* ]]
@@ -264,7 +265,8 @@ REGO
   fixture closing.json <<<'{"data": {"repository": {"pullRequest": {"closingIssuesReferences": {"nodes": []}}}}}'
   route gh 'api graphql*' closing.json
   git switch --quiet --detach
-  printf '{"pull_request": {"number": 3}}\n' > "${BATS_TEST_TMPDIR}/event.json"
+  printf '{"pull_request": {"number": 3, "base": {"sha": "%s"}}}\n' "$(git rev-parse origin/main)" \
+    > "${BATS_TEST_TMPDIR}/event.json"
   export GITHUB_HEAD_REF=main GITHUB_EVENT_PATH="${BATS_TEST_TMPDIR}/event.json"
   run "${kit_root}/bin/kit" policy
   [ "$status" -eq 1 ]
@@ -444,6 +446,169 @@ REGO
   [ "$status" -eq 1 ]
   [[ "$output" == *"change title 'bad title' does not match policy.change_title"* ]]
   grep --quiet 'pr view 3 --json' "${FAKE_DIR}/gh.calls"
+}
+
+@test "on a runner, the change's base commit in the event judges, so a gate that moves origin/main loosens nothing" {
+  printf 'policy:\n  commit_subject: "^#[0-9]+ "\n' > kit.yml
+  git add kit.yml
+  git commit --quiet --message "#2 kit: the policy" && git push --quiet origin main
+  base=$(git rev-parse origin/main)
+  branch 7-fix-the-thing
+  printf 'gate: git update-ref refs/remotes/origin/main HEAD\npolicy:\n  commit_subject: ""\n' > kit.yml
+  git commit --quiet --all --message "no reference"
+  printf '{"pull_request": {"number": 3, "base": {"sha": "%s"}}}\n' "${base}" > "${BATS_TEST_TMPDIR}/event.json"
+  export GITHUB_HEAD_REF=7-fix-the-thing GITHUB_EVENT_PATH="${BATS_TEST_TMPDIR}/event.json"
+  run "${kit_root}/bin/kit" gate
+  [ "$status" -eq 0 ]
+  [ "$(git rev-parse origin/main)" = "$(git rev-parse HEAD)" ]
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"'no reference' does not match policy.commit_subject"* ]]
+  [ "$("${kit_root}/bin/kit" policy --input | jq --raw-output '.commits | length')" -eq 1 ]
+  # a merge request's runner names the base the same way
+  run env -u GITHUB_HEAD_REF -u GITHUB_EVENT_PATH CI_MERGE_REQUEST_SOURCE_BRANCH_NAME=7-fix-the-thing \
+    CI_MERGE_REQUEST_DIFF_BASE_SHA="${base}" "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"'no reference' does not match policy.commit_subject"* ]]
+  # the head ref names a change; without its event the base cannot be read, and nothing is judged
+  run env -u GITHUB_EVENT_PATH "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"so its policy cannot be read"* ]]
+  [[ "$output" != *"policy allows"* ]]
+  # a base commit the event names that is not here is named
+  printf '{"pull_request": {"number": 3, "base": {"sha": "%040d"}}}\n' 0 > "${BATS_TEST_TMPDIR}/event.json"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the base, $(printf '%040d' 0), is not here, so its policy cannot be read"* ]]
+}
+
+@test "a kind the base defines, which a rule of the base keys on, judges a branch that redefines it" {
+  command -v opa >/dev/null || skip "opa, the opa policy engine, is not on PATH"
+  mkdir -p .kit/policy .kit/kinds
+  printf 'name: secret\npaths:\n  - "**/*.pem"\n' > .kit/kinds/secret.yml
+  cat > .kit/policy/ours.rego <<'REGO'
+package kit.policy
+
+import rego.v1
+
+deny contains sprintf("%s is a secret", [path]) if {
+	some path, f in input.tree
+	"secret" in f.kinds
+}
+REGO
+  printf 'policy:\n  commit_subject: ""\n' > kit.yml
+  git add --force kit.yml .kit/kinds/secret.yml .kit/policy/ours.rego
+  git commit --quiet --message "#2 kit: no secret in the tree" && git push --quiet origin main
+  branch 7-fix-the-thing
+  printf 'key\n' > key.pem
+  printf 'name: secret\npaths:\n  - "**/*.never"\n' > .kit/kinds/secret.yml
+  git add key.pem .kit/kinds/secret.yml
+  git commit --quiet --message "#7 kit: a key, and a kind that matches nothing"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"❌ key.pem is a secret"* ]]
+  [ "$("${kit_root}/bin/kit" policy --input | jq --compact-output '.tree["key.pem"].kinds')" = '["secret"]' ]
+  # the disk's .kit/ is as it was, and the matcher of the base's kinds is not kept among the disk's
+  [ -z "$(git status --porcelain)" ]
+  common=$(git rev-parse --path-format=absolute --git-common-dir)
+  [ -z "$(find "${common}/kit" -name 'kinds-*.awk' 2>/dev/null)" ]
+}
+
+@test "a kind and a rule a package of the base delivers judge a branch that drops the package" {
+  command -v opa >/dev/null || skip "opa, the opa policy engine, is not on PATH"
+  mkdir -p .kit/packages/mine/files/repo/.kit/policy .kit/packages/mine/files/repo/.kit/kinds
+  printf 'description: "rules of our own"\n' > .kit/packages/mine/package.yml
+  printf 'name: secret\npaths:\n  - "**/*.pem"\n' > .kit/packages/mine/files/repo/.kit/kinds/secret.yml
+  cat > .kit/packages/mine/files/repo/.kit/policy/ours.rego <<'REGO'
+package kit.policy
+
+import rego.v1
+
+deny contains sprintf("%s is a secret", [path]) if {
+	some path, f in input.tree
+	"secret" in f.kinds
+}
+REGO
+  printf 'policy:\n  commit_subject: ""\npackages:\n  - mine\n' > kit.yml
+  git add kit.yml .kit/packages
+  git commit --quiet --message "#2 kit: a kind and a rule of our own" && git push --quiet origin main
+  branch 7-fix-the-thing
+  printf 'key\n' > key.pem
+  git rm --quiet -r .kit/packages/mine
+  printf 'policy:\n  commit_subject: ""\npackages: []\n' > kit.yml
+  git add key.pem kit.yml
+  git commit --quiet --message "#7 kit: a key, and no package"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"❌ key.pem is a secret"* ]]
+}
+
+@test "every file the base holds under .kit/policy/, in a subdirectory or as data, judges a branch as it judges the base" {
+  command -v opa >/dev/null || skip "opa, the opa policy engine, is not on PATH"
+  mkdir -p .kit/policy/team
+  printf 'package kit.policy\n\nimport rego.v1\n\ndeny contains "never" if false\n' > .kit/policy/kit.rego
+  cat > .kit/policy/team/strict.rego <<'REGO'
+package kit.policy
+
+import rego.v1
+
+deny contains sprintf("a commit with the subject '%s'", [commit.subject]) if {
+	some commit in input.commits
+	commit.subject in data.team.banned
+}
+REGO
+  printf '{"banned": ["no reference"]}\n' > .kit/policy/team/data.json
+  printf 'policy:\n  commit_subject: ""\n' > kit.yml
+  git add --force kit.yml .kit/policy
+  git commit --quiet --message "#2 kit: the team's rule and its data" && git push --quiet origin main
+  branch 7-fix-the-thing "no reference"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"❌ a commit with the subject 'no reference'"* ]]
+  printf '{"banned": []}\n' > .kit/policy/team/data.json
+  git rm --quiet .kit/policy/team/strict.rego
+  git commit --quiet --all --message "#7 kit: nothing banned, and no rule"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"❌ a commit with the subject 'no reference'"* ]]
+}
+
+@test "a template a package of the base delivers under .kit/policy/ judges, rendered with the base's answers" {
+  command -v opa >/dev/null || skip "opa, the opa policy engine, is not on PATH"
+  mkdir -p .kit/packages/mine/templates/repo/.kit/policy
+  printf 'description: "rules of our own"\n' > .kit/packages/mine/package.yml
+  cat > .kit/packages/mine/templates/repo/.kit/policy/banned.rego <<'REGO'
+package kit.policy
+
+import rego.v1
+
+deny contains "a commit with the banned subject" if {
+	some commit in input.commits
+	commit.subject == "@banned@"
+}
+REGO
+  printf 'policy:\n  commit_subject: ""\npackages:\n  - mine\nanswers:\n  banned: "no reference"\n' > kit.yml
+  git add kit.yml .kit/packages
+  git commit --quiet --message "#2 kit: a rule from a template" && git push --quiet origin main
+  branch 7-fix-the-thing "no reference"
+  printf 'policy:\n  commit_subject: ""\npackages:\n  - mine\nanswers:\n  banned: "nothing"\n' > kit.yml
+  git commit --quiet --all --message "#7 kit: another answer"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"❌ a commit with the banned subject"* ]]
+}
+
+@test "nothing on the disk under .kit/policy/ is read while a branch is judged" {
+  printf 'policy:\n  commit_subject: "^#[0-9]+ "\n' > kit.yml
+  git add kit.yml
+  git commit --quiet --message "#2 kit: the policy" && git push --quiet origin main
+  branch 7-fix-the-thing "no reference"
+  # a directory under the name a Rego file has: a copy of it fails, as a read of a FIFO there would hang
+  mkdir -p .kit/policy/lax.rego
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"'no reference' does not match policy.commit_subject"* ]]
+  [[ "$output" == *"1 refusal(s) by the patterns policy"* ]]
 }
 
 @test "on the default branch, or detached, only the tree is under check, and kit policy says so" {

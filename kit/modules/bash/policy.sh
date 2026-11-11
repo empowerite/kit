@@ -30,25 +30,35 @@
 # So an edit on the disk that is not staged cannot weaken the judgment of the commit. policy:from sets this up;
 # policy:from-disk puts it back.
 #
-# kit policy and kit linked judge a branch past the default one by the policy on its base, origin/<default>, the ref
-# the commits are counted from (policy:base), so a branch cannot loosen the rule that judges it: a pattern it blanks, a
-# login it exempts, an engine it names, a file it stops a rule from reading, a forge it drops, or a .rego file it
-# removes, adds, or edits. policy:from-base reads policy, policy_engine, linked_exempt, facts, forge, and forges from
-# the base's kit.yml, each absent where the base has none, so the kit's default applies: for forge and forges, the
-# provider the remote's host names. forges, the map from remotes to providers, is the base's as forge is, so a branch
-# cannot point the primary at a forge that reads no change. Every other setting is the disk's; primary among them,
-# since it names the remote the base is read from, and a primary that names no remote fails. A branch that adds a file
-# to facts.read for a rule of its own changes nothing until it is merged, as the rule does.
+# kit policy and kit linked judge a branch past the default one by the policy on its base, the ref the commits are
+# counted from (policy:base), so a branch cannot loosen the rule that judges it: a pattern it blanks, a login it
+# exempts, an engine it names, a file it stops a rule from reading, a forge it drops, a kind it redefines, or a file
+# it removes, adds, or edits under .kit/policy/. On a CI runner the base is the commit the change's event names as
+# its base, GitHub's pull_request.base.sha in the event at GITHUB_EVENT_PATH or GitLab's
+# CI_MERGE_REQUEST_DIFF_BASE_SHA, which no code of the branch can move, as it could move a ref; a runner that names a
+# change's head branch and no base commit fails both. Elsewhere the base is origin/<default>. kit ci runs both before
+# the gate and kit check, which run commands of the branch's own.
+#
+# policy:from-base reads policy, policy_engine, linked_exempt, facts, forge, and forges from the base's kit.yml, each
+# absent where the base has none, so the kit's default applies: for forge and forges, the provider the remote's host
+# names. forges, the map from remotes to providers, is the base's as forge is, so a branch cannot point the primary at
+# a forge that reads no change. Every other setting is the disk's; primary among them, since it names the remote the
+# base is read from, and a primary that names no remote fails. A branch that adds a file to facts.read for a rule of
+# its own changes nothing until it is merged, as the rule does.
 #
 # The Rego that judges a branch is exactly the base's, and nothing the branch adds or changes under .kit/policy/
-# counts: each .rego file the base holds under .kit/policy/, a link resolved in the base's tree, and each .rego file a
-# package the base's kit.yml lists delivers there. A package is found as resolve:home finds it, with the base's
-# sources; one under the repository's root, the repository's own or the release in a checkout of the kit, is read as
-# the base holds it, and a source's or a release's elsewhere from where it is. A package the base lists that is in
-# none of those places fails both. A change to the policy is judged by the policy before it, and takes effect once it
-# is on the default branch. On a CI runner the branch is the change's head branch, whatever its name, so a detached
-# checkout of the change, a fork's main among them, is judged the same way. On the default branch, or a detached HEAD
-# outside a runner, both read the disk.
+# counts: every file the base holds under .kit/policy/, in a subdirectory too, a link resolved in the base's tree,
+# and every file a package the base's kit.yml lists delivers there, a template rendered with the base's answers. So
+# what opa loads, Rego and the data files beside it, is the base's. Nothing on the disk under .kit/policy/ is read.
+# The kinds the facts' tree is classified by are the base's the same way: those the base holds under .kit/kinds/
+# and those its packages deliver there, compiled into a matcher of their own, so a kind the branch redefines, to
+# take a path out of a rule keyed on it, classifies nothing until it is merged. A package is found as resolve:home
+# finds it, with the base's sources; one under the repository's root, the repository's own or the release in a
+# checkout of the kit, is read as the base holds it, and a source's or a release's elsewhere from where it is. A
+# package the base lists that is in none of those places fails both. A change to the policy is judged by the policy
+# before it, and takes effect once it is on the default branch. On a CI runner the branch is the change's head
+# branch, whatever its name, so a detached checkout of the change, a fork's main among them, is judged the same way.
+# On the default branch, or a detached HEAD outside a runner, both read the disk.
 #
 # A base with no kit.yml is one the kit is not installed on: there, both read the checkout's own settings and Rego, as
 # on the default branch, so the change that installs the kit sets its first policy. A base that is not here, as in a
@@ -74,7 +84,7 @@
 #
 # see: docs/policy.md
 
-use yaml git settings facts file sources
+use yaml git settings facts file sources context render
 
 # policy_rego is the directory of Rego the opa engine loads: .kit/policy, or the judged tree's copy (policy:from).
 declare -g policy_rego=.kit/policy
@@ -165,17 +175,55 @@ policy:branch-past() {
   printf '%s\n' "${branch}"
 }
 
-# policy:base prints origin/<default branch>, the ref facts:document counts commits from, whose policy judges a branch
-# past it. It returns 1, saying so, when the ref is not here.
-policy:base() {
-  local default_branch
-  default_branch=$(git:default-branch) || return 1
-  if ! git rev-parse --verify --quiet "origin/${default_branch}^{commit}" >/dev/null
+# policy:base-name prints the name of a branch's base, whose policy judges it and from which facts:document counts
+# its commits: on a runner, the commit the change's event names as its base, GitHub's pull_request.base.sha in the
+# event at GITHUB_EVENT_PATH or GitLab's CI_MERGE_REQUEST_DIFF_BASE_SHA, which no job can move; elsewhere
+# origin/<default>. It returns 1, saying so, where the environment names a change's head branch, GITHUB_HEAD_REF or
+# CI_MERGE_REQUEST_SOURCE_BRANCH_NAME, and no base commit, or names as the base something that is no commit.
+policy:base-name() {
+  local head=${GITHUB_HEAD_REF:-${CI_MERGE_REQUEST_SOURCE_BRANCH_NAME:-}} commit=${CI_MERGE_REQUEST_DIFF_BASE_SHA:-}
+  local event=${GITHUB_EVENT_PATH:-} default_branch unread=''
+  if [[ -z "${commit}" && -n "${event}" ]]
   then
-    error "the base, origin/${default_branch}, is not here, so its policy cannot be read; fetch it with full history"
+    # An event with no pull request, as a push's, names no base; so does one that cannot be read, which fails below
+    # where a change's head branch is named.
+    commit=$(jq --raw-output '.pull_request.base.sha // empty' "${event}" 2>/dev/null) || commit=''
+  fi
+  if [[ -n "${commit}" && ! "${commit}" =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]]
+  then
+    unread="'${commit}' is not a commit"
+  elif [[ -n "${GITHUB_HEAD_REF:-}" && -z "${commit}" ]]
+  then
+    unread="pull_request.base.sha is not in ${event:+the event at }${event:-GITHUB_EVENT_PATH, which is not set}"
+  elif [[ -n "${head}" && -z "${commit}" ]]
+  then
+    unread='CI_MERGE_REQUEST_DIFF_BASE_SHA is not set'
+  fi
+  if [[ -n "${unread}" ]]
+  then
+    error "the base of the change is not in the runner's event (${unread}), so its policy cannot be read"
     return 1
   fi
+  if [[ -n "${commit}" ]]
+  then
+    printf '%s\n' "${commit}"
+    return 0
+  fi
+  default_branch=$(git:default-branch) || return 1
   printf 'origin/%s\n' "${default_branch}"
+}
+
+# policy:base prints a branch's base, as policy:base-name names it, once it is here. It returns 1, saying so, when the
+# base cannot be named or is not here.
+policy:base() {
+  local base
+  base=$(policy:base-name) || return 1
+  if ! git rev-parse --verify --quiet "${base}^{commit}" >/dev/null
+  then
+    error "the base, ${base}, is not here, so its policy cannot be read; fetch it with full history"
+    return 1
+  fi
+  printf '%s\n' "${base}"
 }
 
 # policy:object <rev> <path> prints the object name of <path> in <rev>, an empty <rev> being the index, and nothing
@@ -221,6 +269,20 @@ policy:blob() {
   fi
 }
 
+# policy:settings <rev> <file> writes the kit.yml <rev> holds to <file>, an empty <rev> being the index that
+# GIT_INDEX_FILE names, or the default one. A tree with no kit.yml reads as one with no settings, the kit's defaults,
+# and <file> is empty. It returns 1 when the file <rev> holds cannot be read.
+policy:settings() {
+  local rev=$1 file=$2 object
+  object=$(policy:object "${rev}" kit.yml) || return 1
+  if [[ -z "${object}" ]]
+  then
+    : > "${file}"
+  else
+    policy:blob "${object}" "${file}" "kit.yml in ${rev:-the index}" || return 1
+  fi
+}
+
 # policy:from <rev> <dir> makes the policy read its settings and its Rego as <rev> holds them, an empty <rev> being the
 # index that GIT_INDEX_FILE names, or the default one. It writes them under <dir>, which it makes. A tree with no
 # kit.yml reads as one with no settings, the kit's defaults, and a source of a link under .kit/policy/ that the tree
@@ -228,13 +290,7 @@ policy:blob() {
 policy:from() {
   local rev=$1 dir=$2 rego target root object where=${1:-the index}
   mkdir -p "${dir}/rego" || return 1
-  object=$(policy:object "${rev}" kit.yml) || return 1
-  if [[ -z "${object}" ]]
-  then
-    : > "${dir}/kit.yml"
-  else
-    policy:blob "${object}" "${dir}/kit.yml" "kit.yml in ${where}" || return 1
-  fi
+  policy:settings "${rev}" "${dir}/kit.yml" || return 1
   root=$(git rev-parse --show-toplevel) || return 1
   for rego in .kit/policy/*.rego
   do
@@ -256,19 +312,20 @@ policy:from() {
 }
 
 # policy:from-base <dir> makes the policy read, under <dir>, what judges a branch past the default one, as the file
-# header describes: policy:from the base, then <dir>/kit.yml as the disk's kit.yml with policy, policy_engine,
-# linked_exempt, facts, forge, and forges as the base's kit.yml has them, absent where it has none, and <dir>/rego as
-# policy:base-rego makes it, the base's Rego and no other. Where the base has no kit.yml, it leaves the policy reading
-# the disk. It returns 1 when the base is not here, or a file of it, a source it names, or a package it lists cannot be
-# read.
+# header describes: <dir>/kit.yml as the disk's kit.yml with policy, policy_engine, linked_exempt, facts, forge, and
+# forges as the base's kit.yml has them, absent where it has none; <dir>/rego as the base holds and delivers
+# .kit/policy/, and no other; and the facts' kinds as the base holds and delivers .kit/kinds/, compiled into
+# <dir>/kinds.awk (policy:base-tree). Nothing on the disk under .kit/ is read. Where the base has no kit.yml, it
+# leaves the policy reading the disk. It returns 1 when the base cannot be named or is not here, or a file of it, a
+# source it names, or a package it lists cannot be read.
 policy:from-base() {
   local dir=$1 base object disk_doc base_doc
   base=$(policy:base) || return 1
   object=$(policy:object "${base}" kit.yml) || return 1
   # The kit is not installed on the base, so the branch that installs it sets the first policy.
   [[ -n "${object}" ]] || return 0
-  policy:from "${base}" "${dir}" || return 1
-  mv "${dir}/kit.yml" "${dir}/base.yml" || return 1
+  mkdir -p "${dir}" || return 1
+  policy:blob "${object}" "${dir}/base.yml" "kit.yml in ${base}" || return 1
   disk_doc=$(yaml:json kit.yml) || return 1
   base_doc=$(yaml:json "${dir}/base.yml") || return 1
   # JSON is YAML, so the settings readers read the merged document as they read kit.yml.
@@ -282,24 +339,29 @@ policy:from-base() {
   fi
   # shellcheck disable=SC2034  # settings:file reads settings_file
   settings_file=${dir}/kit.yml
-  policy:base-rego "${base}" "${dir}"
+  policy:base-tree "${base}" "${dir}" || return 1
+  policy_rego=${dir}/rego
+  context:kinds-from "${dir}/kinds" "${dir}/kinds.awk"
 }
 
-# policy:base-rego <base> <dir> makes <dir>/rego hold exactly the Rego <base> holds or delivers, whatever the disk
-# holds: each .rego file <base> holds under .kit/policy/, a link resolved in <base>'s tree (policy:base-policy), and
-# each .rego file that a package <dir>/base.yml lists under packages delivers to .kit/policy/, the later package in the
-# list winning, as delivery does. A package is looked up as resolve:home looks it up, with the base's sources: in the
-# sources the base names, the last first, fetched where the cache lacks them, then in the release, ${kit_root}, then
-# in the repository's own .kit/packages/. A home under the repository's root, as the repository's own packages are,
-# and the release is in a checkout of the kit itself, is read as <base> holds it, never from the disk; a source's or
-# a release's elsewhere from where it is. It returns 1 when a list or a file cannot be read, a source cannot be
-# fetched, or a package is in none of those places, naming it.
-policy:base-rego() {
-  local base=$1 dir=$2 package rego root home row object
+# policy:base-tree <base> <dir> makes <dir>/rego hold exactly what <base> holds or delivers under .kit/policy/, and
+# <dir>/kinds what it holds or delivers under .kit/kinds/, whatever the disk holds: every file <base> holds under the
+# directory, at its path below it, a link resolved in <base>'s tree (policy:base-held), then what each package
+# <dir>/base.yml lists under packages delivers there, the later package in the list winning, as delivery does
+# (policy:home-held). A package is looked up as resolve:home looks it up, with the base's sources: in the sources
+# the base names, the last first, fetched where the cache lacks them, then in the release, ${kit_root}, then in the
+# repository's own .kit/packages/. A home under the repository's root, as the repository's own packages are, and the
+# release is in a checkout of the kit itself, is read as <base> holds it, never from the disk; a source's or a
+# release's elsewhere from where it is. It returns 1 when a list or a file cannot be read, a source cannot be
+# fetched, a template cannot be rendered, or a package is in none of those places, naming it.
+policy:base-tree() {
+  local base=$1 dir=$2 package root home row object
   local -a packages rows homes=()
   root=$(cd "$(git rev-parse --show-toplevel)" && pwd -P) || return 1
-  rm -f "${dir}/rego/"*.rego || return 1
-  policy:base-policy "${base}" "${dir}/rego" || return 1
+  rm -rf "${dir:?}/rego" "${dir:?}/kinds" "${dir:?}/kinds.awk" "${dir:?}/home" || return 1
+  mkdir -p "${dir}/rego" "${dir}/kinds" || return 1
+  policy:base-held "${base}" .kit/policy "${dir}/rego" || return 1
+  policy:base-held "${base}" .kit/kinds "${dir}/kinds" || return 1
   list:read packages yaml:list "${dir}/base.yml" packages || return 1
   (( ${#packages[@]} > 0 )) || return 0
   sources:fetch-all "${dir}/base.yml" || return 1
@@ -332,49 +394,40 @@ policy:base-rego() {
         "release, or its .kit/packages/, so its Rego cannot be read)"
       return 1
     fi
-    if [[ "${home}/" == "${root}/"* ]]
-    then
-      list:read rows policy:tree-rego "${base}" "${home#"${root}/"}/packages/${package}/files/repo/.kit/policy/" \
-        "${dir}/rego" || return 1
-      continue
-    fi
-    for rego in "${home}/packages/${package}/files/repo/.kit/policy/"*.rego
-    do
-      [[ ! -e "${rego}" ]] || cp -f "${rego}" "${dir}/rego/" || return 1
-    done
+    policy:home-held "${base}" "${root}" "${home}" "${package}" "${dir}" policy "${dir}/rego" || return 1
+    policy:home-held "${base}" "${root}" "${home}" "${package}" "${dir}" kinds "${dir}/kinds" || return 1
   done
 }
 
-# policy:base-policy <base> <rego> writes into the directory <rego> each .rego file <base> holds under .kit/policy/: a
-# file as <base> holds it, and a link as <base> holds its target, resolved in <base>'s tree. A link whose target <base>
-# does not hold is not part of its policy. It returns 1 when a file cannot be read, or a link leaves the tree or names
-# another link.
-policy:base-policy() {
-  local base=$1 into=$2 entry name object target
+# policy:base-held <base> <path> <into> writes into the directory <into> every file <base> holds under the directory
+# <path>, at its path below it: a file as <base> holds it, and a link as <base> holds its target, resolved in
+# <base>'s tree. A link whose target <base> does not hold is not part of it, and a submodule is no file. It returns 1
+# when a file cannot be read, or a link leaves the tree or names something other than a file.
+policy:base-held() {
+  local base=$1 path=${2%/} into=$3 entry name object target
   local -a entries
-  if ! list:read0 entries git ls-tree -z --full-tree "${base}" -- .kit/policy/ 2>/dev/null
+  if ! list:read0 entries git ls-tree -z -r --full-tree "${base}" -- "${path}/" 2>/dev/null
   then
-    error "run: git fsck (.kit/policy/ in ${base} could not be read)"
+    error "run: git fsck (${path}/ in ${base} could not be read)"
     return 1
   fi
   for entry in "${entries[@]}"
   do
     # "<mode> <type> <object>\t<path>"
     name=${entry#*$'\t'}
-    name=${name##*/}
-    [[ "${name}" == *.rego && "${entry}" == 1[02]0* ]] || continue
+    [[ "${entry}" == 1[02]0* ]] || continue
     object=${entry#* * }
     object=${object%%$'\t'*}
     if [[ "${entry}" == 120000* ]]
     then
       if ! target=$(git cat-file blob "${object}" 2>/dev/null)
       then
-        error "run: git fsck (.kit/policy/${name} in ${base} could not be read)"
+        error "run: git fsck (${name} in ${base} could not be read)"
         return 1
       fi
-      if ! target=$(policy:tree-path .kit/policy "${target}")
+      if ! target=$(policy:tree-path "${name%/*}" "${target}")
       then
-        error "make .kit/policy/${name} on ${base} a link inside the repository (it leaves the tree)"
+        error "make ${name} on ${base} a link inside the repository (it leaves the tree)"
         return 1
       fi
       if ! entry=$(git ls-tree --full-tree "${base}" -- "${target}" 2>/dev/null)
@@ -385,14 +438,49 @@ policy:base-policy() {
       [[ -n "${entry}" ]] || continue
       if [[ "${entry}" != 100* ]]
       then
-        error "make .kit/policy/${name} on ${base} a link to a file (${target} is not one)"
+        error "make ${name} on ${base} a link to a file (${target} is not one)"
         return 1
       fi
       object=${entry#* * }
       object=${object%%$'\t'*}
     fi
-    policy:blob "${object}" "${into}/${name}" ".kit/policy/${name} in ${base}" || return 1
+    name=${name#"${path}/"}
+    mkdir -p "${into}/$(dirname "${name}")" || return 1
+    policy:blob "${object}" "${into}/${name}" "${path}/${name} in ${base}" || return 1
   done
+}
+
+# policy:home-held <base> <root> <home> <package> <dir> <sub> <into> writes into the directory <into> what the
+# package at <home> delivers under .kit/<sub>/: every file under its files/repo/.kit/<sub>/, at its path below it,
+# then its templates/repo/.kit/<sub>/, rendered as kit hydrate renders a template (render:fill) with the answers the
+# base's kit.yml, <dir>/base.yml, and the package's package.yml give (settings:answers). A home under <root> is read
+# as <base> holds it, into <dir>/home/, never from the disk; one elsewhere from where it is. It returns 1 when a file
+# cannot be read or a template cannot be rendered.
+policy:home-held() {
+  local base=$1 root=$2 home=$3 package=$4 dir=$5 sub=$6 into=$7 held object
+  local -a rows
+  held=${home}/packages/${package}
+  if [[ "${home}/" == "${root}/"* ]]
+  then
+    held=${dir}/home/${home#"${root}/"}/packages/${package}
+    policy:base-held "${base}" "${home#"${root}/"}/packages/${package}/files/repo/.kit/${sub}" \
+      "${held}/files/repo/.kit/${sub}" || return 1
+    policy:base-held "${base}" "${home#"${root}/"}/packages/${package}/templates/repo/.kit/${sub}" \
+      "${held}/templates/repo/.kit/${sub}" || return 1
+    if [[ -d "${held}/templates/repo/.kit/${sub}" ]]
+    then
+      object=$(policy:object "${base}" "${home#"${root}/"}/packages/${package}/package.yml") || return 1
+      policy:blob "${object}" "${held}/package.yml" "${home#"${root}/"}/packages/${package}/package.yml in ${base}" \
+        || return 1
+    fi
+  fi
+  if [[ -d "${held}/files/repo/.kit/${sub}" ]]
+  then
+    cp -R -L "${held}/files/repo/.kit/${sub}/." "${into}/" || return 1
+  fi
+  [[ -d "${held}/templates/repo/.kit/${sub}" ]] || return 0
+  list:read rows settings:answers "${held}/package.yml" "${dir}/base.yml" || return 1
+  render:fill "${held}/templates/repo/.kit/${sub}" "${into}" "${package}" "${rows[@]}"
 }
 
 # policy:tree-path <dir> <target> prints the repository-relative path a link in <dir> to <target> names, its . and ..
@@ -416,28 +504,6 @@ policy:tree-path() {
   (( ${#kept[@]} > 0 )) || return 1
   local IFS=/
   printf '%s\n' "${kept[*]}"
-}
-
-# policy:tree-rego <rev> <path> <rego> writes each .rego file directly under <path> in <rev> into the directory <rego>,
-# over a file of the same name, and prints each name it writes. A regular file counts, since the links the kit places
-# are ones git ignores. It returns 1 when the list or a file cannot be read.
-policy:tree-rego() {
-  local rev=$1 path=$2 into=$3 entry rego
-  local -a entries
-  if ! list:read0 entries git ls-tree -z --full-tree "${rev}" -- "${path}" 2>/dev/null
-  then
-    error "run: git fsck (${path} in ${rev} could not be read)"
-    return 1
-  fi
-  for entry in "${entries[@]}"
-  do
-    # "<mode> <type> <object>\t<path>"
-    rego=${entry#*$'\t'}
-    [[ "${rego}" == *.rego && "${entry}" == 100* ]] || continue
-    entry=${entry#* * }
-    policy:blob "${entry%%$'\t'*}" "${into}/${rego##*/}" "${rego} in ${rev}" || return 1
-    printf '%s\n' "${rego##*/}"
-  done
 }
 
 # policy:from-disk makes the policy read kit.yml and .kit/policy from the disk again.

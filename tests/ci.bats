@@ -42,6 +42,14 @@ setup() {
   [[ "$output" == *"3 of 4 checks refused"* ]]
 }
 
+@test "the issue link and the policy are judged before the gate and kit check run any command of the branch" {
+  printf 'ci:\n  echo gate ran\n' > justfile
+  run env -u GITHUB_EVENT_PATH "${kit_checkout}/bin/kit" ci
+  [ "$status" -eq 1 ]
+  in-order "$output" "── kit linked ──" "── kit policy ──" "── kit gate ──" "gate ran" \
+    "── kit check ──"
+}
+
 # ----------------------------------------------------------------------------------------------------------------------
 
 @test "the CI workflow names the toolchain the ci_toolchain answer gives, ambient by default" {

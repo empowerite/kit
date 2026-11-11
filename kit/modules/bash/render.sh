@@ -30,9 +30,8 @@ render:tmp() {
 # A placeholder is written @key@ (autoconf's form), which cannot be confused with bash's ${var} or GitHub's
 # ${{ }}. A key can be dotted: @answers.key@. A key with no value fails, and the error names the key.
 render:package() {
-  local root=$1 package=$2 kind=$3 base=$4 source out key value text file rel map memo="$1|$2|$3|$4" row
+  local root=$1 package=$2 kind=$3 base=$4 source out memo="$1|$2|$3|$4"
   local -a rows
-  local -A answer=()
   # A render already done in this process, or in the parent of this subshell, answers from render_rendered, with
   # no fork: render:layers asks for every package's layers each time a path is resolved.
   if [[ -n "${render_rendered[${memo}]+x}" ]]
@@ -53,35 +52,46 @@ render:package() {
   if [[ ! -d "${out}" ]]
   then
     list:read rows settings:context "${root}" "${package}" || return 1
-    for row in "${rows[@]}"
-    do
-      IFS=$'\t' read -r key value <<<"${row}"
-      [[ -n "${key}" ]] && answer[${key}]=${value}
-    done
-    # Made before the loop, so a kind with a directory and no file left in it is still a layer that exists.
-    mkdir -p "${out}"
-    while IFS= read -r file
-    do
-      rel=${file#"${source}"/}
-      text=$(<"${file}")
-      for key in $(grep --only-matching '@[a-z_][a-z_.]*@' "${file}" | LC_ALL=C sort --unique | tr -d '@')
-      do
-        if [[ -z "${answer[${key}]+x}" ]]
-        then
-          map=answers
-          [[ "${key}" == *.* ]] && map=${key%.*}
-          error "${rel} needs an answer for '${key}'; add '${key##*.}: <value>' under ${map}: in kit.yml" \
-            "(package ${package})"
-          return 1
-        fi
-        text=${text//"@${key}@"/"${answer[${key}]}"}
-      done
-      mkdir -p "${out}/$(dirname "${rel}")"
-      printf '%s\n' "${text}" > "${out}/${rel}"
-    done < <(find "${source}" -type f)
+    render:fill "${source}" "${out}" "${package}" "${rows[@]}" || return 1
   fi
   render_rendered[${memo}]=${out}
   printf '%s\n' "${out}"
+}
+
+# render:fill <source> <out> <package> <row>… renders every file under <source> into <out>, at its path below
+# <source>, each @key@ placeholder filled from the rows, "<key>\t<value>" each, as settings:context prints them for
+# <package>. A placeholder with no row fails, naming the key and the package. <out> is made before any file is read,
+# so a kind with a directory and no file left in it is still a layer that exists. kit policy renders a package's
+# templates as a branch's base delivers them through it, with the base's answers (policy:home-held).
+render:fill() {
+  local source=$1 out=$2 package=$3 row key value text file rel map
+  local -A answer=()
+  shift 3
+  for row in "$@"
+  do
+    IFS=$'\t' read -r key value <<<"${row}"
+    [[ -n "${key}" ]] && answer[${key}]=${value}
+  done
+  mkdir -p "${out}"
+  while IFS= read -r file
+  do
+    rel=${file#"${source}"/}
+    text=$(<"${file}")
+    for key in $(grep --only-matching '@[a-z_][a-z_.]*@' "${file}" | LC_ALL=C sort --unique | tr -d '@')
+    do
+      if [[ -z "${answer[${key}]+x}" ]]
+      then
+        map=answers
+        [[ "${key}" == *.* ]] && map=${key%.*}
+        error "${rel} needs an answer for '${key}'; add '${key##*.}: <value>' under ${map}: in kit.yml" \
+          "(package ${package})"
+        return 1
+      fi
+      text=${text//"@${key}@"/"${answer[${key}]}"}
+    done
+    mkdir -p "${out}/$(dirname "${rel}")"
+    printf '%s\n' "${text}" > "${out}/${rel}"
+  done < <(find "${source}" -type f)
 }
 
 # render:all <root> <package>… prepares the release at <root> for the named packages. In order, it:
