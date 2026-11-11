@@ -633,6 +633,39 @@ func TestThePanelGroupsTheRows(t *testing.T) {
 	}
 }
 
+// A field whose groups stand in the order the data gives stands them so, a value the order does not list after those it
+// does, sorted, and descending turns the whole of it round.
+func TestAGivenOrderStandsTheGroupsAsTheDataGivesThem(t *testing.T) {
+	columns := []string{"id", "remote"}
+	row := func(id, remote string) Row { return Row{Key: id, Cells: []Cell{one(id), one(remote)}} }
+	rows := []Row{row("#1", "backup"), row("#2", "upstream"), row("#3", "origin"), row("#4", "fork"), row("#5", "zoo")}
+	p := Panel{Groupable: map[string]bool{"remote": true}, Given: map[string][]string{"remote": {"origin", "upstream"}}}
+	headings := func(p Panel) []string {
+		var out []string
+		for _, r := range p.group(rows, columns) {
+			if Heads(r) && !OverGroups(r) {
+				out = append(out, ansi.Strip(r.Cells[0].first()))
+			}
+		}
+		return out
+	}
+	p = p.Grouped("remote", false)
+	if got := headings(p); !slices.Equal(got, []string{"▾ origin 1", "▾ upstream 1", "▾ backup 1", "▾ fork 1", "▾ zoo 1"}) {
+		t.Errorf("given: %q", got)
+	}
+	desc := p.with(func(fields map[string]Field) {
+		fields["remote"] = Field{Placement: Group, Depth: 1, Sort: Descending, Priority: 1}
+	})
+	if got := headings(desc); !slices.Equal(got, []string{"▾ zoo 1", "▾ fork 1", "▾ backup 1", "▾ upstream 1", "▾ origin 1"}) {
+		t.Errorf("given, descending: %q", got)
+	}
+	// with no given order, the groups sort as ever
+	p.Given = nil
+	if got := headings(p); got[0] != "▾ backup 1" {
+		t.Errorf("sorted: %q", got)
+	}
+}
+
 // The rows group by a cell's sort key, its raw value, and the heading says the value as the rows draw it, or as the
 // cell's Head says it where the rows draw more than they group by.
 func TestAGroupIsTheRawValueAndItsHeadingTheDrawnOne(t *testing.T) {

@@ -895,6 +895,27 @@ func TestIncomingIsATableOfEverythingIncoming(t *testing.T) {
 			t.Errorf("row %d is not %q: %q", i, text, got)
 		}
 	}
+	// grouped by remote, the groups stand as kit lists the remotes, the primary first, not sorted; grouped by kind, as
+	// the catalog lists the kinds
+	base := m.panel(m.stage)
+	headings := func() []string {
+		var out []string
+		for _, r := range m.rows(m.stage) {
+			if grid.Heads(r) && !grid.OverGroups(r) {
+				out = append(out, strings.TrimSpace(ansi.Strip(r.Cells[0].Values[0])))
+			}
+		}
+		return out
+	}
+	if m.setPanel(base.Grouped("remote", false)); !slices.Equal(headings(), []string{"▾ origin 6", "▾ upstream 3",
+		"▾ backup 1"}) {
+		t.Errorf("by remote: %q", headings())
+	}
+	if m.setPanel(base.Grouped("kind", false)); !slices.Equal(headings(), []string{"▾ " + Remote + " 3",
+		"▾ " + Commit + " 2", "▾ " + Branch + " 3", "▾ " + Tag + " 1", "▾ " + Behind + " 1"}) {
+		t.Errorf("by kind: %q", headings())
+	}
+	m.setPanel(base)
 	// the count leaves out the remotes' own rows: seven things came in
 	if !shows(m, Fetched, "7") || m.count(6) != "7" {
 		t.Errorf("incoming does not count what came in alone: %q", lines(m)[2])

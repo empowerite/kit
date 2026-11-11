@@ -102,7 +102,8 @@ const (
 // Caller is the caller's login, Me, which matches no one while it is unknown. Focused says whether the search has the
 // keyboard. Recall says whether there are searches to recall, which the search, with the keyboard, offers with its
 // Recall glyph. Outline says which groups' headings stand open, as FoldAway folds the rows of those that do not; the
-// panel only reads it.
+// panel only reads it. Given gives, for a field whose groups stand in an order the data gives rather than sorted, its
+// values in that order, by the field's id: its groups stand so, a value it does not list after those it does, sorted.
 type Panel struct {
 	Query     string
 	Columns   []string
@@ -118,6 +119,7 @@ type Panel struct {
 	Owner     string
 	Me        string
 	Focused   bool
+	Given     map[string][]string
 }
 
 // SortKey is a column the rows sort by, and whether the larger come first.
@@ -419,6 +421,22 @@ func (p Panel) Mark(id string) string {
 // its line: the line is one node, with one fold, the first value's.
 const Joined = "·"
 
+// ranked compares two of a group's values: by their places in its given order, where it has one, a value it does not
+// list after those it does; else, and between two it does not list, naturally.
+func ranked(rank map[string]int, a, b string) int {
+	x, inX := rank[a]
+	y, inY := rank[b]
+	switch {
+	case inX && inY:
+		return x - y
+	case inX:
+		return -1
+	case inY:
+		return 1
+	}
+	return natural(a, b)
+}
+
 // GroupMark gives what stands for a field the rows are grouped by at a depth: the grouping glyph and the depth as a
 // subscript, ▤₁ for the outermost, as Mark carries a sort's place.
 func GroupMark(depth int) string { return Grouping + subscript(depth) }
@@ -521,9 +539,20 @@ func (p Panel) Heading(r Row) string {
 func (p Panel) group(rows []Row, columns []string) []Row {
 	var at []int
 	var desc []bool
+	var ranks []map[string]int // each group's given order, a value's place in it, or none where its values sort
 	for _, name := range p.Groups() {
 		if j := slices.Index(columns, name); j >= 0 {
 			at, desc = append(at, j), append(desc, p.Fields[name].Sort == Descending)
+			var rank map[string]int
+			if order := p.Given[name]; order != nil {
+				rank = map[string]int{}
+				for k, v := range order {
+					if _, ok := rank[v]; !ok {
+						rank[v] = k
+					}
+				}
+			}
+			ranks = append(ranks, rank)
 		}
 	}
 	var grouped, rest []Row
@@ -580,7 +609,7 @@ func (p Panel) group(rows []Row, columns []string) []Row {
 			case y && !x:
 				return -1
 			}
-			if c := natural(a.values[k], b.values[k]); c != 0 {
+			if c := ranked(ranks[k], a.values[k], b.values[k]); c != 0 {
 				if desc[k] {
 					return -c
 				}

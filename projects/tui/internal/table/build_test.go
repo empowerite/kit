@@ -9,6 +9,27 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 )
 
+// A field whose groups stand as the data gives them lists an enum's known values first, as the catalog does, then each
+// other value as the records first hold it, each once; a field without that order lists nothing.
+func TestTheGivenOrderIsTheCatalogsValuesThenTheRecords(t *testing.T) {
+	kind := Field{ID: "kind", Type: "enum", Order: OrderGiven, Values: []EnumValue{{Value: "remote"}, {Value: "commit"}}}
+	remote := Field{ID: "remote", Type: "enum", Order: OrderGiven}
+	plain := Field{ID: "plain", Type: "enum"}
+	records := []Record{
+		{Values: map[string]Value{"kind": One("tag"), "remote": One("origin"), "plain": One("b")}},
+		{Values: map[string]Value{"kind": One("commit"), "remote": {Raw: []string{"upstream", "origin"}}}},
+		{Values: map[string]Value{"kind": One("branch"), "remote": One("")}},
+	}
+	got := Given([]Field{kind, remote, plain}, records)
+	if !slices.Equal(got["kind"], []string{"remote", "commit", "tag", "branch"}) ||
+		!slices.Equal(got["remote"], []string{"origin", "upstream"}) || got["plain"] != nil || len(got) != 2 {
+		t.Errorf("given: %q", got)
+	}
+	if Given([]Field{plain}, records) != nil {
+		t.Error("no field of a given order, yet an order")
+	}
+}
+
 // list is a field of names that flattens, one name a row.
 var list = Field{ID: "names", Label: "names", Type: "text", One: "name", Renderings: []string{"text"}, Sort: true}
 

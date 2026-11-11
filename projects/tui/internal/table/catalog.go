@@ -35,7 +35,9 @@ type Schema struct {
 // takes the width left and wraps. Width says how its column gives way to the one that wraps: none, the column gives up
 // the cells past its share as soon as the wrapping one is short; WidthWhole, it keeps its widest value while the
 // wrapping one keeps a few cells, and gives way only after it, as a glossary's term does. Placement is where a preset
-// that names none puts it: a column, a group, or hidden.
+// that names none puts it: a column, a group, or hidden. Order says how its groups stand: none, sorted; OrderGiven, in
+// the order the data gives them, an enum's known values first, as the catalog lists them, then every other value as
+// the records first hold it, as kit lists a repository's primary remote first.
 type Field struct {
 	ID         string      `json:"id"`
 	Label      string      `json:"label"`
@@ -56,6 +58,7 @@ type Field struct {
 	Wrap       bool        `json:"wrap"`
 	Width      string      `json:"width"`
 	Placement  string      `json:"placement"`
+	Order      string      `json:"order"`
 }
 
 // EnumValue is one of an enum's known values, and its glyph, if it has one.
@@ -97,6 +100,9 @@ type ValueFilter struct {
 
 // WidthWhole is the width of a field whose column keeps its widest value, as Field's Width says.
 const WidthWhole = "whole"
+
+// OrderGiven is the order of a field whose groups stand as the data gives them, as Field's Order says.
+const OrderGiven = "given"
 
 // The placements a field can take.
 const (

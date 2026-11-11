@@ -61,6 +61,7 @@ type Shown struct {
 // did, so a search keeps the rows whose text had it, though a field now draws less of it.
 func Build(s *Schema, records []Record, p grid.Panel, heads []string, width int) Shown {
 	names, fields := s.Columns(), s.Of()
+	p.Given = Given(fields, records)
 	all := Lay(fields, records, func(id string) string { return p.Field(id).Rendering })
 	rows := p.Filter(all, names)
 	placed := Placements(fields, names, p, heads)
@@ -76,6 +77,39 @@ func Build(s *Schema, records []Record, p grid.Panel, heads []string, width int)
 		rows = q.Filter(slices.DeleteFunc(slices.Clone(all), func(r grid.Row) bool { return !passed[r.Key] }), names)
 	}
 	return Shown{p.FoldAway(rows), Filled(all, names), grid.Indents(rows), Counted(all), drawn}
+}
+
+// Given gives the order the data gives the values of each field whose groups stand so, as Field's Order says, by the
+// field's id: an enum's known values, as the catalog lists them, then each other value as the records first hold it,
+// each once; none for a table with no such field.
+func Given(fields []Field, records []Record) map[string][]string {
+	var out map[string][]string
+	for _, f := range fields {
+		if f.Order != OrderGiven {
+			continue
+		}
+		var order []string
+		seen := map[string]bool{}
+		add := func(v string) {
+			if v != "" && !seen[v] {
+				seen[v] = true
+				order = append(order, v)
+			}
+		}
+		for _, v := range f.Values {
+			add(v.Value)
+		}
+		for _, r := range records {
+			for _, v := range r.Values[f.ID].Raw {
+				add(v)
+			}
+		}
+		if out == nil {
+			out = map[string][]string{}
+		}
+		out[f.ID] = order
+	}
+	return out
 }
 
 // Placements gives a table's fields as its panel places them, for Automatic: its columns, in the order they stand,

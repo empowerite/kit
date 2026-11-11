@@ -64,6 +64,9 @@ func TestTheCatalogNamesOnlyWhatIsRegistered(t *testing.T) {
 			if f.Type != "enum" && len(f.Values) > 0 {
 				t.Errorf("%s.%s: a %s with %d values", name, f.ID, f.Type, len(f.Values))
 			}
+			if f.Order != "" && (f.Order != table.OrderGiven || !f.Group) {
+				t.Errorf("%s.%s: the order %q, for a field that groups %v", name, f.ID, f.Order, f.Group)
+			}
 			if f.Owns && f.Type != "person" {
 				t.Errorf("%s.%s: a %s owns the rows", name, f.ID, f.Type)
 			}
