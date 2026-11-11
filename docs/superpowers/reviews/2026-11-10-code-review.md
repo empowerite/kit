@@ -213,3 +213,45 @@ These are left as they are:
 - The length limit of a path given to `kit serve` counts the repository's root, so a real file deep under a long
   root is refused.
 - Three commits name their co-author as `Claude Sonnet 5.5`, and the others as `Claude`.
+
+### Fail closed
+
+The plan is built in 42 commits, 35 under #69 and 7 under #67, from `5c0353dd` to `59e506f2`. The whole suite, run
+after its last task, held 877 tests and failed one, `tests/underway.bats:199`, as before the plan. One commit,
+`82eca1e8`, holds #67's change to `forges` beside #69's work: two sessions committed from one index at once.
+
+Its five decisions stand on their defaults: `kit policy` fails at a desk too when the forge cannot answer; a JSON verb
+that read a part prints it and exits 1; a list is read whole, to 10000 items; the default branch falls back to `main`;
+and nothing approves a weakening, so the base's rule judges the pull request that loosens it. These were ruled:
+
+- `list:read` carries a command's status in band and runs the command under errexit whoever calls it. `wait "$!"`
+  after a process substitution lost the status under load, and bash hung in `lastpipe` under load, once in about
+  500000 calls.
+- A base with no `kit.yml` lets the branch's own settings judge it, so the pull request that installs the kit sets
+  the first policy, as #2 does.
+- On a branch, `policy`, `policy_engine`, `linked_exempt`, `facts`, `forge`, and `forges` are the base's, and so are
+  its Rego, its whole `.kit/policy/`, and its kinds. `kit ci` judges the issue link and the policy before it runs any
+  of the branch's commands. On a runner the base is the commit the event names; on GitLab, the target branch's tip,
+  fetched each time with no tags.
+- A pull request with more than 100 checks, review threads, or closing issues is read page by page. The plan's
+  task refused it, and #2 has 108 checks and 130 closing issues: that is #142.
+- A workspace member that exits 0 with a stage of `null` has nothing to read there, and is not a failure.
+- `forge: none` says a primary has no forge the kit knows; a primary on a real host that nothing names has a change
+  that cannot be read, not one that passes unchecked.
+
+These are left as they are, and the first must be decided before a release:
+
+- CI runs the branch's own kit: the workflow takes its version and `bash_path` from the branch's `kit.yml`, runs
+  `kit tools install` first, and trusts the event file. A branch can set `version: unreleased`, or put its own
+  modules on the path, and judge itself.
+- `glab api --paginate` was not run against a GitLab server, and nothing was run on bash 4.4, the kit's floor.
+- `kit facts` prints the facts with the disk's settings, and `kit policy --input` with the base's.
+- On GitHub, a pull request's labels past the first 20, and the assignees of a closed issue past the 100 most recently
+  updated, are not read.
+- `tracker:is-forge` reads trackers it cannot read as another tracker's; its callers read the reference first.
+- kittui does not name a workspace member whose rate limit could not be read, and does not draw the marks' `errors`.
+
+On the way, the owner asked for four changes to kittui, each its own issue: `kit` with no verb opens the welcome
+guide (#143); `=` opens the app menu while help's search has focus (#144); the welcome guide's terms are a table,
+which moved the table out of the flow screen into `internal/table` (#145); and its "make it yours" step is one too,
+read by the same code (#150).
