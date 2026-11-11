@@ -109,7 +109,7 @@ func opened(t *testing.T, i int) Model {
 
 func TestEveryGlyphDrawnIsInTheHeaderLegendAndInItsStagesLegend(t *testing.T) {
 	text := legendText(t)
-	for i, name := range eight {
+	for i, name := range six {
 		m := opened(t, i)
 		for g := range glyphsOf(raw(m)) {
 			// the bar's numbers are the tabs', and the panel's glyphs its controls', not the picture's
@@ -132,7 +132,7 @@ func TestEveryGlyphDrawnIsInTheHeaderLegendAndInItsStagesLegend(t *testing.T) {
 			pane = append(pane, ansi.Strip(l.Text))
 		}
 		for g := range glyphsOf(strings.Join(pane, "\n") + stageGlyphs[name]) {
-			// the desk and the worktrees draw a pull request's state as changes does, and changes' legend names it
+			// underway draws a pull request's state as changes does, and changes' legend names it
 			if _, state := stateGlyphs[stateOf(g)]; !own[g] && !(own[Change] && state) {
 				t.Errorf("%s draws %s, which its legend lacks", name, g)
 			}
@@ -172,7 +172,7 @@ func stateOf(glyph string) string {
 func TestTheLegendFloatsInACornerWithTheGlyphsOnTheScreen(t *testing.T) {
 	for _, width := range []int{80, 120, 200} {
 		m := loaded(t, options(), tea.WindowSizeMsg{Width: width, Height: 40}, tea.KeyPressMsg{Code: tea.KeyF1})
-		for i, name := range eight {
+		for i, name := range six {
 			if i > 0 {
 				m = drive(m, tab)
 			}
@@ -259,18 +259,15 @@ func cellOf(line, text string) int {
 // a page, and each mark is on a glyph that leads there; a pull request's state, marked under changes' state heading,
 // leads to its page wherever it is drawn.
 func TestTheLegendMarksEveryGlyphAClickLeadsSomewhereFrom(t *testing.T) {
-	for i, name := range eight {
+	for i, name := range six {
 		m := opened(t, i)
 		asCatalog(&m, i)
-		if name == "desk" {
-			// the desk, on main, has no pull request; on a branch with one, it leads to it
-			m.find("desk").desks[0].Branch = "1-the-first-release-v0-1-0"
-			m.rebuild()
-		}
 		if name == "underway" {
-			// a row whose work is on the desk leads to the desk, as one in a worktree leads to the worktree
+			// a row whose work is on the desk, as one in a worktree here, leads to its row on Repositories' worktrees
+			// tab
 			s := m.find("underway")
-			s.under[1].Here, s.under[1].Worktree = true, m.find("desk").desks[0].Path
+			s.under[1].Here, s.under[1].Worktree = true, "/home/kit/worktrees/8-eight"
+			m.ws.Checkout = s.under[1].Worktree
 			m.rebuild()
 		}
 		drawn := map[string]string{}
@@ -336,13 +333,13 @@ func TestTheGlyphsRegionIsWhatTheKitsTableGives(t *testing.T) {
 // Every stage is in one group of the kit's table, the pair that are about one thing, and the bar draws the selected
 // tab, and the line under the others, in that group's color: a stage of another group, another color.
 func TestTheSelectedTabIsDrawnInItsGroupsColor(t *testing.T) {
-	for _, name := range eight {
+	for _, name := range six {
 		if stageColors[name] == "" {
 			t.Errorf("%s is in no group", name)
 		}
 	}
 	m := loaded(t, options())
-	for i, name := range eight {
+	for i, name := range six {
 		mark, _ := style.In(stageColors[name])
 		open, _, _ := strings.Cut(mark("x"), "x")
 		bar := strings.Split(m.View().Content, "\n")[1:4]
@@ -351,7 +348,7 @@ func TestTheSelectedTabIsDrawnInItsGroupsColor(t *testing.T) {
 		}
 		m = drive(m, tab)
 	}
-	if stageColors["backlog"] != stageColors["underway"] || stageColors["backlog"] == stageColors["desk"] {
+	if stageColors["backlog"] != stageColors["underway"] || stageColors["backlog"] == stageColors["changes"] {
 		t.Errorf("the groups' colors: %v", stageColors)
 	}
 }

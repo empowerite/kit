@@ -51,7 +51,7 @@ func TestKitFlowOpensFlowAndKitWorkspacesWordsTheAppWithTheTabNamed(t *testing.T
 		{"flow", "--mine", shell.Flow, "--mine"},
 		{"flow", "underway --mine", shell.Flow, "underway --mine"},
 		{"flow", "changes", shell.Flow, "changes"},
-		{"flow", "desk", shell.Flow, "desk"},
+		{"flow", "builds", shell.Flow, "builds"},
 		{"flow", "incoming --no-fetch", shell.Flow, "incoming --no-fetch"},
 		{"workspace", "", shell.Repositories, ""},
 		{"workspace", "branches", shell.Repositories, "branches"},
@@ -65,12 +65,13 @@ func TestKitFlowOpensFlowAndKitWorkspacesWordsTheAppWithTheTabNamed(t *testing.T
 	}
 }
 
-// Flow draws every stage kit flow --stages prints, in its order, the desk its own tab, and plans none; its title is
-// kit flow's, and a link to a stage it does not draw leads to the app built around that stage's entity.
+// Flow draws every stage kit flow --stages prints that kittui draws, in its order, each its own tab, and plans none,
+// nor a stage kittui no longer draws, as desk; its title is kit flow's, and a link to a stage it does not draw leads to
+// the app built around that stage's entity.
 func TestFlowDrawsEveryStageKitFlowPrintsInItsOrder(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	t.Setenv("FAKE_FLOW_STAGES", "releases desk backlog")
-	m, err := OpenApp(runner(t), shell.Flow, []string{"desk"})
+	t.Setenv("FAKE_FLOW_STAGES", "releases desk builds backlog worktrees")
+	m, err := OpenApp(runner(t), shell.Flow, []string{"builds"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,11 +80,11 @@ func TestFlowDrawsEveryStageKitFlowPrintsInItsOrder(t *testing.T) {
 	for _, s := range m.stages {
 		names = append(names, s.name)
 	}
-	if got := strings.Join(names, " "); got != "releases desk backlog" {
+	if got := strings.Join(names, " "); got != "releases builds backlog" {
 		t.Errorf("Flow's tabs: %q", got)
 	}
-	if m.stages[m.stage].name != "desk" {
-		t.Errorf("kit flow desk opens on %q", m.stages[m.stage].name)
+	if m.stages[m.stage].name != "builds" {
+		t.Errorf("kit flow builds opens on %q", m.stages[m.stage].name)
 	}
 	m = drive(m, tea.WindowSizeMsg{Width: 100, Height: 20})
 	if !strings.Contains(lines(m)[0], "kit flow") {
@@ -160,11 +161,6 @@ func TestALinkToAnotherAppsTabAsksKittuiForThatAppAtTheRow(t *testing.T) {
 	}
 	if m.jump("nowhere/x") != nil || m.jump("planned/iterations/x") != nil {
 		t.Error("a jump to a stage of no app's, or of Issues' own, asked for an app")
-	}
-	// the picture alone, as kit flow's tests draw it, reaches no other app: its links lead where they always did
-	bare := loaded(t, Options{Stages: []string{"underway"}, NoPresets: true, Clock: o.Clock})
-	if got := bare.records(*bare.find("underway"))[0].values["change"].Link; strings.HasPrefix(got, jumps) {
-		t.Errorf("the picture alone leads to %q", got)
 	}
 }
 

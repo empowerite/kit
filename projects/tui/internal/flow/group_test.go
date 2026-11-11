@@ -26,7 +26,7 @@ func over(t *testing.T, stages ...string) Model {
 	t.Helper()
 	r := runner(t)
 	r.Group = "w"
-	o := Options{Stages: stages, NoPresets: true, Clock: &testkit.Clock{}}
+	o := Options{App: shell.Flow, Stages: stages, NoPresets: true, Clock: &testkit.Clock{}}
 	if slices.ContainsFunc(stages, ofWorkspace) {
 		o.App = shell.Repositories
 	}
@@ -59,19 +59,6 @@ func TestOverAGroupEachStageDrawsEveryMembersRows(t *testing.T) {
 	}
 	if v := view(m); !strings.Contains(v, "a1") || !strings.Contains(v, "b1") {
 		t.Errorf("both rows are not drawn:\n%s", v)
-	}
-}
-
-func TestOverAGroupTheDeskIsAPerMemberRow(t *testing.T) {
-	m := over(t, "desk")
-	m = drive(m, answer("desk", `{"rows": [
-		{"path": "/code/a", "branch": "main", "ahead": 1, "member": "github.com/o/a"},
-		{"path": "/code/b", "branch": "topic", "member": "github.com/o/b"}], "errors": []}`))
-	if got := recordKeys(m, "desk"); strings.Join(got, "|") != "/code/a|/code/b" {
-		t.Errorf("the desks: %q", got)
-	}
-	if v := view(m); !strings.Contains(v, "main") || !strings.Contains(v, "topic") {
-		t.Errorf("both desks are not drawn:\n%s", v)
 	}
 }
 
@@ -126,8 +113,8 @@ func TestOverAGroupAnArrayIsNoEnvelope(t *testing.T) {
 
 func TestOverOneRepositoryTheStagesDecodeAsBefore(t *testing.T) {
 	m := loaded(t, options())
-	if got := recordKeys(m, "desk"); strings.Join(got, "|") != "/home/kit" {
-		t.Errorf("the desk: %q", got)
+	if got := recordKeys(m, "builds"); strings.Join(got, "|") != "41309409501|41309409467|41309409400|41309409322" {
+		t.Errorf("the builds: %q", got)
 	}
 }
 
@@ -149,8 +136,8 @@ func TestOverAGroupTheRowsGroupByMemberAsTheyLoad(t *testing.T) {
 	}
 }
 
-// In kit workspace's picture, a member's name leads to its row on the repos tab; kit flow's has no repos tab, so there it
-// leads nowhere.
+// A member's name leads to its row on the repos tab: in kit workspace's picture, its own; in kit flow's, which has no
+// repos tab, Repositories'.
 func TestAMembersNameLeadsToItsReposRow(t *testing.T) {
 	m := drive(over(t, "workspace/repos", "workspace/remotes"), answer("workspace/remotes",
 		`{"rows": [{"key": "origin", "remote": "origin", "member": "github.com/o/b"}], "errors": []}`))
@@ -158,7 +145,7 @@ func TestAMembersNameLeadsToItsReposRow(t *testing.T) {
 		t.Errorf("b's member links to %q", got)
 	}
 	m = drive(over(t, "backlog"), answer("backlog", twoMembers))
-	if got := m.records(*m.find("backlog"))[1].values["member"].Link; got != "" {
+	if got := m.records(*m.find("backlog"))[1].values["member"].Link; got != jumpTo("workspace/repos", "github.com/o/b") {
 		t.Errorf("in kit flow's picture, b's member links to %q", got)
 	}
 }
@@ -199,17 +186,6 @@ func TestOverAGroupOnlyRowsAndErrorsAreTheStagesDocument(t *testing.T) {
 		if got := m.find("backlog").refusal; got != want {
 			t.Errorf("%q: %q, want %q", data, got, want)
 		}
-	}
-}
-
-func TestOverAGroupAMembersGoneBranchesSayWhose(t *testing.T) {
-	m := drive(over(t, "worktrees"), answer("worktrees", `{"rows": [
-		{"worktrees": [], "goneBranches": ["old"], "member": "github.com/o/a"},
-		{"worktrees": [], "goneBranches": [], "member": "github.com/o/b"}], "errors": []}`))
-	records := m.records(*m.find("worktrees"))
-	if len(records) != 1 || records[0].Key != "github.com/o/a gone" ||
-		!strings.Contains(records[0].Cells[0].Values[0], Gone+" a gone: old") {
-		t.Errorf("the gone branches: %+v", records)
 	}
 }
 

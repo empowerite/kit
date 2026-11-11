@@ -49,7 +49,7 @@ func TestReposIsRepositoriesFirstTabAndNotIssues(t *testing.T) {
 		t.Errorf("the workspace opens on %q first", m.stages[0].name)
 	}
 	m.Close()
-	t.Setenv("FAKE_FLOW_STAGES", "backlog desk")
+	t.Setenv("FAKE_FLOW_STAGES", "backlog builds")
 	if m, err = OpenApp(runner(t), shell.Issues, nil); err != nil {
 		t.Fatal(err)
 	}

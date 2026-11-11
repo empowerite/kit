@@ -3,11 +3,12 @@
 package flow
 
 import (
-	"github.com/charmbracelet/x/ansi"
 	"maps"
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/charmbracelet/x/ansi"
 
 	tea "charm.land/bubbletea/v2"
 

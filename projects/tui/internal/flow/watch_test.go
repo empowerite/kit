@@ -63,7 +63,7 @@ func TestNothingIsWatchedAtTheStart(t *testing.T) {
 		t.Error("Stop Watching All acts with no stage to watch")
 	}
 	// Watch All passes over a stage kittui does not draw
-	some := New(runner(t), Options{Stages: []string{"nonesuch", "desk"}})
+	some := New(runner(t), Options{Stages: []string{"nonesuch", "changes"}})
 	if some.watchAll(true); some.stages[0].src.Watch || !some.stages[1].src.Watch {
 		t.Errorf("Watch All with a stage kittui does not draw: %v %v", some.stages[0].src.Watch, some.stages[1].src.Watch)
 	}
@@ -135,12 +135,12 @@ func TestWatchAllWatchesEveryStageAndStopWatchingAllStopsThemAll(t *testing.T) {
 	if m = click(m, StopAll); !m.appMenu.Open {
 		t.Error("a click on the dim Stop Watching All closed the menu")
 	}
-	if m = drive(m, esc); click(m, WatchAll).find("desk").src.Watch != true {
+	if m = drive(m, esc); click(m, WatchAll).find("changes").src.Watch != true {
 		t.Error("a click on Watch All did not watch")
 	}
 	m = click(m, WatchAll)
-	if m = click(m, StopAll); m.find("desk").src.Watch || m.appMenu.Open {
-		t.Errorf("a click on Stop Watching All: desk watched %v, menu open %v", m.find("desk").src.Watch, m.appMenu.Open)
+	if m = click(m, StopAll); m.find("changes").src.Watch || m.appMenu.Open {
+		t.Errorf("a click on Stop Watching All: changes watched %v, menu open %v", m.find("changes").src.Watch, m.appMenu.Open)
 	}
 }
 
@@ -191,7 +191,7 @@ func TestWatchingAStaleStageLoadsItAtOnce(t *testing.T) {
 	}
 	m.toggleWatch(m.stage)
 	m.find("releases").src.Stale = true
-	m.find("desk").src.Stale, m.find("desk").src.Loading = true, true
+	m.find("changes").src.Stale, m.find("changes").src.Loading = true, true
 	cmd = m.watchAll(true)
 	if cmd == nil {
 		t.Fatal("Watch All loaded no stale stage")
@@ -201,9 +201,9 @@ func TestWatchingAStaleStageLoadsItAtOnce(t *testing.T) {
 	}
 	// a stage loading is not loaded again: watching it alone starts nothing
 	m.watchAll(false)
-	l := m.find("worktrees")
+	l := m.find("builds")
 	l.src.Stale, l.src.Loading = true, true
-	if cmd := m.toggleWatch(slices.IndexFunc(m.stages, func(s stage) bool { return s.name == "worktrees" })); cmd != nil {
+	if cmd := m.toggleWatch(slices.IndexFunc(m.stages, func(s stage) bool { return s.name == "builds" })); cmd != nil {
 		t.Error("watching a stage still loading loaded it again")
 	}
 }
@@ -212,7 +212,7 @@ func TestWatchingAStaleStageLoadsItAtOnce(t *testing.T) {
 // its menu; maximized, the dot after the title's name does the same. A tab that is not stale has no dot to click.
 func TestAClickOnAStaleTabsDotRefreshesIt(t *testing.T) {
 	m := loaded(t, options())
-	desk := slices.IndexFunc(m.stages, func(s stage) bool { return s.name == "desk" })
+	changes := slices.IndexFunc(m.stages, func(s stage) bool { return s.name == "changes" })
 	// dotAt gives the screen column of the dot after a name on a screen line, or -1
 	dotAt := func(m Model, y int, name string) int {
 		line := ansi.Strip(lines(m)[y])
@@ -223,19 +223,19 @@ func TestAClickOnAStaleTabsDotRefreshesIt(t *testing.T) {
 		return ansi.StringWidth(line[:k] + name)
 	}
 	for x := range m.width {
-		if dotAt(m, 2, "desk") >= 0 || m.staleAt(x, 2) >= 0 {
+		if dotAt(m, 2, "changes") >= 0 || m.staleAt(x, 2) >= 0 {
 			t.Fatalf("a fresh bar has a dot at %d", x)
 		}
 	}
-	m.stages[desk].src.Stale = true
+	m.stages[changes].src.Stale = true
 	m.rebuild()
-	x := dotAt(m, 2, "desk")
+	x := dotAt(m, 2, "changes")
 	next, cmd := m.Update(testkit.Click(x, 2))
-	if m = next.(Model); cmd == nil || m.stage == desk || m.tabMenu.Open {
-		t.Fatalf("a click on desk's dot at %d: loads %v, selected %d, menu %v", x, cmd != nil, m.stage, m.tabMenu.Open)
+	if m = next.(Model); cmd == nil || m.stage == changes || m.tabMenu.Open {
+		t.Fatalf("a click on changes' dot at %d: loads %v, selected %d, menu %v", x, cmd != nil, m.stage, m.tabMenu.Open)
 	}
-	if m = drive(m, cmd()); m.stages[desk].src.Stale {
-		t.Error("desk is still stale after it loaded again")
+	if m = drive(m, cmd()); m.stages[changes].src.Stale {
+		t.Error("changes is still stale after it loaded again")
 	}
 	m.maximize(true)
 	m.stages[m.stage].src.Stale = true

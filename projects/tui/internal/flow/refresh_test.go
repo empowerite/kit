@@ -5,7 +5,6 @@ import (
 	"errors"
 	"path/filepath"
 	"slices"
-	"strings"
 	"testing"
 	"time"
 
@@ -60,42 +59,17 @@ func TestANewerRefreshSupersedesTheOneBefore(t *testing.T) {
 	}
 }
 
-// Refreshing incoming fetches, and what the fetch brings moves the backlog's branches, the desk's and the worktrees' counts,
-// and the issues underway, so those stages load again once incoming answers; the others do not.
-func TestRefreshingIncomingReloadsTheStagesTheFetchMoves(t *testing.T) {
-	record := filepath.Join(t.TempDir(), "calls")
-	m := to(t, loaded(t, options()), "incoming")
-	t.Setenv("FAKE_FLOW_CALLS", record)
-	m = drive(m, m.restart("incoming")())
-	var ran []string
-	for _, call := range calls(t, record) {
-		ran = append(ran, strings.Fields(call)[1])
-	}
-	slices.Sort(ran)
-	if want := []string{"backlog", "desk", "incoming", "underway", "worktrees"}; !slices.Equal(ran, want) {
-		t.Errorf("refreshing incoming ran %v, not %v", ran, want)
-	}
-	for _, name := range []string{"backlog", "desk", "underway", "worktrees"} {
-		if s := m.find(name); s.src.Loading || s.refusal != "" {
-			t.Errorf("%s did not load again: loading %v, refusal %q", name, s.src.Loading, s.refusal)
-		}
-	}
-}
-
 // Refresh All reads the forge afresh for backlog, underway, and changes, past kit's shared snapshot of the open issues
-// and pull requests; the stages incoming's fetch then reloads take the snapshot, and the stages that never share it
-// are not told.
-func TestRefreshAllReadsTheForgeAfreshAndTheFetchsReloadsDoNot(t *testing.T) {
+// and pull requests; the stages that never share it are not told.
+func TestRefreshAllReadsTheForgeAfreshWhereTheStagesShareItsRead(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	m := loaded(t, options())
 	t.Setenv("FAKE_FLOW_CALLS", record)
 	drive(m, refreshAll...)
 	got := calls(t, record)
 	slices.Sort(got)
-	want := []string{"flow backlog --json", "flow backlog --json --fresh", "flow builds --json",
-		"flow changes --json --fresh", "flow desk --json", "flow desk --json", "flow incoming --json",
-		"flow releases --json", "flow underway --json", "flow underway --json --fresh", "flow worktrees --json",
-		"flow worktrees --json"}
+	want := []string{"flow backlog --json --fresh", "flow builds --json", "flow changes --json --fresh",
+		"flow incoming --json", "flow releases --json", "flow underway --json --fresh"}
 	if !slices.Equal(got, want) {
 		t.Errorf("Refresh All ran %q, not %q", got, want)
 	}

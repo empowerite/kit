@@ -17,7 +17,7 @@ import (
 
 func TestTheCatalogNamesOnlyWhatIsRegistered(t *testing.T) {
 	// every stage, incoming among them, kit workspace's, its repos tab among them, and kit packages'
-	if len(catalog) != len(eight)+len(workspaceStages)+1 || catalog["incoming"] == nil ||
+	if len(catalog) != len(six)+len(workspaceStages)+1 || catalog["incoming"] == nil ||
 		catalog["workspace/repos"] == nil || catalog[packagesStage] == nil {
 		t.Errorf("the catalog's stages: %d, incoming %v", len(catalog), catalog["incoming"] != nil)
 	}
@@ -104,7 +104,7 @@ func TestTheCatalogsGlyphsAreTheLegends(t *testing.T) {
 		k := slices.IndexFunc(fieldsOf(stage), func(f table.Field) bool { return f.ID == id })
 		return fieldsOf(stage)[k].Glyphed(raw, false)
 	}
-	for _, stage := range []string{"underway", "desk", "worktrees", "changes"} {
+	for _, stage := range []string{"underway", "changes"} {
 		for state, glyph := range stateGlyphs {
 			if got := drawn(stage, "state", state); got[0] != glyph {
 				t.Errorf("%s draws %s as %s, not %s", stage, state, got[0], glyph)
@@ -297,7 +297,7 @@ func TestARefIsLeftAlignedAndATimeRight(t *testing.T) {
 // Every stage drawn from records has member, hidden, which groups and filters: over a group, the rows group by it.
 func TestEveryStageHasAMemberField(t *testing.T) {
 	// the repos tab lists the members themselves
-	for _, stage := range append([]string{"backlog", "underway", "desk", "worktrees", "changes", "builds", "releases"},
+	for _, stage := range append([]string{"backlog", "underway", "changes", "builds", "releases"},
 		workspaceStages[1:]...) {
 		if f := fieldIn(stage, "member"); f.Placement != table.PlaceHidden || !f.Filter || !f.Group || !f.Sort {
 			t.Errorf("%s.member: %+v", stage, f)

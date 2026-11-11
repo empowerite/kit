@@ -89,7 +89,7 @@ func TestThePresetLineStandsOnTheControlLineAndNamesTheView(t *testing.T) {
 		t.Errorf("the line names a save or a rename before Save As…: %q", keys)
 	}
 	// incoming has its preset line too, as every stage with columns does
-	m = drive(m, esc, press('7'))
+	m = drive(m, esc, press('5'))
 	if m.stages[m.stage].name != "incoming" || !m.presets(m.stage) {
 		t.Errorf("%s has no preset line: %q", m.stages[m.stage].name, keysOf(m))
 	}
@@ -542,7 +542,7 @@ func TestViewsJSONBecomesPresetsJSONOnce(t *testing.T) {
 // gives way to Default.
 func TestIncomingHasItsPresetsAndAViewGoneGivesWayToDefault(t *testing.T) {
 	m := loaded(t, options())
-	incoming := slices.Index(eight, "incoming")
+	incoming := slices.Index(six, "incoming")
 	if vs := m.builtins(incoming); len(vs) != 2 || vs[0].Name != Opening || vs[1].Name != "Compact" {
 		t.Errorf("incoming's views: %+v", vs)
 	}

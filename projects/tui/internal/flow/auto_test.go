@@ -83,11 +83,11 @@ func TestAGlyphEveryRowSharesIsDropped(t *testing.T) {
 		t.Errorf("latest: %v", got)
 	}
 	// a checkout's name drops the glyph but keeps that it is detached
-	branch := columns("worktrees", "branch")
+	branch := columns("workspace/repos", "branch")
 	trees := []table.Value{{Raw: []string{"main"}, Of: checkout{}}, {Raw: []string{"spike"}, Of: checkout{Detached: true}}}
 	if got := table.Automatic(branch, map[string][]table.Value{"branch": trees}, 200, false); got["branch"] != "name" ||
 		branch[0].Draw(trees, got["branch"])[1].Values[0] != "spike "+Detached+" detached" {
-		t.Errorf("worktrees: %v", got)
+		t.Errorf("a member's branch: %v", got)
 	}
 	// the panel showing the emoji every row shares, the glyph stays
 	if got := table.Automatic(fields, map[string][]table.Value{"source": sources("github", "github")}, 200, true); got["source"] != "glyph+text" {
@@ -197,7 +197,7 @@ func TestTheScreenDrawsTheRenderingsAutomaticChooses(t *testing.T) {
 	setting.SharedEmoji = false
 	n, _ = m.Update(shell.SettingsMsg{Settings: setting})
 	m = n.(Model)
-	changes := slices.Index(eight, "changes")
+	changes := slices.Index(six, "changes")
 	at := func(width int) map[string]string {
 		m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: width, Height: 24})
 		return m.shown(changes).drawn

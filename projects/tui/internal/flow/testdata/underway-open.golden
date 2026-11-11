@@ -1,7 +1,7 @@
   = kit flow · - empowerite/kit                                                                              🔎 /search
-  ➀╶────────────────╴➋╶─────────────────╮➂╶─────────────╮➃╶──────────────────╮➄╶────────────────╮➅╶───────────────╮➆╶───
-    🎫 backlog  3    │ 🛫 underway  4 : │  💻 desk  1   │  🌿 worktrees  4   │  🔀 changes  3   │  🏭 builds  4   │    ▹
-  ───────────────────╯                  ╰───────────────╰────────────────────╰──────────────────╰─────────────────╰─────
+  ➀╶────────────────╴➋╶─────────────────╮➂╶────────────────╮➃╶───────────────╮➄╶──────────────────╮➅╶─────────────────╮
+    🎫 backlog  3    │ 🛫 underway  4 : │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  7    │  📦 releases  3   │
+  ───────────────────╯                  ╰──────────────────╰─────────────────╰────────────────────╰───────────────────╰─
   ▾ source 4                                                                                                Default ▼
   ──·───────
   ▾ github 4
@@ -21,4 +21,4 @@
 
 
 
- = menu - workspace / search ? legend │ 1-8 jump : tab menu │ esc tabs ↑↓ move ␣·⇧↑↓ select ⌃A all ← hide
+ = menu - workspace / search ? legend │ 1-6 jump : tab menu │ esc tabs ↑↓ move ␣·⇧↑↓ select ⌃A all ← hide

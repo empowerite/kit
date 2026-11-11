@@ -254,14 +254,14 @@ func TestAColumnNoRowFillsHasNoCheckbox(t *testing.T) {
 func TestTheWheelScrollsTheRowsAndLeavesTheCursor(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 9}, tab, tab, tab, down)
 	turn := func(b tea.MouseButton) tea.Msg { return tea.MouseWheelMsg{X: 10, Y: m.headerTop() + 1, Button: b} }
-	if m = drive(m, turn(tea.MouseWheelDown)); m.find("worktrees").Offset == 0 || m.find("worktrees").Cursor != 0 {
-		t.Fatalf("the wheel down: offset %d, cursor %d\n%s", m.find("worktrees").Offset, m.find("worktrees").Cursor, view(m))
+	if m = drive(m, turn(tea.MouseWheelDown)); m.find("builds").Offset == 0 || m.find("builds").Cursor != 0 {
+		t.Fatalf("the wheel down: offset %d, cursor %d\n%s", m.find("builds").Offset, m.find("builds").Cursor, view(m))
 	}
-	if m = drive(m, turn(tea.MouseWheelUp), turn(tea.MouseWheelUp)); m.find("worktrees").Offset != 0 {
-		t.Errorf("the wheel up past the top: offset %d", m.find("worktrees").Offset)
+	if m = drive(m, turn(tea.MouseWheelUp), turn(tea.MouseWheelUp)); m.find("builds").Offset != 0 {
+		t.Errorf("the wheel up past the top: offset %d", m.find("builds").Offset)
 	}
 	// on the bar, or with no stage, the wheel scrolls nothing
-	if m = drive(m, tea.MouseWheelMsg{X: 10, Y: 1, Button: tea.MouseWheelDown}); m.find("worktrees").Offset != 0 {
+	if m = drive(m, tea.MouseWheelMsg{X: 10, Y: 1, Button: tea.MouseWheelDown}); m.find("builds").Offset != 0 {
 		t.Errorf("the wheel on the bar scrolled the rows")
 	}
 	loaded(t, Options{}, turn(tea.MouseWheelDown))
@@ -301,7 +301,7 @@ func TestSortByInAColumnsMenuSortsTheRows(t *testing.T) {
 	}
 	// builds' commit does not sort
 	m = drive(m, esc)
-	m = drive(m, slices.Repeat([]tea.Msg{tab}, 5)...)
+	m = drive(m, tabsTo("builds")...)
 	if m = drive(m, testkit.Click(at("commit"), m.headerTop())); m.colMenu.Enabled(&m, m.colMenu.LineOf(&m, table.ActUp)) || m.colMenu.At <= m.colMenu.LineOf(&m, table.ActUnsorted) ||
 		m.stages[m.stage].name != "builds" {
 		t.Errorf("commit's menu sorts: %+v", m.colMenu)

@@ -36,11 +36,10 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
-// Options is how the screen opens: the app it is, as apps.go defines it, or none for stages alone, as a test opens
-// them; the stages in the picture's order; the stage it opens on, maximized, when one is named; origin, when known,
-// for the URLs and for the workspace menu until kit says the workspace; whether the fetch is skipped; the filters
-// backlog, underway, and changes take; and whether every stage's headers are hidden, as a test of the rows alone
-// asks.
+// Options is how the screen opens: the app it is, as apps.go defines it; the stages in the picture's order; the stage
+// it opens on, maximized, when one is named; origin, when known, for the URLs and for the workspace menu until kit says
+// the workspace; whether the fetch is skipped; the filters backlog, underway, and changes take; and whether every
+// stage's headers are hidden, as a test of the rows alone asks.
 type Options struct {
 	App       shell.Screen
 	Stages    []string
@@ -70,9 +69,7 @@ type stage struct {
 	planned bool                // whether kit has no data source for the stage yet, so it loads nothing
 	issues  []issue
 	under   []underway
-	ins     []incoming  // incoming's, one a member: one over a repository
-	desks   []checkout  // the desk, one a member: one over a repository
-	trees   []worktrees // the worktrees, one a member: one over a repository
+	ins     []incoming // incoming's, one a member: one over a repository
 	pulls   []pull
 	runs    []run
 	failed  []failure         // over a group, the members whose read of the stage failed
@@ -84,9 +81,9 @@ type stage struct {
 
 // known names the stages kittui draws: kit flow's, and each app verb's after its verb and a slash.
 var known = map[string]bool{"packages/packages": true,
-	"backlog": true, "underway": true, "incoming": true, "desk": true,
-	"worktrees": true, "changes": true, "builds": true, "releases": true, "workspace/repos": true, "workspace/remotes": true,
-	"workspace/branches": true, "workspace/worktrees": true, "workspace/commits": true, "workspace/tags": true}
+	"backlog": true, "underway": true, "incoming": true, "changes": true, "builds": true, "releases": true,
+	"workspace/repos": true, "workspace/remotes": true, "workspace/branches": true, "workspace/worktrees": true,
+	"workspace/commits": true, "workspace/tags": true}
 
 // workspaceVerb is kit workspace's verb, whose stages kittui knows after it and a slash.
 const workspaceVerb = "workspace"
@@ -135,7 +132,7 @@ const deadline = 2 * time.Minute
 
 // Model is the picture on the screen.
 type Model struct {
-	app           shell.Screen // the app this is, or none for stages alone, named kit flow
+	app           shell.Screen // the app this is, as apps.go defines it
 	runner        kit.Runner
 	ctx           context.Context    // ends with the screen, and every stage's command with it
 	cancel        context.CancelFunc // ends ctx
@@ -185,7 +182,7 @@ type Model struct {
 
 // built holds each stage's rows as they were last built, and the width they were laid out for, and each stage's lines
 // as they were last drawn from them. A stage that loads, a refresh, or a new width replaces it, since a stage's rows
-// may draw from another's, as the desk's from changes'.
+// may draw from another's, as underway's pull requests' keys from changes'.
 type built struct {
 	width  int
 	stages map[int]shown
@@ -280,8 +277,8 @@ func New(r kit.Runner, o Options) Model {
 }
 
 // Init starts the loading: every stage at once, so none waits on incoming's fetch, which can take as long as the
-// remotes do; the stages the fetch moves load again once it has fetched. Each stage is drawn from what kit kept of its
-// last load meanwhile, stale, as kept.go says.
+// remotes do. Each stage is drawn from what kit kept of its last load meanwhile, stale, as kept.go says. Repositories'
+// tabs go stale by kit workspace --marks, which reads the refs a fetch moves.
 func (m Model) Init() tea.Cmd { return tea.Batch(append(m.keptAll(), m.loads()...)...) }
 
 // Interrupted says whether ctrl-c ended the screen.
@@ -354,13 +351,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.takeKept(msg)
 			return m, nil
 		}
-		if !m.take(msg) || msg.Name != "incoming" {
-			return m, nil
-		}
-		if fetched(m.find("incoming").ins) {
-			// the fetch, at the start or on Refresh All, moved what some stages read: they load again
-			return m, m.reloads()
-		}
+		m.take(msg)
 	case meMsg:
 		if msg.err == nil {
 			m.me = msg.login
@@ -960,7 +951,7 @@ func (m *Model) restart(name string) tea.Cmd {
 		return cmd
 	}
 	s.src.Loading, s.refusal = true, ""
-	s.issues, s.under, s.ins, s.desks, s.trees, s.pulls, s.runs = nil, nil, nil, nil, nil, nil, nil
+	s.issues, s.under, s.ins, s.pulls, s.runs = nil, nil, nil, nil, nil
 	s.failed, s.repos, s.rows = nil, nil, nil
 	m.rebuild()
 	return cmd
@@ -974,32 +965,16 @@ func (m *Model) again(name string, fresh bool) tea.Cmd { return m.find(name).src
 // afresh.
 var shared = map[string]bool{"backlog": true, "underway": true, "changes": true}
 
-// moved names the stages whose rows the fetch moves: the desk's and the worktrees' counts against the default branch,
-// the issues underway, which the pull requests the fetch brings close, and the backlog's branches, which it reads as
-// the fetch left them.
-var moved = []string{"backlog", "desk", "worktrees", "underway"}
-
-// reloads runs again each stage the fetch moves, when it is in the picture, each keeping its rows on the screen until
-// the new ones come. They take kit's snapshot of the forge, which the fetch does not move.
-func (m *Model) reloads() tea.Cmd {
-	var cmds []tea.Cmd
-	for _, name := range moved {
-		if m.find(name) != nil {
-			cmds = append(cmds, m.again(name, false))
-		}
-	}
-	return tea.Batch(cmds...)
-}
-
-// take keeps what a stage's command printed, decoded by the stage, or the refusal when it failed, and says whether it
-// did. The answer of a load a later one superseded is dropped. The cursor stays within the rows that came.
-func (m *Model) take(msg source.Answer[[]byte]) bool {
+// take keeps what a stage's command printed, decoded by the stage, or the refusal when it failed. The answer of a
+// load a later one superseded is dropped, as is one for a stage the screen does not have. The cursor stays within the
+// rows that came.
+func (m *Model) take(msg source.Answer[[]byte]) {
 	s := m.find(msg.Name)
 	if s == nil {
-		return false
+		return
 	}
 	if _, landed := s.src.Take(msg); landed != source.Shown {
-		return false
+		return
 	}
 	err := msg.Err
 	if err == nil {
@@ -1015,7 +990,6 @@ func (m *Model) take(msg source.Answer[[]byte]) bool {
 	}
 	m.land(s.name, true)
 	m.fit()
-	return true
 }
 
 // autoGroup groups a stage's rows as its view groups them as it loads, once it has rows to look at: by each column
@@ -1094,12 +1068,6 @@ func (s *stage) decodeRows(data []byte, many bool) error {
 	case "incoming":
 		s.ins = nil
 		err = one(data, &s.ins)
-	case "desk":
-		s.desks = nil
-		err = one(data, &s.desks)
-	case "worktrees":
-		s.trees = nil
-		err = one(data, &s.trees)
 	case "changes":
 		err = json.Unmarshal(data, &s.pulls)
 	case "builds":
@@ -1158,25 +1126,22 @@ func fetched(ins []incoming) bool {
 }
 
 // expected is each stage's document, as kit flow's page says: an array of objects for backlog, underway,
-// changes, builds, and releases, each object with the stage's key fields; an object for incoming, desk, and
-// worktrees, incoming's with its remotes.
+// changes, builds, and releases, each object with the stage's key fields; an object for incoming, with its remotes.
 var expected = map[string]struct {
 	what  string
 	array bool
 	keys  []string
 }{
-	"backlog":   {"an array of issues", true, []string{"number"}},
-	"underway":  {"an array of issues underway", true, []string{"number", "pr"}},
-	"changes":   {"an array of pull requests", true, []string{"number"}},
-	"builds":    {"an array of builds", true, []string{"id"}},
-	"releases":  {"an array of releases", true, []string{"version"}},
-	"incoming":  {"an object of remotes", false, []string{"remotes"}},
-	"desk":      {"an object", false, nil},
-	"worktrees": {"an object", false, nil},
+	"backlog":  {"an array of issues", true, []string{"number"}},
+	"underway": {"an array of issues underway", true, []string{"number", "pr"}},
+	"changes":  {"an array of pull requests", true, []string{"number"}},
+	"builds":   {"an array of builds", true, []string{"id"}},
+	"releases": {"an array of releases", true, []string{"version"}},
+	"incoming": {"an object of remotes", false, []string{"remotes"}},
 }
 
 // shape refuses a document that is not the stage's: an array where an object is expected, an object where an array
-// is, an array whose objects lack one of the stage's key fields, as the array of desks kit prints above desks, or an
+// is, an array whose objects lack one of the stage's key fields, as the array of {path, status} kit prints above repositories, or an
 // object without its key field, as incoming's before every remote. Nothing and null are nothing printed, never an
 // empty stage. Anything else is left to the decoder.
 func shape(name string, data []byte) error {

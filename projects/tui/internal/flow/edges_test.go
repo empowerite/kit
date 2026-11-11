@@ -60,8 +60,8 @@ func TestADocumentKitFlowCannotDecodeIsARefusal(t *testing.T) {
 	}{
 		{"releases", `[{"version": 5}]`},
 		{"releases", `[{`},
-		{"desk", `{"path": 7}`},
-		{"desk", `{`},
+		{"incoming", `{"remotes": 7}`},
+		{"incoming", `{`},
 		{"builds", `[{"id": "x"}]`},
 	} {
 		m := loaded(t, Options{Stages: []string{c.stage}}, answer(c.stage, c.data))
@@ -73,15 +73,15 @@ func TestADocumentKitFlowCannotDecodeIsARefusal(t *testing.T) {
 
 // Page up inside an open row taller than the pane scrolls back through that row, the cursor staying on it.
 func TestPageUpInsideATallOpenRowScrollsBackThroughIt(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 12}, tab, tab, tab, down, down, toggle,
-		press(tea.KeyPgDown))
-	s := m.find("worktrees")
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 12})
+	m = drive(m, tallBuild(m, 5), tab, tab, tab, down, down, toggle, press(tea.KeyPgDown))
+	s := m.find("builds")
 	if s.Cursor != 1 || s.Offset == 0 {
 		t.Fatalf("page down did not scroll into the open row: cursor %d, offset %d", s.Cursor, s.Offset)
 	}
 	before := s.Offset
 	m = drive(m, press(tea.KeyPgUp))
-	if s := m.find("worktrees"); s.Cursor != 1 || s.Offset >= before {
+	if s := m.find("builds"); s.Cursor != 1 || s.Offset >= before {
 		t.Errorf("page up inside the row: cursor %d, offset %d from %d", s.Cursor, s.Offset, before)
 	}
 }
@@ -101,8 +101,8 @@ func TestRefreshInTheRowsKeepsTheCursorThroughTheLoad(t *testing.T) {
 }
 
 // The small drawings: a build state #48 does not name, an age kit did not give, checks
-// that never reported or report a state kittui does not know, a checkout with only its path, a pull request with no
-// reference of kit's, and a run started by hand.
+// that never reported or report a state kittui does not know, a pull request with no reference of kit's, and a run
+// started by hand.
 func TestTheCellsDrawWhatIsMissingOrUnknown(t *testing.T) {
 	if runGlyph("queued") != Other {
 		t.Errorf("an unknown state draws %q", runGlyph("queued"))
@@ -113,10 +113,6 @@ func TestTheCellsDrawWhatIsMissingOrUnknown(t *testing.T) {
 	var none *checks
 	if none.cell() != "" || (&checks{State: "SKIPPED"}).cell() != "" {
 		t.Errorf("checks with nothing to say draw %q, %q", none.cell(), (&checks{State: "SKIPPED"}).cell())
-	}
-	m := New(runner(t), options())
-	if r := laid("worktrees", []record{m.checkoutRow(checkout{Path: "/src/kit"}, false)}, func(string) string { return "" }); !strings.Contains(r[0].Cells[0].Values[0], "/src/kit") {
-		t.Errorf("a checkout with only its path: %+v", r[0].Cells[0])
 	}
 	if got := ref(pull{Number: 7}); got != "#7" {
 		t.Errorf("a pull request's reference: %q", got)
@@ -129,15 +125,13 @@ func TestTheCellsDrawWhatIsMissingOrUnknown(t *testing.T) {
 // Every stage that is empty says what it lacks, in its own words.
 func TestEveryEmptyStageSaysWhatItLacks(t *testing.T) {
 	for name, want := range map[string]string{
-		"backlog":   "no open issue without a pull request",
-		"underway":  "no issue is underway",
-		"incoming":  "no remote to fetch",
-		"desk":      "no desk",
-		"worktrees": "no linked worktree",
-		"changes":   "no open pull request",
-		"builds":    "no build since the last 20 runs",
-		"releases":  "no release",
-		"nonesuch":  "nothing",
+		"backlog":  "no open issue without a pull request",
+		"underway": "no issue is underway",
+		"incoming": "no remote to fetch",
+		"changes":  "no open pull request",
+		"builds":   "no build since the last 20 runs",
+		"releases": "no release",
+		"nonesuch": "nothing",
 	} {
 		if got := empty(stage{name: name, ins: []incoming{{Fetched: true}}}); got != want {
 			t.Errorf("an empty %s says %q, not %q", name, got, want)
@@ -197,14 +191,11 @@ func TestAStageReadInPartDrawsWhatWasReadAndNamesWhatWasNot(t *testing.T) {
 		 {"key": "fork remote", "remote": "fork", "kind": "remote", "change": "failed",
 		  "subject": "fatal: no route to host"}]}`)
 	t.Setenv("FAKE_FLOW_PART", "incoming")
-	m := loaded(t, Options{Stages: []string{"incoming", "desk"}, NoPresets: true, Clock: &testkit.Clock{}})
+	m := loaded(t, Options{Stages: []string{"incoming", "changes"}, NoPresets: true, Clock: &testkit.Clock{}})
 	s, v := m.find("incoming"), view(m)
 	if s.refusal != "" || !strings.Contains(v, Failed+" failed") || !strings.Contains(v, "fatal: no route to host") ||
 		!strings.Contains(v, "what was fetched") {
 		t.Errorf("incoming read in part: refusal %q\n%s", s.refusal, v)
-	}
-	if !fetched(s.ins) {
-		t.Error("incoming read in part is not fetched, so nothing it moved loads again")
 	}
 	write(`{"rows": [{"key": "origin", "remote": "origin", "forge": "github", "repository": "o/a",
 		"member": "github.com/o/a", "host": "github.com", "url": "https://github.com/o/a.git", "links": {}}],

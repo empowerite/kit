@@ -4,12 +4,12 @@
 # Each stage's JSON is the fixture beside this file, <stage>.json. FAKE_FLOW_CALLS names a file every call's words
 # are appended to, one line each, so a test reads the order the stages ran in; FAKE_FLOW_DIRS names one each call's
 # directory, as pwd -P gives it, and its words are appended to, a tab between them. FAKE_FLOW_STAGES is what --stages
-# prints, space-separated; unset, it prints the eight. FAKE_FLOW_REFUSE names a stage whose --json answer is a
+# prints, space-separated; unset, it prints the six. FAKE_FLOW_REFUSE names a stage whose --json answer is a
 # refusal, exit 1, or stages to refuse --stages with exit 2. FAKE_FLOW_SILENT names a stage that exits 1 with
 # nothing on stderr. FAKE_FLOW_PART names a stage, or workspace/<stage>, kit read in part: it prints the file
 # FAKE_FLOW_PART_JSON names and exits 1 with nothing on stderr, as incoming does when a remote's fetch fails.
 # FAKE_FLOW_SLOW names a stage that sleeps five seconds before it answers. FAKE_FLOW_ABOVE names a stage that
-# answers as kit does above repositories: an array of {path, status}, one per desk. With --no-fetch, incoming
+# answers as kit does above repositories: an array of {path, status}, one per repository. With --no-fetch, incoming
 # answers incoming-no-fetch.json: fetched false, and the remotes without what a fetch brings.
 # --me prints FAKE_FLOW_ME, ada when it is unset; FAKE_FLOW_REFUSE=me refuses it with exit 1. --quota prints
 # FAKE_FLOW_QUOTA, and refuses with exit 1 while it is unset, as kit does with no forge to read; --marks prints
@@ -147,7 +147,7 @@ case "${1:-}" in
       echo "❌ kit flow refuses for the test; run: kit help flow" >&2
       exit 2
     fi
-    for stage in ${FAKE_FLOW_STAGES-backlog underway desk worktrees changes builds incoming releases}
+    for stage in ${FAKE_FLOW_STAGES-backlog underway changes builds incoming releases}
     do
       printf '%s\n' "${stage}"
     done
@@ -181,7 +181,7 @@ case "${1:-}" in
     fi
     printf '%s\n' "${FAKE_FLOW_ME-ada}"
     ;;
-  (backlog | underway | desk | worktrees | changes | incoming | builds | releases)
+  (backlog | underway | changes | incoming | builds | releases)
     stage=$1
     shift
     if [[ "${1:-}" != --json ]]

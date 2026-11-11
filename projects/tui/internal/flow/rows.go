@@ -102,31 +102,13 @@ type remote struct {
 	Tags []string `json:"tags"`
 }
 
-// worktrees is every linked worktree, and the branches whose upstream is gone. The desk is a stage of its own.
-type worktrees struct {
-	Worktrees    []checkout `json:"worktrees"`
-	GoneBranches []string   `json:"goneBranches"`
-	Member       string     `json:"member"`
-}
-
-// checkout is one checkout: its branch, its lines against the default branch, the commits ahead of it, newest first,
-// and its uncommitted paths.
+// checkout is one checkout, as a member of the workspace has its desk: its branch, or none where it is detached, and
+// the commits it is ahead and behind its upstream.
 type checkout struct {
-	Path        string   `json:"path"`
-	Relative    string   `json:"relative"`
-	Branch      string   `json:"branch"`
-	Detached    bool     `json:"detached"`
-	Ahead       int      `json:"ahead"`
-	Behind      int      `json:"behind"`
-	Added       int      `json:"added"`
-	Removed     int      `json:"removed"`
-	Commits     []commit `json:"commits"`
-	Uncommitted int      `json:"uncommitted"`
-	Changes     []struct {
-		Status string `json:"status"`
-		Path   string `json:"path"`
-	} `json:"changes"`
-	Member string `json:"member"`
+	Branch   string `json:"branch"`
+	Detached bool   `json:"detached"`
+	Ahead    int    `json:"ahead"`
+	Behind   int    `json:"behind"`
 }
 
 // pull is one open pull request, with its labels and the issues it closes.
@@ -362,10 +344,6 @@ func (m Model) records(s stage) []record {
 		out = m.backlogRows(s)
 	case "underway":
 		out = m.underwayRows(s)
-	case "desk":
-		out = m.deskRows(s)
-	case "worktrees":
-		out = m.worktreeRows(s)
 	case "changes":
 		out = m.changeRows(s)
 	case "builds":
@@ -478,8 +456,8 @@ func (m Model) backlogRows(s stage) []record {
 // when a checkout on this desk has the branch, as here draws it, local when this desk has the branch but no checkout of
 // it, else the author. The pull request's glyph leads to its row under changes, or to its page when no app draws
 // changes; the state's glyph to its page, and the title's to the issue's. Open, every assignee and the issue's
-// title wrapped; the pull request's title is under changes, and the checkout's path under desk or worktrees. A row
-// belongs to the issue's assignees, whoever opened the pull request, as kit flow --mine says.
+// title wrapped; the pull request's title is under changes, and the checkout's path on Repositories' worktrees
+// tab. A row belongs to the issue's assignees, whoever opened the pull request, as kit flow --mine says.
 func (m Model) underwayRows(s stage) []record {
 	var out []record
 	for _, u := range s.under {
@@ -515,23 +493,28 @@ func (m Model) underwayRows(s stage) []record {
 	return out
 }
 
-// here gives underway's where for work in a member's checkout on this desk, at path: the desk, when the desk is that
-// checkout, leading to its row under desk, else here, a worktree, leading to its row under worktrees; without those
-// stages, to its row on Repositories' worktrees tab, kit workspace's, where the screen reaches it, else nowhere.
+// here gives underway's where for work in a member's checkout on this desk, at path: the desk, when the path is the
+// member's desk, as deskOf says, else here, a worktree; either way leading to its row on Repositories' worktrees tab,
+// kit workspace's, where the screen reaches it, else nowhere.
 func (m Model) here(member, path string) table.Value {
-	stage, where := "worktrees", "here"
-	if d := m.find("desk"); d != nil && slices.ContainsFunc(d.desks, func(c checkout) bool { return c.Path == path }) {
-		stage, where = "desk", "desk"
+	where := "here"
+	if d := m.deskOf(member); d != "" && d == path {
+		where = "desk"
 	}
 	v := table.Value{Raw: []string{where}, Of: where}
-	switch {
-	case path == "":
-	case m.find(stage) != nil:
-		v.Link = jumpTo(stage, path)
-	case m.reaches("workspace/worktrees"):
+	if path != "" && m.reaches("workspace/worktrees") {
 		v.Link = jumpTo("workspace/worktrees", m.keyOf(member, path))
 	}
 	return v
+}
+
+// deskOf gives a member's desk, its checkout, as checkoutOf says, and the workspace's checkout for a row of no member,
+// over a repository; none until kit has said the workspace.
+func (m Model) deskOf(member string) string {
+	if member == "" {
+		return m.ws.Checkout
+	}
+	return m.checkoutOf(member)
 }
 
 // jumps is how a link to a row of another stage begins, which a click follows on the screen, not in the browser.
@@ -556,86 +539,11 @@ func (m Model) pullKey(member, source string, number int) string {
 	return m.keyOf(member, "#"+strconv.Itoa(number))
 }
 
-// deskRows gives the desk, the root checkout, in one row, as worktreeRows gives a worktree: each member's, over a
-// group.
-func (m Model) deskRows(s stage) []record {
-	var out []record
-	for _, c := range s.desks {
-		out = append(out, m.checkoutRow(c, true))
-	}
-	return out
-}
-
-// worktreeRows gives each linked worktree, as checkoutRow does. Last, dim, the branches whose upstream is gone, when
-// there are any; open, one row per branch.
-func (m Model) worktreeRows(s stage) []record {
-	var out []record
-	for _, t := range s.trees {
-		for _, c := range t.Worktrees {
-			c.Member = t.Member
-			out = append(out, m.checkoutRow(c, false))
-		}
-	}
-	for _, t := range s.trees {
-		gone := t.GoneBranches
-		if len(gone) == 0 {
-			continue
-		}
-		what := Gone + " gone: " + strings.Join(gone, ", ")
-		if t.Member != "" {
-			what = Gone + " " + m.short(t.Member) + " gone: " + strings.Join(gone, ", ")
-		}
-		r := row{Key: m.keyOf(t.Member, "gone"), Cells: span(style.Off(what))}
-		for _, b := range gone {
-			r.Detail = append(r.Detail, span(Gone+" "+b+" "+style.Off("upstream gone · kit tidy removes it")))
-		}
-		out = append(out, record{row: r})
-	}
-	return out
-}
-
-// checkoutRow gives a checkout: its branch, or its path where it has none, ahead and behind, the lines it adds and
-// removes, its pull request's number and state, as pullOf gives them, and its uncommitted count; open, the uncommitted
-// paths with their status in yellow, then every commit ahead that kit listed, which the pane pages through, and a
-// count of any kit did not list.
-func (m Model) checkoutRow(c checkout, desk bool) record {
-	name := c.Branch
-	if name == "" {
-		name = c.Relative
-	}
-	if name == "" {
-		name = c.Path
-	}
-	change, state := m.pullOf(c.Member, c.Branch, desk)
-	r := record{row{Key: c.Path}, map[string]table.Value{
-		"branch": {Raw: []string{name}, Of: c}, "ahead": {Raw: []string{strconv.Itoa(c.Ahead)}, Of: c},
-		"lines": {Raw: []string{strconv.Itoa(c.Added)}, Of: c}, "change": change, "state": state,
-		"uncommitted": table.One(strconv.Itoa(c.Uncommitted)), "member": m.memberValue(c.Member),
-	}}
-	for _, change := range c.Changes {
-		r.Detail = append(r.Detail, span(style.Warn(fmt.Sprintf("%-2s", change.Status))+" "+change.Path))
-	}
-	for _, commit := range c.Commits {
-		r.Detail = append(r.Detail, span(style.Off(commit.SHA)+" "+commit.Subject))
-	}
-	if more := c.Ahead - len(c.Commits); more > 0 {
-		r.Detail = append(r.Detail, span(style.Off(fmt.Sprintf("… and %d more", more))))
-	}
-	return r
-}
-
 // counts gives "↑a ↓b", ahead right-aligned to the widest in the table: ahead green and behind red, a zero dim.
 func counts(c checkout, aheadWidth int) string {
 	ahead := "↑" + strconv.Itoa(c.Ahead)
 	pad := strings.Repeat(" ", max(0, aheadWidth-len(ahead)))
 	return pad + count(ahead, c.Ahead, style.Gain) + " " + count("↓"+strconv.Itoa(c.Behind), c.Behind, style.Loss)
-}
-
-// diffstat gives "+x -y", the lines the branch adds and removes against the default branch: added green and removed
-// red, a zero dim.
-func diffstat(c checkout) string {
-	return count("+"+strconv.Itoa(c.Added), c.Added, style.Gain) + " " +
-		count("-"+strconv.Itoa(c.Removed), c.Removed, style.Loss)
 }
 
 // count gives a count's text in its color, dim when it is zero.
@@ -644,39 +552,6 @@ func count(text string, n int, paint func(string) string) string {
 		return style.Off(text)
 	}
 	return paint(text)
-}
-
-// uncommitted gives the uncommitted cell: the count, or clean, dim.
-func uncommitted(n int) cell {
-	if n == 0 {
-		return dim("clean")
-	}
-	return text(style.Warn(fmt.Sprintf("%d uncommitted", n)))
-}
-
-// pullOf gives the pull request of a checkout on the branch, its reference and its state, when changes has loaded and
-// holds one: the reference's glyph leads to its row under changes, and the state's to its page. Else the reference
-// says … while changes loads; both say nothing when changes is not in the picture or failed, or for the desk or a
-// detached checkout without one; and the state says no pull request yet for a worktree without one, so the
-// references' column stays narrow.
-func (m Model) pullOf(member, branch string, desk bool) (change, state table.Value) {
-	s := m.find("changes")
-	if s == nil || s.refusal != "" {
-		return table.Value{}, table.Value{}
-	}
-	if s.src.Loading {
-		return table.Value{Else: "…"}, table.Value{}
-	}
-	for _, p := range s.pulls {
-		if p.Branch == branch && branch != "" && p.Member == member {
-			return table.Value{Raw: []string{ref(p)}, Link: jumpTo("changes", m.keyOf(member, ref(p)))},
-				table.Value{Raw: []string{p.State}, Link: m.originOf(member).pull(p.Number, "")}
-		}
-	}
-	if desk || branch == "" {
-		return table.Value{}, table.Value{}
-	}
-	return table.Value{}, table.Value{Else: "no pull request yet"}
 }
 
 // ref gives a pull request's reference: what kit printed, else #<number>.
@@ -791,10 +666,6 @@ func empty(s stage) string {
 			return "not fetched: kit flow --no-fetch skips the fetch"
 		}
 		return "no remote to fetch"
-	case "desk":
-		return "no desk"
-	case "worktrees":
-		return "no linked worktree"
 	case "changes":
 		return "no open pull request"
 	case "builds":

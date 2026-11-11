@@ -114,64 +114,6 @@
       ]
     },
     {
-      "stage": "desk", "record": ".",
-      "fields": [
-        {"id": "branch", "label": "branch", "type": "text", "path": ".branch, .relative, .path", "sort": true,
-         "glyph": "💻", "renderings": ["checkout", "name"], "placement": "column"},
-        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
-         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
-        {"id": "ahead", "label": "ahead", "type": "number", "filter": true, "path": ".ahead, .behind", "sort": true,
-         "renderings": ["counts"], "placement": "column"},
-        {"id": "lines", "label": "lines", "type": "number", "filter": true, "path": ".added, .removed", "sort": true,
-         "renderings": ["diffstat"], "placement": "column"},
-        {"id": "change", "label": "change", "type": "ref", "path": "changes:.ref", "sort": true, "glyph": "🔀",
-         "renderings": ["glyph+text", "text"], "placement": "column"},
-        {"id": "state", "label": "state", "type": "enum", "path": "changes:.state", "sort": true, "filter": true,
-         "values": [
-           {"value": "draft", "glyph": "🔨"}, {"value": "queued", "glyph": "🚦"}, {"value": "conflicted", "glyph": "💥"},
-           {"value": "failing:gate", "glyph": "🔥"}, {"value": "no-check", "glyph": "📭"},
-           {"value": "comments:open", "glyph": "💬"}, {"value": "blocked:approval", "glyph": "👀"},
-           {"value": "ready", "glyph": "🏁"}], "other": "🔳",
-         "renderings": ["glyph+text", "text", "glyph"], "placement": "column"},
-        {"id": "uncommitted", "label": "uncommitted", "type": "number", "filter": true, "path": ".uncommitted", "sort": true,
-         "renderings": ["uncommitted"], "placement": "column"}
-      ],
-      "presets": [
-        {"name": "Default"},
-        {"name": "Compact", "fields": {
-          "ahead": {"placement": "hidden"}, "lines": {"placement": "hidden"}, "uncommitted": {"placement": "hidden"}}}
-      ]
-    },
-    {
-      "stage": "worktrees", "record": ".worktrees[]",
-      "fields": [
-        {"id": "branch", "label": "branch", "type": "text", "path": ".branch, .relative, .path", "sort": true,
-         "glyph": "🌿", "renderings": ["checkout", "name"], "placement": "column"},
-        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
-         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
-        {"id": "ahead", "label": "ahead", "type": "number", "filter": true, "path": ".ahead, .behind", "sort": true,
-         "renderings": ["counts"], "placement": "column"},
-        {"id": "lines", "label": "lines", "type": "number", "filter": true, "path": ".added, .removed", "sort": true,
-         "renderings": ["diffstat"], "placement": "column"},
-        {"id": "change", "label": "change", "type": "ref", "path": "changes:.ref", "sort": true, "glyph": "🔀",
-         "renderings": ["glyph+text", "text"], "placement": "column"},
-        {"id": "state", "label": "state", "type": "enum", "path": "changes:.state", "sort": true, "group": true,
-         "filter": true, "values": [
-           {"value": "draft", "glyph": "🔨"}, {"value": "queued", "glyph": "🚦"}, {"value": "conflicted", "glyph": "💥"},
-           {"value": "failing:gate", "glyph": "🔥"}, {"value": "no-check", "glyph": "📭"},
-           {"value": "comments:open", "glyph": "💬"}, {"value": "blocked:approval", "glyph": "👀"},
-           {"value": "ready", "glyph": "🏁"}], "other": "🔳",
-         "renderings": ["glyph+text", "text", "glyph"], "placement": "column"},
-        {"id": "uncommitted", "label": "uncommitted", "type": "number", "filter": true, "path": ".uncommitted", "sort": true,
-         "renderings": ["uncommitted"], "placement": "column"}
-      ],
-      "presets": [
-        {"name": "Default"},
-        {"name": "Compact", "fields": {
-          "ahead": {"placement": "hidden"}, "lines": {"placement": "hidden"}, "uncommitted": {"placement": "hidden"}}}
-      ]
-    },
-    {
       "stage": "changes", "record": ".[]",
       "fields": [
         {"id": "change", "label": "change", "type": "ref", "path": ".ref, .number", "sort": true, "glyph": "🔀",

@@ -67,18 +67,16 @@ func init() {
 		draw  table.Renderer
 		glyph bool
 	}{
-		"glyph+age":   {pushedAges, true},
-		"checkout":    {table.Each(checkoutName), true},
-		"name":        {table.Each(plainName), false},
-		"counts":      {aheadBehind, false},
-		"diffstat":    {table.Each(func(f table.Field, v table.Value) []string { return []string{diffstat(v.Of.(checkout))} }), false},
-		"uncommitted": {uncommittedCells, false},
-		"checks":      {checksCells, true},
-		"threads":     {table.Each(threadsText), true},
-		"where":       {whereCells, true},
-		"member":      {table.Each(memberName), false},
-		"path":        {pathCells, false},
-		"worktree":    {table.Each(worktreeNames), true},
+		"glyph+age": {pushedAges, true},
+		"checkout":  {table.Each(checkoutName), true},
+		"name":      {table.Each(plainName), false},
+		"counts":    {aheadBehind, false},
+		"checks":    {checksCells, true},
+		"threads":   {table.Each(threadsText), true},
+		"where":     {whereCells, true},
+		"member":    {table.Each(memberName), false},
+		"path":      {pathCells, false},
+		"worktree":  {table.Each(worktreeNames), true},
 	} {
 		table.Register(name, r.draw, r.glyph)
 	}
@@ -117,18 +115,6 @@ func aheadBehind(f table.Field, vs []table.Value) []cell {
 		}
 	}
 	return table.Each(func(f table.Field, v table.Value) []string { return []string{counts(v.Of.(checkout), widest)} })(f, vs)
-}
-
-// uncommittedCells draws a checkout's uncommitted paths, as uncommitted does: the count, or clean, dim.
-func uncommittedCells(f table.Field, vs []table.Value) []cell {
-	out := make([]cell, len(vs))
-	for k, v := range vs {
-		if len(v.Raw) > 0 {
-			n, _ := strconv.Atoi(v.Raw[0])
-			out[k] = uncommitted(n)
-		}
-	}
-	return out
 }
 
 // checksCells draws a pull request's checks, as their cell does; a heading over rows grouped by them says their state

@@ -1,5 +1,5 @@
   = kit flow · - empowerite/kit                                      🔎 /search
-  ➄╶────────────────╮➅╶───────────────╴➐╶──────────────────╮➇╶─────────────────╮
+  ➂╶────────────────╮➃╶───────────────╴➎╶──────────────────╮➅╶─────────────────╮
     🔀 changes  3   │  🏭 builds  4    │ 🛬 incoming  7  : │  📦 releases  3   │
   ──────────────────╰──────────────────╯                   ╰───────────────────╵
   ▾ 10                                                              Default ▼
@@ -21,4 +21,4 @@
 
 
 
- = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-8 jump : tab menu
+ = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-6 jump : tab menu

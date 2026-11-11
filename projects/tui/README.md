@@ -13,13 +13,13 @@ It has six screens:
 - **The flow picture.** `kit flow` at a terminal draws its stages here. Over a group, `kit --workspace=<group> flow`
   or one picked from the 📚 workspace menu, every tab gathers every cloned member's rows, grouped by member as they
   load. An action on rows runs in each row's member's checkout.
-- **The workspace picture.** `kit workspace` at a terminal draws what git holds across the workspace here: the 📚
-  repos tab first, a row per member of the workspace, then a tab for each of git's entities, remotes, branches,
-  worktrees, commits, and tags. It is the flow picture's screen on kit workspace's stages, which kittui knows after
-  `workspace/`, so their fields and presets stay apart from kit flow's worktrees. A stage's rows are drawn from the
+- **The workspace picture.** `kit workspace` at a terminal draws what git holds across the workspace here: the 📚 repos
+  tab first, a row per member of the workspace, then a tab for each of git's entities, remotes, branches, worktrees,
+  commits, and tags. It is the flow picture's screen on kit workspace's stages, which kittui knows after `workspace/`,
+  so their fields and presets stay apart from another verb's stage of the same name. A stage's rows are drawn from the
   catalog alone: kit prints each row's values by the field's id, and where a value leads, a page on the forge or a row
-  of another tab, so a stage needs no Go of its own. It reads no forge, so it spends no rate limit, and a tab is
-  stale, its dot lit, when `kit workspace --marks` moves.
+  of another tab, so a stage needs no Go of its own. It reads no forge, so it spends no rate limit, and a tab is stale,
+  its dot lit, when `kit workspace --marks` moves.
 - **The welcome guide.** `kit welcome` at a terminal walks its steps here, and bare `kit` opens it too.
 - **The tutorials.** `kit tutorials` at a terminal shows a card for each tutorial here, tabbed by audience.
 

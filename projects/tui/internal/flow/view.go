@@ -21,14 +21,9 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
-// appLabel gives the screen's name on the title line, after the app menu's =, kit and its app's name, kit flow for
-// Flow and for stages alone; a click on either drops the menu down.
-func (m Model) appLabel() string {
-	if m.app == "" {
-		return "kit flow"
-	}
-	return "kit " + string(m.app)
-}
+// appLabel gives the screen's name on the title line, after the app menu's =: kit and its app's name, kit flow for
+// Flow; a click on either drops the menu down.
+func (m Model) appLabel() string { return "kit " + string(m.app) }
 
 // top gives the screen line the pane starts on: right under the bar, which is open there to the selected tab; or,
 // maximized, under the title and the banner, the line under it in the tab's color.

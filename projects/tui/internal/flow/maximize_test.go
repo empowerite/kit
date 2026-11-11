@@ -111,8 +111,8 @@ func TestTheRuleIsTheTabsColor(t *testing.T) {
 	if got := strings.Split(m.View().Content, "\n")[1]; got != rule("backlog") {
 		t.Errorf("line 2:\n%q\nwant\n%q", got, rule("backlog"))
 	}
-	if m = drive(m, press('3')); strings.Split(m.View().Content, "\n")[1] != rule("desk") {
-		t.Errorf("desk's line: %q", strings.Split(m.View().Content, "\n")[1])
+	if m = drive(m, press('3')); strings.Split(m.View().Content, "\n")[1] != rule("changes") {
+		t.Errorf("changes' line: %q", strings.Split(m.View().Content, "\n")[1])
 	}
 }
 
@@ -201,7 +201,7 @@ func TestANarrowTitleHidesTheKebabAndColonStillDropsTheMenu(t *testing.T) {
 
 func TestMaximizedTheKeysDropTheBars(t *testing.T) {
 	m := maximize(t, loaded(t, viewing("")))
-	if bar := lines(m)[len(lines(m))-1]; strings.Contains(bar, "⇥·⇧⇥") || !strings.Contains(bar, "1-8") ||
+	if bar := lines(m)[len(lines(m))-1]; strings.Contains(bar, "⇥·⇧⇥") || !strings.Contains(bar, "1-6") ||
 		!strings.Contains(bar, ": tab menu") || !strings.Contains(bar, "↓ groups") {
 		t.Errorf("the keys bar: %q", bar)
 	}

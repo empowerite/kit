@@ -1,7 +1,7 @@
   = kit flow · - empowerite/kit                                                                              🔎 /search
-  ➊╶────────────────╮➁╶─────────────────╮➂╶─────────────╮➃╶──────────────────╮➄╶────────────────╮➅╶───────────────╮➆╶───
-  │ 🎫 backlog  3 : │  🛫 underway  4   │  💻 desk  1   │  🌿 worktrees  4   │  🔀 changes  3   │  🏭 builds  4   │
-  ╵                 ╰───────────────────╰───────────────╰────────────────────╰──────────────────╰─────────────────╰─────
+  ➊╶────────────────╮➁╶─────────────────╮➂╶────────────────╮➃╶───────────────╮➄╶──────────────────╮➅╶─────────────────╮
+  │ 🎫 backlog  3 : │  🛫 underway  4   │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  7    │  📦 releases  3   │
+  ╵                 ╰───────────────────╰──────────────────╰─────────────────╰────────────────────╰───────────────────╰─
   ▾ source 3                                                                                                Default ▼
   ──·───────
   ▾ github 3
@@ -17,10 +17,10 @@
                                                                                           │ 🎫 backlog stage           │
                                                                                           │ :  tab menu                │
                                                                                           │ 🛫 underway stage          │
-                                                                                          │ 💻 desk stage              │
-                                                                                          │ 🌿 worktrees stage         │
                                                                                           │ 🔀 changes stage           │
                                                                                           │ 🏭 builds stage            │
+                                                                                          │ 🛬 incoming stage          │
+                                                                                          │ 📦 releases stage          │
                                                                                           │ ▾  open: click to close    │
                                                                                           │ ▼  presets menu            │
                                                                                           │ ·  sortable: click to sort │
@@ -29,4 +29,4 @@
                                                                                           │ 🎫 issue 🔗                │
                                                                                           │ 🌿 branch or worktree      │
                                                                                           ╰────────────────────────────╯
- = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-8 jump : tab menu
+ = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-6 jump : tab menu

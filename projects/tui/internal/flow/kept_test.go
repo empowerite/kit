@@ -32,17 +32,17 @@ func barNames(m Model) string { return strings.Split(ansi.Strip(m.bar().View()),
 func TestAStageIsDrawnStaleFromWhatWasKeptUntilItsLoadLands(t *testing.T) {
 	keeping(t)
 	m := drive(New(runner(t), options()), tea.WindowSizeMsg{Width: 160, Height: 24})
-	m = drive(m, m.kept("backlog")(), m.kept("desk")())
+	m = drive(m, m.kept("backlog")(), m.kept("changes")())
 	s := m.find("backlog")
 	if s.src.Loading || !s.src.Stale || len(s.issues) != 1 || !strings.Contains(raw(m), "Fix the thing, as kept") {
 		t.Fatalf("the kept backlog: loading %v, stale %v, %d issues\n%s", s.src.Loading, s.src.Stale, len(s.issues), raw(m))
 	}
-	if names := barNames(m); !strings.Contains(names, "backlog"+tabs.Stale) || strings.Contains(names, "desk"+tabs.Stale) {
+	if names := barNames(m); !strings.Contains(names, "backlog"+tabs.Stale) || strings.Contains(names, "changes"+tabs.Stale) {
 		t.Errorf("the dots: %q", names)
 	}
-	// desk kept nothing: it goes on loading
-	if d := m.find("desk"); !d.src.Loading || d.src.Stale {
-		t.Errorf("desk without a kept picture: loading %v, stale %v", d.src.Loading, d.src.Stale)
+	// changes kept nothing: it goes on loading
+	if d := m.find("changes"); !d.src.Loading || d.src.Stale {
+		t.Errorf("changes without a kept picture: loading %v, stale %v", d.src.Loading, d.src.Stale)
 	}
 	m = drive(m, m.load("backlog", false)())
 	if s := m.find("backlog"); s.src.Stale || len(s.issues) != 3 || strings.Contains(raw(m), "as kept") ||

@@ -1,8 +1,11 @@
 package flow
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -84,22 +87,25 @@ func TestADrawingOfThreeHundredIssuesIsWellUnderAFramesTime(t *testing.T) {
 	}
 }
 
-// longWorktree gives the worktrees' answer as the screen's latest load: one worktree, n commits ahead, each with a
-// subject long enough to cut, and thirty paths uncommitted, as a branch with a long history has.
-func longWorktree(m Model, n int) source.Answer[[]byte] {
-	var commits, changes []string
+// tallBuild gives builds' answer as the screen's latest load: the runs testdata/builds.json holds, the first with n
+// jobs, each with a name long enough to cut, every third failed at a step, so its open row is taller than any pane.
+func tallBuild(m Model, n int) source.Answer[[]byte] {
+	var runs []map[string]any
+	if data, err := os.ReadFile(filepath.Join("testdata", "builds.json")); err != nil || json.Unmarshal(data, &runs) != nil {
+		panic(fmt.Sprintf("testdata/builds.json: %v", err))
+	}
+	jobs := make([]map[string]any, n)
 	for i := range n {
-		commits = append(commits, fmt.Sprintf(`{"sha": "%07x", "subject": "#89 kittui: commit %d says what it `+
-			`changed at a length that runs past the pane"}`, i+1, n-i))
+		jobs[i] = map[string]any{"name": fmt.Sprintf("job %d checks what it says at a length that runs past the pane",
+			i+1), "state": "passed", "took": i + 1, "step": nil}
+		if i%3 == 2 {
+			jobs[i]["state"], jobs[i]["step"] = "failed", fmt.Sprintf("step %d", i+1)
+		}
 	}
-	for i := range 30 {
-		changes = append(changes, fmt.Sprintf(`{"status": " M", "path": "projects/tui/internal/flow/file%d.go"}`, i))
-	}
-	msg := answer("worktrees", fmt.Sprintf(`{"goneBranches": [], "worktrees": [{"path": "/w/1-long", `+
-		`"relative": "worktrees/1-long", "branch": "1-long", "ahead": %d, "behind": 0, "added": 9000, `+
-		`"removed": 18, "detached": false, "uncommitted": 30, "commits": [%s], "changes": [%s]}]}`,
-		n, strings.Join(commits, ","), strings.Join(changes, ",")))
-	msg.Gen = m.find("worktrees").src.Gen()
+	runs[0]["jobs"] = jobs
+	data, _ := json.Marshal(runs)
+	msg := answer("builds", string(data))
+	msg.Gen = m.find("builds").src.Gen()
 	return msg
 }
 
@@ -107,8 +113,8 @@ func longWorktree(m Model, n int) source.Answer[[]byte] {
 // Moving the cursor, opening or closing a row, or selecting one, draws them anew.
 func TestAStagesLinesAreDrawnOnceForWhatItShows(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 40})
-	m = drive(m, longWorktree(m, 100))
-	for m.stages[m.stage].name != "worktrees" {
+	m = drive(m, tallBuild(m, 100))
+	for m.stages[m.stage].name != "builds" {
 		m = drive(m, tab)
 	}
 	m = drive(intoRows(m), right)
@@ -131,20 +137,20 @@ func TestAStagesLinesAreDrawnOnceForWhatItShows(t *testing.T) {
 	}
 }
 
-// With a worktree of seven hundred commits open, a page through it and its drawing take well under a frame's time,
+// With a build of seven hundred jobs open, a page through it and its drawing take well under a frame's time,
 // down and back up: the work a key does follows the lines on the screen, not every line of the open row, so keys
 // held down, or a wheel spun, never pile up behind each other, ^C among them.
-func TestPagingThroughAWorktreeOfSevenHundredCommitsIsWellUnderAFramesTime(t *testing.T) {
+func TestPagingThroughABuildOfSevenHundredJobsIsWellUnderAFramesTime(t *testing.T) {
 	budget := 16 * time.Millisecond / 2
 	if raceEnabled {
 		budget *= 10
 	}
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 40})
-	m = drive(m, longWorktree(m, 700))
-	for m.stages[m.stage].name != "worktrees" {
+	m = drive(m, tallBuild(m, 700))
+	for m.stages[m.stage].name != "builds" {
 		m = drive(m, tab)
 	}
-	m = drive(m, down, right)
+	m = drive(intoRows(m), right)
 	for _, key := range []tea.KeyPressMsg{press(tea.KeyPgDown), press(tea.KeyPgUp)} {
 		if per := best(func() {
 			next, _ := m.Update(key)

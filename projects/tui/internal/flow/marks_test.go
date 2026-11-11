@@ -29,7 +29,7 @@ func marking(t *testing.T, marks string) func(string) {
 }
 
 func TestAStageWhoseMarkMovesSinceItLoadedIsStaleUntilItLoadsAgain(t *testing.T) {
-	write := marking(t, `{"backlog": "b1", "changes": "c1", "desk": "d1", "releases": null}`)
+	write := marking(t, `{"backlog": "b1", "changes": "c1", "builds": "u1", "releases": null}`)
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
 	if s := m.find("backlog"); s.src.Mark() != "b1" || s.src.Stale {
 		t.Fatalf("after the load, backlog's mark %q, stale %v", s.src.Mark(), s.src.Stale)
@@ -37,10 +37,10 @@ func TestAStageWhoseMarkMovesSinceItLoadedIsStaleUntilItLoadsAgain(t *testing.T)
 	if len(clockOf(m).Timers()) == 0 || m.marks.Asking() || m.marks.Off() {
 		t.Errorf("after the read: waits %v, asking %v, off %v", clockOf(m).Timers(), m.marks.Asking(), m.marks.Off())
 	}
-	// the minute's read: backlog's mark moved, changes' did not, desk's is gone, releases never had one
+	// the minute's read: backlog's mark moved, changes' did not, builds' is gone, releases never had one
 	write(`{"backlog": "b2", "changes": "c1", "releases": null}`)
 	m = drive(m, clockOf(m).Fire()...)
-	for name, want := range map[string]bool{"backlog": true, "changes": false, "desk": false, "releases": false} {
+	for name, want := range map[string]bool{"backlog": true, "changes": false, "builds": false, "releases": false} {
 		if got := m.find(name).src.Stale; got != want {
 			t.Errorf("%s stale %v, want %v", name, got, want)
 		}
@@ -70,12 +70,12 @@ func TestAStageWhoseMarkMovesSinceItLoadedIsStaleUntilItLoadsAgain(t *testing.T)
 
 // A stage that loaded since the last read takes the next mark as its own, whatever the one before it.
 func TestAStageThatLoadedTakesTheNextMarkAsItsOwn(t *testing.T) {
-	write := marking(t, `{"desk": "d1"}`)
+	write := marking(t, `{"builds": "u1"}`)
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
-	write(`{"desk": "d2"}`)
-	m = drive(m, m.load("desk", false)())
-	if s := m.find("desk"); s.src.Stale || s.src.Mark() != "d2" {
-		t.Errorf("desk after its own load and the read after it: stale %v, mark %q", s.src.Stale, s.src.Mark())
+	write(`{"builds": "u2"}`)
+	m = drive(m, m.load("builds", false)())
+	if s := m.find("builds"); s.src.Stale || s.src.Mark() != "u2" {
+		t.Errorf("builds after its own load and the read after it: stale %v, mark %q", s.src.Stale, s.src.Mark())
 	}
 }
 

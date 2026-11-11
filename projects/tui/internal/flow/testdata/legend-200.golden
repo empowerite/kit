@@ -1,22 +1,22 @@
   = kit flow · - empowerite/kit                                                                                                                                                              🔎 /search
-  ➊╶────────────────╮➁╶─────────────────╮➂╶─────────────╮➃╶──────────────────╮➄╶────────────────╮➅╶───────────────╮➆╶──────────────────╮➇╶─────────────────╮
-  │ 🎫 backlog  3 : │  🛫 underway  4   │  💻 desk  1   │  🌿 worktrees  4   │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  7    │  📦 releases  3   │
-  ╵                 ╰───────────────────╰───────────────╰────────────────────╰──────────────────╰─────────────────╰────────────────────╰───────────────────╰────────────────────────────────────────────
+  ➊╶────────────────╮➁╶─────────────────╮➂╶────────────────╮➃╶───────────────╮➄╶──────────────────╮➅╶─────────────────╮
+  │ 🎫 backlog  3 : │  🛫 underway  4   │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  7    │  📦 releases  3   │
+  ╵                 ╰───────────────────╰──────────────────╰─────────────────╰────────────────────╰───────────────────╰─────────────────────────────────────────────────────────────────────────────────
   ▾ source 3                                                                                                                                                                                Default ▼
   ──·───────
   ▾ github 3
 
-      id   assignees         age  branch              labels              title                                                                                           ╭─ backlog legend ── ↖ ↗ ↙ ↘ ╮
-      ·────×·────────────────·────·───────────────────×·──────────────────·───────────────────────────────────────────────────────────────────────────────────────────────│ =  kit menu                │
-    ▸ #45                     2h                      kindfeature  +2  🎫 kit flow is the one picture: five stages, interactive on a terminal, and the listing verbs fo│ -  workspace menu          │
-      #46  jeffrey-aguilera   2d  🌿 46-a-noun-lists  bug               🎫 A noun lists, a noun with a verb acts                                                        │ 🔎 search: / or click      │
-    ▸ #7   ada           +1  40d                                          🎫 Fix the thing                                                                                │ ➊  selected tab            │
+      id   assignees         age  branch              labels              title
+      ·────×·────────────────·────·───────────────────×·──────────────────·────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+    ▸ #45                     2h                      kindfeature  +2  🎫 kit flow is the one picture: five stages, interactive on a terminal, and the listing verbs fo╭─ backlog legend ── ↖ ↗ ↙ ↘ ╮
+      #46  jeffrey-aguilera   2d  🌿 46-a-noun-lists  bug               🎫 A noun lists, a noun with a verb acts                                                        │ =  kit menu                │
+    ▸ #7   ada           +1  40d                                          🎫 Fix the thing                                                                                │ -  workspace menu          │
+                                                                                                                                                                          │ 🔎 search: / or click      │
+                                                                                                                                                                          │ ➊  selected tab            │
                                                                                                                                                                           │ ➁  tab: click to select    │
                                                                                                                                                                           │ 🎫 backlog stage           │
                                                                                                                                                                           │ :  tab menu                │
                                                                                                                                                                           │ 🛫 underway stage          │
-                                                                                                                                                                          │ 💻 desk stage              │
-                                                                                                                                                                          │ 🌿 worktrees stage         │
                                                                                                                                                                           │ 🔀 changes stage           │
                                                                                                                                                                           │ 🏭 builds stage            │
                                                                                                                                                                           │ 🛬 incoming stage          │
@@ -29,4 +29,4 @@
                                                                                                                                                                           │ 🎫 issue 🔗                │
                                                                                                                                                                           │ 🌿 branch or worktree      │
                                                                                                                                                                           ╰────────────────────────────╯
- = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-8 jump : tab menu
+ = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-6 jump : tab menu

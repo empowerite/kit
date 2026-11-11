@@ -118,7 +118,7 @@ func TestEqualsDropsTheAppsMenuDownToRefreshAnotherScreenOrQuit(t *testing.T) {
 	})))
 	got := calls(t, record)
 	if m.appMenu.Open || !slices.Contains(got, "flow underway --json --fresh") || !slices.Contains(got, "flow builds --json") ||
-		len(got) < len(eight) {
+		len(got) < len(six) {
 		t.Errorf("refresh all ran %q", got)
 	}
 	// a click on the screen's name drops it down too, its last letter; welcome asks for the welcome, the picture kept
@@ -138,7 +138,7 @@ func TestEqualsDropsTheAppsMenuDownToRefreshAnotherScreenOrQuit(t *testing.T) {
 // On incoming with its remotes' rows alone, where no row hides anything, the keyboard starts on maximize, as
 // everywhere, and expand all and collapse all, dim, are never under it.
 func TestTheMenuOfAStageWithNothingToOpenHasRefreshAlone(t *testing.T) {
-	m := loaded(t, options(), slices.Repeat([]tea.Msg{tab}, 6)...)
+	m := loaded(t, options(), tabsTo("incoming")...)
 	setRows(t, &m, remoteRow("origin", "remote", "unchanged", ""), remoteRow("upstream", "remote", "unchanged", ""))
 	if m = drive(m, press(':'), down, up, typed("e")[0]); !m.tabMenu.Open || m.tabMenu.At != 0 || m.enabled(4) || m.enabled(5) {
 		t.Errorf("on %s the keyboard is on %d:\n%s", m.stages[m.stage].name, m.tabMenu.At, view(m))
@@ -271,17 +271,21 @@ func TestTheMenuOnTheRightmostTabEndsUnderTheGlyphAndLeavesTheRestInPlace(t *tes
 func TestAfterShowMoreTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T) {
 	wheel := tea.MouseWheelMsg{X: 10, Y: Model{}.top() + 2, Button: tea.MouseWheelDown}
 	size := tea.WindowSizeMsg{Width: 100, Height: 12}
-	m := loaded(t, options(), size, tab, tab, tab, press(':'), typed("s")[0], press(tea.KeyEnter), wheel)
+	tall := func() Model {
+		m := loaded(t, options(), size)
+		return drive(m, tallBuild(m, 5), tab, tab, tab, press(':'), typed("s")[0], press(tea.KeyEnter), wheel)
+	}
+	m := tall()
 	pinned := func(m Model) int { return m.rowLine(m.stages[m.stage].Cursor) }
 	if s := m.stages[m.stage]; !m.inRows || s.Offset == 0 || pinned(m) != m.headerTop()+2 ||
 		!strings.HasPrefix(lines(m)[pinned(m)], "  "+style.Opened) {
 		t.Fatalf("after show more and the wheel: in rows %v, offset %d:\n%s", m.inRows, s.Offset, view(m))
 	}
 	opened := openRows(m)
-	if m = drive(m, left); openRows(m) != opened-1 || m.stages[m.stage].name != "worktrees" {
+	if m = drive(m, left); openRows(m) != opened-1 || m.stages[m.stage].name != "builds" {
 		t.Errorf("left after show more: open %d of %d, on %s", openRows(m), opened, m.stages[m.stage].name)
 	}
-	m = loaded(t, options(), size, tab, tab, tab, press(':'), typed("s")[0], press(tea.KeyEnter), wheel)
+	m = tall()
 	if m = drive(m, testkit.Click(table.FoldCell, pinned(m))); openRows(m) != opened-1 {
 		t.Errorf("a click on the pinned line: open %d of %d:\n%s", openRows(m), opened, view(m))
 	}
@@ -291,12 +295,12 @@ func TestAfterShowMoreTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T)
 // has no item to hide them: a header that never scrolls, a thin dim line under it, and no row of its own, so a click
 // on it chooses nothing. Incoming, whose rows are no columns, has none.
 func TestTheHeaderStandsTheColumnsNamesOverTheRows(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 10}, tab, tab, tab)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 10}, tab, tab)
 	if slices.ContainsFunc(m.tabItems(), func(i shell.Item) bool { return strings.Contains(i.Name, "Header") }) {
 		t.Errorf("the tab's menu offers the headers: %+v", m.tabItems())
 	}
 	drawn, top := lines(m), m.headerTop()
-	if !strings.Contains(drawn[top], "branch") || !strings.Contains(drawn[top], "uncommitted") ||
+	if !strings.Contains(drawn[top], "change") || !strings.Contains(drawn[top], "author") ||
 		!strings.HasPrefix(drawn[top+1], "    "+Sortable+"───") ||
 		!strings.Contains(m.View().Content, strings.TrimSuffix(style.Off("─"), "─\x1b[m")+Sortable+"───") {
 		t.Fatalf("the headers:\n%s", view(m))
@@ -314,12 +318,12 @@ func TestTheHeaderStandsTheColumnsNamesOverTheRows(t *testing.T) {
 		t.Errorf("a click on the header moved the cursor to %d", m.stages[m.stage].Cursor)
 	}
 	// a column the panel hides has no name over it
-	m.setPanel(m.panel(m.stage).Placed("uncommitted", grid.Hidden))
-	if strings.Contains(lines(m)[m.headerTop()], "uncommitted") {
+	m.setPanel(m.panel(m.stage).Placed("author", grid.Hidden))
+	if strings.Contains(lines(m)[m.headerTop()], "author") {
 		t.Errorf("a hidden column's name:\n%s", view(m))
 	}
 	// incoming is a table as every stage is, its header over its rows
-	m = loaded(t, options(), slices.Repeat([]tea.Msg{tab}, 6)...)
+	m = loaded(t, options(), tabsTo("incoming")...)
 	if m.stages[m.stage].name != "incoming" || m.headerTop() < 0 || !strings.Contains(lines(m)[m.headerTop()], "change") {
 		t.Errorf("%s has no header:\n%s", m.stages[m.stage].name, view(m))
 	}

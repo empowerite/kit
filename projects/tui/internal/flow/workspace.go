@@ -1,7 +1,7 @@
 // kit workspace's stages, the picture of what git holds across the workspace: remotes, branches, worktrees, commits,
 // and tags. Their rows are drawn from the catalog alone: kit prints each row's values by the field's id, and where a
 // value leads, so a stage needs no Go of its own. kittui knows each by its name after workspace/, so its fields and
-// the person's presets stay apart from kit flow's stage of the same name, as worktrees.
+// the person's presets stay apart from any stage of another verb's of the same name.
 package flow
 
 import (

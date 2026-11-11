@@ -20,7 +20,7 @@ import (
 
 func TestGoldenViews(t *testing.T) {
 	at80 := tea.WindowSizeMsg{Width: 80, Height: 24}
-	for i, name := range eight {
+	for i, name := range six {
 		size := at80
 		if name == "underway" || name == "builds" {
 			size.Width = 120
@@ -40,7 +40,7 @@ func TestGoldenViews(t *testing.T) {
 	golden("legend.golden", at80, press('?'))
 	golden("bar-120.golden", tea.WindowSizeMsg{Width: 120, Height: 24})
 	golden("legend-120.golden", tea.WindowSizeMsg{Width: 120, Height: 32}, press('?'))
-	toChanges := []tea.Msg{press('?'), tab, tab, tab, tab}
+	toChanges := append([]tea.Msg{press('?')}, tabsTo("changes")...)
 	golden("legend-120-changes.golden", append([]tea.Msg{tea.WindowSizeMsg{Width: 120, Height: 32}}, toChanges...)...)
 	golden("legend-80-changes.golden", append([]tea.Msg{tea.WindowSizeMsg{Width: 80, Height: 32}}, toChanges...)...)
 	golden("legend-200.golden", tea.WindowSizeMsg{Width: 200, Height: 32}, press('?'))

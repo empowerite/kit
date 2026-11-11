@@ -72,16 +72,17 @@ func AppOf(verb string, words []string) (shell.Screen, []string) {
 // packages.
 var homes = map[string]shell.Screen{workspaceVerb: shell.Repositories, packagesVerb: shell.Packages}
 
-// OpenApp opens an app: Flow on every stage kit flow --stages prints, in its order; another on its stages that the
-// repository's picture draws, as kit flow --stages and kit workspace --stages print them, and every one planned. A
-// stage named among the words is the one it opens on, maximized, as open says. Kit's refusal of --stages is the
-// error.
+// OpenApp opens an app: Flow on every stage kit flow --stages prints that kittui draws, in its order, as kit flow's
+// desk and worktrees are not; another on its stages that the repository's picture draws, as kit flow --stages and kit
+// workspace --stages print them, and every one planned. A stage named among the words is the one it opens on,
+// maximized, as open says. Kit's refusal of --stages is the error.
 func OpenApp(r kit.Runner, app shell.Screen, words []string) (Model, error) {
 	if app == shell.Flow {
 		stages, err := r.StagesOf("flow")
 		if err != nil {
 			return Model{}, err
 		}
+		stages = slices.DeleteFunc(stages, func(name string) bool { return !known[name] })
 		return open(r, Options{App: app, Stages: stages}, words), nil
 	}
 	drawn := map[string][]string{}
@@ -118,11 +119,8 @@ func appWith(to string) shell.Screen {
 	return ""
 }
 
-// reaches says whether a link to a row of the stage leads anywhere: the stage is this screen's, or, in an app,
-// another app's.
-func (m Model) reaches(name string) bool {
-	return m.find(name) != nil || (m.app != "" && appWith(name+"/") != "")
-}
+// reaches says whether a link to a row of the stage leads anywhere: the stage is this screen's, or another app's.
+func (m Model) reaches(name string) bool { return m.find(name) != nil || appWith(name+"/") != "" }
 
 // verbsOf gives the verbs whose stages are among the stages, kit flow's and the app verbs', each once.
 func verbsOf(stages []string) []string {
