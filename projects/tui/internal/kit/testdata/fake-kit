@@ -15,7 +15,7 @@
 # FAKE_KIT_UNPARSED=new answers with what is not JSON. tutorials prints the tutorials screen's catalogue, its words
 # written to the file FAKE_KIT_RECORD names when it is set; FAKE_KIT_REFUSE=tutorials refuses it with exit 2.
 # workspaces --current prints FAKE_WORKSPACES/<workspace>.json, / in the name as _, current.json with no --workspace,
-# and refuses with exit 2 when that file is not there; workspaces --use <name> adds "use <name>" to FAKE_KIT_RECORD's
+# and refuses with exit 2 when that file is not there; workspaces --use=<name> adds "use <name>" to FAKE_KIT_RECORD's
 # file when it is set, and refuses with exit 2 when FAKE_KIT_REFUSE=workspaces. With FAKE_KIT_POLLS set, flow --quota
 # and flow --marks answer, each naming the words after its flag.
 
@@ -200,14 +200,14 @@ case "${1:-}" in
     cat "${here}/../../tutorials/testdata/catalogue.json"
     ;;
   (workspaces)
-    if [[ "${2:-}" == --use ]]
+    if [[ "${2:-}" == --use=* ]]
     then
       if [[ "${FAKE_KIT_REFUSE:-}" == workspaces ]]
       then
         echo "❌ kit workspaces --use refuses for the test" >&2
         exit 2
       fi
-      [[ -z "${FAKE_KIT_RECORD:-}" ]] || printf 'use %s\n' "${3:?}" >> "${FAKE_KIT_RECORD}"
+      [[ -z "${FAKE_KIT_RECORD:-}" ]] || printf 'use %s\n' "${2#--use=}" >> "${FAKE_KIT_RECORD}"
       exit 0
     fi
     given=current

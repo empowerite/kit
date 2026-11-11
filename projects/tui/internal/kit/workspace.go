@@ -63,6 +63,6 @@ func (r Runner) Workspace(ctx context.Context, given string) (Workspace, error) 
 
 // UseWorkspace keeps a group as the last used, which kit starts on outside a repository.
 func (r Runner) UseWorkspace(ctx context.Context, name string) error {
-	_, err := r.within(ctx, callLimit, append(os.Environ(), "NO_COLOR=1"), "workspaces", "--use", name)
+	_, err := r.within(ctx, callLimit, append(os.Environ(), "NO_COLOR=1"), "workspaces", "--use="+name)
 	return err
 }
