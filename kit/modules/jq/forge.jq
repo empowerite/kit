@@ -251,9 +251,11 @@ def gitlab_issues($now):
 def release($now):
   {version: (.tag | sub("^release/"; "")), tag, name, kind, latest, at, age: ($now - (.at | epoch))};
 
-# github_releases($now) reads gh release list's answer and gives one document per release, newest first.
+# github_releases($now) reads gh release list's answer and gives one document per release, newest first. gh prints a
+# release never published with the zero time as publishedAt, so such a release, a draft, is dated by its creation.
 def github_releases($now):
-  map({tag: .tagName, name, latest: .isLatest, at: (.publishedAt // .createdAt),
+  map({tag: .tagName, name, latest: .isLatest,
+       at: (if (.publishedAt // "") | startswith("0001-") or . == "" then .createdAt else .publishedAt end),
       kind: (if .isDraft then "draft" elif .isPrerelease then "pre-release" else "release" end)})
   | sort_by(.at) | reverse[] | release($now);
 
