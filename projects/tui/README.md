@@ -184,11 +184,13 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   sections, each its heading, its text, and its lines of one backticked command, and draws the step's table under the
   text before the first heading; each step drawn so is a catalog, its fields and presets, and the few lines that make
   its records. A page with no such heading, as a house package's may be, is drawn as a page. The terms' page, in
-  `terms.go`, has its fields in `terms.json`: each `## <term>, <term>` heading is a row, its columns its command, what
-  its first example is run with, its tool and its verb, as `kit flow`; its terms, the heading's comma-separated names,
-  a list drawn as pills, as an issue's labels are; its meaning, the paragraphs under it as one line; and its examples,
-  each line of one backticked command, a list too. Default sorts the rows by command; By command flattens the terms,
-  a row a term, sorted, and groups them by command; Compact flattens them too, and hides the command and the
+  `terms.go`, has its fields in `terms.json`: each `## <topic>` heading is a topic, and each `### <term>, <term>`
+  heading under it a row, its columns its command, what its first example is run with, its tool and its verb, as
+  `kit flow`; its terms, the heading's comma-separated names, a list drawn as pills, as an issue's labels are; its
+  meaning, the paragraphs under it as one line; and its examples, each line of one backticked command, a list too. A
+  page with no `###` heading has a row to a `##` heading, under one topic, its title. Default groups the rows by
+  topic, and stands both in the page's order, the topics by the catalog's `"order": "given"`; By command flattens the
+  terms, a row a term, sorted, and groups them by command; Compact flattens them too, and hides the command and the
   examples. The command, the terms, and the examples keep their whole width, `"width": "whole"` in the catalog, and
   the meaning gives way first. The customize page, in `customize.go`, has its fields in `customize.json`: each
   `## <part>` heading is a row, its columns its part, the heading, a title; its settings, the `kit.yml` keys its text

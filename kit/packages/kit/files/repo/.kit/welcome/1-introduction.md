@@ -4,7 +4,7 @@
 
 kit helps people and agents work in this repository the same way. This guide walks you through your first hour.
 
-- Toolchains: the four tools kit runs on, the tool managers kit found here, and which one it uses.
+- Toolchains: the four tools kit runs on, and the tool and package managers kit found here.
 - Setup: the linters, each code forge's login, and this repository.
 - Applications: kit's screens, and what each one shows.
 - Terms: the words kit uses.

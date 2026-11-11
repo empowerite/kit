@@ -3,6 +3,8 @@
 package welcome
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -20,7 +22,8 @@ func TestAPageIsReadAsItsTerms(t *testing.T) {
 	md := "<!-- kit:generated -- the terms -->\r\n# Terms\r\n\r\nThe words.\r\n\r\n## desk\r\n\r\nYour root " +
 		"checkout, as [the guide](../1st.md) and [GitHub](https://github.com) say. It is **yours**.\n\nIts second " +
 		"paragraph names `kit work`.\n\n`kit flow desk`\n\n`kit flow worktrees`\n\n## `bare` term, plain, ##\n\nNo command " +
-		"here.\n\n```sh\necho hi\n```\n\n### a heading under it\n\n<!--\n## not a term\n-->\n## kind\n\n`kit kinds`\n"
+		"here.\n\n```sh\necho hi\n```\n\n#### a heading under it\n\n<!--\n## not a term\n### nor a topic's\n-->\n## kind\n\n" +
+		"`kit kinds`\n"
 	lead, terms := parseTerms(md)
 	if lead != "# Terms\n\nThe words." {
 		t.Errorf("the lead: %q", lead)
@@ -28,17 +31,18 @@ func TestAPageIsReadAsItsTerms(t *testing.T) {
 	if len(terms) != 3 {
 		t.Fatalf("the terms: %+v", terms)
 	}
+	// a page with no topics has its title for every term's
 	desk := term{names: []string{"desk"}, examples: []string{"kit flow desk", "kit flow worktrees"},
 		meaning: "Your root checkout, as the guide and GitHub (https://github.com) say. It is yours. Its second " +
-			"paragraph names kit work."}
+			"paragraph names kit work.", topic: "Terms"}
 	if !reflect.DeepEqual(terms[0], desk) {
 		t.Errorf("desk:\n%+v\n%+v", terms[0], desk)
 	}
 	if !reflect.DeepEqual(terms[1], term{names: []string{"bare term", "plain"},
-		meaning: "No command here. echo hi ### a heading under it"}) {
+		meaning: "No command here. echo hi #### a heading under it", topic: "Terms"}) {
 		t.Errorf("an entry of two terms without an example: %+v", terms[1])
 	}
-	if !reflect.DeepEqual(terms[2], term{names: []string{"kind"}, examples: []string{"kit kinds"}}) {
+	if !reflect.DeepEqual(terms[2], term{names: []string{"kind"}, examples: []string{"kit kinds"}, topic: "Terms"}) {
 		t.Errorf("an entry without a meaning: %+v", terms[2])
 	}
 	if lead, terms := parseTerms("# Ours\n\n- **deploy**: a release.\n"); terms != nil || lead == "" {
@@ -51,11 +55,101 @@ func TestAPageIsReadAsItsTerms(t *testing.T) {
 		}
 	}
 	rs := termRecords(terms)
-	if rs[0].Key != "0 desk" || rs[0].Values["command"].Raw[0] != "kit flow" || rs[1].Key != "1 bare term, plain" ||
+	if rs[0].Key != "0 desk" || rs[0].Values["topic"].Raw[0] != "Terms" || rs[2].Values["order"].Raw[0] != "3" || rs[0].Values["command"].Raw[0] != "kit flow" || rs[1].Key != "1 bare term, plain" ||
 		rs[1].Values["command"].Raw != nil || rs[1].Values["examples"].Raw != nil ||
 		!reflect.DeepEqual(rs[1].Values["terms"].Raw, []string{"bare term", "plain"}) ||
 		!reflect.DeepEqual(rs[0].Values["examples"].Raw, desk.examples) || rs[2].Values["command"].Raw[0] != "kit kinds" {
 		t.Errorf("the records: %+v", rs)
+	}
+}
+
+// A page of topics: each `## ` heading is a topic, and each `### ` heading under it an entry of that topic; the text
+// before the first topic is the lead, and a topic's own text is no entry's.
+func TestAPageOfTopicsIsReadAsItsTermsUnderEachTopic(t *testing.T) {
+	md := "# Terms\n\nThe words.\n\n<!-- ### not an entry -->\n\n## Where\n\nWhat a topic says.\n\n`kit nothing`\n\n" +
+		"### desk\n\nYour root checkout.\n\n`kit flow desk`\n\n### worktree, checkout\n\nOne issue's.\n\n" +
+		"## `How`\n\n### commit\n\nA saved change.\n\n`kit commit`\n"
+	if !hasTopics(md) || hasTopics("# T\n\n<!--\n### hidden\n-->\n## desk\n") {
+		t.Fatal("which pages have topics")
+	}
+	lead, terms := parseTerms(md)
+	want := []term{
+		{names: []string{"desk"}, meaning: "Your root checkout.", examples: []string{"kit flow desk"}, topic: "Where"},
+		{names: []string{"worktree", "checkout"}, meaning: "One issue's.", topic: "Where"},
+		{names: []string{"commit"}, meaning: "A saved change.", examples: []string{"kit commit"}, topic: "How"},
+	}
+	if lead != "# Terms\n\nThe words." || !reflect.DeepEqual(terms, want) {
+		t.Errorf("the lead %q, the terms:\n%+v", lead, terms)
+	}
+	// a flat page with no title has no topic
+	if _, terms := parseTerms("## desk\n\nYours.\n"); len(terms) != 1 || terms[0].topic != "" {
+		t.Errorf("no title: %+v", terms)
+	}
+}
+
+// The kit package's own page: every entry under a topic, with a meaning and an example; each term once; the words
+// newcomers meet; context its own row, as rule is; and the meanings in plain, short sentences.
+func TestTheKitPackagesTermsSayEachWordOnce(t *testing.T) {
+	page, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "kit", "packages", "kit", "files", "repo", pagesDir,
+		"5-terms.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, terms := parseTerms(string(page))
+	seen, meaning, command := map[string]bool{}, map[string]string{}, map[string]string{}
+	for _, e := range terms {
+		if e.topic == "" || e.meaning == "" || len(e.examples) == 0 {
+			t.Errorf("an entry without a topic, a meaning, or an example: %+v", e)
+		}
+		if n := strings.Count(e.meaning, ". ") + 1; n > 3 {
+			t.Errorf("%v says %d sentences: %q", e.names, n, e.meaning)
+		}
+		for _, n := range e.names {
+			if seen[n] {
+				t.Errorf("%q is named twice", n)
+			}
+			seen[n], meaning[n], command[n] = true, e.meaning, verbOf(e.examples[0])
+		}
+	}
+	for _, n := range []string{"workspace", "tracker", "CI", "CD", "worktree", "desk", "context", "rule", "house package",
+		"package manager", "tool manager", "toolchain", "gate", "issue", "pull request", "release"} {
+		if !seen[n] {
+			t.Errorf("no %q", n)
+		}
+	}
+	if command["context"] != "kit context" || command["rule"] == "kit context" || command["style"] == "kit context" {
+		t.Errorf("kit context is not context's alone: context %q, rule %q, style %q", command["context"],
+			command["rule"], command["style"])
+	}
+	if strings.Contains(meaning["worktree"], "worktrees/") {
+		t.Errorf("the worktree names this repository's folder: %q", meaning["worktree"])
+	}
+	if n := strings.Count(meaning["house package"], ". ") + 1; n > 2 {
+		t.Errorf("the house package takes %d sentences: %q", n, meaning["house package"])
+	}
+	for _, c := range []struct{ term, says string }{{"package manager", "on the machine"},
+		{"tool manager", "pins the versions"}, {"toolchain", "set of tools a tool manager installs"}} {
+		if !strings.Contains(meaning[c.term], c.says) {
+			t.Errorf("%s does not say %q: %q", c.term, c.says, meaning[c.term])
+		}
+	}
+	// no page of the kit package's says a toolchain is the manager that installs it
+	pages, err := filepath.Glob(filepath.Join("..", "..", "..", "..", "kit", "packages", "kit", "files", "repo", pagesDir,
+		"*.md"))
+	if err != nil || len(pages) == 0 {
+		t.Fatalf("the pages: %v", err)
+	}
+	for _, p := range pages {
+		if text, _ := os.ReadFile(p); strings.Contains(string(text), "toolchain is a tool manager") {
+			t.Errorf("%s says a toolchain is a tool manager", filepath.Base(p))
+		}
+	}
+	for _, hedge := range []string{"usually", "may ", "might", "perhaps", "generally", "typically"} {
+		for n, m := range meaning {
+			if strings.Contains(m, hedge) {
+				t.Errorf("%s hedges with %q: %q", n, hedge, m)
+			}
+		}
 	}
 }
 
@@ -136,7 +230,7 @@ func TestTheSearchNarrowsTheTerms(t *testing.T) {
 	m, _ := loaded(t, press('5'), press('/'))
 	m = drive(m, testkit.Typed("worktree")...)
 	got := view(m)
-	if !strings.Contains(got, pill("worktree")) || strings.Contains(got, pill("desk")) || !strings.Contains(got, "▾ 1 ") {
+	if !strings.Contains(got, pill("worktree")) || strings.Contains(got, pill("desk")) || !strings.Contains(got, "▾ topic 1 ") {
 		t.Errorf("searched:\n%s", got)
 	}
 	// enter gives the rows the keyboard, the search kept
@@ -260,7 +354,7 @@ func TestTheEdgesOfTheTermsStep(t *testing.T) {
 	m := New(r, "")
 	m = drive(m, append(testkit.Start(m, at120), press('5'), down, testkit.Press("tab"), enter, testkit.Press("s"),
 		enter, enter)...)
-	if lines := strings.Split(view(m), "\n"); !strings.Contains(lines[paneTop], "▾ 1 ") ||
+	if lines := strings.Split(view(m), "\n"); !strings.Contains(lines[paneTop], "▾ topic 1 ") ||
 		!strings.Contains(lastLine(m), "a preset needs a name") || !strings.Contains(m.sheetNotice(), "\x1b[") {
 		t.Errorf("no lead, and a refusal:\n%s", view(m))
 	}
@@ -274,8 +368,8 @@ func TestTheCommandTermsAndExamplesStandWholeWhileTheMeaningGivesWay(t *testing.
 	// at 80 columns no command, term, or example is cut: the meaning gives way
 	m, _ := loaded(t, tea.WindowSizeMsg{Width: 80, Height: 40}, press('5'))
 	got := view(m)
-	for _, whole := range []string{"▸ git remote    2             A remote is anot…  git remote --verbose",
-		"▸ kit flow      " + pill("code forge") + "  The service that…  kit flow incoming --no-fetch"} {
+	for _, whole := range []string{"▸ git remote    2             A remote is an…  git remote --verbose",
+		"▸ kit flow      " + pill("code forge") + "  The service th…  kit flow incoming --no-fetch"} {
 		if !strings.Contains(got, whole) {
 			t.Errorf("at 80, no %q in:\n%s", whole, got)
 		}
@@ -284,8 +378,8 @@ func TestTheCommandTermsAndExamplesStandWholeWhileTheMeaningGivesWay(t *testing.
 	// the examples, give way after it
 	m = drive(m, tea.WindowSizeMsg{Width: 60, Height: 40})
 	got = view(m)
-	for _, want := range []string{"▸ git remote    2           A remote is…  git remote --v…",
-		"▸ kit flow      worktree    A checkout …  kit flow wo… +1"} {
+	for _, want := range []string{"▸ git remote    2           A remote is…  git remote -…",
+		"▸ kit flow      worktree    A checkout …  kit flow … +1"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("at 60, no %q in:\n%s", want, got)
 		}

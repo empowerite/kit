@@ -29,15 +29,19 @@ func readCatalog(data []byte) table.Catalog {
 }
 
 // section is one section of a page: its heading's text, as the page writes it; its text, the lines under the heading
-// joined into one, as markdown, a list item's without its marker; and its commands, none where the page gives none.
+// joined into one, as markdown, a list item's without its marker; its commands, none where the page gives none; and,
+// on a page of topics, the topic it stands under.
 type section struct {
 	heading  string
 	text     string
 	commands []string
+	topic    string
 }
 
 var (
 	sectionHeading = regexp.MustCompile(`^##\s+(.*?)\s*#*$`)
+	entryHeading   = regexp.MustCompile(`^###\s+(.*?)\s*#*$`)
+	pageTitle      = regexp.MustCompile(`(?m)^#\s+(.*?)\s*#*$`)
 	commandLine    = regexp.MustCompile("^`([^`]+)`$")
 	fence          = regexp.MustCompile("^(```|~~~)")
 	autolink       = regexp.MustCompile(`<((?:https?|mailto):[^>\s]+)>`)
@@ -47,21 +51,71 @@ var (
 // under it, each line that is one backticked command and nothing else is one of its commands, and every other line of
 // text its text, a list item's without its marker and a code block's without the fence. A comment is dropped, and a
 // ## inside one starts nothing.
-func parseSections(md string) (lead string, sections []section) {
+func parseSections(md string) (lead string, sections []section) { return parseIn(md, false) }
+
+// parseTopics reads a page of topics as parseSections reads a page: a `## ` heading is a topic, and a `### ` heading
+// starts a section under it. The text before the first topic is the lead; a topic's own text, before its first
+// section, is dropped.
+func parseTopics(md string) (lead string, sections []section) { return parseIn(md, true) }
+
+// hasTopics says whether a page is one of topics: whether a `### ` heading, outside a comment, starts a line of it.
+func hasTopics(md string) bool {
+	comment := false
+	for _, raw := range strings.Split(md, "\n") {
+		line := strings.TrimSpace(raw)
+		switch {
+		case comment || strings.HasPrefix(line, "<!--"):
+			comment = !strings.Contains(line, "-->")
+		case entryHeading.MatchString(line):
+			return true
+		}
+	}
+	return false
+}
+
+// pageSections reads a page's sections as its headings make them: under its topics, where it has some, as
+// parseTopics reads them, else as parseSections does, each section under one topic, the page's title, the lead's
+// `# ` heading, where it has one.
+func pageSections(md string) (lead string, sections []section) {
+	if hasTopics(md) {
+		return parseTopics(md)
+	}
+	lead, sections = parseSections(md)
+	if m := pageTitle.FindStringSubmatch(lead); m != nil {
+		for k := range sections {
+			sections[k].topic = m[1]
+		}
+	}
+	return lead, sections
+}
+
+// parseIn reads a page's sections, as parseSections and parseTopics say: by `## ` headings, or, with topics, by `### `
+// headings under the `## ` topics.
+func parseIn(md string, topics bool) (lead string, sections []section) {
 	var before []string
 	var text [][]string
-	comment := false
+	heading := sectionHeading
+	if topics {
+		heading = entryHeading
+	}
+	// started says a topic or a section has begun, so the lead is over; between says a topic has, and no section
+	// under it yet, so its own text is dropped
+	comment, started, between, topic := false, false, false, ""
 	for _, raw := range strings.Split(strings.ReplaceAll(md, "\r\n", "\n"), "\n") {
 		line := strings.TrimSpace(raw)
 		last := len(sections) - 1
 		switch {
 		case comment || strings.HasPrefix(line, "<!--"):
 			comment = !strings.Contains(line, "-->")
-		case sectionHeading.MatchString(line):
-			sections = append(sections, section{heading: sectionHeading.FindStringSubmatch(line)[1]})
+		case topics && sectionHeading.MatchString(line):
+			started, between, topic = true, true, sectionHeading.FindStringSubmatch(line)[1]
+		case heading.MatchString(line):
+			started, between = true, false
+			sections = append(sections, section{heading: heading.FindStringSubmatch(line)[1], topic: topic})
 			text = append(text, nil)
-		case last < 0:
+		case !started:
 			before = append(before, raw)
+		case last < 0 || between:
 		case commandLine.MatchString(line):
 			sections[last].commands = append(sections[last].commands, commandLine.FindStringSubmatch(line)[1])
 		case line != "" && !fence.MatchString(line):
@@ -146,7 +200,7 @@ func (m *Model) takeSheets() {
 			continue
 		}
 		s := sheetSteps[i]
-		lead, sections := parseSections(t.page)
+		lead, sections := pageSections(t.page)
 		if len(sections) == 0 {
 			continue
 		}

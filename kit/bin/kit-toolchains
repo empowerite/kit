@@ -5,11 +5,12 @@
 #
 # kit toolchains choose <name> [--system]
 #
-# Alone, it lists each toolchain kit can use, one row for each role it fills. A toolchain is a tool manager: mise,
-# nix, brew, docker, devcontainer, or, for the system, apt, dnf, or pacman. kit finds them where it runs. The listing
-# never asks which to use. The columns:
+# Alone, it lists each manager kit can use, one row for each role it fills: a tool manager, which installs and pins
+# the versions of the repository's toolchain, the set of tools its work runs with; or a package manager, which installs
+# software on the machine. They are mise, nix, brew, docker, devcontainer, or, for the system, apt, dnf, or pacman.
+# kit finds them where it runs. The listing never asks which to use. The columns:
 #
-#   - ✅ marks a toolchain usable here: its tool is installed, and for the project role its file is here.
+#   - ✅ marks a manager usable here: its tool is installed, and for the project role its file is here.
 #   - ⚡ marks one the run is already inside.
 #   - 📌 marks the one kit uses for the role. With several usable and none chosen, no row has it.
 #   - ➕ marks brew filling in for the project: it acts on the Brewfile's tools the chosen one does not pin.

@@ -169,7 +169,7 @@ see: [architecture.md](architecture.md#the-workflow-and-the-gate)
    check each. Several usable means you choose.
 3. Setup: one check per line for the linters, each code forge's login, and the repository.
 4. Applications: kit's screens and what each shows, Flow first: how work moves from an issue to a release.
-5. Terms: desk, worktree, code forge, package, rule, and the rest, one or two sentences each.
+5. Terms: the words kit uses, by topic, from workspace and tracker to CI, CD, and toolchain.
 6. Customize: the settings teams change first, packages, a house package, and the docs.
 
 - On a terminal, it opens in kittui, on the first step with a failed check. A failed check offers its fix: now runs

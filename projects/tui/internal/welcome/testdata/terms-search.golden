@@ -4,20 +4,18 @@
   ──────────────────╰───────────────────╰──────────────╰───────────────────╯          ╰───────────────╰─────────────────
    Terms
 
-   The words kit uses, one or two sentences each, and the commands that show each one.
+   The words kit uses, by topic, and a command that shows each one.
 
-  ▾ 4                                                                                                       Default ▼
+  ▾ topic ▾ 4                                                                                               Default ▼
 
-    command   terms         meaning                                                        examples
-    ▲─────────⇊────────────────────────────────────────────────────────────────────────────⇊───────────────────────────
-  ▸ kit flow  desk        Your root checkout, where you cloned the repository. It is y…  kit flow desk               
-  ▸ kit flow  worktree    A checkout of its own, under worktrees/, on one issue's bran…  kit flow worktrees        +1
-  ▸ kit flow  code forge  The service that hosts the repository, its issues, its pull …  kit flow incoming --no-fetch
-  ▸ kit flow  stage       One part of the picture kit flow draws, such as the backlog …  kit flow --stages
-
-
-
-
+      command   terms         meaning                                                      examples
+      ·─────────⇊──────────────────────────────────────────────────────────────────────────⇊───────────────────────────
+  ▾ Where the work lives 3                                                                                             
+    ▸ kit flow  desk        Your root checkout, where you cloned the repository. It is…  kit flow desk
+    ▸ kit flow  worktree    A checkout of its own, under worktrees/, on one issue's br…  kit flow worktrees        +1
+    ▸ kit flow  code forge  The service that hosts the repository, its issues, its pul…  kit flow incoming --no-fetch
+  ▾ Checks 1
+    ▸ kit flow  stage       One part of the picture kit flow draws, such as the backlo…  kit flow --stages
 
 
 
@@ -27,4 +25,6 @@
 
 
 
- = menu - workspace / search │ 1-6 jump │ esc tabs ↑↓ move ␣·⇧↑↓ select ⌃A all → show
+
+
+ = menu - workspace / search │ 1-6 jump │ esc tabs ↑↓ move [] group ␣·⇧↑↓ select ⌃A all ← hide

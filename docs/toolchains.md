@@ -1,7 +1,14 @@
 # Toolchains
 
-A toolchain is a tool manager: mise, Nix, Homebrew, a Docker image, a dev container, or a Linux system's package
-manager. It pins the tools the gate runs, the gate being the repository's own CI command.
+A toolchain is the set of tools a repository's work runs with, such as Go and its linters: the tools the gate runs,
+the gate being the repository's own CI command. Two kinds of manager install tools:
+
+- A tool manager installs and pins the versions of the tools a repository uses: mise, Nix, a Docker image, a dev
+  container, or Homebrew with a Brewfile.
+- A package manager installs software on the machine: Homebrew, or a Linux system's apt, dnf, or pacman.
+
+kit calls each manager it knows a provider. Where kit's commands and this page say the project toolchain or the
+system toolchain, they mean the provider that fills that role.
 
 - kit finds the toolchains where it runs. `kit.yml` does not name one for a desk, because everyone who clones
   shares it. CI is the exception: the CI package's `ci_toolchain` answer names the runner's toolchain.
@@ -29,7 +36,7 @@ says what a seam is). Each manager has a provider, `kit/modules/bash/toolchain/<
 
 ## Roles
 
-A toolchain fills one role or both:
+A provider fills one role or both:
 
 - **project**: it pins the repository's tools, such as the linters and the gate's own tools.
 - **system**: it supplies what kit itself stands on: bash, git, jq, and yq.

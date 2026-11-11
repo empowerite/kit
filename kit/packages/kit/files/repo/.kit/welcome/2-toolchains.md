@@ -2,16 +2,19 @@
 <!-- see: "Changing what kit adds" in .kit/1st.md, to replace it -->
 # Toolchains
 
-A toolchain is a tool manager. kit looks for the ones it can use here, and never assumes one.
+A toolchain is the set of tools a repository's work runs with, such as Go and its linters. Two kinds of manager
+install tools:
 
-A toolchain fills one of two roles, or both:
+- A tool manager, such as mise, installs and pins the versions of this repository's toolchain. `kit tools install`
+  installs it.
+- A package manager, such as brew or apt, installs software on the machine. kit uses one for the tools kit runs on:
+  bash, git, jq, and yq. kit names its command for a missing tool, and runs it only when you say so.
 
-- The project toolchain pins this repository's tools, such as the linters. `kit tools install` installs them.
-- The system toolchain supplies what kit runs on: bash, git, jq, and yq. kit names its command for a missing tool,
-  and installs nothing there on its own.
+kit looks for the managers it can use here, and never assumes one. Each fills a role: the project, for this
+repository's toolchain, or the system, for kit's own tools. brew can fill both.
 
-A toolchain is usable when its tool is on PATH. For the project role, its file must also be in this repository.
-For each role, kit uses:
+A manager is usable when its tool is on PATH. For the project, its file must also be in this repository. For each
+role, kit uses:
 
 - the one you are already inside, such as a shell it opened
 - else, for the project, the one named for the run: `--toolchain <name>` or `KIT_TOOLCHAIN=<name>`
@@ -29,7 +32,7 @@ kit runs on four tools, which this step checks first:
 - jq 1.7 or later, which reads kit's JSON.
 - yq 4, mikefarah's, which reads `kit.yml` and the other YAML files.
 
-A missing one's fix is the system toolchain's command. Without one, the check says where to get the tool.
+A missing one's fix is the system's package manager's command. Without one, the check says where to get the tool.
 
 brew counts only when it is on PATH. If brew is installed but off PATH, a check shows the line that fixes it.
 Run that line in your shell, and add it to your profile. kit cannot change your shell for you.
