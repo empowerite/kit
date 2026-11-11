@@ -19,8 +19,13 @@
 #
 # see: modules/bash/forge.sh, modules/bash/forge/github.sh, modules/bash/forge/gitlab.sh
 
-# epoch reads an ISO 8601 time, with or without fractional seconds, and gives seconds since the epoch.
-def epoch: sub("\\.[0-9]+"; "") | fromdateiso8601;
+# epoch reads an ISO 8601 time, with or without fractional seconds, in UTC or at an offset, as az prints one,
+# 2026-10-01T09:00:00.123000+00:00, and gives seconds since the epoch. A time it cannot read is an error.
+def epoch:
+  (capture("^(?<at>[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(\\.[0-9]+)?(?<zone>Z|(?<sign>[+-])(?<h>[0-9]{2}):?(?<m>[0-9]{2}))$")
+    // error("not an ISO 8601 time: \(.)"))
+  | (.at + "Z" | fromdateiso8601)
+    - (if .zone == "Z" then 0 else (if .sign == "-" then -1 else 1 end) * ((.h | tonumber) * 3600 + (.m | tonumber) * 60) end);
 
 # place($path) gives where an issue is, as a repository's path names it: the organization, the path up to its last
 # segment, an owner on GitHub and a group, with its subgroups, on GitLab; and the repository, that last segment. Both
