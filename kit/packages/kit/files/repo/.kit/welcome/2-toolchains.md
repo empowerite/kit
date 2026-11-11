@@ -25,6 +25,9 @@ role, kit uses:
 With several usable and none chosen, choose one: `kit toolchains choose <name>`, with `--system` for the system
 role. Your choice stays on this machine. It is never committed, so each person chooses their own.
 
+This step checks the system's toolchain, once for the machine. Each branch can have files of its own, so setup
+checks the project's toolchain in each folder: the desk, and each worktree.
+
 kit runs on four tools, which this step checks first:
 
 - bash 4.4 or later, which runs kit.

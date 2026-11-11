@@ -212,6 +212,22 @@ first and kit flow's incoming last.
 On the repos tab, a clone reads `~` for the home folder, and a closed row shows `…` and its last two folders; open,
 the row shows the whole path. A member's name on any tab leads to its row there.
 
+## kit welcome
+
+```sh
+kit welcome --checks --json                       # the machine's checks, then each folder of the repository here
+kit --workspace=empowerite welcome --checks       # each member's desk and worktrees, in the group's order
+kit --workspace=none welcome --checks             # the machine's checks alone
+```
+
+`kit welcome`'s setup checks each folder of the workspace on its own, since each branch can have a `kit.yml` or none,
+and pin a kit of its own: for a repository, its desk, then each worktree `git worktree list` names; for a group, each
+member's, for every checkout of it under the roots. Each folder's check names its folder, its repository, whether it
+is the desk, its branch, and the kit its `kit.yml` declares, and `kit check` runs there on the release that folder
+pins. The machine's checks, the tools kit runs on, the system toolchain, and each forge host's tool and login, run
+once, for every host among the folders' remotes. The folders are judged at once. `kit welcome --fix <check>
+--folder=<path>` runs a folder's check's fix in that folder.
+
 ## Still to come
 
 What is built is steps 1 to 3 of [the workspaces design](superpowers/specs/2026-11-08-workspaces-design.md): the file,

@@ -2,17 +2,23 @@
 <!-- see: "Changing what kit adds" in .kit/1st.md, to replace it -->
 # Setup
 
-With kit's own tools in place and a toolchain settled, this step checks the rest, in order:
+With kit's own tools in place and the system toolchain settled, this step checks the rest. It checks the machine
+once, then each folder of the workspace on its own, since each branch can have a `kit.yml` or none, and pin its own
+kit:
 
-- Tools: the git hooks' runner, where the hooks package is active, and the linters the rules run.
-- Code forges: for each remote's code forge, its command-line tool, installed and logged in.
-- This repository: kit installed, `.kit/` in place, the git hooks installed, and `kit check` clean.
-- Where you are: at the desk or in a worktree.
+- This machine: for each code forge among the folders' remotes, its command-line tool, installed and logged in, once
+  per host.
+- Each folder, by repository, its desk first, then each worktree: kit installed, with the version its `kit.yml`
+  declares; `.kit/` in place; the git hooks installed; its project toolchain; the hooks' runner and the linters the
+  rules run; and `kit check` clean, run by the kit that folder pins.
 
-A missing tool's fix is `kit tools install`, which installs what the project toolchain pins. With no project
-toolchain, the fix is the system toolchain's command. With neither, the check says where to get the tool.
+The workspace is the one `kit workspaces --current` names, or the one `kit --workspace=<workspace> welcome` names: a
+repository, its desk and its worktrees; a group, every member's. With no workspace, only the machine is checked.
+
+A missing tool's fix in a folder is `kit tools install`, which installs what its project toolchain pins. With no
+project toolchain, the fix is the system toolchain's command. With neither, the check says where to get the tool.
 
 A failed check shows the command that fixes it. Nothing runs until you say so. Run the command yourself, or let kit
-run it and check again.
+run it and check again. A folder's fix runs in that folder.
 
 `kit welcome --checks`

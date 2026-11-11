@@ -3,16 +3,16 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # kit welcome [--text]
 #
-# kit welcome --checks [--json | --jq]
+# kit welcome --checks [--json | --jq] [--folder=<path>]
 #
-# kit welcome --fix <check>
+# kit welcome --fix <check> [--folder=<path>]
 #
 # A guide for your first hour with kit, in five steps:
 #
-#   1. Introduction: what the guide does.
-#   2. Toolchains: bash, git, jq, and yq, which kit runs on; the toolchain for the project, and the one for the
-#      system, one check each.
-#   3. Setup: your linters, your forge logins, and this repository, one check each.
+#   1. Introduction: what kit is, who it is for, what it solves, and what the checks found.
+#   2. Toolchains: bash, git, jq, and yq, which kit runs on, and the toolchain for the system, one check each.
+#   3. Setup: your forge logins, then each folder of the workspace, its desk and its worktrees: kit installed, with
+#      the version its kit.yml declares, .kit/ in place, the hooks, its project toolchain, its linters, and kit check.
 #   4. Customize: the settings teams change first, packages, and the docs.
 #   5. Terms: the words kit uses, by topic, each with a command that shows it.
 #
@@ -28,9 +28,17 @@
 #   --json            the checks as a JSON array
 #   --jq              the same JSON, formatted by jq for a person
 #   --fix <check>     runs one check's fix, then checks again
+#   --folder=<path>   the folder whose working tree holds <path>: --checks prints its checks alone, and --fix runs a
+#                     folder's check there; with none, --fix runs it in the repository here
 #   <check>           a check's id, as --checks --json names it: tool-yq, toolchain-project
 #
-# A check in the JSON is {id, step, ok, line, fix, interactive, more, runs}:
+# A check is the machine's, judged once, or a folder's, judged in each folder of the workspace. The workspace is the
+# one kit workspaces --current names, or kit --workspace=<workspace> welcome: for a repository, its desk, then each
+# of its worktrees; for a group, every member's desk and worktrees, in the group's order. With no workspace, only the
+# machine checks run. Each folder is judged on its own, as each may have a kit.yml or none, and pin its own kit: kit
+# check runs there on the release it pins.
+#
+# A check in the JSON is {id, step, ok, line, fix, interactive, more, runs, folder, repository, desk, branch, kit}:
 #
 #   - step is toolchains or setup.
 #   - fix is the command that fixes it, or null when it holds or kit knows none.
@@ -38,20 +46,30 @@
 #   - more is where to read, or the other commands beside the fix, or null.
 #   - runs is false when kit only shows the fix and never runs it, as for a line that must run in your own shell
 #     (brew-path); true for every other check. --fix refuses a check whose runs is false, with exit 2.
+#   - folder is the absolute path of a folder's check, null for a machine check: bash, git, jq, yq, brew-path, the
+#     system toolchain, and each forge host's tool and login, once per host among every folder's remotes.
+#   - repository is the folder's member, host and path, or its desk's folder name where it has no remote; desk is
+#     true for the desk and false for a worktree; branch is the folder's branch; and kit is the kit version its
+#     kit.yml declares. Each is null where there is none, and for a machine check.
+#
+# A folder's check has the same id in every folder: kit welcome --fix kit-hydrated --folder=<path> names one.
 #
 # A missing tool's fix comes from the toolchains kit found, and never from one it assumes:
 #
-#   - toolchains, for a tool kit runs on: the system toolchain's command
-#   - setup: kit tools install, or, when ambient, the system toolchain's command
+#   - the machine's: the system toolchain's command
+#   - a folder's: kit tools install, from that folder's project toolchain, or, when ambient, the system toolchain's
+#     command
 #
 # Nothing runs a fix but --fix, and it runs only the one named. The pages are under .kit/welcome/, from the kit
 # package, named for their order and step: 2-toolchains.md. A house package replaces a page by placing one of the
 # same name, or adds one.
 #
 # Exits 0 when every check holds, and after --checks prints them; 1 when a check fails, or a fix leaves its check
-# failing; and 2 on a usage error, or a --fix for a check that is unknown, holds already, or has no fix.
+# failing, or the workspace file cannot be read; and 2 on a usage error, a workspace or --folder= kit cannot find, or
+# a --fix for a check that is unknown, holds already, or has no fix, a machine check given --folder=, or a folder's
+# check outside a repository without one.
 #
-# see: modules/bash/welcome.sh, modules/bash/tui.sh, issue #51
+# see: modules/bash/welcome.sh, modules/bash/workspaces.sh, modules/bash/tui.sh, issue #51
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
@@ -60,33 +78,62 @@ kit:enter
 use welcome tui
 guard:arguments welcome "$@" || exit $?
 
+folder=${syntax_options[--folder]:-}
+if [[ -n "${syntax_options[--folder]+x}" && -z "${folder}" ]]
+then
+  error "--folder= needs a folder: --folder=<path>; see: kit help welcome"
+  exit 2
+fi
+
 if [[ -n "${syntax_options[--fix]+x}" ]]
 then
-  welcome:fix "${syntax_options[--fix]}" && status=0 || status=$?
+  welcome:fix "${syntax_options[--fix]}" "${folder}" && status=0 || status=$?
   exit "${status}"
 fi
 
+if [[ -n "${folder}" && -z "${syntax_options[--checks]+x}" ]]
+then
+  error "--folder= goes with --checks or --fix; see: kit help welcome"
+  exit 2
+fi
+
+# welcome:find-folders finds the folders to judge, in the main shell, so a workspace or a folder kit cannot find stops
+# the guide with its line: the one --folder= names, else the workspace's.
+welcome:find-folders() {
+  if [[ -n "${folder}" ]]
+  then
+    welcome:folder "${folder}"
+  else
+    welcome:folders
+  fi
+}
+
 if [[ -n "${syntax_options[--checks]+x}" ]]
 then
-  readarray -t checks < <(welcome:checks)
+  welcome:find-folders || exit $?
+  readarray -t checks < <(welcome:checks ${folder:+--folders})
   if [[ -n "${syntax_options[--json]+x}" ]]
   then
     printf '%s\n' "${checks[@]}" | jq --slurp --compact-output .
+  elif [[ -n "${syntax_options[--jq]+x}" ]]
+  then
+    printf '%s\n' "${checks[@]}" | jq --slurp .
   else
-    welcome:show "${checks[@]}"
+    welcome:show-all "${checks[@]}"
   fi
   exit 0
 fi
 
-# On a terminal, with no form chosen, the guide is kittui's, which runs this kit. Without a kittui, the guide prints,
-# as it does without a terminal.
+# On a terminal, with no form chosen, the guide is kittui's, which runs this kit, over the workspace kit --workspace=
+# named. Without a kittui, the guide prints, as it does without a terminal.
 if [[ -z "${syntax_options[--text]+x}" && -t 0 && -t 1 && -t 2 ]] && tui:binary --probe >/dev/null 2>&1
 then
   binary=$(tui:binary) || exit 1
   export KIT="${kit_root}/bin/kit"
-  exec "${binary}" welcome
+  exec "${binary}" welcome ${KIT_WORKSPACE:+--workspace="${KIT_WORKSPACE}"}
 fi
 
+welcome:find-folders || exit $?
 readarray -t pages < <(welcome:pages)
 readarray -t checks < <(welcome:checks)
 # Each page, with its step's checks under it, then what is left. A check whose step has no page comes last.
@@ -100,7 +147,7 @@ do
   if (( ${#mine[@]} ))
   then
     printf '\n'
-    welcome:show "${mine[@]}"
+    welcome:show-all "${mine[@]}"
   fi
   shown[${step}]=1
   printf '\n'
@@ -109,7 +156,7 @@ readarray -t rest < <(printf '%s\n' "${checks[@]}" \
   | jq --compact-output --args 'select(.step | IN($ARGS.positional[]) | not)' -- "${!shown[@]}")
 if (( ${#rest[@]} ))
 then
-  welcome:show "${rest[@]}"
+  welcome:show-all "${rest[@]}"
   printf '\n'
 fi
 welcome:left "${checks[@]}"

@@ -67,22 +67,24 @@ ambient-system() {
   "${kit_root}/bin/kit" toolchains choose ambient --system >/dev/null 2>&1
 }
 
-@test "the checks are a JSON array of {id, step, ok, line, fix, interactive, more, runs}, in order, each id once" {
+@test "the checks are a JSON array, in order, each with its fix and its folder, which is null for the machine's" {
   run --separate-stderr checks
   [ "$status" -eq 0 ]
-  [ "$(jq --raw-output '[.[] | keys | sort == ["fix", "id", "interactive", "line", "more", "ok", "runs", "step"]] | all' \
-    <<<"$output")" = true ]
+  [ "$(jq --raw-output '[.[] | keys | sort == ["branch", "desk", "fix", "folder", "id", "interactive", "kit", "line",
+    "more", "ok", "repository", "runs", "step"]] | all' <<<"$output")" = true ]
   [ "$(jq --raw-output 'map(.id) | (unique | length) == length' <<<"$output")" = true ]
-  # what kit runs on and the toolchains, then the repository, then where you are; no kit.yml here, so no check of
-  # what kit installs
+  # the machine's checks, what kit runs on and the system toolchain, then this repository's one folder, the desk; no
+  # kit.yml here, so no check of what kit installs
   [ "$(jq --raw-output '.[] | "\(.id) \(.step)"' <<<"$output")" = "$(printf '%s\n' 'tool-bash toolchains' \
-    'tool-git toolchains' 'tool-jq toolchains' 'tool-yq toolchains' \
-    'toolchain-project toolchains' 'toolchain-system toolchains' 'repo-git setup' 'kit-installed setup' \
-    'where setup')" ]
+    'tool-git toolchains' 'tool-jq toolchains' 'tool-yq toolchains' 'toolchain-system toolchains' \
+    'repo-git setup' 'kit-installed setup' 'toolchain-project setup')" ]
   [ "$(jq --raw-output '.[] | select(.id == "kit-installed") | [.ok, .fix] | @tsv' <<<"$output")" = \
     $'false\tkit install' ]
-  [ "$(jq --raw-output '.[] | select(.id == "where") | .line' <<<"$output")" = \
-    "you are at the desk, your own checkout; work on an issue goes in a worktree" ]
+  # a machine check holds nowhere in particular; a folder's names the folder, the desk, on main, with no kit
+  [ "$(jq --compact-output '.[] | select(.id == "tool-git") | [.folder, .repository, .desk, .branch, .kit]' \
+    <<<"$output")" = '[null,null,null,null,null]' ]
+  [ "$(jq --compact-output '[.[] | select(.folder) | [.folder, .repository, .desk, .branch, .kit]] | unique' \
+    <<<"$output")" = "$(jq --null-input --compact-output --arg f "$(pwd -P)" '[[$f, "repo", true, "main", null]]')" ]
 }
 
 @test "welcome's steps are introduction, toolchains, setup, customize, terms" {
@@ -91,10 +93,11 @@ ambient-system() {
   # each step's page in order, the checks of steps 2 and 3 under their pages, then what is left
   [ "$(outline <<<"$output")" = "$(printf '%s|' '# Welcome' '# Toolchains' ✅ '# Setup' \
     ✅ ❌ ✅ '# Customize' '# Terms' '# What is left' | sed 's/|$//')" ]
-  # bash, git, jq, and yq, then one check for each role, then the rest
+  # bash, git, jq, and yq, then the system toolchain, then the desk's checks, under a line that names it
   [ "$(under <<<"$output")" = "$(printf '%s\n' '# Toolchains|✅ bash' '# Toolchains|✅ git' \
-    '# Toolchains|✅ jq' '# Toolchains|✅ yq' '# Toolchains|✅ no' '# Toolchains|✅ brew' \
-    '# Setup|✅ this' '# Setup|❌ kit.yml' '# Setup|✅ you')" ]
+    '# Toolchains|✅ jq' '# Toolchains|✅ yq' '# Toolchains|✅ brew' \
+    '# Setup|✅ this' '# Setup|❌ kit.yml' '# Setup|✅ no')" ]
+  [[ "$output" == *$'\n'"repo, the desk on main, no kit: $(pwd -P)"$'\n✅ this folder is a git repository\n'* ]]
 }
 
 @test "welcome offers the shellenv line when brew is at a prefix but not on PATH, and shows no check otherwise" {
@@ -119,7 +122,7 @@ ambient-system() {
   # it comes right after yq, before the toolchains' own checks
   run --separate-stderr checks
   [ "$(jq --raw-output 'map(.id) | .[0:6] | join(" ")' <<<"$output")" = \
-    "tool-bash tool-git tool-jq tool-yq brew-path toolchain-project" ]
+    "tool-bash tool-git tool-jq tool-yq brew-path toolchain-system" ]
   # --fix does not run it: kit cannot change the shell it was started from
   run --separate-stderr "${kit_root}/bin/kit" welcome --fix brew-path
   [ "$status" -eq 2 ]
@@ -262,7 +265,7 @@ ambient-system() {
   [ "$(jq --raw-output '[.step, .ok, .line, .fix, .more] | @tsv' <<<"$output")" = \
     $'setup\tfalse\tshellcheck is not installed; kit lint runs it for .kit/rules/bash.md\tbrew install shellcheck\t' ]
   run --separate-stderr check toolchain-project
-  [ "$(jq --raw-output '[.step, .ok, .fix] | @tsv' <<<"$output")" = $'toolchains\ttrue\t' ]
+  [ "$(jq --raw-output '[.step, .ok, .fix] | @tsv' <<<"$output")" = $'setup\ttrue\t' ]
   [ "$(jq --raw-output .line <<<"$output")" = \
     "no toolchain is usable for the project, so its tools are ambient: kit uses what is on PATH" ]
   # ambient for the system too: no fix, and the tool's site
@@ -288,7 +291,8 @@ ambient-system() {
   [ "$(jq --raw-output .line <<<"$output")" = "several toolchains are usable for the project: mise, docker; choose one" ]
   # what is left keeps the other toolchain's command beside the fix
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
-  [[ "$output" == *$'\n- toolchain-project: kit toolchains choose mise; or: kit toolchains choose docker\n'* ]]
+  [[ "$output" == *$'\n'"- toolchain-project in $(pwd -P): kit toolchains choose mise; or: kit toolchains choose"\
+" docker"$'\n'* ]]
   run --separate-stderr check linter-shellcheck
   [ "$(jq --raw-output '[.fix, .more] | @tsv' <<<"$output")" = \
     $'\thttps://github.com/empowerite/kit/blob/main/docs/toolchains.md' ]
@@ -391,8 +395,8 @@ ambient-system() {
   fake-script actionlint 'exit 0'
   run --separate-stderr checks
   [ "$(jq --raw-output 'map(.id) | join(" ")' <<<"$output")" = \
-    "$(printf '%s ' tool-bash tool-git tool-jq tool-yq toolchain-project toolchain-system linter-shellcheck \
-      linter-actionlint repo-git kit-installed kit-hydrated kit-check where | sed 's/ $//')" ]
+    "$(printf '%s ' tool-bash tool-git tool-jq tool-yq toolchain-system repo-git kit-installed kit-hydrated \
+      toolchain-project linter-shellcheck linter-actionlint kit-check | sed 's/ $//')" ]
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
   [ "$status" -eq 0 ]
   # what is left comes last
@@ -404,6 +408,139 @@ ambient-system() {
   run --separate-stderr "${kit_root}/bin/kit" welcome --fix kit-hydrated
   [ "$status" -eq 0 ]
   [ "$output" = "✅ .kit/ is in place: every file kit placed there is present" ]
+}
+
+# installed-desk installs kit here and commits kit.yml, with a commit before it, empty, that a worktree with no kit can
+# start from. Fakes stand in for the linters the kit package's rules name, so each holds.
+installed-desk() {
+  git commit --quiet --allow-empty --message empty
+  "${kit_root}/bin/kit" install >/dev/null 2>&1
+  git add kit.yml .gitignore && git commit --quiet --message kit
+  fake-script shellcheck 'exit 0'
+  fake-script actionlint 'exit 0'
+}
+
+# folders prints each folder of the checks on stdin once, in order: [folder, repository, desk, branch, kit].
+folders() {
+  jq --compact-output '[.[] | select(.folder) | [.folder, .repository, .desk, .branch, .kit]]
+    | reduce .[] as $f ([]; if index([$f]) then . else . + [$f] end)'
+}
+
+@test "each folder of the repository is judged on its own: the desk, then each worktree, with the kit it declares" {
+  installed-desk
+  local desk
+  desk=$(pwd -P)
+  # one worktree from before kit was installed, one that pins a later kit, which the cache holds
+  git worktree add --quiet -b none worktrees/none HEAD~1
+  git worktree add --quiet -b pinned worktrees/pinned
+  sed 's/^version: .*/version: 9.9.9/' kit.yml > worktrees/pinned/kit.yml
+  later-release "${XDG_CACHE_HOME}/kit/kit-9.9.9"
+  # shellcheck disable=SC2016  # the fake's body expands when it runs
+  printf '#!/usr/bin/env bash\necho "❌ the 9.9.9 kit check ran in ${PWD##*/}"\nexit 1\n' \
+    > "${XDG_CACHE_HOME}/kit/kit-9.9.9/bin/kit-check"
+  cd worktrees/none
+  run --separate-stderr checks
+  [ "$status" -eq 0 ]
+  # every folder of the repository, wherever kit runs in it, each with its branch and the kit its kit.yml declares
+  [ "$(folders <<<"$output")" = "$(jq --null-input --compact-output --arg d "${desk}" '[[$d, "repo", true, "main",
+    "unreleased"], ["\($d)/worktrees/none", "repo", false, "none", null], ["\($d)/worktrees/pinned", "repo", false,
+    "pinned", "9.9.9"]]')" ]
+  # the machine's checks first, once; then each folder's, the same ids in each, judged there
+  [ "$(jq --raw-output '[.[] | select(.folder == null) | .id] | join(" ")' <<<"$output")" = \
+    "tool-bash tool-git tool-jq tool-yq toolchain-system" ]
+  [ "$(jq --raw-output --arg f "${desk}/worktrees/none" '[.[] | select(.folder == $f) | .id] | join(" ")' \
+    <<<"$output")" = "repo-git kit-installed toolchain-project" ]
+  [ "$(jq --raw-output '[.[] | select(.id == "kit-installed") | .ok] | map(tostring) | join(" ")' <<<"$output")" = \
+    "true false true" ]
+  # kit check runs in each folder on the release that folder pins, and once in each
+  [ "$(jq --raw-output '[.[] | select(.id == "kit-check") | [.ok, .line] | @tsv] | join("|")' <<<"$output")" = \
+    $'true\tkit check finds nothing wrong|false\tthe 9.9.9 kit check ran in pinned' ]
+  [ "$(cat "${desk}"/.kit/logs/kit-*.log | grep --count ' kit check$')" -eq 1 ]
+  # the text guide names each folder above its checks
+  run --separate-stderr "${kit_root}/bin/kit" welcome --checks
+  [[ "$output" == *$'\n'"repo, a worktree on none, no kit: ${desk}/worktrees/none"$'\n✅ this folder'* ]]
+  [[ "$output" == *$'\n'"repo, a worktree on pinned, kit 9.9.9: ${desk}/worktrees/pinned"$'\n'* ]]
+}
+
+@test "with no workspace only the machine's checks run, outside a repository or with kit --workspace=none" {
+  git remote add origin https://github.com/acme/widget.git
+  fake-gh
+  run --separate-stderr "${kit_root}/bin/kit" --workspace=none welcome --checks --json
+  [ "$status" -eq 0 ]
+  [ "$(jq --raw-output 'map(.id) | join(" ")' <<<"$output")" = "tool-bash tool-git tool-jq tool-yq toolchain-system" ]
+  [ "$(jq --raw-output 'map(.folder == null) | all' <<<"$output")" = true ]
+  cd "${BATS_TEST_TMPDIR}"
+  run --separate-stderr checks
+  [ "$(jq --raw-output 'map(.id) | join(" ")' <<<"$output")" = "tool-bash tool-git tool-jq tool-yq toolchain-system" ]
+  # and the text guide's setup step has no check
+  run --separate-stderr "${kit_root}/bin/kit" welcome --text
+  [ "$status" -eq 0 ]
+  [[ "$output" == *$'# What is left\n\nNothing is left: every check holds.'* ]]
+}
+
+@test "over a group, every member's desk and worktrees are judged, in its order, and a forge host's login once" {
+  local code="${BATS_TEST_TMPDIR}/code" a b
+  git init --quiet "${code}/a" && git -C "${code}/a" commit --quiet --allow-empty --message one
+  git -C "${code}/a" remote add origin https://github.com/o/a.git
+  git -C "${code}/a" worktree add --quiet -b topic "${code}/a/worktrees/topic"
+  git init --quiet "${code}/b" && git -C "${code}/b" remote add origin git@github.com:o/b.git
+  mkdir -p "${XDG_CONFIG_HOME}/kit"
+  printf 'roots: [%s]\nworkspaces:\n  w: {repos: [github.com/o/b, github.com/o/a, github.com/o/c]}\n' "${code}" \
+    > "${XDG_CONFIG_HOME}/kit/workspaces.yml"
+  a=$(cd "${code}/a" && pwd -P) b=$(cd "${code}/b" && pwd -P)
+  fake-gh
+  cd "${BATS_TEST_TMPDIR}"
+  run --separate-stderr "${kit_root}/bin/kit" --workspace=w welcome --checks --json
+  [ "$status" -eq 0 ]
+  # the group's order, b first; c has no checkout, so no folder
+  [ "$(folders <<<"$output")" = "$(jq --null-input --compact-output --arg a "${a}" --arg b "${b}" \
+    '[[$b, "github.com/o/b", true, "main", null], [$a, "github.com/o/a", true, "main", null],
+      ["\($a)/worktrees/topic", "github.com/o/a", false, "topic", null]]')" ]
+  # both repositories are on github.com: one tool check and one login check for the machine
+  [ "$(jq --raw-output '[.[] | select(.id | startswith("forge-")) | "\(.id) \(.folder)"] | join("|")' \
+    <<<"$output")" = "forge-cli-github.com null|forge-login-github.com null" ]
+  # the last group used is the workspace outside a repository; inside one, it is that repository
+  mkdir -p "${XDG_CACHE_HOME}/kit/workspaces"
+  printf 'w\n' > "${XDG_CACHE_HOME}/kit/workspaces/last"
+  run --separate-stderr checks
+  [ "$(jq --raw-output '[.[] | select(.folder) | .folder] | unique | length' <<<"$output")" -eq 3 ]
+  cd "${a}/worktrees/topic"
+  run --separate-stderr checks
+  [ "$(jq --raw-output '[.[] | select(.folder) | .folder] | unique | join(" ")' <<<"$output")" = \
+    "${a} ${a}/worktrees/topic" ]
+}
+
+@test "--fix runs a folder's check's fix in the folder --folder= names, and --checks --folder= judges that one alone" {
+  installed-desk
+  local desk
+  desk=$(pwd -P)
+  git worktree add --quiet -b topic worktrees/topic
+  # the worktree has kit.yml, but nothing hydrated: its fix runs there, and the desk is left as it is
+  run --separate-stderr "${kit_root}/bin/kit" welcome --checks --json --folder=./worktrees/topic
+  [ "$status" -eq 0 ]
+  [ "$(jq --raw-output '[.[] | .folder] | unique | join(" ")' <<<"$output")" = "${desk}/worktrees/topic" ]
+  [ "$(jq --raw-output '.[] | select(.id == "kit-hydrated") | [.ok, .fix] | @tsv' <<<"$output")" = \
+    $'false\tkit hydrate' ]
+  run --separate-stderr "${kit_root}/bin/kit" welcome --fix kit-hydrated --folder=./worktrees/topic
+  [ "$status" -eq 0 ]
+  [ "$output" = "✅ .kit/ is in place: every file kit placed there is present" ]
+  [ -e worktrees/topic/.kit/1st.md ]
+  # with no folder, a folder's check is the repository's here
+  cd worktrees/topic
+  run --separate-stderr "${kit_root}/bin/kit" welcome --fix kit-hydrated
+  [ "$status" -eq 2 ]
+  [[ "$stderr" == *"kit-hydrated holds already"* ]]
+  # a machine check takes no folder; outside a repository, a folder's check needs one
+  run --separate-stderr "${kit_root}/bin/kit" welcome --fix tool-git --folder=.
+  [ "$status" -eq 2 ]
+  [[ "$stderr" == *"tool-git is the machine's check, not a folder's, so it takes no --folder="* ]]
+  cd "${BATS_TEST_TMPDIR}"
+  run --separate-stderr "${kit_root}/bin/kit" welcome --fix kit-hydrated
+  [ "$status" -eq 2 ]
+  [[ "$stderr" == *"name the folder: kit welcome --fix kit-hydrated --folder=<path>"* ]]
+  run --separate-stderr "${kit_root}/bin/kit" welcome --checks --folder="${BATS_TEST_TMPDIR}"
+  [ "$status" -eq 2 ]
+  [[ "$stderr" == *"is no git working tree"* ]]
 }
 
 @test "a house package that places a page of the same name replaces the kit's, and a new name adds a page" {

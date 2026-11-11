@@ -4,9 +4,11 @@
 # shellcheck disable=SC2154  # kit_root is exported by modules/bash/1st.sh
 #
 # kit welcome walks a newcomer through five steps, each a page: the introduction, toolchains, setup, customize, and
-# the terms. Steps 2 and 3 hold checks, run here. Each check is one JSON object:
+# the terms. Steps 2 and 3 hold checks, run here. A check is the machine's, judged once, or a folder's, judged inside
+# each folder of the workspace. Each check is one JSON object:
 #
-#   id            stable, in kebab-case: tool-yq, toolchain-project, linter-shellcheck, forge-login-github.com
+#   id            stable, in kebab-case: tool-yq, toolchain-project, linter-shellcheck, forge-login-github.com; a
+#                 folder's check has the same id in every folder, and its folder tells them apart
 #   step          the step it belongs to: toolchains or setup
 #   ok            true when it holds
 #   line          one short sentence: what holds, or what is wrong
@@ -15,58 +17,94 @@
 #   more          where to read more, or the other commands beside the fix, or null
 #   runs          false when kit only shows the fix and never runs it, as for a line that changes the person's own
 #                 shell; true for every other check. kit welcome --fix refuses a check whose runs is false.
+#   folder        the folder's absolute path, where its fix runs; null for a machine check
+#   repository    the folder's repository: its member, host and path, or, with no remote, its desk's folder name
+#   desk          true for a repository's desk, false for one of its worktrees
+#   branch        the folder's branch, or null where none is checked out
+#   kit           the kit version the folder's kit.yml declares, or null where it declares none
+#
+# A machine check's repository, desk, branch, and kit are null too.
+#
+# The folders are the workspace's, as kit workspaces --current names it, or kit --workspace=<workspace>: for a
+# repository, its desk, then each of its worktrees, as git worktree list gives them; for a group, each member's, in
+# the group's order, for every checkout of it under the roots. With no workspace there is no folder, and only the
+# machine checks run.
 #
 # The checks run in this order:
 #
-#   - toolchains: bash, git, jq, and yq, which kit runs on; then, only where brew is installed at a Homebrew prefix but
-#     is not on PATH, brew-path, whose fix kit shows and never runs; then one check per role, project then system
-#   - setup, tools: lefthook when hooks/lefthook is active; then each dependency provider whose manifest is here,
-#     installed from its lock; then each linter the active packages' rules and styles name under lint:
-#   - setup, forges: for each distinct forge host among the remotes, its tool installed, then logged in to that host
-#   - setup, this repository: a git repository; then, where it is one, kit installed; then, where kit is, .kit/
-#     hydrated, the git hooks installed when hooks/lefthook is active, and kit check clean
-#   - setup, where you are: at the desk or in a worktree; it always holds
+#   - the machine, toolchains: bash, git, jq, and yq, which kit runs on; then, only where brew is installed at a
+#     Homebrew prefix but is not on PATH, brew-path, whose fix kit shows and never runs; then the system toolchain
+#   - the machine, setup: for each distinct forge host among every folder's remotes, its tool installed, then logged
+#     in to that host, once per host
+#   - each folder, setup: a git repository; kit installed, with the version kit.yml declares; then, where kit is,
+#     .kit/ hydrated and the git hooks installed when hooks/lefthook is active; the project toolchain; then, where kit
+#     is, lefthook when hooks/lefthook is active, each dependency provider whose manifest is there, installed from its
+#     lock, each linter the active packages' rules and styles name under lint:, and kit check clean
+#
+# The folders are judged at once, as many at a time as the machine has processors, and each prints its checks in
+# the folders' order. Nothing is judged twice: a machine check once, each folder's checks once in it, and kit check
+# once per folder, by the kit release that folder's kit.yml pins.
 #
 # kit finds the toolchains as kit toolchains does, and never assumes one. The checks only report: they never ask
 # which toolchain to use, and never record one. A missing tool's fix:
 #
-#   - toolchains, for a tool kit runs on: the system toolchain's command, such as its install of the tool, else none,
-#     and more names the tool's site
-#   - setup: kit tools install where a project toolchain is settled; ambient, the system toolchain's command; else
-#     none, and more says where to read
+#   - the machine's: the system toolchain's command, such as its install of the tool, else none, and more names the
+#     tool's site
+#   - a folder's: kit tools install where that folder's project toolchain is settled; ambient, the system toolchain's
+#     command; else none, and more says where to read
 #
-# Only welcome:fix runs a fix, and only the one it is asked for.
+# Only welcome:fix runs a fix, and only the one it is asked for: a folder's check's in that folder.
 #
 # The pages are markdown files under .kit/welcome/, which the kit package delivers. A page's name is its order, a
 # dash, then its step's id: 2-toolchains.md. A house package replaces one by placing a file of the same name, or adds
 # one; the later package wins.
 #
-# see: bin/kit-welcome, modules/bash/toolchain.sh, issue #51
+# see: bin/kit-welcome, modules/bash/toolchain.sh, modules/bash/workspaces.sh, issue #51
 
 # The yq check says what yaml.sh says when it loads without yq, so its own line is not printed twice.
 use yaml 2>/dev/null
-use settings forge materialize render place toolchain dependencies
+use settings forge materialize render place toolchain dependencies workspaces file
 
-# welcome_ids holds the checks' ids, in order, and the maps beside it what judging one needs: the rule that names
-# each linter, and the forge of each host. welcome:plan fills them.
-declare -ga welcome_ids=()
+# welcome_ids holds the machine checks' ids, in order, and welcome_folder_ids the checks of the folder here, in order;
+# the maps beside them hold what judging one needs: the rule that names each linter, and the forge of each host.
+# welcome:plan-machine and welcome:plan-folder fill them.
+declare -ga welcome_ids=() welcome_folder_ids=()
 declare -gA welcome_linter_rule=() welcome_host_forge=()
 
+# welcome_folders holds the workspace's folders, in order, each "<repository>\x1f<desk>\x1f<folder>": its repository,
+# true for a desk and false for a worktree, and its absolute path. welcome:folders fills it.
+declare -ga welcome_folders=()
+
+# welcome_where is what a check adds to say where it holds: {folder, repository, desk, branch, kit}, each null for a
+# machine check. welcome:folder-checks sets it for the folder it judges.
+declare -g welcome_where='{"folder":null,"repository":null,"desk":null,"branch":null,"kit":null}'
+
 # welcome:record <id> <ok> <line> [<fix> [<interactive> [<more> [<runs>]]]] prints one check as JSON, on one line, in
-# the step its id belongs to. An empty fix or more is null. runs is true unless the check says kit only shows its fix.
+# the step its id belongs to, with welcome_where's folder. An empty fix or more is null. runs is true unless the check
+# says kit only shows its fix.
 welcome:record() {
   jq --null-input --compact-output --arg id "$1" --arg step "$(welcome:step "$1")" --argjson ok "$2" --arg line "$3" \
     --arg fix "${4:-}" --argjson interactive "${5:-false}" --arg more "${6:-}" --argjson runs "${7:-true}" \
+    --argjson where "${welcome_where}" \
     '{id: $id, step: $step, ok: $ok, line: $line, fix: ($fix | if . == "" then null else . end),
-      interactive: $interactive, more: ($more | if . == "" then null else . end), runs: $runs}'
+      interactive: $interactive, more: ($more | if . == "" then null else . end), runs: $runs} + $where'
 }
 
-# welcome:step <id> prints the step a check belongs to: toolchains for what kit runs on and each role's toolchain,
-# and setup for the rest.
+# welcome:step <id> prints the step a check belongs to: toolchains for what kit runs on and the system toolchain, and
+# setup for the rest, a folder's project toolchain among them.
 welcome:step() {
   case "$1" in
-    (tool-bash | tool-git | tool-jq | tool-yq | brew-path | toolchain-*) printf 'toolchains\n' ;;
+    (tool-bash | tool-git | tool-jq | tool-yq | brew-path | toolchain-system) printf 'toolchains\n' ;;
     (*) printf 'setup\n' ;;
+  esac
+}
+
+# welcome:machine <id> succeeds for the id of a machine check, which holds for the whole machine: what kit runs on,
+# brew on PATH, the system toolchain, and each forge host's tool and login. Every other check is a folder's.
+welcome:machine() {
+  case "$1" in
+    (tool-bash | tool-git | tool-jq | tool-yq | brew-path | toolchain-system | forge-cli-* | forge-login-*) ;;
+    (*) return 1
   esac
 }
 
@@ -141,18 +179,18 @@ welcome:toolchain-has() {
   return 1
 }
 
-# welcome:install <step> <tool> prints the fix that installs the tool and where to read more, separated by \x1f:
+# welcome:install <scope> <tool> prints the fix that installs the tool and where to read more, separated by \x1f:
 #
-#   - toolchains: the system toolchain's command, else no fix, and the tool's site
-#   - setup: kit tools install where a project toolchain is settled; ambient, the system toolchain's command, else
-#     no fix and the tool's site; with several usable and none chosen, no fix, and the toolchains doc
+#   - machine: the system toolchain's command, else no fix, and the tool's site
+#   - folder: kit tools install where the folder's project toolchain is settled; ambient, the system toolchain's
+#     command, else no fix and the tool's site; with several usable and none chosen, no fix, and the toolchains doc
 welcome:install() {
-  local step=$1 tool=$2 project fix
-  project=$(welcome:chosen project)
-  if [[ "${step}" == setup && -n "${project}" && "${project}" != ambient ]]
+  local scope=$1 tool=$2 project='' fix
+  [[ "${scope}" != folder ]] || project=$(welcome:chosen project)
+  if [[ "${scope}" == folder && -n "${project}" && "${project}" != ambient ]]
   then
     printf 'kit tools install\x1f\n'
-  elif [[ "${step}" == setup && -z "${project}" ]]
+  elif [[ "${scope}" == folder && -z "${project}" ]]
   then
     printf '\x1f%s\n' "${welcome_toolchains_doc}"
   elif fix=$(welcome:remedy "${tool}") && [[ -n "${fix}" ]]
@@ -167,18 +205,18 @@ welcome:install() {
 declare -gr welcome_toolchains_doc=https://github.com/empowerite/kit/blob/main/docs/toolchains.md
 
 # welcome:missing <id> <tool> <line> [<more>] prints the check of a tool that does not run: its install fix, and where
-# to read more, <more> when kit knows no site for it. A tool the project toolchain installed, in a directory not on
-# PATH, needs its directory on PATH rather than another install.
+# to read more, <more> when kit knows no site for it. In a folder, a tool its project toolchain installed, in a
+# directory not on PATH, needs its directory on PATH rather than another install.
 welcome:missing() {
-  local id=$1 tool=$2 line=$3 step fix more
-  step=$(welcome:step "${id}")
-  if [[ "${step}" == setup ]] && welcome:toolchain-has "${tool}"
+  local id=$1 tool=$2 line=$3 scope=folder fix more
+  ! welcome:machine "${id}" || scope=machine
+  if [[ "${scope}" == folder ]] && welcome:toolchain-has "${tool}"
   then
     welcome:record "${id}" false "${tool} is installed, but not on PATH; kit tools path names its directory" '' \
       false "${welcome_toolchains_doc}"
     return 0
   fi
-  IFS=$'\x1f' read -r fix more < <(welcome:install "${step}" "${tool}")
+  IFS=$'\x1f' read -r fix more < <(welcome:install "${scope}" "${tool}")
   [[ -n "${fix}" ]] || more=${more:-${4:-}}
   welcome:record "${id}" false "${line}" "${fix}" false "${more}"
 }
@@ -430,49 +468,200 @@ welcome:hooks-active() {
   list:among hooks/lefthook "${packages[@]}"
 }
 
-# welcome:plan fills welcome_ids with the checks to run, in order, and the maps that judging them needs, the
-# toolchains among them.
-welcome:plan() {
-  local linter rule forge host provider
-  welcome_ids=(tool-bash tool-git tool-jq tool-yq) welcome_linter_rule=() welcome_host_forge=()
-  ! welcome:brew-off-path || welcome_ids+=(brew-path)
-  welcome_ids+=(toolchain-project toolchain-system)
-  welcome:find project
-  welcome:find system
-  if welcome:repository && welcome:installed
-  then
-    ! welcome:hooks-active || welcome_ids+=(tool-lefthook)
-    for provider in $(dependencies:providers)
-    do
-      [[ ! -f "$(dependencies:call "${provider}" file)" ]] || welcome_ids+=("dependencies-${provider}")
-    done
-    while IFS=$'\t' read -r linter rule
-    do
-      welcome_ids+=("linter-${linter##*/}")
-      welcome_linter_rule[${linter##*/}]=${rule}
-    done < <(welcome:linters)
-  fi
-  if welcome:repository
-  then
+# welcome:hosts prints "<forge>\t<host>" for each distinct forge host among the remotes of every folder's desk, as
+# welcome:forges reads them there, in the folders' order, each host once. A desk's worktrees share its remotes, so
+# each desk is read once.
+welcome:hosts() {
+  local record repository desk folder forge host
+  local -A read=() seen=()
+  for record in "${welcome_folders[@]}"
+  do
+    IFS=$'\x1f' read -r repository desk folder <<<"${record}"
+    [[ "${desk}" == true && -z "${read[${folder}]+x}" ]] || continue
+    read[${folder}]=1
     while IFS=$'\t' read -r forge host
     do
-      welcome_ids+=("forge-cli-${host}" "forge-login-${host}")
-      welcome_host_forge[${host}]=${forge}
-    done < <(welcome:forges)
-  fi
-  welcome_ids+=(repo-git)
-  if welcome:repository
-  then
-    welcome_ids+=(kit-installed)
-    if welcome:installed
-    then
-      welcome_ids+=(kit-hydrated)
-      ! welcome:hooks-active || welcome_ids+=(hooks-installed)
-      welcome_ids+=(kit-check)
-    fi
-  fi
-  welcome_ids+=(where)
+      [[ -z "${seen[${host}]+x}" ]] || continue
+      seen[${host}]=1
+      printf '%s\t%s\n' "${forge}" "${host}"
+    done < <(welcome:forges-in "${folder}")
+  done
 }
+
+# welcome:forges-in <dir> prints what welcome:forges prints in <dir>, and nothing where kit cannot go there.
+welcome:forges-in() (
+  cd "$1" 2>/dev/null || exit 0
+  welcome:forges
+)
+
+# welcome:plan-machine fills welcome_ids with the machine checks, in order, and the forge of each host, and finds the
+# system toolchain. It reads the hosts from welcome_folders, which welcome:folders fills first.
+welcome:plan-machine() {
+  local forge host
+  welcome_ids=(tool-bash tool-git tool-jq tool-yq) welcome_host_forge=()
+  ! welcome:brew-off-path || welcome_ids+=(brew-path)
+  welcome_ids+=(toolchain-system)
+  welcome:find system
+  while IFS=$'\t' read -r forge host
+  do
+    welcome_ids+=("forge-cli-${host}" "forge-login-${host}")
+    welcome_host_forge[${host}]=${forge}
+  done < <(welcome:hosts)
+}
+
+# welcome:plan-folder fills welcome_folder_ids with the checks of the folder here, in order, and the rule of each
+# linter, and finds the folder's project toolchain.
+welcome:plan-folder() {
+  local linter rule provider
+  welcome_folder_ids=(repo-git kit-installed) welcome_linter_rule=()
+  welcome:find project
+  if welcome:installed
+  then
+    welcome_folder_ids+=(kit-hydrated)
+    ! welcome:hooks-active || welcome_folder_ids+=(hooks-installed)
+  fi
+  welcome_folder_ids+=(toolchain-project)
+  welcome:installed || return 0
+  ! welcome:hooks-active || welcome_folder_ids+=(tool-lefthook)
+  for provider in $(dependencies:providers)
+  do
+    [[ ! -f "$(dependencies:call "${provider}" file)" ]] || welcome_folder_ids+=("dependencies-${provider}")
+  done
+  while IFS=$'\t' read -r linter rule
+  do
+    welcome_folder_ids+=("linter-${linter##*/}")
+    welcome_linter_rule[${linter##*/}]=${rule}
+  done < <(welcome:linters)
+  welcome_folder_ids+=(kit-check)
+}
+
+# welcome:physical <dir> prints the physical path of a directory, and fails where it is not there.
+welcome:physical() {
+  (cd "$1" 2>/dev/null && pwd -P)
+}
+
+# welcome:repository-folders <member> <checkout> prints the folders of the repository a checkout is in, each as
+# welcome_folders holds it: its desk, as workspaces:desk finds it, then each worktree git worktree list names that is
+# still there. The repository is the member, or, with none, the desk's folder name. A bare desk has no folder of its
+# own.
+welcome:repository-folders() {
+  local member=$1 desk line path first=true
+  desk=$(workspaces:desk "$2")
+  desk=$(welcome:physical "${desk}") || return 0
+  member=${member:-${desk##*/}}
+  while IFS= read -r line
+  do
+    case "${line}" in
+      ('worktree '*) path=${line#worktree } ;;
+      (bare) path='' ;;
+      ('')
+        welcome:repository-folder "${member}" "${desk}" "${path:-}" "${first}"
+        first=false path=''
+        ;;
+    esac
+  done < <(welcome:worktrees "${desk}")
+}
+
+# welcome:worktrees <desk> prints git worktree list --porcelain for the desk, each entry ended by an empty line, and an
+# empty line more, so the last entry ends too. A desk git cannot list prints that empty line alone: no folder.
+welcome:worktrees() {
+  git -C "$1" worktree list --porcelain 2>/dev/null || true  # as above
+  printf '\n'
+}
+
+# welcome:repository-folder <repository> <desk> <path> <first> prints one folder of git worktree list, as
+# welcome:repository-folders reads it, when it is there: a desk where it is the desk, or git's first entry; a worktree
+# otherwise.
+welcome:repository-folder() {
+  local repository=$1 desk=$2 path=$3 first=$4 physical
+  [[ -n "${path}" ]] || return 0
+  physical=$(welcome:physical "${path}") || return 0
+  if [[ "${physical}" == "${desk}" || "${first}" == true ]]
+  then
+    printf '%s\x1ftrue\x1f%s\n' "${repository}" "${physical}"
+  else
+    printf '%s\x1ffalse\x1f%s\n' "${repository}" "${physical}"
+  fi
+}
+
+# welcome:folders fills welcome_folders with the folders of the workspace, as workspaces:current names it, or the
+# KIT_WORKSPACE that kit --workspace= sets: none has none; a repository, its desk and worktrees, where it has a
+# checkout; a group, those of every checkout of each member, in the group's order. Each folder is there once. It returns
+# what workspaces:current and workspaces:resolve return for a workspace they refuse.
+welcome:folders() {
+  local current kind name member checkout resolved record
+  local -a records=()
+  local -A seen=()
+  welcome_folders=()
+  current=$(workspaces:current "${KIT_WORKSPACE:-}") || return $?
+  IFS=$'\x1f' read -r kind name member checkout < <(jq --raw-output \
+    '[.kind, (.name // ""), (.member // ""), (.checkout // "")] | join("\u001f")' <<<"${current}")
+  case "${kind}" in
+    (repository)
+      [[ -z "${checkout}" ]] || readarray -t records < <(welcome:repository-folders "${member}" "${checkout}")
+      ;;
+    (group)
+      resolved=$(workspaces:resolve "${name}") || return $?
+      while IFS=$'\x1f' read -r member checkout
+      do
+        readarray -t -O "${#records[@]}" records < <(welcome:repository-folders "${member}" "${checkout}")
+      done < <(jq --raw-output '.members[] | .repository as $r | .checkouts[] | [$r, .] | join("\u001f")' \
+        <<<"${resolved}")
+      ;;
+  esac
+  for record in "${records[@]}"
+  do
+    [[ -n "${record}" && -z "${seen[${record##*$'\x1f'}]+x}" ]] || continue
+    seen[${record##*$'\x1f'}]=1
+    welcome_folders+=("${record}")
+  done
+}
+
+# welcome:folder <path> fills welcome_folders with the one folder whose working tree holds <path>, read from where kit
+# was run, as kit welcome --folder= names it: its repository, and whether it is the desk. It returns 2, after a line
+# that says so, for a path in no working tree.
+welcome:folder() {
+  local top desk record
+  top=$(workspaces:tree "$1") || return $?
+  top=$(welcome:physical "${top}") || return 2
+  desk=$(workspaces:desk "${top}")
+  welcome_folders=()
+  while IFS= read -r record
+  do
+    [[ "${record##*$'\x1f'}" != "${top}" ]] || welcome_folders=("${record}")
+  done < <(welcome:repository-folders "$(workspaces:member-of "${desk}")" "${desk}")
+  (( ${#welcome_folders[@]} )) && return 0
+  error "git worktree list does not name ${top}, so kit cannot judge it as a folder; run: git worktree prune"
+  return 2
+}
+
+# welcome:here <record> sets welcome_where for a folder, as welcome_folders holds it: its path, repository, and
+# whether it is the desk, with the branch git has checked out there and the kit version its kit.yml declares. Call it
+# in the folder.
+welcome:here() {
+  local repository desk folder branch version=''
+  IFS=$'\x1f' read -r repository desk folder <<<"$1"
+  branch=$(git branch --show-current 2>/dev/null) || branch=''
+  [[ "${yaml_ready}" != true ]] || version=$(settings:version 2>/dev/null) || version=''
+  welcome_where=$(jq --null-input --compact-output --arg folder "${folder}" --arg repository "${repository}" \
+    --argjson desk "${desk}" --arg branch "${branch}" --arg kit "${version}" '
+    def some: if . == "" then null else . end;
+    {folder: $folder, repository: $repository, desk: $desk, branch: ($branch | some), kit: ($kit | some)}')
+}
+
+# welcome:folder-checks <record> judges the checks of one folder, as welcome_folders holds it, in the folder, and
+# prints each as JSON, in order. It runs in a subshell of its own, so nothing it finds there reaches another folder.
+welcome:folder-checks() (
+  local id
+  IFS=$'\x1f' read -r _ _ folder <<<"$1"
+  cd "${folder}" || exit 0
+  welcome:here "$1"
+  welcome:plan-folder
+  for id in "${welcome_folder_ids[@]}"
+  do
+    welcome:judge "${id}"
+  done
+)
 
 # welcome:brew-off-path succeeds when brew is installed at a Homebrew prefix but is not on PATH.
 welcome:brew-off-path() {
@@ -554,30 +743,11 @@ welcome:kit-check() {
   welcome:record kit-check false "${line}" "${fix}" false '' "${runs}"
 }
 
-# welcome:where prints where this shell is: at the desk, in a worktree, or outside any repository. It always holds;
-# its line says what the place is for.
-welcome:where() {
-  local dirs branch
-  if ! welcome:repository
-  then
-    welcome:record where true "you are outside any repository; kit works inside one"
-    return 0
-  fi
-  dirs=$(git rev-parse --path-format=absolute --git-dir --git-common-dir)
-  branch=$(git branch --show-current 2>/dev/null || true)  # the line names no branch where git gives none
-  if [[ "${dirs%%$'\n'*}" == "${dirs#*$'\n'}" ]]
-  then
-    welcome:record where true "you are at the desk, your own checkout; work on an issue goes in a worktree"
-  else
-    welcome:record where true "you are in a worktree${branch:+ on ${branch}}; one issue's work happens here"
-  fi
-}
-
-# welcome:judge <id> runs one check, which welcome:plan named, and prints it as JSON. It returns 2 for an id the plan
-# does not name.
+# welcome:judge <id> runs one check, which welcome:plan-machine or, in its folder, welcome:plan-folder named, and
+# prints it as JSON. It returns 2 for an id neither plan names.
 welcome:judge() {
   local id=$1
-  list:among "${id}" "${welcome_ids[@]}" || return 2
+  list:among "${id}" "${welcome_ids[@]}" "${welcome_folder_ids[@]}" || return 2
   case "${id}" in
     (tool-bash) welcome:bash ;;
     (tool-git) welcome:tool tool-git git "kit works through it" ;;
@@ -594,9 +764,9 @@ welcome:judge() {
     (repo-git)
       if welcome:repository
       then
-        welcome:record repo-git true "this is a git repository"
+        welcome:record repo-git true "this folder is a git repository"
       else
-        welcome:record repo-git false "this is not a git repository; run kit welcome inside one" '' false \
+        welcome:record repo-git false "this folder is not a git repository; kit works inside one" '' false \
           'https://git-scm.com/book/en/v2/Git-Basics-Getting-a-Git-Repository'
       fi
       ;;
@@ -632,17 +802,60 @@ welcome:judge() {
       fi
       ;;
     (kit-check) welcome:kit-check ;;
-    (where) welcome:where ;;
   esac
 }
 
-# welcome:checks runs every check, in order, and prints one JSON object per line.
+# welcome:checks [--folders] runs every check, in order, and prints one JSON object per line: the machine checks, then
+# each folder's of welcome_folders, which welcome:folders or welcome:folder fills first. With --folders, the folders'
+# alone. The folders are judged at once, as many at a time as there are processors, each into a file of its own, and
+# printed in their order.
 welcome:checks() {
-  local id
-  welcome:plan
-  for id in "${welcome_ids[@]}"
+  local id dir n=0 i most
+  if [[ "${1:-}" != --folders ]]
+  then
+    welcome:plan-machine
+    for id in "${welcome_ids[@]}"
+    do
+      welcome:judge "${id}"
+    done
+  else
+    welcome:find system
+  fi
+  (( ${#welcome_folders[@]} )) || return 0
+  file:scratch dir
+  most=$(getconf _NPROCESSORS_ONLN 2>/dev/null) || most=4
+  [[ "${most}" =~ ^[1-9][0-9]*$ ]] || most=4
+  for (( n = 0; n < ${#welcome_folders[@]}; n++ ))
   do
-    welcome:judge "${id}"
+    while (( $(jobs -r -p | wc -l) >= most ))
+    do
+      wait -n || true  # a folder that fails prints what it judged; its file is read below
+    done
+    welcome:folder-checks "${welcome_folders[n]}" > "${dir}/${n}" &
+  done
+  wait
+  for (( i = 0; i < n; i++ ))
+  do
+    cat "${dir}/${i}"
+  done
+}
+
+# welcome:show-all <check-json>… prints the checks as welcome:show does, with a line before each folder's, the first
+# time one comes: its repository, the desk or a worktree, its branch, the kit its kit.yml declares, and its path.
+welcome:show-all() {
+  local check folder last='' head
+  for check in "$@"
+  do
+    folder=$(jq --raw-output '.folder // ""' <<<"${check}")
+    if [[ -n "${folder}" && "${folder}" != "${last}" ]]
+    then
+      head=$(jq --raw-output '"\(.repository), " + (if .desk then "the desk" else "a worktree" end)
+        + (if .branch then " on \(.branch)" else "" end) + ", " + (if .kit then "kit \(.kit)" else "no kit" end)
+        + ": \(.folder)"' <<<"${check}")
+      printf '%s%s%s\n' "$(out:sgr 1)" "${head}" "$(out:sgr 0)"
+    fi
+    last=${folder}
+    welcome:show "${check}"
   done
 }
 
@@ -671,12 +884,14 @@ welcome:show() {
   done
 }
 
-# welcome:left <check-json>… prints what is left: each failed check's id, and its fix or where to read more. A fix
-# keeps what more says beside it, as the toolchains check's other choices. With nothing left, it says so.
+# welcome:left <check-json>… prints what is left: each failed check's id, a folder's with its folder, and its fix or
+# where to read more. A fix keeps what more says beside it, as the toolchains check's other choices. With nothing
+# left, it says so.
 welcome:left() {
   local rows
   rows=$(printf '%s\n' "$@" | jq --raw-output 'select(.ok | not)
-    | "- \(.id): " + (if .fix then .fix + (if .more then "; " + .more else "" end)
+    | "- \(.id)" + (if .folder then " in \(.folder)" else "" end) + ": "
+      + (if .fix then .fix + (if .more then "; " + .more else "" end)
         + (if .runs == false then "; kit does not run it" else "" end)
       else "read " + (.more // "the line above") end)')
   printf '# What is left\n\n'
@@ -685,7 +900,8 @@ welcome:left() {
     printf 'Nothing is left: every check holds.\n'
     return 0
   fi
-  printf '%s\n\nRun a command yourself, or have kit run one and check again: kit welcome --fix <id>.\n' "${rows}"
+  printf '%s\n\nRun a command yourself, or have kit run one and check again: kit welcome --fix <id>, and for a %s\n' \
+    "${rows}" "folder's check, --folder=<path>."
 }
 
 # welcome:pages prints the pages of kit welcome, one path per line: the files under .kit/welcome/, as the active
@@ -712,18 +928,58 @@ welcome:page() {
   awk 'started || !/^<!--.*-->$/ { started = 1; print }' "$1"
 }
 
-# welcome:fix <id> runs the fix of one check, with its output on the terminal, then judges the check again and prints
-# it as text. It returns 0 when the check now holds, 1 when it does not, and 2 for an id that names no check, a
-# check that holds already, one kit knows no fix for, or one whose fix kit only shows (runs is false).
+# welcome:fix <id> [<folder>] runs the fix of one check, with its output on the terminal, then judges the check again
+# and prints it as text. A machine check takes no folder. A folder's check runs in the folder whose working tree holds
+# <folder>, as kit welcome --folder= names it, else in the repository here: its fix runs there, and only that folder is
+# judged. It returns 0 when the check now holds, 1 when it does not, and 2 for an id that names no check, a machine
+# check given a folder, a folder's check with no folder here or given, a check that holds already, one kit knows no
+# fix for, or one whose fix kit only shows (runs is false).
 welcome:fix() {
-  local id=$1 check fix more
-  local -a command
-  welcome:plan
-  if ! list:among "${id}" "${welcome_ids[@]}"
+  local id=$1 folder=${2:-} top
+  if welcome:machine "${id}"
   then
-    error "no check is named '${id}'; the checks are: ${welcome_ids[*]}"
+    if [[ -n "${folder}" ]]
+    then
+      error "${id} is the machine's check, not a folder's, so it takes no --folder=; run: kit welcome --fix ${id}"
+      return 2
+    fi
+    # Only a forge's checks read the folders, for their hosts.
+    [[ "${id}" != forge-* ]] || welcome:folders || return $?
+    welcome:plan-machine
+    if ! list:among "${id}" "${welcome_ids[@]}"
+    then
+      error "no check is named '${id}'; the checks are: ${welcome_ids[*]}"
+      return 2
+    fi
+    welcome:fix-one "${id}"
+    return
+  fi
+  if [[ -z "${folder}" ]] && ! folder=$(workspaces:in-repository)
+  then
+    error "${id} is a folder's check, and kit runs outside a repository; name the folder:" \
+      "kit welcome --fix ${id} --folder=<path>"
     return 2
   fi
+  welcome:folder "${folder}" || return $?
+  welcome:plan-machine
+  top=${welcome_folders[0]##*$'\x1f'}
+  (
+    cd "${top}" || exit 2
+    welcome:here "${welcome_folders[0]}"
+    welcome:plan-folder
+    if ! list:among "${id}" "${welcome_folder_ids[@]}"
+    then
+      error "no check is named '${id}'; the checks are: ${welcome_ids[*]}, and in ${top}: ${welcome_folder_ids[*]}"
+      exit 2
+    fi
+    welcome:fix-one "${id}"
+  )
+}
+
+# welcome:fix-one <id> runs the fix of one check, which the plans here name, and judges it again, as welcome:fix says.
+welcome:fix-one() {
+  local id=$1 check fix more
+  local -a command
   check=$(welcome:judge "${id}")
   if [[ "$(jq --raw-output .ok <<<"${check}")" == true ]]
   then
@@ -751,8 +1007,8 @@ welcome:fix() {
   else
     "${command[@]}" || true  # as above
   fi
-  # A fix can choose a toolchain, so the toolchains are found again.
-  welcome:find project
+  # A fix can choose a toolchain, so the toolchains are found again: a folder's project toolchain, in its folder.
+  (( ${#welcome_folder_ids[@]} == 0 )) || welcome:find project
   welcome:find system
   check=$(welcome:judge "${id}")
   welcome:show "${check}"

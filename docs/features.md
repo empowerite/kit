@@ -164,10 +164,11 @@ see: [architecture.md](architecture.md#the-workflow-and-the-gate)
 
 `kit welcome` is where a newcomer starts. It is a guide in five steps:
 
-1. Introduction: what the guide does.
-2. Toolchains: bash, git, jq, and yq, which kit runs on; then the project toolchain and the system toolchain, one
-   check each. Several usable means you choose.
-3. Setup: one check per line for the linters, each code forge's login, and the repository.
+1. Introduction: what kit is, who it is for, what it solves, and what the checks found.
+2. Toolchains: bash, git, jq, and yq, which kit runs on; then the system toolchain. Several usable means you choose.
+3. Setup: each code forge's login, once for the machine; then each folder of the workspace on its own, the desk then
+   each worktree, by repository: kit installed, with the version its `kit.yml` declares, `.kit/` in place, the hooks,
+   its project toolchain, its linters, and `kit check`.
 4. Customize: the settings teams change first, packages, a house package, and the docs.
 5. Terms: the words kit uses, by topic, from workspace and tracker to CI, CD, and toolchain.
 
@@ -180,7 +181,10 @@ with the kit, `kit tutorials applications`; see [tutorials.md](tutorials.md).
   when a check fails.
 - A missing tool's fix is `kit tools install`, or, when ambient, the system toolchain's command. No tool manager is
   assumed.
-- `kit welcome --checks --json` prints the checks alone; `kit welcome --fix <check>` runs one fix and checks again.
+- `kit welcome --checks --json` prints the checks alone, a folder's with its folder, repository, branch, and kit;
+  `kit welcome --fix <check>` runs one fix and checks again, and `--folder=<path>` names a folder's check.
+- The workspace is the one kit starts on, or `kit --workspace=<workspace> welcome`'s: a repository's desk and
+  worktrees, or every member's. With none, only the machine is checked; see [workspaces.md](workspaces.md).
 - Each step is a page under `.kit/welcome/`, from the `kit` package. A house package replaces or adds a page.
 
 ## The terminal UI
