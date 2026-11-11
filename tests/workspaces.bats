@@ -694,6 +694,23 @@ YML
   [[ "$stderr" == *"'${BATS_TEST_TMPDIR}/nowhere' is no git working tree"* ]]
 }
 
+@test "--use with a linked worktree's folder remembers its repository's desk, and a worktree kept before folds into it" {
+  clone-at "${BATS_TEST_TMPDIR}/r/a" git@github.com:o/a.git
+  git -C "${BATS_TEST_TMPDIR}/r/a" -c user.name=t -c user.email=t@t commit --quiet --allow-empty --message one
+  git -C "${BATS_TEST_TMPDIR}/r/a" worktree add --quiet -b w "${BATS_TEST_TMPDIR}/r/a-w"
+  desk=$(cd "${BATS_TEST_TMPDIR}/r/a" && pwd -P)
+  worktree=$(cd "${BATS_TEST_TMPDIR}/r/a-w" && pwd -P)
+  run "${kit_root}/bin/kit" workspaces --use="${BATS_TEST_TMPDIR}/r/a-w"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"${desk} is among the recent repositories"* ]]
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
+  [ "$(jq --compact-output '[.recent[] | .checkout]' <<<"$output")" = '["'"${desk}"'"]' ]
+  # a worktree kept among the recent before stands as its repository's desk, once
+  printf '%s\n' "${worktree}" "${desk}" > "${XDG_CACHE_HOME}/kit/workspaces/recent"
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
+  [ "$(jq --compact-output '[.recent[] | .checkout]' <<<"$output")" = '["'"${desk}"'"]' ]
+}
+
 @test "--use with a folder remembers its repository among the recent, the newest first, each once, ten at most" {
   for n in 0 1 2 3 4 5 6 7 8 9 10 11
   do

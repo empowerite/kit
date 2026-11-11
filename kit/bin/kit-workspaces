@@ -42,8 +42,8 @@
 #                     option before the verb, that one in place of where kit runs, none naming no workspace, and an
 #                     absolute path the repository whose working tree holds it
 #   --use             remembers a group as the last used, which kit starts on outside a repository; given a
-#                     <folder>, keeps the repository whose working tree holds it first among the recent ones, ten at
-#                     most, which the workspace menu offers
+#                     <folder>, keeps the repository whose working tree holds it first among the recent ones, by its
+#                     desk, a linked worktree's its repository's, ten at most, which the workspace menu offers
 #   --new             makes a group, with the repositories given as its members
 #   --add             adds the repositories to a group's members
 #   --remove          takes the repositories out of a group's members
@@ -195,7 +195,7 @@ case "${action}" in
     if workspaces:folder "${target}" >/dev/null
     then
       checkout=$(workspaces:tree "${target}") || exit $?
-      workspaces:recall "${checkout}" || exit 1
+      checkout=$(workspaces:recall "${checkout}") || exit 1
       step "📘 ${checkout} is among the recent repositories, which the workspace menu offers"
       exit 0
     fi

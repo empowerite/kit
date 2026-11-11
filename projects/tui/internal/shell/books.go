@@ -206,7 +206,8 @@ func (b BooksMenu) lines() []booksLine {
 }
 
 // recents gives the lines of the recent repositories, each picked by its folder, but those drawn above already, by
-// kit's name for them, and the one shown, which the title names; one that reads as the workspace shown, or as another
+// kit's name for them, and the one shown, which the title names, by its folder or as the repository a worktree shown
+// belongs to, since a worktree is no workspace of its own; one that reads as the workspace shown, or as another
 // of them, as a clone and a worktree of one repository do, says its folder after its name, dim, to tell them apart.
 func recents(ws kit.Workspace, drawn map[string]bool) []booksLine {
 	var kept []kit.WorkspaceRecent
@@ -215,7 +216,8 @@ func recents(ws kit.Workspace, drawn map[string]bool) []booksLine {
 		reads[repoName(ws.Member, ws.Checkout)]++
 	}
 	for _, r := range ws.Recent {
-		if drawn[r.Name] || ws.Kind == "repository" && r.Checkout == ws.Checkout {
+		if drawn[r.Name] || ws.Kind == "repository" &&
+			(r.Checkout == ws.Checkout || r.Member != "" && r.Member == ws.Member) {
 			continue
 		}
 		reads[repoName(r.Member, r.Checkout)]++

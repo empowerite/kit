@@ -74,24 +74,51 @@ workspaces:tree() {
   fi
 }
 
-# workspaces:recent prints the repositories opened by their folder, each its working tree's top, the newest first, as
-# workspaces:recall keeps them in kit/workspaces/recent under XDG_CACHE_HOME.
-workspaces:recent() {
-  local file
-  file=$(workspaces:cache)/recent
-  [[ ! -f "${file}" ]] || grep --invert-match --line-regexp '' "${file}" || true
+# workspaces:desk <top> prints the desk of the working tree whose top <top> is: the repository's own working tree, which
+# a linked worktree belongs to, so a worktree is never a workspace of its own; <top> itself where it is that, or where
+# git cannot say.
+workspaces:desk() {
+  local common
+  common=$(git -C "$1" rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || common=''
+  if [[ "${common}" == */.git && -d "${common%/.git}" ]]
+  then
+    (cd "${common%/.git}" && pwd -P)
+  else
+    printf '%s\n' "$1"
+  fi
 }
 
-# workspaces:recall <checkout> keeps a working tree's top first among the recent repositories, each once, and
-# workspaces_recent_most of them at most. It returns 1, saying so, where workspaces:cache's directory cannot be made or
-# written.
+# workspaces:recent prints the repositories opened by their folder, each its desk, as workspaces:desk gives it, once,
+# the newest first, as workspaces:recall keeps them in kit/workspaces/recent under XDG_CACHE_HOME: a linked worktree
+# kept there before stands as its repository's desk.
+workspaces:recent() {
+  local file line desk
+  local -A seen=()
+  file=$(workspaces:cache)/recent
+  [[ -f "${file}" ]] || return 0
+  while IFS= read -r line
+  do
+    [[ -n "${line}" ]] || continue
+    desk=${line}
+    [[ ! -d "${line}" ]] || desk=$(workspaces:desk "${line}")
+    [[ -z "${seen[${desk}]:-}" ]] || continue
+    seen[${desk}]=1
+    printf '%s\n' "${desk}"
+  done < "${file}"
+}
+
+# workspaces:recall <checkout> keeps a working tree's desk, as workspaces:desk gives it, first among the recent
+# repositories, each once, and workspaces_recent_most of them at most. It prints the desk kept. It returns 1, saying so,
+# where workspaces:cache's directory cannot be made or written.
 workspaces:recall() {
-  local dir kept
+  local dir kept desk
   dir=$(workspaces:cache)
-  kept=$(workspaces:recent | grep --invert-match --line-regexp --fixed-strings -- "$1" |
+  desk=$(workspaces:desk "$1")
+  kept=$(workspaces:recent | grep --invert-match --line-regexp --fixed-strings -- "${desk}" |
     head -n $((workspaces_recent_most - 1))) || true
-  { mkdir -p "${dir}" && printf '%s\n' "$1" ${kept:+"${kept}"} > "${dir}/recent"; } 2>/dev/null \
+  { mkdir -p "${dir}" && printf '%s\n' "${desk}" ${kept:+"${kept}"} > "${dir}/recent"; } 2>/dev/null \
     || workspaces:unwritable "the recent repositories"
+  printf '%s\n' "${desk}"
 }
 
 # workspaces:spelled <member> prints a member as kit spells it, so one repository has one name: the host in lower case,

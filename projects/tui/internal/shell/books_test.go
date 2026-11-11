@@ -137,8 +137,8 @@ func TestBooksDropsDownTheRecentRepositoriesPickedByTheirFolder(t *testing.T) {
 	}
 }
 
-// Two folders of one repository, as a clone and a worktree of it, read alike: a recent one that reads as the
-// workspace shown, or as another recent one, says its folder after its name, dim.
+// A worktree is no workspace of its own: in a worktree of o/a, o/a's desk among the recent is the repository shown, and
+// is not drawn, as the folder shown is not.
 func TestBooksTellsTwoFoldersOfOneRepositoryApart(t *testing.T) {
 	ws := kit.Workspace{Kind: "repository", Name: "github.com/o/a", Member: "github.com/o/a", Checkout: "/code/a/worktrees/1-x",
 		Recent: []kit.WorkspaceRecent{{Name: "github.com/o/a", Member: "github.com/o/a", Checkout: "/code/a/worktrees/1-x"},
@@ -148,7 +148,7 @@ func TestBooksTellsTwoFoldersOfOneRepositoryApart(t *testing.T) {
 	for k := range got {
 		got[k] = ansi.Strip(got[k])
 	}
-	if strings.Join(got, "|") != "o/a · a|o/c||Open…|Manage…" || len(acting) != 4 {
+	if strings.Join(got, "|") != "o/c||Open…|Manage…" || len(acting) != 3 {
 		t.Errorf("the lines: %q, acting %v", got, acting)
 	}
 }

@@ -115,13 +115,19 @@ func (m Model) ask(given string) tea.Cmd {
 		}
 		ws, err := r.Workspace(ctx, given)
 		if err == nil && ws.Kind == "repository" && ws.Checkout != "" &&
-			(len(ws.Recent) == 0 || ws.Recent[0].Checkout != ws.Checkout) && r.UseWorkspace(ctx, ws.Checkout) == nil {
+			(len(ws.Recent) == 0 || !sameRepository(ws.Recent[0], ws)) && r.UseWorkspace(ctx, ws.Checkout) == nil {
 			if again, err := r.Workspace(ctx, given); err == nil {
 				ws = again
 			}
 		}
 		return workspaceMsg{gen: gen, ws: ws, err: err}
 	}
+}
+
+// sameRepository says whether a recent repository is the one a workspace is: its folder, or, as a worktree belongs to
+// its repository, kept among the recent by its desk, its member.
+func sameRepository(r kit.WorkspaceRecent, ws kit.Workspace) bool {
+	return r.Checkout == ws.Checkout || r.Member != "" && r.Member == ws.Member
 }
 
 // opening opens the Open… dialog over the screen shown, the folder the repository shown stands in typed, else the
