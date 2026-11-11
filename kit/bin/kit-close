@@ -15,8 +15,8 @@
 # duplicate of an issue in another tracker gets a comment naming the original, and is closed as not planned. An issue
 # already closed is left as it is.
 #
-# Exits 0 when every issue is closed, 1 when one could not be, and 2 on a usage error or a reference no declared
-# tracker reads.
+# Exits 0 when every issue is closed, 1 when one could not be or the trackers in kit.yml cannot be read, and 2 on a
+# usage error or a reference no declared tracker reads.
 #
 # see: modules/bash/issue.sh, modules/bash/tracker.sh
 

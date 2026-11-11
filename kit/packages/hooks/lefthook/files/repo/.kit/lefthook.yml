@@ -4,7 +4,8 @@
 # The pre-commit hook runs two commands over the staged files:
 #
 #   - kit-lint runs kit lint: each rule's own linter, declared in the rule's frontmatter, over the files the rule
-#     governs
+#     governs. It reads the staged files itself, as lefthook's list leaves out a staged file that is not on the disk,
+#     which kit lint refuses
 #   - kit-generate runs kit generate --check, which fails when a generated region is stale
 #
 # The repository's lefthook.yml includes this file with `extends: [.kit/lefthook.yml]`, and can add commands of its
@@ -16,6 +17,6 @@
 pre-commit:
   commands:
     kit-lint:
-      run: kit lint {staged_files}
+      run: kit lint
     kit-generate:
       run: kit generate --check {staged_files}

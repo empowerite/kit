@@ -50,6 +50,8 @@ in_tracker() {
   [ ! -s "${FAKE_DIR}/az.calls" ]
   run "${kit_root}/bin/kit" assign 'AB#4521'
   [ "$status" -eq 1 ]
+  run "${kit_root}/bin/kit" close --not-planned 'AB#4521'
+  [ "$status" -eq 1 ]
   printf 'trackers: []\n' > kit.yml
   for call in "tracker:normal JIRA-12" "tracker:key JIRA-12" "tracker:of JIRA-12 title"
   do

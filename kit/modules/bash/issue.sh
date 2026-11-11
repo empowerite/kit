@@ -147,12 +147,12 @@ issue:close() {
   local reason original='' ref same state failed=0
   case ${1:-} in
     --not-planned) reason=not-planned; shift ;;
-    --duplicate-of) reason=duplicate; original=$(tracker:normal "${2:-}") || return 2; shift 2 ;;
+    --duplicate-of) reason=duplicate; original=$(tracker:normal "${2:-}") || return $?; shift 2 ;;
     *) error "issue:close needs --not-planned or --duplicate-of <reference>"; return 2 ;;
   esac
   for ref in "$@"
   do
-    ref=$(tracker:normal "${ref}") || return 2
+    ref=$(tracker:normal "${ref}") || return $?
     if [[ "${ref}" == "${original}" ]]
     then
       error "${ref} cannot be a duplicate of itself"
@@ -206,7 +206,7 @@ issue:gather() {
   forge:has sub-issues 2>/dev/null && subs=true
   for ref in "$@"
   do
-    ref=$(tracker:normal "${ref}") || return 2
+    ref=$(tracker:normal "${ref}") || return $?
     refs+=("${ref}")
     if [[ "${subs}" != true ]] || ! tracker:is-forge "${ref}"
     then
@@ -235,7 +235,7 @@ issue:join() {
   forge:require || return 1
   for ref in "$@"
   do
-    ref=$(tracker:normal "${ref}") || return 2
+    ref=$(tracker:normal "${ref}") || return $?
     refs+=("${ref}")
   done
   IFS=$'\t' read -r sigil noun < <(forge:noun) || return 1

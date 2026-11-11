@@ -85,7 +85,7 @@ refs=$(forge:pr-closing-issues "${number}") || (( $? == 3 )) || exit 1
 # The forge does not link issues of other trackers, such as Azure DevOps. A closing keyword in the pull request's
 # body links them: `Closes AB#4521`.
 body=$(forge:pr-body "${number}") || exit 1
-others=$(tracker:body-refs "${body}")
+others=$(tracker:body-refs "${body}") || exit 1
 if [[ -z "${refs}${others}" ]]
 then
   error "${change} is not linked to any issue"
