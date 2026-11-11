@@ -66,6 +66,14 @@ fake-tui() {
   [ "$output" = $'repos\nremotes\nbranches\nworktrees\ncommits\ntags' ]
 }
 
+@test "kit workspace --stages --workspace prints the same six stages" {
+  printf 'workspaces: {w: {repos: [github.com/o/a]}}\n' | workspaces-file
+  run --separate-stderr "${kit_root}/bin/kit" workspace --stages --workspace w
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  [ "$output" = $'repos\nremotes\nbranches\nworktrees\ncommits\ntags' ]
+}
+
 @test "remotes gives each remote: its forge, its repository past the host, its default branch, and its branches" {
   history-at "${BATS_TEST_TMPDIR}/r" github.com/o/r
   cd "${BATS_TEST_TMPDIR}/r"

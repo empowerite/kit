@@ -16,7 +16,8 @@ use git yaml file
 # workspaces_walk_depth is how many directories below each root kit looks for checkouts.
 workspaces_walk_depth=4
 
-# workspaces_lock_wait is how many turns of 0.1 second workspaces:lock waits for a lock another process holds.
+# workspaces_lock_wait is how long workspaces:lock waits for a lock another process holds, in tenths of a second by the
+# clock.
 workspaces_lock_wait=300
 
 # workspaces_checked is 1 once workspaces:check has passed, so a subshell does not check the file again; empty until it
@@ -28,6 +29,20 @@ workspaces:file() { printf '%s\n' "${XDG_CONFIG_HOME:-${HOME}/.config}/kit/works
 
 # workspaces:cache prints the directory kit keeps its own workspace state in, which may not exist.
 workspaces:cache() { printf '%s\n' "${XDG_CACHE_HOME:-${HOME}/.cache}/kit/workspaces"; }
+
+# workspaces:unwritable <what> says that workspaces:cache's directory cannot be made or written, so <what> cannot be,
+# and returns 1.
+workspaces:unwritable() {
+  error "make $(workspaces:cache) writable, or set XDG_CACHE_HOME ($1 could not be written there)"
+  return 1
+}
+
+# workspaces:in-repository [<dir>] prints the top of the working tree <dir>, else the directory here, is in, and
+# succeeds. Outside one it prints nothing and returns 1: a bare repository and a .git directory have no working tree, so
+# they are outside a repository. A verb is here at its repository's top, as kit:enter moves there, or where it was run.
+workspaces:in-repository() {
+  git -C "${1:-${PWD}}" rev-parse --show-toplevel 2>/dev/null || return 1
+}
 
 # workspaces:spelled <member> prints a member as kit spells it, so one repository has one name: the host in lower case,
 # and on github.com, gitlab.com, and the hosts under them, whose paths match in any case, the path in lower case too.
@@ -195,15 +210,16 @@ workspaces:fixed() {
 }
 
 # workspaces:name-refusal <name> prints why <name> cannot name a group: it is none, which --workspace takes for no
-# workspace, or it holds other than lowercase letters, digits, and . _ -, or starts with one of . _ -. It prints
-# nothing for a name a group can take.
+# workspace, or it does not start with a lowercase letter or a digit, or holds other than lowercase letters, digits,
+# and . _ -. It prints nothing for a name a group can take.
 workspaces:name-refusal() {
   if [[ "$1" == none ]]
   then
     printf '%s\n' "'none' is not a workspace's name: --workspace none names no workspace"
   elif [[ ! "$1" =~ ^[a-z0-9][a-z0-9._-]*$ ]]
   then
-    printf '%s\n' "'$1' is not a workspace's name: lowercase letters, digits, and . _ -, no /"
+    printf '%s\n' "'$1' is not a workspace's name: it starts with a lowercase letter or a digit, and holds lowercase" \
+      "letters, digits, and . _ - alone"
   fi
 }
 
@@ -320,7 +336,7 @@ workspaces:remotes-json() {
 
 # workspaces:kind <workspace> prints "group <name>" for a group's name, or "repository <member>" for a repository, host
 # and path or a git URL, without looking for a checkout. It returns 2, after a line that says so, for neither, and 1
-# when the file's groups cannot be read.
+# when the file's groups cannot be read. It reads the file as it is: each caller runs workspaces:check first.
 workspaces:kind() {
   local workspace=$1 member
   local -a names
@@ -405,11 +421,18 @@ workspaces:last() {
   ! list:among "${last}" "${names[@]}" || printf '%s\n' "${last}"
 }
 
-# workspaces:remember <name> keeps <name> as the last group used.
+# workspaces:remember <name> keeps <name> as the last group used. It returns 1, saying so, where workspaces:cache's
+# directory cannot be made or written.
 workspaces:remember() {
   local dir
   dir=$(workspaces:cache)
-  mkdir -p "${dir}" && printf '%s\n' "$1" > "${dir}/last"
+  { mkdir -p "${dir}" && printf '%s\n' "$1" > "${dir}/last"; } 2>/dev/null \
+    || workspaces:unwritable "the last group used"
+}
+
+# workspaces:forget forgets the last group used. It returns 1, saying so, where the file cannot be removed.
+workspaces:forget() {
+  rm -f "$(workspaces:cache)/last" 2>/dev/null || workspaces:unwritable "the last group used"
 }
 
 # workspaces:current [<workspace>] prints the workspace kit starts on as JSON: {kind, name, member, checkout, why}. A
@@ -433,7 +456,7 @@ workspaces:current() {
     then
       member=${name} checkout=$(workspaces:checkouts | awk -F '\t' -v m="${name}" '$1 == m { print $2; exit }')
     fi
-  elif checkout=$(git -C "${kit_invoked_in:-${PWD}}" rev-parse --show-toplevel 2>/dev/null)
+  elif checkout=$(workspaces:in-repository)
   then
     kind=repository why=repository member=$(workspaces:member-of "${checkout}")
     name=${member:-${checkout}}
@@ -455,8 +478,8 @@ workspaces:current() {
 }
 
 # workspaces:across [<workspace>] prints the workspace a verb draws across: the one given, unless it is none; with none
-# given, the last group used, when workspaces:current starts there, outside a repository; else nothing. Inside a
-# repository, its .git directory too, or with no group used, it reads nothing, not even the file. It returns
+# given, the last group used, when workspaces:current starts there, outside a repository, as workspaces:in-repository
+# decides; else nothing. Inside a repository, or with no group used, it reads nothing, not even the file. It returns
 # workspaces:current's status.
 workspaces:across() {
   local given=${1:-} json
@@ -465,7 +488,7 @@ workspaces:across() {
     [[ "${given}" == none ]] || printf '%s\n' "${given}"
     return 0
   fi
-  ! git rev-parse --git-dir >/dev/null 2>&1 || return 0
+  ! workspaces:in-repository >/dev/null || return 0
   [[ -f "$(workspaces:cache)/last" ]] || return 0
   json=$(workspaces:current) || return $?
   jq --raw-output 'select(.why == "last") | .name' <<<"${json}"
@@ -541,16 +564,24 @@ workspaces:menu-json() {
 # workspaces:lock takes the lock on the workspace file for this command, or returns 0 when this command holds it. The
 # lock is workspaces.yml.lock in workspaces:cache's directory: a symbolic link that names the command's process, made by
 # ln -s, which fails when the link is there, so one process alone makes it, and removed at exit when it still names the
-# process. A lock whose target is no number, or names a process that is gone, is removed and taken. Any other waits
-# 0.1 second a turn, workspaces_lock_wait turns, and then it returns 1, naming the process that holds it.
+# process. A lock whose target is no number, or names a process that is gone, is removed and taken. Any other is
+# looked at again each 0.1 second until workspaces_lock_wait tenths of a second have passed by the clock, however long
+# each look takes, and then it returns 1, naming the process that holds it. Where the directory cannot be made or
+# written, it returns 1 at once, saying so.
 workspaces:lock() {
-  local dir lock aside holder='' moved waited=0
+  local dir lock aside holder='' moved start=${SECONDS}
   dir=$(workspaces:cache)
   lock=${dir}/workspaces.yml.lock aside=${dir}/workspaces.yml.lock.$$
   [[ "$(readlink "${lock}" 2>/dev/null)" != "$$" ]] || return 0
-  mkdir -p "${dir}" || return 1
+  mkdir -p "${dir}" 2>/dev/null || workspaces:unwritable "the lock on $(workspaces:file)" || return 1
   until ln -s "$$" "${lock}" 2>/dev/null
   do
+    # In a directory that cannot be written, no lock can be made, nor a stale one moved aside.
+    if [[ ! -w "${dir}" ]]
+    then
+      workspaces:unwritable "the lock on $(workspaces:file)"
+      return 1
+    fi
     if holder=$(readlink "${lock}" 2>/dev/null) \
       && { [[ ! "${holder}" =~ ^[0-9]+$ ]] || ! kill -0 "${holder}" 2>/dev/null; }
     then
@@ -574,13 +605,17 @@ workspaces:lock() {
         holder=${moved}
       fi
     fi
-    if (( waited >= workspaces_lock_wait ))
+    if (( (SECONDS - start) * 10 >= workspaces_lock_wait ))
     then
-      error "$(workspaces:file) is being edited by process ${holder}; run the command again"
+      if [[ -n "${holder}" ]]
+      then
+        error "$(workspaces:file) is being edited by process ${holder}; run the command again"
+      else
+        error "run the command again (the lock on $(workspaces:file) could not be made in ${dir})"
+      fi
       return 1
     fi
     sleep 0.1
-    waited=$(( waited + 1 ))
   done
   file:at-exit forge:unlock "${lock}" "$$"
 }

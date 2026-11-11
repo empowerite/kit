@@ -404,9 +404,8 @@ across:text() {
     || return $?
   if (( ${#started[@]} == 0 ))
   then
-    [[ "${first}" == true ]] || printf '\n' >&2
     printf '%s\n' "$(flow:paint 90 "none of ${workspace}'s members is cloned under the roots; run: kit workspaces \
---show ${workspace}")" >&2
+--show=${workspace}")" >&2
     return 0
   fi
   for line in "${started[@]}"

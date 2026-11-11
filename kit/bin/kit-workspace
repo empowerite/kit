@@ -11,10 +11,11 @@
 # HEAD is no stage of its own. A remote's HEAD is its default branch, ⚓ on its row and on the branch's; a worktree's
 # is its branch, or its commit where it is detached, and a commit's row names the worktrees whose HEAD it is.
 #
-# Without --workspace, the workspace is the repository here, and outside one, the last group used, as kit workspaces
-# --current says. The repository is read from its main checkout, so a linked worktree draws what the desk draws, and
-# repos lists it alone. On a terminal, kit workspace opens the picture in kittui, and kit workspace <stage> opens it
-# with that stage maximized. Without one, or with --text, --json, or --jq, it prints the stages as text.
+# Without --workspace, the workspace is the repository here, in its working tree, and outside one, a bare repository
+# or a .git directory too, the last group used, as kit workspaces --current says. The repository is read from its main
+# checkout, so a linked worktree draws what the desk draws, and repos lists it alone. On a terminal, kit workspace
+# opens the picture in kittui, and kit workspace <stage> opens it with that stage maximized. Without one, or with
+# --text, --json, or --jq, it prints the stages as text.
 #
 #   --text              prints the picture as text, even on a terminal
 #   --json              the picture as one JSON object: stages, then each stage's document under its name
@@ -142,7 +143,8 @@
 # read: what was read is still drawn, as text or with --json, and names what could not, a member under errors or a
 # repos row's error, as for a clone whose kit.yml does not parse. It exits 1, printing nothing, when --workspace, or
 # kit workspace outside a repository with a group used last, meets a workspace file kit workspaces refuses, and 2 on a
-# usage error, or outside a repository, a bare one too, with no workspace: no group used, or --workspace none.
+# usage error, or outside a repository's working tree, a bare repository or a .git directory too, with no workspace: no
+# group used, or --workspace none.
 #
 # see: modules/bash/workspace.sh, modules/jq/workspace.jq, modules/bash/across.sh
 
@@ -197,7 +199,7 @@ workspace=$(workspaces:across "${workspace}") || exit $?
 
 # On a terminal, with no form chosen, the picture is kittui's, which runs this kit, the stage named maximized.
 if [[ -z "${syntax_options[--text]+x}${syntax_options[--json]+x}${syntax_options[--jq]+x}${syntax_options[--marks]+x}" \
-  && -t 0 && -t 1 && -t 2 ]] && { [[ -n "${workspace}" ]] || git rev-parse --show-toplevel >/dev/null 2>&1; } \
+  && -t 0 && -t 1 && -t 2 ]] && { [[ -n "${workspace}" ]] || workspaces:in-repository >/dev/null; } \
   && tui:binary --probe >/dev/null 2>&1
 then
   binary=$(tui:binary) || exit 1
@@ -205,8 +207,8 @@ then
   exec "${binary}" workspace ${workspace:+--workspace "${workspace}"} "$@"
 fi
 
-# A bare repository, or a .git directory, has no checkout to read, so it is outside a repository too.
-if [[ -z "${workspace}" ]] && ! git rev-parse --show-toplevel >/dev/null 2>&1
+# A bare repository, or a .git directory, has no working tree to read, so it is outside a repository too.
+if [[ -z "${workspace}" ]] && ! workspaces:in-repository >/dev/null
 then
   error "kit workspace reads a repository: run it in one, or give --workspace; run: kit workspaces"
   exit 2

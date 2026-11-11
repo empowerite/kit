@@ -13,6 +13,13 @@ setup() {
   kit_bash_modules=workspaces
 }
 
+# A test that shuts the cache directory leaves it shut when it fails, and bats removes its directory after: it is
+# opened again first.
+teardown() {
+  [[ ! -d "${XDG_CACHE_HOME:-}" ]] || chmod -R u+w "${XDG_CACHE_HOME}"
+  helper:outside-checkout
+}
+
 # clone-at <path> <url> makes a repository at <path> whose origin is <url>; nothing is fetched.
 clone-at() {
   git init --quiet "$1"
@@ -267,6 +274,103 @@ YML
   [ "$(kit-bash 'workspaces:fixed w' | grep -c .)" -eq 14 ]
 }
 
+@test "the lock's wait is the clock's, however long each turn of it takes" {
+  workspaces-file <<<'workspaces: {w: {repos: [github.com/a/one]}}'
+  mkdir -p "${XDG_CACHE_HOME}/kit/workspaces"
+  sleep 30 3>&- & holder=$!; ln -s "${holder}" "${XDG_CACHE_HOME}/kit/workspaces/workspaces.yml.lock"
+  # each turn's sleep takes a second, as a turn does under load, so twenty turns would take twenty seconds
+  SECONDS=0
+  run kit-bash 'sleep() { command sleep 1; }; workspaces_lock_wait=20; workspaces:add w github.com/a/two'
+  took=${SECONDS}
+  kill "${holder}"
+  [[ "$status" -eq 1 && "$output" == *"workspaces.yml is being edited by process ${holder}"* ]]
+  (( took < 10 ))
+  [ "$(kit-bash 'workspaces:fixed w')" = github.com/a/one ]
+}
+
+@test "--use waits for the file's lock, as an edit does" {
+  workspaces-file <<<'workspaces: {w: {repos: [github.com/a/one]}}'
+  mkdir -p "${BATS_TEST_TMPDIR}/outside" "${XDG_CACHE_HOME}/kit/workspaces" && cd "${BATS_TEST_TMPDIR}/outside"
+  last="${XDG_CACHE_HOME}/kit/workspaces/last"
+  sleep 30 3>&- & holder=$!; ln -s "${holder}" "${XDG_CACHE_HOME}/kit/workspaces/workspaces.yml.lock"
+  "${kit_root}/bin/kit" workspaces --use=w >/dev/null 3>&- & use=$!
+  sleep 3
+  written=no
+  [[ ! -e "${last}" ]] || written=yes
+  kill "${holder}"
+  wait "${use}"
+  [ "${written}" = no ]
+  [ "$(<"${last}")" = w ]
+}
+
+@test "a cache directory kit cannot write stops --use and an edit at once, with one line that names it" {
+  workspaces-file <<<'workspaces: {w: {repos: [github.com/a/one]}}'
+  cp "${XDG_CONFIG_HOME}/kit/workspaces.yml" "${BATS_TEST_TMPDIR}/before.yml"
+  mkdir -p "${BATS_TEST_TMPDIR}/outside" && cd "${BATS_TEST_TMPDIR}/outside"
+  # kit's other caches under XDG_CACHE_HOME/kit are made before it is shut, so only kit/workspaces/ cannot be
+  "${kit_root}/bin/kit" workspaces >/dev/null
+  cache=${XDG_CACHE_HOME}/kit/workspaces
+  # the directory cannot be made, and then it is there but cannot be written
+  for shut in "${XDG_CACHE_HOME}/kit" "${cache}"
+  do
+    [[ "${shut}" != "${cache}" ]] || { chmod u+w "${XDG_CACHE_HOME}/kit" && mkdir "${cache}"; }
+    chmod a-w "${shut}"
+    SECONDS=0
+    for args in "--use=w" "--add=w github.com/a/two"
+    do
+      # shellcheck disable=SC2086  # each holds its words
+      run --separate-stderr "${kit_root}/bin/kit" workspaces ${args}
+      [ "$status" -eq 1 ]
+      [ "${#stderr_lines[@]}" -eq 1 ]
+      [[ "${stderr_lines[0]}" == "❌ "*"${cache}"* ]]
+    done
+    run --separate-stderr kit-bash 'workspaces:remember w'
+    [ "$status" -eq 1 ]
+    [ "${#stderr_lines[@]}" -eq 1 ]
+    [[ "${stderr_lines[0]}" == "❌ "*"${cache}"* ]]
+    (( SECONDS < 10 ))
+    [ ! -e "${cache}/last" ]
+    [ ! -e "${cache}/workspaces.yml.lock" ]
+  done
+  chmod -R u+w "${XDG_CACHE_HOME}"
+  cmp "${BATS_TEST_TMPDIR}/before.yml" "${XDG_CONFIG_HOME}/kit/workspaces.yml"
+}
+
+@test "--delete forgets the group as the last used, so a new group of its name is not the last used" {
+  workspaces-file <<<'workspaces: {w: {repos: [github.com/a/one]}, v: {repos: [github.com/a/two]}}'
+  mkdir -p "${BATS_TEST_TMPDIR}/outside" && cd "${BATS_TEST_TMPDIR}/outside"
+  last="${XDG_CACHE_HOME}/kit/workspaces/last"
+  "${kit_root}/bin/kit" workspaces --use=w
+  "${kit_root}/bin/kit" workspaces --delete=v
+  [ "$(<"${last}")" = w ]
+  run "${kit_root}/bin/kit" workspaces --delete=w
+  [ "$status" -eq 0 ]
+  [ ! -e "${last}" ]
+  "${kit_root}/bin/kit" workspaces --new=w github.com/a/one
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
+  [ "$(jq --compact-output '[.kind, .why]' <<<"$output")" = '["none","none"]' ]
+}
+
+@test "a working tree is inside a repository; a bare repository and a .git directory are outside it" {
+  workspaces-file <<<'workspaces: {w: {repos: [github.com/a/one]}}'
+  mkdir -p "${XDG_CACHE_HOME}/kit/workspaces" && printf 'w\n' > "${XDG_CACHE_HOME}/kit/workspaces/last"
+  git init --quiet --bare "${BATS_TEST_TMPDIR}/bare.git"
+  fresh-repo >/dev/null
+  run --separate-stderr kit-bash 'workspaces:in-repository'
+  [ "$status" -eq 0 ]
+  [ "$output" = "$(pwd -P)" ]
+  run --separate-stderr kit-bash 'workspaces:across'
+  [[ "$status" -eq 0 && -z "$output" && -z "$stderr" ]]
+  for dir in "${BATS_TEST_TMPDIR}/bare.git" "${repo}/.git"
+  do
+    cd "${dir}"
+    run --separate-stderr kit-bash 'workspaces:in-repository'
+    [[ "$status" -eq 1 && -z "$output" && -z "$stderr" ]]
+    run --separate-stderr kit-bash 'workspaces:across'
+    [[ "$status" -eq 0 && "$output" = w && -z "$stderr" ]]
+  done
+}
+
 @test "--rename and --delete keep the comment, the favorites, and the last group; a member is matched once" {
   clone-at "${BATS_TEST_TMPDIR}/code/one" https://GitHub.com/A/One.git
   printf 'roots: ["%s", "%s/"]\nfavorites: [w, gone]\nworkspaces:\n  # the core\n  w: {repos: [github.com/a/one]}\n' \
@@ -368,6 +472,16 @@ YML
   [ "$status" -eq 1 ]
   [[ "$stderr" == *"workspaces.yml: 'none' is not a workspace's name: --workspace none names no workspace"* ]]
   cmp "${BATS_TEST_TMPDIR}/before.yml" "${XDG_CONFIG_HOME}/kit/workspaces.yml"
+}
+
+@test "a name that starts with . _ or - is refused by its first character, and no group is made" {
+  for name in .dot _under
+  do
+    run --separate-stderr "${kit_root}/bin/kit" workspaces --new="${name}" github.com/a/one
+    [ "$status" -eq 2 ]
+    [[ "$stderr" == *"'${name}' is not a workspace's name: it starts with a lowercase letter or a digit"* ]]
+    [ ! -e "${XDG_CONFIG_HOME}/kit/workspaces.yml" ]
+  done
 }
 
 @test "--option=value runs as --option value" {

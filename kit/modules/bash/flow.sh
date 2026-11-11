@@ -19,10 +19,10 @@
 #     request.
 #   - In a linked worktree: that worktree, and the pull request its branch holds, whoever opened it. The owner flags
 #     never hide it.
-#   - Above desks, in a directory inside no repository: it walks down. Every directory that holds a .git directory
-#     is a desk. The walk stops there, and draws that desk's picture under its path, with the same arguments. It
-#     skips hidden directories and symbolic links, and goes no deeper than flow_walk_depth. The desks are drawn in
-#     path order, each with a fetch of its own.
+#   - Above desks, in a directory inside no repository's working tree, a bare repository or a .git directory too:
+#     it walks down. Every directory that holds a .git directory is a desk. The walk stops there, and draws that
+#     desk's picture under its path, with the same arguments. It skips hidden directories and symbolic links, and
+#     goes no deeper than flow_walk_depth. The desks are drawn in path order, each with a fetch of its own.
 #
 # backlog, underway, desk, incoming, builds, and releases draw the same anywhere in a repository.
 #
@@ -62,7 +62,7 @@
 # see: kit/bin/kit-flow, modules/bash/backlog.sh, modules/bash/underway.sh, modules/bash/changes.sh,
 # modules/bash/builds.sh, modules/bash/releases.sh
 
-use file git settings backlog underway changes builds releases
+use file git settings workspaces backlog underway changes builds releases
 
 # flow_walk_depth is how many directories below the one it runs in kit flow looks for desks, above desks.
 flow_walk_depth=4
@@ -1302,7 +1302,7 @@ flow:picture() {
 flow:render() {
   local stage='' arg cached=false
   local -a args=()
-  if ! git rev-parse --git-dir >/dev/null 2>&1
+  if ! workspaces:in-repository >/dev/null
   then
     flow:above "$@"
     return

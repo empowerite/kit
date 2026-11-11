@@ -20,8 +20,8 @@
 #
 #   - at a desk: every linked worktree, and every open pull request
 #   - in a worktree: that worktree, and the pull request its branch holds
-#   - above desks, in a directory inside no repository, with no group used last, or with --workspace none: each desk
-#     below it, under its path, four levels down
+#   - above desks, in a directory inside no repository's working tree, a bare repository or a .git directory too,
+#     with no group used last, or with --workspace none: each desk below it, under its path, four levels down
 #
 # backlog, underway, desk, incoming, builds, and releases draw the same anywhere. A repository with no primary
 # remote draws its checkouts, fetches nothing, and says so once.
@@ -364,7 +364,7 @@ then
   fi
 fi
 if [[ "${pictured}" == true && -z "${syntax_options[--text]+x}${syntax_options[--json]+x}" && -t 0 && -t 1 && -t 2 ]] \
-  && git rev-parse --git-dir >/dev/null 2>&1 && tui:binary --probe >/dev/null 2>&1
+  && workspaces:in-repository >/dev/null && tui:binary --probe >/dev/null 2>&1
 then
   binary=$(tui:binary) || exit 1
   export KIT="${kit_root}/bin/kit"

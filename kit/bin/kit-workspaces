@@ -29,8 +29,8 @@
 # github.com/empowerite/edge, spelled one way: the host in lower case, and on GitHub and GitLab the path too. Its
 # checkout is the clone under one of the file's roots, at most four levels down, whose primary remote points at it.
 #
-# With no option, it lists the groups and the favorites. Inside a repository kit starts on that repository; outside
-# one, on the last group used; with none used, on none.
+# With no option, it lists the groups and the favorites. Inside a repository, in its working tree, kit starts on that
+# repository; outside one, a bare repository or a .git directory too, on the last group used; with none used, on none.
 #
 #   --text            prints as text, even on a terminal
 #   --json            one JSON object, as each form below says
@@ -43,11 +43,13 @@
 #   --add             adds the repositories to a group's members
 #   --remove          takes the repositories out of a group's members
 #   --rename          gives a group a new name, in its place in the file, and keeps it the last used if it was
-#   --delete          takes a group, and its favorite, out of the file; its checkouts are as they were
+#   --delete          takes a group, and its favorite, out of the file, and forgets it as the last used; its
+#                     checkouts are as they were
 #   --favorite        adds a workspace to the favorites
 #   --unfavorite      takes a workspace out of the favorites
 #   <workspace>       a group's name, or a repository: github.com/empowerite/edge or a git URL
-#   <name>            a group's name: lowercase letters, digits, and . _ -, and never none
+#   <name>            a group's name: a lowercase letter or a digit, then lowercase letters, digits, and . _ -, and
+#                     never none
 #   <new-name>        the name --rename gives the group, as a <name> is written and no other group's
 #   <repository>      github.com/empowerite/edge, a git URL, or a checkout's directory
 #
@@ -60,14 +62,15 @@
 # favorites {name, kind, members, checkout}. Only the JSON looks for checkouts; the text names the workspace alone.
 # The forms that edit print one line, which says what changed, or that nothing needed to, and take no --json.
 #
-# Each form that edits takes the file's lock first, a link in kit/workspaces/ under XDG_CACHE_HOME, else ~/.cache, so
-# two commands that edit the file at once each land. A lock whose process is gone is taken over; one held by a live
-# process is waited for, 30 seconds at most.
+# Each form that edits, and --use, takes the file's lock first, a link in kit/workspaces/ under XDG_CACHE_HOME, else
+# ~/.cache, so two commands that edit the file at once each land. A lock whose process is gone is taken over; one held
+# by a live process is waited for, 30 seconds by the clock.
 #
 # Exits 0 when it printed or edited, 1 when the file does not read, is not a map, gives a group a key other than repos
 # and exclude, holds an entry that is no repository, a list it reads, such as the checkouts under the roots, cannot be
-# read, or another process holds the file's lock past the wait, and 2 on a usage error, a workspace or group that is
-# unknown, or a new name --rename refuses or another group has.
+# read, another process holds the file's lock past the wait, or kit/workspaces/ under XDG_CACHE_HOME cannot be
+# written, and 2 on a usage error, a workspace or group that is unknown, or a new name --rename refuses or another
+# group has.
 #
 # see: modules/bash/workspaces.sh, docs/workspaces.md, issue #89
 
@@ -123,9 +126,10 @@ do
   shift
 done
 
-# A form that edits the file takes its lock before it reads the file, so what it checks and what it writes are one turn.
+# A form that edits the file, or the last group used, takes the file's lock before it reads the file, so what it checks
+# and what it writes are one turn.
 case "${action}" in
-  (new | add | remove | rename | delete | favorite | unfavorite) workspaces:lock || exit 1
+  (use | new | add | remove | rename | delete | favorite | unfavorite) workspaces:lock || exit 1
 esac
 workspaces:check || exit 1
 
@@ -164,7 +168,7 @@ case "${action}" in
       error "kit workspaces --use remembers a group; a repository is the workspace inside it"
       exit 2
     fi
-    workspaces:remember "${target}"
+    workspaces:remember "${target}" || exit 1
     step "kit starts on 📚 ${target} outside a repository"
     ;;
   (new | add | remove | rename | delete)
@@ -209,7 +213,9 @@ case "${action}" in
     fi
     if [[ "${action}" == delete ]]
     then
+      last=$(workspaces:last) || exit 1
       workspaces:delete "${target}" || exit 1
+      [[ "${last}" != "${target}" ]] || workspaces:forget || exit 1
       step "📚 ${target} is deleted; its checkouts are as they were"
       exit 0
     fi

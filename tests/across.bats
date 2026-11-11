@@ -287,6 +287,7 @@ local-desks() {
   run "${kit_root}/bin/kit" flow --workspace w --no-fetch --text
   [ "$status" -eq 0 ]
   [ "$(grep -c "none of w's members is cloned" <<<"$output")" -eq 1 ]
+  [[ "$output" == *"none of w's members is cloned under the roots; run: kit workspaces --show=w"* ]]
 }
 
 @test "kit flow --marks --workspace changes a stage's mark when one member's changes" {
@@ -346,6 +347,9 @@ local-desks() {
   run --separate-stderr "${kit_root}/bin/kit" workspaces --show github.com/o/c --json
   [ "$status" -eq 0 ]
   [ -z "$stderr" ]
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --show=github.com/o/a --json
+  [ "$status" -eq 0 ]
+  [[ "$stderr" == *"${BATS_TEST_TMPDIR}/code/a/kit.yml does not parse, so its primary is read as origin"* ]]
   run --separate-stderr "${kit_root}/bin/kit" workspace repos --workspace w --json
   [ "$status" -eq 1 ]
   [[ "$(jq -r '.rows[0].error' <<<"$output")" == *"kit.yml does not parse, so its primary is read as origin"* ]]
@@ -520,11 +524,44 @@ EOF
   cd code/a && workspaces-file <<<'workspaces: [unclosed'
   run --separate-stderr "${kit_root}/bin/kit" flow desk --json
   [[ "$status" -eq 0 && -z "$stderr" && "$(jq -r .branch <<<"$output")" == main ]]
-  # a repository's .git directory is inside it; outside one, with a group used, the group must be read
-  cd .git
-  run --separate-stderr "${kit_root}/bin/kit" flow --stages
-  [[ "$status" -eq 0 && -z "$stderr" ]]
-  cd "${BATS_TEST_TMPDIR}"
-  run --separate-stderr "${kit_root}/bin/kit" flow --json --no-fetch
-  [[ "$status" -eq 1 && -z "$output" && "$stderr" == *"workspaces.yml"* ]]
+  # outside a repository, its .git directory too, with a group used, the group must be read
+  for dir in .git "${BATS_TEST_TMPDIR}"
+  do
+    cd "${dir}"
+    run --separate-stderr "${kit_root}/bin/kit" flow --json --no-fetch
+    [[ "$status" -eq 1 && -z "$output" && "$stderr" == *"workspaces.yml"* ]]
+  done
+}
+
+@test "a bare repository and a .git directory are outside a repository to kit workspaces, kit flow, and kit workspace" {
+  local-desks
+  git init --quiet --bare "${BATS_TEST_TMPDIR}/bare.git"
+  for used in no yes
+  do
+    [[ "${used}" == no ]] || "${kit_root}/bin/kit" workspaces --use=w
+    for dir in "${BATS_TEST_TMPDIR}/bare.git" "${BATS_TEST_TMPDIR}/code/a/.git"
+    do
+      cd "${dir}"
+      run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
+      [[ "$status" -eq 0 && -z "$stderr" ]]
+      current=$(jq --compact-output '[.kind, .name, .why]' <<<"$output")
+      run --separate-stderr "${kit_root}/bin/kit" flow --json --no-fetch
+      flow_status=$status flow_output=$output flow_stderr=$stderr
+      run --separate-stderr "${kit_root}/bin/kit" workspace repos --json
+      [[ "${flow_stderr}" != *fatal:* && "$stderr" != *fatal:* ]]
+      if [[ "${used}" == no ]]
+      then
+        # above desks, where there are none below, and kit workspace's refusal
+        [ "${current}" = '["none",null,"none"]' ]
+        [[ "${flow_status}" -eq 1 && "${flow_stderr}" == *"no repository at or below $(pwd -P)"* ]]
+        [[ "$status" -eq 2 && "$stderr" == *"kit workspace reads a repository"* ]]
+      else
+        [ "${current}" = '["group","w","last"]' ]
+        [ "${flow_status}" -eq 0 ]
+        [ "$(jq -c '[.desk.rows[].member]' <<<"${flow_output}")" = '["github.com/o/a","github.com/o/b"]' ]
+        [ "$status" -eq 0 ]
+        [ "$(jq -c '[.rows[].repository]' <<<"$output")" = '["github.com/o/a","github.com/o/b","github.com/o/c"]' ]
+      fi
+    done
+  done
 }
