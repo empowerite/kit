@@ -3,6 +3,7 @@
 package welcome
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -18,7 +19,7 @@ import (
 func TestAPageIsReadAsItsTerms(t *testing.T) {
 	md := "<!-- kit:generated -- the terms -->\r\n# Terms\r\n\r\nThe words.\r\n\r\n## desk\r\n\r\nYour root " +
 		"checkout, as [the guide](../1st.md) and [GitHub](https://github.com) say. It is **yours**.\n\nIts second " +
-		"paragraph names `kit work`.\n\n`kit flow desk`\n\n`kit flow worktrees`\n\n## `bare` term ##\n\nNo command " +
+		"paragraph names `kit work`.\n\n`kit flow desk`\n\n`kit flow worktrees`\n\n## `bare` term, plain, ##\n\nNo command " +
 		"here.\n\n```sh\necho hi\n```\n\n### a heading under it\n\n<!--\n## not a term\n-->\n## kind\n\n`kit kinds`\n"
 	lead, terms := parseTerms(md)
 	if lead != "# Terms\n\nThe words." {
@@ -27,16 +28,18 @@ func TestAPageIsReadAsItsTerms(t *testing.T) {
 	if len(terms) != 3 {
 		t.Fatalf("the terms: %+v", terms)
 	}
-	desk := term{name: "desk", command: "kit flow desk", meaning: "Your root checkout, as the guide and GitHub " +
-		"(https://github.com) say. It is yours. Its second paragraph names kit work. kit flow worktrees"}
-	if terms[0] != desk {
+	desk := term{names: []string{"desk"}, examples: []string{"kit flow desk", "kit flow worktrees"},
+		meaning: "Your root checkout, as the guide and GitHub (https://github.com) say. It is yours. Its second " +
+			"paragraph names kit work."}
+	if !reflect.DeepEqual(terms[0], desk) {
 		t.Errorf("desk:\n%+v\n%+v", terms[0], desk)
 	}
-	if terms[1] != (term{name: "bare term", meaning: "No command here. echo hi ### a heading under it"}) {
-		t.Errorf("a term without a command: %+v", terms[1])
+	if !reflect.DeepEqual(terms[1], term{names: []string{"bare term", "plain"},
+		meaning: "No command here. echo hi ### a heading under it"}) {
+		t.Errorf("an entry of two terms without an example: %+v", terms[1])
 	}
-	if terms[2] != (term{name: "kind", command: "kit kinds"}) {
-		t.Errorf("a term without a meaning: %+v", terms[2])
+	if !reflect.DeepEqual(terms[2], term{names: []string{"kind"}, examples: []string{"kit kinds"}}) {
+		t.Errorf("an entry without a meaning: %+v", terms[2])
 	}
 	if lead, terms := parseTerms("# Ours\n\n- **deploy**: a release.\n"); terms != nil || lead == "" {
 		t.Errorf("a page without terms: %q %+v", lead, terms)
@@ -48,32 +51,33 @@ func TestAPageIsReadAsItsTerms(t *testing.T) {
 		}
 	}
 	rs := termRecords(terms)
-	if rs[0].Key != "0 desk" || rs[1].Values["command"].Raw != nil || rs[2].Values["verb"].Raw[0] != "kit kinds" {
+	if rs[0].Key != "0 desk" || rs[0].Values["command"].Raw[0] != "kit flow" || rs[1].Key != "1 bare term, plain" ||
+		rs[1].Values["command"].Raw != nil || rs[1].Values["examples"].Raw != nil ||
+		!reflect.DeepEqual(rs[1].Values["terms"].Raw, []string{"bare term", "plain"}) ||
+		!reflect.DeepEqual(rs[0].Values["examples"].Raw, desk.examples) || rs[2].Values["command"].Raw[0] != "kit kinds" {
 		t.Errorf("the records: %+v", rs)
 	}
 }
 
-func TestTheTermsAreATableGroupedByWhatTheyAreRunWith(t *testing.T) {
+func TestTheTermsAreATableOfCommandsTermsMeaningsAndExamples(t *testing.T) {
 	m, _ := loaded(t, press('6'))
 	if !m.gridded() || keysAt(m) != "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ terms 1-7 jump" {
 		t.Fatalf("the terms step: gridded %v, keys %q", m.gridded(), keysAt(m))
 	}
 	got := view(m)
-	for _, want := range []string{"   Terms\n", "The words kit uses", "▾ verb ▾ 12", "Default ▼", "term ", "meaning",
-		"command", "▾ kit flow 4", "▸ desk "} {
+	// the command, the terms, each a pill and two a count, the meaning, and the examples, a second one counted
+	for _, want := range []string{"   Terms\n", "The words kit uses", "▾ 12 ", "Default ▼", "command       terms",
+		"meaning", "examples", "▸ git remote    2   ", "▸ kit flow      " + pill("desk"),
+		"kit flow worktrees        +1"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("no %q in:\n%s", want, got)
 		}
 	}
-	// down gives the table the keyboard, on the verb in the heading over the groups
-	if m = drive(m, down); !m.inPane || !strings.Contains(keysAt(m), "⏎ menu") {
+	// down gives the table the keyboard, on the count over the rows, and down again the rows
+	if m = drive(m, down); !m.inPane || !strings.Contains(keysAt(m), "↓ rows") {
 		t.Fatalf("down: in the pane %v, keys %q", m.inPane, keysAt(m))
 	}
-	// enter drops the verb's menu, whose keys are the path alone; esc closes it
-	if m = drive(m, enter); !m.terms.Layered() || !strings.HasPrefix(keysAt(m), "esc") {
-		t.Errorf("enter on the verb: keys %q", keysAt(m))
-	}
-	if m = drive(m, esc, down, down); !m.terms.InRows() || !strings.Contains(keysAt(m), "␣·⇧↑↓ select") {
+	if m = drive(m, down); !m.terms.InRows() || !strings.Contains(keysAt(m), "␣·⇧↑↓ select") {
 		t.Errorf("down into the rows: keys %q", keysAt(m))
 	}
 	// a key the table does not take, as a step's number, is the screen's still
@@ -93,16 +97,47 @@ func TestTheTermsAreATableGroupedByWhatTheyAreRunWith(t *testing.T) {
 	}
 }
 
+func TestByCommandStandsOncePerTermGroupedByItsCommand(t *testing.T) {
+	m, _ := loaded(t, press('6'))
+	m = drive(m, clickOn(t, m, "Default ▼"))
+	m = drive(m, clickOn(t, m, "By command"))
+	got := view(m)
+	for _, want := range []string{"▾ command ▾ 12", "By command ▼", "    term    ", "▾ git remote 1",
+		"▸ " + pill("primary") + "     A remote is", "▸ " + pill("remote") + "      A remote is", "▾ kit flow 4",
+		"▸ " + pill("code forge") + "  The service"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("no %q in:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "▸ kit flow ") {
+		t.Errorf("the command stands as a group, not a column:\n%s", got)
+	}
+}
+
+// pill gives a term as the test's view draws its pill: the text between the half circles, their colors stripped.
+func pill(text string) string { return "\ue0b6" + text + "\ue0b4" }
+
+// clickOn gives a click on the first place the screen draws text.
+func clickOn(t *testing.T, m Model, text string) tea.MouseClickMsg {
+	t.Helper()
+	for y, l := range strings.Split(view(m), "\n") {
+		if k := strings.Index(l, text); k >= 0 {
+			return click(ansi.StringWidth(l[:k]), y)
+		}
+	}
+	t.Fatalf("no %q on the screen", text)
+	return tea.MouseClickMsg{}
+}
+
 func TestTheSearchNarrowsTheTerms(t *testing.T) {
 	m, _ := loaded(t, press('6'), press('/'))
 	m = drive(m, testkit.Typed("worktree")...)
 	got := view(m)
-	if !strings.Contains(got, "▸ worktree ") || strings.Contains(got, "▸ desk ") ||
-		!strings.Contains(got, "▾ kit flow 1") {
+	if !strings.Contains(got, pill("worktree")) || strings.Contains(got, pill("desk")) || !strings.Contains(got, "▾ 1 ") {
 		t.Errorf("searched:\n%s", got)
 	}
 	// enter gives the rows the keyboard, the search kept
-	if m = drive(m, enter); !m.terms.InRows() || !m.inPane || !strings.Contains(view(m), "▸ worktree ") {
+	if m = drive(m, enter); !m.terms.InRows() || !m.inPane || !strings.Contains(view(m), pill("worktree")) {
 		t.Errorf("enter from the search: in the rows %v", m.terms.InRows())
 	}
 	m = drive(m, press('/'), tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl})
@@ -130,7 +165,7 @@ func TestAClickReachesTheTermsTable(t *testing.T) {
 		return 0, 0
 	}
 	// a click on a term puts the cursor there, the table with the keyboard
-	x, y := at("worktree ")
+	x, y := at(pill("worktree"))
 	if m = drive(m, click(x, y)); !m.inPane || !m.terms.InRows() {
 		t.Fatalf("a click on worktree: in the pane %v", m.inPane)
 	}
@@ -145,9 +180,9 @@ func TestAClickReachesTheTermsTable(t *testing.T) {
 		t.Fatalf("a click on Compact: %q", m.terms.Table().ViewName)
 	}
 	header := strings.Split(view(m), "\n")[paneTop+6]
-	if !strings.Contains(header, "term") || strings.Contains(header, "command") ||
-		strings.Contains(view(m), "▾ kit flow") {
-		t.Errorf("Compact hides the command and the verb:\n%s", view(m))
+	if !strings.Contains(header, "term ") || !strings.Contains(header, "meaning") ||
+		strings.Contains(header, "command") || strings.Contains(header, "examples") {
+		t.Errorf("Compact hides the command and the examples, a row a term:\n%s", view(m))
 	}
 	// Save As… saves the table as a preset of the person's, which the keys bar says, until it fades
 	m.terms.Focus()
@@ -182,7 +217,7 @@ func TestTheTermsTableFollowsTheSettingsAndTheScreensSize(t *testing.T) {
 	}
 	// a short screen has no room for the lead
 	if m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 14}); strings.Contains(view(m), "The words kit uses") ||
-		!strings.Contains(view(m), "▾ verb") {
+		!strings.Contains(view(m), "▾ 12 ") {
 		t.Errorf("a short screen:\n%s", view(m))
 	}
 	// settings told before the pages are read hold for the table once they are
@@ -221,7 +256,7 @@ func TestTheEdgesOfTheTermsStep(t *testing.T) {
 	m := New(r, "")
 	m = drive(m, append(testkit.Start(m, at120), press('6'), down, testkit.Press("tab"), enter, testkit.Press("s"),
 		enter, enter)...)
-	if lines := strings.Split(view(m), "\n"); !strings.Contains(lines[paneTop], "▾ verb") ||
+	if lines := strings.Split(view(m), "\n"); !strings.Contains(lines[paneTop], "▾ 1 ") ||
 		!strings.Contains(lastLine(m), "a preset needs a name") || !strings.Contains(m.termsNotice(), "\x1b[") {
 		t.Errorf("no lead, and a refusal:\n%s", view(m))
 	}
@@ -231,21 +266,22 @@ func TestTheEdgesOfTheTermsStep(t *testing.T) {
 	}
 }
 
-func TestATermAndItsCommandStandWholeWhileTheMeaningGivesWay(t *testing.T) {
-	// at 80 columns no term and no command is cut: the meaning gives way
+func TestTheCommandTermsAndExamplesStandWholeWhileTheMeaningGivesWay(t *testing.T) {
+	// at 80 columns no command, term, or example is cut: the meaning gives way
 	m, _ := loaded(t, tea.WindowSizeMsg{Width: 80, Height: 40}, press('6'))
 	got := view(m)
-	for _, whole := range []string{"▸ remote and primary  A remote is another co…  git remote --verbose",
-		"▸ code forge          The service that hosts…  kit flow incoming --no-fetch"} {
+	for _, whole := range []string{"▸ git remote    2             A remote is anot…  git remote --verbose",
+		"▸ kit flow      " + pill("code forge") + "  The service that…  kit flow incoming --no-fetch"} {
 		if !strings.Contains(got, whole) {
 			t.Errorf("at 80, no %q in:\n%s", whole, got)
 		}
 	}
-	// at 60, the meaning keeps a few cells, and the widest of the others, the command, gives way after it
+	// at 60, the terms are drawn as text, not pills; the meaning keeps a few cells, and the widest of the others,
+	// the examples, give way after it
 	m = drive(m, tea.WindowSizeMsg{Width: 60, Height: 40})
 	got = view(m)
-	for _, want := range []string{"▸ remote and primary  A remote is…  git remote --verbo…",
-		"▸ code forge          The service…  kit flow incoming …"} {
+	for _, want := range []string{"▸ git remote    2           A remote is…  git remote --v…",
+		"▸ kit flow      worktree    A checkout …  kit flow wo… +1"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("at 60, no %q in:\n%s", want, got)
 		}

@@ -1,9 +1,11 @@
-// The terms step drawn as a table, internal/table's sheet, as kit flow draws its stages: one row a term, its fields
-// in terms.json, the catalog. Each term of the page is a `## <term>` heading, the paragraphs under it, its meaning,
-// and a line holding one backticked command, which shows it; the verb, which the rows group by, is what the command
-// is run with, its tool and its verb, as kit flow or git remote. The text before the first heading is the step's lead,
-// drawn over the table where the pane has room for it. A page with no such heading, as a house package may write, is
-// drawn as a page, as every other step's.
+// The terms step drawn as a table, internal/table's sheet, as kit flow draws its stages: one row an entry, its fields
+// in terms.json, the catalog. Each entry of the page is a `## <term>, <term>` heading, the terms it names, as many as
+// share one meaning, comma-separated; the paragraphs under it, its meaning; and each line holding one backticked
+// command, its examples, each a command that shows it. Its command, which the rows group by, is what its first example
+// is run with, its tool and its verb, as kit flow or git remote. The terms are a list, as an issue's labels are, each a
+// pill, so the rows can stand once per term, flattened, and sort by it. The text before the first heading is the
+// step's lead, drawn over the table where the pane has room for it. A page with no such heading, as a house package
+// may write, is drawn as a page, as every other step's.
 package welcome
 
 import (
@@ -38,10 +40,12 @@ func readCatalog(data []byte) table.Catalog {
 	return c
 }
 
-// term is one term of the page: its name, its meaning, the paragraphs under its heading as one line, and the command
-// that shows it, none where the page gives none.
+// term is one entry of the page: the terms its heading names, its meaning, the paragraphs under its heading as one
+// line, and its examples, the commands that show it, none where the page gives none.
 type term struct {
-	name, meaning, command string
+	names    []string
+	meaning  string
+	examples []string
 }
 
 var (
@@ -50,10 +54,11 @@ var (
 	fence       = regexp.MustCompile("^(```|~~~)")
 )
 
-// parseTerms reads a page's terms, and the text before the first, its lead: a `## ` heading starts a term; under it,
-// the first line that is one backticked command and nothing else is its command, and every other line of text its
-// meaning, a code block's lines among them, without the fence. A comment is dropped, and a ## inside one starts
-// nothing. The meaning and the name are plain text, as plainText draws them.
+// parseTerms reads a page's entries, and the text before the first, its lead: a `## ` heading starts an entry, its
+// terms the heading's comma-separated names; under it, each line that is one backticked command and nothing else is
+// one of its examples, and every other line of text its meaning, a code block's lines among them, without the fence.
+// A comment is dropped, and a ## inside one starts nothing. The meaning and the names are plain text, as plainText
+// draws them.
 func parseTerms(md string) (lead string, terms []term) {
 	var before []string
 	var meaning [][]string
@@ -65,12 +70,12 @@ func parseTerms(md string) (lead string, terms []term) {
 		case comment || strings.HasPrefix(text, "<!--"):
 			comment = !strings.Contains(text, "-->")
 		case termHeading.MatchString(text):
-			terms = append(terms, term{name: plainText(termHeading.FindStringSubmatch(text)[1])})
+			terms = append(terms, term{names: namesOf(plainText(termHeading.FindStringSubmatch(text)[1]))})
 			meaning = append(meaning, nil)
 		case last < 0:
 			before = append(before, raw)
-		case commandLine.MatchString(text) && terms[last].command == "":
-			terms[last].command = commandLine.FindStringSubmatch(text)[1]
+		case commandLine.MatchString(text):
+			terms[last].examples = append(terms[last].examples, commandLine.FindStringSubmatch(text)[1])
 		case text != "" && !fence.MatchString(text):
 			meaning[last] = append(meaning[last], text)
 		}
@@ -79,6 +84,17 @@ func parseTerms(md string) (lead string, terms []term) {
 		terms[k].meaning = plainText(strings.Join(meaning[k], " "))
 	}
 	return strings.TrimSpace(strings.Join(before, "\n")), terms
+}
+
+// namesOf gives the terms a heading names, comma-separated, each trimmed, none empty.
+func namesOf(heading string) []string {
+	var out []string
+	for _, n := range strings.Split(heading, ",") {
+		if n = strings.TrimSpace(n); n != "" {
+			out = append(out, n)
+		}
+	}
+	return out
 }
 
 // plainText gives markdown's inline text as plain text: a link as its text, with its URL after it when it is a web
@@ -102,16 +118,29 @@ func verbOf(command string) string {
 	return words[0]
 }
 
-// termRecords gives the terms as the table's records, one a term, each keyed by its place and its name, so two
-// terms of one name stay two rows.
+// termRecords gives the entries as the table's records, one an entry, each keyed by its place and its terms, so two
+// entries of one term stay two rows: its command, what its first example is run with; its terms and its examples,
+// each a list; and its meaning.
 func termRecords(terms []term) []table.Record {
 	out := make([]table.Record, len(terms))
 	for k, t := range terms {
-		out[k] = table.Record{Row: grid.Row{Key: strconv.Itoa(k) + " " + t.name}, Values: map[string]table.Value{
-			"term": table.One(t.name), "meaning": table.Some(t.meaning), "command": table.Some(t.command),
-			"verb": table.Some(verbOf(t.command))}}
+		first := ""
+		if len(t.examples) > 0 {
+			first = t.examples[0]
+		}
+		out[k] = table.Record{Row: grid.Row{Key: strconv.Itoa(k) + " " + strings.Join(t.names, ", ")},
+			Values: map[string]table.Value{"command": table.Some(verbOf(first)), "terms": listOf(t.names),
+				"meaning": table.Some(t.meaning), "examples": listOf(t.examples)}}
 	}
 	return out
+}
+
+// listOf gives a list's value, its items as they stand, or none for no items.
+func listOf(items []string) table.Value {
+	if len(items) == 0 {
+		return table.Value{}
+	}
+	return table.Value{Raw: items}
 }
 
 // termsColor is the terms' table's color, the accent's, as the steps' bar draws the selected step.

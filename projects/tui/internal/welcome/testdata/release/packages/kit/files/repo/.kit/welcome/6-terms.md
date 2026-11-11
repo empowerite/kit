@@ -2,7 +2,10 @@
 <!-- see: "Changing what kit adds" in .kit/1st.md, to replace it -->
 # Terms
 
-The words kit uses, one or two sentences each, and the command that shows each one.
+The words kit uses, one or two sentences each, and the commands that show each one.
+
+<!-- each `## ` heading names the terms that share one meaning, comma-separated; each line of one backticked command
+under it is an example, the first naming the command it groups under -->
 
 ## desk
 
@@ -16,6 +19,8 @@ A checkout of its own, under `worktrees/`, on one issue's branch. `kit work` mak
 
 `kit flow worktrees`
 
+`git worktree list`
+
 ## code forge
 
 The service that hosts the repository, its issues, its pull requests, and its builds: GitHub or GitLab. kit talks to
@@ -23,7 +28,7 @@ it through its command-line tool, `gh` or `glab`.
 
 `kit flow incoming --no-fetch`
 
-## remote and primary
+## remote, primary
 
 A remote is another copy of the repository, as git names it. The primary is the remote kit reads pull requests,
 builds, and issues from: `primary` in `kit.yml`, else `origin`. `kit work` and `kit submit` push to `origin`.

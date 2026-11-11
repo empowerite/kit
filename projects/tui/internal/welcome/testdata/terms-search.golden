@@ -4,18 +4,16 @@
   ───────────╰───────────────╰───────────────────╰──────────────╰──────────────────────╯          ╰───────────────────╰─
    Terms
 
-   The words kit uses, one or two sentences each, and the command that shows each one.
+   The words kit uses, one or two sentences each, and the commands that show each one.
 
-  ▾ verb 4                                                                                                  Default ▼
+  ▾ 4                                                                                                       Default ▼
 
-  ▾ kit flow 4                                                                                                         
-
-      term        meaning                                                                  command
-      ▲────────────────────────────────────────────────────────────────────────────────────·───────────────────────────
-    ▸ code forge  The service that hosts the repository, its issues, its pull requests, …  kit flow incoming --no-fetch
-    ▸ desk        Your root checkout, where you cloned the repository. It is yours; agen…  kit flow desk
-    ▸ stage       One part of the picture kit flow draws, such as the backlog or the bui…  kit flow --stages
-    ▸ worktree    A checkout of its own, under worktrees/, on one issue's branch. kit wo…  kit flow worktrees
+    command   terms         meaning                                                        examples
+    ▲─────────⇊────────────────────────────────────────────────────────────────────────────⇊───────────────────────────
+  ▸ kit flow  desk        Your root checkout, where you cloned the repository. It is y…  kit flow desk               
+  ▸ kit flow  worktree    A checkout of its own, under worktrees/, on one issue's bran…  kit flow worktrees        +1
+  ▸ kit flow  code forge  The service that hosts the repository, its issues, its pull …  kit flow incoming --no-fetch
+  ▸ kit flow  stage       One part of the picture kit flow draws, such as the backlog …  kit flow --stages
 
 
 
@@ -27,4 +25,6 @@
 
 
 
- = menu - workspace / search │ 1-7 jump │ esc tabs ↑↓ move ␣·⇧↑↓ select ⌃A all ← hide
+
+
+ = menu - workspace / search │ 1-7 jump │ esc tabs ↑↓ move ␣·⇧↑↓ select ⌃A all → show

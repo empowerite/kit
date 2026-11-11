@@ -180,12 +180,14 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     lines after its first start under the text, not under the glyph.
 - `internal/welcome/` draws `kit welcome`: one tab per page under `.kit/welcome/`. The terms' page, in `terms.go`,
   stands as a table, a `Sheet` of `internal/table`'s, as the flow picture's stages stand, its fields in `terms.json`:
-  each `## <term>` heading is a row, its term, its meaning, the paragraphs under it as one line, its command, the line
-  of one backticked command, and its verb, what the command is run with, its tool and its verb, as `kit flow`. Default
-  groups the terms by verb, sorted by term, and Compact hides the command and the verb. The term and the command
-  keep their whole width, `"width": "whole"` in the catalog, and the meaning gives way first. The text before the first
-  heading stands over the table, where the pane has room for it. A page with no such heading, as a house package's may
-  be, is drawn as a page.
+  each `## <term>, <term>` heading is a row, its columns its command, what its first example is run with, its tool and
+  its verb, as `kit flow`; its terms, the heading's comma-separated names, a list drawn as pills, as an issue's
+  labels are; its meaning, the paragraphs under it as one line; and its examples, each line of one backticked
+  command, a list too. Default sorts the rows by command; By command flattens the terms, a row a term, sorted, and
+  groups them by command; Compact flattens them too, and hides the command and the examples. The command, the terms,
+  and the examples keep their whole width, `"width": "whole"` in the catalog, and the meaning gives way first. The text
+  before the first heading stands over the table, where the pane has room for it. A page with no such heading, as a
+  house package's may be, is drawn as a page.
 - `internal/tutorials/` draws `kit tutorials`: a card for each tutorial, one tab for each audience.
 - `internal/tabs/` is the tab bar `kit flow`, `kit welcome`, and `kit tutorials` share: three lines of numbered tabs,
   and the keys and the clicks that select them.

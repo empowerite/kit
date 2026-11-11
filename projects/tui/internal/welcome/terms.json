@@ -1,22 +1,24 @@
 {
   "stages": [
     {
-      "stage": "welcome/terms", "record": "## <term>",
+      "stage": "welcome/terms", "record": "## <term>, <term>",
       "fields": [
-        {"id": "term", "label": "term", "type": "text", "path": "## <term>", "sort": true, "renderings": ["text"],
-         "width": "whole", "placement": "column"},
+        {"id": "command", "label": "command", "type": "enum", "path": "the first example's tool and verb",
+         "sort": true, "group": true, "filter": true, "renderings": ["text"], "dim": true, "width": "whole",
+         "placement": "column"},
+        {"id": "terms", "label": "terms", "one": "term", "type": "label", "path": "## <term>, <term>",
+         "group": true, "filter": true, "renderings": ["pills", "text"], "width": "whole", "placement": "column"},
         {"id": "meaning", "label": "meaning", "type": "text", "path": "the paragraphs", "renderings": ["text"],
          "wrap": true, "placement": "column"},
-        {"id": "command", "label": "command", "type": "text", "path": "`<command>`", "sort": true,
-         "renderings": ["text"], "dim": true, "width": "whole", "placement": "column"},
-        {"id": "verb", "label": "verb", "type": "enum", "path": "the command's tool and verb", "sort": true,
-         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "column"}
+        {"id": "examples", "label": "examples", "one": "example", "type": "text", "path": "`<command>`",
+         "renderings": ["text"], "dim": true, "width": "whole", "placement": "column"}
       ],
       "presets": [
-        {"name": "Default", "fields": {"verb": {"placement": "group", "depth": 1},
-                                       "term": {"sort": "asc", "priority": 1}}},
-        {"name": "Compact", "fields": {"command": {"placement": "hidden"}, "verb": {"placement": "hidden"},
-                                       "term": {"sort": "asc", "priority": 1}}}
+        {"name": "Default", "fields": {"command": {"sort": "asc", "priority": 1}}},
+        {"name": "By command", "fields": {"command": {"placement": "group", "depth": 1},
+                                          "terms": {"flat": true, "sort": "asc", "priority": 1}}},
+        {"name": "Compact", "fields": {"command": {"placement": "hidden"}, "examples": {"placement": "hidden"},
+                                       "terms": {"flat": true, "sort": "asc", "priority": 1}}}
       ]
     }
   ]

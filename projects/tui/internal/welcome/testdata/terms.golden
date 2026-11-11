@@ -4,27 +4,27 @@
   ───────────╰───────────────╰───────────────────╰──────────────╰──────────────────────╯          ╰───────────────────╰─
    Terms
 
-   The words kit uses, one or two sentences each, and the command that shows each one.
+   The words kit uses, one or two sentences each, and the commands that show each one.
 
-  ▾ verb ▾ 12                                                                                               Default ▼
+  ▾ 12                                                                                                      Default ▼
 
-      term                meaning                                                          command
-      ▲────────────────────────────────────────────────────────────────────────────────────·───────────────────────────
-  ▾ git remote 1
-    ▸ remote and primary  A remote is another copy of the repository, as git names it. T…  git remote --verbose
-  ▾ kit context 2
-    ▸ rule                What a file of one kind must do to be trusted, and the linter …  kit context README.md
-    ▸ style               How a file of one kind looks. A style package places it in .ki…  kit context README.md
-  ▾ kit flow 4
-    ▸ code forge          The service that hosts the repository, its issues, its pull re…  kit flow incoming --no-fetch
-    ▸ desk                Your root checkout, where you cloned the repository. It is you…  kit flow desk
-    ▸ stage               One part of the picture kit flow draws, such as the backlog or…  kit flow --stages
-    ▸ worktree            A checkout of its own, under worktrees/, on one issue's branch…  kit flow worktrees
-  ▾ kit gate 1
-    ▸ gate                The repository's own CI command, such as just ci. The delivere…  kit gate
-  ▾ kit generate 1
-    ▸ region              A part of a file you own that a command writes, from a kit:gen…  kit generate --check
-  ▾ kit help 1
-   … 5 more
+    command       terms         meaning                                                    examples
+    ▲─────────────⇊────────────────────────────────────────────────────────────────────────⇊───────────────────────────
+  ▸ git remote    2             A remote is another copy of the repository, as git names…  git remote --verbose
+  ▸ kit context   rule        What a file of one kind must do to be trusted, and the l…  kit context README.md
+  ▸ kit context   style       How a file of one kind looks. A style package places it …  kit context README.md
+  ▸ kit flow      desk        Your root checkout, where you cloned the repository. It …  kit flow desk
+  ▸ kit flow      worktree    A checkout of its own, under worktrees/, on one issue's …  kit flow worktrees        +1
+  ▸ kit flow      code forge  The service that hosts the repository, its issues, its p…  kit flow incoming --no-fetch
+  ▸ kit flow      stage       One part of the picture kit flow draws, such as the back…  kit flow --stages
+  ▸ kit gate      gate        The repository's own CI command, such as just ci. The de…  kit gate
+  ▸ kit generate  region      A part of a file you own that a command writes, from a k…  kit generate --check
+  ▸ kit help      template    The shape a new file of a kind starts from. kit new file…  kit help new
+  ▸ kit kinds     kind        A kind of file, such as bash or markdown. Its paths and …  kit kinds
+  ▸ kit packages  package     A set of files kit delivers, such as rules, styles, or a…  kit packages
+
+
+
+
 
  = menu - workspace / search │ ⇥·⇧⇥ tab ↓ terms 1-7 jump
