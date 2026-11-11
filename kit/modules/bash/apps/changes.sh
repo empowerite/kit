@@ -8,7 +8,7 @@
 #             commented, and when, with the change's unresolved threads
 #   checks    a row per open change and check: the latest run of each name on its head commit, so a rerun supersedes
 #             the run before it
-#   merged    a row per change merged last, the 50 newest, who merged it and when
+#   merged    a row per change merged last, 50 at most, who merged it and when
 #
 # reviews and checks read the open changes as kit flow changes does, from the snapshot the forge's open-prs call
 # keeps, so they cost no request more. Each stage's mark is the forge's marks of its issues, which move with its

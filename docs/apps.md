@@ -87,11 +87,13 @@ or outside a repository's working tree with no workspace.
 | --- | --- | --- | --- |
 | `reviews` | open change and reviewer | `change, title, login, state, at, unresolved` | the forge's issues and runs |
 | `checks` | open change and check, its latest run | `change, title, name, verdict, at, took` | as `reviews` |
-| `merged` | change merged last, the 50 newest | `number, title, author, branch, merged, by` | as `reviews` |
+| `merged` | change merged last, 50 at most | `number, title, author, branch, merged, by` | as `reviews` |
 
 - `reviews` and `checks` read the open changes as `kit flow changes` does, from the forge's snapshot of them, so they
-  cost no request more: one GraphQL request a minute on GitHub. GitLab reads each open merge request's approvals
-  beside its discussions, and Azure DevOps names the reviewers in its list of pull requests.
+  cost no request more: one GraphQL request a minute on GitHub. Azure DevOps names the reviewers in its list of pull
+  requests. GitLab reads each open merge request's approvals beside its discussions, a request each, in every read of
+  the open changes: `kit flow changes`, `underway`, and `backlog` pay it as well. On GitHub, a token without
+  `read:org` is refused a team asked to review; the read asks again without teams, and draws no team among them.
 - `reviews` keys each row by the change's number and the reviewer's login, `3 bob`. `state` is `requested` while the
   reviewer is asked and has not answered, else the reviewer's latest review: `approved`, `changes`, or `commented`.
   `at` is when they answered, in seconds since the epoch, `null` while asked. `unresolved` is the change's unresolved
@@ -103,9 +105,10 @@ or outside a repository's working tree with no workspace.
   `failed`, or `pending`; `at` is when the run started and `took` how long it ran, in seconds.
 - `merged` keys each row by its number, and its title links to its page. `merged` is when, in seconds since the
   epoch, and `by` who merged it. GitHub reads the 50 pull requests updated last, as a merge updates one, and orders
-  them by merge; GitLab orders by `merged_at`, from GitLab 17.2; Azure DevOps lists its completed pull requests in
-  an order no parameter sets, newest first in its reference's examples. Where the forge holds more than 50, the
-  document is `limited: 50`.
+  them by merge; GitLab orders by `merged_at`, from GitLab 17.2, and an older GitLab is read by update, as GitHub is;
+  Azure DevOps lists its completed pull requests in an order no parameter sets, newest first in its reference's
+  examples. Where the forge holds more than it read, the document is `limited`. A list read by update could miss a
+  change merged before the oldest update in it, so it keeps only those merged since, and `limited` counts them.
 - Each stage's mark is the forge's marks of its issues, which move with its changes, and of its runs, joined, as
   `kit flow changes`' are; Azure DevOps has no marks, so its are `null`.
 

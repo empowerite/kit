@@ -245,10 +245,18 @@ import "forge" as forge; [.[] | {vote, isContainer, hasDeclined, uniqueName, dis
 [{"uniqueName": "a", "vote": 10}, {"uniqueName": "b", "vote": 5}, {"uniqueName": "c", "vote": -5}, {"uniqueName": "d", "vote": -10}, {"uniqueName": "e", "vote": 0}, {"uniqueName": "f", "vote": 0, "hasDeclined": true}, {"uniqueName": "vstfs:///x", "displayName": "Core Team", "isContainer": true, "vote": 0}]
 [{"login":"a","state":"approved","at":null},{"login":"b","state":"approved","at":null},{"login":"c","state":"changes","at":null},{"login":"d","state":"changes","at":null},{"login":"e","state":"requested","at":null},{"login":"Core Team","state":"requested","at":null}]
 
-# GitHub's merged pull requests come merged last first, each merger and author null for a deleted account; a count
-# past the nodes read ends the list with how many were.
+# GitHub's merged pull requests come merged last first, each merger and author null for a deleted account; with every
+# one read, one merged long ago and updated since is among them.
 import "forge" as forge; forge::github_merged
-{"data": {"repository": {"pullRequests": {"totalCount": 3, "nodes": [{"number": 4, "title": "Four", "url": "u4", "headRefName": "b4", "mergedAt": "1970-01-12T13:40:00Z", "author": null, "mergedBy": null}, {"number": 5, "title": "Five", "url": "u5", "headRefName": "b5", "mergedAt": "1970-01-12T13:45:00Z", "author": {"login": "bob"}, "mergedBy": {"login": "ada"}}]}}}}
+{"data": {"repository": {"pullRequests": {"totalCount": 3, "nodes": [{"number": 3, "title": "Three", "url": "u3", "headRefName": "b3", "mergedAt": "1970-01-12T13:00:00Z", "updatedAt": "1970-01-12T13:50:00Z", "author": null, "mergedBy": null}, {"number": 4, "title": "Four", "url": "u4", "headRefName": "b4", "mergedAt": "1970-01-12T13:40:00Z", "updatedAt": "1970-01-12T13:40:00Z", "author": null, "mergedBy": null}, {"number": 5, "title": "Five", "url": "u5", "headRefName": "b5", "mergedAt": "1970-01-12T13:45:00Z", "updatedAt": "1970-01-12T13:46:00Z", "author": {"login": "bob"}, "mergedBy": {"login": "ada"}}]}}}}
+{"number":5,"title":"Five","author":"bob","branch":"b5","merged":999900,"by":"ada","url":"u5"}
+{"number":4,"title":"Four","author":null,"branch":"b4","merged":999600,"by":null,"url":"u4"}
+{"number":3,"title":"Three","author":null,"branch":"b3","merged":997200,"by":null,"url":"u3"}
+
+# Past the nodes GitHub read, a pull request merged before the oldest update among them may be missing, so only those
+# merged since are kept, then limited counts them: one merged long ago and updated since is left out.
+import "forge" as forge; forge::github_merged
+{"data": {"repository": {"pullRequests": {"totalCount": 9, "nodes": [{"number": 3, "title": "Three", "url": "u3", "headRefName": "b3", "mergedAt": "1970-01-12T13:00:00Z", "updatedAt": "1970-01-12T13:50:00Z", "author": null, "mergedBy": null}, {"number": 4, "title": "Four", "url": "u4", "headRefName": "b4", "mergedAt": "1970-01-12T13:40:00Z", "updatedAt": "1970-01-12T13:40:00Z", "author": null, "mergedBy": null}, {"number": 5, "title": "Five", "url": "u5", "headRefName": "b5", "mergedAt": "1970-01-12T13:45:00Z", "updatedAt": "1970-01-12T13:46:00Z", "author": {"login": "bob"}, "mergedBy": {"login": "ada"}}]}}}}
 {"number":5,"title":"Five","author":"bob","branch":"b5","merged":999900,"by":"ada","url":"u5"}
 {"number":4,"title":"Four","author":null,"branch":"b4","merged":999600,"by":null,"url":"u4"}
 {"limited":2}
@@ -266,3 +274,10 @@ import "forge" as forge; forge::ado_merged(5; "https://dev.azure.com/o/p/_git/r"
 [{"pullRequestId": 2, "title": "Two", "sourceRefName": "refs/heads/b2", "createdBy": {"uniqueName": "bob"}, "closedBy": {"uniqueName": "ada"}, "closedDate": "1970-01-12T13:40:00.1234567Z"}, {"pullRequestId": 3, "title": "Three", "sourceRefName": "refs/heads/b3", "closedDate": "1970-01-12T13:45:00Z"}]
 {"number":3,"title":"Three","author":null,"branch":"b3","merged":999900,"by":null,"url":"https://dev.azure.com/o/p/_git/r/pullrequest/3"}
 {"number":2,"title":"Two","author":"bob","branch":"b2","merged":999600,"by":"ada","url":"https://dev.azure.com/o/p/_git/r/pullrequest/2"}
+
+# A GitLab older than 17.2 lists its merged merge requests by update instead: of the first $limit, those merged since
+# the oldest update among them are kept when it read more, so one merged long ago and updated since is left out.
+import "forge" as forge; forge::gitlab_merged_by_update(2)
+[{"iid": 7, "title": "Seven", "merged_at": "1970-01-12T13:00:00Z", "updated_at": "1970-01-12T13:50:00Z", "web_url": "u7"}, {"iid": 9, "title": "Nine", "author": {"username": "bob"}, "source_branch": "b9", "merged_at": "1970-01-12T13:45:00Z", "updated_at": "1970-01-12T13:45:00Z", "merge_user": {"username": "ada"}, "web_url": "u9"}, {"iid": 8, "title": "Eight", "merged_at": "1970-01-12T13:40:00Z", "updated_at": "1970-01-12T13:40:00Z", "web_url": "u8"}]
+{"number":9,"title":"Nine","author":"bob","branch":"b9","merged":999900,"by":"ada","url":"u9"}
+{"limited":1}

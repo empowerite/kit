@@ -42,8 +42,8 @@ and GraphQL fields exist, and features of the paid tiers are absent from Communi
 | Review threads | `glab mr note list "${n}" --state unresolved -F json` (experimental); kit reads `glab api --paginate "projects/:id/merge_requests/${n}/discussions"` and their `resolvable` and `resolved` notes |
 | Checks rollup | `glab ci status --branch "${branch}" -F json`; kit reads `glab api --paginate "projects/:id/pipelines/${pipeline}/jobs"` for the head pipeline's jobs |
 | Open changes | `glab mr list -F json --per-page 100`, or `glab api --paginate 'projects/:id/merge_requests?state=opened'` |
-| Reviewers | each open merge request's `reviewers`, from `glab api "projects/:id/merge_requests/${n}"`, and who approved it and when, from `glab api "projects/:id/merge_requests/${n}/approvals"` (raw API), which every tier answers: a request per open merge request, beside its discussions; `kit changes reviews` draws them |
-| Merged changes | `glab api 'projects/:id/merge_requests?state=merged&order_by=merged_at&per_page=51'` (raw API): the 50 merged last, and a 51st that says there are more; `order_by=merged_at` is GitLab 17.2's; `kit changes merged` draws them |
+| Reviewers | each open merge request's `reviewers`, from `glab api "projects/:id/merge_requests/${n}"`, and who approved it and when, from `glab api "projects/:id/merge_requests/${n}/approvals"` (raw API), which every tier answers: a request per open merge request, beside its discussions, made by every read of the open changes, so `kit flow changes`, `underway`, and `backlog` pay it as `kit changes reviews` does |
+| Merged changes | `glab api 'projects/:id/merge_requests?state=merged&order_by=merged_at&per_page=51'` (raw API): the 50 merged last, and a 51st that says there are more; `order_by=merged_at` is GitLab 17.2's, and an older GitLab, which refuses it naming `order_by`, is asked once more with `order_by=updated_at&sort=desc&per_page=51`, of whose first 50 kit keeps those merged since the oldest `updated_at`, saying `limited` when there are more; `kit changes merged` draws them |
 
 ### Write to GitLab merge requests
 

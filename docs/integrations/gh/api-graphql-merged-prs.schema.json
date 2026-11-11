@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "gh api graphql --field owner=${owner} --field name=${name} --raw-field query=${query}",
-  "description": "The 50 merged pull requests updated last, pullRequests(states: MERGED, first: 50, orderBy: {field: UPDATED_AT, direction: DESC}), which kit asks for in `modules/bash/forge/github.sh` (forge/github:merged-prs) and folds in `modules/jq/forge.jq` (forge::github_merged), ordered by mergedAt; a totalCount past the nodes ends the list with limited. PullRequestOrderField has CREATED_AT and UPDATED_AT alone. The types are the Repository, PullRequest, and Actor objects of GitHub's GraphQL schema, https://docs.github.com/public/fpt/schema.docs.graphql.",
+  "description": "The 50 merged pull requests updated last, pullRequests(states: MERGED, first: 50, orderBy: {field: UPDATED_AT, direction: DESC}), which kit asks for in `modules/bash/forge/github.sh` (forge/github:merged-prs) and folds in `modules/jq/forge.jq` (forge::github_merged), ordered by mergedAt; a totalCount past the nodes keeps those merged since the oldest updatedAt, which a merge moves, and ends the list with limited. PullRequestOrderField has CREATED_AT and UPDATED_AT alone. The types are the Repository, PullRequest, and Actor objects of GitHub's GraphQL schema, https://docs.github.com/public/fpt/schema.docs.graphql.",
   "type": "object",
   "properties": {
     "data": {
@@ -41,6 +41,10 @@
                         "type": ["string", "null"],
                         "format": "date-time"
                       },
+                      "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
                       "author": {
                         "$ref": "#/$defs/Actor"
                       },
@@ -48,7 +52,7 @@
                         "$ref": "#/$defs/Actor"
                       }
                     },
-                    "required": ["number", "title", "url", "headRefName", "mergedAt", "author", "mergedBy"],
+                    "required": ["number", "title", "url", "headRefName", "mergedAt", "updatedAt", "author", "mergedBy"],
                     "additionalProperties": true
                   }
                 }
@@ -93,6 +97,7 @@
                 "url": "https://github.com/empowerite/example/pull/2",
                 "headRefName": "9-other",
                 "mergedAt": "2026-10-03T09:00:00Z",
+                "updatedAt": "2026-10-03T09:00:01Z",
                 "author": {
                   "login": "bob"
                 },

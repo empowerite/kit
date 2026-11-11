@@ -219,7 +219,7 @@
       "description": "{change, title, name, verdict, at, took}, keyed by the change's number and the check's name: verdict is passed, failed, or pending; at is when the run started, in seconds since the epoch, or null; took is how long it ran, in seconds, null while it runs"
     },
     "merged": {
-      "description": "{number, title, author, branch, merged, by}, keyed by its number: merged is when, in seconds since the epoch, and by who merged it; the title links to its page. Past 50, the document is limited at 50"
+      "description": "{number, title, author, branch, merged, by}, keyed by its number: merged is when, in seconds since the epoch, and by who merged it; the title links to its page. Where the forge holds more, the document is limited, at how many it drew: a forge that lists them by update, as GitHub does, keeps only those merged since the oldest update it read, as one merged before may be missing"
     },
     "changes": {
       "description": "a tab kit flow prints; on a terminal it opens in kittui, and with a form it is refused"

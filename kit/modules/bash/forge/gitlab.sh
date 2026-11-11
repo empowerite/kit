@@ -168,14 +168,28 @@ forge/gitlab:me() {
 
 # forge/gitlab:merged-prs prints one document per merged merge request, as the seam's header says: one read, newest
 # merged first, of 51, so a 51st says GitLab holds more than the 50 printed, which end with {"limited": 50}. GitLab
-# orders by merged_at since 17.2; an older one refuses the order, and the read fails.
+# orders by merged_at since 17.2. An older one refuses the order, naming order_by, and the read asks once more, by
+# update, newest first: forge.jq then keeps those merged since the oldest update among the first 50, as GitHub's are.
+# Any other refusal fails the read.
 forge/gitlab:merged-prs() {
-  local list
-  forge/gitlab:ask list 'the merged merge requests' 'merge_requests?state=merged&order_by=merged_at&per_page=51' \
-    || return 1
-  forge/gitlab:fold 'the merged merge requests' "${list}" --exit-status 'arrays' >/dev/null || return 1
-  forge/gitlab:fold 'the merged merge requests' "${list}" --compact-output \
-    'import "forge" as forge; forge::gitlab_merged(50)'
+  local list said what='the merged merge requests'
+  forge/gitlab:project >/dev/null || return 1
+  file:temp said glab || return 1
+  if list=$(forge/gitlab:api 'merge_requests?state=merged&order_by=merged_at&per_page=51' 2>"${said}") \
+    && forge:json "${list}"
+  then
+    forge/gitlab:fold "${what}" "${list}" --exit-status 'arrays' >/dev/null || return 1
+    forge/gitlab:fold "${what}" "${list}" --compact-output 'import "forge" as forge; forge::gitlab_merged(50)'
+    return
+  fi
+  if [[ "${list}"$'\n'"$(<"${said}")" != *order_by* ]]
+  then
+    error "run: glab auth status (${what} could not be read)"
+    return 1
+  fi
+  forge/gitlab:ask list "${what}" 'merge_requests?state=merged&order_by=updated_at&sort=desc&per_page=51' || return 1
+  forge/gitlab:fold "${what}" "${list}" --exit-status 'arrays' >/dev/null || return 1
+  forge/gitlab:fold "${what}" "${list}" --compact-output 'import "forge" as forge; forge::gitlab_merged_by_update(50)'
 }
 
 # forge/gitlab:milestones prints one document per milestone of the project, open and closed, by number, as the seam's

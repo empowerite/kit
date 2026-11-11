@@ -44,7 +44,8 @@ JSON
   fixture merged.json <<'JSON'
 {"data": {"repository": {"pullRequests": {"totalCount": 1, "nodes": [
   {"number": 2, "title": "Do the other thing", "url": "https://github.com/o/r/pull/2", "headRefName": "9-other",
-   "mergedAt": "2026-10-03T09:00:00Z", "author": {"login": "bob"}, "mergedBy": {"login": "ada"}}]}}}}
+   "mergedAt": "2026-10-03T09:00:00Z", "updatedAt": "2026-10-03T09:00:00Z", "author": {"login": "bob"},
+   "mergedBy": {"login": "ada"}}]}}}}
 JSON
   printf 'HTTP/2.0 200 OK\r\nETag: W/"m1"\r\n\r\n[]\n' > "${FAKE_DIR}/marks-200.txt"
   route gh 'api user*' user.json

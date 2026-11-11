@@ -127,7 +127,8 @@ JSON
   fixture gh-merged.json <<'JSON'
 {"data": {"repository": {"pullRequests": {"totalCount": 1, "nodes": [
   {"number": 2, "title": "Do the other thing", "url": "https://github.com/empowerite/example/pull/2",
-   "headRefName": "9-other", "mergedAt": "2026-10-03T09:00:00Z", "author": {"login": "bob"},
+   "headRefName": "9-other", "mergedAt": "2026-10-03T09:00:00Z", "updatedAt": "2026-10-03T09:00:00Z",
+   "author": {"login": "bob"},
    "mergedBy": {"login": "ada"}}]}}}}
 JSON
   route gh 'api graphql*states: MERGED*' "${GITHUB_MERGED:-gh-merged.json}"
@@ -704,11 +705,46 @@ JSON
   [ "$status" -eq 0 ]
   [ "$(jq --slurp --compact-output '[length, .[0].number, .[0].merged, .[49].number, .[50]]' <<<"$output")" \
     = '[51,60,1791021000,11,{"limited":50}]' ]
-  jq '.data.repository.pullRequests.totalCount = 70' "${FAKE_DIR}/gh-merged.json" | fixture gh-merged-70.json
+  # past the 50 GitHub read, a change merged before the oldest update among them may be missing, so one merged long ago
+  # and updated since is left out, and limited counts those kept
+  jq '.data.repository.pullRequests |= (.totalCount = 70 | .nodes += [.nodes[0] | .number = 1
+       | .mergedAt = "2026-01-05T09:00:00Z" | .updatedAt = "2026-10-05T09:00:00Z"])' "${FAKE_DIR}/gh-merged.json" \
+    | fixture gh-merged-70.json
   GITHUB_MERGED=gh-merged-70.json world github
   run --separate-stderr call merged-prs
   [ "$status" -eq 0 ]
   [ "$(jq --slurp --compact-output 'map(.number // .)' <<<"$output")" = '[2,{"limited":1}]' ]
+  grep --quiet 'totalCount nodes { number title url headRefName mergedAt updatedAt author { login }' \
+    "${FAKE_DIR}/gh.calls"
+}
+
+@test "a GitLab older than 17.2, which refuses order_by=merged_at, has its merged changes read by update instead" {
+  local p='projects/empowerite%2Fexample'
+  world gitlab
+  fixture gl-order.txt <<<'glab: order_by does not have a valid value (HTTP 400)'
+  # newest updated first: one merged long ago and updated since, then fifty merged and updated a minute apart
+  jq '[(.[0] | .iid = 7 | .merged_at = "2026-01-05T09:00:00Z" | .updated_at = "2026-10-05T09:00:00Z"),
+       (range(1; 51) as $i | (50 - $i) as $m | .[0] | .iid = (100 - $i)
+        | .merged_at = "2026-10-03T09:\(if $m < 10 then "0" else "" end)\($m):00Z" | .updated_at = .merged_at)]' \
+    "${FAKE_DIR}/gl-merged.json" | fixture gl-merged-by-update.json
+  : > "${FAKE_DIR}/glab.routes"
+  route glab 'api user' user.json
+  route glab "api ${p}/merge_requests?state=merged&order_by=merged_at&per_page=51" '!1 gl-order.txt'
+  route glab "api ${p}/merge_requests?state=merged&order_by=updated_at&sort=desc&per_page=51" gl-merged-by-update.json
+  run --separate-stderr call merged-prs
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  # of the first 50 by update, those merged since the oldest update among them, merged last first, then limited
+  [ "$(jq --slurp --compact-output '[length, .[0].number, .[48].number, .[49]]' <<<"$output")" \
+    = '[50,99,51,{"limited":49}]' ]
+  # any other refusal is no older GitLab: it fails, and asks nothing more
+  fixture gl-denied.txt <<<'glab: 401 Unauthorized'
+  : > "${FAKE_DIR}/glab.routes"
+  route glab "api ${p}/merge_requests?state=merged&order_by=merged_at&per_page=51" '!1 gl-denied.txt'
+  run --separate-stderr call merged-prs
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [ "$stderr" = '❌ run: glab auth status (the merged merge requests could not be read)' ]
+  [ "$(grep -c 'order_by=updated_at' "${FAKE_DIR}/glab.calls")" -eq 1 ]
 }
 
 @test "GitLab's milestones follow the cursor past a page, and a failing page fails the call" {
@@ -1003,17 +1039,52 @@ SH
 
 @test "a read gh's login lacks a scope for names the command that adds the scope GitHub names" {
   world github
+  local said="gh: Your token has not been granted the required scopes to execute this query. The 'pullRequests'"
+  said+=" field requires one of the following scopes: ['repo'], but your token has only been granted the: ['gist']"
+  said+=" scopes. (INSUFFICIENT_SCOPES)"
+  printf '%s\n' "${said}" | fixture gh-repo.txt
+  : > "${FAKE_DIR}/gh.routes"
+  route gh 'repo view*' repo.json
+  route gh 'api graphql*' '!1 gh-repo.txt'
+  run --separate-stderr call merged-prs
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [ "$stderr" = '❌ run: gh auth refresh --scopes repo (the merged pull requests could not be read)' ]
+}
+
+@test "a token without read:org still reads the open changes: asked again without teams, it draws none of them" {
+  world github
   local said="gh: Your token has not been granted the required scopes to execute this query. The 'slug' field"
   said+=" requires one of the following scopes: ['read:org'], but your token has only been granted the: ['repo']"
   said+=" scopes. (INSUFFICIENT_SCOPES)"
   printf '%s\n' "${said}" | fixture gh-org.txt
+  # asked without the team fragment, GitHub gives a team asked as an empty object
+  jq '.data.repository.pullRequests.nodes[0].reviewRequests.nodes += [{"requestedReviewer": {}}]' \
+    "${FAKE_DIR}/open-prs.json" | fixture open-prs-teamless.json
   : > "${FAKE_DIR}/gh.routes"
   route gh 'repo view*' repo.json
-  route gh 'api graphql*' '!1 gh-org.txt'
+  route gh 'api graphql*on Team*' '!1 gh-org.txt'
+  route gh 'api graphql*' open-prs-teamless.json
+  : > "${FAKE_DIR}/gh.calls"
+  run --separate-stderr call open-prs
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ -z "$stderr" ]
+  [ "$(jq --compact-output '.reviewers | map([.login, .state])' <<<"$output")" \
+    = '[["bob","requested"],["carol","approved"]]' ]
+  [ "$(reads github)" -eq 2 ]
+  [ "$(grep -c 'on Team { slug }' "${FAKE_DIR}/gh.calls")" -eq 1 ]
+}
+
+@test "a GitHub answer with no repository says it could not be read, never that a cap was reached" {
+  world github
+  fixture no-repo.json <<<'{"data": {"repository": null}}'
+  : > "${FAKE_DIR}/gh.routes"
+  route gh 'repo view*' repo.json
+  route gh 'api graphql*' no-repo.json
   run --separate-stderr call open-prs
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  [ "$stderr" = '❌ run: gh auth refresh --scopes read:org (the pull requests could not be read)' ]
+  [ "$stderr" = '❌ run: gh auth status (the pull requests could not be read)' ]
 }
 
 @test "a read GitHub's rate limit stops says which limit, and when it resets, never gh auth status" {

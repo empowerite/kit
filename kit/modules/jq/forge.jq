@@ -495,24 +495,45 @@ def ado_builds($now; $default; $tags; $results):
 def merged_last:
   map(.merged |= (if . == null then null else epoch end)) | sort_by(-(.merged // 0)) | .[];
 
-# github_merged reads the answer to forge/github:merged-prs's GraphQL query and gives one document per merged pull
-# request: {number, title, author, branch, merged, by, url}, merged last first, author and by null for a deleted
-# account; then {"limited": N} when GitHub holds more than the N it read.
+# merged_window($more) reads merged changes a forge listed by their update, the latest first, each as merged_last reads
+# one with updated, an ISO 8601 time, beside, and gives them as merged_last does. When $more, the forge holds more than
+# it gave, and a change merged before the oldest update among them may be missing, as merging updates a change but a
+# change merged earlier and not updated since is past them: only those merged since that update are kept, then
+# {"limited": N} counts them.
+def merged_window($more):
+  if $more then
+    ([.[].updated | strings | epoch] | min) as $since
+    | map(select(.merged != null and $since != null and (.merged | epoch) >= $since))
+  else . end
+  | (map(del(.updated)) | merged_last), (if $more then {limited: length} else empty end);
+
+# github_merged reads the answer to forge/github:merged-prs's GraphQL query, the merged pull requests updated last, and
+# gives one document per merged pull request: {number, title, author, branch, merged, by, url}, merged last first,
+# author and by null for a deleted account. When GitHub holds more than it read, they are those merged_window keeps.
 def github_merged:
   .data.repository.pullRequests as $prs
-  | ([$prs.nodes[] | select(. != null)]
-     | map({ number, title, author: .author.login, branch: .headRefName, merged: .mergedAt, by: .mergedBy.login,
-             url }) | merged_last),
-    (($prs.nodes | length) as $n | if ($prs.totalCount // 0) > $n then {limited: $n} else empty end);
+  | [$prs.nodes[] | select(. != null)
+     | { number, title, author: .author.login, branch: .headRefName, merged: .mergedAt, by: .mergedBy.login, url,
+         updated: .updatedAt }]
+  | merged_window(($prs.totalCount // 0) > length);
+
+# gitlab_merged_row reads a GitLab merge request and gives it as merged_last reads one, updated beside: who merged
+# it is merge_user, else the deprecated merged_by.
+def gitlab_merged_row:
+  { number: .iid, title, author: .author.username, branch: .source_branch, merged: .merged_at,
+    by: ((.merge_user // .merged_by).username), url: .web_url, updated: .updated_at };
 
 # gitlab_merged($limit) reads GitLab's merged merge requests, newest merged first, and gives the same documents, the
-# first $limit, then {"limited": $limit} when it read more: who merged one is merge_user, else the deprecated
-# merged_by.
+# first $limit, then {"limited": $limit} when it read more.
 def gitlab_merged($limit):
-  (.[:$limit]
-   | map({ number: .iid, title, author: .author.username, branch: .source_branch, merged: .merged_at,
-           by: ((.merge_user // .merged_by).username), url: .web_url }) | merged_last),
+  (.[:$limit] | map(gitlab_merged_row | del(.updated)) | merged_last),
   (if length > $limit then {limited: $limit} else empty end);
+
+# gitlab_merged_by_update($limit) reads GitLab's merged merge requests updated last, as a GitLab older than 17.2, which
+# orders none by its merge, lists them, and gives the first $limit as merged_window does, more than $limit read
+# meaning GitLab holds more.
+def gitlab_merged_by_update($limit):
+  (length > $limit) as $more | .[:$limit] | map(gitlab_merged_row) | merged_window($more);
 
 # ado_merged($limit; $url) reads Azure DevOps' completed pull requests, as it lists them, and gives the same documents,
 # the first $limit, then {"limited": $limit} when it read more: merged is when it closed, by who closed it, and its page

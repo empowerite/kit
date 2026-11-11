@@ -180,15 +180,16 @@ forge/github:me() {
 
 # forge/github:merged-prs prints one document per merged pull request, as the seam's header says: one GraphQL request,
 # a point of the rate limit, for the 50 updated last. GitHub orders a list by its creation or its update, never by
-# its merge, and a merge updates a pull request, so every pull request merged after the 50th's update is among them;
-# forge.jq orders them by merge. More than 50 ends the list with {"limited": 50}.
+# its merge, and a merge updates a pull request, so every pull request merged since the oldest update among them is
+# there; forge.jq orders them by merge. When GitHub holds more, one merged before that update may be missing, so
+# forge.jq keeps only those merged since, and ends the list with {"limited": N}, N those it kept.
 forge/github:merged-prs() {
   local repo query answer
   repo=$(forge/github:repo) || return 1
   query='query($owner: String!, $name: String!) {
     repository(owner: $owner, name: $name) {
       pullRequests(states: MERGED, first: 50, orderBy: {field: UPDATED_AT, direction: DESC}) {
-        totalCount nodes { number title url headRefName mergedAt author { login } mergedBy { login } }
+        totalCount nodes { number title url headRefName mergedAt updatedAt author { login } mergedBy { login } }
       }
     }
   }'
@@ -241,13 +242,14 @@ forge/github:open-issues() {
 # request that closes more than 10 says so, as its list's next page, and forge/github:rest-of-closes reads the rest of
 # it, 100 at a time, a point each. A pull request is asked for its first 20 reviewers asked and 20 reviews, and one
 # with more fails the read, as it would be partial. A team asked is named by its slug, which may need the read:org
-# scope that gh's default login has; a login without it fails the read, naming the command that adds it.
+# scope that gh's default login has and a GH_TOKEN may lack. GitHub then refuses the field, and the read asks again
+# without it, once: the open changes are drawn, and a team asked is not among their reviewers.
 #
 # The pull requests come 100 a request, each page after the cursor the one before ended on, until the list ends. A
 # pull request with more than 100 review threads, or more than 100 checks on its head commit, has the rest of that
 # list read by forge/github:rest-of-pr, 100 a request, as the issues it closes are read by forge/github:rest-of-closes.
 forge/github:open-prs() {
-  local repo query answer='' page number cursor rest list head row
+  local repo query answer='' page number cursor rest list head row said team='... on Team { slug } '
   local -a after=() rests=()
   repo=$(forge/github:repo) || return 1
   query='query($owner: String!, $name: String!, $after: String) {
@@ -267,7 +269,7 @@ forge/github:open-prs() {
             number title createdAt repository { nameWithOwner } labels(first: 20) { nodes { name color } }
           } }
           reviewRequests(first: 20) { totalCount nodes { requestedReviewer {
-            ... on User { login } ... on Team { slug } ... on Bot { login } ... on Mannequin { login }
+            ... on User { login } @team@... on Bot { login } ... on Mannequin { login }
           } } }
           latestReviews(first: 20) { totalCount nodes { author { login } state submittedAt } }
           reviewThreads(first: 100) { pageInfo { hasNextPage endCursor } nodes { isResolved } }
@@ -283,10 +285,20 @@ forge/github:open-prs() {
       }
     }
   }'
+  file:temp said gh || return 1
   while :
   do
-    forge/github:ask page 'the pull requests' api graphql --field owner="${repo%%/*}" --field name="${repo#*/}" \
-      "${after[@]}" --raw-field query="${query}" || return 1
+    if ! forge/github:ask page 'the pull requests' api graphql --field owner="${repo%%/*}" --field name="${repo#*/}" \
+      "${after[@]}" --raw-field query="${query//@team@/${team}}" 2>"${said}"
+    then
+      if [[ -n "${team}" ]] && forge/github:teamless "${forge_github_said:-}"
+      then
+        team=''
+        continue
+      fi
+      cat "${said}" >&2
+      return 1
+    fi
     if [[ -z "${answer}" ]]
     then
       answer=${page}
@@ -300,7 +312,10 @@ forge/github:open-prs() {
     [[ -n "${cursor}" ]] || break
     after=(--raw-field after="${cursor}")
   done
-  jq --exit-status 'all(.data.repository.pullRequests.nodes[];
+  # An answer with no pull requests to read, as one with no repository, is no cap reached: it could not be read.
+  forge/github:fold 'the pull requests' "${answer}" --exit-status '.data.repository.pullRequests.nodes | arrays' \
+    >/dev/null || return 1
+  jq --exit-status 'all(.data.repository.pullRequests.nodes[]?;
       (.reviewRequests.totalCount // 0) <= (.reviewRequests.nodes // [] | length)
       and (.latestReviews.totalCount // 0) <= (.latestReviews.nodes // [] | length))' <<<"${answer}" >/dev/null \
     || { error "kit reads at most 20 review requests and 20 reviews of a change (the pull requests could not be read)"
@@ -656,14 +671,16 @@ forge/github:rest-of-pr() {
 }
 
 # forge/github:ask <name> <what> <gh argument>… runs gh and puts what it printed in the variable <name>. When gh
-# fails, it says why, as forge/github:limited does, or else names gh auth status, for <what>, and returns 1. An answer
-# gh is not asked to filter with --jq must be JSON, or the read fails; gh parses the one it filters itself.
+# fails, it keeps what gh said in forge_github_said, and says why, as forge/github:limited or forge/github:scoped
+# does, or else names gh auth status, for <what>, and returns 1. An answer gh is not asked to filter with --jq must be
+# JSON, or the read fails; gh parses the one it filters itself.
 forge/github:ask() {
   local ask_into=$1 ask_what=$2 ask_said ask_out ask_arg ask_filtered=false
   shift 2
   file:temp ask_said gh || return 1
   if ! ask_out=$(gh "$@" 2>"${ask_said}")
   then
+    forge_github_said=$(<"${ask_said}")
     forge/github:limited "${ask_what}" "${ask_out}"$'\n'"$(<"${ask_said}")" \
       || forge/github:scoped "${ask_what}" "$(<"${ask_said}")" \
       || error "run: gh auth status (${ask_what} could not be read)"
@@ -714,6 +731,14 @@ forge/github:scoped() {
   scope=$(sed -n "s/.*requires one of the following scopes: \['\([^']*\)'.*/\1/p" <<<"${said}" | head -n 1)
   [[ -n "${scope}" ]] || return 1
   error "run: gh auth refresh --scopes ${scope} (${what} could not be read)"
+}
+
+# forge/github:teamless <said> succeeds when what gh said is GitHub refusing a team's field for a scope the login
+# lacks, read:org, as a token without it is refused a team asked to review: the read can be asked again without it.
+forge/github:teamless() {
+  local said=$1
+  [[ "${said,,}" == *insufficient_scopes* || "${said,,}" == *'required scopes'* ]] || return 1
+  [[ "${said}" == *"'slug'"* || "${said}" == *read:org* || "${said}" == *Team* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
