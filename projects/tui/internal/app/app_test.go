@@ -15,7 +15,6 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/palette"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
-	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
@@ -112,8 +111,8 @@ func TestAFormOpenedLaterKnowsWhatTheTerminalSaidOfItsKeyboard(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m = drive(m, tea.KeyboardEnhancementsMsg{Flags: ansi.KittyDisambiguateEscapeCodes}, press(tea.KeyDown),
-		press(tea.KeyEnter))
+	m = drive(m, append(append([]tea.Msg{tea.KeyboardEnhancementsMsg{Flags: ansi.KittyDisambiguateEscapeCodes}},
+		testkit.Typed("commit")...), press(tea.KeyEnter), press(tea.KeyEnter))...)
 	if !m.InForm() || !strings.Contains(ansi.Strip(m.View().Content), "⇧⏎ run") {
 		t.Errorf("the form does not name shift-Enter:\n%s", m.View().Content)
 	}
@@ -141,14 +140,15 @@ func TestAVerbWhoseFormCannotOpenLeavesKitsLineInThePalette(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// down gives the verbs focus from the search, and down again moves to submit
-	m = drive(m, press(tea.KeyDown), press(tea.KeyDown), press(tea.KeyEnter))
+	// sub narrows the rows to submit, and enter gives them focus, the cursor on it
+	m = drive(m, append(testkit.Typed("sub"), press(tea.KeyEnter), press(tea.KeyEnter))...)
 	view := m.View().Content
 	if m.InForm() || !strings.Contains(view, "❌ kit submit refuses for the test; run: kit help submit") {
 		t.Fatalf("the palette does not show why submit did not open:\n%s", view)
 	}
-	// another verb opens as ever, and takes the line with it
-	m = drive(m, press(tea.KeyUp), press(tea.KeyEnter))
+	// another verb opens as ever, and takes the line with it: commit, the first of the verbs commit leaves
+	m = drive(m, append(append([]tea.Msg{testkit.Typed("/")[0], tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}},
+		testkit.Typed("commit")...), press(tea.KeyEnter), press(tea.KeyEnter))...)
 	if !m.InForm() {
 		t.Fatalf("commit did not open after the refusal:\n%s", m.View().Content)
 	}
@@ -187,7 +187,7 @@ func TestAUsageThatDoesNotParseOpensNoForm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m = drive(m, press(tea.KeyEnter), press(tea.KeyEnter))
+	m = drive(m, append(testkit.Typed("commit"), press(tea.KeyEnter), press(tea.KeyEnter))...)
 	if m.InForm() || !strings.Contains(m.View().Content, "usage does not parse") {
 		t.Errorf("the palette does not say why commit did not open:\n%s", m.View().Content)
 	}
@@ -209,17 +209,17 @@ func TestHelpOpensThePaletteOnTheVerbsPage(t *testing.T) {
 		t.Fatal(err)
 	}
 	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 30})
-	if v := ansi.Strip(m.View().Content); !strings.Contains(v, "kit submit - a purpose for the test") ||
-		!strings.Contains(v, style.Focus+" submit") {
+	if v := ansi.Strip(m.View().Content); !strings.Contains(v, "Usage") || !strings.Contains(v, "  kit submit") ||
+		!strings.Contains(v, "⏎ open") {
 		t.Errorf("kit help submit is not on submit's page:\n%s", v)
 	}
-	// with no name, the palette opens at the top, purposes shown
+	// with no name, the palette opens at the top, every row closed, the search focused
 	m, err = OpenHelp(testkit.Runner(t, "kit"), "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if v := ansi.Strip(drive(m).View().Content); strings.Contains(v, "a purpose for the test") ||
-		!strings.Contains(v, style.Focus+" commit") {
+	if v := ansi.Strip(drive(m).View().Content); strings.Contains(v, "Usage") || !strings.Contains(v, " ▏") ||
+		!strings.Contains(v, "commit") {
 		t.Errorf("kit help with no name:\n%s", v)
 	}
 }

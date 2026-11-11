@@ -5,9 +5,10 @@
 
 It has six screens:
 
-- **The palette.** `kit help` opens it, focus in the search. It lists every verb under its group, filtered as you
-  type; ⏎ or ↓ gives the verbs focus, and ⏎ there opens one. [ and ] move to the group before and after, { and } to the
-  first and the last.
+- **The palette.** `kit help` opens it, focus in the search. It is a table of every verb, its group, command, and
+  description, grouped by group and sorted by command, filtered as you type; ⏎ or ↓ gives the rows focus, → opens a
+  row to the verb's help page, and ⏎ opens the verb's form. [ and ] move to the group before and after, { and } to
+  the first and the last.
 - **A verb's form.** It opens when a verb at a terminal is short of its arguments. It finishes the command line.
 - **The flow picture.** `kit flow` at a terminal draws its stages here. Over a group, `kit --workspace=<group> flow`
   or one picked from the 📚 workspace menu, every tab gathers every cloned member's rows, grouped by member as they
@@ -49,7 +50,7 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
 
 - `cmd/kittui/` is the binary. It picks a screen from its arguments.
 - `internal/app/` is the root model: the palette, a verb's form, and the slide between them.
-- `internal/palette/` is the list of verbs that bare `kit` opens.
+- `internal/palette/` is the table of verbs that `kit help` opens.
 - `internal/form/` turns a verb's grammar into form fields, and the fields back into a command line.
 - `internal/syntax/` decodes the grammar `kit syntax` prints.
 - `internal/flow/` draws `kit flow`: the stages as tabs, and each stage's rows. `fields.json` is the catalog. It

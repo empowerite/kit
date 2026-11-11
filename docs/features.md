@@ -180,11 +180,12 @@ see: [architecture.md](architecture.md#the-workflow-and-the-gate)
 ## The terminal UI
 
 `kit` typed with no verb opens the welcome guide, as `kit welcome` does. `kit help` at a terminal opens a palette of
-every verb with its one-line purpose, as a tree under the groups it lists them in, filtered as you type.
+every verb, a table of its group, its command, and its description, filtered as you type.
 
-- The up and down arrows move over the verbs, never onto a heading. Shift with either jumps to the first verb of
-  the previous or the next group.
-- The right arrow shows the highlighted verb's help page beside the names; the left arrow shows the purposes again.
+- By default the rows are grouped by group and sorted by command, and the description shows its first line, the
+  verb's one-line purpose. The table's presets, sorting, grouping, and filtering are those of every table in kittui.
+- The right arrow opens the row under the cursor to the rest of the description: the verb's help page, fetched as
+  the row opens. The left arrow closes it again.
 - Enter opens that verb's form. A verb run at a terminal without an argument it needs opens the same form instead
   of refusing, filled with what was given, as `kit commit` with no message does.
 - The form has one field per part of the verb's usage line, and offers the values the repository has: changed
