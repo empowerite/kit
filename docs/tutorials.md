@@ -6,9 +6,9 @@ working in kittui, a maintainer. `kit tutorials` lists them and opens one.
 ```sh
 kit tutorials                         # on a terminal, kittui's tutorials screen
 kit tutorials --text                  # the list, as text, even on a terminal
-kit tutorials --tag newcomer          # only the tutorials for that audience
-kit tutorials --tag ui --tag newcomer # the tutorials for either
-kit tutorials kit-tutorials           # opens one in the browser
+kit tutorials --tag=newcomer          # only the tutorials for that audience
+kit tutorials --tag=ui --tag=newcomer # the tutorials for either
+kit tutorials kit-tutorials           # opens one: kittui on a terminal, else the browser
 kit tutorials --json                  # one JSON object, for a program
 ```
 
@@ -19,17 +19,18 @@ kit tutorials --json                  # one JSON object, for a program
   `--json`, and `--jq` forms keep the tutorials for any of the tags. Without a kittui, it prints the list.
 - Without a terminal, or with `--text`, it prints a block for each tutorial: its glyph and title, its summary, its
   audiences, and its link. With none to show, it says so in one line.
-- A tutorial named opens in the browser. Its title and link print first, so a machine with no browser has the link.
+- On a terminal, a tutorial named opens kittui's screen on its card. With `--text`, or in a pipe, its title and link
+  print and it opens in the browser, so a machine with no browser has the link.
 - `--json` prints one object. `--jq` prints the same, formatted by jq for a person.
 - Nothing here runs a tutorial's commands. A tutorial tells you what to type; you type it.
 
 ## The JSON
 
 ```json
-{"version":"0.4.7","base":"https://kit.empowerite.dev/tutorials/0.4/",
+{"version":"0.4.7","base":"https://empowerite.github.io/kit/tutorials/0.4/",
  "audiences":[{"id":"newcomer","label":"Just starting","color":"#15803d"}],
  "tutorials":[{"id":"kit-tutorials","title":"Reading kit's tutorials","summary":"…","glyph":"🎓",
-               "audience":["newcomer"],"url":"https://kit.empowerite.dev/tutorials/0.4/kit-tutorials/?kit=0.4.7"}]}
+               "audience":["newcomer"],"url":"https://empowerite.github.io/kit/tutorials/0.4/kit-tutorials/?kit=0.4.7"}]}
 ```
 
 `--tag` filters the tutorials and leaves the audiences whole, so a screen can show every filter. An audience's `color`,
@@ -44,14 +45,15 @@ set, names another catalogue file in its place.
 
 ## How a link is chosen
 
-A tutorial's link is the base, then the page's path, then `?kit=<version>`. The base follows the version of the kit that
+The tutorials are one site, `https://empowerite.github.io/kit/tutorials/`, and a version is a line of it. A tutorial's
+link is the base, then the page's path, then `?kit=<version>`. The base follows the version of the kit that
 runs, so the page you open describes the kit you have:
 
 | `kit version` | Base |
 | --- | --- |
 | `unreleased`, a checkout | `https://empowerite.github.io/kit/tutorials/main/` |
 | a pre-release, as `0.5.0-rc.1` | `https://empowerite.github.io/kit/tutorials/0.5.0-rc.1/` |
-| a release, `X.Y.Z` | `https://kit.empowerite.dev/tutorials/X.Y/` |
+| a release, `X.Y.Z` | `https://empowerite.github.io/kit/tutorials/X.Y/` |
 
 `KIT_TUTORIALS_BASE`, when set, replaces the base, as for a site served on this machine. The `?kit=` part lets a page
 tell you that your kit is too old for a passage.

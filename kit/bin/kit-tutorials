@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# kit-tutorials - lists kit's tutorials, or opens one in the browser (kit verb: help)
+# kit-tutorials - lists kit's tutorials, and opens one, in kittui or the browser (kit verb: help)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit tutorials [--text | --json | --jq] [--tag <audience>…] [<tutorial>]
+# kit tutorials [--text | --json | --jq] [--tag=<audience>…]
+#
+# kit tutorials [--text] [--tag=<audience>…] <tutorial>
 #
 # The tutorials are a site of short lessons, each for some audiences. On a terminal, it opens kittui's tutorials
 # screen, a button for each tutorial, the audiences as filters. Without a terminal, or with --text, it prints each
@@ -17,7 +19,7 @@
 #   --json            one JSON object: {version, base, audiences, tutorials}, each tutorial {id, title, summary,
 #                     glyph, audience, url}
 #   --jq              the same JSON, formatted by jq for a person
-#   --tag <audience>  keeps the tutorials for that audience; given again, it keeps the tutorials for either
+#   --tag=<audience>  keeps the tutorials for that audience; given again, it keeps the tutorials for either
 #   <audience>        an audience's id, as --json names it: newcomer, ui, maintainer
 #   <tutorial>        a tutorial's id, as --json names it; kittui opens on its card, or it opens in the browser
 #
@@ -40,7 +42,6 @@ tags=() tutorial='' form=''
 while (( $# ))
 do
   case "$1" in
-    (--tag) tags+=("$2"); shift ;;
     (--tag=*) tags+=("${1#--tag=}") ;;
     (--text | --json) form=$1 ;;
     (--jq) form=--json ;;
@@ -59,7 +60,7 @@ screen() {
   export KIT="${kit_root}/bin/kit"
   for tag in "${tags[@]}"
   do
-    args+=(--tag "${tag}")
+    args+=("--tag=${tag}")
   done
   exec "${binary}" tutorials "${args[@]}" "$@"
 }
@@ -68,11 +69,6 @@ screen() {
 # for a machine that cannot open one.
 if [[ -n "${tutorial}" ]]
 then
-  if [[ "${form}" == --json ]]
-  then
-    error "kit tutorials opens a tutorial in the browser; it prints no JSON for one; run: kit help tutorials"
-    exit 2
-  fi
   json=$(tutorials:json) || exit 1
   entry=$(jq --compact-output --arg id "${tutorial}" '.tutorials[] | select(.id == $id)' <<<"${json}")
   if [[ -z "${entry}" ]]

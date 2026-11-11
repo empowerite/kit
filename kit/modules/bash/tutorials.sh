@@ -7,11 +7,12 @@
 # from the pages' front matter: the audiences, each its id, label, and color, and for each tutorial its id, path,
 # title, summary, glyph, audiences, and order. KIT_TUTORIALS_CATALOGUE, when set, names another file in its place.
 #
-# A tutorial's link is <base><path>?kit=<version>, and the base follows this kit's version:
+# A tutorial's link is <base><path>?kit=<version>, and the base is <site><line>/, one site for every version. The line
+# follows this kit's version:
 #
-#   - unreleased:   https://empowerite.github.io/kit/tutorials/main/
-#   - with a suffix, as 0.5.0-rc.1:   https://empowerite.github.io/kit/tutorials/0.5.0-rc.1/
-#   - X.Y.Z:   https://kit.empowerite.dev/tutorials/X.Y/
+#   - unreleased:   main
+#   - with a suffix, as 0.5.0-rc.1:   the version, 0.5.0-rc.1
+#   - X.Y.Z:   X.Y
 #
 # KIT_TUTORIALS_BASE, when set, replaces the base. Nothing here runs a tutorial's commands.
 #
@@ -20,20 +21,33 @@ use release yaml
 # tutorials:catalogue prints the path of the catalogue.
 tutorials:catalogue() { printf '%s\n' "${KIT_TUTORIALS_CATALOGUE:-${kit_root}/modules/tutorials.yml}"; }
 
-# tutorials:base <version> prints the base the tutorials' links start from, ending in a slash.
+# tutorials:site prints the one site the tutorials are published at, ending in a slash.
+tutorials:site() { printf '%s\n' https://empowerite.github.io/kit/tutorials/; }
+
+# tutorials:line <version> prints the line of the site a version's tutorials are on: main for unreleased, the version
+# for one with a suffix, and <major>.<minor> for a release.
+tutorials:line() {
+  local version=$1
+  if [[ "${version}" == "$(release:unreleased)" ]]
+  then
+    printf '%s\n' main
+  elif [[ "${version}" =~ ^([0-9]+\.[0-9]+)\.[0-9]+$ ]]
+  then
+    printf '%s\n' "${BASH_REMATCH[1]}"
+  else
+    printf '%s\n' "${version}"
+  fi
+}
+
+# tutorials:base <version> prints the base the tutorials' links start from, ending in a slash: KIT_TUTORIALS_BASE, or
+# the site and the version's line.
 tutorials:base() {
-  local version=$1 base
+  local base
   if [[ -n "${KIT_TUTORIALS_BASE:-}" ]]
   then
     base=${KIT_TUTORIALS_BASE}
-  elif [[ "${version}" == "$(release:unreleased)" ]]
-  then
-    base=https://empowerite.github.io/kit/tutorials/main/
-  elif [[ "${version}" =~ ^([0-9]+\.[0-9]+)\.[0-9]+$ ]]
-  then
-    base=https://kit.empowerite.dev/tutorials/${BASH_REMATCH[1]}/
   else
-    base=https://empowerite.github.io/kit/tutorials/${version}/
+    base=$(tutorials:site)$(tutorials:line "$1")
   fi
   printf '%s\n' "${base%/}/"
 }
@@ -74,7 +88,7 @@ tutorials:choices() {
     return 0
   fi
   file=$(tutorials:catalogue)
-  [[ -f "${file}" ]] || return 0
+  [[ -f "${file}" ]] || return 1
   if [[ "${key}" == '<tutorial>' ]]
   then
     yaml:json "${file}" | jq --raw-output '(.tutorials // []) | sort_by(.order)[] | [.id, .title, "", ""] | @tsv'

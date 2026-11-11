@@ -138,7 +138,7 @@ New to a repository that uses kit? Run `kit trust`, then `kit welcome`. It check
 and the repository, and shows the fix for each problem. Then it walks you through how work flows, the terms, and
 what a team can change.
 
-`kit tutorials` lists kit's tutorials, by who each is for, and opens one in the browser; see
+`kit tutorials` lists kit's tutorials, by who each is for, and opens one, in kittui or the browser; see
 [docs/tutorials.md](docs/tutorials.md).
 
 ## Take the kit

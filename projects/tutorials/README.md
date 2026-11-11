@@ -8,7 +8,7 @@ Each build is for one line of kit, at one base path:
 
 - `/` when `npm run dev` serves it
 - `/kit/tutorials/main/` and `/kit/tutorials/<pre-release>/` on this repository's GitHub Pages
-- `/tutorials/<major>.<minor>/` on `kit.empowerite.dev`, one site for every patch release in the line
+- `/kit/tutorials/<major>.<minor>/` on this repository's GitHub Pages, one site for every patch release in the line
 
 ## Running it
 

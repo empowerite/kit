@@ -9,6 +9,8 @@ bats_require_minimum_version 1.5.0
 
 load helper
 
+site=https://empowerite.github.io/kit/tutorials
+
 setup() {
   hide-system-toolchains
   fresh-repo >/dev/null
@@ -75,28 +77,26 @@ fake-openers() {
   export PATH="${BATS_TEST_TMPDIR}/openers:${PATH}"
 }
 
-@test "the base follows the version" {
+@test "the line and the base follow the version, on one site" {
   run bash -c "source '${kit_root}/modules/bash/1st.sh'; use tutorials
-    for v in unreleased 0.1.0-rc.7 0.4.12 1.0.0; do tutorials:base \"\${v}\"; done"
+    for v in unreleased 0.1.0-rc.7 0.4.12; do tutorials:line \"\${v}\"; tutorials:base \"\${v}\"; done"
   [ "$status" -eq 0 ]
-  [ "$output" = "https://empowerite.github.io/kit/tutorials/main/
-https://empowerite.github.io/kit/tutorials/0.1.0-rc.7/
-https://kit.empowerite.dev/tutorials/0.4/
-https://kit.empowerite.dev/tutorials/1.0/" ]
+  [ "$output" = "$(printf '%s\n' main "${site}/main/" 0.1.0-rc.7 "${site}/0.1.0-rc.7/" 0.4 "${site}/0.4/")" ]
 }
 
-@test "--json carries each tutorial's link" {
-  versioned 0.4.7
-  run --separate-stderr "${kit}" tutorials --json
-  [ "$status" -eq 0 ]
-  [ "$(jq --raw-output '.version, .base' <<<"$output")" = "0.4.7
-https://kit.empowerite.dev/tutorials/0.4/" ]
-  [ "$(jq --raw-output '.tutorials[].url' <<<"$output")" = "https://kit.empowerite.dev/tutorials/0.4/first/?kit=0.4.7
-https://kit.empowerite.dev/tutorials/0.4/screens/?kit=0.4.7
-https://kit.empowerite.dev/tutorials/0.4/releasing/?kit=0.4.7" ]
-  [ "$(jq --compact-output '.audiences' <<<"$output")" = '[{"id":"newcomer","label":"Just starting","color":"#15803d"},{"id":"ui","label":"UI","color":"#1d4ed8"},{"id":"maintainer","label":"Maintainer","color":"#7c3aed"}]' ]
-  [ "$(jq --raw-output '.tutorials[0] | keys | join(",")' <<<"$output")" = "audience,glyph,id,summary,title,url" ]
-  [ "$(wc -l <<<"$output")" -eq 1 ]
+@test "a missing catalogue is 1, whatever is named" {
+  local word
+  for word in --text --json first
+  do
+    KIT_TUTORIALS_CATALOGUE=/nonesuch run --separate-stderr "${kit_root}/bin/kit" tutorials "${word}"
+    [ "$status" -eq 1 ]
+    [[ "$stderr" == *"no catalogue of tutorials at /nonesuch"* ]]
+  done
+}
+
+@test "the grammar gives a named tutorial no --json" {
+  [ "$("${kit_root}/bin/kit" syntax tutorials --match -- --json first | jq .status)" -eq 2 ]
+  [ "$("${kit_root}/bin/kit" syntax tutorials --match -- --text --tag=ui first | jq .status)" -eq 0 ]
 }
 
 @test "--json gives an audience the catalogue gives no color an empty one" {
@@ -117,19 +117,19 @@ https://kit.empowerite.dev/tutorials/0.4/releasing/?kit=0.4.7" ]
 }
 
 @test "--tag keeps the tutorials for that audience, and two --tags keep either's" {
-  run --separate-stderr "${kit_root}/bin/kit" tutorials --json --tag ui
+  run --separate-stderr "${kit_root}/bin/kit" tutorials --json --tag=ui
   [ "$status" -eq 0 ]
   [ "$(jq --raw-output '.tutorials[].id' <<<"$output")" = "screens" ]
   # the audiences stay whole: the screen shows every filter, whichever are on
   [ "$(jq '.audiences | length' <<<"$output")" -eq 3 ]
-  run --separate-stderr "${kit_root}/bin/kit" tutorials --json --tag ui --tag maintainer
+  run --separate-stderr "${kit_root}/bin/kit" tutorials --json --tag=ui --tag=maintainer
   [ "$(jq --raw-output '.tutorials[].id' <<<"$output" | paste -s -d ' ' -)" = "screens releasing" ]
 }
 
 @test "an unknown tutorial or audience is a usage error" {
   run --separate-stderr "${kit_root}/bin/kit" tutorials nonesuch
   [ "$status" -eq 2 ]
-  run --separate-stderr "${kit_root}/bin/kit" tutorials --json --tag nonesuch
+  run --separate-stderr "${kit_root}/bin/kit" tutorials --json --tag=nonesuch
   [ "$status" -eq 2 ]
 }
 
@@ -139,8 +139,8 @@ https://kit.empowerite.dev/tutorials/0.4/releasing/?kit=0.4.7" ]
   run --separate-stderr "${kit}" tutorials screens
   [ "$status" -eq 0 ]
   [[ "$output" == *"The screens"* ]]
-  [[ "$output" == *"https://kit.empowerite.dev/tutorials/0.4/screens/?kit=0.4.7"* ]]
-  [ "$(cat "${BATS_TEST_TMPDIR}/opened")" = "https://kit.empowerite.dev/tutorials/0.4/screens/?kit=0.4.7" ]
+  [[ "$output" == *"${site}/0.4/screens/?kit=0.4.7"* ]]
+  [ "$(cat "${BATS_TEST_TMPDIR}/opened")" = "${site}/0.4/screens/?kit=0.4.7" ]
 }
 
 @test "without an opener, the link prints" {
@@ -166,14 +166,14 @@ https://kit.empowerite.dev/tutorials/0.4/releasing/?kit=0.4.7" ]
   done < <(tr ':' '\n' <<<"${PATH}")
   PATH=${out} run --separate-stderr "${kit}" tutorials first
   [ "$status" -eq 0 ]
-  [[ "$output" == *"https://kit.empowerite.dev/tutorials/0.4/first/?kit=0.4.7"* ]]
+  [[ "$output" == *"${site}/0.4/first/?kit=0.4.7"* ]]
   [[ "$stderr" == *"open the URL above"* ]]
 }
 
 @test "an audience no tutorial has is one dim line, and exit 0" {
   grep -v '^      - maintainer$' "${catalogue}" | sed '/id: releasing/,$d' > "${BATS_TEST_TMPDIR}/none.yml"
   export KIT_TUTORIALS_CATALOGUE="${BATS_TEST_TMPDIR}/none.yml"
-  run --separate-stderr "${kit_root}/bin/kit" tutorials --text --tag maintainer
+  run --separate-stderr "${kit_root}/bin/kit" tutorials --text --tag=maintainer
   [ "$status" -eq 0 ]
   [ -z "$output" ]
   [ "$(wc -l <<<"$stderr")" -eq 1 ]
@@ -185,7 +185,7 @@ https://kit.empowerite.dev/tutorials/0.4/releasing/?kit=0.4.7" ]
   run --separate-stderr "${kit}" tutorials --text
   [ "$status" -eq 0 ]
   in-order "$output" '2' 'The screens' 'What kittui shows.' 'ui' 'newcomer' \
-    'https://kit.empowerite.dev/tutorials/0.4/screens/?kit=0.4.7' '3' 'Cutting a release'
+    "${site}/0.4/screens/?kit=0.4.7" '3' 'Cutting a release'
   [ "$(grep -c 'kit=0.4.7' <<<"$output")" -eq 3 ]
   [[ "$output" != *"#15803d"* ]]
 }
@@ -212,13 +212,13 @@ https://kit.empowerite.dev/tutorials/0.4/releasing/?kit=0.4.7" ]
   ln -s "${BATS_TEST_DIRNAME}/fakes/fake-kittui" "${BATS_TEST_TMPDIR}/fake/kittui"
   ln -s "${BATS_TEST_DIRNAME}/fakes/fake-go" "${BATS_TEST_TMPDIR}/fake/go"
   export FAKES="${BATS_TEST_TMPDIR}/fake" PATH="${BATS_TEST_TMPDIR}/fake:${PATH}"
-  run pty "'${kit_root}/bin/kit' tutorials --tag newcomer --tag ui"
-  [[ "$output" == *"kittui native-native tutorials --tag newcomer --tag ui"* ]]
+  run pty "'${kit_root}/bin/kit' tutorials --tag=newcomer --tag=ui"
+  [[ "$output" == *"kittui native-native tutorials --tag=newcomer --tag=ui"* ]]
   run pty "'${kit_root}/bin/kit' tutorials --text"
   [[ "$output" == *"The first tutorial"* && "$output" != *"native-native"* ]]
   # a tutorial named opens the screen on its card, the browser left alone
   fake-openers
-  run pty "'${kit_root}/bin/kit' tutorials --tag ui screens"
-  [[ "$output" == *"kittui native-native tutorials --tag ui screens"* ]]
+  run pty "'${kit_root}/bin/kit' tutorials --tag=ui screens"
+  [[ "$output" == *"kittui native-native tutorials --tag=ui screens"* ]]
   [ ! -e "${BATS_TEST_TMPDIR}/opened" ]
 }
