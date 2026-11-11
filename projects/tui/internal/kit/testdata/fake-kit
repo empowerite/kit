@@ -17,7 +17,9 @@
 # A --workspace=<workspace> before the verb is handed to the verb's words, and one after the verb is refused.
 # workspaces --current prints FAKE_WORKSPACES/<workspace>.json, / in the name as _, current.json with no --workspace,
 # and refuses with exit 2 when that file is not there; workspaces --use=<name> adds "use <name>" to FAKE_KIT_RECORD's
-# file when it is set, and refuses with exit 2 when FAKE_KIT_REFUSE=workspaces. With FAKE_KIT_POLLS set, flow --quota
+# file when it is set, and refuses with exit 2 when FAKE_KIT_REFUSE=workspaces; workspaces --json prints
+# FAKE_WORKSPACES/list.json; and an edit, as --new=<name> or --rename=<name>, adds its words to that file and says so,
+# or refuses with exit 2 when FAKE_KIT_REFUSE=workspaces-edit. With FAKE_KIT_POLLS set, flow --quota
 # and flow --marks answer, each naming the words after its flag.
 
 set -o errexit -o nounset -o pipefail
@@ -218,6 +220,22 @@ case "${1:-}" in
     cat "${here}/../../tutorials/testdata/catalogue.json"
     ;;
   (workspaces)
+    if [[ "${2:-}" == --json ]]
+    then
+      cat "${FAKE_WORKSPACES:-/nowhere}/list.json"
+      exit
+    fi
+    case "${2:-}" in
+      (--new=* | --add=* | --remove=* | --rename=* | --delete=* | --favorite=* | --unfavorite=*)
+        if [[ "${FAKE_KIT_REFUSE:-}" == workspaces-edit ]]
+        then
+          echo "❌ kit workspaces refuses the edit for the test" >&2
+          exit 2
+        fi
+        [[ -z "${FAKE_KIT_RECORD:-}" ]] || printf '%s\n' "$*" >> "${FAKE_KIT_RECORD}"
+        echo "📚 the fake did it: ${*:2}"
+        exit 0
+    esac
     if [[ "${2:-}" == --use=* ]]
     then
       if [[ "${FAKE_KIT_REFUSE:-}" == workspaces ]]

@@ -290,3 +290,39 @@ func TestARecentRepositoryPickedIsKeptFirstAgain(t *testing.T) {
 		t.Errorf("kit was not told: %q", got)
 	}
 }
+
+func TestManageOpensTheWorkspacesScreenWhichAMoveLeavesAsItWas(t *testing.T) {
+	list := `{"file":"/f","roots":[],"favorites":[],"workspaces":[{"name":"w","members":1,` +
+		`"repos":["github.com/o/a"],"favorite":false}]}`
+	m, _, _ := workspaced(t, map[string]string{"current.json": repoJSON, "w.json": groupJSON, "list.json": list})
+	m = drive(m, shell.SwitchMsg{Screen: shell.Manage})
+	if v := ansi.Strip(m.View().Content); m.here != shell.Manage || !strings.Contains(v, "kit workspaces") ||
+		!strings.Contains(v, "github.com/o/a") {
+		t.Fatalf("Manage… opened %s:\n%s", m.here, v)
+	}
+	was := m.epochs[shell.Manage]
+	m = drive(m, shell.PickMsg{Workspace: "w"})
+	if m.epochs[shell.Manage] != was || m.here != shell.Manage {
+		t.Errorf("the workspaces' screen was made again on a move: %d, on %s", m.epochs[shell.Manage], m.here)
+	}
+}
+
+func TestAGroupRenamedIsFollowedAndOneDeletedGivesWayToWhereKitStarts(t *testing.T) {
+	core := strings.ReplaceAll(groupJSON, `"name":"w"`, `"name":"core"`)
+	m, record, _ := workspaced(t, map[string]string{"current.json": repoJSON, "w.json": groupJSON,
+		"core.json": core})
+	m = drive(m, shell.PickMsg{Workspace: "w"})
+	m = drive(m, shell.ChangedMsg{From: "w", To: "core"})
+	if got, _ := os.ReadFile(record); m.workspace.Name != "core" || !strings.Contains(string(got), "use core") {
+		t.Errorf("the rename was not followed: %+v, %q", m.workspace, got)
+	}
+	m = drive(m, shell.ChangedMsg{From: "core"})
+	if m.workspace.Name != "github.com/o/a" {
+		t.Errorf("the delete did not give way to where kit starts: %+v", m.workspace)
+	}
+	// a change to another group asks again for the one shown
+	m = drive(m, shell.PickMsg{Workspace: "w"}, shell.ChangedMsg{From: "x", To: "y"})
+	if m.workspace.Name != "w" {
+		t.Errorf("another group's change moved the workspace: %+v", m.workspace)
+	}
+}

@@ -111,7 +111,21 @@ kit workspaces --unfavorite=empowerite
 ```
 
 `--new`, `--add`, and `--remove` take a member, a git URL, or a checkout's directory, as `.` for the repository you
-are in. The forms that read print JSON with `--json`; `kit help workspaces` gives the shapes. The forms that edit
+are in. Each also takes a pattern, a member holding `*`, `?`, or `[`, as `github.com/empowerite/homebrew-*`, and
+`--new` and `--add` take `--from=<command>`, a command kit runs by bash whose every line is a repository:
+
+```sh
+kit workspaces --new=brew 'github.com/empowerite/homebrew-*'      # the checkouts under the roots it matches
+kit workspaces --add=org --from="gh repo list empowerite --limit 1000 --json url --jq '.[].url'"
+kit workspaces --new=tools --from="gh repo list empowerite --json url --jq '.[].url'" 'github.com/empowerite/*-tool'
+kit workspaces --remove=org 'github.com/empowerite/attic-*'       # the group's members it matches
+```
+
+A pattern matches the repositories `--from`'s command printed, else, for `--remove`, the group's members, else the
+members of the checkouts under the roots, and one that matches none is refused with 2. With no pattern, every
+repository the command printed joins. Either way, kit writes the members it found under `repos`, as if you had named
+each: a group does not follow a pattern or a command afterward, which the queries of `match` will, once they are
+built. The forms that read print JSON with `--json`; `kit help workspaces` gives the shapes. The forms that edit
 print one line, which says what changed, or that nothing needed to, as `📚 empowerite holds them already`, and take
 no `--json`. Each, and `--use`, takes the file's lock first, so two commands that edit the file at once each land.
 
@@ -143,6 +157,15 @@ to; the favorites, however many; every other group in the file; and the recent r
 is a favorite repository with no checkout. **Open…**, last, opens a dialog to type a repository's folder in: tab
 completes a folder, the folders it can complete to stand under it, and a plain click on one opens it. Enter, or a
 click on Open, asks kit; a folder in no git working tree is refused with one line in the dialog, which stays open.
+
+**Manage…**, after it, opens the workspaces' screen: every group a row, with whether it is a favorite, how many
+members it has, and the members. The app's menu, `=`, holds what it does to the group under the cursor, each a line
+that a plain click does and a key does with the menu closed, and each a `kit workspaces` command kittui runs: New
+Workspace… (`n`), a name and its repositories; Switch to It (`⏎`); Rename… (`r`); Add Members… (`a`), repositories and
+patterns; Add an Owner's Repositories… (`o`), a GitHub owner and a pattern, which runs `gh repo list` through
+`--from`; Add from a Command… (`c`); Remove Members… (`x`); Favorite or Unfavorite (`f`); and Delete… (`d`), which
+asks first. kit's line, when it refuses, stands in the action's dialog; when it is done, every screen's menu lists
+the groups as they are now, and a group renamed or deleted while it is shown is followed.
 
 ## Flow over a workspace in kittui
 
@@ -194,4 +217,6 @@ with checkouts. Steps 4 to 7 are designed and not built:
 - Queries, ☁️ members, batched forge reads, and the query cache. A group's `match` is refused by name until then.
 - Topics and git config labels as filters.
 - GitHub Project workspaces. A group's `project` is refused by name until then.
-- The Workspaces screen, and **New workspace…** and **Browse…** in full.
+- **Browse…**, a picker of every checkout under the roots with groups suggested from owners. The workspaces' screen,
+  **Open…**, and **Manage…** are built; a pattern or a command given to `--new` and `--add` is read once, when it is
+  given.

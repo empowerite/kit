@@ -43,6 +43,8 @@ const (
 	People       Screen = "people"
 	Trust        Screen = "trust"
 	Platform     Screen = "platform"
+	// Manage is the workspaces' screen, which the workspace menu's Manage… opens, and no line of the app's menu does.
+	Manage Screen = "workspaces"
 )
 
 // The glyphs beside the app's menu's items: the welcome, the help, the tutorials; the flow's compass, and each other

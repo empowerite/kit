@@ -728,3 +728,52 @@ YML
   # the last group used is as it was
   [ ! -f "${XDG_CACHE_HOME}/kit/workspaces/last" ]
 }
+
+@test "a pattern among the repositories matches the checkouts under the roots, and --remove's, the group's members" {
+  clone-at "${BATS_TEST_TMPDIR}/code/a" git@github.com:o/homebrew-a.git
+  clone-at "${BATS_TEST_TMPDIR}/code/b" git@github.com:O/Homebrew-B.git
+  clone-at "${BATS_TEST_TMPDIR}/code/c" git@github.com:o/other.git
+  printf 'roots: [%s/code]\n' "${BATS_TEST_TMPDIR}" | workspaces-file
+  mkdir -p "${BATS_TEST_TMPDIR}/outside" && cd "${BATS_TEST_TMPDIR}/outside"
+  run "${kit_root}/bin/kit" workspaces --new=brew 'github.com/o/homebrew-*' github.com/o/kit
+  [ "$status" -eq 0 ]
+  [ "$(yq --output-format=json --indent=0 '.workspaces.brew.repos' "${XDG_CONFIG_HOME}/kit/workspaces.yml")" \
+    = '["github.com/o/homebrew-a","github.com/o/homebrew-b","github.com/o/kit"]' ]
+  run "${kit_root}/bin/kit" workspaces --remove=brew 'github.com/o/home*'
+  [ "$status" -eq 0 ]
+  [ "$(yq --output-format=json --indent=0 '.workspaces.brew.repos' "${XDG_CONFIG_HOME}/kit/workspaces.yml")" \
+    = '["github.com/o/kit"]' ]
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --add=brew 'github.com/x/*'
+  [ "$status" -eq 2 ]
+  [[ "$stderr" == *"'github.com/x/*' matches no repository among the checkouts under the roots"* ]]
+}
+
+@test "--from runs a command whose lines are repositories; a pattern keeps those it matches" {
+  printf 'workspaces: {}\n' | workspaces-file
+  mkdir -p "${BATS_TEST_TMPDIR}/outside" && cd "${BATS_TEST_TMPDIR}/outside"
+  # shellcheck disable=SC2016  # the command is the verb's to run
+  list='printf "%s\n" https://github.com/o/a git@github.com:o/b-tool.git "" github.com/o/c-tool'
+  run "${kit_root}/bin/kit" workspaces --new=all --from="${list}"
+  [ "$status" -eq 0 ]
+  [ "$(yq --output-format=json --indent=0 '.workspaces.all.repos' "${XDG_CONFIG_HOME}/kit/workspaces.yml")" \
+    = '["github.com/o/a","github.com/o/b-tool","github.com/o/c-tool"]' ]
+  run "${kit_root}/bin/kit" workspaces --new=tools --from="${list}" 'github.com/o/*-tool'
+  [ "$status" -eq 0 ]
+  [ "$(yq --output-format=json --indent=0 '.workspaces.tools.repos' "${XDG_CONFIG_HOME}/kit/workspaces.yml")" \
+    = '["github.com/o/b-tool","github.com/o/c-tool"]' ]
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --add=tools --from='echo owner/repo'
+  [ "$status" -eq 2 ]
+  [[ "$stderr" == *"'owner/repo', which the command printed, names no repository"* ]]
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --add=tools --from='echo partial; exit 3'
+  [ "$status" -eq 1 ]
+  [[ "$stderr" == *"the command failed"* ]]
+  [ "$(yq '.workspaces.tools.repos | length' "${XDG_CONFIG_HOME}/kit/workspaces.yml")" -eq 2 ]
+}
+
+@test "--json gives each group's members" {
+  empowerite-file
+  fresh-repo >/dev/null
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --json
+  [ "$(jq --compact-output '[.workspaces[] | .repos]' <<<"$output")" \
+    = '[["github.com/empowerite/kit","github.com/empowerite/edge"],["github.com/me/solo"]]' ]
+}

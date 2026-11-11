@@ -1,0 +1,21 @@
+{
+  "stages": [
+    {
+      "stage": "workspaces/groups", "record": ".workspaces[]",
+      "fields": [
+        {"id": "favorite", "label": "★", "type": "text", "path": ".favorite", "sort": true, "group": true,
+         "renderings": ["text"], "width": "whole", "placement": "column"},
+        {"id": "name", "label": "workspace", "type": "text", "path": ".name", "sort": true, "renderings": ["text"],
+         "width": "whole", "placement": "column"},
+        {"id": "members", "label": "#", "type": "number", "path": ".members", "sort": true, "renderings": ["text"],
+         "dim": true, "right": true, "placement": "column"},
+        {"id": "repos", "label": "members", "one": "member", "type": "label", "path": ".repos", "filter": true,
+         "renderings": ["text"], "wrap": true, "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default", "fields": {}},
+        {"name": "By member", "fields": {"repos": {"flat": true, "sort": "asc", "priority": 1}}}
+      ]
+    }
+  ]
+}

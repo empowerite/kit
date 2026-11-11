@@ -77,3 +77,34 @@ func (r Runner) UseWorkspace(ctx context.Context, name string) error {
 	_, err := r.within(ctx, callLimit, append(os.Environ(), "NO_COLOR=1"), "workspaces", "--use="+name)
 	return err
 }
+
+// WorkspaceList is what kit workspaces --json prints: the file the groups are kept in, the roots checkouts are looked
+// for under, the favorites, and every group, in the file's order.
+type WorkspaceList struct {
+	File       string        `json:"file"`
+	Roots      []string      `json:"roots"`
+	Favorites  []string      `json:"favorites"`
+	Workspaces []ListedGroup `json:"workspaces"`
+}
+
+// ListedGroup is a group as kit workspaces --json lists it: its name, how many members it has, the members, and whether
+// it is a favorite.
+type ListedGroup struct {
+	Name     string   `json:"name"`
+	Members  int      `json:"members"`
+	Repos    []string `json:"repos"`
+	Favorite bool     `json:"favorite"`
+}
+
+// Workspaces gives the groups and the favorites, as kit workspaces --json lists them.
+func (r Runner) Workspaces(ctx context.Context) (WorkspaceList, error) {
+	out, err := r.within(ctx, callLimit, append(os.Environ(), "NO_COLOR=1"), "workspaces", "--json")
+	if err != nil {
+		return WorkspaceList{}, err
+	}
+	var list WorkspaceList
+	if err := json.Unmarshal(out, &list); err != nil {
+		return WorkspaceList{}, fmt.Errorf("kit workspaces --json: %v", err)
+	}
+	return list, nil
+}

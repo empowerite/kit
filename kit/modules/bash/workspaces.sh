@@ -226,6 +226,47 @@ workspaces:normalize() {
   fi
 }
 
+# workspaces:pattern <word> succeeds for a word that is a pattern of members, one that holds *, ?, or [.
+workspaces:pattern() { [[ "$1" == *[*?[]* ]]; }
+
+# workspaces:matching <pattern> <candidate>… prints each candidate member the glob matches, as kit spells members, so a
+# pattern written in any case matches on GitHub and GitLab.
+workspaces:matching() {
+  local pattern candidate
+  pattern=$(workspaces:spelled "$1")
+  shift
+  for candidate in "$@"
+  do
+    # shellcheck disable=SC2053  # the pattern is a glob
+    [[ "${candidate}" != ${pattern} ]] || printf '%s\n' "${candidate}"
+  done
+}
+
+# workspaces:from <command> prints the members named by the lines the command prints, run by bash from where kit was
+# run, each once, in its order; an empty line is passed over. It returns 1, after a line that says so, when the command
+# fails, and 2, naming the line, for a line that names no repository.
+workspaces:from() {
+  local out line member
+  local -a printed=()
+  if ! out=$(cd "${kit_invoked_in:-${PWD}}" && bash -c "$1")
+  then
+    error "run: $1 (the command failed, so kit has none of its repositories)"
+    return 1
+  fi
+  while IFS= read -r line
+  do
+    line=${line#"${line%%[![:space:]]*}"} line=${line%"${line##*[![:space:]]}"}
+    [[ -n "${line}" ]] || continue
+    member=$(workspaces:normalize "${line}" dirs)
+    if [[ -z "${member}" ]]
+    then
+      error "'${line}', which the command printed, names no repository; print host/owner/repo or a git URL, one a line"
+      return 2
+    fi
+    list:among "${member}" "${printed[@]}" || { printed+=("${member}"); printf '%s\n' "${member}"; }
+  done <<<"${out}"
+}
+
 # workspaces:names prints the groups' names, in the file's order.
 workspaces:names() { workspaces:json | jq --raw-output '(.workspaces // {}) | keys_unsorted[]'; }
 
@@ -458,7 +499,7 @@ workspaces:resolve() {
 workspaces:lines-json() { jq --raw-input --slurp --compact-output 'split("\n") | map(select(. != ""))'; }
 
 # workspaces:list-json prints the workspaces as JSON: {file, roots, favorites, workspaces}, each group {name, members,
-# favorite}, members its count of fixed members.
+# repos, favorite}, members its count of fixed members and repos those members, in the file's order.
 workspaces:list-json() {
   local name
   local -a groups=() names fixed
@@ -467,7 +508,7 @@ workspaces:list-json() {
   do
     list:read fixed workspaces:fixed "${name}" || return 1
     groups+=("$(jq --null-input --compact-output --arg name "${name}" --argjson n "${#fixed[@]}" \
-      '{name: $name, members: $n}')")
+      '{name: $name, members: $n, repos: $ARGS.positional}' --args "${fixed[@]}")")
   done
   printf '%s\n' "${groups[@]}" | jq --slurp --compact-output --arg file "$(workspaces:file)" \
     --argjson roots "$(workspaces:roots | workspaces:lines-json)" \

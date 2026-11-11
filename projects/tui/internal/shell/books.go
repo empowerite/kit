@@ -3,10 +3,11 @@
 // color, and - alone, dim, with none. Until kit says which workspace it is, it names the origin's owner/repo, as the
 // title did before. A plain click on it drops down what to switch to: the groups the repository belongs to, first;
 // the favorites, however many; every other group in the file; the repositories opened by their folder, the newest
-// first; and last Open…, which opens a repository by its folder; a rule between two of those it has. A line that cannot
+// first; and last Open…, which opens a repository by its folder, and Manage…, which opens the workspaces' screen; a
+// rule between two of those it has. A line that cannot
 // switch now stays, dim: the workspace shown, and a repository not cloned. When kit could not say, its line comes
 // first, dim. A pick asks kittui to switch, by the workspace's name as kit names it, a recent repository by its
-// folder; Open… asks for the Open… dialog.
+// folder; Open… asks for the Open… dialog, and Manage… for the workspaces' screen.
 package shell
 
 import (
@@ -46,8 +47,23 @@ const Opened = "🕘"
 // openItem is the dropdown's last line, which opens the Open… dialog, to open a repository by its folder.
 var openItem = booksLine{item: Item{Glyph: Opening, Name: "Open…"}, target: openTarget, acts: true}
 
-// openTarget is what Open… picks: no workspace's name, as neither a group's nor a repository's starts with a space.
-const openTarget = " open"
+// manageItem is the line after Open…, which opens the workspaces' screen, where the groups are made, renamed, edited,
+// and deleted.
+var manageItem = booksLine{item: Item{Glyph: Index, Name: "Manage…"}, target: manageTarget, acts: true}
+
+// Index is Manage…'s glyph.
+const Index = "📇"
+
+// openTarget and manageTarget are what Open… and Manage… pick: no workspace's name, as neither a group's nor a
+// repository's starts with a space.
+const (
+	openTarget   = " open"
+	manageTarget = " manage"
+)
+
+// ChangedMsg says a screen had kit change the groups: kittui asks kit for the workspace again, so every screen's menu
+// lists them as they are now; a group renamed From To, or deleted, To empty, is followed, when it is the one shown.
+type ChangedMsg struct{ From, To string }
 
 // WorkspaceMsg tells a screen its workspace, when it is made and whenever kit says it anew; when kit could not say,
 // kit's line, and the workspace as it was.
@@ -59,14 +75,16 @@ type WorkspaceMsg struct {
 // PickMsg asks kittui to switch to a workspace: a group's name or a repository's host/path, as kit names it.
 type PickMsg struct{ Workspace string }
 
-// Pick gives the command for what a line of the dropdown picked: Open… asks kittui for the Open… dialog, and a workspace
-// asks kittui to switch to it; none for none.
+// Pick gives the command for what a line of the dropdown picked: Open… asks kittui for the Open… dialog, Manage… for
+// the workspaces' screen, and a workspace asks kittui to switch to it; none for none.
 func Pick(workspace string) tea.Cmd {
 	switch workspace {
 	case "":
 		return nil
 	case openTarget:
 		return func() tea.Msg { return OpenMsg{} }
+	case manageTarget:
+		return Switch(Manage)
 	}
 	return func() tea.Msg { return PickMsg{workspace} }
 }
@@ -180,7 +198,7 @@ func (b BooksMenu) lines() []booksLine {
 		recent = append(recent, booksLine{line, r.Checkout, ws.Kind != "repository" || ws.Checkout != r.Checkout})
 	}
 	var out []booksLine
-	for _, section := range [][]booksLine{refusal, groups, favorites, others, recent, {openItem}} {
+	for _, section := range [][]booksLine{refusal, groups, favorites, others, recent, {openItem, manageItem}} {
 		if len(section) == 0 {
 			continue
 		}

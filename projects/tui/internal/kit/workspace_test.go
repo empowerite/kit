@@ -96,3 +96,17 @@ func TestACheckIsKeyedByItsMemberAndItsID(t *testing.T) {
 		t.Errorf("a member's: %q", k)
 	}
 }
+
+func TestWorkspacesListsTheGroupsAsKitWorkspacesJSONDoes(t *testing.T) {
+	r := workspaces(t, map[string]string{"list.json": `{"file":"/c/kit/workspaces.yml","roots":["/code"],
+		"favorites":["w"],"workspaces":[{"name":"w","members":2,"repos":["github.com/o/a","github.com/o/b"],
+		"favorite":true}]}`})
+	list, err := r.Workspaces(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if list.File != "/c/kit/workspaces.yml" || len(list.Workspaces) != 1 || !list.Workspaces[0].Favorite ||
+		list.Workspaces[0].Repos[1] != "github.com/o/b" || list.Workspaces[0].Members != 2 {
+		t.Errorf("the list: %+v", list)
+	}
+}

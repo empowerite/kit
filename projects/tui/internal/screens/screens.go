@@ -8,7 +8,7 @@
 // The root reads the workspace from kit once kittui starts, and tells every screen made, as it tells the settings. A
 // screen's workspace menu asks for another; the root asks kit for it, keeping a group as the last used, and tells every
 // screen again. When the place the screens read moves, to another repository or onto or off a group, the screens made
-// are made anew there, all but the tutorials and the help, which read kit alone. Only the latest ask lands. The menu's
+// are made anew there, all but the tutorials, the help, and the workspaces' screen, which read kit alone. Only the latest ask lands. The menu's
 // Open… opens a dialog over the screen shown, where a repository's folder is typed: kit keeps it among the recent and
 // says the workspace, which is switched to as a pick's is, or says why not, in the dialog.
 package screens
@@ -29,6 +29,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/tutorials"
 	"github.com/empowerite/kit/projects/tui/internal/welcome"
+	"github.com/empowerite/kit/projects/tui/internal/workspaces"
 )
 
 // Model is kittui's root: the screens made so far, by name, and the one shown; kittui's settings, and the dialog that
@@ -176,7 +177,7 @@ func (m Model) answered(msg workspaceMsg) (tea.Model, tea.Cmd) {
 	}
 	// the screen shown is made anew first, so one that cannot open there gives way to the welcome, which always opens,
 	// kit's line on the last line, before anything is closed
-	here, remade := m.here, m.here != shell.Tutorials && m.here != shell.Help
+	here, remade := m.here, !readsKitAlone(m.here)
 	var shown tea.Model
 	if remade {
 		var err error
@@ -186,7 +187,7 @@ func (m Model) answered(msg workspaceMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 	for to, s := range m.made {
-		if to == shell.Tutorials || to == shell.Help {
+		if readsKitAlone(to) {
 			continue
 		}
 		if c, ok := s.(interface{ Close() }); ok {
@@ -201,6 +202,24 @@ func (m Model) answered(msg workspaceMsg) (tea.Model, tea.Cmd) {
 	next, made := m.place(here, shown)
 	next, told := next.(Model).tellWorkspace()
 	return next, tea.Batch(made, told)
+}
+
+// readsKitAlone says whether a screen reads kit alone, not the place the screens read, so a move leaves it as it was:
+// the tutorials, the help, and the workspaces' screen.
+func readsKitAlone(s shell.Screen) bool { return s == shell.Tutorials || s == shell.Help || s == shell.Manage }
+
+// regrouped asks kit for the workspace again once a screen had it change the groups: the group shown, or the one it was
+// renamed to, else, with it deleted or none shown, the one kit starts on.
+func (m Model) regrouped(msg shell.ChangedMsg) (tea.Model, tea.Cmd) {
+	given := ""
+	if m.workspace.Kind == "group" {
+		given = m.workspace.Name
+		if given == msg.From {
+			given = msg.To
+		}
+	}
+	m.asked++
+	return m, m.ask(given)
 }
 
 // refusalLine gives kit's line for a screen that could not open, or the error's.
@@ -258,6 +277,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.opened(msg)
 	case shell.OpenMsg:
 		return m.opening(), nil
+	case shell.ChangedMsg:
+		return m.regrouped(msg)
 	case shell.PickMsg:
 		m.asked++
 		return m, m.ask(msg.Workspace)
@@ -377,6 +398,8 @@ func (m Model) open(to shell.Screen) (tea.Model, error) {
 		return tutorials.Open(m.runner, nil), nil
 	case shell.Help:
 		return app.OpenHelp(m.runner, "")
+	case shell.Manage:
+		return workspaces.Open(m.runner), nil
 	}
 	return nil, &kit.ExitError{Code: 1, Stderr: "kit has no " + string(to) + " yet"}
 }
@@ -463,7 +486,7 @@ func tag(to shell.Screen, epoch int, cmd tea.Cmd) tea.Cmd {
 	return func() tea.Msg {
 		msg := cmd()
 		switch msg := msg.(type) {
-		case nil, shell.SwitchMsg, shell.JumpMsg, shell.PickMsg, shell.OpenMsg:
+		case nil, shell.SwitchMsg, shell.JumpMsg, shell.PickMsg, shell.OpenMsg, shell.ChangedMsg:
 			return msg
 		case tea.BatchMsg:
 			out := make(tea.BatchMsg, len(msg))

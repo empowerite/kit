@@ -9,9 +9,11 @@
 #
 # kit workspaces --use=<workspace>
 #
-# kit workspaces --new=<name> [<repository>…]
+# kit workspaces --new=<name> [--from=<command>] [<repository>…]
 #
 # kit workspaces --add=<name> <repository>…
+#
+# kit workspaces --add=<name> --from=<command> [<repository>…]
 #
 # kit workspaces --remove=<name> <repository>…
 #
@@ -48,6 +50,9 @@
 #   --rename          gives a group a new name, in its place in the file, and keeps it the last used if it was
 #   --delete          takes a group, and its favorite, out of the file, and forgets it as the last used; its
 #                     checkouts are as they were
+#   --from            runs the command, by bash from where kit runs, each line it prints a repository, as a member,
+#                     a git URL, or a checkout's directory, as gh repo list <owner> --json url --jq '.[].url' prints
+#                     them: they join the group, or, with a pattern among the repositories, those it matches
 #   --favorite        adds a workspace to the favorites
 #   --unfavorite      takes a workspace out of the favorites
 #   <workspace>       a group's name, or a repository: github.com/empowerite/edge or a git URL; for --use, a <folder>
@@ -55,11 +60,15 @@
 #   <name>            a group's name: a lowercase letter or a digit, then lowercase letters, digits, and . _ -, and
 #                     never none
 #   <new-name>        the name --rename gives the group, as a <name> is written and no other group's
-#   <repository>      github.com/empowerite/edge, a git URL, or a checkout's directory
+#   <repository>      github.com/empowerite/edge, a git URL, or a checkout's directory; or a pattern, which holds *, ?,
+#                     or [, as github.com/empowerite/homebrew-*: the repositories it matches among what --from
+#                     printed, else, for --remove, the group's members, else the checkouts under the roots; one that
+#                     matches none is refused
 #   <folder>          a folder in a git working tree, written as a path: it starts with /, ./, ../, or ~/, or is ., ..,
 #                     or ~
 #
-# The list's JSON is {file, roots, favorites, workspaces}, each group {name, members, favorite}, members a count.
+# The list's JSON is {file, roots, favorites, workspaces}, each group {name, members, repos, favorite}, members a count
+# and repos the members.
 # --show's is {name, kind, members}: kind is group or repository, and each member is {repository, host, path, forge,
 # remotes, checkout, checkouts, by}, remotes [{name, url, forge}] the primary first, checkout a path or null, and by
 # fixed for a group's member, given for a repository named. --current's is {kind, name, member, checkout, why, members,
@@ -101,7 +110,7 @@ do
     break
   fi
   case "$1" in
-    (--show | --use | --new | --add | --remove | --rename | --delete | --favorite | --unfavorite)
+    (--show | --use | --new | --add | --remove | --rename | --delete | --favorite | --unfavorite | --from)
       if (( $# > 1 )) && [[ "$2" != -* ]]
       then
         words+=("$1=$2")
@@ -115,7 +124,7 @@ done
 set -- "${words[@]}"
 guard:arguments workspaces "$@" || exit $?
 
-action=list target='' form=''
+action=list target='' form='' from='' fromed=''
 # The workspace --current says is the kit option's, kit --workspace=<workspace> workspaces --current, which bin/kit,
 # the loader, hands on.
 workspace=${KIT_WORKSPACE:-}
@@ -127,6 +136,10 @@ do
   case "$1" in
     (--show | --use | --new | --add | --remove | --rename | --delete | --favorite | --unfavorite)
       action=${1#--} target=$2
+      shift
+      ;;
+    (--from)
+      from=$2 fromed=1
       shift
       ;;
     (--current) action=current ;;
@@ -245,9 +258,42 @@ case "${action}" in
       step "📚 ${target} is deleted; its checkouts are as they were"
       exit 0
     fi
-    members=()
+    # The candidates a pattern matches: the repositories --from's command printed, else, for --remove, the group's
+    # members, else the members of the checkouts under the roots. With no pattern given, what --from printed joins.
+    declare -a listed=() candidates=() found
+    if [[ -n "${fromed}" ]]
+    then
+      list:read listed workspaces:from "${from}" || exit $?
+      candidates=("${listed[@]}") pool="what the command printed"
+    elif [[ "${action}" == remove ]]
+    then
+      list:read candidates workspaces:fixed "${target}" || exit 1
+      pool="the members of 📚 ${target}"
+    else
+      pool="the checkouts under the roots"
+    fi
+    members=() patterned=''
     for repository in "${args[@]}"
     do
+      if workspaces:pattern "${repository}"
+      then
+        patterned=1
+        if [[ -z "${fromed}" && "${action}" != remove && ${#candidates[@]} -eq 0 ]]
+        then
+          list:read candidates eval 'workspaces:checkouts | cut -f 1 | sort -u' || exit 1
+        fi
+        list:read found workspaces:matching "${repository}" "${candidates[@]}" || exit 1
+        if (( ${#found[@]} == 0 ))
+        then
+          error "'${repository}' matches no repository among ${pool}"
+          exit 2
+        fi
+        for member in "${found[@]}"
+        do
+          [[ " ${members[*]} " == *" ${member} "* ]] || members+=("${member}")
+        done
+        continue
+      fi
       member=$(workspaces:normalize "${repository}" dirs)
       if [[ -z "${member}" ]]
       then
@@ -256,6 +302,13 @@ case "${action}" in
       fi
       [[ " ${members[*]} " == *" ${member} "* ]] || members+=("${member}")
     done
+    if [[ -z "${patterned}" ]]
+    then
+      for member in "${listed[@]}"
+      do
+        [[ " ${members[*]} " == *" ${member} "* ]] || members+=("${member}")
+      done
+    fi
     case "${action}" in
       (new)
         workspaces:new "${target}" "${members[@]}" || exit 1
