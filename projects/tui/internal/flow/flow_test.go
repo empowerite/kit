@@ -1007,7 +1007,7 @@ func TestChangesCarryTheirChecksThreadsAndIssues(t *testing.T) {
 	}
 }
 
-func TestBacklogAndReleasesOpenToTheirDetail(t *testing.T) {
+func TestBacklogOpensToItsDetail(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 24})
 	// the source and labels columns have tests of their own
 	m.setPanel(m.panel(m.stage).Placed("source", grid.Hidden).Placed("labels", grid.Hidden))
@@ -1031,18 +1031,76 @@ func TestBacklogAndReleasesOpenToTheirDetail(t *testing.T) {
 		strings.Contains(v, Owner+" ada "+Owner+" bob") {
 		t.Errorf("#7 open:\n%s", v)
 	}
-	m = loaded(t, options(), tab, tab, tab, tab, tab, tab, tab, down, down, down, toggle)
-	v = view(m)
+}
+
+// A release is one row of its fields, as kit flow prints it flat, which the catalog draws: its version, its kind's glyph
+// leading to its page, its age, the latest, its assets, how many, or the one, leading to where it downloads, and its
+// notes' first line; open, the notes line by line and the assets down their column. Flattened, a row stands once per
+// asset, each leading to its own download. The name, the tag, the date, the page, and the downloads are fields a
+// preset shows, hidden by default.
+func TestAReleaseIsARowOfItsFieldsLeadingToItsPageAndItsAssets(t *testing.T) {
+	m := intoRows(loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30}, tab, tab, tab, tab, tab, tab, tab))
+	v := view(m)
 	for _, want := range []string{"0.2.0       " + Draft + " draft", "0.1.0       " + Release + " release",
-		Latest + " latest",
-		"0.1.0-rc.7  " + Pre + " pre-release  28h", "kit 0.1.0", "release/0.1.0", "2026-10-31T20:00:00Z"} {
+		Latest + " latest", "📎 2", "## What's Changed", "0.1.0-rc.7  " + Pre + " pre-release  28h",
+		"📎 kit-0.1.0-rc.7.tar.gz", "The last candidate."} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the releases lack %q:\n%s", want, v)
 		}
 	}
-	if rows := m.rows(7); strings.Contains(v, "https://") ||
-		rows[2].Cells[1].Link != "https://github.com/empowerite/kit/releases/tag/release/0.1.0" {
-		t.Errorf("the release's page is not its kind's glyph's:\n%s", v)
+	if strings.Contains(v, "https://") || strings.Contains(v, "kit 0.1.0") || strings.Contains(v, "2026-10-31") {
+		t.Errorf("a hidden field shows:\n%s", v)
+	}
+	page := "https://github.com/empowerite/kit/releases/"
+	download := page + "download/release/"
+	links := func(m Model, key string) (out []string) {
+		for _, r := range m.rows(m.stage) {
+			if r.Key == key {
+				for _, c := range r.Cells {
+					if c.Link != "" {
+						out = append(out, c.Link)
+					}
+				}
+			}
+		}
+		return out
+	}
+	if got := links(m, "release/0.1.0"); !slices.Equal(got, []string{page + "tag/release/0.1.0"}) {
+		t.Errorf("0.1.0 leads to %q", got)
+	}
+	if got := links(m, "release/0.1.0-rc.7"); !slices.Equal(got, []string{page + "tag/release/0.1.0-rc.7",
+		download + "0.1.0-rc.7/kit-0.1.0-rc.7.tar.gz"}) {
+		t.Errorf("0.1.0-rc.7 leads to %q", got)
+	}
+	// open, the notes line by line, and the assets down their column
+	m = drive(m, down, toggle)
+	v = view(m)
+	for _, want := range []string{"📎 kit-0.1.0.tar.gz", "📎 kit-0.1.0.tar.gz.sha256", "* #42 settings",
+		"* #46 lists"} {
+		if !strings.Contains(v, want) {
+			t.Errorf("0.1.0 open lacks %q:\n%s", want, v)
+		}
+	}
+	// flattened, a row per asset, each to its own download
+	m.setPanel(m.panel(m.stage).Flattened("assets", true))
+	var got []string
+	for _, r := range m.rows(m.stage) {
+		if r.Key == "release/0.1.0" {
+			for _, c := range r.Cells {
+				if strings.HasPrefix(c.Link, download) {
+					got = append(got, c.Link)
+				}
+			}
+		}
+	}
+	slices.Sort(got)
+	if !slices.Equal(got, []string{download + "0.1.0/kit-0.1.0.tar.gz", download + "0.1.0/kit-0.1.0.tar.gz.sha256"}) {
+		t.Errorf("0.1.0 flattened by its assets leads to %q", got)
+	}
+	for _, id := range []string{"name", "tag", "at", "url", "downloads"} {
+		if f := fieldIn("releases", id); f.Placement != table.PlaceHidden {
+			t.Errorf("releases' %s: %+v", id, f)
+		}
 	}
 }
 

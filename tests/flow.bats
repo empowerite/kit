@@ -76,12 +76,15 @@ JSON
   "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]}}]}}}}
 JSON
   fixture releases.json <<'JSON'
-[{"tagName": "release/0.1.0-rc.6", "name": "kit 0.1.0-rc.6", "isPrerelease": true, "isDraft": false, "isLatest": false,
-  "publishedAt": "2026-10-27T07:30:14Z", "createdAt": "2026-10-27T07:30:14Z"},
- {"tagName": "release/0.0.9", "name": "kit 0.0.9", "isPrerelease": false, "isDraft": false, "isLatest": true,
-  "publishedAt": "2026-10-20T07:30:14Z", "createdAt": "2026-10-20T07:30:14Z"},
- {"tagName": "release/0.1.0-rc.7", "name": "kit 0.1.0-rc.7", "isPrerelease": true, "isDraft": true, "isLatest": false,
-  "publishedAt": null, "createdAt": "2026-10-30T07:30:14Z"}]
+[{"tag_name": "release/0.1.0-rc.6", "name": "kit 0.1.0-rc.6", "prerelease": true, "draft": false,
+  "published_at": "2026-10-27T07:30:14Z", "created_at": "2026-10-27T07:30:14Z",
+  "html_url": "https://github.com/empowerite/example/releases/tag/release/0.1.0-rc.6", "body": "", "assets": []},
+ {"tag_name": "release/0.0.9", "name": "kit 0.0.9", "prerelease": false, "draft": false,
+  "published_at": "2026-10-20T07:30:14Z", "created_at": "2026-10-20T07:30:14Z",
+  "html_url": "https://github.com/empowerite/example/releases/tag/release/0.0.9", "body": "", "assets": []},
+ {"tag_name": "release/0.1.0-rc.7", "name": "kit 0.1.0-rc.7", "prerelease": true, "draft": true,
+  "published_at": null, "created_at": "2026-10-30T07:30:14Z",
+  "html_url": "https://github.com/empowerite/example/releases/tag/untagged-1", "body": "", "assets": []}]
 JSON
   route 'api user*' user.json
   route 'repo view*' repo.json
@@ -95,7 +98,7 @@ JSON
   "status": "completed", "conclusion": "success", "createdAt": "2026-10-01T10:00:00Z",
   "startedAt": "2026-10-01T10:00:00Z", "updatedAt": "2026-10-01T10:03:36Z", "url": "https://github.com/r/11"}]
 JSON
-  route 'release list --limit 10000 --json *' releases.json
+  route 'api --paginate repos/{owner}/{repo}/releases?per_page=100' releases.json
   route 'run list --limit 50 --json *' runs.json
 }
 

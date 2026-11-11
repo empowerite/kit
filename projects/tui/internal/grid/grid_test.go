@@ -1346,3 +1346,48 @@ func TestAWholeColumnGivesWayOnlyAfterTheTitle(t *testing.T) {
 		t.Errorf("at 20: %v", got)
 	}
 }
+
+// A list whose values lead apart, as a release's assets each to its download, flattened gives each row's copy the link
+// of its own value; gathered, the cell keeps the link it has.
+func TestAFlattenedListLeadsFromEachValueToItsOwnLink(t *testing.T) {
+	assets := Cell{Values: []string{"📎 a.tar.gz", "📎 a.sha256"}, Raw: []string{"a.tar.gz", "a.sha256"},
+		Links: []string{"https://example/a.tar.gz", "https://example/a.sha256"}, Summary: "📎 2"}
+	rows := []Row{{Key: "r1", Cells: []Cell{one("r1"), assets}}}
+	p := Panel{Ones: map[string]string{"assets": "asset"}}
+	for _, r := range p.Filter(rows, []string{"id", "assets"}) {
+		if !r.Aside && (r.Cells[1].Link != "" || len(r.Cells[1].Raw) != 2) {
+			t.Errorf("the assets gathered: %+v", r.Cells[1])
+		}
+	}
+	var links []string
+	for _, r := range p.Flattened("assets", true).Filter(rows, []string{"id", "assets"}) {
+		if !r.Aside {
+			links = append(links, r.Cells[1].Link)
+		}
+	}
+	if !slices.Equal(links, []string{"https://example/a.sha256", "https://example/a.tar.gz"}) &&
+		!slices.Equal(links, []string{"https://example/a.tar.gz", "https://example/a.sha256"}) {
+		t.Errorf("the assets flattened lead to %q", links)
+	}
+}
+
+// The text that wraps may hold several lines, as a release's notes: closed, the row shows its first line, cut, and
+// hides the rest; open, each line wraps on lines of its own, a blank line between paragraphs kept as one.
+func TestTheTextThatWrapsKeepsItsLines(t *testing.T) {
+	rows := []Row{{Key: "r1", Cells: []Cell{one("0.1.0"),
+		{Values: []string{"## What's Changed\n\n\n* #42 settings, a line long enough to wrap\n* #43 more"}, Wrap: true}}}}
+	if got := plain(Draw(rows, nil, 40, -1, func(Row) bool { return false }, nil)); !slices.Equal(got,
+		[]string{"  ▸ 0.1.0  ## What's Changed"}) {
+		t.Errorf("closed:\n%s", strings.Join(got, "\n"))
+	}
+	want := []string{
+		"  ▾ 0.1.0  ## What's Changed",
+		"",
+		"           * #42 settings, a line long",
+		"           enough to wrap",
+		"           * #43 more",
+	}
+	if got := plain(Draw(rows, nil, 40, -1, func(Row) bool { return true }, nil)); !slices.Equal(got, want) {
+		t.Errorf("open:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+}

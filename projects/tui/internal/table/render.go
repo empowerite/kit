@@ -114,7 +114,7 @@ func (f Field) Draw(vs []Value, pinned string) []grid.Cell {
 			c.Summary = style.Off(c.Summary)
 		}
 		if links {
-			c.Link = v.Link
+			c.Link, c.Links = v.Link, v.Links
 		}
 	}
 	return out

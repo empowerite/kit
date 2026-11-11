@@ -42,6 +42,7 @@
     {"name": "Pre", "glyph": "🧪", "meaning": "a pre-release"},
     {"name": "Draft", "glyph": "📝", "meaning": "a draft release"},
     {"name": "Latest", "glyph": "⭐", "meaning": "the latest release"},
+    {"name": "Asset", "glyph": "📎", "meaning": "an asset", "more": "a file a release offers, and where it downloads"},
     {"name": "Other", "glyph": "🔳", "meaning": "any other state"}
   ],
   "states": [
@@ -90,7 +91,7 @@
                 {"name": "GitHub"}, {"name": "GitLab"}, {"name": "Failed"}]},
     {"stage": "releases", "glyph": "Release",
      "legend": [{"name": "Release", "link": "page"}, {"name": "Pre", "link": "page"}, {"name": "Draft", "link": "page"},
-                {"name": "Latest"}, {"name": "Failed"}]},
+                {"name": "Latest"}, {"name": "Asset", "link": "page"}, {"name": "Failed"}]},
     {"screen": "workspace", "stage": "repos", "glyph": "Workspace",
      "legend": [{"name": "Workspace"}, {"name": "GitHub"}, {"name": "GitLab"}, {"name": "Branch"},
                 {"name": "Sprout"}, {"name": "Failed"}]},

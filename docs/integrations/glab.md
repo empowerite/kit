@@ -92,8 +92,8 @@ work item statuses need GitLab Premium or Ultimate.
 | Linked items | `glab api "projects/:id/issues/${n}/links"` (raw REST) |
 | Merge requests that close it | `glab api "projects/:id/issues/${n}/closed_by"` (raw REST) |
 | Epics and other work items | `glab work-items list --group "${group}" --type epic --output json` (experimental) |
-| Milestones | `glab milestone list --output json` |
-| Iterations | `glab iteration list --output json` |
+| Milestones | `glab api --paginate 'projects/:id/milestones?per_page=100'`, as kit reads them, with `glab api --paginate 'projects/:id/milestones/${id}/issues?per_page=100'` for each one's issues, which the list does not count; or `glab milestone list --output json`; `kit issues milestones` draws them, and its mark is the newest `updated_at` |
+| Iterations | `glab api --paginate 'projects/:id/iterations?include_ancestors=true&per_page=100'`, as kit reads them, where a tier without iterations answers 403 or 404, which kit reads as off; or `glab iteration list --output json`; `kit issues iterations` draws them |
 | Work item status | `glab api graphql -f query="${query}"`, the `status` widget of `workItem` (raw GraphQL) |
 
 ### Write to GitLab issues and work items
@@ -170,7 +170,10 @@ merged. Retrying a whole pipeline has no `glab` command.
 `glab` is GitLab's own CLI. It authenticates with `glab auth login`, or `GITLAB_TOKEN`. `--output json` (`-F json`)
 prints JSON, `--jq` filters it, and `--page` and `--per-page` page a list. It has release commands and none for
 environments or deployments, which go through `glab api`. `glab api` fills `:id` with the project, and reads every
-page with `--paginate`. kit reads releases with `glab api` and pages them itself.
+page with `--paginate`. kit reads releases with `glab api` and pages them itself. Each release in that list carries
+its notes, `description`; its page, `_links.self`; and its assets: `assets.links`, the files a release offers, which
+kit lists with each one's `direct_asset_url`, and `assets.sources`, the archives GitLab makes of every tag, which kit
+leaves out, as GitHub's list leaves out its own.
 
 A job with `environment:` in `.gitlab-ci.yml` creates a deployment when it runs. A protected environment can require
 approvals before its deployment jobs run, on GitLab Premium and Ultimate. GitLab links a deployment to the merge
@@ -180,7 +183,7 @@ requests it shipped, and a merge request shows the environments its pipeline dep
 
 | Capability | Command |
 | --- | --- |
-| List releases | `glab release list --output json --per-page 100 --page "${page}"` |
+| List releases, with their notes, pages, and assets | `glab api --paginate 'projects/:id/releases?per_page=100'` (raw API), or `glab release list --output json --per-page 100 --page "${page}"` |
 | A release's notes | `glab release view "${tag}" --output json` |
 | List environments | `glab api --paginate 'projects/:id/environments?per_page=100'` (raw API) |
 | Deployments in an environment | `glab api --paginate "projects/:id/deployments?environment=${environment}&order_by=finished_at&sort=desc"` (raw API) |
@@ -224,6 +227,7 @@ with an example the gate validates against it.
 
 | Schema | The command as kit runs it |
 | --- | --- |
+| [api-iterations.schema.json](glab/api-iterations.schema.json) | `glab api projects/${project}/iterations?include_ancestors=true&per_page=100 --paginate` |
 | [api-issue.schema.json](glab/api-issue.schema.json) | `glab api projects/${project}/issues/${n}` |
 | [api-issues.schema.json](glab/api-issues.schema.json) | `glab api projects/${project}/issues?${query} [--paginate]` |
 | [api-labels.schema.json](glab/api-labels.schema.json) | `glab api projects/${project}/labels?per_page=100 --paginate` |
@@ -231,6 +235,8 @@ with an example the gate validates against it.
 | [api-merge-request-discussions.schema.json](glab/api-merge-request-discussions.schema.json) | `glab api projects/${project}/merge_requests/${n}/discussions?per_page=100 --paginate` |
 | [api-merge-request.schema.json](glab/api-merge-request.schema.json) | `glab api projects/${project}/merge_requests/${n}` |
 | [api-merge-requests.schema.json](glab/api-merge-requests.schema.json) | `glab api projects/${project}/merge_requests?${query} [--paginate]` |
+| [api-milestone-issues.schema.json](glab/api-milestone-issues.schema.json) | `glab api projects/${project}/milestones/${id}/issues?per_page=100 --paginate` |
+| [api-milestones.schema.json](glab/api-milestones.schema.json) | `glab api projects/${project}/milestones?per_page=${n} [--paginate]` |
 | [api-pipeline-jobs.schema.json](glab/api-pipeline-jobs.schema.json) | `glab api projects/${home}/pipelines/${pipeline}/jobs?per_page=100 --paginate` |
 | [api-pipelines.schema.json](glab/api-pipelines.schema.json) | `glab api projects/${project}/pipelines?per_page=${n}` |
 | [api-project.schema.json](glab/api-project.schema.json) | `glab api projects/${source}` |

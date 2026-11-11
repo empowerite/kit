@@ -33,12 +33,6 @@ func TestTheURLsFollowTheHost(t *testing.T) {
 	if got := lab.issue(45, ""); got != "https://gitlab.com/group/kit/-/issues/45" {
 		t.Errorf("GitLab issue: %q", got)
 	}
-	if got := hub.release("release/0.1.0", ""); got != "https://github.com/empowerite/kit/releases/tag/release/0.1.0" {
-		t.Errorf("GitHub release: %q", got)
-	}
-	if got := lab.release("v1", ""); got != "https://gitlab.com/group/kit/-/releases/v1" {
-		t.Errorf("GitLab release: %q", got)
-	}
 	if got := hub.pull(2, ""); got != "https://github.com/empowerite/kit/pull/2" {
 		t.Errorf("GitHub pull request: %q", got)
 	}
@@ -50,9 +44,6 @@ func TestTheURLsFollowTheHost(t *testing.T) {
 		t.Errorf("a given URL: %q", got)
 	}
 	if got := (Origin{}).issue(1, ""); got != "" {
-		t.Errorf("no origin: %q", got)
-	}
-	if got := (Origin{}).release("v1", ""); got != "" {
 		t.Errorf("no origin: %q", got)
 	}
 	if got := (Origin{}).pull(2, ""); got != "" {

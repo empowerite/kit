@@ -94,14 +94,21 @@ releases:release() {
   ok "pushed ${tag}"
 }
 
-# releases:documents prints the forge's releases, newest first, as one JSON array: version, tag, name, kind, latest,
-# at, and age in seconds, each.
+# releases:documents prints the forge's releases, newest first, as one JSON array of rows, one a release, flat, as
+# kittui's catalog draws them: key, its tag; version, tag, name, kind, at, age in seconds, url, and notes, as the
+# forge seam gives them; latest, "latest" for the forge's latest release, else null; assets, the name of each file it
+# offers, and downloads, where each downloads; and links, where a value leads, by its field: the kind and the url to
+# the release's page, and each asset and each download to where that one downloads.
 releases:documents() {
   local docs
   forge:require || return 1
   # A forge without releases has none to list.
   docs=$(forge:releases) || (( $? == 3 )) || return 1
-  jq --slurp --compact-output . <<<"${docs}"
+  jq --slurp --compact-output 'map({key: .tag} + . + {
+      latest: (if .latest then "latest" else null end),
+      assets: [(.assets // [])[].name], downloads: [(.assets // [])[].url],
+      links: {kind: .url, url: .url, assets: [(.assets // [])[].url], downloads: [(.assets // [])[].url]}})' \
+    <<<"${docs}"
 }
 
 # releases:draw <releases-json> prints the releases, one row each, to stderr: the version, the kind with its glyph
@@ -128,7 +135,7 @@ releases:draw() {
     printf '%s  %s %s %s%s\n' "$(flow:cell "${version}" "${width}")" "${glyph}" \
       "$(flow:cell "${kind}" "${kind_width}")" \
       "$(flow:paint 2 "$(flow:cell "$(flow:age "${age}")" "${age_width}" right)")" \
-      "$([[ "${latest}" == true ]] && printf '  %s latest' "${flow_glyphs[Latest]}")" >&2
+      "$([[ "${latest}" == latest ]] && printf '  %s latest' "${flow_glyphs[Latest]}")" >&2
   done < <(jq --raw-output '.[] | [.version, .kind, .latest, .age] | @tsv' <<<"${doc}")
 }
 

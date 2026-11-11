@@ -47,13 +47,13 @@ func TestANewerRefreshSupersedesTheOneBefore(t *testing.T) {
 		t.Fatal("the older load ran on after a newer one superseded it")
 	}
 	m = drive(m, dropped)
-	if s := m.find("releases"); !s.src.Stale || len(s.rels) == 0 {
+	if s := m.find("releases"); !s.src.Stale || len(s.rows) == 0 {
 		t.Errorf("the superseded answer was taken: stale %v, refusal %q", s.src.Stale, s.refusal)
 	}
 	m = drive(m, newer())
-	if s := m.find("releases"); s.src.Loading || s.src.Stale || s.refusal != "" || len(s.rels) == 0 {
+	if s := m.find("releases"); s.src.Loading || s.src.Stale || s.refusal != "" || len(s.rows) == 0 {
 		t.Errorf("the newer answer was not taken: loading %v, refusal %q, %d releases", s.src.Loading, s.refusal,
-			len(s.rels))
+			len(s.rows))
 	}
 	if err := dropped.(source.Answer[[]byte]).Err; !errors.Is(err, context.Canceled) {
 		t.Errorf("the older load ended with %v, not its cancel", err)

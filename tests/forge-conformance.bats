@@ -526,25 +526,45 @@ JSON
   [ -z "$output" ]
 }
 
-@test "every provider lists its releases in one shape, newest first, with the kind and the latest" {
+@test "every provider lists its releases in one shape, newest first, with the kind, the latest, the page, the notes, and the assets" {
+  # gh api --paginate prints each page's array after the one before
   fixture gh-releases.json <<'JSON'
-[{"tagName": "release/0.0.9", "name": "kit 0.0.9", "isPrerelease": false, "isDraft": false, "isLatest": true,
-  "publishedAt": "2026-10-20T07:30:14Z", "createdAt": "2026-10-20T07:30:14Z"},
- {"tagName": "release/0.1.0-rc.6", "name": "kit 0.1.0-rc.6", "isPrerelease": true, "isDraft": false, "isLatest": false,
-  "publishedAt": "2026-10-27T07:30:14Z", "createdAt": "2026-10-27T07:30:14Z"}]
+[{"tag_name": "release/0.1.0-rc.6", "name": "kit 0.1.0-rc.6", "prerelease": true, "draft": false,
+  "published_at": "2026-10-27T07:30:14Z", "created_at": "2026-10-27T07:30:14Z",
+  "html_url": "https://example.test/release/0.1.0-rc.6", "body": "notes\r\n* one",
+  "assets": [{"name": "kit.tar.gz", "browser_download_url": "https://example.test/kit.tar.gz"}]}]
+[{"tag_name": "release/0.0.9", "name": "kit 0.0.9", "prerelease": false, "draft": false,
+  "published_at": "2026-10-20T07:30:14Z", "created_at": "2026-10-20T07:30:14Z",
+  "html_url": "https://example.test/release/0.0.9", "body": null, "assets": []},
+ {"tag_name": "release/0.0.8", "name": "kit 0.0.8", "prerelease": false, "draft": false,
+  "published_at": "2026-10-13T07:30:14Z", "created_at": "2026-10-13T07:30:14Z",
+  "html_url": "https://example.test/release/0.0.8", "body": "", "assets": []}]
 JSON
+  # GitLab's own assets are its links; the sources it makes of every tag are no asset of the release's
   fixture gl-releases.json <<'JSON'
 [{"tag_name": "release/0.1.0-rc.6", "name": "kit 0.1.0-rc.6", "released_at": "2026-10-27T07:30:14.000Z",
-  "upcoming_release": false},
+  "upcoming_release": false, "description": "notes\n* one",
+  "_links": {"self": "https://example.test/release/0.1.0-rc.6"},
+  "assets": {"count": 2, "sources": [{"format": "zip", "url": "https://example.test/source.zip"}],
+             "links": [{"name": "kit.tar.gz", "url": "https://example.test/kit.tar.gz?raw",
+                        "direct_asset_url": "https://example.test/kit.tar.gz"}]}},
  {"tag_name": "release/0.0.9", "name": "kit 0.0.9", "released_at": "2026-10-20T07:30:14.000Z",
-  "upcoming_release": false}]
+  "upcoming_release": false, "description": null, "_links": {"self": "https://example.test/release/0.0.9"},
+  "assets": {"count": 0, "sources": [], "links": []}},
+ {"tag_name": "release/0.0.8", "name": "kit 0.0.8", "released_at": "2026-10-13T07:30:14.000Z",
+  "upcoming_release": false, "_links": {"self": "https://example.test/release/0.0.8"}}]
 JSON
-  expected='[{"version":"0.1.0-rc.6","tag":"release/0.1.0-rc.6","name":"kit 0.1.0-rc.6","kind":"pre-release","latest":false},'
-  expected+='{"version":"0.0.9","tag":"release/0.0.9","name":"kit 0.0.9","kind":"release","latest":true}]'
+  expected='[{"version":"0.1.0-rc.6","tag":"release/0.1.0-rc.6","name":"kit 0.1.0-rc.6","kind":"pre-release","latest":false,'
+  expected+='"url":"https://example.test/release/0.1.0-rc.6","notes":"notes\n* one",'
+  expected+='"assets":[{"name":"kit.tar.gz","url":"https://example.test/kit.tar.gz"}]},'
+  expected+='{"version":"0.0.9","tag":"release/0.0.9","name":"kit 0.0.9","kind":"release","latest":true,'
+  expected+='"url":"https://example.test/release/0.0.9","notes":"","assets":[]},'
+  expected+='{"version":"0.0.8","tag":"release/0.0.8","name":"kit 0.0.8","kind":"release","latest":false,'
+  expected+='"url":"https://example.test/release/0.0.8","notes":"","assets":[]}]'
   for forge in github gitlab
   do
     world "${forge}"
-    route gh 'release list --limit 10000 --json *' gh-releases.json
+    route gh 'api --paginate repos/{owner}/{repo}/releases?per_page=100' gh-releases.json
     route glab 'api projects/empowerite%2Fexample/releases?per_page=100*' gl-releases.json
     run call releases
     [ "$status" -eq 0 ]

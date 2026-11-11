@@ -4,11 +4,11 @@
   ──────────────────╰─────────────────╰─────────────────────╯                  ╵
   ▾ 3                                                               Default ▼
 
-    version     kind            age  latest
-    ·───────────·───────────────·──────────────────────────────────────────────
-  ▸ 0.2.0       📝 draft        60m
-  ▸ 0.1.0       📦 release       6h  ⭐ latest
-  ▸ 0.1.0-rc.7  🧪 pre-release  28h
+    version     kind  age  latest  assets                      notes
+    ·───────────·─────·────────────⇊───────────────────────────────────────────
+  ▸ 0.2.0       📝    60m                                      Still being wri…
+  ▸ 0.1.0       📦     6h  ⭐      📎 2                        ## What's Chang…
+  ▸ 0.1.0-rc.7  🧪    28h          📎 kit-0.1.0-rc.7.tar.gz    The last candid…
 
 
 

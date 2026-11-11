@@ -43,11 +43,15 @@ import (
 // the row is closed, as how many labels an issue has; open, the row shows the values down the same column, one to a
 // line, so two lists in a row each keep their own. Whole says its column keeps the
 // width of its widest value while the title can keep minFill cells, and gives way only after the title, as fit says.
+// Links, for a list whose values lead apart, as a release's assets each to its download, is where each raw value
+// leads, one a value: flattened, each row's copy leads where its own value does. The text that wraps may hold several
+// lines, as a release's notes: closed, the row shows the first; open, each wraps on lines of its own.
 type Cell struct {
 	Values  []string
 	Right   bool
 	Wrap    bool
 	Link    string
+	Links   []string
 	Raw     []string
 	Head    string
 	Hang    bool
@@ -112,9 +116,12 @@ func (c Cell) each() []Cell {
 	out := make([]Cell, len(values))
 	for k, v := range values {
 		one := c
-		one.Raw, one.Values, one.Summary = []string{v}, []string{v}, ""
+		one.Raw, one.Values, one.Summary, one.Links = []string{v}, []string{v}, "", nil
 		if len(c.Values) == len(c.Raw) {
 			one.Values = []string{c.Values[slices.Index(c.Raw, v)]}
+		}
+		if len(c.Links) == len(c.Raw) {
+			one.Link = c.Links[slices.Index(c.Raw, v)]
 		}
 		if c.Head != "" {
 			one.Head = heads[k]
@@ -224,6 +231,16 @@ func (c Cell) first() string {
 		return ""
 	}
 	return c.Values[0]
+}
+
+// firstLine gives a text's first line that is not blank, or the text, where it has none.
+func firstLine(s string) string {
+	for _, line := range strings.Split(s, "\n") {
+		if strings.TrimSpace(line) != "" {
+			return line
+		}
+	}
+	return s
 }
 
 // face gives what a cell's column shows of it: its summary, when it has one, else its first value.
@@ -435,7 +452,8 @@ func Hides(r Row, widths []int, left int) bool {
 	}
 	for j, c := range r.Cells {
 		switch {
-		case len(c.Values) > 1, c.Summary != "" && len(c.Values) > 0, c.Wrap && ansi.StringWidth(c.first()) > left:
+		case len(c.Values) > 1, c.Summary != "" && len(c.Values) > 0, c.Wrap && ansi.StringWidth(c.first()) > left,
+			c.Wrap && strings.Contains(c.first(), "\n"):
 			return true
 		case !c.Wrap && len(r.Cells) > 1 && j < len(widths) && widths[j] > 0 && ansi.StringWidth(c.face()) > widths[j]:
 			return true
@@ -667,7 +685,7 @@ func closedLine(r []Cell, widths []int, left, width int, chosen bool) string {
 	for j, c := range r {
 		switch {
 		case c.Wrap:
-			parts = append(parts, pane.Pad(dotted(pane.Clip(c.first(), left), c), left, false))
+			parts = append(parts, pane.Pad(dotted(pane.Clip(firstLine(c.first()), left), c), left, false))
 		case j >= len(widths) || widths[j] == 0:
 		default:
 			more := c.more()
@@ -749,13 +767,24 @@ func broken(v string, width int) []string {
 	return pane.Restyle(out)
 }
 
-// wrapped gives a cell's text broken into lines of so many cells, every value after the first on lines of its own.
+// wrapped gives a cell's text broken into lines of so many cells, every value after the first on lines of its own,
+// and every line of a value of several too, the blank lines between them kept as one.
 func wrapped(c Cell, width int) []string {
 	var out []string
 	for _, v := range c.Values {
-		out = append(out, hung(v, c.Hang, width, func(v string, width int) []string {
-			return pane.Wrap(v, max(width, 1))
-		})...)
+		blank := false
+		for k, line := range strings.Split(v, "\n") {
+			if strings.TrimSpace(line) == "" {
+				blank = k > 0
+				continue
+			}
+			if blank {
+				out, blank = append(out, ""), false
+			}
+			out = append(out, hung(line, c.Hang, width, func(v string, width int) []string {
+				return pane.Wrap(v, max(width, 1))
+			})...)
+		}
 	}
 	if len(out) == 0 {
 		out = []string{""}

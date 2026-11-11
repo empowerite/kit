@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "glab api projects/${project}/releases?per_page=${n} [--paginate]",
-  "description": "The project's releases, newest first, ${project} its path URL-encoded: every one, per_page=100 with --paginate, which prints one such array per page, which kit draws as the releases stage's in `modules/bash/forge/gitlab.sh` (forge/gitlab:releases, with `modules/jq/forge.jq` forge::gitlab_releases), and the newest, per_page=1, whose tag_name and released_at make a mark (forge/gitlab:marks, with forge::gitlab_marks). The types are APIEntitiesRelease of GET /api/v4/projects/{id}/releases in GitLab's REST OpenAPI, https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/openapi/openapi_v3.yaml, as https://docs.gitlab.com/api/releases/ describes them.",
+  "description": "The project's releases, newest first, ${project} its path URL-encoded: every one, per_page=100 with --paginate, which prints one such array per page, each with its notes, its page, and its assets, which kit draws as the releases stage's in `modules/bash/forge/gitlab.sh` (forge/gitlab:releases, with `modules/jq/forge.jq` forge::gitlab_releases), and the newest, per_page=1, whose tag_name and released_at make a mark (forge/gitlab:marks, with forge::gitlab_marks). The types are APIEntitiesRelease of GET /api/v4/projects/{id}/releases in GitLab's REST OpenAPI, https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/openapi/openapi_v3.yaml, as https://docs.gitlab.com/api/releases/ describes them.",
   "type": "array",
   "items": {
     "type": "object",
@@ -19,9 +19,64 @@
       "upcoming_release": {
         "type": "boolean",
         "description": "True when released_at is in the future."
+      },
+      "description": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "The release's notes, in Markdown."
+      },
+      "_links": {
+        "type": "object",
+        "properties": {
+          "self": {
+            "type": "string",
+            "format": "uri",
+            "description": "The release's page."
+          }
+        },
+        "additionalProperties": true
+      },
+      "assets": {
+        "type": "object",
+        "description": "sources are the archives GitLab makes of every tag; links are the release's own files, which kit lists as its assets.",
+        "properties": {
+          "links": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "direct_asset_url": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "The permanent URL that downloads the file, which kit prefers to url."
+                }
+              },
+              "required": [
+                "name",
+                "url"
+              ],
+              "additionalProperties": true
+            }
+          }
+        },
+        "additionalProperties": true
       }
     },
-    "required": ["tag_name", "name", "released_at", "upcoming_release"],
+    "required": [
+      "tag_name",
+      "name",
+      "released_at",
+      "upcoming_release"
+    ],
     "additionalProperties": true
   },
   "examples": [
@@ -30,13 +85,37 @@
         "tag_name": "release/0.1.0-rc.6",
         "name": "kit 0.1.0-rc.6",
         "released_at": "2026-10-27T07:30:14.000Z",
-        "upcoming_release": false
+        "upcoming_release": false,
+        "description": "## Changes\n\n* #42 settings",
+        "_links": {
+          "self": "https://gitlab.com/group/kit/-/releases/release%2F0.1.0-rc.6"
+        },
+        "assets": {
+          "count": 1,
+          "sources": [],
+          "links": [
+            {
+              "name": "kit-0.1.0-rc.6.tar.gz",
+              "url": "https://gitlab.com/group/kit/-/package_files/1/download",
+              "direct_asset_url": "https://gitlab.com/group/kit/-/releases/release%2F0.1.0-rc.6/downloads/kit-0.1.0-rc.6.tar.gz"
+            }
+          ]
+        }
       },
       {
         "tag_name": "release/0.0.9",
         "name": "kit 0.0.9",
         "released_at": "2026-10-20T07:30:14.000Z",
-        "upcoming_release": false
+        "upcoming_release": false,
+        "description": null,
+        "_links": {
+          "self": "https://gitlab.com/group/kit/-/releases/release%2F0.0.9"
+        },
+        "assets": {
+          "count": 0,
+          "sources": [],
+          "links": []
+        }
       }
     ]
   ]

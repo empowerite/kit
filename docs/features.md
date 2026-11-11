@@ -142,7 +142,11 @@ release workflow. It refuses:
 - a release, one with no suffix, whose commit is not on the default branch at the primary remote
 - a version not higher than every release on the primary remote, unless `--lower` confirms it
 
-`kit flow releases` lists the releases on the code forge, newest first, with each one's kind and age.
+`kit flow releases` lists the releases on the code forge, newest first, with each one's kind and age. With `--json`,
+each release is a row of its fields, flat: its version, tag, name, kind, whether it is the latest, when it was
+published, its page, its notes, and its assets, each file's name and where it downloads. kittui draws the rows from
+its catalog, so a preset shows or hides each field, and the table sorts, groups, and filters by it; a release's kind
+leads to its page, and an asset to its download.
 
 `kit workspace` draws what git holds across a workspace, a stage for each of git's entities: remotes, branches,
 worktrees, commits, and tags. It reads git alone and asks no remote, so a remote's side is what the last fetch left.

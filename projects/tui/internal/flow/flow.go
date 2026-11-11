@@ -75,10 +75,9 @@ type stage struct {
 	trees   []worktrees // the worktrees, one a member: one over a repository
 	pulls   []pull
 	runs    []run
-	rels    []release
 	failed  []failure         // over a group, the members whose read of the stage failed
 	repos   []repo            // kit workspace's repos tab's members
-	rows    []json.RawMessage // a kit workspace stage's rows, each its key, its member, its fields' values, and links
+	rows    []json.RawMessage // kit workspace's stages' rows, and releases': each its key, member, values, and links
 	// its table's state: the panel, the view, the outline, the rows selected, and where the cursor is
 	table.Table
 }
@@ -926,7 +925,7 @@ func (m *Model) restart(name string) tea.Cmd {
 		return cmd
 	}
 	s.src.Loading, s.refusal = true, ""
-	s.issues, s.under, s.ins, s.desks, s.trees, s.pulls, s.runs, s.rels = nil, nil, nil, nil, nil, nil, nil, nil
+	s.issues, s.under, s.ins, s.desks, s.trees, s.pulls, s.runs = nil, nil, nil, nil, nil, nil, nil
 	s.failed, s.repos, s.rows = nil, nil, nil
 	m.rebuild()
 	return cmd
@@ -1071,7 +1070,11 @@ func (s *stage) decodeRows(data []byte, many bool) error {
 	case "builds":
 		err = json.Unmarshal(data, &s.runs)
 	case "releases":
-		err = json.Unmarshal(data, &s.rels)
+		// the rows are drawn from the catalog, by their raw JSON, once they decode as releases
+		s.rows = nil
+		if err = json.Unmarshal(data, &[]release{}); err == nil {
+			err = json.Unmarshal(data, &s.rows)
+		}
 	case "workspace/repos":
 		err = json.Unmarshal(data, &s.repos)
 	default:

@@ -8,7 +8,8 @@ index of these pages is [1st.md](1st.md).
 `kit release ${version}` tags HEAD as `release/${version}` and pushes that tag alone, with git and no code forge
 call. The repository's release workflow, if it has one, builds and publishes the release. The releases stage of
 `kit flow` lists the code forge's releases, newest first, through `forge:releases` in `kit/modules/bash/forge.sh`, so
-GitHub and GitLab answer it today. kittui's Delivery screen has environments and deployments tabs with no data source
+GitHub and GitLab answer it today: each release's kind, its page, its notes, and its assets, each file it offers and
+where it downloads. kittui's Delivery screen has environments and deployments tabs with no data source
 yet. No seam has calls for environments, deployments, or approvals.
 see: [architecture.md](../architecture.md#code-forges-seams-and-providers), `kit/modules/bash/releases.sh`
 
@@ -24,7 +25,7 @@ The builds that produce a release are on [ci.md](ci.md); the code forges themsel
 
 | Capability | Kind | Used by |
 | --- | --- | --- |
-| List releases, newest first, with kind (draft, pre-release, release) and latest | read | `forge:releases`, the releases stage of `kit flow` |
+| List releases, newest first, with kind (draft, pre-release, release), latest, page, notes, and assets | read | `forge:releases`, the releases stage of `kit flow` |
 | Create a release from a tag and publish its notes | write | the repository's release workflow, after `kit release` pushes `release/${version}`; kit makes no call |
 | List environments | read | planned: kittui's environments tab |
 | List deployments per environment, with their state | read | planned: kittui's deployments tab |

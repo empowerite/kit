@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh api --paginate repos/{owner}/{repo}/releases?per_page=100",
+  "description": "The repository's releases, every page, which gh api --paginate prints one array after another, which kit reads in `modules/bash/forge/github.sh` (forge/github:releases) and folds in `modules/jq/forge.jq` (forge::github_releases). gh release list gives no release's notes or assets, so kit reads this. The types are the release object of GET /repos/{owner}/{repo}/releases in GitHub's REST description, https://github.com/github/rest-api-description, as https://docs.github.com/rest/releases/releases#list-releases describes it: a draft's published_at is null, a release without notes has a null or empty body, and assets are the files uploaded to the release, the source archives of its tag apart. It does not say which release is the latest.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "tag_name": {
+        "type": "string"
+      },
+      "name": {
+        "type": ["string", "null"]
+      },
+      "draft": {
+        "type": "boolean"
+      },
+      "prerelease": {
+        "type": "boolean"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "published_at": {
+        "type": ["string", "null"],
+        "format": "date-time"
+      },
+      "html_url": {
+        "type": "string",
+        "format": "uri"
+      },
+      "body": {
+        "type": ["string", "null"]
+      },
+      "assets": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "browser_download_url": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          "required": ["name", "browser_download_url"],
+          "additionalProperties": true
+        }
+      }
+    },
+    "required": ["tag_name", "name", "draft", "prerelease", "created_at", "published_at", "html_url", "assets"],
+    "additionalProperties": true
+  },
+  "examples": [
+    [
+      {
+        "tag_name": "release/0.1.0-rc.6",
+        "name": "kit 0.1.0-rc.6",
+        "draft": false,
+        "prerelease": true,
+        "created_at": "2026-10-27T07:30:14Z",
+        "published_at": "2026-10-27T07:30:14Z",
+        "html_url": "https://github.com/empowerite/kit/releases/tag/release/0.1.0-rc.6",
+        "body": "## What's Changed\r\n\r\n* #42 settings\r\n",
+        "assets": [
+          {
+            "name": "kit-0.1.0-rc.6.tar.gz",
+            "browser_download_url": "https://github.com/empowerite/kit/releases/download/release/0.1.0-rc.6/kit-0.1.0-rc.6.tar.gz"
+          }
+        ]
+      },
+      {
+        "tag_name": "release/0.1.0-rc.7",
+        "name": "kit 0.1.0-rc.7",
+        "draft": true,
+        "prerelease": true,
+        "created_at": "2026-10-30T07:30:14Z",
+        "published_at": null,
+        "html_url": "https://github.com/empowerite/kit/releases/tag/untagged-1",
+        "body": null,
+        "assets": []
+      }
+    ]
+  ]
+}

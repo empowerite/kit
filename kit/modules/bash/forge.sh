@@ -99,7 +99,10 @@
 #   pr-closing-issues <n>         one line per issue the pull request closes: "<number> <state> <owner/name>"
 #   open-prs                      one JSON object per open pull request, the documents kit flow draws
 #   open-issues                   one JSON object per open issue, oldest first, the documents the backlog stage draws
-#   releases                      one JSON object per release, newest first, the documents the releases stage draws
+#   releases                      one JSON object per release, newest first, the documents the releases stage draws:
+#                                 {version, tag, name, kind, latest, at, age, url, notes, assets}; kind is release,
+#                                 pre-release, or draft; url its page; notes its text, empty for none; and assets each
+#                                 file it offers, {name, url}, where it downloads
 #   runs                          one JSON array of the runs not owned by any pull request, newest first, the 20
 #                                 newest at most: pushes to the default branch or a tag, scheduled and manual runs;
 #                                 each is {id, number, attempt, workflow, branch, tag, event, sha, title, state, age,

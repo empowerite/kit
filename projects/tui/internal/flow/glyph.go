@@ -50,6 +50,7 @@ const (
 	Pre       = "🧪" // a pre-release
 	Draft     = "📝" // a draft release
 	Latest    = "⭐" // the latest release
+	Asset     = "📎" // an asset
 	Other     = "🔳" // any other state
 )
 
@@ -132,6 +133,7 @@ var legends = map[string][]entry{
 		{Pre, "a pre-release"},
 		{Draft, "a draft release"},
 		{Latest, "the latest release"},
+		{Asset, "an asset"},
 		{Failed, "failed"},
 	},
 	"workspace/repos": {
@@ -189,7 +191,7 @@ var marks = map[string]map[string]string{
 	"worktrees":           {Change: ToRow},
 	"changes":             {Change: ToPage},
 	"builds":              {Running: ToPage, Passed: ToPage, Failed: ToPage, Cancelled: ToPage},
-	"releases":            {Release: ToPage, Pre: ToPage, Draft: ToPage},
+	"releases":            {Release: ToPage, Pre: ToPage, Draft: ToPage, Asset: ToPage},
 	"workspace/remotes":   {GitHub: ToPage, GitLab: ToPage, Default: ToRow},
 	"workspace/branches":  {Branch: ToPage, Worktree: ToRow, Commit: ToPage},
 	"workspace/worktrees": {Branch: ToRow},

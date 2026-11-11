@@ -94,6 +94,17 @@ func TestADrawingStylesWhatTheFieldSays(t *testing.T) {
 	if c := people.Draw([]Value{{Raw: []string{"ada", "bo"}}}, "text")[0]; c.Summary != style.Off("2") {
 		t.Errorf("two people as text: %+v", c)
 	}
+	// a list whose values lead apart, as assets each to its download, hands each value's link to its cell, from the
+	// glyph; drawn without it, none
+	assets := Field{ID: "assets", Type: "text", One: "asset", Glyph: "📎", Many: "📎",
+		Renderings: []string{"glyph+text", "text"}}
+	v := Value{Raw: []string{"a", "b"}, Links: []string{"https://x/a", "https://x/b"}}
+	if c := assets.Draw([]Value{v}, "")[0]; !slices.Equal(c.Links, v.Links) || c.Link != "" {
+		t.Errorf("assets: %+v", c)
+	}
+	if c := assets.Draw([]Value{v}, "text")[0]; c.Links != nil {
+		t.Errorf("assets as text: %+v", c)
+	}
 }
 
 func TestAScreenRegistersItsOwnRenderers(t *testing.T) {

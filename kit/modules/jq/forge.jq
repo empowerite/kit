@@ -252,23 +252,32 @@ def gitlab_issues($now):
 
 # release($now) shapes a release found on either forge into the document the releases stage draws: version (the tag without
 # release/), tag, name, kind (release, pre-release, or draft), latest, at (when it was published, or made, for a
-# draft), and age in seconds. It is given an object with tag, name, kind, latest, and at.
+# draft), age in seconds, url (its page), notes (its text, without carriage returns, empty for none), and assets (each
+# file it offers, {name, url}, where it downloads). It is given an object with tag, name, kind, latest, at, url, notes,
+# and assets.
 def release($now):
-  {version: (.tag | sub("^release/"; "")), tag, name, kind, latest, at, age: ($now - (.at | epoch))};
+  {version: (.tag | sub("^release/"; "")), tag, name, kind, latest, at, age: ($now - (.at | epoch)), url,
+   notes: ((.notes // "") | gsub("\r"; "")), assets: (.assets // [])};
 
-# github_releases($now) reads gh release list's answer and gives one document per release, newest first. gh prints a
-# release never published with the zero time as publishedAt, so such a release, a draft, is dated by its creation.
+# github_releases($now) reads the pages of GitHub's releases, each an array, and gives one document per release, newest
+# first. A release never published, a draft, is dated by its creation. GitHub's REST list does not mark the latest
+# release; GitHub names the newest release that is neither a draft nor a pre-release by its creation, and so does this.
+# A release's assets are the files uploaded to it, the sources GitHub makes of every tag apart.
 def github_releases($now):
-  map({tag: .tagName, name, latest: .isLatest,
-       at: (if (.publishedAt // "") | startswith("0001-") or . == "" then .createdAt else .publishedAt end),
-      kind: (if .isDraft then "draft" elif .isPrerelease then "pre-release" else "release" end)})
-  | sort_by(.at) | reverse[] | release($now);
+  add // []
+  | map({tag: .tag_name, name, at: (.published_at // .created_at), made: .created_at, url: .html_url, notes: .body,
+         kind: (if .draft then "draft" elif .prerelease then "pre-release" else "release" end),
+         assets: [(.assets // [])[] | {name, url: .browser_download_url}]})
+  | (map(select(.kind == "release")) | max_by(.made) | .tag) as $latest
+  | sort_by(.at) | reverse[] | . + {latest: (.tag == $latest)} | del(.made) | release($now);
 
 # gitlab_releases($now) reads GitLab's releases and gives the same documents. GitLab marks no pre-release, so a tag
 # with a suffix is one, as kit release names it; a release not yet due is a draft; the latest is the newest release.
+# A release's assets are its links, each where it downloads directly; the sources GitLab makes of every tag are apart.
 def gitlab_releases($now):
-  map({tag: .tag_name, name, at: .released_at,
-      kind: (if .upcoming_release then "draft" elif (.tag_name | test("-")) then "pre-release" else "release" end)})
+  map({tag: .tag_name, name, at: .released_at, url: ._links.self, notes: .description,
+      kind: (if .upcoming_release then "draft" elif (.tag_name | test("-")) then "pre-release" else "release" end),
+      assets: [(.assets.links // [])[] | {name, url: (.direct_asset_url // .url)}]})
   | sort_by(.at) | reverse
   | (map(select(.kind == "release")) | first | .tag) as $latest
   | .[] | . + {latest: (.tag == $latest)} | release($now);

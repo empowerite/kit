@@ -104,19 +104,28 @@ on-origin() { git ls-remote origin "refs/tags/$1*" | awk -v want="refs/tags/$1^{
 }
 
 @test "kit flow releases lists the forge's releases newest first: version, kind, age, and the latest" {
-  printf 'forge: github\n' > .kit-settings && mkdir -p .kit && mv .kit-settings kit.yml
+  printf 'forge: github\n' > kit.yml
   : > "${FAKE_DIR}/gh.routes"
+  # gh api --paginate prints each page's array after the one before
   cat > "${FAKE_DIR}/releases.json" <<'JSON'
-[{"tagName": "release/0.1.0-rc.6", "name": "kit 0.1.0-rc.6", "isPrerelease": true, "isDraft": false, "isLatest": false,
-  "publishedAt": "2026-10-27T07:30:14Z", "createdAt": "2026-10-27T07:30:14Z"},
- {"tagName": "release/0.0.9", "name": "kit 0.0.9", "isPrerelease": false, "isDraft": false, "isLatest": true,
-  "publishedAt": "2026-10-20T07:30:14Z", "createdAt": "2026-10-20T07:30:14Z"},
- {"tagName": "release/0.1.0-rc.7", "name": "kit 0.1.0-rc.7", "isPrerelease": true, "isDraft": true, "isLatest": false,
-  "publishedAt": null, "createdAt": "2026-10-30T07:30:14Z"}]
+[{"tag_name": "release/0.1.0-rc.6", "name": "kit 0.1.0-rc.6", "prerelease": true, "draft": false,
+  "published_at": "2026-10-27T07:30:14Z", "created_at": "2026-10-27T07:30:14Z",
+  "html_url": "https://github.com/empowerite/kit/releases/tag/release/0.1.0-rc.6",
+  "body": "## What's Changed\r\n\r\n* #42 settings\r\n",
+  "assets": [{"name": "kit-0.1.0-rc.6.tar.gz",
+              "browser_download_url": "https://github.com/empowerite/kit/releases/download/release/0.1.0-rc.6/kit-0.1.0-rc.6.tar.gz"},
+             {"name": "kit-0.1.0-rc.6.tar.gz.sha256",
+              "browser_download_url": "https://github.com/empowerite/kit/releases/download/release/0.1.0-rc.6/kit-0.1.0-rc.6.tar.gz.sha256"}]},
+ {"tag_name": "release/0.0.9", "name": "kit 0.0.9", "prerelease": false, "draft": false,
+  "published_at": "2026-10-20T07:30:14Z", "created_at": "2026-10-20T07:30:14Z",
+  "html_url": "https://github.com/empowerite/kit/releases/tag/release/0.0.9", "body": null, "assets": []}]
+[{"tag_name": "release/0.1.0-rc.7", "name": "kit 0.1.0-rc.7", "prerelease": true, "draft": true,
+  "published_at": null, "created_at": "2026-10-30T07:30:14Z",
+  "html_url": "https://github.com/empowerite/kit/releases/tag/untagged-1", "body": "", "assets": []}]
 JSON
   printf '{"login": "ada"}\n' > "${FAKE_DIR}/user.json"
   printf '%s\t%s\n' 'api user*' user.json >> "${FAKE_DIR}/gh.routes"
-  printf '%s\t%s\n' 'release list --limit 10000 --json *' releases.json >> "${FAKE_DIR}/gh.routes"
+  printf '%s\t%s\n' 'api --paginate repos/{owner}/{repo}/releases?per_page=100' releases.json >> "${FAKE_DIR}/gh.routes"
   run "${kit_root}/bin/kit" flow releases
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "0.1.0-rc.7  📝 draft "* ]]
@@ -131,8 +140,44 @@ JSON
   done
   [ "${widths[0]}" -eq "${widths[1]}" ] && [ "${widths[1]}" -eq "${widths[2]}" ]
   run "${kit_root}/bin/kit" flow releases --json
-  [ "$(jq -r 'map("\(.version) \(.kind) \(.latest)") | join(", ")' <<<"$output")" \
-    = "0.1.0-rc.7 draft false, 0.1.0-rc.6 pre-release false, 0.0.9 release true" ]
+  [ "$(jq -r 'map("\(.key) \(.kind) \(.latest)") | join(", ")' <<<"$output")" \
+    = "release/0.1.0-rc.7 draft null, release/0.1.0-rc.6 pre-release null, release/0.0.9 release latest" ]
+}
+
+@test "a release's row in kit flow releases --json leads to its page and its assets, and carries its notes" {
+  printf 'forge: github\n' > kit.yml
+  : > "${FAKE_DIR}/gh.routes"
+  cat > "${FAKE_DIR}/releases.json" <<'JSON'
+[{"tag_name": "release/0.1.0", "name": "kit 0.1.0", "prerelease": false, "draft": false,
+  "published_at": "2026-10-27T07:30:14Z", "created_at": "2026-10-27T07:30:14Z",
+  "html_url": "https://github.com/empowerite/kit/releases/tag/release/0.1.0",
+  "body": "## What's Changed\r\n\r\n* #42 settings\r\n",
+  "assets": [{"name": "kit-0.1.0.tar.gz", "browser_download_url": "https://example.test/kit-0.1.0.tar.gz"},
+             {"name": "kit-0.1.0.tar.gz.sha256", "browser_download_url": "https://example.test/kit-0.1.0.tar.gz.sha256"}]},
+ {"tag_name": "release/0.0.9", "name": "kit 0.0.9", "prerelease": false, "draft": false,
+  "published_at": "2026-10-20T07:30:14Z", "created_at": "2026-10-20T07:30:14Z",
+  "html_url": "https://github.com/empowerite/kit/releases/tag/release/0.0.9", "body": null, "assets": []}]
+JSON
+  printf '{"login": "ada"}\n' > "${FAKE_DIR}/user.json"
+  printf '%s\t%s\n' 'api user*' user.json >> "${FAKE_DIR}/gh.routes"
+  printf '%s\t%s\n' 'api --paginate repos/{owner}/{repo}/releases?per_page=100' releases.json >> "${FAKE_DIR}/gh.routes"
+  run "${kit_root}/bin/kit" flow releases --json
+  [ "$status" -eq 0 ]
+  [ "$(jq --compact-output '.[0] | del(.age)' <<<"$output")" = "$(jq --compact-output . <<'JSON'
+{"key": "release/0.1.0", "version": "0.1.0", "tag": "release/0.1.0", "name": "kit 0.1.0", "kind": "release",
+ "latest": "latest", "at": "2026-10-27T07:30:14Z",
+ "url": "https://github.com/empowerite/kit/releases/tag/release/0.1.0",
+ "notes": "## What's Changed\n\n* #42 settings\n",
+ "assets": ["kit-0.1.0.tar.gz", "kit-0.1.0.tar.gz.sha256"],
+ "downloads": ["https://example.test/kit-0.1.0.tar.gz", "https://example.test/kit-0.1.0.tar.gz.sha256"],
+ "links": {"kind": "https://github.com/empowerite/kit/releases/tag/release/0.1.0",
+           "url": "https://github.com/empowerite/kit/releases/tag/release/0.1.0",
+           "assets": ["https://example.test/kit-0.1.0.tar.gz", "https://example.test/kit-0.1.0.tar.gz.sha256"],
+           "downloads": ["https://example.test/kit-0.1.0.tar.gz", "https://example.test/kit-0.1.0.tar.gz.sha256"]}}
+JSON
+)" ]
+  # a release without notes or assets has empty ones
+  [ "$(jq --compact-output '.[1] | [.notes, .assets, .downloads, .links.assets]' <<<"$output")" = '["",[],[],[]]' ]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

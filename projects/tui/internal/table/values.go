@@ -25,13 +25,15 @@ var Types = map[string]ValueType{
 // Value is what a row holds in one field. Raw is what the row sorts, groups, and filters by, unstyled, one a Value, as
 // a person field's logins, or none: a time's seconds, a number's digits, a reference as its tracker gives it. Of is the
 // record, or the part of it, a renderer draws more from than the Value, as the checks' counts beside their state. Link
-// is where the glyph the field draws leads; Else is what the field draws, dim, while it holds no Value, as … while
-// changes loads.
+// is where the glyph the field draws leads; Links, for a list whose values lead apart, as a release's assets each to its
+// download, where each raw value leads, one a value, which a row flattened by the field takes its own of; Else is what
+// the field draws, dim, while it holds no Value, as … while changes loads.
 type Value struct {
-	Raw  []string
-	Of   any
-	Link string
-	Else string
+	Raw   []string
+	Of    any
+	Link  string
+	Links []string
+	Else  string
 }
 
 // One gives a value of One raw text.

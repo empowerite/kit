@@ -18,12 +18,13 @@ import (
 )
 
 // workspaceRow is a row of a kit workspace stage as kit prints it: its key, its stage's own; its member, over a group;
-// and where each field's value leads, by the field's id: a page, or row:<stage>/<key>, a row of another of its stages.
-// Its values are the row's other keys, by the field's id.
+// and where each field's value leads, by the field's id: a page, or row:<stage>/<key>, a row of another of its stages,
+// or, for a list whose values lead apart, as a release's assets, a list of them, one a value. Its values are the row's
+// other keys, by the field's id.
 type workspaceRow struct {
-	Key    string             `json:"key"`
-	Member string             `json:"member"`
-	Links  map[string]*string `json:"links"`
+	Key    string                     `json:"key"`
+	Member string                     `json:"member"`
+	Links  map[string]json.RawMessage `json:"links"`
 }
 
 // workspaceRows gives a kit workspace stage's records, as rowRecords reads them.
@@ -61,9 +62,7 @@ func (m Model) rowRecords(stage string, raws []json.RawMessage, member string) [
 				continue
 			}
 			v := rawValue(values[f.ID])
-			if link := r.Links[f.ID]; link != nil {
-				v.Link = m.workspaceLink(*link, r.Member)
-			}
+			m.linkValue(&v, r.Links[f.ID], r.Member)
 			rec.values[f.ID] = v
 		}
 		out = append(out, rec)
@@ -116,6 +115,28 @@ func rawValue(data json.RawMessage) table.Value {
 		return out
 	}
 	return table.Some(text(one))
+}
+
+// linkValue gives a value where it leads, as a row's links say for its field: one link, the value's; a list, one a raw
+// value, each where that value leads, and the value's own where it holds one alone; null, or none, nowhere.
+func (m Model) linkValue(v *table.Value, link json.RawMessage, member string) {
+	var one *string
+	if json.Unmarshal(link, &one) == nil {
+		if one != nil {
+			v.Link = m.workspaceLink(*one, member)
+		}
+		return
+	}
+	var each []string
+	if json.Unmarshal(link, &each) != nil {
+		return
+	}
+	for _, l := range each {
+		v.Links = append(v.Links, m.workspaceLink(l, member))
+	}
+	if len(v.Links) == 1 {
+		v.Link = v.Links[0]
+	}
 }
 
 // workspaceLink gives where a row's value leads: a page as it is, and row:<stage>/<key> as the link to that row of the

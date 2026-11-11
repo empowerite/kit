@@ -130,6 +130,13 @@
 # gives none. state is running, passed, failed, or cancelled. took is null while the run runs. jobs is empty when the
 # forge does not report them cheaply; each is {name, state, took, step}, step the failed step's name, or null.
 #
+# releases lists the forge's releases, newest first, one row a release, flat. A release's JSON is {key, version, tag,
+# name, kind, latest, at, age, url, notes, assets, downloads, links}. key is its tag, and version the tag without
+# release/. kind is release, pre-release, or draft; latest is "latest" for the forge's latest release, else null. at
+# is when it was published, or made, for a draft. url is its page, and notes its text, empty for none. assets names
+# each file it offers, and downloads says where each downloads, in the same order. links says where a value leads, by
+# its field: kind and url to the page, and assets and downloads, a list, each to its download.
+#
 # Over a workspace
 #
 # kit --workspace=<workspace> flow, the kit option before the verb, names a group, or a repository by its host and
@@ -249,6 +256,7 @@
 #   🧪  a pre-release
 #   📝  a draft release
 #   ⭐  the latest release
+#   📎  an asset: a file a release offers, and where it downloads
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # kit:end legend

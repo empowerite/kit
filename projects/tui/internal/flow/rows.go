@@ -188,17 +188,23 @@ type job struct {
 	Step  string `json:"step"`
 }
 
-// release is one release on the forge.
+// release is one release on the forge, as kit flow prints it, a row flat, the types its values must decode as; the
+// catalog draws its rows from their raw JSON, as rowRecords reads them.
 type release struct {
-	Version string `json:"version"`
-	Tag     string `json:"tag"`
-	Name    string `json:"name"`
-	Kind    string `json:"kind"`
-	Latest  bool   `json:"latest"`
-	At      string `json:"at"`
-	Age     int64  `json:"age"`
-	URL     string `json:"url"`
-	Member  string `json:"member"`
+	Key       string         `json:"key"`
+	Version   string         `json:"version"`
+	Tag       string         `json:"tag"`
+	Name      string         `json:"name"`
+	Kind      string         `json:"kind"`
+	Latest    *string        `json:"latest"`
+	At        string         `json:"at"`
+	Age       int64          `json:"age"`
+	URL       string         `json:"url"`
+	Notes     string         `json:"notes"`
+	Assets    []string       `json:"assets"`
+	Downloads []string       `json:"downloads"`
+	Links     map[string]any `json:"links"`
+	Member    string         `json:"member"`
 }
 
 // cell is one column of a row, and row one row, as internal/grid lays them out: a cell's values, a number
@@ -770,25 +776,8 @@ func failedFirst(j job) int {
 	return 1
 }
 
-// releaseRows gives each release: version, kind, age, latest, the kind's glyph leading to the release's page; open,
-// the name, the tag, and the date.
-func (m Model) releaseRows(s stage) []record {
-	var out []record
-	for _, rel := range s.rels {
-		var latest table.Value
-		if rel.Latest {
-			latest = table.One("latest")
-		}
-		r := record{row{Key: m.keyOf(rel.Member, rel.Tag)}, map[string]table.Value{
-			"version": table.One(rel.Version), "kind": {Raw: []string{rel.Kind},
-				Link: m.originOf(rel.Member).release(rel.Tag, rel.URL)},
-			"age": table.Seconds(&rel.Age), "latest": latest, "member": m.memberValue(rel.Member),
-		}}
-		r.Detail = [][]cell{span(rel.Name), span(style.Off(rel.Tag)), span(style.Off(rel.At))}
-		out = append(out, r)
-	}
-	return out
-}
+// releaseRows gives each release's record, as rowRecords reads a row kit prints flat.
+func (m Model) releaseRows(s stage) []record { return m.rowRecords(s.name, s.rows, "") }
 
 // empty gives the dim line an empty stage shows.
 func empty(s stage) string {

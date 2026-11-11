@@ -96,8 +96,8 @@ kit's `forge/github.sh` uses these commands.
 | Parent and sub-issues | `gh issue view "${n}" --json parent,subIssues,subIssuesSummary` |
 | Changes that close it | `gh issue view "${n}" --json closedByPullRequestsReferences` |
 | Linked branches | `gh issue develop --list "${n}"` |
-| Milestones | `gh api --paginate 'repos/{owner}/{repo}/milestones?state=all'` (raw REST) |
-| Iterations | none in Issues; see [GitHub Projects](#github-projects) |
+| Milestones | `gh api --paginate --slurp 'repos/{owner}/{repo}/milestones?state=all&per_page=100'` (raw REST); `kit issues milestones` draws them, and its mark is the ETag of the same path with `sort=updated&per_page=1` |
+| Iterations | none in Issues; `kit issues iterations` reads them from [GitHub Projects](#github-projects) |
 
 ### Write to GitHub Issues
 
@@ -152,7 +152,7 @@ through `gh api graphql`, paged with `--paginate` and `$endCursor`.
 | Items, with their Status and Iteration | `gh project item-list "${number}" --owner "${owner}" --format json --limit "${limit}"` |
 | Items that match a filter | `gh project item-list "${number}" --owner "${owner}" --query "${filter}" --format json` |
 | An issue's projects and field values | `gh issue view "${n}" --json projectItems` |
-| Iterations, with dates | `gh api graphql -f query="${query}" -F project="${project_id}"` (raw GraphQL; below) |
+| Iterations, with dates | `gh api graphql -f query="${query}" -F project="${project_id}"` (raw GraphQL; below); `kit issues iterations` reads those of the first 20 projects linked to the repository with one `repository.projectsV2` query, `-f owner=… -f name=…`, and flattens each iteration field's `iterations` and `completedIterations` |
 
 ```graphql
 query($project: ID!) {
@@ -240,7 +240,9 @@ posts only a commit status. `gh` has no command that validates a workflow file.
 `gh` is GitHub's own CLI. It authenticates with `gh auth login`, or `GH_TOKEN` in CI. `--json "${fields}"` picks the
 fields, `--jq` filters them, and `--limit` sets how many items a list reads. `gh` has release commands and none for
 environments or deployments, so those go through `gh api`, which fills `{owner}/{repo}` from the checkout, reads
-every page with `--paginate`, and runs GraphQL with `gh api graphql`. kit reads releases with `gh release list`.
+every page with `--paginate`, and runs GraphQL with `gh api graphql`. kit reads releases with `gh api`, as
+`gh release list` gives no release's notes or assets; the REST list does not mark the latest release, so kit names it
+as GitHub does by default: the newest release, by its creation, that is neither a draft nor a pre-release.
 
 A job in GitHub Actions that names an `environment:` creates a deployment for that environment, and its run waits
 there for the environment's protection rules, such as required reviewers. A deployment whose ref is a pull request's
@@ -250,7 +252,8 @@ head branch shows on that pull request. Releases can be immutable: once publishe
 
 | Capability | Command |
 | --- | --- |
-| List releases | `gh release list --limit "${limit}" --json tagName,name,isPrerelease,isDraft,isLatest,isImmutable,publishedAt,createdAt` |
+| List releases, with their notes, pages, and assets | `gh api --paginate 'repos/{owner}/{repo}/releases?per_page=100'` (raw API) |
+| Which release is the latest | `gh release list --limit "${limit}" --json tagName,isLatest`, or `gh api 'repos/{owner}/{repo}/releases/latest'` (raw API) |
 | A release's notes | `gh release view "${tag}" --json body,url` |
 | List environments | `gh api --paginate 'repos/{owner}/{repo}/environments?per_page=100'` (raw API) |
 | Deployments in an environment | `gh api --paginate "repos/{owner}/{repo}/deployments?environment=${environment}&per_page=100"` (raw API) |
@@ -298,19 +301,21 @@ with an example the gate validates against it.
 
 | Schema | The command as kit runs it |
 | --- | --- |
+| [api-graphql-iterations.schema.json](gh/api-graphql-iterations.schema.json) | `gh api graphql --field owner=${owner} --field name=${name} --raw-field query=${query}` |
 | [api-graphql-more-checks.schema.json](gh/api-graphql-more-checks.schema.json) | `gh api graphql --field owner=${owner} --field name=${name} --field pr=${number} --raw-field after=${cursor} --raw-field query=${query}` |
 | [api-graphql-more-closing-issues.schema.json](gh/api-graphql-more-closing-issues.schema.json) | `gh api graphql --field owner=${owner} --field name=${name} --field pr=${number} --raw-field after=${cursor} --raw-field query=${query}` |
 | [api-graphql-more-review-threads.schema.json](gh/api-graphql-more-review-threads.schema.json) | `gh api graphql --field owner=${owner} --field name=${name} --field pr=${number} --raw-field after=${cursor} --raw-field query=${query}` |
 | [api-graphql-open-prs.schema.json](gh/api-graphql-open-prs.schema.json) | `gh api graphql --field owner=${owner} --field name=${name} --raw-field after=${cursor} --raw-field query=${query}` |
 | [api-graphql-pr-closing-issues.schema.json](gh/api-graphql-pr-closing-issues.schema.json) | `gh api graphql --field owner=${owner} --field name=${name} --field number=${number} --raw-field after=${cursor} --raw-field query=${query}` |
 | [api-rate-limit.schema.json](gh/api-rate-limit.schema.json) | `gh api rate_limit` |
+| [api-repos-milestones.schema.json](gh/api-repos-milestones.schema.json) | `gh api --paginate --slurp repos/{owner}/{repo}/milestones?state=all&per_page=100` |
 | [api-repos-pulls.schema.json](gh/api-repos-pulls.schema.json) | `gh api repos/${repo}/pulls/${number} --jq .user.login` |
+| [api-repos-releases.schema.json](gh/api-repos-releases.schema.json) | `gh api --paginate repos/{owner}/{repo}/releases?per_page=100` |
 | [api-user.schema.json](gh/api-user.schema.json) | `gh api user --jq .login` |
 | [issue-list.schema.json](gh/issue-list.schema.json) | `gh issue list --state open --limit ${forge_list_limit} --json number,title,assignees,labels,createdAt,url` |
 | [issue-view.schema.json](gh/issue-view.schema.json) | `gh issue view ${number} --json ${fields} --jq ${filter}` |
 | [pr-list.schema.json](gh/pr-list.schema.json) | `gh pr list --head ${branch} --state ${state} --json ${field} --limit ${forge_list_limit} --jq ${filter}` |
 | [pr-view.schema.json](gh/pr-view.schema.json) | `gh pr view ${number} --json ${fields} --jq ${filter}` |
-| [release-list.schema.json](gh/release-list.schema.json) | `gh release list --limit ${forge_list_limit} --json tagName,name,isPrerelease,isDraft,isLatest,publishedAt,createdAt` |
 | [repo-view.schema.json](gh/repo-view.schema.json) | `gh repo view --json ${field} --jq .${field}` |
 | [run-list.schema.json](gh/run-list.schema.json) | `gh run list --limit 50 --json databaseId,number,attempt,workflowName,headBranch,headSha,displayTitle,event,status,conclusion,createdAt,startedAt,updatedAt,url` |
 | [run-view.schema.json](gh/run-view.schema.json) | `gh run view ${id} --json jobs` |

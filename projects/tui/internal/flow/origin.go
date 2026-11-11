@@ -55,20 +55,6 @@ func (o Origin) issue(number int, given string) string {
 	return fmt.Sprintf("https://%s/%s/%sissues/%d", o.Host, o.Repo, o.infix(), number)
 }
 
-// release gives a release's URL by its tag, as issue gives an issue's.
-func (o Origin) release(tag, given string) string {
-	if given != "" {
-		return given
-	}
-	if o.Repo == "" {
-		return ""
-	}
-	if o.gitlab() {
-		return fmt.Sprintf("https://%s/%s/-/releases/%s", o.Host, o.Repo, tag)
-	}
-	return fmt.Sprintf("https://%s/%s/releases/tag/%s", o.Host, o.Repo, tag)
-}
-
 // pull gives a pull request's URL by its number, as issue gives an issue's: a merge request's on GitLab.
 func (o Origin) pull(number int, given string) string {
 	if given != "" {

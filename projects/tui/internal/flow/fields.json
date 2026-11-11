@@ -320,15 +320,30 @@
          "values": [{"value": "release", "glyph": "📦"}, {"value": "pre-release", "glyph": "🧪"},
                     {"value": "draft", "glyph": "📝"}], "other": "📦",
          "renderings": ["glyph+text", "text", "glyph"], "placement": "column"},
+        {"id": "name", "label": "name", "type": "text", "path": ".name", "sort": true, "renderings": ["text"],
+         "placement": "hidden"},
+        {"id": "tag", "label": "tag", "type": "ref", "path": ".tag", "sort": true, "renderings": ["text"], "dim": true,
+         "placement": "hidden"},
         {"id": "age", "label": "age", "type": "time", "path": ".age", "sort": true, "renderings": ["age"], "dim": true,
          "right": true, "placement": "column"},
+        {"id": "at", "label": "published", "type": "text", "path": ".at", "sort": true, "renderings": ["text"],
+         "dim": true, "placement": "hidden"},
         {"id": "latest", "label": "latest", "type": "enum", "path": ".latest", "group": true, "filter": true,
-         "values": [{"value": "latest", "glyph": "⭐"}], "renderings": ["glyph+text", "glyph"], "placement": "column"}
+         "values": [{"value": "latest", "glyph": "⭐"}], "renderings": ["glyph+text", "glyph"], "placement": "column"},
+        {"id": "assets", "label": "assets", "one": "asset", "type": "text", "path": ".assets[]",
+         "glyph": "📎", "many": "📎", "renderings": ["glyph+text", "text"], "width": "whole", "placement": "column"},
+        {"id": "downloads", "label": "downloads", "one": "download", "type": "text", "path": ".downloads[]",
+         "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "url", "label": "page", "type": "text", "path": ".url", "sort": true, "renderings": ["text"], "dim": true,
+         "placement": "hidden"},
+        {"id": "notes", "label": "notes", "type": "text", "path": ".notes", "renderings": ["text"], "dim": true,
+         "wrap": true, "placement": "column"}
       ],
       "presets": [
         {"name": "Default"},
         {"name": "Compact", "fields": {
-          "age": {"placement": "hidden"}, "latest": {"placement": "hidden"}}}
+          "age": {"placement": "hidden"}, "latest": {"placement": "hidden"}, "assets": {"placement": "hidden"},
+          "notes": {"placement": "hidden"}}}
       ]
     },
     {

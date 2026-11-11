@@ -380,13 +380,14 @@ forge/github:quota() {
   forge/github:fold 'the rate limits' "${limits}" --compact-output 'import "forge" as forge; forge::github_quota'
 }
 
-# forge/github:releases prints one document per release, newest first, as the seam's header says.
+# forge/github:releases prints one document per release, newest first, as the seam's header says. gh release list
+# gives no release's notes or assets, so the releases are read from the REST list, which has both, every page of it:
+# gh api --paginate prints each page's array after the one before.
 forge/github:releases() {
   local answer
-  forge/github:ask answer 'the releases' release list --limit "${forge_list_limit}" \
-    --json tagName,name,isPrerelease,isDraft,isLatest,publishedAt,createdAt || return 1
-  forge:whole 'the releases' "$(jq length <<<"${answer}")" || return 1
-  forge/github:fold 'the releases' "${answer}" --compact-output --argjson now "$(date +%s)" \
+  forge/github:ask answer 'the releases' api --paginate 'repos/{owner}/{repo}/releases?per_page=100' || return 1
+  forge:whole 'the releases' "$(jq --slurp 'map(length) | add // 0' <<<"${answer}" 2>/dev/null)" || return 1
+  forge/github:fold 'the releases' "${answer}" --slurp --compact-output --argjson now "$(date +%s)" \
     'import "forge" as forge; forge::github_releases($now)'
 }
 

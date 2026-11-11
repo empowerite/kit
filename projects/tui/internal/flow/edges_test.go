@@ -100,15 +100,12 @@ func TestRefreshInTheRowsKeepsTheCursorThroughTheLoad(t *testing.T) {
 	}
 }
 
-// The small drawings: a build state #48 does not name, a release kit gave a URL for, an age kit did not give, checks
+// The small drawings: a build state #48 does not name, an age kit did not give, checks
 // that never reported or report a state kittui does not know, a checkout with only its path, a pull request with no
 // reference of kit's, and a run started by hand.
 func TestTheCellsDrawWhatIsMissingOrUnknown(t *testing.T) {
 	if runGlyph("queued") != Other {
 		t.Errorf("an unknown state draws %q", runGlyph("queued"))
-	}
-	if url := (Origin{Host: "github.com", Repo: "a/b"}).release("v1", "https://x/r"); url != "https://x/r" {
-		t.Errorf("a release's own URL: %q", url)
 	}
 	if ageOf(nil) != "" {
 		t.Errorf("a missing age draws %q", ageOf(nil))
