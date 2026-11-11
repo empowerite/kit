@@ -301,6 +301,15 @@ YML
   done
 }
 
+@test "a group named none is refused with 1, and the file is as it was" {
+  workspaces-file <<<'workspaces: {none: {repos: [github.com/o/a]}}'
+  cp "${XDG_CONFIG_HOME}/kit/workspaces.yml" "${BATS_TEST_TMPDIR}/before.yml"
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --add none github.com/o/b
+  [ "$status" -eq 1 ]
+  [[ "$stderr" == *"workspaces.yml: 'none' is not a workspace's name: --workspace none names no workspace"* ]]
+  cmp "${BATS_TEST_TMPDIR}/before.yml" "${XDG_CONFIG_HOME}/kit/workspaces.yml"
+}
+
 @test "--option=value runs as --option value" {
   workspaces-file <<YML
 workspaces:

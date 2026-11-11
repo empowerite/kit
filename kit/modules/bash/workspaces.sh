@@ -413,7 +413,8 @@ workspaces:current() {
 }
 
 # workspaces:across [<workspace>] prints the workspace a verb draws across: the one given, unless it is none; with none
-# given, the last group used, when workspaces:current starts there, outside a repository; else nothing. It returns
+# given, the last group used, when workspaces:current starts there, outside a repository; else nothing. Inside a
+# repository, its .git directory too, or with no group used, it reads nothing, not even the file. It returns
 # workspaces:current's status.
 workspaces:across() {
   local given=${1:-} json
@@ -422,6 +423,8 @@ workspaces:across() {
     [[ "${given}" == none ]] || printf '%s\n' "${given}"
     return 0
   fi
+  ! git rev-parse --git-dir >/dev/null 2>&1 || return 0
+  [[ -f "$(workspaces:cache)/last" ]] || return 0
   json=$(workspaces:current) || return $?
   jq --raw-output 'select(.why == "last") | .name' <<<"${json}"
 }

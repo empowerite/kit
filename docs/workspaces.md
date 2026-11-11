@@ -29,11 +29,11 @@ A group's name holds lowercase letters, digits, and `.`, `_`, or `-`, and never 
 a repository.
 
 kit checks the file wherever it reads it. It refuses a file that does not parse or is not a map, a group with a key
-other than `repos` and `exclude` (`match` and `project` are not built yet), a group whose name breaks that rule, and
-an entry that names no repository, and a group named `none`. `kit workspaces`, `kit flow --workspace`, and `kit
-workspace --workspace` each say what is wrong and exit 1, printing nothing, as `kit flow` and `kit workspace` do
-outside a repository, where they read the file for the last group used. Inside a repository, `kit flow` and `kit
-workspace` with no `--workspace` read no file.
+other than `repos` and `exclude` (`match` and `project` are not built yet), a group whose name breaks that rule, an
+entry that names no repository, and a group named `none`. `kit workspaces`, `kit flow --workspace`, and `kit workspace
+--workspace` each say what is wrong and exit 1, printing nothing, as `kit flow` and `kit workspace` do outside a
+repository with a group used last, where they read the file for that group. Inside a repository, or with no group
+used, `kit flow` and `kit workspace` with no `--workspace` read no file.
 
 ## Members and checkouts
 

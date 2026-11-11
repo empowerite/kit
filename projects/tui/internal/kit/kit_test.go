@@ -449,6 +449,22 @@ func TestAGroupsReadsCarryTheWorkspace(t *testing.T) {
 	}
 }
 
+// A runner whose workspace is no group reads with --workspace none, so kit draws where Dir is and never the last group
+// used; a group's name still wins.
+func TestARunnerWithNoGroupReadsWithWorkspaceNone(t *testing.T) {
+	r := fake(t, "")
+	r.NoGroup = true
+	out, err := r.Status(context.Background(), "backlog", []string{"--mine"})
+	if err != nil || strings.TrimSpace(string(out)) != `{"stage": "backlog", "args": "--json --mine --workspace none"}` {
+		t.Errorf("Status with no group: %v, %q", err, out)
+	}
+	r.Group = "w"
+	out, err = r.Status(context.Background(), "backlog", nil)
+	if err != nil || strings.TrimSpace(string(out)) != `{"stage": "backlog", "args": "--json --workspace w"}` {
+		t.Errorf("Status over w: %v, %q", err, out)
+	}
+}
+
 // The rate limits and the marks over a group are the group's, as every read of kit flow is.
 func TestAGroupsQuotaAndMarksCarryTheWorkspace(t *testing.T) {
 	t.Setenv("FAKE_KIT_POLLS", "1")

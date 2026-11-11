@@ -123,7 +123,7 @@ func (m Model) answered(msg workspaceMsg) (tea.Model, tea.Cmd) {
 		moved = msg.ws.Kind != m.workspace.Kind || msg.ws.Name != m.workspace.Name
 	}
 	m.workspace, m.refused = msg.ws, ""
-	m.runner.Dir, m.runner.Group = m.home, ""
+	m.runner.Dir, m.runner.Group, m.runner.NoGroup = m.home, "", msg.ws.Kind != "group"
 	switch {
 	case msg.ws.Kind == "group":
 		m.runner.Group = msg.ws.Name

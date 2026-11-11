@@ -481,6 +481,15 @@ EOF
 
 @test "outside a repository the last group used is drawn; --workspace none draws none; inside one, nothing changes" {
   local-desks
+  # with no group used, the file is not read, so one kit refuses changes nothing
+  cp "${XDG_CONFIG_HOME}/kit/workspaces.yml" "${BATS_TEST_TMPDIR}/kept.yml"
+  workspaces-file <<<'workspaces: [unclosed'
+  run --separate-stderr "${kit_root}/bin/kit" flow --json --no-fetch
+  [ "$status" -eq 0 ]
+  [ "$(jq -r type <<<"$output")" = array ]
+  run "${kit_root}/bin/kit" workspace repos --json
+  [ "$status" -eq 2 ]
+  workspaces-file < "${BATS_TEST_TMPDIR}/kept.yml"
   "${kit_root}/bin/kit" workspaces --use w
   run --separate-stderr "${kit_root}/bin/kit" flow --json --no-fetch
   [ "$(jq -c '[.desk.rows[].member]' <<<"$output")" = '["github.com/o/a","github.com/o/b"]' ]
@@ -495,4 +504,11 @@ EOF
   cd code/a && workspaces-file <<<'workspaces: [unclosed'
   run --separate-stderr "${kit_root}/bin/kit" flow desk --json
   [[ "$status" -eq 0 && -z "$stderr" && "$(jq -r .branch <<<"$output")" == main ]]
+  # a repository's .git directory is inside it; outside one, with a group used, the group must be read
+  cd .git
+  run --separate-stderr "${kit_root}/bin/kit" flow --stages
+  [[ "$status" -eq 0 && -z "$stderr" ]]
+  cd "${BATS_TEST_TMPDIR}"
+  run --separate-stderr "${kit_root}/bin/kit" flow --json --no-fetch
+  [[ "$status" -eq 1 && -z "$output" && "$stderr" == *"workspaces.yml"* ]]
 }

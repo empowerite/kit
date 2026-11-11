@@ -21,17 +21,23 @@ import (
 // Runner names the kit to run and the directory the command was typed in, which every call runs from, and the group
 // kit flow's reads span, when they span one.
 type Runner struct {
-	Kit   string // the kit executable: $KIT, which kit tui names as the kit that ran it, else kit on PATH
-	Dir   string // where the command was typed: $kit_invoked_in, which kit's verbs export, else the current directory
-	Group string // the group kit flow's reads span, as --workspace <Group>; none reads the place Dir is
+	Kit     string // the kit executable: $KIT, which kit tui names as the kit that ran it, else kit on PATH
+	Dir     string // where the command was typed: $kit_invoked_in, which kit's verbs export, else the current directory
+	Group   string // the group kit flow's reads span, as --workspace <Group>; none reads the place Dir is
+	NoGroup bool   // the workspace shown is no group, so the reads carry --workspace none and draw no last group used
 }
 
-// over gives kit flow's words as a read takes them: with --workspace <Group> after them, while the reads span a group.
+// over gives kit flow's words as a read takes them: with --workspace <Group> after them, while the reads span a group,
+// and with --workspace none while the workspace shown is no group, so a read outside a repository draws the place Dir
+// is, as kittui titles it, and not the last group used.
 func (r Runner) over(words ...string) []string {
-	if r.Group == "" {
-		return words
+	switch {
+	case r.Group != "":
+		return append(words, "--workspace", r.Group)
+	case r.NoGroup:
+		return append(words, "--workspace", "none")
 	}
-	return append(words, "--workspace", r.Group)
+	return words
 }
 
 // New reads the runner from the environment.

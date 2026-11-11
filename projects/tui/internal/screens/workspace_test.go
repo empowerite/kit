@@ -216,12 +216,12 @@ func TestTheRunnerFollowsTheGroupKitSays(t *testing.T) {
 		t.Errorf("inside a repository, the runner spans %q", m.runner.Group)
 	}
 	m = drive(m, shell.PickMsg{Workspace: "w"})
-	if m.runner.Group != "w" {
-		t.Errorf("over w, the runner spans %q", m.runner.Group)
+	if m.runner.Group != "w" || m.runner.NoGroup {
+		t.Errorf("over w, the runner spans %q, no group %v", m.runner.Group, m.runner.NoGroup)
 	}
 	m = drive(m, shell.PickMsg{Workspace: "github.com/o/a"})
-	if m.runner.Group != "" || m.runner.Dir != checkout {
-		t.Errorf("back on a, the runner spans %q in %q", m.runner.Group, m.runner.Dir)
+	if m.runner.Group != "" || m.runner.Dir != checkout || !m.runner.NoGroup {
+		t.Errorf("back on a, the runner spans %q in %q, no group %v", m.runner.Group, m.runner.Dir, m.runner.NoGroup)
 	}
 }
 
