@@ -174,6 +174,24 @@ func TestAMemberClonedTwiceNamesItsOtherCloneOpenAndCountsItClosed(t *testing.T)
 	}
 }
 
+// A kit that prints no checkouts, or checkouts that name the checkout alone, gives the checkout once and no count.
+func TestAMemberKitNamesOneCloneOfDrawsItOnce(t *testing.T) {
+	t.Setenv("HOME", "/home/u")
+	for name, checkouts := range map[string]string{"absent": ``, "the checkout again": `,
+		"checkouts": ["/home/u/Code/o/a"]`} {
+		m := drive(over(t, "workspace/repos"), answer("workspace/repos", `{"rows": [{"repository": "github.com/o/a",
+			"remotes": [], "by": "fixed", "checkout": "/home/u/Code/o/a"`+checkouts+`}], "errors": []}`))
+		v := m.records(*m.find("workspace/repos"))[0].values["checkout"]
+		if !slices.Equal(v.Raw, []string{"/home/u/Code/o/a"}) {
+			t.Errorf("%s: the checkout holds %q", name, v.Raw)
+		}
+		c := fieldIn("workspace/repos", "checkout").Draw([]table.Value{v}, "")[0]
+		if !slices.Equal(c.Values, []string{style.Off("~/Code/o/a")}) || c.Summary != style.Off("…/o/a") {
+			t.Errorf("%s: the checkout reads %q, closed %q", name, c.Values, c.Summary)
+		}
+	}
+}
+
 func TestAClosedCheckoutKeepsTheColumnsNarrow(t *testing.T) {
 	t.Setenv("HOME", "/home/u")
 	m := drive(over(t, "workspace/repos"), answer("workspace/repos", `{"rows": [{"repository": "github.com/o/a", "remotes": [],

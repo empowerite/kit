@@ -93,6 +93,40 @@ func TestBooksDrawsNoLineThatOpensNothing(t *testing.T) {
 	}
 }
 
+// With no group and no favorite, the menu drops down its one dim line in a box of that line's height; a key or a
+// click on the line does nothing and leaves it open, esc or a click off the box closes it.
+func TestBooksWithNoGroupDropsDownItsLoneLineThatActsOnNothing(t *testing.T) {
+	b := BooksMenu{Workspace: kit.Workspace{Kind: "none"}}.Opened()
+	if !b.Open || b.At != -1 {
+		t.Fatalf("opened: %+v", b.Dropdown)
+	}
+	title := Title("kit welcome", false)
+	at := BooksAt(title)
+	box, left := b.box(at, 120)
+	line := " " + Books + " " + noGroup.item.Name + " "
+	if len(box) != 3 || box[1] != style.Menu("│")+style.Off(line)+style.Menu("│") {
+		t.Errorf("the box:\n%s", ansi.Strip(strings.Join(box, "\n")))
+	}
+	if lines := b.Overlay(make([]string, 6), at, 120); !strings.Contains(ansi.Strip(lines[Top+1]), "no group yet") ||
+		strings.TrimSpace(ansi.Strip(lines[Top+3])) != "" {
+		t.Errorf("drawn:\n%s", ansi.Strip(strings.Join(lines, "\n")))
+	}
+	for _, k := range []string{"enter", "space", "down", "up"} {
+		if b2, picked := b.Key(key(k)); picked != "" || !b2.Open || b2.At != -1 {
+			t.Errorf("%s: %q, open %v at %d", k, picked, b2.Open, b2.At)
+		}
+	}
+	if b2, _ := b.Key(key("esc")); b2.Open {
+		t.Error("esc leaves it open")
+	}
+	if b2, picked := b.Click(left+3, Top+1, at, 120); picked != "" || !b2.Open {
+		t.Errorf("a click on the line: %q, open %v", picked, b2.Open)
+	}
+	if b2, picked := b.Click(left+ansi.StringWidth(box[0])+2, Top+1, at, 120); picked != "" || b2.Open {
+		t.Errorf("a click off the box: %q, open %v", picked, b2.Open)
+	}
+}
+
 func TestBooksDropsDownTheGroupsThenTheFavorites(t *testing.T) {
 	got, acting := names(BooksMenu{Workspace: inGroups})
 	want := []string{"w 2", "v 1", "", "w 2", "o/b · not cloned"}
