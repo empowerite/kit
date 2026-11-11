@@ -39,6 +39,11 @@ jobs:
       - name: tools
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c  # v4.3.0
 
+      # bin/release enters the checkout as every kit verb does, and kit runs nothing in a clone until it is trusted; a
+      # runner has no one to ask, so the job trusts the checkout it made, with the checkout's own kit.
+      - name: trust
+        run: kit/bin/kit trust --yes "${GITHUB_WORKSPACE}"
+
       - name: verify
         run: bin/release verify "${GITHUB_REF_NAME}"
 

@@ -25,6 +25,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      # bin/release enters the checkout as every kit verb does, and kit runs nothing in a clone until it is trusted; a
+      # runner has no one to ask, so the job trusts the checkout it made, with the checkout's own kit.
+      - name: trust
+        run: kit/bin/kit trust --yes "${GITHUB_WORKSPACE}"
+
       - name: retire
         env:
           GH_TOKEN: ${{ github.token }}
