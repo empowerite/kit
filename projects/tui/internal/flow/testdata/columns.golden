@@ -8,12 +8,12 @@
     ·───·──────────▼────·─────────────────────────────────────────────────────│ ☑ source          enum    ·     ·     │
     #7  🐙 github  40d  🎫 Fix the thing                                      │ ☑ age             time    ▼           │
                                                                               │ ☑ branch          text    ·           │
-                                                                              │ ☑ labels          label         ·     │
+                                                                              │ ☑ labels          label   ·     ·     │
                                                                               │ ☑ title           text    ·           │
                                                                               │ ───────────────────────────────────── │
                                                                               │ ☐ organization    enum    ·     ·     │
                                                                               │ ☐ repository      enum    ·     ·     │
-                                                                              │ ☐ assignees ⊘     person        ·     │
+                                                                              │ ☐ assignees ⊘     person  ·     ·     │
                                                                               ╰───────────────────────────────────────╯
 
 
@@ -21,4 +21,4 @@
 
 
 
- esc close ↑↓ move ⇧↑↓ order ␣ show/hide g group ⏎ options
+ esc close ↑↓ move ⇧↑↓ order ␣ show/hide s sort g group ⏎ options

@@ -7,7 +7,7 @@
   ▾ 🐙 github 1                                                               │ ☑ source        │ ⦿ include  ⦾ exclude │
                                                                               │ ────────────────│ ☑ @me ada            │
       id  assignees  age  title                                               │ ☑ id            │ ☐ ada                │
-      ·───⇊──────────·────·───────────────────────────────────────────────────│ ☑ assignees ⊘   │ ☐ bob                │
+      ·───⇊·─────────·────·───────────────────────────────────────────────────│ ☑ assignees ⊘   │ ☐ bob                │
     ▸ #7  👥 2       40d  🎫 Fix the thing                                    │ ☑ age           │ ☐ jeffrey-aguilera   │
                                                                               │ ☑ branch        │ ☐ none               │
                                                                               │ ☑ labels        │ rendering            │

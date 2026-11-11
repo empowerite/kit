@@ -9,7 +9,7 @@
   ▾ topic ▾ 4                                                                                               Default ▼
 
       command   terms         meaning                                                      examples
-      ·─────────⇊──────────────────────────────────────────────────────────────────────────⇊───────────────────────────
+      ·─────────⇊·─────────────────────────────────────────────────────────────────────────⇊·──────────────────────────
   ▾ Where the work lives 3                                                                                             
     ▸ kit flow  desk        Your root checkout, where you cloned the repository. It is…  kit flow desk
     ▸ kit flow  worktree    A checkout of its own, under worktrees/, on one issue's br…  kit flow worktrees        +1

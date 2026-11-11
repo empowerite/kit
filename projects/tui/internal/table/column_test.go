@@ -78,15 +78,17 @@ func TestTheColumnMenuSortsGroupsAndHidesItsColumn(t *testing.T) {
 	}
 }
 
-// A column that holds a list never sorts while a row holds all its values: its menu flattens it, a row per value, and
-// gathers them again, the line that cannot act now dim; flattened, it sorts, the header names one value, and the
-// columns dialog lists it by that name; gathered, its sort no longer orders the rows.
+// A column that holds a list sorts by size while a row holds all its values, how many each holds; its menu, sort, then
+// group, then flatten, then the rest, as every column's, flattens it, a row per value, and gathers them again, the line
+// that cannot act now dim; flattened, it sorts by value, the header names one value, and the columns dialog lists it
+// by that name; gathered, its sort orders the rows by size again.
 func TestTheColumnMenuFlattensAListAndGathersItAgain(t *testing.T) {
 	h := listing()
 	h.panel.Ones = map[string]string{"who": "person"}
 	c := OpenColumnMenu(h, "who", false)
 	flatten, gather := FlattenIt("person"), GatherIt("who")
-	if got := names(c, h); !slices.Equal(got, []string{flatten, gather, "", GroupIt, UngroupIt, "", Hide, More}) ||
+	if got := names(c, h); !slices.Equal(got, []string{"▲ Ascending" + BySize, "▼ Descending" + BySize, Unsorted, "",
+		GroupIt, UngroupIt, "", flatten, gather, "", Hide, More}) ||
 		!c.Enabled(h, c.LineOf(h, ActFlatten)) || c.Enabled(h, c.LineOf(h, ActGather)) {
 		t.Fatalf("who's menu: %q", got)
 	}
@@ -99,7 +101,8 @@ func TestTheColumnMenuFlattensAListAndGathersItAgain(t *testing.T) {
 	c.Act(h, c.LineOf(h, ActDown))
 	c = OpenColumnMenu(h, "who", false)
 	c.Act(h, c.LineOf(h, ActGather))
-	if f := h.panel.Field("who"); f.Flat || len(h.panel.SortKeys()) != 0 || names(OpenColumnMenu(h, "who", false), h)[0] != flatten {
+	if f := h.panel.Field("who"); f.Flat || !slices.Equal(h.panel.SortKeys(), []grid.SortKey{{Column: "who", Desc: true}}) ||
+		names(OpenColumnMenu(h, "who", false), h)[1] != "▼ Descending"+BySize {
 		t.Errorf("who gathered: %+v, keys %v", f, h.panel.SortKeys())
 	}
 }

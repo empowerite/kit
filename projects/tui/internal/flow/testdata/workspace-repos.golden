@@ -7,7 +7,7 @@
   ▾ github 2
 
       repository                  remotes   checkout                             branch  ahead  worktrees            b…
-      ·───────────────────────────⇊─────────·────────────────────────────────────·───────·──────⇊────────────────────⇊─
+      ·───────────────────────────⇊·────────·────────────────────────────────────·───────·──────⇊·───────────────────⇊·
     ▸ github.com/empowerite/kit   2         …/empowerite/kit                     main    ↑1 ↓0  1-the-first-release  2
       github.com/empowerite/edge            not cloned
 

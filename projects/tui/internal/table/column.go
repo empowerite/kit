@@ -52,6 +52,7 @@ const (
 // columns dialog; and a sweep, which a menu line that clears draws.
 const (
 	Unsorted  = "Unsorted"
+	BySize    = " by size"
 	GroupIt   = "Group"
 	UngroupIt = "Ungroup"
 	Hide      = "Hide"
@@ -86,13 +87,13 @@ func OpenColumnMenu(h Host, column string, heading bool) ColumnMenu {
 	return c
 }
 
-// lines gives the column menu's lines. The radio's choice picked is the column's sort, Unsorted where it does not
-// sort.
-// Where something else orders the rows, a group or another key, its triangles carry ⁿ and ₙ, as the header's mark
-// carries the place the column takes, raised after ▲ and lowered after ▼. A section the field cannot use is left out,
-// with its rule: the sort, for one that cannot sort now, as a list cannot until it is flat; flattening, for one that
-// holds no list; and Group and Ungroup, for one that cannot group. A line the field can use but that cannot act now
-// stays, dim.
+// lines gives the column menu's lines, every column's in one order: its sort, then its grouping, then its flattening,
+// then Hide and Options…. The radio's choice picked is the column's sort, Unsorted where it does not sort; a list a row
+// holds whole sorts by size, how many values each row holds, as its lines say. Where something else orders the rows, a
+// group or another key, its triangles carry ⁿ and ₙ, as the header's mark carries the place the column takes, raised
+// after ▲ and lowered after ▼. A section the field cannot use is left out, with its rule: the sort, for one that
+// cannot sort; Group and Ungroup, for one that cannot group; and flattening, for one that holds no list. A line the
+// field can use but that cannot act now stays, dim.
 func (c ColumnMenu) lines(h Host) []colLine {
 	p, column := h.Panel(), c.Column
 	d, up, down := p.Field(column).Sort, "", ""
@@ -107,18 +108,22 @@ func (c ColumnMenu) lines(h Host) []colLine {
 	}
 	var lines []colLine
 	if p.Sorts(column) {
-		lines = append(lines, radio(d == grid.Ascending, "▲"+up+" Ascending", ActUp),
-			radio(d == grid.Descending, "▼"+down+" Descending", ActDown), radio(d == grid.Unsorted, Unsorted, ActUnsorted),
-			colLine{act: ActRule})
+		by := ""
+		if p.Counts(column) {
+			by = BySize
+		}
+		lines = append(lines, radio(d == grid.Ascending, "▲"+up+" Ascending"+by, ActUp),
+			radio(d == grid.Descending, "▼"+down+" Descending"+by, ActDown),
+			radio(d == grid.Unsorted, Unsorted, ActUnsorted), colLine{act: ActRule})
+	}
+	if p.Groupable[column] {
+		lines = append(lines, colLine{shell.Item{Glyph: GroupGlyph, Name: GroupIt}, ActGroup},
+			colLine{shell.Item{Glyph: UngroupGlyph, Name: UngroupIt}, ActUngroup}, colLine{act: ActRule})
 	}
 	if p.Lists(column) {
 		lines = append(lines, colLine{shell.Item{Glyph: FlattenGlyph, Name: FlattenIt(p.Ones[column])}, ActFlatten},
 			colLine{shell.Item{Glyph: GatherGlyph, Name: GatherIt(cmp.Or(p.Labels[column], column))}, ActGather},
 			colLine{act: ActRule})
-	}
-	if p.Groupable[column] {
-		lines = append(lines, colLine{shell.Item{Glyph: GroupGlyph, Name: GroupIt}, ActGroup},
-			colLine{shell.Item{Glyph: UngroupGlyph, Name: UngroupIt}, ActUngroup}, colLine{act: ActRule})
 	}
 	return append(lines, colLine{shell.Item{Glyph: HideGlyph, Name: Hide}, ActHide},
 		colLine{shell.Item{Glyph: MoreGlyph, Name: More}, ActMore})

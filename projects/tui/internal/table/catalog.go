@@ -25,8 +25,8 @@ type Schema struct {
 // made of several, and one after a stage's name and a colon for a value read from another stage's records, as a
 // checkout's pull request from changes. Sort, Group, and Filter say whether the rows can sort, group, and be filtered
 // by it, and Owns that the rows belong to the people it names. One names one of its values, as assignee, for a field
-// that holds a list, as assignees: such a field never sorts while a row holds all its values, but flattened, the rows
-// standing once per value of it, it sorts, and the header names it so. Values are an enum's known values, none for one whose
+// that holds a list, as assignees: such a field sorts by size while a row holds all its values, how many each holds,
+// and flattened, the rows standing once per value of it, by value, the header naming it so. Values are an enum's known values, none for one whose
 // values only the rows know, as an issue's repository, and Other the glyph of one it does not know, if any. Glyph is
 // the glyph drawn before each value of a Field that is not an enum, and Many, for a list, the glyph its column draws
 // before how many values a row holds where it holds more than one, as 👥 for people, as labels draw the count alone.

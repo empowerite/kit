@@ -56,7 +56,8 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
 - `internal/flow/` draws `kit flow`: the stages as tabs, and each stage's rows. `fields.json` is the catalog. It
   declares each stage's fields, each by a stable id, with its label, its type, what it can sort, group, and filter by,
   and its renderings in order, and the stage's own presets, Default and Compact. A field that holds a list, as assignees
-  or labels, names one of its values, assignee or label, and never sorts while a row holds all of them. Where a row
+  or labels, names one of its values, assignee or label, and sorts by size while a row holds all of them, how many
+  each holds, and by value once flattened. Where a row
   holds more than one, its column says how many, dim, as labels' 3, or, for a list with a glyph for many, after it, as
   assignees' 👥 2 in place of 👤 and a name; the row open lists them all under its lines. The renderers
   are Go functions, registered by name with `internal/table`, which has those every table shares. A preset says, per
@@ -125,7 +126,9 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     keys are the keys bar's alone. A column's sort mark stands on the rule under the first cell of its name, wherever
     the name aligns. A dim · there says the column can sort and does not; a column that cannot sort has the rule alone.
     A list has ⇊ under that first cell, dim while a row holds all its values, not once flattened, and its sort's mark
-    after it; a plain click on the ⇊ flattens the list, or gathers it again.
+    after it, which sorts by size while it is whole; a plain click on the ⇊ flattens the list, or gathers it again.
+    Every column's menu stands in one order: its sort, by size for a list a row holds whole, then its grouping, then
+    its flattening, then Hide and Options….
     A plain click on the rule under the name turns the sort a step: ascending, after the other keys; descending, in its
     place; then off on the last key, and ascending again on any other, so a turn never moves the keys after it. A
     shift-click turns it off wherever it stands, as Unsorted in the menu does. A terminal such as iTerm keeps ⌥, ⌃, and

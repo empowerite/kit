@@ -1252,10 +1252,11 @@ func TestASortTurnsOffOnlyOnTheLastKey(t *testing.T) {
 	}
 }
 
-// A field that holds a list, which names one of its values, sorts only while the rows stand once per value of it:
-// flattened, a row stands once for each value it holds there, and once where it holds none, the copy holding that
-// value alone, without the count a cell of several shows; or grouped by it, which places a row under each. The header
-// names one value while it is flat. Unflattened, a sort it kept no longer orders the rows.
+// A field that holds a list, which names one of its values, sorts by size while a row holds all its values, how many
+// each holds, and by value while the rows stand once per value of it: flattened, a row stands once for each value it
+// holds there, and once where it holds none, the copy holding that value alone, without the count a cell of several
+// shows; or grouped by it, which places a row under each. The header names one value while it is flat. Unflattened, a
+// sort it kept orders the rows by size again.
 func TestAListFlattensToARowPerValueAndThenSorts(t *testing.T) {
 	columns := []string{"id", "who", "age", "title"}
 	p := Panel{Labels: map[string]string{"who": "assignees"}, Ones: map[string]string{"who": "assignee"},
@@ -1268,14 +1269,21 @@ func TestAListFlattensToARowPerValueAndThenSorts(t *testing.T) {
 		}
 		return keys, who
 	}
-	if p.Sorts("who") || !p.Sorts("id") || p.Sorted("who").Field("who").Sort != Unsorted || p.Label("who") != "assignees" {
-		t.Errorf("a list, not flat: sorts %v, label %q", p.Sorts("who"), p.Label("who"))
+	if !p.Sorts("who") || !p.Counts("who") || !p.Sorts("id") || p.Counts("id") || p.Label("who") != "assignees" {
+		t.Errorf("a list, not flat: sorts %v, by size %v, label %q", p.Sorts("who"), p.Counts("who"), p.Label("who"))
 	}
 	if keys, _ := plain(p); !slices.Equal(keys, []string{"#1", "#22", "#3"}) {
 		t.Errorf("not flat: %q", keys)
 	}
+	// by size, fewest first ascending: #3 holds none, #22 one, #1 two
+	if keys, _ := plain(p.SortedAs("who", Ascending)); !slices.Equal(keys, []string{"#3", "#22", "#1"}) {
+		t.Errorf("by size, ascending: %q", keys)
+	}
+	if keys, _ := plain(p.SortedAs("who", Descending)); !slices.Equal(keys, []string{"#1", "#22", "#3"}) {
+		t.Errorf("by size, descending: %q", keys)
+	}
 	flat := p.Flattened("who", true)
-	if !flat.Sorts("who") || flat.Label("who") != "assignee" || !flat.Field("who").Flat {
+	if !flat.Sorts("who") || flat.Counts("who") || flat.Label("who") != "assignee" || !flat.Field("who").Flat {
 		t.Errorf("flat: sorts %v, label %q", flat.Sorts("who"), flat.Label("who"))
 	}
 	keys, who := plain(flat.SortedAs("who", Descending))
@@ -1292,14 +1300,14 @@ func TestAListFlattensToARowPerValueAndThenSorts(t *testing.T) {
 		!slices.Equal(who, []string{"bob"}) {
 		t.Errorf("flat, filtered to bob: %q %q", keys, who)
 	}
-	// unflattened, the sort it kept no longer orders the rows, and the panel keeps no key of it
-	back := flat.SortedAs("who", Descending).Flattened("who", false)
-	if keys, _ := plain(back); !slices.Equal(keys, []string{"#1", "#22", "#3"}) || len(back.SortKeys()) != 0 ||
+	// unflattened, the sort it kept orders the rows by size again
+	back := flat.SortedAs("who", Ascending).Flattened("who", false)
+	if keys, _ := plain(back); !slices.Equal(keys, []string{"#3", "#22", "#1"}) || len(back.SortKeys()) != 1 ||
 		back.Label("who") != "assignees" {
 		t.Errorf("flat no more: %q, keys %v", keys, back.SortKeys())
 	}
-	// grouped by it, a list sorts, which orders its groups
-	if g := p.Grouped("who", true); !g.Sorts("who") {
+	// grouped by it, a list sorts by value, which orders its groups
+	if g := p.Grouped("who", true); !g.Sorts("who") || g.Counts("who") {
 		t.Errorf("grouped by the list: it does not sort")
 	}
 	// a field that holds no list never flattens; a row too short for the column, as a heading's, stands as it is

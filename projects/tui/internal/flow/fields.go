@@ -1,7 +1,7 @@
 // The field catalog, fields.json: for each stage with columns, where its records are in kit flow <stage> --json, its
 // fields, and its own presets. A field is declared once: a stable id, which presets and the code use, and a label,
-// which only the header shows, with, for a field that holds a list, the name of one of its values, which never sorts
-// until the rows stand once per value; the type of value it holds; whether its rows can sort, group, and be filtered
+// which only the header shows, with, for a field that holds a list, the name of one of its values, which sorts by size
+// until the rows stand once per value, then by value; the type of value it holds; whether its rows can sort, group, and be filtered
 // by it; an
 // enum's known values, each with its glyph; its renderings, each a renderer by name, in order of preference; the record
 // path its value is read from; and the placement it takes where a preset says none. The catalog is the data's

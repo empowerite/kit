@@ -9,7 +9,7 @@
   ▾ command ▾ 6                                                                                          By command ▼
 
       part                    settings    about                                            commands
-      ·───────────────────────⇊────────────────────────────────────────────────────────────⇊───────────────────────────
+      ·───────────────────────⇊·───────────────────────────────────────────────────────────⇊·──────────────────────────
   ▾ kit flow 2
     ▸ The stages of kit flow  flow      flow: in kit.yml names the stages kit flow dra…  kit flow --stages
     ▸ Primary and forges      2           primary: names the remote kit reads pull reque…  kit flow incoming --no-fetch

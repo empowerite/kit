@@ -96,9 +96,9 @@ const (
 // one. Fold says whether a view, as it loads, groups the rows by each column whose value is the same on every row, as
 // AutoGrouped says, where it groups by none. Glyphs says whether a glyph every row shown shares is drawn still, where
 // the screen would drop it as saying nothing. Sortable and Groupable name the columns that can sort and group, which the
-// stage says. Ones names one value of each field that holds a list, as assignee of assignees: such a field never
-// sorts the rows while a row holds all its values, but flattened, or grouped by, it stands once per value, and sorts,
-// as Sorts says, and the header names one value. Owner is the field that names the people the rows belong to, none when they belong to nobody; a filter's
+// stage says. Ones names one value of each field that holds a list, as assignee of assignees: such a field sorts the
+// rows by size while a row holds all its values, how many each holds, as Counts says; flattened, or grouped by, it
+// stands once per value, and sorts by value, and the header names one value. Owner is the field that names the people the rows belong to, none when they belong to nobody; a filter's
 // Caller is the caller's login, Me, which matches no one while it is unknown. Focused says whether the search has the
 // keyboard. Recall says whether there are searches to recall, which the search, with the keyboard, offers with its
 // Recall glyph. Outline says which groups' headings stand open, as FoldAway folds the rows of those that do not; the
@@ -145,11 +145,16 @@ func (p Panel) with(change func(fields map[string]Field)) Panel {
 // Lists says whether a field holds a list, as the name of one of its values says.
 func (p Panel) Lists(id string) bool { return p.Ones[id] != "" }
 
-// Sorts says whether the rows can sort by a field: one the stage says sorts, or one that holds a list while the rows
-// stand once per value of it, flattened or grouped by it, so each has one value there to sort by.
-func (p Panel) Sorts(id string) bool {
+// Sorts says whether the rows can sort by a field: one the stage says sorts, or one that holds a list, which sorts the
+// rows by how many values each holds while a row holds all of them, and by its value once the rows stand once per value
+// of it, flattened or grouped by it.
+func (p Panel) Sorts(id string) bool { return p.Sortable[id] || p.Lists(id) }
+
+// Counts says whether the rows sort by how many values a row holds in a field rather than by its value: a list while a
+// row holds all its values, neither flattened nor grouped by.
+func (p Panel) Counts(id string) bool {
 	f := p.Fields[id]
-	return p.Sortable[id] || p.Lists(id) && (f.Flat || f.Placement == Group)
+	return p.Lists(id) && !f.Flat && f.Placement != Group
 }
 
 // Label gives the name the header and the columns dialog give a field: one of its values' while the rows stand once
@@ -198,8 +203,7 @@ func (p Panel) Groups() []string {
 	})
 }
 
-// SortKeys gives the fields the rows sort by, the first first: none that holds a list while a row holds all its
-// values, which keeps its sort for when it stands once per value again.
+// SortKeys gives the fields the rows sort by, the first first.
 func (p Panel) SortKeys() []SortKey {
 	var out []SortKey
 	for _, id := range p.ranked(func(f Field) int {
@@ -208,9 +212,7 @@ func (p Panel) SortKeys() []SortKey {
 		}
 		return 0
 	}) {
-		if !p.Lists(id) || p.Sorts(id) {
-			out = append(out, SortKey{id, p.Fields[id].Sort == Descending})
-		}
+		out = append(out, SortKey{id, p.Fields[id].Sort == Descending})
 	}
 	return out
 }
@@ -979,7 +981,8 @@ func constant(rows []Row, columns []int) []int {
 }
 
 // order sorts the rows by the panel's keys, each in turn, the rows alike on every key keeping their order; a row of
-// one cell, as a heading, stays where it is, the rows around it sorting in the places they hold.
+// one cell, as a heading, stays where it is, the rows around it sorting in the places they hold. A list a row holds
+// whole sorts by how many values the row holds, as Counts says, fewer first ascending.
 func (p Panel) order(rows []Row, columns []string) []Row {
 	sorts := p.SortKeys()
 	if len(sorts) == 0 {
@@ -998,7 +1001,11 @@ func (p Panel) order(rows []Row, columns []string) []Row {
 			if j < 0 || j >= len(a.Cells) || j >= len(b.Cells) {
 				continue
 			}
-			if c := natural(a.Cells[j].key(), b.Cells[j].key()); c != 0 {
+			c := natural(a.Cells[j].key(), b.Cells[j].key())
+			if p.Counts(s.Column) {
+				c = len(a.Cells[j].Raw) - len(b.Cells[j].Raw)
+			}
+			if c != 0 {
 				if s.Desc {
 					return -c
 				}

@@ -210,7 +210,7 @@ func TestAPresetSetsAPanelAndIsReadBackFromIt(t *testing.T) {
 		t.Errorf("the catalog's own: %+v", got.Fields)
 	}
 	// a field that holds a list is flat as a preset says, and sorts while it is; one that holds none is never flat, and
-	// a list gathered keeps no sort
+	// a list gathered sorts by size
 	people := Field{ID: "who", Label: "who", One: "person", Type: "person", Renderings: []string{"text"}}
 	fields, lists := []Field{people, title}, grid.Panel{Ones: map[string]string{"who": "person"}}
 	pr = Preset{Fields: map[string]Setting{"who": {Flat: true, Sort: "desc", Priority: 1}, "title": {Flat: true}}}
@@ -219,7 +219,8 @@ func TestAPresetSetsAPanelAndIsReadBackFromIt(t *testing.T) {
 		t.Errorf("who flat, sorting: %+v", got.Fields)
 	}
 	pr = Preset{Fields: map[string]Setting{"who": {Sort: "desc", Priority: 1}}}
-	if got := PresetOf(pr.Panel(fields, lists), fields); got.Fields != nil {
+	if got := PresetOf(pr.Panel(fields, lists), fields); !reflect.DeepEqual(got.Fields,
+		map[string]Setting{"who": {Sort: "desc", Priority: 1}}) {
 		t.Errorf("who gathered, sorting: %+v", got.Fields)
 	}
 }

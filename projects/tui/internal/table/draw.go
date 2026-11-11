@@ -197,7 +197,7 @@ func RuleFill(spots []SortSpot, from, fill int) string {
 // SortAt gives the column whose target a click at the screen column x on the rule falls on, as the spots give them,
 // short of the rule's right end, where the selected count may stand, and whether it is the flatten mark, which
 // flattens or gathers, rather than the sort's, which turns it. Where a column does not sort yet, its target is the
-// rule's line, and still sorts it; a list not flat has the flatten mark alone. Nothing elsewhere.
+// rule's line, and still sorts it; a list not flat sorts by size after its flatten mark. Nothing elsewhere.
 func SortAt(rule string, spots []SortSpot, x int) (column string, flatten bool) {
 	line := ansi.Strip(rule)
 	if x >= ansi.StringWidth(line) || ansi.Cut(line, x, x+1) == " " {

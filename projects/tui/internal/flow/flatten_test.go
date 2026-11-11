@@ -1,5 +1,5 @@
-// A field that holds a list, as an issue's assignees or labels, never sorts while a row holds all its values; its
-// column's menu flattens it, a row per value, which sorts, and gathers the values onto one row again.
+// A field that holds a list, as an issue's assignees or labels, sorts by size while a row holds all its values; its
+// column's menu flattens it, a row per value, which sorts by value, and gathers the values onto one row again.
 package flow
 
 import (
@@ -83,8 +83,10 @@ func TestTheColumnMenuFlattensAListAndItsRowsSort(t *testing.T) {
 	if m = choose(m, "labels", table.ActFlatten); rows(m, "#45") != 3 || !strings.Contains(lines(m)[m.headerTop()], "label ") {
 		t.Errorf("labels flat too: #45 %d rows", rows(m, "#45"))
 	}
+	// gathered, its sort orders the rows by size, how many assignees each holds
 	m = choose(choose(m, "labels", table.ActGather), "assignees", table.ActGather)
-	if p := m.panel(m.stage); p.Field("assignees").Flat || len(p.SortKeys()) != 0 || rows(m, "#7") != 1 ||
+	if p := m.panel(m.stage); p.Field("assignees").Flat || len(p.SortKeys()) != 1 || !p.Counts("assignees") ||
+		rows(m, "#7") != 1 ||
 		!strings.Contains(lines(m)[m.headerTop()], "assignees") || slices.Contains(p.Groups(), "assignees") {
 		t.Errorf("gathered: keys %v, #7 %d rows", p.SortKeys(), rows(m, "#7"))
 	}

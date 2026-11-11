@@ -35,14 +35,14 @@ func TestARightClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 	for _, it := range m.colMenu.Items(&m) {
 		names, glyphs = append(names, it.Name), append(glyphs, it.Glyph)
 	}
-	want := []string{"▲ Ascending", "▼ Descending", table.Unsorted, "", table.FlattenIt("assignee"),
-		table.GatherIt("assignees"), "", table.GroupIt, table.UngroupIt, "", table.Hide, table.More}
+	want := []string{"▲ Ascending", "▼ Descending", table.Unsorted, "", table.GroupIt, table.UngroupIt, "",
+		table.FlattenIt("assignee"), table.GatherIt("assignees"), "", table.Hide, table.More}
 	if !slices.Equal(names, want) || !strings.Contains(raw(m), table.GroupGlyph+"  "+table.GroupIt) ||
 		slices.Contains(names, "assignee") || !strings.Contains(keysOf(m), "esc close") {
 		t.Fatalf("the menu: %q, %q", names, keysOf(m))
 	}
-	if !slices.Equal(glyphs[3:], []string{"", table.FlattenGlyph, table.GatherGlyph, "", table.GroupGlyph,
-		table.UngroupGlyph, "", table.HideGlyph, table.MoreGlyph}) {
+	if !slices.Equal(glyphs[3:], []string{"", table.GroupGlyph, table.UngroupGlyph, "", table.FlattenGlyph,
+		table.GatherGlyph, "", table.HideGlyph, table.MoreGlyph}) {
 		t.Errorf("the glyphs: %q", glyphs)
 	}
 	// the radio has Unsorted picked, and Ungroup is dim on a column not grouping; enter on ▲ Ascending sorts by it
@@ -66,7 +66,8 @@ func TestARightClickOnAColumnsNameDropsItsMenu(t *testing.T) {
 	// Group groups within the groups, innermost, and Ungroup takes it out wherever it stands; a letter moves to the
 	// next line it starts
 	m.setPanel(regroup(m.panel(m.stage), "source"))
-	m = drive(m, rightClick("assignee"), down, down, down, down)
+	// Group stands right after the sort, before the flattening
+	m = drive(m, rightClick("assignee"), down, down, down)
 	if m.colMenu.At != m.colMenu.LineOf(&m, table.ActGroup) {
 		t.Fatalf("down to Group: %d", m.colMenu.At)
 	}
@@ -256,33 +257,32 @@ func TestAClickOnTheRuleUnderAColumnsNameSortsByIt(t *testing.T) {
 	if m = drive(m, testkit.Click(under(m, "branch"), ruleY(m))); keys(m) != 2 || mark(m, "branch") != "▲²" {
 		t.Errorf("a click under branch: %d keys, branch %q", keys(m), mark(m, "branch"))
 	}
-	// a list sorts nothing while a row holds all its values: the rule has the dim flatten mark under its name's first
-	// cell, alone, and the cells after it sort nothing
+	// a list sorts by size while a row holds all its values: the rule has the dim flatten mark under its name's first
+	// cell, and the sort's after it, which a click sorts by how many values each row holds
 	marks := func(m Model, column string, cells int) string {
 		return ansi.Strip(ansi.Cut(m.rule(), under(m, column), under(m, column)+cells))
 	}
-	if got := marks(m, "assignees", 2); got != table.FlattenGlyph+"─" {
+	if got := marks(m, "assignees", 2); got != table.FlattenGlyph+Sortable {
 		t.Errorf("the rule under assignees: %q", got)
 	}
-	if m = drive(m, testkit.Click(under(m, "assignees")+1, ruleY(m))); keys(m) != 2 || m.panel(m.stage).Field("assignees").Flat {
-		t.Errorf("a click past assignees' flatten mark: %d keys, flat %v", keys(m), m.panel(m.stage).Field("assignees").Flat)
-	}
-	// a click on it flattens the list, a row per value, which sorts: the sort's mark stands after the flatten mark
-	if m = drive(m, testkit.Click(under(m, "assignees"), ruleY(m))); !m.panel(m.stage).Field("assignees").Flat ||
-		marks(m, "assignees", 2) != table.FlattenGlyph+Sortable {
-		t.Fatalf("a click on assignees' flatten mark: flat %v, %q", m.panel(m.stage).Field("assignees").Flat,
-			marks(m, "assignees", 2))
-	}
 	if m = drive(m, testkit.Click(under(m, "assignees")+1, ruleY(m))); keys(m) != 3 || mark(m, "assignees") != "▲³" ||
-		marks(m, "assignees", 3) != table.FlattenGlyph+"▲³" {
-		t.Errorf("a click after it sorts: %d keys, assignees %q, %q", keys(m), mark(m, "assignees"),
+		m.panel(m.stage).Field("assignees").Flat || !m.panel(m.stage).Counts("assignees") {
+		t.Errorf("a click past assignees' flatten mark: %d keys, %q, flat %v", keys(m), mark(m, "assignees"),
+			m.panel(m.stage).Field("assignees").Flat)
+	}
+	// a click on it flattens the list, a row per value, which keeps its sort, by value now
+	if m = drive(m, testkit.Click(under(m, "assignees"), ruleY(m))); !m.panel(m.stage).Field("assignees").Flat ||
+		marks(m, "assignees", 3) != table.FlattenGlyph+"▲³" || m.panel(m.stage).Counts("assignees") {
+		t.Fatalf("a click on assignees' flatten mark: flat %v, %q", m.panel(m.stage).Field("assignees").Flat,
 			marks(m, "assignees", 3))
 	}
-	// and a click on it again gathers the values back on one row, which keeps its sort for when it is flat again
+	// and a click on it again gathers the values back on one row, sorted by size again
 	if m = drive(m, testkit.Click(under(m, "assignees"), ruleY(m))); m.panel(m.stage).Field("assignees").Flat ||
-		keys(m) != 2 || marks(m, "assignees", 2) != table.FlattenGlyph+"─" {
-		t.Errorf("a click on the flatten mark, flat: %d keys, %q", keys(m), marks(m, "assignees", 2))
+		keys(m) != 3 || marks(m, "assignees", 3) != table.FlattenGlyph+"▲³" {
+		t.Errorf("a click on the flatten mark, flat: %d keys, %q", keys(m), marks(m, "assignees", 3))
 	}
+	// a click after it turns the sort off, for the clicks below
+	m = drive(m, testkit.Click(under(m, "assignees")+1, ruleY(m)), testkit.Click(under(m, "assignees")+1, ruleY(m)))
 	if got := lines(m)[m.headerTop()]; got != header {
 		t.Errorf("sorting moved the names:\n%s\n%s", header, got)
 	}
@@ -356,9 +356,10 @@ func TestShiftWithLeftOrRightMovesTheColumnOfAnOpenMenu(t *testing.T) {
 	}
 }
 
-// The column menu holds only the sections a field can use: one that cannot sort has no sort, its radio and Clear Sort
-// gone, as a list has none until it is flat; one that holds no list cannot flatten; and one that cannot group has no
-// Group or Ungroup; each section's rule goes with it. What a field can do but cannot now stays, dim.
+// The column menu holds the sections a field can use, in every column's order: its sort, by size for a list a row holds
+// whole; its grouping; its flattening; then Hide and Options…. One that cannot sort has no sort, its radio and Clear
+// Sort gone; one that holds no list cannot flatten; and one that cannot group has no Group or Ungroup; each section's
+// rule goes with it. What a field can do but cannot now stays, dim.
 func TestTheColumnMenuLeavesOutWhatTheFieldCannotDo(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 140, Height: 40})
 	names := func(column string) []string {
@@ -373,9 +374,10 @@ func TestTheColumnMenuLeavesOutWhatTheFieldCannotDo(t *testing.T) {
 		table.More}) || m.colMenu.LineOf(&m, table.ActGroup) != -1 || m.colMenu.LineOf(&m, table.ActUngroup) != -1 {
 		t.Errorf("title, which sorts and cannot group: %q", got)
 	}
-	if got := names("labels"); !slices.Equal(got, []string{table.FlattenIt("label"), table.GatherIt("labels"), "",
-		table.GroupIt, table.UngroupIt, "", table.Hide, table.More}) || m.colMenu.LineOf(&m, table.ActUp) != -1 {
-		t.Errorf("labels, a list, which groups and cannot sort: %q", got)
+	if got := names("labels"); !slices.Equal(got, []string{"▲ Ascending" + table.BySize, "▼ Descending" + table.BySize,
+		table.Unsorted, "", table.GroupIt, table.UngroupIt, "", table.FlattenIt("label"), table.GatherIt("labels"), "",
+		table.Hide, table.More}) {
+		t.Errorf("labels, a list, which sorts by size and groups: %q", got)
 	}
 	at := m.stage
 	m.stage = slices.IndexFunc(m.stages, func(s stage) bool { return s.name == "builds" })
@@ -383,9 +385,9 @@ func TestTheColumnMenuLeavesOutWhatTheFieldCannotDo(t *testing.T) {
 		t.Errorf("builds' commit, which neither sorts nor groups: %q", got)
 	}
 	m.stage = at
-	if got := names("assignees"); !slices.Contains(got, table.GroupIt) || slices.Contains(got, table.Unsorted) ||
-		got[0] != table.FlattenIt("assignee") {
-		t.Errorf("assignees, a list, which groups and sorts only flat: %q", got)
+	if got := names("assignees"); !slices.Contains(got, table.GroupIt) || got[0] != "▲ Ascending"+table.BySize ||
+		slices.Index(got, table.GroupIt) > slices.Index(got, table.FlattenIt("assignee")) {
+		t.Errorf("assignees, a list, which sorts by size, then groups, then flattens: %q", got)
 	}
 	m.colMenu = table.ColumnMenu{}
 }
