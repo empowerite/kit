@@ -1,1 +1,0 @@
-../../../release/packages/kit/files/repo/.kit/welcome/4-setup.md

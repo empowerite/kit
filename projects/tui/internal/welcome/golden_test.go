@@ -15,15 +15,14 @@ import (
 
 func TestGoldenViews(t *testing.T) {
 	for file, keys := range map[string][]tea.Msg{
-		"intro.golden":           nil,
-		"intro-links.golden":     {down, down},
-		"basics.golden":          {down, enter},
-		"basics-later.golden":    {down, enter, press('l')},
-		"toolchains.golden":      {tabKey, tabKey, down},
-		"setup.golden":           {tabKey, tabKey, tabKey, down},
-		"lay-of-the-land.golden": {tabKey, tabKey, tabKey, tabKey},
-		"terms.golden":           {press('6')},
-		"terms-search.golden":    searched("kit flow"),
+		"intro.golden":            nil,
+		"intro-links.golden":      {down, down},
+		"toolchains.golden":       {down, enter},
+		"toolchains-later.golden": {down, enter, press('l')},
+		"setup.golden":            {tabKey, tabKey, down},
+		"lay-of-the-land.golden":  {tabKey, tabKey, tabKey},
+		"terms.golden":            {press('5')},
+		"terms-search.golden":     searched("kit flow"),
 	} {
 		m, _ := loaded(t, keys...)
 		testkit.Golden(t, filepath.Join("testdata", file), view(m))
@@ -32,5 +31,5 @@ func TestGoldenViews(t *testing.T) {
 
 // searched gives the keys that select the terms and search them for the text, then give their rows the keyboard.
 func searched(text string) []tea.Msg {
-	return append([]tea.Msg{press('6'), press('/')}, append(testkit.Typed(text), enter)...)
+	return append([]tea.Msg{press('5'), press('/')}, append(testkit.Typed(text), enter)...)
 }

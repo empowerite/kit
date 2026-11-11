@@ -94,16 +94,15 @@ func TestAGroupsChecksDrawTogetherWithTheUnclonedNamed(t *testing.T) {
 	if !strings.Contains(v, "not cloned: o/c") || strings.Contains(v, "☁") || !strings.Contains(v, "- w 3") {
 		t.Errorf("the intro:\n%s", v)
 	}
-	m = drive(m, press('3'))
+	m = drive(m, press('2'))
 	v = view(m)
 	if !strings.Contains(v, "a's toolchain differs: mise, brew; choose one · a") ||
 		!strings.Contains(v, "usable for the project: mise, brew; choose one · b") {
 		t.Errorf("the toolchains step:\n%s", v)
 	}
 	// jq fails alike in both, so it shows once, with no member
-	m = drive(m, press('2'))
-	if v := view(m); strings.Count(v, "jq is not installed") != 1 || strings.Contains(v, "jq is not installed ·") {
-		t.Errorf("the basics step:\n%s", v)
+	if strings.Count(v, "jq is not installed") != 1 || strings.Contains(v, "jq is not installed ·") {
+		t.Errorf("jq on the toolchains step:\n%s", v)
 	}
 }
 
@@ -119,7 +118,7 @@ func onMember(m Model, id, member string) (Model, bool) {
 }
 
 func TestAFixRunsInItsMembersCheckout(t *testing.T) {
-	m, r, a, b := group(t, press('3'), down)
+	m, r, a, b := group(t, press('2'), down)
 	m, found := onMember(m, "toolchain-project", "github.com/o/b")
 	if !found {
 		t.Fatalf("no b's toolchain-project:\n%s", view(m))
@@ -129,7 +128,8 @@ func TestAFixRunsInItsMembersCheckout(t *testing.T) {
 	if !strings.Contains(v, "choose one · b · later") || strings.Contains(v, "choose one · a · later") {
 		t.Errorf("b's left for later, a's not:\n%s", v)
 	}
-	m, found = onMember(m, "toolchain-project", "github.com/o/a")
+	// later moved the cursor down past a's, so home brings it back to the step's first row
+	m, found = onMember(drive(m, press(tea.KeyHome)), "toolchain-project", "github.com/o/a")
 	if !found {
 		t.Fatalf("no a's toolchain-project:\n%s", view(m))
 	}

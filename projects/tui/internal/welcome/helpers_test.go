@@ -60,9 +60,9 @@ func loaded(t *testing.T, msgs ...tea.Msg) (Model, *ran) {
 	return drive(m, append(testkit.Start(m, at120), msgs...)...), r
 }
 
-// atBasics opens the screen as loaded does, then follows the intro's first link, to jq, the first failed check under
-// basics, as a newcomer would. Then it sends the messages.
-func atBasics(t *testing.T, msgs ...tea.Msg) (Model, *ran) {
+// atChains opens the screen as loaded does, then follows the intro's first link, to jq, the first failed check under
+// the toolchains, as a newcomer would. Then it sends the messages.
+func atChains(t *testing.T, msgs ...tea.Msg) (Model, *ran) {
 	t.Helper()
 	return loaded(t, append([]tea.Msg{down, enter}, msgs...)...)
 }
@@ -89,7 +89,7 @@ func repoWith(t *testing.T, pages map[string]string) kit.Runner {
 }
 
 // house opens the screen at 120×30 in a repository whose .kit is testdata/house's, as a house package composes it:
-// the kit package's pages linked, 6-terms.md replaced, and 8-our-team.md added. Then it sends the messages.
+// the kit package's pages linked, 5-terms.md replaced, and 7-our-team.md added. Then it sends the messages.
 func house(t *testing.T, msgs ...tea.Msg) (Model, *ran) {
 	t.Helper()
 	m, r := fake(t)
@@ -128,14 +128,14 @@ func calls(t *testing.T, path string) []string {
 // the intro with links, and over a page; on a check's row that offers no fix, on a row that offers now and later, on
 // a row whose fix kit only shows; on a link in the intro; and in a page.
 const (
-	stepKeys   = "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ checks 1-7 jump"
-	pageKeys   = "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ page 1-7 jump"
-	paneKeys   = "= menu - workspace / search │ 1-7 jump │ esc tabs ↑↓ move ⇞⇟ page"
+	stepKeys   = "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ checks 1-6 jump"
+	pageKeys   = "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ page 1-6 jump"
+	paneKeys   = "= menu - workspace / search │ 1-6 jump │ esc tabs ↑↓ move ⇞⇟ page"
 	rowKeys    = paneKeys
 	choiceKeys = paneKeys + " ⇥·⇧⇥ now or later n now l later ⏎ choose"
 	showKeys   = paneKeys + " l later"
 	linkKeys   = paneKeys + " ⏎ go to the check"
-	scrollKeys = "= menu - workspace / search │ 1-7 jump │ esc tabs ↑↓ scroll ⇞⇟ page"
+	scrollKeys = "= menu - workspace / search │ 1-6 jump │ esc tabs ↑↓ scroll ⇞⇟ page"
 )
 
 // keysAt gives the keys bar where the keyboard is, as the path to it draws it.

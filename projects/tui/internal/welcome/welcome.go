@@ -60,19 +60,18 @@ type tab struct {
 // step with checks.
 var known = []tab{
 	{id: "intro", glyph: "👋", name: "intro", file: "1-intro.md"},
-	{id: "before-toolchains", glyph: "🧱", name: "basics", file: "2-before-toolchains.md", checked: true},
-	{id: "toolchains", glyph: "🧰", name: "toolchains", file: "3-toolchains.md", checked: true},
-	{id: "setup", glyph: "🔧", name: "setup", file: "4-setup.md", checked: true},
-	{id: "lay-of-the-land", glyph: "🧭", name: "lay of the land", file: "5-lay-of-the-land.md"},
-	{id: "terms", glyph: "📖", name: "terms", file: "6-terms.md"},
-	{id: "make-it-yours", glyph: "🎨", name: "make it yours", file: "7-make-it-yours.md"},
+	{id: "toolchains", glyph: "🧰", name: "toolchains", file: "2-toolchains.md", checked: true},
+	{id: "setup", glyph: "🔧", name: "setup", file: "3-setup.md", checked: true},
+	{id: "lay-of-the-land", glyph: "🧭", name: "lay of the land", file: "4-lay-of-the-land.md"},
+	{id: "terms", glyph: "📖", name: "terms", file: "5-terms.md"},
+	{id: "make-it-yours", glyph: "🎨", name: "make it yours", file: "6-make-it-yours.md"},
 }
 
 // pageGlyph is the glyph of a page kit does not know.
 const pageGlyph = "📄"
 
 // idOf gives the id of the step a page's file is for, as kit welcome reads it: the name without the order and the
-// dash before it, and without .md. 2-before-toolchains.md is for before-toolchains.
+// dash before it, and without .md. 2-toolchains.md is for toolchains.
 func idOf(file string) string {
 	name := strings.TrimSuffix(file, ".md")
 	if _, id, found := strings.Cut(name, "-"); found {

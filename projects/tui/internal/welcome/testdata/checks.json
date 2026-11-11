@@ -1,8 +1,8 @@
 [
-{"id": "bash", "step": "before-toolchains", "ok": true, "line": "bash 5.2 runs kit", "fix": null, "interactive": false, "more": null, "runs": true},
-{"id": "jq", "step": "before-toolchains", "ok": false, "line": "jq is not installed", "fix": "brew install jq", "interactive": false, "more": null, "runs": true},
+{"id": "bash", "step": "toolchains", "ok": true, "line": "bash 5.2 runs kit", "fix": null, "interactive": false, "more": null, "runs": true},
+{"id": "jq", "step": "toolchains", "ok": false, "line": "jq is not installed", "fix": "brew install jq", "interactive": false, "more": null, "runs": true},
 {"id": "toolchain-project", "step": "toolchains", "ok": false, "line": "several toolchains are usable for the project: mise, brew; choose one", "fix": "kit toolchains choose mise", "interactive": false, "more": "or: kit toolchains choose brew", "runs": true},
 {"id": "gh-auth", "step": "setup", "ok": false, "line": "gh is not logged in to github.com", "fix": "gh auth login --hostname github.com", "interactive": true, "more": null, "runs": true},
 {"id": "kit-check", "step": "setup", "ok": false, "line": "kit check finds 2 differences from the release", "fix": null, "interactive": false, "more": "read: kit help check", "runs": true},
-{"id": "brew-path", "step": "before-toolchains", "ok": false, "line": "brew is installed but not on PATH", "fix": "eval \"$(/opt/homebrew/bin/brew shellenv)\"", "interactive": false, "more": "add it to your shell profile to keep it", "runs": false}
+{"id": "brew-path", "step": "toolchains", "ok": false, "line": "brew is installed but not on PATH", "fix": "eval \"$(/opt/homebrew/bin/brew shellenv)\"", "interactive": false, "more": "add it to your shell profile to keep it", "runs": false}
 ]

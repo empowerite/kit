@@ -1,0 +1,1 @@
+../../../release/packages/kit/files/repo/.kit/welcome/6-make-it-yours.md

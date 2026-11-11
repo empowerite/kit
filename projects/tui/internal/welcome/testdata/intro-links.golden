@@ -1,15 +1,15 @@
   = kit welcome · - empowerite/kit                                                                           🔎 /search
-  ➊╶─────────╮➁╶─────────────╮➂╶─────────────────╮➃╶────────────╮➄╶───────────────────╮➅╶─────────╮➆╶─────────────────╮
-  │ 👋 intro │  🧱 basics  2 │  🧰 toolchains  1 │  🔧 setup  2 │  🧭 lay of the land │  📖 terms │  🎨 make it yours │
-  ╵          ╰───────────────╰───────────────────╰──────────────╰─────────────────────╰───────────╰───────────────────╰─
+  ➊╶─────────╮➁╶─────────────────╮➂╶────────────╮➃╶───────────────────╮➄╶─────────╮➅╶─────────────────╮
+  │ 👋 intro │  🧰 toolchains  3 │  🔧 setup  2 │  🧭 lay of the land │  📖 terms │  🎨 make it yours │
+  ╵          ╰───────────────────╰──────────────╰─────────────────────╰───────────╰───────────────────╰─────────────────
    Welcome
 
    kit welcome walks you through your first hour with kit, one step at a time.
 
    5 checks need you
-   ❌ jq is not installed → 🧱 basics
- ▸ ❌ brew is installed but not on PATH → 🧱 basics
-   ❌ several toolchains are usable for the project: mise, brew; choose one → 🧰 toolchains
+   ❌ jq is not installed → 🧰 toolchains
+ ▸ ❌ several toolchains are usable for the project: mise, brew; choose one → 🧰 toolchains
+   ❌ brew is installed but not on PATH → 🧰 toolchains
    ❌ gh is not logged in to github.com → 🔧 setup
    ❌ kit check finds 2 differences from the release → 🔧 setup
 
@@ -27,4 +27,4 @@
 
 
 
- = menu - workspace / search │ 1-7 jump │ esc tabs ↑↓ move ⇞⇟ page ⏎ go to the check
+ = menu - workspace / search │ 1-6 jump │ esc tabs ↑↓ move ⇞⇟ page ⏎ go to the check

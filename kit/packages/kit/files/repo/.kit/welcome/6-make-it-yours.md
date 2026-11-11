@@ -1,4 +1,4 @@
-<!-- kit:generated -- kit welcome's seventh step, making it yours, from the kit package -->
+<!-- kit:generated -- kit welcome's sixth step, making it yours, from the kit package -->
 <!-- see: "Changing what kit adds" in .kit/1st.md, to replace it -->
 # Make it yours
 

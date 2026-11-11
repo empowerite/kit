@@ -60,8 +60,8 @@ func TestAPageIsReadAsItsParts(t *testing.T) {
 }
 
 func TestMakeItYoursIsATableOfItsPartsInThePagesOrder(t *testing.T) {
-	m, _ := loaded(t, press('7'))
-	if !m.gridded() || keysAt(m) != "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ parts 1-7 jump" {
+	m, _ := loaded(t, press('6'))
+	if !m.gridded() || keysAt(m) != "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ parts 1-6 jump" {
 		t.Fatalf("the make-it-yours step: gridded %v, keys %q", m.gridded(), keysAt(m))
 	}
 	got := view(m)
@@ -85,13 +85,13 @@ func TestMakeItYoursIsATableOfItsPartsInThePagesOrder(t *testing.T) {
 		t.Errorf("down, down: in the pane %v, keys %q", m.inPane, keysAt(m))
 	}
 	// the terms step, and back, leaves each table its own
-	if m = drive(m, esc, press('6'), press('7')); m.inPane || m.sheet().Focused() || m.sheet().Name() != "parts" {
+	if m = drive(m, esc, press('5'), press('6')); m.inPane || m.sheet().Focused() || m.sheet().Name() != "parts" {
 		t.Errorf("6 then 7: in the pane %v", m.inPane)
 	}
 }
 
 func TestThePartsPresetsGroupThemByCommandAndCompactThem(t *testing.T) {
-	m, _ := loaded(t, press('7'))
+	m, _ := loaded(t, press('6'))
 	m = drive(m, clickOn(t, m, "Default ▼"))
 	m = drive(m, clickOn(t, m, "By command"))
 	got := view(m)
@@ -115,7 +115,7 @@ func TestThePartsPresetsGroupThemByCommandAndCompactThem(t *testing.T) {
 }
 
 func TestTheSearchNarrowsTheParts(t *testing.T) {
-	m, _ := loaded(t, press('7'), press('/'))
+	m, _ := loaded(t, press('6'), press('/'))
 	m = drive(m, testkit.Typed("forge")...)
 	got := view(m)
 	if !strings.Contains(got, "▸ Primary and forges") || strings.Contains(got, "▸ Policy") ||
@@ -123,13 +123,13 @@ func TestTheSearchNarrowsTheParts(t *testing.T) {
 		t.Errorf("searched:\n%s", got)
 	}
 	// each step keeps its own search: the terms are not narrowed by the parts'
-	if m = drive(m, enter, esc, press('6')); !strings.Contains(view(m), "▾ 12 ") {
+	if m = drive(m, enter, esc, press('5')); !strings.Contains(view(m), "▾ 12 ") {
 		t.Errorf("the terms, after the parts' search:\n%s", view(m))
 	}
 }
 
 func TestThePartsFollowTheSettings(t *testing.T) {
-	m, _ := loaded(t, press('7'))
+	m, _ := loaded(t, press('6'))
 	m = drive(m, shell.SettingsMsg{Settings: shell.Settings{FoldShared: false, SharedEmoji: true}})
 	for _, s := range []*table.Sheet{m.sheet(), termsSheet(m)} {
 		if p := s.Panel(); p.Fold || !p.Glyphs {
@@ -139,9 +139,9 @@ func TestThePartsFollowTheSettings(t *testing.T) {
 }
 
 func TestAMakeItYoursPageWithoutPartsIsAPage(t *testing.T) {
-	r := repoWith(t, map[string]string{"7-make-it-yours.md": "# Ours\n\nWe change `policy:` first.\n"})
+	r := repoWith(t, map[string]string{"6-make-it-yours.md": "# Ours\n\nWe change `policy:` first.\n"})
 	m := New(r, "")
-	m = drive(m, append(testkit.Start(m, at120), press('7'))...)
+	m = drive(m, append(testkit.Start(m, at120), press('6'))...)
 	if m.gridded() || !strings.Contains(view(m), "We change policy: first.") || !strings.Contains(keysAt(m), "↓ page") {
 		t.Errorf("a page without parts:\n%s", view(m))
 	}
@@ -159,12 +159,12 @@ func TestMakeItYoursGoldens(t *testing.T) {
 		keys []tea.Msg
 		then func(Model) Model
 	}{
-		"make-it-yours.golden":         {keys: []tea.Msg{press('7')}},
-		"make-it-yours-40.golden":      {keys: []tea.Msg{at40, press('7')}},
-		"make-it-yours-grouped.golden": {keys: []tea.Msg{at40, press('7')}, then: byCommand},
-		"make-it-yours-search.golden": {keys: append([]tea.Msg{at40, press('7'), press('/')},
+		"make-it-yours.golden":         {keys: []tea.Msg{press('6')}},
+		"make-it-yours-40.golden":      {keys: []tea.Msg{at40, press('6')}},
+		"make-it-yours-grouped.golden": {keys: []tea.Msg{at40, press('6')}, then: byCommand},
+		"make-it-yours-search.golden": {keys: append([]tea.Msg{at40, press('6'), press('/')},
 			append(testkit.Typed("kit flow"), enter)...)},
-		"make-it-yours-80.golden": {keys: []tea.Msg{tea.WindowSizeMsg{Width: 80, Height: 40}, press('7')}},
+		"make-it-yours-80.golden": {keys: []tea.Msg{tea.WindowSizeMsg{Width: 80, Height: 40}, press('6')}},
 	} {
 		m, _ := loaded(t, c.keys...)
 		if c.then != nil {

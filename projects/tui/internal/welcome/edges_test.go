@@ -53,7 +53,7 @@ func TestACheckOfAStepWithoutChecksShowsUnderTheLastStepThatHasThem(t *testing.T
 
 // Pages that make no step change nothing; pages without the selected step's select the first step, on the bar.
 func TestNewPagesWithoutTheSelectedStepSelectTheFirst(t *testing.T) {
-	m, _ := atBasics(t, esc, tabKey, down)
+	m, _ := atChains(t)
 	before := m.tabs
 	if m.setTabs(nil); len(m.tabs) != len(before) || m.step != chains || !m.inPane {
 		t.Fatalf("no pages changed the steps: %d steps, step %d", len(m.tabs), m.step)
@@ -92,12 +92,12 @@ func TestAFixThatCannotRunSaysWhy(t *testing.T) {
 // On the bar over a step with checks, up does nothing; down does nothing while the checks have not answered, and the
 // step says it is checking.
 func TestUpOnTheBarAndDownBeforeTheChecksAnswerDoNothing(t *testing.T) {
-	m, _ := atBasics(t, esc)
-	if m = drive(m, up); m.inPane || m.step != basics {
+	m, _ := atChains(t, esc)
+	if m = drive(m, up); m.inPane || m.step != chains {
 		t.Errorf("up on the bar: in the pane %v, step %d", m.inPane, m.step)
 	}
 	m, _ = fake(t)
-	m = drive(m, at120, tabKey, tabKey, tabKey, down)
+	m = drive(m, at120, tabKey, tabKey, down)
 	if m.inPane {
 		t.Error("down entered the rows of a step whose checks have not answered")
 	}
@@ -109,23 +109,23 @@ func TestUpOnTheBarAndDownBeforeTheChecksAnswerDoNothing(t *testing.T) {
 // On a screen too narrow for every tab, the bar scrolls to the selected step, whole, with a triangle where steps are
 // hidden.
 func TestOnAScreenTooNarrowTheBarScrolls(t *testing.T) {
-	m, _ := atBasics(t, tea.WindowSizeMsg{Width: 40, Height: 30})
+	m, _ := atChains(t, tea.WindowSizeMsg{Width: 40, Height: 30})
 	bar := strings.Split(view(m), "\n")[2]
-	if !strings.Contains(bar, "│ 🧱 basics  2 │") || !strings.HasSuffix(bar, tabs.After) {
-		t.Errorf("at 40 columns, the bar does not scroll to basics: %q", bar)
+	if !strings.Contains(bar, "│ 🧰 toolchains  3 │") || !strings.HasSuffix(bar, tabs.After) {
+		t.Errorf("at 40 columns, the bar does not scroll to the toolchains: %q", bar)
 	}
 }
 
 // A step with checks, none of them its own once the checks have answered, shows its page alone.
 func TestAStepWhoseChecksAnsweredWithNoneOfItsOwnShowsItsPageAlone(t *testing.T) {
-	m, _ := atBasics(t, esc)
-	var basicsOnly []kit.Check
+	m, _ := atChains(t, esc)
+	var chainsOnly []kit.Check
 	for _, c := range m.checks {
-		if c.Step == "before-toolchains" {
-			basicsOnly = append(basicsOnly, c)
+		if c.Step == "toolchains" {
+			chainsOnly = append(chainsOnly, c)
 		}
 	}
-	m = drive(m, source.Answer[[]kit.Check]{Name: "checks", Value: basicsOnly}, tabKey, tabKey)
+	m = drive(m, source.Answer[[]kit.Check]{Name: "checks", Value: chainsOnly}, tabKey)
 	if v := view(m); m.step != setup || strings.Contains(v, "checking…") || strings.Contains(v, "gh is not logged in") {
 		t.Errorf("setup with no checks of its own:\n%s", v)
 	}
@@ -134,7 +134,7 @@ func TestAStepWhoseChecksAnsweredWithNoneOfItsOwnShowsItsPageAlone(t *testing.T)
 // The pane scrolls back up to the cursor's row when its offset has gone past it, and leaves a cursor that is not on
 // the step as it is.
 func TestThePaneScrollsBackToTheCursorsRow(t *testing.T) {
-	m, _ := atBasics(t, tea.WindowSizeMsg{Width: 120, Height: 9}, esc, tabKey, tabKey, down)
+	m, _ := atChains(t, tea.WindowSizeMsg{Width: 120, Height: 9}, esc, tabKey, down)
 	if !m.inPane {
 		t.Fatal("not in the rows")
 	}

@@ -3,11 +3,11 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_root is exported by modules/bash/1st.sh
 #
-# kit welcome walks a newcomer through seven steps, each a page: the intro, before toolchains, toolchains, setup, the
-# lay of the land, the terms, and making it yours. Steps 2 to 4 hold checks, run here. Each check is one JSON object:
+# kit welcome walks a newcomer through six steps, each a page: the intro, toolchains, setup, the lay of the land, the
+# terms, and making it yours. Steps 2 and 3 hold checks, run here. Each check is one JSON object:
 #
 #   id            stable, in kebab-case: tool-yq, toolchain-project, linter-shellcheck, forge-login-github.com
-#   step          the step it belongs to: before-toolchains, toolchains, or setup
+#   step          the step it belongs to: toolchains or setup
 #   ok            true when it holds
 #   line          one short sentence: what holds, or what is wrong
 #   fix           the command that fixes it, or null when it holds or kit knows none
@@ -18,9 +18,8 @@
 #
 # The checks run in this order:
 #
-#   - before toolchains: bash, git, jq, and yq, which kit needs before it can look for a toolchain; then, only where
-#     brew is installed at a Homebrew prefix but is not on PATH, brew-path, whose fix kit shows and never runs
-#   - toolchains: one check per role, project then system
+#   - toolchains: bash, git, jq, and yq, which kit runs on; then, only where brew is installed at a Homebrew prefix but
+#     is not on PATH, brew-path, whose fix kit shows and never runs; then one check per role, project then system
 #   - setup, tools: lefthook when hooks/lefthook is active; then each dependency provider whose manifest is here,
 #     installed from its lock; then each linter the active packages' rules and styles name under lint:
 #   - setup, forges: for each distinct forge host among the remotes, its tool installed, then logged in to that host
@@ -31,16 +30,16 @@
 # kit finds the toolchains as kit toolchains does, and never assumes one. The checks only report: they never ask
 # which toolchain to use, and never record one. A missing tool's fix:
 #
-#   - before toolchains: the system toolchain's command, such as its install of the tool, else none, and more names
-#     the tool's site
+#   - toolchains, for a tool kit runs on: the system toolchain's command, such as its install of the tool, else none,
+#     and more names the tool's site
 #   - setup: kit tools install where a project toolchain is settled; ambient, the system toolchain's command; else
 #     none, and more says where to read
 #
 # Only welcome:fix runs a fix, and only the one it is asked for.
 #
 # The pages are markdown files under .kit/welcome/, which the kit package delivers. A page's name is its order, a
-# dash, then its step's id: 2-before-toolchains.md. A house package replaces one by placing a file of the same name,
-# or adds one; the later package wins.
+# dash, then its step's id: 2-toolchains.md. A house package replaces one by placing a file of the same name, or adds
+# one; the later package wins.
 #
 # see: bin/kit-welcome, modules/bash/toolchain.sh, issue #51
 
@@ -62,12 +61,11 @@ welcome:record() {
       interactive: $interactive, more: ($more | if . == "" then null else . end), runs: $runs}'
 }
 
-# welcome:step <id> prints the step a check belongs to: before-toolchains for what kit needs, toolchains for each
-# role's toolchain, and setup for the rest.
+# welcome:step <id> prints the step a check belongs to: toolchains for what kit runs on and each role's toolchain,
+# and setup for the rest.
 welcome:step() {
   case "$1" in
-    (tool-bash | tool-git | tool-jq | tool-yq | brew-path) printf 'before-toolchains\n' ;;
-    (toolchain-*) printf 'toolchains\n' ;;
+    (tool-bash | tool-git | tool-jq | tool-yq | brew-path | toolchain-*) printf 'toolchains\n' ;;
     (*) printf 'setup\n' ;;
   esac
 }
@@ -145,7 +143,7 @@ welcome:toolchain-has() {
 
 # welcome:install <step> <tool> prints the fix that installs the tool and where to read more, separated by \x1f:
 #
-#   - before toolchains: the system toolchain's command, else no fix, and the tool's site
+#   - toolchains: the system toolchain's command, else no fix, and the tool's site
 #   - setup: kit tools install where a project toolchain is settled; ambient, the system toolchain's command, else
 #     no fix and the tool's site; with several usable and none chosen, no fix, and the toolchains doc
 welcome:install() {
@@ -681,7 +679,7 @@ welcome:pages() {
 }
 
 # welcome:page-step <path> prints the id of the step a page is for: its file name without the order and the dash
-# before it, and without .md. 2-before-toolchains.md is for before-toolchains.
+# before it, and without .md. 2-toolchains.md is for toolchains.
 welcome:page-step() {
   local name=${1##*/}
   name=${name%.md}

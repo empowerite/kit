@@ -73,10 +73,10 @@ ambient-system() {
   [ "$(jq --raw-output '[.[] | keys | sort == ["fix", "id", "interactive", "line", "more", "ok", "runs", "step"]] | all' \
     <<<"$output")" = true ]
   [ "$(jq --raw-output 'map(.id) | (unique | length) == length' <<<"$output")" = true ]
-  # what kit needs, then the toolchains, then the repository, then where you are; no kit.yml here, so no check of
+  # what kit runs on and the toolchains, then the repository, then where you are; no kit.yml here, so no check of
   # what kit installs
-  [ "$(jq --raw-output '.[] | "\(.id) \(.step)"' <<<"$output")" = "$(printf '%s\n' 'tool-bash before-toolchains' \
-    'tool-git before-toolchains' 'tool-jq before-toolchains' 'tool-yq before-toolchains' \
+  [ "$(jq --raw-output '.[] | "\(.id) \(.step)"' <<<"$output")" = "$(printf '%s\n' 'tool-bash toolchains' \
+    'tool-git toolchains' 'tool-jq toolchains' 'tool-yq toolchains' \
     'toolchain-project toolchains' 'toolchain-system toolchains' 'repo-git setup' 'kit-installed setup' \
     'where setup')" ]
   [ "$(jq --raw-output '.[] | select(.id == "kit-installed") | [.ok, .fix] | @tsv' <<<"$output")" = \
@@ -85,15 +85,15 @@ ambient-system() {
     "you are at the desk, your own checkout; work on an issue goes in a worktree" ]
 }
 
-@test "welcome's steps are intro, before toolchains, toolchains, setup, lay of the land, terms, make it yours" {
+@test "welcome's steps are intro, toolchains, setup, lay of the land, terms, make it yours" {
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
   [ "$status" -eq 1 ]
-  # each step's page in order, the checks of steps 2 to 4 under their pages, then what is left
-  [ "$(outline <<<"$output")" = "$(printf '%s|' '# Welcome' '# Before toolchains' ✅ '# Toolchains' ✅ '# Setup' \
+  # each step's page in order, the checks of steps 2 and 3 under their pages, then what is left
+  [ "$(outline <<<"$output")" = "$(printf '%s|' '# Welcome' '# Toolchains' ✅ '# Setup' \
     ✅ ❌ ✅ '# The lay of the land' '# Terms' '# Make it yours' '# What is left' | sed 's/|$//')" ]
-  # bash, git, jq, and yq before the toolchains, one check for each role, then the rest
-  [ "$(under <<<"$output")" = "$(printf '%s\n' '# Before toolchains|✅ bash' '# Before toolchains|✅ git' \
-    '# Before toolchains|✅ jq' '# Before toolchains|✅ yq' '# Toolchains|✅ no' '# Toolchains|✅ brew' \
+  # bash, git, jq, and yq, then one check for each role, then the rest
+  [ "$(under <<<"$output")" = "$(printf '%s\n' '# Toolchains|✅ bash' '# Toolchains|✅ git' \
+    '# Toolchains|✅ jq' '# Toolchains|✅ yq' '# Toolchains|✅ no' '# Toolchains|✅ brew' \
     '# Setup|✅ this' '# Setup|❌ kit.yml' '# Setup|✅ you')" ]
 }
 
@@ -113,10 +113,10 @@ ambient-system() {
   chmod +x "${BATS_TEST_TMPDIR}/opt/bin/brew"
   run --separate-stderr check brew-path
   [ "$(jq --raw-output '[.step, .ok, .line, .fix, .interactive] | @tsv' <<<"$output")" = \
-    "$(printf 'before-toolchains\tfalse\tbrew is installed at %s/opt but not on your PATH\t' "${BATS_TEST_TMPDIR}"
+    "$(printf 'toolchains\tfalse\tbrew is installed at %s/opt but not on your PATH\t' "${BATS_TEST_TMPDIR}"
       printf 'eval "$(%s/opt/bin/brew shellenv)"\tfalse' "${BATS_TEST_TMPDIR}")" ]
   [[ "$(jq --raw-output .more <<<"$output")" == *profile* ]]
-  # it comes right after yq, in the step before the toolchains
+  # it comes right after yq, before the toolchains' own checks
   run --separate-stderr checks
   [ "$(jq --raw-output 'map(.id) | .[0:6] | join(" ")' <<<"$output")" = \
     "tool-bash tool-git tool-jq tool-yq brew-path toolchain-project" ]
@@ -132,14 +132,14 @@ ambient-system() {
   [[ "$output" == *'- brew-path: eval "$('*"kit does not run it"* ]]
 }
 
-@test "welcome checks bash, git, jq, and yq before it looks for a toolchain" {
+@test "welcome checks bash, git, jq, and yq with the toolchains, each fixed by the system toolchain" {
   local real_jq
   real_jq=$(command -v jq)
   fake-script yq 'exit 1'
   # the system toolchain names its command for a missing one
   run --separate-stderr check tool-yq
   [ "$(jq --raw-output '[.step, .ok, .line, .fix, .more] | @tsv' <<<"$output")" = \
-    $'before-toolchains\tfalse\tyq is not installed; kit reads its YAML through it\tbrew install yq\t' ]
+    $'toolchains\tfalse\tyq is not installed; kit reads its YAML through it\tbrew install yq\t' ]
   # still the system toolchain's, with project toolchains here: kit needs these to look for one
   printf 'brew "yq"\n' > Brewfile
   run --separate-stderr check tool-yq
@@ -150,7 +150,7 @@ ambient-system() {
   fake-script jq "[[ \"\$*\" != --version ]] || { echo jq-1.6; exit 0; }; exec '${real_jq}' \"\$@\""
   run --separate-stderr check tool-jq
   [ "$(jq --raw-output '[.step, .ok, .line, .fix, .more] | @tsv' <<<"$output")" = \
-    $'before-toolchains\tfalse\tjq 1.6 is too old; kit needs jq 1.7 or later\t\thttps://jqlang.org/download/' ]
+    $'toolchains\tfalse\tjq 1.6 is too old; kit needs jq 1.7 or later\t\thttps://jqlang.org/download/' ]
   run --separate-stderr check toolchain-system
   [ "$(jq --raw-output '[.ok, .line] | @tsv' <<<"$output")" = \
     $'true\tthe system toolchain is ambient, as chosen: kit uses what is on PATH' ]
@@ -410,14 +410,14 @@ ambient-system() {
   "${kit_root}/bin/kit" install >/dev/null 2>&1
   mkdir -p .kit/packages/house/files/repo/.kit/welcome
   printf 'description: "our own"\ndepends:\n  - kit\n' > .kit/packages/house/package.yml
-  printf '# Our terms\n\nWe say "desk".\n' > .kit/packages/house/files/repo/.kit/welcome/6-terms.md
-  printf '# Our team\n\nAsk in #dev.\n' > .kit/packages/house/files/repo/.kit/welcome/8-our-team.md
+  printf '# Our terms\n\nWe say "desk".\n' > .kit/packages/house/files/repo/.kit/welcome/5-terms.md
+  printf '# Our team\n\nAsk in #dev.\n' > .kit/packages/house/files/repo/.kit/welcome/7-our-team.md
   "${kit_root}/bin/kit" packages add house >/dev/null 2>&1
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
   [ "$(grep --extended-regexp '^# ' <<<"$output" | paste -s -d '|' -)" = "$(printf '%s|' '# Welcome' \
-    '# Before toolchains' '# Toolchains' '# Setup' '# The lay of the land' '# Our terms' '# Make it yours' \
+    '# Toolchains' '# Setup' '# The lay of the land' '# Our terms' '# Make it yours' \
     '# Our team' '# What is left' | sed 's/|$//')" ]
-  [ "$(readlink .kit/welcome/6-terms.md)" = ../packages/house/files/repo/.kit/welcome/6-terms.md ]
+  [ "$(readlink .kit/welcome/5-terms.md)" = ../packages/house/files/repo/.kit/welcome/5-terms.md ]
 }
 
 @test "the pages go by the number their names start with, so a tenth page comes after the ninth" {

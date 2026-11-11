@@ -7,17 +7,17 @@
 #
 # kit welcome --fix <check>
 #
-# A guide for your first hour with kit, in seven steps:
+# A guide for your first hour with kit, in six steps:
 #
 #   1. Intro: what the guide does.
-#   2. Before toolchains: bash, git, jq, and yq, which kit needs before it can look for a toolchain.
-#   3. Toolchains: the toolchain for the project, and the one for the system, one check each.
-#   4. Setup: your linters, your forge logins, and this repository, one check each.
-#   5. The lay of the land: how work moves, from an issue to a release.
-#   6. Terms: the words kit uses, one or two sentences each.
-#   7. Make it yours: the settings teams change first, packages, and the docs.
+#   2. Toolchains: bash, git, jq, and yq, which kit runs on; the toolchain for the project, and the one for the
+#      system, one check each.
+#   3. Setup: your linters, your forge logins, and this repository, one check each.
+#   4. The lay of the land: how work moves, from an issue to a release.
+#   5. Terms: the words kit uses, one or two sentences each.
+#   6. Make it yours: the settings teams change first, packages, and the docs.
 #
-# Steps 2 to 4 hold checks. On a terminal, it opens kittui's welcome screen, on the first step with a failed check.
+# Steps 2 and 3 hold checks. On a terminal, it opens kittui's welcome screen, on the first step with a failed check.
 # Each failed check there offers its fix: now runs it, later moves on. Without a terminal, or with --text, it prints
 # each step's page with its checks under it, then a list of what is left. It runs nothing.
 #
@@ -30,7 +30,7 @@
 #
 # A check in the JSON is {id, step, ok, line, fix, interactive, more, runs}:
 #
-#   - step is before-toolchains, toolchains, or setup.
+#   - step is toolchains or setup.
 #   - fix is the command that fixes it, or null when it holds or kit knows none.
 #   - interactive is true when the fix needs you at the terminal, as gh auth login does.
 #   - more is where to read, or the other commands beside the fix, or null.
@@ -39,11 +39,11 @@
 #
 # A missing tool's fix comes from the toolchains kit found, and never from one it assumes:
 #
-#   - before toolchains: the system toolchain's command
+#   - toolchains, for a tool kit runs on: the system toolchain's command
 #   - setup: kit tools install, or, when ambient, the system toolchain's command
 #
 # Nothing runs a fix but --fix, and it runs only the one named. The pages are under .kit/welcome/, from the kit
-# package, named for their order and step: 3-toolchains.md. A house package replaces a page by placing one of the
+# package, named for their order and step: 2-toolchains.md. A house package replaces a page by placing one of the
 # same name, or adds one.
 #
 # Exits 0 when every check holds, and after --checks prints them; 1 when a check fails, or a fix leaves its check

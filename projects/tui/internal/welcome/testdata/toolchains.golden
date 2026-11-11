@@ -1,14 +1,20 @@
   = kit welcome · - empowerite/kit                                                                           🔎 /search
-  ➀╶─────────╮➁╶─────────────╴➌╶─────────────────╮➃╶────────────╮➄╶───────────────────╮➅╶─────────╮➆╶─────────────────╮
-    👋 intro │  🧱 basics  2  │ 🧰 toolchains  1 │  🔧 setup  2 │  🧭 lay of the land │  📖 terms │  🎨 make it yours │
-  ───────────╰────────────────╯                  ╰──────────────╰─────────────────────╰───────────╰───────────────────╰─
+  ➀╶─────────╴➋╶─────────────────╮➂╶────────────╮➃╶───────────────────╮➄╶─────────╮➅╶─────────────────╮
+    👋 intro  │ 🧰 toolchains  3 │  🔧 setup  2 │  🧭 lay of the land │  📖 terms │  🎨 make it yours │
+  ────────────╯                  ╰──────────────╰─────────────────────╰───────────╰───────────────────╰─────────────────
    Toolchains
 
    A toolchain installs tools. When several are usable, choose one.
 
- ▸ ❌ several toolchains are usable for the project: mise, brew; choose one    now   later 
+   ✅ bash 5.2 runs kit
+ ▸ ❌ jq is not installed    now   later 
+      brew install jq
+   ❌ several toolchains are usable for the project: mise, brew; choose one
       kit toolchains choose mise
       or: kit toolchains choose brew
+   ❌ brew is installed but not on PATH
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+      add it to your shell profile to keep it
 
 
 
@@ -21,10 +27,4 @@
 
 
 
-
-
-
-
-
-
- = menu - workspace / search │ 1-7 jump │ esc tabs ↑↓ move ⇞⇟ page ⇥·⇧⇥ now or later n now l later ⏎ choose
+ = menu - workspace / search │ 1-6 jump │ esc tabs ↑↓ move ⇞⇟ page ⇥·⇧⇥ now or later n now l later ⏎ choose

@@ -1,4 +1,4 @@
-<!-- kit:generated -- kit welcome's third step, the toolchains, from the kit package -->
+<!-- kit:generated -- kit welcome's second step, the toolchains, from the kit package -->
 <!-- see: "Changing what kit adds" in .kit/1st.md, to replace it -->
 # Toolchains
 
@@ -21,5 +21,17 @@ For each role, kit uses:
 
 With several usable and none chosen, choose one: `kit toolchains choose <name>`, with `--system` for the system
 role. Your choice stays on this machine. It is never committed, so each person chooses their own.
+
+kit runs on four tools, which this step checks first:
+
+- bash 4.4 or later, which runs kit.
+- git, which kit works through.
+- jq 1.7 or later, which reads kit's JSON.
+- yq 4, mikefarah's, which reads `kit.yml` and the other YAML files.
+
+A missing one's fix is the system toolchain's command. Without one, the check says where to get the tool.
+
+brew counts only when it is on PATH. If brew is installed but off PATH, a check shows the line that fixes it.
+Run that line in your shell, and add it to your profile. kit cannot change your shell for you.
 
 `kit toolchains`
