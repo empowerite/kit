@@ -63,6 +63,20 @@ catalogue, `modules/tutorials.yml`, in the release, an online one with its path 
 file. Edit a page, then run `kit generate`; the catalogue is not edited by hand. `KIT_TUTORIALS_CATALOGUE`, when
 set, names another catalogue file in its place.
 
+A tutorial that needs no network ships in the kit. The tour of kittui's screen does: `screen`, then one page for each
+part, `menu-bar`, `tab-bar`, `control-line`, `rows`, `status-bar`, `legend`, and `search`.
+
+## Writing a tutorial
+
+Readers are impatient. Write so a page can be scanned, not read:
+
+- A summary is one or two short sentences. kittui shows it whole, and every card grows to the longest one.
+- Short sentences. One idea each.
+- Bullets over paragraphs. Put the key or the glyph first, in backticks, then what it does: `` `=`  the kit menu ``.
+- A small text picture of the part, in a fenced `text` block, before the words.
+- Headings name what the reader is looking for: Keys, Reading a tab, The presets menu.
+- Name only what is on the screen, and check it against kittui before it ships.
+
 ## How a link is chosen
 
 The tutorials are one site, `https://empowerite.github.io/kit/tutorials/`, and a version is a line of it. A tutorial's

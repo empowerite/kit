@@ -25,18 +25,32 @@ const appLabel = "kit tutorials"
 // Failed is the glyph before kit's refusal.
 const Failed = "❌"
 
-// A card is cardWidth cells wide and cardHeight lines tall, its border with it, and its text stands a cell in from
-// either side; the cards stand gap cells apart, after the gutter every line keeps, as the control line does.
+// A card is cardWidth cells wide, its border with it, and its text stands a cell in from either side; the cards stand
+// gap cells apart, after the gutter every line keeps, as the control line does. A card is cardLines tall, its border
+// with it, and the lines of its summary.
 const (
-	cardWidth  = 38
-	cardHeight = 8
-	textWidth  = cardWidth - 4
-	gap        = 1
-	gutter     = 2
+	cardWidth = 38
+	cardLines = 5
+	textWidth = cardWidth - 4
+	gap       = 1
+	gutter    = 2
 )
 
-// summaryLines is how many lines a card gives its summary.
+// summaryLines is the fewest lines a card gives its summary.
 const summaryLines = 3
+
+// summaryHeight gives the lines every card gives its summary: as many as the longest summary in the catalogue takes,
+// broken to the card's text, and at least summaryLines, so no summary is ever cut and the cards stand as one grid.
+func (m Model) summaryHeight() int {
+	n := summaryLines
+	for _, t := range m.catalog.Tutorials {
+		n = max(n, len(pane.Break(t.Summary, textWidth)))
+	}
+	return n
+}
+
+// cardHeight gives the lines a card takes, its border with it.
+func (m Model) cardHeight() int { return cardLines + m.summaryHeight() }
 
 // controlTop is the screen line of the table's control line, under the menu bar; the pane has the lines from paneTop
 // on, right under it, but the gap and the keys, which fixed counts with the menu bar and the control line.
@@ -147,7 +161,7 @@ func (m Model) paneHeight() int { return max(1, m.height-fixed) }
 // top gives the lines the pane keeps over the cards: one, which says how many cards are scrolled past, where the pane
 // is taller than a card, and none where it is not, so the card shows from its top.
 func (m Model) top() int {
-	if m.paneHeight() > cardHeight {
+	if m.paneHeight() > m.cardHeight() {
 		return 1
 	}
 	return 0
@@ -163,12 +177,12 @@ type band struct {
 	cards   []int
 }
 
-// height gives the lines a band takes: a heading's one, a row of cards' cardHeight.
-func (b band) height() int {
+// height gives the lines a band takes, its cards' cards high: a heading's one, a row of cards' cards.
+func (b band) height(cards int) int {
 	if b.cards == nil {
 		return 1
 	}
-	return cardHeight
+	return cards
 }
 
 // bands gives the pane's bands, as the table's rows stand: each group's heading, then its cards, as many to a row as
@@ -215,12 +229,12 @@ func (m Model) room() int { return m.paneHeight() - m.top() }
 
 // shownUntil gives the band past the last the pane shows from the band from: as many as fit, and at least one.
 func (m Model) shownUntil(bands []band, from int) int {
-	used, k := 0, from
+	used, k, high := 0, from, m.cardHeight()
 	for ; k < len(bands); k++ {
-		if used+bands[k].height() > m.room() && k > from {
+		if used+bands[k].height(high) > m.room() && k > from {
 			break
 		}
-		used += bands[k].height()
+		used += bands[k].height(high)
 	}
 	return k
 }
@@ -296,7 +310,7 @@ func (m Model) grid(bands []band) []string {
 		for _, i := range b.cards {
 			drawn = append(drawn, m.card(cards[i], m.focused() && i == m.cursor))
 		}
-		for k := range cardHeight {
+		for k := range m.cardHeight() {
 			var parts []string
 			for _, c := range drawn {
 				parts = append(parts, c[k])
@@ -312,7 +326,7 @@ func (m Model) grid(bands []band) []string {
 
 // card gives a tutorial's card, its lines each cardWidth cells: a rounded border, dim, or in the menus' bright cyan
 // under the cursor, the glyph of where the tutorial is, Shipped or Online, at the right of its top edge; the glyph and
-// the title in bold; a blank line; the summary on three lines; another blank line, so
+// the title in bold; a blank line; the whole summary, on as many lines as every card gives it; another blank line, so
 // the summary stands clear of the pills; and a pill for each of its audiences on the bottom edge.
 func (m Model) card(t kit.Tutorial, cursor bool) []string {
 	edge, inner := style.Off, cardWidth-2
@@ -332,7 +346,7 @@ func (m Model) card(t kit.Tutorial, cursor bool) []string {
 	}
 	top := edge("╭"+strings.Repeat("─", inner-5)+" ") + where + edge(" ─╮")
 	out := []string{top, line(style.Label(title)), line("")}
-	for _, l := range summary(t.Summary) {
+	for _, l := range summary(t.Summary, m.summaryHeight()) {
 		out = append(out, line(l))
 	}
 	out = append(out, line(""))
@@ -345,23 +359,11 @@ func (m Model) card(t kit.Tutorial, cursor bool) []string {
 	return append(out, edge("╰─ ")+drawn+edge(" "+fill+"╯"))
 }
 
-// summary gives a summary's three lines, broken at spaces to the card's text; one that runs over ends its third line
-// with …, after the last word that leaves room for it.
-func summary(text string) []string {
+// summary gives a summary whole, broken at spaces to the card's text, on height lines, blank ones after it; it is
+// never cut, as height is at least the lines the longest summary takes.
+func summary(text string, height int) []string {
 	lines := pane.Break(text, textWidth)
-	if len(lines) > summaryLines {
-		third := lines[summaryLines-1]
-		words := strings.Fields(third)
-		for len(words) > 0 && ansi.StringWidth(strings.Join(words, " ")+"…") > textWidth {
-			words = words[:len(words)-1]
-		}
-		if len(words) == 0 {
-			// one word the width of the card, broken across lines: cut, to leave the … room
-			words = []string{ansi.Truncate(third, textWidth-1, "")}
-		}
-		lines = append(lines[:summaryLines-1], strings.Join(words, " ")+"…")
-	}
-	for len(lines) < summaryLines {
+	for len(lines) < height {
 		lines = append(lines, "")
 	}
 	return lines
@@ -422,15 +424,15 @@ func (m Model) cardAt(x, y int) int {
 	if r < 0 || c < 0 || c%(cardWidth+gap) >= cardWidth {
 		return -1
 	}
-	bands := m.bands()
+	bands, high := m.bands(), m.cardHeight()
 	for _, b := range bands[min(m.offset, len(bands)):m.shownUntil(bands, m.offset)] {
-		if r < b.height() {
-			if col := c / (cardWidth + gap); b.cards != nil && col < len(b.cards) && r < cardHeight {
+		if r < b.height(high) {
+			if col := c / (cardWidth + gap); b.cards != nil && col < len(b.cards) && r < high {
 				return b.cards[col]
 			}
 			return -1
 		}
-		r -= b.height()
+		r -= b.height(high)
 	}
 	return -1
 }

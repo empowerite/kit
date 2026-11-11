@@ -13,9 +13,9 @@
 // <tutorial>, puts the cursor on its card, the tags' filter dropped when it hides that card.
 //
 // Under the control line, the pane draws the cards as a grid, as many columns as fit and at least one: each card has
-// the tutorial's glyph and title in bold, a blank line, its summary on three lines with … where it runs over, another
-// blank line, and its audiences as pills in their colors on its bottom edge; the glyph of where it is stands at the
-// right of its top edge. The card under the cursor is drawn in the
+// the tutorial's glyph and title in bold, a blank line, its whole summary, never cut, every card as tall as the longest
+// summary needs, another blank line, and its audiences as pills in their colors on its bottom edge; the glyph of where
+// it is stands at the right of its top edge. The card under the cursor is drawn in the
 // menus' bright cyan, and the pane scrolls a row of cards, or a heading, at a time so that card is always whole. A
 // catalogue with no tutorial says so, as a search or a filter that lets none through does.
 //
