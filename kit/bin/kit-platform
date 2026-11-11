@@ -12,7 +12,7 @@
 # with checkouts, as kit workspace does: a group's name, or a repository's host and path, as kit workspaces names it;
 # none names no workspace. Without it, the workspace is the repository here, and outside one, the last group used, as
 # kit workspaces --current says. On a terminal, kit platform opens Platform in kittui, and kit platform <stage> opens
-# it on that tab, maximized. Without one, or with --text, --json, or --jq, it prints the stages as text.
+# it on that tab, maximized. Without one, or with --text, it prints the stages as text; with --json or --jq, as JSON.
 #
 #   --text              prints the stages as text, even on a terminal
 #   --json              the stages as one JSON object: stages, then each stage's document under its name, null for one
@@ -20,8 +20,9 @@
 #   --jq                the same JSON, formatted by jq for a person
 #   --stages            prints the stages, one per line, in order, the same over any workspace
 #   --marks             prints a mark per stage, as one JSON object, which changes when what the stage draws does: a
-#                       hash of kit.yml for services and settings, and for toolchains and tools of the files the
-#                       toolchains and the dependency providers pin from and of those that keep kit's choice
+#                       hash of kit.yml for settings; for toolchains and tools, of the files the toolchains and the
+#                       dependency providers pin from and of those that keep kit's choice; and for services, of all of
+#                       those, the clone's git configuration, which holds its remotes, and .kit/policy
 #   services            each capability kit fills and the service that answers it: hosting, review, ci, and releases,
 #                       the primary's forge; tracking, each tracker prefix; the project toolchain; each dependency
 #                       provider whose manifest and lock are here; and the policy engine

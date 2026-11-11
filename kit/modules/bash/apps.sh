@@ -220,13 +220,20 @@ apps:marks() {
 # it prints through apps::<def>, which gives the row, and limited from the {"limited": N} it prints last when capped.
 # A primary with no forge, or a forge that lacks the feature, gives no rows and no errors; a call that says the feature
 # is off here gives no rows and the error {feature, off: true}. Each is no failure. A call that fails returns 1, after
-# its line, printing nothing, and so does a declaration that cannot be read. A def that is not a name returns 2.
+# its line, printing nothing, and so does a declaration that cannot be read. A def that is not a name, or that apps.jq
+# does not have, returns 2, jq's line said.
 apps:forge() {
   local feature=$1 call=$2 def=$3 out status=0
   shift 3
   if [[ ! "${def}" =~ ^[a-z][a-z0-9_]*$ ]]
   then
     error "apps:forge: '${def}' is not the name of a def in modules/jq/apps.jq"
+    return 2
+  fi
+  # A def apps.jq does not have is jq's own line, which names it, before the forge is asked.
+  if ! jq --null-input -L "${kit_jq}" "import \"apps\" as apps; if false then apps::${def} else empty end"
+  then
+    error "apps:forge: modules/jq/apps.jq has no def ${def}, as jq says above"
     return 2
   fi
   if forge:none
@@ -258,7 +265,7 @@ apps:forge() {
 # apps:merge <document>… prints one document of several: the rows joined in order, the errors joined, and limited the
 # least of those that hold one; of none, no rows and no errors.
 apps:merge() {
-  printf '%s\n' "$@" | grep -v '^$' | jq --slurp --compact-output -L "${kit_jq}" 'import "apps" as apps; apps::merge'
+  printf '%s\n' "$@" | jq --slurp --compact-output -L "${kit_jq}" 'import "apps" as apps; apps::merge'
 }
 
 # apps:hash <path>… prints the sha256 of what the paths hold, each that exists: a file's contents, or every file

@@ -210,7 +210,7 @@
       "description": "prints the stages, one per line, in order, the same over any workspace"
     },
     "--marks": {
-      "description": "prints a mark per stage, as one JSON object, which changes when what the stage draws does: a hash of kit.yml for services and settings, and for toolchains and tools of the files the toolchains and the dependency providers pin from and of those that keep kit's choice"
+      "description": "prints a mark per stage, as one JSON object, which changes when what the stage draws does: a hash of kit.yml for settings; for toolchains and tools, of the files the toolchains and the dependency providers pin from and of those that keep kit's choice; and for services, of all of those, the clone's git configuration, which holds its remotes, and .kit/policy"
     },
     "services": {
       "description": "{capability, service, provider, chosen, ready}: capability is hosting, review, ci, releases, tracking <prefix>, toolchain, dependencies <provider>, or policy, and dependencies alone where no provider's manifest and lock are here; service is what answers it, as github, mise, or patterns, null for none, as for the forge's with no remote or a ci the forge lacks; provider is kit's module that reaches it, as forge/github; chosen is set where kit.yml or a recorded choice names it, else inferred; ready is whether its tool is there and signed in, null where it has none. A forge or a policy engine kit.yml names wrong is {error}, its line, under errors"

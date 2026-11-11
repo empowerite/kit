@@ -42,6 +42,12 @@
 #
 # see: modules/bash/forge.sh, modules/bash/tracker/ado.sh
 
+forge/ado:artifacts() { return 3; }
+
+forge/ado:attestations() { return 3; }
+
+forge/ado:bots() { return 3; }
+
 forge/ado:branch-for-issue() {
   local open
   forge/ado:prs open 'the open pull requests' active || return 1
@@ -56,6 +62,18 @@ forge/ado:lacks() {
   printf '%s\n' quota marks releases linked-branches milestones iterations reviewers merged artifacts environments \
     deployments collaborators teams bots attestations code-scanning dependabot secret-scanning rulesets bypasses
 }
+
+forge/ado:bypasses() { return 3; }
+
+forge/ado:code-scanning-alerts() { return 3; }
+
+forge/ado:collaborators() { return 3; }
+
+forge/ado:dependabot-alerts() { return 3; }
+
+forge/ado:deployments() { return 3; }
+
+forge/ado:environments() { return 3; }
 
 forge/ado:issue-add-sub() {
   forge/ado:az boards work-item relation add --id "$2" --relation-type parent --target-id "$1" --output none \
@@ -130,6 +148,8 @@ forge/ado:issue-unassign() {
   forge/ado:az boards work-item update --id "$1" --assigned-to "" --output none >/dev/null 2>&1
 }
 
+forge/ado:iterations() { return 3; }
+
 # The forge lacks branches linked to a work item, as forge/ado:lacks declares, so the seam answers unsupported and never calls this.
 forge/ado:link-branch() { return 3; }
 
@@ -146,6 +166,10 @@ forge/ado:me() {
   error "run: az login (the caller's login could not be read)"
   return 1
 }
+
+forge/ado:merged-prs() { return 3; }
+
+forge/ado:milestones() { return 3; }
 
 forge/ado:noun() { printf '!\tpull request\n'; }
 
@@ -339,6 +363,8 @@ forge/ado:require() {
   forge/ado:me >/dev/null
 }
 
+forge/ado:rulesets() { return 3; }
+
 # forge/ado:runs prints the builds stage's runs as one JSON array, as the seam's header says: the 50 newest runs of
 # the project's pipelines, those forge.jq's builds keeps. A run's jobs would cost a call each, so every run carries
 # none.
@@ -370,6 +396,10 @@ forge/ado:issue-new-url() {
   tracker:query "${org}/$(forge/ado:encode "${project}")/_workitems/create/$(forge/ado:encode "${type}")" \
     '[System.Title]' "${1:-}"
 }
+
+forge/ado:secret-scanning-alerts() { return 3; }
+
+forge/ado:teams() { return 3; }
 
 # The seam's calls end here; what follows is this provider's own.
 

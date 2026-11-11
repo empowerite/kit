@@ -23,12 +23,30 @@
 #
 # see: modules/bash/forge.sh
 
+forge/gitlab:artifacts() { return 3; }
+
+forge/gitlab:attestations() { return 3; }
+
+forge/gitlab:bots() { return 3; }
+
 forge/gitlab:branch-for-issue() {
   local open
   forge/gitlab:pages open 'the open merge requests' 'merge_requests?state=opened&per_page=100' || return 1
   forge/gitlab:fold 'the open merge requests' "${open}" --raw-output --arg n "$1" \
     'import "forge" as forge; forge::gitlab_branch_for_issue($n)'
 }
+
+forge/gitlab:bypasses() { return 3; }
+
+forge/gitlab:code-scanning-alerts() { return 3; }
+
+forge/gitlab:collaborators() { return 3; }
+
+forge/gitlab:dependabot-alerts() { return 3; }
+
+forge/gitlab:deployments() { return 3; }
+
+forge/gitlab:environments() { return 3; }
 
 # forge/gitlab:issue-add-sub links the second issue to the first as a related item: GitLab gives an issue no
 # sub-issues.
@@ -93,6 +111,8 @@ forge/gitlab:issue-unassign() {
   glab issue update "$1" --assignee "-$2" >/dev/null 2>&1
 }
 
+forge/gitlab:iterations() { return 3; }
+
 # GitLab has no command that creates a branch for an issue. This creates the branch the issue page would:
 # <iid>-<slug of the title>, from the default branch. GitLab links a branch with that name to the issue.
 forge/gitlab:link-branch() {
@@ -125,6 +145,10 @@ forge/gitlab:me() {
   error "run: glab auth login (the caller's login could not be read)"
   return 1
 }
+
+forge/gitlab:merged-prs() { return 3; }
+
+forge/gitlab:milestones() { return 3; }
 
 forge/gitlab:noun() { printf '!\tmerge request\n'; }
 
@@ -349,6 +373,8 @@ forge/gitlab:require() {
   forge/gitlab:me >/dev/null
 }
 
+forge/gitlab:rulesets() { return 3; }
+
 # forge/gitlab:runs prints the builds stage's runs as one JSON array, as the seam's header says: the 50 newest
 # pipelines, those forge.jq's builds keeps. A pipeline's jobs would cost a call each, so every run carries none.
 forge/gitlab:runs() {
@@ -359,6 +385,10 @@ forge/gitlab:runs() {
   forge/gitlab:fold 'the pipelines' "${list}" --compact-output --argjson now "$(date +%s)" --arg default "${default}" \
     --argjson tags "${tags}" 'import "forge" as forge; forge::gitlab_builds($now; $default; $tags)'
 }
+
+forge/gitlab:secret-scanning-alerts() { return 3; }
+
+forge/gitlab:teams() { return 3; }
 
 # The provider implements contract 4. The calls of the features contract 4 adds are not written yet: each task that
 # writes one drops its feature from lacks.

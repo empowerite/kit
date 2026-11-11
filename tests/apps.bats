@@ -18,24 +18,25 @@ setup() {
 }
 
 @test "apps:forge on a primary with no forge, or a forge that lacks the feature, is a document with no rows" {
-  run --separate-stderr kit-bash 'apps:forge milestones milestones milestone'
+  run --separate-stderr kit-bash 'forge:has() { return 1; }; forge:releases() { return 1; }
+    apps:forge releases releases tool'
   [ "$status" -eq 0 ]
   [ "$output" = '{"rows":[],"errors":[]}' ]
   git remote remove origin
-  run --separate-stderr kit-bash 'apps:forge releases releases release'
+  run --separate-stderr kit-bash 'apps:forge releases releases tool'
   [ "$status" -eq 0 ]
   [ "$output" = '{"rows":[],"errors":[]}' ]
 }
 
 @test "apps:forge on a forge that has the feature off here says so under errors, and exits 0" {
-  run --separate-stderr kit-bash 'forge:releases() { return 3; }; apps:forge releases releases release'
+  run --separate-stderr kit-bash 'forge:releases() { return 3; }; apps:forge releases releases tool'
   [ "$status" -eq 0 ]
   [ "$output" = '{"rows":[],"errors":[{"feature":"releases","off":true}]}' ]
 }
 
 @test "apps:forge on a call that fails is the forge's line and 1, with nothing printed" {
   run --separate-stderr kit-bash 'forge:releases() { error "run: gh auth status (x)"; return 1; }
-    apps:forge releases releases release'
+    apps:forge releases releases tool'
   [ "$status" -eq 1 ]
   [ -z "$output" ]
   [ "$stderr" = '❌ run: gh auth status (x)' ]
@@ -52,6 +53,11 @@ setup() {
   [ "$output" = '{"rows":[{"key":2,"n":2,"links":{}},{"key":1,"n":1,"links":{}}],"errors":[],"limited":2}' ]
   run --separate-stderr kit-bash 'apps:forge releases releases "probe; 1"'
   [ "$status" -eq 2 ]
+  run --separate-stderr kit-bash 'forge:releases() { printf "{}\n"; }; apps:forge releases releases nosuchdef'
+  [ "$status" -eq 2 ]
+  [ -z "$output" ]
+  [[ "$stderr" == *"apps::nosuchdef/0 is not defined"* ]]
+  [[ "$stderr" == *"❌ apps:forge: modules/jq/apps.jq has no def nosuchdef, as jq says above"* ]]
 }
 
 @test "apps:merge joins the rows and the errors in order, limited the least of those that say one" {
@@ -61,7 +67,11 @@ setup() {
   [ "$status" -eq 0 ]
   [ "$output" = '{"rows":[{"key":1},{"key":2}],"errors":[{"feature":"x","off":true}],"limited":20}' ]
   run kit-bash 'apps:merge'
+  [ "$status" -eq 0 ]
   [ "$output" = '{"rows":[],"errors":[]}' ]
+  run kit-bash 'apps:merge "{\"rows\":[{\"key\":1}],\"errors\":[]}"'
+  [ "$status" -eq 0 ]
+  [ "$output" = '{"rows":[{"key":1}],"errors":[]}' ]
 }
 
 @test "apps:hash is nothing for paths that do not exist, and moves with the contents of those that do" {

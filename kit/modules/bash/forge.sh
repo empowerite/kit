@@ -123,9 +123,10 @@
 #   bots                          one JSON object per bot: {login, acted, last, url}, acted a list of commit, change,
 #                                 or review (since 4)
 #   attestations                  one JSON object per attestation: {subject, digest, kind, signer, age, url} (since 4)
-#   code-scanning-alerts, dependabot-alerts, secret-scanning-alerts
-#                                 one JSON object per alert, open or dismissed: {number, rule, severity, state, path,
-#                                 age, url} (since 4)
+#   code-scanning-alerts          one JSON object per code scanning alert, open or dismissed: {number, rule, severity,
+#                                 state, path, age, url} (since 4)
+#   dependabot-alerts             the same, one per Dependabot alert (since 4)
+#   secret-scanning-alerts        the same, one per secret scanning alert (since 4)
 #   rulesets                      one JSON object per control on the default branch: {id, control, target, enforcement,
 #                                 rules, source, url}, source ruleset or protection (since 4)
 #   bypasses                      one JSON object per waiver: {waives, actor, kind, reason, by, until, url}, kind

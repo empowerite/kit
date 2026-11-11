@@ -13,8 +13,9 @@
 #   tools         kit tools --json, a row per tool the chosen toolchain and the dependencies pin
 #   settings      a row per key the settings schema names: the value kit.yml sets, else the schema's default
 #
-# services' and settings' marks are kit.yml's hash; toolchains' and tools', the hash of every file a toolchain or a
-# dependency provider pins from and of the files that keep kit's choice of toolchain.
+# settings' mark is kit.yml's hash; toolchains' and tools', the hash of every file a toolchain or a dependency provider
+# pins from and of the files that keep kit's choice of toolchain; services', the hash of all of those, of the clone's
+# git configuration, which holds its remotes, and of .kit/policy.
 #
 # see: bin/kit-platform, modules/bash/apps.sh, docs/apps.md
 use apps forge tracker toolchain dependencies policy settings yaml file
@@ -124,7 +125,7 @@ apps/platform:services() {
   fi
   jq --null-input --compact-output \
     --argjson rows "$(printf '%s\n' "${rows[@]}" | jq --slurp --compact-output .)" \
-    --argjson errors "$(printf '%s\n' "${errors[@]}" | grep -v '^$' | jq --slurp --compact-output .)" \
+    --argjson errors "$(printf '%s\n' "${errors[@]}" | jq --slurp --compact-output .)" \
     '{rows: $rows, errors: $errors}' || return 1
   (( ${#errors[@]} == 0 ))
 }
@@ -178,7 +179,16 @@ apps/platform:settings() {
     'import "apps" as apps; {rows: apps::settings($schema[0]), errors: []}' <<<"${doc:-null}"
 }
 
-apps/platform:mark-services() { apps:hash "$(settings:file)"; }
+# apps/platform:mark-services prints the hash of what the services are read from: kit.yml, the clone's git
+# configuration, which holds its remotes, the policy's Rego, and every file the toolchains and the dependency providers
+# pin from, with those that keep kit's choice of toolchain.
+apps/platform:mark-services() {
+  local common=''
+  local -a paths
+  list:read paths apps/platform:pins || return 1
+  common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || common=''
+  apps:hash "$(settings:file)" ${common:+"${common}/config"} .kit/policy "${paths[@]}"
+}
 
 apps/platform:mark-settings() { apps:hash "$(settings:file)"; }
 

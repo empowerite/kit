@@ -131,6 +131,28 @@ signed-in() {
   [ "$(jq -r .tools <<<"$output")" = "$(jq -r .toolchains <<<"$output")" ]
 }
 
+@test "services' mark moves when a remote is added, and settings' does not" {
+  mkdir -p "${BATS_TEST_TMPDIR}/r" && git init --quiet "${BATS_TEST_TMPDIR}/r" && cd "${BATS_TEST_TMPDIR}/r"
+  run --separate-stderr "${kit_root}/bin/kit" platform --marks
+  [ "$status" -eq 0 ]
+  before=$output
+  git remote add origin https://github.com/o/r.git
+  run --separate-stderr "${kit_root}/bin/kit" platform --marks
+  [ "$status" -eq 0 ]
+  [ "$(jq -r .services <<<"$output")" != "$(jq -r .services <<<"${before}")" ]
+  [ "$(jq -r .settings <<<"$output")" = "$(jq -r .settings <<<"${before}")" ]
+}
+
+@test "a workspace whose members none is cloned draws no rows and no errors, and exits 0" {
+  mkdir -p "${XDG_CONFIG_HOME}/kit" "${BATS_TEST_TMPDIR}/code"
+  printf 'roots: [%s]\nworkspaces: {w: {repos: [github.com/o/a]}}\n' "${BATS_TEST_TMPDIR}/code" \
+    > "${XDG_CONFIG_HOME}/kit/workspaces.yml"
+  cd "${BATS_TEST_TMPDIR}"
+  run --separate-stderr "${kit_root}/bin/kit" --workspace=w platform settings --json
+  [ "$status" -eq 0 ]
+  [ "$output" = '{"rows":[],"errors":[]}' ]
+}
+
 @test "--workspace= reads each cloned member's settings, each row tagged with its member, in the group's order" {
   repo-at "${BATS_TEST_TMPDIR}/code/a" github.com/o/a
   repo-at "${BATS_TEST_TMPDIR}/code/b" github.com/o/b

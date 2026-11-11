@@ -34,7 +34,7 @@ or outside a repository's working tree with no workspace.
 
 | Stage | A row per | Fields | Mark |
 | --- | --- | --- | --- |
-| `services` | capability kit fills | `capability, service, provider, chosen, ready` | a hash of `kit.yml` |
+| `services` | capability kit fills | `capability, service, provider, chosen, ready` | a hash of `kit.yml`, the git configuration, `.kit/policy`, and what `toolchains` hashes |
 | `toolchains` | toolchain and role, as `kit toolchains --json` lists them | `provider, role, usable, active, chosen, fills` | a hash of the pin files and kit's choice |
 | `tools` | tool pinned, as `kit tools --json` lists them | `name, pinned, installed, from` | as `toolchains` |
 | `settings` | key the settings schema names | `setting, value, from` | a hash of `kit.yml` |

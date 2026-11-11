@@ -12,6 +12,12 @@
 #
 # see: modules/bash/forge.sh
 
+forge/github:artifacts() { return 3; }
+
+forge/github:attestations() { return 3; }
+
+forge/github:bots() { return 3; }
+
 # forge/github:branch-for-issue reads the branch from an open pull request's head, so a second run never creates
 # a duplicate <N>-<slug>-1 branch.
 forge/github:branch-for-issue() {
@@ -22,6 +28,18 @@ forge/github:branch-for-issue() {
   forge/github:fold 'the open pull requests' "${heads}" --raw-output --arg n "$1" \
     '[.[] | select(.headRefName | startswith("\($n)-"))] | .[0].headRefName // empty'
 }
+
+forge/github:bypasses() { return 3; }
+
+forge/github:code-scanning-alerts() { return 3; }
+
+forge/github:collaborators() { return 3; }
+
+forge/github:dependabot-alerts() { return 3; }
+
+forge/github:deployments() { return 3; }
+
+forge/github:environments() { return 3; }
 
 # forge/github:issue-add-sub makes the second issue a sub-issue of the first, as the issue page's Relationships do.
 forge/github:issue-add-sub() {
@@ -78,6 +96,8 @@ forge/github:issue-unassign() {
   gh issue edit "$1" --remove-assignee "$2" >/dev/null 2>&1
 }
 
+forge/github:iterations() { return 3; }
+
 # gh issue develop names the branch <N>-<slug>, links it to the issue under Development, and pushes it.
 forge/github:link-branch() {
   gh issue develop "$1" --base "$2" >/dev/null
@@ -112,6 +132,10 @@ forge/github:me() {
     || error "run: gh auth login (the caller's login could not be read)"
   return 1
 }
+
+forge/github:merged-prs() { return 3; }
+
+forge/github:milestones() { return 3; }
 
 forge/github:noun() { printf '#\tpull request\n'; }
 
@@ -383,6 +407,8 @@ forge/github:require() {
   forge/github:me >/dev/null
 }
 
+forge/github:rulesets() { return 3; }
+
 # forge/github:runs prints the builds stage's runs as one JSON array, as the seam's header says. It reads the 50
 # newest runs and keeps those forge.jq's builds keeps. A run's jobs cost a call each, so only the 5 newest runs carry
 # them; a run whose jobs cannot be read keeps none.
@@ -408,6 +434,10 @@ forge/github:runs() {
   done < <(jq --raw-output '.[:5][].id' <<<"${runs}")
   printf '%s\n' "${runs}"
 }
+
+forge/github:secret-scanning-alerts() { return 3; }
+
+forge/github:teams() { return 3; }
 
 # The provider implements contract 4. The calls of the features contract 4 adds are not written yet: each task that
 # writes one drops its feature from lacks.
