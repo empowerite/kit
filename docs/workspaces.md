@@ -26,8 +26,8 @@ workspaces:
 - `favorites` names workspaces to keep at hand: a group's name, or a repository.
 - Each group has `repos`, its members, and may have `exclude`, which takes members back out.
 
-A group's name holds lowercase letters, digits, and `.`, `_`, or `-`, and never `/`. That is how kit tells a name from
-a repository.
+A group's name starts with a lowercase letter or a digit, and holds lowercase letters, digits, and `.`, `_`, or `-`,
+and never `/`. That is how kit tells a name from a repository.
 
 kit checks the file wherever it reads it. It refuses a file that does not parse or is not a map, a group with a key
 other than `repos` and `exclude` (`match` and `project` are not built yet), a group whose name breaks that rule, an
@@ -61,8 +61,15 @@ symbolic link are no checkouts, and kit does not look inside a hidden folder.
 3. Outside any repository, it is the last group used.
 4. With no group used yet, there is none.
 
+A directory is inside a repository when it is in the repository's working tree, where `git rev-parse --show-toplevel`
+answers. A bare repository has no working tree, and a `.git` directory is not in one, so both are outside a
+repository: there, too, kit starts on the last group used, and with none, `kit flow` draws the desks below and `kit
+workspace` refuses.
+
 `kit workspaces --use=<name>` keeps the last group used in `kit/workspaces/last` under `XDG_CACHE_HOME`, else
-`~/.cache`: kit's own to rewrite, apart from your file. A last group the file does not hold is none.
+`~/.cache`: kit's own to rewrite, apart from your file. A last group the file does not hold is none, and
+`kit workspaces --delete` of the last group used forgets it, so a group made later under its name is not the last
+used.
 
 `kit flow`, `kit workspace`, and `kit workspaces --current` follow this rule. Every other verb runs in its folder's
 repository, or refuses outside one, and takes no `--workspace`.
@@ -90,13 +97,14 @@ kit workspaces --favorite=empowerite
 kit workspaces --unfavorite=empowerite
 ```
 
-`--new` and `--add` take a member, a git URL, or a checkout's directory, as `.` for the repository you are in. The
-forms that read print JSON with `--json`; `kit help workspaces` gives the shapes. The forms that edit print one line,
-which says what changed, or that nothing needed to, as `📚 empowerite holds them already`, and take no `--json`. Each
-takes the file's lock first, so two commands that edit the file at once each land.
+`--new`, `--add`, and `--remove` take a member, a git URL, or a checkout's directory, as `.` for the repository you
+are in. The forms that read print JSON with `--json`; `kit help workspaces` gives the shapes. The forms that edit
+print one line, which says what changed, or that nothing needed to, as `📚 empowerite holds them already`, and take
+no `--json`. Each, and `--use`, takes the file's lock first, so two commands that edit the file at once each land.
 
 `kit workspaces` exits 1 when the file cannot be read or edited, as when another command holds its lock past the
-wait of 30 seconds, and 2 for a usage error, an unknown workspace, or a new name that is refused or taken.
+wait of 30 seconds by the clock, or `kit/workspaces/` under `XDG_CACHE_HOME` cannot be written, and 2 for a usage
+error, an unknown workspace, or a new name that is refused or taken.
 
 ## kit flow over a workspace
 

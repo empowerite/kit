@@ -299,7 +299,7 @@ These were not decided in the brainstorm. Each is a default the design takes unt
 - A member named by host and path; checkouts found under `roots`, four levels down.
 - Outside any repository with no group ever used, there is no workspace, and `kit flow` behaves as today;
   `--workspace none` brings that back where a group would be drawn.
-- Only `kit flow` and `kit workspaces` take `--workspace` for now; the verbs that act are unchanged.
+- Only `kit flow`, `kit workspace`, and `kit workspaces` take `--workspace`; the verbs that act are unchanged.
 - Only kit reads and writes `workspaces.yml`; kittui goes through `kit workspaces --json`.
 - A checkout belongs only to the member its primary remote points at, so a fork's clone is counted once.
 - An issue from a tracker several members share appears once, keyed by tracker and id, under each member's group.
