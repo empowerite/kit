@@ -55,7 +55,7 @@ func FrozenLines(h Host) int {
 	if k == 0 {
 		return 0
 	}
-	return len(grid.Draw(h.Rows()[:k], h.Names(), h.GridWidth(), -1, h.Table().Open.Open, func(grid.Row) string { return "" }))
+	return len(grid.Draw(h.Rows()[:k], h.Names(), h.GridWidth(), h.Table().Shift, -1, h.Table().Open.Open, func(grid.Row) string { return "" }))
 }
 
 // Gap gives how many blank lines set a header of those lines apart from the frozen lines over it, as many as there

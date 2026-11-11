@@ -245,7 +245,7 @@ func (m Model) headerLines() (lines []string, hides bool) {
 		return nil, false
 	}
 	if s := m.stages[m.stage]; !m.noHeaders && !s.src.Loading && s.refusal == "" && !s.planned {
-		lines, hides = table.Headed(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), m.indent(m.stage),
+		lines, hides = table.Headed(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), s.Shift, m.indent(m.stage),
 			s.Open[table.HeaderKey])
 	}
 	if len(lines) == 0 {
@@ -341,12 +341,13 @@ func (m Model) allLines(i int) []table.Line {
 }
 
 // drawnFor says what a stage's lines are drawn for, beyond what its rows were built for: the rows themselves, the row
-// under the cursor, the rows and headings open, and the rows selected. Lines drawn for the same are the same, so
-// allLines draws them once and every key, click, and drawing after reuses them, however many lines an open row has.
+// under the cursor, the columns scrolled past, the rows and headings open, and the rows selected. Lines drawn for the
+// same are the same, so allLines draws them once and every key, click, and drawing after reuses them, however many
+// lines an open row has.
 func (m Model) drawnFor(i int, rows []row, chosen int) string {
 	s := m.stages[i]
 	var b strings.Builder
-	fmt.Fprintf(&b, "%p %d %d %d", &rows[0], len(rows), chosen, m.gridWidth(i))
+	fmt.Fprintf(&b, "%p %d %d %d %d", &rows[0], len(rows), chosen, m.gridWidth(i), s.Shift)
 	for _, k := range slices.Sorted(maps.Keys(s.Open)) {
 		fmt.Fprintf(&b, "\x00o%s=%t", k, s.Open[k])
 	}
@@ -362,8 +363,8 @@ func (m Model) drawnFor(i int, rows []row, chosen int) string {
 // table.Drawing draws them, in the stage's color.
 func (m Model) draw(i int, rows []row, chosen int) []table.Line {
 	s := m.stages[i]
-	d := table.Drawing{Names: m.names(i), Width: m.gridWidth(i), Pane: m.paneWidth(), Indent: m.indent(i), Open: s.Open,
-		Picked: s.Picked, Color: stageColors[s.name]}
+	d := table.Drawing{Names: m.names(i), Width: m.gridWidth(i), Shift: s.Shift, Pane: m.paneWidth(), Indent: m.indent(i),
+		Open: s.Open, Picked: s.Picked, Color: stageColors[s.name]}
 	return d.Draw(rows, chosen)
 }
 

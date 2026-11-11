@@ -725,8 +725,12 @@ const (
 	closes     = inRows + " ← hide"
 )
 
-// keysFor gives the keys bar for the screen as it is: in rows more than the pane shows, the page keys move a page at a time.
+// keysFor gives the keys bar for the screen as it is: in rows more than the pane shows, the page keys move a page at a
+// time; in rows wider than the pane, tab and shift-tab scroll their columns.
 func keysFor(m Model, keys string) string {
+	if _, before, after := table.Scrolled(&m); m.inRows && (before || after) {
+		keys = strings.Replace(keys, "↑↓ move ", "↑↓ move ⇥·⇧⇥ columns ", 1)
+	}
 	if m.inRows && len(m.lines(m.stage)) > m.rowsHeight() {
 		keys = strings.Replace(keys, "↑↓ move ", "↑↓ move ⇞⇟ page ", 1)
 	}

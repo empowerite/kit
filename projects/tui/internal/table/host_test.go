@@ -36,7 +36,7 @@ func (h *host) Lines() []Line {
 		chosen = h.tbl.Cursor
 	}
 	var out []Line
-	for _, l := range grid.Draw(rows, h.Names(), h.GridWidth(), chosen, h.tbl.Open.Open, func(grid.Row) string { return "" }) {
+	for _, l := range grid.Draw(rows, h.Names(), h.GridWidth(), h.tbl.Shift, chosen, h.tbl.Open.Open, func(grid.Row) string { return "" }) {
 		out = append(out, Line{Row: l.Row, Text: l.Text})
 	}
 	return out
@@ -48,7 +48,7 @@ func (h *host) Header() ([]string, bool) {
 	if !slices.ContainsFunc(rows, func(r grid.Row) bool { return !r.Aside }) {
 		return nil, false
 	}
-	lines, hides := grid.Header(rows, h.Names(), h.GridWidth(), h.tbl.Open[HeaderKey])
+	lines, hides := grid.Header(rows, h.Names(), h.GridWidth(), h.tbl.Shift, h.tbl.Open[HeaderKey])
 	return append(lines, "────"), hides
 }
 

@@ -29,8 +29,9 @@ func GroupHeadings(h Host) int {
 
 // RowKeys gives the segment of the host's rows while they have the keyboard: esc gives the bar the keyboard; up and
 // down move, a page at a time too while the rows are more than the pane shows, and home and end to the first and the
-// last, unnamed until a test shows the keys arrive in Terminal.app and iTerm; [ and ] move between the groups'
-// headings where there are more than one; space selects a row, shift with up or down selects as it moves, and ctrl+a
+// last, unnamed until a test shows the keys arrive in Terminal.app and iTerm; tab and shift-tab scroll the columns
+// while the view hides some, as grid.Scroll says; [ and ] move between the groups' headings where there are more than
+// one; space selects a row, shift with up or down selects as it moves, and ctrl+a
 // every row; right shows what the node under the cursor holds, a row's lines or a group's rows, and left hides it,
 // the one that acts named. ⌥ with an arrow is named only where alt says the terminal tells it apart, as the kitty
 // keyboard protocol does: a macOS terminal with its default settings sends it as another key, or as the arrow alone.
@@ -39,6 +40,9 @@ func RowKeys(h Host, alt bool) shell.Segment {
 		Bindings: []shell.Binding{shell.Bind("esc", TabsHint), shell.Bind("↑↓", "move", "up", "down")}}
 	if len(ScrollLines(h)) > RowsHeight(h) {
 		seg.Bindings = append(seg.Bindings, shell.Bind("⇞⇟", "page", "pgup", "pgdown"))
+	}
+	if _, before, after := Scrolled(h); before || after {
+		seg.Bindings = append(seg.Bindings, shell.Bind("⇥·⇧⇥", "columns", "tab", "shift+tab"))
 	}
 	if GroupHeadings(h) > 1 {
 		// [ and ] move between the groups' headings, { and } to the first and the last, unnamed

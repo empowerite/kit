@@ -767,3 +767,91 @@ func TestTheWheelScrollsTheRowsAndLeavesTheCursor(t *testing.T) {
 		t.Errorf("a turn under the columns dialog scrolled: offset %d", s.tbl.Offset)
 	}
 }
+
+// broad is a sheet of rows wider than a screen 40 cells wide: an id, then three columns of twelve cells.
+func broad(width int) Sheet {
+	field := func(id string) Field {
+		return Field{ID: id, Label: id, Type: "text", Renderings: []string{"text"}, Placement: PlaceColumn}
+	}
+	s := NewSheet(&Schema{Fields: []Field{field("id"), field("aa"), field("bb"), field("cc")},
+		Presets: []Preset{{Name: Opening}}}, "broad", "75", "")
+	s.Place(4, 10, width, 24)
+	var records []Record
+	for _, id := range []string{"1", "2"} {
+		records = append(records, Record{Row: grid.Row{Key: id}, Values: map[string]Value{"id": One("#" + id),
+			"aa": One("aaaaaaaaaa" + id), "bb": One("bbbbbbbbbb" + id), "cc": One("cccccccccc" + id)}})
+	}
+	s.SetRecords(records)
+	return s
+}
+
+func TestTabAndATriangleScrollTheColumnsOfATableWiderThanTheScreen(t *testing.T) {
+	s := broad(40)
+	screen := func() string { return strings.Join(screenOf(s), "\n") }
+	if got := screen(); !strings.Contains(got, grid.After) || strings.Contains(got, grid.Before) ||
+		strings.Contains(got, "cccccccccc1") || strings.Contains(got, "…") {
+		t.Fatalf("the columns past the edge hide behind ▹, uncut:\n%s", got)
+	}
+	s.FocusRows()
+	if line := shellLine(RowKeys(&s, false)); !strings.Contains(line, "⇥·⇧⇥ columns") {
+		t.Errorf("the keys of a table cut: %s", line)
+	}
+	if took := pressed(&s, "tab"); !took[0] {
+		t.Fatal("tab in the rows of a table cut")
+	}
+	if got := screen(); !strings.Contains(got, "#1 ◃") && !strings.Contains(got, grid.Before) ||
+		!strings.Contains(got, "cccccccccc1") || strings.Contains(got, "aaaaaaaaaa1") || !strings.Contains(got, "#1") {
+		t.Errorf("tab scrolls a column, the id put:\n%s", got)
+	}
+	if pressed(&s, "tab"); s.tbl.Shift != 1 {
+		t.Errorf("tab past the last column: shift %d", s.tbl.Shift)
+	}
+	if pressed(&s, "shift+tab"); s.tbl.Shift != 0 || !strings.Contains(screen(), "aaaaaaaaaa1") {
+		t.Errorf("shift+tab scrolls back: shift %d\n%s", s.tbl.Shift, screen())
+	}
+	// a plain click on ▹ scrolls right, and on ◃ left
+	if !clickOn(t, &s, grid.After, 0) || s.tbl.Shift != 1 {
+		t.Errorf("a click on ▹: shift %d", s.tbl.Shift)
+	}
+	if !clickOn(t, &s, grid.Before, 0) || s.tbl.Shift != 0 {
+		t.Errorf("a click on ◃: shift %d", s.tbl.Shift)
+	}
+	if !s.InRows() {
+		t.Error("a triangle leaves the keyboard where it was")
+	}
+}
+
+func TestATableThatFitsTakesNoTab(t *testing.T) {
+	s := broad(80)
+	s.FocusRows()
+	if line := shellLine(RowKeys(&s, false)); strings.Contains(line, "columns") {
+		t.Errorf("the keys of a table that fits: %s", line)
+	}
+	if took := pressed(&s, "tab", "shift+tab"); took[0] || took[1] {
+		t.Errorf("tab and shift+tab in a table that fits: %v", took)
+	}
+	if got := strings.Join(screenOf(s), "\n"); strings.ContainsAny(got, grid.Before+grid.After) {
+		t.Errorf("a table that fits draws no triangle:\n%s", got)
+	}
+}
+
+func TestAColumnMovedPastTheEdgeScrollsIntoView(t *testing.T) {
+	s := broad(40)
+	if clickOn(t, &s, "bb ", 0); !s.Layered() {
+		t.Fatal("a click on the header's bb drops its menu")
+	}
+	pressed(&s, "shift+right")
+	if x, name := s.HeaderName("bb"); name != "bb" || x < 0 || s.tbl.Shift != 1 {
+		t.Errorf("bb moved past the edge: at %d %q, shift %d\n%s", x, name, s.tbl.Shift,
+			strings.Join(screenOf(s), "\n"))
+	}
+}
+
+func TestOnlyTheHeadersFirstLineHasTriangles(t *testing.T) {
+	s := broad(40)
+	x, _ := spot(s, grid.After)
+	_, row := spot(s, "#1")
+	if d := ArrowAt(&s, x, row); d != 0 {
+		t.Errorf("ArrowAt on a row, under ▹ = %d, want 0", d)
+	}
+}

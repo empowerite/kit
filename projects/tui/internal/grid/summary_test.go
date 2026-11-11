@@ -26,12 +26,12 @@ func labeled() []Row {
 }
 
 func TestACellWithASummaryShowsItClosedAndItsValuesDownItsColumnOpen(t *testing.T) {
-	closed := plain(Draw(labeled(), nil, 40, -1, func(Row) bool { return false }, nil))
+	closed := plain(Draw(labeled(), nil, 40, 0, -1, func(Row) bool { return false }, nil))
 	if want := []string{"  ▸ #1  3                 a title", "  ▸ #2  1                 two",
 		"    #3                    three"}; !slices.Equal(closed, want) {
 		t.Errorf("closed:\n%s\nwant\n%s", strings.Join(closed, "\n"), strings.Join(want, "\n"))
 	}
-	open := plain(Draw(labeled(), nil, 40, -1, func(Row) bool { return true }, nil))
+	open := plain(Draw(labeled(), nil, 40, 0, -1, func(Row) bool { return true }, nil))
 	want := []string{
 		"  ▾ #1  bug               a title",
 		"        priority high",
@@ -52,7 +52,7 @@ func TestTwoListsInAnOpenRowEachKeepTheirColumn(t *testing.T) {
 	list := func(values ...string) Cell { return Cell{Values: values, Raw: values, Summary: "2"} }
 	rows := []Row{{Key: "a", Cells: []Cell{{Values: []string{"a"}}, list("remote", "primary"), list("x y", "z"),
 		{Values: []string{"meaning"}, Wrap: true}}}}
-	got := plain(Draw(rows, nil, 60, -1, func(Row) bool { return true }, nil))
+	got := plain(Draw(rows, nil, 60, 0, -1, func(Row) bool { return true }, nil))
 	want := []string{"  ▾ a  remote   x y  meaning", "       primary  z"}
 	if !slices.Equal(got, want) {
 		t.Errorf("open:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))

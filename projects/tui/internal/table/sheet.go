@@ -287,8 +287,8 @@ func (s *Sheet) Lines() []Line {
 	if s.inRows && s.tbl.Cursor < len(rows) {
 		chosen = s.tbl.Cursor
 	}
-	d := Drawing{Names: s.Names(), Width: s.GridWidth(), Pane: s.paneWidth(), Indent: s.paneWidth() - s.GridWidth(),
-		Open: s.tbl.Open, Picked: s.tbl.Picked, Color: s.color}
+	d := Drawing{Names: s.Names(), Width: s.GridWidth(), Shift: s.tbl.Shift, Pane: s.paneWidth(),
+		Indent: s.paneWidth() - s.GridWidth(), Open: s.tbl.Open, Picked: s.tbl.Picked, Color: s.color}
 	return d.Draw(rows, chosen)
 }
 
@@ -298,7 +298,8 @@ func (s *Sheet) Header() ([]string, bool) {
 	if !slices.ContainsFunc(rows, func(r grid.Row) bool { return !r.Aside }) {
 		return nil, false
 	}
-	lines, hides := Headed(rows, s.Names(), s.GridWidth(), s.paneWidth()-s.GridWidth(), s.tbl.Open[HeaderKey])
+	lines, hides := Headed(rows, s.Names(), s.GridWidth(), s.tbl.Shift, s.paneWidth()-s.GridWidth(),
+		s.tbl.Open[HeaderKey])
 	if len(lines) == 0 {
 		return nil, false
 	}
@@ -468,7 +469,8 @@ func (s *Sheet) key(k tea.KeyPressMsg) bool {
 
 // rowKey takes a key while the rows have the keyboard, and says whether it took it: esc gives the screen the keyboard,
 // the rows' window back at its top; up and down move, past the first row to the control line; a page, home, and end
-// move further; [ ] { } move between the groups' headings; right and left show and hide what the node under the cursor
+// move further; tab and shift-tab scroll the columns a column, while the view hides some; [ ] { } move between the
+// groups' headings; right and left show and hide what the node under the cursor
 // holds, a level at a time with ⌥; space selects the row, or a group's rows, shift with up or down selects as it
 // moves, and ctrl+a every row.
 func (s *Sheet) rowKey(k tea.KeyPressMsg) bool {
@@ -490,6 +492,15 @@ func (s *Sheet) rowKey(k tea.KeyPressMsg) bool {
 		End(s, 1)
 	case "[", "]", "{", "}":
 		Group(s, key)
+	case "tab", "shift+tab":
+		if _, before, after := Scrolled(s); !before && !after {
+			return false
+		}
+		d := 1
+		if key == "shift+tab" {
+			d = -1
+		}
+		ScrollColumns(s, d)
 	case "right", "alt+right":
 		Expand(s, true, key == "alt+right")
 	case "left", "alt+left":
@@ -555,9 +566,9 @@ func (s *Sheet) Wheel(w tea.MouseWheelMsg) bool {
 // click takes a plain click on the pane: on the control line, on a level's ▾ or ▸ it opens or closes the level, on a
 // column's name it drops the column's menu around it, and elsewhere the preset line has the keyboard, and on the
 // selector the presets drop down; on the rule, a sort's target turns its sort, a shift-click off, and a list's ×
-// flattens or gathers it; on the header, its fold opens or closes it, and a column's name drops the column's menu
-// down; on a row, the cursor goes there, the rows have the keyboard, and its ▸ or ▾ opens or closes it. A line about
-// the table does nothing.
+// flattens or gathers it; on the header, its ▹ or ◃ scrolls the columns, its fold opens or closes it, and a column's
+// name drops the column's menu down; on a row, the cursor goes there, the rows have the keyboard, and its ▸ or ▾ opens
+// or closes it. A line about the table does nothing.
 func (s *Sheet) click(x, y int, shift bool) {
 	switch _, onHeader := HeaderLine(s, y); {
 	case s.Controls() && y == s.top:
@@ -572,6 +583,8 @@ func (s *Sheet) click(x, y int, shift bool) {
 		}
 	case onHeader:
 		switch _, fold, column := HeaderHit(s, x, y); {
+		case ArrowAt(s, x, y) != 0:
+			ScrollColumns(s, ArrowAt(s, x, y))
 		case fold:
 			ToggleHeader(s)
 		case column != "":

@@ -38,7 +38,7 @@ func plain(lines []Line) []string {
 }
 
 func TestAClosedRowShowsTheFirstValueWithItsCountRightAlignedAndTheTextCut(t *testing.T) {
-	got := plain(Draw(issues(), nil, 40, -1, func(Row) bool { return false }, nil))
+	got := plain(Draw(issues(), nil, 40, 0, -1, func(Row) bool { return false }, nil))
 	want := []string{
 		"  ▸  #1  👤 ada +1   2h  a title long e…",
 		"    #22  👤 carol   40d  short",
@@ -50,7 +50,7 @@ func TestAClosedRowShowsTheFirstValueWithItsCountRightAlignedAndTheTextCut(t *te
 }
 
 func TestAnOpenRowShowsEveryValueAndWrapsItsTextInItsColumnThenItsDetail(t *testing.T) {
-	got := plain(Draw(issues(), nil, 40, -1, func(Row) bool { return true }, nil))
+	got := plain(Draw(issues(), nil, 40, 0, -1, func(Row) bool { return true }, nil))
 	want := []string{
 		"  ▾  #1  👤 ada      2h  a title long",
 		"         👤 bob          enough to wrap",
@@ -63,7 +63,7 @@ func TestAnOpenRowShowsEveryValueAndWrapsItsTextInItsColumnThenItsDetail(t *test
 		t.Errorf("open:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 	// a row that hides nothing never opens, and every line says which row it is of
-	lines := Draw(issues(), nil, 40, -1, func(Row) bool { return true }, nil)
+	lines := Draw(issues(), nil, 40, 0, -1, func(Row) bool { return true }, nil)
 	if rows := []int{lines[0].Row, lines[2].Row, lines[3].Row, lines[5].Row}; !slices.Equal(rows, []int{0, 0, 1, 2}) {
 		t.Errorf("the lines' rows: %v", rows)
 	}
@@ -125,21 +125,21 @@ func TestLinkAtFindsTheLinkedGlyphOrFirstWordUnderAColumn(t *testing.T) {
 	title := len(lead) + 3 + gap + ansi.StringWidth("👤 ada +1") + gap + 3 + gap
 	for x, want := range map[int]string{title: "https://example/1", title + 1: "", title + 2: "",
 		len(lead) + 1: "https://example/number", len(lead): "", 0: ""} {
-		if got := LinkAt(rows, nil, 0, 40, x); got != want {
+		if got := LinkAt(rows, nil, 0, 40, 0, x); got != want {
 			t.Errorf("at %d: %q, want %q", x, got, want)
 		}
 	}
-	if got := LinkAt(rows, nil, 3, 40, len(lead)+1); got != "https://example/span" {
+	if got := LinkAt(rows, nil, 3, 40, 0, len(lead)+1); got != "https://example/span" {
 		t.Errorf("a span's glyph: %q", got)
 	}
-	if got := LinkAt(rows, nil, 3, 40, len(lead)+2); got != "" {
+	if got := LinkAt(rows, nil, 3, 40, 0, len(lead)+2); got != "" {
 		t.Errorf("after a span's glyph: %q", got)
 	}
 }
 
 // The band marks the cursor's row, so its first cell is bold in the accent and not underlined.
 func TestTheCursorsRowIsOnABandWithItsFirstCellChosen(t *testing.T) {
-	lines := Draw(issues(), nil, 40, 1, func(Row) bool { return false }, nil)
+	lines := Draw(issues(), nil, 40, 0, 1, func(Row) bool { return false }, nil)
 	band, _, _ := strings.Cut(style.Band("x", 1), "x")
 	chosen, _, _ := strings.Cut(style.Mark("#"), "#")
 	underlined, _, _ := strings.Cut(style.Chosen("#"), "#")
@@ -156,7 +156,7 @@ func TestAChosenCellThatIsDimIsDrawnChosenAlone(t *testing.T) {
 	rows := []Row{{Key: "a", Cells: []Cell{{Values: []string{style.Off("abc")}}, one("x")}}}
 	chosen, _, _ := strings.Cut(style.Mark("a"), "a")
 	dim, _, _ := strings.Cut(style.Off("a"), "a")
-	if got := Draw(rows, nil, 20, 0, func(Row) bool { return false }, nil)[0].Text; !strings.Contains(got, chosen+"a") ||
+	if got := Draw(rows, nil, 20, 0, 0, func(Row) bool { return false }, nil)[0].Text; !strings.Contains(got, chosen+"a") ||
 		strings.Contains(got, dim) {
 		t.Errorf("a dim first cell under the cursor: %q", got)
 	}
@@ -164,8 +164,8 @@ func TestAChosenCellThatIsDimIsDrawnChosenAlone(t *testing.T) {
 
 func TestARowOfOneCellSpansTheWidthAndOpensWhenItsTextIsCut(t *testing.T) {
 	rows := []Row{{Key: "h", Cells: []Cell{{Values: []string{"a heading far too long for the pane"}, Wrap: true}}}}
-	closed := plain(Draw(rows, nil, 20, -1, func(Row) bool { return false }, nil))
-	open := plain(Draw(rows, nil, 20, -1, func(Row) bool { return true }, nil))
+	closed := plain(Draw(rows, nil, 20, 0, -1, func(Row) bool { return false }, nil))
+	open := plain(Draw(rows, nil, 20, 0, -1, func(Row) bool { return true }, nil))
 	if !slices.Equal(closed, []string{"  ▸ a heading far t…"}) || len(open) != 3 || open[1] != "    too long for the" {
 		t.Errorf("closed %q, open %q", closed, open)
 	}
@@ -175,7 +175,7 @@ func TestARowOfOneCellSpansTheWidthAndOpensWhenItsTextIsCut(t *testing.T) {
 // fewer, and a word wider than the pane stands alone, so each line is clipped, as an open row of several cells is.
 func TestAnOpenRowOfOneCellIsNoWiderThanThePane(t *testing.T) {
 	rows := []Row{{Key: "h", Cells: []Cell{{Values: []string{"📡 origin · github · github.com"}, Wrap: true}}}}
-	open := plain(Draw(rows, nil, 12, -1, func(Row) bool { return true }, nil))
+	open := plain(Draw(rows, nil, 12, 0, -1, func(Row) bool { return true }, nil))
 	if len(open) < 2 || !strings.HasPrefix(open[0], "  ▾ 📡") {
 		t.Fatalf("the row does not open: %q", open)
 	}
@@ -298,7 +298,7 @@ func TestTheFilterKeepsWhatTheSearchAndShowLetThroughAndDropsHiddenColumns(t *te
 	}
 	// a hidden column is left out of every row
 	p = Panel{Fields: map[string]Field{"who": {Placement: Hidden}}}
-	got := plain(Draw(p.Filter(issues(), columns), nil, 40, -1, func(Row) bool { return false }, nil))
+	got := plain(Draw(p.Filter(issues(), columns), nil, 40, 0, -1, func(Row) bool { return false }, nil))
 	if strings.Contains(strings.Join(got, "\n"), "👤") || !strings.HasPrefix(got[1], "    #22  40d  short") {
 		t.Errorf("who hidden:\n%s", strings.Join(got, "\n"))
 	}
@@ -331,9 +331,9 @@ func TestTheHeaderStandsEachNameOverItsColumn(t *testing.T) {
 		}
 		return out
 	}
-	closed, hides := Header(rows, names, 40, false)
+	closed, hides := Header(rows, names, 40, 0, false)
 	plain := strip(closed)
-	drawn := ansi.Strip(Draw(rows, names, 40, -1, func(Row) bool { return false }, nil)[1].Text)
+	drawn := ansi.Strip(Draw(rows, names, 40, 0, -1, func(Row) bool { return false }, nil)[1].Text)
 	// changes widens its column; fork is over no text, and left out; the title's name wraps, the header closed
 	if !hides || len(closed) != 1 || plain[0] != "  ▸  id  changes  the title of the issue" || strings.Contains(plain[0], "fork") {
 		t.Fatalf("the closed header:\n%s", strings.Join(plain, "\n"))
@@ -350,15 +350,15 @@ func TestTheHeaderStandsEachNameOverItsColumn(t *testing.T) {
 	if !strings.Contains(closed[0], style.Label("id")) || !strings.Contains(closed[0], style.Off("▸")) {
 		t.Errorf("the names are not bold, or ▸ not dim: %q", closed[0])
 	}
-	open, _ := Header(rows, names, 40, true)
+	open, _ := Header(rows, names, 40, 0, true)
 	if plain := strip(open); len(open) != 2 || !strings.HasPrefix(plain[0], "  ▾  id") || !strings.HasPrefix(plain[1], "     ") ||
 		!strings.HasSuffix(plain[1], "it closes") {
 		t.Errorf("the open header:\n%s", strings.Join(plain, "\n"))
 	}
-	if got, hides := Header(rows, names[:3], 40, false); hides || strings.Contains(ansi.Strip(got[0]), "▸") {
+	if got, hides := Header(rows, names[:3], 40, 0, false); hides || strings.Contains(ansi.Strip(got[0]), "▸") {
 		t.Errorf("a header of one line: %q", got)
 	}
-	if got, _ := Header([]Row{{Cells: []Cell{one("a heading")}}}, []string{"x"}, 40, false); got != nil {
+	if got, _ := Header([]Row{{Cells: []Cell{one("a heading")}}}, []string{"x"}, 40, 0, false); got != nil {
 		t.Errorf("rows of one cell have a header: %q", got)
 	}
 }
@@ -367,7 +367,7 @@ func TestTheHeaderStandsEachNameOverItsColumn(t *testing.T) {
 func TestALinkToAPageIsDotted(t *testing.T) {
 	page := Cell{Values: []string{"🎫 a title"}, Link: "https://example/1", Wrap: true}
 	row := Cell{Values: []string{"🔀 #2"}, Link: "kittui:changes/#2"}
-	got := closedLine([]Cell{one("x"), row, page}, []int{1, 5, 0}, 12, 40, false)
+	got := closedLine([]Cell{one("x"), row, page}, []int{1, 5, 0}, 12, 40, 0, false)
 	if !strings.Contains(got, "\x1b[4:4m🎫\x1b[4:0m a title") || strings.Contains(got, "\x1b[4:4m🔀") {
 		t.Errorf("the links: %q", got)
 	}
@@ -383,13 +383,13 @@ func TestAShortTitleLeavesTheRoomAfterTheLastColumn(t *testing.T) {
 		{Key: "a", Cells: []Cell{one("#1"), {Values: []string{"short"}, Wrap: true}, one("ready")}},
 		{Key: "b", Cells: []Cell{one("#2"), {Values: []string{"shorter one"}, Wrap: true}, one("draft")}},
 	}
-	got := ansi.Strip(Draw(rows, nil, 80, -1, func(Row) bool { return false }, nil)[0].Text)
+	got := ansi.Strip(Draw(rows, nil, 80, 0, -1, func(Row) bool { return false }, nil)[0].Text)
 	// the title column is as wide as the widest title, shorter one, even under minFill; the state stands after it
 	if got != "    #1  short        ready" {
 		t.Errorf("a short title: %q", got)
 	}
 	rows[1].Cells[1].Values[0] = "a title of thirty cells, wide."
-	if got := ansi.Strip(Draw(rows, nil, 80, -1, func(Row) bool { return false }, nil)[0].Text); got != "    #1  short"+strings.Repeat(" ", 27)+"ready" {
+	if got := ansi.Strip(Draw(rows, nil, 80, 0, -1, func(Row) bool { return false }, nil)[0].Text); got != "    #1  short"+strings.Repeat(" ", 27)+"ready" {
 		t.Errorf("a title as wide as the longest: %q", got)
 	}
 }
@@ -421,11 +421,11 @@ func TestTheTitleIsTheLastToGiveUpRoom(t *testing.T) {
 	}
 	rows := []Row{{Key: "a", Cells: cells}}
 	width := len(lead) + 2 + 2 + capWidth + 2 + 40
-	closed := ansi.Strip(Draw(rows, nil, width, -1, func(Row) bool { return false }, nil)[0].Text)
+	closed := ansi.Strip(Draw(rows, nil, width, 0, -1, func(Row) bool { return false }, nil)[0].Text)
 	if !strings.Contains(closed, strings.Repeat("b", capWidth-1)+"…  "+strings.Repeat("t", 40)) || !Opens(rows, nil, 0, width) {
 		t.Errorf("the branch cut at the cap: %q", closed)
 	}
-	open := Draw(rows, nil, width, -1, func(Row) bool { return true }, nil)
+	open := Draw(rows, nil, width, 0, -1, func(Row) bool { return true }, nil)
 	if len(open) != 2 || !strings.Contains(open[1].Text, strings.Repeat("b", 30-capWidth)) {
 		t.Errorf("the row open does not break the branch across lines: %v", open)
 	}
@@ -543,14 +543,14 @@ func TestThePanelSortsTheRows(t *testing.T) {
 func TestHeaderAtFindsTheColumnUnderAName(t *testing.T) {
 	rows := []Row{{Cells: []Cell{one("#31"), one(""), one("ready"), {Values: []string{"a title"}, Wrap: true}}}}
 	names := []string{"id", "fork", "state", "title"}
-	header, _ := Header(rows, names, 40, false)
+	header, _ := Header(rows, names, 40, 0, false)
 	plain := ansi.Strip(header[0])
 	for name, want := range map[string]int{"id": 0, "state": 2, "title": 3} {
-		if got := HeaderAt(rows, names, 40, strings.Index(plain, name)); got != want {
+		if got := HeaderAt(rows, names, 40, 0, strings.Index(plain, name)); got != want {
 			t.Errorf("%s: column %d, want %d", name, got, want)
 		}
 	}
-	if HeaderAt(rows, names, 40, 1) != -1 || HeaderAt(rows, names, 40, 39) != -1 || HeaderAt(nil, names, 40, 5) != -1 {
+	if HeaderAt(rows, names, 40, 0, 1) != -1 || HeaderAt(rows, names, 40, 0, 39) != -1 || HeaderAt(nil, names, 40, 0, 5) != -1 {
 		t.Error("a column off the names")
 	}
 }
@@ -561,18 +561,18 @@ func TestHeaderNameSaysWhereANameIsDrawn(t *testing.T) {
 	rows := []Row{{Cells: []Cell{one("#31"), one(""), {Values: []string{"40d"}, Right: true},
 		{Values: []string{"a title"}, Wrap: true}}}}
 	names := []string{"id", "", "the age", "title"}
-	header, _ := Header(rows, names, 40, false)
+	header, _ := Header(rows, names, 40, 0, false)
 	plain := ansi.Strip(header[0])
 	for j, want := range map[int]string{0: "id", 2: "the age", 3: "title"} {
-		x, first := HeaderName(rows, names, 40, j)
+		x, first := HeaderName(rows, names, 40, 0, j)
 		if first != want || !strings.HasPrefix(plain[x:], want) {
 			t.Errorf("column %d: %q at %d in %q", j, first, x, plain)
 		}
 	}
-	if x, first := HeaderName(rows, names, 40, 1); x != -1 || first != "" {
+	if x, first := HeaderName(rows, names, 40, 0, 1); x != -1 || first != "" {
 		t.Errorf("a column with no name: %q at %d", first, x)
 	}
-	if x, _ := HeaderName(rows, names, 40, 9); x != -1 {
+	if x, _ := HeaderName(rows, names, 40, 0, 9); x != -1 {
 		t.Errorf("a column past the rows': %d", x)
 	}
 }
@@ -853,14 +853,14 @@ func TestAGroupsHeadingFoldsItsRowsAway(t *testing.T) {
 	every := Panel{Groupable: p.Groupable}.Grouped("state", false)
 	grouped := every.group(rows, columns)
 	names := []string{"id", "state", "who"}
-	open, _ := Header(grouped, names, 60, false)
+	open, _ := Header(grouped, names, 60, 0, false)
 	folded := shut(every, byFields+"\x00draft", ready).FoldAway(grouped)
-	if closed, _ := Header(folded, names, 60, false); len(folded) != 4 || len(folded[2].Folded) != 2 ||
+	if closed, _ := Header(folded, names, 60, 0, false); len(folded) != 4 || len(folded[2].Folded) != 2 ||
 		!slices.Equal(closed, open) || !slices.Equal(headed(folded, names), headed(grouped, names)) {
 		t.Errorf("every group closed: %d rows, %d folded under ready, header %q, was %q", len(folded),
 			len(folded[2].Folded), closed, open)
 	}
-	if HeaderAt(folded, names, 60, 3) != HeaderAt(grouped, names, 60, 3) {
+	if HeaderAt(folded, names, 60, 0, 3) != HeaderAt(grouped, names, 60, 0, 3) {
 		t.Error("a click on the header of closed groups finds another column")
 	}
 	// opened again, every row is back
@@ -985,7 +985,7 @@ func TestAnOpenRowHangsTheLinesAfterAGlyph(t *testing.T) {
 	}
 	rows := []Row{{Key: "a", Cells: []Cell{one("#1"), {Values: []string{"👤 jeffrey-aguilera-the-long"}, Hang: true},
 		{Values: []string{title}, Wrap: true, Hang: true}}}}
-	if got := plain(openLines(rows[0].Cells, []int{2, 14}, 24, 44, false)); len(got) < 2 || !strings.Contains(got[1], "   ") {
+	if got := plain(openLines(rows[0].Cells, []int{2, 14}, 24, 44, 0, false)); len(got) < 2 || !strings.Contains(got[1], "   ") {
 		t.Errorf("an open row: %q", got)
 	}
 }
@@ -1019,7 +1019,7 @@ func TestASelectionMarkStandsApartFromTheFoldAndInWithItsHeading(t *testing.T) {
 		return Chosen
 	}
 	// the heading over the groups is drawn as nothing, as a screen draws it apart
-	got := plain(Draw(grouped, nil, 60, -1, func(r Row) bool { return Heads(r) }, picked))
+	got := plain(Draw(grouped, nil, 60, 0, -1, func(r Row) bool { return Heads(r) }, picked))
 	want := []string{Partly + " ▾ ready 2", "  " + Partly + " ▾ ada 1", Chosen + "   #1  ready  ada"}
 	for k, w := range want {
 		if !strings.HasPrefix(got[k], w) {
@@ -1384,7 +1384,7 @@ func TestAFlattenedListLeadsFromEachValueToItsOwnLink(t *testing.T) {
 func TestTheTextThatWrapsKeepsItsLines(t *testing.T) {
 	rows := []Row{{Key: "r1", Cells: []Cell{one("0.1.0"),
 		{Values: []string{"## What's Changed\n\n\n* #42 settings, a line long enough to wrap\n* #43 more"}, Wrap: true}}}}
-	if got := plain(Draw(rows, nil, 40, -1, func(Row) bool { return false }, nil)); !slices.Equal(got,
+	if got := plain(Draw(rows, nil, 40, 0, -1, func(Row) bool { return false }, nil)); !slices.Equal(got,
 		[]string{"  ▸ 0.1.0  ## What's Changed"}) {
 		t.Errorf("closed:\n%s", strings.Join(got, "\n"))
 	}
@@ -1395,7 +1395,163 @@ func TestTheTextThatWrapsKeepsItsLines(t *testing.T) {
 		"           enough to wrap",
 		"           * #43 more",
 	}
-	if got := plain(Draw(rows, nil, 40, -1, func(Row) bool { return true }, nil)); !slices.Equal(got, want) {
+	if got := plain(Draw(rows, nil, 40, 0, -1, func(Row) bool { return true }, nil)); !slices.Equal(got, want) {
 		t.Errorf("open:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+// wide is a row of columns wider together than a pane of 34 cells: an id, then three of ten cells, the last linked.
+func wide() ([]Row, []string) {
+	c := one("cccccccccc")
+	c.Link = "https://example/c"
+	return []Row{{Key: "#1", Cells: []Cell{one("#1"), one("aaaaaaaaaa"), one("bbbbbbbbbb"), c}}},
+		[]string{"id", "a", "b", "c"}
+}
+
+func TestColumnsPastTheEdgeHideBehindATriangleAndScrollAColumnAtATime(t *testing.T) {
+	rows, names := wide()
+	closed := func(Row) bool { return false }
+	// unscrolled, the columns that stand whole show, and ▹ stands at the header's right end for the one past the edge
+	head, _ := Header(rows, names, 34, 0, false)
+	if got, want := ansi.Strip(head[0]), "    id  a           b            ▹"; got != want {
+		t.Errorf("header, unscrolled:\n got %q\nwant %q", got, want)
+	}
+	if got, want := plain(Draw(rows, names, 34, 0, -1, closed, nil))[0], "    #1  aaaaaaaaaa  bbbbbbbbbb"; got != want {
+		t.Errorf("row, unscrolled:\n got %q\nwant %q", got, want)
+	}
+	if to, before, after := Scroll(rows, names, 34, 0); to != 0 || before || !after {
+		t.Errorf("Scroll, unscrolled = %d, %v, %v, want 0, false, true", to, before, after)
+	}
+	// a column scrolled, the id stays put, ◃ stands after it, and the last column shows whole
+	head, _ = Header(rows, names, 34, 1, false)
+	if got, want := ansi.Strip(head[0]), "    id ◃ b           c"; got != want {
+		t.Errorf("header, scrolled:\n got %q\nwant %q", got, want)
+	}
+	if got, want := plain(Draw(rows, names, 34, 1, -1, closed, nil))[0], "    #1   bbbbbbbbbb  cccccccccc"; got != want {
+		t.Errorf("row, scrolled:\n got %q\nwant %q", got, want)
+	}
+	// it scrolls no further than shows the last column
+	if to, before, after := Scroll(rows, names, 34, 5); to != 1 || !before || after {
+		t.Errorf("Scroll, past the end = %d, %v, %v, want 1, true, false", to, before, after)
+	}
+	if got, want := plain(Draw(rows, names, 34, 5, -1, closed, nil))[0], "    #1   bbbbbbbbbb  cccccccccc"; got != want {
+		t.Errorf("row, past the end:\n got %q\nwant %q", got, want)
+	}
+}
+
+func TestTheTrianglesAndTheNamesStandWhereTheViewScrolledThem(t *testing.T) {
+	rows, names := wide()
+	if before, after := Arrows(rows, names, 34, 0); before != -1 || after != 33 {
+		t.Errorf("Arrows, unscrolled = %d, %d, want -1, 33", before, after)
+	}
+	if before, after := Arrows(rows, names, 34, 1); before != 7 || after != -1 {
+		t.Errorf("Arrows, scrolled = %d, %d, want 7, -1", before, after)
+	}
+	if j := HeaderAt(rows, names, 34, 1, 9); j != 2 {
+		t.Errorf("HeaderAt, scrolled, on b = %d, want 2", j)
+	}
+	if x, name := HeaderName(rows, names, 34, 1, 1); x != -1 || name != "a" {
+		t.Errorf("HeaderName of a column scrolled past = %d, %q, want -1, a", x, name)
+	}
+	if x, name := HeaderName(rows, names, 34, 0, 3); x != -1 || name != "c" {
+		t.Errorf("HeaderName of a column past the edge = %d, %q, want -1, c", x, name)
+	}
+	if x, _ := HeaderName(rows, names, 34, 1, 3); x != 21 {
+		t.Errorf("HeaderName of c, scrolled = %d, want 21", x)
+	}
+	if got := LinkAt(rows, names, 0, 34, 0, 21); got != "" {
+		t.Errorf("LinkAt where c would stand, unscrolled = %q, want none", got)
+	}
+	if got := LinkAt(rows, names, 0, 34, 1, 21); got != "https://example/c" {
+		t.Errorf("LinkAt on c, scrolled = %q, want its link", got)
+	}
+}
+
+func TestATableThatFitsNeitherScrollsNorDrawsATriangle(t *testing.T) {
+	rows, names := wide()
+	head, _ := Header(rows, names, 60, 3, false)
+	if got := ansi.Strip(head[0]); strings.ContainsAny(got, Before+After) {
+		t.Errorf("header that fits = %q, want no triangle", got)
+	}
+	if to, before, after := Scroll(rows, names, 60, 3); to != 0 || before || after {
+		t.Errorf("Scroll that fits = %d, %v, %v, want 0, false, false", to, before, after)
+	}
+}
+
+func TestAnOpenRowIsAsTallAsTheColumnsTheViewShows(t *testing.T) {
+	rows, names := wide()
+	rows[0].Cells[3].Values = []string{"c1", "c2", "c3"}
+	rows[0].Cells[3].Raw = rows[0].Cells[3].Values
+	rows[0].Cells[3].Values[0] = "cccccccccc"
+	open := func(Row) bool { return true }
+	if got := plain(Draw(rows, names, 34, 0, -1, open, nil)); len(got) != 1 {
+		t.Errorf("open, c past the edge = %q, want one line", got)
+	}
+	if got := plain(Draw(rows, names, 34, 1, -1, open, nil)); len(got) != 3 {
+		t.Errorf("open, c shown = %q, want three lines", got)
+	}
+}
+
+func TestAColumnAtTheEdgeIsCutThereWhereItKeepsEnoughCells(t *testing.T) {
+	rows, names := wide()
+	closed := func(Row) bool { return false }
+	// at 40, c has six cells short of ▹: cut there, its name and its value clipped, not wrapped
+	head, hides := Header(rows, names, 40, 0, false)
+	if got, want := ansi.Strip(head[0]), "    id  a           b           c      ▹"; got != want || hides {
+		t.Errorf("header, c cut:\n got %q\nwant %q", got, want)
+	}
+	if got, want := plain(Draw(rows, names, 40, 0, -1, closed, nil))[0], "    #1  aaaaaaaaaa  bbbbbbbbbb  ccccc…"; got != want {
+		t.Errorf("row, c cut:\n got %q\nwant %q", got, want)
+	}
+	if x, name := HeaderName(rows, names, 40, 0, 3); x != 32 || name != "c" {
+		t.Errorf("HeaderName of c cut = %d, %q, want 32, c", x, name)
+	}
+	if got := LinkAt(rows, names, 0, 40, 0, 32); got != "https://example/c" {
+		t.Errorf("LinkAt on c cut = %q, want its link", got)
+	}
+	open := func(Row) bool { return true }
+	rows[0].Cells[3].Values = []string{"cccccccccc", "c2"}
+	if got := plain(Draw(rows, names, 40, 0, -1, open, nil)); len(got) != 2 || !strings.HasSuffix(got[1], "  c2") {
+		t.Errorf("open, c cut = %q, want its values a line each", got)
+	}
+	// a shift shows it whole
+	if to, before, after := Scroll(rows, names, 40, 1); to != 1 || !before || after {
+		t.Errorf("Scroll at 40 = %d, %v, %v, want 1, true, false", to, before, after)
+	}
+}
+
+func TestTheLastColumnAloneAfterTheFirstIsCutWithNoTriangle(t *testing.T) {
+	rows := []Row{{Key: "#1", Cells: []Cell{one("#1"), one(strings.Repeat("a", 40)), one(strings.Repeat("b", 40))}}}
+	names := []string{"id", "a", "b"}
+	if to, before, after := Scroll(rows, names, 30, 9); to != 1 || !before || after {
+		t.Errorf("Scroll = %d, %v, %v, want 1, true, false", to, before, after)
+	}
+	if got := plain(Draw(rows, names, 30, 0, -1, func(Row) bool { return false }, nil))[0]; !strings.HasSuffix(got, "a…") {
+		t.Errorf("row, a cut alone = %q", got)
+	}
+	head, _ := Header(rows, names, 30, 1, false)
+	if got := ansi.Strip(head[0]); strings.Contains(got, After) || !strings.Contains(got, Before) {
+		t.Errorf("header, b alone = %q, want ◃ and no ▹", got)
+	}
+}
+
+func TestTheLinesARowOpensToAreClippedNotScrolled(t *testing.T) {
+	rows, names := wide()
+	rows[0].Detail = [][]Cell{{one("x"), one(strings.Repeat("d", 40))}}
+	rows[0].Cells[1].Values = []string{"aaaaaaaaaa", "a2"}
+	got := plain(Draw(rows, names, 34, 0, -1, func(Row) bool { return true }, nil))
+	if last := got[len(got)-1]; !strings.HasSuffix(last, "d…") || ansi.StringWidth(last) != 34 {
+		t.Errorf("a line the row opens to, wider than the pane = %q, want it clipped at the edge", last)
+	}
+}
+
+func TestANameOverAColumnNoRowFillsStandsNowhere(t *testing.T) {
+	rows, names := wide()
+	rows[0].Cells[2] = Cell{}
+	if x, name := HeaderName(rows, names, 34, 0, 2); x != -1 || name != "" {
+		t.Errorf("HeaderName of a column no row fills = %d, %q, want -1, none", x, name)
+	}
+	if got := LinkAt([]Row{{Key: "empty"}}, names, 0, 34, 0, 5); got != "" {
+		t.Errorf("LinkAt on a row of no cells = %q", got)
 	}
 }

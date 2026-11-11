@@ -267,10 +267,12 @@ func (c Cell) more() string {
 // something. A group's heading stands two cells further out than a row, its ▾ or ▸ where a row's own stands, so the
 // rows under it stand in from it, and what picked gives for it, as Chosen or Partly, in the two cells before, after
 // the heading's own indent, so its mark stands in with it. The heading over the groups is drawn as nothing: a screen
-// draws it apart, over the rows, and it lays the columns out still with what it holds.
-func Draw(rows []Row, head []string, width, cursor int, open func(Row) bool, picked func(Row) string) []Line {
+// draws it apart, over the rows, and it lays the columns out still with what it holds. The columns stand scrolled by
+// shift, as Scroll says, so a row shows the columns the header names over it.
+func Draw(rows []Row, head []string, width, shift, cursor int, open func(Row) bool, picked func(Row) string) []Line {
 	widths := headed(rows, head)
 	cells := width - len(lead)
+	shift, _, _ = Scroll(rows, head, width, shift)
 	var out []Line
 	for k, r := range rows {
 		if OverGroups(r) {
@@ -281,9 +283,9 @@ func Draw(rows []Row, head []string, width, cursor int, open func(Row) bool, pic
 		opened := hides && open(r)
 		var lines []string
 		if opened {
-			lines = openLines(r.Cells, fitted, left, cells, k == cursor)
+			lines = openLines(r.Cells, fitted, left, cells, shift, k == cursor)
 		} else {
-			lines = []string{closedLine(r.Cells, fitted, left, cells, k == cursor)}
+			lines = []string{closedLine(r.Cells, fitted, left, cells, shift, k == cursor)}
 		}
 		mark := " "
 		switch {
@@ -325,44 +327,33 @@ func Draw(rows []Row, head []string, width, cursor int, open func(Row) bool, pic
 	return out
 }
 
-// Header draws the names over the rows' columns, as Draw lays the rows out under them for a pane of so many cells:
-// each name in its column, bold, right-aligned over a number, and wrapped in its column when wider, as only the text
-// that wraps can be, since a name widens any other column to fit it, a word wider than the column broken in it. Like a
-// row, it shows its first line alone, with ▸ in the gutter before it, when it is closed and its names take more; open,
-// every line, with ▾. A column no row has text in is left out, as Draw leaves it. Rows of one cell alone, which span
-// the width, have no header. It says whether it hides lines while it is closed.
-func Header(rows []Row, names []string, width int, open bool) (lines []string, hides bool) {
+// Header draws the names over the rows' columns, as Draw lays the rows out under them for a pane of so many cells,
+// scrolled by shift: each name in its column, bold, right-aligned over a number, and wrapped in its column when wider,
+// as only the text that wraps can be, since a name widens any other column to fit it, a word wider than the column
+// broken in it. Like a row, it shows its first line alone, with ▸ in the gutter before it, when it is closed and its
+// names take more; open, every line, with ▾. A column no row has text in is left out, as Draw leaves it. Where the
+// view hides columns, as Scroll says, its first line has Before after the first column for those scrolled past, and
+// After at its right end for those past the edge. Rows of one cell alone, which span the width, have no header. It
+// says whether it hides lines while it is closed.
+func Header(rows []Row, names []string, width, shift int, open bool) (lines []string, hides bool) {
 	shape := shapeOf(rows)
 	if shape == nil {
 		return nil, false
 	}
 	cells := width - len(lead)
 	widths, left := fit(shape, headed(rows, names), cells)
-	type column struct {
-		lines []string
-		width int
-		right bool
-	}
-	var columns []column
+	shown, room, to, after := view(columnsOf(shape, widths, left), cells, shift)
+	named := make([][]string, len(shown))
 	height := 0
-	for j, c := range shape {
-		w := left
-		if !c.Wrap {
-			if j >= len(widths) || widths[j] == 0 {
-				continue
-			}
-			w = widths[j]
+	for k, col := range shown {
+		switch {
+		case col.j >= len(names) || names[col.j] == "":
+		case col.cut:
+			named[k] = []string{pane.Clip(names[col.j], col.w)}
+		default:
+			named[k] = strings.Split(ansi.Wrap(names[col.j], max(col.w, 1), ""), "\n")
 		}
-		name := ""
-		if j < len(names) {
-			name = names[j]
-		}
-		var lines []string
-		if name != "" {
-			lines = strings.Split(ansi.Wrap(name, max(w, 1), ""), "\n")
-		}
-		columns = append(columns, column{lines, w, c.Right})
-		height = max(height, len(lines))
+		height = max(height, len(named[k]))
 	}
 	hides = height > 1
 	mark := " "
@@ -374,71 +365,210 @@ func Header(rows []Row, names []string, width int, open bool) (lines []string, h
 	}
 	out := make([]string, height)
 	for k := range height {
-		var parts []string
-		for _, c := range columns {
+		parts := make([]string, len(shown))
+		for n, col := range shown {
 			v := ""
-			if k < len(c.lines) {
-				v = style.Label(c.lines[k])
+			if k < len(named[n]) {
+				v = style.Label(named[n][k])
 			}
-			parts = append(parts, pane.Pad(v, c.width, c.right))
+			parts[n] = pane.Pad(v, col.w, shape[col.j].Right)
+		}
+		line := lay(shown, parts)
+		if k == 0 && to > 0 {
+			// Before stands between the first column and those after it, a space either side
+			first := ansi.StringWidth(parts[0])
+			line = parts[0] + " " + Before + " " + ansi.TruncateLeft(line, first+3, "")
+		}
+		text := pane.Clip(strings.TrimRight(line, " "), room)
+		if k == 0 && after {
+			text = pane.Pad(text, room, false) + " " + After
 		}
 		g := lead
 		if k == 0 {
 			g = "  " + mark + " "
 		}
-		out[k] = g + pane.Clip(strings.TrimRight(strings.Join(parts, strings.Repeat(" ", gap)), " "), cells)
+		out[k] = g + text
 	}
 	return out, hides
 }
 
-// HeaderAt gives the column whose name the header draws at the column x of the screen, as an index into the rows'
-// cells, as Header lays the names out for a pane of so many cells; -1 off every name, or with no header.
-func HeaderAt(rows []Row, names []string, width, x int) int {
-	shape := shapeOf(rows)
-	widths, left := fit(shape, headed(rows, names), width-len(lead))
-	at := len(lead)
-	for j, c := range shape {
-		w := left
-		if !c.Wrap {
-			if j >= len(widths) || widths[j] == 0 {
+// Before and After are the triangles the header's first line has where the view hides columns, as the tab bar's hide
+// tabs: Before after the first column, for those scrolled past, and After at the right end, for those past the edge.
+// A click on one scrolls the columns that way, as tab and shift-tab do.
+const (
+	Before = "◃"
+	After  = "▹"
+)
+
+// column is one column a row lays out: its index into the row's cells, its width, and the cell it starts on, as view
+// places it, past the gutter; and whether the view cuts it at its edge, narrower than its width, so its values and its
+// name are clipped there, not wrapped.
+type column struct {
+	j, w, x int
+	cut     bool
+}
+
+// columnsOf gives the columns a row of several cells lays out, in their order, as fit gave their widths and the
+// title's cells: each column with a width, and the title.
+func columnsOf(r []Cell, widths []int, left int) []column {
+	var out []column
+	for j, c := range r {
+		switch {
+		case c.Wrap:
+			out = append(out, column{j: j, w: left})
+		case j < len(widths) && widths[j] > 0:
+			out = append(out, column{j: j, w: widths[j]})
+		}
+	}
+	return out
+}
+
+// view places the columns in so many cells, scrolled by shift as the tab bar's view scrolls, but a column at a time:
+// the first column, which says which row it is, stays put; after it, the columns from the shift'th past it on, each
+// that stands whole in the cells, then the next cut at the edge, as the tab bar cuts a tab there, where that leaves it
+// floorWidth cells, or where it is the first after the first column. It gives the columns it shows, each at the cell
+// it starts on; the cells their line is cut at; the shift it stands at, no further than the one that shows the last
+// column whole, or alone after the first; and whether the view hides or cuts columns past the edge that a further
+// shift shows. A view scrolled sets the columns after the first a cell further from it, for Before between; one that
+// hides columns after cuts the line two cells short, for a space and After. A shift below 0 places every column whole,
+// the line cut at the cells, as the lines a row opens to are.
+func view(cols []column, cells, shift int) (shown []column, room, to int, after bool) {
+	if shift < 0 || len(cols) < 2 {
+		x := 0
+		for _, c := range cols {
+			c.x, x = x, x+c.w+gap
+			shown = append(shown, c)
+		}
+		return shown, cells, 0, false
+	}
+	for to = 0; ; to++ {
+		shown, room, after = place(cols, cells, to)
+		if to >= shift || !after {
+			return shown, room, to, after
+		}
+	}
+}
+
+// place places the columns as view does, scrolled by exactly shift columns past the first, of at least two, and no
+// more than leaves one after the first.
+func place(cols []column, cells, shift int) (shown []column, room int, after bool) {
+	try := func(room int) ([]column, bool) {
+		first := cols[0]
+		first.x = 0
+		shown := []column{first}
+		x := first.w + gap
+		if shift > 0 {
+			x++
+		}
+		for k, c := range cols[1+shift:] {
+			if x+c.w <= room {
+				c.x = x
+				shown = append(shown, c)
+				x += c.w + gap
 				continue
 			}
-			w = widths[j]
+			if left := room - x; left >= floorWidth || k == 0 {
+				c.x, c.w, c.cut = x, max(left, 0), true
+				shown = append(shown, c)
+			}
+			return shown, true
 		}
-		if x >= at && x < at+w && j < len(names) && names[j] != "" {
-			return j
+		return shown, false
+	}
+	// the last column alone after the first leaves nothing to scroll to: it is cut at the edge, with no After
+	if shown, after = try(cells); !after || shift >= len(cols)-2 {
+		return shown, cells, false
+	}
+	shown, _ = try(cells - 2)
+	return shown, cells - 2, true
+}
+
+// Scroll gives how the columns stand scrolled by shift, as Draw and Header lay them out for a pane of so many cells
+// under the header's names: the shift they stand at, no further than the one that shows the last column; and whether
+// the view hides columns before those it shows, past the first, and after them, past the edge. Nothing scrolls where
+// every column stands whole.
+func Scroll(rows []Row, names []string, width, shift int) (to int, before, after bool) {
+	shape := shapeOf(rows)
+	if shape == nil {
+		return 0, false, false
+	}
+	widths, left := fit(shape, headed(rows, names), width-len(lead))
+	_, _, to, after = view(columnsOf(shape, widths, left), width-len(lead), max(shift, 0))
+	return to, to > 0, after
+}
+
+// Arrows gives the columns of the screen Before and After stand on in the header's first line, from the header's own
+// first, as Header draws it scrolled by shift for a pane of so many cells; -1 for one it does not draw.
+func Arrows(rows []Row, names []string, width, shift int) (before, after int) {
+	_, back, on := Scroll(rows, names, width, shift)
+	before, after = -1, -1
+	if back {
+		first := at(rows, names, width, shift)[0]
+		before = first.x + first.w + 1
+	}
+	if on {
+		after = width - 1
+	}
+	return before, after
+}
+
+// at gives the columns the header shows of the rows, as Header places them scrolled by shift for a pane of so many
+// cells, each at the column of the screen it starts on, from the header's own first.
+func at(rows []Row, names []string, width, shift int) []column {
+	shape := shapeOf(rows)
+	if shape == nil {
+		return nil
+	}
+	widths, left := fit(shape, headed(rows, names), width-len(lead))
+	shown, _, _, _ := view(columnsOf(shape, widths, left), width-len(lead), shift)
+	for k := range shown {
+		shown[k].x += len(lead)
+	}
+	return shown
+}
+
+// HeaderAt gives the column whose name the header draws at the column x of the screen, as an index into the rows'
+// cells, as Header lays the names out for a pane of so many cells, scrolled by shift; -1 off every name, or with no
+// header.
+func HeaderAt(rows []Row, names []string, width, shift, x int) int {
+	for _, c := range at(rows, names, width, shift) {
+		if x >= c.x && x < c.x+c.w && c.j < len(names) && names[c.j] != "" {
+			return c.j
 		}
-		at += w + gap
 	}
 	return -1
 }
 
 // HeaderName gives where the header draws the name of the column j, an index into the rows' cells, as Header lays the
-// names out for a pane of so many cells: the column of the screen its first line starts on, from the header's own
-// first, and that line, without its styles; -1 and none where the header draws no name for it.
-func HeaderName(rows []Row, names []string, width, j int) (int, string) {
+// names out for a pane of so many cells, scrolled by shift: the column of the screen its first line starts on, from
+// the header's own first, and that line, without its styles; -1 and none where the header names it not, as a column
+// no row fills, and -1 with its name where the view hides it, scrolled past or past the edge.
+func HeaderName(rows []Row, names []string, width, shift, j int) (int, string) {
+	if j < 0 || j >= len(names) || names[j] == "" {
+		return -1, ""
+	}
 	shape := shapeOf(rows)
+	first := func(w int, cut bool) string {
+		if cut {
+			return ansi.Strip(pane.Clip(names[j], w))
+		}
+		return ansi.Strip(strings.Split(ansi.Wrap(names[j], max(w, 1), ""), "\n")[0])
+	}
+	for _, s := range at(rows, names, width, shift) {
+		if s.j != j {
+			continue
+		}
+		line := first(s.w, s.cut)
+		if shape[j].Right {
+			return s.x + s.w - ansi.StringWidth(line), line
+		}
+		return s.x, line
+	}
 	widths, left := fit(shape, headed(rows, names), width-len(lead))
-	at := len(lead)
-	for k, c := range shape {
-		w := left
-		if !c.Wrap {
-			if k >= len(widths) || widths[k] == 0 {
-				continue
-			}
-			w = widths[k]
+	for _, c := range columnsOf(shape, widths, left) {
+		if c.j == j {
+			return -1, first(c.w, false)
 		}
-		if k == j {
-			if j >= len(names) || names[j] == "" {
-				break
-			}
-			first := ansi.Strip(strings.Split(ansi.Wrap(names[j], max(w, 1), ""), "\n")[0])
-			if c.Right {
-				return at + w - ansi.StringWidth(first), first
-			}
-			return at, first
-		}
-		at += w + gap
 	}
 	return -1, ""
 }
@@ -470,32 +600,29 @@ func Opens(rows []Row, head []string, k, width int) bool {
 }
 
 // LinkAt gives the link of the cell whose first word, its glyph where it draws one, a row's first line draws at the
-// column x, as Draw lays the rows out for a pane of so many cells under the header's names; nothing when no linked
-// word is there. A cell that draws no glyph, as a reference, leads from its first word.
-func LinkAt(rows []Row, head []string, k, width, x int) string {
+// column x, as Draw lays the rows out for a pane of so many cells under the header's names, scrolled by shift; nothing
+// when no linked word is there. A cell that draws no glyph, as a reference, leads from its first word.
+func LinkAt(rows []Row, head []string, k, width, shift, x int) string {
 	r := rows[k].Cells
+	if len(r) == 0 {
+		return ""
+	}
 	widths, left := fit(r, headed(rows, head), width-len(lead))
-	at := len(lead)
-	for j, c := range r {
-		w := left
-		switch {
-		case len(r) == 1:
-			w = width - len(lead)
-		case c.Wrap:
-		case j >= len(widths) || widths[j] == 0:
-			continue
-		default:
-			w = widths[j]
-		}
-		start := at
+	cols := []column{{w: width - len(lead)}}
+	if len(r) > 1 {
+		shift, _, _ = Scroll(rows, head, width, shift)
+		cols, _, _, _ = view(columnsOf(r, widths, left), width-len(lead), shift)
+	}
+	for _, col := range cols {
+		c := r[col.j]
+		start := len(lead) + col.x
 		if c.Right {
-			start += w - ansi.StringWidth(c.face()+c.more())
+			start += col.w - ansi.StringWidth(c.face()+c.more())
 		}
 		word, _, _ := strings.Cut(ansi.Strip(c.face()), " ")
-		if c.Link != "" && x >= start && x < start+min(ansi.StringWidth(word), w) {
+		if c.Link != "" && x >= start && x < start+min(ansi.StringWidth(word), col.w) {
 			return c.Link
 		}
-		at += w + gap
 	}
 	return ""
 }
@@ -506,7 +633,7 @@ func table(rows [][]Cell, width int) []string {
 	lines := make([]string, len(rows))
 	for i, r := range rows {
 		fitted, left := fit(r, widths, width)
-		lines[i] = closedLine(r, fitted, left, width, false)
+		lines[i] = closedLine(r, fitted, left, width, -1, false)
 	}
 	return lines
 }
@@ -675,36 +802,51 @@ func shrink(r []Cell, widths []int, budget, least int, whole bool) {
 }
 
 // closedLine draws a closed row: each cell's first value, padded to its column, +N after it when it holds more, the
-// number right-aligned, the text that wraps cut to the width left; a column with no text is left out. The chosen row's
-// first cell is drawn as choose says, but for a row of one cell, which spans the columns and only the band marks.
-func closedLine(r []Cell, widths []int, left, width int, chosen bool) string {
+// number right-aligned, the text that wraps cut to the width left; a column with no text is left out, and so is one
+// the view hides, scrolled by shift as view says. The chosen row's first cell is drawn as choose says, but for a row
+// of one cell, which spans the columns and only the band marks.
+func closedLine(r []Cell, widths []int, left, width, shift int, chosen bool) string {
 	if len(r) == 1 {
 		return pane.Clip(r[0].first(), width)
 	}
-	var parts []string
-	for j, c := range r {
-		switch {
-		case c.Wrap:
-			parts = append(parts, pane.Pad(dotted(pane.Clip(firstLine(c.first()), left), c), left, false))
-		case j >= len(widths) || widths[j] == 0:
-		default:
-			more := c.more()
-			w := widths[j] - ansi.StringWidth(more)
-			v := dotted(pane.Clip(c.face(), w), c)
-			if len(parts) == 0 {
-				v = choose(v, chosen)
-			}
-			parts = append(parts, pane.Pad(v, w, c.Right)+more)
+	shown, room, _, _ := view(columnsOf(r, widths, left), width, shift)
+	parts := make([]string, len(shown))
+	for k, col := range shown {
+		c := r[col.j]
+		if c.Wrap {
+			parts[k] = pane.Pad(dotted(pane.Clip(firstLine(c.first()), col.w), c), col.w, false)
+			continue
 		}
+		more := c.more()
+		w := col.w - ansi.StringWidth(more)
+		v := dotted(pane.Clip(c.face(), w), c)
+		if k == 0 {
+			v = choose(v, chosen)
+		}
+		parts[k] = pane.Pad(v, w, c.Right) + more
 	}
-	return pane.Clip(strings.TrimRight(strings.Join(parts, strings.Repeat(" ", gap)), " "), width)
+	return pane.Clip(strings.TrimRight(lay(shown, parts), " "), room)
 }
 
-// openLines draws an open row: as many lines as its tallest cell, each value on a line of its own in its column, a value
-// wider than its column broken across lines in it, and the text that wraps wrapped in its; the chosen row's first cell
-// is drawn as choose says, as a closed row's is. Every line is clipped to the width, a row of one cell's too: the wrap
-// keeps lines ten cells wide where the width is less, and a word wider than the width stands alone.
-func openLines(r []Cell, widths []int, left, width int, chosen bool) []string {
+// lay gives the columns' parts of a line, the first first, then each after the cells view sets between it and the
+// column before it, a gap, or a cell more after the first where the view is scrolled.
+func lay(cols []column, parts []string) string {
+	var line strings.Builder
+	for k, col := range cols {
+		if k > 0 {
+			line.WriteString(strings.Repeat(" ", col.x-cols[k-1].x-cols[k-1].w))
+		}
+		line.WriteString(parts[k])
+	}
+	return line.String()
+}
+
+// openLines draws an open row: as many lines as its tallest cell the view shows, scrolled by shift as view says, each
+// value on a line of its own in its column, a value wider than its column broken across lines in it, and the text that
+// wraps wrapped in its; the chosen row's first cell is drawn as choose says, as a closed row's is. Every line is
+// clipped to the width, a row of one cell's too: the wrap keeps lines ten cells wide where the width is less, and a
+// word wider than the width stands alone.
+func openLines(r []Cell, widths []int, left, width, shift int, chosen bool) []string {
 	if len(r) == 1 {
 		lines := wrapped(r[0], width)
 		for k, l := range lines {
@@ -712,43 +854,44 @@ func openLines(r []Cell, widths []int, left, width int, chosen bool) []string {
 		}
 		return lines
 	}
-	columns := make([][]string, len(r))
+	shown, room, _, _ := view(columnsOf(r, widths, left), width, shift)
+	columns := make([][]string, len(shown))
 	height := 1
-	for j, c := range r {
+	for k, col := range shown {
+		c := r[col.j]
 		switch {
 		case c.Wrap:
-			columns[j] = wrapped(c, left)
-		case j < len(widths) && widths[j] > 0:
+			columns[k] = wrapped(c, col.w)
+		case col.cut:
+			// a column cut at the edge keeps a value a line, clipped there, as the closed row's are
 			for _, v := range c.Values {
-				columns[j] = append(columns[j], hung(v, c.Hang, widths[j], broken)...)
+				columns[k] = append(columns[k], pane.Clip(v, col.w))
+			}
+		default:
+			for _, v := range c.Values {
+				columns[k] = append(columns[k], hung(v, c.Hang, col.w, broken)...)
 			}
 		}
-		height = max(height, len(columns[j]))
+		height = max(height, len(columns[k]))
 	}
 	out := make([]string, height)
-	for k := range height {
-		var parts []string
-		for j, c := range r {
-			w := left
-			if !c.Wrap {
-				if j >= len(widths) || widths[j] == 0 {
-					continue
-				}
-				w = widths[j]
-			}
+	for n := range height {
+		parts := make([]string, len(shown))
+		for k, col := range shown {
+			c := r[col.j]
 			v := ""
-			if k < len(columns[j]) {
-				v = columns[j][k]
+			if n < len(columns[k]) {
+				v = columns[k][n]
 			}
-			if k == 0 {
+			if n == 0 {
 				v = dotted(v, c)
 			}
-			if k == 0 && len(parts) == 0 {
+			if n == 0 && k == 0 {
 				v = choose(v, chosen)
 			}
-			parts = append(parts, pane.Pad(v, w, c.Right))
+			parts[k] = pane.Pad(v, col.w, c.Right)
 		}
-		out[k] = pane.Clip(strings.TrimRight(strings.Join(parts, strings.Repeat(" ", gap)), " "), width)
+		out[n] = pane.Clip(strings.TrimRight(lay(shown, parts), " "), room)
 	}
 	return out
 }

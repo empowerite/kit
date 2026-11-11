@@ -38,10 +38,12 @@ func HeaderNames(p grid.Panel, columns []string) []string {
 
 // Drawing is what a table's rows are drawn with, besides the rows: the names its header stands over them, the cells
 // they are laid out in, the pane's width, the cells they stand in by under the headings of their groups, which stand
-// open, which are selected, by key, and the table's color, which marks them.
+// open, which are selected, by key, the table's color, which marks them, and the columns its view has scrolled past,
+// as grid.Scroll says.
 type Drawing struct {
 	Names  []string
 	Width  int
+	Shift  int
 	Pane   int
 	Indent int
 	Open   grid.Outline
@@ -55,7 +57,7 @@ type Drawing struct {
 func (d Drawing) Draw(rows []grid.Row, chosen int) []Line {
 	marked, _ := style.In(d.Color)
 	groups := GroupMarks(grid.Every(rows), d.Picked)
-	drawn := grid.Draw(rows, d.Names, d.Width, chosen, d.Open.Open,
+	drawn := grid.Draw(rows, d.Names, d.Width, d.Shift, chosen, d.Open.Open,
 		func(r grid.Row) string {
 			switch {
 			case grid.Heads(r) && groups[r.Key] != "":
@@ -82,11 +84,11 @@ func (d Drawing) Draw(rows []grid.Row, chosen int) []Line {
 	return out
 }
 
-// Headed gives the names of the columns the header stands over the rows, as internal/grid lays them out, open or
-// closed as open says, each line in by the indent, and whether they hide lines while closed; none for a table whose
-// rows have no columns.
-func Headed(rows []grid.Row, names []string, width, indent int, open bool) (lines []string, hides bool) {
-	lines, hides = grid.Header(rows, names, width, open)
+// Headed gives the names of the columns the header stands over the rows, as internal/grid lays them out scrolled by
+// shift, open or closed as open says, each line in by the indent, and whether they hide lines while closed; none for
+// a table whose rows have no columns.
+func Headed(rows []grid.Row, names []string, width, shift, indent int, open bool) (lines []string, hides bool) {
+	lines, hides = grid.Header(rows, names, width, shift, open)
 	for k := range lines {
 		lines[k] = strings.Repeat(" ", indent) + lines[k]
 	}
@@ -139,7 +141,7 @@ func SortSpots(h Host) []SortSpot {
 	p := h.Panel()
 	var out []SortSpot
 	for j, column := range h.ShownColumns() {
-		start, first := grid.HeaderName(rows, names, width, j)
+		start, first := grid.HeaderName(rows, names, width, h.Table().Shift, j)
 		if start < 0 || !p.Sorts(column) && !p.Lists(column) {
 			continue
 		}
@@ -233,8 +235,28 @@ func SortBy(h Host, column string, shift bool) {
 // draws it.
 func ColumnName(h Host, column string) (int, string) {
 	j := slices.Index(h.ShownColumns(), column)
-	x, name := grid.HeaderName(h.Rows(), h.Names(), h.GridWidth(), j)
+	x, name := grid.HeaderName(h.Rows(), h.Names(), h.GridWidth(), h.Table().Shift, j)
 	return x + indent(h), name
+}
+
+// Reveal scrolls the host's columns, where the view hides a column the header names, as one moved past the edge, to
+// the least shift that shows it.
+func Reveal(h Host, column string) {
+	j, t := slices.Index(h.ShownColumns(), column), h.Table()
+	hidden := func() bool {
+		x, name := grid.HeaderName(h.Rows(), h.Names(), h.GridWidth(), t.Shift, j)
+		return x < 0 && name != ""
+	}
+	if !hidden() {
+		return
+	}
+	more := func() bool {
+		_, _, after := Scrolled(h)
+		return after
+	}
+	for t.Shift = 0; hidden() && more(); t.Shift++ {
+	}
+	Fit(h)
 }
 
 // HeaderColumn gives the column whose name a click at x, y in the host's header falls on, none off every name.
@@ -242,7 +264,7 @@ func HeaderColumn(h Host, x, y int) string {
 	if k, ok := HeaderLine(h, y); !ok || OnRule(h, y) || k < 0 {
 		return ""
 	}
-	j := grid.HeaderAt(h.Rows(), h.Names(), h.GridWidth(), x-indent(h))
+	j := grid.HeaderAt(h.Rows(), h.Names(), h.GridWidth(), h.Table().Shift, x-indent(h))
 	if j < 0 {
 		return ""
 	}
@@ -272,7 +294,7 @@ func HeaderHit(h Host, x, y int) (on, fold bool, column string) {
 	}
 	_, hides := h.Header()
 	fold = hides && k == 0 && x == FoldCell
-	if j := grid.HeaderAt(h.Rows(), h.Names(), h.GridWidth(), x); j >= 0 {
+	if j := grid.HeaderAt(h.Rows(), h.Names(), h.GridWidth(), h.Table().Shift, x); j >= 0 {
 		column = h.ShownColumns()[j]
 	}
 	return true, fold, column
@@ -287,6 +309,43 @@ func ToggleHeader(h Host) {
 	}
 	next[HeaderKey] = !open[HeaderKey]
 	Reoutline(h, next)
+}
+
+// Scrolled gives how the host's columns stand scrolled, as grid.Scroll says: the columns the view has scrolled past,
+// after the first, and whether it hides columns before those it shows and after them.
+func Scrolled(h Host) (shift int, before, after bool) {
+	return grid.Scroll(h.Rows(), h.Names(), h.GridWidth(), h.Table().Shift)
+}
+
+// ScrollColumns scrolls the host's columns a column right, d 1, or left, d -1, where the view hides one that way, as
+// tab and shift-tab do while the rows have the keyboard, and a click on the header's ▹ or ◃; the cursor's row stays in
+// the pane, though an open row grows or shrinks with the columns it shows.
+func ScrollColumns(h Host, d int) {
+	shift, before, after := Scrolled(h)
+	switch {
+	case d > 0 && after:
+		shift++
+	case d < 0 && before:
+		shift--
+	}
+	h.Table().Shift = shift
+	Fit(h)
+}
+
+// ArrowAt gives which way a click at x, y on the host's header scrolls its columns: 1 on its ▹, -1 on its ◃, and 0
+// off both, as the header's first line draws them.
+func ArrowAt(h Host, x, y int) int {
+	if k, ok := HeaderLine(h, y); !ok || k != 0 || OnRule(h, y) {
+		return 0
+	}
+	before, after := grid.Arrows(h.Rows(), h.Names(), h.GridWidth(), h.Table().Shift)
+	switch x -= indent(h); {
+	case after >= 0 && x == after:
+		return 1
+	case before >= 0 && x == before:
+		return -1
+	}
+	return 0
 }
 
 // RowAt gives what a click at x, y falls on in the host's rows: the row whose line it falls on, and whether it falls
@@ -304,7 +363,7 @@ func RowAt(h Host, x, y int) (row int, link string, fold, ok bool) {
 		if !rows[row].Aside {
 			x -= indent(h)
 		}
-		link = grid.LinkAt(rows, h.Names(), row, h.GridWidth(), x)
+		link = grid.LinkAt(rows, h.Names(), row, h.GridWidth(), h.Table().Shift, x)
 		fold = link == "" && slices.Contains(FoldsAt(rows[row]), x)
 	}
 	return row, link, fold, true

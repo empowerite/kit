@@ -100,6 +100,7 @@ func (m Model) parts(last int) []part {
 	tabBar := func(y int) bool { return !m.maximized && y > 0 && y < top }
 	control := func(y int) bool { return m.controls() && y == top }
 	rule := func(y int) bool { return y >= top && y < last && m.onRule(y) }
+	header := func(y int) bool { return y >= top && y < last && m.inHeader(y) }
 	rows := func(y int) bool { return y >= top && y < last }
 	headings := func(y int) bool { return rows(y) && !rule(y) && !control(y) }
 	status := func(y int) bool { return y == last }
@@ -121,6 +122,7 @@ func (m Model) parts(last int) []part {
 		{selected, "the selected tab's number", "", tabBar},
 		{numbers, "a tab's number, which selects it", "", tabBar},
 		{[]string{tabs.Before, tabs.After}, "more tabs: a click scrolls", "", tabBar},
+		{[]string{grid.Before, grid.After}, "more columns: a click scrolls", "", header},
 		one(tabs.Stale, "stale: a click reads it again", tabBar),
 		one(grid.Unfolded, "open: a click closes it", rows),
 		one(grid.Folded, "closed: a click opens it", rows),

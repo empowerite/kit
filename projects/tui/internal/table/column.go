@@ -233,6 +233,7 @@ func (c *ColumnMenu) Key(h Host, k tea.KeyPressMsg) (Popover, bool) {
 	if d, ok := ShiftStep(k.String()); ok {
 		if p, ok := Shifted(h, c.Column, d); ok {
 			h.SetPanel(p)
+			Reveal(h, c.Column)
 		}
 		return Popover{}, false
 	}

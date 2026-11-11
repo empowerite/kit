@@ -635,14 +635,17 @@ func (m *Model) groupClick(x, y int, nest, right bool) {
 }
 
 // clickHeader takes a click on the header, which is no row, above its rule, where each column's sort target stands, as
-// sortAt says: on its gutter it opens the header, or closes it, when it hides lines; on a column's
-// name it drops the column menu down under it. Where the terminal sends option or ctrl with a click, as many do not,
-// also, as option asks, turns the column's sort, as the panel's Sorted says, and group, as ctrl asks, groups the rows
-// by it within the groups they have, innermost, or no longer, as the panel's Grouped says. Elsewhere it does nothing.
+// sortAt says: on its ▹ or ◃ it scrolls the columns, as table.ScrollColumns does; on its gutter it opens the header, or
+// closes it, when it hides lines; on a column's name it drops the column menu down under it. Where the terminal sends
+// option or ctrl with a click, as many do not, also, as option asks, turns the column's sort, as the panel's Sorted
+// says, and group, as ctrl asks, groups the rows by it within the groups they have, innermost, or no longer, as the
+// panel's Grouped says. Elsewhere it does nothing.
 func (m *Model) clickHeader(x, y int, also, group bool) tea.Cmd {
 	on, fold, column := table.HeaderHit(m, x, y)
 	switch p := m.panel(m.stage); {
 	case !on:
+	case table.ArrowAt(m, x, y) != 0 && !group:
+		table.ScrollColumns(m, table.ArrowAt(m, x, y))
 	case fold && !group:
 		table.ToggleHeader(m)
 	case column == "":
@@ -704,7 +707,8 @@ func (m Model) whoami() tea.Cmd {
 
 // key takes a key press: the quitting keys, a field's popover's while it is open, the open menu's while one is open, the
 // panel's while it has the keyboard, the preset line's while it has it, = for the app's menu and : or ; for the tab's,
-// the bar's, then the rows', F1 and ? showing the legend or hiding it. Down from the bar reaches the preset line, where the stage has one, and the rows from it.
+// the bar's, then the rows', tab and shift-tab scrolling their columns while the view hides some, F1 and ? showing the
+// legend or hiding it. Down from the bar reaches the preset line, where the stage has one, and the rows from it.
 func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
 	case "ctrl+c":
@@ -782,6 +786,15 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.page(-1)
 	case "pgdown":
 		m.page(1)
+	case "tab", "shift+tab":
+		// while the view hides columns, tab and shift-tab scroll them, as table.RowKeys names them
+		if _, before, after := table.Scrolled(&m); m.inRows && (before || after) {
+			d := 1
+			if k.String() == "shift+tab" {
+				d = -1
+			}
+			table.ScrollColumns(&m, d)
+		}
 	case "[", "]", "{", "}":
 		if len(m.stages) > 0 {
 			table.Group(&m, k.String())

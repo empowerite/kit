@@ -175,7 +175,7 @@ used in the code today that differs is in the last column, to be renamed as the 
 | | a message that stays until esc | alert | notice, not done |
 | between | everything else | view | pane, screen |
 | view | `➊ 🎫 backlog 3 :` | tab bar, tab number, tab menu | same |
-| | `◃` and `▹` | scroll arrows | triangles |
+| | `◃` and `▹`, on the tab bar and on a header wider than the view | scroll arrows | triangles |
 | | `▾ source ▾ 3 … Default ▼` | control line | same |
 | | `▾ source ▾ 3` | group path | heading over the groups |
 | | `source: ¬gitlab` | filter chip | chip |
@@ -321,6 +321,9 @@ Watch, issue #88's third step, is built now as designed: it reads like `source`'
 - An open row keeps its columns at a narrow width; a word wider than its column breaks inside it (2026-11-09, #105).
 - ⇥ and ⇧⇥ move along a line, ↑ and ↓ between lines, ← and → fold, on every screen: the tab bar takes ⇥ in place of
   ←→, and a form's one-of row chooses on ␣, not as its cursor moves (2026-11-09, #128).
+- A table wider than the view scrolls its columns as the tab bar scrolls its tabs: ▹ at the header's right end, ◃ after
+  its first column, which stays put, and ⇥ and ⇧⇥ in the rows, or a click on either, move a column at a time; a column
+  at the edge is cut there where it keeps six cells (2026-11-11, #170).
 
 ## Left to the builder
 

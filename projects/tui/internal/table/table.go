@@ -8,7 +8,8 @@ import "github.com/empowerite/kit/projects/tui/internal/grid"
 // last set to, the name typed for Save As… or Rename… while the person names one, and the person's preset Rename…
 // renames; its panel, its search, what it says of each field, and its cursor; and whether the view it was last set to
 // still waits for rows to group by, as its rows load, and the view as that grouping left it, which the preset line
-// names as the view still.
+// names as the view still; and the columns its view has scrolled past, after the first, as grid.Scroll says, where
+// they are wider than the pane.
 type Table struct {
 	Cursor   int
 	Offset   int
@@ -21,4 +22,5 @@ type Table struct {
 	View     grid.Panel
 	Grouping bool
 	Grouped  *Preset
+	Shift    int
 }

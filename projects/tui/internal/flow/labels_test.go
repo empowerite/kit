@@ -34,7 +34,7 @@ func TestTheLabelsColumnCountsAndTheOpenRowDrawsThePills(t *testing.T) {
 	}
 	rows := []grid.Row{{Key: "#1", Cells: []grid.Cell{{Values: []string{"#1"}}, cells[0], {Values: []string{"a"}, Wrap: true}}}}
 	var got []string
-	for _, l := range grid.Draw(rows, nil, 40, -1, func(grid.Row) bool { return true }, nil) {
+	for _, l := range grid.Draw(rows, nil, 40, 0, -1, func(grid.Row) bool { return true }, nil) {
 		got = append(got, strings.TrimRight(ansi.Strip(l.Text), " "))
 	}
 	bug, high := style.PillLeft+"bug"+style.PillRight, style.PillLeft+"priority"+style.PillRight+"high"+style.PillRight
