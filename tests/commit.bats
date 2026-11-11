@@ -342,6 +342,24 @@ deny contains sprintf("%s is in the tree", [path]) if {
   [ "$(git show --name-status --format= HEAD)" = $'D\tx.txt' ]
 }
 
+@test "a path staged and then taken off the disk is refused by name, and HEAD stays" {
+  printf '#!/usr/bin/env bash\nset -o errexit -o nounset -o pipefail\necho $1\n' > bad.sh
+  printf 'changed\n' > notes.txt
+  git add bad.sh notes.txt
+  rm bad.sh notes.txt
+  head=$(git rev-parse HEAD)
+  run kit commit --message '#7 bad: a script'
+  [ "$status" -eq 1 ]
+  for path in bad.sh notes.txt
+  do
+    said="'${path}' is staged but is not on the disk; run: git restore -- '${path}', or git rm --cached -- '${path}'"
+    [[ "$output" == *"${said}"* ]]
+  done
+  [[ "$output" != *"committed "* ]]
+  [ "$(git rev-parse HEAD)" = "${head}" ]
+  [ "$(git diff --cached --name-only | sort | paste -s -d ' ' -)" = "bad.sh notes.txt" ]
+}
+
 @test "a named path deleted from the disk is committed as a deletion" {
   # notes.txt is in HEAD from the start commit
   rm notes.txt

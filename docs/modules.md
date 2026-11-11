@@ -84,7 +84,7 @@ jq module directory, and defines:
 | `guard:require <predicate>…` | refuses, with the remedy, when a signing key or a tool is missing |
 | `list:among <name> <name>…` | succeeds when the first name is one of the rest |
 | `list:without <name> <name>…` | prints the rest without the first name, one per line |
-| `list:read <array> <command> [<argument>…]` | fills the array with the command's lines and returns its status, the array empty when that is not 0 |
+| `list:read <array> <command> [<argument>…]` | returns the command's status, the array its lines, or none on failure |
 | `list:read0 <array> <command> [<argument>…]` | does the same for items that each end in a NUL |
 | `guard:arguments <verb> <argument>…` | judges a verb's arguments against its usage line and refuses in one line, pointing to `kit help <verb>`; at a terminal with kittui installed, a missing argument hands off to `kit tui -- <verb> <argument>…` instead |
 

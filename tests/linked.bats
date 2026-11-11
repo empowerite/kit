@@ -52,6 +52,26 @@ setup() {
   [[ "$output" == *"pull request #3 is ada's, exempt from the linked-issue check by kit.yml"* ]]
 }
 
+@test "an issue whose state its tracker cannot read is named, and never called closed" {
+  fake-tools gh az
+  printf 'trackers:\n  - prefix: "AB#"\n    provider: ado\n    organization: https://dev.azure.com/example\n' > kit.yml
+  printf '    project: Claims\n' >> kit.yml
+  fixture repo.json <<<'{"nameWithOwner": "empowerite/example", "url": "https://github.com/empowerite/example"}'
+  fixture closing.json <<<'{"data": {"repository": {"pullRequest": {"closingIssuesReferences": {"nodes": []}}}}}'
+  fixture pr.json <<<'{"body": "Closes AB#4521"}'
+  route gh 'repo view*' repo.json
+  route gh 'api graphql*' closing.json
+  route gh 'pr view 3 --json *' pr.json
+  route az 'boards work-item show --id 4521 *' '!1'
+  run "${kit_checkout}/bin/kit" linked 3
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"AB#4521's state could not be read, so it does not count"* ]]
+  [[ "$output" == *"the state of 1 linked issue(s) could not be read"* ]]
+  [[ "$output" != *"closed"* ]]
+  grep --quiet 'boards work-item show --id 4521' "${FAKE_DIR}/az.calls"
+  grep --quiet 'could not be read' "${GITHUB_STEP_SUMMARY}"
+}
+
 @test "on a branch, kit linked fails when the base is not here, since the logins it exempts cannot be read" {
   fake-tools gh
   git commit --quiet --allow-empty --message "#1 start: the first"

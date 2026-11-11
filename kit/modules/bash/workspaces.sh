@@ -373,9 +373,10 @@ workspaces:current() {
 # workspace menu draws added: members, a group's fixed members as --show gives each; groups, for a repository with a
 # member, each group whose fixed members hold it, {name, members}, members a count; and favorites, each that names a
 # group in the file or a repository, {name, kind, members, checkout}, members a group's count and checkout a
-# repository's. The roots are walked once, and only when a member or a favorite needs a checkout.
+# repository's. The roots are walked once, and only when a member or a favorite needs a checkout. It returns 1, saying
+# so, when the file's groups or favorites cannot be read.
 workspaces:menu-json() {
-  local current=$1 kind member name favorite fkind checkouts=''
+  local current=$1 kind member name favorite fkind line status checkouts=''
   local -a members=() groups=() favorites=() fixed=() names favored
   kind=$(jq --raw-output .kind <<<"${current}")
   member=$(jq --raw-output '.member // ""' <<<"${current}")
@@ -405,7 +406,17 @@ workspaces:menu-json() {
   fi
   for favorite in "${favored[@]}"
   do
-    read -r fkind name < <(workspaces:kind "${favorite}" 2>/dev/null) || continue
+    status=0
+    line=$(workspaces:kind "${favorite}" 2>/dev/null) || status=$?
+    # A favorite that names no group in the file and no repository, as one whose group was removed, is left out.
+    (( status != 2 )) || continue
+    if (( status != 0 ))
+    then
+      error "run: kit workspaces (the groups in $(workspaces:file) could not be read, so the favorite '${favorite}'" \
+        "cannot be drawn)"
+      return 1
+    fi
+    read -r fkind name <<<"${line}"
     if [[ "${fkind}" == group ]]
     then
       list:read fixed workspaces:fixed "${name}" || return 1

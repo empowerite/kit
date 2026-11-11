@@ -9,7 +9,8 @@
 # Before a commit exists, kit commit:
 #
 #   - refuses a staged path the kit placed under .kit/, read from .kit/.gitignore, which names every one
-#   - runs kit lint and kit generate --check over the staged paths, so the pre-commit checks hold with no hook manager
+#   - runs kit lint and kit generate --check over the staged paths, so the pre-commit checks hold with no hook manager,
+#     and refuses a path staged as added or changed that is not on the disk, which no check could read
 #   - supplies the issue's reference from the branch when the subject carries none
 #   - judges the subject, and the tree the commit will make, by the repository's policy through the policy seam, as
 #     kit policy judges them in CI
@@ -248,14 +249,31 @@ commit:index() {
 }
 
 # commit:checks <path>… runs the pre-commit checks over the paths that exist: kit lint, then kit generate --check.
-# The paths are root-relative; they are passed absolute, so the verbs resolve them the same from any directory.
+# The paths are root-relative; they are passed absolute, so the verbs resolve them the same from any directory. A
+# path the index stages as added or changed that is not on the disk is refused, naming it, before any check runs,
+# since the commit would take the staged file with nothing here to check. A deletion has no file to check.
 commit:checks() {
-  local path
-  local -a present=()
+  local path gone=false
+  local -a present=() staged=()
+  local -A kept=()
+  list:read0 staged git diff --cached --name-only --diff-filter=ACMR -z || return 1
+  for path in "${staged[@]}"
+  do
+    kept[${path}]=1
+  done
   for path in "$@"
   do
-    [[ -e "${path}" ]] && present+=("${PWD}/${path}")
+    if [[ -e "${path}" ]]
+    then
+      present+=("${PWD}/${path}")
+    elif [[ ! -L "${path}" && -n "${kept[${path}]+x}" ]]
+    then
+      error "'${path}' is staged but is not on the disk; run: git restore -- '${path}', or git rm --cached --" \
+        "'${path}'"
+      gone=true
+    fi
   done
+  [[ "${gone}" == false ]] || return 1
   (( ${#present[@]} > 0 )) || return 0
   if ! run kit lint "${present[@]}"
   then

@@ -89,6 +89,23 @@ script() {
   [[ "$output" != *"shellcheck"* ]]
 }
 
+@test "a path staged and then taken off the disk is refused by name; a staged deletion is left out" {
+  git add bad.sh good.sh
+  rm bad.sh
+  run "${kit_checkout}/bin/kit" lint
+  [ "$status" -eq 2 ]
+  said="'bad.sh' is staged but is not on the disk; run: git restore -- 'bad.sh', or git rm --cached -- 'bad.sh'"
+  [[ "$output" == *"${said}"* ]]
+  [[ "$output" != *"shellcheck"* ]]
+  [[ "$output" != *"✅"* ]]
+  git rm --quiet --cached bad.sh
+  git commit --quiet --message '#1 good: a script'
+  git rm --quiet good.sh
+  run "${kit_checkout}/bin/kit" lint
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"nothing to lint"* ]]
+}
+
 @test "a path no rule governs is said to be linted by nothing" {
   printf 'png\n' > logo.png
   run "${kit_checkout}/bin/kit" lint logo.png

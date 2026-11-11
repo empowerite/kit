@@ -39,6 +39,28 @@ in_tracker() {
   [ "$status" -eq 2 ]
 }
 
+@test "trackers that cannot be read fail a reference with 1, and a reference no tracker answers is a usage error, 2" {
+  printf 'trackers: [\n' > kit.yml
+  for call in "tracker:parse AB#4521" "tracker:normal AB#4521" "tracker:key AB#4521" "tracker:of AB#4521 title"
+  do
+    # shellcheck disable=SC2086  # each holds its words
+    run in_tracker ${call}
+    [ "$status" -eq 1 ]
+  done
+  [ ! -s "${FAKE_DIR}/az.calls" ]
+  run "${kit_root}/bin/kit" assign 'AB#4521'
+  [ "$status" -eq 1 ]
+  printf 'trackers: []\n' > kit.yml
+  for call in "tracker:normal JIRA-12" "tracker:key JIRA-12" "tracker:of JIRA-12 title"
+  do
+    # shellcheck disable=SC2086  # each holds its words
+    run in_tracker ${call}
+    [ "$status" -eq 2 ]
+  done
+  run "${kit_root}/bin/kit" assign 'JIRA-12'
+  [ "$status" -eq 2 ]
+}
+
 @test "a reference's key opens its branch name, and a branch name is read back to its reference" {
   run in_tracker tracker:key 7
   [ "$output" = "7" ]

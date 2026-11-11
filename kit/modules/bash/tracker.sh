@@ -89,7 +89,7 @@ tracker:field() {
 
 # tracker:parse <reference> prints "<prefix>\t<number>": the longest declared prefix that the reference starts
 # with, and the digits after it. A bare number is in the forge's own tracker. When no tracker matches the
-# reference, it fails and lists the prefixes.
+# reference, it lists the prefixes and returns 2; when the trackers cannot be read, it returns 1.
 tracker:parse() {
   local ref=$1 prefix best='' provider row
   local -a rows
@@ -131,11 +131,12 @@ tracker:provider() {
 }
 
 # tracker:of <reference> <call> <argument>… runs the call on the reference's tracker, passing the reference's
-# number first.
+# number first. It returns 2 for a reference no tracker answers, and 1 when the trackers cannot be read.
 tracker:of() {
-  local ref=$1 call=$2 prefix number provider
+  local ref=$1 call=$2 parsed prefix number provider
   shift 2
-  IFS=$'\t' read -r prefix number < <(tracker:parse "${ref}") || return 2
+  parsed=$(tracker:parse "${ref}") || return $?
+  IFS=$'\t' read -r prefix number <<<"${parsed}"
   [[ -n "${prefix}" ]] || return 2
   provider=$(tracker:provider "${prefix}") || return 1
   use "tracker/${provider}" || return 1
@@ -163,10 +164,12 @@ tracker:query() {
   jq --null-input --raw-output --arg url "$1" --arg key "$2" --arg value "$3" '"\($url)?\($key | @uri)=\($value | @uri)"'
 }
 
-# tracker:normal <reference> prints the reference in its tracker's own form: `7` becomes `#7`.
+# tracker:normal <reference> prints the reference in its tracker's own form: `7` becomes `#7`. It returns 2 for a
+# reference no tracker answers, and 1 when the trackers cannot be read.
 tracker:normal() {
-  local prefix number
-  IFS=$'\t' read -r prefix number < <(tracker:parse "$1") || return 2
+  local parsed prefix number
+  parsed=$(tracker:parse "$1") || return $?
+  IFS=$'\t' read -r prefix number <<<"${parsed}"
   [[ -n "${prefix}" ]] || return 2
   printf '%s%s\n' "${prefix}" "${number}"
 }
@@ -180,10 +183,11 @@ tracker:is-forge() {
 }
 
 # tracker:key <reference> prints the reference in the form a branch name starts with: forge issue 7 as `7`, work
-# item AB#4521 as `ab4521` (lowercased, with everything but letters and digits removed).
+# item AB#4521 as `ab4521` (lowercased, with everything but letters and digits removed). It returns 2 for a
+# reference no tracker answers, and 1 when the trackers cannot be read.
 tracker:key() {
   local ref
-  ref=$(tracker:normal "$1") || return 2
+  ref=$(tracker:normal "$1") || return $?
   # The forge's own issue is its number, whatever prefix names it: #7, or AB#7 on Azure DevOps.
   if tracker:is-forge "${ref}"
   then

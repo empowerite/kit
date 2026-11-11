@@ -38,7 +38,8 @@
 # as it makes a branch, a worktree, and a pull request:
 #
 #   - The server places .kit/ as it starts, and again between messages when kit.yml changed. A call does not place
-#     anything; kit_serve_hydrated tells the verb so.
+#     anything; kit_serve_hydrated tells the verb so. While a changed kit.yml cannot be placed, every call and read
+#     is refused with -32603, which names kit hydrate, and the server places again before each message.
 #   - kit flow is always given --no-fetch, so incoming reads the refs as they are.
 #   - A word that acts is never offered: packages, toolchains, and tools are listings only, and context's hook mode,
 #     --claude, is the harness's own. An operand's value that is a word of the verb's syntax is refused, offered or
@@ -222,8 +223,8 @@ serve:changed() {
 # changed and every changed bash file parses. It passes the era a client chose with initialize in kit_serve_era, and
 # in kit_serve_pending a file that holds the line, since a line may be longer than the environment carries.
 # Otherwise it returns, and the running server answers <line>. Before that, it places .kit/ again when kit.yml
-# changed, since a call does not place anything. It sends notifications/resources/list_changed when .kit/.gitignore
-# changed, and says so on stderr when a file did not parse.
+# changed, since a call does not place anything; a placing that fails sets serve_unplaced until one succeeds. It sends
+# notifications/resources/list_changed when .kit/.gitignore changed, and says so on stderr when a file did not parse.
 serve:reload() {
   local file now pending
   local -a changed broken=()
@@ -233,8 +234,14 @@ serve:reload() {
     local placed=false
     if [[ kit.yml -nt "${serve_marker}" ]]
     then
-      # Placing writes its steps to stderr; one that fails is the next call's to report, as the verb's would be.
-      materialize:hydrate >&2 || true
+      # Placing writes its steps to stderr. One that fails leaves the marker as it is, so the next message places
+      # again, and until one places, serve:placed refuses every call and every read the old .kit/ would answer.
+      if ! materialize:hydrate >&2
+      then
+        serve_unplaced=true
+        return 0
+      fi
+      serve_unplaced=false
       placed=true
     fi
     if [[ .kit/.gitignore -nt "${serve_marker}" ]]
@@ -294,6 +301,19 @@ serve:resume() {
     serve:notify notifications/resources/list_changed
   fi
   serve:answer "${pending}"
+}
+
+# serve_unplaced is true while kit.yml has changed and .kit/ could not be placed from it (serve:reload).
+serve_unplaced=false
+
+# serve:placed <id> succeeds while .kit/ is placed from kit.yml as it is. Otherwise it answers request <id> with an
+# internal error, so no call or read is answered from the .kit/ placed before kit.yml changed, and returns 1.
+serve:placed() {
+  [[ "${serve_unplaced}" == true ]] || return 0
+  local message='Internal error: run: kit hydrate (.kit/ could not be placed after kit.yml changed, so the server'
+  message+=' answers no call or read from the .kit/ placed before; the steps that failed are on its stderr)'
+  serve:error "$1" -32603 "${message}"
+  return 1
 }
 
 # serve:notify <method> sends a notification, a message the client does not answer.
@@ -356,9 +376,10 @@ serve:handle() {
     (ping) serve:reply "${id}" '{}' ;;
     (server/discover) serve:version "${id}" "${params}" discover && serve:discover "${id}" ;;
     (tools/list) serve:version "${id}" "${params}" && serve:tools-list "${id}" ;;
-    (tools/call) serve:version "${id}" "${params}" && serve:tools-call "${id}" "${params}" ;;
+    (tools/call) serve:version "${id}" "${params}" && serve:placed "${id}" && serve:tools-call "${id}" "${params}" ;;
     (resources/list) serve:version "${id}" "${params}" && serve:resources-list "${id}" ;;
-    (resources/read) serve:version "${id}" "${params}" && serve:resources-read "${id}" "${params}" ;;
+    (resources/read)
+      serve:version "${id}" "${params}" && serve:placed "${id}" && serve:resources-read "${id}" "${params}" ;;
     (*) serve:error "${id}" -32601 "Method not found: ${method:0:200}"
   esac
   return 0

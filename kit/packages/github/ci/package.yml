@@ -2,7 +2,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # see: docs/packages.md
 
-description: "One GitHub Actions job that runs kit ci: the gate, kit check, kit linked, and kit policy"
+description: "One GitHub Actions job that runs kit ci: kit linked, kit policy, the gate, and kit check"
 depends:
   - kit
 answers:

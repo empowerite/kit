@@ -9,9 +9,10 @@
 #   --all-files   with no paths, every tracked file instead of the staged ones
 #
 # A path is relative to the current directory; a directory stands for the tracked files under it, and a path that is
-# neither is refused before anything is linted. The staged files leave out a path the commit deletes. Each file is
-# matched to the rules of its kinds, as kit context matches. The rules of the kinds a kind embeds are left out, so
-# no linter runs over a file it cannot parse. Then, for each rule:
+# neither is refused before anything is linted. The staged files leave out a path the commit deletes, and a staged
+# path that is not on the disk is refused, since a commit would take the staged file with nothing here to lint. Each
+# file is matched to the rules of its kinds, as kit context matches. The rules of the kinds a kind embeds are left
+# out, so no linter runs over a file it cannot parse. Then, for each rule:
 #
 #   - a `lint:` command in the rule's frontmatter runs once over all the rule's files; a linter that is not on PATH
 #     is a failure, not a skip
@@ -30,8 +31,8 @@
 # When no rule governs any of the paths, it says that nothing was linted, and passes.
 #
 # Exits 0 when every rule passes, 1 when any rule refuses, kit.yml or the kinds cannot be read, a kind's content
-# pattern is no regular expression, or git's list of the paths cannot be read, and 2 on a usage error or a path not
-# there.
+# pattern is no regular expression, or git's list of the paths cannot be read, and 2 on a usage error, a path not
+# there, or a staged path not on the disk.
 #
 # see: modules/bash/context.sh, modules/bash/lint.sh, modules/bash/template.sh, docs/context.md, docs/templates.md
 
@@ -63,6 +64,16 @@ then
     list:read0 paths git ls-files -z || exit 1
   else
     list:read0 paths git diff --cached --name-only --diff-filter=ACMR -z || exit 1
+    # A path staged and then taken off the disk would be committed as staged, with nothing here to lint.
+    gone=0
+    for path in "${paths[@]}"
+    do
+      [[ ! -e "${path}" && ! -L "${path}" ]] || continue
+      error "'${path}' is staged but is not on the disk; run: git restore -- '${path}', or git rm --cached --" \
+        "'${path}'"
+      gone=$(( gone + 1 ))
+    done
+    (( gone == 0 )) || exit 2
   fi
 else
   context:named "${paths[@]}" || exit $?

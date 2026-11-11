@@ -10,8 +10,8 @@
 #   --to <login>     the login to assign, in every issue's tracker; default: the caller
 #   <reference>…     the issues, each named with its tracker: 7, #7, or AB#4521
 #
-# Exits 0 when every issue is assigned, 1 when one could not be, and 2 on a usage error or a reference no declared
-# tracker reads.
+# Exits 0 when every issue is assigned, 1 when one could not be or the trackers in kit.yml cannot be read, and 2
+# on a usage error or a reference no declared tracker reads.
 #
 # see: modules/bash/issue.sh, modules/bash/tracker.sh
 
@@ -26,7 +26,7 @@ declare -a refs=()
 # shellcheck disable=SC2154  # syntax_operands and syntax_options are set by guard:arguments
 for ref in "${syntax_operands[@]}"
 do
-  refs+=("$(tracker:normal "${ref}")") || exit 2
+  refs+=("$(tracker:normal "${ref}")") || exit $?
 done
 if [[ -n "${syntax_options[--to]+x}" ]]
 then

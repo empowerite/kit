@@ -347,6 +347,12 @@ YML
   run --separate-stderr kit-bash 'workspaces:menu-json "{\"kind\": \"none\", \"member\": null}"'
   [ "$status" -eq 1 ]
   [ -z "$output" ]
+  # a favorite whose kind needs the groups, which cannot be read, fails the menu rather than leaving the favorite out
+  printf 'favorites: [w, github.com/o/a]\nworkspaces: foo\n' | workspaces-file
+  run --separate-stderr kit-bash 'workspaces:menu-json "{\"kind\": \"none\", \"member\": null}"'
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [[ "$stderr" == *"the groups in ${XDG_CONFIG_HOME}/kit/workspaces.yml could not be read, so the favorite 'w'"* ]]
 }
 
 @test "--current --json gives a group's members with their checkouts, and the favorites" {

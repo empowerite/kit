@@ -147,7 +147,8 @@ import "forge" as forge; [.[] | [.] | forge::gitlab_pr_state]
 [{"state": "merged"}, {"state": "locked"}, {"state": "opened"}]
 ["MERGED","CLOSED","OPEN"]
 
-# A pull request's review threads or checks with a next page are named, with the cursor and the head commit; a list held whole is not.
+# A pull request's review threads or checks with a next page are named, with the cursor and the head commit; a list
+# held whole is not.
 import "forge" as forge; [forge::github_partial]
 {"data": {"repository": {"pullRequests": {"nodes": [{"number": 3, "reviewThreads": {"pageInfo": {"hasNextPage": true, "endCursor": "t1"}, "nodes": [{}]}, "commits": {"nodes": [{"commit": {"oid": "abc", "statusCheckRollup": null}}]}}, {"number": 4, "reviewThreads": {"pageInfo": {"hasNextPage": false}, "nodes": []}, "commits": {"nodes": [{"commit": {"oid": "def", "statusCheckRollup": {"contexts": {"pageInfo": {"hasNextPage": true, "endCursor": "c1"}, "nodes": [{}]}}}}]}}, {"number": 5, "reviewThreads": {"nodes": []}, "commits": {"nodes": []}}]}}}}
 ["3\tthreads\tt1\tabc","4\tchecks\tc1\tdef"]

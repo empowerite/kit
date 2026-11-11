@@ -81,8 +81,14 @@ facts:document() {
     base=$(policy:base-name) || return 1
     if git rev-parse --verify --quiet "${base}^{commit}" >/dev/null && git merge-base "${base}" HEAD >/dev/null 2>&1
     then
-      commits=$(git log --no-merges --format='%H%x1f%s' "${base}..HEAD" \
+      # A caller may not set pipefail, so the substitution sets it: a log that fails is never a branch of no commits.
+      if ! commits=$(set -o pipefail; git log --no-merges --format='%H%x1f%s' "${base}..HEAD" \
         | jq --raw-input --slurp 'split("\n") | map(select(. != "") | split("\u001f") | {sha: .[0], subject: .[1]})')
+      then
+        error "run: git log --no-merges ${base#refs/remotes/}..HEAD (the commits past the branch's base could not be" \
+          "read)"
+        return 1
+      fi
     else
       commits=null
       warn "the fork from ${base}, the branch's base, is not here, so no commit is checked; fetch with full history"

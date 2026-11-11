@@ -917,7 +917,7 @@ JSON
   [ "$(jq --slurp --compact-output 'map(.number)' <<<"$output")" = '[3,5]' ]
 }
 
-@test "the issues a pull request closes are read page after page, past the first 100, and a pull request not there fails" {
+@test "the issues a pull request closes are read page after page, past the first 100; a missing pull request fails" {
   world github
   fixture closing-1.json <<'JSON'
 {"data": {"repository": {"pullRequest": {"closingIssuesReferences": {

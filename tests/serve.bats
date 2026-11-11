@@ -462,6 +462,36 @@ call() {
   grep --quiet '"method":"notifications/resources/list_changed"' "${BATS_TEST_TMPDIR}/out"
 }
 
+@test "a kit.yml the server cannot place is said on each call, until it places, never answered from the old .kit/" {
+  mkfifo "${BATS_TEST_TMPDIR}/in"
+  "${kit_checkout}/bin/kit" serve <"${BATS_TEST_TMPDIR}/in" >"${BATS_TEST_TMPDIR}/out" 2>"${BATS_TEST_TMPDIR}/err" &
+  server=$!
+  exec 7>"${BATS_TEST_TMPDIR}/in"
+  modern 1 server/discover >&7
+  await 1
+  cp kit.yml "${BATS_TEST_TMPDIR}/kit.yml"
+  printf 'packages: [\n' > kit.yml
+  touch -t 209901010000 kit.yml
+  call 2 version >&7
+  await 2
+  modern 3 resources/read '{"uri":"kit://1st.md"}' >&7
+  await 3
+  cp "${BATS_TEST_TMPDIR}/kit.yml" kit.yml
+  yq --inplace '.packages += ["workflow"]' kit.yml
+  touch -t 209901010001 kit.yml
+  call 4 version >&7
+  await 4
+  exec 7>&-
+  wait "${server}"
+  for id in 2 3
+  do
+    answer "${id}" | jq --exit-status '.error | .code == -32603
+      and (.message | contains("run: kit hydrate (.kit/ could not be placed after kit.yml changed"))'
+  done
+  answer 4 | jq --exit-status '.result.isError == false'
+  [ -e .kit/workflow.md ]
+}
+
 @test "a help page that cannot be read answers an internal error, not an empty page" {
   local kit_bash_modules=serve
   run --separate-stderr kit-bash 'help:page() { return 1; }

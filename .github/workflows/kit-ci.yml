@@ -7,7 +7,7 @@
 #   2. puts kit on PATH: the release kit.yml declares, downloaded from its GitHub release and unpacked only when
 #      its bytes have the digest published beside it, or the checkout's own kit/bin/ when it declares unreleased
 #   3. installs the gate's tools with `kit tools install`, through that toolchain: KIT_TOOLCHAIN names it
-#   4. runs `kit ci`: the gate, `kit check`, `kit linked`, and `kit policy`, and reports every result
+#   4. runs `kit ci`: `kit linked`, `kit policy`, the gate, and `kit check`, and reports every result
 #
 # When a pull request closes, a second job, Settle, runs `kit settle` on it: an issue in another tracker that a merged
 # pull request's body closes is closed, and the issues of one closed without merging are backlog again. It alone may

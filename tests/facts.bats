@@ -141,6 +141,19 @@ commit-all() {
   [[ "${stderr}" == *binary* && "${stderr}" == *"65536"* ]]
 }
 
+@test "at ci, the commits past the base that cannot be read fail the facts, named, and never count as none" {
+  git commit --quiet --allow-empty --message "#1 start: the first"
+  git update-ref refs/remotes/origin/main HEAD
+  git switch --quiet --create 7-fix-the-thing
+  git commit --quiet --allow-empty --message "#7 cli: fix the thing"
+  run --separate-stderr kit-bash 'git() { [[ "$1 $2" != "log --no-merges" ]] || return 1; command git "$@"; }
+    facts:document ci'
+  [ "${status}" -eq 1 ]
+  [ -z "${output}" ]
+  said="run: git log --no-merges origin/main..HEAD (the commits past the branch's base could not be read)"
+  [[ "${stderr}" == *"${said}"* ]]
+}
+
 @test "kit.yml with a facts key the kit does not know is refused" {
   printf 'facts:\n  reed:\n    - x\n' > kit.yml
   kit_bash_modules="facts settings"

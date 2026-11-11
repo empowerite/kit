@@ -167,12 +167,12 @@ The packages:
   does not need a hook manager: it runs each rule's linter over the paths the rule governs.
 - `github/ci`: `.github/workflows/kit-ci.yml`, one GitHub Actions job. The job installs the gate's tools with
   `kit tools install`, then runs `kit ci`. `kit ci` runs four checks, on the runner or on any machine; before
-  the branch has a pull request, `kit linked` fails and the other three run without one:
-  - the repository's gate
-  - `kit check`
+  the branch has a pull request, `kit linked` fails and the other three run without one. In order:
   - `kit linked`, which refuses a pull request not linked to an open issue
   - `kit policy`, which refuses a branch name, commit subject, or pull request title that breaks the repository's
     policy
+  - the repository's gate
+  - `kit check`
 - `policy/opa`: `.kit/policy/kit.rego`, the naming policy in Rego. With it, `kit policy` runs on Open Policy
   Agent, and a rule can express what a pattern cannot.
 - `agents/generic`: support for any agent that reads `AGENTS.md`. Every `agents/<harness>` package below depends
