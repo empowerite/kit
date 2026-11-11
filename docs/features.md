@@ -214,7 +214,9 @@ see: [modules.md](modules.md#writing-a-verb)
 kittui's app menu, under `=` on every screen's title line, lists the guides, then the apps. The first, Flow, is the
 picture `kit flow` draws: every stage the `flow` setting in `kit.yml` names, in its order, from backlog to releases.
 Each other app is built around one entity: its first tab is that entity's home, and its other tabs the entities around
-it. A tab kit has no data source for yet says so, and loads nothing.
+it. Each app has a verb, `kit issues`, `kit changes`, `kit workspace`, `kit delivery`, `kit people`, `kit audit`
+(Trust), `kit platform`, and `kit packages`, and Flow has `kit flow`; on a terminal one opens its app, and
+`kit <verb> <tab>` opens it on that tab, maximized.
 
 | App | Its entity | Its tabs |
 | --- | --- | --- |

@@ -87,6 +87,16 @@ terminal() {
   [[ "$output" != *"kittui"* ]]
 }
 
+@test "an app's verb at a terminal runs kittui on the verb, with the tab named, and with a form it prints instead" {
+  run terminal "'${kit_root}/bin/kit' people"
+  [ "$status" -eq 0 ]
+  [ "${lines[${#lines[@]} - 1]}" = "kittui native-native people" ]
+  run terminal "'${kit_root}/bin/kit' issues backlog"
+  [ "${lines[${#lines[@]} - 1]}" = "kittui native-native issues backlog" ]
+  run terminal "'${kit_root}/bin/kit' audit --marks"
+  [[ "$output" != *"kittui"* ]]
+}
+
 # platform prints this machine's platform as Go names it, as a release's libexec/ names its kittui.
 platform() {
   local os arch

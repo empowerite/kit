@@ -10,7 +10,7 @@
 #
 # No stage has a mark. The forge's marks call reads every kind at once, for every app: a mark of who has access would
 # cost each of them a request more, which a caller who may not push is refused, and a team's members change no mark of
-# the teams' list. Each stage is read again on Refresh and Watch.
+# the teams' list. Each stage is read again on Refresh only.
 #
 # see: bin/kit-people, modules/bash/apps.sh, modules/bash/forge.sh, docs/apps.md
 use apps forge

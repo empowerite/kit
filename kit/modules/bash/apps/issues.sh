@@ -10,7 +10,7 @@
 #                 groups', and Azure DevOps' team's, where the iteration that holds now is current
 #
 # milestones' mark is the forge's own mark of its milestones, as the forge's marks read it; iterations has none, which
-# kittui reads again only on Refresh and Watch.
+# kittui reads again only on Refresh.
 #
 # see: bin/kit-issues, modules/bash/apps.sh, modules/bash/forge.sh, docs/apps.md
 use apps forge

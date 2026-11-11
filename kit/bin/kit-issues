@@ -23,6 +23,7 @@
 #   --stages            prints the stages, one per line, in order, the same over any workspace
 #   --marks             prints a mark per stage, as one JSON object, which changes when what the stage draws does:
 #                       the forge's own mark of its milestones for milestones, null for iterations, which has none
+#                       and is read again only on Refresh
 #   milestones          each milestone of the repository, open and closed, by number
 #   iterations          each iteration, by start: GitHub's from the projects linked to the repository, GitLab's with
 #                       its groups', and Azure DevOps' of its team, the one forge_settings.ado.team names, else the

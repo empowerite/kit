@@ -22,7 +22,7 @@
 #   --marks             prints a mark per stage, as one JSON object: evidence's moves with the forge's runs and
 #                       releases, findings' with its runs and alerts, each scanner's off or refused where it is,
 #                       policy's with kit.yml and .kit/policy; controls and waivers have none, null, as each is read
-#                       again only on Refresh and Watch
+#                       again only on Refresh, kittui offering no Watch for them
 #   evidence            the attestations of the 5 newest releases' assets and the 20 newest artifacts
 #   findings            the code scanning, Dependabot, and secret scanning alerts, open and dismissed
 #   controls            the rulesets and the protection that guard the default branch

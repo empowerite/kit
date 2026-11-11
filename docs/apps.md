@@ -8,7 +8,8 @@ its hand-off to kittui. A verb's own stages live in `modules/bash/apps/<verb>.sh
 
 - `kit <verb> --stages` prints the stages, one per line, in the app's tab order.
 - `kit <verb> --marks` prints a mark per stage as one JSON object. A mark is a text that changes when what its stage
-  draws does, and `null` for a stage with none, which kittui reads again only on Refresh and Watch.
+  draws does, and `null` for a stage with none, which kittui reads again only on Refresh, as it offers no
+  Watch for a tab kit never marks.
 - `kit <verb> <stage> --json` prints the stage's document, `{rows, errors}`, and `limited: N` where a capped read
   stopped at N, the newest. `--jq` prints it formatted, and `--text`, or no form off a terminal, as a table.
 - `kit <verb> --json`, with no stage, prints `{stages, <stage>: document…}`, a stage that could not be read `null`.
@@ -74,8 +75,7 @@ or outside a repository's working tree with no workspace.
   to the page of the project, the iteration, or the team's sprints. GitHub's come from the projects linked to the
   repository, none when none is linked, and need `gh`'s `read:project` scope; GitLab's include its groups', and a tier
   without iterations is the error `{feature: iterations, off: true}`; Azure DevOps' are its team's, the team `forge_settings.ado.team`
-  in `kit.yml` names, else the project's default team. It has no mark, so kittui reads it again only on Refresh and
-  Watch.
+  in `kit.yml` names, else the project's default team. It has no mark, so kittui reads it again only on Refresh.
 
 ## Changes: kit changes
 
@@ -192,7 +192,7 @@ refuse with 2, naming `kit flow releases --json` or `kit flow builds --json`.
   members, as a project's or a group's access token makes, `acted` `null`, as GitLab does not say, and `last` the day
   each last acted. Azure DevOps names no bots, and draws none.
 - No stage has a mark: the forge's marks are read for every app at once, and a mark of who has access would cost each
-  a request more, one a caller who may not push is refused. Each is read again on Refresh and Watch.
+  a request more, one a caller who may not push is refused. Each is read again on Refresh only.
 
 ## Trust: kit audit
 
@@ -246,7 +246,7 @@ branch and who may get past it, and the rules kit's policy judges by. Every tab 
   with its releases too, and `findings` with its alerts: GitHub's mark of each scanner's alert updated last, which a
   dismissal and a new advisory move without a run, `off` or `refused` for a scanner that is either, so the others'
   still move it; and GitLab's count of open and dismissed vulnerabilities.
-  `controls` and `waivers` have none, and are read again on Refresh and Watch.
+  `controls` and `waivers` have none, and are read again on Refresh only.
 
 ## Packages: kit packages
 

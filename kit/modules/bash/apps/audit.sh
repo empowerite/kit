@@ -18,7 +18,7 @@
 #
 # evidence's mark holds the forge's marks of its runs and its releases, as a run or a release makes an attestation;
 # findings', its runs' and its alerts', as a scan is a run and a person dismisses an alert without one. controls and
-# waivers have none, and are read again on Refresh and Watch. policy's is the hash of kit.yml and .kit/policy, and
+# waivers have none, and are read again on Refresh only. policy's is the hash of kit.yml and .kit/policy, and
 # on a branch past the default, of the base's, which judge it.
 #
 # see: bin/kit-audit, modules/bash/apps.sh, modules/bash/forge.sh, docs/apps.md
