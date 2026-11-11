@@ -155,10 +155,23 @@ workspaces:fixed() {
   done
 }
 
+# workspaces:name-refusal <name> prints why <name> cannot name a group: it is none, which --workspace takes for no
+# workspace, or it holds other than lowercase letters, digits, and . _ -, or starts with one of . _ -. It prints
+# nothing for a name a group can take.
+workspaces:name-refusal() {
+  if [[ "$1" == none ]]
+  then
+    printf '%s\n' "'none' is not a workspace's name: --workspace none names no workspace"
+  elif [[ ! "$1" =~ ^[a-z0-9][a-z0-9._-]*$ ]]
+  then
+    printf '%s\n' "'$1' is not a workspace's name: lowercase letters, digits, and . _ -, no /"
+  fi
+}
+
 # workspaces:check returns 1, after a line that names the file and what is wrong, for a file that does not parse or is
-# not a map, a group that holds a key other than repos and exclude, a group whose name is not a name, or a repos or
-# exclude entry that names no member; 0 for a file that holds none. Passing, it sets workspaces_checked, and once it
-# is set it checks nothing and returns 0.
+# not a map, a group that holds a key other than repos and exclude, a group whose name workspaces:name-refusal
+# refuses, or a repos or exclude entry that names no member; 0 for a file that holds none. Passing, it sets
+# workspaces_checked, and once it is set it checks nothing and returns 0.
 workspaces:check() {
   local file name key entry doc wrong
   local -a names entries
@@ -196,9 +209,10 @@ workspaces:check() {
   list:read names workspaces:names || return 1
   for name in "${names[@]}"
   do
-    if [[ ! "${name}" =~ ^[a-z0-9][a-z0-9._-]*$ ]]
+    wrong=$(workspaces:name-refusal "${name}")
+    if [[ -n "${wrong}" ]]
     then
-      error "${file}: '${name}' is not a workspace's name: lowercase letters, digits, and . _ -, no /"
+      error "${file}: ${wrong}"
       return 1
     fi
     for key in repos exclude
@@ -396,6 +410,20 @@ workspaces:current() {
     --arg checkout "${checkout}" --arg why "${why}" '
     def some: if . == "" then null else . end;
     {kind: $kind, name: ($name | some), member: ($member | some), checkout: ($checkout | some), why: $why}'
+}
+
+# workspaces:across [<workspace>] prints the workspace a verb draws across: the one given, unless it is none; with none
+# given, the last group used, when workspaces:current starts there, outside a repository; else nothing. It returns
+# workspaces:current's status.
+workspaces:across() {
+  local given=${1:-} json
+  if [[ -n "${given}" ]]
+  then
+    [[ "${given}" == none ]] || printf '%s\n' "${given}"
+    return 0
+  fi
+  json=$(workspaces:current) || return $?
+  jq --raw-output 'select(.why == "last") | .name' <<<"${json}"
 }
 
 # workspaces:menu-json <current> prints the current workspace's JSON, as workspaces:current prints it, with what the

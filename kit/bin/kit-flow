@@ -20,7 +20,8 @@
 #
 #   - at a desk: every linked worktree, and every open pull request
 #   - in a worktree: that worktree, and the pull request its branch holds
-#   - above desks, in a directory inside no repository: each desk below it, under its path, four levels down
+#   - above desks, in a directory inside no repository, with no group used last, or with --workspace none: each desk
+#     below it, under its path, four levels down
 #
 # backlog, underway, desk, incoming, builds, and releases draw the same anywhere. A repository with no primary
 # remote draws its checkouts, fetches nothing, and says so once.
@@ -44,7 +45,7 @@
 #   --all               every issue and pull request (the default); it stands alone
 #   --owner=<login>     only the named login's; give it once or more
 #   --workspace         draws each stage across a workspace's members with checkouts, a group's name or a repository's
-#                       host and path, as kit workspaces names it; see Over a workspace
+#                       host and path, as kit workspaces names it; none names no workspace; see Over a workspace
 #   --stages            prints the stages the picture draws, one per line, in order
 #   --me                prints the caller's login on the primary's forge, the login --mine and --others match
 #   --quota             prints the caller's rate limits on the primary's forge, as one JSON array: each forge's
@@ -123,10 +124,11 @@
 #
 # Over a workspace
 #
-# --workspace names a group, or a repository by its host and path, as kit workspaces names them. Each form then runs
-# in every member's checkout at once, each under that checkout's own kit.yml, and the stages are kit's eight, whatever
-# the kit.yml where it runs says. With --json, a stage prints {rows, errors}: each row, or each desk,
-# worktrees, or incoming object, gains member, its host and path; a member that could not be read is {member, error},
+# --workspace names a group, or a repository by its host and path, as kit workspaces names them. Outside a repository,
+# without --workspace, the workspace is the last group used, as kit workspaces --current says. Each form then runs in
+# every member's checkout at once, each under that checkout's own kit.yml, and the stages are kit's eight, whatever the
+# kit.yml where it runs says. With --json, a stage prints {rows, errors}: each row, or each desk, worktrees, or
+# incoming object, gains member, its host and path; a member that could not be read is {member, error},
 # its line, under errors, and every other member still draws, and the stage exits 1 after it. The picture prints
 # {stages, <stage>…}, each stage so. As text, the picture draws each cloned member's picture under its member, and
 # exits 1 when one of them did. A member with no checkout draws nothing; kit workspace repos lists every member, cloned
@@ -237,10 +239,10 @@
 # below, or git's list of the worktrees, the desks, or the remote branches cannot be read: with --json, what was read
 # is still printed, and names what could not, a remote's error, a member under errors, or a stage of null. It exits 1
 # too when git cannot count the lines changed in a checkout or read its uncommitted paths, or a setting is wrong; 1,
-# printing nothing, when --workspace meets a workspace file kit workspaces refuses; and 2 on a usage error. A wrong
-# setting is a flow setting that is not a list of distinct stages, a primary that names no remote, or a forges key
-# that is no remote name. With --marks, when the forge cannot answer, its stages' marks are null beside every local
-# stage's, and kit flow exits 1.
+# printing nothing, when --workspace, or kit flow outside a repository, meets a workspace file kit workspaces
+# refuses; and 2 on a usage error. A wrong setting is a flow setting that is not a list of distinct stages, a primary
+# that names no remote, or a forges key that is no remote name. With --marks, when the forge cannot answer, its
+# stages' marks are null beside every local stage's, and kit flow exits 1.
 #
 # see: modules/bash/flow.sh, modules/bash/backlog.sh, modules/bash/underway.sh, modules/bash/changes.sh,
 # modules/bash/builds.sh, modules/bash/releases.sh
@@ -249,7 +251,7 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use flow tui
+use flow tui workspaces
 guard:arguments flow "$@" || exit $?
 guard:require tool:git
 
@@ -281,6 +283,12 @@ do
   esac
 done
 set -- "${words[@]}"
+# Outside a repository, the workspace is the last group used, as kit workspaces --current says; --workspace none names
+# none. --me and --capabilities read the primary's forge alone, so they draw across none.
+if [[ -z "${syntax_options[--me]+x}${syntax_options[--capabilities]+x}" ]]
+then
+  workspace=$(workspaces:across "${workspace}") || exit $?
+fi
 # On a terminal, the picture over a workspace is kittui's, as it is inside a repository; a stage, a form, what prints
 # a list or a line (--stages, --marks, --quota, --me), or no kittui stays in text.
 if [[ -n "${workspace}" && -z "${syntax_literals[0]:-}${syntax_options[--text]+x}${syntax_options[--json]+x}" \

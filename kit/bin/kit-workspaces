@@ -37,7 +37,7 @@
 #   --favorite        adds a workspace to the favorites
 #   --unfavorite      takes a workspace out of the favorites
 #   <workspace>       a group's name, or a repository: github.com/empowerite/edge or a git URL
-#   <name>            a group's name: lowercase letters, digits, and . _ -
+#   <name>            a group's name: lowercase letters, digits, and . _ -, and never none
 #   <repository>      github.com/empowerite/edge, a git URL, or a checkout's directory
 #
 # The list's JSON is {file, roots, favorites, workspaces}, each group {name, members, favorite}, members a count.
@@ -122,9 +122,10 @@ case "${action}" in
     groups=$(workspaces:names)
     if [[ "${action}" == new ]]
     then
-      if [[ ! "${target}" =~ ^[a-z0-9][a-z0-9._-]*$ ]]
+      refusal=$(workspaces:name-refusal "${target}")
+      if [[ -n "${refusal}" ]]
       then
-        error "'${target}' is not a workspace's name: lowercase letters, digits, and . _ -, no /"
+        error "${refusal}"
         exit 2
       fi
       if grep --quiet --line-regexp --fixed-strings -- "${target}" <<<"${groups}"

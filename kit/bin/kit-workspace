@@ -11,16 +11,16 @@
 # HEAD is no stage of its own. A remote's HEAD is its default branch, ⚓ on its row and on the branch's; a worktree's
 # is its branch, or its commit where it is detached, and a commit's row names the worktrees whose HEAD it is.
 #
-# Without --workspace, the workspace is the repository here, read from its main checkout, so a linked worktree draws
-# what the desk draws, and repos lists it alone. On a terminal, kit workspace opens the picture in kittui, and kit
-# workspace <stage> opens it with that stage maximized. Without one, or with --text, --json, or --jq, it prints the
-# stages as text.
+# Without --workspace, the workspace is the repository here, and outside one, the last group used, as kit workspaces
+# --current says. The repository is read from its main checkout, so a linked worktree draws what the desk draws, and
+# repos lists it alone. On a terminal, kit workspace opens the picture in kittui, and kit workspace <stage> opens it
+# with that stage maximized. Without one, or with --text, --json, or --jq, it prints the stages as text.
 #
 #   --text              prints the picture as text, even on a terminal
 #   --json              the picture as one JSON object: stages, then each stage's document under its name
 #   --jq                the same JSON, formatted by jq for a person
 #   --workspace         draws each stage across a workspace's members with checkouts, a group's name or a repository's
-#                       host and path, as kit workspaces names it
+#                       host and path, as kit workspaces names it; none names no workspace
 #   --stages            prints the stages the picture draws, one per line, in order
 #   --marks             prints a mark per stage, as one JSON object, which changes when what the stage draws does
 #   repos               each member of the workspace, cloned or not: its forge, its clone, its desk's branch, its
@@ -140,8 +140,9 @@
 # kit:end legend
 # Exits 0 when the picture is drawn, 1 when a repository, a member of the workspace, a member's desk, or the workspace
 # file cannot be read: with --json, what was read is still printed, and names what could not, a member under errors
-# or a repos row's error. It exits 1, printing nothing, when --workspace meets a workspace file kit workspaces
-# refuses, and 2 on a usage error, or outside a repository without --workspace.
+# or a repos row's error. It exits 1, printing nothing, when --workspace, or kit workspace outside a repository, meets
+# a workspace file kit workspaces refuses, and 2 on a usage error, or outside a repository with no workspace: no group
+# used, or --workspace none.
 #
 # see: modules/bash/workspace.sh, modules/jq/workspace.jq, modules/bash/across.sh
 
@@ -189,6 +190,10 @@ then
   printf '%s\n' "${stages[@]}"
   exit 0
 fi
+
+# Outside a repository, the workspace is the last group used, as kit workspaces --current says; --workspace none names
+# none.
+workspace=$(workspaces:across "${workspace}") || exit $?
 
 # On a terminal, with no form chosen, the picture is kittui's, which runs this kit, the stage named maximized.
 if [[ -z "${syntax_options[--text]+x}${syntax_options[--json]+x}${syntax_options[--jq]+x}${syntax_options[--marks]+x}" \

@@ -478,3 +478,21 @@ EOF
   run pty "'${kit_root}/bin/kit' flow --me --workspace w"
   [[ "$output" != *"kittui"* ]]
 }
+
+@test "outside a repository the last group used is drawn; --workspace none draws none; inside one, nothing changes" {
+  local-desks
+  "${kit_root}/bin/kit" workspaces --use w
+  run --separate-stderr "${kit_root}/bin/kit" flow --json --no-fetch
+  [ "$(jq -c '[.desk.rows[].member]' <<<"$output")" = '["github.com/o/a","github.com/o/b"]' ]
+  run --separate-stderr "${kit_root}/bin/kit" workspace repos --json
+  [ "$(jq -c '[.rows[].by]' <<<"$output")" = '["fixed","fixed","fixed"]' ]
+  run --separate-stderr "${kit_root}/bin/kit" flow --json --no-fetch --workspace none
+  [ "$(jq -r type <<<"$output")" = array ]
+  run "${kit_root}/bin/kit" workspace repos --json --workspace none
+  [[ "$status" -eq 2 && "$output" == *"kit workspace reads a repository"* ]]
+  run "${kit_root}/bin/kit" workspaces --new none github.com/o/a
+  [[ "$status" -eq 2 && "$output" == *"--workspace none names no workspace"* ]]
+  cd code/a && workspaces-file <<<'workspaces: [unclosed'
+  run --separate-stderr "${kit_root}/bin/kit" flow desk --json
+  [[ "$status" -eq 0 && -z "$stderr" && "$(jq -r .branch <<<"$output")" == main ]]
+}

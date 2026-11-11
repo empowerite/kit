@@ -30,9 +30,10 @@ a repository.
 
 kit checks the file wherever it reads it. It refuses a file that does not parse or is not a map, a group with a key
 other than `repos` and `exclude` (`match` and `project` are not built yet), a group whose name breaks that rule, and
-an entry that names no repository. `kit workspaces`, `kit flow --workspace`, and `kit workspace --workspace` each say
-what is wrong and exit 1, printing nothing. Inside a repository, `kit flow` and `kit workspace` with no `--workspace`
-read no file.
+an entry that names no repository, and a group named `none`. `kit workspaces`, `kit flow --workspace`, and `kit
+workspace --workspace` each say what is wrong and exit 1, printing nothing, as `kit flow` and `kit workspace` do
+outside a repository, where they read the file for the last group used. Inside a repository, `kit flow` and `kit
+workspace` with no `--workspace` read no file.
 
 ## Members and checkouts
 
@@ -54,6 +55,10 @@ under the earliest root, is the one kit uses. A member with no checkout is still
 
 `kit workspaces --current` says which one, and why. With `--json` it also gives what kittui's workspace menu draws: a
 group's members with their checkouts, the groups a repository belongs to, and the favorites.
+
+`kit flow` and `kit workspace` start where `kit workspaces --current` says. Outside a repository, they draw the last
+group used, as `--workspace` with its name would. With no group used, or with `--workspace none`, `kit flow` draws
+each desk below, as it does above desks, and `kit workspace` refuses with 2, as it reads a repository.
 
 ## Commands
 
