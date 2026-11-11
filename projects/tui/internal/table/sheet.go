@@ -1,7 +1,8 @@
 // A sheet is one table on a screen, whole: its catalog's fields and presets, its records, its state, the control line
 // over its rows with the heading over the groups and the preset line, the header and its rule, its layers, and the
-// keyboard among them. A screen places it in a pane, gives it the keys and clicks the pane takes, draws its lines and
-// its layers, names its keys, and sets its search; the sheet is the host of its own controls. Its rows have no links,
+// keyboard among them. A screen places it in a pane, gives it the keys, the clicks, and the mouse wheel's turns the
+// pane takes, draws its lines and its layers, names its keys, and sets its search; the sheet is the host of its own
+// controls. Its rows have no links,
 // as a screen that opens pages has none to follow, and it reads no caller's login, so @me names no one. The person's
 // presets of it are kept in the presets file under its catalog's name for it, beside every other table's.
 package table
@@ -18,6 +19,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
@@ -526,6 +528,27 @@ func (s *Sheet) Click(c tea.MouseClickMsg) bool {
 	if !s.onControls {
 		s.tbl.SavingAs, s.tbl.Naming, s.tbl.Renaming = false, "", ""
 	}
+	return true
+}
+
+// WheelLines is the lines a turn of the mouse wheel scrolls the rows' window.
+const WheelLines = 3
+
+// Wheel takes a turn of the mouse wheel, and says whether the sheet took it: over the pane, it scrolls the rows'
+// window WheelLines down or up, never past its ends, the cursor left where it is, until a key moves it. A turn off the
+// pane, or while a layer is open, is not the sheet's.
+func (s *Sheet) Wheel(w tea.MouseWheelMsg) bool {
+	d := 0
+	switch w.Button {
+	case tea.MouseWheelUp:
+		d = -WheelLines
+	case tea.MouseWheelDown:
+		d = WheelLines
+	}
+	if d == 0 || s.Layered() || w.X >= s.paneWidth() || w.Y < s.top || w.Y >= s.top+s.height {
+		return false
+	}
+	s.tbl.Offset, _, _, _ = pane.Window(len(ScrollLines(s)), RowsHeight(s), s.tbl.Offset+d)
 	return true
 }
 

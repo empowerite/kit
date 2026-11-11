@@ -732,3 +732,38 @@ func TestTwoWritersOfThePresetsFileKeepEachOthersPresets(t *testing.T) {
 		t.Error("kept in a directory that cannot be written to")
 	}
 }
+
+// A turn of the mouse wheel over the pane scrolls the rows' window WheelLines a turn, never past its ends, the cursor
+// left where it is; a turn off the pane, a turn that is no up or down, or one while a layer is open scrolls nothing.
+func TestTheWheelScrollsTheRowsAndLeavesTheCursor(t *testing.T) {
+	s := sheet("")
+	s.Place(4, 7, 80, 24)
+	s.FocusRows()
+	pressed(&s, "down")
+	cursor := s.tbl.Cursor
+	turn := func(y int, b tea.MouseButton) bool { return s.Wheel(tea.MouseWheelMsg{X: 5, Y: y, Button: b}) }
+	if !turn(8, tea.MouseWheelDown) || s.tbl.Offset != WheelLines || s.tbl.Cursor != cursor {
+		t.Errorf("a turn down: offset %d, cursor %d, want %d and %d", s.tbl.Offset, s.tbl.Cursor, WheelLines, cursor)
+	}
+	for range 10 {
+		turn(8, tea.MouseWheelDown)
+	}
+	end := s.tbl.Offset
+	if turn(8, tea.MouseWheelDown); s.tbl.Offset != end || end == 0 {
+		t.Errorf("past the end: offset %d, then %d", end, s.tbl.Offset)
+	}
+	if turn(8, tea.MouseWheelUp); s.tbl.Offset != max(end-WheelLines, 0) {
+		t.Errorf("a turn back up from %d: offset %d", end, s.tbl.Offset)
+	}
+	at := s.tbl.Offset
+	if turn(2, tea.MouseWheelDown) || turn(11, tea.MouseWheelDown) || turn(8, tea.MouseLeft) || s.tbl.Offset != at {
+		t.Errorf("a turn off the pane, or no turn, scrolled: offset %d, want %d", s.tbl.Offset, at)
+	}
+	if s.Wheel(tea.MouseWheelMsg{X: 79, Y: 8, Button: tea.MouseWheelDown}) {
+		t.Error("a turn on the screen's last cell, past the pane, was taken")
+	}
+	s.cols = Columns{Open: true}
+	if turn(8, tea.MouseWheelUp) || s.tbl.Offset != at {
+		t.Errorf("a turn under the columns dialog scrolled: offset %d", s.tbl.Offset)
+	}
+}
