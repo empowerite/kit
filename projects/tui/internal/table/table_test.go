@@ -77,26 +77,30 @@ func TestADrawingStylesWhatTheFieldSays(t *testing.T) {
 	}
 	labels := Field{ID: "labels", Type: "label", Renderings: []string{"pills"}}
 	c := labels.Draw([]Value{Labelled([]Label{{"bug", "#ff0000"}, {"ui", ""}})}, "")[0]
-	if len(c.Values) != 2 || c.Head != c.Values[0] || ansi.Strip(c.Summary) != "2" {
+	// labels, as any list, carry no count of their own: the grid draws the first, a pill, and +1 after it
+	if len(c.Values) != 2 || c.Head != c.Values[0] || c.Summary != "" {
 		t.Errorf("labels: %+v", c)
 	}
-	// people, as labels: more than one is their glyph for many and how many, dim; one is drawn, its glyph its own
-	people := Field{ID: "assignees", Type: "person", One: "assignee", Glyph: "👤", Many: "👥", Dim: true,
+	if got := ansi.Strip(grid.Draw([]grid.Row{{Key: "a", Cells: []grid.Cell{{Values: []string{"#1"}}, c}}}, nil, 40, 0, -1, func(grid.Row) bool { return false }, nil)[0].Text); !strings.Contains(got,
+		style.PillLeft+"bug"+style.PillRight+" +1") {
+		t.Errorf("labels drawn: %q", got)
+	}
+	// people, as labels: more than one is the first, its glyph its own, and how many more; one is drawn alone
+	people := Field{ID: "assignees", Type: "person", One: "assignee", Glyph: "👤", Dim: true,
 		Renderings: []string{"glyph+text", "text"}}
 	cs := people.Draw([]Value{{Raw: []string{"ada", "bo"}}, One("ada")}, "")
-	if cs[0].Summary != style.Off("👥 2") || len(cs[0].Values) != 2 || cs[0].Head != "" {
+	if cs[0].Summary != "" || len(cs[0].Values) != 2 || cs[0].Values[0] != style.Off("👤 ada") || cs[0].Head != "" {
 		t.Errorf("two people: %+v", cs[0])
 	}
 	if cs[1].Summary != "" || cs[1].Values[0] != style.Off("👤 ada") {
 		t.Errorf("one person: %+v", cs[1])
 	}
-	// drawn without its glyph, the count stands alone
-	if c := people.Draw([]Value{{Raw: []string{"ada", "bo"}}}, "text")[0]; c.Summary != style.Off("2") {
+	if c := people.Draw([]Value{{Raw: []string{"ada", "bo"}}}, "text")[0]; c.Summary != "" || c.Values[0] != style.Off("ada") {
 		t.Errorf("two people as text: %+v", c)
 	}
 	// a list whose values lead apart, as assets each to its download, hands each value's link to its cell, from the
 	// glyph; drawn without it, none
-	assets := Field{ID: "assets", Type: "text", One: "asset", Glyph: "📎", Many: "📎",
+	assets := Field{ID: "assets", Type: "text", One: "asset", Glyph: "📎",
 		Renderings: []string{"glyph+text", "text"}}
 	v := Value{Raw: []string{"a", "b"}, Links: []string{"https://x/a", "https://x/b"}}
 	if c := assets.Draw([]Value{v}, "")[0]; !slices.Equal(c.Links, v.Links) || c.Link != "" {
@@ -272,11 +276,10 @@ func TestTheRenderingIsChosenAutomatically(t *testing.T) {
 	if state.SharesGlyph([]Value{One("open"), {}}) || !state.SharesGlyph(open) || state.SharesGlyph(mixed) {
 		t.Error("shares glyph")
 	}
-	// a row of several people draws their glyph for many, so one of one and one of two share nothing
-	people := Field{ID: "assignees", Type: "person", Glyph: "👤", Many: "👥"}
+	// a row of several people draws each one's glyph, the first standing for them, so one of one and one of two share it
+	people := Field{ID: "assignees", Type: "person", Glyph: "👤"}
 	ones := []Value{One("ada"), One("bo")}
-	if !people.SharesGlyph(ones) || people.SharesGlyph(append(ones, Value{Raw: []string{"ada", "bo"}})) ||
-		!people.SharesGlyph([]Value{{Raw: []string{"ada", "bo"}}, {Raw: []string{"cy", "di"}}}) {
+	if !people.SharesGlyph(ones) || !people.SharesGlyph(append(ones, Value{Raw: []string{"ada", "bo"}})) {
 		t.Error("people share a glyph")
 	}
 }

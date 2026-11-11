@@ -14,7 +14,7 @@
   ▸ Packages                pack…  packages: i…  kit packages
   ▸ Policy                  poli…  policy: in …  kit policy
   ▸ The stages of kit flow  flow   flow: in ki…  kit flow --stages
-  ▸ Primary and forges      2        primary: na…  kit flow incoming --no-fetch
+  ▸ Primary and forges      p… +1  primary: na…  kit flow incoming --no-fetch
   ▸ A house package                  A house pac…  kit packages --active
   ▸ The docs                         kit help li…  kit help
 

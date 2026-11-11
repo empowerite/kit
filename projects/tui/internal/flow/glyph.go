@@ -30,7 +30,6 @@ const (
 	Default   = "⚓" // default branch
 	Change    = "🔀" // pull request
 	Owner     = "👤" // assignees or author
-	People    = "👥" // assignee count
 	Fork      = "🍴" // fork owner
 	Pushed    = "📤" // last push
 	Path      = "📂" // desk path
@@ -67,14 +66,12 @@ var legends = map[string][]entry{
 		{GitHub, "on GitHub"},
 		{GitLab, "on GitLab"},
 		{Owner, "assignees or author"},
-		{People, "assignee count"},
 		{Branch, "branch or worktree"},
 		{Failed, "failed"},
 	},
 	"underway": {
 		{InFlight, "underway"},
 		{Owner, "assignees or author"},
-		{People, "assignee count"},
 		{Change, "pull request"},
 		{Desk, "desk"},
 		{Branch, "branch or worktree"},

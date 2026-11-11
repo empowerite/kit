@@ -81,10 +81,9 @@ func (f Field) DrawnBy(pinned string) string {
 // the field's, else its first: each dim where the field is, the field's alignment, each row's link, and what each
 // sorts, groups, and filters by, its raw values; what a field holding no value draws instead, dim. A link leads from
 // the glyph, so a field drawn without its glyph, which another of its renderings draws, has none: its text is no
-// button. A field none of whose renderings draws a glyph, as a reference, leads from its text. A field of labels, or a
-// list with a glyph for many, as people, says how many a row has, dim, in its column, where it has more than one,
-// after that glyph where the rendering draws glyphs, and draws the one where it has one; a group's heading says the
-// one label its rows share, as it draws it.
+// button. A field none of whose renderings draws a glyph, as a reference, leads from its text. A row that holds more
+// than one value of a list, as labels or people, draws its first, a pill or its glyph as the rendering draws it, and
+// +N, how many more, as the grid draws any list; a group's heading says the one label its rows share, as it draws it.
 func (f Field) Draw(vs []Value, pinned string) []grid.Cell {
 	rendering := f.DrawnBy(pinned)
 	links := glyphed[rendering] || !slices.ContainsFunc(f.Renderings, func(r string) bool { return glyphed[r] })
@@ -105,13 +104,6 @@ func (f Field) Draw(vs []Value, pinned string) []grid.Cell {
 		c.Whole = f.Width == WidthWhole
 		if f.Type == "label" && len(c.Values) > 0 {
 			c.Head = c.Values[0]
-		}
-		if (f.Type == "label" || f.Many != "") && len(c.Values) > 1 {
-			c.Summary = strconv.Itoa(len(c.Values))
-			if f.Many != "" && glyphed[rendering] {
-				c.Summary = f.Many + " " + c.Summary
-			}
-			c.Summary = style.Off(c.Summary)
 		}
 		if links {
 			c.Link, c.Links = v.Link, v.Links

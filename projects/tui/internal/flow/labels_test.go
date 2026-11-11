@@ -28,7 +28,7 @@ func TestALabelIsDrawnAsStylesPill(t *testing.T) {
 func TestTheLabelsColumnCountsAndTheOpenRowDrawsThePills(t *testing.T) {
 	f := fieldIn("backlog", "labels")
 	cells := f.Draw([]table.Value{table.Labelled([]table.Label{{Name: "bug", Color: "#d73a4a"}, {Name: "priority=high"}}), {}}, "")
-	if ansi.Strip(cells[0].Summary) != "2" || !slices.Equal(cells[0].Raw, []string{"bug", "priority=high"}) ||
+	if cells[0].Summary != "" || !slices.Equal(cells[0].Raw, []string{"bug", "priority=high"}) ||
 		len(cells[0].Values) != 2 || cells[1].Summary != "" || len(cells[1].Values) != 0 {
 		t.Fatalf("the cells: %+v", cells)
 	}
@@ -43,9 +43,9 @@ func TestTheLabelsColumnCountsAndTheOpenRowDrawsThePills(t *testing.T) {
 	if !slices.Equal(got, want) {
 		t.Errorf("open:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
-	// text draws the names alone, for a terminal without the font's half circles, and counts them the same
+	// text draws the names alone, for a terminal without the font's half circles, the first and +1 the same
 	two := table.Labelled([]table.Label{{Name: "bug"}, {Name: "docs"}})
-	if c := f.Draw([]table.Value{two}, "text"); c[0].Values[0] != "bug" || ansi.Strip(c[0].Summary) != "2" {
+	if c := f.Draw([]table.Value{two}, "text"); c[0].Values[0] != "bug" || c[0].Summary != "" {
 		t.Errorf("text: %+v", c[0])
 	}
 	// one label is drawn itself, as a pill, or by its name in text, its column no count

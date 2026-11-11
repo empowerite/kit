@@ -8,14 +8,14 @@
 
   ▾ 6                                                                                                       Default ▼
   ───
-    part                    settings    about                                              commands
+    part                    settings      about                                            commands
     ·───────────────────────×·─────────────────────────────────────────────────────────────×·──────────────────────────
-  ▸ Packages                packages  packages: in kit.yml lists the active packages. …  kit packages
-  ▸ Policy                  policy    policy: in kit.yml sets the patterns that branch…  kit policy
-  ▸ The stages of kit flow  flow      flow: in kit.yml names the stages kit flow draws…  kit flow --stages
-  ▸ Primary and forges      2           primary: names the remote kit reads pull request…  kit flow incoming --no-fetch
-  ▸ A house package                     A house package holds your team's own rules, sty…  kit packages --active
-  ▸ The docs                            kit help lists every command, and kit help <verb…  kit help
+  ▸ Packages                packages    packages: in kit.yml lists the active packages…  kit packages
+  ▸ Policy                  policy      policy: in kit.yml sets the patterns that bran…  kit policy
+  ▸ The stages of kit flow  flow        flow: in kit.yml names the stages kit flow dra…  kit flow --stages
+  ▸ Primary and forges      primary +1  primary: names the remote kit reads pull reque…  kit flow incoming --no-fetch
+  ▸ A house package                       A house package holds your team's own rules, s…  kit packages --active
+  ▸ The docs                              kit help lists every command, and kit help <ve…  kit help
 
 
 

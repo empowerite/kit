@@ -8,7 +8,7 @@
                                                                               │ ────────────────│ ☑ @me ada            │
       id  assignees  age  title                                               │ ☑ id            │ ☐ ada                │
       ·───×·─────────·────·───────────────────────────────────────────────────│ ☑ assignees ⊘   │ ☐ bob                │
-    ▸ #7  👥 2       40d  🎫 Fix the thing                                    │ ☑ age           │ ☐ jeffrey-aguilera   │
+    ▸ #7  👤 ada +1  40d  🎫 Fix the thing                                    │ ☑ age           │ ☐ jeffrey-aguilera   │
                                                                               │ ☑ branch        │ ☐ none               │
                                                                               │ ☑ labels        │                      │
                                                                               │ ☑ title         │ rendering            │

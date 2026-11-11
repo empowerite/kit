@@ -14,7 +14,7 @@
     ▸ desk        Your root checkout, where you cloned the repository. It is yours; ag…  kit flow desk
     ▸ worktree    A checkout of its own, under worktrees/, on one issue's branch. kit …  kit flow worktrees        +1
     ▸ code forge  The service that hosts the repository, its issues, its pull requests…  kit flow incoming --no-fetch
-    ▸ 2             A remote is another copy of the repository, as git names it. The pri…  git remote --verbose
+    ▸ remote  +1  A remote is another copy of the repository, as git names it. The pri…  git remote --verbose
   ▾ What kit delivers 6
     ▸ package     A set of files kit delivers, such as rules, styles, or a CI job. A r…  kit packages
     ▸ kind        A kind of file, such as bash or markdown. Its paths and its first li…  kit kinds

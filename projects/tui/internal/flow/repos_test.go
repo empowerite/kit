@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
@@ -235,7 +234,7 @@ func TestARepoListsItsWorktreesByBranchAndItsBranchesNoCheckoutHas(t *testing.T)
 		t.Errorf("the branches: %q", got)
 	}
 	c := fieldIn("workspace/repos", "worktrees").Draw([]table.Value{r.values["worktrees"]}, "")[0]
-	if !slices.Equal(c.Values, []string{Branch + " loose " + Detached, Branch + " topic"}) || ansi.Strip(c.Summary) != "2" {
+	if !slices.Equal(c.Values, []string{Branch + " loose " + Detached, Branch + " topic"}) || c.Summary != "" {
 		t.Errorf("the worktrees draw %q, closed %q", c.Values, c.Summary)
 	}
 	c = fieldIn("workspace/repos", "branches").Draw([]table.Value{r.values["branches"]}, "")[0]

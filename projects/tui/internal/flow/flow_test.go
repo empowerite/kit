@@ -1018,9 +1018,10 @@ func TestBacklogOpensToItsDetail(t *testing.T) {
 	m = drive(intoRows(m), toggle)
 	v := view(m)
 	// the title has what the other columns leave, with its glyph, which leads to the issue's page, and the branch, which
-	// one row alone has, with its own; two assignees are People and how many, as labels are, so one is Owner and a name
-	for _, want := range []string{"#45", "#46  " + Owner + " jeffrey-agui…   2d  🌿 46-a-noun-li…  " + Issue + " A noun lists",
-		"#7   " + People + " 2              40d", "picture: five stages,", "interactive on a terminal,"} {
+	// one row alone has, with its own; two assignees are the first and +1, as any list's are; every row's assignee
+	// draws Owner, which then says nothing, so the names stand alone
+	for _, want := range []string{"#45", "#46  jeffrey-aguilera   2d  🌿 46-a-noun-li…  " + Issue + " A noun lists",
+		"#7   ada           +1  40d", "picture: five stages,", "interactive on a terminal,"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the backlog lacks %q:\n%s", want, v)
 		}
@@ -1031,8 +1032,8 @@ func TestBacklogOpensToItsDetail(t *testing.T) {
 		t.Errorf("the backlog's links:\n%s", v)
 	}
 	// open, the row of two assignees names each down its column, one to a line, as a row of labels does
-	if v = view(drive(m, down, down, toggle)); !strings.Contains(v, Owner+" ada") || !strings.Contains(v, Owner+" bob") ||
-		strings.Contains(v, Owner+" ada "+Owner+" bob") {
+	if v = view(drive(m, down, down, toggle)); !strings.Contains(v, "#7   ada") || !strings.Contains(v, "     bob") ||
+		strings.Contains(v, "ada bob") || strings.Contains(v, "+1") {
 		t.Errorf("#7 open:\n%s", v)
 	}
 }
@@ -1046,7 +1047,7 @@ func TestAReleaseIsARowOfItsFieldsLeadingToItsPageAndItsAssets(t *testing.T) {
 	m := intoRows(loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30}, tab, tab, tab, tab, tab, tab, tab))
 	v := view(m)
 	for _, want := range []string{"0.2.0       " + Draft + " draft", "0.1.0       " + Release + " release",
-		Latest + " latest", "📎 2", "## What's Changed", "0.1.0-rc.7  " + Pre + " pre-release  28h",
+		Latest + " latest", "📎 kit-0.1.0.tar.gz     +1", "## What's Changed", "0.1.0-rc.7  " + Pre + " pre-release  28h",
 		"📎 kit-0.1.0-rc.7.tar.gz", "The last candidate."} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the releases lack %q:\n%s", want, v)

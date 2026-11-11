@@ -28,9 +28,8 @@ type Schema struct {
 // that holds a list, as assignees: such a field sorts by size while a row holds all its values, how many each holds,
 // and flattened, the rows standing once per value of it, by value, the header naming it so. Values are an enum's known values, none for one whose
 // values only the rows know, as an issue's repository, and Other the glyph of one it does not know, if any. Glyph is
-// the glyph drawn before each value of a Field that is not an enum, and Many, for a list, the glyph its column draws
-// before how many values a row holds where it holds more than one, as 👥 for people, as labels draw the count alone.
-// Renderings names the renderers that can draw it,
+// the glyph drawn before each value of a Field that is not an enum; a row that holds more than one value of a list
+// draws its first, and +N, dim, how many more. Renderings names the renderers that can draw it,
 // the first preferred. Dim, Right, and Wrap say how its column is drawn: dim, right-aligned, or as the one column that
 // takes the width left and wraps. Width says how its column gives way to the one that wraps: none, the column gives up
 // the cells past its share as soon as the wrapping one is short; WidthWhole, it keeps its widest value while the
@@ -51,7 +50,6 @@ type Field struct {
 	Values     []EnumValue `json:"values"`
 	Other      string      `json:"other"`
 	Glyph      string      `json:"glyph"`
-	Many       string      `json:"many"`
 	Renderings []string    `json:"renderings"`
 	Dim        bool        `json:"dim"`
 	Right      bool        `json:"right"`

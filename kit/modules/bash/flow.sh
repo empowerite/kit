@@ -97,7 +97,6 @@ declare -gA flow_glyphs=(
   [Default]='⚓'
   [Change]='🔀'
   [Owner]='👤'
-  [People]='👥'
   [Fork]='🍴'
   [Pushed]='📤'
   [Path]='📂'

@@ -167,7 +167,6 @@
 #   🐙  on GitHub: the forge of a remote, or the tracker that holds an issue
 #   🦊  on GitLab: the forge of a remote, or the tracker that holds an issue
 #   👤  assignees or author: an issue's assignees, a pull request's author, or who pushed last when not the author
-#   👥  assignee count: an issue's, where it has more than one
 #   🌿  branch or worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
@@ -175,7 +174,6 @@
 #
 #   🛫  underway: an issue an open pull request closes
 #   👤  assignees or author: an issue's assignees, a pull request's author, or who pushed last when not the author
-#   👥  assignee count: an issue's, where it has more than one
 #   🔀  pull request: a merge request, on GitLab
 #   💻  desk: the root checkout
 #   🌿  branch or worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
