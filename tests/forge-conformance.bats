@@ -113,8 +113,8 @@ JSON
    "closed_issues": 2, "html_url": "https://github.com/empowerite/example/milestone/2"}]]
 JSON
   fixture gh-iterations.json <<'JSON'
-{"data": {"repository": {"projectsV2": {"nodes": [{"url": "https://github.com/orgs/empowerite/projects/4",
-  "fields": {"nodes": [{}, {"configuration": {
+{"data": {"repository": {"projectsV2": {"totalCount": 1, "nodes": [{"url": "https://github.com/orgs/empowerite/projects/4",
+  "fields": {"totalCount": 2, "nodes": [{}, {"configuration": {
     "iterations": [{"id": "PVTI_2", "title": "Sprint 2", "startDate": "2026-11-16", "duration": 14}],
     "completedIterations": [{"id": "PVTI_1", "title": "Sprint 1", "startDate": "2026-11-02", "duration": 14}]}}]}}]}}}}
 JSON
@@ -163,20 +163,16 @@ JSON
   fixture none.json <<<'[]'
   route glab 'api user' user.json
   fixture gl-milestones.json <<'JSON'
-[{"id": 20, "iid": 2, "title": "v0.1", "state": "active", "due_date": "2026-12-01",
-  "web_url": "https://gitlab.com/empowerite/example/-/milestones/2"}]
-JSON
-  fixture gl-milestone-issues.json <<'JSON'
-[{"iid": 7, "state": "opened"}, {"iid": 8, "state": "opened"}, {"iid": 9, "state": "opened"},
- {"iid": 4, "state": "closed"}, {"iid": 5, "state": "closed"}]
+{"data": {"project": {"milestones": {"pageInfo": {"hasNextPage": false, "endCursor": null}, "nodes": [
+  {"iid": "2", "title": "v0.1", "state": "active", "dueDate": "2026-12-01",
+   "webPath": "/empowerite/example/-/milestones/2", "stats": {"totalIssuesCount": 5, "closedIssuesCount": 2}}]}}}}
 JSON
   fixture gl-iterations.json <<'JSON'
 [{"id": 31, "iid": 1, "title": "Sprint 1", "start_date": "2026-11-02", "due_date": "2026-11-15",
   "web_url": "https://gitlab.com/groups/empowerite/-/iterations/31"}]
 JSON
   fixture gl-forbidden.txt <<<'glab: 403 Forbidden'
-  route glab "api ${p}/milestones/20/issues?per_page=100*" gl-milestone-issues.json
-  route glab "api ${p}/milestones?per_page=100*" gl-milestones.json
+  route glab 'api graphql*' "${GITLAB_MILESTONES:-gl-milestones.json}"
   route glab "api ${p}/iterations?include_ancestors=true&per_page=100*" "${GITLAB_ITERATIONS:-gl-iterations.json}"
   route glab "api ${p}/issues/7" issue.json
   route glab 'issue create*' issue-url.txt
@@ -512,7 +508,7 @@ JSON
   route gh 'api --include repos/{owner}/{repo}/issues?state=all&sort=updated&direction=desc&per_page=1' issues-200.txt
   route gh 'api --include repos/{owner}/{repo}/actions/runs?per_page=10' runs-200.txt
   route gh 'api --include*repos/{owner}/{repo}/releases?per_page=1' releases-200.txt
-  route gh 'api --include*repos/{owner}/{repo}/milestones?state=all&sort=updated&per_page=1' milestones-200.txt
+  route gh 'api --include*repos/{owner}/{repo}/milestones?state=all&per_page=100' milestones-200.txt
   run call marks
   [ "$status" -eq 0 ]
   [ "$output" = '{"issues":"W/\"i1\"","runs":"W/\"r1\"","releases":"W/\"v1\"","milestones":"W/\"m1\""}' ]
@@ -540,14 +536,14 @@ JSON
   route glab "api ${p}/merge_requests?order_by=updated_at&sort=desc&per_page=1" gl-mrs.json
   route glab "api ${p}/pipelines?per_page=10" gl-pipelines.json
   route glab "api ${p}/releases?per_page=1" gl-releases.json
-  route glab "api ${p}/milestones?order_by=updated_at&sort=desc&per_page=1" gl-milestones.json
+  route glab "api ${p}/milestones?sort=updated_desc&per_page=1" gl-milestones.json
   run call marks
   [ "$status" -eq 0 ]
   [ "$(jq --raw-output '.issues, .runs, .releases, .milestones' <<<"$output")" = \
     '[[7,"2026-11-01T09:00:00.000Z"],[3,"2026-11-02T09:00:00.000Z"]]
 [[11,"success","2026-11-03T09:00:00.000Z"]]
 [["v1","2026-11-04T09:00:00.000Z"]]
-[[2,"2026-11-05T09:00:00.000Z"]]' ]
+[[2,"2026-11-05T09:00:00.000Z"],[7,"2026-11-01T09:00:00.000Z"]]' ]
 }
 
 @test "a provider that cannot read the rate limits says how to fix it, and kit flow --quota prints nothing" {
@@ -653,6 +649,59 @@ JSON
   done
   GITLAB_ITERATIONS='!1' world gitlab
   run call iterations
+  [ "$status" -eq 1 ]
+}
+
+@test "GitLab's milestones follow the cursor past a page, and a failing page fails the call" {
+  world gitlab
+  : > "${FAKE_DIR}/glab.routes"
+  fixture gl-page1.json <<'JSON'
+{"data": {"project": {"milestones": {"pageInfo": {"hasNextPage": true, "endCursor": "c1"}, "nodes": [
+  {"iid": "1", "title": "a", "state": "closed", "dueDate": null, "webPath": "/o/e/-/milestones/1",
+   "stats": {"totalIssuesCount": 1, "closedIssuesCount": 1}}]}}}}
+JSON
+  route glab 'api graphql*after=c1*' gl-milestones.json
+  route glab 'api graphql*' gl-page1.json
+  run call milestones
+  [ "$status" -eq 0 ]
+  [ "$(jq --raw-output '.number' <<<"$output" | paste -sd, -)" = '1,2' ]
+  [ "$(jq --raw-output 'select(.number == 2) | [.open, .closed, .url] | join(" ")' <<<"$output")" \
+    = '3 2 https://gitlab.com/empowerite/example/-/milestones/2' ]
+  : > "${FAKE_DIR}/glab.routes"
+  route glab 'api graphql*' '!1'
+  run --separate-stderr call milestones
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+}
+
+@test "GitHub's iterations need the read:project scope, and name the command that adds it; a partial read fails" {
+  world github
+  fixture gh-scope.txt <<<'gh: Your token has not been granted the required scopes to execute this query. The '"'"'id'"'"' field requires one of the following scopes: ['"'"'read:project'"'"'], but your token has only been granted the: ['"'"'repo'"'"'] scopes. (INSUFFICIENT_SCOPES)'
+  : > "${FAKE_DIR}/gh.routes"
+  route gh 'repo view*' repo.json
+  route gh 'api graphql*' '!1 gh-scope.txt'
+  run --separate-stderr call iterations
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [[ "$stderr" == *"run: gh auth refresh --scopes read:project (the iterations could not be read)"* ]]
+  [ "$(grep --count '❌' <<<"$stderr")" -eq 1 ]
+  fixture gh-many.json <<'JSON'
+{"data": {"repository": {"projectsV2": {"totalCount": 21, "nodes": [{"url": "u", "fields": {"totalCount": 1, "nodes": [{}]}}]}}}}
+JSON
+  : > "${FAKE_DIR}/gh.routes"
+  route gh 'repo view*' repo.json
+  route gh 'api graphql*' gh-many.json
+  run --separate-stderr call iterations
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [[ "$stderr" == *"at most 20 projects and 50 fields"* ]]
+  fixture gh-wide.json <<'JSON'
+{"data": {"repository": {"projectsV2": {"totalCount": 1, "nodes": [{"url": "u", "fields": {"totalCount": 51, "nodes": [{}]}}]}}}}
+JSON
+  : > "${FAKE_DIR}/gh.routes"
+  route gh 'repo view*' repo.json
+  route gh 'api graphql*' gh-wide.json
+  run --separate-stderr call iterations
   [ "$status" -eq 1 ]
 }
 

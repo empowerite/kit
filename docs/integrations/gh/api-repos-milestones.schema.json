@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "gh api --paginate --slurp repos/{owner}/{repo}/milestones?state=all&per_page=100",
-  "description": "The repository's milestones, open and closed, as an array of the pages gh read, each an array: every one, which kit draws as the milestones stage's in `modules/bash/forge/github.sh` (forge/github:milestones, with `modules/jq/forge.jq` forge::github_milestones). The mark of the milestones, with sort=updated&per_page=1 and --include, is the ETag of the answer (forge/github:marks), whose body kit does not read. The types are those of GET /repos/{owner}/{repo}/milestones in GitHub's REST OpenAPI, https://github.com/github/rest-api-description, as https://docs.github.com/rest/issues/milestones describes them.",
+  "description": "The repository's milestones, open and closed, as an array of the pages gh read, each an array: every one, which kit draws as the milestones stage's in `modules/bash/forge/github.sh` (forge/github:milestones, with `modules/jq/forge.jq` forge::github_milestones). The mark of the milestones, with --include and the first page of this path, is the ETag of the answer (forge/github:marks), whose body kit does not read; GitHub's milestones list takes no sort by update, so an edit past the first 100 goes unseen. The types are those of GET /repos/{owner}/{repo}/milestones in GitHub's REST OpenAPI, https://github.com/github/rest-api-description, as https://docs.github.com/rest/issues/milestones describes them.",
   "type": "array",
   "items": {
     "type": "array",

@@ -143,15 +143,16 @@ forge/gitlab:link-branch() {
 
 # forge/gitlab:marks [<dir>] reads, for each kind of the project's data, a mark that changes when it does: issues, of
 # the issue and the merge request updated last; runs, of the ten newest pipelines; releases, of the newest release;
-# milestones, of the newest by update. GitLab sends no ETag for these, so each mark is what the answer says of when its
-# items changed, and costs a request each read, five in all.
+# milestones, of the newest by update and the newest issue, as an issue closing moves no milestone's own update.
+# GitLab sends no ETag for these, so each mark is what the answer says of when its items changed, and costs a request
+# each read, five in all.
 forge/gitlab:marks() {
   local issues mrs runs releases milestones
   forge/gitlab:ask issues 'the marks' 'issues?order_by=updated_at&sort=desc&per_page=1' || return 1
   forge/gitlab:ask mrs 'the marks' 'merge_requests?order_by=updated_at&sort=desc&per_page=1' || return 1
   forge/gitlab:ask runs 'the marks' 'pipelines?per_page=10' || return 1
   forge/gitlab:ask releases 'the marks' 'releases?per_page=1' || return 1
-  forge/gitlab:ask milestones 'the marks' 'milestones?order_by=updated_at&sort=desc&per_page=1' || return 1
+  forge/gitlab:ask milestones 'the marks' 'milestones?sort=updated_desc&per_page=1' || return 1
   forge/gitlab:fold 'the marks' '' --null-input --compact-output --argjson issues "${issues}" --argjson mrs "${mrs}" \
     --argjson runs "${runs}" --argjson releases "${releases}" --argjson milestones "${milestones}" \
     'import "forge" as forge; forge::gitlab_marks($issues; $mrs; $runs; $releases; $milestones)'
@@ -168,19 +169,33 @@ forge/gitlab:me() {
 forge/gitlab:merged-prs() { return 3; }
 
 # forge/gitlab:milestones prints one document per milestone of the project, open and closed, by number, as the seam's
-# header says. GitLab's list holds no count of issues, so each milestone's own are read, opened and closed, and a
-# read that fails fails the call.
+# header says. GitLab's REST list holds no count of issues, its GraphQL does, so one query reads them, 100 a page,
+# following each page's cursor to the end; a page that fails fails the call.
 forge/gitlab:milestones() {
-  local list id issues counts='{}'
-  forge/gitlab:pages list 'the milestones' 'milestones?per_page=100' || return 1
-  for id in $(forge/gitlab:fold 'the milestones' "${list}" --raw-output '.[].id | numbers // error')
+  local project query page nodes='[]' after=() more=true host
+  project=$(forge/gitlab:project) || return 1
+  host=$(forge:host "$(forge:primary)") || return 1
+  query='query($path: ID!, $after: String) {
+    project(fullPath: $path) {
+      milestones(first: 100, after: $after) {
+        pageInfo { hasNextPage endCursor }
+        nodes { iid title state dueDate webPath stats { totalIssuesCount closedIssuesCount } }
+      }
+    }
+  }'
+  while [[ "${more}" == true ]]
   do
-    forge/gitlab:pages issues "the issues of milestone ${id}" "milestones/${id}/issues?per_page=100" || return 1
-    counts=$(forge/gitlab:fold 'the milestones' "${counts}"$'\n'"${issues}" --slurp --compact-output --arg id "${id}" \
-      '.[0] + {($id): .[1]}') || return 1
+    forge/gitlab:ask page 'the milestones' /graphql --field path="${project}" "${after[@]}" \
+      --raw-field query="${query}" || return 1
+    nodes=$(forge/gitlab:fold 'the milestones' "${nodes}"$'\n'"${page}" --slurp --compact-output \
+      '.[0] + (.[1].data.project.milestones.nodes | arrays // error)') || return 1
+    more=$(forge/gitlab:fold 'the milestones' "${page}" --raw-output \
+      '.data.project.milestones.pageInfo | if .hasNextPage then "true" else "false" end') || return 1
+    after=(--field after="$(jq --raw-output '.data.project.milestones.pageInfo.endCursor // ""' <<<"${page}")")
   done
-  forge/gitlab:fold 'the milestones' "${list}" --compact-output --argjson counts "${counts}" \
-    'import "forge" as forge; forge::gitlab_milestones($counts)'
+  forge:whole 'the milestones' "$(jq length <<<"${nodes}")" || return 1
+  forge/gitlab:fold 'the milestones' "${nodes}" --compact-output --arg host "https://${host}" \
+    'import "forge" as forge; forge::gitlab_milestones($host)'
 }
 
 forge/gitlab:noun() { printf '!\tmerge request\n'; }
@@ -423,8 +438,8 @@ forge/gitlab:secret-scanning-alerts() { return 3; }
 
 forge/gitlab:teams() { return 3; }
 
-# The provider implements contract 4. The calls of the features contract 4 adds are not written yet: each task that
-# writes one drops its feature from lacks.
+# The provider implements contract 4. A feature whose call it has not written is in lacks, which the task that writes
+# the call drops it from.
 forge/gitlab:contract() { printf '4\n'; }
 
 forge/gitlab:lacks() {

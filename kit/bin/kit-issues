@@ -53,7 +53,7 @@
 #                       page. Azure DevOps has no milestones
 #   iterations          {id, title, start, end, current}: start and end are seconds since the epoch, end the last
 #                       second of the last day, null where the iteration has no dates; current is true for the one
-#                       that holds now; the title links to the project's page. A repository with no project linked on
+#                       that holds now; the title links to the page of the project, the iteration, or the team's sprints. A repository with no project linked on
 #                       GitHub has none
 #
 # Exits 0 when the stages are drawn, 1 when a stage could not be read, after what was, and 2 on a usage error, or

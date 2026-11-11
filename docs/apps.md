@@ -67,14 +67,35 @@ or outside a repository's working tree with no workspace.
 
 - `milestones` keys each row by its number. `state` is `open` or `closed`, `due` seconds since the epoch, `null` for
   none, and `open` and `closed` count the milestone's issues. The title links to the milestone's page. Azure DevOps
-  has no milestones, so its stage has no rows and no errors. Its mark is GitHub's ETag of the milestones list,
-  GitLab's newest `updated_at`, and none on Azure DevOps.
+  has no milestones, so its stage has no rows and no errors. Its mark is GitHub's ETag of the milestones list's
+  first 100, GitLab's newest milestone and newest issue by `updated_at`, and none on Azure DevOps.
 - `iterations` keys each row by its id. `start` and `end` are seconds since the epoch, `end` the last second of the
   last day, both `null` for an iteration with no dates. `current` is true for the one that holds now. The title links
   to the project's page, or the iteration's. GitHub's come from the projects linked to the repository, none when
-  none is linked; GitLab's include its groups', and a tier without iterations is the error
-  `{feature: iterations, off: true}`; Azure DevOps' are its team's, the team `forge_settings.ado.team` in `kit.yml`
+  none is linked, and need `gh`'s `read:project` scope; GitLab's include its groups', and a tier without iterations
+  is the error `{feature: iterations, off: true}`; Azure DevOps' are its team's, the team `forge_settings.ado.team` in `kit.yml`
   names, else the project's default team. It has no mark, so kittui reads it again only on Refresh and Watch.
+
+## Packages: kit packages
+
+`kit packages` keeps its own forms beside the app's, as [packages.md](packages.md) says: alone, with a filter, or
+with `--text`, it lists the packages as text, and `--json` with no stage prints one object a package, of the
+repository here; `select`, `add`, and `remove` change the active set. Off a terminal, `kit packages` alone still
+lists them. On a terminal, `kit packages` alone opens Packages in kittui, and the app's forms hold as for every app
+verb: `--stages`, `--marks`, and its one stage, `kit packages packages`.
+
+| Stage | A row per | Fields | Mark |
+| --- | --- | --- | --- |
+| `packages` | package in reach, as `kit packages` lists them | `name, state, origin, depends, includes, dependents, bundles, description` | a hash of `kit.yml` and `.kit/packages/` |
+
+- `state` is `active`, `inactive`, or `excluded`, and `origin` is `release`, `repository`, or a source's name.
+  `depends` and `includes` are the package's own; `dependents` are the active packages that depend on it, which
+  `kit packages remove` refuses it for, and `bundles` the active bundles that include it. Where kit was never
+  installed, the stage refuses with kit packages' own line.
+- Packages' tab menu acts on the packages selected, each action a kit verb kittui runs: Add runs `kit packages add`
+  on the selected packages that are not active; Remove… lists the active ones and asks before it runs
+  `kit packages remove`, which takes their files out; Make Only These Active… lists what it keeps, adds, and takes
+  out, and asks before it runs `kit packages select`. Over a workspace, each runs in its member's checkout.
 
 see: [toolchains.md](toolchains.md), [workspaces.md](workspaces.md), [integrations/gh.md](integrations/gh.md),
 [integrations/glab.md](integrations/glab.md), [integrations/az.md](integrations/az.md)

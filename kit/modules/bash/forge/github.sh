@@ -99,13 +99,14 @@ forge/github:issue-unassign() {
 # forge/github:iterations prints one document per iteration, by start, as the seam's header says: those of the iteration
 # fields of the projects linked to the repository, which GitHub keeps in its Projects, not in its Issues. A repository
 # with no project linked has none, and prints nothing. One GraphQL request reads the first 20 projects and the first 50
-# fields of each; a project with more is read as far as that.
+# fields of each; more than that, and the read fails, as it would be partial. Projects need the read:project scope,
+# which gh's default login lacks: GitHub answers INSUFFICIENT_SCOPES, and the failure names the command that adds it.
 forge/github:iterations() {
-  local repo answer query
+  local repo answer query said out
   repo=$(forge/github:repo) || return 1
   query='query($owner: String!, $name: String!) {
     repository(owner: $owner, name: $name) {
-      projectsV2(first: 20) { nodes { url fields(first: 50) { nodes {
+      projectsV2(first: 20) { totalCount nodes { url fields(first: 50) { totalCount nodes {
         ... on ProjectV2IterationField {
           configuration {
             iterations { id title startDate duration }
@@ -115,8 +116,24 @@ forge/github:iterations() {
       } } } }
     }
   }'
-  forge/github:ask answer 'the iterations' api graphql --field owner="${repo%%/*}" --field name="${repo#*/}" \
-    --raw-field query="${query}" || return 1
+  file:temp said gh || return 1
+  if ! answer=$(gh api graphql --field owner="${repo%%/*}" --field name="${repo#*/}" --raw-field query="${query}" \
+    2>"${said}")
+  then
+    out=${answer}$'\n'$(<"${said}")
+    if [[ "${out,,}" == *insufficient_scopes* || "${out,,}" == *'required scopes'* ]]
+    then
+      error "run: gh auth refresh --scopes read:project (the iterations could not be read)"
+    else
+      forge/github:limited 'the iterations' "${out}" || error "run: gh auth status (the iterations could not be read)"
+    fi
+    return 1
+  fi
+  forge:json "${answer}" || { error "run: gh auth status (the iterations could not be read)"; return 1; }
+  jq --exit-status '
+    .data.repository.projectsV2 | (.totalCount // 0) <= (.nodes | length)
+      and all(.nodes[]; (.fields.totalCount // 0) <= (.fields.nodes | length))' <<<"${answer}" >/dev/null 2>&1 \
+    || { error "kit reads at most 20 projects and 50 fields of each (the iterations could not be read)"; return 1; }
   forge/github:fold 'the iterations' "${answer}" --compact-output 'import "forge" as forge; forge::github_iterations'
 }
 
@@ -127,8 +144,8 @@ forge/github:link-branch() {
 
 # forge/github:marks [<dir>] reads, for each kind of the repository's data, a mark that changes when it does: issues,
 # of the issue or pull request updated last, as GitHub lists them together; runs, of the ten newest workflow runs;
-# releases, of the newest release; milestones, of the first milestone of the list ordered by update. A mark is GitHub's
-# ETag for the answer. With <dir>, each ETag is kept there and the next read sends it, so GitHub answers 304 Not
+# releases, of the newest release; milestones, of the first 100 milestones, the page the read takes first, so an edit
+# to a milestone past the first 100 goes unseen. A mark is GitHub's ETag for the answer. With <dir>, each ETag is kept there and the next read sends it, so GitHub answers 304 Not
 # Modified while nothing changed, which counts against no rate limit.
 # gh names the repository from the checkout's remote, as {owner}/{repo}, which costs no request.
 forge/github:marks() {
@@ -139,7 +156,7 @@ forge/github:marks() {
     || return 1
   releases=$(forge/github:mark 'repos/{owner}/{repo}/releases?per_page=1' "${dir:+${dir}/marks-releases.etag}") \
     || return 1
-  milestones=$(forge/github:mark 'repos/{owner}/{repo}/milestones?state=all&sort=updated&per_page=1' \
+  milestones=$(forge/github:mark 'repos/{owner}/{repo}/milestones?state=all&per_page=100' \
     "${dir:+${dir}/marks-milestones.etag}") || return 1
   jq --null-input --compact-output --arg issues "${issues}" --arg runs "${runs}" --arg releases "${releases}" \
     --arg milestones "${milestones}" '{issues: $issues, runs: $runs, releases: $releases, milestones: $milestones}'
@@ -474,8 +491,8 @@ forge/github:secret-scanning-alerts() { return 3; }
 
 forge/github:teams() { return 3; }
 
-# The provider implements contract 4. The calls of the features contract 4 adds are not written yet: each task that
-# writes one drops its feature from lacks.
+# The provider implements contract 4. A feature whose call it has not written is in lacks, which the task that writes
+# the call drops it from.
 forge/github:contract() { printf '4\n'; }
 
 forge/github:lacks() {

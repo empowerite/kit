@@ -39,7 +39,7 @@ provider() {
   } > "bash/forge/${name}.sh"
 }
 
-# added is what contract 4 adds, as JSON strings: no forge here has any of it yet, so a provider lacks all of it.
+# added is what contract 4 adds, as JSON strings: a provider that has written none of it lacks all of it.
 added='"milestones","iterations","reviewers","merged","artifacts","environments","deployments","collaborators",'
 added+='"teams","bots","attestations","code-scanning","dependabot","secret-scanning","rulesets","bypasses"'
 

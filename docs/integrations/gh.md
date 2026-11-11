@@ -96,7 +96,7 @@ kit's `forge/github.sh` uses these commands.
 | Parent and sub-issues | `gh issue view "${n}" --json parent,subIssues,subIssuesSummary` |
 | Changes that close it | `gh issue view "${n}" --json closedByPullRequestsReferences` |
 | Linked branches | `gh issue develop --list "${n}"` |
-| Milestones | `gh api --paginate --slurp 'repos/{owner}/{repo}/milestones?state=all&per_page=100'` (raw REST); `kit issues milestones` draws them, and its mark is the ETag of the same path with `sort=updated&per_page=1` |
+| Milestones | `gh api --paginate --slurp 'repos/{owner}/{repo}/milestones?state=all&per_page=100'` (raw REST); `kit issues milestones` draws them, and its mark is the ETag of the same path's first page, so an edit to a milestone past the first 100 goes unseen |
 | Iterations | none in Issues; `kit issues iterations` reads them from [GitHub Projects](#github-projects) |
 
 ### Write to GitHub Issues
@@ -152,7 +152,7 @@ through `gh api graphql`, paged with `--paginate` and `$endCursor`.
 | Items, with their Status and Iteration | `gh project item-list "${number}" --owner "${owner}" --format json --limit "${limit}"` |
 | Items that match a filter | `gh project item-list "${number}" --owner "${owner}" --query "${filter}" --format json` |
 | An issue's projects and field values | `gh issue view "${n}" --json projectItems` |
-| Iterations, with dates | `gh api graphql -f query="${query}" -F project="${project_id}"` (raw GraphQL; below); `kit issues iterations` reads those of the first 20 projects linked to the repository with one `repository.projectsV2` query, `-f owner=… -f name=…`, and flattens each iteration field's `iterations` and `completedIterations` |
+| Iterations, with dates | `gh api graphql -f query="${query}" -F project="${project_id}"` (raw GraphQL; below); `kit issues iterations` reads those of the first 20 projects linked to the repository, the first 50 fields of each, failing where there are more, and needing the `read:project` scope (`gh auth refresh --scopes read:project`), with one `repository.projectsV2` query, `-f owner=… -f name=…`, and flattens each iteration field's `iterations` and `completedIterations` |
 
 ```graphql
 query($project: ID!) {

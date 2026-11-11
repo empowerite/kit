@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "gh api graphql --field owner=${owner} --field name=${name} --raw-field query=${query}",
-  "description": "The iterations of the iteration fields of the first 20 projects linked to the repository, in the first 50 fields of each, which kit draws as the iterations stage's in `modules/bash/forge/github.sh` (forge/github:iterations, with `modules/jq/forge.jq` forge::github_iterations): the iterations still to come or running, and those completed. A field that is not an iteration field is the empty object. The token needs the read:project scope for a project that is not public. The types are those of ProjectV2, ProjectV2IterationField, and ProjectV2IterationFieldConfiguration in GitHub's GraphQL schema, https://docs.github.com/graphql/reference/objects.",
+  "description": "The iterations of the iteration fields of the first 20 projects linked to the repository, in the first 50 fields of each, whose totalCount kit compares with what it read, and fails where more exist, which kit draws as the iterations stage's in `modules/bash/forge/github.sh` (forge/github:iterations, with `modules/jq/forge.jq` forge::github_iterations): the iterations still to come or running, and those completed. A field that is not an iteration field is the empty object. The token needs the read:project scope, which gh's default login lacks: GitHub answers INSUFFICIENT_SCOPES, and kit names `gh auth refresh --scopes read:project`. The types are those of ProjectV2, ProjectV2IterationField, and ProjectV2IterationFieldConfiguration in GitHub's GraphQL schema, https://docs.github.com/graphql/reference/objects.",
   "type": "object",
   "properties": {
     "data": {
@@ -98,6 +98,9 @@
                               },
                               "additionalProperties": true
                             }
+                          },
+                          "totalCount": {
+                            "type": "integer"
                           }
                         },
                         "required": [
@@ -111,6 +114,9 @@
                     ],
                     "additionalProperties": true
                   }
+                },
+                "totalCount": {
+                  "type": "integer"
                 }
               },
               "required": [
@@ -162,10 +168,12 @@
                         ]
                       }
                     }
-                  ]
+                  ],
+                  "totalCount": 2
                 }
               }
-            ]
+            ],
+            "totalCount": 1
           }
         }
       }

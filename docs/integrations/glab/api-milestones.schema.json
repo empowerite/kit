@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "glab api projects/${project}/milestones?per_page=${n} [--paginate]",
-  "description": "The project's milestones, open and closed, ${project} its path URL-encoded: every one, per_page=100 with --paginate, which prints one such array per page, which kit draws as the milestones stage's in `modules/bash/forge/gitlab.sh` (forge/gitlab:milestones, with `modules/jq/forge.jq` forge::gitlab_milestones), and the newest by update, with order_by=updated_at&sort=desc&per_page=1, whose iid and updated_at make a mark (forge/gitlab:marks, with forge::gitlab_marks). The types are APIEntitiesMilestone of GET /api/v4/projects/{id}/milestones in GitLab's REST OpenAPI, https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/openapi/openapi_v3.yaml, as https://docs.gitlab.com/api/milestones/ describes them.",
+  "title": "glab api projects/${project}/milestones?sort=updated_desc&per_page=1",
+  "description": "The project's newest milestone by update, ${project} its path URL-encoded, whose iid and updated_at make a mark with the newest issue's, since an issue closing moves no milestone's own update (forge/gitlab:marks in `modules/bash/forge/gitlab.sh`, with forge::gitlab_marks in `modules/jq/forge.jq`). The milestones themselves are read through GraphQL, as api-graphql-milestones.schema.json gives them. The types are APIEntitiesMilestone of GET /api/v4/projects/{id}/milestones in GitLab's REST OpenAPI, https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/openapi/openapi_v3.yaml, as https://docs.gitlab.com/api/milestones/ describes them.",
   "type": "array",
   "items": {
     "type": "object",

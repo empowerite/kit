@@ -188,12 +188,13 @@ def gitlab_quota:
 
 # gitlab_marks($issues; $mrs; $runs; $releases; $milestones) reads GitLab's newest issue and merge request by update,
 # its ten newest pipelines, its newest release, and its newest milestone by update, and gives a mark of each kind: what
-# each says of its items and when they changed, as one text, so a mark changes when one of them does.
+# each says of its items and when they changed, as one text, so a mark changes when one of them does. A milestone's own
+# update does not move when its issues close, so its mark holds the newest issue too.
 def gitlab_marks($issues; $mrs; $runs; $releases; $milestones):
   { issues: ([$issues[]?, $mrs[]? | [.iid, .updated_at]] | tojson),
     runs: ([$runs[]? | [.id, .status, .updated_at]] | tojson),
     releases: ([$releases[]? | [.tag_name, .released_at]] | tojson),
-    milestones: ([$milestones[]? | [.iid, .updated_at]] | tojson) };
+    milestones: ([$milestones[]?, $issues[]? | [.iid, .updated_at]] | tojson) };
 
 # gitlab_runs reads a pipeline's jobs and gives its runs.
 def gitlab_runs:
@@ -465,14 +466,14 @@ def github_milestones:
   add // [] | sort_by(.number)[]
   | {number, title, state, due: (.due_on | day), open: .open_issues, closed: .closed_issues, url: .html_url};
 
-# gitlab_milestones($counts) reads GitLab's milestones and gives the same documents, by number, its iid. GitLab's list
-# holds no issue count, so $counts maps each milestone's id to the issues it holds, as the list of each's issues gives
-# them, each {state}: those opened, and those closed. GitLab's active is open.
-def gitlab_milestones($counts):
+# gitlab_milestones($host) reads the nodes of GitLab's GraphQL milestones and gives the same documents, by number, its
+# iid. Its dueDate is a day, its state active or closed, active being open, and its issues are counted by the stats:
+# those open are the total less those closed. $host, as https://gitlab.com, begins the page, which is its webPath.
+def gitlab_milestones($host):
   sort_by(.iid)[]
-  | {number: .iid, title, state: (if .state == "closed" then "closed" else "open" end), due: (.due_date | day),
-     open: ([$counts[(.id | tostring)][] | select(.state == "opened")] | length),
-     closed: ([$counts[(.id | tostring)][] | select(.state == "closed")] | length), url: .web_url};
+  | {number: (.iid | tonumber), title, state: (if .state == "closed" then "closed" else "open" end),
+     due: (.dueDate | day), open: (.stats.totalIssuesCount - .stats.closedIssuesCount),
+     closed: .stats.closedIssuesCount, url: ($host + .webPath)};
 
 # iteration($start; $end; $url) is an iteration's document: {id, title, start, end, url}, its start and end seconds
 # since the epoch, null for none. It is given an object with id and title.

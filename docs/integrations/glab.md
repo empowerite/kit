@@ -92,7 +92,7 @@ work item statuses need GitLab Premium or Ultimate.
 | Linked items | `glab api "projects/:id/issues/${n}/links"` (raw REST) |
 | Merge requests that close it | `glab api "projects/:id/issues/${n}/closed_by"` (raw REST) |
 | Epics and other work items | `glab work-items list --group "${group}" --type epic --output json` (experimental) |
-| Milestones | `glab api --paginate 'projects/:id/milestones?per_page=100'`, as kit reads them, with `glab api --paginate 'projects/:id/milestones/${id}/issues?per_page=100'` for each one's issues, which the list does not count; or `glab milestone list --output json`; `kit issues milestones` draws them, and its mark is the newest `updated_at` |
+| Milestones | `glab api graphql -f path="${project}" -f query="${query}"`, `project(fullPath:) { milestones(first: 100) { nodes { iid title state dueDate webPath stats { totalIssuesCount closedIssuesCount } } } }`, as kit reads them, page after page by `endCursor`, since the REST list counts no issues; or `glab milestone list --output json`; `kit issues milestones` draws them, and its mark is the newest milestone's `updated_at` with the newest issue's, from `glab api 'projects/:id/milestones?sort=updated_desc&per_page=1'` |
 | Iterations | `glab api --paginate 'projects/:id/iterations?include_ancestors=true&per_page=100'`, as kit reads them, where a tier without iterations answers 403 or 404, which kit reads as off; or `glab iteration list --output json`; `kit issues iterations` draws them |
 | Work item status | `glab api graphql -f query="${query}"`, the `status` widget of `workItem` (raw GraphQL) |
 
@@ -228,6 +228,7 @@ with an example the gate validates against it.
 | Schema | The command as kit runs it |
 | --- | --- |
 | [api-iterations.schema.json](glab/api-iterations.schema.json) | `glab api projects/${project}/iterations?include_ancestors=true&per_page=100 --paginate` |
+| [api-graphql-milestones.schema.json](glab/api-graphql-milestones.schema.json) | `glab api graphql --field path=${project} [--field after=${cursor}] --raw-field query=${query}` |
 | [api-issue.schema.json](glab/api-issue.schema.json) | `glab api projects/${project}/issues/${n}` |
 | [api-issues.schema.json](glab/api-issues.schema.json) | `glab api projects/${project}/issues?${query} [--paginate]` |
 | [api-labels.schema.json](glab/api-labels.schema.json) | `glab api projects/${project}/labels?per_page=100 --paginate` |
@@ -235,8 +236,7 @@ with an example the gate validates against it.
 | [api-merge-request-discussions.schema.json](glab/api-merge-request-discussions.schema.json) | `glab api projects/${project}/merge_requests/${n}/discussions?per_page=100 --paginate` |
 | [api-merge-request.schema.json](glab/api-merge-request.schema.json) | `glab api projects/${project}/merge_requests/${n}` |
 | [api-merge-requests.schema.json](glab/api-merge-requests.schema.json) | `glab api projects/${project}/merge_requests?${query} [--paginate]` |
-| [api-milestone-issues.schema.json](glab/api-milestone-issues.schema.json) | `glab api projects/${project}/milestones/${id}/issues?per_page=100 --paginate` |
-| [api-milestones.schema.json](glab/api-milestones.schema.json) | `glab api projects/${project}/milestones?per_page=${n} [--paginate]` |
+| [api-milestones.schema.json](glab/api-milestones.schema.json) | `glab api projects/${project}/milestones?sort=updated_desc&per_page=1` |
 | [api-pipeline-jobs.schema.json](glab/api-pipeline-jobs.schema.json) | `glab api projects/${home}/pipelines/${pipeline}/jobs?per_page=100 --paginate` |
 | [api-pipelines.schema.json](glab/api-pipelines.schema.json) | `glab api projects/${project}/pipelines?per_page=${n}` |
 | [api-project.schema.json](glab/api-project.schema.json) | `glab api projects/${source}` |
