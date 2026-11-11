@@ -283,6 +283,15 @@ func TestOpenSaysKitsLineInTheDialogWhenKitRefuses(t *testing.T) {
 	}
 }
 
+// The repository kittui starts in is kept among the recent, as one opened by its folder is, so the workspace menu
+// offers it again once another is switched to.
+func TestTheRepositoryStartedInIsKeptAmongTheRecent(t *testing.T) {
+	_, record, checkout := workspaced(t, map[string]string{"current.json": repoJSON})
+	if got, _ := os.ReadFile(record); !strings.Contains(string(got), "use "+checkout) {
+		t.Errorf("kit was not told to keep it: %q", got)
+	}
+}
+
 func TestARecentRepositoryPickedIsKeptFirstAgain(t *testing.T) {
 	m, record, _ := workspaced(t, map[string]string{"current.json": repoJSON})
 	m = drive(m, shell.PickMsg{Workspace: "/srv/far"})
