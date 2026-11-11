@@ -119,8 +119,8 @@ func Rule(h Host, spots []SortSpot) string {
 const Sortable = "·"
 
 // SortSpot is a column's targets on the rule under the header, from the screen column under its name's first cell: a
-// column that holds a list has the flatten mark there, dim while a row holds all its values, not once flattened, and a
-// click on it flattens or gathers; after it, or from that first cell for another column, the sort's, its mark where it
+// column that holds a list has its mark there, what a click on it does: FlattenGlyph, dim, while a row holds all its
+// values, which flattens it, and GatherGlyph once flattened, which gathers it; after it, or from that first cell for another column, the sort's, its mark where it
 // sorts, Sortable where it can and does not, and none where it cannot. The sort's target runs to the end of the
 // name's first line, or of the marks, whichever is wider.
 type SortSpot struct {
@@ -146,6 +146,9 @@ func SortSpots(h Host) []SortSpot {
 		s := SortSpot{Column: column, At: in + start}
 		if p.Lists(column) {
 			s.Flat, s.Flattened = FlattenGlyph, p.Field(column).Flat
+			if s.Flattened {
+				s.Flat = GatherGlyph
+			}
 		}
 		if p.Sorts(column) {
 			s.Mark = p.Mark(column)

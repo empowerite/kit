@@ -270,9 +270,10 @@ func TestAClickOnTheRuleUnderAColumnsNameSortsByIt(t *testing.T) {
 		t.Errorf("a click past assignees' flatten mark: %d keys, %q, flat %v", keys(m), mark(m, "assignees"),
 			m.panel(m.stage).Field("assignees").Flat)
 	}
-	// a click on it flattens the list, a row per value, which keeps its sort, by value now
+	// a click on it flattens the list, a row per value, which keeps its sort, by value now; the mark is then the
+	// gather's, which a click gathers
 	if m = drive(m, testkit.Click(under(m, "assignees"), ruleY(m))); !m.panel(m.stage).Field("assignees").Flat ||
-		marks(m, "assignees", 3) != table.FlattenGlyph+"▲³" || m.panel(m.stage).Counts("assignees") {
+		marks(m, "assignees", 3) != table.GatherGlyph+"▲³" || m.panel(m.stage).Counts("assignees") {
 		t.Fatalf("a click on assignees' flatten mark: flat %v, %q", m.panel(m.stage).Field("assignees").Flat,
 			marks(m, "assignees", 3))
 	}

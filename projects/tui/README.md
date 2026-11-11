@@ -125,8 +125,9 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     there. The line under the keyboard in a menu or a dialog stands on the menu's bright cyan, in black, and a dialog's
     keys are the keys bar's alone. A column's sort mark stands on the rule under the first cell of its name, wherever
     the name aligns. A dim · there says the column can sort and does not; a column that cannot sort has the rule alone.
-    A list has × under that first cell, dim while a row holds all its values, not once flattened, and its sort's mark
-    after it, which sorts by size while it is whole; a plain click on the × flattens the list, or gathers it again.
+    A list has its mark under that first cell, what a click on it does: ×, dim, while a row holds all its values, which
+    flattens it, and ÷ once flattened, which gathers it. Its sort's mark stands after it, which sorts by size while the
+    list is whole.
     Every column's menu stands in one order: its sort, by size for a list a row holds whole, then its grouping, then
     its flattening, then Hide and Options….
     A plain click on the rule under the name turns the sort a step: ascending, after the other keys; descending, in its

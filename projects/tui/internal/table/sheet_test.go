@@ -428,15 +428,15 @@ func TestAPlainClickReachesEveryControlOfTheSheet(t *testing.T) {
 	if s.Panel().Field("name").Sort != grid.Unsorted {
 		t.Error("a shift-click on the rule")
 	}
-	// a list's × on the rule flattens it, and again gathers it
+	// a list's × on the rule flattens it, and the ÷ that stands there then gathers it
 	s.apply(s.Views().Chosen("Compact"))
 	clickOn(t, &s, FlattenGlyph, 0)
 	if !s.Panel().Field("tags").Flat {
 		t.Fatal("a click on ×")
 	}
-	clickOn(t, &s, FlattenGlyph, 0)
+	clickOn(t, &s, GatherGlyph, 0)
 	if s.Panel().Field("tags").Flat {
-		t.Error("a click on × again")
+		t.Error("a click on ÷")
 	}
 	// a click on a row puts the cursor there; on apple's ▸ it opens apple
 	if clickOn(t, &s, "leek", 0); !s.InRows() || s.Rows()[s.tbl.Cursor].Key != "leek" {
