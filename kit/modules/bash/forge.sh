@@ -141,7 +141,8 @@
 #                                 {"limited": N} after the N drawn where there are more of either (since 4)
 #   bots                          one JSON object per bot that acted, the last to act first: {login, acted, last, url},
 #                                 acted a list of commit, change, and review, null where the forge does not say, last
-#                                 seconds since the epoch, or null, url its page (since 4)
+#                                 seconds since the epoch, or null, url its page, or null where the forge gives none
+#                                 (since 4)
 #   attestations                  one JSON object per attestation: {subject, digest, kind, signer, age, url} (since 4)
 #   code-scanning-alerts          one JSON object per code scanning alert, open or dismissed: {number, rule, severity,
 #                                 state, path, age, url} (since 4)

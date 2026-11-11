@@ -181,7 +181,8 @@ refuse with 2, naming `kit flow releases --json` or `kit flow builds --json`.
   repository a user owns has none. GitLab's teams are the groups the project is shared with, read the same way;
   Azure DevOps reads the project's teams, then each one's members, a request each. Past 20 teams, or past 100 members
   of one, the document is `limited`, at the teams drawn.
-- `agents` keys each row by its login, which links to its page. `acted` is what it did, `commit`, `change`, or
+- `agents` keys each row by its login, which links to its page where the forge gives one; GitHub gives none for a
+  bot seen only in commits, whose authors carry no page. `acted` is what it did, `commit`, `change`, or
   `review`, and `last` when it last did, in seconds since the epoch; the last to act comes first. GitHub reads, in one
   GraphQL request, the authors of the 100 newest commits on the default branch, and of the 100 open changes and the 50
   merged changes updated last, with each one's latest reviews: a bot is a `Bot` account or a login that ends `[bot]`,

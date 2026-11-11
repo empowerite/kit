@@ -1087,7 +1087,7 @@ JSON
   grep --quiet 'relations: \[DIRECT, INHERITED, INVITED_GROUPS, SHARED_INTO_ANCESTORS\]' "${FAKE_DIR}/glab.calls"
 }
 
-@test "GitHub shows who has access only to who may push: a caller who may not is told so, never gh auth status" {
+@test "GitHub shows who has access only to who may push, and its teams to some: each refusal names an admin" {
   fixture gh-push.txt <<<'gh: Must have push access to view repository collaborators. (HTTP 403)'
   GITHUB_COLLABORATORS='!1 gh-push.txt' world github
   run --separate-stderr call collaborators
@@ -1095,12 +1095,19 @@ JSON
   [ -z "$output" ]
   local ask='❌ ask an admin of empowerite/example for write access: GitHub shows'
   [ "$stderr" = "${ask} who has access only to who may push (the collaborators could not be read)" ]
+  # GitHub says not why it hides a repository's teams, so the line claims no role
   fixture gh-404.txt <<<'gh: Not Found (HTTP 404)'
   GITHUB_TEAMS='!1 gh-404.txt' world github
   run --separate-stderr call teams
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  [ "$stderr" = "${ask} its teams only to who may push (the teams could not be read)" ]
+  local hidden="❌ GitHub shows a repository's teams only to some who can reach it; ask an admin of empowerite/example"
+  [ "$stderr" = "${hidden} (the teams could not be read)" ]
+  # a collaborators list GitHub does not find, as for a token without repo on a private one, is no refusal to push
+  GITHUB_COLLABORATORS='!1 gh-404.txt' world github
+  run --separate-stderr call collaborators
+  [ "$status" -eq 1 ]
+  [ "$stderr" = '❌ run: gh auth status (the collaborators could not be read)' ]
 }
 
 @test "every provider lists the teams with access in one shape: the role and the members, 20 teams at most" {
@@ -1184,6 +1191,36 @@ JSON
   ! grep --quiet '^api graphql' "${FAKE_DIR}/glab.calls"
 }
 
+@test "a team kit cannot name, or a members answer with no data, fails the teams, and never gives one another's" {
+  # a team with no slug, or a group with no path, would give the teams after it the members of the one before
+  world github
+  jq '.[1:] = [.[0] | .slug = "other"] | .[0].slug = null' "${FAKE_DIR}/gh-teams.json" | fixture gh-teams-nameless.json
+  GITHUB_TEAMS=gh-teams-nameless.json world github
+  run --separate-stderr call teams
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [ "$stderr" = '❌ run: gh auth status (the teams could not be read)' ]
+  world gitlab
+  jq '.shared_with_groups[0].group_full_path = null' "${FAKE_DIR}/gl-project.json" | fixture gl-project-nameless.json
+  GITLAB_PROJECT=gl-project-nameless.json world gitlab
+  run --separate-stderr call teams
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [ "$stderr" = '❌ run: glab auth status (the teams could not be read)' ]
+  # an answer of errors alone, with no data, could not be read
+  fixture gql-errors.json <<<'{"errors": [{"message": "Internal server error"}]}'
+  GITHUB_TEAM_MEMBERS=gql-errors.json world github
+  run --separate-stderr call teams
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [ "$stderr" = '❌ run: gh auth status (the teams could not be read)' ]
+  GITLAB_GROUP_MEMBERS=gql-errors.json world gitlab
+  run --separate-stderr call teams
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [ "$stderr" = '❌ run: glab auth status (the teams could not be read)' ]
+}
+
 @test "GitHub's team members need the read:org scope, and name the command that adds it" {
   local said="gh: Your token has not been granted the required scopes to execute this query. The 'team' field"
   said+=" requires one of the following scopes: ['read:org'], but your token has only been granted the: ['repo']"
@@ -1205,8 +1242,7 @@ JSON
   expected+='"url":"https://github.com/apps/copilot-swe-agent"}'
   expected+=$'\n''{"login":"dependabot[bot]","acted":["change"],"last":1790931600,'
   expected+='"url":"https://github.com/apps/dependabot"}'
-  expected+=$'\n''{"login":"github-actions[bot]","acted":["commit"],"last":1790845200,'
-  expected+='"url":"https://github.com/apps/github-actions"}'
+  expected+=$'\n''{"login":"github-actions[bot]","acted":["commit"],"last":1790845200,"url":null}'
   expected+=$'\n''{"login":"copilot-pull-request-reviewer[bot]","acted":["review"],"last":1790812800,'
   expected+='"url":"https://github.com/apps/copilot-pull-request-reviewer"}'
   [ "$output" = "${expected}" ]

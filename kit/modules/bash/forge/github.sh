@@ -76,12 +76,14 @@ forge/github:code-scanning-alerts() { return 3; }
 
 # forge/github:collaborators prints one document per person or bot with access to the repository, as the seam's header
 # says: every page of the REST list, which holds those with access of their own, through a team, and as the
-# organization's members. GitHub shows it only to a caller who may push, and tells any other so.
+# organization's members. GitHub shows it only to a caller who may push, and answers any other 403, "Must have push
+# access", which the failure says.
 forge/github:collaborators() {
   local repo answer
   repo=$(forge/github:repo) || return 1
-  forge/github:pushed answer 'the collaborators' "${repo}" 'who has access' api --paginate --slurp \
-    'repos/{owner}/{repo}/collaborators?per_page=100' || return 1
+  forge/github:refused answer 'the collaborators' '*push access*' \
+    "ask an admin of ${repo} for write access: GitHub shows who has access only to who may push" \
+    api --paginate --slurp 'repos/{owner}/{repo}/collaborators?per_page=100' || return 1
   forge:whole 'the collaborators' "$(jq 'if all(.[]; type == "array") then map(length) | add // 0 else error end' \
     <<<"${answer}" 2>/dev/null)" || return 1
   forge/github:fold 'the collaborators' "${answer}" --compact-output \
@@ -654,20 +656,23 @@ forge/github:secret-scanning-alerts() { return 3; }
 # forge/github:teams prints one document per team with access to the repository, in GitHub's order, as the seam's
 # header says: a REST request for the first 21, then one GraphQL request, a point, for the first 100 members of each of
 # the first 20, of the organization that owns the repository. A 21st team, or a team past its first 100 members, ends
-# the list with {"limited": N}. A repository a user owns has no teams, and asks no more. GitHub shows the teams only to
-# a caller who may push, and the members only to a login with the read:org scope, which a GH_TOKEN may lack: GitHub
-# answers INSUFFICIENT_SCOPES, and the failure names the command that adds it.
+# the list with {"limited": N}. A repository a user owns has no teams, and asks no more. GitHub answers some who can
+# reach the repository 404 for its teams, and its reference says not whom, so the failure names an admin and no role.
+# It shows the members only to a login with the read:org scope, which a GH_TOKEN may lack: GitHub answers
+# INSUFFICIENT_SCOPES, and the failure names the command that adds it. A team with no slug fails the read, as the
+# members of the teams after it could not be told apart.
 forge/github:teams() {
   local repo answer slug page members='{}' variables='' fields=''
   local -i index=0
   local -a slugs named=()
   repo=$(forge/github:repo) || return 1
-  forge/github:pushed answer 'the teams' "${repo}" 'its teams' api 'repos/{owner}/{repo}/teams?per_page=21' \
-    || return 1
-  list:read slugs forge/github:fold 'the teams' "${answer}" --raw-output '.[:20][] | .slug' || return 1
+  forge/github:refused answer 'the teams' '*(HTTP 404)*' \
+    "GitHub shows a repository's teams only to some who can reach it; ask an admin of ${repo}" \
+    api 'repos/{owner}/{repo}/teams?per_page=21' || return 1
+  list:read slugs forge/github:fold 'the teams' "${answer}" --raw-output \
+    '.[:20][] | .slug | if type == "string" and . != "" then . else error("a team with no slug") end' || return 1
   for slug in "${slugs[@]}"
   do
-    [[ -n "${slug}" ]] || continue
     variables+=", \$t${index}: String!"
     fields+=" t${index}: team(slug: \$t${index}) { members(first: 100) { totalCount nodes { login } } }"
     named+=(--raw-field "t${index}=${slug}")
@@ -677,7 +682,8 @@ forge/github:teams() {
   then
     forge/github:ask page 'the teams' api graphql --raw-field org="${repo%%/*}" "${named[@]}" \
       --raw-field query="query(\$org: String!${variables}) { organization(login: \$org) {${fields} } }" || return 1
-    members=$(forge/github:fold 'the teams' "${page}" --compact-output '.data.organization // {}') || return 1
+    members=$(forge/github:fold 'the teams' "${page}" --compact-output \
+      '(.data | objects // error) | .organization // {}') || return 1
   fi
   forge/github:fold 'the teams' "${answer}" --compact-output --argjson members "${members}" \
     'import "forge" as forge; forge::github_teams($members; 20)'
@@ -839,33 +845,33 @@ forge/github:ask() {
   printf -v "${ask_into}" '%s' "${ask_out}"
 }
 
-# forge/github:pushed <name> <what> <owner/name> <shown> <gh argument>… is forge/github:ask for a read GitHub makes
-# only for a caller who may push to the repository: when GitHub refuses it so, with 403 "Must have push access", or
-# with 404 for a list of the repository's it holds, it names who can give that access, saying GitHub shows <shown>
-# only to who may push.
-forge/github:pushed() {
-  local pushed_into=$1 pushed_what=$2 pushed_repo=$3 pushed_shown=$4 pushed_said pushed_out
+# forge/github:refused <name> <what> <said> <line> <gh argument>… is forge/github:ask for a list, an array, that
+# GitHub may refuse a caller in words of its own: when what gh said matches the glob <said>, in any case, the failure
+# says <line>, then that <what> could not be read.
+forge/github:refused() {
+  local refused_into=$1 refused_what=$2 refused_glob=$3 refused_line=$4 refused_said refused_out
   shift 4
-  file:temp pushed_said gh || return 1
-  if ! pushed_out=$(gh "$@" 2>"${pushed_said}")
+  file:temp refused_said gh || return 1
+  if ! refused_out=$(gh "$@" 2>"${refused_said}")
   then
-    pushed_out=${pushed_out}$'\n'$(<"${pushed_said}")
-    if [[ "${pushed_out,,}" == *'push access'* || "${pushed_out}" == *'(HTTP 404)'* ]]
+    refused_out=${refused_out}$'\n'$(<"${refused_said}")
+    # shellcheck disable=SC2053  # the glob is the caller's, matched as a glob on purpose
+    if [[ "${refused_out,,}" == ${refused_glob,,} ]]
     then
-      error "ask an admin of ${pushed_repo} for write access: GitHub shows ${pushed_shown} only to who may push" \
-        "(${pushed_what} could not be read)"
+      error "${refused_line} (${refused_what} could not be read)"
     else
-      forge/github:limited "${pushed_what}" "${pushed_out}" || forge/github:scoped "${pushed_what}" "${pushed_out}" \
-        || error "run: gh auth status (${pushed_what} could not be read)"
+      forge/github:limited "${refused_what}" "${refused_out}" \
+        || forge/github:scoped "${refused_what}" "${refused_out}" \
+        || error "run: gh auth status (${refused_what} could not be read)"
     fi
     return 1
   fi
-  if ! forge:json "${pushed_out}" || ! jq --exit-status 'arrays' <<<"${pushed_out}" >/dev/null 2>&1
+  if ! forge:json "${refused_out}" || ! jq --exit-status 'arrays' <<<"${refused_out}" >/dev/null 2>&1
   then
-    error "run: gh auth status (${pushed_what} could not be read)"
+    error "run: gh auth status (${refused_what} could not be read)"
     return 1
   fi
-  printf -v "${pushed_into}" '%s' "${pushed_out}"
+  printf -v "${refused_into}" '%s' "${refused_out}"
 }
 
 # forge/github:fold <what> <answer> <jq argument>… is forge:fold, naming gh auth status.

@@ -829,13 +829,13 @@ def github_bot:
 
 # github_bots reads the answer to forge/github:bots's GraphQL query and gives one document per bot that acted among
 # those commits, changes, and reviews: {login, acted, last, url}, acted what it did, in the order commit, change,
-# review, last when it last did, in seconds since the epoch, url its app's page; the last to act first. A commit is a
-# bot's when its author's account is one, or else when its author names itself as one, dependabot[bot], as an agent's
-# commit names a person's account; a commit, a change, or a review of no account is no one's. Then {"limited": N}, N
-# those drawn, when GitHub holds more open changes than those read, or a change more reviewers.
+# review, last when it last did, in seconds since the epoch, url its page as GitHub gave it, null for one seen only in
+# commits, whose authors carry none; the last to act first. A commit is a bot's when its author's account is one, or
+# else when its author names itself as one, dependabot[bot], as an agent's commit names a person's account; a commit,
+# a change, or a review of no account is no one's. Then {"limited": N}, N those drawn, when GitHub holds more open
+# changes than those read, or a change more reviewers.
 def github_bots:
   .data.repository as $repo
-  | ($repo.url // "https://github.com" | capture("^(?<base>https?://[^/]+)").base) as $base
   | [ ( ($repo.defaultBranchRef.target.history.nodes // [])[] | select(. != null) | .committedDate as $at
         | (.author // {}) as $author
         | (($author.user | github_bot) // ($author.name // "" | select(endswith("[bot]"))))
@@ -851,7 +851,7 @@ def github_bots:
   | map(map(.act) as $acts
         | { login: .[0].login, acted: [("commit", "change", "review") | select(IN($acts[]))],
             last: ([.[].at | select(. != null) | epoch] | max),
-            url: (first(.[].url | strings) // "\($base)/apps/\(.[0].login | rtrimstr("[bot]") | @uri)") })
+            url: (first(.[].url | strings) // null) })
   | sort_by(-(.last // 0), .login)
   | .[], (if $cut then {limited: length} else empty end);
 

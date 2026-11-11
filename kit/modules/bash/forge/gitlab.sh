@@ -525,7 +525,7 @@ forge/gitlab:secret-scanning-alerts() { return 3; }
 # the seam's header says: the project, one REST request, which names them and the access each share gives, then one
 # GraphQL request for the first 100 members of each of the first 20, their own and those inherited from their parent
 # groups. A 21st group, or a group past its first 100 members, ends the list with {"limited": N}. A project shared with
-# no group asks no more.
+# no group asks no more. A group with no path, or an answer with no data, fails the read.
 forge/gitlab:teams() {
   local project answer path page members='{}' variables='' fields='' host
   local -i index=0
@@ -534,10 +534,10 @@ forge/gitlab:teams() {
   host=$(forge:host "$(forge:primary)") || return 1
   forge/gitlab:ask answer 'the teams' "/projects/${project//\//%2F}" || return 1
   list:read paths forge/gitlab:fold 'the teams' "${answer}" --raw-output \
-    '.shared_with_groups | arrays | .[:20][] | .group_full_path' || return 1
+    '.shared_with_groups | arrays | .[:20][] | .group_full_path
+     | if type == "string" and . != "" then . else error("a group with no path") end' || return 1
   for path in "${paths[@]}"
   do
-    [[ -n "${path}" ]] || continue
     variables+=", \$g${index}: ID!"
     fields+=" g${index}: group(fullPath: \$g${index}) {"
     fields+=" webUrl groupMembers(first: 100) { pageInfo { hasNextPage } nodes { user { username } } } }"
@@ -548,7 +548,7 @@ forge/gitlab:teams() {
   then
     forge/gitlab:ask page 'the teams' /graphql "${named[@]}" \
       --raw-field query="query(${variables#, }) {${fields} }" || return 1
-    members=$(forge/gitlab:fold 'the teams' "${page}" --compact-output '.data | objects') || return 1
+    members=$(forge/gitlab:fold 'the teams' "${page}" --compact-output '.data | objects // error') || return 1
   fi
   forge/gitlab:fold 'the teams' "${answer}" --compact-output --argjson members "${members}" \
     --arg host "https://${host}" 'import "forge" as forge; forge::gitlab_teams($members; $host; 20)'

@@ -375,11 +375,10 @@ import "forge" as forge; [forge::github_teams({t0: {members: {totalCount: 3, nod
 [{"team":"a","name":"A","role":"admin","members":null,"url":null},{"limited":1}]
 
 # A GitHub bot's acts merge under one login, a Bot's GraphQL login gaining [bot]; a pending review, which has no time,
-# still says it reviewed; nodes, authors, and reviews that are null are no one's; a GitHub Enterprise host names its
-# apps' pages.
+# still says it reviewed; nodes, authors, and reviews that are null are no one's; a bot GitHub gave no page has none.
 import "forge" as forge; [forge::github_bots]
 {"data": {"repository": {"url": "https://ghe.example/o/r", "defaultBranchRef": {"target": {"history": {"nodes": [null, {"committedDate": "1970-01-01T00:01:40Z", "author": {"name": "x[bot]", "user": null}}]}}}, "open": {"nodes": [null, {"createdAt": "1970-01-01T00:00:50Z", "author": {"__typename": "Bot", "login": "x"}, "latestReviews": null}]}, "merged": {"nodes": [{"createdAt": "1970-01-01T00:00:10Z", "author": null, "latestReviews": {"nodes": [null, {"submittedAt": null, "author": {"__typename": "Bot", "login": "y", "url": "https://ghe.example/apps/y"}}]}}]}}}}
-[{"login":"x[bot]","acted":["commit","change"],"last":100,"url":"https://ghe.example/apps/x"},{"login":"y[bot]","acted":["review"],"last":null,"url":"https://ghe.example/apps/y"}]
+[{"login":"x[bot]","acted":["commit","change"],"last":100,"url":null},{"login":"y[bot]","acted":["review"],"last":null,"url":"https://ghe.example/apps/y"}]
 
 # A repository with no default branch's commits and no changes has no bots.
 import "forge" as forge; [forge::github_bots]

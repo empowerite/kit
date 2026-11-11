@@ -23,7 +23,8 @@
                teams, or past 100 members of one, the document is limited, at the teams drawn
    agents      {login, acted, last}, keyed by the login: acted what it did, commit, change, or
                review; last when it last did, in seconds since the epoch. The login links to its
-               page. GitHub reads the bots among the authors of the 100 newest commits on the
+               page, where the forge gives one, and GitHub gives none for a bot seen only in
+               commits. GitHub reads the bots among the authors of the 100 newest commits on the
                default branch, and of the open changes and the 50 merged last, 100 open at most, and
                their reviews, in one request: a bot is a Bot account, or a login that ends [bot];
                past 100 open changes, or 20 reviewers of one, the document is limited, at the bots
