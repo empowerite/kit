@@ -34,10 +34,17 @@ func open(t *testing.T) Model {
 	return New(verbs, r)
 }
 
-// listing gives the palette over the fake kit with the rows focused, as enter leaves it from the search it opens in.
+// listing gives the palette over the fake kit with the rows focused, as it opens.
 func listing(t *testing.T) Model {
 	t.Helper()
-	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 120, Height: 30}, enter)
+	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 120, Height: 30})
+	return m
+}
+
+// searching gives the palette over the fake kit with the search focused, as / leaves it from the rows it opens in.
+func searching(t *testing.T) Model {
+	t.Helper()
+	m, _ := drive(open(t), slash)
 	return m
 }
 
@@ -197,7 +204,7 @@ func TestAPageWrapsByWhatShowsNotByItsEscapes(t *testing.T) {
 // Enter opens the verb under the cursor, after a search too; on a group's heading it opens nothing. A click on a row
 // puts the cursor there and gives the rows the keyboard.
 func TestEnterOpensTheVerbUnderTheCursor(t *testing.T) {
-	m, produced := drive(open(t), append(testkit.Typed("sub"), enter, enter)...)
+	m, produced := drive(searching(t), append(testkit.Typed("sub"), enter, enter)...)
 	if got, ok := produced[len(produced)-1].(OpenMsg); !ok || got.Verb != "submit" {
 		t.Errorf("sub, enter, enter: %v", produced)
 	}
@@ -221,11 +228,11 @@ func TestEnterOpensTheVerbUnderTheCursor(t *testing.T) {
 	}
 }
 
-// The keys bar is the last line: the search's while it has the keyboard, the rows' while they have it, with ⏎ open on
-// a verb and → show on a row that opens.
+// The keys bar is the last line: the rows' while they have the keyboard, as they do from the start, with ⏎ open on a
+// verb and → show on a row that opens, and the search's while it has it.
 func TestTheKeysBarNamesWhatHasTheKeyboard(t *testing.T) {
 	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 160, Height: 30})
-	if !strings.Contains(last(m), "type to search") {
+	if m, _ = drive(m, slash); !strings.Contains(last(m), "type to search") {
 		t.Errorf("the search's keys: %q", last(m))
 	}
 	m, _ = drive(m, enter)
@@ -241,7 +248,7 @@ func TestTheKeysBarNamesWhatHasTheKeyboard(t *testing.T) {
 
 func TestARefusalShowsRedUnderTheMenuBarUntilTheSearchChangesOrAVerbOpens(t *testing.T) {
 	line := "kit commit refuses for the test; run: kit help commit"
-	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 120, Height: 30})
+	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 120, Height: 30}, slash)
 	m = m.Refuse(line)
 	lines := strings.Split(screen(m), "\n")
 	if strings.TrimSpace(lines[1]) != style.Excluded+" "+line {
@@ -277,11 +284,15 @@ func TestARefusalShowsRedUnderTheMenuBarUntilTheSearchChangesOrAVerbOpens(t *tes
 	}
 }
 
-// Esc gives the rows the keyboard, what is typed kept, and never quits; from the rows it gives the search the keyboard
-// again; ctrl-q quits; ctrl-c interrupts; a letter is typed in the search from the start, and so is /, while = drops
-// the app's menu down.
+// Esc gives the rows the keyboard, what is typed kept, and never quits; from the rows, where the palette opens, it gives
+// the search the keyboard; ctrl-q quits; ctrl-c interrupts; a letter is typed in the search, and so is /, while =
+// drops the app's menu down.
 func TestEscLeavesCtrlQQuitsCtrlCInterruptsAndALetterIsTyped(t *testing.T) {
 	m, produced := drive(open(t), esc)
+	if len(produced) != 0 || m.Cancelled() || m.Interrupted() || !m.search.Focused || m.sheet.Focused() {
+		t.Errorf("esc from the start: %v, search focused %v", produced, m.search.Focused)
+	}
+	m, produced = drive(m, esc)
 	if len(produced) != 0 || m.Cancelled() || m.Interrupted() || m.search.Focused || !m.sheet.InRows() {
 		t.Errorf("esc with nothing typed: %v, search focused %v", produced, m.search.Focused)
 	}
@@ -293,7 +304,7 @@ func TestEscLeavesCtrlQQuitsCtrlCInterruptsAndALetterIsTyped(t *testing.T) {
 	if _, quit := produced[len(produced)-1].(tea.QuitMsg); !quit || !m.Interrupted() {
 		t.Errorf("ctrl-c: %v", produced)
 	}
-	m, produced = drive(open(t), testkit.Typed("q/=")...)
+	m, produced = drive(searching(t), testkit.Typed("q/=")...)
 	if len(produced) != 0 || m.search.Query != "q/" || !m.appMenu.Open {
 		t.Errorf("q/=: %v, search %q, menu %v", produced, m.search.Query, m.appMenu.Open)
 	}
@@ -347,7 +358,7 @@ func TestAtOpensOnAVerbsPageOrAGroupsFirstVerb(t *testing.T) {
 	if m = open(t).At("workflow"); cursorOn(m) != "commit" || m.sheet.Table().Open["commit"] {
 		t.Errorf("At(workflow): under the cursor %q", cursorOn(m))
 	}
-	if m = open(t).At("nonesuch"); !m.search.Focused || m.sheet.Focused() {
+	if m = open(t).At("nonesuch"); m.search.Focused || !m.sheet.InRows() || cursorOn(m) != "commit" {
 		t.Errorf("At an unknown name moved the palette")
 	}
 }
@@ -355,7 +366,7 @@ func TestAtOpensOnAVerbsPageOrAGroupsFirstVerb(t *testing.T) {
 // = or a click on the = before the title drops the app's menu down: welcome asks kittui to show it in the palette's
 // place, and quit ends the palette; while it is open, the keys bar is the menu's.
 func TestEqualsDropsTheAppsMenuDownOverThePalette(t *testing.T) {
-	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 30})
+	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 30}, slash)
 	m, _ = testkit.Drive(m, nil, append(testkit.Typed("co"), esc, tea.KeyPressMsg{Code: '=', Text: "="})...)
 	if v := screen(m); !m.appMenu.Open || !strings.Contains(v, "Welcome") ||
 		!strings.HasSuffix(v, shell.Path{shell.MenuKeys()}.String()) || m.search.Query != "co" {
@@ -386,15 +397,23 @@ func TestEqualsDropsTheAppsMenuDownOverThePalette(t *testing.T) {
 	}
 }
 
-// The palette opens with the search's cursor showing; a letter typed narrows the rows at once to those whose text
-// holds it, the command, the description, or the group; a click on the search gives it focus.
-func TestThePaletteOpensWithTheSearchFocused(t *testing.T) {
+// The palette opens with the rows focused, the cursor on the first verb, so the arrows move at once and a letter is not
+// typed; after /, a letter typed narrows the rows at once to those whose text holds it, the command, the description,
+// or the group; a click on the search gives it focus.
+func TestThePaletteOpensWithTheRowsFocused(t *testing.T) {
 	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 30})
 	title := strings.Split(screen(m), "\n")[0]
-	if !m.search.Focused || !strings.HasSuffix(title, shell.Find+" ▏") || m.sheet.Focused() {
-		t.Fatalf("the search at the start: focused %v, title %q", m.search.Focused, title)
+	if m.search.Focused || !m.sheet.InRows() || cursorOn(m) != "commit" || strings.HasSuffix(title, "▏") {
+		t.Fatalf("the rows at the start: search focused %v, under the cursor %q, title %q", m.search.Focused,
+			cursorOn(m), title)
 	}
-	m, _ = drive(m, testkit.Typed("vers")...)
+	if m, _ = drive(m, down); cursorOn(m) != "submit" {
+		t.Errorf("down from the start: under the cursor %q", cursorOn(m))
+	}
+	if m, _ = drive(m, testkit.Typed("v")...); m.search.Query != "" || m.search.Focused {
+		t.Errorf("v typed in the rows: %q", m.search.Query)
+	}
+	m, _ = drive(m, append([]tea.Msg{slash}, testkit.Typed("vers")...)...)
 	if title = strings.Split(screen(m), "\n")[0]; names(m) != "version" || !strings.HasSuffix(title, shell.Find+" vers▏") {
 		t.Errorf("vers: %q, title %q", names(m), title)
 	}
@@ -415,7 +434,7 @@ func TestThePaletteOpensWithTheSearchFocused(t *testing.T) {
 // drops the searches down, and choosing one types it.
 func TestThePalettesSearchIsRememberedAndRecalled(t *testing.T) {
 	m := open(t).Remembering(filepath.Join(t.TempDir(), "search-history.json"))
-	m, _ = drive(m, append(testkit.Typed("co"), enter)...)
+	m, _ = drive(m, append([]tea.Msg{slash}, append(testkit.Typed("co"), enter)...)...)
 	if !slices.Equal(m.recent.Items, []string{"co"}) {
 		t.Fatalf("remembered: %q", m.recent.Items)
 	}
@@ -441,7 +460,7 @@ func TestThePalettesSearchIsRememberedAndRecalled(t *testing.T) {
 // focus, and is typed while the search has it; a click on it drops it down too.
 func TestThePalettesMenuBarHasTheWorkspaceMenu(t *testing.T) {
 	ws := shell.WorkspaceMsg{Workspace: kit.Workspace{Kind: "repository", Member: "github.com/o/r"}}
-	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 30}, ws)
+	m, _ := drive(open(t), tea.WindowSizeMsg{Width: 100, Height: 30}, ws, slash)
 	if first := strings.Split(screen(m), "\n")[0]; !strings.HasPrefix(first,
 		"  "+shell.App+" kit help · "+shell.Workspaces+" o/r ") {
 		t.Errorf("the menu bar: %q", first)
@@ -526,7 +545,7 @@ func TestTheSettingsReachTheTable(t *testing.T) {
 // Find gives the search the keyboard, as a form's search field asks, what is typed kept and the rows without it; the
 // keys bar is the search's, and a letter typed narrows the rows further.
 func TestFindGivesTheSearchTheKeyboard(t *testing.T) {
-	m, _ := drive(open(t), append(testkit.Typed("co"), enter)...)
+	m, _ := drive(searching(t), append(testkit.Typed("co"), enter)...)
 	if m.search.Focused || !m.sheet.Focused() {
 		t.Fatalf("co, enter: search focused %v, rows %v", m.search.Focused, m.sheet.Focused())
 	}

@@ -44,7 +44,7 @@ func TestAScreenIsMadeWhenFirstShownAndKeptAsItWasLeft(t *testing.T) {
 		t.Fatalf("the help's palette, alone:\n%s", ansi.Strip(m.View().Content))
 	}
 	// the filter typed in the palette stays there while the picture is shown, and when the palette is shown again
-	m, _ = testkit.Drive(m, nil, typed("com")...)
+	m, _ = testkit.Drive(m, nil, typed("/com")...)
 	m, _ = testkit.Drive(m, nil, shell.SwitchMsg{Screen: shell.Issues})
 	if m.here != shell.Issues || !strings.Contains(ansi.Strip(m.View().Content), "kit issues") {
 		t.Fatalf("the picture is not shown:\n%s", ansi.Strip(m.View().Content))

@@ -6,10 +6,10 @@ name.
 
 It has six screens:
 
-- **The palette.** `kit help` opens it, focus in the search. It is a table of every verb, its group, command, and
-  description, grouped by group and sorted by command, filtered as you type; ⏎ or ↓ gives the rows focus, → opens a
-  row to the verb's help page, and ⏎ opens the verb's form. [ and ] move to the group before and after, { and } to
-  the first and the last.
+- **The palette.** `kit help` opens it, focus in the rows, so the arrows move at once. It is a table of every verb, its
+  group, command, and description, grouped by group and sorted by command; / gives the search focus, and typing
+  filters the rows; ⏎ or ↓ gives the rows focus again, → opens a row to the verb's help page, and ⏎ opens the verb's
+  form. [ and ] move to the group before and after, { and } to the first and the last.
 - **A verb's form.** It opens when a verb at a terminal is short of its arguments. It finishes the command line.
 - **The flow picture.** `kit flow` at a terminal draws its stages here. Over a group, `kit --workspace=<group> flow`
   or one picked from the 📚 workspace menu, every tab gathers every cloned member's rows, grouped by member as they

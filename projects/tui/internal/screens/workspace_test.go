@@ -93,7 +93,7 @@ func TestAKitWithoutWorkspacesLeavesEveryScreenOpen(t *testing.T) {
 func TestPickingAGroupRemembersItAndRemakesTheScreens(t *testing.T) {
 	m, record, _ := workspaced(t, map[string]string{"current.json": repoJSON, "w.json": groupJSON})
 	m = drive(m, shell.SwitchMsg{Screen: shell.Help})
-	m = drive(m, typed("com")...)
+	m = drive(m, typed("/com")...)
 	m = drive(m, shell.SwitchMsg{Screen: shell.Welcome})
 	m = drive(m, typed("/xyz")...)
 	if !strings.Contains(title(m), "xyz") {

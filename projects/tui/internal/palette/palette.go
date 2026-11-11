@@ -10,16 +10,17 @@
 // does: the presets, sorting, grouping, filtering, the columns dialog, the selection, and the mouse wheel, which
 // scrolls the rows, the cursor left where it is.
 //
-// The search, internal/shell's, on the menu bar, works as it does on every screen, and has focus from the start: a key
-// typed narrows the rows at once to those whose text holds it, backspace takes one back, and ⌃U clears; ⏎, ↓, esc, or
-// tab gives the rows the keyboard, the filter kept, the cursor on the first verb, and / or a click on the search gives
-// it focus again; ⌃R recalls a past search. With the rows focused, the keys are the table's, and esc, or up past the
-// control line, gives the search the keyboard again. Enter opens the form of the verb under the cursor, and a form that
-// cannot open leaves kit's line in red under the menu bar, until the search changes or another verb opens. = or a click
-// on the = before the screen's name drops the kit menu down, internal/shell's, as every screen of kittui has it, while
-// the search has focus too, since no verb's name holds =, and - or a click on the workspace menu after it drops that
-// down; esc there does nothing and never quits; ctrl-q quits, and ctrl-c quits as interrupted. The keys bar is the last
-// line. Widths are terminal cells, so a two-cell glyph never pushes a row past the edge.
+// The rows have focus from the start, the cursor on the first verb, so the arrows move at once. The search,
+// internal/shell's, on the menu bar, works as it does on every screen: / or a click on it gives it focus; a key typed
+// narrows the rows at once to those whose text holds it, backspace takes one back, and ⌃U clears; ⏎, ↓, esc, or tab
+// gives the rows the keyboard, the filter kept, the cursor on the first verb; ⌃R recalls a past search. With the rows
+// focused, the keys are the table's, and esc, or up past the control line, gives the search the keyboard again. Enter
+// opens the form of the verb under the cursor, and a form that cannot open leaves kit's line in red under the menu bar,
+// until the search changes or another verb opens. = or a click on the = before the screen's name drops the kit menu
+// down, internal/shell's, as every screen of kittui has it, while the search has focus too, since no verb's name holds
+// =, and - or a click on the workspace menu after it drops that down; esc there does nothing and never quits; ctrl-q
+// quits, and ctrl-c quits as interrupted. The keys bar is the last line. Widths are terminal cells, so a two-cell glyph
+// never pushes a row past the edge.
 package palette
 
 import (
@@ -93,10 +94,10 @@ type Model struct {
 }
 
 // New opens the palette on the verbs, leaving out tui itself, the person's presets of its table read from the presets
-// file. The search has focus, with nothing typed.
+// file. The rows have focus, the cursor on the first verb, so the arrows move at once; / gives the search focus.
 func New(verbs []kit.Verb, r kit.Runner) Model {
 	m := Model{runner: r, pages: map[string]string{}, asked: map[string]bool{}, failed: map[string]string{}, width: 100,
-		height: 30, search: shell.Search{Focused: true}, appMenu: shell.Menu{Here: shell.Help},
+		height: 30, appMenu: shell.Menu{Here: shell.Help},
 		sheet: table.NewSheet(catalog[verbsTable], "verbs", color, table.PresetsPath())}
 	for _, v := range verbs {
 		if v.Name != "tui" {
@@ -105,6 +106,7 @@ func New(verbs []kit.Verb, r kit.Runner) Model {
 	}
 	m.place()
 	m.lay()
+	m.toVerb()
 	return m
 }
 

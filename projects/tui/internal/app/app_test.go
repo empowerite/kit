@@ -52,7 +52,7 @@ func TestBackFromAFormThePaletteKeepsWhatWasTyped(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m = drive(m, append(testkit.Typed("sub"), press(tea.KeyEnter), press(tea.KeyEnter))...)
+	m = drive(m, append(testkit.Typed("/sub"), press(tea.KeyEnter), press(tea.KeyEnter))...)
 	if !m.InForm() {
 		t.Fatalf("sub and enter twice did not open a form:\n%s", m.View().Content)
 	}
@@ -141,7 +141,7 @@ func TestAVerbWhoseFormCannotOpenLeavesKitsLineInThePalette(t *testing.T) {
 		t.Fatal(err)
 	}
 	// sub narrows the rows to submit, and enter gives them focus, the cursor on it
-	m = drive(m, append(testkit.Typed("sub"), press(tea.KeyEnter), press(tea.KeyEnter))...)
+	m = drive(m, append(testkit.Typed("/sub"), press(tea.KeyEnter), press(tea.KeyEnter))...)
 	view := m.View().Content
 	if m.InForm() || !strings.Contains(view, "❌ kit submit refuses for the test; run: kit help submit") {
 		t.Fatalf("the palette does not show why submit did not open:\n%s", view)
@@ -213,13 +213,13 @@ func TestHelpOpensThePaletteOnTheVerbsPage(t *testing.T) {
 		!strings.Contains(v, "⏎ open") {
 		t.Errorf("kit help submit is not on submit's page:\n%s", v)
 	}
-	// with no name, the palette opens at the top, every row closed, the search focused
+	// with no name, the palette opens at the top, every row closed, the rows focused
 	m, err = OpenHelp(testkit.Runner(t, "kit"), "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if v := ansi.Strip(drive(m).View().Content); strings.Contains(v, "Usage") || !strings.Contains(v, " ▏") ||
-		!strings.Contains(v, "commit") {
+	if v := ansi.Strip(drive(m).View().Content); strings.Contains(v, "Usage") || strings.Contains(v, " ▏") ||
+		!strings.Contains(v, "⏎ open") || !strings.Contains(v, "commit") {
 		t.Errorf("kit help with no name:\n%s", v)
 	}
 }

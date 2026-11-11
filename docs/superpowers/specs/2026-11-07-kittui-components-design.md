@@ -316,6 +316,8 @@ Watch, issue #88's third step, is built now as designed: it reads like `source`'
   replace an earlier decision that each screen keeps its own title line.
 - Search follows one rule on every screen, the palette's included: it opens with focus in the search, and ⏎ there
   gives the verbs focus rather than opening one (2026-11-09, #97).
+- The palette opens with focus in the rows, not the search, since a search with focus takes the arrows first;
+  / gives the search focus (2026-11-11, #210). It replaces the palette's part of the decision above.
 - `kit x y` opens screen x on y: `kit flow <stage>` maximizes the stage, `kit tutorials <tutorial>` puts the cursor on
   its card, as `kit help <verb>` and `kit tui <verb>` already did (2026-11-09, #123).
 - An open row keeps its columns at a narrow width; a word wider than its column breaks inside it (2026-11-09, #105).
