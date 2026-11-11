@@ -289,6 +289,18 @@ YML
   done
 }
 
+@test "a file that is no map, and a group's key kit does not read, are refused by name" {
+  for each in "workspaces: {q: {match: [{owner: github.com/o}]}}|q's match is not built yet" \
+    "workspaces: {p: {project: github.com/orgs/o/projects/3}}|p's project is not built yet" \
+    "workspaces: {w: {repo: [github.com/o/a]}}|'repo' in w is no key of a group" \
+    "just a string|the file is a map of roots, favorites, and workspaces"
+  do
+    workspaces-file <<<"${each%%|*}"
+    run --separate-stderr "${kit_root}/bin/kit" workspaces --json
+    [[ "$status" -eq 1 && -z "$output" && "$stderr" == *"workspaces.yml: ${each#*|}"* && "$stderr" != *jq:* ]]
+  done
+}
+
 @test "--option=value runs as --option value" {
   workspaces-file <<YML
 workspaces:

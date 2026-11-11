@@ -159,6 +159,16 @@ EOF
   [ -z "$output" ]
 }
 
+@test "a file kit workspaces refuses is refused by kit flow and kit workspace, with 1 and no document" {
+  workspaces-file <<<'workspaces: {w: {repos: [github.com/o/a], exclude: [nonsense]}}'
+  for words in "flow desk" "workspace repos" "workspace branches"
+  do
+    # shellcheck disable=SC2086  # each holds its words
+    run --separate-stderr "${kit_root}/bin/kit" ${words} --workspace w --json
+    [[ "$status" -eq 1 && -z "$output" && "$stderr" == *"'nonsense' in w's exclude names no repository"* ]]
+  done
+}
+
 @test "without --workspace, kit flow desk --json prints the desk's object as before" {
   desk-at "${BATS_TEST_TMPDIR}/code/a" github.com/o/a
   cd "${BATS_TEST_TMPDIR}/code/a"

@@ -16,6 +16,10 @@ use git yaml
 # workspaces_walk_depth is how many directories below each root kit looks for checkouts.
 workspaces_walk_depth=4
 
+# workspaces_checked is 1 once workspaces:check has passed, so a subshell does not check the file again; empty until it
+# does.
+workspaces_checked=''
+
 # workspaces:file prints the path of the workspace file, which may not exist.
 workspaces:file() { printf '%s\n' "${XDG_CONFIG_HOME:-${HOME}/.config}/kit/workspaces.yml"; }
 
@@ -129,7 +133,8 @@ workspaces:entries() {
   workspaces:json | jq --raw-output --arg name "$1" --arg key "$2" '(.workspaces[$name][$key] // [])[] | tostring'
 }
 
-# workspaces:fixed <name> prints the group's fixed members, each once, in the file's order, without its exclusions.
+# workspaces:fixed <name> prints the group's fixed members, each once, in the file's order, without its exclusions. An
+# exclude entry that names no member takes none out; workspaces:check refuses it.
 workspaces:fixed() {
   local entry member
   local -a entries
@@ -137,7 +142,8 @@ workspaces:fixed() {
   list:read entries workspaces:entries "$1" exclude || return 1
   for entry in "${entries[@]}"
   do
-    excluded[$(workspaces:normalize "${entry}")]=1
+    member=$(workspaces:normalize "${entry}")
+    [[ -z "${member}" ]] || excluded[${member}]=1
   done
   list:read entries workspaces:entries "$1" repos || return 1
   for entry in "${entries[@]}"
@@ -149,23 +155,39 @@ workspaces:fixed() {
   done
 }
 
-# workspaces:check returns 1, after a line that names the file and what is wrong, for a file that does not parse, a
-# group whose name is not a name, or a repos or exclude entry that names no member; 0 for a file that holds none.
+# workspaces:check returns 1, after a line that names the file and what is wrong, for a file that does not parse or is
+# not a map, a group that holds a key other than repos and exclude, a group whose name is not a name, or a repos or
+# exclude entry that names no member; 0 for a file that holds none. Passing, it sets workspaces_checked, and once it
+# is set it checks nothing and returns 0.
 workspaces:check() {
   local file name key entry doc wrong
   local -a names entries
+  [[ -z "${workspaces_checked}" ]] || return 0
   file=$(workspaces:file)
   doc=$(workspaces:json) || return 1
-  wrong=$(jq --raw-output '
+  # yq prints a scalar file bare, as text jq does not parse, so jq's failure here is a file that is not a map.
+  if ! jq --exit-status 'type == "object" or . == null' <<<"${doc}" >/dev/null 2>&1
+  then
+    error "${file}: the file is a map of roots, favorites, and workspaces"
+    return 1
+  fi
+  # $q is a single quote, which the program's own quotes cannot hold.
+  wrong=$(jq --raw-output --arg q "'" '
     def strings: type == "array" and all(.[]; type == "string");
     if (.roots // []) | strings | not then "roots is a list of directories"
     elif (.favorites // []) | strings | not then "favorites is a list of workspaces"
     elif (.workspaces // {}) | type != "object" then "workspaces is a map of names to groups"
-    else first((.workspaces // {}) | to_entries[]
-      | select((.value // {}) | type != "object" or ((.repos // []) | strings | not)
-          or ((.exclude // []) | strings | not))
-      | "\(.key) is a group, its repos and its exclude each a list of repositories") // empty
-    end' <<<"${doc}")
+    else first((.workspaces // {}) | to_entries[] | .key as $group | (.value // {})
+      | if type != "object" or ((.repos // []) | strings | not) or ((.exclude // []) | strings | not)
+        then "\($group) is a group, its repos and its exclude each a list of repositories"
+        else first(keys_unsorted[] | select(. != "repos" and . != "exclude")
+          | if . == "match" or . == "project"
+            then "\($group)\($q)s \(.) is not built yet; this kit reads a group\($q)s repos and exclude, so list its"
+              + " members under repos"
+            else "\($q)\(.)\($q) in \($group) is no key of a group; a group has repos and exclude"
+            end) // empty
+        end) // empty
+    end' <<<"${doc}") || return 1
   if [[ -n "${wrong}" ]]
   then
     error "${file}: ${wrong}"
@@ -192,6 +214,7 @@ workspaces:check() {
       done
     done
   done
+  workspaces_checked=1
 }
 
 # workspaces:member-json <member> <by> <checkouts> prints a member as JSON: {repository, host, path, forge, remotes,
@@ -266,11 +289,13 @@ workspaces:kind() {
 }
 
 # workspaces:resolve <workspace> prints a workspace as JSON: {name, kind, members}. A group's name gives its fixed
-# members, by fixed; host and path, or a git URL, gives that one repository, by given. It returns 2, after a line that
-# says so, for a workspace that is neither, and 1 when the file cannot be read.
+# members, by fixed; host and path, or a git URL, gives that one repository, by given. It checks the file first, as
+# workspaces:check does. It returns 2, after a line that says so, for a workspace that is neither, and 1 when the file
+# cannot be read or is refused.
 workspaces:resolve() {
   local kind workspace member checkouts line
   local -a members=() json=()
+  workspaces:check || return 1
   line=$(workspaces:kind "$1") || return $?
   read -r kind workspace <<<"${line}"
   if [[ "${kind}" == group ]]
@@ -333,8 +358,10 @@ workspaces:remember() {
 
 # workspaces:current [<workspace>] prints the workspace kit starts on as JSON: {kind, name, member, checkout, why}. A
 # workspace given is it, why given, and none names none; else, inside a repository, that repository, named by its
-# member or, with none, by its path; else the last group used; else none. It returns 2 for a workspace given that is
-# unknown, and 1 when the file's groups cannot be read.
+# member or, with none, by its path; else the last group used; else none. With a workspace given other than none, and
+# outside a repository, it checks the file, as workspaces:check does, before it reads it; inside a repository with no
+# workspace given, it reads no file. It returns 2 for a workspace given that is unknown, and 1 when the file's groups
+# cannot be read or the file is refused.
 workspaces:current() {
   local given=${1:-} kind='' name='' member='' checkout='' why json
   if [[ "${given}" == none ]]
@@ -342,6 +369,7 @@ workspaces:current() {
     kind=none why=given
   elif [[ -n "${given}" ]]
   then
+    workspaces:check || return 1
     json=$(workspaces:kind "${given}") || return $?
     read -r kind name <<<"${json}"
     why=given
@@ -355,6 +383,7 @@ workspaces:current() {
     name=${member:-${checkout}}
   else
     checkout=''
+    workspaces:check || return 1
     name=$(workspaces:last) || return 1
     if [[ -n "${name}" ]]
     then

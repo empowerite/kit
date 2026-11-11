@@ -48,9 +48,9 @@
 # as --show gives each; groups, for a repository, each group that holds it, {name, members}, members a count; and
 # favorites {name, kind, members, checkout}. Only the JSON looks for checkouts; the text names the workspace alone.
 #
-# Exits 0 when it printed or edited, 1 when the file does not read, holds an entry that is no repository, or a list
-# it reads, such as the checkouts under the roots, cannot be read, and 2 on a usage error, or a workspace or group
-# that is unknown.
+# Exits 0 when it printed or edited, 1 when the file does not read, is not a map, gives a group a key other than repos
+# and exclude, holds an entry that is no repository, or a list it reads, such as the checkouts under the roots,
+# cannot be read, and 2 on a usage error, or a workspace or group that is unknown.
 #
 # see: modules/bash/workspaces.sh, docs/workspaces.md, issue #89
 

@@ -102,11 +102,13 @@ across:line() {
 # across:flow <workspace> <word>… draws what kit flow's words ask for across the workspace: --stages, kit's eight
 # stages, whatever the kit.yml where kit runs says; --marks and --quota, spanning the members; a stage with --json or
 # --jq as across:stage gives it; the picture as JSON, as across:picture gives it; and a stage or the picture as text,
-# each member's under it. It resolves the workspace once, and returns 2 for one that is neither a group nor a
-# repository, and for a pull request's number, which names one repository's; 1 when the workspace file cannot be read.
+# each member's under it. It checks the workspace file, as workspaces:check does, before it reads it, and resolves the
+# workspace once. It returns 2 for one that is neither a group nor a repository, and for a pull request's number,
+# which names one repository's; 1 when the workspace file cannot be read or is refused.
 across:flow() {
   local workspace=$1 stage='' word form=''
   shift
+  [[ -z "${workspace}" ]] || workspaces:check || return 1
   if [[ "${1:-}" == --stages ]]
   then
     workspaces:kind "${workspace}" >/dev/null || return $?

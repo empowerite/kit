@@ -28,6 +28,12 @@ workspaces:
 A group's name holds lowercase letters, digits, and `.`, `_`, or `-`, and never `/`. That is how kit tells a name from
 a repository.
 
+kit checks the file wherever it reads it. It refuses a file that does not parse or is not a map, a group with a key
+other than `repos` and `exclude` (`match` and `project` are not built yet), a group whose name breaks that rule, and
+an entry that names no repository. `kit workspaces`, `kit flow --workspace`, and `kit workspace --workspace` each say
+what is wrong and exit 1, printing nothing. Inside a repository, `kit flow` and `kit workspace` with no `--workspace`
+read no file.
+
 ## Members and checkouts
 
 A member is named by its host and its whole path: `github.com/empowerite/edge`, or `gitlab.com/group/sub/repo` on

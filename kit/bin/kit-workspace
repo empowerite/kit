@@ -140,7 +140,8 @@
 # kit:end legend
 # Exits 0 when the picture is drawn, 1 when a repository, a member of the workspace, a member's desk, or the workspace
 # file cannot be read: with --json, what was read is still printed, and names what could not, a member under errors
-# or a repos row's error. It exits 2 on a usage error, or outside a repository without --workspace.
+# or a repos row's error. It exits 1, printing nothing, when --workspace meets a workspace file kit workspaces
+# refuses, and 2 on a usage error, or outside a repository without --workspace.
 #
 # see: modules/bash/workspace.sh, modules/jq/workspace.jq, modules/bash/across.sh
 
