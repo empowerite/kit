@@ -142,3 +142,60 @@ func TestAPopoverHangsWhereItWasOpenedAndTakesClicks(t *testing.T) {
 		t.Error("an id's own label")
 	}
 }
+
+// A time's filter offers ranges, fixed: under a minute, an hour, a day, a week, thirty days, and thirty days or more; a
+// number's the ranges its rows' numbers fall in, of 0, 1, 2-5, 6-20, 21-100, and more than 100. A line under them
+// takes a range typed, <2h, >=3, 2-5, which enter adds to the filter, >= and <= as ≥ and ≤; one that reads as no range
+// stays as typed, and adds nothing.
+func TestATimeOrANumberFiltersByRanges(t *testing.T) {
+	age := Field{ID: "age", Label: "age", Type: "time", Filter: true, Renderings: []string{"age"}}
+	lines := Field{ID: "lines", Label: "lines", Type: "number", Filter: true, Renderings: []string{"text"}}
+	h := &host{fields: []Field{age, lines, title}, w: 80, h: 24, values: map[string][]Value{
+		"age":   {One("30"), One("90000")},
+		"lines": {One("0"), One("3"), One("250")},
+	}, drawn: map[string]string{"age": "age", "lines": "text"}}
+	if got := FilterValues(h, age); !slices.Equal(got, []string{"<1m", "<1h", "<1d", "<1w", "<30d", "≥30d", grid.NoValue}) {
+		t.Errorf("a time's ranges: %q", got)
+	}
+	if got := FilterValues(h, lines); !slices.Equal(got, []string{"0", "2-5", ">100", grid.NoValue}) {
+		t.Errorf("a number's ranges: %q", got)
+	}
+	// <1m checked keeps the row of 30 seconds
+	p := OpenPopover(h, "age", 10, 3, true)
+	p.Key(h, key("down"))
+	p.Key(h, key("space"))
+	if f := h.Panel().Field("age").Filter; !slices.Equal(f.Values, []string{"<1m"}) {
+		t.Fatalf("down to <1m and space: %+v, at %d %q", f, p.At, texts(p, h))
+	}
+	// the typed line, after none: >=2h typed, enter adds ≥2h
+	for p.Move(h, p.At, 1) != p.At {
+		p.Key(h, key("down"))
+		if p.Lines(h)[p.At].Input {
+			break
+		}
+	}
+	if !p.Lines(h)[p.At].Input {
+		t.Fatalf("no typed line: %q", texts(p, h))
+	}
+	if keys := shellLine(p.Keys(h)); !strings.Contains(keys, "⏎ add") {
+		t.Errorf("the typed line's keys: %s", keys)
+	}
+	for _, r := range "oops" {
+		p.Key(h, tea.KeyPressMsg{Code: r, Text: string(r)})
+	}
+	p.Key(h, tea.KeyPressMsg{Code: tea.KeyEnter})
+	if p.Typed != "oops" || len(h.Panel().Field("age").Filter.Values) != 1 {
+		t.Errorf("no range typed: %q, %+v", p.Typed, h.Panel().Field("age").Filter)
+	}
+	p.Typed = ""
+	for _, r := range ">=2h" {
+		p.Key(h, tea.KeyPressMsg{Code: r, Text: string(r)})
+	}
+	p.Key(h, tea.KeyPressMsg{Code: tea.KeyEnter})
+	if f := h.Panel().Field("age").Filter; !slices.Equal(f.Values, []string{"<1m", "≥2h"}) || p.Typed != "" {
+		t.Errorf("≥2h typed: %+v, still typed %q", f, p.Typed)
+	}
+	if got := texts(p, h); !slices.Contains(got, grid.Ticked+" ≥2h") {
+		t.Errorf("the range typed is a box of its own: %q", got)
+	}
+}

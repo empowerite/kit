@@ -1252,6 +1252,9 @@ func (p Panel) passes(f Filter, raw []string) bool {
 		case NoValue:
 			return len(raw) == 0
 		}
+		if lo, hi, ok := Range(v); ok {
+			return inRange(raw, lo, hi)
+		}
 		return slices.Contains(raw, v)
 	})
 	return in != f.Exclude

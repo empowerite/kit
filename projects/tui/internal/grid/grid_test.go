@@ -1555,3 +1555,49 @@ func TestANameOverAColumnNoRowFillsStandsNowhere(t *testing.T) {
 		t.Errorf("LinkAt on a row of no cells = %q", got)
 	}
 }
+
+// A filter's value that reads as a range, a bound and a number with a unit of time or none, lets through a row that
+// holds a number in it: <1h, ≥30d, >=3, =0, 2-5; one that reads as none is a value the row must hold as it is.
+func TestARangeLetsThroughTheNumbersInIt(t *testing.T) {
+	for _, c := range []struct {
+		token string
+		in    []string
+		out   []string
+	}{
+		{"<1h", []string{"0", "3599"}, []string{"3600", "90000"}},
+		{"≥30d", []string{"2592000", "9999999"}, []string{"2591999"}},
+		{">=3", []string{"3", "40"}, []string{"2"}},
+		{">5", []string{"6"}, []string{"5"}},
+		{"<=2", []string{"2"}, []string{"3"}},
+		{"=0", []string{"0"}, []string{"1"}},
+		{"2-5", []string{"2", "5"}, []string{"1", "6"}},
+		{"1m-1h", []string{"60", "3600"}, []string{"59"}},
+	} {
+		lo, hi, ok := Range(c.token)
+		if !ok {
+			t.Errorf("%q is no range", c.token)
+			continue
+		}
+		p := Panel{}
+		for _, v := range c.in {
+			if !p.passes(Filter{Values: []string{c.token}}, []string{v}) {
+				t.Errorf("%q [%v, %v] keeps out %s", c.token, lo, hi, v)
+			}
+		}
+		for _, v := range c.out {
+			if p.passes(Filter{Values: []string{c.token}}, []string{v}) {
+				t.Errorf("%q [%v, %v] lets through %s", c.token, lo, hi, v)
+			}
+		}
+	}
+	for _, token := range []string{"bug", "1", "none", "<", "2-", "<1y"} {
+		if _, _, ok := Range(token); ok {
+			t.Errorf("%q reads as a range", token)
+		}
+	}
+	// a row that holds two numbers passes where one is in it; a text never is
+	if p := (Panel{}); !p.passes(Filter{Values: []string{">5"}}, []string{"1", "9"}) ||
+		p.passes(Filter{Values: []string{">5"}}, []string{"many"}) {
+		t.Error("two numbers, or a text")
+	}
+}

@@ -17,8 +17,8 @@ var Types = map[string]ValueType{
 	"text":   {},
 	"enum":   {Filters: true},
 	"person": {Filters: true},
-	"time":   {},
-	"number": {},
+	"time":   {Filters: true},
+	"number": {Filters: true},
 	"label":  {Filters: true},
 }
 

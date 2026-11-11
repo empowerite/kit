@@ -7,6 +7,8 @@ package table
 
 import (
 	"slices"
+	"strconv"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -25,15 +27,18 @@ type Popover struct {
 	At     int
 	X, Y   int
 	Header bool
+	Typed  string
 }
 
 // PopLine is one line of a popover: what it draws, and what space does on it, nil for a heading or a gap. Picked says
-// a choice is the one taken, which space on it again leaves as it is; a value's box toggles, picked or not.
+// a choice is the one taken, which space on it again leaves as it is; a value's box toggles, picked or not. Input is
+// the line a range is typed on, which takes the keys typed while it is under the keyboard.
 type PopLine struct {
 	Text   string
 	Act    func(grid.Panel) grid.Panel
 	Picked bool
 	Box    bool
+	Input  bool
 }
 
 // OpenPopover gives a field's popover, open, hanging from the screen cell x, y, the first line that acts under the
@@ -99,6 +104,9 @@ func (p Popover) Lines(h Host) []PopLine {
 				return p.FilteredBy(id, filter)
 			}})
 		}
+		if Ranged(f) {
+			out = append(out, p.inputLine(id))
+		}
 	}
 	if len(out) > 0 {
 		out = append(out, PopLine{})
@@ -118,6 +126,9 @@ func (p Popover) Lines(h Host) []PopLine {
 // values, those the rows hold that are not known, sorted, none, a row with no value, then any the filter names that
 // are none of those.
 func FilterValues(h Host, f Field) []string {
+	if Ranged(f) {
+		return withFiltered(h, f, append(ranges(h, f), grid.NoValue))
+	}
 	var out, seen []string
 	if f.Type == "person" {
 		out = append(out, grid.Caller)
@@ -133,13 +144,88 @@ func FilterValues(h Host, f Field) []string {
 		}
 	}
 	slices.Sort(seen)
-	out = append(append(out, seen...), grid.NoValue)
+	return withFiltered(h, f, append(append(out, seen...), grid.NoValue))
+}
+
+// withFiltered gives the values a filter offers, then any the field's filter names that are none of them, as a range
+// typed.
+func withFiltered(h Host, f Field, out []string) []string {
 	for _, v := range h.Panel().Field(f.ID).Filter.Values {
 		if !slices.Contains(out, v) {
 			out = append(out, v)
 		}
 	}
 	return out
+}
+
+// Ranged says whether a field's filter chooses among ranges rather than values: a time's, or a number's.
+func Ranged(f Field) bool { return f.Type == "time" || f.Type == "number" }
+
+// timeRanges are the ranges a time's filter offers, whatever its rows hold; numberRanges those a number's offers where
+// one of its rows' numbers falls in them.
+var (
+	timeRanges   = []string{"<1m", "<1h", "<1d", "<1w", "<30d", "≥30d"}
+	numberRanges = []string{"0", "1", "2-5", "6-20", "21-100", ">100"}
+)
+
+// ranges gives the ranges a time's or a number's filter offers, as timeRanges and numberRanges say.
+func ranges(h Host, f Field) []string {
+	if f.Type == "time" {
+		return slices.Clone(timeRanges)
+	}
+	var out []string
+	for _, r := range numberRanges {
+		lo, hi, ok := grid.Range(r)
+		if !ok {
+			lo, hi = 0, 0
+			if n, err := strconv.ParseFloat(r, 64); err == nil {
+				lo, hi = n, n
+			}
+		}
+		if slices.ContainsFunc(h.Values(f.ID), func(v Value) bool {
+			return slices.ContainsFunc(v.Raw, func(raw string) bool {
+				n, err := strconv.ParseFloat(raw, 64)
+				return err == nil && n >= lo && n <= hi
+			})
+		}) {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// inputLine gives the line a range is typed on: what is typed, a cursor after it, or, with nothing typed, what it
+// takes, dim; one that reads as no range drawn as a refusal. Enter, or a click, adds what is typed to the filter where
+// it reads as a range, >= and <= as ≥ and ≤.
+func (p Popover) inputLine(id string) PopLine {
+	text := "› " + p.Typed + "▏"
+	switch typed := Typed(p.Typed); {
+	case p.Typed == "":
+		text = style.Off("› type a range: <2h, >=3, 2-5")
+	case !isRange(typed):
+		text = style.Refusal(text)
+	}
+	return PopLine{Text: text, Input: true, Act: func(panel grid.Panel) grid.Panel {
+		typed := Typed(p.Typed)
+		filter := panel.Field(id).Filter
+		if !isRange(typed) || slices.Contains(filter.Values, typed) {
+			return panel
+		}
+		filter.Values = append(slices.Clone(filter.Values), typed)
+		return panel.FilteredBy(id, filter)
+	}}
+}
+
+// Typed gives a range as typed, as the filter keeps it: without spaces, >= and <= as ≥ and ≤.
+func Typed(s string) string {
+	s = strings.ReplaceAll(s, " ", "")
+	return strings.NewReplacer(">=", "≥", "<=", "≤").Replace(s)
+}
+
+// isRange says whether a range typed reads as one.
+func isRange(s string) bool {
+	_, _, ok := grid.Range(s)
+	return ok
 }
 
 // Move gives the line of the popover from k on, by step, that acts, stopping at the first and the last; k itself when
@@ -161,7 +247,8 @@ func (p Popover) Acts(h Host) bool {
 }
 
 // Keys gives the popover's keys, on the keys bar, which it owns: esc closes it; up and down move, where there is a
-// line that acts that way; and space or enter toggles a value's box, or takes a choice not taken.
+// line that acts that way; and space or enter toggles a value's box, or takes a choice not taken, or, on the line a
+// range is typed on, enter adds it.
 func (p Popover) Keys(h Host) shell.Segment {
 	s := shell.Segment{Owns: true, Bindings: []shell.Binding{shell.Bind("esc", "close")}}
 	var moves []string
@@ -173,6 +260,9 @@ func (p Popover) Keys(h Host) shell.Segment {
 	}
 	if len(moves) > 0 {
 		s.Bindings = append(s.Bindings, shell.Bind("↑↓", "move", moves...))
+	}
+	if lines := p.Lines(h); p.At >= 0 && p.At < len(lines) && lines[p.At].Input {
+		return s.With(shell.Bind("⏎", "add", "enter"))
 	}
 	if p.Acts(h) {
 		does := "choose"
@@ -193,10 +283,23 @@ func (p *Popover) Act(h Host, k int) {
 	}
 	p.At = k
 	h.SetPanel(lines[k].Act(h.Panel()))
+	if lines[k].Input && isRange(Typed(p.Typed)) {
+		p.Typed = ""
+	}
 }
 
 // Key takes a key while the popover is open, as the popover's comment says; every other key does nothing.
 func (p *Popover) Key(h Host, k tea.KeyPressMsg) {
+	lines := p.Lines(h)
+	if on := p.At >= 0 && p.At < len(lines) && lines[p.At].Input; on && k.String() == "enter" {
+		p.Act(h, p.At)
+		return
+	} else if on && k.String() != "space" {
+		if typed, ok := shell.Type(p.Typed, k); ok {
+			p.Typed = typed
+			return
+		}
+	}
 	switch k.String() {
 	case "esc":
 		*p = Popover{}

@@ -304,3 +304,29 @@ func TestEveryStageHasAMemberField(t *testing.T) {
 		}
 	}
 }
+
+// A time and a number filter by ranges: the backlog's age offers a time's, and <1d keeps the issue of 2h, ≥30d the one
+// of 40d.
+func TestTheBacklogsAgeFiltersByRanges(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
+	age := fieldIn("backlog", "age")
+	if !age.Filter || !table.Ranged(age) {
+		t.Fatalf("the backlog's age: %+v", age)
+	}
+	if got := table.FilterValues(&m, age); !slices.Contains(got, "<1d") || !slices.Contains(got, "≥30d") {
+		t.Errorf("the age's filter offers %q", got)
+	}
+	for token, want := range map[string]int{"<1d": 1, "≥30d": 1, "<1h": 0} {
+		m.setPanel(m.panel(0).FilteredBy("age", grid.Filter{Values: []string{token}}))
+		if n := table.Counted(m.every(0)); n != want {
+			t.Errorf("%s lets %d rows through, not %d", token, n, want)
+		}
+	}
+	for _, s := range catalog {
+		for _, f := range s.Fields {
+			if table.Ranged(f) && !f.Filter {
+				t.Errorf("%s.%s, a %s, does not filter", s.Stage, f.ID, f.Type)
+			}
+		}
+	}
+}
