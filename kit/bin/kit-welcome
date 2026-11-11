@@ -13,8 +13,8 @@
 #   2. Toolchains: bash, git, jq, and yq, which kit runs on; the toolchain for the project, and the one for the
 #      system, one check each.
 #   3. Setup: your linters, your forge logins, and this repository, one check each.
-#   4. Terms: the words kit uses, by topic, each with a command that shows it.
-#   5. Customize: the settings teams change first, packages, and the docs.
+#   4. Customize: the settings teams change first, packages, and the docs.
+#   5. Terms: the words kit uses, by topic, each with a command that shows it.
 #
 # kit's screens, from Flow, the trip from an issue to a release, to Platform, are a tutorial that ships with the kit:
 # kit tutorials applications.

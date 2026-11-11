@@ -154,7 +154,7 @@ func TestThePartsFollowTheSettings(t *testing.T) {
 }
 
 func TestACustomizePageWithoutPartsIsAPage(t *testing.T) {
-	r := repoWith(t, map[string]string{"6-customize.md": "# Ours\n\nWe change `policy:` first.\n"})
+	r := repoWith(t, map[string]string{"4-customize.md": "# Ours\n\nWe change `policy:` first.\n"})
 	m := New(r, "")
 	m = drive(m, append(testkit.Start(m, at120), stepKey(custom))...)
 	if m.gridded() || !strings.Contains(view(m), "We change policy: first.") || !strings.Contains(keysAt(m), "↓ page") {

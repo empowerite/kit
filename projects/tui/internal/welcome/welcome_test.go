@@ -39,11 +39,14 @@ func TestTheKnownStepsAreTheFiveInOrder(t *testing.T) {
 	for _, s := range known {
 		ids, files = append(ids, s.id), append(files, s.file)
 	}
-	if want := []string{"introduction", "toolchains", "setup", "terms", "customize"}; !slices.Equal(ids, want) {
+	want := []string{"introduction", "toolchains", "setup", "customize", "terms"}
+	if !slices.Equal(ids, want) {
 		t.Errorf("ids %q", ids)
 	}
-	if want := []string{"1-introduction.md", "2-toolchains.md", "3-setup.md", "5-terms.md", "6-customize.md"}; !slices.Equal(files, want) {
-		t.Errorf("files %q", files)
+	for i, f := range files {
+		if f != strconv.Itoa(i+1)+"-"+want[i]+".md" {
+			t.Errorf("step %d's page is %q", i, f)
+		}
 	}
 	if indexOf(known, "nothing") != -1 {
 		t.Errorf("an unknown step has an index")
@@ -225,22 +228,22 @@ func TestLeftAndRightMoveAlongTheStepsAndStopAtTheEnds(t *testing.T) {
 	if first := drive(m, backTab, backTab); first.step != introduction {
 		t.Errorf("shift-tab past introduction: step %d", first.step)
 	}
-	for _, want := range []int{setup, terms, custom, custom} {
+	for _, want := range []int{setup, custom, terms, terms} {
 		if m = drive(m, tabKey); m.step != want {
 			t.Fatalf("tab: step %d, want %d", m.step, want)
 		}
 	}
 	// the selected step's name is drawn in the accent, the rest are not
 	tabs := strings.Split(m.View().Content, "\n")[2]
-	if !strings.Contains(tabs, style.Mark("customize")) || strings.Contains(tabs, style.Mark("terms")) {
-		t.Errorf("customize is not marked: %q", tabs)
+	if !strings.Contains(tabs, style.Mark("terms")) || strings.Contains(tabs, style.Mark("customize")) {
+		t.Errorf("the terms are not marked: %q", tabs)
 	}
 	// down enters the rows where the cursor was, once the bar has moved away and back
 	m = drive(m, backTab, backTab, down, down)
 	if m.step != setup || m.cursor != 4 || m.choosing() {
 		t.Fatalf("step %d, cursor %d", m.step, m.cursor)
 	}
-	if m = drive(m, esc, tabKey); m.step != terms || m.inPane {
+	if m = drive(m, esc, tabKey); m.step != custom || m.inPane {
 		t.Errorf("right on the bar: step %d, in the pane %v", m.step, m.inPane)
 	}
 	if m = drive(m, backTab, down); m.step != setup || m.cursor != 4 {
@@ -773,7 +776,7 @@ func TestWithNoPagesInTheRepositoryTheKitPackagesAreTheSteps(t *testing.T) {
 			t.Errorf("step %d: %+v", i, tab)
 		}
 	}
-	want := []string{"1-introduction.md", "2-toolchains.md", "3-setup.md", "5-terms.md", "6-customize.md"}
+	want := []string{"1-introduction.md", "2-toolchains.md", "3-setup.md", "4-customize.md", "5-terms.md"}
 	if !slices.Equal(files, want) || !strings.HasPrefix(tabs[chains].page, "# Toolchains") {
 		t.Errorf("files %q", files)
 	}
@@ -860,7 +863,7 @@ func TestTheBarScrollsToKeepTheSelectedStepInView(t *testing.T) {
 		start, finish bool // whether each end has a triangle, hidden where it would cut the selected step
 	}{
 		{nil, "👋 introduction │", false, false},
-		{slices.Repeat([]tea.Msg{tabKey}, terms), "📖 terms │", false, true},
+		{slices.Repeat([]tea.Msg{tabKey}, terms), "📖 terms │", true, true},
 		{slices.Repeat([]tea.Msg{tabKey}, len(known)+19-terms), "📄 page 9 │", false, false},
 	} {
 		m = drive(m, c.keys...)

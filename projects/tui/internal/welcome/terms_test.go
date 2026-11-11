@@ -203,11 +203,11 @@ func TestTheTermsAreATableOfTermsMeaningsAndCommands(t *testing.T) {
 	if m = drive(m, stepKey(terms), enter, down, down, esc); m.inPane || termsSheet(m).Focused() {
 		t.Errorf("esc in the rows: in the pane %v", m.inPane)
 	}
-	// tab from the bar moves to the next step, and the table holds no keyboard there
-	if m = drive(m, tabKey); m.step != custom || termsSheet(m).Focused() {
-		t.Errorf("tab: step %d", m.step)
+	// shift-tab from the bar moves to the step before, and the table holds no keyboard there
+	if m = drive(m, backTab); m.step != custom || termsSheet(m).Focused() {
+		t.Errorf("shift-tab: step %d", m.step)
 	}
-	if m = drive(m, backTab, up); m.inPane {
+	if m = drive(m, tabKey, up); m.inPane {
 		t.Error("up on the bar")
 	}
 }

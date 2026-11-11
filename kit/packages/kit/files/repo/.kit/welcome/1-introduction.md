@@ -6,8 +6,8 @@ kit helps people and agents work in this repository the same way. This guide wal
 
 - Toolchains: the four tools kit runs on, and the tool and package managers kit found here.
 - Setup: the linters, each code forge's login, and this repository.
-- Terms: the words kit uses.
 - Customize: what teams change first.
+- Terms: the words kit uses.
 
 kit's applications, its screens and what each one shows, are a tutorial that ships with kit: `kit tutorials
 applications`.

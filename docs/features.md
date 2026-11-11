@@ -168,8 +168,8 @@ see: [architecture.md](architecture.md#the-workflow-and-the-gate)
 2. Toolchains: bash, git, jq, and yq, which kit runs on; then the project toolchain and the system toolchain, one
    check each. Several usable means you choose.
 3. Setup: one check per line for the linters, each code forge's login, and the repository.
-4. Terms: the words kit uses, by topic, from workspace and tracker to CI, CD, and toolchain.
-5. Customize: the settings teams change first, packages, a house package, and the docs.
+4. Customize: the settings teams change first, packages, a house package, and the docs.
+5. Terms: the words kit uses, by topic, from workspace and tracker to CI, CD, and toolchain.
 
 kit's screens and what each shows, Flow first, how work moves from an issue to a release, are a tutorial that ships
 with the kit, `kit tutorials applications`; see [tutorials.md](tutorials.md).

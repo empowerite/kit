@@ -63,8 +63,8 @@ var known = []tab{
 	{id: "introduction", glyph: "👋", name: "introduction", file: "1-introduction.md"},
 	{id: "toolchains", glyph: "🧰", name: "toolchains", file: "2-toolchains.md", checked: true},
 	{id: "setup", glyph: "🔧", name: "setup", file: "3-setup.md", checked: true},
+	{id: "customize", glyph: "🎨", name: "customize", file: "4-customize.md"},
 	{id: "terms", glyph: "📖", name: "terms", file: "5-terms.md"},
-	{id: "customize", glyph: "🎨", name: "customize", file: "6-customize.md"},
 }
 
 // pageGlyph is the glyph of a page kit does not know.
