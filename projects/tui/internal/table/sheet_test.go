@@ -894,8 +894,11 @@ func TestARuleUnderTheGroupsSortsThemAndFlattensAList(t *testing.T) {
 	bar := BarLeft + ansi.StringWidth(ansi.Strip(BarText(s.Rows())))
 	rule := screenOf(s)[s.top+1]
 	x, _ := spot(s, "kind")
+	// it starts at the first group's name, past its fold, as the header's rule starts at a column's name
+	first := BarNames(&s)[0].From
 	if ansi.StringWidth(rule) != bar || ansi.Cut(rule, x, x+1) != Sortable ||
-		strings.Trim(ansi.Cut(rule, BarLeft, ansi.StringWidth(rule)), "─"+Sortable) != "" {
+		strings.TrimSpace(ansi.Cut(rule, 0, first)) != "" ||
+		strings.Trim(ansi.Cut(rule, first, ansi.StringWidth(rule)), "─"+Sortable) != "" {
 		t.Fatalf("the rule under a heading %d wide: %q", bar, rule)
 	}
 	s.click(x, s.top+1, false)

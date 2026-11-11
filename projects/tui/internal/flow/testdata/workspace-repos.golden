@@ -3,7 +3,7 @@
   │ 📚 repos  2 : │  📡 remotes  1   │  🌿 branches  4   │
   ╵               ╰──────────────────╰───────────────────╰──────────────────────────────────────────────────────────────
   ▾ forge 2                                                                                                            
-  ──·──────
+    ·──────
   ▾ github 2
 
       repository                  remotes      checkout                             branch  ahead  worktrees          ▹

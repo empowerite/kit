@@ -3,7 +3,7 @@
   │ 🎫 backlog  3 : │  🛫 underway  4   │  🔀 changes  3   │  🏭 builds  4   │
   ╵                 ╰───────────────────╰──────────────────╰─────────────────╰──
   ▾ source 3                                                        Default ▼
-  ──·───────                                      ╭─ backlog legend ── ↖ ↗ ↙ ↘ ╮
+    ·───────                                      ╭─ backlog legend ── ↖ ↗ ↙ ↘ ╮
   ▾ github 3                                      │ =  kit menu                │
                                                   │ -  workspace menu          │
       id   assignees        age  branch           │ 🔎 search: / or click      │

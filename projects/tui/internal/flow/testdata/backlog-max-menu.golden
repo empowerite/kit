@@ -1,7 +1,7 @@
   = kit flow · - empowerite/kit · ➊ backlog ╭╴:╶────────────────────────────────╮                            🔎 /search
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│ 🔄 Refresh                      R │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   ▾ source 3                                │ 🔭 Watch                        W │                           Default ▼
-  ──·───────                                │ ⤡  Restore                      M │
+    ·───────                                │ ⤡  Restore                      M │
   ▾ github 3                                │ ───────────────────────────────── │
                                             │ 🔽 Show More                    > │
       id   assignees         age  branch    │ 🔼 Show Less                    < │
