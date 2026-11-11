@@ -215,8 +215,8 @@ artifacts, environments, deployments, and every tab of People, Trust, and Platfo
 
 ## Code forges and trackers
 
-- A code forge is the service that hosts the repository. kit works with GitHub through `gh` and with GitLab through
-  `glab`, and shows the same picture on either.
+- A code forge is the service that hosts the repository. kit works with GitHub through `gh`, with GitLab through
+  `glab`, and with Azure DevOps through `az`, and shows the same picture on each.
 - A tracker holds the issues. The reference picks it: `#7` for the code forge's issues, `AB#4521` for an Azure DevOps
   work item. A repository can use more than one at once.
 - Only the workflow verbs and two checks, `kit linked` and `kit policy`, call a code forge. A repository with none

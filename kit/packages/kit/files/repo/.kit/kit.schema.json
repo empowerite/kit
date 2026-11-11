@@ -9,12 +9,13 @@
   "properties": {
     "forge": {
       "type": "string",
-      "description": "The forge (the service that hosts the repository) of the primary remote, which the workflow commands use: github or gitlab. When absent, it is detected from the primary's host: github.com or gitlab.com, or a host the gh or glab CLI has logged in to. Otherwise it must be set here.",
+      "description": "The forge (the service that hosts the repository) of the primary remote, which the workflow commands use: github, gitlab, or ado (Azure DevOps). When absent, it is detected from the primary's host: github.com, gitlab.com, dev.azure.com, or a host under visualstudio.com, or a host the gh or glab CLI has logged in to. Otherwise it must be set here, as for an Azure DevOps Server.",
       "anyOf": [
         {
           "enum": [
             "github",
-            "gitlab"
+            "gitlab",
+            "ado"
           ]
         },
         {
@@ -32,7 +33,8 @@
           {
             "enum": [
               "github",
-              "gitlab"
+              "gitlab",
+              "ado"
             ]
           },
           {
@@ -40,6 +42,34 @@
             "description": "a provider the repository adds on its module path, bash_path"
           }
         ]
+      }
+    },
+    "forge_settings": {
+      "type": "object",
+      "description": "Each forge's own settings, by forge, read only when that forge is the primary's: {ado: {type: Bug}}.",
+      "additionalProperties": {
+        "type": "object"
+      },
+      "properties": {
+        "ado": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Azure DevOps: how the forge's own tracker, Azure Boards, opens and closes a work item.",
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "The type of a new work item. Default: Task."
+            },
+            "closed_state": {
+              "type": "string",
+              "description": "The state a work item closed as completed is set to. Default: Closed."
+            },
+            "removed_state": {
+              "type": "string",
+              "description": "The state a work item closed as not planned or a duplicate is set to. Default: Removed."
+            }
+          }
+        }
       }
     },
     "primary": {
@@ -69,7 +99,9 @@
       "properties": {
         "read": {
           "type": "array",
-          "items": {"type": "string"},
+          "items": {
+            "type": "string"
+          },
           "description": "Globs of the files whose content kit facts gives as text in the tree, so a rule can judge what a file says. A binary file, or one over 65536 bytes, has no text, and kit warns. A glob that matches nothing is ignored."
         }
       }

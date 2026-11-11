@@ -6,11 +6,11 @@ rate limits, the branch linked to an issue, and a change's draft, title, body, a
 threads, and checks. The index of these pages is [1st.md](1st.md).
 
 Every such call goes through one seam, `kit/modules/bash/forge.sh`, whose header is the contract. The `forge` setting
-or the primary remote's host picks the provider, `forge/github.sh` over `gh` or `forge/gitlab.sh` over `glab`. `kit
-work` links a branch to an issue and opens a draft change. `kit linked` and `kit policy` read the change in CI.
-`kit settle` and `kit tidy` read its state when it closes, and the changes and underway stages of `kit flow` draw
-every open change with its checks and threads. The forge seam's issue calls are on [trackers.md](trackers.md), its
-`runs` on [ci.md](ci.md), and its `releases` on [cd.md](cd.md).
+or the primary remote's host picks the provider: `forge/github.sh` over `gh`, `forge/gitlab.sh` over `glab`, or
+`forge/ado.sh` over `az`. `kit work` links a branch to an issue and opens a draft change. `kit linked` and
+`kit policy` read the change in CI. `kit settle` and `kit tidy` read its state when it closes, and the changes and
+underway stages of `kit flow` draw every open change with its checks and threads. The forge seam's issue calls are
+on [trackers.md](trackers.md), its `runs` on [ci.md](ci.md), and its `releases` on [cd.md](cd.md).
 see: [architecture.md](../architecture.md#code-forges-seams-and-providers), `kit/modules/bash/forge.sh`
 
 ## Scope
@@ -46,7 +46,7 @@ see: [architecture.md](../architecture.md#code-forges-seams-and-providers), `kit
 | --- | --- | --- | --- | --- | --- |
 | GitHub | SaaS; GitHub Enterprise Server self-hosted; proprietary | `gh`, official ([cli/cli](https://github.com/cli/cli), MIT) | `provider` | `--json "${fields}"`, `--jq`; `gh api` | REST OpenAPI per product and version, GraphQL schema, webhook schemas |
 | GitLab | SaaS; self-managed (Community Edition MIT, Enterprise Edition proprietary) | `glab`, official ([gitlab-org/cli](https://gitlab.com/gitlab-org/cli), MIT) | `provider` | `--output json` (`-F json`), `--jq`; `glab api` | REST OpenAPI 3.0, GraphQL schema |
-| Azure DevOps Repos | SaaS (Azure DevOps Services); Azure DevOps Server self-hosted; proprietary | `az` with the `azure-devops` extension, official ([Azure/azure-devops-cli-extension](https://github.com/Azure/azure-devops-cli-extension), MIT) | `planned` | `--output json`, `--query`; `az devops invoke`, `az rest` | none published; a REST reference in prose |
+| Azure DevOps Repos | SaaS (Azure DevOps Services); Azure DevOps Server self-hosted; proprietary | `az` with the `azure-devops` extension, official ([Azure/azure-devops-cli-extension](https://github.com/Azure/azure-devops-cli-extension), MIT) | `provider` | `--output json`, `--query`; `az devops invoke`, `az rest` | none published; a REST reference in prose |
 | Bitbucket Cloud | SaaS; proprietary | `bkt`, community ([avivsinai/bitbucket-cli](https://github.com/avivsinai/bitbucket-cli), MIT); `twg`, Atlassian's, beta ([atlassian/twg-cli](https://github.com/atlassian/twg-cli)) | `none` | `bkt`: `--json`, `--jq`; `bkt api`. `twg`: `-o json` | REST OpenAPI 3.0 and Swagger 2.0 |
 | Bitbucket Data Center | self-hosted; proprietary | `bkt`, community ([avivsinai/bitbucket-cli](https://github.com/avivsinai/bitbucket-cli), MIT) | `none` | `--json`, `--jq`; `bkt api` | REST OpenAPI 3.0 per version |
 | AWS CodeCommit | SaaS; proprietary | `aws`, official ([aws/aws-cli](https://github.com/aws/aws-cli), Apache-2.0) | `planned` | JSON by default, `--query` | Smithy model, botocore model |
@@ -191,6 +191,12 @@ organization and project from `az devops configure --defaults` or from `--org` a
 the default output, and `--query` filters it with JMESPath. A list takes `--top` and `--skip`. `az devops invoke
 --area "${area}" --resource "${resource}" --route-parameters …` calls any REST resource by its area, and `az rest`
 any URL. kit's `ado` tracker already uses `az boards`; see [trackers.md](trackers.md).
+
+kit's provider, `forge/ado.sh`, reads the organization, the project, and the repository from the primary remote's
+URL. It implements contract 2 and declares that Azure DevOps lacks rate limits it shows, cheap marks, releases, and
+branches linked to a work item: `kit work` pushes the branch it names, and the pull request it opens links the work
+item. Azure Boards is the forge's own tracker, as `#7` and `AB#7` alike, and `forge_settings.ado` in `kit.yml` names
+the work item type and the closing states of the project's process.
 
 Azure DevOps Server, the self-hosted product, answers at `https://${host}/${collection}` with the same REST API at an
 older version. `--org` names the collection URL; which Server releases the extension supports was not checked.

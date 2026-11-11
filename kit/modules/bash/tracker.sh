@@ -13,7 +13,7 @@
 # An issue reference names its tracker with a prefix, written the way that tracker writes it:
 #
 #   - `#7` or `7`: an issue in the forge's own tracker
-#   - `AB#4521`: an Azure DevOps work item
+#   - `AB#4521`: an Azure DevOps work item; on an Azure DevOps forge, the forge's own, as `#4521` is
 #
 # The provider for a reference is chosen by:
 #
@@ -50,12 +50,13 @@
 #
 # see: docs/trackers.md
 
-use yaml settings
+use yaml settings forge
 
 # tracker:records prints "<prefix>\x1f<provider>" for every declared tracker, then "#\x1fforge" for the forge's
-# own tracker, unless a record declares the prefix `#`.
+# own tracker, unless a record declares the prefix `#`. On an Azure DevOps forge, whose own tracker is Azure Boards,
+# "AB#\x1fforge" follows too, unless a record declares `AB#`: a work item is #7 and AB#7 alike there.
 tracker:records() {
-  local prefix provider forge_claimed=false row
+  local prefix provider forge_claimed=false boards_claimed=false row
   local -a rows
   list:read rows yaml:records "$(settings:file)" trackers prefix provider || return 1
   for row in "${rows[@]}"
@@ -63,9 +64,14 @@ tracker:records() {
     IFS=$'\x1f' read -r prefix provider <<<"${row}"
     [[ -n "${prefix}" ]] || continue
     [[ "${prefix}" == '#' ]] && forge_claimed=true
+    [[ "${prefix}" == 'AB#' ]] && boards_claimed=true
     printf '%s\x1f%s\n' "${prefix}" "${provider}"
   done
   [[ "${forge_claimed}" == true ]] || printf '#\x1fforge\n'
+  if [[ "${boards_claimed}" != true ]] && [[ "$(forge:of "$(forge:primary 2>/dev/null)" 2>/dev/null)" == ado ]]
+  then
+    printf 'AB#\x1fforge\n'
+  fi
 }
 
 # tracker:field <prefix> <field> prints a field of the prefix's record, or nothing.
@@ -178,9 +184,10 @@ tracker:is-forge() {
 tracker:key() {
   local ref
   ref=$(tracker:normal "$1") || return 2
+  # The forge's own issue is its number, whatever prefix names it: #7, or AB#7 on Azure DevOps.
   if tracker:is-forge "${ref}"
   then
-    printf '%s\n' "${ref#\#}"
+    printf '%s\n' "${ref##*#}"
   else
     tr '[:upper:]' '[:lower:]' <<<"${ref}" | tr -cd 'a-z0-9'
     printf '\n'

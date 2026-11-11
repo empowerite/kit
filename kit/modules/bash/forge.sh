@@ -13,7 +13,8 @@
 #   1. for the primary, the `forge` setting in kit.yml
 #   2. the remote's entry in the `forges` map in kit.yml: `forges: {upstream: gitlab}`
 #   3. the remote's host, from git remote get-url, which applies url.*.insteadOf: github.com or a host under it is
-#      github; gitlab.com or a host under it is gitlab
+#      github; gitlab.com or a host under it is gitlab; dev.azure.com, ssh.dev.azure.com, or a host under
+#      visualstudio.com is ado
 #   4. the forge tools' login files: a host gh has logged in to, in hosts.yml under GH_CONFIG_DIR, is github; a host
 #      glab has, in config.yml under GLAB_CONFIG_DIR, is gitlab. Each directory defaults to its tool's own, under
 #      XDG_CONFIG_HOME or ~/.config. This is what tells a self-hosted forge apart.
@@ -121,6 +122,16 @@
 # see: docs/architecture.md
 
 use settings file
+
+# forge:setting <forge> <field> prints a field of the forge's own settings, forge_settings.<forge>.<field> in kit.yml,
+# or nothing: forge_settings: {ado: {type: Bug}}.
+forge:setting() {
+  local doc
+  doc=$(yaml:json "$(settings:file)" 2>/dev/null) || return 0
+  jq --raw-output --arg forge "$1" --arg field "$2" \
+    '.forge_settings[$forge][$field] // empty | select(type == "string" or type == "number")' <<<"${doc:-null}" \
+    2>/dev/null || true  # a kit.yml that is no map has no forge settings
+}
 
 # forge_snapshot_seconds is how long a snapshot is used after its read began, and forge_snapshot_wait how long, in
 # tenths of a second, a process waits for another's read before it reads on its own. forge_fresh_since, set by
@@ -254,6 +265,7 @@ forge:of() {
       ('') ;;
       (github.com | *.github.com) forge=github ;;
       (gitlab.com | *.gitlab.com) forge=gitlab ;;
+      (dev.azure.com | ssh.dev.azure.com | *.visualstudio.com) forge=ado ;;
       (*)
         hosts=$(forge:logged-in "${GH_CONFIG_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/gh}/hosts.yml" 'keys | .[]')
         if grep --quiet --line-regexp --fixed-strings "${host}" <<<"${hosts}"

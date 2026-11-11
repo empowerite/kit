@@ -340,3 +340,96 @@ def gitlab_branch_for_issue($n):
 # GitHub's words: MERGED, CLOSED for a closed or locked one, else OPEN; nothing when there is none.
 def gitlab_pr_state:
   .[0].state // empty | {merged: "MERGED", closed: "CLOSED", locked: "CLOSED"}[.] // "OPEN";
+
+# ado_closed reads a work item and gives true when its state is a closing one of Azure Boards' process templates:
+# Closed, Done, or Removed, as the ado tracker reads them.
+def ado_closed: (.fields["System.State"] // "") | IN("Closed", "Done", "Removed");
+
+# ado_assignees reads a work item and gives its assignee's login as a list: Azure Boards has one assignee at most, named
+# by the unique name az signs in as.
+def ado_assignees: [.fields["System.AssignedTo"] | objects | .uniqueName // empty];
+
+# ado_tags reads a work item's tags, Azure Boards' labels, one text split by "; ", and gives their names.
+def ado_tags: (.fields["System.Tags"] // "") | split(";") | map(ltrimstr(" ") | rtrimstr(" ")) | map(select(. != ""));
+
+# ado_issues($now; $path) reads the work items of an Azure Boards query, the answer to forge/ado:open-issues, and gives
+# one issue document per work item, oldest first. $path is the repository's, project/repository, where place reads
+# the project as the organization, as forge/ado:repo names its owner.
+def ado_issues($now; $path):
+  sort_by(.fields["System.CreatedDate"], .id)[]
+  | {number: .id, title: .fields["System.Title"], assignees: ado_assignees, labels: ado_tags,
+     createdAt: .fields["System.CreatedDate"]}
+  | issue($now; "ado"; $path);
+
+# ado_verdict reads a policy evaluation's status and gives the check's verdict: approved is passed, rejected and broken
+# are failed, and queued and running are pending.
+def ado_verdict:
+  if .status | IN("approved") then "passed" elif .status | IN("rejected", "broken") then "failed" else "pending" end;
+
+# ado_runs($policies) reads a pull request's policy evaluations and gives its runs: each build policy's evaluation,
+# named for its pipeline, and each status policy's, named for its status. A policy that does not apply is no check.
+def ado_runs($policies):
+  [$policies[] | select(.status != "notApplicable")
+   | select((.configuration.type.displayName // "") | IN("Build", "Status"))
+   | { name: (.context.buildDefinitionName // .configuration.settings.statusName // .configuration.settings.displayName
+              // .configuration.type.displayName),
+       verdict: ado_verdict,
+       at: (.startedDate // .completedDate // ""),
+       since: (.startedDate // null | if . == null then null else epoch end),
+       took: (if .startedDate != null and .completedDate != null
+              then (.completedDate | epoch) - (.startedDate | epoch) else null end) }];
+
+# ado_blocked($policies) reads a pull request's policy evaluations and gives true while a blocking policy that is no
+# build or status, such as a minimum number of reviewers, has not approved it.
+def ado_blocked($policies):
+  any($policies[]; (.configuration.isBlocking // false)
+      and ((.configuration.type.displayName // "") | IN("Build", "Status") | not)
+      and (.status | IN("approved", "notApplicable") | not));
+
+# ado_unresolved($threads) reads a pull request's threads, as the REST API gives them, and counts those a person opened
+# and nobody has resolved: active or pending, not deleted, and not one Azure DevOps writes itself, such as a vote.
+def ado_unresolved($threads):
+  [$threads.value[]? | select((.isDeleted // false) | not) | select(.status | IN("active", "pending"))
+   | select(((.comments // [])[0].commentType // "text") == "text")] | length;
+
+# ado_pr($now; $policies; $threads; $closes; $path) reads a pull request, its policy evaluations, its threads, and the
+# work items linked to it, and gives its document. Azure DevOps tells no push's time without a further call, so pushed
+# is null. A pull request from a fork names the fork's repository as its owner.
+def ado_pr($now; $policies; $threads; $closes; $path):
+  { number: .pullRequestId, ref: "!\(.pullRequestId)", branch: (.sourceRefName | ltrimstr("refs/heads/")), title,
+    author: (.createdBy.uniqueName // ""), createdAt: .creationDate, draft: (.isDraft // false),
+    conflicted: (.mergeStatus == "conflicts"), fork: (.forkSource.repository.name // null), pushed: null,
+    approval: ado_blocked($policies), labels: [.labels[]? | .name],
+    runs: ado_runs($policies), unresolved: ado_unresolved($threads),
+    closes: [$closes[] | { number: .id, title: .fields["System.Title"], assignees: ado_assignees, labels: ado_tags,
+                           createdAt: .fields["System.CreatedDate"], source: "ado" } + place($path)] }
+  | document($now);
+
+# ado_pr_state reads a pull request and gives its state in GitHub's words: completed is MERGED, abandoned is CLOSED, and
+# active is OPEN.
+def ado_pr_state: {completed: "MERGED", abandoned: "CLOSED"}[.status] // "OPEN";
+
+# ado_latest reads Azure DevOps' pull requests for a branch and gives the newest, by its number, or nothing.
+def ado_latest: max_by(.pullRequestId) // empty;
+
+# ado_build_state reads a pipeline run and gives running, passed, failed, or cancelled. A run that partly succeeded
+# passed, as its pipeline lets it.
+def ado_build_state:
+  if .status | IN("inProgress", "notStarted", "postponed", "cancelling") then "running"
+  elif .result | IN("succeeded", "partiallySucceeded") then "passed"
+  elif .result == "failed" then "failed"
+  else "cancelled" end;
+
+# ado_builds($now; $default; $tags) reads az pipelines runs list's answer and gives the builds stage's runs. Azure
+# Pipelines names the event the reason: a continuous integration build is a push, a manual one workflow_dispatch.
+# The run's number is its build number, which a pipeline formats as it likes, so it is null when it is no count.
+def ado_builds($now; $default; $tags):
+  map({ id, number: (.buildNumber // "" | if test("^[0-9]+$") then tonumber else null end),
+        workflow: (.definition.name // "pipeline"),
+        branch: ((.sourceBranch // "") | sub("^refs/(heads|tags)/"; "")),
+        tag: ((.sourceBranch // "") | startswith("refs/tags/")), sha: .sourceVersion,
+        event: ({individualCI: "push", batchedCI: "push", schedule: "schedule", manual: "workflow_dispatch",
+                 pullRequest: "pull_request"}[.reason] // .reason),
+        title: (.triggerInfo["ci.message"] // ""), state: ado_build_state, createdAt: .queueTime,
+        started: .startTime, ended: .finishTime, url: (._links.web.href // null) })
+  | builds($default; $tags) | map(build($now));

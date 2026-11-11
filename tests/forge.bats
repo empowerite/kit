@@ -31,12 +31,12 @@ provider() {
   run provider
   [ "$status" -eq 1 ]
   [[ "$output" == *"set forge in kit.yml; origin's host 'codeberg.org' names no forge the kit knows"* ]]
-  [[ "$output" == *"(github gitlab)"* ]]
+  [[ "$output" == *"(ado github gitlab)"* ]]
   # a local path has no host, so it is named as a path
   git remote set-url origin "${BATS_TEST_TMPDIR}/origin.git"
   run provider
   [ "$status" -eq 1 ]
-  [[ "$output" == *"origin is a local path, so it does not name a forge; set forge in kit.yml (github gitlab)"* ]]
+  [[ "$output" == *"origin is a local path, so it does not name a forge; set forge in kit.yml (ado github gitlab)"* ]]
   # no origin at all says so, and how to add one
   git remote remove origin
   run provider
@@ -55,7 +55,7 @@ provider() {
   printf 'forge: sourcehut\n' > kit.yml
   run provider
   [ "$status" -eq 1 ]
-  [[ "$output" == *"'sourcehut' is not a forge the kit knows; the forges are: github gitlab"* ]]
+  [[ "$output" == *"'sourcehut' is not a forge the kit knows; the forges are: ado github gitlab"* ]]
 }
 
 # forge-of <remote> prints the forge the seam names for the remote here, or nothing.

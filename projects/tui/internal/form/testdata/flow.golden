@@ -18,9 +18,13 @@
    --stages                   prints the stages the picture draws, one per line, in order
    --me                       prints the caller's login on the primary's forge, the login --mine and
                               --others match
+   --capabilities             prints what the primary's forge can do, as one JSON object: {contract,
+                              forge, provider, features}, each feature native or none, as
+                              modules/bash/forge.sh declares them; it asks nothing
    --quota                    prints the caller's rate limits on the primary's forge, as one JSON
                               array: each forge's {forge, limits}, each limit {name, limit,
-                              remaining, reset}; reading them costs a request at most
+                              remaining, reset}; reading them costs a request at most. A forge
+                              without rate limits gives none, and asks nothing
    --marks                    prints a mark per stage, as one JSON object, which changes when what
                               the stage draws does: read again, a mark that differs says the stage
                               is stale; on GitHub, nothing changed costs no request

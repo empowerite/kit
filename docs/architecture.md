@@ -168,7 +168,7 @@ exists.
 
 | Seam | Providers | Chosen by |
 | --- | --- | --- |
-| `kit/modules/bash/forge.sh` | `forge/github.sh` over `gh`, `forge/gitlab.sh` over `glab` | the `forge` setting, else the primary remote's host |
+| `kit/modules/bash/forge.sh` | `forge/github.sh` over `gh`, `forge/gitlab.sh` over `glab`, `forge/ado.sh` over `az` | the `forge` setting, else the primary remote's host |
 | `kit/modules/bash/tracker.sh` | `tracker/forge.sh`, `tracker/ado.sh` | the reference's prefix, `#7` or `AB#4521`; see [trackers.md](trackers.md) |
 | `kit/modules/bash/toolchain.sh` | `toolchain/mise.sh`, `toolchain/nix.sh`, `toolchain/brew.sh`, `toolchain/docker.sh`, `toolchain/devcontainer.sh`, and for the system role `toolchain/apt.sh`, `toolchain/dnf.sh`, `toolchain/pacman.sh` | the one active or usable where kit runs, else the person's choice; see [toolchains.md](toolchains.md) |
 | `kit/modules/bash/dependencies.sh` | `dependencies/npm.sh`, `dependencies/uv.sh` | every one usable here at once: its tool on `PATH`, its manifest and its lock at the root; see [toolchains.md](toolchains.md#dependencies) |
@@ -185,7 +185,8 @@ forge is named in the `forge` or `forges` setting, or found from a host `gh` or 
   linked branches, drafts, closing issues, review threads, checks, quota, marks, releases, and runs. A call of a
   feature the forge lacks is unsupported: it exits 3 and runs nothing, and the verb answers as for none, such as no
   releases to list or no rate limits to draw. `kit flow --capabilities` prints the declaration for kittui.
-- Each provider uses its code forge's own name for a change: pull request `#3` on GitHub, merge request `!3` on GitLab.
+- Each provider uses its code forge's own name for a change: pull request `#3` on GitHub, merge request `!3` on GitLab,
+  pull request `!3` on Azure DevOps.
 - A repository with one origin has one code forge. A repository on two code forges is a mirror or a migration, and
   the setting picks the one the workflow uses.
 - `tests/forge-conformance.bats` runs every provider against a fake of its tool and checks that each returns the
