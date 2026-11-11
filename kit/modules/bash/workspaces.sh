@@ -114,6 +114,7 @@ workspaces:recall() {
   local dir kept desk
   dir=$(workspaces:cache)
   desk=$(workspaces:desk "$1")
+  # grep fails where the desk is the only one kept, which leaves none to keep beside it
   kept=$(workspaces:recent | grep --invert-match --line-regexp --fixed-strings -- "${desk}" |
     head -n $((workspaces_recent_most - 1))) || true
   { mkdir -p "${dir}" && printf '%s\n' "${desk}" ${kept:+"${kept}"} > "${dir}/recent"; } 2>/dev/null \
