@@ -213,6 +213,40 @@ func TestAPresetSetsAPanelAndIsReadBackFromIt(t *testing.T) {
 	if got := PresetOf((Preset{}).Panel(fields, grid.Panel{}), fields); got.Fields != nil {
 		t.Errorf("the catalog's own: %+v", got.Fields)
 	}
+	// the fields the catalog groups by group each view that names them not, at their depths, and say nothing read back;
+	// moved, ungrouped, or hidden, they say so, as a view the person saves keeps the groups they chose
+	source := Field{ID: "source", Label: "source", Type: "enum", Group: true, Renderings: []string{"text"},
+		Placement: PlaceGroup, Depth: 1}
+	repo := Field{ID: "repository", Label: "repository", Type: "enum", Group: true, Renderings: []string{"text"},
+		Placement: PlaceGroup, Depth: 2}
+	grouped := []Field{repo, source, state, title}
+	if got := (Preset{}).Panel(grouped, grid.Panel{}).Groups(); !slices.Equal(got, []string{"source", "repository"}) {
+		t.Errorf("the catalog's groups: %q", got)
+	}
+	if got := PresetOf((Preset{}).Panel(grouped, grid.Panel{}), grouped); got.Fields != nil {
+		t.Errorf("the catalog's groups read back: %+v", got.Fields)
+	}
+	for _, c := range []struct {
+		name string
+		pr   Preset
+		want []string
+	}{
+		{"state outermost", Preset{Fields: map[string]Setting{"state": {Placement: PlaceGroup, Depth: 1},
+			"source": {Placement: PlaceGroup, Depth: 2}, "repository": {Placement: PlaceGroup, Depth: 3}}},
+			[]string{"state", "source", "repository"}},
+		{"source ungrouped", Preset{Fields: map[string]Setting{"source": {Placement: PlaceColumn},
+			"repository": {Placement: PlaceGroup, Depth: 1}}}, []string{"repository"}},
+		{"repository hidden", Preset{Fields: map[string]Setting{"repository": {Placement: PlaceHidden}}},
+			[]string{"source"}},
+	} {
+		p := c.pr.Panel(grouped, grid.Panel{})
+		if got := p.Groups(); !slices.Equal(got, c.want) {
+			t.Errorf("%s: %q", c.name, got)
+		}
+		if got := PresetOf(p, grouped).Panel(grouped, grid.Panel{}).Groups(); !slices.Equal(got, c.want) {
+			t.Errorf("%s, read back: %q", c.name, got)
+		}
+	}
 	// a field that holds a list is flat as a preset says, and sorts while it is; one that holds none is never flat, and
 	// a list gathered sorts by size
 	people := Field{ID: "who", Label: "who", One: "person", Type: "person", Renderings: []string{"text"}}

@@ -135,6 +135,15 @@ func TestTheCatalogRefusesWhatATableCannotIndexBy(t *testing.T) {
 		"names no command that reads it":     plain(`, "forge": true`),
 		"marked, but is not staged": plain(`, "record": ".", "command": ["t", "x", "--json"],
 			"marked": false`),
+		"cannot group or names no depth": stage("a", "", `{"id": "x", "label": "x", "type": "enum",
+			"renderings": ["text"], "placement": "group", "depth": 1}`, def),
+		"names no depth": stage("a", "", `{"id": "x", "label": "x", "type": "enum", "group": true,
+			"renderings": ["text"], "placement": "group"}`, def),
+		"but is not placed in a group": stage("a", "", `{"id": "x", "label": "x", "type": "enum", "group": true,
+			"renderings": ["text"], "depth": 1}`, def),
+		`fields "x" and "y" of "a" are grouped at one depth`: stage("a", "", `{"id": "x", "label": "x", "type": "enum",
+			"group": true, "renderings": ["text"], "placement": "group", "depth": 1}, {"id": "y", "label": "y",
+			"type": "enum", "group": true, "renderings": ["text"], "placement": "group", "depth": 1}`, def),
 	} {
 		if _, err := ReadCatalog([]byte(`{"stages": [` + stages + `]}`)); err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("%s: %v", want, err)

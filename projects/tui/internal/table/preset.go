@@ -25,7 +25,7 @@ func (pr Preset) Panel(fields []Field, p grid.Panel) grid.Panel {
 			}
 		case PlaceGroup:
 			if f.Group {
-				g.Placement, g.Depth = grid.Group, s.Depth
+				g.Placement, g.Depth = grid.Group, cmp.Or(s.Depth, f.Depth)
 			}
 		default:
 			g.Position = s.Position
@@ -77,7 +77,9 @@ func PresetOf(p grid.Panel, fields []Field) Preset {
 				s.Placement = PlaceHidden
 			}
 		case g.Placement == grid.Group && slices.Contains(groups, f.ID):
-			s.Placement, s.Depth = PlaceGroup, slices.Index(groups, f.ID)+1
+			if depth := slices.Index(groups, f.ID) + 1; f.Placement != PlaceGroup || f.Depth != depth {
+				s.Placement, s.Depth = PlaceGroup, depth
+			}
 		case positioned && k >= 0:
 			s.Placement, s.Position = PlaceColumn, k+1
 		case cmp.Or(f.Placement, PlaceColumn) != PlaceColumn:

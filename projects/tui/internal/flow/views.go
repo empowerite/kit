@@ -155,9 +155,10 @@ func (v named) preset(stage string) (table.Preset, []string) {
 			p.Fields[c] = grid.Field{Position: len(p.Fields) + 1}
 		}
 	}
-	// a field the catalog hides, which views.json knew nothing of, stays hidden, as are those it hid
+	// a field the catalog hides or groups by, which views.json knew nothing of, stays hidden, as are those it hid: the
+	// view groups by what it grouped by, and nothing else
 	for _, f := range fields {
-		if f.Placement == table.PlaceHidden {
+		if f.Placement == table.PlaceHidden || f.Placement == table.PlaceGroup {
 			p = p.Placed(f.ID, grid.Hidden)
 		}
 	}

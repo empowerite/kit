@@ -58,7 +58,8 @@ var Takes = []string{"owner", "no-fetch", "fresh", "cached", "workspace"}
 // short; WidthWhole, it keeps its widest value while the wrapping one keeps a few cells, and gives way only after it,
 // as a glossary's term does. Null is what a row whose value at the path is null draws, dim, where null means more
 // than nothing, as an environment's branches, any. Placement is where a preset that names none puts it: a column, a
-// group, or hidden. Order
+// group, or hidden; and Depth, for a group, how deep, from 1, the outermost, as a stage whose rows belong to a
+// repository groups them by source, organization, and repository in each of its own views. Order
 // says how its groups stand: none, sorted; OrderGiven, in the order the data gives them, an enum's known values first,
 // as the catalog lists them, then every other value as the records first hold it, as kit lists a repository's primary
 // remote first.
@@ -82,6 +83,7 @@ type Field struct {
 	Width      string      `json:"width"`
 	Null       string      `json:"null"`
 	Placement  string      `json:"placement"`
+	Depth      int         `json:"depth"`
 	Order      string      `json:"order"`
 }
 
@@ -165,7 +167,8 @@ func ReadCatalog(data []byte) (Catalog, error) {
 }
 
 // check refuses a schema a table cannot index by: one that names no stage; a field declared twice, or without a
-// rendering; fields without a Default preset; and, for a schema with a command, a record Records does not read, a word
+// rendering; a field placed in a group that cannot group or names no depth, one that names a depth but is not placed
+// in a group, and two grouped at one depth; fields without a Default preset; and, for a schema with a command, a record Records does not read, a word
 // it takes that Takes does not name, and staged with no stage after the verb, a command of three words at least, as
 // flow backlog --json, and marked on a stage that is not staged. Words taken, staged, or the forge read without a
 // command are refused too.
@@ -174,7 +177,7 @@ func (s *Schema) check() error {
 	if s.Stage == "" {
 		errs = append(errs, errors.New("a table in the catalog names no stage"))
 	}
-	ids := map[string]bool{}
+	ids, depths := map[string]bool{}, map[int]string{}
 	for _, f := range s.Fields {
 		if ids[f.ID] {
 			errs = append(errs, fmt.Errorf("field %q of %q is declared twice", f.ID, s.Stage))
@@ -183,6 +186,18 @@ func (s *Schema) check() error {
 		if len(f.Renderings) == 0 {
 			errs = append(errs, fmt.Errorf("field %q of %q has no rendering", f.ID, s.Stage))
 		}
+		if f.Placement == PlaceGroup && (!f.Group || f.Depth < 1) {
+			errs = append(errs, fmt.Errorf("field %q of %q is placed in a group, but cannot group or names no depth",
+				f.ID, s.Stage))
+		}
+		if f.Depth > 0 && f.Placement != PlaceGroup {
+			errs = append(errs, fmt.Errorf("field %q of %q names a depth, but is not placed in a group", f.ID, s.Stage))
+		}
+		if f.Depth > 0 && depths[f.Depth] != "" {
+			errs = append(errs, fmt.Errorf("fields %q and %q of %q are grouped at one depth", depths[f.Depth], f.ID,
+				s.Stage))
+		}
+		depths[f.Depth] = f.ID
 	}
 	if len(s.Fields) > 0 && !slices.ContainsFunc(s.Presets, func(p Preset) bool { return p.Name == Opening }) {
 		errs = append(errs, fmt.Errorf("stage %q has no preset named %s", s.Stage, Opening))
