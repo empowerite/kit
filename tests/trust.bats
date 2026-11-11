@@ -26,6 +26,19 @@ own-kit() {
   : > kit/modules/bash/1st.sh
 }
 
+# answering <answer> <command> runs the command on a terminal of its own, and types the answer there once the question
+# is up; script gives the command the terminal, as tests/helper.bash's pty does.
+answering() {
+  local answer=$1
+  shift
+  { sleep 2; printf '%s\n' "${answer}"; sleep 2; } | if script --version >/dev/null 2>&1
+  then
+    script --quiet --return --command "$*" /dev/null
+  else
+    script -q /dev/null bash -c "$*"
+  fi
+}
+
 @test "in a clone you have not trusted, every verb but help, version, and trust is refused, by the loader and by the verb" {
   run "${kit}" check
   [ "$status" -eq 1 ]
@@ -42,6 +55,24 @@ own-kit() {
   [ "$status" -eq 0 ]
   run "${kit}" -h
   [ "$status" -eq 0 ]
+}
+
+@test "on a terminal, a verb in a clone you have not trusted asks first, and after a yes runs as it was typed" {
+  run answering y "'${kit}' root"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"kit runs nothing in $(pwd -P) until you trust it"* ]]
+  [[ "$output" == *"Trust $(pwd -P)? [y/N]"* ]]
+  [[ "$output" == *"kit trusts $(pwd -P), and every worktree of it"* ]]
+  [[ "$output" == *"${kit_checkout}"* ]]
+  [ "$(cat "${trusted}")" = "$(pwd -P)" ]
+}
+
+@test "on a terminal, a no keeps the clone untrusted, and the verb does not run" {
+  run answering n "'${kit}' root"
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"is not trusted; kit runs nothing there"* ]]
+  [[ "$output" != *"${kit_checkout}"* ]]
+  [ ! -s "${trusted}" ]
 }
 
 @test "outside a clone, kit needs no trust" {

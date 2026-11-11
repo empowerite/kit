@@ -81,7 +81,8 @@ it, checked against the `.sha256` the release publishes beside it. A kit option 
 kit may know it, so update the kit you installed.
 
 kit runs nothing in a clone until you trust it. `kit trust` shows what the clone asks kit to run, its pinned release,
-the bash it loads, and its gate, then asks you, and remembers your answer for the clone and all its worktrees.
+the bash it loads, and its gate, then asks you, and remembers your answer for the clone and all its worktrees. On a
+terminal, the first kit command in a clone you have not trusted asks the same question, then runs after a yes.
 `kit trust ~/Code/` trusts every clone under that folder. Trusting a clone means you accept code from whoever can
 push to it: kit does not check each pull; review and signed commits do. The records are plain lines in
 `~/.config/kit/trusted`, and `kit trust --list` and `kit trust --revoke` read and change them.

@@ -24,8 +24,10 @@
 #
 # kit runs nothing in a clone until you trust it, as kit trust records it in kit/trusted under XDG_CONFIG_HOME, else
 # ~/.config: a clone, with every worktree of it, or a folder, with every clone under it. In a clone you have not
-# trusted, the loader runs kit help, kit version, and kit trust alone, on this release, whatever the clone names, and
-# refuses every other verb. kit trust runs on this release in a clone you trust too.
+# trusted, the loader runs kit help, kit version, and kit trust alone, on this release, whatever the clone names. Any
+# other verb, on a terminal, runs this release's kit trust first, which shows what the clone asks kit to run and asks
+# you; after a yes, the call runs as it was typed. Without a terminal, or after a no, it is refused. kit trust runs on
+# this release in a clone you trust too.
 #
 # The kit options:
 #
@@ -405,8 +407,18 @@ then
   case ${1:-tui} in
     (help | version | trust) untrusted=yes ;;
     (*)
-      refuse "kit runs nothing in $(trust_name "${clone}") until you trust it; see what it asks kit to run," \
-        "and trust it: kit trust"
+      name=$(trust_name "${clone}")
+      # On a terminal, this release's kit trust shows what the clone asks kit to run, and asks; after a yes, the call
+      # runs again as it was typed. It asks once per clone in a call, so a trust that does not hold refuses.
+      if [ -t 0 ] && [ -t 2 ] && [ "${kit_trust_asked:-}" != "${name}" ]
+      then
+        say '→' 36 "kit runs nothing in ${name} until you trust it"
+        "${self}" trust || exit 1
+        kit_trust_asked=${name}
+        export kit_trust_asked
+        exec "${self}" ${want:+"--version=${want}"} ${workspace:+"--workspace=${workspace}"} "$@"
+      fi
+      refuse "kit runs nothing in ${name} until you trust it; see what it asks kit to run, and trust it: kit trust"
       exit 1
       ;;
   esac
