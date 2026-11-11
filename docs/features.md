@@ -229,6 +229,14 @@ under the cursor once it loads: from Issues, an underway issue's pull request le
 worked in to Repositories' worktrees; from any app but Repositories, a member's name, over a group, leads to
 Repositories' repos.
 
+A link to another app leaves a crumb on the title line of the app it opens: after the workspace menu, and after the
+maximized tab's name when one is, a dim · and ↩ with the name of where the link was followed, the app and its tab.
+A plain click on it, or ⌫, which the keys bar names while it shows, goes back there, the view as it was left: the
+tab, maximized or not, the preset, sort, filters, and groups, the row under the cursor, and the scroll. That place
+keeps its own crumb, so crumbs chain, each one deep. The workspace menu's Manage… leaves a crumb as a link does. Only
+the app menu, `=`, opens an app with no crumb, and drops the chain; so does a switch to another workspace, which makes
+the apps anew there. Switching tabs within an app keeps its crumb. Crumbs last for the session.
+
 `kit flow` opens Flow, and `kit flow <stage>` opens it on that stage, maximized. `kit workspace` opens Repositories,
 and `kit workspace <stage>` the app with that tab, on the tab. `kit platform` prints Platform's tabs, services,
 toolchains, tools, and settings, each a stage, as [apps.md](apps.md) says; on a terminal it hands them to kittui, which

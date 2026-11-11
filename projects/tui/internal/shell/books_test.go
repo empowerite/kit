@@ -109,7 +109,7 @@ func TestBooksOpenAsksForTheOpenDialog(t *testing.T) {
 		t.Errorf("a click on Open…: %q", picked)
 	}
 	// Manage… asks for the workspaces' screen
-	if _, picked := b.Click(left+3, Top+2, at, 120); Pick(picked)() != (SwitchMsg{Manage}) {
+	if _, picked := b.Click(left+3, Top+2, at, 120); Pick(picked)() != (SwitchMsg{Screen: Manage, Crumb: true}) {
 		t.Errorf("a click on Manage…: %q", picked)
 	}
 }

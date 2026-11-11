@@ -97,12 +97,14 @@ var sections = [][]screenItem{
 var screens = slices.Concat(sections...)
 
 // Menu is the app's menu on a screen: the screen it is on, whose item is dim; the screen's own items, which come
-// after kit's screens, and the names of those that do nothing now, dim; and, as a dropdown, whether it is open, and
-// then has the keyboard, and the item under the keyboard.
+// after kit's screens, and the names of those that do nothing now, dim; the name of the screen's crumb, the place a
+// link led from, which the title draws after the workspace, the way back the menu's screens are not, none without one;
+// and, as a dropdown, whether it is open, and then has the keyboard, and the item under the keyboard.
 type Menu struct {
-	Here Screen
-	Own  []Item
-	Dim  []string
+	Here  Screen
+	Own   []Item
+	Dim   []string
+	Crumb string
 	Dropdown
 }
 
@@ -114,11 +116,16 @@ type Choice struct {
 	Own    string
 }
 
-// SwitchMsg asks kittui to show another of kit's screens in place of the one shown, each kept as it was left.
-type SwitchMsg struct{ Screen Screen }
+// SwitchMsg asks kittui to show another of kit's screens in place of the one shown, each kept as it was left: from the
+// app's menu, with no crumb; with Crumb, as a link leads, the one shown left as the crumb of the one asked for, as
+// crumb.go says.
+type SwitchMsg struct {
+	Screen Screen
+	Crumb  bool
+}
 
-// Switch gives the command that asks for the screen.
-func Switch(to Screen) tea.Cmd { return func() tea.Msg { return SwitchMsg{to} } }
+// Switch gives the command that asks for the screen, as the app's menu does.
+func Switch(to Screen) tea.Cmd { return func() tea.Msg { return SwitchMsg{Screen: to} } }
 
 // JumpMsg asks kittui to show an app with a row of one of its tabs under the cursor, as a link in another app leads:
 // the app, and where in it, the tab's stage as the app knows it, a slash, and the row's key. kittui shows the app, as

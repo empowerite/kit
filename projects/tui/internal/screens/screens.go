@@ -10,7 +10,8 @@
 // screen again. When the place the screens read moves, to another repository or onto or off a group, the screens made
 // are made anew there, all but the tutorials, the help, and the workspaces' screen, which read kit alone. Only the latest ask lands. The menu's
 // Open… opens a dialog over the screen shown, where a repository's folder is typed: kit keeps it among the recent and
-// says the workspace, which is switched to as a pick's is, or says why not, in the dialog.
+// says the workspace, which is switched to as a pick's is, or says why not, in the dialog. A link from one screen to
+// another leaves a crumb back, which crumb.go keeps.
 package screens
 
 import (
@@ -50,6 +51,7 @@ type Model struct {
 	refused   string               // kit's line, when kit could not say the workspace last asked for
 	asked     int                  // the latest ask, 0 at kittui's start: an older ask's answer is dropped
 	epochs    map[shell.Screen]int // how many times each screen was made again: an answer to one closed is dropped
+	crumb     *crumb               // the screen shown's crumb, while a link led to it, as crumb.go keeps the chain
 }
 
 // workspaceMsg is kit's answer to an ask for the workspace: the ask's number, and the workspace, or why there is none.
@@ -190,6 +192,7 @@ func (m Model) answered(msg workspaceMsg) (tea.Model, tea.Cmd) {
 	if !moved {
 		return m.tellWorkspace()
 	}
+	m = m.dropped()
 	// the screen shown is made anew first, so one that cannot open there gives way to the welcome, which always opens,
 	// kit's line on the last line, before anything is closed
 	here, remade := m.here, !readsKitAlone(m.here)
@@ -263,9 +266,10 @@ func (m Model) workspaceMsg() shell.WorkspaceMsg {
 	return shell.WorkspaceMsg{Workspace: m.workspace, Refusal: m.refused}
 }
 
-// Update takes a message: a screen's ask for another, shown in its place, or for a row of another, which is shown and
-// then given the ask; or for the Settings dialog, or the Open… dialog, opened over it, and a walk's clones for the
-// Open… dialog;
+// Update takes a message: a screen's ask for another, shown in its place, with no crumb from the app's menu, else with
+// a crumb back, as crumb.go says, or for a row of another, which is shown with a crumb back and then given the ask; a
+// key or a click the screen shown says goes back to its crumb, while no dialog is open; or for the Settings dialog, or
+// the Open… dialog, opened over it, and a walk's clones for the Open… dialog;
 // an answer to what a screen started, for that screen; while a dialog is open, a key or a click for it, which closes
 // it outside it, a turn of the wheel for the Open… dialog's list, and any other mouse event nowhere;
 // and anything else for the screen shown, the terminal's size as the screen has it.
@@ -276,9 +280,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.dialog = shell.SettingsDialog{Open: true}
 			return m, nil
 		}
-		return m.show(msg.Screen)
+		if msg.Crumb {
+			return m.linked(msg.Screen)
+		}
+		next, cmd := m.show(msg.Screen)
+		if n := next.(Model); n.here == msg.Screen {
+			return n.dropped(), cmd
+		}
+		return next, cmd
 	case shell.JumpMsg:
-		next, shown := m.show(msg.Screen)
+		next, shown := m.linked(msg.Screen)
 		if next.(Model).here != msg.Screen {
 			return next, shown
 		}
@@ -310,6 +321,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.keyboard = &msg
 	case tea.KeyPressMsg:
 		m.refusal = ""
+		if !m.opener.Open && !m.dialog.Open && m.backs(msg) {
+			return m.back()
+		}
 		if m.opener.Open && msg.String() != "ctrl+c" {
 			was, folder := m.opener, ""
 			if m.opener, folder = m.opener.Key(msg); folder != "" {
@@ -323,6 +337,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.changed(was)
 		}
 	case tea.MouseClickMsg:
+		if !m.opener.Open && !m.dialog.Open && m.backs(msg) {
+			return m.back()
+		}
 		if m.opener.Open {
 			was, folder := m.opener, ""
 			if m.opener, folder = m.opener.Click(msg, m.height(), m.width()); folder != "" {

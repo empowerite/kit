@@ -88,6 +88,10 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     tab, its count, and its :, and a click anywhere on them drops the tab's menu as the bar's does; a line in the tab's
     color runs under it, and the header follows; Restore, in its place, puts the bar back as it was, and a tab's
     number selects a tab either way.
+  - A link to another app leaves a crumb, last on the title line of the app it opens, after the workspace menu and a
+    maximized tab: ↩ and the app and tab it was followed from. A plain click on it, or ⌫, goes back there, the view put
+    back as `Spot` kept it, with that place's own crumb, so crumbs chain, each one deep; the root, in
+    `internal/screens/crumb.go`, keeps the chain for the session. Only the app menu shows an app with no crumb.
   - A menu line's key stands at its right, dim, a letter in upper case, R as ⌃A, as a macOS menu draws it, and the
     letter alone does the same with the menu closed as choosing the line does with it open: r Refresh, w Watch, m
     Maximize or Restore, o Open Selected, ⌃A Select All, and on backlog n New… and a Assign to Me. With a menu open, a
@@ -230,10 +234,10 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   while after each answer, as `kit flow` reads the rate limits and the stages' marks each minute. Every wait goes
   through a clock: the program's is a `tea.Tick`, and a test's fires none until the test says.
 - `internal/transcript/` writes the command line that `kittui` ran into the scrollback.
-- `internal/shell/` is what every screen shares: the menu bar, with the kit menu, the workspace menu, and the search
-  field, laid out alike on every screen, a verb's form included; the Settings dialog and kittui's settings file; and
-  the key hints on the status bar. A screen never writes its key hints. It gives the path from the screen to the
-  control that has the keyboard, and each control on the path names the keys it answers. A deeper control hides an
+- `internal/shell/` is what every screen shares: the menu bar, with the kit menu, the workspace menu, the crumb, and
+  the search field, laid out alike on every screen, a verb's form included; the Settings dialog and kittui's settings
+  file; and the key hints on the status bar. A screen never writes its key hints. It gives the path from the screen to
+  the control that has the keyboard, and each control on the path names the keys it answers. A deeper control hides an
   ancestor's key for a press it takes. The bar draws each control's keys between rules. When the line is too narrow,
   it keeps the screen's keys and drops the controls between them and the one with the keyboard, then clips that one's
   end.

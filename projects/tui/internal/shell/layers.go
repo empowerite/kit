@@ -34,6 +34,9 @@ func (ls Layers[M]) top(m M) int {
 	return -1
 }
 
+// Opened says whether any layer is open.
+func (ls Layers[M]) Opened(m M) bool { return ls.top(m) >= 0 }
+
 // Key gives a key to the topmost open layer, and says whether one took it; with none open, the screen takes it.
 func (ls Layers[M]) Key(m M, k tea.KeyPressMsg) (M, tea.Cmd, bool) {
 	at := ls.top(m)

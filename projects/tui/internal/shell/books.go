@@ -77,7 +77,8 @@ type WorkspaceMsg struct {
 type PickMsg struct{ Workspace string }
 
 // Pick gives the command for what a line of the dropdown picked: Open… asks kittui for the Open… dialog, Manage… for
-// the workspaces' screen, and a workspace asks kittui to switch to it; none for none.
+// the workspaces' screen, leaving the screen shown as its crumb, and a workspace asks kittui to switch to it; none for
+// none.
 func Pick(workspace string) tea.Cmd {
 	switch workspace {
 	case "":
@@ -85,7 +86,7 @@ func Pick(workspace string) tea.Cmd {
 	case openTarget:
 		return func() tea.Msg { return OpenMsg{} }
 	case manageTarget:
-		return Switch(Manage)
+		return func() tea.Msg { return SwitchMsg{Screen: Manage, Crumb: true} }
 	}
 	return func() tea.Msg { return PickMsg{workspace} }
 }

@@ -167,7 +167,9 @@ Workspace… (`n`), a name and its repositories; Switch to It (`⏎`); Rename…
 patterns; Add an Owner's Repositories… (`o`), a GitHub owner and a pattern, which runs `gh repo list` through
 `--from`; Add from a Command… (`c`); Remove Members… (`x`); Favorite or Unfavorite (`f`); and Delete… (`d`), which
 asks first. kit's line, when it refuses, stands in the action's dialog; when it is done, every screen's menu lists
-the groups as they are now, and a group renamed or deleted while it is shown is followed.
+the groups as they are now, and a group renamed or deleted while it is shown is followed. Its title line has a crumb,
+↩ and the screen Manage… was chosen on, which a plain click or ⌫ goes back to, as a link's crumb does. A switch to
+another workspace drops every crumb, as the apps are made anew there.
 
 ## Flow over a workspace in kittui
 

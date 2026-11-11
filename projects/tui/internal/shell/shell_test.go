@@ -91,7 +91,7 @@ func TestTheMenusKeysMoveChooseAndClose(t *testing.T) {
 			t.Errorf("%s did not close the menu", k)
 		}
 	}
-	if Switch(Welcome)() != (SwitchMsg{Welcome}) {
+	if Switch(Welcome)() != (SwitchMsg{Screen: Welcome}) {
 		t.Error("Switch")
 	}
 }

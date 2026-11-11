@@ -118,17 +118,18 @@ func (m Model) searchLine() string {
 func (m Model) paneWidth() int { return max(1, m.width-1) }
 
 // keys gives the path to the keyboard, which the keys bar is drawn from: the screen, whose ? and F1 show or hide the
-// legend; the stages' bar, whose down reaches the preset line, or the rows where the stage has none, and which,
-// maximized, has no tab or shift-tab; and the part the keyboard is in, the preset line, the rows, or the search.
-// An open menu, dialog, or field's popover takes every press, and is the path alone.
+// legend, and whose ⌫ goes back while a crumb shows; the stages' bar, whose down reaches the preset line, or the rows
+// where the stage has none, and which, maximized, has no tab or shift-tab; and the part the keyboard is in, the preset
+// line, the rows, or the search. An open menu, dialog, or field's popover takes every press, and is the path alone.
 func (m Model) keys() shell.Path {
 	// an open layer, the topmost, names its keys alone, as layers.go orders them
 	if path, ok := m.layers().Keys(m); ok {
 		return path
 	}
 	legend := shell.Bind("?", "legend", "?", "f1")
+	screen := shell.WorkspaceScreenKeys(shell.CrumbOf(m.appMenu.Crumb, legend)...)
 	if len(m.stages) == 0 {
-		return shell.Path{shell.WorkspaceScreenKeys(legend)}
+		return shell.Path{screen}
 	}
 	// down reaches the control line's first stop: the heading over the groups, or the preset picker
 	down := "rows"
@@ -143,7 +144,7 @@ func (m Model) keys() shell.Path {
 		// the bar is not there to move along
 		bar.Bindings = slices.DeleteFunc(bar.Bindings, func(b shell.Binding) bool { return b.Key == "⇥·⇧⇥" })
 	}
-	path := shell.Path{shell.WorkspaceScreenKeys(legend), bar}
+	path := shell.Path{screen, bar}
 	switch {
 	case m.inPanel:
 		return append(path, shell.SearchKeys("rows", m.panel(m.stage).Query, len(m.recent.Items) > 0))
@@ -170,9 +171,9 @@ func (m Model) rowKeys() shell.Segment { return table.RowKeys(&m, m.altArrows) }
 
 // menuBar gives the menu bar, as internal/shell draws every screen's: the kit menu's = before kit flow; the workspace
 // menu, which names the workspace; maximized, the selected tab, as the bar draws it but its number in place of its
-// glyph, its : last; and the search field, with a stage to search.
+// glyph, its : last; the crumb, while a link led here; and the search field, with a stage to search.
 func (m Model) menuBar() shell.MenuBar {
-	b := shell.MenuBar{Screen: m.appLabel(), Open: m.appMenu.Open, Workspace: m.books.Label()}
+	b := shell.MenuBar{Screen: m.appLabel(), Open: m.appMenu.Open, Workspace: m.books.Label(), Crumb: m.appMenu.Crumb}
 	if m.maximized {
 		b.On = m.bar().NumberedLabel()
 	}

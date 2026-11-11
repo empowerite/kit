@@ -544,9 +544,10 @@ func (m Model) click(c tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// menuBar gives the menu bar: the kit menu's = before the screen's name, and the workspace menu.
+// menuBar gives the menu bar: the kit menu's = before the screen's name, the workspace menu, and the crumb, while
+// Manage… led here.
 func (m Model) menuBar() shell.MenuBar {
-	return shell.MenuBar{Screen: appLabel, Open: m.appMenu.Open, Workspace: m.books.Label(),
+	return shell.MenuBar{Screen: appLabel, Open: m.appMenu.Open, Workspace: m.books.Label(), Crumb: m.appMenu.Crumb,
 		Search: shell.SearchLine(m.search.Query, m.search.Focused && !m.appMenu.Open)}
 }
 
@@ -554,7 +555,7 @@ func (m Model) menuBar() shell.MenuBar {
 func (m Model) booksAt() int { return m.menuBar().WorkspaceAt() }
 
 // keys gives the path to the keyboard: an open prompt's or menu's alone; else the screen's keys, its actions' among
-// them, and the table's while it has the keyboard.
+// them and ⌫ while a crumb shows, and the table's while it has the keyboard.
 func (m Model) keys() shell.Path {
 	switch {
 	case m.prompt.open:
@@ -570,7 +571,7 @@ func (m Model) keys() shell.Path {
 		own = append(own, shell.Bind("⏎", "switch", "enter"), shell.Bind("r", "rename"), shell.Bind("a", "add"),
 			shell.Bind("x", "remove"), shell.Bind("d", "delete"))
 	}
-	path := shell.Path{shell.WorkspaceScreenKeys(own...)}
+	path := shell.Path{shell.WorkspaceScreenKeys(shell.CrumbOf(m.appMenu.Crumb, own...)...)}
 	switch seg, _ := m.sheet.Keys(); {
 	case m.search.Focused:
 		search := shell.SearchKeys("workspaces", m.search.Query, false)
