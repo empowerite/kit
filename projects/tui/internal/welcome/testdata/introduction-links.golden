@@ -4,8 +4,6 @@
   ╵                 ╰───────────────────╰──────────────╰───────────────╰───────────╰────────────────────────────────────
    Welcome
 
-   kit welcome walks you through your first hour with kit, one step at a time.
-
    5 checks need your attention
    ────────────────────────────
    ❌ jq is not installed → 🧰 toolchains
@@ -14,17 +12,19 @@
    ❌ gh is not logged in to github.com → 🔧 setup
    ❌ kit check finds 2 differences from the release → 🔧 setup
 
+   kit keeps a repository trustworthy while people and agents work in it side by side.
 
+   What kit is
 
+   kit is your house rules as a versioned release, and the checks that hold the work to them. It places the rules where
+   people and agents both look: .kit/1st.md, which every agent reads first, a rule for each kind of file, and the files
+   each agent harness reads. Its commands do what the rules describe, so the right way is also the short way. Take a
+   new release, and the rules and checks move with it, in every repository that takes it.
 
+   Who it is for
 
-
-
-
-
-
-
-
-
+   • People who work with coding agents, and want an agent's "done" to mean what theirs means.
+   • Teams that keep one set of rules across many repositories, versioned rather than copied.
+   … 34 more
 
  = menu - workspace / search │ 1-5 jump │ esc tabs ↑↓ move ⇞⇟ page ⏎ go to the check

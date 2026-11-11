@@ -209,19 +209,30 @@ func (m Model) lines() []line {
 	return out
 }
 
-// introductionLines gives the introduction's lines: its page, then what the checks found. That is checking… until they
-// first answer; then ✅ when every check passed, or how many failed and a link to each, in the order of their steps: ❌,
-// its line, and the glyph and name of its step, the cursor's link drawn as chosen, and the search narrowing them as it
-// does a step's checks. Kit's refusal, in red, comes first when kit refused them, and checking… last while they run
-// again.
+// introductionLines gives the introduction's lines: its page's title and the blank line under it, then what the checks
+// found, so it shows before the page's words however long they run, then a blank line and the rest of the page.
 func (m Model) introductionLines() []line {
-	w := m.width - 1
+	page := m.pageLines(m.step)
+	k := min(2, len(page))
 	var out []line
-	for _, l := range m.pageLines(m.step) {
+	for _, l := range page[:k] {
 		out = append(out, line{-1, l})
 	}
+	out = append(append(out, m.findings()...), line{-1, ""})
+	for _, l := range page[k:] {
+		out = append(out, line{-1, l})
+	}
+	return out
+}
+
+// findings gives what the checks found, as the introduction draws it. That is checking… until they first answer; then
+// ✅ when every check passed, or how many failed and a link to each, in the order of their steps: ❌, its line, and the
+// glyph and name of its step, the cursor's link drawn as chosen, and the search narrowing them as it does a step's
+// checks. Kit's refusal, in red, comes first when kit refused them, and checking… last while they run again.
+func (m Model) findings() []line {
+	w := m.width - 1
+	var out []line
 	add := func(row int, text string) { out = append(out, line{row, pane.Clip(text, w)}) }
-	add(-1, "")
 	if m.refusal != "" {
 		for _, l := range wrapWords(strings.Fields(Failed+" "+m.refusal), w-len(lead), "", "") {
 			add(-1, lead+style.Refusal(l))
