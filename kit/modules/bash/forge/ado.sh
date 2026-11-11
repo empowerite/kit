@@ -59,7 +59,7 @@ forge/ado:branch-for-issue() {
 forge/ado:contract() { printf '4\n'; }
 
 forge/ado:lacks() {
-  printf '%s\n' quota marks releases linked-branches milestones iterations reviewers merged artifacts environments \
+  printf '%s\n' quota marks releases linked-branches milestones reviewers merged artifacts environments \
     deployments collaborators teams bots attestations code-scanning dependabot secret-scanning rulesets bypasses
 }
 
@@ -148,7 +148,18 @@ forge/ado:issue-unassign() {
   forge/ado:az boards work-item update --id "$1" --assigned-to "" --output none >/dev/null 2>&1
 }
 
-forge/ado:iterations() { return 3; }
+# forge/ado:iterations prints one document per iteration of a team's, by start, as the seam's header says: the team
+# forge_settings.ado.team names, else the project's default team, which az takes when it is not named.
+forge/ado:iterations() {
+  local org project team list
+  local -a named=()
+  IFS=$'\t' read -r org project _ < <(forge/ado:place) || return 1
+  team=$(forge:setting ado team)
+  [[ -z "${team}" ]] || named=(--team "${team}")
+  forge/ado:ask list 'the iterations' boards iteration team list "${named[@]}" --project "${project}" || return 1
+  forge/ado:fold 'the iterations' "${list}" --compact-output \
+    --arg url "${org}/$(forge/ado:encode "${project}")/_sprints" 'import "forge" as forge; forge::ado_iterations($url)'
+}
 
 # The forge lacks branches linked to a work item, as forge/ado:lacks declares, so the seam answers unsupported and never calls this.
 forge/ado:link-branch() { return 3; }
@@ -169,6 +180,7 @@ forge/ado:me() {
 
 forge/ado:merged-prs() { return 3; }
 
+# The forge lacks milestones, as forge/ado:lacks declares, so the seam answers unsupported and never calls this.
 forge/ado:milestones() { return 3; }
 
 forge/ado:noun() { printf '!\tpull request\n'; }

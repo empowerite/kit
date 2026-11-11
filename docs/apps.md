@@ -54,4 +54,27 @@ or outside a repository's working tree with no workspace.
 - The toolchains' mark hashes every file a toolchain or a dependency provider pins from, and the files that keep
   kit's choice of toolchain: this checkout's, the clone's, and yours under `~/.kit/settings.yml`.
 
-see: [toolchains.md](toolchains.md), [workspaces.md](workspaces.md)
+## Issues: kit issues
+
+`kit issues` prints the planning the forge keeps. Its other tabs in kittui, the backlog and what is underway, are
+`kit flow`'s: `kit issues backlog` and `kit issues underway` open on a terminal, and with a form refuse with 2, naming
+`kit flow backlog --json` or `kit flow underway --json`.
+
+| Stage | A row per | Fields | Mark |
+| --- | --- | --- | --- |
+| `milestones` | milestone, open and closed, by number | `number, title, state, due, open, closed` | the forge's mark of its milestones |
+| `iterations` | iteration, by start | `id, title, start, end, current` | `null` |
+
+- `milestones` keys each row by its number. `state` is `open` or `closed`, `due` seconds since the epoch, `null` for
+  none, and `open` and `closed` count the milestone's issues. The title links to the milestone's page. Azure DevOps
+  has no milestones, so its stage has no rows and no errors. Its mark is GitHub's ETag of the milestones list,
+  GitLab's newest `updated_at`, and none on Azure DevOps.
+- `iterations` keys each row by its id. `start` and `end` are seconds since the epoch, `end` the last second of the
+  last day, both `null` for an iteration with no dates. `current` is true for the one that holds now. The title links
+  to the project's page, or the iteration's. GitHub's come from the projects linked to the repository, none when
+  none is linked; GitLab's include its groups', and a tier without iterations is the error
+  `{feature: iterations, off: true}`; Azure DevOps' are its team's, the team `forge_settings.ado.team` in `kit.yml`
+  names, else the project's default team. It has no mark, so kittui reads it again only on Refresh and Watch.
+
+see: [toolchains.md](toolchains.md), [workspaces.md](workspaces.md), [integrations/gh.md](integrations/gh.md),
+[integrations/glab.md](integrations/glab.md), [integrations/az.md](integrations/az.md)

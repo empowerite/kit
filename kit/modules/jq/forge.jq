@@ -186,13 +186,14 @@ def gitlab_quota:
                else [{name: ($h.name // "api"), limit: $limit, remaining: $remaining,
                       reset: ($h.reset // "" | number)}] end) };
 
-# gitlab_marks($issues; $mrs; $runs; $releases) reads GitLab's newest issue and merge request by update, its ten newest
-# pipelines, and its newest release, and gives a mark of each kind: what each says of its items and when they changed,
-# as one text, so a mark changes when one of them does.
-def gitlab_marks($issues; $mrs; $runs; $releases):
+# gitlab_marks($issues; $mrs; $runs; $releases; $milestones) reads GitLab's newest issue and merge request by update,
+# its ten newest pipelines, its newest release, and its newest milestone by update, and gives a mark of each kind: what
+# each says of its items and when they changed, as one text, so a mark changes when one of them does.
+def gitlab_marks($issues; $mrs; $runs; $releases; $milestones):
   { issues: ([$issues[]?, $mrs[]? | [.iid, .updated_at]] | tojson),
     runs: ([$runs[]? | [.id, .status, .updated_at]] | tojson),
-    releases: ([$releases[]? | [.tag_name, .released_at]] | tojson) };
+    releases: ([$releases[]? | [.tag_name, .released_at]] | tojson),
+    milestones: ([$milestones[]? | [.iid, .updated_at]] | tojson) };
 
 # gitlab_runs reads a pipeline's jobs and gives its runs.
 def gitlab_runs:
@@ -450,3 +451,54 @@ def ado_builds($now; $default; $tags; $results):
         title: (.triggerInfo["ci.message"] // ""), state: ado_build_state, createdAt: .queueTime,
         started: .startTime, ended: .finishTime, url: (._links.web.href // "\($results)?buildId=\(.id)") })
   | builds($default; $tags) | map(build($now));
+
+# day reads a day, as GitLab and Azure DevOps give one, 2026-12-01, or an ISO 8601 time, and gives its seconds since
+# the epoch, at the start of the day for a day; null for none.
+def day:
+  if . == null then null
+  elif test("^[0-9]{4}-[0-9]{2}-[0-9]{2}$") then (. + "T00:00:00Z" | fromdateiso8601)
+  else epoch end;
+
+# github_milestones reads the pages of GitHub's milestones, each an array, and gives one document per milestone, by
+# number: {number, title, state, due, open, closed, url}, due seconds since the epoch, or null for none.
+def github_milestones:
+  add // [] | sort_by(.number)[]
+  | {number, title, state, due: (.due_on | day), open: .open_issues, closed: .closed_issues, url: .html_url};
+
+# gitlab_milestones($counts) reads GitLab's milestones and gives the same documents, by number, its iid. GitLab's list
+# holds no issue count, so $counts maps each milestone's id to the issues it holds, as the list of each's issues gives
+# them, each {state}: those opened, and those closed. GitLab's active is open.
+def gitlab_milestones($counts):
+  sort_by(.iid)[]
+  | {number: .iid, title, state: (if .state == "closed" then "closed" else "open" end), due: (.due_date | day),
+     open: ([$counts[(.id | tostring)][] | select(.state == "opened")] | length),
+     closed: ([$counts[(.id | tostring)][] | select(.state == "closed")] | length), url: .web_url};
+
+# iteration($start; $end; $url) is an iteration's document: {id, title, start, end, url}, its start and end seconds
+# since the epoch, null for none. It is given an object with id and title.
+def iteration($start; $end; $url): {id, title, start: $start, end: $end, url: $url};
+
+# github_iterations reads the answer of GitHub's GraphQL to the projects linked to the repository and gives one document
+# per iteration of the iteration fields of each, by start, as {id, title, start, end, url}, url the project's page.
+# An iteration lasts its duration in days from its start, and ends the second before the next day begins. A project with
+# no iteration field gives none.
+def github_iterations:
+  [(.data.repository.projectsV2.nodes // [])[] | .url as $url
+   | (.fields.nodes // [])[] | (.configuration // empty) | (.iterations // []) + (.completedIterations // [])
+   | .[] | (.startDate | day) as $start
+   | iteration($start; $start + .duration * 86400 - 1; $url)]
+  | unique_by(.id) | sort_by(.start)[];
+
+# gitlab_iterations reads GitLab's iterations, whose due_date is the last day, and gives one document each, by start. An
+# iteration of a cadence may have no title; it is then named by its dates.
+def gitlab_iterations:
+  sort_by(.start_date)[]
+  | .title = (.title // "\(.start_date) to \(.due_date)")
+  | iteration((.start_date | day); (.due_date | day) + 86399; .web_url);
+
+# ado_iterations($url) reads az's team iterations and gives one document each, by start, an iteration with no dates, as
+# the project's root has, first. Azure DevOps' finish date is the last day, as GitLab's due date is.
+def ado_iterations($url):
+  sort_by(.attributes.startDate // "")[]
+  | {id, title: .name, start: (.attributes.startDate | day),
+     end: (if .attributes.finishDate then (.attributes.finishDate | day) + 86399 else null end), url: $url};

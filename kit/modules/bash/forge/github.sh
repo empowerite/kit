@@ -96,7 +96,29 @@ forge/github:issue-unassign() {
   gh issue edit "$1" --remove-assignee "$2" >/dev/null 2>&1
 }
 
-forge/github:iterations() { return 3; }
+# forge/github:iterations prints one document per iteration, by start, as the seam's header says: those of the iteration
+# fields of the projects linked to the repository, which GitHub keeps in its Projects, not in its Issues. A repository
+# with no project linked has none, and prints nothing. One GraphQL request reads the first 20 projects and the first 50
+# fields of each; a project with more is read as far as that.
+forge/github:iterations() {
+  local repo answer query
+  repo=$(forge/github:repo) || return 1
+  query='query($owner: String!, $name: String!) {
+    repository(owner: $owner, name: $name) {
+      projectsV2(first: 20) { nodes { url fields(first: 50) { nodes {
+        ... on ProjectV2IterationField {
+          configuration {
+            iterations { id title startDate duration }
+            completedIterations { id title startDate duration }
+          }
+        }
+      } } } }
+    }
+  }'
+  forge/github:ask answer 'the iterations' api graphql --field owner="${repo%%/*}" --field name="${repo#*/}" \
+    --raw-field query="${query}" || return 1
+  forge/github:fold 'the iterations' "${answer}" --compact-output 'import "forge" as forge; forge::github_iterations'
+}
 
 # gh issue develop names the branch <N>-<slug>, links it to the issue under Development, and pushes it.
 forge/github:link-branch() {
@@ -105,19 +127,22 @@ forge/github:link-branch() {
 
 # forge/github:marks [<dir>] reads, for each kind of the repository's data, a mark that changes when it does: issues,
 # of the issue or pull request updated last, as GitHub lists them together; runs, of the ten newest workflow runs;
-# releases, of the newest release. A mark is GitHub's ETag for the answer. With <dir>, each ETag is kept there and the
-# next read sends it, so GitHub answers 304 Not Modified while nothing changed, which counts against no rate limit.
+# releases, of the newest release; milestones, of the first milestone of the list ordered by update. A mark is GitHub's
+# ETag for the answer. With <dir>, each ETag is kept there and the next read sends it, so GitHub answers 304 Not
+# Modified while nothing changed, which counts against no rate limit.
 # gh names the repository from the checkout's remote, as {owner}/{repo}, which costs no request.
 forge/github:marks() {
-  local dir=${1:-} issues runs releases
+  local dir=${1:-} issues runs releases milestones
   issues=$(forge/github:mark 'repos/{owner}/{repo}/issues?state=all&sort=updated&direction=desc&per_page=1' \
     "${dir:+${dir}/marks-issues.etag}") || return 1
   runs=$(forge/github:mark 'repos/{owner}/{repo}/actions/runs?per_page=10' "${dir:+${dir}/marks-runs.etag}") \
     || return 1
   releases=$(forge/github:mark 'repos/{owner}/{repo}/releases?per_page=1' "${dir:+${dir}/marks-releases.etag}") \
     || return 1
+  milestones=$(forge/github:mark 'repos/{owner}/{repo}/milestones?state=all&sort=updated&per_page=1' \
+    "${dir:+${dir}/marks-milestones.etag}") || return 1
   jq --null-input --compact-output --arg issues "${issues}" --arg runs "${runs}" --arg releases "${releases}" \
-    '{issues: $issues, runs: $runs, releases: $releases}'
+    --arg milestones "${milestones}" '{issues: $issues, runs: $runs, releases: $releases, milestones: $milestones}'
 }
 
 forge/github:me() {
@@ -135,7 +160,16 @@ forge/github:me() {
 
 forge/github:merged-prs() { return 3; }
 
-forge/github:milestones() { return 3; }
+# forge/github:milestones prints one document per milestone, open and closed, by number, as the seam's header says,
+# every page of the REST list: gh api --paginate --slurp joins the pages into one array of them.
+forge/github:milestones() {
+  local answer
+  forge/github:ask answer 'the milestones' api --paginate --slurp \
+    'repos/{owner}/{repo}/milestones?state=all&per_page=100' || return 1
+  forge:whole 'the milestones' "$(jq 'if all(.[]; type == "array") then map(length) | add // 0 else error end' \
+    <<<"${answer}" 2>/dev/null)" || return 1
+  forge/github:fold 'the milestones' "${answer}" --compact-output 'import "forge" as forge; forge::github_milestones'
+}
 
 forge/github:noun() { printf '#\tpull request\n'; }
 
@@ -445,7 +479,7 @@ forge/github:teams() { return 3; }
 forge/github:contract() { printf '4\n'; }
 
 forge/github:lacks() {
-  printf '%s\n' milestones iterations reviewers merged artifacts environments deployments collaborators teams bots \
+  printf '%s\n' reviewers merged artifacts environments deployments collaborators teams bots \
     attestations code-scanning dependabot secret-scanning rulesets bypasses
 }
 

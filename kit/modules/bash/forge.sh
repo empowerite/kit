@@ -64,8 +64,8 @@
 #   pr-url <n>                    the change's browser URL
 #   me                            the caller's login
 #   marks [<dir>]                 one JSON object, a mark for each kind of the repository's data, issues (with the
-#                                 changes), runs, and releases, each a text that changes when that data does, read
-#                                 cheaply; with <dir>, what makes the next read cheaper is kept there
+#                                 changes), runs, releases, and milestones, each a text that changes when that data
+#                                 does, read cheaply; with <dir>, what makes the next read cheaper is kept there
 #   quota                         one JSON object, the caller's rate limits on the forge: {forge, limits}, each limit
 #                                 {name, limit, remaining, reset}, reset in seconds since the epoch; reading it costs
 #                                 at most one request
@@ -110,7 +110,8 @@
 #   milestones                    one JSON object per milestone: {number, title, state, due, open, closed, url}; state
 #                                 is open or closed, due seconds since the epoch or null (since 4)
 #   iterations                    one JSON object per iteration, by start: {id, title, start, end, url}, start and end
-#                                 seconds since the epoch (since 4)
+#                                 seconds since the epoch (since 4); a repository with none prints none, and a forge
+#                                 whose tier has none answers 3
 #   merged-prs                    one JSON object per merged change, the 50 newest: {number, title, author, branch,
 #                                 merged, by, url} (since 4)
 #   artifacts                     one JSON object per artifact of a run, the newest 100: {id, name, digest, size, run,
@@ -642,7 +643,7 @@ forge:marks() {
   if [[ -n "${choice}" ]]
   then
     span=$(( $(date +%s) / $(jq .every <<<"${choice}") ))
-    printf '{"issues":"%s","runs":"%s","releases":"%s"}\n' "${span}" "${span}" "${span}"
+    printf '{"issues":"%s","runs":"%s","releases":"%s","milestones":"%s"}\n' "${span}" "${span}" "${span}" "${span}"
     return 0
   fi
   dir=$(forge:snapshots 2>/dev/null) && mkdir -p "${dir}" 2>/dev/null || dir=''

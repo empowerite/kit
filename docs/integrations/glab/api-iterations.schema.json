@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "glab api projects/${project}/iterations?include_ancestors=true&per_page=100 --paginate",
+  "description": "The iterations of the project and of its groups, every one, which prints one such array per page, which kit draws as the iterations stage's in `modules/bash/forge/gitlab.sh` (forge/gitlab:iterations, with `modules/jq/forge.jq` forge::gitlab_iterations). A tier without iterations, or a token without the scope, answers 403 or 404, which kit reads as the feature off. The types are those of GET /api/v4/projects/{id}/iterations in GitLab's REST OpenAPI, https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/openapi/openapi_v3.yaml, as https://docs.gitlab.com/api/project_iterations/ describes them.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "integer"
+      },
+      "iid": {
+        "type": "integer"
+      },
+      "title": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "Null for an iteration of a cadence that has no title, which kit names by its dates."
+      },
+      "start_date": {
+        "type": "string",
+        "format": "date"
+      },
+      "due_date": {
+        "type": "string",
+        "format": "date",
+        "description": "The last day of the iteration."
+      },
+      "web_url": {
+        "type": "string",
+        "format": "uri",
+        "description": "The iteration's page."
+      }
+    },
+    "required": [
+      "id",
+      "start_date",
+      "due_date",
+      "web_url"
+    ],
+    "additionalProperties": true
+  },
+  "examples": [
+    [
+      {
+        "id": 31,
+        "iid": 1,
+        "title": "Sprint 1",
+        "start_date": "2026-11-02",
+        "due_date": "2026-11-15",
+        "web_url": "https://gitlab.com/groups/empowerite/-/iterations/31"
+      },
+      {
+        "id": 32,
+        "iid": 2,
+        "title": null,
+        "start_date": "2026-11-16",
+        "due_date": "2026-11-29",
+        "web_url": "https://gitlab.com/groups/empowerite/-/iterations/32"
+      }
+    ]
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh api --paginate --slurp repos/{owner}/{repo}/milestones?state=all&per_page=100",
+  "description": "The repository's milestones, open and closed, as an array of the pages gh read, each an array: every one, which kit draws as the milestones stage's in `modules/bash/forge/github.sh` (forge/github:milestones, with `modules/jq/forge.jq` forge::github_milestones). The mark of the milestones, with sort=updated&per_page=1 and --include, is the ETag of the answer (forge/github:marks), whose body kit does not read. The types are those of GET /repos/{owner}/{repo}/milestones in GitHub's REST OpenAPI, https://github.com/github/rest-api-description, as https://docs.github.com/rest/issues/milestones describes them.",
+  "type": "array",
+  "items": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "properties": {
+        "number": {
+          "type": "integer"
+        },
+        "title": {
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "open",
+            "closed"
+          ]
+        },
+        "due_on": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time",
+          "description": "The due date, as a time at midnight UTC, null for none."
+        },
+        "open_issues": {
+          "type": "integer"
+        },
+        "closed_issues": {
+          "type": "integer"
+        },
+        "html_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "The milestone's page."
+        }
+      },
+      "required": [
+        "number",
+        "title",
+        "state",
+        "due_on",
+        "open_issues",
+        "closed_issues",
+        "html_url"
+      ],
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    [
+      [
+        {
+          "number": 2,
+          "title": "v0.1",
+          "state": "open",
+          "due_on": "2026-12-01T00:00:00Z",
+          "open_issues": 3,
+          "closed_issues": 2,
+          "html_url": "https://github.com/empowerite/kit/milestone/2"
+        },
+        {
+          "number": 1,
+          "title": "v0.0.9",
+          "state": "closed",
+          "due_on": null,
+          "open_issues": 0,
+          "closed_issues": 7,
+          "html_url": "https://github.com/empowerite/kit/milestone/1"
+        }
+      ]
+    ]
+  ]
+}

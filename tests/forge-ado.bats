@@ -95,10 +95,17 @@ JSON
   az-route 'repos pr policy list --id 3 --top 10000 --output json' policies.json
   az-route 'devops invoke --area git --resource pullRequestThreads --route-parameters project=empowerite repositoryId=example pullRequestId=3 --api-version 7.1 --output json' threads.json
   az-route 'repos pr update --id 3 *' '!0'
+  fixture iterations.json <<'JSON'
+[{"id": "a1", "name": "Sprint 1", "path": "empowerite\\Sprint 1",
+  "attributes": {"startDate": "2026-11-02T00:00:00Z", "finishDate": "2026-11-15T00:00:00Z", "timeFrame": "current"}},
+ {"id": "a0", "name": "Backlog", "path": "empowerite", "attributes": null}]
+JSON
+  az-route 'boards iteration team list --project empowerite --output json' iterations.json
+  az-route 'boards iteration team list --team Alpha --project empowerite --output json' iterations.json
 }
 
-# added is what contract 4 adds, as JSON strings: no forge here has any of it yet, so a provider lacks all of it.
-added='"milestones","iterations","reviewers","merged","artifacts","environments","deployments","collaborators",'
+# added is what contract 4 adds that Azure DevOps lacks, as JSON strings: it has iterations, and no milestone.
+added='"milestones","reviewers","merged","artifacts","environments","deployments","collaborators",'
 added+='"teams","bots","attestations","code-scanning","dependabot","secret-scanning","rulesets","bypasses"'
 
 @test "dev.azure.com, its ssh host, and a host under visualstudio.com are Azure DevOps, and each names the repository" {
@@ -313,6 +320,22 @@ JSON
   done
   run "${kit_root}/bin/kit" flow --quota
   [ "$output" = '[]' ]
+}
+
+@test "Azure DevOps lists its iterations of the project's default team, or the team forge_settings.ado.team names" {
+  expected='{"id":"a1","title":"Sprint 1","start":1793577600,"end":1794787199,'
+  expected+='"url":"https://dev.azure.com/acme/empowerite/_sprints"}'
+  run call iterations
+  [ "$status" -eq 0 ]
+  [ "$(jq --compact-output --slurp 'map(select(.title == "Sprint 1"))[0]' <<<"$output")" = "${expected}" ]
+  [ "$(jq --compact-output 'select(.title == "Backlog") | [.start, .end]' <<<"$output")" = '[null,null]' ]
+  printf 'forge_settings:\n  ado:\n    team: Alpha\n' > kit.yml
+  : > "${FAKE_DIR}/az.calls"
+  run call iterations
+  [ "$status" -eq 0 ]
+  grep --quiet -- '--team Alpha' "${FAKE_DIR}/az.calls"
+  run --separate-stderr call milestones
+  [ "$status" -eq 3 ]
 }
 
 @test "on an Azure DevOps forge, #7 and AB#7 are both the forge's own work item, and a record still claims AB#" {

@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "glab api projects/${project}/milestones?per_page=${n} [--paginate]",
+  "description": "The project's milestones, open and closed, ${project} its path URL-encoded: every one, per_page=100 with --paginate, which prints one such array per page, which kit draws as the milestones stage's in `modules/bash/forge/gitlab.sh` (forge/gitlab:milestones, with `modules/jq/forge.jq` forge::gitlab_milestones), and the newest by update, with order_by=updated_at&sort=desc&per_page=1, whose iid and updated_at make a mark (forge/gitlab:marks, with forge::gitlab_marks). The types are APIEntitiesMilestone of GET /api/v4/projects/{id}/milestones in GitLab's REST OpenAPI, https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/openapi/openapi_v3.yaml, as https://docs.gitlab.com/api/milestones/ describes them.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "integer",
+        "description": "The milestone's own, which its issues are listed by."
+      },
+      "iid": {
+        "type": "integer",
+        "description": "Its number in the project."
+      },
+      "title": {
+        "type": "string"
+      },
+      "state": {
+        "enum": [
+          "active",
+          "closed"
+        ]
+      },
+      "due_date": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "format": "date"
+      },
+      "updated_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "web_url": {
+        "type": "string",
+        "format": "uri",
+        "description": "The milestone's page."
+      }
+    },
+    "required": [
+      "id",
+      "iid",
+      "title",
+      "state",
+      "web_url"
+    ],
+    "additionalProperties": true
+  },
+  "examples": [
+    [
+      {
+        "id": 20,
+        "iid": 2,
+        "title": "v0.1",
+        "state": "active",
+        "due_date": "2026-12-01",
+        "updated_at": "2026-11-05T09:00:00.000Z",
+        "web_url": "https://gitlab.com/empowerite/kit/-/milestones/2"
+      }
+    ]
+  ]
+}

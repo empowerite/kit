@@ -92,7 +92,7 @@ Work Item Query Language (WIQL) query and answers every item it matches. kit's `
 | New-issue page | none; kit builds `${org}/${project}/_workitems/create/${type}?[System.Title]=${title}` |
 | Open issues | `az boards query --org "${org}" --project "${project}" --wiql "${wiql}"`, selecting `System.Title`, `System.AssignedTo`, `System.Tags`, and `System.CreatedDate` where `System.State` is not closed |
 | Parent, children, and linked pull requests | `az boards work-item show --id "${n}" --expand relations --org "${org}"`, or `az boards work-item relation show --id "${n}"` |
-| Iterations | `az boards iteration team list --team "${team}" --project "${project}" --org "${org}" --output json` |
+| Iterations | `az boards iteration team list --team "${team}" --project "${project}" --org "${org}" --output json`, as `kit issues iterations` reads them, the team `forge_settings.ado.team` names, else the project's default team, with no `--team` |
 | An iteration's work items | `az boards iteration team list-work-items --id "${iteration_id}" --team "${team}" --project "${project}"` |
 | Board status | `az boards work-item show --id "${n}"`, `.fields["System.BoardColumn"]` |
 
@@ -220,6 +220,7 @@ with an example the gate validates against it.
 
 | Schema | The command as kit runs it |
 | --- | --- |
+| [boards-iteration-team-list.schema.json](az/boards-iteration-team-list.schema.json) | `az boards iteration team list [--team ${team}] --project ${project} --output json` |
 | [boards-query.schema.json](az/boards-query.schema.json) | `az boards query --project ${project} --wiql "SELECT [System.Id], [System.Title], [System.AssignedTo], [System.Tags], [System.CreatedDate] FROM WorkItems WHERE [System.TeamProject] = @project AND [System.State] NOT IN ('Closed', 'Done', 'Removed') ORDER BY [System.CreatedDate] ASC" --output json` |
 | [boards-work-item-create.schema.json](az/boards-work-item-create.schema.json) | `az boards work-item create --title ${title} --type ${type} --description ${body} --project ${project} --output json` |
 | [boards-work-item-show.schema.json](az/boards-work-item-show.schema.json) | `az boards work-item show --id ${id} --output json` |

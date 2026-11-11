@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh api graphql --field owner=${owner} --field name=${name} --raw-field query=${query}",
+  "description": "The iterations of the iteration fields of the first 20 projects linked to the repository, in the first 50 fields of each, which kit draws as the iterations stage's in `modules/bash/forge/github.sh` (forge/github:iterations, with `modules/jq/forge.jq` forge::github_iterations): the iterations still to come or running, and those completed. A field that is not an iteration field is the empty object. The token needs the read:project scope for a project that is not public. The types are those of ProjectV2, ProjectV2IterationField, and ProjectV2IterationFieldConfiguration in GitHub's GraphQL schema, https://docs.github.com/graphql/reference/objects.",
+  "type": "object",
+  "properties": {
+    "data": {
+      "type": "object",
+      "properties": {
+        "repository": {
+          "type": "object",
+          "properties": {
+            "projectsV2": {
+              "type": "object",
+              "properties": {
+                "nodes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "url": {
+                        "type": "string",
+                        "format": "uri",
+                        "description": "The project's page."
+                      },
+                      "fields": {
+                        "type": "object",
+                        "properties": {
+                          "nodes": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "configuration": {
+                                  "type": "object",
+                                  "properties": {
+                                    "iterations": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
+                                          },
+                                          "title": {
+                                            "type": "string"
+                                          },
+                                          "startDate": {
+                                            "type": "string",
+                                            "format": "date"
+                                          },
+                                          "duration": {
+                                            "type": "integer",
+                                            "description": "Its length in days."
+                                          }
+                                        },
+                                        "required": [
+                                          "id",
+                                          "title",
+                                          "startDate",
+                                          "duration"
+                                        ],
+                                        "additionalProperties": true
+                                      }
+                                    },
+                                    "completedIterations": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "id": {
+                                            "type": "string"
+                                          },
+                                          "title": {
+                                            "type": "string"
+                                          },
+                                          "startDate": {
+                                            "type": "string",
+                                            "format": "date"
+                                          },
+                                          "duration": {
+                                            "type": "integer",
+                                            "description": "Its length in days."
+                                          }
+                                        },
+                                        "required": [
+                                          "id",
+                                          "title",
+                                          "startDate",
+                                          "duration"
+                                        ],
+                                        "additionalProperties": true
+                                      }
+                                    }
+                                  },
+                                  "additionalProperties": true
+                                }
+                              },
+                              "additionalProperties": true
+                            }
+                          }
+                        },
+                        "required": [
+                          "nodes"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "url",
+                      "fields"
+                    ],
+                    "additionalProperties": true
+                  }
+                }
+              },
+              "required": [
+                "nodes"
+              ]
+            }
+          },
+          "required": [
+            "projectsV2"
+          ]
+        }
+      },
+      "required": [
+        "repository"
+      ]
+    }
+  },
+  "required": [
+    "data"
+  ],
+  "examples": [
+    {
+      "data": {
+        "repository": {
+          "projectsV2": {
+            "nodes": [
+              {
+                "url": "https://github.com/orgs/empowerite/projects/4",
+                "fields": {
+                  "nodes": [
+                    {},
+                    {
+                      "configuration": {
+                        "iterations": [
+                          {
+                            "id": "PVTI_2",
+                            "title": "Sprint 2",
+                            "startDate": "2026-11-16",
+                            "duration": 14
+                          }
+                        ],
+                        "completedIterations": [
+                          {
+                            "id": "PVTI_1",
+                            "title": "Sprint 1",
+                            "startDate": "2026-11-02",
+                            "duration": 14
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

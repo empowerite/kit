@@ -47,3 +47,13 @@ import "apps" as apps; apps::text
 import "apps" as apps; [apps::text]
 []
 []
+
+# A milestone is keyed by its number, its page the link of its title.
+import "apps" as apps; apps::milestone
+{"number": 2, "title": "v0.1", "state": "open", "due": 1796083200, "open": 3, "closed": 2, "url": "u"}
+{"key":2,"number":2,"title":"v0.1","state":"open","due":1796083200,"open":3,"closed":2,"links":{"title":"u"}}
+
+# An iteration is keyed by its id, and current when now falls between its start and its end, never when it has no dates.
+import "apps" as apps; [(.[] | apps::iteration | .current)]
+[{"id": "a", "title": "t", "start": 0, "end": 1, "url": "u"}, {"id": "b", "title": "t", "start": 0, "end": 99999999999, "url": "u"}, {"id": "c", "title": "t", "start": null, "end": null, "url": "u"}]
+[false,true,false]

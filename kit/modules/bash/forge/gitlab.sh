@@ -111,7 +111,25 @@ forge/gitlab:issue-unassign() {
   glab issue update "$1" --assignee "-$2" >/dev/null 2>&1
 }
 
-forge/gitlab:iterations() { return 3; }
+# forge/gitlab:iterations prints one document per iteration, by start, as the seam's header says: those of the project's
+# groups and its own, every page. A tier without iterations, or a token without the scope, answers 403 or 404, which is
+# the feature off for this repository: it returns 3, printing nothing.
+forge/gitlab:iterations() {
+  local list said
+  forge/gitlab:project >/dev/null || return 1
+  file:temp said glab || return 1
+  if ! list=$(forge/gitlab:api 'iterations?include_ancestors=true&per_page=100' --paginate 2>"${said}")
+  then
+    if grep --quiet --extended-regexp '(^|[^0-9])40[34]([^0-9]|$)' "${said}"
+    then
+      return 3
+    fi
+    error "run: glab auth status (the iterations could not be read)"
+    return 1
+  fi
+  forge/gitlab:joined list 'the iterations' "${list}" || return 1
+  forge/gitlab:fold 'the iterations' "${list}" --compact-output 'import "forge" as forge; forge::gitlab_iterations'
+}
 
 # GitLab has no command that creates a branch for an issue. This creates the branch the issue page would:
 # <iid>-<slug of the title>, from the default branch. GitLab links a branch with that name to the issue.
@@ -124,18 +142,19 @@ forge/gitlab:link-branch() {
 }
 
 # forge/gitlab:marks [<dir>] reads, for each kind of the project's data, a mark that changes when it does: issues, of
-# the issue and the merge request updated last; runs, of the ten newest pipelines; releases, of the newest release.
-# GitLab sends no ETag for these, so each mark is what the answer says of when its items changed, and costs a request
-# each read, four in all.
+# the issue and the merge request updated last; runs, of the ten newest pipelines; releases, of the newest release;
+# milestones, of the newest by update. GitLab sends no ETag for these, so each mark is what the answer says of when its
+# items changed, and costs a request each read, five in all.
 forge/gitlab:marks() {
-  local issues mrs runs releases
+  local issues mrs runs releases milestones
   forge/gitlab:ask issues 'the marks' 'issues?order_by=updated_at&sort=desc&per_page=1' || return 1
   forge/gitlab:ask mrs 'the marks' 'merge_requests?order_by=updated_at&sort=desc&per_page=1' || return 1
   forge/gitlab:ask runs 'the marks' 'pipelines?per_page=10' || return 1
   forge/gitlab:ask releases 'the marks' 'releases?per_page=1' || return 1
+  forge/gitlab:ask milestones 'the marks' 'milestones?order_by=updated_at&sort=desc&per_page=1' || return 1
   forge/gitlab:fold 'the marks' '' --null-input --compact-output --argjson issues "${issues}" --argjson mrs "${mrs}" \
-    --argjson runs "${runs}" --argjson releases "${releases}" \
-    'import "forge" as forge; forge::gitlab_marks($issues; $mrs; $runs; $releases)'
+    --argjson runs "${runs}" --argjson releases "${releases}" --argjson milestones "${milestones}" \
+    'import "forge" as forge; forge::gitlab_marks($issues; $mrs; $runs; $releases; $milestones)'
 }
 
 forge/gitlab:me() {
@@ -148,7 +167,21 @@ forge/gitlab:me() {
 
 forge/gitlab:merged-prs() { return 3; }
 
-forge/gitlab:milestones() { return 3; }
+# forge/gitlab:milestones prints one document per milestone of the project, open and closed, by number, as the seam's
+# header says. GitLab's list holds no count of issues, so each milestone's own are read, opened and closed, and a
+# read that fails fails the call.
+forge/gitlab:milestones() {
+  local list id issues counts='{}'
+  forge/gitlab:pages list 'the milestones' 'milestones?per_page=100' || return 1
+  for id in $(forge/gitlab:fold 'the milestones' "${list}" --raw-output '.[].id | numbers // error')
+  do
+    forge/gitlab:pages issues "the issues of milestone ${id}" "milestones/${id}/issues?per_page=100" || return 1
+    counts=$(forge/gitlab:fold 'the milestones' "${counts}"$'\n'"${issues}" --slurp --compact-output --arg id "${id}" \
+      '.[0] + {($id): .[1]}') || return 1
+  done
+  forge/gitlab:fold 'the milestones' "${list}" --compact-output --argjson counts "${counts}" \
+    'import "forge" as forge; forge::gitlab_milestones($counts)'
+}
 
 forge/gitlab:noun() { printf '!\tmerge request\n'; }
 
@@ -395,7 +428,7 @@ forge/gitlab:teams() { return 3; }
 forge/gitlab:contract() { printf '4\n'; }
 
 forge/gitlab:lacks() {
-  printf '%s\n' milestones iterations reviewers merged artifacts environments deployments collaborators teams bots \
+  printf '%s\n' reviewers merged artifacts environments deployments collaborators teams bots \
     attestations code-scanning dependabot secret-scanning rulesets bypasses
 }
 
@@ -465,12 +498,19 @@ forge/gitlab:on-branch() {
 # them, and puts the list, one JSON array, in the variable <name>. glab prints each page's array after the one before,
 # or one array of every page's items; either is joined into one. A list that is not whole fails, as forge:whole says.
 forge/gitlab:pages() {
-  local pages_into=$1 pages_what=$2 pages_answer pages_joined
+  local pages_into=$1 pages_what=$2 pages_answer
   forge/gitlab:ask pages_answer "${pages_what}" "$3" --paginate || return 1
-  pages_joined=$(forge/gitlab:fold "${pages_what}" "${pages_answer}" --slurp --compact-output \
+  forge/gitlab:joined "${pages_into}" "${pages_what}" "${pages_answer}"
+}
+
+# forge/gitlab:joined <name> <what> <answer> joins the pages of a list glab api --paginate printed, each an array, into
+# one JSON array in the variable <name>, failing when it is not whole, as forge:whole says.
+forge/gitlab:joined() {
+  local joined_into=$1 joined_what=$2 joined
+  joined=$(forge/gitlab:fold "${joined_what}" "$3" --slurp --compact-output \
     'if all(.[]; type == "array") then add // [] else error end') || return 1
-  forge:whole "${pages_what}" "$(jq length <<<"${pages_joined}")" || return 1
-  printf -v "${pages_into}" '%s' "${pages_joined}"
+  forge:whole "${joined_what}" "$(jq length <<<"${joined}")" || return 1
+  printf -v "${joined_into}" '%s' "${joined}"
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

@@ -34,6 +34,16 @@ def settings($schema):
        + if $set | has($k) then {value: $set[$k], from: "set"} else {value: .value.default, from: "default"} end
        + {links: {}}];
 
+# milestone reads a milestone the forge's milestones call prints and gives it keyed by its number, its page the link of
+# its title.
+def milestone: {key: .number} + del(.url) + {links: {title: .url}};
+
+# iteration reads an iteration the forge's iterations call prints and gives it keyed by its id, current where now falls
+# between its start and its end, its page the link of its title.
+def iteration:
+  {key: .id} + del(.url)
+  + {current: (.start != null and .end != null and .start <= now and now <= .end), links: {title: .url}};
+
 # shown reads a row's value and gives it as text prints it: nothing for none, a list's values apart by commas, an
 # object as JSON.
 def shown:

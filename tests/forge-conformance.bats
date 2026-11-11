@@ -108,6 +108,19 @@ JSON
   route gh 'pr create --draft --base main --head 7-fix-the-thing --title Fix the thing*' pr-url.txt
   route gh 'pr view 3 --json *' pr.json
   route gh 'api repos/empowerite/example/pulls/3 *' pull.json
+  fixture gh-milestones.json <<'JSON'
+[[{"number": 2, "title": "v0.1", "state": "open", "due_on": "2026-12-01T00:00:00Z", "open_issues": 3,
+   "closed_issues": 2, "html_url": "https://github.com/empowerite/example/milestone/2"}]]
+JSON
+  fixture gh-iterations.json <<'JSON'
+{"data": {"repository": {"projectsV2": {"nodes": [{"url": "https://github.com/orgs/empowerite/projects/4",
+  "fields": {"nodes": [{}, {"configuration": {
+    "iterations": [{"id": "PVTI_2", "title": "Sprint 2", "startDate": "2026-11-16", "duration": 14}],
+    "completedIterations": [{"id": "PVTI_1", "title": "Sprint 1", "startDate": "2026-11-02", "duration": 14}]}}]}}]}}}}
+JSON
+  fixture gh-iterations-none.json <<<'{"data": {"repository": {"projectsV2": {"nodes": []}}}}'
+  route gh 'api --paginate --slurp repos/{owner}/{repo}/milestones?state=all&per_page=100' gh-milestones.json
+  route gh 'api graphql*projectsV2*' "${GITHUB_ITERATIONS:-gh-iterations.json}"
   route gh 'api graphql*number=3*' "${GITHUB_CLOSING:-closing.json}"
   route gh 'api graphql*' open-prs.json
 }
@@ -149,6 +162,22 @@ JSON
   fixture labels.json <<<'[{"name": "bug", "color": "#D73A4A"}, {"name": "kind=fix", "color": "#0E8A16"}]'
   fixture none.json <<<'[]'
   route glab 'api user' user.json
+  fixture gl-milestones.json <<'JSON'
+[{"id": 20, "iid": 2, "title": "v0.1", "state": "active", "due_date": "2026-12-01",
+  "web_url": "https://gitlab.com/empowerite/example/-/milestones/2"}]
+JSON
+  fixture gl-milestone-issues.json <<'JSON'
+[{"iid": 7, "state": "opened"}, {"iid": 8, "state": "opened"}, {"iid": 9, "state": "opened"},
+ {"iid": 4, "state": "closed"}, {"iid": 5, "state": "closed"}]
+JSON
+  fixture gl-iterations.json <<'JSON'
+[{"id": 31, "iid": 1, "title": "Sprint 1", "start_date": "2026-11-02", "due_date": "2026-11-15",
+  "web_url": "https://gitlab.com/groups/empowerite/-/iterations/31"}]
+JSON
+  fixture gl-forbidden.txt <<<'glab: 403 Forbidden'
+  route glab "api ${p}/milestones/20/issues?per_page=100*" gl-milestone-issues.json
+  route glab "api ${p}/milestones?per_page=100*" gl-milestones.json
+  route glab "api ${p}/iterations?include_ancestors=true&per_page=100*" "${GITLAB_ITERATIONS:-gl-iterations.json}"
   route glab "api ${p}/issues/7" issue.json
   route glab 'issue create*' issue-url.txt
   fixture issues.json <<'JSON'
@@ -474,22 +503,25 @@ JSON
   printf 'HTTP/2.0 200 OK\r\nEtag: W/"%s"\r\n\r\n[]\n' i1 > "${FAKE_DIR}/issues-200.txt"
   printf 'HTTP/2.0 200 OK\r\nETag: W/"%s"\r\n\r\n{}\n' r1 > "${FAKE_DIR}/runs-200.txt"
   printf 'HTTP/2.0 200 OK\r\netag: W/"%s"\r\n\r\n[]\n' v1 > "${FAKE_DIR}/releases-200.txt"
+  printf 'HTTP/2.0 200 OK\r\nETag: W/"%s"\r\n\r\n[]\n' m1 > "${FAKE_DIR}/milestones-200.txt"
   printf 'HTTP/2.0 304 Not Modified\r\n\r\n' > "${FAKE_DIR}/304.txt"
   world github
   route gh 'api --include --header If-None-Match: W/"i1" repos/{owner}/{repo}/issues*' '!1 >304.txt'
   route gh 'api --include --header If-None-Match: W/"r1" repos/{owner}/{repo}/actions/runs*' '!1 >304.txt'
+  route gh 'api --include --header If-None-Match: W/"m1" repos/{owner}/{repo}/milestones*' '!1 >304.txt'
   route gh 'api --include repos/{owner}/{repo}/issues?state=all&sort=updated&direction=desc&per_page=1' issues-200.txt
   route gh 'api --include repos/{owner}/{repo}/actions/runs?per_page=10' runs-200.txt
   route gh 'api --include*repos/{owner}/{repo}/releases?per_page=1' releases-200.txt
+  route gh 'api --include*repos/{owner}/{repo}/milestones?state=all&sort=updated&per_page=1' milestones-200.txt
   run call marks
   [ "$status" -eq 0 ]
-  [ "$output" = '{"issues":"W/\"i1\"","runs":"W/\"r1\"","releases":"W/\"v1\""}' ]
+  [ "$output" = '{"issues":"W/\"i1\"","runs":"W/\"r1\"","releases":"W/\"v1\"","milestones":"W/\"m1\""}' ]
   # the second read sends each ETag kept, and a 304 keeps the mark
   : > "${FAKE_DIR}/gh.calls"
   run call marks
   [ "$status" -eq 0 ]
-  [ "$output" = '{"issues":"W/\"i1\"","runs":"W/\"r1\"","releases":"W/\"v1\""}' ]
-  [ "$(grep --count 'If-None-Match' "${FAKE_DIR}/gh.calls")" -eq 3 ]
+  [ "$output" = '{"issues":"W/\"i1\"","runs":"W/\"r1\"","releases":"W/\"v1\"","milestones":"W/\"m1\""}' ]
+  [ "$(grep --count 'If-None-Match' "${FAKE_DIR}/gh.calls")" -eq 4 ]
   # a change gives a new ETag, which is the new mark
   printf 'HTTP/2.0 200 OK\r\nEtag: W/"%s"\r\n\r\n[]\n' i2 > "${FAKE_DIR}/issues-200.txt"
   printf '%s\n' 'api --include --header If-None-Match: W/"i1" repos/{owner}/{repo}/issues*'$'\t''issues-200.txt' \
@@ -503,16 +535,19 @@ JSON
   fixture gl-mrs.json <<<'[{"iid": 3, "updated_at": "2026-11-02T09:00:00.000Z"}]'
   fixture gl-pipelines.json <<<'[{"id": 11, "status": "success", "updated_at": "2026-11-03T09:00:00.000Z"}]'
   fixture gl-releases.json <<<'[{"tag_name": "v1", "released_at": "2026-11-04T09:00:00.000Z"}]'
+  fixture gl-milestones.json <<<'[{"iid": 2, "updated_at": "2026-11-05T09:00:00.000Z"}]'
   route glab "api ${p}/issues?order_by=updated_at&sort=desc&per_page=1" gl-issues.json
   route glab "api ${p}/merge_requests?order_by=updated_at&sort=desc&per_page=1" gl-mrs.json
   route glab "api ${p}/pipelines?per_page=10" gl-pipelines.json
   route glab "api ${p}/releases?per_page=1" gl-releases.json
+  route glab "api ${p}/milestones?order_by=updated_at&sort=desc&per_page=1" gl-milestones.json
   run call marks
   [ "$status" -eq 0 ]
-  [ "$(jq --raw-output '.issues, .runs, .releases' <<<"$output")" = \
+  [ "$(jq --raw-output '.issues, .runs, .releases, .milestones' <<<"$output")" = \
     '[[7,"2026-11-01T09:00:00.000Z"],[3,"2026-11-02T09:00:00.000Z"]]
 [[11,"success","2026-11-03T09:00:00.000Z"]]
-[["v1","2026-11-04T09:00:00.000Z"]]' ]
+[["v1","2026-11-04T09:00:00.000Z"]]
+[[2,"2026-11-05T09:00:00.000Z"]]' ]
 }
 
 @test "a provider that cannot read the rate limits says how to fix it, and kit flow --quota prints nothing" {
@@ -572,6 +607,53 @@ JSON
       = "$(jq --compact-output --sort-keys . <<<"${expected}")" ] || { echo "${forge}: ${output}"; return 1; }
     [ "$(jq --slurp 'map(.age > 0) | all' <<<"$output")" = true ]
   done
+}
+
+@test "every provider lists its milestones in one shape: its number, state, due, issue counts, and page" {
+  expected='{"number":2,"title":"v0.1","state":"open","due":1796083200,"open":3,"closed":2,'
+  for forge in github gitlab
+  do
+    world "${forge}"
+    run call milestones
+    [ "$status" -eq 0 ]
+    [ "$(jq --compact-output --sort-keys 'del(.url)' <<<"$output")" \
+      = "$(jq --compact-output --sort-keys . <<<"${expected%,}}")" ] || { echo "${forge}: ${output}"; return 1; }
+    [ "$(jq --raw-output '.url | startswith("https://")' <<<"$output")" = true ]
+  done
+}
+
+@test "every provider lists its iterations by start, in one shape, and a forge without them for this repository is off" {
+  expected='{"id":"x","title":"Sprint 1","start":1793577600,"end":1794787199}'
+  for forge in github gitlab
+  do
+    world "${forge}"
+    run call iterations
+    [ "$status" -eq 0 ]
+    [ "$(jq --compact-output --sort-keys 'del(.id, .url)' <<<"$(head -n 1 <<<"$output")")" \
+      = "$(jq --compact-output --sort-keys 'del(.id)' <<<"${expected}")" ] || { echo "${forge}: ${output}"; return 1; }
+    [ "$(jq --raw-output '.url | startswith("https://")' <<<"$(head -n 1 <<<"$output")")" = true ]
+  done
+  # GitHub's are those of its linked projects, oldest first, and none with no project linked
+  world github
+  run call iterations
+  [ "$(jq --raw-output '.title' <<<"$output" | paste -sd, -)" = 'Sprint 1,Sprint 2' ]
+  [ "$(jq --raw-output 'select(.title == "Sprint 2") | .end' <<<"$output")" = 1795996799 ]
+  GITHUB_ITERATIONS=gh-iterations-none.json world github
+  run call iterations
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  # GitLab's tiers without iterations answer 403 or 404, which is off here
+  for said in 403 404
+  do
+    printf 'glab: %s\n' "${said}" > "${FAKE_DIR}/gl-forbidden.txt"
+    GITLAB_ITERATIONS='!1 gl-forbidden.txt' world gitlab
+    run --separate-stderr call iterations
+    [ "$status" -eq 3 ] || { echo "${said}: ${status}"; return 1; }
+    [ -z "$output" ]
+  done
+  GITLAB_ITERATIONS='!1' world gitlab
+  run call iterations
+  [ "$status" -eq 1 ]
 }
 
 # runs-world <forge> is world's, with the runs: their list, and the jobs of run 103.
