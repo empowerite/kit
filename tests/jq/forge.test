@@ -281,3 +281,80 @@ import "forge" as forge; forge::gitlab_merged_by_update(2)
 [{"iid": 7, "title": "Seven", "merged_at": "1970-01-12T13:00:00Z", "updated_at": "1970-01-12T13:50:00Z", "web_url": "u7"}, {"iid": 9, "title": "Nine", "author": {"username": "bob"}, "source_branch": "b9", "merged_at": "1970-01-12T13:45:00Z", "updated_at": "1970-01-12T13:45:00Z", "merge_user": {"username": "ada"}, "web_url": "u9"}, {"iid": 8, "title": "Eight", "merged_at": "1970-01-12T13:40:00Z", "updated_at": "1970-01-12T13:40:00Z", "web_url": "u8"}]
 {"number":9,"title":"Nine","author":"bob","branch":"b9","merged":999900,"by":"ada","url":"u9"}
 {"limited":1}
+
+# A GitHub artifact of a run GitHub no longer names is its download, and one with no digest, no time, or no expiry has
+# none; past the page, the list says it stopped at those drawn.
+import "forge" as forge; forge::github_artifacts(1000000; "https://github.com/o/r")
+{"total_count": 3, "artifacts": [{"id": 13, "name": "a", "size_in_bytes": 5, "digest": "sha256:ab", "created_at": "1970-01-12T13:40:00Z", "expires_at": "1970-01-12T13:50:00Z", "workflow_run": {"id": 7}}, {"id": 12, "name": "b", "size_in_bytes": 6, "digest": null, "created_at": null, "expires_at": null, "workflow_run": null, "archive_download_url": "z"}]}
+{"id":13,"name":"a","digest":"sha256:ab","size":5,"run":7,"age":400,"expires":1000200,"url":"https://github.com/o/r/actions/runs/7/artifacts/13"}
+{"id":12,"name":"b","digest":null,"size":6,"run":null,"age":null,"expires":null,"url":"z"}
+{"limited":2}
+
+# A GitLab job that kept no archive is no artifact, and GitLab names no digest of one; a page of $limit jobs may not
+# be all of them.
+import "forge" as forge; forge::gitlab_artifacts(1000000; 2)
+[{"id": 13, "artifacts_file": {"filename": "a.zip", "size": 5}, "pipeline": {"id": 7}, "finished_at": null, "created_at": "1970-01-12T13:40:00Z", "artifacts_expire_at": null, "web_url": "u"}, {"id": 12, "artifacts": []}]
+{"id":13,"name":"a.zip","digest":null,"size":5,"run":7,"age":400,"expires":null,"url":"u"}
+{"limited":1}
+
+# An Azure DevOps artifact's size is a pipeline artifact's alone, and it is as old as its run.
+import "forge" as forge; forge::ado_artifacts(1000000; {"id": 7, "finishTime": null, "queueTime": "1970-01-12T13:40:00Z"}; "r")
+[{"id": 1, "name": "a", "resource": {"properties": {"artifactsize": "5"}}}, {"id": 2, "name": "b", "resource": {"type": "Container"}}]
+{"id":1,"name":"a","digest":null,"size":5,"run":7,"age":400,"expires":null,"url":"r?buildId=7&view=artifacts&type=publishedArtifacts"}
+{"id":2,"name":"b","digest":null,"size":null,"run":7,"age":400,"expires":null,"url":"r?buildId=7&view=artifacts&type=publishedArtifacts"}
+
+# A GitHub environment with no branch policy takes any branch, one for protected branches says so, and a tag's policy
+# is its ref; the list stops before the environment past $limit of those with policies of their own.
+import "forge" as forge; forge::github_environments({"a": ["main", "refs/tags/v*"]}; 1)
+[{"environments": [{"name": "a", "html_url": "ua", "protection_rules": [{"type": "wait_timer"}, {"type": "required_reviewers", "reviewers": [{"type": "Team", "reviewer": {"slug": "core"}}, {"type": "User", "reviewer": {"login": "ada"}}]}], "deployment_branch_policy": {"protected_branches": false, "custom_branch_policies": true}}, {"name": "b", "html_url": "ub", "deployment_branch_policy": {"protected_branches": true, "custom_branch_policies": false}}, {"name": "c", "html_url": "uc", "protection_rules": [], "deployment_branch_policy": null}, {"name": "d", "deployment_branch_policy": {"custom_branch_policies": true}}]}]
+{"name":"a","protection":["reviewers","wait"],"approvers":["core","ada"],"branches":["main","refs/tags/v*"],"url":"ua"}
+{"name":"b","protection":[],"approvers":[],"branches":["protected branches"],"url":"ub"}
+{"name":"c","protection":[],"approvers":[],"branches":null,"url":"uc"}
+{"limited":3}
+
+import "forge" as forge; forge::github_branch_policies
+{"branch_policies": [{"name": "main", "type": "branch"}, {"name": "v*", "type": "tag"}, {"name": "old"}]}
+["main","refs/tags/v*","old"]
+
+# GitLab's protection comes from its protected environments, null where it showed none; a count of approvals alone
+# names those who may deploy as its approvers.
+import "forge" as forge; forge::gitlab_environments([{"name": "a", "required_approval_count": 1, "deploy_access_levels": [{"access_level_description": "Maintainers"}]}]; "https://g/o/r")
+[{"id": 1, "name": "a"}, {"id": 2, "name": "b"}]
+{"name":"a","protection":["deployers","reviewers"],"approvers":["Maintainers"],"branches":null,"url":"https://g/o/r/-/environments/1"}
+{"name":"b","protection":[],"approvers":[],"branches":null,"url":"https://g/o/r/-/environments/2"}
+
+import "forge" as forge; forge::gitlab_environments(null; "https://g/o/r")
+[{"id": 1, "name": "a"}]
+{"name":"a","protection":null,"approvers":null,"branches":null,"url":"https://g/o/r/-/environments/1"}
+
+# Azure DevOps' checks guard the environment they name: an approval, a branch control, or another kind by its name; a
+# check turned off guards nothing.
+import "forge" as forge; forge::ado_environments({"value": [{"type": {"name": "Approval"}, "resource": {"id": "1"}, "settings": {"approvers": [{"uniqueName": "ada"}, {"displayName": "Core"}]}}, {"type": {"name": "Task Check"}, "resource": {"id": "1"}, "settings": {"definitionRef": {"name": "evaluatebranchProtection"}, "inputs": {"allowedBranches": "refs/heads/main, refs/heads/release/*"}}}, {"type": {"name": "Business Hours"}, "resource": {"id": "1"}}, {"type": {"name": "Approval"}, "resource": {"id": "1"}, "isDisabled": true, "settings": {"approvers": [{"uniqueName": "bob"}]}}]}; "https://d/o/p")
+{"value": [{"id": 1, "name": "a"}, {"id": 2, "name": "b"}]}
+{"name":"a","protection":["branches","business-hours","reviewers"],"approvers":["ada","Core"],"branches":["main","release/*"],"url":"https://d/o/p/_environments/1"}
+{"name":"b","protection":[],"approvers":[],"branches":null,"url":"https://d/o/p/_environments/2"}
+
+# A GitHub deployment is in the state of its latest status, else its own, and one with no status, ref, or commit still
+# has a page and a commit page; past the 50 read, the list says it stopped.
+import "forge" as forge; forge::github_deployments(1000000; 1)
+{"data": {"repository": {"url": "https://github.com/o/r", "deployments": {"totalCount": 2, "nodes": [{"databaseId": 9, "environment": "prod", "ref": null, "commitOid": "abc", "state": "WAITING", "createdAt": "1970-01-12T13:40:00Z", "creator": {"login": "ada"}, "commit": null, "latestStatus": null}, null]}}}}
+{"id":9,"environment":"prod","ref":null,"sha":"abc","state":"waiting","actor":"ada","age":400,"url":"https://github.com/o/r/deployments/prod","commit":"https://github.com/o/r/commit/abc"}
+{"limited":1}
+
+# A GitLab deployment with no job is its environment's, and one with no user has no actor.
+import "forge" as forge; forge::gitlab_deployments(1000000; 5; "https://g/o/r")
+[{"id": 9, "environment": {"id": 1, "name": "prod"}, "ref": "main", "sha": "abc", "status": "blocked", "user": null, "created_at": "1970-01-12T13:40:00Z", "deployable": null}]
+{"id":9,"environment":"prod","ref":"main","sha":"abc","state":"waiting","actor":null,"age":400,"url":"https://g/o/r/-/environments/1","commit":"https://g/o/r/-/commit/abc"}
+
+# An Azure DevOps deployment names its ref, commit, and actor from its run, none for a run past those read, and no
+# commit page for a run of another repository; one with no result is running.
+import "forge" as forge; forge::ado_deployments(1000000; {"value": [{"id": 1, "name": "prod"}]}; [{"id": 7, "sourceBranch": "refs/heads/main", "sourceVersion": "abc", "requestedFor": {"uniqueName": "ada"}, "repository": {"name": "other"}}]; 5; true; "r"; {"name": "example", "url": "u"})
+[{"id": 9, "environmentId": 1, "owner": {"id": 7}, "startTime": "1970-01-12T13:40:00Z", "finishTime": null, "result": null}, {"id": 8, "environmentId": 1, "owner": {"id": 6}, "startTime": "1970-01-12T13:30:00Z", "finishTime": "1970-01-12T13:31:00Z", "result": "canceled"}]
+{"id":9,"environment":"prod","ref":"main","sha":"abc","state":"running","actor":"ada","age":400,"url":"r?buildId=7","commit":null}
+{"id":8,"environment":"prod","ref":null,"sha":null,"state":"cancelled","actor":null,"age":1000,"url":"r?buildId=6","commit":null}
+{"limited":2}
+
+# Azure DevOps' deployment records are ordered by when they started as times, not as text, whatever form az gives.
+import "forge" as forge; [forge::ado_deployments(1000000; {"value": []}; []; 5; false; "r"; {"name": "x", "url": "u"}) | .id]
+[{"id": 1, "environmentId": 1, "owner": {"id": 7}, "startTime": "1970-01-12T13:41:00.500000+00:00", "result": "succeeded"}, {"id": 2, "environmentId": 1, "owner": {"id": 7}, "startTime": "1970-01-12T13:40:00Z", "result": "succeeded"}, {"id": 3, "environmentId": 1, "owner": {"id": 7}, "startTime": "1970-01-12T14:39:00+01:00", "result": "succeeded"}]
+[1,2,3]

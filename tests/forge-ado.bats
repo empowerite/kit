@@ -110,9 +110,9 @@ JSON
   az-route 'boards iteration team list --team Alpha --project empowerite --output json' iterations.json
 }
 
-# added is what contract 4 adds that Azure DevOps lacks, as JSON strings: it has iterations, reviewers, and the changes
-# merged, and no milestone.
-added='"milestones","artifacts","environments","deployments","collaborators",'
+# added is what contract 4 adds that Azure DevOps lacks, as JSON strings: it has iterations, reviewers, the changes
+# merged, artifacts, environments, and deployments, and no milestone.
+added='"milestones","collaborators",'
 added+='"teams","bots","attestations","code-scanning","dependabot","secret-scanning","rulesets","bypasses"'
 
 @test "dev.azure.com, its ssh host, and a host under visualstudio.com are Azure DevOps, and each names the repository" {
@@ -362,6 +362,145 @@ JSON
   grep --quiet -- '--team Alpha' "${FAKE_DIR}/az.calls"
   run --separate-stderr call milestones
   [ "$status" -eq 3 ]
+}
+
+# delivery-world adds the world's delivery, seen through Azure DevOps: run 103 of release/0.1.0 by ada published
+# kit-0.1.0.tar.gz and deployed to production, which an approval by ada and a branch control of main protect.
+delivery-world() {
+  local runs='pipelines runs list --project empowerite --top' env='devops invoke --area distributedtask'
+  fixture delivery-runs.json <<'JSON'
+[{"id": 103, "buildNumber": "49", "sourceBranch": "refs/heads/release/0.1.0",
+  "sourceVersion": "8e817bf000000000000000000000000000000000", "requestedFor": {"uniqueName": "ada"},
+  "repository": {"id": "r1", "name": "example", "type": "TfsGit"}, "status": "completed", "result": "succeeded",
+  "queueTime": "2026-10-01T09:50:00Z", "startTime": "2026-10-01T09:50:10Z", "finishTime": "2026-10-01T10:00:00Z"}]
+JSON
+  fixture run-artifacts.json <<'JSON'
+[{"id": 13, "name": "kit-0.1.0.tar.gz", "source": "3dc8fd7e-4368-5a92-293e-d53cefc8c4b3",
+  "resource": {"type": "PipelineArtifact", "data": "4FD1F5EFB0F2D1DD", "properties": {"artifactsize": "2048"},
+               "url": "https://dev.azure.com/acme/empowerite/_apis/build/builds/103/artifacts?artifactName=kit",
+               "downloadUrl": "https://artprodcus3.artifacts.visualstudio.com/x/content?format=zip"}}]
+JSON
+  fixture environments.json <<'JSON'
+{"count": 2, "value": [
+  {"id": 1, "name": "production", "createdOn": "2026-09-01T09:00:00Z", "lastModifiedOn": "2026-10-01T10:00:00Z"},
+  {"id": 2, "name": "staging", "createdOn": "2026-09-01T09:00:00Z", "lastModifiedOn": "2026-09-02T10:00:00Z"}]}
+JSON
+  fixture checks.json <<'JSON'
+{"count": 2, "value": [
+  {"id": 14, "type": {"id": "8c6f20a7-a545-4486-9777-f762fafe0d4d", "name": "Approval"},
+   "resource": {"type": "environment", "id": "1", "name": "production"},
+   "settings": {"approvers": [{"displayName": "Ada", "uniqueName": "ada", "id": "a1"}], "minRequiredApprovers": 1}},
+  {"id": 12, "type": {"id": "fe1de3ee-a436-41b4-bb20-f6eb4cb879a7", "name": "Task Check"},
+   "resource": {"type": "environment", "id": "1", "name": "production"},
+   "settings": {"definitionRef": {"id": "86b05a0c-73e6-4f7d-b3cf-e38f3b39a75b", "name": "evaluatebranchProtection"},
+                "inputs": {"allowedBranches": "refs/heads/main"}}}]}
+JSON
+  fixture records-1.json <<'JSON'
+{"count": 1, "value": [
+  {"id": 9, "environmentId": 1, "owner": {"id": 103, "name": "49"}, "definition": {"id": 4, "name": "kit"},
+   "planType": "Build", "stageName": "deploy", "jobName": "deploy", "queueTime": "2026-10-01T09:59:00Z",
+   "startTime": "2026-10-01T10:00:00Z", "finishTime": "2026-10-01T10:05:00Z", "result": "succeeded"}]}
+JSON
+  fixture records-none.json <<<'{"count": 0, "value": []}'
+  az-route "${runs} 21 --query-order QueueTimeDesc --output json" delivery-runs.json
+  az-route "${runs} 100 --query-order QueueTimeDesc --output json" delivery-runs.json
+  az-route 'pipelines runs artifact list --run-id * --project empowerite --output json' run-artifacts.json
+  az-route "${env} --resource environments --route-parameters project=empowerite --query-parameters \$top=101 \
+--api-version 7.1 --output json" environments.json
+  az-route 'devops invoke --area PipelinesChecks --resource queryconfigurations --route-parameters project=empowerite '\
+'--query-parameters $expand=settings --http-method POST --in-file * --api-version 7.1-preview.1 --output json' \
+    checks.json
+  az-route "${env} --resource environmentdeploymentrecords --route-parameters project=empowerite environmentId=1 \
+--query-parameters top=50 --api-version 7.1 --output json" records-1.json
+  az-route "${env} --resource environmentdeploymentrecords --route-parameters project=empowerite environmentId=* \
+--query-parameters top=50 --api-version 7.1 --output json" records-none.json
+}
+
+# ado-first <glob> <response> puts a route for az before every other, so it answers before delivery-world's own.
+ado-first() {
+  { printf '%s\t%s\n' "$1" "$2"; cat "${FAKE_DIR}/az.routes"; } > "${FAKE_DIR}/az.routes.new"
+  mv "${FAKE_DIR}/az.routes.new" "${FAKE_DIR}/az.routes"
+}
+
+@test "the provider lists the artifacts of the 20 newest runs, as the others do, with no digest Azure DevOps keeps" {
+  delivery-world
+  expected='{"id":13,"name":"kit-0.1.0.tar.gz","digest":null,"size":2048,"run":103,"expires":null,'
+  expected+='"url":"https://dev.azure.com/acme/empowerite/_build/results?buildId=103'
+  expected+='&view=artifacts&type=publishedArtifacts"}'
+  run --separate-stderr call artifacts
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --compact-output 'del(.age)' <<<"$output")" = "${expected}" ]
+  [ "$(jq --raw-output '.age > 0' <<<"$output")" = true ]
+  # a 21st run says the list stopped at the artifacts of the 20 newest, each run's read once
+  jq '[range(21) as $i | .[0] | .id = (200 - $i)]' "${FAKE_DIR}/delivery-runs.json" | fixture runs-21.json
+  : > "${FAKE_DIR}/az.calls"
+  ado-first 'pipelines runs list --project empowerite --top 21 *' runs-21.json
+  run --separate-stderr call artifacts
+  [ "$status" -eq 0 ]
+  [ "$(jq --slurp --compact-output '[length, .[0].run, .[19].run, .[20]]' <<<"$output")" \
+    = '[21,200,181,{"limited":20}]' ]
+  [ "$(grep -c 'runs artifact list' "${FAKE_DIR}/az.calls")" -eq 20 ]
+}
+
+@test "the provider lists its environments, their approvals and branch controls read in one request for them all" {
+  delivery-world
+  expected='{"name":"production","protection":["branches","reviewers"],"approvers":["ada"],"branches":["main"],'
+  expected+='"url":"https://dev.azure.com/acme/empowerite/_environments/1"}'
+  : > "${FAKE_DIR}/az.calls"
+  run --separate-stderr call environments
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(head -n 1 <<<"$output")" = "${expected}" ]
+  [ "$(jq --compact-output 'select(.name == "staging") | [.protection, .approvers, .branches]' <<<"$output")" \
+    = '[[],[],null]' ]
+  [ "$(grep -c 'queryconfigurations' "${FAKE_DIR}/az.calls")" -eq 1 ]
+  # more environments than kit reads fails the read, as it would be partial
+  jq '.value = [range(101) as $i | .value[0] | .id = $i]' "${FAKE_DIR}/environments.json" | fixture envs-101.json
+  ado-first 'devops invoke --area distributedtask --resource environments *' envs-101.json
+  run --separate-stderr call environments
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [[ "$stderr" == *"kit reads at most 100 environments (the environments could not be read)"* ]]
+}
+
+@test "the provider lists the deployments of 20 environments, the newest 50, each with its run's branch and commit" {
+  delivery-world
+  expected='{"id":9,"environment":"production","ref":"release/0.1.0","sha":"8e817bf000000000000000000000000000000000",'
+  expected+='"state":"success","actor":"ada","url":"https://dev.azure.com/acme/empowerite/_build/results?buildId=103",'
+  expected+='"commit":"https://dev.azure.com/acme/empowerite/_git/example/commit/'
+  expected+='8e817bf000000000000000000000000000000000"}'
+  run --separate-stderr call deployments
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --compact-output 'del(.age)' <<<"$output")" = "${expected}" ]
+  # two environments' 60 deployments give the newest 50, then limited
+  for e in 1 2
+  do
+    jq --argjson e "${e}" '.value = [range(30) as $i | .value[0] | .id = ($e * 100 + $i) | .environmentId = $e
+      | .startTime = "2026-10-01T10:\(10 + $i):0\($e)Z"]' "${FAKE_DIR}/records-1.json" | fixture "records-30-${e}.json"
+    ado-first "devops invoke --area distributedtask --resource environmentdeploymentrecords \
+--route-parameters project=empowerite environmentId=${e} *" "records-30-${e}.json"
+  done
+  run --separate-stderr call deployments
+  [ "$status" -eq 0 ]
+  [ "$(jq --slurp --compact-output '[length, .[0].id, .[1].id, .[50]]' <<<"$output")" = '[51,229,129,{"limited":50}]' ]
+  # past 20 environments, the 20 changed last are read, and the list says it stopped at their deployments
+  jq '.value = [range(21) as $i | .value[0] | .id = (1 + $i) | .name = "env-\($i)"
+                | .lastModifiedOn = "2026-10-\(10 + $i)T10:00:00Z"]' "${FAKE_DIR}/environments.json" \
+    | fixture envs-21.json
+  ado-first 'devops invoke --area distributedtask --resource environments *' envs-21.json
+  for e in $(seq 2 21)
+  do
+    jq --argjson e "${e}" '.value[0] |= (.id = 100 + $e | .environmentId = $e
+      | .startTime = "2026-10-\(10 + $e)T10:00:00Z")' "${FAKE_DIR}/records-1.json" | fixture "records-${e}.json"
+    ado-first "devops invoke --area distributedtask --resource environmentdeploymentrecords \
+--route-parameters project=empowerite environmentId=${e} *" "records-${e}.json"
+  done
+  : > "${FAKE_DIR}/az.calls"
+  run --separate-stderr call deployments
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(grep -c 'environmentdeploymentrecords' "${FAKE_DIR}/az.calls")" -eq 20 ]
+  ! grep --quiet 'environmentId=1 ' "${FAKE_DIR}/az.calls"
+  [ "$(jq --slurp --compact-output '[length, .[0].id, .[0].environment, .[19].id, .[20]]' <<<"$output")" \
+    = '[21,121,"env-20",102,{"limited":20}]' ]
 }
 
 @test "on an Azure DevOps forge, #7 and AB#7 are both the forge's own work item, and a record still claims AB#" {

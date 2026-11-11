@@ -112,6 +112,41 @@ or outside a repository's working tree with no workspace.
 - Each stage's mark is the forge's marks of its issues, which move with its changes, and of its runs, joined, as
   `kit flow changes`' are; Azure DevOps has no marks, so its are `null`.
 
+## Delivery: kit delivery
+
+`kit delivery` prints what the forge holds of the repository's delivery. Its other tabs in kittui, the releases and
+the builds, are `kit flow`'s: `kit delivery releases` and `kit delivery builds` open on a terminal, and with a form
+refuse with 2, naming `kit flow releases --json` or `kit flow builds --json`.
+
+| Stage | A row per | Fields | Mark |
+| --- | --- | --- | --- |
+| `artifacts` | artifact a run kept, the newest 100 at most | `id, name, digest, size, run, age, expires` | the forge's runs |
+| `environments` | deployment environment | `name, protection, approvers, branches` | as `artifacts` |
+| `deployments` | deployment, the newest 50 | `id, environment, ref, sha, state, actor, age` | as `artifacts` |
+
+- `artifacts` keys each row by its id, and its name links to its page. `digest` is the forge's, `sha256:…`, and
+  `null` on GitLab and Azure DevOps, which show none; `size` is in bytes, `run` the run that kept it, `age` seconds
+  since it was made, and `expires` seconds since the epoch, `null` for none. GitHub reads its 100 newest in one
+  request; GitLab the archives of its 100 newest successful jobs, in one; Azure DevOps the artifacts of its 20 newest
+  runs, a request each, and keeps no expiry. Where the forge holds more, the document is `limited`, at the rows drawn.
+- `environments` keys each row by its name, and its name links to its page. `protection` is the kinds of rule that
+  guard it, sorted: `reviewers`, `wait`, `branches`, `deployers`, or the forge's own name for another. `approvers` are
+  who may approve, by login, or the name the forge gives a team or a role. `branches` are the refs that may deploy
+  there, a tag's as `refs/tags/…`, `protected branches` for GitHub's rule of that name, and `null` for any. GitHub
+  reads the environments, then the branch policies of each one with its own, a request each, for 20 environments at
+  most: the list stops before a 21st, `limited`. GitLab reads its protected environments beside, on Premium and
+  Ultimate; a tier or a caller that cannot read them leaves `protection` and `approvers` `null`, and GitLab restricts
+  no branch, so `branches` is `null`. Azure DevOps reads its environments, 100 at most, and their checks in one
+  request: an Approval's approvers, and a branch control's branches.
+- `deployments` keys each row by its id. `environment` links to its row of `environments`,
+  `row:delivery/environments/<name>`, `sha` to the commit's page, and `state` to its log or page. `state` is `success`,
+  `failure`, `running`, `waiting`, `cancelled`, or `inactive`; `actor` who made it; `age` seconds since. GitHub reads
+  the 50 newest, each with its latest status, in one GraphQL request; GitLab its 51 newest, in one. Azure DevOps keeps
+  them as each environment's deployment records, so it reads those of the 20 environments changed last, 50 each, and
+  names each one's ref, commit, and actor from its run among the project's 100 newest, `null` for a run past them. Past
+  50, or past 20 environments, the document is `limited`.
+- Each stage's mark is the forge's mark of its runs, as a run makes each; Azure DevOps has no marks, so its are `null`.
+
 ## Packages: kit packages
 
 `kit packages` keeps its own forms beside the app's, as [packages.md](packages.md) says: alone, with a filter, or

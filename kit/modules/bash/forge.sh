@@ -116,12 +116,18 @@
 #   merged-prs                    one JSON object per merged change, the 50 merged last, merged last first: {number,
 #                                 title, author, branch, merged, by, url}, merged seconds since the epoch, by who
 #                                 merged it (since 4)
-#   artifacts                     one JSON object per artifact of a run, the newest 100: {id, name, digest, size, run,
-#                                 age, expires, url} (since 4)
+#   artifacts                     one JSON object per artifact of a run, newest first, the newest 100 at most: {id,
+#                                 name, digest, size, run, age, expires, url}; digest sha256:… or null, size in bytes,
+#                                 run the run's id, age seconds since it was made, expires seconds since the epoch or
+#                                 null, url its page (since 4)
 #   environments                  one JSON object per deployment environment: {name, protection, approvers, branches,
-#                                 url}, protection a list of rule kinds (since 4)
-#   deployments                   one JSON object per deployment, the newest 50: {id, environment, ref, sha, state,
-#                                 actor, age, url} (since 4)
+#                                 url}; protection the kinds of rule that guard it, sorted: reviewers, wait, branches,
+#                                 deployers, or the forge's own; approvers by login; branches the refs that may deploy
+#                                 there, a tag's as refs/tags/…, null for any; protection and approvers null where the
+#                                 forge does not show them (since 4)
+#   deployments                   one JSON object per deployment, newest first, the newest 50 at most: {id, environment,
+#                                 ref, sha, state, actor, age, url, commit}; state success, failure, running, waiting,
+#                                 cancelled, or inactive; url its log or page, commit the commit's page (since 4)
 #   collaborators                 one JSON object per person with access: {login, name, role, kind}, kind user or bot
 #                                 (since 4)
 #   teams                         one JSON object per team: {team, name, role, members, url}, members their logins; 20

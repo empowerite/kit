@@ -64,6 +64,25 @@ def check:
 # title.
 def merged: {key: .number} + del(.url) + {links: {title: .url}};
 
+# linked reads a row's links and keeps those that lead somewhere.
+def linked: .links |= with_entries(select(.value != null));
+
+# artifact reads an artifact the forge's artifacts call prints and gives it keyed by its id, its page the link of its
+# name.
+def artifact: ({key: .id} + del(.url) + {links: {name: .url}}) | linked;
+
+# environment reads an environment the forge's environments call prints and gives it keyed by its name, its page the
+# link of its name.
+def environment: ({key: .name} + del(.url) + {links: {name: .url}}) | linked;
+
+# deployment reads a deployment the forge's deployments call prints and gives it keyed by its id: its environment
+# links to that row of the environments stage, its sha to the commit's page, and its state to its log or page.
+def deployment:
+  ({key: .id} + del(.url, .commit)
+   + {links: {environment: (if .environment == null then null else "row:delivery/environments/\(.environment)" end),
+              sha: .commit, state: .url}})
+  | linked;
+
 # shown reads a row's value and gives it as text prints it: nothing for none, a list's values apart by commas, an
 # object as JSON.
 def shown:

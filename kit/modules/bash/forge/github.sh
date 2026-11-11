@@ -12,7 +12,16 @@
 #
 # see: modules/bash/forge.sh
 
-forge/github:artifacts() { return 3; }
+# forge/github:artifacts prints one document per artifact of the repository's runs, newest first, as the seam's header
+# says: one REST request for the newest 100, and {"limited": 100} after them when GitHub holds more.
+forge/github:artifacts() {
+  local answer url
+  url=$(forge/github:repo-url) || return 1
+  forge/github:ask answer 'the artifacts' api 'repos/{owner}/{repo}/actions/artifacts?per_page=100' || return 1
+  forge/github:fold 'the artifacts' "${answer}" --exit-status '.artifacts | arrays' >/dev/null || return 1
+  forge/github:fold 'the artifacts' "${answer}" --compact-output --argjson now "$(date +%s)" --arg url "${url}" \
+    'import "forge" as forge; forge::github_artifacts($now; $url)'
+}
 
 forge/github:attestations() { return 3; }
 
@@ -37,9 +46,61 @@ forge/github:collaborators() { return 3; }
 
 forge/github:dependabot-alerts() { return 3; }
 
-forge/github:deployments() { return 3; }
+# forge/github:deployments prints one document per deployment, newest first, as the seam's header says: one GraphQL
+# request, a point, for the 50 created last, each with its latest status, and {"limited": 50} after them when GitHub
+# holds more.
+forge/github:deployments() {
+  local repo query answer
+  repo=$(forge/github:repo) || return 1
+  query='query($owner: String!, $name: String!) {
+    repository(owner: $owner, name: $name) {
+      url
+      deployments(first: 50, orderBy: {field: CREATED_AT, direction: DESC}) { totalCount nodes {
+        databaseId environment ref { name } commitOid state createdAt creator { login } commit { url }
+        latestStatus { state logUrl environmentUrl }
+      } }
+    }
+  }'
+  forge/github:ask answer 'the deployments' api graphql --field owner="${repo%%/*}" --field name="${repo#*/}" \
+    --raw-field query="${query}" || return 1
+  forge/github:fold 'the deployments' "${answer}" --exit-status '.data.repository.deployments.nodes | arrays' \
+    >/dev/null || return 1
+  forge/github:fold 'the deployments' "${answer}" --compact-output --argjson now "$(date +%s)" \
+    'import "forge" as forge; forge::github_deployments($now; 50)'
+}
 
-forge/github:environments() { return 3; }
+# forge/github:environments prints one document per deployment environment, in GitHub's order, as the seam's header
+# says: every page of the REST list, and for an environment with branch policies of its own, a request for them, as
+# no list holds them. Those requests are 20 at most: the list stops before the 21st such environment, and
+# {"limited": N} follows the N before it. An environment with more than 100 branch policies fails the read.
+forge/github:environments() {
+  local answer name policies branches='{}' encoded
+  local -a custom=()
+  forge/github:ask answer 'the environments' api --paginate --slurp 'repos/{owner}/{repo}/environments?per_page=100' \
+    || return 1
+  forge:whole 'the environments' "$(jq 'if all(.[]; type == "object") then map(.environments | length) | add // 0
+    else error end' <<<"${answer}" 2>/dev/null)" || return 1
+  list:read custom forge/github:fold 'the environments' "${answer}" --raw-output \
+    '[.[].environments[]? | select(.deployment_branch_policy.custom_branch_policies == true) | .name][:20][]' \
+    || return 1
+  for name in "${custom[@]}"
+  do
+    [[ -n "${name}" ]] || continue
+    encoded=$(jq --null-input --raw-output --arg s "${name}" '$s | @uri')
+    forge/github:ask policies 'the environments' api \
+      "repos/{owner}/{repo}/environments/${encoded}/deployment-branch-policies?per_page=100" || return 1
+    if ! jq --exit-status '(.total_count // 0) <= (.branch_policies // [] | length)' <<<"${policies}" >/dev/null 2>&1
+    then
+      error "kit reads at most 100 branch policies of an environment (the environments could not be read)"
+      return 1
+    fi
+    branches=$(forge/github:fold 'the environments' "${policies}" --compact-output --arg name "${name}" \
+      --argjson branches "${branches}" \
+      'import "forge" as forge; $branches + {($name): forge::github_branch_policies}') || return 1
+  done
+  forge/github:fold 'the environments' "${answer}" --compact-output --argjson branches "${branches}" \
+    'import "forge" as forge; forge::github_environments($branches; 20)'
+}
 
 # forge/github:issue-add-sub makes the second issue a sub-issue of the first, as the issue page's Relationships do.
 forge/github:issue-add-sub() {
@@ -546,8 +607,7 @@ forge/github:teams() { return 3; }
 forge/github:contract() { printf '4\n'; }
 
 forge/github:lacks() {
-  printf '%s\n' artifacts environments deployments collaborators teams bots \
-    attestations code-scanning dependabot secret-scanning rulesets bypasses
+  printf '%s\n' collaborators teams bots attestations code-scanning dependabot secret-scanning rulesets bypasses
 }
 
 # The seam's calls end here; what follows is this provider's own.

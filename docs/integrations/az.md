@@ -14,8 +14,8 @@ machine-readable descriptions each publishes. The index of these pages is [1st.m
 | --- | --- | --- |
 | [Azure DevOps Repos](#azure-devops-repos) | [code forge](forges.md) | `provider` |
 | [Azure Boards](#azure-boards) | [tracker](trackers.md) | `provider` (`ado`) |
-| [Azure Pipelines runs](#azure-pipelines-runs) | [CI](ci.md) | `planned`, with an `ado` code forge |
-| [Azure Pipelines environments and releases](#azure-pipelines-environments-and-releases) | [CD](cd.md) | none; an `ado` code forge is planned |
+| [Azure Pipelines runs](#azure-pipelines-runs) | [CI](ci.md) | `provider`, through `forge/ado.sh`: runs and artifacts |
+| [Azure Pipelines environments and releases](#azure-pipelines-environments-and-releases) | [CD](cd.md) | `provider`, through `forge/ado.sh`: environments and deployments; classic releases none |
 
 ## Azure DevOps Repos
 
@@ -142,7 +142,7 @@ a list. `az devops invoke` calls any REST route with the extension's sign-in.
 | A run's jobs and failed step | REST `GET https://dev.azure.com/${organization}/${project}/_apis/build/builds/${build_id}/timeline?api-version=7.1`: records of type `Stage`, `Job`, and `Task`, each with `result` |
 | A change's checks | `az pipelines runs list --reason pullRequest --branch "refs/pull/${n}/merge"` on GitHub; an Azure Repos pull request's policies belong to the code forge |
 | A run's log | REST `GET https://dev.azure.com/${organization}/${project}/_apis/build/builds/${build_id}/logs/${log_id}?api-version=7.1`; the timeline names each record's `log.id` |
-| Artifacts | `az pipelines runs artifact list --run-id "${run_id}"`; `az pipelines runs artifact download --run-id "${run_id}" --artifact-name "${name}" --path "${dir}"` |
+| Artifacts | `az pipelines runs artifact list --run-id "${run_id}"`, which kit reads for each of the 20 newest runs, `az pipelines runs list --top 21` saying whether there are more; a pipeline artifact's size is its `resource.properties.artifactsize`, and none has a digest or an expiry; `kit delivery artifacts` draws them; `az pipelines runs artifact download --run-id "${run_id}" --artifact-name "${name}" --path "${dir}"` |
 
 ### Write to Azure Pipelines runs
 
@@ -184,8 +184,9 @@ creation of classic release pipelines; no retirement date for classic releases w
 | --- | --- |
 | List classic releases | `az pipelines release list --definition-id "${definition_id}" --top "${n}" --output json` |
 | A classic release and its stages | `az pipelines release show --id "${release_id}" --output json` |
-| List environments | `az rest --resource 499b84ac-1321-427f-aa17-267ca6975798 --url "https://dev.azure.com/${org}/${project}/_apis/distributedtask/environments?api-version=7.1"` (raw API) |
-| Deployments in an environment | `az rest ... --url "https://dev.azure.com/${org}/${project}/_apis/distributedtask/environments/${environment_id}/environmentdeploymentrecords?api-version=7.1"` (raw API) |
+| List environments | `az rest --resource 499b84ac-1321-427f-aa17-267ca6975798 --url "https://dev.azure.com/${org}/${project}/_apis/distributedtask/environments?api-version=7.1"` (raw API); kit reads `az devops invoke --area distributedtask --resource environments --route-parameters project="${project}" --query-parameters '$top=101' --api-version 7.1`, which shows no continuation token, so a 101st fails the read; `kit delivery environments` draws them |
+| An environment's approvals and branch controls | `az devops invoke --area PipelinesChecks --resource queryconfigurations --route-parameters project="${project}" --query-parameters '$expand=settings' --http-method POST --in-file "${resources}" --api-version 7.1-preview.1` (raw API), one request for every environment: an `Approval`'s `settings.approvers`, and a branch control's, a `Task Check` of `evaluatebranchProtection`, `settings.inputs.allowedBranches` |
+| Deployments in an environment | `az rest ... --url "https://dev.azure.com/${org}/${project}/_apis/distributedtask/environments/${environment_id}/environmentdeploymentrecords?api-version=7.1"` (raw API); kit reads `az devops invoke --area distributedtask --resource environmentdeploymentrecords --route-parameters project="${project}" environmentId="${id}" --query-parameters top=50 --api-version 7.1` for the 20 environments changed last, and names each record's branch, commit, and who asked from its run, `owner.id`, among `az pipelines runs list --top 100`; `kit delivery deployments` draws them |
 | Classic deployments, what is live where | `az rest ... --url "https://vsrm.dev.azure.com/${org}/${project}/_apis/release/deployments?definitionEnvironmentId=${stage_id}&latestAttemptsOnly=true&api-version=7.1"` (raw API) |
 | Pending approvals, YAML | `az rest ... --url "https://dev.azure.com/${org}/${project}/_apis/pipelines/approvals?state=pending&api-version=7.1"` (raw API) |
 | Pending approvals, classic | `az rest ... --url "https://vsrm.dev.azure.com/${org}/${project}/_apis/release/approvals?api-version=7.1"` (raw API) |
@@ -201,9 +202,10 @@ creation of classic release pipelines; no retirement date for classic releases w
 | Approve, YAML | `az rest --method patch ... --url "https://dev.azure.com/${org}/${project}/_apis/pipelines/approvals?api-version=7.1" --body "[{\"approvalId\":\"${approval_id}\",\"status\":\"approved\"}]"` (raw API) |
 | Approve, classic | `az rest --method patch ... --url "https://vsrm.dev.azure.com/${org}/${project}/_apis/release/approvals/${approval_id}?api-version=7.1" --body '{"status":"approved"}'` (raw API) |
 
-Here `...` stands for `--resource 499b84ac-1321-427f-aa17-267ca6975798`. Gaps: no command reads environments,
-deployment records, or approvals. Azure Pipelines has no built-in way to write a GitHub deployment; its GitHub app
-reports checks.
+Here `...` stands for `--resource 499b84ac-1321-427f-aa17-267ca6975798`. Gaps: no command reads environments, deployment
+records, or approvals. A deployment record names its run, and no branch, commit, or person. The area names of `az devops
+invoke` above, and the checks' settings, were not checked against a live organization. Azure Pipelines has no built-in
+way to write a GitHub deployment; its GitHub app reports checks.
 
 ### Azure Pipelines environments and releases schemas
 
@@ -226,8 +228,12 @@ with an example the gate validates against it.
 | [boards-query.schema.json](az/boards-query.schema.json) | `az boards query --project ${project} --wiql "SELECT [System.Id], [System.Title], [System.AssignedTo], [System.Tags], [System.CreatedDate] FROM WorkItems WHERE [System.TeamProject] = @project AND [System.State] NOT IN ('Closed', 'Done', 'Removed') ORDER BY [System.CreatedDate] ASC" --output json` |
 | [boards-work-item-create.schema.json](az/boards-work-item-create.schema.json) | `az boards work-item create --title ${title} --type ${type} --description ${body} --project ${project} --output json` |
 | [boards-work-item-show.schema.json](az/boards-work-item-show.schema.json) | `az boards work-item show --id ${id} --output json` |
+| [devops-invoke-check-configurations.schema.json](az/devops-invoke-check-configurations.schema.json) | `az devops invoke --area PipelinesChecks --resource queryconfigurations --route-parameters project=${project} --query-parameters $expand=settings --http-method POST --in-file ${resources} --api-version 7.1-preview.1 --output json` |
+| [devops-invoke-environment-deployment-records.schema.json](az/devops-invoke-environment-deployment-records.schema.json) | `az devops invoke --area distributedtask --resource environmentdeploymentrecords --route-parameters project=${project} environmentId=${id} --query-parameters top=50 --api-version 7.1 --output json` |
+| [devops-invoke-environments.schema.json](az/devops-invoke-environments.schema.json) | `az devops invoke --area distributedtask --resource environments --route-parameters project=${project} --query-parameters $top=101 --api-version 7.1 --output json` |
 | [devops-invoke-pull-request-threads.schema.json](az/devops-invoke-pull-request-threads.schema.json) | `az devops invoke --area git --resource pullRequestThreads --route-parameters project=${project} repositoryId=${repository} pullRequestId=${id} --api-version 7.1 --output json` |
-| [pipelines-runs-list.schema.json](az/pipelines-runs-list.schema.json) | `az pipelines runs list --project ${project} --top 50 --query-order QueueTimeDesc --output json` |
+| [pipelines-runs-artifact-list.schema.json](az/pipelines-runs-artifact-list.schema.json) | `az pipelines runs artifact list --run-id ${id} --project ${project} --output json` |
+| [pipelines-runs-list.schema.json](az/pipelines-runs-list.schema.json) | `az pipelines runs list --project ${project} --top ${top} --query-order QueueTimeDesc --output json` |
 | [repos-pr-create.schema.json](az/repos-pr-create.schema.json) | `az repos pr create --draft ${draft} --source-branch ${branch} --target-branch ${base} --title ${title} --project ${project} --repository ${repository} [--work-items ${item}] --output json` |
 | [repos-pr-list.schema.json](az/repos-pr-list.schema.json) | `az repos pr list --project ${project} --repository ${repository} --status ${status} --top ${top} [--skip ${skip}] [--source-branch ${branch}] --output json` |
 | [repos-pr-policy-list.schema.json](az/repos-pr-policy-list.schema.json) | `az repos pr policy list --id ${id} --top ${forge_list_limit} --output json` |

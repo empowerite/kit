@@ -595,3 +595,187 @@ def ado_iterations($url):
   sort_by(.attributes.startDate // "")[]
   | {id, title: .name, start: (.attributes.startDate | day),
      end: (if .attributes.finishDate then (.attributes.finishDate | day) + 86399 else null end), url: $url};
+
+# since($now) reads an ISO 8601 time, or null, and gives the seconds from it to $now, null for none.
+def since($now): if . == null then null else $now - epoch end;
+
+# artifact($now) is an artifact's document: {id, name, digest, size, run, age, expires, url}, digest the forge's own,
+# as sha256:…, or null where it keeps none; size in bytes; run the id of the run that made it; age seconds since it
+# was made, and expires seconds since the epoch, each null where the forge says nothing. It is given an object with
+# id, name, digest, size, run, made and expires, each an ISO 8601 time or null, and url.
+def artifact($now):
+  {id, name, digest: (.digest // null), size: (.size // null), run: (.run // null), age: (.made | since($now)),
+   expires: (.expires | if . == null then null else epoch end), url};
+
+# github_artifacts($now; $url) reads GitHub's page of the repository's artifacts, the newest first, and gives one
+# document per artifact, its page under $url, the repository's, beside its run's; then {"limited": N} when GitHub
+# holds more than the N on the page. An artifact of a run GitHub no longer names is its download.
+def github_artifacts($now; $url):
+  (.artifacts // []) as $all
+  | ($all[] | { id, name, digest, size: .size_in_bytes, run: .workflow_run.id, made: .created_at,
+                expires: .expires_at,
+                url: (if .workflow_run.id then "\($url)/actions/runs/\(.workflow_run.id)/artifacts/\(.id)"
+                      else .archive_download_url end) }
+     | artifact($now)),
+    (if (.total_count // 0) > ($all | length) then {limited: ($all | length)} else empty end);
+
+# gitlab_artifacts($now; $limit) reads GitLab's newest successful jobs and gives one document per job that kept an
+# archive, the job's page its url: GitLab keeps no digest of it. A job that kept none is none. When the jobs read are
+# $limit, GitLab may hold more, and {"limited": N} follows the N drawn.
+def gitlab_artifacts($now; $limit):
+  [.[] | select(.artifacts_file != null)
+   | { id, name: .artifacts_file.filename, digest: null, size: .artifacts_file.size, run: .pipeline.id,
+       made: (.finished_at // .created_at), expires: .artifacts_expire_at, url: .web_url } | artifact($now)] as $rows
+  | $rows[], (if length >= $limit then {limited: ($rows | length)} else empty end);
+
+# ado_artifacts($now; $run; $results) reads az pipelines runs artifact list's answer for the run $run, as az pipelines
+# runs list gives it, and gives one document per artifact: Azure DevOps keeps no digest and no expiry of one, its size
+# only for a pipeline artifact, and its page is the run's artifacts, under $results, the project's build results. It
+# is as old as its run's end, or its queueing while it runs.
+def ado_artifacts($now; $run; $results):
+  .[] | { id, name, digest: null,
+          size: (.resource.properties.artifactsize // null | if . == null then null else tonumber? // null end),
+          run: $run.id, made: ($run.finishTime // $run.queueTime), expires: null,
+          url: "\($results)?buildId=\($run.id)&view=artifacts&type=publishedArtifacts" }
+  | artifact($now);
+
+# environment is an environment's document, {name, protection, approvers, branches, url}, given one: protection the
+# kinds of rule that guard it, sorted, each once, reviewers for an approval, wait for a timer, branches for a branch
+# control, deployers for a list of who may deploy, else the forge's own name; approvers who may approve, by login, or
+# by the name the forge gives a team or a role; branches the refs that may deploy there, a branch by its name, a tag as
+# refs/tags/…, and "protected branches" for those a rule protects, or null for any. protection and approvers are null
+# where the forge does not say.
+def environment:
+  {name, protection: (.protection | if . == null then null else unique end), approvers, branches, url};
+
+# github_environments($branches; $limit) reads the pages of GitHub's environments, each an object, and gives one
+# document each, in GitHub's order, $branches the names of each one's branch policies, by its name. An environment with
+# its own branch policies costs a read, so the list stops before the first past $limit of them, and {"limited": N}
+# follows the N drawn.
+def github_environments($branches; $limit):
+  [.[].environments[]?] as $all
+  | ([$all | to_entries[] | select(.value.deployment_branch_policy.custom_branch_policies == true) | .key]
+     | .[$limit] // null) as $stop
+  | (($all | if $stop == null then . else .[:$stop] end)[]
+  | { name,
+      protection: [.protection_rules[]?.type
+                   | {required_reviewers: "reviewers", wait_timer: "wait", branch_policy: "branches"}[.] // .],
+      approvers: [.protection_rules[]? | select(.type == "required_reviewers") | .reviewers[]?
+                  | .reviewer.login // .reviewer.slug // empty],
+      branches: (.deployment_branch_policy as $p
+                 | if $p == null then null
+                   elif $p.protected_branches == true then ["protected branches"]
+                   else $branches[.name] // [] end),
+      url: .html_url }
+  | environment),
+  (if $stop == null then empty else {limited: $stop} end);
+
+# github_branch_policies reads an environment's GitHub branch policies and gives their names, a tag's as refs/tags/….
+def github_branch_policies:
+  [.branch_policies[]? | if .type == "tag" then "refs/tags/\(.name)" else .name end];
+
+# gitlab_environments($protected; $url) reads GitLab's environments and gives one document each, in GitLab's order, its
+# page under $url, the project's. $protected is the project's protected environments, null where GitLab shows none
+# here: then protection and approvers are null. GitLab's approvers are its approval rules', named as GitLab describes
+# them, a user by name, or else, for a count of approvals alone, those who may deploy. GitLab restricts no branch.
+def gitlab_environments($protected; $url):
+  .[] | .name as $name
+  | ($protected | if . == null then null else map(select(.name == $name)) | first end) as $rule
+  | { name,
+      protection: (if $protected == null then null elif $rule == null then []
+                   else [ (if ($rule.approval_rules // []) != [] or ($rule.required_approval_count // 0) > 0
+                           then "reviewers" else empty end),
+                          (if ($rule.deploy_access_levels // []) != [] then "deployers" else empty end) ] end),
+      approvers: (if $protected == null then null elif $rule == null then []
+                  elif ($rule.approval_rules // []) != []
+                  then [$rule.approval_rules[].access_level_description // empty]
+                  elif ($rule.required_approval_count // 0) > 0
+                  then [($rule.deploy_access_levels // [])[].access_level_description // empty]
+                  else [] end),
+      branches: null, url: "\($url)/-/environments/\(.id)" }
+  | environment;
+
+# ado_environments($checks; $url) reads Azure DevOps' environments, {count, value}, and its checks on them, and gives
+# one document each, in its order, its page under $url, the project's: an Approval check's approvers by their unique
+# names, and a branch control's allowed branches, a branch by its name. A check that is turned off guards nothing.
+def ado_environments($checks; $url):
+  .value[] | (.id | tostring) as $id
+  | [$checks.value[]? | select((.resource.id | tostring) == $id and ((.isDisabled // false) | not))] as $mine
+  | ([$mine[] | select(.settings.definitionRef.name? == "evaluatebranchProtection")
+      | .settings.inputs.allowedBranches // "" | split(",")[] | gsub("^\\s+|\\s+$"; "") | select(. != "")
+      | sub("^refs/heads/"; "")]) as $branches
+  | { name,
+      protection: [$mine[] | if .type.name == "Approval" then "reviewers"
+                             elif .settings.definitionRef.name? == "evaluatebranchProtection" then "branches"
+                             else (.settings.definitionRef.name? // .type.name // "check"
+                                   | ascii_downcase | gsub(" "; "-")) end],
+      approvers: [$mine[] | select(.type.name == "Approval") | .settings.approvers[]?
+                  | .uniqueName // .displayName // empty],
+      branches: (if $branches == [] then null else $branches end), url: "\($url)/_environments/\(.id)" }
+  | environment;
+
+# deployment_state reads a forge's state of a deployment and gives kit's: success, failure, running, waiting (for an
+# approval), cancelled, or inactive (superseded), else the forge's own word, in lower case.
+def deployment_state:
+  ascii_downcase
+  | { success: "success", active: "success", succeeded: "success", succeededwithissues: "success",
+      failure: "failure", failed: "failure", error: "failure",
+      in_progress: "running", running: "running", queued: "running", pending: "running", created: "running",
+      waiting: "waiting", blocked: "waiting", inactive: "inactive", destroyed: "inactive",
+      canceled: "cancelled", cancelled: "cancelled", skipped: "cancelled", abandoned: "cancelled" }[.] // .;
+
+# deployment($now) is a deployment's document, {id, environment, ref, sha, state, actor, age, url, commit}: state as
+# deployment_state gives it, actor who made it, age seconds since it was made, url its log or page, and commit the
+# commit's page, null where the forge does not say. It is given an object with id, environment, ref, sha, state, actor,
+# made, an ISO 8601 time, url, and commit.
+def deployment($now):
+  {id, environment, ref, sha, state: (.state | if . == null then null else deployment_state end), actor,
+   age: (.made | since($now)), url, commit};
+
+# github_deployments($now; $limit) reads the answer to forge/github:deployments's GraphQL query, the newest first, and
+# gives the first $limit, each by its latest status, its log its url, then {"limited": N} when GitHub holds more.
+def github_deployments($now; $limit):
+  .data.repository as $repo
+  | ([$repo.deployments.nodes[]? | select(. != null)] | .[:$limit]) as $nodes
+  | ($nodes[]
+     | { id: .databaseId, environment, ref: .ref.name, sha: .commitOid, state: (.latestStatus.state // .state),
+         actor: .creator.login, made: .createdAt,
+         url: (.latestStatus.logUrl // .latestStatus.environmentUrl
+               // "\($repo.url)/deployments/\(.environment // "" | @uri)"),
+         commit: (.commit.url // "\($repo.url)/commit/\(.commitOid)") }
+     | deployment($now)),
+    (if ($repo.deployments.totalCount // 0) > ($nodes | length) then {limited: ($nodes | length)} else empty end);
+
+# gitlab_deployments($now; $limit; $url) reads GitLab's deployments, the newest first, and gives the first $limit, then
+# {"limited": $limit} when it read more: each one's url its job's page, else its environment's, under $url, the
+# project's, as is its commit's.
+def gitlab_deployments($now; $limit; $url):
+  (.[:$limit][]
+   | { id, environment: .environment.name, ref, sha, state: .status, actor: .user.username, made: .created_at,
+       url: (.deployable.web_url // "\($url)/-/environments/\(.environment.id)"),
+       commit: (if .sha then "\($url)/-/commit/\(.sha)" else null end) }
+   | deployment($now)),
+  (if length > $limit then {limited: $limit} else empty end);
+
+# ado_deployments($now; $environments; $runs; $limit; $cut; $results; $repo) reads Azure DevOps' deployment records of
+# the environments read, joined into one array, and gives the newest $limit, by when each started: its environment
+# named from $environments, its {count, value}, and its branch, commit, and who asked for it from its run among $runs,
+# az pipelines runs list's, null for a run past them. A run of another repository's names no commit page here. Its url
+# is its run's, under $results. When $cut, environments were left unread, and {"limited": N} follows the N drawn, as
+# it does when there are more than $limit.
+def ado_deployments($now; $environments; $runs; $limit; $cut; $results; $repo):
+  ($environments.value | map({key: (.id | tostring), value: .name}) | from_entries) as $names
+  | ($runs | map({key: (.id | tostring), value: .}) | from_entries) as $by
+  | (sort_by(.startTime // .queueTime | if . == null then 0 else epoch end) | reverse) as $all
+  | ($all[:$limit] | map(
+      ($by[.owner.id | tostring] // {}) as $run
+      | { id, environment: $names[.environmentId | tostring],
+          ref: ($run.sourceBranch // null | if . == null then null else sub("^refs/heads/"; "") end),
+          sha: ($run.sourceVersion // null),
+          state: (.result // (if .finishTime == null then "running" else null end)),
+          actor: ($run.requestedFor.uniqueName // null), made: (.startTime // .queueTime),
+          url: "\($results)?buildId=\(.owner.id)",
+          commit: (if $run.sourceVersion != null and ($run.repository.name // $repo.name) == $repo.name
+                   then "\($repo.url)/commit/\($run.sourceVersion)" else null end) }
+      | deployment($now))) as $rows
+  | $rows[], (if $cut or ($all | length) > $limit then {limited: ($rows | length)} else empty end);

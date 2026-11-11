@@ -124,6 +124,7 @@ JSON
 JSON
   fixture gh-iterations-none.json <<<'{"data": {"repository": {"projectsV2": {"nodes": []}}}}'
   route gh 'api --paginate --slurp repos/{owner}/{repo}/milestones?state=all&per_page=100' gh-milestones.json
+  delivery-github
   fixture gh-merged.json <<'JSON'
 {"data": {"repository": {"pullRequests": {"totalCount": 1, "nodes": [
   {"number": 2, "title": "Do the other thing", "url": "https://github.com/empowerite/example/pull/2",
@@ -132,6 +133,7 @@ JSON
    "mergedBy": {"login": "ada"}}]}}}}
 JSON
   route gh 'api graphql*states: MERGED*' "${GITHUB_MERGED:-gh-merged.json}"
+  route gh 'api graphql*deployments(first: 50*' "${GITHUB_DEPLOYMENTS:-gh-deployments.json}"
   route gh 'api graphql*projectsV2*' "${GITHUB_ITERATIONS:-gh-iterations.json}"
   route gh 'api graphql*number=3*' "${GITHUB_CLOSING:-closing.json}"
   route gh 'api graphql*' open-prs.json
@@ -216,6 +218,7 @@ JSON
   route glab "api ${p}/merge_requests/3/discussions*" discussions.json
   route glab "api ${p}/merge_requests/3/approvals" "${GITLAB_APPROVALS:-approvals.json}"
   route glab "api ${p}/merge_requests?state=merged&order_by=merged_at&per_page=51" "${GITLAB_MERGED:-gl-merged.json}"
+  delivery-gitlab
   route glab "api ${p}/merge_requests/3" mr.json
   route glab 'api projects/1/pipelines/11/jobs*' jobs.json
   route glab "api ${p}/repository/branches --method POST*" '!0'
@@ -745,6 +748,221 @@ JSON
   [ -z "$output" ]
   [ "$stderr" = '❌ run: glab auth status (the merged merge requests could not be read)' ]
   [ "$(grep -c 'order_by=updated_at' "${FAKE_DIR}/glab.calls")" -eq 1 ]
+}
+
+# delivery-github adds to world-github's routes what Delivery reads: artifact 13, kit-0.1.0.tar.gz, from run 103; the
+# environment production, which asks ada to review and lets main deploy, beside staging, which asks nothing; and
+# deployment 9 of release/0.1.0 to production, by ada, which succeeded.
+delivery-github() {
+  fixture gh-artifacts.json <<'JSON'
+{"total_count": 1, "artifacts": [{"id": 13, "name": "kit-0.1.0.tar.gz", "size_in_bytes": 2048,
+  "digest": "sha256:ab12", "expired": false, "created_at": "2026-10-01T10:00:00Z",
+  "expires_at": "2026-12-30T10:00:00Z", "workflow_run": {"id": 103, "head_branch": "main", "head_sha": "8e817bf"},
+  "archive_download_url": "https://api.github.com/repos/empowerite/example/actions/artifacts/13/zip"}]}
+JSON
+  fixture gh-environments.json <<'JSON'
+[{"total_count": 2, "environments": [
+  {"id": 1, "name": "production",
+   "html_url": "https://github.com/empowerite/example/deployments/activity_log?environments_filter=production",
+   "protection_rules": [
+     {"id": 5, "type": "required_reviewers", "prevent_self_review": false,
+      "reviewers": [{"type": "User", "reviewer": {"login": "ada", "id": 1}}]},
+     {"id": 6, "type": "branch_policy"}],
+   "deployment_branch_policy": {"protected_branches": false, "custom_branch_policies": true}},
+  {"id": 2, "name": "staging",
+   "html_url": "https://github.com/empowerite/example/deployments/activity_log?environments_filter=staging",
+   "protection_rules": [], "deployment_branch_policy": null}]}]
+JSON
+  fixture gh-branch-policies.json <<'JSON'
+{"total_count": 1, "branch_policies": [{"id": 1, "name": "main", "type": "branch"}]}
+JSON
+  fixture gh-deployments.json <<'JSON'
+{"data": {"repository": {"url": "https://github.com/empowerite/example", "deployments": {"totalCount": 1, "nodes": [
+  {"databaseId": 9, "environment": "production", "ref": {"name": "release/0.1.0"},
+   "commitOid": "8e817bf000000000000000000000000000000000", "state": "ACTIVE", "createdAt": "2026-10-01T10:00:00Z",
+   "creator": {"login": "ada"},
+   "commit": {"url": "https://github.com/empowerite/example/commit/8e817bf000000000000000000000000000000000"},
+   "latestStatus": {"state": "SUCCESS", "logUrl": "https://github.com/empowerite/example/actions/runs/103/job/1",
+                    "environmentUrl": null}}]}}}}
+JSON
+  route gh 'api repos/{owner}/{repo}/actions/artifacts?per_page=100' "${GITHUB_ARTIFACTS:-gh-artifacts.json}"
+  route gh 'api --paginate --slurp repos/{owner}/{repo}/environments?per_page=100' \
+    "${GITHUB_ENVIRONMENTS:-gh-environments.json}"
+  route gh 'api repos/{owner}/{repo}/environments/*/deployment-branch-policies?per_page=100' \
+    "${GITHUB_BRANCH_POLICIES:-gh-branch-policies.json}"
+}
+
+# delivery-gitlab is delivery-github's world, seen through GitLab: job 13 of pipeline 103 kept kit-0.1.0.tar.gz, and
+# job 12 kept nothing; production is a protected environment ada approves.
+delivery-gitlab() {
+  local p='projects/empowerite%2Fexample'
+  fixture gl-jobs.json <<'JSON'
+[{"id": 13, "name": "package", "status": "success", "created_at": "2026-10-01T09:58:00.000Z",
+  "finished_at": "2026-10-01T10:00:00.000Z", "artifacts_file": {"filename": "kit-0.1.0.tar.gz", "size": 2048},
+  "artifacts": [{"file_type": "archive", "size": 2048, "filename": "kit-0.1.0.tar.gz", "file_format": "zip"}],
+  "artifacts_expire_at": "2026-12-30T10:00:00.000Z", "pipeline": {"id": 103},
+  "web_url": "https://gitlab.com/empowerite/example/-/jobs/13"},
+ {"id": 12, "name": "lint", "status": "success", "created_at": "2026-10-01T09:50:00.000Z",
+  "finished_at": "2026-10-01T09:51:00.000Z", "artifacts": [], "artifacts_expire_at": null, "pipeline": {"id": 103},
+  "web_url": "https://gitlab.com/empowerite/example/-/jobs/12"}]
+JSON
+  fixture gl-environments.json <<'JSON'
+[{"id": 1, "name": "production", "slug": "production", "state": "available", "tier": "production",
+  "external_url": null, "created_at": "2026-09-01T09:00:00.000Z", "updated_at": "2026-10-01T10:00:00.000Z"},
+ {"id": 2, "name": "staging", "slug": "staging", "state": "available", "tier": "staging",
+  "external_url": null, "created_at": "2026-09-01T09:00:00.000Z", "updated_at": "2026-10-01T10:00:00.000Z"}]
+JSON
+  fixture gl-protected.json <<'JSON'
+[{"name": "production",
+  "deploy_access_levels": [{"id": 12, "access_level": 40, "access_level_description": "Maintainers",
+                            "user_id": null, "group_id": null, "group_inheritance_type": 0}],
+  "required_approval_count": 0,
+  "approval_rules": [{"id": 1, "user_id": 1, "group_id": null, "access_level": null,
+                      "access_level_description": "ada", "required_approvals": 1, "group_inheritance_type": 0}]}]
+JSON
+  fixture gl-deployments.json <<'JSON'
+[{"id": 9, "iid": 1, "ref": "release/0.1.0", "sha": "8e817bf000000000000000000000000000000000",
+  "created_at": "2026-10-01T10:00:00.000Z", "updated_at": "2026-10-01T10:05:00.000Z", "status": "success",
+  "user": {"username": "ada"}, "environment": {"id": 1, "name": "production", "external_url": null},
+  "deployable": {"id": 13, "web_url": "https://gitlab.com/empowerite/example/-/jobs/13"}}]
+JSON
+  route glab "api ${p}/jobs?scope[]=success&per_page=100" "${GITLAB_JOBS:-gl-jobs.json}"
+  route glab "api ${p}/environments?per_page=100 --paginate" gl-environments.json
+  route glab "api ${p}/protected_environments?per_page=100 --paginate" "${GITLAB_PROTECTED:-gl-protected.json}"
+  route glab "api ${p}/deployments?order_by=created_at&sort=desc&per_page=51" \
+    "${GITLAB_DEPLOYMENTS:-gl-deployments.json}"
+}
+
+@test "every provider lists its artifacts in one shape, newest first, and says when it stopped" {
+  local expected='{"id":13,"name":"kit-0.1.0.tar.gz","digest":"sha256:ab12","size":2048,"run":103,'
+  expected+='"expires":1798624800}'
+  for forge in github gitlab
+  do
+    world "${forge}"
+    run --separate-stderr call artifacts
+    [ "$status" -eq 0 ] || { echo "${forge}: ${stderr}"; return 1; }
+    [ "$(jq --slurp 'length' <<<"$output")" -eq 1 ] || { echo "${forge}: ${output}"; return 1; }
+    [ "$(jq --raw-output '.age > 0' <<<"$output")" = true ]
+    # GitLab keeps no digest of an artifact that its API shows
+    if [[ "${forge}" == github ]]
+    then
+      [ "$(jq --compact-output 'del(.age, .url)' <<<"$output")" = "${expected}" ]
+      [ "$(jq --raw-output .url <<<"$output")" \
+        = 'https://github.com/empowerite/example/actions/runs/103/artifacts/13' ]
+    else
+      [ "$(jq --compact-output 'del(.age, .url)' <<<"$output")" = "${expected/'"sha256:ab12"'/null}" ]
+      [ "$(jq --raw-output .url <<<"$output")" = 'https://gitlab.com/empowerite/example/-/jobs/13' ]
+    fi
+  done
+  # GitHub's count past the page read, or a page of 100 of GitLab's jobs, says the list stopped at those drawn
+  jq '.total_count = 150' "${FAKE_DIR}/gh-artifacts.json" | fixture gh-artifacts-150.json
+  GITHUB_ARTIFACTS=gh-artifacts-150.json world github
+  run --separate-stderr call artifacts
+  [ "$status" -eq 0 ]
+  [ "$(jq --slurp --compact-output 'map(.id // .)' <<<"$output")" = '[13,{"limited":1}]' ]
+  jq '[range(100) as $i | .[$i % 2] | .id = (200 - $i)]' "${FAKE_DIR}/gl-jobs.json" | fixture gl-jobs-100.json
+  GITLAB_JOBS=gl-jobs-100.json world gitlab
+  run --separate-stderr call artifacts
+  [ "$status" -eq 0 ]
+  [ "$(jq --slurp --compact-output '[length, .[0].id, .[-1]]' <<<"$output")" = '[51,200,{"limited":50}]' ]
+}
+
+@test "every provider lists its environments in one shape: the protection, who approves, and the branches that deploy" {
+  for forge in github gitlab
+  do
+    world "${forge}"
+    run --separate-stderr call environments
+    [ "$status" -eq 0 ] || { echo "${forge}: ${stderr}"; return 1; }
+    [ "$(jq --raw-output '.name' <<<"$output" | paste -sd, -)" = 'production,staging' ]
+    [ "$(jq --compact-output 'select(.name == "production") | .approvers' <<<"$output")" = '["ada"]' ]
+    [ "$(jq --compact-output 'select(.name == "staging") | [.protection, .approvers, .branches]' <<<"$output")" \
+      = '[[],[],null]' ] || { echo "${forge}: ${output}"; return 1; }
+    [ "$(jq --raw-output 'select(.name == "production") | .url | startswith("https://")' <<<"$output")" = true ]
+  done
+  # GitLab keeps no branches an environment takes deployments from; who may deploy there is a protection of its own
+  [ "$(jq --compact-output 'select(.name == "production") | [.protection, .branches, .url]' <<<"$output")" \
+    = '[["deployers","reviewers"],null,"https://gitlab.com/empowerite/example/-/environments/1"]' ]
+  world github
+  : > "${FAKE_DIR}/gh.calls"
+  run --separate-stderr call environments
+  [ "$(jq --compact-output 'select(.name == "production") | [.protection, .branches]' <<<"$output")" \
+    = '[["branches","reviewers"],["main"]]' ]
+  # GitHub's branch policies are read only for an environment that has its own, by its name
+  [ "$(grep -c 'deployment-branch-policies' "${FAKE_DIR}/gh.calls")" -eq 1 ]
+  grep --quiet 'environments/production/deployment-branch-policies' "${FAKE_DIR}/gh.calls"
+  # a GitLab tier without protected environments, or a caller who may not read them, leaves the protection unknown
+  for said in 403 404
+  do
+    printf 'glab: %s\n' "${said}" > "${FAKE_DIR}/gl-forbidden.txt"
+    GITLAB_PROTECTED='!1 gl-forbidden.txt' world gitlab
+    run --separate-stderr call environments
+    [ "$status" -eq 0 ] || { echo "${said}: ${stderr}"; return 1; }
+    [ "$(jq --compact-output '[.name, .protection, .approvers]' <<<"$output" | paste -sd, -)" \
+      = '["production",null,null],["staging",null,null]' ]
+  done
+  GITLAB_PROTECTED='!1' world gitlab
+  run --separate-stderr call environments
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [[ "$stderr" == *"run: glab auth status (the protected environments could not be read)"* ]]
+}
+
+@test "GitHub reads the branch policies of 20 environments at most, and says the list stopped there" {
+  world github
+  jq '.[0].environments = [range(25) as $i | .[0].environments[0] | .name = "env-\(100 + $i)"]
+      | .[0].total_count = 25' "${FAKE_DIR}/gh-environments.json" | fixture gh-environments-25.json
+  GITHUB_ENVIRONMENTS=gh-environments-25.json world github
+  run --separate-stderr call environments
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq --slurp --compact-output '[length, .[0].name, .[19].name, .[20]]' <<<"$output")" \
+    = '[21,"env-100","env-119",{"limited":20}]' ]
+  [ "$(grep -c 'deployment-branch-policies' "${FAKE_DIR}/gh.calls")" -eq 20 ]
+  # an environment with more branch policies than a page holds fails the read, as it would be partial
+  jq '.total_count = 101' "${FAKE_DIR}/gh-branch-policies.json" | fixture gh-branch-policies-101.json
+  GITHUB_BRANCH_POLICIES=gh-branch-policies-101.json world github
+  run --separate-stderr call environments
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [[ "$stderr" == *"kit reads at most 100 branch policies of an environment (the environments could not be read)"* ]]
+}
+
+@test "every provider lists its deployments in one shape, newest first, and says when it stopped at 50" {
+  local expected='{"id":9,"environment":"production","ref":"release/0.1.0",'
+  expected+='"sha":"8e817bf000000000000000000000000000000000","state":"success","actor":"ada"}'
+  for forge in github gitlab
+  do
+    world "${forge}"
+    run --separate-stderr call deployments
+    [ "$status" -eq 0 ] || { echo "${forge}: ${stderr}"; return 1; }
+    [ "$(jq --compact-output 'del(.age, .url, .commit)' <<<"$output")" = "${expected}" ] \
+      || { echo "${forge}: ${output}"; return 1; }
+    [ "$(jq --raw-output '.age > 0' <<<"$output")" = true ]
+  done
+  [ "$(jq --raw-output .url <<<"$output")" = 'https://gitlab.com/empowerite/example/-/jobs/13' ]
+  [ "$(jq --raw-output .commit <<<"$output")" \
+    = 'https://gitlab.com/empowerite/example/-/commit/8e817bf000000000000000000000000000000000' ]
+  grep --quiet 'deployments(first: 50, orderBy: {field: CREATED_AT, direction: DESC}) { totalCount' \
+    "${FAKE_DIR}/gh.calls"
+  # 60 on GitHub, of which its read holds 50, or GitLab's 51st, give the 50 newest, then limited
+  jq '.data.repository.deployments |= (.totalCount = 60
+       | .nodes = [range(60) as $i | .nodes[0] | .databaseId = (100 - $i)])' "${FAKE_DIR}/gh-deployments.json" \
+    | fixture gh-deployments-60.json
+  GITHUB_DEPLOYMENTS=gh-deployments-60.json world github
+  run --separate-stderr call deployments
+  [ "$status" -eq 0 ]
+  [ "$(jq --slurp --compact-output '[length, .[0].id, .[49].id, .[50]]' <<<"$output")" = '[51,100,51,{"limited":50}]' ]
+  jq '[range(51) as $i | .[0] | .id = (100 - $i)]' "${FAKE_DIR}/gl-deployments.json" | fixture gl-deployments-51.json
+  GITLAB_DEPLOYMENTS=gl-deployments-51.json world gitlab
+  run --separate-stderr call deployments
+  [ "$status" -eq 0 ]
+  [ "$(jq --slurp --compact-output '[length, .[0].id, .[49].id, .[50]]' <<<"$output")" = '[51,100,51,{"limited":50}]' ]
+  # a GitHub answer with no repository could not be read
+  fixture gh-null.json <<<'{"data": {"repository": null}}'
+  GITHUB_DEPLOYMENTS=gh-null.json world github
+  run --separate-stderr call deployments
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [[ "$stderr" == *"the deployments could not be read"* ]]
 }
 
 @test "GitLab's milestones follow the cursor past a page, and a failing page fails the call" {

@@ -1,0 +1,38 @@
+ kit delivery - lists the artifacts, environments, and deployments the forge holds
+
+   one of
+   *kit delivery*  lists the artifacts, environments, and deployments the forge holds
+
+     --text   --json   --jq
+                           prints the stages as text, even on a terminal
+
+   --stages      prints the stages, one per line, in order, the same over any workspace
+   --marks       prints a mark per stage, as one JSON object, which changes when what the stage
+                 draws does: for each, the forge's own mark of its runs, as a run makes each
+   artifacts     {id, name, digest, size, run, age, expires}, keyed by its id: digest is the
+                 forge's, as sha256:…, null on GitLab and Azure DevOps, which show none; size in
+                 bytes; run the run that kept it; age seconds since it was made; expires when it
+                 goes, in seconds since the epoch, or null. The name links to its page. GitHub reads
+                 its 100 newest, GitLab the archives of its 100 newest successful jobs, Azure DevOps
+                 those of its 20 newest runs; where there are more, the document is limited, at how
+                 many it drew
+   environments  {name, protection, approvers, branches}, keyed by its name: protection the kinds of
+                 rule that guard it, as reviewers, wait, branches, or deployers; approvers who may
+                 approve, by login; branches those that may deploy there, a tag's as refs/tags/…,
+                 null for any. GitLab names no branches, and a GitLab whose tier, or caller, cannot
+                 read protected environments leaves protection and approvers null. The name links to
+                 its page. GitHub reads the branch policies of 20 environments that have their own,
+                 and the list is limited before a 21st
+   deployments   {id, environment, ref, sha, state, actor, age}, keyed by its id: state is success,
+                 failure, running, waiting, cancelled, or inactive; actor who made it; age seconds
+                 since. environment links to its row in environments, sha to the commit's page, and
+                 state to its log. Azure DevOps reads the deployment records of the 20 environments
+                 changed last, and names each one's ref, commit, and actor from its run among the
+                 100 newest; where there are more, the document is limited, at how many it drew
+   releases      a tab kit flow prints; on a terminal it opens in kittui, and with a form it is
+                 refused
+   builds        a tab kit flow prints; on a terminal it opens in kittui, and with a form it is
+                 refused
+
+
+ kit delivery

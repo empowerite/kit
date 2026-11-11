@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh api --paginate --slurp repos/{owner}/{repo}/environments?per_page=100",
+  "description": "The repository's deployment environments, every page, which gh api --paginate --slurp joins into one array of the pages, which kit reads in `modules/bash/forge/github.sh` (forge/github:environments) and folds in `modules/jq/forge.jq` (forge::github_environments). The types are the environment object of GET /repos/{owner}/{repo}/environments in GitHub's REST description, https://github.com/github/rest-api-description, as https://docs.github.com/rest/deployments/environments#list-environments describes it: a protection rule's type is required_reviewers, wait_timer, or branch_policy, and deployment_branch_policy is null when any branch may deploy. The names of custom branch policies are another read, gh/api-repos-environment-branch-policies. Checked live on cli/cli and vercel/next.js.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "total_count": {
+        "type": "integer"
+      },
+      "environments": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer"
+            },
+            "name": {
+              "type": "string"
+            },
+            "html_url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "protection_rules": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "wait_timer": {
+                    "type": ["integer", "null"]
+                  },
+                  "reviewers": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "enum": ["User", "Team"]
+                        },
+                        "reviewer": {
+                          "description": "A user, by login, or a team, by slug.",
+                          "type": "object",
+                          "properties": {
+                            "login": {
+                              "type": "string"
+                            },
+                            "slug": {
+                              "type": "string"
+                            }
+                          },
+                          "additionalProperties": true
+                        }
+                      },
+                      "additionalProperties": true
+                    }
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "additionalProperties": true
+              }
+            },
+            "deployment_branch_policy": {
+              "type": ["object", "null"],
+              "properties": {
+                "protected_branches": {
+                  "type": "boolean"
+                },
+                "custom_branch_policies": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "required": ["id", "name", "html_url"],
+          "additionalProperties": true
+        }
+      }
+    },
+    "required": ["environments"],
+    "additionalProperties": true
+  },
+  "examples": [
+    [
+      {
+        "total_count": 2,
+        "environments": [
+          {
+            "id": 1,
+            "name": "production",
+            "html_url": "https://github.com/empowerite/example/deployments/activity_log?environments_filter=production",
+            "protection_rules": [
+              {
+                "id": 5,
+                "type": "required_reviewers",
+                "prevent_self_review": false,
+                "reviewers": [
+                  {
+                    "type": "User",
+                    "reviewer": {
+                      "login": "ada",
+                      "id": 1
+                    }
+                  }
+                ]
+              },
+              {
+                "id": 6,
+                "type": "branch_policy"
+              }
+            ],
+            "deployment_branch_policy": {
+              "protected_branches": false,
+              "custom_branch_policies": true
+            }
+          },
+          {
+            "id": 2,
+            "name": "staging",
+            "html_url": "https://github.com/empowerite/example/deployments/activity_log?environments_filter=staging",
+            "protection_rules": [],
+            "deployment_branch_policy": null
+          }
+        ]
+      }
+    ]
+  ]
+}

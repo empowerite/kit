@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "az devops invoke --area distributedtask --resource environments --route-parameters project=${project} --query-parameters $top=101 --api-version 7.1 --output json",
+  "description": "The project's environments, 101 at most, which kit reads in `modules/bash/forge/ado.sh` (forge/ado:environments-list) for forge/ado:environments and forge/ado:deployments, and folds in `modules/jq/forge.jq` (forge::ado_environments): az devops invoke shows no continuation token, so a 101st fails the read. every call kit makes through forge/ado:az also carries --org ${organization} --detect false --only-show-errors. Each is an EnvironmentInstance, https://learn.microsoft.com/rest/api/azure/devops/distributedtask/environments/list?view=azure-devops-rest-7.1, the list wrapped in {count, value} as invoke prints one.",
+  "type": "object",
+  "properties": {
+    "count": {
+      "type": "integer"
+    },
+    "value": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "createdOn": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastModifiedOn": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          }
+        },
+        "required": ["id", "name"],
+        "additionalProperties": true
+      }
+    }
+  },
+  "required": ["value"],
+  "additionalProperties": true,
+  "examples": [
+    {
+      "count": 2,
+      "value": [
+        {
+          "id": 1,
+          "name": "production",
+          "createdOn": "2026-09-01T09:00:00Z",
+          "lastModifiedOn": "2026-10-01T10:00:00Z"
+        },
+        {
+          "id": 2,
+          "name": "staging",
+          "createdOn": "2026-09-01T09:00:00Z",
+          "lastModifiedOn": "2026-09-02T10:00:00Z"
+        }
+      ]
+    }
+  ]
+}

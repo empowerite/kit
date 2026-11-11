@@ -23,7 +23,16 @@
 #
 # see: modules/bash/forge.sh
 
-forge/gitlab:artifacts() { return 3; }
+# forge/gitlab:artifacts prints one document per artifact archive, newest first, as the seam's header says: those the
+# project's 100 newest successful jobs kept, one read, and {"limited": N} after the N drawn when the jobs read are 100,
+# as GitLab may hold more. GitLab keeps a job's archive whole, so a job is an artifact.
+forge/gitlab:artifacts() {
+  local list
+  forge/gitlab:ask list 'the artifacts' 'jobs?scope[]=success&per_page=100' || return 1
+  forge/gitlab:fold 'the artifacts' "${list}" --exit-status 'arrays' >/dev/null || return 1
+  forge/gitlab:fold 'the artifacts' "${list}" --compact-output --argjson now "$(date +%s)" \
+    'import "forge" as forge; forge::gitlab_artifacts($now; 100)'
+}
 
 forge/gitlab:attestations() { return 3; }
 
@@ -44,9 +53,39 @@ forge/gitlab:collaborators() { return 3; }
 
 forge/gitlab:dependabot-alerts() { return 3; }
 
-forge/gitlab:deployments() { return 3; }
+# forge/gitlab:deployments prints one document per deployment, newest first, as the seam's header says: one read of 51,
+# so a 51st says GitLab holds more than the 50 printed, which end with {"limited": 50}.
+forge/gitlab:deployments() {
+  local list url
+  url=$(forge/gitlab:repo-url) || return 1
+  forge/gitlab:ask list 'the deployments' 'deployments?order_by=created_at&sort=desc&per_page=51' || return 1
+  forge/gitlab:fold 'the deployments' "${list}" --exit-status 'arrays' >/dev/null || return 1
+  forge/gitlab:fold 'the deployments' "${list}" --compact-output --argjson now "$(date +%s)" --arg url "${url}" \
+    'import "forge" as forge; forge::gitlab_deployments($now; 50; $url)'
+}
 
-forge/gitlab:environments() { return 3; }
+# forge/gitlab:environments prints one document per environment, in GitLab's order, as the seam's header says: every
+# page of the environments, then every page of the protected environments, which hold who may deploy and approve. A
+# tier without protected environments, or a caller who may not read them, answers 403 or 404: the environments are
+# still printed, their protection and approvers null.
+forge/gitlab:environments() {
+  local list protected said url
+  url=$(forge/gitlab:repo-url) || return 1
+  forge/gitlab:pages list 'the environments' 'environments?per_page=100' || return 1
+  file:temp said glab || return 1
+  if protected=$(forge/gitlab:api 'protected_environments?per_page=100' --paginate 2>"${said}")
+  then
+    forge/gitlab:joined protected 'the protected environments' "${protected}" || return 1
+  elif grep --quiet --extended-regexp '(^|[^0-9])40[34]([^0-9]|$)' "${said}"
+  then
+    protected=null
+  else
+    error "run: glab auth status (the protected environments could not be read)"
+    return 1
+  fi
+  forge/gitlab:fold 'the environments' "${list}" --compact-output --argjson protected "${protected}" \
+    --arg url "${url}" 'import "forge" as forge; forge::gitlab_environments($protected; $url)'
+}
 
 # forge/gitlab:issue-add-sub links the second issue to the first as a related item: GitLab gives an issue no
 # sub-issues.
@@ -471,8 +510,7 @@ forge/gitlab:teams() { return 3; }
 forge/gitlab:contract() { printf '4\n'; }
 
 forge/gitlab:lacks() {
-  printf '%s\n' artifacts environments deployments collaborators teams bots \
-    attestations code-scanning dependabot secret-scanning rulesets bypasses
+  printf '%s\n' collaborators teams bots attestations code-scanning dependabot secret-scanning rulesets bypasses
 }
 
 # The seam's calls end here; what follows is this provider's own.

@@ -15,7 +15,7 @@ machine-readable descriptions each publishes. The index of these pages is [1st.m
 | [GitHub Issues](#github-issues) | [tracker](trackers.md) | `provider` (`forge`) |
 | [GitHub Projects](#github-projects) | [tracker](trackers.md) | none |
 | [GitHub Actions](#github-actions) | [CI](ci.md) | `provider`, through `forge/github.sh` |
-| [GitHub releases and deployments](#github-releases-and-deployments) | [CD](cd.md) | `provider` for releases; environments and deployments planned |
+| [GitHub releases and deployments](#github-releases-and-deployments) | [CD](cd.md) | `provider`: releases, environments, and deployments |
 
 ## GitHub pull requests
 
@@ -210,7 +210,7 @@ fills `{owner}` and `{repo}` from the checkout, and reads every page with `--pag
 | Whether runs changed | `gh api --include -H "If-None-Match: ${etag}" 'repos/{owner}/{repo}/actions/runs?per_page=10'`, as kit's runs mark does |
 | A change's checks | `gh pr checks "${n}" --json name,state,bucket,link,workflow`; kit reads `statusCheckRollup` through `gh api graphql` |
 | A run's log | `gh run view "${run_id}" --log-failed`, or `--log`; one job with `--job "${job_id}"` |
-| Artifacts | list: `gh api repos/{owner}/{repo}/actions/runs/${run_id}/artifacts` (no `gh` command lists them); download: `gh run download "${run_id}" --name "${name}"` |
+| Artifacts | list: `gh api 'repos/{owner}/{repo}/actions/artifacts?per_page=100'` (raw API; no `gh` command lists them), the newest 100, each with its `digest`, `size_in_bytes`, `workflow_run`, and `expires_at`, and `total_count` past the page saying there are more; `kit delivery artifacts` draws them; one run's: `gh api repos/{owner}/{repo}/actions/runs/${run_id}/artifacts`; download: `gh run download "${run_id}" --name "${name}"` |
 
 ### Write to GitHub Actions
 
@@ -257,9 +257,11 @@ head branch shows on that pull request. Releases can be immutable: once publishe
 | List releases, with their notes, pages, and assets | `gh api --paginate 'repos/{owner}/{repo}/releases?per_page=100'` (raw API) |
 | Which release is the latest | `gh release list --limit "${limit}" --json tagName,isLatest`, or `gh api 'repos/{owner}/{repo}/releases/latest'` (raw API) |
 | A release's notes | `gh release view "${tag}" --json body,url` |
-| List environments | `gh api --paginate 'repos/{owner}/{repo}/environments?per_page=100'` (raw API) |
+| List environments | `gh api --paginate --slurp 'repos/{owner}/{repo}/environments?per_page=100'` (raw API): each one's `protection_rules`, `required_reviewers` with its `reviewers`, `wait_timer`, or `branch_policy`, and `deployment_branch_policy`; `kit delivery environments` draws them |
+| An environment's branch policies | `gh api "repos/{owner}/{repo}/environments/${environment}/deployment-branch-policies?per_page=100"` (raw API), for one whose `deployment_branch_policy` has `custom_branch_policies`, each a `branch` or a `tag` pattern; kit reads 20 environments' at most |
 | Deployments in an environment | `gh api --paginate "repos/{owner}/{repo}/deployments?environment=${environment}&per_page=100"` (raw API) |
 | A deployment's state | `gh api --paginate "repos/{owner}/{repo}/deployments/${deployment_id}/statuses"` (raw API); the first status is the newest |
+| The newest deployments, each with its latest status | `gh api graphql` on `repository.deployments(first: 50, orderBy: {field: CREATED_AT, direction: DESC}) { totalCount nodes { databaseId environment ref { name } commitOid state createdAt creator { login } commit { url } latestStatus { state logUrl environmentUrl } } }` (raw API), a point; `kit delivery deployments` draws them |
 | What is live where | `gh api graphql` on `repository.environments.nodes { name latestCompletedDeployment { sha ref { name } latestStatus { state } } }` (raw API) |
 | Approvals a run waits on | `gh api "repos/{owner}/{repo}/actions/runs/${run_id}/pending_deployments"` (raw API) |
 | Approvals given | `gh api "repos/{owner}/{repo}/actions/runs/${run_id}/approvals"` (raw API) |
@@ -277,8 +279,9 @@ head branch shows on that pull request. Releases can be immutable: once publishe
 | Record a deployment made elsewhere | `gh api 'repos/{owner}/{repo}/deployments' -f ref="${sha}" -f environment="${environment}"` (raw API) |
 | Report its status | `gh api "repos/{owner}/{repo}/deployments/${deployment_id}/statuses" -f state=success -f environment_url="${url}"` (raw API) |
 
-Gaps: `gh` has no environment or deployment command, so every read except releases goes through `gh api`. GitHub has
-no rollback primitive; a rollback is a re-run of an older run, or a new deployment of an older commit.
+Gaps: `gh` has no environment or deployment command, so every read except releases goes through `gh api`. GraphQL's
+`Environment` holds no branch policies, so they cost a request each. GitHub has no rollback primitive; a rollback is a
+re-run of an older run, or a new deployment of an older commit.
 
 ### GitHub releases and deployments schemas
 
@@ -304,6 +307,7 @@ with an example the gate validates against it.
 | Schema | The command as kit runs it |
 | --- | --- |
 | [api-graphql-iterations.schema.json](gh/api-graphql-iterations.schema.json) | `gh api graphql --field owner=${owner} --field name=${name} --raw-field query=${query}` |
+| [api-graphql-deployments.schema.json](gh/api-graphql-deployments.schema.json) | `gh api graphql --field owner=${owner} --field name=${name} --raw-field query=${query}` |
 | [api-graphql-merged-prs.schema.json](gh/api-graphql-merged-prs.schema.json) | `gh api graphql --field owner=${owner} --field name=${name} --raw-field query=${query}` |
 | [api-graphql-more-checks.schema.json](gh/api-graphql-more-checks.schema.json) | `gh api graphql --field owner=${owner} --field name=${name} --field pr=${number} --raw-field after=${cursor} --raw-field query=${query}` |
 | [api-graphql-more-closing-issues.schema.json](gh/api-graphql-more-closing-issues.schema.json) | `gh api graphql --field owner=${owner} --field name=${name} --field pr=${number} --raw-field after=${cursor} --raw-field query=${query}` |
@@ -311,6 +315,9 @@ with an example the gate validates against it.
 | [api-graphql-open-prs.schema.json](gh/api-graphql-open-prs.schema.json) | `gh api graphql --field owner=${owner} --field name=${name} --raw-field after=${cursor} --raw-field query=${query}` |
 | [api-graphql-pr-closing-issues.schema.json](gh/api-graphql-pr-closing-issues.schema.json) | `gh api graphql --field owner=${owner} --field name=${name} --field number=${number} --raw-field after=${cursor} --raw-field query=${query}` |
 | [api-rate-limit.schema.json](gh/api-rate-limit.schema.json) | `gh api rate_limit` |
+| [api-repos-actions-artifacts.schema.json](gh/api-repos-actions-artifacts.schema.json) | `gh api repos/{owner}/{repo}/actions/artifacts?per_page=100` |
+| [api-repos-environment-branch-policies.schema.json](gh/api-repos-environment-branch-policies.schema.json) | `gh api repos/{owner}/{repo}/environments/${environment}/deployment-branch-policies?per_page=100` |
+| [api-repos-environments.schema.json](gh/api-repos-environments.schema.json) | `gh api --paginate --slurp repos/{owner}/{repo}/environments?per_page=100` |
 | [api-repos-milestones.schema.json](gh/api-repos-milestones.schema.json) | `gh api --paginate --slurp repos/{owner}/{repo}/milestones?state=all&per_page=100` |
 | [api-repos-pulls.schema.json](gh/api-repos-pulls.schema.json) | `gh api repos/${repo}/pulls/${number} --jq .user.login` |
 | [api-repos-releases.schema.json](gh/api-repos-releases.schema.json) | `gh api --paginate repos/{owner}/{repo}/releases?per_page=100` |

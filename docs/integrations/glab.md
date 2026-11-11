@@ -14,7 +14,7 @@ machine-readable descriptions each publishes. The index of these pages is [1st.m
 | [GitLab merge requests](#gitlab-merge-requests) | [code forge](forges.md) | `provider` |
 | [GitLab issues and work items](#gitlab-issues-and-work-items) | [tracker](trackers.md) | `provider` (`forge`) |
 | [GitLab CI/CD](#gitlab-cicd) | [CI](ci.md) | `provider`, through `forge/gitlab.sh` |
-| [GitLab releases and deployments](#gitlab-releases-and-deployments) | [CD](cd.md) | `provider` for releases; environments and deployments planned |
+| [GitLab releases and deployments](#gitlab-releases-and-deployments) | [CD](cd.md) | `provider`: releases, environments, and deployments |
 
 ## GitLab merge requests
 
@@ -143,7 +143,7 @@ failed job and its `failure_reason`.
 | A run's jobs | `glab ci get -p "${pipeline_id}" -d -F json`, or `glab api projects/:id/pipelines/${pipeline_id}/jobs` |
 | A change's checks | `glab ci get --merge-request "${n}" -F json`; kit reads the merge request's head pipeline and its jobs |
 | A job's log | `glab ci trace "${job_id}"`, which follows a running job; `glab api projects/:id/jobs/${job_id}/trace` for the raw text |
-| Artifacts | `glab job artifact "${ref}" "${job_name}"` downloads the latest; `--list-paths` lists them; `glab api projects/:id/jobs/${job_id}/artifacts` for one job |
+| Artifacts | `glab job artifact "${ref}" "${job_name}"` downloads the latest; `--list-paths` lists them; `glab api projects/:id/jobs/${job_id}/artifacts` for one job; kit reads `glab api 'projects/:id/jobs?scope[]=success&per_page=100'` (raw API), the 100 newest successful jobs, each with an `artifacts_file` an archive, with no digest GitLab shows, and `kit delivery artifacts` draws them |
 
 ### Write to GitLab CI/CD
 
@@ -187,8 +187,10 @@ requests it shipped, and a merge request shows the environments its pipeline dep
 | --- | --- |
 | List releases, with their notes, pages, and assets | `glab api --paginate 'projects/:id/releases?per_page=100'` (raw API), or `glab release list --output json --per-page 100 --page "${page}"` |
 | A release's notes | `glab release view "${tag}" --output json` |
-| List environments | `glab api --paginate 'projects/:id/environments?per_page=100'` (raw API) |
+| List environments | `glab api --paginate 'projects/:id/environments?per_page=100'` (raw API); `kit delivery environments` draws them |
+| Who may deploy to and approve an environment | `glab api --paginate 'projects/:id/protected_environments?per_page=100'` (raw API): `deploy_access_levels`, `required_approval_count`, and `approval_rules`, on Premium and Ultimate; another tier answers 403 or 404, and kit leaves the protection unknown |
 | Deployments in an environment | `glab api --paginate "projects/:id/deployments?environment=${environment}&order_by=finished_at&sort=desc"` (raw API) |
+| The newest deployments | `glab api 'projects/:id/deployments?order_by=created_at&sort=desc&per_page=51'` (raw API): the 50 newest, and a 51st that says there are more; `kit delivery deployments` draws them |
 | A deployment's state and approvals | `glab api "projects/:id/deployments/${deployment_id}"` (raw API); `status`, `approvals`, `pending_approval_count` |
 | What is live where | `glab api "projects/:id/environments/${environment_id}"` (raw API); `last_deployment` |
 | Merge requests a deployment shipped | `glab api "projects/:id/deployments/${deployment_id}/merge_requests"` (raw API) |
@@ -207,7 +209,8 @@ requests it shipped, and a merge request shows the environments its pipeline dep
 | Report its status | `glab api -X PUT "projects/:id/deployments/${deployment_id}" -f status=success` (raw API) |
 
 Gaps: environments, deployments, and approvals have no `glab` command. GitLab marks no release as a pre-release, so
-kit treats a tag with a suffix as one.
+kit treats a tag with a suffix as one. An environment restricts who deploys, not from which branch, and the REST API
+shows no digest of a job's artifacts.
 
 ### GitLab releases and deployments schemas
 
@@ -230,9 +233,12 @@ with an example the gate validates against it.
 | Schema | The command as kit runs it |
 | --- | --- |
 | [api-iterations.schema.json](glab/api-iterations.schema.json) | `glab api projects/${project}/iterations?include_ancestors=true&per_page=100 --paginate` |
+| [api-deployments.schema.json](glab/api-deployments.schema.json) | `glab api projects/${project}/deployments?order_by=created_at&sort=desc&per_page=51` |
+| [api-environments.schema.json](glab/api-environments.schema.json) | `glab api projects/${project}/environments?per_page=100 --paginate` |
 | [api-graphql-milestones.schema.json](glab/api-graphql-milestones.schema.json) | `glab api graphql --field path=${project} [--field after=${cursor}] --raw-field query=${query}` |
 | [api-issue.schema.json](glab/api-issue.schema.json) | `glab api projects/${project}/issues/${n}` |
 | [api-issues.schema.json](glab/api-issues.schema.json) | `glab api projects/${project}/issues?${query} [--paginate]` |
+| [api-jobs.schema.json](glab/api-jobs.schema.json) | `glab api projects/${project}/jobs?scope[]=success&per_page=100` |
 | [api-labels.schema.json](glab/api-labels.schema.json) | `glab api projects/${project}/labels?per_page=100 --paginate` |
 | [api-merge-request-approvals.schema.json](glab/api-merge-request-approvals.schema.json) | `glab api projects/${project}/merge_requests/${n}/approvals` |
 | [api-merge-request-closes-issues.schema.json](glab/api-merge-request-closes-issues.schema.json) | `glab api projects/${project}/merge_requests/${n}/closes_issues?per_page=100 --paginate` |
@@ -243,5 +249,6 @@ with an example the gate validates against it.
 | [api-pipeline-jobs.schema.json](glab/api-pipeline-jobs.schema.json) | `glab api projects/${home}/pipelines/${pipeline}/jobs?per_page=100 --paginate` |
 | [api-pipelines.schema.json](glab/api-pipelines.schema.json) | `glab api projects/${project}/pipelines?per_page=${n}` |
 | [api-project.schema.json](glab/api-project.schema.json) | `glab api projects/${source}` |
+| [api-protected-environments.schema.json](glab/api-protected-environments.schema.json) | `glab api projects/${project}/protected_environments?per_page=100 --paginate` |
 | [api-releases.schema.json](glab/api-releases.schema.json) | `glab api projects/${project}/releases?per_page=${n} [--paginate]` |
 | [api-user.schema.json](glab/api-user.schema.json) | `glab api user` |

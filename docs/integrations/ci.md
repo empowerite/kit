@@ -48,7 +48,8 @@ Most external systems check out a detached HEAD, so a provider would read the sy
 | Whether the runs changed, read cheaply | read | `forge:marks`, the runs mark |
 | A change's checks | read | `open-prs`, the changes stage; kittui's checks tab (planned) |
 | A run's or a job's log | read | planned |
-| A run's artifacts: list and download | read | planned, kittui's artifacts tab |
+| A run's artifacts: list | read | `forge:artifacts`, `kit delivery artifacts`: the newest, with digest, size, run, and expiry |
+| A run's artifacts: download | read | planned |
 | Rerun a run, or its failed jobs | write | planned |
 | Cancel a run | write | planned |
 | Start a run: a manual run of a workflow on a ref | write | planned |
@@ -86,7 +87,7 @@ beside the repository's own. A system that reads one root file needs the reposit
 | [GitHub Actions](gh.md#github-actions) | SaaS; GitHub Enterprise Server self-hosted; proprietary | `gh`, official, [cli/cli](https://github.com/cli/cli) | `provider`, through `forge/github.sh` | `--json "${fields}"`, `--jq`; `gh api` | REST OpenAPI, GraphQL schema, workflow JSON Schema, webhook JSON Schema |
 | [GitLab CI/CD](glab.md#gitlab-cicd) | SaaS; self-managed; open core, the community edition MIT | `glab`, official, [gitlab-org/cli](https://gitlab.com/gitlab-org/cli) | `provider`, through `forge/gitlab.sh` | `-F json`, `--jq`; `glab api` | REST OpenAPI, CI JSON Schema |
 | [Jenkins](jenkins.md#jenkins) | self-hosted; open source, MIT | `jenkins-cli.jar`, official, shipped by each controller | `none` | none; REST `/api/json` | none |
-| [Azure Pipelines](az.md#azure-pipelines-runs) | SaaS; Azure DevOps Server self-hosted; proprietary | `az` with the `azure-devops` extension, official, [Azure/azure-devops-cli-extension](https://github.com/Azure/azure-devops-cli-extension) | `planned`, with an `ado` code forge | `-o json` (the default), `--query` JMESPath; `az devops invoke` | pipeline YAML JSON Schema; REST: none published; a REST reference in prose |
+| [Azure Pipelines](az.md#azure-pipelines-runs) | SaaS; Azure DevOps Server self-hosted; proprietary | `az` with the `azure-devops` extension, official, [Azure/azure-devops-cli-extension](https://github.com/Azure/azure-devops-cli-extension) | `provider`, through `forge/ado.sh` | `-o json` (the default), `--query` JMESPath; `az devops invoke` | pipeline YAML JSON Schema; REST: none published; a REST reference in prose |
 | [CircleCI](circleci.md#circleci) | SaaS; CircleCI server self-hosted; proprietary | `circleci`, official, [CircleCI-Public/circleci-cli](https://github.com/CircleCI-Public/circleci-cli) | `none` | `--json`, `--jq`; `circleci api` | API v2 OpenAPI, config JSON Schema |
 | [AWS CodeBuild and CodePipeline](aws.md#aws-codebuild-and-codepipeline) | SaaS; proprietary | `aws`, official, [aws/aws-cli](https://github.com/aws/aws-cli) | `planned`, with an `aws` code forge | `--output json`, `--query` JMESPath | service models (JSON); no buildspec schema |
 | [Bitbucket Pipelines](bkt.md#bitbucket-pipelines) | SaaS; proprietary | Atlassian's Teamwork Graph CLI, `twg`, official; status unclear | `none` | not verified | REST OpenAPI, pipeline JSON Schema |

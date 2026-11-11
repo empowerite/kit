@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "glab api projects/${project}/protected_environments?per_page=100 --paginate",
+  "description": "The project's protected environments, every page, ${project} its path URL-encoded, which kit reads in `modules/bash/forge/gitlab.sh` (forge/gitlab:environments) and folds in `modules/jq/forge.jq` (forge::gitlab_environments): who may deploy, and who approves. Premium and Ultimate alone have them, as https://docs.gitlab.com/api/protected_environments/ says; another tier, or a caller who may not read them, answers 403 or 404, and kit leaves the protection unknown. approval_rules name a user by id, and access_level_description by name.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "deploy_access_levels": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "access_level": {
+              "type": ["integer", "null"]
+            },
+            "access_level_description": {
+              "type": "string"
+            },
+            "user_id": {
+              "type": ["integer", "null"]
+            },
+            "group_id": {
+              "type": ["integer", "null"]
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "required_approval_count": {
+        "type": ["integer", "null"]
+      },
+      "approval_rules": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "user_id": {
+              "type": ["integer", "null"]
+            },
+            "group_id": {
+              "type": ["integer", "null"]
+            },
+            "access_level": {
+              "type": ["integer", "null"]
+            },
+            "access_level_description": {
+              "type": "string"
+            },
+            "required_approvals": {
+              "type": ["integer", "null"]
+            }
+          },
+          "additionalProperties": true
+        }
+      }
+    },
+    "required": ["name"],
+    "additionalProperties": true
+  },
+  "examples": [
+    [
+      {
+        "name": "production",
+        "deploy_access_levels": [
+          {
+            "id": 12,
+            "access_level": 40,
+            "access_level_description": "Maintainers",
+            "user_id": null,
+            "group_id": null,
+            "group_inheritance_type": 0
+          }
+        ],
+        "required_approval_count": 0,
+        "approval_rules": [
+          {
+            "id": 1,
+            "user_id": 1,
+            "group_id": null,
+            "access_level": null,
+            "access_level_description": "ada",
+            "required_approvals": 1,
+            "group_inheritance_type": 0
+          }
+        ]
+      }
+    ]
+  ]
+}

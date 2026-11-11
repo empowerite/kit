@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "az pipelines runs list --project ${project} --top 50 --query-order QueueTimeDesc --output json",
-  "description": "The 50 newest runs of the project's pipelines, which `modules/bash/forge/ado.sh` (forge/ado:runs) reads and `modules/jq/forge.jq` folds with ado_builds and ado_build_state into the builds stage's runs; every call kit makes through forge/ado:az also carries --org ${organization} --detect false --only-show-errors. Each run is a Build, https://learn.microsoft.com/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-7.1, which the azure-devops extension reads at api-version 5.0 through its vendored SDK (azext_devops/devops_sdk/v5_0/build/models.py) and az prints with every attribute of the model but those whose name starts with _, null when the service gives none, and each date-time as Python's isoformat, such as 2026-10-01T10:03:36.250000+00:00. As az drops a run's _links, ado_builds gives a run's page as ${organization}/${project}/_build/results?buildId=${id}.",
+  "title": "az pipelines runs list --project ${project} --top ${top} --query-order QueueTimeDesc --output json",
+  "description": "The newest runs of the project's pipelines, which `modules/bash/forge/ado.sh` reads: 50, which forge/ado:runs reads and `modules/jq/forge.jq` folds with ado_builds and ado_build_state into the builds stage's runs; 21, of whose 20 newest forge/ado:artifacts reads the artifacts, a 21st saying there are more; and 100, which name the branch, the commit, and who asked for each deployment forge/ado:deployments draws (forge::ado_deployments); every call kit makes through forge/ado:az also carries --org ${organization} --detect false --only-show-errors. Each run is a Build, https://learn.microsoft.com/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-7.1, which the azure-devops extension reads at api-version 5.0 through its vendored SDK (azext_devops/devops_sdk/v5_0/build/models.py) and az prints with every attribute of the model but those whose name starts with _, null when the service gives none, and each date-time as Python's isoformat, such as 2026-10-01T10:03:36.250000+00:00. As az drops a run's _links, ado_builds gives a run's page as ${organization}/${project}/_build/results?buildId=${id}.",
   "type": "array",
   "items": {
     "$ref": "#/$defs/build"
   },
-  "maxItems": 50,
+  "maxItems": 100,
   "$defs": {
     "build": {
       "type": "object",
@@ -24,6 +24,26 @@
           "properties": {
             "name": {
               "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "requestedFor": {
+          "description": "IdentityRef of who the run was for; a deployment's actor is its uniqueName.",
+          "type": ["object", "null"],
+          "properties": {
+            "uniqueName": {
+              "type": ["string", "null"]
+            }
+          },
+          "additionalProperties": true
+        },
+        "repository": {
+          "description": "BuildRepository, the repository the run built; a deployment names its commit's page only for this one.",
+          "type": ["object", "null"],
+          "properties": {
+            "name": {
+              "type": ["string", "null"]
             }
           },
           "additionalProperties": true

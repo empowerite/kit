@@ -42,7 +42,32 @@
 #
 # see: modules/bash/forge.sh, modules/bash/tracker/ado.sh
 
-forge/ado:artifacts() { return 3; }
+# forge/ado:artifacts prints one document per artifact of the project's 20 newest pipeline runs, newest first, as the
+# seam's header says: a read of 21 runs, then a read of each of the 20 newest's artifacts, and {"limited": N} after the
+# N drawn when a 21st says there are more runs.
+forge/ado:artifacts() {
+  local org project runs id run artifacts results docs='' doc
+  local -a ids
+  IFS=$'\t' read -r org project _ < <(forge/ado:place) || return 1
+  results="${org}/$(forge/ado:encode "${project}")/_build/results"
+  forge/ado:ask runs 'the artifacts' pipelines runs list --project "${project}" --top 21 --query-order QueueTimeDesc \
+    || return 1
+  list:read ids forge/ado:fold 'the artifacts' "${runs}" --raw-output '.[:20][].id' || return 1
+  for id in "${ids[@]}"
+  do
+    [[ -n "${id}" ]] || continue
+    forge/ado:ask artifacts "the artifacts of run ${id}" pipelines runs artifact list --run-id "${id}" \
+      --project "${project}" || return 1
+    run=$(jq --compact-output --argjson id "${id}" 'first(.[] | select(.id == $id))' <<<"${runs}")
+    doc=$(forge/ado:fold "the artifacts of run ${id}" "${artifacts}" --compact-output --argjson now "$(date +%s)" \
+      --argjson run "${run}" --arg results "${results}" \
+      'import "forge" as forge; forge::ado_artifacts($now; $run; $results)') || return 1
+    [[ -z "${doc}" ]] || docs+=${doc}$'\n'
+  done
+  printf '%s' "${docs}"
+  jq --compact-output --argjson drawn "$(jq --slurp length <<<"${docs}")" \
+    'if length > 20 then {limited: $drawn} else empty end' <<<"${runs}"
+}
 
 forge/ado:attestations() { return 3; }
 
@@ -59,8 +84,8 @@ forge/ado:branch-for-issue() {
 forge/ado:contract() { printf '4\n'; }
 
 forge/ado:lacks() {
-  printf '%s\n' quota marks releases linked-branches milestones artifacts environments \
-    deployments collaborators teams bots attestations code-scanning dependabot secret-scanning rulesets bypasses
+  printf '%s\n' quota marks releases linked-branches milestones collaborators teams bots attestations code-scanning \
+    dependabot secret-scanning rulesets bypasses
 }
 
 forge/ado:bypasses() { return 3; }
@@ -71,9 +96,59 @@ forge/ado:collaborators() { return 3; }
 
 forge/ado:dependabot-alerts() { return 3; }
 
-forge/ado:deployments() { return 3; }
+# forge/ado:deployments prints one document per deployment, newest first, as the seam's header says: Azure DevOps keeps
+# them as each environment's deployment records, so it reads the environments, then the newest 50 records of each of
+# the 20 changed last, and the project's 100 newest runs, which name each record's branch, commit, and who asked for
+# it. {"limited": N} follows the N drawn when more than 20 environments, or more than 50 records, are there.
+forge/ado:deployments() {
+  local org project repo envs id records all='[]' runs cut=false base
+  local -a ids
+  IFS=$'\t' read -r org project repo < <(forge/ado:place) || return 1
+  base="${org}/$(forge/ado:encode "${project}")"
+  forge/ado:environments-list envs "${project}" || return 1
+  list:read ids forge/ado:fold 'the deployments' "${envs}" --raw-output \
+    'import "forge" as forge; .value | sort_by(.lastModifiedOn | if . == null then 0 else forge::epoch end) | reverse
+     | .[:20][].id' || return 1
+  [[ "$(jq '.value | length' <<<"${envs}")" -le 20 ]] || cut=true
+  for id in "${ids[@]}"
+  do
+    [[ -n "${id}" ]] || continue
+    forge/ado:ask records "the deployments of environment ${id}" devops invoke --area distributedtask \
+      --resource environmentdeploymentrecords --route-parameters "project=${project}" "environmentId=${id}" \
+      --query-parameters top=50 --api-version 7.1 || return 1
+    all=$(forge/ado:fold "the deployments of environment ${id}" "${all}" --compact-output \
+      --argjson records "${records}" '. + ($records.value | arrays // error)') || return 1
+  done
+  forge/ado:ask runs 'the deployments' pipelines runs list --project "${project}" --top 100 \
+    --query-order QueueTimeDesc || return 1
+  forge/ado:fold 'the deployments' "${all}" --compact-output --argjson now "$(date +%s)" --argjson envs "${envs}" \
+    --argjson runs "${runs}" --argjson cut "${cut}" --arg results "${base}/_build/results" \
+    --argjson repo "$(jq --null-input --compact-output --arg name "${repo}" --arg url "$(forge/ado:repo-url)" \
+      '{name: $name, url: $url}')" \
+    'import "forge" as forge; forge::ado_deployments($now; $envs; $runs; 50; $cut; $results; $repo)'
+}
 
-forge/ado:environments() { return 3; }
+# forge/ado:environments prints one document per environment of the project, in Azure DevOps' order, as the seam's
+# header says: a read of the environments, then one of the checks on them all, which hold their approvals and branch
+# controls.
+forge/ado:environments() {
+  local org project envs checks='{"value": []}' dir
+  IFS=$'\t' read -r org project _ < <(forge/ado:place) || return 1
+  forge/ado:environments-list envs "${project}" || return 1
+  if [[ "$(jq '.value | length' <<<"${envs}")" -gt 0 ]]
+  then
+    file:scratch dir || return 1
+    # shellcheck disable=SC2154  # dir is set by file:scratch
+    jq --compact-output '[.value[] | {type: "environment", id: (.id | tostring), name}]' <<<"${envs}" \
+      > "${dir}/resources.json" || return 1
+    forge/ado:ask checks 'the checks of the environments' devops invoke --area PipelinesChecks \
+      --resource queryconfigurations --route-parameters "project=${project}" --query-parameters '$expand=settings' \
+      --http-method POST --in-file "${dir}/resources.json" --api-version 7.1-preview.1 || return 1
+  fi
+  forge/ado:fold 'the environments' "${envs}" --compact-output --argjson checks "${checks}" \
+    --arg url "${org}/$(forge/ado:encode "${project}")" \
+    'import "forge" as forge; forge::ado_environments($checks; $url)'
+}
 
 forge/ado:issue-add-sub() {
   forge/ado:az boards work-item relation add --id "$2" --relation-type parent --target-id "$1" --output none \
@@ -512,6 +587,22 @@ forge/ado:prs() {
     prs_skip+=100
   done
   printf -v "${prs_into}" '%s' "${prs_all}"
+}
+
+# forge/ado:environments-list <name> <project> reads the project's environments, {count, value}, 101 at most, and puts
+# them in the variable <name>. az devops invoke shows no continuation token, so a 101st fails the read, as the list
+# would be partial.
+forge/ado:environments-list() {
+  local list_into=$1 list_project=$2 list_answer
+  forge/ado:ask list_answer 'the environments' devops invoke --area distributedtask --resource environments \
+    --route-parameters "project=${list_project}" --query-parameters '$top=101' --api-version 7.1 || return 1
+  forge/ado:fold 'the environments' "${list_answer}" --exit-status '.value | arrays' >/dev/null || return 1
+  if [[ "$(jq '.value | length' <<<"${list_answer}")" -gt 100 ]]
+  then
+    error "kit reads at most 100 environments (the environments could not be read)"
+    return 1
+  fi
+  printf -v "${list_into}" '%s' "${list_answer}"
 }
 
 # forge/ado:labels <n> <method> [<route parameter>] [<az devops invoke argument>…] changes the pull request's labels
