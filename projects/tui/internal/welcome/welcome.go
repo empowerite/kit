@@ -15,7 +15,8 @@
 // The steps are a tab bar, internal/tabs. While it has the keyboard, tab and shift-tab move between the steps; a step's
 // number, or a click on the bar, selects it from anywhere and gives the bar the keyboard. Down, or enter, gives the
 // pane the keyboard: a step's rows, or the intro's links, where up on the first gives it back, or its page, which up
-// and down then scroll, and up at the top gives it back; a click on a check's line puts the cursor there. Inside a row
+// and down then scroll, and up at the top gives it back; a click on a check's line puts the cursor there. The mouse
+// wheel scrolls the pane under it, or the step's table, the keyboard and the cursor left where they are. Inside a row
 // with choices, tab and shift-tab move between now and later, its stops, as they move between the stops on any line. Esc gives the bar the keyboard back. Ctrl-c quits with 130
 // from anywhere, and ctrl-q quits with 0; esc never quits. The screen
 // opens on the intro while the checks run, and stays there when they answer. A step with failed checks counts them in
@@ -264,6 +265,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.checking.Again(m.env(), false)
 	case tea.KeyPressMsg:
 		return m.key(msg)
+	case tea.MouseWheelMsg:
+		m.wheeled(msg)
 	case tea.MouseClickMsg:
 		switch {
 		case m.appMenu.Open && msg.Button == tea.MouseLeft:
@@ -779,6 +782,30 @@ func (m *Model) page(n int) {
 
 // ends is more lines or rows than a step ever has, so a page of it reaches the first or the last, as home and end do.
 const ends = 1 << 30
+
+// wheel is the lines a turn of the mouse wheel scrolls the pane.
+const wheel = 3
+
+// wheeled scrolls what a turn of the mouse wheel is over, never past its ends: the step's table, as table.Sheet's Wheel
+// takes it, or the pane's lines, a page's or a step's checks. The keyboard stays where it is, and so does the cursor,
+// until a key moves it and the pane follows it again. A turn off the pane, or while a menu is open, scrolls nothing.
+func (m *Model) wheeled(w tea.MouseWheelMsg) {
+	d := 0
+	switch w.Button {
+	case tea.MouseWheelUp:
+		d = -wheel
+	case tea.MouseWheelDown:
+		d = wheel
+	}
+	if d == 0 || m.appMenu.Open || m.books.Open || m.recent.Open || w.Y < paneTop || w.Y >= paneTop+m.paneHeight() {
+		return
+	}
+	if m.gridded() {
+		m.sheet().Wheel(w)
+		return
+	}
+	m.scroll(d)
+}
 
 // scroll moves a page's pane n lines, never past its ends.
 func (m *Model) scroll(n int) {
