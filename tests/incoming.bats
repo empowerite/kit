@@ -180,7 +180,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
 @test "kit help flow holds the incoming legend: the remote's glyph and a failed fetch" {
   run kit help flow
   [ "$status" -eq 0 ]
-  [[ "$output" == *$'\n  incoming:\n\n    🛬  the fetch: what it brought from the remotes\n    📡  a remote: its name, its forge or no forge, and its host\n'* ]]
+  [[ "$output" == *$'\n  incoming:\n\n    🛬  fetch: what it brought from the remotes\n    📡  remote: its name, its forge or no forge, and its host\n'* ]]
   [[ "$output" == *$'\n    ❌  failed: a check, a build, or a fetch, or kit could not read the forge\n'* ]]
 }
 

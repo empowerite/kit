@@ -118,6 +118,9 @@ declare -gA flow_glyphs=(
   [Draft]='📝'
   [Latest]='⭐'
   [Asset]='📎'
+  [Package]='🧩'
+  [Active]='🟢'
+  [Excluded]='⛔'
   [Other]='🔳'
 )
 declare -gA flow_stage_glyphs=(

@@ -86,56 +86,56 @@
 # the glyph's page.
 #
 # kit:generate legend `k=$(command -v kit); jq -nr -L "${k%/bin/kit}/modules/jq" 'import "glyphs" as g; g::legend_for("workspace")'`
-#   📚  the workspace: a group, in the workspace menu that drops down from - in kittui's title
+#   📚  workspace: a group, in the workspace menu that drops down from - in kittui's title
 #
 # repos:
 #
-#   📚  the workspace: a group, in the workspace menu that drops down from - in kittui's title
+#   📚  workspace: a group, in the workspace menu that drops down from - in kittui's title
 #   🐙  on GitHub: the forge of a remote, or the tracker that holds an issue
 #   🦊  on GitLab: the forge of a remote, or the tracker that holds an issue
-#   🌿  a branch or a worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
-#   🌱  a local branch: this desk has it: under underway, and no checkout does; under branches, and no remote does
+#   🌿  branch or worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
+#   🌱  local branch: this desk has it: under underway, and no checkout does; under branches, and no remote does
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # remotes:
 #
-#   📡  a remote: its name, its forge or no forge, and its host
+#   📡  remote: its name, its forge or no forge, and its host
 #   🐙  on GitHub: the forge of a remote, or the tracker that holds an issue
 #   🦊  on GitLab: the forge of a remote, or the tracker that holds an issue
-#   ⚓  the default branch: the one the remote's HEAD names
+#   ⚓  default branch: the one the remote's HEAD names
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # branches:
 #
-#   🌿  a branch or a worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
-#   🌱  a local branch: this desk has it: under underway, and no checkout does; under branches, and no remote does
-#   🔖  a branch gone: its upstream is gone; kit tidy removes it
-#   ⚓  the default branch: the one the remote's HEAD names
-#   🌳  a worktree: a checkout of the repository, the desk or a linked one
-#   🔘  a commit: its short hash
+#   🌿  branch or worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
+#   🌱  local branch: this desk has it: under underway, and no checkout does; under branches, and no remote does
+#   🔖  branch gone: its upstream is gone; kit tidy removes it
+#   ⚓  default branch: the one the remote's HEAD names
+#   🌳  worktree: a checkout of the repository, the desk or a linked one
+#   🔘  commit: its short hash
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # worktrees:
 #
-#   💻  the desk: the root checkout
-#   🌳  a worktree: a checkout of the repository, the desk or a linked one
-#   🌿  a branch or a worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
-#   ❗  not on any branch: a detached HEAD
-#   🔘  a commit: its short hash
+#   💻  desk: the root checkout
+#   🌳  worktree: a checkout of the repository, the desk or a linked one
+#   🌿  branch or worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
+#   ❗  no branch: a detached HEAD
+#   🔘  commit: its short hash
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # commits:
 #
-#   🔘  a commit: its short hash
-#   🎫  an issue: its number and title
-#   🌿  a branch or a worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
-#   🌳  a worktree: a checkout of the repository, the desk or a linked one
+#   🔘  commit: its short hash
+#   🎫  issue: its number and title
+#   🌿  branch or worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
+#   🌳  worktree: a checkout of the repository, the desk or a linked one
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # tags:
 #
-#   📌  a tag: a name on a commit; under incoming, one the fetch brought
-#   🔘  a commit: its short hash
+#   📌  tag: a name on a commit; under incoming, one the fetch brought
+#   🔘  commit: its short hash
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # kit:end legend

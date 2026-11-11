@@ -76,7 +76,7 @@ func TestAStageThatFitsDrawsNoTriangleAndTabScrollsNothing(t *testing.T) {
 
 func TestTheLegendExplainsAHeadersTriangles(t *testing.T) {
 	m := drive(narrow(t), press('?'))
-	if got := strings.Join(m.legendLines(), "\n"); !strings.Contains(ansi.Strip(got), "more columns: a click scrolls") {
+	if got := strings.Join(m.legendLines(), "\n"); !strings.Contains(ansi.Strip(got), "more columns: click to scroll") {
 		t.Errorf("the legend of a stage cut:\n%s", ansi.Strip(got))
 	}
 }

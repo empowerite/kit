@@ -6,27 +6,27 @@
   ──·───────
   ▾ github 3
 
-      id   assignees         age  branch            labels           ╭─ backlog legend ─────────────────────── ↖ ↗ ↙ ↘ ╮
-      ·────×·────────────────·────·─────────────────×·───────────────│ =  the kit menu                                 │
-    ▸ #45                     2h                    3                │ -  the workspace menu                           │
-    ▸ #46  👤 jeffrey-agui…   2d  🌿 46-a-noun-li…  bug            │ 🔎 the search: / or a click                     │
-    ▸ #7   👥 2              40d                                     │ ➊  the selected tab's number                    │
-                                                                     │ ➁  a tab's number, which selects it             │
-                                                                     │ 🎫 the backlog stage                            │
-                                                                     │ :  the tab's menu                               │
-                                                                     │ 🛫 the underway stage                           │
-                                                                     │ 💻 the desk stage                               │
-                                                                     │ 🌿 the worktrees stage                          │
-                                                                     │ 🔀 the changes stage                            │
-                                                                     │ 🏭 the builds stage                             │
-                                                                     │ ▾  open: a click closes it                      │
-                                                                     │ ▼  the presets' menu                            │
-                                                                     │ ·  sortable: a click sorts                      │
-                                                                     │ ×  a list: a click flattens it, a row per value │
-                                                                     │ ▸  closed: a click opens it                     │
-                                                                     │ 🎫 an issue 🔗                                  │
-                                                                     │ 👤 assignees or author                          │
-                                                                     │ 🌿 a branch or a worktree                       │
-                                                                     │ 👥 assignees, how many                          │
-                                                                     ╰─────────────────────────────────────────────────╯
+      id   assignees         age  branch            labels            title               ╭─ backlog legend ── ↖ ↗ ↙ ↘ ╮
+      ·────×·────────────────·────·─────────────────×·────────────────·───────────────────│ =  kit menu                │
+    ▸ #45                     2h                    3                 🎫 kit flow is the o│ -  workspace menu          │
+    ▸ #46  👤 jeffrey-agui…   2d  🌿 46-a-noun-li…  bug             🎫 A noun lists, a n│ 🔎 search: / or click      │
+    ▸ #7   👥 2              40d                                      🎫 Fix the thing    │ ➊  selected tab            │
+                                                                                          │ ➁  tab: click to select    │
+                                                                                          │ 🎫 backlog stage           │
+                                                                                          │ :  tab menu                │
+                                                                                          │ 🛫 underway stage          │
+                                                                                          │ 💻 desk stage              │
+                                                                                          │ 🌿 worktrees stage         │
+                                                                                          │ 🔀 changes stage           │
+                                                                                          │ 🏭 builds stage            │
+                                                                                          │ ▾  open: click to close    │
+                                                                                          │ ▼  presets menu            │
+                                                                                          │ ·  sortable: click to sort │
+                                                                                          │ ×  list: click to flatten  │
+                                                                                          │ ▸  closed: click to open   │
+                                                                                          │ 🎫 issue 🔗                │
+                                                                                          │ 👤 assignees or author     │
+                                                                                          │ 🌿 branch or worktree      │
+                                                                                          │ 👥 assignee count          │
+                                                                                          ╰────────────────────────────╯
  = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-8 jump : tab menu

@@ -53,11 +53,11 @@
 # The packages stage lists the glyphs it draws in kittui, one per line.
 #
 # kit:generate legend `k=$(command -v kit); jq -nr -L "${k%/bin/kit}/modules/jq" 'import "glyphs" as g; g::legend_for("packages")'`
-#   📚  the workspace: a group, in the workspace menu that drops down from - in kittui's title
+#   📚  workspace: a group, in the workspace menu that drops down from - in kittui's title
 #
 # packages:
 #
-#   🧩  a package: what kit delivers, in reach of the release or here
+#   🧩  package: what kit delivers, in reach of the release or here
 #   🟢  active: a package kit.yml declares, whose files kit placed
 #   ⛔  excluded: a bundle's member removed, which kit update leaves out
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge

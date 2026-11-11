@@ -17,174 +17,174 @@ const (
 // kit:generate glyphs `jq -nr -L projects/tui/internal/flow 'import "legend" as l; l::go' | gofmt | sed 1,2d; echo`
 // The glyphs, as the legend draws them, each beside its meaning.
 const (
-	Workspace = "📚" // the workspace
-	Issue     = "🎫" // an issue
+	Workspace = "📚" // workspace
+	Issue     = "🎫" // issue
 	GitHub    = "🐙" // on GitHub
 	GitLab    = "🦊" // on GitLab
 	InFlight  = "🛫" // underway
-	Desk      = "💻" // the desk
-	Branch    = "🌿" // a branch or a worktree
-	Sprout    = "🌱" // a local branch
-	Worktree  = "🌳" // a worktree
-	Commit    = "🔘" // a commit
-	Default   = "⚓" // the default branch
-	Change    = "🔀" // a pull request
+	Desk      = "💻" // desk
+	Branch    = "🌿" // branch or worktree
+	Sprout    = "🌱" // local branch
+	Worktree  = "🌳" // worktree
+	Commit    = "🔘" // commit
+	Default   = "⚓" // default branch
+	Change    = "🔀" // pull request
 	Owner     = "👤" // assignees or author
-	People    = "👥" // assignees, how many
-	Fork      = "🍴" // a fork's owner
-	Pushed    = "📤" // the last push
-	Path      = "📂" // a desk's path
-	Fetched   = "🛬" // the fetch
-	Remote    = "📡" // a remote
-	Gone      = "🔖" // a branch gone
-	Tag       = "📌" // a tag
-	Behind    = "📥" // behind its upstream
-	Detached  = "❗" // not on any branch
-	Threads   = "💬" // threads unresolved
+	People    = "👥" // assignee count
+	Fork      = "🍴" // fork owner
+	Pushed    = "📤" // last push
+	Path      = "📂" // desk path
+	Fetched   = "🛬" // fetch
+	Remote    = "📡" // remote
+	Gone      = "🔖" // branch gone
+	Tag       = "📌" // tag
+	Behind    = "📥" // behind upstream
+	Detached  = "❗" // no branch
+	Threads   = "💬" // unresolved threads
 	Running   = "🏃" // running
 	Passed    = "✅" // passed
 	Failed    = "❌" // failed
 	Cancelled = "🛑" // cancelled or skipped
-	Build     = "🏭" // a build
-	Release   = "📦" // a release
-	Pre       = "🧪" // a pre-release
-	Draft     = "📝" // a draft release
-	Latest    = "⭐" // the latest release
-	Asset     = "📎" // an asset
-	Package   = "🧩" // a package
+	Build     = "🏭" // build
+	Release   = "📦" // release
+	Pre       = "🧪" // pre-release
+	Draft     = "📝" // draft release
+	Latest    = "⭐" // latest release
+	Asset     = "📎" // asset
+	Package   = "🧩" // package
 	Active    = "🟢" // active
 	Excluded  = "⛔" // excluded
-	Other     = "🔳" // any other state
+	Other     = "🔳" // other state
 )
 
 // title is the title's glyph, which no stage draws.
-var title = entry{Workspace, "the workspace"}
+var title = entry{Workspace, "workspace"}
 
 // legends gives each stage's legend: every glyph the stage draws, its own first. A glyph may be in several.
 var legends = map[string][]entry{
 	"backlog": {
-		{Issue, "an issue"},
+		{Issue, "issue"},
 		{GitHub, "on GitHub"},
 		{GitLab, "on GitLab"},
 		{Owner, "assignees or author"},
-		{People, "assignees, how many"},
-		{Branch, "a branch or a worktree"},
+		{People, "assignee count"},
+		{Branch, "branch or worktree"},
 		{Failed, "failed"},
 	},
 	"underway": {
 		{InFlight, "underway"},
 		{Owner, "assignees or author"},
-		{People, "assignees, how many"},
-		{Change, "a pull request"},
-		{Desk, "the desk"},
-		{Branch, "a branch or a worktree"},
-		{Sprout, "a local branch"},
-		{Fork, "a fork's owner"},
-		{Pushed, "the last push"},
-		{Issue, "an issue"},
+		{People, "assignee count"},
+		{Change, "pull request"},
+		{Desk, "desk"},
+		{Branch, "branch or worktree"},
+		{Sprout, "local branch"},
+		{Fork, "fork owner"},
+		{Pushed, "last push"},
+		{Issue, "issue"},
 		{GitHub, "on GitHub"},
 		{GitLab, "on GitLab"},
 		{Failed, "failed"},
 	},
 	"desk": {
-		{Desk, "the desk"},
-		{Detached, "not on any branch"},
-		{Change, "a pull request"},
-		{Path, "a desk's path"},
+		{Desk, "desk"},
+		{Detached, "no branch"},
+		{Change, "pull request"},
+		{Path, "desk path"},
 	},
 	"worktrees": {
-		{Branch, "a branch or a worktree"},
-		{Detached, "not on any branch"},
-		{Change, "a pull request"},
-		{Gone, "a branch gone"},
+		{Branch, "branch or worktree"},
+		{Detached, "no branch"},
+		{Change, "pull request"},
+		{Gone, "branch gone"},
 	},
 	"changes": {
-		{Change, "a pull request"},
+		{Change, "pull request"},
 		{Owner, "assignees or author"},
-		{Branch, "a branch or a worktree"},
+		{Branch, "branch or worktree"},
 		{Running, "running"},
 		{Passed, "passed"},
 		{Failed, "failed"},
-		{Threads, "threads unresolved"},
+		{Threads, "unresolved threads"},
 		{InFlight, "underway"},
-		{Issue, "an issue"},
+		{Issue, "issue"},
 	},
 	"builds": {
-		{Build, "a build"},
+		{Build, "build"},
 		{Running, "running"},
 		{Passed, "passed"},
 		{Failed, "failed"},
 		{Cancelled, "cancelled or skipped"},
 	},
 	"incoming": {
-		{Fetched, "the fetch"},
-		{Remote, "a remote"},
-		{Commit, "a commit"},
-		{Branch, "a branch or a worktree"},
-		{Gone, "a branch gone"},
-		{Tag, "a tag"},
-		{Behind, "behind its upstream"},
-		{Issue, "an issue"},
-		{Worktree, "a worktree"},
-		{Default, "the default branch"},
+		{Fetched, "fetch"},
+		{Remote, "remote"},
+		{Commit, "commit"},
+		{Branch, "branch or worktree"},
+		{Gone, "branch gone"},
+		{Tag, "tag"},
+		{Behind, "behind upstream"},
+		{Issue, "issue"},
+		{Worktree, "worktree"},
+		{Default, "default branch"},
 		{GitHub, "on GitHub"},
 		{GitLab, "on GitLab"},
 		{Failed, "failed"},
 	},
 	"releases": {
-		{Release, "a release"},
-		{Pre, "a pre-release"},
-		{Draft, "a draft release"},
-		{Latest, "the latest release"},
-		{Asset, "an asset"},
+		{Release, "release"},
+		{Pre, "pre-release"},
+		{Draft, "draft release"},
+		{Latest, "latest release"},
+		{Asset, "asset"},
 		{Failed, "failed"},
 	},
 	"workspace/repos": {
-		{Workspace, "the workspace"},
+		{Workspace, "workspace"},
 		{GitHub, "on GitHub"},
 		{GitLab, "on GitLab"},
-		{Branch, "a branch or a worktree"},
-		{Sprout, "a local branch"},
+		{Branch, "branch or worktree"},
+		{Sprout, "local branch"},
 		{Failed, "failed"},
 	},
 	"workspace/remotes": {
-		{Remote, "a remote"},
+		{Remote, "remote"},
 		{GitHub, "on GitHub"},
 		{GitLab, "on GitLab"},
-		{Default, "the default branch"},
+		{Default, "default branch"},
 		{Failed, "failed"},
 	},
 	"workspace/branches": {
-		{Branch, "a branch or a worktree"},
-		{Sprout, "a local branch"},
-		{Gone, "a branch gone"},
-		{Default, "the default branch"},
-		{Worktree, "a worktree"},
-		{Commit, "a commit"},
+		{Branch, "branch or worktree"},
+		{Sprout, "local branch"},
+		{Gone, "branch gone"},
+		{Default, "default branch"},
+		{Worktree, "worktree"},
+		{Commit, "commit"},
 		{Failed, "failed"},
 	},
 	"workspace/worktrees": {
-		{Desk, "the desk"},
-		{Worktree, "a worktree"},
-		{Branch, "a branch or a worktree"},
-		{Detached, "not on any branch"},
-		{Commit, "a commit"},
+		{Desk, "desk"},
+		{Worktree, "worktree"},
+		{Branch, "branch or worktree"},
+		{Detached, "no branch"},
+		{Commit, "commit"},
 		{Failed, "failed"},
 	},
 	"workspace/commits": {
-		{Commit, "a commit"},
-		{Issue, "an issue"},
-		{Branch, "a branch or a worktree"},
-		{Worktree, "a worktree"},
+		{Commit, "commit"},
+		{Issue, "issue"},
+		{Branch, "branch or worktree"},
+		{Worktree, "worktree"},
 		{Failed, "failed"},
 	},
 	"workspace/tags": {
-		{Tag, "a tag"},
-		{Commit, "a commit"},
+		{Tag, "tag"},
+		{Commit, "commit"},
 		{Failed, "failed"},
 	},
 	"packages/packages": {
-		{Package, "a package"},
+		{Package, "package"},
 		{Active, "active"},
 		{Excluded, "excluded"},
 		{Failed, "failed"},
@@ -218,7 +218,7 @@ var states = []entry{
 	{"💬", "comments:open"},
 	{"👀", "blocked:approval"},
 	{"🏁", "ready"},
-	{Other, "any other state"},
+	{Other, "other state"},
 }
 
 // stageGlyphs gives each stage's glyph, drawn beside its name on the line of stages.

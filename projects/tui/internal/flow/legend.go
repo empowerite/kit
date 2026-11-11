@@ -114,38 +114,38 @@ func (m Model) parts(last int) []part {
 	}
 	one := func(glyph, meaning string, on func(int) bool) part { return part{[]string{glyph}, meaning, "", on} }
 	out := []part{
-		one(shell.App, "the kit menu", menuBar),
-		one(shell.Workspaces, "the workspace menu", menuBar),
-		one("·", "a separator", headings), // the menu bar's, between the kit and the workspace menus, is the bar's own
-		one(grid.Search, "the search: / or a click", menuBar),
-		one(shell.Recall, "the searches typed before", menuBar),
-		one(tabs.Menu, "the tab's menu", func(y int) bool { return tabBar(y) || m.maximized && menuBar(y) }),
-		{selected, "the selected tab's number", "", tabBar},
-		{numbers, "a tab's number, which selects it", "", tabBar},
-		{[]string{tabs.Before, tabs.After}, "more tabs: a click scrolls", "", tabBar},
-		{[]string{grid.Before, grid.After}, "more columns: a click scrolls", "", header},
-		one(tabs.Stale, "stale: a click reads it again", tabBar),
-		one(grid.Unfolded, "open: a click closes it", rows),
-		one(grid.Folded, "closed: a click opens it", rows),
-		one("¬", "held back by the filter", control),
-		one(table.Presets, "the presets' menu", control),
-		one(Sortable, "sortable: a click sorts", rule),
-		one("▲", "ascending: a click turns it", rule),
-		one("▼", "descending: a click stops it", rule),
-		{places, "its place among the sorts", "", rule},
-		one(table.FlattenGlyph, "a list: a click flattens it, a row per value", rule),
-		one(table.GatherGlyph, "a list flattened: a click gathers it", rule),
-		one(grid.Chosen, "all of the group's rows selected", rows),
-		one(grid.Partly, "some of the group's rows selected", rows),
+		one(shell.App, "kit menu", menuBar),
+		one(shell.Workspaces, "workspace menu", menuBar),
+		one("·", "separator", headings), // the menu bar's, between the kit and the workspace menus, is the bar's own
+		one(grid.Search, "search: / or click", menuBar),
+		one(shell.Recall, "past searches", menuBar),
+		one(tabs.Menu, "tab menu", func(y int) bool { return tabBar(y) || m.maximized && menuBar(y) }),
+		{selected, "selected tab", "", tabBar},
+		{numbers, "tab: click to select", "", tabBar},
+		{[]string{tabs.Before, tabs.After}, "more tabs: click to scroll", "", tabBar},
+		{[]string{grid.Before, grid.After}, "more columns: click to scroll", "", header},
+		one(tabs.Stale, "stale: click to reload", tabBar),
+		one(grid.Unfolded, "open: click to close", rows),
+		one(grid.Folded, "closed: click to open", rows),
+		one("¬", "filtered out", control),
+		one(table.Presets, "presets menu", control),
+		one(Sortable, "sortable: click to sort", rule),
+		one("▲", "ascending: click to reverse", rule),
+		one("▼", "descending: click to clear", rule),
+		{places, "sort order", "", rule},
+		one(table.FlattenGlyph, "list: click to flatten", rule),
+		one(table.GatherGlyph, "flattened: click to gather", rule),
+		one(grid.Chosen, "group selected", rows),
+		one(grid.Partly, "group partly selected", rows),
 		one(Unwatched, "watched", status),
 	}
 	for _, g := range []string{GitHub, GitLab} {
-		out = append(out, one(g, "the forge's requests left", status))
+		out = append(out, one(g, "forge requests left", status))
 	}
 	name := m.stages[m.stage].name
 	for _, s := range m.stages {
 		if g := stageGlyphs[s.name]; g != "" {
-			out = append(out, one(g, "the "+label(s.name)+" stage", tabBar))
+			out = append(out, one(g, label(s.name)+" stage", tabBar))
 		}
 	}
 	for _, e := range legends[name] {

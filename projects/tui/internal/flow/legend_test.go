@@ -358,7 +358,7 @@ func TestTheSelectedTabIsDrawnInItsGroupsColor(t *testing.T) {
 
 // The legend's glyph for the workspace is a group's in the workspace menu, 📚, and it says it names the workspace.
 func TestTheTitlesGlyphIsTheWorkspaces(t *testing.T) {
-	if title != (entry{shell.Books, "the workspace"}) {
+	if title != (entry{shell.Books, "workspace"}) {
 		t.Errorf("the title's entry: %+v", title)
 	}
 }
@@ -372,10 +372,9 @@ func TestTheLegendExplainsEveryGlyphOnTheScreenInOrder(t *testing.T) {
 	for _, l := range m.legendLines() {
 		order = append(order, ansi.Strip(l))
 	}
-	want := []string{shell.App + "  the kit menu", shell.Workspaces + "  the workspace menu",
-		grid.Search + " the search: / or a click", tabs.Marker(0, true) + "  the selected tab's number",
-		tabs.Marker(1, false) + "  a tab's number, which selects it", Issue + " the backlog stage",
-		table.Presets + "  the presets' menu", Sortable + "  sortable: a click sorts"}
+	want := []string{shell.App + "  kit menu", shell.Workspaces + "  workspace menu", grid.Search + " search: / or click",
+		tabs.Marker(0, true) + "  selected tab", tabs.Marker(1, false) + "  tab: click to select", Issue + " backlog stage",
+		table.Presets + "  presets menu", Sortable + "  sortable: click to sort"}
 	at := -1
 	for _, w := range want {
 		k := slices.Index(order, w)

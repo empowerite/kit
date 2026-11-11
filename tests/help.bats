@@ -94,7 +94,7 @@ group-has() {
   run "${kit_root}/bin/kit" help flow
   [ "$status" -eq 0 ]
   [[ "$output" == *$'\n  Legend\n'* ]]
-  [[ "$output" == *$'\n    🔀  a pull request'* ]]
+  [[ "$output" == *$'\n    🔀  pull request'* ]]
   [[ "$output" == *$'\n    🏁  ready'* ]]
   [[ "$output" == *"NO_COLOR removes the colors"* ]]
   [[ "$output" != *"kit:generate"* && "$output" != *"kit:end"* ]]
