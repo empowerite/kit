@@ -49,10 +49,13 @@ forge/ado:branch-for-issue() {
     '[.[] | (.sourceRefName | ltrimstr("refs/heads/")) | select(startswith("\($n)-"))] | .[0] // empty'
 }
 
-# The provider implements contract 3, and its forge lacks these features.
-forge/ado:contract() { printf '3\n'; }
+# The provider implements contract 4, and its forge lacks these features.
+forge/ado:contract() { printf '4\n'; }
 
-forge/ado:lacks() { printf '%s\n' quota marks releases linked-branches; }
+forge/ado:lacks() {
+  printf '%s\n' quota marks releases linked-branches milestones iterations reviewers merged artifacts environments \
+    deployments collaborators teams bots attestations code-scanning dependabot secret-scanning rulesets bypasses
+}
 
 forge/ado:issue-add-sub() {
   forge/ado:az boards work-item relation add --id "$2" --relation-type parent --target-id "$1" --output none \

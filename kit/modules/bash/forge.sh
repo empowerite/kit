@@ -45,6 +45,8 @@
 #
 #   - A call returns 0 and prints its answer on stdout.
 #   - A call marked "or nothing" returns 0 and prints nothing only when the forge answered that there is none.
+#   - A call of a feature the forge has may still return 3 and print nothing when the forge says this repository has it
+#     off: a scanner disabled, a tier without it. The seam passes the 3 on, and the caller says what it means there.
 #   - A call of a feature the forge lacks returns 3 and prints nothing, on stdout or stderr. The seam answers it so,
 #     from the provider's declaration below, without running the provider: the caller says what it means there.
 #   - Otherwise the call returns 1, prints nothing on stdout, and says one ❌ line on stderr, the remedy and then what
@@ -102,6 +104,35 @@
 #                                 newest at most: pushes to the default branch or a tag, scheduled and manual runs;
 #                                 each is {id, number, attempt, workflow, branch, tag, event, sha, title, state, age,
 #                                 took, url, jobs}, what the builds stage draws; each job is {name, state, took, step}
+#   milestones                    one JSON object per milestone: {number, title, state, due, open, closed, url}; state
+#                                 is open or closed, due seconds since the epoch or null (since 4)
+#   iterations                    one JSON object per iteration, by start: {id, title, start, end, url}, start and end
+#                                 seconds since the epoch (since 4)
+#   merged-prs                    one JSON object per merged change, the 50 newest: {number, title, author, branch,
+#                                 merged, by, url} (since 4)
+#   artifacts                     one JSON object per artifact of a run, the newest 100: {id, name, digest, size, run,
+#                                 age, expires, url} (since 4)
+#   environments                  one JSON object per deployment environment: {name, protection, approvers, branches,
+#                                 url}, protection a list of rule kinds (since 4)
+#   deployments                   one JSON object per deployment, the newest 50: {id, environment, ref, sha, state,
+#                                 actor, age, url} (since 4)
+#   collaborators                 one JSON object per person with access: {login, name, role, kind}, kind user or bot
+#                                 (since 4)
+#   teams                         one JSON object per team: {team, name, role, members, url}, members their logins; 20
+#                                 teams at most, 100 members each (since 4)
+#   bots                          one JSON object per bot: {login, acted, last, url}, acted a list of commit, change,
+#                                 or review (since 4)
+#   attestations                  one JSON object per attestation: {subject, digest, kind, signer, age, url} (since 4)
+#   code-scanning-alerts, dependabot-alerts, secret-scanning-alerts
+#                                 one JSON object per alert, open or dismissed: {number, rule, severity, state, path,
+#                                 age, url} (since 4)
+#   rulesets                      one JSON object per control on the default branch: {id, control, target, enforcement,
+#                                 rules, source, url}, source ruleset or protection (since 4)
+#   bypasses                      one JSON object per waiver: {waives, actor, kind, reason, by, until, url}, kind
+#                                 bypass or dismissal (since 4)
+#
+# A call that lists is capped when the call says so above: it prints {"limited": N} as its last line when it stopped
+# at N items, and the N before it are the newest.
 #
 # The contract has a version, forge_contract. A provider declares the version it implements and the features its forge
 # lacks, before any call is made:
@@ -127,6 +158,23 @@
 #   releases         1      releases
 #   runs             1      runs
 #   labels           3      pr-label-add, pr-label-remove
+#   milestones       4      milestones
+#   iterations       4      iterations
+#   reviewers        4      open-prs: each change's reviewers: [{login, state, at}], state requested, approved,
+#                           changes, or commented
+#   merged           4      merged-prs
+#   artifacts        4      artifacts
+#   environments     4      environments
+#   deployments      4      deployments
+#   collaborators    4      collaborators
+#   teams            4      teams
+#   bots             4      bots
+#   attestations     4      attestations
+#   code-scanning    4      code-scanning-alerts
+#   dependabot       4      dependabot-alerts
+#   secret-scanning  4      secret-scanning-alerts
+#   rulesets         4      rulesets
+#   bypasses         4      bypasses
 #
 # A repository chooses a stand-in for a feature in kit.yml, under the forge it is for, and the seam then answers the
 # feature's calls itself, from the forge's other calls, whether the forge has the feature or not:
@@ -173,15 +221,21 @@ declare -g forge_list_limit=10000
 # forge_contract is the version of the contract the file header states. forge_features lists each feature with the
 # version that added it, in the header's order, and forge_feature_of names the feature each gated call belongs to.
 # forge_lacking holds, once read, the features the primary's forge lacks, one per line; forge_lacking_read says it was.
-declare -gr forge_contract=3
+declare -gr forge_contract=4
 declare -gra forge_features=(issues:1 sub-issues:1 linked-branches:1 drafts:1 closing-issues:1 review-threads:1
-  checks:1 quota:1 marks:1 releases:1 runs:1 labels:3)
+  checks:1 quota:1 marks:1 releases:1 runs:1 labels:3
+  milestones:4 iterations:4 reviewers:4 merged:4 artifacts:4 environments:4 deployments:4 collaborators:4 teams:4
+  bots:4 attestations:4 code-scanning:4 dependabot:4 secret-scanning:4 rulesets:4 bypasses:4)
 declare -grA forge_feature_of=(
   [issue-create]=issues [issue-title]=issues [issue-state]=issues [issue-assignees]=issues [issue-assign]=issues
   [issue-unassign]=issues [issue-close]=issues [issue-comment]=issues [open-issues]=issues
   [issue-add-sub]=sub-issues [link-branch]=linked-branches [pr-closing-issues]=closing-issues
   [quota]=quota [marks]=marks [releases]=releases [runs]=runs [pr-ready]=drafts
   [pr-label-add]=labels [pr-label-remove]=labels
+  [milestones]=milestones [iterations]=iterations [merged-prs]=merged [artifacts]=artifacts
+  [environments]=environments [deployments]=deployments [collaborators]=collaborators [teams]=teams [bots]=bots
+  [attestations]=attestations [code-scanning-alerts]=code-scanning [dependabot-alerts]=dependabot
+  [secret-scanning-alerts]=secret-scanning [rulesets]=rulesets [bypasses]=bypasses
 )
 # forge_call_since names the version that added each call added after the first; forge_provider_contract holds, once
 # forge:lacks has read it, the version the provider implements. forge_stand_ins holds the stand-ins, as one JSON object,
@@ -709,6 +763,21 @@ forge:open-prs() {
 forge:open-issues()         { forge:snapshot open-issues; }
 forge:releases()            { forge:call releases "$@"; }
 forge:runs()                { use git; forge:call runs "$@"; }
+forge:milestones() { forge:call milestones "$@"; }
+forge:iterations() { forge:call iterations "$@"; }
+forge:merged-prs() { forge:call merged-prs "$@"; }
+forge:artifacts() { forge:call artifacts "$@"; }
+forge:environments() { forge:call environments "$@"; }
+forge:deployments() { forge:call deployments "$@"; }
+forge:collaborators() { forge:call collaborators "$@"; }
+forge:teams() { forge:call teams "$@"; }
+forge:bots() { forge:call bots "$@"; }
+forge:attestations() { forge:call attestations "$@"; }
+forge:code-scanning-alerts() { forge:call code-scanning-alerts "$@"; }
+forge:dependabot-alerts() { forge:call dependabot-alerts "$@"; }
+forge:secret-scanning-alerts() { forge:call secret-scanning-alerts "$@"; }
+forge:rulesets() { forge:call rulesets "$@"; }
+forge:bypasses() { forge:call bypasses "$@"; }
 
 # forge:changing <call> <argument>… runs a call that changes the forge, as forge:call does, then drops the
 # snapshots, whether it succeeded or not, so the next read sees the change.

@@ -97,6 +97,10 @@ JSON
   az-route 'repos pr update --id 3 *' '!0'
 }
 
+# added is what contract 4 adds, as JSON strings: no forge here has any of it yet, so a provider lacks all of it.
+added='"milestones","iterations","reviewers","merged","artifacts","environments","deployments","collaborators",'
+added+='"teams","bots","attestations","code-scanning","dependabot","secret-scanning","rulesets","bypasses"'
+
 @test "dev.azure.com, its ssh host, and a host under visualstudio.com are Azure DevOps, and each names the repository" {
   run call provider
   [ "$output" = ado ]
@@ -301,7 +305,7 @@ JSON
   run "${kit_root}/bin/kit" flow --capabilities
   [ "$status" -eq 0 ]
   [ "$(jq -c '{forge, provider, none: [.features | to_entries[] | select(.value == "none") | .key]}' <<<"$output")" \
-    = '{"forge":"ado","provider":3,"none":["linked-branches","quota","marks","releases"]}' ]
+    = "{\"forge\":\"ado\",\"provider\":4,\"none\":[\"linked-branches\",\"quota\",\"marks\",\"releases\",${added}]}" ]
   for c in quota marks releases 'link-branch 7 main'
   do
     read -r -a words <<<"${c}" && run --separate-stderr call "${words[@]}"

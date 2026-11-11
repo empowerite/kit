@@ -409,8 +409,14 @@ forge/github:runs() {
   printf '%s\n' "${runs}"
 }
 
-# The provider implements contract 3 and its forge lacks none of its features.
-forge/github:contract() { printf '3\n'; }
+# The provider implements contract 4. The calls of the features contract 4 adds are not written yet: each task that
+# writes one drops its feature from lacks.
+forge/github:contract() { printf '4\n'; }
+
+forge/github:lacks() {
+  printf '%s\n' milestones iterations reviewers merged artifacts environments deployments collaborators teams bots \
+    attestations code-scanning dependabot secret-scanning rulesets bypasses
+}
 
 # The seam's calls end here; what follows is this provider's own.
 
