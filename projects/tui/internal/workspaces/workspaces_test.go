@@ -6,6 +6,7 @@ package workspaces
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -516,5 +517,46 @@ func TestAColumnsMenuTakesTheKeysWhileOpen(t *testing.T) {
 	}
 	if m, _ = drive(m, testkit.Press("esc")); m.sheet.Layered() {
 		t.Error("esc leaves the column's menu open")
+	}
+}
+
+// The mouse wheel scrolls the rows, the cursor left where it is; a turn on the menu bar, or while a menu or a dialog is
+// open, scrolls nothing.
+func TestTheWheelScrollsTheRowsAndLeavesTheCursor(t *testing.T) {
+	var groups []string
+	for i := range 40 {
+		groups = append(groups, fmt.Sprintf(`{"name":"g%02d","members":1,"repos":["github.com/o/r%02d"],"favorite":false}`, i, i))
+	}
+	m, _ := opened(t, `{"file":"/c/kit/workspaces.yml","roots":["/code"],"favorites":[],"workspaces":[`+
+		strings.Join(groups, ",")+`]}`)
+	m, _ = drive(m, tea.WindowSizeMsg{Width: 120, Height: 14})
+	_, y := lineAt(t, m, "g02")
+	turn := func(y int, down bool) tea.MouseWheelMsg {
+		if down {
+			return tea.MouseWheelMsg{X: 5, Y: y, Button: tea.MouseWheelDown}
+		}
+		return tea.MouseWheelMsg{X: 5, Y: y, Button: tea.MouseWheelUp}
+	}
+	cursor := m.sheet.Table().Cursor
+	n, _ := drive(m, turn(y, true))
+	if n.sheet.Table().Offset == 0 || n.sheet.Table().Cursor != cursor {
+		t.Fatalf("a turn down: offset %d, cursor %d, want %d\n%s", n.sheet.Table().Offset, n.sheet.Table().Cursor, cursor,
+			view(n))
+	}
+	if n, _ = drive(n, turn(y, false)); n.sheet.Table().Offset != 0 {
+		t.Errorf("a turn back up: offset %d", n.sheet.Table().Offset)
+	}
+	for name, before := range map[string][]tea.Msg{
+		"on the menu bar":   nil,
+		"the app menu open": {testkit.Typed("=")[0]},
+		"a dialog open":     {testkit.Press("n")},
+	} {
+		at := y
+		if before == nil {
+			at = 0
+		}
+		if n, _ := drive(m, append(before, turn(at, true))...); n.sheet.Table().Offset != 0 {
+			t.Errorf("%s: a turn scrolled to %d", name, n.sheet.Table().Offset)
+		}
 	}
 }

@@ -13,7 +13,8 @@
 // menu closed: n, r, a, o, c, x, f, d, and enter, which switches to the group under the cursor. = or a click on the =
 // drops the app's menu down, and - or a click on the workspace menu after the screen's name drops it down, as on every
 // screen; / or a click on the search at the right gives the search the keyboard, which narrows the rows to what is
-// typed. Ctrl-c quits with 130, and ctrl-q with 0.
+// typed. The mouse wheel scrolls the rows, the cursor left where it is, but not under an open menu or dialog. Ctrl-c
+// quits with 130, and ctrl-q with 0.
 package workspaces
 
 import (
@@ -197,6 +198,11 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.key(msg)
 	case tea.MouseClickMsg:
 		return m.click(msg)
+	case tea.MouseWheelMsg:
+		// the wheel scrolls the rows, as on every table, but not under an open menu or dialog
+		if !m.appMenu.Open && !m.books.Open && !m.prompt.open {
+			m.sheet.Wheel(msg)
+		}
 	}
 	return m, nil
 }
