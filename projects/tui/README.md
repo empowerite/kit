@@ -34,7 +34,7 @@ commit verb's page, and `kit tui commit` opens its form.
 
 ## The apps
 
-Flow and the workspace's picture are two of eight apps, each this screen over its own tabs, one stage of kit for
+Flow and the workspace's picture are two of nine apps, each this screen over its own tabs, one stage of kit for
 each, drawn from the catalog alone. `kit <verb>` at a terminal opens the app on its first tab, and `kit <verb> <tab>`
 opens it on that tab, maximized; a tab of kit flow's, as `kit issues backlog`, opens the same way, and the app that
 holds it opens. Each tab reads one kit command with `--json`, the entry of that stage in `internal/flow/fields.json`:
@@ -51,12 +51,13 @@ holds it opens. Each tab reads one kit command with `--json`, the entry of that 
 | Platform | `kit platform` | services, toolchains, tools, and settings, `kit platform <tab>` |
 | Packages | `kit packages` | packages, `kit packages packages` |
 
-Every tab has a source, so none is drawn empty. A tab is stale, its dot lit, when its verb's `--marks` moves
-for it, and Watch reads it again then. A tab whose mark is null, as People's, is never
-stale, so its Watch is dim and it is read again on Refresh only. A tab of a stage that reads the forge reads the rate
-limits again as it loads. A tab kit read only part of, as a capped list, counts what it drew with a +, `50+`; a
-feature the forge has off here, as secret scanning, says so, dim, under the rows, and is no failure. A link to a row
-of a tab the app does not have opens the app built around that tab's entity.
+Every tab has a source, so none is drawn empty. A tab is stale, its dot lit, when its verb's `--marks` moves for it, and
+Watch reads it again then. A tab kit marks null, as kit flow's now are, has its Watch dim, and one the catalog says is
+not `marked`, as People's three, Trust's controls and waivers, and Issues' iterations, offers no Watch at all; each is
+read again on Refresh only. A calendar day, as a due, start, or end, draws as its UTC day. A tab of a stage that reads
+the forge reads the rate limits again as it loads. A tab kit read only part of, as a capped list, counts what it drew
+with a +, `50+`; a feature the forge has off here, as secret scanning, says so, dim, under the rows, and is no failure.
+A link to a row of a tab the app does not have opens the app built around that tab's entity.
 
 Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb>`, the picture reads
 `kit flow <stage> --json`, and the workspace's reads `kit workspace <stage> --json`. `kittui` never parses kit's text.
