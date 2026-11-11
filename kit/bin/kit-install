@@ -38,7 +38,7 @@ resolve:require "${kit_root}" "$@"
 declared=$(settings:version) || exit 1
 if [[ -n "${declared}" ]]
 then
-  error "run: kit update (this repository already declares kit ${declared})"
+  error "run: $(release:update-command "${declared}") (this repository already declares kit ${declared})"
   exit 1
 fi
 declare -a defaults packages

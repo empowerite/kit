@@ -43,13 +43,15 @@ claude-prefixes() {
 @test "agents/cursor places one rule mirror per kind, attached by the rule's paths, whose body points at the rule" {
   run kit install agents/cursor
   [ "$status" -eq 0 ]
-  local kind
+  local kind globs
   for kind in $(kinds)
   do
     [ -f ".cursor/rules/kit-${kind}.mdc" ]
     [ "$(head -n 1 ".cursor/rules/kit-${kind}.mdc")" = "---" ]
     grep --quiet "^description: ." ".cursor/rules/kit-${kind}.mdc"
-    grep --quiet --fixed-strings "globs: $(rule-paths "${kind}")" ".cursor/rules/kit-${kind}.mdc"
+    # a kind with no paths, matched by its first line alone, has a globs: line with nothing after it
+    globs="globs: $(rule-paths "${kind}")"
+    grep --quiet --line-regexp --fixed-strings "${globs% }" ".cursor/rules/kit-${kind}.mdc"
     grep --quiet --line-regexp "alwaysApply: false" ".cursor/rules/kit-${kind}.mdc"
     grep --quiet --fixed-strings "@.kit/rules/${kind}.md" ".cursor/rules/kit-${kind}.mdc"
     grep --quiet --fixed-strings "  .cursor/rules/kit-${kind}.mdc" .kit/manifest

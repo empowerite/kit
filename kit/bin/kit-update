@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# kit-update - moves the repository and the home directory to the pinned release (kit verb: installation)
+# kit-update - moves the repository and the home directory to the release that runs it (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
 # kit update takes no arguments. It moves the repository and the home directory from the release kit.yml declares,
-# the previous release, to the pinned release. The active packages are resolved again from the pinned release: a
-# package an active one now depends on or includes comes in, and so does a new default package. A package kit.yml
-# declares as excluded stays out, unless a package depends on it. For each delivered file:
+# the previous release, to the release that runs it, and writes that release's version into kit.yml. bin/kit, the
+# loader, runs the release kit.yml declares, so the release to move to is named with the kit option: kit
+# --version=0.2.0 update. A plain kit update runs the declared release, and brings every delivered file back to it.
+# The active packages are resolved again from the release that runs: a package an active one now depends on or
+# includes comes in, and so does a new default package. A package kit.yml declares as excluded stays out, unless a
+# package depends on it. For each delivered file:
 #
 #   - a file new in this release is written when nothing, or the same content, is there, and refused otherwise
 #   - a merged JSON file is merged by key
@@ -19,8 +22,8 @@
 #
 #   1. the directory KIT_BASE names
 #   2. this release, when the previous release is the same version
-#   3. the previous release, from the kit's cache, from mise, or downloaded from its public tarball; never for an
-#      unreleased previous version
+#   3. the previous release, from the kit's cache, or downloaded from its public tarball; never for an unreleased
+#      previous version
 #
 # kit update checks, before it writes anything, that every merge has its base and that every region it regenerates
 # is marked rightly: one directive with one end line after it, or neither. When a base is missing, or a region's
@@ -149,13 +152,14 @@ do
 done
 if (( skipped > 0 ))
 then
-  error "${skipped} path(s) stay at ${previous}, and so does the manifest; set KIT_BASE, then run: kit update"
+  error "${skipped} path(s) stay at ${previous}, and so does the manifest; set KIT_BASE, then run:" \
+    "$(release:update-command "${previous}")"
   exit 1
 fi
 if (( refused > 0 ))
 then
   error "${refused} region(s) cannot be written, each named above; nothing is written, and the manifest stays at" \
-    "${previous}; mend the markers, then run: kit update"
+    "${previous}; mend the markers, then run: $(release:update-command "${previous}")"
   exit 1
 fi
 

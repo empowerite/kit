@@ -12,8 +12,9 @@
 #                             branch included. Any other tag is refused, with the reason.
 #   pack <tag> [<directory>]  writes kit-<version>.tar.gz and its .sha256 to <directory> (default: the current
 #                             directory). The tarball holds one directory, kit-<version>/, with bin/,
-#                             modules/, packages/, a version file, and libexec/, which holds kittui, the binary kit
-#                             tui runs, built from projects/tui/ with go for linux and darwin on amd64 and arm64.
+#                             modules/, packages/, a version file, and libexec/, which holds kit-call, the call the
+#                             loader runs, and kittui, the binary kit tui runs, built from projects/tui/ with go for
+#                             linux and darwin on amd64 and arm64.
 #   publish <tag>             packs, then creates a GitHub release with both files. A tag with a suffix is marked
 #                             pre-release. Only a runner publishes a release, from the release workflow that a
 #                             pushed tag starts. A desk may publish a pre-release.
@@ -103,7 +104,8 @@ case "${verb}" in
     trap "rm -rf '${staging}'" EXIT
     mkdir -p "${into}" "${staging}/kit-${version}"
     guard:require tool:go
-    cp -R "${kit_root}/bin" "${kit_root}/modules" "${kit_root}/packages" "${staging}/kit-${version}/"
+    cp -R "${kit_root}/bin" "${kit_root}/libexec" "${kit_root}/modules" "${kit_root}/packages" \
+      "${staging}/kit-${version}/"
     if ! build-kittui "${version}" "${staging}/kit-${version}/libexec"
     then
       error "kittui could not be built for kit ${version}; see above"

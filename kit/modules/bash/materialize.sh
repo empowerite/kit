@@ -342,7 +342,7 @@ materialize:hydrate() {
   if [[ "${declared}" != "$(release:version)" ]]
   then
     warn "kit.yml declares kit ${declared}, and this is kit $(release:version); what is placed is this" \
-      "kit's; run: kit update"
+      "kit's; run: $(release:update-command)"
   fi
   list:read packages settings:packages || return 1
   render:all "${kit_root}" "${packages[@]}" || return 1

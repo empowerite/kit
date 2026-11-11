@@ -13,5 +13,6 @@ kinds:
   - json
   - just
   - markdown
+  - sh
   - workflows
   - yaml

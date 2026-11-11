@@ -131,7 +131,7 @@ platform() {
 
 @test "a copy of the kit with no projects/tui/ and no binary of its own runs the kittui on PATH" {
   mkdir -p "${BATS_TEST_TMPDIR}/copy"
-  cp -R "${kit_root}/bin" "${kit_root}/modules" "${BATS_TEST_TMPDIR}/copy/"
+  cp -R "${kit_root}/bin" "${kit_root}/libexec" "${kit_root}/modules" "${BATS_TEST_TMPDIR}/copy/"
   run terminal "'${BATS_TEST_TMPDIR}/copy/bin/kit' tui -- version"
   [ "$status" -eq 0 ]
   [ "$output" = "kittui -- version" ]
@@ -151,7 +151,7 @@ platform() {
   [ "${lines[1]}" = "$(cd "${kit_root}" && pwd -P)/bin/kit" ]
   # a copy of the kit elsewhere names its own bin/kit
   mkdir -p "${BATS_TEST_TMPDIR}/copy"
-  cp -R "${kit_root}/bin" "${kit_root}/modules" "${BATS_TEST_TMPDIR}/copy/"
+  cp -R "${kit_root}/bin" "${kit_root}/libexec" "${kit_root}/modules" "${BATS_TEST_TMPDIR}/copy/"
   run terminal "env PATH='${BATS_TEST_TMPDIR}/other:${PATH}' '${BATS_TEST_TMPDIR}/copy/bin/kit' tui -- version"
   [ "$status" -eq 0 ]
   [ "${lines[1]}" = "$(cd "${BATS_TEST_TMPDIR}/copy" && pwd -P)/bin/kit" ]

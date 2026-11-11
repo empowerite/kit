@@ -835,8 +835,8 @@ tree-digest() {
   [ "$(declared version)" = "9.9.9" ]
   later-release "${repo}.newer" 9.9.10
   printf '# edited\n' >> .github/workflows/kit-ci.yml
-  # neither the cache, nor mise, nor the release can produce 9.9.9
-  run env PATH="$(shims mise curl)" "${repo}.newer/bin/kit" update
+  # neither the cache nor the release can produce 9.9.9
+  run env PATH="$(shims mise curl)" "${repo}.newer/bin/kit" --version="${repo}.newer" update
   [ "$status" -eq 1 ]
   [[ "$output" == *"could not be fetched"* ]]
   [[ "$output" == *".github/workflows/kit-ci.yml cannot be updated without the base release 9.9.9"* ]]
@@ -849,7 +849,7 @@ tree-digest() {
   later-release "${repo}.later"
   "${repo}.later/bin/kit" install
   later-release "${repo}.newer" 9.9.10
-  run env PATH="$(shims mise curl)" "${repo}.newer/bin/kit" update
+  run env PATH="$(shims mise curl)" "${repo}.newer/bin/kit" --version="${repo}.newer" update
   [ "$status" -eq 0 ]
   grep --quiet 'Added in 9.9.10' .kit/rules/json.md
   [ "$(declared version)" = "9.9.10" ]

@@ -86,14 +86,21 @@ judge() {
   [[ "$output" == *"kit/bin/extras/kit-more: kit/bin/ has no subfolders"* ]]
 }
 
-@test "a folder in kit/ other than bin, modules, or packages is refused once" {
+@test "kit/libexec/, which holds what the loader runs, is a folder of the release, as bin, modules, and packages are" {
+  fixture
+  entry kit/libexec/kit-call
+  judge
+  [ "$status" -eq 0 ]
+}
+
+@test "a folder in kit/ other than bin, libexec, modules, or packages is refused once" {
   fixture
   entry kit/lib/a.sh
   entry kit/lib/b.sh
   entry kit/lib/deep/c.sh
   judge
   [ "$status" -eq 1 ]
-  [[ "$output" == *"kit/lib: kit/ holds only bin/, modules/, and packages/"* ]]
+  [[ "$output" == *"kit/lib: kit/ holds only bin/, libexec/, modules/, and packages/"* ]]
   [ "$(grep --count 'kit/lib:' <<<"$output")" -eq 1 ]
 }
 
@@ -102,7 +109,7 @@ judge() {
   entry kit/stray.sh
   judge
   [ "$status" -eq 1 ]
-  [[ "$output" == *"kit/stray.sh: kit/ holds only bin/, modules/, and packages/"* ]]
+  [[ "$output" == *"kit/stray.sh: kit/ holds only bin/, libexec/, modules/, and packages/"* ]]
 }
 
 @test "a missing README.md is refused" {

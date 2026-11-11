@@ -38,7 +38,7 @@ render:all "${kit_root}" "${packages[@]}"
 findings=0
 if [[ "${version}" != "$(release:version)" ]]
 then
-  error "kit.yml declares kit ${version}, and the pinned release is $(release:version); run: kit update"
+  error "kit.yml declares kit ${version}, and this is kit $(release:version); run: $(release:update-command)"
   findings=$(( findings + 1 ))
 fi
 for base in $(release:bases)

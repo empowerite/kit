@@ -12,7 +12,7 @@ setup() {
   # but says nothing of --<hole>; broken has a usage line that does not parse
   root="${BATS_TEST_TMPDIR}/kit"
   mkdir -p "${root}"
-  cp -R "${kit_root}/bin" "${kit_root}/modules" "${root}/"
+  cp -R "${kit_root}/bin" "${kit_root}/libexec" "${kit_root}/modules" "${root}/"
   printf '%s\n' '#!/usr/bin/env bash' '# kit-plain - a verb written for the tests (kit verb)' '#' \
     '# kit plain <a>... [--<hole>=<value>]' '#' '# kit plain --b <v>' '#' '# Does it.' '#' \
     '#   <a>…      first line' '#       second line' '#   --b=<v>   bee' > "${root}/bin/kit-plain"

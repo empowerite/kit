@@ -35,6 +35,22 @@ release:version() {
   cat "${kit_root}/version" 2>/dev/null || release:unreleased
 }
 
+# release:update-command [<declared>] prints the command that moves the repository to this release, for a remedy to
+# name: kit update when kit.yml declares this release already, and otherwise kit --version=<release> update. bin/kit,
+# the loader, runs the release kit.yml declares, so a plain kit update would move nothing. The release is named by
+# its version, or by its directory when it is unreleased, so the loader runs this very copy.
+release:update-command() {
+  local version
+  version=$(release:version)
+  if [[ -n "${1:-}" && "$1" == "${version}" ]]
+  then
+    printf 'kit update\n'
+    return 0
+  fi
+  [[ "${version}" != unreleased ]] || version=${kit_root}
+  printf 'kit --version=%q update\n' "${version}"
+}
+
 # release:bases prints the bases a package can deliver to. Each base is a subdirectory name under files/,
 # templates/, and regions/.
 release:bases() { printf 'repo\nhome\n'; }
@@ -72,14 +88,14 @@ release:target() {
 
 # release:fetch <version> prints the root of that release, fetching it if needed. It tries, in order:
 #
-#   1. the kit's cache
-#   2. a copy installed by mise, when mise is present
-#   3. the release's public tarball, downloaded with curl beside the .sha256 the release publishes, and unpacked into
+#   1. the kit's cache, where bin/kit, the loader, keeps every release it runs
+#   2. the release's public tarball, downloaded with curl beside the .sha256 the release publishes, and unpacked into
 #      the cache only when its bytes have that digest; a release that publishes no digest is refused
 #
+# No toolchain is asked: a toolchain installs the loader, and the loader keeps the releases.
 # The version comes from a manifest, so it must have a version's shape before it is used in a path.
 release:fetch() {
-  local version=$1 root cache fresh tarball published have
+  local version=$1 cache fresh tarball published have
   if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]
   then
     error "'${version}' is not a kit version"
@@ -90,16 +106,6 @@ release:fetch() {
   then
     printf '%s\n' "${cache}"
     return 0
-  fi
-  if command -v mise >/dev/null 2>&1
-  then
-    # A version mise has not installed has no root there, and is fetched below.
-    root=$(mise where "github:empowerite/kit@${version}" 2>/dev/null || true)
-    if [[ -x "${root}/bin/kit" ]]
-    then
-      printf '%s\n' "${root}"
-      return 0
-    fi
   fi
   step "Fetching kit ${version} from its release"
   file:scratch fresh || return 1

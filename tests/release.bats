@@ -62,7 +62,8 @@ setup() {
   [ -x "unpacked/kit-${version}/bin/kit" ]
   [ -x "unpacked/kit-${version}/bin/kit-install" ]
   [ -f "unpacked/kit-${version}/packages/agents/claude/package.yml" ]
-  [ "$(ls "unpacked/kit-${version}/libexec")" = $'kittui-darwin-amd64\nkittui-darwin-arm64\nkittui-linux-amd64\nkittui-linux-arm64' ]
+  [ "$(ls "unpacked/kit-${version}/libexec")" = \
+    $'kit-call\nkittui-darwin-amd64\nkittui-darwin-arm64\nkittui-linux-amd64\nkittui-linux-arm64' ]
   [ "$("unpacked/kit-${version}/libexec/kittui-linux-arm64" x)" = "kittui linux-arm64 x" ]
   grep -q '^linux amd64 0 build -trimpath -ldflags -s -w -X main.version=9.9.9 -o .*/libexec/kittui-linux-amd64 ./cmd/kittui$' "${fakes}/go.calls"
   mkdir fresh && git -C fresh init --quiet --initial-branch=main

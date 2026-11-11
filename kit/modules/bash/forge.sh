@@ -447,7 +447,8 @@ forge:lacks() {
     fi
     if [[ ! "${version}" =~ ^[1-9][0-9]*$ ]] || (( version > forge_contract ))
     then
-      error "the ${provider} forge implements contract '${version}', and this kit knows 1 to ${forge_contract}; run: kit update"
+      error "the ${provider} forge implements contract '${version}', and this kit knows 1 to ${forge_contract}; move to" \
+        "a later kit: kit --version=<version> update"
       return 1
     fi
     if declare -F "forge/${provider}:lacks" >/dev/null

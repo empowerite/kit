@@ -28,6 +28,22 @@ setup() {
   [ "$output" = 'any' ]
 }
 
+@test "a POSIX shell script is of the sh kind and not bash, whichever way its shebang names sh" {
+  mkdir bin
+  printf '#!/bin/sh\necho\n' > bin/loader
+  printf '#!/usr/bin/env sh\necho\n' > bin/other
+  printf '#!/bin/bash\necho\n' > bin/plain
+  printf '#!/bin/zsh\necho\n' > bin/z
+  run "${kit_checkout}/bin/kit" kinds bin/loader
+  [ "$output" = $'any\nsh\ntext' ]
+  run "${kit_checkout}/bin/kit" kinds bin/other
+  [ "$output" = $'any\nsh\ntext' ]
+  run "${kit_checkout}/bin/kit" kinds bin/plain
+  [ "$output" = $'any\nbash\ntext' ]
+  run "${kit_checkout}/bin/kit" kinds bin/z
+  [ "$output" = 'any' ]
+}
+
 @test "several paths print a line each, --json an object each, and a relative path starts where the command was typed" {
   mkdir -p .github/workflows docs
   run "${kit_checkout}/bin/kit" kinds justfile .github/workflows/ci.yml image.png

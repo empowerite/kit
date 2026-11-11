@@ -106,6 +106,7 @@ package or module directory of the repository's own. `kit help new` lists them.
 | --- | --- |
 | Markdown | [rules/markdown.md](rules/markdown.md) |
 | Bash | [rules/bash.md](rules/bash.md) |
+| POSIX shell | [rules/sh.md](rules/sh.md) |
 | Just | [rules/just.md](rules/just.md) |
 | Workflows | [rules/workflows.md](rules/workflows.md) |
 | JSON | [rules/json.md](rules/json.md) |

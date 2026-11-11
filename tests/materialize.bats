@@ -213,7 +213,7 @@ setup() {
   run "${repo}.later/bin/kit" hydrate
   [ "$status" -eq 0 ]
   [[ "$output" == *"declares kit unreleased, and this is kit 9.9.9"* ]]
-  [[ "$output" == *"run: kit update"* ]]
+  [[ "$output" == *"run: kit --version=9.9.9 update"* ]]
   [[ "$output" == *"kit 9.9.9 hydrated"* ]]
 }
 
@@ -227,16 +227,18 @@ setup() {
   [ ! -w .kit/rules/bash.md ]
 }
 
-@test "a worktree's own kit is trusted only where the repository is the kit: a release declared, a kit/bin/kit of its own is not run" {
+@test "a worktree's own kit is run only where the repository is the kit: a worktree that declares a release is hydrated by that release" {
   "${kit_checkout}/bin/kit" install
   git add --all && git commit --quiet --message init
   git worktree add --quiet wt -b wt
   sed -i.bak 's/^version: unreleased$/version: 9.9.9/' wt/kit.yml && rm wt/kit.yml.bak
   mkdir -p wt/kit/bin && printf '#!/usr/bin/env bash\nexit 7\n' > wt/kit/bin/kit && chmod +x wt/kit/bin/kit
+  later-release "${XDG_CACHE_HOME}/kit/kit-9.9.9"
   run bash -c 'source "$0/modules/bash/1st.sh" && use issue && issue:hydrate "$1"' "${kit_checkout}" wt
   [ "$status" -eq 0 ]
   [ -f wt/.kit/1st.md ]
   [ ! -L wt/.kit/1st.md ]
+  grep --quiet '^## Added in 9.9.9$' wt/.kit/rules/json.md
 }
 
 @test "kit hydrate --quick says nothing and starts nothing when everything is in place, and does the whole job otherwise" {

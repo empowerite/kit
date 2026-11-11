@@ -69,6 +69,8 @@ helper:isolate-in() {
   unset GITHUB_EVENT_PATH GITHUB_HEAD_REF CI_MERGE_REQUEST_IID CI_MERGE_REQUEST_SOURCE_BRANCH_NAME
   # the depth of the kit call that ran bats, kit gate's under kit ci, which every call a test makes would add to
   unset kit_depth
+  # the release the loader chose for the call that ran bats, which a test's own kit calls choose again for themselves
+  unset KIT_VERSION KIT_VERSION_ROOT kit_loader_hops
   # the forge tools' login files, which name the hosts each forge serves: a test writes its own, under the new HOME
   unset GH_CONFIG_DIR GLAB_CONFIG_DIR
   # the marker of a toolchain the desk's shell activated, which would make that toolchain active in every test, and
@@ -352,7 +354,7 @@ declared() {
 later-release() {
   local version=${2:-9.9.9}
   mkdir -p "$1"
-  cp -R "${kit_checkout}/bin" "${kit_checkout}/modules" "${kit_checkout}/packages" "$1/"
+  cp -R "${kit_checkout}/bin" "${kit_checkout}/libexec" "${kit_checkout}/modules" "${kit_checkout}/packages" "$1/"
   printf '%s\n' "${version}" > "$1/version"
   printf '\n## Added in %s\n\nA new rule.\n' "${version}" >> "$1/packages/kit/files/repo/.kit/rules/json.md"
 }

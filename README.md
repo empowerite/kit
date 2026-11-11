@@ -63,20 +63,34 @@ the package that adds it, or replace the file through a package of your own. `.k
 
 ## Install
 
-A release is a tarball: `bin/`, `modules/`, `packages/`, `libexec/` with the `kittui` binaries `kit tui` runs, and a
-`version` file. Install it the way the repository installs its other tools.
+A release is a tarball: `bin/`, `modules/`, `packages/`, `libexec/` with the loader's call and the `kittui` binaries
+`kit tui` runs, and a `version` file. Install any one release on your machine, the way you install your other
+tools. The `kit` you install is a loader: it runs the release each repository asks for, so one installed kit serves
+every repository, whatever release each one pins.
 
-With mise, pin it in `mise.toml`:
+The first of these chooses the release a call runs:
 
-```toml
-[tools]
-"github:empowerite/kit" = { version = "0.1.0", version_prefix = "release/" }
-```
+1. `kit --version=<release> …`, for this call and every kit call it makes in the same clone.
+2. `KIT_VERSION=<release>`, the same thing, from the environment.
+3. `version:` in the `kit.yml` at the root of the clone you are in. Each worktree is its own root.
+4. The kit you installed, outside a clone, and in a clone that pins none.
+
+A release is named by its version, `0.1.0`, or by the path of a copy of one. The loader keeps every release it runs
+in `~/.cache/kit/`, and downloads a version the first time a repository asks for it, checked against the `.sha256`
+the release publishes beside it. A kit option it does not know is refused: a later kit may know it, so update the
+kit you installed.
 
 With Homebrew:
 
 ```sh
 brew install empowerite/tap/kit
+```
+
+With mise, as a tool in your own `~/.config/mise/config.toml`:
+
+```toml
+[tools]
+"github:empowerite/kit" = { version = "0.1.0", version_prefix = "release/" }
 ```
 
 By hand, with `gh`. This downloads the latest release, never a pre-release; for one version, run
@@ -95,9 +109,9 @@ Requirements:
 - `jq` 1.7 or later: every verb reads its arguments through it.
 - `yq` 4, mikefarah's: it reads `kit.yml` and every other YAML file. GitHub's hosted runners have `jq` and `yq`
   preinstalled.
-- `curl`: `kit update` fetches the previous release through it, as the base of a three-way merge, when that
-  release is not in the cache already. It checks the bytes against the `.sha256` published beside the release
-  before reading anything in it.
+- `curl` and `tar`: the loader fetches a pinned release through them, and `kit update` the previous release, as the
+  base of a three-way merge, when that release is not in the cache already. Each checks the bytes against the
+  `.sha256` published beside the release before reading anything in it.
 - The linters the delivered rules and styles run. `kit lint` fails, not skips, when a linter it needs is missing,
   so a team's first commit needs them:
   - `shellcheck`, which the bash rule runs
@@ -110,9 +124,6 @@ Requirements:
 - For an Azure DevOps tracker: `az`, the Azure CLI.
 
 kit runs on Linux and macOS. On Windows, use WSL, which runs it as Linux.
-
-With mise, an exact version pin installs as soon as a release exists. A range pin waits one day after a release
-unless `[settings]` contains `minimum_release_age_excludes = ["github:empowerite/kit"]`.
 
 Then check the install: `kit version` prints the release, and `kit help` lists the verbs. Once a repository has
 taken the kit, `kit check` says every delivered file matches the release.
@@ -209,7 +220,13 @@ read from the verbs themselves; see [docs/completion.md](docs/completion.md).
 
 ### Updating
 
-Bump the pin or reinstall, then run `kit update`:
+Run the release to move to, and it moves the repository to itself and writes its version into `kit.yml`:
+
+```sh
+kit --version=0.2.0 update
+```
+
+What it does to each file:
 
 - A delivered file you never edited is replaced.
 - A delivered file you edited is merged three ways, with the previous release as the base. `kit update` downloads

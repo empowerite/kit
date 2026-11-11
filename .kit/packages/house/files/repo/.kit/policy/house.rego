@@ -33,9 +33,9 @@ deny contains sprintf("%s: kit/bin/ has no subfolders", [path]) if {
 	contains(substring(path, count(bin), -1), "/")
 }
 
-kit_dirs := {"bin", "modules", "packages"}
+kit_dirs := {"bin", "libexec", "modules", "packages"}
 
-deny contains sprintf("kit/%s: kit/ holds only bin/, modules/, and packages/", [part]) if {
+deny contains sprintf("kit/%s: kit/ holds only bin/, libexec/, modules/, and packages/", [part]) if {
 	some path, _ in input.tree
 	parts := split(path, "/")
 	parts[0] == "kit"

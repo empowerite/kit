@@ -372,7 +372,8 @@
     },
     "version": {
       "type": "string",
-      "description": "The kit release the repository is pinned to, written by kit install and kit update. A checkout of the kit itself declares unreleased."
+      "pattern": "^(unreleased|[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.]+)?)$",
+      "description": "The kit release the repository runs and is installed at: bin/kit, the loader, reads this line alone, so it is a plain version on one line. kit install and kit update write it; kit --version=<release> update moves it. A checkout of the kit itself declares unreleased."
     },
     "packages": {
       "type": "array",

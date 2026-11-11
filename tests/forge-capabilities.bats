@@ -119,7 +119,7 @@ provider() {
   provider ahead 4
   run call quota
   [ "$status" -eq 1 ]
-  [[ "$output" == *"the ahead forge implements contract '4', and this kit knows 1 to 3; run: kit update"* ]]
+  [[ "$output" == *"the ahead forge implements contract '4', and this kit knows 1 to 3; move to a later kit: kit --version=<version> update"* ]]
   provider odd 2 telepathy
   run call quota
   [ "$status" -eq 1 ]

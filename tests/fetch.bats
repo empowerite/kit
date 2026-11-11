@@ -15,8 +15,9 @@ setup() {
   export FAKE_RELEASES="${repo}.releases"
   mkdir -p "${FAKE_RELEASES}" "${repo}.bin"
   ln -s "${BATS_TEST_DIRNAME}/fakes/fake-curl" "${repo}.bin/curl"
-  # a failing mise, so the release is the only source; the fake curl first, so no real one answers
-  printf '#!/usr/bin/env bash\nexit 1\n' > "${repo}.bin/mise" && chmod +x "${repo}.bin/mise"
+  # a mise that records each call, so a test proves no toolchain is asked; the fake curl first, so no real one answers
+  printf '#!/usr/bin/env bash\necho "$*" >> "%s"\n' "${repo}.mise.calls" > "${repo}.bin/mise"
+  chmod +x "${repo}.bin/mise"
   export PATH="${repo}.bin:${PATH}"
   publish 9.9.9
 }
@@ -45,7 +46,7 @@ ci-step() {
   ' "${kit_root}/packages/github/ci/templates/repo/.github/workflows/kit-ci.yml"
 }
 
-@test "release:fetch checks the tarball against the digest published beside it, caches it, and reads the cache next time" {
+@test "release:fetch checks the tarball against the digest published beside it, caches it, reads the cache next time, and asks no toolchain" {
   run kit-bash 'release:fetch 9.9.9'
   [ "$status" -eq 0 ]
   [ "${lines[-1]}" = "${XDG_CACHE_HOME}/kit/kit-9.9.9" ]
@@ -55,6 +56,7 @@ ci-step() {
   run kit-bash 'release:fetch 9.9.9'
   [ "$status" -eq 0 ]
   [ "$(wc -l < "${FAKE_RELEASES}/curl.calls")" -eq 2 ]
+  [ ! -e "${repo}.mise.calls" ]
 }
 
 @test "release:fetch refuses a tarball whose bytes have another digest, names both digests, and caches nothing" {

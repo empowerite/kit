@@ -195,7 +195,7 @@ group-has() {
   # and with a copy of the kit that has kit-gates beside kit-gate
   local root="${BATS_TEST_TMPDIR}/kit"
   mkdir -p "${root}"
-  cp -R "${kit_root}/bin" "${kit_root}/modules" "${root}/"
+  cp -R "${kit_root}/bin" "${kit_root}/libexec" "${kit_root}/modules" "${root}/"
   cp "${root}/bin/kit-gate" "${root}/bin/kit-gates"
   run "${root}/bin/kit" help gat
   [[ "$output" == *"  gate "* && "$output" == *"  gates "* ]]
@@ -206,7 +206,7 @@ group-has() {
 @test "a verb with no line of dashes under its banner keeps the line that follows the banner" {
   local root="${BATS_TEST_TMPDIR}/kit"
   mkdir -p "${root}"
-  cp -R "${kit_root}/bin" "${kit_root}/modules" "${root}/"
+  cp -R "${kit_root}/bin" "${kit_root}/libexec" "${kit_root}/modules" "${root}/"
   printf '%s\n' '#!/usr/bin/env bash' '# kit-plain - a verb in no house style (kit verb)' '# kit plain <thing>' '#' \
     '# Does it.' > "${root}/bin/kit-plain"
   chmod +x "${root}/bin/kit-plain"
@@ -218,7 +218,7 @@ group-has() {
 @test "kit help <verb> rewraps the prose, the argument block, and the bullets to 80 columns, counted in characters" {
   local root="${BATS_TEST_TMPDIR}/kit" prose block bullet first line joined=''
   mkdir -p "${root}"
-  cp -R "${kit_root}/bin" "${kit_root}/modules" "${root}/"
+  cp -R "${kit_root}/bin" "${kit_root}/libexec" "${kit_root}/modules" "${root}/"
   # a paragraph at the header's full width, written twice, with multibyte characters a byte count would wrap early;
   # then an argument line and a bullet, each wider than 80
   prose='Does the thing… and says so in a paragraph → written out to the header'"'"'s full width, one hundred and eighteen columns…'

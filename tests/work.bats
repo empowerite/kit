@@ -62,8 +62,10 @@ desk-world() {
 }
 
 @test "a worktree that declares unreleased is hydrated by its own kit, the version read as YAML: spaces and a comment beside it do not matter" {
-  # the worktree is the kit: kit/bin/kit, a stand-in that records what it was asked, and 1st.sh beside it
+  # the worktree is the kit: kit/bin/kit, a stand-in that records what it was asked, and 1st.sh beside it; its .git
+  # file makes it a clone of its own, whose kit.yml the loader reads
   mkdir -p wt/kit/bin wt/kit/modules/bash
+  printf 'gitdir: %s/.git/worktrees/wt\n' "${PWD}" > wt/.git
   printf 'version:   unreleased   # built from this checkout\n' > wt/kit.yml
   printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" > "$(dirname "$0")/../../called"\n' > wt/kit/bin/kit
   chmod +x wt/kit/bin/kit
