@@ -404,7 +404,8 @@ func (m Model) cardAt(x, y int) int {
 }
 
 // fit scrolls the pane a band at a time, so the band under the cursor shows whole, with its group's heading where it is
-// its group's first row and both fit, and never past the last band.
+// its group's first row and both fit, and never past the last band; once the wheel scrolled it, only never past either
+// end, until a key.
 func (m *Model) fit() {
 	bands := m.bands()
 	if len(bands) == 0 {
@@ -412,13 +413,13 @@ func (m *Model) fit() {
 		return
 	}
 	b, _ := m.bandOf(bands, m.cursor)
-	if b < m.offset {
+	if !m.wheeled && b < m.offset {
 		m.offset = b
 		if b > 0 && bands[b-1].cards == nil && m.shownUntil(bands, b-1) > b {
 			m.offset = b - 1
 		}
 	}
-	for m.offset < b && m.shownUntil(bands, m.offset) <= b {
+	for !m.wheeled && m.offset < b && m.shownUntil(bands, m.offset) <= b {
 		m.offset++
 	}
 	last := len(bands) - 1

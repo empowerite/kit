@@ -21,13 +21,14 @@
 // cards over or under it, past a heading, to the last card of a row shorter than the cursor's column; and up from the
 // first row, or esc, gives the control line the keyboard. Enter opens the tutorial under the cursor in the browser,
 // and a click on a card opens that one; left and right, which fold and unfold, have nothing to fold on a card. The
-// control line takes the keys it takes on every table, its menus and its dialog every key while open, and down gives
-// the cards the keyboard back; it is the top of the screen, so up and esc leave it where it is. = or a click on the =
-// drops the app's menu down, and - or a click on the workspace menu after the screen's name drops it down, as on every
-// screen. The search on the menu bar's right is every screen's, internal/shell's: / or a click on it gives it focus,
-// typing narrows the cards to the tutorials whose title, audiences, summary, or id holds it, and ⏎, ↓, esc, or tab
-// gives the cards focus, the filter kept, or the control line where it lets no card through. Ctrl-c quits with 130
-// from anywhere, and ctrl-q quits with 0; esc never quits.
+// mouse wheel scrolls the cards a row, or a heading, at a time, never past their ends, the cursor left where it is
+// until a key moves it. The control line takes the keys it takes on every table, its menus and its dialog every key
+// while open, and down gives the cards the keyboard back; it is the top of the screen, so up and esc leave it where it
+// is. = or a click on the = drops the app's menu down, and - or a click on the workspace menu after the screen's name
+// drops it down, as on every screen. The search on the menu bar's right is every screen's, internal/shell's: / or a
+// click on it gives it focus, typing narrows the cards to the tutorials whose title, audiences, summary, or id holds
+// it, and ⏎, ↓, esc, or tab gives the cards focus, the filter kept, or the control line where it lets no card through.
+// Ctrl-c quits with 130 from anywhere, and ctrl-q quits with 0; esc never quits.
 //
 // Opening a tutorial says so in place of the keys, for Fades or until a key; when the browser cannot be asked, the
 // tutorial's link stands there instead until a key, to open by hand. The browser cannot be asked over SSH, where an
@@ -106,6 +107,7 @@ type Model struct {
 	inPane  bool        // whether the screen gives the cards the keyboard, which they have while there are some
 	cursor  int         // the card under the cursor, an index into the cards
 	offset  int         // the first band of the pane it shows, a heading or a row of cards
+	wheeled bool        // whether the wheel scrolled the pane, which leaves the cursor's card until a key moves it
 	width   int
 	height  int
 	appMenu shell.Menu      // the app's menu, internal/shell's, which has the keyboard while it is open
@@ -230,12 +232,40 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.books = m.books.Told(msg)
 	case tea.KeyPressMsg:
 		m.note.Text = ""
-		return m.key(msg)
+		next, cmd := m.key(msg)
+		if n := next.(Model); n.wheeled && (n.cursor != m.cursor || n.focused() != m.focused()) {
+			// the cursor moved, or the cards took the keyboard: the pane follows the cursor again
+			n.wheeled = false
+			n.fit()
+			return n, cmd
+		}
+		return next, cmd
 	case tea.MouseClickMsg:
 		return m.click(msg)
+	case tea.MouseWheelMsg:
+		m.wheel(msg)
 	}
 	m.fit()
 	return m, nil
+}
+
+// wheel scrolls the cards a band for a turn of the mouse wheel over them, a row of cards or a heading, down or up,
+// never past their ends; the keyboard stays where it is, and so does the cursor, until a key moves it, or gives the
+// cards the keyboard, and the pane follows it again. A turn off the cards, or while a menu or a layer of the table is
+// open, scrolls nothing.
+func (m *Model) wheel(w tea.MouseWheelMsg) {
+	d := 0
+	switch w.Button {
+	case tea.MouseWheelUp:
+		d = -1
+	case tea.MouseWheelDown:
+		d = 1
+	}
+	if d == 0 || m.appMenu.Open || m.books.Open || m.recent.Open || m.sheet.Layered() || w.Y < paneTop ||
+		w.Y >= paneTop+m.paneHeight() {
+		return
+	}
+	m.offset, m.wheeled = m.offset+d, true
 }
 
 // place puts the table on the screen's second line, its control line alone, as the cards stand for its rows.
