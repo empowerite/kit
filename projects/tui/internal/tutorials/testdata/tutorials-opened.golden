@@ -1,7 +1,5 @@
   = kit tutorials · -                                                                                        🔎 /search
-  ➊╶───────╮➁╶─────────────────╮➂╶──────╮➃╶──────────────╮
-  │ All  2 │  Just starting  2 │  UI  1 │  Maintainer  0 │
-  ╵        ╰───────────────────╰────────╰────────────────╰──────────────────────────────────────────────────────────────
+  ▾ 2                                                                                                       Default ▼
 
   ╭────────────────────────────────────╮ ╭────────────────────────────────────╮
   │ 🎓 Reading kit's tutorials         │ │ 🧭 Finding your way around kittui  │
@@ -11,6 +9,8 @@
   │ page tells you that your kit is…   │ │ key and a click for each.          │
   │                                    │ │                                    │
   ╰─ Just starting ──────────────────╯ ╰─ Just starting UI ─────────────╯
+
+
 
 
 

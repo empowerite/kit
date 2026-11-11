@@ -51,7 +51,7 @@ do
 done
 
 # screen [<tutorial>] puts kittui's tutorials screen in this process's place, on the tutorial's card when one is named,
-# the tags given selecting their tab: on a terminal, with no form chosen, with a kittui to run; else it returns.
+# the tags given filtering its cards: on a terminal, with no form chosen, with a kittui to run; else it returns.
 screen() {
   local binary tag
   local -a args=()

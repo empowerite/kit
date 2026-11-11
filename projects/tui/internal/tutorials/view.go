@@ -1,20 +1,20 @@
-// The screen drawn: the title, the audiences' tab bar, the selected tab's cards, and the keys bar on the last line.
+// The screen drawn: the title, the table's control line, the cards in their groups, and the keys bar on the last line.
 // Widths are terminal cells, so a two-cell glyph never pushes a line past the edge.
 package tutorials
 
 import (
 	"slices"
-	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
-	"github.com/empowerite/kit/projects/tui/internal/tabs"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
 // appLabel is the screen's name on the title line, after the app menu's =; a click on either drops the menu down.
@@ -24,36 +24,47 @@ const appLabel = "kit tutorials"
 const Failed = "❌"
 
 // A card is cardWidth cells wide and cardHeight lines tall, its border with it, and its text stands a cell in from
-// either side; the cards stand gap cells apart, after the gutter every line keeps, as the tab bar does.
+// either side; the cards stand gap cells apart, after the gutter every line keeps, as the control line does.
 const (
 	cardWidth  = 38
 	cardHeight = 8
 	textWidth  = cardWidth - 4
 	gap        = 1
-	gutter     = tabs.Gutter
+	gutter     = 2
 )
 
 // summaryLines is how many lines a card gives its summary.
 const summaryLines = 3
 
-// fixed is how many lines the title, the bar, the gap, and the keys take; the pane has the rest, from paneTop on,
-// right under the bar.
+// controlTop is the screen line of the table's control line, under the menu bar; the pane has the lines from paneTop
+// on, right under it, but the gap and the keys, which fixed counts with the menu bar and the control line.
 const (
-	fixed   = 3 + tabs.Height
-	paneTop = 1 + tabs.Height
+	controlTop = 1
+	paneTop    = controlTop + 1
+	fixed      = 4
 )
 
 // lead is what starts a line of the pane that is no card's.
 const lead = "  "
 
-// View draws the screen on the alternate screen, with the mouse on for the bar and the cards.
+// View draws the screen on the alternate screen, with the mouse on for the control line and the cards, the table's
+// layers over them.
 func (m Model) View() tea.View {
-	lines := append([]string{m.menuBar().Line(m.width)}, strings.Split(m.bar().View(), "\n")...)
-	lines = append(lines, m.pane()...)
+	lines := append([]string{m.menuBar().Line(m.width), m.control()}, m.pane()...)
+	lines = m.sheet.Over(lines)
 	lines = m.recent.Overlay(append(lines, ""), m.recallAt(), m.width)
 	lines = m.appMenu.Overlay(lines, m.width)
 	lines = m.books.Overlay(lines, m.booksAt(), m.width)
 	return shell.View(lines, m.height, m.bottom())
+}
+
+// control gives the table's control line, as the table draws it: the heading over the groups and the preset line,
+// once there are tutorials, and nothing before.
+func (m Model) control() string {
+	if len(m.catalog.Tutorials) == 0 {
+		return ""
+	}
+	return pane.Clip(m.sheet.View()[0], m.width-1)
 }
 
 // menuBar gives the menu bar, as internal/shell draws every screen's: the kit menu's = before kit tutorials; the
@@ -62,11 +73,16 @@ func (m Model) menuBar() shell.MenuBar {
 	return shell.MenuBar{Screen: appLabel, Open: m.appMenu.Open, Workspace: m.books.Label(), Search: m.searchLine()}
 }
 
-// bottom gives the screen's last line: the notice while there is one, else the keys bar. The link to open by hand
-// drops its words before the link, when the line is too narrow for them.
+// bottom gives the screen's last line: the notice while there is one, else what the table did, or why not, while it
+// says it, else the keys bar. The link to open by hand drops its words before the link, when the line is too narrow
+// for them.
 func (m Model) bottom() string {
 	room := m.width - 1
-	switch {
+	switch n := m.sheet.Notice(); {
+	case m.note.Text == "" && n.Text != "" && n.Done:
+		return " " + pane.Clip(n.Text, room)
+	case m.note.Text == "" && n.Text != "":
+		return " " + style.Refusal(pane.Clip(n.Text, room))
 	case m.note.Text == "":
 		return m.keys().Line(m.width)
 	case !m.note.Done && ansi.StringWidth(m.note.Text) > room:
@@ -78,47 +94,36 @@ func (m Model) bottom() string {
 	return " " + pane.Clip(m.note.Text, room)
 }
 
-// bar gives the tab bar, from the screen's second line: All, then each audience, each with how many tutorials it has,
-// … while kit is asked, and ! in red when kit refused; the keyboard on it unless the cards have it, and its view where
-// it was left.
-func (m Model) bar() tabs.Bar {
-	b := tabs.Bar{Selected: m.tab, Focused: !m.focused(), Scroll: m.barView, Width: m.width, Row: 1}
-	names := []string{"All"}
-	for _, a := range m.catalog.Audiences {
-		names = append(names, a.Label)
-	}
-	for i, name := range names {
-		count := strconv.Itoa(len(m.allOf(i)))
-		switch {
-		case m.reading.Loading:
-			count = "…"
-		case m.refusal != "":
-			count = "!"
-		}
-		b.Tabs = append(b.Tabs, tabs.Tab{Name: name, Count: count})
-		b.Alert = append(b.Alert, count == "!")
-	}
-	return b
-}
-
 // keys gives the path to the keyboard, which the key hints are drawn from: the screen, whose = drops the app's menu
-// down and / gives the search focus; the bar, whose down enters the cards where the tab has some; and the search while
-// it has focus, or the cards while they have it: esc gives the bar the keyboard, named by the tab it has selected, up
-// and down move between the rows of cards, tab and shift-tab between the cards, and enter opens. An open menu takes every press, and is the path alone.
+// down and / gives the search focus; then the search while it has focus, the control line while it has the keyboard,
+// as the table names its keys, but up and esc, which leave it where it is, and down, which enters the cards; or the
+// cards while they have it: esc gives the control line the keyboard, up and down move between the rows of cards, tab
+// and shift-tab between the cards, and enter opens. An open menu, or a layer of the table's, takes every press, and is
+// the path alone.
 func (m Model) keys() shell.Path {
 	if m.appMenu.Open || m.recent.Open || m.books.Open {
 		return shell.Path{shell.MenuKeys()}
 	}
-	down := ""
-	if len(m.cards()) > 0 {
-		down = "cards"
+	seg, layer := m.sheet.Keys()
+	if layer {
+		return shell.Path{seg}
 	}
-	path := shell.Path{shell.WorkspaceScreenKeys(), m.bar().Keys(down)}
-	if m.search.Focused {
+	path := shell.Path{shell.WorkspaceScreenKeys()}
+	switch {
+	case m.search.Focused:
 		return append(path, shell.SearchKeys("cards", m.search.Query, len(m.recent.Items) > 0))
-	}
-	if m.focused() {
-		path = append(path, shell.Segment{Bindings: []shell.Binding{shell.Bind("esc", "tabs"),
+	case m.controlled():
+		seg.Bindings = slices.DeleteFunc(slices.Clone(seg.Bindings), func(b shell.Binding) bool {
+			return b.Does == table.TabsHint
+		})
+		for k, b := range seg.Bindings {
+			if b.Does == "rows" {
+				seg.Bindings[k].Does = "cards"
+			}
+		}
+		return append(path, seg)
+	case m.focused():
+		return append(path, shell.Segment{Bindings: []shell.Binding{shell.Bind("esc", "controls"),
 			shell.Bind("↑↓", "move", "up", "down"),
 			shell.Bind("⇥·⇧⇥", "card", "tab", "shift+tab"), shell.Bind("⏎", "open", "enter")}})
 	}
@@ -140,25 +145,91 @@ func (m Model) top() int {
 // columns gives how many cards stand side by side: as many as fit short of the screen's last cell, and at least one.
 func (m Model) columns() int { return max(1, (m.width-1-gutter+gap)/(cardWidth+gap)) }
 
-// rows gives how many rows of cards the pane shows at once, and at least one.
-func (m Model) rows() int { return max(1, (m.paneHeight()-m.top())/cardHeight) }
+// band is a stretch of the pane: a group's heading, its line as the table draws it, or a row of cards, the indexes of
+// their tutorials among the cards.
+type band struct {
+	heading string
+	cards   []int
+}
 
-// pane gives the pane's lines, as many as it has: reading… until kit answers, kit's refusal, that the tab has no
-// tutorial, or its cards.
+// height gives the lines a band takes: a heading's one, a row of cards' cardHeight.
+func (b band) height() int {
+	if b.cards == nil {
+		return 1
+	}
+	return cardHeight
+}
+
+// bands gives the pane's bands, as the table's rows stand: each group's heading, then its cards, as many to a row as
+// stand side by side; the heading over the groups stands on the control line, so it is none.
+func (m Model) bands() []band {
+	rows, cols := m.sheet.Rows(), m.columns()
+	texts := map[int]string{}
+	for _, l := range m.sheet.Lines() {
+		if _, ok := texts[l.Row]; !ok {
+			texts[l.Row] = l.Text
+		}
+	}
+	var out []band
+	card := 0
+	for k, r := range rows {
+		switch {
+		case grid.OverGroups(r):
+		case grid.Heads(r):
+			out = append(out, band{heading: texts[k]})
+		case r.Aside:
+		default:
+			if n := len(out); n == 0 || out[n-1].cards == nil || len(out[n-1].cards) == cols {
+				out = append(out, band{cards: []int{}})
+			}
+			out[len(out)-1].cards = append(out[len(out)-1].cards, card)
+			card++
+		}
+	}
+	return out
+}
+
+// bandOf gives the band a card stands in and its column there; the first band for a card in none.
+func (m Model) bandOf(bands []band, card int) (b, col int) {
+	for k, x := range bands {
+		if i := slices.Index(x.cards, card); i >= 0 {
+			return k, i
+		}
+	}
+	return 0, 0
+}
+
+// room gives the lines the pane has for its bands, under the line over them.
+func (m Model) room() int { return m.paneHeight() - m.top() }
+
+// shownUntil gives the band past the last the pane shows from the band from: as many as fit, and at least one.
+func (m Model) shownUntil(bands []band, from int) int {
+	used, k := 0, from
+	for ; k < len(bands); k++ {
+		if used+bands[k].height() > m.room() && k > from {
+			break
+		}
+		used += bands[k].height()
+	}
+	return k
+}
+
+// pane gives the pane's lines, as many as it has: reading… until kit answers, kit's refusal, that there is no
+// tutorial, that the search or the filter lets none through, or the cards.
 func (m Model) pane() []string {
 	h := m.paneHeight()
 	var out []string
-	switch cards := m.cards(); {
+	switch bands := m.bands(); {
 	case m.reading.Loading:
 		out = []string{"", lead + style.Off("reading…")}
 	case m.refusal != "":
 		out = []string{"", lead + style.Refusal(Failed+" "+m.refusal)}
-	case len(cards) == 0 && m.tab == 0:
+	case len(m.catalog.Tutorials) == 0:
 		out = []string{"", lead + style.Off("No tutorials yet")}
-	case len(cards) == 0:
-		out = []string{"", lead + style.Off("No tutorials for "+m.catalog.Audiences[m.tab-1].Label+" yet")}
+	case len(bands) == 0:
+		out = []string{"", lead + style.Off("No tutorial matches the search or the filter")}
 	default:
-		out = m.grid(cards)
+		out = m.grid(bands)
 	}
 	out = out[:min(len(out), h)]
 	for k := range out {
@@ -170,22 +241,33 @@ func (m Model) pane() []string {
 	return out
 }
 
-// grid gives the cards' lines: the line over them, which says how many cards are scrolled past above, then the rows
+// grid gives the bands' lines: the line over them, which says how many cards are scrolled past above, then the bands
 // the pane shows from its offset, then, where there is room, how many cards are below.
-func (m Model) grid(cards []kit.Tutorial) []string {
-	cols, n := m.columns(), len(cards)
+func (m Model) grid(bands []band) []string {
+	cards := m.cards()
 	var out []string
+	count := func(bands []band) int {
+		n := 0
+		for _, b := range bands {
+			n += len(b.cards)
+		}
+		return n
+	}
 	if m.top() > 0 {
 		above := ""
-		if m.offset > 0 {
-			above = lead + style.Off(pane.Above(m.offset*cols))
+		if n := count(bands[:m.offset]); n > 0 {
+			above = lead + style.Off(pane.Above(n))
 		}
 		out = append(out, above)
 	}
-	end := min((n+cols-1)/cols, m.offset+m.rows())
-	for r := m.offset; r < end; r++ {
+	end := m.shownUntil(bands, m.offset)
+	for _, b := range bands[m.offset:end] {
+		if b.cards == nil {
+			out = append(out, b.heading)
+			continue
+		}
 		var drawn [][]string
-		for i := r * cols; i < min((r+1)*cols, n); i++ {
+		for _, i := range b.cards {
 			drawn = append(drawn, m.card(cards[i], m.focused() && i == m.cursor))
 		}
 		for k := range cardHeight {
@@ -196,7 +278,7 @@ func (m Model) grid(cards []kit.Tutorial) []string {
 			out = append(out, strings.Repeat(" ", gutter)+strings.Join(parts, strings.Repeat(" ", gap)))
 		}
 	}
-	if below := n - end*cols; below > 0 {
+	if below := count(bands[end:]); below > 0 {
 		out = append(out, lead+style.Off(pane.More(below)))
 	}
 	return out
@@ -301,28 +383,47 @@ func pills(audiences []kit.Audience, room int, edge func(string) string) string 
 	return style.Pill(cut, first.Color) + more
 }
 
-// cardAt gives the index of the card at a cell of the screen, in the selected tab's tutorials, or -1 where there is
-// none: on the line over the cards, between them, past them, or under the rows the pane shows.
+// cardAt gives the index of the card at a cell of the screen, among the cards, or -1 where there is none: on the line
+// over the cards, on a heading, between them, past them, or under the bands the pane shows.
 func (m Model) cardAt(x, y int) int {
-	r, c, cols := y-paneTop-m.top(), x-gutter, m.columns()
-	if r < 0 || c < 0 || r/cardHeight >= m.rows() || c%(cardWidth+gap) >= cardWidth || c/(cardWidth+gap) >= cols {
+	r, c := y-paneTop-m.top(), x-gutter
+	if r < 0 || c < 0 || c%(cardWidth+gap) >= cardWidth {
 		return -1
 	}
-	if i := (m.offset+r/cardHeight)*cols + c/(cardWidth+gap); i < len(m.cards()) {
-		return i
+	bands := m.bands()
+	for _, b := range bands[min(m.offset, len(bands)):m.shownUntil(bands, m.offset)] {
+		if r < b.height() {
+			if col := c / (cardWidth + gap); b.cards != nil && col < len(b.cards) && r < cardHeight {
+				return b.cards[col]
+			}
+			return -1
+		}
+		r -= b.height()
 	}
 	return -1
 }
 
-// fit scrolls the pane a row of cards at a time, so the row under the cursor shows, and never past the last row.
+// fit scrolls the pane a band at a time, so the band under the cursor shows whole, with its group's heading where it is
+// its group's first row and both fit, and never past the last band.
 func (m *Model) fit() {
-	cols, shown := m.columns(), m.rows()
-	row, rows := m.cursor/cols, (len(m.cards())+cols-1)/cols
-	if row < m.offset {
-		m.offset = row
+	bands := m.bands()
+	if len(bands) == 0 {
+		m.offset = 0
+		return
 	}
-	if row >= m.offset+shown {
-		m.offset = row - shown + 1
+	b, _ := m.bandOf(bands, m.cursor)
+	if b < m.offset {
+		m.offset = b
+		if b > 0 && bands[b-1].cards == nil && m.shownUntil(bands, b-1) > b {
+			m.offset = b - 1
+		}
 	}
-	m.offset = max(0, min(m.offset, rows-shown))
+	for m.offset < b && m.shownUntil(bands, m.offset) <= b {
+		m.offset++
+	}
+	last := len(bands) - 1
+	for last > 0 && m.shownUntil(bands, last-1) == len(bands) {
+		last--
+	}
+	m.offset = max(0, min(m.offset, last))
 }

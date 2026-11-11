@@ -14,9 +14,12 @@ kit tutorials --json                  # one JSON object, for a program
 
 ## What it does
 
-- On a terminal, with no `--text`, `--json`, or `--jq`, it opens kittui's tutorials screen: a button for each tutorial,
-  and the audiences as filters. The screen starts on the tab of the first `--tag` that names an audience; the text,
-  `--json`, and `--jq` forms keep the tutorials for any of the tags. Without a kittui, it prints the list.
+- On a terminal, with no `--text`, `--json`, or `--jq`, it opens kittui's tutorials screen: a card for each tutorial,
+  under the table's control line, as every kittui table has. The control line groups, sorts, and filters the cards by
+  any field, the audience among them, and keeps them in presets: `By audience` puts the cards under a heading for each
+  audience, a tutorial for two under both. The `--tag` values that name an audience filter the cards to the tutorials
+  for any of them, as the text, `--json`, and `--jq` forms keep them; the filter is the table's, to change or drop.
+  Without a kittui, it prints the list.
 - Without a terminal, or with `--text`, it prints a block for each tutorial: its glyph and title, its summary, its
   audiences, and its link. With none to show, it says so in one line.
 - On a terminal, a tutorial named opens kittui's screen on its card. With `--text`, or in a pipe, its title and link

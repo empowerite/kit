@@ -11,6 +11,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
@@ -18,8 +19,8 @@ import (
 )
 
 // The arrows move the cursor in reading order, left and right along a row and on to the next, up and down a column,
-// down to the last card from a row below which it has none; up from the first row gives the bar the keyboard, and down
-// from the bar gives it back to the cards.
+// down to the last card from a row below which it has none; up from the first row gives the control line the
+// keyboard, and down from it gives it back to the cards. The control line is the top: up and esc leave it there.
 func TestArrowsMoveBetweenCardsAndRows(t *testing.T) {
 	m, _ := withEight(t, at120)
 	if m.columns() != 3 || !m.inPane || m.cursor != 0 {
@@ -36,20 +37,23 @@ func TestArrowsMoveBetweenCardsAndRows(t *testing.T) {
 			t.Fatalf("%s: cursor %d, want %d, in the pane %v", step.key, m.cursor, step.cursor, m.inPane)
 		}
 	}
-	if m = drive(m, up); m.inPane {
-		t.Fatal("up from the first row kept the cards")
+	if m = drive(m, up); m.inPane || !m.controlled() {
+		t.Fatal("up from the first row did not give the control line the keyboard")
 	}
 	if strings.Contains(m.View().Content, "\x1b[1;96m╭") {
-		t.Error("a card is drawn under the cursor while the bar has the keyboard")
+		t.Error("a card is drawn under the cursor while the control line has the keyboard")
 	}
-	if m = drive(m, down); !m.inPane || m.cursor != 1 {
-		t.Errorf("down from the bar: in the pane %v, cursor %d", m.inPane, m.cursor)
+	if m = drive(m, up, esc); !m.controlled() {
+		t.Error("up and esc left the control line")
 	}
-	if m = drive(m, esc); m.inPane {
-		t.Error("esc kept the cards")
+	if m = drive(m, down); !m.inPane || m.controlled() || m.cursor != 1 {
+		t.Errorf("down from the control line: in the pane %v, cursor %d", m.inPane, m.cursor)
 	}
-	if m = drive(m, enter); !m.inPane {
-		t.Error("enter on the bar did not give the cards the keyboard")
+	if m = drive(m, esc); m.inPane || !m.controlled() {
+		t.Error("esc did not give the control line the keyboard")
+	}
+	if m = drive(m, down); !m.inPane {
+		t.Error("down on the control line did not give the cards the keyboard")
 	}
 	// at 60, one card a row
 	if m = drive(m, at60); m.columns() != 1 {
@@ -97,9 +101,9 @@ func TestTheCursorScrollsThePane(t *testing.T) {
 		t.Errorf("at 60×8:\n%s", view(m))
 	}
 	// at 60×20, a card at a time
-	if m = drive(m, at60); m.rows() != 1 || !strings.Contains(view(m), "… 2 above") ||
+	if m = drive(m, at60); m.shownUntil(m.bands(), m.offset)-m.offset != 1 || !strings.Contains(view(m), "… 2 above") ||
 		!strings.Contains(view(m), "… 5 more") {
-		t.Errorf("at 60×20, %d rows:\n%s", m.rows(), view(m))
+		t.Errorf("at 60×20, from band %d:\n%s", m.offset, view(m))
 	}
 }
 
@@ -165,47 +169,52 @@ func TestABrowserThatFailsShowsTheLink(t *testing.T) {
 	}
 }
 
-// A tag from the command line selects its audience's tab once the catalogue is read, the first tag that names one;
-// a tag that names none leaves All. kit is asked for every tutorial, so All holds them all.
-func TestATagFromTheCommandLineSelectsItsTab(t *testing.T) {
+// The tags from the command line filter the cards by audience once the catalogue is read, as the audience's column
+// menu would, to the tutorials for any audience they name; tags that name none filter nothing. kit is asked for every
+// tutorial, so the person can drop the filter, and a catalogue read again keeps the filter the person left.
+func TestTheTagsFromTheCommandLineFilterTheCards(t *testing.T) {
 	calls := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_TUTORIALS_CALLS", calls)
+	ids := func(m Model) string {
+		var out []string
+		for _, c := range m.cards() {
+			out = append(out, c.ID)
+		}
+		return strings.Join(out, " ")
+	}
 	for _, c := range []struct {
-		tags []string
-		tab  int
+		tags   []string
+		filter []string
+		cards  string
 	}{
-		{[]string{"ui"}, 2}, {[]string{"nonesuch"}, 0}, {[]string{"nonesuch", "maintainer"}, 3}, {nil, 0},
+		{[]string{"ui"}, []string{"UI"}, "kittui-tour"}, {[]string{"nonesuch"}, nil, "kit-tutorials kittui-tour"},
+		{[]string{"nonesuch", "maintainer"}, []string{"Maintainer"}, ""},
+		{[]string{"ui", "newcomer"}, []string{"Just starting", "UI"}, "kit-tutorials kittui-tour"},
+		{nil, nil, "kit-tutorials kittui-tour"},
 	} {
 		m, _ := fake(t, c.tags...)
 		m = drive(m, testkit.Start(m, at120)...)
-		if m.tab != c.tab {
-			t.Errorf("--tag %q: tab %d, want %d", c.tags, m.tab, c.tab)
+		if f := m.sheet.Panel().Field(audienceField).Filter; !slices.Equal(f.Values, c.filter) || ids(m) != c.cards {
+			t.Errorf("--tag %q: filter %q, cards %q; want %q and %q", c.tags, f.Values, ids(m), c.filter, c.cards)
 		}
 	}
-	if got, _ := os.ReadFile(calls); string(got) != strings.Repeat("tutorials --json\n", 4) {
+	if got, _ := os.ReadFile(calls); string(got) != strings.Repeat("tutorials --json\n", 5) {
 		t.Errorf("kit ran as %q", got)
 	}
-	m, _ := fake(t, "ui")
+	m, _ := fake(t, "maintainer")
 	m = drive(m, testkit.Start(m, at120)...)
-	if v := view(m); !strings.Contains(v, "Finding your way around kittui") || strings.Contains(v, "Reading kit's") {
-		t.Errorf("the UI tab:\n%s", v)
+	if v := view(m); !strings.Contains(v, "No tutorial matches the search or the filter") || !m.controlled() {
+		t.Errorf("a filter that lets no tutorial through, the control line focused %v:\n%s", m.controlled(), v)
 	}
-	if m = drive(m, press('4')); !strings.Contains(view(m), "No tutorials for Maintainer yet") {
-		t.Errorf("a tab with no tutorial:\n%s", view(m))
-	}
-	// the tag selects once: a catalogue read again keeps the tab the person chose, or the last it still has
-	if m = drive(m, press('1'), catalogue(eight())); m.tab != 0 {
-		t.Errorf("read again: tab %d", m.tab)
-	}
-	fewer := eight()
-	fewer.Audiences = fewer.Audiences[:1]
-	if m = drive(m, press('3'), catalogue(fewer)); m.tab != 1 {
-		t.Errorf("read again with one audience: tab %d", m.tab)
+	// the tags filter once: a catalogue read again keeps what the person set
+	m.sheet.SetPanel(m.sheet.Panel().FilteredBy(audienceField, grid.Filter{}))
+	if m = drive(m, catalogue(eight())); len(m.cards()) != 8 {
+		t.Errorf("read again: %d cards", len(m.cards()))
 	}
 }
 
-// kit tutorials' words are --tag pairs, whose values are the tags, and the tutorial named, the first other word that is
-// no option; anything else is ignored.
+// kit tutorials' words are --tag=<tag> words, or --tag pairs, whose values are the tags, and the tutorial named, the
+// first other word that is no option; anything else is ignored.
 func TestTheWordsAreTheTagsAndTheTutorialNamed(t *testing.T) {
 	for words, want := range map[string]struct {
 		tags  []string
@@ -215,6 +224,7 @@ func TestTheWordsAreTheTagsAndTheTutorialNamed(t *testing.T) {
 		"--tag a --tag b":            {[]string{"a", "b"}, ""},
 		"stray --tag a --tag":        {[]string{"a"}, "stray"},
 		"--tag a --other --tag c t9": {[]string{"a", "c"}, "t9"},
+		"--tag=a t9 --tag=b":         {[]string{"a", "b"}, "t9"},
 	} {
 		if tags, focus := parse(strings.Fields(words)); !slices.Equal(tags, want.tags) || focus != want.focus {
 			t.Errorf("%q: tags %q and %q, want %q and %q", words, tags, focus, want.tags, want.focus)
@@ -223,27 +233,30 @@ func TestTheWordsAreTheTagsAndTheTutorialNamed(t *testing.T) {
 }
 
 // A tutorial named on the command line, as kit tutorials <tutorial> names it, has the cursor on its card once the
-// catalogue is read, the cards with the keyboard: in the tab a tag selects when it holds the card, else in All.
+// catalogue is read, the cards with the keyboard: among the cards the tags let through when they hold it, else among
+// them all, the tags' filter dropped.
 func TestATutorialNamedHasTheCursor(t *testing.T) {
 	for _, c := range []struct {
-		words       string
-		tab, cursor int
+		words    string
+		filtered bool
+		cursor   int
 	}{
-		{"kittui-tour", 0, 1}, {"--tag ui kittui-tour", 2, 0}, {"--tag newcomer kittui-tour", 1, 1},
-		{"--tag ui kit-tutorials", 0, 0}, {"nonesuch", 0, 0},
+		{"kittui-tour", false, 1}, {"--tag=ui kittui-tour", true, 0}, {"--tag=newcomer kittui-tour", true, 1},
+		{"--tag=ui kit-tutorials", false, 0}, {"nonesuch", false, 0}, {"--tag=ui nonesuch", true, 0},
 	} {
-		m := Open(testkit.Runner(t, "tutorials"), strings.Fields(c.words))
+		m := New(testkit.Runner(t, "tutorials"), nil)
+		m.tags, m.focus = parse(strings.Fields(c.words))
 		m = drive(m, testkit.Start(m, at120)...)
-		if m.tab != c.tab || m.cursor != c.cursor || !m.focused() {
-			t.Errorf("%q: tab %d, cursor %d, cards focused %v; want tab %d, cursor %d", c.words, m.tab, m.cursor,
-				m.focused(), c.tab, c.cursor)
+		if m.sheet.Panel().Filtering() != c.filtered || m.cursor != c.cursor || !m.focused() {
+			t.Errorf("%q: filtered %v, cursor %d, cards focused %v; want %v and %d", c.words,
+				m.sheet.Panel().Filtering(), m.cursor, m.focused(), c.filtered, c.cursor)
 		}
 	}
 }
 
-// The search is every screen's: / gives it focus, typing narrows the cards to those whose id, title, or summary holds
-// it, every tab still counting all of its own, ⌃U clears it, and enter gives the cards focus, the filter kept. A click
-// on it gives it focus too.
+// The search is every screen's: / gives it focus, typing narrows the cards to those whose title, audiences, summary, or
+// id holds it, ⌃U clears it, and enter gives the cards focus, the filter kept, or the control line where it lets no
+// card through. A click on it gives it focus too.
 func TestTheSearchNarrowsTheCards(t *testing.T) {
 	m, _ := fake(t)
 	m = drive(m, testkit.Start(m, at120)...)
@@ -252,15 +265,19 @@ func TestTheSearchNarrowsTheCards(t *testing.T) {
 		t.Fatalf("/: focused %v, keys %q", m.search.Focused, m.keys().String())
 	}
 	m = drive(m, testkit.Typed("TOUR")...)
-	if cards := m.cards(); len(cards) != 1 || cards[0].ID != "kittui-tour" || !strings.Contains(lines(m)[2], "All  2") {
+	if cards := m.cards(); len(cards) != 1 || cards[0].ID != "kittui-tour" {
 		t.Errorf("tour: %v\n%s", cards, view(m))
 	}
 	if m = drive(m, tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}); m.search.Query != "" || len(m.cards()) != 2 {
 		t.Errorf("⌃U: %q, %d cards", m.search.Query, len(m.cards()))
 	}
 	m = drive(m, append(testkit.Typed("nothing"), enter)...)
-	if m.search.Focused || m.search.Query != "nothing" || len(m.cards()) != 0 {
+	if m.search.Focused || m.search.Query != "nothing" || len(m.cards()) != 0 || !m.controlled() {
 		t.Errorf("a search no card holds, then enter: %+v, %d cards", m.search, len(m.cards()))
+	}
+	if m = drive(m, append([]tea.Msg{press('/'), tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}},
+		testkit.Typed("kit-tutorials")...)...); len(m.cards()) != 1 {
+		t.Errorf("a search by id: %d cards", len(m.cards()))
 	}
 	m = drive(m, testkit.Click(m.searchAt()+1, 0), tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}, testkit.Typed("k")[0],
 		enter)
@@ -269,43 +286,62 @@ func TestTheSearchNarrowsTheCards(t *testing.T) {
 	}
 }
 
-// The bar selects a tab by its number, by a click, or, while it has the keyboard, by the arrows; each tab counts its
-// tutorials, and down enters the cards only where there are some.
-func TestTheBarSelectsATabAndCountsItsTutorials(t *testing.T) {
+// The table's control line stands where the tabs stood, and does what they did: By audience groups the cards under
+// a heading for each audience, the table's own, its count with it, a tutorial for two under both, each heading a band
+// of the pane; the audience's column menu filters by an audience, and a closed group folds its cards away. Its keys
+// are the table's, but up and esc, which leave it where it is, and down enters the cards.
+func TestTheControlLineGroupsAndFiltersTheCards(t *testing.T) {
 	m, _ := loaded(t)
-	if bar := lines(m)[2]; !strings.Contains(bar, "All  2") || !strings.Contains(bar, "Just starting  2") ||
-		!strings.Contains(bar, "UI  1") || !strings.Contains(bar, "Maintainer  0") {
-		t.Errorf("the counts: %q", bar)
+	if ls := lines(m); !strings.Contains(ls[controlTop], "▾ 2") || !strings.Contains(ls[controlTop], "Default ▼") {
+		t.Fatalf("the control line: %q", ls[controlTop])
 	}
-	if m = drive(m, up, tabKey); m.tab != 1 || m.inPane {
-		t.Fatalf("tab on the bar: tab %d, in the pane %v", m.tab, m.inPane)
+	if m = drive(m, up); !m.controlled() {
+		t.Fatal("up did not give the control line the keyboard")
 	}
-	if keys := m.keys().String(); keys != "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ cards 1-4 jump" {
-		t.Errorf("the bar's keys: %q", keys)
+	if keys := m.keys().String(); keys != "= menu - workspace / search │ ↓ cards ⇥·⇧⇥ move ←→ fold" {
+		t.Errorf("the control line's keys, on the rows' fold: %q", keys)
 	}
-	x := strings.Index(lines(m)[2], "Maintainer")
-	if m = drive(m, testkit.Click(x, 2)); m.tab != 3 {
-		t.Fatalf("a click on Maintainer: tab %d", m.tab)
+	if m = drive(m, tabKey); m.keys().String() != "= menu - workspace / search │ ↓ cards ⇧⇥ groups ⏎ presets" {
+		t.Errorf("the control line's keys, on the presets: %q", m.keys().String())
 	}
-	if m = drive(m, down, enter); m.inPane {
-		t.Error("down entered a tab with no tutorials")
+	if m = drive(m, enter); !m.sheet.Layered() || !strings.Contains(view(m), "By audience") {
+		t.Fatalf("enter did not drop the presets down:\n%s", view(m))
 	}
-	if keys := m.keys().String(); keys != "= menu - workspace / search │ ⇥·⇧⇥ tab 1-4 jump" {
-		t.Errorf("the keys of an empty tab: %q", keys)
+	m = drive(m, down, enter)
+	if g := m.sheet.Panel().Groups(); !slices.Equal(g, []string{audienceField}) {
+		t.Fatalf("By audience groups by %q:\n%s", g, view(m))
 	}
-	if m = drive(m, press('2'), down); !m.inPane || m.tab != 1 {
-		t.Errorf("2 and down: tab %d, in the pane %v", m.tab, m.inPane)
+	v, ls := view(m), lines(m)
+	if !strings.Contains(ls[controlTop], "▾ audience") || !strings.Contains(ls[controlTop], "By audience ▼") {
+		t.Errorf("the control line, grouped: %q", ls[controlTop])
 	}
-	if keys := m.keys().String(); keys != "= menu - workspace / search │ 1-4 jump │ esc tabs ↑↓ move ⇥·⇧⇥ card ⏎ open" {
-		t.Errorf("the cards' keys: %q", keys)
+	starting := slices.IndexFunc(ls, func(l string) bool { return strings.Contains(l, "▾ "+pillText("Just starting")+" 2") })
+	ui := slices.IndexFunc(ls, func(l string) bool { return strings.Contains(l, "▾ "+pillText("UI")+" 1") })
+	if starting != paneTop+1 || ui != starting+1+cardHeight || strings.Count(v, "Finding your way around kittui") != 2 {
+		t.Errorf("the groups, at %d and %d:\n%s", starting, ui, v)
+	}
+	if len(m.cards()) != 3 || m.cards()[2].ID != "kittui-tour" {
+		t.Errorf("the cards, grouped: %v", m.cards())
+	}
+	// down enters the cards, and down again passes the UI heading to its card
+	if m = drive(m, down, down); !m.focused() || m.cursor != 2 {
+		t.Errorf("down past a heading: cursor %d", m.cursor)
+	}
+	// a filter by an audience, as its column menu sets it, leaves the tutorials for it, under each of their groups, the
+	// cursor kept among them
+	m.sheet.SetPanel(m.sheet.Panel().FilteredBy(audienceField, grid.Filter{Values: []string{"UI"}}))
+	m.settle()
+	if len(m.cards()) != 2 || m.cards()[0].ID != "kittui-tour" || m.cursor != 1 ||
+		strings.Contains(view(m), "Reading kit's") {
+		t.Errorf("filtered by UI: %v, cursor %d\n%s", m.cards(), m.cursor, view(m))
 	}
 }
 
-// Before kit answers, the pane says it is reading, and the bar counts nothing; kit's refusal is drawn in the pane.
+// Before kit answers, the pane says it is reading, and the control line is blank; kit's refusal is drawn in the pane.
 func TestThePaneSaysWhatKitDid(t *testing.T) {
 	m, _ := fake(t)
 	m = drive(m, at120)
-	if v := view(m); !strings.Contains(v, "reading…") || !strings.Contains(lines(m)[2], "All  …") {
+	if v := view(m); !strings.Contains(v, "reading…") || lines(m)[controlTop] != "" {
 		t.Errorf("before kit answers:\n%s", v)
 	}
 	if m = drive(m, enter, down, tabKey); m.cursor != 0 {

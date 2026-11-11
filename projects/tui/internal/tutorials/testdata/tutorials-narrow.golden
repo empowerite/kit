@@ -1,7 +1,5 @@
   = kit tutorials · -                            🔎 /search
-  ➊╶───────╮➁╶─────────────────╮➂╶──────╮➃╶──────────────╮
-  │ All  2 │  Just starting  2 │  UI  1 │  Maintainer  0 │
-  ╵        ╰───────────────────╰────────╰────────────────╰──
+  ▾ 2                                           Default ▼
 
   ╭────────────────────────────────────╮
   │ 🎓 Reading kit's tutorials         │
@@ -17,4 +15,6 @@
 
 
 
- = menu - workspace / search │ … │ esc tabs ↑↓ move ⇥·⇧⇥ ca…
+
+
+ = menu - workspace / search │ esc controls ↑↓ move ⇥·⇧⇥ ca…
