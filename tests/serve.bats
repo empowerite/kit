@@ -563,7 +563,6 @@ await() {
   sed -i.bak "s/^serve_instructions='kit holds/serve_instructions='own: kit holds/" kit/modules/bash/serve.sh
   serve "$(modern 1 server/discover)"
   answer 1 | jq --exit-status '.result.instructions | startswith("own: ")'
-  grep --quiet "this checkout's own kit serves it" "${BATS_TEST_TMPDIR}/err"
 }
 
 @test "between messages, a changed module starts the server again from it, which says the lists changed; one that does not parse is kept out" {

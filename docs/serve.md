@@ -181,8 +181,8 @@ A harness starts the server once per session, with the `PATH` it started with. W
 on its own:
 
 - In a checkout of the kit itself, whose `kit.yml` declares `version: unreleased`, the checkout's own
-  `kit/bin/kit-serve` serves it, whichever kit the harness started. A worktree that changes the kit is served by its
-  own code, not by the desk's or a release's.
+  `kit/bin/kit-serve` serves it, whichever kit the harness started, as `kit/bin/kit`, the loader, chooses the
+  release. A worktree that changes the kit is served by its own code, not by the desk's or a release's.
 - Before each message, the server looks for a file changed since it started, in its release's `bin/` and
   `modules/` and in the repository's own module directories. When one has, it starts itself again from the changed
   code over the same stdin, and the new process answers the message. An edit to a verb, a module, or the server
