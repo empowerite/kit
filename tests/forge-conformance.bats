@@ -703,6 +703,15 @@ JSON
   route gh 'api graphql*' gh-wide.json
   run --separate-stderr call iterations
   [ "$status" -eq 1 ]
+  [[ "$stderr" == *"at most 20 projects"* ]]
+  # an answer that is not the shape asked for is not a cap
+  fixture gh-null.json <<<'{"data": {"repository": null}}'
+  : > "${FAKE_DIR}/gh.routes"
+  route gh 'repo view*' repo.json
+  route gh 'api graphql*' gh-null.json
+  run --separate-stderr call iterations
+  [ "$status" -eq 1 ]
+  [[ "$stderr" == *"the iterations could not be read"* && "$stderr" != *"at most 20"* ]]
 }
 
 # runs-world <forge> is world's, with the runs: their list, and the jobs of run 103.

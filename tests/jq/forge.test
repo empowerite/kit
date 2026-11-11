@@ -188,6 +188,13 @@ import "forge" as forge; forge::gitlab_milestones("https://gitlab.com")
 {"number":1,"title":"v0.0.9","state":"closed","due":null,"open":0,"closed":0,"url":"https://gitlab.com/o/r/-/milestones/1"}
 {"number":2,"title":"v0.1","state":"open","due":1796083200,"open":3,"closed":2,"url":"https://gitlab.com/o/r/-/milestones/2"}
 
+# GitLab's sort by number, not by the text of the iid; a milestone with no stats, or null counts, has no issues.
+import "forge" as forge; forge::gitlab_milestones("h") | [.number, .open, .closed]
+[{"iid": "10", "title": "c", "state": "active", "webPath": "/10", "stats": null}, {"iid": "2", "title": "a", "state": "active", "webPath": "/2", "stats": {"totalIssuesCount": null, "closedIssuesCount": null}}, {"iid": "9", "title": "b", "state": "closed", "webPath": "/9", "stats": {"totalIssuesCount": 4, "closedIssuesCount": 1}}]
+[2,0,0]
+[9,3,1]
+[10,0,0]
+
 # GitHub's iterations are those of each iteration field of each project, the running and the completed, by start, each
 # lasting its duration in days to the last second before the next day; a field that is no iteration field, and a project
 # with none, add none.

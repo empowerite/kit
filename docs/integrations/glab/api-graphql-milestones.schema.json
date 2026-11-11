@@ -60,27 +60,33 @@
                         "description": "The milestone's page, without the host."
                       },
                       "stats": {
-                        "type": "object",
+                        "type": [
+                          "object",
+                          "null"
+                        ],
                         "properties": {
                           "totalIssuesCount": {
-                            "type": "integer"
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
                           },
                           "closedIssuesCount": {
-                            "type": "integer"
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
                           }
                         },
-                        "required": [
-                          "totalIssuesCount",
-                          "closedIssuesCount"
-                        ]
+                        "required": [],
+                        "description": "Nullable in GitLab's schema, as are its counts; kit reads null as none."
                       }
                     },
                     "required": [
                       "iid",
                       "title",
                       "state",
-                      "webPath",
-                      "stats"
+                      "webPath"
                     ],
                     "additionalProperties": true
                   }

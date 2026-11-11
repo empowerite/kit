@@ -71,10 +71,11 @@ or outside a repository's working tree with no workspace.
   first 100, GitLab's newest milestone and newest issue by `updated_at`, and none on Azure DevOps.
 - `iterations` keys each row by its id. `start` and `end` are seconds since the epoch, `end` the last second of the
   last day, both `null` for an iteration with no dates. `current` is true for the one that holds now. The title links
-  to the project's page, or the iteration's. GitHub's come from the projects linked to the repository, none when
-  none is linked, and need `gh`'s `read:project` scope; GitLab's include its groups', and a tier without iterations
-  is the error `{feature: iterations, off: true}`; Azure DevOps' are its team's, the team `forge_settings.ado.team` in `kit.yml`
-  names, else the project's default team. It has no mark, so kittui reads it again only on Refresh and Watch.
+  to the page of the project, the iteration, or the team's sprints. GitHub's come from the projects linked to the
+  repository, none when none is linked, and need `gh`'s `read:project` scope; GitLab's include its groups', and a tier
+  without iterations is the error `{feature: iterations, off: true}`; Azure DevOps' are its team's, the team `forge_settings.ado.team`
+  in `kit.yml` names, else the project's default team. It has no mark, so kittui reads it again only on Refresh and
+  Watch.
 
 ## Packages: kit packages
 

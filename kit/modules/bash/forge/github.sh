@@ -130,9 +130,11 @@ forge/github:iterations() {
     return 1
   fi
   forge:json "${answer}" || { error "run: gh auth status (the iterations could not be read)"; return 1; }
+  forge/github:fold 'the iterations' "${answer}" --exit-status '.data.repository.projectsV2.nodes | arrays' \
+    >/dev/null || return 1
   jq --exit-status '
     .data.repository.projectsV2 | (.totalCount // 0) <= (.nodes | length)
-      and all(.nodes[]; (.fields.totalCount // 0) <= (.fields.nodes | length))' <<<"${answer}" >/dev/null 2>&1 \
+      and all(.nodes[]; (.fields.totalCount // 0) <= ((.fields.nodes // []) | length))' <<<"${answer}" >/dev/null \
     || { error "kit reads at most 20 projects and 50 fields of each (the iterations could not be read)"; return 1; }
   forge/github:fold 'the iterations' "${answer}" --compact-output 'import "forge" as forge; forge::github_iterations'
 }
@@ -145,8 +147,9 @@ forge/github:link-branch() {
 # forge/github:marks [<dir>] reads, for each kind of the repository's data, a mark that changes when it does: issues,
 # of the issue or pull request updated last, as GitHub lists them together; runs, of the ten newest workflow runs;
 # releases, of the newest release; milestones, of the first 100 milestones, the page the read takes first, so an edit
-# to a milestone past the first 100 goes unseen. A mark is GitHub's ETag for the answer. With <dir>, each ETag is kept there and the next read sends it, so GitHub answers 304 Not
-# Modified while nothing changed, which counts against no rate limit.
+# to a milestone past the first 100 goes unseen. A mark is GitHub's ETag for the answer. With <dir>, each ETag is
+# kept there and the next read sends it, so GitHub answers 304 Not Modified while nothing changed, which counts against
+# no rate limit.
 # gh names the repository from the checkout's remote, as {owner}/{repo}, which costs no request.
 forge/github:marks() {
   local dir=${1:-} issues runs releases milestones

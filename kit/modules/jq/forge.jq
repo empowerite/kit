@@ -468,12 +468,12 @@ def github_milestones:
 
 # gitlab_milestones($host) reads the nodes of GitLab's GraphQL milestones and gives the same documents, by number, its
 # iid. Its dueDate is a day, its state active or closed, active being open, and its issues are counted by the stats:
-# those open are the total less those closed. $host, as https://gitlab.com, begins the page, which is its webPath.
+# those open are the total less those closed, a milestone with no stats, or counts, having none. $host, as https://gitlab.com, begins the page, which is its webPath.
 def gitlab_milestones($host):
-  sort_by(.iid)[]
-  | {number: (.iid | tonumber), title, state: (if .state == "closed" then "closed" else "open" end),
-     due: (.dueDate | day), open: (.stats.totalIssuesCount - .stats.closedIssuesCount),
-     closed: .stats.closedIssuesCount, url: ($host + .webPath)};
+  sort_by(.iid | tonumber)[]
+  | ((.stats.totalIssuesCount // 0) as $total | (.stats.closedIssuesCount // 0) as $closed
+     | {number: (.iid | tonumber), title, state: (if .state == "closed" then "closed" else "open" end),
+        due: (.dueDate | day), open: ($total - $closed), closed: $closed, url: ($host + .webPath)});
 
 # iteration($start; $end; $url) is an iteration's document: {id, title, start, end, url}, its start and end seconds
 # since the epoch, null for none. It is given an object with id and title.
