@@ -387,3 +387,28 @@ func TestTheWheelScrollsTheOpenDialogsFolders(t *testing.T) {
 		t.Errorf("the wheel scrolled nothing: top %d\n%s", m.opener.Top, v)
 	}
 }
+
+// ⌃F in the Open… dialog walks the folder typed, and the clones it finds stand in the dialog, each opened by a click.
+func TestTheOpenDialogFindsAndOpensTheClonesUnderAFolder(t *testing.T) {
+	m, record, _ := workspaced(t, map[string]string{"current.json": repoJSON})
+	parent := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(parent, "far", ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	m = drive(m, shell.OpenMsg{}, tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl})
+	m = drive(m, typed(parent+"/")...)
+	m = drive(m, tea.KeyPressMsg{Code: 'f', Mod: tea.ModCtrl})
+	view := ansi.Strip(m.View().Content)
+	if !strings.Contains(view, shell.Clone+" far") {
+		t.Fatalf("no clone found:\n%s", view)
+	}
+	for y, l := range strings.Split(view, "\n") {
+		if k := strings.Index(l, shell.Clone+" far"); k >= 0 {
+			m = drive(m, testkit.Click(ansi.StringWidth(l[:k]), y))
+			break
+		}
+	}
+	if got, _ := os.ReadFile(record); !strings.Contains(string(got), "use "+filepath.Join(parent, "far")) {
+		t.Errorf("a click on the clone did not ask kit: %q", got)
+	}
+}

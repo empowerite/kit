@@ -282,10 +282,10 @@ func TestOpenWheelScrollsTheFolders(t *testing.T) {
 // going up while there is a folder above.
 func TestOpenNamesTheMovesWhereTheyApply(t *testing.T) {
 	keys := func(d OpenDialog) string { return (Path{d.Keys()}).String() }
-	if got := keys(NewOpen(t.TempDir(), "")); got != "esc close ↑↓ move ⇥ complete ⇧⌫·⌃W up ⏎ open" {
+	if got := keys(NewOpen(t.TempDir(), "")); got != "esc close ↑↓ move ⇥ complete ⇧⌫·⌃W up ⌃F find clones ⏎ open" {
 		t.Errorf("no folders: %q", got)
 	}
-	if got := keys(NewOpen(many(t, 20), "")); got != "esc close ↑↓ move ⇞⇟ page ⇥ complete ⇧⌫·⌃W up ⏎ open" {
+	if got := keys(NewOpen(many(t, 20), "")); got != "esc close ↑↓ move ⇞⇟ page ⇥ complete ⇧⌫·⌃W up ⌃F find clones ⏎ open" {
 		t.Errorf("many: %q", got)
 	}
 	if got := keys(NewOpen("/", "")); strings.Contains(got, " up") {
@@ -335,6 +335,120 @@ func TestOpenListsTheFolderAboveFirst(t *testing.T) {
 	}
 	if v := drawn(NewOpen("/", "")); strings.Contains(v, "../") {
 		t.Errorf("at /:\n%s", v)
+	}
+}
+
+// clones makes a tree of folders under a directory of the test's own, some of them git working trees, a .git folder
+// or file in each, and gives the directory.
+func clones(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	for _, p := range []string{"a/.git/modules/z/.git", "b/c/.git", ".hidden/x/.git", "node_modules/y/.git",
+		"d/1/2/3/4/5/.git", "d/1/2/3/4/5/6/7/.git", "plain/e"} {
+		if err := os.MkdirAll(filepath.Join(dir, p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "a/worktrees/w1"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "a/worktrees/w1/.git"), []byte("gitdir: ../../.git/worktrees/w1"),
+		0o644); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+// The walk finds every git working tree under a folder, into a clone for its worktrees, but never into .git, a hidden
+// folder, or node_modules, and no deeper than it is let; it stops at so many, and says so.
+func TestFindClonesWalksTheFolderForWorkingTrees(t *testing.T) {
+	dir := clones(t)
+	got, capped := findClones(dir, cloneDepth, cloneMost)
+	if strings.Join(got, "|") != "a|a/worktrees/w1|b/c|d/1/2/3/4/5" || capped {
+		t.Errorf("found %q, capped %v", got, capped)
+	}
+	if got, capped := findClones(dir, cloneDepth, 2); strings.Join(got, "|") != "a|a/worktrees/w1" || !capped {
+		t.Errorf("at most 2: %q, capped %v", got, capped)
+	}
+	if got, _ := findClones(filepath.Join(dir, "b", "c"), cloneDepth, cloneMost); strings.Join(got, "|") != "." {
+		t.Errorf("a clone itself: %q", got)
+	}
+}
+
+// ⌃F walks the folder typed while the dialog says it is finding clones; the clones then stand in place of the folders,
+// and enter on one asks to open it; esc goes back to the folders, and esc again closes the dialog.
+func TestOpenFindsTheClonesUnderTheFolderTyped(t *testing.T) {
+	dir := clones(t)
+	d := NewOpen(dir, "/nowhere")
+	if v := drawn(d); !strings.Contains(v, Finding+" Find clones under /") {
+		t.Fatalf("no line to find clones:\n%s", v)
+	}
+	was := d
+	d, _ = d.Key(tea.KeyPressMsg{Code: 'f', Mod: tea.ModCtrl})
+	walk := d.Walk(was)
+	if walk == nil {
+		t.Fatal("⌃F walks nothing")
+	}
+	if d.Walk(d) != nil {
+		t.Error("a walk asked again")
+	}
+	if v := drawn(d); !strings.Contains(v, "finding clones…") || strings.Contains(v, Folder+" a/") {
+		t.Errorf("while finding:\n%s", v)
+	}
+	found := walk().(ClonesMsg)
+	// typed since, the walk's answer is dropped
+	if typed := typedIn(d, "a").Found(found); strings.Contains(drawn(typed), Clone) {
+		t.Errorf("a stale answer is shown:\n%s", drawn(typed))
+	}
+	d = d.Found(found)
+	if v := drawn(d); !strings.Contains(v, Clone+" a/worktrees/w1") || strings.Contains(v, Folder+" plain/") ||
+		strings.Contains(v, "../") {
+		t.Errorf("the clones:\n%s", v)
+	}
+	d, _ = d.Key(key("down"))
+	if _, path := d.Key(key("enter")); path != filepath.Join(dir, "a") {
+		t.Errorf("enter on a: %q", path)
+	}
+	back, _ := d.Key(key("esc"))
+	if v := drawn(back); !back.Open || !strings.Contains(v, Folder+" plain/") || strings.Contains(v, Clone) {
+		t.Errorf("esc from the clones:\n%s", v)
+	}
+	if back, _ = back.Key(key("esc")); back.Open {
+		t.Error("esc from the folders leaves the dialog open")
+	}
+	if typed := typedIn(d, "b"); strings.Contains(drawn(typed), Clone) {
+		t.Errorf("typing leaves the clones:\n%s", drawn(typed))
+	}
+}
+
+// The line that finds clones, and each clone found, act on a plain click.
+func TestOpenFindsAndOpensClonesByPlainClicks(t *testing.T) {
+	dir := clones(t)
+	click := func(d OpenDialog, text string) (OpenDialog, string) {
+		t.Helper()
+		p := d.placed(30, 100)
+		for k, l := range p.Lines {
+			if strings.Contains(ansi.Strip(l), text) {
+				return d.Click(tea.MouseClickMsg{X: p.Left + 3, Y: p.Top + k, Button: tea.MouseLeft}, 30, 100)
+			}
+		}
+		t.Fatalf("no line %q:\n%s", text, drawn(d))
+		return d, ""
+	}
+	d := NewOpen(dir, "/nowhere")
+	was := d
+	d, _ = click(d, "Find clones under")
+	walk := d.Walk(was)
+	if walk == nil {
+		t.Fatal("a click walks nothing")
+	}
+	d = d.Found(walk().(ClonesMsg))
+	if _, path := click(d, Clone+" b/c"); path != filepath.Join(dir, "b", "c") {
+		t.Errorf("a click on b/c: %q", path)
+	}
+	if got := (Path{d.Keys()}).String(); !strings.Contains(got, "esc back") || !strings.Contains(got, "⌃F find clones") ||
+		!strings.Contains(got, "⇧⌫·⌃W up") {
+		t.Errorf("the keys: %q", got)
 	}
 }
 
@@ -433,7 +547,7 @@ func TestOpenTakesAKeyThatTypesNothingAsNothing(t *testing.T) {
 // The dialog's keys take every press: with no folder to move over, esc, tab, and enter, as the keys bar names them.
 func TestOpenNamesItsKeys(t *testing.T) {
 	s := NewOpen(t.TempDir(), "").Keys()
-	if got := (Path{ScreenKeys(), s}).String(); got != "esc close ↑↓ move ⇥ complete ⇧⌫·⌃W up ⏎ open" || !s.Owns {
+	if got := (Path{ScreenKeys(), s}).String(); got != "esc close ↑↓ move ⇥ complete ⇧⌫·⌃W up ⌃F find clones ⏎ open" || !s.Owns {
 		t.Errorf("the keys: %q, owns %v", got, s.Owns)
 	}
 }

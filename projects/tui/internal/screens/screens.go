@@ -258,7 +258,8 @@ func (m Model) workspaceMsg() shell.WorkspaceMsg {
 }
 
 // Update takes a message: a screen's ask for another, shown in its place, or for a row of another, which is shown and
-// then given the ask; or for the Settings dialog, opened over it;
+// then given the ask; or for the Settings dialog, or the Open… dialog, opened over it, and a walk's clones for the
+// Open… dialog;
 // an answer to what a screen started, for that screen; while a dialog is open, a key or a click for it, which closes
 // it outside it, a turn of the wheel for the Open… dialog's list, and any other mouse event nowhere;
 // and anything else for the screen shown, the terminal's size as the screen has it.
@@ -288,6 +289,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.opened(msg)
 	case shell.OpenMsg:
 		return m.opening(), nil
+	case shell.ClonesMsg:
+		m.opener = m.opener.Found(msg)
+		return m, nil
 	case shell.ChangedMsg:
 		return m.regrouped(msg)
 	case shell.PickMsg:
@@ -301,11 +305,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		m.refusal = ""
 		if m.opener.Open && msg.String() != "ctrl+c" {
-			var folder string
+			was, folder := m.opener, ""
 			if m.opener, folder = m.opener.Key(msg); folder != "" {
 				return m.openFolder(folder)
 			}
-			return m, nil
+			return m, m.opener.Walk(was)
 		}
 		if m.dialog.Open && msg.String() != "ctrl+c" {
 			was := m.settings
@@ -314,11 +318,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.MouseClickMsg:
 		if m.opener.Open {
-			var folder string
+			was, folder := m.opener, ""
 			if m.opener, folder = m.opener.Click(msg, m.height(), m.width()); folder != "" {
 				return m.openFolder(folder)
 			}
-			return m, nil
+			return m, m.opener.Walk(was)
 		}
 		if m.dialog.Open {
 			was := m.settings
