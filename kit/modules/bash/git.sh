@@ -33,9 +33,10 @@ git:desks() {
 git:default-branch() {
   local branch primary
   primary=$(forge:primary) || return $?
-  # A primary whose HEAD git has not recorded falls back to main.
-  branch=$(git -C "${1:-.}" symbolic-ref --quiet --short "refs/remotes/${primary}/HEAD" 2>/dev/null || true)
-  branch=${branch#"${primary}"/}
+  # A primary whose HEAD git has not recorded falls back to main. The ref is read in full: its short name is
+  # remotes/<primary>/<branch> where a tag or a branch is named <primary>/<branch>.
+  branch=$(git -C "${1:-.}" symbolic-ref --quiet "refs/remotes/${primary}/HEAD" 2>/dev/null || true)
+  branch=${branch#"refs/remotes/${primary}"/}
   [[ -n "${branch}" ]] || branch=main
   printf '%s\n' "${branch}"
 }

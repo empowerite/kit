@@ -204,15 +204,16 @@ policy:branch-past() {
 }
 
 # policy:base-name prints the name of a branch's base, whose policy judges it and from which facts:document counts
-# its commits: on a runner, the base the change's event names (policy:runner-base); elsewhere origin/<default>. It
-# returns 1, saying so, when a runner names a change and its base cannot be had.
+# its commits: on a runner, the commit the change's event names (policy:runner-base); elsewhere
+# refs/remotes/origin/<default>, written in full, since a tag or a branch named origin/<default> outranks the short
+# name. It returns 1, saying so, when a runner names a change and its base cannot be had.
 policy:base-name() {
   local base
   base=$(policy:runner-base) || return 1
   if [[ -z "${base}" ]]
   then
     base=$(git:default-branch) || return 1
-    base=origin/${base}
+    base=refs/remotes/origin/${base}
   fi
   printf '%s\n' "${base}"
 }
@@ -221,7 +222,7 @@ policy:base-name() {
 # can move, and nothing where no change is named, as at a desk or in a push build. On GitHub it is the pull request's
 # base commit, pull_request.base.sha in the event at GITHUB_EVENT_PATH, or a merge group's, merge_group.base_sha. On
 # GitLab it is the target branch's tip: CI_MERGE_REQUEST_TARGET_BRANCH_SHA where a merged-results pipeline sets it,
-# else origin/<target>, the branch CI_MERGE_REQUEST_TARGET_BRANCH_NAME names, fetched from origin when it is not here
+# else the commit at the tip of the branch CI_MERGE_REQUEST_TARGET_BRANCH_NAME names, as origin has it
 # (policy:target-here); never CI_MERGE_REQUEST_DIFF_BASE_SHA, the merge base, which a branch chooses by where it
 # forks. It returns 1, saying so, where a change is named (policy:change-named) and its base is not in the event, is
 # no commit, or cannot be had.
@@ -234,7 +235,6 @@ policy:runner-base() {
     if [[ -z "${commit}" && -n "${target}" ]]
     then
       policy:target-here "${target}" || return 1
-      printf 'origin/%s\n' "${target}"
       return 0
     fi
     [[ -n "${commit}" ]] || unread='CI_MERGE_REQUEST_TARGET_BRANCH_NAME is not set'
@@ -263,9 +263,10 @@ policy:runner-base() {
   [[ -z "${commit}" ]] || printf '%s\n' "${commit}"
 }
 
-# policy:target-here <branch> makes sure refs/remotes/origin/<branch>, a merge request's target, is here, fetching it
-# from origin when it is not. The name reaches git as an argument, so one git refuses as a branch name is refused
-# first, named. It returns 1, saying so, when the target cannot be had.
+# policy:target-here <branch> fetches a merge request's target from origin into refs/remotes/origin/<branch>, forced
+# and with no tags, so a ref an earlier job left or moved counts for nothing, and prints the commit at its tip. The
+# name reaches git as an argument, so one git refuses as a branch name is refused first, named. It returns 1, saying
+# so, when the target cannot be had.
 policy:target-here() {
   local target=$1
   if [[ "${target}" == -* ]] || ! git check-ref-format --branch "${target}" >/dev/null 2>&1
@@ -274,11 +275,11 @@ policy:target-here() {
       "branch name), so its policy cannot be read"
     return 1
   fi
-  git rev-parse --verify --quiet "refs/remotes/origin/${target}^{commit}" >/dev/null && return 0
-  if ! git fetch --quiet origin "refs/heads/${target}:refs/remotes/origin/${target}" 2>/dev/null
+  if ! git fetch --quiet --no-tags origin "+refs/heads/${target}:refs/remotes/origin/${target}" 2>/dev/null \
+    || ! git rev-parse --verify --quiet "refs/remotes/origin/${target}^{commit}"
   then
-    error "the base of the change, origin/${target}, the merge request's target, is not here and could not be" \
-      "fetched, so its policy cannot be read"
+    error "the base of the change, origin/${target}, the merge request's target, could not be fetched, so its" \
+      "policy cannot be read"
     return 1
   fi
 }
@@ -290,7 +291,7 @@ policy:base() {
   base=$(policy:base-name) || return 1
   if ! git rev-parse --verify --quiet "${base}^{commit}" >/dev/null
   then
-    error "the base, ${base}, is not here, so its policy cannot be read; fetch it with full history"
+    error "the base, ${base#refs/remotes/}, is not here, so its policy cannot be read; fetch it with full history"
     return 1
   fi
   printf '%s\n' "${base}"

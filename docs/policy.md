@@ -82,9 +82,11 @@ it changes, a kind it redefines, and a file it removes, adds, or edits under `.k
   the branch can move, as the gate could move `origin/<default>`. On GitHub that is the pull request's base commit,
   `pull_request.base.sha` in the event at `GITHUB_EVENT_PATH`, or a merge group's, `merge_group.base_sha`. On GitLab
   it is the target branch's tip: `CI_MERGE_REQUEST_TARGET_BRANCH_SHA` in a merged-results pipeline, else
-  `origin/<target>` for the branch `CI_MERGE_REQUEST_TARGET_BRANCH_NAME` names, fetched from origin when it is not
-  here; never the merge base, `CI_MERGE_REQUEST_DIFF_BASE_SHA`, which a branch chooses by where it forks. A runner
-  that names a change and no base it can have fails both verbs, naming what is missing.
+  the tip of the branch `CI_MERGE_REQUEST_TARGET_BRANCH_NAME` names, fetched from origin every time, forced and with
+  no tags, so a ref an earlier job left counts for nothing; never the merge base, `CI_MERGE_REQUEST_DIFF_BASE_SHA`,
+  which a branch chooses by where it forks. A runner that names a change and no base it can have fails both verbs,
+  naming what is missing. At a desk the base is `refs/remotes/origin/<default>`, read in full, so a tag or a branch
+  named `origin/<default>` does not stand for it.
 - In a merge queue, the branch is the merge group's head, `gh-readonly-queue/<base>/pr-<n>-<sha>`, which the kit's
   default `branch` pattern refuses. A repository that runs `kit ci` on `merge_group` events sets `policy.branch` to
   allow it.
@@ -126,7 +128,7 @@ as on the default branch, so the pull request that installs the kit sets its fir
 
 A base that is not here, as in a clone that lacks `origin/<default>` or the event's commit, fails both verbs wherever
 they run. They say `the base, <base>, is not here, so its policy cannot be read; fetch it with full history`, naming
-the ref or the commit; a merge request's target that is not here and cannot be fetched is named the same way. A read
+the ref or the commit; a merge request's target that cannot be fetched is named the same way. A read
 of the base's files, or of a source it names, that fails, for any reason other than the file not being there, fails
 them too.
 

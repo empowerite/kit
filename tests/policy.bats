@@ -626,14 +626,41 @@ REGO
   [ "$status" -eq 1 ]
   [[ "$output" == *"'no reference' does not match policy.commit_subject"* ]]
   [ "$(git rev-parse refs/remotes/origin/main)" = "${tip}" ]
+  # a target ref an earlier job left at the lax commit is fetched again, and a tag named origin/main, on origin too,
+  # counts for nothing
+  git update-ref refs/remotes/origin/main "${old}"
+  git tag origin/main "${old}" && git push --quiet origin refs/tags/origin/main
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"'no reference' does not match policy.commit_subject"* ]]
+  [ "$(git rev-parse refs/remotes/origin/main)" = "${tip}" ]
   # a target origin does not have, and one that is no branch name, fail closed, named
   run env CI_MERGE_REQUEST_TARGET_BRANCH_NAME=nowhere "${kit_root}/bin/kit" policy
   [ "$status" -eq 1 ]
-  [[ "$output" == *"origin/nowhere, the merge request's target, is not here and could not be fetched"* ]]
+  [[ "$output" == *"origin/nowhere, the merge request's target, could not be fetched"* ]]
   run env CI_MERGE_REQUEST_TARGET_BRANCH_NAME='-x' "${kit_root}/bin/kit" policy
   [ "$status" -eq 1 ]
   [[ "$output" == *"'-x' in CI_MERGE_REQUEST_TARGET_BRANCH_NAME is not a branch name"* ]]
   [ -z "$(git for-each-ref 'refs/remotes/origin/nowhere' 'refs/remotes/origin/-x')" ]
+}
+
+@test "at a desk, a tag or a branch named origin/main does not stand for the base" {
+  printf 'policy:\n  commit_subject: ""\n' > kit.yml
+  git add kit.yml
+  git commit --quiet --message "#2 kit: a lax policy" && git push --quiet origin main
+  old=$(git rev-parse HEAD)
+  printf 'policy:\n  commit_subject: "^#[0-9]+ "\n' > kit.yml
+  git commit --quiet --all --message "#3 kit: the strict policy" && git push --quiet origin main
+  git switch --quiet --create 7-fix-the-thing
+  git commit --quiet --allow-empty --message "no reference"
+  for ref in refs/tags/origin/main refs/heads/origin/main
+  do
+    git update-ref "${ref}" "${old}"
+    run "${kit_root}/bin/kit" policy
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"'no reference' does not match policy.commit_subject"* ]]
+    git update-ref -d "${ref}"
+  done
 }
 
 @test "a merge group is judged by the base commit its event names, as the change on the merge group's head" {
