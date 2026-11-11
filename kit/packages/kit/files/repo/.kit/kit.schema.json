@@ -9,13 +9,14 @@
   "properties": {
     "forge": {
       "type": "string",
-      "description": "The forge (the service that hosts the repository) of the primary remote, which the workflow commands use: github, gitlab, or ado (Azure DevOps). When absent, it is detected from the primary's host: github.com, gitlab.com, dev.azure.com, or a host under visualstudio.com, or a host the gh or glab CLI has logged in to. Otherwise it must be set here, as for an Azure DevOps Server.",
+      "description": "The forge (the service that hosts the repository) of the primary remote, which the workflow commands use: github, gitlab, or ado (Azure DevOps). When absent, it is detected from the primary's host: github.com, gitlab.com, dev.azure.com, or a host under visualstudio.com, or a host the gh or glab CLI has logged in to. Otherwise it must be set here, as for an Azure DevOps Server, or set to none for a primary on a host with no forge the kit knows, such as Bitbucket or a plain git server: then nothing is asked of a forge, and a change is not read.",
       "anyOf": [
         {
           "enum": [
             "github",
             "gitlab",
-            "ado"
+            "ado",
+            "none"
           ]
         },
         {
@@ -26,7 +27,7 @@
     },
     "forges": {
       "type": "object",
-      "description": "The forge of each remote named, by remote: {upstream: gitlab}. A remote not named here takes the forge its host names, or none. For the primary, forge wins over this.",
+      "description": "The forge of each remote named, by remote: {upstream: gitlab}. A remote not named here takes the forge its host names, or none; none names a remote with no forge. For the primary, forge wins over this.",
       "additionalProperties": {
         "type": "string",
         "anyOf": [
@@ -34,7 +35,8 @@
             "enum": [
               "github",
               "gitlab",
-              "ado"
+              "ado",
+              "none"
             ]
           },
           {

@@ -129,7 +129,8 @@ whatever the primary is. Each remote has a code forge, or none:
 
 The primary is the exception to the last: on a host nothing names, its code forge is one kit cannot tell, never
 none, so a read of its pull request fails and names the `forge` setting. A primary that is a path on this machine has
-no code forge.
+no code forge. `forge: none`, or `none` under `forges`, says a remote has no code forge the kit knows, as on Bitbucket
+or a plain git server; it wins over the host and a runner's server.
 
 `kit release <version>` tags HEAD as `release/<version>` and pushes that tag alone, which starts the repository's
 release workflow. It refuses:

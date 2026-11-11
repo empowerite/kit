@@ -129,6 +129,22 @@ change() {
   [ "$("${kit_root}/bin/kit" policy --input | jq --compact-output .change)" = null ]
 }
 
+@test "a primary on a host with no forge the kit knows says so with forge: none, and its change is null" {
+  unset GITHUB_SERVER_URL CI_SERVER_HOST SYSTEM_COLLECTIONURI
+  branch 7-fix-the-thing "#7 cli: fix the thing"
+  git remote set-url origin git@bitbucket.org:o/r.git
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"or none)"* ]]
+  printf 'forge: none\n' > kit.yml
+  git add kit.yml
+  git commit --quiet --message "#7 cli: no forge"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 0 ]
+  [ "$("${kit_root}/bin/kit" policy --input | jq --compact-output .change)" = null ]
+  [ ! -s "${FAKE_DIR}/gh.calls" ]
+}
+
 @test "the defaults refuse a branch, a commit subject, and a title off the loop's shape, each named" {
   branch topic "#7 cli: fine" "wip"
   change ""

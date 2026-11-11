@@ -313,13 +313,17 @@ forge:login-of() {
   fi
 }
 
-# forge:of <remote> prints the remote's forge, the first answer of the file header's list, or nothing for a remote
-# with no forge.
-forge:of() {
-  local remote=$1 forge='' name value host primary row
+# forge:named <remote> prints the forge kit.yml sets for the remote: forge for the primary, else its entry under
+# forges; none where kit.yml says the remote has no forge; nothing where kit.yml sets none. It fails when kit.yml
+# cannot be read.
+forge:named() {
+  local remote=$1 forge='' name value primary row
   local -a rows
   primary=$(forge:primary) || return $?
-  [[ "${remote}" != "${primary}" ]] || forge=$(settings:value forge)
+  if [[ "${remote}" == "${primary}" ]]
+  then
+    forge=$(settings:value forge) || return 1
+  fi
   if [[ -z "${forge}" ]]
   then
     list:read rows yaml:map "$(settings:file)" forges || return 1
@@ -329,6 +333,15 @@ forge:of() {
       [[ "${name}" == "${remote}" ]] && forge=${value}
     done
   fi
+  [[ -z "${forge}" ]] || printf '%s\n' "${forge}"
+}
+
+# forge:of <remote> prints the remote's forge, the first answer of the file header's list, or nothing for a remote
+# with no forge, as one kit.yml names none.
+forge:of() {
+  local remote=$1 forge host
+  forge=$(forge:named "${remote}") || return $?
+  [[ "${forge}" != none ]] || return 0
   if [[ -z "${forge}" ]]
   then
     host=$(forge:host "${remote}")
@@ -354,32 +367,40 @@ forge:provider() {
   if [[ -z "${provider}" ]]
   then
     host=$(forge:host "${primary}")
-    if ! git remote get-url --end-of-options "${primary}" >/dev/null 2>&1
+    if [[ "$(forge:named "${primary}")" == none ]]
+    then
+      error "set forge in kit.yml to the primary's forge ($(forge:providers)); kit.yml sets forge: none, so" \
+        "there is no forge to ask"
+    elif ! git remote get-url --end-of-options "${primary}" >/dev/null 2>&1
     then
       error "this repository does not have a remote named ${primary}, so kit cannot tell its forge;" \
-        "run: git remote add ${primary} <url>, or set forge in kit.yml ($(forge:providers))"
+        "run: git remote add ${primary} <url>, or set forge in kit.yml ($(forge:providers), or none)"
     elif [[ -z "${host}" ]]
     then
-      error "${primary} is a local path, so it does not name a forge; set forge in kit.yml ($(forge:providers))"
+      error "${primary} is a local path, so it does not name a forge; set forge in kit.yml" \
+        "($(forge:providers), or none)"
     else
-      error "set forge in kit.yml; ${primary}'s host '${host}' names no forge the kit knows ($(forge:providers))"
+      error "set forge in kit.yml; ${primary}'s host '${host}' names no forge the kit knows" \
+        "($(forge:providers), or none)"
     fi
     return 1
   fi
   if [[ -z "$(use:modules "forge/${provider}")" ]]
   then
-    error "'${provider}' is not a forge the kit knows; the forges are: $(forge:providers) (forge in kit.yml)"
+    error "'${provider}' is not a forge the kit knows; the forges are: $(forge:providers), or none (forge in kit.yml)"
     return 1
   fi
   printf '%s\n' "${provider}"
 }
 
-# forge:none succeeds when the primary has no forge, the last answer of the file header's list. It fails when the
-# primary has a forge, when the settings that choose it cannot be read, so a wrong setting is never taken for none,
-# and when the primary is on a host that nothing names, whose forge the kit cannot tell.
+# forge:none succeeds when the primary has no forge, the last answer of the file header's list, or kit.yml says it has
+# none. It fails when the primary has a forge, when the settings that choose it cannot be read, so a wrong setting is
+# never taken for none, and when the primary is on a host that nothing names, whose forge the kit cannot tell.
 forge:none() {
   local primary forge
   primary=$(forge:primary 2>/dev/null) || return 1
+  forge=$(forge:named "${primary}" 2>/dev/null) || return 1
+  [[ "${forge}" != none ]] || return 0
   forge=$(forge:of "${primary}" 2>/dev/null) || return 1
   [[ -z "${forge}" ]] || return 1
   [[ -z "$(forge:host "${primary}")" ]]
@@ -466,7 +487,11 @@ forge:has() {
 # the forge lacks, naming the setting.
 forge:stand-ins() {
   local provider doc choices refusal
-  if [[ -z "${forge_stand_ins}" ]]
+  if [[ -z "${forge_stand_ins}" ]] && forge:none
+  then
+    # a primary with no forge has nothing to stand in for
+    forge_stand_ins='{}'
+  elif [[ -z "${forge_stand_ins}" ]]
   then
     provider=$(forge:provider) || return 1
     forge:lacks >/dev/null || return 1

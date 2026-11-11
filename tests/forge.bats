@@ -31,12 +31,12 @@ provider() {
   run provider
   [ "$status" -eq 1 ]
   [[ "$output" == *"set forge in kit.yml; origin's host 'codeberg.org' names no forge the kit knows"* ]]
-  [[ "$output" == *"(ado github gitlab)"* ]]
+  [[ "$output" == *"(ado github gitlab, or none)"* ]]
   # a local path has no host, so it is named as a path
   git remote set-url origin "${BATS_TEST_TMPDIR}/origin.git"
   run provider
   [ "$status" -eq 1 ]
-  [[ "$output" == *"origin is a local path, so it does not name a forge; set forge in kit.yml (ado github gitlab)"* ]]
+  [[ "$output" == *"origin is a local path, so it does not name a forge; set forge in kit.yml"*"(ado github gitlab, or none)"* ]]
   # no origin at all says so, and how to add one
   git remote remove origin
   run provider
@@ -152,6 +152,35 @@ in-forge() {
   run in-forge forge:none
   [ "$status" -eq 0 ]
   git remote remove origin
+  run in-forge forge:none
+  [ "$status" -eq 0 ]
+}
+
+@test "forge: none says a primary on a host has no forge, before its host and a runner's server name one" {
+  git remote add origin git@bitbucket.org:empowerite/kit.git
+  run in-forge forge:none
+  [ "$status" -eq 1 ]
+  run provider
+  [[ "$output" == *"(ado github gitlab, or none)"* ]]
+  printf 'forge: none\n' > kit.yml
+  run in-forge forge:none
+  [ "$status" -eq 0 ]
+  run forge-of origin
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  # a runner's server that matches the host does not outrank the setting, as Forgejo's names itself in GITHUB_SERVER_URL
+  git remote set-url origin https://forgejo.example.com/o/r.git
+  GITHUB_SERVER_URL=https://forgejo.example.com run forge-of origin
+  [ -z "$output" ]
+  # a verb that needs the forge says that kit.yml chose none
+  run provider
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"kit.yml sets forge: none"* ]]
+  run in-forge forge:capabilities
+  [ "$status" -eq 0 ]
+  [ "$(jq --compact-output '[.forge, .stand_ins]' <<<"$output")" = '[null,{}]' ]
+  # a remote other than the primary is none through forges
+  printf 'forges: {origin: none}\n' > kit.yml
   run in-forge forge:none
   [ "$status" -eq 0 ]
 }
