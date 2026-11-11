@@ -259,8 +259,8 @@ func (m Model) workspaceMsg() shell.WorkspaceMsg {
 
 // Update takes a message: a screen's ask for another, shown in its place, or for a row of another, which is shown and
 // then given the ask; or for the Settings dialog, opened over it;
-// an answer to what a screen started, for that screen; while the dialog is open, a key or a click for it, which closes
-// it outside it, and any other mouse event nowhere;
+// an answer to what a screen started, for that screen; while a dialog is open, a key or a click for it, which closes
+// it outside it, a turn of the wheel for the Open… dialog's list, and any other mouse event nowhere;
 // and anything else for the screen shown, the terminal's size as the screen has it.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -324,6 +324,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			was := m.settings
 			m.dialog, m.settings = m.dialog.Click(msg, m.settings, m.height(), m.width())
 			return m.changed(was)
+		}
+	case tea.MouseWheelMsg:
+		if m.opener.Open {
+			m.opener = m.opener.Wheel(msg)
+			return m, nil
+		}
+		if m.dialog.Open {
+			return m, nil
 		}
 	case tea.MouseMsg:
 		if m.dialog.Open || m.opener.Open {

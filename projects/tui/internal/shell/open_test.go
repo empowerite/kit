@@ -2,6 +2,7 @@
 package shell
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +10,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
 // folders makes the folders under a directory of the test's own, and a file beside them, and gives the directory.
@@ -157,5 +160,127 @@ func TestOpenIsDoneByPlainClicks(t *testing.T) {
 	}
 	if d3, _ := d.Click(tea.MouseClickMsg{X: 0, Y: 29, Button: tea.MouseLeft}, 30, 100); d3.Open {
 		t.Error("a click off the box leaves it open")
+	}
+}
+
+// many makes so many folders, f00 on, under a directory of the test's own, and gives the directory.
+func many(t *testing.T, n int) string {
+	t.Helper()
+	var names []string
+	for k := range n {
+		names = append(names, fmt.Sprintf("f%02d", k))
+	}
+	return folders(t, names...)
+}
+
+// drawn gives the dialog's box as plain text, over a screen of 30 lines, 100 wide.
+func drawn(d OpenDialog) string { return ansi.Strip(strings.Join(d.placed(30, 100).Lines, "\n")) }
+
+// ↓ from what is typed puts the highlight on the first folder, and ↑ from it back on what is typed; the list windows to
+// keep the highlight in view, saying how many folders it hides above and below; ⇞ and ⇟ move it by a page.
+func TestOpenMovesAHighlightOverTheFoldersAndScrollsToIt(t *testing.T) {
+	d := NewOpen(many(t, 20), "/nowhere")
+	if v := drawn(d); !strings.Contains(v, Folder+" f00/") || !strings.Contains(v, "… 12 more") ||
+		strings.Contains(v, "above") {
+		t.Errorf("at the top:\n%s", v)
+	}
+	d, _ = d.Key(key("down"))
+	if d.At != 1 {
+		t.Errorf("down from what is typed: %d", d.At)
+	}
+	lit := func(d OpenDialog, name string) bool {
+		t.Helper()
+		on, _, _ := strings.Cut(style.Selected("x"), "x")
+		for _, l := range d.placed(30, 100).Lines {
+			if strings.Contains(l, on+" "+Folder+" "+name+"/ ") {
+				return true
+			}
+		}
+		return false
+	}
+	if !lit(d, "f00") || lit(d, "f01") {
+		t.Errorf("f00 is not the one highlighted:\n%s", drawn(d))
+	}
+	if d, _ := d.Key(key("up")); d.At != 0 {
+		t.Errorf("up from the first folder: %d", d.At)
+	}
+	if d, _ := NewOpen(t.TempDir(), "/nowhere").Key(key("up")); d.At != 0 {
+		t.Errorf("up from what is typed: %d", d.At)
+	}
+	for range 9 {
+		d, _ = d.Key(key("down"))
+	}
+	if v := drawn(d); !lit(d, "f09") || strings.Contains(v, " f00/") || !strings.Contains(v, "above") ||
+		!strings.Contains(v, "more") {
+		t.Errorf("down to f09:\n%s", v)
+	}
+	d, _ = d.Key(tea.KeyPressMsg{Code: tea.KeyPgDown})
+	if d.At != 10+openPage || !lit(d, "f16") {
+		t.Errorf("a page down: %d\n%s", d.At, drawn(d))
+	}
+	for range 5 {
+		d, _ = d.Key(tea.KeyPressMsg{Code: tea.KeyPgDown})
+	}
+	if v := drawn(d); d.At != 20 || !lit(d, "f19") || strings.Contains(v, "more") {
+		t.Errorf("pages to the end: %d\n%s", d.At, v)
+	}
+	for range 5 {
+		d, _ = d.Key(tea.KeyPressMsg{Code: tea.KeyPgUp})
+	}
+	if v := drawn(d); d.At != 1 || strings.Contains(v, "above") {
+		t.Errorf("pages to the top: %d\n%s", d.At, v)
+	}
+}
+
+// Enter on a folder highlighted goes into it, as a click on it does; typing, tab, or backspace drops the highlight.
+func TestOpenEnterGoesIntoTheFolderHighlighted(t *testing.T) {
+	dir := many(t, 3)
+	d, _ := NewOpen(dir, "/nowhere").Key(key("down"))
+	d, _ = d.Key(key("down"))
+	d, path := d.Key(key("enter"))
+	if path != "" || d.Typed != dir+"/f01/" || d.At != 0 {
+		t.Errorf("enter on f01: %q, %+v", path, d)
+	}
+	for _, k := range []tea.KeyPressMsg{key("f"), key("tab"), {Code: tea.KeyBackspace}} {
+		d, _ := NewOpen(dir, "/nowhere").Key(key("down"))
+		if d, _ = d.Key(k); d.At != 0 {
+			t.Errorf("%s leaves the highlight: %d", k, d.At)
+		}
+	}
+}
+
+// The mouse wheel scrolls the folders, never past their ends, the highlight staying where it is.
+func TestOpenWheelScrollsTheFolders(t *testing.T) {
+	d := NewOpen(many(t, 20), "/nowhere")
+	down := tea.MouseWheelMsg{Button: tea.MouseWheelDown}
+	d = d.Wheel(down)
+	if v := drawn(d); strings.Contains(v, " f00/") || !strings.Contains(v, "above") || d.At != 0 {
+		t.Errorf("a turn down:\n%s", v)
+	}
+	for range 10 {
+		d = d.Wheel(down)
+	}
+	if v := drawn(d); !strings.Contains(v, " f19/") || strings.Contains(v, "more") {
+		t.Errorf("turned to the end:\n%s", v)
+	}
+	for range 10 {
+		d = d.Wheel(tea.MouseWheelMsg{Button: tea.MouseWheelUp})
+	}
+	if v := drawn(d); !strings.Contains(v, " f00/") || strings.Contains(v, "above") {
+		t.Errorf("turned to the top:\n%s", v)
+	}
+}
+
+// The keys bar names ↑↓ while there are folders to move over, and ⇞⇟ while there are more than the list shows.
+func TestOpenNamesTheMovesWhereTheyApply(t *testing.T) {
+	keys := func(d OpenDialog) string { return (Path{d.Keys()}).String() }
+	if got := keys(NewOpen(t.TempDir(), "")); got != "esc close ⇥ complete ⏎ open" {
+		t.Errorf("no folders: %q", got)
+	}
+	if got := keys(NewOpen(many(t, 3), "")); got != "esc close ↑↓ move ⇥ complete ⏎ open" {
+		t.Errorf("a few: %q", got)
+	}
+	if got := keys(NewOpen(many(t, 20), "")); got != "esc close ↑↓ move ⇞⇟ page ⇥ complete ⏎ open" {
+		t.Errorf("many: %q", got)
 	}
 }

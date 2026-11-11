@@ -1,19 +1,22 @@
 // The Open… dialog, which the workspace menu's Open… opens over the screen shown: the folder of a repository typed, as
 // a terminal's prompt takes one, ~ for the home folder and a path without / read from there; tab completes it a folder
-// at a time, and the folders it can complete to stand under it, each opened into by a plain click. Enter, or a click on
-// Open, asks kittui to open what is typed; kit says whether it is a git working tree, and its line, when it is not,
-// stands in the dialog, which stays open. Esc, or a click off the box, closes it.
+// at a time, and the folders it can complete to stand under it, each opened into by a plain click. Up and down move a
+// highlight from what is typed onto the folders and back, page up and page down by a page, and the list scrolls to
+// keep it in view, as the mouse wheel scrolls it, saying how many folders it hides above and below; enter on a folder
+// highlighted goes into it, as a click does, and typing puts the highlight back on what is typed. Enter with no folder
+// highlighted, or a click on Open, asks kittui to open what is typed; kit says whether it is a git working tree, and
+// its line, when it is not, stands in the dialog, which stays open. Esc, or a click off the box, closes it.
 package shell
 
 import (
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
@@ -27,18 +30,28 @@ const (
 	Opening = "📂"
 )
 
-// openShown is how many folders the dialog lists under what is typed; the rest it counts.
-const openShown = 8
+// How the dialog lists the folders under what is typed: so many at its top, then a line that counts the rest; so many
+// lines at most, a line that counts those hidden above taking a folder's place once it scrolls; a page, the folders
+// shown between the two counts, which page up and page down move by; and the lines a turn of the wheel scrolls.
+const (
+	openShown = 8
+	openRows  = openShown + 1
+	openPage  = openRows - 2
+	openWheel = 3
+)
 
 // OpenDialog is the Open… dialog: whether it is open, which then has the keyboard; the folder typed, as written; kit's
-// line for the last folder it was asked to open, when it refused; whether kit is being asked; and the home folder, which
-// ~ stands for and a path without / is read from.
+// line for the last folder it was asked to open, when it refused; whether kit is being asked; the home folder, which ~
+// stands for and a path without / is read from; the line highlighted, 0 for what is typed and k for the kth line of the
+// list; and the first line of the list shown.
 type OpenDialog struct {
 	Open    bool
 	Typed   string
 	Refusal string
 	Busy    bool
 	Home    string
+	At      int
+	Top     int
 }
 
 // NewOpen gives the dialog open, the folder start typed, with a / after it, ~ in place of home; with no start, ~/.
@@ -150,46 +163,111 @@ func (d OpenDialog) Refused(line string) OpenDialog {
 	return d
 }
 
-// Key takes a key while the dialog is open: a printable key types, backspace takes one back, ⌃U clears, tab completes,
-// enter asks to open what is typed, and esc closes the dialog. It gives the dialog and the folder to open, "" for none.
+// Key takes a key while the dialog is open: a printable key types, backspace takes one back, ⌃U clears, and tab
+// completes, each putting the highlight back on what is typed; up and down move the highlight a line, page up and page
+// down a page; enter goes into the folder highlighted, or with none asks to open what is typed; and esc closes the
+// dialog. It gives the dialog and the folder to open, "" for none.
 func (d OpenDialog) Key(k tea.KeyPressMsg) (OpenDialog, string) {
-	switch k.String() {
+	switch key := k.String(); key {
 	case "esc":
 		d.Open = false
 		return d, ""
+	case "up", "down", "pgup", "pgdown":
+		return d.move(key), ""
 	case "enter":
+		if list := d.list(); d.At > 0 && d.At <= len(list) {
+			return d.typing(list[d.At-1].folder), ""
+		}
 		return d.ask()
 	case "tab":
-		d.Typed, d.Refusal = d.complete(), ""
-		return d, ""
+		return d.typing(d.complete()), ""
 	case "ctrl+u":
-		d.Typed, d.Refusal = "", ""
-		return d, ""
+		return d.typing(""), ""
 	}
 	if typed, ok := Type(d.Typed, k); ok {
-		d.Typed, d.Refusal = typed, ""
+		return d.typing(typed), ""
 	}
 	return d, ""
 }
 
-// Keys gives the dialog's segment of the keys bar: it takes every press.
-func (d OpenDialog) Keys() Segment {
-	s := DialogKeys("esc close · ⇥ complete · ⏎ open")
-	s.Bindings[1].Presses = []string{"tab"}
-	s.Bindings[2].Presses = []string{"enter"}
-	return s
+// typing gives the dialog with typed in place of what is typed: kit's line gone, the highlight back on what is typed,
+// and the list shown from its top.
+func (d OpenDialog) typing(typed string) OpenDialog {
+	d.Typed, d.Refusal, d.At, d.Top = typed, "", 0, 0
+	return d
 }
 
-// openLine is one line of the dialog's body, and what a click on it does: completes to a folder, or opens.
+// move gives the dialog its highlight moved by a key, between what is typed and the list's last line: up and down a
+// line, page down a page, and page up a page, stopping at the list's first line; the list scrolled to keep it in view.
+func (d OpenDialog) move(key string) OpenDialog {
+	n := len(d.list())
+	switch key {
+	case "up":
+		d.At--
+	case "down":
+		d.At++
+	case "pgup":
+		if d.At > 0 {
+			d.At = max(1, d.At-openPage)
+		}
+	case "pgdown":
+		d.At += openPage
+	}
+	if d.At = min(max(d.At, 0), n); d.At > 0 {
+		d.Top = pane.Frame(n, openRows, d.Top, d.At-1, d.At-1).Start
+	}
+	return d
+}
+
+// Wheel takes a turn of the mouse wheel while the dialog is open: it scrolls the list a few lines, never past its ends,
+// the highlight staying where it is.
+func (d OpenDialog) Wheel(w tea.MouseWheelMsg) OpenDialog {
+	switch w.Button {
+	case tea.MouseWheelUp:
+		d.Top -= openWheel
+	case tea.MouseWheelDown:
+		d.Top += openWheel
+	}
+	d.Top = min(max(d.Top, 0), max(0, len(d.list())-openRows+1))
+	return d
+}
+
+// Keys gives the dialog's segment of the keys bar: it takes every press, and names up and down while the list has a
+// line to move to, and page up and page down while it has more than it shows.
+func (d OpenDialog) Keys() Segment {
+	s := Segment{Owns: true, Bindings: []Binding{Bind("esc", "close")}}
+	if n := len(d.list()); n > 0 {
+		s = s.With(Bind("↑↓", "move", "up", "down"))
+		if n > openRows {
+			s = s.With(Bind("⇞⇟", "page", "pgup", "pgdown"))
+		}
+	}
+	return s.With(Bind("⇥", "complete", "tab"), Bind("⏎", "open", "enter"))
+}
+
+// openLine is one line of the dialog's body, and what a click on it does: completes to a folder, or opens; and whether
+// it is highlighted.
 type openLine struct {
 	text   string
 	folder string
 	opens  bool
+	lit    bool
+}
+
+// list gives the lines of the dialog's list: each folder what is typed can complete to, which a click on it types.
+func (d OpenDialog) list() []openLine {
+	names := d.Folders()
+	folder, _ := d.parts()
+	lines := make([]openLine, len(names))
+	for k, n := range names {
+		lines[k] = openLine{text: Folder + " " + n + "/", folder: folder + n + "/"}
+	}
+	return lines
 }
 
 // body gives the dialog's lines under its top edge: what is typed, a cursor after it; kit's line, or what the dialog
-// takes; the folders it can complete to, as many as it lists, then how many more; and Open, dim while nothing is typed
-// or kit is asked.
+// takes; the lines of its list it shows from its first shown, the one highlighted among them, and how many it hides
+// above and below; and Open, dim while nothing is typed or kit is asked.
 func (d OpenDialog) body() []openLine {
 	lines := []openLine{{text: "› " + d.Typed + "▏"}}
 	if d.Refusal != "" {
@@ -198,16 +276,20 @@ func (d OpenDialog) body() []openLine {
 		lines = append(lines, openLine{text: style.Off("the folder of a git clone; ⇥ completes, a click opens a folder")})
 	}
 	lines = append(lines, openLine{})
-	names := d.Folders()
-	folder, _ := d.parts()
-	for k, n := range names {
-		if k == openShown {
-			lines = append(lines, openLine{text: style.Off("… " + strconv.Itoa(len(names)-openShown) + " more")})
-			break
-		}
-		lines = append(lines, openLine{text: Folder + " " + n + "/", folder: folder + n + "/"})
+	list := d.list()
+	start, end, above, below := pane.Window(len(list), openRows, d.Top)
+	if above {
+		lines = append(lines, openLine{text: style.Off(pane.Above(start))})
 	}
-	if len(names) == 0 {
+	for k := start; k < end; k++ {
+		l := list[k]
+		l.lit = k+1 == d.At
+		lines = append(lines, l)
+	}
+	if below {
+		lines = append(lines, openLine{text: style.Off(pane.More(len(list) - end))})
+	}
+	if len(list) == 0 {
 		lines = append(lines, openLine{text: style.Off("no folder here starts so")})
 	}
 	open := Opening + " Open"
@@ -221,16 +303,25 @@ func (d OpenDialog) body() []openLine {
 const Failed = "❌"
 
 // placed gives the dialog's box where it stands over a screen of so many lines, so wide: its third line, or as near as
-// the screen lets, and centered across it, wide enough for a long path.
+// the screen lets, and centered across it, wide enough for a long path; the line highlighted drawn across the box, as a
+// menu draws the line under the keyboard.
 func (d OpenDialog) placed(height, width int) Placed {
 	var texts []string
-	for _, l := range d.body() {
+	body := d.body()
+	for _, l := range body {
 		texts = append(texts, l.text)
 	}
 	texts[0] = ansi.Truncate(texts[0], width-6, "…")
 	// a line of spaces, taken out again, keeps the box wide enough for a long path as it is typed
 	box := Dialog("Open a repository", append(texts, strings.Repeat(" ", min(60, max(0, width-6)))), width-2)
 	box = append(box[:len(box)-2], box[len(box)-1])
+	inner := ansi.StringWidth(box[0]) - 2
+	for k, l := range body {
+		if l.lit {
+			box[k+1] = style.Menu("│") + style.Selected(" "+pane.Pad(ansi.Truncate(l.text, inner-2, "…"), inner-2,
+				false)+" ") + style.Menu("│")
+		}
+	}
 	return Placed{Lines: box, Top: min(2, max(0, height-len(box))), Left: max(0, (width-ansi.StringWidth(box[0]))/2)}
 }
 
@@ -256,7 +347,7 @@ func (d OpenDialog) Click(msg tea.MouseClickMsg, height, width int) (OpenDialog,
 	case !on:
 		d.Open = false
 	case k >= 0 && k < len(body) && body[k].folder != "":
-		d.Typed, d.Refusal = body[k].folder, ""
+		d = d.typing(body[k].folder)
 	case k >= 0 && k < len(body) && body[k].opens:
 		return d.ask()
 	}

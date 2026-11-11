@@ -335,3 +335,21 @@ func TestAGroupRenamedIsFollowedAndOneDeletedGivesWayToWhereKitStarts(t *testing
 		t.Errorf("another group's change moved the workspace: %+v", m.workspace)
 	}
 }
+
+// While the Open… dialog is open, a turn of the mouse wheel scrolls its folders.
+func TestTheWheelScrollsTheOpenDialogsFolders(t *testing.T) {
+	m, _, _ := workspaced(t, map[string]string{"current.json": repoJSON})
+	parent := t.TempDir()
+	for k := range 20 {
+		if err := os.Mkdir(filepath.Join(parent, "f"+string(rune('a'+k))), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	m = drive(m, shell.OpenMsg{}, tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl})
+	m = drive(m, typed(parent+"/")...)
+	m = drive(m, tea.MouseWheelMsg{Button: tea.MouseWheelDown})
+	if v := ansi.Strip(m.View().Content); m.opener.Top == 0 || !strings.Contains(v, "above") ||
+		strings.Contains(v, " fa/") {
+		t.Errorf("the wheel scrolled nothing: top %d\n%s", m.opener.Top, v)
+	}
+}
