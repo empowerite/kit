@@ -7,22 +7,19 @@
          "filter": true, "renderings": ["text"], "width": "whole", "placement": "hidden"},
         {"id": "order", "label": "#", "type": "number", "path": "the term's place on the page", "sort": true,
          "renderings": ["text"], "dim": true, "right": true, "placement": "hidden"},
-        {"id": "command", "label": "command", "type": "enum", "path": "the first example's tool and verb",
-         "sort": true, "group": true, "filter": true, "renderings": ["text"], "dim": true, "width": "whole",
-         "placement": "column"},
         {"id": "terms", "label": "terms", "one": "term", "type": "label", "path": "### <term>, <term>",
          "group": true, "filter": true, "renderings": ["pills", "text"], "width": "whole", "placement": "column"},
         {"id": "meaning", "label": "meaning", "type": "text", "path": "the paragraphs", "renderings": ["text"],
          "wrap": true, "placement": "column"},
-        {"id": "examples", "label": "examples", "one": "example", "type": "text", "path": "`<command>`",
-         "renderings": ["text"], "dim": true, "width": "whole", "placement": "column"}
+        {"id": "commands", "label": "commands", "one": "command", "type": "text", "path": "`<command>`",
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "width": "whole", "placement": "column"}
       ],
       "presets": [
         {"name": "Default", "fields": {"topic": {"placement": "group", "depth": 1},
                                        "order": {"sort": "asc", "priority": 1}}},
-        {"name": "By command", "fields": {"command": {"placement": "group", "depth": 1},
+        {"name": "By command", "fields": {"commands": {"placement": "group", "depth": 1},
                                           "terms": {"flat": true, "sort": "asc", "priority": 1}}},
-        {"name": "Compact", "fields": {"command": {"placement": "hidden"}, "examples": {"placement": "hidden"},
+        {"name": "Compact", "fields": {"commands": {"placement": "hidden"},
                                        "terms": {"flat": true, "sort": "asc", "priority": 1}}}
       ]
     }

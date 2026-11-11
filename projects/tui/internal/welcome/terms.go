@@ -1,10 +1,10 @@
 // The terms step's table, drawn as sections.go draws a step's: one row an entry, its fields in terms.json, the
 // catalog. Each entry of the page is a section, its heading `### <term>, <term>` under a `## <topic>`, or, on a page
 // with no topics, `## <term>, <term>`: the terms it names, as many as share one meaning, comma-separated; its text, its
-// meaning; and its commands, its examples, each a command that shows it. Its topic, which the rows group by, stands in
-// the page's order, and so do the rows under it, by their order, hidden. Its command, which By command groups by, is
-// what its first example is run with, its tool and its verb, as kit flow or git remote. The terms are a list, as an
-// issue's labels are, each a pill, so the rows can stand once per term, flattened, and sort by it.
+// meaning; and its commands, its examples, each a command that shows it, a list, which By command groups by, an entry
+// under each of its commands. Its topic, which the rows group by, stands in the page's order, and so do the rows under
+// it, by their order, hidden. The terms stand first, a list, as an issue's labels are, each a pill, so the rows can
+// stand once per term, flattened, and sort by it.
 package welcome
 
 import (
@@ -68,15 +68,14 @@ func namesOf(heading string) []string {
 func termSections(sections []section) []table.Record { return termRecords(termsOf(sections)) }
 
 // termRecords gives the entries as the table's records, one an entry, each keyed by its place and its terms, so two
-// entries of one term stay two rows: its topic, none where the page has none; its order, from 1; its command, what
-// its first example is run with; its terms and its examples, each a list; and its meaning.
+// entries of one term stay two rows: its topic, none where the page has none; its order, from 1; its terms and its
+// commands, its examples as written, each a list; and its meaning.
 func termRecords(terms []term) []table.Record {
 	out := make([]table.Record, len(terms))
 	for k, t := range terms {
 		out[k] = table.Record{Row: grid.Row{Key: strconv.Itoa(k) + " " + strings.Join(t.names, ", ")},
 			Values: map[string]table.Value{"topic": table.Some(t.topic), "order": table.One(strconv.Itoa(k + 1)),
-				"command": table.Some(verbOf(firstOf(t.examples))), "terms": listOf(t.names),
-				"meaning": table.Some(t.meaning), "examples": listOf(t.examples)}}
+				"terms": listOf(t.names), "meaning": table.Some(t.meaning), "commands": listOf(t.examples)}}
 	}
 	return out
 }

@@ -8,23 +8,23 @@
 
   ▾ topic ▾ 12                                                                                              Default ▼
   ────────────
-      command       terms         meaning                                                  examples
-      ·─────────────×·─────────────────────────────────────────────────────────────────────×·──────────────────────────
+      terms         meaning                                                                commands
+      ×·───────────────────────────────────────────────────────────────────────────────────×·──────────────────────────
   ▾ Where the work lives 4
-    ▸ kit flow      desk        Your root checkout, where you cloned the repository. I…  kit flow desk
-    ▸ kit flow      worktree    A checkout of its own, under worktrees/, on one issue'…  kit flow worktrees        +1
-    ▸ kit flow      code forge  The service that hosts the repository, its issues, its…  kit flow incoming --no-fetch
-    ▸ git remote    2             A remote is another copy of the repository, as git nam…  git remote --verbose
+    ▸ desk        Your root checkout, where you cloned the repository. It is yours; ag…  kit flow desk
+    ▸ worktree    A checkout of its own, under worktrees/, on one issue's branch. kit …  kit flow worktrees        +1
+    ▸ code forge  The service that hosts the repository, its issues, its pull requests…  kit flow incoming --no-fetch
+    ▸ 2             A remote is another copy of the repository, as git names it. The pri…  git remote --verbose
   ▾ What kit delivers 6
-    ▸ kit packages  package     A set of files kit delivers, such as rules, styles, or…  kit packages
-    ▸ kit kinds     kind        A kind of file, such as bash or markdown. Its paths an…  kit kinds
-    ▸ kit context   rule        What a file of one kind must do to be trusted, and the…  kit context README.md
-    ▸ kit context   style       How a file of one kind looks. A style package places i…  kit context README.md
-    ▸ kit help      template    The shape a new file of a kind starts from. kit new fi…  kit help new
-    ▸ kit generate  region      A part of a file you own that a command writes, from a…  kit generate --check
+    ▸ package     A set of files kit delivers, such as rules, styles, or a CI job. A r…  kit packages
+    ▸ kind        A kind of file, such as bash or markdown. Its paths and its first li…  kit kinds
+    ▸ rule        What a file of one kind must do to be trusted, and the linter that c…  kit context README.md
+    ▸ style       How a file of one kind looks. A style package places it in .kit/styl…  kit context README.md
+    ▸ template    The shape a new file of a kind starts from. kit new file makes a fil…  kit help new
+    ▸ region      A part of a file you own that a command writes, from a kit:generate …  kit generate --check
   ▾ Checks 2
-    ▸ kit gate      gate        The repository's own CI command, such as just ci. The …  kit gate
-    ▸ kit flow      stage       One part of the picture kit flow draws, such as the ba…  kit flow --stages
+    ▸ gate        The repository's own CI command, such as just ci. The delivered CI j…  kit gate
+    ▸ stage       One part of the picture kit flow draws, such as the backlog or the b…  kit flow --stages
 
 
  = menu - workspace / search │ ⇥·⇧⇥ tab ↓ terms 1-6 jump

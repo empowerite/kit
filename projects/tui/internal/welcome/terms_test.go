@@ -55,11 +55,31 @@ func TestAPageIsReadAsItsTerms(t *testing.T) {
 		}
 	}
 	rs := termRecords(terms)
-	if rs[0].Key != "0 desk" || rs[0].Values["topic"].Raw[0] != "Terms" || rs[2].Values["order"].Raw[0] != "3" || rs[0].Values["command"].Raw[0] != "kit flow" || rs[1].Key != "1 bare term, plain" ||
-		rs[1].Values["command"].Raw != nil || rs[1].Values["examples"].Raw != nil ||
+	// the commands are a list, the examples as written; there is no command or examples apart from it
+	if rs[0].Key != "0 desk" || rs[0].Values["topic"].Raw[0] != "Terms" || rs[2].Values["order"].Raw[0] != "3" ||
+		rs[1].Key != "1 bare term, plain" || rs[1].Values["commands"].Raw != nil ||
 		!reflect.DeepEqual(rs[1].Values["terms"].Raw, []string{"bare term", "plain"}) ||
-		!reflect.DeepEqual(rs[0].Values["examples"].Raw, desk.examples) || rs[2].Values["command"].Raw[0] != "kit kinds" {
+		!reflect.DeepEqual(rs[0].Values["commands"].Raw, desk.examples) ||
+		!reflect.DeepEqual(rs[2].Values["commands"].Raw, []string{"kit kinds"}) {
 		t.Errorf("the records: %+v", rs)
+	}
+	for _, r := range rs {
+		if _, ok := r.Values["command"]; ok {
+			t.Errorf("a command apart from the commands: %+v", r.Values)
+		}
+		if _, ok := r.Values["examples"]; ok {
+			t.Errorf("examples apart from the commands: %+v", r.Values)
+		}
+	}
+	// the catalog stands the terms first, then the meaning, then the commands
+	var ids []string
+	for _, f := range termsCatalog[termsTable].Of() {
+		if f.Placement == table.PlaceColumn {
+			ids = append(ids, f.ID)
+		}
+	}
+	if !reflect.DeepEqual(ids, []string{"terms", "meaning", "commands"}) {
+		t.Errorf("the columns: %q", ids)
 	}
 }
 
@@ -153,15 +173,15 @@ func TestTheKitPackagesTermsSayEachWordOnce(t *testing.T) {
 	}
 }
 
-func TestTheTermsAreATableOfCommandsTermsMeaningsAndExamples(t *testing.T) {
+func TestTheTermsAreATableOfTermsMeaningsAndCommands(t *testing.T) {
 	m, _ := loaded(t, press('5'))
 	if !m.gridded() || keysAt(m) != "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ terms 1-6 jump" {
 		t.Fatalf("the terms step: gridded %v, keys %q", m.gridded(), keysAt(m))
 	}
 	got := view(m)
-	// the command, the terms, each a pill and two a count, the meaning, and the examples, a second one counted
-	for _, want := range []string{"   Terms\n", "The words kit uses", "▾ 12 ", "Default ▼", "command       terms",
-		"meaning", "examples", "▸ git remote    2   ", "▸ kit flow      " + pill("desk"),
+	// the terms first, each a pill and two a count, the meaning, and the commands, the examples, a second one counted
+	for _, want := range []string{"   Terms\n", "The words kit uses", "▾ 12 ", "Default ▼", "terms         meaning",
+		"commands", "▸ 2             A remote is", "▸ " + pill("desk") + "        Your root checkout",
 		"kit flow worktrees        +1"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("no %q in:\n%s", want, got)
@@ -192,20 +212,21 @@ func TestTheTermsAreATableOfCommandsTermsMeaningsAndExamples(t *testing.T) {
 	}
 }
 
-func TestByCommandStandsOncePerTermGroupedByItsCommand(t *testing.T) {
+func TestByCommandStandsAnEntryUnderEachOfItsCommands(t *testing.T) {
 	m, _ := loaded(t, press('5'))
 	m = drive(m, clickOn(t, m, "Default ▼"))
 	m = drive(m, clickOn(t, m, "By command"))
 	got := view(m)
-	for _, want := range []string{"▾ command ▾ 12", "By command ▼", "    term    ", "▾ git remote 1",
-		"▸ " + pill("primary") + "     A remote is", "▸ " + pill("remote") + "      A remote is", "▾ kit flow 4",
-		"▸ " + pill("code forge") + "  The service"} {
+	// a group per command, an entry under each of its commands
+	for _, want := range []string{"▾ commands ▾ 12", "By command ▼", "    term    ", "▾ git remote --verbose 1",
+		"▸ " + pill("primary") + "     A remote is", "▸ " + pill("remote") + "      A remote is",
+		"▾ kit context README.md 2", "▾ kit flow --stages 1"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("no %q in:\n%s", want, got)
 		}
 	}
-	if strings.Contains(got, "▸ kit flow ") {
-		t.Errorf("the command stands as a group, not a column:\n%s", got)
+	if strings.Contains(got, "  commands\n") {
+		t.Errorf("the commands stand as a group, not a column:\n%s", got)
 	}
 }
 
@@ -365,22 +386,23 @@ func TestTheEdgesOfTheTermsStep(t *testing.T) {
 	}
 }
 
-func TestTheCommandTermsAndExamplesStandWholeWhileTheMeaningGivesWay(t *testing.T) {
-	// at 80 columns no command, term, or example is cut: the meaning gives way
+func TestTheTermsAndCommandsStandWholeWhileTheMeaningGivesWay(t *testing.T) {
+	// at 80 columns no term or command is cut: the meaning gives way
 	m, _ := loaded(t, tea.WindowSizeMsg{Width: 80, Height: 40}, press('5'))
 	got := view(m)
-	for _, whole := range []string{"▸ git remote    2             A remote is an…  git remote --verbose",
-		"▸ kit flow      " + pill("code forge") + "  The service th…  kit flow incoming --no-fetch"} {
+	for _, whole := range []string{"▸ 2             A remote is another copy of …  git remote --verbose",
+		"▸ " + pill("code forge") + "  The service that hosts the r…  kit flow incoming --no-fetch"} {
 		if !strings.Contains(got, whole) {
 			t.Errorf("at 80, no %q in:\n%s", whole, got)
 		}
 	}
 	// at 60, the terms keep their pills, which never step down to text; the meaning keeps a few cells, and the
-	// command and the examples give way after it
+	// commands give way after it
 	m = drive(m, tea.WindowSizeMsg{Width: 60, Height: 40})
 	got = view(m)
-	for _, want := range []string{"▸ git remote   2             A remote is…  git remote …",
-		"▸ kit flow     " + pill("worktree") + "    A checkout …  kit flow… +1"} {
+	for _, want := range []string{"▸ " + pill("desk") + "        Your root c…  kit flow desk",
+		"▸ " + pill("worktree") + "    A checkout …  kit flow worktrees     +1",
+		"▸ " + pill("code forge") + "  The service…  kit flow incoming --no-f…"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("at 60, no %q in:\n%s", want, got)
 		}

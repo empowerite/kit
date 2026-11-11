@@ -8,14 +8,14 @@
 
   ▾ topic ▾ 4                                                                                               Default ▼
   ───────────
-      command   terms         meaning                                                      examples
-      ·─────────×·─────────────────────────────────────────────────────────────────────────×·──────────────────────────
+      terms         meaning                                                                commands
+      ×·───────────────────────────────────────────────────────────────────────────────────×·──────────────────────────
   ▾ Where the work lives 3                                                                                             
-    ▸ kit flow  desk        Your root checkout, where you cloned the repository. It is…  kit flow desk
-    ▸ kit flow  worktree    A checkout of its own, under worktrees/, on one issue's br…  kit flow worktrees        +1
-    ▸ kit flow  code forge  The service that hosts the repository, its issues, its pul…  kit flow incoming --no-fetch
+    ▸ desk        Your root checkout, where you cloned the repository. It is yours; ag…  kit flow desk
+    ▸ worktree    A checkout of its own, under worktrees/, on one issue's branch. kit …  kit flow worktrees        +1
+    ▸ code forge  The service that hosts the repository, its issues, its pull requests…  kit flow incoming --no-fetch
   ▾ Checks 1
-    ▸ kit flow  stage       One part of the picture kit flow draws, such as the backlo…  kit flow --stages
+    ▸ stage       One part of the picture kit flow draws, such as the backlog or the b…  kit flow --stages
 
 
 
