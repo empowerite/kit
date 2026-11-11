@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "az repos pr list --project ${project} --repository ${repository} --status ${status} --top 100 --skip ${skip} [--source-branch ${branch}] --output json",
-  "description": "One page of the repository's pull requests in a status, active or all, which `modules/bash/forge/ado.sh` reads page after page in forge/ado:prs for forge/ado:open-prs, forge/ado:branch-for-issue, forge/ado:pr-for-branch, forge/ado:pr-head-for-branch, forge/ado:pr-last-for-branch, and forge/ado:pr-state-for-branch, and `modules/jq/forge.jq` folds with ado_pr, ado_latest, and ado_pr_state; every call kit makes through forge/ado:az also carries --org ${organization} --detect false --only-show-errors. Each item is a GitPullRequest as repos-pr-show.schema.json gives it, from https://learn.microsoft.com/rest/api/azure/devops/git/pull-requests/get-pull-requests?view=azure-devops-rest-7.1, and a page with none is [].",
+  "title": "az repos pr list --project ${project} --repository ${repository} --status ${status} --top ${top} [--skip ${skip}] [--source-branch ${branch}] --output json",
+  "description": "One page of the repository's pull requests in a status, active or all, 100 a page, which `modules/bash/forge/ado.sh` reads page after page in forge/ado:prs for forge/ado:open-prs, forge/ado:branch-for-issue, forge/ado:pr-for-branch, forge/ado:pr-head-for-branch, forge/ado:pr-last-for-branch, and forge/ado:pr-state-for-branch, and `modules/jq/forge.jq` folds with ado_pr, its reviewers through ado_reviewers, ado_latest, and ado_pr_state; and the 51 completed ones Azure DevOps lists first, --status completed --top 51 with no --skip, for forge/ado:merged-prs, folded with ado_merged; every call kit makes through forge/ado:az also carries --org ${organization} --detect false --only-show-errors. Each item is a GitPullRequest as repos-pr-show.schema.json gives it, from https://learn.microsoft.com/rest/api/azure/devops/git/pull-requests/get-pull-requests?view=azure-devops-rest-7.1, and a page with none is [].",
   "type": "array",
   "items": {
     "$ref": "#/$defs/pullRequest"
@@ -75,6 +75,42 @@
             }
           ]
         },
+        "reviewers": {
+          "description": "IdentityRefWithVote[]: each reviewer and their vote, 10 approved, 5 approved with suggestions, 0 no vote, -5 waiting for the author, -10 rejected. A team or group is a container, which votes as its members do. A vote holds no time.",
+          "type": ["array", "null"],
+          "items": {
+            "type": "object",
+            "properties": {
+              "uniqueName": {
+                "type": ["string", "null"]
+              },
+              "displayName": {
+                "type": ["string", "null"]
+              },
+              "vote": {
+                "type": "integer",
+                "enum": [10, 5, 0, -5, -10]
+              },
+              "hasDeclined": {
+                "type": ["boolean", "null"]
+              },
+              "isContainer": {
+                "type": ["boolean", "null"]
+              }
+            },
+            "required": ["vote"],
+            "additionalProperties": true
+          }
+        },
+        "closedDate": {
+          "description": "When the pull request was closed: completed, abandoned, or merged outside it; absent while it is active.",
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "closedBy": {
+          "description": "Who closed it, absent while it is active.",
+          "anyOf": [{"$ref": "#/$defs/identityRef"}, {"type": "null"}]
+        },
         "labels": {
           "description": "WebApiTagDefinition[], null when the pull request has none.",
           "type": ["array", "null"],
@@ -142,6 +178,20 @@
         },
         "lastMergeCommit": null,
         "forkSource": null,
+        "reviewers": [
+          {
+            "uniqueName": "bob",
+            "displayName": "Bob",
+            "vote": 0,
+            "hasDeclined": false,
+            "isRequired": false
+          },
+          {
+            "uniqueName": "carol",
+            "displayName": "Carol",
+            "vote": 10
+          }
+        ],
         "labels": [
           {
             "id": "8a2f3c1e-0d4b-4f5a-9c6e-7b1d2e3f4a5b",
@@ -172,6 +222,36 @@
         },
         "lastMergeCommit": null,
         "forkSource": null,
+        "labels": null
+      }
+    ],
+    [
+      {
+        "pullRequestId": 2,
+        "codeReviewId": 2,
+        "title": "Do the other thing",
+        "description": null,
+        "status": "completed",
+        "isDraft": false,
+        "sourceRefName": "refs/heads/9-other",
+        "targetRefName": "refs/heads/main",
+        "mergeStatus": "succeeded",
+        "creationDate": "2026-10-02T09:00:00+00:00",
+        "closedDate": "2026-10-03T09:00:00.1234567+00:00",
+        "createdBy": {
+          "uniqueName": "bob"
+        },
+        "closedBy": {
+          "uniqueName": "ada"
+        },
+        "lastMergeSourceCommit": {
+          "commitId": "5d376dd"
+        },
+        "lastMergeCommit": {
+          "commitId": "def456"
+        },
+        "forkSource": null,
+        "reviewers": [],
         "labels": null
       }
     ]

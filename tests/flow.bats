@@ -849,8 +849,9 @@ fake-tui() {
   [[ "${lines[2]}" == $'desk\tthe root checkout: '* ]]
   [[ "${lines[0]}" == $'backlog\tthe open issues not closed by any open pull request, oldest first\t\t' ]]
   [[ "${lines[1]}" == $'underway\tthe open issues closed by an open pull request: who works on each, and where\t\t' ]]
+  # changes is a verb again, Changes' app's, kit changes, which kit flow changes is a tab of
   local verb
-  for verb in backlog changes incoming worktrees releases
+  for verb in backlog incoming worktrees releases
   do
     run "${kit_root}/bin/kit" "${verb}"
     [ "$status" -eq 2 ]

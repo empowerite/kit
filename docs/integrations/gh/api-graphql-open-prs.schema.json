@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "gh api graphql --field owner=${owner} --field name=${name} --raw-field after=${cursor} --raw-field query=${query}",
-  "description": "The open pull requests, 100 a page, each with its labels, the issues it closes, its review threads, its head commit and the checks on it, and the open issues with an assignee, which kit asks for in `modules/bash/forge/github.sh` (forge/github:open-prs; --raw-field after only past the first page) and folds in `modules/jq/forge.jq` (forge::github_prs, forge::github_partial). The types are the Repository, PullRequest, Issue, Commit, CheckRun, and StatusContext objects of GitHub's GraphQL schema, https://docs.github.com/public/fpt/schema.docs.graphql.",
+  "description": "The open pull requests, 100 a page, each with its labels, the issues it closes, the reviewers it asks and each reviewer's latest review, its review threads, its head commit and the checks on it, and the open issues with an assignee, which kit asks for in `modules/bash/forge/github.sh` (forge/github:open-prs; --raw-field after only past the first page) and folds in `modules/jq/forge.jq` (forge::github_prs, forge::github_partial). The types are the Repository, PullRequest, Issue, Commit, CheckRun, and StatusContext objects of GitHub's GraphQL schema, https://docs.github.com/public/fpt/schema.docs.graphql.",
   "type": "object",
   "properties": {
     "data": {
@@ -182,6 +182,84 @@
           "required": ["pageInfo", "nodes"],
           "additionalProperties": true
         },
+        "reviewRequests": {
+          "type": "object",
+          "description": "ReviewRequestConnection, the first 20; a pull request whose totalCount is more fails the read",
+          "properties": {
+            "totalCount": {
+              "type": "integer"
+            },
+            "nodes": {
+              "type": ["array", "null"],
+              "items": {
+                "type": ["object", "null"],
+                "description": "ReviewRequest",
+                "properties": {
+                  "requestedReviewer": {
+                    "type": ["object", "null"],
+                    "description": "RequestedReviewer, a union: a User, Bot, or Mannequin by its login, a Team by its slug, an EnterpriseTeam by nothing kit asks; null for a reviewer the caller cannot see",
+                    "properties": {
+                      "login": {
+                        "type": "string"
+                      },
+                      "slug": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": true
+                  }
+                },
+                "required": ["requestedReviewer"],
+                "additionalProperties": true
+              }
+            }
+          },
+          "required": ["totalCount", "nodes"],
+          "additionalProperties": true
+        },
+        "latestReviews": {
+          "type": "object",
+          "description": "PullRequestReviewConnection, the latest review of each reviewer, the first 20; a pull request whose totalCount is more fails the read",
+          "properties": {
+            "totalCount": {
+              "type": "integer"
+            },
+            "nodes": {
+              "type": ["array", "null"],
+              "items": {
+                "type": ["object", "null"],
+                "description": "PullRequestReview",
+                "properties": {
+                  "author": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/Login"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "Actor, null for a deleted account"
+                  },
+                  "state": {
+                    "type": "string",
+                    "description": "PullRequestReviewState",
+                    "enum": ["APPROVED", "CHANGES_REQUESTED", "COMMENTED", "DISMISSED", "PENDING"]
+                  },
+                  "submittedAt": {
+                    "type": ["string", "null"],
+                    "format": "date-time",
+                    "description": "null for a pending review"
+                  }
+                },
+                "required": ["author", "state", "submittedAt"],
+                "additionalProperties": true
+              }
+            }
+          },
+          "required": ["totalCount", "nodes"],
+          "additionalProperties": true
+        },
         "reviewThreads": {
           "type": "object",
           "description": "PullRequestReviewThreadConnection, the first 100",
@@ -230,7 +308,7 @@
           "additionalProperties": true
         }
       },
-      "required": ["number", "title", "isDraft", "headRefName", "createdAt", "mergeStateStatus", "reviewDecision", "isCrossRepository", "author", "headRepositoryOwner", "labels", "closingIssuesReferences", "reviewThreads", "commits"],
+      "required": ["number", "title", "isDraft", "headRefName", "createdAt", "mergeStateStatus", "reviewDecision", "isCrossRepository", "author", "headRepositoryOwner", "labels", "closingIssuesReferences", "reviewRequests", "latestReviews", "reviewThreads", "commits"],
       "additionalProperties": true
     },
     "Commit": {
@@ -549,6 +627,40 @@
                           }
                         ]
                       }
+                    }
+                  ]
+                },
+                "reviewRequests": {
+                  "totalCount": 2,
+                  "nodes": [
+                    {
+                      "requestedReviewer": {
+                        "login": "bob"
+                      }
+                    },
+                    {
+                      "requestedReviewer": {
+                        "slug": "core"
+                      }
+                    }
+                  ]
+                },
+                "latestReviews": {
+                  "totalCount": 2,
+                  "nodes": [
+                    {
+                      "author": {
+                        "login": "ada"
+                      },
+                      "state": "COMMENTED",
+                      "submittedAt": "2026-10-01T11:00:00Z"
+                    },
+                    {
+                      "author": {
+                        "login": "carol"
+                      },
+                      "state": "APPROVED",
+                      "submittedAt": "2026-10-02T09:00:00Z"
                     }
                   ]
                 },

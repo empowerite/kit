@@ -59,7 +59,7 @@ forge/ado:branch-for-issue() {
 forge/ado:contract() { printf '4\n'; }
 
 forge/ado:lacks() {
-  printf '%s\n' quota marks releases linked-branches milestones reviewers merged artifacts environments \
+  printf '%s\n' quota marks releases linked-branches milestones artifacts environments \
     deployments collaborators teams bots attestations code-scanning dependabot secret-scanning rulesets bypasses
 }
 
@@ -178,7 +178,20 @@ forge/ado:me() {
   return 1
 }
 
-forge/ado:merged-prs() { return 3; }
+# forge/ado:merged-prs prints one document per completed pull request, as the seam's header says: one read of 51, in
+# the order Azure DevOps lists them, which its reference's examples show newest first and no parameter sets, so a
+# 51st says it holds more than the 50 printed, which end with {"limited": 50}. A pull request completes when it
+# merges, and its page is under the repository's.
+forge/ado:merged-prs() {
+  local list project repo url
+  IFS=$'\t' read -r _ project repo < <(forge/ado:place) || return 1
+  url=$(forge/ado:repo-url) || return 1
+  forge/ado:ask list 'the completed pull requests' repos pr list --project "${project}" --repository "${repo}" \
+    --status completed --top 51 || return 1
+  forge/ado:fold 'the completed pull requests' "${list}" --exit-status 'arrays' >/dev/null || return 1
+  forge/ado:fold 'the completed pull requests' "${list}" --compact-output --arg url "${url}" \
+    'import "forge" as forge; forge::ado_merged(50; $url)'
+}
 
 # The forge lacks milestones, as forge/ado:lacks declares, so the seam answers unsupported and never calls this.
 forge/ado:milestones() { return 3; }
@@ -201,9 +214,9 @@ forge/ado:open-issues() {
 }
 
 # forge/ado:open-prs prints one JSON object per open pull request: the document kit flow renders, which
-# modules/jq/forge.jq folds the answers into. Azure DevOps needs three reads per pull request beside the list: its
-# policy evaluations, its threads, and the work items linked to it. Any read that fails fails the call, which then
-# prints none of the pull requests.
+# modules/jq/forge.jq folds the answers into. The list names each pull request's reviewers and their votes. Azure
+# DevOps needs three reads per pull request beside the list: its policy evaluations, its threads, and the work items
+# linked to it. Any read that fails fails the call, which then prints none of the pull requests.
 forge/ado:open-prs() {
   local list project repo id policies threads closes doc docs=''
   local -a ids

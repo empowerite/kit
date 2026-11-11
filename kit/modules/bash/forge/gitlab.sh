@@ -166,7 +166,17 @@ forge/gitlab:me() {
   return 1
 }
 
-forge/gitlab:merged-prs() { return 3; }
+# forge/gitlab:merged-prs prints one document per merged merge request, as the seam's header says: one read, newest
+# merged first, of 51, so a 51st says GitLab holds more than the 50 printed, which end with {"limited": 50}. GitLab
+# orders by merged_at since 17.2; an older one refuses the order, and the read fails.
+forge/gitlab:merged-prs() {
+  local list
+  forge/gitlab:ask list 'the merged merge requests' 'merge_requests?state=merged&order_by=merged_at&per_page=51' \
+    || return 1
+  forge/gitlab:fold 'the merged merge requests' "${list}" --exit-status 'arrays' >/dev/null || return 1
+  forge/gitlab:fold 'the merged merge requests' "${list}" --compact-output \
+    'import "forge" as forge; forge::gitlab_merged(50)'
+}
 
 # forge/gitlab:milestones prints one document per milestone of the project, open and closed, by number, as the seam's
 # header says. GitLab's REST list holds no count of issues, its GraphQL does, so one query reads them, 100 a page,
@@ -213,19 +223,22 @@ forge/gitlab:open-issues() {
 # forge/gitlab:open-prs prints one JSON object per open merge request: the document kit flow renders, which
 # modules/jq/forge.jq folds the answers into. Of several jobs of one name in the pipeline, as after a retry, only
 # the latest counts. GitLab's REST API needs one read for the project's labels, whose colors the merge requests and
-# the issues they close name only by name; then four reads per merge request, and one per fork:
+# the issues they close name only by name; then five reads per merge request, and one per fork:
 #
-#   - the merge request, whose head pipeline also says when the branch was last pushed, and by whom
+#   - the merge request, whose head pipeline also says when the branch was last pushed, and by whom, and which names
+#     its reviewers
 #   - its pipeline's jobs, read under the project the pipeline names, a fork's for a merge request from one; a fork's
 #     jobs that cannot be read are one check, pipeline, of the pipeline's own status
 #   - its discussions
+#   - its approvals, who approved it and when, which every tier answers; a read per merge request, as its
+#     discussions are, and the open merge requests are no more than kit reads of a list
 #   - the issues it closes
 #   - the project its branch lives in, when that is not this project, once for each such project: its namespace's
 #     path names the fork's owner, and a project the caller cannot read names none
 #
 # Any other read that fails fails the call, which then prints none of the merge requests.
 forge/gitlab:open-prs() {
-  local list labels colors iid mr jobs discussions closes pipeline home target source fork doc docs=''
+  local list labels colors iid mr jobs discussions approvals closes pipeline home target source fork doc docs=''
   local -a iids
   local -A owners=()
   forge/gitlab:pages list 'the merge requests' 'merge_requests?state=opened&per_page=100&order_by=created_at&sort=asc' \
@@ -263,6 +276,7 @@ forge/gitlab:open-prs() {
     fi
     forge/gitlab:pages discussions "the discussions of merge request !${iid}" \
       "merge_requests/${iid}/discussions?per_page=100" || return 1
+    forge/gitlab:ask approvals "the approvals of merge request !${iid}" "merge_requests/${iid}/approvals" || return 1
     forge/gitlab:pages closes "the issues merge request !${iid} closes" \
       "merge_requests/${iid}/closes_issues?per_page=100" || return 1
     source=$(forge/gitlab:fold "merge request !${iid}" "${mr}" --raw-output \
@@ -278,8 +292,8 @@ forge/gitlab:open-prs() {
     [[ -n "${source}" ]] && fork=${owners[${source}]:-null}
     doc=$(forge/gitlab:fold "merge request !${iid}" "${mr}" --compact-output --argjson now "$(date +%s)" \
       --argjson jobs "${jobs}" --argjson discussions "${discussions}" --argjson closes "${closes}" \
-      --argjson fork "${fork}" --argjson colors "${colors}" \
-      'import "forge" as forge; forge::gitlab_pr($now; $jobs; $discussions; $closes; $fork)
+      --argjson fork "${fork}" --argjson colors "${colors}" --argjson approvals "${approvals}" \
+      'import "forge" as forge; forge::gitlab_pr($now; $jobs; $discussions; $closes; $fork; $approvals)
        | forge::colored($colors)') || return 1
     docs+=${doc}$'\n'
   done
@@ -443,7 +457,7 @@ forge/gitlab:teams() { return 3; }
 forge/gitlab:contract() { printf '4\n'; }
 
 forge/gitlab:lacks() {
-  printf '%s\n' reviewers merged artifacts environments deployments collaborators teams bots \
+  printf '%s\n' artifacts environments deployments collaborators teams bots \
     attestations code-scanning dependabot secret-scanning rulesets bypasses
 }
 

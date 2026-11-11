@@ -47,6 +47,8 @@ older version. `--org` names the collection URL; which Server releases the exten
 | Review threads | `az devops invoke --area git --resource pullRequestThreads --route-parameters project="${project}" repositoryId="${repo}" pullRequestId="${n}"` (raw API); each thread's `status` is `active`, `fixed`, `closed`, or another |
 | Checks rollup | `az repos pr policy list --id "${n}"`: the policy evaluations, build validation among them; other statuses through `--resource pullRequestStatuses` (raw API) |
 | Open changes | `az repos pr list --status active --top "${limit}"` |
+| Reviewers | each pull request's `reviewers` in `az repos pr list`, each `vote` 10 or 5 approved, -5 or -10 changes, 0 asked; `az repos pr reviewer list --id "${n}"` lists them alone; a vote holds no time; `kit changes reviews` draws them |
+| Merged changes | `az repos pr list --status completed --top 51`: the 50 Azure DevOps lists first, newest first in its reference's examples, though no parameter sets the order, each with its `closedDate` and `closedBy`, and a 51st that says there are more; `kit changes merged` draws them |
 
 ### Write to Azure DevOps Repos
 
@@ -227,7 +229,7 @@ with an example the gate validates against it.
 | [devops-invoke-pull-request-threads.schema.json](az/devops-invoke-pull-request-threads.schema.json) | `az devops invoke --area git --resource pullRequestThreads --route-parameters project=${project} repositoryId=${repository} pullRequestId=${id} --api-version 7.1 --output json` |
 | [pipelines-runs-list.schema.json](az/pipelines-runs-list.schema.json) | `az pipelines runs list --project ${project} --top 50 --query-order QueueTimeDesc --output json` |
 | [repos-pr-create.schema.json](az/repos-pr-create.schema.json) | `az repos pr create --draft ${draft} --source-branch ${branch} --target-branch ${base} --title ${title} --project ${project} --repository ${repository} [--work-items ${item}] --output json` |
-| [repos-pr-list.schema.json](az/repos-pr-list.schema.json) | `az repos pr list --project ${project} --repository ${repository} --status ${status} --top 100 --skip ${skip} [--source-branch ${branch}] --output json` |
+| [repos-pr-list.schema.json](az/repos-pr-list.schema.json) | `az repos pr list --project ${project} --repository ${repository} --status ${status} --top ${top} [--skip ${skip}] [--source-branch ${branch}] --output json` |
 | [repos-pr-policy-list.schema.json](az/repos-pr-policy-list.schema.json) | `az repos pr policy list --id ${id} --top ${forge_list_limit} --output json` |
 | [repos-pr-show.schema.json](az/repos-pr-show.schema.json) | `az repos pr show --id ${id} --output json` |
 | [repos-pr-work-item-list.schema.json](az/repos-pr-work-item-list.schema.json) | `az repos pr work-item list --id ${id} --output json` |

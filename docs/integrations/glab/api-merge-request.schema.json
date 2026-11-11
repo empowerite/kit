@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "glab api projects/${project}/merge_requests/${n}",
-  "description": "One merge request, ${project} the project's path URL-encoded and ${n} its iid, which kit folds into the open change's document in `modules/bash/forge/gitlab.sh` (forge/gitlab:open-prs, with `modules/jq/forge.jq` forge::gitlab_pr and forge::gitlab_pipeline_jobs) and reads for its author, description, state and merge commit, and title (forge/gitlab:pr-author, forge/gitlab:pr-body, forge/gitlab:pr-state, forge/gitlab:pr-title). The types are APIEntitiesMergeRequest and APIEntitiesCiPipeline of GET /api/v4/projects/{id}/merge_requests/{merge_request_iid} in GitLab's REST OpenAPI, https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/openapi/openapi_v3.yaml, and the values of state, detailed_merge_status, and the pipeline's status those of https://docs.gitlab.com/api/merge_requests/ and https://docs.gitlab.com/api/pipelines/.",
+  "description": "One merge request, ${project} the project's path URL-encoded and ${n} its iid, which kit folds into the open change's document in `modules/bash/forge/gitlab.sh` (forge/gitlab:open-prs, with `modules/jq/forge.jq` forge::gitlab_pr and forge::gitlab_pipeline_jobs, its reviewers among it) and reads for its author, description, state and merge commit, and title (forge/gitlab:pr-author, forge/gitlab:pr-body, forge/gitlab:pr-state, forge/gitlab:pr-title). The types are APIEntitiesMergeRequest and APIEntitiesCiPipeline of GET /api/v4/projects/{id}/merge_requests/{merge_request_iid} in GitLab's REST OpenAPI, https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/openapi/openapi_v3.yaml, and the values of state, detailed_merge_status, and the pipeline's status those of https://docs.gitlab.com/api/merge_requests/ and https://docs.gitlab.com/api/pipelines/.",
   "type": "object",
   "properties": {
     "iid": {
@@ -89,6 +89,20 @@
       "description": "Each label's name.",
       "items": {
         "type": "string"
+      }
+    },
+    "reviewers": {
+      "type": ["array", "null"],
+      "description": "The users asked to review it, whether they have or not.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": ["username"],
+        "additionalProperties": true
       }
     },
     "head_pipeline": {
@@ -185,6 +199,14 @@
       "source_project_id": 1,
       "target_project_id": 1,
       "labels": ["kind=fix"],
+      "reviewers": [
+        {
+          "username": "bob"
+        },
+        {
+          "username": "carol"
+        }
+      ],
       "head_pipeline": {
         "id": 11,
         "project_id": 1,

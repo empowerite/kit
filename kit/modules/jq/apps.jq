@@ -44,6 +44,26 @@ def iteration:
   {key: .id} + del(.url)
   + {current: (.start != null and .end != null and .start <= now and now <= .end), links: {title: .url}};
 
+# review reads a change the forge's open-prs call prints and gives a row per reviewer, keyed by the change's number and
+# the reviewer's login: the reviewer's state, when they gave it, and the change's unresolved threads, on each row.
+def review:
+  . as $change
+  | .reviewers[]?
+  | { key: "\($change.number) \(.login)", change: $change.number, title: $change.title, login, state, at,
+      unresolved: $change.unresolved, links: {} };
+
+# check reads a change the forge's open-prs call prints and gives a row per check, keyed by the change's number and the
+# check's name: the latest run of each name, by at, so a rerun supersedes the run before it.
+def check:
+  . as $change
+  | (.runs // []) | group_by(.name) | map(sort_by(.at) | last)[]
+  | { key: "\($change.number) \(.name)", change: $change.number, title: $change.title, name, verdict, at, took,
+      links: {} };
+
+# merged reads a change the forge's merged-prs call prints and gives it keyed by its number, its page the link of its
+# title.
+def merged: {key: .number} + del(.url) + {links: {title: .url}};
+
 # shown reads a row's value and gives it as text prints it: nothing for none, a list's values apart by commas, an
 # object as JSON.
 def shown:

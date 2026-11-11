@@ -42,7 +42,9 @@ Rate limits on Server are off unless its administrator turns them on.
 | Closing issues | `gh pr view "${n}" --json closingIssuesReferences`; kit pages `closingIssuesReferences(first: 100, after: $after)` with `gh api graphql`, as `gh` reads at most 100 |
 | Review threads | `gh api graphql` on `pullRequest(number: $n) { reviewThreads(first: 100) { nodes { isResolved } } }` (raw API) |
 | Checks rollup | `gh pr checks "${n}" --json name,state,bucket,startedAt,completedAt`, or `gh pr view "${n}" --json statusCheckRollup` |
-| Open changes | `gh api graphql` on `repository.pullRequests(states: OPEN, first: 100)` with threads, checks, and closing issues (raw API); `gh pr list --state open --json "${fields}" --limit "${limit}"` for fewer fields |
+| Open changes | `gh api graphql` on `repository.pullRequests(states: OPEN, first: 100)` with threads, checks, closing issues, and reviewers (raw API), 18 points a page; `gh pr list --state open --json "${fields}" --limit "${limit}"` for fewer fields |
+| Reviewers | in the open changes' query, `reviewRequests(first: 20) { totalCount nodes { requestedReviewer { ... on User { login } ... on Team { slug } } } }` and `latestReviews(first: 20) { totalCount nodes { author { login } state submittedAt } }`, failing past 20; a team's slug may need `read:org`, which `gh auth login` grants, and a token without it fails with `gh auth refresh --scopes read:org`; `gh pr view "${n}" --json reviewRequests,latestReviews` for one; `kit changes reviews` draws them |
+| Merged changes | `gh api graphql` on `repository.pullRequests(states: MERGED, first: 50, orderBy: {field: UPDATED_AT, direction: DESC}) { totalCount nodes { number title url headRefName mergedAt author { login } mergedBy { login } } }` (raw API), a point: GitHub orders by creation or update, never by merge, and with `DESC`, `last: 50` would be the oldest; `kit changes merged` draws them by `mergedAt` |
 
 ### Write to GitHub pull requests
 
@@ -302,6 +304,7 @@ with an example the gate validates against it.
 | Schema | The command as kit runs it |
 | --- | --- |
 | [api-graphql-iterations.schema.json](gh/api-graphql-iterations.schema.json) | `gh api graphql --field owner=${owner} --field name=${name} --raw-field query=${query}` |
+| [api-graphql-merged-prs.schema.json](gh/api-graphql-merged-prs.schema.json) | `gh api graphql --field owner=${owner} --field name=${name} --raw-field query=${query}` |
 | [api-graphql-more-checks.schema.json](gh/api-graphql-more-checks.schema.json) | `gh api graphql --field owner=${owner} --field name=${name} --field pr=${number} --raw-field after=${cursor} --raw-field query=${query}` |
 | [api-graphql-more-closing-issues.schema.json](gh/api-graphql-more-closing-issues.schema.json) | `gh api graphql --field owner=${owner} --field name=${name} --field pr=${number} --raw-field after=${cursor} --raw-field query=${query}` |
 | [api-graphql-more-review-threads.schema.json](gh/api-graphql-more-review-threads.schema.json) | `gh api graphql --field owner=${owner} --field name=${name} --field pr=${number} --raw-field after=${cursor} --raw-field query=${query}` |

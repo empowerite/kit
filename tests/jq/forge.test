@@ -36,7 +36,7 @@ import "forge" as forge; forge::colored({"bug": "#D73A4A", "kind=fix": "0e8a16"}
 [[{"name":"bug","color":"#d73a4a"},{"name":"other","color":null}],[{"name":"kind=fix","color":"#0e8a16"},{"name":"bug","color":"#000000"}]]
 
 # A GitLab merge request names its labels, and those of the issues it closes, by name alone.
-import "forge" as forge; forge::gitlab_pr(1000000; []; []; [{"iid": 7, "title": "Seven", "created_at": "1970-01-12T13:40:00Z", "labels": ["bug"]}]; null) | [.labels, .closes[].labels]
+import "forge" as forge; forge::gitlab_pr(1000000; []; []; [{"iid": 7, "title": "Seven", "created_at": "1970-01-12T13:40:00Z", "labels": ["bug"]}]; null; {}) | [.labels, .closes[].labels]
 {"iid": 3, "source_branch": "7-fix", "title": "Fix it", "author": {"username": "ada"}, "created_at": "1970-01-12T13:30:00Z", "draft": true, "labels": ["kind=fix", "area::tui"]}
 [[{"name":"kind=fix","color":null},{"name":"area::tui","color":null}],[{"name":"bug","color":null}]]
 
@@ -81,13 +81,13 @@ import "forge" as forge; forge::gitlab_runs | map([.name, .verdict, .took])
 [["test","passed",100],["deploy","passed",null],["lint","pending",null],["build","failed",null]]
 
 # A merge request folds into the document, with its ref written !<iid>; with no pipeline, its last push is unknown.
-import "forge" as forge; forge::gitlab_pr(1000000; [{"name": "test", "status": "success", "started_at": "1970-01-12T13:45:00Z", "finished_at": "1970-01-12T13:46:40Z"}]; [{"notes": [{"resolvable": true, "resolved": false}, {"resolvable": false}]}]; [{"iid": 7, "title": "Fix the thing", "created_at": "1970-01-12T13:40:00Z", "assignees": [{"username": "bob"}], "references": {"full": "empowerite/tools/example#7"}}]; null)
+import "forge" as forge; forge::gitlab_pr(1000000; [{"name": "test", "status": "success", "started_at": "1970-01-12T13:45:00Z", "finished_at": "1970-01-12T13:46:40Z"}]; [{"notes": [{"resolvable": true, "resolved": false}, {"resolvable": false}]}]; [{"iid": 7, "title": "Fix the thing", "created_at": "1970-01-12T13:40:00Z", "assignees": [{"username": "bob"}], "references": {"full": "empowerite/tools/example#7"}}]; null; {"approved_by": null})
 {"iid": 3, "source_branch": "7-fix-the-thing", "title": "Fix it", "author": {"username": "ada"}, "created_at": "1970-01-12T13:30:00Z", "draft": false, "has_conflicts": false, "detailed_merge_status": "mergeable"}
-{"number":3,"ref":"!3","branch":"7-fix-the-thing","fork":null,"title":"Fix it","author":"ada","createdAt":"1970-01-12T13:30:00Z","age":1000,"pushed":null,"state":"comments:open","checks":{"state":"SUCCESS","passed":1,"total":1,"failing":"","took":100},"unresolved":1,"labels":[],"closes":[{"number":7,"title":"Fix the thing","assignees":["bob"],"labels":[],"source":"gitlab","organization":"empowerite/tools","repository":"example","age":400}]}
+{"number":3,"ref":"!3","branch":"7-fix-the-thing","fork":null,"title":"Fix it","author":"ada","createdAt":"1970-01-12T13:30:00Z","age":1000,"pushed":null,"state":"comments:open","checks":{"state":"SUCCESS","passed":1,"total":1,"failing":"","took":100},"unresolved":1,"labels":[],"closes":[{"number":7,"title":"Fix the thing","assignees":["bob"],"labels":[],"source":"gitlab","organization":"empowerite/tools","repository":"example","age":400}],"reviewers":[],"runs":[{"name":"test","verdict":"passed","at":999900,"took":100}]}
 
 # A merge request from a fork names the fork's owner, and its head pipeline gives the last push: its age, and who
 # started it; a pipeline that names no one gives a null by.
-import "forge" as forge; [forge::gitlab_pr(1000000; []; []; []; "cy"), (.head_pipeline.user = null | forge::gitlab_pr(1000000; []; []; []; null))] | map({fork, pushed})
+import "forge" as forge; [forge::gitlab_pr(1000000; []; []; []; "cy"; {}), (.head_pipeline.user = null | forge::gitlab_pr(1000000; []; []; []; null; {}))] | map({fork, pushed})
 {"iid": 3, "source_branch": "7-fix", "title": "Fix it", "author": {"username": "ada"}, "created_at": "1970-01-12T13:30:00Z", "draft": true, "head_pipeline": {"id": 11, "created_at": "1970-01-12T13:45:00.000Z", "user": {"username": "dee"}}}
 [{"fork":"cy","pushed":{"age":100,"by":"dee"}},{"fork":null,"pushed":{"age":100,"by":null}}]
 
@@ -220,3 +220,49 @@ import "forge" as forge; forge::ado_iterations("u")
 [{"id": "a1", "name": "Sprint 1", "attributes": {"startDate": "2026-11-02T00:00:00Z", "finishDate": "2026-11-15T00:00:00Z"}}, {"id": "a0", "name": "Backlog", "attributes": null}]
 {"id":"a0","title":"Backlog","start":null,"end":null,"url":"u"}
 {"id":"a1","title":"Sprint 1","start":1793577600,"end":1794787199,"url":"u"}
+
+# A change's reviewers are each named once, as the first that names them says, by login: one asked again is asked,
+# whatever they said before. The author's own comments are no review, and a reviewer the forge names no login for, as
+# a deleted account, is none. A time comes out in seconds since the epoch.
+import "forge" as forge; forge::reviewers("ada")
+[{"login": "dee", "state": "requested", "at": null}, {"login": "ada", "state": "commented", "at": "1970-01-12T13:40:00Z"}, {"login": null, "state": "approved", "at": null}, {"login": "dee", "state": "approved", "at": "1970-01-12T13:40:00Z"}, {"login": "bob", "state": "changes", "at": "1970-01-12T13:41:40.5Z"}]
+[{"login":"bob","state":"changes","at":999700},{"login":"dee","state":"requested","at":null}]
+
+# GitHub asks a person or a team, and a reviewer's latest review approves, asks for changes, or comments; a dismissed
+# review stands as a comment, and a pending one, which only its author sees, is none.
+import "forge" as forge; forge::github_prs(1000000) | .reviewers
+{"data": {"repository": {"pullRequests": {"nodes": [{"number": 3, "title": "Fix", "isDraft": false, "headRefName": "7-fix", "createdAt": "1970-01-12T13:30:00Z", "author": {"login": "ada"}, "closingIssuesReferences": {"nodes": []}, "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]}, "reviewRequests": {"nodes": [{"requestedReviewer": {"slug": "core"}}, {"requestedReviewer": null}]}, "latestReviews": {"nodes": [{"author": {"login": "bob"}, "state": "CHANGES_REQUESTED", "submittedAt": "1970-01-12T13:40:00Z"}, {"author": {"login": "cy"}, "state": "DISMISSED", "submittedAt": "1970-01-12T13:40:00Z"}, {"author": {"login": "dee"}, "state": "PENDING", "submittedAt": null}, {"author": null, "state": "APPROVED", "submittedAt": "1970-01-12T13:40:00Z"}]}}]}}}}
+[{"login":"bob","state":"changes","at":999600},{"login":"core","state":"requested","at":null},{"login":"cy","state":"commented","at":999600}]
+
+# A GitLab merge request's approvers have approved, at the time each did, and a reviewer without an approval is asked.
+import "forge" as forge; forge::gitlab_pr(1000000; []; []; []; null; {"approved_by": [{"user": {"username": "carol"}, "approved_at": "1970-01-12T13:40:00.000Z"}, {"user": null}]}) | .reviewers
+{"iid": 3, "source_branch": "7-fix", "title": "Fix it", "author": {"username": "ada"}, "created_at": "1970-01-12T13:30:00Z", "draft": false, "reviewers": [{"username": "bob"}, {"username": "carol"}]}
+[{"login":"bob","state":"requested","at":null},{"login":"carol","state":"approved","at":999600}]
+
+# Azure DevOps' votes of 10 and 5 approve, -5 and -10 ask for changes, and 0 is a reviewer asked; one who declined is
+# none, and a team is named by its display name. A vote has no time.
+import "forge" as forge; [.[] | {vote, isContainer, hasDeclined, uniqueName, displayName}] | {reviewers: .} | forge::ado_reviewers
+[{"uniqueName": "a", "vote": 10}, {"uniqueName": "b", "vote": 5}, {"uniqueName": "c", "vote": -5}, {"uniqueName": "d", "vote": -10}, {"uniqueName": "e", "vote": 0}, {"uniqueName": "f", "vote": 0, "hasDeclined": true}, {"uniqueName": "vstfs:///x", "displayName": "Core Team", "isContainer": true, "vote": 0}]
+[{"login":"a","state":"approved","at":null},{"login":"b","state":"approved","at":null},{"login":"c","state":"changes","at":null},{"login":"d","state":"changes","at":null},{"login":"e","state":"requested","at":null},{"login":"Core Team","state":"requested","at":null}]
+
+# GitHub's merged pull requests come merged last first, each merger and author null for a deleted account; a count
+# past the nodes read ends the list with how many were.
+import "forge" as forge; forge::github_merged
+{"data": {"repository": {"pullRequests": {"totalCount": 3, "nodes": [{"number": 4, "title": "Four", "url": "u4", "headRefName": "b4", "mergedAt": "1970-01-12T13:40:00Z", "author": null, "mergedBy": null}, {"number": 5, "title": "Five", "url": "u5", "headRefName": "b5", "mergedAt": "1970-01-12T13:45:00Z", "author": {"login": "bob"}, "mergedBy": {"login": "ada"}}]}}}}
+{"number":5,"title":"Five","author":"bob","branch":"b5","merged":999900,"by":"ada","url":"u5"}
+{"number":4,"title":"Four","author":null,"branch":"b4","merged":999600,"by":null,"url":"u4"}
+{"limited":2}
+
+# GitLab's merged merge requests name who merged one by merge_user, else the deprecated merged_by; past the limit,
+# the list says it stopped there.
+import "forge" as forge; forge::gitlab_merged(1)
+[{"iid": 9, "title": "Nine", "author": {"username": "bob"}, "source_branch": "b9", "merged_at": "1970-01-12T13:40:00.000Z", "merged_by": {"username": "ada"}, "web_url": "u9"}, {"iid": 8, "title": "Eight", "merged_at": "1970-01-12T13:30:00Z", "web_url": "u8"}]
+{"number":9,"title":"Nine","author":"bob","branch":"b9","merged":999600,"by":"ada","url":"u9"}
+{"limited":1}
+
+# Azure DevOps' completed pull requests are dated by when they closed, by who closed them, each page under the
+# repository's.
+import "forge" as forge; forge::ado_merged(5; "https://dev.azure.com/o/p/_git/r")
+[{"pullRequestId": 2, "title": "Two", "sourceRefName": "refs/heads/b2", "createdBy": {"uniqueName": "bob"}, "closedBy": {"uniqueName": "ada"}, "closedDate": "1970-01-12T13:40:00.1234567Z"}, {"pullRequestId": 3, "title": "Three", "sourceRefName": "refs/heads/b3", "closedDate": "1970-01-12T13:45:00Z"}]
+{"number":3,"title":"Three","author":null,"branch":"b3","merged":999900,"by":null,"url":"https://dev.azure.com/o/p/_git/r/pullrequest/3"}
+{"number":2,"title":"Two","author":"bob","branch":"b2","merged":999600,"by":"ada","url":"https://dev.azure.com/o/p/_git/r/pullrequest/2"}

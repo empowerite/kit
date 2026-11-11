@@ -54,7 +54,8 @@ JSON
 {"pullRequestId": 3, "title": "Fix the thing", "description": "Closes #7", "status": "active", "isDraft": false,
  "sourceRefName": "refs/heads/7-fix-the-thing", "targetRefName": "refs/heads/main", "mergeStatus": "succeeded",
  "creationDate": "2026-10-01T09:00:00.123Z", "createdBy": {"uniqueName": "ada"},
- "lastMergeSourceCommit": {"commitId": "1f2e3d4"}, "labels": [{"name": "kind=fix", "active": true}]}
+ "lastMergeSourceCommit": {"commitId": "1f2e3d4"}, "labels": [{"name": "kind=fix", "active": true}],
+ "reviewers": [{"uniqueName": "bob", "displayName": "Bob", "vote": 0}, {"uniqueName": "carol", "vote": 10}]}
 JSON
   jq --compact-output '[.]' "${FAKE_DIR}/pr.json" | fixture prs.json
   fixture prs-all.json <<'JSON'
@@ -89,6 +90,11 @@ JSON
   az-route "${list} --status all --top 100 --skip 0 --source-branch 7-fix-the-thing --output json" prs-all.json
   az-route "${list} --status * --top 100 --skip 0 --source-branch * --output json" none.json
   az-route "${list} --status active --top 100 --skip 0 --output json" prs.json
+  fixture merged.json <<'JSON'
+[{"pullRequestId": 2, "title": "Do the other thing", "status": "completed", "sourceRefName": "refs/heads/9-other",
+  "createdBy": {"uniqueName": "bob"}, "closedBy": {"uniqueName": "ada"}, "closedDate": "2026-10-03T09:00:00.1234567Z"}]
+JSON
+  az-route "${list} --status completed --top 51 --output json" merged.json
   az-route 'repos pr show --id 3 --output json' pr.json
   az-route 'repos pr create --draft true --source-branch 7-fix-the-thing --target-branch main --title Fix the thing --project empowerite --repository example --work-items 7 --output json' pr.json
   az-route 'repos pr work-item list --id 3 --output json' linked.json
@@ -104,8 +110,9 @@ JSON
   az-route 'boards iteration team list --team Alpha --project empowerite --output json' iterations.json
 }
 
-# added is what contract 4 adds that Azure DevOps lacks, as JSON strings: it has iterations, and no milestone.
-added='"milestones","reviewers","merged","artifacts","environments","deployments","collaborators",'
+# added is what contract 4 adds that Azure DevOps lacks, as JSON strings: it has iterations, reviewers, and the changes
+# merged, and no milestone.
+added='"milestones","artifacts","environments","deployments","collaborators",'
 added+='"teams","bots","attestations","code-scanning","dependabot","secret-scanning","rulesets","bypasses"'
 
 @test "dev.azure.com, its ssh host, and a host under visualstudio.com are Azure DevOps, and each names the repository" {
@@ -231,7 +238,12 @@ added+='"teams","bots","attestations","code-scanning","dependabot","secret-scann
   expected+='"state":"comments:open","checks":{"state":"SUCCESS","passed":2,"total":2,"failing":"","took":50},'
   expected+='"unresolved":1,"labels":[{"name":"kind=fix","color":null}],'
   expected+='"closes":[{"number":7,"title":"Fix the thing","assignees":["bob"],'
-  expected+='"labels":[{"name":"bug","color":null}]}]}'
+  expected+='"labels":[{"name":"bug","color":null}]}],'
+  # a vote of 10 approves; 0 is a reviewer asked, who has not voted; Azure DevOps keeps no time of a vote
+  expected+='"reviewers":[{"login":"bob","state":"requested","at":null},'
+  expected+='{"login":"carol","state":"approved","at":null}],'
+  expected+='"runs":[{"name":"a","verdict":"passed","at":1790848800,"took":30},'
+  expected+='{"name":"b","verdict":"passed","at":1790848810,"took":50}]}'
   run call open-prs
   [ "$status" -eq 0 ]
   [ "$(jq --compact-output --sort-keys \
@@ -253,6 +265,20 @@ added+='"teams","bots","attestations","code-scanning","dependabot","secret-scann
     && mv "${FAKE_DIR}/policies.new" "${FAKE_DIR}/policies.json"
   forge-forget
   [ "$(call open-prs | jq --raw-output .state)" = blocked:approval ]
+}
+
+@test "the provider lists the pull requests completed last, as the others do, and says when it stopped at 50" {
+  expected='{"number":2,"title":"Do the other thing","author":"bob","branch":"9-other","merged":1791018000,"by":"ada",'
+  expected+='"url":"https://dev.azure.com/acme/empowerite/_git/example/pullrequest/2"}'
+  run --separate-stderr call merged-prs
+  [ "$status" -eq 0 ]
+  [ "$output" = "${expected}" ]
+  jq '[range(51) as $i | .[0] | .pullRequestId = (60 - $i)]' "${FAKE_DIR}/merged.json" > "${FAKE_DIR}/merged.new" \
+    && mv "${FAKE_DIR}/merged.new" "${FAKE_DIR}/merged.json"
+  run --separate-stderr call merged-prs
+  [ "$status" -eq 0 ]
+  [ "$(jq --slurp --compact-output '[length, .[0].number, .[49].number, .[50]]' <<<"$output")" \
+    = '[51,60,11,{"limited":50}]' ]
 }
 
 @test "the provider lists its open work items in one shape, oldest first, with the assignee, the tags, and the repository" {

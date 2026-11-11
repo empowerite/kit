@@ -178,7 +178,27 @@ forge/github:me() {
   return 1
 }
 
-forge/github:merged-prs() { return 3; }
+# forge/github:merged-prs prints one document per merged pull request, as the seam's header says: one GraphQL request,
+# a point of the rate limit, for the 50 updated last. GitHub orders a list by its creation or its update, never by
+# its merge, and a merge updates a pull request, so every pull request merged after the 50th's update is among them;
+# forge.jq orders them by merge. More than 50 ends the list with {"limited": 50}.
+forge/github:merged-prs() {
+  local repo query answer
+  repo=$(forge/github:repo) || return 1
+  query='query($owner: String!, $name: String!) {
+    repository(owner: $owner, name: $name) {
+      pullRequests(states: MERGED, first: 50, orderBy: {field: UPDATED_AT, direction: DESC}) {
+        totalCount nodes { number title url headRefName mergedAt author { login } mergedBy { login } }
+      }
+    }
+  }'
+  forge/github:ask answer 'the merged pull requests' api graphql --field owner="${repo%%/*}" \
+    --field name="${repo#*/}" --raw-field query="${query}" || return 1
+  forge/github:fold 'the merged pull requests' "${answer}" --exit-status \
+    '.data.repository.pullRequests.nodes | arrays' >/dev/null || return 1
+  forge/github:fold 'the merged pull requests' "${answer}" --compact-output \
+    'import "forge" as forge; forge::github_merged'
+}
 
 # forge/github:milestones prints one document per milestone, open and closed, by number, as the seam's header says,
 # every page of the REST list: gh api --paginate --slurp joins the pages into one array of them.
@@ -206,19 +226,22 @@ forge/github:open-issues() {
 }
 
 # forge/github:open-prs makes one GraphQL request for every open pull request, with its labels, the issues it closes
-# and theirs, its review threads, the owner of the repository its branch lives in, and its head commit: when it was
-# committed, by whom, and the checks on it. It prints one JSON object per pull request: the document kit status
-# renders, which modules/jq/forge.jq folds the answer into. Of several runs of one name on the head commit, as after a
-# rerun, only the latest counts.
+# and theirs, the reviewers it asks and each reviewer's latest review, its review threads, the owner of the repository
+# its branch lives in, and its head commit: when it was committed, by whom, and the checks on it. It prints one JSON
+# object per pull request: the document kit status renders, which modules/jq/forge.jq folds the answer into. Of
+# several runs of one name on the head commit, as after a rerun, only the latest counts.
 #
 # GitHub charges a request by the nodes it may return, so assignees asked of each issue each pull request closes cost
 # a hundred times as much as the rest of the request. The same request asks instead for the assignees of the hundred
 # open issues with an assignee most recently updated, and forge.jq gives each closed issue its assignees from them.
 # Labels are asked under each closed issue all the same, as no other list holds them all, and a pull request is
 # asked for the first 10 issues it closes, not 100, which keeps them cheap. GitHub's dry run, rateLimit(dryRun: true),
-# puts the request at 16 points of the GraphQL rate limit; without any labels, it costs 5, and with the labels under
-# the first 100 issues each closes, 106. A pull request that closes more than 10 says so, as its list's next page, and
-# forge/github:rest-of-closes reads the rest of it, 100 at a time, a point each.
+# puts the request at 18 points of the GraphQL rate limit, the reviewers asked and their reviews a point each of
+# them; without any labels, it costs 7, and with the labels under the first 100 issues each closes, 108. A pull
+# request that closes more than 10 says so, as its list's next page, and forge/github:rest-of-closes reads the rest of
+# it, 100 at a time, a point each. A pull request is asked for its first 20 reviewers asked and 20 reviews, and one
+# with more fails the read, as it would be partial. A team asked is named by its slug, which may need the read:org
+# scope that gh's default login has; a login without it fails the read, naming the command that adds it.
 #
 # The pull requests come 100 a request, each page after the cursor the one before ended on, until the list ends. A
 # pull request with more than 100 review threads, or more than 100 checks on its head commit, has the rest of that
@@ -243,6 +266,10 @@ forge/github:open-prs() {
           closingIssuesReferences(first: 10) { pageInfo { hasNextPage endCursor } nodes {
             number title createdAt repository { nameWithOwner } labels(first: 20) { nodes { name color } }
           } }
+          reviewRequests(first: 20) { totalCount nodes { requestedReviewer {
+            ... on User { login } ... on Team { slug } ... on Bot { login } ... on Mannequin { login }
+          } } }
+          latestReviews(first: 20) { totalCount nodes { author { login } state submittedAt } }
           reviewThreads(first: 100) { pageInfo { hasNextPage endCursor } nodes { isResolved } }
           commits(last: 1) { nodes { commit {
             oid committedDate author { user { login } }
@@ -273,6 +300,11 @@ forge/github:open-prs() {
     [[ -n "${cursor}" ]] || break
     after=(--raw-field after="${cursor}")
   done
+  jq --exit-status 'all(.data.repository.pullRequests.nodes[];
+      (.reviewRequests.totalCount // 0) <= (.reviewRequests.nodes // [] | length)
+      and (.latestReviews.totalCount // 0) <= (.latestReviews.nodes // [] | length))' <<<"${answer}" >/dev/null \
+    || { error "kit reads at most 20 review requests and 20 reviews of a change (the pull requests could not be read)"
+         return 1; }
   list:read rests forge/github:fold 'the pull requests' "${answer}" --raw-output \
     'import "forge" as forge; forge::github_partial' || return 1
   for row in "${rests[@]}"
@@ -499,7 +531,7 @@ forge/github:teams() { return 3; }
 forge/github:contract() { printf '4\n'; }
 
 forge/github:lacks() {
-  printf '%s\n' reviewers merged artifacts environments deployments collaborators teams bots \
+  printf '%s\n' artifacts environments deployments collaborators teams bots \
     attestations code-scanning dependabot secret-scanning rulesets bypasses
 }
 
@@ -633,6 +665,7 @@ forge/github:ask() {
   if ! ask_out=$(gh "$@" 2>"${ask_said}")
   then
     forge/github:limited "${ask_what}" "${ask_out}"$'\n'"$(<"${ask_said}")" \
+      || forge/github:scoped "${ask_what}" "$(<"${ask_said}")" \
       || error "run: gh auth status (${ask_what} could not be read)"
     return 1
   fi
@@ -669,6 +702,18 @@ forge/github:limited() {
     'import "forge" as forge; forge::github_spent($now)' <<<"${limits}" 2>/dev/null) || wait=''
   [[ -n "${wait}" ]] || wait="wait for GitHub's rate limit to reset; run: gh api rate_limit"
   error "${wait} (${what} could not be read)"
+}
+
+# forge/github:scoped <what> <said> says, when what gh said is that its login lacks a scope the read needs, the command
+# that adds the scope GitHub names, and succeeds; for anything else, or a refusal that names no scope, it says nothing
+# and fails. GitHub refuses a GraphQL field so with INSUFFICIENT_SCOPES, naming the field and the scopes that would do,
+# as a team asked to review needs read:org.
+forge/github:scoped() {
+  local what=$1 said=$2 scope
+  [[ "${said,,}" == *insufficient_scopes* || "${said,,}" == *'required scopes'* ]] || return 1
+  scope=$(sed -n "s/.*requires one of the following scopes: \['\([^']*\)'.*/\1/p" <<<"${said}" | head -n 1)
+  [[ -n "${scope}" ]] || return 1
+  error "run: gh auth refresh --scopes ${scope} (${what} could not be read)"
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

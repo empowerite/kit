@@ -97,7 +97,8 @@
 #   pr-head-for-branch <branch>   the head commit of the latest pull request on the branch, in any state, or nothing
 #   pr-here                       the number of the pull request this checkout is working on, or nothing
 #   pr-closing-issues <n>         one line per issue the pull request closes: "<number> <state> <owner/name>"
-#   open-prs                      one JSON object per open pull request, the documents kit flow draws
+#   open-prs                      one JSON object per open pull request, the documents kit flow draws, and kit
+#                                 changes' reviews and checks: modules/jq/forge.jq's header names their fields
 #   open-issues                   one JSON object per open issue, oldest first, the documents the backlog stage draws
 #   releases                      one JSON object per release, newest first, the documents the releases stage draws:
 #                                 {version, tag, name, kind, latest, at, age, url, notes, assets}; kind is release,
@@ -112,8 +113,9 @@
 #   iterations                    one JSON object per iteration, by start: {id, title, start, end, url}, start and end
 #                                 seconds since the epoch (since 4); a repository with none prints none, and a forge
 #                                 whose tier has none answers 3
-#   merged-prs                    one JSON object per merged change, the 50 newest: {number, title, author, branch,
-#                                 merged, by, url} (since 4)
+#   merged-prs                    one JSON object per merged change, the 50 merged last, merged last first: {number,
+#                                 title, author, branch, merged, by, url}, merged seconds since the epoch, by who
+#                                 merged it (since 4)
 #   artifacts                     one JSON object per artifact of a run, the newest 100: {id, name, digest, size, run,
 #                                 age, expires, url} (since 4)
 #   environments                  one JSON object per deployment environment: {name, protection, approvers, branches,

@@ -77,6 +77,38 @@ or outside a repository's working tree with no workspace.
   in `kit.yml` names, else the project's default team. It has no mark, so kittui reads it again only on Refresh and
   Watch.
 
+## Changes: kit changes
+
+`kit changes` prints what the forge says of the repository's changes. Its other tab in kittui, the open changes, is
+`kit flow`'s: `kit changes changes` opens on a terminal, and with a form refuses with 2, naming
+`kit flow changes --json`.
+
+| Stage | A row per | Fields | Mark |
+| --- | --- | --- | --- |
+| `reviews` | open change and reviewer | `change, title, login, state, at, unresolved` | the forge's issues and runs |
+| `checks` | open change and check, its latest run | `change, title, name, verdict, at, took` | as `reviews` |
+| `merged` | change merged last, the 50 newest | `number, title, author, branch, merged, by` | as `reviews` |
+
+- `reviews` and `checks` read the open changes as `kit flow changes` does, from the forge's snapshot of them, so they
+  cost no request more: one GraphQL request a minute on GitHub. GitLab reads each open merge request's approvals
+  beside its discussions, and Azure DevOps names the reviewers in its list of pull requests.
+- `reviews` keys each row by the change's number and the reviewer's login, `3 bob`. `state` is `requested` while the
+  reviewer is asked and has not answered, else the reviewer's latest review: `approved`, `changes`, or `commented`.
+  `at` is when they answered, in seconds since the epoch, `null` while asked. `unresolved` is the change's unresolved
+  threads, on each of its rows. The author's own comments are no review. GitHub names a team asked by its slug, and a
+  dismissed review stands as a comment. GitLab's reviewer is `approved` with an approval, else `requested`. Azure
+  DevOps' votes 10 and 5 are `approved`, -5 and -10 `changes`, 0 `requested`, and it keeps no time of a vote.
+- `checks` keys each row by the change's number and the check's name, `3 a`. Of the runs of one name on the head
+  commit, the latest by its start counts, so a rerun that passed supersedes a run that failed. `verdict` is `passed`,
+  `failed`, or `pending`; `at` is when the run started and `took` how long it ran, in seconds.
+- `merged` keys each row by its number, and its title links to its page. `merged` is when, in seconds since the
+  epoch, and `by` who merged it. GitHub reads the 50 pull requests updated last, as a merge updates one, and orders
+  them by merge; GitLab orders by `merged_at`, from GitLab 17.2; Azure DevOps lists its completed pull requests in
+  an order no parameter sets, newest first in its reference's examples. Where the forge holds more than 50, the
+  document is `limited: 50`.
+- Each stage's mark is the forge's marks of its issues, which move with its changes, and of its runs, joined, as
+  `kit flow changes`' are; Azure DevOps has no marks, so its are `null`.
+
 ## Packages: kit packages
 
 `kit packages` keeps its own forms beside the app's, as [packages.md](packages.md) says: alone, with a filter, or

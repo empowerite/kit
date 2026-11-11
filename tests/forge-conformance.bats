@@ -80,6 +80,10 @@ JSON
   "closingIssuesReferences": {"nodes": [{"number": 7, "title": "Fix the thing", "createdAt": "2026-09-20T09:00:00Z",
                                          "repository": {"nameWithOwner": "empowerite/example"},
                                          "labels": {"nodes": [{"name": "bug", "color": "D73A4A"}]}}]},
+  "reviewRequests": {"totalCount": 1, "nodes": [{"requestedReviewer": {"login": "bob"}}]},
+  "latestReviews": {"totalCount": 2, "nodes": [
+    {"author": {"login": "ada"}, "state": "COMMENTED", "submittedAt": "2026-10-01T11:00:00Z"},
+    {"author": {"login": "carol"}, "state": "APPROVED", "submittedAt": "2026-10-02T09:00:00Z"}]},
   "reviewThreads": {"nodes": [{"isResolved": true}, {"isResolved": false}]},
   "commits": {"nodes": [{"commit": {"statusCheckRollup": {"contexts": {"nodes": [
     {"__typename": "CheckRun", "name": "a", "status": "COMPLETED", "conclusion": "FAILURE",
@@ -120,6 +124,13 @@ JSON
 JSON
   fixture gh-iterations-none.json <<<'{"data": {"repository": {"projectsV2": {"nodes": []}}}}'
   route gh 'api --paginate --slurp repos/{owner}/{repo}/milestones?state=all&per_page=100' gh-milestones.json
+  fixture gh-merged.json <<'JSON'
+{"data": {"repository": {"pullRequests": {"totalCount": 1, "nodes": [
+  {"number": 2, "title": "Do the other thing", "url": "https://github.com/empowerite/example/pull/2",
+   "headRefName": "9-other", "mergedAt": "2026-10-03T09:00:00Z", "author": {"login": "bob"},
+   "mergedBy": {"login": "ada"}}]}}}}
+JSON
+  route gh 'api graphql*states: MERGED*' "${GITHUB_MERGED:-gh-merged.json}"
   route gh 'api graphql*projectsV2*' "${GITHUB_ITERATIONS:-gh-iterations.json}"
   route gh 'api graphql*number=3*' "${GITHUB_CLOSING:-closing.json}"
   route gh 'api graphql*' open-prs.json
@@ -141,7 +152,16 @@ world-gitlab() {
 {"iid": 3, "title": "Fix the thing", "draft": false, "source_branch": "7-fix-the-thing",
  "created_at": "2026-10-01T09:00:00.000Z", "author": {"username": "ada"}, "has_conflicts": false,
  "detailed_merge_status": "mergeable", "description": "Closes #7", "source_project_id": 1, "target_project_id": 1,
- "head_pipeline": {"id": 11, "project_id": 1, "status": "success"}, "labels": ["kind=fix"]}
+ "head_pipeline": {"id": 11, "project_id": 1, "status": "success"}, "labels": ["kind=fix"],
+ "reviewers": [{"username": "bob"}, {"username": "carol"}]}
+JSON
+  fixture approvals.json <<'JSON'
+{"approved": true, "approved_by": [{"user": {"username": "carol"}, "approved_at": "2026-10-02T09:00:00.000Z"}]}
+JSON
+  fixture gl-merged.json <<'JSON'
+[{"iid": 2, "title": "Do the other thing", "author": {"username": "bob"}, "source_branch": "9-other",
+  "merged_at": "2026-10-03T09:00:00.000Z", "merge_user": {"username": "ada"}, "merged_by": {"username": "ada"},
+  "web_url": "https://gitlab.com/empowerite/example/-/merge_requests/2"}]
 JSON
   fixture jobs.json <<'JSON'
 [{"name": "a", "status": "failed",
@@ -193,6 +213,8 @@ JSON
   route glab "api ${p}/merge_requests?state=all&source_branch=7-fix-the-thing*" mr-states.json
   route glab "api ${p}/merge_requests/3/closes_issues?per_page=100*" "${GITLAB_CLOSES:-closes.json}"
   route glab "api ${p}/merge_requests/3/discussions*" discussions.json
+  route glab "api ${p}/merge_requests/3/approvals" "${GITLAB_APPROVALS:-approvals.json}"
+  route glab "api ${p}/merge_requests?state=merged&order_by=merged_at&per_page=51" "${GITLAB_MERGED:-gl-merged.json}"
   route glab "api ${p}/merge_requests/3" mr.json
   route glab 'api projects/1/pipelines/11/jobs*' jobs.json
   route glab "api ${p}/repository/branches --method POST*" '!0'
@@ -291,7 +313,14 @@ JSON
   expected+='"state":"comments:open","checks":{"state":"SUCCESS","passed":2,"total":2,"failing":"","took":50},'
   expected+='"unresolved":1,"labels":[{"name":"kind=fix","color":"#0e8a16"}],'
   expected+='"closes":[{"number":7,"title":"Fix the thing","assignees":["bob"],'
-  expected+='"labels":[{"name":"bug","color":"#d73a4a"}]}]}'
+  expected+='"labels":[{"name":"bug","color":"#d73a4a"}]}],'
+  # the author's own comment is no review; bob is asked and has not answered; carol approved
+  expected+='"reviewers":[{"login":"bob","state":"requested","at":null},'
+  expected+='{"login":"carol","state":"approved","at":1790931600}],'
+  # every run on the head commit, the failed one a rerun superseded among them
+  expected+='"runs":[{"name":"a","verdict":"failed","at":1790762400,"took":300},'
+  expected+='{"name":"a","verdict":"passed","at":1790848800,"took":30},'
+  expected+='{"name":"b","verdict":"passed","at":1790848810,"took":50}]}'
   for forge in github gitlab
   do
     world "${forge}"
@@ -652,6 +681,36 @@ JSON
   [ "$status" -eq 1 ]
 }
 
+@test "every provider lists the changes merged last in one shape, and says when it stopped at 50" {
+  local expected='{"number":2,"title":"Do the other thing","author":"bob","branch":"9-other",'
+  expected+='"merged":1791018000,"by":"ada"}'
+  for forge in github gitlab
+  do
+    world "${forge}"
+    run --separate-stderr call merged-prs
+    [ "$status" -eq 0 ] || { echo "${forge}: ${stderr}"; return 1; }
+    [ "$(jq --compact-output 'del(.url)' <<<"$output")" = "${expected}" ]
+  done
+  [ "$(jq --raw-output .url <<<"$output")" = 'https://gitlab.com/empowerite/example/-/merge_requests/2' ]
+  grep --quiet 'pullRequests(states: MERGED, first: 50, orderBy: {field: UPDATED_AT, direction: DESC}) {' \
+    "${FAKE_DIR}/gh.calls"
+  # 51 merged changes on GitLab, merged last first, or GitHub's count past those it read, give the first 50, then
+  # limited
+  jq '[range(51) as $i | (50 - $i) as $m | .[0] | .iid = (60 - $i)
+       | .merged_at = "2026-10-03T09:\(if $m < 10 then "0" else "" end)\($m):00Z"]' \
+    "${FAKE_DIR}/gl-merged.json" | fixture gl-merged-51.json
+  GITLAB_MERGED=gl-merged-51.json world gitlab
+  run --separate-stderr call merged-prs
+  [ "$status" -eq 0 ]
+  [ "$(jq --slurp --compact-output '[length, .[0].number, .[0].merged, .[49].number, .[50]]' <<<"$output")" \
+    = '[51,60,1791021000,11,{"limited":50}]' ]
+  jq '.data.repository.pullRequests.totalCount = 70' "${FAKE_DIR}/gh-merged.json" | fixture gh-merged-70.json
+  GITHUB_MERGED=gh-merged-70.json world github
+  run --separate-stderr call merged-prs
+  [ "$status" -eq 0 ]
+  [ "$(jq --slurp --compact-output 'map(.number // .)' <<<"$output")" = '[2,{"limited":1}]' ]
+}
+
 @test "GitLab's milestones follow the cursor past a page, and a failing page fails the call" {
   world gitlab
   : > "${FAKE_DIR}/glab.routes"
@@ -910,10 +969,15 @@ SH
   [ "$(grep --count '^issue list' "${FAKE_DIR}/gh.calls")" -eq 1 ]
 }
 
-@test "GitHub's open changes cost 16 points: the closed issues' assignees come from the open issues, their labels from each" {
+@test "GitHub's open changes cost 18 points: closed issues' assignees come from the open issues, labels from each" {
   world github
   run call open-prs
   [ "$status" -eq 0 ]
+  # the reviewers are asked in the same request, which costs 2 points more than without them: still one read
+  [ "$(reads github)" -eq 1 ]
+  grep --quiet 'reviewRequests(first: 20) { totalCount nodes { requestedReviewer {' "${FAKE_DIR}/gh.calls"
+  grep --quiet 'latestReviews(first: 20) { totalCount nodes { author { login } state submittedAt } }' \
+    "${FAKE_DIR}/gh.calls"
   [ "$(jq --compact-output '.closes | map(.assignees)' <<<"$output")" = '[["bob"]]' ]
   [ "$(jq --compact-output '[.labels, .closes[0].labels] | map(map(.name))' <<<"$output")" = '[["kind=fix"],["bug"]]' ]
   grep --quiet 'issues(states: OPEN, first: 100, filterBy: {assignee: "\*"}' "${FAKE_DIR}/gh.calls"
@@ -921,6 +985,35 @@ SH
   grep --quiet 'number title createdAt repository { nameWithOwner } labels(first: 20) { nodes { name color } }' \
     "${FAKE_DIR}/gh.calls"
   [ "$(grep --count 'assignees(first: 10)' "${FAKE_DIR}/gh.calls")" -eq 1 ]
+}
+
+@test "a pull request with more reviewers than GitHub's open changes read fails them, saying so" {
+  world github
+  jq '.data.repository.pullRequests.nodes[0].latestReviews.totalCount = 21' "${FAKE_DIR}/open-prs.json" \
+    | fixture open-prs-many.json
+  : > "${FAKE_DIR}/gh.routes"
+  route gh 'repo view*' repo.json
+  route gh 'api graphql*' open-prs-many.json
+  local what='the pull requests'
+  run --separate-stderr call open-prs
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [ "$stderr" = "❌ kit reads at most 20 review requests and 20 reviews of a change (${what} could not be read)" ]
+}
+
+@test "a read gh's login lacks a scope for names the command that adds the scope GitHub names" {
+  world github
+  local said="gh: Your token has not been granted the required scopes to execute this query. The 'slug' field"
+  said+=" requires one of the following scopes: ['read:org'], but your token has only been granted the: ['repo']"
+  said+=" scopes. (INSUFFICIENT_SCOPES)"
+  printf '%s\n' "${said}" | fixture gh-org.txt
+  : > "${FAKE_DIR}/gh.routes"
+  route gh 'repo view*' repo.json
+  route gh 'api graphql*' '!1 gh-org.txt'
+  run --separate-stderr call open-prs
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [ "$stderr" = '❌ run: gh auth refresh --scopes read:org (the pull requests could not be read)' ]
 }
 
 @test "a read GitHub's rate limit stops says which limit, and when it resets, never gh auth status" {

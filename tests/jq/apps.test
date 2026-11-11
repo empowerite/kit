@@ -57,3 +57,19 @@ import "apps" as apps; apps::milestone
 import "apps" as apps; [(.[] | apps::iteration | .current)]
 [{"id": "a", "title": "t", "start": 0, "end": 1, "url": "u"}, {"id": "b", "title": "t", "start": 0, "end": 99999999999, "url": "u"}, {"id": "c", "title": "t", "start": null, "end": null, "url": "u"}]
 [false,true,false]
+
+# A change's reviewers are a row each, keyed by the change's number and the login, with the change's unresolved
+# threads; a change with none, or a forge that names none, gives no row.
+import "apps" as apps; [.[] | apps::review]
+[{"number": 3, "title": "Fix", "unresolved": 1, "reviewers": [{"login": "bob", "state": "requested", "at": null}]}, {"number": 4, "title": "Four", "unresolved": 0, "reviewers": []}, {"number": 5, "title": "Five", "unresolved": 0}]
+[{"key":"3 bob","change":3,"title":"Fix","login":"bob","state":"requested","at":null,"unresolved":1,"links":{}}]
+
+# A change's checks are the latest run of each name, a row each, keyed by the change's number and the name.
+import "apps" as apps; [apps::check]
+{"number": 3, "title": "Fix", "runs": [{"name": "b", "verdict": "passed", "at": 20, "took": 5}, {"name": "a", "verdict": "failed", "at": 10, "took": 300}, {"name": "a", "verdict": "passed", "at": 30, "took": 30}, {"name": "c", "verdict": "pending", "at": null, "took": null}]}
+[{"key":"3 a","change":3,"title":"Fix","name":"a","verdict":"passed","at":30,"took":30,"links":{}},{"key":"3 b","change":3,"title":"Fix","name":"b","verdict":"passed","at":20,"took":5,"links":{}},{"key":"3 c","change":3,"title":"Fix","name":"c","verdict":"pending","at":null,"took":null,"links":{}}]
+
+# A merged change is keyed by its number, its page the link of its title.
+import "apps" as apps; apps::merged
+{"number": 2, "title": "Two", "author": "bob", "branch": "b", "merged": 9, "by": "ada", "url": "u"}
+{"key":2,"number":2,"title":"Two","author":"bob","branch":"b","merged":9,"by":"ada","links":{"title":"u"}}

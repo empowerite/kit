@@ -42,6 +42,8 @@ and GraphQL fields exist, and features of the paid tiers are absent from Communi
 | Review threads | `glab mr note list "${n}" --state unresolved -F json` (experimental); kit reads `glab api --paginate "projects/:id/merge_requests/${n}/discussions"` and their `resolvable` and `resolved` notes |
 | Checks rollup | `glab ci status --branch "${branch}" -F json`; kit reads `glab api --paginate "projects/:id/pipelines/${pipeline}/jobs"` for the head pipeline's jobs |
 | Open changes | `glab mr list -F json --per-page 100`, or `glab api --paginate 'projects/:id/merge_requests?state=opened'` |
+| Reviewers | each open merge request's `reviewers`, from `glab api "projects/:id/merge_requests/${n}"`, and who approved it and when, from `glab api "projects/:id/merge_requests/${n}/approvals"` (raw API), which every tier answers: a request per open merge request, beside its discussions; `kit changes reviews` draws them |
+| Merged changes | `glab api 'projects/:id/merge_requests?state=merged&order_by=merged_at&per_page=51'` (raw API): the 50 merged last, and a 51st that says there are more; `order_by=merged_at` is GitLab 17.2's; `kit changes merged` draws them |
 
 ### Write to GitLab merge requests
 
@@ -232,6 +234,7 @@ with an example the gate validates against it.
 | [api-issue.schema.json](glab/api-issue.schema.json) | `glab api projects/${project}/issues/${n}` |
 | [api-issues.schema.json](glab/api-issues.schema.json) | `glab api projects/${project}/issues?${query} [--paginate]` |
 | [api-labels.schema.json](glab/api-labels.schema.json) | `glab api projects/${project}/labels?per_page=100 --paginate` |
+| [api-merge-request-approvals.schema.json](glab/api-merge-request-approvals.schema.json) | `glab api projects/${project}/merge_requests/${n}/approvals` |
 | [api-merge-request-closes-issues.schema.json](glab/api-merge-request-closes-issues.schema.json) | `glab api projects/${project}/merge_requests/${n}/closes_issues?per_page=100 --paginate` |
 | [api-merge-request-discussions.schema.json](glab/api-merge-request-discussions.schema.json) | `glab api projects/${project}/merge_requests/${n}/discussions?per_page=100 --paginate` |
 | [api-merge-request.schema.json](glab/api-merge-request.schema.json) | `glab api projects/${project}/merge_requests/${n}` |
