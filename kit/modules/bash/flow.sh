@@ -385,23 +385,29 @@ flow:on-branch() {
 # <diff> is flow:fetch-diff's, for a fetch that ran.
 flow:incoming-rows() {
   local remote_json=$1 primary=$2 default=$3 state=$4 diff=${5:-} remote kind ref old new name upstream path key value
-  local base change commits url counts ahead behind desk='' sep=$'\x1f' items=$'\x1e'
+  local base change commits url counts ahead behind desk='' sep=$'\x1f' items=$'\x1e' line
+  local -a heads=() porcelain=()
   local -A locals=() trees=()
   remote=$(jq --raw-output '.name' <<<"${remote_json}")
   base="refs/remotes/${remote}/${default}"
+  # a remote with no url to fetch from, as one only pushed to, has none to name
   url=$(git remote get-url --end-of-options "${remote}" 2>/dev/null || true)
   # The local branches on each of the remote's branches, and the linked worktree each local branch is checked out in.
-  while IFS="${sep}" read -r name upstream
+  list:read heads git for-each-ref --format="%(refname:short)${sep}%(upstream)" refs/heads || return 1
+  for line in "${heads[@]}"
   do
+    IFS="${sep}" read -r name upstream <<<"${line}"
     [[ "${upstream}" == "refs/remotes/${remote}/"* ]] && locals[${upstream}]+="${name}${items}"
-  done < <(git for-each-ref --format="%(refname:short)${sep}%(upstream)" refs/heads)
-  while read -r key value
+  done
+  list:read porcelain git worktree list --porcelain || return 1
+  for line in "${porcelain[@]}"
   do
+    read -r key value <<<"${line}"
     case "${key}" in
       (worktree) path=${value} desk=${desk:-${value}} ;;
       (branch) [[ "${path}" == "${desk}" ]] || trees[${value#refs/heads/}]=${path} ;;
     esac
-  done < <(git worktree list --porcelain)
+  done
   {
     change=${state}
     [[ "${state}" != fetched || -n "${diff}" ]] || change=unchanged
@@ -423,11 +429,13 @@ flow:incoming-rows() {
         (moved:"refs/remotes/${remote}/"*)
           change=updated
           git merge-base --is-ancestor "${old}" "${new}" 2>/dev/null || change=forced
+          # a shallow fetch may lack the old commit, which leaves how many commits unknown
           commits=$(git rev-list --count "${old}..${new}" -- 2>/dev/null || true)
           flow:row branch "${change}" "${ref#"refs/remotes/${remote}/"}" "$(flow:tip "${new}")" "${old:0:7}" "${commits}" \
             "$(flow:on-branch "${ref}")" '' '' ;;
         (new:"refs/remotes/${remote}/"*)
           commits=''
+          # a shallow fetch may lack the base's history, which leaves how many commits unknown
           git show-ref --verify --quiet "${base}" && commits=$(git rev-list --count "${base}..${new}" -- 2>/dev/null || true)
           flow:row branch new "${ref#"refs/remotes/${remote}/"}" "$(flow:tip "${new}")" '' "${commits}" "$(flow:on-branch "${ref}")" '' '' ;;
         (gone:"refs/remotes/${remote}/"*)
@@ -441,8 +449,9 @@ flow:incoming-rows() {
             "${ref}")" '' '' '' '' '' '' ;;
       esac
     done <<<"${diff}"
-    while IFS="${sep}" read -r name upstream
+    for line in "${heads[@]}"
     do
+      IFS="${sep}" read -r name upstream <<<"${line}"
       [[ "${upstream}" == "refs/remotes/${remote}/"* ]] || continue
       git show-ref --verify --quiet "${upstream}" || continue
       counts=$(git rev-list --left-right --count "refs/heads/${name}...${upstream}" -- 2>/dev/null) || continue
@@ -450,7 +459,7 @@ flow:incoming-rows() {
       (( behind > 0 )) || continue
       flow:row tracking behind "${upstream#"refs/remotes/${remote}/"}" "$(flow:tip "${upstream}")" '' "${behind}" \
         "${name}" "${trees[${name}]:-}" "${ahead}" "${behind}"
-    done < <(git for-each-ref --format="%(refname:short)${sep}%(upstream)" refs/heads)
+    done
   } | jq --raw-input --compact-output --argjson remote "${remote_json}" --arg primary "${primary}" \
     --arg default "${default}" --arg url "${url}" --argjson now "$(date +%s)" '
       def some: if . == "" or . == null then null else . end;
