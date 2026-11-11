@@ -3,19 +3,19 @@
   │ 🎫 backlog  3 : │  🛫 underway  4   │  💻 desk  1   │  🌿 worktrees  4   │  🔀 changes  3   │  🏭 builds  4   │
   ╵                 ╰───────────────────╰───────────────╰────────────────────╰──────────────────╰─────────────────╰─────
   ▾ source 1                                                                  ╭─ backlog fields ╭─ assignees ──────────╮
-  ──·───────                                                                  │   field         │ filter               │
+  ──·───────                                                                  │   field         │ filtering            │
   ▾ 🐙 github 1                                                               │ ☑ source        │ ⦿ include  ⦾ exclude │
                                                                               │ ────────────────│ ☑ @me ada            │
       id  assignees  age  title                                               │ ☑ id            │ ☐ ada                │
       ·───×·─────────·────·───────────────────────────────────────────────────│ ☑ assignees ⊘   │ ☐ bob                │
     ▸ #7  👥 2       40d  🎫 Fix the thing                                    │ ☑ age           │ ☐ jeffrey-aguilera   │
                                                                               │ ☑ branch        │ ☐ none               │
-                                                                              │ ☑ labels        │ rendering            │
-                                                                              │ ☑ title         │ ⦿ auto glyph+text    │
-                                                                              │ ────────────────│ ⦾ glyph+text         │
-                                                                              │ ☐ organization  │ ⦾ text               │
-                                                                              │ ☐ repository    ╰──────────────────────╯
-                                                                              ╰───────────────────────────────────────╯
+                                                                              │ ☑ labels        │                      │
+                                                                              │ ☑ title         │ rendering            │
+                                                                              │ ────────────────│ ⦿ auto glyph+text    │
+                                                                              │ ☐ organization  │ ⦾ glyph+text         │
+                                                                              │ ☐ repository    │ ⦾ text               │
+                                                                              ╰─────────────────╰──────────────────────╯
 
 
 

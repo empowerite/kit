@@ -38,8 +38,8 @@ func key(name string) tea.KeyPressMsg {
 func TestAPopoverFiltersByTheValuesChecked(t *testing.T) {
 	h := screen()
 	p := OpenPopover(h, "state", 10, 3, true)
-	want := []string{"filter", grid.Picked + " include  " + grid.Unpicked + " exclude", grid.Unticked + " 🟢 open",
-		grid.Unticked + " 🔴 closed", grid.Unticked + " ❔ merged", grid.Unticked + " " + grid.NoValue, "rendering",
+	want := []string{"filtering", grid.Picked + " include  " + grid.Unpicked + " exclude", grid.Unticked + " 🟢 open",
+		grid.Unticked + " 🔴 closed", grid.Unticked + " ❔ merged", grid.Unticked + " " + grid.NoValue, "", "rendering",
 		grid.Picked + " auto glyph+text", grid.Unpicked + " glyph+text", grid.Unpicked + " text", grid.Unpicked + " glyph"}
 	if got := texts(p, h); !slices.Equal(got, want) || p.At != 1 {
 		t.Fatalf("the lines, at %d:\n%q", p.At, got)

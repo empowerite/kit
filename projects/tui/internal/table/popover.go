@@ -44,7 +44,8 @@ func OpenPopover(h Host, id string, x, y int, header bool) Popover {
 	return p
 }
 
-// Lines gives the popover's lines for its field, under two dim headings, each where the field has it. filter, for an
+// Lines gives the popover's lines for its field, under two dim headings, each where the field has it, a blank line
+// between them. filtering, for an
 // enum, a person, or a label: whether the values checked are let through or held back, include or exclude, one line
 // that toggles, then a box per value, as FilterValues lists them, an enum's known values with their glyphs, a label's
 // names as its pills draw them, and @me with the caller's login once known. rendering: auto, with the rendering it
@@ -65,7 +66,7 @@ func (p Popover) Lines(h Host) []PopLine {
 		out = append(out, PopLine{Text: glyph + " " + text, Act: act, Picked: picked})
 	}
 	if f.Filter && Types[f.Type].Filters {
-		heading("filter")
+		heading("filtering")
 		mode := style.Tint(grid.Picked) + " include  " + style.Off(grid.Unpicked) + " exclude"
 		if g.Filter.Exclude {
 			mode = style.Off(grid.Unpicked) + " include  " + style.Tint(grid.Picked) + " exclude"
@@ -98,6 +99,9 @@ func (p Popover) Lines(h Host) []PopLine {
 				return p.FilteredBy(id, filter)
 			}})
 		}
+	}
+	if len(out) > 0 {
+		out = append(out, PopLine{})
 	}
 	heading("rendering")
 	for _, r := range append([]string{""}, f.Renderings...) {
