@@ -1,5 +1,5 @@
 // A page is drawn as text: the cases a page meets, each held to its lines, with and without their escapes.
-package welcome
+package markdown
 
 import (
 	"strings"
@@ -11,10 +11,10 @@ import (
 )
 
 // plain draws a page and strips its escapes.
-func plain(md string, width int) string { return ansi.Strip(strings.Join(render(md, width), "\n")) }
+func plain(md string, width int) string { return ansi.Strip(strings.Join(Render(md, width), "\n")) }
 
 func TestHeadingsAreBoldAndSetApartByOneBlankLine(t *testing.T) {
-	lines := render("# The `kit` way\n\n\n## Next ##\ntext\n", 40)
+	lines := Render("# The `kit` way\n\n\n## Next ##\ntext\n", 40)
 	want := []string{style.Label("The kit way"), "", style.Label("Next"), "", "text"}
 	if strings.Join(lines, "\n") != strings.Join(want, "\n") {
 		t.Errorf("got %q", lines)
@@ -22,7 +22,7 @@ func TestHeadingsAreBoldAndSetApartByOneBlankLine(t *testing.T) {
 }
 
 func TestInlineCodeIsInTheAccentAndStrongIsBold(t *testing.T) {
-	lines := render("Run `kit flow` **now**, then `kit work`.", 80)
+	lines := Render("Run `kit flow` **now**, then `kit work`.", 80)
 	want := "Run " + style.Mark("kit") + " " + style.Mark("flow") + " " + style.Label("now") + ", then " +
 		style.Mark("kit") + " " + style.Mark("work") + "."
 	if len(lines) != 1 || lines[0] != want {
@@ -35,7 +35,7 @@ func TestParagraphsWrapToTheWidth(t *testing.T) {
 	if got != "one two three\nfour five six\nseven" {
 		t.Errorf("got %q", got)
 	}
-	for _, l := range render(strings.Repeat("`word` ", 40), 20) {
+	for _, l := range Render(strings.Repeat("`word` ", 40), 20) {
 		if ansi.StringWidth(l) > 20 {
 			t.Errorf("%q is wider than 20", ansi.Strip(l))
 		}
@@ -61,5 +61,14 @@ func TestALinkKeepsItsTextAndAWebAddress(t *testing.T) {
 	got := plain("See [the docs](https://example.com/docs) and [the rule](../rules/x.md).", 80)
 	if got != "See the docs (https://example.com/docs) and the rule." {
 		t.Errorf("got %q", got)
+	}
+}
+
+func TestFrontMatterIsDropped(t *testing.T) {
+	if got := plain("---\ntitle: The tour\n---\n\n# Flow\n", 40); got != "Flow" {
+		t.Errorf("got %q", got)
+	}
+	if got := plain("text\n---\nmore\n", 40); got != "text --- more" {
+		t.Errorf("a rule under text: %q", got)
 	}
 }

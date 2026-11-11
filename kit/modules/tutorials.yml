@@ -1,7 +1,9 @@
 # tutorials.yml - the catalogue of kit's tutorials, which kit tutorials lists as buttons
 # ----------------------------------------------------------------------------------------------------------------------
-# kit generate writes the region below from the front matter of the tutorials site's top-level pages, so a tutorial is
-# described in one place, its page. Edit a page, then run kit generate; a hand edit here makes the region stale.
+# kit generate writes the region below from the front matter of the tutorials' pages, so a tutorial is described in one
+# place, its page: the site's top-level pages, each listed with its path on the site, and the pages that ship with the
+# kit, modules/tutorials/<id>.md, each listed with its file, from modules/. Edit a page, then run kit generate; a hand
+# edit here makes the region stale.
 # Only kit's own source repository has projects/tutorials, and there the region's command runs bin/tutorials, which must
 # be executable or the command fails. Anywhere else, as in a repository that carries this release, the command reprints
 # the region as it stands, so it is never stale, and a bin/tutorials of the repository's own is never run.
@@ -26,4 +28,13 @@ tutorials:
     audience:
       - newcomer
     order: 1
+  - id: applications
+    file: tutorials/applications.md
+    title: kit's applications
+    summary: What each application shows, from Flow, the trip of the work from an issue to a release, to Platform.
+    glyph: "\U0001F9ED"
+    audience:
+      - newcomer
+      - ui
+    order: 2
 # kit:end catalogue

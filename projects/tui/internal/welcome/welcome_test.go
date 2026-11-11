@@ -30,24 +30,20 @@ var (
 	introduction = indexOf(known, "introduction")
 	chains       = indexOf(known, "toolchains")
 	setup        = indexOf(known, "setup")
-	apps         = indexOf(known, "applications")
 	terms        = indexOf(known, "terms")
 	custom       = indexOf(known, "customize")
 )
 
-func TestTheKnownStepsAreTheSixInOrder(t *testing.T) {
+func TestTheKnownStepsAreTheFiveInOrder(t *testing.T) {
 	var ids, files []string
 	for _, s := range known {
 		ids, files = append(ids, s.id), append(files, s.file)
 	}
-	want := []string{"introduction", "toolchains", "setup", "applications", "terms", "customize"}
-	if !slices.Equal(ids, want) {
+	if want := []string{"introduction", "toolchains", "setup", "terms", "customize"}; !slices.Equal(ids, want) {
 		t.Errorf("ids %q", ids)
 	}
-	for i, f := range files {
-		if f != strconv.Itoa(i+1)+"-"+want[i]+".md" {
-			t.Errorf("step %d's page is %q", i, f)
-		}
+	if want := []string{"1-introduction.md", "2-toolchains.md", "3-setup.md", "5-terms.md", "6-customize.md"}; !slices.Equal(files, want) {
+		t.Errorf("files %q", files)
 	}
 	if indexOf(known, "nothing") != -1 {
 		t.Errorf("an unknown step has an index")
@@ -214,7 +210,7 @@ func TestCheckingShowsWhileTheChecksRun(t *testing.T) {
 	}
 	// a count is right-aligned in its tab, so the spaces before it are folded to one
 	labels := regexp.MustCompile(` +`).ReplaceAllString(strings.Split(view(m), "\n")[2], " ")
-	for _, want := range []string{"│ 👋 introduction", "🧰 toolchains …", "🔧 setup …", "🧭 applications"} {
+	for _, want := range []string{"│ 👋 introduction", "🧰 toolchains …", "🔧 setup …", "📖 terms"} {
 		if !strings.Contains(labels, want) {
 			t.Errorf("no %q: %q", want, labels)
 		}
@@ -229,7 +225,7 @@ func TestLeftAndRightMoveAlongTheStepsAndStopAtTheEnds(t *testing.T) {
 	if first := drive(m, backTab, backTab); first.step != introduction {
 		t.Errorf("shift-tab past introduction: step %d", first.step)
 	}
-	for _, want := range []int{setup, apps, terms, custom, custom} {
+	for _, want := range []int{setup, terms, custom, custom} {
 		if m = drive(m, tabKey); m.step != want {
 			t.Fatalf("tab: step %d, want %d", m.step, want)
 		}
@@ -240,11 +236,11 @@ func TestLeftAndRightMoveAlongTheStepsAndStopAtTheEnds(t *testing.T) {
 		t.Errorf("customize is not marked: %q", tabs)
 	}
 	// down enters the rows where the cursor was, once the bar has moved away and back
-	m = drive(m, backTab, backTab, backTab, down, down)
+	m = drive(m, backTab, backTab, down, down)
 	if m.step != setup || m.cursor != 4 || m.choosing() {
 		t.Fatalf("step %d, cursor %d", m.step, m.cursor)
 	}
-	if m = drive(m, esc, tabKey); m.step != apps || m.inPane {
+	if m = drive(m, esc, tabKey); m.step != terms || m.inPane {
 		t.Errorf("right on the bar: step %d, in the pane %v", m.step, m.inPane)
 	}
 	if m = drive(m, backTab, down); m.step != setup || m.cursor != 4 {
@@ -397,29 +393,29 @@ func TestAFailedCheckWithoutAFixShowsWhereToReadMore(t *testing.T) {
 }
 
 func TestEscGivesTheBarTheKeyboardAndNeverQuits(t *testing.T) {
-	m, _ := atChains(t)
+	m, _ := house(t, down, enter)
 	next, cmd := m.Update(esc)
 	m = next.(Model)
-	if cmd != nil || m.inPane || keysAt(m) != stepKeys {
+	if cmd != nil || m.inPane || keysAt(m) != inHouse(stepKeys) {
 		t.Fatalf("esc in the rows: in the pane %v, keys %q", m.inPane, keysAt(m))
 	}
 	if next, cmd = m.Update(esc); cmd != nil || next.(Model).inPane {
 		t.Errorf("esc on the bar did something")
 	}
 	// a page takes the keyboard on down, and esc gives it back, the page still scrolled
-	m = drive(m, backTab, tea.WindowSizeMsg{Width: 120, Height: 12}, press('4'))
-	if m.step != apps || keysAt(m) != pageKeys {
+	m = drive(m, backTab, tea.WindowSizeMsg{Width: 120, Height: 12}, stepKey(ourTeam))
+	if m.step != ourTeam || keysAt(m) != inHouse(pageKeys) {
 		t.Fatalf("step %d, keys %q", m.step, keysAt(m))
 	}
-	if m = drive(m, down); !m.inPane || keysAt(m) != scrollKeys || m.offsets[apps] != 0 {
-		t.Fatalf("down on a page's bar: in the pane %v, keys %q, offset %d", m.inPane, keysAt(m), m.offsets[apps])
+	if m = drive(m, down); !m.inPane || keysAt(m) != inHouse(scrollKeys) || m.offsets[ourTeam] != 0 {
+		t.Fatalf("down on a page's bar: in the pane %v, keys %q, offset %d", m.inPane, keysAt(m), m.offsets[ourTeam])
 	}
-	if m = drive(m, down, esc); m.inPane || m.offsets[apps] != 1 {
-		t.Errorf("esc in a page: in the pane %v, offset %d", m.inPane, m.offsets[apps])
+	if m = drive(m, down, esc); m.inPane || m.offsets[ourTeam] != 1 {
+		t.Errorf("esc in a page: in the pane %v, offset %d", m.inPane, m.offsets[ourTeam])
 	}
 	// up at the page's top gives the bar the keyboard
-	if m = drive(m, down, up); !m.inPane || m.offsets[apps] != 0 {
-		t.Fatalf("up in a page: in the pane %v, offset %d", m.inPane, m.offsets[apps])
+	if m = drive(m, down, up); !m.inPane || m.offsets[ourTeam] != 0 {
+		t.Fatalf("up in a page: in the pane %v, offset %d", m.inPane, m.offsets[ourTeam])
 	}
 	if m = drive(m, up); m.inPane {
 		t.Errorf("up at the page's top kept the keyboard in the page")
@@ -459,7 +455,7 @@ func TestLeftAndRightMoveStepsOnlyFromTheBar(t *testing.T) {
 // page the keyboard; a click on a line that is no check's does nothing.
 func TestAClickOnACheckSelectsIt(t *testing.T) {
 	click := func(y int) tea.Msg { return testkit.Click(6, y) }
-	m, _ := atChains(t, esc)
+	m, _ := house(t, down, enter, esc)
 	lines := m.stepLines()
 	at := slices.IndexFunc(lines, func(l line) bool { return l.row >= 0 && l.row != m.cursor })
 	want := lines[at].row
@@ -474,7 +470,8 @@ func TestAClickOnACheckSelectsIt(t *testing.T) {
 	if m = drive(m, click(paneTop)); m.cursor != want {
 		t.Errorf("a click on the page's title moved the cursor to %d", m.cursor)
 	}
-	if m = drive(m, esc, press('4'), click(paneTop+2)); m.step != apps || !m.inPane || keysAt(m) != scrollKeys {
+	if m = drive(m, esc, stepKey(ourTeam), click(paneTop+2)); m.step != ourTeam || !m.inPane ||
+		keysAt(m) != inHouse(scrollKeys) {
 		t.Errorf("a click on a page: step %d, in the pane %v", m.step, m.inPane)
 	}
 	if m = drive(m, esc, click(0)); m.inPane {
@@ -484,8 +481,8 @@ func TestAClickOnACheckSelectsIt(t *testing.T) {
 
 func TestANumberOrAClickSelectsAStepFromAnywhere(t *testing.T) {
 	m, _ := atChains(t)
-	if m = drive(m, tea.KeyPressMsg{Code: '5', Text: "5"}); m.step != terms || m.inPane {
-		t.Errorf("5 in the rows: step %d, in the pane %v", m.step, m.inPane)
+	if m = drive(m, stepKey(terms)); m.step != terms || m.inPane {
+		t.Errorf("the terms' number in the rows: step %d, in the pane %v", m.step, m.inPane)
 	}
 	if m = drive(m, tea.KeyPressMsg{Code: tea.KeyKp1}); m.step != introduction {
 		t.Errorf("keypad 1: step %d", m.step)
@@ -564,13 +561,13 @@ func TestARefusalOfTheChecksShowsInRed(t *testing.T) {
 	}
 }
 func TestAPageScrollsWithWhatIsHiddenCounted(t *testing.T) {
-	m, _ := loaded(t, tea.WindowSizeMsg{Width: 120, Height: 12}, esc, press('4'))
-	if m.step != apps {
+	m, _ := house(t, tea.WindowSizeMsg{Width: 120, Height: 12}, esc, stepKey(ourTeam))
+	if m.step != ourTeam {
 		t.Fatal(m.step)
 	}
-	all := len(m.pageLines(apps))
+	all := len(m.pageLines(ourTeam))
 	pane := func() []string { return strings.Split(view(m), "\n")[4:10] }
-	if got := pane(); got[0] != "   Applications" || got[5] != "   … "+strconv.Itoa(all-5)+" more" {
+	if got := pane(); got[0] != "   Our team" || got[5] != "   … "+strconv.Itoa(all-5)+" more" {
 		t.Fatalf("top:\n%s", strings.Join(got, "\n"))
 	}
 	// the first down gives the page the keyboard, the next scrolls it
@@ -582,19 +579,19 @@ func TestAPageScrollsWithWhatIsHiddenCounted(t *testing.T) {
 	if got := pane(); !strings.HasPrefix(got[0], "   … ") || !strings.Contains(got[5], "kit flow desk") {
 		t.Errorf("the end:\n%s", strings.Join(got, "\n"))
 	}
-	if m = drive(m, pgup, pgup, pgup, pgup, pgup, up); m.offsets[apps] != 0 {
-		t.Errorf("back to the top: offset %d", m.offsets[apps])
+	if m = drive(m, pgup, pgup, pgup, pgup, pgup, up); m.offsets[ourTeam] != 0 {
+		t.Errorf("back to the top: offset %d", m.offsets[ourTeam])
 	}
 	// end scrolls a page to its last line, and home back to its first
 	if m = drive(m, down, press(tea.KeyEnd)); !strings.Contains(pane()[5], "kit flow desk") {
 		t.Errorf("end:\n%s", strings.Join(pane(), "\n"))
 	}
-	if m = drive(m, press(tea.KeyHome), up); m.offsets[apps] != 0 {
-		t.Errorf("home: offset %d", m.offsets[apps])
+	if m = drive(m, press(tea.KeyHome), up); m.offsets[ourTeam] != 0 {
+		t.Errorf("home: offset %d", m.offsets[ourTeam])
 	}
 	// each step keeps its own place
 	m = drive(m, down, pgdown, esc, backTab, tabKey)
-	if m.offsets[apps] == 0 {
+	if m.offsets[ourTeam] == 0 {
 		t.Errorf("the place was lost")
 	}
 }
@@ -703,8 +700,8 @@ func TestEveryLineFitsTheWidth(t *testing.T) {
 	}
 }
 
-// At 130 columns every tab is whole; at 100 the bar scrolls, ▹ after the tab it cuts, and the toolchains stay whole.
-func TestEveryTabIsWholeAt130AndScrollsAt100(t *testing.T) {
+// At 130 columns every tab is whole; at 80 the bar scrolls, ▹ after the tab it cuts, and the toolchains stay whole.
+func TestEveryTabIsWholeAt130AndScrollsAt80(t *testing.T) {
 	m, _ := atChains(t, tea.WindowSizeMsg{Width: 130, Height: 30})
 	labels := strings.Split(view(m), "\n")[2]
 	for _, s := range known {
@@ -712,11 +709,11 @@ func TestEveryTabIsWholeAt130AndScrollsAt100(t *testing.T) {
 			t.Errorf("at 130, no %q whole: %q", s.name, labels)
 		}
 	}
-	m = drive(m, tea.WindowSizeMsg{Width: 100, Height: 30})
+	m = drive(m, tea.WindowSizeMsg{Width: 80, Height: 30})
 	labels = strings.Split(view(m), "\n")[2]
 	if !strings.Contains(labels, "│ 🧰 toolchains  3 │") || strings.Contains(labels, "…") ||
 		!strings.HasSuffix(labels, tabs.After) {
-		t.Errorf("at 100: %q", labels)
+		t.Errorf("at 80: %q", labels)
 	}
 }
 
@@ -744,13 +741,13 @@ func TestTheRepositorysPagesWinAndTheKitPackagesAreTheFallback(t *testing.T) {
 	t.Setenv("FAKE_WELCOME_ROOT", nowhere)
 	r = repoWith(t, nil)
 	tabs = readPages(r)
-	want := filepath.Join(nowhere, packageDir, pagesDir, "4-applications.md")
-	if len(tabs) != len(known) || tabs[apps].missing != want {
+	want := filepath.Join(nowhere, packageDir, pagesDir, known[terms].file)
+	if len(tabs) != len(known) || tabs[terms].missing != want {
 		t.Errorf("tabs %+v", tabs)
 	}
 	// the path is broken across lines, so all of it shows at any width
 	for _, width := range []int{120, 40} {
-		m := drive(New(r, ""), tea.WindowSizeMsg{Width: width, Height: 30}, pagesMsg{tabs: tabs}, tabKey, tabKey, tabKey)
+		m := drive(New(r, ""), tea.WindowSizeMsg{Width: width, Height: 30}, pagesMsg{tabs: tabs}, stepKey(terms))
 		lines := strings.Split(view(m), "\n")
 		at := slices.Index(lines, "   no page at")
 		path := ""
@@ -776,8 +773,7 @@ func TestWithNoPagesInTheRepositoryTheKitPackagesAreTheSteps(t *testing.T) {
 			t.Errorf("step %d: %+v", i, tab)
 		}
 	}
-	want := []string{"1-introduction.md", "2-toolchains.md", "3-setup.md", "4-applications.md", "5-terms.md",
-		"6-customize.md"}
+	want := []string{"1-introduction.md", "2-toolchains.md", "3-setup.md", "5-terms.md", "6-customize.md"}
 	if !slices.Equal(files, want) || !strings.HasPrefix(tabs[chains].page, "# Toolchains") {
 		t.Errorf("files %q", files)
 	}
@@ -785,7 +781,7 @@ func TestWithNoPagesInTheRepositoryTheKitPackagesAreTheSteps(t *testing.T) {
 
 func TestAHousePackagesPagesAreStepsAndItsReplacementKeepsTheStep(t *testing.T) {
 	m, _ := house(t)
-	if len(m.tabs) != 7 {
+	if len(m.tabs) != len(known)+1 {
 		t.Fatalf("%d steps", len(m.tabs))
 	}
 	for i, k := range known {
@@ -793,7 +789,7 @@ func TestAHousePackagesPagesAreStepsAndItsReplacementKeepsTheStep(t *testing.T) 
 			t.Errorf("step %d: %+v", i, m.tabs[i])
 		}
 	}
-	added := m.tabs[6]
+	added := m.tabs[ourTeam]
 	if added.id != "our-team" || added.glyph != pageGlyph || added.name != "our team" || added.checked {
 		t.Errorf("the added step: %+v", added)
 	}
@@ -805,12 +801,12 @@ func TestAHousePackagesPagesAreStepsAndItsReplacementKeepsTheStep(t *testing.T) 
 		t.Errorf("step %d, choosing %v", m.step, m.choosing())
 	}
 	// the replaced page shows under terms; the added one last, a page with no checks
-	if m = drive(m, esc, press('5')); m.step != terms || !strings.Contains(view(m), "\n   Our terms\n") {
+	if m = drive(m, esc, stepKey(terms)); m.step != terms || !strings.Contains(view(m), "\n   Our terms\n") {
 		t.Errorf("step %d:\n%s", m.step, view(m))
 	}
-	m = drive(m, tabKey, tabKey)
+	m = drive(m, stepKey(ourTeam))
 	labels := strings.Split(view(m), "\n")[2]
-	if m.step != 6 || m.hasRows() || keysAt(m) != strings.Replace(pageKeys, "1-6", "1-7", 1) || !strings.Contains(labels, "│ 📄 our team") ||
+	if m.step != ourTeam || m.hasRows() || keysAt(m) != inHouse(pageKeys) || !strings.Contains(labels, "│ 📄 our team") ||
 		!strings.Contains(view(m), "\n   Our team\n") {
 		t.Errorf("step %d:\n%s", m.step, view(m))
 	}
@@ -855,7 +851,7 @@ func TestTheBarScrollsToKeepTheSelectedStepInView(t *testing.T) {
 	m, _ := fake(t)
 	m.runner = repoWith(t, files)
 	m = drive(m, append(testkit.Start(m, at80), esc, backTab)...)
-	if len(m.tabs) != 26 || m.step != 0 {
+	if len(m.tabs) != len(known)+20 || m.step != 0 {
 		t.Fatalf("%d steps, step %d", len(m.tabs), m.step)
 	}
 	for _, c := range []struct {
@@ -864,8 +860,8 @@ func TestTheBarScrollsToKeepTheSelectedStepInView(t *testing.T) {
 		start, finish bool // whether each end has a triangle, hidden where it would cut the selected step
 	}{
 		{nil, "👋 introduction │", false, false},
-		{[]tea.Msg{tabKey, tabKey, tabKey, tabKey}, "📖 terms │", true, true},
-		{slices.Repeat([]tea.Msg{tabKey}, 21), "📄 page 9 │", false, false},
+		{slices.Repeat([]tea.Msg{tabKey}, terms), "📖 terms │", false, true},
+		{slices.Repeat([]tea.Msg{tabKey}, len(known)+19-terms), "📄 page 9 │", false, false},
 	} {
 		m = drive(m, c.keys...)
 		lines := strings.Split(view(m), "\n")
@@ -883,10 +879,10 @@ func TestTheBarScrollsToKeepTheSelectedStepInView(t *testing.T) {
 	}
 }
 
-func TestSevenStepsFitAtEightyColumnsWithTheLastInFull(t *testing.T) {
-	m, _ := house(t, tea.WindowSizeMsg{Width: 80, Height: 30}, esc, press('7'))
+func TestSixStepsFitAtEightyColumnsWithTheLastInFull(t *testing.T) {
+	m, _ := house(t, tea.WindowSizeMsg{Width: 80, Height: 30}, esc, stepKey(ourTeam))
 	lines := strings.Split(view(m), "\n")
-	if m.step != 6 || !strings.Contains(lines[2], "│ 📄 our team │") {
+	if m.step != ourTeam || !strings.Contains(lines[2], "│ 📄 our team │") {
 		t.Errorf("step %d:\n%s", m.step, lines[2])
 	}
 	if testing.Verbose() {

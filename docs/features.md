@@ -162,15 +162,17 @@ see: [architecture.md](architecture.md#the-workflow-and-the-gate)
 
 ## Welcome
 
-`kit welcome` is where a newcomer starts. It is a guide in six steps:
+`kit welcome` is where a newcomer starts. It is a guide in five steps:
 
 1. Introduction: what the guide does.
 2. Toolchains: bash, git, jq, and yq, which kit runs on; then the project toolchain and the system toolchain, one
    check each. Several usable means you choose.
 3. Setup: one check per line for the linters, each code forge's login, and the repository.
-4. Applications: kit's screens and what each shows, Flow first: how work moves from an issue to a release.
-5. Terms: the words kit uses, by topic, from workspace and tracker to CI, CD, and toolchain.
-6. Customize: the settings teams change first, packages, a house package, and the docs.
+4. Terms: the words kit uses, by topic, from workspace and tracker to CI, CD, and toolchain.
+5. Customize: the settings teams change first, packages, a house package, and the docs.
+
+kit's screens and what each shows, Flow first, how work moves from an issue to a release, are a tutorial that ships
+with the kit, `kit tutorials applications`; see [tutorials.md](tutorials.md).
 
 - On a terminal, it opens in kittui, on the first step with a failed check. A failed check offers its fix: now runs
   it, later moves on.

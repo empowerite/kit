@@ -1,7 +1,7 @@
   = kit welcome · - empowerite/kit                                                                          🔎 kit flow
-  ➀╶────────────────╮➁╶─────────────────╮➂╶────────────╮➃╶────────────────╴➎╶─────────╮➅╶─────────────╮
-    👋 introduction │  🧰 toolchains  3 │  🔧 setup  2 │  🧭 applications  │ 📖 terms │  🎨 customize │
-  ──────────────────╰───────────────────╰──────────────╰───────────────────╯          ╰───────────────╰─────────────────
+  ➀╶────────────────╮➁╶─────────────────╮➂╶────────────╴➍╶─────────╮➄╶─────────────╮
+    👋 introduction │  🧰 toolchains  3 │  🔧 setup  2  │ 📖 terms │  🎨 customize │
+  ──────────────────╰───────────────────╰───────────────╯          ╰───────────────╰────────────────────────────────────
    Terms
 
    The words kit uses, by topic, and a command that shows each one.
@@ -27,4 +27,4 @@
 
 
 
- = menu - workspace / search │ 1-6 jump │ esc tabs ↑↓ move [] group ← hide
+ = menu - workspace / search │ 1-5 jump │ esc tabs ↑↓ move [] group ← hide

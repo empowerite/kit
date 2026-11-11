@@ -5,11 +5,13 @@
 #
 # kit tutorials [--text] [--tag=<audience>…] <tutorial>
 #
-# The tutorials are a site of short lessons, each for some audiences. On a terminal, it opens kittui's tutorials
-# screen, a button for each tutorial, the audiences as filters. Without a terminal, or with --text, it prints each
-# tutorial: its glyph and title, its summary, its audiences, and its link. A tutorial named opens kittui's screen on
-# its card, on a terminal; without one, or with --text, it opens in the browser, its title and link printed first, so a
-# machine with no browser has the link.
+# The tutorials are short lessons, each for some audiences: some ship with the kit, pages read on this machine, and
+# the others are a site online. On a terminal, it opens kittui's tutorials screen, a card for each tutorial that says
+# which it is, the audiences as filters; a tutorial in the kit opens there, and one online in the browser. Without a
+# terminal, or with --text, it prints each tutorial: its glyph and title, its summary, its audiences, and its link, or,
+# for one in the kit, the command that reads it. A tutorial named opens kittui's screen on its card, on a terminal;
+# without one, or with --text, one in the kit prints its title and its page, and one online opens in the browser, its
+# title and link printed first, so a machine with no browser has the link.
 #
 # A link depends on this kit's version: a release's own tutorials, the site's main branch for a checkout, and for a
 # pre-release the one built for it. Each link ends with ?kit=<version>, so a page can tell you when your kit is too old
@@ -17,7 +19,8 @@
 #
 #   --text            prints the list, even on a terminal
 #   --json            one JSON object: {version, base, audiences, tutorials}, each tutorial {id, title, summary,
-#                     glyph, audience, url}
+#                     glyph, audience, where, url, file}: where is kit or online, url the link of one online, file the
+#                     page of one in the kit, and the other empty
 #   --jq              the same JSON, formatted by jq for a person
 #   --tag=<audience>  keeps the tutorials for that audience; given again, it keeps the tutorials for either
 #   <audience>        an audience's id, as --json names it: newcomer, ui, maintainer
@@ -26,8 +29,8 @@
 # KIT_TUTORIALS_BASE replaces the site the links start from, as a site served on this machine; KIT_TUTORIALS_CATALOGUE
 # names another catalogue.
 #
-# Exits 0 when it printed or opened, 1 when the catalogue is missing, and 2 on a usage error, or a tutorial or
-# audience that is unknown.
+# Exits 0 when it printed or opened, 1 when the catalogue or a tutorial's page in the kit is missing, and 2 on a usage
+# error, or a tutorial or audience that is unknown.
 #
 # see: modules/bash/tutorials.sh, modules/bash/tui.sh, docs/tutorials.md, issue #86
 
@@ -65,8 +68,8 @@ screen() {
   exec "${binary}" tutorials "${args[@]}" "$@"
 }
 
-# A tutorial named opens kittui's screen on its card, or, without it, in the browser, after its title and link print,
-# for a machine that cannot open one.
+# A tutorial named opens kittui's screen on its card. Without it, one in the kit prints its title and its page; one
+# online opens in the browser, after its title and link print, for a machine that cannot open one.
 if [[ -n "${tutorial}" ]]
 then
   json=$(tutorials:json) || exit 1
@@ -77,6 +80,12 @@ then
     exit 2
   fi
   screen "${tutorial}"
+  if [[ "$(jq --raw-output .where <<<"${entry}")" == kit ]]
+  then
+    jq --raw-output '"\(.glyph) \(.title)"' <<<"${entry}"
+    tutorials:page "$(jq --raw-output .file <<<"${entry}")" || exit 1
+    exit 0
+  fi
   jq --raw-output '"\(.glyph) \(.title)\n\(.url)"' <<<"${entry}"
   new:browse "$(jq --raw-output .url <<<"${entry}")"
   exit 0

@@ -3,9 +3,11 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_root is exported by modules/bash/1st.sh
 #
-# The tutorials are a site, one MDX page per tutorial. Its catalogue is modules/tutorials.yml, which kit generate writes
-# from the pages' front matter: the audiences, each its id, label, and color, and for each tutorial its id, path,
-# title, summary, glyph, audiences, and order. KIT_TUTORIALS_CATALOGUE, when set, names another file in its place.
+# The tutorials are of two kinds: online, a site, one MDX page per tutorial; and in the kit, a markdown page that ships
+# with the release, under modules/tutorials/, read on this machine. Their catalogue is modules/tutorials.yml, which kit
+# generate writes from the pages' front matter: the audiences, each its id, label, and color, and for each tutorial its
+# id, title, summary, glyph, audiences, and order, with its path on the site when it is online, or its file, from the
+# catalogue's directory, when it is in the kit. KIT_TUTORIALS_CATALOGUE, when set, names another file in its place.
 #
 # A tutorial's link is <base><path>?kit=<version>, and the base is <site><line>/, one site for every version. The line
 # follows this kit's version:
@@ -53,10 +55,11 @@ tutorials:base() {
 }
 
 # tutorials:json [<tag>…] prints one JSON object: the version, the base, the audiences, each with its color, empty
-# where the catalogue gives none, and the tutorials in order, each with its link; with tags, only the tutorials for any
-# of those audiences. It returns 1 where the catalogue is missing.
+# where the catalogue gives none, and the tutorials in order, each with where it is, kit or online, and its link when
+# online or the absolute path of its file when in the kit, the other empty; with tags, only the tutorials for any of
+# those audiences. It returns 1 where the catalogue is missing.
 tutorials:json() {
-  local file version base
+  local file version base dir
   file=$(tutorials:catalogue)
   if [[ ! -f "${file}" ]]
   then
@@ -65,15 +68,29 @@ tutorials:json() {
   fi
   version=$(release:version)
   base=$(tutorials:base "${version}")
-  yaml:json "${file}" | jq --compact-output --arg version "${version}" --arg base "${base}" --args '
+  dir=$(cd "$(dirname "${file}")" && pwd)
+  yaml:json "${file}" | jq --compact-output --arg version "${version}" --arg base "${base}" --arg dir "${dir}" --args '
     ($ARGS.positional) as $tags
     | {version: $version, base: $base,
        audiences: [(.audiences // [])[] | {id, label, color: (.color // "")}],
        tutorials: [(.tutorials // []) | sort_by(.order)[]
          | select(($tags | length) == 0 or any(.audience[]?; . as $a | $tags | index($a)))
          | {id, title, summary, glyph, audience: (.audience // []),
-            url: ($base + .path + "?kit=" + $version)}]}' \
+            where: (if .file then "kit" else "online" end),
+            url: (if .file then "" else $base + .path + "?kit=" + $version end),
+            file: (if .file then $dir + "/" + .file else "" end)}]}' \
     -- "$@"
+}
+
+# tutorials:page <file> prints a tutorial's page that ships with the kit, its front matter left out. It returns 1 where
+# the page is missing.
+tutorials:page() {
+  if [[ ! -f "$1" ]]
+  then
+    error "no page of the tutorial at $1"
+    return 1
+  fi
+  awk 'NR == 1 && $0 == "---" { front = 1; next } front && $0 == "---" { front = 0; next } !front' "$1"
 }
 
 # tutorials:choices <key> [--kind | <answer>…] answers kit syntax --choices for <tutorial> and <audience>, which
@@ -98,7 +115,8 @@ tutorials:choices() {
 }
 
 # tutorials:text <json> prints the tutorials of the JSON tutorials:json made, a block each: the glyph and title, the
-# summary, the audiences, and the link. With none, it says so in one dim line.
+# summary, the audiences, and the link, or, for a tutorial in the kit, the command that reads it. With none, it says so
+# in one dim line.
 tutorials:text() {
   if [[ "$(jq '.tutorials | length' <<<"$1")" -eq 0 ]]
   then
@@ -106,7 +124,8 @@ tutorials:text() {
     return 0
   fi
   jq --raw-output '.tutorials
-    | map("\(.glyph) \(.title)\n   \(.summary)\n   for \(.audience | join(", "))\n   \(.url)") | join("\n\n")' <<<"$1"
+    | map("\(.glyph) \(.title)\n   \(.summary)\n   for \(.audience | join(", "))\n   "
+      + (if .where == "kit" then "in the kit: kit tutorials \(.id)" else .url end)) | join("\n\n")' <<<"$1"
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

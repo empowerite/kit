@@ -20,8 +20,7 @@ func TestGoldenViews(t *testing.T) {
 		"toolchains.golden":         {down, enter},
 		"toolchains-later.golden":   {down, enter, press('l')},
 		"setup.golden":              {tabKey, tabKey, down},
-		"applications.golden":       {tabKey, tabKey, tabKey},
-		"terms.golden":              {press('5')},
+		"terms.golden":              {stepKey(terms)},
 		"terms-search.golden":       searched("kit flow"),
 	} {
 		m, _ := loaded(t, keys...)
@@ -31,5 +30,5 @@ func TestGoldenViews(t *testing.T) {
 
 // searched gives the keys that select the terms and search them for the text, then give their rows the keyboard.
 func searched(text string) []tea.Msg {
-	return append([]tea.Msg{press('5'), press('/')}, append(testkit.Typed(text), enter)...)
+	return append([]tea.Msg{stepKey(terms), press('/')}, append(testkit.Typed(text), enter)...)
 }

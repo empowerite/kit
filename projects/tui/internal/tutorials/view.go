@@ -1,4 +1,5 @@
-// The screen drawn: the title, the table's control line, the cards in their groups, and the keys bar on the last line.
+// The screen drawn: the title, the table's control line, the cards in their groups, or a tutorial's page in their
+// place under the line back to them, and the keys bar on the last line.
 // Widths are terminal cells, so a two-cell glyph never pushes a line past the edge.
 package tutorials
 
@@ -11,6 +12,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/markdown"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
@@ -59,8 +61,14 @@ func (m Model) View() tea.View {
 }
 
 // control gives the table's control line, as the table draws it: the heading over the groups and the preset line,
-// once there are tutorials, and nothing before.
+// once there are tutorials, and nothing before; over a tutorial's page, the line back to the cards, then the
+// tutorial's glyph and title.
 func (m Model) control() string {
+	if m.read.open {
+		t := m.read.tutorial
+		return pane.Clip(lead+style.Mark(Back+" tutorials")+style.Off(" │ ")+style.Label(strings.TrimSpace(t.Glyph+" "+
+			t.Title)), m.width-1)
+	}
 	if len(m.catalog.Tutorials) == 0 {
 		return ""
 	}
@@ -110,6 +118,9 @@ func (m Model) keys() shell.Path {
 	}
 	path := shell.Path{shell.WorkspaceScreenKeys()}
 	switch {
+	case m.read.open && !m.search.Focused:
+		return append(path, shell.Segment{Bindings: []shell.Binding{shell.Bind("esc", "cards"),
+			shell.Bind("↑↓", "scroll", "up", "down"), shell.Bind("⇞⇟", "page", "pgup", "pgdown")}})
 	case m.search.Focused:
 		return append(path, shell.SearchKeys("cards", m.search.Query, len(m.recent.Items) > 0))
 	case m.controlled():
@@ -220,6 +231,8 @@ func (m Model) pane() []string {
 	h := m.paneHeight()
 	var out []string
 	switch bands := m.bands(); {
+	case m.read.open:
+		out = pane.Lines(m.pageLines(), m.read.offset, h, "", lead)
 	case m.reading.Loading:
 		out = []string{"", lead + style.Off("reading…")}
 	case m.refusal != "":
@@ -239,6 +252,19 @@ func (m Model) pane() []string {
 		out = append(out, "")
 	}
 	return out
+}
+
+// pageLines gives the lines of the tutorial's page open in place of the cards, drawn to the screen's width: its
+// markdown, or where it was looked for, when it could not be read.
+func (m Model) pageLines() []string {
+	if m.read.missing {
+		return []string{"", lead + style.Refusal(Failed+" no page at "+m.read.tutorial.File)}
+	}
+	var out []string
+	for _, l := range markdown.Render(m.read.page, m.width-len(lead)-1) {
+		out = append(out, strings.TrimRight(lead+l, " "))
+	}
+	return append([]string{""}, out...)
 }
 
 // grid gives the bands' lines: the line over them, which says how many cards are scrolled past above, then the bands
@@ -285,7 +311,8 @@ func (m Model) grid(bands []band) []string {
 }
 
 // card gives a tutorial's card, its lines each cardWidth cells: a rounded border, dim, or in the menus' bright cyan
-// under the cursor; the glyph and the title in bold; a blank line; the summary on three lines; another blank line, so
+// under the cursor, the glyph of where the tutorial is, Shipped or Online, at the right of its top edge; the glyph and
+// the title in bold; a blank line; the summary on three lines; another blank line, so
 // the summary stands clear of the pills; and a pill for each of its audiences on the bottom edge.
 func (m Model) card(t kit.Tutorial, cursor bool) []string {
 	edge, inner := style.Off, cardWidth-2
@@ -299,7 +326,12 @@ func (m Model) card(t kit.Tutorial, cursor bool) []string {
 	if t.Glyph != "" {
 		title = t.Glyph + " " + title
 	}
-	out := []string{edge("╭" + strings.Repeat("─", inner) + "╮"), line(style.Label(title)), line("")}
+	where := Online
+	if t.Shipped() {
+		where = Shipped
+	}
+	top := edge("╭"+strings.Repeat("─", inner-5)+" ") + where + edge(" ─╮")
+	out := []string{top, line(style.Label(title)), line("")}
 	for _, l := range summary(t.Summary) {
 		out = append(out, line(l))
 	}

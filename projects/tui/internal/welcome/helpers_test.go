@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -89,7 +90,7 @@ func repoWith(t *testing.T, pages map[string]string) kit.Runner {
 }
 
 // house opens the screen at 120×30 in a repository whose .kit is testdata/house's, as a house package composes it:
-// the kit package's pages linked, 5-terms.md replaced, and 7-our-team.md added. Then it sends the messages.
+// the kit package's pages linked, 5-terms.md replaced, and 7-our-team.md added, a plain page long enough to scroll. Then it sends the messages.
 func house(t *testing.T, msgs ...tea.Msg) (Model, *ran) {
 	t.Helper()
 	m, r := fake(t)
@@ -126,17 +127,33 @@ func calls(t *testing.T, path string) []string {
 // The keys bar in each place the keyboard can be, as the path to it draws it, STEP for the step's name, which esc names
 // as it gives the bar the keyboard: on the bar over a step with checks or the introduction with links, and over a page;
 // on a check's row that offers no fix, on a row that offers now and later, on a row whose fix kit only shows; on a link
-// in the introduction; and in a page.
-const (
-	stepKeys   = "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ checks 1-6 jump"
-	pageKeys   = "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ page 1-6 jump"
-	paneKeys   = "= menu - workspace / search │ 1-6 jump │ esc tabs ↑↓ move ⇞⇟ page"
+// in the introduction; and in a page. jump names the number keys of the known steps.
+var (
+	jump       = "1-" + strconv.Itoa(len(known)) + " jump"
+	stepKeys   = "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ checks " + jump
+	pageKeys   = "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ page " + jump
+	paneKeys   = "= menu - workspace / search │ " + jump + " │ esc tabs ↑↓ move ⇞⇟ page"
 	rowKeys    = paneKeys
 	choiceKeys = paneKeys + " ⇥·⇧⇥ now or later n now l later ⏎ choose"
 	showKeys   = paneKeys + " l later"
 	linkKeys   = paneKeys + " ⏎ go to the check"
-	scrollKeys = "= menu - workspace / search │ 1-6 jump │ esc tabs ↑↓ scroll ⇞⇟ page"
+	scrollKeys = "= menu - workspace / search │ " + jump + " │ esc tabs ↑↓ scroll ⇞⇟ page"
 )
+
+// stepKey gives the press of a step's number, which selects it from anywhere: 1 for the first.
+func stepKey(step int) tea.KeyPressMsg {
+	r := rune('1' + step)
+	return tea.KeyPressMsg{Code: r, Text: string(r)}
+}
+
+// inHouse gives the keys bar as it reads in testdata/house, whose added page makes a step more to jump to.
+func inHouse(keys string) string {
+	return strings.Replace(keys, jump, "1-"+strconv.Itoa(len(known)+1)+" jump", 1)
+}
+
+// ourTeam is the step of testdata/house's added page, 7-our-team.md, after the kit package's: a plain page, long
+// enough to scroll.
+var ourTeam = len(known)
 
 // keysAt gives the keys bar where the keyboard is, as the path to it draws it.
 func keysAt(m Model) string { return m.keys().String() }

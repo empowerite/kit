@@ -174,14 +174,14 @@ func TestTheKitPackagesTermsSayEachWordOnce(t *testing.T) {
 }
 
 func TestTheTermsAreATableOfTermsMeaningsAndCommands(t *testing.T) {
-	m, _ := loaded(t, press('5'))
-	if !m.gridded() || keysAt(m) != "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ terms 1-6 jump" {
+	m, _ := loaded(t, stepKey(terms))
+	if !m.gridded() || keysAt(m) != "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ terms "+jump {
 		t.Fatalf("the terms step: gridded %v, keys %q", m.gridded(), keysAt(m))
 	}
 	got := view(m)
-	// the terms first, each a pill and two a count, the meaning, and the commands, the examples, a second one counted
+	// the terms first, each a pill, two the first and +1, the meaning, and the commands, the examples, a second one counted
 	for _, want := range []string{"   Terms\n", "The words kit uses", "▾ 12 ", "Default ▼", "terms         meaning",
-		"commands", "▸ 2             A remote is", "▸ " + pill("desk") + "        Your root checkout",
+		"commands", "▸ " + pill("remote") + "  +1  A remote is", "▸ " + pill("desk") + "        Your root checkout",
 		"kit flow worktrees        +1"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("no %q in:\n%s", want, got)
@@ -196,11 +196,11 @@ func TestTheTermsAreATableOfTermsMeaningsAndCommands(t *testing.T) {
 		t.Errorf("down into the rows: keys %q", keysAt(m))
 	}
 	// a key the table does not take, as a step's number, is the screen's still
-	if m = drive(m, tea.KeyPressMsg{Code: '4', Text: "4"}); m.step != apps || m.inPane || termsSheet(m).Focused() {
-		t.Errorf("4 from the terms' rows: step %d, in the pane %v", m.step, m.inPane)
+	if m = drive(m, stepKey(setup)); m.step != setup || m.inPane || termsSheet(m).Focused() {
+		t.Errorf("setup's number from the terms' rows: step %d, in the pane %v", m.step, m.inPane)
 	}
 	// esc in the rows gives the bar the keyboard
-	if m = drive(m, press('5'), enter, down, down, esc); m.inPane || termsSheet(m).Focused() {
+	if m = drive(m, stepKey(terms), enter, down, down, esc); m.inPane || termsSheet(m).Focused() {
 		t.Errorf("esc in the rows: in the pane %v", m.inPane)
 	}
 	// tab from the bar moves to the next step, and the table holds no keyboard there
@@ -213,7 +213,7 @@ func TestTheTermsAreATableOfTermsMeaningsAndCommands(t *testing.T) {
 }
 
 func TestByCommandStandsAnEntryUnderEachOfItsCommands(t *testing.T) {
-	m, _ := loaded(t, press('5'))
+	m, _ := loaded(t, stepKey(terms))
 	m = drive(m, clickOn(t, m, "Default ▼"))
 	m = drive(m, clickOn(t, m, "By command"))
 	got := view(m)
@@ -249,7 +249,7 @@ func clickOn(t *testing.T, m Model, text string) tea.MouseClickMsg {
 }
 
 func TestTheSearchNarrowsTheTerms(t *testing.T) {
-	m, _ := loaded(t, press('5'), press('/'))
+	m, _ := loaded(t, stepKey(terms), press('/'))
 	m = drive(m, testkit.Typed("worktree")...)
 	got := view(m)
 	if !strings.Contains(got, pill("worktree")) || strings.Contains(got, pill("desk")) || !strings.Contains(got, "▾ topic 1 ") {
@@ -273,7 +273,7 @@ func TestTheSearchNarrowsTheTerms(t *testing.T) {
 func TestAClickReachesTheTermsTable(t *testing.T) {
 	fades = time.Millisecond
 	t.Cleanup(func() { fades = table.Fades })
-	m, _ := loaded(t, press('5'))
+	m, _ := loaded(t, stepKey(terms))
 	lines := strings.Split(view(m), "\n")
 	at := func(text string) (int, int) {
 		for y, l := range lines {
@@ -330,7 +330,7 @@ func lastLine(m Model) string {
 }
 
 func TestTheTermsTableFollowsTheSettingsAndTheScreensSize(t *testing.T) {
-	m, _ := loaded(t, press('5'))
+	m, _ := loaded(t, stepKey(terms))
 	m = drive(m, shell.SettingsMsg{Settings: shell.Settings{FoldShared: false, SharedEmoji: true}})
 	if p := termsSheet(m).Panel(); p.Fold || !p.Glyphs {
 		t.Error("the settings")
@@ -343,7 +343,7 @@ func TestTheTermsTableFollowsTheSettingsAndTheScreensSize(t *testing.T) {
 	// settings told before the pages are read hold for the table once they are
 	m, _ = fake(t)
 	m = drive(m, shell.SettingsMsg{Settings: shell.Settings{FoldShared: false}})
-	m = drive(m, append(testkit.Start(m, at120), press('5'))...)
+	m = drive(m, append(testkit.Start(m, at120), stepKey(terms))...)
 	if termsSheet(m).Panel().Fold {
 		t.Error("the settings told first")
 	}
@@ -352,7 +352,7 @@ func TestTheTermsTableFollowsTheSettingsAndTheScreensSize(t *testing.T) {
 func TestATermsPageWithoutTermsIsAPage(t *testing.T) {
 	r := repoWith(t, map[string]string{"5-terms.md": "# Our words\n\nWe say *ship* for a release.\n"})
 	m := New(r, "")
-	m = drive(m, append(testkit.Start(m, at120), press('5'))...)
+	m = drive(m, append(testkit.Start(m, at120), stepKey(terms))...)
 	if m.gridded() || !strings.Contains(view(m), "We say *ship* for a release.") {
 		t.Errorf("a page without terms:\n%s", view(m))
 	}
@@ -374,23 +374,23 @@ func TestTheEdgesOfTheTermsStep(t *testing.T) {
 	// terms with no lead have the table at the pane's top; a refusal stands in the keys bar's place, in red
 	r := repoWith(t, map[string]string{"5-terms.md": "## desk\n\nYour root checkout.\n\n`kit flow desk`\n"})
 	m := New(r, "")
-	m = drive(m, append(testkit.Start(m, at120), press('5'), down, testkit.Press("tab"), enter, testkit.Press("s"),
+	m = drive(m, append(testkit.Start(m, at120), stepKey(terms), down, testkit.Press("tab"), enter, testkit.Press("s"),
 		enter, enter)...)
 	if lines := strings.Split(view(m), "\n"); !strings.Contains(lines[paneTop], "▾ topic 1 ") ||
 		!strings.Contains(lastLine(m), "a preset needs a name") || !strings.Contains(m.sheetNotice(), "\x1b[") {
 		t.Errorf("no lead, and a refusal:\n%s", view(m))
 	}
 	// a click under the pane of a page is no one's
-	if m, _ = loaded(t, press('4'), click(5, 29)); m.inPane {
+	if m, _ = house(t, stepKey(ourTeam), click(5, 29)); m.inPane {
 		t.Error("a click under a page's pane")
 	}
 }
 
 func TestTheTermsAndCommandsStandWholeWhileTheMeaningGivesWay(t *testing.T) {
 	// at 80 columns no term or command is cut: the meaning gives way
-	m, _ := loaded(t, tea.WindowSizeMsg{Width: 80, Height: 40}, press('5'))
+	m, _ := loaded(t, tea.WindowSizeMsg{Width: 80, Height: 40}, stepKey(terms))
 	got := view(m)
-	for _, whole := range []string{"▸ 2             A remote is another copy of …  git remote --verbose",
+	for _, whole := range []string{"▸ " + pill("remote") + "  +1  A remote is another copy of …  git remote --verbose",
 		"▸ " + pill("code forge") + "  The service that hosts the r…  kit flow incoming --no-fetch"} {
 		if !strings.Contains(got, whole) {
 			t.Errorf("at 80, no %q in:\n%s", whole, got)

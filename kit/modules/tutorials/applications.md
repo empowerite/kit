@@ -1,6 +1,10 @@
-<!-- kit:generated -- kit welcome's fourth step, the applications, from the kit package -->
-<!-- see: "Changing what kit adds" in .kit/1st.md, to replace it -->
-# Applications
+---
+title: kit's applications
+summary: What each application shows, from Flow, the trip of the work from an issue to a release, to Platform.
+glyph: 🧭
+audience: [newcomer, ui]
+order: 2
+---
 
 Each application shows one side of the work in this repository. Open one from the = menu, at the top left of every
 screen. Each part below names one, says what it shows, and ends with the command that prints it.
@@ -56,7 +60,8 @@ What kit runs with here: the services it uses, the toolchains, the tools, and th
 
 ## Guides
 
-Welcome is this guide. Tutorials teach one task each, step by step. Help lists every command, and opens a form for
-the one you choose.
+Welcome is the guide to your first hour with kit. Tutorials, as this one, teach one thing each: some ship with the
+kit and open here, and the others are pages online, which open in the browser. Help lists every command, and opens a
+form for the one you choose.
 
 `kit help`

@@ -1,5 +1,6 @@
 // The screen at 120×30, the design size, is pinned as golden files without its escapes: every tutorial, the cards
-// grouped By audience, the first card opened; the screen at 60×20; and a catalogue with no tutorial.
+// grouped By audience, the first card opened; the screen at 60×20; a catalogue with no tutorial; and one with a
+// tutorial in the kit beside two online, the cards and that tutorial's page open in their place.
 package tutorials
 
 import (
@@ -24,4 +25,8 @@ func TestGoldenViews(t *testing.T) {
 	catalogueFile(t, "empty.json")
 	m, _ := loaded(t)
 	testkit.Golden(t, filepath.Join("testdata", "tutorials-empty.golden"), view(m))
+	m, _ = shipped(t)
+	testkit.Golden(t, filepath.Join("testdata", "tutorials-shipped.golden"), view(m))
+	m, _ = shipped(t, tabKey, tabKey, enter)
+	testkit.Golden(t, filepath.Join("testdata", "tutorials-page.golden"), view(m))
 }

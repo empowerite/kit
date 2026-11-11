@@ -1,7 +1,7 @@
   = kit welcome · - empowerite/kit                                                                           🔎 /search
-  ➊╶────────────────╮➁╶─────────────────╮➂╶────────────╮➃╶────────────────╮➄╶─────────╮➅╶─────────────╮
-  │ 👋 introduction │  🧰 toolchains  3 │  🔧 setup  2 │  🧭 applications │  📖 terms │  🎨 customize │
-  ╵                 ╰───────────────────╰──────────────╰──────────────────╰───────────╰───────────────╰─────────────────
+  ➊╶────────────────╮➁╶─────────────────╮➂╶────────────╮➃╶─────────╮➄╶─────────────╮
+  │ 👋 introduction │  🧰 toolchains  3 │  🔧 setup  2 │  📖 terms │  🎨 customize │
+  ╵                 ╰───────────────────╰──────────────╰───────────╰───────────────╰────────────────────────────────────
    Welcome
 
    kit welcome walks you through your first hour with kit, one step at a time.
@@ -27,4 +27,4 @@
 
 
 
- = menu - workspace / search │ ⇥·⇧⇥ tab ↓ checks 1-6 jump
+ = menu - workspace / search │ ⇥·⇧⇥ tab ↓ checks 1-5 jump

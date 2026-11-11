@@ -60,8 +60,8 @@ func TestAPageIsReadAsItsParts(t *testing.T) {
 }
 
 func TestCustomizeIsATableOfItsPartsInThePagesOrder(t *testing.T) {
-	m, _ := loaded(t, press('6'))
-	if !m.gridded() || keysAt(m) != "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ parts 1-6 jump" {
+	m, _ := loaded(t, stepKey(custom))
+	if !m.gridded() || keysAt(m) != "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ parts "+jump {
 		t.Fatalf("the customize step: gridded %v, keys %q", m.gridded(), keysAt(m))
 	}
 	got := view(m)
@@ -85,13 +85,13 @@ func TestCustomizeIsATableOfItsPartsInThePagesOrder(t *testing.T) {
 		t.Errorf("down, down: in the pane %v, keys %q", m.inPane, keysAt(m))
 	}
 	// the terms step, and back, leaves each table its own
-	if m = drive(m, esc, press('5'), press('6')); m.inPane || m.sheet().Focused() || m.sheet().Name() != "parts" {
+	if m = drive(m, esc, stepKey(terms), stepKey(custom)); m.inPane || m.sheet().Focused() || m.sheet().Name() != "parts" {
 		t.Errorf("6 then 7: in the pane %v", m.inPane)
 	}
 }
 
 func TestGreaterAndLessShowALevelMoreAndLessOfTheParts(t *testing.T) {
-	m, _ := loaded(t, press('6'))
+	m, _ := loaded(t, stepKey(custom))
 	// from the step bar, as from a stage's tab bar in flow: > opens each part, < closes them
 	if m = drive(m, press('>')); !strings.Contains(view(m), "▾ Packages") || m.inPane {
 		t.Errorf("> from the bar: in the pane %v\n%s", m.inPane, view(m))
@@ -106,7 +106,7 @@ func TestGreaterAndLessShowALevelMoreAndLessOfTheParts(t *testing.T) {
 }
 
 func TestThePartsPresetsGroupThemByCommandAndCompactThem(t *testing.T) {
-	m, _ := loaded(t, press('6'))
+	m, _ := loaded(t, stepKey(custom))
 	m = drive(m, clickOn(t, m, "Default ▼"))
 	m = drive(m, clickOn(t, m, "By command"))
 	got := view(m)
@@ -130,7 +130,7 @@ func TestThePartsPresetsGroupThemByCommandAndCompactThem(t *testing.T) {
 }
 
 func TestTheSearchNarrowsTheParts(t *testing.T) {
-	m, _ := loaded(t, press('6'), press('/'))
+	m, _ := loaded(t, stepKey(custom), press('/'))
 	m = drive(m, testkit.Typed("forge")...)
 	got := view(m)
 	if !strings.Contains(got, "▸ Primary and forges") || strings.Contains(got, "▸ Policy") ||
@@ -138,13 +138,13 @@ func TestTheSearchNarrowsTheParts(t *testing.T) {
 		t.Errorf("searched:\n%s", got)
 	}
 	// each step keeps its own search: the terms are not narrowed by the parts'
-	if m = drive(m, enter, esc, press('5')); !strings.Contains(view(m), "▾ 12 ") {
+	if m = drive(m, enter, esc, stepKey(terms)); !strings.Contains(view(m), "▾ 12 ") {
 		t.Errorf("the terms, after the parts' search:\n%s", view(m))
 	}
 }
 
 func TestThePartsFollowTheSettings(t *testing.T) {
-	m, _ := loaded(t, press('6'))
+	m, _ := loaded(t, stepKey(custom))
 	m = drive(m, shell.SettingsMsg{Settings: shell.Settings{FoldShared: false, SharedEmoji: true}})
 	for _, s := range []*table.Sheet{m.sheet(), termsSheet(m)} {
 		if p := s.Panel(); p.Fold || !p.Glyphs {
@@ -156,7 +156,7 @@ func TestThePartsFollowTheSettings(t *testing.T) {
 func TestACustomizePageWithoutPartsIsAPage(t *testing.T) {
 	r := repoWith(t, map[string]string{"6-customize.md": "# Ours\n\nWe change `policy:` first.\n"})
 	m := New(r, "")
-	m = drive(m, append(testkit.Start(m, at120), press('6'))...)
+	m = drive(m, append(testkit.Start(m, at120), stepKey(custom))...)
 	if m.gridded() || !strings.Contains(view(m), "We change policy: first.") || !strings.Contains(keysAt(m), "↓ page") {
 		t.Errorf("a page without parts:\n%s", view(m))
 	}
@@ -174,12 +174,12 @@ func TestCustomizeGoldens(t *testing.T) {
 		keys []tea.Msg
 		then func(Model) Model
 	}{
-		"customize.golden":         {keys: []tea.Msg{press('6')}},
-		"customize-40.golden":      {keys: []tea.Msg{at40, press('6')}},
-		"customize-grouped.golden": {keys: []tea.Msg{at40, press('6')}, then: byCommand},
-		"customize-search.golden": {keys: append([]tea.Msg{at40, press('6'), press('/')},
+		"customize.golden":         {keys: []tea.Msg{stepKey(custom)}},
+		"customize-40.golden":      {keys: []tea.Msg{at40, stepKey(custom)}},
+		"customize-grouped.golden": {keys: []tea.Msg{at40, stepKey(custom)}, then: byCommand},
+		"customize-search.golden": {keys: append([]tea.Msg{at40, stepKey(custom), press('/')},
 			append(testkit.Typed("kit flow"), enter)...)},
-		"customize-80.golden": {keys: []tea.Msg{tea.WindowSizeMsg{Width: 80, Height: 40}, press('6')}},
+		"customize-80.golden": {keys: []tea.Msg{tea.WindowSizeMsg{Width: 80, Height: 40}, stepKey(custom)}},
 	} {
 		m, _ := loaded(t, c.keys...)
 		if c.then != nil {

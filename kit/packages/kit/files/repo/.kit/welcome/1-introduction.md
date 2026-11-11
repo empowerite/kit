@@ -6,9 +6,11 @@ kit helps people and agents work in this repository the same way. This guide wal
 
 - Toolchains: the four tools kit runs on, and the tool and package managers kit found here.
 - Setup: the linters, each code forge's login, and this repository.
-- Applications: kit's screens, and what each one shows.
 - Terms: the words kit uses.
 - Customize: what teams change first.
+
+kit's applications, its screens and what each one shows, are a tutorial that ships with kit: `kit tutorials
+applications`.
 
 The next two steps are checks. A failed check shows the command that fixes it. Nothing runs until you say so.
 

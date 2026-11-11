@@ -7,15 +7,17 @@
 #
 # kit welcome --fix <check>
 #
-# A guide for your first hour with kit, in six steps:
+# A guide for your first hour with kit, in five steps:
 #
 #   1. Introduction: what the guide does.
 #   2. Toolchains: bash, git, jq, and yq, which kit runs on; the toolchain for the project, and the one for the
 #      system, one check each.
 #   3. Setup: your linters, your forge logins, and this repository, one check each.
-#   4. Applications: kit's screens, from Flow, the trip from an issue to a release, to Platform.
-#   5. Terms: the words kit uses, by topic, each with a command that shows it.
-#   6. Customize: the settings teams change first, packages, and the docs.
+#   4. Terms: the words kit uses, by topic, each with a command that shows it.
+#   5. Customize: the settings teams change first, packages, and the docs.
+#
+# kit's screens, from Flow, the trip from an issue to a release, to Platform, are a tutorial that ships with the kit:
+# kit tutorials applications.
 #
 # Steps 2 and 3 hold checks. On a terminal, it opens kittui's welcome screen, on the first step with a failed check.
 # Each failed check there offers its fix: now runs it, later moves on. Without a terminal, or with --text, it prints

@@ -1,8 +1,10 @@
 // Package tutorials is kit tutorials on a terminal: the tutorials kit knows, as kit tutorials --json gives them, a
 // card each, under the table's control line, and the keys bar last. The tutorials are a table, internal/table's, of
-// tutorials.json, the catalog: each tutorial a row, its title, its audiences, as labels, its summary, and its id. The
-// control line is the table's, on the screen's second line: the heading over the groups, which names the field the
-// cards are grouped by, and the preset line, Default or By audience, the person's presets beside them, and Fields…,
+// tutorials.json, the catalog: each tutorial a row, its title, its audiences, as labels, where it is, its summary, and
+// its id. A tutorial is in the kit, a page that ships with it, read here, or online, a link; the where field says
+// which, as its label, and so does the glyph on its card's top edge, 📦 or 🌐. The control line is the table's, on the
+// screen's second line: the heading over the groups, which names the field the cards are grouped by, and the preset
+// line, Default, By audience, or In the kit or online, the person's presets beside them, and Fields…,
 // where the cards are sorted, grouped, and filtered by any field a column menu or the columns dialog offers. The cards
 // stand as the table's rows stand: in its order, under its groups' headings, each heading drawn as the table draws it,
 // a tutorial for several audiences under each of theirs, and a closed group's cards folded away. The tags given on the
@@ -12,15 +14,20 @@
 //
 // Under the control line, the pane draws the cards as a grid, as many columns as fit and at least one: each card has
 // the tutorial's glyph and title in bold, a blank line, its summary on three lines with … where it runs over, another
-// blank line, and its audiences as pills in their colors on its bottom edge. The card under the cursor is drawn in the
+// blank line, and its audiences as pills in their colors on its bottom edge; the glyph of where it is stands at the
+// right of its top edge. The card under the cursor is drawn in the
 // menus' bright cyan, and the pane scrolls a row of cards, or a heading, at a time so that card is always whole. A
 // catalogue with no tutorial says so, as a search or a filter that lets none through does.
 //
 // The cards have the keyboard as the screen opens. Tab and shift-tab move the cursor between them, its stops, in
 // reading order, on along the next row, as they move between the stops on any line; up and down move to the row of
 // cards over or under it, past a heading, to the last card of a row shorter than the cursor's column; and up from the
-// first row, or esc, gives the control line the keyboard. Enter opens the tutorial under the cursor in the browser,
-// and a click on a card opens that one; left and right, which fold and unfold, have nothing to fold on a card. The
+// first row, or esc, gives the control line the keyboard. Enter opens the tutorial under the cursor, and a click on a
+// card opens that one: one online in the browser; one in the kit here, its page, drawn as internal/markdown draws it,
+// in place of the cards, and the line over it, the control line's, a 🔙 back to the cards with the tutorial's glyph
+// and title. Up and down scroll the page a line, page up and page down a page, home and end to its ends, as the wheel
+// scrolls it; esc, or a click on the line over it, goes back to the cards, the cursor where it was, and / gives the
+// search focus over them. Left and right, which fold and unfold, have nothing to fold on a card. The
 // mouse wheel scrolls the cards a row, or a heading, at a time, never past their ends, the cursor left where it is
 // until a key moves it. The control line takes the keys it takes on every table, its menus and its dialog every key
 // while open, and down gives the cards the keyboard back; it is the top of the screen, so up and esc leave it where it
@@ -40,6 +47,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -66,6 +74,25 @@ const tutorialsTable = "tutorials"
 // audienceField is the field that holds a tutorial's audiences, which the tags filter by.
 const audienceField = "audience"
 
+// whereField is the field that says where a tutorial is, as its label: inTheKit or online.
+const (
+	whereField = "where"
+	inTheKit   = "in the kit"
+	online     = "online"
+)
+
+// The glyphs of where a tutorial is, on its card's top edge: in the kit, Shipped, or online, Online; and Back, before
+// the line over a tutorial's page, a click on which goes back to the cards. Each is two cells wide, with no variation
+// selector.
+const (
+	Shipped = "📦"
+	Online  = "🌐"
+	Back    = "🔙"
+)
+
+// wheelLines is the lines a turn of the mouse wheel scrolls a tutorial's page.
+const wheelLines = 3
+
 // tableColor is the table's color, the accent's.
 const tableColor = "12"
 
@@ -82,6 +109,23 @@ var catalog = func() table.Catalog {
 type browsedMsg struct {
 	tutorial kit.Tutorial
 	err      error
+}
+
+// readMsg brings a tutorial's page, in the kit, or why it could not be read.
+type readMsg struct {
+	tutorial kit.Tutorial
+	page     string
+	err      error
+}
+
+// reader is a tutorial in the kit open in place of the cards: whether one is, the tutorial, its page's markdown, or
+// that it has none, and the first line of the page the pane shows.
+type reader struct {
+	open     bool
+	tutorial kit.Tutorial
+	page     string
+	missing  bool
+	offset   int
 }
 
 // Fades is how long the notice that a tutorial opened stays in place of the keys, short of a key. The link left when
@@ -104,6 +148,7 @@ type Model struct {
 	refusal string                     // kit's line, when it did not print the catalogue
 	catalog kit.Catalogue
 	sheet   table.Sheet // the tutorials' table, whose control line stands over the cards and whose rows they follow
+	read    reader      // the tutorial in the kit open in place of the cards, while one is
 	inPane  bool        // whether the screen gives the cards the keyboard, which they have while there are some
 	cursor  int         // the card under the cursor, an index into the cards
 	offset  int         // the first band of the pane it shows, a heading or a row of cards
@@ -222,6 +267,8 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.sheet.Settings(msg.Settings.FoldShared, msg.Settings.SharedEmoji)
 	case source.Answer[kit.Catalogue]:
 		m.take(msg)
+	case readMsg:
+		m.read = reader{open: true, tutorial: msg.tutorial, page: msg.page, missing: msg.err != nil}
 	case browsedMsg:
 		if msg.err == nil {
 			m.note = m.note.Did(fmt.Sprintf("%s Opened %s in the browser", Opened, msg.tutorial.Title))
@@ -263,6 +310,10 @@ func (m *Model) wheel(w tea.MouseWheelMsg) {
 	}
 	if d == 0 || m.appMenu.Open || m.books.Open || m.recent.Open || m.sheet.Layered() || w.Y < paneTop ||
 		w.Y >= paneTop+m.paneHeight() {
+		return
+	}
+	if m.read.open {
+		m.scroll(d * wheelLines)
 		return
 	}
 	m.offset, m.wheeled = m.offset+d, true
@@ -307,9 +358,18 @@ func (m Model) records() []table.Record {
 		}
 		out[k] = table.Record{Row: grid.Row{Key: t.ID}, Values: map[string]table.Value{
 			"order": table.One(strconv.Itoa(k + 1)), "title": table.Some(t.Title),
-			audienceField: table.Labelled(labels), "summary": table.Some(t.Summary), "tutorial": table.Some(t.ID)}}
+			audienceField: table.Labelled(labels), whereField: table.Labelled([]table.Label{{Name: whereOf(t)}}),
+			"summary": table.Some(t.Summary), "tutorial": table.Some(t.ID)}}
 	}
 	return out
+}
+
+// whereOf gives where a tutorial is, as the where field's label names it.
+func whereOf(t kit.Tutorial) string {
+	if t.Shipped() {
+		return inTheKit
+	}
+	return online
 }
 
 // filterByTags filters the cards to the tutorials for any of the audiences the tags name, by their labels, as the
@@ -436,6 +496,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 	}
+	if m.read.open && !m.search.Focused {
+		return m.paging(k)
+	}
 	if m.controlled() {
 		// the control line is the top of the screen: up and esc, which give a tab bar the keyboard on another, leave
 		// it where it is, but where they stop a preset's name being typed
@@ -552,7 +615,14 @@ func (m Model) click(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 		m.recent = m.recent.Opened()
 		return m, nil
 	case msg.Y == shell.Top && msg.X >= m.searchAt():
-		m.search.Focused = true
+		m.search.Focused, m.read.open = true, false
+		return m, nil
+	case m.read.open:
+		// over a tutorial's page, the line over it goes back to the cards; the page itself takes no click
+		if msg.Y == controlTop {
+			m.read.open = false
+			m.fit()
+		}
 		return m, nil
 	case msg.Y == controlTop:
 		if m.sheet.Click(msg) {
@@ -598,8 +668,61 @@ func (m Model) searchLine() string {
 	return shell.RecallLine(m.search.Query, m.search.Focused && !m.appMenu.Open, len(m.recent.Items) > 0)
 }
 
-// open asks the browser for a tutorial's link, as it is, with the kit's version on it.
+// open opens a tutorial: one in the kit, by reading its page, to show in place of the cards; one online, by asking
+// the browser for its link, as it is, with the kit's version on it.
 func (m Model) open(t kit.Tutorial) tea.Cmd {
+	if t.Shipped() {
+		return func() tea.Msg {
+			page, err := os.ReadFile(t.File)
+			return readMsg{tutorial: t, page: string(page), err: err}
+		}
+	}
 	b := m.browse
 	return func() tea.Msg { return browsedMsg{tutorial: t, err: b(t.URL)} }
 }
+
+// paging takes a key while a tutorial's page is open in place of the cards: esc goes back to them, / gives the
+// search focus over them, and the arrows, page up and page down, home, and end scroll the page; = and the workspace
+// menu's key drop their menus down, as on the cards.
+func (m Model) paging(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch k.String() {
+	case "=":
+		m.appMenu = m.appMenu.Opened()
+	case shell.Workspaces:
+		m.books = m.books.Opened()
+	case "/":
+		m.read.open, m.search.Focused = false, true
+		m.fit()
+	case "esc":
+		m.read.open = false
+		m.fit()
+	case "up":
+		m.scroll(-1)
+	case "down":
+		m.scroll(1)
+	case "pgup":
+		m.scroll(-m.pageStep())
+	case "pgdown":
+		m.scroll(m.pageStep())
+	case "home":
+		m.read.offset = 0
+	case "end":
+		m.scroll(len(m.pageLines()))
+	}
+	return m, nil
+}
+
+// scroll moves the page's first line shown by d, never before its first line nor past where its last shows.
+func (m *Model) scroll(d int) {
+	n, h := len(m.pageLines()), m.paneHeight()
+	last := 0
+	if n > h {
+		// the last line shows once the window, with its … above taking a line, reaches it
+		last = n - h + 1
+	}
+	m.read.offset = max(0, min(m.read.offset+d, last))
+}
+
+// pageStep gives the lines page up and page down scroll the page: the pane's, less the two that count the hidden
+// lines, and one at least.
+func (m Model) pageStep() int { return max(1, m.paneHeight()-2) }

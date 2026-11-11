@@ -476,12 +476,12 @@ func TestACardKeepsToItsCells(t *testing.T) {
 	}
 }
 
-// A card reads its top edge, the glyph and the title, a blank line, the summary on three lines, another blank line, so
+// A card reads its top edge, the glyph of where the tutorial is at its right, the glyph and the title, a blank line, the summary on three lines, another blank line, so
 // the summary stands clear of the pills, and its bottom edge.
 func TestTheTitleIsFollowedByABlankLine(t *testing.T) {
 	m, _ := loaded(t)
 	got := m.card(m.catalog.Tutorials[0], false)
-	want := []string{"╭" + strings.Repeat("─", cardWidth-2) + "╮", "│ 🎓 Reading kit's tutorials         │",
+	want := []string{"╭" + strings.Repeat("─", cardWidth-7) + " " + Online + " ─╮", "│ 🎓 Reading kit's tutorials         │",
 		"│" + strings.Repeat(" ", cardWidth-2) + "│", "│ How the tutorials are laid out,    │",
 		"│ who each one is for, and how a     │", "│ page tells you that your kit is…   │",
 		"│" + strings.Repeat(" ", cardWidth-2) + "│", bottomEdge(pillText("Just starting"))}

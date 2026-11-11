@@ -8,9 +8,12 @@ load helper
 
 repo_root=$(cd "${BATS_TEST_DIRNAME}/.." && pwd)
 
-# catalogue <fixture> runs bin/tutorials catalogue over a fixture project under tests/fixtures/tutorials/.
+# catalogue <fixture> runs bin/tutorials catalogue over a fixture project under tests/fixtures/tutorials/, the pages
+# that ship with the kit in its shipped/, which most fixtures lack.
 catalogue() {
-  TUTORIALS_PROJECT="${repo_root}/tests/fixtures/tutorials/$1" run --separate-stderr "${repo_root}/bin/tutorials" catalogue
+  local fixture="${repo_root}/tests/fixtures/tutorials/$1"
+  TUTORIALS_PROJECT="${fixture}" TUTORIALS_SHIPPED="${fixture}/shipped" \
+    run --separate-stderr "${repo_root}/bin/tutorials" catalogue
 }
 
 @test "the catalogue lists the top-level tutorials in order" {
@@ -18,6 +21,18 @@ catalogue() {
   [ "$status" -eq 0 ]
   [ "$(printf '%s\n' "${output}" | yq -o json -I 0 '.')" = '{"audiences":[{"id":"newcomer","label":"Just starting","color":"#15803d"},{"id":"ui","label":"UI","color":"#1d4ed8"},{"id":"maintainer","label":"Maintainer","color":"#7c3aed"}],"tutorials":[{"id":"beta","path":"beta/","title":"Beta","summary":"The first one.","glyph":"🅱","audience":["maintainer"],"order":10},{"id":"alpha","path":"alpha/","title":"Alpha","summary":"The second one.","glyph":"🅰","audience":["newcomer","ui"],"order":20}]}' ]
   [[ "${output}" != *Deeper* ]]
+}
+
+@test "a page that ships with the kit is listed by its file, in order among the others" {
+  catalogue shipped
+  [ "$status" -eq 0 ]
+  [ "$(printf '%s\n' "${output}" | yq -o json -I 0 '.tutorials')" = '[{"id":"screens","file":"tutorials/screens.md","title":"The screens","summary":"What each screen shows.","glyph":"🧭","audience":["newcomer","ui"],"order":5},{"id":"beta","path":"beta/","title":"Beta","summary":"The first one.","glyph":"🅱","audience":["maintainer"],"order":10}]' ]
+}
+
+@test "a page that ships with the kit needs a glyph" {
+  catalogue no-shipped-glyph
+  [ "$status" -eq 1 ]
+  [[ "${stderr}" == *"shipped/screens.md: a tutorial needs a glyph"* ]]
 }
 
 @test "an unknown audience is refused, naming the file" {

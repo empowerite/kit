@@ -2,7 +2,7 @@
 # tutorials.bats - kit tutorials: the base per version, the JSON, the audience filter, opening one, the hand-off
 # ----------------------------------------------------------------------------------------------------------------------
 # Each test runs in a fresh repository, with KIT_TUTORIALS_BASE unset unless it names it. The catalogue is a fixture
-# the test points KIT_TUTORIALS_CATALOGUE at; the version comes from a copy of the kit with a version file, since a
+# the test points KIT_TUTORIALS_CATALOGUE at, three tutorials online and one that ships beside it; the version comes from a copy of the kit with a version file, since a
 # checkout has none. A browser is a fake open and xdg-open, first on PATH, that record the URL they are given.
 
 bats_require_minimum_version 1.5.0
@@ -53,7 +53,17 @@ tutorials:
     audience:
       - maintainer
     order: 3
+  - id: tour
+    file: tutorials/tour.md
+    title: The tour
+    summary: Read here, not online.
+    glyph: "4"
+    audience:
+      - newcomer
+    order: 4
 YML
+  mkdir -p "${BATS_TEST_TMPDIR}/tutorials"
+  printf -- '---\ntitle: The tour\n---\n\nThe first screen is Flow.\n' > "${BATS_TEST_TMPDIR}/tutorials/tour.md"
   export KIT_TUTORIALS_CATALOGUE="${catalogue}"
 }
 
@@ -188,6 +198,26 @@ fake-openers() {
     "${site}/0.4/screens/?kit=0.4.7" '3' 'Cutting a release'
   [ "$(grep -c 'kit=0.4.7' <<<"$output")" -eq 3 ]
   [[ "$output" != *"#15803d"* ]]
+  # a tutorial that ships with the kit says so, and how to read it, in place of a link
+  in-order "$output" 'Cutting a release' '4 The tour' 'Read here, not online.' 'in the kit: kit tutorials tour'
+}
+
+@test "--json says where each tutorial is: in the kit, with its file, or online, with its link" {
+  versioned 0.4.7
+  run --separate-stderr "${kit}" tutorials --json
+  [ "$status" -eq 0 ]
+  [ "$(jq --compact-output '.tutorials[0] | {where, url, file}' <<<"$output")" = \
+    "{\"where\":\"online\",\"url\":\"${site}/0.4/first/?kit=0.4.7\",\"file\":\"\"}" ]
+  [ "$(jq --compact-output '.tutorials[3] | {where, url, file}' <<<"$output")" = \
+    "{\"where\":\"kit\",\"url\":\"\",\"file\":\"${BATS_TEST_TMPDIR}/tutorials/tour.md\"}" ]
+}
+
+@test "a tutorial named that ships with the kit prints its page, its front matter left out, and opens no browser" {
+  fake-openers
+  run --separate-stderr "${kit_root}/bin/kit" tutorials tour
+  [ "$status" -eq 0 ]
+  [ "$output" = "$(printf '4 The tour\n\nThe first screen is Flow.')" ]
+  [ ! -e "${BATS_TEST_TMPDIR}/opened" ]
 }
 
 @test "no tutorials" {

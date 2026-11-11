@@ -495,16 +495,26 @@ type Audience struct {
 	Color string `json:"color"`
 }
 
-// Tutorial is one tutorial: its id, title, summary, and glyph; the ids of the audiences it is for; and its link,
-// which carries the kit's version as ?kit=, so the page knows the reader's kit.
+// Tutorial is one tutorial: its id, title, summary, and glyph; the ids of the audiences it is for; where it is, kit
+// for one that ships with the kit or online; and, for one online, its link, which carries the kit's version as ?kit=,
+// so the page knows the reader's kit, or, for one in the kit, the path of its page, markdown read on this machine.
 type Tutorial struct {
 	ID       string   `json:"id"`
 	Title    string   `json:"title"`
 	Summary  string   `json:"summary"`
 	Glyph    string   `json:"glyph"`
 	Audience []string `json:"audience"`
+	Where    string   `json:"where"`
 	URL      string   `json:"url"`
+	File     string   `json:"file"`
 }
+
+// InTheKit is where a tutorial that ships with the kit is, as kit tutorials --json names it.
+const InTheKit = "kit"
+
+// Shipped says whether a tutorial ships with the kit, its page read on this machine; one from a kit that names no
+// place is online.
+func (t Tutorial) Shipped() bool { return t.Where == InTheKit }
 
 // Tutorials gives the catalogue, as kit tutorials --json prints it with a --tag for each tag, which keeps the
 // tutorials for any of those audiences; no tag keeps them all. It has callLimit at most, and ends when ctx does.
