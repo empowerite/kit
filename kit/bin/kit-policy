@@ -22,7 +22,7 @@
 # On a branch past the default one, the policy that judges it is its base's: policy, policy_engine, linked_exempt,
 # facts, forge, and forges from the base's kit.yml; everything the base holds or delivers under .kit/policy/, which
 # is all opa loads; and the kinds the base holds or delivers, which classify the tree. So a branch cannot loosen the
-# rule that judges it. The base is origin/<default> at a desk and, on a CI runner, the base the change's event names,
+# rule that judges it. The base is <primary>/<default> at a desk and, on a CI runner, the base the change's event names,
 # which no command of the branch can move: a pull request's or a merge group's base commit, or a merge request's
 # target branch at its tip; a runner that names a change and no base it can have fails. On a runner the branch is the
 # change's head branch, whatever its name, or a merge group's head. A change to the policy is

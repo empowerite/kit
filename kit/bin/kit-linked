@@ -14,7 +14,7 @@
 # A pull request by a login the repository lists under linked_exempt in kit.yml passes without an issue, and the
 # output names the exemption. That is for a bot such as dependabot[bot], whose pull requests never have an issue.
 # The repository says which logins it trusts that way; the kit decides nothing for it. On a branch past the default
-# one, linked_exempt is read from the kit.yml on its base, so a branch cannot exempt its own author: origin/<default>
+# one, linked_exempt is read from the kit.yml on its base, so a branch cannot exempt its own author: <primary>/<default>
 # at a desk and, on a CI runner, the base the change's event names, which no command of the branch can move: a pull
 # request's or a merge group's base commit, or a merge request's target branch at its tip. On a runner the branch is
 # the change's head branch, whatever its name, and kit ci runs kit linked before the gate. A base with no kit.yml,

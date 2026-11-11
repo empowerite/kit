@@ -58,6 +58,12 @@ setup() {
   git switch --quiet --create 7-fix-the-thing
   run "${kit_checkout}/bin/kit" linked 3
   [ "$status" -eq 1 ]
+  # origin's HEAD is not recorded, so the default branch is taken to be main, which is not here either
+  [[ "$output" == *"run: git remote set-head origin --auto (origin/HEAD is not recorded"* ]]
+  [ ! -s "${FAKE_DIR}/gh.calls" ]
+  git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main
+  run "${kit_checkout}/bin/kit" linked 3
+  [ "$status" -eq 1 ]
   [[ "$output" == *"the base, origin/main, is not here, so its policy cannot be read"* ]]
   [ ! -s "${FAKE_DIR}/gh.calls" ]
 }

@@ -36,10 +36,10 @@
 # it removes, adds, or edits under .kit/policy/. On a CI runner the base is the one the change's event names, which no
 # code of the branch can move, as it could move a ref (policy:runner-base): on GitHub the pull request's base commit,
 # pull_request.base.sha in the event at GITHUB_EVENT_PATH, or a merge group's, merge_group.base_sha; on GitLab the
-# target branch's tip, CI_MERGE_REQUEST_TARGET_BRANCH_SHA, or origin/<target> fetched when it is not here, never the
-# merge base, which the branch chooses by where it forks. A runner that names a change and no base it can have fails
-# both. Elsewhere the base is origin/<default>. kit ci runs both before the gate and kit check, which run commands of
-# the branch's own.
+# target branch's tip, CI_MERGE_REQUEST_TARGET_BRANCH_SHA, or <primary>/<target> fetched from the primary when it is
+# not here, never the merge base, which the branch chooses by where it forks. A runner that names a change and no base
+# it can have fails both. Elsewhere the base is <primary>/<default>, the primary remote's default branch. kit ci runs
+# both before the gate and kit check, which run commands of the branch's own.
 #
 # policy:from-base reads policy, policy_engine, linked_exempt, facts, forge, and forges from the base's kit.yml, each
 # absent where the base has none, so the kit's default applies: for forge and forges, the provider the remote's host
@@ -205,15 +205,17 @@ policy:branch-past() {
 
 # policy:base-name prints the name of a branch's base, whose policy judges it and from which facts:document counts
 # its commits: on a runner, the commit the change's event names (policy:runner-base); elsewhere
-# refs/remotes/origin/<default>, written in full, since a tag or a branch named origin/<default> outranks the short
-# name. It returns 1, saying so, when a runner names a change and its base cannot be had.
+# refs/remotes/<primary>/<default>, written in full, since a tag or a branch named <primary>/<default> outranks the
+# short name. It returns 1, saying so, when a runner names a change and its base cannot be had, or the primary is no
+# remote.
 policy:base-name() {
-  local base
+  local base primary
   base=$(policy:runner-base) || return 1
   if [[ -z "${base}" ]]
   then
+    primary=$(forge:primary) || return 1
     base=$(git:default-branch) || return 1
-    base=refs/remotes/origin/${base}
+    base=refs/remotes/${primary}/${base}
   fi
   printf '%s\n' "${base}"
 }
@@ -222,7 +224,7 @@ policy:base-name() {
 # can move, and nothing where no change is named, as at a desk or in a push build. On GitHub it is the pull request's
 # base commit, pull_request.base.sha in the event at GITHUB_EVENT_PATH, or a merge group's, merge_group.base_sha. On
 # GitLab it is the target branch's tip: CI_MERGE_REQUEST_TARGET_BRANCH_SHA where a merged-results pipeline sets it,
-# else the commit at the tip of the branch CI_MERGE_REQUEST_TARGET_BRANCH_NAME names, as origin has it
+# else the commit at the tip of the branch CI_MERGE_REQUEST_TARGET_BRANCH_NAME names, as the primary has it
 # (policy:target-here); never CI_MERGE_REQUEST_DIFF_BASE_SHA, the merge base, which a branch chooses by where it
 # forks. It returns 1, saying so, where a change is named (policy:change-named) and its base is not in the event, is
 # no commit, or cannot be had.
@@ -263,38 +265,62 @@ policy:runner-base() {
   [[ -z "${commit}" ]] || printf '%s\n' "${commit}"
 }
 
-# policy:target-here <branch> fetches a merge request's target from origin into refs/remotes/origin/<branch>, forced
-# and with no tags, so a ref an earlier job left or moved counts for nothing, and prints the commit at its tip. The
-# name reaches git as an argument, so one git refuses as a branch name is refused first, named. It returns 1, saying
-# so, when the target cannot be had.
+# policy:target-here <branch> fetches a merge request's target from the primary into
+# refs/remotes/<primary>/<branch>, forced and with no tags, so a ref an earlier job left or moved counts for nothing,
+# and prints the commit at its tip. The name reaches git as an argument, so one git refuses as a branch name is
+# refused first, named. It returns 1, saying so, when the target cannot be had.
 policy:target-here() {
-  local target=$1
+  local target=$1 primary
   if [[ "${target}" == -* ]] || ! git check-ref-format --branch "${target}" >/dev/null 2>&1
   then
     error "the base of the change cannot be named ('${target}' in CI_MERGE_REQUEST_TARGET_BRANCH_NAME is not a" \
       "branch name), so its policy cannot be read"
     return 1
   fi
-  if ! git fetch --quiet --no-tags origin "+refs/heads/${target}:refs/remotes/origin/${target}" 2>/dev/null \
-    || ! git rev-parse --verify --quiet "refs/remotes/origin/${target}^{commit}"
+  primary=$(forge:primary) || return 1
+  if ! git fetch --quiet --no-tags "${primary}" "+refs/heads/${target}:refs/remotes/${primary}/${target}" 2>/dev/null \
+    || ! git rev-parse --verify --quiet "refs/remotes/${primary}/${target}^{commit}"
   then
-    error "the base of the change, origin/${target}, the merge request's target, could not be fetched, so its" \
+    error "the base of the change, ${primary}/${target}, the merge request's target, could not be fetched, so its" \
       "policy cannot be read"
     return 1
   fi
 }
 
 # policy:base prints a branch's base, as policy:base-name names it, once it is here. It returns 1, saying so, when the
-# base cannot be named or is not here.
+# base cannot be named or is not here. A primary's default branch that is not here is said with the remedy for why:
+# no such remote, a <primary>/HEAD git has not recorded, which leaves main as the default, or a base not fetched.
 policy:base() {
-  local base
+  local base primary remotes
   base=$(policy:base-name) || return 1
-  if ! git rev-parse --verify --quiet "${base}^{commit}" >/dev/null
+  if git rev-parse --verify --quiet "${base}^{commit}" >/dev/null
   then
-    error "the base, ${base#refs/remotes/}, is not here, so its policy cannot be read; fetch it with full history"
-    return 1
+    printf '%s\n' "${base}"
+    return 0
   fi
-  printf '%s\n' "${base}"
+  if [[ "${base}" == refs/remotes/* ]]
+  then
+    primary=$(forge:primary) || return 1
+    if ! remotes=$(git remote)
+    then
+      error "run: git remote (the remotes could not be read, so the base, ${base#refs/remotes/}, cannot be read)"
+      return 1
+    fi
+    if ! grep --quiet --line-regexp --fixed-strings -- "${primary}" <<<"${remotes}"
+    then
+      error "run: git remote add ${primary} <url> (there is no remote ${primary}, so the base," \
+        "${base#refs/remotes/}, and its policy cannot be read)"
+      return 1
+    fi
+    if ! git symbolic-ref --quiet "refs/remotes/${primary}/HEAD" >/dev/null 2>&1
+    then
+      error "run: git remote set-head ${primary} --auto (${primary}/HEAD is not recorded, so the default branch is" \
+        "taken to be main)"
+      return 1
+    fi
+  fi
+  error "the base, ${base#refs/remotes/}, is not here, so its policy cannot be read; fetch it with full history"
+  return 1
 }
 
 # policy:object <rev> <path> prints the object name of <path> in <rev>, an empty <rev> being the index, and nothing

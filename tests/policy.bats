@@ -663,6 +663,55 @@ REGO
   done
 }
 
+@test "at a desk the base is the primary's default branch, and on GitLab the target is fetched from the primary" {
+  printf 'policy:\n  commit_subject: ""\n' > kit.yml
+  git add kit.yml
+  git commit --quiet --message "#2 kit: a lax policy" && git push --quiet origin main
+  printf 'policy:\n  commit_subject: "^#[0-9]+ "\n' > kit.yml
+  git commit --quiet --all --message "#3 kit: the strict policy"
+  git init --quiet --bare --initial-branch=main ../upstream.git
+  git remote add upstream ../upstream.git
+  git push --quiet upstream main && git fetch --quiet upstream && git remote set-head upstream main
+  tip=$(git rev-parse upstream/main)
+  # origin/main holds the lax policy and upstream/main the strict one; the primary is the checkout's
+  git switch --quiet --create 7-fix-the-thing
+  git commit --quiet --allow-empty --message "no reference"
+  printf 'primary: upstream\npolicy:\n  commit_subject: ""\n' > kit.yml
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"'no reference' does not match policy.commit_subject"* ]]
+  [ "$("${kit_root}/bin/kit" policy --input | jq --raw-output '.commits | length')" -eq 1 ]
+  git update-ref -d refs/remotes/upstream/main
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the base, upstream/main, is not here"* ]]
+  export CI_MERGE_REQUEST_SOURCE_BRANCH_NAME=7-fix-the-thing CI_MERGE_REQUEST_TARGET_BRANCH_NAME=main
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"'no reference' does not match policy.commit_subject"* ]]
+  [ "$(git rev-parse refs/remotes/upstream/main)" = "${tip}" ]
+  run env CI_MERGE_REQUEST_TARGET_BRANCH_NAME=nowhere "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"upstream/nowhere, the merge request's target, could not be fetched"* ]]
+}
+
+@test "a base the primary's unrecorded HEAD names says to record it, and a repository without the remote says so" {
+  branch 7-fix-the-thing "#7 cli: fix the thing"
+  git update-ref -d refs/remotes/origin/main
+  git remote set-head origin --delete
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  said='run: git remote set-head origin --auto (origin/HEAD is not recorded, so the default branch is taken to be main)'
+  [[ "$output" == *"${said}"* ]]
+  [[ "$output" != *"policy allows"* ]]
+  git remote remove origin
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  said='run: git remote add origin <url> (there is no remote origin, so the base, origin/main, and its policy cannot'
+  [[ "$output" == *"${said} be read)"* ]]
+  [[ "$output" != *"policy allows"* ]]
+}
+
 @test "a merge group is judged by the base commit its event names, as the change on the merge group's head" {
   printf 'policy:\n  branch: ""\n  commit_subject: "^#[0-9]+ "\n' > kit.yml
   git add kit.yml
