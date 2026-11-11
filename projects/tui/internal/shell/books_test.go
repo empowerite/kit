@@ -114,8 +114,8 @@ func TestBooksOpenAsksForTheOpenDialog(t *testing.T) {
 	}
 }
 
-// The repositories opened by their folder follow the groups, picked by their folder; the one shown is dim, and one
-// that a favorite names already is not drawn twice.
+// The repositories opened by their folder follow the groups, picked by their folder; the one shown is not drawn, as
+// the title names it, and one that a favorite names already is not drawn twice.
 func TestBooksDropsDownTheRecentRepositoriesPickedByTheirFolder(t *testing.T) {
 	ws := inGroups
 	ws.Recent = []kit.WorkspaceRecent{{Name: "github.com/o/a", Member: "github.com/o/a", Checkout: "/code/a"},
@@ -123,17 +123,33 @@ func TestBooksDropsDownTheRecentRepositoriesPickedByTheirFolder(t *testing.T) {
 		{Name: "github.com/o/b", Member: "github.com/o/b", Checkout: "/far/b"}}
 	b := BooksMenu{Workspace: ws}
 	got, acting := names(b)
-	if strings.Join(got, "|") != "w 2|v 1||w 2|o/b · not cloned||o/a|scratch||Open…|Manage…" {
+	if strings.Join(got, "|") != "w 2|v 1||w 2|o/b · not cloned||scratch||Open…|Manage…" {
 		t.Errorf("the lines: %q", got)
 	}
-	if acting[len(acting)-3] != 7 || acting[len(acting)-2] != 9 {
+	if acting[len(acting)-3] != 6 || acting[len(acting)-2] != 8 {
 		t.Errorf("the lines that act: %v", acting)
 	}
 	if items := b.Items(); items[6].Glyph != Opened {
 		t.Errorf("a recent one's glyph: %+v", items[6])
 	}
-	if b.target(7) != "/srv/scratch" {
-		t.Errorf("scratch picks %q", b.target(7))
+	if b.target(6) != "/srv/scratch" {
+		t.Errorf("scratch picks %q", b.target(6))
+	}
+}
+
+// Two folders of one repository, as a clone and a worktree of it, read alike: a recent one that reads as the
+// workspace shown, or as another recent one, says its folder after its name, dim.
+func TestBooksTellsTwoFoldersOfOneRepositoryApart(t *testing.T) {
+	ws := kit.Workspace{Kind: "repository", Name: "github.com/o/a", Member: "github.com/o/a", Checkout: "/code/a/worktrees/1-x",
+		Recent: []kit.WorkspaceRecent{{Name: "github.com/o/a", Member: "github.com/o/a", Checkout: "/code/a/worktrees/1-x"},
+			{Name: "github.com/o/a", Member: "github.com/o/a", Checkout: "/code/a"},
+			{Name: "github.com/o/c", Member: "github.com/o/c", Checkout: "/code/c"}}}
+	got, acting := names(BooksMenu{Workspace: ws})
+	for k := range got {
+		got[k] = ansi.Strip(got[k])
+	}
+	if strings.Join(got, "|") != "o/a · a|o/c||Open…|Manage…" || len(acting) != 4 {
+		t.Errorf("the lines: %q, acting %v", got, acting)
 	}
 }
 
