@@ -81,7 +81,7 @@ JSON
   route az 'account show --query user.name --output tsv' me.txt
   route az 'extension show --name azure-devops*' '!0'
   az-route 'boards work-item show --id 7 --output json' item-7.json
-  az-route 'boards work-item create --title Fix the thing --type Task --description  --project empowerite' created.json
+  az-route 'boards work-item create --title Fix the thing --type Task --description  --project empowerite --output json' created.json
   az-route 'boards work-item update --id 7 *' '!0'
   az-route 'boards work-item relation add --id 9 --relation-type parent --target-id 7 --output none' '!0'
   az-route "boards query --project empowerite --wiql * --output json" items.json
@@ -90,7 +90,7 @@ JSON
   az-route "${list} --status * --top 100 --skip 0 --source-branch * --output json" none.json
   az-route "${list} --status active --top 100 --skip 0 --output json" prs.json
   az-route 'repos pr show --id 3 --output json' pr.json
-  az-route 'repos pr create --draft true --source-branch 7-fix-the-thing --target-branch main --title Fix the thing --project empowerite --repository example --work-items 7' pr.json
+  az-route 'repos pr create --draft true --source-branch 7-fix-the-thing --target-branch main --title Fix the thing --project empowerite --repository example --work-items 7 --output json' pr.json
   az-route 'repos pr work-item list --id 3 --output json' linked.json
   az-route 'repos pr policy list --id 3 --top 10000 --output json' policies.json
   az-route 'devops invoke --area git --resource pullRequestThreads --route-parameters project=empowerite repositoryId=example pullRequestId=3 --api-version 7.1 --output json' threads.json
@@ -159,7 +159,7 @@ JSON
 
 @test "a work item opens and closes as forge_settings.ado says, for a process whose states differ" {
   printf 'forge_settings:\n  ado:\n    type: Product Backlog Item\n    closed_state: Done\n' > kit.yml
-  az-route 'boards work-item create --title Fix the thing --type Product Backlog Item --description  --project empowerite' \
+  az-route 'boards work-item create --title Fix the thing --type Product Backlog Item --description  --project empowerite --output json' \
     created.json
   run call issue-create "Fix the thing"
   [ "$output" = 7 ]

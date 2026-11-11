@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "az repos pr create --draft ${draft} --source-branch ${branch} --target-branch ${base} --title ${title} --project ${project} --repository ${repository} [--work-items ${item}]",
-  "description": "The pull request it opens, whose number `modules/bash/forge/ado.sh` (forge/ado:pr-create) reads, with no --output, so az prints its default, JSON; every call kit makes through forge/ado:az also carries --org ${organization} --detect false --only-show-errors. The type is GitPullRequest, https://learn.microsoft.com/rest/api/azure/devops/git/pull-requests/create?view=azure-devops-rest-7.1, printed as repos-pr-show.schema.json says.",
+  "title": "az repos pr create --draft ${draft} --source-branch ${branch} --target-branch ${base} --title ${title} --project ${project} --repository ${repository} [--work-items ${item}] --output json",
+  "description": "The pull request it opens, whose number `modules/bash/forge/ado.sh` (forge/ado:pr-create) reads; every call kit makes through forge/ado:az also carries --org ${organization} --detect false --only-show-errors. The type is GitPullRequest, https://learn.microsoft.com/rest/api/azure/devops/git/pull-requests/create?view=azure-devops-rest-7.1, printed as repos-pr-show.schema.json says.",
   "type": "object",
   "properties": {
     "pullRequestId": {

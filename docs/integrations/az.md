@@ -53,7 +53,7 @@ older version. `--org` names the collection URL; which Server releases the exten
 | Capability | Command |
 | --- | --- |
 | Branch linked to an issue | `az repos ref create --name "refs/heads/${branch}" --object-id "${sha}"`, then `az boards work-item relation add --id "${n}" --relation-type Branch --target-url "vstfs:///Git/Ref/${project_id}%2F${repo_id}%2FGB${branch}"` (the link not verified) |
-| Open a draft | `az repos pr create --draft true --source-branch "${branch}" --target-branch "${default}" --title "${title}" --work-items "${n}"` |
+| Open a draft | `az repos pr create --draft true --source-branch "${branch}" --target-branch "${default}" --title "${title}" --work-items "${n}" --output json` |
 | Mark ready | `az repos pr update --id "${n}" --draft false` |
 | Set the title | `az repos pr update --id "${n}" --title "${title}"` |
 | Set the body | `az repos pr update --id "${n}" --description "${body}"`; each value is a line |
@@ -106,7 +106,7 @@ Work Item Query Language (WIQL) query and answers every item it matches. kit's `
 | Close as not planned | `az boards work-item update --id "${n}" --state Removed --org "${org}"` (`removed_state`); `--reason` sets the process's reason |
 | Close as a duplicate | the comment `Duplicate of AB#${m}`, then the not-planned close; `az boards work-item relation add --relation-type "${type}"` can add a duplicate link, its name from `relation list-type` |
 | Comment | `az boards work-item update --id "${n}" --discussion "${text}" --org "${org}"` |
-| Create | `az boards work-item create --title "${title}" --type "${type}" --description "${body}" --project "${project}" --org "${org}"` |
+| Create | `az boards work-item create --title "${title}" --type "${type}" --description "${body}" --project "${project}" --org "${org}" --output json` |
 | Put under a parent | `az boards work-item relation add --id "${m}" --relation-type parent --target-id "${n}" --org "${org}"`; kit writes a task line in the parent's body instead |
 | Link a change | `AB#${n}` in a GitHub pull request's title, description, or commits; `az repos pr work-item add --id "${pr}" --work-items "${n}"` for an Azure Repos pull request |
 | Set the iteration | `az boards work-item update --id "${n}" --iteration "${iteration_path}"` |
@@ -221,11 +221,11 @@ with an example the gate validates against it.
 | Schema | The command as kit runs it |
 | --- | --- |
 | [boards-query.schema.json](az/boards-query.schema.json) | `az boards query --project ${project} --wiql "SELECT [System.Id], [System.Title], [System.AssignedTo], [System.Tags], [System.CreatedDate] FROM WorkItems WHERE [System.TeamProject] = @project AND [System.State] NOT IN ('Closed', 'Done', 'Removed') ORDER BY [System.CreatedDate] ASC" --output json` |
-| [boards-work-item-create.schema.json](az/boards-work-item-create.schema.json) | `az boards work-item create --title ${title} --type ${type} --description ${body} --project ${project}` |
+| [boards-work-item-create.schema.json](az/boards-work-item-create.schema.json) | `az boards work-item create --title ${title} --type ${type} --description ${body} --project ${project} --output json` |
 | [boards-work-item-show.schema.json](az/boards-work-item-show.schema.json) | `az boards work-item show --id ${id} --output json` |
 | [devops-invoke-pull-request-threads.schema.json](az/devops-invoke-pull-request-threads.schema.json) | `az devops invoke --area git --resource pullRequestThreads --route-parameters project=${project} repositoryId=${repository} pullRequestId=${id} --api-version 7.1 --output json` |
 | [pipelines-runs-list.schema.json](az/pipelines-runs-list.schema.json) | `az pipelines runs list --project ${project} --top 50 --query-order QueueTimeDesc --output json` |
-| [repos-pr-create.schema.json](az/repos-pr-create.schema.json) | `az repos pr create --draft ${draft} --source-branch ${branch} --target-branch ${base} --title ${title} --project ${project} --repository ${repository} [--work-items ${item}]` |
+| [repos-pr-create.schema.json](az/repos-pr-create.schema.json) | `az repos pr create --draft ${draft} --source-branch ${branch} --target-branch ${base} --title ${title} --project ${project} --repository ${repository} [--work-items ${item}] --output json` |
 | [repos-pr-list.schema.json](az/repos-pr-list.schema.json) | `az repos pr list --project ${project} --repository ${repository} --status ${status} --top 100 --skip ${skip} [--source-branch ${branch}] --output json` |
 | [repos-pr-policy-list.schema.json](az/repos-pr-policy-list.schema.json) | `az repos pr policy list --id ${id} --top ${forge_list_limit} --output json` |
 | [repos-pr-show.schema.json](az/repos-pr-show.schema.json) | `az repos pr show --id ${id} --output json` |

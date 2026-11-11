@@ -97,7 +97,7 @@ forge/ado:issue-create() {
   type=$(forge:setting ado type)
   IFS=$'\t' read -r _ project _ < <(forge/ado:place) || return 1
   if ! item=$(forge/ado:az boards work-item create --title "$1" --type "${type:-Task}" --description "${2:-}" \
-    --project "${project}" 2>/dev/null) || ! forge:json "${item}"
+    --project "${project}" --output json 2>/dev/null) || ! forge:json "${item}"
   then
     error "run: az login (the work item could not be created)"
     return 1
@@ -223,7 +223,7 @@ forge/ado:pr-create() {
   IFS=$'\t' read -r _ project repo < <(forge/ado:place) || return 1
   [[ "$1" =~ ^([0-9]+)- ]] && items=(--work-items "${BASH_REMATCH[1]}")
   if ! pr=$(forge/ado:az repos pr create --draft "${4:-true}" --source-branch "$1" --target-branch "$2" --title "$3" \
-    --project "${project}" --repository "${repo}" "${items[@]}" 2>/dev/null) || ! forge:json "${pr}"
+    --project "${project}" --repository "${repo}" "${items[@]}" --output json 2>/dev/null) || ! forge:json "${pr}"
   then
     error "run: az login (the pull request could not be opened)"
     return 1
