@@ -237,3 +237,56 @@ func TestAGroupGivenAtStartIsAskedAndNotMadeTwice(t *testing.T) {
 		t.Errorf("the screen made over w was made again: %q", title(m))
 	}
 }
+
+// open drives the root's Open… dialog: open, what is typed cleared, the folder typed, and enter.
+func open(m Model, folder string) Model {
+	m = drive(m, shell.OpenMsg{}, tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl})
+	m = drive(m, typed(folder)...)
+	return drive(m, tea.KeyPressMsg{Code: tea.KeyEnter})
+}
+
+func TestOpenOpensARepositoryByItsFolderAndKeepsItAmongTheRecent(t *testing.T) {
+	m, record, _ := workspaced(t, map[string]string{"current.json": repoJSON})
+	far := t.TempDir()
+	text := `{"kind":"repository","name":"` + far + `","member":null,"checkout":"` + far + `","why":"given",` +
+		`"members":[],"groups":[],"favorites":[]}`
+	if err := os.WriteFile(filepath.Join(os.Getenv("FAKE_WORKSPACES"), strings.ReplaceAll(far, "/", "_")+".json"),
+		[]byte(text), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m = drive(m, shell.OpenMsg{})
+	if v := ansi.Strip(m.View().Content); !m.opener.Open || !strings.Contains(v, "Open a repository") ||
+		!strings.Contains(v, "esc close") {
+		t.Fatalf("Open… opened no dialog:\n%s", v)
+	}
+	m = open(m, far)
+	if got, _ := os.ReadFile(record); !strings.Contains(string(got), "use "+far) {
+		t.Errorf("kit was not told to keep it: %q", got)
+	}
+	if m.opener.Open || m.runner.Dir != far || !strings.Contains(title(m), "- "+filepath.Base(far)) {
+		t.Errorf("not opened: open %v, the runner in %q, %q", m.opener.Open, m.runner.Dir, title(m))
+	}
+}
+
+func TestOpenSaysKitsLineInTheDialogWhenKitRefuses(t *testing.T) {
+	m, _, _ := workspaced(t, map[string]string{"current.json": repoJSON})
+	t.Setenv("FAKE_KIT_REFUSE", "workspaces")
+	m = open(m, t.TempDir())
+	if v := ansi.Strip(m.View().Content); !m.opener.Open || !strings.Contains(v, "refuses for the test") {
+		t.Errorf("the refusal is not in the dialog:\n%s", v)
+	}
+	if m.workspace.Name != "github.com/o/a" {
+		t.Errorf("the workspace moved: %+v", m.workspace)
+	}
+	if m = drive(m, tea.KeyPressMsg{Code: tea.KeyEscape}); m.opener.Open {
+		t.Error("esc leaves the dialog open")
+	}
+}
+
+func TestARecentRepositoryPickedIsKeptFirstAgain(t *testing.T) {
+	m, record, _ := workspaced(t, map[string]string{"current.json": repoJSON})
+	m = drive(m, shell.PickMsg{Workspace: "/srv/far"})
+	if got, _ := os.ReadFile(record); !strings.Contains(string(got), "use /srv/far") {
+		t.Errorf("kit was not told: %q", got)
+	}
+}

@@ -8,11 +8,15 @@
 // The root reads the workspace from kit once kittui starts, and tells every screen made, as it tells the settings. A
 // screen's workspace menu asks for another; the root asks kit for it, keeping a group as the last used, and tells every
 // screen again. When the place the screens read moves, to another repository or onto or off a group, the screens made
-// are made anew there, all but the tutorials and the help, which read kit alone. Only the latest ask lands.
+// are made anew there, all but the tutorials and the help, which read kit alone. Only the latest ask lands. The menu's
+// Open… opens a dialog over the screen shown, where a repository's folder is typed: kit keeps it among the recent and
+// says the workspace, which is switched to as a pick's is, or says why not, in the dialog.
 package screens
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -38,6 +42,7 @@ type Model struct {
 	refusal   string                       // kit's line, when a screen asked for could not open, until the next key
 	settings  shell.Settings
 	dialog    shell.SettingsDialog
+	opener    shell.OpenDialog     // the Open… dialog, which the workspace menu's Open… opens over the screen shown
 	home      string               // where kittui was started, which the screens read over anything but a repository
 	start     string               // the group the first screen was made over, as kittui started with --workspace
 	workspace kit.Workspace        // the workspace kit said last, zero until it says
@@ -52,6 +57,9 @@ type workspaceMsg struct {
 	ws  kit.Workspace
 	err error
 }
+
+// openedMsg is kit's answer to the Open… dialog's ask for a repository by its folder, as workspaceMsg is to a pick.
+type openedMsg workspaceMsg
 
 // New gives the root showing the screen first, made already, as kittui opened on it, with the settings kittui's file
 // keeps.
@@ -91,12 +99,12 @@ func (m Model) Close() {
 func (m Model) Init() tea.Cmd { return tea.Batch(m.tag(m.here, m.made[m.here].Init()), m.ask(m.start)) }
 
 // ask gives the command that asks kit for the workspace given, "" for the one kit starts on, as the latest ask: a
-// group given is kept as the last used first.
+// group given is kept as the last used first, and a repository given by its folder first among the recent.
 func (m Model) ask(given string) tea.Cmd {
 	r, gen := m.runner, m.asked
 	return func() tea.Msg {
 		ctx := context.Background()
-		if given != "" && !strings.ContainsAny(given, "/:") {
+		if given != "" && (!strings.ContainsAny(given, "/:") || strings.HasPrefix(given, "/")) {
 			if err := r.UseWorkspace(ctx, given); err != nil {
 				return workspaceMsg{gen: gen, err: err}
 			}
@@ -104,6 +112,39 @@ func (m Model) ask(given string) tea.Cmd {
 		ws, err := r.Workspace(ctx, given)
 		return workspaceMsg{gen: gen, ws: ws, err: err}
 	}
+}
+
+// opening opens the Open… dialog over the screen shown, the folder the repository shown stands in typed, else the
+// folder kittui started in.
+func (m Model) opening() Model {
+	home, _ := os.UserHomeDir()
+	start := m.home
+	if m.workspace.Kind == "repository" && m.workspace.Checkout != "" {
+		start = filepath.Dir(m.workspace.Checkout)
+	}
+	m.opener = shell.NewOpen(start, home)
+	return m
+}
+
+// openFolder asks kit for the repository whose working tree holds the folder, as the latest ask, the Open… dialog's.
+func (m Model) openFolder(folder string) (tea.Model, tea.Cmd) {
+	m.asked++
+	ask := m.ask(folder)
+	return m, func() tea.Msg { return openedMsg(ask().(workspaceMsg)) }
+}
+
+// opened takes kit's answer to the Open… dialog: its line, when kit refused, stands in the dialog, which stays open;
+// else the dialog closes, and the repository is switched to, as a pick's answer is.
+func (m Model) opened(msg openedMsg) (tea.Model, tea.Cmd) {
+	if msg.gen != m.asked {
+		return m, nil
+	}
+	if msg.err != nil {
+		m.opener = m.opener.Refused(refusalLine(msg.err))
+		return m, nil
+	}
+	m.opener.Open = false
+	return m.answered(workspaceMsg(msg))
 }
 
 // answered takes kit's answer to the latest ask for the workspace, dropping an earlier one's: kit's line, when it could
@@ -213,6 +254,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.deliver(msg.to, msg.msg)
 	case workspaceMsg:
 		return m.answered(msg)
+	case openedMsg:
+		return m.opened(msg)
+	case shell.OpenMsg:
+		return m.opening(), nil
 	case shell.PickMsg:
 		m.asked++
 		return m, m.ask(msg.Workspace)
@@ -223,19 +268,33 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.keyboard = &msg
 	case tea.KeyPressMsg:
 		m.refusal = ""
+		if m.opener.Open && msg.String() != "ctrl+c" {
+			var folder string
+			if m.opener, folder = m.opener.Key(msg); folder != "" {
+				return m.openFolder(folder)
+			}
+			return m, nil
+		}
 		if m.dialog.Open && msg.String() != "ctrl+c" {
 			was := m.settings
 			m.dialog, m.settings = m.dialog.Key(msg, m.settings)
 			return m.changed(was)
 		}
 	case tea.MouseClickMsg:
+		if m.opener.Open {
+			var folder string
+			if m.opener, folder = m.opener.Click(msg, m.height(), m.width()); folder != "" {
+				return m.openFolder(folder)
+			}
+			return m, nil
+		}
 		if m.dialog.Open {
 			was := m.settings
 			m.dialog, m.settings = m.dialog.Click(msg, m.settings, m.height(), m.width())
 			return m.changed(was)
 		}
 	case tea.MouseMsg:
-		if m.dialog.Open {
+		if m.dialog.Open || m.opener.Open {
 			return m, nil
 		}
 	}
@@ -366,6 +425,12 @@ func (m Model) View() tea.View {
 		lines = append(lines[:last], lines[last+1:]...)
 	}
 	width := m.width()
+	if m.opener.Open {
+		lines = m.opener.Overlay(lines, width)
+		if m.settings.KeysBar {
+			lines[len(lines)-1] = shell.Path{m.opener.Keys()}.Line(width)
+		}
+	}
 	if m.dialog.Open {
 		lines = m.dialog.Overlay(lines, m.settings, width)
 		if m.settings.KeysBar {
@@ -398,7 +463,7 @@ func tag(to shell.Screen, epoch int, cmd tea.Cmd) tea.Cmd {
 	return func() tea.Msg {
 		msg := cmd()
 		switch msg := msg.(type) {
-		case nil, shell.SwitchMsg, shell.JumpMsg, shell.PickMsg:
+		case nil, shell.SwitchMsg, shell.JumpMsg, shell.PickMsg, shell.OpenMsg:
 			return msg
 		case tea.BatchMsg:
 			out := make(tea.BatchMsg, len(msg))

@@ -2,9 +2,11 @@
 // repository, - and a group's name and its count of members, the count dim, for a group, both in the repository's
 // color, and - alone, dim, with none. Until kit says which workspace it is, it names the origin's owner/repo, as the
 // title did before. A plain click on it drops down what to switch to: the groups the repository belongs to, first;
-// the favorites, however many; every other group in the file; a rule between two of those it has. A line that cannot
-// switch now stays, dim: the workspace shown, and a repository not cloned. When kit could not say, its line comes first, dim. With none of those, one line says how
-// kit makes a group, and never acts. A pick asks kittui to switch, by the workspace's name as kit names it.
+// the favorites, however many; every other group in the file; the repositories opened by their folder, the newest
+// first; and last Open…, which opens a repository by its folder; a rule between two of those it has. A line that cannot
+// switch now stays, dim: the workspace shown, and a repository not cloned. When kit could not say, its line comes
+// first, dim. A pick asks kittui to switch, by the workspace's name as kit names it, a recent repository by its
+// folder; Open… asks for the Open… dialog.
 package shell
 
 import (
@@ -38,8 +40,14 @@ const Books = "📚"
 // Favorite is a favorite's glyph, beside its line in the dropdown.
 const Favorite = "⭐"
 
-// noGroup is the dropdown's one line where it has no other: how kit makes a group.
-var noGroup = booksLine{item: Item{Glyph: Books, Name: "no group yet · kit workspaces --new=<name> <repository>…"}}
+// Opened is the glyph of a repository opened by its folder, beside its line in the dropdown.
+const Opened = "🕘"
+
+// openItem is the dropdown's last line, which opens the Open… dialog, to open a repository by its folder.
+var openItem = booksLine{item: Item{Glyph: Opening, Name: "Open…"}, target: openTarget, acts: true}
+
+// openTarget is what Open… picks: no workspace's name, as neither a group's nor a repository's starts with a space.
+const openTarget = " open"
 
 // WorkspaceMsg tells a screen its workspace, when it is made and whenever kit says it anew; when kit could not say,
 // kit's line, and the workspace as it was.
@@ -51,10 +59,14 @@ type WorkspaceMsg struct {
 // PickMsg asks kittui to switch to a workspace: a group's name or a repository's host/path, as kit names it.
 type PickMsg struct{ Workspace string }
 
-// Pick gives the command that asks kittui to switch to the workspace, or none for none.
+// Pick gives the command for what a line of the dropdown picked: Open… asks kittui for the Open… dialog, and a workspace
+// asks kittui to switch to it; none for none.
 func Pick(workspace string) tea.Cmd {
-	if workspace == "" {
+	switch workspace {
+	case "":
 		return nil
+	case openTarget:
+		return func() tea.Msg { return OpenMsg{} }
 	}
 	return func() tea.Msg { return PickMsg{workspace} }
 }
@@ -123,7 +135,7 @@ func (b BooksMenu) On(x, y, at int) bool {
 // lines gives the dropdown's lines, top to bottom, as the header says.
 func (b BooksMenu) lines() []booksLine {
 	ws := b.Workspace
-	var refusal, groups, favorites, others []booksLine
+	var refusal, groups, favorites, others, recent []booksLine
 	if b.Refusal != "" {
 		refusal = append(refusal, booksLine{item: Item{Glyph: "❌", Name: b.Refusal}})
 	}
@@ -160,8 +172,15 @@ func (b BooksMenu) lines() []booksLine {
 		line := Item{Glyph: Books, Name: g.Name + " " + strconv.Itoa(g.Members)}
 		others = append(others, booksLine{line, g.Name, ws.Kind != "group" || g.Name != ws.Name})
 	}
+	for _, r := range ws.Recent {
+		if drawn[r.Name] {
+			continue
+		}
+		line := Item{Glyph: Opened, Name: repoName(r.Member, r.Checkout)}
+		recent = append(recent, booksLine{line, r.Checkout, ws.Kind != "repository" || ws.Checkout != r.Checkout})
+	}
 	var out []booksLine
-	for _, section := range [][]booksLine{refusal, groups, favorites, others} {
+	for _, section := range [][]booksLine{refusal, groups, favorites, others, recent, {openItem}} {
 		if len(section) == 0 {
 			continue
 		}
@@ -169,9 +188,6 @@ func (b BooksMenu) lines() []booksLine {
 			out = append(out, booksLine{})
 		}
 		out = append(out, section...)
-	}
-	if len(out) == 0 {
-		return []booksLine{noGroup}
 	}
 	return out
 }

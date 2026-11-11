@@ -29,6 +29,7 @@ func TestWorkspaceIsWhatKitWorkspacesCurrentSays(t *testing.T) {
 		"why":"last","members":[{"repository":"github.com/o/a","checkout":"/code/a","forge":"github"},
 		{"repository":"github.com/o/b","checkout":null}],"groups":[],
 		"workspaces":[{"name":"w","members":2},{"name":"x","members":5}],
+		"recent":[{"name":"/srv/local","member":null,"checkout":"/srv/local"}],
 		"favorites":[{"name":"w","kind":"group","members":2,"checkout":null},
 		{"name":"github.com/o/a","kind":"repository","members":null,"checkout":"/code/a"}]}`})
 	ws, err := r.Workspace(context.Background(), "")
@@ -48,6 +49,9 @@ func TestWorkspaceIsWhatKitWorkspacesCurrentSays(t *testing.T) {
 	}
 	if len(ws.Workspaces) != 2 || ws.Workspaces[1] != (WorkspaceGroup{"x", 5}) {
 		t.Errorf("every group: %+v", ws.Workspaces)
+	}
+	if len(ws.Recent) != 1 || ws.Recent[0] != (WorkspaceRecent{"/srv/local", "", "/srv/local"}) {
+		t.Errorf("the recent: %+v", ws.Recent)
 	}
 }
 

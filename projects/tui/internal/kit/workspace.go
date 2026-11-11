@@ -10,8 +10,8 @@ import (
 
 // Workspace is what kit workspaces --current --json prints: its kind, repository, group, or none, empty while kit has
 // not said; its name, a group's or a repository's; a repository's member, host/path, empty with no remote, and its
-// checkout; why kit starts on it; a group's members; the groups a repository belongs to; every group in the file; and
-// the favorites.
+// checkout; why kit starts on it; a group's members; the groups a repository belongs to; every group in the file; the
+// favorites; and the repositories opened by their folder, the newest first.
 type Workspace struct {
 	Kind       string              `json:"kind"`
 	Name       string              `json:"name"`
@@ -22,6 +22,15 @@ type Workspace struct {
 	Groups     []WorkspaceGroup    `json:"groups"`
 	Workspaces []WorkspaceGroup    `json:"workspaces"`
 	Favorites  []WorkspaceFavorite `json:"favorites"`
+	Recent     []WorkspaceRecent   `json:"recent"`
+}
+
+// WorkspaceRecent is a repository opened by its folder, among the recent: its name as kit names it, its member, empty
+// with no remote, and its checkout, the folder it is opened by.
+type WorkspaceRecent struct {
+	Name     string `json:"name"`
+	Member   string `json:"member"`
+	Checkout string `json:"checkout"`
 }
 
 // WorkspaceMember is one of a group's members: its host/path, and its checkout, empty when it is not cloned.

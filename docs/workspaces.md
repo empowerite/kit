@@ -75,7 +75,7 @@ used.
 `kit workspaces --use=<folder>`, with a folder written as a path, as `.`, `~/Code/edge`, or `/srv/edge`, keeps the
 repository whose working tree holds it first among the recent repositories, in `kit/workspaces/recent` under
 `XDG_CACHE_HOME`: ten at most, each once, the newest first. A recent repository is no group: kit starts on it only
-inside it, as on any other. The workspace menu offers them.
+inside it, as on any other. The workspace menu offers them, and its **Open…** keeps the one it opens there.
 `kit --workspace=<path> workspaces --current`, with an absolute path, names the repository whose working tree holds
 it, and refuses with 2 where none does.
 
@@ -135,6 +135,14 @@ is `{member, error}` under `errors`, and the others still draw. kit flow exits 1
 workspace repos` lists it. Over a workspace, the stages are kit's eight, whatever the `kit.yml` where you run it says.
 `--stages`, `--marks`, and `--quota` span the members too; a pull request's number, and `--me`, name one repository's,
 and are refused.
+
+## The workspace menu in kittui
+
+The `-` on every screen's title line drops down the workspaces to switch to: the groups the repository here belongs
+to; the favorites, however many; every other group in the file; and the recent repositories. The one shown is dim, as
+is a favorite repository with no checkout. **Open…**, last, opens a dialog to type a repository's folder in: tab
+completes a folder, the folders it can complete to stand under it, and a plain click on one opens it. Enter, or a
+click on Open, asks kit; a folder in no git working tree is refused with one line in the dialog, which stays open.
 
 ## Flow over a workspace in kittui
 
