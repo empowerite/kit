@@ -112,7 +112,7 @@ signed-in() {
     = '[["services","toolchains","tools","settings"],null,true]' ]
 }
 
-@test "--marks is an object of the four stages' marks, and settings' and services' move when kit.yml does" {
+@test "--marks is an object of the four stages' marks; settings', services', and toolchains' move when kit.yml does" {
   repo-at "${BATS_TEST_TMPDIR}/r" github.com/o/r
   cd "${BATS_TEST_TMPDIR}/r"
   run --separate-stderr "${kit_root}/bin/kit" platform --marks
@@ -124,7 +124,9 @@ signed-in() {
   [ "$status" -eq 0 ]
   [ "$(jq -r .settings <<<"$output")" != "$(jq -r .settings <<<"${before}")" ]
   [ "$(jq -r .services <<<"$output")" != "$(jq -r .services <<<"${before}")" ]
-  [ "$(jq -r .toolchains <<<"$output")" = "$(jq -r .toolchains <<<"${before}")" ]
+  # the kit toolchain reads tools: in kit.yml, so what is usable can move with it
+  [ "$(jq -r .toolchains <<<"$output")" != "$(jq -r .toolchains <<<"${before}")" ]
+  before=$output
   printf '[tools]\n' > mise.toml
   run --separate-stderr "${kit_root}/bin/kit" platform --marks
   [ "$(jq -r .toolchains <<<"$output")" != "$(jq -r .toolchains <<<"${before}")" ]

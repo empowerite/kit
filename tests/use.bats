@@ -91,7 +91,7 @@ setup() {
   run kit-bash 'use toolchain/brew && toolchain/brew:file'
   [ "$output" = "ours" ]
   run kit-bash 'use toolchain && toolchain:providers'
-  [ "$output" = "apt brew devcontainer dnf docker local mise nix pacman" ]
+  [ "$output" = "apt brew devcontainer dnf docker kit local mise nix pacman" ]
 }
 
 # child <script> runs the script in a child bash process that has loaded the loader, as a kit verb's child would.

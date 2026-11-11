@@ -418,6 +418,66 @@
           }
         }
       }
+    },
+    "tools": {
+      "type": "object",
+      "description": "The tools the kit toolchain pins, by name: each a version and the url of its download, which tools.lock records for every platform. See docs/toolchains/using-kit.md.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "url"
+        ],
+        "properties": {
+          "version": {
+            "type": "string",
+            "description": "The exact version, quoted so YAML keeps it as written: \"1.20\", not 1.2."
+          },
+          "url": {
+            "type": "string",
+            "pattern": "^https?://.+",
+            "description": "The download, with {version}, {platform}, {os}, and {arch} filled in."
+          },
+          "bin": {
+            "type": "string",
+            "description": "The directory, in what the url unpacks to, that holds the tool's commands; . by default."
+          },
+          "profile": {
+            "enum": [
+              "desk",
+              "ci"
+            ],
+            "description": "Install it on a desk alone, or on a runner alone; both when absent."
+          },
+          "os": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The tool's names for kit's linux and macos, as {macos: darwin}."
+          },
+          "arch": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The tool's names for kit's x64 and arm64, as {x64: amd64}."
+          },
+          "platforms": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "linux-x64",
+                "linux-arm64",
+                "macos-x64",
+                "macos-arm64"
+              ]
+            },
+            "description": "The platforms it is locked for; all four when absent."
+          }
+        }
+      }
     }
   }
 }
