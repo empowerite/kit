@@ -25,16 +25,17 @@ In a repository with kit, point kit's buttons at that server instead of the publ
 KIT_TUTORIALS_BASE=http://localhost:5173/ kit tutorials
 ```
 
-`npm run check` runs what the gate, `bin/ci`, runs here: `tsc`, the tests, a build for the base
-`/kit/tutorials/main/`, and `scripts/verify-dist.mjs`. The build fails on a page that throws, such as one with a
-`<Since>` whose version is not `X.Y.Z`. verify-dist then fails, naming the file, when a page under `src/content/`
-has no `dist/<path>/index.html`, or when an `href` or `src` in `dist/` starts with `/` but not with the base.
+`npm run check` runs what the gate, `bin/ci`, runs here: `tsc`, the tests, and a build for the base
+`/kit/tutorials/main/`. The build checks what it built and fails, naming the file, on a page that throws, such as one
+with a `<Since>` whose version is not `X.Y.Z`; on a page that renders empty; on a route with no `dist/<path>/index.html`;
+and on an `href` or `src` in `dist/` that resolves outside the base or names no file. A `TUTORIALS_BASE` that is not a
+path, such as a URL, fails it too.
 
 A build reads two variables:
 
 | Variable | Default | What it is |
 | --- | --- | --- |
-| `TUTORIALS_BASE` | `/` | The base path the site is served at, Vite's `base` |
+| `TUTORIALS_BASE` | `/` | The base path the site is served at, Vite's `base`, written with its slashes added |
 | `TUTORIALS_LINE` | `main` | The line of kit the site is for: `main`, `0.4`, or `0.5.0-rc.1` |
 
 `package.json` denies `fsevents` its install script, through `allowScripts`: the package ships its macOS binary

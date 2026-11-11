@@ -10,6 +10,8 @@ import remarkFrontmatter from "remark-frontmatter";
 import remarkMdxFrontmatter from "remark-mdx-frontmatter";
 import { defineConfig } from "vitest/config";
 
+import { filled, siteBase, verify } from "./src/build";
+
 const dist = resolve(import.meta.dirname, "dist");
 const server = join(dist, ".server");
 
@@ -18,29 +20,34 @@ interface Server {
   render(path: string): string;
 }
 
-function escape(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-// prerender writes each route's page into the shell the client build left in dist/index.html. A page that throws,
-// as one with <Since version="0.4"> does, fails the build. The replacements are functions, so a `$$`, `$&`, or `$'` in
-// a page's text is not read as a replacement pattern.
-async function prerender(): Promise<void> {
+// prerender writes each route's page into the shell the client build left in dist/index.html, then checks dist/. A
+// page that throws, as one with <Since version="0.4"> does, fails the build under its route's path, and so do the
+// problems verify finds.
+async function prerender(base: string): Promise<void> {
   const shell = await readFile(join(dist, "index.html"), "utf8");
   const { routes, render }: Server = await import(pathToFileURL(join(server, "server.js")).href);
   for (const route of routes) {
-    const html = shell
-      .replace("<title>kit tutorials</title>", () => `<title>${escape(route.title)} · kit tutorials</title>`)
-      .replace("<!--page-->", () => render(route.path));
+    let page: string;
+    try {
+      page = render(route.path);
+    } catch (error) {
+      throw new Error(`${route.path}: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
+    }
     await mkdir(join(dist, route.path), { recursive: true });
-    await writeFile(join(dist, route.path, "index.html"), html);
+    await writeFile(join(dist, route.path, "index.html"), filled(shell, route, page));
   }
   await rm(server, { recursive: true });
+  const problems = await verify(dist, base, routes.map((route) => route.path));
+  if (problems.length > 0) {
+    throw new Error(problems.join("\n"));
+  }
 }
+
+const base = siteBase(process.env.TUTORIALS_BASE);
 
 export default defineConfig({
   // A build is for one host's path, as /kit/tutorials/main/ or /tutorials/0.4/; `npm run dev` serves at /.
-  base: process.env.TUTORIALS_BASE || "/",
+  base,
   // TUTORIALS_LINE, the line of kit the site is for, reaches the pages as import.meta.env.TUTORIALS_LINE.
   envPrefix: "TUTORIALS_",
   plugins: [
@@ -54,7 +61,7 @@ export default defineConfig({
     async buildApp(builder) {
       await builder.build(builder.environments.client);
       await builder.build(builder.environments.ssr);
-      await prerender();
+      await prerender(base);
     },
   },
   test: { environment: "jsdom" },

@@ -10,7 +10,8 @@
 #     their schemas, and the examples in every schema of a tool's output under docs/integrations/ against it
 #   - lychee: every link in the markdown, offline, including fragments
 #   - ajv: the front matter of every page of the tutorials site against its schema
-#   - npm run check over projects/tutorials/, the tutorials site: tsc, its tests, a build for a base, and verify-dist
+#   - npm run check over projects/tutorials/, the tutorials site: tsc, its tests, and a build for a base
+#     that fails on an empty page, a dead link, or a bad base
 #   - the bats suite, one job per CPU, each test stopped and failed at five minutes
 #   - gofmt, go vet, and go test over projects/tui/, the kit tui binary, with at least 98% of its statements covered
 #   - kit/bin/kit check over this repository's installed copy of its own kit
