@@ -261,29 +261,23 @@ JSON
   fixture runs.json <<'JSON'
 [{"id": 104, "buildNumber": "50", "sourceVersion": "aaaaaaa0000000000", "definition": {"name": "kit"},
   "sourceBranch": "refs/heads/7-fix-the-thing", "reason": "pullRequest", "status": "completed", "result": "succeeded",
-  "queueTime": "2026-10-01T11:00:00Z", "startTime": "2026-10-01T11:00:00Z", "finishTime": "2026-10-01T11:03:00Z",
-  "_links": {"web": {"href": "https://dev.azure.com/r/104"}}},
+  "queueTime": "2026-10-01T11:00:00Z", "startTime": "2026-10-01T11:00:00Z", "finishTime": "2026-10-01T11:03:00Z"},
  {"id": 103, "buildNumber": "49", "sourceVersion": "8e817bf0000000000", "definition": {"name": "kit"},
   "sourceBranch": "refs/heads/main", "reason": "individualCI", "status": "completed", "result": "succeeded",
   "queueTime": "2026-10-01T10:00:00.123000+00:00", "startTime": "2026-10-01T12:00:00.500000+02:00",
-  "finishTime": "2026-10-01T10:03:36.500000+00:00",
-  "_links": {"web": {"href": "https://dev.azure.com/r/103"}}},
+  "finishTime": "2026-10-01T10:03:36.500000+00:00"},
  {"id": 102, "buildNumber": "48", "sourceVersion": "1a2b3c40000000000", "definition": {"name": "kit"},
   "sourceBranch": "refs/tags/release/0.1.0", "reason": "individualCI", "status": "completed", "result": "failed",
-  "queueTime": "2026-10-01T09:00:00Z", "startTime": "2026-10-01T09:00:00Z", "finishTime": "2026-10-01T09:04:02Z",
-  "_links": {"web": {"href": "https://dev.azure.com/r/102"}}},
+  "queueTime": "2026-10-01T09:00:00Z", "startTime": "2026-10-01T09:00:00Z", "finishTime": "2026-10-01T09:04:02Z"},
  {"id": 101, "buildNumber": "47", "sourceVersion": "8e817bf0000000000", "definition": {"name": "kit"},
   "sourceBranch": "refs/heads/main", "reason": "schedule", "status": "inProgress",
-  "queueTime": "2026-10-01T08:00:00Z", "startTime": "2026-10-01T08:00:00Z",
-  "_links": {"web": {"href": "https://dev.azure.com/r/101"}}},
+  "queueTime": "2026-10-01T08:00:00Z", "startTime": "2026-10-01T08:00:00Z"},
  {"id": 100, "buildNumber": "46", "sourceVersion": "bbbbbbb0000000000", "definition": {"name": "kit"},
   "sourceBranch": "refs/heads/9-other", "reason": "individualCI", "status": "completed", "result": "succeeded",
-  "queueTime": "2026-10-01T07:00:00Z", "startTime": "2026-10-01T07:00:00Z", "finishTime": "2026-10-01T07:01:00Z",
-  "_links": {"web": {"href": "https://dev.azure.com/r/100"}}},
+  "queueTime": "2026-10-01T07:00:00Z", "startTime": "2026-10-01T07:00:00Z", "finishTime": "2026-10-01T07:01:00Z"},
  {"id": 99, "buildNumber": "45", "sourceVersion": "5d376dd0000000000", "definition": {"name": "kit"},
   "sourceBranch": "refs/heads/9-other", "reason": "manual", "status": "completed", "result": "canceled",
-  "queueTime": "2026-10-01T06:00:00Z", "startTime": "2026-10-01T06:00:00Z", "finishTime": "2026-10-01T06:00:42Z",
-  "_links": {"web": {"href": "https://dev.azure.com/r/99"}}}]
+  "queueTime": "2026-10-01T06:00:00Z", "startTime": "2026-10-01T06:00:00Z", "finishTime": "2026-10-01T06:00:42Z"}]
 JSON
   az-route 'pipelines runs list --project empowerite --top 50 --query-order QueueTimeDesc --output json' runs.json
   expected='[{"id":103,"number":49,"attempt":1,"workflow":"kit","branch":"main","tag":false,"event":"push",'
@@ -298,7 +292,9 @@ JSON
   [ "$status" -eq 0 ]
   [ "$(jq --compact-output --sort-keys 'map(del(.age, .url, .jobs, .title))' <<<"$output")" \
     = "$(jq --compact-output --sort-keys . <<<"${expected}")" ]
-  [ "$(jq 'map(.age > 0 and (.url | startswith("https://")) and .jobs == []) | all' <<<"$output")" = true ]
+  [ "$(jq 'map(.age > 0 and .jobs == []) | all' <<<"$output")" = true ]
+  # az drops a run's _links, so its page is built from the organization, the project, and the run's id
+  [ "$(jq --raw-output '.[0].url' <<<"$output")" = 'https://dev.azure.com/acme/empowerite/_build/results?buildId=103' ]
 }
 
 @test "Azure DevOps lacks rate limits, marks, releases, and linked branches, and says so in its declaration" {

@@ -340,14 +340,15 @@ forge/ado:require() {
 # the project's pipelines, those forge.jq's builds keeps. A run's jobs would cost a call each, so every run carries
 # none.
 forge/ado:runs() {
-  local list default tags project
-  IFS=$'\t' read -r _ project _ < <(forge/ado:place) || return 1
+  local list default tags org project
+  IFS=$'\t' read -r org project _ < <(forge/ado:place) || return 1
   forge/ado:ask list 'the pipeline runs' pipelines runs list --project "${project}" --top 50 --query-order QueueTimeDesc \
     || return 1
   default=$(git:default-branch) || return 1
   tags=$(forge:tags) || return 1
   forge/ado:fold 'the pipeline runs' "${list}" --compact-output --argjson now "$(date +%s)" --arg default "${default}" \
-    --argjson tags "${tags}" 'import "forge" as forge; forge::ado_builds($now; $default; $tags)'
+    --argjson tags "${tags}" --arg results "${org}/$(forge/ado:encode "${project}")/_build/results" \
+    'import "forge" as forge; forge::ado_builds($now; $default; $tags; $results)'
 }
 
 # forge/ado:issue-url <id> prints the work item's browser URL, for the forge's own tracker.

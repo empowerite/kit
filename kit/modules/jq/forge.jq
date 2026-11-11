@@ -427,10 +427,11 @@ def ado_build_state:
   elif .result == "failed" then "failed"
   else "cancelled" end;
 
-# ado_builds($now; $default; $tags) reads az pipelines runs list's answer and gives the builds stage's runs. Azure
-# Pipelines names the event the reason: a continuous integration build is a push, a manual one workflow_dispatch.
-# The run's number is its build number, which a pipeline formats as it likes, so it is null when it is no count.
-def ado_builds($now; $default; $tags):
+# ado_builds($now; $default; $tags; $results) reads az pipelines runs list's answer and gives the builds stage's runs.
+# Azure Pipelines names the event the reason: a continuous integration build is a push, a manual one
+# workflow_dispatch. The run's number is its build number, which a pipeline formats as it likes, so it is null when it
+# is no count. az drops a run's _links, so its page is $results, the project's build results, with the run's id.
+def ado_builds($now; $default; $tags; $results):
   map({ id, number: (.buildNumber // "" | if test("^[0-9]+$") then tonumber else null end),
         workflow: (.definition.name // "pipeline"),
         branch: ((.sourceBranch // "") | sub("^refs/(heads|tags)/"; "")),
@@ -438,5 +439,5 @@ def ado_builds($now; $default; $tags):
         event: ({individualCI: "push", batchedCI: "push", schedule: "schedule", manual: "workflow_dispatch",
                  pullRequest: "pull_request"}[.reason] // .reason),
         title: (.triggerInfo["ci.message"] // ""), state: ado_build_state, createdAt: .queueTime,
-        started: .startTime, ended: .finishTime, url: (._links.web.href // null) })
+        started: .startTime, ended: .finishTime, url: (._links.web.href // "\($results)?buildId=\(.id)") })
   | builds($default; $tags) | map(build($now));
