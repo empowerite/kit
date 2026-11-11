@@ -9,17 +9,25 @@
 #
 # kit workspaces --use <workspace>
 #
-# kit workspaces --new <name> [<repository>…]
+# kit workspaces --new=<name> [<repository>…]
 #
-# kit workspaces (--add | --remove) <name> <repository>…
+# kit workspaces --add=<name> <repository>…
 #
-# kit workspaces (--favorite | --unfavorite) <workspace>
+# kit workspaces --remove=<name> <repository>…
+#
+# kit workspaces --rename=<name> <new-name>
+#
+# kit workspaces --delete=<name>
+#
+# kit workspaces --favorite=<workspace>
+#
+# kit workspaces --unfavorite=<workspace>
 #
 # A workspace is what kit looks at: one repository, or a named group of them, as a group of repositories that move
 # together. Groups are yours alone, kept in kit/workspaces.yml under XDG_CONFIG_HOME, else ~/.config, which you may
 # edit by hand; kit keeps your comments when it edits the file. A repository is named by its host and its whole path,
-# github.com/empowerite/edge. Its checkout is the clone under one of the file's roots, at most four levels down, whose
-# primary remote points at it.
+# github.com/empowerite/edge, spelled one way: the host in lower case, and on GitHub and GitLab the path too. Its
+# checkout is the clone under one of the file's roots, at most four levels down, whose primary remote points at it.
 #
 # With no option, it lists the groups and the favorites. Inside a repository kit starts on that repository; outside
 # one, on the last group used; with none used, on none.
@@ -34,10 +42,13 @@
 #   --new             makes a group, with the repositories given as its members
 #   --add             adds the repositories to a group's members
 #   --remove          takes the repositories out of a group's members
+#   --rename          gives a group a new name, in its place in the file, and keeps it the last used if it was
+#   --delete          takes a group, and its favorite, out of the file; its checkouts are as they were
 #   --favorite        adds a workspace to the favorites
 #   --unfavorite      takes a workspace out of the favorites
 #   <workspace>       a group's name, or a repository: github.com/empowerite/edge or a git URL
 #   <name>            a group's name: lowercase letters, digits, and . _ -, and never none
+#   <new-name>        the name --rename gives the group, as a <name> is written and no other group's
 #   <repository>      github.com/empowerite/edge, a git URL, or a checkout's directory
 #
 # The list's JSON is {file, roots, favorites, workspaces}, each group {name, members, favorite}, members a count.
@@ -47,10 +58,16 @@
 # groups, favorites}: kind is repository, group, or none; why is given, repository, last, or none; members a group's,
 # as --show gives each; groups, for a repository, each group that holds it, {name, members}, members a count; and
 # favorites {name, kind, members, checkout}. Only the JSON looks for checkouts; the text names the workspace alone.
+# The forms that edit print one line, and take no --json.
+#
+# Each form that edits takes the file's lock first, a link in kit/workspaces/ under XDG_CACHE_HOME, else ~/.cache, so
+# two commands that edit the file at once each land. A lock whose process is gone is taken over; one held by a live
+# process is waited for, 30 seconds at most.
 #
 # Exits 0 when it printed or edited, 1 when the file does not read, is not a map, gives a group a key other than repos
-# and exclude, holds an entry that is no repository, or a list it reads, such as the checkouts under the roots,
-# cannot be read, and 2 on a usage error, or a workspace or group that is unknown.
+# and exclude, holds an entry that is no repository, a list it reads, such as the checkouts under the roots, cannot be
+# read, or another process holds the file's lock past the wait, and 2 on a usage error, a workspace or group that is
+# unknown, or a new name --rename refuses or another group has.
 #
 # see: modules/bash/workspaces.sh, docs/workspaces.md, issue #89
 
@@ -59,6 +76,30 @@ set -o errexit -o nounset -o pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use workspaces
+
+# The forms that name a group or a workspace are written --option=<value>; given as the next word, the value is joined
+# to its option first, so --add w reads as --add=w.
+words=()
+while (( $# ))
+do
+  if [[ "$1" == -- ]]
+  then
+    words+=("$@")
+    break
+  fi
+  case "$1" in
+    (--new | --add | --remove | --rename | --delete | --favorite | --unfavorite)
+      if (( $# > 1 )) && [[ "$2" != -* ]]
+      then
+        words+=("$1=$2")
+        shift 2
+        continue
+      fi
+  esac
+  words+=("$1")
+  shift
+done
+set -- "${words[@]}"
 guard:arguments workspaces "$@" || exit $?
 
 action=list target='' workspace='' form=''
@@ -68,7 +109,10 @@ do
   # --option=value is --option value, as kit syntax reads it
   [[ "$1" != --*=* ]] || set -- "${1%%=*}" "${1#*=}" "${@:2}"
   case "$1" in
-    (--show | --use | --new | --add | --remove | --favorite | --unfavorite) action=${1#--} target=$2; shift ;;
+    (--show | --use | --new | --add | --remove | --rename | --delete | --favorite | --unfavorite)
+      action=${1#--} target=$2
+      shift
+      ;;
     (--current) action=current ;;
     (--workspace) workspace=$2; shift ;;
     (--text | --json) form=$1 ;;
@@ -78,6 +122,10 @@ do
   shift
 done
 
+# A form that edits the file takes its lock before it reads the file, so what it checks and what it writes are one turn.
+case "${action}" in
+  (new | add | remove | rename | delete | favorite | unfavorite) workspaces:lock || exit 1
+esac
 workspaces:check || exit 1
 
 # print <json> <text-filter> prints the JSON as the form asks: on one line, through jq for a person, or as text by the
@@ -118,7 +166,7 @@ case "${action}" in
     workspaces:remember "${target}"
     step "kit starts on 📚 ${target} outside a repository"
     ;;
-  (new | add | remove)
+  (new | add | remove | rename | delete)
     groups=$(workspaces:names)
     if [[ "${action}" == new ]]
     then
@@ -137,6 +185,32 @@ case "${action}" in
     then
       error "'${target}' is no workspace in $(workspaces:file); run: kit workspaces"
       exit 2
+    fi
+    if [[ "${action}" == rename ]]
+    then
+      name=${args[0]}
+      refusal=$(workspaces:name-refusal "${name}")
+      if [[ -n "${refusal}" ]]
+      then
+        error "${refusal}"
+        exit 2
+      fi
+      if grep --quiet --line-regexp --fixed-strings -- "${name}" <<<"${groups}"
+      then
+        error "📚 ${name} is a workspace already; choose another name"
+        exit 2
+      fi
+      last=$(workspaces:last) || exit 1
+      workspaces:rename "${target}" "${name}" || exit 1
+      [[ "${last}" != "${target}" ]] || workspaces:remember "${name}" || exit 1
+      step "📚 ${target} is now 📚 ${name}"
+      exit 0
+    fi
+    if [[ "${action}" == delete ]]
+    then
+      workspaces:delete "${target}" || exit 1
+      step "📚 ${target} is deleted; its checkouts are as they were"
+      exit 0
     fi
     members=()
     for repository in "${args[@]}"
@@ -184,10 +258,18 @@ case "${action}" in
     esac
     ;;
   (favorite | unfavorite)
-    line=$(workspaces:kind "${target}") || exit $?
-    read -r _ name <<<"${line}"
     declare -a favorites
     list:read favorites workspaces:favorites || exit 1
+    # A favorite written as given is taken out before the workspace is looked up, so one that names no workspace, as a
+    # deleted group's, can be.
+    if [[ "${action}" == unfavorite ]] && list:among "${target}" "${favorites[@]}"
+    then
+      workspaces:disfavor "${target}" || exit 1
+      step "📚 ${target} is no longer a favorite"
+      exit 0
+    fi
+    line=$(workspaces:kind "${target}") || exit $?
+    read -r _ name <<<"${line}"
     if [[ "${action}" == favorite ]] && ! list:among "${name}" "${favorites[@]}"
     then
       workspaces:favor "${name}" || exit 1

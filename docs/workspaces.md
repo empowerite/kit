@@ -21,7 +21,8 @@ workspaces:
     exclude: [github.com/empowerite/attic]
 ```
 
-- `roots` are the directories kit looks under for checkouts. A leading `~` is your home directory.
+- `roots` are the directories kit looks under for checkouts. A leading `~` is your home directory, and a root
+  written twice, as `~/Code` and `~/Code/`, counts once.
 - `favorites` names workspaces to keep at hand: a group's name, or a repository.
 - Each group has `repos`, its members, and may have `exclude`, which takes members back out.
 
@@ -38,7 +39,9 @@ used, `kit flow` and `kit workspace` with no `--workspace` read no file.
 ## Members and checkouts
 
 A member is named by its host and its whole path: `github.com/empowerite/edge`, or `gitlab.com/group/sub/repo` on
-GitLab. A git URL names the same member, so `git@github.com:empowerite/jig.git` is `github.com/empowerite/jig`.
+GitLab. A git URL names the same member, so `git@github.com:empowerite/jig.git` is `github.com/empowerite/jig`. kit
+spells a member one way: the host in lower case, and on GitHub and GitLab the path too, so `github.com/NixOS/nixpkgs`
+is `github.com/nixos/nixpkgs`.
 
 A member's checkout is a clone under one of the roots whose primary remote points at it: the `primary` setting in its
 `kit.yml`, else `origin`. A clone's other remotes never make it a checkout of another member, so a fork's clone, with
@@ -67,15 +70,18 @@ kit workspaces                                    # the groups and the favorites
 kit workspaces --show empowerite                  # each member, with its checkout or ☁️
 kit workspaces --current                          # the workspace kit starts on here, and why
 kit workspaces --use empowerite                   # start on empowerite outside a repository
-kit workspaces --new empowerite . github.com/empowerite/kit
-kit workspaces --add empowerite github.com/empowerite/edge
-kit workspaces --remove empowerite github.com/empowerite/edge
-kit workspaces --favorite empowerite
-kit workspaces --unfavorite empowerite
+kit workspaces --new=empowerite . github.com/empowerite/kit
+kit workspaces --add=empowerite github.com/empowerite/edge
+kit workspaces --remove=empowerite github.com/empowerite/edge
+kit workspaces --rename=empowerite core           # the group keeps its place, its comments, and its favorite
+kit workspaces --delete=core                      # the group goes; its checkouts are as they were
+kit workspaces --favorite=empowerite
+kit workspaces --unfavorite=empowerite
 ```
 
-`--new` and `--add` take a member, a git URL, or a checkout's directory, as `.` for the repository you are in. Each
-form prints JSON with `--json`; `kit help workspaces` gives the shapes.
+`--new` and `--add` take a member, a git URL, or a checkout's directory, as `.` for the repository you are in. The
+forms that read print JSON with `--json`; `kit help workspaces` gives the shapes. The forms that edit print one line,
+and take no `--json`. Each takes the file's lock first, so two commands that edit the file at once each land.
 
 ## kit flow over a workspace
 

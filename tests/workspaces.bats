@@ -254,6 +254,42 @@ YML
   [ "$status" -eq 2 ]
 }
 
+@test "twelve --add at once all land; a dead holder's lock is taken over, and a live one's refuses with 1" {
+  workspaces-file <<<'workspaces: {w: {repos: [github.com/a/m0]}}'
+  for n in 1 2 3 4 5 6 7 8 9 10 11 12; do "${kit_root}/bin/kit" workspaces --add=w "github.com/a/m${n}" & done; wait
+  lock="${XDG_CACHE_HOME}/kit/workspaces/workspaces.yml.lock"
+  true & gone=$!; wait "${gone}"; ln -s "${gone}" "${lock}"   # ln fails when an --add left its lock behind
+  kit-bash 'workspaces:add w github.com/a/m13'
+  sleep 30 3>&- & holder=$!; ln -s "${holder}" "${lock}"
+  run kit-bash 'workspaces_lock_wait=2; workspaces:add w github.com/a/m14'
+  kill "${holder}"
+  [[ "$status" -eq 1 && "$output" == *"workspaces.yml is being edited by process ${holder}"* ]]
+  [ "$(kit-bash 'workspaces:fixed w' | grep -c .)" -eq 14 ]
+}
+
+@test "--rename and --delete keep the comment, the favorites, and the last group; a member is matched once" {
+  clone-at "${BATS_TEST_TMPDIR}/code/one" https://GitHub.com/A/One.git
+  printf 'roots: ["%s", "%s/"]\nfavorites: [w, gone]\nworkspaces:\n  # the core\n  w: {repos: [github.com/a/one]}\n' \
+    "${BATS_TEST_TMPDIR}/code" "${BATS_TEST_TMPDIR}/code" | workspaces-file
+  for words in "--use w" "--new=z github.com/a/two" "--rename=w core" "--unfavorite=gone" \
+    "--add=core GitHub.com/A/One github.com/a/three"
+  do
+    "${kit_root}/bin/kit" workspaces ${words}
+  done
+  for words in "--rename=core z" "--rename=core none" "--rename=core Bad/Name" "--rename=no x" "--delete=no"
+  do
+    run "${kit_root}/bin/kit" workspaces ${words}
+    [ "$status" -eq 2 ]
+  done
+  grep --quiet '# the core' "${XDG_CONFIG_HOME}/kit/workspaces.yml"
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
+  [ "$(jq -c '[.name, .why, .favorites[].name, (.members[].checkouts | length)]' <<<"$output")" = \
+    '["core","last","core",1,0]' ]
+  "${kit_root}/bin/kit" workspaces --delete=core
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
+  [ "$(jq -c '[.kind, .favorites]' <<<"$output")" = '["none",[]]' ]
+}
+
 @test "a relative path is no member: the file refuses one, and the verb reads a directory from where it runs" {
   workspaces-file <<YML
 workspaces:

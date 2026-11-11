@@ -11,10 +11,13 @@
 # never make it a checkout of another member, so a fork's clone counts once.
 #
 # see: docs/workspaces.md
-use git yaml
+use git yaml file
 
 # workspaces_walk_depth is how many directories below each root kit looks for checkouts.
 workspaces_walk_depth=4
+
+# workspaces_lock_wait is how many turns of 0.1 second workspaces:lock waits for a lock another process holds.
+workspaces_lock_wait=300
 
 # workspaces_checked is 1 once workspaces:check has passed, so a subshell does not check the file again; empty until it
 # does.
@@ -26,8 +29,19 @@ workspaces:file() { printf '%s\n' "${XDG_CONFIG_HOME:-${HOME}/.config}/kit/works
 # workspaces:cache prints the directory kit keeps its own workspace state in, which may not exist.
 workspaces:cache() { printf '%s\n' "${XDG_CACHE_HOME:-${HOME}/.cache}/kit/workspaces"; }
 
-# workspaces:url-member <url> prints the member a git URL names, host and path, or nothing for a remote on this
-# machine or a path of fewer than two segments.
+# workspaces:spelled <member> prints a member as kit spells it, so one repository has one name: the host in lower case,
+# and on github.com, gitlab.com, and the hosts under them, whose paths match in any case, the path in lower case too.
+workspaces:spelled() {
+  local host=${1%%/*} path=${1#*/}
+  host=${host,,}
+  case "${host}" in
+    (github.com | gitlab.com | *.github.com | *.gitlab.com) path=${path,,} ;;
+  esac
+  printf '%s/%s\n' "${host}" "${path}"
+}
+
+# workspaces:url-member <url> prints the member a git URL names, host and path as workspaces:spelled spells them, or
+# nothing for a remote on this machine or a path of fewer than two segments.
 workspaces:url-member() {
   local url=$1 host path=''
   host=$(forge:url-host "${url}")
@@ -46,7 +60,7 @@ workspaces:url-member() {
   path=${path#/}
   path=${path%.git}
   [[ "${path}" == */* ]] || return 0
-  printf '%s/%s\n' "${host}" "${path}"
+  workspaces:spelled "${host}/${path}"
 }
 
 # workspaces:member-of <dir> prints the member of the checkout at <dir>, from its primary remote, or nothing.
@@ -57,10 +71,12 @@ workspaces:member-of() {
   workspaces:url-member "${url}"
 }
 
-# workspaces:roots prints each root the file names, a leading ~ as HOME, one per line, in the file's order.
+# workspaces:roots prints each root the file names once, a leading ~ as HOME and without its trailing slashes, one per
+# line, in the file's order.
 workspaces:roots() {
   local root
   local -a roots
+  local -A seen=()
   list:read roots yaml:list "$(workspaces:file)" roots || return 1
   for root in "${roots[@]}"
   do
@@ -68,6 +84,13 @@ workspaces:roots() {
       (\~) root=${HOME} ;;
       (\~/*) root=${HOME}/${root#\~/} ;;
     esac
+    while [[ "${root}" == ?*/ ]]
+    do
+      root=${root%/}
+    done
+    # A space leads each key, as bash takes no empty key, and a root may be written empty.
+    [[ -z "${seen[" ${root}"]:-}" ]] || continue
+    seen[" ${root}"]=1
     printf '%s\n' "${root}"
   done
 }
@@ -103,9 +126,10 @@ workspaces:json() {
   printf '%s\n' "${doc:-{\}}"
 }
 
-# workspaces:normalize <entry> [dirs] prints the member an entry names: host and path as they are, less a .git, or the
-# member of a git URL. A host holds a dot, as github.com does, so a relative path, ./edge or ../edge, names none. With
-# dirs, a directory, read from where kit was run, names the member of the checkout there. It prints nothing otherwise.
+# workspaces:normalize <entry> [dirs] prints the member an entry names, as workspaces:spelled spells it: host and path,
+# less a .git, or the member of a git URL. A host holds a dot, as github.com does, so a relative path, ./edge or
+# ../edge, names none. With dirs, a directory, read from where kit was run, names the member of the checkout there. It
+# prints nothing otherwise.
 workspaces:normalize() {
   local entry=$1 dirs=${2:-} dir=$1
   [[ "${dir}" == /* ]] || dir=${kit_invoked_in:-${PWD}}/${entry}
@@ -118,7 +142,7 @@ workspaces:normalize() {
   elif [[ "${entry}" =~ ^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+(/[^/[:space:]]+){2,}$ && "${entry}/" != *"/./"* &&
     "${entry}/" != *"/../"* ]]
   then
-    printf '%s\n' "${entry%.git}"
+    workspaces:spelled "${entry%.git}"
   fi
 }
 
@@ -496,11 +520,42 @@ workspaces:menu-json() {
     '. + {members: $members, groups: $groups, favorites: $favorites}' <<<"${current}"
 }
 
-# workspaces:edit <expression> runs a yq expression over the file in place, which keeps its comments, making the file,
-# and its directory, first where there is none. Values reach the expression through the environment, by strenv, never
-# in its text.
+# workspaces:lock takes the lock on the workspace file for this command, or returns 0 when this command holds it. The
+# lock is workspaces.yml.lock in workspaces:cache's directory: a symbolic link that names the command's process, made by
+# ln -s, which fails when the link is there, so one process alone makes it, and removed at exit when it still names the
+# process. A lock whose target is no number, or names a process that is gone, is removed and taken. Any other waits
+# 0.1 second a turn, workspaces_lock_wait turns, and then it returns 1, naming the process that holds it.
+workspaces:lock() {
+  local dir lock holder='' waited=0
+  dir=$(workspaces:cache)
+  lock=${dir}/workspaces.yml.lock
+  [[ "$(readlink "${lock}" 2>/dev/null)" != "$$" ]] || return 0
+  mkdir -p "${dir}" || return 1
+  until ln -s "$$" "${lock}" 2>/dev/null
+  do
+    if holder=$(readlink "${lock}" 2>/dev/null) \
+      && { [[ ! "${holder}" =~ ^[0-9]+$ ]] || ! kill -0 "${holder}" 2>/dev/null; }
+    then
+      forge:unlock "${lock}" "${holder}"
+      [[ -L "${lock}" ]] || continue
+    fi
+    if (( waited >= workspaces_lock_wait ))
+    then
+      error "$(workspaces:file) is being edited by process ${holder}; run the command again"
+      return 1
+    fi
+    sleep 0.1
+    waited=$(( waited + 1 ))
+  done
+  file:at-exit forge:unlock "${lock}" "$$"
+}
+
+# workspaces:edit <expression> takes the file's lock, as workspaces:lock does, and runs a yq expression over the file
+# in place, which keeps its comments, making the file, and its directory, first where there is none. Values reach the
+# expression through the environment, by strenv, never in its text.
 workspaces:edit() {
   local file
+  workspaces:lock || return 1
   file=$(workspaces:file)
   if [[ ! -f "${file}" ]]
   then
@@ -538,6 +593,20 @@ workspaces:drop() {
   kit_ws_name=${name} kit_ws_list=$(workspaces:json-list "$@") \
     workspaces:edit '(strenv(kit_ws_list) | from_yaml) as $drop
       | .workspaces[strenv(kit_ws_name)].repos |= map(select(. as $e | ($drop | map(select(. == $e)) | length) == 0))'
+}
+
+# workspaces:rename <name> <new> gives a group a new name, in its place in the file and with its comments, and gives
+# its favorite the new name too. It writes favorites only where the file has them.
+workspaces:rename() {
+  kit_ws_name=$1 kit_ws_new=$2 workspaces:edit '(.workspaces[strenv(kit_ws_name)] | key) = strenv(kit_ws_new)
+    | with(select(has("favorites")); (.favorites[] | select(. == strenv(kit_ws_name))) = strenv(kit_ws_new))'
+}
+
+# workspaces:delete <name> takes a group, and its favorite, out of the file. It writes favorites only where the file
+# has them.
+workspaces:delete() {
+  kit_ws_name=$1 workspaces:edit 'del(.workspaces[strenv(kit_ws_name)])
+    | with(select(has("favorites")); .favorites |= map(select(. != strenv(kit_ws_name))))'
 }
 
 # workspaces:favor <workspace> adds a workspace to the favorites; workspaces:disfavor takes it out.
