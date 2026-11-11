@@ -77,19 +77,19 @@ func TestTheTermsAreATableOfCommandsTermsMeaningsAndExamples(t *testing.T) {
 	if m = drive(m, down); !m.inPane || !strings.Contains(keysAt(m), "↓ rows") {
 		t.Fatalf("down: in the pane %v, keys %q", m.inPane, keysAt(m))
 	}
-	if m = drive(m, down); !m.terms.InRows() || !strings.Contains(keysAt(m), "␣·⇧↑↓ select") {
+	if m = drive(m, down); !termsSheet(m).InRows() || !strings.Contains(keysAt(m), "␣·⇧↑↓ select") {
 		t.Errorf("down into the rows: keys %q", keysAt(m))
 	}
 	// a key the table does not take, as a step's number, is the screen's still
-	if m = drive(m, tea.KeyPressMsg{Code: '5', Text: "5"}); m.step != land || m.inPane || m.terms.Focused() {
+	if m = drive(m, tea.KeyPressMsg{Code: '5', Text: "5"}); m.step != land || m.inPane || termsSheet(m).Focused() {
 		t.Errorf("5 from the terms' rows: step %d, in the pane %v", m.step, m.inPane)
 	}
 	// esc in the rows gives the bar the keyboard
-	if m = drive(m, press('6'), enter, down, down, esc); m.inPane || m.terms.Focused() {
+	if m = drive(m, press('6'), enter, down, down, esc); m.inPane || termsSheet(m).Focused() {
 		t.Errorf("esc in the rows: in the pane %v", m.inPane)
 	}
 	// tab from the bar moves to the next step, and the table holds no keyboard there
-	if m = drive(m, tabKey); m.step != yours || m.terms.Focused() {
+	if m = drive(m, tabKey); m.step != yours || termsSheet(m).Focused() {
 		t.Errorf("tab: step %d", m.step)
 	}
 	if m = drive(m, backTab, up); m.inPane {
@@ -114,6 +114,9 @@ func TestByCommandStandsOncePerTermGroupedByItsCommand(t *testing.T) {
 	}
 }
 
+// termsSheet gives the terms step's table.
+func termsSheet(m Model) *table.Sheet { return m.tabs[indexOf(m.tabs, "terms")].sheet }
+
 // pill gives a term as the test's view draws its pill: the text between the half circles, their colors stripped.
 func pill(text string) string { return "\ue0b6" + text + "\ue0b4" }
 
@@ -137,16 +140,17 @@ func TestTheSearchNarrowsTheTerms(t *testing.T) {
 		t.Errorf("searched:\n%s", got)
 	}
 	// enter gives the rows the keyboard, the search kept
-	if m = drive(m, enter); !m.terms.InRows() || !m.inPane || !strings.Contains(view(m), pill("worktree")) {
-		t.Errorf("enter from the search: in the rows %v", m.terms.InRows())
+	if m = drive(m, enter); !termsSheet(m).InRows() || !m.inPane || !strings.Contains(view(m), pill("worktree")) {
+		t.Errorf("enter from the search: in the rows %v", termsSheet(m).InRows())
 	}
 	m = drive(m, press('/'), tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl})
 	m = drive(m, testkit.Typed("nothing like it")...)
 	if !strings.Contains(view(m), "no row matches the search") {
 		t.Errorf("none searched:\n%s", view(m))
 	}
-	if m = drive(m, enter); !m.inPane || m.terms.InRows() {
-		t.Errorf("enter from a search no term matches: in the pane %v, in the rows %v", m.inPane, m.terms.InRows())
+	if m = drive(m, enter); !m.inPane || termsSheet(m).InRows() {
+		t.Errorf("enter from a search no term matches: in the pane %v, in the rows %v", m.inPane,
+			termsSheet(m).InRows())
 	}
 }
 
@@ -166,18 +170,18 @@ func TestAClickReachesTheTermsTable(t *testing.T) {
 	}
 	// a click on a term puts the cursor there, the table with the keyboard
 	x, y := at(pill("worktree"))
-	if m = drive(m, click(x, y)); !m.inPane || !m.terms.InRows() {
+	if m = drive(m, click(x, y)); !m.inPane || !termsSheet(m).InRows() {
 		t.Fatalf("a click on worktree: in the pane %v", m.inPane)
 	}
 	// a click on the selector drops the presets down, a layer that takes the next click, on Compact
 	x, y = at("Default ▼")
-	if m = drive(m, click(x, y)); !m.terms.Layered() {
+	if m = drive(m, click(x, y)); !termsSheet(m).Layered() {
 		t.Fatal("a click on the selector")
 	}
 	lines = strings.Split(view(m), "\n")
 	x, y = at("Compact")
-	if m = drive(m, click(x, y)); m.terms.Layered() || m.terms.Table().ViewName != "Compact" {
-		t.Fatalf("a click on Compact: %q", m.terms.Table().ViewName)
+	if m = drive(m, click(x, y)); termsSheet(m).Layered() || termsSheet(m).Table().ViewName != "Compact" {
+		t.Fatalf("a click on Compact: %q", termsSheet(m).Table().ViewName)
 	}
 	header := strings.Split(view(m), "\n")[paneTop+6]
 	if !strings.Contains(header, "term ") || !strings.Contains(header, "meaning") ||
@@ -185,7 +189,7 @@ func TestAClickReachesTheTermsTable(t *testing.T) {
 		t.Errorf("Compact hides the command and the examples, a row a term:\n%s", view(m))
 	}
 	// Save As… saves the table as a preset of the person's, which the keys bar says, until it fades
-	m.terms.Focus()
+	termsSheet(m).Focus()
 	// on the picker, enter drops the presets down, s moves past Save, dim on Compact, to Save As…, and enter takes it
 	m = drive(m, testkit.Press("tab"), enter, testkit.Press("s"), enter)
 	m = drive(m, testkit.Typed("mine")...)
@@ -198,7 +202,7 @@ func TestAClickReachesTheTermsTable(t *testing.T) {
 		t.Errorf("the notice did not fade: %q", lastLine(m))
 	}
 	// a click off the table, on the lead, is no one's
-	if m = drive(m, click(5, paneTop)); m.terms.Layered() {
+	if m = drive(m, click(5, paneTop)); termsSheet(m).Layered() {
 		t.Error("a click on the lead")
 	}
 }
@@ -212,7 +216,7 @@ func lastLine(m Model) string {
 func TestTheTermsTableFollowsTheSettingsAndTheScreensSize(t *testing.T) {
 	m, _ := loaded(t, press('6'))
 	m = drive(m, shell.SettingsMsg{Settings: shell.Settings{FoldShared: false, SharedEmoji: true}})
-	if p := m.terms.Panel(); p.Fold || !p.Glyphs {
+	if p := termsSheet(m).Panel(); p.Fold || !p.Glyphs {
 		t.Error("the settings")
 	}
 	// a short screen has no room for the lead
@@ -224,7 +228,7 @@ func TestTheTermsTableFollowsTheSettingsAndTheScreensSize(t *testing.T) {
 	m, _ = fake(t)
 	m = drive(m, shell.SettingsMsg{Settings: shell.Settings{FoldShared: false}})
 	m = drive(m, append(testkit.Start(m, at120), press('6'))...)
-	if m.terms.Panel().Fold {
+	if termsSheet(m).Panel().Fold {
 		t.Error("the settings told first")
 	}
 }
@@ -257,7 +261,7 @@ func TestTheEdgesOfTheTermsStep(t *testing.T) {
 	m = drive(m, append(testkit.Start(m, at120), press('6'), down, testkit.Press("tab"), enter, testkit.Press("s"),
 		enter, enter)...)
 	if lines := strings.Split(view(m), "\n"); !strings.Contains(lines[paneTop], "▾ 1 ") ||
-		!strings.Contains(lastLine(m), "a preset needs a name") || !strings.Contains(m.termsNotice(), "\x1b[") {
+		!strings.Contains(lastLine(m), "a preset needs a name") || !strings.Contains(m.sheetNotice(), "\x1b[") {
 		t.Errorf("no lead, and a refusal:\n%s", view(m))
 	}
 	// a click under the pane of a page is no one's

@@ -47,19 +47,19 @@ type line struct {
 	text string
 }
 
-// View draws the screen on the alternate screen, with the mouse on for the bar, the terms' table's layers over its
-// pane, and what the table did, or why not, in place of the keys while it says it.
+// View draws the screen on the alternate screen, with the mouse on for the bar, the selected step's table's layers
+// over its pane, and what the table did, or why not, in place of the keys while it says it.
 func (m Model) View() tea.View {
 	lines := append([]string{m.menuBar().Line(m.width)}, strings.Split(m.bar().View(), "\n")...)
 	lines = append(lines, m.pane()...)
 	if m.gridded() {
-		lines = m.terms.Over(lines)
+		lines = m.sheet().Over(lines)
 	}
 	lines = m.recent.Overlay(append(lines, ""), m.recallAt(), m.width)
 	lines = m.appMenu.Overlay(lines, m.width)
 	lines = m.books.Overlay(lines, m.booksAt(), m.width)
 	bottom := m.keys().Line(m.width)
-	if notice := m.termsNotice(); notice != "" {
+	if notice := m.sheetNotice(); notice != "" {
 		bottom = notice
 	}
 	return shell.View(lines, m.height, bottom)
@@ -90,20 +90,22 @@ func (m Model) menuBar() shell.MenuBar {
 func (m Model) booksAt() int { return m.menuBar().WorkspaceAt() }
 
 // keys gives the path to the keyboard, which the keys bar is drawn from: the screen; the steps' bar, whose down enters
-// the step's checks, its terms, or its page; and the pane while it has the keyboard, the terms' table's part that has
-// it on the terms, or the search, which takes every press while it has it. An open menu takes every press, and is the
-// path alone, as a layer of the terms' table is.
+// the step's checks, its table, which the table's name names, or its page; and the pane while it has the keyboard, the
+// part of the step's table that has it, or the search, which takes every press while it has it. An open menu takes
+// every press, and is the path alone, as a layer of the step's table is.
 func (m Model) keys() shell.Path {
 	if m.appMenu.Open || m.recent.Open || m.books.Open {
 		return shell.Path{shell.MenuKeys()}
 	}
-	if seg, layer := m.terms.Keys(); m.gridded() && layer {
-		return shell.Path{seg}
+	if m.gridded() {
+		if seg, layer := m.sheet().Keys(); layer {
+			return shell.Path{seg}
+		}
 	}
 	down := "page"
 	switch {
 	case m.gridded():
-		down = "terms"
+		down = m.sheet().Name()
 	case m.hasRows():
 		down = "checks"
 	}
@@ -114,7 +116,7 @@ func (m Model) keys() shell.Path {
 		search.Owns = true
 		return append(path, search)
 	case m.inPane && m.gridded():
-		seg, _ := m.terms.Keys()
+		seg, _ := m.sheet().Keys()
 		return append(path, seg)
 	case m.inPane:
 		return append(path, m.paneKeys())
@@ -170,13 +172,13 @@ func (m Model) count(i int) string {
 	return strconv.Itoa(n)
 }
 
-// pane gives the pane's lines, as many as it has: the selected step's from its offset on, or, on the terms, its lead
-// and its table.
+// pane gives the pane's lines, as many as it has: the selected step's from its offset on, or, on a step drawn as a
+// table, its lead and its table.
 func (m Model) pane() []string {
 	h := m.paneHeight()
 	if m.gridded() {
 		// the table fills the pane under the lead
-		return m.termsPane()
+		return m.sheetPane()
 	}
 	var texts []string
 	for _, l := range m.lines() {
@@ -432,7 +434,7 @@ func button(name string, highlighted bool) string {
 // whole when it fits.
 func (m *Model) fit() {
 	if m.gridded() {
-		// the terms' table keeps its own window
+		// a step's table keeps its own window
 		return
 	}
 	if !m.hasRows() {
