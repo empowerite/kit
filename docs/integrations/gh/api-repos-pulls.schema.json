@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh api repos/${repo}/pulls/${number} --jq .user.login",
+  "description": "One pull request, ${repo} the repository's owner/name, whose author's login kit reads in `modules/bash/forge/github.sh` (forge/github:pr-author): a bot's as the page shows it, such as dependabot[bot]. The types are pull-request of GET /repos/{owner}/{repo}/pulls/{pull_number} in GitHub's REST OpenAPI description, https://raw.githubusercontent.com/github/rest-api-description/main/descriptions/api.github.com/api.github.com.json, whose user is a simple-user.",
+  "type": "object",
+  "properties": {
+    "user": {
+      "type": "object",
+      "description": "simple-user",
+      "properties": {
+        "login": {
+          "type": "string"
+        }
+      },
+      "required": ["login"],
+      "additionalProperties": true
+    }
+  },
+  "required": ["user"],
+  "additionalProperties": true,
+  "examples": [
+    {
+      "number": 3,
+      "user": {
+        "login": "ada",
+        "type": "User"
+      }
+    }
+  ]
+}

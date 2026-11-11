@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "az repos pr list --project ${project} --repository ${repository} --status ${status} --top 100 --skip ${skip} [--source-branch ${branch}] --output json",
+  "description": "One page of the repository's pull requests in a status, active or all, which `modules/bash/forge/ado.sh` reads page after page in forge/ado:prs for forge/ado:open-prs, forge/ado:branch-for-issue, forge/ado:pr-for-branch, forge/ado:pr-head-for-branch, forge/ado:pr-last-for-branch, and forge/ado:pr-state-for-branch, and `modules/jq/forge.jq` folds with ado_pr, ado_latest, and ado_pr_state; every call kit makes through forge/ado:az also carries --org ${organization} --detect false --only-show-errors. Each item is a GitPullRequest as repos-pr-show.schema.json gives it, from https://learn.microsoft.com/rest/api/azure/devops/git/pull-requests/get-pull-requests?view=azure-devops-rest-7.1, and a page with none is [].",
+  "type": "array",
+  "items": {
+    "$ref": "#/$defs/pullRequest"
+  },
+  "$defs": {
+    "pullRequest": {
+      "type": "object",
+      "properties": {
+        "pullRequestId": {
+          "type": "integer"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": ["string", "null"]
+        },
+        "status": {
+          "description": "PullRequestStatus.",
+          "type": "string",
+          "enum": ["notSet", "active", "abandoned", "completed", "all"]
+        },
+        "isDraft": {
+          "type": ["boolean", "null"]
+        },
+        "sourceRefName": {
+          "type": "string"
+        },
+        "mergeStatus": {
+          "description": "PullRequestAsyncStatus: conflicts is a conflicted pull request.",
+          "type": ["string", "null"],
+          "enum": ["notSet", "queued", "conflicts", "succeeded", "rejectedByPolicy", "failure", null]
+        },
+        "creationDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "createdBy": {
+          "$ref": "#/$defs/identityRef"
+        },
+        "lastMergeSourceCommit": {
+          "description": "The head of the source branch at the last merge.",
+          "anyOf": [{"$ref": "#/$defs/commitRef"}, {"type": "null"}]
+        },
+        "lastMergeCommit": {
+          "description": "The commit of the last merge, the merge commit of a completed pull request; null while a merge runs or when it failed.",
+          "anyOf": [{"$ref": "#/$defs/commitRef"}, {"type": "null"}]
+        },
+        "forkSource": {
+          "description": "GitForkRef, null unless the pull request comes from a fork.",
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "repository": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["name"],
+                  "additionalProperties": true
+                }
+              },
+              "required": ["repository"],
+              "additionalProperties": true
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "labels": {
+          "description": "WebApiTagDefinition[], null when the pull request has none.",
+          "type": ["array", "null"],
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "active": {
+                "type": ["boolean", "null"]
+              }
+            },
+            "required": ["name"],
+            "additionalProperties": true
+          }
+        }
+      },
+      "required": ["pullRequestId", "title", "description", "status", "isDraft", "sourceRefName", "mergeStatus", "creationDate", "createdBy", "lastMergeSourceCommit", "lastMergeCommit", "forkSource", "labels"],
+      "additionalProperties": true
+    },
+    "identityRef": {
+      "description": "IdentityRef; uniqueName is the login az signs in as.",
+      "type": "object",
+      "properties": {
+        "uniqueName": {
+          "type": ["string", "null"]
+        }
+      },
+      "required": ["uniqueName"],
+      "additionalProperties": true
+    },
+    "commitRef": {
+      "description": "GitCommitRef.",
+      "type": "object",
+      "properties": {
+        "commitId": {
+          "type": "string"
+        }
+      },
+      "required": ["commitId"],
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    [
+      {
+        "pullRequestId": 3,
+        "codeReviewId": 3,
+        "title": "Fix the thing",
+        "description": "Closes #7",
+        "status": "active",
+        "isDraft": false,
+        "sourceRefName": "refs/heads/7-fix-the-thing",
+        "targetRefName": "refs/heads/main",
+        "mergeStatus": "succeeded",
+        "creationDate": "2026-10-01T09:00:00.123000+00:00",
+        "createdBy": {
+          "displayName": "Ada",
+          "id": "d6245f20-2af8-44f4-9451-8107cb2767db",
+          "uniqueName": "ada"
+        },
+        "lastMergeSourceCommit": {
+          "commitId": "1f2e3d4"
+        },
+        "lastMergeCommit": null,
+        "forkSource": null,
+        "labels": [
+          {
+            "id": "8a2f3c1e-0d4b-4f5a-9c6e-7b1d2e3f4a5b",
+            "name": "kind=fix",
+            "active": true,
+            "url": null
+          }
+        ]
+      },
+      {
+        "pullRequestId": 1,
+        "codeReviewId": 1,
+        "title": "An earlier try",
+        "description": null,
+        "status": "abandoned",
+        "isDraft": false,
+        "sourceRefName": "refs/heads/7-fix-the-thing",
+        "targetRefName": "refs/heads/main",
+        "mergeStatus": "notSet",
+        "creationDate": "2026-09-28T15:20:00+00:00",
+        "createdBy": {
+          "displayName": "Ada",
+          "id": "d6245f20-2af8-44f4-9451-8107cb2767db",
+          "uniqueName": "ada"
+        },
+        "lastMergeSourceCommit": {
+          "commitId": "0a0a0a0"
+        },
+        "lastMergeCommit": null,
+        "forkSource": null,
+        "labels": null
+      }
+    ]
+  ]
+}

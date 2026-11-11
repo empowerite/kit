@@ -1,0 +1,625 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh api graphql --field owner=${owner} --field name=${name} --raw-field after=${cursor} --raw-field query=${query}",
+  "description": "The open pull requests, 100 a page, each with its labels, the issues it closes, its review threads, its head commit and the checks on it, and the open issues with an assignee, which kit asks for in `modules/bash/forge/github.sh` (forge/github:open-prs; --raw-field after only past the first page) and folds in `modules/jq/forge.jq` (forge::github_prs, forge::github_partial). The types are the Repository, PullRequest, Issue, Commit, CheckRun, and StatusContext objects of GitHub's GraphQL schema, https://docs.github.com/public/fpt/schema.docs.graphql.",
+  "type": "object",
+  "properties": {
+    "data": {
+      "type": "object",
+      "properties": {
+        "repository": {
+          "type": ["object", "null"],
+          "description": "Repository, null when GitHub has none of that owner and name",
+          "properties": {
+            "nameWithOwner": {
+              "type": "string"
+            },
+            "issues": {
+              "type": "object",
+              "description": "IssueConnection, the 100 open issues with an assignee updated last",
+              "properties": {
+                "nodes": {
+                  "type": ["array", "null"],
+                  "items": {
+                    "type": ["object", "null"],
+                    "description": "Issue",
+                    "properties": {
+                      "number": {
+                        "type": "integer"
+                      },
+                      "assignees": {
+                        "type": "object",
+                        "description": "UserConnection, the first 10",
+                        "properties": {
+                          "nodes": {
+                            "type": ["array", "null"],
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "$ref": "#/$defs/Login"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        "required": ["nodes"],
+                        "additionalProperties": true
+                      }
+                    },
+                    "required": ["number", "assignees"],
+                    "additionalProperties": true
+                  }
+                }
+              },
+              "required": ["nodes"],
+              "additionalProperties": true
+            },
+            "pullRequests": {
+              "type": "object",
+              "description": "PullRequestConnection, open, oldest first",
+              "properties": {
+                "pageInfo": {
+                  "$ref": "#/$defs/PageInfo"
+                },
+                "nodes": {
+                  "type": ["array", "null"],
+                  "items": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/$defs/PullRequest"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                }
+              },
+              "required": ["pageInfo", "nodes"],
+              "additionalProperties": true
+            }
+          },
+          "required": ["nameWithOwner", "issues", "pullRequests"],
+          "additionalProperties": true
+        }
+      },
+      "required": ["repository"],
+      "additionalProperties": true
+    }
+  },
+  "required": ["data"],
+  "additionalProperties": true,
+  "$defs": {
+    "PullRequest": {
+      "type": "object",
+      "description": "PullRequest",
+      "properties": {
+        "number": {
+          "type": "integer"
+        },
+        "title": {
+          "type": "string"
+        },
+        "isDraft": {
+          "type": "boolean"
+        },
+        "headRefName": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "mergeStateStatus": {
+          "type": "string",
+          "description": "MergeStateStatus",
+          "enum": ["BEHIND", "BLOCKED", "CLEAN", "DIRTY", "DRAFT", "HAS_HOOKS", "UNKNOWN", "UNSTABLE"]
+        },
+        "reviewDecision": {
+          "type": ["string", "null"],
+          "description": "PullRequestReviewDecision, null when no review is required",
+          "enum": ["APPROVED", "CHANGES_REQUESTED", "REVIEW_REQUIRED", null]
+        },
+        "isCrossRepository": {
+          "type": "boolean"
+        },
+        "author": {
+          "type": ["object", "null"],
+          "description": "Actor, null for a deleted account",
+          "properties": {
+            "login": {
+              "type": "string"
+            }
+          },
+          "required": ["login"],
+          "additionalProperties": true
+        },
+        "headRepositoryOwner": {
+          "type": ["object", "null"],
+          "description": "RepositoryOwner, null when the head repository is gone",
+          "properties": {
+            "login": {
+              "type": "string"
+            }
+          },
+          "required": ["login"],
+          "additionalProperties": true
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LabelConnection"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "closingIssuesReferences": {
+          "type": ["object", "null"],
+          "description": "IssueConnection, the first 10 issues it closes",
+          "properties": {
+            "pageInfo": {
+              "$ref": "#/$defs/PageInfo"
+            },
+            "nodes": {
+              "type": ["array", "null"],
+              "items": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/ClosingIssue"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          },
+          "required": ["pageInfo", "nodes"],
+          "additionalProperties": true
+        },
+        "reviewThreads": {
+          "type": "object",
+          "description": "PullRequestReviewThreadConnection, the first 100",
+          "properties": {
+            "pageInfo": {
+              "$ref": "#/$defs/PageInfo"
+            },
+            "nodes": {
+              "type": ["array", "null"],
+              "items": {
+                "type": ["object", "null"],
+                "description": "PullRequestReviewThread",
+                "properties": {
+                  "isResolved": {
+                    "type": "boolean"
+                  }
+                },
+                "required": ["isResolved"],
+                "additionalProperties": true
+              }
+            }
+          },
+          "required": ["pageInfo", "nodes"],
+          "additionalProperties": true
+        },
+        "commits": {
+          "type": "object",
+          "description": "PullRequestCommitConnection, the head commit alone",
+          "properties": {
+            "nodes": {
+              "type": ["array", "null"],
+              "items": {
+                "type": ["object", "null"],
+                "description": "PullRequestCommit",
+                "properties": {
+                  "commit": {
+                    "$ref": "#/$defs/Commit"
+                  }
+                },
+                "required": ["commit"],
+                "additionalProperties": true
+              }
+            }
+          },
+          "required": ["nodes"],
+          "additionalProperties": true
+        }
+      },
+      "required": ["number", "title", "isDraft", "headRefName", "createdAt", "mergeStateStatus", "reviewDecision", "isCrossRepository", "author", "headRepositoryOwner", "labels", "closingIssuesReferences", "reviewThreads", "commits"],
+      "additionalProperties": true
+    },
+    "Commit": {
+      "type": "object",
+      "description": "Commit",
+      "properties": {
+        "oid": {
+          "type": "string",
+          "description": "GitObjectID"
+        },
+        "committedDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "author": {
+          "type": ["object", "null"],
+          "description": "GitActor",
+          "properties": {
+            "user": {
+              "type": ["object", "null"],
+              "description": "User, null when the commit's email belongs to no account",
+              "properties": {
+                "login": {
+                  "type": "string"
+                }
+              },
+              "required": ["login"],
+              "additionalProperties": true
+            }
+          },
+          "required": ["user"],
+          "additionalProperties": true
+        },
+        "statusCheckRollup": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StatusCheckRollup"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": ["oid", "committedDate", "author", "statusCheckRollup"],
+      "additionalProperties": true
+    },
+    "ClosingIssue": {
+      "type": "object",
+      "description": "Issue",
+      "properties": {
+        "number": {
+          "type": "integer"
+        },
+        "title": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "repository": {
+          "type": "object",
+          "description": "Repository, by its owner/name",
+          "properties": {
+            "nameWithOwner": {
+              "type": "string"
+            }
+          },
+          "required": ["nameWithOwner"],
+          "additionalProperties": true
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LabelConnection"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": ["number", "title", "createdAt", "repository", "labels"],
+      "additionalProperties": true
+    },
+    "Label": {
+      "type": "object",
+      "description": "Label",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string",
+          "description": "The label's color, six hex digits without a #"
+        }
+      },
+      "required": ["name", "color"],
+      "additionalProperties": true
+    },
+    "LabelConnection": {
+      "type": "object",
+      "description": "LabelConnection",
+      "properties": {
+        "nodes": {
+          "type": ["array", "null"],
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Label"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "required": ["nodes"],
+      "additionalProperties": true
+    },
+    "Login": {
+      "type": "object",
+      "description": "An Actor, RepositoryOwner, or User, by its login",
+      "properties": {
+        "login": {
+          "type": "string"
+        }
+      },
+      "required": ["login"],
+      "additionalProperties": true
+    },
+    "PageInfo": {
+      "type": "object",
+      "description": "PageInfo",
+      "properties": {
+        "hasNextPage": {
+          "type": "boolean"
+        },
+        "endCursor": {
+          "type": ["string", "null"]
+        }
+      },
+      "required": ["hasNextPage", "endCursor"],
+      "additionalProperties": true
+    },
+    "CheckRun": {
+      "type": "object",
+      "description": "CheckRun",
+      "properties": {
+        "__typename": {
+          "const": "CheckRun"
+        },
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "description": "CheckStatusState",
+          "enum": ["COMPLETED", "IN_PROGRESS", "PENDING", "QUEUED", "REQUESTED", "WAITING"]
+        },
+        "conclusion": {
+          "type": ["string", "null"],
+          "description": "CheckConclusionState, null until the check completes",
+          "enum": ["ACTION_REQUIRED", "CANCELLED", "FAILURE", "NEUTRAL", "SKIPPED", "STALE", "STARTUP_FAILURE", "SUCCESS", "TIMED_OUT", null]
+        },
+        "startedAt": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "completedAt": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        }
+      },
+      "required": ["__typename", "name", "status", "conclusion", "startedAt", "completedAt"],
+      "additionalProperties": true
+    },
+    "StatusContext": {
+      "type": "object",
+      "description": "StatusContext",
+      "properties": {
+        "__typename": {
+          "const": "StatusContext"
+        },
+        "context": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "description": "StatusState",
+          "enum": ["ERROR", "EXPECTED", "FAILURE", "PENDING", "SUCCESS"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["__typename", "context", "state", "createdAt"],
+      "additionalProperties": true
+    },
+    "StatusCheckRollupContext": {
+      "description": "StatusCheckRollupContext, the union of CheckRun and StatusContext",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/CheckRun"
+        },
+        {
+          "$ref": "#/$defs/StatusContext"
+        }
+      ]
+    },
+    "StatusCheckRollupContextConnection": {
+      "type": "object",
+      "description": "StatusCheckRollupContextConnection",
+      "properties": {
+        "pageInfo": {
+          "$ref": "#/$defs/PageInfo"
+        },
+        "nodes": {
+          "type": ["array", "null"],
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/StatusCheckRollupContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "required": ["pageInfo", "nodes"],
+      "additionalProperties": true
+    },
+    "StatusCheckRollup": {
+      "type": "object",
+      "description": "StatusCheckRollup",
+      "properties": {
+        "contexts": {
+          "$ref": "#/$defs/StatusCheckRollupContextConnection"
+        }
+      },
+      "required": ["contexts"],
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "data": {
+        "repository": {
+          "nameWithOwner": "empowerite/example",
+          "issues": {
+            "nodes": [
+              {
+                "number": 7,
+                "assignees": {
+                  "nodes": [
+                    {
+                      "login": "bob"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "pullRequests": {
+            "pageInfo": {
+              "hasNextPage": false,
+              "endCursor": "Y3Vyc29yOnYyOpHOAAAAAw=="
+            },
+            "nodes": [
+              {
+                "number": 3,
+                "title": "Fix the thing",
+                "isDraft": false,
+                "headRefName": "7-fix-the-thing",
+                "createdAt": "2026-10-01T09:00:00Z",
+                "mergeStateStatus": "CLEAN",
+                "reviewDecision": null,
+                "isCrossRepository": false,
+                "author": {
+                  "login": "ada"
+                },
+                "headRepositoryOwner": {
+                  "login": "empowerite"
+                },
+                "labels": {
+                  "nodes": [
+                    {
+                      "name": "kind=fix",
+                      "color": "0E8A16"
+                    }
+                  ]
+                },
+                "closingIssuesReferences": {
+                  "pageInfo": {
+                    "hasNextPage": false,
+                    "endCursor": "MQ"
+                  },
+                  "nodes": [
+                    {
+                      "number": 7,
+                      "title": "Fix the thing",
+                      "createdAt": "2026-09-20T09:00:00Z",
+                      "repository": {
+                        "nameWithOwner": "empowerite/example"
+                      },
+                      "labels": {
+                        "nodes": [
+                          {
+                            "name": "bug",
+                            "color": "D73A4A"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "reviewThreads": {
+                  "pageInfo": {
+                    "hasNextPage": false,
+                    "endCursor": "Mg"
+                  },
+                  "nodes": [
+                    {
+                      "isResolved": true
+                    },
+                    {
+                      "isResolved": false
+                    }
+                  ]
+                },
+                "commits": {
+                  "nodes": [
+                    {
+                      "commit": {
+                        "oid": "1f2e3d4c5b6a79881f2e3d4c5b6a79881f2e3d4c",
+                        "committedDate": "2026-10-01T09:55:00Z",
+                        "author": {
+                          "user": {
+                            "login": "ada"
+                          }
+                        },
+                        "statusCheckRollup": {
+                          "contexts": {
+                            "pageInfo": {
+                              "hasNextPage": false,
+                              "endCursor": "Mw"
+                            },
+                            "nodes": [
+                              {
+                                "__typename": "CheckRun",
+                                "name": "a",
+                                "status": "COMPLETED",
+                                "conclusion": "FAILURE",
+                                "startedAt": "2026-09-30T10:00:00Z",
+                                "completedAt": "2026-09-30T10:05:00Z"
+                              },
+                              {
+                                "__typename": "CheckRun",
+                                "name": "a",
+                                "status": "COMPLETED",
+                                "conclusion": "SUCCESS",
+                                "startedAt": "2026-10-01T10:00:00Z",
+                                "completedAt": "2026-10-01T10:00:30Z"
+                              },
+                              {
+                                "__typename": "CheckRun",
+                                "name": "b",
+                                "status": "COMPLETED",
+                                "conclusion": "SUCCESS",
+                                "startedAt": "2026-10-01T10:00:10Z",
+                                "completedAt": "2026-10-01T10:01:00Z"
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

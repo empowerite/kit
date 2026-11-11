@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "az repos pr create --draft ${draft} --source-branch ${branch} --target-branch ${base} --title ${title} --project ${project} --repository ${repository} [--work-items ${item}]",
+  "description": "The pull request it opens, whose number `modules/bash/forge/ado.sh` (forge/ado:pr-create) reads, with no --output, so az prints its default, JSON; every call kit makes through forge/ado:az also carries --org ${organization} --detect false --only-show-errors. The type is GitPullRequest, https://learn.microsoft.com/rest/api/azure/devops/git/pull-requests/create?view=azure-devops-rest-7.1, printed as repos-pr-show.schema.json says.",
+  "type": "object",
+  "properties": {
+    "pullRequestId": {
+      "type": "integer"
+    }
+  },
+  "required": ["pullRequestId"],
+  "additionalProperties": true,
+  "examples": [
+    {
+      "pullRequestId": 3,
+      "codeReviewId": 3,
+      "title": "Fix the thing",
+      "description": null,
+      "status": "active",
+      "isDraft": true,
+      "sourceRefName": "refs/heads/7-fix-the-thing",
+      "targetRefName": "refs/heads/main",
+      "mergeStatus": "queued",
+      "creationDate": "2026-10-01T09:00:00.123000+00:00",
+      "createdBy": {
+        "displayName": "Ada",
+        "id": "d6245f20-2af8-44f4-9451-8107cb2767db",
+        "uniqueName": "ada"
+      },
+      "lastMergeSourceCommit": {
+        "commitId": "1f2e3d4"
+      },
+      "lastMergeCommit": null,
+      "forkSource": null,
+      "labels": null,
+      "workItemRefs": [
+        {
+          "id": "7",
+          "url": "https://dev.azure.com/acme/_apis/wit/workItems/7"
+        }
+      ]
+    }
+  ]
+}

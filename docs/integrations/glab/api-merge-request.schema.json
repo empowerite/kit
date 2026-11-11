@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "glab api projects/${project}/merge_requests/${n}",
+  "description": "One merge request, ${project} the project's path URL-encoded and ${n} its iid, which kit folds into the open change's document in `modules/bash/forge/gitlab.sh` (forge/gitlab:open-prs, with `modules/jq/forge.jq` forge::gitlab_pr and forge::gitlab_pipeline_jobs) and reads for its author, description, state and merge commit, and title (forge/gitlab:pr-author, forge/gitlab:pr-body, forge/gitlab:pr-state, forge/gitlab:pr-title). The types are APIEntitiesMergeRequest and APIEntitiesCiPipeline of GET /api/v4/projects/{id}/merge_requests/{merge_request_iid} in GitLab's REST OpenAPI, https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/openapi/openapi_v3.yaml, and the values of state, detailed_merge_status, and the pipeline's status those of https://docs.gitlab.com/api/merge_requests/ and https://docs.gitlab.com/api/pipelines/.",
+  "type": "object",
+  "properties": {
+    "iid": {
+      "type": "integer",
+      "description": "The merge request's number in its project."
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": ["string", "null"]
+    },
+    "state": {
+      "type": "string",
+      "enum": ["opened", "closed", "locked", "merged"]
+    },
+    "draft": {
+      "type": "boolean"
+    },
+    "source_branch": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "author": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string"
+        }
+      },
+      "required": ["username"],
+      "additionalProperties": true
+    },
+    "has_conflicts": {
+      "type": "boolean"
+    },
+    "detailed_merge_status": {
+      "type": "string",
+      "enum": [
+        "approvals_syncing",
+        "checking",
+        "ci_must_pass",
+        "ci_still_running",
+        "commits_status",
+        "conflict",
+        "discussions_not_resolved",
+        "draft_status",
+        "jira_association_missing",
+        "mergeable",
+        "merge_request_blocked",
+        "merge_time",
+        "need_rebase",
+        "not_approved",
+        "not_open",
+        "preparing",
+        "requested_changes",
+        "security_policy_pipeline_check",
+        "security_policy_violations",
+        "status_checks_must_pass",
+        "unchecked",
+        "locked_paths",
+        "locked_lfs_files",
+        "title_regex"
+      ]
+    },
+    "merge_commit_sha": {
+      "type": ["string", "null"],
+      "description": "The merge commit, null until the merge request is merged, and when its merge makes none."
+    },
+    "squash_commit_sha": {
+      "type": ["string", "null"],
+      "description": "The squash commit, null unless the merge request is merged with a squash."
+    },
+    "source_project_id": {
+      "type": "integer"
+    },
+    "target_project_id": {
+      "type": "integer"
+    },
+    "labels": {
+      "type": "array",
+      "description": "Each label's name.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "head_pipeline": {
+      "type": ["object", "null"],
+      "description": "The source branch's latest pipeline, null when it has none; absent when the caller cannot read the project's pipelines.",
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "project_id": {
+          "type": "integer",
+          "description": "The project the pipeline runs in, a fork's for a merge request from one."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "created",
+            "waiting_for_resource",
+            "preparing",
+            "waiting_for_callback",
+            "pending",
+            "running",
+            "success",
+            "failed",
+            "canceling",
+            "canceled",
+            "skipped",
+            "manual",
+            "scheduled"
+          ]
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "started_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "finished_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "user": {
+          "type": ["object", "null"],
+          "description": "Who started the pipeline.",
+          "properties": {
+            "username": {
+              "type": "string"
+            }
+          },
+          "required": ["username"],
+          "additionalProperties": true
+        }
+      },
+      "required": ["id", "project_id", "status", "created_at", "started_at", "finished_at", "user"],
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "iid",
+    "title",
+    "description",
+    "state",
+    "draft",
+    "source_branch",
+    "created_at",
+    "author",
+    "has_conflicts",
+    "detailed_merge_status",
+    "merge_commit_sha",
+    "squash_commit_sha",
+    "source_project_id",
+    "target_project_id",
+    "labels"
+  ],
+  "additionalProperties": true,
+  "examples": [
+    {
+      "iid": 3,
+      "title": "Fix the thing",
+      "description": "Closes #7",
+      "state": "opened",
+      "draft": false,
+      "source_branch": "7-fix-the-thing",
+      "created_at": "2026-10-01T09:00:00.000Z",
+      "author": {
+        "username": "ada"
+      },
+      "has_conflicts": false,
+      "detailed_merge_status": "mergeable",
+      "merge_commit_sha": null,
+      "squash_commit_sha": null,
+      "source_project_id": 1,
+      "target_project_id": 1,
+      "labels": ["kind=fix"],
+      "head_pipeline": {
+        "id": 11,
+        "project_id": 1,
+        "status": "success",
+        "created_at": "2026-10-01T09:59:50.000Z",
+        "started_at": "2026-10-01T10:00:00.120Z",
+        "finished_at": "2026-10-01T10:01:00.450Z",
+        "user": {
+          "username": "ada"
+        }
+      }
+    }
+  ]
+}

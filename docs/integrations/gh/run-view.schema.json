@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh run view ${id} --json jobs",
+  "description": "One workflow run's jobs, each with its steps, which kit reads in `modules/bash/forge/github.sh` (forge/github:runs, for the 5 newest runs it keeps) and folds in `modules/jq/forge.jq` (forge::github_jobs). The types are job of GET /repos/{owner}/{repo}/actions/runs/{run_id}/jobs in GitHub's REST OpenAPI description, https://raw.githubusercontent.com/github/rest-api-description/main/descriptions/api.github.com/api.github.com.json, as gh renders its fields (https://github.com/cli/cli/blob/trunk/pkg/cmd/run/shared/shared.go): a null conclusion as \"\", and a missing time as 0001-01-01T00:00:00Z.",
+  "type": "object",
+  "properties": {
+    "jobs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "description": "job",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["queued", "in_progress", "completed", "waiting", "requested", "pending"]
+          },
+          "conclusion": {
+            "type": "string",
+            "description": "\"\" until the job completes",
+            "enum": ["", "success", "failure", "neutral", "cancelled", "skipped", "timed_out", "action_required"]
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "0001-01-01T00:00:00Z until the job completes"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "A job's step",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": ["queued", "in_progress", "completed"]
+                },
+                "conclusion": {
+                  "type": "string",
+                  "description": "\"\" until the step completes, then the job conclusion's values"
+                }
+              },
+              "required": ["name", "status", "conclusion"],
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": ["name", "status", "conclusion", "startedAt", "completedAt", "steps"],
+        "additionalProperties": true
+      }
+    }
+  },
+  "required": ["jobs"],
+  "additionalProperties": true,
+  "examples": [
+    {
+      "jobs": [
+        {
+          "databaseId": 1,
+          "name": "ci",
+          "status": "completed",
+          "conclusion": "success",
+          "startedAt": "2026-10-01T10:00:03Z",
+          "completedAt": "2026-10-01T10:03:33Z",
+          "steps": [],
+          "url": "https://github.com/empowerite/example/actions/runs/103/job/1"
+        },
+        {
+          "databaseId": 2,
+          "name": "lint",
+          "status": "in_progress",
+          "conclusion": "",
+          "startedAt": "2026-10-01T10:00:03Z",
+          "completedAt": "0001-01-01T00:00:00Z",
+          "steps": [
+            {
+              "name": "Set up job",
+              "status": "completed",
+              "conclusion": "success",
+              "number": 1,
+              "startedAt": "2026-10-01T10:00:03Z",
+              "completedAt": "2026-10-01T10:00:05Z"
+            },
+            {
+              "name": "lint",
+              "status": "in_progress",
+              "conclusion": "",
+              "number": 2,
+              "startedAt": "2026-10-01T10:00:05Z",
+              "completedAt": "0001-01-01T00:00:00Z"
+            }
+          ],
+          "url": "https://github.com/empowerite/example/actions/runs/103/job/2"
+        }
+      ]
+    }
+  ]
+}

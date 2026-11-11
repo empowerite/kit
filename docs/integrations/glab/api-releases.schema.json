@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "glab api projects/${project}/releases?per_page=${n} [--paginate]",
+  "description": "The project's releases, newest first, ${project} its path URL-encoded: every one, per_page=100 with --paginate, which prints one such array per page, which kit draws as the releases stage's in `modules/bash/forge/gitlab.sh` (forge/gitlab:releases, with `modules/jq/forge.jq` forge::gitlab_releases), and the newest, per_page=1, whose tag_name and released_at make a mark (forge/gitlab:marks, with forge::gitlab_marks). The types are APIEntitiesRelease of GET /api/v4/projects/{id}/releases in GitLab's REST OpenAPI, https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/openapi/openapi_v3.yaml, as https://docs.gitlab.com/api/releases/ describes them.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "tag_name": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "released_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "upcoming_release": {
+        "type": "boolean",
+        "description": "True when released_at is in the future."
+      }
+    },
+    "required": ["tag_name", "name", "released_at", "upcoming_release"],
+    "additionalProperties": true
+  },
+  "examples": [
+    [
+      {
+        "tag_name": "release/0.1.0-rc.6",
+        "name": "kit 0.1.0-rc.6",
+        "released_at": "2026-10-27T07:30:14.000Z",
+        "upcoming_release": false
+      },
+      {
+        "tag_name": "release/0.0.9",
+        "name": "kit 0.0.9",
+        "released_at": "2026-10-20T07:30:14.000Z",
+        "upcoming_release": false
+      }
+    ]
+  ]
+}

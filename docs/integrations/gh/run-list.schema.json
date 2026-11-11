@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh run list --limit 50 --json databaseId,number,attempt,workflowName,headBranch,headSha,displayTitle,event,status,conclusion,createdAt,startedAt,updatedAt,url",
+  "description": "The 50 newest workflow runs, which kit reads in `modules/bash/forge/github.sh` (forge/github:runs) and folds in `modules/jq/forge.jq` (forge::github_builds). The types are workflow-run of GET /repos/{owner}/{repo}/actions/runs in GitHub's REST OpenAPI description, https://raw.githubusercontent.com/github/rest-api-description/main/descriptions/api.github.com/api.github.com.json, as gh renders its fields (https://github.com/cli/cli/blob/trunk/pkg/cmd/run/shared/shared.go): a null status, conclusion, or headBranch as \"\", and a missing time as 0001-01-01T00:00:00Z.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "description": "workflow-run",
+    "properties": {
+      "databaseId": {
+        "type": "integer"
+      },
+      "number": {
+        "type": "integer"
+      },
+      "attempt": {
+        "type": "integer",
+        "description": "1 for a first run, more for a rerun"
+      },
+      "workflowName": {
+        "type": "string"
+      },
+      "headBranch": {
+        "type": "string"
+      },
+      "headSha": {
+        "type": "string"
+      },
+      "displayTitle": {
+        "type": "string"
+      },
+      "event": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string",
+        "description": "queued, in_progress, completed, requested, waiting, or pending"
+      },
+      "conclusion": {
+        "type": "string",
+        "description": "\"\" until the run completes, then success, failure, neutral, cancelled, skipped, timed_out, action_required, stale, or startup_failure"
+      },
+      "createdAt": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "startedAt": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "updatedAt": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "url": {
+        "type": "string",
+        "format": "uri"
+      }
+    },
+    "required": ["databaseId", "number", "attempt", "workflowName", "headBranch", "headSha", "displayTitle", "event", "status", "conclusion", "createdAt", "startedAt", "updatedAt", "url"],
+    "additionalProperties": true
+  },
+  "examples": [
+    [
+      {
+        "databaseId": 104,
+        "number": 50,
+        "attempt": 1,
+        "headSha": "aaaaaaa0000000000",
+        "displayTitle": "title 104",
+        "workflowName": "kit",
+        "headBranch": "7-fix-the-thing",
+        "event": "pull_request",
+        "status": "completed",
+        "conclusion": "success",
+        "createdAt": "2026-10-01T11:00:00Z",
+        "startedAt": "2026-10-01T11:00:00Z",
+        "updatedAt": "2026-10-01T11:03:00Z",
+        "url": "https://github.com/r/104"
+      },
+      {
+        "databaseId": 99,
+        "number": 45,
+        "attempt": 1,
+        "headSha": "5d376dd0000000000",
+        "displayTitle": "title 99",
+        "workflowName": "kit",
+        "headBranch": "9-other",
+        "event": "workflow_dispatch",
+        "status": "completed",
+        "conclusion": "cancelled",
+        "createdAt": "2026-10-01T06:00:00Z",
+        "startedAt": "2026-10-01T06:00:00Z",
+        "updatedAt": "2026-10-01T06:00:42Z",
+        "url": "https://github.com/r/99"
+      },
+      {
+        "databaseId": 103,
+        "number": 49,
+        "attempt": 1,
+        "headSha": "8e817bf0000000000",
+        "displayTitle": "title 103",
+        "workflowName": "kit",
+        "headBranch": "main",
+        "event": "push",
+        "status": "completed",
+        "conclusion": "success",
+        "createdAt": "2026-10-01T10:00:00Z",
+        "startedAt": "2026-10-01T10:00:00Z",
+        "updatedAt": "2026-10-01T10:03:36Z",
+        "url": "https://github.com/r/103"
+      },
+      {
+        "databaseId": 102,
+        "number": 48,
+        "attempt": 1,
+        "headSha": "1a2b3c40000000000",
+        "displayTitle": "title 102",
+        "workflowName": "kit",
+        "headBranch": "release/0.1.0",
+        "event": "push",
+        "status": "completed",
+        "conclusion": "failure",
+        "createdAt": "2026-10-01T09:00:00Z",
+        "startedAt": "2026-10-01T09:00:00Z",
+        "updatedAt": "2026-10-01T09:04:02Z",
+        "url": "https://github.com/r/102"
+      },
+      {
+        "databaseId": 101,
+        "number": 47,
+        "attempt": 1,
+        "headSha": "8e817bf0000000000",
+        "displayTitle": "title 101",
+        "workflowName": "kit",
+        "headBranch": "main",
+        "event": "schedule",
+        "status": "in_progress",
+        "conclusion": "",
+        "createdAt": "2026-10-01T08:00:00Z",
+        "startedAt": "2026-10-01T08:00:00Z",
+        "updatedAt": "2026-10-01T08:01:00Z",
+        "url": "https://github.com/r/101"
+      },
+      {
+        "databaseId": 100,
+        "number": 46,
+        "attempt": 1,
+        "headSha": "bbbbbbb0000000000",
+        "displayTitle": "title 100",
+        "workflowName": "kit",
+        "headBranch": "9-other",
+        "event": "push",
+        "status": "completed",
+        "conclusion": "success",
+        "createdAt": "2026-10-01T07:00:00Z",
+        "startedAt": "2026-10-01T07:00:00Z",
+        "updatedAt": "2026-10-01T07:01:00Z",
+        "url": "https://github.com/r/100"
+      }
+    ]
+  ]
+}

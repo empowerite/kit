@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh issue view ${number} --json ${fields} --jq ${filter}",
+  "description": "One issue, ${fields} one of assignees, state, or title, which kit reads in `modules/bash/forge/github.sh` (forge/github:issue-assignees, forge/github:issue-state, forge/github:issue-title), which `modules/bash/tracker/forge.sh` (tracker/forge:assignees, tracker/forge:state, tracker/forge:title) reaches through the forge. The types are the Issue object of GitHub's GraphQL schema, https://docs.github.com/public/fpt/schema.docs.graphql, as gh renders its fields (https://github.com/cli/cli/blob/trunk/api/export_pr.go), assignees as a plain list.",
+  "type": "object",
+  "properties": {
+    "assignees": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/User"
+      }
+    },
+    "state": {
+      "type": "string",
+      "description": "IssueState",
+      "enum": ["CLOSED", "OPEN"]
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "User": {
+      "type": "object",
+      "description": "A user as gh renders one: id, login, name, and databaseId",
+      "properties": {
+        "login": {
+          "type": "string"
+        }
+      },
+      "required": ["login"],
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "title": "Fix the thing",
+      "state": "OPEN",
+      "assignees": [
+        {
+          "login": "bob"
+        }
+      ]
+    }
+  ]
+}

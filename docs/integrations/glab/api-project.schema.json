@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "glab api projects/${source}",
+  "description": "The project a merge request's branch lives in, read by its id when it is not this project, whose namespace's full path kit reads as the fork's owner in `modules/bash/forge/gitlab.sh` (forge/gitlab:open-prs). The types are APIEntitiesProjectsWithAccessAndCatalogSetting and APIEntitiesNamespaceBasic of GET /api/v4/projects/{id} in GitLab's REST OpenAPI, https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/openapi/openapi_v3.yaml, as https://docs.gitlab.com/api/projects/ describes it.",
+  "type": "object",
+  "properties": {
+    "namespace": {
+      "type": "object",
+      "properties": {
+        "full_path": {
+          "type": "string",
+          "description": "The path of the group, with its parent groups, or of the user that owns the project."
+        }
+      },
+      "required": ["full_path"],
+      "additionalProperties": true
+    }
+  },
+  "required": ["namespace"],
+  "additionalProperties": true,
+  "examples": [
+    {
+      "id": 99,
+      "namespace": {
+        "full_path": "cy"
+      }
+    }
+  ]
+}

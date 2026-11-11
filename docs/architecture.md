@@ -201,8 +201,8 @@ forge is named in the `forge` or `forges` setting, or found from a CI runner's o
   `kit context`. Only a provider needs its code forge's tool.
 
 [integrations/1st.md](integrations/1st.md) lists the providers of each category, code forges, trackers, CI, and CD,
-the ones kit has and the ones it has not. For each, it gives what its tool reads and writes in kit's scope, and the
-schemas it publishes.
+the ones kit has and the ones it has not, and the command line tools that reach them, git first. A tool's page gives
+what it reads and writes in kit's scope, for each service it reaches, and the schemas known for it.
 
 ### The checks
 

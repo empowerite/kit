@@ -1,0 +1,186 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "az repos pr policy list --id ${id} --top ${forge_list_limit} --output json",
+  "description": "The pull request's policy evaluations, which `modules/bash/forge/ado.sh` (forge/ado:open-prs) reads, ${forge_list_limit} being `modules/bash/forge.sh`'s 10000, and `modules/jq/forge.jq` folds with ado_runs, ado_verdict, and ado_blocked into its checks and its approval; every call kit makes through forge/ado:az also carries --org ${organization} --detect false --only-show-errors. The types are PolicyEvaluationRecord, PolicyConfiguration, and PolicyTypeRef, https://learn.microsoft.com/rest/api/azure/devops/policy/evaluations/list?view=azure-devops-rest-7.1, which the azure-devops extension reads at api-version 5.0 through its vendored SDK (azext_devops/devops_sdk/v5_0/policy/models.py) and az prints with every attribute of the model, null when the service gives none, and each date-time as Python's isoformat, such as 2026-10-01T10:00:00.120000+00:00.",
+  "type": "array",
+  "items": {
+    "$ref": "#/$defs/policyEvaluationRecord"
+  },
+  "$defs": {
+    "policyEvaluationRecord": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "description": "PolicyEvaluationStatus: approved passes, rejected and broken fail, queued and running are pending, and notApplicable is no check.",
+          "type": "string",
+          "enum": ["queued", "running", "approved", "rejected", "notApplicable", "broken"]
+        },
+        "configuration": {
+          "description": "PolicyConfiguration.",
+          "type": "object",
+          "properties": {
+            "isBlocking": {
+              "type": ["boolean", "null"]
+            },
+            "type": {
+              "description": "PolicyTypeRef: displayName Build or Status is a check, any other blocking type, such as Minimum number of reviewers, an approval.",
+              "type": "object",
+              "properties": {
+                "displayName": {
+                  "type": "string"
+                }
+              },
+              "required": ["displayName"],
+              "additionalProperties": true
+            },
+            "settings": {
+              "description": "The policy type's own settings, a JSON object as the service gives it: a status policy names its status statusName, and either may give a displayName.",
+              "type": ["object", "null"],
+              "properties": {
+                "statusName": {
+                  "type": ["string", "null"]
+                },
+                "displayName": {
+                  "type": ["string", "null"]
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "required": ["isBlocking", "type", "settings"],
+          "additionalProperties": true
+        },
+        "context": {
+          "description": "The evaluation's own context, a JSON object as the service gives it: a build policy's names its pipeline buildDefinitionName.",
+          "type": ["object", "null"],
+          "properties": {
+            "buildDefinitionName": {
+              "type": ["string", "null"]
+            }
+          },
+          "additionalProperties": true
+        },
+        "startedDate": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "completedDate": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        }
+      },
+      "required": ["status", "configuration", "context", "startedDate", "completedDate"],
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    [
+      {
+        "evaluationId": "6b5e2c1a-3f4d-4e8b-9a7c-0d1e2f3a4b5c",
+        "artifactId": "vstfs:///CodeReview/CodeReviewId/a7573007-bbb3-4341-b726-0c4148a07853/3",
+        "status": "approved",
+        "configuration": {
+          "id": 1,
+          "revision": 1,
+          "isBlocking": true,
+          "isEnabled": true,
+          "isDeleted": false,
+          "type": {
+            "id": "0609b952-1397-4640-95ec-e00a01b2c241",
+            "displayName": "Build",
+            "url": null
+          },
+          "settings": {
+            "buildDefinitionId": 1,
+            "displayName": null
+          }
+        },
+        "context": {
+          "buildId": 103,
+          "buildDefinitionId": 1,
+          "buildDefinitionName": "a"
+        },
+        "startedDate": "2026-10-01T10:00:00.120000+00:00",
+        "completedDate": "2026-10-01T10:00:30+00:00"
+      },
+      {
+        "evaluationId": "7c6f3d2b-4a5e-4f9c-8b0d-1e2f3a4b5c6d",
+        "artifactId": "vstfs:///CodeReview/CodeReviewId/a7573007-bbb3-4341-b726-0c4148a07853/3",
+        "status": "approved",
+        "configuration": {
+          "id": 2,
+          "revision": 1,
+          "isBlocking": true,
+          "isEnabled": true,
+          "isDeleted": false,
+          "type": {
+            "id": "0609b952-1397-4640-95ec-e00a01b2c241",
+            "displayName": "Build",
+            "url": null
+          },
+          "settings": {
+            "buildDefinitionId": 2,
+            "displayName": null
+          }
+        },
+        "context": {
+          "buildId": 104,
+          "buildDefinitionId": 2,
+          "buildDefinitionName": "b"
+        },
+        "startedDate": "2026-10-01T10:00:10+00:00",
+        "completedDate": "2026-10-01T10:01:00.450000+00:00"
+      },
+      {
+        "evaluationId": "8d7a4e3c-5b6f-4a0d-9c1e-2f3a4b5c6d7e",
+        "artifactId": "vstfs:///CodeReview/CodeReviewId/a7573007-bbb3-4341-b726-0c4148a07853/3",
+        "status": "approved",
+        "configuration": {
+          "id": 3,
+          "revision": 1,
+          "isBlocking": true,
+          "isEnabled": true,
+          "isDeleted": false,
+          "type": {
+            "id": "fa4e907d-c16b-4a4c-9dfa-4906e5d171dd",
+            "displayName": "Minimum number of reviewers",
+            "url": null
+          },
+          "settings": {
+            "minimumApproverCount": 1
+          }
+        },
+        "context": null,
+        "startedDate": "2026-10-01T09:00:01+00:00",
+        "completedDate": "2026-10-01T09:40:12.300000+00:00"
+      },
+      {
+        "evaluationId": "9e8b5f4d-6c7a-4b1e-8d2f-3a4b5c6d7e8f",
+        "artifactId": "vstfs:///CodeReview/CodeReviewId/a7573007-bbb3-4341-b726-0c4148a07853/3",
+        "status": "notApplicable",
+        "configuration": {
+          "id": 4,
+          "revision": 1,
+          "isBlocking": false,
+          "isEnabled": true,
+          "isDeleted": false,
+          "type": {
+            "id": "0609b952-1397-4640-95ec-e00a01b2c241",
+            "displayName": "Build",
+            "url": null
+          },
+          "settings": {
+            "buildDefinitionId": 3,
+            "displayName": null
+          }
+        },
+        "context": {
+          "buildDefinitionId": 3,
+          "buildDefinitionName": "c"
+        },
+        "startedDate": null,
+        "completedDate": null
+      }
+    ]
+  ]
+}

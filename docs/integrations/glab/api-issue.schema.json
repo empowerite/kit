@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "glab api projects/${project}/issues/${n}",
+  "description": "One issue, ${project} the project's path URL-encoded and ${n} the issue's iid, whose assignees, state, and title kit reads in `modules/bash/forge/gitlab.sh` (forge/gitlab:issue-assignees, forge/gitlab:issue-state, forge/gitlab:issue-title, and forge/gitlab:link-branch through it), which `modules/bash/tracker/forge.sh` (tracker/forge:state, tracker/forge:title) reaches through the forge. The types are APIEntitiesIssue of GET /api/v4/projects/{id}/issues/{issue_iid} in GitLab's REST OpenAPI, https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/openapi/openapi_v3.yaml, and the state's values those of https://docs.gitlab.com/api/issues/.",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string",
+      "enum": ["opened", "closed"]
+    },
+    "assignees": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          }
+        },
+        "required": ["username"],
+        "additionalProperties": true
+      }
+    }
+  },
+  "required": ["title", "state", "assignees"],
+  "additionalProperties": true,
+  "examples": [
+    {
+      "iid": 7,
+      "title": "Fix the thing",
+      "state": "opened",
+      "assignees": [
+        {
+          "username": "bob"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "glab api projects/${project}/merge_requests?${query} [--paginate]",
+  "description": "A list of the project's merge requests, ${project} its path URL-encoded, read in `modules/bash/forge/gitlab.sh`: the open ones with --paginate, which prints one such array per page, for their source branches (forge/gitlab:branch-for-issue, with `modules/jq/forge.jq` forge::gitlab_branch_for_issue) and their iids (forge/gitlab:open-prs); the open one on a branch for its iid (forge/gitlab:pr-for-branch, forge/gitlab:pr-here); those on a branch in any state, newest first, for the newest one's iid, sha, or state (forge/gitlab:pr-last-for-branch, forge/gitlab:pr-head-for-branch, forge/gitlab:pr-state-for-branch with forge::gitlab_pr_state); and the one updated last for its iid and updated_at (forge/gitlab:marks, with forge::gitlab_marks). The types are APIEntitiesMergeRequestBasic of GET /api/v4/projects/{id}/merge_requests in GitLab's REST OpenAPI, https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/openapi/openapi_v3.yaml, and the state's values those of https://docs.gitlab.com/api/merge_requests/.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "iid": {
+        "type": "integer",
+        "description": "The merge request's number in its project."
+      },
+      "state": {
+        "type": "string",
+        "enum": ["opened", "closed", "locked", "merged"]
+      },
+      "source_branch": {
+        "type": "string"
+      },
+      "sha": {
+        "type": "string",
+        "description": "The head commit of the source branch."
+      },
+      "updated_at": {
+        "type": "string",
+        "format": "date-time"
+      }
+    },
+    "required": ["iid", "state", "source_branch", "sha", "updated_at"],
+    "additionalProperties": true
+  },
+  "examples": [
+    [
+      {
+        "iid": 3,
+        "state": "opened",
+        "source_branch": "7-fix-the-thing",
+        "sha": "1f2e3d4",
+        "updated_at": "2026-11-02T09:00:00.000Z"
+      },
+      {
+        "iid": 2,
+        "state": "opened",
+        "source_branch": "9-other",
+        "sha": "5d376dd",
+        "updated_at": "2026-10-30T09:00:00.000Z"
+      }
+    ]
+  ]
+}

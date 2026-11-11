@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh api graphql --field owner=${owner} --field name=${name} --field pr=${number} --raw-field after=${cursor} --raw-field query=${query}",
+  "description": "An open pull request's review threads past the first 100, 100 a page, of which kit reads whether each is resolved, in `modules/bash/forge/github.sh` (forge/github:rest-of-pr with threads, from forge/github:open-prs). The types are the PullRequest and PullRequestReviewThread objects of GitHub's GraphQL schema, https://docs.github.com/public/fpt/schema.docs.graphql.",
+  "type": "object",
+  "properties": {
+    "data": {
+      "type": "object",
+      "properties": {
+        "repository": {
+          "type": ["object", "null"],
+          "description": "Repository, null when GitHub has none of that owner and name",
+          "properties": {
+            "pullRequest": {
+              "type": ["object", "null"],
+              "description": "PullRequest, null when the repository has none of that number",
+              "properties": {
+                "reviewThreads": {
+                  "type": "object",
+                  "description": "PullRequestReviewThreadConnection",
+                  "properties": {
+                    "pageInfo": {
+                      "$ref": "#/$defs/PageInfo"
+                    },
+                    "nodes": {
+                      "type": ["array", "null"],
+                      "items": {
+                        "type": ["object", "null"],
+                        "description": "PullRequestReviewThread",
+                        "properties": {
+                          "isResolved": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": ["isResolved"],
+                        "additionalProperties": true
+                      }
+                    }
+                  },
+                  "required": ["pageInfo", "nodes"],
+                  "additionalProperties": true
+                }
+              },
+              "required": ["reviewThreads"],
+              "additionalProperties": true
+            }
+          },
+          "required": ["pullRequest"],
+          "additionalProperties": true
+        }
+      },
+      "required": ["repository"],
+      "additionalProperties": true
+    }
+  },
+  "required": ["data"],
+  "additionalProperties": true,
+  "$defs": {
+    "PageInfo": {
+      "type": "object",
+      "description": "PageInfo",
+      "properties": {
+        "hasNextPage": {
+          "type": "boolean"
+        },
+        "endCursor": {
+          "type": ["string", "null"]
+        }
+      },
+      "required": ["hasNextPage", "endCursor"],
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "data": {
+        "repository": {
+          "pullRequest": {
+            "reviewThreads": {
+              "pageInfo": {
+                "hasNextPage": false,
+                "endCursor": "t2"
+              },
+              "nodes": [
+                {
+                  "isResolved": false
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  ]
+}

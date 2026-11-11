@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh api rate_limit",
+  "description": "The caller's rate limits, of which kit reads the REST (core) and GraphQL windows in `modules/bash/forge/github.sh` (forge/github:quota, and forge/github:limited when a read was refused) and folds them in `modules/jq/forge.jq` (forge::github_quota, forge::github_spent). The types are rate-limit-overview of GET /rate_limit in GitHub's REST OpenAPI description, https://raw.githubusercontent.com/github/rest-api-description/main/descriptions/api.github.com/api.github.com.json, whose resources always hold core and may lack graphql.",
+  "type": "object",
+  "properties": {
+    "resources": {
+      "type": "object",
+      "properties": {
+        "core": {
+          "$ref": "#/$defs/RateLimit"
+        },
+        "graphql": {
+          "$ref": "#/$defs/RateLimit"
+        }
+      },
+      "required": ["core"],
+      "additionalProperties": true
+    }
+  },
+  "required": ["resources"],
+  "additionalProperties": true,
+  "$defs": {
+    "RateLimit": {
+      "type": "object",
+      "description": "rate-limit",
+      "properties": {
+        "limit": {
+          "type": "integer"
+        },
+        "remaining": {
+          "type": "integer"
+        },
+        "reset": {
+          "type": "integer",
+          "description": "When the window resets, in seconds since the epoch"
+        }
+      },
+      "required": ["limit", "remaining", "reset"],
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "resources": {
+        "core": {
+          "limit": 5000,
+          "used": 10,
+          "remaining": 4990,
+          "reset": 1800000000
+        },
+        "graphql": {
+          "limit": 5000,
+          "used": 129,
+          "remaining": 4871,
+          "reset": 1800000300
+        },
+        "search": {
+          "limit": 30,
+          "used": 0,
+          "remaining": 30,
+          "reset": 1800000060
+        }
+      },
+      "rate": {
+        "limit": 5000,
+        "used": 10,
+        "remaining": 4990,
+        "reset": 1800000000
+      }
+    }
+  ]
+}

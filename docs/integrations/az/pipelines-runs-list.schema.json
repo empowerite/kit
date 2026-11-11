@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "az pipelines runs list --project ${project} --top 50 --query-order QueueTimeDesc --output json",
+  "description": "The 50 newest runs of the project's pipelines, which `modules/bash/forge/ado.sh` (forge/ado:runs) reads and `modules/jq/forge.jq` folds with ado_builds and ado_build_state into the builds stage's runs; every call kit makes through forge/ado:az also carries --org ${organization} --detect false --only-show-errors. Each run is a Build, https://learn.microsoft.com/rest/api/azure/devops/build/builds/list?view=azure-devops-rest-7.1, which the azure-devops extension reads at api-version 5.0 through its vendored SDK (azext_devops/devops_sdk/v5_0/build/models.py) and az prints with every attribute of the model but those whose name starts with _, null when the service gives none, and each date-time as Python's isoformat, such as 2026-10-01T10:03:36.250000+00:00.",
+  "type": "array",
+  "items": {
+    "$ref": "#/$defs/build"
+  },
+  "maxItems": 50,
+  "$defs": {
+    "build": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "buildNumber": {
+          "description": "The run's name as its pipeline's build number format makes it, 20261001.1 by default; kit counts it as a number only when it is all digits.",
+          "type": "string"
+        },
+        "definition": {
+          "description": "DefinitionReference, the pipeline.",
+          "type": ["object", "null"],
+          "properties": {
+            "name": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "sourceBranch": {
+          "description": "The full ref, refs/heads/<branch>, refs/tags/<tag>, or refs/pull/<n>/merge.",
+          "type": "string"
+        },
+        "sourceVersion": {
+          "description": "The commit built.",
+          "type": "string"
+        },
+        "reason": {
+          "description": "BuildReason.",
+          "type": "string",
+          "enum": ["none", "manual", "individualCI", "batchedCI", "schedule", "scheduleForced", "userCreated", "validateShelveset", "checkInShelveset", "pullRequest", "buildCompletion", "resourceTrigger", "triggered", "all"]
+        },
+        "status": {
+          "description": "BuildStatus.",
+          "type": "string",
+          "enum": ["none", "inProgress", "completed", "cancelling", "postponed", "notStarted", "all"]
+        },
+        "result": {
+          "description": "BuildResult, null until the run completes.",
+          "type": ["string", "null"],
+          "enum": ["none", "succeeded", "partiallySucceeded", "failed", "canceled", null]
+        },
+        "triggerInfo": {
+          "description": "What the source provider says started the run: ci.message is the commit's message.",
+          "type": ["object", "null"],
+          "properties": {
+            "ci.message": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "queueTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "startTime": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "finishTime": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "_links": {
+          "description": "ReferenceLinks, whose web.href is the run's page. kit reads it, but az leaves out every attribute whose name starts with _, so az prints none.",
+          "type": "object",
+          "properties": {
+            "web": {
+              "type": "object",
+              "properties": {
+                "href": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "required": ["id", "buildNumber", "definition", "sourceBranch", "sourceVersion", "reason", "status", "result", "triggerInfo", "queueTime", "startTime", "finishTime"],
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    [
+      {
+        "id": 103,
+        "buildNumber": "49",
+        "definition": {
+          "id": 1,
+          "name": "kit",
+          "path": "\\"
+        },
+        "sourceBranch": "refs/heads/main",
+        "sourceVersion": "8e817bf0000000000",
+        "reason": "individualCI",
+        "status": "completed",
+        "result": "succeeded",
+        "triggerInfo": {
+          "ci.message": "#7 fix: the thing"
+        },
+        "queueTime": "2026-10-01T10:00:00+00:00",
+        "startTime": "2026-10-01T10:00:00+00:00",
+        "finishTime": "2026-10-01T10:03:36.250000+00:00",
+        "url": "https://dev.azure.com/acme/a7573007-bbb3-4341-b726-0c4148a07853/_apis/build/Builds/103"
+      },
+      {
+        "id": 102,
+        "buildNumber": "48",
+        "definition": {
+          "id": 1,
+          "name": "kit",
+          "path": "\\"
+        },
+        "sourceBranch": "refs/tags/release/0.1.0",
+        "sourceVersion": "1a2b3c40000000000",
+        "reason": "individualCI",
+        "status": "completed",
+        "result": "failed",
+        "triggerInfo": {},
+        "queueTime": "2026-10-01T09:00:00+00:00",
+        "startTime": "2026-10-01T09:00:00+00:00",
+        "finishTime": "2026-10-01T09:04:02+00:00",
+        "url": "https://dev.azure.com/acme/a7573007-bbb3-4341-b726-0c4148a07853/_apis/build/Builds/102"
+      },
+      {
+        "id": 101,
+        "buildNumber": "47",
+        "definition": {
+          "id": 1,
+          "name": "kit",
+          "path": "\\"
+        },
+        "sourceBranch": "refs/heads/main",
+        "sourceVersion": "8e817bf0000000000",
+        "reason": "schedule",
+        "status": "inProgress",
+        "result": null,
+        "triggerInfo": {},
+        "queueTime": "2026-10-01T08:00:00+00:00",
+        "startTime": "2026-10-01T08:00:00+00:00",
+        "finishTime": null,
+        "url": "https://dev.azure.com/acme/a7573007-bbb3-4341-b726-0c4148a07853/_apis/build/Builds/101"
+      },
+      {
+        "id": 99,
+        "buildNumber": "45",
+        "definition": {
+          "id": 1,
+          "name": "kit",
+          "path": "\\"
+        },
+        "sourceBranch": "refs/heads/9-other",
+        "sourceVersion": "5d376dd0000000000",
+        "reason": "manual",
+        "status": "completed",
+        "result": "canceled",
+        "triggerInfo": {},
+        "queueTime": "2026-10-01T06:00:00+00:00",
+        "startTime": "2026-10-01T06:00:00+00:00",
+        "finishTime": "2026-10-01T06:00:42+00:00",
+        "url": "https://dev.azure.com/acme/a7573007-bbb3-4341-b726-0c4148a07853/_apis/build/Builds/99"
+      }
+    ]
+  ]
+}

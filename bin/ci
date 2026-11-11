@@ -7,7 +7,7 @@
 #   - kit lint over every tracked path
 #   - kit syntax --check: every verb's usage line parses, and every argument has its description
 #   - ajv: every package.yml, kit.yml, every kind, and the frontmatter of every rule and style against
-#     their schemas
+#     their schemas, and the examples in every schema of a tool's output under docs/integrations/ against it
 #   - lychee: every link in the markdown, offline, including fragments
 #   - ajv: the front matter of every page of the tutorials site against its schema
 #   - npm run check over projects/tutorials/, the tutorials site: tsc, its tests, a build for a base, and verify-dist
@@ -46,6 +46,18 @@ do
     { print > (out "." n ".yml"); lines++ }' "${file}"
 done
 ajv validate --spec=draft2020 -s kit/packages/kind.schema.json -d "${frontmatter}/kinds/*.yml"
+# A schema of what a tool prints, beside the tool's page in docs/integrations/, stands alone and carries examples of
+# that output; ajv reads each example from a file of its own, and a schema with none fails, as ajv finds no file to
+# check. A format, such as date-time, annotates a field and is not checked.
+mkdir "${frontmatter}/examples"
+for schema in docs/integrations/*/*.schema.json
+do
+  name=${schema#docs/integrations/}
+  name=${name%.schema.json}
+  jq --compact-output '.examples[]?' "${schema}" \
+    | awk -v out="${frontmatter}/examples/${name//\//-}" '{ print > (out "." NR ".json") }'
+  ajv validate --spec=draft2020 --validate-formats=false -s "${schema}" -d "${frontmatter}/examples/${name//\//-}.*.json"
+done
 lychee --offline --include-fragments --no-progress README.md AGENTS.md docs kit/packages .kit
 # A tutorial's front matter is YAML between the two --- lines too, read the same way, from a directory of its own.
 mkdir "${frontmatter}/tutorials"

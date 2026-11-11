@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh api user --jq .login",
+  "description": "The authenticated caller, whose login kit reads in `modules/bash/forge/github.sh` (forge/github:me, and forge/github:require through it), which `modules/bash/tracker/forge.sh` (tracker/forge:me) reaches through the forge. The types are private-user and public-user of GET /user in GitHub's REST OpenAPI description, https://raw.githubusercontent.com/github/rest-api-description/main/descriptions/api.github.com/api.github.com.json.",
+  "type": "object",
+  "properties": {
+    "login": {
+      "type": "string"
+    }
+  },
+  "required": ["login"],
+  "additionalProperties": true,
+  "examples": [
+    {
+      "login": "ada"
+    }
+  ]
+}

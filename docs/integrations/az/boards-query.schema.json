@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "az boards query --project ${project} --wiql \"SELECT [System.Id], [System.Title], [System.AssignedTo], [System.Tags], [System.CreatedDate] FROM WorkItems WHERE [System.TeamProject] = @project AND [System.State] NOT IN ('Closed', 'Done', 'Removed') ORDER BY [System.CreatedDate] ASC\" --output json",
+  "description": "The project's open work items, whose number, title, assignee, tags, and creation `modules/bash/forge/ado.sh` (forge/ado:open-issues) reads and `modules/jq/forge.jq` folds with ado_issues, ado_assignees, and ado_tags; every call kit makes through forge/ado:az also carries --org ${organization} --detect false --only-show-errors. The extension runs the query, https://learn.microsoft.com/rest/api/azure/devops/wit/wiql/query-by-wiql?view=azure-devops-rest-7.1, then reads the first 1000 work items it finds with only the columns it selects, https://learn.microsoft.com/rest/api/azure/devops/wit/work-items/list?view=azure-devops-rest-7.1, each a WorkItem as boards-work-item-show.schema.json gives one, and prints nothing at all when the query finds none, which kit reads as [].",
+  "type": "array",
+  "items": {
+    "allOf": [
+      {
+        "$ref": "#/$defs/workItem"
+      },
+      {
+        "type": "object",
+        "properties": {
+          "fields": {
+            "type": "object",
+            "required": ["System.Id", "System.Title", "System.CreatedDate"]
+          }
+        }
+      }
+    ]
+  },
+  "maxItems": 1000,
+  "$defs": {
+    "workItem": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "fields": {
+          "type": "object",
+          "properties": {
+            "System.Id": {
+              "type": "integer"
+            },
+            "System.Title": {
+              "type": "string"
+            },
+            "System.State": {
+              "description": "The process template's state: Closed, Done, and Removed are closed, any other open.",
+              "type": "string"
+            },
+            "System.AssignedTo": {
+              "description": "An IdentityRef, left out when nobody is assigned; uniqueName is the login az signs in as.",
+              "type": "object",
+              "properties": {
+                "displayName": {
+                  "type": "string"
+                },
+                "uniqueName": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true
+            },
+            "System.Tags": {
+              "description": "The tags, one text joined by \"; \", left out when there are none.",
+              "type": "string"
+            },
+            "System.CreatedDate": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "required": ["id", "fields"],
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    [
+      {
+        "id": 7,
+        "rev": 4,
+        "fields": {
+          "System.Id": 7,
+          "System.Title": "Fix the thing",
+          "System.Tags": "bug",
+          "System.AssignedTo": {
+            "displayName": "Bob",
+            "uniqueName": "bob",
+            "id": "2428198325304a9caeb788d60d57acfd"
+          },
+          "System.CreatedDate": "2026-09-20T09:00:00Z"
+        },
+        "relations": null,
+        "url": "https://dev.azure.com/acme/_apis/wit/workItems/7"
+      },
+      {
+        "id": 9,
+        "rev": 1,
+        "fields": {
+          "System.Id": 9,
+          "System.Title": "Other thing",
+          "System.CreatedDate": "2026-09-25T09:00:00.5Z"
+        },
+        "relations": null,
+        "url": "https://dev.azure.com/acme/_apis/wit/workItems/9"
+      }
+    ]
+  ]
+}

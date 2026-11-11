@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "az repos pr work-item list --id ${id} --output json",
+  "description": "The work items linked to the pull request, which its completion can close, whose number, title, state, assignee, tags, and creation `modules/bash/forge/ado.sh` reads in forge/ado:open-prs and forge/ado:pr-closing-issues, with `modules/jq/forge.jq`'s ado_pr, ado_closed, ado_assignees, and ado_tags; every call kit makes through forge/ado:az also carries --org ${organization} --detect false --only-show-errors. The extension reads the links, https://learn.microsoft.com/rest/api/azure/devops/git/pull-request-work-items/list?view=azure-devops-rest-7.1, then every field of each WorkItem, https://learn.microsoft.com/rest/api/azure/devops/wit/work-items/list?view=azure-devops-rest-7.1, as boards-work-item-show.schema.json gives one, and prints [] when the pull request links none.",
+  "type": "array",
+  "items": {
+    "allOf": [
+      {
+        "$ref": "#/$defs/workItem"
+      },
+      {
+        "type": "object",
+        "properties": {
+          "fields": {
+            "type": "object",
+            "required": ["System.Title", "System.State", "System.CreatedDate"]
+          }
+        }
+      }
+    ]
+  },
+  "$defs": {
+    "workItem": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "fields": {
+          "type": "object",
+          "properties": {
+            "System.Title": {
+              "type": "string"
+            },
+            "System.State": {
+              "description": "The process template's state: Closed, Done, and Removed are closed, any other open.",
+              "type": "string"
+            },
+            "System.AssignedTo": {
+              "description": "An IdentityRef, left out when nobody is assigned; uniqueName is the login az signs in as.",
+              "type": "object",
+              "properties": {
+                "displayName": {
+                  "type": "string"
+                },
+                "uniqueName": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true
+            },
+            "System.Tags": {
+              "description": "The tags, one text joined by \"; \", left out when there are none.",
+              "type": "string"
+            },
+            "System.CreatedDate": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "required": ["id", "fields"],
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    [
+      {
+        "id": 7,
+        "rev": 4,
+        "fields": {
+          "System.AreaPath": "empowerite",
+          "System.TeamProject": "empowerite",
+          "System.IterationPath": "empowerite",
+          "System.WorkItemType": "Task",
+          "System.Title": "Fix the thing",
+          "System.State": "Active",
+          "System.Tags": "bug",
+          "System.AssignedTo": {
+            "displayName": "Bob",
+            "uniqueName": "bob",
+            "id": "2428198325304a9caeb788d60d57acfd"
+          },
+          "System.CreatedDate": "2026-09-20T09:00:00Z"
+        },
+        "relations": null,
+        "url": "https://dev.azure.com/acme/a7573007-bbb3-4341-b726-0c4148a07853/_apis/wit/workItems/7"
+      }
+    ]
+  ]
+}
