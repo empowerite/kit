@@ -68,7 +68,8 @@ func TestTheCursorScrollsThePane(t *testing.T) {
 		t.Helper()
 		ls := lines(m)
 		at := slices.IndexFunc(ls, func(l string) bool { return strings.Contains(l, "Tutorial "+string(rune('1'+k))+" ") })
-		if at < 1 || at+5 >= len(ls)-1 || !strings.HasPrefix(ls[at-1], "  ╭") || !strings.HasPrefix(ls[at+5], "  ╰") {
+		end := at + cardHeight - 2 // the card's bottom edge, from its title's line
+		if at < 1 || end >= len(ls)-1 || !strings.HasPrefix(ls[at-1], "  ╭") || !strings.HasPrefix(ls[end], "  ╰") {
 			t.Fatalf("the cursor's card %d is not whole:\n%s", k+1, view(m))
 		}
 	}
@@ -439,14 +440,15 @@ func TestACardKeepsToItsCells(t *testing.T) {
 	}
 }
 
-// A card reads its top edge, the glyph and the title, a blank line, the summary on three lines, and its bottom edge.
+// A card reads its top edge, the glyph and the title, a blank line, the summary on three lines, another blank line, so
+// the summary stands clear of the pills, and its bottom edge.
 func TestTheTitleIsFollowedByABlankLine(t *testing.T) {
 	m, _ := loaded(t)
 	got := m.card(m.catalog.Tutorials[0], false)
 	want := []string{"╭" + strings.Repeat("─", cardWidth-2) + "╮", "│ 🎓 Reading kit's tutorials         │",
 		"│" + strings.Repeat(" ", cardWidth-2) + "│", "│ How the tutorials are laid out,    │",
 		"│ who each one is for, and how a     │", "│ page tells you that your kit is…   │",
-		bottomEdge(pillText("Just starting"))}
+		"│" + strings.Repeat(" ", cardWidth-2) + "│", bottomEdge(pillText("Just starting"))}
 	if plain := strings.Split(ansi.Strip(strings.Join(got, "\n")), "\n"); !slices.Equal(plain, want) {
 		t.Errorf("the card:\n%s\nwant\n%s", strings.Join(plain, "\n"), strings.Join(want, "\n"))
 	}

@@ -2,11 +2,11 @@
 // card each, tabbed by audience, and the keys bar last. The tabs are All, then each audience in the catalogue's order,
 // each counting its tutorials; a tag given on the command line, kit tutorials --tag <audience>, selects its audience's
 // tab once the catalogue is read, and a tutorial's id given, kit tutorials <tutorial>, puts the cursor on its card, in
-// that tab when it holds it, else in All. Under the bar, the pane draws the selected tab's tutorials as a grid of cards, as
-// many columns as fit and at least one: each card has the tutorial's glyph and title in bold, a blank line, its summary
-// on three lines with … where it runs over, and its audiences as pills in their colors on its bottom edge. The card
-// under the cursor is drawn in the menus' bright cyan, and the pane scrolls a row of cards at a time so that card is
-// always whole. A tab with no tutorial says so.
+// that tab when it holds it, else in All. Under the bar, the pane draws the selected tab's tutorials as a grid of cards,
+// as many columns as fit and at least one: each card has the tutorial's glyph and title in bold, a blank line, its
+// summary on three lines with … where it runs over, another blank line, and its audiences as pills in their colors on
+// its bottom edge. The card under the cursor is drawn in the menus' bright cyan, and the pane scrolls a row of cards at
+// a time so that card is always whole. A tab with no tutorial says so.
 //
 // The cards have the keyboard as the screen opens. Tab and shift-tab move the cursor between them, its stops, in
 // reading order, on along the next row, as they move between the stops on any line; up and down a column, down to the last card from a row it is not under; and up from the

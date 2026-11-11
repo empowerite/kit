@@ -27,7 +27,7 @@ const Failed = "❌"
 // either side; the cards stand gap cells apart, after the gutter every line keeps, as the tab bar does.
 const (
 	cardWidth  = 38
-	cardHeight = 7
+	cardHeight = 8
 	textWidth  = cardWidth - 4
 	gap        = 1
 	gutter     = tabs.Gutter
@@ -203,8 +203,8 @@ func (m Model) grid(cards []kit.Tutorial) []string {
 }
 
 // card gives a tutorial's card, its lines each cardWidth cells: a rounded border, dim, or in the menus' bright cyan
-// under the cursor; the glyph and the title in bold; a blank line; the summary on three lines; and a pill for each of
-// its audiences on the bottom edge.
+// under the cursor; the glyph and the title in bold; a blank line; the summary on three lines; another blank line, so
+// the summary stands clear of the pills; and a pill for each of its audiences on the bottom edge.
 func (m Model) card(t kit.Tutorial, cursor bool) []string {
 	edge, inner := style.Off, cardWidth-2
 	if cursor {
@@ -221,6 +221,7 @@ func (m Model) card(t kit.Tutorial, cursor bool) []string {
 	for _, l := range summary(t.Summary) {
 		out = append(out, line(l))
 	}
+	out = append(out, line(""))
 	// the pills stand a cell in from the corner's ─ and leave a ─ of the edge before the other corner
 	drawn := pills(m.audiences(t), inner-4, edge)
 	if drawn == "" {
