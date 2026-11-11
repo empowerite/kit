@@ -3,22 +3,22 @@
   │ 🎫 backlog  3 : │  🛫 underway  4   │  💻 desk  1   │  🌿 worktrees  4   │
   ╵                 ╰───────────────────╰───────────────╰────────────────────╰──
   ▾ source 3                                                        Default ▼
-
-  ▾ github 3
-
-      id   assignees         age  branch            labels  title
-      ·────⇊─────────────────·────·─────────────────⇊───────·──────────────────
-    ▸ #45                     2h                    3       🎫 kit flow is the…
- ╭─ backlog legend ─────────────────────────────────────────────────── ↖ ↗ ↙ ↘ ╮
- │ =  the kit menu                      ▾  open: a click closes it             │
- │ -  the workspace menu                ▼  the presets' menu                   │
- │ 🔎 the search: / or a click          ·  sortable: a click sorts             │
- │ ➊  the selected tab's number         ⇊  a list: a click flattens or gathers │
- │ ➁  a tab's number, which selects it  ▸  closed: a click opens it            │
- │ 🎫 the backlog stage                 🎫 an issue 🔗                         │
- │ :  the tab's menu                    👤 assignees or author                 │
- │ 🛫 the underway stage                🌿 a branch or a worktree              │
- │ 💻 the desk stage                    👥 assignees, how many                 │
- │ 🌿 the worktrees stage                                                      │
- ╰─────────────────────────────────────────────────────────────────────────────╯
+                                      ╭─ backlog legend ────────────── ↖ ↗ ↙ ↘ ╮
+  ▾ github 3                          │ =  the kit menu                        │
+                                      │ -  the workspace menu                  │
+      id   assignees        age  branc│ 🔎 the search: / or a click            │
+      ·────⇊────────────────·────·────│ ➊  the selected tab's number           │
+    ▸ #45                    2h       │ ➁  a tab's number, which selects it    │
+    ▸ #46  jeffrey-aguile…   2d  46-a-│ 🎫 the backlog stage                   │
+    ▸ #7   2                40d       │ :  the tab's menu                      │
+                                      │ 🛫 the underway stage                  │
+                                      │ 💻 the desk stage                      │
+                                      │ 🌿 the worktrees stage                 │
+                                      │ ▾  open: a click closes it             │
+                                      │ ▼  the presets' menu                   │
+                                      │ ·  sortable: a click sorts             │
+                                      │ ⇊  a list: a click flattens or gathers │
+                                      │ ▸  closed: a click opens it            │
+                                      │ 🎫 an issue 🔗                         │
+                                      ╰────────────────────────────────────────╯
  = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-8 jump : tab menu

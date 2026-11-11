@@ -6,11 +6,11 @@
 
   ▾ github 3
 
-      id   assignees         age  branch            labels  title
-      ·────⇊─────────────────·────·─────────────────⇊───────·──────────────────
-    ▸ #45                     2h                    3       🎫 kit flow is the…
-    ▸ #46  👤 jeffrey-agui…   2d  🌿 46-a-noun-li…  bug   🎫 A noun lists, a…
-    ▸ #7   👥 2              40d                            🎫 Fix the thing
+      id   assignees        age  branch           labels           title
+      ·────⇊────────────────·────·────────────────⇊────────────────·───────────
+    ▸ #45                    2h                   3                🎫 kit flow…
+    ▸ #46  jeffrey-aguile…   2d  46-a-noun-lists  bug              🎫 A noun l…
+    ▸ #7   2                40d                                    🎫 Fix the …
 
 
 

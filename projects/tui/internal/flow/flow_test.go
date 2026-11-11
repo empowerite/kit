@@ -1005,8 +1005,9 @@ func TestBacklogAndReleasesOpenToTheirDetail(t *testing.T) {
 		last(m.rows(0)[1].Cells).Link != "https://github.com/empowerite/kit/issues/45" {
 		t.Errorf("the backlog's links:\n%s", v)
 	}
-	// open, the row of two assignees names each under its lines, as a row of labels does
-	if v = view(drive(m, down, down, toggle)); !strings.Contains(v, Owner+" ada "+Owner+" bob") {
+	// open, the row of two assignees names each down its column, one to a line, as a row of labels does
+	if v = view(drive(m, down, down, toggle)); !strings.Contains(v, Owner+" ada") || !strings.Contains(v, Owner+" bob") ||
+		strings.Contains(v, Owner+" ada "+Owner+" bob") {
 		t.Errorf("#7 open:\n%s", v)
 	}
 	m = loaded(t, options(), tab, tab, tab, tab, tab, tab, tab, down, down, down, toggle)

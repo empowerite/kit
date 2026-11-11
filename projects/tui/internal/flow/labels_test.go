@@ -23,7 +23,7 @@ func TestALabelIsDrawnAsStylesPill(t *testing.T) {
 	}
 }
 
-// A row's labels column says how many it has, dim; its open row draws each as a pill, under the row's own lines; a
+// A row's labels column says how many it has, dim; its open row draws each as a pill, down the column, one to a line; a
 // row with one label draws it in the column, as it is, no count; a row with none says nothing there.
 func TestTheLabelsColumnCountsAndTheOpenRowDrawsThePills(t *testing.T) {
 	f := fieldIn("backlog", "labels")
@@ -37,8 +37,9 @@ func TestTheLabelsColumnCountsAndTheOpenRowDrawsThePills(t *testing.T) {
 	for _, l := range grid.Draw(rows, nil, 40, -1, func(grid.Row) bool { return true }, nil) {
 		got = append(got, strings.TrimRight(ansi.Strip(l.Text), " "))
 	}
-	want := []string{"  ▾ #1  2  a", "       " + style.PillLeft + "bug" + style.PillRight + " " + style.PillLeft + "priority" + style.PillRight + "high" +
-		style.PillRight}
+	bug, high := style.PillLeft+"bug"+style.PillRight, style.PillLeft+"priority"+style.PillRight+"high"+style.PillRight
+	want := []string{"  ▾ #1  " + bug + strings.Repeat(" ", ansi.StringWidth(high)-ansi.StringWidth(bug)) + "  a",
+		"        " + high}
 	if !slices.Equal(got, want) {
 		t.Errorf("open:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}

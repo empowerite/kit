@@ -6,11 +6,11 @@
 
   ▾ github 3
 
-      id   assignees         age  branch            labels  title
-      ·────⇊─────────────────·────·─────────────────⇊───────·──────────────────────────────────────────────────────────
-    ▸ #45                     2h                    3       🎫 kit flow is the one picture: five stages, interactive o…
-    ▸ #46  👤 jeffrey-agui…   2d  🌿 46-a-noun-li…  bug   🎫 A noun lists, a noun with a verb acts
-    ▸ #7   👥 2              40d                            🎫 Fix the thing
+      id   assignees         age  branch            labels            title
+      ·────⇊─────────────────·────·─────────────────⇊─────────────────·────────────────────────────────────────────────
+    ▸ #45                     2h                    3                 🎫 kit flow is the one picture: five stages, int…
+    ▸ #46  👤 jeffrey-agui…   2d  🌿 46-a-noun-li…  bug             🎫 A noun lists, a noun with a verb acts
+    ▸ #7   👥 2              40d                                      🎫 Fix the thing
 
 
 

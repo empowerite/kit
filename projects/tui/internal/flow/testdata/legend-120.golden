@@ -6,11 +6,11 @@
 
   ▾ github 3
 
-      id   assignees         age  branch            labels  title             ╭─ backlog legend ────────────── ↖ ↗ ↙ ↘ ╮
-      ·────⇊─────────────────·────·─────────────────⇊───────·─────────────────│ =  the kit menu                        │
-    ▸ #45                     2h                    3       🎫 kit flow is the│ -  the workspace menu                  │
-    ▸ #46  👤 jeffrey-agui…   2d  🌿 46-a-noun-li…  bug   🎫 A noun lists, a│ 🔎 the search: / or a click            │
-    ▸ #7   👥 2              40d                            🎫 Fix the thing  │ ➊  the selected tab's number           │
+      id   assignees         age  branch            labels            title   ╭─ backlog legend ────────────── ↖ ↗ ↙ ↘ ╮
+      ·────⇊─────────────────·────·─────────────────⇊─────────────────·───────│ =  the kit menu                        │
+    ▸ #45                     2h                    3                 🎫 kit f│ -  the workspace menu                  │
+    ▸ #46  👤 jeffrey-agui…   2d  🌿 46-a-noun-li…  bug             🎫 A nou│ 🔎 the search: / or a click            │
+    ▸ #7   👥 2              40d                                      🎫 Fix t│ ➊  the selected tab's number           │
                                                                               │ ➁  a tab's number, which selects it    │
                                                                               │ 🎫 the backlog stage                   │
                                                                               │ :  the tab's menu                      │

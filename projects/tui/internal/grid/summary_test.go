@@ -1,5 +1,6 @@
-// A cell with a summary, as an issue's labels by their count: its column shows the summary, closed or open, and is as
-// wide as it; open, the row's values follow its lines, side by side, as many to a line as the width holds.
+// A cell with a summary, as an issue's labels by their count: closed, its column shows the summary; open, its values,
+// one to a line, down the same column, so two lists in a row each keep their own. The column is as wide as its widest
+// value.
 package grid
 
 import (
@@ -24,36 +25,36 @@ func labeled() []Row {
 	}
 }
 
-func TestACellWithASummaryShowsItClosedAndItsValuesUnderTheOpenRow(t *testing.T) {
+func TestACellWithASummaryShowsItClosedAndItsValuesDownItsColumnOpen(t *testing.T) {
 	closed := plain(Draw(labeled(), nil, 40, -1, func(Row) bool { return false }, nil))
-	if want := []string{"  ▸ #1  3  a title", "  ▸ #2  1  two", "    #3     three"}; !slices.Equal(closed, want) {
+	if want := []string{"  ▸ #1  3                 a title", "  ▸ #2  1                 two",
+		"    #3                    three"}; !slices.Equal(closed, want) {
 		t.Errorf("closed:\n%s\nwant\n%s", strings.Join(closed, "\n"), strings.Join(want, "\n"))
 	}
-	open := plain(Draw(labeled(), nil, 30, -1, func(Row) bool { return true }, nil))
+	open := plain(Draw(labeled(), nil, 40, -1, func(Row) bool { return true }, nil))
 	want := []string{
-		"  ▾ #1  3  a title",
-		"       bug priority high",
-		"       good first issue",
-		"  ▾ #2  1  two",
-		"       docs",
-		"    #3     three",
+		"  ▾ #1  bug               a title",
+		"        priority high",
+		"        good first issue",
+		"  ▾ #2  docs              two",
+		"    #3                    three",
 	}
 	if !slices.Equal(open, want) {
 		t.Errorf("open:\n%s\nwant\n%s", strings.Join(open, "\n"), strings.Join(want, "\n"))
 	}
-	// the column is as wide as its summary, not its widest value, which stands under the row
-	if n := Need([]Cell{labeled()[0].Cells[1]}, ""); n != 1 {
+	if n := Need([]Cell{labeled()[0].Cells[1]}, ""); n != len("good first issue") {
 		t.Errorf("the summary's column needs %d cells", n)
 	}
 }
 
-// A value wider than the line has one of its own, cut where it ends, and the values around it keep theirs.
-func TestFlowedGivesAValueTooWideALineOfItsOwn(t *testing.T) {
-	got := flowed([]string{"a", "much too wide", "b", "c"}, 8)
-	if want := []string{"a", "much to…", "b c"}; !slices.Equal(got, want) {
-		t.Errorf("flowed: %q, want %q", got, want)
-	}
-	if got := flowed(nil, 8); got != nil {
-		t.Errorf("no values: %q", got)
+// Two lists in a row, open, each stand down their own column.
+func TestTwoListsInAnOpenRowEachKeepTheirColumn(t *testing.T) {
+	list := func(values ...string) Cell { return Cell{Values: values, Raw: values, Summary: "2"} }
+	rows := []Row{{Key: "a", Cells: []Cell{{Values: []string{"a"}}, list("remote", "primary"), list("x y", "z"),
+		{Values: []string{"meaning"}, Wrap: true}}}}
+	got := plain(Draw(rows, nil, 60, -1, func(Row) bool { return true }, nil))
+	want := []string{"  ▾ a  remote   x y  meaning", "       primary  z"}
+	if !slices.Equal(got, want) {
+		t.Errorf("open:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 }

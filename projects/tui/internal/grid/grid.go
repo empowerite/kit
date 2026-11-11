@@ -39,9 +39,9 @@ import (
 // with none by its first value's text, naturally, so #7 comes before #31. Head is what a group's heading says of the
 // value, for a cell that draws more than it groups by, as checks their counts beside their state; none says the cell's
 // first value. Hang says its values start with a glyph, so a line an open row breaks one onto starts under the text
-// after the glyph, not under the glyph: a hanging indent. Summary is what its column shows in place of its values, as
-// how many labels an issue has: the column is as wide as the summary, and an open row draws the values after its own
-// lines, side by side across the width, so values too wide for a column stand whole. Whole says its column keeps the
+// after the glyph, not under the glyph: a hanging indent. Summary is what its column shows in place of its values while
+// the row is closed, as how many labels an issue has; open, the row shows the values down the same column, one to a
+// line, so two lists in a row each keep their own. Whole says its column keeps the
 // width of its widest value while the title can keep minFill cells, and gives way only after the title, as fit says.
 type Cell struct {
 	Values  []string
@@ -295,14 +295,6 @@ func Draw(rows []Row, head []string, width, cursor int, open func(Row) bool, pic
 			out = append(out, Line{k, g + l})
 		}
 		if opened {
-			for _, c := range r.Cells {
-				if c.Summary == "" {
-					continue
-				}
-				for _, l := range flowed(c.Values, cells-len(under)+len(lead)) {
-					out = append(out, Line{k, under + l})
-				}
-			}
 			for _, d := range table(r.Detail, cells-len(under)+len(lead)) {
 				out = append(out, Line{k, under + d})
 			}
@@ -546,13 +538,13 @@ func columnWidths(rows []Row) []int {
 }
 
 // need gives the cells a cell takes in its column: its widest value, or its first value and +N; for the cell that
-// wraps, the widest it is on one line, which fit takes as the most it needs; for a cell with a summary, the summary,
-// as its values stand under the row.
+// wraps, the widest it is on one line, which fit takes as the most it needs; for a cell with a summary, its widest
+// value or the summary, as its values stand in its column when the row is open.
 func (c Cell) need() int {
-	if c.Summary != "" {
-		return ansi.StringWidth(c.Summary)
-	}
 	n := 0
+	if c.Summary != "" {
+		n = ansi.StringWidth(c.Summary)
+	}
 	if !c.Wrap {
 		n = ansi.StringWidth(c.first() + c.more())
 	}
@@ -708,8 +700,6 @@ func openLines(r []Cell, widths []int, left, width int, chosen bool) []string {
 		switch {
 		case c.Wrap:
 			columns[j] = wrapped(c, left)
-		case j < len(widths) && widths[j] > 0 && c.Summary != "":
-			columns[j] = []string{pane.Clip(c.Summary, widths[j])}
 		case j < len(widths) && widths[j] > 0:
 			for _, v := range c.Values {
 				columns[j] = append(columns[j], hung(v, c.Hang, widths[j], broken)...)
@@ -741,27 +731,6 @@ func openLines(r []Cell, widths []int, left, width int, chosen bool) []string {
 			parts = append(parts, pane.Pad(v, w, c.Right))
 		}
 		out[k] = pane.Clip(strings.TrimRight(strings.Join(parts, strings.Repeat(" ", gap)), " "), width)
-	}
-	return out
-}
-
-// flowed lays values out side by side, a space between each two, in lines of so many cells: a line takes each value
-// that still fits on it whole, and a value wider than a line has one of its own, cut where it ends.
-func flowed(values []string, width int) []string {
-	var out []string
-	line, used := "", 0
-	for _, v := range values {
-		w := ansi.StringWidth(v)
-		if line != "" && used+1+w > width {
-			out, line, used = append(out, line), "", 0
-		}
-		if line != "" {
-			line, used = line+" ", used+1
-		}
-		line, used = line+pane.Clip(v, width), used+min(w, width)
-	}
-	if line != "" {
-		out = append(out, line)
 	}
 	return out
 }
