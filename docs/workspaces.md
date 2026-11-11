@@ -228,6 +228,10 @@ pins. The machine's checks, the tools kit runs on, the system toolchain, and eac
 once, for every host among the folders' remotes. The folders are judged at once. `kit welcome --fix <check>
 --folder=<path>` runs a folder's check's fix in that folder.
 
+On a terminal, kittui's setup step draws the checks as one table: the machine's first, then each repository, a row
+per folder with its branch, its kit, and a column for each kind of check, its failed checks under it, each offering
+its fix. The introduction names each folder above its failed checks.
+
 ## Still to come
 
 What is built is steps 1 to 3 of [the workspaces design](superpowers/specs/2026-11-08-workspaces-design.md): the file,

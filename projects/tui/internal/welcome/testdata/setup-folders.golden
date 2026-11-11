@@ -1,0 +1,30 @@
+  = kit welcome · - w 3                                                                                      🔎 /search
+  ➀╶────────────────╮➁╶──────────────╴➌╶────────────╮➃╶─────────────╮➄╶─────────╮
+    👋 introduction │  🧰 toolchains  │ 🔧 setup  6 │  🎨 customize │  📖 terms │
+  ──────────────────╰─────────────────╯             ╰───────────────╰───────────╰───────────────────────────────────────
+   Each line is a check. When one fails and kit knows the fix, choose now to run it or later to move on.
+
+   This machine
+   ✅ gh is on PATH; kit reaches github.com through it
+   ❌ gh is not logged in to github.com
+      gh auth login --hostname github.com · it needs you at the keyboard
+
+     folder          branch       kit    git  kit  .kit  hooks  toolchain  tools  check
+   github.com/o/a
+     💻 a            main         0.3.0  ✅   ✅   ✅    ❌     ✅         ✅     ✅
+       ❌ the git hooks are not installed; lefthook runs none
+          lefthook install
+     🌳 7-the-topic  7-the-topic  none   ✅   ❌   ·     ·      ✅         ·      ·
+       ❌ kit.yml declares no kit version; kit is not installed here
+          kit install
+   github.com/o/b
+     💻 b            main         0.2.0  ✅   ✅   ✅    ·      ❌         ❌     ❌
+       ❌ several toolchains are usable for the project: mise, brew; choose one
+          kit toolchains choose mise
+          or: kit toolchains choose brew
+       ❌ shellcheck is not installed; kit lint runs it for .kit/rules/bash.md
+          https://docs/toolchains.md
+       ❌ kit check finds 2 problem(s); run kit check to see each one
+
+
+ = menu - workspace / search │ ⇥·⇧⇥ tab ↓ checks 1-5 jump

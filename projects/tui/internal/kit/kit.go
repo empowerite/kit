@@ -420,28 +420,33 @@ func grouped(ctx context.Context, name string, args ...string) *exec.Cmd {
 // empty when kit knows none. Interactive says the fix needs the person, as gh auth login does. More says where to read
 // more, empty when there is nothing to read. Runs says kit runs the fix; it is false for a fix kit only shows, as one
 // that must run in the person's own shell. A check that does not say counts as runnable, so an older kit still works.
-// Member and Dirs are kittui's, over a group: the member the check is its own, host/path, empty for one said once for
-// every member; and the checkouts its fix runs in, in turn, every member's for one said once, none for where kittui
-// runs.
+// A folder's check names the folder it holds in, the absolute path its fix runs in; its repository, host/path, or the
+// desk's folder name with no remote; whether the folder is the desk, else a worktree; the branch checked out there,
+// empty with none; and the kit version its kit.yml declares, empty with none. A machine check names no folder, nor
+// does any check of an older kit.
 type Check struct {
-	ID          string   `json:"id"`
-	Step        string   `json:"step"`
-	OK          bool     `json:"ok"`
-	Line        string   `json:"line"`
-	Fix         string   `json:"fix"`
-	Interactive bool     `json:"interactive"`
-	More        string   `json:"more"`
-	Runs        bool     `json:"runs"`
-	Member      string   `json:"-"`
-	Dirs        []string `json:"-"`
+	ID          string `json:"id"`
+	Step        string `json:"step"`
+	OK          bool   `json:"ok"`
+	Line        string `json:"line"`
+	Fix         string `json:"fix"`
+	Interactive bool   `json:"interactive"`
+	More        string `json:"more"`
+	Runs        bool   `json:"runs"`
+	Folder      string `json:"folder"`
+	Repository  string `json:"repository"`
+	Desk        bool   `json:"desk"`
+	Branch      string `json:"branch"`
+	Kit         string `json:"kit"`
 }
 
-// Key gives what tells a check from every other on a screen: its id, after its member when it has one.
+// Key gives what tells a check from every other on a screen: its id, after its folder when it has one, as a folder's
+// check has the same id in every folder.
 func (c Check) Key() string {
-	if c.Member == "" {
+	if c.Folder == "" {
 		return c.ID
 	}
-	return c.Member + " " + c.ID
+	return c.Folder + " " + c.ID
 }
 
 // UnmarshalJSON reads a check, runnable unless it says runs is false.
@@ -455,10 +460,11 @@ func (c *Check) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-// WelcomeChecks gives kit welcome's checks, in the order kit ran them. They have checksLimit at most, and end when ctx
-// does, as the screen that asked for them ends.
+// WelcomeChecks gives kit welcome's checks, in the order kit ran them: the machine's, then each folder's of the
+// workspace, as over names it, every member's desk and worktrees over a group. They have checksLimit at most, and end
+// when ctx does, as the screen that asked for them ends.
 func (r Runner) WelcomeChecks(ctx context.Context) ([]Check, error) {
-	out, err := r.within(ctx, checksLimit, append(os.Environ(), "NO_COLOR=1"), "welcome", "--checks", "--json")
+	out, err := r.within(ctx, checksLimit, append(os.Environ(), "NO_COLOR=1"), r.over("welcome", "--checks", "--json")...)
 	if err != nil {
 		return nil, err
 	}
@@ -469,11 +475,16 @@ func (r Runner) WelcomeChecks(ctx context.Context) ([]Check, error) {
 	return checks, nil
 }
 
-// WelcomeFix gives the command that runs a check's fix, kit welcome --fix <id>, where the command was typed. It is not
-// started: the caller hands it the terminal, since a fix may print and ask. It exits 0 when the check now holds, 1
-// when it still fails, and 2 when kit refuses.
-func (r Runner) WelcomeFix(id string) *exec.Cmd {
-	cmd := exec.Command(r.Kit, "welcome", "--fix", id)
+// WelcomeFix gives the command that runs a check's fix, kit welcome --fix <id>, where the command was typed, over the
+// workspace, as over names it, so a forge's login finds its host among the folders; a folder's check, with
+// --folder=<folder>, runs there. It is not started: the caller hands it the terminal, since a fix may print and ask.
+// It exits 0 when the check now holds, 1 when it still fails, and 2 when kit refuses.
+func (r Runner) WelcomeFix(c Check) *exec.Cmd {
+	args := r.over("welcome", "--fix", c.ID)
+	if c.Folder != "" {
+		args = append(args, "--folder="+c.Folder)
+	}
+	cmd := exec.Command(r.Kit, args...)
 	cmd.Dir = r.Dir
 	return cmd
 }

@@ -88,12 +88,12 @@ func TestUseWorkspaceTellsKit(t *testing.T) {
 	}
 }
 
-func TestACheckIsKeyedByItsMemberAndItsID(t *testing.T) {
+func TestACheckIsKeyedByItsFolderAndItsID(t *testing.T) {
 	if k := (Check{ID: "jq"}).Key(); k != "jq" {
-		t.Errorf("no member: %q", k)
+		t.Errorf("no folder: %q", k)
 	}
-	if k := (Check{ID: "jq", Member: "github.com/o/a"}).Key(); k != "github.com/o/a jq" {
-		t.Errorf("a member's: %q", k)
+	if k := (Check{ID: "kit-check", Folder: "/a"}).Key(); k != "/a kit-check" {
+		t.Errorf("a folder's: %q", k)
 	}
 }
 

@@ -1,6 +1,6 @@
-// Over a group, Welcome runs the checks in every member's checkout and shows them together: a check every member
-// reports alike once, one that differs once per member, a refusal as its member's failed check, and the members not
-// cloned named in the introduction. A fix runs in its member's checkout.
+// Over a group, Welcome reads the checks once, over the group, as kit judges each member's desk and worktrees itself:
+// the setup step draws them as one table, the machine first, then a row per folder of each repository, and a folder's
+// fix runs in its folder. The members not cloned are named in the introduction.
 package welcome
 
 import (
@@ -17,99 +17,73 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
-func check(id string, ok bool, line string) kit.Check {
-	return kit.Check{ID: id, Step: "toolchains", OK: ok, Line: line, Runs: true}
-}
+// setupStep is the index of the setup step among the known ones.
+var setupStep = indexOf(known, setupID)
 
-func TestComposeSaysACheckAlikeInEveryMemberOnce(t *testing.T) {
-	got := compose([]run{
-		{member: "github.com/o/a", dir: "/a", checks: []kit.Check{check("jq", false, "jq is not installed")}},
-		{member: "github.com/o/b", dir: "/b", checks: []kit.Check{check("jq", false, "jq is not installed")}},
-	})
-	if len(got) != 1 || got[0].Member != "" || strings.Join(got[0].Dirs, " ") != "/a /b" || got[0].Key() != "jq" {
-		t.Errorf("composed: %+v", got)
-	}
-}
-
-func TestComposeShowsACheckThatDiffersPerMember(t *testing.T) {
-	got := compose([]run{
-		{member: "github.com/o/a", dir: "/a", checks: []kit.Check{check("bash", true, "bash"),
-			check("toolchain-project", true, "one toolchain")}},
-		{member: "github.com/o/b", dir: "/b", checks: []kit.Check{check("toolchain-project", false, "several"),
-			check("bash", true, "bash"), check("only-b", false, "b alone")}},
-	})
-	var keys []string
-	for _, c := range got {
-		keys = append(keys, c.Key()+"@"+strings.Join(c.Dirs, " "))
-	}
-	want := "bash@/a /b|github.com/o/a toolchain-project@/a|github.com/o/b toolchain-project@/b|" +
-		"github.com/o/b only-b@/b"
-	if strings.Join(keys, "|") != want {
-		t.Errorf("composed: %s", strings.Join(keys, "|"))
-	}
-}
-
-func TestComposeTurnsARefusalIntoItsMembersFailedCheck(t *testing.T) {
-	got := compose([]run{
-		{member: "github.com/o/a", dir: "/a", checks: []kit.Check{check("jq", true, "jq")}},
-		{member: "github.com/o/b", dir: "/b", err: &kit.ExitError{Code: 2, Stderr: "❌ kit welcome refuses here\n"}},
-	})
-	if len(got) != 2 || got[0].Member != "" || got[1].Member != "github.com/o/b" || got[1].ID != "kit" || got[1].OK ||
-		got[1].Line != "kit welcome refuses here" || got[1].Fix != "" {
-		t.Errorf("composed: %+v", got)
-	}
-	// a single member that answered says each check once, with its checkout
-	one := []run{{member: "github.com/o/a", dir: "/a", checks: []kit.Check{check("jq", true, "jq")}}}
-	if got := compose(one); len(got) != 1 || got[0].Member != "" || strings.Join(got[0].Dirs, " ") != "/a" {
-		t.Errorf("one member: %+v", got)
-	}
-}
-
-// group opens the screen at 120×30 over the group of a and b, each a checkout of its own, and c, not cloned; a's
-// checks are the fixture's but toolchain-project, which fails there another way. It gives the screen, what its fixes
-// ran, and a's and b's checkouts.
-func group(t *testing.T, msgs ...tea.Msg) (Model, *ran, string, string) {
+// group opens the screen at 120×30 over the group w of github.com/o/a and github.com/o/b, whose checks are
+// testdata/folders' as kit judges every folder of the group, and github.com/o/c, not cloned. It gives the screen, what
+// its fixes ran, and the file the fake writes its welcome calls to.
+func group(t *testing.T, msgs ...tea.Msg) (Model, *ran, string) {
 	t.Helper()
 	m, r := fake(t)
-	a, b := t.TempDir(), t.TempDir()
-	fixture, err := os.ReadFile(filepath.Join("testdata", "checks.json"))
+	dir, calls := t.TempDir(), filepath.Join(t.TempDir(), "calls")
+	t.Setenv("FAKE_WELCOME_CALLS", calls)
+	fixture, err := os.ReadFile(filepath.Join("testdata", "folders", "checks.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	mine := strings.Replace(string(fixture), "several toolchains are usable for the project",
-		"a's toolchain differs", 1)
-	if err := os.WriteFile(filepath.Join(a, "checks.json"), []byte(mine), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "checks.json"), fixture, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	ws := kit.Workspace{Kind: "group", Name: "w", Members: []kit.WorkspaceMember{{Repository: "github.com/o/a",
-		Checkout: a}, {Repository: "github.com/o/b", Checkout: b}, {Repository: "github.com/o/c"}}}
-	g := Open(testkit.Runner(t, "welcome"), ws)
+		Checkout: "/code/a"}, {Repository: "github.com/o/b", Checkout: "/code/b"}, {Repository: "github.com/o/c"}}}
+	runner := testkit.Runner(t, "welcome")
+	runner.Dir = dir
+	g := Open(runner, ws)
 	g.exec = m.exec
-	return drive(g, append(testkit.Start(g, at120), msgs...)...), r, a, b
+	return drive(g, append(testkit.Start(g, at120), msgs...)...), r, calls
 }
 
-func TestAGroupsChecksDrawTogetherWithTheUnclonedNamed(t *testing.T) {
-	m, _, _, _ := group(t)
-	v := view(m)
-	if !strings.Contains(v, "not cloned: o/c") || strings.Contains(v, "☁") || !strings.Contains(v, "- w 3") {
+func TestAGroupsChecksAreReadOnceOverTheGroupWithTheUnclonedNamed(t *testing.T) {
+	m, _, path := group(t)
+	if got := calls(t, path); len(got) != 1 || got[0] != "--workspace=w welcome --checks --json" {
+		t.Errorf("the reads: %q", got)
+	}
+	if v := view(m); !strings.Contains(v, "not cloned: o/c") || !strings.Contains(v, "- w 3") {
 		t.Errorf("the introduction:\n%s", v)
 	}
-	m = drive(m, press('2'))
-	v = view(m)
-	if !strings.Contains(v, "a's toolchain differs: mise, brew; choose one · a") ||
-		!strings.Contains(v, "usable for the project: mise, brew; choose one · b") {
-		t.Errorf("the toolchains step:\n%s", v)
+}
+
+func TestTheSetupStepIsOneTableTheMachineFirstThenARowPerFolder(t *testing.T) {
+	m, _, _ := group(t, stepKey(setupStep))
+	v := view(m)
+	testkit.Golden(t, filepath.Join("testdata", "setup-folders.golden"), v)
+	// the tab names the step, so its page's heading goes
+	if strings.Contains(v, "   Setup\n") {
+		t.Errorf("the heading shows:\n%s", v)
 	}
-	// jq fails alike in both, so it shows once, with no member
-	if strings.Count(v, "jq is not installed") != 1 || strings.Contains(v, "jq is not installed ·") {
-		t.Errorf("jq on the toolchains step:\n%s", v)
+	machine, a, desk, topic := strings.Index(v, "This machine"), strings.Index(v, "github.com/o/a"),
+		strings.Index(v, deskGlyph+" a "), strings.Index(v, worktreeGlyph+" 7-the-topic")
+	if machine < 0 || a < machine || desk < a || topic < desk || strings.Index(v, "github.com/o/b") < topic {
+		t.Errorf("the machine, then a's desk and worktree, then b:\n%s", v)
+	}
+	// a folder's failed checks stand under its row; the ones that hold are its row's ✅ alone
+	if !strings.Contains(v, "kit.yml declares no kit version") || strings.Contains(v, "kit check finds nothing wrong") {
+		t.Errorf("the folders' checks:\n%s", v)
+	}
+	if !strings.Contains(v, "7-the-topic") || !strings.Contains(v, "0.3.0") || !strings.Contains(v, "none") {
+		t.Errorf("each folder's branch and kit:\n%s", v)
+	}
+	// the bar counts the failed checks: the login, and five of the folders'
+	if !strings.Contains(v, "setup  6") {
+		t.Errorf("the count:\n%s", v)
 	}
 }
 
-// onMember moves the cursor, in the pane, down to the check with the id of the member, and says whether it found it.
-func onMember(m Model, id, member string) (Model, bool) {
-	for range 8 {
-		if c := m.checks[m.cursor]; c.ID == id && c.Member == member {
+// onKey moves the cursor, in the pane, down to the check with the key, and says whether it found it.
+func onKey(m Model, key string) (Model, bool) {
+	for range 12 {
+		if m.inPane && m.checks[m.cursor].Key() == key {
 			return m, true
 		}
 		m = drive(m, down)
@@ -117,54 +91,71 @@ func onMember(m Model, id, member string) (Model, bool) {
 	return m, false
 }
 
-func TestAFixRunsInItsMembersCheckout(t *testing.T) {
-	m, r, a, b := group(t, press('2'), down)
-	m, found := onMember(m, "toolchain-project", "github.com/o/b")
+func TestAFoldersFailedCheckOffersItsFixUnderItsRow(t *testing.T) {
+	m, _, _ := group(t, stepKey(setupStep))
+	m, found := onKey(m, "/code/a hooks-installed")
 	if !found {
-		t.Fatalf("no b's toolchain-project:\n%s", view(m))
+		t.Fatalf("no hooks-installed at the desk:\n%s", view(m))
 	}
-	m = drive(m, press('l'))
 	v := view(m)
-	if !strings.Contains(v, "choose one · b · later") || strings.Contains(v, "choose one · a · later") {
-		t.Errorf("b's left for later, a's not:\n%s", v)
-	}
-	// later moved the cursor down past a's, so home brings it back to the step's first row
-	m, found = onMember(drive(m, press(tea.KeyHome)), "toolchain-project", "github.com/o/a")
-	if !found {
-		t.Fatalf("no a's toolchain-project:\n%s", view(m))
-	}
-	drive(m, press('n'))
-	if len(r.dirs) != 1 || r.dirs[0] != a || r.dirs[0] == b {
-		t.Errorf("the fix ran in %v, want %s", r.dirs, a)
+	testkit.Golden(t, filepath.Join("testdata", "setup-folders-row.golden"), v)
+	if !strings.Contains(v, "     ▸ ❌ the git hooks are not installed; lefthook runs none    now   later") ||
+		keysAt(m) != choiceKeys {
+		t.Errorf("the desk's hooks, offering now and later:\n%s\n%s", v, keysAt(m))
 	}
 }
 
-func TestAGroupWhoseEveryMemberRefusesSaysKitsLine(t *testing.T) {
+func TestAFoldersFixRunsInItsFolderAndAMachinesOverTheGroup(t *testing.T) {
+	m, r, _ := group(t, stepKey(setupStep))
+	m, found := onKey(m, "/code/a/worktrees/7-the-topic kit-installed")
+	if !found {
+		t.Fatalf("no kit-installed in the worktree:\n%s", view(m))
+	}
+	m = drive(m, press('n'))
+	if len(r.calls) != 1 ||
+		strings.Join(r.calls[0], " ") != "--workspace=w welcome --fix kit-installed --folder=/code/a/worktrees/7-the-topic" {
+		t.Errorf("the fix: %q", r.calls)
+	}
+	m, found = onKey(drive(m, press('3'), down), "forge-login-github.com")
+	if !found {
+		t.Fatalf("no login:\n%s", view(m))
+	}
+	drive(m, press('n'))
+	if len(r.calls) != 2 || strings.Join(r.calls[1], " ") != "--workspace=w welcome --fix forge-login-github.com" {
+		t.Errorf("the login's fix: %q", r.calls)
+	}
+}
+
+func TestTheIntroductionNamesEachFolderAboveItsFailedChecks(t *testing.T) {
+	m, _, _ := group(t)
+	v := view(m)
+	testkit.Golden(t, filepath.Join("testdata", "introduction-folders.golden"), v)
+	head := strings.Index(v, "github.com/o/a · "+worktreeGlyph+" 7-the-topic on 7-the-topic")
+	if head < 0 || !strings.Contains(v[head:], "\n     ❌ kit.yml declares no kit version") {
+		t.Errorf("the worktree's failed check under its line:\n%s", v)
+	}
+	// a search for a folder's branch keeps that folder's checks
+	m = drive(m, press('/'))
+	m = drive(m, testkit.Typed("7-the")...)
+	if v := view(m); !strings.Contains(v, "kit.yml declares no kit version") || strings.Contains(v, "several toolchains") {
+		t.Errorf("searched for the branch:\n%s", v)
+	}
+}
+
+func TestAGroupKitRefusesSaysKitsLine(t *testing.T) {
 	t.Setenv("FAKE_WELCOME_REFUSE", "1")
-	m, _, _, _ := group(t)
+	m, _, _ := group(t)
 	if v := view(m); !strings.Contains(v, "kit welcome refuses for the test") {
-		t.Errorf("every member refused:\n%s", v)
+		t.Errorf("kit refused:\n%s", v)
 	}
 }
 
 func TestAGroupsChecksEndWithTheScreen(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	ws := kit.Workspace{Kind: "group", Members: []kit.WorkspaceMember{{Repository: "github.com/o/a",
+	ws := kit.Workspace{Kind: "group", Name: "w", Members: []kit.WorkspaceMember{{Repository: "github.com/o/a",
 		Checkout: t.TempDir()}}}
 	if _, err := checksOver(testkit.Runner(t, "welcome"), ws)(ctx, false); !errors.Is(err, context.Canceled) {
 		t.Errorf("ended: %v", err)
-	}
-}
-
-func TestAFixSaidOnceRunsInEveryMember(t *testing.T) {
-	m, r, a, b := group(t, press('2'), down)
-	m, found := onMember(m, "jq", "")
-	if !found {
-		t.Fatalf("no jq said once:\n%s", view(m))
-	}
-	drive(m, press('n'))
-	if strings.Join(r.dirs, " ") != a+" "+b {
-		t.Errorf("the fix ran in %v, want %s then %s", r.dirs, a, b)
 	}
 }

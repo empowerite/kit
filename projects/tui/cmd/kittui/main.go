@@ -52,7 +52,7 @@ func run(args []string, stderr io.Writer) int {
 		return 2
 	}
 	r := kit.New()
-	if appVerb(verb) {
+	if appVerb(verb) || verb == "welcome" {
 		r.Group, words = workspaceOf(words)
 	}
 	first, m, err := open(r, verb, words)

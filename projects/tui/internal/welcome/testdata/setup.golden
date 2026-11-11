@@ -2,14 +2,14 @@
   ➀╶────────────────╮➁╶─────────────────╴➌╶────────────╮➃╶─────────────╮➄╶─────────╮
     👋 introduction │  🧰 toolchains  3  │ 🔧 setup  2 │  🎨 customize │  📖 terms │
   ──────────────────╰────────────────────╯             ╰───────────────╰───────────╰────────────────────────────────────
-   Setup
-
    Each line is a check. When one fails and kit knows the fix, choose now to run it or later to move on.
 
  ▸ ❌ gh is not logged in to github.com    now   later 
       gh auth login --hostname github.com · it needs you at the keyboard
    ❌ kit check finds 2 differences from the release
       read: kit help check
+
+
 
 
 

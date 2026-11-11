@@ -9,7 +9,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
@@ -197,6 +196,8 @@ func (m Model) pane() []string {
 // what the checks found, and any other step its page.
 func (m Model) lines() []line {
 	switch {
+	case m.foldered(m.step):
+		return m.setupLines()
 	case m.checked():
 		return m.stepLines()
 	case m.isIntroduction(m.step):
@@ -225,10 +226,11 @@ func (m Model) introductionLines() []line {
 	return out
 }
 
-// findings gives what the checks found, as the introduction draws it. That is checking… until they first answer; then
-// ✅ when every check passed, or how many failed and a link to each, in the order of their steps: ❌, its line, and the
-// glyph and name of its step, the cursor's link drawn as chosen, and the search narrowing them as it does a step's
-// checks. Kit's refusal, in red, comes first when kit refused them, and checking… last while they run again.
+// findings gives what the checks found, as the introduction draws it. That is checking… until they first answer; then ✅
+// when every check passed, or how many failed and a link to each, in the order of their steps: ❌, its line, and the
+// glyph and name of its step, a folder's links under a dim line that names the folder, its repository, and its branch,
+// the cursor's link drawn as chosen, and the search narrowing them as it does a step's checks. Kit's refusal, in red,
+// comes first when kit refused them, and checking… last while they run again.
 func (m Model) findings() []line {
 	w := m.width - 1
 	var out []line
@@ -263,14 +265,23 @@ func (m Model) findings() []line {
 		add(-1, lead+style.Label(head))
 		add(-1, lead+style.Off(strings.Repeat("─", ansi.StringWidth(head))))
 		rows := m.rows(m.step)
+		folder := ""
 		for _, i := range rows {
 			c := m.checks[i]
 			t := m.tabs[m.stepOf(c)]
-			start, text := lead, c.Line
-			if m.inPane && i == m.cursor {
-				start, text = focus, style.Chosen(c.Line)
+			// a folder's links stand under a line that names it, the first time one comes
+			indent := ""
+			if c.Folder != "" {
+				indent = "  "
+				if c.Folder != folder {
+					add(-1, lead+style.Off(folderLine(c)))
+				}
 			}
-			text += memberOf(c)
+			folder = c.Folder
+			start, text := indent+lead, c.Line
+			if m.inPane && i == m.cursor {
+				start, text = indent+focus, style.Chosen(c.Line)
+			}
 			if m.deferred[c.Key()] {
 				text += style.Off(" · later")
 			}
@@ -323,12 +334,39 @@ func (m Model) pageLines(i int) []string {
 // says, as the toolchains check's other choices.
 func (m Model) stepLines() []line {
 	w := m.width - 1
+	out := m.stepHead()
+	add := func(row int, text string) { out = append(out, line{row, pane.Clip(text, w)}) }
+	query := m.search().Query
+	rows := m.rows(m.step)
+	if len(rows) == 0 {
+		switch {
+		case m.checking.Running():
+			add(-1, lead+style.Off("checking…"))
+		case query != "":
+			add(-1, lead+style.Off("no check matches the search"))
+		}
+		return out
+	}
+	for _, i := range rows {
+		out = append(out, m.checkLines(i, m.checks[i].Key(), "")...)
+	}
+	return append(out, m.stepTail(rows)...)
+}
+
+// stepHead gives the lines a step with checks starts with: its page, the setup step's without its heading, which the
+// tab names, the lines the search lets through, and kit's refusal.
+func (m Model) stepHead() []line {
+	w := m.width - 1
 	var out []line
 	add := func(row int, text string) { out = append(out, line{row, pane.Clip(text, w)}) }
 	query := m.search().Query
 	if t := m.tabs[m.step]; t.missing == "" && t.page != "" {
+		page := t.page
+		if t.id == setupID {
+			page = withoutHeading(page)
+		}
 		shown := 0
-		for _, l := range render(t.page, w-len(lead)) {
+		for _, l := range render(page, w-len(lead)) {
 			if matches(l, query) {
 				add(-1, strings.TrimRight(lead+l, " "))
 				shown++
@@ -344,19 +382,31 @@ func (m Model) stepLines() []line {
 		}
 		add(-1, "")
 	}
-	rows := m.rows(m.step)
-	if len(rows) == 0 {
+	return out
+}
+
+// withoutHeading gives a page without the heading it opens with, after its comments, if it opens with one.
+func withoutHeading(page string) string {
+	lines := strings.SplitAfter(page, "\n")
+	for k, l := range lines {
+		text := strings.TrimSpace(l)
 		switch {
-		case m.checking.Running():
-			add(-1, lead+style.Off("checking…"))
-		case query != "":
-			add(-1, lead+style.Off("no check matches the search"))
+		case text == "" || strings.HasPrefix(text, "<!--"):
+			continue
+		case strings.HasPrefix(text, "# "):
+			return strings.Join(lines[:k], "") + strings.Join(lines[k+1:], "")
 		}
-		return out
+		break
 	}
-	for _, i := range rows {
-		out = append(out, m.checkLines(i, m.checks[i].Key())...)
-	}
+	return page
+}
+
+// stepTail gives the lines a step with checks ends with, after its rows: checking… while the checks run again, and the
+// list of its checks left for later.
+func (m Model) stepTail(rows []int) []line {
+	w := m.width - 1
+	var out []line
+	add := func(row int, text string) { out = append(out, line{row, pane.Clip(text, w)}) }
 	if m.checking.Running() {
 		add(-1, "")
 		add(-1, lead+style.Off("checking…"))
@@ -364,7 +414,7 @@ func (m Model) stepLines() []line {
 	var left []line
 	for _, i := range rows {
 		if c := m.checks[i]; m.deferred[c.Key()] && !c.OK {
-			text := lead + "• " + c.Line + memberOf(c) + ": " + style.Mark(c.Fix)
+			text := lead + "• " + c.Line + folderOf(c) + ": " + style.Mark(c.Fix)
 			if !c.Runs && c.Fix != "" {
 				text += style.Off(" · kit does not run it")
 			}
@@ -382,29 +432,23 @@ func (m Model) stepLines() []line {
 	return out
 }
 
-// memberOf gives what a row of a check of one member says after its line: the member's name, dim; nothing for a check
-// said once.
-func memberOf(c kit.Check) string {
-	if c.Member == "" {
-		return ""
-	}
-	return style.Off(" · " + short(c.Member, 1))
-}
-
-// checkLines gives a check's lines: ✅ or ❌ and its line, then its member's name, the cursor's row drawn as chosen
-// with now and later on it when it offers them; under a failed check, its fix, dim, then where to read more; and the
-// note its fix left.
-func (m Model) checkLines(i int, key string) []line {
+// checkLines gives a check's lines, after the indent: ✅ or ❌ and its line, then, where no folder's row is drawn
+// above it, its folder, the cursor's row drawn as chosen with now and later on it when it offers them; under a failed
+// check, its fix, dim, then where to read more; and the note its fix left.
+func (m Model) checkLines(i int, key, indent string) []line {
 	c, w := m.checks[i], m.width-1
 	focused := m.hasRows() && m.inPane && i == m.cursor
-	start, text, glyph := lead, c.Line, Passed
+	start, text, glyph := indent+lead, c.Line, Passed
 	if focused {
-		start, text = focus, style.Chosen(c.Line)
+		start, text = indent+focus, style.Chosen(c.Line)
 	}
 	if !c.OK {
 		glyph = Failed
 	}
-	row := start + glyph + " " + text + memberOf(c)
+	row := start + glyph + " " + text
+	if !m.foldered(m.step) {
+		row += folderOf(c)
+	}
 	if m.deferred[key] && !c.OK {
 		row += style.Off(" · later")
 	}
@@ -418,17 +462,17 @@ func (m Model) checkLines(i int, key string) []line {
 		if c.Interactive {
 			fix += " · it needs you at the keyboard"
 		}
-		out = append(out, line{i, pane.Clip(under+style.Off(fix), w)})
+		out = append(out, line{i, pane.Clip(indent+under+style.Off(fix), w)})
 	}
 	if !c.OK && c.More != "" {
-		out = append(out, line{i, pane.Clip(under+style.Off(c.More), w)})
+		out = append(out, line{i, pane.Clip(indent+under+style.Off(c.More), w)})
 	}
 	if n, ok := m.notes[key]; ok {
 		draw := style.Warn
 		if n.refusal {
 			draw = style.Refusal
 		}
-		out = append(out, line{i, pane.Clip(under+draw(n.text), w)})
+		out = append(out, line{i, pane.Clip(indent+under+draw(n.text), w)})
 	}
 	return out
 }

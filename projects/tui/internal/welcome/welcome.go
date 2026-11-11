@@ -2,15 +2,17 @@
 // the keys bar last. The steps are the pages under .kit/welcome/, as kit welcome --text finds and orders them: each has
 // an id, which kit's checks name as their step, a glyph, a name, and its page. A page kit knows keeps its glyph, its
 // name, and its checks; any other, as a house package adds, is a plain page. A step with checks draws its page, then
-// its checks, one row each. A failed check with a fix offers now and later on the cursor's row: now runs kit welcome
-// --fix <id> with the terminal handed over, then reads the checks again; later leaves it for this session and moves to
-// the step's next failed check. A fix kit only shows, as one that must run in the person's own shell, is drawn with its
-// lines and no choices: n and enter do nothing there, and l still leaves it for later. The other steps are markdown
-// pages drawn as text, but the terms and customize, whose pages of sections are tables, as sections.go draws them, each
-// table's keys and clicks its own while the pane has the keyboard. The introduction's page ends with what the checks
-// found: checking… while they run, then that all of them pass, or how many need the person's attention, under a rule,
-// each failed check's line a link to it, with the glyph and name of its step. Enter or a click on a link goes to that
-// check, on its step, with the cursor on it. When kit refused the checks, the introduction says what kit said.
+// its checks, one row each; the setup step, where kit names each check's folder, draws them as one table, as setup.go
+// says, without its page's heading, which its tab names. A failed check with a fix offers now and later on the cursor's
+// row: now runs kit welcome --fix <id> with the terminal handed over, then reads the checks again; later leaves it for
+// this session and moves to the step's next failed check. A fix kit only shows, as one that must run in the person's
+// own shell, is drawn with its lines and no choices: n and enter do nothing there, and l still leaves it for later. The
+// other steps are markdown pages drawn as text, but the terms and customize, whose pages of sections are tables, as
+// sections.go draws them, each table's keys and clicks its own while the pane has the keyboard. The introduction's page
+// ends with what the checks found: checking… while they run, then that all of them pass, or how many need the person's
+// attention, under a rule, each failed check's line a link to it, with the glyph and name of its step. Enter or a click
+// on a link goes to that check, on its step, with the cursor on it. When kit refused the checks, the introduction says
+// what kit said.
 //
 // The steps are a tab bar, internal/tabs. While it has the keyboard, tab and shift-tab move between the steps; a step's
 // number, or a click on the bar, selects it from anywhere and gives the bar the keyboard. Down, or enter, gives the
@@ -256,8 +258,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.setTabs(msg.tabs)
 		m.takeSheets()
 		m.fit()
-	case fixingMsg:
-		return m, m.fixIn(msg.id, msg.key, msg.dirs)
 	case fixedMsg:
 		// the checks run again, superseding a run still out
 		m.fixed(msg)
@@ -337,18 +337,24 @@ func (m *Model) take(msg source.Answer[[]kit.Check]) {
 }
 
 // rows gives the indexes of the step's checks, in order, those its search lets through: whose id, line, or fix holds
-// what is typed, without regard to case. The introduction's are the links to the failed checks, in the order of their
-// steps.
+// what is typed, or a folder's check whose folder, repository, or branch does, without regard to case. On the setup
+// step drawn as a table, a folder's check that holds is no row: its folder's row shows it. The introduction's are the
+// links to the failed checks, in the order of their steps.
 func (m Model) rows(step int) []int {
 	query := m.searches[m.tabs[step].id].Query
 	intro := m.isIntroduction(step)
+	table := m.foldered(step)
 	var out []int
 	for i, c := range m.checks {
-		mine := m.stepOf(c) == step
+		mine := m.stepOf(c) == step && !(table && c.Folder != "" && c.OK)
 		if intro {
 			mine = !c.OK
 		}
-		if mine && (matches(c.ID, query) || matches(c.Line, query) || matches(c.Fix, query)) {
+		found := matches(c.ID, query) || matches(c.Line, query) || matches(c.Fix, query)
+		if c.Folder != "" {
+			found = found || matches(c.Folder, query) || matches(c.Repository, query) || matches(c.Branch, query)
+		}
+		if mine && found {
 			out = append(out, i)
 		}
 	}
@@ -817,35 +823,23 @@ func (m *Model) scroll(n int) {
 	m.offsets[m.step] = start
 }
 
-// now hands the terminal to the fix of the check under the cursor; when it ends, the checks run again.
+// now hands the terminal to the fix of the check under the cursor, over the workspace the checks were read over, a
+// folder's in its folder; when it ends, the checks run again.
 func (m *Model) now() tea.Cmd {
 	c := m.checks[m.cursor]
 	delete(m.deferred, c.Key())
 	m.choice = now
-	dirs := c.Dirs
-	if len(dirs) == 0 {
-		dirs = []string{m.runner.Dir}
-	}
-	return m.fixIn(c.ID, c.Key(), dirs)
+	id, key := c.ID, c.Key()
+	return m.exec(m.over().WelcomeFix(c), func(err error) tea.Msg { return fixedMsg{id: id, key: key, err: err} })
 }
 
-// fixingMsg says a fix ran in one checkout and holds there, and the checkouts it is still to run in.
-type fixingMsg struct {
-	id, key string
-	dirs    []string
-}
-
-// fixIn hands the terminal to the check's fix in the first of the checkouts; when it holds there and more are left, a
-// fixingMsg runs it in the next, else the fix is done, as fixedMsg says.
-func (m Model) fixIn(id, key string, dirs []string) tea.Cmd {
+// over gives the runner over the workspace the screen shows, as checksOver reads the checks over it.
+func (m Model) over() kit.Runner {
 	r := m.runner
-	r.Dir = dirs[0]
-	return m.exec(r.WelcomeFix(id), func(err error) tea.Msg {
-		if err == nil && len(dirs) > 1 {
-			return fixingMsg{id: id, key: key, dirs: dirs[1:]}
-		}
-		return fixedMsg{id: id, key: key, err: err}
-	})
+	if m.workspace.Kind == "group" && m.workspace.Name != "" {
+		r.Group, r.NoGroup = m.workspace.Name, false
+	}
+	return r
 }
 
 // later leaves the check under the cursor for later and moves to the step's next failed check not left, if there is

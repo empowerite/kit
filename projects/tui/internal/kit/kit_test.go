@@ -344,11 +344,47 @@ func TestWelcomeChecksDecodesEachCheck(t *testing.T) {
 	}
 }
 
+// A folder's check names its folder, repository, desk, branch, and kit, and is told from the same check in another
+// folder by its key; a machine check, null in each, has its id for its key.
+func TestWelcomeChecksReadEachFoldersCheck(t *testing.T) {
+	checks, err := script(t, `echo '[{"id": "tool-git", "ok": true, "folder": null, "repository": null, "desk": null,
+		"branch": null, "kit": null}, {"id": "kit-check", "ok": false, "folder": "/a/worktrees/t", "repository":
+		"github.com/o/a", "desk": false, "branch": "t", "kit": "0.1.0"}, {"id": "kit-check", "ok": true, "folder": "/a",
+		"repository": "github.com/o/a", "desk": true, "branch": "main", "kit": null}]'`).WelcomeChecks(context.Background())
+	if err != nil || len(checks) != 3 {
+		t.Fatalf("WelcomeChecks: %v, %+v", err, checks)
+	}
+	want := Check{ID: "kit-check", Folder: "/a/worktrees/t", Repository: "github.com/o/a", Branch: "t", Kit: "0.1.0",
+		Runs: true}
+	if !reflect.DeepEqual(checks[1], want) || !checks[2].Desk || checks[2].Kit != "" {
+		t.Errorf("the folders' checks: %+v", checks[1:])
+	}
+	if checks[0].Key() != "tool-git" || checks[1].Key() == checks[2].Key() ||
+		checks[1].Key() != "/a/worktrees/t kit-check" {
+		t.Errorf("keys: %q %q %q", checks[0].Key(), checks[1].Key(), checks[2].Key())
+	}
+}
+
+// A fix names the workspace the checks were read over, so a forge's login finds its host, and a folder's check its
+// folder, where kit runs its fix.
+func TestWelcomeFixNamesTheWorkspaceAndAFoldersFolder(t *testing.T) {
+	r := Runner{Kit: "kit", Dir: "/w", Group: "w"}
+	if got := strings.Join(r.WelcomeFix(Check{ID: "kit-hydrated", Folder: "/a/t"}).Args[1:], " "); got !=
+		"--workspace=w welcome --fix kit-hydrated --folder=/a/t" {
+		t.Errorf("over a group: %s", got)
+	}
+	r.Group, r.NoGroup = "", true
+	if got := strings.Join(r.WelcomeFix(Check{ID: "forge-login-github.com"}).Args[1:], " "); got !=
+		"--workspace=none welcome --fix forge-login-github.com" {
+		t.Errorf("over no group: %s", got)
+	}
+}
+
 func TestWelcomeFixIsACommandNotYetStarted(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "record")
 	t.Setenv("FAKE_KIT_RECORD", record)
 	dir := t.TempDir()
-	cmd := fake(t, dir).WelcomeFix("jq")
+	cmd := fake(t, dir).WelcomeFix(Check{ID: "jq"})
 	if cmd.Process != nil || strings.Join(cmd.Args[1:], " ") != "welcome --fix jq" || cmd.Dir != dir {
 		t.Fatalf("WelcomeFix: %q in %q", cmd.Args, cmd.Dir)
 	}

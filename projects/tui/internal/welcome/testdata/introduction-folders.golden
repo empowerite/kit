@@ -1,0 +1,30 @@
+  = kit welcome · - w 3                                                                                      🔎 /search
+  ➊╶────────────────╮➁╶──────────────╮➂╶────────────╮➃╶─────────────╮➄╶─────────╮
+  │ 👋 introduction │  🧰 toolchains │  🔧 setup  6 │  🎨 customize │  📖 terms │
+  ╵                 ╰────────────────╰──────────────╰───────────────╰───────────╰───────────────────────────────────────
+   Welcome
+
+   6 checks need your attention
+   ────────────────────────────
+   ❌ gh is not logged in to github.com → 🔧 setup
+   github.com/o/a · 💻 a on main
+     ❌ the git hooks are not installed; lefthook runs none → 🔧 setup
+   github.com/o/a · 🌳 7-the-topic on 7-the-topic
+     ❌ kit.yml declares no kit version; kit is not installed here → 🔧 setup
+   github.com/o/b · 💻 b on main
+     ❌ several toolchains are usable for the project: mise, brew; choose one → 🔧 setup
+     ❌ shellcheck is not installed; kit lint runs it for .kit/rules/bash.md → 🔧 setup
+     ❌ kit check finds 2 problem(s); run kit check to see each one → 🔧 setup
+   not cloned: o/c
+
+   kit keeps a repository trustworthy while people and agents work in it side by side.
+
+   What kit is
+
+   kit is your house rules as a versioned release, and the checks that hold the work to them. It places the rules where
+   people and agents both look: .kit/1st.md, which every agent reads first, a rule for each kind of file, and the files
+   each agent harness reads. Its commands do what the rules describe, so the right way is also the short way. Take a
+   new release, and the rules and checks move with it, in every repository that takes it.
+   … 39 more
+
+ = menu - workspace / search │ ⇥·⇧⇥ tab ↓ checks 1-5 jump

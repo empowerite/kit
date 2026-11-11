@@ -2,25 +2,33 @@
 # fake-kit - stands in for kit in the welcome screen's tests: answers welcome --checks and --fix, and root (test helper)
 # ----------------------------------------------------------------------------------------------------------------------
 # welcome --checks --json prints checks.json, in the directory it runs in, else beside this script, with every check
-# named in the file FAKE_WELCOME_STATE turned ok. welcome --fix jq, or toolchain-project, adds the id to that file, so a
-# later --checks finds it fixed, and exits 0. --fix gh-auth changes nothing and exits 1, as a fix after which the check
-# still fails. --fix brew-path, a show-only check, and any other id, and the id FAKE_WELCOME_REFUSE_FIX names, is a
-# refusal with exit 2. Every welcome call is written to the file FAKE_WELCOME_CALLS names, when it is set. --checks
-# refuses as kit does when FAKE_WELCOME_REFUSE is set, and
-# sleeps five seconds first when FAKE_WELCOME_SLOW is. root prints FAKE_WELCOME_ROOT, else the release directory beside
-# this script, which holds the pages.
+# named in the file FAKE_WELCOME_STATE turned ok. welcome --fix jq, toolchain-project, kit-installed, or hooks-installed
+# adds the id to that file, so a later --checks finds it fixed in every folder, and exits 0; a --folder= after it is
+# taken and kept in the calls. --fix gh-auth changes nothing and exits 1, as a fix after which the check still fails.
+# --fix brew-path, a show-only check, and any other id, and the id FAKE_WELCOME_REFUSE_FIX names, is a refusal with exit
+# 2. Every welcome call is written to the file FAKE_WELCOME_CALLS names, when it is set. --checks refuses as kit does
+# when FAKE_WELCOME_REFUSE is set, and sleeps five seconds first when FAKE_WELCOME_SLOW is. root prints
+# FAKE_WELCOME_ROOT, else the release directory beside this script, which holds the pages.
 
 set -o errexit -o nounset -o pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
 state=${FAKE_WELCOME_STATE:-/dev/null}
 
+# --workspace=<workspace>, a kit option before the verb, is kept in the calls with the rest
+workspace=''
+if [[ "${1:-}" == --workspace=* ]]
+then
+  workspace=$1
+  shift
+fi
+
 case "${1:-}" in
   (root)
     printf '%s\n' "${FAKE_WELCOME_ROOT:-${here}/release}"
     ;;
   (welcome)
-    [[ -z "${FAKE_WELCOME_CALLS:-}" ]] || printf '%s\n' "$*" >> "${FAKE_WELCOME_CALLS}"
+    [[ -z "${FAKE_WELCOME_CALLS:-}" ]] || printf '%s\n' "${workspace:+${workspace} }$*" >> "${FAKE_WELCOME_CALLS}"
     case "${2:-}" in
       (--checks)
         [[ -z "${FAKE_WELCOME_SLOW:-}" ]] || sleep 5
@@ -47,7 +55,7 @@ case "${1:-}" in
           exit 2
         fi
         case "${id}" in
-          (jq | toolchain-project) printf '%s\n' "${id}" >> "${state}" ;;
+          (jq | toolchain-project | kit-installed | hooks-installed) printf '%s\n' "${id}" >> "${state}" ;;
           (gh-auth) exit 1 ;;
           (brew-path)
             echo "❌ kit welcome --fix: brew-path is shown, not run" >&2
