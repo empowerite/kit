@@ -220,6 +220,7 @@ it. A tab kit has no data source for yet says so, and loads nothing.
 | People | the person | people, teams, agents |
 | Trust | the evidence | evidence, findings, controls, waivers, policy |
 | Platform | the service | services, toolchains, tools, settings |
+| Packages | the package | packages |
 
 A link to a row of a tab the app does not have opens the app built around that tab's entity, on the tab, with the row
 under the cursor once it loads: from Issues, an underway issue's pull request leads to Changes, and the checkout it is
@@ -231,6 +232,10 @@ and `kit workspace <stage>` the app with that tab, on the tab. `kit platform` pr
 toolchains, tools, and settings, each a stage, as [apps.md](apps.md) says; on a terminal it hands them to kittui, which
 does not draw them yet. Iterations, milestones, reviews, checks, merged, artifacts, environments, deployments, and
 every tab of People and Trust have no data source yet.
+
+`kit packages` alone, on a terminal, opens Packages, a row per package in reach, and `kit packages packages` opens it
+on its one tab. Its tab menu adds, removes, and makes the only active ones the packages selected, each by running
+`kit packages`; off a terminal, `kit packages` still lists them.
 
 ## Code forges and trackers
 

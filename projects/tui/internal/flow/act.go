@@ -33,10 +33,13 @@ const (
 	Twin   = "♊"
 )
 
-// actions gives the backlog's actions, in the tab's menu's order, on backlog, and none elsewhere: New… first, which
-// files an issue and needs none selected, then those on the issues selected, there with nothing selected too, dim, so
-// the menu shows what selecting issues makes possible.
+// actions gives the backlog's actions, in the tab's menu's order, on backlog, the Packages app's on its stage, as
+// packages.go says, and none elsewhere: New… first, which files an issue and needs none selected, then those on the
+// issues selected, there with nothing selected too, dim, so the menu shows what selecting issues makes possible.
 func (m Model) actions() []shell.Item {
+	if m.onPackages() {
+		return packageActions()
+	}
 	if len(m.stages) == 0 || m.stages[m.stage].name != "backlog" {
 		return nil
 	}
@@ -175,6 +178,9 @@ func (m Model) acting(name string) (action, enabled bool) {
 	if !slices.ContainsFunc(m.actions(), func(i shell.Item) bool { return i.Name == name }) {
 		return false, false
 	}
+	if m.onPackages() {
+		return true, m.packageEnabled(name)
+	}
 	if name == "New…" {
 		return true, m.runner.Group == "" || m.cursorMember() != ""
 	}
@@ -210,6 +216,9 @@ func (m Model) cursorMember() string {
 // act does what the backlog's action named asks: it runs kit at once, or asks first. Over a group, an action on the
 // issues runs in each member's checkout, with that member's issues; one that acts in one member runs in its.
 func (m *Model) act(name string) tea.Cmd {
+	if m.onPackages() {
+		return m.actOnPackages(name)
+	}
 	refs, groups := m.refs(), m.refsByMember()
 	for _, g := range groups {
 		if g.member != "" && g.dir == "" {
@@ -397,18 +406,23 @@ func (m *Model) run(calls []call) tea.Cmd {
 }
 
 // acted takes what kit said for an action: its last line in place of the keys, or its refusal; when kit did what
-// was asked, the selection is cleared; either way, what reads the forge's issues reads them afresh.
+// was asked, the selection is cleared; either way, what reads the forge's issues reads them afresh, and the packages
+// stage, after a Packages action, reads the active set again.
 func (m *Model) acted(msg actedMsg) tea.Cmd {
 	lines := strings.Split(strings.TrimSpace(ansi.Strip(msg.out)), "\n")
+	name := "backlog"
+	if m.onPackages() {
+		name = packagesStage
+	}
 	if msg.err != nil {
 		m.note.Text, m.note.Done = Failed+" "+msg.err.Error(), false
 	} else {
 		m.done(lines[len(lines)-1])
-		if s := m.find("backlog"); s != nil {
+		if s := m.find(name); s != nil {
 			clear(s.Picked)
 		}
 	}
-	return m.refresh("backlog")
+	return m.refresh(name)
 }
 
 // askKey takes a key while an action asks: esc does not run it; enter runs it with the answer, which a typed one

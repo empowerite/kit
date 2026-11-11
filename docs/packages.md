@@ -8,7 +8,10 @@ activates the packages it wants, and `kit install`, `kit update`, and `kit check
 - `kit install [<package>…]` activates `kit`, the one default package, plus the named packages, the packages they
   depend on, and the members they include. It declares the set under `packages:` in `kit.yml`.
 - `kit packages` lists every package in reach, which are active, and which are excluded, filtered by state with
-  `--active` or `--inactive`, by name or glob, and as JSON with `--json`.
+  `--active` or `--inactive`, by name or glob, and as JSON with `--json`. On a terminal, `kit packages` alone opens
+  Packages in kittui: a row per package in reach, what it depends on and includes, and the active packages that
+  need it, which adds, removes, and selects the packages selected by running the verbs below. `--text` lists them as
+  text there; see [apps.md](apps.md).
 - `kit packages add <package>…` activates more packages, placing only the paths the new set adds to the old one.
 - `kit packages select <package>…` makes exactly these packages, plus what they depend on and include, the active
   set. It adds what is missing, removes the rest, and says what it kept for another package's sake. kit tui's

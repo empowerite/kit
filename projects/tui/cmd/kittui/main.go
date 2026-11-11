@@ -1,7 +1,7 @@
 // kittui is kit's interactive terminal UI: kit welcome's guide, which bare kit opens too; the palette of verbs, which
 // kit help opens; the form that finishes a verb's command line when the verb is short of its arguments; and kit flow's
 // picture and kit workspace's.
-// kit tui, kit flow, kit workspace, and kit welcome exec it; it runs kit for everything it knows.
+// kit tui, kit flow, kit workspace, kit packages, and kit welcome exec it; it runs kit for everything it knows.
 package main
 
 import (
@@ -43,8 +43,8 @@ var (
 func main() { exit(run(os.Args[1:], os.Stderr)) }
 
 // run opens the guide for welcome or with no verb, the palette, or the palette on a verb's page, for help, the form of
-// the verb named after --, an app for flow or for workspace, or the cards for tutorials, under kittui's root, whose
-// app's menu switches between them, and ends as the person ended the screen shown.
+// the verb named after --, an app for flow, workspace, or packages, or the cards for tutorials, under kittui's root,
+// whose app's menu switches between them, and ends as the person ended the screen shown.
 func run(args []string, stderr io.Writer) int {
 	verb, words := parse(args)
 	if !terminals() {
@@ -52,7 +52,7 @@ func run(args []string, stderr io.Writer) int {
 		return 2
 	}
 	r := kit.New()
-	if verb == "flow" || verb == "workspace" {
+	if appVerb(verb) {
 		r.Group, words = workspaceOf(words)
 	}
 	first, m, err := open(r, verb, words)
@@ -76,13 +76,13 @@ func run(args []string, stderr io.Writer) int {
 	return finish(root.Shown().(app.Model), stderr, func(verb string, args []string) error { return execKit(r, verb, args) })
 }
 
-// open makes the screen kittui opens on: for flow, Flow, on the stage its words name; for workspace, the app with a
-// tab of the stage its words name, else Repositories, as flow.AppOf says; the guide for welcome and with no verb; the
-// cards for tutorials, with its --tag words and the tutorial named; the palette on a verb's page or a group for help;
-// and, as the help's screen, the form of the verb named.
+// open makes the screen kittui opens on: for flow, Flow, on the stage its words name; for workspace or packages, the
+// app with a tab of the stage its words name, else the verb's first app, Repositories or Packages, as flow.AppOf says;
+// the guide for welcome and with no verb; the cards for tutorials, with its --tag words and the tutorial named; the
+// palette on a verb's page or a group for help; and, as the help's screen, the form of the verb named.
 func open(r kit.Runner, verb string, words []string) (shell.Screen, tea.Model, error) {
 	switch verb {
-	case "flow", "workspace":
+	case "flow", "workspace", "packages":
 		app, words := flow.AppOf(verb, words)
 		m, err := flow.OpenApp(r, app, words)
 		return app, m, err
@@ -102,8 +102,12 @@ func open(r kit.Runner, verb string, words []string) (shell.Screen, tea.Model, e
 	return shell.Help, m, err
 }
 
-// workspaceOf takes the workspace kit flow or kit workspace was given, --workspace <w> or --workspace=<w>, out of its words: the group
-// the picture's reads span, which kit refuses to give empty, and the words without it.
+// appVerb says whether a verb opens one of kittui's apps: kit flow, kit workspace, and kit packages, each of which
+// takes the workspace, before the verb, and has a text form for a picture off a terminal.
+func appVerb(verb string) bool { return verb == "flow" || verb == "workspace" || verb == "packages" }
+
+// workspaceOf takes the workspace kit flow or an app verb was given, --workspace <w> or --workspace=<w>, out of its
+// words: the group the picture's reads span, which kit refuses to give empty, and the words without it.
 func workspaceOf(words []string) (string, []string) {
 	group, rest := "", []string{}
 	for k := 0; k < len(words); k++ {
@@ -129,7 +133,7 @@ func failed(err error, stderr io.Writer) int {
 // needsTerminal gives the line kittui prints without a terminal: the picture, the guide, and the tutorials have a text
 // form, the rest a help page.
 func needsTerminal(verb string) string {
-	if verb == "flow" || verb == "workspace" {
+	if appVerb(verb) {
 		return "kit " + verb + " needs an interactive terminal for its picture; run: kit " + verb + " --text"
 	}
 	if verb == "welcome" {

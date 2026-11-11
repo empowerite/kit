@@ -51,6 +51,9 @@ const (
 	Draft     = "📝" // a draft release
 	Latest    = "⭐" // the latest release
 	Asset     = "📎" // an asset
+	Package   = "🧩" // a package
+	Active    = "🟢" // active
+	Excluded  = "⛔" // excluded
 	Other     = "🔳" // any other state
 )
 
@@ -180,6 +183,12 @@ var legends = map[string][]entry{
 		{Commit, "a commit"},
 		{Failed, "failed"},
 	},
+	"packages/packages": {
+		{Package, "a package"},
+		{Active, "active"},
+		{Excluded, "excluded"},
+		{Failed, "failed"},
+	},
 }
 
 // marks gives the mark after a glyph's meaning in a stage's legend, for each glyph a click on leads somewhere:
@@ -228,6 +237,7 @@ var stageGlyphs = map[string]string{
 	"workspace/worktrees": Worktree,
 	"workspace/commits":   Commit,
 	"workspace/tags":      Tag,
+	"packages/packages":   Package,
 }
 
 // stageColors gives each stage its group's color, which the bar draws the stage's tab in while it is selected.
@@ -246,6 +256,7 @@ var stageColors = map[string]string{
 	"workspace/worktrees": "75",
 	"workspace/commits":   "177",
 	"workspace/tags":      "177",
+	"packages/packages":   "215",
 }
 
 // kit:end glyphs

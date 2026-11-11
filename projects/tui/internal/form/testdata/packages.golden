@@ -5,11 +5,19 @@
 
      --active   --inactive   only the active packages
 
-     --json   --jq           one JSON object per package: name, origin, state, and description
+     --text   --json   --jq  lists the packages as text, even on a terminal; with packages, the
+                             stage as a table
 
      <package>…              a name, such as style/bash, or a glob, such as 'style/*'
 
    (select | add | remove) <package>
+   --stages                  prints the stages, one per line: packages
+   --marks                   prints the stage's mark, as one JSON object, which changes when kit.yml
+                             or .kit/packages/ does
+   packages                  the stage: a row per package in reach, {name, state, origin, depends,
+                             includes, dependents, bundles, description}, keyed by its name;
+                             dependents are the active packages that depend on it, and bundles the
+                             active ones that include it
 
 
  kit packages

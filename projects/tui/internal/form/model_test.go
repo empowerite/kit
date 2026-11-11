@@ -115,7 +115,7 @@ func TestKeyboardLandsOnTheFirstEmptyRequiredField(t *testing.T) {
 
 // On a one-of row, tab and shift-tab move the cursor between its options, the stops on its line, choosing none; the
 // space chooses the one under it, and enter too, going on; tab past the last goes on to the next field, and shift-tab
-// before the first back to the one before.
+// before the first back to the one before. kit packages has five forms, so its row has five options.
 func TestOneOfTabsAndChoosesOnTheSpace(t *testing.T) {
 	m := newForm(t, "packages", Answers{}, false)
 	before := m.fields[0].Chosen
@@ -126,7 +126,7 @@ func TestOneOfTabsAndChoosesOnTheSpace(t *testing.T) {
 	if m.fields[0].Chosen != 1 || len(m.fields) != 3 || m.fields[1].Key != "select | add | remove" || m.fields[2].Key != "<package>" {
 		t.Fatalf("the space on the second: %+v", m.fields)
 	}
-	if m, _ = drive(t, m, keys("tab")...); m.focus != 1 || m.fields[0].Chosen != 1 {
+	if m, _ = drive(t, m, keys("tab", "tab", "tab", "tab")...); m.focus != 1 || m.fields[0].Chosen != 1 {
 		t.Errorf("tab past the last option: focus %d, chosen %d", m.focus, m.fields[0].Chosen)
 	}
 	if m, _ = drive(t, m, keys("shift+tab")...); m.focus != 0 || m.cursor != 1 {

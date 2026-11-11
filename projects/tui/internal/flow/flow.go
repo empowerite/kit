@@ -82,8 +82,9 @@ type stage struct {
 	table.Table
 }
 
-// known names the stages kittui draws: kit flow's, and kit workspace's after workspace/.
-var known = map[string]bool{"backlog": true, "underway": true, "incoming": true, "desk": true,
+// known names the stages kittui draws: kit flow's, and each app verb's after its verb and a slash.
+var known = map[string]bool{"packages/packages": true,
+	"backlog": true, "underway": true, "incoming": true, "desk": true,
 	"worktrees": true, "changes": true, "builds": true, "releases": true, "workspace/repos": true, "workspace/remotes": true,
 	"workspace/branches": true, "workspace/worktrees": true, "workspace/commits": true, "workspace/tags": true}
 
@@ -92,6 +93,25 @@ const workspaceVerb = "workspace"
 
 // ofWorkspace says whether a stage, as kittui knows it, is kit workspace's.
 func ofWorkspace(name string) bool { return strings.HasPrefix(name, workspaceVerb+"/") }
+
+// appVerbs are the verbs besides kit flow whose stages kittui draws, each stage's document {rows, errors}, its rows
+// drawn from the catalog: kit workspace's, and kit packages'. kittui knows such a stage after its verb and a slash.
+var appVerbs = []string{workspaceVerb, packagesVerb}
+
+// verbOf gives the verb that prints a stage, as kittui knows the stage, and the stage's name to that verb: an app
+// verb's after its verb and a slash, else kit flow's by its own name.
+func verbOf(name string) (verb, stage string) {
+	if v, s, ok := strings.Cut(name, "/"); ok && slices.Contains(appVerbs, v) {
+		return v, s
+	}
+	return "flow", name
+}
+
+// ofAppVerb says whether a stage, as kittui knows it, is an app verb's, not kit flow's.
+func ofAppVerb(name string) bool {
+	verb, _ := verbOf(name)
+	return verb != "flow"
+}
 
 // label gives the name a stage goes by, as kit names it, on its tab and in what the screen says of it: kit
 // workspace's without workspace/, and one planned without planned/.
@@ -104,8 +124,8 @@ func label(name string) string {
 
 // command gives the command line that reads a stage, as the screen names it when the stage fails.
 func command(name string) string {
-	if ofWorkspace(name) {
-		return "kit workspace " + label(name)
+	if verb, stage := verbOf(name); verb != "flow" {
+		return "kit " + verb + " " + stage
 	}
 	return "kit flow " + name
 }
@@ -221,8 +241,8 @@ func New(r kit.Runner, o Options) Model {
 			marks, err := r.MarksOf(ctx, verb)
 			errs = append(errs, err)
 			for name, mark := range marks {
-				if verb == workspaceVerb {
-					name = workspaceVerb + "/" + name
+				if verb != "flow" {
+					name = verb + "/" + name
 				}
 				named[name] = mark
 			}
@@ -286,9 +306,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	n := next.(Model)
 	if a, ok := msg.(source.Answer[[]byte]); ok && !a.Kept {
 		// a load spends the rate limits, and the stage takes the next mark as its own: both are read again; kit
-		// workspace reads no forge, so its stages' loads spend none and read none
+		// workspace and kit packages read no forge, so their stages' loads spend none and read none
 		cmd = tea.Batch(cmd, n.marks.Ask(n.env()))
-		if !ofWorkspace(a.Name) {
+		if !ofAppVerb(a.Name) {
 			cmd = tea.Batch(cmd, n.quota.Ask(n.env()))
 		}
 	}
@@ -894,8 +914,8 @@ func (m Model) stageLoad(name string) source.Load[[]byte] {
 	kept := func(ctx context.Context) ([]byte, error) {
 		return r.Status(ctx, name, append(slices.Clone(args), "--cached"))
 	}
-	if ofWorkspace(name) {
-		// kit workspace keeps nothing of a stage's last read: what git holds here reads at once
+	if ofAppVerb(name) {
+		// an app verb keeps nothing of a stage's last read: what git and kit.yml hold here reads at once
 		kept = nil
 	}
 	return source.NewLoad(name, read, kept)
@@ -1015,13 +1035,13 @@ func (m *Model) autoGroup(name string) {
 	m.rebuild()
 }
 
-// decode keeps what the stage's command printed: over a group, and for kit workspace's stages always, kit's {rows, errors}, its
+// decode keeps what the stage's command printed: over a group, and for an app verb's stages always, kit's {rows, errors}, its
 // rows the stage's, one object a member for an object's stage; else the stage's document, an object's stage's object
 // its one entry. A document of another shape, as kit prints above repositories, is an error naming it, and JSON that
 // does not decode is one too.
 func (s *stage) decode(data []byte, over bool) error {
 	s.failed = nil
-	if over || ofWorkspace(s.name) {
+	if over || ofAppVerb(s.name) {
 		var doc struct {
 			Rows   json.RawMessage `json:"rows"`
 			Errors []failure       `json:"errors"`
@@ -1078,7 +1098,7 @@ func (s *stage) decodeRows(data []byte, many bool) error {
 	case "workspace/repos":
 		err = json.Unmarshal(data, &s.repos)
 	default:
-		if ofWorkspace(s.name) {
+		if ofAppVerb(s.name) {
 			s.rows = nil
 			err = json.Unmarshal(data, &s.rows)
 		}

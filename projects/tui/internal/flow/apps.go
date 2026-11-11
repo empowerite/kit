@@ -33,6 +33,7 @@ var apps = []struct {
 	{shell.Trust, []string{"planned/evidence", "planned/findings", "planned/controls", "planned/waivers",
 		"planned/policy"}},
 	{shell.Platform, []string{"planned/services", "planned/toolchains", "planned/tools", "planned/settings"}},
+	{shell.Packages, []string{"packages/packages"}},
 }
 
 // IsApp says whether a screen is one of kittui's apps: Flow, or one built around an entity.
@@ -49,11 +50,12 @@ func stagesIn(s shell.Screen) []string {
 	return nil
 }
 
-// AppOf gives the app kit flow's or kit workspace's words open on, and the words: Flow for kit flow, which opens on
-// the stage named among them; for kit workspace, the app with a tab of a stage named among them, else Repositories.
+// AppOf gives the app kit flow's or an app verb's words open on, and the words: Flow for kit flow, which opens on
+// the stage named among them; for an app verb, the app with a tab of a stage named among them, else the verb's home,
+// as homes says.
 func AppOf(verb string, words []string) (shell.Screen, []string) {
 	words = slices.Clone(words)
-	if verb != workspaceVerb {
+	if !slices.Contains(appVerbs, verb) {
 		return shell.Flow, words
 	}
 	for _, w := range words {
@@ -63,8 +65,12 @@ func AppOf(verb string, words []string) (shell.Screen, []string) {
 			}
 		}
 	}
-	return shell.Repositories, words
+	return homes[verb], words
 }
+
+// homes gives the app each app verb opens on with no tab of its named: Repositories for kit workspace, Packages for kit
+// packages.
+var homes = map[string]shell.Screen{workspaceVerb: shell.Repositories, packagesVerb: shell.Packages}
 
 // OpenApp opens an app: Flow on every stage kit flow --stages prints, in its order; another on its stages that the
 // repository's picture draws, as kit flow --stages and kit workspace --stages print them, and every one planned. A
@@ -81,14 +87,11 @@ func OpenApp(r kit.Runner, app shell.Screen, words []string) (Model, error) {
 	drawn := map[string][]string{}
 	var stages []string
 	for _, name := range stagesIn(app) {
-		verb, stage := "flow", name
-		switch {
-		case ofPlanned(name):
+		if ofPlanned(name) {
 			stages = append(stages, name)
 			continue
-		case ofWorkspace(name):
-			verb, stage = workspaceVerb, label(name)
 		}
+		verb, stage := verbOf(name)
 		if _, ok := drawn[verb]; !ok {
 			names, err := r.StagesOf(verb)
 			if err != nil {
@@ -121,17 +124,14 @@ func (m Model) reaches(name string) bool {
 	return m.find(name) != nil || (m.app != "" && appWith(name+"/") != "")
 }
 
-// verbsOf gives the verbs whose stages are among the stages, kit flow's and kit workspace's, each once.
+// verbsOf gives the verbs whose stages are among the stages, kit flow's and the app verbs', each once.
 func verbsOf(stages []string) []string {
 	var verbs []string
 	for _, name := range stages {
-		verb := "flow"
-		switch {
-		case ofPlanned(name):
+		if ofPlanned(name) {
 			continue
-		case ofWorkspace(name):
-			verb = workspaceVerb
 		}
+		verb, _ := verbOf(name)
 		if !slices.Contains(verbs, verb) {
 			verbs = append(verbs, verb)
 		}

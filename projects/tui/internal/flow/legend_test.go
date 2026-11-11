@@ -27,7 +27,7 @@ import (
 // legendText reads the Legend of kit-flow's header, from its heading to the exit codes.
 func legendText(t *testing.T) string { return legendOf(t, "kit-flow") }
 
-// legendOf reads the Legend of a verb's header, kit-flow's or kit-workspace's, from its heading to the exit codes.
+// legendOf reads the Legend of a verb's header, kit-flow's or an app verb's, from its heading to the exit codes.
 func legendOf(t *testing.T, verb string) string {
 	t.Helper()
 	page, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "kit", "bin", verb))
@@ -42,12 +42,12 @@ func legendOf(t *testing.T, verb string) string {
 	return before
 }
 
-// helpOf gives the legend of the verb that draws a stage: kit help workspace's for kit workspace's, else kit help
-// flow's.
+// helpOf gives the legend of the verb that draws a stage: an app verb's, as kit help workspace's for kit workspace's,
+// else kit help flow's.
 func helpOf(t *testing.T, stage string) string {
 	t.Helper()
-	if ofWorkspace(stage) {
-		return legendOf(t, "kit-workspace")
+	if verb, _ := verbOf(stage); verb != "flow" {
+		return legendOf(t, "kit-"+verb)
 	}
 	return legendText(t)
 }

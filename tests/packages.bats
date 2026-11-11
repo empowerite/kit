@@ -158,4 +158,77 @@ setup() {
   cmp kit.yml before.yml
 }
 
+@test "kit packages --stages prints the app's one stage, and --marks its mark, which moves when kit.yml does" {
+  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
+  run --separate-stderr "${kit_checkout}/bin/kit" packages --stages
+  [ "$status" -eq 0 ]
+  [ "$output" = packages ]
+  run --separate-stderr "${kit_checkout}/bin/kit" packages --marks
+  [ "$status" -eq 0 ]
+  [ "$(jq -c 'keys' <<<"$output")" = '["packages"]' ]
+  before=$(jq -r .packages <<<"$output")
+  [ -n "${before}" ] && [ "${before}" != null ]
+  "${kit_checkout}/bin/kit" packages add style/bash >/dev/null 2>&1
+  run --separate-stderr "${kit_checkout}/bin/kit" packages --marks
+  [ "$(jq -r .packages <<<"$output")" != "${before}" ]
+}
+
+@test "the packages stage is a row per package in reach: its state, what it needs, and the active ones that need it" {
+  "${kit_checkout}/bin/kit" install agents/claude >/dev/null 2>&1
+  "${kit_checkout}/bin/kit" packages add empowerite >/dev/null 2>&1
+  "${kit_checkout}/bin/kit" packages remove style/yaml >/dev/null 2>&1
+  run --separate-stderr "${kit_checkout}/bin/kit" packages packages --json
+  [ "$status" -eq 0 ]
+  [ "$(jq -c .errors <<<"$output")" = '[]' ]
+  [ "$(jq '.rows | length' <<<"$output")" -eq "$("${kit_checkout}/bin/kit" packages --json | wc -l)" ]
+  [ "$(jq -c '.rows[] | select(.key == "agents/generic") | [.name, .state, .origin, .dependents, .links]' \
+    <<<"$output")" = '["agents/generic","active","release",["agents/claude"],{}]' ]
+  [ "$(jq -c '.rows[] | select(.key == "agents/claude") | [.depends, .bundles]' <<<"$output")" \
+    = '[["kit","agents/generic"],["empowerite"]]' ]
+  [ "$(jq -c '.rows[] | select(.key == "style/yaml") | [.state, .bundles]' <<<"$output")" \
+    = '["excluded",["empowerite"]]' ]
+  [ "$(jq -c '.rows[] | select(.key == "empowerite") | .includes | length' <<<"$output")" -gt 3 ]
+  [ "$(jq -c '.rows[] | select(.key == "agents/cursor") | [.state, .dependents, .bundles]' <<<"$output")" \
+    = '["inactive",[],[]]' ]
+  [ -n "$(jq -r '.rows[] | select(.key == "kit") | .description' <<<"$output")" ]
+}
+
+@test "the packages stage as text is a line of names and one per package, and refuses where kit is not installed" {
+  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
+  run --separate-stderr "${kit_checkout}/bin/kit" packages packages --text
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" =~ ^name\ +state\ +origin\ + ]]
+  [[ "$output" =~ $'\n'kit\ +active\ +release\ + ]]
+  fresh-repo bare >/dev/null
+  run --separate-stderr "${kit_checkout}/bin/kit" packages packages --json
+  [ "$status" -eq 1 ]
+  [[ "$stderr" == *"run: kit install"* ]]
+}
+
+@test "kit packages alone, off a terminal or with --text, still lists the packages; on a terminal it opens the app" {
+  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
+  run --separate-stderr "${kit_checkout}/bin/kit" packages
+  [ "$status" -eq 0 ]
+  listed=$output
+  [[ "${listed}" == *"✅ kit "* ]]
+  run --separate-stderr "${kit_checkout}/bin/kit" packages --text
+  [ "$status" -eq 0 ]
+  [ "$output" = "${listed}" ]
+  run --separate-stderr "${kit_checkout}/bin/kit" packages --text --active
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"✅ kit "* && "$output" != *"style/bash"* ]]
+  mkdir -p "${BATS_TEST_TMPDIR}/fake"
+  ln -s "${BATS_TEST_DIRNAME}/fakes/fake-kittui" "${BATS_TEST_TMPDIR}/fake/kittui"
+  ln -s "${BATS_TEST_DIRNAME}/fakes/fake-go" "${BATS_TEST_TMPDIR}/fake/go"
+  export FAKES="${BATS_TEST_TMPDIR}/fake" PATH="${BATS_TEST_TMPDIR}/fake:${PATH}"
+  run pty "'${kit_checkout}/bin/kit' packages"
+  [[ "$output" == *"kittui native-native packages"* ]]
+  run pty "'${kit_checkout}/bin/kit' packages packages"
+  [[ "$output" == *"kittui native-native packages packages"* ]]
+  run pty "'${kit_checkout}/bin/kit' packages --active"
+  [[ "$output" != *"kittui"* && "$output" == *"✅ kit"* ]]
+  run pty "'${kit_checkout}/bin/kit' packages --text"
+  [[ "$output" != *"kittui"* ]]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

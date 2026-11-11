@@ -37,17 +37,17 @@ func TestTheMenuHasItsScreensOwnItemsKitsScreensTheSettingsAndQuit(t *testing.T)
 		names = append(names, item.Name)
 	}
 	if got := strings.Join(names, "|"); got != "Welcome|Tutorials|Help||Flow|Issues|Changes|Repositories|Delivery|"+
-		"People|Trust|Platform||Refresh All|Settings…||Quit" {
+		"People|Trust|Platform|Packages||Refresh All|Settings…||Quit" {
 		t.Fatalf("the items: %q", got)
 	}
 	// its own, another screen, the settings, and quit do something; the screen it is on and the rules do not
-	for k, want := range []bool{false, true, true, false, true, true, true, true, true, true, true, true, false, true,
-		true, false, true} {
+	for k, want := range []bool{false, true, true, false, true, true, true, true, true, true, true, true, true, false,
+		true, true, false, true} {
 		if m.enabled(k) != want {
 			t.Errorf("item %d (%s) enabled %v", k, names[k], !want)
 		}
 	}
-	if (Menu{}).Items()[13].Name != "Settings…" || m.At != 1 || !m.Open {
+	if (Menu{}).Items()[14].Name != "Settings…" || m.At != 1 || !m.Open {
 		t.Errorf("a menu with no items of its screen's, or the keyboard on its first that acts: %+v", m)
 	}
 }
@@ -58,7 +58,8 @@ func TestTheMenusKeysMoveChooseAndClose(t *testing.T) {
 		key  string
 		want int
 	}{{"down", 1}, {"down", 2}, {"down", 4}, {"down", 6}, {"down", 7}, {"down", 8}, {"down", 9}, {"down", 10},
-		{"down", 11}, {"down", 13}, {"down", 15}, {"down", 15}, {"up", 13}, {"w", 0}, {"q", 15}, {"z", 15}} {
+		{"down", 11}, {"down", 12}, {"down", 14}, {"down", 16}, {"down", 16}, {"up", 14}, {"w", 0}, {"q", 16},
+		{"z", 16}} {
 		if m, _ = m.Key(key(step.key)); m.At != step.want {
 			t.Errorf("%s: item %d, want %d", step.key, m.At, step.want)
 		}

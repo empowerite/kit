@@ -500,6 +500,36 @@
         {"name": "Default"},
         {"name": "Compact", "fields": {"tagger": {"placement": "hidden"}, "commit": {"placement": "hidden"}}}
       ]
+    },
+    {
+      "stage": "packages/packages", "record": ".rows[]",
+      "fields": [
+        {"id": "name", "label": "package", "type": "text", "path": ".name", "sort": true, "glyph": "🧩",
+         "renderings": ["glyph+text", "text"], "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "state", "label": "state", "type": "enum", "path": ".state", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "active", "glyph": "🟢"}, {"value": "excluded", "glyph": "⛔"},
+                                    {"value": "inactive"}],
+         "renderings": ["glyph+text", "text", "glyph"], "placement": "column"},
+        {"id": "origin", "label": "origin", "type": "enum", "path": ".origin", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
+        {"id": "depends", "label": "depends on", "one": "package", "type": "label", "path": ".depends[]",
+         "group": true, "filter": true, "renderings": ["text", "pills"], "dim": true, "placement": "column"},
+        {"id": "includes", "label": "includes", "one": "member", "type": "label", "path": ".includes[]",
+         "group": true, "filter": true, "renderings": ["text", "pills"], "dim": true, "placement": "hidden"},
+        {"id": "dependents", "label": "needed by", "one": "package", "type": "label", "path": ".dependents[]",
+         "group": true, "filter": true, "renderings": ["text", "pills"], "dim": true, "placement": "column"},
+        {"id": "bundles", "label": "in bundles", "one": "bundle", "type": "label", "path": ".bundles[]",
+         "group": true, "filter": true, "renderings": ["text", "pills"], "dim": true, "placement": "hidden"},
+        {"id": "description", "label": "description", "type": "text", "path": ".description", "sort": true,
+         "renderings": ["text"], "wrap": true, "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {"origin": {"placement": "hidden"}, "depends": {"placement": "hidden"},
+                                       "dependents": {"placement": "hidden"}}}
+      ]
     }
   ]
 }

@@ -2,8 +2,11 @@
   "verb": "packages",
   "purpose": "lists the packages in reach, and changes which are active",
   "usage": [
-    "kit packages [--active | --inactive] [--json | --jq] [<package>…]",
-    "kit packages (select | add | remove) <package>…"
+    "kit packages [--active | --inactive] [--text | --json | --jq] [<package>…]",
+    "kit packages (select | add | remove) <package>…",
+    "kit packages --stages",
+    "kit packages --marks",
+    "kit packages packages [--text | --json | --jq]"
   ],
   "syntax": [
     [
@@ -32,6 +35,13 @@
         "kind": "group",
         "optional": true,
         "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
           [
             {
               "kind": "flag",
@@ -98,6 +108,55 @@
         "name": "package",
         "repeat": true
       }
+    ],
+    [
+      {
+        "kind": "flag",
+        "name": "stages",
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "flag",
+        "name": "marks",
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "packages",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
     ]
   ],
   "arguments": {
@@ -107,11 +166,20 @@
     "--inactive": {
       "description": "the packages that are not active, excluded ones among them"
     },
+    "--text": {
+      "description": "lists the packages as text, even on a terminal; with packages, the stage as a table"
+    },
     "--json": {
-      "description": "one JSON object per package: name, origin, state, and description"
+      "description": "one JSON object per package: name, origin, state, and description; with packages, the stage's document, {rows, errors}"
     },
     "--jq": {
       "description": "the same JSON, formatted by jq for a person"
+    },
+    "--stages": {
+      "description": "prints the stages, one per line: packages"
+    },
+    "--marks": {
+      "description": "prints the stage's mark, as one JSON object, which changes when kit.yml or .kit/packages/ does"
     },
     "select": {
       "description": "makes exactly these, and what they need, the active set"
@@ -121,6 +189,9 @@
     },
     "remove": {
       "description": "deactivates the packages; refuses one an active package needs"
+    },
+    "packages": {
+      "description": "the stage: a row per package in reach, {name, state, origin, depends, includes, dependents, bundles, description}, keyed by its name; dependents are the active packages that depend on it, and bundles the active ones that include it"
     },
     "<package>": {
       "description": "a name, such as style/bash, or a glob, such as 'style/*'",

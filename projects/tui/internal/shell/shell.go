@@ -30,7 +30,8 @@ type Screen string
 
 // kit's screens: the guides, the welcome's guide, the help's palette of verbs, and the tutorials' cards; and the
 // apps: flow, the picture of where the work stands, every stage kit flow draws, and those built around one entity
-// each: issues, changes, repositories, delivery's releases, people, trust's evidence, and the platform's services.
+// each: issues, changes, repositories, delivery's releases, people, trust's evidence, the platform's services, and the
+// packages kit delivers.
 const (
 	Welcome      Screen = "welcome"
 	Help         Screen = "help"
@@ -43,6 +44,7 @@ const (
 	People       Screen = "people"
 	Trust        Screen = "trust"
 	Platform     Screen = "platform"
+	Packages     Screen = "packages"
 	// Manage is the workspaces' screen, which the workspace menu's Manage… opens, and no line of the app's menu does.
 	Manage Screen = "workspaces"
 )
@@ -61,6 +63,7 @@ const (
 	Busts     = "👥"
 	Sealed    = "🔏"
 	Toolbox   = "🧰"
+	Puzzle    = "🧩"
 	Configure = "🔧"
 	Leave     = "👋"
 )
@@ -87,7 +90,7 @@ var sections = [][]screenItem{
 		{Item{Glyph: Shuffle, Name: "Changes"}, Changes}, {Item{Glyph: Book, Name: "Repositories"}, Repositories},
 		{Item{Glyph: Truck, Name: "Delivery"}, Delivery},
 		{Item{Glyph: Busts, Name: "People"}, People}, {Item{Glyph: Sealed, Name: "Trust"}, Trust},
-		{Item{Glyph: Toolbox, Name: "Platform"}, Platform}},
+		{Item{Glyph: Toolbox, Name: "Platform"}, Platform}, {Item{Glyph: Puzzle, Name: "Packages"}, Packages}},
 }
 
 // screens are the app's menu's screens, in its order, without the rules.

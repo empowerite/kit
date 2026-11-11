@@ -379,7 +379,7 @@ func (m Model) records(s stage) []record {
 	case "workspace/repos":
 		out = m.repoRows(s)
 	default:
-		if ofWorkspace(s.name) {
+		if ofAppVerb(s.name) {
 			out = m.workspaceRows(s)
 		}
 	}
@@ -803,6 +803,8 @@ func empty(s stage) string {
 		return "no release"
 	case "workspace/repos":
 		return "no repository"
+	case "packages/packages":
+		return "no package in reach"
 	}
 	return "nothing"
 }

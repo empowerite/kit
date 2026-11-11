@@ -39,6 +39,7 @@ func TestNoTerminalRefuses(t *testing.T) {
 		"-- commit": "❌ kit tui needs an interactive terminal; run: kit help tui\n",
 		"flow":      "❌ kit flow needs an interactive terminal for its picture; run: kit flow --text\n",
 		"workspace": "❌ kit workspace needs an interactive terminal for its picture; run: kit workspace --text\n",
+		"packages":  "❌ kit packages needs an interactive terminal for its picture; run: kit packages --text\n",
 		"welcome":   "❌ kit welcome needs an interactive terminal; run: kit welcome --text\n",
 		"tutorials": "❌ kit tutorials needs an interactive terminal; run: kit tutorials --text\n",
 	} {
@@ -276,6 +277,7 @@ func TestOffATerminalEachScreenNamesItsTextForm(t *testing.T) {
 		"":          "kit tui needs an interactive terminal; run: kit help tui",
 		"flow":      "kit flow needs an interactive terminal for its picture; run: kit flow --text",
 		"workspace": "kit workspace needs an interactive terminal for its picture; run: kit workspace --text",
+		"packages":  "kit packages needs an interactive terminal for its picture; run: kit packages --text",
 		"tutorials": "kit tutorials needs an interactive terminal; run: kit tutorials --text",
 		"-- commit": "kit tui needs an interactive terminal; run: kit help tui",
 	} {
@@ -372,6 +374,7 @@ func TestFlowAndWorkspaceOpenTheAppWithTheTabNamed(t *testing.T) {
 	}{
 		{"flow", nil, shell.Flow}, {"flow", []string{"changes"}, shell.Flow}, {"flow", []string{"desk"}, shell.Flow},
 		{"workspace", nil, shell.Repositories}, {"workspace", []string{"branches"}, shell.Repositories},
+		{"packages", nil, shell.Packages}, {"packages", []string{"packages"}, shell.Packages},
 	} {
 		screen, m, err := open(r, c.verb, c.words)
 		if _, ok := m.(flow.Model); err != nil || !ok || screen != c.want {

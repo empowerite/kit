@@ -16,9 +16,9 @@ import (
 )
 
 func TestTheCatalogNamesOnlyWhatIsRegistered(t *testing.T) {
-	// every stage, incoming among them, and kit workspace's, its repos tab among them
-	if len(catalog) != len(eight)+len(workspaceStages) || catalog["incoming"] == nil ||
-		catalog["workspace/repos"] == nil {
+	// every stage, incoming among them, kit workspace's, its repos tab among them, and kit packages'
+	if len(catalog) != len(eight)+len(workspaceStages)+1 || catalog["incoming"] == nil ||
+		catalog["workspace/repos"] == nil || catalog[packagesStage] == nil {
 		t.Errorf("the catalog's stages: %d, incoming %v", len(catalog), catalog["incoming"] != nil)
 	}
 	var glyphs []string

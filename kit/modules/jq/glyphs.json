@@ -43,6 +43,12 @@
     {"name": "Draft", "glyph": "📝", "meaning": "a draft release"},
     {"name": "Latest", "glyph": "⭐", "meaning": "the latest release"},
     {"name": "Asset", "glyph": "📎", "meaning": "an asset", "more": "a file a release offers, and where it downloads"},
+    {"name": "Package", "glyph": "🧩", "meaning": "a package",
+     "more": "what kit delivers, in reach of the release or here"},
+    {"name": "Active", "glyph": "🟢", "meaning": "active",
+     "more": "a package kit.yml declares, whose files kit placed"},
+    {"name": "Excluded", "glyph": "⛔", "meaning": "excluded",
+     "more": "a bundle's member removed, which kit update leaves out"},
     {"name": "Other", "glyph": "🔳", "meaning": "any other state"}
   ],
   "states": [
@@ -64,7 +70,8 @@
     {"screen": "workspace", "name": "repositories", "color": "13", "stages": ["repos"]},
     {"screen": "workspace", "name": "refs", "color": "114", "stages": ["remotes", "branches"]},
     {"screen": "workspace", "name": "checkouts", "color": "75", "stages": ["worktrees"]},
-    {"screen": "workspace", "name": "history", "color": "177", "stages": ["commits", "tags"]}
+    {"screen": "workspace", "name": "history", "color": "177", "stages": ["commits", "tags"]},
+    {"screen": "packages", "name": "packages", "color": "215", "stages": ["packages"]}
   ],
   "stages": [
     {"stage": "backlog", "glyph": "Issue",
@@ -108,6 +115,8 @@
      "legend": [{"name": "Commit", "link": "page"}, {"name": "Issue", "link": "page"}, {"name": "Branch"},
                 {"name": "Worktree", "link": "row"}, {"name": "Failed"}]},
     {"screen": "workspace", "stage": "tags", "glyph": "Tag",
-     "legend": [{"name": "Tag"}, {"name": "Commit"}, {"name": "Failed"}]}
+     "legend": [{"name": "Tag"}, {"name": "Commit"}, {"name": "Failed"}]},
+    {"screen": "packages", "stage": "packages", "glyph": "Package",
+     "legend": [{"name": "Package"}, {"name": "Active"}, {"name": "Excluded"}, {"name": "Failed"}]}
   ]
 }

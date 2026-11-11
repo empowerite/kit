@@ -31,7 +31,7 @@ func TestEveryAppInTheMenuHasTabsAndNoStageIsInTwo(t *testing.T) {
 		}
 	}
 	for _, s := range []shell.Screen{shell.Flow, shell.Issues, shell.Changes, shell.Repositories, shell.Delivery,
-		shell.People, shell.Trust, shell.Platform} {
+		shell.People, shell.Trust, shell.Platform, shell.Packages} {
 		if !IsApp(s) {
 			t.Errorf("%s is not an app", s)
 		}
@@ -55,6 +55,8 @@ func TestKitFlowOpensFlowAndKitWorkspacesWordsTheAppWithTheTabNamed(t *testing.T
 		{"flow", "incoming --no-fetch", shell.Flow, "incoming --no-fetch"},
 		{"workspace", "", shell.Repositories, ""},
 		{"workspace", "branches", shell.Repositories, "branches"},
+		{"packages", "", shell.Packages, ""},
+		{"packages", "packages", shell.Packages, "packages"},
 	} {
 		app, words := AppOf(c.verb, strings.Fields(c.words))
 		if app != c.app || strings.Join(words, " ") != c.taken {
