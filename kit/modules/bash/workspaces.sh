@@ -218,8 +218,8 @@ workspaces:name-refusal() {
     printf '%s\n' "'none' is not a workspace's name: --workspace none names no workspace"
   elif [[ ! "$1" =~ ^[a-z0-9][a-z0-9._-]*$ ]]
   then
-    printf '%s\n' "'$1' is not a workspace's name: it starts with a lowercase letter or a digit, and holds lowercase" \
-      "letters, digits, and . _ - alone"
+    printf '%s %s\n' "'$1' is not a workspace's name: it starts with a lowercase letter or a digit, and holds" \
+      "lowercase letters, digits, and . _ - alone"
   fi
 }
 

@@ -480,6 +480,8 @@ YML
     run --separate-stderr "${kit_root}/bin/kit" workspaces --new="${name}" github.com/a/one
     [ "$status" -eq 2 ]
     [[ "$stderr" == *"'${name}' is not a workspace's name: it starts with a lowercase letter or a digit"* ]]
+    [[ "$stderr" == *"and holds lowercase letters, digits, and . _ - alone"* ]]
+    [ "${#stderr_lines[@]}" -eq 1 ]
     [ ! -e "${XDG_CONFIG_HOME}/kit/workspaces.yml" ]
   done
 }

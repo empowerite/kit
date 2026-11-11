@@ -158,8 +158,9 @@ its row and on the branch's, and a worktree's is its branch, or its commit where
 `--workspace` reads every cloned member's checkout at once, as `kit flow --workspace` does, and every row gains its
 member. kit workspace exits 1 when a member, or a member's desk, cannot be read: what was read is still drawn, as
 text or with `--json`, the member under `errors`, or the desk's line as its repos row's `error`. A bare repository
-is outside a repository: without `--workspace`, kit workspace refuses it with 2. On a terminal, `kit
-workspace` opens kittui's Repositories app, a tab per stage, the 📚 repos tab first and kit flow's incoming last.
+is outside a repository: without `--workspace`, kit workspace draws the last group used there, and with none
+refuses it with 2. On a terminal, `kit workspace` opens kittui's Repositories app, a tab per stage, the 📚 repos tab
+first and kit flow's incoming last.
 On the repos tab, a clone reads `~` for the home folder, and a closed row shows `…` and its last two folders; open,
 the row shows the whole path. A member's name on any tab leads to its row there.
 
