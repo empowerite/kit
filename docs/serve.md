@@ -106,7 +106,7 @@ name, takes no word that acts, reads no path outside the repository, changes no 
 - `context` does not offer `--claude`, the hook mode. It is the harness's own.
 - A path stays inside the repository. `context` and `kinds` refuse a path that leads outside it, as `lint` does,
   and every path when the server cannot read its own directory, as when that directory is gone. `flow` does not
-  offer `--workspace`, which reads other clones.
+  offer a workspace, which reads other clones: `--workspace=` is an option of `kit` itself, before the verb.
 
 A tool's verb still writes the kit's own records, which git never sees: its line in `.kit/logs/`, the context log,
 and a toolchain's detection cache under `.kit/cache/`.

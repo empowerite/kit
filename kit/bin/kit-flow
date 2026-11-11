@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # kit-flow - shows where the work stands, from backlog to releases (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit flow [--no-fetch] [--fresh] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]] [--workspace <workspace>]
+# kit flow [--no-fetch] [--fresh] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]
 #
 # Draws the picture of the work. It changes nothing. Work moves left to right through eight stages:
 #
@@ -21,7 +21,7 @@
 #   - at a desk: every linked worktree, and every open pull request
 #   - in a worktree: that worktree, and the pull request its branch holds
 #   - above desks, in a directory inside no repository's working tree, a bare repository or a .git directory too,
-#     with no group used last, or with --workspace none: each desk below it, under its path, four levels down
+#     with no group used last, or under kit --workspace=none: each desk below it, under its path, four levels down
 #
 # backlog, underway, desk, incoming, builds, and releases draw the same anywhere. A repository with no primary
 # remote draws its checkouts, fetches nothing, and says so once.
@@ -44,8 +44,6 @@
 #   --others            everyone else's; unassigned issues included
 #   --all               every issue and pull request (the default); it stands alone
 #   --owner=<login>     only the named login's; give it once or more
-#   --workspace         draws each stage across a workspace's members with checkouts, a group's name or a repository's
-#                       host and path, as kit workspaces names it; none names no workspace; see Over a workspace
 #   --stages            prints the stages the picture draws, one per line, in order
 #   --me                prints the caller's login on the primary's forge, the login --mine and --others match
 #   --quota             prints the caller's rate limits on the primary's forge, as one JSON array: each forge's
@@ -68,31 +66,31 @@
 #
 # The filters combine: --mine --owner=bob. --mine alone leaves out the owner column.
 #
-# kit flow --stages [--workspace <workspace>]
+# kit flow --stages
 #
 # kit flow --me
 #
 # kit flow --capabilities
 #
-# kit flow --quota [--workspace <workspace>]
+# kit flow --quota
 #
-# kit flow --marks [--workspace <workspace>]
+# kit flow --marks
 #
-# kit flow backlog [--json | --jq] [--cached] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]] [--workspace <workspace>]
+# kit flow backlog [--json | --jq] [--cached] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]]
 #
-# kit flow underway [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]] [--workspace <workspace>]
+# kit flow underway [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]]
 #
-# kit flow incoming [--no-fetch] [--json | --jq] [--cached] [--workspace <workspace>]
+# kit flow incoming [--no-fetch] [--json | --jq] [--cached]
 #
-# kit flow desk [--json | --jq] [--cached] [--workspace <workspace>]
+# kit flow desk [--json | --jq] [--cached]
 #
-# kit flow worktrees [--json | --jq] [--cached] [--workspace <workspace>]
+# kit flow worktrees [--json | --jq] [--cached]
 #
-# kit flow changes [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]] [--workspace <workspace>] [<number>…]
+# kit flow changes [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]] [<number>…]
 #
-# kit flow builds [--json | --jq] [--cached] [--workspace <workspace>]
+# kit flow builds [--json | --jq] [--cached]
 #
-# kit flow releases [--json | --jq] [--cached] [--workspace <workspace>]
+# kit flow releases [--json | --jq] [--cached]
 #
 # One stage prints without its heading. With --json, a stage prints what the picture holds under its name: an array
 # for backlog, underway, changes, builds, and releases; an object for desk, worktrees, and incoming. Above desks,
@@ -124,8 +122,9 @@
 #
 # Over a workspace
 #
-# --workspace names a group, or a repository by its host and path, as kit workspaces names them. Outside a repository,
-# without --workspace, the workspace is the last group used, as kit workspaces --current says. Each form then runs in
+# kit --workspace=<workspace> flow, the kit option before the verb, names a group, or a repository by its host and
+# path, as kit workspaces names them. Outside a repository, without it, the workspace is the last group used, as kit
+# workspaces --current says. Each form then runs in
 # every member's checkout at once, each under that checkout's own kit.yml, and the stages are kit's eight, whatever the
 # kit.yml where it runs says. With --json, a stage prints {rows, errors}: each row, or each desk, worktrees, or
 # incoming object, gains member, its host and path; a member that could not be read is {member, error},
@@ -239,7 +238,7 @@
 # below, or git's list of the worktrees, the desks, or the remote branches cannot be read: with --json, what was read
 # is still printed, and names what could not, a remote's error, a member under errors, or a stage of null. It exits 1
 # too when git cannot count the lines changed in a checkout or read its uncommitted paths, or a setting is wrong; 1,
-# printing nothing, when --workspace, or kit flow outside a repository with a group used last, meets a workspace file
+# printing nothing, when --workspace=, or kit flow outside a repository with a group used last, meets a workspace file
 # kit workspaces refuses; and 2 on a usage error. A wrong setting is a flow setting that is not a list of distinct
 # stages, a primary that names no remote, or a forges key that is no remote name. With --marks, when the forge cannot
 # answer, its stages' marks are null beside every local stage's, and kit flow exits 1.
@@ -252,39 +251,23 @@ set -o errexit -o nounset -o pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use flow tui workspaces
+workspaces:misplaced flow "$@" || exit $?
 guard:arguments flow "$@" || exit $?
 guard:require tool:git
 
 # Over a workspace, every form runs in each member's checkout, under that checkout's settings, before this one's are
-# read; see modules/bash/across.sh.
-workspace=''
-words=()
-while (( $# > 0 ))
-do
-  case "$1" in
-    (--workspace | --workspace=*)
-      if [[ "$1" == --workspace ]]
-      then
-        workspace=${2:-}
-        (( $# > 1 )) && shift
-      else
-        workspace=${1#--workspace=}
-      fi
-      shift
-      if [[ -z "${workspace}" ]]
-      then
-        error "--workspace names a workspace: a group's name, or a repository's host and path; run: kit workspaces"
-        exit 2
-      fi
-      ;;
-    (*)
-      words+=("$1")
-      shift
-  esac
-done
-set -- "${words[@]}"
-# Outside a repository, the workspace is the last group used, as kit workspaces --current says; --workspace none names
-# none. --me and --capabilities read the primary's forge alone, so they draw across none.
+# read; see modules/bash/across.sh. The workspace is the kit option's, kit --workspace=<workspace> flow, which bin/kit,
+# the loader, hands on.
+workspace=${KIT_WORKSPACE:-}
+# --me and --capabilities read the primary's forge alone, so they take no workspace, none included.
+if [[ -n "${workspace}" && -n "${syntax_options[--me]+x}${syntax_options[--capabilities]+x}" ]]
+then
+  error "kit flow --me and --capabilities read the primary's forge alone, so they take no --workspace=; see: kit help" \
+    "flow"
+  exit 2
+fi
+# Outside a repository, the workspace is the last group used, as kit workspaces --current says; --workspace=none names
+# none. --me and --capabilities draw across none.
 if [[ -z "${syntax_options[--me]+x}${syntax_options[--capabilities]+x}" ]]
 then
   workspace=$(workspaces:across "${workspace}") || exit $?
@@ -298,12 +281,12 @@ if [[ -n "${workspace}" && -z "${syntax_literals[0]:-}${syntax_options[--text]+x
 then
   binary=$(tui:binary) || exit 1
   export KIT="${kit_root}/bin/kit"
-  exec "${binary}" flow --workspace "${workspace}" "$@"
+  exec "${binary}" flow --workspace="${workspace}" "$@"
 fi
 if [[ -n "${workspace}" ]]
 then
   use across
-  across:flow "${workspace}" "${words[@]}"
+  across:flow "${workspace}" "$@"
   exit $?
 fi
 

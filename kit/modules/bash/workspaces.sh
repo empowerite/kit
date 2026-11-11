@@ -209,13 +209,31 @@ workspaces:fixed() {
   done
 }
 
-# workspaces:name-refusal <name> prints why <name> cannot name a group: it is none, which --workspace takes for no
+# workspaces:misplaced <verb> <word>… refuses --workspace given among a verb's own words, where kit flow, kit
+# workspace, and kit workspaces once took it: it is a kit option, before the verb, which bin/kit, the loader, reads.
+# It returns 2, after a line that names the form, and 0 when no word is --workspace.
+workspaces:misplaced() {
+  local verb=$1 word
+  shift
+  for word in "$@"
+  do
+    [[ "${word}" != -- ]] || return 0
+    if [[ "${word}" == --workspace || "${word}" == --workspace=* ]]
+    then
+      error "--workspace is a kit option, before the verb: kit --workspace=<workspace> ${verb}; see: kit help ${verb}"
+      return 2
+    fi
+  done
+  return 0
+}
+
+# workspaces:name-refusal <name> prints why <name> cannot name a group: it is none, which --workspace= takes for no
 # workspace, or it does not start with a lowercase letter or a digit, or holds other than lowercase letters, digits,
 # and . _ -. It prints nothing for a name a group can take.
 workspaces:name-refusal() {
   if [[ "$1" == none ]]
   then
-    printf '%s\n' "'none' is not a workspace's name: --workspace none names no workspace"
+    printf '%s\n' "'none' is not a workspace's name: --workspace=none names no workspace"
   elif [[ ! "$1" =~ ^[a-z0-9][a-z0-9._-]*$ ]]
   then
     printf '%s %s\n' "'$1' is not a workspace's name: it starts with a lowercase letter or a digit, and holds" \

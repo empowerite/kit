@@ -2,20 +2,20 @@
   "verb": "flow",
   "purpose": "shows where the work stands, from backlog to releases",
   "usage": [
-    "kit flow [--no-fetch] [--fresh] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]] [--workspace <workspace>]",
-    "kit flow --stages [--workspace <workspace>]",
+    "kit flow [--no-fetch] [--fresh] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]",
+    "kit flow --stages",
     "kit flow --me",
     "kit flow --capabilities",
-    "kit flow --quota [--workspace <workspace>]",
-    "kit flow --marks [--workspace <workspace>]",
-    "kit flow backlog [--json | --jq] [--cached] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]] [--workspace <workspace>]",
-    "kit flow underway [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]] [--workspace <workspace>]",
-    "kit flow incoming [--no-fetch] [--json | --jq] [--cached] [--workspace <workspace>]",
-    "kit flow desk [--json | --jq] [--cached] [--workspace <workspace>]",
-    "kit flow worktrees [--json | --jq] [--cached] [--workspace <workspace>]",
-    "kit flow changes [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]] [--workspace <workspace>] [<number>…]",
-    "kit flow builds [--json | --jq] [--cached] [--workspace <workspace>]",
-    "kit flow releases [--json | --jq] [--cached] [--workspace <workspace>]"
+    "kit flow --quota",
+    "kit flow --marks",
+    "kit flow backlog [--json | --jq] [--cached] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]]",
+    "kit flow underway [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]]",
+    "kit flow incoming [--no-fetch] [--json | --jq] [--cached]",
+    "kit flow desk [--json | --jq] [--cached]",
+    "kit flow worktrees [--json | --jq] [--cached]",
+    "kit flow changes [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]] [<number>…]",
+    "kit flow builds [--json | --jq] [--cached]",
+    "kit flow releases [--json | --jq] [--cached]"
   ],
   "syntax": [
     [
@@ -134,44 +134,12 @@
           ]
         ],
         "repeat": false
-      },
-      {
-        "kind": "group",
-        "optional": true,
-        "alternatives": [
-          [
-            {
-              "kind": "option",
-              "inline": false,
-              "name": "workspace",
-              "value": "workspace",
-              "repeat": false
-            }
-          ]
-        ],
-        "repeat": false
       }
     ],
     [
       {
         "kind": "flag",
         "name": "stages",
-        "repeat": false
-      },
-      {
-        "kind": "group",
-        "optional": true,
-        "alternatives": [
-          [
-            {
-              "kind": "option",
-              "inline": false,
-              "name": "workspace",
-              "value": "workspace",
-              "repeat": false
-            }
-          ]
-        ],
         "repeat": false
       }
     ],
@@ -194,44 +162,12 @@
         "kind": "flag",
         "name": "quota",
         "repeat": false
-      },
-      {
-        "kind": "group",
-        "optional": true,
-        "alternatives": [
-          [
-            {
-              "kind": "option",
-              "inline": false,
-              "name": "workspace",
-              "value": "workspace",
-              "repeat": false
-            }
-          ]
-        ],
-        "repeat": false
       }
     ],
     [
       {
         "kind": "flag",
         "name": "marks",
-        "repeat": false
-      },
-      {
-        "kind": "group",
-        "optional": true,
-        "alternatives": [
-          [
-            {
-              "kind": "option",
-              "inline": false,
-              "name": "workspace",
-              "value": "workspace",
-              "repeat": false
-            }
-          ]
-        ],
         "repeat": false
       }
     ],
@@ -363,22 +299,6 @@
           ]
         ],
         "repeat": false
-      },
-      {
-        "kind": "group",
-        "optional": true,
-        "alternatives": [
-          [
-            {
-              "kind": "option",
-              "inline": false,
-              "name": "workspace",
-              "value": "workspace",
-              "repeat": false
-            }
-          ]
-        ],
-        "repeat": false
       }
     ],
     [
@@ -495,22 +415,6 @@
           ]
         ],
         "repeat": false
-      },
-      {
-        "kind": "group",
-        "optional": true,
-        "alternatives": [
-          [
-            {
-              "kind": "option",
-              "inline": false,
-              "name": "workspace",
-              "value": "workspace",
-              "repeat": false
-            }
-          ]
-        ],
-        "repeat": false
       }
     ],
     [
@@ -567,22 +471,6 @@
           ]
         ],
         "repeat": false
-      },
-      {
-        "kind": "group",
-        "optional": true,
-        "alternatives": [
-          [
-            {
-              "kind": "option",
-              "inline": false,
-              "name": "workspace",
-              "value": "workspace",
-              "repeat": false
-            }
-          ]
-        ],
-        "repeat": false
       }
     ],
     [
@@ -625,22 +513,6 @@
           ]
         ],
         "repeat": false
-      },
-      {
-        "kind": "group",
-        "optional": true,
-        "alternatives": [
-          [
-            {
-              "kind": "option",
-              "inline": false,
-              "name": "workspace",
-              "value": "workspace",
-              "repeat": false
-            }
-          ]
-        ],
-        "repeat": false
       }
     ],
     [
@@ -678,22 +550,6 @@
             {
               "kind": "flag",
               "name": "cached",
-              "repeat": false
-            }
-          ]
-        ],
-        "repeat": false
-      },
-      {
-        "kind": "group",
-        "optional": true,
-        "alternatives": [
-          [
-            {
-              "kind": "option",
-              "inline": false,
-              "name": "workspace",
-              "value": "workspace",
               "repeat": false
             }
           ]
@@ -822,22 +678,6 @@
         "alternatives": [
           [
             {
-              "kind": "option",
-              "inline": false,
-              "name": "workspace",
-              "value": "workspace",
-              "repeat": false
-            }
-          ]
-        ],
-        "repeat": false
-      },
-      {
-        "kind": "group",
-        "optional": true,
-        "alternatives": [
-          [
-            {
               "kind": "operand",
               "name": "number",
               "repeat": true
@@ -887,22 +727,6 @@
           ]
         ],
         "repeat": false
-      },
-      {
-        "kind": "group",
-        "optional": true,
-        "alternatives": [
-          [
-            {
-              "kind": "option",
-              "inline": false,
-              "name": "workspace",
-              "value": "workspace",
-              "repeat": false
-            }
-          ]
-        ],
-        "repeat": false
       }
     ],
     [
@@ -945,22 +769,6 @@
           ]
         ],
         "repeat": false
-      },
-      {
-        "kind": "group",
-        "optional": true,
-        "alternatives": [
-          [
-            {
-              "kind": "option",
-              "inline": false,
-              "name": "workspace",
-              "value": "workspace",
-              "repeat": false
-            }
-          ]
-        ],
-        "repeat": false
       }
     ]
   ],
@@ -994,9 +802,6 @@
     },
     "--owner": {
       "description": "only the named login's; give it once or more"
-    },
-    "--workspace": {
-      "description": "draws each stage across a workspace's members with checkouts, a group's name or a repository's host and path, as kit workspaces names it; none names no workspace; see Over a workspace"
     },
     "--stages": {
       "description": "prints the stages the picture draws, one per line, in order"

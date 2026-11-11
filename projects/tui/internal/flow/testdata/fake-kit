@@ -22,11 +22,28 @@
 # FAKE_FLOW_REFUSE names refuses with exit 1. workspace --stages prints kit workspace's six, and workspace <stage>
 # --json prints workspace-<stage>.json beside this file, or refuses with exit 1 where FAKE_FLOW_REFUSE names
 # workspace/<stage>; workspace --marks prints FAKE_WORKSPACE_MARKS, a file it reads again each time, and refuses with
-# exit 1 without one.
+# exit 1 without one. A --workspace=<workspace> before the verb is handed to the verb's words, and one after it is
+# refused.
 
 set -o errexit -o nounset -o pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
+# --workspace=<workspace> is a kit option, before the verb, as bin/kit, the loader, takes it: one after the verb is
+# refused, as kit refuses it. The fake hands the workspace to the verb's words, at their end, as it records them.
+for word in "${@:2}"
+do
+  if [[ "${word}" == --workspace || "${word}" == --workspace=* ]]
+  then
+    echo "❌ --workspace is a kit option, before the verb: kit --workspace=<workspace> $1" >&2
+    exit 2
+  fi
+done
+if [[ "${1:-}" == --workspace=* ]]
+then
+  given=${1#--workspace=}
+  shift
+  set -- "$@" --workspace "${given}"
+fi
 [[ -z "${FAKE_FLOW_CALLS:-}" ]] || printf '%s\n' "$*" >> "${FAKE_FLOW_CALLS}"
 [[ -z "${FAKE_FLOW_DIRS:-}" ]] || printf '%s\t%s\n' "$(pwd -P)" "$*" >> "${FAKE_FLOW_DIRS}"
 

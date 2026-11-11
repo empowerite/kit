@@ -198,10 +198,18 @@ YML
   [ "$(jq --compact-output '[.kind, .name, .why]' <<<"$output")" = '["group","empowerite","last"]' ]
 }
 
-@test "--workspace wins, none included, and --use refuses a repository" {
+@test "a workspace given before the verb names the one --current says, and every other form refuses it with 2" {
+  run "${kit_root}/bin/kit" --workspace=w workspaces --use w
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"kit --workspace=<workspace> names the workspace kit workspaces --current says, and no other form's"* ]]
+  run "${kit_root}/bin/kit" --workspace=none workspaces
+  [ "$status" -eq 2 ]
+}
+
+@test "--workspace= wins, none included, and --use refuses a repository" {
   fresh-repo >/dev/null
   git remote add origin git@github.com:empowerite/edge.git
-  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --workspace none --json
+  run --separate-stderr "${kit_root}/bin/kit" --workspace=none workspaces --current --json
   [ "$(jq --compact-output '[.kind, .why]' <<<"$output")" = '["none","given"]' ]
   run --separate-stderr "${kit_root}/bin/kit" workspaces --use github.com/empowerite/edge
   [ "$status" -eq 2 ]
@@ -470,7 +478,7 @@ YML
   cp "${XDG_CONFIG_HOME}/kit/workspaces.yml" "${BATS_TEST_TMPDIR}/before.yml"
   run --separate-stderr "${kit_root}/bin/kit" workspaces --add none github.com/o/b
   [ "$status" -eq 1 ]
-  [[ "$stderr" == *"workspaces.yml: 'none' is not a workspace's name: --workspace none names no workspace"* ]]
+  [[ "$stderr" == *"workspaces.yml: 'none' is not a workspace's name: --workspace=none names no workspace"* ]]
   cmp "${BATS_TEST_TMPDIR}/before.yml" "${XDG_CONFIG_HOME}/kit/workspaces.yml"
 }
 
@@ -511,10 +519,11 @@ workspaces:
     repos: [github.com/a/one]
 YML
   mkdir -p "${BATS_TEST_TMPDIR}/outside" && cd "${BATS_TEST_TMPDIR}/outside"
-  for args in "--use w" "--favorite w" "--unfavorite w" "--current --workspace w"
+  for args in "workspaces --use w" "workspaces --favorite w" "workspaces --unfavorite w" \
+    "--workspace=w workspaces --current"
   do
     # shellcheck disable=SC2086  # each holds its words
-    run --separate-stderr "${kit_root}/bin/kit" workspaces ${args}
+    run --separate-stderr "${kit_root}/bin/kit" ${args}
     [ "$status" -eq 0 ]
     [[ "$stderr" != *"broken"* ]]
   done
@@ -523,10 +532,11 @@ YML
 @test "a workspace file that does not parse stops --use, --favorite, and --current with 1; an unknown group is 2" {
   workspaces-file <<<'workspaces: [x'
   mkdir -p "${BATS_TEST_TMPDIR}/outside" && cd "${BATS_TEST_TMPDIR}/outside"
-  for args in "--use w" "--favorite w" "--unfavorite w" "--current --workspace w"
+  for args in "workspaces --use w" "workspaces --favorite w" "workspaces --unfavorite w" \
+    "--workspace=w workspaces --current"
   do
     # shellcheck disable=SC2086  # each holds its words
-    run --separate-stderr "${kit_root}/bin/kit" workspaces ${args}
+    run --separate-stderr "${kit_root}/bin/kit" ${args}
     [ "$status" -eq 1 ]
   done
   [ "$(cat "${XDG_CONFIG_HOME}/kit/workspaces.yml")" = 'workspaces: [x' ]
@@ -611,7 +621,7 @@ workspaces:
     repos: [github.com/a/one]
 YML
   mkdir -p "${BATS_TEST_TMPDIR}/outside" && cd "${BATS_TEST_TMPDIR}/outside"
-  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --workspace w --text
+  run --separate-stderr "${kit_root}/bin/kit" --workspace=w workspaces --current --text
   [ "$status" -eq 0 ]
   [ "$output" = "📚 w (given)" ]
   [[ "$stderr" != *"broken"* ]]

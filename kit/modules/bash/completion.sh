@@ -58,13 +58,33 @@ fi
 ZSH
 }
 
+# completion:kit-options prints the kit options, which come before the verb, as candidates: the word, a tab, and what
+# it does, as bin/kit's header says.
+completion:kit-options() {
+  printf '%s\t%s\n' \
+    --version= 'runs that release: a version, or the path of a copy of one' \
+    --workspace= "runs the verb across a workspace: a group's name, or a repository's host and path; none names none" \
+    --help 'kit help, in the release chosen' \
+    --version 'kit version, in the release chosen'
+}
+
 # completion:candidates kit <word>… prints what the last word may be, after the words before it, one candidate per
 # line: the word, a tab, and its description. A line :files asks the shell to offer the files as well. The first
-# word is kit itself, so a word that starts with a dash is never the first.
+# word is kit itself. The kit options, which bin/kit, the loader, reads, come before the verb, so the verb is the first
+# word that does not start with a dash, and a word with a dash before any verb is offered the kit options.
 completion:candidates() {
   shift
   local verb purpose current spec next mode key value prefix operand
   local -a typed operands
+  while (( $# > 1 )) && [[ "$1" == -* ]]
+  do
+    shift
+  done
+  if (( $# == 1 )) && [[ "$1" == -* ]]
+  then
+    completion:kit-options
+    return 0
+  fi
   if (( $# <= 1 ))
   then
     while IFS=$'\t' read -r verb _ purpose

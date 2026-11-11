@@ -48,7 +48,7 @@ type WorkspaceFavorite struct {
 func (r Runner) Workspace(ctx context.Context, given string) (Workspace, error) {
 	args := []string{"workspaces", "--current", "--json"}
 	if given != "" {
-		args = append(args, "--workspace", given)
+		args = append([]string{"--workspace=" + given}, args...)
 	}
 	out, err := r.within(ctx, callLimit, append(os.Environ(), "NO_COLOR=1"), args...)
 	if err != nil {

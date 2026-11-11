@@ -11,10 +11,6 @@
      --all                    every issue and pull request (the default); it stands alone
      --mine --others --owner
 
-     --workspace              draws each stage across a workspace's members with checkouts, a
-                              group's name or a repository's host and path, as kit workspaces names
-                              it; none names no workspace; see Over a workspace
-
    --stages                   prints the stages the picture draws, one per line, in order
    --me                       prints the caller's login on the primary's forge, the login --mine and
                               --others match

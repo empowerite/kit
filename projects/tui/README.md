@@ -9,7 +9,7 @@ It has six screens:
   type; ⏎ or ↓ gives the verbs focus, and ⏎ there opens one. [ and ] move to the group before and after, { and } to the
   first and the last.
 - **A verb's form.** It opens when a verb at a terminal is short of its arguments. It finishes the command line.
-- **The flow picture.** `kit flow` at a terminal draws its stages here. Over a group, `kit flow --workspace <group>`
+- **The flow picture.** `kit flow` at a terminal draws its stages here. Over a group, `kit --workspace=<group> flow`
   or one picked from the 📚 workspace menu, every tab gathers every cloned member's rows, grouped by member as they
   load. An action on rows runs in each row's member's checkout.
 - **The workspace picture.** `kit workspace` at a terminal draws what git holds across the workspace here: the 📚

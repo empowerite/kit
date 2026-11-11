@@ -33,6 +33,8 @@
 #   -v, --version              kit version, in the release chosen
 #   -v=<release>, --version=<release>
 #                              runs that release
+#   --workspace=<workspace>    runs the verb across a workspace: a group's name, or a repository's host and path, as
+#                              kit workspaces names it; none names no workspace
 #   --                         ends the kit options, so the next word is the verb
 #
 # A kit option takes its value after =, never as the next word, so the first word that does not start with - is the
@@ -43,6 +45,12 @@
 # were typed. KIT_VERSION is the chosen release's directory, and KIT_VERSION_ROOT the clone it was chosen for, or the
 # working directory outside one. A kit call in that same clone runs the same release; a kit call in another clone
 # chooses again, from that clone's kit.yml, so a run that crosses repositories runs each one's own release.
+#
+# KIT_WORKSPACE is the workspace --workspace= named, and empty without it: the loader sets it on every call, from the
+# option alone, so a call never takes the workspace of the call that made it. A workspace holds repositories that pin
+# releases of their own, so a call across one runs on this release, and each member's own call, which the verb makes
+# in the member's checkout, runs the release that member pins. --workspace= beside --version=, or beside a KIT_VERSION
+# set by hand, is refused. --workspace=none names no workspace, and chooses the release as a call without it does.
 #
 # This file is POSIX sh, and the only program it runs on the common path is sed, which reads kit.yml's version: line,
 # so it runs before bash 4.4, git, jq, or yq is installed. What it reads, kit.yml's version: line, the trust file, the
@@ -336,6 +344,7 @@ self_root=$(cd "${self%/*}/.." && pwd -P)
 
 verb=''
 want=''
+workspace=''
 while [ "$#" -gt 0 ]
 do
   case $1 in
@@ -350,6 +359,20 @@ do
       fi
       shift
       ;;
+    (--workspace=*)
+      workspace=${1#*=}
+      if [ -z "${workspace}" ]
+      then
+        refuse "--workspace= needs a workspace: a group's name, or a repository's host and path, as kit workspaces" \
+          "names it; none names no workspace"
+        exit 2
+      fi
+      shift
+      ;;
+    (--workspace)
+      refuse "--workspace takes its workspace after =: kit --workspace=<workspace> <verb>"
+      exit 2
+      ;;
     (--) shift; break ;;
     (-*)
       refuse "kit $(version_of "${self_root}") does not know the option ${1%%=*}; update the kit you installed, or" \
@@ -360,6 +383,19 @@ do
   esac
 done
 [ -z "${verb}" ] || set -- "${verb}" "$@"
+across=''
+if [ -n "${workspace}" ] && [ "${workspace}" != none ]
+then
+  across=yes
+  if [ -n "${want}" ] || { [ -n "${KIT_VERSION:-}" ] && [ -z "${KIT_VERSION_ROOT:-}" ]; }
+  then
+    refuse "--workspace= runs each member on the release it pins, so it takes no --version= or KIT_VERSION; run" \
+      "one member with its own: kit --version=<release> <verb> in its checkout"
+    exit 2
+  fi
+fi
+KIT_WORKSPACE=${workspace}
+export KIT_WORKSPACE
 
 clone=$(clone_root) || clone=''
 here=${clone:-$(pwd -P)}
@@ -379,6 +415,9 @@ if [ -n "${untrusted}" ] || [ "${1:-}" = trust ]
 then
   # A clone you have not trusted chooses no release: what it names could be code of its own. kit trust always runs
   # on this release, so a clone you trusted can never keep you from taking the trust back.
+  root=${self_root}
+elif [ -n "${across}" ]
+then
   root=${self_root}
 elif [ -n "${want}" ]
 then
@@ -411,7 +450,7 @@ then
     exit 1
   fi
   export kit_loader_hops
-  exec "${root}/bin/kit" "$@"
+  exec "${root}/bin/kit" ${workspace:+"--workspace=${workspace}"} "$@"
 fi
 unset kit_loader_hops
 

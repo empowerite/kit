@@ -66,9 +66,9 @@ fake-tui() {
   [ "$output" = $'repos\nremotes\nbranches\nworktrees\ncommits\ntags' ]
 }
 
-@test "kit workspace --stages --workspace prints the same six stages" {
+@test "kit --workspace= workspace --stages prints the same six stages" {
   printf 'workspaces: {w: {repos: [github.com/o/a]}}\n' | workspaces-file
-  run --separate-stderr "${kit_root}/bin/kit" workspace --stages --workspace w
+  run --separate-stderr "${kit_root}/bin/kit" --workspace=w workspace --stages
   [ "$status" -eq 0 ]
   [ -z "$stderr" ]
   [ "$output" = $'repos\nremotes\nbranches\nworktrees\ncommits\ntags' ]
@@ -157,12 +157,12 @@ fake-tui() {
   mkdir -p "${BATS_TEST_TMPDIR}/nowhere" && cd "${BATS_TEST_TMPDIR}/nowhere"
   run "${kit_root}/bin/kit" workspace remotes --json
   [ "$status" -eq 2 ]
-  [[ "$output" == *"kit workspace reads a repository: run it in one, or give --workspace"* ]]
+  [[ "$output" == *"kit workspace reads a repository: run it in one, or name a workspace: kit --workspace=<workspace> workspace"* ]]
   run "${kit_root}/bin/kit" workspace --stages
   [ "$status" -eq 0 ]
 }
 
-@test "--workspace reads every cloned member's checkout, each row tagged with its member, in the group's order" {
+@test "--workspace= reads every cloned member's checkout, each row tagged with its member, in the group's order" {
   history-at "${BATS_TEST_TMPDIR}/code/a" github.com/o/a
   history-at "${BATS_TEST_TMPDIR}/code/b b" github.com/o/b
   workspaces-file <<EOF
@@ -171,14 +171,14 @@ workspaces:
   w: {repos: [github.com/o/a, github.com/o/b, github.com/o/c]}
 EOF
   cd "${BATS_TEST_TMPDIR}"
-  run "${kit_root}/bin/kit" workspace remotes --workspace w --json
+  run "${kit_root}/bin/kit" --workspace=w workspace remotes --json
   [ "$status" -eq 0 ]
   [ "$(jq -c '[.rows[] | [.member, .repository]]' <<<"$output")" = '[["github.com/o/a","o/a"],["github.com/o/b","o/b"]]' ]
   [ "$(jq -c .errors <<<"$output")" = '[]' ]
-  run "${kit_root}/bin/kit" workspace branches --workspace w --text
+  run "${kit_root}/bin/kit" --workspace=w workspace branches --text
   [ "$status" -eq 0 ]
   [[ "$output" == *$'📚 github.com/o/a\nbranch '* && "$output" == *$'📚 github.com/o/b\nbranch '* ]]
-  run "${kit_root}/bin/kit" workspace --workspace nosuch --json
+  run "${kit_root}/bin/kit" --workspace=nosuch workspace --json
   [ "$status" -eq 2 ]
 }
 
@@ -190,11 +190,11 @@ EOF
   printf 'roots: [%s]\nworkspaces: {w: {repos: [github.com/o/a, github.com/o/b]}}\n' "${code}" | workspaces-file
   for stage in remotes branches commits
   do
-    run "${kit_root}/bin/kit" workspace "${stage}" --workspace w --text
+    run "${kit_root}/bin/kit" --workspace=w workspace "${stage}" --text
     [ "$status" -eq 1 ]
     [[ "$output" == *"❌ github.com/o/b: '-x' in forges in kit.yml is not a remote name"* ]]
   done
-  run --separate-stderr "${kit_root}/bin/kit" workspace commits --workspace w --json
+  run --separate-stderr "${kit_root}/bin/kit" --workspace=w workspace commits --json
   [ "$status" -eq 1 ]
   [ "$(jq -r '.errors[0].member' <<<"$output")" = github.com/o/b ]
   [ "$(jq -c '.rows[0].branches | sort' <<<"$output")" = '["7-fix","feat/a&b","pipe|name"]' ]

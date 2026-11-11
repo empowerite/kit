@@ -14,6 +14,7 @@
 # lists one tracker, a warning on stderr beside it; FAKE_KIT_REFUSE=new refuses it with exit 1, and
 # FAKE_KIT_UNPARSED=new answers with what is not JSON. tutorials prints the tutorials screen's catalogue, its words
 # written to the file FAKE_KIT_RECORD names when it is set; FAKE_KIT_REFUSE=tutorials refuses it with exit 2.
+# A --workspace=<workspace> before the verb is handed to the verb's words, and one after the verb is refused.
 # workspaces --current prints FAKE_WORKSPACES/<workspace>.json, / in the name as _, current.json with no --workspace,
 # and refuses with exit 2 when that file is not there; workspaces --use=<name> adds "use <name>" to FAKE_KIT_RECORD's
 # file when it is set, and refuses with exit 2 when FAKE_KIT_REFUSE=workspaces. With FAKE_KIT_POLLS set, flow --quota
@@ -26,6 +27,23 @@ set -o errexit -o nounset -o pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
 fixtures=${here}/../../syntax/testdata
+
+# --workspace=<workspace> is a kit option, before the verb, as bin/kit, the loader, takes it: one after the verb is
+# refused, as kit refuses it. The fake hands the workspace to the verb's words, at their end, where its answers name it.
+for word in "${@:2}"
+do
+  if [[ "${word}" == --workspace || "${word}" == --workspace=* ]]
+  then
+    echo "❌ --workspace is a kit option, before the verb: kit --workspace=<workspace> $1" >&2
+    exit 2
+  fi
+done
+if [[ "${1:-}" == --workspace=* ]]
+then
+  given=${1#--workspace=}
+  shift
+  set -- "$@" --workspace "${given}"
+fi
 
 case "${1:-}" in
   (syntax)

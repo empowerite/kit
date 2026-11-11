@@ -21,10 +21,11 @@ cached() {
 }
 
 # telling <dir> makes a release at <dir> whose every call prints what the loader handed it: KIT_VERSION, then
-# KIT_VERSION_ROOT, one per line, then the words of the call.
+# KIT_VERSION_ROOT, one per line, then the words of the call, then KIT_WORKSPACE, or unset.
 telling() {
   later-release "$1" 9.9.9
-  printf '#!/usr/bin/env bash\nprintf "%%s\\n" "${KIT_VERSION}" "${KIT_VERSION_ROOT}" "$*"\n' > "$1/libexec/kit-call"
+  printf '#!/usr/bin/env bash\nprintf "%%s\\n" "${KIT_VERSION}" "${KIT_VERSION_ROOT}" "$*" "${KIT_WORKSPACE-unset}"\n' \
+    > "$1/libexec/kit-call"
 }
 
 # publish <version> puts kit-<version>.tar.gz, a release of that version, and its .sha256 where the fake curl serves
@@ -118,6 +119,30 @@ publish() {
   [ "${lines[2]}" = version ]
   run env KIT_VERSION="${BATS_TEST_TMPDIR}/telling" KIT_VERSION_ROOT="${BATS_TEST_TMPDIR}/another" "${kit}" version
   [ "$output" = 9.9.8 ]
+}
+
+@test "the loader hands on the workspace --workspace= names, and an empty one without it, whatever the environment holds" {
+  telling "${BATS_TEST_TMPDIR}/telling"
+  run env KIT_WORKSPACE=stale "${kit}" --version="${BATS_TEST_TMPDIR}/telling" flow
+  [ "${lines[2]}" = flow ]
+  [ "${#lines[@]}" -eq 3 ] || [ "${lines[3]}" = '' ]
+  run "${kit}" --version="${BATS_TEST_TMPDIR}/telling" --workspace=none flow --stages
+  [ "${lines[2]}" = "flow --stages" ]
+  [ "${lines[3]}" = none ]
+}
+
+@test "a call across a workspace runs on the installed kit, whatever the clone pins, and a hand-off carries the workspace" {
+  cached 9.9.9
+  printf 'version: 9.9.9\n' > kit.yml
+  run "${kit}" --workspace=w version
+  [ "$output" = unreleased ]
+  run "${kit}" --workspace=none version
+  [ "$output" = 9.9.9 ]
+  telling "${cache}/kit-9.9.8"
+  printf 'version: 9.9.8\n' > kit.yml
+  run "${kit}" --workspace=none flow
+  [ "${lines[2]}" = flow ]
+  [ "${lines[3]}" = none ]
 }
 
 @test "unreleased is the clone's own kit/ where it holds bin/kit beside modules/bash/1st.sh, and this release elsewhere" {

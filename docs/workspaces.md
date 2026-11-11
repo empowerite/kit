@@ -31,10 +31,10 @@ and never `/`. That is how kit tells a name from a repository.
 
 kit checks the file wherever it reads it. It refuses a file that does not parse or is not a map, a group with a key
 other than `repos` and `exclude` (`match` and `project` are not built yet), a group whose name breaks that rule, an
-entry that names no repository, and a group named `none`. `kit workspaces`, `kit flow --workspace`, and `kit workspace
---workspace` each say what is wrong and exit 1, printing nothing, as `kit flow` and `kit workspace` do outside a
-repository with a group used last, where they read the file for that group. Inside a repository, or with no group
-used, `kit flow` and `kit workspace` with no `--workspace` read no file.
+entry that names no repository, and a group named `none`. `kit workspaces`, `kit --workspace=<name> flow`, and `kit
+--workspace=<name> workspace` each say what is wrong and exit 1, printing nothing, as `kit flow` and `kit workspace`
+do outside a repository with a group used last, where they read the file for that group. Inside a repository, or
+with no group used, `kit flow` and `kit workspace` with no `--workspace=` read no file.
 
 ## Members and checkouts
 
@@ -55,7 +55,8 @@ symbolic link are no checkouts, and kit does not look inside a hidden folder.
 
 ## Which workspace kit starts on
 
-1. A workspace given with `--workspace` wins. `--workspace none` names no workspace.
+1. A workspace given with `--workspace=`, the kit option before the verb, wins: `kit --workspace=empowerite flow`.
+   `--workspace=none` names no workspace.
 2. Inside a repository, it is that repository, even when the repository belongs to a group. In a linked worktree, it
    is the repository the worktree belongs to.
 3. Outside any repository, it is the last group used.
@@ -72,13 +73,16 @@ workspace` refuses.
 used.
 
 `kit flow`, `kit workspace`, and `kit workspaces --current` follow this rule. Every other verb runs in its folder's
-repository, or refuses outside one, and takes no `--workspace`.
+repository, or refuses outside one, and takes no `--workspace=`. `--workspace=` is an option of `kit` itself, which the
+loader, `kit/bin/kit`, reads and hands to the verb, and a verb refuses it among its own words. A call across a
+workspace runs on the kit you installed, and each member's own call, in its checkout, runs the release that member
+pins, so `--workspace=` takes no `--version=`.
 
 `kit workspaces --current` says which one, and why. With `--json` it also gives what kittui's workspace menu draws: a
 group's members with their checkouts, the groups a repository belongs to, and the favorites.
 
 `kit flow` and `kit workspace` start where `kit workspaces --current` says. Outside a repository, they draw the last
-group used, as `--workspace` with its name would. With no group used, or with `--workspace none`, `kit flow` draws
+group used, as `--workspace=` with its name would. With no group used, or with `--workspace=none`, `kit flow` draws
 each desk below, as it does above desks, and `kit workspace` refuses with 2, as it reads a repository.
 
 ## Commands
@@ -109,11 +113,11 @@ error, an unknown workspace, or a new name that is refused or taken.
 ## kit flow over a workspace
 
 ```sh
-kit flow --workspace empowerite                   # each cloned member's picture under its name
-kit flow backlog --workspace empowerite --json    # every member's backlog, each row tagged with its member
+kit --workspace=empowerite flow                   # each cloned member's picture under its name
+kit --workspace=empowerite flow backlog --json    # every member's backlog, each row tagged with its member
 ```
 
-`--workspace` runs `kit flow` in every member's checkout at once, each under that checkout's own `kit.yml`, so a
+`--workspace=` runs `kit flow` in every member's checkout at once, each under that checkout's own `kit.yml`, so a
 GitLab member beside GitHub ones keeps its forges and trackers. With `--json`, a stage prints `{rows, errors}`: each
 row, or each desk, worktrees, or incoming object, gains `member`, its host and path; a member that could not be read
 is `{member, error}` under `errors`, and the others still draw. kit flow exits 1 when a member cannot be read: with
@@ -125,7 +129,7 @@ and are refused.
 
 ## Flow over a workspace in kittui
 
-On a terminal, `kit flow --workspace empowerite` opens kittui's Issues app over the group, as picking the group from
+On a terminal, `kit --workspace=empowerite flow` opens kittui's Issues app over the group, as picking the group from
 the 📚 workspace menu does, and every other app follows the same group. Every tab gathers its rows from every cloned
 member, grouped by member as they load, and a member whose read failed is one red line among them.
 
@@ -133,9 +137,9 @@ member, grouped by member as they load, and a member whose read failed is one re
 
 ```sh
 kit workspace                                     # the git of the repository here: every stage
-kit workspace repos --workspace empowerite        # each member: its forge, branch, and checkout, or not cloned
+kit --workspace=empowerite workspace repos        # each member: its forge, branch, and checkout, or not cloned
 kit workspace branches                            # its branches, local and on each remote
-kit workspace commits --workspace empowerite      # the commits not on the default branch, in every member
+kit --workspace=empowerite workspace commits      # the commits not on the default branch, in every member
 kit workspace worktrees --json                    # {rows, errors}, each row a worktree
 ```
 
@@ -145,7 +149,7 @@ no remote, so a remote's side is what the last fetch left. HEAD is no stage: a r
 its row and on the branch's, and a worktree's is its branch, or its commit where it is detached.
 
 - repos: each member, cloned or not, with its forge, remotes, clone or `not cloned`, its desk's branch, its linked
-  worktrees by branch, and the local branches no checkout has; with no `--workspace`, the repository here alone.
+  worktrees by branch, and the local branches no checkout has; with no `--workspace=`, the repository here alone.
 - remotes: each remote, its forge, the repository its URL names, its default branch, and how many branches it has.
 - branches: each branch on a remote, with the local branches that pull from it and what the first is ahead and
   behind; and each local branch whose upstream is gone, or that has none. A branch checked out names its worktree.
@@ -155,10 +159,10 @@ its row and on the branch's, and a worktree's is its branch, or its commit where
   branches, whether a remote has it, and the issue its subject starts with.
 - tags: each tag, the newest first, annotated or lightweight, with its commit and its tagger.
 
-`--workspace` reads every cloned member's checkout at once, as `kit flow --workspace` does, and every row gains its
+`--workspace=` reads every cloned member's checkout at once, as it does for `kit flow`, and every row gains its
 member. kit workspace exits 1 when a member, or a member's desk, cannot be read: what was read is still drawn, as
 text or with `--json`, the member under `errors`, or the desk's line as its repos row's `error`. A bare repository
-is outside a repository: without `--workspace`, kit workspace draws the last group used there, and with none
+is outside a repository: without `--workspace=`, kit workspace draws the last group used there, and with none
 refuses it with 2. On a terminal, `kit workspace` opens kittui's Repositories app, a tab per stage, the 📚 repos tab
 first and kit flow's incoming last.
 On the repos tab, a clone reads `~` for the home folder, and a closed row shows `…` and its last two folders; open,

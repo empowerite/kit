@@ -5,7 +5,7 @@
 #
 # kit workspaces --show=<workspace> [--text | --json | --jq]
 #
-# kit workspaces --current [--workspace <workspace>] [--text | --json | --jq]
+# kit workspaces --current [--text | --json | --jq]
 #
 # kit workspaces --use=<workspace>
 #
@@ -36,8 +36,8 @@
 #   --json            one JSON object, as each form below says
 #   --jq              the same JSON, formatted by jq for a person
 #   --show            shows a workspace's members, each with its checkout
-#   --current         says which workspace kit starts on here, and why
-#   --workspace       names the workspace in place of where kit runs; none names no workspace
+#   --current         says which workspace kit starts on here, and why; under kit --workspace=<workspace>, the kit
+#                     option before the verb, that one in place of where kit runs, none naming no workspace
 #   --use             remembers a group as the last used, which kit starts on outside a repository
 #   --new             makes a group, with the repositories given as its members
 #   --add             adds the repositories to a group's members
@@ -83,6 +83,7 @@ use workspaces
 # The forms that name a group or a workspace are written --option=<value>; given as the next word, the value is joined
 # to its option first, so --add w reads as --add=w. The list below names every option the usage lines write as
 # --option=<value>, so an option given that form joins the list too.
+workspaces:misplaced workspaces "$@" || exit $?
 words=()
 while (( $# ))
 do
@@ -106,7 +107,10 @@ done
 set -- "${words[@]}"
 guard:arguments workspaces "$@" || exit $?
 
-action=list target='' workspace='' form=''
+action=list target='' form=''
+# The workspace --current says is the kit option's, kit --workspace=<workspace> workspaces --current, which bin/kit,
+# the loader, hands on.
+workspace=${KIT_WORKSPACE:-}
 args=()
 while (( $# ))
 do
@@ -118,13 +122,19 @@ do
       shift
       ;;
     (--current) action=current ;;
-    (--workspace) workspace=$2; shift ;;
     (--text | --json) form=$1 ;;
     (--jq) form=--jq ;;
     (*) args+=("$1")
   esac
   shift
 done
+# A workspace given before the verb names the one --current says; every other form reads or edits the file itself.
+if [[ -n "${workspace}" && "${action}" != current ]]
+then
+  error "kit --workspace=<workspace> names the workspace kit workspaces --current says, and no other form's; see:" \
+    "kit help workspaces"
+  exit 2
+fi
 
 # A form that edits the file, or the last group used, takes the file's lock before it reads the file, so what it checks
 # and what it writes are one turn.

@@ -26,6 +26,14 @@ candidates() {
   [ "$(cut -f 1 <<<"$output" | wc -l)" -eq "$(find "${kit_checkout}/bin" -name 'kit-*' -perm -u+x | wc -l)" ]
 }
 
+@test "a dash before any verb offers the kit options, and a verb after them completes as it does alone" {
+  run "${kit_checkout}/bin/kit" completion candidates kit -
+  [ "$(cut -f 1 <<<"$output")" = $'--version=\n--workspace=\n--help\n--version' ]
+  [ "$(candidates --workspace=w commit -)" = $'--all\n--file\n--message' ]
+  run "${kit_checkout}/bin/kit" completion candidates kit --version=9.9.9 ''
+  [[ "$output" == *$'commit\tcommits what is staged, after the kit\'s checks'* ]]
+}
+
 @test "a dash offers the flags and options not given yet, and an inline option ends in =" {
   [ "$(candidates commit -)" = $'--all\n--file\n--message' ]
   [ "$(candidates commit --all --)" = $'--file\n--message' ]

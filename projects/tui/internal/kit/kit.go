@@ -23,19 +23,20 @@ import (
 type Runner struct {
 	Kit     string // the kit executable: $KIT, which kit tui names as the kit that ran it, else kit on PATH
 	Dir     string // where the command was typed: $kit_invoked_in, which kit's verbs export, else the current directory
-	Group   string // the group kit flow's reads span, as --workspace <Group>; none reads the place Dir is
-	NoGroup bool   // the workspace shown is no group, so the reads carry --workspace none and draw no last group used
+	Group   string // the group kit flow's reads span, as kit --workspace=<Group>; none reads the place Dir is
+	NoGroup bool   // the workspace shown is no group, so the reads carry --workspace=none and draw no last group used
 }
 
-// over gives kit flow's words as a read takes them: with --workspace <Group> after them, while the reads span a group,
-// and with --workspace none while the workspace shown is no group, so a read outside a repository draws the place Dir
-// is, as kittui titles it, and not the last group used.
+// over gives kit flow's words as a read takes them: after --workspace=<Group>, the kit option, which comes before the
+// verb, while the reads span a group, and after --workspace=none while the workspace shown is no group, so a read
+// outside a repository draws the place Dir is, as kittui titles it, and not the last group used. Every read names its
+// workspace, as kit sets KIT_WORKSPACE from the option alone, so a switch of workspace is never read stale.
 func (r Runner) over(words ...string) []string {
 	switch {
 	case r.Group != "":
-		return append(words, "--workspace", r.Group)
+		return append([]string{"--workspace=" + r.Group}, words...)
 	case r.NoGroup:
-		return append(words, "--workspace", "none")
+		return append([]string{"--workspace=none"}, words...)
 	}
 	return words
 }

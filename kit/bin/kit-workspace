@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # kit-workspace - shows a workspace's git: its remotes, branches, worktrees, commits, and tags (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit workspace [--text | --json | --jq] [--workspace <workspace>]
+# kit workspace [--text | --json | --jq]
 #
 # Draws what git holds across a workspace: its members, then a stage for each of git's entities. It changes nothing,
 # and asks no remote: what a remote has is what the last fetch left. The stages, in order:
@@ -11,7 +11,9 @@
 # HEAD is no stage of its own. A remote's HEAD is its default branch, ⚓ on its row and on the branch's; a worktree's
 # is its branch, or its commit where it is detached, and a commit's row names the worktrees whose HEAD it is.
 #
-# Without --workspace, the workspace is the repository here, in its working tree, and outside one, a bare repository
+# kit --workspace=<workspace> workspace, the kit option before the verb, draws each stage across a workspace's members
+# with checkouts: a group's name, or a repository's host and path, as kit workspaces names it; none names no
+# workspace. Without it, the workspace is the repository here, in its working tree, and outside one, a bare repository
 # or a .git directory too, the last group used, as kit workspaces --current says. The repository is read from its main
 # checkout, so a linked worktree draws what the desk draws, and repos lists it alone. On a terminal, kit workspace
 # opens the picture in kittui, and kit workspace <stage> opens it with that stage maximized. Without one, or with
@@ -20,8 +22,6 @@
 #   --text              prints the picture as text, even on a terminal
 #   --json              the picture as one JSON object: stages, then each stage's document under its name
 #   --jq                the same JSON, formatted by jq for a person
-#   --workspace         draws each stage across a workspace's members with checkouts, a group's name or a repository's
-#                       host and path, as kit workspaces names it; none names no workspace
 #   --stages            prints the stages the picture draws, one per line, in order, the same over any workspace
 #   --marks             prints a mark per stage, as one JSON object, which changes when what the stage draws does
 #   repos               each member of the workspace, cloned or not: its forge, its clone, its desk's branch, its
@@ -35,21 +35,21 @@
 #                       one's branches, whether a remote has it, and the issue its subject starts with
 #   tags                the tags, the newest first: annotated or lightweight, their commit, and their tagger
 #
-# kit workspace --stages [--workspace <workspace>]
+# kit workspace --stages
 #
-# kit workspace --marks [--workspace <workspace>]
+# kit workspace --marks
 #
-# kit workspace repos [--text | --json | --jq] [--workspace <workspace>]
+# kit workspace repos [--text | --json | --jq]
 #
-# kit workspace remotes [--text | --json | --jq] [--workspace <workspace>]
+# kit workspace remotes [--text | --json | --jq]
 #
-# kit workspace branches [--text | --json | --jq] [--workspace <workspace>]
+# kit workspace branches [--text | --json | --jq]
 #
-# kit workspace worktrees [--text | --json | --jq] [--workspace <workspace>]
+# kit workspace worktrees [--text | --json | --jq]
 #
-# kit workspace commits [--text | --json | --jq] [--workspace <workspace>]
+# kit workspace commits [--text | --json | --jq]
 #
-# kit workspace tags [--text | --json | --jq] [--workspace <workspace>]
+# kit workspace tags [--text | --json | --jq]
 #
 # With --json, a stage prints {rows, errors}. A row is {key, …, links}: key is the row's own in its stage, and links
 # gives where a value leads, by its field: a page on the forge, or row:<stage>/<key>, a row of another stage. Over a
@@ -141,10 +141,10 @@
 # kit:end legend
 # Exits 0 when the picture is drawn, 1 when a repository, a member, a member's desk, or the workspace file cannot be
 # read: what was read is still drawn, as text or with --json, and names what could not, a member under errors or a
-# repos row's error, as for a clone whose kit.yml does not parse. It exits 1, printing nothing, when --workspace, or
+# repos row's error, as for a clone whose kit.yml does not parse. It exits 1, printing nothing, when --workspace=, or
 # kit workspace outside a repository with a group used last, meets a workspace file kit workspaces refuses, and 2 on a
 # usage error, or outside a repository's working tree, a bare repository or a .git directory too, with no workspace: no
-# group used, or --workspace none.
+# group used, or --workspace=none.
 #
 # see: modules/bash/workspace.sh, modules/jq/workspace.jq, modules/bash/across.sh
 
@@ -153,35 +153,12 @@ set -o errexit -o nounset -o pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use workspace across tui
+workspaces:misplaced workspace "$@" || exit $?
 guard:arguments workspace "$@" || exit $?
 guard:require tool:git
 
-workspace=''
-words=()
-while (( $# > 0 ))
-do
-  case "$1" in
-    (--workspace | --workspace=*)
-      if [[ "$1" == --workspace ]]
-      then
-        workspace=${2:-}
-        (( $# > 1 )) && shift
-      else
-        workspace=${1#--workspace=}
-      fi
-      shift
-      if [[ -z "${workspace}" ]]
-      then
-        error "--workspace names a workspace: a group's name, or a repository's host and path; run: kit workspaces"
-        exit 2
-      fi
-      ;;
-    (*)
-      words+=("$1")
-      shift
-  esac
-done
-set -- "${words[@]}"
+# The workspace is the kit option's, kit --workspace=<workspace> workspace, which bin/kit, the loader, hands on.
+workspace=${KIT_WORKSPACE:-}
 # shellcheck disable=SC2154  # syntax_literals and syntax_options are set by guard:arguments
 stage=${syntax_literals[0]:-}
 
@@ -193,7 +170,7 @@ then
   exit 0
 fi
 
-# Outside a repository, the workspace is the last group used, as kit workspaces --current says; --workspace none names
+# Outside a repository, the workspace is the last group used, as kit workspaces --current says; --workspace=none names
 # none.
 workspace=$(workspaces:across "${workspace}") || exit $?
 
@@ -204,13 +181,14 @@ if [[ -z "${syntax_options[--text]+x}${syntax_options[--json]+x}${syntax_options
 then
   binary=$(tui:binary) || exit 1
   export KIT="${kit_root}/bin/kit"
-  exec "${binary}" workspace ${workspace:+--workspace "${workspace}"} "$@"
+  exec "${binary}" workspace ${workspace:+--workspace="${workspace}"} "$@"
 fi
 
 # A bare repository, or a .git directory, has no working tree to read, so it is outside a repository too.
 if [[ -z "${workspace}" ]] && ! workspaces:in-repository >/dev/null
 then
-  error "kit workspace reads a repository: run it in one, or give --workspace; run: kit workspaces"
+  error "kit workspace reads a repository: run it in one, or name a workspace: kit --workspace=<workspace> workspace;" \
+    "see: kit workspaces"
   exit 2
 fi
 

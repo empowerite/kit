@@ -284,7 +284,8 @@ across:repos() {
   else
     if ! top=$(git rev-parse --show-toplevel 2>/dev/null)
     then
-      error "repos lists a workspace's repositories: run it in one, or give --workspace"
+      error "repos lists a workspace's repositories: run it in one, or name a workspace: kit --workspace=<workspace>" \
+        "workspace repos"
       return 2
     fi
     top=$(git:main-root "${top}")
