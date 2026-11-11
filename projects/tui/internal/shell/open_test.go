@@ -184,10 +184,6 @@ func TestOpenMovesAHighlightOverTheFoldersAndScrollsToIt(t *testing.T) {
 		strings.Contains(v, "above") {
 		t.Errorf("at the top:\n%s", v)
 	}
-	d, _ = d.Key(key("down"))
-	if d.At != 1 {
-		t.Errorf("down from what is typed: %d", d.At)
-	}
 	lit := func(d OpenDialog, name string) bool {
 		t.Helper()
 		on, _, _ := strings.Cut(style.Selected("x"), "x")
@@ -198,11 +194,18 @@ func TestOpenMovesAHighlightOverTheFoldersAndScrollsToIt(t *testing.T) {
 		}
 		return false
 	}
-	if !lit(d, "f00") || lit(d, "f01") {
+	d, _ = d.Key(key("down"))
+	if d.At != 1 || !lit(d, "..") {
+		t.Errorf("down from what is typed, onto ../: %d\n%s", d.At, drawn(d))
+	}
+	d, _ = d.Key(key("down"))
+	if !lit(d, "f00") || lit(d, "f01") || lit(d, "..") {
 		t.Errorf("f00 is not the one highlighted:\n%s", drawn(d))
 	}
-	if d, _ := d.Key(key("up")); d.At != 0 {
-		t.Errorf("up from the first folder: %d", d.At)
+	if up, _ := d.Key(key("up")); up.At != 1 {
+		t.Errorf("up from the first folder: %d", up.At)
+	} else if up, _ = up.Key(key("up")); up.At != 0 {
+		t.Errorf("up from ../: %d", up.At)
 	}
 	if d, _ := NewOpen(t.TempDir(), "/nowhere").Key(key("up")); d.At != 0 {
 		t.Errorf("up from what is typed: %d", d.At)
@@ -214,14 +217,17 @@ func TestOpenMovesAHighlightOverTheFoldersAndScrollsToIt(t *testing.T) {
 		!strings.Contains(v, "more") {
 		t.Errorf("down to f09:\n%s", v)
 	}
+	if v := drawn(d); !strings.Contains(v, Folder+" ../") {
+		t.Errorf("../ scrolled away:\n%s", v)
+	}
 	d, _ = d.Key(tea.KeyPressMsg{Code: tea.KeyPgDown})
-	if d.At != 10+openPage || !lit(d, "f16") {
+	if d.At != 11+openPage || !lit(d, "f16") {
 		t.Errorf("a page down: %d\n%s", d.At, drawn(d))
 	}
 	for range 5 {
 		d, _ = d.Key(tea.KeyPressMsg{Code: tea.KeyPgDown})
 	}
-	if v := drawn(d); d.At != 20 || !lit(d, "f19") || strings.Contains(v, "more") {
+	if v := drawn(d); d.At != 21 || !lit(d, "f19") || strings.Contains(v, "more") {
 		t.Errorf("pages to the end: %d\n%s", d.At, v)
 	}
 	for range 5 {
@@ -236,6 +242,7 @@ func TestOpenMovesAHighlightOverTheFoldersAndScrollsToIt(t *testing.T) {
 func TestOpenEnterGoesIntoTheFolderHighlighted(t *testing.T) {
 	dir := many(t, 3)
 	d, _ := NewOpen(dir, "/nowhere").Key(key("down"))
+	d, _ = d.Key(key("down"))
 	d, _ = d.Key(key("down"))
 	d, path := d.Key(key("enter"))
 	if path != "" || d.Typed != dir+"/f01/" || d.At != 0 {
@@ -271,16 +278,62 @@ func TestOpenWheelScrollsTheFolders(t *testing.T) {
 	}
 }
 
-// The keys bar names ↑↓ while there are folders to move over, and ⇞⇟ while there are more than the list shows.
+// The keys bar names ↑↓ while there are lines to move over, ⇞⇟ while there are more folders than the list shows, and
+// going up while there is a folder above.
 func TestOpenNamesTheMovesWhereTheyApply(t *testing.T) {
 	keys := func(d OpenDialog) string { return (Path{d.Keys()}).String() }
-	if got := keys(NewOpen(t.TempDir(), "")); got != "esc close ⇥ complete ⏎ open" {
+	if got := keys(NewOpen(t.TempDir(), "")); got != "esc close ↑↓ move ⇥ complete ⇧⌫·⌃W up ⏎ open" {
 		t.Errorf("no folders: %q", got)
 	}
-	if got := keys(NewOpen(many(t, 3), "")); got != "esc close ↑↓ move ⇥ complete ⏎ open" {
-		t.Errorf("a few: %q", got)
-	}
-	if got := keys(NewOpen(many(t, 20), "")); got != "esc close ↑↓ move ⇞⇟ page ⇥ complete ⏎ open" {
+	if got := keys(NewOpen(many(t, 20), "")); got != "esc close ↑↓ move ⇞⇟ page ⇥ complete ⇧⌫·⌃W up ⏎ open" {
 		t.Errorf("many: %q", got)
+	}
+	if got := keys(NewOpen("/", "")); strings.Contains(got, " up") {
+		t.Errorf("at /: %q", got)
+	}
+}
+
+// ⇧⌫ and ⌃W take the last folder off what is typed, ~/ giving the home folder's parent, written whole, and / staying;
+// both are bound, as iTerm sends ⇧⌫ as ⌫ unless told otherwise.
+func TestOpenGoesUpAFolder(t *testing.T) {
+	for typed, want := range map[string]string{"~/a/b/c": "~/a/b/", "~/a/b/c/": "~/a/b/", "/x": "/", "/": "/",
+		"~/": "/home/", "~": "/home/", "~/a": "~/"} {
+		for _, k := range []tea.KeyPressMsg{{Code: tea.KeyBackspace, Mod: tea.ModShift}, {Code: 'w', Mod: tea.ModCtrl}} {
+			d := OpenDialog{Open: true, Home: "/home/me", Typed: typed, At: 1, Refusal: "x"}
+			if d, _ = d.Key(k); d.Typed != want || d.At != 0 || d.Refusal != "" {
+				t.Errorf("%s on %q: %+v, want %q", k, typed, d, want)
+			}
+		}
+	}
+}
+
+// The list starts with ../ while there is a folder above; a click on it, or enter on it, goes up a folder.
+func TestOpenListsTheFolderAboveFirst(t *testing.T) {
+	dir := folders(t, "kit/a")
+	d := NewOpen(filepath.Join(dir, "kit"), "/nowhere")
+	p := d.placed(30, 100)
+	row := -1
+	for k, l := range p.Lines {
+		if strings.Contains(ansi.Strip(l), Folder+" ../") {
+			row = p.Top + k
+			break
+		}
+		if strings.Contains(ansi.Strip(l), Folder+" a/") {
+			t.Fatalf("a/ stands before ../:\n%s", drawn(d))
+		}
+	}
+	if row < 0 {
+		t.Fatalf("no ../:\n%s", drawn(d))
+	}
+	if up, path := d.Click(tea.MouseClickMsg{X: p.Left + 3, Y: row, Button: tea.MouseLeft}, 30, 100); path != "" ||
+		up.Typed != dir+"/" {
+		t.Errorf("a click on ../: %q, %q", path, up.Typed)
+	}
+	d, _ = d.Key(key("down"))
+	if d, _ = d.Key(key("enter")); d.Typed != dir+"/" {
+		t.Errorf("enter on ../: %q", d.Typed)
+	}
+	if v := drawn(NewOpen("/", "")); strings.Contains(v, "../") {
+		t.Errorf("at /:\n%s", v)
 	}
 }
