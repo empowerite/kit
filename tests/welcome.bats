@@ -85,12 +85,12 @@ ambient-system() {
     "you are at the desk, your own checkout; work on an issue goes in a worktree" ]
 }
 
-@test "welcome's steps are introduction, toolchains, setup, applications, terms, customize" {
+@test "welcome's steps are introduction, toolchains, setup, terms, customize" {
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
   [ "$status" -eq 1 ]
   # each step's page in order, the checks of steps 2 and 3 under their pages, then what is left
   [ "$(outline <<<"$output")" = "$(printf '%s|' '# Welcome' '# Toolchains' ✅ '# Setup' \
-    ✅ ❌ ✅ '# Applications' '# Terms' '# Customize' '# What is left' | sed 's/|$//')" ]
+    ✅ ❌ ✅ '# Terms' '# Customize' '# What is left' | sed 's/|$//')" ]
   # bash, git, jq, and yq, then one check for each role, then the rest
   [ "$(under <<<"$output")" = "$(printf '%s\n' '# Toolchains|✅ bash' '# Toolchains|✅ git' \
     '# Toolchains|✅ jq' '# Toolchains|✅ yq' '# Toolchains|✅ no' '# Toolchains|✅ brew' \
@@ -300,7 +300,7 @@ ambient-system() {
   rm mise.toml toolchain.Dockerfile
   run --separate-stderr check linter-shellcheck
   [ "$(jq --raw-output .fix <<<"$output")" = "kit tools install" ]
-  # installed by the toolchain, in a directory not on PATH: no install, the directory is what is missing
+  # installed by the toolchain, in a directory not on PATH: kit lint looks there, so it holds
   # shellcheck disable=SC2016  # a fake's body expands when it runs
   fake-script brew '[[ "$*" != --prefix ]] || echo "${BATS_TEST_TMPDIR}/prefix"'
   mkdir -p "${BATS_TEST_TMPDIR}/prefix/bin"
@@ -308,7 +308,7 @@ ambient-system() {
   chmod +x "${BATS_TEST_TMPDIR}/prefix/bin/shellcheck"
   run --separate-stderr check linter-shellcheck
   [ "$(jq --raw-output '[.ok, .line, .fix] | @tsv' <<<"$output")" = \
-    $'false\tshellcheck is installed, but not on PATH; kit tools path names its directory\t' ]
+    $'true\tshellcheck is installed by brew; kit lint runs it for .kit/rules/bash.md\t' ]
 }
 
 @test "a forge host among the remotes gets two checks: its tool installed, and logged in, the login's fix interactive" {
@@ -415,7 +415,7 @@ ambient-system() {
   "${kit_root}/bin/kit" packages add house >/dev/null 2>&1
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
   [ "$(grep --extended-regexp '^# ' <<<"$output" | paste -s -d '|' -)" = "$(printf '%s|' '# Welcome' \
-    '# Toolchains' '# Setup' '# Applications' '# Our terms' '# Customize' \
+    '# Toolchains' '# Setup' '# Our terms' '# Customize' \
     '# Our team' '# What is left' | sed 's/|$//')" ]
   [ "$(readlink .kit/welcome/5-terms.md)" = ../packages/house/files/repo/.kit/welcome/5-terms.md ]
 }

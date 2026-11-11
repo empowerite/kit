@@ -220,4 +220,18 @@ YAML
   [[ "$output" == *"shellcheck is not on PATH"* ]]
 }
 
+@test "a linter the chosen toolchain installed is run from its directory, though PATH lacks it" {
+  platform=$(kit-bash 'use toolchain/kit && toolchain/kit:platform')
+  printf 'shellcheck\t1\t%s\tboth\thttps://example.com/shellcheck\t%064d\t.\n' "${platform}" 0 > tools.lock
+  dir="${KIT_HOME}/.kit/tools/shellcheck/1/${platform}"
+  mkdir -p "${dir}"
+  printf '#!/usr/bin/env bash\necho "the toolchain'"'"'s shellcheck over $#"\n' > "${dir}/shellcheck"
+  chmod +x "${dir}/shellcheck"
+  path-without shellcheck
+  git add good.sh
+  KIT_TOOLCHAIN=kit run "${kit_checkout}/bin/kit" lint
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"the toolchain's shellcheck over"* ]]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

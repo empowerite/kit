@@ -146,7 +146,7 @@ setup() {
   ln -sf "$(command -v bash)" "${BATS_TEST_TMPDIR}/nojq/bash"
   run env PATH="${BATS_TEST_TMPDIR}/nojq" "${kit_root}/bin/kit" version
   [ "$status" -eq 2 ]
-  [[ "$output" == *"run: mise install (jq is not on PATH)"* ]]
+  [[ "$output" == *"run: kit tools install (jq is not on PATH)"* ]]
   [[ "$output" != *"command not found"* ]]
 }
 

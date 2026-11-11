@@ -32,8 +32,9 @@ how kit finds and chooses a toolchain, see [toolchains.md](../toolchains.md).
 | Key | What it holds |
 | --- | --- |
 | `version` | The exact version, quoted, so YAML keeps `"1.20"` as written rather than as `1.2`. |
-| `url` | The download, with `{version}`, `{platform}`, `{os}`, and `{arch}` filled in. |
+| `url` | The download, with `{version}`, `{platform}`, `{os}`, `{arch}`, and `{ext}` filled in. |
 | `os`, `arch` | The tool's names for kit's own: `linux` and `macos`, `x64` and `arm64`. A platform is `<os>-<arch>`. |
+| `ext` | Each os's file ending for `{ext}`, as `{linux: tar.gz, macos: zip}`, for a tool that ships a zip to one and a tarball to the other. |
 | `bin` | The directory, in what the URL unpacks to, that holds the tool's commands, filled in as the URL is. `.` by default. |
 | `profile` | `desk` or `ci` installs the tool on one of them alone. A run where `CI` is set is a runner's. |
 | `platforms` | The platforms it is locked for, when not all four: `linux-x64`, `linux-arm64`, `macos-x64`, `macos-arm64`. |
@@ -55,7 +56,7 @@ fast.
 | --- | --- |
 | `install` | Locks again each tool whose entry changed, downloading it for every platform, then installs each tool this platform and profile take that is not installed at its locked digest. |
 | `update` | Moves each tool behind to its latest version in `kit.yml`, then locks and installs it. |
-| `--outdated` | Asks each GitHub release's latest tag, through gh where it is installed, Node.js's latest LTS, and Go's latest release. It names each tool whose source it cannot ask. |
+| `--outdated` | Asks the latest tag of each GitHub release or source archive, through gh where it is installed; Node.js's latest LTS; Go's latest release; and the newest file a GNU mirror's directory lists. It names each tool whose source it cannot ask. |
 
 ## Where things are kept
 

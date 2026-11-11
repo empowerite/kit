@@ -3,8 +3,8 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_root is exported by modules/bash/1st.sh
 #
-# kit welcome walks a newcomer through six steps, each a page: the introduction, toolchains, setup, the applications,
-# the terms, and customize. Steps 2 and 3 hold checks, run here. Each check is one JSON object:
+# kit welcome walks a newcomer through five steps, each a page: the introduction, toolchains, setup, the terms, and
+# customize. Steps 2 and 3 hold checks, run here. Each check is one JSON object:
 #
 #   id            stable, in kebab-case: tool-yq, toolchain-project, linter-shellcheck, forge-login-github.com
 #   step          the step it belongs to: toolchains or setup
@@ -293,8 +293,9 @@ welcome:tool() {
   fi
 }
 
-# welcome:linter <id> <tool> <rule> prints the check of a linter the rule names. kit lint looks in each installed
-# dependency provider's directory before PATH, so a linter there holds, wherever PATH leads.
+# welcome:linter <id> <tool> <rule> prints the check of a linter the rule names. kit lint looks in the project
+# toolchain's directories and each installed dependency provider's before PATH, so a linter there holds, wherever PATH
+# leads.
 welcome:linter() {
   local id=$1 tool=$2 rule=$3 dir
   local -a dirs=()
@@ -308,6 +309,11 @@ welcome:linter() {
       return 0
     fi
   done
+  if welcome:toolchain-has "${tool}"
+  then
+    welcome:record "${id}" true "${tool} is installed by $(welcome:chosen project); kit lint runs it for ${rule}"
+    return 0
+  fi
   welcome:tool "${id}" "${tool}" "kit lint runs it for ${rule}" "${rule}"
 }
 

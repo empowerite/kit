@@ -11,8 +11,9 @@
 #       os: {macos: darwin}
 #       arch: {x64: amd64}
 #
-# {version}, {platform}, {os}, and {arch} are filled in. kit names a platform <os>-<arch>, with linux or macos and x64
-# or arm64; os: and arch: rename them as the tool's downloads do. bin: names the directory, in what the url unpacks
+# {version}, {platform}, {os}, {arch}, and {ext} are filled in. kit names a platform <os>-<arch>, with linux or macos
+# and x64 or arm64; os: and arch: rename them as the tool's downloads do, and ext: gives each os its download's
+# ending, as {linux: tar.gz, macos: zip}. bin: names the directory, in what the url unpacks
 # to, that holds the tool's commands: . by default, filled in the same way. profile: desk or ci keeps a tool to one of
 # them; a run where CI is set is a runner's, ci, and any other a desk's. platforms: narrows the platforms it is
 # locked for.
@@ -28,8 +29,9 @@
 # and each download is kept under ${XDG_CACHE_HOME:-$HOME/.cache}/kit/downloads/, named by its sha256. A download
 # whose bytes have another digest than the lock's is refused, and nothing is installed from it.
 #
-# outdated asks a GitHub release's latest tag, through gh where it is installed and GitHub's API otherwise, Node.js's
-# latest LTS, and Go's latest release. For any other url, it says it cannot tell.
+# outdated asks a GitHub release's latest tag, for a release's download or a source archive, through gh where it is
+# installed and GitHub's API otherwise; Node.js's latest LTS; Go's latest release; and the newest file a GNU mirror's
+# directory lists. For any other url, it says it cannot tell.
 #
 # see: docs/toolchains/using-kit.md, issue #181
 
@@ -223,6 +225,7 @@ toolchain/kit:spec() {
       "profile": ((.value.profile // "both") | tostring),
       "os": (.value.os // {}),
       "arch": (.value.arch // {}),
+      "ext": (.value.ext // {}),
       "platforms": (.value.platforms // [])}]' --output-format=json --indent=0
 }
 
@@ -382,15 +385,28 @@ toolchain/kit:unpack() {
   esac
 }
 
+# toolchain/kit:listed <url> prints the newest version among the files the url's directory lists whose names have the
+# shape of its last part, {version} standing for digits and dots. The directory is asked for without its trailing
+# slash, which a mirror redirects.
+toolchain/kit:listed() {
+  local url=$1 file pattern listing
+  file=${url##*/}
+  pattern=$(printf '%s' "${file}" | sed -e 's/[][\.*^$+?(){}|/]/\\&/g' -e 's/\\{version\\}/([0-9][0-9.]*[0-9])/')
+  listing=$(curl --fail --silent --location "${url%/*}") || return 1
+  grep --only-matching --extended-regexp "${pattern}" <<<"${listing}" \
+    | sed -E "s/^${pattern}\$/\\1/" | sort --version-sort | tail -n 1
+}
+
 # toolchain/kit:latest <url> prints the latest version of the tool the url template downloads, with the leading
 # letters of its tag taken off, as v1.2.0 or go1.27.0. It returns 2 for a url whose source it cannot ask, and 1 when
 # the source does not answer.
 toolchain/kit:latest() {
   local url=$1 repo tag
   case "${url}" in
-    (https://github.com/*/releases/download/*)
+    (https://github.com/*/releases/download/* | https://github.com/*/archive/*)
       repo=${url#https://github.com/}
       repo=${repo%%/releases/*}
+      repo=${repo%%/archive/*}
       if command -v gh >/dev/null 2>&1
       then tag=$(gh api "repos/${repo}/releases/latest" --jq .tag_name) || return 1
       else
@@ -404,6 +420,9 @@ toolchain/kit:latest() {
       ;;
     (https://go.dev/dl/* | https://dl.google.com/go/*)
       tag=$(curl --fail --silent --location 'https://go.dev/dl/?mode=json' | jq --raw-output '.[0].version') || return 1
+      ;;
+    (https://ftp.gnu.org/gnu/*/*)
+      tag=$(toolchain/kit:listed "${url}") || return 1
       ;;
     (*) return 2
   esac

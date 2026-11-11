@@ -14,8 +14,9 @@
 # file is matched to the rules of its kinds, as kit context matches. The rules of the kinds a kind embeds are left
 # out, so no linter runs over a file it cannot parse. Then, for each rule:
 #
-#   - a `lint:` command in the rule's frontmatter runs once over all the rule's files; a linter that is neither in an
-#     installed dependency provider's directory nor on PATH is a failure, not a skip
+#   - a `lint:` command in the rule's frontmatter runs once over all the rule's files, with the chosen toolchain's
+#     directories and each installed dependency provider's first on PATH; a linter found in none is a failure, not a
+#     skip
 #   - each name under `checks:` in the frontmatter runs one of the kit's own checks over the rule's files
 #   - when the rule has templates, each file must have the shape of one of them
 #
@@ -44,9 +45,12 @@ use context dependencies lint template yaml materialize
 guard:arguments lint "$@" || exit $?
 materialize:hydrate
 
-# A linter a dependency provider installed, such as markdownlint-cli2 from package.json, is found in its directory.
+# A linter runs as kit gate runs it: the chosen project toolchain's directories first, then each installed dependency
+# provider's, such as node_modules/.bin for markdownlint-cli2 from package.json. Finding the toolchain never asks which
+# one to use; with none settled, its directories are left out.
+toolchain_dirs=$(dependencies:toolchain-dirs)
 installed=$(dependencies:installed-path | paste -s -d ':' -)
-[[ -z "${installed}" ]] || PATH="${installed}:${PATH}"
+PATH="${toolchain_dirs:+${toolchain_dirs}:}${installed:+${installed}:}${PATH}"
 
 all=false
 paths=()

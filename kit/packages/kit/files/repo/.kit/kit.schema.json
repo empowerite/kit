@@ -437,7 +437,7 @@
           "url": {
             "type": "string",
             "pattern": "^https?://.+",
-            "description": "The download, with {version}, {platform}, {os}, and {arch} filled in."
+            "description": "The download, with {version}, {platform}, {os}, {arch}, and {ext} filled in."
           },
           "bin": {
             "type": "string",
@@ -463,6 +463,13 @@
               "type": "string"
             },
             "description": "The tool's names for kit's x64 and arm64, as {x64: amd64}."
+          },
+          "ext": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Each os's ending for {ext}, as {linux: tar.gz, macos: zip}, for a tool that ships one kind of file to each."
           },
           "platforms": {
             "type": "array",

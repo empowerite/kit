@@ -195,4 +195,44 @@ beta-2\.0\.0-linux-x64\.tar\.gz${t}[0-9a-f]{64}${t}beta-2\.0\.0/bin$" tools.lock
   [ -d "${KIT_HOME}/.kit/tools/beta/2.1.0/${platform}" ]
 }
 
+@test "{ext} is filled in from ext:, by the platform's os, so a tool can ship a zip for one and a tarball for another" {
+  stage="${BATS_TEST_TMPDIR}/stage-gamma"
+  mkdir -p "${stage}/gamma"
+  printf '#!/bin/sh\necho gamma\n' > "${stage}/gamma/gamma" && chmod +x "${stage}/gamma/gamma"
+  tar --create --gzip --file "${FAKE_RELEASES}/gamma-linux.tar.gz" --directory "${stage}" gamma
+  (cd "${stage}" && zip --quiet --recurse-paths "${FAKE_RELEASES}/gamma-macos.zip" gamma)
+  cat >> kit.yml <<'YAML'
+  gamma:
+    version: "3.0.0"
+    url: https://example.com/gamma/gamma-{os}.{ext}
+    ext: {linux: tar.gz, macos: zip}
+    bin: gamma
+YAML
+  run "${kit_root}/bin/kit" tools install --toolchain kit
+  [ "$status" -eq 0 ]
+  grep --quiet $'^gamma\t3\.0\.0\tmacos-arm64\tboth\thttps://example\.com/gamma/gamma-macos\.zip\t' tools.lock
+  grep --quiet $'^gamma\t3\.0\.0\tlinux-x64\tboth\thttps://example\.com/gamma/gamma-linux\.tar\.gz\t' tools.lock
+  [ "$(PATH="$("${kit_root}/bin/kit" tools path --toolchain kit | paste -s -d ':' -):${PATH}" gamma)" = gamma ]
+}
+
+@test "outdated reads a GitHub source archive's repository, and a GNU mirror's directory, for the latest version" {
+  cat > kit.yml <<'YAML'
+tools:
+  delta:
+    version: "1.0.0"
+    url: https://github.com/acme/delta/archive/refs/tags/v{version}.tar.gz
+  par:
+    version: "20260101"
+    url: https://ftp.gnu.org/gnu/par/par-{version}.tar.bz2
+YAML
+  route gh 'api repos/acme/delta/releases/latest --jq .tag_name' 'delta-tag'
+  printf '{"tag_name": "v1.2.0"}\n' | fixture delta-tag
+  printf '<a href="par-20251201.tar.bz2">x</a> <a href="par-20260301.tar.bz2">x</a>\n<a href="par-20260301.tar.bz2.sig">s</a>\n' \
+    > "${FAKE_RELEASES}/par"
+  run "${kit_root}/bin/kit" tools --outdated --toolchain kit
+  [ "$status" -eq 0 ]
+  grep --quiet -E '^🔺 delta +· 1\.0\.0 +· +· 1\.2\.0$' <<<"$output"
+  grep --quiet -E '^🔺 par +· 20260101 +· +· 20260301$' <<<"$output"
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

@@ -60,10 +60,10 @@ terminal() {
 @test "a checkout with neither kittui nor go refuses with the line that installs go, which builds it" {
   run terminal "env PATH='$(without-kittui)' '${kit_root}/bin/kit' tui"
   [ "$status" -eq 1 ]
-  [[ "$output" == *"run: mise install (go is not on PATH)"* ]]
+  [[ "$output" == *"run: kit tools install (go is not on PATH)"* ]]
   run terminal "env PATH='$(without-kittui)' '${kit_root}/bin/kit'"
   [ "$status" -eq 1 ]
-  [[ "$output" == *"run: mise install (go is not on PATH)"* ]]
+  [[ "$output" == *"run: kit tools install (go is not on PATH)"* ]]
 }
 
 @test "a verb short of its arguments hands off to kit tui only when stdin, stdout, and stderr are terminals" {

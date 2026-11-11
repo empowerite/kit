@@ -532,7 +532,7 @@ guard:require() {
         local tool=${predicate#tool:}
         if ! command -v "${tool}" >/dev/null 2>&1
         then
-          error "run: mise install (${tool} is not on PATH)"
+          error "run: kit tools install (${tool} is not on PATH)"
           return 1
         fi
         ;;
