@@ -178,16 +178,24 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     the preset line still names the view.
   - An open row breaks a value too wide for its column across lines, and one a field draws with a glyph hangs: the
     lines after its first start under the text, not under the glyph.
-- `internal/welcome/` draws `kit welcome`: one tab per page under `.kit/welcome/`. The terms' page, in `terms.go`,
-  stands as a table, a `Sheet` of `internal/table`'s, as the flow picture's stages stand, its fields in `terms.json`:
-  each `## <term>, <term>` heading is a row, its columns its command, what its first example is run with, its tool and
-  its verb, as `kit flow`; its terms, the heading's comma-separated names, a list drawn as pills, as an issue's
-  labels are; its meaning, the paragraphs under it as one line; and its examples, each line of one backticked
-  command, a list too. Default sorts the rows by command; By command flattens the terms, a row a term, sorted, and
-  groups them by command; Compact flattens them too, and hides the command and the examples. The command, the terms,
-  and the examples keep their whole width, `"width": "whole"` in the catalog, and the meaning gives way first. The text
-  before the first heading stands over the table, where the pane has room for it. A page with no such heading, as a
-  house package's may be, is drawn as a page.
+- `internal/welcome/` draws `kit welcome`: one tab per page under `.kit/welcome/`. A page of `##` sections can stand
+  as a table, a `Sheet` of `internal/table`'s, as the flow picture's stages stand: `sections.go` reads a page's
+  sections, each its heading, its text, and its lines of one backticked command, and draws the step's table under the
+  text before the first heading; each step drawn so is a catalog, its fields and presets, and the few lines that make
+  its records. A page with no such heading, as a house package's may be, is drawn as a page. The terms' page, in
+  `terms.go`, has its fields in `terms.json`: each `## <term>, <term>` heading is a row, its columns its command, what
+  its first example is run with, its tool and its verb, as `kit flow`; its terms, the heading's comma-separated names,
+  a list drawn as pills, as an issue's labels are; its meaning, the paragraphs under it as one line; and its examples,
+  each line of one backticked command, a list too. Default sorts the rows by command; By command flattens the terms,
+  a row a term, sorted, and groups them by command; Compact flattens them too, and hides the command and the
+  examples. The command, the terms, and the examples keep their whole width, `"width": "whole"` in the catalog, and
+  the meaning gives way first. The make-it-yours page, in `yours.go`, has its fields in `yours.json`: each
+  `## <part>` heading is a row, its columns its part, the heading, a title; its settings, the `kit.yml` keys its text
+  names, each backticked with its colon, as `packages:`, a list drawn as pills; what it is about, its paragraphs and
+  list items as one line; and its commands. Its command, what its first command is run with, is hidden, and so is its
+  order, the section's place on the page. Default stands the rows in the page's order; By command groups them by
+  command; Compact hides the settings and the commands. The text before the first heading stands over the table,
+  where the pane has room for it.
 - `internal/tutorials/` draws `kit tutorials`: a card for each tutorial, one tab for each audience.
 - `internal/tabs/` is the tab bar `kit flow`, `kit welcome`, and `kit tutorials` share: three lines of numbered tabs,
   and the keys and the clicks that select them.

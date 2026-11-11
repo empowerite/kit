@@ -1,6 +1,7 @@
-// Every step's screen at 120×30, the design width, is pinned as a golden file without its escapes; so are the intro
-// with the cursor on its second link, the first step with checks, as its first link opens it, with its failed check
-// left for later, and the terms searched for kit flow, the rows with the keyboard.
+// Every step's screen at 120×30, the design width, but make it yours's, which yours_test.go pins with its others, is
+// pinned as a golden file without its escapes; so are the intro with the cursor on its second link, the first step
+// with checks, as its first link opens it, with its failed check left for later, and the terms searched for kit flow,
+// the rows with the keyboard.
 package welcome
 
 import (
@@ -23,7 +24,6 @@ func TestGoldenViews(t *testing.T) {
 		"lay-of-the-land.golden": {tabKey, tabKey, tabKey, tabKey},
 		"terms.golden":           {press('6')},
 		"terms-search.golden":    searched("kit flow"),
-		"make-it-yours.golden":   {press('7')},
 	} {
 		m, _ := loaded(t, keys...)
 		testkit.Golden(t, filepath.Join("testdata", file), view(m))

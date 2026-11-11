@@ -1,7 +1,7 @@
 // A step drawn as a table, internal/table's sheet, as kit flow draws its stages: its page read as sections, each a
 // record, one row, and its fields in the step's catalog, a JSON file beside the code. Each section of a page is a
 // `## ` heading; the lines under it that hold one backticked command and nothing else, its commands; and the rest of
-// its text, its meaning, one line. The text before the first heading is the step's
+// its text, its paragraphs and its list items, its meaning, one line. The text before the first heading is the step's
 // lead, drawn over the table where the pane has room for it. sheetSteps names the steps drawn so, each with its
 // catalog's table and the records its sections make; a page with no such heading, as a house package may write, is
 // drawn as a page, as every other step's.
@@ -29,7 +29,7 @@ func readCatalog(data []byte) table.Catalog {
 }
 
 // section is one section of a page: its heading's text, as the page writes it; its text, the lines under the heading
-// joined into one, as markdown; and its commands, none where the page gives none.
+// joined into one, as markdown, a list item's without its marker; and its commands, none where the page gives none.
 type section struct {
 	heading  string
 	text     string
@@ -40,11 +40,12 @@ var (
 	sectionHeading = regexp.MustCompile(`^##\s+(.*?)\s*#*$`)
 	commandLine    = regexp.MustCompile("^`([^`]+)`$")
 	fence          = regexp.MustCompile("^(```|~~~)")
+	autolink       = regexp.MustCompile(`<((?:https?|mailto):[^>\s]+)>`)
 )
 
 // parseSections reads a page's sections, and the text before the first, its lead: a `## ` heading starts a section;
 // under it, each line that is one backticked command and nothing else is one of its commands, and every other line of
-// text its text, a code block's without the fence. A comment is dropped, and a
+// text its text, a list item's without its marker and a code block's without the fence. A comment is dropped, and a
 // ## inside one starts nothing.
 func parseSections(md string) (lead string, sections []section) {
 	var before []string
@@ -64,6 +65,9 @@ func parseSections(md string) (lead string, sections []section) {
 		case commandLine.MatchString(line):
 			sections[last].commands = append(sections[last].commands, commandLine.FindStringSubmatch(line)[1])
 		case line != "" && !fence.MatchString(line):
+			if m := item.FindStringSubmatch(line); m != nil {
+				line = m[3]
+			}
 			text[last] = append(text[last], line)
 		}
 	}
@@ -74,9 +78,9 @@ func parseSections(md string) (lead string, sections []section) {
 }
 
 // plainText gives markdown's inline text as plain text: a link as its text, with its URL after it when it is a web
-// address, code without its backticks, and strong text without its stars.
+// address, an autolink as its address, code without its backticks, and strong text without its stars.
 func plainText(text string) string {
-	return strings.NewReplacer("`", "", "**", "").Replace(unlinked(text))
+	return strings.NewReplacer("`", "", "**", "").Replace(autolink.ReplaceAllString(unlinked(text), "$1"))
 }
 
 // verbOf gives what a command is run with: its tool and its verb, the first word after the tool that is no flag, as
@@ -118,9 +122,10 @@ type sheetStep struct {
 	records  func([]section) []table.Record
 }
 
-// sheetSteps are the steps drawn as tables: the terms, terms.go's.
+// sheetSteps are the steps drawn as tables: the terms, terms.go's, and the parts that make kit yours, yours.go's.
 var sheetSteps = []sheetStep{
 	{id: "terms", name: "terms", schema: termsCatalog[termsTable], records: termSections},
+	{id: "make-it-yours", name: "parts", schema: yoursCatalog[yoursTable], records: partRecords},
 }
 
 // sheetColor is a step's table's color, the accent's, as the steps' bar draws the selected step.

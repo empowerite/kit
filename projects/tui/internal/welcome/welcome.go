@@ -6,8 +6,8 @@
 // welcome --fix <id> with the terminal handed over, then reads the checks again; later leaves it for this session and
 // moves to the step's next failed check. A fix kit only shows, as one that must run in the person's own shell, is
 // drawn with its lines and no choices: n and enter do nothing there, and l still leaves it for later. The other steps
-// are markdown pages drawn as text, but the terms, whose page of sections is a table, as sections.go draws it, its
-// keys and clicks its own while the pane has the keyboard. The intro's page ends with what the checks found:
+// are markdown pages drawn as text, but the terms and make it yours, whose pages of sections are tables, as
+// sections.go draws them, each table's keys and clicks its own while the pane has the keyboard. The intro's page ends with what the checks found:
 // checking… while they run, then that all of them pass, or how many need the person, each failed check's line a link
 // to it, with the glyph and name of its step. Enter or a click on a link goes to that check, on its step, with the
 // cursor on it. When kit refused the checks, the intro says what kit said.

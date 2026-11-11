@@ -4,20 +4,18 @@
   ───────────╰───────────────╰───────────────────╰──────────────╰─────────────────────╰────────────╯                  ╰─
    Make it yours
 
-   The settings in kit.yml that teams change first:
+   kit is a starting point. Each part below is something teams change first, and ends with the command that shows it.
 
-   1. packages: the packages the repository takes. Add and remove them with kit packages add and kit packages remove.
-   2. policy: what a commit must pass.
-   3. flow: the stages kit flow draws, in order.
-   4. primary and forges: where issues and pull requests live.
+  ▾ 6                                                                                                       Default ▼
 
-   A house package holds the team's own rules. Read more in the docs
-   (https://github.com/empowerite/kit/tree/main/docs).
-
-
-
-
-
+    part                    settings    about                                              commands
+    ·───────────────────────⇊──────────────────────────────────────────────────────────────⇊───────────────────────────
+  ▸ Packages                packages  packages: in kit.yml lists the active packages. …  kit packages
+  ▸ Policy                  policy    policy: in kit.yml sets the patterns that branch…  kit policy
+  ▸ The stages of kit flow  flow      flow: in kit.yml names the stages kit flow draws…  kit flow --stages
+  ▸ Primary and forges      2           primary: names the remote kit reads pull request…  kit flow incoming --no-fetch
+  ▸ A house package                     A house package holds your team's own rules, sty…  kit packages --active
+  ▸ The docs                            kit help lists every command, and kit help <verb…  kit help
 
 
 
@@ -27,4 +25,6 @@
 
 
 
- = menu - workspace / search │ ⇥·⇧⇥ tab ↓ page 1-7 jump
+
+
+ = menu - workspace / search │ ⇥·⇧⇥ tab ↓ parts 1-7 jump
