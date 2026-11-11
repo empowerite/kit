@@ -30,7 +30,11 @@ type SettingsMsg struct{ Settings Settings }
 // SettingsFile gives the file kittui keeps its settings in: kit/kittui.json under XDG_CONFIG_HOME, else under
 // ~/.config, beside the searches; nothing when neither is known.
 func SettingsFile() string {
-	return filepath.Join(filepath.Dir(RecentFile()), "kittui.json")
+	recent := RecentFile()
+	if recent == "" {
+		return ""
+	}
+	return filepath.Join(filepath.Dir(recent), "kittui.json")
 }
 
 // LoadSettings gives the settings the file keeps, each it does not keep as kittui starts.

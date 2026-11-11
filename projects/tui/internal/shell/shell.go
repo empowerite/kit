@@ -362,10 +362,8 @@ func boxIn(items []Item, enabled func(int) bool, at int, mark string, glyph, roo
 		top = slices.Concat(top[:c], []rune(mark), top[c+cells:])
 	}
 	more := func(line []rune, glyph rune) string {
-		// the mark of more items sits two cells before the right corner, dim, in the edge's color either side
-		if len(line) < 4 {
-			return edge(string(line))
-		}
+		// the mark of more items sits two cells before the right corner, dim, in the edge's color either side; an edge
+		// is never shorter than seven runes, the glyph's two cells one rune
 		k := len(line) - 3
 		return edge(string(line[:k])) + style.Off(string(glyph)) + edge(string(line[k+1:]))
 	}

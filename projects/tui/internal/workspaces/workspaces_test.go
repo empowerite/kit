@@ -4,7 +4,10 @@
 package workspaces
 
 import (
+	"context"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -14,6 +17,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
@@ -235,5 +239,282 @@ func TestTheSearchNarrowsTheRows(t *testing.T) {
 	m, _ = drive(m, testkit.Press("enter"))
 	if g, ok := m.current(); m.search.Focused || !ok || g.Name != "solo" {
 		t.Errorf("after the search: focused %v, %+v", m.search.Focused, g)
+	}
+}
+
+// bothJSON is a kit that lists w and solo, both favorites, so kittui's Auto-group folds the ⭐ every row shares into
+// a heading.
+const bothJSON = `{"file":"/f","roots":[],"favorites":["w","solo"],"workspaces":[
+	{"name":"w","members":2,"repos":["github.com/o/a","github.com/o/b"],"favorite":true},
+	{"name":"solo","members":1,"repos":["github.com/me/solo"],"favorite":true}]}`
+
+// quits says whether the messages hold the program's quitting.
+func quits(out []tea.Msg) bool {
+	return slices.ContainsFunc(out, func(msg tea.Msg) bool { _, ok := msg.(tea.QuitMsg); return ok })
+}
+
+func TestCtrlCQuitsInterruptedCtrlQAndTheMenusQuitDoNot(t *testing.T) {
+	m, _ := opened(t, listJSON)
+	n, out := testkit.Drive(m, nil, testkit.Press("ctrl+c"))
+	if !quits(out) || !n.Interrupted() || n.ctx.Err() == nil {
+		t.Errorf("ctrl-c: quit %v, interrupted %v, kit stopped %v", quits(out), n.Interrupted(), n.ctx.Err())
+	}
+	m, _ = opened(t, listJSON)
+	if n, out := testkit.Drive(m, nil, testkit.Press("ctrl+q")); !quits(out) || n.Interrupted() {
+		t.Errorf("ctrl-q: quit %v, interrupted %v", quits(out), n.Interrupted())
+	}
+	m, _ = opened(t, listJSON)
+	m, _ = drive(m, testkit.Press("="))
+	x, y := lineAt(t, m, "Quit")
+	if n, out := testkit.Drive(m, nil, left(x, y)); !quits(out) || n.Interrupted() {
+		t.Errorf("the menu's Quit: quit %v, interrupted %v", quits(out), n.Interrupted())
+	}
+}
+
+func TestCloseStopsWhatKitStillRuns(t *testing.T) {
+	m, _ := opened(t, listJSON)
+	m.Close()
+	if got := m.read()().(listedMsg); !errors.Is(got.err, context.Canceled) {
+		t.Errorf("a read after Close: %v", got.err)
+	}
+}
+
+// The app's menu drops down on = and takes the keyboard: esc closes it doing nothing, enter on its first line asks
+// kittui for the welcome, an action's key does the action, and a click on another screen asks kittui for it.
+func TestTheAppsMenuTakesItsKeysAndSwitchesScreens(t *testing.T) {
+	m, _ := opened(t, listJSON)
+	m, _ = drive(m, testkit.Press("="))
+	if !m.appMenu.Open || !strings.Contains(view(m), "esc close") {
+		t.Fatalf("= opened no menu:\n%s", view(m))
+	}
+	if m, _ = drive(m, testkit.Press("esc")); m.appMenu.Open || m.prompt.open {
+		t.Errorf("esc: menu open %v, dialog open %v", m.appMenu.Open, m.prompt.open)
+	}
+	m, asked := drive(m, testkit.Press("="), testkit.Press("enter"))
+	if len(asked) != 1 || asked[0] != (shell.SwitchMsg{Screen: shell.Welcome}) {
+		t.Errorf("enter on the menu's first line asked %#v", asked)
+	}
+	m, _ = drive(m, testkit.Press("="), testkit.Press("n"))
+	if m.appMenu.Open || !m.prompt.open || !strings.Contains(view(m), "New workspace") {
+		t.Errorf("n in the menu:\n%s", view(m))
+	}
+	m, _ = drive(m, testkit.Press("esc"), left(2, 0))
+	x, y := lineAt(t, m, "Help")
+	if _, asked := drive(m, left(x, y)); len(asked) != 1 || asked[0] != (shell.SwitchMsg{Screen: shell.Help}) {
+		t.Errorf("a click on Help asked %#v", asked)
+	}
+}
+
+// The workspace menu, after the screen's name, drops down on - or a plain click, and picks a workspace as on every
+// screen.
+func TestTheWorkspaceMenuPicksAGroupByKeyAndByClick(t *testing.T) {
+	m, _ := opened(t, listJSON)
+	here := shell.WorkspaceMsg{Workspace: kit.Workspace{Kind: "repository", Name: "github.com/o/a",
+		Member: "github.com/o/a", Groups: []kit.WorkspaceGroup{{Name: "w", Members: 2}}}}
+	m, _ = drive(m, here, testkit.Press("-"))
+	if !m.books.Open || !strings.Contains(view(m), shell.Books+" w 2") {
+		t.Fatalf("- dropped down no workspace menu:\n%s", view(m))
+	}
+	if _, asked := drive(m, testkit.Press("enter")); len(asked) != 1 || asked[0] != (shell.PickMsg{Workspace: "w"}) {
+		t.Errorf("enter on w asked %#v", asked)
+	}
+	m, _ = drive(m, testkit.Press("esc"))
+	x, y := lineAt(t, m, "· -")
+	if m, _ = drive(m, left(x+2, y)); !m.books.Open {
+		t.Fatalf("a click on - dropped down nothing:\n%s", view(m))
+	}
+	x, y = lineAt(t, m, shell.Books+" w 2")
+	if _, asked := drive(m, left(x, y)); len(asked) != 1 || asked[0] != (shell.PickMsg{Workspace: "w"}) {
+		t.Errorf("a click on w asked %#v", asked)
+	}
+}
+
+func TestKitsLineStandsWhenItListsNoGroup(t *testing.T) {
+	m, _ := opened(t, listJSON)
+	if err := os.Remove(filepath.Join(os.Getenv("FAKE_WORKSPACES"), "list.json")); err != nil {
+		t.Fatal(err)
+	}
+	m, _ = drive(m, m.read()())
+	if v := view(m); !strings.Contains(v, Failed+" cat: ") || !strings.Contains(v, "list.json") {
+		t.Errorf("kit's line:\n%s", v)
+	}
+	// a kit that fails and says nothing is said to have failed
+	silent, err := exec.LookPath("false")
+	if err != nil {
+		t.Skip("no false here")
+	}
+	m = Open(kit.Runner{Kit: silent, Dir: t.TempDir()})
+	m, _ = drive(m, testkit.Start(m)...)
+	if v := view(m); !strings.Contains(v, Failed+" kit workspaces failed") {
+		t.Errorf("a silent kit:\n%s", v)
+	}
+}
+
+func TestTheScreenSaysItReadsTheGroupsUntilKitAnswers(t *testing.T) {
+	if v := view(Open(testkit.Runner(t, "kit"))); !strings.Contains(v, "reading the groups…") {
+		t.Errorf("before kit answers:\n%s", v)
+	}
+}
+
+// After an action, the groups are read again; an answer to an earlier read is dropped.
+func TestAnEarlierReadsAnswerIsDropped(t *testing.T) {
+	m, _ := opened(t, listJSON)
+	earlier := m.read()
+	m, _ = drive(m, testkit.Press("f"))
+	none := `{"file":"/f","roots":[],"favorites":[],"workspaces":[]}`
+	if err := os.WriteFile(filepath.Join(os.Getenv("FAKE_WORKSPACES"), "list.json"), []byte(none), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if m, _ = drive(m, earlier()); strings.Contains(view(m), "no group yet") || !strings.Contains(view(m), "solo") {
+		t.Errorf("an earlier read landed:\n%s", view(m))
+	}
+}
+
+// Favorite asks no question: kit's line, when it refuses, stands in place of the keys until a key; what kit did, when
+// it does, stands there until it fades.
+func TestFavoriteSaysKitsLineInPlaceOfTheKeys(t *testing.T) {
+	m, _ := opened(t, listJSON)
+	t.Setenv("FAKE_KIT_REFUSE", "workspaces-edit")
+	m, _ = drive(m, testkit.Press("f"))
+	last := func(m Model) string { lines := strings.Split(view(m), "\n"); return lines[len(lines)-1] }
+	if !m.Noticing() || !strings.Contains(last(m), Failed+" kit workspaces refuses the edit") {
+		t.Errorf("the refusal: noticing %v, %q", m.Noticing(), last(m))
+	}
+	if slices.Contains(m.menu().Dim, Favorite) {
+		t.Error("the actions stay dim after kit refused")
+	}
+	if m, _ = drive(m, testkit.Press("down")); m.Noticing() || !strings.Contains(last(m), "= menu") {
+		t.Errorf("a key leaves %q", last(m))
+	}
+	t.Setenv("FAKE_KIT_REFUSE", "")
+	m, out := testkit.Drive(m, func(msg tea.Msg) bool { _, faded := msg.(shell.FadedMsg); return faded || asks(msg) },
+		testkit.Press("f"))
+	if !strings.Contains(last(m), "the fake did it: --favorite=solo") {
+		t.Errorf("what kit did: %q", last(m))
+	}
+	k := slices.IndexFunc(out, func(msg tea.Msg) bool { _, faded := msg.(shell.FadedMsg); return faded })
+	if k < 0 {
+		t.Fatalf("no fade: %#v", out)
+	}
+	if m, _ = drive(m, out[k]); m.Noticing() {
+		t.Errorf("faded, it stands: %q", last(m))
+	}
+}
+
+// A dialog asks kit nothing while what is typed makes no command, and nothing more while kit runs what it asked.
+func TestADialogAsksOnceAndOnlyForACommand(t *testing.T) {
+	m, record := opened(t, listJSON)
+	m, _ = drive(m, testkit.Press("n"), testkit.Press("enter"))
+	if !m.prompt.open || m.prompt.busy || recorded(t, record) != "" {
+		t.Errorf("enter with nothing typed: open %v, busy %v, %q", m.prompt.open, m.prompt.busy, recorded(t, record))
+	}
+	m, _ = drive(m, testkit.Typed("tools")...)
+	next, cmd := m.Update(testkit.Press("enter"))
+	if m = next.(Model); cmd == nil || !m.prompt.busy {
+		t.Fatalf("enter: busy %v", m.prompt.busy)
+	}
+	if v := view(m); !strings.Contains(v, "New workspace") || !slices.Contains(m.menu().Dim, New) {
+		t.Errorf("while kit runs, the dialog stays and the actions are dim:\n%s", v)
+	}
+	if _, again := m.Update(testkit.Press("enter")); again != nil {
+		t.Error("a second enter while kit runs asked again")
+	}
+	// an owner takes a pattern at most
+	m, _ = opened(t, listJSON)
+	m, _ = drive(m, testkit.Press("o"))
+	m, _ = drive(m, testkit.Typed("empowerite homebrew-* more")...)
+	if _, ok := m.prompt.makes(); ok {
+		t.Error("an owner and two patterns make a command")
+	}
+}
+
+// A dialog takes plain clicks: one off the box closes it, one on its edge or its words does nothing, and a right
+// click nothing either.
+func TestADialogClosesOnAClickOffItsBox(t *testing.T) {
+	m, _ := opened(t, listJSON)
+	m, _ = drive(m, testkit.Press("r"))
+	x, y := lineAt(t, m, "Rename 📚 w")
+	if m, _ = drive(m, left(x, y)); !m.prompt.open {
+		t.Error("a click on the edge closed the dialog")
+	}
+	x, y = lineAt(t, m, "its new name")
+	if m, _ = drive(m, left(x, y), tea.MouseClickMsg{X: 0, Y: 25, Button: tea.MouseRight}); !m.prompt.open {
+		t.Error("a click on its words, or a right click, closed the dialog")
+	}
+	if m, _ = drive(m, left(0, 25)); m.prompt.open {
+		t.Error("a click off the box leaves the dialog open")
+	}
+	// a right click on the screen does nothing either
+	if m, _ = drive(m, tea.MouseClickMsg{X: 2, Y: 0, Button: tea.MouseRight}); m.appMenu.Open {
+		t.Error("a right click on = dropped the menu down")
+	}
+}
+
+// The rows take the keys the screen does not: down moves the cursor, a click on a row puts it there, and the actions
+// then act on that row; once esc took the keyboard from the rows, down gives it back.
+func TestTheRowsTakeTheArrowsAndAClick(t *testing.T) {
+	m, record := opened(t, listJSON)
+	if m, _ = drive(m, testkit.Press("down")); func() bool { g, _ := m.current(); return g.Name != "solo" }() {
+		t.Fatalf("down: cursor %d", m.sheet.Table().Cursor)
+	}
+	m, _ = drive(m, testkit.Press("up"))
+	x, y := lineAt(t, m, "github.com/me/solo")
+	m, _ = drive(m, left(x, y), testkit.Press("f"))
+	if got := recorded(t, record); !strings.Contains(got, "workspaces --favorite=solo") {
+		t.Errorf("f after a click on solo asked %q", got)
+	}
+	m, _ = drive(m, testkit.Press("esc"))
+	if m.sheet.Focused() {
+		t.Fatal("esc leaves the rows the keyboard")
+	}
+	if m, _ = drive(m, testkit.Press("down")); !m.sheet.Focused() {
+		t.Error("down did not give the rows the keyboard again")
+	}
+}
+
+func TestAClickOnTheSearchGivesItTheKeyboard(t *testing.T) {
+	m, _ := opened(t, listJSON)
+	x, y := lineAt(t, m, "/search")
+	m, _ = drive(m, left(x, y))
+	m, _ = drive(m, testkit.Typed("solo")...)
+	if v := view(m); !m.search.Focused || strings.Contains(v, "github.com/o/a") {
+		t.Errorf("the search: focused %v\n%s", m.search.Focused, v)
+	}
+}
+
+// With kittui's Auto-group on, the ⭐ every group shares is a heading, where the cursor starts: no group is under it,
+// so the actions on one are dim, and r does nothing, until down puts a group under it.
+func TestOnAHeadingOnlyNewActs(t *testing.T) {
+	m, _ := opened(t, bothJSON)
+	m, _ = drive(m, shell.SettingsMsg{Settings: shell.Settings{KeysBar: true, FoldShared: true}})
+	if _, on := m.current(); on || !slices.Contains(m.menu().Dim, Rename) || slices.Contains(m.menu().Dim, New) {
+		t.Fatalf("on the heading: on a group %v, dim %q\n%s", on, m.menu().Dim, view(m))
+	}
+	if m, _ = drive(m, testkit.Press("r")); m.prompt.open {
+		t.Error("r on a heading opened a dialog")
+	}
+	if strings.Contains(m.keys().Line(120), "rename") {
+		t.Errorf("the keys bar offers rename on a heading: %q", m.keys().Line(120))
+	}
+	m, _ = drive(m, testkit.Press("down"))
+	if g, on := m.current(); !on || g.Name != "w" || !strings.Contains(m.keys().Line(120), "rename") {
+		t.Errorf("down: %+v, %v, %q", g, on, m.keys().Line(120))
+	}
+}
+
+// A click on a column's name drops its menu down, which then takes the keys, and the keys bar names its own alone; esc
+// closes it.
+func TestAColumnsMenuTakesTheKeysWhileOpen(t *testing.T) {
+	m, _ := opened(t, listJSON)
+	x, y := lineAt(t, m, "workspace  #")
+	m, _ = drive(m, left(x+1, y))
+	if !m.sheet.Layered() || strings.Contains(m.keys().Line(120), "n new") {
+		t.Fatalf("a click on workspace: layered %v, %q\n%s", m.sheet.Layered(), m.keys().Line(120), view(m))
+	}
+	if m, _ = drive(m, testkit.Press("n")); m.prompt.open {
+		t.Error("n reached the screen past the column's menu")
+	}
+	if m, _ = drive(m, testkit.Press("esc")); m.sheet.Layered() {
+		t.Error("esc leaves the column's menu open")
 	}
 }

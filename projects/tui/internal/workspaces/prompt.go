@@ -33,9 +33,6 @@ type prompt struct {
 
 // makes gives the kit command what is typed makes, and whether it makes one.
 func (p prompt) makes() ([]string, bool) {
-	if p.words == nil {
-		return nil, false
-	}
 	return p.words(strings.TrimSpace(p.typed))
 }
 
@@ -123,12 +120,9 @@ func (p prompt) overlay(lines []string, width int) []string {
 	return p.placed(len(lines), width).Draw(lines)
 }
 
-// click takes a click while the prompt is open, over a screen of so many lines, so wide: a left one on the line that
-// does it asks kit, as enter does, and one off the box closes the prompt. It gives the prompt and the words kit runs.
+// click takes a left click while the prompt is open, over a screen of so many lines, so wide: one on the line that does
+// it asks kit, as enter does, and one off the box closes the prompt. It gives the prompt and the words kit runs.
 func (p prompt) click(c tea.MouseClickMsg, height, width int) (prompt, []string) {
-	if c.Button != tea.MouseLeft {
-		return p, nil
-	}
 	k, on := p.placed(height, width).Hit(c.X, c.Y)
 	switch {
 	case !on:

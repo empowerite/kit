@@ -4,6 +4,7 @@ package screens
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -251,5 +252,105 @@ func TestEveryScreenIsToldTheSettings(t *testing.T) {
 	m, _ = testkit.Drive(m, nil, tea.KeyPressMsg{Code: tea.KeyUp}, tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 	if got := m.made[shell.Issues].(told).settings; len(got) != 2 {
 		t.Errorf("the keys bar flipped told the screen: %+v", got)
+	}
+}
+
+// heard records every message a screen is given.
+type heard struct{ msgs *[]tea.Msg }
+
+func (h heard) Init() tea.Cmd { return nil }
+
+func (h heard) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	*h.msgs = append(*h.msgs, msg)
+	return h, nil
+}
+
+func (h heard) View() tea.View { return tea.NewView("") }
+
+// got says whether a screen was given a message of the type of want.
+func got[M tea.Msg](msgs []tea.Msg) bool {
+	return slices.ContainsFunc(msgs, func(msg tea.Msg) bool { _, ok := msg.(M); return ok })
+}
+
+// What the terminal said of its keyboard reaches the screen shown, and every screen made after it said so.
+func TestAScreenMadeLaterIsToldTheKeyboard(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	var first, later []tea.Msg
+	m := New(testkit.Runner(t, "kit"), shell.Issues, heard{&first})
+	m = drive(m, tea.KeyboardEnhancementsMsg{Flags: 1})
+	next, _ := m.place(shell.People, heard{&later})
+	if !got[tea.KeyboardEnhancementsMsg](first) || !got[tea.KeyboardEnhancementsMsg](later) || next.(Model).here !=
+		shell.People {
+		t.Errorf("the keyboard: first %v, later %v", got[tea.KeyboardEnhancementsMsg](first),
+			got[tea.KeyboardEnhancementsMsg](later))
+	}
+}
+
+// While a dialog is open, a turn of the mouse wheel, or the mouse moving, reaches no screen; a click before the
+// terminal said its size closes the Settings dialog, as one off it does.
+func TestADialogKeepsTheMouseFromTheScreen(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	var msgs []tea.Msg
+	m := New(testkit.Runner(t, "kit"), shell.Issues, heard{&msgs})
+	m = drive(m, shell.OpenMsg{}, testkit.Drag(3, 3), testkit.Press("esc"))
+	m = drive(m, shell.SwitchMsg{Screen: shell.SettingsScreen}, tea.MouseWheelMsg{Button: tea.MouseWheelDown},
+		testkit.Drag(3, 3))
+	if got[tea.MouseWheelMsg](msgs) || got[tea.MouseMotionMsg](msgs) {
+		t.Error("the mouse reached the screen under a dialog")
+	}
+	if m = drive(m, testkit.Click(119, 29)); m.dialog.Open {
+		t.Error("a click with no size known kept the dialog open")
+	}
+	if m = drive(m, tea.MouseWheelMsg{Button: tea.MouseWheelDown}); !got[tea.MouseWheelMsg](msgs) {
+		t.Error("the wheel, the dialog closed, did not reach the screen")
+	}
+}
+
+// A screen shown again before the terminal said its size is shown as it was left, told nothing.
+func TestAScreenShownAgainBeforeASizeIsToldNothing(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	var msgs []tea.Msg
+	m := New(testkit.Runner(t, "kit"), shell.Issues, heard{&msgs})
+	m = drive(m, shell.SwitchMsg{Screen: shell.Help})
+	was := len(msgs)
+	if m = drive(m, shell.SwitchMsg{Screen: shell.Issues}); m.here != shell.Issues || len(msgs) != was {
+		t.Errorf("shown again: %s, told %#v", m.here, msgs[was:])
+	}
+	m.Close()
+}
+
+// noting is a screen that says what it did in place of its keys, on its last line, drawing as many lines as it is told.
+type noting struct{ height int }
+
+func (n noting) Init() tea.Cmd { return nil }
+
+func (n noting) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if size, ok := msg.(tea.WindowSizeMsg); ok {
+		n.height = size.Height
+	}
+	return n, nil
+}
+
+func (n noting) View() tea.View {
+	lines := make([]string, n.height)
+	for k := range lines {
+		lines[k] = "line " + strconv.Itoa(k)
+	}
+	lines[len(lines)-1] = "did it"
+	return tea.NewView(strings.Join(lines, "\n"))
+}
+
+func (n noting) Noticing() bool { return true }
+
+// With the keys bar hidden, what a screen did still stands on the last line, in place of the keys, the line above it
+// dropped instead.
+func TestWithTheKeysBarHiddenWhatAScreenDidStillStands(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	m := New(testkit.Runner(t, "kit"), shell.Issues, noting{})
+	m = drive(m, tea.WindowSizeMsg{Width: 80, Height: 10}, shell.SwitchMsg{Screen: shell.SettingsScreen},
+		tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}, tea.KeyPressMsg{Code: tea.KeyEscape})
+	lines := strings.Split(ansi.Strip(m.View().Content), "\n")
+	if len(lines) != 10 || lines[9] != "did it" || lines[8] != "line 8" {
+		t.Errorf("%d lines:\n%s", len(lines), strings.Join(lines, "\n"))
 	}
 }

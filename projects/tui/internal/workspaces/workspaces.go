@@ -197,10 +197,6 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.key(msg)
 	case tea.MouseClickMsg:
 		return m.click(msg)
-	case tea.MouseMsg:
-		if m.prompt.open || m.appMenu.Open || m.books.Open {
-			return m, nil
-		}
 	}
 	return m, nil
 }
@@ -372,12 +368,10 @@ func (m Model) do(action string) (Model, tea.Cmd) {
 		if action == Disfavor {
 			form = "--unfavorite="
 		}
-		m.prompt = prompt{busy: true, words: func(string) ([]string, bool) { return nil, false }}
+		m.prompt = prompt{busy: true}
 		return m, m.act([]string{"workspaces", form + g.Name}, "", "")
 	case SwitchTo:
 		return m, shell.Pick(g.Name)
-	default:
-		return m, nil
 	}
 	m.prompt = p
 	return m, nil

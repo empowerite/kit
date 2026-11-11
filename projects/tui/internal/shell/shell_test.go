@@ -4,6 +4,7 @@
 package shell
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -294,5 +295,28 @@ func TestTheMenuBarIsEveryScreens(t *testing.T) {
 	}
 	if at := b.WorkspaceAt(); ansi.Strip(ansi.Cut(b.Line(60), at, at+1)) != Workspaces {
 		t.Errorf("the workspace menu is not at %d", at)
+	}
+}
+
+// A menu taller than the rows it has shows the items around the one under the keyboard, a ▴ on its top edge while
+// items are above them and a ▾ on its bottom edge while items are below, its glyph on the top edge still.
+func TestABoxTallerThanItsRowsScrollsToTheKeyboard(t *testing.T) {
+	var items []Item
+	for k := range 10 {
+		items = append(items, Item{Name: "item " + strconv.Itoa(k)})
+	}
+	box, _, first := BoxIn(items, Every, 5, "=", 4, 80, 6)
+	text := ansi.Strip(strings.Join(box, "\n"))
+	if len(box) != 6 || first != 3 || !strings.Contains(box[0], "▴") || !strings.Contains(box[5], "▾") ||
+		!strings.Contains(text, "item 5") || strings.Contains(text, "item 2") || !strings.Contains(box[0], "╴=╶") {
+		t.Errorf("at 5, first %d:\n%s", first, text)
+	}
+	if box, _, first = BoxIn(items, Every, 0, "=", 4, 80, 6); first != 0 || strings.Contains(box[0], "▴") ||
+		!strings.Contains(box[5], "▾") {
+		t.Errorf("at 0, first %d:\n%s", first, ansi.Strip(strings.Join(box, "\n")))
+	}
+	if box, _, first = BoxIn(items, Every, 9, "=", 4, 80, 6); first != 6 || !strings.Contains(box[0], "▴") ||
+		strings.Contains(box[5], "▾") {
+		t.Errorf("at 9, first %d:\n%s", first, ansi.Strip(strings.Join(box, "\n")))
 	}
 }

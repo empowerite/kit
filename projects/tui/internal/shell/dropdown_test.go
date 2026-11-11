@@ -114,3 +114,11 @@ func TestALinesKeysChooseItWithTheDropdownOpen(t *testing.T) {
 		t.Errorf("s, no line's key, chose %d and moved to %d, not to Select All", chosen, d.At)
 	}
 }
+
+// A key that types nothing, as tab, leaves the keyboard on the line it was on.
+func TestADropdownKeyThatTypesNothingStays(t *testing.T) {
+	tab := tea.KeyPressMsg{Code: tea.KeyTab}
+	if d, chosen := (Dropdown{Open: true, At: 3}).Key(tab, lines, acts); d.At != 3 || chosen != -1 || !d.Open {
+		t.Errorf("tab: at %d, chosen %d, open %v", d.At, chosen, d.Open)
+	}
+}

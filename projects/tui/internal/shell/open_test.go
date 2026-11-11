@@ -337,3 +337,103 @@ func TestOpenListsTheFolderAboveFirst(t *testing.T) {
 		t.Errorf("at /:\n%s", v)
 	}
 }
+
+// Home itself is written ~, and with no home known nothing is: a path is written as it is.
+func TestOpenWritesHomeItselfAsTilde(t *testing.T) {
+	home := t.TempDir()
+	if d := NewOpen(home, home); d.Typed != "~/" || d.Path() != home {
+		t.Errorf("at home: %q, %q", d.Typed, d.Path())
+	}
+	if d := NewOpen("/srv", ""); d.Typed != "/srv/" {
+		t.Errorf("with no home: %q", d.Typed)
+	}
+}
+
+// A path without a / at its start is read from home, and its folders offered from there.
+func TestOpenReadsAPathWithoutASlashFromHome(t *testing.T) {
+	home := folders(t, "Code/kit", "Codex")
+	d, _ := NewOpen("", home).Key(key("ctrl+u"))
+	d = typedIn(d, "Co")
+	if got := d.Folders(); strings.Join(got, "|") != "Code|Codex" {
+		t.Errorf("the folders offered: %q", got)
+	}
+	d = typedIn(d, "de/kit")
+	if _, path := d.Key(key("enter")); path != filepath.Join(home, "Code", "kit") {
+		t.Errorf("asked for %q", path)
+	}
+}
+
+// A folder that is not there offers none, and says so; tab completes the start folders share, however short.
+func TestOpenSaysNoFolderStartsSoAndCompletesWhatFoldersShare(t *testing.T) {
+	dir := folders(t, "kitab", "kitcd")
+	d := typedIn(NewOpen(dir, "/nowhere"), "gone/")
+	if got := d.Folders(); got != nil {
+		t.Errorf("under a folder not there: %q", got)
+	}
+	if v := ansi.Strip(strings.Join(d.Overlay(make([]string, 20), 100), "\n")); !strings.Contains(v,
+		"no folder here starts so") {
+		t.Errorf("drawn:\n%s", v)
+	}
+	if d, _ = typedIn(NewOpen(dir, "/nowhere"), "k").Key(key("tab")); d.Typed != dir+"/kit" {
+		t.Errorf("tab: %q", d.Typed)
+	}
+}
+
+// The dialog lists so many folders, and counts the rest.
+func TestOpenListsEightFoldersAndCountsTheRest(t *testing.T) {
+	var names []string
+	for k := range openShown + 3 {
+		names = append(names, "f"+string(rune('a'+k)))
+	}
+	d := NewOpen(folders(t, names...), "/nowhere")
+	v := ansi.Strip(strings.Join(d.Overlay(make([]string, 30), 100), "\n"))
+	if !strings.Contains(v, Folder+" fh/") || strings.Contains(v, Folder+" fi/") || !strings.Contains(v, "… 3 more") {
+		t.Errorf("drawn:\n%s", v)
+	}
+}
+
+// Open is dim while nothing is typed, or kit is asked; a click on it then asks nothing, and a right click does nothing
+// anywhere. Closed, the dialog draws nothing.
+func TestOpenIsDimAndAsksNothingWhileItCannotOpen(t *testing.T) {
+	d, _ := NewOpen("/", "/home").Key(key("ctrl+u"))
+	body := d.body()
+	if last := body[len(body)-1]; !last.opens || last.text != style.Off(Opening+" Open") {
+		t.Errorf("Open with nothing typed: %+v", last)
+	}
+	p := d.placed(30, 100)
+	at := func(text string) int {
+		for k, l := range p.Lines {
+			if strings.Contains(ansi.Strip(l), text) {
+				return p.Top + k
+			}
+		}
+		t.Fatalf("no line %q", text)
+		return 0
+	}
+	if d2, path := d.Click(tea.MouseClickMsg{X: p.Left + 3, Y: at(Opening + " Open"), Button: tea.MouseLeft}, 30,
+		100); path != "" || !d2.Open {
+		t.Errorf("a click on Open with nothing typed: %q, open %v", path, d2.Open)
+	}
+	if d2, _ := d.Click(tea.MouseClickMsg{X: 0, Y: 29, Button: tea.MouseRight}, 30, 100); !d2.Open {
+		t.Error("a right click off the box closed it")
+	}
+	if got := (OpenDialog{}).Overlay([]string{"a"}, 100); strings.Join(got, "|") != "a" {
+		t.Errorf("closed, drawn: %q", got)
+	}
+}
+
+// A key that types nothing, as ←, changes nothing.
+func TestOpenTakesAKeyThatTypesNothingAsNothing(t *testing.T) {
+	d := NewOpen("/srv", "/home")
+	if got, path := d.Key(tea.KeyPressMsg{Code: tea.KeyLeft}); got != d || path != "" {
+		t.Errorf("←: %+v, %q", got, path)
+	}
+}
+
+// The dialog's keys take every press: with no folder to move over, esc, tab, and enter, as the keys bar names them.
+func TestOpenNamesItsKeys(t *testing.T) {
+	s := NewOpen(t.TempDir(), "").Keys()
+	if got := (Path{ScreenKeys(), s}).String(); got != "esc close ↑↓ move ⇥ complete ⇧⌫·⌃W up ⏎ open" || !s.Owns {
+		t.Errorf("the keys: %q, owns %v", got, s.Owns)
+	}
+}

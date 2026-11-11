@@ -3,6 +3,7 @@
 package shell
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -203,5 +204,34 @@ func TestTheSettingsFileIsBesideTheSearches(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", "/somewhere")
 	if SettingsFile() != "/somewhere/kit/kittui.json" {
 		t.Errorf("the file: %q", SettingsFile())
+	}
+}
+
+// With no home, and no XDG_CONFIG_HOME, kittui keeps no file: the searches and the settings are the session's alone,
+// the dialog flipping a setting writes nothing, not even where kittui runs.
+func TestWithNoHomeTheSettingsAreTheSessionsAlone(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", "")
+	t.Setenv("HOME", "")
+	t.Chdir(t.TempDir())
+	if RecentFile() != "" || SettingsFile() != "" {
+		t.Errorf("the files: %q, %q", RecentFile(), SettingsFile())
+	}
+	s := LoadSettings(SettingsFile())
+	if _, s = (SettingsDialog{Open: true}).Key(key("space"), s); s.KeysBar {
+		t.Error("space did not flip Key hints")
+	}
+	if entries, _ := os.ReadDir("."); len(entries) != 0 {
+		t.Errorf("written where kittui runs: %v", entries)
+	}
+	// closed, the dialog draws nothing over the screen
+	if got := (SettingsDialog{}).Overlay([]string{"a", "b"}, s, 40); strings.Join(got, "|") != "a|b" {
+		t.Errorf("closed, drawn: %q", got)
+	}
+}
+
+// A binding with a key and nothing it does draws the key alone.
+func TestAKeyThatSaysNothingIsDrawnAlone(t *testing.T) {
+	if got := ansi.Strip((Path{{Bindings: []Binding{Bind("=", "menu"), Bind("q", "")}}}).Line(40)); got != " = menu q" {
+		t.Errorf("drawn: %q", got)
 	}
 }

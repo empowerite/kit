@@ -336,6 +336,40 @@ func TestAGroupRenamedIsFollowedAndOneDeletedGivesWayToWhereKitStarts(t *testing
 	}
 }
 
+// The Open… dialog takes plain clicks over the screen: one on a folder completes to it, one on Open asks kit for it;
+// an answer to an earlier ask is dropped, the dialog left open.
+func TestOpenIsDoneByPlainClicksOverTheScreen(t *testing.T) {
+	m, record, _ := workspaced(t, map[string]string{"current.json": repoJSON})
+	parent := t.TempDir()
+	if err := os.Mkdir(filepath.Join(parent, "far"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	m = drive(m, shell.OpenMsg{}, tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl})
+	m = drive(m, typed(parent+"/")...)
+	at := func(text string) (int, int) {
+		for y, l := range strings.Split(ansi.Strip(m.View().Content), "\n") {
+			if k := strings.Index(l, text); k >= 0 {
+				return ansi.StringWidth(l[:k]), y
+			}
+		}
+		t.Fatalf("no line holds %q:\n%s", text, ansi.Strip(m.View().Content))
+		return 0, 0
+	}
+	if m = drive(m, testkit.Click(at(shell.Folder+" far/"))); !m.opener.Open || m.opener.Typed != parent+"/far/" {
+		t.Fatalf("a click on far/: %+v", m.opener)
+	}
+	m = drive(m, testkit.Click(at(shell.Opening+" Open")))
+	if got, _ := os.ReadFile(record); !strings.Contains(string(got), "use "+filepath.Join(parent, "far")) {
+		t.Errorf("a click on Open did not ask kit: %q", got)
+	}
+	m = drive(m, shell.OpenMsg{})
+	m.asked = 5
+	if m = drive(m, openedMsg{gen: 4, ws: kit.Workspace{Kind: "group", Name: "w"}}); !m.opener.Open ||
+		m.workspace.Name != "github.com/o/a" {
+		t.Errorf("an earlier answer landed: open %v, %+v", m.opener.Open, m.workspace)
+	}
+}
+
 // While the Open… dialog is open, a turn of the mouse wheel scrolls its folders.
 func TestTheWheelScrollsTheOpenDialogsFolders(t *testing.T) {
 	m, _, _ := workspaced(t, map[string]string{"current.json": repoJSON})

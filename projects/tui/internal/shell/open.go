@@ -108,9 +108,6 @@ func (d OpenDialog) parts() (folder, start string) {
 func (d OpenDialog) Folders() []string {
 	folder, start := d.parts()
 	dir := d.expand(folder)
-	if folder == "" {
-		dir = d.Home
-	}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil
