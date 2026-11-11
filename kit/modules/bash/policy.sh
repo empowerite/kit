@@ -132,7 +132,7 @@ policy:rules() {
 
 # policy:listed prints each rule as "<rule>\t<pattern>\t<from>", for branch, commit_subject, and change_title in that
 # order: <from> is kit.yml where the policy: map sets the rule, an empty pattern included, else default. Read as
-# fields on a tab, an empty pattern is a field of its own. It reads no facts, and fails as policy:rules does.
+# fields on a tab, an empty pattern is a field of its own. It reads no facts or forge, and fails as policy:rules does.
 policy:listed() {
   local rules row key
   local -A set=()
@@ -150,7 +150,6 @@ policy:listed() {
       "${set[${key}]:-default}"
   done
 }
-
 
 # policy:branch prints the branch to check: the change's source branch on a CI runner, or a merge group's head there,
 # otherwise the current branch, or nothing on a detached HEAD.

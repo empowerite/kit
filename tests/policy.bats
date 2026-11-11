@@ -939,11 +939,34 @@ REGO
   [[ "$output" != *"policy allows"* ]]
 }
 
-
 @test "kit policy --rules --json lists each rule, its pattern, where it is set, and the engine" {
   printf "policy:\n  branch: '^feature/[a-z-]+\$'\n  change_title: ''\n" > kit.yml
   run "${kit_root}/bin/kit" policy --rules --json
   [[ "$status" -eq 0 && "${#lines[@]}" -eq 3 && "$(jq --raw-output .from <<<"${lines[1]}")" == default ]]
   [ "${lines[0]}" = '{"rule":"branch","pattern":"^feature/[a-z-]+$","from":"kit.yml","engine":"patterns"}' ]
   [ "${lines[2]}" = '{"rule":"change_title","pattern":"","from":"kit.yml","engine":"patterns"}' ]
+}
+
+@test "kit policy --rules on a branch past the default lists the base's rules, not the branch's own" {
+  printf "forge: github\npolicy:\n  branch: '^base-[a-z]+\$'\n" > kit.yml
+  git add kit.yml
+  git commit --quiet --message "#2 kit: the policy" && git push --quiet origin main
+  branch 7-fix-the-thing "#7 cli: fix the thing"
+  printf "policy:\n  branch: ''\n" > kit.yml
+  run "${kit_root}/bin/kit" policy --rules --json
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = '{"rule":"branch","pattern":"^base-[a-z]+$","from":"kit.yml","engine":"patterns"}' ]
+}
+
+@test "kit policy --rules prints a table of the three rules, (off) for an empty pattern, and --jq formats the JSON" {
+  printf "policy:\n  change_title: ''\n" > kit.yml
+  run "${kit_root}/bin/kit" policy --rules
+  [ "$status" -eq 0 ]
+  [[ "${lines[0]}" == *rule*from*engine*pattern* && "${#lines[@]}" -eq 4 ]]
+  [[ "${lines[1]}" == branch*default*patterns*'^[a-z0-9]+-[a-z0-9][a-z0-9-]*$' ]]
+  [[ "${lines[3]}" == change_title*kit.yml*patterns*'(off)' ]]
+  run "${kit_root}/bin/kit" policy --rules --jq
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = '{' ]
+  [ "$(jq --slurp --raw-output '[.[].rule] | join(",")' <<<"${output}")" = branch,commit_subject,change_title ]
 }

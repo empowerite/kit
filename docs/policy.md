@@ -188,11 +188,12 @@ policy:
   commit_subject: ''
 ```
 
-`kit policy --rules` lists each rule, its pattern, and where it is set, and reads no facts and no forge. `--json` prints
+`kit policy --rules` lists each rule, its pattern, and where it is set, and judges nothing. `--json` prints
 an object a line, `{rule, pattern, from, engine}`, and `--jq` the same formatted by jq. `from` is `kit.yml` where the
 `policy:` map sets the rule, an empty pattern included, else `default`; `engine` is the engine that judges, `patterns`
-or `opa`. The patterns are the same whichever the engine: the opa package's `kit.rego` reads
-them from the facts.
+or `opa`. It reads no forge. On a branch past the default it lists the base's rules, as `kit policy` judges by them,
+and fails as `kit policy` does when the base cannot be named or read. The patterns are the same whichever the engine:
+the opa package's `kit.rego` reads them from the facts.
 
 ```sh
 kit policy --rules --json
