@@ -504,14 +504,24 @@ YML
 @test "--current --json walks the roots once, however many repository favorites there are" {
   clone-at "${BATS_TEST_TMPDIR}/code/broken" git@github.com:a/broken.git
   printf 'primary: [\n' > "${BATS_TEST_TMPDIR}/code/broken/kit.yml"
+  # A yq that logs its words: each walk of the roots reads the broken clone's kit.yml again, as a read that fails is
+  # never kept.
+  calls=${BATS_TEST_TMPDIR}/yq-calls
+  mkdir -p "${BATS_TEST_TMPDIR}/spy"
+  printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >> %q\nexec %q "$@"\n' "${calls}" "$(command -v yq)" \
+    > "${BATS_TEST_TMPDIR}/spy/yq"
+  chmod +x "${BATS_TEST_TMPDIR}/spy/yq"
   mkdir -p "${BATS_TEST_TMPDIR}/outside" && cd "${BATS_TEST_TMPDIR}/outside"
   printf 'roots: [%s/code]\nfavorites: [github.com/a/one]\n' "${BATS_TEST_TMPDIR}" | workspaces-file
-  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
-  once=$(grep -c . <<<"${stderr}")
+  PATH="${BATS_TEST_TMPDIR}/spy:${PATH}" run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  once=$(grep --count 'broken/kit.yml' "${calls}")
+  : > "${calls}"
   printf 'roots: [%s/code]\nfavorites: [github.com/a/one, github.com/a/two, github.com/a/three]\n' \
     "${BATS_TEST_TMPDIR}" | workspaces-file
-  run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
+  PATH="${BATS_TEST_TMPDIR}/spy:${PATH}" run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
   [ "$status" -eq 0 ]
   (( once > 0 ))
-  [ "$(grep -c . <<<"${stderr}")" -eq "${once}" ]
+  [ "$(grep --count 'broken/kit.yml' "${calls}")" -eq "${once}" ]
 }

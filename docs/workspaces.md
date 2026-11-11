@@ -46,7 +46,9 @@ is `github.com/nixos/nixpkgs`.
 A member's checkout is a clone under one of the roots whose primary remote points at it: the `primary` setting in its
 `kit.yml`, else `origin`. A clone's other remotes never make it a checkout of another member, so a fork's clone, with
 the original as `upstream`, counts once, under the fork. A member cloned twice has both as checkouts, and the first,
-under the earliest root, is the one kit uses. A member with no checkout is still a member.
+under the earliest root, is the one kit uses. A member with no checkout is still a member. A clone whose `kit.yml`
+does not parse names no primary, so it is filed under `origin` and the walk of the roots goes on; kit says so where
+its member is drawn: a warning for the member's first checkout, and its repos row's `error`.
 
 ## Which workspace kit starts on
 
@@ -137,8 +139,9 @@ its row and on the branch's, and a worktree's is its branch, or its commit where
 - tags: each tag, the newest first, annotated or lightweight, with its commit and its tagger.
 
 `--workspace` reads every cloned member's checkout at once, as `kit flow --workspace` does, and every row gains its
-member. kit workspace exits 1 when a member, or a member's desk, cannot be read: with `--json`, what was read is
-still printed, the member under `errors`, or the desk's line as its repos row's `error`. On a terminal, `kit
+member. kit workspace exits 1 when a member, or a member's desk, cannot be read: what was read is still drawn, as
+text or with `--json`, the member under `errors`, or the desk's line as its repos row's `error`. A bare repository
+is outside a repository: without `--workspace`, kit workspace refuses it with 2. On a terminal, `kit
 workspace` opens kittui's Repositories app, a tab per stage, the 📚 repos tab first and kit flow's incoming last.
 On the repos tab, a clone reads `~` for the home folder, and a closed row shows `…` and its last two folders; open,
 the row shows the whole path. A member's name on any tab leads to its row there.

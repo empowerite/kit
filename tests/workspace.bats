@@ -174,6 +174,29 @@ EOF
   [ "$status" -eq 2 ]
 }
 
+@test "a member that cannot be read is its line, and the text exits 1; & and | in a branch; a bare repository" {
+  code=${BATS_TEST_TMPDIR}/code
+  history-at "${code}/a" github.com/o/a && history-at "${code}/b" github.com/o/b
+  git -C "${code}/a" branch 'feat/a&b' 7-fix && git -C "${code}/a" branch 'pipe|name' 7-fix
+  printf 'forges:\n  "-x": github\n' > "${code}/b/kit.yml"
+  printf 'roots: [%s]\nworkspaces: {w: {repos: [github.com/o/a, github.com/o/b]}}\n' "${code}" | workspaces-file
+  for stage in remotes branches commits
+  do
+    run "${kit_root}/bin/kit" workspace "${stage}" --workspace w --text
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"❌ github.com/o/b: '-x' in forges in kit.yml is not a remote name"* ]]
+  done
+  run --separate-stderr "${kit_root}/bin/kit" workspace commits --workspace w --json
+  [ "$status" -eq 1 ]
+  [ "$(jq -r '.errors[0].member' <<<"$output")" = github.com/o/b ]
+  [ "$(jq -c '.rows[0].branches | sort' <<<"$output")" = '["7-fix","feat/a&b","pipe|name"]' ]
+  git init --quiet --bare "${BATS_TEST_TMPDIR}/bare.git" && cd "${BATS_TEST_TMPDIR}/bare.git"
+  run "${kit_root}/bin/kit" workspace worktrees --json
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"kit workspace reads a repository"* ]]
+  [[ "$output" != *fatal:* ]]
+}
+
 @test "--marks gives a mark per stage, and a stage's mark moves when what it draws does, and no other's" {
   history-at "${BATS_TEST_TMPDIR}/r" github.com/o/r
   cd "${BATS_TEST_TMPDIR}/r"

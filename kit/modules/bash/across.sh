@@ -272,10 +272,10 @@ across:cut() {
 # across:repos <workspace> [<pictures>] prints the repos stage's document, {rows, errors}: a row per member, in the
 # workspace's order, cloned or not, as workspaces:member-json gives it, with its desk's branch, ahead, and behind, its
 # worktrees and branches, as across:branches gives them, each null for a member not cloned, and error, the desk's line
-# where it could not be read, else null. A member's desk is read from its picture in <pictures>, as across:start left
-# them, where it holds one, else by kit flow desk. No workspace is the repository here, by here, its checkout the
-# clone, even from one of its linked worktrees; outside one it returns 2. It returns 1, after the document, when a
-# member's desk could not be read.
+# where it could not be read, workspaces:unread's for a clone whose kit.yml does not parse, else null. A member's desk
+# is read from its picture in <pictures>, as across:start left them, where it holds one, else by kit flow desk. No
+# workspace is the repository here, by here, its checkout the clone, even from one of its linked worktrees; outside one
+# it returns 2. It returns 1, after the document, when a row has an error.
 across:repos() {
   local resolved top member row
   if [[ -n "$1" ]]
@@ -305,7 +305,7 @@ across:repos() {
 # across:repos-of <resolved> <workspace> <pictures> prints the repos document of the members <resolved> holds, as
 # across:repos says, reading at once the desks no picture holds, and returns 1 as it does.
 across:repos-of() {
-  local resolved=$1 workspace=$2 pictures=$3 dir checkout n=0 k desk error lists failed=false
+  local resolved=$1 workspace=$2 pictures=$3 dir checkout n=0 k desk error unread lists failed=false
   local -a checkouts=() members=() rows=()
   file:scratch dir
   readarray -t checkouts < <(jq --raw-output '.members[] | .checkout // ""' <<<"${resolved}")
@@ -338,6 +338,17 @@ across:repos-of() {
         desk=$(<"${dir}/${n}.out")
       else
         error=$(across_verb=flow across:error "${dir}/${n}" "${members[${n}]}" desk | jq --raw-output .error)
+        failed=true
+      fi
+    fi
+    # A clone whose kit.yml does not parse is filed under origin: its line says so and holds yq's, as the desk's read
+    # of that clone stops on the same file.
+    if [[ -n "${checkouts[${n}]}" ]]
+    then
+      unread=$(workspaces:unread "${checkouts[${n}]}")
+      if [[ -n "${unread}" ]]
+      then
+        error=${unread}
         failed=true
       fi
     fi

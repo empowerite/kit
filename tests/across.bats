@@ -336,6 +336,22 @@ local-desks() {
   [ "${#stderr_lines[@]}" -eq 2 ]
 }
 
+@test "a member whose limits cannot be read, or whose kit.yml does not parse, says so where it is drawn" {
+  two-desks
+  PATH="$(shims gh)" run --separate-stderr "${kit_root}/bin/kit" flow --quota --workspace w
+  [ "$status" -eq 1 ]
+  [ "$output" = '' ]
+  [[ "$stderr" == *"❌ github.com/o/a: "*"❌ github.com/o/b: "* ]]
+  printf 'primary: [\n' > "${BATS_TEST_TMPDIR}/code/a/kit.yml"
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --show github.com/o/c --json
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+  run --separate-stderr "${kit_root}/bin/kit" workspace repos --workspace w --json
+  [ "$status" -eq 1 ]
+  [[ "$(jq -r '.rows[0].error' <<<"$output")" == *"kit.yml does not parse, so its primary is read as origin"* ]]
+  [ "$(jq -r '.rows[0].repository' <<<"$output")" = github.com/o/a ]
+}
+
 @test "a member on a host kit has no forge for draws its forge's stages as nothing to read, and the picture exits 0" {
   local-desks
   d="${BATS_TEST_TMPDIR}/code/b b"

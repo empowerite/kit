@@ -131,8 +131,8 @@ workspace:worktrees() {
 # the local branches hold. Each says the local branches that hold it, whether a remote has it, and the worktrees whose
 # HEAD it is.
 workspace:commits() {
-  local base primary branch held='' unpushed heads facts
-  local -a not=() names
+  local base primary branch hash held='' unpushed heads facts
+  local -a not=() names hashes
   base=$(workspace:base) || return $?
   [[ -z "${base}" ]] || not=(--not "${base}")
   primary=$(forge:primary) || return $?
@@ -140,8 +140,11 @@ workspace:commits() {
   for branch in "${names[@]}"
   do
     [[ -n "${branch}" ]] || continue
-    held+=$(git rev-list --max-count="${workspace_commits}" "refs/heads/${branch}" "${not[@]}" \
-      | sed "s|\$|$(printf '\t')${branch}|")$'\n'
+    list:read hashes git rev-list --max-count="${workspace_commits}" "refs/heads/${branch}" "${not[@]}" || return 1
+    for hash in "${hashes[@]}"
+    do
+      held+=${hash}$'\t'${branch}$'\n'
+    done
   done
   unpushed=$(git rev-list --max-count=1000 --branches --not --remotes \
     | jq --compact-output --raw-input --slurp -L "${kit_jq}" 'import "workspace" as workspace; workspace::hashes')

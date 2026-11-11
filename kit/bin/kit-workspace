@@ -138,11 +138,11 @@
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # kit:end legend
-# Exits 0 when the picture is drawn, 1 when a repository, a member of the workspace, a member's desk, or the workspace
-# file cannot be read: with --json, what was read is still printed, and names what could not, a member under errors
-# or a repos row's error. It exits 1, printing nothing, when --workspace, or kit workspace outside a repository with a
-# group used last, meets a workspace file kit workspaces refuses, and 2 on a usage error, or outside a repository with
-# no workspace: no group used, or --workspace none.
+# Exits 0 when the picture is drawn, 1 when a repository, a member, a member's desk, or the workspace file cannot be
+# read: what was read is still drawn, as text or with --json, and names what could not, a member under errors or a
+# repos row's error, as for a clone whose kit.yml does not parse. It exits 1, printing nothing, when --workspace, or
+# kit workspace outside a repository with a group used last, meets a workspace file kit workspaces refuses, and 2 on a
+# usage error, or outside a repository, a bare one too, with no workspace: no group used, or --workspace none.
 #
 # see: modules/bash/workspace.sh, modules/jq/workspace.jq, modules/bash/across.sh
 
@@ -197,7 +197,7 @@ workspace=$(workspaces:across "${workspace}") || exit $?
 
 # On a terminal, with no form chosen, the picture is kittui's, which runs this kit, the stage named maximized.
 if [[ -z "${syntax_options[--text]+x}${syntax_options[--json]+x}${syntax_options[--jq]+x}${syntax_options[--marks]+x}" \
-  && -t 0 && -t 1 && -t 2 ]] && { [[ -n "${workspace}" ]] || git rev-parse --git-dir >/dev/null 2>&1; } \
+  && -t 0 && -t 1 && -t 2 ]] && { [[ -n "${workspace}" ]] || git rev-parse --show-toplevel >/dev/null 2>&1; } \
   && tui:binary --probe >/dev/null 2>&1
 then
   binary=$(tui:binary) || exit 1
@@ -205,7 +205,8 @@ then
   exec "${binary}" workspace ${workspace:+--workspace "${workspace}"} "$@"
 fi
 
-if [[ -z "${workspace}" ]] && ! git rev-parse --git-dir >/dev/null 2>&1
+# A bare repository, or a .git directory, has no checkout to read, so it is outside a repository too.
+if [[ -z "${workspace}" ]] && ! git rev-parse --show-toplevel >/dev/null 2>&1
 then
   error "kit workspace reads a repository: run it in one, or give --workspace; run: kit workspaces"
   exit 2

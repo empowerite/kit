@@ -63,12 +63,27 @@ workspaces:url-member() {
   workspaces:spelled "${host}/${path}"
 }
 
-# workspaces:member-of <dir> prints the member of the checkout at <dir>, from its primary remote, or nothing.
+# workspaces:member-of <dir> prints the member of the checkout at <dir>, from its primary remote, or nothing. A kit.yml
+# that does not parse names no primary, so origin is read and yq's line is dropped: one clone does not stop the walk
+# of the roots, and workspaces:unread says why where its member is drawn.
 workspaces:member-of() {
   local dir=$1 primary='' url
-  [[ ! -f "${dir}/kit.yml" ]] || primary=$(yaml:value "${dir}/kit.yml" primary)
+  [[ ! -f "${dir}/kit.yml" ]] || primary=$(yaml:value "${dir}/kit.yml" primary 2>/dev/null) || primary=''
   url=$(git -C "${dir}" remote get-url --end-of-options "${primary:-origin}" 2>/dev/null) || return 0
   workspaces:url-member "${url}"
+}
+
+# workspaces:unread <checkout> prints "<checkout>/kit.yml does not parse, so its primary is read as origin: <yq's
+# line>" for a checkout whose kit.yml yq cannot parse, or nothing.
+workspaces:unread() {
+  local file=$1/kit.yml said
+  [[ -f "${file}" ]] || return 0
+  ! said=$(yaml:value "${file}" primary 2>&1 >/dev/null) || return 0
+  [[ -n "${said}" ]] || return 0
+  # yaml:run's line is "❌ <file>: <yq's line>", painted where stderr is a terminal.
+  said=${said%%$'\n'*}
+  said=${said#*"${file}: "}
+  printf '%s does not parse, so its primary is read as origin: %s\n' "${file}" "${said%$'\e[0m'}"
 }
 
 # workspaces:roots prints each root the file names once, a leading ~ as HOME and without its trailing slashes, one per
@@ -257,9 +272,10 @@ workspaces:check() {
 
 # workspaces:member-json <member> <by> <checkouts> prints a member as JSON: {repository, host, path, forge, remotes,
 # checkout, checkouts, by}. <checkouts> is workspaces:checkouts' output. The forge and the remotes are the checkout's,
-# read there; with no checkout, the forge is the host's own, github or gitlab, else null, and there are no remotes.
+# read there; with no checkout, the forge is the host's own, github or gitlab, else null, and there are no remotes. A
+# checkout whose kit.yml does not parse is warned of, with workspaces:unread's line.
 workspaces:member-json() {
-  local member=$1 by=$2 checkouts=$3 host forge='' remotes='[]' path
+  local member=$1 by=$2 checkouts=$3 host forge='' remotes='[]' path unread
   local -a paths=()
   host=${member%%/*}
   while IFS=$'\t' read -r m path
@@ -268,6 +284,8 @@ workspaces:member-json() {
   done <<<"${checkouts}"
   if (( ${#paths[@]} > 0 ))
   then
+    unread=$(workspaces:unread "${paths[0]}")
+    [[ -z "${unread}" ]] || warn "${unread}"
     remotes=$(cd "${paths[0]}" && workspaces:remotes-json) || remotes='[]'
     forge=$(jq --raw-output '.[0].forge // ""' <<<"${remotes}")
   else
