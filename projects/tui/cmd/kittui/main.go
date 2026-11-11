@@ -65,15 +65,10 @@ func run(args []string, stderr io.Writer) int {
 	}
 	root := final.(screens.Model)
 	root.Close()
-	switch shown := root.Shown().(type) {
-	case flow.Model:
-		return finishFlow(shown)
-	case welcome.Model:
-		return finishWelcome(shown)
-	case tutorials.Model:
-		return finishTutorials(shown)
+	if shown, ok := root.Shown().(app.Model); ok {
+		return finish(shown, stderr, func(verb string, args []string) error { return execKit(r, verb, args) })
 	}
-	return finish(root.Shown().(app.Model), stderr, func(verb string, args []string) error { return execKit(r, verb, args) })
+	return ended(root.Shown())
 }
 
 // open makes the screen kittui opens on: for flow, Flow, on the stage its words name; for workspace or packages, the
@@ -169,25 +164,10 @@ func refuse(err error, stderr io.Writer) int {
 	return 1
 }
 
-// finishTutorials ends as the tutorials ended: 130 on ctrl-c, 0 on ctrl-q; nothing is printed either way.
-func finishTutorials(m tutorials.Model) int {
-	if m.Interrupted() {
-		return 130
-	}
-	return 0
-}
-
-// finishWelcome ends as the guide ended: 130 on ctrl-c, 0 on ctrl-q; nothing is printed either way.
-func finishWelcome(m welcome.Model) int {
-	if m.Interrupted() {
-		return 130
-	}
-	return 0
-}
-
-// finishFlow ends as the picture ended: 130 on ctrl-c, 0 on ctrl-q; nothing is printed either way.
-func finishFlow(m flow.Model) int {
-	if m.Interrupted() {
+// ended ends as a screen without an ending of its own ended, the picture, the guide, the tutorials, or the
+// workspaces' screen: 130 on ctrl-c, 0 on ctrl-q; nothing is printed either way.
+func ended(m tea.Model) int {
+	if i, ok := m.(interface{ Interrupted() bool }); ok && i.Interrupted() {
 		return 130
 	}
 	return 0

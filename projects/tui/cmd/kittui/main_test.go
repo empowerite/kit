@@ -21,6 +21,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 	"github.com/empowerite/kit/projects/tui/internal/tutorials"
 	"github.com/empowerite/kit/projects/tui/internal/welcome"
+	"github.com/empowerite/kit/projects/tui/internal/workspaces"
 )
 
 // drive sends the messages to the root model from its start, as the program would. The fake kit is the kit package's
@@ -71,7 +72,7 @@ func TestThePictureEndsZeroOnQuitAnd130OnCtrlC(t *testing.T) {
 		if cmd == nil || cmd() != tea.Quit() {
 			t.Errorf("%s did not quit", c.key)
 		}
-		if code := finishFlow(next.(flow.Model)); code != c.code {
+		if code := ended(next.(flow.Model)); code != c.code {
 			t.Errorf("%s: exit %d, want %d", c.key, code, c.code)
 		}
 	}
@@ -89,7 +90,7 @@ func TestTheGuideEndsZeroOnQuitAnd130OnCtrlC(t *testing.T) {
 		if cmd == nil || cmd() != tea.Quit() {
 			t.Errorf("%s did not quit", c.key)
 		}
-		if code := finishWelcome(next.(welcome.Model)); code != c.code {
+		if code := ended(next.(welcome.Model)); code != c.code {
 			t.Errorf("%s: exit %d, want %d", c.key, code, c.code)
 		}
 	}
@@ -395,5 +396,21 @@ func TestFlowTakesTheWorkspaceFromItsWords(t *testing.T) {
 	}
 	if group, rest := workspaceOf([]string{"--no-fetch"}); group != "" || len(rest) != 1 {
 		t.Errorf("no workspace gives %q and %q", group, rest)
+	}
+}
+
+// interrupted is a screen ctrl-c ended.
+type interrupted struct{ tea.Model }
+
+func (interrupted) Interrupted() bool { return true }
+
+// A screen without an ending of its own, as the workspaces' screen, ends 0, or 130 where ctrl-c ended it, and never
+// panics on its type.
+func TestEveryOtherScreenEndsZeroOr130(t *testing.T) {
+	if code := ended(workspaces.Model{}); code != 0 {
+		t.Errorf("the workspaces' screen: %d", code)
+	}
+	if code := ended(interrupted{}); code != 130 {
+		t.Errorf("a screen ctrl-c ended: %d", code)
 	}
 }
