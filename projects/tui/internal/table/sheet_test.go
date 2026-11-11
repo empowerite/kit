@@ -193,15 +193,17 @@ func TestTheKeyboardMovesThroughTheControlLineAndTheRows(t *testing.T) {
 	if !s.InRows() || s.Rows()[s.tbl.Cursor].Key != "apple" {
 		t.Fatalf("in the rows on %q", s.Rows()[s.tbl.Cursor].Key)
 	}
-	if seg, _ := s.Keys(); !strings.Contains(shellLine(seg), "select") {
+	// a sheet selects nothing, since nothing acts on a selection there: its keys name no selecting, and space, shift
+	// with up or down, and ctrl+a select no row
+	if seg, _ := s.Keys(); strings.Contains(shellLine(seg), "select") || strings.Contains(shellLine(seg), "all") {
 		t.Errorf("the rows' keys: %s", shellLine(seg))
 	}
-	pressed(&s, "space", "shift+down", "shift+up")
-	if n := len(SelectedRows(&s)); n != 2 || !strings.Contains(ansi.Strip(s.View()[0]), "2 selected") {
+	pressed(&s, "space", "shift+down", "shift+up", "ctrl+a")
+	if n := len(SelectedRows(&s)); n != 0 || strings.Contains(ansi.Strip(s.View()[0]), "selected") {
 		t.Errorf("selected %d", n)
 	}
-	if pressed(&s, "ctrl+a"); len(SelectedRows(&s)) != 5 {
-		t.Error("ctrl+a")
+	if s.Rows()[s.tbl.Cursor].Key != "apple" {
+		t.Errorf("shift with down and up moves back to apple, on %q", s.Rows()[s.tbl.Cursor].Key)
 	}
 	pressed(&s, "]", "}", "[", "{", "end", "home", "pgdown", "pgup")
 	// kale opens and closes
@@ -489,7 +491,9 @@ func (b bare) Controls() bool { return false }
 func TestTheRuleAndTheControlLineSayWhatIsSelectedAndFiltered(t *testing.T) {
 	s := sheet("")
 	s.FocusRows()
-	pressed(&s, "down", "space")
+	// a sheet selects no row itself; a row selected as a host that selects selects one, the drawing is the same
+	pressed(&s, "down")
+	SelectRow(&s, false)
 	if rule := ansi.Strip(Rule(bare{&s}, SortSpots(&s))); !strings.HasSuffix(rule, " 1 selected ─") {
 		t.Errorf("the rule without a control line: %q", rule)
 	}

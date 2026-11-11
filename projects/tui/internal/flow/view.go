@@ -161,6 +161,9 @@ func (m Model) keys() shell.Path {
 // presetKeys gives the segment of the preset line while it has the keyboard, as table.PresetKeys says.
 func (m Model) presetKeys() shell.Segment { return table.PresetKeys(&m) }
 
+// Selects says the picture acts on the rows selected: its tab menu runs its verbs over them.
+func (m *Model) Selects() bool { return true }
+
 // rowKeys gives the segment of the rows while they have the keyboard, as table.RowKeys says, ⌥ with an arrow named
 // where the terminal answered the kitty keyboard protocol.
 func (m Model) rowKeys() shell.Segment { return table.RowKeys(&m, m.altArrows) }

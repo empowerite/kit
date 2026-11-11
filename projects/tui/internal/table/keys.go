@@ -27,12 +27,16 @@ func GroupHeadings(h Host) int {
 	return n
 }
 
+// Selecting is a host that acts on the rows selected, as kit flow's tab menu does, which Selects says; a host that is
+// not, as a sheet, selects no row, and its keys name no selecting.
+type Selecting interface{ Selects() bool }
+
 // RowKeys gives the segment of the host's rows while they have the keyboard: esc gives the bar the keyboard; up and
 // down move, a page at a time too while the rows are more than the pane shows, and home and end to the first and the
 // last, unnamed until a test shows the keys arrive in Terminal.app and iTerm; tab and shift-tab scroll the columns
 // while the view hides some, as grid.Scroll says; [ and ] move between the groups' headings where there are more than
-// one; space selects a row, shift with up or down selects as it moves, and ctrl+a
-// every row; right shows what the node under the cursor holds, a row's lines or a group's rows, and left hides it,
+// one; where the host acts on the rows selected, as Selecting says, space selects a row, shift with up or down selects
+// as it moves, and ctrl+a every row; right shows what the node under the cursor holds, a row's lines or a group's rows, and left hides it,
 // the one that acts named. ⌥ with an arrow is named only where alt says the terminal tells it apart, as the kitty
 // keyboard protocol does: a macOS terminal with its default settings sends it as another key, or as the arrow alone.
 func RowKeys(h Host, alt bool) shell.Segment {
@@ -49,8 +53,10 @@ func RowKeys(h Host, alt bool) shell.Segment {
 		seg.Bindings = append(seg.Bindings, shell.Bind("[]", "group", "[", "]"))
 		seg.Takes = append(seg.Takes, "{", "}")
 	}
-	seg.Bindings = append(seg.Bindings, shell.Bind("␣", "select", "space"),
-		shell.Bind("⇧↑↓", "select", "shift+up", "shift+down"), shell.Bind("⌃A", "all", "ctrl+a"))
+	if sel, ok := h.(Selecting); ok && sel.Selects() {
+		seg.Bindings = append(seg.Bindings, shell.Bind("␣", "select", "space"),
+			shell.Bind("⇧↑↓", "select", "shift+up", "shift+down"), shell.Bind("⌃A", "all", "ctrl+a"))
+	}
 	t, rows := h.Table(), h.Rows()
 	if t.Cursor >= len(rows) {
 		return seg

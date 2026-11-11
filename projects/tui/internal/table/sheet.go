@@ -471,8 +471,7 @@ func (s *Sheet) key(k tea.KeyPressMsg) bool {
 // the rows' window back at its top; up and down move, past the first row to the control line; a page, home, and end
 // move further; tab and shift-tab scroll the columns a column, while the view hides some; [ ] { } move between the
 // groups' headings; right and left show and hide what the node under the cursor
-// holds, a level at a time with ⌥; space selects the row, or a group's rows, shift with up or down selects as it
-// moves, and ctrl+a every row.
+// holds, a level at a time with ⌥. A sheet selects no row: nothing acts on a selection there.
 func (s *Sheet) rowKey(k tea.KeyPressMsg) bool {
 	switch key := k.String(); key {
 	case "esc":
@@ -505,18 +504,6 @@ func (s *Sheet) rowKey(k tea.KeyPressMsg) bool {
 		Expand(s, true, key == "alt+right")
 	case "left", "alt+left":
 		Expand(s, false, key == "alt+left")
-	case "space":
-		SelectRow(s, false)
-	case "ctrl+a":
-		SelectAll(s)
-	case "shift+up", "shift+down":
-		SelectRow(s, true)
-		if key == "shift+up" {
-			Up(s, 1)
-		} else {
-			Down(s, 1)
-		}
-		SelectRow(s, true)
 	default:
 		return false
 	}
