@@ -56,7 +56,7 @@ func TestRepositoriesReadsKitWorkspacesStagesAndIncoming(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
-	m, err := OpenApp(runner(t), shell.Repositories, nil)
+	m, err := OpenApp(runner(t), shell.Repositories, Words{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func TestRepositoriesReadsKitWorkspacesStagesAndIncoming(t *testing.T) {
 			t.Errorf("a tab named %q", s.Name)
 		}
 	}
-	if m, err = OpenApp(runner(t), shell.Repositories, []string{"branches"}); err != nil {
+	if m, err = OpenApp(runner(t), shell.Repositories, ParseWords([]string{"branches"})); err != nil {
 		t.Fatal(err)
 	}
 	if m.stages[m.stage].name != "workspace/branches" || !m.maximized {

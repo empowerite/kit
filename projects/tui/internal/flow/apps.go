@@ -77,7 +77,7 @@ var homes = map[string]shell.Screen{workspaceVerb: shell.Repositories, packagesV
 // --stages prints it, as its catalog entry's command names the verb and the stage, one that is not staged, and every
 // one planned. A stage named among the words is the one it opens on, maximized, as open says. Kit's refusal of
 // --stages is the error.
-func OpenApp(r kit.Runner, app shell.Screen, words []string) (Model, error) {
+func OpenApp(r kit.Runner, app shell.Screen, words Words) (Model, error) {
 	if app == shell.Flow {
 		stages, err := r.StagesOf("flow")
 		if err != nil {
@@ -107,6 +107,45 @@ func OpenApp(r kit.Runner, app shell.Screen, words []string) (Model, error) {
 	}
 	return open(r, Options{App: app, Stages: stages}, words), nil
 }
+
+// Words are kit flow's words, as an app takes them: the tab it opens on, by the name the tab gives it; whether the
+// fetch is skipped, as --no-fetch asks; whether each stage's first read is fresh, as --fresh asks; and the owner's
+// flags, --all, --mine, --others, and --owner=<login>, which each command whose catalog entry takes owner is given.
+type Words struct {
+	Tab     string
+	NoFetch bool
+	Fresh   bool
+	Owner   []string
+}
+
+// ParseWords gives kit flow's words, as kittui was started with them: --no-fetch, --fresh, the owner's flags, and the
+// first other word that is no flag, as the tab; any other word, as --jq, which the picture on a terminal has no use
+// for, is no word of the app's.
+func ParseWords(words []string) Words {
+	var w Words
+	for _, word := range words {
+		switch {
+		case word == "--no-fetch":
+			w.NoFetch = true
+		case word == "--fresh":
+			w.Fresh = true
+		case word == "--all" || word == "--mine" || word == "--others" || strings.HasPrefix(word, "--owner="):
+			w.Owner = append(w.Owner, word)
+		case w.Tab == "" && !strings.HasPrefix(word, "-"):
+			w.Tab = word
+		}
+	}
+	return w
+}
+
+// Rest gives the words without the tab, as every app opened later takes them.
+func (w Words) Rest() Words {
+	w.Tab = ""
+	return w
+}
+
+// Words gives kit flow's words the screen was opened with.
+func (m Model) Words() Words { return m.words }
 
 // appWith gives the app built around an entity with the stage a link names, its text after kittui:, the stage's name,
 // a slash, and the row's key; none when no such app draws it. Flow is never the app a link leads to: a link from

@@ -37,8 +37,8 @@ import (
 
 // Options is how the screen opens: the app it is, as apps.go defines it; the stages in the picture's order; the stage
 // it opens on, maximized, when one is named; origin, when known, for the URLs and for the workspace menu until kit says
-// the workspace; whether the fetch is skipped; the filters backlog, underway, and changes take; and whether every
-// stage's headers are hidden, as a test of the rows alone asks.
+// the workspace; whether the fetch is skipped; the filters backlog, underway, and changes take; whether each stage's
+// first read is fresh; and whether every stage's headers are hidden, as a test of the rows alone asks.
 type Options struct {
 	App       shell.Screen
 	Stages    []string
@@ -46,6 +46,7 @@ type Options struct {
 	Origin    Origin
 	NoFetch   bool
 	Filters   []string
+	Fresh     bool
 	NoHeaders bool
 	Presets   string       // the file the person's presets are kept in; none keeps them for the session alone
 	NoPresets bool         // whether the stages' tables have no preset line, as a test of the rows alone asks
@@ -141,7 +142,9 @@ type Model struct {
 	limit         time.Duration      // how long a stage's command may take: the deadline, shorter in a test
 	origin        Origin
 	noFetch       bool
-	altArrows     bool // the terminal answered the kitty keyboard protocol, so ⌥ with an arrow arrives as itself
+	fresh         bool  // whether each stage's first read is fresh, as kit flow --fresh asks
+	words         Words // kit flow's words the screen was opened with, as OpenApp was given them
+	altArrows     bool  // the terminal answered the kitty keyboard protocol, so ⌥ with an arrow arrives as itself
 	filters       []string
 	stages        []stage
 	stage         int                       // the selected stage
@@ -202,30 +205,25 @@ func (m *Model) rebuild() {
 	m.built = &built{width: m.paneWidth(), stages: map[int]shown{}, lines: map[int]drawnLines{}}
 }
 
-// open opens the screen on the stages the options name, origin read from git, and the words taken, kit flow's own: a
-// stage, by the name its tab gives it, which it opens on, maximized, as kit flow <stage> asks; --no-fetch; and the
-// filters backlog, underway, and changes take.
-func open(r kit.Runner, o Options, words []string) Model {
+// open opens the screen on the stages the options name, origin read from git, and kit flow's words: the tab named,
+// which it opens on, maximized, as kit flow <stage> asks; --no-fetch; the owner's flags, the filters backlog,
+// underway, and changes take; and --fresh, which reads each stage afresh the first time.
+func open(r kit.Runner, o Options, w Words) Model {
 	o.Origin, o.Presets, o.History = ReadOrigin(r.Dir), table.PresetsPath(), shell.RecentFile()
-	for _, word := range words {
-		named := func(name string) bool { return label(name) == word }
-		switch {
-		case word == "--no-fetch":
-			o.NoFetch = true
-		case o.Focus == "" && slices.ContainsFunc(o.Stages, named):
-			o.Focus = o.Stages[slices.IndexFunc(o.Stages, named)]
-		default:
-			o.Filters = append(o.Filters, word)
-		}
+	if k := slices.IndexFunc(o.Stages, func(name string) bool { return label(name) == w.Tab }); w.Tab != "" && k >= 0 {
+		o.Focus = o.Stages[k]
 	}
-	return New(r, o)
+	o.NoFetch, o.Filters, o.Fresh = w.NoFetch, slices.Clone(w.Owner), w.Fresh
+	m := New(r, o)
+	m.words = w
+	return m
 }
 
 // New opens the screen on the options; every stage loads once Init starts it, its panel set as its Default preset
 // says. A stage kittui does not know shows a line saying so, and runs nothing. The stage named to focus on is
 // selected and maximized, the bar's keys on its title as they are on any maximized tab's.
 func New(r kit.Runner, o Options) Model {
-	m := Model{app: o.App, runner: r, limit: deadline, origin: o.Origin, noFetch: o.NoFetch,
+	m := Model{app: o.App, runner: r, limit: deadline, origin: o.Origin, noFetch: o.NoFetch, fresh: o.Fresh,
 		filters: o.Filters, width: 80, height: 24, browse: browser, appMenu: shell.Menu{Here: o.App},
 		books: shell.BooksMenu{Fallback: o.Origin.Repo}, fold: true, legend: legend{at: bottomRight}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
@@ -933,12 +931,12 @@ func (m Model) stageLoad(name string) source.Load[[]byte] {
 // load runs a stage's latest read, fresh or not.
 func (m Model) load(name string, fresh bool) tea.Cmd { return m.find(name).src.Read(m.env(), fresh) }
 
-// loads gives the load of every stage kittui draws.
+// loads gives the first load of every stage kittui draws: fresh where kit flow --fresh asks.
 func (m Model) loads() []tea.Cmd {
 	var cmds []tea.Cmd
 	for _, s := range m.stages {
 		if sourced(s.name) {
-			cmds = append(cmds, m.load(s.name, false))
+			cmds = append(cmds, m.load(s.name, m.fresh))
 		}
 	}
 	return cmds

@@ -24,7 +24,7 @@ func packaged(t *testing.T, names ...string) (Model, string) {
 	t.Setenv("FAKE_FLOW_CALLS", record)
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	app, words := AppOf(packagesVerb, nil)
-	m, err := OpenApp(runner(t), app, words)
+	m, err := OpenApp(runner(t), app, ParseWords(words))
 	if err != nil {
 		t.Fatal(err)
 	}

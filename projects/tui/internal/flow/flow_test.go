@@ -1136,7 +1136,7 @@ func TestAnUnknownStageIsRefusedWithoutRunning(t *testing.T) {
 func TestOpenAppReadsTheStagesAndTheWords(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
-	m, err := OpenApp(runner(t), shell.Delivery, []string{"--no-fetch", "--mine"})
+	m, err := OpenApp(runner(t), shell.Delivery, ParseWords([]string{"--no-fetch", "--mine"}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1152,7 +1152,7 @@ func TestOpenAppReadsTheStagesAndTheWords(t *testing.T) {
 		t.Errorf("OpenApp ran %q", got)
 	}
 	// a stage of the picture named opens on it, maximized, as kit flow <stage> does; the filters still reach the stages
-	if m, err = OpenApp(runner(t), shell.Issues, []string{"underway", "--mine"}); err != nil {
+	if m, err = OpenApp(runner(t), shell.Issues, ParseWords([]string{"underway", "--mine"})); err != nil {
 		t.Fatal(err)
 	}
 	if m.stages[m.stage].name != "underway" || !m.maximized || strings.Join(m.filters, " ") != "--mine" {
@@ -1162,7 +1162,7 @@ func TestOpenAppReadsTheStagesAndTheWords(t *testing.T) {
 		t.Errorf("OpenApp underway, the title: %q", lines(m)[0])
 	}
 	t.Setenv("FAKE_FLOW_REFUSE", "stages")
-	_, err = OpenApp(runner(t), shell.Issues, nil)
+	_, err = OpenApp(runner(t), shell.Issues, Words{})
 	refusal, ok := err.(*kit.ExitError)
 	if !ok || refusal.Code != 2 || refusal.Error() != "kit flow refuses for the test; run: kit help flow" {
 		t.Errorf("Open on a refusal: %v", err)

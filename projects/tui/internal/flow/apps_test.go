@@ -5,6 +5,7 @@ package flow
 
 import (
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -71,7 +72,7 @@ func TestKitFlowOpensFlowAndKitWorkspacesWordsTheAppWithTheTabNamed(t *testing.T
 func TestFlowDrawsEveryStageKitFlowPrintsInItsOrder(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	t.Setenv("FAKE_FLOW_STAGES", "releases desk builds backlog worktrees")
-	m, err := OpenApp(runner(t), shell.Flow, []string{"builds"})
+	m, err := OpenApp(runner(t), shell.Flow, ParseWords([]string{"builds"}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +105,7 @@ func TestAPlannedTabLoadsNothingAndSaysSo(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	m, err := OpenApp(runner(t), shell.Trust, nil)
+	m, err := OpenApp(runner(t), shell.Trust, Words{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,5 +185,44 @@ func TestAJumpLandsOnTheRowOnceItsStageLoads(t *testing.T) {
 	m = drive(m, shell.JumpMsg{Screen: shell.Changes, To: "changes/#99"})
 	if m.landing != "" || m.stages[0].Cursor != k {
 		t.Errorf("a jump to no row: the cursor on %d, waiting for %q", m.stages[0].Cursor, m.landing)
+	}
+}
+
+// kit flow's words reach each command whose catalog entry takes them, and no other: --no-fetch incoming, the owner's
+// flags the forge's issues and pull requests, --fresh each stage that takes it on its first read; a word kittui does
+// not take, as --jq, is no tab and no filter.
+func TestTheWordsReachEachCommandThatTakesThem(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	ran := func(app shell.Screen, w Words) []string {
+		record := filepath.Join(t.TempDir(), "calls")
+		t.Setenv("FAKE_FLOW_CALLS", record)
+		m, err := OpenApp(runner(t), app, w)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer m.Close()
+		if !reflect.DeepEqual(m.Words(), w) {
+			t.Errorf("%s keeps the words %+v, not %+v", app, m.Words(), w)
+		}
+		drive(m, m.Init()())
+		return calls(t, record)
+	}
+	got := ran(shell.Repositories, Words{NoFetch: true, Owner: []string{"--mine"}})
+	if !slices.Contains(got, "flow incoming --json --no-fetch") ||
+		slices.ContainsFunc(got, func(c string) bool { return strings.HasPrefix(c, "workspace") && strings.Contains(c, "--mine") }) {
+		t.Errorf("Repositories ran %q", got)
+	}
+	if got := ran(shell.Changes, Words{NoFetch: true, Fresh: true, Owner: []string{"--mine"}}); !slices.Contains(got,
+		"flow changes --json --mine --fresh") {
+		t.Errorf("Changes ran %q", got)
+	}
+	want := Words{Tab: "underway", Owner: []string{"--mine", "--owner=bob"}}
+	if got := ParseWords(strings.Fields("underway --mine --owner=bob --jq")); !reflect.DeepEqual(got, want) {
+		t.Errorf("the words: %+v", got)
+	}
+	all := ParseWords(strings.Fields("--all --others --no-fetch --fresh incoming changes"))
+	if !reflect.DeepEqual(all, Words{Tab: "incoming", NoFetch: true, Fresh: true, Owner: []string{"--all", "--others"}}) ||
+		!reflect.DeepEqual(all.Rest(), Words{NoFetch: true, Fresh: true, Owner: []string{"--all", "--others"}}) {
+		t.Errorf("every word: %+v, the rest %+v", all, all.Rest())
 	}
 }

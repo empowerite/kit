@@ -52,6 +52,7 @@ type Model struct {
 	asked     int                  // the latest ask, 0 at kittui's start: an older ask's answer is dropped
 	epochs    map[shell.Screen]int // how many times each screen was made again: an answer to one closed is dropped
 	crumb     *crumb               // the screen shown's crumb, while a link led to it, as crumb.go keeps the chain
+	words     flow.Words           // kit flow's words kittui started with, which every app made after takes
 }
 
 // workspaceMsg is kit's answer to an ask for the workspace: the ask's number, and the workspace, or why there is none.
@@ -72,6 +73,13 @@ func New(r kit.Runner, first shell.Screen, m tea.Model) Model {
 		epochs: map[shell.Screen]int{}}
 	root.made[first], _ = m.Update(shell.SettingsMsg{Settings: root.settings})
 	return root
+}
+
+// Taking gives the root that gives every app it makes kit flow's words, as kittui started with them, the tab apart:
+// --no-fetch, --fresh, and the owner's flags reach each app opened later, and each a pick makes anew.
+func (m Model) Taking(w flow.Words) Model {
+	m.words = w
+	return m
 }
 
 // told gives every screen made the settings, after the dialog changed one, and what they start.
@@ -435,7 +443,7 @@ func (m Model) place(to shell.Screen, s tea.Model) (tea.Model, tea.Cmd) {
 func (m Model) open(to shell.Screen) (tea.Model, error) {
 	switch {
 	case flow.IsApp(to):
-		return flow.OpenApp(m.runner, to, nil)
+		return flow.OpenApp(m.runner, to, m.words)
 	}
 	switch to {
 	case shell.Welcome:

@@ -59,11 +59,16 @@ func run(args []string, stderr io.Writer) int {
 	if err != nil {
 		return refuse(err, stderr)
 	}
-	final, err := runModel(screens.New(r, first, m))
+	root := screens.New(r, first, m)
+	if appVerb(verb) {
+		// kit flow's words but the tab reach every app made later, as the first was made with them
+		root = root.Taking(flow.ParseWords(words).Rest())
+	}
+	final, err := runModel(root)
 	if err != nil {
 		return failed(err, stderr)
 	}
-	root := final.(screens.Model)
+	root = final.(screens.Model)
 	root.Close()
 	if shown, ok := root.Shown().(app.Model); ok {
 		return finish(shown, stderr, func(verb string, args []string) error { return execKit(r, verb, args) })
@@ -72,14 +77,15 @@ func run(args []string, stderr io.Writer) int {
 }
 
 // open makes the screen kittui opens on: for flow, Flow, on the stage its words name; for workspace or packages, the
-// app with a tab of the stage its words name, else the verb's first app, Repositories or Packages, as flow.AppOf says;
+// app with a tab of the stage its words name, else the verb's first app, Repositories or Packages, as flow.AppOf says,
+// each taking kit flow's words, as flow.ParseWords reads them;
 // the guide for welcome and with no verb; the cards for tutorials, with its --tag words and the tutorial named; the
 // palette on a verb's page or a group for help; and, as the help's screen, the form of the verb named.
 func open(r kit.Runner, verb string, words []string) (shell.Screen, tea.Model, error) {
 	switch verb {
 	case "flow", "workspace", "packages":
 		app, words := flow.AppOf(verb, words)
-		m, err := flow.OpenApp(r, app, words)
+		m, err := flow.OpenApp(r, app, flow.ParseWords(words))
 		return app, m, err
 	case "welcome", "":
 		return shell.Welcome, welcome.Open(r, kit.Workspace{}), nil

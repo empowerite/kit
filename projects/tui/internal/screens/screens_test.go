@@ -3,6 +3,7 @@
 package screens
 
 import (
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -352,5 +353,20 @@ func TestWithTheKeysBarHiddenWhatAScreenDidStillStands(t *testing.T) {
 	lines := strings.Split(ansi.Strip(m.View().Content), "\n")
 	if len(lines) != 10 || lines[9] != "did it" || lines[8] != "line 8" {
 		t.Errorf("%d lines:\n%s", len(lines), strings.Join(lines, "\n"))
+	}
+}
+
+// kit flow's words, as kittui started with them, reach every app made later, and every app a pick makes anew.
+func TestKitFlowsWordsReachAnAppOpenedLater(t *testing.T) {
+	w := flow.Words{NoFetch: true, Owner: []string{"--mine"}}
+	m := drive(help(t).Taking(w), shell.SwitchMsg{Screen: shell.Repositories})
+	if got := m.made[shell.Repositories].(flow.Model).Words(); !reflect.DeepEqual(got, w) {
+		t.Errorf("Repositories, opened later, takes %+v", got)
+	}
+	m, _, _ = workspaced(t, map[string]string{"current.json": repoJSON, "w.json": groupJSON})
+	m = drive(m.Taking(w), shell.SwitchMsg{Screen: shell.Repositories}, shell.PickMsg{Workspace: "w"},
+		shell.SwitchMsg{Screen: shell.Repositories})
+	if got := m.made[shell.Repositories].(flow.Model).Words(); !reflect.DeepEqual(got, w) {
+		t.Errorf("Repositories, made anew on w, takes %+v", got)
 	}
 }

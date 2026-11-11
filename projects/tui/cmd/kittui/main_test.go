@@ -64,7 +64,7 @@ func TestThePictureEndsZeroOnQuitAnd130OnCtrlC(t *testing.T) {
 		{tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl}, 0},
 		{tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}, 130},
 	} {
-		m, err := flow.OpenApp(testkit.Runner(t, "flow"), shell.Flow, nil)
+		m, err := flow.OpenApp(testkit.Runner(t, "flow"), shell.Flow, flow.Words{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -98,7 +98,7 @@ func TestTheGuideEndsZeroOnQuitAnd130OnCtrlC(t *testing.T) {
 
 func TestARefusalOfTheStagesPrintsKitsLineWithItsCode(t *testing.T) {
 	t.Setenv("FAKE_FLOW_REFUSE", "stages")
-	_, err := flow.OpenApp(testkit.Runner(t, "flow"), shell.Flow, nil)
+	_, err := flow.OpenApp(testkit.Runner(t, "flow"), shell.Flow, flow.Words{})
 	var stderr bytes.Buffer
 	if code := refuse(err, &stderr); code != 2 || stderr.String() != "❌ kit flow refuses for the test; run: kit help flow\n" {
 		t.Errorf("exit %d, stderr %q", code, stderr.String())

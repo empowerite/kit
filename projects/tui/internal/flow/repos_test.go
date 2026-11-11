@@ -41,7 +41,7 @@ func TestReposDrawsAMemberARow(t *testing.T) {
 // Repositories opens on its repos tab first; Issues has none, and keeps of kit flow's stages those --stages names.
 func TestReposIsRepositoriesFirstTabAndNotIssues(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	m, err := OpenApp(runner(t), shell.Repositories, nil)
+	m, err := OpenApp(runner(t), shell.Repositories, Words{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +50,7 @@ func TestReposIsRepositoriesFirstTabAndNotIssues(t *testing.T) {
 	}
 	m.Close()
 	t.Setenv("FAKE_FLOW_STAGES", "backlog builds")
-	if m, err = OpenApp(runner(t), shell.Issues, nil); err != nil {
+	if m, err = OpenApp(runner(t), shell.Issues, Words{}); err != nil {
 		t.Fatal(err)
 	}
 	var names []string
