@@ -1056,7 +1056,10 @@ func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
 	if !m.inRows || m.find("builds").Cursor != 3 {
 		t.Errorf("page down: in rows %v, cursor %d", m.inRows, m.find("builds").Cursor)
 	}
-	m = drive(m, press(tea.KeyPgDown), press(tea.KeyPgDown), press(tea.KeyPgDown))
+	// #159, open, takes four lines, and the pane shows one between its … lines: a page down for each of the three
+	// under its first, one onto the last row, and one more, which stays there
+	m = drive(m, press(tea.KeyPgDown), press(tea.KeyPgDown), press(tea.KeyPgDown), press(tea.KeyPgDown),
+		press(tea.KeyPgDown))
 	if m.find("builds").Cursor != 4 {
 		t.Errorf("page down past the last row: cursor %d", m.find("builds").Cursor)
 	}
@@ -1251,9 +1254,9 @@ func TestTheBarScrollsToTheSelectedStage(t *testing.T) {
 }
 
 func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testing.T) {
-	// builds is the fourth stage; its first row, a run of five jobs, opened, is taller than a pane on a short screen
+	// builds is the fourth stage; its first row, a run of ten jobs, opened, takes about three panes on a short screen
 	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 120, Height: 12})
-	m = drive(m, tallBuild(m, 5), tab, tab, tab, down, down, toggle)
+	m = drive(m, tallBuild(m, 10), tab, tab, tab, down, down, toggle)
 	if m.stage != 3 || m.find("builds").Cursor != 1 || !strings.Contains(view(m), " more") {
 		t.Fatalf("the open row does not overflow the pane:\n%s", view(m))
 	}

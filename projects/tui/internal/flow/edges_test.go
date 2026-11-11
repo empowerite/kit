@@ -8,7 +8,9 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
@@ -71,18 +73,46 @@ func TestADocumentKitFlowCannotDecodeIsARefusal(t *testing.T) {
 	}
 }
 
-// Page up inside an open row taller than the pane scrolls back through that row, the cursor staying on it.
+// Page up inside an open row taller than the pane, over three panes of it, scrolls back through that row, the cursor
+// staying on it, and shows every line of it on the way, from its last page up to its first.
 func TestPageUpInsideATallOpenRowScrollsBackThroughIt(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 12})
-	m = drive(m, tallBuild(m, 5), tab, tab, tab, down, down, toggle, press(tea.KeyPgDown))
-	s := m.find("builds")
-	if s.Cursor != 1 || s.Offset == 0 {
-		t.Fatalf("page down did not scroll into the open row: cursor %d, offset %d", s.Cursor, s.Offset)
+	m = drive(m, tallBuild(m, 10), tab, tab, tab, down, down, toggle)
+	text := func(s string) string {
+		return strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(ansi.Strip(s)), style.Focus+style.Opened))
 	}
-	before := s.Offset
-	m = drive(m, press(tea.KeyPgUp))
-	if s := m.find("builds"); s.Cursor != 1 || s.Offset >= before {
-		t.Errorf("page up inside the row: cursor %d, offset %d from %d", s.Cursor, s.Offset, before)
+	var row []string
+	for _, l := range m.lines(3) {
+		if l.Row == 1 {
+			row = append(row, text(l.Text))
+		}
+	}
+	onPane := func(m Model, line string) bool {
+		return slices.ContainsFunc(lines(m), func(l string) bool { return text(l) == line })
+	}
+	for k := 0; k < 20 && !onPane(m, row[len(row)-1]); k++ {
+		m = drive(m, press(tea.KeyPgDown))
+	}
+	if s := m.find("builds"); s.Cursor != 1 || s.Offset == 0 || len(row) < 3*m.rowsHeight() {
+		t.Fatalf("page down did not reach the end of an open row of %d lines in a pane of %d: cursor %d, offset %d",
+			len(row), m.rowsHeight(), s.Cursor, s.Offset)
+	}
+	seen := map[string]bool{}
+	for k := 0; k < 20 && m.find("builds").Offset > 0; k++ {
+		for _, l := range lines(m) {
+			seen[text(l)] = true
+		}
+		if m = drive(m, press(tea.KeyPgUp)); m.find("builds").Cursor != 1 {
+			t.Fatalf("page up left the open row: cursor %d", m.find("builds").Cursor)
+		}
+	}
+	for _, l := range lines(m) {
+		seen[text(l)] = true
+	}
+	for _, l := range row {
+		if !seen[l] {
+			t.Errorf("page up never showed %q", l)
+		}
 	}
 }
 

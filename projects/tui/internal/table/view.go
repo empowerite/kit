@@ -233,9 +233,10 @@ func Down(h Host, n int) {
 }
 
 // Page moves a page down or up. Inside a row taller than the pane, as an open pull request with many issues is, it
-// first scrolls through that row, so every line it hides can be reached; at the row's end it moves the cursor a page
-// of rows. A page never leaves the rows: up stops at the first row, and down at the last; without the keyboard it
-// does nothing.
+// first scrolls through that row a window at a time, so each line it hides shows once: down, the next window starts
+// at the line under the last one shown, and up, the window before ends at the line over the first, the … lines in
+// the pane taking their places. At the row's end it moves the cursor a page of rows. A page never leaves the rows: up
+// stops at the first row, and down at the last; without the keyboard it does nothing.
 func Page(h Host, d int) {
 	if !h.InRows() {
 		return
@@ -247,9 +248,9 @@ func Page(h Host, d int) {
 	start, end, _, _ := pane.Window(len(all), height, t.Offset)
 	switch {
 	case first >= 0 && d > 0 && last >= end:
-		t.Offset, _, _, _ = pane.Window(len(all), height, t.Offset+step)
+		t.Offset, _, _, _ = pane.Window(len(all), height, end)
 	case first >= 0 && d < 0 && first < start:
-		t.Offset, _, _, _ = pane.Window(len(all), height, max(first, t.Offset-step))
+		t.Offset = max(first, before(len(all), height, start))
 	case d > 0:
 		Down(h, step)
 	default:
@@ -307,6 +308,19 @@ func Group(h Host, press string) {
 		}
 	}
 	Fit(h)
+}
+
+// before gives the offset of the window of a pane of h lines, out of n, that ends at the line over start, its last
+// line shown the one before start: the window end, which grows with the offset, first reaches start there.
+func before(n, h, start int) int {
+	o := start
+	for o > 0 {
+		if _, end, _, _ := pane.Window(n, h, o-1); end < start {
+			break
+		}
+		o--
+	}
+	return o
 }
 
 // rowLines gives the first and the last of the lines the row draws, -1 for a row that draws none.

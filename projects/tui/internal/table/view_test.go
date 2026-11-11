@@ -4,6 +4,7 @@
 package table
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 )
 
 // viewing gives the outlined host in a pane of 12 lines, 40 wide, under a control line, #4 open, its title over three
@@ -181,6 +183,45 @@ func TestAPageScrollsThroughATallRowBeforeMovingOn(t *testing.T) {
 	}
 }
 
+// Paging through an open row three or four panes tall shows each of its lines once on the way down, none skipped and
+// none twice, and every one of them again on the way back up, though a … line above and one below take two of the
+// pane's lines.
+func TestAPageThroughATallRowShowsEachOfItsLinesOnce(t *testing.T) {
+	h := viewing()
+	h.all[3].Cells[3].Values = []string{strings.Repeat("a long title ", 60)}
+	for k := 5; k < 15; k++ { // rows under #4, so no page meets the table's end, where a window can only overlap
+		h.all = append(h.all, grid.Row{Key: fmt.Sprintf("#%d", k), Cells: h.all[1].Cells})
+	}
+	h.tbl.Cursor = at(h, "#4")
+	Fit(h)
+	lines, height := ScrollLines(h), RowsHeight(h)
+	first, last := rowLines(lines, h.tbl.Cursor)
+	if rows := last - first + 1; rows < 3*height || rows > 5*height {
+		t.Fatalf("#4 takes %d lines in a pane of %d", rows, height)
+	}
+	shown := func(seen map[int]int) {
+		start, end, _, _ := paneWindow(h)
+		for k := max(start, first); k < min(end, last+1); k++ {
+			seen[k]++
+		}
+	}
+	down, up := map[int]int{}, map[int]int{}
+	for k := 0; k < 40 && h.tbl.Cursor == at(h, "#4"); k++ {
+		shown(down)
+		Page(h, 1)
+	}
+	h.tbl.Cursor, h.tbl.Offset = at(h, "#4"), last // up from a window that shows the row's last line
+	for k := 0; k < 40 && h.tbl.Cursor == at(h, "#4"); k++ {
+		shown(up)
+		Page(h, -1)
+	}
+	for k := first; k <= last; k++ {
+		if down[k] != 1 || up[k] == 0 {
+			t.Errorf("line %d of #4 (%d to %d) shown %d times down, %d up", k, first, last, down[k], up[k])
+		}
+	}
+}
+
 func TestRowsAreSelectedAloneByGroupOrAll(t *testing.T) {
 	h := viewing()
 	h.keys = true
@@ -224,4 +265,9 @@ func TestRowsAreSelectedAloneByGroupOrAll(t *testing.T) {
 	if SelectAll(h); len(h.tbl.Picked) != 0 {
 		t.Errorf("all again: %v", h.tbl.Picked)
 	}
+}
+
+// paneWindow gives the window of the lines that scroll the host's pane shows, as pane.Window gives it.
+func paneWindow(h *host) (start, end int, above, below bool) {
+	return pane.Window(len(ScrollLines(h)), RowsHeight(h), h.tbl.Offset)
 }
