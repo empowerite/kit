@@ -46,11 +46,8 @@ guard:arguments lint "$@" || exit $?
 materialize:hydrate
 
 # A linter runs as kit gate runs it: the chosen project toolchain's directories first, then each installed dependency
-# provider's, such as node_modules/.bin for markdownlint-cli2 from package.json. Finding the toolchain never asks which
-# one to use; with none settled, its directories are left out.
-toolchain_dirs=$(dependencies:toolchain-dirs)
-installed=$(dependencies:installed-path | paste -s -d ':' -)
-PATH="${toolchain_dirs:+${toolchain_dirs}:}${installed:+${installed}:}${PATH}"
+# provider's, such as node_modules/.bin for markdownlint-cli2 from package.json.
+dependencies:onto-path
 
 all=false
 paths=()

@@ -3,7 +3,8 @@
 # Runs one job, CI, on each pull request into the default branch. CI is the check name a ruleset requires. The job:
 #
 #   1. puts the toolchain the ci_toolchain answer names on the runner: mise, nix, or the devcontainer CLI (brew and
-#      docker are already on GitHub's runners, and ambient needs nothing)
+#      docker are already on GitHub's runners, kit is kit itself, and ambient needs nothing), and for kit, restores
+#      ~/.kit/tools from the cache when tools.lock is as it was
 #   2. puts kit on PATH: the release kit.yml declares, downloaded from its GitHub release and unpacked only when
 #      its bytes have the digest published beside it, or the checkout's own kit/bin/ when it declares unreleased
 #   3. installs the gate's tools with `kit tools install`, through that toolchain: KIT_TOOLCHAIN names it
@@ -44,7 +45,7 @@ jobs:
       # mise also reads mise.ci.toml, on top of mise.toml, for the tools only a runner needs.
       MISE_ENV: ci
       # The toolchain the project uses on this runner; kit refuses a named toolchain it cannot use.
-      KIT_TOOLCHAIN: "mise"
+      KIT_TOOLCHAIN: "kit"
     steps:
       - name: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -105,6 +106,14 @@ jobs:
       # it made, of the repository whose workflow this is.
       - name: trust
         run: kit trust --yes "${GITHUB_WORKSPACE}"
+
+      # The kit toolchain installs under ~/.kit/tools/, kept between runs while tools.lock is as it was.
+      - name: kit-tools-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        if: ${{ env.KIT_TOOLCHAIN == 'kit' }}
+        with:
+          path: ~/.kit/tools
+          key: kit-tools-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools.lock') }}
 
       - name: toolchain
         run: |

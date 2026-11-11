@@ -8,7 +8,7 @@ GitHub runner. Some of the numbers are still being measured; each one says where
 - `kit gate` runs [bin/ci](../bin/ci), as CI does. It runs `kit lint`, `kit syntax --check`, the schemas, the
   links, the bats suite, the Go tests in `projects/tui/`, and `kit check`.
 - To run one file, use `kit tools run bats tests/<file>.bats`. It puts the pinned tools first on `PATH`.
-- bats runs one job per CPU, on GNU parallel, which `mise.toml` pins.
+- bats runs one job per CPU, on GNU parallel, which `tools:` in `kit.yml` pins.
 - Each test runs apart from the desk. `helper:isolate` in [tests/helper.bash](../tests/helper.bash) moves `HOME`,
   `TMPDIR`, and the kit's cache under the test's own directory. It also clears what CI and a desk set, such as
   `GITHUB_ACTIONS`, `KIT_TOOLCHAIN`, and `MISE_ENV`, so a test reads the same in both places.

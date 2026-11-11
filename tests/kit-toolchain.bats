@@ -90,6 +90,20 @@ beta-2\.0\.0-linux-x64\.tar\.gz${t}[0-9a-f]{64}${t}beta-2\.0\.0/bin$" tools.lock
   [ "$(wc -l <<<"$output" | tr -d ' ')" -eq 2 ]
   [ "$(PATH="$(paste -s -d ':' - <<<"$output"):${PATH}" alpha)" = "alpha 1.0.0 ${platform}" ]
   [ "$(PATH="$(paste -s -d ':' - <<<"$output"):${PATH}" beta)" = "beta 2.0.0 ${platform}" ]
+  # the cache keeps this platform's downloads alone; the others were fetched only to be hashed
+  [ "$(find "${XDG_CACHE_HOME}/kit/downloads" -type f | wc -l | tr -d ' ')" -eq 2 ]
+}
+
+@test "a url every platform shares is downloaded once while locking" {
+  printf '#!/bin/sh\necho omega\n' > "${FAKE_RELEASES}/omega"
+  cat >> kit.yml <<'YAML'
+  omega:
+    version: "1"
+    url: https://example.com/omega/{version}/omega
+YAML
+  run "${kit_root}/bin/kit" tools install --toolchain kit
+  [ "$status" -eq 0 ]
+  [ "$(grep -c '/omega$' "${FAKE_RELEASES}/curl.calls")" -eq 1 ]
 }
 
 @test "an install with the lock up to date and the tools in place downloads nothing" {
@@ -151,6 +165,14 @@ beta-2\.0\.0-linux-x64\.tar\.gz${t}[0-9a-f]{64}${t}beta-2\.0\.0/bin$" tools.lock
   [[ "$output" == *"beta: nowhere is not in what https://github.com/acme/beta/releases/download/v2.0.0/beta-2.0.0-${platform}.tar.gz unpacks to; set bin: under tools: beta in kit.yml"* ]]
 }
 
+@test "a bin: that holds no command named as the tool is refused, and nothing is installed" {
+  sed -i.bak 's|bin: beta-{version}/bin|bin: beta-{version}|' kit.yml
+  run "${kit_root}/bin/kit" tools install --toolchain kit
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"beta: beta-2.0.0 in what https://github.com/acme/beta/releases/download/v2.0.0/beta-2.0.0-${platform}.tar.gz unpacks to holds no beta command; set bin: under tools: beta in kit.yml"* ]]
+  [ ! -d "${KIT_HOME}/.kit/tools/beta" ]
+}
+
 @test "kit tools lists each pin and whether it is installed, with no network, and a runner leaves a desk's out" {
   "${kit_root}/bin/kit" tools install --toolchain kit >/dev/null 2>&1
   rm -rf "${KIT_HOME}/.kit/tools/beta"
@@ -162,6 +184,13 @@ beta-2\.0\.0-linux-x64\.tar\.gz${t}[0-9a-f]{64}${t}beta-2\.0\.0/bin$" tools.lock
   CI=true run "${kit_root}/bin/kit" tools --toolchain kit --json
   [ "$(jq --compact-output --slurp 'map(.name)' <<<"$output")" = '["alpha"]' ]
   [ "$(downloads)" -eq "${before}" ]
+}
+
+@test "a verb that runs the repository's tools outside kit gate finds them on the chosen toolchain's path" {
+  "${kit_root}/bin/kit" tools install --toolchain kit >/dev/null 2>&1
+  KIT_TOOLCHAIN=kit run kit-bash 'use dependencies && dependencies:onto-path && command -v alpha'
+  [ "$status" -eq 0 ]
+  [ "$output" = "${KIT_HOME}/.kit/tools/alpha/1.0.0/${platform}/alpha" ]
 }
 
 @test "the toolchain is active once each directory it names is on PATH" {

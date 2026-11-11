@@ -39,8 +39,10 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use commit
+use commit dependencies
 guard:arguments commit "$@" || exit $?
+# The policy engine runs as kit gate runs the repository's tools: the chosen toolchain's directories first on PATH.
+dependencies:onto-path
 
 guard:require tool:git tool:jq
 commit:commit "$@"

@@ -12,7 +12,7 @@ Each build is for one line of kit, at one base path:
 
 ## Running it
 
-Node comes from `mise.toml`. In this directory, install the packages once, then serve the site:
+Node comes from `tools:` in `kit.yml`. In this directory, install the packages once, then serve the site:
 
 ```bash
 npm ci

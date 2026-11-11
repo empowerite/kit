@@ -13,9 +13,9 @@
 #
 # {version}, {platform}, {os}, {arch}, and {ext} are filled in. kit names a platform <os>-<arch>, with linux or macos
 # and x64 or arm64; os: and arch: rename them as the tool's downloads do, and ext: gives each os its download's
-# ending, as {linux: tar.gz, macos: zip}. bin: names the directory, in what the url unpacks
-# to, that holds the tool's commands: . by default, filled in the same way. profile: desk or ci keeps a tool to one of
-# them; a run where CI is set is a runner's, ci, and any other a desk's. platforms: narrows the platforms it is
+# ending, as {linux: tar.gz, macos: zip}. bin: names the directory, in what the url unpacks to, that holds the tool's
+# commands, one of them named as the tool: . by default, filled in the same way. profile: desk or ci keeps a tool to
+# one of them; a run where CI is set is a runner's, ci, and any other a desk's. platforms: narrows the platforms it is
 # locked for.
 #
 # A url that ends in .tar.gz, .tgz, .tar.xz, .txz, .tar.bz2, or .tar is unpacked by tar, one that ends in .zip by
@@ -270,10 +270,11 @@ toolchain/kit:here() {
 }
 
 # toolchain/kit:lock rewrites tools.lock when kit.yml asks for other lines than it holds: each tool whose pin moved is
-# downloaded for every platform, and the lines of the rest are kept. A runner refuses a lock behind kit.yml.
+# downloaded for every platform, a url they share once, and the lines of the rest are kept. Only this platform's
+# downloads stay in the cache; the others were fetched to be hashed. A runner refuses a lock behind kit.yml.
 toolchain/kit:lock() {
-  local wanted locked name version platform profile url bin digest key entry names='' rows=0
-  local -A have=() moved=()
+  local wanted locked name version platform profile url bin digest key entry names='' rows=0 here cache
+  local -A have=() moved=() fetched=() kept=()
   local -a lines=()
   wanted=$(toolchain/kit:wanted) || return 1
   locked=$(toolchain/kit:locked) || return 1
@@ -301,16 +302,27 @@ toolchain/kit:lock() {
       "at a desk, and commit tools.lock"
     return 1
   fi
+  here=$(toolchain/kit:platform) || return 1
+  cache=$(toolchain/kit:cache)
   while IFS=$'\t' read -r name version platform profile url bin
   do
     [[ -n "${name}" ]] || continue
     key=${name}$'\t'${platform}
-    if [[ -n "${moved[${name}]:-}" ]]
-    then digest=$(toolchain/kit:fetch "${name}" "${url}") || return 1
-    else digest=${have[${key}]##*$'\t'}
+    if [[ -z "${moved[${name}]:-}" ]]
+    then digest=${have[${key}]##*$'\t'}
+    elif [[ -n "${fetched[${url}]:-}" ]]
+    then digest=${fetched[${url}]}
+    else
+      digest=$(toolchain/kit:fetch "${name}" "${url}") || return 1
+      fetched[${url}]=${digest}
     fi
+    [[ "${platform}" != "${here}" ]] || kept[${digest}]=1
     lines+=("${name}"$'\t'"${version}"$'\t'"${platform}"$'\t'"${profile}"$'\t'"${url}"$'\t'"${digest}"$'\t'"${bin}")
   done <<<"${wanted}"
+  for digest in "${fetched[@]}"
+  do
+    [[ -n "${kept[${digest}]:-}" ]] || rm -f "${cache}/${digest}"
+  done
   file:replace tools.lock printf '%s\n' \
     '# tools.lock - each tool'"'"'s download for every platform, written by kit tools install from tools: in kit.yml' \
     $'# name\tversion\tplatform\tprofile\turl\tsha256\tbin' "${lines[@]}" || return 1
@@ -348,7 +360,7 @@ toolchain/kit:fetch() {
 }
 
 # toolchain/kit:place <line> installs the tool a line of tools.lock names, unless it is installed at its digest: the
-# download is unpacked apart, its bin: checked, and only then moved into place.
+# download is unpacked apart, its bin: checked to hold a command named as the tool, and only then moved into place.
 toolchain/kit:place() {
   local name version platform profile url digest bin dir stage
   IFS=$'\t' read -r name version platform profile url digest bin <<<"$1"
@@ -368,6 +380,11 @@ toolchain/kit:place() {
   if [[ ! -d "${stage}/tree/${bin}" ]]
   then
     error "${name}: ${bin} is not in what ${url} unpacks to; set bin: under tools: ${name} in kit.yml"
+    return 1
+  fi
+  if [[ ! -x "${stage}/tree/${bin}/${name}" ]]
+  then
+    error "${name}: ${bin} in what ${url} unpacks to holds no ${name} command; set bin: under tools: ${name} in kit.yml"
     return 1
   fi
   printf '%s\n' "${digest}" > "${stage}/tree/.kit-sha256"

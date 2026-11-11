@@ -34,4 +34,91 @@ packages:
 answers:
   # About twice a run: the job takes 12 to 18 minutes on GitHub's runners, with bats on four jobs.
   ci_timeout_minutes: "35"
-  ci_toolchain: mise
+  ci_toolchain: kit
+
+# The tools the gate runs, pinned for the kit toolchain: tools.lock records each download's sha256 for every platform,
+# and kit tools install puts them under ~/.kit/tools/. A runner installs them all but lefthook, a desk's alone. git,
+# bash, and perl come from the machine; see: docs/toolchains/using-kit.md
+#
+#   actionlint   the workflows rule's linter, over .github/workflows/, in kit lint and the gate
+#   bats         runs tests/, the suite the gate runs
+#   gh           the GitHub provider's tool: workflow commands, kit linked, bin/release publish and retire
+#   go           kittui's language, under projects/tui/: go vet and go test in the gate, and the release's build
+#   jq           reads and writes JSON: the merged .claude/settings.json, the forge's documents, kit flow
+#   just         tests/gate.bats runs a justfile ci recipe, as kit gate finds it in a repository that uses just
+#   lefthook     runs the pre-commit hook, on a desk alone
+#   lychee       checks every link in the markdown, offline, fragments included, in the gate
+#   node         runs the npm tools package.json pins, and builds and tests projects/tutorials/ in the gate
+#   opa          the OPA policy engine; tests/policy.bats checks it matches the patterns engine
+#   parallel     GNU parallel, which bats --jobs runs the suite's tests on, with the machine's perl
+#   shellcheck   the bash rule's linter, over kit/, bin/, and tests/fakes/, in kit lint and the gate
+#   yq           reads YAML: kit.yml, every package.yml, the kinds files, and a rule's frontmatter
+tools:
+  actionlint:
+    version: "1.7.12"
+    url: https://github.com/rhysd/actionlint/releases/download/v{version}/actionlint_{version}_{os}_{arch}.tar.gz
+    os: {macos: darwin}
+    arch: {x64: amd64}
+  bats:
+    version: "1.14.0"
+    url: https://github.com/bats-core/bats-core/archive/refs/tags/v{version}.tar.gz
+    bin: bats-core-{version}/bin
+  gh:
+    version: "2.103.2"
+    url: https://github.com/cli/cli/releases/download/v{version}/gh_{version}_{os}_{arch}.{ext}
+    os: {macos: macOS}
+    arch: {x64: amd64}
+    ext: {linux: tar.gz, macos: zip}
+    bin: gh_{version}_{os}_{arch}/bin
+  go:
+    version: "1.27.3"
+    url: https://go.dev/dl/go{version}.{os}-{arch}.tar.gz
+    os: {macos: darwin}
+    arch: {x64: amd64}
+    bin: go/bin
+  jq:
+    version: "1.8.2"
+    url: https://github.com/jqlang/jq/releases/download/jq-{version}/jq-{os}-{arch}
+    arch: {x64: amd64}
+  just:
+    version: "1.59.0"
+    url: https://github.com/casey/just/releases/download/{version}/just-{version}-{arch}-{os}.tar.gz
+    os: {linux: unknown-linux-musl, macos: apple-darwin}
+    arch: {x64: x86_64, arm64: aarch64}
+  lefthook:
+    version: "2.2.2"
+    url: https://github.com/evilmartians/lefthook/releases/download/v{version}/lefthook_{version}_{os}_{arch}
+    os: {linux: Linux, macos: MacOS}
+    arch: {x64: x86_64}
+    profile: desk
+  lychee:
+    version: "0.24.2"
+    url: https://github.com/lycheeverse/lychee/releases/download/lychee-v{version}/lychee-{arch}-{os}.tar.gz
+    os: {linux: unknown-linux-musl, macos: apple-darwin}
+    arch: {x64: x86_64, arm64: aarch64}
+    bin: lychee-{arch}-{os}
+  node:
+    version: "24.22.2"
+    url: https://nodejs.org/dist/v{version}/node-v{version}-{os}-{arch}.tar.gz
+    os: {macos: darwin}
+    bin: node-v{version}-{os}-{arch}/bin
+  opa:
+    version: "1.21.4"
+    url: https://github.com/open-policy-agent/opa/releases/download/v{version}/opa_{os}_{arch}
+    os: {macos: darwin}
+    arch: {x64: amd64}
+  parallel:
+    version: "20260922"
+    url: https://ftp.gnu.org/gnu/parallel/parallel-{version}.tar.bz2
+    bin: parallel-{version}/src
+  shellcheck:
+    version: "0.11.0"
+    url: https://github.com/koalaman/shellcheck/releases/download/v{version}/shellcheck-v{version}.{os}.{arch}.tar.xz
+    os: {macos: darwin}
+    arch: {x64: x86_64, arm64: aarch64}
+    bin: shellcheck-v{version}
+  yq:
+    version: "4.54.1"
+    url: https://github.com/mikefarah/yq/releases/download/v{version}/yq_{os}_{arch}
+    os: {macos: darwin}
+    arch: {x64: amd64}

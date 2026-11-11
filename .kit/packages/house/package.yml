@@ -9,8 +9,8 @@
 # It also delivers this repository's own tree rules, in Rego, for the opa policy engine.
 #
 # It also has Claude Code run this checkout's own kit as its MCP server, by path from the project directory Claude
-# Code names, rather than whichever kit is on the PATH the harness started with: kit/bin is on PATH only where mise
-# has activated the worktree. Coming after agents/claude, its entry wins.
+# Code names, rather than whichever kit is on the PATH the harness started with: kit/bin is on PATH only where direnv
+# has run the worktree's .envrc. Coming after agents/claude, its entry wins.
 #
 # see: docs/packages.md, docs/serve.md
 

@@ -56,8 +56,10 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use policy settings materialize yaml file context flow
+use policy settings materialize yaml file context flow dependencies
 guard:arguments policy "$@" || exit $?
+# The policy engine runs as kit gate runs the repository's tools: the chosen toolchain's directories first on PATH.
+dependencies:onto-path
 materialize:hydrate
 
 # shellcheck disable=SC2154  # syntax_options is set by guard:arguments

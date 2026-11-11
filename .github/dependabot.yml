@@ -9,8 +9,8 @@
 # issue to name. `linked_exempt` in kit.yml names dependabot[bot], so kit linked and kit policy pass its
 # pull request by name.
 #
-# This is the one ecosystem Dependabot reads here. The tools come from mise.toml and package.json; `kit tools
-# --outdated` answers for both, and Renovate is the tool that reads mise.toml should that ever be automated.
+# This is the one ecosystem Dependabot reads here. The tools come from tools: in kit.yml and from package.json, and
+# `kit tools --outdated` answers for both.
 #
 # see: https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 

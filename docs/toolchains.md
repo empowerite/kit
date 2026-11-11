@@ -23,8 +23,8 @@ kit tools install
 
 Each toolchain has a page of its own, on setting it up and what kit does with it:
 
-- [mise](toolchains/using-mise.md), which this repository uses
-- [kit itself](toolchains/using-kit.md), with `tools:` in `kit.yml`
+- [kit itself](toolchains/using-kit.md), with `tools:` in `kit.yml`, which this repository uses
+- [mise](toolchains/using-mise.md)
 - [nix](toolchains/using-nix.md), with flakes
 - [Homebrew](toolchains/using-brew.md)
 - [a Docker image](toolchains/using-docker.md)
@@ -152,8 +152,10 @@ top, such as markdownlint-cli2 in `package.json`. Each is a dependency provider,
   toolchain has just installed counts. A provider whose lock is here and whose tool is still not on `PATH` fails
   the run, named, before any provider installs.
 - `kit tools path`, `kit tools run`, and `kit gate` put the toolchain's directories first, then the providers'.
-- `kit lint` and `kit welcome` look in each provider's directory before `PATH`, wherever its manifest, its lock, and
-  the directory are here. They find no toolchain to do it, so a linter that `package.json` pins needs no `PATH` entry.
+- `kit lint`, `kit commit`, and `kit policy` put the chosen toolchain's directories first on `PATH`, then each
+  provider's whose manifest, lock, and directory are here, as `kit gate` does, so a shell that has not put the tools
+  on `PATH`, as an agent's, still runs the pinned linters and policy engine. They never ask which toolchain to use;
+  with none chosen, only the providers' directories go first. `kit welcome` holds a linter found in either.
 - `kit tools --outdated` asks `npm outdated` and `uv pip list --outdated`. `kit tools update` installs each npm
   package behind at its latest, and runs `uv lock --upgrade`, which stays within `pyproject.toml`'s bounds.
 - `kit welcome` checks each provider whose manifest is here, at setup. Its fix is `kit tools install`.
@@ -181,7 +183,7 @@ run, as after a pull that brings a repository package's new rule.
 - mise can run it from an enter hook; see [using mise](toolchains/using-mise.md#hydrating-on-cd).
 - nix can run it from a dev shell's `shellHook`; see [using nix](toolchains/using-nix.md#entering-the-shell).
 
-A desk that uses direnv gets the same from an `.envrc` of two lines, as this repository's is:
+A desk that uses direnv gets the same from an `.envrc` of two lines:
 
 ```sh
 PATH_add kit/bin
@@ -189,7 +191,8 @@ kit hydrate --quick
 ```
 
 - It does not put any tools on `PATH`. A toolchain that activates through direnv adds its own line, as nix does with
-  `use flake`.
+  `use flake`. This repository's `.envrc` adds the kit toolchain's directories, which `kit tools path --toolchain
+  kit` reads from `tools.lock` alone; see [using kit as the toolchain](toolchains/using-kit.md).
 - An agent's subprocess shell and a CI runner have neither. There the verbs' own call and `kit ci` do the work.
 
 ## On a runner

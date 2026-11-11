@@ -248,8 +248,9 @@ your own packages under `.kit/packages/`, and any delivered copy you edited stay
 
 The rest of this README is about working on this repository, which is the kit's own source and also uses the kit.
 
-Tools come from mise. Every commit must be signed; the branch ruleset rejects unsigned commits. If you have no signing
-key that GitHub verifies, create and register one:
+Tools come from the kit toolchain: `tools:` in `kit.yml` pins them, and direnv puts them on `PATH` through the
+`.envrc`. Every commit must be signed; the branch ruleset rejects unsigned commits. If you have no signing key that
+GitHub verifies, create and register one:
 
 - [generating a new GPG key](https://docs.github.com/en/authentication/managing-commit-signature-verification/generating-a-new-gpg-key)
 - [adding a GPG key to your GitHub account](https://docs.github.com/en/authentication/managing-commit-signature-verification/adding-a-gpg-key-to-your-github-account)
@@ -260,15 +261,17 @@ Then, once per clone, with the key's id in `signing_key`:
 git config gpg.format openpgp
 git config user.signingkey "${signing_key}"
 git config commit.gpgsign true
-export MISE_ENV=desk
-mise install
+brew bundle install
+direnv allow
+kit/bin/kit toolchains choose kit
+kit tools install
 kit hydrate && lefthook install
 kit welcome
 ```
 
-Put `export MISE_ENV=desk` in your shell profile. It makes mise read `mise.desk.toml`, the tools only a developer
-machine needs, on top of `mise.toml`. The delivered CI job sets `MISE_ENV=ci` the same way, for repositories that have
-a `mise.ci.toml`.
+`kit tools install` puts each tool `tools.lock` pins for this platform under `~/.kit/tools/`, shared by every clone
+and worktree. On a desk it installs lefthook too, which `kit.yml` keeps to a desk; a runner, where `CI` is set, leaves
+it out. See [using kit as the toolchain](docs/toolchains/using-kit.md).
 
 ## Getting started
 
@@ -330,8 +333,7 @@ are written by `bin/refresh`, which runs `kit update` from the index. Do not edi
 
 `kit.yml` belongs to this repository and is not delivered; kit writes only its `version`, `packages`, and
 `excludes` keys there. A `.kit/settings.yml` from an earlier release is moved into `kit.yml` whole, once. A fresh
-clone or worktree has nothing else under `.kit/` until a kit verb runs, or `cd` hydrates it through the mise hook in
-`mise.toml`.
+clone or worktree has nothing else under `.kit/` until a kit verb runs, or `cd` hydrates it through the `.envrc`.
 
 When a commit changes a file under `kit/` or `.kit/packages/`, or `kit.yml`, the installed copies must change
 in the same commit:
@@ -346,7 +348,7 @@ the table above serves as the notice for `settings.json`.
 
 ### The test suite
 
-`kit gate` runs the suite as `bin/ci` does: bats, one job per CPU, on GNU parallel from `mise.toml`. To run one
+`kit gate` runs the suite as `bin/ci` does: bats, one job per CPU, on GNU parallel from `kit.yml`. To run one
 file, use `kit tools run bats tests/<file>.bats`, which puts the pinned tools first on `PATH`.
 
 Nearly all of the suite's time goes to starting short processes: bash, jq, yq, and git. macOS starts a process more

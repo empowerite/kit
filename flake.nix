@@ -1,14 +1,14 @@
-# flake.nix - the nix dev shells: the tools mise.toml and mise.desk.toml pin, for a desk or runner that uses nix
+# flake.nix - the nix dev shells: the tools tools: in kit.yml pins, for a desk or runner that uses nix
 # ----------------------------------------------------------------------------------------------------------------------
-# A port of mise.toml for the nix toolchain; see: docs/toolchains/using-nix.md. Each mise tool is the nixpkgs package
-# of that name, and flake.lock pins nixpkgs by revision, as mise.lock pins each tool by version. The versions follow
-# nixpkgs, so they can sit a minor version off mise's pins.
+# A port of tools: in kit.yml for the nix toolchain; see: docs/toolchains/using-nix.md. Each tool is the nixpkgs
+# package of that name, and flake.lock pins nixpkgs by revision, as tools.lock pins each tool's download. The versions
+# follow nixpkgs, so they can sit a minor version off kit.yml's pins.
 #
-#   - devShells.ci is mise.toml: the tools the gate runs.
-#   - devShells.default is mise.toml and mise.desk.toml: the gate's tools and lefthook. `nix develop` enters it, and
-#     kit's nix toolchain installs from it.
+#   - devShells.ci holds the tools the gate runs: every tool but lefthook, as a runner installs them.
+#   - devShells.default adds lefthook, as a desk installs it. `nix develop` enters it, and kit's nix toolchain installs
+#     from it.
 #
-# Both put kit/bin on PATH and hydrate .kit/, as mise.toml's [env] and enter hook do. git and bash come from the
+# Both put kit/bin on PATH and hydrate .kit/, as the .envrc does. git and bash come from the
 # machine. Nix ignores a flake.nix git does not track, so a new file here needs `git add` before `nix develop`.
 #
 # The npm tools, ajv-cli and markdownlint-cli2, are pinned in package.json, which every toolchain shares; the shell
@@ -21,11 +21,11 @@
 
   outputs = { self, nixpkgs }:
     let
-      # the platforms mise.toml's lockfile_platforms covers, but an Intel Mac: nixpkgs 26.11 dropped x86_64-darwin
+      # the platforms tools.lock covers, but an Intel Mac: nixpkgs 26.11 dropped x86_64-darwin
       systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" ];
       forEachSystem = f: nixpkgs.lib.genAttrs systems (system: f nixpkgs.legacyPackages.${system});
 
-      # Why each tool is here: see mise.toml, which says it for each.
+      # Why each tool is here: see tools: in kit.yml, which says it for each.
       gate = pkgs: [
         pkgs.actionlint
         pkgs.bats

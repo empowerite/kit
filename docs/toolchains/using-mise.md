@@ -1,7 +1,7 @@
 # Using mise
 
-[mise](https://mise.jdx.dev) pins each tool by version in `mise.toml`, and resolves each pin in `mise.lock`. This
-repository uses it. For how kit finds and chooses a toolchain, see [toolchains.md](../toolchains.md).
+[mise](https://mise.jdx.dev) pins each tool by version in `mise.toml`, and resolves each pin in `mise.lock`. For how
+kit finds and chooses a toolchain, see [toolchains.md](../toolchains.md).
 
 ## Set up
 
@@ -51,11 +51,12 @@ it; see [brew fills in](using-brew.md#brew-fills-in).
 
 ## A desk and a runner
 
-mise reads `mise.<env>.toml` on top of `mise.toml` when `MISE_ENV=<env>` is set. This repository splits its tools
+mise reads `mise.<env>.toml` on top of `mise.toml` when `MISE_ENV=<env>` is set. A repository can split its tools
 that way:
 
 - `mise.toml` holds the tools the gate runs. Every desk and runner reads it.
-- `mise.desk.toml` adds lefthook, which only a desk runs. A desk exports `MISE_ENV=desk` in its shell profile.
+- `mise.desk.toml` adds the tools only a desk runs, such as lefthook. A desk exports `MISE_ENV=desk` in its shell
+  profile.
 - The CI workflow sets `MISE_ENV=ci`, so a `mise.ci.toml` would hold the tools only a runner needs.
 
 ## Hydrating on cd

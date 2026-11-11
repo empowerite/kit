@@ -35,7 +35,7 @@ how kit finds and chooses a toolchain, see [toolchains.md](../toolchains.md).
 | `url` | The download, with `{version}`, `{platform}`, `{os}`, `{arch}`, and `{ext}` filled in. |
 | `os`, `arch` | The tool's names for kit's own: `linux` and `macos`, `x64` and `arm64`. A platform is `<os>-<arch>`. |
 | `ext` | Each os's file ending for `{ext}`, as `{linux: tar.gz, macos: zip}`, for a tool that ships a zip to one and a tarball to the other. |
-| `bin` | The directory, in what the URL unpacks to, that holds the tool's commands, filled in as the URL is. `.` by default. |
+| `bin` | The directory, in what the URL unpacks to, that holds the tool's commands, one of them named as the tool, filled in as the URL is. `.` by default. |
 | `profile` | `desk` or `ci` installs the tool on one of them alone. A run where `CI` is set is a runner's. |
 | `platforms` | The platforms it is locked for, when not all four: `linux-x64`, `linux-arm64`, `macos-x64`, `macos-arm64`. |
 

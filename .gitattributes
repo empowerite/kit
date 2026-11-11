@@ -1,9 +1,9 @@
 # .gitattributes - how git and the forge treat paths
 # ----------------------------------------------------------------------------------------------------------------------
 
-# mise and npm write these lock files; marked generated, the forge folds their diffs, and kit lint holds them to no
-# template.
-/.mise/locks/** linguist-generated
+# kit tools install and npm write these lock files; marked generated, the forge folds their diffs, and kit lint holds
+# them to no template.
 /package-lock.json linguist-generated
+/tools.lock linguist-generated
 
 # ----------------------------------------------------------------------------------------------------------------------

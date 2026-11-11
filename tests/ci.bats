@@ -82,11 +82,15 @@ setup() {
   grep --quiet "^    timeout-minutes: \${{ fromJSON('12') }}$" "${workflow}"
 }
 
-@test "the CI workflow installs with kit tools" {
+@test "the CI workflow installs with kit tools, and caches the kit toolchain's tools by tools.lock" {
   fresh-repo other >/dev/null
   "${kit_checkout}/bin/kit" install github/ci >/dev/null
-  grep --quiet '^          kit tools install && kit tools path >> "${GITHUB_PATH}"$' .github/workflows/kit-ci.yml
-  run ! grep --quiet "hashFiles" .github/workflows/kit-ci.yml
+  workflow=.github/workflows/kit-ci.yml
+  grep --quiet '^          kit tools install && kit tools path >> "${GITHUB_PATH}"$' "${workflow}"
+  # a step runs by the toolchain the answer names, never by which files are here
+  run ! grep --quiet 'if: .*hashFiles' "${workflow}"
+  grep --quiet "^        if: \${{ env.KIT_TOOLCHAIN == 'kit' }}$" "${workflow}"
+  grep --quiet "^          key: kit-tools-\${{ runner.os }}-\${{ runner.arch }}-\${{ hashFiles('tools.lock') }}$" "${workflow}"
 }
 
 @test "ambient, the toolchain step fails naming a tool the rules need and the runner lacks" {
