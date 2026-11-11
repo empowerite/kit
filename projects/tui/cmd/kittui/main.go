@@ -76,8 +76,8 @@ func run(args []string, stderr io.Writer) int {
 	return finish(root.Shown().(app.Model), stderr, func(verb string, args []string) error { return execKit(r, verb, args) })
 }
 
-// open makes the screen kittui opens on: for flow and for workspace, the app with a tab of the stage their words name,
-// else Issues for flow and Repositories for workspace, as flow.AppOf says; the guide for welcome and with no verb; the
+// open makes the screen kittui opens on: for flow, Flow, on the stage its words name; for workspace, the app with a
+// tab of the stage its words name, else Repositories, as flow.AppOf says; the guide for welcome and with no verb; the
 // cards for tutorials, with its --tag words and the tutorial named; the palette on a verb's page or a group for help;
 // and, as the help's screen, the form of the verb named.
 func open(r kit.Runner, verb string, words []string) (shell.Screen, tea.Model, error) {

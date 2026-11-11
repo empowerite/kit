@@ -36,16 +36,18 @@ func TestTheMenuHasItsScreensOwnItemsKitsScreensTheSettingsAndQuit(t *testing.T)
 	for _, item := range m.Items() {
 		names = append(names, item.Name)
 	}
-	if got := strings.Join(names, "|"); got != "Welcome|Tutorials|Help||Issues|Changes|Repositories|Delivery|People|Trust|Platform||Refresh All|Settings…||Quit" {
+	if got := strings.Join(names, "|"); got != "Welcome|Tutorials|Help||Flow|Issues|Changes|Repositories|Delivery|"+
+		"People|Trust|Platform||Refresh All|Settings…||Quit" {
 		t.Fatalf("the items: %q", got)
 	}
 	// its own, another screen, the settings, and quit do something; the screen it is on and the rules do not
-	for k, want := range []bool{false, true, true, false, true, true, true, true, true, true, true, false, true, true, false, true} {
+	for k, want := range []bool{false, true, true, false, true, true, true, true, true, true, true, true, false, true,
+		true, false, true} {
 		if m.enabled(k) != want {
 			t.Errorf("item %d (%s) enabled %v", k, names[k], !want)
 		}
 	}
-	if (Menu{}).Items()[12].Name != "Settings…" || m.At != 1 || !m.Open {
+	if (Menu{}).Items()[13].Name != "Settings…" || m.At != 1 || !m.Open {
 		t.Errorf("a menu with no items of its screen's, or the keyboard on its first that acts: %+v", m)
 	}
 }
@@ -55,8 +57,8 @@ func TestTheMenusKeysMoveChooseAndClose(t *testing.T) {
 	for _, step := range []struct {
 		key  string
 		want int
-	}{{"down", 1}, {"down", 2}, {"down", 5}, {"down", 6}, {"down", 7}, {"down", 8}, {"down", 9}, {"down", 10},
-		{"down", 12}, {"down", 14}, {"down", 14}, {"up", 12}, {"w", 0}, {"q", 14}, {"z", 14}} {
+	}{{"down", 1}, {"down", 2}, {"down", 4}, {"down", 6}, {"down", 7}, {"down", 8}, {"down", 9}, {"down", 10},
+		{"down", 11}, {"down", 13}, {"down", 15}, {"down", 15}, {"up", 13}, {"w", 0}, {"q", 15}, {"z", 15}} {
 		if m, _ = m.Key(key(step.key)); m.At != step.want {
 			t.Errorf("%s: item %d, want %d", step.key, m.At, step.want)
 		}
@@ -107,7 +109,7 @@ func TestTheMenuHangsFromTheTitlesGlyphAndAClickChooses(t *testing.T) {
 	if m, c := m.Click(3, Top+1, 60); c != (Choice{Screen: Welcome}) || m.Open {
 		t.Errorf("a click on welcome: %v %+v", m.Open, c)
 	}
-	if m, c := m.Click(3, Top+5, 60); c != (Choice{}) || !m.Open {
+	if m, c := m.Click(3, Top+6, 60); c != (Choice{}) || !m.Open {
 		t.Errorf("a click on issues: %v %+v", m.Open, c)
 	}
 	if m, c := m.Click(50, 15, 60); c != (Choice{}) || m.Open {

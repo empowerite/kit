@@ -62,7 +62,7 @@ func TestThePictureEndsZeroOnQuitAnd130OnCtrlC(t *testing.T) {
 		{tea.KeyPressMsg{Code: 'q', Mod: tea.ModCtrl}, 0},
 		{tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}, 130},
 	} {
-		m, err := flow.OpenApp(testkit.Runner(t, "flow"), shell.Issues, nil)
+		m, err := flow.OpenApp(testkit.Runner(t, "flow"), shell.Flow, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -96,7 +96,7 @@ func TestTheGuideEndsZeroOnQuitAnd130OnCtrlC(t *testing.T) {
 
 func TestARefusalOfTheStagesPrintsKitsLineWithItsCode(t *testing.T) {
 	t.Setenv("FAKE_FLOW_REFUSE", "stages")
-	_, err := flow.OpenApp(testkit.Runner(t, "flow"), shell.Issues, nil)
+	_, err := flow.OpenApp(testkit.Runner(t, "flow"), shell.Flow, nil)
 	var stderr bytes.Buffer
 	if code := refuse(err, &stderr); code != 2 || stderr.String() != "❌ kit flow refuses for the test; run: kit help flow\n" {
 		t.Errorf("exit %d, stderr %q", code, stderr.String())
@@ -360,8 +360,8 @@ func TestNoVerbOpensTheWelcomeGuide(t *testing.T) {
 	}
 }
 
-// kit flow and kit workspace open the app with the tab their words name, maximized on it: kit flow's desk is
-// Repositories' worktrees; with no tab named, kit flow opens Issues and kit workspace Repositories.
+// kit flow opens Flow, on the stage its words name, its desk too; kit workspace opens the app with the tab its words
+// name, maximized on it, and with no tab named, Repositories.
 func TestFlowAndWorkspaceOpenTheAppWithTheTabNamed(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	r := testkit.Runner(t, "flow")
@@ -370,8 +370,8 @@ func TestFlowAndWorkspaceOpenTheAppWithTheTabNamed(t *testing.T) {
 		words []string
 		want  shell.Screen
 	}{
-		{"flow", nil, shell.Issues}, {"flow", []string{"changes"}, shell.Changes},
-		{"flow", []string{"desk"}, shell.Repositories}, {"workspace", nil, shell.Repositories},
+		{"flow", nil, shell.Flow}, {"flow", []string{"changes"}, shell.Flow}, {"flow", []string{"desk"}, shell.Flow},
+		{"workspace", nil, shell.Repositories}, {"workspace", []string{"branches"}, shell.Repositories},
 	} {
 		screen, m, err := open(r, c.verb, c.words)
 		if _, ok := m.(flow.Model); err != nil || !ok || screen != c.want {

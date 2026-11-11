@@ -198,12 +198,14 @@ and stderr, nothing opens: a verb short of an argument refuses in one line, as b
 
 see: [modules.md](modules.md#writing-a-verb)
 
-kittui's app menu, under `=` on every screen's title line, lists the guides, then the apps. Each app is built around
-one entity: its first tab is that entity's home, and its other tabs the entities around it. A tab kit has no data
-source for yet says so, and loads nothing.
+kittui's app menu, under `=` on every screen's title line, lists the guides, then the apps. The first, Flow, is the
+picture `kit flow` draws: every stage the `flow` setting in `kit.yml` names, in its order, from backlog to releases.
+Each other app is built around one entity: its first tab is that entity's home, and its other tabs the entities around
+it. A tab kit has no data source for yet says so, and loads nothing.
 
 | App | Its entity | Its tabs |
 | --- | --- | --- |
+| Flow | the work, from backlog to releases | the `flow` setting's stages: backlog, underway, desk, worktrees, changes, builds, incoming, releases |
 | Issues | the issue | backlog, underway, iterations, milestones |
 | Changes | the pull or merge request | changes, reviews, checks, merged |
 | Repositories | the repository | repos, worktrees, branches, commits, tags, remotes, incoming |
@@ -212,12 +214,13 @@ source for yet says so, and loads nothing.
 | Trust | the evidence | evidence, findings, controls, waivers, policy |
 | Platform | the service | services, toolchains, tools, settings |
 
-A link to a row of another app's tab opens that app, on the tab, with the row under the cursor once it loads: an
-underway issue's pull request leads to Changes, the checkout it is worked in to Repositories' worktrees, and a
-member's name, over a group, to Repositories' repos.
+A link to a row of a tab the app does not have opens the app built around that tab's entity, on the tab, with the row
+under the cursor once it loads: from Issues, an underway issue's pull request leads to Changes, and the checkout it is
+worked in to Repositories' worktrees; from any app but Repositories, a member's name, over a group, leads to
+Repositories' repos.
 
-`kit flow` opens Issues, and `kit flow <stage>` the app with that tab, on the tab; `kit flow desk` is Repositories'
-worktrees, the desk first. `kit workspace` opens Repositories. Iterations, milestones, reviews, checks, merged,
+`kit flow` opens Flow, and `kit flow <stage>` opens it on that stage, maximized. `kit workspace` opens Repositories,
+and `kit workspace <stage>` the app with that tab, on the tab. Iterations, milestones, reviews, checks, merged,
 artifacts, environments, deployments, and every tab of People, Trust, and Platform have no data source yet.
 
 ## Code forges and trackers

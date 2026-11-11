@@ -36,11 +36,11 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
-// Options is how the screen opens: the app it is, as apps.go defines it, or none for kit flow's picture alone; the
-// stages in the picture's order; the stage it opens on, maximized, when one is
-// named; origin, when known, for the URLs and for the workspace menu until kit says the workspace; whether the fetch
-// is skipped; the filters backlog, underway, and changes take; and whether every stage's headers are hidden, as a test
-// of the rows alone asks.
+// Options is how the screen opens: the app it is, as apps.go defines it, or none for stages alone, as a test opens
+// them; the stages in the picture's order; the stage it opens on, maximized, when one is named; origin, when known,
+// for the URLs and for the workspace menu until kit says the workspace; whether the fetch is skipped; the filters
+// backlog, underway, and changes take; and whether every stage's headers are hidden, as a test of the rows alone
+// asks.
 type Options struct {
 	App       shell.Screen
 	Stages    []string
@@ -116,7 +116,7 @@ const deadline = 2 * time.Minute
 
 // Model is the picture on the screen.
 type Model struct {
-	app           shell.Screen // the app this is, or none for kit flow's picture alone
+	app           shell.Screen // the app this is, or none for stages alone, named kit flow
 	runner        kit.Runner
 	ctx           context.Context    // ends with the screen, and every stage's command with it
 	cancel        context.CancelFunc // ends ctx

@@ -28,13 +28,14 @@ const (
 // Screen names one of kit's screens, which the app's menu moves between.
 type Screen string
 
-// kit's screens: the guides, the welcome's guide, the help's palette of verbs, and the tutorials' cards; and the apps,
-// each built around one entity: issues, changes, repositories, delivery's releases, people, trust's evidence, and the
-// platform's services.
+// kit's screens: the guides, the welcome's guide, the help's palette of verbs, and the tutorials' cards; and the
+// apps: flow, the picture of where the work stands, every stage kit flow draws, and those built around one entity
+// each: issues, changes, repositories, delivery's releases, people, trust's evidence, and the platform's services.
 const (
 	Welcome      Screen = "welcome"
 	Help         Screen = "help"
 	Tutorials    Screen = "tutorials"
+	Flow         Screen = "flow"
 	Issues       Screen = "issues"
 	Changes      Screen = "changes"
 	Repositories Screen = "repositories"
@@ -44,12 +45,13 @@ const (
 	Platform     Screen = "platform"
 )
 
-// The glyphs beside the app's menu's items: the welcome, the help, the tutorials; each app's; the settings, and
-// goodbye. A repository is one book, as a workspace, 📚, is many.
+// The glyphs beside the app's menu's items: the welcome, the help, the tutorials; the flow's compass, and each other
+// app's; the settings, and goodbye. A repository is one book, as a workspace, 📚, is many.
 const (
 	Home      = "🏠"
 	Asking    = "❓"
 	Learn     = "🎓"
+	Compass   = "🧭"
 	Ticket    = "🎫"
 	Shuffle   = "🔀"
 	Book      = "📘"
@@ -74,12 +76,14 @@ type screenItem struct {
 }
 
 // sections are the app's menu's screens, in its order, a rule between each group: the guides, which come with kit
-// whatever the work is, then the apps, each a picture of the work around one entity.
+// whatever the work is, then the apps: the flow, the picture of the work from backlog to releases, and each other a
+// picture of the work around one entity.
 var sections = [][]screenItem{
 	{{Item{Glyph: Home, Name: "Welcome"}, Welcome}, {Item{Glyph: Learn, Name: "Tutorials"}, Tutorials},
 		{Item{Glyph: Asking, Name: "Help"}, Help}},
-	{{Item{Glyph: Ticket, Name: "Issues"}, Issues}, {Item{Glyph: Shuffle, Name: "Changes"}, Changes},
-		{Item{Glyph: Book, Name: "Repositories"}, Repositories}, {Item{Glyph: Truck, Name: "Delivery"}, Delivery},
+	{{Item{Glyph: Compass, Name: "Flow"}, Flow}, {Item{Glyph: Ticket, Name: "Issues"}, Issues},
+		{Item{Glyph: Shuffle, Name: "Changes"}, Changes}, {Item{Glyph: Book, Name: "Repositories"}, Repositories},
+		{Item{Glyph: Truck, Name: "Delivery"}, Delivery},
 		{Item{Glyph: Busts, Name: "People"}, People}, {Item{Glyph: Sealed, Name: "Trust"}, Trust},
 		{Item{Glyph: Toolbox, Name: "Platform"}, Platform}},
 }

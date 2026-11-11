@@ -21,8 +21,8 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 )
 
-// appLabel gives the screen's name on the title line, after the app menu's =, kit and its app's name, or kit flow for
-// the picture alone; a click on either drops the menu down.
+// appLabel gives the screen's name on the title line, after the app menu's =, kit and its app's name, kit flow for
+// Flow and for stages alone; a click on either drops the menu down.
 func (m Model) appLabel() string {
 	if m.app == "" {
 		return "kit flow"
