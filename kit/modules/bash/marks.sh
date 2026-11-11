@@ -15,7 +15,7 @@
 # The forge's marks are its seam's, as modules/bash/forge.sh says. A stage whose mark cannot be read has none, null,
 # which never makes it stale. Where the primary has no forge, the forge's stages have none and nothing is said; where
 # the forge cannot answer, its stages have none, the provider's line is said, and the marks fail, every local stage's
-# mark still printed. Reaching a remote asks no one for a password: a remote that would ask has no mark.
+# mark still printed. A forge that lacks marks gives its stages none, and nothing is said. Reaching a remote asks no one for a password: a remote that would ask has no mark.
 #
 # see: modules/bash/forge.sh, kit/bin/kit-flow
 
@@ -34,7 +34,8 @@ marks:stages() {
     case "${stage}" in
       (backlog | underway | changes | builds | releases)
         [[ -z "${forge}" ]] || continue
-        if forge:none
+        # A forge without marks has none, which is no failure: its stages are read again only when asked.
+        if forge:none || ! forge:has marks 2>/dev/null
         then
           forge='{}'
         elif ! forge=$(forge:marks)

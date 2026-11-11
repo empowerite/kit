@@ -179,8 +179,12 @@ branch linked to it, a pull request and its state, checks, review threads, and l
 forge is named in the `forge` or `forges` setting, or found from a host `gh` or `glab` has logged in to.
 
 - Every provider returns the same shape, so `kit flow` shows the same picture on either code forge.
-- Every call answers, answers none, or fails with one line that says what could not be read, and a list is whole or
-  the call fails; the header of `kit/modules/bash/forge.sh` holds the contract.
+- Every call answers, answers none, fails with one line that says what could not be read, or is unsupported, and a
+  list is whole or the call fails; the header of `kit/modules/bash/forge.sh` holds the contract.
+- A provider declares the contract's version it implements and the features its forge lacks: issues, sub-issues,
+  linked branches, drafts, closing issues, review threads, checks, quota, marks, releases, and runs. A call of a
+  feature the forge lacks is unsupported: it exits 3 and runs nothing, and the verb answers as for none, such as no
+  releases to list or no rate limits to draw. `kit flow --capabilities` prints the declaration for kittui.
 - Each provider uses its code forge's own name for a change: pull request `#3` on GitHub, merge request `!3` on GitLab.
 - A repository with one origin has one code forge. A repository on two code forges is a mirror or a migration, and
   the setting picks the one the workflow uses.

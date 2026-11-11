@@ -29,7 +29,8 @@ backlog:collect() {
   local issues changes heads primary except=false
   [[ "${1:-}" == --except ]] && { except=true; shift; }
   primary=$(forge:primary) || return $?
-  issues=$(forge:open-issues) || return 1
+  # A forge without issues of its own has none open.
+  issues=$(forge:open-issues) || (( $? == 3 )) || return 1
   changes=$(forge:open-prs) || return 1
   heads=$(git for-each-ref --format='%(refname:lstrip=3)' -- "refs/remotes/${primary}/") || return 1
   jq --compact-output --slurp -L "${kit_jq}" --argjson changes "$(jq --slurp . <<<"${changes}")" \

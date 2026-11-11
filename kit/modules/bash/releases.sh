@@ -99,7 +99,8 @@ releases:release() {
 releases:documents() {
   local docs
   forge:require || return 1
-  docs=$(forge:releases) || return 1
+  # A forge without releases has none to list.
+  docs=$(forge:releases) || (( $? == 3 )) || return 1
   jq --slurp --compact-output . <<<"${docs}"
 }
 

@@ -391,6 +391,9 @@ forge/github:runs() {
   printf '%s\n' "${runs}"
 }
 
+# The provider implements contract 2 and its forge lacks none of its features.
+forge/github:contract() { printf '2\n'; }
+
 # The seam's calls end here; what follows is this provider's own.
 
 # forge/github:on-branch <what> <branch> <state> <field> prints the field of the newest pull request on the branch,

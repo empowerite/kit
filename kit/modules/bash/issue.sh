@@ -193,7 +193,7 @@ issue:close() {
 # and an issue in another tracker as a task line in the parent's body. It prints the parent's reference, and starts
 # no work.
 issue:gather() {
-  local title=$1 ref body='' number failed=0
+  local title=$1 ref body='' number failed=0 subs
   local -a refs=()
   shift
   if [[ -z "${title}" || $# -eq 0 ]]
@@ -201,16 +201,23 @@ issue:gather() {
     error "a title and at least one issue to gather are required"
     return 2
   fi
+  # A forge without sub-issues gets its own issues as task lines, as another tracker's are.
+  subs=false
+  forge:has sub-issues 2>/dev/null && subs=true
   for ref in "$@"
   do
     ref=$(tracker:normal "${ref}") || return 2
     refs+=("${ref}")
-    tracker:is-forge "${ref}" || body+="- [ ] ${ref}"$'\n'
+    if [[ "${subs}" != true ]] || ! tracker:is-forge "${ref}"
+    then
+      body+="- [ ] ${ref}"$'\n'
+    fi
   done
   number=$(tracker:at '#' create "${title}" "${body}") || return 1
   ok "Created #${number}: ${title}"
   for ref in "${refs[@]}"
   do
+    [[ "${subs}" == true ]] || continue
     tracker:is-forge "${ref}" || continue
     forge:issue-add-sub "${number}" "${ref#\#}" || { warn "${ref} could not be put under #${number}; do it by hand"; failed=1; }
   done
@@ -294,7 +301,8 @@ issue:settle() {
     CLOSED)
       author=$(forge:pr-author "${pr}") || return 1
       repo=$(forge:repo) || return 1
-      list:read closing forge:pr-closing-issues "${pr}" || return 1
+      # A forge that says nothing of what a change closes leaves the body to say it.
+      list:read closing forge:pr-closing-issues "${pr}" || (( $? == 3 )) || return 1
       for row in "${closing[@]}"
       do
         read -r number istate owner <<<"${row}"
@@ -347,7 +355,7 @@ issue:settle() {
 #
 # When neither exists, it creates the branch:
 #
-#   - for an issue in the forge's tracker, the forge creates a branch linked to the issue
+#   - for an issue in the forge's tracker, the forge creates a branch linked to the issue, where it has linked branches
 #   - for any other issue, kit pushes <key>-<slug of the title> to origin from the default branch
 issue:branch() {
   local ref=$1 default_branch=$2 title=$3 key branch slug
@@ -355,7 +363,8 @@ issue:branch() {
   branch=$(forge:branch-for-issue "${key}") || return 1
   [[ -n "${branch}" ]] \
     || branch=$(git ls-remote --heads origin "${key}-*" 2>/dev/null | sed -n '1s@.*refs/heads/@@p')
-  if [[ -z "${branch}" ]] && tracker:is-forge "${ref}"
+  # A forge that links no branch to an issue gets the branch kit names, as another tracker's issue does.
+  if [[ -z "${branch}" ]] && tracker:is-forge "${ref}" && forge:has linked-branches
   then
     step "Linking a branch to ${ref}"
     forge:link-branch "${key}" "${default_branch}" || return 1

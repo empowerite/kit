@@ -78,7 +78,8 @@ then
     exit 0
   done
 fi
-refs=$(forge:pr-closing-issues "${number}") || exit 1
+# A forge that says nothing of what a change closes leaves the body to say it.
+refs=$(forge:pr-closing-issues "${number}") || (( $? == 3 )) || exit 1
 # The forge does not link issues of other trackers, such as Azure DevOps. A closing keyword in the pull request's
 # body links them: `Closes AB#4521`.
 body=$(forge:pr-body "${number}") || exit 1

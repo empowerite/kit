@@ -20,7 +20,8 @@ use forge flow
 # tag, event, sha, title, state, age, took, url, and jobs, each.
 builds:documents() {
   forge:require || return 1
-  forge:runs
+  # A forge without runs has none to list.
+  forge:runs || { (( $? == 3 )) && printf '[]\n'; }
 }
 
 # builds:glyph <state> prints a run's state glyph: the check glyphs the changes stage draws, and 🛑 for cancelled.

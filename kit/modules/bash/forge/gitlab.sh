@@ -342,6 +342,9 @@ forge/gitlab:runs() {
     --argjson tags "${tags}" 'import "forge" as forge; forge::gitlab_builds($now; $default; $tags)'
 }
 
+# The provider implements contract 2 and its forge lacks none of its features.
+forge/gitlab:contract() { printf '2\n'; }
+
 # The seam's calls end here; what follows is this provider's own.
 
 # forge/gitlab:project prints the project's full path, read from the primary remote: group/subgroup/name.

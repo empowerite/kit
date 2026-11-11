@@ -48,7 +48,10 @@
 #   --stages            prints the stages the picture draws, one per line, in order
 #   --me                prints the caller's login on the primary's forge, the login --mine and --others match
 #   --quota             prints the caller's rate limits on the primary's forge, as one JSON array: each forge's
-#                       {forge, limits}, each limit {name, limit, remaining, reset}; reading them costs a request at most
+#                       {forge, limits}, each limit {name, limit, remaining, reset}; reading them costs a request at most.
+#                       A forge without rate limits gives none, and asks nothing
+#   --capabilities      prints what the primary's forge can do, as one JSON object: {contract, forge, provider,
+#                       features}, each feature native or none, as modules/bash/forge.sh declares them; it asks nothing
 #   --marks             prints a mark per stage, as one JSON object, which changes when what the stage draws does: read
 #                       again, a mark that differs says the stage is stale; on GitHub, nothing changed costs no request
 #   --today             only the issues opened in the last 24 hours
@@ -67,6 +70,8 @@
 # kit flow --stages [--workspace <workspace>]
 #
 # kit flow --me
+#
+# kit flow --capabilities
 #
 # kit flow --quota [--workspace <workspace>]
 #
@@ -316,10 +321,18 @@ then
   exit 0
 fi
 
+if [[ -n "${syntax_options[--capabilities]+x}" ]]
+then
+  use forge
+  forge:capabilities || exit $?
+  exit 0
+fi
+
+# A forge without rate limits answers none of them, so its picture draws none.
 if [[ -n "${syntax_options[--quota]+x}" ]]
 then
   use forge
-  quota=$(forge:quota) || exit $?
+  quota=$(forge:quota) || { status=$?; (( status == 3 )) || exit "${status}"; }
   jq --compact-output --slurp . <<<"${quota}"
   exit 0
 fi

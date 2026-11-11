@@ -33,17 +33,47 @@
 # snapshot. A lock whose process is gone is taken over. forge:fresh makes a process read afresh, and a call that
 # changes an issue or a change drops the snapshot.
 #
-# Every provider implements the calls below, and each call holds to one contract: it answers, answers none, or fails.
+# Every provider implements the calls below, and each call holds to one contract: it answers, answers none, fails, or
+# is unsupported.
 #
 #   - A call returns 0 and prints its answer on stdout.
 #   - A call marked "or nothing" returns 0 and prints nothing only when the forge answered that there is none.
+#   - A call of a feature the forge lacks returns 3 and prints nothing, on stdout or stderr. The seam answers it so,
+#     from the provider's declaration below, without running the provider: the caller says what it means there.
 #   - Otherwise the call returns 1, prints nothing on stdout, and says one ❌ line on stderr, the remedy and then what
 #     could not be read: "run: gh auth status (the pull requests could not be read)". An answer that is not the JSON
 #     asked for is a read that failed.
 #   - A list is whole or the call fails: the call reads every page, and a list that reaches forge_list_limit items
 #     fails, saying "kit reads at most 10000".
 #
-# A call that changes the forge returns 0 when the change is made and 1 when it is not.
+# A call that changes the forge returns 0 when the change is made, 1 when it is not, and 3 when the forge lacks it.
+#
+# The contract has a version, forge_contract. A provider declares the version it implements and the features its forge
+# lacks, before any call is made:
+#
+#   forge/<name>:contract         the version it implements; a provider without one implements version 1
+#   forge/<name>:lacks            the features its forge does not have, one per line; without one, it lacks none
+#
+# A feature is a set of calls, or of fields of a document, that a forge has whole or not at all. Each feature names
+# the contract version that added it, and a provider that implements an older version lacks it:
+#
+#   feature          since  calls, or the fields kit reads
+#   issues           1      issue-create, issue-title, issue-state, issue-assignees, issue-assign, issue-unassign,
+#                           issue-close, issue-comment, open-issues: the forge's own tracker
+#   sub-issues       1      issue-add-sub
+#   linked-branches  1      link-branch: a branch the forge links to an issue
+#   drafts           1      pr-create opens a draft; without it, a change open for review
+#   closing-issues   1      pr-closing-issues: the issues the forge says a change closes
+#   review-threads   1      open-prs: each change's threads and whether they are resolved
+#   checks           1      open-prs: each change's checks
+#   quota            1      quota
+#   marks            1      marks
+#   releases         1      releases
+#   runs             1      runs
+#
+# forge:capabilities prints the declaration as one JSON object, which kit flow --capabilities gives kittui: {contract,
+# forge, provider, features}, provider being the version the provider implements, features each feature's state,
+# native or none. A primary with no forge has every feature none.
 #
 #   require                       the provider's own tool is present and authenticated
 #   repo                          the repository as owner/name
@@ -100,6 +130,20 @@ declare -g forge_snapshot_seconds=60 forge_snapshot_wait=1200 forge_fresh_since=
 # forge_list_limit is the most items a provider reads of one list; a list that reaches it fails, as the file header
 # says.
 declare -g forge_list_limit=10000
+
+# forge_contract is the version of the contract the file header states. forge_features lists each feature with the
+# version that added it, in the header's order, and forge_feature_of names the feature each gated call belongs to.
+# forge_lacking holds, once read, the features the primary's forge lacks, one per line; forge_lacking_read says it was.
+declare -gr forge_contract=2
+declare -gra forge_features=(issues:1 sub-issues:1 linked-branches:1 drafts:1 closing-issues:1 review-threads:1
+  checks:1 quota:1 marks:1 releases:1 runs:1)
+declare -grA forge_feature_of=(
+  [issue-create]=issues [issue-title]=issues [issue-state]=issues [issue-assignees]=issues [issue-assign]=issues
+  [issue-unassign]=issues [issue-close]=issues [issue-comment]=issues [open-issues]=issues
+  [issue-add-sub]=sub-issues [link-branch]=linked-branches [pr-closing-issues]=closing-issues
+  [quota]=quota [marks]=marks [releases]=releases [runs]=runs
+)
+declare -g forge_lacking='' forge_lacking_read=false
 
 # forge:primary prints the name of the primary remote: the primary setting in kit.yml, else origin. A name from a
 # setting reaches git as an argument, so it must be safe first. It refuses, and returns 1, as kit cannot go on with a
@@ -271,12 +315,96 @@ forge:providers() {
 # forge:call <call> <argument>… runs the provider's function for <call>, loading the provider once. The provider's
 # tool runs with color forced off: gh and glab honor CLICOLOR_FORCE and GH_FORCE_TTY, and color even the JSON kit
 # reads, so a desk that sets them in its shell reaches the tool as one that does not.
+#
+# A call of a feature the forge lacks returns 3 and runs nothing, as the file header says.
 forge:call() {
-  local call=$1 provider
+  local call=$1 provider feature=${forge_feature_of[$1]:-}
   shift
   provider=$(forge:provider) || return 1
   use "forge/${provider}"
+  if [[ -n "${feature}" ]]
+  then
+    forge:lacks >/dev/null || return 1
+    forge:has "${feature}" || return 3
+  fi
   CLICOLOR_FORCE=0 GH_FORCE_TTY='' "forge/${provider}:${call}" "$@"
+}
+
+# forge:lacks prints the features the primary's forge lacks, one per line, as its provider declares them and as the
+# version it implements leaves out, read once a process. It fails as forge:provider does, and refuses a declaration
+# that names a version above forge_contract or a feature the contract does not have.
+forge:lacks() {
+  local provider version entry feature
+  local -a declared=()
+  if [[ "${forge_lacking_read}" != true ]]
+  then
+    provider=$(forge:provider) || return 1
+    use "forge/${provider}"
+    version=1
+    if declare -F "forge/${provider}:contract" >/dev/null
+    then
+      version=$("forge/${provider}:contract")
+    fi
+    if [[ ! "${version}" =~ ^[1-9][0-9]*$ ]] || (( version > forge_contract ))
+    then
+      error "the ${provider} forge implements contract '${version}', and this kit knows 1 to ${forge_contract}; run: kit update"
+      return 1
+    fi
+    if declare -F "forge/${provider}:lacks" >/dev/null
+    then
+      list:read declared "forge/${provider}:lacks" || return 1
+    fi
+    forge_lacking=''
+    for feature in "${declared[@]}"
+    do
+      [[ -n "${feature}" ]] || continue
+      if [[ " ${forge_features[*]%%:*} " != *" ${feature} "* ]]
+      then
+        error "the ${provider} forge lacks '${feature}', which is no feature of the forge contract"
+        return 1
+      fi
+      forge_lacking+=${feature}$'\n'
+    done
+    for entry in "${forge_features[@]}"
+    do
+      (( ${entry##*:} <= version )) || forge_lacking+=${entry%%:*}$'\n'
+    done
+    forge_lacking_read=true
+  fi
+  printf '%s' "${forge_lacking}"
+}
+
+# forge:has <feature> succeeds when the primary's forge has the feature, and fails when it lacks it, or when its
+# declaration cannot be read.
+forge:has() {
+  forge:lacks >/dev/null || return 1
+  [[ $'\n'"${forge_lacking}" != *$'\n'"$1"$'\n'* ]]
+}
+
+# forge:capabilities prints the declaration of the primary's forge as one JSON object, as the file header says.
+forge:capabilities() {
+  local provider='' version=0 lacking entry
+  local -a names=()
+  for entry in "${forge_features[@]}"
+  do
+    names+=("${entry%%:*}")
+  done
+  if forge:none
+  then
+    lacking=$(printf '%s\n' "${names[@]}")
+  else
+    provider=$(forge:provider) || return 1
+    forge:lacks >/dev/null || return 1
+    lacking=${forge_lacking}
+    version=1
+    declare -F "forge/${provider}:contract" >/dev/null && version=$("forge/${provider}:contract")
+  fi
+  jq --null-input --compact-output --argjson contract "${forge_contract}" --arg forge "${provider}" \
+    --argjson provider "${version}" --arg lacking "${lacking}" '
+    ($lacking | split("\n") | map(select(. != ""))) as $lacks
+    | {contract: $contract, forge: (if $forge == "" then null else $forge end), provider: $provider,
+       features: ($ARGS.positional | map({key: ., value: (if IN($lacks[]) then "none" else "native" end)})
+         | from_entries)}' --args "${names[@]}"
 }
 
 forge:require()             { forge:call require "$@"; }
@@ -359,7 +487,13 @@ forge:forget() {
 # as the file header says, and keeps the answer as the new snapshot. Its first line is the second the read began.
 # Where there is no place for a snapshot, it reads. A read that fails keeps nothing, and the next process reads again.
 forge:snapshot() {
-  local call=$1 dir file lock floor holder waited=0
+  local call=$1 dir file lock floor holder waited=0 feature=${forge_feature_of[$1]:-}
+  # A call the forge lacks is answered so before any snapshot is looked for, as forge:call answers it.
+  if [[ -n "${feature}" ]]
+  then
+    forge:lacks >/dev/null || return 1
+    forge:has "${feature}" || return 3
+  fi
   if ! dir=$(forge:snapshots) || ! mkdir -p "${dir}"
   then
     forge:call "${call}"
