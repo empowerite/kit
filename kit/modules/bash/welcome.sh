@@ -3,8 +3,8 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_root is exported by modules/bash/1st.sh
 #
-# kit welcome walks a newcomer through five steps, each a page: the introduction, toolchains, setup, the terms, and
-# customize. Steps 2 and 3 hold checks, run here. Each check is one JSON object:
+# kit welcome walks a newcomer through five steps, each a page: the introduction, toolchains, setup, customize, and
+# the terms. Steps 2 and 3 hold checks, run here. Each check is one JSON object:
 #
 #   id            stable, in kebab-case: tool-yq, toolchain-project, linter-shellcheck, forge-login-github.com
 #   step          the step it belongs to: toolchains or setup

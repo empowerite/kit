@@ -85,12 +85,12 @@ ambient-system() {
     "you are at the desk, your own checkout; work on an issue goes in a worktree" ]
 }
 
-@test "welcome's steps are introduction, toolchains, setup, terms, customize" {
+@test "welcome's steps are introduction, toolchains, setup, customize, terms" {
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
   [ "$status" -eq 1 ]
   # each step's page in order, the checks of steps 2 and 3 under their pages, then what is left
   [ "$(outline <<<"$output")" = "$(printf '%s|' '# Welcome' '# Toolchains' ✅ '# Setup' \
-    ✅ ❌ ✅ '# Terms' '# Customize' '# What is left' | sed 's/|$//')" ]
+    ✅ ❌ ✅ '# Customize' '# Terms' '# What is left' | sed 's/|$//')" ]
   # bash, git, jq, and yq, then one check for each role, then the rest
   [ "$(under <<<"$output")" = "$(printf '%s\n' '# Toolchains|✅ bash' '# Toolchains|✅ git' \
     '# Toolchains|✅ jq' '# Toolchains|✅ yq' '# Toolchains|✅ no' '# Toolchains|✅ brew' \
@@ -415,7 +415,7 @@ ambient-system() {
   "${kit_root}/bin/kit" packages add house >/dev/null 2>&1
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
   [ "$(grep --extended-regexp '^# ' <<<"$output" | paste -s -d '|' -)" = "$(printf '%s|' '# Welcome' \
-    '# Toolchains' '# Setup' '# Our terms' '# Customize' \
+    '# Toolchains' '# Setup' '# Customize' '# Our terms' \
     '# Our team' '# What is left' | sed 's/|$//')" ]
   [ "$(readlink .kit/welcome/5-terms.md)" = ../packages/house/files/repo/.kit/welcome/5-terms.md ]
 }
@@ -429,7 +429,7 @@ ambient-system() {
   printf '# Notes\n' > .kit/packages/house/files/repo/.kit/welcome/notes.md
   "${kit_root}/bin/kit" packages add house >/dev/null 2>&1
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
-  [[ "$(grep --extended-regexp '^# ' <<<"$output" | paste -s -d '|' -)" == *'# Customize|# Nine|# Ten|# Notes|# What is left' ]]
+  [[ "$(grep --extended-regexp '^# ' <<<"$output" | paste -s -d '|' -)" == *'# Terms|# Nine|# Ten|# Notes|# What is left' ]]
 }
 
 @test "on a terminal, kit welcome hands off to kittui; --text, --checks, or no terminal stays in text" {
