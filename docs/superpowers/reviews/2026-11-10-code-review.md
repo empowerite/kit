@@ -255,3 +255,33 @@ On the way, the owner asked for four changes to kittui, each its own issue: `kit
 guide (#143); `=` opens the app menu while help's search has focus (#144); the welcome guide's terms are a table,
 which moved the table out of the flow screen into `internal/table` (#145); and its "make it yours" step is one too,
 read by the same code (#150).
+
+### Workspaces 4
+
+The plan is built under #89 in 13 commits, from `6079a0a3` to `0fdc2c2f`. The whole suite, run against an export of
+its last task, failed one test of its own, the lock's, under load; the lock waits by the clock since then, and five
+runs of its file held 40 of 40.
+
+Its three decisions stand on their defaults: a group's `match` and `project` are refused by name until they are built;
+a member is spelled one way, the host in lower case, and the path too on GitHub and GitLab; and a clone whose
+`kit.yml` does not parse is filed under origin and said where its member is drawn. These were ruled:
+
+- The plan's "JSON exits 0" for a member that failed yields to the contract Fail closed built: the document, and
+  exit 1. kittui reads such a document as what was read.
+- The owner's rule replaced the plan's usage lines: an option with a value is `--option=value`, so `kit workspaces`
+  takes `--add=<name>`, `--rename=<name> <new-name>`, `--use=<workspace>`, and the like.
+- Inside a repository is a working tree, for every verb that chooses where to start: a bare repository and a `.git`
+  directory are outside. Outside one, `kit flow` and `kit workspace` draw the last group used; the workspace file is
+  read only for a group, so a broken file never stops a verb that does not need it.
+- Every edit of the workspace file takes a lock that names its process; a dead holder's lock is taken over in one
+  step, and a live one's is waited for by the clock.
+- kittui's workspace menu draws no line that opens nothing, and asks kit for no group when what it shows is none.
+
+These are left as they are:
+
+- `kit workspaces --current` inside a repository still reads the file, so a broken file shows as kittui's refusal
+  there.
+- A third process can take the lock in the instant a live holder's link is moved aside, and a process number reused
+  by a live process is waited for as a holder.
+- `--workspace <workspace>` keeps the space form until #153 moves it before the verb as `--workspace=<workspace>`;
+  every other option is #160's.
