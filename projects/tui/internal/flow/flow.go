@@ -999,12 +999,7 @@ func (m *Model) autoGroup(name string) {
 		return
 	}
 	s.Grouping = false
-	var all []row
-	if s.name == "incoming" {
-		all = m.incomingRows(*s)
-	} else {
-		all = laid(s.name, m.records(*s), func(id string) string { return s.View.Field(id).Rendering })
-	}
+	all := laid(s.name, m.records(*s), func(id string) string { return s.View.Field(id).Rendering })
 	p := m.panel(i)
 	next := p.AutoGrouped(all, columnsOf(s.name))
 	if m.runner.Group != "" && p.Fold && p.Groupable["member"] && len(p.Groups()) == 0 {

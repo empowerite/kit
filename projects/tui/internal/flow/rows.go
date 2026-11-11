@@ -3,6 +3,7 @@
 package flow
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strconv"
@@ -73,12 +74,14 @@ type underway struct {
 }
 
 // incoming is what the fetch brought from every remote, the primary named; with --no-fetch, Fetched is false and the
-// remotes carry no commits, branches, or tags.
+// remotes carry no commits, branches, or tags. Rows are what is incoming, one a thing, each a remote, a commit, a
+// branch, a tag, or a local branch behind its upstream, as kit flow prints them flat, which the catalog draws.
 type incoming struct {
-	Fetched bool     `json:"fetched"`
-	Primary string   `json:"primary"`
-	Remotes []remote `json:"remotes"`
-	Member  string   `json:"member"`
+	Fetched bool              `json:"fetched"`
+	Primary string            `json:"primary"`
+	Remotes []remote          `json:"remotes"`
+	Rows    []json.RawMessage `json:"rows"`
+	Member  string            `json:"member"`
 }
 
 // remote is one remote and what the fetch brought from it: the commits new on its default branch, its branches new,
@@ -337,14 +340,9 @@ type shown struct {
 }
 
 // build gives a stage's rows from what it loaded, as its panel lets them through, and what the panel shows of them,
-// as table.Build builds them; incoming's, which has no fields, are its commits and branches as they stand.
+// as table.Build builds them.
 func (m Model) build(i int) shown {
-	s, names, p := m.stages[i], columnsOf(m.stages[i].name), m.filter(i)
-	if s.name == "incoming" {
-		all := m.incomingRows(s)
-		rows := p.Filter(all, names)
-		return shown{p.FoldAway(rows), table.Filled(all, names), grid.Indents(rows), table.Counted(all), nil}
-	}
+	s, p := m.stages[i], m.filter(i)
 	b := table.Build(catalog[s.name], entries(m.records(s)), p, m.names(i), m.paneWidth())
 	return shown{b.Rows, b.Names, b.Levels, b.All, b.Drawn}
 }
@@ -368,6 +366,10 @@ func (m Model) records(s stage) []record {
 		out = m.buildRows(s)
 	case "releases":
 		out = m.releaseRows(s)
+	case "incoming":
+		for _, in := range s.ins {
+			out = append(out, m.rowRecords(s.name, in.Rows, in.Member)...)
+		}
 	case "workspace/repos":
 		out = m.repoRows(s)
 	default:
@@ -546,95 +548,6 @@ func (m Model) pullKey(member, source string, number int) string {
 		return m.keyOf(member, "!"+strconv.Itoa(number))
 	}
 	return m.keyOf(member, "#"+strconv.Itoa(number))
-}
-
-// incomingRows draws what the fetch brought from each remote, the primary first, of each member over a group. Each
-// remote has a dim heading, its name, forge, and host, after its member's short name over a group, then its rows in kit
-// flow's order: each commit on its default branch, each branch updated, new, or gone, and each new tag. A remote whose
-// fetch failed shows git's line, in red; one with nothing new says unchanged; and without the fetch each says not
-// fetched. Every row is a leaf; the headings and those lines are asides. Last, over a group, a line for each member
-// whose read failed.
-func (m Model) incomingRows(s stage) []row {
-	var rows []row
-	for _, in := range s.ins {
-		rows = append(rows, m.memberIncoming(in)...)
-	}
-	return append(rows, m.failures(s)...)
-}
-
-// memberIncoming draws one member's incoming, or the repository's, as incomingRows says.
-func (m Model) memberIncoming(in incoming) []row {
-	var rows []row
-	for _, r := range primaryFirst(in) {
-		title := heading(r)
-		if in.Member != "" {
-			title = m.short(in.Member) + " · " + title
-		}
-		rows = append(rows, row{Key: m.keyOf(in.Member, "remote "+r.Name), Cells: span(style.Off(title)), Aside: true})
-		before, key := len(rows), m.keyOf(in.Member, r.Name+" ")
-		if in.Fetched {
-			for _, c := range r.Commits {
-				rows = append(rows, row{Key: key + c.SHA, Cells: []cell{dim(c.SHA), fill(c.Subject)}})
-			}
-			for _, b := range r.Branches.Updated {
-				rows = append(rows, row{Key: key + "updated " + b,
-					Cells: []cell{text(Branch), fill(b + " " + style.Off("updated"))}})
-			}
-			for _, b := range r.Branches.New {
-				rows = append(rows, row{Key: key + "new " + b,
-					Cells: []cell{text(Branch), fill(b + " " + style.Off("new branch"))}})
-			}
-			for _, b := range r.Branches.Gone {
-				rows = append(rows, row{Key: key + "gone " + b,
-					Cells: []cell{text(Gone), fill(b + " " + style.Off("upstream gone"))}})
-			}
-			for _, t := range r.Tags {
-				rows = append(rows, row{Key: key + "tag " + t,
-					Cells: []cell{text(Tag), fill(t + " " + style.Off("new tag"))}})
-			}
-		}
-		if r.Error != "" {
-			failed := span(style.Refusal(Failed + " " + r.Error))
-			rows = append(rows, row{Key: key + "error", Cells: failed, Aside: true})
-		} else if len(rows) == before {
-			word := "unchanged"
-			if !in.Fetched {
-				word = "not fetched"
-			}
-			rows = append(rows, row{Key: key + word, Cells: span(style.Off(word)), Aside: true})
-		}
-	}
-	return rows
-}
-
-// primaryFirst gives the remotes with the primary first, the rest in kit's order.
-func primaryFirst(in incoming) []remote {
-	out := slices.Clone(in.Remotes)
-	slices.SortStableFunc(out, func(x, y remote) int {
-		return primaryRank(x, in.Primary) - primaryRank(y, in.Primary)
-	})
-	return out
-}
-
-// primaryRank sorts the primary remote before the rest.
-func primaryRank(r remote, primary string) int {
-	if r.Name == primary {
-		return 0
-	}
-	return 1
-}
-
-// heading gives a remote's heading: its glyph, its name, its forge or no forge, and its host when known.
-func heading(r remote) string {
-	forge := r.Forge
-	if forge == "" {
-		forge = "no forge"
-	}
-	parts := []string{Remote + " " + r.Name, forge}
-	if r.Host != "" {
-		parts = append(parts, r.Host)
-	}
-	return strings.Join(parts, " · ")
 }
 
 // deskRows gives the desk, the root checkout, in one row, as worktreeRows gives a worktree: each member's, over a

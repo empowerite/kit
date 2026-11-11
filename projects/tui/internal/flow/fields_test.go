@@ -16,8 +16,8 @@ import (
 )
 
 func TestTheCatalogNamesOnlyWhatIsRegistered(t *testing.T) {
-	// every stage but incoming, whose rows are drawn by hand, and kit workspace's, its repos tab among them
-	if len(catalog) != len(eight)-1+len(workspaceStages) || catalog["incoming"] != nil ||
+	// every stage, incoming among them, and kit workspace's, its repos tab among them
+	if len(catalog) != len(eight)+len(workspaceStages) || catalog["incoming"] == nil ||
 		catalog["workspace/repos"] == nil {
 		t.Errorf("the catalog's stages: %d, incoming %v", len(catalog), catalog["incoming"] != nil)
 	}

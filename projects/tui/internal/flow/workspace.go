@@ -5,8 +5,11 @@
 package flow
 
 import (
+	"bytes"
 	"encoding/json"
+	"maps"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -23,21 +26,38 @@ type workspaceRow struct {
 	Links  map[string]*string `json:"links"`
 }
 
-// workspaceRows gives a kit workspace stage's records: each row's value in each of the stage's fields, as rawValue reads
-// it, its member's as every stage's, and its links, a row of another stage after the member, as keyOf names it.
-func (m Model) workspaceRows(s stage) []record {
-	fields := fieldsOf(s.name)
+// workspaceRows gives a kit workspace stage's records, as rowRecords reads them.
+func (m Model) workspaceRows(s stage) []record { return m.rowRecords(s.name, s.rows, "") }
+
+// rowRecords gives the records of a stage whose rows kit prints flat, as kit workspace's stages and incoming's: each
+// row's value in each of the stage's fields, by the field's id, as rawValue reads it; its member's as every stage's, the
+// row's own, else member, as incoming's rows carry none of their own; its links, a row of another stage after the
+// member, as keyOf names it; and, in a field whose path is *, every value of the row no other field names, as
+// otherValues gives them, so a row can say more than its catalog announces.
+func (m Model) rowRecords(stage string, raws []json.RawMessage, member string) []record {
+	fields := fieldsOf(stage)
+	named := map[string]bool{"key": true, "member": true, "links": true}
+	for _, f := range fields {
+		named[f.ID] = true
+	}
 	var out []record
-	for _, raw := range s.rows {
+	for _, raw := range raws {
 		var r workspaceRow
 		var values map[string]json.RawMessage
 		if json.Unmarshal(raw, &r) != nil || json.Unmarshal(raw, &values) != nil {
 			continue
 		}
+		if r.Member == "" {
+			r.Member = member
+		}
 		rec := record{row{Key: m.keyOf(r.Member, r.Key)}, map[string]table.Value{}}
 		for _, f := range fields {
-			if f.ID == "member" {
+			switch {
+			case f.ID == "member":
 				rec.values[f.ID] = m.memberValue(r.Member)
+				continue
+			case f.Path == "*":
+				rec.values[f.ID] = otherValues(values, named)
 				continue
 			}
 			v := rawValue(values[f.ID])
@@ -47,6 +67,22 @@ func (m Model) workspaceRows(s stage) []record {
 			rec.values[f.ID] = v
 		}
 		out = append(out, rec)
+	}
+	return out
+}
+
+// otherValues gives a row's values no field names, one a value, each as its key, a colon, and its value as JSON prints
+// it, compact, the keys in order; a value that is null, an empty list, or an empty object says nothing, and is left out.
+func otherValues(values map[string]json.RawMessage, named map[string]bool) table.Value {
+	var out table.Value
+	for _, k := range slices.Sorted(maps.Keys(values)) {
+		var compact bytes.Buffer
+		if named[k] || json.Compact(&compact, values[k]) != nil {
+			continue
+		}
+		if text := compact.String(); text != "null" && text != "[]" && text != "{}" {
+			out.Raw = append(out.Raw, k+": "+strings.Trim(text, `"`))
+		}
 	}
 	return out
 }

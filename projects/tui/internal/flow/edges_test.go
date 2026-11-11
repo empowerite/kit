@@ -193,11 +193,16 @@ func TestAStageReadInPartDrawsWhatWasReadAndNamesWhatWasNot(t *testing.T) {
 		 "commits": [{"sha": "a1b2c3d", "subject": "#1 docs: what was fetched"}],
 		 "branches": {"new": [], "updated": [], "gone": []}, "tags": []},
 		{"name": "fork", "forge": "github", "host": "github.com", "default": null, "error": "fatal: no route to host",
-		 "commits": [], "branches": {"new": [], "updated": [], "gone": []}, "tags": []}]}`)
+		 "commits": [], "branches": {"new": [], "updated": [], "gone": []}, "tags": []}],
+		"rows": [{"key": "origin remote", "remote": "origin", "kind": "remote", "change": "fetched", "ref": "main"},
+		 {"key": "origin commit a1b2c3d", "remote": "origin", "kind": "commit", "change": "new", "ref": "main",
+		  "sha": "a1b2c3d", "subject": "#1 docs: what was fetched"},
+		 {"key": "fork remote", "remote": "fork", "kind": "remote", "change": "failed",
+		  "subject": "fatal: no route to host"}]}`)
 	t.Setenv("FAKE_FLOW_PART", "incoming")
 	m := loaded(t, Options{Stages: []string{"incoming", "desk"}, NoPresets: true, Clock: &testkit.Clock{}})
 	s, v := m.find("incoming"), view(m)
-	if s.refusal != "" || !strings.Contains(v, Failed+" fatal: no route to host") ||
+	if s.refusal != "" || !strings.Contains(v, Failed+" failed") || !strings.Contains(v, "fatal: no route to host") ||
 		!strings.Contains(v, "what was fetched") {
 		t.Errorf("incoming read in part: refusal %q\n%s", s.refusal, v)
 	}

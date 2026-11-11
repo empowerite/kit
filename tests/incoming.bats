@@ -60,7 +60,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   push-to upstream u1 main main:feature HEAD:refs/tags/v2
   run kit flow incoming --json
   [ "$status" -eq 0 ]
-  [ "$(jq -c 'keys_unsorted' <<<"$output")" = '["fetched","primary","remotes"]' ]
+  [ "$(jq -c 'keys_unsorted' <<<"$output")" = '["fetched","primary","remotes","rows"]' ]
   [ "$(jq -c '[.fetched, .primary, [.remotes[].name]]' <<<"$output")" = '[true,"origin",["origin","upstream"]]' ]
   [ "$(jq -c '.remotes[0] | keys_unsorted' <<<"$output")" \
     = '["name","forge","host","default","commits","branches","tags"]' ]
@@ -68,6 +68,38 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
 "'"commits":[],"branches":{"new":[],"updated":[],"gone":[]},"tags":[]}' ]
   [ "$(jq -c '.remotes[1] | [.forge, .default, (.commits | map(.subject)), .branches, .tags]' <<<"$output")" \
     = '["gitlab","main",["u1"],{"new":["feature"],"updated":[],"gone":[]},["v2"]]' ]
+}
+
+@test "incoming --json's rows are one a thing incoming: each remote, commit, branch, and tag, and each local branch behind" {
+  push-to origin o0 main:7-mine
+  git fetch --quiet origin
+  git branch --quiet --track 7-mine origin/7-mine
+  git worktree add --quiet ../wt 7-mine
+  push-to origin '#7 o1' main main:42-new HEAD:refs/tags/v1
+  git -C "${work}/other" push --quiet --force origin main:7-mine
+  run kit flow incoming --json
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '[.rows[] | [.remote, .kind, .change, .ref]]' <<<"$output")" = '[["origin","remote","fetched","main"],'"\
+"'["origin","commit","new","main"],["origin","branch","new","42-new"],["origin","branch","forced","7-mine"],'"\
+"'["origin","tag","new","v1"],["origin","tracking","behind","7-mine"],["origin","tracking","behind","main"],'"\
+"'["upstream","remote","unchanged","main"]]' ]
+  [ "$(jq -c '.rows[0] | keys_unsorted' <<<"$output")" = '["key","remote","primary","forge","host","url","default",'"\
+"'"kind","change","ref","sha","old","commits","author","age","subject","local","worktrees","ahead","behind","issues"]' ]
+  [ "$(jq -c '[.rows[] | [.key, .primary]] | .[0], .[1][1], .[-1]' <<<"$output" | paste -sd ' ' -)" \
+    = '["origin remote","primary"] "primary" ["upstream remote",null]' ]
+  # a commit names the issues its subject does; a branch the one its name starts with, and the local branch and
+  # worktree on it; a tracking row how far ahead and behind the local branch is
+  [ "$(jq -c '.rows[1] | [.subject, .issues, (.sha | length >= 7), (.age >= 0), (.author != null)]' <<<"$output")" \
+    = '["#7 o1",["#7"],true,true,true]' ]
+  [ "$(jq -c '.rows[2] | [.commits, .issues, .local]' <<<"$output")" = '[0,["#42","#7"],[]]' ]
+  [ "$(jq -c '.rows[3] | [.commits, (.old | length), .local, (.worktrees | map(split("/")[-1]))]' <<<"$output")" \
+    = '[1,7,["7-mine"],["wt"]]' ]
+  [ "$(jq -c '.rows[5:7] | map([.local, .ahead, .behind, .commits])' <<<"$output")" \
+    = '[[["7-mine"],1,1,1],[["main"],0,1,1]]' ]
+  # without the fetch, each remote says so, and the local branches behind stand as the last fetch left them
+  run kit flow incoming --no-fetch --json
+  [ "$(jq -c '[.rows[] | [.remote, .kind, .change, .ref]]' <<<"$output")" = '[["origin","remote","not fetched","main"],'"\
+"'["origin","tracking","behind","7-mine"],["origin","tracking","behind","main"],["upstream","remote","not fetched","main"]]' ]
 }
 
 @test "incoming never rebases, merges, or pulls: the desk's branch stays where it was" {
@@ -111,6 +143,9 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ "$(jq -c '[.remotes[] | [.name, (.error != null)]]' <<<"$output")" \
     = '[["origin",false],["gone",true],["upstream",false]]' ]
   [ "$(jq -c '.remotes[1] | [.commits, .branches.new, .tags]' <<<"$output")" = '[[],[],[]]' ]
+  # each remote's row says how its fetch went, the failed one with git's line
+  [ "$(jq -c '[.rows[] | select(.kind == "remote") | [.remote, .change, (.subject != null)]]' <<<"$output")" \
+    = '[["origin","unchanged",false],["gone","failed",true],["upstream","unchanged",false]]' ]
   # in the picture, incoming draws the failed remote beside the others, and the picture exits 1
   printf 'forge: github\nforges: {upstream: gitlab}\nflow: [incoming, desk]\n' > kit.yml
   run kit flow
@@ -133,7 +168,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   GH_CONFIG_DIR="${BATS_TEST_TMPDIR}/gh" run kit flow incoming --no-fetch --json
   [ "$status" -eq 0 ]
   [ "$(git rev-parse origin/main)" = "${before}" ]
-  [ "$output" = '{"fetched":false,"primary":"origin","remotes":[{"name":"origin","forge":"github","host":null},'"\
+  [ "$(jq -c 'del(.rows)' <<<"$output")" = '{"fetched":false,"primary":"origin","remotes":[{"name":"origin","forge":"github","host":null},'"\
 "'{"name":"mirror","forge":"github","host":"git.example.test"},{"name":"plain","forge":null,"host":"elsewhere.test"},'"\
 "'{"name":"upstream","forge":"gitlab","host":null}]}' ]
   GH_CONFIG_DIR="${BATS_TEST_TMPDIR}/gh" run kit flow incoming --no-fetch

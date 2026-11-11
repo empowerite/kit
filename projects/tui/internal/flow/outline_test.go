@@ -206,15 +206,17 @@ func TestTheOutlinesKeysWithNothingToActOn(t *testing.T) {
 		tea.KeyPressMsg{Code: tea.KeyLeft, Mod: tea.ModAlt}, press(tea.KeySpace)); len(m.rows(0)) != 0 || m.selected() != 0 {
 		t.Errorf("keys over no rows: %d rows, %d selected", len(m.rows(0)), m.selected())
 	}
-	m = loaded(t, options(), slices.Repeat([]tea.Msg{tab}, 6)...)
-	// under the heading over the rows, which group by nothing, the first row is a remote's aside
-	first := table.First(m.rows(m.stage))
-	if m.stages[m.stage].name != "incoming" || !m.rows(m.stage)[first].Aside || grid.Heads(m.rows(m.stage)[first]) {
-		t.Fatalf("incoming does not start with a remote's aside")
+	// over a group, a member whose read failed is its line, an aside, which space does not select
+	m = drive(over(t, "changes"), answer("changes", `{"rows": [],
+		"errors": [{"member": "github.com/o/b", "error": "gh cannot read o/b"}]}`))
+	rows := m.rows(m.stage)
+	failed := slices.IndexFunc(rows, func(r grid.Row) bool { return r.Aside && !grid.Heads(r) && !grid.OverGroups(r) })
+	if failed < 0 {
+		t.Fatalf("no failed member's line:\n%s", view(m))
 	}
-	m.inRows, m.stages[m.stage].Cursor = true, first
+	m.inRows, m.stages[m.stage].Cursor = true, failed
 	if m = drive(m, press(tea.KeySpace)); m.selected() != 0 {
-		t.Errorf("space on a remote's aside selected %d", m.selected())
+		t.Errorf("space on a failed member's line selected %d", m.selected())
 	}
 	none := New(runner(t), Options{})
 	if none.selectAll(); none.selected() != 0 {

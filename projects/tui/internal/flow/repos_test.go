@@ -82,12 +82,19 @@ func TestARepoWhoseDeskFailedSaysSo(t *testing.T) {
 
 func TestIncomingDrawsEachMembersRemotesUnderItsName(t *testing.T) {
 	m := drive(over(t, "incoming"), answer("incoming", `{"rows": [
-		{"fetched": true, "primary": "origin", "member": "github.com/o/a", "remotes": [{"name": "origin",
-		 "tags": ["v1"]}]},
-		{"fetched": true, "primary": "origin", "member": "github.com/o/b", "remotes": [{"name": "origin"}]}],
+		{"fetched": true, "primary": "origin", "member": "github.com/o/a", "remotes": [{"name": "origin"}],
+		 "rows": [{"key": "origin remote", "remote": "origin", "kind": "remote", "change": "fetched", "ref": "main"},
+		          {"key": "origin tag v1", "remote": "origin", "kind": "tag", "change": "new", "ref": "v1"}]},
+		{"fetched": true, "primary": "origin", "member": "github.com/o/b", "remotes": [{"name": "origin"}],
+		 "rows": [{"key": "origin remote", "remote": "origin", "kind": "remote", "change": "unchanged", "ref": "main"}]}],
 		"errors": []}`))
-	if v := view(m); !strings.Contains(v, "a · "+Remote+" origin") || !strings.Contains(v, "b · "+Remote+" origin") {
+	// each member's rows carry its name, so its remotes group under it, and two members' origins stay two rows
+	if v := view(m); !strings.Contains(v, "▾ a · origin 2") || !strings.Contains(v, "▾ b · origin 1") ||
+		!strings.Contains(v, Tag+"    v1") {
 		t.Errorf("each member's remotes under its name:\n%s", v)
+	}
+	if got := m.records(*m.find("incoming")); len(got) != 3 || got[0].Key == got[2].Key {
+		t.Errorf("the records: %+v", got)
 	}
 }
 

@@ -105,6 +105,7 @@ declare -gA flow_glyphs=(
   [Remote]='📡'
   [Gone]='🔖'
   [Tag]='📌'
+  [Behind]='📥'
   [Detached]='❗'
   [Threads]='💬'
   [Running]='🏃'
@@ -320,8 +321,9 @@ flow:fetch-json() {
   do
     case "${kind}:${ref}" in
       # A range git cannot walk, from an old commit that is not here as in a shallow clone, lists no commit; the
-      # picture says only that the branch moved.
-      (moved:"${default_ref}") commits=$(git log --format='%h%x09%s' "${old}..${new}" 2>/dev/null || true) ;;
+      # picture says only that the branch moved, as an updated branch.
+      (moved:"${default_ref}")
+        commits=$(git log --format='%h%x09%s' "${old}..${new}" 2>/dev/null) || updated+=("$4") ;;
       (moved:"refs/remotes/${remote}/"*) updated+=("${ref#"refs/remotes/${remote}/"}") ;;
       (new:"refs/remotes/${remote}/"*) added+=("${ref#"refs/remotes/${remote}/"}") ;;
       (gone:"refs/remotes/${remote}/"*) gone+=("${ref#"refs/remotes/${remote}/"}") ;;
@@ -335,6 +337,135 @@ flow:fetch-json() {
           commits: ($commits | split("\n") | map(select(. != "") | split("\t")
                     | {sha: .[0], subject: (.[1:] | join("\t"))})),
           branches: {new: $new, updated: $updated, gone: $gone}, tags: $tags}' <<<"$(flow:remote-json "${remote}")"
+}
+
+# flow:tip <rev> prints a commit's facts, unit-separated: its short hash, its author, its committer time in seconds
+# since the epoch, and its subject; the rev cut to seven characters and nothing else when git does not have it.
+flow:tip() {
+  git log -1 --format='%h%x1f%an%x1f%ct%x1f%s' "$1" -- 2>/dev/null || printf '%s\x1f\x1f\x1f\n' "${1:0:7}"
+}
+
+# flow:row <field>… prints one row for flow:incoming-rows to read: its fields unit-separated, a list's items in one
+# field record-separated.
+flow:row() {
+  local IFS=$'\x1f'
+  printf '%s\n' "$*"
+}
+
+# flow:on-branch <upstream> prints, for flow:incoming-rows, the local branches on a remote branch and the linked
+# worktrees they are checked out in: two fields, each a list, from flow:incoming-rows' locals and trees.
+flow:on-branch() {
+  local names=${locals[$1]:-} each wt=''
+  for each in ${names//$'\x1e'/ }
+  do
+    [[ -z "${trees[${each}]:-}" ]] || wt+="${trees[${each}]}"$'\x1e'
+  done
+  printf '%s\x1f%s' "${names}" "${wt}"
+}
+
+# flow:incoming-rows <remote-json> <primary> <default-branch> <state> [<diff>] prints what is incoming from a remote as
+# rows, one JSON object a line, every row with the remote's facts: remote, its name; primary, "primary" for the
+# primary, else null; forge, host, and url, its fetch URL; and default, its default branch. kind says what the row is:
+#   remote    the remote itself, once: change is fetched, unchanged, not fetched, or failed, and subject git's line
+#             when it failed
+#   commit    a commit new on the default branch, newest first: change is new
+#   branch    a branch on the remote: change is new, updated, forced (its old tip is not under its new one), or gone;
+#             commits counts the commits it moved by, or, new, those not on the default branch
+#   tag       a tag the fetch brought: change is new, or moved where it names another commit
+#   tracking  a local branch whose upstream on the remote is ahead of it: change is behind, and ahead and behind
+#             count against it; this needs no fetch, so --no-fetch shows it as the last fetch left it
+# Each has its key, the remote, its kind, and its ref or hash; ref, the branch or tag; sha and old, the short hashes of
+# its commit and of the one before, where it has them; author, age in seconds, and subject, its commit's, or a tag's
+# own; issues, the issues its branch's name starts with and its subject names, as #12; local, the local branches on it;
+# worktrees, the linked worktrees those are checked out in; and ahead and behind, a tracking row's counts. A field a row
+# has no value for is null, or an empty list. The rows stand in the order of the kinds above, each kind's in git's.
+# <diff> is flow:fetch-diff's, for a fetch that ran.
+flow:incoming-rows() {
+  local remote_json=$1 primary=$2 default=$3 state=$4 diff=${5:-} remote kind ref old new name upstream path key value
+  local base change commits url counts ahead behind desk='' sep=$'\x1f' items=$'\x1e'
+  local -A locals=() trees=()
+  remote=$(jq --raw-output '.name' <<<"${remote_json}")
+  base="refs/remotes/${remote}/${default}"
+  url=$(git remote get-url --end-of-options "${remote}" 2>/dev/null || true)
+  # The local branches on each of the remote's branches, and the linked worktree each local branch is checked out in.
+  while IFS="${sep}" read -r name upstream
+  do
+    [[ "${upstream}" == "refs/remotes/${remote}/"* ]] && locals[${upstream}]+="${name}${items}"
+  done < <(git for-each-ref --format="%(refname:short)${sep}%(upstream)" refs/heads)
+  while read -r key value
+  do
+    case "${key}" in
+      (worktree) path=${value} desk=${desk:-${value}} ;;
+      (branch) [[ "${path}" == "${desk}" ]] || trees[${value#refs/heads/}]=${path} ;;
+    esac
+  done < <(git worktree list --porcelain)
+  {
+    change=${state}
+    [[ "${state}" != fetched || -n "${diff}" ]] || change=unchanged
+    flow:row remote "${change}" "${default}" '' '' '' "$(jq --raw-output '.error // ""' <<<"${remote_json}")" '' '' '' \
+      '' '' ''
+    while IFS=' ' read -r kind ref old new
+    do
+      [[ -n "${kind}" ]] || continue
+      case "${kind}:${ref}" in
+        (moved:"${base}")
+          if git log --format="commit${sep}new${sep}${default}${sep}%h${sep}%an${sep}%ct${sep}%s${sep}${sep}${sep}${sep}${sep}${sep}" \
+            "${old}..${new}" -- 2>/dev/null
+          then
+            git merge-base --is-ancestor "${old}" "${new}" 2>/dev/null \
+              || flow:row branch forced "${default}" "$(flow:tip "${new}")" "${old:0:7}" '' "$(flow:on-branch "${base}")" '' ''
+          else
+            flow:row branch updated "${default}" "$(flow:tip "${new}")" "${old:0:7}" '' "$(flow:on-branch "${base}")" '' ''
+          fi ;;
+        (moved:"refs/remotes/${remote}/"*)
+          change=updated
+          git merge-base --is-ancestor "${old}" "${new}" 2>/dev/null || change=forced
+          commits=$(git rev-list --count "${old}..${new}" -- 2>/dev/null || true)
+          flow:row branch "${change}" "${ref#"refs/remotes/${remote}/"}" "$(flow:tip "${new}")" "${old:0:7}" "${commits}" \
+            "$(flow:on-branch "${ref}")" '' '' ;;
+        (new:"refs/remotes/${remote}/"*)
+          commits=''
+          git show-ref --verify --quiet "${base}" && commits=$(git rev-list --count "${base}..${new}" -- 2>/dev/null || true)
+          flow:row branch new "${ref#"refs/remotes/${remote}/"}" "$(flow:tip "${new}")" '' "${commits}" "$(flow:on-branch "${ref}")" '' '' ;;
+        (gone:"refs/remotes/${remote}/"*)
+          flow:row branch gone "${ref#"refs/remotes/${remote}/"}" "$(flow:tip "${old}")" "${old:0:7}" '' "$(flow:on-branch "${ref}")" \
+            '' '' ;;
+        (new:refs/tags/* | moved:refs/tags/*)
+          change=new
+          [[ "${kind}" == new ]] || change=moved
+          flow:row tag "${change}" "${ref#refs/tags/}" "$(git for-each-ref --count=1 \
+            --format="%(if)%(*objectname)%(then)%(*objectname:short)%(else)%(objectname:short)%(end)${sep}%(taggername)%(authorname)${sep}%(creatordate:unix)${sep}%(contents:subject)" \
+            "${ref}")" '' '' '' '' '' '' ;;
+      esac
+    done <<<"${diff}"
+    while IFS="${sep}" read -r name upstream
+    do
+      [[ "${upstream}" == "refs/remotes/${remote}/"* ]] || continue
+      git show-ref --verify --quiet "${upstream}" || continue
+      counts=$(git rev-list --left-right --count "refs/heads/${name}...${upstream}" -- 2>/dev/null) || continue
+      read -r ahead behind <<<"${counts}"
+      (( behind > 0 )) || continue
+      flow:row tracking behind "${upstream#"refs/remotes/${remote}/"}" "$(flow:tip "${upstream}")" '' "${behind}" \
+        "${name}" "${trees[${name}]:-}" "${ahead}" "${behind}"
+    done < <(git for-each-ref --format="%(refname:short)${sep}%(upstream)" refs/heads)
+  } | jq --raw-input --compact-output --argjson remote "${remote_json}" --arg primary "${primary}" \
+    --arg default "${default}" --arg url "${url}" --argjson now "$(date +%s)" '
+      def some: if . == "" or . == null then null else . end;
+      def count: if . == "" or . == null then null else tonumber end;
+      def list: if . == null then [] else split("\u001e") | map(select(. != "")) end;
+      split("\u001f") as $f
+      | {kind: $f[0], change: $f[1], ref: ($f[2] | some), sha: ($f[3] | some), old: ($f[7] | some),
+         commits: ($f[8] | count), author: ($f[4] | some), age: ($f[5] | count | if . == null then null else
+         ([$now - ., 0] | max) end), subject: ($f[6] | some), local: ($f[9] | list), worktrees: ($f[10] | list),
+         ahead: ($f[11] | count), behind: ($f[12] | count)}
+      | .issues = ([(.ref // "" | capture("^(?<n>[0-9]+)-").n | "#" + .)?] + [.subject // "" | scan("#[0-9]+")]
+                   | unique)
+      | {key: ([$remote.name, .kind, (if .kind == "commit" then .sha elif .kind == "remote" then null else .ref end)]
+               | map(select(. != null)) | join(" ")),
+         remote: $remote.name, primary: (if $remote.name == $primary then "primary" else null end),
+         forge: ($remote.forge | some),
+         host: ($remote.host | some), url: ($url | some), default: ($default | some)} + .' \
+    | jq --slurp --compact-output 'sort_by({remote: 0, commit: 1, branch: 2, tag: 3, tracking: 4}[.kind]) | .[]'
 }
 
 # flow:fetched-line <remote-json> prints, to stderr, a fetched remote's line: ❌ and git's line when the fetch
@@ -398,13 +529,15 @@ flow:incoming-text() {
 
 # flow:incoming [--no-fetch] [--json] is the incoming stage. It fetches every remote, the primary first, each with
 # git fetch --prune, and never rebases, merges, or pulls. It prints the fetch's blocks, as flow:incoming-text draws
-# them. With --json it prints one object instead: fetched, true; primary, its name; and remotes, one
-# flow:fetch-json object each. A remote whose fetch failed carries error, git's first line, and nothing came from it.
-# With --no-fetch it fetches nothing: fetched is false, and each remote is flow:remote-json's object. It returns 1
-# when a fetch failed, after every remote is tried.
+# them. With --json it prints one object instead: fetched, true; primary, its name; remotes, one flow:fetch-json
+# object each; and rows, every remote's flow:incoming-rows, the primary's first. A remote whose fetch failed carries
+# error, git's first line, and nothing came from it. With --no-fetch it fetches nothing: fetched is false, each remote
+# is flow:remote-json's object, and the rows are each remote's own and its tracking rows, as the last fetch left
+# them. It returns 1 when a fetch failed, after every remote is tried.
 flow:incoming() {
-  local json=false no_fetch=false failed=false arg primary primary_default remote before said doc text
-  local -a remotes=() docs=()
+  local json=false no_fetch=false failed=false arg primary primary_default='' remote before after said doc text
+  local default
+  local -a remotes=() docs=() rows=()
   for arg in "$@"
   do
     case "${arg}" in
@@ -417,33 +550,38 @@ flow:incoming() {
   [[ -z "${text}" ]] || readarray -t remotes <<<"${text}"
   for remote in "${remotes[@]}"
   do
+    [[ -n "${primary_default}" ]] || primary_default=$(git:default-branch) || return 1
+    if [[ "${remote}" == "${primary}" ]]
+    then default=${primary_default}
+    else default=$(flow:remote-default "${remote}" "${primary_default}")
+    fi
     if [[ "${no_fetch}" == true ]]
     then
       docs+=("$(flow:remote-json "${remote}")")
+      rows+=("$(flow:incoming-rows "${docs[-1]}" "${primary}" "${default}" 'not fetched')")
       continue
     fi
     before=$(flow:refs "${remote}")
     if said=$(git fetch --quiet --prune --end-of-options "${remote}" 2>&1 >/dev/null)
     then
-      if [[ "${remote}" == "${primary}" ]]
-      then
-        primary_default=$(git:default-branch) || return 1
-        docs+=("$(flow:fetch-json "${remote}" "${before}" "$(flow:refs "${remote}")" "${primary_default}")")
-      else
-        [[ -n "${primary_default:-}" ]] || primary_default=$(git:default-branch) || return 1
-        docs+=("$(flow:fetch-json "${remote}" "${before}" "$(flow:refs "${remote}")" \
-          "$(flow:remote-default "${remote}" "${primary_default}")")")
-      fi
+      # A remote's HEAD can name its default branch only after the fetch, as for a remote fetched the first time.
+      [[ "${remote}" == "${primary}" ]] || default=$(flow:remote-default "${remote}" "${primary_default}")
+      after=$(flow:refs "${remote}")
+      docs+=("$(flow:fetch-json "${remote}" "${before}" "${after}" "${default}")")
+      rows+=("$(flow:incoming-rows "${docs[-1]}" "${primary}" "${default}" fetched \
+        "$(flow:fetch-diff "${before}" "${after}")")")
     else
       failed=true
       said=$(grep --max-count=1 . <<<"${said}" || true)  # grep's exit 1: git said nothing, named below
       docs+=("$(flow:fetch-json "${remote}" '' '' '' \
         | jq --compact-output --arg error "${said:-git fetch failed}" '. + {error: $error}')")
+      rows+=("$(flow:incoming-rows "${docs[-1]}" "${primary}" "${default}" failed)")
     fi
   done
   doc=$(printf '%s\n' "${docs[@]}" | jq --slurp --compact-output --argjson fetched "$([[ "${no_fetch}" == true ]] \
     && printf false || printf true)" --arg primary "${primary}" \
-    '{fetched: $fetched, primary: $primary, remotes: .}')
+    --argjson rows "$(printf '%s\n' "${rows[@]}" | jq --slurp --compact-output '.')" \
+    '{fetched: $fetched, primary: $primary, remotes: ., rows: $rows}')
   if [[ "${json}" == true ]]
   then
     printf '%s\n' "${doc}"

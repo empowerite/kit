@@ -4,6 +4,7 @@ package flow
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -829,7 +830,7 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 		t.Errorf("the repository is not in its own color: %q", lines(m)[0])
 	}
 	// the bar comes right under the title
-	if !strings.Contains(lines(m)[1], "➊") || !shows(m, Fetched, "6") {
+	if !strings.Contains(lines(m)[1], "➊") || !shows(m, Fetched, "7") {
 		t.Errorf("the bar: %q", lines(m)[2])
 	}
 	// while incoming loads, its tab says so
@@ -844,14 +845,11 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 	if first := lines(m)[0]; first != "  "+shell.App+" kit flow · "+shell.Workspaces {
 		t.Errorf("the title with --no-fetch: %q", first)
 	}
-	// without the fetch, each remote's heading says not fetched, and its tab has no count
-	pane := lines(m)[4:10]
-	for i, want := range []string{Remote + " origin · github · github.com", "not fetched",
-		Remote + " upstream · gitlab · git.example.org", "not fetched", Remote + " backup · no forge · nas.local",
-		"not fetched"} {
-		if strings.TrimSpace(pane[i]) != want {
-			t.Errorf("the incoming pane with --no-fetch, line %d is not %q:\n%s", i, want, view(m))
-		}
+	// without the fetch, each remote's row says not fetched, the local branch behind stands as the last fetch left it,
+	// and the tab has no count
+	pane := view(m)
+	if strings.Count(pane, "main  not fetched") != 3 || !strings.Contains(pane, Behind+"    origin    main  behind") {
+		t.Errorf("the incoming pane with --no-fetch:\n%s", pane)
 	}
 	if shows(m, Fetched, "0") || !shows(m, Fetched, "") {
 		t.Errorf("the incoming label with --no-fetch: %q", lines(m)[2])
@@ -860,7 +858,7 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 		t.Errorf("not fetched is not dim")
 	}
 	// with no remote at all, the pane says why it is empty
-	m.find("incoming").ins[0].Remotes = nil
+	m.find("incoming").ins[0].Remotes, m.find("incoming").ins[0].Rows = nil, nil
 	m.rebuild()
 	if !strings.Contains(view(m), "   not fetched: kit flow --no-fetch skips the fetch") {
 		t.Errorf("no remote with --no-fetch:\n%s", view(m))
@@ -871,70 +869,88 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 	}
 }
 
-func TestIncomingGroupsItsRowsByRemoteThePrimaryFirst(t *testing.T) {
+func TestIncomingIsATableOfEverythingIncoming(t *testing.T) {
 	m := loaded(t, options(), tab, tab, tab, tab, tab, tab)
+	// a row a thing incoming, kit's order, the primary's first: each remote itself, each commit, branch, and tag, and
+	// each local branch behind its upstream
 	want := []string{
-		Remote + " origin · github · github.com",
-		"a1b2c3d  #1 docs: the docs say what the code does",
-		"e4f5a6b  #1 yaml: yq reads every YAML file",
-		Branch + "       46-a-noun-lists updated",
-		Branch + "       42-settings new branch",
-		Remote + " upstream · gitlab · git.example.org",
-		Gone + "       old-experiment upstream gone",
-		Tag + "       release/0.2.0 new tag",
-		Remote + " backup · no forge · nas.local",
-		"unchanged",
+		Remote + "    origin    main             fetched",
+		Commit + "    origin    main             new        60m                   #1 docs:",
+		Commit + "    origin    main             new         2h                   #1 yaml:",
+		Branch + "    origin    42-settings      new        30m                   #42 settings:",
+		Branch + "    origin    46-a-noun-lists  updated    10m  46-a-noun-lists  #46 lists:",
+		Behind + "    origin    main             behind     60m  main             #1 docs:",
+		Remote + "    upstream  main             fetched",
+		Branch + "    upstream  old-experiment   " + Gone + " gone    10d                   an experiment",
+		Tag + "    upstream  release/0.2.0    new        24h                   release 0.2.0",
+		Remote + "    backup    main             unchanged",
 	}
-	// under the control line, the heading over the groups and its blank line
-	rows := lines(m)[6 : 6+len(want)+1]
+	at := slices.IndexFunc(lines(m), func(l string) bool { return strings.HasPrefix(strings.TrimSpace(l), Remote) })
+	if at < 0 {
+		t.Fatalf("no remote's row:\n%s", view(m))
+	}
 	for i, text := range want {
-		if !strings.HasPrefix(strings.TrimSpace(rows[i]), text) {
-			t.Errorf("row %d is not %q: %q", i, text, rows[i])
+		// a row that has more to show opens, and says so with its fold
+		if got := strings.TrimPrefix(strings.TrimSpace(lines(m)[at+i]), "▸ "); !strings.HasPrefix(got, text) {
+			t.Errorf("row %d is not %q: %q", i, text, got)
 		}
 	}
-	if strings.TrimSpace(rows[len(want)]) != "" {
-		t.Errorf("a row past the last remote: %q", rows[len(want)])
+	// the count leaves out the remotes' own rows: seven things came in
+	if !shows(m, Fetched, "7") || m.count(6) != "7" {
+		t.Errorf("incoming does not count what came in alone: %q", lines(m)[2])
 	}
-	// the headings and unchanged are dim, and neither counts: six rows across the three remotes
-	for _, text := range []string{Remote + " upstream · gitlab · git.example.org", "unchanged"} {
-		if !strings.Contains(m.View().Content, style.Off(text)) {
-			t.Errorf("%q is not dim", text)
-		}
-	}
-	if !shows(m, Fetched, "6") || m.count(6) != "6" {
-		t.Errorf("incoming does not count its rows alone: %q", lines(m)[2])
-	}
-	// every row is a leaf, the headings too
-	m = drive(m, down, toggle, down, toggle)
-	if len(m.find("incoming").Open) != 0 {
-		t.Errorf("an incoming row opened: %v", m.find("incoming").Open)
-	}
-	// a remote whose fetch failed shows git's line, in red, and is no row of the count
-	m.find("incoming").ins[0].Remotes[0].Error = "fatal: could not read from remote repository"
-	m.find("incoming").ins[0].Remotes[0].Branches.Gone, m.find("incoming").ins[0].Remotes[0].Tags = nil, nil
-	m.rebuild()
-	failed := Failed + " fatal: could not read from remote repository"
-	if v := view(m); !strings.Contains(v, Remote+" upstream · gitlab · git.example.org\n    "+failed+"\n") ||
-		!strings.Contains(m.View().Content, style.Refusal(failed)) || m.count(6) != "4" {
+	// a remote whose fetch failed says so in its row, with git's line
+	setRows(t, &m, remoteRow("upstream", "remote", "failed", "fatal: could not read from remote repository"))
+	if v := view(m); !strings.Contains(v, Failed+" failed") || !strings.Contains(v, "fatal: could not read from") ||
+		m.count(6) != "0" {
 		t.Errorf("a failed fetch: count %s\n%s", m.count(6), v)
 	}
-	m.find("incoming").ins[0].Remotes[0].Error = ""
-	m.rebuild()
 	// with every remote unchanged, each says so and the count is zero
-	for i := range m.find("incoming").ins[0].Remotes {
-		r := &m.find("incoming").ins[0].Remotes[i]
-		r.Commits, r.Branches.New, r.Branches.Updated, r.Branches.Gone, r.Tags = nil, nil, nil, nil, nil
-	}
-	m.rebuild()
+	setRows(t, &m, remoteRow("origin", "remote", "unchanged", ""), remoteRow("upstream", "remote", "unchanged", ""),
+		remoteRow("backup", "remote", "unchanged", ""))
 	if v := view(m); strings.Count(v, "unchanged") != 3 || m.count(6) != "0" {
 		t.Errorf("three remotes unchanged: count %s\n%s", m.count(6), v)
 	}
+	// a row's key the catalog does not name stands under more, which Everything a click away shows
+	if got := m.records(*m.find("incoming")); len(got) != 3 || got[0].values["more"].Raw != nil {
+		t.Errorf("unchanged rows say more: %+v", got)
+	}
+	setRows(t, &m, map[string]any{"key": "origin x", "remote": "origin", "kind": "commit", "signed": true,
+		"note": map[string]any{"by": "ci"}, "empty": []any{}})
+	if got := m.records(*m.find("incoming"))[0].values["more"].Raw; !slices.Equal(got,
+		[]string{`note: {"by":"ci"}`, "signed: true"}) {
+		t.Errorf("more: %q", got)
+	}
 	// with no remote at all, the pane says so
-	m.find("incoming").ins[0].Remotes = nil
+	m.find("incoming").ins[0].Remotes, m.find("incoming").ins[0].Rows = nil, nil
 	m.rebuild()
 	if !strings.Contains(view(m), "   no remote to fetch") {
 		t.Errorf("no remote:\n%s", view(m))
 	}
+}
+
+// remoteRow gives a row of incoming's: a remote's, of a kind and a change, its subject, as kit prints one.
+func remoteRow(remote, kind, change, subject string) map[string]any {
+	r := map[string]any{"key": remote + " " + kind, "remote": remote, "kind": kind, "change": change, "ref": "main"}
+	if subject != "" {
+		r["subject"] = subject
+	}
+	return r
+}
+
+// setRows puts the rows in incoming's place, as kit prints them, and draws them.
+func setRows(t *testing.T, m *Model, rows ...map[string]any) {
+	t.Helper()
+	in := &m.find("incoming").ins[0]
+	in.Rows = nil
+	for _, r := range rows {
+		data, err := json.Marshal(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		in.Rows = append(in.Rows, data)
+	}
+	m.rebuild()
 }
 
 func TestTheGoneBranchesAreOneRowThatOpensToEach(t *testing.T) {
@@ -1331,7 +1347,7 @@ func TestTheBarScrollsToTheSelectedStage(t *testing.T) {
 	}{{120, " " + tabs.Before}, {80, "  "}} {
 		m = drive(m, tea.WindowSizeMsg{Width: c.width, Height: 24})
 		bar := lines(m)[2]
-		if !strings.Contains(squeeze(bar), "│ "+Fetched+" incoming 6 "+tabs.Menu+" │") || !strings.HasPrefix(bar, c.before) ||
+		if !strings.Contains(squeeze(bar), "│ "+Fetched+" incoming 7 "+tabs.Menu+" │") || !strings.HasPrefix(bar, c.before) ||
 			strings.Contains(bar, "…") {
 			t.Errorf("at %d, the bar does not scroll to incoming whole: %q", c.width, bar)
 		}

@@ -109,9 +109,19 @@
 # tracker the issue is: on GitHub, the repository's owner and name; on GitLab, its group, subgroups and all, and the
 # project. Each is null where the tracker has none.
 #
-# incoming's JSON is {fetched, primary, remotes}. Each remote is {name, forge, host, default, commits, branches, tags}:
-# forge and host are null when it has none; branches is {new, updated, gone}. A remote whose fetch failed adds error,
-# git's line, and the stage exits 1. With --no-fetch, fetched is false and each remote is {name, forge, host}.
+# incoming's JSON is {fetched, primary, remotes, rows}. Each remote is {name, forge, host, default, commits, branches,
+# tags}: forge and host are null when it has none; branches is {new, updated, gone}. A remote whose fetch failed adds
+# error, git's line, and the stage exits 1. With --no-fetch, fetched is false and each remote is {name, forge, host}.
+# rows is everything incoming, flat, one row a thing, every remote's, the primary's first, each {key, remote, primary,
+# forge, host, url, default, kind, change, ref, sha, old, commits, author, age, subject, local, worktrees, ahead,
+# behind, issues}, null or an empty list where a row has no value. kind is remote, once a remote, its change fetched,
+# unchanged, not fetched, or failed, and its subject git's line when it failed; commit, a commit new on the default
+# branch; branch, one new, updated, forced, or gone, and commits how far it moved, or, new, how many are not on the
+# default branch; tag, one new or moved; or tracking, a local branch its upstream is ahead of, change behind, with
+# ahead and behind. issues are the issues a branch's name starts with and a subject names, as #12; local the local
+# branches on a branch, and worktrees the linked worktrees they are checked out in. A row may carry keys this list does
+# not name; kittui shows them under more. With --no-fetch, each remote's row says not fetched, and the tracking rows
+# stand as the last fetch left them.
 #
 # builds lists the 20 newest runs not owned by any pull request: pushes to the default branch or a tag, and scheduled or
 # manual runs. A run's JSON is {id, number, attempt, workflow, branch, tag, event, sha, title, state, age, took, url,
@@ -220,9 +230,17 @@
 #
 #   🛬  the fetch: what it brought from the remotes
 #   📡  a remote: its name, its forge or no forge, and its host
+#   🔘  a commit: its short hash
 #   🌿  a branch or a worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
 #   🔖  a branch gone: its upstream is gone; kit tidy removes it
 #   📌  a tag: a name on a commit; under incoming, one the fetch brought
+#   📥  behind its upstream: a local branch whose upstream on the remote is ahead of it; pulling or kit rebase brings
+#       it in
+#   🎫  an issue: its number and title
+#   🌳  a worktree: a checkout of the repository, the desk or a linked one
+#   ⚓  the default branch: the one the remote's HEAD names
+#   🐙  on GitHub: the forge of a remote, or the tracker that holds an issue
+#   🦊  on GitLab: the forge of a remote, or the tracker that holds an issue
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # releases:

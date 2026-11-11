@@ -100,8 +100,10 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
   the branch started for it on the primary remote
 - `underway`: the open issues closed by an open pull request, one row per issue and pull request: the assignees, the
   pull request and its state, and where the work is, here or on the author's desk
-- `incoming`: what fetching every remote brought, the primary first: commits on each default branch, branches new
-  and gone, and new tags. It never rebases, merges, or pulls.
+- `incoming`: what fetching every remote brought, the primary first: commits on each default branch, branches new,
+  updated, force-pushed, and gone, new tags, and each local branch now behind its upstream. It never rebases, merges,
+  or pulls. Its JSON holds every one as a flat row, which kittui draws as a table that sorts, groups, filters, and
+  keeps presets, as every stage does.
 - `desk`: the root checkout, wherever kit runs in the repository, with its commits and its uncommitted paths
 - `worktrees`: every linked worktree, each with its commits and its uncommitted paths
 - `changes`: every open pull request with its state, age, and checks, and under it the issues it closes

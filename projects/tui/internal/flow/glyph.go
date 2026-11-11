@@ -38,6 +38,7 @@ const (
 	Remote    = "📡" // a remote
 	Gone      = "🔖" // a branch gone
 	Tag       = "📌" // a tag
+	Behind    = "📥" // behind its upstream
 	Detached  = "❗" // not on any branch
 	Threads   = "💬" // threads unresolved
 	Running   = "🏃" // running
@@ -114,9 +115,16 @@ var legends = map[string][]entry{
 	"incoming": {
 		{Fetched, "the fetch"},
 		{Remote, "a remote"},
+		{Commit, "a commit"},
 		{Branch, "a branch or a worktree"},
 		{Gone, "a branch gone"},
 		{Tag, "a tag"},
+		{Behind, "behind its upstream"},
+		{Issue, "an issue"},
+		{Worktree, "a worktree"},
+		{Default, "the default branch"},
+		{GitHub, "on GitHub"},
+		{GitLab, "on GitLab"},
 		{Failed, "failed"},
 	},
 	"releases": {

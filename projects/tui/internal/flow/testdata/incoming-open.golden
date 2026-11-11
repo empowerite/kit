@@ -1,21 +1,21 @@
   = kit flow · - empowerite/kit                                      🔎 /search
-  ╮➄╶────────────────╮➅╶───────────────╴➐╶─────────────────╮➇╶─────────────────╮
-  │  🔀 changes  3   │  🏭 builds  4    │ 🛬 incoming  6 : │  📦 releases  3   │
-  ╰──────────────────╰──────────────────╯                  ╰───────────────────╵
-  ▾ 6                                                                          
+  ➄╶────────────────╮➅╶───────────────╴➐╶──────────────────╮➇╶─────────────────╮
+    🔀 changes  3   │  🏭 builds  4    │ 🛬 incoming  7  : │  📦 releases  3   │
+  ──────────────────╰──────────────────╯                   ╰───────────────────╵
+  ▾ 10                                                              Default ▼
 
-    📡 origin · github · github.com                                            
-    a1b2c3d  #1 docs: the docs say what the code does
-  ▸ e4f5a6b  #1 yaml: yq reads every YAML file, cached under XDG_CACHE_HOME, a…
-    🌿       46-a-noun-lists updated
-    🌿       42-settings new branch
-    📡 upstream · gitlab · git.example.org
-    🔖       old-experiment upstream gone
-    📌       release/0.2.0 new tag
-    📡 backup · no forge · nas.local
-    unchanged
-
-
+    kind  remote    ref              change     age  local         subject
+    ·─────·─────────·────────────────·──────────·────⇊─────────────·───────────
+    📡    origin    main             fetched                                   
+  ▸ 🔘    origin    main             new        60m                #1 docs: th…
+  ▸ 🔘    origin    main             new         2h                #1 yaml: yq…
+  ▸ 🌿    origin    42-settings      new        30m                #42 setting…
+  ▸ 🌿    origin    46-a-noun-lists  updated    10m  46-a-noun-l…  #46 lists: …
+  ▸ 📥    origin    main             behind     60m  main          #1 docs: th…
+    📡    upstream  main             fetched
+  ▸ 🌿    upstream  old-experiment   🔖 gone    10d                an experime…
+  ▸ 📌    upstream  release/0.2.0    new        24h                release 0.2…
+    📡    backup    main             unchanged
 
 
 

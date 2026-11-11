@@ -37,7 +37,7 @@ see: [forges.md](forges.md), [../workspaces.md](../workspaces.md), `kit/modules/
 | Add a worktree for a branch | write | `issue:worktree`: `kit work` |
 | Remove a finished worktree, and prune git's records | write | `git:tidy-worktree`, `git:tidy`: `kit tidy` |
 | The default branch | read | `git:default-branch`, the primary's HEAD, else `main`: `kit commit`, `kit rebase`, `kit tidy`, `kit work`, `kit release`, `kit facts`, `kit policy`, `kit flow`, `kit workspace`; `flow:remote-default`: the incoming stage; `workspace:remote-facts`: the remotes stage of `kit workspace`; `policy:base` says why one is missing |
-| Local and remote branches, with their upstreams | read | `workspace:branches`: the branches stage of `kit workspace`; `underway:branches`: the underway stage; `backlog:collect`: the backlog stage; `across:branches`; `git:gone-branches`: `kit tidy`, the worktrees stage |
+| Local and remote branches, with their upstreams | read | `flow:incoming-rows`: the incoming stage, the local branches on each remote branch; `workspace:branches`: the branches stage of `kit workspace`; `underway:branches`: the underway stage; `backlog:collect`: the backlog stage; `across:branches`; `git:gone-branches`: `kit tidy`, the worktrees stage |
 | A ref names a commit | read | `commit:submit`, `commit:index`, `commit:named`, `commit:moved`: `kit commit`, `kit submit`; `git:rebase`, `git:unpushed`; `issue:worktree`; `releases:release`; `policy:base`, `facts:document`; `workspace:base`; `flow:remote-default`, `flow:checkout` |
 | A branch name is valid | read | `policy:target-here`: `kit policy` on a GitLab merge request |
 | A branch's upstream | read | `git:pushes-to`: `kit submit`, `kit work`, `kit rebase` |
@@ -47,14 +47,14 @@ see: [forges.md](forges.md), [../workspaces.md](../workspaces.md), `kit/modules/
 | What a remote has, without fetching | read | `releases:on-origin`, `releases:release`: `kit release`; `issue:branch`: `kit work`; `marks:incoming`: the incoming mark |
 | Fetch a remote | write | `git:tidy`: `kit tidy`, every remote; `git:rebase`: `kit rebase`; `issue:start`, `issue:branch`: `kit work`; `releases:release`: `kit release`; `policy:target-here`: `kit policy`; `flow:incoming`: the incoming stage; `flow:picture`: `kit flow`, before the desk and worktrees stages |
 | Push a branch or a tag | write | `git:push`: `kit submit`, `kit work`, and `kit rebase`, which forces with a lease; `issue:branch`: `kit work` makes the branch on origin; `releases:release`: `kit release` |
-| Ahead and behind the default branch | read | `flow:fork`, `flow:checkout`: the desk and worktrees stages; `workspace:worktrees`: `kit workspace` |
+| Ahead and behind the default branch | read | `flow:incoming-rows`: the incoming stage, a local branch against its upstream; `flow:fork`, `flow:checkout`: the desk and worktrees stages; `workspace:worktrees`: `kit workspace` |
 | Commits no remote has | read | `git:unpushed`: `kit tidy`; `commit:submit`: `kit submit`; `releases:release`: `kit release`; `issue:start-commit`: `kit work`; `workspace:commits`: `kit workspace` |
-| Ancestry | read | `git:tidy-worktree`: `kit tidy`; `git:rebase`: `kit rebase`; `releases:release`: `kit release`; `facts:document`: `kit facts`, `kit policy` |
-| Commits and their subjects | read | `facts:document`: `kit facts`, `kit policy`; `flow:fetch-json`: the incoming stage; `flow:checkout`: the desk and worktrees stages; `workspace:commits`: the commits stage of `kit workspace`; `commit:behind`, `commit:moved`, `commit:commit`: `kit commit`; `releases:release`; `issue:sweep-push` |
+| Ancestry | read | `flow:incoming-rows`: the incoming stage, a branch force-pushed; `git:tidy-worktree`: `kit tidy`; `git:rebase`: `kit rebase`; `releases:release`: `kit release`; `facts:document`: `kit facts`, `kit policy` |
+| Commits and their subjects | read | `facts:document`: `kit facts`, `kit policy`; `flow:fetch-json`: the incoming stage; `flow:incoming-rows`, `flow:tip`: the incoming stage's rows, each commit's author and age too; `flow:checkout`: the desk and worktrees stages; `workspace:commits`: the commits stage of `kit workspace`; `commit:behind`, `commit:moved`, `commit:commit`: `kit commit`; `releases:release`; `issue:sweep-push` |
 | The lines a checkout changes | read | `flow:checkout`: the desk and worktrees stages |
 | Make a commit | write | `git:commit`: `kit commit`, `kit submit`, and `kit work`'s empty start commit |
 | Rebase onto the default branch | write | `git:rebase`: `kit rebase` |
-| The tags | read | `forge:tags`: each provider's runs, for the builds stage; `workspace:tags`: the tags stage of `kit workspace`; `flow:refs`: the incoming stage; `workspace:marks` |
+| The tags | read | `forge:tags`: each provider's runs, for the builds stage; `workspace:tags`: the tags stage of `kit workspace`; `flow:refs`: the incoming stage; `flow:incoming-rows`: the incoming stage's rows, a tag's commit, tagger, and subject; `workspace:marks` |
 | Tag a release and push it | write | `releases:release`: `kit release` |
 | The staged paths | read | `kit lint` with no paths; `commit:checks`, `commit:commit`, `commit:submit`: `kit commit`, `kit submit` |
 | The tracked paths | read | `kit lint --all`; `generate:discover`: `kit generate`; `syntax:tracked`: the paths `kit context`, `kit lint`, and `kit generate` complete; `context:named`: `kit context`; `materialize:all`: `kit install`, `kit update`, `kit check`; `commit:named`, `commit:index`: `kit commit` |

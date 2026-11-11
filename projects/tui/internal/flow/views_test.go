@@ -88,10 +88,10 @@ func TestThePresetLineStandsOnTheControlLineAndNamesTheView(t *testing.T) {
 	if strings.Contains(keys, "save") || strings.Contains(keys, "rename") {
 		t.Errorf("the line names a save or a rename before Save As…: %q", keys)
 	}
-	// a stage with no columns has no preset line, and down on the bar says it reaches the heading over its rows
+	// incoming has its preset line too, as every stage with columns does
 	m = drive(m, esc, press('7'))
-	if m.stages[m.stage].name != "incoming" || m.presets(m.stage) || !strings.Contains(keysOf(m), "↓ groups") {
-		t.Errorf("%s has a preset line: %q", m.stages[m.stage].name, keysOf(m))
+	if m.stages[m.stage].name != "incoming" || !m.presets(m.stage) {
+		t.Errorf("%s has no preset line: %q", m.stages[m.stage].name, keysOf(m))
 	}
 }
 
@@ -538,11 +538,12 @@ func TestViewsJSONBecomesPresetsJSONOnce(t *testing.T) {
 	}
 }
 
-// A stage without columns has Default alone, and a view the line was set to that is gone gives way to Default.
-func TestAStageWithoutColumnsHasDefaultAloneAndAViewGoneGivesWayToIt(t *testing.T) {
+// Incoming has its catalog's presets, Default and Compact, as every stage, and a view the line was set to that is gone
+// gives way to Default.
+func TestIncomingHasItsPresetsAndAViewGoneGivesWayToDefault(t *testing.T) {
 	m := loaded(t, options())
 	incoming := slices.Index(eight, "incoming")
-	if vs := m.builtins(incoming); len(vs) != 1 || vs[0].Name != Opening {
+	if vs := m.builtins(incoming); len(vs) != 2 || vs[0].Name != Opening || vs[1].Name != "Compact" {
 		t.Errorf("incoming's views: %+v", vs)
 	}
 	m.stages[0].ViewName = "Gone"

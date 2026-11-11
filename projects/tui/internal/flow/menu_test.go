@@ -135,10 +135,11 @@ func TestEqualsDropsTheAppsMenuDownToRefreshAnotherScreenOrQuit(t *testing.T) {
 	}
 }
 
-// On incoming, where no row hides anything, the keyboard starts on maximize, as everywhere, and expand all and collapse
-// all, dim, are never under it.
+// On incoming with its remotes' rows alone, where no row hides anything, the keyboard starts on maximize, as
+// everywhere, and expand all and collapse all, dim, are never under it.
 func TestTheMenuOfAStageWithNothingToOpenHasRefreshAlone(t *testing.T) {
 	m := loaded(t, options(), slices.Repeat([]tea.Msg{tab}, 6)...)
+	setRows(t, &m, remoteRow("origin", "remote", "unchanged", ""), remoteRow("upstream", "remote", "unchanged", ""))
 	if m = drive(m, press(':'), down, up, typed("e")[0]); !m.tabMenu.Open || m.tabMenu.At != 0 || m.enabled(4) || m.enabled(5) {
 		t.Errorf("on %s the keyboard is on %d:\n%s", m.stages[m.stage].name, m.tabMenu.At, view(m))
 	}
@@ -317,9 +318,10 @@ func TestTheHeaderStandsTheColumnsNamesOverTheRows(t *testing.T) {
 	if strings.Contains(lines(m)[m.headerTop()], "uncommitted") {
 		t.Errorf("a hidden column's name:\n%s", view(m))
 	}
+	// incoming is a table as every stage is, its header over its rows
 	m = loaded(t, options(), slices.Repeat([]tea.Msg{tab}, 6)...)
-	if m.stages[m.stage].name != "incoming" || m.headerTop() != -1 {
-		t.Errorf("%s has a header:\n%s", m.stages[m.stage].name, view(m))
+	if m.stages[m.stage].name != "incoming" || m.headerTop() < 0 || !strings.Contains(lines(m)[m.headerTop()], "change") {
+		t.Errorf("%s has no header:\n%s", m.stages[m.stage].name, view(m))
 	}
 }
 

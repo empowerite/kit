@@ -225,7 +225,10 @@ fake-tui() {
   [ "${lines[1]}" = "🛬 unchanged" ]
   run "${kit_root}/bin/kit" flow incoming --no-fetch --json
   [ "$status" -eq 0 ]
-  [ "$output" = '{"fetched":false,"primary":"origin","remotes":[{"name":"origin","forge":null,"host":null}]}' ]
+  [ "$(jq -c 'del(.rows)' <<<"$output")" = '{"fetched":false,"primary":"origin","remotes":[{"name":"origin","forge":null,"host":null}]}' ]
+  # the remote's own row, and the desk's main, behind what the fetch above brought
+  [ "$(jq -c '[.rows[] | [.key, .kind, .change, .behind]]' <<<"$output")" \
+    = '[["origin remote","remote","not fetched",null],["origin tracking main","tracking","behind",2]]' ]
   run "${kit_root}/bin/kit" flow incoming --no-fetch
   [ "$output" = "📡 origin · no forge · ${work}/origin.git"$'\n'"🛬 not fetched" ]
 }
@@ -292,7 +295,7 @@ fake-tui() {
   [ "$(jq -c .worktrees <<<"$output")" = "$("${kit_root}/bin/kit" flow worktrees --json)" ]
   run "${kit_root}/bin/kit" flow --no-fetch --json
   [ "$status" -eq 0 ]
-  [ "$(jq -c '.incoming' <<<"$output")" = '{"fetched":false,"primary":"origin","remotes":[{"name":"origin","forge":null,"host":null}]}' ]
+  [ "$(jq -c '.incoming | del(.rows)' <<<"$output")" = '{"fetched":false,"primary":"origin","remotes":[{"name":"origin","forge":null,"host":null}]}' ]
   run "${kit_root}/bin/kit" flow --jq
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "{" ]
@@ -451,7 +454,7 @@ fake-tui() {
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == *"no origin: nothing fetched, no pull request shown" ]]
   [ "$(jq -c '[.backlog, .incoming, .changes, .builds, .releases, .desk.branch, .worktrees.worktrees]' \
-    <<<"${lines[1]}")" = '[null,{"fetched":false,"primary":"origin","remotes":[]},null,null,null,"main",[]]' ]
+    <<<"${lines[1]}")" = '[null,{"fetched":false,"primary":"origin","remotes":[],"rows":[]},null,null,null,"main",[]]' ]
   run "${kit_root}/bin/kit" flow changes
   [ "$status" -eq 1 ]
   [[ "$output" == *"does not have a remote named origin"* ]]
