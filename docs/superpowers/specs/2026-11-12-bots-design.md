@@ -130,7 +130,7 @@ bots:
     host: github.com
     app: 4906610              # the App ID
     owner: empowerite         # the account that registered the App
-    key: keychain             # where the key is: keychain or secret-service
+    jobs: [work, review]      # what it is set up to do
 ```
 
 A repository may name its bot in `kit.yml`, as `bot: empowerite-jig`, so every desk and every CI run knows the login
@@ -149,13 +149,16 @@ jobs its permissions allow. Its forms:
 
 | Form | Does |
 | --- | --- |
-| `kit bots --new=<name> [--owner=<account>] [--jobs=<job>:…] [--repos=<repository>:… \| --repos=all]` | registers and installs an App, stores its key, and proves it |
-| `kit bots --add=<name> --key=<file> \| --key=keychain:<service>/<account>` | adopts an App that exists, from its key |
-| `kit bots --check[=<name>]` | compares the App's permissions with its jobs, and its repositories with the current one |
+| `kit bots --new=<name> [--owner=<account>] [--jobs=<job>…] [--repos=<repository>…]` | registers and installs an App, stores its key, and proves it |
+| `kit bots --add=<name> --app=<id> --key=<source> [--jobs=<job>…]` | adopts an App that exists, from its key: a PEM file, or `keychain:<service>/<account>` |
+| `kit bots --check [--bot=<name>]` | compares the App's permissions with its jobs, and its repositories with the current one |
 | `kit bots --repos=<name>` | opens the installation's page to change which repositories it reaches, and waits |
-| `kit bots --token[=<name>]` | prints an installation token for the current repository, for a pipe |
-| `kit bots --run[=<name>] -- <command>…` | runs a command as the bot |
+| `kit bots [--bot=<name>] token` | prints an installation token for the current repository, for a pipe |
+| `kit bots [--bot=<name>] run <command>…` | runs a command as the bot |
 | `kit bots --remove=<name>` | forgets a bot and deletes its key from the store; the App stays on the forge |
+
+A list option repeats or joins its values with `:`, `--jobs=work:review`. Without `--bot`, the bot is the one
+`kit.yml` names, else the only one on the primary remote's host.
 
 Every form prints the key never. `--add` proves the key before it stores anything, as the infrastructure script
 does: it mints a JWT (a JSON Web Token signed with the key), reads the App, finds an installation, mints an
@@ -195,7 +198,7 @@ instead, as jig chose.
 
 ### Acting as the bot
 
-`kit bots --run -- <command>` runs the command with:
+`kit bots run <command>…` runs the command with:
 
 - `GH_TOKEN` set to a fresh installation token, and a `gh` on `PATH` that mints a new one when the old is within ten
   minutes of its hour, so a session that runs all afternoon keeps working. Tokens live only in a directory of the
@@ -286,7 +289,7 @@ and Bot's Court.
 
 On the desk, `kit bots --watch[=<name>] [--every=<seconds>] [--max=<sessions>]` polls through Flow's snapshot, 60
 seconds by default. For each issue newly in the bot's queue, and each change newly marked for its review, it claims
-the work and starts the command `kit.yml` names, else the bots file, under `kit bots --run`, in the worktree:
+the work and starts the command `kit.yml` names, else the bots file, under `kit bots run`, in the worktree:
 
 ```yaml
 bots:
@@ -309,7 +312,7 @@ same claim and the same command.
 
 ## The order of the work
 
-1. `kit bots`: the bots file, `--add` from a key file or a keychain item, the secret stores, `--token`, `--run` with
+1. `kit bots`: the bots file, `--add` from a key file or a keychain item, the secret stores, `token`, `run` with
    the refreshing `gh`, `--check`, `--remove`, `forge:me` and `forge:principal` under `KIT_BOT`, the commit trailer,
    and the Welcome check. Proved against `empowerite-jig`.
 2. `kit bots --new`: the manifest helper in kittui, the install, and `--repos`.
