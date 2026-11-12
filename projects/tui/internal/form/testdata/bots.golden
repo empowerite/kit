@@ -10,7 +10,7 @@
    --remove             forgets a bot and deletes its key
    --check              compares the App's permissions with its jobs and its installation with this
                         repository
-   --bot token
+   --bot token --json
    --bot run <command>
 
 

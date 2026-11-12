@@ -6,7 +6,7 @@
     "kit bots --add=<name> --app=<id> --key=<source> [--jobs=<job>…]",
     "kit bots --remove=<name>",
     "kit bots --check [--bot=<name>] [--text | --json | --jq]",
-    "kit bots [--bot=<name>] token",
+    "kit bots [--bot=<name>] token [--json]",
     "kit bots [--bot=<name>] run <command>…"
   ],
   "syntax": [
@@ -153,6 +153,20 @@
         "kind": "literal",
         "name": "token",
         "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
       }
     ],
     [
@@ -188,7 +202,7 @@
       "description": "prints the bots as text, even on a terminal"
     },
     "--json": {
-      "description": "one JSON object, as above"
+      "description": "one JSON object, as above; for token, {token, expires_at}"
     },
     "--jq": {
       "description": "the same JSON, formatted by jq for a person"
