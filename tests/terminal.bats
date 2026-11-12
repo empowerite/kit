@@ -461,6 +461,31 @@ esac' wslpath 'printf "%s\n" "${WIN_LOCAL}"'
     '["Windows PowerShell",null,true,"graphemes"]' ]
 }
 
+@test "the JSONC reader takes out a comma that only comments and blank lines keep from its closing brace" {
+  run kit-bash 'use terminal/wt; printf "{\"a\": [1, 2, /* two */\n\n],  // a\n  // b\n\n}\n" | terminal/wt:jsonc | jq -c .'
+  [ "$status" -eq 0 ]
+  [ "$output" = '{"a":[1,2]}' ]
+}
+
+@test "the JSONC reader reads a settings.json of half a megabyte in well under its second" {
+  local big="${BATS_TEST_TMPDIR}/big.jsonc"
+  {
+    printf '{"list": [\n'
+    for (( i = 0; i < 5000; i++ ))
+    do
+      printf '  {"guid": "{%08d-0000-0000-0000-000000000000}", "name": "a // profile, not a comment", }, // %d\n' \
+        "${i}" "${i}"
+    done
+    printf '],\n}\n'
+  } > "${big}"
+  (( $(wc -c < "${big}") > 500000 ))
+  run kit-bash "use terminal/wt; start=\${EPOCHREALTIME/./}; terminal/wt:jsonc < '${big}' | jq '.list | length';
+    printf '%d\n' \$(( (\${EPOCHREALTIME/./} - start) / 1000 ))"
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = 5000 ]
+  (( lines[1] < 2000 ))
+}
+
 @test "the Windows console always fails, and its text measurement of 2 fails too" {
   export WSL_DISTRO_NAME=Ubuntu WIN_MEASUREMENT=0x2
   windows-fakes '{B23D10C0-E52E-411E-9D5B-C09FDF709C7D}' 22631

@@ -72,7 +72,9 @@ terminal/wt:local-app-data() {
 }
 
 # terminal/wt:jsonc reads JSONC on stdin and prints it as JSON: // and /* */ comments outside strings taken out, and
-# a comma before a closing brace or bracket.
+# a comma before a closing brace or bracket. Each line prints as it ends, so its time grows with the file's length: a
+# comma outside a string waits, with the blanks and line ends after it, until the next character that is not one says
+# whether it stays.
 terminal/wt:jsonc() {
   tr -d '\r' | awk '
     {
@@ -92,15 +94,24 @@ terminal/wt:jsonc() {
           else if (c == "\"") string = 0
           continue
         }
-        if (c == "\"") { string = 1; out = out c; continue }
         if (substr($0, i, 2) == "//") break
         if (substr($0, i, 2) == "/*") { block = 1; i++; continue }
-        if (c == "}" || c == "]") sub(/,[ \t\n]*$/, "", out)
+        if (comma != "")
+        {
+          if (c == " " || c == "\t") { comma = comma c; continue }
+          out = out (c == "}" || c == "]" ? substr(comma, 2) : comma)
+          comma = ""
+        }
+        if (c == ",") { comma = c; continue }
+        if (c == "\"") string = 1
         out = out c
       }
-      out = out "\n"
+      printf "%s", out
+      out = ""
+      if (comma != "") comma = comma "\n"
+      else printf "\n"
     }
-    END { printf "%s", out }'
+    END { printf "%s", comma }'
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
