@@ -10,7 +10,7 @@
 #
 # see: docs/packages.md
 
-use release place settings file
+use release place settings file trust
 
 # manifest:path <base> prints the base's manifest: .kit/manifest in the repository, ~/.kit/manifest for home.
 manifest:path() { release:dest "$1" .kit/manifest; }
@@ -25,6 +25,12 @@ manifest:write() {
   local -a paths
   shift 2
   manifest=$(manifest:path "${base}")
+  if [[ "${base}" == repo && -L "${manifest%/*}" ]]
+  then
+    error "${manifest%/*} is a link, which kit neither writes nor removes through; make it a directory, then run:" \
+      "kit hydrate"
+    return 1
+  fi
   delivered=$(place:delivered "${kit_root}" "${base}" "$@") || return 1
   if [[ "${base}" != repo && -z "${delivered}" ]]
   then
@@ -88,9 +94,15 @@ manifest:text() {
 }
 
 # manifest:write-all <excluded> <package>… writes every base's manifest, then the repository's declaration in
-# kit.yml. <excluded> is the excluded packages as a space-separated list, empty when there are none.
+# kit.yml, keeping the clone's trust across it, as trust:keeping does. <excluded> is the excluded packages as a
+# space-separated list, empty when there are none.
 manifest:write-all() {
   local excluded=$1 base
+  if [[ -z "${trust_keeping:-}" ]]
+  then
+    trust:keeping manifest:write-all "$@"
+    return
+  fi
   shift
   for base in $(release:bases)
   do

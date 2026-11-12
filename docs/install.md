@@ -111,12 +111,21 @@ The loader refuses a kit option it does not know. A later kit may know it, so up
 
 kit runs nothing in a clone until you trust it.
 
-- `kit trust` shows what the clone asks kit to run: its pinned release, the bash it loads, and its gate. Then it asks
-  you, and remembers your answer for the clone and all its worktrees.
+- `kit trust` shows what the clone asks kit to run: its pinned release, the bash it loads, its gate, the sources and
+  tools it downloads, and the `lint:` command of each rule and style. Then it asks you, and remembers your answer for
+  the clone and all its worktrees, with a digest of what it asks.
 - In a terminal, the first kit command in a clone you have not trusted asks the same question, and runs after a yes.
-- `kit trust ~/Code/` trusts every clone under that folder.
+- A pull that changes what the clone asks, such as a new gate or a new `lint:` command, withdraws the trust, and kit
+  asks again. A pull that changes only the code those name keeps it, and so does what kit writes itself, such as the
+  files it places under `.kit/` and the version `kit update` moves.
+- `kit trust ~/Code/` trusts every clone under that folder, whatever each one asks.
 - `kit trust --list` and `kit trust --revoke` read and change the records, which are plain lines in
-  `~/.config/kit/trusted`.
+  `~/.config/kit/trusted`. `kit trust --check` and `kit trust --asks` answer a screen that asks for the trust itself.
 
 Trusting a clone means you accept code from anyone who can push to it. kit does not check each pull; code review and
 signed commits do.
+
+In a clone you have not trusted, every git command kit runs ignores the clone's hooks and fsmonitor, and reaches no
+remote. kit never trusts a toolchain's own config for you: when `mise install` refuses a `mise.toml` mise does not
+trust, kit names `mise trust` as the step you take once you have read the file. kit neither writes nor removes a path
+through a link under `.kit/`, and writes no log through one.

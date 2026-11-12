@@ -173,7 +173,8 @@ The patterns that branch names, commit subjects, and pull request titles must ma
 
 ### trust
 
-Your consent for kit to run the commands a clone names. kit asks for it once per clone.
+Your consent for kit to run the commands a clone names. kit asks for it once per clone, and again when a pull
+changes what the clone asks it to run.
 
 `kit trust`
 

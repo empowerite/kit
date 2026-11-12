@@ -176,7 +176,6 @@ JSON
   fixture ls.json <<<'{"jq": [{"version": "1.8.2", "requested_version": "1.8", "installed": true}]}'
   route mise 'ls --json --current' ls.json
   route mise 'install --quiet' '!0'
-  route mise 'trust --quiet mise.toml' '!0'
   route mise 'outdated --json' empty.json
   route mise 'upgrade --quiet' '!0'
   fixture empty.json <<<'{}'
@@ -217,7 +216,6 @@ JSON
   fixture ls.json <<<'{"jq": [{"version": "1.8.2", "requested_version": "1.8", "installed": true}]}'
   route mise 'ls --json --current' ls.json
   route mise 'install --quiet' '!0'
-  route mise 'trust --quiet mise.toml' '!0'
   route brew 'bundle list --file Brewfile --formula --cask' '!1'
   run "${kit_root}/bin/kit" tools install
   [ "$status" -eq 1 ]
@@ -239,6 +237,8 @@ JSON
   run "${kit_root}/bin/kit" tools install
   [ "$status" -eq 0 ]
   [[ "$output" == *"mise: installing from mise.toml"* ]]
+  # whether mise trusts the clone's mise.toml is the person's call, never kit's
+  run ! grep --quiet '^trust' "${FAKE_DIR}/mise.calls"
   run "${kit_root}/bin/kit" tools --outdated
   [ "$status" -eq 0 ]
   grep --quiet -E '^🔺 jq +· 1\.8 +· 1\.8\.0 +· 1\.8\.1$' <<<"$output"
@@ -251,6 +251,16 @@ JSON
   [ "$output" = $'/m/jq/bin\n/m/just/bin' ]
   run "${kit_root}/bin/kit" tools run bash -c 'printf "%s" "${PATH%%:*}"'
   [ "$output" = "/m/jq/bin" ]
+}
+
+@test "a mise install that fails, as for a mise.toml mise does not trust yet, names mise trust as the person's step" {
+  touch mise.toml
+  route mise 'trust*' '!0'
+  route mise 'install --quiet' '!1'
+  run "${kit_root}/bin/kit" tools install
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"if mise does not trust mise.toml yet, read it, and trust it yourself: mise trust mise.toml"* ]]
+  run ! grep --quiet '^trust' "${FAKE_DIR}/mise.calls"
 }
 
 @test "nix installs the dev shell, puts its PATH first, and lists the flake's inputs" {

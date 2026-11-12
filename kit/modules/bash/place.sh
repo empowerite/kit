@@ -296,6 +296,11 @@ place:remove() {
       step "${path}: the kit's region taken out"
       ;;
     (*)
+      if materialize:owned repo "${path}" && materialize:linked "${path}"
+      then
+        materialize:through-link "${path}"
+        return 1
+      fi
       step "removing ${path}"
       rm -f "${path}" || return 1
       if materialize:owned repo "${path}"
@@ -362,9 +367,10 @@ place:refusals() {
 #
 # Under home, whose manifest every repository shares, it touches only paths the previous release delivered for
 # these packages, and nothing without the base release. It fails, and touches nothing, when the manifest or a
-# release's paths cannot be read.
+# release's paths cannot be read; and it fails, having handled the rest, when a path is under a link in .kit/, which
+# it leaves alone, as materialize:linked says.
 place:retire() {
-  local base_root=$1 base=$2 previous=$3 current=$4 path dest previous_src recorded now was='' root_of
+  local base_root=$1 base=$2 previous=$3 current=$4 path dest previous_src recorded now was='' root_of refused=0
   local -a paths candidates=()
   shift 4
   # Each list is read before any path is touched, so one that cannot be read touches nothing.
@@ -402,6 +408,10 @@ place:retire() {
       else
         warn "${dest}: retired in ${current}; without the base release its entries stay, and it is left as it was"
       fi
+    elif materialize:owned "${base}" "${path}" && materialize:linked "${path}"
+    then
+      materialize:through-link "${path}"
+      refused=$(( refused + 1 ))
     elif materialize:owned "${base}" "${path}"
     then
       # A materialized path is kit's link or copy, never the repository's edit, so it goes whatever it holds.
@@ -416,6 +426,7 @@ place:retire() {
       warn "${dest}: retired in ${current}, but edited since ${previous}; it is left as it was"
     fi
   done
+  (( refused == 0 ))
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

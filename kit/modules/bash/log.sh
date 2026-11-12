@@ -53,11 +53,13 @@ log:prune() {
 }
 
 # log:write <name> <line> appends <line> to today's <name> log, .kit/logs/<name>-YYYY-MMDD.log at the root, where
-# .kit/.gitignore lists /logs/ and log_days is not 0. The day's first line prunes the logs first. It always succeeds.
+# .kit/.gitignore lists /logs/ and log_days is not 0. The day's first line prunes the logs first. It writes nothing
+# where .kit, .kit/logs, or the log is a link, which a clone could point out of itself, so a line would be appended
+# wherever it leads. It always succeeds.
 log:write() {
   local root ignore='' days file
   log:root root || return 0
-  [[ -f "${root}/.kit/.gitignore" ]] || return 0
+  [[ ! -L "${root}/.kit" && ! -L "${root}/.kit/logs" && -f "${root}/.kit/.gitignore" ]] || return 0
   # read -d '' meets the end of the file before any NUL, so it returns 1, the whole of it read.
   IFS= read -r -d '' ignore < "${root}/.kit/.gitignore" || true
   [[ $'\n'"${ignore}"$'\n' == *$'\n/logs/\n'* ]] || return 0
@@ -69,6 +71,7 @@ log:write() {
     mkdir -p "${root}/.kit/logs" 2>/dev/null || return 0
     log:prune "${root}/.kit/logs" "${days}"
   fi
+  [[ ! -L "${file}" ]] || return 0
   { printf '%s\n' "$2" >> "${file}"; } 2>/dev/null || true  # a log never fails the command it logs
 }
 

@@ -23,11 +23,12 @@
 # cache only when its bytes have that digest.
 #
 # kit runs nothing in a clone until you trust it, as kit trust records it in kit/trusted under XDG_CONFIG_HOME, else
-# ~/.config: a clone, with every worktree of it, or a folder, with every clone under it. In a clone you have not
-# trusted, the loader runs kit help, kit version, and kit trust alone, on this release, whatever the clone names. Any
-# other verb, on a terminal, runs this release's kit trust first, which shows what the clone asks kit to run and asks
-# you; after a yes, the call runs as it was typed. Without a terminal, or after a no, it is refused. kit trust runs on
-# this release in a clone you trust too.
+# ~/.config: a clone, with every worktree of it, while it asks kit to run what it asked when you trusted it, by the
+# digest of that, or a folder, with every clone under it, whatever they ask. In a clone you have not trusted, or one
+# that asks something new, the loader runs kit help, kit version, and kit trust alone, on this release, whatever the
+# clone names. Any other verb, on a terminal, runs this release's kit trust first, which shows what the clone asks
+# kit to run and asks you; after a yes, the call runs as it was typed. Without a terminal, or after a no, it is
+# refused. kit trust runs on this release in a clone you trust too.
 #
 # The kit options:
 #
@@ -54,8 +55,9 @@
 # in the member's checkout, runs the release that member pins. --workspace= beside --version=, or beside a KIT_VERSION
 # set by hand, is refused. --workspace=none names no workspace, and chooses the release as a call without it does.
 #
-# This file is POSIX sh, and the only program it runs on the common path is sed, which reads kit.yml's version: line,
-# so it runs before bash 4.4, git, jq, or yq is installed. What it reads, kit.yml's version: line, the trust file, the
+# This file is POSIX sh, and the only programs it runs on the common path are sed, which reads kit.yml's version:
+# line, and, in a clone trusted by a record of its own, awk and sha256sum, or shasum, which digest what it asks, so it
+# runs before bash 4.4, git, jq, or yq is installed. What it reads, kit.yml's version: line, the trust file, the
 # cache's layout, the release's URL, and the environment it hands on, every release keeps, so any installed kit runs
 # any release. The rest of a call is the release's own: it
 # runs libexec/kit-call with bash, which checks bash's version, logs the call, and runs the verb.
@@ -157,27 +159,152 @@ trust_name() {
   printf '%s\n' "${trust_name_value}"
 }
 
-# trusted <name> succeeds when the trust file, kit/trusted under XDG_CONFIG_HOME, else ~/.config, holds <name> or a
-# folder above it, a line that ends in /, as modules/bash/1st.sh's kit:trusted reads it.
+# trust_text is the awk program that prints what a clone asks kit to run, as modules/bash/1st.sh's kit_trust_text,
+# which says what it reads: the same program, which every release keeps.
+# shellcheck disable=SC2016  # the program is awk's, whose $0 and fields are its own, not the shell's
+trust_text='
+BEGIN {
+  data = "^(answers|excludes|facts|flow|forge|forge_settings|forges|linked_exempt|log_days|packages|policy|primary|"
+  data = data "require_signing|trackers)[[:space:]]*:"
+}
+function emit() {
+  if (!named) printf "== %s\n", FILENAME
+  named = 1
+  print
+}
+FNR == 1 {
+  named = 0
+  mode = "whole"
+  keep = 1
+  first = $0
+  sub(/\r$/, "", first)
+  if (FILENAME == "kit.yml") mode = "settings"
+  else if (FILENAME == ".kit/manifest") mode = "manifest"
+  else if (first == "---") { mode = "front"; next }
+}
+mode == "settings" {
+  if ($0 ~ /^[^[:space:]#-]/)
+    keep = $0 !~ data
+  if (keep) emit()
+  next
+}
+mode == "manifest" { if ($0 ~ /^version /) emit(); next }
+mode == "front" { if ($0 == "---") mode = "done"; else emit(); next }
+mode == "whole" { emit() }
+'
+
+# trust_digest <clone> prints the sha256 of what the clone at <clone> asks kit to run, as modules/bash/1st.sh's
+# kit:trust-digest does, which says which files: trust_text over the same files, in byte order.
+trust_digest() {
+  trust_digest_line=$(
+    LC_ALL=C
+    export LC_ALL
+    cd "$1" 2>/dev/null || exit 1
+    set --
+    for trust_digest_file in kit.yml .kit/manifest .kit/packages/*/files/repo/.kit/rules/*.md \
+      .kit/packages/*/files/repo/.kit/styles/*.md .kit/packages/*/*/files/repo/.kit/rules/*.md \
+      .kit/packages/*/*/files/repo/.kit/styles/*.md
+    do
+      [ ! -f "${trust_digest_file}" ] || set -- "$@" "${trust_digest_file}"
+    done
+    # a directory that is not there, as .kit/styles/ in a clone with no style, lists nothing, and find says so
+    trust_digest_found=$(find .kit/.gitignore .kit/rules .kit/styles -maxdepth 1 \( -name '*.md' -o -name .gitignore \) \
+      -type f -perm -0200 2>/dev/null || :)
+    trust_digest_writable="
+${trust_digest_found}
+"
+    trust_digest_ignore=''
+    if [ -f .kit/.gitignore ] && [ ! -L .kit/.gitignore ]
+    then
+      case ${trust_digest_writable} in
+        (*"
+.kit/.gitignore
+"*) ;;
+        (*)
+          while IFS= read -r trust_digest_entry || [ -n "${trust_digest_entry}" ]
+          do
+            trust_digest_ignore="${trust_digest_ignore}
+${trust_digest_entry}"
+          done < .kit/.gitignore
+          ;;
+      esac
+    fi
+    trust_digest_ignore="${trust_digest_ignore}
+"
+    for trust_digest_file in .kit/rules/*.md .kit/styles/*.md
+    do
+      if [ -L "${trust_digest_file}" ]
+      then
+        case ${trust_digest_ignore} in
+          (*"
+/${trust_digest_file#.kit/}
+"*) continue ;;
+        esac
+        [ -f "${trust_digest_file}" ] || continue
+      else
+        case ${trust_digest_writable} in
+          (*"
+${trust_digest_file}
+"*) ;;
+          (*) continue ;;
+        esac
+      fi
+      set -- "$@" "${trust_digest_file}"
+    done
+    { [ "$#" -eq 0 ] || awk "${trust_text}" "$@"; } | if command -v sha256sum >/dev/null 2>&1
+    then
+      sha256sum
+    else
+      shasum -a 256
+    fi
+  ) || return 1
+  printf '%s\n' "${trust_digest_line%% *}"
+}
+
+# trusted <name> <clone> succeeds when the trust file, kit/trusted under XDG_CONFIG_HOME, else ~/.config, trusts
+# <name>, as modules/bash/1st.sh's kit:trusted reads it: a folder above it, a line that ends in /, or a line for
+# <name> with the digest of what <clone> asks kit to run now. It returns 1 when no line names it, and 3 when a line
+# names it with another digest, or none.
 trusted() {
   trusted_file=${XDG_CONFIG_HOME:-${HOME}/.config}/kit/trusted
   [ -f "${trusted_file}" ] || return 1
+  trusted_status=1
+  trusted_have=''
   while IFS= read -r trusted_line || [ -n "${trusted_line}" ]
   do
+    trusted_want=''
     case ${trusted_line} in
       ('' | '#'*) continue ;;
+      ([0-9a-f]*'  /'* | [0-9a-f]*'  ~/'*)
+        trusted_want=${trusted_line%%  *}
+        case ${trusted_want} in
+          (*[!0-9a-f]*) trusted_want='' ;;
+          (*) trusted_line=${trusted_line#*  } ;;
+        esac
+        ;;
+    esac
+    case ${trusted_line} in
       (\~/*) trusted_line=$(cd "${HOME}" 2>/dev/null && pwd -P || printf '%s' "${HOME}")/${trusted_line#\~/} ;;
     esac
     case ${trusted_line} in
       (*/)
-        case "$1/" in
-          ("${trusted_line}"*) return 0 ;;
-        esac
+        if [ -z "${trusted_want}" ]
+        then
+          case "$1/" in
+            ("${trusted_line}"*) return 0 ;;
+          esac
+        fi
         ;;
-      (*) [ "$1" != "${trusted_line}" ] || return 0 ;;
+      (*)
+        [ "$1" = "${trusted_line}" ] || continue
+        trusted_status=3
+        [ -n "${trusted_want}" ] || continue
+        [ -n "${trusted_have}" ] || trusted_have=$(trust_digest "$2") || trusted_have=none
+        [ "${trusted_want}" != "${trusted_have}" ] || return 0
+        ;;
     esac
   done < "${trusted_file}"
-  return 1
+  return "${trusted_status}"
 }
 
 # pinned <clone> prints the release <clone>'s kit.yml declares: its top-level version: line, without quotes and
@@ -402,23 +529,36 @@ export KIT_WORKSPACE
 clone=$(clone_root) || clone=''
 here=${clone:-$(pwd -P)}
 untrusted=''
-if [ -n "${clone}" ] && ! trusted "$(trust_name "${clone}")"
+trust=0
+if [ -n "${clone}" ]
 then
+  name=$(trust_name "${clone}")
+  trusted "${name}" "${clone}" || trust=$?
+fi
+if [ "${trust}" != 0 ]
+then
+  if [ "${trust}" = 3 ]
+  then
+    why="${name} asks kit to run something new since you trusted it"
+    remedy="see what it asks, and trust it again: kit trust"
+  else
+    why="kit runs nothing in ${name} until you trust it"
+    remedy="see what it asks kit to run, and trust it: kit trust"
+  fi
   case ${1:-tui} in
     (help | version | trust) untrusted=yes ;;
     (*)
-      name=$(trust_name "${clone}")
       # On a terminal, this release's kit trust shows what the clone asks kit to run, and asks; after a yes, the call
       # runs again as it was typed. It asks once per clone in a call, so a trust that does not hold refuses.
       if [ -t 0 ] && [ -t 2 ] && [ "${kit_trust_asked:-}" != "${name}" ]
       then
-        say '→' 36 "kit runs nothing in ${name} until you trust it"
+        say '→' 36 "${why}"
         "${self}" trust || exit 1
         kit_trust_asked=${name}
         export kit_trust_asked
         exec "${self}" ${want:+"--version=${want}"} ${workspace:+"--workspace=${workspace}"} "$@"
       fi
-      refuse "kit runs nothing in ${name} until you trust it; see what it asks kit to run, and trust it: kit trust"
+      refuse "${why}; ${remedy}"
       exit 1
       ;;
   esac

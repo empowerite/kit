@@ -37,7 +37,7 @@ Active, in more detail:
 
 | `kit tools` | What mise runs |
 | --- | --- |
-| `install` | `mise trust`, then `mise install` |
+| `install` | `mise install`, never `mise trust`: that is yours to run, once you have read the file |
 | `update` | `mise upgrade` |
 | `--outdated` | `mise outdated --json` |
 

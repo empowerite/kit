@@ -308,6 +308,39 @@ setup() {
   [ ! -e .kit/cache ]
 }
 
+@test "a directory under .kit/ that is a link is neither written nor removed through: the manifest's prune, a placement, and .kit itself" {
+  "${kit_checkout}/bin/kit" install style/yaml >/dev/null 2>&1
+  outside="${BATS_TEST_TMPDIR}/outside"
+  mkdir -p "${outside}"
+  printf 'mine\n' > "${outside}/yaml.md"
+  printf 'mine too\n' > "${outside}/bash.md"
+  # a clone that tracks .kit/styles as a link out of itself, and a declaration that drops the package it held
+  rm -rf .kit/styles
+  ln -s "${outside}" .kit/styles
+  sed -i.bak '/^  - style\/yaml$/d' kit.yml && rm kit.yml.bak
+  run "${kit_checkout}/bin/kit" hydrate
+  [ "$status" -eq 1 ]
+  [[ "$output" == *".kit/styles/yaml.md is under a link in .kit/, which kit neither writes nor removes through"* ]]
+  [ "$(cat "${outside}/yaml.md")" = mine ]
+  [ "$(cat "${outside}/bash.md")" = "mine too" ]
+  run "${kit_checkout}/bin/kit" check
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"is under a link in .kit/"* ]]
+  # a placement, as a package that delivers into the linked directory
+  printf '  - style/yaml\n' >> kit.yml
+  run "${kit_checkout}/bin/kit" hydrate
+  [ "$status" -eq 1 ]
+  [ "$(cat "${outside}/yaml.md")" = mine ]
+  # .kit itself a link
+  rm .kit/styles
+  mv .kit "${BATS_TEST_TMPDIR}/kit-dir"
+  ln -s "${BATS_TEST_TMPDIR}/kit-dir" .kit
+  touch kit.yml
+  run "${kit_checkout}/bin/kit" hydrate
+  [ "$status" -eq 1 ]
+  [[ "$output" == *".kit is a link, which kit neither writes nor removes through"* ]]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------
 
 @test "a manifest record whose path climbs out of its root is skipped and named, and nothing outside .kit/ is removed" {

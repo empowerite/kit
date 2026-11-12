@@ -11,7 +11,7 @@
 #
 # see: docs/packages.md
 
-use release place manifest settings render file
+use release place manifest settings render file trust
 
 # materialize_real maps a directory to its real path, for materialize:real: filled in the shell that asks, so every
 # later path under a directory resolved once costs no process. materialize:all empties it first, so a long-running
@@ -25,6 +25,27 @@ declare -gA materialize_real=()
 # places.
 materialize:owned() {
   [[ "$1" == repo && "$2" == .kit/* && "$2" != .kit/packages/* && "/$2/" != */../* && "/$2/" != */./* ]]
+}
+
+# materialize:linked <path> succeeds when .kit, or a directory between it and <path>, is a link: kit neither writes
+# nor removes a path through one, as a link a clone tracks could lead out of the repository, and a rm -f or a write
+# there would land wherever it points. <path> itself may be a link, which is what kit places; that is removed, not
+# what it points at. It starts no process.
+materialize:linked() {
+  local dir=${1%/*}
+  while [[ "${dir}" == .kit || "${dir}" == .kit/* ]]
+  do
+    [[ ! -L "${dir}" ]] || return 0
+    [[ "${dir}" == */* ]] || break
+    dir=${dir%/*}
+  done
+  return 1
+}
+
+# materialize:through-link <path> says that kit leaves <path> alone, as materialize:linked finds it under a link.
+materialize:through-link() {
+  error "$1 is under a link in .kit/, which kit neither writes nor removes through; remove the link, then run:" \
+    "kit hydrate"
 }
 
 # materialize:within <real-path> succeeds when an absolute real path is inside the worktree: under the directory the verb
@@ -247,19 +268,31 @@ materialize:ignore-text() {
 }
 
 # materialize:all [--check] <package>… brings every path the packages deliver under .kit/ to its state and writes
-# .kit/.gitignore. It says what it changed, one line per path. A path the manifest never recorded that holds a
+# .kit/.gitignore, keeping the clone's trust across it, as trust:keeping does. It says what it changed, one line per
+# path. A path the manifest never recorded that holds a
 # different file is the repository's: it is left alone and named, as kit install names it. It warns about a file
 # under a delivered directory that no active package delivers, and about a delivered path git still tracks, both of
-# which a person settles; an empty directory left behind by a removed package is removed without a word. With
+# which a person settles; an empty directory left behind by a removed package is removed without a word. A path under
+# a link in .kit/, or a .kit that is a link, it neither writes nor removes, and names, and then it fails. With
 # --check it changes nothing: each of those is an error, and it prints how many on stdout.
 materialize:all() {
-  local check=false path src dir entry state did ignore findings=0 row kind
+  local check=false path src dir entry state did ignore findings=0 refused=0 row kind
   local -a owned=() tracked=() rows dirs=()
   local -A source=() within=() recorded=() states=() ok=() listing=()
   if [[ "${1:-}" == --check ]]
   then
     check=true
     shift
+  elif [[ -z "${trust_keeping:-}" ]]
+  then
+    trust:keeping materialize:all "$@"
+    return
+  fi
+  if [[ -L .kit ]]
+  then
+    error ".kit is a link, which kit neither writes nor removes through; make it a directory, then run: kit hydrate"
+    [[ "${check}" == false ]] || printf '1\n'
+    return 1
   fi
   materialize_real=()
   list:read rows place:delivered "${kit_root}" repo "$@" || return 1
@@ -289,7 +322,11 @@ materialize:all() {
     materialize:owned repo "${path}" || continue
     [[ -z "${source[${path}]+x}" ]] || continue
     [[ -e "${path}" || -L "${path}" ]] || continue
-    if [[ "${check}" == true ]]
+    if materialize:linked "${path}"
+    then
+      materialize:through-link "${path}"
+      findings=$(( findings + 1 )) refused=$(( refused + 1 ))
+    elif [[ "${check}" == true ]]
     then
       error "${path} is no longer delivered by any active package; run: kit hydrate"
       findings=$(( findings + 1 ))
@@ -310,6 +347,12 @@ materialize:all() {
   do
     src=${source[${path}]}
     state=${states[${path}]}
+    if materialize:linked "${path}"
+    then
+      materialize:through-link "${path}"
+      findings=$(( findings + 1 )) refused=$(( refused + 1 ))
+      continue
+    fi
     if [[ -z "${ok[${path}]:-}" ]]
     then
       ok[${path}]=false
@@ -345,7 +388,7 @@ materialize:all() {
   # Every delivered directory is listed by one find, its entries filed under the directory they are in.
   for dir in "${!within[@]}"
   do
-    [[ ! -d "${dir}" ]] || dirs+=("${dir}")
+    [[ ! -d "${dir}" ]] || materialize:linked "${dir}/-" || dirs+=("${dir}")
   done
   if (( ${#dirs[@]} > 0 ))
   then
@@ -358,6 +401,7 @@ materialize:all() {
   for dir in "${!within[@]}"
   do
     [[ -d "${dir}" ]] || continue
+    ! materialize:linked "${dir}/-" || continue
     while IFS= read -r entry
     do
       [[ -n "${entry}" && "${entry##*/}" != .* ]] || continue
@@ -409,6 +453,7 @@ materialize:all() {
     # Newer than kit.yml again: materialize:hydrated reads that as the declaration having been seen.
     touch .kit/.gitignore
   fi
+  [[ "${check}" == true ]] || (( refused == 0 ))
 }
 
 # materialize:hydrated succeeds when .kit/.gitignore exists and every path it names is there, as a link or without the
@@ -480,7 +525,7 @@ materialize:hydrate() {
     # anything rewrites the manifest, which would drop its only copy.
     list:read packages settings:packages || return 1
     list:read excluded settings:excludes || return 1
-    settings:declare "${declared}" "${excluded[*]}" "${packages[@]}" || return 1
+    trust:keeping settings:declare "${declared}" "${excluded[*]}" "${packages[@]}" || return 1
     step "kit.yml: the declaration moved here from .kit/manifest"
   fi
   if [[ "${1:-}" != --full ]] && materialize:hydrated
@@ -494,8 +539,13 @@ materialize:hydrate() {
   fi
   list:read packages settings:packages || return 1
   render:all "${kit_root}" "${packages[@]}" || return 1
-  materialize:all "${packages[@]}" || return 1
-  manifest:write repo '' "${packages[@]}"
+  trust:keeping materialize:hydrate-write "${packages[@]}"
+}
+
+# materialize:hydrate-write <package>… places what the packages deliver under .kit/, and rewrites .kit/manifest.
+materialize:hydrate-write() {
+  materialize:all "$@" || return 1
+  manifest:write repo '' "$@"
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

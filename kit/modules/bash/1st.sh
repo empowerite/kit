@@ -44,7 +44,8 @@ declare -ag kit_bash_path=()
 # and changes to the repository root, so every verb reads and writes the same paths wherever it was typed. A
 # repository from a release that kept its settings in .kit/settings.yml has them moved to kit.yml first, before
 # anything reads them. With --any-clone, a verb that runs nothing the clone names, as kit version and kit trust,
-# runs in a clone you have not trusted too, and moves nothing there.
+# runs in a clone you have not trusted too, and moves nothing there; every git command it runs there is hardened, as
+# kit:harden-git says.
 kit:enter() {
   set +o posix
   local any_clone=false
@@ -54,6 +55,9 @@ kit:enter() {
   if [[ "${any_clone}" == false ]]
   then
     kit:trust-here || exit 1
+  elif ! kit:trusted-at .
+  then
+    kit:harden-git
   fi
   local repository
   if repository=$(git rev-parse --show-toplevel 2>/dev/null)
@@ -113,41 +117,172 @@ kit:trust-file() {
   printf '%s\n' "${XDG_CONFIG_HOME:-${HOME}/.config}/kit/trusted"
 }
 
-# kit:trusted <name> succeeds when the trust file holds <name>, or a folder above it: a line that ends in /. A line
-# that starts with # is a comment, and ~/ at the start of a line is the home directory, by its physical path.
+# kit_trust_text is the awk program that prints what a clone asks kit to run, the text whose sha256 a trust record
+# holds, from the files kit:trust-digest hands it: kit.yml but its keys that name no command (answers, excludes,
+# facts, flow, forge, forge_settings, forges, linked_exempt, log_days, packages, policy, primary, require_signing,
+# trackers), so a line kit cannot place under one of those is in it, and a key written in quotes too; .kit/manifest's
+# version line, which the loader reads where kit.yml has none; and the frontmatter of each rule and style, where a
+# lint: command is, read as modules/bash/yaml.sh reads one, or the whole file where its first line is not ---. A
+# file's text starts with a line that names it, where it has any. bin/kit, the loader, holds the same program, and
+# every release keeps it, as any installed kit checks the records any release wrote.
+# shellcheck disable=SC2016  # the program is awk's, whose $0 and fields are its own, not the shell's
+kit_trust_text='
+BEGIN {
+  data = "^(answers|excludes|facts|flow|forge|forge_settings|forges|linked_exempt|log_days|packages|policy|primary|"
+  data = data "require_signing|trackers)[[:space:]]*:"
+}
+function emit() {
+  if (!named) printf "== %s\n", FILENAME
+  named = 1
+  print
+}
+FNR == 1 {
+  named = 0
+  mode = "whole"
+  keep = 1
+  first = $0
+  sub(/\r$/, "", first)
+  if (FILENAME == "kit.yml") mode = "settings"
+  else if (FILENAME == ".kit/manifest") mode = "manifest"
+  else if (first == "---") { mode = "front"; next }
+}
+mode == "settings" {
+  if ($0 ~ /^[^[:space:]#-]/)
+    keep = $0 !~ data
+  if (keep) emit()
+  next
+}
+mode == "manifest" { if ($0 ~ /^version /) emit(); next }
+mode == "front" { if ($0 == "---") mode = "done"; else emit(); next }
+mode == "whole" { emit() }
+'
+
+# kit:trust-digest <clone> prints the sha256 of what the clone at <clone> asks kit to run: kit_trust_text over its
+# kit.yml, its .kit/manifest, its own packages' rules and styles, and each rule and style under .kit/ that a person or
+# a pull put there, in byte order, as bin/kit, the loader, digests it. What kit placed under .kit/rules/ and
+# .kit/styles/ is left out: a copy without its write bit, and a link kit's own .kit/.gitignore names, one without its
+# write bit, as kit writes it. Those come from the release and the packages, whose names the digest holds, and are
+# there in one worktree and not yet in a new one; a file a pull brings has its write bit, as git checks every file out
+# with it, and a pull that brings a .kit/.gitignore brings one with its write bit, which names nothing here. It runs
+# find, awk, and sha256sum, or shasum, and nothing the clone names.
+kit:trust-digest() {
+  local line
+  line=$(
+    LC_ALL=C
+    cd "$1" 2>/dev/null || exit 1
+    files=()
+    for file in kit.yml .kit/manifest .kit/packages/*/files/repo/.kit/rules/*.md \
+      .kit/packages/*/files/repo/.kit/styles/*.md .kit/packages/*/*/files/repo/.kit/rules/*.md \
+      .kit/packages/*/*/files/repo/.kit/styles/*.md
+    do
+      [[ ! -f "${file}" ]] || files+=("${file}")
+    done
+    # a directory that is not there, as .kit/styles/ in a clone with no style, lists nothing, and find says so
+    writable=$'\n'$(find .kit/.gitignore .kit/rules .kit/styles -maxdepth 1 \( -name '*.md' -o -name .gitignore \) \
+      -type f -perm -0200 2>/dev/null || true)$'\n'
+    ignore=''
+    if [[ -f .kit/.gitignore && ! -L .kit/.gitignore && "${writable}" != *$'\n'.kit/.gitignore$'\n'* ]]
+    then
+      IFS= read -r -d '' ignore < .kit/.gitignore || true  # read meets the end before any NUL, so it returns 1
+      ignore=$'\n'${ignore}
+    fi
+    for file in .kit/rules/*.md .kit/styles/*.md
+    do
+      if [[ -L "${file}" ]]
+      then
+        [[ "${ignore}" != *$'\n'/${file#.kit/}$'\n'* && -f "${file}" ]] || continue
+      else
+        [[ "${writable}" == *$'\n'${file}$'\n'* ]] || continue
+      fi
+      files+=("${file}")
+    done
+    { (( ${#files[@]} == 0 )) || awk "${kit_trust_text}" "${files[@]}"; } \
+      | if hash sha256sum 2>/dev/null; then sha256sum; else shasum -a 256; fi
+  ) || return 1
+  printf '%s\n' "${line%% *}"
+}
+
+# kit:trusted <name> [<clone>] succeeds when the trust file trusts <name>: a folder above it, a line that ends in /,
+# or a line for <name> itself that holds the digest of what <clone> asks kit to run now, kit:trust-digest's. It
+# returns 1 when no line names <name> or a folder above it, and 3 when a line names <name> with another digest, or
+# none, as kit trust wrote before it kept one: what the clone asks has changed since you trusted it. Without <clone>,
+# a folder alone trusts it. A line that starts with # is a comment, and ~/ at the start of a path is the home
+# directory, by its physical path. The digest is worked out once, and only when a line names <name>.
 kit:trusted() {
-  local file line
+  local file line want have='' status=1
   file=$(kit:trust-file)
   [[ -f "${file}" ]] || return 1
   while IFS= read -r line || [[ -n "${line}" ]]
   do
     [[ -n "${line}" && "${line}" != '#'* ]] || continue
+    want=''
+    if [[ "${line}" =~ ^[0-9a-f]{64}\ \ ([/~].*)$ ]]
+    then
+      want=${line%%  *}
+      line=${BASH_REMATCH[1]}
+    fi
     # The home directory by its physical path, as every name is compared: on macOS, /var is a link to /private/var.
     [[ "${line}" != \~/* ]] || line=$(cd "${HOME}" 2>/dev/null && pwd -P || printf '%s' "${HOME}")/${line#\~/}
     if [[ "${line}" == */ ]]
     then
-      [[ "$1/" == "${line}"* ]] && return 0
-    else
-      [[ "$1" == "${line}" ]] && return 0
+      [[ -z "${want}" && "$1/" == "${line}"* ]] && return 0
+    elif [[ "$1" == "${line}" ]]
+    then
+      status=3
+      [[ -n "${want}" && -n "${2:-}" ]] || continue
+      [[ -n "${have}" ]] || have=$(kit:trust-digest "$2") || have=none
+      [[ "${want}" != "${have}" ]] || return 0
     fi
   done < "${file}"
-  return 1
+  return "${status}"
 }
 
-# kit:trusted-at <dir> succeeds where kit may run what a clone asks for: outside a clone, and in a clone you trust.
+# kit_trusted_at holds, by clone root, what kit:trusted said of the clone in this process, so a verb asks once.
+declare -gA kit_trusted_at=()
+
+# kit:trusted-at <dir> succeeds where kit may run what a clone asks for: outside a clone, and in a clone you trust,
+# as it asks now. It returns kit:trusted's 1 or 3 otherwise.
 kit:trusted-at() {
-  local root
+  local root status=0
   root=$(kit:clone-root "$1") || return 0
-  kit:trusted "$(kit:trust-name "${root}")"
+  if [[ -z "${kit_trusted_at[${root}]+x}" ]]
+  then
+    kit:trusted "$(kit:trust-name "${root}")" "${root}" || status=$?
+    kit_trusted_at[${root}]=${status}
+  fi
+  return "${kit_trusted_at[${root}]}"
 }
 
 # kit:trust-here succeeds where kit:trusted-at the working directory does. Elsewhere it says how to trust the clone,
 # in the words bin/kit uses, and fails.
 kit:trust-here() {
-  kit:trusted-at . && return 0
-  error "kit runs nothing in $(kit:trust-name "$(kit:clone-root .)") until you trust it; see what it asks kit to run," \
-    "and trust it: kit trust"
+  local status=0 name
+  kit:trusted-at . || status=$?
+  (( status != 0 )) || return 0
+  name=$(kit:trust-name "$(kit:clone-root .)")
+  if (( status == 3 ))
+  then
+    error "${name} asks kit to run something new since you trusted it; see what it asks, and trust it again: kit trust"
+  else
+    error "kit runs nothing in ${name} until you trust it; see what it asks kit to run, and trust it: kit trust"
+  fi
   return 1
+}
+
+# kit:harden-git makes every git command this process and its children run ignore what a clone's own git config
+# could make git run: no hooks (core.hooksPath=/dev/null), no fsmonitor (core.fsmonitor=false), no transport at all
+# (protocol.allow=never), and no prompt for a password (GIT_TERMINAL_PROMPT=0). It sets them through
+# GIT_CONFIG_COUNT, after any the environment holds, as git -c would, so they win over every config file. kit:enter
+# calls it in a clone you have not trusted, where kit help, kit version, and kit trust run.
+kit:harden-git() {
+  local i=${GIT_CONFIG_COUNT:-0} pair
+  [[ "${i}" =~ ^[0-9]+$ ]] || i=0
+  for pair in core.hooksPath=/dev/null core.fsmonitor=false protocol.allow=never
+  do
+    export "GIT_CONFIG_KEY_${i}=${pair%%=*}" "GIT_CONFIG_VALUE_${i}=${pair#*=}"
+    i=$(( i + 1 ))
+  done
+  export GIT_CONFIG_COUNT=${i} GIT_TERMINAL_PROMPT=0
 }
 
 # kit:move-settings moves .kit/settings.yml to kit.yml at the root, where a release before kit.yml left it, and

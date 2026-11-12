@@ -38,11 +38,16 @@ toolchain/mise:inputs() {
   done
 }
 
+# toolchain/mise:install runs mise install. It never runs mise trust: whether to trust a mise.toml a clone holds, which
+# can name tasks, hooks, and env that run code, is the person's call, as mise asks it, so a mise that refuses the file
+# makes kit name the step they take.
 toolchain/mise:install() {
+  local file
   toolchain/mise:require || return 1
-  # A file mise cannot trust makes mise install fail below, and say why.
-  mise trust --quiet "$(toolchain/mise:file)" >/dev/null 2>&1 || true
-  mise install --quiet
+  file=$(toolchain/mise:file)
+  mise install --quiet && return 0
+  error "mise install failed; if mise does not trust ${file} yet, read it, and trust it yourself: mise trust ${file}"
+  return 1
 }
 
 # toolchain/mise:outdated reads mise outdated --json: an object keyed by tool name, with each tool's current and

@@ -116,4 +116,17 @@ logged() {
   [ ! -e .kit/logs ]
 }
 
+@test "a log is never appended through a link: not a .kit/logs that is one, nor a log that is one" {
+  outside="${BATS_TEST_TMPDIR}/outside"
+  mkdir -p "${outside}"
+  ln -s "${outside}" .kit/logs
+  "${kit_checkout}/bin/kit" version >/dev/null
+  [ -z "$(ls -A "${outside}")" ]
+  rm .kit/logs && mkdir .kit/logs
+  printf 'mine\n' > "${outside}/victim"
+  ln -s "${outside}/victim" "$(printf '.kit/logs/kit-%(%Y-%m%d)T.log' -1)"
+  "${kit_checkout}/bin/kit" version >/dev/null
+  [ "$(cat "${outside}/victim")" = mine ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------
