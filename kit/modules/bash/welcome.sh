@@ -22,6 +22,8 @@
 #   desk          true for a repository's desk, false for one of its worktrees
 #   branch        the folder's branch, or null where none is checked out
 #   kit           the kit version the folder's kit.yml declares, or null where it declares none
+#   findings      kit-check's alone, where kit check finds more than one problem: each problem as kit check names
+#                 it, without the command after "run:" when every problem names the same one, which is then the fix
 #
 # A machine check's repository, desk, branch, and kit are null too.
 #
@@ -758,11 +760,12 @@ welcome:forge-login() {
 }
 
 # welcome:kit-check prints the check that kit check finds nothing. It runs kit check and reads each finding, the ❌
-# lines above its count. A single finding is the check's line. The fix is the command after "run:" when every finding
-# names the same one. It runs only when it is a kit command. A finding without a command does not get a fix.
+# lines above its count. A single finding is the check's line; more than one are the check's findings, under a line
+# that counts them. The fix is the command after "run:" when every finding names the same one, and each finding is
+# then named without it. It runs only when it is a kit command. A finding without a command does not get a fix.
 welcome:kit-check() {
   local out line command fix='' runs=false
-  local -a findings=() commands=()
+  local -a findings=() commands=() named
   if out=$(NO_COLOR=1 run kit check 2>&1)
   then
     welcome:record kit-check true "kit check finds nothing wrong"
@@ -793,9 +796,17 @@ welcome:kit-check() {
   case "${#findings[@]}" in
     (0) line="kit check fails; run kit check to see why" ;;
     (1) line=${findings[0]} ;;
-    (*) line="kit check finds ${#findings[@]} problem(s); run kit check to see each one"
+    (*) line="kit check finds ${#findings[@]} problems"
   esac
-  welcome:record kit-check false "${line}" "${fix}" false '' "${runs}"
+  if (( ${#findings[@]} < 2 ))
+  then
+    welcome:record kit-check false "${line}" "${fix}" false '' "${runs}"
+    return 0
+  fi
+  named=("${findings[@]}")
+  [[ -z "${fix}" ]] || named=("${findings[@]%; run: *}")
+  welcome:record kit-check false "${line}" "${fix}" false '' "${runs}" \
+    | jq --compact-output '. + {findings: $ARGS.positional}' --args "${named[@]}"
 }
 
 # welcome:terminal <id> prints the terminal check <id>, as welcome:plan-machine judged it: its fix is the person's to
@@ -955,9 +966,10 @@ welcome:show-all() {
 }
 
 # welcome:show <check-json>… prints each check as text: ✅, 💡 for an offer, or ❌, and its line; under an offer, dim, its
-# fix; and under a failed one, dim, its fix and what more says beside it, or, with no fix, where to read more.
+# fix; and under a failed one, each of its findings, then, dim, its fix and what more says beside it, or, with no fix,
+# where to read more.
 welcome:show() {
-  local check ok line fix more
+  local check ok line fix more finding
   for check in "$@"
   do
     ! welcome:folded "${check}" || continue
@@ -974,6 +986,10 @@ welcome:show() {
       continue
     fi
     printf '❌ %s\n' "${line}"
+    while IFS= read -r finding
+    do
+      printf '   %s\n' "${finding}"
+    done < <(jq --raw-output '.findings // [] | .[]' <<<"${check}")
     if [[ -n "${fix}" ]]
     then
       printf '   %s%s%s\n' "$(out:sgr 90)" "${fix}" "$(out:sgr 0)"

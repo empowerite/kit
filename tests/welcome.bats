@@ -207,11 +207,33 @@ ambient-system() {
   [[ "$(jq --raw-output .line <<<"$output")" == "lefthook.yml: put extends: [.kit/lefthook.yml] in lefthook.yml"* ]]
   # a finding that names a command offers that command
   printf '# lefthook.yml - the git hooks\nextends: [.kit/lefthook.yml]\n' > lefthook.yml
-  rm .gitignore
+  mv .gitignore "${BATS_TEST_TMPDIR}/gitignore"
   run --separate-stderr check kit-check
   [ "$(jq --raw-output .ok <<<"$output")" = false ]
   [ "$(jq --raw-output .fix <<<"$output")" = "kit update" ]
   [[ "$(jq --raw-output .line <<<"$output")" == ".gitignore "* ]]
+  [ "$(jq '.findings' <<<"$output")" = null ]
+}
+
+@test "welcome counts kit check's findings and names each, without the fix when they share one" {
+  "${kit_root}/bin/kit" install >/dev/null 2>&1
+  # two findings, each with its own remedy: no fix, and each keeps its remedy
+  mv .gitignore "${BATS_TEST_TMPDIR}/gitignore"
+  rm .kit/1st.md
+  run --separate-stderr check kit-check
+  [ "$(jq --raw-output '[.ok, .line, .fix // "-"] | @tsv' <<<"$output")" = $'false\tkit check finds 2 problems\t-' ]
+  [ "$(jq --raw-output '.findings | map(sub(" run: cd .* && "; " run: ")) | join("|")' <<<"$output")" = \
+    '.gitignore is missing; run: kit update|.kit/1st.md is missing; run: kit hydrate' ]
+  # two that one command fixes: that command is the fix, and each finding is named without it
+  mv "${BATS_TEST_TMPDIR}/gitignore" .gitignore
+  rm .kit/README.md
+  run --separate-stderr check kit-check
+  [ "$(jq --raw-output '[.line, .fix, (.findings | join("|"))] | @tsv' <<<"$output")" = \
+    $'kit check finds 2 problems\tkit hydrate\t.kit/1st.md is missing|.kit/README.md is missing' ]
+  # the text guide names each finding under the check's line, over its fix
+  run --separate-stderr "${kit_root}/bin/kit" welcome --checks
+  [[ "$output" == *$'❌ kit check finds 2 problems\n   .kit/1st.md is missing\n   .kit/README.md is missing\n   '*\
+'kit hydrate'* ]]
 }
 
 @test "welcome checks each dependency provider whose manifest is here: its lock, its tool, and what is installed" {

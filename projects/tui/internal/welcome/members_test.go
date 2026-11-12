@@ -67,6 +67,24 @@ func TestAGroupsChecksAreReadOnceOverTheGroupWithTheUnclonedNamed(t *testing.T) 
 	}
 }
 
+// Where kit check finds more than one problem, setup draws each under the check's line, a line each, and a search for
+// what one of them says finds the check.
+func TestSetupNamesEachProblemKitCheckFinds(t *testing.T) {
+	m, _, _ := group(t, tea.WindowSizeMsg{Width: 120, Height: 60}, stepKey(setupStep))
+	// as far in as the check's text, as its fix is
+	want := "       ❌ kit check finds 2 problems\n" +
+		"          .gitignore is missing; run: cd /code/b && kit update\n" +
+		"          .kit/1st.md is missing; run: cd /code/b && kit hydrate\n"
+	if v := view(m); !strings.Contains(v, want) {
+		t.Errorf("no finding under kit check's line:\n%s", v)
+	}
+	m = drive(m, typed('/'))
+	m = drive(m, testkit.Typed("1st.md")...)
+	if v := view(m); !strings.Contains(v, "kit check finds 2 problems") || strings.Contains(v, "shellcheck") {
+		t.Errorf("a search for a finding:\n%s", v)
+	}
+}
+
 func TestTheSetupStepIsOneTableTheMachineFirstThenARowPerFolder(t *testing.T) {
 	m, _, _ := group(t, stepKey(setupStep))
 	v := view(m)

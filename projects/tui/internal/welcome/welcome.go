@@ -471,16 +471,18 @@ func (m *Model) take(msg source.Answer[[]kit.Check]) {
 	m.fit()
 }
 
-// rows gives the indexes of the step's checks, in order, those its search lets through: whose id, line, or fix holds
-// what is typed, or a folder's check whose folder, repository, or branch does, without regard to case. On the setup
-// step drawn as a table, a folder's check that holds with nothing to offer is no row: its folder's row shows it.
+// rows gives the indexes of the step's checks, in order, those its search lets through: whose id, line, fix, or one of
+// whose findings holds what is typed, or a folder's check whose folder, repository, or branch does, without regard to
+// case. On the setup step drawn as a table, a folder's check that holds with nothing to offer is no row: its folder's
+// row shows it.
 func (m Model) rows(step int) []int {
 	query := m.searches[m.tabs[step].id].Query
 	table := m.foldered(step)
 	var out []int
 	for i, c := range m.checks {
 		mine := m.stepOf(c) == step && !(table && c.Folder != "" && !asks(c)) && !folded(c)
-		found := matches(c.ID, query) || matches(c.Line, query) || matches(c.Fix, query)
+		found := matches(c.ID, query) || matches(c.Line, query) || matches(c.Fix, query) ||
+			slices.ContainsFunc(c.Findings, func(f string) bool { return matches(f, query) })
 		if c.Folder != "" {
 			found = found || matches(c.Folder, query) || matches(c.Repository, query) || matches(c.Branch, query)
 		}

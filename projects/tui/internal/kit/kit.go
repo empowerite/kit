@@ -442,21 +442,23 @@ const grace = 500 * time.Millisecond
 // A folder's check names the folder it holds in, the absolute path its fix runs in; its repository, host/path, or the
 // desk's folder name with no remote; whether the folder is the desk, else a worktree; the branch checked out there,
 // empty with none; and the kit version its kit.yml declares, empty with none. A machine check names no folder, nor
-// does any check of an older kit.
+// does any check of an older kit. Findings are kit check's problems, each as kit check names it, where it finds more
+// than one; every other check has none.
 type Check struct {
-	ID          string `json:"id"`
-	Step        string `json:"step"`
-	OK          bool   `json:"ok"`
-	Line        string `json:"line"`
-	Fix         string `json:"fix"`
-	Interactive bool   `json:"interactive"`
-	More        string `json:"more"`
-	Runs        bool   `json:"runs"`
-	Folder      string `json:"folder"`
-	Repository  string `json:"repository"`
-	Desk        bool   `json:"desk"`
-	Branch      string `json:"branch"`
-	Kit         string `json:"kit"`
+	ID          string   `json:"id"`
+	Step        string   `json:"step"`
+	OK          bool     `json:"ok"`
+	Line        string   `json:"line"`
+	Fix         string   `json:"fix"`
+	Interactive bool     `json:"interactive"`
+	More        string   `json:"more"`
+	Runs        bool     `json:"runs"`
+	Folder      string   `json:"folder"`
+	Repository  string   `json:"repository"`
+	Desk        bool     `json:"desk"`
+	Branch      string   `json:"branch"`
+	Kit         string   `json:"kit"`
+	Findings    []string `json:"findings"`
 }
 
 // Key gives what tells a check from every other on a screen: its id, after its folder when it has one, as a folder's

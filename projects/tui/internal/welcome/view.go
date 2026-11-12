@@ -329,7 +329,8 @@ func (m Model) stepTail(rows []int) []line {
 
 // checkLines gives a check's lines, after the indent: ✅, 💡 for an offer, or ❌, and its line, then, where no folder's
 // row is drawn above it, its folder, the cursor's row drawn as chosen with its buttons, as rowButtons draws them; under
-// a failed check or an offer, its fix, dim; under a failed check, where to read more; and the note its fix left.
+// it, each of its findings, a line each; under a failed check or an offer, its fix, dim; under a failed check, where to
+// read more; and the note its fix left.
 func (m Model) checkLines(i int, key, indent string) []line {
 	c, w := m.checks[i], m.width-1
 	focused := m.hasRows() && m.inPane && i == m.cursor
@@ -350,6 +351,9 @@ func (m Model) checkLines(i int, key, indent string) []line {
 		row = pane.Clip(row, w-ansi.StringWidth(end)) + end
 	}
 	out := []line{{i, pane.Clip(row, w)}}
+	for _, f := range c.Findings {
+		out = append(out, line{i, pane.Clip(indent+under+f, w)})
+	}
 	if c.Fix != "" {
 		// a folder's fix names its folder, so it runs wherever it is pasted
 		shown := fix.In(c.Folder, c.Fix)

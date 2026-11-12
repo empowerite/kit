@@ -25,6 +25,6 @@
           cd /code/b && kit toolchains use mise
           or: kit toolchains use brew
        ❌ shellcheck is not installed; kit lint runs it for .kit/rules/bash.md
-   ⬇⁴
+   ⬇⁶
 
  = menu - workspace / search │ 1-5 jump : tab menu │ esc tabs ↑↓ move ⇞⇟ page c copy r run
