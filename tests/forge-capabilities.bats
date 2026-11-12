@@ -146,6 +146,7 @@ added+='"check-runs","swimlanes","bot-accounts"'
 # ----------------------------------------------------------------------------------------------------------------------
 
 @test "GitLab and Azure DevOps lack bot-accounts: every call of it answers 3, prints nothing, and runs no tool" {
+  fake-tools curl
   for remote in https://gitlab.com/empowerite/example.git https://dev.azure.com/acme/empowerite/_git/example
   do
     git remote set-url origin "${remote}"
@@ -157,6 +158,5 @@ added+='"check-runs","swimlanes","bot-accounts"'
       [ -z "$stderr" ]
     done
   done
-  [ ! -e "${FAKE_DIR}/gh.calls" ]
-  [ ! -e "${FAKE_DIR}/glab.calls" ]
+  [ ! -e "${FAKE_DIR}/curl.calls" ]
 }

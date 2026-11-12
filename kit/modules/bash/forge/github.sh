@@ -1301,69 +1301,149 @@ forge/github:jwt() {
 }
 
 # forge/github:app-api [--missing] <bearer> <method> <path> [<data>] prints GitHub's answer to the request, <bearer>
-# being a JWT or an installation token. It fails with a line that says what GitHub refused, as GitHub says it. With
+# being a JWT or an installation token. It fails with one line that says why, by what happened: a host that could not
+# be reached, a rate limit, with when it resets as the response's own headers say, GitHub's own failure, 5xx, or a
+# refusal, which for 401 and 403 names the App's ID and key. It never asks gh, whose login is the person's. With
 # --missing, a 404 fails with no line, for a caller that takes a missing thing as an answer.
 forge/github:app-api() {
-  local missing=false bearer method path out base
+  local missing=false bearer method path out base headers status code said
   local -a body=()
   [[ "$1" != --missing ]] || { missing=true; shift; }
   bearer=$1 method=$2 path=$3
   (( $# < 4 )) || body=(--header 'Content-Type: application/json' --data "$4")
   guard:require tool:curl || return 1
+  file:temp headers curl-headers || return 1
   base=$(forge/github:api-base)
-  if out=$(printf 'Authorization: Bearer %s\n' "${bearer}" | curl --fail-with-body --silent --request "${method}" \
+  status=0
+  out=$(printf 'Authorization: Bearer %s\n' "${bearer}" | curl --fail-with-body --silent --request "${method}" \
+    --dump-header "${headers}" --write-out $'\n%{http_code}' \
     --header @- --header 'Accept: application/vnd.github+json' --header 'X-GitHub-Api-Version: 2022-11-28' \
-    "${body[@]}" "${base}${path}")
+    "${body[@]}" "${base}${path}") || status=$?
+  code=${out##*$'\n'}
+  out=${out%$'\n'*}
+  if (( status == 0 ))
   then
     printf '%s\n' "${out}"
     return 0
   fi
-  if [[ "${missing}" == true && "$(jq --raw-output '.message // empty' <<<"${out}" 2>/dev/null)" == 'Not Found' ]]
+  said=$(jq --raw-output '.message // empty' <<<"${out}" 2>/dev/null || true)  # a body that is no JSON says nothing
+  if [[ "${missing}" == true && "${code}" == 404 ]]
   then
     return 1
   fi
-  forge/github:limited "the GitHub App's ${path}" "${out}" \
-    || error "check the App's ID and key (GitHub refused ${method} ${path}: $(jq --raw-output '.message // empty' \
-      <<<"${out}" 2>/dev/null || true))"
+  forge/github:app-failed "${method} ${path}" "${status}" "${code}" "${said}" "${headers}" "${base}"
+  return 1
+}
+
+# forge/github:app-failed <request> <curl status> <http code> <message> <headers file> <base> says why a request of the
+# App failed, in one line, as forge/github:app-api's comment lists.
+forge/github:app-failed() {
+  local request=$1 status=$2 code=$3 said=$4 headers=$5 base=$6 remaining reset now
+  if [[ ! "${code}" =~ ^[1-5][0-9][0-9]$ ]]
+  then
+    error "check the network (${base} could not be reached: curl exit ${status}; ${request} was not made)"
+    return 0
+  fi
+  remaining=$(forge/github:app-header "${headers}" x-ratelimit-remaining)
+  reset=$(forge/github:app-header "${headers}" x-ratelimit-reset)
+  if [[ "${said,,}" == *'secondary rate limit'* ]]
+  then
+    error "wait a few minutes: GitHub's secondary rate limit refused ${request} (HTTP ${code})"
+  elif [[ "${code}" =~ ^(403|429)$ && "${remaining}" == 0 ]]
+  then
+    now=$(date +%s)
+    if [[ "${reset}" =~ ^[0-9]+$ ]]
+    then
+      error "wait $(( reset > now ? reset - now : 0 )) seconds, until $(jq --null-input --raw-output \
+        --argjson at "${reset}" '$at | todate'): the App's rate limit is spent (${request} was not made)"
+    else
+      error "wait for the App's rate limit to reset (${request} was not made)"
+    fi
+  elif [[ "${code}" == 401 || "${code}" == 403 ]]
+  then
+    error "check the App's ID and key (GitHub refused ${request}, HTTP ${code}: ${said})"
+  elif [[ "${code}" =~ ^5 ]]
+  then
+    error "try again later (GitHub failed on ${request}, HTTP ${code}: ${said})"
+  else
+    error "GitHub refused ${request}, HTTP ${code}: ${said}"
+  fi
+}
+
+# forge/github:app-header <file> <name> prints the value of a response header, by its lowercase name, from the headers
+# curl dumped to <file>, or nothing.
+forge/github:app-header() {
+  tr -d '\r' < "$1" | tr '[:upper:]' '[:lower:]' | sed -n "s/^$2: *//p" | tail -n 1
+}
+
+# forge/github:app-fold is forge/github:fold for an answer to a call of the App: the remedy is the App's, not gh's.
+forge/github:app-fold() { forge:fold "check the App's ID and key" "$@"; }
+
+# forge/github:app-ok <kind> <value> succeeds when <value> may go into the URL of a call of the App as a <kind>: app or
+# installation, an ID of digits; repo, owner/name; name, the name alone. Anything else says so and fails, before any
+# request is made.
+forge/github:app-ok() {
+  local kind=$1 value=$2 part='[A-Za-z0-9_.-]+'
+  case "${kind}" in
+    (app | installation) [[ "${value}" =~ ^[0-9]+$ ]] && return 0 ;;
+    (repo) [[ "${value}" =~ ^${part}/${part}$ && "${value}" != *..* ]] && return 0 ;;
+    (name) [[ "${value}" =~ ^${part}$ && "${value}" != *..* ]] && return 0 ;;
+  esac
+  case "${kind}" in
+    (repo) error "'${value}' is not a repository: it is owner/name" ;;
+    (name) error "'${value}' is not the name of a repository" ;;
+    (app) error "'${value}' is not the ID of a GitHub App: it is a number" ;;
+    (*) error "'${value}' is not the ID of an installation: it is a number" ;;
+  esac
   return 1
 }
 
 # forge/github:app-pages <bearer> <path> <expression> prints the items of a list that GitHub pages, one JSON object per
-# line, by the jq <expression> of each page's answer; <path> has no query.
+# line, by the jq <expression> of each page's answer; <path> has no query. The list is whole or the call fails, as the
+# file header says, and nothing is printed of one that fails.
 forge/github:app-pages() {
-  local bearer=$1 path=$2 expression=$3 page=1 answer items count
+  local bearer=$1 path=$2 expression=$3 page=1 answer items count all=''
+  local -i total=0
   while :
   do
     answer=$(forge/github:app-api "${bearer}" GET "${path}?per_page=100&page=${page}") || return 1
-    items=$(jq --compact-output "${expression}" <<<"${answer}") || return 1
-    [[ -z "${items}" ]] || printf '%s\n' "${items}"
+    items=$(jq --compact-output "${expression}" <<<"${answer}" 2>/dev/null) \
+      || { error "check the App's ID and key (the answer of ${path} could not be read)"; return 1; }
+    [[ -z "${items}" ]] || all+=${items}$'\n'
     count=$(jq --slurp 'length' <<<"${items}")
-    (( count == 100 )) || return 0
+    total+=count
+    forge:whole "the answer of ${path}" "${total}" || return 1
+    (( count == 100 )) || break
     page=$(( page + 1 ))
   done
+  printf '%s' "${all}"
 }
 
 # forge/github:bot-app <app> <pem> prints the App: {slug, owner, permissions, html_url}.
 forge/github:bot-app() {
   local jwt answer
+  forge/github:app-ok app "$1" || return 1
   jwt=$(forge/github:jwt "$1" "$2") || return 1
   answer=$(forge/github:app-api "${jwt}" GET /app) || return 1
-  forge/github:fold 'the GitHub App' "${answer}" --compact-output '{slug, owner: .owner.login, permissions, html_url}'
+  forge/github:app-fold 'the GitHub App' "${answer}" --compact-output '{slug, owner: .owner.login, permissions, html_url}'
 }
 
 # forge/github:bot-installation <app> <pem> <owner/repo> prints the App's installation on the repository: {id,
 # permissions, repository_selection, html_url}. It returns 1, with no output, where the App has none there.
 forge/github:bot-installation() {
   local jwt answer
+  forge/github:app-ok app "$1" && forge/github:app-ok repo "$3" || return 1
   jwt=$(forge/github:jwt "$1" "$2") || return 1
   answer=$(forge/github:app-api --missing "${jwt}" GET "/repos/$3/installation") || return 1
-  forge/github:fold 'the installation' "${answer}" --compact-output '{id, permissions, repository_selection, html_url}'
+  forge/github:app-fold 'the installation' "${answer}" --compact-output \
+    '{id, permissions, repository_selection, html_url}'
 }
 
 # forge/github:bot-installations <app> <pem> prints each installation of the App, one object a line: {id, account,
 # repository_selection, html_url}, account being the login of the user or organization that has it.
 forge/github:bot-installations() {
   local jwt
+  forge/github:app-ok app "$1" || return 1
   jwt=$(forge/github:jwt "$1" "$2") || return 1
   forge/github:app-pages "${jwt}" /app/installations \
     '.[] | {id, account: .account.login, repository_selection, html_url}'
@@ -1373,16 +1453,20 @@ forge/github:bot-installations() {
 # narrowed to the one repository, <repo> being its name, with or without its owner.
 forge/github:bot-token() {
   local jwt answer body
+  forge/github:app-ok app "$1" && forge/github:app-ok installation "$3" && forge/github:app-ok name "${4##*/}" \
+    || return 1
   jwt=$(forge/github:jwt "$1" "$2") || return 1
   body=$(jq --null-input --compact-output --arg repo "${4##*/}" '{repositories: [$repo]}')
   answer=$(forge/github:app-api "${jwt}" POST "/app/installations/$3/access_tokens" "${body}") || return 1
-  forge/github:fold 'the installation token' "${answer}" --compact-output '{token, expires_at}'
+  forge/github:app-fold 'the installation token' "${answer}" --compact-output '{token, expires_at}'
 }
 
 # forge/github:bot-repositories <token> prints the full names of the repositories the installation token reaches, one a
 # line.
 forge/github:bot-repositories() {
-  forge/github:app-pages "$1" /installation/repositories '.repositories[] | .full_name' | jq --raw-output .
+  local names
+  names=$(forge/github:app-pages "$1" /installation/repositories '.repositories[] | .full_name') || return 1
+  [[ -z "${names}" ]] || jq --raw-output . <<<"${names}"
 }
 
 # forge/github:bot-revoke <token> revokes the installation token, which GitHub would keep good for an hour.
