@@ -9,9 +9,9 @@
 // screen's workspace menu asks for another; the root asks kit for it, keeping a group as the last used, and tells every
 // screen again. When the place the screens read moves, to another repository or onto or off a group, the screens made
 // are made anew there, all but the tutorials, the help, and the workspaces' screen, which read kit alone. Only the latest ask lands. The menu's
-// Open… opens a dialog over the screen shown, where a repository's folder is typed: kit keeps it among the recent and
-// says the workspace, which is switched to as a pick's is, or says why not, in the dialog. A link from one screen to
-// another leaves a crumb back, which crumb.go keeps.
+// Open Repository… opens a dialog over the screen shown, where a repository's folder is typed: kit keeps it among the
+// recent and says the workspace, which is switched to as a pick's is, or says why not, in the dialog. A link from one
+// screen to another leaves a crumb back, which crumb.go keeps.
 package screens
 
 import (
@@ -45,7 +45,7 @@ type Model struct {
 	refusal   string                       // kit's line, when a screen asked for could not open, until the next key
 	settings  shell.Settings
 	dialog    shell.SettingsDialog
-	opener    opener.Dialog        // the Open… dialog, which the workspace menu's Open… opens over the screen shown
+	opener    opener.Dialog        // the Open Repository… dialog, opened over the screen shown
 	home      string               // where kittui was started, which the screens read over anything but a repository
 	start     string               // the group the first screen was made over, as kittui started with --workspace
 	workspace kit.Workspace        // the workspace kit said last, zero until it says
@@ -63,7 +63,8 @@ type workspaceMsg struct {
 	err error
 }
 
-// openedMsg is kit's answer to the Open… dialog's ask for a repository by its folder, as workspaceMsg is to a pick.
+// openedMsg is kit's answer to the Open Repository… dialog's ask for a repository by its folder, as workspaceMsg is to
+// a pick.
 type openedMsg workspaceMsg
 
 // New gives the root showing the screen first, made already, as kittui opened on it, with the settings kittui's file
@@ -141,8 +142,8 @@ func sameRepository(r kit.WorkspaceRecent, ws kit.Workspace) bool {
 	return r.Checkout == ws.Checkout || r.Member != "" && r.Member == ws.Member
 }
 
-// opening opens the Open… dialog over the screen shown, the folder the repository shown stands in typed, else the
-// folder kittui started in.
+// opening opens the Open Repository… dialog over the screen shown, the folder the repository shown stands in typed,
+// else the folder kittui started in.
 func (m Model) opening() Model {
 	home, _ := os.UserHomeDir()
 	start := m.home
@@ -153,8 +154,8 @@ func (m Model) opening() Model {
 	return m
 }
 
-// asking does what the Open… dialog asks, as it was before: open a repository's folder, or run kit, as it asks to
-// add clones to a group; else it walks for clones, when the dialog began a walk.
+// asking does what the Open Repository… dialog asks, as it was before: open a repository's folder, or run kit, as it
+// asks to add clones to a group; else it walks for clones, when the dialog began a walk.
 func (m Model) asking(was opener.Dialog, ask opener.Ask) (tea.Model, tea.Cmd) {
 	switch {
 	case ask.Open != "":
@@ -169,15 +170,15 @@ func (m Model) asking(was opener.Dialog, ask opener.Ask) (tea.Model, tea.Cmd) {
 	return m, m.opener.Walk(was)
 }
 
-// editedMsg is kit's answer to what the Open… dialog asked it to run: what it printed, or why it refused.
+// editedMsg is kit's answer to what the Open Repository… dialog asked it to run: what it printed, or why it refused.
 type editedMsg struct {
 	out string
 	err error
 }
 
-// edited takes kit's answer to what the Open… dialog asked it to run: its line, when it refused, in the dialog; else
-// the last line kit printed, and kit asked for the workspace again, as after a screen had it change the groups, so the
-// dialog marks the members as they are now.
+// edited takes kit's answer to what the Open Repository… dialog asked it to run: its line, when it refused, in the
+// dialog; else the last line kit printed, and kit asked for the workspace again, as after a screen had it change the
+// groups, so the dialog marks the members as they are now.
 func (m Model) edited(msg editedMsg) (tea.Model, tea.Cmd) {
 	if msg.err != nil {
 		m.opener = m.opener.Refused(refusalLine(msg.err))
@@ -188,15 +189,16 @@ func (m Model) edited(msg editedMsg) (tea.Model, tea.Cmd) {
 	return m.regrouped(shell.ChangedMsg{})
 }
 
-// openFolder asks kit for the repository whose working tree holds the folder, as the latest ask, the Open… dialog's.
+// openFolder asks kit for the repository whose working tree holds the folder, as the latest ask, the Open Repository…
+// dialog's.
 func (m Model) openFolder(folder string) (tea.Model, tea.Cmd) {
 	m.asked++
 	ask := m.ask(folder)
 	return m, func() tea.Msg { return openedMsg(ask().(workspaceMsg)) }
 }
 
-// opened takes kit's answer to the Open… dialog: its line, when kit refused, stands in the dialog, which stays open;
-// else the dialog closes, and the repository is switched to, as a pick's answer is.
+// opened takes kit's answer to the Open Repository… dialog: its line, when kit refused, stands in the dialog, which
+// stays open; else the dialog closes, and the repository is switched to, as a pick's answer is.
 func (m Model) opened(msg openedMsg) (tea.Model, tea.Cmd) {
 	if msg.gen != m.asked {
 		return m, nil
@@ -316,9 +318,9 @@ func (m Model) workspaceMsg() shell.WorkspaceMsg {
 // Update takes a message: a screen's ask for another, shown in its place, with no crumb from the app's menu, else with
 // a crumb back, as crumb.go says, or for a row of another, which is shown with a crumb back and then given the ask; a
 // key or a click the screen shown says goes back to its crumb, while no dialog is open; or for the Settings dialog, or
-// the Open… dialog, opened over it, and a walk's clones for the Open… dialog;
+// the Open Repository… dialog, opened over it, and a walk's clones for the Open Repository… dialog;
 // an answer to what a screen started, for that screen; while a dialog is open, a key or a click for it, which closes
-// it outside it, a turn of the wheel for the Open… dialog's list, and any other mouse event nowhere;
+// it outside it, a turn of the wheel for the Open Repository… dialog's list, and any other mouse event nowhere;
 // and anything else for the screen shown, the terminal's size as the screen has it.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {

@@ -1,19 +1,18 @@
-// Package opener is the Open… dialog, which the workspace menu's Open… opens over the screen shown: the folder of a
-// repository typed, as a terminal's prompt takes one, ~ for the home folder and a path without / read from there; tab
-// completes it a folder at a time, and the folders it can complete to stand under it, each opened into by a plain
-// click. Up and down move a highlight from what is typed onto the folders and back, page up and page down by a page,
-// and the list scrolls to keep it in view, as the mouse wheel scrolls it, saying how many folders it hides above and
-// below; enter on a folder highlighted goes into it, as a click does, and typing puts the highlight back on what is
-// typed. Shift+backspace and ⌃W go up a folder, taking the last name off what is typed; while there is a folder above,
-// a ../ line starts the list, pinned as it scrolls, and a click on it, or enter on it, goes up the same way. Enter with
-// no folder highlighted, or a click on Open, asks kittui to open what is typed; kit says whether it is a git working
-// tree, and its line, when it is not, stands in the dialog, which stays open.
-//
-// A line above Open, or ⌃F, finds the clones under the folder typed: a command walks it for git working trees, never
-// blocking the screen, while a dim line says it is finding them where the folders were. The clones then stand in their
-// place as a table, as clones.go says: a tree of repositories, each with its worktrees, selected and added to a
-// workspace, or taken out of the one shown, or opened. Esc, or typing, goes back to the folders, and the answer of a
-// walk begun before is dropped. Esc over the folders, or a click off the box, closes the dialog.
+// Package opener is the Open Repository… dialog, which the workspace menu's Open Repository… opens over the screen
+// shown: the folder of a repository typed, as a terminal's prompt takes one, ~ for the home folder and a path without /
+// read from there; tab completes it a folder at a time, and the folders it can complete to stand under it, each opened
+// into by a plain click. Up and down move a highlight from what is typed onto the folders and back, page up and page
+// down by a page, and the list scrolls to keep it in view, as the mouse wheel scrolls it, saying how many folders it
+// hides above and below; enter on a folder highlighted goes into it, as a click does, and typing puts the highlight
+// back on what is typed. Shift+backspace and ⌃W go up a folder, taking the last name off what is typed; while there is
+// a folder above, a ../ line starts the list, pinned as it scrolls, and a click on it, or enter on it, goes up the same
+// way. Enter with no folder highlighted, or a click on Open, asks kittui to open what is typed; kit says whether it is
+// a git working tree, and its line, when it is not, stands in the dialog, which stays open.  A line above Open, or ⌃F,
+// finds the clones under the folder typed: a command walks it for git working trees, never blocking the screen, while a
+// dim line says it is finding them where the folders were. The clones then stand in their place as a table, as
+// clones.go says: a tree of repositories, each with its worktrees, selected and added to a workspace, or taken out of
+// the one shown, or opened. Esc, or typing, goes back to the folders, and the answer of a walk begun before is dropped.
+// Esc over the folders, or a click off the box, closes the dialog.
 package opener
 
 import (
@@ -61,8 +60,8 @@ const (
 	openWheel = 3
 )
 
-// Dialog is the Open… dialog: whether it is open, which then has the keyboard; the folder typed, as written; kit's
-// line for the last thing it was asked, when it refused; what kit said it did, when it did; whether kit is being
+// Dialog is the Open Repository… dialog: whether it is open, which then has the keyboard; the folder typed, as written;
+// kit's line for the last thing it was asked, when it refused; what kit said it did, when it did; whether kit is being
 // asked; the home folder, which ~ stands for and a path without / is read from; the line highlighted, 0 for what is
 // typed and k for the kth line of the list; and the first line of the list shown. A walk for clones holds whether one
 // is on; the folder walked; how many walks were begun, which tells an answer from one begun before; and the walk's

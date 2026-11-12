@@ -70,30 +70,31 @@ func names(b BooksMenu) ([]string, []int) {
 
 func TestBooksDrawsNoLineThatOpensNothing(t *testing.T) {
 	got, acting := names(BooksMenu{Workspace: inGroups})
-	if strings.Join(got, "|") != "w 2|v 1||w 2|o/b · not cloned||o/a||Open…|Manage…" {
+	if strings.Join(got, "|") != "w 2|v 1||w 2|o/b · not cloned||o/a||Open Repository…|Manage…" {
 		t.Errorf("the lines: %q", got)
 	}
 	if len(acting) != 5 {
 		t.Errorf("the lines that act: %v", acting)
 	}
-	// with nothing to switch to, Open… and Manage… alone, which act
+	// with nothing to switch to, Open Repository… and Manage… alone, which act
 	got, acting = names(BooksMenu{Workspace: kit.Workspace{Kind: "none"}})
-	if strings.Join(got, "|") != "Open…|Manage…" || len(acting) != 2 {
+	if strings.Join(got, "|") != "Open Repository…|Manage…" || len(acting) != 2 {
 		t.Errorf("with no group: %q, acting %v", got, acting)
 	}
-	if items := (BooksMenu{}).Items(); items[0] != (Item{Glyph: Opening, Name: "Open…"}) {
+	if items := (BooksMenu{}).Items(); items[0] != (Item{Glyph: Opening, Name: "Open Repository…"}) {
 		t.Errorf("the line with no group: %+v", items[0])
 	}
-	if got, _ := names(BooksMenu{Refusal: "x"}); strings.Join(got, "|") != "x||Open…|Manage…" {
+	if got, _ := names(BooksMenu{Refusal: "x"}); strings.Join(got, "|") != "x||Open Repository…|Manage…" {
 		t.Errorf("kit's line alone: %q", got)
 	}
 	if got, _ := names(BooksMenu{Refusal: "x", Workspace: inGroups}); strings.Join(got, "|") !=
-		"x||w 2|v 1||w 2|o/b · not cloned||o/a||Open…|Manage…" {
+		"x||w 2|v 1||w 2|o/b · not cloned||o/a||Open Repository…|Manage…" {
 		t.Errorf("kit's line, the groups, and the favorites: %q", got)
 	}
 }
 
-// Open… and Manage… pick no workspace: they ask kittui for the Open… dialog and the workspaces' screen.
+// Open Repository… and Manage… pick no workspace: they ask kittui for the Open Repository… dialog and the workspaces'
+// screen.
 func TestBooksOpenAsksForTheOpenDialog(t *testing.T) {
 	b := BooksMenu{Workspace: kit.Workspace{Kind: "none"}}.Opened()
 	if !b.Open || b.At != 0 {
@@ -101,12 +102,12 @@ func TestBooksOpenAsksForTheOpenDialog(t *testing.T) {
 	}
 	b2, picked := b.Key(key("enter"))
 	if b2.Open || Pick(picked)() != (OpenMsg{}) {
-		t.Errorf("enter on Open…: %q, open %v", picked, b2.Open)
+		t.Errorf("enter on Open Repository…: %q, open %v", picked, b2.Open)
 	}
 	at := BooksAt(Title("kit welcome", false))
 	_, left := b.box(at, 120)
 	if _, picked := b.Click(left+3, Top+1, at, 120); Pick(picked)() != (OpenMsg{}) {
-		t.Errorf("a click on Open…: %q", picked)
+		t.Errorf("a click on Open Repository…: %q", picked)
 	}
 	// Manage… asks for the workspaces' screen
 	if _, picked := b.Click(left+3, Top+2, at, 120); Pick(picked)() != (SwitchMsg{Screen: Manage, Crumb: true}) {
@@ -123,7 +124,7 @@ func TestBooksDropsDownTheRecentRepositoriesPickedByTheirFolder(t *testing.T) {
 		{Name: "github.com/o/b", Member: "github.com/o/b", Checkout: "/far/b"}}
 	b := BooksMenu{Workspace: ws}
 	got, acting := names(b)
-	if strings.Join(got, "|") != "w 2|v 1||w 2|o/b · not cloned||o/a|scratch||Open…|Manage…" {
+	if strings.Join(got, "|") != "w 2|v 1||w 2|o/b · not cloned||o/a|scratch||Open Repository…|Manage…" {
 		t.Errorf("the lines: %q", got)
 	}
 	if acting[len(acting)-3] != 7 || acting[len(acting)-2] != 9 {
@@ -143,7 +144,7 @@ func TestBooksDropsDownTheRecentRepositoriesPickedByTheirFolder(t *testing.T) {
 	ws.Favorites = append(ws.Favorites, kit.WorkspaceFavorite{Name: "github.com/o/a", Kind: "repository",
 		Checkout: "/code/a"})
 	if got, _ := names(BooksMenu{Workspace: ws}); strings.Join(got, "|") !=
-		"w 2|v 1||w 2|o/b · not cloned|o/a||scratch||Open…|Manage…" {
+		"w 2|v 1||w 2|o/b · not cloned|o/a||scratch||Open Repository…|Manage…" {
 		t.Errorf("o/a a favorite: %q", got)
 	}
 }
@@ -161,14 +162,15 @@ func TestBooksTellsTwoFoldersOfOneRepositoryApart(t *testing.T) {
 	for k := range got {
 		got[k] = ansi.Strip(got[k])
 	}
-	if strings.Join(got, "|") != "o/a · 1-x|o/a · gitlab-a|o/c||Open…|Manage…" || len(acting) != 4 || acting[0] != 1 {
+	if strings.Join(got, "|") != "o/a · 1-x|o/a · gitlab-a|o/c||Open Repository…|Manage…" || len(acting) != 4 ||
+		acting[0] != 1 {
 		t.Errorf("the lines: %q, acting %v", got, acting)
 	}
 }
 
 func TestBooksDropsDownTheGroupsThenTheFavorites(t *testing.T) {
 	got, acting := names(BooksMenu{Workspace: inGroups})
-	want := []string{"w 2", "v 1", "", "w 2", "o/b · not cloned", "", "o/a", "", "Open…", "Manage…"}
+	want := []string{"w 2", "v 1", "", "w 2", "o/b · not cloned", "", "o/a", "", "Open Repository…", "Manage…"}
 	if strings.Join(got, "|") != strings.Join(want, "|") {
 		t.Errorf("the lines: %q", got)
 	}
@@ -190,7 +192,8 @@ func TestBooksDropsDownEveryOtherGroupAfterTheFavorites(t *testing.T) {
 	ws.Workspaces = []kit.WorkspaceGroup{{Name: "w", Members: 2}, {Name: "x", Members: 3}, {Name: "v", Members: 1},
 		{Name: "y", Members: 4}}
 	got, acting := names(BooksMenu{Workspace: ws})
-	want := []string{"w 2", "v 1", "", "w 2", "o/b · not cloned", "", "x 3", "y 4", "", "o/a", "", "Open…", "Manage…"}
+	want := []string{"w 2", "v 1", "", "w 2", "o/b · not cloned", "", "x 3", "y 4", "", "o/a", "",
+		"Open Repository…", "Manage…"}
 	if strings.Join(got, "|") != strings.Join(want, "|") {
 		t.Errorf("the lines: %q", got)
 	}
@@ -210,8 +213,8 @@ func TestBooksDropsDownEveryOtherGroupAfterTheFavorites(t *testing.T) {
 	// over a group, it stands among the others, dim
 	over := group("x", 3)
 	over.Workspaces = ws.Workspaces
-	if got, acting := names(BooksMenu{Workspace: over}); strings.Join(got, "|") != "w 2|x 3|v 1|y 4||Open…|Manage…" ||
-		len(acting) != 5 || acting[0] != 0 || acting[1] != 2 {
+	if got, acting := names(BooksMenu{Workspace: over}); strings.Join(got, "|") !=
+		"w 2|x 3|v 1|y 4||Open Repository…|Manage…" || len(acting) != 5 || acting[0] != 0 || acting[1] != 2 {
 		t.Errorf("over x: %q, acting %v", got, acting)
 	}
 	// no cap: every favorite has its line

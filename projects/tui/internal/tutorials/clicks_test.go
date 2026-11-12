@@ -111,14 +111,14 @@ func TestTheTutorialsSearchIsRememberedAndRecalled(t *testing.T) {
 	}
 }
 
-// A click on the workspace menu's Open… asks kittui for the Open… dialog, and closes the menu.
+// A click on the workspace menu's Open Repository… asks kittui for the Open Repository… dialog, and closes the menu.
 func TestTheWorkspaceMenuPicksByAClick(t *testing.T) {
 	m, _ := loaded(t, shell.WorkspaceMsg{Workspace: kit.Workspace{Kind: "repository", Member: "github.com/o/r"}})
 	m = drive(m, testkit.Click(m.booksAt(), shell.Top))
-	x, y := cell(m, "Open…", shell.Top+1)
+	x, y := cell(m, "Open Repository…", shell.Top+1)
 	if m, produced := testkit.Drive(m, nil, testkit.Click(x, y)); m.books.Open ||
 		!slices.Contains(produced, tea.Msg(shell.OpenMsg{})) {
-		t.Errorf("a click on Open… at %d, %d: open %v, %v", x, y, m.books.Open, produced)
+		t.Errorf("a click on Open Repository… at %d, %d: open %v, %v", x, y, m.books.Open, produced)
 	}
 }
 

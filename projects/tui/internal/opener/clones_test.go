@@ -1,4 +1,4 @@
-// The clones a walk finds stand in the Open… dialog as a table: a tree of repositories, selected, added to a
+// The clones a walk finds stand in the Open Repository… dialog as a table: a tree of repositories, selected, added to a
 // workspace, taken out of the one shown, and opened.
 package opener
 

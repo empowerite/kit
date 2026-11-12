@@ -485,11 +485,11 @@ func TestThePalettesMenuBarHasTheWorkspaceMenu(t *testing.T) {
 	if m, _ = drive(m, testkit.Click(m.booksAt(), shell.Top)); !m.books.Open {
 		t.Error("a click on the workspace menu did not drop it down")
 	}
-	// a click on Open… asks kittui for the Open… dialog, and closes the menu
-	x, y := at(m, "Open…", shell.Top+1)
+	// a click on Open Repository… asks kittui for the Open Repository… dialog, and closes the menu
+	x, y := at(m, "Open Repository…", shell.Top+1)
 	if m, produced := drive(m, testkit.Click(x, y)); m.books.Open ||
 		!slices.Contains(produced, tea.Msg(shell.OpenMsg{})) {
-		t.Errorf("a click on Open… at %d, %d: open %v, %v", x, y, m.books.Open, produced)
+		t.Errorf("a click on Open Repository… at %d, %d: open %v, %v", x, y, m.books.Open, produced)
 	}
 }
 

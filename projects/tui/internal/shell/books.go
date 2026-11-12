@@ -3,12 +3,12 @@
 // color, and - alone, dim, with none. Until kit says which workspace it is, it names the origin's owner/repo, as the
 // title did before. A plain click on it drops down what to switch to: the groups the repository belongs to, first;
 // the favorites, however many; every other group in the file; the repositories opened by their folder, the newest
-// first; and last Open…, which opens a repository by its folder, and Manage…, which opens the workspaces' screen; a
-// rule between two of those it has. A line that cannot
+// first; and last Open Repository…, which opens a repository by its folder, and Manage…, which opens the workspaces'
+// screen; a rule between two of those it has. A line that cannot
 // switch now stays, dim: the workspace shown, and a repository not cloned. The repository shown always has its line,
 // dim, first among the recent ones, unless a favorite draws it already, and one that reads as another of them, two
 // folders of one repository, says its folder, dim. When kit could not say, its line comes first, dim. A pick asks kittui to switch, by the workspace's name as kit names it, a recent repository by its
-// folder; Open… asks for the Open… dialog, and Manage… for the workspaces' screen.
+// folder; Open Repository… asks for the Open Repository… dialog, and Manage… for the workspaces' screen.
 package shell
 
 import (
@@ -45,18 +45,18 @@ const Favorite = "⭐"
 // Opened is the glyph of a repository opened by its folder, beside its line in the dropdown.
 const Opened = "🕘"
 
-// openItem is the dropdown's last line, which opens the Open… dialog, to open a repository by its folder.
-var openItem = booksLine{item: Item{Glyph: Opening, Name: "Open…"}, target: openTarget, acts: true}
+// openItem is the dropdown's last line, which opens the Open Repository… dialog, to open a repository by its folder.
+var openItem = booksLine{item: Item{Glyph: Opening, Name: "Open Repository…"}, target: openTarget, acts: true}
 
-// manageItem is the line after Open…, which opens the workspaces' screen, where the groups are made, renamed, edited,
-// and deleted.
+// manageItem is the line after Open Repository…, which opens the workspaces' screen, where the groups are made,
+// renamed, edited, and deleted.
 var manageItem = booksLine{item: Item{Glyph: Index, Name: "Manage…"}, target: manageTarget, acts: true}
 
 // Index is Manage…'s glyph.
 const Index = "📇"
 
-// openTarget and manageTarget are what Open… and Manage… pick: no workspace's name, as neither a group's nor a
-// repository's starts with a space.
+// openTarget and manageTarget are what Open Repository… and Manage… pick: no workspace's name, as neither a group's nor
+// a repository's starts with a space.
 const (
 	openTarget   = " open"
 	manageTarget = " manage"
@@ -76,9 +76,9 @@ type WorkspaceMsg struct {
 // PickMsg asks kittui to switch to a workspace: a group's name or a repository's host/path, as kit names it.
 type PickMsg struct{ Workspace string }
 
-// Pick gives the command for what a line of the dropdown picked: Open… asks kittui for the Open… dialog, Manage… for
-// the workspaces' screen, leaving the screen shown as its crumb, and a workspace asks kittui to switch to it; none for
-// none.
+// Pick gives the command for what a line of the dropdown picked: Open Repository… asks kittui for the Open Repository…
+// dialog, Manage… for the workspaces' screen, leaving the screen shown as its crumb, and a workspace asks kittui to
+// switch to it; none for none.
 func Pick(workspace string) tea.Cmd {
 	switch workspace {
 	case "":

@@ -76,9 +76,9 @@ used.
 repository whose working tree holds it first among the recent repositories, in `kit/workspaces/recent` under
 `XDG_CACHE_HOME`: ten at most, each once, the newest first. A linked worktree is no workspace of its own: its folder
 is kept as its repository's desk, and one kept before stands as that desk. A recent repository is no group: kit starts
-on it only inside it, as on any other. The workspace menu offers them, and its **Open…** keeps the one it opens there.
-`kit --workspace=<path> workspaces --current`, with an absolute path, names the repository whose working tree holds
-it, and refuses with 2 where none does.
+on it only inside it, as on any other. The workspace menu offers them, and its **Open Repository…** keeps the one it
+opens there. `kit --workspace=<path> workspaces --current`, with an absolute path, names the repository whose working
+tree holds it, and refuses with 2 where none does.
 
 `kit flow`, `kit workspace`, and `kit workspaces --current` follow this rule. Every other verb runs in its folder's
 repository, or refuses outside one, and takes no `--workspace=`. `--workspace=` is an option of `kit` itself, which the
@@ -156,11 +156,11 @@ and are refused.
 ## The workspace menu in kittui
 
 The `-` on every screen's title line drops down the workspaces to switch to: the groups the repository here belongs to;
-the favorites, however many; every other group in the file; and the recent repositories, but the one shown, or the one a
-worktree shown belongs to. The one shown is dim, as is a favorite repository with no checkout. **Open…**, last, opens a
-dialog to type a repository's folder in: tab completes a folder, the folders it can complete to stand under it, and a
-plain click on one opens it. Enter, or a click on Open, asks kit; a folder in no git working tree is refused with one
-line in the dialog, which stays open.
+the favorites, however many; every other group in the file; and the recent repositories, the one shown first, or the one
+a worktree shown belongs to, unless a favorite names it already. The one shown is dim, wherever it stands, as is a
+favorite repository with no checkout. **Open Repository…**, last, opens a dialog to type a repository's folder in: tab
+completes a folder, the folders it can complete to stand under it, and a plain click on one opens it. Enter, or a click
+on Open, asks kit; a folder in no git working tree is refused with one line in the dialog, which stays open.
 
 **Manage…**, after it, opens the workspaces' screen: every group a row, with whether it is a favorite, how many
 members it has, and the members. The app's menu, `=`, holds what it does to the group under the cursor, each a line
@@ -245,5 +245,5 @@ with checkouts. Steps 4 to 7 are designed and not built:
 - Topics and git config labels as filters.
 - GitHub Project workspaces. A group's `project` is refused by name until then.
 - **Browse…**, a picker of every checkout under the roots with groups suggested from owners. The workspaces' screen,
-  **Open…**, and **Manage…** are built; a pattern or a command given to `--new` and `--add` is read once, when it is
-  given.
+  **Open Repository…**, and **Manage…** are built; a pattern or a command given to `--new` and `--add` is read once,
+  when it is given.

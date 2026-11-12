@@ -239,7 +239,7 @@ func TestAGroupGivenAtStartIsAskedAndNotMadeTwice(t *testing.T) {
 	}
 }
 
-// open drives the root's Open… dialog: open, what is typed cleared, the folder typed, and enter.
+// open drives the root's Open Repository… dialog: open, what is typed cleared, the folder typed, and enter.
 func open(m Model, folder string) Model {
 	m = drive(m, shell.OpenMsg{}, tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl})
 	m = drive(m, typed(folder)...)
@@ -258,7 +258,7 @@ func TestOpenOpensARepositoryByItsFolderAndKeepsItAmongTheRecent(t *testing.T) {
 	m = drive(m, shell.OpenMsg{})
 	if v := ansi.Strip(m.View().Content); !m.opener.Open || !strings.Contains(v, "Open a repository") ||
 		!strings.Contains(v, "esc close") {
-		t.Fatalf("Open… opened no dialog:\n%s", v)
+		t.Fatalf("Open Repository… opened no dialog:\n%s", v)
 	}
 	m = open(m, far)
 	if got, _ := os.ReadFile(record); !strings.Contains(string(got), "use "+far) {
@@ -351,8 +351,8 @@ func TestAGroupRenamedIsFollowedAndOneDeletedGivesWayToWhereKitStarts(t *testing
 	}
 }
 
-// The Open… dialog takes plain clicks over the screen: one on a folder completes to it, one on Open asks kit for it;
-// an answer to an earlier ask is dropped, the dialog left open.
+// The Open Repository… dialog takes plain clicks over the screen: one on a folder completes to it, one on Open asks kit
+// for it; an answer to an earlier ask is dropped, the dialog left open.
 func TestOpenIsDoneByPlainClicksOverTheScreen(t *testing.T) {
 	m, record, _ := workspaced(t, map[string]string{"current.json": repoJSON})
 	parent := t.TempDir()
@@ -385,7 +385,7 @@ func TestOpenIsDoneByPlainClicksOverTheScreen(t *testing.T) {
 	}
 }
 
-// While the Open… dialog is open, a turn of the mouse wheel scrolls its folders.
+// While the Open Repository… dialog is open, a turn of the mouse wheel scrolls its folders.
 func TestTheWheelScrollsTheOpenDialogsFolders(t *testing.T) {
 	m, _, _ := workspaced(t, map[string]string{"current.json": repoJSON})
 	parent := t.TempDir()
@@ -403,8 +403,8 @@ func TestTheWheelScrollsTheOpenDialogsFolders(t *testing.T) {
 	}
 }
 
-// ⌃F in the Open… dialog walks the folder typed, and the clones it finds stand in the dialog as a table: a click on
-// one, then on Open, opens it.
+// ⌃F in the Open Repository… dialog walks the folder typed, and the clones it finds stand in the dialog as a table: a
+// click on one, then on Open, opens it.
 func TestTheOpenDialogFindsAndOpensTheClonesUnderAFolder(t *testing.T) {
 	m, record, _ := workspaced(t, map[string]string{"current.json": repoJSON})
 	parent := t.TempDir()
@@ -431,8 +431,9 @@ func TestTheOpenDialogFindsAndOpensTheClonesUnderAFolder(t *testing.T) {
 	}
 }
 
-// The clones the Open… dialog finds are added to a group kit keeps: kit runs with their folders, and what it said
-// stands in the dialog, which stays open, kit asked for the workspace again; kit's line, when it refuses, stands there.
+// The clones the Open Repository… dialog finds are added to a group kit keeps: kit runs with their folders, and what it
+// said stands in the dialog, which stays open, kit asked for the workspace again; kit's line, when it refuses, stands
+// there.
 func TestTheOpenDialogAddsTheClonesFoundToAWorkspace(t *testing.T) {
 	current := strings.Replace(repoJSON, `"favorites":[]`, `"favorites":[],"workspaces":[{"name":"w","members":1}]`, 1)
 	m, record, _ := workspaced(t, map[string]string{"current.json": current})

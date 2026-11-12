@@ -32,7 +32,7 @@ The screen you are on is dim. Each screen keeps its place when you leave it.
 - The groups this repository belongs to
 - Your favorites, then the other groups
 - Repositories you opened by folder, newest first
-- **Open…**  open a repository by its folder
+- **Open Repository…**  open a repository by its folder
 - **Manage…**  make, rename, edit, and delete groups
 
 A dim line cannot be picked now: the workspace shown, or a repository not cloned.

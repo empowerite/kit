@@ -882,9 +882,9 @@ func TestTheFormsMenuBarIsEveryScreens(t *testing.T) {
 	if m, _ = drive(t, m, testkit.Click(m.menuBar().WorkspaceAt(), shell.Top)); !m.books.Open {
 		t.Fatal("a click on the workspace menu did not drop it down")
 	}
-	x, y = lineAt(t, m, "Open…")
+	x, y = lineAt(t, m, "Open Repository…")
 	if _, produced = drive(t, m, testkit.Click(x, y)); !slices.Contains(produced, tea.Msg(shell.OpenMsg{})) {
-		t.Errorf("a click on Open…: %v", produced)
+		t.Errorf("a click on Open Repository…: %v", produced)
 	}
 	m, _ = drive(t, m, key("esc"))
 	if m, _ = drive(t, m, tea.MouseClickMsg{X: shell.At, Y: shell.Top, Button: tea.MouseRight}); m.appMenu.Open {

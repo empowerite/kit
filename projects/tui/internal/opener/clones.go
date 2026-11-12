@@ -1,5 +1,5 @@
-// The clones a walk found, as the Open… dialog shows them: a table, as every one of kittui's is, a sheet of the
-// catalog's clones.json. Each repository is a heading, its desk and its linked worktrees under it, which its ▸ or ▾
+// The clones a walk found, as the Open Repository… dialog shows them: a table, as every one of kittui's is, a sheet of
+// the catalog's clones.json. Each repository is a heading, its desk and its linked worktrees under it, which its ▸ or ▾
 // opens and closes, > and < a level at a time, as the table's outline does; whether a clone's repository is a member
 // of the workspace shown is a column of its own. Space selects the clone under the cursor, or a heading every clone
 // under it, ⇧↑↓ as the cursor moves, ⌃A every clone, and a plain click on a row's mark does as space does on it.

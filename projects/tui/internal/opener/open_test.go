@@ -1,4 +1,4 @@
-// The Open… dialog takes a folder typed, completes it a folder at a time, and asks to open it.
+// The Open Repository… dialog takes a folder typed, completes it a folder at a time, and asks to open it.
 package opener
 
 import (
