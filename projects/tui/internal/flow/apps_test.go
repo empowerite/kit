@@ -373,7 +373,8 @@ func TestAVerbThatNeverMarksItsTabsIsNotAskedForTheirMarks(t *testing.T) {
 }
 
 // A load of a stage that reads the forge, as its catalog entry's forge says, reads the rate limits again; one that
-// reads none, as Platform's, does not.
+// reads none, as Platform's, reads them only while the screen has none, so every app draws them, those whose stages
+// read no forge too, and a load that spends none does not read them again.
 func TestAForgeStagesLoadReadsTheLimitsAgain(t *testing.T) {
 	for name, forge := range map[string]bool{"issues": true, "people/teams": true, "audit/findings": true,
 		"audit/policy": false, "platform/tools": false, "workspace/repos": false, "incoming": false} {
@@ -382,13 +383,28 @@ func TestAForgeStagesLoadReadsTheLimitsAgain(t *testing.T) {
 		}
 	}
 	for app, name := range map[shell.Screen]string{shell.People: "people/teams", shell.Platform: "platform/tools"} {
-		m := New(runner(t), Options{App: app, Stages: stagesIn(app), Clock: &testkit.Clock{}})
-		next, _ := m.Update(source.Answer[[]byte]{Name: name, Gen: m.find(name).src.Gen(),
-			Value: []byte(`{"rows": [], "errors": []}`)})
-		if got := next.(Model).quota.Asking(); got != catalog[name].Forge {
-			t.Errorf("a load of %s reads the limits: %v", name, got)
+		for _, got := range []bool{false, true} {
+			m := New(runner(t), Options{App: app, Stages: stagesIn(app), Clock: &testkit.Clock{}})
+			m.quota.Got = got
+			next, _ := m.Update(source.Answer[[]byte]{Name: name, Gen: m.find(name).src.Gen(),
+				Value: []byte(`{"rows": [], "errors": []}`)})
+			if asked, want := next.(Model).quota.Asking(), catalog[name].Forge || !got; asked != want {
+				t.Errorf("a load of %s, the limits read already %v, reads them: %v", name, got, asked)
+			}
+			m.Close()
 		}
-		m.Close()
+	}
+}
+
+// Every app draws the rate limits at its keys bar's right end once its stages load, Platform, whose stages read no
+// forge, as well as Issues.
+func TestEveryAppDrawsTheLimits(t *testing.T) {
+	t.Setenv("FAKE_FLOW_QUOTA", quotas)
+	for _, a := range apps {
+		m := appOf(t, a.screen, tea.WindowSizeMsg{Width: 200, Height: 30})
+		if last := lines(m)[len(lines(m))-1]; !strings.Contains(last, GitHub+" 4871/5000") {
+			t.Errorf("%s's keys bar: %q", a.screen, last)
+		}
 	}
 }
 

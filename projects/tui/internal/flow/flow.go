@@ -350,9 +350,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if a, ok := msg.(source.Answer[[]byte]); ok && !a.Kept {
 		// the stage takes the next mark as its own, so the marks are read again; a load of a command that reads the
 		// forge, as its catalog entry's forge says, spends the rate limits, which are read again too; one that reads
-		// none, as kit workspace's, spends none
+		// none, as kit workspace's, spends none, and reads them only while the screen has none, so an app whose
+		// stages read no forge, as Platform, draws them too
 		cmd = tea.Batch(cmd, n.marks.Ask(n.env()))
-		if c := catalog[a.Name]; c != nil && c.Forge {
+		if c := catalog[a.Name]; c != nil && c.Forge || !n.quota.Got {
 			cmd = tea.Batch(cmd, n.quota.Ask(n.env()))
 		}
 	}

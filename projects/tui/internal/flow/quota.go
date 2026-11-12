@@ -1,7 +1,8 @@
 // Each forge's rate limit on the caller, at the right end of the keys bar: the limit it has least of, as a share of
 // what it allows, after the forge's glyph. Dim while plenty is left; under a fifth, yellow, with the time it resets;
-// spent, red. The screen asks kit for them after a stage loads, since a load spends them, and once a minute after it
-// first reads them; a kit that cannot read them is asked again only on Refresh All. The limits are a source.Poll.
+// spent, red. The screen asks kit for them after a stage that reads the forge loads, since a load spends them, after
+// any stage loads while it has none, so every app draws them, and once a minute after it first reads them; a kit that
+// cannot read them is asked again only on Refresh All. The limits are a source.Poll.
 package flow
 
 import (
