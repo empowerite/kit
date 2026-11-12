@@ -180,15 +180,47 @@ JSON
   [ "$(jq -c '.errors' <<<"$output")" = '[{"feature":"secret-scanning","off":true}]' ]
 }
 
-@test "policy is a row per rule the policy judges by, keyed by the rule: its pattern, where it is set, the engine" {
+@test "policy is a row per rule the policy judges by, where it is in force: its pattern, where it is set, the engine" {
   github-world
   printf 'policy:\n  branch: "^[0-9]+-"\n' > kit.yml
   run --separate-stderr "${kit_root}/bin/kit" audit policy --json
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
-  [ "$(jq -c '.rows[0]' <<<"$output")" \
-    = '{"key":"branch","rule":"branch","pattern":"^[0-9]+-","from":"kit.yml","engine":"patterns","links":{}}' ]
-  [ "$(jq -c '[.rows[] | [.key, .from]]' <<<"$output")" \
+  [ "$(jq -c '.rows[0]' <<<"$output")" = "$(printf '%s' '{"key":"branch github o r main",' \
+    '"source":"github","organization":"o","repository":"r","branch":"main","scope":"branch","rule":"branch",' \
+    '"pattern":"^[0-9]+-","from":"kit.yml","engine":"patterns","links":{}}')" ]
+  [ "$(jq -c '[.rows[] | [.rule, .from]]' <<<"$output")" \
     = '[["branch","kit.yml"],["commit_subject","default"],["change_title","default"]]' ]
+}
+
+@test "policy reads each checked-out branch, merges a rule its branches agree on, and keeps apart those they do not" {
+  github-world
+  printf 'policy:\n  branch: "^[0-9]+-"\n' > kit.yml
+  git add kit.yml
+  git commit --quiet --message one
+  git update-ref refs/remotes/origin/main HEAD
+  git worktree add --quiet -b 2-fix "${BATS_TEST_TMPDIR}/w"
+  git worktree add --quiet --detach "${BATS_TEST_TMPDIR}/d"
+  # the branch past the default is judged by the base's kit.yml, which main's own agrees with: one row a rule
+  run --separate-stderr "${kit_root}/bin/kit" audit policy --json
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq -c '[.rows[] | [.key, .scope, .branch]]' <<<"$output")" = "$(printf '%s' \
+    '[["branch github o r","repository",null],["commit_subject github o r","repository",null],' \
+    '["change_title github o r","repository",null]]')" ]
+  # main's own kit.yml now differs from what it holds, which still judges 2-fix: the rule is a row a branch
+  printf 'policy:\n  branch: "^x-"\n' > kit.yml
+  run --separate-stderr "${kit_root}/bin/kit" audit policy --json
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq -c '[.rows[] | [.rule, .scope, .branch, .pattern]]' <<<"$output")" = "$(printf '%s' \
+    '[["branch","branch","2-fix","^[0-9]+-"],["branch","branch","main","^x-"],' \
+    '["commit_subject","repository",null,"^([A-Z]+)?#[0-9]+ [^ ]"],' \
+    '["change_title","repository",null,"^[^[:cntrl:]]{1,120}$"]]')" ]
+  # nothing is placed in the other checkout
+  [ ! -e "${BATS_TEST_TMPDIR}/w/.kit" ]
+  # the marks follow each checkout's policy
+  first=$("${kit_root}/bin/kit" audit --marks | jq -r .policy)
+  [[ "${first}" == "main="*" 2-fix="* ]]
+  printf 'policy:\n  branch: "^y-"\n' > "${BATS_TEST_TMPDIR}/w/kit.yml"
+  [ "$("${kit_root}/bin/kit" audit --marks | jq -r .policy)" != "${first}" ]
 }
 
 @test "kit audit --json draws every stage, and a repository with no forge draws only the policy's rules" {
@@ -236,6 +268,16 @@ two-members() {
 '["gitlab.com/o/b","code-scanning","run: glab auth status (the code scanning alerts could not be read)"],'\
 '["gitlab.com/o/b","dependabot","run: glab auth status (the Dependabot alerts could not be read)"],'\
 '["gitlab.com/o/b","secret-scanning","run: glab auth status (the secret scanning alerts could not be read)"]]' ]
+}
+
+@test "over a group, the policy's rules every member agrees on are one row each, wider than any one repository" {
+  two-members
+  printf 'policy:\n  branch: "^b-"\n' > code/o/b/kit.yml
+  run --separate-stderr "${kit_root}/bin/kit" --workspace=w audit policy --json
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq -c '[.rows[] | [.rule, .scope, .source, .repository, .member]]' <<<"$output")" = "$(printf '%s' \
+    '[["branch","branch","github","a","github.com/o/a"],["branch","branch","gitlab","b","gitlab.com/o/b"],' \
+    '["commit_subject","workspace",null,null,null],["change_title","workspace",null,null,null]]')" ]
 }
 
 @test "an app verb's marks over a group join each member's, and name the member they could not be read of" {

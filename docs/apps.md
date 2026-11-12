@@ -213,7 +213,7 @@ branch and who may get past it, and the rules kit's policy judges by. Every tab 
 | `findings` | code scanning, Dependabot, or secret scanning alert, open or dismissed | `tool, number, rule, severity, state, path, age` | the forge's runs and alerts |
 | `controls` | ruleset or protection that guards the default branch | `id, control, target, enforcement, rules, source` | none |
 | `waivers` | bypass of a control, and alert dismissed | `waives, actor, kind, reason, by, until, hidden` | none |
-| `policy` | rule `kit policy` judges by | `rule, pattern, from, engine` | a hash of `kit.yml` and `.kit/policy/` |
+| `policy` | rule `kit policy` judges by, where it is in force | `source, organization, repository, branch, scope, rule, pattern, from, engine` | a hash of each checkout's `kit.yml` and `.kit/policy/` |
 
 - `evidence` keys each row by its digest and its kind, and the subject links to the repository's attestations.
   GitHub reads the 5 newest releases' assets and the 20 newest artifacts, each digest once, 50 at most, and asks for
@@ -247,8 +247,20 @@ branch and who may get past it, and the rules kit's policy judges by. Every tab 
   once a process for both stages; a scanner off here, or one that refuses the caller, is under `errors` as in
   `findings`, and the rest still draw, the stage exiting 1 for a refusal. GitLab's are its dismissed
   vulnerabilities; Azure DevOps keeps none kit reads.
-- `policy` is `kit policy --rules --json`, keyed by the rule. On a branch past the default, it is the base's, and the
-  mark holds the base's `kit.yml` and `.kit/policy/` too, which a fetch moves.
+- `policy` is `kit policy --rules --json` in each checkout of the clone with a branch: the one here, its branch the
+  one `kit policy` judges, and each worktree on a branch. The policy in force depends on the branch: on the default
+  branch it is the checkout's own, and on a branch past the default it is the base's. A row says where it is in
+  force: `source`, the primary's forge, `github`, `gitlab`, or `ado`; `organization`, the path before the repository,
+  a group and its subgroups on GitLab; `repository`; and `branch`. A clone with no remote on a forge is its main
+  checkout's directory. Another checkout is
+  read as it is, nothing placed in it, and one that fails is `{branch, error}` under `errors` while the rest draw.
+- `policy` merges the rows of a rule that agree, its pattern, from, and engine the same. From the widest place down,
+  a place whose rows all agree is one row, at the narrowest place that holds them all: `scope` names it, `branch`,
+  `repository`, `organization`, `source`, or `workspace` where even the sources differ, and the fields finer than it are
+  `null`. So a rule every branch of a repository agrees on is one row at `repository`, and over a workspace a rule
+  every member agrees on is one row, wider than any of them. Each row is keyed by the rule and the place. The mark
+  holds each checkout's `kit.yml` and `.kit/policy/`, and on a branch past the default the base's too, which a fetch
+  moves.
 - `evidence` and `findings` move with the forge's runs, as a run makes an attestation and a scan. `evidence` moves
   with its releases too, and `findings` with its alerts: GitHub's mark of each scanner's alert updated last, which a
   dismissal and a new advisory move without a run, `off` or `refused` for a scanner that is either, so the others'

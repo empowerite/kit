@@ -171,7 +171,14 @@ apps:across() {
     fi
     n=$(( n + 1 ))
   done
-  apps:merge "${docs[@]}" || return 1
+  # A stage whose rows merge across members, as the policy's rules do where they agree, says so in
+  # apps/<verb>:merged-<stage>, which reads the merged document and prints it.
+  if declare -F "apps/${across_verb}:merged-${stage}" >/dev/null
+  then
+    apps:merge "${docs[@]}" | "apps/${across_verb}:merged-${stage}" || return 1
+  else
+    apps:merge "${docs[@]}" || return 1
+  fi
   [[ "${failed}" == false ]]
 }
 

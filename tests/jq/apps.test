@@ -109,3 +109,9 @@ import "apps" as apps; [(.[0] | apps::attestation), (.[1] | apps::attestation), 
 import "apps" as apps; [.[] | apps::dismissal("dependabot")]
 [{"number": 1, "state": "dismissed", "url": "a", "by": "ada", "reason": "tolerable_risk"}, {"number": 2, "state": "open", "url": "b", "by": null, "reason": null}]
 [{"key":"dependabot 1","waives":"dependabot 1","actor":null,"kind":"dismissal","reason":"tolerable_risk","by":"ada","until":null,"hidden":null,"links":{"waives":"row:findings/dependabot 1","reason":"a"}}]
+
+# A rule its places agree on is one row at the narrowest place that holds them all, b at the organization o; one
+# they differ on is folded place by place, t apart in a and at c alone, so one more fold changes nothing.
+import "apps" as apps; map(.[0] as $w | .[1] | apps::placed($w)) | apps::scopes | map([.key, .scope])
+[[{"source":"g","organization":"o","repository":"a","branch":"main"},{"rule":"b","pattern":"x","from":"default","engine":"opa"}],[{"source":"g","organization":"o","repository":"a","branch":"2-y"},{"rule":"b","pattern":"x","from":"default","engine":"opa"}],[{"source":"g","organization":"o","repository":"c","branch":"main"},{"rule":"b","pattern":"x","from":"default","engine":"opa"}],[{"source":"g","organization":"o","repository":"a","branch":"main"},{"rule":"t","pattern":"1","from":"kit.yml","engine":"opa"}],[{"source":"g","organization":"o","repository":"a","branch":"2-y"},{"rule":"t","pattern":"2","from":"kit.yml","engine":"opa"}],[{"source":"g","organization":"o","repository":"c","branch":"main"},{"rule":"t","pattern":"2","from":"kit.yml","engine":"opa"}]]
+[["b g o","organization"],["t g o a 2-y","branch"],["t g o a main","branch"],["t g o c main","branch"]]

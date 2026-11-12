@@ -868,6 +868,17 @@
       "stage": "audit/policy", "command": ["audit", "policy", "--json"], "staged": true, "takes": ["workspace"],
       "record": ".rows[]", "empty": "no rule",
       "fields": [
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
+         "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "placement": "column"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "placement": "column"},
+        {"id": "branch", "label": "branch", "type": "enum", "path": ".branch", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "placement": "column"},
+        {"id": "scope", "label": "scope", "type": "enum", "path": ".scope", "sort": true, "group": true,
+         "filter": true, "dim": true, "renderings": ["text"], "placement": "column"},
         {"id": "rule", "label": "rule", "type": "text", "path": ".rule", "sort": true, "renderings": ["text"],
          "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
@@ -881,7 +892,8 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "fields": {"from": {"placement": "hidden"}, "engine": {"placement": "hidden"}}}
+        {"name": "Compact", "fields": {"source": {"placement": "hidden"}, "organization": {"placement": "hidden"},
+          "scope": {"placement": "hidden"}, "from": {"placement": "hidden"}, "engine": {"placement": "hidden"}}}
       ]
     },
     {

@@ -82,7 +82,11 @@
 #                       reads, each scanner read once for both, and a scanner off here, or one that refuses the caller,
 #                       is under errors as in findings while the rest still draw. GitLab's are its dismissed
 #                       vulnerabilities; Azure DevOps keeps none kit reads
-#   policy              {rule, pattern, from, engine}, keyed by the rule, as kit policy --rules --json prints them
+#   policy              {source, organization, repository, branch, scope, rule, pattern, from, engine}, keyed by the
+#                       rule and where it is in force: a row per rule kit policy --rules --json prints in each checkout
+#                       of the clone with a branch, source the primary's forge, and the rows that agree merged, each at
+#                       the narrowest place that holds them, scope naming it: branch, repository, organization, source,
+#                       or workspace, the finer fields null
 #
 # Exits 0 when the stages are drawn, 1 when a stage could not be read, after what was, and 2 on a usage error, or
 # outside a repository's working tree with no workspace.

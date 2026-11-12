@@ -1,4 +1,4 @@
 {"rows": [
-  {"key": "branch", "rule": "branch", "pattern": "^[a-z0-9]+-[a-z0-9][a-z0-9-]*$", "from": "default", "engine": "opa", "links": {}},
-  {"key": "commit_subject", "rule": "commit_subject", "pattern": "", "from": "kit.yml", "engine": "opa", "links": {}}
+  {"key": "branch github o", "source": "github", "organization": "o", "repository": null, "branch": null, "scope": "organization", "rule": "branch", "pattern": "^[a-z0-9]+-[a-z0-9][a-z0-9-]*$", "from": "default", "engine": "opa", "links": {}},
+  {"key": "commit_subject github o r 1-fix", "source": "github", "organization": "o", "repository": "r", "branch": "1-fix", "scope": "branch", "rule": "commit_subject", "pattern": "", "from": "kit.yml", "engine": "opa", "links": {}}
 ], "errors": []}

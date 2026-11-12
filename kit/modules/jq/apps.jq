@@ -135,6 +135,45 @@ def dismissal($tool):
 # rule reads a rule kit policy --rules --json prints and gives it keyed by the rule.
 def rule: {key: .rule} + . + {links: {}};
 
+# placed($where) reads a rule kit policy --rules --json prints and gives it as rule does, where $where says it is in
+# force: {source, organization, repository, branch}, its scope branch, as one checkout's policy is.
+def placed($where): rule as $rule | {key: $rule.key} + $where + {scope: "branch"} + ($rule | del(.key));
+
+# scope_levels are the places a rule's row can be in force at, the widest first: each is the row's field of its name.
+def scope_levels: ["source", "organization", "repository", "branch"];
+
+# scoped reads rows of one rule that agree and gives the one row that stands for them all, at the narrowest place
+# that holds them: the levels before the first whose values differ among them are kept, the rest left null, and scope
+# names the last one kept, workspace where even the sources differ. Rows at one place, the same in every level, give
+# the first as it is, its scope its own.
+def scoped:
+  . as $rows
+  | ([range(scope_levels | length) | select(. as $i | $rows | map(.[scope_levels[$i]]) | unique | length > 1)]
+     | first) as $first
+  | if $first == null then $rows[0]
+    else $rows[0]
+      | reduce range($first; scope_levels | length) as $i (.; .[scope_levels[$i]] = null)
+      | .scope = (if $first == 0 then "workspace" else scope_levels[$first - 1] end)
+      # a row wider than a repository is no member's
+      | if $first < 3 and has("member") then .member = null else . end
+    end;
+
+# folded($i) reads rows of one rule, all at one place of level $i - 1, and gives them merged where they agree: all
+# of them as one row, by scoped, where their pattern, from, and engine are the same; else each place of level $i's,
+# folded in turn.
+def folded($i):
+  if (map([.pattern, .from, .engine]) | unique | length) == 1 then [scoped]
+  elif $i == (scope_levels | length) then .
+  else group_by(.[scope_levels[$i]]) | map(folded($i + 1)) | add end;
+
+# scopes reads a stage's policy rows, each placed, and gives them with the rows that agree merged, as folded merges
+# them from the widest place down, the rules in the order they first come, each keyed by the rule and where it is in
+# force. Merged rows fold again the same, so a workspace's members, each folded, fold once more over all of them.
+def scopes:
+  (reduce .[].rule as $rule ([]; if index([$rule]) then . else . + [$rule] end)) as $order
+  | group_by(.rule) | sort_by(.[0].rule as $rule | $order | index($rule)) | map(folded(0)) | add // []
+  | map(.key = ([.rule, (.source, .organization, .repository, .branch | values)] | join(" ")));
+
 # shown reads a row's value and gives it as text prints it: nothing for none, a list's values apart by commas, an
 # object as JSON.
 def shown:
