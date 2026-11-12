@@ -22,6 +22,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 
@@ -169,7 +170,8 @@ func digits(s string) int {
 // drawn closed; whether it is an aside, as a heading, which a screen does not count, and whether that aside stands for
 // itself, as a line saying what could not be read, which a filter keeps though it heads no row; and, for a heading
 // whose group is closed, the rows it folds away, which are not drawn but still lay the columns and the header out, so
-// closing a group moves no column and leaves the header standing.
+// closing a group moves no column and leaves the header standing. Rows once drawn are not changed: other rows are a
+// new slice, since the columns are measured once for a slice of rows, as columnWidths says.
 type Row struct {
 	Key    string
 	Cells  []Cell
@@ -633,7 +635,7 @@ func LinkAt(rows []Row, head []string, k, width, shift, x int) string {
 
 // table lays rows out closed, as the lines a row opens to are: one line each, clipped to the width.
 func table(rows [][]Cell, width int) []string {
-	widths := columnWidths(wrap(rows))
+	widths := measure(wrap(rows))
 	lines := make([]string, len(rows))
 	for i, r := range rows {
 		fitted, left := fit(r, widths, width)
@@ -662,12 +664,54 @@ func headed(rows []Row, head []string) []int {
 	return widths
 }
 
-// columnWidths gives each column's width over the rows of two cells or more, those a closed heading folds away too:
-// the most any of its cells needs, as need says.
+// columnWidths gives each column's width over the rows, as measure does, measured once for the rows: every call
+// after the first for the same rows reads the widths measured, so a header, a click, or a turn of the wheel, which lay
+// out the columns again, costs what the columns cost, not what the rows do. The rows are the same while their slice
+// is: rows are never changed once built, and a cached slice is held, so its memory is never another's.
 func columnWidths(rows []Row) []int {
+	if len(rows) == 0 {
+		return nil
+	}
+	key := measured{&rows[0], len(rows)}
+	widthsCache.Lock()
+	defer widthsCache.Unlock()
+	for _, e := range widthsCache.entries {
+		if e.key == key {
+			return slices.Clone(e.widths)
+		}
+	}
+	widths := measure(rows)
+	widthsCache.entries[widthsCache.next] = measuredWidths{key, widths}
+	widthsCache.next = (widthsCache.next + 1) % len(widthsCache.entries)
+	return slices.Clone(widths)
+}
+
+// measured names the rows widths were measured over: the first row's place and how many there are.
+type measured struct {
+	first *Row
+	n     int
+}
+
+// measuredWidths is the widths measured over the rows the key names.
+type measuredWidths struct {
+	key    measured
+	widths []int
+}
+
+// widthsCache holds the widths measured over the rows drawn of late, for columnWidths: enough for every stage, the
+// rows above a frozen line, and a dialog's table over them, the oldest replaced first.
+var widthsCache struct {
+	sync.Mutex
+	entries [32]measuredWidths
+	next    int
+}
+
+// measure gives each column's width over the rows of two cells or more, those a closed heading folds away too: the
+// most any of its cells needs, as need says.
+func measure(rows []Row) []int {
 	var widths []int
 	for _, r := range rows {
-		for j, w := range columnWidths(r.Folded) {
+		for j, w := range measure(r.Folded) {
 			for len(widths) <= j {
 				widths = append(widths, 0)
 			}

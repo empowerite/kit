@@ -10,6 +10,7 @@ package table
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -58,6 +59,7 @@ type Sheet struct {
 	manage        Manage
 	note          shell.Notice
 	built         *Shown
+	drawn         *drawnLines
 	browse        func(string) error
 	picks         func(key string) bool
 }
@@ -129,7 +131,7 @@ func (s *Sheet) Search(query string) {
 // and a plain click on a row's box, as Drawing draws it, select them, a group's heading every one of its rows that can
 // be. nil, as a new sheet has it, lets none be. A row selected that can no longer be is no longer selected.
 func (s *Sheet) SetPicks(picks func(key string) bool) {
-	s.picks = picks
+	s.picks, s.drawn = picks, nil
 	s.prune()
 }
 
@@ -169,7 +171,7 @@ func (s *Sheet) prune() {
 }
 
 // rebuild drops the rows built, which are built again when next asked for.
-func (s *Sheet) rebuild() { s.built = nil }
+func (s *Sheet) rebuild() { s.built, s.drawn = nil, nil }
 
 // shown gives the sheet's rows as its panel lets them through, built once until something they are built from changes.
 func (s *Sheet) shown() Shown {
@@ -348,7 +350,47 @@ func (s *Sheet) Lines() []Line {
 	if s.picks != nil {
 		d.Picks = s.Picks
 	}
-	return d.Draw(rows, chosen)
+	key := drawnFor(d, rows, chosen, s.picks != nil)
+	if s.drawn != nil && s.drawn.key == key {
+		return s.drawn.lines
+	}
+	s.drawn = &drawnLines{key, d.Draw(rows, chosen)}
+	return s.drawn.lines
+}
+
+// drawnLines is the lines a sheet drew, and what it drew them for, so Lines draws them once and every key, click,
+// turn of the wheel, and drawing after reuses them, however many rows there are.
+type drawnLines struct {
+	key   drawnKey
+	lines []Line
+}
+
+// drawnKey says what a sheet's lines are drawn for: the rows themselves, held, so their memory is never another's;
+// the row under the cursor; the drawing's widths, scroll, and color; whether rows can be selected, which SetPicks,
+// the only way to change what can be, says anew; and the names, the rows open, and the rows selected, written out.
+type drawnKey struct {
+	first                      *grid.Row
+	n, chosen                  int
+	width, shift, pane, indent int
+	color                      string
+	picks                      bool
+	names, open, picked        string
+}
+
+// drawnFor gives the key of the lines the drawing draws of the rows, the one at chosen under the cursor.
+func drawnFor(d Drawing, rows []grid.Row, chosen int, picks bool) drawnKey {
+	var open, picked strings.Builder
+	for _, k := range slices.Sorted(maps.Keys(d.Open)) {
+		fmt.Fprintf(&open, "%s=%t\x00", k, d.Open[k])
+	}
+	for _, k := range slices.Sorted(maps.Keys(d.Picked)) {
+		if d.Picked[k] {
+			picked.WriteString(k + "\x00")
+		}
+	}
+	return drawnKey{first: &rows[0], n: len(rows), chosen: chosen, width: d.Width, shift: d.Shift, pane: d.Pane,
+		indent: d.Indent, color: d.Color, picks: picks, names: strings.Join(d.Names, "\x00"), open: open.String(),
+		picked: picked.String()}
 }
 
 // Header gives the header's lines and its rule, and whether the header, closed, hides names; none while no row shows.

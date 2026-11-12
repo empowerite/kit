@@ -419,7 +419,8 @@ func TestAShortTitleLeavesTheRoomAfterTheLastColumn(t *testing.T) {
 	if got != "    #1  short        ready" {
 		t.Errorf("a short title: %q", got)
 	}
-	rows[1].Cells[1].Values[0] = "a title of thirty cells, wide."
+	rows = []Row{rows[0], {Key: "b", Cells: []Cell{one("#2"), {Values: []string{"a title of thirty cells, wide."}, Wrap: true},
+		one("draft")}}}
 	if got := ansi.Strip(Draw(rows, nil, 80, 0, -1, func(Row) bool { return false }, nil)[0].Text); got != "    #1  short"+strings.Repeat(" ", 27)+"ready" {
 		t.Errorf("a title as wide as the longest: %q", got)
 	}
@@ -1717,5 +1718,30 @@ func TestAColumnIsBlankWhereNoRowHoldsAValueInIt(t *testing.T) {
 	}
 	if Blank(append(rows, Row{Key: "#3", Cells: []Cell{one("#3"), one("c"), one("kit")}}), columns, "repository") {
 		t.Errorf("a row of kit leaves repository blank")
+	}
+}
+
+// The columns' widths are measured once for the same rows, and anew for other rows, even as many: another slice, or
+// the first rows of the same. Widening a column to its name widens it for that header alone. No rows have no columns.
+func TestColumnsAreMeasuredOnceForTheSameRows(t *testing.T) {
+	if got := columnWidths(nil); got != nil {
+		t.Errorf("no rows measure %v", got)
+	}
+	short := []Row{{Cells: []Cell{one("a"), one("bb")}}, {Cells: []Cell{one("ccc"), one("d")}}}
+	long := []Row{{Cells: []Cell{one("aaaaa"), one("b")}}, {Cells: []Cell{one("c"), one("dddddd")}}}
+	if got := columnWidths(short); !slices.Equal(got, []int{3, 2}) {
+		t.Errorf("short rows measure %v", got)
+	}
+	if got := columnWidths(long); !slices.Equal(got, []int{5, 6}) {
+		t.Errorf("rows as many as the short ones, measured after them, measure %v", got)
+	}
+	if got := columnWidths(short[:1]); !slices.Equal(got, []int{1, 2}) {
+		t.Errorf("the first of the short rows measure %v", got)
+	}
+	if got := headed(short, []string{"a name", "b"}); !slices.Equal(got, []int{6, 2}) {
+		t.Errorf("a header over the short rows widens them to %v", got)
+	}
+	if got := columnWidths(short); !slices.Equal(got, []int{3, 2}) {
+		t.Errorf("after a header, the short rows measure %v", got)
 	}
 }

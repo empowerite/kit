@@ -204,3 +204,33 @@ func BenchmarkACatalogStagesRows(b *testing.B) {
 		_ = m.count(0)
 	}
 }
+
+// With ten thousand issues, a turn of the mouse wheel over them and its drawing take well under a frame's time: a
+// wheel spun sends dozens of turns, and the screen is drawn after each, so a turn costs what the columns and the lines
+// on the screen do, not every issue, and the rows keep up with the wheel.
+func TestATurnOfTheWheelOverTenThousandIssuesIsWellUnderAFramesTime(t *testing.T) {
+	budget := 16 * time.Millisecond / 2
+	if raceEnabled {
+		budget *= 10
+	}
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 40})
+	m = drive(m, bigNow(m, 10000))
+	for range m.stages {
+		if m.stages[m.stage].name == "issues" {
+			break
+		}
+		m = drive(m, tab)
+	}
+	_ = m.View()
+	turn := tea.MouseWheelMsg{Button: tea.MouseWheelDown, X: 5, Y: m.top() + m.paneHeight()/2}
+	if per := best(func() {
+		next, _ := m.Update(turn)
+		m = next.(Model)
+		_ = m.View()
+	}); per > budget {
+		t.Errorf("a turn of the wheel and its drawing take %v, over %v", per, budget)
+	}
+	if m.stages[m.stage].Offset == 0 {
+		t.Error("the wheel did not scroll the issues")
+	}
+}
