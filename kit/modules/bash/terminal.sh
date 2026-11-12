@@ -157,9 +157,99 @@ terminal:bad() {
   printf '%s\n' "${out}"
 }
 
-# terminal:probes prints what the terminal answered, or null where kit did not ask it.
+# terminal:ask asks the terminal, on /dev/tty, in one write: does it speak the kitty keyboard protocol (CSI ? u); does
+# it measure by grapheme (DECRQM 2027); where is the cursor after 📚, and after ↑ (CSI 6n), each printed at the line's
+# start; then it clears the line, and asks for the primary attributes (CSI c), which every terminal answers, so their
+# answer, which ends in c, ends the exchange. It prints what the terminal answered, or nothing where it did not answer
+# within half a second. Whatever comes after is read and dropped before the terminal is put back as it was, so a late
+# answer never lands in the person's shell.
+terminal:ask() {
+  local tty saved reply=''
+  exec {tty}<>/dev/tty 2>/dev/null || return 0
+  if ! saved=$(stty -g <&"${tty}" 2>/dev/null)
+  then
+    exec {tty}>&-
+    return 0
+  fi
+  stty raw -echo <&"${tty}"
+  # shellcheck disable=SC2016  # $p is DECRQM's final byte, not an expansion
+  printf '\e[?u\e[?2027$p\r📚\e[6n\r↑\e[6n\r\e[2K\e[c' >&"${tty}"
+  if IFS= read -r -s -d c -t 0.5 -u "${tty}" reply
+  then
+    reply+=c
+  else
+    reply=''
+  fi
+  while IFS= read -r -s -n 256 -t 0.05 -u "${tty}" _
+  do
+    :
+  done
+  stty "${saved}" <&"${tty}"
+  exec {tty}>&-
+  printf '%s' "${reply}"
+}
+
+# terminal:parse <reply> prints what the terminal answered, as terminal:ask gives it, as JSON: answered; kitty_keyboard;
+# grapheme_width, true where mode 2027 is set, reset, or set for good; emoji_width and ambiguous_width, the columns the
+# cursor moved after 📚 and after ↑, null where it did not say; and color, from COLORTERM and TERM as kittui's library
+# reads them: truecolor, 256, or fewer. An empty reply is a terminal that did not answer.
+terminal:parse() {
+  local reply=$1 rest kitty=false grapheme=false color=fewer
+  local -a columns=()
+  # shellcheck disable=SC2016  # \$y is DECRPM's final bytes, matched as they are
+  local kitty_re=$'\e''\[\?[0-9]+u' mode_re=$'\e''\[\?2027;([0-9])\$y' position_re=$'\e''\[[0-9]+;([0-9]+)R'
+  if [[ -z "${reply}" ]]
+  then
+    printf '{"answered":false}\n'
+    return 0
+  fi
+  [[ ! "${reply}" =~ ${kitty_re} ]] || kitty=true
+  if [[ "${reply}" =~ ${mode_re} ]]
+  then
+    case "${BASH_REMATCH[1]}" in
+      (1 | 2 | 3) grapheme=true
+    esac
+  fi
+  rest=${reply}
+  while [[ "${rest}" =~ ${position_re} ]]
+  do
+    columns+=("$(( BASH_REMATCH[1] - 1 ))")
+    rest=${rest#*"${BASH_REMATCH[0]}"}
+  done
+  case "${COLORTERM:-}" in
+    (truecolor | 24bit) color=truecolor ;;
+    (*) [[ "${TERM:-}" != *256color ]] || color=256
+  esac
+  jq --null-input --compact-output --argjson kitty "${kitty}" --argjson grapheme "${grapheme}" \
+    --argjson emoji "${columns[0]:-null}" --argjson ambiguous "${columns[1]:-null}" --arg color "${color}" \
+    '{answered: true, kitty_keyboard: $kitty, grapheme_width: $grapheme, emoji_width: $emoji,
+      ambiguous_width: $ambiguous, color: $color}'
+}
+
+# terminal:probes prints what the terminal answered: KIT_TERMINAL_PROBES where it holds a JSON object, as a verb that
+# handed the terminal to kittui left it; else, where stdin and stdout are a terminal, what terminal:ask asks it; else
+# null, as kit did not ask.
 terminal:probes() {
-  printf 'null\n'
+  if [[ -n "${KIT_TERMINAL_PROBES:-}" ]] \
+    && jq --exit-status 'type == "object"' <<<"${KIT_TERMINAL_PROBES}" >/dev/null 2>&1
+  then
+    jq --compact-output . <<<"${KIT_TERMINAL_PROBES}"
+  elif [[ -t 0 && -t 1 ]]
+  then
+    terminal:parse "$(terminal:ask)"
+  else
+    printf 'null\n'
+  fi
+}
+
+# terminal:export-probes asks the terminal, where KIT_TERMINAL_PROBES is unset, and exports the answers in it, so kittui
+# and every kit welcome --checks it runs read them and never touch the terminal kittui holds. A verb calls it before it
+# hands the terminal to kittui.
+terminal:export-probes() {
+  local probes
+  [[ -z "${KIT_TERMINAL_PROBES+x}" ]] || return 0
+  probes=$(terminal:probes)
+  [[ "${probes}" == null ]] || export KIT_TERMINAL_PROBES="${probes}"
 }
 
 # terminal:settings-file prints the person's own settings file, where the keeps are.

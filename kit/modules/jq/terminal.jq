@@ -27,11 +27,12 @@ def fill($o):
   reduce ($o | to_entries[] | select(.value | type != "object" and type != "array")) as $e
     (.; gsub("\\{" + $e.key + "\\}"; $e.value | tostring));
 
-# measured_badly($probe) is true when the probes object says the terminal does not give kittui what $probe asks.
+# measured_badly($probe) is true when the probes object says the terminal does not give kittui what $probe asks. A
+# width the terminal did not report was not measured, so it is not bad.
 def measured_badly($probe):
   if $probe == "kitty-keyboard" then .kitty_keyboard == false
-  elif $probe == "emoji-width" then .emoji_width != 2
-  elif $probe == "ambiguous-width" then .ambiguous_width != 1
+  elif $probe == "emoji-width" then (.emoji_width // 2) != 2
+  elif $probe == "ambiguous-width" then (.ambiguous_width // 1) != 1
   elif $probe == "color" then .color == "fewer"
   else false end;
 

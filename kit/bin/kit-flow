@@ -276,7 +276,7 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use flow tui workspaces
+use flow tui workspaces terminal
 workspaces:misplaced flow "$@" || exit $?
 guard:arguments flow "$@" || exit $?
 guard:require tool:git
@@ -306,6 +306,7 @@ if [[ -n "${workspace}" && -z "${syntax_literals[0]:-}${syntax_options[--text]+x
   && tui:binary --probe >/dev/null 2>&1
 then
   binary=$(tui:binary) || exit 1
+  terminal:export-probes
   export KIT="${kit_root}/bin/kit"
   exec "${binary}" flow --workspace="${workspace}" "$@"
 fi
@@ -376,6 +377,7 @@ if [[ "${pictured}" == true && -z "${syntax_options[--text]+x}${syntax_options[-
   && workspaces:in-repository >/dev/null && tui:binary --probe >/dev/null 2>&1
 then
   binary=$(tui:binary) || exit 1
+  terminal:export-probes
   export KIT="${kit_root}/bin/kit"
   exec "${binary}" flow "$@"
 fi

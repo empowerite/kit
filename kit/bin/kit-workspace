@@ -157,7 +157,7 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use workspace across tui
+use workspace across tui terminal
 workspaces:misplaced workspace "$@" || exit $?
 guard:arguments workspace "$@" || exit $?
 guard:require tool:git
@@ -185,6 +185,7 @@ if [[ -z "${syntax_options[--text]+x}${syntax_options[--json]+x}${syntax_options
   && tui:binary --probe >/dev/null 2>&1
 then
   binary=$(tui:binary) || exit 1
+  terminal:export-probes
   export KIT="${kit_root}/bin/kit"
   exec "${binary}" workspace ${workspace:+--workspace="${workspace}"} "$@"
 fi

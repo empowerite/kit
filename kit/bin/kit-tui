@@ -27,7 +27,7 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 
-use tui
+use tui terminal
 
 guard:arguments tui "$@" || exit $?
 # kittui refuses without a terminal; kit tui refuses first, in the same words, so it does not build anything it
@@ -46,6 +46,7 @@ then
   exit 2
 fi
 binary=$(tui:binary) || exit 1
+terminal:export-probes
 export KIT="${kit_root}/bin/kit"
 exec "${binary}" "$@"
 

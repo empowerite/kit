@@ -72,3 +72,8 @@ null
 import "terminal" as terminal; terminal::data | [.terminals | to_entries[] | select((.value.name and .value.anchor and (.value.findings or .value.unread)) | not) | .key]
 null
 []
+
+# A width the terminal did not report is not measured, so it holds.
+import "terminal" as terminal; terminal::checks({"docs": "D", "probes": {"emoji-width": {"need": "widths", "held": "{name} is fine", "failed": "{name} is not"}, "ambiguous-width": {"need": "widths", "held": "{name} is fine", "failed": "{name} is not"}}, "terminals": {"ssh": {"name": "ssh", "anchor": "over-ssh", "unread": "cannot read"}}}; "ssh"; null; {}; {"answered": true}; []) | map(.ok)
+null
+[true,true,true]

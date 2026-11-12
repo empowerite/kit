@@ -15,7 +15,7 @@ setup() {
   mkdir -p "${KIT_HOME}"
   local name
   for name in TMUX STY ZELLIJ SSH_CONNECTION SSH_TTY TERM_PROGRAM ITERM_PROFILE KITTY_PID ALACRITTY_WINDOW_ID \
-    WT_SESSION WT_PROFILE_ID WSL_DISTRO_NAME KIT_TERMINAL_PROBES GHOSTTY_BIN_DIR WEZTERM_CONFIG_FILE
+    WT_SESSION WT_PROFILE_ID WSL_DISTRO_NAME KIT_TERMINAL_PROBES GHOSTTY_BIN_DIR WEZTERM_CONFIG_FILE COLORTERM
   do
     unset "${name}"
   done
@@ -106,6 +106,50 @@ setup() {
   [ "$status" -eq 0 ]
   [ "$(jq -sc 'map(.id)' <<<"$output")" = '["terminal-iterm"]' ]
   [ "$(jq -r .line <<<"$output")" = "iTerm2: kit could not read its settings: no preferences" ]
+}
+
+@test "a terminal's answers are read: the kitty protocol, mode 2027, both widths, and the colors from the variables" {
+  run kit-bash $'COLORTERM=truecolor terminal:parse \'\e[?1u\e[?2027;2$y\e[5;3R\e[5;2R\e[?62;22c\''
+  [ "$status" -eq 0 ]
+  [ "$(jq -cS . <<<"$output")" = \
+    '{"ambiguous_width":1,"answered":true,"color":"truecolor","emoji_width":2,"grapheme_width":true,"kitty_keyboard":true}' ]
+}
+
+@test "a terminal that answers neither kitty nor 2027 and draws 📚 in one cell is read so, with 256 colors from TERM" {
+  run kit-bash $'TERM=xterm-256color terminal:parse \'\e[5;2R\e[5;2R\e[?1;2c\''
+  [ "$(jq -cS . <<<"$output")" = \
+    '{"ambiguous_width":1,"answered":true,"color":"256","emoji_width":1,"grapheme_width":false,"kitty_keyboard":false}' ]
+}
+
+@test "mode 2027 counts as measured by grapheme when set, reset, or set for good, and not when unknown or off for good" {
+  run kit-bash $'for p in 0 1 2 3 4; do terminal:parse "\e[?2027;${p}\\$y\e[5;3R\e[5;2R\e[?1c" | jq -c .grapheme_width; done'
+  [ "$output" = $'false\ntrue\ntrue\ntrue\nfalse' ]
+}
+
+@test "no answer is read as a terminal that did not answer" {
+  run kit-bash "terminal:parse ''"
+  [ "$output" = '{"answered":false}' ]
+}
+
+@test "KIT_TERMINAL_PROBES is what was answered when it is a JSON object, and is ignored otherwise" {
+  run kit-bash 'KIT_TERMINAL_PROBES="{\"answered\":false}" terminal:probes'
+  [ "$output" = '{"answered":false}' ]
+  run kit-bash 'KIT_TERMINAL_PROBES=nope terminal:probes; KIT_TERMINAL_PROBES= terminal:probes; KIT_TERMINAL_PROBES=[] terminal:probes'
+  [ "$output" = $'null\nnull\nnull' ]
+}
+
+@test "with no terminal, kit asks nothing and exports nothing" {
+  run kit-bash 'terminal:export-probes </dev/null; echo "${KIT_TERMINAL_PROBES-unset}"'
+  [ "$status" -eq 0 ]
+  [ "$output" = unset ]
+}
+
+@test "the answers in KIT_TERMINAL_PROBES are judged: one cell for 📚 fails the emoji width" {
+  export SSH_TTY=/dev/ttys1
+  export KIT_TERMINAL_PROBES='{"answered":true,"kitty_keyboard":true,"grapheme_width":true,"emoji_width":1,"ambiguous_width":1,"color":"truecolor"}'
+  run kit-bash 'terminal:checks'
+  [ "$status" -eq 0 ]
+  [ "$(jq -sc 'map(select(.id == "terminal-probe-emoji-width") | .ok)' <<<"$output")" = '[false]' ]
 }
 
 @test "a reader's object is judged: a profile with triggers fails the triggers finding" {
