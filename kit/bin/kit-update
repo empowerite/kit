@@ -51,6 +51,9 @@ guard:arguments update "$@" || exit $?
 
 guard:require tool:jq
 settings:require
+# The sources' roots are read here, in this shell, so the subshells below inherit them: read in one, they are read
+# again in the next.
+resolve:roots || exit 1
 declare -a recorded excluded defaults packages delivered
 list:read recorded settings:packages || exit 1
 list:read excluded settings:excludes || exit 1

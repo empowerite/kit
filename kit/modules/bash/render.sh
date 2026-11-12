@@ -107,8 +107,10 @@ render:all() {
   # generate:region does inside kit check, finds it done.
   [[ "${render_rendered_all}" == "${memo}" ]] && return 0
   settings:validate || return 1
-  # Every source must be fetched, its digest checked, before the packages are rendered.
+  # Every source must be fetched, its digest checked, before the packages are rendered. Their roots are read here, in
+  # this shell, so every subshell below inherits them: read in one, they are read again in the next.
   sources:fetch-all || return 1
+  resolve:roots || return 1
   resolve:require "${root}" "$@" || return 2
   for package in $(resolve:reach "${root}")
   do

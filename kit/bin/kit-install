@@ -32,6 +32,9 @@ use release settings resolve render place materialize manifest
 guard:arguments install "$@" || exit $?
 
 guard:require tool:jq
+# The sources' roots are read here, in this shell, so the subshells below inherit them: read in one, they are read
+# again in the next.
+resolve:roots || exit 1
 # A glob such as style/* stands for every package it matches.
 expanded=$(resolve:expand "${kit_root}" "$@") || exit 2
 readarray -t named < <(awk 'NF' <<<"${expanded}")

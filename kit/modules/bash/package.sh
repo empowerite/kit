@@ -39,6 +39,9 @@ package:list() {
   done
   list:read active settings:packages || return 1
   list:read excluded settings:excludes || return 1
+  # The sources' roots are read here, in this shell, so the subshells below inherit them: read in one, they are read
+  # again in the next.
+  resolve:roots || return 1
   for package in $(resolve:reach)
   do
     if (( ${#patterns[@]} ))
@@ -96,6 +99,9 @@ package:add() {
   local package base path refused=0 names
   local -a named active excluded wanted paths
   guard:require tool:jq || return 1
+  # The sources' roots are read here, in this shell, so the subshells below inherit them: read in one, they are read
+  # again in the next.
+  resolve:roots || return 1
   names=$(package:named "$@") || return 2
   readarray -t named <<<"${names}"
   list:read active settings:packages || return 1
@@ -142,6 +148,9 @@ package:remove() {
   local package base path src dest newly='' names count refused=0
   local -a named active excluded remaining dependents includers defaults paths
   guard:require tool:jq || return 1
+  # The sources' roots are read here, in this shell, so the subshells below inherit them: read in one, they are read
+  # again in the next.
+  resolve:roots || return 1
   names=$(package:named "$@") || return 2
   readarray -t named <<<"${names}"
   list:read active settings:packages || return 1
@@ -223,6 +232,9 @@ package:select() {
   local package names
   local -a named active excluded wanted drop=() take=() dependents includers
   local -A depended_on=() included_by=()
+  # The sources' roots are read here, in this shell, so the subshells below inherit them: read in one, they are read
+  # again in the next.
+  resolve:roots || return 1
   names=$(package:named "$@") || return 2
   readarray -t named <<<"${names}"
   list:read active settings:packages || return 1
@@ -303,6 +315,9 @@ package:choices() {
   local -A depended_on=() included_by=()
   shift
   [[ "${key}" == '<package>' ]] || return 1
+  # The sources' roots are read here, in this shell, so the subshells below inherit them: read in one, they are read
+  # again in the next.
+  resolve:roots || return 1
   # kit packages select names the whole set, so its list is a set: the form starts from the active packages and marks
   # each row by what select will do; under add and remove the same packages are closed choices, picked one by one.
   if [[ "${1:-}" == --kind ]]
