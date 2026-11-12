@@ -64,7 +64,7 @@
       "description": "the same JSON, formatted by jq for a person"
     },
     "use": {
-      "description": "records the toolchain for the project; ambient uses none"
+      "description": "records the project's tool manager; ambient uses none"
     },
     "<name>": {
       "description": "mise, nix, brew, docker, devcontainer, apt, dnf, pacman, or ambient"

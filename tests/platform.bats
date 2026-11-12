@@ -120,7 +120,7 @@ signed-in() {
   KIT_TOOLCHAIN=nonesuch run --separate-stderr "${kit_root}/bin/kit" platform tools --json
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  [[ "$stderr" == *"❌ the toolchain named for this run, nonesuch, is not usable"* ]]
+  [[ "$stderr" == *"❌ the tool manager named for this run, nonesuch, is not usable"* ]]
   KIT_TOOLCHAIN=nonesuch run --separate-stderr "${kit_root}/bin/kit" platform toolchains --json
   [ "$status" -eq 0 ]
   KIT_TOOLCHAIN=nonesuch run --separate-stderr "${kit_root}/bin/kit" platform --json

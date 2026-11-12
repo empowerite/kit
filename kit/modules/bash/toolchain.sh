@@ -178,7 +178,7 @@ toolchain:ranked() {
     }' | sort -n -k 1,1 -k 2,2 | cut -f 3
 }
 
-# toolchain:filler <chosen> prints brew where it fills in for the chosen project toolchain, and nothing otherwise.
+# toolchain:filler <chosen> prints brew where it fills in for the chosen tool manager, and nothing otherwise.
 # brew fills in where it is usable for the project and another is chosen that runs commands on this machine. docker
 # and devcontainer run them in a container, which brew's tools never reach.
 toolchain:filler() {
@@ -238,7 +238,7 @@ toolchain:chosen() {
       return 0
     fi
     [[ "${mode}" != list ]] || return 0
-    error "the toolchain named for this run, ${named}, is not usable for the ${role} here;" \
+    error "the tool manager named for this run, ${named}, is not usable for the ${role} here;" \
       "usable: ${usable[*]:-none, so name ambient}"
     return 1
   fi
@@ -277,8 +277,8 @@ toolchain:ask() {
   shift
   {
     case "${role}" in
-      (system) printf 'Several toolchains can supply what kit runs on: bash, git, jq, and yq.\n' ;;
-      (*) printf 'Several toolchains can install the tools this repository pins.\n' ;;
+      (system) printf 'Several package managers can supply what kit runs on: bash, git, jq, and yq.\n' ;;
+      (*) printf 'Several tool managers can install the tools this repository pins.\n' ;;
     esac
     printf 'Which one should kit use?\n'
     for (( i = 1; i <= $#; i++ ))
@@ -308,17 +308,18 @@ toolchain:ask() {
   done
 }
 
-# toolchain:refuse <role> <candidate>… says that several toolchains are usable for the role and none can be asked
-# for, and lists each candidate with the command that picks it.
+# toolchain:refuse <role> <candidate>… says that several managers are usable for the role and none can be asked for,
+# and lists each candidate with the command that picks it.
 toolchain:refuse() {
   local role=$1 candidate
   shift
-  error "several toolchains are usable for the ${role} here, and there is no terminal to ask which; choose one:"
+  error "several $(toolchain:manager "${role}")s are usable for the ${role} here, and there is no terminal to ask" \
+    "which; choose one:"
   for candidate in "$@"
   do
     printf '    with %s: kit toolchains use %s%s\n' "${candidate}" "${candidate}" "$(toolchain:flag "${role}")" >&2
   done
-  # The run names only the project toolchain; the system one is chosen and kept.
+  # The run names only the project's tool manager; the system one is chosen and kept.
   [[ "${role}" != project ]] || printf '  or name one for a single run: KIT_TOOLCHAIN=<name>\n' >&2
 }
 
@@ -406,6 +407,15 @@ toolchain:flag() {
   [[ "$1" != system ]] || printf ' --system'
 }
 
+# toolchain:manager <role> prints what kit calls the manager that fills the role: a tool manager pins the project's
+# tools, and the machine's package manager installs what kit itself stands on.
+toolchain:manager() {
+  if [[ "$1" == system ]]
+  then printf 'package manager'
+  else printf 'tool manager'
+  fi
+}
+
 # toolchain:among <name> <candidate>… succeeds when the name is one of the candidates.
 toolchain:among() {
   local name=$1 candidate
@@ -417,7 +427,7 @@ toolchain:among() {
   return 1
 }
 
-# toolchain:path prints the directories to put first on PATH, one per line: the chosen project toolchain's, then its
+# toolchain:path prints the directories to put first on PATH, one per line: the chosen tool manager's, then its
 # filler's, then each usable dependency provider's, as node_modules/.bin. Ambient, only the providers'.
 toolchain:path() {
   local chosen filler dirs=''
@@ -430,7 +440,7 @@ toolchain:path() {
   dependencies:path "$(paste -s -d ':' - <<<"${dirs}")"
 }
 
-# toolchain:run <command>… runs the command with the chosen project toolchain's tools:
+# toolchain:run <command>… runs the command with the chosen tool manager's tools:
 #
 #   - through the provider's run, where it has one and is not active, as docker does to run in its container; a
 #     provider that is active is already inside its container, so the command runs there as is

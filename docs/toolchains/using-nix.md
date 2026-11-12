@@ -1,7 +1,7 @@
 # Using nix
 
 [Nix](https://nixos.org) builds a dev shell from `flake.nix`, and `flake.lock` pins each of the flake's inputs by
-revision. kit's nix toolchain works with flakes only. For how kit finds and chooses a toolchain, see
+revision. kit's nix toolchain works with flakes only. For how kit finds and chooses a manager, see
 [toolchains.md](../toolchains.md).
 
 ## Set up

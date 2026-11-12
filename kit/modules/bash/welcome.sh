@@ -36,15 +36,16 @@
 # The checks run in this order:
 #
 #   - the machine, toolchains: bash, git, jq, and yq, which kit runs on; then, only where brew is installed at a
-#     Homebrew prefix but is not on PATH, brew-path, whose fix kit shows and never runs; then the system toolchain
+#     Homebrew prefix but is not on PATH, brew-path, whose fix kit shows and never runs; then the machine's package
+#     manager
 #   - the machine, setup: for each distinct forge host among every folder's remotes, its tool installed, then logged
 #     in to that host, once per host; then, where KIT_TERMINAL_PROBES holds what the terminal answered, the terminal
 #     kit runs in: its heading, each finding of its settings, and each probe, as modules/bash/terminal.sh judges them,
 #     each fix shown and never run
 #   - each folder, setup: a git repository; kit installed, with the version kit.yml declares; then, where kit is,
-#     .kit/ hydrated and the git hooks installed when hooks/lefthook is active; the project toolchain; then, where kit
-#     is, lefthook when hooks/lefthook is active, each dependency provider whose manifest is there, installed from its
-#     lock, each linter the active packages' rules and styles name under lint:, and kit check clean
+#     .kit/ hydrated and the git hooks installed when hooks/lefthook is active; the project's tool manager; then, where
+#     kit is, lefthook when hooks/lefthook is active, each dependency provider whose manifest is there, installed from
+#     its lock, each linter the active packages' rules and styles name under lint:, and kit check clean
 #
 # The folders are judged at once, as many at a time as the machine has processors, and each prints its checks in
 # the folders' order. Nothing is judged twice: a machine check once, each folder's checks once in it, and kit check
@@ -53,9 +54,9 @@
 # kit finds the toolchains as kit toolchains does, and never assumes one. The checks only report: they never ask
 # which toolchain to use, and never record one. A missing tool's fix:
 #
-#   - the machine's: the system toolchain's command, such as its install of the tool, else none, and more names the
+#   - the machine's: the package manager's command, such as its install of the tool, else none, and more names the
 #     tool's site
-#   - a folder's: kit tools install where that folder's project toolchain is settled; ambient, the system toolchain's
+#   - a folder's: kit tools install where that folder's tool manager is settled; ambient, the package manager's
 #     command; else none, and more says where to read
 #
 # Only welcome:fix runs a fix, and only the one it is asked for: a folder's check's in that folder.
@@ -102,8 +103,8 @@ welcome:record() {
       interactive: $interactive, more: ($more | if . == "" then null else . end), runs: $runs} + $where'
 }
 
-# welcome:step <id> prints the step a check belongs to: toolchains for what kit runs on and the system toolchain, and
-# setup for the rest, a folder's project toolchain among them.
+# welcome:step <id> prints the step a check belongs to: toolchains for what kit runs on and the machine's package
+# manager, and setup for the rest, a folder's tool manager among them.
 welcome:step() {
   case "$1" in
     (tool-bash | tool-git | tool-jq | tool-yq | brew-path | toolchain-system) printf 'toolchains\n' ;;
@@ -112,8 +113,8 @@ welcome:step() {
 }
 
 # welcome:machine <id> succeeds for the id of a machine check, which holds for the whole machine: what kit runs on,
-# brew on PATH, the system toolchain, each forge host's tool and login, and the terminal's. Every other check is a
-# folder's.
+# brew on PATH, the machine's package manager, each forge host's tool and login, and the terminal's. Every other check
+# is a folder's.
 welcome:machine() {
   case "$1" in
     (tool-bash | tool-git | tool-jq | tool-yq | brew-path | toolchain-system) ;;
@@ -145,7 +146,7 @@ declare -gA welcome_chosen=()
 
 # welcome:find <role> sets welcome_chosen[<role>] to the toolchain for the role, as kit toolchains reports it: a
 # provider, ambient, or nothing when several are usable and none is chosen. It never asks and never records. Where
-# kit cannot read the system choice, as without yq, the one usable system toolchain stands in for it.
+# kit cannot read the system choice, as without yq, the one usable package manager stands in for it.
 welcome:find() {
   local role=$1 chosen
   local -a usable
@@ -167,13 +168,13 @@ welcome:chosen() {
   printf '%s\n' "${welcome_chosen[$1]}"
 }
 
-# welcome:remedy <tool> prints the system toolchain's command that installs the tool, and fails where there is no
-# system toolchain, or it names no command.
+# welcome:remedy <tool> prints the package manager's command that installs the tool, and fails where there is no
+# package manager, or it names no command.
 welcome:remedy() {
   toolchain:remedy "$(welcome:chosen system)" "$1"
 }
 
-# welcome:toolchain-has <tool> succeeds when the project toolchain has installed the tool: it is in a directory the
+# welcome:toolchain-has <tool> succeeds when the project's tool manager has installed the tool: it is in a directory the
 # toolchain puts on PATH.
 welcome:toolchain-has() {
   local project dir
@@ -195,8 +196,8 @@ welcome:toolchain-has() {
 
 # welcome:install <scope> <tool> prints the fix that installs the tool and where to read more, separated by \x1f:
 #
-#   - machine: the system toolchain's command, else no fix, and the tool's site
-#   - folder: kit tools install where the folder's project toolchain is settled; ambient, the system toolchain's
+#   - machine: the package manager's command, else no fix, and the tool's site
+#   - folder: kit tools install where the folder's tool manager is settled; ambient, the package manager's
 #     command, else no fix and the tool's site; with several usable and none chosen, no fix, and the toolchains doc
 welcome:install() {
   local scope=$1 tool=$2 project='' fix
@@ -219,7 +220,7 @@ welcome:install() {
 declare -gr welcome_toolchains_doc=https://github.com/empowerite/kit/blob/main/docs/toolchains.md
 
 # welcome:missing <id> <tool> <line> [<more>] prints the check of a tool that does not run: its install fix, and where
-# to read more, <more> when kit knows no site for it. In a folder, a tool its project toolchain installed, in a
+# to read more, <more> when kit knows no site for it. In a folder, a tool its tool manager installed, in a
 # directory not on PATH, needs its directory on PATH rather than another install.
 welcome:missing() {
   local id=$1 tool=$2 line=$3 scope=folder fix more
@@ -239,12 +240,13 @@ welcome:missing() {
 # usable, and when none is, which is ambient. With several usable and none chosen, it fails: its fix chooses the
 # first, and more names the command for each of the others.
 welcome:toolchain() {
-  local role=$1 chosen flag candidate names='' others=''
+  local role=$1 chosen flag manager line candidate names='' others=''
   local -a usable
   chosen=$(welcome:chosen "${role}")
+  manager=$(toolchain:manager "${role}")
   if ! list:read usable toolchain:usable "${role}" 2>/dev/null
   then
-    welcome:record "toolchain-${role}" false "kit could not look for a toolchain for the ${role} here" '' false \
+    welcome:record "toolchain-${role}" false "kit could not look for a ${manager} for the ${role} here" '' false \
       "${welcome_toolchains_doc}"
     return 0
   fi
@@ -253,14 +255,15 @@ welcome:toolchain() {
     (ambient)
       if (( ${#usable[@]} ))
       then
-        welcome:record "toolchain-${role}" true "the ${role} toolchain is ambient, as chosen: kit uses what is on PATH"
+        line="the ${role} has no ${manager}, as chosen, so it is ambient: kit uses what is on PATH"
+        welcome:record "toolchain-${role}" true "${line}"
       elif [[ "${role}" == project ]]
       then
         welcome:record "toolchain-${role}" true \
-          "no toolchain is usable for the project, so its tools are ambient: kit uses what is on PATH"
+          "no tool manager is usable for the project, so its tools are ambient: kit uses what is on PATH"
       else
         welcome:record "toolchain-${role}" true \
-          "no toolchain is usable for the system, so it is ambient: kit uses what is on PATH"
+          "no package manager is usable for the system, so it is ambient: kit uses what is on PATH"
       fi
       ;;
     ('')
@@ -273,7 +276,7 @@ welcome:toolchain() {
       fi
       if (( ${#usable[@]} < 2 ))
       then
-        welcome:record "toolchain-${role}" false "kit could not look for a toolchain for the ${role} here" '' false \
+        welcome:record "toolchain-${role}" false "kit could not look for a ${manager} for the ${role} here" '' false \
           "${welcome_toolchains_doc}"
         return 0
       fi
@@ -282,15 +285,16 @@ welcome:toolchain() {
         names+="${names:+, }${candidate}"
         [[ "${candidate}" == "${usable[0]}" ]] || others+="${others:+; }kit toolchains use ${candidate}${flag}"
       done
-      welcome:record "toolchain-${role}" false "several toolchains are usable for the ${role}: ${names}; choose one" \
+      welcome:record "toolchain-${role}" false "several ${manager}s are usable for the ${role}: ${names}; choose one" \
         "kit toolchains use ${usable[0]}${flag}" false "or: ${others}"
       ;;
     (*)
       if [[ "${role}" == project ]]
       then
-        welcome:record "toolchain-${role}" true "${chosen} is the project toolchain; kit tools lists what it pins"
+        welcome:record "toolchain-${role}" true "${chosen} is the project's tool manager; kit tools lists what it pins"
       else
-        welcome:record "toolchain-${role}" true "${chosen} is the system toolchain; it names the fix for a missing tool"
+        line="${chosen} is the machine's package manager; it names the fix for a missing tool"
+        welcome:record "toolchain-${role}" true "${line}"
       fi
       ;;
   esac
@@ -526,9 +530,9 @@ welcome:forges-in() (
 )
 
 # welcome:plan-machine fills welcome_ids with the machine checks, in order, and the forge of each host, and finds the
-# system toolchain. It reads the hosts from welcome_folders, which welcome:folders fills first. Then it judges the
-# terminal, as welcome:plan-terminal does; with <id>, a check that is not the terminal's, as for a fix of that one, it
-# leaves the terminal unjudged.
+# machine's package manager. It reads the hosts from welcome_folders, which welcome:folders fills first. Then it judges
+# the terminal, as welcome:plan-terminal does; with <id>, a check that is not the terminal's, as for a fix of that one,
+# it leaves the terminal unjudged.
 welcome:plan-machine() {
   local forge host
   welcome_ids=(tool-bash tool-git tool-jq tool-yq) welcome_host_forge=() welcome_terminal=()
@@ -564,7 +568,7 @@ welcome:plan-terminal() {
 }
 
 # welcome:plan-folder fills welcome_folder_ids with the checks of the folder here, in order, and the rule of each
-# linter, and finds the folder's project toolchain.
+# linter, and finds the folder's tool manager.
 welcome:plan-folder() {
   local linter rule provider
   welcome_folder_ids=(repo-git kit-installed) welcome_linter_rule=()
@@ -1273,7 +1277,7 @@ welcome:fix-one() {
   else
     "${command[@]}" || true  # as above
   fi
-  # A fix can choose a toolchain, so the toolchains are found again: a folder's project toolchain, in its folder.
+  # A fix can choose a toolchain, so the toolchains are found again: a folder's tool manager, in its folder.
   (( ${#welcome_folder_ids[@]} == 0 )) || welcome:find project
   welcome:find system
   check=$(welcome:judge "${id}")

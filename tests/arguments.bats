@@ -134,7 +134,7 @@ setup() {
   [ "$output" = $'0 a\nb' ]
 }
 
-@test "a wildcard option may be empty, -- never reaches a verb as a path, and a missing jq is refused with the system toolchain's remedy" {
+@test "a wildcard option may be empty, -- never reaches a verb as a path, and a missing jq is refused with its package manager's remedy" {
   run kit-bash 'syntax:match new file x --purpose=; echo "$? [${syntax_options[--purpose]}]"'
   [ "$output" = "0 []" ]
   run kit-bash 'syntax:match new file x --rule=; echo "$? ${syntax_refusal}"'
@@ -159,7 +159,7 @@ setup() {
   [[ "$output" != *"command not found"* ]]
 }
 
-@test "a missing tool kit runs on is the system toolchain's to install, any other kit tools install's, and none is assumed" {
+@test "a missing tool kit runs on is the package manager's to install, any other kit tools install's, and none is assumed" {
   hide-system-toolchains
   fake-tools brew
   run kit-bash 'guard:remedy jq; guard:remedy yq; guard:remedy go; guard:missing git "git is not on PATH"'

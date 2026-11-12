@@ -3,7 +3,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # Each test runs in a fresh repository, with no toolchain file unless the test writes one: its tools are ambient. The
 # tools a check looks for are fakes in a directory first on PATH: a failing stand-in hides a real tool. A fake brew
-# is there too, so brew is the system toolchain on any machine; a test that needs none chooses ambient for it.
+# is there too, so brew is the machine's package manager on any machine; a test that needs none chooses ambient for it.
 
 bats_require_minimum_version 1.5.0
 
@@ -14,7 +14,7 @@ setup() {
   fresh-repo >/dev/null
   fakes="${BATS_TEST_TMPDIR}/fakes"
   mkdir -p "${fakes}"
-  # brew is found, so it is the system toolchain; it is never run, except for --prefix where a test asks
+  # brew is found, so it is the machine's package manager; it is never run, except for --prefix where a test asks
   fake-script brew 'exit 1'
   export PATH="${fakes}:${PATH}"
   # the terminal these tests run in is not judged; a test that wants a terminal's checks sets what it needs
@@ -75,8 +75,8 @@ ambient-system() {
   [ "$(jq --raw-output '[.[] | keys | sort == ["branch", "desk", "fix", "folder", "id", "interactive", "kit", "line",
     "more", "ok", "repository", "runs", "step"]] | all' <<<"$output")" = true ]
   [ "$(jq --raw-output 'map(.id) | (unique | length) == length' <<<"$output")" = true ]
-  # the machine's checks, what kit runs on and the system toolchain, then this repository's one folder, the desk; no
-  # kit.yml here, so no check of what kit installs, and the install is offered: the check holds, with its fix
+  # the machine's checks, what kit runs on and the machine's package manager, then this repository's one folder, the
+  # desk; no kit.yml here, so no check of what kit installs, and the install is offered: the check holds, with its fix
   [ "$(jq --raw-output '.[] | "\(.id) \(.step)"' <<<"$output")" = "$(printf '%s\n' 'tool-bash toolchains' \
     'tool-git toolchains' 'tool-jq toolchains' 'tool-yq toolchains' 'toolchain-system toolchains' \
     'repo-git setup' 'kit-installed setup' 'toolchain-project setup')" ]
@@ -112,7 +112,7 @@ ambient-system() {
   # each step's page in order, the checks of steps 2 and 3 under their pages, then what is left
   [ "$(outline <<<"$output")" = "$(printf '%s|' '# Introduction' '# Toolchains' ✅ '# Setup' \
     ✅ 💡 ✅ '# Customize' '# Terms' '# What is left' | sed 's/|$//')" ]
-  # bash, git, jq, and yq, then the system toolchain, then the desk's checks, under a line that names it
+  # bash, git, jq, and yq, then the machine's package manager, then the desk's checks, under a line that names it
   [ "$(under <<<"$output")" = "$(printf '%s\n' '# Toolchains|✅ bash' '# Toolchains|✅ git' \
     '# Toolchains|✅ jq' '# Toolchains|✅ yq' '# Toolchains|✅ brew' \
     '# Setup|✅ this' '# Setup|💡 kit' '# Setup|✅ no')" ]
@@ -154,20 +154,20 @@ ambient-system() {
   [[ "$output" == *'- brew-path: eval "$('*"kit does not run it"* ]]
 }
 
-@test "welcome checks bash, git, jq, and yq with the toolchains, each fixed by the system toolchain" {
+@test "welcome checks bash, git, jq, and yq with the toolchains, each fixed by the machine's package manager" {
   local real_jq
   real_jq=$(command -v jq)
   fake-script yq 'exit 1'
-  # the system toolchain names its command for a missing one
+  # the machine's package manager names its command for a missing one
   run --separate-stderr check tool-yq
   [ "$(jq --raw-output '[.step, .ok, .line, .fix, .more] | @tsv' <<<"$output")" = \
     $'toolchains\tfalse\tyq is not installed; kit reads its YAML through it\tbrew install yq\t' ]
-  # still the system toolchain's, with project toolchains here: kit needs these to look for one
+  # still the package manager's, with tool managers here: kit needs these to look for one
   printf 'brew "yq"\n' > Brewfile
   run --separate-stderr check tool-yq
   [ "$(jq --raw-output .fix <<<"$output")" = "brew install yq" ]
   rm Brewfile "${fakes}/yq"
-  # no system toolchain: no fix, and the tool's site to read
+  # no package manager: no fix, and the tool's site to read
   ambient-system
   fake-script jq "[[ \"\$*\" != --version ]] || { echo jq-1.6; exit 0; }; exec '${real_jq}' \"\$@\""
   run --separate-stderr check tool-jq
@@ -175,10 +175,10 @@ ambient-system() {
     $'toolchains\tfalse\tjq 1.6 is too old; kit needs jq 1.7 or later\t\thttps://jqlang.org/download/' ]
   run --separate-stderr check toolchain-system
   [ "$(jq --raw-output '[.ok, .line] | @tsv' <<<"$output")" = \
-    $'true\tthe system toolchain is ambient, as chosen: kit uses what is on PATH' ]
+    $'true\tthe system has no package manager, as chosen, so it is ambient: kit uses what is on PATH' ]
 }
 
-@test "with apt the system toolchain, welcome names its package, or the site for a tool Debian has none for" {
+@test "with apt the machine's package manager, welcome names its package, or the site for a tool Debian has none for" {
   local sudo='sudo '
   (( EUID != 0 )) || sudo=''
   rm "${fakes}/brew"
@@ -186,12 +186,12 @@ ambient-system() {
   fake-script apt-get 'exit 1'
   run --separate-stderr check toolchain-system
   [ "$(jq --raw-output '[.ok, .line] | @tsv' <<<"$output")" = \
-    $'true\tapt is the system toolchain; it names the fix for a missing tool' ]
+    $'true\tapt is the machine\'s package manager; it names the fix for a missing tool' ]
   # Debian's yq is not mikefarah's, so there is no command, and the site to read
   fake-script yq 'exit 1'
   run --separate-stderr check tool-yq
   [ "$(jq --raw-output '[.fix, .more] | @tsv' <<<"$output")" = $'\thttps://github.com/mikefarah/yq#install' ]
-  # with no project toolchain, a missing linter is apt's to install
+  # with no tool manager, a missing linter is apt's to install
   rm "${fakes}/yq"
   "${kit_root}/bin/kit" install >/dev/null 2>&1
   fake-script shellcheck 'exit 1'
@@ -300,31 +300,31 @@ ambient-system() {
     $'true\tshellcheck is installed in node_modules/.bin; kit lint runs it for .kit/rules/bash.md' ]
 }
 
-@test "welcome fixes a missing tool with kit tools install, or the system toolchain's command when ambient" {
+@test "welcome fixes a missing tool with kit tools install, or the package manager's command when ambient" {
   "${kit_root}/bin/kit" install >/dev/null 2>&1
   fake-script shellcheck 'exit 1'
   fake-script actionlint 'exit 0'
-  # ambient for the project: the system toolchain's command
+  # ambient for the project: the package manager's command
   run --separate-stderr check linter-shellcheck
   [ "$(jq --raw-output '[.step, .ok, .line, .fix, .more] | @tsv' <<<"$output")" = \
     $'setup\tfalse\tshellcheck is not installed; kit lint runs it for .kit/rules/bash.md\tbrew install shellcheck\t' ]
   run --separate-stderr check toolchain-project
   [ "$(jq --raw-output '[.step, .ok, .fix] | @tsv' <<<"$output")" = $'setup\ttrue\t' ]
   [ "$(jq --raw-output .line <<<"$output")" = \
-    "no toolchain is usable for the project, so its tools are ambient: kit uses what is on PATH" ]
+    "no tool manager is usable for the project, so its tools are ambient: kit uses what is on PATH" ]
   # ambient for the system too: no fix, and the tool's site
   ambient-system
   run --separate-stderr check linter-shellcheck
   [ "$(jq --raw-output '[.fix, .more] | @tsv' <<<"$output")" = \
     $'\thttps://github.com/koalaman/shellcheck#installing' ]
-  # one project toolchain: it installs what it pins; brew reads a Brewfile on macOS alone
+  # one tool manager: it installs what it pins; brew reads a Brewfile on macOS alone
   export OSTYPE=darwin24
   printf 'brew "shellcheck"\n' > Brewfile
   run --separate-stderr check linter-shellcheck
   [ "$(jq --raw-output '[.fix, .more] | @tsv' <<<"$output")" = $'kit tools install\t' ]
   run --separate-stderr check toolchain-project
   [ "$(jq --raw-output '[.ok, .line] | @tsv' <<<"$output")" = \
-    $'true\tbrew is the project toolchain; kit tools lists what it pins' ]
+    $'true\tbrew is the project\'s tool manager; kit tools lists what it pins' ]
   # several, none chosen: the toolchains step asks first, and setup has no fix until then; brew fills in beside them
   touch mise.toml toolchain.Dockerfile
   fake-script mise 'exit 0'
@@ -332,7 +332,7 @@ ambient-system() {
   run --separate-stderr check toolchain-project
   [ "$(jq --raw-output '[.ok, .fix, .interactive, .more] | @tsv' <<<"$output")" = \
     $'false\tkit toolchains use mise\tfalse\tor: kit toolchains use docker' ]
-  [ "$(jq --raw-output .line <<<"$output")" = "several toolchains are usable for the project: mise, docker; choose one" ]
+  [ "$(jq --raw-output .line <<<"$output")" = "several tool managers are usable for the project: mise, docker; choose one" ]
   # what is left keeps the other toolchain's command beside the fix, the fix with the cd to its folder in front
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
   [[ "$output" == *$'\n'"- toolchain-project in $(pwd -P): cd $(pwd -P) && kit toolchains use mise; or: kit toolchains use"\
@@ -343,7 +343,7 @@ ambient-system() {
   # the toolchains check's fix records the first; the others' commands stand beside it
   run --separate-stderr "${kit_root}/bin/kit" welcome --fix=toolchain-project
   [ "$status" -eq 0 ]
-  [ "$output" = "✅ mise is the project toolchain; kit tools lists what it pins" ]
+  [ "$output" = "✅ mise is the project's tool manager; kit tools lists what it pins" ]
   # with mise and docker gone, brew is the only one again, and the recorded mise gives way to it
   rm mise.toml toolchain.Dockerfile
   run --separate-stderr check linter-shellcheck
@@ -832,7 +832,7 @@ bot-key() {
   kit_bash_modules=secrets kit-bash 'secrets:put kit-bot github.com/12345' < "${BATS_TEST_TMPDIR}/app.pem"
 }
 
-@test "the bot check is planned only where the primary remote is GitHub, after the project toolchain" {
+@test "the bot check is planned only where the primary remote is GitHub, after the tool manager" {
   run --separate-stderr checks
   [ "$(jq --raw-output 'map(.id) | index("bot")' <<<"$output")" = null ]
   git remote add origin https://gitlab.com/acme/widget.git

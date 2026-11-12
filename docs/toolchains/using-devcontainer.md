@@ -1,7 +1,7 @@
 # Using a dev container
 
 A [dev container](https://containers.dev) is configured by `.devcontainer/devcontainer.json`, or `.devcontainer.json`,
-at the repository root. For how kit finds and chooses a toolchain, see [toolchains.md](../toolchains.md).
+at the repository root. For how kit finds and chooses a manager, see [toolchains.md](../toolchains.md).
 
 devcontainer fills the project role. Inside the container, it fills the system role too.
 

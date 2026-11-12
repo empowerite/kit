@@ -6,7 +6,7 @@
 # Each stage reads what kit itself reads where it runs, and no forge but for whether the forge's tool is signed in:
 #
 #   services      a row per capability kit fills: hosting, review, ci, and releases, the primary's forge; tracking,
-#                 each tracker prefix; the project toolchain; each dependency provider whose manifest and lock are
+#                 each tracker prefix; the project's tool manager; each dependency provider whose manifest and lock are
 #                 here; and the policy engine. Each says its service, the provider that answers it, whether kit inferred
 #                 it or kit.yml set it, and whether its tool is there and signed in
 #   toolchains    kit toolchains --json, a row per toolchain and role
@@ -80,7 +80,7 @@ apps/platform:services() {
     rows+=("$(apps/platform:row "tracking ${prefix}" "${provider}" "tracker/${provider}" "${chosen}" \
       "${tracker_ready}")")
   done
-  # The project toolchain, as kit toolchains reports it: none where several are usable and none is chosen.
+  # The project's tool manager, as kit toolchains reports it: none where several are usable and none is chosen.
   toolchain=$(toolchain:chosen project list 2>/dev/null) || toolchain=''
   chosen=''
   ready=''

@@ -1,7 +1,7 @@
 # Using a Docker image
 
 A `toolchain.Dockerfile` at the repository root builds an image with the tools in it. kit runs each command in a
-container of that image. For how kit finds and chooses a toolchain, see [toolchains.md](../toolchains.md).
+container of that image. For how kit finds and chooses a manager, see [toolchains.md](../toolchains.md).
 
 docker fills the project role. It is never active: kit runs a command in its container instead.
 

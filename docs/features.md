@@ -230,10 +230,11 @@ see: [architecture.md](architecture.md#the-workflow-and-the-gate)
 `kit welcome` is where a newcomer starts. It is a guide in five steps:
 
 1. Introduction: what kit is, where it runs, and who it is for.
-2. Toolchains: bash, git, jq, and yq, which kit runs on; then the system toolchain. Several usable means you choose.
+2. Toolchains: bash, git, jq, and yq, which kit runs on; then the machine's package manager. Several usable means you
+   choose.
 3. Setup: each code forge's login, once for the machine; then each folder of the workspace on its own, the desk then
    each worktree, by repository: kit installed, with the version its `kit.yml` declares, `.kit/` in place, the hooks,
-   its project toolchain, its linters, and `kit check`.
+   its tool manager, its linters, and `kit check`.
 4. Customize: the settings teams change first, packages, a house package, and the docs.
 5. Terms: the words kit uses, by topic, from workspace and tracker to CI, CD, and toolchain.
 
@@ -249,7 +250,7 @@ with the kit, `kit tutorials applications`; see [tutorials.md](tutorials.md).
 - A check that holds can still offer a fix: an offer, drawn 💡, which needs no attention and fails nothing. kit runs in
   a folder whose `kit.yml` declares no kit version, on what it infers, so there kit installed holds and offers
   `kit install`.
-- A missing tool's fix is `kit tools install`, or, when ambient, the system toolchain's command. No tool manager is
+- A missing tool's fix is `kit tools install`, or, when ambient, the package manager's command. No tool manager is
   assumed.
 - `kit welcome --checks --json` prints the checks alone, a folder's with its folder, repository, branch, and kit;
   `kit welcome --fix=<check>` runs one fix and checks again, and `--folder=<path>` names a folder's check.

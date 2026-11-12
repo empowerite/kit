@@ -2,7 +2,7 @@
 
 The kit toolchain is kit itself: `tools:` in `kit.yml` pins each tool by version and the URL of its download, and
 `tools.lock` records what each download is, and its hash, for every platform, never where it came from. It needs only
-curl and tar, and unzip for a zip. For how kit finds and chooses a toolchain, see [toolchains.md](../toolchains.md).
+curl and tar, and unzip for a zip. For how kit finds and chooses a manager, see [toolchains.md](../toolchains.md).
 
 ## Set up
 

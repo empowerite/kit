@@ -1,7 +1,7 @@
 # Using Homebrew
 
 [Homebrew](https://brew.sh) installs formulae and casks. A `Brewfile` at the repository root lists them. For how kit
-finds and chooses a toolchain, see [toolchains.md](../toolchains.md).
+finds and chooses a manager, see [toolchains.md](../toolchains.md).
 
 brew fills two roles:
 
@@ -36,13 +36,13 @@ holds one, such as `node@22`.
 
 ## brew fills in
 
-A `Brewfile` often lists what comes before the project toolchain: a newer bash, mise itself, direnv. So brew never
-competes with another project toolchain:
+A `Brewfile` often lists what comes before the tool manager: a newer bash, mise itself, direnv. So brew never
+competes with another tool manager:
 
 - Only on macOS is the `Brewfile` read for the project. Elsewhere, as on a Linux runner, brew fills the system role
   alone.
-- Where another project toolchain is usable, brew is not a candidate. `kit toolchains use brew` is refused.
-- Where it is the only one usable, brew is the project toolchain, as any other is.
+- Where another tool manager is usable, brew is not a candidate. `kit toolchains use brew` is refused.
+- Where it is the only one usable, brew is the project's tool manager, as any other is.
 - Otherwise it fills in for the chosen one: it acts on the `Brewfile`'s tools that toolchain does not pin.
 
 Filling in:

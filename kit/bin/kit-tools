@@ -6,13 +6,13 @@
 #   kit tools [--toolchain=<name>] (install | update | path | run <command>…)
 #   kit tools sources [--env | --json | --jq]
 #
-# Acts on the tools the project toolchain pins. kit toolchains shows which toolchain that is, and records a choice.
+# Acts on the tools the project's tool manager pins. kit toolchains shows which manager that is, and records a choice.
 # Then on the packages each dependency provider pins, as npm in package-lock.json or uv in uv.lock: each one whose
 # manifest and lock are here, and whose tool is on PATH with the toolchain's directories first.
 #
 # Alone, it lists each pinned tool: its name, the version pinned, and the version installed. A row marks what is
 # installed. It never reaches the network. With --outdated, it adds the latest version, which asks the network. For the
-# kit toolchain that is the newest the pull path serves; where the path holds a mirror, a tool also says the newest
+# kit as the tool manager, that is the newest the pull path serves; where the path holds a mirror, a tool also says the newest
 # tagged upstream, which the mirror does not serve yet.
 # With no toolchain, kit runs ambient. Then it lists the tools the rules' linters need, and where each is on PATH.
 # The toolchain comes first, then each dependency provider, each in its own table headed by its name when there are
@@ -68,7 +68,7 @@ verb=${syntax_literals[0]:-}
 json=false
 [[ -z "${syntax_options[--json]+x}" ]] || json=true
 
-# sources reads no toolchain, so none is asked for.
+# sources reads no tool manager, so none is asked for.
 chosen=''
 [[ "${verb}" == sources ]] || chosen=$(toolchain:chosen project) || exit 1
 
@@ -308,7 +308,7 @@ ambient() {
       return 0
     fi
     error "no toolchain pins the tools here, so kit installs none; install each by hand:"
-    # the system toolchain's command for each, or else the tool's name alone
+    # the package manager's command for each, or else the tool's name alone
     system=$(toolchain:chosen system list 2>/dev/null) || system=''
     for tool in "${missing[@]}"
     do

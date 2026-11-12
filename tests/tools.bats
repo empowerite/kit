@@ -1,5 +1,5 @@
 #!/usr/bin/env bats
-# tools.bats - kit tools lists, installs, updates, and runs with what the chosen project toolchain pins
+# tools.bats - kit tools lists, installs, updates, and runs with what the chosen tool manager pins
 # ----------------------------------------------------------------------------------------------------------------------
 # Each provider is driven by tests/fakes/fake-tool standing in for its tool, so what is proven is how kit tools reads
 # the tool's answers and what it asks of it. What only the real tool can prove, that it answers as the fixtures do, is
@@ -86,7 +86,7 @@ JSON
   [ "$(jq --compact-output --slurp 'map(keys_unsorted) | unique' <<<"$output")" = '[["name","path","from"]]' ]
   run "${kit_root}/bin/kit" tools install
   [ "$status" -eq 1 ]
-  # each missing tool comes with the system toolchain's command that installs it, or else its name alone
+  # each missing tool comes with the package manager's command that installs it, or else its name alone
   grep --quiet --line-regexp '    brew install kit-test-absent-linter' <<<"$output"
   [[ "$output" != *"shellcheck"* ]]
   "${kit_root}/bin/kit" toolchains use ambient --system
@@ -506,10 +506,10 @@ docker-context() {
   [[ "$output" == *"kit toolchains use docker"* ]]
   [[ "$output" != *"the gate failed"* ]]
   grep --quiet 'The gate cannot run' "${GITHUB_STEP_SUMMARY}"
-  grep --quiet 'several toolchains are usable for the project here' "${GITHUB_STEP_SUMMARY}"
+  grep --quiet 'several tool managers are usable for the project here' "${GITHUB_STEP_SUMMARY}"
   KIT_TOOLCHAIN=brew run "${kit_root}/bin/kit" gate </dev/null
   [ "$status" -eq 1 ]
-  grep --quiet 'the toolchain named for this run, brew, is not usable' "${GITHUB_STEP_SUMMARY}"
+  grep --quiet 'the tool manager named for this run, brew, is not usable' "${GITHUB_STEP_SUMMARY}"
   run "${kit_root}/bin/kit" toolchains use docker
   [ "$status" -eq 0 ]
   run "${kit_root}/bin/kit" gate

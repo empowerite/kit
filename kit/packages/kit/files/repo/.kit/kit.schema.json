@@ -592,7 +592,7 @@
     },
     "tools": {
       "type": "object",
-      "description": "The tools the kit toolchain pins, by name: each a version and what its download is, a url or a coordinate any source on the pull path that speaks its protocol serves; tools.lock records each download's artifact and hash for every platform. See docs/toolchains/using-kit.md.",
+      "description": "The tools kit pins as the tool manager, by name: each a version and what its download is, a url or a coordinate any source on the pull path that speaks its protocol serves; tools.lock records each download's artifact and hash for every platform. See docs/toolchains/using-kit.md.",
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,

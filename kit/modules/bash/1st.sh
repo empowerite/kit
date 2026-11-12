@@ -750,7 +750,7 @@ guard:missing() {
 
 # guard:remedy <tool> prints what installs the tool. bash, git, jq, and yq, the tools kit runs on, are the system
 # toolchain's to install, so theirs is that toolchain's command, as run: brew install jq; where kit can name no
-# command, it is to install the tool with the machine's package manager. Any other tool is the project toolchain's,
+# command, it is to install the tool with the machine's package manager. Any other tool is the tool manager's,
 # and its remedy is run: kit tools install. No remedy names a tool manager kit did not find.
 guard:remedy() {
   local fix
@@ -767,7 +767,7 @@ guard:remedy() {
   esac
 }
 
-# guard:system-command <tool> prints the system toolchain's command that installs the tool. It fails when there is
+# guard:system-command <tool> prints the package manager's command that installs the tool. It fails when there is
 # none: no toolchain fills the system role, several do and none is chosen, or the one found names no command. It never
 # asks which to use. It runs in a subshell, so the modules it loads stay out of the caller's process. While the module
 # path is still being read, as when bash_path in kit.yml needs yq, it uses the release's own modules.

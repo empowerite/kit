@@ -5,7 +5,7 @@
 # for the project role too. Elsewhere, as on a Linux runner, the Brewfile is not read. brew is never active: it is not
 # a shell one enters.
 #
-# brew never competes with another project toolchain. Where one is usable, brew fills in: it acts on the Brewfile's
+# brew never competes with another tool manager. Where one is usable, brew fills in: it acts on the Brewfile's
 # tools that toolchain does not pin, named in toolchain_pinned (see toolchain:filler). Alone, it acts on them all.
 #
 # A Brewfile pins a formula by name only, so its version moves with Homebrew unless the name includes it

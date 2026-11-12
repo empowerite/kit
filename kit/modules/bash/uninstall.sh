@@ -129,9 +129,9 @@ uninstall:prune() {
 
 # uninstall:manifests <dry> removes the repository's manifest, .kit/.gitignore, what kit cached in .kit/cache/, and
 # its logs in .kit/logs/.
-# It also removes the project toolchain choice made here, kept in the git directory. It removes .kit/ itself when
-# nothing is left in it. It writes home's manifest without this repository's paths, which removes it when no line is
-# left.
+# It also removes the choice of the project's tool manager made here, kept in the git directory. It removes .kit/
+# itself when nothing is left in it. It writes home's manifest without this repository's paths, which removes it when
+# no line is left.
 uninstall:manifests() {
   local dry=$1 choice
   choice=$(uninstall:choice)
@@ -161,9 +161,9 @@ uninstall:manifests() {
   manifest:write home ''
 }
 
-# uninstall:choice prints the file that keeps the project toolchain choice made here, when it is there, and nothing
-# otherwise. At the desk, that is the clone's choice. In a linked worktree, it is that worktree's own; the clone's
-# stays for the desk to remove.
+# uninstall:choice prints the file that keeps the choice of the project's tool manager made here, when it is there,
+# and nothing otherwise. At the desk, that is the clone's choice. In a linked worktree, it is that worktree's own; the
+# clone's stays for the desk to remove.
 uninstall:choice() {
   local kept
   use toolchain || return 0

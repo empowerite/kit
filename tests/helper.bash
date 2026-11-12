@@ -199,7 +199,7 @@ shims() {
 }
 
 # hide-system-toolchains hides a real apt-get, dnf, and pacman from PATH, as a Linux runner has, so a test finds only
-# the system toolchains it fakes. Each directory that holds one is replaced by links to everything else in it, made by
+# the package managers it fakes. Each directory that holds one is replaced by links to everything else in it, made by
 # one ln, as /usr/bin is too large to link one file at a time.
 hide-system-toolchains() {
   local dir out='' copy n=0 tool IFS=:

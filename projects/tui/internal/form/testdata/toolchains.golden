@@ -6,7 +6,7 @@
      --json   --jq
                    one JSON object per row: provider, role, usable, active, chosen, and fills
 
-   use             records the toolchain for the project; ambient uses none
+   use             records the project's tool manager; ambient uses none
 
 
  kit toolchains

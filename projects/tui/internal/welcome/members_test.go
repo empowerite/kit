@@ -226,14 +226,14 @@ func TestTheSetupStepsSearchNamesTheFolder(t *testing.T) {
 		return m
 	}
 	if v := view(search("7-the")); !strings.Contains(v, "kit is not installed here; it runs on what it infers") ||
-		strings.Contains(v, "several toolchains") {
+		strings.Contains(v, "several tool managers") {
 		t.Errorf("searched for the branch:\n%s", v)
 	}
 	if v := view(search("lefthook runs none")); !strings.Contains(v, "the git hooks are not installed") ||
 		strings.Contains(v, "kit is not installed here") {
 		t.Errorf("searched for a check's line:\n%s", v)
 	}
-	if v := view(search("code/b")); !strings.Contains(v, "several toolchains") || strings.Contains(v, "lefthook runs none") {
+	if v := view(search("code/b")); !strings.Contains(v, "several tool managers") || strings.Contains(v, "lefthook runs none") {
 		t.Errorf("searched for a folder:\n%s", v)
 	}
 	if v := view(search("zzz")); !strings.Contains(v, "no row matches the search") {

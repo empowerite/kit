@@ -21,7 +21,7 @@
 # Arguments:
 #   --json              one JSON object per row: provider, role, usable, active, chosen, and fills
 #   --jq                the same JSON, formatted by jq for a person
-#   use <name>          records the toolchain for the project; ambient uses none
+#   use <name>          records the project's tool manager; ambient uses none
 #   <name>              mise, nix, brew, docker, devcontainer, apt, dnf, pacman, or ambient
 #   --system            records it for the system role, which supplies bash, git, jq, and yq
 #

@@ -13,9 +13,9 @@
                  choice; and for services, of all of those, the clone's git configuration, which
                  holds its remotes, and .kit/policy
    services      each capability kit fills and the service that answers it: hosting, review, ci, and
-                 releases, the primary's forge; tracking, each tracker prefix; the project
-                 toolchain; each dependency provider whose manifest and lock are here; and the
-                 policy engine
+                 releases, the primary's forge; tracking, each tracker prefix; the project's tool
+                 manager; each dependency provider whose manifest and lock are here; and the policy
+                 engine
    toolchains    each toolchain kit can use, one row for each role it fills, as kit toolchains lists
                  them
    tools         each tool the chosen toolchain and the dependency providers pin, as kit tools lists

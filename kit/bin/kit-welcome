@@ -11,9 +11,9 @@
 # A guide for your first hour with kit, in five steps:
 #
 #   1. Introduction: what kit is, who it is for, what it solves, and what the checks found.
-#   2. Toolchains: bash, git, jq, and yq, which kit runs on, and the toolchain for the system, one check each.
+#   2. Toolchains: bash, git, jq, and yq, which kit runs on, and the machine's package manager, one check each.
 #   3. Setup: your forge logins, then each folder of the workspace, its desk and its worktrees: kit installed, with
-#      the version its kit.yml declares, .kit/ in place, the hooks, its project toolchain, its linters, and kit check.
+#      the version its kit.yml declares, .kit/ in place, the hooks, its tool manager, its linters, and kit check.
 #   4. Customize: the settings teams change first, packages, and the docs.
 #   5. Terms: the words kit uses, by topic, each with a command that shows it.
 #
@@ -45,7 +45,7 @@
 #   - runs is false when kit only shows the fix and never runs it, as for a line that must run in your own shell
 #     (brew-path); true for every other check. --fix refuses a check whose runs is false, with exit 2.
 #   - folder is the absolute path of a folder's check, null for a machine check: bash, git, jq, yq, brew-path, the
-#     system toolchain, and each forge host's tool and login, once per host among every folder's remotes.
+#     machine's package manager, and each forge host's tool and login, once per host among every folder's remotes.
 #   - repository is the folder's member, host and path, or its desk's folder name where it has no remote; desk is
 #     true for the desk and false for a worktree; branch is the folder's branch; and kit is the kit version its
 #     kit.yml declares. Each is null where there is none, and for a machine check.
@@ -54,8 +54,8 @@
 #
 # A missing tool's fix comes from the toolchains kit found, and never from one it assumes:
 #
-#   - the machine's: the system toolchain's command
-#   - a folder's: kit tools install, from that folder's project toolchain, or, when ambient, the system toolchain's
+#   - the machine's: the package manager's command
+#   - a folder's: kit tools install, from that folder's tool manager, or, when ambient, the package manager's
 #     command
 #
 # Nothing runs a fix but --fix, and it runs only the one named. The pages are under .kit/welcome/, from the kit

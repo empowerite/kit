@@ -9,7 +9,7 @@
    ✅ bash 5.2 runs kit
  ▸ ❌ jq is not installed   ⧉   ▶️ 
       brew install jq
-   ❌ several toolchains are usable for the project: mise, brew; choose one
+   ❌ several tool managers are usable for the project: mise, brew; choose one
       kit toolchains use mise
       or: kit toolchains use brew
    ❌ brew is installed but not on PATH

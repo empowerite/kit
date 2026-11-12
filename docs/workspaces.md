@@ -244,9 +244,9 @@ kit --workspace=none welcome --checks             # no group: the repository her
 and pin a kit of its own: for a repository, its desk, then each worktree `git worktree list` names; for a group, each
 member's, for every checkout of it under the roots. Each folder's check names its folder, its repository, whether it
 is the desk, its branch, and the kit its `kit.yml` declares, and `kit check` runs there on the release that folder
-pins. The machine's checks, the tools kit runs on, the system toolchain, and each forge host's tool and login, run
-once, for every host among the folders' remotes. The folders are judged at once. `kit welcome --fix=<check>
---folder=<path>` runs a folder's check's fix in that folder.
+pins. The machine's checks, the tools kit runs on, the machine's package manager, and each forge host's tool and
+login, run once, for every host among the folders' remotes. The folders are judged at once. `kit welcome
+--fix=<check> --folder=<path>` runs a folder's check's fix in that folder.
 
 On a terminal, kittui's setup step draws the checks as one table: the machine's first, then each repository, a row
 per folder with its branch, its kit, and a column for each kind of check, its failed checks under it, each offering

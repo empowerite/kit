@@ -43,7 +43,7 @@ probes() {
   grep --quiet --line-regexp $'mise\tproject\tyes\tno' <<<"$output"
 }
 
-@test "brew is a system toolchain anywhere it is installed, and a project one with a Brewfile on macOS" {
+@test "brew is a package manager anywhere it is installed, and a tool manager with a Brewfile on macOS" {
   run detect
   [ "$status" -eq 0 ]
   [ "$(grep '^brew' <<<"$output")" = $'brew\tsystem\tyes\tno\nbrew\tproject\tno\tno' ]
@@ -91,7 +91,7 @@ probes() {
   [ "$(grep '^brew' <<<"$output")" = $'brew\tsystem\tyes\tno\nbrew\tproject\tyes\tno' ]
 }
 
-@test "apt, dnf, and pacman are system toolchains where each is on PATH, and never project ones" {
+@test "apt, dnf, and pacman are package managers where each is on PATH, and never tool managers" {
   run detect
   [ "$(grep -e '^apt' -e '^dnf' -e '^pacman' <<<"$output")" = \
     $'apt\tsystem\tno\tno\ndnf\tsystem\tno\tno\npacman\tsystem\tno\tno' ]
@@ -110,7 +110,7 @@ probes() {
   [[ "$output" == *"apt fills the system role only"* ]]
 }
 
-@test "each system toolchain names the package that installs a tool, by its own name, or none" {
+@test "each package manager names the package that installs a tool, by its own name, or none" {
   local sudo='sudo '
   (( EUID != 0 )) || sudo=''
   run kit-bash 'use toolchain && toolchain:remedy apt shellcheck && toolchain:remedy dnf shellcheck &&

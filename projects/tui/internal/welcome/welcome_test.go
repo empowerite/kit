@@ -231,7 +231,7 @@ func TestTheToolchainsStepOffersCopyAndRunWithTheOthersBeside(t *testing.T) {
 		t.Fatalf("step %d, cursor %d", m.step, m.cursor)
 	}
 	got := view(m)
-	for _, want := range []string{" ▸ ❌ several toolchains are usable for the project: mise, brew; choose one",
+	for _, want := range []string{" ▸ ❌ several tool managers are usable for the project: mise, brew; choose one",
 		"\n      kit toolchains use mise\n", "\n      or: kit toolchains use brew\n"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("no %q:\n%s", want, got)

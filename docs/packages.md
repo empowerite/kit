@@ -293,7 +293,7 @@ answers:
 | `sources` | The artifact sources: the releases a repository takes packages from, each with a `name`, a `url`, and a `digest`, and the pull path's default; see below. |
 | `trackers` | Trackers other than the code forge's own whose issues the workflow accepts, each with a prefix and a provider; see [trackers.md](trackers.md). |
 | `bash_path` | The bash module path: the directories `use` sources a bash module from, in order, starting with `kit:modules/bash/`. A directory that does not exist is skipped; see [modules.md](modules.md#the-module-path). |
-| `tools` | The tools the kit toolchain pins, by name: each a version and the url of its download, which `tools.lock` records for every platform; see [using-kit.md](toolchains/using-kit.md). |
+| `tools` | The tools kit pins as the tool manager, by name: each a version and the url of its download, which `tools.lock` records for every platform; see [using-kit.md](toolchains/using-kit.md). |
 | `flow` | The stages `kit flow` draws, in order: `issues`, `changes`, `builds`, `incoming`, `releases`. A stage left out is not drawn; `kit flow <stage>` still prints it. `issues` lists every open issue, in the backlog or underway, so `backlog` and `underway` are no stages. Default: all five, in that order. |
 
 A provider setting, `forge`, a value of `forges`, `policy_engine`, or the `provider` of a tracker, takes one of the
@@ -358,8 +358,8 @@ sources:
   one, which takes `dist:`, the one it mirrors; `oci`, an OCI registry or a pull-through cache, which takes
   `prefix:`, the path the cache serves a registry's repositories under; and `artifactory`, an Artifactory
   repository asked as its `type:`, github-releases, goproxy, npm, or dist, at its `repository:`, a download it
-  refuses with 403, as Xray's block, being blocked. What each serves the kit toolchain, and how, is in
-  [using kit as the toolchain](toolchains/using-kit.md#saying-what-a-tool-is-in-place-of-its-url).
+  refuses with 403, as Xray's block, being blocked. What each serves kit as the tool manager, and how, is in
+  [using kit as the tool manager](toolchains/using-kit.md#saying-what-a-tool-is-in-place-of-its-url).
 - The pull path comes in layers, as `PATH` does, the first first: `KIT_SOURCES`, for a runner, entries apart by
   commas, each `direct`, `off`, or `<name>=<kind>:<url>`; `sources:` at the top of your `workspaces.yml` (see
   [workspaces.md](workspaces.md)), which applies to every repository you work in; and `kit.yml`'s, whose default,

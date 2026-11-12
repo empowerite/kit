@@ -1,7 +1,7 @@
 # Using mise
 
 [mise](https://mise.jdx.dev) pins each tool by version in `mise.toml`, and resolves each pin in `mise.lock`. For how
-kit finds and chooses a toolchain, see [toolchains.md](../toolchains.md).
+kit finds and chooses a manager, see [toolchains.md](../toolchains.md).
 
 ## Set up
 

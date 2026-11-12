@@ -11,7 +11,7 @@
 #   3. `make ci`, when the Makefile has a ci target
 #   4. `npm run ci`, when package.json has a ci script
 #
-# The gate runs with the tools the chosen project toolchain pins, inside its container when that is docker.
+# The gate runs with the tools the chosen tool manager pins, inside its container when that is docker.
 # kit toolchains shows which toolchain that is; KIT_TOOLCHAIN names one for a run.
 #
 # kit gate fails, and prints the remedy, when the repository has no gate or the root justfile cannot be read. A gate

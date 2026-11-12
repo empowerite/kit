@@ -84,7 +84,7 @@ tree() {
   [ ! -e .kit ]
 }
 
-@test "uninstall at the desk takes out the project toolchain choice kept in the git directory" {
+@test "uninstall at the desk takes out the choice of the project's tool manager kept in the git directory" {
   "${kit_checkout}/bin/kit" install >/dev/null 2>&1
   kit-bash 'use toolchain && toolchain:choose project ambient'
   [ "$(cat .git/kit/toolchain)" = ambient ]

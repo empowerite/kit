@@ -47,7 +47,7 @@ use context dependencies lint template yaml materialize
 guard:arguments lint "$@" || exit $?
 materialize:hydrate
 
-# A linter runs as kit gate runs it: the chosen project toolchain's directories first, then each installed dependency
+# A linter runs as kit gate runs it: the chosen tool manager's directories first, then each installed dependency
 # provider's, such as node_modules/.bin for markdownlint-cli2 from package.json.
 dependencies:onto-path
 

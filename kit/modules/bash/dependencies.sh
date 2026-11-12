@@ -81,7 +81,7 @@ dependencies:unlocked() {
   done
 }
 
-# dependencies:toolchain-dirs prints the chosen project toolchain's directories, joined by colons. It never asks
+# dependencies:toolchain-dirs prints the chosen tool manager's directories, joined by colons. It never asks
 # which toolchain to use: with none settled, or ambient, it prints nothing.
 dependencies:toolchain-dirs() {
   local chosen
@@ -102,7 +102,7 @@ dependencies:path() {
   done
 }
 
-# dependencies:onto-path puts the chosen project toolchain's directories first on PATH, then each installed
+# dependencies:onto-path puts the chosen tool manager's directories first on PATH, then each installed
 # provider's, as kit gate runs with them, for a verb that runs the repository's tools outside kit gate: kit lint, and
 # the policy engine kit commit and kit policy run. It never asks which toolchain to use; with none settled, only the
 # providers' directories go first.

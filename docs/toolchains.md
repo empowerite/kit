@@ -7,13 +7,13 @@ the gate being the repository's own CI command. Two kinds of manager install too
   container, or Homebrew with a Brewfile.
 - A package manager installs software on the machine: Homebrew, or a Linux system's apt, dnf, or pacman.
 
-kit calls each manager it knows a provider. Where kit's commands and this page say the project toolchain or the
-system toolchain, they mean the provider that fills that role.
+kit calls each manager it knows a provider. Each fills a role: the project's tool manager pins the repository's tools,
+and the machine's package manager installs what kit itself stands on.
 
-- kit finds the toolchains where it runs. `kit.yml` does not name one for a desk, because everyone who clones
-  shares it. CI is the exception: the CI package's `ci_toolchain` answer names the runner's toolchain.
+- kit finds the tool managers where it runs. `kit.yml` does not name one for a desk, because everyone who clones
+  shares it. CI is the exception: the CI package's `ci_toolchain` answer names the runner's tool manager.
 - `kit toolchains` lists what kit found, and records which one to use.
-- `kit tools` lists, installs, and updates what the chosen toolchain pins, and runs commands with it. It does
+- `kit tools` lists, installs, and updates what the chosen tool manager pins, and runs commands with it. It does
   the same for the packages npm or uv pins on top.
 
 ```sh
@@ -21,7 +21,7 @@ kit toolchains
 kit tools install
 ```
 
-Each toolchain has a page of its own, on setting it up and what kit does with it:
+Each manager has a page of its own, on setting it up and what kit does with it:
 
 - [kit itself](toolchains/using-kit.md), with `tools:` in `kit.yml`, which this repository uses
 - [mise](toolchains/using-mise.md)
@@ -42,7 +42,7 @@ A provider fills one role or both:
 - **project**: it pins the repository's tools, such as the linters and the gate's own tools.
 - **system**: it supplies what kit itself stands on: bash, git, jq, and yq.
 
-A run uses exactly one project toolchain, and at most one system toolchain. kit combines two toolchains' tools on
+A run uses exactly one tool manager, and at most one package manager. kit combines two toolchains' tools on
 `PATH` only where brew fills in; see [brew fills in](toolchains/using-brew.md#brew-fills-in).
 
 ## Detection
@@ -69,13 +69,13 @@ network, and never calls git.
 | [`dnf`](toolchains/using-system-packages.md) | system | `dnf` is on `PATH` | never | nothing; it installs for the whole machine |
 | [`pacman`](toolchains/using-system-packages.md) | system | `pacman` is on `PATH` | never | nothing; it installs for the whole machine |
 
-Each toolchain's page says more about when it is usable and active.
+Each manager's page says more about when it is usable and active.
 
 ## Choosing
 
 For each role, the first of these that answers is the one:
 
-1. An active toolchain. A run that names a different one is refused, and the refusal says which is active.
+1. An active manager. A run that names a different one is refused, and the refusal says which is active.
 2. For the project, the one named for the run: `--toolchain=<name>`, or `KIT_TOOLCHAIN=<name>`. One that is not
    usable here is refused; kit never falls back to another.
 3. The one recorded earlier, while it is still usable here.
@@ -87,7 +87,7 @@ command that picks it, such as `kit toolchains use mise`. With none usable, kit 
 is on `PATH`.
 
 `kit toolchains use <name>` records the project choice, and `--system` records the system one. `ambient` is a
-name too: it chooses not to use a toolchain.
+name too: it chooses not to use a manager.
 
 ## Where things are kept
 
@@ -101,7 +101,7 @@ name too: it chooses not to use a toolchain.
 - Nothing here is committed. Each choice lives in the git directory, never in the working tree.
   `.kit/.gitignore` always lists `/cache/`.
 - `git worktree remove` takes a worktree's own choice with it.
-- A worktree takes the desk's choice while that toolchain is usable there. Its branch may lack the file, though.
+- A worktree takes the desk's choice while that tool manager is usable there. Its branch may lack the file, though.
   Then kit asks again, and keeps the answer in the worktree alone.
 - The cache holds while `PATH`, where each tool resolves, each provider's files, and each activation marker are
   unchanged. A hit does not run any tool. Discarding the cache never discards a choice.
@@ -110,12 +110,12 @@ name too: it chooses not to use a toolchain.
 
 Lists each provider, one row for each role it serves. The columns mark whether it is usable here (✅), already
 inside now (⚡), and the one kit uses (📌). ➕ marks brew where it adds the rest: it installs the Brewfile's tools the
-chosen toolchain does not pin. `--json` prints one object per row, with `fills` true for that. kittui's table says
+chosen tool manager does not pin. `--json` prints one object per row, with `fills` true for that. kittui's table says
 the same under the headings usable here, inside now, kit uses, and adds the rest.
 
 ## `kit tools`
 
-Alone, it lists what the chosen project toolchain pins: each tool's name, the version pinned, and the version
+Alone, it lists what the chosen tool manager pins: each tool's name, the version pinned, and the version
 installed. It never reaches the network, so `kit serve` can offer it to agents. docker asks its daemon whether the
 image is built only when the daemon is local; with a remote one, no base shows as installed.
 
@@ -129,14 +129,14 @@ image is built only when the daemon is local; with a remote one, no base shows a
 | `kit tools run <command>…` | Runs a command with the tools: inside the container for docker, and for devcontainer from outside; otherwise with the tools first on `PATH`. |
 | `kit tools sources` | Prints the pull path, the artifact sources kit searches in order for what it fetches: each source, its kind, its URL, and the layer it came from, `KIT_SOURCES`, the workspace, or `kit.yml`. `--env` prints the same path as each language manager's settings, `GOPROXY` and npm's registry among them. See [packages.md](packages.md#kinds-and-the-pull-path). |
 
-Each but `sources` takes `--toolchain=<name>` to name the toolchain for that run.
+Each but `sources` takes `--toolchain=<name>` to name the tool manager for that run.
 
-Ambient, no toolchain pins anything; see [using no toolchain](toolchains/using-no-toolchain.md) for what each
+Ambient, no tool manager pins anything; see [using no toolchain](toolchains/using-no-toolchain.md) for what each
 command does then.
 
 ## Dependencies
 
-A toolchain pins tools, node and python among them. A language's package manager pins that language's packages on
+A tool manager pins tools, node and python among them. A language's package manager pins that language's packages on
 top, such as markdownlint-cli2 in `package.json`. Each is a dependency provider, in
 `kit/modules/bash/dependencies/<name>.sh`.
 
@@ -145,19 +145,19 @@ top, such as markdownlint-cli2 in `package.json`. Each is a dependency provider,
 | `npm` | `npm` is on `PATH`, and `package.json` and `package-lock.json` are here | `npm ci` | `node_modules/.bin` | what `package.json` names, at the lock's versions |
 | `uv` | `uv` is on `PATH`, and `pyproject.toml` and `uv.lock` are here | `uv sync --frozen` | `.venv/bin` | every package in the lock but the project |
 
-- A run uses one toolchain, but every usable dependency provider.
-- A provider is looked for with the toolchain's directories first on `PATH`, so a node the toolchain pins counts.
+- A run uses one tool manager, but every usable dependency provider.
+- A provider is looked for with the tool manager's directories first on `PATH`, so a node it pins counts.
 - The lock is required. A manifest without its lock does not pin anything, so it is not usable. `kit welcome` names it.
 - Only the manifest at the repository root counts. Workspaces are not read yet.
-- `kit tools` acts on the toolchain first, then each provider: it lists, installs, updates, and asks what is behind.
+- `kit tools` acts on the tool manager first, then each provider: it lists, installs, updates, and asks what is behind.
   With several, each table is headed by the name of what it lists. A JSON row's `from` names it.
-- `kit tools install` installs the toolchain first, then looks for each provider again, so the npm or uv the
-  toolchain has just installed counts. A provider whose lock is here and whose tool is still not on `PATH` fails
+- `kit tools install` installs with the tool manager first, then looks for each provider again, so the npm or uv
+  the tool manager has just installed counts. A provider whose lock is here and whose tool is still not on `PATH` fails
   the run, named, before any provider installs.
-- `kit tools path`, `kit tools run`, and `kit gate` put the toolchain's directories first, then the providers'.
-- `kit lint`, `kit commit`, and `kit policy` put the chosen toolchain's directories first on `PATH`, then each
+- `kit tools path`, `kit tools run`, and `kit gate` put the tool manager's directories first, then the providers'.
+- `kit lint`, `kit commit`, and `kit policy` put the chosen tool manager's directories first on `PATH`, then each
   provider's whose manifest, lock, and directory are here, as `kit gate` does, so a shell that has not put the tools
-  on `PATH`, as an agent's, still runs the pinned linters and policy engine. They never ask which toolchain to use;
+  on `PATH`, as an agent's, still runs the pinned linters and policy engine. They never ask which tool manager to use;
   with none chosen, only the providers' directories go first. `kit welcome` holds a linter found in either.
 - `kit tools --outdated` asks `npm outdated` and `uv pip list --outdated`. `kit tools update` installs each npm
   package behind at its latest, and runs `uv lock --upgrade`, which stays within `pyproject.toml`'s bounds.
@@ -168,7 +168,7 @@ top, such as markdownlint-cli2 in `package.json`. Each is a dependency provider,
 
 `kit gate` runs the gate as `kit tools run` runs a command:
 
-- Normally, with the chosen toolchain's directories first on `PATH`.
+- Normally, with the chosen tool manager's directories first on `PATH`.
 - With devcontainer chosen from outside, in the container, through `devcontainer exec`. Run `kit tools install` first,
   which brings the container up. Inside the container, the gate runs as is.
 - With docker chosen, inside its image, with the checkout mounted at `/work`. It runs as the caller's user, so the
@@ -193,9 +193,9 @@ PATH_add kit/bin
 kit hydrate --quick
 ```
 
-- It does not put any tools on `PATH`. A toolchain that activates through direnv adds its own line, as nix does with
-  `use flake`. This repository's `.envrc` adds the kit toolchain's directories, which `kit tools path
-  --toolchain=kit` reads from `tools.lock` alone; see [using kit as the toolchain](toolchains/using-kit.md).
+- It does not put any tools on `PATH`. A tool manager that activates through direnv adds its own line, as nix does with
+  `use flake`. This repository's `.envrc` adds the kit tool manager's directories, which `kit tools path
+  --toolchain=kit` reads from `tools.lock` alone; see [using kit as the tool manager](toolchains/using-kit.md).
 - An agent's subprocess shell and a CI runner have neither. There the verbs' own call and `kit ci` do the work.
 
 ## On a runner
@@ -203,7 +203,7 @@ kit hydrate --quick
 The delivered workflow runs `kit tools install`, then appends the output of `kit tools path` to the runner's
 `PATH`. [packages/github/ci.md](packages/github/ci.md) says what else the job sets up.
 
-- A runner with several usable toolchains has no terminal to ask, so the run names one with `KIT_TOOLCHAIN`.
+- A runner with several usable tool managers has no terminal to ask, so the run names one with `KIT_TOOLCHAIN`.
 - The brew provider needs `brew` on `PATH`. `kit welcome` offers the `shellenv` line when brew is installed at a prefix
   but off `PATH`; a runner puts it on `PATH` in its own step.
 

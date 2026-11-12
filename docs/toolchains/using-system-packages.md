@@ -1,7 +1,7 @@
 # Using apt, dnf, or pacman
 
 A Linux system's package manager supplies what kit stands on: bash, git, jq, and yq. kit knows three: apt, dnf, and
-pacman. For how kit finds and chooses a toolchain, see [toolchains.md](../toolchains.md).
+pacman. For how kit finds and chooses a manager, see [toolchains.md](../toolchains.md).
 
 - Each is usable where its command is on `PATH`: `apt-get`, `dnf`, or `pacman`.
 - They fill the system role alone. They install for the whole machine, so they do not pin any repository's tools.
@@ -22,7 +22,7 @@ pacman. For how kit finds and chooses a toolchain, see [toolchains.md](../toolch
 With brew on `PATH` too, both are usable for the system. brew is offered first, and the choice is yours:
 `kit toolchains use apt --system`.
 
-## With no project toolchain
+## With no tool manager
 
 They pin nothing for the project, so a repository with none of the others runs ambient; see
 [using no toolchain](using-no-toolchain.md).
