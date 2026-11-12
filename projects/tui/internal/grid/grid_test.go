@@ -1614,3 +1614,19 @@ func TestARangeLetsThroughTheNumbersInIt(t *testing.T) {
 		t.Error("two numbers, or a text")
 	}
 }
+
+// A column is blank where no row it would group holds a value in it: a heading, a row of one cell as a note, and a row
+// too short to reach the column count for nothing, nor does a column the rows do not have.
+func TestAColumnIsBlankWhereNoRowHoldsAValueInIt(t *testing.T) {
+	columns := []string{"id", "title", "repository"}
+	rows := []Row{{Key: "#1", Cells: []Cell{one("#1"), one("a"), {}}}, {Key: "#2", Cells: []Cell{one("#2"), one("b")}},
+		{Aside: true, Cells: []Cell{one("▾ kit"), {}, one("kit")}}, {Key: "gone", Cells: []Cell{one("kit")}}}
+	for name, want := range map[string]bool{"repository": true, "id": false, "nope": true} {
+		if got := Blank(rows, columns, name); got != want {
+			t.Errorf("%s is blank: %v", name, got)
+		}
+	}
+	if Blank(append(rows, Row{Key: "#3", Cells: []Cell{one("#3"), one("c"), one("kit")}}), columns, "repository") {
+		t.Errorf("a row of kit leaves repository blank")
+	}
+}
