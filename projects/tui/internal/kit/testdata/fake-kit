@@ -6,23 +6,24 @@
 # another flag of flow is refused, and a stage echoes its words as JSON, after sleeping FAKE_KIT_SLEEP seconds when it
 # is set, with the sleep's pid written to the file FAKE_KIT_RECORD names; workspace --stages names two stages, each
 # other app verb's --stages its own, as kit audit's five, and a stage of theirs answers with no rows; root prints a
-# fixed directory, and welcome --checks the welcome screen's fixture; any other verb's arguments and working directory,
-# welcome --fix's and --keep='s too, are written to that file, for the exec test to read, and --keep= then prints the
-# check kept, or FAKE_KIT_KEPT when it is set; FAKE_KIT_REFUSE=welcome refuses those two with exit 2. Every syntax
-# answer about the verb FAKE_KIT_REFUSE names (its grammar, choices, extension, and match) is a refusal instead, as the
-# kit prints one, with exit 2. The grammar of the verb FAKE_KIT_UNPARSED names carries a usage that does not parse, and
-# a match on the verb FAKE_KIT_MATCH_REFUSE names judges the words refused; one on the verb FAKE_KIT_MATCH_MISSING names
-# judges <path> missing, after the literal FAKE_KIT_MATCH_LITERAL when it is set. assign and close act: each says what
-# it did, or, when FAKE_KIT_REFUSE names it, refuses with exit 1. new issue --list --json lists one tracker, a warning
-# on stderr beside it; FAKE_KIT_REFUSE=new refuses it with exit 1, and FAKE_KIT_UNPARSED=new answers with what is not
-# JSON. tutorials prints the tutorials screen's catalogue, its words written to the file FAKE_KIT_RECORD names when it
-# is set; FAKE_KIT_REFUSE=tutorials refuses it with exit 2. A --workspace=<workspace> before the verb is handed to the
-# verb's words, and one after the verb is refused. workspaces --current prints FAKE_WORKSPACES/<workspace>.json, / in
-# the name as _, current.json with no --workspace, and refuses with exit 2 when that file is not there; workspaces
-# --use=<name> adds "use <name>" to FAKE_KIT_RECORD's file when it is set, and refuses with exit 2 when
-# FAKE_KIT_REFUSE=workspaces; workspaces --json prints FAKE_WORKSPACES/list.json; and an edit, as --new=<name> or
-# --rename=<name>, adds its words to that file and says so, or refuses with exit 2 when FAKE_KIT_REFUSE=workspaces-edit.
-# With FAKE_KIT_POLLS set, flow --quota and flow --marks answer, each naming the words after its flag.
+# fixed directory, trust --check holds unless FAKE_KIT_REFUSE=trust, and welcome --checks the welcome screen's fixture;
+# any other verb's arguments and working directory, welcome --fix's and --keep='s too, are written to that file, for the
+# exec test to read, and --keep= then prints the check kept, or FAKE_KIT_KEPT when it is set; FAKE_KIT_REFUSE=welcome
+# refuses those two with exit 2. Every syntax answer about the verb FAKE_KIT_REFUSE names (its grammar, choices,
+# extension, and match) is a refusal instead, as the kit prints one, with exit 2. The grammar of the verb
+# FAKE_KIT_UNPARSED names carries a usage that does not parse, and a match on the verb FAKE_KIT_MATCH_REFUSE names
+# judges the words refused; one on the verb FAKE_KIT_MATCH_MISSING names judges <path> missing, after the literal
+# FAKE_KIT_MATCH_LITERAL when it is set. assign and close act: each says what it did, or, when FAKE_KIT_REFUSE names it,
+# refuses with exit 1. new issue --list --json lists one tracker, a warning on stderr beside it; FAKE_KIT_REFUSE=new
+# refuses it with exit 1, and FAKE_KIT_UNPARSED=new answers with what is not JSON. tutorials prints the tutorials
+# screen's catalogue, its words written to the file FAKE_KIT_RECORD names when it is set; FAKE_KIT_REFUSE=tutorials
+# refuses it with exit 2. A --workspace=<workspace> before the verb is handed to the verb's words, and one after the
+# verb is refused. workspaces --current prints FAKE_WORKSPACES/<workspace>.json, / in the name as _, current.json with
+# no --workspace, and refuses with exit 2 when that file is not there; workspaces --use=<name> adds "use <name>" to
+# FAKE_KIT_RECORD's file when it is set, and refuses with exit 2 when FAKE_KIT_REFUSE=workspaces; workspaces --json
+# prints FAKE_WORKSPACES/list.json; and an edit, as --new=<name> or --rename=<name>, adds its words to that file and
+# says so, or refuses with exit 2 when FAKE_KIT_REFUSE=workspaces-edit. With FAKE_KIT_POLLS set, flow --quota and flow
+# --marks answer, each naming the words after its flag.
 
 set -o errexit -o nounset -o pipefail
 
@@ -221,6 +222,9 @@ case "${1:-}" in
     ;;
   (root)
     printf '/the/release\n'
+    ;;
+  (trust)
+    [[ "${FAKE_KIT_REFUSE:-}" != trust ]]
     ;;
   (tutorials)
     [[ -z "${FAKE_KIT_RECORD:-}" ]] || printf '%s\n' "$*" > "${FAKE_KIT_RECORD}"

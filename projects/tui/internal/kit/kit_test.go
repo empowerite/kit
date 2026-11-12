@@ -461,6 +461,17 @@ func TestWelcomeKeepRunsKitWelcomeKeepAndGivesTheCheckKitSaysOrItsRefusal(t *tes
 	}
 }
 
+// The clone is trusted as kit trust --check says.
+func TestTrustedIsKitTrustCheck(t *testing.T) {
+	if !fake(t, "").Trusted() {
+		t.Error("a clone kit trusts")
+	}
+	t.Setenv("FAKE_KIT_REFUSE", "trust")
+	if fake(t, "").Trusted() {
+		t.Error("a clone kit does not trust")
+	}
+}
+
 func TestRootIsKitRoot(t *testing.T) {
 	if root, err := fake(t, "").Root(); err != nil || root != "/the/release" {
 		t.Errorf("Root: %q, %v", root, err)

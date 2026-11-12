@@ -1,11 +1,13 @@
 // The presets dialog: Manage… in the presets' menu opens it under the header's right end, titled by the table's
 // presets. It lists every view of the table, a line each: its star, ★ where the person starred it, ☆ where not; its
-// name; and where it comes from, built in or mine, dim. The favorites stand first, in their order, a dim rule under
-// them, then the table's own, then the person's. Under them stand what can be done with the view under the keyboard:
-// Rename… and Delete, on one of the person's own, which a table's own view never has. Up and down move between the
-// lines; shift with either moves a favorite a place among the favorites; space or * stars the view, or no longer; r
-// renames it, on the preset line, as Rename… does; d deletes it; and esc closes the dialog. A click on a line's star
-// stars it, one on its name puts the keyboard there, and one on an action does it; one off the dialog closes it.
+// name; and where it comes from, team, built in, or mine, dim. The favorites stand first, in their order, a dim rule
+// under them, then the team's, then the table's own, then the person's. Under them stand what can be done with the
+// view under the keyboard: on one of the person's own, Rename…, Delete, and, where the table keeps the team's, Share
+// with team, which moves it into the team's folder; on one of the team's, Copy to mine, Rename…, and Delete; on a
+// table's own, nothing. Up and down move between the lines; shift with either moves a favorite a place among the
+// favorites; space or * stars the view, or no longer; r renames it, on the preset line, as Rename… does; d deletes it;
+// s shares it, c copies it; and esc closes the dialog. A click on a line's star stars it, one on its name puts the
+// keyboard there, and one on an action does it; one off the dialog closes it.
 package table
 
 import (
@@ -33,7 +35,8 @@ type Manage struct {
 }
 
 // ManageAct is what the presets dialog asks of the screen: nothing; to keep the favorites as given, starred, no longer,
-// or in a new order; to rename a view, on the preset line; or to delete it.
+// or in a new order; to rename a view, on the preset line; to delete it; to share one of the person's with the team;
+// or to copy one of the team's into the person's.
 type ManageAct int
 
 // What the presets dialog asks.
@@ -42,7 +45,22 @@ const (
 	ManageFavorites
 	ManageRename
 	ManageDelete
+	ManageShare
+	ManageCopy
 )
+
+// The presets dialog's actions that move a view between the person and the team, and their glyphs.
+const (
+	ShareIt = "Share with team"
+	CopyIt  = "Copy to mine"
+	Team    = "👥"
+	Mine    = "👤"
+)
+
+// action is one of the presets dialog's actions: what it reads, and the key that does it.
+type action struct {
+	text, key string
+}
 
 // ManageDo is what the presets dialog asks of the screen, and of which view, and the favorites to keep.
 type ManageDo struct {
@@ -73,19 +91,42 @@ func (d Manage) view(h Host) (string, bool) {
 	return listed[d.At], true
 }
 
-// isMine says whether a view is the person's own, which they can rename and delete.
+// isMine says whether a view is the person's own.
 func isMine(h Host, name string) bool {
 	_, ok := h.Views().Mine(name)
 	return ok
 }
 
-// actions gives what can be done with the view under the keyboard, as the dialog's last line names them: Rename… and
-// Delete on one of the person's own; nothing on a table's own.
-func (d Manage) actions(h Host) []string {
-	if name, ok := d.view(h); ok && isMine(h, name) {
-		return []string{Renamed + " " + RenameIt, Deleted + " " + DeleteIt}
+// isTeams says whether a view is the team's.
+func isTeams(h Host, name string) bool {
+	_, ok := h.Views().Shared(name)
+	return ok
+}
+
+// actions gives what can be done with the view under the keyboard, as the dialog's last line names them: on one of the
+// person's own, Rename…, Delete, and, where the table keeps the team's, Share with team; on one of the team's, Copy to
+// mine, Rename…, and Delete; nothing on a table's own.
+func (d Manage) actions(h Host) []action {
+	name, _ := d.view(h)
+	rename, del := action{Renamed + " " + RenameIt, "r"}, action{Deleted + " " + DeleteIt, "d"}
+	switch {
+	case isMine(h, name) && h.Views().Shares:
+		return []action{rename, del, {Team + " " + ShareIt, "s"}}
+	case isMine(h, name):
+		return []action{rename, del}
+	case isTeams(h, name):
+		return []action{{Mine + " " + CopyIt, "c"}, rename, del}
 	}
 	return nil
+}
+
+// acts gives the actions' line, the actions apart by two spaces.
+func acts(actions []action) string {
+	var out []string
+	for _, a := range actions {
+		out = append(out, a.text)
+	}
+	return strings.Join(out, "  ")
 }
 
 // Line draws a view's line in the presets dialog: its star, in the accent where the person starred it, dim where not;
@@ -95,8 +136,11 @@ func (d Manage) Line(h Host, name string) string {
 	if h.Views().Favorite(name) {
 		star = style.Tint(Starred)
 	}
-	if isMine(h, name) {
+	switch {
+	case isMine(h, name):
 		from = MineHeading
+	case isTeams(h, name):
+		from = TeamHeading
 	}
 	return star + " " + pane.Pad(name, NameCells, false) + style.Off(from)
 }
@@ -121,8 +165,8 @@ func (d Manage) Box(h Host) (lines []string, top, left int) {
 		}
 		body = append(body, line)
 	}
-	if acts := d.actions(h); len(acts) > 0 {
-		body = append(body, style.Off(strings.Repeat("─", manageCells)), strings.Join(acts, "  "))
+	if actions := d.actions(h); len(actions) > 0 {
+		body = append(body, style.Off(strings.Repeat("─", manageCells)), acts(actions))
 	}
 	top, w := h.Pane()
 	lines = shell.Dialog(h.Name()+" presets", body, w)
@@ -162,8 +206,8 @@ func (d Manage) moved(h Host, step int) ([]string, bool) {
 }
 
 // act gives what a key asks of the screen for the view under the keyboard: space and * star it, or no longer; shift with
-// up or down moves a favorite, the keyboard with it; r renames, and d deletes, one of the person's own, closing the
-// dialog where it renames.
+// up or down moves a favorite, the keyboard with it; and the key of each of its actions does that, closing the dialog
+// where it renames.
 func (d *Manage) act(h Host, key string) ManageDo {
 	name, ok := d.view(h)
 	if !ok {
@@ -178,17 +222,15 @@ func (d *Manage) act(h Host, key string) ManageDo {
 			d.At += step
 			return ManageDo{Act: ManageFavorites, Name: name, Favorites: favorites}
 		}
-	case "r":
-		if isMine(h, name) {
-			*d = Manage{}
-			return ManageDo{Act: ManageRename, Name: name}
-		}
-	case "d":
-		if isMine(h, name) {
-			return ManageDo{Act: ManageDelete, Name: name}
-		}
 	}
-	return ManageDo{}
+	if !slices.ContainsFunc(d.actions(h), func(a action) bool { return a.key == key }) {
+		return ManageDo{}
+	}
+	if key == "r" {
+		*d = Manage{}
+	}
+	return ManageDo{Act: map[string]ManageAct{"r": ManageRename, "d": ManageDelete, "s": ManageShare,
+		"c": ManageCopy}[key], Name: name}
 }
 
 // Key takes a key while the presets dialog is open: up and down move between its lines; esc closes it; the rest ask
@@ -220,12 +262,12 @@ func (d *Manage) Click(h Host, x, y int) ManageDo {
 			return d.act(h, "*")
 		}
 	case line == len(box)-3 && len(d.actions(h)) > 0:
-		// the actions' line, the last inside the edges: Rename… first, then Delete
-		if cell < ansi.StringWidth(d.actions(h)[0]) {
-			return d.act(h, "r")
-		}
-		if cell >= ansi.StringWidth(d.actions(h)[0])+2 {
-			return d.act(h, "d")
+		// the actions' line, the last inside the edges, the actions two cells apart
+		for _, a := range d.actions(h) {
+			if cell >= 0 && cell < ansi.StringWidth(a.text) {
+				return d.act(h, a.key)
+			}
+			cell -= ansi.StringWidth(a.text) + 2
 		}
 	}
 	return ManageDo{}
@@ -233,7 +275,7 @@ func (d *Manage) Click(h Host, x, y int) ManageDo {
 
 // Keys gives the keys bar's segment while the presets dialog is open, each key where it acts on the view under the
 // keyboard: up and down where there is a line that way, shift with either where a favorite moves that way, space where
-// there is a view, and r and d on one of the person's own.
+// there is a view, and each of its actions' keys.
 func (d Manage) Keys(h Host) shell.Segment {
 	s := shell.Segment{Owns: true, Bindings: []shell.Binding{shell.Bind("esc", "close")}}
 	var moves, orders []string
@@ -254,11 +296,12 @@ func (d Manage) Keys(h Host) shell.Segment {
 	if len(orders) > 0 {
 		s.Bindings = append(s.Bindings, shell.Bind("⇧↑↓", "order", orders...))
 	}
-	if name, ok := d.view(h); ok {
+	if _, ok := d.view(h); ok {
 		s.Bindings = append(s.Bindings, shell.Bind("␣", "star", "space", "*"))
-		if isMine(h, name) {
-			s.Bindings = append(s.Bindings, shell.Bind("r", "rename"), shell.Bind("d", "delete"))
-		}
+	}
+	does := map[string]string{"r": "rename", "d": "delete", "s": "share", "c": "copy"}
+	for _, a := range d.actions(h) {
+		s.Bindings = append(s.Bindings, shell.Bind(a.key, does[a.key]))
 	}
 	return s
 }

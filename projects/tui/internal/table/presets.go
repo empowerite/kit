@@ -61,9 +61,11 @@ const SelectorFocus = "14"
 // PresetMenu is the presets' menu while it is open: a dropdown.
 type PresetMenu struct{ shell.Dropdown }
 
-// The headings of the presets' menu's sections, dim: the person's favorites, the table's own views, and the person's.
+// The headings of the presets' menu's sections, dim: the person's favorites, the team's views, the table's own, and
+// the person's.
 const (
 	FavoritesHeading = "favorites"
+	TeamHeading      = "team"
 	BuiltinHeading   = "built in"
 	MineHeading      = "mine"
 )
@@ -76,7 +78,7 @@ type presetLine struct {
 }
 
 // presetLines gives the presets' menu's lines: Save after its glyph, Save As…, and Manage…, a rule, then the views in sections, each under its heading where it has a view: the person's favorites, in
-// their order; the table's own views; and the person's. A view stands once, in favorites where it is one; the one the
+// their order; the team's; the table's own views; and the person's. A view stands once, in favorites where it is one; the one the
 // table is set as is checked; and each has Starred or Unstarred at its right, as the person starred it or not.
 func presetLines(h Host) []presetLine {
 	lines := []presetLine{{item: shell.Item{Glyph: Save, Name: SaveIt}}, {item: shell.Item{Name: SaveAs}},
@@ -109,6 +111,7 @@ func presetLines(h Host) []presetLine {
 		return out
 	}
 	section(FavoritesHeading, favorites)
+	section(TeamHeading, others(v.Team))
 	section(BuiltinHeading, others(v.Own))
 	section(MineHeading, others(v.Saved))
 	return lines
@@ -133,10 +136,14 @@ func PresetView(h Host, k int) (string, bool) {
 }
 
 // PresetEnabled says whether a line of the presets' menu acts: Save while the line was set to a view of the person's
-// own that the panel no longer is; Save As…, Manage…, and every view always; a rule or a heading never.
+// own, or of the team's, that the panel no longer is; Save As…, Manage…, and every view always; a rule or a heading
+// never.
 func PresetEnabled(h Host, k int) bool {
 	v := h.Views()
 	mine, own := v.Mine(h.Table().ViewName)
+	if team, ok := v.Shared(h.Table().ViewName); !own {
+		mine, own = team, ok
+	}
 	switch k {
 	case ItemSave:
 		return own && !v.Same(v.Current(h.Table().View), mine)

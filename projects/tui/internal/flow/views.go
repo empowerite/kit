@@ -200,7 +200,8 @@ func (m Model) viewsOf(i int) table.Views { return m.viewsNamed(m.stages[i].name
 
 // viewsNamed gives a stage's views by its name, as viewsOf does.
 func (m Model) viewsNamed(name string) table.Views {
-	return table.Views{Fields: fieldsOf(name), Own: builtinsOf(name), Saved: m.saved[name], Starred: m.starred[name]}
+	return table.Views{Fields: fieldsOf(name), Own: builtinsOf(name), Saved: m.saved[name], Starred: m.starred[name],
+		Team: m.team[name], Shares: m.teamDir != ""}
 }
 
 // views gives a stage's views, its own first, then the person's.
@@ -316,6 +317,9 @@ func (m *Model) saveAs(name string) {
 	case errors.Is(err, table.ErrBuiltin):
 		m.note.Text, m.note.Done = Failed+" "+name+" is the stage's own and does not change: type a new name, then ⏎", false
 		return
+	case errors.Is(err, table.ErrTaken):
+		m.note.Text, m.note.Done = Failed+" "+name+" is the team's preset: type a new name, then ⏎", false
+		return
 	case !m.keep(saved, "saved"):
 		return
 	}
@@ -329,19 +333,18 @@ func (m *Model) saveAs(name string) {
 func (m *Model) renamePreset() {
 	s := &m.stages[m.stage]
 	from, name := s.Renaming, strings.TrimSpace(s.Naming)
+	_, team := m.viewsOf(m.stage).Shared(from)
 	saved, err := m.viewsOf(m.stage).Rename(from, name)
 	switch {
-	case errors.Is(err, table.ErrUnnamed):
-		m.note.Text, m.note.Done = Failed+" a preset needs a name: type one, then ⏎", false
-		return
-	case errors.Is(err, table.ErrBuiltin):
-		m.note.Text, m.note.Done = Failed+" "+name+" is the stage's own: type a new name, then ⏎", false
-		return
-	case errors.Is(err, table.ErrTaken):
-		m.note.Text, m.note.Done = Failed+" "+name+" is a preset already: type a new name, then ⏎", false
-		return
 	case name == from:
 		s.SavingAs, s.Naming, s.Renaming = false, "", ""
+		return
+	case team:
+		if !m.renameTeam(from, name) {
+			return
+		}
+	case err != nil:
+		m.refuseName(name, err)
 		return
 	case !m.keepStarred(saved, m.viewsOf(m.stage).Renamed(from, name), "renamed"):
 		return
@@ -365,6 +368,18 @@ func (m *Model) deletePreset(name string) {
 	m.done(Deleted + " deleted the preset " + name)
 }
 
+// refuseName says why a name typed for Rename… is refused: none, a stage's own, or another preset's.
+func (m *Model) refuseName(name string, err error) {
+	switch {
+	case errors.Is(err, table.ErrUnnamed):
+		m.note.Text, m.note.Done = Failed+" a preset needs a name: type one, then ⏎", false
+	case errors.Is(err, table.ErrBuiltin):
+		m.note.Text, m.note.Done = Failed+" "+name+" is the stage's own: type a new name, then ⏎", false
+	default:
+		m.note.Text, m.note.Done = Failed+" "+name+" is a preset already: type a new name, then ⏎", false
+	}
+}
+
 // managedPreset does what the presets dialog asks: keeps the favorites as given; gives the preset line the keyboard,
 // for a view's new name, its name typed already; or deletes a view.
 func (m *Model) managedPreset(do table.ManageDo) {
@@ -376,7 +391,15 @@ func (m *Model) managedPreset(do table.ManageDo) {
 		s.SavingAs, s.Naming, s.Renaming = true, do.Name, do.Name
 		m.onPreset, m.inRows, m.inPanel, m.stop = true, false, false, -1
 	case table.ManageDelete:
+		if _, team := m.viewsOf(m.stage).Shared(do.Name); team {
+			m.deleteTeamView(do.Name)
+			return
+		}
 		m.deletePreset(do.Name)
+	case table.ManageShare:
+		m.shareView(do.Name)
+	case table.ManageCopy:
+		m.copyView(do.Name)
 	}
 }
 
@@ -392,6 +415,10 @@ func (m *Model) choosePreset(k int) {
 	v, _ := m.own()
 	switch k {
 	case table.ItemSave:
+		if _, team := m.viewsOf(m.stage).Shared(s.ViewName); team {
+			m.saveTeam(s.ViewName)
+			return
+		}
 		m.saveAs(v.Name)
 	case table.ItemSaveAs:
 		s.SavingAs, s.Naming, s.Renaming = true, v.Name, ""

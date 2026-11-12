@@ -98,15 +98,15 @@ func TestThePresetsDialogTakesClicks(t *testing.T) {
 		t.Errorf("a click on Mine's name: %+v, at %d", do, d.At)
 	}
 	box, top, left = d.Box(h)
-	acts, y := d.actions(h), top+len(box)-2
+	actions, y := d.actions(h), top+len(box)-2
 	if do := d.Click(h, left+3, y); do.Act != ManageRename || d.Open {
 		t.Errorf("a click on Rename…: %+v", do)
 	}
 	d = Manage{Open: true, At: 2}
-	if do := d.Click(h, left+2+ansi.StringWidth(acts[0]), y); do.Act != ManageNothing {
+	if do := d.Click(h, left+2+ansi.StringWidth(actions[0].text), y); do.Act != ManageNothing {
 		t.Errorf("a click between the actions: %+v", do)
 	}
-	if do := d.Click(h, left+2+ansi.StringWidth(acts[0])+3, y); do.Act != ManageDelete || do.Name != "Mine" {
+	if do := d.Click(h, left+2+ansi.StringWidth(actions[0].text)+3, y); do.Act != ManageDelete || do.Name != "Mine" {
 		t.Errorf("a click on Delete: %+v", do)
 	}
 	if do := d.Click(h, left+3, top+1); do.Act != ManageNothing || !d.Open {

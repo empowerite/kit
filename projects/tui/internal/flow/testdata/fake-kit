@@ -10,7 +10,8 @@
 # FAKE_FLOW_PART_JSON names and exits 1 with nothing on stderr, as incoming does when a remote's fetch fails.
 # FAKE_FLOW_SLOW names a stage that sleeps five seconds before it answers. FAKE_FLOW_ABOVE names a stage that
 # answers as kit does above repositories: an array of {path, status}, one per repository. With --no-fetch, incoming
-# answers incoming-no-fetch.json: fetched false, and the remotes without what a fetch brings.
+# answers incoming-no-fetch.json: fetched false, and the remotes without what a fetch brings. trust --check holds only
+# while FAKE_FLOW_TRUSTED is set.
 # --me prints FAKE_FLOW_ME, ada when it is unset; FAKE_FLOW_REFUSE=me refuses it with exit 1. --quota prints
 # FAKE_FLOW_QUOTA, and refuses with exit 1 while it is unset, as kit does with no forge to read; --marks prints
 # FAKE_FLOW_MARKS, a file it reads again each time, and refuses the same way without one; where a mark there is null,
@@ -167,6 +168,11 @@ then
   exit 0
 fi
 
+if [[ "${1:-}" == trust ]]
+then
+  [[ -n "${FAKE_FLOW_TRUSTED:-}" ]]
+  exit
+fi
 if [[ "${1:-}" != flow ]]
 then
   echo "❌ no kit verb '${1:-}'; run: kit help" >&2

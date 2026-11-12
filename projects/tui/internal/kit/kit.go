@@ -639,6 +639,13 @@ func (r Runner) Tutorials(ctx context.Context, tags []string) (Catalogue, error)
 	return c, nil
 }
 
+// Trusted says whether kit trusts the clone the runner runs in, as kit trust --check says, which runs nothing of the
+// clone's.
+func (r Runner) Trusted() bool {
+	_, err := r.run("trust", "--check")
+	return err == nil
+}
+
 // Root gives the directory of the release that runs, as kit root prints it.
 func (r Runner) Root() (string, error) {
 	out, err := r.run("root")

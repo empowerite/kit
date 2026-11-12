@@ -107,18 +107,23 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     first group's heading where the rows group, as ↑ from there comes back. On a name ⏎ opens the column's card; on the
     rows' ⏎ opens or closes them. ⏎ or a click on the pill drops down the presets' menu, in the tab's color, as the pill
     is, titled Presets at its left as a dialog is, from the control line, its right edge over the ▼: Save, Save As…,
-    Manage…, and the presets, in sections under dim headings: the person's favorites, in their order, then the stage's
-    own, built in, then the person's, mine, each preset once. Each has ★ at its right where the person starred it, ☆
-    where not, and `*` on its line, or a click on the star, stars it or no longer, the menu left open; the presets file
-    keeps the favorites beside the presets, and a favorite follows its preset's rename, and goes when it is deleted.
-    Save As… takes a name in the selector's place, the person's preset the line was set to typed already, and ⏎ saves.
-    Save acts on the person's preset the line was set to, and is dim on the stage's own. Manage…, in `manage.go`, opens
-    the presets dialog, on the preset the line was set to: every preset a line, its star, its name, and built in or
-    mine, the favorites first, a rule under them; ↑↓ move, ␣ or `*` stars the preset, ⇧↑↓ moves a favorite among the
-    favorites, and, on one of the person's own, r renames it, its new name typed in the selector's place as Save As…
-    takes one, and d deletes it, the table set as the one it opens on where it was set as that preset; Rename… and
-    Delete under the presets do the same by a click, and a stage's own preset has neither. What was done is said in
-    place of the keys, for five seconds or until a key; why something was not done stays until a key.
+    Manage…, and the presets, in sections under dim headings: the person's favorites, in their order, then the team's,
+    team, then the stage's own, built in, then the person's, mine, each preset once. Each has ★ at its right where the
+    person starred it, ☆ where not, and `*` on its line, or a click on the star, stars it or no longer, the menu left
+    open; the presets file keeps the favorites beside the presets, and a favorite follows its preset's rename, and goes
+    when it is deleted. Save As… takes a name in the selector's place, the person's preset the line was set to typed
+    already, and ⏎ saves. Save acts on the person's preset the line was set to, or the team's, and is dim on the stage's
+    own. Manage…, in `manage.go`, opens the presets dialog, on the preset the line was set to: every preset a line, its
+    star, its name, and team, built in, or mine, the favorites first, a rule under them; ↑↓ move, ␣ or `*` stars the
+    preset, ⇧↑↓ moves a favorite among the favorites, and, on one of the person's own, r renames it, its new name typed
+    in the selector's place as Save As… takes one, and d deletes it, the table set as the one it opens on where it was
+    set as that preset; Rename… and Delete under the presets do the same by a click, and a stage's own preset has
+    neither. The team's presets are checked into the workspace, in `team.go` and kit flow's own: a file each, named by
+    its preset's slug, under `.kit/presets/<stage>` at the clone's root, read only where kit trust --check says kit
+    trusts the clone. In the dialog, s, Share with team, moves one of the person's own there, refused where the team has
+    its slug already, and c, Copy to mine, copies one of the team's into the person's, named copy after it; Save, r, and
+    d on one of the team's change its file. Each is a change in the working tree, which kit commit carries. What was
+    done is said in place of the keys, for five seconds or until a key; why something was not done stays until a key.
   - The columns dialog, in `columns.go`, titled by the stage's fields, opens from 📇 Fields on the control line, the
     header drawing no icon of its own: every field a line, those the rows group by first, then the columns as they
     stand, then the hidden, a dim rule between each two of those it has, each with whether it shows, its sort and its

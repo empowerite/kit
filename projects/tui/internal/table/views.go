@@ -7,6 +7,7 @@ import (
 	"errors"
 	"reflect"
 	"slices"
+	"strconv"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 )
@@ -22,12 +23,15 @@ var (
 )
 
 // Views is a table's views: its fields, its own views, the one it opens on the first, the person's, and the names of
-// those the person starred, in their order.
+// those the person starred, in their order; the team's, checked into the workspace, and whether the table keeps them,
+// as a screen in a clone kit trusts does.
 type Views struct {
 	Fields  []Field
 	Own     []Preset
 	Saved   []Preset
 	Starred []string
+	Team    []Preset
+	Shares  bool
 }
 
 // Favorites gives the names of the views the person starred, in their order, but those that name a view since gone,
@@ -78,8 +82,65 @@ func (v Views) Renamed(from, to string) []string {
 	return out
 }
 
-// All gives the views, the table's own first, then the person's.
-func (v Views) All() []Preset { return append(slices.Clone(v.Own), v.Saved...) }
+// All gives the views, the table's own first, then the team's, then the person's.
+func (v Views) All() []Preset { return append(append(slices.Clone(v.Own), v.Team...), v.Saved...) }
+
+// Shared gives the team's view of the name, and whether there is one.
+func (v Views) Shared(name string) (Preset, bool) {
+	if k := slices.IndexFunc(v.Team, func(p Preset) bool { return p.Name == name }); k >= 0 {
+		return v.Team[k], true
+	}
+	return Preset{}, false
+}
+
+// teams says whether a name is a team view's, but the one named from: the team's files go by their names' slugs, so a
+// name of the same slug is one.
+func (v Views) teams(name, from string) bool {
+	return slices.ContainsFunc(v.Team, func(p Preset) bool { return p.Name != from && Slug(p.Name) == Slug(name) })
+}
+
+// ShareAs gives the person's view of the name as the team's, to be kept in the team's folder, and the person's views
+// without it. A name the team has already, by its slug, is refused.
+func (v Views) ShareAs(name string) (Preset, []Preset, error) {
+	p, ok := v.Mine(name)
+	switch {
+	case !ok:
+		return Preset{}, nil, ErrUnnamed
+	case v.teams(name, ""):
+		return Preset{}, nil, ErrTaken
+	}
+	return p, v.Delete(name), nil
+}
+
+// CopyOf gives the person's views with a copy of the team's view of the name, after theirs, named as it is, copy after
+// it, and a number after that where that is taken too.
+func (v Views) CopyOf(name string) ([]Preset, string) {
+	p, _ := v.Shared(name)
+	free := func(n string) bool {
+		return !slices.ContainsFunc(v.All(), func(w Preset) bool { return w.Name == n }) && !v.teams(n, "")
+	}
+	p.Name = name + " copy"
+	for k := 2; !free(p.Name); k++ {
+		p.Name = name + " copy " + strconv.Itoa(k)
+	}
+	return append(slices.Clone(v.Saved), p), p.Name
+}
+
+// RenameShared gives the team's view of a name renamed to another, to be kept in the team's folder in place of the
+// first's file. None, a name of the table's own, the team's, or the person's are refused.
+func (v Views) RenameShared(from, to string) (Preset, error) {
+	p, _ := v.Shared(from)
+	switch {
+	case to == "":
+		return Preset{}, ErrUnnamed
+	case v.Builtin(to):
+		return Preset{}, ErrBuiltin
+	case v.teams(to, from) || slices.ContainsFunc(v.Saved, func(w Preset) bool { return w.Name == to }):
+		return Preset{}, ErrTaken
+	}
+	p.Name = to
+	return p, nil
+}
 
 // Builtin says whether a name is one of the table's own views.
 func (v Views) Builtin(name string) bool {
@@ -138,13 +199,16 @@ func (v Views) Mine(name string) (Preset, bool) {
 }
 
 // SaveAs gives the person's views with a panel saved under a name: the person's view of that name overwritten, else a
-// new one after theirs. None, and a name of the table's own, are refused, as those never change.
+// new one after theirs. None, and a name of the table's own, are refused, as those never change; and one the team has,
+// by its slug, as the team's are its own to change.
 func (v Views) SaveAs(name string, p grid.Panel) ([]Preset, error) {
 	switch {
 	case name == "":
 		return nil, ErrUnnamed
 	case v.Builtin(name):
 		return nil, ErrBuiltin
+	case v.teams(name, ""):
+		return nil, ErrTaken
 	}
 	now := v.Current(p)
 	now.Name = name
@@ -157,15 +221,15 @@ func (v Views) SaveAs(name string, p grid.Panel) ([]Preset, error) {
 	return saved, nil
 }
 
-// Rename gives the person's views with one renamed, from a name to another. None, a name of the table's own, and
-// another of the person's are refused; the same name gives them as they are.
+// Rename gives the person's views with one renamed, from a name to another. None, a name of the table's own, another
+// of the person's, and one the team has, by its slug, are refused; the same name gives them as they are.
 func (v Views) Rename(from, to string) ([]Preset, error) {
 	switch {
 	case to == "":
 		return nil, ErrUnnamed
 	case v.Builtin(to):
 		return nil, ErrBuiltin
-	case to != from && slices.ContainsFunc(v.Saved, func(p Preset) bool { return p.Name == to }):
+	case to != from && slices.ContainsFunc(v.Saved, func(p Preset) bool { return p.Name == to }), v.teams(to, ""):
 		return nil, ErrTaken
 	}
 	saved := slices.Clone(v.Saved)

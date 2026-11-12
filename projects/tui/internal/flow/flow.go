@@ -52,6 +52,7 @@ type Options struct {
 	Fresh     bool
 	NoHeaders bool
 	Presets   string       // the file the person's presets are kept in; none keeps them for the session alone
+	Team      string       // the folder the team's presets are kept in, in a clone kit trusts; none where there is none
 	NoPresets bool         // whether the stages' tables have no preset line, as a test of the rows alone asks
 	History   string       // the file the searches are remembered in; none remembers them for the session alone
 	Clock     source.Clock // what the screen's waits go through: the program's, where none is given
@@ -185,6 +186,8 @@ type Model struct {
 	ask           *ask                      // what an issues action asks before kit runs, while it asks
 	saved         map[string][]table.Preset // the person's views, by stage, as their file keeps them
 	starred       map[string][]string       // the names of the views the person starred, by stage, in their order
+	teamDir       string                    // the folder the team's presets are kept in, none where there is none
+	team          map[string][]table.Preset // the team's views, by stage, as their folder keeps them
 	presetsPath   string                    // that file, or none
 	presetsMenu   table.PresetMenu          // the preset line's menu of views: whether it is open, and its line under the keyboard
 	manage        table.Manage              // the presets dialog, which Manage… in the presets' menu opens
@@ -236,7 +239,7 @@ func (m *Model) rebuild() {
 // --no-fetch; the owner's flags, the filters issues and changes take; and --fresh, which reads each stage afresh the
 // first time.
 func open(r kit.Runner, o Options, w Words) Model {
-	o.Origin, o.Presets, o.History = ReadOrigin(r.Dir), table.PresetsPath(), shell.RecentFile()
+	o.Origin, o.Presets, o.History, o.Team = ReadOrigin(r.Dir), table.PresetsPath(), shell.RecentFile(), teamFolder(r)
 	if k := slices.IndexFunc(o.Stages, func(name string) bool { return label(name) == w.Tab }); w.Tab != "" && k >= 0 {
 		o.Focus, o.Preset = o.Stages[k], w.Preset
 	}
@@ -283,6 +286,8 @@ func New(r kit.Runner, o Options) Model {
 	}
 	m.starred = table.ReadFavorites(o.Presets)
 	m.note.Done = err == nil
+	m.teamDir = o.Team
+	m.readTeam(o.Stages)
 	m.rebuild()
 	for _, name := range o.Stages {
 		s := stage{name: name, src: m.stageLoad(name),

@@ -69,7 +69,7 @@ func TestRepositoriesReadsKitWorkspacesStagesAndIncoming(t *testing.T) {
 	if !slices.Equal(names, want) || m.appMenu.Here != shell.Repositories {
 		t.Errorf("the stages %q, the menu on %q", names, m.appMenu.Here)
 	}
-	if got := calls(t, record); strings.Join(got, "\n") != "workspace --stages\nflow --stages" {
+	if got := calls(t, record); strings.Join(got, "\n") != "workspace --stages\nflow --stages\ntrust --check" {
 		t.Errorf("OpenApp ran %q", got)
 	}
 	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 24})
