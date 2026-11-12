@@ -1,21 +1,25 @@
- kit audit - lists the forge's attestations, alerts, controls, and waivers, and the policy's rules
+ kit audit - lists the forge's attestations, alerts, controls, waivers, the policy, and what binds
 
    one of
-   *kit audit*  lists the forge's attestations, alerts, controls, and waivers, and the policy's rules
+   *kit audit*    lists the forge's attestations, alerts, controls, waivers, the policy, and what
+                binds
 
      --text   --json   --jq
                            prints the stages as text, even on a terminal
 
-   --stages   prints the stages, one per line, in order, the same over any workspace
-   --marks    prints a mark per stage, as one JSON object: evidence's moves with the forge's runs
-              and releases, findings' with its runs and alerts, each scanner's off or refused where
-              it is, policy's with kit.yml and .kit/policy; controls and waivers have none, null, as
-              each is read again only on Refresh, kittui offering no Watch for them
-   evidence   the attestations of the 5 newest releases' assets and the 20 newest artifacts
-   findings   the code scanning, Dependabot, and secret scanning alerts, open and dismissed
-   controls   the rulesets and the protection that guard the default branch
-   waivers    who may bypass each control, and each alert dismissed
-   policy     each rule kit policy judges by, as kit policy --rules lists them
+   --stages     prints the stages, one per line, in order, the same over any workspace
+   --marks      prints a mark per stage, as one JSON object: evidence's moves with the forge's runs
+                and releases, findings' with its runs and alerts, each scanner's off or refused
+                where it is, policy's with kit.yml and .kit/policy, enforcement's with the files its
+                local rows read; controls and waivers have none, null, as each is read again only on
+                Refresh, kittui offering no Watch for them
+   evidence     the attestations of the 5 newest releases' assets and the 20 newest artifacts
+   findings     the code scanning, Dependabot, and secret scanning alerts, open and dismissed
+   controls     the rulesets and the protection that guard the default branch
+   waivers      who may bypass each control, and each alert dismissed
+   policy       each rule kit policy judges by, as kit policy --rules lists them
+   enforcement  what binds an agent and what is advice, per harness and for the repository, in four
+                tiers
 
 
  kit audit

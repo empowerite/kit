@@ -28,7 +28,7 @@ func TestTheCatalogNamesOnlyWhatIsRegistered(t *testing.T) {
 		}
 	}
 	if len(catalog) != len(every) || catalog["incoming"] == nil || catalog["workspace/repos"] == nil ||
-		catalog[packagesStage] == nil || len(every) != len(five)+len(workspaceStages)+1+20 {
+		catalog[packagesStage] == nil || len(every) != len(five)+len(workspaceStages)+1+21 {
 		t.Errorf("the catalog's stages: %d of %d, incoming %v", len(catalog), len(every), catalog["incoming"] != nil)
 	}
 	// each names the command that prints it, a stage of its verb's, and each stage Go builds is the catalog's

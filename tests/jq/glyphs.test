@@ -37,7 +37,7 @@ null
 # Each app verb's legend has its own stages alone, in its order, each tab of its in kittui.
 import "glyphs" as glyphs; ["issues", "changes", "delivery", "people", "audit", "platform"] | map([glyphs::legend_for(.) | select(test("^# [a-z]+:$")) | ltrimstr("# ") | rtrimstr(":")])
 null
-[["milestones","iterations"],["reviews","checks","merged"],["artifacts","environments","deployments"],["people","teams","agents"],["evidence","findings","controls","waivers","policy"],["services","toolchains","tools","settings"]]
+[["milestones","iterations"],["reviews","checks","merged"],["artifacts","environments","deployments"],["people","teams","agents"],["evidence","findings","controls","waivers","policy","enforcement"],["services","toolchains","tools","settings"]]
 
 # The bash declarations give each glyph by its name, each stage's by the stage, and each state's by its word, every
 # glyph quoted.

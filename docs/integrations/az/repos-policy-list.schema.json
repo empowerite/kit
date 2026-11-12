@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "az repos policy list --branch ${branch} --repository-id ${id} --project ${project} --output json",
-  "description": "The policies of the default branch, which kit reads in `modules/bash/forge/ado.sh` (forge/ado:rulesets) and folds in `modules/jq/forge.jq` (forge::ado_controls); --branch matches the branch exactly and needs --repository-id, as https://learn.microsoft.com/cli/azure/repos/policy#az-repos-policy-list says. The types are the PolicyConfiguration of the Azure DevOps REST reference, https://learn.microsoft.com/rest/api/azure/devops/policy/configurations/list: isBlocking false is an optional policy, and settings.scope each one's refName, matchKind Exact or Prefix, and repositoryId, null for every repository.",
+  "description": "The policies of the default branch, which kit reads in `modules/bash/forge/ado.sh` (forge/ado:rulesets) and folds in `modules/jq/forge.jq` (forge::ado_controls); --branch matches the branch exactly and needs --repository-id, as https://learn.microsoft.com/cli/azure/repos/policy#az-repos-policy-list says. The types are the PolicyConfiguration of the Azure DevOps REST reference, https://learn.microsoft.com/rest/api/azure/devops/policy/configurations/list: isBlocking false is an optional policy, and settings.scope each one's refName, matchKind Exact or Prefix, and repositoryId, null for every repository. A Build policy's displayName and buildDefinitionId, a Status policy's statusGenre and statusName, and a reviewers policy's minimumApproverCount say what a merge needs.",
   "type": "array",
   "items": {
     "type": "object",
@@ -56,6 +56,27 @@
               },
               "additionalProperties": true
             }
+          },
+          "displayName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "buildDefinitionId": {
+            "type": "integer"
+          },
+          "statusGenre": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "statusName": {
+            "type": "string"
+          },
+          "minimumApproverCount": {
+            "type": "integer"
           }
         },
         "additionalProperties": true

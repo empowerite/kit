@@ -139,7 +139,7 @@ fi
 
 declare -A app_stages=([issues]="milestones iterations" [changes]="reviews checks merged"
   [delivery]="artifacts environments deployments" [people]="people teams agents"
-  [audit]="evidence findings controls waivers policy" [platform]="services toolchains tools settings")
+  [audit]="evidence findings controls waivers policy enforcement" [platform]="services toolchains tools settings")
 if [[ -n "${app_stages[${1:-flow}]:-}" ]]
 then
   verb=$1

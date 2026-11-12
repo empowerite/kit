@@ -149,7 +149,7 @@ func TestEveryTabReadsAKitStage(t *testing.T) {
 		{shell.Changes, "changes changes/reviews changes/checks changes/merged"},
 		{shell.Delivery, "releases builds delivery/artifacts delivery/environments delivery/deployments"},
 		{shell.People, "people/people people/teams people/agents"},
-		{shell.Trust, "audit/evidence audit/findings audit/controls audit/waivers audit/policy"},
+		{shell.Trust, "audit/evidence audit/findings audit/controls audit/waivers audit/policy audit/enforcement"},
 		{shell.Platform, "platform/services platform/toolchains platform/tools platform/settings"},
 	} {
 		t.Setenv("XDG_CONFIG_HOME", t.TempDir())

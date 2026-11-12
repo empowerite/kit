@@ -71,6 +71,7 @@ const (
 	Control     = "🔒" // control
 	Waiver      = "🔓" // waiver
 	Policy      = "📏" // policy rule
+	Enforcement = "🔐" // enforcement
 	Service     = "🔌" // service
 	Toolchain   = "🧰" // toolchain
 	Usable      = "✅" // usable here
@@ -285,6 +286,10 @@ var legends = map[string][]entry{
 		{Policy, "policy rule"},
 		{Failed, "failed"},
 	},
+	"audit/enforcement": {
+		{Enforcement, "enforcement"},
+		{Failed, "failed"},
+	},
 	"platform/services": {
 		{Service, "service"},
 		{Failed, "failed"},
@@ -369,6 +374,7 @@ var stageGlyphs = map[string]string{
 	"audit/controls":        Control,
 	"audit/waivers":         Waiver,
 	"audit/policy":          Policy,
+	"audit/enforcement":     Enforcement,
 	"platform/services":     Service,
 	"platform/toolchains":   Toolchain,
 	"platform/tools":        Tool,
@@ -407,6 +413,7 @@ var stageColors = map[string]string{
 	"audit/waivers":         "203",
 	"audit/controls":        "221",
 	"audit/policy":          "221",
+	"audit/enforcement":     "221",
 	"platform/services":     "114",
 	"platform/toolchains":   "114",
 	"platform/tools":        "177",

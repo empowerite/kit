@@ -1,10 +1,10 @@
 # shellcheck shell=bash
-# audit.sh - kit audit's stages: the forge's attestations, alerts, controls, and waivers, and the policy's rules
+# audit.sh - kit audit's stages: the forge's attestations, alerts, controls, and waivers, the policy, and what binds
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_jq is set by modules/bash/1st.sh
 #
 # Trust is the app whose tabs are all its own. Four stages ask the forge through the seam of modules/bash/forge.sh,
-# and the last reads kit's own policy:
+# policy reads kit's own policy, and enforcement reads both, with the agent packages' files and the git hooks:
 #
 #   evidence  a row per attestation of the newest releases' assets and artifacts: its kind and who signed it
 #   findings  a row per alert of the code scanning, Dependabot, and secret scanning alerts, open or dismissed, each
@@ -16,18 +16,21 @@
 #             off here, or one that refuses the caller, is under errors as in findings, and the rest still draw
 #   policy    a row per rule kit policy judges by in each checkout with a branch, as kit policy --rules --json lists
 #             them there, placed at its source, organization, repository, and branch, the rows that agree merged
+#   enforcement  a row per mechanism that holds an agent to the rules, per harness and for the repository, in its
+#             tier: advisory, best-effort, local floor, or authoritative, each with its status and evidence
 #
 # evidence's mark holds the forge's marks of its runs and its releases, as a run or a release makes an attestation;
 # findings', its runs' and its alerts', as a scan is a run and a person dismisses an alert without one. controls and
 # waivers have none, and are read again on Refresh only. policy's is each checkout's hash of kit.yml and
-# .kit/policy, and on a branch past the default, of the base's, which judge it.
+# .kit/policy, and on a branch past the default, of the base's, which judge it. enforcement's is the hash of the files
+# its own rows read; its forge's rows, read as controls and waivers are, move with none of them.
 #
 # see: bin/kit-audit, modules/bash/apps.sh, modules/bash/forge.sh, docs/apps.md
-use apps forge policy settings file workspaces
+use apps forge policy settings file workspaces git region resolve
 
 # audit_stages are kit audit's stages, in Trust's tab order.
 # shellcheck disable=SC2034  # read by modules/bash/apps.sh
-audit_stages=(evidence findings controls waivers policy)
+audit_stages=(evidence findings controls waivers policy enforcement)
 
 # apps/audit:evidence prints the attestations document, through apps::attestation, limited when the forge holds more
 # than it read.
@@ -198,6 +201,353 @@ apps/audit:policy() {
   return "${status}"
 }
 
+# audit_ci_check is the check kit's CI job reports, the job's name in the github/ci package's kit-ci.yml, which a
+# control requires to bind a merge to kit ci.
+audit_ci_check=CI
+
+# audit_harnesses are the agent packages the enforcement stage reads, each a harness, in its rows' order: generic for
+# any agent that reads AGENTS.md, then each harness kit has a package for.
+audit_harnesses=(generic claude copilot cursor gemini)
+
+# apps/audit:enforcement prints the enforcement document: a row per mechanism that holds an agent to the rules, for
+# each harness whose agent package is active and for the repository, each in its tier, advisory, best-effort, local
+# floor, or authoritative, with its status, active, missing, or unknown, and its evidence, probed where kit read what
+# decides it, documented where it rests on what the harness or the forge documents, unverified where it rests on
+# neither. A mechanism merely registered, a deny list or a hook, is unknown at best: kit cannot probe that a harness
+# runs it. passes names what gets past it, null where kit cannot tell. A forge read that fails leaves its rows
+# unknown, its line under errors, {feature, error}, and the rest still draw; it returns 1 after the document then.
+apps/audit:enforcement() {
+  local harness default rows forge status=0
+  local -a packages
+  list:read packages settings:packages || return 1
+  default=$(git:default-branch 2>/dev/null) || default=main
+  rows=$(
+    for harness in "${audit_harnesses[@]}"
+    do
+      list:among "agents/${harness}" "${packages[@]}" || continue
+      "apps/audit:enforcement-${harness}" "${default}" || exit 1
+    done
+    apps/audit:enforcement-floor "${packages[@]}" || exit 1
+    apps/audit:enforcement-ci "${packages[@]}" || exit 1
+  ) || return 1
+  forge=$(apps/audit:enforcement-forge) || status=1
+  [[ -n "${forge}" ]] || return 1
+  rows=$(jq --slurp --compact-output . <<<"${rows}") || return 1
+  jq --null-input --compact-output -L "${kit_jq}" --argjson forge "${forge}" --arg check "${audit_ci_check}" \
+    --argjson rows "${rows}" '
+    import "apps" as apps;
+    {rows: ($rows + [apps::required($forge; $check)]),
+     errors: [$forge | (select(.state == "failed") | {feature: "rulesets", error}),
+                       (select(.bypasses == null and .bypassed_error != null) | {feature: "bypasses",
+                                                                                 error: .bypassed_error})]}' \
+    || return 1
+  return "${status}"
+}
+
+# apps/audit:enforced <harness> <tier> <mechanism> <status> <evidence> <detail> [<pass>…] prints a row of the
+# enforcement document, as apps::enforced gives it: passes the words after the detail, or null for the one word -.
+apps/audit:enforced() {
+  jq --null-input --compact-output -L "${kit_jq}" --arg harness "$1" --arg tier "$2" --arg mechanism "$3" \
+    --arg status "$4" --arg evidence "$5" --arg detail "$6" '
+    import "apps" as apps;
+    {harness: $harness, tier: $tier, mechanism: $mechanism, status: $status, evidence: $evidence, detail: $detail,
+     passes: (if $ARGS.positional == ["-"] then null else $ARGS.positional end), control: null} | apps::enforced' \
+    --args "${@:7}"
+}
+
+# apps/audit:deny-passes <default> prints, one a line, what passes a deny list of the raw git commands: the forms its
+# literal patterns do not name, git -C and git merge, and where the default branch is not main, a checkout of it, as
+# the list names main.
+apps/audit:deny-passes() {
+  printf '%s\n' 'git -C <dir> commit' 'git merge'
+  [[ "$1" == main ]] || printf '%s\n' "git checkout $1" "git switch $1"
+}
+
+# apps/audit:package-file <package> <path> prints the path of a file the agent package places at <path>, in the
+# release kit runs from or the source that holds the package.
+apps/audit:package-file() {
+  local home
+  home=$(resolve:home "${kit_root}" "agents/$1") || return 1
+  printf '%s\n' "${home}/packages/agents/$1/files/repo/$2"
+}
+
+# apps/audit:region-holds <path> <text> [<flag>] succeeds where the file's kit region holds the text, a whole line of
+# it with the flag --line-regexp. A region kit cannot read holds nothing.
+apps/audit:region-holds() {
+  local region
+  region=$(region:read "$1" 2>/dev/null) || return 1
+  grep --quiet --fixed-strings ${3:+"$3"} -- "$2" <<<"${region}"
+}
+
+# apps/audit:placed <harness> <dir> prints the first file the agent package places under <dir> that is not here, or
+# nothing when every one is.
+apps/audit:placed() {
+  local root file
+  local -a files
+  root=$(apps/audit:package-file "$1" "$2") || return 1
+  [[ -d "${root}" ]] || return 0
+  list:read files apps/audit:files "${root}" || return 1
+  for file in "${files[@]}"
+  do
+    [[ -f "$2/${file}" ]] || { printf '%s\n' "$2/${file}"; return 0; }
+  done
+}
+
+# apps/audit:files <dir> prints each file under the directory, by its path there, sorted.
+apps/audit:files() {
+  (cd "$1" && find . -type f -print) | cut -c 3- | LC_ALL=C sort
+}
+
+# apps/audit:entries <harness> <path> <filter> prints how many of the entries the package's file at <path> holds, as
+# <filter> lists them, the file here lacks, or nothing when kit cannot read the file here as JSON. A file that is not
+# here lacks every one.
+apps/audit:entries() {
+  local ours
+  ours=$(apps/audit:package-file "$1" "$2") || return 1
+  if [[ ! -f "$2" ]]
+  then
+    jq --raw-output "[$3] | length" "${ours}"
+    return
+  fi
+  jq --null-input --raw-output --slurpfile ours "${ours}" --slurpfile here "$2" \
+    "[\$ours[0] | $3] - [\$here[0] | $3] | length" 2>/dev/null || true  # the caller says a file jq cannot read
+}
+
+# audit_filters gives each list of entries a package merges, by name, as apps/audit:entries reads it: a value
+# that is not there, or not a list, holds none, and Gemini's context files may be one name alone.
+declare -grA audit_filters=(
+  [deny]='.permissions.deny? // [] | arrays | .[]'
+  [hook]='.hooks.PreToolUse? // [] | arrays | .[] | .hooks? // [] | arrays | .[] | .command?'
+  [context]='.context.fileName? // [] | if type == "string" then . else arrays | .[] end'
+  [exclude]='.tools.exclude? // [] | arrays | .[]'
+)
+
+# apps/audit:enforcement-generic <default> prints the rows of any agent that reads AGENTS.md: kit's region there,
+# advice, and no deny list kit can read, which is unknown.
+apps/audit:enforcement-generic() {
+  if apps/audit:region-holds AGENTS.md .kit/1st.md
+  then
+    apps/audit:enforced generic advisory AGENTS.md active documented \
+      "AGENTS.md carries kit's region, which sends an agent to .kit/1st.md; an agent that reads AGENTS.md reads it" \
+      'an agent that does not follow it'
+  else
+    apps/audit:enforced generic advisory AGENTS.md missing probed \
+      "AGENTS.md carries no kit region that sends an agent to .kit/1st.md: run kit generate" 'every agent'
+  fi
+  apps/audit:enforced generic best-effort 'deny list' unknown unverified \
+    "kit delivers no deny list for a harness it has no package for, and reads no harness's own" -
+}
+
+# apps/audit:enforcement-claude <default> prints Claude Code's rows: .claude/CLAUDE.md's import of AGENTS.md, advice;
+# and the deny list and the context hook merged into .claude/settings.json, each unknown where it is there.
+apps/audit:enforcement-claude() {
+  local lacked file=.claude/settings.json
+  local -a passes
+  list:read passes apps/audit:deny-passes "$1" || return 1
+  if apps/audit:region-holds .claude/CLAUDE.md @../AGENTS.md --line-regexp
+  then
+    apps/audit:enforced claude advisory .claude/CLAUDE.md active documented \
+      "imports AGENTS.md, which Claude Code reads when a session starts" 'an agent that does not follow it'
+  else
+    apps/audit:enforced claude advisory .claude/CLAUDE.md missing probed \
+      ".claude/CLAUDE.md does not import AGENTS.md in kit's region, and Claude Code then skips it: run kit generate" \
+      'every agent'
+  fi
+  lacked=$(apps/audit:entries claude "${file}" "${audit_filters[deny]}") || return 1
+  apps/audit:listed claude 'deny list' "${file}" "${lacked}" "permissions.deny" \
+    "Claude Code refuses a command these literal patterns match" "${passes[@]}" || return 1
+  lacked=$(apps/audit:entries claude "${file}" "${audit_filters[hook]}") || return 1
+  apps/audit:listed claude 'context hook' "${file}" "${lacked}" hooks.PreToolUse \
+    "Claude Code runs kit context --claude before each Write, Edit, and MultiEdit, which shows the rules" \
+    'an edit through Bash: sed -i, or a redirect' 'an edit made with the rules unread: it refuses none' || return 1
+}
+
+# apps/audit:listed <harness> <mechanism> <file> <lacked> <key> <documented> <pass>… prints the best-effort row of
+# entries a package merges into a harness's file: unknown, as documented, where the file holds every one, since kit
+# cannot probe that the harness honors them; missing, probed, where it lacks any; unknown, unverified, where kit cannot
+# read it.
+apps/audit:listed() {
+  local harness=$1 mechanism=$2 file=$3 lacked=$4 key=$5 documented=$6
+  shift 6
+  if [[ -z "${lacked}" ]]
+  then
+    apps/audit:enforced "${harness}" best-effort "${mechanism}" unknown unverified \
+      "kit cannot read ${file} as JSON, so cannot tell what the harness reads there" -
+  elif (( lacked == 0 ))
+  then
+    apps/audit:enforced "${harness}" best-effort "${mechanism}" unknown documented \
+      "merged into ${file}'s ${key}: ${documented}; kit cannot probe that it does in a session" "$@"
+  else
+    apps/audit:enforced "${harness}" best-effort "${mechanism}" missing probed \
+      "${file}'s ${key} lacks ${lacked} of the package's entries: run kit hydrate, and kit check names them" \
+      'everything it lacks'
+  fi
+}
+
+# apps/audit:enforcement-gemini <default> prints Gemini CLI's rows: AGENTS.md among the context files in
+# .gemini/settings.json, advice; and the deny list, tools.exclude, unknown where it is there.
+apps/audit:enforcement-gemini() {
+  local lacked file=.gemini/settings.json
+  local -a passes
+  list:read passes apps/audit:deny-passes "$1" || return 1
+  # Gemini CLI reads AGENTS.md where its context files name it, whatever else they name.
+  lacked=$(jq --raw-output "if [${audit_filters[context]}] | index([\"AGENTS.md\"]) then 0 else 1 end" "${file}" \
+    2>/dev/null) || lacked=''  # a file that is not here, or not JSON, says so below
+  [[ -f "${file}" ]] || lacked=1
+  if [[ "${lacked}" == 0 ]]
+  then
+    apps/audit:enforced gemini advisory "${file}" active documented \
+      "names AGENTS.md among the context files, which Gemini CLI reads when a session starts" \
+      'an agent that does not follow it'
+  elif [[ -z "${lacked}" ]]
+  then
+    apps/audit:enforced gemini advisory "${file}" unknown unverified \
+      "kit cannot read ${file} as JSON, so cannot tell what Gemini CLI reads" -
+  else
+    apps/audit:enforced gemini advisory "${file}" missing probed \
+      "${file} does not name AGENTS.md among the context files, and Gemini CLI then skips it: run kit hydrate" \
+      'every agent'
+  fi
+  lacked=$(apps/audit:entries gemini "${file}" "${audit_filters[exclude]}") || return 1
+  apps/audit:listed gemini 'deny list' "${file}" "${lacked}" tools.exclude \
+    "Gemini CLI refuses a shell command that starts with one, each part of a chained one" "${passes[@]}" || return 1
+}
+
+# apps/audit:enforcement-mirrored <harness> <dir> <name> prints the rows of a harness that reads AGENTS.md on its own
+# and the package's files under <dir>, applied by path, advice; it offers no deny list a repository can commit.
+apps/audit:enforcement-mirrored() {
+  local harness=$1 dir=$2 name=$3 lacking
+  lacking=$(apps/audit:placed "${harness}" "${dir}") || return 1
+  if [[ -z "${lacking}" ]]
+  then
+    apps/audit:enforced "${harness}" advisory "${dir}" active documented \
+      "${name} reads AGENTS.md, and applies the package's files under ${dir} by path" \
+      'an agent that does not follow it'
+  else
+    apps/audit:enforced "${harness}" advisory "${dir}" missing probed \
+      "${lacking} is not here: run kit hydrate" 'every agent'
+  fi
+  apps/audit:enforced "${harness}" best-effort 'deny list' missing documented \
+    "${name} offers no deny list a repository can commit, so nothing on its side refuses a raw git command" \
+    'every command'
+}
+
+# apps/audit:enforcement-copilot <default> prints GitHub Copilot's rows, as apps/audit:enforcement-mirrored does.
+apps/audit:enforcement-copilot() { apps/audit:enforcement-mirrored copilot .github/instructions 'GitHub Copilot'; }
+
+# apps/audit:enforcement-cursor <default> prints Cursor's rows, as apps/audit:enforcement-mirrored does.
+apps/audit:enforcement-cursor() { apps/audit:enforcement-mirrored cursor .cursor/rules Cursor; }
+
+# apps/audit:enforcement-floor <package>… prints the repository's local floor: the pre-commit hook, active where git
+# runs lefthook before each commit in this clone and lefthook is on PATH, and lefthook.yml extending
+# .kit/lefthook.yml, as the hooks/lefthook package expects, where the active packages, the words, hold it. A commit
+# made with --no-verify, or with LEFTHOOK=0, passes both.
+apps/audit:enforcement-floor() {
+  local hook
+  local -a passes=('git commit --no-verify' 'LEFTHOOK=0 git commit')
+  hook=$(git rev-parse --path-format=absolute --git-path hooks/pre-commit) || return 1
+  if [[ ! -x "${hook}" ]] || ! grep --quiet lefthook "${hook}" 2>/dev/null
+  then
+    apps/audit:enforced repository 'local floor' 'pre-commit hook' missing probed \
+      "git runs no lefthook before a commit in this clone: run lefthook install" 'every commit'
+  elif ! command -v lefthook >/dev/null
+  then
+    apps/audit:enforced repository 'local floor' 'pre-commit hook' unknown unverified \
+      "${hook} runs lefthook, which is not on PATH here, so kit cannot tell what a commit from here runs" -
+  else
+    apps/audit:enforced repository 'local floor' 'pre-commit hook' active probed \
+      "git runs ${hook}, which runs lefthook, before each commit in this clone" "${passes[@]}"
+  fi
+  if ! list:among hooks/lefthook "$@"
+  then
+    apps/audit:enforced repository 'local floor' lefthook.yml missing probed \
+      "the hooks/lefthook package is not active, so lefthook runs none of kit's commands: run kit packages add\
+ hooks/lefthook" 'every commit'
+  elif ! grep --quiet '\.kit/lefthook\.yml' lefthook.yml 2>/dev/null
+  then
+    apps/audit:enforced repository 'local floor' lefthook.yml missing probed \
+      "lefthook.yml does not extend .kit/lefthook.yml: put extends: [.kit/lefthook.yml] in it" 'every commit'
+  elif [[ ! -f .kit/lefthook.yml ]]
+  then
+    apps/audit:enforced repository 'local floor' lefthook.yml missing probed \
+      "lefthook.yml extends .kit/lefthook.yml, which is not here: run kit hydrate" 'every commit'
+  else
+    apps/audit:enforced repository 'local floor' lefthook.yml active probed \
+      "lefthook.yml extends .kit/lefthook.yml, so lefthook runs kit lint and kit generate --check" "${passes[@]}"
+  fi
+}
+
+# apps/audit:enforcement-ci <package>… prints the row of kit's CI job: active, as GitHub documents that Actions runs a
+# workflow on each pull request, where the github/ci package, among the active packages, the words, placed it here.
+# The job binds a merge only where a control requires its check, the required check row.
+apps/audit:enforcement-ci() {
+  local file=.github/workflows/kit-ci.yml
+  if ! list:among github/ci "$@"
+  then
+    apps/audit:enforced repository authoritative "kit's CI job" missing probed \
+      "the github/ci package is not active, so no CI job runs kit ci: kit packages add github/ci" 'every merge'
+  elif [[ -f "${file}" ]]
+  then
+    apps/audit:enforced repository authoritative "kit's CI job" active documented \
+      "${file} runs kit ci on each pull request into the default branch, its check ${audit_ci_check}" \
+      "a merge no control requires ${audit_ci_check} for"
+  else
+    apps/audit:enforced repository authoritative "kit's CI job" missing probed \
+      "the github/ci package is active, and ${file} is not here: run kit hydrate" 'every merge'
+  fi
+}
+
+# apps/audit:enforcement-forge prints what kit read of the forge, as apps::required takes it: {state, error,
+# controls, bypasses, bypassed, bypassed_error}: the controls on the default branch, and who may bypass them, which a
+# forge without bypasses does not say. It returns 1, after it, where a read failed, its line the error.
+apps/audit:enforcement-forge() {
+  local said line controls bypasses failed=false status=0
+  if forge:none
+  then
+    printf '{"state":"none","controls":[],"bypasses":[]}\n'
+    return 0
+  fi
+  file:temp said audit || return 1
+  if ! forge:lacks >/dev/null 2>"${said}"
+  then
+    status=1
+  elif ! forge:has rulesets
+  then
+    printf '{"state":"lacked","controls":[],"bypasses":[]}\n'
+    return 0
+  else
+    controls=$(forge:rulesets 2>"${said}") || status=$?
+  fi
+  if (( status == 3 ))
+  then
+    printf '{"state":"off","controls":[],"bypasses":[]}\n'
+    return 0
+  elif (( status != 0 ))
+  then
+    line=$(grep -v '^[[:space:]]*$' "${said}" | tail -n 1 || true)  # grep's exit 1: the read said nothing
+    jq --null-input --compact-output --arg error "${line#❌ }" \
+      '{state: "failed", error: $error, controls: [], bypasses: []}' || return 1
+    return 1
+  fi
+  controls=$(jq --slurp --compact-output . <<<"${controls}") || return 1
+  bypasses=$(forge:bypasses 2>"${said}") || status=$?
+  if (( status == 0 ))
+  then
+    bypasses=$(jq --slurp --compact-output . <<<"${bypasses}") || return 1
+    jq --null-input --compact-output --argjson controls "${controls}" --argjson bypasses "${bypasses}" \
+      '{state: "read", controls: $controls, bypasses: $bypasses}' || return 1
+    return 0
+  fi
+  (( status == 3 )) || failed=true
+  line=$(grep -v '^[[:space:]]*$' "${said}" | tail -n 1 || true)  # grep's exit 1: the read said nothing
+  jq --null-input --compact-output --argjson controls "${controls}" --arg error "${line#❌ }" \
+    --argjson failed "${failed}" '
+    {state: "read", controls: $controls, bypasses: null,
+     bypassed: (if $failed then "who may bypass it could not be read" else "the forge says not who may bypass it" end),
+     bypassed_error: (if $failed then $error else null end)}' || return 1
+  [[ "${failed}" == false ]]
+}
+
 # apps/audit:merged-policy reads the policy's document, one checkout's or a workspace's merged, and prints it with
 # its rows folded, as apps::scopes folds them; apps:across calls it on the members' document.
 apps/audit:merged-policy() {
@@ -209,6 +559,16 @@ apps/audit:mark-evidence() { apps:forge-mark runs releases; }
 
 # apps/audit:mark-findings prints the forge's marks of its runs and its alerts.
 apps/audit:mark-findings() { apps:forge-mark runs alerts; }
+
+# apps/audit:mark-enforcement prints the hash of the files the enforcement stage's own rows read: kit.yml, which says
+# the active packages, each harness's, the git hooks' pre-commit, lefthook.yml and .kit/lefthook.yml, and kit's CI
+# job. The forge's rows move with none of them, and are read again on Refresh.
+apps/audit:mark-enforcement() {
+  local hook
+  hook=$(git rev-parse --path-format=absolute --git-path hooks/pre-commit) || return 1
+  apps:hash "$(settings:file)" AGENTS.md .claude/CLAUDE.md .claude/settings.json .gemini/settings.json \
+    .github/instructions .cursor/rules "${hook}" lefthook.yml .kit/lefthook.yml .github/workflows/kit-ci.yml
+}
 
 # apps/audit:mark-policy prints the marks of the policy of each checkout apps/audit:checkouts lists, as
 # apps/audit:mark-checkout prints them, each after its branch; nothing when the clone has the one checkout and none is

@@ -469,3 +469,22 @@ import "forge" as forge; [forge::gitlab_vulnerabilities(100)]
 import "forge" as forge; map(forge::named)
 ["Some text.\nCloses AB#4521\nfixes ab#9 and Resolves: AB#10.\nCloses #7, closes LIN#3; Closes AB#4521 enclosed #8", null]
 [["AB#4521","ab#9","AB#10","#7","LIN#3"],[]]
+
+# A GitHub ruleset's checks are the contexts of its status checks rule, sorted, and its reviews the most its pull
+# request rules require; a rule whose parameters GitHub does not show leaves them null, and a ruleset with neither
+# rule requires none. The branch's protection gives its own, as forge/github:controls reads them.
+import "forge" as forge; [forge::github_rulesets({rules: ["pull_request"], checks: ["ci"], reviews: 2}) | [.id, .checks, .reviews]]
+{"data": {"repository": {"url": "u", "defaultBranchRef": {"name": "main"}, "rulesets": {"nodes": [{"databaseId": 7, "name": "main", "enforcement": "ACTIVE", "conditions": null, "rules": {"nodes": [{"type": "PULL_REQUEST", "parameters": {"requiredApprovingReviewCount": 1}}, {"type": "REQUIRED_STATUS_CHECKS", "parameters": {"requiredStatusChecks": [{"context": "lint"}, {"context": "CI"}]}}, {"type": "DELETION", "parameters": null}]}}, {"databaseId": 8, "name": "hidden", "enforcement": "EVALUATE", "conditions": null, "rules": {"nodes": [{"type": "PULL_REQUEST", "parameters": null}, {"type": "REQUIRED_STATUS_CHECKS", "parameters": null}]}}, {"databaseId": 9, "name": "none", "enforcement": "ACTIVE", "conditions": null, "rules": {"nodes": [{"type": "DELETION"}]}}]}}}}
+[[7,["CI","lint"],1],[8,null,null],[9,[],0],["protection",["ci"],2]]
+
+# A protection's checks are its contexts and its checks' contexts, sorted, once each, and its reviews the approving
+# reviews it requires: none and 0 where it requires neither, and null where it requires reviews and says not how many.
+import "forge" as forge; map([forge::github_protection_checks, forge::github_protection_reviews])
+[{"required_status_checks": {"contexts": ["b"], "checks": [{"context": "a"}, {"context": "b"}]}, "required_pull_request_reviews": {"required_approving_review_count": 1}}, {"required_status_checks": null, "required_pull_request_reviews": null}, {"required_pull_request_reviews": {}}]
+[[["a","b"],1],[[],0],[[],null]]
+
+# Azure DevOps' build policy requires its build, by its display name or its definition, a status policy its status,
+# genre/name, a reviewers policy its approvers, null where it says not how many, and any other policy neither.
+import "forge" as forge; [forge::ado_controls("u") | [.id, .checks, .reviews]]
+[{"id": 1, "isEnabled": true, "isBlocking": true, "type": {"displayName": "Build"}, "settings": {"buildDefinitionId": 5, "displayName": ""}}, {"id": 2, "isEnabled": true, "isBlocking": true, "type": {"displayName": "Status"}, "settings": {"statusGenre": "kit", "statusName": "CI"}}, {"id": 3, "isEnabled": true, "isBlocking": true, "type": {"displayName": "Required reviewers"}, "settings": {}}, {"id": 4, "isEnabled": true, "isBlocking": true, "type": {"displayName": "Minimum number of reviewers"}, "settings": {"minimumApproverCount": 2}}, {"id": 5, "isEnabled": true, "isBlocking": true, "type": {"displayName": "Comment requirements"}, "settings": {}}]
+[[1,["build 5"],0],[2,["kit/CI"],0],[3,[],null],[4,[],2],[5,[],0]]

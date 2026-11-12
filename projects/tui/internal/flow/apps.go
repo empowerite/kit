@@ -31,7 +31,7 @@ var apps = []entityApp{
 		"delivery/deployments"}},
 	{shell.People, "people", []string{"people/people", "people/teams", "people/agents"}},
 	{shell.Trust, "audit", []string{"audit/evidence", "audit/findings", "audit/controls", "audit/waivers",
-		"audit/policy"}},
+		"audit/policy", "audit/enforcement"}},
 	{shell.Platform, "platform", []string{"platform/services", "platform/toolchains", "platform/tools",
 		"platform/settings"}},
 	{shell.Packages, packagesVerb, []string{"packages/packages"}},

@@ -2013,7 +2013,8 @@ JSON
   "rulesets": {"totalCount": 2, "nodes": [
     {"databaseId": 7, "name": "main", "enforcement": "ACTIVE",
      "conditions": {"refName": {"include": ["~DEFAULT_BRANCH"], "exclude": []}},
-     "rules": {"totalCount": 2, "nodes": [{"type": "PULL_REQUEST"}, {"type": "DELETION"}]},
+     "rules": {"totalCount": 2, "nodes": [{"type": "PULL_REQUEST", "parameters": {"requiredApprovingReviewCount": 1}},
+       {"type": "DELETION", "parameters": null}]},
      "bypassActors": {"totalCount": 1, "nodes": [
        {"bypassMode": "ALWAYS", "organizationAdmin": false, "repositoryRoleName": null, "deployKey": false,
         "enterpriseOwner": false, "actor": {"__typename": "Team", "slug": "release"}}]}},
@@ -2305,8 +2306,12 @@ JSON
   run --separate-stderr call rulesets
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
   [ "$output" = '{"id":7,"control":"main","target":["~DEFAULT_BRANCH"],"enforcement":"active",'\
-'"rules":["deletion","pull_request"],"source":"ruleset","url":"https://github.com/empowerite/example/rules/7"}' ]
+'"rules":["deletion","pull_request"],"checks":[],"reviews":1,"source":"ruleset",'\
+'"url":"https://github.com/empowerite/example/rules/7"}' ]
   grep --quiet 'rulesets(first: 100, includeParents: true, targets: \[BRANCH\]) { totalCount' "${FAKE_DIR}/gh.calls"
+  # each rule's parameters say the checks and the reviews a merge needs
+  grep --quiet 'on RequiredStatusChecksParameters { requiredStatusChecks { context } }' "${FAKE_DIR}/gh.calls"
+  grep --quiet 'on PullRequestParameters { requiredApprovingReviewCount }' "${FAKE_DIR}/gh.calls"
   # a branch protection of its own is read for the rules, which GitHub shows only to an admin
   jq '.protection.enabled = true' "${FAKE_DIR}/gh-branch.json" | fixture gh-branch-protected.json
   GITHUB_BRANCH=gh-branch-protected.json world github
@@ -2314,12 +2319,13 @@ JSON
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
   [ "${lines[1]}" = '{"id":"protection","control":"main","target":["main"],"enforcement":"active",'\
 '"rules":["deletion","non_fast_forward","pull_request","required_linear_history","required_status_checks"],'\
-'"source":"protection","url":"https://github.com/empowerite/example/settings/branches"}' ]
+'"checks":["ci"],"reviews":1,"source":"protection","url":"https://github.com/empowerite/example/settings/branches"}' ]
   fixture gh-404.txt <<<'gh: Not Found (HTTP 404)'
   GITHUB_BRANCH=gh-branch-protected.json GITHUB_PROTECTION='!1 gh-404.txt' world github
   run --separate-stderr call rulesets
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
-  [ "$(jq --compact-output 'select(.source == "protection") | [.id, .rules]' <<<"$output")" = '["protection",null]' ]
+  [ "$(jq --compact-output 'select(.source == "protection") | [.id, .rules, .checks, .reviews]' <<<"$output")" \
+    = '["protection",null,null,null]' ]
   # a ruleset of a pattern that names the default branch guards it, one that excludes it does not
   jq '.data.repository.rulesets.nodes[1].conditions.refName.include = ["refs/heads/ma*"]
       | .data.repository.rulesets.nodes[0].conditions.refName.exclude = ["refs/heads/main"]' \
@@ -2345,12 +2351,14 @@ JSON
   run --separate-stderr call rulesets
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
   local settings='"url":"https://gitlab.com/empowerite/example/-/settings/repository"}'
+  # a merge's checks and approvals are the project's settings, which kit does not read: null, never none
   [ "$output" = '{"id":11,"control":"main","target":["main"],"enforcement":"active",'\
 '"rules":["code_owner_review","merge: Developers + Maintainers","non_fast_forward","push: Maintainers"],'\
-'"source":"protection",'"${settings}"$'\n''{"id":13,"control":"ma*","target":["ma*"],"enforcement":"active",'\
-'"rules":["merge: Maintainers","push: No one"],"source":"protection",'"${settings}"$'\n'\
+'"checks":null,"reviews":null,"source":"protection",'"${settings}"$'\n'\
+'{"id":13,"control":"ma*","target":["ma*"],"enforcement":"active",'\
+'"rules":["merge: Maintainers","push: No one"],"checks":null,"reviews":null,"source":"protection",'"${settings}"$'\n'\
 '{"id":"push_rule","control":"push rules","target":["*"],"enforcement":"active",'\
-'"rules":["deny_delete_tag","prevent_secrets"],"source":"ruleset",'"${settings}" ]
+'"rules":["deny_delete_tag","prevent_secrets"],"checks":[],"reviews":0,"source":"ruleset",'"${settings}" ]
   # a project with no push rules answers null, and a tier without them refuses them: either is none
   fixture gl-null.txt <<<'null'
   for said in gl-null.txt '!1 gl-forbidden.txt'

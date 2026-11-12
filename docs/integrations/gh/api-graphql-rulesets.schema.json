@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "gh api graphql --field owner=${owner} --field name=${name} --raw-field query=${query}",
-  "description": "The repository's rulesets of branches, its own and its organization's, rulesets(first: 100, includeParents: true, targets: [BRANCH]), each with its conditions, rules(first: 100), and bypassActors(first: 100), and the default branch, which kit asks for in `modules/bash/forge/github.sh` (forge/github:controls) and folds in `modules/jq/forge.jq` (forge::github_rulesets, forge::github_bypasses); a totalCount past the nodes fails the read. A point of the GraphQL rate limit. The types are the RepositoryRuleset, RepositoryRule, and RepositoryRulesetBypassActor objects of GitHub's GraphQL schema, https://docs.github.com/public/fpt/schema.docs.graphql, introspected: enforcement is ACTIVE, EVALUATE, or DISABLED; bypassMode ALWAYS, PULL_REQUEST, or EXEMPT; actor App, EnterpriseTeam, Team, or User; Enterprise's slug needs read:enterprise, so kit asks for none. A caller who may not edit a ruleset gets its bypass actors as null nodes, checked live on cli/cli.",
+  "description": "The repository's rulesets of branches, its own and its organization's, rulesets(first: 100, includeParents: true, targets: [BRANCH]), each with its conditions, rules(first: 100), each rule's parameters for the status checks and the approving reviews a merge needs, and bypassActors(first: 100), and the default branch, which kit asks for in `modules/bash/forge/github.sh` (forge/github:controls) and folds in `modules/jq/forge.jq` (forge::github_rulesets, forge::github_rule_checks, forge::github_rule_reviews, forge::github_bypasses); a totalCount past the nodes fails the read. A point of the GraphQL rate limit. The types are the RepositoryRuleset, RepositoryRule, and RepositoryRulesetBypassActor objects of GitHub's GraphQL schema, https://docs.github.com/public/fpt/schema.docs.graphql, introspected: enforcement is ACTIVE, EVALUATE, or DISABLED; bypassMode ALWAYS, PULL_REQUEST, or EXEMPT; actor App, EnterpriseTeam, Team, or User; Enterprise's slug needs read:enterprise, so kit asks for none. A caller who may not edit a ruleset gets its bypass actors as null nodes, checked live on cli/cli. A rule's parameters are the RuleParameters union, null for a kind that has none, checked live on empowerite/kit: RequiredStatusChecksParameters' requiredStatusChecks, each a context, and PullRequestParameters' requiredApprovingReviewCount.",
   "type": "object",
   "properties": {
     "data": {
@@ -98,6 +98,30 @@
                               "properties": {
                                 "type": {
                                   "type": "string"
+                                },
+                                "parameters": {
+                                  "type": [
+                                    "object",
+                                    "null"
+                                  ],
+                                  "properties": {
+                                    "requiredStatusChecks": {
+                                      "type": "array",
+                                      "items": {
+                                        "type": "object",
+                                        "properties": {
+                                          "context": {
+                                            "type": "string"
+                                          }
+                                        },
+                                        "additionalProperties": true
+                                      }
+                                    },
+                                    "requiredApprovingReviewCount": {
+                                      "type": "integer"
+                                    }
+                                  },
+                                  "additionalProperties": true
                                 }
                               },
                               "additionalProperties": true
@@ -211,13 +235,27 @@
                   }
                 },
                 "rules": {
-                  "totalCount": 2,
+                  "totalCount": 3,
                   "nodes": [
                     {
-                      "type": "DELETION"
+                      "type": "DELETION",
+                      "parameters": null
                     },
                     {
-                      "type": "PULL_REQUEST"
+                      "type": "PULL_REQUEST",
+                      "parameters": {
+                        "requiredApprovingReviewCount": 1
+                      }
+                    },
+                    {
+                      "type": "REQUIRED_STATUS_CHECKS",
+                      "parameters": {
+                        "requiredStatusChecks": [
+                          {
+                            "context": "CI"
+                          }
+                        ]
+                      }
                     }
                   ]
                 },

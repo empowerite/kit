@@ -608,12 +608,14 @@ JSON
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
   local url='"url":"https://dev.azure.com/acme/empowerite/_settings/repositories?repo=r-1&_a=policiesMid'
   url+='&refs=refs/heads/main"}'
+  # a reviewers policy requires its approvers, and a build policy its build, by its name
   [ "$output" = '{"id":21,"control":"Minimum number of reviewers","target":["refs/heads/main"],"enforcement":"active",'\
-'"rules":["minimumApproverCount=2"],"source":"protection",'"${url}"$'\n'\
+'"rules":["minimumApproverCount=2"],"checks":[],"reviews":2,"source":"protection",'"${url}"$'\n'\
 '{"id":22,"control":"Build","target":["refs/heads/main"],"enforcement":"evaluate",'\
-'"rules":["buildDefinitionId=5","displayName=ci","queueOnSourceUpdateOnly=true"],"source":"protection",'"${url}"$'\n'\
+'"rules":["buildDefinitionId=5","displayName=ci","queueOnSourceUpdateOnly=true"],"checks":["ci"],"reviews":0,'\
+'"source":"protection",'"${url}"$'\n'\
 '{"id":23,"control":"Comment requirements","target":["refs/heads/*"],"enforcement":"disabled","rules":[],'\
-'"source":"protection",'"${url}" ]
+'"checks":[],"reviews":0,"source":"protection",'"${url}" ]
   # Azure DevOps keeps none of the attestations, alerts, or waivers kit reads
   for c in attestations code-scanning-alerts dependabot-alerts secret-scanning-alerts bypasses
   do

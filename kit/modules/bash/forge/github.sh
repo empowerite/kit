@@ -855,7 +855,8 @@ forge/github:rulesets() {
   local answer protection
   forge/github:controls answer protection || return 1
   forge/github:fold 'the rulesets' "${answer}" --compact-output --argjson protection "${protection}" \
-    'import "forge" as forge; forge::github_rulesets($protection | if type == "object" then {rules} else null end)'
+    'import "forge" as forge;
+      forge::github_rulesets($protection | if type == "object" then {rules, checks, reviews} else null end)'
 }
 
 # forge/github:runs prints the builds stage's runs as one JSON array, as the seam's header says. It reads the 50
@@ -1126,11 +1127,12 @@ forge/github:alerts-refused() {
 
 # forge/github:controls <answer> <protection> reads what guards the default branch into the two variables: <answer>,
 # one GraphQL request, a point, for the repository's rulesets of branches, its own and its organization's, 100 at
-# most, each with its conditions, its first 100 rules, and its first 100 bypass actors, and the default branch, asked
-# once more without a team's slug where the login lacks read:org, as forge/github:teamless tells it; and
-# <protection>, null where the branch has no protection of its own, as the branch's REST answer says, which every
-# reader may have, else {rules, full}: the protection's REST answer and its kinds of rule, or rules and full null
-# where GitHub shows the protection only to an admin, answering 404. A list past what the request holds fails.
+# most, each with its conditions, its first 100 rules, the checks and the reviews of those that require them, and its
+# first 100 bypass actors, and the default branch, asked once more without a team's slug where the login lacks
+# read:org, as forge/github:teamless tells it; and <protection>, null where the branch has no protection of its own,
+# as the branch's REST answer says, which every reader may have, else {rules, checks, reviews, full}: the protection's
+# REST answer, its kinds of rule, and the checks and the reviews it requires, or each null where GitHub shows the
+# protection only to an admin, answering 404. A list past what the request holds fails.
 forge/github:controls() {
   local controls_into=$1 protection_into=$2 controls_repo controls_query controls_answer controls_branch
   local controls_page controls_said controls_protection=null encoded team='... on Team { slug }'
@@ -1140,7 +1142,10 @@ forge/github:controls() {
       url defaultBranchRef { name }
       rulesets(first: 100, includeParents: true, targets: [BRANCH]) { totalCount nodes {
         databaseId name enforcement conditions { refName { include exclude } }
-        rules(first: 100) { totalCount nodes { type } }
+        rules(first: 100) { totalCount nodes { type parameters {
+          ... on RequiredStatusChecksParameters { requiredStatusChecks { context } }
+          ... on PullRequestParameters { requiredApprovingReviewCount }
+        } } }
         bypassActors(first: 100) { totalCount nodes {
           bypassMode organizationAdmin repositoryRoleName deployKey enterpriseOwner
           actor { __typename @team@ ... on User { login } ... on App { slug } }
@@ -1181,10 +1186,12 @@ forge/github:controls() {
       if controls_page=$(gh api "repos/{owner}/{repo}/branches/${encoded}/protection" 2>"${controls_said}")
       then
         controls_protection=$(forge/github:fold 'the protection of the default branch' "${controls_page}" \
-          --compact-output 'import "forge" as forge; {rules: forge::github_protection_rules, full: .}') || return 1
+          --compact-output 'import "forge" as forge;
+            {rules: forge::github_protection_rules, checks: forge::github_protection_checks,
+             reviews: forge::github_protection_reviews, full: .}') || return 1
       elif [[ "$(<"${controls_said}")" == *'(HTTP 404)'* ]]
       then
-        controls_protection='{"rules": null, "full": null}'
+        controls_protection='{"rules": null, "checks": null, "reviews": null, "full": null}'
       else
         forge/github:limited 'the protection of the default branch' "$(<"${controls_said}")" \
           || error "run: gh auth status (the protection of the default branch could not be read)"

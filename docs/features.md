@@ -162,6 +162,8 @@ one. `kit workspace <stage>` prints one, and `kit --workspace=<group> workspace`
 The `agents/claude` and `agents/gemini` packages each deliver a deny list that refuses the raw git commands these
 verbs replace, such as `git commit`, `git push`, `git rebase`, `git worktree add`, and `git branch -D`. It matches
 literal patterns, so a form it does not list, such as `git -C <dir> commit`, passes. Other harnesses get none.
+`kit audit enforcement` shows, for this repository and each harness, what binds an agent and what is advice; see
+[architecture.md](architecture.md#enforcement-tiers).
 
 see: [architecture.md](architecture.md#the-workflow-and-the-gate)
 
@@ -236,7 +238,7 @@ it. Each app has a verb, `kit issues`, `kit changes`, `kit workspace`, `kit deli
 | Repositories | the repository | repos, worktrees, branches, commits, tags, remotes, incoming |
 | Delivery | the release | releases, builds, artifacts, environments, deployments |
 | People | the person | people, teams, agents |
-| Trust | the evidence | evidence, findings, controls, waivers, policy |
+| Trust | the evidence | evidence, findings, controls, waivers, policy, enforcement |
 | Platform | the service | services, toolchains, tools, settings |
 | Packages | the package | packages |
 

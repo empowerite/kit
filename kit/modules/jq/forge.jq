@@ -1106,10 +1106,38 @@ def github_protection_rules:
     (select(.enforce_admins.enabled? == true) | "enforce_admins") ]
   | sort;
 
+# github_protection_checks reads GitHub's protection of a branch and gives the status checks a merge needs, by name,
+# sorted: its contexts, and the context of each of its checks; none where it requires none.
+def github_protection_checks:
+  if .required_status_checks == null then []
+  else [(.required_status_checks.contexts // [])[], (.required_status_checks.checks // [])[]?.context]
+       | map(strings) | unique end;
+
+# github_protection_reviews reads GitHub's protection of a branch and gives the approving reviews a merge needs: 0
+# where it requires no pull request, and null where it does and says not how many.
+def github_protection_reviews:
+  if .required_pull_request_reviews == null then 0
+  else .required_pull_request_reviews.required_approving_review_count // null end;
+
+# github_rule_checks reads a ruleset, as GitHub's GraphQL gives one, and gives the status checks its rules require, by
+# context, sorted; none where it has no such rule, and null where a rule's parameters are not shown.
+def github_rule_checks:
+  [.rules.nodes[]? | select(.type == "REQUIRED_STATUS_CHECKS")] as $rules
+  | if any($rules[]; .parameters == null) then null
+    else [$rules[].parameters.requiredStatusChecks[]?.context | strings] | unique end;
+
+# github_rule_reviews reads a ruleset, as GitHub's GraphQL gives one, and gives the approving reviews its pull request
+# rules require, the most of them; 0 where it has none, and null where a rule's parameters are not shown.
+def github_rule_reviews:
+  [.rules.nodes[]? | select(.type == "PULL_REQUEST")] as $rules
+  | if any($rules[]; .parameters.requiredApprovingReviewCount == null) then null
+    else [$rules[].parameters.requiredApprovingReviewCount] | max // 0 end;
+
 # github_rulesets($protection) reads the answer to forge/github:rulesets's GraphQL query and gives one document per
-# control on the default branch: {id, control, target, enforcement, rules, source, url}, each ruleset that guards it,
-# in GitHub's order, its include patterns its target, and its rules' types, sorted; then the branch's own protection,
-# $protection, {rules}, its rules null where GitHub shows them only to an admin, or nothing where it has none.
+# control on the default branch: {id, control, target, enforcement, rules, checks, reviews, source, url}, each ruleset
+# that guards it, in GitHub's order, its include patterns its target, its rules' types, sorted, and the checks and
+# reviews they require; then the branch's own protection, $protection, {rules, checks, reviews}, each null where
+# GitHub shows them only to an admin, or nothing where it has none.
 def github_rulesets($protection):
   .data.repository as $repo
   | ($repo.defaultBranchRef.name? // null) as $branch
@@ -1118,9 +1146,10 @@ def github_rulesets($protection):
       | { id: .databaseId, control: .name, target: (.conditions.refName.include? // ["~ALL"]),
           enforcement: (.enforcement // "" | ascii_downcase),
           rules: ([.rules.nodes[]? | .type | ascii_downcase] | sort),
+          checks: github_rule_checks, reviews: github_rule_reviews,
           source: "ruleset", url: "\($repo.url)/rules/\(.databaseId)" } ),
     ( $protection | select(. != null)
-      | { id: "protection", control: $branch, target: [$branch], enforcement: "active", rules,
+      | { id: "protection", control: $branch, target: [$branch], enforcement: "active", rules, checks, reviews,
           source: "protection", url: "\($repo.url)/settings/branches" } );
 
 # github_bypass_actor reads a ruleset's bypass actor and names it: a team by its slug, a user by the login, an app by
@@ -1178,9 +1207,11 @@ def gitlab_vulnerabilities($now):
 
 # gitlab_controls($branch; $push; $url) reads GitLab's protected branches and gives one document per control on the
 # branch $branch: each protected branch whose name, or wildcard, * any characters, names it, {id, control, target,
-# enforcement, rules, source, url}, its rules who may push and who may merge, non_fast_forward where force pushes are
-# not allowed, and code_owner_review where code owners approve; then the project's push rules, $push, or nothing for
-# none, its rules those set, source ruleset; each page the project's repository settings under $url.
+# enforcement, rules, checks, reviews, source, url}, its rules who may push and who may merge, non_fast_forward where
+# force pushes are not allowed, and code_owner_review where code owners approve, its checks and reviews null, as a
+# merge's checks and approvals are the project's settings, which kit does not read; then the project's push rules,
+# $push, or nothing for none, its rules those set, no check and no review, source ruleset; each page the project's
+# repository settings under $url.
 def gitlab_controls($branch; $push; $url):
   def levels: [.[]?.access_level_description // empty] | join(", ");
   def names: "^" + (gsub("(?<c>[.+^$(){}|?\\[\\]\\\\])"; "\\\(.c)") | gsub("\\*"; ".*")) + "$";
@@ -1190,24 +1221,34 @@ def gitlab_controls($branch; $push; $url):
                   (if (.merge_access_levels // []) == [] then empty else "merge: \(.merge_access_levels | levels)" end),
                   (select(.allow_force_push != true) | "non_fast_forward"),
                   (select(.code_owner_approval_required == true) | "code_owner_review") ] | sort),
-        source: "protection", url: "\($url)/-/settings/repository" } ),
+        checks: null, reviews: null, source: "protection", url: "\($url)/-/settings/repository" } ),
   ( $push | objects
     | { id: "push_rule", control: "push rules", target: ["*"], enforcement: "active",
         rules: ([to_entries[] | select(.key | IN("id", "project_id", "created_at") | not)
                  | select(.value != null and .value != false and .value != "" and .value != 0) | .key] | sort),
-        source: "ruleset", url: "\($url)/-/settings/repository" } );
+        checks: [], reviews: 0, source: "ruleset", url: "\($url)/-/settings/repository" } );
 
 # ado_controls($url) reads az repos policy list's answer for the default branch and gives one document per policy:
-# {id, control, target, enforcement, rules, source, url}, control the policy's type, target each scope's ref, a
-# prefix's with * after it, enforcement active for a blocking policy, evaluate for an optional one, and disabled for
-# one turned off, rules its settings that are set, key=value, and url the branch's policies, $url.
+# {id, control, target, enforcement, rules, checks, reviews, source, url}, control the policy's type, target each
+# scope's ref, a prefix's with * after it, enforcement active for a blocking policy, evaluate for an optional one, and
+# disabled for one turned off, rules its settings that are set, key=value, checks the build a build policy requires,
+# by its display name, else build <definition>, or the status a status policy requires, <genre>/<name>, reviews the
+# approvers a reviewers policy requires, null where it says not how many, and url the branch's policies, $url.
 def ado_controls($url):
   .[] | select(. != null and .isDeleted != true)
-  | { id, control: (.type.displayName? // null),
+  | (.type.displayName? // null) as $type | (.settings // {}) as $set
+  | { id, control: $type,
       target: [(.settings.scope // [])[]? | if .refName == null then "*"
                elif .matchKind == "Prefix" then .refName + "*" else .refName end],
       enforcement: (if .isEnabled != true then "disabled" elif .isBlocking == true then "active" else "evaluate" end),
       rules: ([(.settings // {}) | to_entries[] | select(.key != "scope")
                | select((.value | type) as $t | $t == "number" or $t == "string" or $t == "boolean")
                | select(.value != false and .value != "" and .value != 0) | "\(.key)=\(.value)"] | sort),
+      checks: (if $type == "Build"
+               then [$set.displayName // "" | if . == "" then "build \($set.buildDefinitionId)" else . end]
+               elif $type == "Status"
+               then [[$set.statusGenre, $set.statusName] | map(strings | select(. != "")) | join("/")]
+               else [] end),
+      reviews: (if $type == "Minimum number of reviewers" or $type == "Required reviewers"
+                then $set.minimumApproverCount // null else 0 end),
       source: "protection", url: $url };

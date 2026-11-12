@@ -116,8 +116,85 @@ def alert($tool):
   ({key: "\($tool) \(.number)", tool: $tool} + del(.url, .by, .reason) + {links: {rule: .url}}) | linked;
 
 # control reads a control the forge's rulesets call prints and gives it keyed by its id, its page the link of the
-# control, and its source, a ruleset or a protection, as its kind, so source says the forge, as every row's does.
-def control: ({key: .id} + del(.url, .source) + {kind: .source, links: {control: .url}}) | linked;
+# control, and its source, a ruleset or a protection, as its kind, so source says the forge, as every row's does. The
+# checks and the reviews it requires are the enforcement stage's.
+def control: ({key: .id} + del(.url, .source, .checks, .reviews) + {kind: .source, links: {control: .url}}) | linked;
+
+# enforced reads {harness, tier, mechanism, status, evidence, detail, passes, control} and gives the enforcement
+# stage's row, keyed by the harness and the mechanism: control, the id of the control a forge's mechanism rests on, or
+# null, the link of its mechanism to that row of the controls stage.
+def enforced:
+  ({key: "\(.harness) \(.mechanism)"} + del(.control)
+   + {links: {mechanism: (if .control == null then null else "row:controls/\(.control)" end)}})
+  | linked;
+
+# required($forge; $check) reads nothing and gives the authoritative tier's two rows, as enforced takes them: a merge
+# into the default branch needs the check $check, kit's CI job's, and it needs an approving review. $forge is what kit
+# read of the forge: {state, error, controls, bypasses, bypassed}, state none for a primary with no forge, lacked for a
+# forge kit reads no rulesets of, off for one that has them off here, failed, its line error, or read; controls the
+# rulesets call's documents, and bypasses the bypasses call's, null where kit could not read them, bypassed then why.
+# Each is active where an active control requires it, probed; unknown where an active control's checks or reviews
+# are not shown, or kit could not read the forge; else missing. passes names who may bypass every control that
+# requires it: its bypass actors, and an admin where a protection does not bind its admins, a protection's pull request
+# allowances bypassing its review alone; then those the forge hides of each, who may pass; null where kit cannot tell.
+def required($forge; $check):
+  def needs($what):
+    if $what == "check" then (.checks // null | if . == null then null else index([$check]) != null end)
+    else (.reviews // null | if . == null then null else . > 0 end) end;
+  def bypassers($what):
+    .id as $id
+    | (if .source == "protection" and .rules != null and (.rules | index(["enforce_admins"])) == null
+       then ["repository admins"] else [] end)
+      + [ $forge.bypasses[] | select(.waives == $id and .hidden == null)
+          | select($what == "review" or .waives != "protection") | "\(.actor) (\(.reason // "bypass"))" ];
+  def hidden:
+    "\(.source) \(.control)" as $control | .id as $id
+    | $forge.bypasses[] | select(.waives == $id and .hidden != null) | "\(.hidden) hidden on \($control)";
+  def passes($binding; $what):
+    if $forge.bypasses == null then null
+    else ([$binding[] | bypassers($what)]
+          | reduce .[1:][] as $set (.[0]; map(select(. as $who | $set | index([$who]) != null))))
+         + [$binding[] | hidden] end;
+  def named: map("\(.source) \(.control)") | join(", ");
+  def require: if length > 1 then "require" else "requires" end;
+  def row($what; $status; $evidence; $detail; $passes; $control):
+    { harness: "repository", tier: "authoritative",
+      mechanism: (if $what == "check" then "required check \($check)" else "required review" end),
+      status: $status, evidence: $evidence, detail: $detail, passes: $passes, control: $control };
+  ("check", "review") as $what
+  | (if $what == "check" then "the check \($check)" else "an approving review" end) as $it
+  | if $forge.state == "none" then
+      row($what; "missing"; "probed"; "the primary remote is on no code forge, so no control requires \($it)";
+          ["every merge"]; null)
+    elif $forge.state == "lacked" then
+      row($what; "unknown"; "unverified"; "kit reads no rulesets on this forge"; null; null)
+    elif $forge.state == "off" then
+      row($what; "unknown"; "unverified"; "the forge has its rulesets off here"; null; null)
+    elif $forge.state == "failed" then
+      row($what; "unknown"; "unverified"; $forge.error; null; null)
+    else
+      ($forge.controls | map(select(.enforcement == "active"))) as $active
+      | ($active | map(select(needs($what) == true))) as $binding
+      | ($active | map(select(needs($what) == null))) as $unseen
+      | if $binding != [] then
+          row($what; "active"; "probed";
+              "\($binding | named) \($binding | require) \($it) to merge into the default branch"
+              + (if $forge.bypasses == null then "; \($forge.bypassed)" else "" end);
+              passes($binding; $what); $binding[0].id)
+        elif $unseen != [] then
+          row($what; "unknown"; "unverified";
+              "the forge does not show whether \($unseen | named) \($unseen | require) \($it)"; null;
+              $unseen[0].id)
+        else
+          ($forge.controls | map(select(.enforcement == "evaluate" and needs($what) == true))) as $evaluated
+          | row($what; "missing"; "probed";
+                "no active control on the default branch requires \($it)"
+                + (if $evaluated == [] then ""
+                   else "; \($evaluated | named) only evaluates it, which binds nothing" end);
+                ["every merge"]; null)
+        end
+    end
+  | enforced;
 
 # waiver reads a waiver the forge's bypasses call prints, or one dismissal gives, and gives it keyed by what it waives
 # and for whom, or for those hidden, <waives> hidden: what it waives links to that row, of the findings stage for a

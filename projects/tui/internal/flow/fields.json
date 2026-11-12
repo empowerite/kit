@@ -1099,6 +1099,45 @@
       ]
     },
     {
+      "stage": "audit/enforcement", "command": ["audit", "enforcement", "--json"], "staged": true,
+      "summary": "What binds an agent to the rules and what is advice, per harness and for the repository",
+      "forge": true, "takes": ["workspace"], "record": ".rows[]", "empty": "no mechanism",
+      "fields": [
+        {"id": "mechanism", "label": "mechanism", "type": "text", "path": ".mechanism", "sort": true,
+         "renderings": ["text"], "placement": "column"},
+        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
+         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "group", "depth": 1},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "group", "depth": 2},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "group", "depth": 3},
+        {"id": "harness", "label": "harness", "type": "enum", "path": ".harness", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "generic"}, {"value": "claude"}, {"value": "copilot"},
+         {"value": "cursor"}, {"value": "gemini"}, {"value": "repository"}], "renderings": ["text"],
+         "placement": "column"},
+        {"id": "tier", "label": "tier", "type": "enum", "path": ".tier", "sort": true, "group": true, "filter": true,
+         "values": [{"value": "advisory"}, {"value": "best-effort"}, {"value": "local floor"},
+         {"value": "authoritative"}], "renderings": ["text"], "placement": "column"},
+        {"id": "status", "label": "status", "type": "enum", "path": ".status", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "active"}, {"value": "missing"}, {"value": "unknown"}],
+         "renderings": ["text"], "placement": "column"},
+        {"id": "evidence", "label": "evidence", "type": "enum", "path": ".evidence", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "probed"}, {"value": "documented"}, {"value": "unverified"}],
+         "dim": true, "renderings": ["text"], "placement": "column"},
+        {"id": "passes", "label": "passes", "type": "label", "path": ".passes[]", "one": "pass", "group": true,
+         "filter": true, "null": "unknown", "dim": true, "renderings": ["pills", "text"], "placement": "column"},
+        {"id": "detail", "label": "detail", "type": "text", "path": ".detail", "dim": true, "renderings": ["text"],
+         "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default"},
+        {"name": "Compact", "fields": {
+          "evidence": {"placement": "hidden"}, "passes": {"placement": "hidden"}, "detail": {"placement": "hidden"}}}
+      ]
+    },
+    {
       "stage": "platform/services", "command": ["platform", "services", "--json"], "staged": true,
       "summary": "Which service answers each capability, and whether it is ready",
       "takes": ["workspace"], "record": ".rows[]", "empty": "no capability",

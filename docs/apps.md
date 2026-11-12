@@ -216,8 +216,8 @@ refuse with 2, naming `kit flow releases --json` or `kit flow builds --json`.
 ## Trust: kit audit
 
 `kit audit` prints what the repository can be trusted for: what the forge attests and finds, what guards the default
-branch and who may get past it, and the rules kit's policy judges by. Every tab of Trust is its own. Its verb is not
-`kit trust`, which trusts a clone.
+branch and who may get past it, the rules kit's policy judges by, and what holds an agent to them. Every tab of Trust
+is its own. Its verb is not `kit trust`, which trusts a clone.
 
 | Stage | A row per | Fields | Mark |
 | --- | --- | --- | --- |
@@ -226,6 +226,7 @@ branch and who may get past it, and the rules kit's policy judges by. Every tab 
 | `controls` | ruleset or protection that guards the default branch | `id, control, target, enforcement, rules, kind` | none |
 | `waivers` | bypass of a control, and alert dismissed | `waives, actor, kind, reason, by, until, hidden` | none |
 | `policy` | rule `kit policy` judges by, where it is in force | `source, organization, repository, branch, scope, rule, pattern, from, engine` | a hash of each checkout's `kit.yml` and `.kit/policy/` |
+| `enforcement` | mechanism that holds an agent to the rules, per harness and for the repository | `harness, tier, mechanism, status, evidence, detail, passes` | a hash of the files its own rows read |
 
 - `evidence` keys each row by its digest and its kind, and the subject links to the repository's attestations.
   GitHub reads the 5 newest releases' assets and the 20 newest artifacts, each digest once, 50 at most, and asks for
@@ -274,11 +275,29 @@ branch and who may get past it, and the rules kit's policy judges by. Every tab 
   every member agrees on is one row, wider than any of them. Each row is keyed by the rule and the place. The mark
   holds each checkout's `kit.yml` and `.kit/policy/`, and on a branch past the default the base's too, which a fetch
   moves.
+- `enforcement` keys each row by its harness and its mechanism. A harness is each active agent package's, `generic`
+  for any agent that reads `AGENTS.md`, then `claude`, `copilot`, `cursor`, and `gemini`, and `repository` for what
+  holds every one. `tier` is `advisory`, `best-effort`, `local floor`, or `authoritative`, as
+  [architecture.md](architecture.md#enforcement-tiers) says. `status` is `active`, `missing`, or `unknown`, never a
+  guess: a deny list or a hook merged into a harness's settings is `unknown` at best, as kit cannot probe that the
+  harness runs it, and one that lacks an entry the package merges is `missing`. `evidence` is `probed` where kit read
+  what decides it, a file, git's hooks, or the forge's answer; `documented` where it rests on what the harness or the
+  forge documents; else `unverified`. `passes` names what gets past it, `null` where kit cannot tell. The pre-commit
+  hook is `active` where git runs lefthook in this clone and lefthook is on `PATH`, `unknown` where it is not. The
+  required check, `CI`, which kit's CI job reports, and the required review are `active` where an active control on
+  the default branch requires each, the row linking to that control's row of `controls`, and their `passes` who may
+  bypass every such control, a protection's admins where it does not bind them; a control that only evaluates binds
+  nothing. A control whose checks or reviews the forge does not show leaves them `unknown`: GitHub's rule whose
+  parameters it hides, a protection only an admin may read, and GitLab's protected branches, whose merge checks are the
+  project's settings, which kit does not read. A forge read that fails leaves them `unknown` too, `{feature, error}`
+  under `errors`, the stage exiting 1; a repository on no forge has them `missing`.
 - `evidence` and `findings` move with the forge's runs, as a run makes an attestation and a scan. `evidence` moves
   with its releases too, and `findings` with its alerts: GitHub's mark of each scanner's alert updated last, which a
   dismissal and a new advisory move without a run, `off` or `refused` for a scanner that is either, so the others'
   still move it; and GitLab's count of open and dismissed vulnerabilities.
-  `controls` and `waivers` have none, and are read again on Refresh only.
+  `controls` and `waivers` have none, and are read again on Refresh only. `enforcement` moves with `kit.yml`, each
+  harness's files, git's pre-commit hook, `lefthook.yml`, and kit's CI job; its forge's rows, read as `controls`, move
+  with none of them.
 
 ## Packages: kit packages
 

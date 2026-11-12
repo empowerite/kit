@@ -57,7 +57,8 @@ JSON
   "rulesets": {"totalCount": 1, "nodes": [
     {"databaseId": 7, "name": "main", "enforcement": "ACTIVE",
      "conditions": {"refName": {"include": ["~DEFAULT_BRANCH"], "exclude": []}},
-     "rules": {"totalCount": 2, "nodes": [{"type": "DELETION"}, {"type": "PULL_REQUEST"}]},
+     "rules": {"totalCount": 2, "nodes": [{"type": "DELETION", "parameters": null},
+       {"type": "PULL_REQUEST", "parameters": {"requiredApprovingReviewCount": 0}}]},
      "bypassActors": {"totalCount": 1, "nodes": [{"bypassMode": "ALWAYS", "actor": {"__typename": "Team",
        "slug": "release"}}]}}]}}}}
 JSON
@@ -75,14 +76,14 @@ JSON
     "${CODE_DISMISSED:-none.json}"
   route gh "api --paginate --slurp repos/{owner}/{repo}/dependabot/alerts?state=*" "${DEPENDABOT:-dependabot.json}"
   route gh 'api --paginate --slurp repos/{owner}/{repo}/secret-scanning/alerts?state=*' '!1 secret-off.txt'
-  route gh 'api graphql*rulesets(first: 100*' rulesets.json
+  route gh 'api graphql*rulesets(first: 100*' "${RULESETS:-rulesets.json}"
   route gh 'api repos/{owner}/{repo}/branches/main' branch.json
 }
 
-@test "kit audit --stages prints its five stages, and --marks the forge's for its reads, the policy's hash for it" {
+@test "kit audit --stages prints its six stages, and --marks the forge's for its reads, the policy's hash for it" {
   run "${kit_root}/bin/kit" audit --stages
   [ "$status" -eq 0 ]
-  [ "$output" = $'evidence\nfindings\ncontrols\nwaivers\npolicy' ]
+  [ "$output" = $'evidence\nfindings\ncontrols\nwaivers\npolicy\nenforcement' ]
   github-world
   run --separate-stderr "${kit_root}/bin/kit" audit --marks
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
@@ -234,13 +235,13 @@ JSON
   cd "${BATS_TEST_TMPDIR}/r"
   run --separate-stderr "${kit_root}/bin/kit" audit --json
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
-  [ "$(jq -c '.stages' <<<"$output")" = '["evidence","findings","controls","waivers","policy"]' ]
+  [ "$(jq -c '.stages' <<<"$output")" = '["evidence","findings","controls","waivers","policy","enforcement"]' ]
   [ "$(jq -c '[.evidence, .findings, .controls, .waivers]' <<<"$output")" = "$(printf '[%s]' \
     '{"rows":[],"errors":[]},{"rows":[],"errors":[]},{"rows":[],"errors":[]},{"rows":[],"errors":[]}')" ]
   [ "$(jq -c '.policy.rows | length' <<<"$output")" -eq 5 ]
   run --separate-stderr "${kit_root}/bin/kit" audit --marks
   [ "$status" -eq 0 ]
-  [ "$output" = '{"evidence":null,"findings":null,"controls":null,"waivers":null,"policy":null}' ]
+  [ "$output" = '{"evidence":null,"findings":null,"controls":null,"waivers":null,"policy":null,"enforcement":null}' ]
 }
 
 @test "policy over a clone with no remote on a forge is its main checkout's directory, of no organization or source" {
@@ -325,6 +326,194 @@ two-members() {
   [[ "$(jq --compact-output '.errors' <<<"$output")" \
     == '[{"member":"gitlab.com/o/b","error":"run: cd '*' && glab auth status (the milestones mark could not be read)"}]' ]]
   [[ "$stderr" == *"gitlab.com/o/b: run: cd "*" && glab auth status (the milestones mark could not be read)"* ]]
+}
+
+# enforced-world makes github-world a repository the kit installed with every agent package, the lefthook hook, and
+# kit's CI job, each file as its package places it: AGENTS.md's and .claude/CLAUDE.md's regions, the deny lists and
+# the hook merged, the instruction and rule files, lefthook.yml extending .kit/lefthook.yml, git's pre-commit hook
+# running lefthook, which is on PATH, and kit-ci.yml. The ruleset main requires the check CI and an approving review.
+enforced-world() {
+  local packages="${kit_root}/packages" package
+  RULESETS=rulesets-ci.json github-world
+  fixture rulesets-ci.json <<'JSON'
+{"data": {"repository": {"url": "https://github.com/o/r", "defaultBranchRef": {"name": "main"},
+  "rulesets": {"totalCount": 1, "nodes": [
+    {"databaseId": 7, "name": "main", "enforcement": "ACTIVE",
+     "conditions": {"refName": {"include": ["~DEFAULT_BRANCH"], "exclude": []}},
+     "rules": {"totalCount": 2, "nodes": [
+       {"type": "REQUIRED_STATUS_CHECKS", "parameters": {"requiredStatusChecks": [{"context": "CI"}]}},
+       {"type": "PULL_REQUEST", "parameters": {"requiredApprovingReviewCount": 1}}]},
+     "bypassActors": {"totalCount": 1, "nodes": [{"bypassMode": "ALWAYS", "actor": {"__typename": "Team",
+       "slug": "release"}}]}}]}}}}
+JSON
+  printf 'version: unreleased\npackages:\n' > kit.yml
+  for package in kit agents/generic agents/claude agents/copilot agents/cursor agents/gemini hooks/lefthook github/ci
+  do
+    printf '  - %s\n' "${package}" >> kit.yml
+  done
+  printf '# AGENTS.md\n\n<!-- kit:generate AGENTS.md -->\n%s\n<!-- kit:end AGENTS.md -->\n' \
+    "$(cat "${packages}/agents/generic/regions/repo/AGENTS.md")" > AGENTS.md
+  mkdir -p .claude .kit .github/workflows
+  printf '# CLAUDE.md\n\n<!-- kit:generate .claude/CLAUDE.md -->\n@../AGENTS.md\n<!-- kit:end .claude/CLAUDE.md -->\n' \
+    > .claude/CLAUDE.md
+  cp -R "${packages}/agents/claude/files/repo/.claude/settings.json" .claude/
+  cp -R "${packages}/agents/gemini/files/repo/.gemini" "${packages}/agents/cursor/files/repo/.cursor" .
+  cp -R "${packages}/agents/copilot/files/repo/.github/instructions" .github/
+  cp "${packages}/hooks/lefthook/files/repo/.kit/lefthook.yml" .kit/
+  printf '# lefthook.yml\nextends: [.kit/lefthook.yml]\n' > lefthook.yml
+  printf '#!/bin/sh\nlefthook run pre-commit "$@"\n' > .git/hooks/pre-commit
+  chmod +x .git/hooks/pre-commit
+  printf 'name: kit\n' > .github/workflows/kit-ci.yml
+  fake-tools lefthook
+}
+
+# rows <document> prints each row of an enforcement document as [harness, mechanism, status, evidence], one a line.
+rows() { jq -c '.rows[] | [.harness, .mechanism, .status, .evidence]' <<<"$1"; }
+
+@test "enforcement names each harness's advice and best effort, the local floor, and what the forge requires" {
+  enforced-world
+  run --separate-stderr "${kit_root}/bin/kit" audit enforcement --json
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  # a deny list or a hook merely registered is unknown, never active: kit cannot probe that a harness runs it
+  [ "$(rows "$output")" = "$(printf '%s\n' \
+    '["generic","AGENTS.md","active","documented"]' '["generic","deny list","unknown","unverified"]' \
+    '["claude",".claude/CLAUDE.md","active","documented"]' '["claude","deny list","unknown","documented"]' \
+    '["claude","context hook","unknown","documented"]' \
+    '["copilot",".github/instructions","active","documented"]' '["copilot","deny list","missing","documented"]' \
+    '["cursor",".cursor/rules","active","documented"]' '["cursor","deny list","missing","documented"]' \
+    '["gemini",".gemini/settings.json","active","documented"]' '["gemini","deny list","unknown","documented"]' \
+    '["repository","pre-commit hook","active","probed"]' '["repository","lefthook.yml","active","probed"]' \
+    '["repository","kit'"'"'s CI job","active","documented"]' \
+    '["repository","required check CI","active","probed"]' '["repository","required review","active","probed"]')" ]
+  [ "$(jq -c '[.rows[] | .tier] | unique' <<<"$output")" = '["advisory","authoritative","best-effort","local floor"]' ]
+  [ "$(jq -c '.errors' <<<"$output")" = '[]' ]
+  # each names what passes it: forms a deny list's literal patterns miss, --no-verify, and who may bypass the ruleset,
+  # which a required row links to
+  [ "$(jq -c '.rows[] | select(.key == "claude deny list") | .passes' <<<"$output")" \
+    = '["git -C <dir> commit","git merge"]' ]
+  [ "$(jq -c '.rows[] | select(.key == "repository pre-commit hook") | .passes' <<<"$output")" \
+    = '["git commit --no-verify","LEFTHOOK=0 git commit"]' ]
+  [ "$(jq -c '.rows[] | select(.key == "repository required check CI") | [.detail, .passes, .links]' <<<"$output")" \
+    = '["ruleset main requires the check CI to merge into the default branch",["release (always)"],'\
+'{"mechanism":"row:controls/7"}]' ]
+  # the generic harness's own deny list kit cannot tell, so what passes it is unknown, null
+  [ "$(jq -c '.rows[] | select(.key == "generic deny list") | .passes' <<<"$output")" = null ]
+  run --separate-stderr "${kit_root}/bin/kit" audit enforcement --text
+  [ "$status" -eq 0 ]
+  in-order "$output" harness tier mechanism status evidence detail passes generic advisory AGENTS.md active
+}
+
+@test "a deny list that lacks an entry is missing, one kit cannot read is unknown, and a default not main passes" {
+  enforced-world
+  jq '.permissions.deny |= map(select(. != "Bash(git rebase *)"))' "${kit_root}/packages/agents/claude/files/repo/.claude/settings.json" \
+    > .claude/settings.json
+  printf '{"context": {"fileName": "AGENTS.md"}, "tools": {}}\n' > .gemini/settings.json
+  rm .github/instructions/kit-bash.instructions.md
+  printf '# AGENTS.md\n' > AGENTS.md
+  git update-ref refs/remotes/origin/trunk "$(git commit-tree "$(git mktree </dev/null)" -m one)"
+  git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/trunk
+  run --separate-stderr "${kit_root}/bin/kit" audit enforcement --json
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq -c '.rows[] | select(.key == "claude deny list") | [.status, .evidence, .detail]' <<<"$output")" \
+    = '["missing","probed",".claude/settings.json'"'"'s permissions.deny lacks 1 of the package'"'"'s entries: run kit'\
+' hydrate, and kit check names them"]' ]
+  # Gemini's context files may be one name; a deny list it lacks entirely is missing
+  [ "$(jq -c '[.rows[] | select(.harness == "gemini") | [.mechanism, .status]]' <<<"$output")" \
+    = '[[".gemini/settings.json","active"],["deny list","missing"]]' ]
+  [ "$(jq -c '.rows[] | select(.key == "copilot .github/instructions") | [.status, .detail]' <<<"$output")" \
+    = '["missing",".github/instructions/kit-bash.instructions.md is not here: run kit hydrate"]' ]
+  [ "$(jq -c '.rows[] | select(.key == "generic AGENTS.md") | .status' <<<"$output")" = '"missing"' ]
+  # the context hook still merged is still unknown; a default branch named trunk passes a list that names main
+  [ "$(jq -c '.rows[] | select(.key == "claude context hook") | .status' <<<"$output")" = '"unknown"' ]
+  printf '{"permissions": ' > .claude/settings.json
+  run --separate-stderr "${kit_root}/bin/kit" audit enforcement --json
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq -c '[.rows[] | select(.harness == "claude" and .tier == "best-effort") | [.status, .evidence, .passes]]' \
+    <<<"$output")" = '[["unknown","unverified",null],["unknown","unverified",null]]' ]
+  [ "$(jq -c '.rows[] | select(.key == "gemini deny list") | .passes' <<<"$output")" = '["everything it lacks"]' ]
+  cp "${kit_root}/packages/agents/gemini/files/repo/.gemini/settings.json" .gemini/
+  run --separate-stderr "${kit_root}/bin/kit" audit enforcement --json
+  [ "$(jq -c '.rows[] | select(.key == "gemini deny list") | .passes' <<<"$output")" \
+    = '["git -C <dir> commit","git merge","git checkout trunk","git switch trunk"]' ]
+}
+
+@test "the local floor is active where git runs lefthook here, unknown where lefthook is not on PATH, else missing" {
+  enforced-world
+  rm "${FAKE_DIR}/bin/lefthook"
+  path-without lefthook
+  run --separate-stderr "${kit_root}/bin/kit" audit enforcement --json
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq -c '.rows[] | select(.key == "repository pre-commit hook") | [.status, .evidence, .passes]' <<<"$output")" \
+    = '["unknown","unverified",null]' ]
+  rm .git/hooks/pre-commit
+  rm .kit/lefthook.yml
+  run --separate-stderr "${kit_root}/bin/kit" audit enforcement --json
+  [ "$(jq -c '[.rows[] | select(.tier == "local floor") | [.status, .detail]]' <<<"$output")" \
+    = '[["missing","git runs no lefthook before a commit in this clone: run lefthook install"],'\
+'["missing","lefthook.yml extends .kit/lefthook.yml, which is not here: run kit hydrate"]]' ]
+  printf '# lefthook.yml\n' > lefthook.yml
+  run --separate-stderr "${kit_root}/bin/kit" audit enforcement --json
+  [ "$(jq -c '.rows[] | select(.key == "repository lefthook.yml") | .detail' <<<"$output")" \
+    = '"lefthook.yml does not extend .kit/lefthook.yml: put extends: [.kit/lefthook.yml] in it"' ]
+  # a repository whose kit.yml has no hooks/lefthook nor github/ci runs neither, and no agent package draws no harness
+  printf 'version: unreleased\npackages: [kit]\n' > kit.yml
+  run --separate-stderr "${kit_root}/bin/kit" audit enforcement --json
+  [ "$(jq -c '[.rows[] | [.harness, .mechanism, .status]]' <<<"$output")" \
+    = '[["repository","pre-commit hook","missing"],["repository","lefthook.yml","missing"],'\
+'["repository","kit'"'"'s CI job","missing"],["repository","required check CI","active"],'\
+'["repository","required review","active"]]' ]
+  # the mark moves with the files the local rows read, and with no forge read
+  first=$("${kit_root}/bin/kit" audit --marks | jq -r .enforcement)
+  [ -n "${first}" ] && [ "${first}" != null ]
+  printf '#!/bin/sh\nlefthook run pre-commit\n' > .git/hooks/pre-commit
+  [ "$("${kit_root}/bin/kit" audit --marks | jq -r .enforcement)" != "${first}" ]
+}
+
+@test "a control that only evaluates binds nothing, one whose checks the forge hides is unknown, and so is a refusal" {
+  enforced-world
+  jq '.data.repository.rulesets.nodes[0].enforcement = "EVALUATE"' "${FAKE_DIR}/rulesets-ci.json" \
+    | fixture rulesets-evaluate.json
+  route gh 'api graphql*rulesets(first: 100*' rulesets-evaluate.json
+  sed -i.bak '/rulesets-ci.json/d' "${FAKE_DIR}/gh.routes"
+  run --separate-stderr "${kit_root}/bin/kit" audit enforcement --json
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq -c '.rows[] | select(.key == "repository required check CI") | [.status, .evidence, .detail, .passes]' \
+    <<<"$output")" = '["missing","probed","no active control on the default branch requires the check CI; ruleset'\
+' main only evaluates it, which binds nothing",["every merge"]]' ]
+  # the ruleset's parameters unshown leave what it requires unknown, never missing
+  jq '.data.repository.rulesets.nodes[0].rules.nodes |= map(.parameters = null)' "${FAKE_DIR}/rulesets-ci.json" \
+    | fixture rulesets-evaluate.json
+  run --separate-stderr "${kit_root}/bin/kit" audit enforcement --json
+  [ "$(jq -c '[.rows[] | select(.tier == "authoritative" and .key != "repository kit'"'"'s CI job")'\
+' | [.status, .evidence, .links]]' <<<"$output")" \
+    = '[["unknown","unverified",{"mechanism":"row:controls/7"}],["unknown","unverified",{"mechanism":"row:controls/7"}]]' ]
+  # a forge that refuses the read leaves both unknown, its line under errors, and the rest drawn, exit 1
+  fixture refused.txt <<<'gh: Resource not accessible by integration (HTTP 403)'
+  printf 'api graphql*rulesets(first: 100*\t!1 refused.txt\n' > "${FAKE_DIR}/gh.routes.new"
+  cat "${FAKE_DIR}/gh.routes" >> "${FAKE_DIR}/gh.routes.new"
+  mv "${FAKE_DIR}/gh.routes.new" "${FAKE_DIR}/gh.routes"
+  run --separate-stderr "${kit_root}/bin/kit" audit enforcement --json
+  [ "$status" -eq 1 ]
+  [ "$(jq -c '[.rows[] | select(.key | startswith("repository required")) | [.status, .passes]]' <<<"$output")" \
+    = '[["unknown",null],["unknown",null]]' ]
+  [ "$(jq -c '[.errors[].feature]' <<<"$output")" = '["rulesets"]' ]
+  [ "$(jq -c '.rows | length' <<<"$output")" -eq 16 ]
+}
+
+@test "over GitLab, whose protected branches leave a merge's checks to the project, the required rows are unknown" {
+  github-world
+  git remote set-url origin https://gitlab.com/o/r.git
+  fake-tools glab
+  fixture gl-protected.json <<<'[{"id": 11, "name": "main", "push_access_levels": [], "merge_access_levels": []}]'
+  fixture gl-push.json <<<'null'
+  route glab 'api user' user.json
+  route glab 'api projects/o%2Fr/protected_branches?per_page=100 --paginate' gl-protected.json
+  route glab 'api projects/o%2Fr/push_rule' gl-push.json
+  run --separate-stderr "${kit_root}/bin/kit" audit enforcement --json
+  [ "$(jq -c '[.rows[] | select(.key | startswith("repository required")) | [.status, .detail]]' <<<"$output")" \
+    = '[["unknown","the forge does not show whether protection main requires the check CI"],'\
+'["unknown","the forge does not show whether protection main requires an approving review"]]' ] \
+    || { echo "${output} ${stderr}"; cat "${FAKE_DIR}/glab.calls"; return 1; }
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

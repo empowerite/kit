@@ -164,9 +164,12 @@
 #   dependabot-alerts             the same, one per Dependabot alert, a dependency scanner's (since 4)
 #   secret-scanning-alerts        the same, one per secret scanning alert (since 4)
 #   rulesets                      one JSON object per control on the default branch: {id, control, target, enforcement,
-#                                 rules, source, url}; id unique among them, target the refs it names, enforcement
-#                                 active, evaluate, or disabled, rules its kinds of rule, sorted, or null where the
-#                                 forge does not show them, source ruleset or protection (since 4)
+#                                 rules, checks, reviews, source, url}; id unique among them, target the refs it
+#                                 names, enforcement active, evaluate, or disabled, rules its kinds of rule, sorted;
+#                                 checks the status checks a merge needs, by name, sorted, none for none; reviews the
+#                                 approving reviews it needs, 0 for none; each of the three null where the forge does
+#                                 not show it, and a document without checks or reviews is read as null for them;
+#                                 source ruleset or protection (since 4)
 #   bypasses                      one JSON object per bypass of a control rulesets prints: {waives, actor, kind,
 #                                 reason, by, until, hidden, url}; waives the control's id; actor who may bypass; kind
 #                                 bypass; reason the bypass's mode; by who granted it, and until when it ends, each

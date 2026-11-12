@@ -196,7 +196,7 @@ case "${1:-}" in
         (changes) printf 'reviews\nchecks\nmerged\n' ;;
         (delivery) printf 'artifacts\nenvironments\ndeployments\n' ;;
         (people) printf 'people\nteams\nagents\n' ;;
-        (audit) printf 'evidence\nfindings\ncontrols\nwaivers\npolicy\n' ;;
+        (audit) printf 'evidence\nfindings\ncontrols\nwaivers\npolicy\nenforcement\n' ;;
         (platform) printf 'services\ntoolchains\ntools\nsettings\n' ;;
       esac
     elif [[ "${1:-}" == --* ]]

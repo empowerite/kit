@@ -49,7 +49,7 @@ one kit command with `--json`, the entry of that stage in `internal/flow/fields.
 | Repositories | `kit workspace` | repos, worktrees, branches, commits, tags, remotes: `kit workspace <tab>`; incoming: `kit flow` |
 | Delivery | `kit delivery` | releases and builds, `kit flow`'s; artifacts, environments, deployments, `kit delivery <tab>` |
 | People | `kit people` | people, teams, and agents, `kit people <tab>` |
-| Trust | `kit audit` | evidence, findings, controls, waivers, and policy, `kit audit <tab>` |
+| Trust | `kit audit` | evidence, findings, controls, waivers, policy, and enforcement, `kit audit <tab>` |
 | Platform | `kit platform` | services, toolchains, tools, and settings, `kit platform <tab>` |
 | Packages | `kit packages` | packages, `kit packages packages` |
 

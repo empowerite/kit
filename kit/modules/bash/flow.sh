@@ -132,6 +132,7 @@ declare -gA flow_glyphs=(
   [Control]='🔒'
   [Waiver]='🔓'
   [Policy]='📏'
+  [Enforcement]='🔐'
   [Service]='🔌'
   [Toolchain]='🧰'
   [Usable]='✅'

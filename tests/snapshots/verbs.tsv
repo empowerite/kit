@@ -1,5 +1,5 @@
 assign	assigns issues to the caller, or to someone else	workflow
-audit	lists the forge's attestations, alerts, controls, and waivers, and the policy's rules	workflow
+audit	lists the forge's attestations, alerts, controls, waivers, the policy, and what binds	workflow
 bots	lists, adopts, and forgets the bots that act for you	workflow
 changes	lists each open change's reviews and checks, and the changes merged last	workflow
 check	fails when a delivered file differs from the pinned release	checks

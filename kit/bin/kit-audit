@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# kit-audit - lists the forge's attestations, alerts, controls, and waivers, and the policy's rules (kit verb: workflow)
+# kit-audit - lists the forge's attestations, alerts, controls, waivers, the policy, and what binds (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
 # Usage:
 #   kit audit [--text | --json | --jq]
@@ -10,11 +10,12 @@
 #   kit audit controls [--text | --json | --jq]
 #   kit audit waivers [--text | --json | --jq]
 #   kit audit policy [--text | --json | --jq]
+#   kit audit enforcement [--text | --json | --jq]
 #
-# Draws what the forge and the policy say of what the repository can be trusted for, a stage for each of Trust's tabs
-# in kittui. It changes nothing. The stages, in order:
+# Draws what the forge and the policy say of what the repository can be trusted for, and what holds an agent to the
+# rules, a stage for each of Trust's tabs in kittui. It changes nothing. The stages, in order:
 #
-#   evidence → findings → controls → waivers → policy
+#   evidence → findings → controls → waivers → policy → enforcement
 #
 # kit --workspace=<workspace> audit, the kit option before the verb, draws each stage across a workspace's members
 # with checkouts, as kit workspace does: a group's name, or a repository's host and path, as kit workspaces names it;
@@ -70,6 +71,20 @@
 #                       the narrowest place that holds them, scope naming it: branch, repository, organization, source,
 #                       or workspace, the finer fields null; a place the clone has none of, as the organization of
 #                       one with no remote, is ""
+#   enforcement         {harness, tier, mechanism, status, evidence, detail, passes}, keyed by the harness and the
+#                       mechanism: a row per mechanism that holds an agent to the rules, for each harness whose agent
+#                       package is active, generic standing for any agent that reads AGENTS.md, then claude, copilot,
+#                       cursor, and gemini, and for the repository. tier is advisory, the instructions an agent reads;
+#                       best-effort, a harness's deny list or hook, which fails open; local floor, the pre-commit
+#                       hook in this clone; or authoritative, kit's CI job, and a control on the default branch that
+#                       requires its check, CI, and an approving review, read as controls reads them. status is
+#                       active, missing, or unknown, never a guess: a deny list or a hook merely registered is unknown,
+#                       as kit cannot probe that a harness runs it, and a forge kit cannot read, or a control whose
+#                       checks it hides, leaves the authoritative rows unknown. evidence is probed, where kit read what
+#                       decides it; documented, where it rests on what the harness or the forge documents; or
+#                       unverified. passes names what gets past it, as git -C, git merge, git commit --no-verify, or
+#                       who may bypass the controls, null where kit cannot tell. A required row links to the control
+#                       it rests on. A forge read that fails is {feature, error} under errors, its rows unknown
 #
 # Legend
 #
@@ -103,6 +118,11 @@
 #   📏  policy rule: a rule kit policy holds the files to
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
+# enforcement:
+#
+#   🔐  enforcement: a mechanism that holds an agent to the rules, its tier, and whether it binds
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
 # kit:end legend
 #
 # Arguments:
@@ -113,13 +133,15 @@
 #   --stages            prints the stages, one per line, in order, the same over any workspace
 #   --marks             prints a mark per stage, as one JSON object: evidence's moves with the forge's runs and
 #                       releases, findings' with its runs and alerts, each scanner's off or refused where it is,
-#                       policy's with kit.yml and .kit/policy; controls and waivers have none, null, as each is read
-#                       again only on Refresh, kittui offering no Watch for them
+#                       policy's with kit.yml and .kit/policy, enforcement's with the files its local rows read;
+#                       controls and waivers have none, null, as each is read again only on Refresh, kittui offering
+#                       no Watch for them
 #   evidence            the attestations of the 5 newest releases' assets and the 20 newest artifacts
 #   findings            the code scanning, Dependabot, and secret scanning alerts, open and dismissed
 #   controls            the rulesets and the protection that guard the default branch
 #   waivers             who may bypass each control, and each alert dismissed
 #   policy              each rule kit policy judges by, as kit policy --rules lists them
+#   enforcement         what binds an agent and what is advice, per harness and for the repository, in four tiers
 #
 # Exits 0 when the stages are drawn, 1 when a stage could not be read, after what was, and 2 on a usage error, or
 # outside a repository's working tree with no workspace.

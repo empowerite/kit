@@ -1,6 +1,6 @@
 {
   "verb": "audit",
-  "purpose": "lists the forge's attestations, alerts, controls, and waivers, and the policy's rules",
+  "purpose": "lists the forge's attestations, alerts, controls, waivers, the policy, and what binds",
   "usage": [
     "kit audit [--text | --json | --jq]",
     "kit audit --stages",
@@ -9,7 +9,8 @@
     "kit audit findings [--text | --json | --jq]",
     "kit audit controls [--text | --json | --jq]",
     "kit audit waivers [--text | --json | --jq]",
-    "kit audit policy [--text | --json | --jq]"
+    "kit audit policy [--text | --json | --jq]",
+    "kit audit enforcement [--text | --json | --jq]"
   ],
   "syntax": [
     [
@@ -230,6 +231,41 @@
         ],
         "repeat": false
       }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "enforcement",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
     ]
   ],
   "arguments": {
@@ -246,7 +282,7 @@
       "description": "prints the stages, one per line, in order, the same over any workspace"
     },
     "--marks": {
-      "description": "prints a mark per stage, as one JSON object: evidence's moves with the forge's runs and releases, findings' with its runs and alerts, each scanner's off or refused where it is, policy's with kit.yml and .kit/policy; controls and waivers have none, null, as each is read again only on Refresh, kittui offering no Watch for them"
+      "description": "prints a mark per stage, as one JSON object: evidence's moves with the forge's runs and releases, findings' with its runs and alerts, each scanner's off or refused where it is, policy's with kit.yml and .kit/policy, enforcement's with the files its local rows read; controls and waivers have none, null, as each is read again only on Refresh, kittui offering no Watch for them"
     },
     "evidence": {
       "description": "the attestations of the 5 newest releases' assets and the 20 newest artifacts"
@@ -262,6 +298,9 @@
     },
     "policy": {
       "description": "each rule kit policy judges by, as kit policy --rules lists them"
+    },
+    "enforcement": {
+      "description": "what binds an agent and what is advice, per harness and for the repository, in four tiers"
     }
   }
 }
