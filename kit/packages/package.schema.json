@@ -47,6 +47,25 @@
         }
       }
     },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The policy rules the package sets, with the same keys as kit.yml's policy: each a pattern, or a map of a pattern and the remedy a refusal names. The kit package's are the kit's defaults; kit.yml's policy wins over them.",
+      "properties": {
+        "branch": {
+          "$ref": "#/$defs/rule"
+        },
+        "worktree": {
+          "$ref": "#/$defs/rule"
+        },
+        "commit_subject": {
+          "$ref": "#/$defs/rule"
+        },
+        "change_title": {
+          "$ref": "#/$defs/rule"
+        }
+      }
+    },
     "expects": {
       "type": "array",
       "description": "Lines the package expects in files the repository owns, such as the line that includes a delivered file (extends: [.kit/lefthook.yml]). kit check reports each missing line with its remedy. The kit never writes these lines.",
@@ -100,6 +119,29 @@
           }
         }
       }
+    }
+  },
+  "$defs": {
+    "rule": {
+      "description": "A policy rule: its pattern, an extended regular expression in the subset RE2 also reads, empty to turn the rule off, or a map of the pattern and the remedy a refusal names after it.",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "pattern": {
+              "type": "string"
+            },
+            "remedy": {
+              "type": "string"
+            }
+          }
+        }
+      ]
     }
   }
 }

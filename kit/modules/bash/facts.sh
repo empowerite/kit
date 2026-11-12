@@ -7,6 +7,9 @@
 #   - `moment`: commit or ci, the point the facts are judged at
 #   - `branch` and `default_branch`; the branch is null on the default branch or a detached HEAD, and is a change's
 #     head branch on a CI runner, whatever its name (policy:branch-past)
+#   - `worktree`: at ci, on a branch, the linked worktree's path from the main checkout's root, as
+#     worktrees/7-fix-the-thing, or its absolute path where it lies outside that root (policy:worktree); null in the
+#     main checkout, as on a CI runner, with no branch, and at commit
 #   - `commits`: at ci, those past the fork from the branch's base, merges excluded: the primary remote's default
 #     branch, or on a runner the base the change's event names (policy:base-name), the same base whose policy judges
 #     them; or null when the fork is not here, as in a shallow clone; at commit, the one commit
@@ -14,7 +17,8 @@
 #     forge or the forge answered that there is no open change; {"error": "<line>"}, the provider's line, where a read
 #     of the forge failed; at commit, always null
 #   - `tree`: at ci, HEAD; at commit, the tree the commit will make
-#   - `policy`: the policy settings, with the kit's defaults filled in
+#   - `policy`: the policy settings, with the kit's defaults filled in: each rule's pattern, and under `remedy`, each
+#     rule's remedy (policy:rules)
 #
 # A fact a moment cannot know is null, so a rule over a change's title never fires at commit. A change that could not
 # be read is never null: kit policy refuses a document whose change holds an error.
@@ -65,7 +69,7 @@ facts:choices() {
 # it; commits is empty and change is null, so the caller fills in the commit it makes. It returns 1 when a fact cannot
 # be read, the base's name among them.
 facts:document() {
-  local moment=$1 treeish=${2:-HEAD} default_branch branch base commits='[]' change='null' rules
+  local moment=$1 treeish=${2:-HEAD} default_branch branch base commits='[]' change='null' rules worktree=''
   local moments
   if ! list:among "${moment}" "${facts_moments[@]}"
   then
@@ -78,6 +82,7 @@ facts:document() {
   branch=$(policy:branch-past) || return 1
   if [[ "${moment}" == ci && -n "${branch}" ]]
   then
+    worktree=$(policy:worktree)
     base=$(policy:base-name) || return 1
     if git rev-parse --verify --quiet "${base}^{commit}" >/dev/null && git merge-base "${base}" HEAD >/dev/null 2>&1
     then
@@ -100,9 +105,11 @@ facts:document() {
   # caller may not set pipefail.
   facts:document-tree "${moment}" "${treeish}" \
     | jq --arg moment "${moment}" --arg branch "${branch}" --arg default_branch "${default_branch}" \
-      --argjson commits "${commits}" --argjson change "${change}" --argjson policy "${rules}" \
+      --arg worktree "${worktree}" --argjson commits "${commits}" --argjson change "${change}" \
+      --argjson policy "${rules}" \
       '{moment: $moment, branch: (if $branch == "" then null else $branch end), default_branch: $default_branch,
-        commits: $commits, change: $change, tree: ., policy: $policy}'
+        worktree: (if $worktree == "" then null else $worktree end), commits: $commits, change: $change, tree: .,
+        policy: $policy}'
   local -a statuses=("${PIPESTATUS[@]}")
   (( statuses[0] == 0 && statuses[1] == 0 ))
 }

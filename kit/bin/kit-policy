@@ -8,11 +8,14 @@
 # these facts once:
 #
 #   - the branch name
+#   - the worktree's path under the main checkout, as worktrees/7-fix-the-thing, in a worktree
 #   - the subject of each commit since the branch forked from the default branch
 #   - the open pull request's title
 #   - the tree of files at HEAD
 #
-# The policy engine then reports every refusal and every warning. A warning is printed and never fails. The engine
+# Each rule is a pattern, with a remedy that a refusal names after it. The kit's defaults are the kit package's
+# policy, the workflow's names; kit.yml's policy: map sets a rule of its own. The policy engine then reports every
+# refusal and every warning. A warning is printed and never fails. The engine
 # is patterns (the default) or Open Policy Agent. kit policy first refuses facts it cannot judge: a branch whose
 # commits are null, as the fork is not here, and a change that holds an error, as the forge could not answer for it.
 # The refusal comes before either engine runs, and a document given with --facts is refused the same way.
@@ -182,8 +185,9 @@ then
   summary "✅ The policy allows the tree at HEAD; no branch or commit is judged${with}."
   exit 0
 fi
-subjects=$(jq --raw-output '["the branch", "\(.commits | length) commit(s)",
-  if .change then "the change title" else empty end, "the tree"] | join(", ")' "${input}")
+subjects=$(jq --raw-output '["the branch", if .worktree then "the worktree" else empty end,
+  "\(.commits | length) commit(s)", if .change then "the change title" else empty end, "the tree"] | join(", ")' \
+  "${input}")
 ok "the ${engine} policy allows ${subjects}${with}"
 summary "✅ The policy allows ${subjects}${with}."
 

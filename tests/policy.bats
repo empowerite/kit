@@ -52,7 +52,10 @@ change() {
   [ "${subjects}" = "AB#4521 docs: say so|#7 cli: fix the thing" ]
   [ "$(jq --raw-output .change.title <<<"$output")" = "Fix the thing" ]
   [ "$(jq --raw-output .change.author <<<"$output")" = "ada" ]
-  [ "$(jq --raw-output '.policy | keys | join(" ")' <<<"$output")" = "branch change_title commit_subject" ]
+  [ "$(jq --raw-output '.policy | keys | join(" ")' <<<"$output")" = "branch change_title commit_subject remedy worktree" ]
+  [ "$(jq --raw-output '.policy.remedy | keys | join(" ")' <<<"$output")" = "branch change_title commit_subject worktree" ]
+  # the desk is the main checkout, so no worktree is judged
+  [ "$(jq --compact-output .worktree <<<"$output")" = null ]
   run "${kit_root}/bin/kit" policy
   [ "$status" -eq 0 ]
   [[ "$output" == *"the patterns policy allows the branch, 2 commit(s), the change title"* ]]
@@ -154,6 +157,59 @@ change() {
   [[ "$output" == *"'wip' does not match policy.commit_subject"* ]]
   [[ "$output" == *"change title '' does not match policy.change_title"* ]]
   [[ "$output" == *"3 refusal(s) by the patterns policy"* ]]
+}
+
+@test "the defaults are the kit package's policy, and each refusal names its rule's remedy" {
+  [ "$(yq '.policy.branch.pattern' "${kit_root}/packages/kit/package.yml")" \
+    = "$("${kit_root}/bin/kit" policy --rules --json | jq --raw-output 'select(.rule == "branch") | .pattern')" ]
+  branch topic "wip"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"branch 'topic' does not match policy.branch: "*" (start the work with kit work <issue>, "* ]]
+  [[ "$output" == *"'wip' does not match policy.commit_subject: "*" (start the subject with its issue reference"* ]]
+}
+
+@test "a rule in kit.yml is a pattern or a map of pattern and remedy; a pattern alone drops the default's remedy" {
+  branch topic "wip"
+  printf "policy:\n  branch:\n    pattern: '^feature/'\n    remedy: name it feature/<slug>\n  commit_subject: '^#'\n" \
+    > kit.yml
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"branch 'topic' does not match policy.branch: ^feature/ (name it feature/<slug>)"* ]]
+  [[ "$output" == *"'wip' does not match policy.commit_subject: ^#"$'\n'* ]]
+  # a remedy alone keeps the default pattern
+  printf "policy:\n  branch:\n    remedy: ask first\n" > kit.yml
+  run "${kit_root}/bin/kit" policy
+  [[ "$output" == *"branch 'topic' does not match policy.branch: ^[a-z0-9]+-[a-z0-9][a-z0-9-]*\$ (ask first)"* ]]
+  [ "$("${kit_root}/bin/kit" policy --rules --json | jq --raw-output 'select(.rule == "branch") | .from')" = default ]
+  printf "policy:\n  branch:\n    patern: x\n" > kit.yml
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"kit.yml: policy.branch must be a pattern, or a map of pattern and remedy"* ]]
+  printf "policy:\n  branch: '(unclosed'\n" > kit.yml
+  run "${kit_root}/bin/kit" policy --rules
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"kit.yml: policy.branch is no extended regular expression: (unclosed"* ]]
+}
+
+@test "in a linked worktree, its path from the main checkout is judged by policy.worktree" {
+  git branch 7-fix-the-thing
+  git worktree add --quiet worktrees/7-fix-the-thing 7-fix-the-thing
+  (cd worktrees/7-fix-the-thing && git commit --quiet --allow-empty --message "#7 cli: fix the thing")
+  git worktree add --quiet -b 8-elsewhere "${BATS_TEST_TMPDIR}/elsewhere"
+  (cd "${BATS_TEST_TMPDIR}/elsewhere" && git commit --quiet --allow-empty --message "#8 cli: elsewhere")
+  cd worktrees/7-fix-the-thing
+  [ "$("${kit_root}/bin/kit" policy --input | jq --raw-output .worktree)" = worktrees/7-fix-the-thing ]
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"the patterns policy allows the branch, the worktree, 1 commit(s), the tree"* ]]
+  cd "${BATS_TEST_TMPDIR}/elsewhere"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"worktree '$(cd "${BATS_TEST_TMPDIR}/elsewhere" && pwd -P)' does not match policy.worktree: "* ]]
+  [[ "$output" == *"(start the work with kit work <issue>, which checks the branch out in worktrees/<branch>)"* ]]
+  # at commit, no worktree is judged
+  [ "$("${kit_root}/bin/kit" facts --moment=commit | jq --compact-output .worktree)" = null ]
 }
 
 @test "a repository's patterns replace the defaults, an empty one turns a rule off, and an unknown subject is refused" {
@@ -816,6 +872,26 @@ REGO
   [ "${by_opa}" = "${by_patterns}" ]
 }
 
+@test "both engines refuse a worktree, and name a rule's remedy or none, in the same words" {
+  command -v opa >/dev/null || skip "opa, the opa policy engine, is not on PATH"
+  "${kit_root}/bin/kit" install policy/opa >/dev/null 2>&1
+  branch 7-fix-the-thing "#7 cli: fine"
+  printf "policy:\n  branch: '^x'\n" > kit.yml
+  "${kit_root}/bin/kit" policy --input | jq '.worktree = "/tmp/stray" | .commits[0].subject = "wip"' > facts.json
+  run "${kit_root}/bin/kit" policy --facts=facts.json
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"by the opa policy"* ]]
+  by_opa=$(grep '^❌ ' <<<"$output" | grep --invert-match 'refusal(s)' | LC_ALL=C sort)
+  printf "policy:\n  branch: '^x'\npolicy_engine: patterns\n" > kit.yml
+  run "${kit_root}/bin/kit" policy --facts=facts.json
+  [ "$status" -eq 1 ]
+  by_patterns=$(grep '^❌ ' <<<"$output" | grep --invert-match 'refusal(s)' | LC_ALL=C sort)
+  [ "$(wc -l <<<"${by_opa}")" -eq 3 ]
+  [ "${by_opa}" = "${by_patterns}" ]
+  [[ "${by_opa}" == *"branch '7-fix-the-thing' does not match policy.branch: ^x"$'\n'* ]]
+  [[ "${by_opa}" == *"worktree '/tmp/stray' does not match policy.worktree: "*" (start the work with kit work"* ]]
+}
+
 @test "a rule of the repository's own in Rego adds to the kit's, and a policy engine the kit does not know is refused" {
   command -v opa >/dev/null || skip "opa, the opa policy engine, is not on PATH"
   "${kit_root}/bin/kit" install policy/opa >/dev/null 2>&1
@@ -942,9 +1018,10 @@ REGO
 @test "kit policy --rules --json lists each rule, its pattern, where it is set, and the engine" {
   printf "policy:\n  branch: '^feature/[a-z-]+\$'\n  change_title: ''\n" > kit.yml
   run "${kit_root}/bin/kit" policy --rules --json
-  [[ "$status" -eq 0 && "${#lines[@]}" -eq 3 && "$(jq --raw-output .from <<<"${lines[1]}")" == default ]]
+  [[ "$status" -eq 0 && "${#lines[@]}" -eq 4 && "$(jq --raw-output .from <<<"${lines[2]}")" == default ]]
   [ "${lines[0]}" = '{"rule":"branch","pattern":"^feature/[a-z-]+$","from":"kit.yml","engine":"patterns"}' ]
-  [ "${lines[2]}" = '{"rule":"change_title","pattern":"","from":"kit.yml","engine":"patterns"}' ]
+  [ "$(jq --raw-output .rule <<<"${lines[1]}")" = worktree ]
+  [ "${lines[3]}" = '{"rule":"change_title","pattern":"","from":"kit.yml","engine":"patterns"}' ]
 }
 
 @test "kit policy --rules on a branch past the default lists the base's rules, not the branch's own" {
@@ -958,15 +1035,17 @@ REGO
   [ "${lines[0]}" = '{"rule":"branch","pattern":"^base-[a-z]+$","from":"kit.yml","engine":"patterns"}' ]
 }
 
-@test "kit policy --rules prints a table of the three rules, (off) for an empty pattern, and --jq formats the JSON" {
+@test "kit policy --rules prints a table of the four rules, (off) for an empty pattern, and --jq formats the JSON" {
   printf "policy:\n  change_title: ''\n" > kit.yml
   run "${kit_root}/bin/kit" policy --rules
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == *rule*from*engine*pattern* && "${#lines[@]}" -eq 4 ]]
+  [[ "${lines[0]}" == *rule*from*engine*pattern* && "${#lines[@]}" -eq 5 ]]
   [[ "${lines[1]}" == branch*default*patterns*'^[a-z0-9]+-[a-z0-9][a-z0-9-]*$' ]]
-  [[ "${lines[3]}" == change_title*kit.yml*patterns*'(off)' ]]
+  [[ "${lines[2]}" == worktree*default*patterns*'^worktrees/[a-z0-9]+-[a-z0-9][a-z0-9-]*$' ]]
+  [[ "${lines[4]}" == change_title*kit.yml*patterns*'(off)' ]]
   run "${kit_root}/bin/kit" policy --rules --jq
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = '{' ]
-  [ "$(jq --slurp --raw-output '[.[].rule] | join(",")' <<<"${output}")" = branch,commit_subject,change_title ]
+  [ "$(jq --slurp --raw-output '[.[].rule] | join(",")' <<<"${output}")" \
+    = branch,worktree,commit_subject,change_title ]
 }

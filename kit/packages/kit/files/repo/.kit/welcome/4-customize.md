@@ -16,8 +16,8 @@ shows it.
 
 ## Policy
 
-`policy:` in `kit.yml` sets the patterns that branch names, commit subjects, and pull request titles must match.
-`kit commit` and CI both hold names to it.
+`policy:` in `kit.yml` sets the patterns that branch names, worktrees, commit subjects, and pull request titles must
+match, each with a remedy a refusal names. `kit work` makes names that pass, and `kit commit` and CI hold names to it.
 
 → [kit.yml](kit.yml) · [docs/policy.md](https://github.com/empowerite/kit/blob/main/docs/policy.md)
 

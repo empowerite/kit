@@ -409,19 +409,23 @@
     "policy": {
       "type": "object",
       "additionalProperties": false,
-      "description": "The patterns that the branch name, commit subjects, and the open change's title must match. Each is an extended regular expression, limited to the subset RE2 also supports. An absent key uses the kit's default. An empty pattern turns that rule off.",
+      "description": "The rules that the branch name, the worktree's path, commit subjects, and the open change's title must meet. Each is a pattern, an extended regular expression limited to the subset RE2 also supports, or a map of a pattern and its remedy, which a refusal names. An absent key takes the kit's default, the kit package's policy. An empty pattern turns that rule off. A pattern set without a remedy has none; a remedy set alone keeps the default pattern.",
       "properties": {
         "branch": {
-          "type": "string",
-          "description": "The pattern for the branch name. Default: ^[a-z0-9]+-[a-z0-9][a-z0-9-]*$, the shape kit work gives a branch."
+          "$ref": "#/$defs/rule",
+          "description": "The rule for the branch name. Default: ^[a-z0-9]+-[a-z0-9][a-z0-9-]*$, the shape kit work gives a branch."
+        },
+        "worktree": {
+          "$ref": "#/$defs/rule",
+          "description": "The rule for a worktree's path from the main checkout's root, judged where kit policy runs in a linked worktree. Default: ^worktrees/[a-z0-9]+-[a-z0-9][a-z0-9-]*$, where kit work checks a branch out."
         },
         "commit_subject": {
-          "type": "string",
-          "description": "The pattern for the subject of every commit since the branch forked. Default: ^([A-Z]+)?#[0-9]+ [^ ], a subject that starts with its issue's reference."
+          "$ref": "#/$defs/rule",
+          "description": "The rule for the subject of every commit since the branch forked. Default: ^([A-Z]+)?#[0-9]+ [^ ], a subject that starts with its issue's reference."
         },
         "change_title": {
-          "type": "string",
-          "description": "The pattern for the open change's title, a pull request on GitHub or a merge request on GitLab. Default: ^[^[:cntrl:]]{1,120}$."
+          "$ref": "#/$defs/rule",
+          "description": "The rule for the open change's title, a pull request on GitHub or a merge request on GitLab. Default: ^[^[:cntrl:]]{1,120}$."
         }
       }
     },
@@ -585,6 +589,31 @@
           }
         }
       }
+    }
+  },
+  "$defs": {
+    "rule": {
+      "description": "A policy rule: its pattern, or a map of the pattern and the remedy a refusal names after it.",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "pattern": {
+              "type": "string",
+              "description": "The extended regular expression the name must match; empty turns the rule off."
+            },
+            "remedy": {
+              "type": "string",
+              "description": "What to do instead, printed in parentheses after a refusal."
+            }
+          }
+        }
+      ]
     }
   }
 }

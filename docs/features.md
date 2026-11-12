@@ -36,7 +36,7 @@ request: before one exists, `kit linked` fails, and the other three run without 
 | `kit gate` | the repository's gate fails, or it has none |
 | `kit check` | a delivered file differs from the release, or a generated region differs from its command's output |
 | `kit linked` | the pull request is not linked to an open issue |
-| `kit policy` | a branch name, commit subject, pull request title, or file in the tree breaks the policy |
+| `kit policy` | a branch name, worktree, commit subject, pull request title, or file in the tree breaks the policy |
 
 `kit lint` runs each rule's linter over the staged files, or any files, before a commit or at any time. It does not
 need a hook manager; the `hooks/lefthook` package runs it from lefthook.

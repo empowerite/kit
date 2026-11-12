@@ -98,6 +98,7 @@ answers:
 | `answers` | The default value of each template key. A repository overrides one under `answers:` in `kit.yml`. |
 | `expects` | Lines the package expects in files the repository owns, each a `path`, a `pattern`, and a `remedy`; see below. |
 | `notices` | What happens next, told when the kit places a path afresh or merges a new entry into it, each a `path` and a `text`; see below. |
+| `policy` | Policy rules, with the keys of `kit.yml`'s `policy:`: each a pattern, or a map of a `pattern` and a `remedy`. The kit package's are the kit's defaults; see [policy.md](policy.md#the-rules). |
 
 [package.schema.json](../kit/packages/package.schema.json) is the schema, in JSON Schema 2020-12. This repository's gate
 (its own CI command) validates every `package.yml` against it with `ajv`. Without a validator, `kit install` applies
@@ -107,6 +108,8 @@ the same contract and refuses, naming the problem:
 - a missing `description`
 - a `default` that is not `true` or `false`
 - a dependency, or a member, the release does not have
+- a `policy:` map with a subject the kit does not know, or a rule that is neither a pattern nor a map of `pattern`
+  and `remedy`
 
 ## Delivery
 

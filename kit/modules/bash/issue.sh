@@ -17,7 +17,8 @@
 # issue:start never switches the checkout it runs from. It checks the branch out in worktrees/<key>-<slug> under
 # the main checkout, and hydrates it: what the kit delivers under .kit/ is in place before the first command runs
 # there. The key is the reference as it starts a branch name: 7 or ab4521. An existing branch, worktree, or pull
-# request is reused, so running it again fills in whatever is missing.
+# request is reused, so running it again fills in whatever is missing. The names it makes are held to the policy in
+# kit.yml first: a branch or a worktree the policy refuses is never made, and the refusal names the rule's pattern.
 #
 # Given --title <title> instead of a reference, it creates the issue first; it never asks. Given --title and
 # references, it gathers the references under a new parent issue with that title, as issue:gather does, and starts the
@@ -41,7 +42,7 @@
 # Every forge call goes through modules/bash/forge.sh, and every issue call through modules/bash/tracker.sh. Each helper below
 # prints its one result on stdout and its messages on stderr, so issue:start can capture the results in order.
 
-use git forge tracker settings yaml file
+use git forge tracker settings yaml file policy
 
 # issue_swept is the hash of the stash issue:start swept the desk's work into, from the push until the stash is
 # applied in the worktree; empty, nothing swept is waiting. issue:sweep-restore reads it at exit.
@@ -356,9 +357,13 @@ issue:settle() {
 # When neither exists, it creates the branch:
 #
 #   - for an issue in the forge's tracker, the forge creates a branch linked to the issue, where it has linked branches
-#   - for any other issue, kit pushes <key>-<slug of the title> to origin from the default branch
+#   - for any other issue, kit pushes <key>-<slug of the title> to origin from the default branch; a title with no
+#     letter or digit for the slug gives <key>-issue
+#
+# A branch kit names is held to policy.branch first (policy:refusal): one the rule refuses is never made, and the
+# refusal, naming the pattern, returns 1.
 issue:branch() {
-  local ref=$1 default_branch=$2 title=$3 key branch slug
+  local ref=$1 default_branch=$2 title=$3 key branch slug refusal
   key=$(tracker:key "${ref}") || return 2
   branch=$(forge:branch-for-issue "${key}") || return 1
   [[ -n "${branch}" ]] \
@@ -378,7 +383,14 @@ issue:branch() {
   elif [[ -z "${branch}" ]]
   then
     slug=$(tr '[:upper:]' '[:lower:]' <<<"${title}" | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//' | cut -c 1-60)
-    branch="${key}-${slug%-}"
+    slug=${slug%-}
+    branch="${key}-${slug:-issue}"
+    if ! refusal=$(policy:refusal branch "${branch}")
+    then
+      [[ -z "${refusal}" ]] || error "refusing to start ${ref}: the branch kit work names, ${refusal}; set" \
+        "policy.branch in kit.yml to allow <key>-<slug>, as kit work names a branch"
+      return 1
+    fi
     step "Making ${branch} for ${ref} from ${default_branch}"
     git push --quiet origin "refs/remotes/origin/${default_branch}:refs/heads/${branch}" || return 1
     git fetch --quiet origin
@@ -412,6 +424,38 @@ issue:worktree() {
     fi
   fi
   printf '%s\n' "${wt}"
+}
+
+# issue:held <main-root> <branch> holds the branch, and the worktree it is or will be checked out in, to the policy in
+# kit.yml (policy:refusal), before anything is assigned, swept, or made. A branch that exists, one an open change or
+# the forge named, or that origin held, and a worktree that exists, are warned of, named with the rule's pattern and
+# remedy, since kit policy refuses them in CI. The worktree kit work would make, worktrees/<branch>, is refused, and
+# it returns 1. It returns 1 too when the policy cannot be read.
+issue:held() {
+  local main_root=$1 branch=$2 wt refusal
+  if ! refusal=$(policy:refusal branch "${branch}")
+  then
+    [[ -n "${refusal}" ]] || return 1
+    warn "${refusal}; kit policy refuses it in CI"
+  fi
+  wt=$(git worktree list --porcelain 2>/dev/null \
+    | awk -v b="branch refs/heads/${branch}" '/^worktree / { w = substr($0, 10) } $0 == b { print w; exit }')
+  if [[ -n "${wt}" ]]
+  then
+    wt=$(cd "${wt}" && pwd -P) && main_root=$(cd "${main_root}" && pwd -P) || return 1
+    if ! refusal=$(policy:refusal worktree "${wt#"${main_root}/"}")
+    then
+      [[ -n "${refusal}" ]] || return 1
+      warn "${refusal}; kit policy refuses it in CI"
+    fi
+    return 0
+  fi
+  if ! refusal=$(policy:refusal worktree "worktrees/${branch}")
+  then
+    [[ -z "${refusal}" ]] || error "refusing to check ${branch} out: the worktree kit work makes, ${refusal}; set" \
+      "policy.worktree in kit.yml to allow worktrees/<branch>, where kit work puts a worktree"
+    return 1
+  fi
 }
 
 # issue:hydrate <worktree> places what the active packages deliver under .kit/ in the worktree, with the kit that
@@ -526,13 +570,19 @@ issue:sweep-apply() {
 }
 
 # issue:pull-request <branch> <default-branch> <title> prints the number of the branch's open pull request,
-# opening a draft if there is none.
+# opening a draft if there is none. A draft's title, the issue's, that policy.change_title refuses is warned of,
+# named with the rule's pattern and remedy.
 issue:pull-request() {
-  local branch=$1 default_branch=$2 title=$3 pr
+  local branch=$1 default_branch=$2 title=$3 pr refusal
   pr=$(forge:pr-for-branch "${branch}") || return 1
   if [[ -z "${pr}" ]]
   then
     step "Opening a draft change"
+    if ! refusal=$(policy:refusal change_title "${title}")
+    then
+      [[ -n "${refusal}" ]] || return 1
+      warn "${refusal}; the draft has the issue's title, so retitle it before it is ready"
+    fi
     pr=$(forge:pr-create "${branch}" "${default_branch}" "${title}") || return 1
   fi
   printf '%s\n' "${pr}"
@@ -612,6 +662,7 @@ issue:start() {
   section "Starting ${primary}: ${title}"
 
   branch=$(issue:branch "${primary}" "${default_branch}" "${title}") || return
+  issue:held "${main_root}" "${branch}" || return 1
   if [[ "$(git -C "${main_root}" symbolic-ref --quiet HEAD)" == "refs/heads/${branch}" ]]
   then
     error "refusing to start ${primary}: its branch ${branch} is checked out on the desk, ${main_root}, which is the" \

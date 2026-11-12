@@ -17,6 +17,9 @@ it out. It delivers:
   is of. A rule says what the work must do to be trusted. Its frontmatter names the kind it governs, and the linter
   and checks `kit lint` runs over its files.
 - `.kit/kit.schema.json`, the schema of the repository's `kit.yml`.
+- The kit's default policy, the `policy:` map in its `package.yml`: the workflow's names for a branch, a worktree, a
+  commit subject, and a change title, each with a remedy. `kit policy` judges by it wherever `kit.yml` sets no rule
+  of its own; see [policy.md](../policy.md#the-rules).
 - A region in `.gitignore`: the `/worktrees/` entry the workflow needs.
 
 The region starts at a `kit:generate` directive, and `kit generate` fills it through `kit region`. The rest of

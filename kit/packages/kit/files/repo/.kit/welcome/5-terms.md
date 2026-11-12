@@ -167,7 +167,7 @@ A program that reads a file and reports what breaks its rule. `kit lint` runs ea
 
 ### policy
 
-The patterns that branch names, commit subjects, and pull request titles must match.
+The patterns that branch names, worktrees, commit subjects, and pull request titles must match.
 
 `kit policy`
 

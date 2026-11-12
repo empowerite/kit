@@ -99,8 +99,8 @@ commit-all() {
   run "${kit_root}/bin/kit" facts
   [ "${status}" -eq 0 ]
   jq --exit-status '.moment == "ci" and (.tree | type == "object")' <<<"${output}"
-  jq --exit-status 'keys_unsorted == ["moment", "branch", "default_branch", "commits", "change", "tree", "policy"]' \
-    <<<"${output}"
+  jq --exit-status 'keys_unsorted
+    == ["moment", "branch", "default_branch", "worktree", "commits", "change", "tree", "policy"]' <<<"${output}"
   # at ci, the tree is HEAD, never the index
   jq --exit-status '(.tree | has("README.md")) and (.tree | has("staged.md") | not)' <<<"${output}"
   [ "$("${kit_root}/bin/kit" facts)" = "$("${kit_root}/bin/kit" policy --input)" ]

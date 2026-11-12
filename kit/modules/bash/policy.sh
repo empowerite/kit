@@ -11,12 +11,19 @@
 # rule against, and so does `kit policy --input`. It holds the moment, the branch, the commits, the change, the tree
 # of files git holds, and the policy settings, with the kit's defaults filled in.
 #
-# The rules are the `policy:` map in kit.yml, one extended regular expression per subject. A subject
-# that is not set uses the kit's default below. An empty pattern turns that rule off.
+# The rules are the `policy:` map in kit.yml, one extended regular expression per subject, each with an optional
+# remedy: a rule is a pattern, or a map of pattern and remedy. A subject kit.yml does not set takes the kit's
+# default, which is data, the `policy:` map in the kit package's package.yml: the workflow's names in .kit/1st.md. An
+# empty pattern turns that rule off.
 #
 #   branch            the branch's name
+#   worktree          the worktree's path under the main checkout, as worktrees/7-fix-the-thing
 #   commit_subject    the subject of every commit past the fork, merges excluded
 #   change_title      the open change's title
+#
+# A refusal names the subject, the pattern, and the rule's remedy after it in parentheses, where it has one. A pattern
+# set without a remedy has none, since the remedy below it was written for another pattern; a remedy set alone keeps
+# the pattern below it.
 #
 # The provider is chosen by:
 #
@@ -93,64 +100,138 @@ use yaml git settings facts file sources context render
 # policy_rego is the directory of Rego the opa engine loads: .kit/policy, or the judged tree's copy (policy:from).
 declare -g policy_rego=.kit/policy
 
-# The kit's defaults follow the workflow in .kit/1st.md:
-#
-#   - a branch is <key>-<slug>, as kit work makes it
-#   - a commit subject starts with its issue's reference, #7 or AB#4521
-#   - a change title is one line of at most 120 characters
-declare -gr policy_default_branch='^[a-z0-9]+-[a-z0-9][a-z0-9-]*$'
-declare -gr policy_default_commit_subject='^([A-Z]+)?#[0-9]+ [^ ]'
-declare -gr policy_default_change_title='^[^[:cntrl:]]{1,120}$'
+# policy_subjects are the rules a pattern judges, in the order kit policy --rules lists them.
+declare -gra policy_subjects=(branch worktree commit_subject change_title)
 
-# policy:rules prints the policy settings with the kit's defaults filled in, as a JSON object.
-policy:rules() {
-  local settings key value row
-  local -a rows
-  local -A rule=(
-    [branch]=${policy_default_branch}
-    [commit_subject]=${policy_default_commit_subject}
-    [change_title]=${policy_default_change_title}
-  )
+# policy_defaults is the package.yml whose `policy:` map holds the kit's defaults, relative to the release.
+declare -gr policy_defaults=packages/kit/package.yml
+
+# policy_jq defines, for jq, problem($subjects): what is wrong with a layer, {file, policy}, one line naming its file,
+# or null where the kit can read it: a policy that is no map, a subject not among $subjects, or a rule that is
+# neither a pattern nor a map of pattern and remedy.
+# shellcheck disable=SC2016  # the $variables and \(…) are jq's, in a jq program
+declare -gr policy_jq='
+  def problem($subjects):
+    . as $l
+    | if $l.policy != null and ($l.policy | type) != "object" then "\($l.file): policy must be a map of rules"
+      else [($l.policy // {}) | to_entries[]
+        | if (.key | IN($subjects[]) | not) then
+            "\($l.file): policy has a subject the kit does not know: \(.key) (the subjects: \($subjects | join(", ")))"
+          elif (.value | type) == "string" or .value == null then empty
+          elif (.value | type) == "object" and (.value | keys - ["pattern", "remedy"]) == []
+            and ([.value[] | type] - ["string", "null"]) == [] then empty
+          else "\($l.file): policy.\(.key) must be a pattern, or a map of pattern and remedy" end] | .[0]
+      end;'
+
+# policy:resolved prints the rules as one JSON object, each subject's {pattern, remedy, from}: the kit's defaults, from
+# default, then kit.yml's `policy:` map, from kit.yml, each rule it sets winning. It fails, naming the file, on a map
+# the kit cannot read, as problem in policy_jq finds it, or a pattern bash cannot compile.
+policy:resolved() {
+  local settings doc layers out key pattern from compiled
+  # shellcheck disable=SC2154  # kit_root is exported by modules/bash/1st.sh
+  doc=$(yaml:json "${kit_root}/${policy_defaults}") || return 1
+  layers=$(jq --null-input --compact-output --arg file "${policy_defaults}" --argjson doc "${doc:-null}" \
+    '[{from: "default", file: $file, policy: (($doc | objects | .policy) // null)}]') || return 1
   settings=$(settings:file)
-  list:read rows yaml:map "${settings}" policy || return 1
-  for row in "${rows[@]}"
+  doc=$(yaml:json "${settings}") || return 1
+  out=$(jq --null-input --compact-output --argjson layers "${layers}" --argjson doc "${doc:-null}" \
+    --arg subjects "${policy_subjects[*]}" "${policy_jq}"'
+    ($subjects | split(" ")) as $subjects
+    | ($layers + [{from: "kit.yml", file: "kit.yml", policy: (($doc | objects | .policy) // null)}]) as $layers
+    | ([$layers[] | problem($subjects) | values] | .[0]) as $problem
+    | if $problem then {error: $problem}
+      else reduce $layers[] as $l ({};
+          reduce (($l.policy // {}) | to_entries[]) as $e (.;
+            $e.value as $v
+            | if ($v | type) == "object" then
+                .[$e.key] = {
+                  pattern: (if $v | has("pattern") then $v.pattern // "" else .[$e.key].pattern // "" end),
+                  remedy: (if $v | has("remedy") then $v.remedy // ""
+                    elif $v | has("pattern") then "" else .[$e.key].remedy // "" end),
+                  from: (if $v | has("pattern") then $l.from else .[$e.key].from // $l.from end)}
+              else .[$e.key] = {pattern: ($v // ""), remedy: "", from: $l.from} end))
+        | . as $rules
+        | reduce $subjects[] as $key ({}; .[$key] = ($rules[$key] // {pattern: "", remedy: "", from: "default"}))
+      end') || return 1
+  if [[ "$(jq --raw-output 'has("error")' <<<"${out}")" == true ]]
+  then
+    error "$(jq --raw-output .error <<<"${out}")"
+    return 1
+  fi
+  # A pattern bash cannot compile would refuse every name, each refusal naming the pattern and not why.
+  while IFS=$'\x1f' read -r key pattern from
   do
-    IFS=$'\t' read -r key value <<<"${row}"
-    [[ -n "${key}" ]] || continue
-    if [[ -z "${rule[${key}]+x}" ]]
-    then
-      error "kit.yml: policy has a subject the kit does not know: ${key} (the subjects: branch," \
-        "commit_subject, change_title)"
-      return 1
-    fi
-    rule[${key}]=${value}
-  done
-  jq --null-input --arg branch "${rule[branch]}" --arg commit_subject "${rule[commit_subject]}" \
-    --arg change_title "${rule[change_title]}" \
-    '{branch: $branch, commit_subject: $commit_subject, change_title: $change_title}'
+    [[ -n "${pattern}" ]] || continue
+    compiled=0
+    # shellcheck disable=SC2319  # the status of [[ =~ ]] itself, 2 for a pattern that does not compile
+    { [[ '' =~ ${pattern} ]]; } 2>/dev/null || compiled=$?
+    (( compiled == 2 )) || continue
+    [[ "${from}" != default ]] || from=${policy_defaults}
+    error "${from}: policy.${key} is no extended regular expression: ${pattern}"
+    return 1
+  done < <(jq --raw-output 'to_entries[] | [.key, .value.pattern, .value.from] | join("\u001f")' <<<"${out}")
+  printf '%s\n' "${out}"
 }
 
-# policy:listed prints each rule as "<rule>\t<pattern>\t<from>", for branch, commit_subject, and change_title in that
-# order: <from> is kit.yml where the policy: map sets the rule, an empty pattern included, else default. Read as
-# fields on a tab, an empty pattern is a field of its own. It reads the kit.yml settings:file names, which is the
-# base's once policy:from-base has read it, as bin/kit-policy does with --rules on a branch past the default; it
-# judges nothing, and fails as policy:rules does.
+# policy:validate <file> fails, saying why, on a `policy:` map in the YAML <file>, a package.yml, that the kit cannot
+# read, as problem in policy_jq finds it. resolve:validate asks it of every package.
+policy:validate() {
+  local doc problem
+  doc=$(yaml:json "$1") || return 1
+  problem=$(jq --null-input --raw-output --argjson doc "${doc:-null}" --arg file "$1" \
+    --arg subjects "${policy_subjects[*]}" "${policy_jq}"'
+    {file: $file, policy: (($doc | objects | .policy) // null)} | problem($subjects | split(" ")) // empty') \
+    || return 1
+  [[ -z "${problem}" ]] && return 0
+  error "${problem}"
+  return 1
+}
+
+# policy:rules prints the policy settings with the kit's defaults filled in, as a JSON object: each subject's pattern,
+# and under remedy, each subject's remedy, empty where it has none. It fails as policy:resolved does.
+policy:rules() {
+  local resolved
+  resolved=$(policy:resolved) || return 1
+  jq --compact-output '(map_values(.pattern)) + {remedy: map_values(.remedy)}' <<<"${resolved}"
+}
+
+# policy:listed prints each rule as "<rule>\t<pattern>\t<from>", in the order of policy_subjects: <from> is kit.yml
+# where the policy: map sets the rule's pattern, an empty pattern included, else default. Read as fields on a tab, an
+# empty pattern is a field of its own. It reads the kit.yml settings:file names, which is the base's once
+# policy:from-base has read it, as bin/kit-policy does with --rules on a branch past the default; it judges nothing,
+# and fails as policy:resolved does.
 policy:listed() {
-  local rules row key
-  local -A set=()
-  local -a rows
-  rules=$(policy:rules) || return 1
-  list:read rows yaml:map "$(settings:file)" policy || return 1
-  for row in "${rows[@]}"
-  do
-    key=${row%%$'\t'*}
-    [[ -z "${key}" ]] || set[${key}]=kit.yml
-  done
-  for key in branch commit_subject change_title
-  do
-    printf '%s\t%s\t%s\n' "${key}" "$(jq --raw-output --arg key "${key}" '.[$key]' <<<"${rules}")" \
-      "${set[${key}]:-default}"
-  done
+  local resolved
+  resolved=$(policy:resolved) || return 1
+  jq --raw-output --arg subjects "${policy_subjects[*]}" \
+    '. as $rules | $subjects | split(" ")[] | [., $rules[.].pattern, $rules[.].from] | join("\t")' <<<"${resolved}"
+}
+
+# policy:refusal <subject> <name> prints the refusal of <name> by the rule <subject>, as both engines word it, and
+# returns 1, where the rule's pattern is set and <name> does not match it; it prints nothing where the rule allows
+# it. It fails as policy:resolved does, returning 2. kit work asks it of a name before it makes it.
+policy:refusal() {
+  local subject=$1 name=$2 rules pattern remedy what
+  rules=$(policy:rules) || return 2
+  pattern=$(jq --raw-output --arg key "${subject}" '.[$key] // ""' <<<"${rules}")
+  remedy=$(jq --raw-output --arg key "${subject}" '.remedy[$key] // ""' <<<"${rules}")
+  [[ -n "${pattern}" && ! "${name}" =~ ${pattern} ]] || return 0
+  what=${subject//_/ }
+  printf "%s '%s' does not match policy.%s: %s%s\n" "${what}" "${name}" "${subject}" "${pattern}" \
+    "${remedy:+ (${remedy})}"
+  return 1
+}
+
+# policy:worktree prints the checkout's path from the main checkout's root, as worktrees/7-fix-the-thing, where it is
+# a linked worktree, its absolute path where it lies outside that root, and nothing in the main checkout.
+policy:worktree() {
+  local top main
+  top=$(git rev-parse --show-toplevel 2>/dev/null) || return 0
+  main=$(git:main-root) || return 0
+  top=$(cd "${top}" && pwd -P) || return 0
+  main=$(cd "${main}" && pwd -P) || return 0
+  [[ "${top}" != "${main}" ]] || return 0
+  printf '%s\n' "${top#"${main}/"}"
 }
 
 # policy:branch prints the branch to check: the change's source branch on a CI runner, or a merge group's head there,

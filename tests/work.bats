@@ -435,4 +435,58 @@ desk-world() {
   [ "$(git -C "${repo}.origin.git" rev-parse 7-fix-the-thing)" = "$(git -C worktrees/7-fix-the-thing rev-parse HEAD)" ]
 }
 
+# issue-call <function> <argument>… runs a function of the issue module here, with the forge's reads stubbed: no open
+# change names a branch, and the issue is no forge's, so kit names its branch; a draft opened is change 5.
+issue-call() {
+  bash -c 'source "${kit_root}/modules/bash/1st.sh" && use issue
+    forge:branch-for-issue() { :; }
+    forge:pr-for-branch() { :; }
+    forge:pr-create() { printf "5\n"; }
+    tracker:is-forge() { return 1; }
+    tracker:key() { printf "7\n"; }
+    "$@"' _ "$@"
+}
+
+@test "a branch kit work names is held to policy.branch: one it refuses is never made, and the pattern is named" {
+  git commit --quiet --allow-empty --message init
+  world
+  # the issue has no branch yet, so kit names one
+  git push --quiet origin --delete 7-fix-the-thing
+  printf "policy:\n  branch: '^feature/'\n" > kit.yml
+  run issue-call issue:branch '#7' main 'Fix the thing'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"refusing to start #7: the branch kit work names, branch '7-fix-the-thing' does not match"* ]]
+  [[ "$output" == *"policy.branch: ^feature/; set policy.branch in kit.yml to allow <key>-<slug>"* ]]
+  [ -z "$(git ls-remote --heads origin '7-*')" ]
+  # a title with nothing for the slug still names a branch the default allows
+  rm kit.yml
+  run issue-call issue:branch '#7' main '!!!'
+  [ "$status" -eq 0 ]
+  [ "${lines[-1]}" = 7-issue ]
+  [ -n "$(git ls-remote --heads origin 7-issue)" ]
+}
+
+@test "kit work refuses a worktree policy.worktree refuses before it assigns, and warns of a branch that exists" {
+  desk-world
+  printf "policy:\n  worktree: '^wt/'\n  branch: '^x'\n" >> kit.yml
+  run "${kit_checkout}/bin/kit" work 7
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"branch '7-fix-the-thing' does not match policy.branch: ^x; kit policy refuses it in CI"* ]]
+  [[ "$output" == *"refusing to check 7-fix-the-thing out: the worktree kit work makes, worktree"* ]]
+  [[ "$output" == *"'worktrees/7-fix-the-thing' does not match policy.worktree: ^wt/; set policy.worktree"* ]]
+  [ ! -e worktrees/7-fix-the-thing ]
+  run ! grep --quiet 'add-assignee' "${FAKE_DIR}/gh.calls"
+}
+
+@test "a draft whose title policy.change_title refuses is opened, with a warning that names the pattern" {
+  git commit --quiet --allow-empty --message init
+  world
+  printf "policy:\n  change_title:\n    pattern: '^[a-z]+: '\n    remedy: start with a type\n" > kit.yml
+  run issue-call issue:pull-request 7-fix-the-thing main 'Fix the thing'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"change title 'Fix the thing' does not match policy.change_title: ^[a-z]+:  (start with a type);"* ]]
+  [[ "$output" == *"retitle it before it is ready"* ]]
+  [ "${lines[-1]}" = 5 ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

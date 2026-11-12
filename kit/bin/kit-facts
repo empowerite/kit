@@ -5,11 +5,14 @@
 #   kit facts [--moment=<moment>]
 #
 # Prints the facts document: the JSON that kit policy hands its engine, and that a rule is written against. It holds
-# the moment, the branch, the commits, the change, the tree of files git holds, and the policy settings.
+# the moment, the branch, the worktree, the commits, the change, the tree of files git holds, and the policy settings:
+# each rule's pattern, and its remedy.
 #
 # At ci, the facts are those kit policy judges, and kit policy --input prints the same document. The tree is HEAD.
 # A change the forge cannot answer for is {"error": "<line>"}, the line kit says for the read, which kit policy
-# refuses. At commit, the tree is the index, commits is empty, and change is null; kit commit adds the commit it makes.
+# refuses. The worktree is a linked worktree's path from the main checkout's root, and null in the main checkout. At
+# commit, the tree is the index, the worktree null, commits is empty, and change is null; kit commit adds the commit it
+# makes.
 #
 # Arguments:
 #   --moment=<moment>   the moment to gather for: ci, the default, or commit

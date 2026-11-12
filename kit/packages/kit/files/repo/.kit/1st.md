@@ -170,8 +170,8 @@ The packages:
   `kit tools install`, then runs `kit ci`. `kit ci` runs four checks, on the runner or on any machine; before
   the branch has a pull request, `kit linked` fails and the other three run without one. In order:
   - `kit linked`, which refuses a pull request not linked to an open issue
-  - `kit policy`, which refuses a branch name, commit subject, or pull request title that breaks the repository's
-    policy
+  - `kit policy`, which refuses a branch name, worktree, commit subject, or pull request title that breaks the
+    repository's policy
   - the repository's gate
   - `kit check`
 - `policy/opa`: `.kit/policy/kit.rego`, the naming policy in Rego. With it, `kit policy` runs on Open Policy

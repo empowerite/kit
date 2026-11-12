@@ -364,6 +364,7 @@ resolve:exclusions() {
 #   - a missing description
 #   - a default that is not true or false
 #   - a dependency on, or a member that is, a package not in reach
+#   - a policy: map the kit cannot read (policy:validate)
 #
 # The gate validates against packages/package.schema.json in full.
 resolve:validate() {
@@ -378,6 +379,10 @@ resolve:validate() {
   do
     case "${key}" in
       (description | default | depends | includes | answers | expects | notices) ;;
+      (policy)
+        use policy || return 1
+        policy:validate "${meta}" || return 1
+        ;;
       (*)
         error "${meta} has a key the kit does not know: ${key}" \
           "(see packages/package.schema.json)"

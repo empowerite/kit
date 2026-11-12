@@ -1,9 +1,9 @@
 # Policy
 
-A policy is the set of rules that a branch name, a commit subject, a change's title, and the tree of files must
-meet. A change is a pull request on GitHub or a merge request on GitLab. Run `kit policy` to check the current
-branch: its name, its commits, its open change, and the tree at HEAD. It prints each refusal and fails, and it
-prints each warning too.
+A policy is the set of rules that a branch name, a worktree's path, a commit subject, a change's title, and the tree
+of files must meet. A change is a pull request on GitHub or a merge request on GitLab. Run `kit policy` to check the
+current branch: its name, its worktree, its commits, its open change, and the tree at HEAD. It prints each refusal
+and fails, and it prints each warning too.
 
 ```sh
 kit policy
@@ -14,6 +14,8 @@ kit policy
   name that breaks the policy fails the delivered check like a failing test. That check blocks a merge only when a
   branch ruleset requires it.
 - On a runner, the refusals and the warnings also appear in the step summary.
+- `kit work` makes names that pass: it holds the branch and the worktree it would make to the rules first, and
+  refuses, naming the pattern, before it assigns or sweeps anything. See [What kit work makes](#what-kit-work-makes).
 
 ## The facts
 
@@ -29,12 +31,16 @@ kit policy
   "moment": "ci",
   "branch": "7-fix-the-thing",
   "default_branch": "main",
+  "worktree": "worktrees/7-fix-the-thing",
   "commits": [{"sha": "56d4f4b…", "subject": "#7 cli: fix the thing"}],
   "change": {"number": 3, "title": "Fix the thing", "body": "Closes #7", "author": "ada"},
   "tree": {
     "kit/bin/kit": {"type": "file", "executable": true, "size": 2048, "blob": "9f2c1a…", "kinds": ["bash"]}
   },
-  "policy": {"branch": "…", "commit_subject": "…", "change_title": "…"}
+  "policy": {
+    "branch": "…", "worktree": "…", "commit_subject": "…", "change_title": "…",
+    "remedy": {"branch": "…", "worktree": "…", "commit_subject": "…", "change_title": "…"}
+  }
 }
 ```
 
@@ -43,10 +49,11 @@ kit policy
 | `moment` | `commit` or `ci`: the point the facts are judged at. |
 | `branch` | On a runner, the change's head branch. Elsewhere, at the desk or in any worktree, the current branch. On the default branch or a detached checkout it is `null`, and nothing is checked. |
 | `default_branch` | The repository's default branch. |
+| `worktree` | In a linked worktree, its path from the main checkout's root, as `worktrees/7-fix-the-thing`, or its absolute path where it lies outside that root. `null` in the main checkout, which a runner's checkout is, where `branch` is `null`, and at commit. |
 | `commits` | Each commit past the fork from the branch's base, merges excluded: the primary remote's default branch, or on a runner the commit the change's event names as its base. The delivered workflow fetches full history for this. When the fork is not found, as in a shallow clone, `commits` is `null`, the commits cannot be checked, and `kit policy` fails. |
 | `change` | The open change, read through the code forge (the service that hosts the repository): an object with its number, title, body, and author's login. `null` when the repository has no code forge, as when the primary is a path on this machine, or the code forge answered that the branch has no open change, and `null` at commit. A primary on a host that nothing names, neither the `forge` setting, the host, a CI runner's own server, nor a login of `gh` or `glab`, has a code forge kit cannot tell, and its `change` is an error that names the `forge` setting; `forge: none` says it has none, and its `change` is `null`. A `null` change leaves `change_title` unchecked. When the code forge cannot answer, for which change is open or for its title, body, or author, `change` is `{"error": "<line>"}`, the line kit says for the read that failed, such as `run: gh auth status (the open pull request on 7-fix-the-thing could not be read)`. `kit policy` refuses such facts before either engine runs, and so refuses a document given with `--facts` that holds one. |
 | `tree` | The files git holds, keyed by path, read from git: the index at commit, and HEAD at ci. At either moment, a kind matched by its first line, such as a script's shebang, reads that line from the disk. |
-| `policy` | The patterns, with the kit's defaults filled in. |
+| `policy` | The patterns, with the kit's defaults filled in, and under `remedy` each rule's remedy, `""` where it has none. |
 
 Each entry in `tree` has these fields:
 
@@ -166,10 +173,16 @@ Edit the fixture to test a rule against facts that the repository does not have.
 
 ## The rules
 
-`policy:` in `kit.yml` holds one extended regular expression per subject.
+`policy:` in `kit.yml` holds one rule per subject. A rule is an extended regular expression, or a map of a
+`pattern` and a `remedy`: what to do instead, which every refusal by the rule names after it, in parentheses.
 
-- A subject that is absent takes the kit's default: the workflow's own naming from `.kit/1st.md`.
+- A subject that is absent takes the kit's default: the workflow's own naming from `.kit/1st.md`. The defaults are
+  data, the `policy:` map in the kit package's `package.yml`, with the same keys, so a repository that says nothing
+  gets the loop's names, and one that says otherwise gets its own.
+- A pattern set without a remedy has none, since the default's remedy was written for another pattern. A remedy set
+  alone keeps the default's pattern.
 - An empty pattern turns that rule off.
+- A pattern bash cannot compile is refused, naming the file that sets it.
 - A subject the kit does not know is refused.
 - A change whose author is a login under `linked_exempt` in `kit.yml` passes with no rule checked, the tree rules
   included, and `kit policy` says so by name. Its branch, its commits, and its pull request title are a bot's, such as
@@ -179,17 +192,24 @@ Edit the fixture to test a rule against facts that the repository does not have.
 | Subject | Checks | Default |
 | --- | --- | --- |
 | `branch` | the branch's name | `^[a-z0-9]+-[a-z0-9][a-z0-9-]*$`, the form `kit work` creates |
+| `worktree` | a linked worktree's path from the main checkout | `^worktrees/[a-z0-9]+-[a-z0-9][a-z0-9-]*$`, where `kit work` puts it |
 | `commit_subject` | every commit's subject past the fork | `^([A-Z]+)?#[0-9]+ [^ ]`, starting with its issue's reference |
 | `change_title` | the open change's title | `^[^[:cntrl:]]{1,120}$`, one line of at most 120 characters |
 
 ```yaml
 policy:
-  branch: '^(feature|fix)/[a-z0-9-]+$'
+  branch:
+    pattern: '^(feature|fix)/[a-z0-9-]+$'
+    remedy: 'name the branch feature/<slug> or fix/<slug>'
   commit_subject: ''
 ```
 
-`kit policy --rules` lists each rule, its pattern, and where it is set, and judges nothing. `--json` prints
-an object a line, `{rule, pattern, from, engine}`, and `--jq` the same formatted by jq. `from` is `kit.yml` where the
+A refusal then reads `branch 'topic' does not match policy.branch: ^(feature|fix)/[a-z0-9-]+$ (name the branch
+feature/<slug> or fix/<slug>)`.
+
+`kit policy --rules` lists each rule, its pattern, and where it is set, and judges nothing; `kit policy --input`
+shows the remedies, under `policy.remedy`. `--json` prints an object a line, `{rule, pattern, from, engine}`, and
+`--jq` the same formatted by jq. `from` is `kit.yml` where the
 `policy:` map sets the rule, an empty pattern included, else `default`; `engine` is the engine that judges, `patterns`
 or `opa`. It reads no forge. On a branch past the default it lists the base's rules, as `kit policy` judges by them,
 and fails as `kit policy` does when the base cannot be named or read. The patterns are the same whichever the engine:
@@ -206,6 +226,18 @@ and OPA's RE2 share, so both engines read them the same way:
 - anchors
 - alternation
 - counted repetition
+
+### What kit work makes
+
+`kit work` holds the names it makes to the rules in the checkout's `kit.yml`, as `kit policy` holds them in CI.
+
+- A branch it names, `<key>-<slug>`, that `policy.branch` refuses is never pushed. A title with no letter or digit
+  for the slug gives `<key>-issue`.
+- The worktree it would make, `worktrees/<branch>`, that `policy.worktree` refuses is never made.
+- Either refusal names the rule's pattern and remedy, and comes before anything is assigned or swept.
+- A branch that already exists, one an open change, the forge, or origin holds, and a worktree that already exists,
+  are warned of when the rules refuse them, since `kit policy` refuses them in CI.
+- A draft's title is the issue's. One that `policy.change_title` refuses is warned of, to retitle.
 
 ## The engines
 

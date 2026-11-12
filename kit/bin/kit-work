@@ -15,6 +15,11 @@
 #
 # Every issue it starts is assigned to the caller, whose worktree it is.
 #
+# The names kit work makes are held to the policy in kit.yml, as kit policy holds them in CI: a branch, <key>-<slug>,
+# or a worktree, worktrees/<branch>, that the policy refuses is never made, and kit work refuses, naming the rule's
+# pattern, before it assigns or sweeps anything. A branch or a worktree that already exists, and a draft's title,
+# the issue's, that the policy refuses are warned of instead.
+#
 # The desk, the root checkout, is the human's. kit work refuses an issue whose branch the desk has checked out,
 # before it assigns, stashes, or commits anything. Uncommitted work on the desk is swept into the new worktree. When
 # the swept work conflicts there, it stays in the stash, kit work names the command that applies it, and stops. When
