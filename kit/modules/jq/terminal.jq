@@ -63,8 +63,8 @@ def checks($d; $key; $read; $bad; $probes; $kept):
      | $d.probes[$p] as $probe
      | ($t.probes[$p] // {}) as $row
      | "terminal-probe-\($p)" as $id
-     | if $probes.answered == false then {id: $id, ok: true, line: "\($t.name) did not answer kit's question", fix: null,
-                                          more: $more}
+     | if $probes.answered == false
+       then {id: $id, ok: true, line: "\($t.name) did not answer kit's question", fix: null, more: $more}
        elif ($probes | measured_badly($p) | not) then {id: $id, ok: true, line: ($probe.held | fill($po)), fix: null,
                                                         more: $more}
        elif $read_ok and ($probe.need | IN($failed_needs[])) then empty
