@@ -129,6 +129,66 @@
         }
       }
     },
+    "ghostty": {
+      "name": "Ghostty",
+      "anchor": "ghostty",
+      "findings": [
+        {
+          "id": "option",
+          "need": "keys",
+          "bad": "(.option // (if .layout_us then \"true\" else \"false\" end)) == \"false\"",
+          "line": "Ghostty sends ⌥ as a plain key on this keyboard layout, so ⌥ with an arrow never reaches kittui as one",
+          "held": "Ghostty sends ⌥ as Alt",
+          "fix": "add macos-option-as-alt = left to Ghostty's config, then reload it"
+        },
+        {
+          "id": "alt-arrows",
+          "need": "keys",
+          "bad": ".alt_arrows_legacy",
+          "line": "Ghostty turns ⌥← and ⌥→ into ⌥b and ⌥f, so kittui never sees ⌥ with an arrow",
+          "held": "Ghostty passes ⌥← and ⌥→ through",
+          "fix": "add keybind = alt+left=unbind and keybind = alt+right=unbind to Ghostty's config"
+        },
+        {
+          "id": "mouse",
+          "need": "clicks",
+          "bad": ".mouse | not",
+          "line": "Ghostty does not report the mouse, so a click never reaches kittui",
+          "held": "Ghostty reports the mouse",
+          "fix": "remove mouse-reporting = false from Ghostty's config"
+        },
+        {
+          "id": "grapheme-width",
+          "need": "widths",
+          "bad": ".grapheme == \"legacy\"",
+          "line": "Ghostty measures widths the legacy way, so some emoji take the wrong number of cells",
+          "held": "Ghostty measures widths by grapheme",
+          "fix": "set grapheme-width-method = unicode in Ghostty's config"
+        }
+      ]
+    },
+    "kitty": {
+      "name": "kitty",
+      "anchor": "kitty",
+      "findings": [
+        {
+          "id": "option",
+          "need": "keys",
+          "bad": ".option == \"no\"",
+          "line": "kitty sends ⌥ as a plain key, so ⌥ with an arrow never reaches kittui as one",
+          "held": "kitty sends ⌥ as Alt",
+          "fix": "add macos_option_as_alt left to kitty.conf, then restart kitty: a reload does not apply it"
+        },
+        {
+          "id": "mouse",
+          "need": "clicks",
+          "bad": ".grabbed_left",
+          "line": "kitty's config grabs a plain left click for kitty, so it never reaches kittui",
+          "held": "kitty passes a plain click to kittui",
+          "fix": "remove the mouse_map left press grabbed line from kitty.conf"
+        }
+      ]
+    },
     "ssh": {
       "name": "The terminal over ssh",
       "anchor": "over-ssh",

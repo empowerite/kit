@@ -289,4 +289,70 @@ apple-fakes() {
   [ "$(jq -r .line <<<"$output")" = "${want}" ]
 }
 
+# ghostty-fakes <layout> <config-line>… stands in ghostty, whose +show-config prints the lines, and defaults, which
+# names the keyboard layout.
+ghostty-fakes() {
+  local layout=$1
+  shift
+  printf '%s\n' "$@" > "${BATS_TEST_TMPDIR}/ghostty.config"
+  # shellcheck disable=SC2016  # the fakes' bodies expand when they run
+  fakes ghostty '[[ "$1" == +show-config ]] && cat "${BATS_TEST_TMPDIR}/ghostty.config"' \
+    defaults "printf '%s\n' 'com.apple.keylayout.${layout}'"
+}
+
+# found <checks> prints the ids of the findings that failed among the checks on stdin.
+found() {
+  jq -sc 'map(select((.ok | not) and (.id | startswith("terminal-probe-") | not)) | .id)'
+}
+
+@test "Ghostty on a French layout with mouse reporting off fails ⌥, ⌥ with the arrows, and the mouse" {
+  ghostty-fakes French 'mouse-reporting = false'
+  run kit-bash 'OSTYPE=darwin24 TERM_PROGRAM=ghostty terminal:checks'
+  [ "$status" -eq 0 ]
+  [ "$(found <<<"$output")" = '["terminal-ghostty-option","terminal-ghostty-alt-arrows","terminal-ghostty-mouse"]' ]
+}
+
+@test "Ghostty with ⌥ as Alt, both arrows unbound, and the defaults otherwise has nothing to find" {
+  ghostty-fakes French 'macos-option-as-alt = left' 'keybind = alt+left=unbind' 'keybind = alt+right=unbind'
+  run kit-bash 'OSTYPE=darwin24 TERM_PROGRAM=ghostty terminal:checks'
+  [ "$(found <<<"$output")" = '[]' ]
+  [ "$(jq -sr '.[0].line' <<<"$output")" = "Ghostty: nothing in it slows or breaks kittui" ]
+}
+
+@test "Ghostty on a U.S. layout sends ⌥ as Alt by default, and legacy widths fail" {
+  ghostty-fakes US 'grapheme-width-method = legacy'
+  run kit-bash 'OSTYPE=darwin24 TERM_PROGRAM=ghostty terminal:checks'
+  [ "$(found <<<"$output")" = '["terminal-ghostty-alt-arrows","terminal-ghostty-grapheme-width"]' ]
+}
+
+@test "a Ghostty that does not print its config within a second says so" {
+  fakes ghostty 'sleep 5'
+  run kit-bash 'TERM_PROGRAM=ghostty terminal:checks'
+  [ "$(jq -sr '.[0].line' <<<"$output")" = "Ghostty: kit could not read its settings: it took more than a second" ]
+}
+
+# kitty-config <line>… writes the effective config the running kitty, KITTY_PID 42, wrote, in a cache of its own.
+kitty-config() {
+  export KITTY_CACHE_DIRECTORY="${BATS_TEST_TMPDIR}/kitty" KITTY_PID=42
+  mkdir -p "${KITTY_CACHE_DIRECTORY}/effective-config"
+  printf '%s\n' "$@" > "${KITTY_CACHE_DIRECTORY}/effective-config/42"
+}
+
+@test "kitty's effective config: the last macos_option_as_alt wins, and only a plain left click grabbed fails" {
+  kitty-config 'macos_option_as_alt no' 'macos_option_as_alt left' \
+    'mouse_map shift+left press grabbed mouse_selection normal'
+  run kit-bash 'OSTYPE=darwin24 terminal:checks'
+  [ "$(jq -sr '.[0].line' <<<"$output")" = "kitty: nothing in it slows or breaks kittui" ]
+  kitty-config 'mouse_map left press grabbed mouse_selection normal'
+  run kit-bash 'OSTYPE=darwin24 terminal:checks'
+  [ "$(found <<<"$output")" = '["terminal-kitty-option","terminal-kitty-mouse"]' ]
+}
+
+@test "a kitty that wrote no effective config for its window says so" {
+  export KITTY_CACHE_DIRECTORY="${BATS_TEST_TMPDIR}/kitty" KITTY_PID=7
+  run kit-bash 'terminal:checks'
+  [ "$(jq -sr '.[0].line' <<<"$output")" = \
+    "kitty: kit could not read its settings: kitty wrote no effective config for this window" ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------
