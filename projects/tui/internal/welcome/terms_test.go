@@ -14,6 +14,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/shell"
+	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/table"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
@@ -406,5 +407,34 @@ func TestTheTermsAndCommandsStandWholeWhileTheMeaningGivesWay(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Errorf("at 60, no %q in:\n%s", want, got)
 		}
+	}
+}
+
+func TestTermsAreColoredByTopic(t *testing.T) {
+	_, terms := parseTerms("# Terms\n\n## Where\n\n### desk\n\nOne.\n\n### worktree, checkout\n\nTwo.\n\n" +
+		"## How\n\n### commit\n\nThree.\n")
+	rs := termRecords(terms)
+	colorOf := func(k int) []string {
+		var out []string
+		for _, l := range table.LabelsIn(rs[k].Values["terms"]) {
+			out = append(out, l.Color)
+		}
+		return out
+	}
+	where, how := style.Pastel(0), style.Pastel(1)
+	if got := colorOf(0); !reflect.DeepEqual(got, []string{where}) {
+		t.Errorf("the first topic's term: %v, want %v", got, where)
+	}
+	if got := colorOf(1); !reflect.DeepEqual(got, []string{where, where}) {
+		t.Errorf("an entry's terms share their topic's color: %v", got)
+	}
+	if got := colorOf(2); !reflect.DeepEqual(got, []string{how}) || where == how {
+		t.Errorf("the second topic's term: %v, want %v", got, how)
+	}
+	// a row flattened by the terms holds one name, and draws that one alone, in its color
+	one := rs[1].Values["terms"]
+	one.Raw = []string{"checkout"}
+	if got := table.LabelsIn(one); !reflect.DeepEqual(got, []table.Label{{Name: "checkout", Color: where}}) {
+		t.Errorf("a flattened row's label: %+v", got)
 	}
 }

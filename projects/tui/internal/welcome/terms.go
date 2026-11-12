@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
+	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
@@ -68,14 +69,32 @@ func namesOf(heading string) []string {
 func termSections(sections []section) []table.Record { return termRecords(termsOf(sections)) }
 
 // termRecords gives the entries as the table's records, one an entry, each keyed by its place and its terms, so two
-// entries of one term stay two rows: its topic, none where the page has none; its order, from 1; its terms and its
-// commands, its examples as written, each a list; and its meaning.
+// entries of one term stay two rows: its topic, none where the page has none; its order, from 1; its terms, each a
+// pill in its topic's color, and its commands, its examples as written, each a list; and its meaning.
 func termRecords(terms []term) []table.Record {
 	out := make([]table.Record, len(terms))
+	colors := topicColors(terms)
 	for k, t := range terms {
+		labels := make([]table.Label, len(t.names))
+		for j, n := range t.names {
+			labels[j] = table.Label{Name: n, Color: colors[t.topic]}
+		}
 		out[k] = table.Record{Row: grid.Row{Key: strconv.Itoa(k) + " " + strings.Join(t.names, ", ")},
 			Values: map[string]table.Value{"topic": table.Some(t.topic), "order": table.One(strconv.Itoa(k + 1)),
-				"terms": listOf(t.names), "meaning": table.Some(t.meaning), "commands": listOf(t.examples)}}
+				"terms": table.Labelled(labels), "meaning": table.Some(t.meaning), "commands": listOf(t.examples)}}
+	}
+	return out
+}
+
+// topicColors gives each topic the pastel its place among the page's topics picks, so the terms of one topic are one
+// color and the topics, up to as many as there are pastels, each their own; no color for no topic, where each term
+// is drawn on the pastel its name picks.
+func topicColors(terms []term) map[string]string {
+	out := map[string]string{"": ""}
+	for _, t := range terms {
+		if _, ok := out[t.topic]; !ok {
+			out[t.topic] = style.Pastel(len(out) - 1)
+		}
 	}
 	return out
 }

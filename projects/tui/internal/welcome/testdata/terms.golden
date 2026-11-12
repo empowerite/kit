@@ -10,7 +10,7 @@
     ──────────
       terms         meaning                                                                commands
       ×·───────────────────────────────────────────────────────────────────────────────────×·──────────────────────────
-  ▾ Where the work lives 4
+  ▾ Where work lives 4
     ▸ desk        Your root checkout, where you cloned the repository. It is yours; ag…  kit flow desk
     ▸ worktree    A checkout of its own, under worktrees/, on one issue's branch. kit …  kit flow worktrees        +1
     ▸ code forge  The service that hosts the repository, its issues, its pull requests…  kit flow incoming --no-fetch

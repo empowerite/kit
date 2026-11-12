@@ -6,7 +6,7 @@ The words kit uses, by topic, and a command that shows each one.
 
 <!-- each `## ` heading is a topic; each `### ` heading under it names the terms that share one meaning -->
 
-## Where the work lives
+## Where work lives
 
 ### desk
 

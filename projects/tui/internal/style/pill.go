@@ -28,6 +28,10 @@ var pastel = []string{
 	"#475569", "#c2410c",
 }
 
+// Pastel gives the kth of the pastels, counting round, so things drawn in order, as a page's topics, each take their
+// own color, where a name's hash might give two the same.
+func Pastel(k int) string { return pastel[k%len(pastel)] }
+
 // Pill draws a name: its text on its color, #rrggbb or a 256-color number, between half circles in that color; a key
 // and a value, as splitLabel gives them, each on its own. A name without a color is drawn on the pastel it picks.
 func Pill(text, color string) string {

@@ -8,7 +8,7 @@ The words kit uses, by topic, and a command that shows each one.
 comma-separated; each line of one backticked command under it is an example, the first naming the command it
 groups under -->
 
-## Where the work lives
+## Where work lives
 
 ### repository
 

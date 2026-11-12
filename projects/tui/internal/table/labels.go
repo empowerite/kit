@@ -24,14 +24,20 @@ func Labelled(labels []Label) Value {
 	return Value{Raw: names, Of: labels}
 }
 
-// LabelsIn gives the labels a value holds: its own, or, for a value that holds names alone, a label of each name.
+// LabelsIn gives the labels a value holds, one a name it holds: its own label of the name, with its color, or, for a
+// value that holds names alone, a label of the name. A row flattened by the field holds one name, and keeps its
+// record's labels, so draws that one alone.
 func LabelsIn(v Value) []Label {
-	if ls, ok := v.Of.([]Label); ok {
-		return ls
-	}
+	ls, _ := v.Of.([]Label)
 	out := make([]Label, len(v.Raw))
 	for k, r := range v.Raw {
 		out[k] = Label{Name: r}
+		for _, l := range ls {
+			if l.Name == r {
+				out[k] = l
+				break
+			}
+		}
 	}
 	return out
 }
