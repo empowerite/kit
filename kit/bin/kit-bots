@@ -44,9 +44,8 @@
 # run's own, readable by you alone, and are revoked and the directory removed when the command ends, or kit bots is
 # terminated or hung up, the status then being 128 and the signal's number. A token that could not be revoked is a
 # warning, since it expires within the hour. Every word after run is the command's, kit bots' own options included, and
-# none is parsed. A TERM ends the run only where it reaches the verb's process, which the kit command does not yet
-# guarantee (see #290). An interrupt from the terminal reaches the command with the verb, as the terminal sends it to
-# the whole group, and the command's own status stands.
+# none is parsed. A TERM or HUP sent to kit reaches the verb, and so the run. An interrupt from the terminal reaches
+# the command with the verb, as the terminal sends it to the whole group, and the command's own status stands.
 #
 # Arguments:
 #   --text            prints the bots as text, even on a terminal

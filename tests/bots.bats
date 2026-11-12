@@ -662,8 +662,8 @@ run-setup() {
   one-bot work
   fixture token.json <<<"{\"token\":\"ghs_abc\",\"expires_at\":\"$(jq --null-input --raw-output 'now + 3600 | floor | todate')\"}"
   run-gh
-  export XDG_RUNTIME_DIR="${BATS_TEST_TMPDIR}/runtime"
-  mkdir -p "${XDG_RUNTIME_DIR}"
+  export TMPDIR="${BATS_TEST_TMPDIR}/runtime"
+  mkdir -p "${TMPDIR}"
 }
 
 @test "run gives the command GH_TOKEN, KIT_BOT, KIT_BOT_LOGIN, and KIT_BOT_FOR" {
@@ -759,8 +759,8 @@ without-gh() {
   rm -f "${FAKE_DIR}/bin/gh"
   without-gh
   ! command -v gh
-  export XDG_RUNTIME_DIR="${BATS_TEST_TMPDIR}/runtime" KIT_BOT_FOR=someone
-  mkdir -p "${XDG_RUNTIME_DIR}"
+  export TMPDIR="${BATS_TEST_TMPDIR}/runtime" KIT_BOT_FOR=someone
+  mkdir -p "${TMPDIR}"
   run --separate-stderr kit bots run bash -c 'gh api user; echo "gh exited $?"'
   [ "$status" -eq 0 ]
   [[ "$output" == *'gh exited 127'* ]]
@@ -844,46 +844,112 @@ COMMAND
   run --separate-stderr kit bots run false
   [ "$status" -eq 1 ]
   [ "$(last-sent)" = '--request DELETE' ]
-  [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
+  [ -z "$(ls -A "${TMPDIR}")" ]
   run --separate-stderr kit bots run bash -c 'exit 7'
   [ "$status" -eq 7 ]
   run -127 --separate-stderr kit bots run kit-bot-no-such-command
-  [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
+  [ -z "$(ls -A "${TMPDIR}")" ]
 }
 
-@test "run revokes when the command is terminated, or interrupted as a terminal does, and the command is signalled" {
+# wait-for <file> waits, to a bound, for the file to be there.
+wait-for() {
+  local i
+  for (( i = 0; i < 600; i++ ))
+  do
+    [[ -e "$1" ]] && return 0
+    sleep 0.1
+  done
+  return 1
+}
+
+# signal-run <signal> <catch|die> [kit] runs a command under kit bots run that writes its run's pid and a ready file,
+# and then waits for the signal: it catches it and exits 0, or does not. Once the file is there the signal is sent: to
+# the run for TERM and HUP, to the kit process, which kit bots run is started as, with kit, and for INT to the whole
+# group, as a terminal does, which a job of its own is. It waits, to a bound, for the run to end, and sets
+# signalled_status, signalled_out, and signalled_err.
+signal-run() {
+  local sig=$1 how=$2 target=${3:-run} ready="${BATS_TEST_TMPDIR}/ready" job i
+  rm -f "${ready}" "${ready}.pid"
+  {
+    echo '#!/usr/bin/env bash'
+    [[ "${how}" != catch ]] || echo "trap 'echo got-${sig} >&2; exit 0' ${sig}"
+    echo "echo \"\${PPID}\" > '${ready}.pid'; : > '${ready}'"
+    echo 'while :; do sleep 0.1; done'
+  } > "${BATS_TEST_TMPDIR}/command"
+  chmod +x "${BATS_TEST_TMPDIR}/command"
+  # with job control the job is a group of its own, and does not ignore an interrupt, as an asynchronous command does
+  # without it
+  # A suite started in the background gives every process an interrupt that is ignored, which no bash can take back
+  # and kit, as it should, keeps: perl takes it back before it execs.
+  set -m
+  perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV' kit bots run "${BATS_TEST_TMPDIR}/command" \
+    > "${BATS_TEST_TMPDIR}/signalled.out" 2> "${BATS_TEST_TMPDIR}/signalled.err" &
+  job=$!
+  set +m
+  wait-for "${ready}" || { kill -KILL "${job}" 2>/dev/null; return 1; }
+  if [[ "${sig}" == INT ]]
+  then kill -INT -- "-${job}"
+  elif [[ "${target}" == kit ]]
+  then kill -"${sig}" "${job}"
+  else kill -"${sig}" "$(<"${ready}.pid")"
+  fi
+  for (( i = 0; i < 600; i++ ))
+  do
+    kill -0 "${job}" 2>/dev/null || break
+    sleep 0.1
+  done
+  if kill -0 "${job}" 2>/dev/null
+  then
+    kill -KILL "${job}"
+    return 1
+  fi
+  signalled_status=0
+  wait "${job}" || signalled_status=$?
+  signalled_out=$(<"${BATS_TEST_TMPDIR}/signalled.out")
+  signalled_err=$(<"${BATS_TEST_TMPDIR}/signalled.err")
+}
+
+@test "run revokes when it is terminated, and the command is signalled too" {
   run-setup
-  run --separate-stderr kit bots run bash -c 'trap "echo got-term >&2; exit 0" TERM; kill -TERM "${PPID}"; sleep 1; echo late'
-  [ "$status" -eq 143 ]
-  [[ "$stderr" == *got-term* ]]
-  [[ "$output" != *late* ]]
+  signal-run TERM catch
+  [ "${signalled_status}" -eq 143 ]
+  [[ "${signalled_err}" == *got-TERM* ]]
   [ "$(last-sent)" = '--request DELETE' ]
-  [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
-  : > "${FAKE_DIR}/curl.calls"
-  # a terminal sends an interrupt to the whole group, the command's with it: a job of its own is a group of its own
-  run --separate-stderr bash -c 'set -m; kit bots run bash -c "trap \"echo got-int >&2; exit 0\" INT; kill -INT 0; sleep 1; echo late" & wait $!'
-  # the command caught it and exited on its own: its status stands
-  [ "$status" -eq 0 ]
-  [ "$(grep --count got-int <<<"$stderr")" -eq 1 ]
-  [[ "$output" != *late* ]]
+  [ -z "$(ls -A "${TMPDIR}")" ]
+}
+
+@test "a TERM sent to the kit process itself reaches run, which revokes, and the command is signalled" {
+  run-setup
+  signal-run TERM catch kit
+  [ "${signalled_status}" -eq 143 ]
+  [[ "${signalled_err}" == *got-TERM* ]]
   [ "$(last-sent)" = '--request DELETE' ]
-  [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
+  [ -z "$(ls -A "${TMPDIR}")" ]
+}
+
+@test "run revokes when it is hung up, and the command is signalled too" {
+  run-setup
+  signal-run HUP catch
+  [ "${signalled_status}" -eq 129 ]
+  [[ "${signalled_err}" == *got-HUP* ]]
+  [ "$(last-sent)" = '--request DELETE' ]
+  [ -z "$(ls -A "${TMPDIR}")" ]
+}
+
+@test "run revokes when the group is interrupted, as a terminal does, and the command's own status stands" {
+  run-setup
+  signal-run INT catch
+  # the command caught it and exited on its own
+  [ "${signalled_status}" -eq 0 ]
+  [ "$(grep --count got-INT <<<"${signalled_err}")" -eq 1 ]
+  [ "$(last-sent)" = '--request DELETE' ]
+  [ -z "$(ls -A "${TMPDIR}")" ]
   : > "${FAKE_DIR}/curl.calls"
   # the command did not catch it: it died of it, and wait says 130
-  run --separate-stderr bash -c 'set -m; kit bots run bash -c "kill -INT 0; sleep 1; echo late" & wait $!'
-  [ "$status" -eq 130 ]
-  [[ "$output" != *late* ]]
+  signal-run INT die
+  [ "${signalled_status}" -eq 130 ]
   [ "$(last-sent)" = '--request DELETE' ]
-  [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
-}
-
-@test "run revokes when the command is hung up, and the command is signalled" {
-  run-setup
-  run --separate-stderr kit bots run bash -c 'trap "echo got-hup >&2; exit 0" HUP; kill -HUP "${PPID}"; sleep 1; echo late'
-  [ "$status" -eq 129 ]
-  [[ "$stderr" == *got-hup* ]]
-  [ "$(last-sent)" = '--request DELETE' ]
-  [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
+  [ -z "$(ls -A "${TMPDIR}")" ]
 }
 
 @test "run warns where the revoke fails, still removes the directory, and passes the status through" {
@@ -898,7 +964,7 @@ COMMAND
   [ "$status" -eq 3 ]
   [[ "$stderr" == *'revoke'* ]]
   [[ "$stderr" != *ghs_abc* ]]
-  [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
+  [ -z "$(ls -A "${TMPDIR}")" ]
 }
 
 @test "run refuses, minting nothing and leaving no directory, outside a repository and for an unknown bot" {
@@ -908,7 +974,7 @@ COMMAND
   run --separate-stderr env KIT_BOT_FOR=someone kit bots run true
   [ "$status" -eq 1 ]
   [[ "$stderr" == *repository* ]]
-  [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
+  [ -z "$(ls -A "${TMPDIR}")" ]
   cd "${repo}"
   run --separate-stderr kit bots --bot=ghost run true
   [ "$status" -eq 2 ]
@@ -929,16 +995,15 @@ GH
   run --separate-stderr kit bots run true
   [ "$status" -eq 1 ]
   [[ "$stderr" == *'gh auth login'* ]]
-  [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
+  [ -z "$(ls -A "${TMPDIR}")" ]
 }
 
-@test "run makes its directory under TMPDIR where there is no XDG_RUNTIME_DIR" {
+@test "run makes its directory under TMPDIR, whatever it is" {
   run-setup
-  unset XDG_RUNTIME_DIR
   mkdir "${BATS_TEST_TMPDIR}/tmpdir"
   run --separate-stderr env TMPDIR="${BATS_TEST_TMPDIR}/tmpdir" kit bots run bash -c 'command -v gh'
   [ "$status" -eq 0 ]
-  [[ "$output" == "${BATS_TEST_TMPDIR}/tmpdir/kit-bot."*/bin/gh ]]
+  [[ "$output" == "${BATS_TEST_TMPDIR}/tmpdir/kit."*/bin/gh ]]
   [ -z "$(ls -A "${BATS_TEST_TMPDIR}/tmpdir")" ]
 }
 
@@ -1018,8 +1083,8 @@ YAML
   kit-bash 'secrets:put kit-bot ghe.example.com/12345' < "${pem}"
   github-routes ghe.example.com 12345 kit-bot
   fixture token.json <<<"{\"token\":\"ghs_abc\",\"expires_at\":\"$(jq --null-input --raw-output 'now + 3600 | floor | todate')\"}"
-  export XDG_RUNTIME_DIR="${BATS_TEST_TMPDIR}/runtime" KIT_BOT_FOR=someone
-  mkdir -p "${XDG_RUNTIME_DIR}"
+  export TMPDIR="${BATS_TEST_TMPDIR}/runtime" KIT_BOT_FOR=someone
+  mkdir -p "${TMPDIR}"
   run --separate-stderr kit bots run bash -c 'echo "${GH_TOKEN} ${GH_ENTERPRISE_TOKEN} ${GH_HOST}"; env -u GH_TOKEN -u GH_ENTERPRISE_TOKEN -u GH_HOST gh api user'
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = 'ghs_abc ghs_abc ghe.example.com' ]
@@ -1049,7 +1114,7 @@ COMMAND
   [ "$(sent '--request POST')" -eq 2 ]
   # the first token, which the renewal replaced, and the second
   [ "$(sent '--request DELETE')" -eq 2 ]
-  [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
+  [ -z "$(ls -A "${TMPDIR}")" ]
 }
 
 @test "the renewal takes the session's directory off PATH wherever it stands" {
@@ -1071,13 +1136,12 @@ COMMAND
   run --separate-stderr kit bots run "${BATS_TEST_TMPDIR}/command"
   [ "$status" -eq 0 ]
   [ -s "${FAKE_DIR}/path.seen" ]
-  [[ "$(<"${FAKE_DIR}/path.seen")" != *"${XDG_RUNTIME_DIR}"* ]]
+  [[ "$(<"${FAKE_DIR}/path.seen")" != *"${TMPDIR}"* ]]
   grep --quiet 'GH_TOKEN=ghs_two' "${FAKE_DIR}/gh.calls"
 }
 
 @test "the helper is configured quote-safe, for a directory with a quote and a space in its name" {
   run-setup
-  unset XDG_RUNTIME_DIR
   mkdir "${BATS_TEST_TMPDIR}/it's here"
   run --separate-stderr env TMPDIR="${BATS_TEST_TMPDIR}/it's here" kit bots run bash -c 'printf "protocol=https\nhost=github.com\n\n" | git credential fill'
   [ "$status" -eq 0 ]
@@ -1098,7 +1162,7 @@ COMMAND
   [ "$status" -eq 0 ]
   [[ "$stderr" == *'token.json did not read'* ]]
   [ "$(sent '--request DELETE')" -eq 1 ]
-  [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
+  [ -z "$(ls -A "${TMPDIR}")" ]
 }
 
 @test "a renewal waits for a live holder of the lock, however slow" {
@@ -1170,7 +1234,7 @@ COMMAND
   run --separate-stderr kit bots run "${BATS_TEST_TMPDIR}/command"
   [ "$status" -eq 0 ]
   [ "$(sent '--request DELETE')" -eq 2 ]
-  [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
+  [ -z "$(ls -A "${TMPDIR}")" ]
 }
 
 @test "a renewal that mints a token it cannot keep revokes it, and gh runs nothing" {
@@ -1212,4 +1276,79 @@ COMMAND
   [[ "$stderr" == *'spent did not read'* ]]
   # the current token and the three that read
   [ "$(sent '--request DELETE')" -eq 4 ]
+}
+
+@test "every token minted is revoked, though two renewals mint at once under a lock that was no help" {
+  run-setup
+  export KIT_BOT_FOR=someone
+  mv "${FAKE_DIR}/bin/curl" "${FAKE_DIR}/curl.real"
+  # a mint answers a token of its own and says so; a revoke notes the token it was given, and goes on to the stub
+  cat > "${FAKE_DIR}/bin/curl" <<CURL
+#!/usr/bin/env bash
+# until the command arms it, it is the stub: the run's own first mint is the stub's, ghs_one
+[[ -e "\${FAKE_DIR}/armed" ]] || exec "${FAKE_DIR}/curl.real" "\$@"
+args=("\$@") dump='' write=''
+for (( i = 0; i < \${#args[@]}; i++ ))
+do
+  [[ "\${args[i]}" == --dump-header ]] && dump=\${args[i + 1]}
+  [[ "\${args[i]}" == --write-out ]] && write=\${args[i + 1]}
+done
+if [[ "\$*" == *access_tokens* ]]
+then
+  cat > /dev/null
+  token=ghs_m\$\$
+  echo "\${token}" >> "\${FAKE_DIR}/minted"
+  # a mint is held until the test lets them go, so that two are in flight together
+  for (( i = 0; i < 600; i++ ))
+  do
+    [[ -e "\${FAKE_DIR}/go" ]] && break
+    sleep 0.1
+  done
+  [[ -z "\${dump}" ]] || : > "\${dump}"
+  printf '{"token":"%s","expires_at":"%s"}' "\${token}" "\$(jq --null-input --raw-output 'now + 3600 | floor | todate')"
+  printf '%s' "\${write/'%{http_code}'/201}"
+  exit 0
+fi
+if [[ "\$*" == *'--request DELETE'* ]]
+then
+  input=\$(cat)
+  grep --only-matching 'ghs_[A-Za-z0-9_]*' <<<"\${input}" >> "\${FAKE_DIR}/revoked"
+  printf '%s\\n' "\${input}" | exec "${FAKE_DIR}/curl.real" "\$@"
+fi
+exec "${FAKE_DIR}/curl.real" "\$@"
+CURL
+  chmod +x "${FAKE_DIR}/bin/curl"
+  echo ghs_one > "${FAKE_DIR}/minted"
+  fixture token.json <<<"{\"token\":\"ghs_one\",\"expires_at\":\"$(jq --null-input --raw-output 'now + 60 | floor | todate')\"}"
+  cat > "${BATS_TEST_TMPDIR}/command" <<'COMMAND'
+#!/usr/bin/env bash
+session=$(dirname "$(dirname "$(command -v gh)")")
+: > "${FAKE_DIR}/armed"
+true & dead=$!
+wait "${dead}"
+ln -s "${dead}" "${session}/lock"
+gh api user & first=$!
+# the first has the lock and is minting: take the lock from under it, as a takeover race would, and renew again
+for (( i = 0; i < 600; i++ ))
+do
+  [[ "$(wc -l < "${FAKE_DIR}/minted")" -ge 2 ]] && break
+  sleep 0.1
+done
+rm -f "${session}/lock"
+gh api user & second=$!
+# both are minting: let them go
+for (( i = 0; i < 600; i++ ))
+do
+  [[ "$(wc -l < "${FAKE_DIR}/minted")" -ge 3 ]] && break
+  sleep 0.1
+done
+: > "${FAKE_DIR}/go"
+wait "${first}" "${second}"
+COMMAND
+  chmod +x "${BATS_TEST_TMPDIR}/command"
+  run --separate-stderr kit bots run "${BATS_TEST_TMPDIR}/command"
+  [ "$status" -eq 0 ]
+  [ "$(wc -l < "${FAKE_DIR}/minted" | tr -d ' ')" -eq 3 ]
+  [ "$(sort -u "${FAKE_DIR}/minted")" = "$(sort -u "${FAKE_DIR}/revoked")" ]
+  [ -z "$(ls -A "${TMPDIR}")" ]
 }

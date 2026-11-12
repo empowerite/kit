@@ -466,29 +466,43 @@ bots:run-script() {
   chmod 700 "$1"
 }
 
-# bots:run-end <session> revokes every token of the session that is still good, and removes the session directory: the
-# current one, the ones a renewal replaced, and one a renewal minted and was stopped before it kept. A revoke that fails
-# is a warning: the token expires within the hour, and the directory goes either way. So is a line of tokens that does
-# not read: the others are revoked all the same. bots:run calls it when the command ends, and registers it for the exit
-# sweep, which is what ends a run that stops early; the second call does nothing.
+# bots:run-end <session> revokes every token the session minted that is still good, once each, and removes the session
+# directory. Every token is in spent from the moment its mint returned, and the current one is in token.json as well; a
+# mint a renewal was stopped in is in a file of its own, token.<something>. The union is revoked, but for the tokens
+# revoked already, which a renewal noted in revoked. A revoke that fails is a warning: the token expires within the
+# hour, and the directory goes either way. So is a line that does not read: the others are revoked all the same.
+# bots:run calls it when the command ends, and registers it for the exit sweep, which is what ends a run that stops
+# early; the second call does nothing.
 bots:run-end() {
-  local session=$1 file line token filter failed=false unreadable=''
+  local session=$1 file name line token filter failed=false unreadable=''
+  local -A seen=()
   [[ -d "${session}" ]] || return 0
-  for file in "${session}"/token.json "${session}"/spent "${session}"/token.??????
+  if [[ -f "${session}/revoked" ]]
+  then
+    while IFS= read -r token || [[ -n "${token}" ]]
+    do
+      seen["${token}"]=1
+    done < "${session}/revoked"
+  fi
+  for file in "${session}"/spent "${session}"/token.*
   do
     [[ -f "${file}" ]] || continue
-    # a minted token no renewal kept is revoked whatever its expiry says: it is no record to trust
-    filter='select((.expires_at | fromdateiso8601) > now) | .token'
-    [[ "${file##*/}" != token.?????? ]] || filter='.token | select(type == "string")'
+    name=${file##*/}
+    # a token that is current or was replaced is revoked where it has time left, or where its expiry does not read; a
+    # minted token no renewal kept is revoked whatever its expiry says
+    filter='select(try ((.expires_at | fromdateiso8601) > now) catch true) | .token | select(type == "string")'
+    [[ "${name}" == spent || "${name}" == token.json ]] || filter='.token | select(type == "string")'
     while IFS= read -r line || [[ -n "${line}" ]]
     do
       [[ -n "${line}" ]] || continue
       if ! token=$(jq --raw-output "${filter}" <<<"${line}" 2>/dev/null)
       then
-        [[ " ${unreadable} " == *" ${file##*/} "* ]] || unreadable+=${unreadable:+ }${file##*/}
+        [[ " ${unreadable} " == *" ${name} "* ]] || unreadable+=${unreadable:+ }${name}
         continue
       fi
-      [[ -z "${token}" ]] || bots:forge revoke "${token}" >/dev/null || failed=true
+      [[ -n "${token}" && -z "${seen["${token}"]:-}" ]] || continue
+      seen["${token}"]=1
+      bots:forge revoke "${token}" >/dev/null || failed=true
     done < "${file}"
   done
   [[ -z "${unreadable}" ]] \
@@ -501,8 +515,8 @@ bots:run-end() {
 # KIT_BOT_LOGIN, and KIT_BOT_FOR, and GH_HOST the forge's, with GH_ENTERPRISE_TOKEN where it is not github.com and none
 # where it is; a gh on PATH
 # that mints a new token within ten minutes of the old one's end; and git's credential helper for the forge's host
-# answering with the token. The tokens live in a session directory, mode 700, under XDG_RUNTIME_DIR, else TMPDIR, else
-# /tmp; it records the checkout the run started in, where the shim and the helper mint, so a token stays narrowed to
+# answering with the token. The tokens live in a session directory, mode 700, which file:scratch
+# makes under TMPDIR and sweeps; it records the checkout the run started in, where the shim and the helper mint, so a token stays narrowed to
 # that repository whichever folder the command works in, and the gh the shim runs: the first on PATH, or, where that
 # is the shim of a run this one is inside, that run's. A token is never in an argument: it is in files of the
 # session, in the environment, and on the helper's stdout. When the command ends, or run is terminated or hung up,
@@ -519,13 +533,13 @@ bots:run() {
   person=${KIT_BOT_FOR:-}
   [[ -n "${person}" ]] || person=$(forge:me) || return 1
   start=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-  session=$(mktemp -d "${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/kit-bot.XXXXXX") || return 1
+  file:scratch session || return 1
   file:at-exit bots:run-end "${session}"
   umask_was=$(umask)
   umask 077
   mkdir "${session}/bin" || return 1
-  bots:token "${bot}" | jq --compact-output . > "${session}/token.json" || return 1
-  : > "${session}/spent"
+  # the token is in spent the moment it is minted, and in token.json as the current one
+  bots:token "${bot}" | jq --compact-output . | tee -a "${session}/spent" > "${session}/token.json" || return 1
   printf '%s\n' "${name}" > "${session}/bot"
   printf '%s\n' "${host}" > "${session}/host"
   printf '%s\n' "${start}" > "${session}/start"
@@ -539,8 +553,8 @@ bots:run() {
   bots:run-script "${session}/refresh" "${session}" <<'BODY'
 # prints the session's token, minted anew, in the checkout the run started in, within ten minutes of its end. One
 # refresh mints at a time, under a lock that is a link to the process holding it; a lock whose holder is gone is
-# taken over, and a holder that is only slow never is. The token a renewal replaces goes to spent, for the end of the
-# run to revoke.
+# taken over, and a holder that is only slow never is. The lock only saves a second mint: every token minted goes to
+# spent the moment its mint returns, so none escapes the revoking at the end of the run, whatever the lock does.
 set -o errexit -o nounset -o pipefail
 umask 077
 left() { jq --raw-output '(.expires_at | fromdateiso8601) - now | floor' "${session}/token.json"; }
@@ -558,12 +572,10 @@ then
     holder=$(readlink "${lock}" 2>/dev/null) || holder=''
     if [[ "${holder}" =~ ^[0-9]+$ ]] && ! kill -0 "${holder}" 2>/dev/null
     then
-      # its holder is gone: one waiter renames the lock aside, which is atomic, and all try again; a lock that was not
-      # the dead one's, taken in between, goes back
+      # its holder is gone: one waiter renames the lock aside, which is atomic, and all try again. A lock taken in
+      # between, which was not the dead one's, is lost to its holder, and two mint: harmless, as every mint is in spent
       if mv "${lock}" "${lock}.stale.$$" 2>/dev/null
-      then
-        [[ "$(readlink "${lock}.stale.$$")" == "${holder}" ]] || mv -n "${lock}.stale.$$" "${lock}" 2>/dev/null || true
-        rm -f "${lock}.stale.$$"
+      then rm -f "${lock}.stale.$$"
       fi
       continue
     fi
@@ -584,13 +596,15 @@ then
       [[ "${part}" == "${session}/bin" ]] || clean+=${clean:+:}${part}
     done
     PATH=${clean}
-    fresh=$(mktemp "${session}/token.XXXXXX")
+    fresh=${session}/token.mint.$$
     if ! (cd "$(<"${session}/start")" && "$(<"${session}/kit")" bots --bot="$(<"${session}/bot")" token --json) \
       > "${fresh}"
     then
       rm -f "${fresh}"
       exit 1
     fi
+    # the token is in spent the moment its mint returns: whatever stops this renewal, the end of the run revokes it
+    cat "${fresh}" >> "${session}/spent"
     if ! jq --exit-status '(.token | type == "string" and length > 0) and (.expires_at | fromdateiso8601 | . > 0)' \
       "${fresh}" >/dev/null 2>&1
     then
@@ -601,11 +615,12 @@ then
       if [[ -z "${rejected}" ]] || (cd "$(<"${session}/start")" \
         && bash -c 'source "$1/modules/bash/1st.sh" && use bots && read -r token && bots:forge revoke "${token}" >/dev/null' \
           _ "$(dirname "$(dirname "$(<"${session}/kit")")")") <<<"${rejected}"
-      then rm -f "${fresh}"
+      then
+        [[ -z "${rejected}" ]] || printf '%s\n' "${rejected}" >> "${session}/revoked"
+        rm -f "${fresh}"
       fi
       exit 1
     fi
-    cat "${session}/token.json" >> "${session}/spent"
     mv "${fresh}" "${session}/token.json"
   fi
 fi
