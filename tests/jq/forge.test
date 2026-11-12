@@ -141,15 +141,48 @@ import "forge" as forge; . as $lists | ["issues", "runs", "releases", "milestone
 # color, the age in seconds, and the organization and the repository their url names, or null without one.
 import "forge" as forge; forge::github_issues(1000000)
 [{"number": 9, "title": "Other thing", "assignees": [], "createdAt": "1970-01-12T13:46:30Z"}, {"number": 7, "title": "Fix the thing", "assignees": [{"login": "bob"}], "labels": [{"id": "LA_1", "name": "priority=high", "description": "", "color": "B60205"}], "createdAt": "1970-01-12T13:46:20Z", "url": "https://github.com/empowerite/kit/issues/7"}]
-{"number":7,"ref":"#7","title":"Fix the thing","assignees":["bob"],"labels":[{"name":"priority=high","color":"#b60205"}],"createdAt":"1970-01-12T13:46:20Z","age":20,"source":"github","organization":"empowerite","repository":"kit"}
-{"number":9,"ref":"#9","title":"Other thing","assignees":[],"labels":[],"createdAt":"1970-01-12T13:46:30Z","age":10,"source":"github","organization":null,"repository":null}
+{"number":7,"ref":"#7","title":"Fix the thing","assignees":["bob"],"labels":[{"name":"priority=high","color":"#b60205"}],"createdAt":"1970-01-12T13:46:20Z","milestone":null,"iteration":null,"age":20,"source":"github","organization":"empowerite","repository":"kit"}
+{"number":9,"ref":"#9","title":"Other thing","assignees":[],"labels":[],"createdAt":"1970-01-12T13:46:30Z","milestone":null,"iteration":null,"age":10,"source":"github","organization":null,"repository":null}
 
 # GitLab's fold the same, from iid, username, the labels' details, and a created_at with fractional seconds; the
 # organization is the group, subgroups and all, its full reference names.
 import "forge" as forge; forge::gitlab_issues(1000000)
 [{"iid": 7, "title": "Fix the thing", "assignees": [{"username": "bob"}], "labels": [{"id": 4, "name": "area::tui", "color": "#6699CC", "text_color": "#FFFFFF"}], "created_at": "1970-01-12T13:46:20.000Z", "references": {"full": "empowerite/tools/kit#7"}}, {"iid": 9, "title": "Other thing", "assignees": [], "created_at": "1970-01-12T13:46:30.500Z"}]
-{"number":7,"ref":"#7","title":"Fix the thing","assignees":["bob"],"labels":[{"name":"area::tui","color":"#6699cc"}],"createdAt":"1970-01-12T13:46:20.000Z","age":20,"source":"gitlab","organization":"empowerite/tools","repository":"kit"}
-{"number":9,"ref":"#9","title":"Other thing","assignees":[],"labels":[],"createdAt":"1970-01-12T13:46:30.500Z","age":10,"source":"gitlab","organization":null,"repository":null}
+{"number":7,"ref":"#7","title":"Fix the thing","assignees":["bob"],"labels":[{"name":"area::tui","color":"#6699cc"}],"createdAt":"1970-01-12T13:46:20.000Z","milestone":null,"iteration":null,"age":20,"source":"gitlab","organization":"empowerite/tools","repository":"kit"}
+{"number":9,"ref":"#9","title":"Other thing","assignees":[],"labels":[],"createdAt":"1970-01-12T13:46:30.500Z","milestone":null,"iteration":null,"age":10,"source":"gitlab","organization":null,"repository":null}
+
+# An issue says its milestone and its iteration by title: GitHub's milestone from gh issue list, and its iteration the
+# one forge/github:open-issues puts beside it; GitLab's from its own fields, an iteration with no title by its dates.
+import "forge" as forge; [forge::github_issues(1000000) | {number, milestone, iteration}]
+[{"number": 7, "title": "a", "assignees": [], "createdAt": "1970-01-12T13:46:20Z", "milestone": {"number": 2, "title": "v0.1"}, "iteration": "Sprint 2"}, {"number": 9, "title": "b", "assignees": [], "createdAt": "1970-01-12T13:46:30Z", "milestone": null}]
+[{"number":7,"milestone":"v0.1","iteration":"Sprint 2"},{"number":9,"milestone":null,"iteration":null}]
+
+import "forge" as forge; [forge::gitlab_issues(1000000) | {number, milestone, iteration}]
+[{"iid": 7, "title": "a", "assignees": [], "created_at": "1970-01-12T13:46:20Z", "milestone": {"title": "v0.1"}, "iteration": {"title": "Sprint 2"}}, {"iid": 8, "title": "b", "assignees": [], "created_at": "1970-01-12T13:46:25Z", "milestone": null, "iteration": {"title": null, "start_date": "2026-11-02", "due_date": "2026-11-15"}}, {"iid": 9, "title": "c", "assignees": [], "created_at": "1970-01-12T13:46:30Z"}]
+[{"number":7,"milestone":"v0.1","iteration":"Sprint 2"},{"number":8,"milestone":null,"iteration":"2026-11-02 to 2026-11-15"},{"number":9,"milestone":null,"iteration":null}]
+
+# GitHub's pages of the open issues' project items give each issue in an iteration the first iteration's title, by
+# its number; a value of another kind of field is no iteration, and an issue in none is left out.
+import "forge" as forge; forge::github_issue_iterations
+[{"data": {"repository": {"issues": {"nodes": [{"number": 7, "projectItems": {"nodes": [{"fieldValues": {"nodes": [{}, {"title": "Sprint 2"}]}}, {"fieldValues": {"nodes": [{"title": "Sprint 9"}]}}]}}, {"number": 8, "projectItems": {"nodes": [{"fieldValues": {"nodes": [{}]}}]}}]}}}}, {"data": {"repository": {"issues": {"nodes": [{"number": 9, "projectItems": {"nodes": []}}, {"number": 10, "projectItems": {"nodes": [{"fieldValues": {"nodes": [{"title": "Sprint 1"}]}}]}}]}}}}]
+{"7":"Sprint 2","10":"Sprint 1"}
+
+# An Azure Boards work item's iteration is the last name of its iteration path; the project's root alone is none, and
+# it has no milestone.
+import "forge" as forge; [forge::ado_issues(1000000; "p/r") | {number, milestone, iteration}]
+[{"id": 7, "fields": {"System.Title": "a", "System.CreatedDate": "1970-01-12T13:46:20Z", "System.IterationPath": "Claims\\Release 1\\Sprint 4"}}, {"id": 8, "fields": {"System.Title": "b", "System.CreatedDate": "1970-01-12T13:46:30Z", "System.IterationPath": "Claims"}}]
+[{"number":7,"milestone":null,"iteration":"Sprint 4"},{"number":8,"milestone":null,"iteration":null}]
+
+# An issue's milestone, iteration, and swimlane are the stand-in's where the repository chose one: the rest of its
+# first label with the prefix, past one that holds the prefix alone, else the default; null where the forge lacks the
+# feature; else the forge's own, or null.
+import "forge" as forge; [.[] | forge::issue_fields({swimlanes: {label_prefix: "swimlane:", default: "none"}, milestones: {default: "later"}}; ["iterations"]) | {milestone, iteration, swimlane}]
+[{"labels": [{"name": "bug"}, {"name": "swimlane:"}, {"name": "swimlane:ops"}, {"name": "swimlane:dev"}], "milestone": "v1", "iteration": "Sprint 1"}, {"labels": []}]
+[{"milestone":"later","iteration":null,"swimlane":"ops"},{"milestone":"later","iteration":null,"swimlane":"none"}]
+
+import "forge" as forge; [.[] | forge::issue_fields({iterations: {label_prefix: "sprint/"}}; []) | {milestone, iteration, swimlane}]
+[{"labels": [{"name": "sprint/12"}], "milestone": "v1", "iteration": "Sprint 1"}, {"labels": [], "iteration": "Sprint 1"}]
+[{"milestone":"v1","iteration":"12","swimlane":null},{"milestone":null,"iteration":null,"swimlane":null}]
 
 # A draft has no publishing time and is dated by when it was made; releases come newest first.
 import "forge" as forge; [forge::github_releases(1800000000) | "\(.version) \(.kind) \(.at) \(.latest)"]

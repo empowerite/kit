@@ -105,6 +105,54 @@
                     "minimum": 10
                   }
                 }
+              },
+              "milestones": {
+                "description": "An issue's milestone is the rest of the name of its first label that starts with label_prefix, else default, else none; used even where the forge has milestones, for the issue's field alone.",
+                "type": "object",
+                "additionalProperties": false,
+                "minProperties": 1,
+                "properties": {
+                  "label_prefix": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "default": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "iterations": {
+                "description": "An issue's iteration is the rest of the name of its first label that starts with label_prefix, else default, else none; used even where the forge has iterations, for the issue's field alone.",
+                "type": "object",
+                "additionalProperties": false,
+                "minProperties": 1,
+                "properties": {
+                  "label_prefix": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "default": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "swimlanes": {
+                "description": "An issue's swimlane is the rest of the name of its first label that starts with label_prefix, else default, else none; used even where the forge has swimlanes, for the issue's field alone.",
+                "type": "object",
+                "additionalProperties": false,
+                "minProperties": 1,
+                "properties": {
+                  "label_prefix": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "default": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
               }
             }
           }
@@ -179,6 +227,54 @@
                     "every": {
                       "type": "number",
                       "minimum": 10
+                    }
+                  }
+                },
+                "milestones": {
+                  "description": "An issue's milestone is the rest of the name of its first label that starts with label_prefix, else default, else none; used even where the forge has milestones, for the issue's field alone.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "minProperties": 1,
+                  "properties": {
+                    "label_prefix": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "default": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "iterations": {
+                  "description": "An issue's iteration is the rest of the name of its first label that starts with label_prefix, else default, else none; used even where the forge has iterations, for the issue's field alone.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "minProperties": 1,
+                  "properties": {
+                    "label_prefix": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "default": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "swimlanes": {
+                  "description": "An issue's swimlane is the rest of the name of its first label that starts with label_prefix, else default, else none; used even where the forge has swimlanes, for the issue's field alone.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "minProperties": 1,
+                  "properties": {
+                    "label_prefix": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "default": {
+                      "type": "string",
+                      "minLength": 1
                     }
                   }
                 }

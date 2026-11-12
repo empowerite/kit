@@ -477,15 +477,18 @@ forge/github:milestones() {
 forge/github:noun() { printf '#\tpull request\n'; }
 
 # forge/github:open-issues prints one document per open issue, oldest first, as the seam's header says. gh issue list
-# answers with issues alone, never pull requests, and reads every page up to its --limit.
+# answers with issues alone, never pull requests, and reads every page up to its --limit; each issue's iteration is
+# forge/github:issue-iterations', which gh issue list does not say.
 forge/github:open-issues() {
-  local answer
+  local answer iterations
   forge/github:ask answer 'the issues' issue list --state open --limit "${forge_list_limit}" \
-    --json number,title,assignees,labels,createdAt,url \
+    --json number,title,assignees,labels,createdAt,url,milestone \
     || return 1
   forge:whole 'the issues' "$(jq length <<<"${answer}")" || return 1
+  iterations=$(forge/github:issue-iterations) || return 1
   forge/github:fold 'the issues' "${answer}" --compact-output --argjson now "$(date +%s)" \
-    'import "forge" as forge; forge::github_issues($now)'
+    --argjson iterations "${iterations}" \
+    'import "forge" as forge; map(.iteration = $iterations[.number | tostring]) | forge::github_issues($now)'
 }
 
 # forge/github:open-prs makes one GraphQL request for every open pull request, with its labels, the issues it closes
@@ -859,12 +862,55 @@ forge/github:teams() {
     'import "forge" as forge; forge::github_teams($members; 20)'
 }
 
-# The provider implements contract 4, and its forge lacks none of its features.
-forge/github:contract() { printf '4\n'; }
+# The provider implements contract 5, and its forge lacks only swimlanes, which no forge kit reaches has.
+forge/github:contract() { printf '5\n'; }
 
-forge/github:lacks() { :; }
+forge/github:lacks() {
+  printf '%s\n' swimlanes
+}
 
 # The seam's calls end here; what follows is this provider's own.
+
+# forge/github:issue-iterations prints one JSON object of each open issue's number, as a text, to the title of its
+# iteration, as forge.jq's github_issue_iterations reads them from GitHub's GraphQL: 100 issues a request, the first 5
+# projects of each and 20 of the fields of each, about 6 points of the rate limit a request. A login that cannot read
+# the projects, without the read:project scope, gets no iterations, {}, as the iterations stage names the remedy.
+forge/github:issue-iterations() {
+  local query page pages='' said out more=true
+  local -a after=()
+  query='query($owner: String!, $name: String!, $after: String) {
+    repository(owner: $owner, name: $name) {
+      issues(states: OPEN, first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes {
+        number projectItems(first: 5) { nodes { fieldValues(first: 20) { nodes {
+          ... on ProjectV2ItemFieldIterationValue { title }
+        } } } }
+      } }
+    }
+  }'
+  file:temp said gh || return 1
+  while [[ "${more}" == true ]]
+  do
+    if ! page=$(gh api graphql --field owner='{owner}' --field name='{repo}' "${after[@]}" --raw-field query="${query}" \
+      2>"${said}")
+    then
+      out=${page}$'\n'$(<"${said}")
+      if [[ "${out,,}" == *insufficient_scopes* || "${out,,}" == *'required scopes'* ]]
+      then
+        printf '{}\n'
+        return 0
+      fi
+      forge/github:limited "the issues' iterations" "${out}" \
+        || error "run: gh auth status (the issues' iterations could not be read)"
+      return 1
+    fi
+    forge:json "${page}" || { error "run: gh auth status (the issues' iterations could not be read)"; return 1; }
+    pages+=${page}$'\n'
+    more=$(jq --raw-output '.data.repository.issues.pageInfo.hasNextPage // false' <<<"${page}")
+    after=(--raw-field after="$(jq --raw-output '.data.repository.issues.pageInfo.endCursor // ""' <<<"${page}")")
+  done
+  forge/github:fold "the issues' iterations" "${pages}" --slurp --compact-output \
+    'import "forge" as forge; forge::github_issue_iterations'
+}
 
 # forge/github:on-branch <what> <branch> <state> <field> prints the field of the newest pull request on the branch,
 # among those open or all, or nothing when there is none.

@@ -49,6 +49,9 @@ provider() {
     do
       printf 'forge/plain:%s() { log %s "$@"; }\n' "${call}" "${call}"
     done
+    printf 'forge/plain:open-issues() { log open-issues; printf "%%s\\n" %s %s; }\n' \
+      "'{\"number\":7,\"milestone\":\"v1\",\"iteration\":\"Sprint 1\",\"labels\":[{\"name\":\"lane:ops\",\"color\":null}]}'" \
+      "'{\"number\":8,\"milestone\":null,\"iteration\":null,\"labels\":[]}'"
     printf 'forge/plain:open-prs() { log open-prs; printf "%%s\\n" %s %s; }\n' \
       "'{\"number\":5,\"title\":\"[draft] Fix it\",\"state\":\"ready\",\"labels\":[{\"name\":\"draft\",\"color\":null}]}'" \
       "'{\"number\":6,\"title\":\"Other\",\"state\":\"ready\",\"labels\":[]}'"
@@ -135,11 +138,43 @@ provider() {
   STAND_INS='      checks: {codebuild: [ci]}' provider 3
   run "${kit_root}/bin/kit" flow --capabilities
   [ "$status" -eq 1 ]
-  [[ "$output" == *"checks: no stand-in: the stand-ins are drafts, closing-issues, and marks"* ]]
+  [[ "$output" == *"checks: no stand-in: the stand-ins are drafts, closing-issues, marks, milestones, iterations, and swimlanes"* ]]
   STAND_INS='      marks: {every: 1}' provider 3
   run call marks
   [[ "$output" == *"marks: {every: <seconds>}, 10 at the least, not {\"every\":1}"* ]]
+  STAND_INS='      swimlanes: {label: lane}' provider 5
+  run call open-issues
+  [[ "$output" == *'swimlanes: {label_prefix: <text>, default: <text>}, either or both, not {"label":"lane"}'* ]]
+  STAND_INS='      milestones: {label_prefix: ""}' provider 5
+  run call open-issues
+  [[ "$output" == *'milestones: {label_prefix: <text>, default: <text>}, either or both, not {"label_prefix":""}'* ]]
+  STAND_INS='      iterations: {label_prefix: "sprint/"}' provider 5 labels
+  run call open-issues
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"iterations: a label, which the forge lacks"* ]]
   [ ! -e calls.log ]
+}
+
+@test "with no stand-in, an issue keeps the forge's milestone and iteration, and has no swimlane, as the forge lacks it" {
+  provider 5 swimlanes
+  run --separate-stderr call open-issues
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '[.number, .milestone, .iteration, .swimlane]' <<<"$output")" = $'[7,"v1","Sprint 1",null]\n[8,null,null,null]' ]
+  run "${kit_root}/bin/kit" flow --capabilities
+  [ "$(jq -c '[.features.milestones, .features.swimlanes]' <<<"$output")" = '["native","none"]' ]
+}
+
+@test "a stand-in gives an issue its swimlane from a label, else its default, and stands in for the forge's milestone" {
+  STAND_INS=$'      swimlanes: {label_prefix: "lane:", default: backlog}\n      milestones: {default: none}' \
+    provider 5 swimlanes
+  run --separate-stderr call open-issues
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '[.number, .milestone, .iteration, .swimlane]' <<<"$output")" \
+    = $'[7,"none","Sprint 1","ops"]\n[8,"none",null,"backlog"]' ]
+  [ "$(cat calls.log)" = open-issues ]
+  run "${kit_root}/bin/kit" flow --capabilities
+  [ "$(jq -c '[.features.milestones, .features.iterations, .features.swimlanes]' <<<"$output")" \
+    = '["stand-in","native","stand-in"]' ]
 }
 
 @test "a call version 3 added is unsupported for a provider of version 2, and runs nothing" {

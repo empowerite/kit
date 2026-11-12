@@ -82,12 +82,12 @@ forge/ado:branch-for-issue() {
     '[.[] | (.sourceRefName | ltrimstr("refs/heads/")) | select(startswith("\($n)-"))] | .[0] // empty'
 }
 
-# The provider implements contract 4, and its forge lacks these features.
-forge/ado:contract() { printf '4\n'; }
+# The provider implements contract 5, and its forge lacks these features.
+forge/ado:contract() { printf '5\n'; }
 
 forge/ado:lacks() {
   printf '%s\n' quota marks releases linked-branches milestones bots attestations code-scanning dependabot \
-    secret-scanning bypasses
+    secret-scanning bypasses swimlanes
 }
 
 forge/ado:bypasses() { return 3; }
@@ -293,7 +293,8 @@ forge/ado:open-issues() {
   local items project repo
   IFS=$'\t' read -r _ project repo < <(forge/ado:place) || return 1
   forge/ado:ask items 'the work items' boards query --project "${project}" --wiql \
-    "SELECT [System.Id], [System.Title], [System.AssignedTo], [System.Tags], [System.CreatedDate] FROM WorkItems
+    "SELECT [System.Id], [System.Title], [System.AssignedTo], [System.Tags], [System.CreatedDate],
+            [System.IterationPath] FROM WorkItems
      WHERE [System.TeamProject] = @project AND [System.State] NOT IN ('Closed', 'Done', 'Removed')
      ORDER BY [System.CreatedDate] ASC" || return 1
   forge/ado:fold 'the work items' "${items}" --exit-status 'type == "array"' >/dev/null || return 1

@@ -43,7 +43,8 @@ JSON
   fixture items.json <<'JSON'
 [{"id": 9, "fields": {"System.Title": "Other thing", "System.State": "New", "System.CreatedDate": "2026-09-25T09:00:00.5Z"}},
  {"id": 7, "fields": {"System.Title": "Fix the thing", "System.State": "Active", "System.Tags": "bug",
-  "System.AssignedTo": {"uniqueName": "bob"}, "System.CreatedDate": "2026-09-20T09:00:00Z"}}]
+  "System.AssignedTo": {"uniqueName": "bob"}, "System.CreatedDate": "2026-09-20T09:00:00Z",
+  "System.IterationPath": "empowerite\\Sprint 4"}}]
 JSON
   fixture linked.json <<'JSON'
 [{"id": 7, "fields": {"System.Title": "Fix the thing", "System.State": "Active", "System.Tags": "bug",
@@ -110,10 +111,10 @@ JSON
   az-route 'boards iteration team list --team Alpha --project empowerite --output json' iterations.json
 }
 
-# added is what contract 4 adds that Azure DevOps lacks, as JSON strings: it has iterations, reviewers, the changes
-# merged, artifacts, environments, deployments, who has access, teams, and the default branch's policies, and no
-# milestone, bot, attestation, alert, or waiver.
-added='"milestones","bots","attestations","code-scanning","dependabot","secret-scanning","bypasses"'
+# added is what contracts 4 and 5 add that Azure DevOps lacks, as JSON strings: it has iterations, reviewers, the
+# changes merged, artifacts, environments, deployments, who has access, teams, and the default branch's policies, and
+# no milestone, bot, attestation, alert, waiver, or swimlane.
+added='"milestones","bots","attestations","code-scanning","dependabot","secret-scanning","bypasses","swimlanes"'
 
 @test "dev.azure.com, its ssh host, and a host under visualstudio.com are Azure DevOps, and each names the repository" {
   run call provider
@@ -283,8 +284,9 @@ added='"milestones","bots","attestations","code-scanning","dependabot","secret-s
 
 @test "the provider lists its open work items in one shape, oldest first, with the assignee, the tags, and the repository" {
   expected='[{"number":7,"ref":"#7","title":"Fix the thing","assignees":["bob"],'
-  expected+='"labels":[{"name":"bug","color":null}]},'
-  expected+='{"number":9,"ref":"#9","title":"Other thing","assignees":[],"labels":[]}]'
+  expected+='"labels":[{"name":"bug","color":null}],"milestone":null,"iteration":"Sprint 4","swimlane":null},'
+  expected+='{"number":9,"ref":"#9","title":"Other thing","assignees":[],"labels":[],'
+  expected+='"milestone":null,"iteration":null,"swimlane":null}]'
   run call open-issues
   [ "$status" -eq 0 ]
   [ "$(jq --compact-output --sort-keys --slurp 'map(del(.age, .createdAt, .source, .organization, .repository))' \
@@ -338,7 +340,7 @@ JSON
   run "${kit_root}/bin/kit" flow --capabilities
   [ "$status" -eq 0 ]
   [ "$(jq -c '{forge, provider, none: [.features | to_entries[] | select(.value == "none") | .key]}' <<<"$output")" \
-    = "{\"forge\":\"ado\",\"provider\":4,\"none\":[\"linked-branches\",\"quota\",\"marks\",\"releases\",${added}]}" ]
+    = "{\"forge\":\"ado\",\"provider\":5,\"none\":[\"linked-branches\",\"quota\",\"marks\",\"releases\",${added}]}" ]
   for c in quota marks releases 'link-branch 7 main'
   do
     read -r -a words <<<"${c}" && run --separate-stderr call "${words[@]}"

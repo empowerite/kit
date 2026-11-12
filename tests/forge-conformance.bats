@@ -104,7 +104,13 @@ JSON
   "url": "https://github.com/empowerite/example/issues/9"},
  {"number": 7, "title": "Fix the thing", "assignees": [{"login": "bob"}], "createdAt": "2026-09-20T09:00:00Z",
   "labels": [{"id": "LA_1", "name": "bug", "description": "", "color": "d73a4a"}],
+  "milestone": {"number": 2, "title": "v0.1", "description": "", "dueOn": null},
   "url": "https://github.com/empowerite/example/issues/7"}]
+JSON
+  fixture gh-issue-iterations.json <<'JSON'
+{"data": {"repository": {"issues": {"pageInfo": {"hasNextPage": false, "endCursor": "c1"}, "nodes": [
+  {"number": 9, "projectItems": {"nodes": []}},
+  {"number": 7, "projectItems": {"nodes": [{"fieldValues": {"nodes": [{}, {"title": "Sprint 2"}]}}]}}]}}}}
 JSON
   route gh 'issue edit 7 --add-assignee ada' '!0'
   route gh 'issue list --state open --limit 10000 --json *' issues.json
@@ -139,6 +145,8 @@ JSON
   route gh 'api graphql*states: MERGED*' "${GITHUB_MERGED:-gh-merged.json}"
   route gh 'api graphql*deployments(first: 50*' "${GITHUB_DEPLOYMENTS:-gh-deployments.json}"
   route gh 'api graphql*projectsV2*' "${GITHUB_ITERATIONS:-gh-iterations.json}"
+  route gh 'api graphql*after=c1*projectItems*' gh-issue-iterations.json
+  route gh 'api graphql*projectItems*' "${GITHUB_ISSUE_ITERATIONS:-gh-issue-iterations.json}"
   route gh 'api graphql*number=3*' "${GITHUB_CLOSING:-closing.json}"
   route gh 'api graphql*' open-prs.json
 }
@@ -208,6 +216,7 @@ JSON
   fixture issues.json <<'JSON'
 [{"iid": 7, "title": "Fix the thing", "assignees": [{"username": "bob"}], "created_at": "2026-09-20T09:00:00.000Z",
   "labels": [{"id": 4, "name": "bug", "color": "#D73A4A", "text_color": "#FFFFFF"}],
+  "milestone": {"id": 12, "iid": 2, "title": "v0.1"}, "iteration": {"id": 4, "title": "Sprint 2"},
   "references": {"full": "empowerite/example#7"}},
  {"iid": 9, "title": "Other thing", "assignees": [], "created_at": "2026-09-25T09:00:00.500Z",
   "references": {"full": "empowerite/example#9"}}]
@@ -487,10 +496,11 @@ JSON
   done
 }
 
-@test "every provider lists its open issues in one shape, oldest first, with the assignees by login, the labels, and the repository" {
+@test "every provider lists its open issues in one shape, oldest first, with the assignees by login, the labels, the milestone and iteration, and the repository" {
   expected='[{"number":7,"ref":"#7","title":"Fix the thing","assignees":["bob"],'
-  expected+='"labels":[{"name":"bug","color":"#d73a4a"}]},'
-  expected+='{"number":9,"ref":"#9","title":"Other thing","assignees":[],"labels":[]}]'
+  expected+='"labels":[{"name":"bug","color":"#d73a4a"}],"milestone":"v0.1","iteration":"Sprint 2","swimlane":null},'
+  expected+='{"number":9,"ref":"#9","title":"Other thing","assignees":[],"labels":[],'
+  expected+='"milestone":null,"iteration":null,"swimlane":null}]'
   for forge in github gitlab
   do
     world "${forge}"
@@ -503,6 +513,32 @@ JSON
     [ "$(jq --raw-output --slurp 'map("\(.organization)/\(.repository)") | unique | join(" ")' <<<"$output")" \
       = empowerite/example ]
   done
+}
+
+@test "GitHub reads each open issue's iteration from its projects, 100 a page; without read:project it has none" {
+  fixture gh-issue-iterations-1.json <<'JSON'
+{"data": {"repository": {"issues": {"pageInfo": {"hasNextPage": true, "endCursor": "c1"}, "nodes": [
+  {"number": 9, "projectItems": {"nodes": [{"fieldValues": {"nodes": [{"title": "Sprint 1"}]}}]}}]}}}}
+JSON
+  GITHUB_ISSUE_ITERATIONS=gh-issue-iterations-1.json world github
+  run --separate-stderr call open-issues
+  [ "$status" -eq 0 ]
+  [ "$(jq --slurp --compact-output 'map([.number, .iteration])' <<<"$output")" = '[[7,"Sprint 2"],[9,"Sprint 1"]]' ]
+  [ "$(grep --count 'projectItems' "${FAKE_DIR}/gh.calls")" -eq 2 ]
+  forge-forget
+  fixture gh-scope.txt <<<'gh: Your token has not been granted the required scopes to execute this query. The '"'"'projectItems'"'"' field requires one of the following scopes: ['"'"'read:project'"'"'], but your token has only been granted the: ['"'"'repo'"'"'] scopes. (INSUFFICIENT_SCOPES)'
+  GITHUB_ISSUE_ITERATIONS='!1 gh-scope.txt' world github
+  run --separate-stderr call open-issues
+  [ "$status" -eq 0 ]
+  [ "$(jq --slurp --compact-output 'map([.number, .milestone, .iteration])' <<<"$output")" = '[[7,"v0.1",null],[9,null,null]]' ]
+  [ -z "$stderr" ]
+  forge-forget
+  fixture gh-down.txt <<<'gh: HTTP 502: Bad Gateway'
+  GITHUB_ISSUE_ITERATIONS='!1 gh-down.txt' world github
+  run --separate-stderr call open-issues
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [[ "$stderr" == *"run: gh auth status (the issues' iterations could not be read)"* ]]
 }
 
 @test "every provider reaches its tool with color forced off, so a desk's CLICOLOR_FORCE cannot color its data" {

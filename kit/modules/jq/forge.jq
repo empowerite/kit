@@ -275,28 +275,62 @@ def gitlab_pr($now; $jobs; $discussions; $closes; $fork; $approvals):
                            source: "gitlab" } + place(gitlab_path)] }
   | document($now);
 
-# issue($now; $source; $path) reads {number, title, assignees, labels, createdAt}, the assignees as logins, and gives
-# the issue document kit backlog draws: those, the labels as labels reads them, ref, age in seconds, source, the
-# tracker that holds it: the code forge's own, github or gitlab, for now; and the organization and the repository it
-# is in, as place reads $path.
+# issue($now; $source; $path) reads {number, title, assignees, labels, createdAt, milestone, iteration}, the assignees
+# as logins, the milestone and the iteration each a title or null, and gives the issue document kit backlog draws:
+# those, the labels as labels reads them, ref, age in seconds, source, the tracker that holds it: the code forge's own,
+# github or gitlab, for now; and the organization and the repository it is in, as place reads $path.
 def issue($now; $source; $path):
   { number, ref: "#\(.number)", title, assignees, labels: (.labels | labels), createdAt,
+    milestone: (.milestone // null), iteration: (.iteration // null),
     age: ($now - (.createdAt | epoch)), source: $source }
   + place($path);
 
+# stood_in($choice) reads an issue document and gives the value a stand-in for one of its fields chooses: with
+# label_prefix, the rest of the name of its first label that starts with the prefix, and holds more than it; else the
+# default; else null.
+def stood_in($choice):
+  $choice.label_prefix as $prefix
+  | first(if $prefix == null then empty
+          else (.labels // [])[] | .name | select(startswith($prefix) and length > ($prefix | length))
+               | ltrimstr($prefix) end)
+    // $choice.default // null;
+
+# issue_fields($choices; $lacks) reads an issue document and gives it its milestone, iteration, and swimlane, each the
+# field of a feature: the stand-in's value where $choices, the repository's stand-ins by feature, holds one for it,
+# null where $lacks, the features the forge lacks, names it, else the forge's own value, or null.
+def issue_fields($choices; $lacks):
+  reduce (["milestone", "milestones"], ["iteration", "iterations"], ["swimlane", "swimlanes"]) as [$field, $feature]
+    (.;
+     if $choices[$feature] != null then .[$field] = stood_in($choices[$feature])
+     elif any($lacks[]; . == $feature) then .[$field] = null
+     else .[$field] = (.[$field] // null) end);
 
 # github_issues($now) reads gh issue list's JSON, the answer to forge/github:open-issues, and gives one document per
-# open issue, oldest first.
+# open issue, oldest first. Each issue's iteration is the one forge/github:open-issues puts beside it, from the projects
+# it is in, as gh issue list does not say it.
 def github_issues($now):
   sort_by(.createdAt, .number)[] | github_path as $path
-  | {number, title, assignees: [.assignees[].login], labels, createdAt}
+  | {number, title, assignees: [.assignees[].login], labels, createdAt, milestone: .milestone.title?, iteration}
   | issue($now; "github"; $path);
 
+# github_issue_iterations reads the pages of GitHub's GraphQL answer to the open issues' project items, each a page of
+# forge/github:issue-iterations, and gives one object of each issue's number, as a text, to the title of its
+# iteration: the first value of an iteration field among the projects it is in. An issue in none is not in it.
+def github_issue_iterations:
+  [.[].data.repository.issues.nodes[]
+   | {key: (.number | tostring),
+      value: first((.projectItems.nodes // [])[] | (.fieldValues.nodes // [])[] | .title? // empty)}
+  ]
+  | from_entries;
+
 # gitlab_issues($now) reads GitLab's issues, the answer to forge/gitlab:open-issues, and gives the same documents. The
-# answer gives each label's details, its color among them.
+# answer gives each label's details, its color among them, and each issue's milestone and iteration; an iteration of a
+# cadence with no title is named by its dates, as gitlab_iterations names it.
 def gitlab_issues($now):
   sort_by(.created_at, .iid)[] | gitlab_path as $path
-  | {number: .iid, title, assignees: [.assignees[].username], labels, createdAt: .created_at}
+  | {number: .iid, title, assignees: [.assignees[].username], labels, createdAt: .created_at,
+     milestone: .milestone.title?,
+     iteration: (.iteration | if . == null then null else .title // "\(.start_date) to \(.due_date)" end)}
   | issue($now; "gitlab"; $path);
 
 # release($now) shapes a release found on either forge into the document the releases stage draws: version (the tag without
@@ -417,13 +451,19 @@ def ado_assignees: [.fields["System.AssignedTo"] | objects | .uniqueName // empt
 # ado_tags reads a work item's tags, Azure Boards' labels, one text split by "; ", and gives their names.
 def ado_tags: (.fields["System.Tags"] // "") | split(";") | map(ltrimstr(" ") | rtrimstr(" ")) | map(select(. != ""));
 
+# ado_iteration reads a work item and gives the title of its iteration: the last name of its iteration path, as az names
+# the team's iterations, or null where the path is the project's root alone, which is no iteration.
+def ado_iteration:
+  (.fields["System.IterationPath"] // "") | split("\\") | if length > 1 then .[-1] else null end;
+
 # ado_issues($now; $path) reads the work items of an Azure Boards query, the answer to forge/ado:open-issues, and gives
-# one issue document per work item, oldest first. $path is the repository's, project/repository, where place reads
-# the project as the organization, as forge/ado:repo names its owner.
+# one issue document per work item, oldest first, with no milestone, which Azure Boards has none of. $path is the
+# repository's, project/repository, where place reads the project as the organization, as forge/ado:repo names its
+# owner.
 def ado_issues($now; $path):
   sort_by(.fields["System.CreatedDate"], .id)[]
   | {number: .id, title: .fields["System.Title"], assignees: ado_assignees, labels: ado_tags,
-     createdAt: .fields["System.CreatedDate"]}
+     createdAt: .fields["System.CreatedDate"], iteration: ado_iteration}
   | issue($now; "ado"; $path);
 
 # ado_verdict reads a policy evaluation's status and gives the check's verdict: approved is passed, rejected and broken

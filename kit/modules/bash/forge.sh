@@ -102,7 +102,10 @@
 #   pr-closing-issues <n>         one line per issue the pull request closes: "<number> <state> <owner/name>"
 #   open-prs                      one JSON object per open pull request, the documents kit flow draws, and kit
 #                                 changes' reviews and checks: modules/jq/forge.jq's header names their fields
-#   open-issues                   one JSON object per open issue, oldest first, the documents the backlog stage draws
+#   open-issues                   one JSON object per open issue, oldest first, the documents the backlog stage draws:
+#                                 each says its milestone and its iteration, a title or null, as the forge has them
+#                                 (since 5); the seam adds its swimlane, and answers each of the three from a stand-in
+#                                 where the repository chose one, as below
 #   releases                      one JSON object per release, newest first, the documents the releases stage draws:
 #                                 {version, tag, name, kind, latest, at, age, url, notes, assets}; kind is release,
 #                                 pre-release, or draft; url its page; notes its text, empty for none; and assets each
@@ -197,8 +200,8 @@
 #   releases         1      releases
 #   runs             1      runs
 #   labels           3      pr-label-add, pr-label-remove
-#   milestones       4      milestones
-#   iterations       4      iterations
+#   milestones       4      milestones, and open-issues: each issue's milestone
+#   iterations       4      iterations, and open-issues: each issue's iteration
 #   reviewers        4      open-prs: each change's reviewers: [{login, state, at}], state requested, approved,
 #                           changes, or commented
 #   merged           4      merged-prs
@@ -215,6 +218,8 @@
 #   rulesets         4      rulesets
 #   bypasses         4      bypasses
 #   check-runs       4      open-prs: each change's runs, [{name, verdict, at, took}], the checks by name
+#   swimlanes        5      open-issues: each issue's swimlane, the lane a board draws it in; no forge kit reaches has
+#                           one it reads the same way, so a repository gives it a stand-in, or every issue has none
 #
 # A repository chooses a stand-in for a feature in kit.yml, under the forge it is for, and the seam then answers the
 # feature's calls itself, from the forge's other calls, whether the forge has the feature or not:
@@ -226,9 +231,14 @@
 #                                      # while its title starts with the prefix, which pr-title leaves off
 #         closing-issues: body         # the forge's own issues the change's body closes: Closes #7
 #         marks: {every: 60}           # a mark that changes every 60 seconds, 10 at the least
+#         swimlanes: {label_prefix: "swimlane:", default: none}
+#                                      # an issue's swimlane is the rest of its first label that starts with the
+#                                      # prefix, else the default, else none; either of the two alone will do
 #
-# A stand-in that needs what the forge lacks is refused: a label on a forge without labels, a title prefix on a
-# provider older than version 3, which can neither open a change ready nor set its title.
+# milestones and iterations take the same stand-in as swimlanes, for the issue's field alone: the milestones and the
+# iterations calls stay the forge's own. A stand-in that needs what the forge lacks is refused: a label on a forge
+# without labels, a title prefix on a provider older than version 3, which can neither open a change ready nor set its
+# title.
 #
 # forge:capabilities prints the declaration as one JSON object, which kit flow --capabilities gives kittui: {contract,
 # forge, provider, features, stand_ins}, provider being the version the provider implements, features each feature's
@@ -261,11 +271,12 @@ declare -g forge_list_limit=10000
 # forge_contract is the version of the contract the file header states. forge_features lists each feature with the
 # version that added it, in the header's order, and forge_feature_of names the feature each gated call belongs to.
 # forge_lacking holds, once read, the features the primary's forge lacks, one per line; forge_lacking_read says it was.
-declare -gr forge_contract=4
+declare -gr forge_contract=5
 declare -gra forge_features=(issues:1 sub-issues:1 linked-branches:1 drafts:1 closing-issues:1 review-threads:1
   checks:1 quota:1 marks:1 releases:1 runs:1 labels:3
   milestones:4 iterations:4 reviewers:4 merged:4 artifacts:4 environments:4 deployments:4 collaborators:4 teams:4
-  bots:4 attestations:4 code-scanning:4 dependabot:4 secret-scanning:4 rulesets:4 bypasses:4 check-runs:4)
+  bots:4 attestations:4 code-scanning:4 dependabot:4 secret-scanning:4 rulesets:4 bypasses:4 check-runs:4
+  swimlanes:5)
 declare -grA forge_feature_of=(
   [issue-create]=issues [issue-title]=issues [issue-state]=issues [issue-assignees]=issues [issue-assign]=issues
   [issue-unassign]=issues [issue-close]=issues [issue-comment]=issues [open-issues]=issues
@@ -607,7 +618,13 @@ forge:stand-ins() {
         elif $f == "marks" then
           (if ($v | type) == "object" and ($v | keys) == ["every"] and ($v.every | type) == "number" and $v.every >= 10
            then empty else "{every: <seconds>}, 10 at the least, not \($v | tojson)" end)
-        else "no stand-in: the stand-ins are drafts, closing-issues, and marks" end
+        elif IN($f; "milestones", "iterations", "swimlanes") then
+          if ($v | type) == "object" and ($v | length) > 0 and all($v | keys[]; IN("label_prefix", "default"))
+            and all($v[]; type == "string" and . != "")
+          then (if $v.label_prefix != null and IN($lacks[]; "labels") then "a label, which the forge lacks"
+                else empty end)
+          else "{label_prefix: <text>, default: <text>}, either or both, not \($v | tojson)" end
+        else "no stand-in: the stand-ins are drafts, closing-issues, marks, milestones, iterations, and swimlanes" end
       | "\($f): \(.)") // empty' <<<"${choices}" 2>/dev/null) \
       || refusal='the stand-ins are no map'
     if [[ -n "${refusal}" ]]
@@ -804,7 +821,18 @@ forge:open-prs() {
     then .state = "draft" | .title |= ltrimstr($choice.title_prefix)
     else . end' <<<"${docs}"
 }
-forge:open-issues()         { forge:snapshot open-issues; }
+# forge:open-issues prints the open issues, as the forge's snapshot keeps them, each with its milestone, iteration, and
+# swimlane as forge.jq's issue_fields gives them: the stand-in's where the repository chose one, else the forge's own,
+# none where it lacks the feature.
+forge:open-issues() {
+  local docs
+  forge:stand-ins >/dev/null || return 1
+  docs=$(forge:snapshot open-issues) || return $?
+  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
+  [[ -z "${docs}" ]] || jq --compact-output -L "${kit_jq}" --argjson choices "${forge_stand_ins}" \
+    --arg lacking "${forge_lacking}" 'import "forge" as forge;
+      forge::issue_fields($choices; $lacking | split("\n") | map(select(. != "")))' <<<"${docs}"
+}
 forge:releases()            { forge:call releases "$@"; }
 forge:runs()                { use git; forge:call runs "$@"; }
 forge:milestones() { forge:call milestones "$@"; }

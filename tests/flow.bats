@@ -89,6 +89,8 @@ JSON
   route 'api user*' user.json
   route 'repo view*' repo.json
   route 'issue list --state open --limit 10000 --json *' issues.json
+  fixture issue-iterations.json <<<'{"data": {"repository": {"issues": {"pageInfo": {"hasNextPage": false}, "nodes": []}}}}'
+  route 'api graphql*projectItems*' issue-iterations.json
   route 'api graphql*' open-prs.json
   fixture runs.json <<'JSON'
 [{"databaseId": 12, "workflowName": "kit", "headBranch": "7-fix-the-thing", "event": "pull_request",
@@ -364,24 +366,28 @@ fake-tui() {
   forge-world
   run "${kit_root}/bin/kit" flow --no-fetch --json
   [ "$status" -eq 0 ]
-  # backlog, underway, and changes run at once in the picture, and each needs the open changes
-  [ "$(grep --count '^api graphql' "${FAKE_DIR}/gh.calls")" -eq 1 ]
+  # backlog, underway, and changes run at once in the picture, and each needs the open changes; the issues are a
+  # list and a GraphQL read of their iterations, beside the open changes' own
+  [ "$(grep --count '^api graphql' "${FAKE_DIR}/gh.calls")" -eq 2 ]
   [ "$(grep --count '^issue list' "${FAKE_DIR}/gh.calls")" -eq 1 ]
+  [ "$(grep --count 'projectItems(first' "${FAKE_DIR}/gh.calls")" -eq 1 ]
   # kittui loads each stage on its own, then again the ones a fetch moves; the forge is not asked again
   for stage in backlog underway changes backlog underway
   do
     run "${kit_root}/bin/kit" flow "${stage}" --json
     [ "$status" -eq 0 ]
   done
-  [ "$(grep --count '^api graphql' "${FAKE_DIR}/gh.calls")" -eq 1 ]
+  [ "$(grep --count '^api graphql' "${FAKE_DIR}/gh.calls")" -eq 2 ]
   [ "$(grep --count '^issue list' "${FAKE_DIR}/gh.calls")" -eq 1 ]
+  [ "$(grep --count 'projectItems(first' "${FAKE_DIR}/gh.calls")" -eq 1 ]
   # --fresh takes no snapshot read before the stage began
   sleep 1
   run in_flow flow:render backlog --json --fresh
   [ "$status" -eq 0 ]
   [ "$(jq -c 'map(.number)' <<<"$output")" = '[9,11]' ]
-  [ "$(grep --count '^api graphql' "${FAKE_DIR}/gh.calls")" -eq 2 ]
+  [ "$(grep --count '^api graphql' "${FAKE_DIR}/gh.calls")" -eq 4 ]
   [ "$(grep --count '^issue list' "${FAKE_DIR}/gh.calls")" -eq 2 ]
+  [ "$(grep --count 'projectItems(first' "${FAKE_DIR}/gh.calls")" -eq 2 ]
   # --fresh is no number for changes to choose by
   run in_flow flow:render changes --json --fresh 3
   [ "$status" -eq 0 ]

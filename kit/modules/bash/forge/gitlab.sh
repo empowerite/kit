@@ -630,12 +630,12 @@ forge/gitlab:teams() {
     --arg host "https://${host}" 'import "forge" as forge; forge::gitlab_teams($members; $host; 20)'
 }
 
-# The provider implements contract 4. Its forge keeps no attestations kit can read, and no waivers: a dismissed
-# vulnerability is among the alerts.
-forge/gitlab:contract() { printf '4\n'; }
+# The provider implements contract 5. Its forge keeps no attestations kit can read, and no waivers: a dismissed
+# vulnerability is among the alerts; and no swimlanes, which no forge kit reaches has.
+forge/gitlab:contract() { printf '5\n'; }
 
 forge/gitlab:lacks() {
-  printf '%s\n' attestations bypasses
+  printf '%s\n' attestations bypasses swimlanes
 }
 
 # The seam's calls end here; what follows is this provider's own.
