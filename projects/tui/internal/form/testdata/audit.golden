@@ -28,10 +28,10 @@
               report, SAST for code scanning, dependency scanning for Dependabot, and secret
               detection, off on a tier without it; GitLab leaves out a vulnerability the caller may
               not see, so the tab reads empty, never refused. Azure DevOps keeps none kit reads
-   controls   {id, control, target, enforcement, rules, source}, keyed by the id: control its name;
+   controls   {id, control, target, enforcement, rules, kind}, keyed by the id: control its name;
               target the refs it names; enforcement active, evaluate, or disabled; rules its kinds
-              of rule, null where the forge shows them only to an admin; source ruleset or
-              protection. The control links to its page. GitHub reads its rulesets, its own and its
+              of rule, null where the forge shows them only to an admin; kind ruleset or protection.
+              The control links to its page. GitHub reads its rulesets, its own and its
               organization's, in one GraphQL request, and the default branch's protection; GitLab
               its protected branches and push rules; Azure DevOps the default branch's policies
    waivers    {waives, actor, kind, reason, by, until, hidden}, keyed by what it waives and the
@@ -45,8 +45,11 @@
               for both, and a scanner off here, or one that refuses the caller, is under errors as
               in findings while the rest still draw. GitLab's are its dismissed vulnerabilities;
               Azure DevOps keeps none kit reads
-   policy     {rule, pattern, from, engine}, keyed by the rule, as kit policy --rules --json prints
-              them
+   policy     {source, organization, repository, branch, scope, rule, pattern, from, engine}, keyed
+              by the rule and where it is in force: a row per rule kit policy --rules --json prints
+              in each checkout of the clone with a branch, source the primary's forge, and the rows
+              that agree merged, each at the narrowest place that holds them, scope naming it:
+              branch, repository, organization, source, or workspace, the finer fields null
 
 
  kit audit
