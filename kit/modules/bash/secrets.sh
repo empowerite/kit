@@ -11,6 +11,8 @@
 #
 # see: modules/bash/forge.sh
 
+use file
+
 # secrets:backend prints keychain where security is on PATH, else secret-service where secret-tool is, and succeeds.
 # With neither it says to install secret-tool, prints nothing, and returns 1.
 secrets:backend() {
@@ -46,19 +48,21 @@ secrets:put() {
     || { error "the ${backend} did not keep $1 $2: it gave back something else"; return 1; }
 }
 
-# secrets:raw <backend> <service> <account> prints the item as the backend answers, and returns 1, silent, where there
-# is none, and 2, silent, where the backend failed to answer, as a locked keychain does. security says 44 for no item;
-# secret-tool says 1.
+# secrets:raw <backend> <service> <account> [<why file>] prints the item as the backend answers, and returns 1, silent,
+# where there is none, and 2 where the backend failed to answer, as a locked keychain does, what it said on stderr being
+# in <why file>. security says 44 for no item. secret-tool says 1 for no item, and says nothing; for a failure it says
+# something on stderr, and may say 1 as well, so an exit 1 with a message is a failure.
 secrets:raw() {
-  local status=0
+  local status=0 why=${4:-}
+  [[ -n "${why}" ]] || file:temp why secrets-why || return 2
   case "$1" in
     (keychain)
-      security find-generic-password -s "$2" -a "$3" -w 2>/dev/null || status=$?
+      security find-generic-password -s "$2" -a "$3" -w 2>"${why}" || status=$?
       (( status == 0 || status == 44 )) || return 2
       ;;
     (secret-service)
-      secret-tool lookup service "$2" account "$3" 2>/dev/null || status=$?
-      (( status <= 1 )) || return 2
+      secret-tool lookup service "$2" account "$3" 2>"${why}" || status=$?
+      (( status == 0 )) || [[ "${status}" == 1 && ! -s "${why}" ]] || return 2
   esac
   (( status == 0 )) || return 1
 }
@@ -67,12 +71,14 @@ secrets:raw() {
 # 1, silent, where there is no item, and 2, saying why, where the store cannot be read: no backend, or one that failed.
 # The value is base64, which the keychain never hex-encodes, so it is not un-hexed.
 secrets:get() {
-  local backend stored status=0
+  local backend stored why said='' status=0
   backend=$(secrets:backend) || return 2
-  stored=$(secrets:raw "${backend}" "$1" "$2") || status=$?
+  file:temp why secrets-why || return 2
+  stored=$(secrets:raw "${backend}" "$1" "$2" "${why}") || status=$?
   if (( status == 2 ))
   then
-    error "the ${backend} could not be read for $1 $2; unlock it, or check that it works"
+    IFS= read -r said < "${why}" || true  # a failure that said nothing has no line
+    error "the ${backend} could not be read for $1 $2${said:+ (${said})}; unlock it, or check that it works"
     return 2
   fi
   (( status == 0 )) || return 1

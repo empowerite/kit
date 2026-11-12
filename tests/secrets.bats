@@ -64,11 +64,11 @@ only-secret-tool() {
   FAKE_SECRETS_FAIL_READ=1 run --separate-stderr kit-bash 'secrets:get kit-bot github.com/99'
   [ "$status" -eq 2 ]
   [ -z "$output" ]
-  [[ "$stderr" == *'the keychain could not be read for kit-bot github.com/99'* ]]
+  [[ "$stderr" == *'the keychain could not be read for kit-bot github.com/99 (security: User interaction is not allowed.)'* ]]
   only-secret-tool
   FAKE_SECRETS_FAIL_READ=1 PATH="${lean}" run --separate-stderr kit-bash 'secrets:get kit-bot github.com/99'
   [ "$status" -eq 2 ]
-  [[ "$stderr" == *'the secret-service could not be read'* ]]
+  [[ "$stderr" == *'the secret-service could not be read for kit-bot github.com/99 (secret-tool: Cannot autolaunch D-Bus'* ]]
   PATH="${lean}" run --separate-stderr kit-bash 'secrets:get kit-bot github.com/99'
   [ "$status" -eq 1 ]
   [ -z "$stderr" ]

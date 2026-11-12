@@ -122,6 +122,26 @@ YAML
   [[ "$output" == *'"bots": ['* ]]
 }
 
+@test "kit bots lists a bot whose store cannot be read as keyless, and says once that it could not be read" {
+  two-bots
+  printf 'k' | kit-bash 'secrets:put kit-bot github.com/12345'
+  FAKE_SECRETS_FAIL_READ=1 run --separate-stderr kit bots --json
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '[.bots[] | .key]' <<<"$output")" = '[false,false]' ]
+  [ "$(grep --count 'could not be read' <<<"$stderr")" -eq 1 ]
+  [[ "$stderr" == *'the keychain could not be read for kit-bot github.com/12345'* ]]
+}
+
+@test "--add refuses where the store cannot be read, before it stores anything, and leaves a key that is there" {
+  github-routes github.com 12345 kit-bot
+  printf 'old' | kit-bash 'secrets:put kit-bot github.com/12345'
+  FAKE_SECRETS_FAIL_READ=1 run --separate-stderr kit bots --add=kit-bot --app=12345 --key="${pem}"
+  [ "$status" -eq 1 ]
+  [[ "$stderr" == *'could not be read'*'nothing was stored'* ]]
+  [ ! -e "${bots_file}" ]
+  [ "$(stored kit-bot github.com/12345)" = old ]
+}
+
 @test "--add proves the key before it stores anything" {
   github-routes github.com 12345 kit-bot
   run --separate-stderr kit bots --add=kit-bot --app=12345 --key="${pem}"

@@ -914,7 +914,7 @@ bot-key() {
   bot-key
   FAKE_SECRETS_FAIL_READ=1 run --separate-stderr check bot
   [ "$(jq --raw-output '[.ok, .fix, .runs] | @tsv' <<<"$output")" = $'false\t\ttrue' ]
-  [[ "$(jq --raw-output .line <<<"$output")" == 'the keychain could not be read for kit-bot github.com/12345;'* ]]
+  [[ "$(jq --raw-output .line <<<"$output")" == 'the keychain could not be read for kit-bot github.com/12345 ('* ]]
   [ -z "$stderr" ]
 }
 

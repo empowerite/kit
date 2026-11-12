@@ -183,19 +183,28 @@ bots:forge() {
 # bots:list prints {file, bots: [{name, host, app, owner, jobs, key}]}, key being true where the secret store holds the
 # bot's key. A bot's key is read only where there are bots, so a machine with no store lists none.
 bots:list() {
-  local doc bot file keyed_json
+  local doc bot file keyed_json errors status said=false
   local -a keyed=()
   doc=$(bots:json) || return 1
   file=$(bots:file)
+  [[ "$(jq '.bots | length' <<<"${doc}")" -eq 0 ]] || secrets:backend >/dev/null || return 1
+  file:temp errors bots-errors || return 1
   while IFS= read -r bot
   do
     [[ -n "${bot}" ]] || continue
-    if secrets:get kit-bot "$(jq --raw-output '"\(.host)/\(.app)"' <<<"${bot}")" >/dev/null 2>&1
+    status=0
+    secrets:get kit-bot "$(jq --raw-output '"\(.host)/\(.app)"' <<<"${bot}")" >/dev/null 2> "${errors}" || status=$?
+    if (( status == 0 ))
     then keyed+=(true)
     else keyed+=(false)
     fi
+    # a list lists all the same, and says once that a store it could not read shows its keys as none
+    if (( status == 2 )) && [[ "${said}" == false ]]
+    then
+      cat "${errors}" >&2
+      said=true
+    fi
   done < <(jq --compact-output '.bots[]' <<<"${doc}")
-  [[ "${#keyed[@]}" -eq 0 ]] || secrets:backend >/dev/null || return 1
   keyed_json=$(printf '%s\n' "${keyed[@]}" | jq --slurp --compact-output .)
   jq --compact-output --arg file "${file}" --argjson keyed "${keyed_json}" \
     '{file: $file, bots: [.bots | to_entries[]
@@ -281,9 +290,20 @@ bots:add() {
 
 # bots:adopt <name> <app> <pem> <job>… is bots:add after the key is read: the proof, then the key and the bot kept.
 bots:adopt() {
-  local name=$1 app=$2 pem=$3 host app_json slug owner html had=false
+  local name=$1 app=$2 pem=$3 host app_json slug owner html had=false status=0 errors
   shift 3
   host=$(bots:host)
+  # a key that is there is not to be removed by a rollback, so a store that cannot say is refused before anything is
+  # stored; secrets:get says why
+  file:temp errors bots-errors || return 1
+  secrets:get kit-bot "${host}/${app}" >/dev/null 2> "${errors}" || status=$?
+  case "${status}" in
+    (0) had=true ;;
+    (2)
+      cat "${errors}" >&2
+      error "the secret store cannot be read, so it is not known whether it holds a key for ${name}; nothing was stored"
+      return 1
+  esac
   if ! app_json=$(bots:forge app "${app}" "${pem}")
   then
     error "App ${app} did not accept that key; nothing was stored"
@@ -299,7 +319,6 @@ bots:adopt() {
     return 2
   fi
   bots:prove "${app}" "${pem}" "${html}" || return 1
-  secrets:get kit-bot "${host}/${app}" >/dev/null 2>&1 && had=true
   secrets:put kit-bot "${host}/${app}" < "${pem}" || return 1
   if ! bots:write "${name}" "${host}" "${app}" "${owner}" "$@"
   then
