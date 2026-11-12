@@ -61,12 +61,32 @@ declare -g generate_fence_re='^[[:space:]]*(```|~~~)'
 # (seven =) is not matched: it is also a markdown heading underline, and git never writes it without the opening one.
 declare -g generate_conflict_re='^(<{7}|>{7})([[:space:]].*)?$'
 
-# generate:carries <file> is true when the file has a line that starts with a marker. A template never counts, under
-# .kit/templates/ or a package's hosts/: it is the skeleton of a file, and its directive belongs to the file made
-# from it.
+# generate:carries <file>… prints each named file that has a line that starts with a marker, once, in the order named.
+# One grep reads them all, where a grep per file would start a process for each. A template never counts, under
+# .kit/templates/ or a package's hosts/: it is the skeleton of a file, and its directive belongs to the file made from
+# it. Nor does a path that is not a file, or one named before. It fails only where grep could not run.
 generate:carries() {
-  [[ -f "$1" && ! "$1" =~ (^|/)\.kit/templates/ && ! "$1" =~ (^|/)packages/[^/]+(/[^/]+)?/hosts/ ]] \
-    && grep --quiet --extended-regexp "${generate_marker_re}" "$1"
+  local path rc=0
+  local -a files=()
+  local -A seen=()
+  for path in "$@"
+  do
+    [[ -f "${path}" && -z "${seen[${path}]+x}" ]] || continue
+    seen[${path}]=1
+    # A pattern costs far more than a glob, so only a path the glob finds near a template is matched against one.
+    if [[ "${path}" == *.kit/templates/* || "${path}" == *packages/*/hosts/* ]] \
+      && [[ "${path}" =~ (^|/)\.kit/templates/ || "${path}" =~ (^|/)packages/[^/]+(/[^/]+)?/hosts/ ]]
+    then
+      continue
+    fi
+    files+=("${path}")
+  done
+  (( ${#files[@]} )) || return 0
+  # A grep that found nothing in its share of the files, or could not read one, exits 1 or 2, which xargs passes on
+  # as 1 (BSD) or 123 (GNU). From 125 up, grep was stopped by a signal, or could not run at all.
+  printf '%s\0' "${files[@]}" | xargs -0 grep --files-with-matches --extended-regexp -- "${generate_marker_re}" \
+    || rc=$?
+  (( rc < 125 ))
 }
 
 # generate:markdown <file> is true for a markdown file (.md or .markdown), the only kind where fenced code blocks
@@ -79,30 +99,30 @@ generate:markdown() {
 # files and untracked files git does not ignore, so a file kit install just wrote counts before it is added. With
 # paths, it prints each named file that contains a directive, wherever it is.
 generate:discover() {
-  local path
   local -a paths
   if (( $# == 0 ))
   then
     list:read0 paths git ls-files -z --cached --others --exclude-standard || return 1
-    for path in "${paths[@]}"
-    do
-      generate:carries "${path}" && printf '%s\n' "${path}"
-    done
-    return 0
+    generate:carries "${paths[@]}"
+    return
   fi
-  for path in "$@"
-  do
-    generate:carries "${path}" && printf '%s\n' "${path}"
-  done
-  return 0
+  generate:carries "$@"
 }
 
-# generate:target <file> prints the file a write goes to: <file> itself, or the target of a symlink at <file>.
-generate:target() {
-  if [[ -L "$1" ]]
-  then readlink -f "$1"
-  else printf '%s\n' "$1"
+# generate_body and generate_expanded are the scratch files every region's command and every file's expansion write
+# to, made once per process (generate_scratch_pid): a command's output is read whole before the next command runs,
+# and an expansion is done with before the next file's starts, so one file serves each.
+declare -g generate_body='' generate_expanded='' generate_scratch_pid=''
+
+# generate:scratch makes generate_body and generate_expanded, once per process, and empties generate_expanded.
+generate:scratch() {
+  if [[ "${generate_scratch_pid}" != "${BASHPID}" ]]
+  then
+    file:temp generate_body region || return 1
+    file:temp generate_expanded expanded || return 1
+    generate_scratch_pid=${BASHPID}
   fi
+  : > "${generate_expanded}"
 }
 
 # generate_regions maps the path of every repository region the active packages deliver to its rendered source, as
@@ -115,7 +135,7 @@ declare -g generate_regions_read=false
 # per region would render them again for each. It prints the same refusal as kit region, and returns 1, when no
 # active package delivers a region there.
 generate:region() {
-  local path src row
+  local path src row kind text
   local -a packages rows
   if [[ "${generate_regions_read}" == false ]]
   then
@@ -127,7 +147,9 @@ generate:region() {
     for row in "${rows[@]}"
     do
       IFS=$'\t' read -r path src <<<"${row}"
-      [[ -n "${path}" && "$(place:kind "${src}" "${path}")" == region ]] && generate_regions[${path}]=${src}
+      [[ -n "${path}" ]] || continue
+      place:kind "${src}" "${path}" kind
+      [[ "${kind}" != region ]] || generate_regions[${path}]=${src}
     done
     generate_regions_read=true
   fi
@@ -137,7 +159,12 @@ generate:region() {
     error "no active package delivers a region at $1 (packages: ${packages[*]}); see kit.yml"
     return 1
   fi
-  cat "${generate_regions[$1]}"
+  # The whole file, read in this process: read looks for a NUL, which a region never holds, so it fails at the
+  # file's end, having read all of it.
+  src=${generate_regions[$1]}
+  text=''
+  IFS= read -r -d '' text < "${src}" || [[ -r "${src}" ]] || return 1
+  printf '%s' "${text}"
 }
 
 # generate:command <file> <where> <line> <name> <command> <out> runs one region's command and writes its stdout
@@ -170,34 +197,48 @@ generate:flip() {
   fi
 }
 
-# generate:unit <in> <out> <file> <where> <markdown> expands one unit (the file, or a command's output) from <in>
-# into <out>. Every message starts with <where>: the file's path for the file, or, for an output, the file, the
-# directive's line, and the command. It makes two passes:
+# generate:unit <in> <out> <file> <where> <markdown> expands one unit (the file, or a command's output) from <in>,
+# appending it to <out>. Every message starts with <where>: the file's path for the file, or, for an output, the
+# file, the directive's line, and the command. It makes two passes:
 #
 #   1. check the unit's shape: every marker line is a directive, and every region opens and closes in this unit,
-#      in order
-#   2. run each top-level region's command, expand its output as a unit of its own, and write the result between
-#      the directive and end lines
+#      in order; and note where each top-level region opens and closes
+#   2. run each top-level region's command into generate_body, and append its output, expanded as a unit of its own,
+#      between the directive and end lines
+#
+# A line is matched against a pattern only when it holds the text the pattern needs, and the lines around the regions
+# are written a run at a time, so a long file costs a few writes, not one per line. Call generate:scratch first.
 generate:unit() {
   local in=$1 out=$2 file=$3 where=$4 markdown=$5
-  local -a lines stack opened
-  local n i j line fence=false fenced=0 depth name command body result
+  local -a lines stack opened tops ends names commands
+  local n i k line fence=false fenced=0 name command from
   mapfile -t lines < "${in}"
   n=${#lines[@]}
   stack=()
   opened=()
+  tops=()
+  ends=()
+  names=()
+  commands=()
   for (( i = 0; i < n; i++ ))
   do
     line=${lines[i]}
-    if [[ "${markdown}" == true && "${line}" =~ ${generate_fence_re} ]]
+    if [[ "${markdown}" == true && ( "${line}" == *'```'* || "${line}" == *'~~~'* ) \
+      && "${line}" =~ ${generate_fence_re} ]]
     then
       generate:flip
       [[ "${fence}" == true ]] && fenced=$(( i + 1 ))
       continue
     fi
-    [[ "${fence}" == false && "${line}" =~ ${generate_marker_re} ]] || continue
+    [[ "${fence}" == false && "${line}" == *kit:* && "${line}" =~ ${generate_marker_re} ]] || continue
     if [[ "${line}" =~ ${generate_open_re} ]]
     then
+      if (( ${#stack[@]} == 0 ))
+      then
+        tops+=("${i}")
+        names+=("${BASH_REMATCH[1]}")
+        commands+=("${BASH_REMATCH[3]:-kit region}")
+      fi
       stack+=("${BASH_REMATCH[1]}")
       opened+=("$(( i + 1 ))")
     elif [[ "${line}" =~ ${generate_end_re} ]]
@@ -214,6 +255,7 @@ generate:unit() {
         return 2
       fi
       unset 'stack[-1]' 'opened[-1]'
+      (( ${#stack[@]} )) || ends+=("${i}")
     else
       error "${where}:$(( i + 1 )): not a directive: ${line}"
       return 2
@@ -229,81 +271,57 @@ generate:unit() {
     error "${where}: a fenced code block opens at line ${fenced} and never closes"
     return 2
   fi
-  : > "${out}"
-  fence=false
-  i=0
-  while (( i < n ))
+  # Each top-level region: the lines up to its directive as they are, then its command's output, expanded. Its end
+  # line starts the next run.
+  from=0
+  for (( k = 0; k < ${#tops[@]}; k++ ))
   do
-    line=${lines[i]}
-    printf '%s\n' "${line}" >> "${out}"
-    if [[ "${markdown}" == true && "${line}" =~ ${generate_fence_re} ]]
-    then
-      generate:flip
-      i=$(( i + 1 ))
-      continue
-    fi
-    if [[ "${fence}" == true ]] || ! [[ "${line}" =~ ${generate_open_re} ]]
-    then
-      i=$(( i + 1 ))
-      continue
-    fi
-    name=${BASH_REMATCH[1]}
-    command=${BASH_REMATCH[3]:-kit region}
-    file:temp body region || return 2
-    file:temp result region || return 2
-    if ! generate:command "${file}" "${where}" "$(( i + 1 ))" "${name}" "${command}" "${body}" \
-      || ! generate:unit "${body}" "${result}" "${file}" "${where}:$(( i + 1 )) (the output of ${command})" \
+    i=${tops[k]}
+    printf '%s\n' "${lines[@]:from:i + 1 - from}" >> "${out}"
+    command=${commands[k]}
+    if ! generate:command "${file}" "${where}" "$(( i + 1 ))" "${names[k]}" "${command}" "${generate_body}" \
+      || ! generate:unit "${generate_body}" "${out}" "${file}" "${where}:$(( i + 1 )) (the output of ${command})" \
         "${markdown}"
     then
-      rm -f "${body}" "${result}"
       return 2
     fi
-    cat "${result}" >> "${out}"
-    rm -f "${body}" "${result}"
-    # Skip the old body up to this region's end line, counting depth. The first pass already checked the nesting.
-    depth=1
-    for (( j = i + 1; depth > 0; j++ ))
-    do
-      line=${lines[j]}
-      if [[ "${markdown}" == true && "${line}" =~ ${generate_fence_re} ]]
-      then
-        generate:flip
-        continue
-      fi
-      [[ "${fence}" == false ]] || continue
-      if [[ "${line}" =~ ${generate_open_re} ]]
-      then depth=$(( depth + 1 ))
-      elif [[ "${line}" =~ ${generate_end_re} ]]
-      then depth=$(( depth - 1 ))
-      fi
-    done
-    printf '%s\n' "${lines[j - 1]}" >> "${out}"
-    i=${j}
+    from=${ends[k]}
   done
+  if (( from < n ))
+  then
+    printf '%s\n' "${lines[@]:from}" >> "${out}"
+  fi
 }
 
-# generate:twice <expanded> <file> prints "<name>\t<line>" for the first region the expanded text opens a second
-# time, or nothing. When <file> is markdown, fenced code blocks are skipped.
+# generate:twice <expanded> <file> <name> <line> puts the name of the first region the expanded text opens a second
+# time in the variable <name>, and the line it does so at in <line>, or empties both. When <file> is markdown, fenced
+# code blocks are skipped. The variables are the caller's, named other than its own locals.
 generate:twice() {
-  local expanded=$1 line fence=false markdown=false number=0
+  local line fence=false markdown=false at=0
+  local -a lines
   local -A seen=()
   generate:markdown "$2" && markdown=true
-  while IFS= read -r line || [[ -n "${line}" ]]
+  printf -v "$3" '%s' ''
+  printf -v "$4" '%s' ''
+  mapfile -t lines < "$1"
+  for line in "${lines[@]}"
   do
-    number=$(( number + 1 ))
-    if [[ "${markdown}" == true && "${line}" =~ ${generate_fence_re} ]]
+    at=$(( at + 1 ))
+    if [[ "${markdown}" == true && ( "${line}" == *'```'* || "${line}" == *'~~~'* ) \
+      && "${line}" =~ ${generate_fence_re} ]]
     then
       generate:flip
       continue
     fi
-    [[ "${fence}" == false && "${line}" =~ ${generate_open_re} ]] || continue
+    [[ "${fence}" == false && "${line}" == *kit:generate* && "${line}" =~ ${generate_open_re} ]] || continue
     if [[ -n "${seen[${BASH_REMATCH[1]}]+x}" ]]
     then
-      printf '%s\t%s\n' "${BASH_REMATCH[1]}" "${number}"
+      printf -v "$3" '%s' "${BASH_REMATCH[1]}"
+      printf -v "$4" '%s' "${at}"
       return 0
     fi
     seen[${BASH_REMATCH[1]}]=1
-  done < "${expanded}"
+  done
 }
 
 # generate:expand <file> <mode> expands the file's regions into a temporary file and compares the two. Only mode
@@ -313,49 +331,47 @@ generate:twice() {
 #   1  the file was rewritten (mode write) or is stale (mode check)
 #   2  the file could not be expanded cleanly, and is left unchanged
 generate:expand() {
-  local file=$1 mode=${2:-write} target temp markdown=false twice number
+  local file=$1 mode=${2:-write} target line markdown=false twice number
+  local -a lines
   if [[ ! -f "${file}" ]]
   then
     error "generate: no such file: ${file}"
     return 2
   fi
-  if grep --quiet --extended-regexp "${generate_conflict_re}" "${file}"
+  mapfile -t lines < "${file}"
+  for line in "${lines[@]}"
+  do
+    if [[ ( "${line}" == '<<<<<<<'* || "${line}" == '>>>>>>>'* ) && "${line}" =~ ${generate_conflict_re} ]]
+    then
+      error "generate: ${file} carries an unresolved conflict; resolve it, then run: kit generate"
+      return 2
+    fi
+  done
+  # A write goes to the file itself, or to the target of a symlink there.
+  target=${file}
+  if [[ -L "${file}" ]]
   then
-    error "generate: ${file} carries an unresolved conflict; resolve it, then run: kit generate"
-    return 2
+    target=$(readlink -f -- "${file}")
   fi
-  target=$(generate:target "${file}")
-  file:temp temp expanded || return 2
+  generate:scratch || return 2
   generate:markdown "${file}" && markdown=true
-  if ! generate:unit "${file}" "${temp}" "${file}" "${file}" "${markdown}"
-  then
-    rm -f "${temp}"
-    return 2
-  fi
-  IFS=$'\t' read -r twice number < <(generate:twice "${temp}" "${file}")
+  generate:unit "${file}" "${generate_expanded}" "${file}" "${file}" "${markdown}" || return 2
+  generate:twice "${generate_expanded}" "${file}" twice number
   if [[ -n "${twice}" ]]
   then
     error "${file}: the region '${twice}' is opened twice, the second time at line ${number} of the expanded file"
-    rm -f "${temp}"
     return 2
   fi
-  if cmp --silent "${file}" "${temp}"
+  if cmp --silent -- "${file}" "${generate_expanded}"
   then
-    rm -f "${temp}"
     return 0
   fi
   if [[ "${mode}" == check ]]
   then
     error "${file}: stale; run: kit generate"
-    rm -f "${temp}"
     return 1
   fi
-  if ! file:replace "${target}" cat "${temp}"
-  then
-    rm -f "${temp}"
-    return 2
-  fi
-  rm -f "${temp}"
+  file:replace "${target}" cat "${generate_expanded}" || return 2
   step "${file}: regenerated"
   return 1
 }

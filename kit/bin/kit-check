@@ -55,10 +55,11 @@ do
     info "${base}: nothing is installed under $(release:base-root "${base}") on this machine; not checked"
     continue
   fi
+  dest='' kind=''
   while IFS=$'\t' read -r path src
   do
-    dest=$(release:dest "${base}" "${path}")
-    kind=$(place:kind "${src}" "${dest}")
+    release:dest "${base}" "${path}" dest
+    place:kind "${src}" "${dest}" kind
     if materialize:owned "${base}" "${path}" && [[ "${kind}" == copy ]]
     then
       # A materialized path is judged below, by materialize:all --check.

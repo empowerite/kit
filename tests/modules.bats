@@ -29,7 +29,7 @@ setup() {
 @test "no verb or module reads a command's lines through < <(…), which loses its status, unless it cannot fail" {
   local pure='jq|awk|sed|printf|cat|find|compgen|for|while|list:without|use:find|use:modules|help:[a-z-]+'
   pure+='|region:markers|flow:(label|stage-args|fetch-diff)|context:(governed-by|embedded|read-kinds)'
-  pure+='|commit:placed|welcome:[a-z-]+|serve:(watched|changed|resources)|new:seam-calls|generate:twice'
+  pure+='|commit:placed|welcome:[a-z-]+|serve:(watched|changed|resources)|new:seam-calls'
   pure+='|tracker:body-refs'
   local kept="< <\\((${pure})[ )]|(^|[ ;])read -r [^<]*< <\\(.*\\) \\|\\| (return|exit|continue)|^[^:]+:[0-9]+: *#"
   # list:fill's own read, whose command's status travels in band, after the lines, and is read back from there

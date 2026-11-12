@@ -68,11 +68,16 @@ release:base-root() {
   esac
 }
 
-# release:dest <base> <path> prints where a delivered path is written.
+# release:dest <base> <path> [<name>] prints where a delivered path is written, or, with <name>, puts it in that
+# variable, so a loop over many paths starts no subshell for one under the repository.
 release:dest() {
-  if [[ "$1" == repo ]]
-  then printf '%s\n' "$2"
-  else printf '%s/%s\n' "$(release:base-root "$1")" "$2"
+  local release_dest_at=$2
+  if [[ "$1" != repo ]]
+  then release_dest_at="$(release:base-root "$1")/$2"
+  fi
+  if [[ -n "${3:-}" ]]
+  then printf -v "$3" '%s' "${release_dest_at}"
+  else printf '%s\n' "${release_dest_at}"
   fi
 }
 

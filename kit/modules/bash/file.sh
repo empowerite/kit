@@ -21,9 +21,11 @@
 # what the parent made, which stays the parent's to sweep.
 declare -ag file_scratch=() file_at_exit=() file_partial=()
 declare -g file_trapped=''
-# file_temp_dir is the scratch directory file:temp makes its files in, and file_temp_pid the shell that made it.
-declare -g file_temp_dir='' file_temp_pid=''
-# file_umask is the shell's umask as file:copy found it, read once: umask prints it, so reading it starts a process.
+# file_temp_dir is the scratch directory file:temp makes its files in, file_temp_pid the shell that made it, and
+# file_temp_count the number of files made there.
+declare -g file_temp_dir='' file_temp_pid='' file_temp_count=0
+# file_umask is the shell's umask as file:copy or file:temp found it, read once: umask prints it, so reading it starts
+# a process.
 declare -g file_umask=''
 
 # file:scratch <name> makes a fresh directory under TMPDIR and puts its path in the variable <name>, registered for
@@ -41,15 +43,26 @@ file:scratch() {
 # file:temp <name> [<label>] makes a fresh empty file in this shell's scratch directory and puts its path in the
 # variable <name>. The directory is made by file:scratch on first use, so the sweep removes the file at exit, even
 # when the command is stopped. Every scratch file goes through here or file:scratch: a bare mktemp on macOS ignores
-# TMPDIR. Call it in the shell that uses the file, as file:scratch.
+# TMPDIR. Call it in the shell that uses the file, as file:scratch. The directory is this shell's alone, made by
+# mktemp -d, so a count names a fresh file in it, with no mktemp process for each. As mktemp would, it makes the file
+# readable by its owner alone, and refuses one that is there.
 file:temp() {
-  local made
+  local made status=0
+  local -
   if [[ "${file_temp_pid}" != "${BASHPID}" ]]
   then
     file:scratch file_temp_dir || return 1
     file_temp_pid=${BASHPID}
+    file_temp_count=0
+    [[ -n "${file_umask}" ]] || file_umask=$(umask)
   fi
-  made=$(mktemp "${file_temp_dir}/${2:-file}.XXXXXX") || return 1
+  file_temp_count=$(( file_temp_count + 1 ))
+  made=${file_temp_dir}/${2:-file}.${file_temp_count}
+  set -o noclobber
+  umask 0077
+  : > "${made}" || status=1
+  umask "${file_umask}"
+  (( status == 0 )) || return 1
   printf -v "$1" '%s' "${made}"
 }
 
@@ -86,7 +99,7 @@ file:sweep() {
   do
     ( eval "${command}" ) || true  # one that fails stops none of the rest
   done
-  (( ${#file_partial[@]} == 0 )) || rm -f "${file_partial[@]}" || true  # one left behind costs only tidiness
+  (( ${#file_partial[@]} == 0 )) || rm -f -- "${file_partial[@]}" || true  # one left behind costs only tidiness
   (( ${#file_scratch[@]} == 0 )) || rm -rf "${file_scratch[@]}" || true  # as above
 }
 
@@ -99,7 +112,7 @@ file:partial() {
   file:trap
   for left in "$2.kit-new" "${made}"
   do
-    [[ ! -e "${left}" && ! -L "${left}" ]] || rm -f "${left}"
+    [[ ! -e "${left}" && ! -L "${left}" ]] || rm -f -- "${left}"
   done
   file_partial+=("${made}")
   printf -v "$1" '%s' "${made}"
@@ -111,7 +124,7 @@ file:parent() {
   local dir=.
   [[ "$1" != */* ]] || dir=${1%/*}
   [[ -n "${dir}" ]] || dir=/
-  [[ -d "${dir}" ]] || mkdir -p "${dir}"
+  [[ -d "${dir}" ]] || mkdir -p -- "${dir}"
 }
 
 # file:replace [--read-only] <path> <command> [<argument>…] runs the command with its stdout to <path>.kit-new, and
@@ -130,15 +143,15 @@ file:replace() {
   file:parent "${path}" || return 1
   file:partial partial "${path}"
   # The copy carries the mode; the redirection below replaces the content.
-  [[ ! -f "${path}" ]] || { cp -p "${path}" "${partial}" && chmod u+w "${partial}"; } || return 1
+  [[ ! -f "${path}" ]] || { cp -p -- "${path}" "${partial}" && chmod -- u+w "${partial}"; } || return 1
   "$@" > "${partial}" || status=$?
   if (( status != 0 ))
   then
-    rm -f "${partial}"
+    rm -f -- "${partial}"
     return "${status}"
   fi
-  [[ "${strip_write}" == false ]] || chmod a-w "${partial}"
-  mv -f "${partial}" "${path}"
+  [[ "${strip_write}" == false ]] || chmod -- a-w "${partial}"
+  mv -f -- "${partial}" "${path}"
 }
 
 # file:copy [--read-only] <source> <path> copies the source over <path> the same way, keeping the source's mode, or
@@ -160,14 +173,14 @@ file:copy() {
     printf -v mask '%04o' "$(( 8#${file_umask} | 8#222 ))"
     umask "${mask}"
   fi
-  cp "${src}" "${partial}" || status=$?
+  cp -- "${src}" "${partial}" || status=$?
   [[ "${strip_write}" == false ]] || umask "${file_umask}"
   if (( status != 0 ))
   then
-    rm -f "${partial}"
+    rm -f -- "${partial}"
     return "${status}"
   fi
-  mv -f "${partial}" "${path}"
+  mv -f -- "${partial}" "${path}"
 }
 
 # file:digest [<path>] prints the sha256 of the file, or of stdin without a path, as 64 hex characters, using

@@ -34,55 +34,73 @@ refuse() {
   exit 1
 }
 
-# described <file> <front> <noun> refuses a page whose front matter, the JSON <front>, lacks a title, a summary, a glyph,
-# or an audience, or names an audience that audiences.yml does not list, calling the page <noun>. It reads audiences.
-described() {
-  local file=$1 front=$2 noun=$3 field unknown
-  for field in title summary glyph
-  do
-    jq -e --arg field "${field}" '.[$field] | type == "string" and length > 0' <<< "${front}" > /dev/null \
-      || refuse "${file}" "${noun} needs a ${field}"
-  done
-  jq -e '.audience | type == "array" and length > 0' <<< "${front}" > /dev/null \
-    || refuse "${file}" "${noun} needs an audience"
+# row <file> <front> <noun> <top> <shaped> <id> <key> <value> prints the page's row of the catalogue, JSON, its
+# <key> <value> the page's path on the site or its file, or refuses it, calling it <noun>. With <top> true, a page
+# whose front matter, the JSON <front>, lacks top: true is skipped, printing nothing, and one that is not <shaped> at
+# <id>/index.mdx is refused. Then a page is refused that lacks a title, a summary, a glyph, or an audience, or names
+# an audience that audiences.yml does not list. One jq judges the page and makes its row, where a jq a question would
+# start a process for each. It reads audiences.
+row() {
+  local file=$1 front=$2 noun=$3 said
   # shellcheck disable=SC2016  # the program is jq's, not the shell's
-  unknown=$(jq -r --argjson audiences "${audiences}" \
-    '.audience[] | select(. as $a | $audiences | map(.id) | index($a) | not)' <<< "${front}" | head -n 1)
-  [[ -z "${unknown}" ]] || refuse "${file}" "the audience '${unknown}' is not in ${project}/audiences.yml"
+  said=$(jq -r --argjson audiences "${audiences}" --argjson top "$4" --argjson shaped "$5" --arg id "$6" \
+    --arg key "$7" --arg value "$8" '
+    def has_text($field): try (.[$field] | type == "string" and length > 0) catch false;
+    if $top and ((try (.top // false) catch false) | tostring) != "true" then "skip"
+    elif $top and ($shaped | not) then "refuse\ta top-level page lives at <id>/index.mdx"
+    else
+      . as $front
+      | (first(("title", "summary", "glyph") | select(. as $field | $front | has_text($field) | not)) // null) as $lacks
+      | if $lacks then "refuse\tneeds a \($lacks)"
+        elif (try (.audience | type == "array" and length > 0) catch false) | not then "refuse\tneeds an audience"
+        else
+          (first(.audience[] | select(. as $a | $audiences | map(.id) | index($a) | not)) // null) as $unknown
+          | if $unknown != null then "unknown\t\($unknown)"
+            else "row\t" + ({id: $id, ($key): $value, title, summary, glyph, audience, order: (.order // 1000)}
+              | tojson)
+            end
+        end
+    end' <<< "${front}")
+  case "${said}" in
+    (skip) ;;
+    (refuse$'\t'needs*) refuse "${file}" "${noun} ${said#*$'\t'}" ;;
+    (refuse$'\t'*) refuse "${file}" "${said#*$'\t'}" ;;
+    (unknown$'\t'*) refuse "${file}" "the audience '${said#*$'\t'}' is not in ${project}/audiences.yml" ;;
+    (*) pages+=("${said#*$'\t'}")
+  esac
 }
 
 # catalogue prints the region's body, YAML, on stdout.
 catalogue() {
   local audiences pages=() file front id shaped
   audiences=$(yq -p yaml -o json '.' "${project}/audiences.yml")
-  id=$(jq --raw-output 'first(.[] | select((.color // "") == "") | .id) // empty' <<< "${audiences}")
-  [[ -z "${id}" ]] || refuse "${project}/audiences.yml" "the audience '${id}' needs a color, as #rrggbb"
-  # shaped is the first audience whose color is not #rrggbb: its id, a tab, and the color
-  shaped=$(jq --raw-output 'first(.[] | select(.color | type != "string" or (test("^#[0-9A-Fa-f]{6}$") | not))
-    | "\(.id)\t\(.color)") // empty' <<< "${audiences}")
+  # shaped is the first audience with no color, its id after "none", or else the first whose color is not #rrggbb: its
+  # id, a tab, and the color
+  shaped=$(jq --raw-output '(first(.[] | select((.color // "") == "") | "none\t\(.id)")
+    // first(.[] | select(.color | type != "string" or (test("^#[0-9A-Fa-f]{6}$") | not)) | "\(.id)\t\(.color)"))
+    // empty' <<< "${audiences}")
+  [[ "${shaped}" != none$'\t'* ]] \
+    || refuse "${project}/audiences.yml" "the audience '${shaped#none$'\t'}' needs a color, as #rrggbb"
   [[ -z "${shaped}" ]] || refuse "${project}/audiences.yml" \
     "the audience '${shaped%%$'\t'*}' has the color '${shaped#*$'\t'}', not #rrggbb"
 
   while IFS= read -r file
   do
     front=$(yq -p yaml --front-matter=extract -o json '.' "${file}") || refuse "${file}" 'front matter that does not parse'
-    [[ "$(jq -r '.top // false' <<< "${front}")" == true ]] || continue
     id=${file#"${content}/"}
-    [[ "${id}" =~ ^[^/]+/index\.mdx$ ]] || refuse "${file}" 'a top-level page lives at <id>/index.mdx'
+    shaped=false
+    [[ ! "${id}" =~ ^[^/]+/index\.mdx$ ]] || shaped=true
     id=${id%/index.mdx}
-    described "${file}" "${front}" 'a top-level page'
-    pages+=("$(jq -c --arg id "${id}" \
-      '{id: $id, path: "\($id)/", title, summary, glyph, audience, order: (.order // 1000)}' <<< "${front}")")
+    row "${file}" "${front}" 'a top-level page' true "${shaped}" "${id}" path "${id}/"
   done < <(find "${content}" -type f -name '*.mdx' | LC_ALL=C sort)
 
   # the pages that ship with the kit, each at <id>.md
   while IFS= read -r file
   do
     front=$(yq -p yaml --front-matter=extract -o json '.' "${file}") || refuse "${file}" 'front matter that does not parse'
-    id=$(basename "${file}" .md)
-    described "${file}" "${front}" 'a tutorial'
-    pages+=("$(jq -c --arg id "${id}" \
-      '{id: $id, file: "tutorials/\($id).md", title, summary, glyph, audience, order: (.order // 1000)}' <<< "${front}")")
+    id=${file##*/}
+    id=${id%.md}
+    row "${file}" "${front}" 'a tutorial' false true "${id}" file "tutorials/${id}.md"
   done < <([[ ! -d "${shipped}" ]] || find "${shipped}" -maxdepth 1 -type f -name '*.md' | LC_ALL=C sort)
 
   # shellcheck disable=SC2016  # the program is jq's, not the shell's

@@ -281,14 +281,27 @@ use:path() {
   printf '%s\n' "${kit_bash_path[@]}"
 }
 
-# use:find <module> prints the path of every <module>.sh on the module path, in order. Call use:load-path first.
+# use:find <module> [<array>] prints the path of every <module>.sh on the module path, in order, or, with <array>,
+# fills that array with them, in this shell, so use starts no subshell for each module it loads. Call use:load-path
+# first.
 use:find() {
-  local dir
-  for dir in "${kit_bash_path[@]}"
+  local use_find_dir
+  local -a use_find_files=()
+  for use_find_dir in "${kit_bash_path[@]}"
   do
-    [[ -f "${dir}/$1.sh" ]] && printf '%s\n' "${dir}/$1.sh"
+    [[ ! -f "${use_find_dir}/$1.sh" ]] || use_find_files+=("${use_find_dir}/$1.sh")
   done
-  return 0
+  if [[ -n "${2:-}" ]]
+  then
+    local -n use_find_into=$2
+    # shellcheck disable=SC2034  # the caller's array, through the name
+    use_find_into=("${use_find_files[@]}")
+    return 0
+  fi
+  for use_find_dir in "${use_find_files[@]}"
+  do
+    printf '%s\n' "${use_find_dir}"
+  done
 }
 
 # use:modules <pattern> prints the name of every module on the module path that matches the glob <pattern>, once
@@ -323,7 +336,7 @@ use() {
       return 2
     fi
     [[ ${kit_modules[${module}]+x} ]] && continue
-    readarray -t files < <(use:find "${module}")
+    use:find "${module}" files
     if (( ${#files[@]} == 0 ))
     then
       error "no such kit bash module: ${module} (looked in ${kit_bash_path[*]})"

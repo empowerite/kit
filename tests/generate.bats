@@ -156,6 +156,47 @@ SH
   grep --quiet '^linked$' real/x.sh
 }
 
+@test "one grep finds every file that carries a directive, however many there are, and skips a template's" {
+  local i real
+  for (( i = 0; i < 60; i++ ))
+  do
+    printf 'no directive in %s\n' "${i}" > "plain-${i}.txt"
+  done
+  printf '# kit:generate a `./lines.sh fresh`\nstale\n# kit:end a\n' > -dash.txt
+  mkdir -p .kit/templates/bash packages/p/hosts/repo
+  printf '# kit:generate t `./lines.sh fresh`\nstale\n# kit:end t\n' > .kit/templates/bash/script
+  printf '# kit:generate h `./lines.sh fresh`\nstale\n# kit:end h\n' > packages/p/hosts/repo/AGENTS.md
+  git add -- . && git commit --quiet --message=files
+  # grep, logged as it runs, before the one on PATH
+  real=$(command -v grep)
+  mkdir shim
+  printf '#!/bin/sh\nprintf "grep\\n" >> %q\nexec %q "$@"\n' "${PWD}/grep.log" "${real}" > shim/grep
+  chmod +x shim/grep
+  PATH="${PWD}/shim:${PATH}" run "${kit_checkout}/bin/kit" generate --check
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"-dash.txt: stale"* ]]
+  [[ "$output" == *"1 of 1 generated file(s) are stale"* ]]
+  [[ "$output" != *"script"* && "$output" != *"AGENTS.md"* ]]
+  # one grep for the 60 files, and a few of the kit's own, never one a file
+  (( $(wc -l < grep.log) < 10 ))
+}
+
+@test "a file in conflict is expanded once, though git lists it at each stage" {
+  printf '# kit:generate a `./lines.sh fresh`\nfresh\n# kit:end a\nbase\n' > a.txt
+  git add a.txt && git commit --quiet --message=base
+  git checkout --quiet -b side
+  sed -i.bak 's/^base$/side/' a.txt && rm -f a.txt.bak && git commit --quiet --all --message=side
+  git checkout --quiet -
+  sed -i.bak 's/^base$/main/' a.txt && rm -f a.txt.bak && git commit --quiet --all --message=main
+  run git merge --quiet side
+  [ "$status" -ne 0 ]
+  [ "$(git ls-files a.txt | wc -l)" -eq 3 ]
+  run "${kit_checkout}/bin/kit" generate --check
+  [ "$status" -eq 1 ]
+  [ "$(grep --count 'a.txt carries an unresolved conflict' <<<"${output}")" -eq 1 ]
+  [[ "$output" == *"1 file(s) could not be expanded"* ]]
+}
+
 @test "a named path that is not there is refused" {
   printf '<!-- kit:generate a `./lines.sh fresh` -->\nstale\n<!-- kit:end a -->\n' > a.md
   run "${kit_checkout}/bin/kit" generate --check typo/AGENTS.md
