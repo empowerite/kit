@@ -152,14 +152,15 @@ import "forge" as forge; forge::gitlab_issues(1000000)
 {"number":9,"ref":"#9","title":"Other thing","assignees":[],"labels":[],"createdAt":"1970-01-12T13:46:30.500Z","age":10,"source":"gitlab","organization":null,"repository":null}
 
 # A draft has no publishing time and is dated by when it was made; releases come newest first.
-import "forge" as forge; [forge::github_releases(1800000000) | "\(.version) \(.kind) \(.latest)"]
-[{"tagName": "release/0.0.9", "name": "a", "isPrerelease": false, "isDraft": false, "isLatest": true, "publishedAt": "2026-10-20T07:30:14Z", "createdAt": "2026-10-20T07:30:14Z"}, {"tagName": "release/0.1.0-rc.7", "name": "b", "isPrerelease": true, "isDraft": true, "isLatest": false, "publishedAt": null, "createdAt": "2026-10-30T07:30:14Z"}]
-["0.1.0-rc.7 draft false","0.0.9 release true"]
+import "forge" as forge; [forge::github_releases(1800000000) | "\(.version) \(.kind) \(.at) \(.latest)"]
+[[{"tag_name": "release/0.0.9", "name": "a", "prerelease": false, "draft": false, "published_at": "2026-10-20T07:30:14Z", "created_at": "2026-10-20T07:30:14Z"}, {"tag_name": "release/0.1.0-rc.7", "name": "b", "prerelease": true, "draft": true, "published_at": null, "created_at": "2026-10-30T07:30:14Z"}]]
+["0.1.0-rc.7 draft 2026-10-30T07:30:14Z false","0.0.9 release 2026-10-20T07:30:14Z true"]
 
-# gh prints a release never published with the zero time as publishedAt, so a draft is dated by its creation.
-import "forge" as forge; [forge::github_releases(1800000000) | "\(.version) \(.at)"]
-[{"tagName": "release/0.1.0-rc.8", "name": "c", "isPrerelease": true, "isDraft": true, "isLatest": false, "publishedAt": "0001-01-01T00:00:00Z", "createdAt": "2026-10-30T07:30:14Z"}]
-["0.1.0-rc.8 2026-10-30T07:30:14Z"]
+# The pages join, and the latest is the newest release by when it was made, neither a draft nor a pre-release, as
+# GitHub names it: not the one published last, nor a newer pre-release.
+import "forge" as forge; [forge::github_releases(1800000000) | "\(.version) \(.kind) \(.latest)"]
+[[{"tag_name": "release/0.1.0", "name": "c", "prerelease": false, "draft": false, "published_at": "2026-10-27T07:30:14Z", "created_at": "2026-10-27T07:30:14Z"}, {"tag_name": "release/0.2.0-rc.1", "name": "d", "prerelease": true, "draft": false, "published_at": "2026-10-29T07:30:14Z", "created_at": "2026-10-29T07:30:14Z"}], [{"tag_name": "release/0.0.9", "name": "a", "prerelease": false, "draft": false, "published_at": "2026-10-28T07:30:14Z", "created_at": "2026-10-20T07:30:14Z"}]]
+["0.2.0-rc.1 pre-release false","0.0.9 release false","0.1.0 release true"]
 
 # GitLab: the branch for an issue starts with its number and a dash, and a merge request's state is said as GitHub says it.
 import "forge" as forge; [forge::gitlab_branch_for_issue(7)]
