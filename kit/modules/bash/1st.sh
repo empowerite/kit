@@ -217,7 +217,7 @@ use:load-path() {
     list:read entries use:path-setting "${root}" || status=$?
     if (( status == 2 ))
     then
-      error "run: mise install, or brew install yq (bash_path in kit.yml is read through yq 4, mikefarah/yq)"
+      guard:missing yq "bash_path in kit.yml is read through yq 4, mikefarah/yq"
     fi
     (( status == 0 )) || return 2
   fi
@@ -532,7 +532,7 @@ guard:require() {
         local tool=${predicate#tool:}
         if ! command -v "${tool}" >/dev/null 2>&1
         then
-          error "run: kit tools install (${tool} is not on PATH)"
+          guard:missing "${tool}" "${tool} is not on PATH"
           return 1
         fi
         ;;
@@ -542,6 +542,51 @@ guard:require() {
     esac
   done
 }
+
+# guard:missing <tool> <reason> prints, in one line, the remedy for a tool kit cannot run, then the reason in
+# parentheses. Every message about a missing or unusable tool goes through it, so the same condition gives the same
+# remedy everywhere.
+guard:missing() {
+  error "$(guard:remedy "$1") ($2)"
+}
+
+# guard:remedy <tool> prints what installs the tool. bash, git, jq, and yq, the tools kit runs on, are the system
+# toolchain's to install, so theirs is that toolchain's command, as run: brew install jq; where kit can name no
+# command, it is to install the tool with the machine's package manager. Any other tool is the project toolchain's,
+# and its remedy is run: kit tools install. No remedy names a tool manager kit did not find.
+guard:remedy() {
+  local fix
+  case "$1" in
+    (bash | git | jq | yq)
+      if fix=$(guard:system-command "$1")
+      then
+        printf 'run: %s\n' "${fix}"
+      else
+        printf "install %s with this machine's package manager\n" "$1"
+      fi
+      ;;
+    (*) printf 'run: kit tools install\n'
+  esac
+}
+
+# guard:system-command <tool> prints the system toolchain's command that installs the tool. It fails when there is
+# none: no toolchain fills the system role, several do and none is chosen, or the one found names no command. It never
+# asks which to use. It runs in a subshell, so the modules it loads stay out of the caller's process. While the module
+# path is still being read, as when bash_path in kit.yml needs yq, it uses the release's own modules.
+guard:system-command() (
+  local provider
+  local -a usable=()
+  (( ${#kit_bash_path[@]} )) || kit_bash_path=("${kit_root}/modules/bash")
+  use toolchain || return 1
+  # The choice kept for the system is read through yq; without it, the only usable toolchain is the one kit uses.
+  if ! provider=$(toolchain:chosen system list)
+  then
+    list:read usable toolchain:usable system || return 1
+    (( ${#usable[@]} == 1 )) || return 1
+    provider=${usable[0]}
+  fi
+  toolchain:remedy "${provider}" "$1"
+) 2>/dev/null
 
 # guard:jq <verb> <argument>… replaces the process with the verb run again, --jq given as --json, from the directory
 # the command was typed in, its output formatted by jq ., and the verb's status kept: --jq for every verb at once.

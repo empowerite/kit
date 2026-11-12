@@ -326,7 +326,7 @@ syntax:match() {
     --args -- "$@")
   if (( ${#fields[@]} == 0 ))
   then
-    syntax_refusal="kit ${verb}: the arguments could not be judged (jq 1.7 or later is needed); run: mise install"
+    syntax_refusal="kit ${verb}: the arguments could not be judged (jq 1.7 or later is needed); $(guard:remedy jq)"
     return 2
   fi
   i=0

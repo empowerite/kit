@@ -28,12 +28,15 @@ role. Your choice stays on this machine. It is never committed, so each person c
 This step checks the system's toolchain, once for the machine. Each branch can have files of its own, so setup
 checks the project's toolchain in each folder: the desk, and each worktree.
 
-kit runs on four tools, which this step checks first:
+kit runs on four tools:
 
 - bash 4.4 or later, which runs kit.
 - git, which kit works through.
 - jq 1.7 or later, which reads kit's JSON.
 - yq 4, mikefarah's, which reads `kit.yml` and the other YAML files.
+
+kit checks bash each time it starts, before it runs anything else. It finds a missing git, jq, or yq only when it
+first runs that tool. This step checks all four, bash again among them, before any other check.
 
 A missing one's fix is the system's package manager's command. Without one, the check says where to get the tool.
 

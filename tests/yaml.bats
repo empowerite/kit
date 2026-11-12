@@ -163,8 +163,8 @@ setup() {
     yaml:value in.yml answer; echo "value=$?"; yaml:list in.yml answer; echo "list=$?"'
   [ "$status" -eq 0 ]
   [ "${#lines[@]}" -eq 3 ]
-  [[ "${lines[0]}" == *"run: mise install"* ]]
-  [[ "${lines[0]}" == *"brew install yq"* ]]
+  local said="❌ install yq with this machine's package manager (yq is not on PATH, and the kit reads its YAML through"
+  [ "${lines[0]}" = "${said} yq 4, mikefarah/yq)" ]
   [ "${lines[1]}" = value=2 ]
   [ "${lines[2]}" = list=2 ]
 }
@@ -177,7 +177,7 @@ setup() {
     yaml:value in.yml answer; echo "value=$?"'
   [ "${#lines[@]}" -eq 2 ]
   [[ "${lines[0]}" == *"yq 3.4.3"* ]]
-  [[ "${lines[0]}" == *"run: mise install"* ]]
+  [[ "${lines[0]}" == *"install yq"* && "${lines[0]}" != *"mise"* ]]
   [ "${lines[1]}" = value=2 ]
 }
 

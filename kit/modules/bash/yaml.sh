@@ -74,11 +74,10 @@ yaml:detect() {
   (( BASH_SUBSHELL == 0 )) || return 0
   if [[ -z "${version}" ]]
   then
-    error "yq is not on PATH, and the kit reads its YAML through yq 4 (mikefarah/yq);" \
-      "run: mise install, or brew install yq"
+    guard:missing yq "yq is not on PATH, and the kit reads its YAML through yq 4, mikefarah/yq"
   else
-    error "the yq on PATH is '${version%%$'\n'*}', not yq 4 (mikefarah/yq), which the kit reads its YAML through;" \
-      "run: mise install, or brew install yq"
+    guard:missing yq \
+      "the yq on PATH is '${version%%$'\n'*}', not yq 4, mikefarah/yq, which the kit reads its YAML through"
   fi
 }
 

@@ -125,7 +125,7 @@ setup() {
   [ "$output" = $'0 a\nb' ]
 }
 
-@test "a wildcard option may be empty, -- never reaches a verb as a path, and a missing jq is refused with the mise line" {
+@test "a wildcard option may be empty, -- never reaches a verb as a path, and a missing jq is refused with the system toolchain's remedy" {
   run kit-bash 'syntax:match new file x --purpose=; echo "$? [${syntax_options[--purpose]}]"'
   [ "$output" = "0 []" ]
   run kit-bash 'syntax:match new file x --rule=; echo "$? ${syntax_refusal}"'
@@ -146,8 +146,28 @@ setup() {
   ln -sf "$(command -v bash)" "${BATS_TEST_TMPDIR}/nojq/bash"
   run env PATH="${BATS_TEST_TMPDIR}/nojq" "${kit_root}/bin/kit" version
   [ "$status" -eq 2 ]
-  [[ "$output" == *"run: kit tools install (jq is not on PATH)"* ]]
+  [[ "$output" == *" jq "*"(jq is not on PATH)"* && "$output" != *"kit tools install"* ]]
   [[ "$output" != *"command not found"* ]]
+}
+
+@test "a missing tool kit runs on is the system toolchain's to install, any other kit tools install's, and none is assumed" {
+  hide-system-toolchains
+  fake-tools brew
+  run kit-bash 'guard:remedy jq; guard:remedy yq; guard:remedy go; guard:missing git "git is not on PATH"'
+  [ "$output" = "run: brew install jq
+run: brew install yq
+run: kit tools install
+❌ run: brew install git (git is not on PATH)" ]
+  # beside apt, brew is one of two, and with neither chosen, the remedy names neither, and asks nothing
+  fake-tools apt-get
+  run kit-bash 'guard:remedy jq' </dev/null
+  [ "$output" = "install jq with this machine's package manager" ]
+  # the system's choice names its command
+  local sudo='sudo '
+  (( EUID != 0 )) || sudo=''
+  kit-bash 'use toolchain && toolchain:choose system apt'
+  run kit-bash 'guard:remedy jq'
+  [ "$output" = "run: ${sudo}apt-get install jq" ]
 }
 
 @test "every verb with --json takes --jq too, described, and the two are one or the other" {

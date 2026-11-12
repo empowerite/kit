@@ -89,7 +89,7 @@ tui:binary() {
   then
     error "this release of kit carries no kittui for ${platform:-$(uname -sm)}; run: kit help tui"
   else
-    error "run: mise install (kittui is not on PATH)"
+    error "this copy of kit carries no kittui, and none is on PATH; run: kit help tui"
   fi
   return 1
 }

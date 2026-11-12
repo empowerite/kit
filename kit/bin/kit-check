@@ -65,7 +65,7 @@ do
       findings=$(( findings + 1 ))
     elif [[ "${kind}" == merge ]] && ! command -v jq >/dev/null 2>&1
     then
-      error "run: mise install (jq is not on PATH, so ${dest} could not be read)"
+      guard:missing jq "jq is not on PATH, so ${dest} could not be read"
       findings=$(( findings + 1 ))
     elif [[ "${kind}" == region ]]
     then
