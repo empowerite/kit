@@ -10,6 +10,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
 // TestCommandReadsWhatKitSaysToRun reads the command out of kit's lines as they read today: up to kit's reason in
@@ -69,6 +71,15 @@ func TestAfterKeepsTheButtonsWhole(t *testing.T) {
 		if got := On(line, x); got != b {
 			t.Errorf("On(%d) = %v, want %v", x, got, b)
 		}
+	}
+	// a band's padding goes without a …, styles and all; words that do not fit are clipped with one
+	padded := ansi.Strip(After(style.Band("  jq is not installed", 40), 40, true, false))
+	pair := ansi.Strip(Buttons(true, false))
+	if want := "  jq is not installed" + strings.Repeat(" ", 40-21-ansi.StringWidth(pair)) + pair; padded != want {
+		t.Errorf("a padded line: %q, want %q", padded, want)
+	}
+	if words := ansi.Strip(After(strings.Repeat("x", 40), 40, true, false)); !strings.Contains(words, "…") {
+		t.Errorf("clipped words drew no …: %q", words)
 	}
 	copied := ansi.Strip(After("brew install jq", 40, false, true))
 	if w := ansi.StringWidth(copied); On(copied, w-2) != Copy || On(copied, w-12) != None {

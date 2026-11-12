@@ -3,8 +3,9 @@
 // command fixes, as kit hydrate in every folder, stand under one heading; its presets group by folder or by step, or
 // not at all. A row whose fix kit runs can be selected, as one of several, and Run Selected Fixes, on the line over the
 // table, runs each fix selected in turn, once in a folder however many of its checks name it, then the checks again.
-// The row under the cursor offers its own: r runs its fix, c copies it, and enter goes to its check, on its step, as a
-// click on its step's glyph does.
+// The row under the cursor offers its own fix, as internal/fix draws the pair at its first line's end: ⧉, or c, copies
+// it, copied in its place until the next key or click, and ▶️, or r, runs it where kit runs it; enter goes to its
+// check, on its step, as a click on its step's glyph does.
 package welcome
 
 import (
@@ -17,6 +18,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/fix"
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
@@ -35,11 +37,10 @@ const checksTable = "welcome/checks"
 var checksCatalog = readCatalog(checksJSON)
 
 // The words the line over the failed checks draws: Run Selected Fixes, which runs the fixes selected, and what the
-// keys bar names it by, R; and copied, with the fix after it, once c copied a row's fix, until the next key or click.
+// keys bar names it by, R.
 const (
 	runSelected    = "Run Selected Fixes"
 	runSelectedKey = "R"
-	copiedWord     = "copied"
 )
 
 // noFix is what a failed check with no fix draws in its fix's column, and its group's heading.
@@ -177,12 +178,7 @@ func (m Model) introHead() []string {
 	if button := m.runButton(); button != "" {
 		line += "   " + button
 	}
-	switch i := m.checkAt(m.copied); {
-	case m.copied != "" && i >= 0:
-		line += "  " + style.Off(copiedWord+": "+m.checks[i].Fix)
-	case m.copied != "":
-		line += "  " + style.Off(copiedWord)
-	case m.checking.Running():
+	if m.checking.Running() {
 		line += "  " + style.Off("checking…")
 	}
 	out = append(out, line, lead+style.Off(strings.Repeat("─", ansi.StringWidth(head))))
@@ -238,11 +234,15 @@ func (m *Model) placeChecks() {
 }
 
 // introLines gives every line of the introduction while its failed checks' table shows: its head, the table, all of
-// it, then a blank line, the folders not cloned, the folders the checks are on while they run again, and the rest of
-// the page.
+// it, the row under the cursor ending with its fix's pair, as fixLine places it, then a blank line, the folders not
+// cloned, the folders the checks are on while they run again, and the rest of the page.
 func (m Model) introLines() []string {
 	out := m.introHead()
-	for _, l := range m.checksSheet.View() {
+	c, at, buttons := m.fixLine()
+	for k, l := range m.checksSheet.View() {
+		if buttons && k == at {
+			l = fix.After(l, m.width-1, runnable(c), m.copied == c.Key())
+		}
 		out = append(out, pane.Clip(l, m.width-1))
 	}
 	out = append(out, "")
@@ -348,6 +348,51 @@ func (m Model) checkUnder() int {
 	return m.checkAt(r.Key)
 }
 
+// fixLine gives the check under the table's cursor, while its rows have the keyboard, where it has a fix, and the line
+// of the table's that ends with the fix's pair: its row's first.
+func (m Model) fixLine() (c kit.Check, at int, ok bool) {
+	if !m.introGridded() || !m.inPane {
+		return kit.Check{}, 0, false
+	}
+	i := m.checkUnder()
+	if i < 0 || m.checks[i].Fix == "" {
+		return kit.Check{}, 0, false
+	}
+	s := m.checksSheet
+	_, places := table.Laid(s)
+	top, _ := s.Pane()
+	lines, rows := s.Lines(), table.RowsTop(s)-top
+	for k, p := range places {
+		if p >= 0 && lines[p].Row == s.Table().Cursor {
+			return m.checks[i], rows + k, true
+		}
+	}
+	return kit.Check{}, 0, false
+}
+
+// fixClick takes a left click at the screen cell x, y on the pair the row under the table's cursor ends with, as it was
+// drawn with copied as it was, and says whether it took it: ⧉ copies the row's fix, ▶️ runs it where kit runs it.
+func (m *Model) fixClick(x, y int, copied string) (tea.Cmd, bool) {
+	c, at, ok := m.fixLine()
+	k := y - paneTop + m.offsets[m.step]
+	if !ok || y < paneTop || y >= paneTop+m.paneHeight() || k != len(m.introHead())+at {
+		return nil, false
+	}
+	m.copied = copied
+	line := m.introLines()[k]
+	m.copied = ""
+	m.cursor = m.checkAt(c.Key())
+	switch fix.On(line, x) {
+	case fix.Copy:
+		return m.copy(), true
+	case fix.Run:
+		if runnable(c) {
+			return m.runFix(), true
+		}
+	}
+	return nil, false
+}
+
 // jumped goes to the check whose row's step a click on the table asked for, if one did.
 func (m *Model) jumped() {
 	if m.jump == nil || *m.jump == "" {
@@ -362,7 +407,7 @@ func (m *Model) jumped() {
 }
 
 // introKey takes a key the introduction's failed checks' table did not: R runs the fixes selected; and on a check's
-// row, r runs its fix, where kit runs it, c copies it, and enter goes to the check, on its step. It says whether it
+// row, c copies its fix, r runs it, where kit runs it, and enter goes to the check, on its step. It says whether it
 // took the key.
 func (m *Model) introKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 	if k.String() == runSelectedKey {
@@ -374,13 +419,13 @@ func (m *Model) introKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 	}
 	m.cursor = i
 	switch c := m.checks[i]; k.String() {
-	case "r":
-		if runnable(c) {
-			return m.runFix(), true
-		}
-	case "c":
+	case fix.CopyKey:
 		if c.Fix != "" {
 			return m.copy(), true
+		}
+	case fix.RunKey:
+		if runnable(c) {
+			return m.runFix(), true
 		}
 	case "enter":
 		m.follow()
@@ -389,16 +434,13 @@ func (m *Model) introKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
-// introKeys gives the keys the introduction adds to its table's rows' while they have the keyboard: enter, r, and c
+// introKeys gives the keys the introduction adds to its table's rows' while they have the keyboard: enter, c, and r
 // on a check's row, as introKey says, and R while some row is selected.
 func (m Model) introKeys(seg shell.Segment) shell.Segment {
 	if i := m.checkUnder(); i >= 0 {
 		seg.Bindings = append(seg.Bindings, shell.Bind("⏎", "go to the check", "enter"))
-		if runnable(m.checks[i]) {
-			seg.Bindings = append(seg.Bindings, shell.Bind("r", "run"))
-		}
-		if m.checks[i].Fix != "" {
-			seg.Bindings = append(seg.Bindings, shell.Bind("c", "copy"))
+		if c := m.checks[i]; c.Fix != "" {
+			seg.Bindings = append(seg.Bindings, fix.Bindings(runnable(c))...)
 		}
 	}
 	if len(m.checksSheet.Selected()) > 0 {

@@ -118,7 +118,7 @@ func onCheck(m Model, id string) (Model, bool) {
 func TestEnterOnARowGoesToItsCheckOnItsStep(t *testing.T) {
 	m, r := loaded(t)
 	m, found := onCheck(m, "jq")
-	if !found || keysAt(m) != paneKeysOf(m)+" ⏎ go to the check r run c copy" {
+	if !found || keysAt(m) != paneKeysOf(m)+" ⏎ go to the check c copy r run" {
 		t.Fatalf("on jq: found %v, keys %q", found, keysAt(m))
 	}
 	if m = drive(m, enter); m.step != chains || !m.inPane || m.cursor != 1 || !m.runsHere() ||
@@ -161,6 +161,46 @@ func TestAClickOnARowsStepGoesToItsCheck(t *testing.T) {
 	}
 }
 
+// Only the row under the table's cursor ends with its fix's pair, ⧉ and ▶️, at the pane's right, the row's words
+// clipped short of it, and a row whose fix kit only shows with ⧉ alone; a click on ⧉ copies the fix, on ▶️ runs it, and
+// on the row's words neither. The bar with the keyboard, no row draws it.
+func TestTheRowUnderTheTablesCursorOffersCopyAndRun(t *testing.T) {
+	m, r := loaded(t)
+	pair := "   " + fix.CopyName + "   " + fix.RunName + " "
+	if strings.Contains(view(m), fix.CopyName) {
+		t.Fatalf("⧉ with the bar on the keyboard:\n%s", view(m))
+	}
+	m, _ = onCheck(m, "jq")
+	got := view(m)
+	if row := rowOf(t, m, "jq is not installed"); !strings.HasSuffix(row, pair) || ansi.StringWidth(row) != m.width-1 {
+		t.Errorf("jq's row: %q", row)
+	}
+	if strings.Count(got, fix.CopyName) != 1 {
+		t.Errorf("⧉ on more than the cursor's row:\n%s", got)
+	}
+	m = drive(m, buttonClick("jq is not installed", "jq is not installed"))
+	if len(r.calls) != 0 || strings.Contains(view(m), fix.CopiedName) {
+		t.Fatalf("a click on the row's words ran %q:\n%s", r.calls, view(m))
+	}
+	m, msgs := testkit.Drive(m, nil, buttonClick("jq is not installed", fix.CopyName).(clickMsg).at(m))
+	if got := clipboard(msgs); got != "brew install jq" || !strings.Contains(view(m), fix.CopiedName) {
+		t.Fatalf("a click on ⧉ copied %q:\n%s", got, view(m))
+	}
+	// the click reads the pair as drawn, copied in ⧉'s place
+	if m = drive(m, buttonClick("jq is not installed", fix.RunName)); len(r.calls) != 1 ||
+		strings.Join(r.calls[0], " ") != "welcome --fix jq" || m.step != introduction {
+		t.Fatalf("a click on ▶️ ran %q, step %d", r.calls, m.step)
+	}
+	m, _ = onCheck(drive(m, esc), "brew-path")
+	if row := rowOf(t, m, "brew is installed but not on PATH"); !strings.HasSuffix(row, "   "+fix.CopyName+" ") {
+		t.Errorf("brew-path's row: %q", row)
+	}
+	m, msgs = testkit.Drive(m, nil, buttonClick("brew is installed but not on PATH", fix.CopyName).(clickMsg).at(m))
+	if got := clipboard(msgs); !strings.HasPrefix(got, "eval ") || len(r.calls) != 1 {
+		t.Errorf("a click on brew-path's ⧉ copied %q, ran %q", got, r.calls)
+	}
+}
+
 // clipboard gives what the messages put on the clipboard, or nothing.
 func clipboard(msgs []tea.Msg) string {
 	for _, msg := range msgs {
@@ -172,7 +212,7 @@ func clipboard(msgs []tea.Msg) string {
 }
 
 // r on a row runs its fix, with the terminal handed over, then the checks run again, the screen still on the
-// introduction; c copies it, which the line over the table says until the next key. Neither does anything on a check
+// introduction; c copies it, which the row's ⧉ says, copied, until the next key. Neither does anything on a check
 // with no fix, and r nothing on one kit only shows.
 func TestROnARowRunsItsFixAndCCopiesIt(t *testing.T) {
 	m, r := loaded(t)
@@ -181,10 +221,10 @@ func TestROnARowRunsItsFixAndCCopiesIt(t *testing.T) {
 	if got := clipboard(msgs); got != "brew install jq" || len(r.calls) != 0 || m.step != introduction {
 		t.Fatalf("c on jq's row copied %q, ran %q, step %d", got, r.calls, m.step)
 	}
-	if got := view(m); !strings.Contains(got, runSelected+"   "+copiedWord+": brew install jq\n") {
-		t.Errorf("the head does not say copied:\n%s", got)
+	if got := rowOf(t, m, "jq is not installed"); !strings.HasSuffix(got, "   "+fix.CopiedName+"   "+fix.RunName+" ") {
+		t.Errorf("jq's row does not say copied: %q", got)
 	}
-	if m = drive(m, down, up); strings.Contains(view(m), copiedWord) {
+	if m = drive(m, down, up); strings.Contains(view(m), fix.CopiedName) {
 		t.Errorf("copied stays after a key:\n%s", view(m))
 	}
 	if m = drive(m, press('r')); len(r.calls) != 1 || strings.Join(r.calls[0], " ") != "welcome --fix jq" ||
@@ -1210,13 +1250,10 @@ func TestEscSaysItGoesBackToTheTabs(t *testing.T) {
 }
 
 // Once every check passes, the introduction's table goes, and the keyboard with it, back to the bar; while they run
-// again, checking… follows all checks pass. A fix copied whose check is gone says copied alone.
+// again, checking… follows all checks pass.
 func TestTheTableGoesOnceEveryCheckPasses(t *testing.T) {
 	m, _ := loaded(t)
-	if m.copied = "nonesuch"; !strings.Contains(view(m), runSelected+"   "+copiedWord+"\n") {
-		t.Errorf("copied without its check:\n%s", view(m))
-	}
-	m, _ = onCheck(drive(m, esc), "jq")
+	m, _ = onCheck(m, "jq")
 	for i := range m.checks {
 		m.checks[i].OK = true
 	}

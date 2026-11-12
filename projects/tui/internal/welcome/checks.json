@@ -13,7 +13,7 @@
          "group": true, "filter": true, "renderings": ["text"], "dim": true, "width": "whole", "placement": "column"},
         {"id": "step", "label": "step", "type": "enum", "path": ".step", "order": "given", "group": true,
          "filter": true, "renderings": ["text"], "width": "whole", "placement": "column"},
-        {"id": "note", "label": "note", "type": "text", "path": "later, or what the fix's run said",
+        {"id": "note", "label": "note", "type": "text", "path": "what the fix's run said",
          "renderings": ["text"], "dim": true, "placement": "column"}
       ],
       "presets": [

@@ -11,7 +11,7 @@
       check                                                                  folder           step
       ·──────────────────────────────────────────────────────────────────────·─────────────────────────────────────────
 ▣ ▾ brew install jq 1
-  ▣   jq is not installed                                                    💻 this machine  🧰 toolchains            
+  ▣   jq is not installed                                                    💻 this machine  🧰 toolchains     ⧉   ▶️ 
   ▾ eval "$(/opt/homebrew/bin/brew shellenv)" 1
       brew is installed but not on PATH                                      💻 this machine  🧰 toolchains
 □ ▾ gh auth login --hostname github.com 1
@@ -27,4 +27,4 @@
 
    kit is your house rules as a versioned release, and the checks that hold the work to them. It places the rules where
 
- = menu - workspace / search │ … │ esc tabs ↑↓ move [] group ␣·⇧↑↓ select ⌃A all ← group ⏎ go to the check r run c copy…
+ = menu - workspace / search │ … │ esc tabs ↑↓ move [] group ␣·⇧↑↓ select ⌃A all ← group ⏎ go to the check c copy r run…

@@ -461,6 +461,11 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.choose(bar)
 		case m.introGridded() && msg.Button == tea.MouseLeft && m.onRunButton(msg.X, msg.Y):
 			return m, m.runSelected()
+		case m.introGridded() && msg.Button == tea.MouseLeft:
+			if cmd, took := m.fixClick(msg.X, msg.Y, drawn); took {
+				return m, cmd
+			}
+			return m.sheetClick(msg)
 		case m.gridded():
 			return m.sheetClick(msg)
 		case msg.Button == tea.MouseLeft:
@@ -871,7 +876,7 @@ func (m *Model) follow() {
 	m.inPane = true
 }
 
-// copy puts the fix of the check under the cursor on the clipboard, which the introduction then says until the next
+// copy puts the fix of the check under the cursor on the clipboard, and its row's ⧉ then says copied until the next
 // key or click.
 func (m *Model) copy() tea.Cmd {
 	c := m.checks[m.cursor]

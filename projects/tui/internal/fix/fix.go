@@ -97,10 +97,14 @@ func Buttons(runs, copied bool) string {
 }
 
 // After gives a line with the pair after it, in width cells: the line clipped to leave the buttons their room, never
-// the buttons.
+// the buttons. A line padded past its words, as a chosen row's band pads one, loses only its padding, with no … for it.
 func After(line string, width int, runs, copied bool) string {
 	end := Buttons(runs, copied)
-	return pane.Clip(line, width-ansi.StringWidth(end)) + end
+	room := width - ansi.StringWidth(end)
+	if words := strings.TrimRight(ansi.Strip(line), " "); ansi.StringWidth(words) <= room {
+		return ansi.Truncate(line, max(0, room), "") + end
+	}
+	return pane.Clip(line, room) + end
 }
 
 // On gives the button the cell x of a line drawn by After is on, its styles stripped or not: copy, on ⧉ or copied
