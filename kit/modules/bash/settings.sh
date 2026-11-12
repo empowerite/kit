@@ -40,6 +40,8 @@ settings:value() {
 #   - a key under facts other than read
 #   - an answer key with characters outside [a-z_]
 #   - a tracker without a prefix (letters and an optional #) or without a provider
+#   - a source, under sources:, that sources:check refuses: an unknown kind, a missing name or url, a name used
+#     twice, or a key its kind does not take
 #
 # The gate validates this repository's settings against .kit/kit.schema.json in full. The kit delivers the
 # schema so an editor can validate against it anywhere.
@@ -64,6 +66,12 @@ settings:validate() {
         return 1
     esac
   done
+  if list:among sources "${keys[@]}"
+  then
+    use sources || return 1
+    list:read rows sources:entries "${settings}" kit.yml || return 1
+    sources:check "${rows[@]}" || return 1
+  fi
   yaml:get value value "${settings}" require_signing
   if [[ -n "${value}" && "${value}" != true && "${value}" != false ]]
   then

@@ -289,7 +289,7 @@ answers:
 | `policy` | The patterns a branch, a commit subject, and a change title must match; see [policy.md](policy.md). |
 | `policy_engine` | `patterns` or `opa`; see [policy.md](policy.md). |
 | `facts` | `facts.read`: the globs of the files whose text the policy's facts carry; see [policy.md](policy.md#reading-a-files-text). |
-| `sources` | Other releases a repository takes packages from, each with a `name`, a `url`, and a `digest`; see below. |
+| `sources` | The artifact sources: the releases a repository takes packages from, each with a `name`, a `url`, and a `digest`, and the pull path's default; see below. |
 | `trackers` | Trackers other than the code forge's own whose issues the workflow accepts, each with a prefix and a provider; see [trackers.md](trackers.md). |
 | `bash_path` | The bash module path: the directories `use` sources a bash module from, in order, starting with `kit:modules/bash/`. A directory that does not exist is skipped; see [modules.md](modules.md#the-module-path). |
 | `tools` | The tools the kit toolchain pins, by name: each a version and the url of its download, which `tools.lock` records for every platform; see [using-kit.md](toolchains/using-kit.md). |
@@ -328,6 +328,42 @@ sources:
 A file a source delivers is held to the source by `kit check`, like any other. `kit update` takes the source as the
 pin names it. A file outside `.kit/` that came from a source and was edited keeps the edit, since the kit does not keep
 an earlier copy of a source to merge against.
+
+### Kinds and the pull path
+
+Each entry under `sources:` has a `kind`, the protocol it speaks: `kit-packages`, the package sources above, when it
+is left out. Every other kind is on the pull path, the sources kit searches, in order, for what it fetches, the first
+hit winning. Besides a source, an entry may be one of two words: `direct`, the open internet, each kind at its public
+home, and `off`, which ends the path.
+
+```yaml
+sources:
+  - name: team
+    url: git:empowerite/kit-team@v1.2.0
+    digest: sha256:3b1f…
+  - name: corp-go
+    kind: goproxy
+    url: https://proxy.corp/go
+  - direct
+```
+
+- A kind is a provider of the `sources` seam, `modules/bash/sources/<kind>.sh`, from the kit or from the
+  repository's own bash module path. Each takes the keys its header names, beyond `name`, `kind`, `url`, and
+  `expect`, how long a pushed version usually takes to show there, as `30m`, `12h`, or `1d`.
+- The pull path comes in layers, as `PATH` does, the first first: `KIT_SOURCES`, for a runner, entries apart by
+  commas, each `direct`, `off`, or `<name>=<kind>:<url>`; `sources:` at the top of your `workspaces.yml` (see
+  [workspaces.md](workspaces.md)), which applies to every repository you work in; and `kit.yml`'s, whose default,
+  with none, is `direct`.
+- A layer's entries go before the ones below it, and a name or `direct` met again is the first one's. `off` ends the
+  path, so a layer that holds it replaces the layers below: a desk behind a mirror writes the mirror and `off` in its
+  workspace, and never reaches the open internet.
+- Package sources are the repository's: a workspace or `KIT_SOURCES` that names one is refused.
+- `kit tools sources` prints the path, each entry with its kind, its url, and the layer it came from.
+- A clone's `kit.yml` that names a source is what `kit trust` asks about, each source by its kind and url, before kit
+  reads anything there.
+
+The design, and what the kinds beyond `kit-packages` fetch, is in
+[the artifact sources design](superpowers/specs/2026-11-12-artifact-sources-design.md).
 
 ## Packages a repository defines
 

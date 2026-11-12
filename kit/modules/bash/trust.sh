@@ -20,11 +20,11 @@ use yaml file
 
 # trust:asks <clone> prints what the clone at <clone> asks kit to run, one line each: the release it pins, and whether
 # that is the clone's own kit/; each bash_path entry that loads bash from outside the release; its gate; each source
-# it brings packages from; the tools it has kit download and run; and each lint: command a rule or a style names, of
-# the kit's packages or the clone's own, once each. It prints nothing for a clone that asks for none of them. It reads
+# it brings packages from, or fetches tools from, by its kind and url; the tools it has kit download and run; and
+# each lint: command a rule or a style names, of the kit's packages or the clone's own, once each. It prints nothing for a clone that asks for none of them. It reads
 # kit.yml and the frontmatter with yq, and runs nothing the clone names.
 trust:asks() {
-  local clone=$1 version entry gate file lint
+  local clone=$1 version entry gate file lint name kind url
   local -a entries=() sources=() tools=() files=()
   local -A said=()
   if [[ -f "${clone}/kit.yml" ]]
@@ -45,10 +45,14 @@ trust:asks() {
     done
     gate=$(yaml:value "${clone}/kit.yml" gate) || return 1
     [[ -z "${gate}" ]] || printf 'run %s for kit gate (gate)\n' "${gate}"
-    list:read sources yaml:records "${clone}/kit.yml" sources name || return 1
+    list:read sources yaml:records "${clone}/kit.yml" sources name kind url || return 1
     for entry in "${sources[@]}"
     do
-      printf 'bring packages from the source %s (sources)\n' "${entry}"
+      IFS=$'\x1f' read -r name kind url <<<"${entry}"
+      case "${kind}" in
+        ('' | kit-packages) printf 'bring packages from the source %s (sources)\n' "${name}" ;;
+        (*) printf 'fetch its tools from the %s source %s, at %s (sources)\n' "${kind}" "${name}" "${url}"
+      esac
     done
     list:read tools yaml:eval "${clone}/kit.yml" tool-names '(.tools // {}) | keys | .[]' || return 1
     if (( ${#tools[@]} ))

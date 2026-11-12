@@ -1,0 +1,10 @@
+«head»
+sources/«stem»:fetch()«call_fetch…= { error "not written yet"; return 1; }»
+sources/«stem»:hash()«call_hash…= { error "not written yet"; return 1; }»
+sources/«stem»:home()«call_home…= { error "not written yet"; return 1; }»
+sources/«stem»:keys()«call_keys…= { error "not written yet"; return 1; }»
+sources/«stem»:serves()«call_serves…= { error "not written yet"; return 1; }»
+sources/«stem»:settings()«call_settings…= { error "not written yet"; return 1; }»
+sources/«stem»:versions()«call_versions…= { error "not written yet"; return 1; }»
+# The seam's calls end here; what follows is this provider's own.
+«rest»

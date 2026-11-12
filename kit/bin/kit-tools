@@ -4,6 +4,7 @@
 # Usage:
 #   kit tools [--outdated [--check]] [--toolchain=<name>] [--json | --jq]
 #   kit tools [--toolchain=<name>] (install | update | path | run <command>…)
+#   kit tools sources [--json | --jq]
 #
 # Acts on the tools the project toolchain pins. kit toolchains shows which toolchain that is, and records a choice.
 # Then on the packages each dependency provider pins, as npm in package-lock.json or uv in uv.lock: each one whose
@@ -16,6 +17,10 @@
 # several.
 #
 # With --outdated, a source the toolchain cannot read is named, and the run fails, even with no tool behind.
+#
+# sources prints the pull path, the artifact sources searched in order for what kit fetches: KIT_SOURCES first, then
+# sources: in the person's workspaces.yml, then kit.yml's, whose default is direct, the open internet. A row names
+# each source, its kind, its url, and the layer it came from; off ends the path. Package sources are not on it.
 #
 # install installs the toolchain first, then finds the dependency providers again, so a tool the toolchain has just
 # installed, such as node's npm, counts. It fails, naming each, when a provider's lock is here and its tool is still
@@ -34,18 +39,19 @@
 #   install             installs every pinned tool, then every package; ambient, names what else to install
 #   update              moves every tool and package to its latest, and rewrites the pins
 #   path                prints the directories that put the tools first on PATH, then the packages'
+#   sources             prints the pull path: each source, its kind, its url, and its layer (env, workspace, kit.yml)
 #   run <command>…      runs the command with the tools, or in their container
 #   <command>…          the command and its arguments, as typed, dash-words included
 #
 # Exits 0 when it did it, 1 when it could not, and 2 on a usage error; run exits with the command's status.
 #
-# see: modules/bash/toolchain.sh, modules/bash/dependencies.sh, docs/toolchains.md
+# see: modules/bash/toolchain.sh, modules/bash/dependencies.sh, modules/bash/sources.sh, docs/toolchains.md
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use toolchain dependencies settings flow materialize yaml
+use toolchain dependencies settings flow materialize yaml sources
 guard:arguments tools "$@" || exit $?
 settings:validate || exit 1
 
@@ -55,7 +61,9 @@ verb=${syntax_literals[0]:-}
 json=false
 [[ -z "${syntax_options[--json]+x}" ]] || json=true
 
-chosen=$(toolchain:chosen project) || exit 1
+# sources reads no toolchain, so none is asked for.
+chosen=''
+[[ "${verb}" == sources ]] || chosen=$(toolchain:chosen project) || exit 1
 
 # needed prints "<tool>\t<path>" for each tool a rule's or a style's linter runs, once each: the first word of its
 # lint: command. The path is where it is found on PATH, or nothing.
@@ -146,6 +154,34 @@ join() {
   done
   printf '%s %s' "${glyph}" "${out}"
 }
+
+# sources prints the pull path, as a table or, with --json, one JSON object per entry: name, kind, url, and from, the
+# layer.
+sources() {
+  local path name kind url layer rows='' glyph
+  path=$(sources:path) || exit 1
+  # a kind or a url can be empty, so each tab becomes \x1f, which read never runs together with the next
+  while IFS=$'\x1f' read -r name kind url layer _
+  do
+    [[ -n "${name}" ]] || continue
+    if [[ "${json}" == true ]]
+    then
+      jq --null-input --compact-output --arg name "${name}" --arg kind "${kind}" --arg url "${url}" \
+        --arg from "${layer}" '{name: $name, kind: $kind, url: $url, from: $from} | map_values(if . == "" then null
+          else . end)'
+      continue
+    fi
+    case "${name}" in
+      (direct) glyph=🌐 kind=- url='the open internet: each kind at its home' ;;
+      (off) glyph=⛔ kind=- url='the path ends here' ;;
+      (*) glyph=📦
+    esac
+    rows+="${glyph}"$'\t'"${name}"$'\t'"${kind}"$'\t'"${url}"$'\t'"${layer}"$'\n'
+  done <<<"${path//$'\t'/$'\x1f'}"
+  [[ "${json}" == true ]] || printf '%s' "${rows}" | draw $'name\tkind\turl\tfrom'
+  exit 0
+}
+[[ "${verb}" != sources ]] || sources
 
 # locked-dirs prints the toolchain's directories, joined by colons, when some provider's manifest and lock are here,
 # and nothing otherwise.

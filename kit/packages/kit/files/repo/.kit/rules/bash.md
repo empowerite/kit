@@ -11,6 +11,8 @@ templates:
     path: "**/forge/*.sh"
   - variant: policy-provider
     path: "**/policy/*.sh"
+  - variant: sources-provider
+    path: "**/sources/*.sh"
   - variant: toolchain-provider
     path: "**/toolchain/*.sh"
   - variant: tracker-provider

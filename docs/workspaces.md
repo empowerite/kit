@@ -25,6 +25,9 @@ workspaces:
   written twice, as `~/Code` and `~/Code/`, counts once.
 - `favorites` names workspaces to keep at hand: a group's name, or a repository.
 - Each group has `repos`, its members, and may have `exclude`, which takes members back out.
+- `sources`, at the top, is your layer of the pull path: the artifact sources kit searches before the repository's,
+  as a mirror and `off` behind a firewall. It applies to every repository you work in; see
+  [packages.md](packages.md#kinds-and-the-pull-path).
 
 A group's name starts with a lowercase letter or a digit, and holds lowercase letters, digits, and `.`, `_`, or `-`,
 and never `/`. That is how kit tells a name from a repository.

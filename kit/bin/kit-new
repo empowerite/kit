@@ -66,7 +66,7 @@
 #   <kind>                  the kind a rule or a style governs
 #   <rule>                  the rule or style whose template it is
 #   <variant>               the template's name, which kit new file --variant= takes
-#   <seam>                  the seam the provider answers: dependencies, forge, policy, toolchain, or tracker
+#   <seam>                  the seam the provider answers: dependencies, forge, policy, sources, toolchain, or tracker
 #   --package=<name>        the package to put it in
 #   --path=<glob>           a glob the kind's paths match; ** matches any depth
 #   --content=<regex>       an extended regular expression the first line matches

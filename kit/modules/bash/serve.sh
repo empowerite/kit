@@ -102,17 +102,18 @@ declare -grA serve_acts=(
 
 # The tools offered as a listing only. Each word would act, or reach the network, so a tool does not offer it: a line
 # that needs one is not offered, and an optional part that holds one is taken out. Each word is a literal or --flag.
+# tools' sources reads the person's own workspace file and the server's environment, which a client is not shown.
 declare -grA serve_listing_only=(
   [packages]='select add remove'
   [toolchains]='use'
-  [tools]='install update path run --outdated'
+  [tools]='install update path run --outdated sources'
 )
 
 # What each listing-only tool's words do, as the refusal of a call that names one says.
 declare -grA serve_listing_acts=(
   [packages]='select, add, or remove packages'
   [toolchains]='choose a toolchain'
-  [tools]='install, update, or run the tools, or ask which are outdated'
+  [tools]='install, update, or run the tools, ask which are outdated, or print the pull path'
 )
 
 # The words a tool does not offer for another reason: context's hook mode is the harness's own, and flow's desk and

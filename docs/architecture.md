@@ -157,7 +157,7 @@ A code forge is the service that hosts a repository with its issues and pull req
 The word forge comes from SourceForge, the first widely used site of this kind, in 1999. GitLab, Gitea, and Forgejo
 still use it for the category. kit says code forge rather than GitHub because the workflow runs on more than one.
 
-Five files each define a seam. The word is Michael Feathers', from *Working Effectively with Legacy Code* (2004). He
+Six files each define a seam. The word is Michael Feathers', from *Working Effectively with Legacy Code* (2004). He
 took it from tailoring: a seam is where two pieces of cloth join, and where a garment is let out or taken in without
 recutting either piece. In code, a seam is a place where behavior can change without editing the code at that place.
 Every seam has an enabling point, the spot that decides which behavior runs.
@@ -175,6 +175,7 @@ exists.
 | `kit/modules/bash/tracker.sh` | `tracker/forge.sh`, `tracker/ado.sh`, and `tracker/web.sh`, a ticket system kit reaches through its pages alone | the reference's prefix, `#7` or `AB#4521`; see [trackers.md](trackers.md) |
 | `kit/modules/bash/toolchain.sh` | `toolchain/kit.sh`, `toolchain/mise.sh`, `toolchain/nix.sh`, `toolchain/brew.sh`, `toolchain/docker.sh`, `toolchain/devcontainer.sh`, and for the system role `toolchain/apt.sh`, `toolchain/dnf.sh`, `toolchain/pacman.sh` | the one active or usable where kit runs, else the person's choice; see [toolchains.md](toolchains.md) |
 | `kit/modules/bash/dependencies.sh` | `dependencies/npm.sh`, `dependencies/uv.sh` | every one usable here at once: its tool on `PATH`, its manifest and its lock at the root; see [toolchains.md](toolchains.md#dependencies) |
+| `kit/modules/bash/sources.sh` | `sources/kit-packages.sh` | each entry's `kind` under `sources:`, on the pull path or as a package source; see [packages.md](packages.md#sources) |
 | `kit/modules/bash/policy.sh` | `policy/patterns.sh`, `policy/opa.sh` | `policy_engine: opa` or a `.rego` file under `.kit/policy/`, else patterns; see [policy.md](policy.md) |
 
 Every code forge call the workflow makes goes through `forge:` in `kit/modules/bash/forge.sh`: an issue's title, the
