@@ -63,21 +63,3 @@ nix pins inputs, not tools. So with a `Brewfile` on macOS, brew fills in for all
 Set `ci_toolchain: nix` under `answers:` in `kit.yml`. The workflow installs nix with
 `DeterminateSystems/nix-installer-action`. Then `kit tools install` builds the dev shell; see
 [packages/github/ci.md](../packages/github/ci.md).
-
-## This repository's flake
-
-`flake.nix` ports `tools:` in `kit.yml`, which the kit toolchain installs:
-
-- `devShells.ci` holds the tools the gate runs, every one but lefthook, as a runner installs them.
-- `devShells.default` adds lefthook, which `kit.yml` keeps to a desk. `nix develop` and kit enter it.
-- Both put `kit/bin` on `PATH` and hydrate `.kit/`.
-- Neither holds the npm tools, ajv-cli and markdownlint-cli2. `package.json` pins them for every toolchain, and
-  `kit tools install` runs `npm ci` with the shell's node.
-
-Where it differs from the kit toolchain:
-
-- The versions follow nixpkgs, so some sit a minor version off `kit.yml`'s pins. go is `go_1_27`, because nixpkgs'
-  default `go` is older.
-- An Intel Mac is left out. nixpkgs 26.11 dropped `x86_64-darwin`.
-
-On a desk with both, kit and nix are usable, and kit uses the one recorded. `kit toolchains use nix` switches.
