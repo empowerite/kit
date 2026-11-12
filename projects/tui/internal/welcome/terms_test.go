@@ -176,7 +176,7 @@ func TestTheKitPackagesTermsSayEachWordOnce(t *testing.T) {
 
 func TestTheTermsAreATableOfTermsMeaningsAndCommands(t *testing.T) {
 	m, _ := loaded(t, stepKey(terms))
-	if !m.gridded() || keysAt(m) != "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ terms "+jump {
+	if !m.gridded() || keysAt(m) != "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ terms "+jump+" : tab menu" {
 		t.Fatalf("the terms step: gridded %v, keys %q", m.gridded(), keysAt(m))
 	}
 	got := view(m)

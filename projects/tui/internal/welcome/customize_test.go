@@ -85,7 +85,7 @@ func TestAPartsWhereLeadsToItsFileAndItsDoc(t *testing.T) {
 
 func TestCustomizeIsATableOfItsPartsInThePagesOrder(t *testing.T) {
 	m, _ := loaded(t, stepKey(custom))
-	if !m.gridded() || keysAt(m) != "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ parts "+jump {
+	if !m.gridded() || keysAt(m) != "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ parts "+jump+" : tab menu" {
 		t.Fatalf("the customize step: gridded %v, keys %q", m.gridded(), keysAt(m))
 	}
 	got := view(m)

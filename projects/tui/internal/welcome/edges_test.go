@@ -109,10 +109,10 @@ func TestUpOnTheBarAndDownBeforeTheChecksAnswerDoNothing(t *testing.T) {
 // On a screen too narrow for every tab, the bar scrolls to the selected step, whole, with a triangle where steps are
 // hidden.
 func TestOnAScreenTooNarrowTheBarScrolls(t *testing.T) {
-	m, _ := atChains(t, tea.WindowSizeMsg{Width: 40, Height: 30})
+	m, _ := atChains(t, tea.WindowSizeMsg{Width: 44, Height: 30})
 	bar := strings.Split(view(m), "\n")[2]
-	if !strings.Contains(bar, "│ 🧰 toolchains  3 │") || !strings.HasSuffix(bar, tabs.After) {
-		t.Errorf("at 40 columns, the bar does not scroll to the toolchains: %q", bar)
+	if !strings.Contains(bar, "│ 🧰 toolchains  3 : │") || !strings.HasSuffix(bar, tabs.After) {
+		t.Errorf("at 44 columns, the bar does not scroll to the toolchains: %q", bar)
 	}
 }
 

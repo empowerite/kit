@@ -201,6 +201,8 @@ type Model struct {
 	queue       []kit.Check             // the fixes Run Selected Fixes runs still to run, in turn
 	jump        *string                 // the check a click on the table's row asked to go to, until the screen goes
 	settings    shell.Settings          // kittui's settings, as the screen was last told them
+	tabMenu     shell.Dropdown          // the selected tab's menu, menu.go's, which has the keyboard while it is open
+	maximized   bool                    // whether the pane has the bar's lines but one, for the session
 
 	interrupted bool
 }
@@ -347,7 +349,8 @@ func (m Model) read() tea.Cmd {
 // table with the keyboard shows.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	k, key := msg.(tea.KeyPressMsg)
-	if key && m.introGridded() && !m.appMenu.Open && !m.books.Open && !m.recent.Open && !m.search().Focused &&
+	if key && m.introGridded() && !m.appMenu.Open && !m.books.Open && !m.recent.Open && !m.tabMenu.Open &&
+		!m.search().Focused &&
 		m.introScrollKey(k.String()) {
 		m.copied = ""
 		return m, nil
@@ -424,6 +427,8 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		drawn := m.copied
 		m.copied = ""
 		switch {
+		case m.tabMenu.Open && msg.Button == tea.MouseLeft:
+			return m, m.menuClick(msg.X, msg.Y)
 		case m.appMenu.Open && msg.Button == tea.MouseLeft:
 			var c shell.Choice
 			m.appMenu, c = m.appMenu.Click(msg.X, msg.Y, m.width)
@@ -442,6 +447,9 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case m.gridded() && m.sheet().Layered():
 			return m.sheetClick(msg)
+		case msg.Button == tea.MouseLeft && m.onMenu(msg.X, msg.Y):
+			m.openMenu()
+			return m, nil
 		case msg.Button == tea.MouseLeft && shell.OnApp(msg.X, msg.Y, appLabel):
 			m.appMenu = m.appMenu.Opened()
 			return m, nil
@@ -455,7 +463,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.focusSearch(true)
 			return m, nil
 		}
-		bar, ok := m.bar().Update(msg)
+		bar, ok := m.barTakes(msg)
 		switch {
 		case ok:
 			m.choose(bar)
@@ -673,6 +681,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case shell.Quit:
 		return m, m.quit()
 	}
+	if m.tabMenu.Open {
+		return m.menuKey(k)
+	}
 	if m.appMenu.Open {
 		var c shell.Choice
 		m.appMenu, c = m.appMenu.Key(k)
@@ -731,6 +742,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "=":
 		m.appMenu = m.appMenu.Opened()
 		return m, nil
+	case ":", ";":
+		m.openMenu()
+		return m, nil
 	case shell.Workspaces:
 		m.books = m.books.Opened()
 		return m, nil
@@ -742,10 +756,13 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	if m.gridded() && table.Fold(m.sheet(), k.String()) {
 		return m, nil
 	}
-	if bar, ok := m.bar().Update(k); ok {
+	if bar, ok := m.barTakes(k); ok {
 		m.choose(bar)
 		m.fit()
 		return m, nil
+	}
+	if j := m.shortcut(k.String()); j >= 0 {
+		return m, m.pick(j)
 	}
 	if m.gridded() {
 		// down or enter from the bar gives the step's table the keyboard, on its control line
@@ -796,7 +813,7 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 // sheetClick gives a click to the selected step's table, which then has the keyboard where it took it, and the notice
 // it puts up fades in its while.
 func (m Model) sheetClick(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
-	if m.introGridded() && !m.sheet().Layered() && (msg.Y < paneTop || msg.Y >= paneTop+m.paneHeight()) {
+	if m.introGridded() && !m.sheet().Layered() && (msg.Y < m.paneTop() || msg.Y >= m.paneTop()+m.paneHeight()) {
 		// the introduction's table, scrolled, reaches past the pane, where a click is not its
 		return m, nil
 	}
@@ -824,7 +841,7 @@ func (m Model) fading(before shell.Notice) tea.Cmd { return m.sheet().Notice().F
 // and keep keeps a terminal's failed finding; on a page, the page has the keyboard. A … line, or a line that is no
 // check's, does nothing.
 func (m *Model) click(x, y int, copied string) tea.Cmd {
-	r, h := y-paneTop, m.paneHeight()
+	r, h := y-m.paneTop(), m.paneHeight()
 	switch {
 	case r < 0 || r >= h:
 	case !m.hasRows():
@@ -1043,7 +1060,7 @@ func (m *Model) wheeled(w tea.MouseWheelMsg) {
 	case tea.MouseWheelDown:
 		d = wheel
 	}
-	if d == 0 || m.appMenu.Open || m.books.Open || m.recent.Open || w.Y < paneTop || w.Y >= paneTop+m.paneHeight() {
+	if d == 0 || m.appMenu.Open || m.books.Open || m.recent.Open || w.Y < m.paneTop() || w.Y >= m.paneTop()+m.paneHeight() {
 		return
 	}
 	switch {

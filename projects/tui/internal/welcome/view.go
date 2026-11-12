@@ -4,6 +4,7 @@ package welcome
 
 import (
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -28,13 +29,6 @@ const (
 	Failed  = "❌" // a check that failed, and a refusal
 )
 
-// fixed is how many lines the title, the bar, the gap, and the keys take; the pane has the rest, from paneTop on,
-// right under the bar, which is open there to the selected tab.
-const (
-	fixed   = 3 + tabs.Height
-	paneTop = 1 + tabs.Height
-)
-
 // lead is what starts a pane's line, and focus what starts the line under the cursor.
 const (
 	lead  = "   "
@@ -50,13 +44,23 @@ type line struct {
 	text string
 }
 
-// View draws the screen on the alternate screen, with the mouse on for the bar, the selected step's table's layers
-// over its pane, and what the table did, or why not, in place of the keys while it says it.
+// View draws the screen on the alternate screen, with the mouse on for the bar: the title, the bar, or, maximized, the
+// banner, and the pane; the selected step's table's layers over its pane, the tab's menu while it is open, and what
+// the table did, or why not, in place of the keys while it says it.
 func (m Model) View() tea.View {
-	lines := append([]string{m.menuBar().Line(m.width)}, strings.Split(m.bar().View(), "\n")...)
+	lines := []string{m.menuBar().Line(m.width)}
+	if m.maximized {
+		lines = append(lines, m.banner())
+	} else {
+		lines = append(lines, strings.Split(m.bar().View(), "\n")...)
+	}
 	lines = append(lines, m.pane()...)
 	if m.gridded() {
 		lines = m.sheet().Over(lines)
+	}
+	if m.tabMenu.Open {
+		box, left, _ := m.menuBoxIn()
+		lines = shell.Over(lines, box, m.menuTop(), left)
 	}
 	lines = m.recent.Overlay(append(lines, ""), m.recallAt(), m.width)
 	lines = m.appMenu.Overlay(lines, m.width)
@@ -69,9 +73,11 @@ func (m Model) View() tea.View {
 }
 
 // bar gives the steps' tab bar, from the screen's second line: each step's glyph, name, and count, the count in red
-// when a check failed or kit refused them, the keyboard on it unless the pane has it, and its view where it was left.
+// when a check failed or kit refused them, the keyboard on it unless the pane has it, its view where it was left, and
+// the selected tab's :, which drops its menu down.
 func (m Model) bar() tabs.Bar {
-	b := tabs.Bar{Selected: m.step, Focused: !m.inPane, Scroll: m.barView, Width: m.width, Row: 1}
+	b := tabs.Bar{Selected: m.step, Focused: !m.inPane, Scroll: m.barView, Width: m.width, Row: 1, Menus: true,
+		MenuOpen: m.tabMenu.Open}
 	for i, t := range m.tabs {
 		count := m.count(i)
 		b.Tabs = append(b.Tabs, tabs.Tab{Glyph: t.glyph, Name: t.name, Count: count})
@@ -80,13 +86,18 @@ func (m Model) bar() tabs.Bar {
 	return b
 }
 
-// paneHeight gives the lines the pane has.
-func (m Model) paneHeight() int { return max(1, m.height-fixed) }
+// paneHeight gives the lines the pane has: the screen's, from the pane's top, less the gap and the keys under it.
+func (m Model) paneHeight() int { return max(1, m.height-m.paneTop()-2) }
 
 // menuBar gives the menu bar, as internal/shell draws every screen's: the kit menu's = before kit welcome; the
-// workspace menu, which names the workspace; and the search field.
+// workspace menu, which names the workspace; maximized, the selected tab, as the bar draws it but its number in place
+// of its glyph, its : last; and the search field.
 func (m Model) menuBar() shell.MenuBar {
-	return shell.MenuBar{Screen: appLabel, Open: m.appMenu.Open, Workspace: m.books.Label(), Search: m.searchLine()}
+	b := shell.MenuBar{Screen: appLabel, Open: m.appMenu.Open, Workspace: m.books.Label(), Search: m.searchLine()}
+	if m.maximized {
+		b.On = m.bar().NumberedLabel()
+	}
+	return b
 }
 
 // booksAt gives the column the menu bar's workspace menu starts at.
@@ -97,7 +108,7 @@ func (m Model) booksAt() int { return m.menuBar().WorkspaceAt() }
 // part of the step's table that has it, or the search, which takes every press while it has it. An open menu takes
 // every press, and is the path alone, as a layer of the step's table is.
 func (m Model) keys() shell.Path {
-	if m.appMenu.Open || m.recent.Open || m.books.Open {
+	if m.appMenu.Open || m.recent.Open || m.books.Open || m.tabMenu.Open {
 		return shell.Path{shell.MenuKeys()}
 	}
 	if m.gridded() {
@@ -112,7 +123,12 @@ func (m Model) keys() shell.Path {
 	case m.hasRows():
 		down = "checks"
 	}
-	path := shell.Path{shell.WorkspaceScreenKeys(), m.bar().Keys(down)}
+	bar := m.bar().Keys(down)
+	if m.maximized {
+		// the bar is not there to move along
+		bar.Bindings = slices.DeleteFunc(bar.Bindings, func(b shell.Binding) bool { return b.Key == "⇥·⇧⇥" })
+	}
+	path := shell.Path{shell.WorkspaceScreenKeys(), bar}
 	switch {
 	case m.search().Focused:
 		search := shell.SearchKeys(down, m.search().Query, m.recalls())

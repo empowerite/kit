@@ -1,7 +1,7 @@
   = kit welcome · - empowerite/kit                                                                           🔎 /search
-  ➀╶────────────────╴➋╶─────────────────╮➂╶────────────╮➃╶─────────────╮➄╶─────────╮
-    👋 introduction  │ 🧰 toolchains  3 │  🔧 setup  2 │  🎨 customize │  📖 terms │
-  ───────────────────╯                  ╰──────────────╰───────────────╰───────────╰────────────────────────────────────
+  ➀╶──────────────────╴➋╶───────────────────╮➂╶──────────────╮➃╶───────────────╮➄╶───────────╮
+    👋 introduction    │ 🧰 toolchains  3 : │  🔧 setup  2   │  🎨 customize   │  📖 terms   │
+  ─────────────────────╯                    ╰────────────────╰─────────────────╰─────────────╰──────────────────────────
    Toolchains
 
    A toolchain installs tools. When several are usable, choose one.
@@ -27,4 +27,4 @@
 
 
 
- = menu - workspace / search │ 1-5 jump │ esc tabs ↑↓ move ⇞⇟ page c copy r run
+ = menu - workspace / search │ 1-5 jump : tab menu │ esc tabs ↑↓ move ⇞⇟ page c copy r run

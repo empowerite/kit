@@ -247,7 +247,7 @@ func (m *Model) placeSheets() {
 	for i, t := range m.tabs {
 		if t.sheet != nil && t.sheet != m.checksSheet {
 			n := len(m.leadLines(i))
-			t.sheet.Place(paneTop+n, m.paneHeight()-n, m.width, m.height)
+			t.sheet.Place(m.paneTop()+n, m.paneHeight()-n, m.width, m.height)
 		}
 	}
 	m.placeChecks()

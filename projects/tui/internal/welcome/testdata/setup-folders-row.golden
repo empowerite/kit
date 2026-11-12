@@ -1,7 +1,7 @@
   = kit welcome · - w 3                                                                                      🔎 /search
-  ➀╶────────────────╮➁╶──────────────╴➌╶────────────╮➃╶─────────────╮➄╶─────────╮
-    👋 introduction │  🧰 toolchains  │ 🔧 setup  5 │  🎨 customize │  📖 terms │
-  ──────────────────╰─────────────────╯             ╰───────────────╰───────────╰───────────────────────────────────────
+  ➀╶──────────────────╮➁╶────────────────╴➌╶──────────────╮➃╶───────────────╮➄╶───────────╮
+    👋 introduction   │  🧰 toolchains    │ 🔧 setup  5 : │  🎨 customize   │  📖 terms   │
+  ────────────────────╰───────────────────╯               ╰─────────────────╰─────────────╰─────────────────────────────
    Setup — kit checks this machine, then each folder
 
    Each line is a check. When one fails and kit knows the fix, choose now to run it or later to move on.
@@ -27,4 +27,4 @@
        ❌ shellcheck is not installed; kit lint runs it for .kit/rules/bash.md
    … 2 more
 
- = menu - workspace / search │ 1-5 jump │ esc tabs ↑↓ move ⇞⇟ page c copy r run
+ = menu - workspace / search │ 1-5 jump : tab menu │ esc tabs ↑↓ move ⇞⇟ page c copy r run

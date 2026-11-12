@@ -25,17 +25,17 @@ import (
 // stands as, two cells wide as the others; beside the app's menu's own, every stage loaded again; and the line under
 // the title of a maximized tab, in the tab's color, a cell of it.
 const (
-	Maximize = "⤢"
-	Restore  = "⤡"
+	Maximize = tabs.Maximize
+	Restore  = tabs.Restore
 	Banner   = shell.Rule
-	More     = "🔽"
-	Less     = "🔼"
-	Expand   = "⏬"
-	Collapse = "⏫"
+	More     = tabs.More
+	Less     = tabs.Less
+	Expand   = tabs.Expand
+	Collapse = tabs.Collapse
 	Checked  = table.Checked
-	Reload   = "🔄"
+	Reload   = tabs.Reload
 	Browse   = "🌐"
-	Every    = "📋"
+	Every    = tabs.Every
 	Sweep    = table.Sweep
 )
 
@@ -45,18 +45,13 @@ const (
 // and what acts on the rows selected: on issues, the actions there, then each one's page opened. A line with a key
 // shows it at its right; the key does the same with the menu closed, as shortcut says.
 func (m Model) tabItems() []shell.Item {
-	size := shell.Item{Glyph: Maximize, Name: "Maximize", Keys: "M"}
-	if m.maximized {
-		size = shell.Item{Glyph: Restore, Name: "Restore", Keys: "M"}
-	}
+	size := tabs.SizeItem(m.maximized)
 	items := []shell.Item{{Glyph: Reload, Name: "Refresh", Keys: "R"}}
 	if len(m.stages) == 0 || everMarked(m.stages[m.stage].name) {
 		items = append(items, m.watchItem(m.stage))
 	}
 	items = append(append(items, size, shell.Item{}), m.folds()...)
-	items = append(items, shell.Item{},
-		shell.Item{Glyph: Every, Name: "Select All", Keys: "⌃A"}, shell.Item{Glyph: Sweep, Name: "Clear Selection"},
-		shell.Item{})
+	items = append(append(append(items, shell.Item{}), tabs.SelectItems()...), shell.Item{})
 	return append(append(items, m.actions()...), shell.Item{Glyph: Browse, Name: "Open Selected", Keys: "O"})
 }
 

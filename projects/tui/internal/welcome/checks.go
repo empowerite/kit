@@ -205,8 +205,8 @@ func (m Model) runButton() string {
 // onRunButton says whether the screen cell x, y is on Run Selected Fixes, its count with it, as runButton draws it.
 func (m Model) onRunButton(x, y int) bool {
 	head := m.introHead()
-	k := y - paneTop + m.offsets[m.step]
-	if y < paneTop || k >= len(head) || m.runButton() == "" {
+	k := y - m.paneTop() + m.offsets[m.step]
+	if y < m.paneTop() || k >= len(head) || m.runButton() == "" {
 		return false
 	}
 	return onButton(ansi.Strip(head[k]), strings.TrimSpace(ansi.Strip(m.runButton())), x)
@@ -221,7 +221,7 @@ func (m *Model) placeChecks() {
 		return
 	}
 	s := m.checksSheet
-	top := paneTop + len(m.introHead()) - m.offsets[i]
+	top := m.paneTop() + len(m.introHead()) - m.offsets[i]
 	s.Place(top, max(1, s.PaneHeight()), m.width, m.height)
 	frozen := table.FrozenLines(s)
 	header, _ := s.Header()
@@ -229,7 +229,7 @@ func (m *Model) placeChecks() {
 	s.Place(top, need, m.width, m.height)
 	if last := max(0, len(m.introLines())-m.paneHeight()); m.offsets[i] > last {
 		m.offsets[i] = last
-		s.Place(paneTop+len(m.introHead())-last, need, m.width, m.height)
+		s.Place(m.paneTop()+len(m.introHead())-last, need, m.width, m.height)
 	}
 }
 
@@ -374,8 +374,8 @@ func (m Model) fixLine() (c kit.Check, at int, ok bool) {
 // drawn with copied as it was, and says whether it took it: ⧉ copies the row's fix, ▶️ runs it where kit runs it.
 func (m *Model) fixClick(x, y int, copied string) (tea.Cmd, bool) {
 	c, at, ok := m.fixLine()
-	k := y - paneTop + m.offsets[m.step]
-	if !ok || y < paneTop || y >= paneTop+m.paneHeight() || k != len(m.introHead())+at {
+	k := y - m.paneTop() + m.offsets[m.step]
+	if !ok || y < m.paneTop() || y >= m.paneTop()+m.paneHeight() || k != len(m.introHead())+at {
 		return nil, false
 	}
 	m.copied = copied

@@ -912,7 +912,7 @@ func TestEveryTabIsWholeAt130AndScrollsAt80(t *testing.T) {
 	}
 	m = drive(m, tea.WindowSizeMsg{Width: 80, Height: 30})
 	labels = strings.Split(view(m), "\n")[2]
-	if !strings.Contains(labels, "│ 🧰 toolchains  3 │") || strings.Contains(labels, "…") ||
+	if !strings.Contains(labels, "│ 🧰 toolchains  3 : │") || strings.Contains(labels, "…") ||
 		!strings.HasSuffix(labels, tabs.After) {
 		t.Errorf("at 80: %q", labels)
 	}
@@ -1060,9 +1060,9 @@ func TestTheBarScrollsToKeepTheSelectedStepInView(t *testing.T) {
 		label         string
 		start, finish bool // whether each end has a triangle, hidden where it would cut the selected step
 	}{
-		{nil, "👋 introduction │", false, false},
-		{slices.Repeat([]tea.Msg{tabKey}, terms), "📖 terms │", true, true},
-		{slices.Repeat([]tea.Msg{tabKey}, len(known)+19-terms), "📄 page 9 │", false, false},
+		{nil, "👋 introduction : │", false, false},
+		{slices.Repeat([]tea.Msg{tabKey}, terms), "📖 terms : │", true, true},
+		{slices.Repeat([]tea.Msg{tabKey}, len(known)+19-terms), "📄 page 9 : │", false, false},
 	} {
 		m = drive(m, c.keys...)
 		lines := strings.Split(view(m), "\n")
@@ -1083,7 +1083,7 @@ func TestTheBarScrollsToKeepTheSelectedStepInView(t *testing.T) {
 func TestSixStepsFitAtEightyColumnsWithTheLastInFull(t *testing.T) {
 	m, _ := house(t, tea.WindowSizeMsg{Width: 80, Height: 30}, esc, stepKey(ourTeam))
 	lines := strings.Split(view(m), "\n")
-	if m.step != ourTeam || !strings.Contains(lines[2], "│ 📄 our team │") {
+	if m.step != ourTeam || !strings.Contains(lines[2], "│ 📄 our team : │") {
 		t.Errorf("step %d:\n%s", m.step, lines[2])
 	}
 	if testing.Verbose() {

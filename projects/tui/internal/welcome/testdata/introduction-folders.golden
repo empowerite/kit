@@ -1,7 +1,7 @@
   = kit welcome · - w 3                                                                                      🔎 /search
-  ➊╶────────────────╮➁╶──────────────╮➂╶────────────╮➃╶─────────────╮➄╶─────────╮
-  │ 👋 introduction │  🧰 toolchains │  🔧 setup  5 │  🎨 customize │  📖 terms │
-  ╵                 ╰────────────────╰──────────────╰───────────────╰───────────╰───────────────────────────────────────
+  ➊╶──────────────────╮➁╶────────────────╮➂╶──────────────╮➃╶───────────────╮➄╶───────────╮
+  │ 👋 introduction : │  🧰 toolchains   │  🔧 setup  5   │  🎨 customize   │  📖 terms   │
+  ╵                   ╰──────────────────╰────────────────╰─────────────────╰─────────────╰─────────────────────────────
    Welcome
 
    5 checks need your attention    Run Selected Fixes 
@@ -27,4 +27,4 @@
    What kit is
 
 
- = menu - workspace / search │ ⇥·⇧⇥ tab ↓ checks 1-5 jump
+ = menu - workspace / search │ ⇥·⇧⇥ tab ↓ checks 1-5 jump : tab menu
