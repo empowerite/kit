@@ -1,6 +1,6 @@
 ---
 title: The screen at a glance
-summary: The parts of every kittui screen, top to bottom, and the five keys to start with.
+summary: Every kittui screen has the same parts, top to bottom, and five keys start you off.
 glyph: 📺
 audience: [newcomer, ui]
 order: 10

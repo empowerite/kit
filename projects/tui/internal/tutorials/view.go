@@ -282,16 +282,26 @@ func (m Model) page() ([]string, []markdown.Link) {
 	if m.read.missing {
 		return []string{"", lead + style.Refusal(Failed+" no page at "+m.read.tutorial.File)}, nil
 	}
-	lines, links := markdown.Page(m.read.page, m.width-len(lead)-1)
+	width := m.width - len(lead) - 1
+	lines, links := markdown.Page(m.read.page, width)
 	out := []string{""}
-	for _, l := range lines {
+	for _, l := range append(append(markdown.Render(titleOf(m.read.tutorial), width), ""), lines...) {
 		out = append(out, strings.TrimRight(lead+l, " "))
 	}
 	for i := range links {
-		links[i].Line++
+		links[i].Line += len(out) - len(lines)
 		links[i].Col += len(lead)
 	}
 	return out, links
+}
+
+// titleOf gives a tutorial's title line, as a page's `# ` heading: its title, then a dash and its summary, without its
+// period, which markdown draws with the title bold and the summary plain.
+func titleOf(t kit.Tutorial) string {
+	if t.Summary == "" {
+		return "# " + t.Title
+	}
+	return "# " + t.Title + " — " + strings.TrimSuffix(t.Summary, ".")
 }
 
 // linkAt gives where the link at a cell of the screen leads, over the tutorial's page, or "" where there is none.

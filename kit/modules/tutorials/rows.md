@@ -1,6 +1,6 @@
 ---
 title: The rows
-summary: The header, its rule, and the rows under it. Sort, group, fold, and select.
+summary: The rows stand under a header and its rule, and they sort, group, fold, and select.
 glyph: 📋
 audience: [ui]
 order: 14

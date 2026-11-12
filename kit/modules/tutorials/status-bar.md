@@ -1,6 +1,6 @@
 ---
 title: The status bar
-summary: The last line. The keys that work right now, and what kittui just did.
+summary: The last line names the keys that work right now, and says what kittui just did.
 glyph: 💬
 audience: [newcomer, ui]
 order: 15

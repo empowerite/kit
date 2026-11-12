@@ -1,6 +1,6 @@
 ---
 title: The control line
-summary: The line over the rows. How they are grouped, and the preset they are set as.
+summary: The line over the rows says how they are grouped, and the preset they are set as.
 glyph: 📊
 audience: [ui]
 order: 13

@@ -2,6 +2,9 @@
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   🔙 tutorials │ 📚 kit's applications
 
+  kit's applications — kit has an application for each side of the work, from Flow, the trip of the work from an issue
+  to a release, to Packages
+
   Each application shows one side of the work in this repository. Each part below names one, and ends with the command
   that prints it.
 
@@ -22,9 +25,6 @@
   The pull requests, each with its build.
 
   kit flow changes
-
-  Repositories
-
-  … 15 more
+  … 18 more
 
  = menu - workspace / search │ esc cards ↑↓ scroll ⇞⇟ page

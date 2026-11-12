@@ -1,6 +1,6 @@
 ---
 title: The menu bar
-summary: The first line of every screen. The kit menu, the workspace menu, and the search.
+summary: The first line of every screen holds the kit menu, the workspace menu, and the search.
 glyph: 🔝
 audience: [newcomer, ui]
 order: 11

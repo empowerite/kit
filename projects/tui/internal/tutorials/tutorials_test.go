@@ -18,6 +18,28 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
+func TestATutorialsPageOpensWithItsTitleLine(t *testing.T) {
+	m, _ := shipped(t, tabKey, tabKey, enter)
+	page := m.pageLines()
+	end := slices.Index(page[1:], "") + 1
+	title := lead + style.Label("kit's") + " " + style.Label("applications") + " — "
+	if page[0] != "" || end < 2 || !strings.HasPrefix(page[1], title) {
+		t.Fatalf("the page opens with a blank, then its title bold, a dash, and its summary:\n%s", strings.Join(page, "\n"))
+	}
+	var words []string
+	for _, l := range page[1:end] {
+		words = append(words, strings.Fields(ansi.Strip(l))...)
+	}
+	want := "kit's applications — kit has an application for each side of the work, from Flow, the trip of the work " +
+		"from an issue to a release, to Packages"
+	if got := strings.Join(words, " "); got != want {
+		t.Errorf("the title line, its summary without its period: got %q\nwant %q", got, want)
+	}
+	if !strings.Contains(page[end+1], "Each application shows one side of the work in this repository.") {
+		t.Errorf("a blank, then the page: %q", page[end+1])
+	}
+}
+
 // The arrows move the cursor in reading order, left and right along a row and on to the next, up and down a column,
 // down to the last card from a row below which it has none; up from the first row gives the control line the
 // keyboard, and down from it gives it back to the cards. The control line is the top: up and esc leave it there.

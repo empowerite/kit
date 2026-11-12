@@ -1,6 +1,6 @@
 ---
 title: The search
-summary: Press / on any screen and type. The rows narrow as you go.
+summary: The / key on any screen starts the search, and the rows narrow as you type.
 glyph: 🔎
 audience: [newcomer, ui]
 order: 17

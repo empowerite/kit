@@ -1,6 +1,6 @@
 ---
 title: The legend
-summary: Press ? on an app to see what every glyph on the screen means.
+summary: The ? key on an app shows what every glyph on the screen means.
 glyph: 🔑
 audience: [newcomer, ui]
 order: 16

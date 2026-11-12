@@ -1,6 +1,6 @@
 ---
 title: kit's applications
-summary: What each application shows, from Flow, the trip of the work from an issue to a release, to Packages.
+summary: kit has an application for each side of the work, from Flow, the trip of the work from an issue to a release, to Packages.
 glyph: 🧭
 audience: [newcomer, ui]
 order: 2

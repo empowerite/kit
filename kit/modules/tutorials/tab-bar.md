@@ -1,6 +1,6 @@
 ---
 title: The tab bar
-summary: The numbered tabs under the menu bar. One per stage, each with its count and its menu.
+summary: The numbered tabs under the menu bar are one per stage, each with its count and its menu.
 glyph: 📑
 audience: [newcomer, ui]
 order: 12

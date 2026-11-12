@@ -23,7 +23,7 @@ tutorials:
   - id: kit-tutorials
     path: kit-tutorials/
     title: Reading kit's tutorials
-    summary: How the tutorials are laid out, who each one is for, and how a page tells you that your kit is too old for a passage.
+    summary: The tutorials share one layout, each names who it is for, and a page says when your kit is too old for a passage.
     glyph: "\U0001F393"
     audience:
       - newcomer
@@ -31,7 +31,7 @@ tutorials:
   - id: applications
     file: tutorials/applications.md
     title: kit's applications
-    summary: What each application shows, from Flow, the trip of the work from an issue to a release, to Packages.
+    summary: kit has an application for each side of the work, from Flow, the trip of the work from an issue to a release, to Packages.
     glyph: "\U0001F9ED"
     audience:
       - newcomer
@@ -40,7 +40,7 @@ tutorials:
   - id: screen
     file: tutorials/screen.md
     title: The screen at a glance
-    summary: The parts of every kittui screen, top to bottom, and the five keys to start with.
+    summary: Every kittui screen has the same parts, top to bottom, and five keys start you off.
     glyph: "\U0001F4FA"
     audience:
       - newcomer
@@ -49,7 +49,7 @@ tutorials:
   - id: menu-bar
     file: tutorials/menu-bar.md
     title: The menu bar
-    summary: The first line of every screen. The kit menu, the workspace menu, and the search.
+    summary: The first line of every screen holds the kit menu, the workspace menu, and the search.
     glyph: "\U0001F51D"
     audience:
       - newcomer
@@ -58,7 +58,7 @@ tutorials:
   - id: tab-bar
     file: tutorials/tab-bar.md
     title: The tab bar
-    summary: The numbered tabs under the menu bar. One per stage, each with its count and its menu.
+    summary: The numbered tabs under the menu bar are one per stage, each with its count and its menu.
     glyph: "\U0001F4D1"
     audience:
       - newcomer
@@ -67,7 +67,7 @@ tutorials:
   - id: control-line
     file: tutorials/control-line.md
     title: The control line
-    summary: The line over the rows. How they are grouped, and the preset they are set as.
+    summary: The line over the rows says how they are grouped, and the preset they are set as.
     glyph: "\U0001F4CA"
     audience:
       - ui
@@ -75,7 +75,7 @@ tutorials:
   - id: rows
     file: tutorials/rows.md
     title: The rows
-    summary: The header, its rule, and the rows under it. Sort, group, fold, and select.
+    summary: The rows stand under a header and its rule, and they sort, group, fold, and select.
     glyph: "\U0001F4CB"
     audience:
       - ui
@@ -83,7 +83,7 @@ tutorials:
   - id: status-bar
     file: tutorials/status-bar.md
     title: The status bar
-    summary: The last line. The keys that work right now, and what kittui just did.
+    summary: The last line names the keys that work right now, and says what kittui just did.
     glyph: "\U0001F4AC"
     audience:
       - newcomer
@@ -92,7 +92,7 @@ tutorials:
   - id: legend
     file: tutorials/legend.md
     title: The legend
-    summary: Press ? on an app to see what every glyph on the screen means.
+    summary: The ? key on an app shows what every glyph on the screen means.
     glyph: "\U0001F511"
     audience:
       - newcomer
@@ -101,7 +101,7 @@ tutorials:
   - id: search
     file: tutorials/search.md
     title: The search
-    summary: Press / on any screen and type. The rows narrow as you go.
+    summary: The / key on any screen starts the search, and the rows narrow as you type.
     glyph: "\U0001F50E"
     audience:
       - newcomer
