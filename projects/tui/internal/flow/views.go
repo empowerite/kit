@@ -324,6 +324,7 @@ func (m *Model) saveAs(name string) {
 		return
 	}
 	s.ViewName, s.SavingAs, s.Naming, s.Renaming = name, false, "", ""
+	m.remember()
 	m.done(Save + " saved the preset " + name)
 }
 
@@ -353,6 +354,7 @@ func (m *Model) renamePreset() {
 		s.ViewName = name
 	}
 	s.SavingAs, s.Naming, s.Renaming = false, "", ""
+	m.remember()
 	m.done(Renamed + " renamed the preset " + from + " to " + name)
 }
 

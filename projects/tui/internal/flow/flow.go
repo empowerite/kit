@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"slices"
 	"strings"
 	"time"
@@ -188,6 +189,7 @@ type Model struct {
 	starred       map[string][]string       // the names of the views the person starred, by stage, in their order
 	teamDir       string                    // the folder the team's presets are kept in, none where there is none
 	team          map[string][]table.Preset // the team's views, by stage, as their folder keeps them
+	remembered    map[string]table.Preset   // each stage's panel as it was last kept, which is not written again
 	presetsPath   string                    // that file, or none
 	presetsMenu   table.PresetMenu          // the preset line's menu of views: whether it is open, and its line under the keyboard
 	manage        table.Manage              // the presets dialog, which Manage… in the presets' menu opens
@@ -288,6 +290,8 @@ func New(r kit.Runner, o Options) Model {
 	m.note.Done = err == nil
 	m.teamDir = o.Team
 	m.readTeam(o.Stages)
+	lasts := table.ReadLast(o.Presets)
+	m.remembered = map[string]table.Preset{}
 	m.rebuild()
 	for _, name := range o.Stages {
 		s := stage{name: name, src: m.stageLoad(name),
@@ -296,11 +300,15 @@ func New(r kit.Runner, o Options) Model {
 			s.src.Loading, s.refusal = false, fmt.Sprintf("kittui does not draw the stage '%s'", label(name))
 		}
 		views := m.viewsNamed(name)
-		v := views.Opening()
-		if name == o.Focus && o.Preset != "" {
+		v, viewName := views.Opening(), ""
+		switch last, ok := lasts[name]; {
+		case name == o.Focus && o.Preset != "":
 			v = views.Chosen(o.Preset)
+		case ok:
+			// the panel as it was left, set as the view it was, or the one it opens on where that is gone
+			v, viewName = last, views.Chosen(last.Name).Name
 		}
-		s.ViewName = v.Name
+		s.ViewName = cmp.Or(viewName, v.Name)
 		if catalog[name] != nil {
 			s.View = v.Panel(fieldsOf(name), s.View)
 		}
@@ -628,6 +636,21 @@ func (m *Model) setPanel(p grid.Panel) {
 	m.rebuild()
 	m.clamp(m.stage)
 	m.fit()
+	m.remember()
+}
+
+// remember keeps the selected stage's panel in the presets file, as table.KeepLast does, named by the view the line was
+// set to, so the stage opens as it was left; a panel as it was last kept is not written again. Where the file cannot
+// be written, it is not kept, and nothing is said, as the person asked for nothing.
+func (m *Model) remember() {
+	s := m.stages[m.stage]
+	last := m.viewsOf(m.stage).Current(s.View)
+	last.Name = s.ViewName
+	if kept, ok := m.remembered[s.name]; ok && reflect.DeepEqual(kept, last) {
+		return
+	}
+	m.remembered[s.name] = last
+	_ = table.KeepLast(m.presetsPath, s.name, last)
 }
 
 // enterPanel gives the search the keyboard, what is typed in it as it is.

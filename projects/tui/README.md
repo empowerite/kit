@@ -122,7 +122,10 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     its preset's slug, under `.kit/presets/<stage>` at the clone's root, read only where kit trust --check says kit
     trusts the clone. In the dialog, s, Share with team, moves one of the person's own there, refused where the team has
     its slug already, and c, Copy to mine, copies one of the team's into the person's, named copy after it; Save, r, and
-    d on one of the team's change its file. Each is a change in the working tree, which kit commit carries. What was
+    d on one of the team's change its file. Each is a change in the working tree, which kit commit carries. Each stage
+    opens on its panel as the person last left it, unsaved changes and all, which the presets file keeps as last, a
+    stage's own each time the panel changes: set as the view it was, its name struck through where the panel has changed
+    from it, or as the stage's opening view where that one is gone; a preset named on the command line wins. What was
     done is said in place of the keys, for five seconds or until a key; why something was not done stays until a key.
   - The columns dialog, in `columns.go`, titled by the stage's fields, opens from 📇 Fields on the control line, the
     header drawing no icon of its own: every field a line, those the rows group by first, then the columns as they

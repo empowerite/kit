@@ -23,6 +23,7 @@ With no groups, it is the rows' `▾` and their count alone.
 
 - `Default ▼`  the preset the table is set as. Click it, or `⏎` on it, for the presets menu.
 - A name struck through means you changed the table since.
+- Each tab opens as you last left it, your changes kept, even unsaved ones.
 - 📇 **Fields**  every field: show, hide, sort, group, filter. `f` on the preset opens it too.
 - Before it: how many rows are selected, and a chip per filter. Click a chip to change its filter.
 

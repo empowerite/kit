@@ -1,6 +1,7 @@
 // The person's presets, kept in a file of their own, presets.json under the kit's config directory, so their views
 // follow them to every repository: each table's, by the table's name, in the catalog's vocabulary, its fields by id;
-// and each table's favorites, the names of the views the person starred, in their order.
+// each table's favorites, the names of the views the person starred, in their order; and each table's panel as the
+// person last left it, so it opens as it was, named by the view it was set as.
 package table
 
 import (
@@ -15,11 +16,13 @@ import (
 // PresetsVersion is the version of the presets file.
 const PresetsVersion = 2
 
-// presetsFile is the presets file: its version, the person's presets, by table, and their favorites, by table.
+// presetsFile is the presets file: its version, the person's presets, by table, their favorites, by table, and the
+// panel each table was last left as, by table.
 type presetsFile struct {
 	Version   int                 `json:"version"`
 	Stages    map[string][]Preset `json:"stages"`
 	Favorites map[string][]string `json:"favorites,omitempty"`
+	Last      map[string]Preset   `json:"last,omitempty"`
 }
 
 // PresetsPath gives the file the person's presets are kept in: kit/presets.json under XDG_CONFIG_HOME, else under
@@ -54,7 +57,7 @@ func ReadFavorites(path string) map[string][]string {
 // readFile gives the presets file as it reads, its maps never nil; empty for no file named. A file that is not there is
 // the error, as os.ReadFile says; one that does not read, or is of another version, is the error too.
 func readFile(path string) (presetsFile, error) {
-	out := presetsFile{Stages: map[string][]Preset{}, Favorites: map[string][]string{}}
+	out := presetsFile{Stages: map[string][]Preset{}, Favorites: map[string][]string{}, Last: map[string]Preset{}}
 	if path == "" {
 		return out, nil
 	}
@@ -74,6 +77,7 @@ func readFile(path string) (presetsFile, error) {
 	}
 	maps.Copy(out.Stages, file.Stages)
 	maps.Copy(out.Favorites, file.Favorites)
+	maps.Copy(out.Last, file.Last)
 	return out, nil
 }
 
@@ -94,6 +98,9 @@ func writeFile(path string, file presetsFile) error {
 	file.Version = PresetsVersion
 	if len(file.Favorites) == 0 {
 		file.Favorites = nil
+	}
+	if len(file.Last) == 0 {
+		file.Last = nil
 	}
 	// presets are strings, numbers, and maps of them, which always marshal
 	data, _ := json.MarshalIndent(file, "", "  ")
@@ -127,6 +134,24 @@ func KeepPresets(path, name string, saved []Preset, favorites []string) (map[str
 		return nil, err
 	}
 	return file.Stages, nil
+}
+
+// ReadLast gives the panel each table was last left as, by table, a map never nil, each named by the view it was set
+// as; none for no file named, nor for one that does not read, which ReadPresets says.
+func ReadLast(path string) map[string]Preset {
+	file, _ := readFile(path)
+	return file.Last
+}
+
+// KeepLast keeps the panel one table was last left as in the file, named by the view it was set as, the rest as the
+// file holds it; a file that does not read is the error, and nothing is written.
+func KeepLast(path, name string, last Preset) error {
+	file, err := readFile(path)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	file.Last[name] = last
+	return writeFile(path, file)
 }
 
 // KeepFavorites keeps one table's favorites in the file, as KeepPresets does, its presets as the file holds them.

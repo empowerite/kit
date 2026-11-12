@@ -809,6 +809,13 @@ func TestTwoWritersOfThePresetsFileKeepEachOthersPresets(t *testing.T) {
 	if _, err := KeepPresets(path, "third", nil, nil); err != nil || len(ReadFavorites(path)) != 0 {
 		t.Errorf("no favorites left: %v %q", err, ReadFavorites(path))
 	}
+	// the panel a table was last left as is kept beside them, and saving presets keeps it
+	if err := KeepLast(path, "third", Preset{Name: "x"}); err != nil || ReadLast(path)["third"].Name != "x" {
+		t.Errorf("third's last panel: %v %+v", err, ReadLast(path))
+	}
+	if _, err := KeepPresets(path, "third", nil, nil); err != nil || ReadLast(path)["third"].Name != "x" {
+		t.Errorf("saving dropped the last panel: %v", err)
+	}
 	if err := os.WriteFile(path, []byte("{"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -817,6 +824,9 @@ func TestTwoWritersOfThePresetsFileKeepEachOthersPresets(t *testing.T) {
 	}
 	if KeepFavorites(path, "third", []string{"x"}) == nil || ReadFavorites(path) == nil {
 		t.Error("favorites kept over a file that does not read")
+	}
+	if KeepLast(path, "third", Preset{Name: "x"}) == nil || ReadLast(path) == nil {
+		t.Error("a last panel kept over a file that does not read")
 	}
 	if data, _ := os.ReadFile(path); string(data) != "{" {
 		t.Errorf("the file was written over: %s", data)

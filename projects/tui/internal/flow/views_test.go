@@ -58,6 +58,13 @@ func selector(name string) string { return style.PillLeft + name + " " + Presets
 // shown gives the columns a stage's panel shows.
 func shownNow(m Model) []string { return m.shownColumns(m.stage) }
 
+// keptText gives the person's presets the file keeps, as JSON, the panels last left apart.
+func keptText(file string) string {
+	all, _ := table.ReadPresets(file)
+	data, _ := json.Marshal(all)
+	return string(data)
+}
+
 // keysOf gives the keys bar as the screen draws it, without its escapes.
 func keysOf(m Model) string { return lines(m)[len(lines(m))-1] }
 
@@ -314,7 +321,7 @@ func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 		t.Fatalf("Save As… on Triage: %q", presetText(m))
 	}
 	m = drive(m, press(tea.KeyEnter))
-	if data, _ = os.ReadFile(file); strings.Count(string(data), `"name"`) != 1 || strings.Contains(string(data), "labels") {
+	if data := keptText(file); strings.Count(data, `"name"`) != 1 || strings.Contains(data, "labels") {
 		t.Errorf("overwritten: %s", data)
 	}
 	m.choosePreset(table.ItemSaveAs)
@@ -367,6 +374,36 @@ func TestAStarredViewStandsFirstAndTheFileKeepsIt(t *testing.T) {
 	m.starPreset(table.ItemViews + 2)
 	if len(m.viewsOf(0).Favorites()) != 1 || !strings.Contains(m.note.Text, "could not be unstarred") {
 		t.Errorf("starred over a file that does not read: %q", m.note.Text)
+	}
+}
+
+// A stage opens on the panel as it was last left, unsaved changes and all, set as the view it was, its name struck
+// through where the panel has changed from it; where that view is gone, set as the one it opens on. A preset named on
+// the command line wins over it.
+func TestAStageReopensOnThePanelAsItWasLeft(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "presets.json")
+	m := loaded(t, viewing(file))
+	m.apply(m.viewsOf(0).Chosen("Backlog"))
+	m.setPanel(m.panel(0).Placed("age", grid.Hidden))
+	if last := table.ReadLast(file)["issues"]; last.Name != "Backlog" {
+		t.Fatalf("the panel left: %+v", last)
+	}
+	n := loaded(t, viewing(file))
+	if n.stages[0].ViewName != "Backlog" || n.is(0) != "" || !n.same(0, n.current(0), m.current(0)) {
+		t.Errorf("reopened on %q, is %q", n.stages[0].ViewName, n.is(0))
+	}
+	// a view since gone: the panel as it was, set as the stage's opening view
+	if err := table.KeepLast(file, "issues", table.Preset{Name: "gone"}); err != nil {
+		t.Fatal(err)
+	}
+	if n = loaded(t, viewing(file)); n.stages[0].ViewName != "All Issues" {
+		t.Errorf("reopened on a view gone: %q", n.stages[0].ViewName)
+	}
+	// a preset named wins
+	o := viewing(file)
+	o.Focus, o.Preset = "issues", "Underway"
+	if n = loaded(t, o); n.stages[0].ViewName != "Underway" || n.is(0) != "Underway" {
+		t.Errorf("a preset named: %q", n.stages[0].ViewName)
 	}
 }
 
@@ -670,8 +707,9 @@ func TestSaveRenameAndDeleteActOnThePersonsView(t *testing.T) {
 	}
 	m.stages[0].Naming = "Mine"
 	m = drive(m, press(tea.KeyEnter))
-	if data, _ := os.ReadFile(file); m.stages[0].ViewName != "Mine" || strings.Contains(string(data), "Triage") ||
-		!strings.Contains(string(data), `"Mine"`) || !strings.Contains(m.note.Text, Renamed+" renamed the preset Triage to Mine") {
+	if data := keptText(file); m.stages[0].ViewName != "Mine" || strings.Contains(data, "Triage") ||
+		!strings.Contains(data, `"Mine"`) || !strings.Contains(m.note.Text, Renamed+" renamed the preset Triage to Mine") ||
+		table.ReadLast(file)["issues"].Name != "Mine" {
 		t.Errorf("renamed: view %q, %q, %s", m.stages[0].ViewName, m.note.Text, data)
 	}
 	// Delete drops it, and the stage is Default
