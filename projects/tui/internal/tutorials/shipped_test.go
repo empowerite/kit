@@ -75,7 +75,7 @@ func TestATutorialInTheKitOpensHereAndEscGoesBack(t *testing.T) {
 		!strings.Contains(got, "📚 kit's applications") {
 		t.Errorf("the line over the page: %q", got)
 	}
-	if keys := m.keys().String(); keys != "= menu - workspace / search │ esc cards ↑↓ scroll ⇞⇟ page" {
+	if keys := m.keys().String(); keys != "= menu / search │ esc cards ↑↓ scroll ⇞⇟ page" {
 		t.Errorf("keys %q", keys)
 	}
 	if m = drive(m, down, down); m.read.offset != 2 {
@@ -93,12 +93,9 @@ func TestATutorialInTheKitOpensHereAndEscGoesBack(t *testing.T) {
 	if short = drive(short, press(tea.KeyPgUp)); short.read.offset != 0 {
 		t.Errorf("page up: offset %d", short.read.offset)
 	}
-	// = and the workspace menu's key drop their menus down over the page
+	// = drops the app's menu down over the page
 	if menu := drive(m, press('=')); !menu.appMenu.Open || !menu.read.open {
 		t.Errorf("=: the app menu open %v, reading %v", menu.appMenu.Open, menu.read.open)
-	}
-	if books := drive(m, press('-')); !books.books.Open || !books.read.open {
-		t.Errorf("-: the workspace menu open %v, reading %v", books.books.Open, books.read.open)
 	}
 	if m = drive(m, press(tea.KeyEnd)); m.read.offset == 0 || !strings.Contains(view(m), "kit platform") {
 		t.Errorf("end: offset %d\n%s", m.read.offset, view(m))

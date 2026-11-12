@@ -71,7 +71,6 @@ func (m Model) View() tea.View {
 	lines = m.sheet.Over(lines)
 	lines = m.recent.Overlay(append(lines, ""), m.recallAt(), m.width)
 	lines = m.appMenu.Overlay(lines, m.width)
-	lines = m.books.Overlay(lines, m.booksAt(), m.width)
 	return shell.View(lines, m.height, m.bottom())
 }
 
@@ -91,9 +90,9 @@ func (m Model) control() string {
 }
 
 // menuBar gives the menu bar, as internal/shell draws every screen's: the kit menu's = before kit tutorials; the
-// workspace menu, which names the workspace; and the search field.
+// search field, and no workspace menu: the tutorials are not about a workspace.
 func (m Model) menuBar() shell.MenuBar {
-	return shell.MenuBar{Screen: appLabel, Open: m.appMenu.Open, Workspace: m.books.Label(), Search: m.searchLine()}
+	return shell.MenuBar{Screen: appLabel, Open: m.appMenu.Open, Search: m.searchLine()}
 }
 
 // bottom gives the screen's last line: the notice while there is one, else what the table did, or why not, while it
@@ -124,14 +123,14 @@ func (m Model) bottom() string {
 // and shift-tab between the cards, and enter opens. An open menu, or a layer of the table's, takes every press, and is
 // the path alone.
 func (m Model) keys() shell.Path {
-	if m.appMenu.Open || m.recent.Open || m.books.Open {
+	if m.appMenu.Open || m.recent.Open {
 		return shell.Path{shell.MenuKeys()}
 	}
 	seg, layer := m.sheet.Keys()
 	if layer {
 		return shell.Path{seg}
 	}
-	path := shell.Path{shell.WorkspaceScreenKeys()}
+	path := shell.Path{shell.ScreenKeys()}
 	switch {
 	case m.read.open && !m.search.Focused:
 		seg := shell.Segment{Bindings: []shell.Binding{shell.Bind("esc", "cards"),

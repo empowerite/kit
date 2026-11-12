@@ -324,10 +324,10 @@ func TestTheControlLineGroupsAndFiltersTheCards(t *testing.T) {
 	if m = drive(m, up); !m.controlled() {
 		t.Fatal("up did not give the control line the keyboard")
 	}
-	if keys := m.keys().String(); keys != "= menu - workspace / search │ ↓ cards ⇥·⇧⇥ move ←→ fold" {
+	if keys := m.keys().String(); keys != "= menu / search │ ↓ cards ⇥·⇧⇥ move ←→ fold" {
 		t.Errorf("the control line's keys, on the rows' fold: %q", keys)
 	}
-	if m = drive(m, tabKey); m.keys().String() != "= menu - workspace / search │ ↓ cards ⇧⇥ groups ⏎ presets f fields" {
+	if m = drive(m, tabKey); m.keys().String() != "= menu / search │ ↓ cards ⇧⇥ groups ⏎ presets f fields" {
 		t.Errorf("the control line's keys, on the presets: %q", m.keys().String())
 	}
 	if m = drive(m, enter); !m.sheet.Layered() || !strings.Contains(view(m), "By audience") {
@@ -575,19 +575,23 @@ func TestAnAnswerThatIsNotTheLatestReadsIsDropped(t *testing.T) {
 	}
 }
 
-// The menu bar names the workspace kittui says, as every screen's does, and - or a click on it drops its menu down.
-func TestTheTutorialsMenuBarHasTheWorkspaceMenu(t *testing.T) {
+// The tutorials are not about a workspace: the menu bar has none, kittui's saying one changes nothing, and - does
+// nothing.
+func TestTheTutorialsMenuBarHasNoWorkspaceMenu(t *testing.T) {
 	m, _ := fake(t)
 	m = drive(m, append(testkit.Start(m, at120),
 		shell.WorkspaceMsg{Workspace: kit.Workspace{Kind: "repository", Member: "github.com/o/r"}})...)
-	if first := lines(m)[0]; !strings.HasPrefix(first, "  "+shell.App+" kit tutorials · "+shell.Workspaces+" o/r ") {
+	first := lines(m)[0]
+	if !strings.HasPrefix(first, "  "+shell.App+" kit tutorials ") || strings.Contains(first, shell.Workspaces) ||
+		strings.Contains(first, "·") || strings.Contains(first, "o/r") {
 		t.Errorf("the menu bar: %q", first)
 	}
-	if m = drive(m, press('-')); !m.books.Open || !strings.Contains(m.keys().String(), "esc close") {
-		t.Errorf("-: open %v, keys %q", m.books.Open, m.keys().String())
+	if strings.Contains(m.keys().String(), "workspace") {
+		t.Errorf("the keys name a workspace: %q", m.keys().String())
 	}
-	if m = drive(m, esc, testkit.Click(m.booksAt(), shell.Top)); !m.books.Open {
-		t.Error("a click on the workspace menu did not drop it down")
+	before := view(m)
+	if m = drive(m, press('-'), testkit.Click(60, shell.Top)); view(m) != before || m.appMenu.Open {
+		t.Errorf("- or a click after the name changed the screen:\n%s", view(m))
 	}
 }
 

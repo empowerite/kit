@@ -165,11 +165,10 @@ type Model struct {
 	wheeled bool        // whether the wheel scrolled the pane, which leaves the cursor's card until a key moves it
 	width   int
 	height  int
-	appMenu shell.Menu      // the app's menu, internal/shell's, which has the keyboard while it is open
-	note    shell.Notice    // what opened, or the link to open by hand, in place of the keys
-	books   shell.BooksMenu // the menu bar's workspace menu, which has the keyboard while open
-	search  shell.Search    // the search, internal/shell's, which narrows the cards to its text
-	recent  shell.Recent    // the searches remembered, every screen's, and their dropdown
+	appMenu shell.Menu   // the app's menu, internal/shell's, which has the keyboard while it is open
+	note    shell.Notice // what opened, or the link to open by hand, in place of the keys
+	search  shell.Search // the search, internal/shell's, which narrows the cards to its text
+	recent  shell.Recent // the searches remembered, every screen's, and their dropdown
 
 	interrupted bool
 }
@@ -286,8 +285,6 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.note.Text, m.note.Done = "Open "+msg.tutorial.URL+" in a browser", false
 		}
-	case shell.WorkspaceMsg:
-		m.books = m.books.Told(msg)
 	case tea.KeyPressMsg:
 		m.note.Text = ""
 		next, cmd := m.key(msg)
@@ -314,7 +311,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // menu or a layer of the table is open, scrolls nothing.
 func (m *Model) wheel(w tea.MouseWheelMsg) {
 	dx, dy := shell.Turn(w)
-	if m.appMenu.Open || m.books.Open || m.recent.Open || m.sheet.Layered() || w.Y < paneTop ||
+	if m.appMenu.Open || m.recent.Open || m.sheet.Layered() || w.Y < paneTop ||
 		w.Y >= paneTop+m.paneHeight() {
 		return
 	}
@@ -476,11 +473,6 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.appMenu, c = m.appMenu.Key(k)
 		return m, m.chose(c)
 	}
-	if m.books.Open {
-		var picked string
-		m.books, picked = m.books.Key(k)
-		return m, shell.Pick(picked)
-	}
 	if m.recent.Open {
 		var query string
 		if m.recent, query = m.recent.Key(k); query != "" {
@@ -538,9 +530,6 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
 	case "=":
 		m.appMenu = m.appMenu.Opened()
-		return m, nil
-	case shell.Workspaces:
-		m.books = m.books.Opened()
 		return m, nil
 	case "/":
 		m.search.Focused = true
@@ -611,10 +600,6 @@ func (m Model) click(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 		var c shell.Choice
 		m.appMenu, c = m.appMenu.Click(msg.X, msg.Y, m.width)
 		return m, m.chose(c)
-	case m.books.Open && msg.Button == tea.MouseLeft:
-		var picked string
-		m.books, picked = m.books.Click(msg.X, msg.Y, m.booksAt(), m.width)
-		return m, shell.Pick(picked)
 	case m.recent.Open && msg.Button == tea.MouseLeft:
 		var query string
 		if m.recent, query = m.recent.Click(msg.X, msg.Y, m.recallAt(), m.width); query != "" {
@@ -629,9 +614,6 @@ func (m Model) click(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case shell.OnApp(msg.X, msg.Y, appLabel):
 		m.appMenu = m.appMenu.Opened()
-		return m, nil
-	case m.books.On(msg.X, msg.Y, m.booksAt()):
-		m.books = m.books.Opened()
 		return m, nil
 	case msg.Y == shell.Top && m.recalls() && msg.X == m.recallAt():
 		m.recent = m.recent.Opened()
@@ -686,9 +668,6 @@ func (m Model) recallAt() int { return shell.RecallAt(m.searchAt()) }
 
 // searchAt gives the column the search starts at on the menu bar, as internal/shell puts every screen's.
 func (m Model) searchAt() int { return m.menuBar().SearchAt(m.width) }
-
-// booksAt gives the column the menu bar's workspace menu starts at.
-func (m Model) booksAt() int { return m.menuBar().WorkspaceAt() }
 
 // searchLine gives the search as the menu bar draws it, its cursor showing while it has focus and the app's menu is
 // closed.
@@ -751,8 +730,6 @@ func (m Model) paging(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch k.String() {
 	case "=":
 		m.appMenu = m.appMenu.Opened()
-	case shell.Workspaces:
-		m.books = m.books.Opened()
 	case "/":
 		m.search.Focused = true
 	case "n", "N":

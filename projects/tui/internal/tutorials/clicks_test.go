@@ -1,7 +1,7 @@
 // A click does on the screen what the keys do: on a group's heading among the cards it opens nothing; on the control
 // line, what the table's control line does, the rows' ▾ folding the cards away and the selector dropping the presets
 // down, a layer that takes the next click; the searches remembered drop down from the search's Recall glyph, and a
-// click on one, or a key, searches it again; and the workspace menu's lines pick.
+// click on one, or a key, searches it again.
 package tutorials
 
 import (
@@ -12,7 +12,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
@@ -108,17 +107,6 @@ func TestTheTutorialsSearchIsRememberedAndRecalled(t *testing.T) {
 	_, left := m.recent.Box(m.recallAt(), m.width)
 	if m = drive(m, testkit.Click(left+3, shell.Top+1)); m.recent.Open || m.search.Query != "tour" {
 		t.Errorf("a click on tour: open %v, %q", m.recent.Open, m.search.Query)
-	}
-}
-
-// A click on the workspace menu's Open Repository… asks kittui for the Open Repository… dialog, and closes the menu.
-func TestTheWorkspaceMenuPicksByAClick(t *testing.T) {
-	m, _ := loaded(t, shell.WorkspaceMsg{Workspace: kit.Workspace{Kind: "repository", Member: "github.com/o/r"}})
-	m = drive(m, testkit.Click(m.booksAt(), shell.Top))
-	x, y := cell(m, "Open Repository…", shell.Top+1)
-	if m, produced := testkit.Drive(m, nil, testkit.Click(x, y)); m.books.Open ||
-		!slices.Contains(produced, tea.Msg(shell.OpenMsg{})) {
-		t.Errorf("a click on Open Repository… at %d, %d: open %v, %v", x, y, m.books.Open, produced)
 	}
 }
 
