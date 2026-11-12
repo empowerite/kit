@@ -355,4 +355,57 @@ kitty-config() {
     "kitty: kit could not read its settings: kitty wrote no effective config for this window" ]
 }
 
+# The show-keys fixture is the example on https://wezterm.org/cli/show-keys.html, with ⌥⏎ added in its shape, as
+# WezTerm's default keys bind it.
+@test "WezTerm's ⌥⏎ bound to full screen fails, and its fix names the config file" {
+  export WEZTERM_FIXTURE="${BATS_TEST_DIRNAME}/fixtures/terminal/wezterm-show-keys.txt"
+  # shellcheck disable=SC2016  # the fake's body expands when it runs
+  fakes wezterm '[[ "$1" == show-keys ]] && cat "${WEZTERM_FIXTURE}"'
+  export WEZTERM_CONFIG_FILE=/home/me/.wezterm.lua
+  run kit-bash 'TERM_PROGRAM=WezTerm terminal:checks'
+  [ "$status" -eq 0 ]
+  [ "$(found <<<"$output")" = '["terminal-wezterm-alt-enter"]' ]
+  fakes wezterm 'printf "Default key table\n-----------------\n"'
+  export KIT_TERMINAL_PROBES='{"answered":true,"kitty_keyboard":false}'
+  run kit-bash 'TERM_PROGRAM=WezTerm terminal:checks'
+  [ "$(jq -sr 'map(select(.id == "terminal-probe-kitty-keyboard"))[0].fix' <<<"$output")" = \
+    "add config.enable_kitty_keyboard = true to /home/me/.wezterm.lua" ]
+}
+
+# alacritty-config <toml>… writes Alacritty's config where it looks first.
+alacritty-config() {
+  export XDG_CONFIG_HOME="${BATS_TEST_TMPDIR}/config"
+  mkdir -p "${XDG_CONFIG_HOME}/alacritty"
+  printf '%s\n' "$@" > "${XDG_CONFIG_HOME}/alacritty/alacritty.toml"
+}
+
+@test "Alacritty's ⌥ under [window] or as window.option_as_alt is read, and None or no config fails on macOS" {
+  alacritty-config '[window]' 'option_as_alt = "OnlyLeft" # left only'
+  run kit-bash 'OSTYPE=darwin24 ALACRITTY_WINDOW_ID=1 terminal:checks'
+  [ "$(found <<<"$output")" = '[]' ]
+  alacritty-config 'window.option_as_alt = "Both"' '[font]' 'size = 12'
+  run kit-bash 'OSTYPE=darwin24 ALACRITTY_WINDOW_ID=1 terminal:checks'
+  [ "$(found <<<"$output")" = '[]' ]
+  alacritty-config '[font]' 'option_as_alt = "Both"'
+  run kit-bash 'OSTYPE=darwin24 ALACRITTY_WINDOW_ID=1 terminal:checks'
+  [ "$(found <<<"$output")" = '["terminal-alacritty-option"]' ]
+  run kit-bash 'OSTYPE=linux-gnu ALACRITTY_WINDOW_ID=1 terminal:checks'
+  [ "$(found <<<"$output")" = '[]' ]
+}
+
+# warp-settings <toml>… writes Warp's settings where it keeps them on macOS.
+warp-settings() {
+  mkdir -p "${HOME}/.warp"
+  printf '%s\n' "$@" > "${HOME}/.warp/settings.toml"
+}
+
+@test "Warp's Meta keys and mouse reporting are read from its settings, and the defaults fail ⌥" {
+  warp-settings '[terminal.input]' 'extra_meta_keys = { left_alt = true, right_alt = false }'
+  run kit-bash 'OSTYPE=darwin24 TERM_PROGRAM=WarpTerminal terminal:checks'
+  [ "$(found <<<"$output")" = '[]' ]
+  warp-settings '[terminal]' 'mouse_reporting_enabled = false'
+  run kit-bash 'OSTYPE=darwin24 TERM_PROGRAM=WarpTerminal terminal:checks'
+  [ "$(found <<<"$output")" = '["terminal-warp-option","terminal-warp-mouse"]' ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

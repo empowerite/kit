@@ -189,6 +189,61 @@
         }
       ]
     },
+    "wezterm": {
+      "name": "WezTerm",
+      "anchor": "wezterm",
+      "findings": [
+        {
+          "id": "alt-enter",
+          "need": "keys",
+          "bad": ".alt_enter_fullscreen",
+          "line": "WezTerm takes ⌥⏎ to toggle full screen, so kittui never sees it",
+          "held": "WezTerm passes ⌥⏎ through",
+          "fix": "add { key = 'Enter', mods = 'ALT', action = wezterm.action.DisableDefaultAssignment } to config.keys in {config}"
+        }
+      ],
+      "probes": {
+        "kitty-keyboard": {
+          "fix": "add config.enable_kitty_keyboard = true to {config}"
+        }
+      }
+    },
+    "alacritty": {
+      "name": "Alacritty",
+      "anchor": "alacritty",
+      "findings": [
+        {
+          "id": "option",
+          "need": "keys",
+          "bad": ".option == \"None\"",
+          "line": "Alacritty sends ⌥ as a plain key, so ⌥ with an arrow never reaches kittui as one",
+          "held": "Alacritty sends ⌥ as Alt",
+          "fix": "add option_as_alt = \"OnlyLeft\" under [window] in {config}"
+        }
+      ]
+    },
+    "warp": {
+      "name": "Warp",
+      "anchor": "warp",
+      "findings": [
+        {
+          "id": "option",
+          "need": "keys",
+          "bad": "(.left_meta or .right_meta) | not",
+          "line": "Warp sends ⌥ as a plain key, so ⌥ with an arrow never reaches kittui as one",
+          "held": "Warp sends ⌥ as Meta",
+          "fix": "Warp → Settings → Features → Keys: turn on Left Option key is Meta"
+        },
+        {
+          "id": "mouse",
+          "need": "clicks",
+          "bad": ".mouse | not",
+          "line": "Warp does not report the mouse, so a click never reaches kittui",
+          "held": "Warp reports the mouse",
+          "fix": "Warp → Settings → Features → Terminal: turn on Enable Mouse Reporting"
+        }
+      ]
+    },
     "ssh": {
       "name": "The terminal over ssh",
       "anchor": "over-ssh",
