@@ -25,7 +25,9 @@ The kit CLI runs the verb as its child, and writes the line when the verb ends:
 - `depth` is 0 for a call typed or run by something other than kit, and one more for each kit verb that ran it
   through kit's own `run` helper. A kit call that a generate command, the gate, `kit tools run`, or a hook makes
   keeps its caller's depth.
-- `status` is the verb's exit status. Ctrl-C ends the verb, and the call is logged with status 130.
+- `status` is the verb's exit status. Ctrl-C ends the verb, and the call is logged with status 130. A TERM or HUP
+  sent to kit, as `timeout`, a supervisor, or a closed terminal sends it, is sent on to the verb, and the call is
+  logged with 143 or 129 where the signal ended it.
 - `in` is the directory the call was typed in, relative to the worktree's root.
 - The command line comes last, quoted as bash quotes it, so it can be pasted back into a shell.
 
