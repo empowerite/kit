@@ -294,6 +294,11 @@
       "minLength": 1,
       "description": "The primary remote. Ahead and behind, the default branch, pull requests, builds, releases, and issues are read from it. Default: origin."
     },
+    "push": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The remote a branch goes to, as a fork's origin: kit work and kit submit fetch from it, look a branch up on it, fast-forward from it, and push to it, and a pull request opens on the primary from the branch there. kit rebase and kit release read the primary. It must name a remote. Default: the primary."
+    },
     "gate": {
       "type": "string",
       "minLength": 1,

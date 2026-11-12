@@ -379,6 +379,82 @@ desk-world() {
   [ "$(git -C "${repo}.origin.git" rev-parse 7-fix-the-thing)" = "$(git -C worktrees/7-fix-the-thing rev-parse HEAD)" ]
 }
 
+@test "in a fork, push: origin makes the branch on the fork from its main, pushes it there, and opens the change from it" {
+  local real upstream_main
+  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
+  printf 'forge: github\nprimary: upstream\npush: origin\n' >> kit.yml
+  printf 'notes\n' > notes.txt
+  git add --all && git commit --quiet --message init
+  # origin is ada's fork, upstream the shared repository, each a bare repository beside the desk; no branch is made
+  # for issue 7 yet, and no change is open
+  git init --quiet --bare "${repo}.origin.git"
+  git init --quiet --bare "${repo}.upstream.git"
+  git remote add origin "${repo}.origin.git"
+  git remote add upstream "${repo}.upstream.git"
+  git push --quiet origin main
+  git push --quiet upstream main
+  git fetch --quiet upstream
+  git remote set-head upstream main
+  upstream_main=$(git -C "${repo}.upstream.git" rev-parse main)
+  # git names the fork's URL as GitHub does, where it is ada's own; every other git call is the real one
+  real=$(command -v git)
+  mkdir -p "${BATS_TEST_TMPDIR}/shims"
+  cat > "${BATS_TEST_TMPDIR}/shims/git" <<SHIM
+#!/usr/bin/env bash
+[[ "\$*" != "remote get-url --end-of-options origin" ]] || { echo https://github.com/ada/example.git; exit 0; }
+exec '${real}' "\$@"
+SHIM
+  chmod +x "${BATS_TEST_TMPDIR}/shims/git"
+  : > "${FAKE_DIR}/gh.routes"
+  fixture user.json <<<'{"login": "ada"}'
+  fixture repo.json <<<'{"nameWithOwner": "empowerite/example", "url": "https://github.com/empowerite/example"}'
+  fixture issue.json <<<'{"title": "Fix the thing", "state": "OPEN", "assignees": []}'
+  fixture none.json <<<'[]'
+  fixture pr-url.txt <<<'https://github.com/empowerite/example/pull/3'
+  route 'api user*' user.json
+  route 'repo view*' repo.json
+  route 'issue view 7 *' issue.json
+  route 'issue edit 7 --add-assignee ada' '!0'
+  route 'pr list --state open --json headRefName*' none.json
+  route 'pr list --head 7-fix-the-thing --state open*' none.json
+  route 'pr create --draft --base main --head ada:7-fix-the-thing --title Fix the thing --body ' pr-url.txt
+  run env PATH="${BATS_TEST_TMPDIR}/shims:${PATH}" "${kit_checkout}/bin/kit" work 7
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"Making 7-fix-the-thing for #7 from origin/main"* ]]
+  [[ "$output" == *"Draft pull request #3 on 7-fix-the-thing"* ]]
+  # the forge links no branch on upstream: the branch is the fork's, with the start commit, and upstream has none
+  run ! grep -q '^issue develop' "${FAKE_DIR}/gh.calls"
+  [ "$(git -C "${repo}.origin.git" log -1 --format=%s 7-fix-the-thing)" = "#7 start: Fix the thing" ]
+  [ "$(git -C "${repo}.origin.git" rev-parse 7-fix-the-thing)" = "$(git -C worktrees/7-fix-the-thing rev-parse HEAD)" ]
+  run ! git -C "${repo}.upstream.git" rev-parse --quiet --verify 7-fix-the-thing
+  [ "$(git -C "${repo}.upstream.git" rev-parse main)" = "${upstream_main}" ]
+  [ "$(git -C worktrees/7-fix-the-thing rev-parse --abbrev-ref '@{upstream}')" = origin/7-fix-the-thing ]
+  # the issue's lease goes where its branch goes
+  [ "$(git -C "${repo}.origin.git" for-each-ref --format='%(refname)' refs/kit/leases)" = refs/kit/leases/7 ]
+  [ -z "$(git -C "${repo}.upstream.git" for-each-ref refs/kit)" ]
+}
+
+@test "without push, kit work makes and pushes the branch on the primary, and a push that names no remote is refused" {
+  "${kit_checkout}/bin/kit" install >/dev/null 2>&1
+  printf 'forge: github\nprimary: upstream\n' >> kit.yml
+  git add --all && git commit --quiet --message init
+  world
+  git init --quiet --bare "${repo}.upstream.git"
+  git remote add upstream "${repo}.upstream.git"
+  git push --quiet upstream main main:7-fix-the-thing
+  git fetch --quiet upstream
+  git remote set-head upstream main
+  run "${kit_checkout}/bin/kit" work 7
+  [ "$status" -eq 0 ]
+  [ "$(git -C "${repo}.upstream.git" log -1 --format=%s 7-fix-the-thing)" = "#7 start: Fix the thing" ]
+  [ "$(git -C "${repo}.origin.git" rev-parse 7-fix-the-thing)" = "$(git -C "${repo}.origin.git" rev-parse main)" ]
+  [ "$(git -C worktrees/7-fix-the-thing rev-parse --abbrev-ref '@{upstream}')" = upstream/7-fix-the-thing ]
+  printf 'push: nowhere\n' >> kit.yml
+  run "${kit_checkout}/bin/kit" work 7
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"push 'nowhere' in kit.yml is not a remote; the remotes are: origin upstream"* ]]
+}
+
 @test "kit work's start commit keeps its subject under commit.cleanup=strip, and is signed when signing is required" {
   printf 'require_signing: true\n' > kit.yml
   desk-world
@@ -480,14 +556,14 @@ issue-call() {
   # the issue has no branch yet, so kit names one
   git push --quiet origin --delete 7-fix-the-thing
   printf "policy:\n  branch: '^feature/'\n" > kit.yml
-  run issue-call issue:branch '#7' main 'Fix the thing'
+  run issue-call issue:branch '#7' main 'Fix the thing' origin
   [ "$status" -eq 1 ]
   [[ "$output" == *"refusing to start #7: the branch kit work names, branch '7-fix-the-thing' does not match"* ]]
   [[ "$output" == *"policy.branch: ^feature/; set policy.branch in kit.yml to allow <key>-<slug>"* ]]
   [ -z "$(git ls-remote --heads origin '7-*')" ]
   # a title with nothing for the slug still names a branch the default allows
   rm kit.yml
-  run issue-call issue:branch '#7' main '!!!'
+  run issue-call issue:branch '#7' main '!!!' origin
   [ "$status" -eq 0 ]
   [ "${lines[-1]}" = 7-issue ]
   [ -n "$(git ls-remote --heads origin 7-issue)" ]

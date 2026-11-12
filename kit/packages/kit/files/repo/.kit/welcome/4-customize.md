@@ -33,9 +33,9 @@ match, each with a remedy a refusal names. `kit work` makes names that pass, and
 
 ## Primary and forges
 
-`primary:` names the remote kit reads pull requests, builds, and issues from; the default is `origin`. `kit work`
-and `kit submit` push to `origin` either way. `forges:` names the code forge of a remote whose host does not say
-it, such as a GitLab you host yourself.
+`primary:` names the remote kit reads pull requests, builds, and issues from; the default is `origin`. `push:`
+names the remote a branch goes to, as `push: origin` in a fork; the default is the primary. `forges:` names the code
+forge of a remote whose host does not say it, such as a GitLab you host yourself.
 
 → [kit.yml](kit.yml) · [forges.md](https://github.com/empowerite/kit/blob/main/docs/integrations/forges.md)
 

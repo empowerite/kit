@@ -229,6 +229,51 @@ in-forge() {
   [[ "$output" == *"'-x' in forges in kit.yml is not a remote name"* ]]
 }
 
+@test "the push remote is the push setting, else the primary; one that names no remote is refused before git takes it" {
+  git remote add origin https://github.com/ada/kit.git
+  git remote add upstream https://github.com/empowerite/kit.git
+  run in-forge forge:push-remote
+  [ "$output" = origin ]
+  printf 'primary: upstream\n' > kit.yml
+  run in-forge forge:push-remote
+  [ "$output" = upstream ]
+  printf 'primary: upstream\npush: origin\n' > kit.yml
+  run in-forge forge:push-remote
+  [ "$status" -eq 0 ]
+  [ "$output" = origin ]
+  run in-forge forge:primary
+  [ "$output" = upstream ]
+  printf 'primary: upstream\npush: nowhere\n' > kit.yml
+  run in-forge forge:push-remote
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"push 'nowhere' in kit.yml is not a remote; the remotes are: origin upstream"* ]]
+  printf 'push: --upload-pack=touch pwned\n' > kit.yml
+  run in-forge forge:push-remote
+  [ "$status" -eq 1 ]
+  [ -z "$(find "${BATS_TEST_TMPDIR}" -name pwned)" ]
+  # a push set where git cannot list the remotes cannot be checked
+  printf 'push: origin\n' > kit.yml
+  run bash -c 'source "${kit_root}/modules/bash/1st.sh" && use forge
+    git() { [[ "$1" != remote ]] || return 1; command git "$@"; }
+    forge:push-remote'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"git remote (the remotes could not be read, so push 'origin' in kit.yml cannot be checked)"* ]]
+}
+
+@test "a URL's path past its host is the owner and name, without .git or slashes, and nothing for a path here" {
+  run in-forge forge:url-path https://github.com/ada/kit.git
+  [ "$output" = ada/kit ]
+  run in-forge forge:url-path git@gitlab.com:group/sub/kit.git/
+  [ "$output" = group/sub/kit ]
+  run in-forge forge:url-path ssh://git@github.com:22/ada/kit
+  [ "$output" = ada/kit ]
+  run in-forge forge:url-path /srv/git/kit.git
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+  run in-forge forge:url-path file:///srv/git/kit.git
+  [ -z "$output" ]
+}
+
 @test "the core verbs need no forge and no gh" {
   mkdir -p "${BATS_TEST_TMPDIR}/shims" && printf '#!/usr/bin/env bash\nexit 127\n' > "${BATS_TEST_TMPDIR}/shims/gh"
   chmod +x "${BATS_TEST_TMPDIR}/shims/gh"

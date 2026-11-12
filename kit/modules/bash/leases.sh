@@ -264,7 +264,7 @@ leases:renew() {
   return "${status}"
 }
 
-# leases:release <reference>… deletes each issue's lease, from the value it read, and the primary remote's copy when it
+# leases:release <reference>… deletes each issue's lease, from the value it read, and the push remote's copy when it
 # has one. An issue that holds none is said to, and is no failure.
 leases:release() {
   local ref key issue state oid try status=0
@@ -313,14 +313,16 @@ leases:list() {
       else $leases[] | leases::line($now) end' <<<"${state}"
 }
 
-# leases:remote prints the primary remote when it is a remote of this clone, and nothing otherwise.
+# leases:remote prints the push remote, the remote a branch goes to (forge:push-remote: the push setting in kit.yml,
+# as a fork's origin, else the primary), when it is a remote of this clone, and nothing otherwise. A lease goes where
+# its branch goes, so kit work and kit submit push both to one remote.
 leases:remote() {
-  local primary
-  primary=$(forge:primary 2>/dev/null) || return 0
-  git remote 2>/dev/null | grep --line-regexp --fixed-strings -- "${primary}" || true  # no such remote prints none
+  local remote
+  remote=$(forge:push-remote 2>/dev/null) || return 0
+  git remote 2>/dev/null | grep --line-regexp --fixed-strings -- "${remote}" || true  # no such remote prints none
 }
 
-# leases:mirror <branch> pushes the branch's own lease, the one of the issue its name starts with, to the primary
+# leases:mirror <branch> pushes the branch's own lease, the one of the issue its name starts with, to the push
 # remote, forced, since a blob has no history to fast-forward, so CI reads the claim that judges the branch. A branch
 # with no lease here pushes nothing. A push that fails is warned of.
 leases:mirror() {
@@ -340,7 +342,7 @@ leases:mirror() {
   fi
 }
 
-# leases:unmirror <key> deletes the primary remote's copy of the lease, when it has one. A remote that cannot be read
+# leases:unmirror <key> deletes the push remote's copy of the lease, when it has one. A remote that cannot be read
 # or that refuses the deletion is warned of, and returns 1.
 leases:unmirror() {
   local remote held
@@ -430,7 +432,7 @@ leases:commit-renew() {
 
 # leases:check <branch> <base> <runner> holds the paths the branch changed since its merge base with <base> to the
 # branch's own lease, the one of the issue its name starts with: each path outside it is refused. The lease is the
-# clone's; with <runner> true, on a CI runner whose clone holds none, it is the primary remote's, fetched as an object
+# clone's; with <runner> true, on a CI runner whose clone holds none, it is the push remote's, fetched as an object
 # alone, into no ref and no FETCH_HEAD. A branch that names no issue, or whose issue holds no lease, is judged by none,
 # and says so. It returns 1 on a refusal, a lease that does not read, or one that cannot be fetched.
 leases:check() {

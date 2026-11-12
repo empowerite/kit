@@ -347,6 +347,35 @@ JSON
   done
 }
 
+@test "with push naming a fork, every provider opens the change from the fork's branch, and a fork with no owner is refused" {
+  for forge in github gitlab
+  do
+    world "${forge}"
+    git remote remove fork 2>/dev/null || true
+    git remote add fork "https://${forge}.com/ada/example.git"
+    printf 'push: fork\n' > kit.yml
+    : > "${FAKE_DIR}/gh.calls"
+    : > "${FAKE_DIR}/glab.calls"
+    route gh 'pr create --draft --base main --head ada:7-fix-the-thing --title Fix the thing*' pr-url.txt
+    route glab 'mr create --draft --head ada/example --source-branch 7-fix-the-thing --target-branch main*' mr-url.txt
+    run call pr-create 7-fix-the-thing main "Fix the thing"
+    [ "$status" -eq 0 ]
+    [ "$output" = "3" ]
+    # a fork on this machine names no owner, so nothing is opened
+    git remote set-url fork "${BATS_TEST_TMPDIR}/fork.git"
+    run call pr-create 7-fix-the-thing main "Fix the thing"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"set push in kit.yml to a remote on "*"(its URL, ${BATS_TEST_TMPDIR}/fork.git, names no "* ]]
+    [ "$(cat "${FAKE_DIR}/gh.calls" "${FAKE_DIR}/glab.calls" | grep -c ' create ')" -eq 1 ]
+    # a push that names no remote is refused before the forge is asked
+    printf 'push: nowhere\n' > kit.yml
+    run call pr-create 7-fix-the-thing main "Fix the thing"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"push 'nowhere' in kit.yml is not a remote; the remotes are: "* ]]
+    rm kit.yml
+  done
+}
+
 @test "every provider folds its open changes into the one document kit flow draws" {
   expected='{"number":3,"branch":"7-fix-the-thing","fork":null,"title":"Fix the thing","author":"ada","pushed":null,'
   expected+='"state":"comments:open","checks":{"state":"SUCCESS","passed":2,"total":2,"failing":"","took":50},'

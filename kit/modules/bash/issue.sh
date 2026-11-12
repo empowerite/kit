@@ -351,36 +351,40 @@ issue:settle() {
   return "${failed}"
 }
 
-# issue:branch <reference> <default-branch> <title> prints the issue's branch. It reuses an existing branch, so a
-# second run never creates a duplicate. It looks, in order, for:
+# issue:branch <reference> <default-branch> <title> <remote> prints the issue's branch. <remote> is the push remote,
+# where a branch goes. It reuses an existing branch, so a second run never creates a duplicate. It looks, in order,
+# for:
 #
 #   1. the branch of an open pull request for the issue
-#   2. a branch on origin named <key>-*
+#   2. a branch on <remote> named <key>-*
 #
 # When neither exists, it creates the branch:
 #
 #   - for an issue in the forge's tracker, the forge creates a branch linked to the issue, where it has linked branches
-#   - for any other issue, kit pushes <key>-<slug of the title> to origin from the default branch; a title with no
-#     letter or digit for the slug gives <key>-issue
+#     and <remote> is the primary, on which the forge makes it
+#   - for any other issue, or a push remote that is not the primary, as a fork's origin, kit pushes <key>-<slug of
+#     the title> to <remote> from the default branch there; a title with no letter or digit for the slug gives
+#     <key>-issue
 #
 # A branch kit names is held to policy.branch first (policy:refusal): one the rule refuses is never made, and the
 # refusal, naming the pattern, returns 1.
 issue:branch() {
-  local ref=$1 default_branch=$2 title=$3 key branch slug refusal
+  local ref=$1 default_branch=$2 title=$3 remote=$4 key branch slug primary refusal
   key=$(tracker:key "${ref}") || return 2
+  primary=$(forge:primary) || return 1
   branch=$(forge:branch-for-issue "${key}") || return 1
-  [[ -n "${branch}" ]] \
-    || branch=$(git ls-remote --heads origin "${key}-*" 2>/dev/null | sed -n '1s@.*refs/heads/@@p')
-  # A forge that links no branch to an issue gets the branch kit names, as another tracker's issue does.
-  if [[ -z "${branch}" ]] && tracker:is-forge "${ref}" && forge:has linked-branches
+  [[ -n "${branch}" ]] || branch=$(issue:remote-branch "${remote}" "${key}")
+  # A forge that links no branch to an issue gets the branch kit names, as another tracker's issue does; so does a
+  # fork, where the forge would make the branch on the primary, not where it goes.
+  if [[ -z "${branch}" && "${remote}" == "${primary}" ]] && tracker:is-forge "${ref}" && forge:has linked-branches
   then
     step "Linking a branch to ${ref}"
     forge:link-branch "${key}" "${default_branch}" || return 1
-    git fetch --quiet origin
-    branch=$(git ls-remote --heads origin "${key}-*" 2>/dev/null | sed -n '1s@.*refs/heads/@@p')
+    git fetch --quiet --end-of-options "${remote}"
+    branch=$(issue:remote-branch "${remote}" "${key}")
     if [[ -z "${branch}" ]]
     then
-      error "the branch the forge made for ${ref} could not be found on origin; link one by hand and re-run"
+      error "the branch the forge made for ${ref} could not be found on ${remote}; link one by hand and re-run"
       return 1
     fi
   elif [[ -z "${branch}" ]]
@@ -394,17 +398,24 @@ issue:branch() {
         "policy.branch in kit.yml to allow <key>-<slug>, as kit work names a branch"
       return 1
     fi
-    step "Making ${branch} for ${ref} from ${default_branch}"
-    git push --quiet origin "refs/remotes/origin/${default_branch}:refs/heads/${branch}" || return 1
-    git fetch --quiet origin
+    step "Making ${branch} for ${ref} from ${remote}/${default_branch}"
+    git push --quiet --end-of-options "${remote}" "refs/remotes/${remote}/${default_branch}:refs/heads/${branch}" \
+      || return 1
+    git fetch --quiet --end-of-options "${remote}"
   fi
   printf '%s\n' "${branch}"
 }
 
-# issue:worktree <main-root> <branch> prints the worktree the branch is checked out in. If there is none, it
-# creates <main-root>/worktrees/<branch>. It refuses, and returns 1, when that path exists and is not a worktree.
+# issue:remote-branch <remote> <key> prints the first branch on <remote> named <key>-*, or nothing.
+issue:remote-branch() {
+  git ls-remote --heads --end-of-options "$1" "$2-*" 2>/dev/null | sed -n '1s@.*refs/heads/@@p'
+}
+
+# issue:worktree <main-root> <branch> <remote> prints the worktree the branch is checked out in. If there is none, it
+# creates <main-root>/worktrees/<branch>, from <remote>'s branch when there is no local one. It refuses, and returns
+# 1, when that path exists and is not a worktree.
 issue:worktree() {
-  local main_root=$1 branch=$2 wt
+  local main_root=$1 branch=$2 remote=$3 wt
   wt=$(git worktree list --porcelain 2>/dev/null \
     | awk -v b="branch refs/heads/${branch}" '/^worktree / { w = substr($0, 10) } $0 == b { print w; exit }')
   if [[ -n "${wt}" ]]
@@ -423,7 +434,7 @@ issue:worktree() {
     then
       git worktree add --quiet "${wt}" "${branch}" || return 1
     else
-      git worktree add --quiet "${wt}" -b "${branch}" "origin/${branch}" || return 1
+      git worktree add --quiet "${wt}" -b "${branch}" "refs/remotes/${remote}/${branch}" || return 1
     fi
   fi
   printf '%s\n' "${wt}"
@@ -431,7 +442,7 @@ issue:worktree() {
 
 # issue:held <main-root> <branch> holds the branch, and the worktree it is or will be checked out in, to the policy in
 # kit.yml (policy:refusal), before anything is assigned, swept, or made. A branch that exists, one an open change or
-# the forge named, or that origin held, and a worktree that exists, are warned of, named with the rule's pattern and
+# the forge named, or that the push remote held, and a worktree that exists, are warned of, named with the rule's pattern and
 # remedy, since kit policy refuses them in CI. The worktree kit work would make, worktrees/<branch>, is refused, and
 # it returns 1. It returns 1 too when the policy cannot be read.
 issue:held() {
@@ -478,16 +489,17 @@ issue:hydrate() {
   return 1
 }
 
-# issue:start-commit <worktree> <default-branch> <reference> <title> adds an empty first commit when the branch has
-# no commits beyond the default branch, because a forge cannot open a pull request with nothing to compare. --only
-# keeps the commit empty, so work already staged in a reused worktree stays in the index. Its subject is
-# issue:start-subject's, kept whatever commit.cleanup says, and with policy.commit_reference trailer its message ends
-# in a Refs: <reference> trailer. With require_signing true, the commit is signed, and refused when git cannot sign
-# it; a commit that fails for another reason, as when a hook refuses it, is said to have failed.
+# issue:start-commit <worktree> <default-branch> <reference> <title> <remote> adds an empty first commit when the
+# branch has no commits beyond the default branch on <remote>, the push remote, because a forge cannot open a pull
+# request with nothing to compare. --only keeps the commit empty, so work already staged in a reused worktree stays in
+# the index. Its subject is issue:start-subject's, kept whatever commit.cleanup says, and with
+# policy.commit_reference trailer its message ends in a Refs: <reference> trailer. With require_signing true, the
+# commit is signed, and refused when git cannot sign it; a commit that fails for another reason, as when a hook
+# refuses it, is said to have failed.
 issue:start-commit() {
-  local wt=$1 default_branch=$2 ref=$3 title=$4 subject
+  local wt=$1 default_branch=$2 ref=$3 title=$4 remote=$5 subject
   local -a sign=() trailer=()
-  [[ -z "$(git -C "${wt}" rev-list "origin/${default_branch}..HEAD" 2>/dev/null)" ]] || return 0
+  [[ -z "$(git -C "${wt}" rev-list "refs/remotes/${remote}/${default_branch}..HEAD" 2>/dev/null)" ]] || return 0
   subject=$(issue:start-subject "${ref}" "${title}") || return 1
   [[ "${subject}" == "${ref} "* ]] || trailer=(--message "Refs: ${ref}")
   if [[ "$(settings:value require_signing)" == true ]]
@@ -583,11 +595,12 @@ issue:sweep-restore() {
   ok "The swept work is back on ${branch}."
 }
 
-# issue:sweep-apply <root> <worktree> <stash> <default-branch> applies the stash in the worktree, uncommitted, and
-# drops it. Then, if the desk is on the default branch, it fast-forwards the now-clean desk. On a conflict it keeps
-# the stash and returns non-zero, so the caller stops.
+# issue:sweep-apply <root> <worktree> <stash> <default-branch> <remote> applies the stash in the worktree,
+# uncommitted, and drops it. Then, if the desk is on the default branch, it fast-forwards the now-clean desk to the
+# default branch on <remote>, the push remote. On a conflict it keeps the stash and returns non-zero, so the caller
+# stops.
 issue:sweep-apply() {
-  local root=$1 wt=$2 stash=$3 default_branch=$4 slot
+  local root=$1 wt=$2 stash=$3 default_branch=$4 remote=$5 slot
   if ! git -C "${wt}" stash apply "${stash}" >/dev/null 2>&1
   then
     error "the swept work conflicts in ${wt}. It is kept in the stash: git stash apply ${stash}"
@@ -597,13 +610,13 @@ issue:sweep-apply() {
   [[ -n "${slot}" ]] && git -C "${root}" stash drop "${slot}" >/dev/null
   ok "Swept the work into ${wt}, uncommitted; commit it there with a real message."
   [[ "$(git -C "${root}" rev-parse --abbrev-ref HEAD)" == "${default_branch}" ]] || return 0
-  git -C "${root}" merge --ff-only "origin/${default_branch}" >/dev/null 2>&1 \
-    || warn "${default_branch} could not fast-forward to origin; it is left as it was."
+  git -C "${root}" merge --ff-only "refs/remotes/${remote}/${default_branch}" >/dev/null 2>&1 \
+    || warn "${default_branch} could not fast-forward to ${remote}; it is left as it was."
 }
 
 # issue:lease <worktree> <reference> takes the issue's lease in the worktree, as modules/bash/leases.sh keeps leases:
 # the paths the issue lists under a Paths heading, or ** when it lists none or its tracker keeps no body. Then it pushes
-# the lease to the primary remote, so CI holds the branch to it. A lease is no lock: a claim another issue's lease
+# the lease to the push remote, where the branch goes, so CI holds the branch to it. A lease is no lock: a claim another issue's lease
 # refuses is said, with who holds what, and the work goes on without one.
 issue:lease() {
   local wt=$1 ref=$2 body status=0
@@ -673,6 +686,7 @@ issue:link-in-body() {
 # configured.
 issue:start() {
   local n primary title default_branch main_root desk desk_branch branch wt stash="" pr created sigil noun new_title=''
+  local remote
   local -a refs=() in_body=()
   if [[ "${1:-}" == --pr ]]
   then
@@ -709,7 +723,8 @@ issue:start() {
   tracker:is-forge "${primary}" || in_body+=("${primary}")
   in_body+=("${@:2}")
 
-  git fetch --quiet --prune origin
+  remote=$(forge:push-remote) || return 1
+  git fetch --quiet --prune --end-of-options "${remote}"
   default_branch=$(git:default-branch) || return 1
   main_root=$(git:main-root)
   desk=$(git rev-parse --show-toplevel)
@@ -717,10 +732,11 @@ issue:start() {
   title=$(tracker:of "${primary}" title) || return 1
   section "Starting ${primary}: ${title}"
 
-  branch=$(issue:branch "${primary}" "${default_branch}" "${title}") || return
+  branch=$(issue:branch "${primary}" "${default_branch}" "${title}" "${remote}") || return
   issue:held "${main_root}" "${branch}" || return 1
   # A branch with no commit of its own gets the start commit, whose subject must pass before anything is assigned.
-  if [[ -z "$(git rev-list "origin/${default_branch}..origin/${branch}" 2>/dev/null)" ]]
+  if [[ -z "$(git rev-list "refs/remotes/${remote}/${default_branch}..refs/remotes/${remote}/${branch}" \
+    2>/dev/null)" ]]
   then
     issue:start-subject "${primary}" "${title}" >/dev/null || return 1
   fi
@@ -742,17 +758,17 @@ issue:start() {
       file:at-exit issue:sweep-restore "${desk}"
     fi
   fi
-  wt=$(issue:worktree "${main_root}" "${branch}") || return
+  wt=$(issue:worktree "${main_root}" "${branch}" "${remote}") || return
   issue:lease "${wt}" "${primary}"
   git -C "${main_root}" check-ignore --quiet worktrees 2>/dev/null \
     || warn "worktrees/ is not ignored; add /worktrees/ to .gitignore so a worktree never appears in a commit"
   issue:hydrate "${wt}" || return 1
-  issue:start-commit "${wt}" "${default_branch}" "${primary}" "${title}" || return 1
+  issue:start-commit "${wt}" "${default_branch}" "${primary}" "${title}" "${remote}" || return 1
   git:push "${wt}" "${branch}" || return 1
   if [[ -n "${stash}" ]]
   then
     issue_swept=''
-    issue:sweep-apply "${desk}" "${wt}" "${stash}" "${default_branch}" || return
+    issue:sweep-apply "${desk}" "${wt}" "${stash}" "${default_branch}" "${remote}" || return
   fi
   pr=$(issue:pull-request "${branch}" "${default_branch}" "${title}") || return
   if (( ${#in_body[@]} > 0 )) && ! issue:link-in-body "${pr}" "${in_body[@]}"

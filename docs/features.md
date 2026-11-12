@@ -87,10 +87,10 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
    request closes, and assigns it to the caller when no one is assigned. A commit from an index of its own
    (`GIT_INDEX_FILE`) brings the shared index up to it, for the paths it changed alone.
 3. `kit submit` pushes the branch, setting the upstream the first time, and commits nothing: what is staged stays
-   staged, for `kit commit`. It never forces: when origin has moved, the remedy is `kit rebase`. It pushes the
-   branch's lease too, so CI holds the branch to it.
+   staged, for `kit commit`. It never forces: when the push remote has moved, the remedy is `kit rebase`. It pushes
+   the branch's lease too, to the same remote, so CI holds the branch to it.
 4. `kit rebase` rebases the worktree's branch onto the default branch at the primary remote and pushes it to its own
-   name, never where `push.default` points. When origin's branch has commits the worktree lacks, it takes them
+   name, never where `push.default` points. When the remote's branch has commits the worktree lacks, it takes them
    first, and it forces only over the tip it read, so a commit pushed meanwhile is never overwritten. It refuses the
    desk, the default branch, and a worktree with uncommitted changes.
 5. `kit gate` runs the gate locally, with the same tools CI uses.
@@ -138,8 +138,11 @@ document. The `flow` setting in `kit.yml` names the stages drawn, in order.
 
 A repository can have many remotes, such as a fork as `origin` and the shared repository as `upstream`. One is the
 primary: the `primary` setting in `kit.yml`, else `origin`. Ahead and behind, the default branch, pull requests,
-builds, releases, and issues are read from it. `kit work` and `kit submit` still fetch from and push to `origin`,
-whatever the primary is. Each remote has a code forge, or none:
+builds, releases, and issues are read from it, and `kit rebase` and `kit release` read it. A branch goes to the push
+remote: the `push` setting in `kit.yml`, as `push: origin` for a fork, else the primary. `kit work` and `kit submit`
+fetch from it, look a branch up on it, fast-forward from it, and push to it, and the pull request opens on the
+primary from the branch there. A `push` that names no remote is refused, as a `primary` that names none is. Each remote
+has a code forge, or none:
 
 1. the `forges` setting names it: `forges: {upstream: gitlab}`; for the primary, the `forge` setting wins
 2. else its host: `github.com` is GitHub, `gitlab.com` is GitLab, `dev.azure.com` is Azure DevOps

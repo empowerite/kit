@@ -596,7 +596,7 @@
           "type": "array"
         },
         "subcommand": {
-          "description": "take: claims the paths for the issue, here; renew: moves each lease's expiry to its term from now; release: deletes each lease, here and on the primary remote",
+          "description": "take: claims the paths for the issue, here; renew: moves each lease's expiry to its term from now; release: deletes each lease, here and on the push remote",
           "enum": [
             "take",
             "renew",

@@ -386,7 +386,9 @@ git:tidy() {
 
 # git:pushes-to <branch> [<path>] prints the remote that <branch>, in the repository at <path>, pushes to. When the
 # branch's upstream is the branch of the same name, it prints branch.<branch>.remote and returns 0. Otherwise, with no
-# upstream or one of another name, as a branch started from origin/main has, it prints origin and returns 1.
+# upstream or one of another name, as a branch started from origin/main has, it prints the push remote, the push
+# setting in kit.yml, else the primary, and returns 1. It returns 2, and prints nothing, when kit.yml's push or primary
+# names no remote here.
 git:pushes-to() {
   local branch=$1 path=${2:-.} remote merge
   # git config --get exits 1 for a key that is not set: a branch with no upstream.
@@ -397,7 +399,8 @@ git:pushes-to() {
     printf '%s\n' "${remote}"
     return 0
   fi
-  printf 'origin\n'
+  remote=$(forge:push-remote) || return 2
+  printf '%s\n' "${remote}"
   return 1
 }
 
@@ -425,11 +428,14 @@ git:commit() {
 
 # git:push <path> <branch> [<option>…] pushes refs/heads/<branch> of the checkout at <path>, quietly and with the
 # options, to the same name on the remote git:pushes-to prints, and sets that as the upstream when git:pushes-to
-# returned 1. It names the refspec, so push.default never decides where the branch goes.
+# returned 1. It names the refspec, so push.default never decides where the branch goes. It pushes nothing, and
+# returns 1, when git:pushes-to cannot name the remote.
 git:push() {
-  local path=$1 branch=$2 remote upstream=()
+  local path=$1 branch=$2 remote status=0 upstream=()
   shift 2
-  remote=$(git:pushes-to "${branch}" "${path}") || upstream=(--set-upstream)
+  remote=$(git:pushes-to "${branch}" "${path}") || status=$?
+  (( status != 2 )) || return 1
+  (( status == 0 )) || upstream=(--set-upstream)
   git -C "${path}" push --quiet "${upstream[@]}" "$@" --end-of-options "${remote}" \
     "refs/heads/${branch}:refs/heads/${branch}"
 }
@@ -478,7 +484,7 @@ git:rebase() {
   fi
   primary=$(forge:primary) || return $?
   # git:pushes-to returns 1 for an upstream of another name, and prints the remote to use all the same.
-  remote=$(git:pushes-to "${branch}" "${worktree}") || true
+  remote=$(git:pushes-to "${branch}" "${worktree}") || (( $? == 1 )) || return 1
   section "kit rebase ${branch} onto ${primary}/${default_branch}"
   before=$(git -C "${worktree}" rev-parse HEAD)
   git -C "${worktree}" fetch --quiet --prune --end-of-options "${primary}"

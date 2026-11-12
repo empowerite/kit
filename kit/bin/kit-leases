@@ -30,10 +30,11 @@
 # new claim is. kit commit renews the lease of each issue it names, in its subject or a Refs: trailer, and refuses a
 # staged path that the live lease on the branch of an issue it does not name holds, unless it is the branch's own.
 #
-# release deletes each lease, and the primary remote's copy of it, which kit work and kit submit push so CI reads the
+# release deletes each lease, and the push remote's copy of it, which kit work and kit submit push so CI reads the
 # claim. --check holds the paths the branch changed since its merge base with its base to the branch's own lease, as
 # kit policy does in CI: each one outside it is refused. On a CI runner, whose clone holds no lease, the lease is the
-# primary remote's copy. A branch whose issue holds no lease is held to none.
+# push remote's copy: the push setting in kit.yml, else the primary. A branch whose issue holds no lease is held to
+# none.
 #
 # A path is relative to the repository's root and holds itself and everything under it: docs holds docs/policy.md. *
 # and ? match within one segment, […] one character of a set, and ** any number of segments. Two claims overlap unless
@@ -44,7 +45,7 @@
 #   --jq                the same JSON, formatted by jq for a person
 #   take                claims the paths for the issue, here
 #   renew               moves each lease's expiry to its term from now
-#   release             deletes each lease, here and on the primary remote
+#   release             deletes each lease, here and on the push remote
 #   --check             refuses a path the branch changed outside its own lease
 #   --for=<duration>    the lease's term: a number and a unit, s, m, h, or d, as 90s, 45m, 2h, or 1d; 1h for take
 #                       without it, and the lease's own term for renew

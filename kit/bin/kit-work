@@ -15,6 +15,11 @@
 #
 # Every issue it starts is assigned to the caller, whose worktree it is.
 #
+# The branch goes to the push remote: the push setting in kit.yml, as a fork's origin, else the primary, the primary
+# setting, else origin. kit work fetches from it, looks the branch up on it, makes a new branch there from its default
+# branch, fast-forwards the desk from it, and pushes to it, the lease too. The pull request opens on the primary, from
+# the branch there. The forge links a branch to the issue only when the push remote is the primary.
+#
 # kit work takes the primary issue's lease, as kit leases does: the paths the issue lists under a Paths heading, one a
 # list item, or ** when it lists none. A claim that another issue's live lease refuses is said, with who holds what,
 # and the work starts without a lease; take one when you have asked: kit leases take <reference> <path>…

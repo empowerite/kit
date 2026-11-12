@@ -260,9 +260,41 @@ conventional() {
   kit commit --message='y: a file' >/dev/null 2>&1
   run kit submit
   [ "$status" -eq 0 ]
-  [[ "$output" == *"pushed 7-fix-the-thing: 1 commit(s)"* ]]
+  [[ "$output" == *"pushed 7-fix-the-thing to origin: 1 commit(s)"* ]]
   [ "$(git -C "${work}/origin.git" rev-parse 7-fix-the-thing)" = "$(git rev-parse HEAD)" ]
   [ "$(git -C "${work}/origin.git" rev-parse main)" = "${main}" ]
+}
+
+@test "kit submit's first push goes to the push remote: push in kit.yml, as a fork's origin, else the primary" {
+  git init --quiet --bare --initial-branch=main "${work}/upstream.git"
+  git remote add upstream "${work}/upstream.git"
+  git push --quiet upstream main
+  printf 'x\n' > x && git add x && git commit --quiet --message 'x: a file'
+  # without push, a branch with no upstream goes to the primary
+  printf 'primary: upstream\n' >> kit.yml
+  run kit submit
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"pushed 7-fix-the-thing to upstream, which is its upstream from now on"* ]]
+  [ "$(git -C "${work}/upstream.git" rev-parse 7-fix-the-thing)" = "$(git rev-parse HEAD)" ]
+  run ! git -C "${work}/origin.git" rev-parse --quiet --verify 7-fix-the-thing
+  # with push: origin, as in a fork whose primary is upstream, it goes to origin
+  git branch --quiet --unset-upstream
+  printf 'push: origin\n' >> kit.yml
+  run kit submit
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"pushed 7-fix-the-thing to origin, which is its upstream from now on"* ]]
+  [ "$(git -C "${work}/origin.git" rev-parse 7-fix-the-thing)" = "$(git rev-parse HEAD)" ]
+  [ "$(git rev-parse --abbrev-ref '@{upstream}')" = origin/7-fix-the-thing ]
+  # a push that names no remote is refused, and nothing is pushed
+  git branch --quiet --unset-upstream
+  grep -v '^push:' kit.yml > kit.yml.new && mv kit.yml.new kit.yml
+  printf 'push: nowhere\n' >> kit.yml
+  git commit --quiet --allow-empty --message 'y: more'
+  run kit submit
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"push 'nowhere' in kit.yml is not a remote; the remotes are: origin upstream"* ]]
+  [ "$(git -C "${work}/origin.git" rev-parse 7-fix-the-thing)" = "$(git rev-parse HEAD~1)" ]
+  [ "$(git -C "${work}/upstream.git" rev-parse 7-fix-the-thing)" = "$(git rev-parse HEAD~1)" ]
 }
 
 @test "kit submit pushes a branch whose remote-tracking ref is gone, and never says it is at origin" {

@@ -459,11 +459,24 @@ forge/gitlab:pr-closing-issues() {
     else "OPEN" end) \(.references.full | sub("#[0-9]+$"; ""))"'
 }
 
+# A branch on a fork, the push remote when it is not the primary, is opened from that project: --head names its path.
 forge/gitlab:pr-create() {
-  local number
-  local -a draft=(--draft)
+  local number fork path
+  local -a draft=(--draft) head=()
   [[ "${4:-true}" != false ]] || draft=()
-  number=$(glab mr create "${draft[@]}" --source-branch "$1" --target-branch "$2" --title "$3" --description "" --yes \
+  forge:pushes-elsewhere fork || return 1
+  if [[ -n "${fork}" ]]
+  then
+    path=$(forge:url-path "${fork}")
+    if [[ "${path}" != */* ]]
+    then
+      error "set push in kit.yml to a remote on GitLab (its URL, ${fork}, names no project to open a change from)"
+      return 1
+    fi
+    head=(--head "${path}")
+  fi
+  number=$(glab mr create "${draft[@]}" "${head[@]}" --source-branch "$1" --target-branch "$2" --title "$3" \
+    --description "" --yes \
     | sed -n 's@.*/-/merge_requests/\([0-9]*\).*@\1@p' | tail -n 1) || return 1
   [[ "${number}" =~ ^[0-9]+$ ]] || { error "the merge request could not be opened; see above"; return 1; }
   printf '%s\n' "${number}"

@@ -7,8 +7,10 @@
 # provider, forge/<name>.sh beside it, whose functions are named forge/<name>:<call>.
 #
 # A repository has one primary remote: the `primary` setting in kit.yml, else origin. Ahead and behind, the default
-# branch, pull requests, builds, releases, and issues are all read from it. kit work and kit submit still fetch from
-# and push to origin. Each remote has a code forge, or none. The first answer wins:
+# branch, pull requests, builds, releases, and issues are all read from it. A branch goes to the push remote: the
+# `push` setting in kit.yml, as a fork's origin, else the primary. kit work and kit submit fetch from it, look a
+# branch up on it, fast-forward from it, and push to it; a pull request opens on the primary from the branch there.
+# Each remote has a code forge, or none. The first answer wins:
 #
 #   1. for the primary, the `forge` setting in kit.yml
 #   2. the remote's entry in the `forges` map in kit.yml: `forges: {upstream: gitlab}`
@@ -86,7 +88,8 @@
 #   link-branch <n> <default>     makes a branch linked to the issue, from <default>, pushed to the forge
 #   pr-for-branch <branch>        the number of the open pull request on the branch, or nothing
 #   pr-create <branch> <default> <title> [<draft>]   opens a pull request and prints its number: a draft, unless
-#                                 <draft> is false (since version 3), when it opens ready for review
+#                                 <draft> is false (since version 3), when it opens ready for review; from the branch
+#                                 on the push remote, a fork's where forge:pushes-elsewhere names one
 #   pr-ready <n>                  makes the draft ready for review (since 3)
 #   pr-title <n>                  the pull request's title
 #   pr-set-title <n> <title>      replaces it (since 3)
@@ -328,22 +331,10 @@ declare -g forge_lacking='' forge_lacking_read=false forge_provider_contract=1 f
 #
 # A forges key may name a remote this desk does not have; it is only ever compared with a remote's name.
 forge:primary() {
-  local primary remotes name row
+  local primary name row
   local -a rows
   primary=$(settings:value primary)
-  if [[ -n "${primary}" ]]
-  then
-    if ! remotes=$(git remote 2>/dev/null)
-    then
-      error "run: git remote (the remotes could not be read, so primary '${primary}' in kit.yml cannot be checked)"
-      return 1
-    fi
-    if ! grep --quiet --line-regexp --fixed-strings -- "${primary}" <<<"${remotes}"
-    then
-      error "primary '${primary}' in kit.yml is not a remote; the remotes are: $(paste -s -d ' ' - <<<"${remotes}")"
-      return 1
-    fi
-  fi
+  [[ -z "${primary}" ]] || forge:is-remote primary "${primary}" || return 1
   list:read rows yaml:map "$(settings:file)" forges || return 1
   for row in "${rows[@]}"
   do
@@ -356,6 +347,73 @@ forge:primary() {
     fi
   done
   printf '%s\n' "${primary:-origin}"
+}
+
+# forge:is-remote <setting> <name> succeeds when <name>, the value of the setting in kit.yml, is a remote here. It
+# refuses, and returns 1, a name that is no remote, and one set where git cannot list the remotes, as outside a
+# repository, where it cannot be checked.
+forge:is-remote() {
+  local setting=$1 name=$2 remotes
+  if ! remotes=$(git remote 2>/dev/null)
+  then
+    error "run: git remote (the remotes could not be read, so ${setting} '${name}' in kit.yml cannot be checked)"
+    return 1
+  fi
+  if ! grep --quiet --line-regexp --fixed-strings -- "${name}" <<<"${remotes}"
+  then
+    error "${setting} '${name}' in kit.yml is not a remote; the remotes are: $(paste -s -d ' ' - <<<"${remotes}")"
+    return 1
+  fi
+}
+
+# forge:push-remote prints the name of the remote a branch goes to: the push setting in kit.yml, as a fork's origin,
+# else the primary. A push that names no remote here is refused as a primary that names none is, and returns 1.
+forge:push-remote() {
+  local push
+  push=$(settings:value push)
+  if [[ -z "${push}" ]]
+  then
+    forge:primary
+    return
+  fi
+  forge:is-remote push "${push}" || return 1
+  printf '%s\n' "${push}"
+}
+
+# forge:pushes-elsewhere <name> puts in the variable <name> the URL of the push remote when it is not the primary, as
+# in a fork, or empty when a branch goes to the primary. A provider reads it to open a pull request from the branch
+# where it is. It returns 1 when either remote's setting is refused, or the push remote's URL cannot be read.
+forge:pushes-elsewhere() {
+  local primary push url=''
+  primary=$(forge:primary) || return 1
+  push=$(forge:push-remote) || return 1
+  if [[ "${push}" != "${primary}" ]] && ! url=$(git remote get-url --end-of-options "${push}" 2>/dev/null)
+  then
+    error "run: git remote get-url ${push} (the push remote's URL could not be read)"
+    return 1
+  fi
+  printf -v "$1" '%s' "${url}"
+}
+
+# forge:url-path <url> prints the path a git URL names past its host, without a leading or trailing slash or .git:
+# owner/name on GitHub, group/subgroup/name on GitLab. It prints nothing for a remote on this machine.
+forge:url-path() {
+  local url=$1 path=''
+  [[ -n "$(forge:url-host "${url}")" ]] || return 0
+  if [[ "${url}" =~ ^[a-z][a-z0-9+.-]*://[^/]*/(.*)$ ]]
+  then
+    path=${BASH_REMATCH[1]}
+  elif [[ "${url}" =~ ^([^@/:]+@)?[^/:]+:(.*)$ ]]
+  then
+    path=${BASH_REMATCH[2]}
+  fi
+  while [[ "${path}" == */ ]]
+  do
+    path=${path%/}
+  done
+  path=${path#/}
+  path=${path%.git}
+  [[ -z "${path}" ]] || printf '%s\n' "${path}"
 }
 
 # forge:remotes prints every remote, one per line: the primary first, when it is there, then the rest in git's order.

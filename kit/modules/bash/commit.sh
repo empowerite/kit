@@ -36,11 +36,11 @@
 # the issue when no one is assigned. The commit exists by then, so a forge that fails only warns.
 #
 # kit submit commits when there is something to commit, then pushes the branch to the branch of its own name on its
-# remote, setting the upstream on the first push. Its remote is origin, unless its upstream is a branch of its own
-# name on another remote. It names the refspec, so push.default and an upstream of another name, such as the
-# origin/main a branch started from, never decide where the branch goes. It never rebases: a push the remote refuses
-# as not fast-forward names kit rebase as the remedy, so one verb does one thing and a conflict with the default
-# branch never blocks sharing work.
+# remote, setting the upstream on the first push. Its remote is the push remote, the push setting in kit.yml, else the
+# primary, unless its upstream is a branch of its own name on another remote. It names the refspec, so push.default
+# and an upstream of another name, such as the origin/main a branch started from, never decide where the branch goes.
+# It never rebases: a push the remote refuses as not fast-forward names kit rebase as the remedy, so one verb does
+# one thing and a conflict with the default branch never blocks sharing work.
 #
 # see: kit/bin/kit-commit, kit/bin/kit-submit, modules/bash/policy.sh, docs/features.md
 
@@ -754,7 +754,7 @@ commit:git() {
 # upstream on the first push. It commits nothing: what is staged stays staged, and is said to be no part of the push.
 # It never forces: when the remote refuses the push, the remedy is kit rebase.
 commit:submit() {
-  local branch remote first=false ahead refused
+  local branch remote first=false ahead refused status=0
   local -a staged=()
   branch=$(commit:branch) || return 1
   list:read0 staged git diff --cached --name-only -z || return 1
@@ -763,12 +763,14 @@ commit:submit() {
     info "${#staged[@]} staged path(s) stay staged, and are no part of the push; kit commit commits them"
   fi
   # A branch with no upstream of its own name, such as one started from origin/main, has its first push here.
-  remote=$(git:pushes-to "${branch}") || first=true
+  remote=$(git:pushes-to "${branch}") || status=$?
+  (( status != 2 )) || return 1
+  (( status == 0 )) || first=true
   if [[ "${first}" == true ]]
   then
     if ! refused=$(git:push . "${branch}" 2>&1)
     then
-      commit:push-refused "${branch}" "${refused}"
+      commit:push-refused "${branch}" "${remote}" "${refused}"
       return 1
     fi
     ok "pushed ${branch} to ${remote}, which is its upstream from now on"
@@ -780,7 +782,7 @@ commit:submit() {
   then
     if ! refused=$(git:push . "${branch}" 2>&1)
     then
-      commit:push-refused "${branch}" "${refused}"
+      commit:push-refused "${branch}" "${remote}" "${refused}"
       return 1
     fi
     ok "pushed ${branch} to ${remote}; this clone had no ${remote}/${branch}"
@@ -794,26 +796,26 @@ commit:submit() {
   fi
   if ! refused=$(git:push . "${branch}" 2>&1)
   then
-    commit:push-refused "${branch}" "${refused}"
+    commit:push-refused "${branch}" "${remote}" "${refused}"
     return 1
   fi
-  ok "pushed ${branch}: ${ahead} commit(s)"
+  ok "pushed ${branch} to ${remote}: ${ahead} commit(s)"
 }
 
-# commit:push-refused <branch> <git-output> says why the push did not happen, with the remedy, and git's own words
-# as the detail.
+# commit:push-refused <branch> <remote> <git-output> says why the push to the remote did not happen, with the remedy,
+# and git's own words as the detail.
 commit:push-refused() {
   local line
-  if grep --quiet 'non-fast-forward\|fetch first\|stale info' <<<"$2"
+  if grep --quiet 'non-fast-forward\|fetch first\|stale info' <<<"$3"
   then
-    error "origin refused the push of $1: it has commits this branch lacks; run: kit rebase"
+    error "$2 refused the push of $1: it has commits this branch lacks; run: kit rebase"
   else
-    error "origin refused the push of $1"
+    error "$2 refused the push of $1"
   fi
   while IFS= read -r line
   do
     [[ -n "${line}" ]] && step "${line}"
-  done <<<"$2"
+  done <<<"$3"
 }
 
 # commit:choices <key> [<answer>…] answers kit syntax --choices for <path>: an open set, every path git status reports,

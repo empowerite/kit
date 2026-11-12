@@ -317,6 +317,37 @@ lease() {
   [ -z "$(git ls-remote "${work}/origin.git" 'refs/kit/*')" ]
 }
 
+@test "a lease goes where its branch goes: to the push remote, push in kit.yml, as a fork's origin, else the primary" {
+  git init --quiet --bare --initial-branch=main "${work}/upstream.git"
+  git remote add upstream "${work}/upstream.git"
+  git push --quiet upstream main
+  kit leases take 7 docs >/dev/null 2>&1
+  # without push, the branch and its lease go to the primary
+  printf 'primary: upstream\n' >> kit.yml
+  run kit submit
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"pushed 7-fix-the-thing to upstream"* ]]
+  [[ "$output" == *"#7's lease is on upstream, for CI"* ]]
+  [ "$(git ls-remote "${work}/upstream.git" 'refs/kit/*' | cut -f 2)" = refs/kit/leases/7 ]
+  [ -z "$(git ls-remote "${work}/origin.git" 'refs/kit/*')" ]
+  run kit leases release 7
+  [ "$status" -eq 0 ]
+  [ -z "$(git ls-remote "${work}/upstream.git" 'refs/kit/*')" ]
+  # with push: origin, as in a fork whose primary is upstream, both go to origin
+  kit leases take 7 docs >/dev/null 2>&1
+  git branch --quiet --unset-upstream
+  printf 'push: origin\n' >> kit.yml
+  run kit submit
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"pushed 7-fix-the-thing to origin"* ]]
+  [[ "$output" == *"#7's lease is on origin, for CI"* ]]
+  [ "$(git ls-remote "${work}/origin.git" 'refs/kit/*' | cut -f 2)" = refs/kit/leases/7 ]
+  [ -z "$(git ls-remote "${work}/upstream.git" 'refs/kit/*')" ]
+  run kit leases release 7
+  [ "$status" -eq 0 ]
+  [ -z "$(git ls-remote "${work}/origin.git" 'refs/kit/*')" ]
+}
+
 @test "kit leases refuses outside a git repository, and a word it does not know" {
   cd "${work}"
   run kit leases

@@ -149,7 +149,7 @@
       "description": "moves each lease's expiry to its term from now"
     },
     "release": {
-      "description": "deletes each lease, here and on the primary remote"
+      "description": "deletes each lease, here and on the push remote"
     },
     "--check": {
       "description": "refuses a path the branch changed outside its own lease"

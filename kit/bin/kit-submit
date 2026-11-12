@@ -6,13 +6,14 @@
 #
 # Runs in a worktree, never on the desk or the default branch. It pushes the branch to its own name on its remote,
 # whatever git's push configuration and the branch's upstream say, and sets that as the upstream on the first push.
-# Its remote is origin, unless its upstream is a branch of its own name on another remote. With nothing to push, it
-# says so.
+# Its remote is the push remote, unless its upstream is a branch of its own name on another remote. The push remote is
+# the push setting in kit.yml, as a fork's origin, else the primary: the primary setting, else origin. With nothing
+# to push, it says so.
 #
 # It commits nothing. What is staged stays staged, and is no part of the push: kit commit makes the commits, and kit
 # submit shares them. In a worktree several people or agents share, the index may hold another's work.
 #
-# It pushes the branch's own lease too, the one of the issue the branch's name starts with, to the primary remote, when
+# It pushes the branch's own lease too, the one of the issue the branch's name starts with, to the push remote, when
 # the clone holds one, so CI holds the branch to the claim kit leases shows here. A lease that cannot be pushed is
 # warned of.
 #

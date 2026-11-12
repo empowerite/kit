@@ -378,9 +378,18 @@ forge/ado:pr-closing-issues() {
 
 # forge/ado:pr-create opens the draft, or the change ready for review when the draft is false, and links the work
 # item the branch is named for, <id>-<slug>, so the pull request closes it as the forge's own tracker closes an issue.
+# az opens no pull request from a fork's branch, so with a push remote other than the primary it is refused, naming
+# where to open it by hand.
 forge/ado:pr-create() {
-  local pr project repo
+  local pr project repo fork url
   local -a items=()
+  forge:pushes-elsewhere fork || return 1
+  if [[ -n "${fork}" ]]
+  then
+    url=$(forge/ado:repo-url) || return 1
+    error "open the pull request from ${fork}'s $1 by hand, at ${url}/pullrequestcreate (az opens none from a fork)"
+    return 1
+  fi
   IFS=$'\t' read -r _ project repo < <(forge/ado:place) || return 1
   [[ "$1" =~ ^([0-9]+)- ]] && items=(--work-items "${BASH_REMATCH[1]}")
   if ! pr=$(forge/ado:az repos pr create --draft "${4:-true}" --source-branch "$1" --target-branch "$2" --title "$3" \

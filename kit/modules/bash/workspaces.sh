@@ -138,22 +138,10 @@ workspaces:spelled() {
 # workspaces:url-member <url> prints the member a git URL names, host and path as workspaces:spelled spells them, or
 # nothing for a remote on this machine or a path of fewer than two segments.
 workspaces:url-member() {
-  local url=$1 host path=''
+  local url=$1 host path
   host=$(forge:url-host "${url}")
   [[ -n "${host}" ]] || return 0
-  if [[ "${url}" =~ ^[a-z][a-z0-9+.-]*://[^/]*/(.*)$ ]]
-  then
-    path=${BASH_REMATCH[1]}
-  elif [[ "${url}" =~ ^([^@/:]+@)?[^/:]+:(.*)$ ]]
-  then
-    path=${BASH_REMATCH[2]}
-  fi
-  while [[ "${path}" == */ ]]
-  do
-    path=${path%/}
-  done
-  path=${path#/}
-  path=${path%.git}
+  path=$(forge:url-path "${url}")
   [[ "${path}" == */* ]] || return 0
   workspaces:spelled "${host}/${path}"
 }

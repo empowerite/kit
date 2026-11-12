@@ -739,11 +739,24 @@ forge/github:pr-closing-issues() {
   forge/github:fold "pull request #$1" "${all}" --raw-output '.[] | "\(.number) \(.state) \(.repository.nameWithOwner)"'
 }
 
+# A branch on a fork, the push remote when it is not the primary, is named <owner>:<branch>, the head GitHub opens a
+# pull request from.
 forge/github:pr-create() {
-  local url
+  local url fork path head=$1
   local -a draft=(--draft)
   [[ "${4:-true}" != false ]] || draft=()
-  url=$(gh pr create "${draft[@]}" --base "$2" --head "$1" --title "$3" --body "") || return 1
+  forge:pushes-elsewhere fork || return 1
+  if [[ -n "${fork}" ]]
+  then
+    path=$(forge:url-path "${fork}")
+    if [[ "${path}" != */* ]]
+    then
+      error "set push in kit.yml to a remote on GitHub (its URL, ${fork}, names no owner to open a pull request from)"
+      return 1
+    fi
+    head="${path%%/*}:$1"
+  fi
+  url=$(gh pr create "${draft[@]}" --base "$2" --head "${head}" --title "$3" --body "") || return 1
   printf '%s\n' "${url##*/}"
 }
 

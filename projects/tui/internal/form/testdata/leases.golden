@@ -8,7 +8,7 @@
 
    take        claims the paths for the issue, here
    renew       moves each lease's expiry to its term from now
-   release     deletes each lease, here and on the primary remote
+   release     deletes each lease, here and on the push remote
    --check     refuses a path the branch changed outside its own lease
 
 

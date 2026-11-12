@@ -58,7 +58,7 @@ settings:validate() {
     case "${key}" in
       (version | packages | excludes) ;;
       (forge | gate | require_signing | answers | trackers | policy | policy_engine | bash_path) ;;
-      (linked_exempt | sources | flow | primary | forges | forge_settings | log_days | facts | tools | bot) ;;
+      (linked_exempt | sources | flow | primary | push | forges | forge_settings | log_days | facts | tools | bot) ;;
       (publish) ;;
       (status)
         error "${settings} has a key the kit does not know: status; the stages kit flow draws are named under flow:"

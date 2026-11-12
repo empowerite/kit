@@ -228,6 +228,18 @@ added='"milestones","bots","attestations","code-scanning","dependabot","secret-s
   [ "$output" = 3 ]
 }
 
+@test "with push naming a fork, az opens no pull request, and the refusal names where to open it by hand" {
+  git remote add fork https://ada@dev.azure.com/ada/empowerite/_git/example
+  printf 'push: fork\n' > kit.yml
+  : > "${FAKE_DIR}/az.calls"
+  run call pr-create 7-fix-the-thing main "Fix the thing"
+  [ "$status" -eq 1 ]
+  said="open the pull request from https://ada@dev.azure.com/ada/empowerite/_git/example's 7-fix-the-thing by hand,"
+  said+=" at https://dev.azure.com/acme/empowerite/_git/example/pullrequestcreate (az opens none from a fork)"
+  [[ "$output" == *"${said}"* ]]
+  run ! grep -q 'repos pr create' "${FAKE_DIR}/az.calls"
+}
+
 @test "a completed pull request is merged, with its merge commit, and an abandoned one closed" {
   jq '.status = "completed" | .lastMergeCommit = {commitId: "def456"}' "${FAKE_DIR}/pr.json" | fixture done.json
   jq '.status = "abandoned"' "${FAKE_DIR}/pr.json" | fixture gone.json
