@@ -636,3 +636,250 @@ YAML
   [ "$(jq -c '.lacks.workflows' <<<"$output")" = '["workflows: write"]' ]
   [ "$(jq -c '.extra' <<<"$output")" = '["checks: write","contents: admin"]' ]
 }
+
+# sent <pattern> counts the curl calls that match the pattern, a call's --write-out putting a newline inside it.
+sent() { tr '\n' ' ' < "${FAKE_DIR}/curl.calls" | grep --only-matching -- "$1" | wc -l | tr -d ' '; }
+
+# last-sent prints the request of the last curl call.
+last-sent() { tr '\n' ' ' < "${FAKE_DIR}/curl.calls" | grep --only-matching -- '--request [A-Z]*' | tail -n 1; }
+
+# run-gh makes the gh run's shim execs: it records its arguments and the GH_TOKEN it was given, and answers a login.
+run-gh() {
+  rm -f "${FAKE_DIR}/bin/gh"
+  cat > "${FAKE_DIR}/bin/gh" <<'GH'
+#!/usr/bin/env bash
+printf '%s GH_TOKEN=%s\n' "$*" "${GH_TOKEN-}" >> "${FAKE_DIR}/gh.calls"
+[[ "$*" == 'api user'* ]] && echo octocat
+exit 0
+GH
+  chmod +x "${FAKE_DIR}/bin/gh"
+}
+
+# run-setup is one-bot work, whose token is good for an hour, a gh of run-gh's kind, and a runtime directory of the
+# test's own, which kit bots run makes its session directory in.
+run-setup() {
+  one-bot work
+  fixture token.json <<<"{\"token\":\"ghs_abc\",\"expires_at\":\"$(jq --null-input --raw-output 'now + 3600 | floor | todate')\"}"
+  run-gh
+  export XDG_RUNTIME_DIR="${BATS_TEST_TMPDIR}/runtime"
+  mkdir -p "${XDG_RUNTIME_DIR}"
+}
+
+@test "run gives the command GH_TOKEN, KIT_BOT, KIT_BOT_LOGIN, and KIT_BOT_FOR" {
+  run-setup
+  run --separate-stderr kit bots run bash -c 'printf "%s|%s|%s|%s\n" "${GH_TOKEN}" "${KIT_BOT}" "${KIT_BOT_LOGIN}" "${KIT_BOT_FOR}"'
+  [ "$status" -eq 0 ]
+  [ "$output" = 'ghs_abc|kit-bot|kit-bot[bot]|octocat' ]
+  [[ "$output$stderr" != *'BEGIN'* ]]
+  run --separate-stderr kit bots --bot=kit-bot run bash -c 'echo "${KIT_BOT}"'
+  [ "$output" = kit-bot ]
+}
+
+@test "run keeps the person a nested run was given, and the words after run are the command's" {
+  run-setup
+  run --separate-stderr env KIT_BOT_FOR=someone kit bots run bash -c 'echo "${KIT_BOT_FOR} $*"' x --other -v
+  [ "$status" -eq 0 ]
+  [ "$output" = 'someone --other -v' ]
+  run --separate-stderr kit bots run echo --json
+  [ "$status" -eq 2 ]
+  ! grep --quiet '^api user' "${FAKE_DIR}/gh.calls" 2> /dev/null
+}
+
+@test "run passes stdin to the command" {
+  run-setup
+  run --separate-stderr bash -c 'echo piped | kit bots run cat'
+  [ "$status" -eq 0 ]
+  [ "$output" = piped ]
+}
+
+@test "run's gh mints a new token when the old is within ten minutes of expiry" {
+  run-setup
+  fixture token.json <<<"{\"token\":\"ghs_one\",\"expires_at\":\"$(jq --null-input --raw-output 'now + 300 | floor | todate')\"}"
+  cat > "${BATS_TEST_TMPDIR}/command" <<'COMMAND'
+#!/usr/bin/env bash
+echo "first ${GH_TOKEN}"
+printf '{"token":"ghs_two","expires_at":"%s"}' "$(jq --null-input --raw-output 'now + 3600 | floor | todate')" \
+  > "${FAKE_DIR}/token.json"
+gh api user
+gh api user
+COMMAND
+  chmod +x "${BATS_TEST_TMPDIR}/command"
+  run --separate-stderr kit bots run "${BATS_TEST_TMPDIR}/command"
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = 'first ghs_one' ]
+  # both calls had the second token: the first minted it, the second used it unexpired
+  [ "$(grep --count 'GH_TOKEN=ghs_two' "${FAKE_DIR}/gh.calls")" -eq 2 ]
+  [ "$(sent '--request POST')" -eq 2 ]
+  # both tokens were good, so both were revoked
+  [ "$(sent '--request DELETE')" -eq 2 ]
+}
+
+@test "run's gh keeps a token that has more than ten minutes left" {
+  run-setup
+  fixture token.json <<<"{\"token\":\"ghs_one\",\"expires_at\":\"$(jq --null-input --raw-output 'now + 3000 | floor | todate')\"}"
+  run --separate-stderr kit bots run gh api user
+  [ "$status" -eq 0 ]
+  [ "$(grep --count 'GH_TOKEN=ghs_one' "${FAKE_DIR}/gh.calls")" -eq 1 ]
+  [ "$(sent '--request POST')" -eq 1 ]
+}
+
+@test "run's gh re-mints in the checkout run started in, whichever folder the command is in" {
+  run-setup
+  fixture token.json <<<"{\"token\":\"ghs_one\",\"expires_at\":\"$(jq --null-input --raw-output 'now + 60 | floor | todate')\"}"
+  mkdir "${BATS_TEST_TMPDIR}/elsewhere"
+  run --separate-stderr kit bots run bash -c "cd '${BATS_TEST_TMPDIR}/elsewhere' && gh api user"
+  [ "$status" -eq 0 ]
+  grep --quiet -F '"repositories":["kit"]' "${FAKE_DIR}/curl.calls"
+  [ "$(sent '--request POST')" -eq 2 ]
+}
+
+# without-gh puts in PATH every directory of it that has a gh as a directory of links to all but the gh, so no gh is
+# found, and every other tool is.
+without-gh() {
+  local dir tool kept='' IFS=:
+  for dir in ${PATH}
+  do
+    if [[ -x "${dir}/gh" ]]
+    then
+      mkdir -p "${BATS_TEST_TMPDIR}/nogh${dir}"
+      for tool in "${dir}"/*
+      do
+        [[ "${tool##*/}" == gh ]] || ln -sf "${tool}" "${BATS_TEST_TMPDIR}/nogh${dir}/"
+      done
+      dir=${BATS_TEST_TMPDIR}/nogh${dir}
+    fi
+    kept+=${kept:+:}${dir}
+  done
+  PATH=${kept}
+}
+
+@test "run's gh says how to install gh where there is none, and run itself still runs" {
+  one-bot work
+  rm -f "${FAKE_DIR}/bin/gh"
+  without-gh
+  ! command -v gh
+  export XDG_RUNTIME_DIR="${BATS_TEST_TMPDIR}/runtime" KIT_BOT_FOR=someone
+  mkdir -p "${XDG_RUNTIME_DIR}"
+  run --separate-stderr kit bots run bash -c 'gh api user; echo "gh exited $?"'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'gh exited 127'* ]]
+  [[ "$stderr" == *'gh is not installed'*'https://cli.github.com'* ]]
+}
+
+@test "git under run asks the helper, which answers with the token" {
+  run-setup
+  run --separate-stderr kit bots run bash -c 'printf "protocol=https\nhost=github.com\n\n" | git credential fill'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *$'username=x-access-token\npassword=ghs_abc'* ]]
+  # a host that is not the forge's gets no answer from the helper, so git has none to give
+  run --separate-stderr kit bots run bash -c 'printf "protocol=https\nhost=example.com\nusername=u\npassword=p\n\n" | git credential fill'
+  [[ "$output" != *ghs_abc* ]]
+  # and storing or erasing asks nothing of it
+  run --separate-stderr kit bots run bash -c 'git credential-kit-bot erase </dev/null; echo "erase $?"'
+  [[ "$output" == *'erase 0'* ]]
+}
+
+@test "run keeps the git configuration the caller exported, and the helper comes after it" {
+  run-setup
+  run --separate-stderr env GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=user.name GIT_CONFIG_VALUE_0=Someone \
+    kit bots run bash -c 'git config user.name; echo "${GIT_CONFIG_COUNT}"; git config --get-all credential.https://github.com.helper | wc -l'
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = Someone ]
+  [ "${lines[1]}" = 3 ]
+  [ "${lines[2]//[[:space:]]/}" = 2 ]
+}
+
+@test "run's session directory is the person's alone, and holds the token only there" {
+  run-setup
+  run --separate-stderr kit bots run bash -c 'dir=$(dirname "$(dirname "$(command -v gh)")"); stat -f %Lp "${dir}" 2>/dev/null || stat -c %a "${dir}"; ls "${dir}"; ls "${dir}/bin"'
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = 700 ]
+  [[ "$output" == *token.json* ]]
+  [[ "$output" == *git-credential-kit-bot* ]]
+  # the token is in no argv: curl is told it on stdin
+  ! grep --quiet 'ghs_abc' "${FAKE_DIR}/curl.calls"
+}
+
+@test "run passes the command's exit status through, revokes the token, and removes the directory" {
+  run-setup
+  run --separate-stderr kit bots run false
+  [ "$status" -eq 1 ]
+  [ "$(last-sent)" = '--request DELETE' ]
+  [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
+  run --separate-stderr kit bots run bash -c 'exit 7'
+  [ "$status" -eq 7 ]
+  run -127 --separate-stderr kit bots run kit-bot-no-such-command
+  [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
+}
+
+@test "run revokes when the command is interrupted by TERM or INT, and the command is signalled too" {
+  run-setup
+  run --separate-stderr kit bots run bash -c 'trap "echo got-term >&2; exit 0" TERM; kill -TERM "${PPID}"; sleep 1; echo late'
+  [ "$status" -eq 143 ]
+  [[ "$stderr" == *got-term* ]]
+  [[ "$output" != *late* ]]
+  [ "$(last-sent)" = '--request DELETE' ]
+  [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
+  : > "${FAKE_DIR}/curl.calls"
+  run --separate-stderr kit bots run bash -c 'trap "echo got-int >&2; exit 0" INT; kill -INT "${PPID}"; sleep 1; echo late'
+  [ "$status" -eq 130 ]
+  [[ "$stderr" == *got-int* ]]
+  [ "$(last-sent)" = '--request DELETE' ]
+  [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
+}
+
+@test "run warns where the revoke fails, still removes the directory, and passes the status through" {
+  run-setup
+  fixture gone.json <<<'{"message":"Bad credentials"}'
+  : > "${FAKE_DIR}/curl.routes"
+  curl-route "*/repos/empowerite/kit/installation" 0 200 inst.json
+  curl-route "*/app/installations/99/access_tokens" 0 201 token.json
+  curl-route "*/installation/token" 22 401 gone.json
+  curl-route "*api.github.com/app" 0 200 app.json
+  run --separate-stderr kit bots run bash -c 'exit 3'
+  [ "$status" -eq 3 ]
+  [[ "$stderr" == *'revoke'* ]]
+  [[ "$stderr" != *ghs_abc* ]]
+  [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
+}
+
+@test "run refuses, minting nothing and leaving no directory, outside a repository and for an unknown bot" {
+  run-setup
+  mkdir "${BATS_TEST_TMPDIR}/outside"
+  cd "${BATS_TEST_TMPDIR}/outside"
+  run --separate-stderr env KIT_BOT_FOR=someone kit bots run true
+  [ "$status" -eq 1 ]
+  [[ "$stderr" == *repository* ]]
+  [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
+  cd "${repo}"
+  run --separate-stderr kit bots --bot=ghost run true
+  [ "$status" -eq 2 ]
+  [[ "$stderr" == *ghost* ]]
+  run --separate-stderr kit bots run
+  [ "$status" -eq 2 ]
+  run --separate-stderr kit bots --check run true
+  [ "$status" -eq 2 ]
+}
+
+@test "run says why where the person's login cannot be read" {
+  run-setup
+  cat > "${FAKE_DIR}/bin/gh" <<'GH'
+#!/usr/bin/env bash
+echo "not logged in" >&2
+exit 1
+GH
+  run --separate-stderr kit bots run true
+  [ "$status" -eq 1 ]
+  [[ "$stderr" == *'gh auth login'* ]]
+  [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
+}
+
+@test "run makes its directory under TMPDIR where there is no XDG_RUNTIME_DIR" {
+  run-setup
+  unset XDG_RUNTIME_DIR
+  mkdir "${BATS_TEST_TMPDIR}/tmpdir"
+  run --separate-stderr env TMPDIR="${BATS_TEST_TMPDIR}/tmpdir" kit bots run bash -c 'command -v gh'
+  [ "$status" -eq 0 ]
+  [[ "$output" == "${BATS_TEST_TMPDIR}/tmpdir/kit-bot."*/bin/gh ]]
+  [ -z "$(ls -A "${BATS_TEST_TMPDIR}/tmpdir")" ]
+}

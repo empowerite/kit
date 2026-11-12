@@ -360,8 +360,8 @@ bots:prove() {
 # repository, else the App's own, and installation is the one reaching it, else the App's first, or null with none.
 # page is the installation's settings page, else the App's page to install it. lacks maps each job to the permissions
 # it needs that are not held, as "<permission>: <level>"; extra lists each permission held beyond what every job needs,
-# metadata aside, a write held where read is needed being "<permission>: write". It returns 1, saying why, where the
-# key or a call fails.
+# metadata aside, sorted by permission name, a write held where read is needed being "<permission>: write". It
+# returns 1, saying why, where the key or a call fails.
 bots:check() {
   local pem app repo installation='' installations reached=null held app_json html job needs='{}' status=0
   local -a jobs
@@ -453,6 +453,134 @@ bots:token() {
   (( status != 0 )) || bots:forge token "${app}" "${pem}" "$(jq --raw-output .id <<<"${installation}")" "${repo}" \
     || status=$?
   rm -f "${pem}"
+  return "${status}"
+}
+
+# bots:run-script <file> <session> prints a script of the session, mode 700: a bash shebang, the session directory as
+# $session, then the body on stdin. The scripts read the session's facts, a file each, and never hold the token.
+bots:run-script() {
+  {
+    printf '#!/usr/bin/env bash\nsession=%q\n' "$2"
+    cat
+  } > "$1"
+  chmod 700 "$1"
+}
+
+# bots:run-end <session> revokes every token of the session that is still good, and removes the session directory. A
+# revoke that fails is a warning: the token expires within the hour, and the directory goes either way. bots:run calls
+# it when the command ends, and registers it for the exit sweep, which is what ends a run that stops early; the second
+# call does nothing.
+bots:run-end() {
+  local session=$1 token failed=false
+  [[ -d "${session}" ]] || return 0
+  while IFS= read -r token
+  do
+    [[ -n "${token}" ]] || continue
+    bots:forge revoke "${token}" >/dev/null || failed=true
+  done < <(cat "${session}/token.json" "${session}/spent" 2>/dev/null \
+    | jq --raw-output 'select((.expires_at | fromdateiso8601) > now) | .token')
+  [[ "${failed}" == false ]] || warn "a token of this session could not be revoked; it expires within the hour"
+  rm -rf "${session}"
+}
+
+# bots:run <bot-json> <command>… runs the command as the bot, and returns its status. The command has GH_TOKEN, KIT_BOT,
+# KIT_BOT_LOGIN, and KIT_BOT_FOR; a gh on PATH that mints a new token within ten minutes of the old one's end; and
+# git's credential helper for the forge's host answering with the token. The tokens live in a session directory, mode
+# 700, under XDG_RUNTIME_DIR, else TMPDIR, else /tmp; it records the checkout the run started in, where the shim and the
+# helper mint, so a token stays narrowed to that repository whichever folder the command works in. When the command
+# ends, or run is interrupted or terminated, every token is revoked and the directory removed; an interrupt or a
+# termination reaches the command too, and the status is then 128 and the signal's number. It returns 1, saying why,
+# where the person's login, a token, or the directory cannot be had, and runs nothing then.
+# shellcheck disable=SC2154  # kit_root is set by modules/bash/1st.sh
+bots:run() {
+  local bot=$1 name host person start session count umask_was status=0 child='' signalled=0
+  shift
+  name=$(jq --raw-output .name <<<"${bot}")
+  host=$(jq --raw-output .host <<<"${bot}")
+  person=${KIT_BOT_FOR:-}
+  [[ -n "${person}" ]] || person=$(forge:me) || return 1
+  start=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+  session=$(mktemp -d "${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/kit-bot.XXXXXX") || return 1
+  file:at-exit bots:run-end "${session}"
+  umask_was=$(umask)
+  umask 077
+  mkdir "${session}/bin" || return 1
+  bots:token "${bot}" | jq --compact-output . > "${session}/token.json" || return 1
+  : > "${session}/spent"
+  printf '%s\n' "${name}" > "${session}/bot"
+  printf '%s\n' "${host}" > "${session}/host"
+  printf '%s\n' "${start}" > "${session}/start"
+  printf '%s\n' "${kit_root}/bin/kit" > "${session}/kit"
+  type -P gh > "${session}/gh" || : > "${session}/gh"  # none is no failure: the shim says so where gh is called
+  bots:run-script "${session}/refresh" "${session}" <<'BODY'
+# prints the session's token, minted anew, in the checkout the run started in, within ten minutes of its end
+set -o errexit -o nounset -o pipefail
+left=$(jq --raw-output '(.expires_at | fromdateiso8601) - now | floor' "${session}/token.json")
+if (( left <= 600 ))
+then
+  PATH=${PATH#"${session}/bin:"}
+  fresh=$(cd "$(<"${session}/start")" && "$(<"${session}/kit")" bots --bot="$(<"${session}/bot")" token)
+  cat "${session}/token.json" >> "${session}/spent"
+  jq --null-input --compact-output --arg token "${fresh}" \
+    '{token: $token, expires_at: (now + 3600 | floor | todate)}' > "${session}/token.json.new"
+  mv "${session}/token.json.new" "${session}/token.json"
+fi
+jq --raw-output .token "${session}/token.json"
+BODY
+  bots:run-script "${session}/bin/gh" "${session}" <<'BODY'
+# the gh that was first on PATH when kit bots run began, with GH_TOKEN the session's current token
+set -o errexit -o nounset -o pipefail
+real=$(<"${session}/gh")
+if [[ -z "${real}" ]]
+then
+  printf 'gh is not installed, so there is nothing for the bot to run; install it: https://cli.github.com\n' >&2
+  exit 127
+fi
+GH_TOKEN=$("${session}/refresh") exec "${real}" "$@"
+BODY
+  bots:run-script "${session}/bin/git-credential-kit-bot" "${session}" <<'BODY'
+# git's credential helper: it answers get for the forge's host with the session's current token
+set -o errexit -o nounset -o pipefail
+[[ "${1:-}" == get ]] || exit 0
+asked=''
+while IFS='=' read -r key value
+do
+  [[ -n "${key}" ]] || break
+  [[ "${key}" != host ]] || asked=${value}
+done
+[[ -z "${asked}" || "${asked}" == "$(<"${session}/host")" ]] || exit 0
+printf 'username=x-access-token\npassword=%s\n' "$("${session}/refresh")"
+BODY
+  umask "${umask_was}"
+  count=${GIT_CONFIG_COUNT:-0}
+  # a signal reaches the command too, and the run ends when it has: until now the default action ends the run, and the
+  # exit sweep revokes
+  trap 'signalled=2; [[ -z "${child}" ]] || kill -INT "${child}" 2>/dev/null' INT
+  trap 'signalled=15; [[ -z "${child}" ]] || kill -TERM "${child}" 2>/dev/null' TERM
+  (
+    trap - INT TERM
+    PATH="${session}/bin:${PATH}"
+    GH_TOKEN=$(jq --raw-output .token "${session}/token.json")
+    GIT_CONFIG_COUNT=$(( count + 2 ))
+    printf -v "GIT_CONFIG_KEY_${count}" '%s' "credential.https://${host}.helper"
+    printf -v "GIT_CONFIG_VALUE_${count}" '%s' ''
+    printf -v "GIT_CONFIG_KEY_$(( count + 1 ))" '%s' "credential.https://${host}.helper"
+    printf -v "GIT_CONFIG_VALUE_$(( count + 1 ))" '%s' "!'${session}/bin/git-credential-kit-bot'"
+    export PATH GH_TOKEN GIT_CONFIG_COUNT "GIT_CONFIG_KEY_${count}" "GIT_CONFIG_VALUE_${count}" \
+      "GIT_CONFIG_KEY_$(( count + 1 ))" "GIT_CONFIG_VALUE_$(( count + 1 ))"
+    export KIT_BOT=${name} KIT_BOT_LOGIN="${name}[bot]" KIT_BOT_FOR=${person}
+    exec "$@"
+  ) <&0 &
+  child=$!
+  while :
+  do
+    status=0
+    wait "${child}" || status=$?
+    kill -0 "${child}" 2>/dev/null || break
+  done
+  (( signalled == 0 )) || status=$(( 128 + signalled ))
+  trap - INT TERM
+  bots:run-end "${session}"
   return "${status}"
 }
 
