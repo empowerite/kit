@@ -127,8 +127,9 @@ func (m Model) keys() shell.Path {
 // paneKeys gives the segment of the pane while it has the keyboard: esc gives the bar the keyboard, named by the step
 // it has selected; up and down move between the rows, or scroll a page with none, a page at a time too, and home and
 // end to the first and the last, unnamed until a test shows the keys arrive in Terminal.app and iTerm; enter on a link
-// goes to its check; and on a check whose fix kit runs, tab and shift-tab choose now or later, n and l take one at
-// once, and enter the one chosen; on one whose fix kit only shows, l takes later.
+// goes to its check, r runs its fix and c copies it, where its line under the link offers Run and Copy; and on a
+// check whose fix kit runs, tab and shift-tab choose now or later, n and l take one at once, and enter the one chosen;
+// on one whose fix kit only shows, l takes later.
 func (m Model) paneKeys() shell.Segment {
 	move := "move"
 	if !m.hasRows() {
@@ -139,6 +140,12 @@ func (m Model) paneKeys() shell.Segment {
 	switch {
 	case m.onLink():
 		s.Bindings = append(s.Bindings, shell.Bind("⏎", "go to the check", "enter"))
+		if m.runsHere() {
+			s.Bindings = append(s.Bindings, shell.Bind("r", "run"))
+		}
+		if m.copies() {
+			s.Bindings = append(s.Bindings, shell.Bind("c", "copy"))
+		}
 	case m.choosing():
 		s.Bindings = append(s.Bindings, shell.Bind("⇥·⇧⇥", "now or later", "tab", "shift+tab"), shell.Bind("n", "now"),
 			shell.Bind("l", "later"), shell.Bind("⏎", "choose", "enter"))
@@ -232,7 +239,8 @@ func (m Model) introductionLines() []line {
 
 // findings gives what the checks found, as the introduction draws it. That is checking… until they first answer; then ✅
 // when every check passed, or how many failed and a link to each, in the order of their steps: ❌, its line, and the
-// glyph and name of its step, a folder's links under a dim line that names the folder, its repository, and its branch,
+// glyph and name of its step, then, under it, its fix with Run and Copy, as remedy draws them, and the note its fix
+// left; a folder's links under a dim line that names the folder, its repository, and its branch,
 // the cursor's link drawn as chosen, and the search narrowing them as it does a step's checks. Kit's refusal, in red,
 // comes first when kit refused them, and checking… last while they run again.
 func (m Model) findings() []line {
@@ -290,6 +298,16 @@ func (m Model) findings() []line {
 				text += style.Off(" · later")
 			}
 			add(i, start+Failed+" "+text+" "+style.Tint("→ "+t.glyph+" "+t.name))
+			if c.Fix != "" {
+				add(i, m.remedy(i, indent))
+			}
+			if n, ok := m.notes[c.Key()]; ok {
+				draw := style.Warn
+				if n.refusal {
+					draw = style.Refusal
+				}
+				add(i, indent+under+draw(n.text))
+			}
 		}
 		if len(rows) == 0 {
 			add(-1, lead+style.Off("no check matches the search"))
@@ -303,6 +321,32 @@ func (m Model) findings() []line {
 		m.addChecking(add)
 	}
 	return out
+}
+
+// The links on a fix's line in the introduction: run hands the terminal to the fix, as now does on its step; copy puts
+// the fix on the clipboard, and copied stands in its place until the next key or click.
+const (
+	runLink    = "Run"
+	copyLink   = "Copy"
+	copiedLink = "copied"
+)
+
+// remedy gives the line under a failed check's link in the introduction: its fix, dim, as far in as the check's line,
+// then Run, when kit runs the fix, and Copy, each drawn as a link with a cell either side, which a click takes. A narrow
+// screen clips the fix, never the links.
+func (m Model) remedy(i int, indent string) string {
+	c := m.checks[i]
+	var links []string
+	if c.Runs {
+		links = append(links, style.Tint(" "+runLink+" "))
+	}
+	if m.copied == c.Key() {
+		links = append(links, style.Off(" "+copiedLink+" "))
+	} else {
+		links = append(links, style.Tint(" "+copyLink+" "))
+	}
+	end := "  " + strings.Join(links, " ")
+	return pane.Clip(indent+under+style.Off(c.Fix), m.width-1-ansi.StringWidth(end)) + end
 }
 
 // pageLines gives a page's lines: the page drawn to the width, a dim line while the pages are read, or the dim lines

@@ -136,7 +136,7 @@ var (
 	rowKeys    = paneKeys
 	choiceKeys = paneKeys + " ⇥·⇧⇥ now or later n now l later ⏎ choose"
 	showKeys   = paneKeys + " l later"
-	linkKeys   = paneKeys + " ⏎ go to the check"
+	linkKeys   = paneKeys + " ⏎ go to the check r run c copy"
 	scrollKeys = "= menu - workspace / search │ " + jump + " │ esc tabs ↑↓ scroll ⇞⇟ page"
 )
 

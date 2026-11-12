@@ -7,9 +7,13 @@
    5 checks need your attention
    ────────────────────────────
    ❌ jq is not installed → 🧰 toolchains
+      brew install jq   Run   Copy 
    ❌ several toolchains are usable for the project: mise, brew; choose one → 🧰 toolchains
+      kit toolchains use mise   Run   Copy 
    ❌ brew is installed but not on PATH → 🧰 toolchains
+      eval "$(/opt/homebrew/bin/brew shellenv)"   Copy 
    ❌ gh is not logged in to github.com → 🔧 setup
+      gh auth login --hostname github.com   Run   Copy 
    ❌ kit check finds 2 differences from the release → 🔧 setup
 
    kit keeps a repository trustworthy while people and agents work in it side by side.
@@ -21,10 +25,6 @@
    each agent harness reads. Its commands do what the rules describe, so the right way is also the short way. Take a
    new release, and the rules and checks move with it, in every repository that takes it.
 
-   Who it is for
-
-   • People who work with coding agents, and want an agent's "done" to mean what theirs means.
-   • Teams that keep one set of rules across many repositories, versioned rather than copied.
-   … 34 more
+   … 38 more
 
  = menu - workspace / search │ ⇥·⇧⇥ tab ↓ checks 1-5 jump

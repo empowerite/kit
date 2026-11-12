@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -63,9 +64,13 @@ func TestItStaysOnTheIntroductionAndItSaysWhatTheChecksFound(t *testing.T) {
 	}
 	want := "\n   5 checks need your attention\n   " + strings.Repeat("─", 28) + "\n" +
 		"   ❌ jq is not installed → 🧰 toolchains\n" +
+		"      brew install jq   Run   Copy \n" +
 		"   ❌ several toolchains are usable for the project: mise, brew; choose one → 🧰 toolchains\n" +
+		"      kit toolchains use mise   Run   Copy \n" +
 		"   ❌ brew is installed but not on PATH → 🧰 toolchains\n" +
+		"      eval \"$(/opt/homebrew/bin/brew shellenv)\"   Copy \n" +
 		"   ❌ gh is not logged in to github.com → 🔧 setup\n" +
+		"      gh auth login --hostname github.com   Run   Copy \n" +
 		"   ❌ kit check finds 2 differences from the release → 🔧 setup\n"
 	if got := view(m); !strings.Contains(got, want) {
 		t.Errorf("no %q:\n%s", want, got)
@@ -139,6 +144,111 @@ func TestAClickOnALinkGoesToItsCheck(t *testing.T) {
 }
 
 // A link to a check that its step's search hides clears that search, so the check shows under the cursor.
+// fixLine gives the screen line of a check's fix in the introduction, under its link, and the cell its word starts at.
+func fixLine(t *testing.T, m Model, fix, word string) (x, y int) {
+	t.Helper()
+	drawn := strings.Split(view(m), "\n")
+	y = slices.IndexFunc(drawn, func(l string) bool { return strings.Contains(l, fix) })
+	if y < 0 || !strings.Contains(drawn[y], " "+word+" ") {
+		t.Fatalf("no %q with %s:\n%s", fix, word, view(m))
+	}
+	return ansi.StringWidth(drawn[y][:strings.LastIndex(drawn[y], " "+word+" ")]) + 1, y
+}
+
+// clipboard gives what the messages put on the clipboard, or nothing.
+func clipboard(msgs []tea.Msg) string {
+	for _, msg := range msgs {
+		if strings.Contains(fmt.Sprintf("%T", msg), "Clipboard") {
+			return fmt.Sprint(msg)
+		}
+	}
+	return ""
+}
+
+// A click on Run under a link runs the fix with the terminal handed over, as now does on its step, then the checks run
+// again, the screen still on the introduction; a fix kit only shows offers no Run.
+func TestRunUnderALinkRunsItsFix(t *testing.T) {
+	m, r := loaded(t)
+	x, y := fixLine(t, m, "brew install jq", runLink)
+	if m = drive(m, testkit.Click(x, y)); len(r.calls) != 1 || strings.Join(r.calls[0], " ") != "welcome --fix jq" ||
+		m.step != introduction {
+		t.Fatalf("a click on Run: step %d, ran %q", m.step, r.calls)
+	}
+	if strings.Contains(view(m), "jq is not installed") {
+		t.Errorf("jq still fails after its fix:\n%s", view(m))
+	}
+	drawn := strings.Split(view(m), "\n")
+	if y := slices.IndexFunc(drawn, func(l string) bool { return strings.Contains(l, "brew shellenv") }); y < 0 ||
+		strings.Contains(drawn[y], runLink) {
+		t.Errorf("a show-only fix offers Run:\n%s", view(m))
+	}
+}
+
+// r on a link runs its fix, and c copies it, which its Copy then says until the next key; neither does anything on a
+// link whose check has no fix, and r nothing on one kit only shows.
+func TestROnALinkRunsItsFixAndCCopiesIt(t *testing.T) {
+	m, r := loaded(t, down)
+	m, msgs := testkit.Drive(m, nil, press('c'))
+	if got := clipboard(msgs); got != "brew install jq" || len(r.calls) != 0 || m.step != introduction {
+		t.Fatalf("c on jq's link copied %q, ran %q, step %d", got, r.calls, m.step)
+	}
+	if got := view(m); !strings.Contains(got, "brew install jq   Run   copied \n") {
+		t.Errorf("Copy does not say copied:\n%s", got)
+	}
+	if m = drive(m, down, up); strings.Contains(view(m), copiedLink) {
+		t.Errorf("copied stays after a key:\n%s", view(m))
+	}
+	if m = drive(m, press('r')); len(r.calls) != 1 || strings.Join(r.calls[0], " ") != "welcome --fix jq" {
+		t.Fatalf("r on jq's link ran %q", r.calls)
+	}
+	// the show-only fix, brew-path's, is now the first link: c copies it, r runs nothing
+	if m.checks[m.cursor].ID != "toolchain-project" {
+		m = drive(m, up)
+	}
+	m = drive(m, down)
+	if m.checks[m.cursor].ID != "brew-path" || m.runsHere() || !m.copies() {
+		t.Fatalf("cursor on %s, runs %v, copies %v", m.checks[m.cursor].ID, m.runsHere(), m.copies())
+	}
+	if m, msgs = testkit.Drive(m, nil, press('r'), press('c')); len(r.calls) != 1 ||
+		clipboard(msgs) != `eval "$(/opt/homebrew/bin/brew shellenv)"` {
+		t.Errorf("r and c on brew-path's link: ran %q, copied %q", r.calls, clipboard(msgs))
+	}
+	// kit-check has no fix: no line under its link, and c copies nothing
+	m = drive(m, press('1'), down)
+	for m.checks[m.cursor].ID != "kit-check" {
+		m = drive(m, down)
+	}
+	if m, msgs = testkit.Drive(m, nil, press('c')); m.copies() || clipboard(msgs) != "" {
+		t.Errorf("c on kit-check's link copied %q", clipboard(msgs))
+	}
+}
+
+// A click on Copy under a link puts the fix on the clipboard and leaves the screen on the introduction; a click on the
+// fix's words puts the cursor on the check, and goes nowhere.
+func TestCopyUnderALinkCopiesItsFix(t *testing.T) {
+	m, r := loaded(t)
+	x, y := fixLine(t, m, "gh auth login", copyLink)
+	m, msgs := testkit.Drive(m, nil, testkit.Click(x, y))
+	if got := clipboard(msgs); got != "gh auth login --hostname github.com" || len(r.calls) != 0 ||
+		m.step != introduction || m.checks[m.cursor].ID != "gh-auth" {
+		t.Fatalf("a click on Copy: copied %q, ran %q, step %d", got, r.calls, m.step)
+	}
+	if m = drive(m, testkit.Click(8, y)); m.step != introduction || m.checks[m.cursor].ID != "gh-auth" ||
+		!m.inPane || strings.Contains(view(m), copiedLink) {
+		t.Errorf("a click on the fix's words: step %d, cursor on %s", m.step, m.checks[m.cursor].ID)
+	}
+}
+
+// On a narrow screen the fix is clipped, and Run and Copy stay whole.
+func TestANarrowScreenClipsTheFixNotItsLinks(t *testing.T) {
+	m, _ := loaded(t, tea.WindowSizeMsg{Width: 40, Height: 30})
+	drawn := strings.Split(view(m), "\n")
+	y := slices.IndexFunc(drawn, func(l string) bool { return strings.Contains(l, "gh auth") })
+	if y < 0 || !strings.HasSuffix(drawn[y], " Run   Copy ") || strings.Contains(drawn[y], "github.com") {
+		t.Errorf("gh-auth's fix at 40 columns:\n%s", view(m))
+	}
+}
+
 func TestALinkClearsASearchThatHidesItsCheck(t *testing.T) {
 	keys := append([]tea.Msg{press('3'), tea.KeyPressMsg{Code: '/', Text: "/"}}, testkit.Typed("zzz")...)
 	m, _ := loaded(t, append(keys, esc, press('1'), down, down, down, down, enter)...)
@@ -641,6 +751,8 @@ func TestTheKeysBarNamesOnlyTheKeysThatActThere(t *testing.T) {
 				{"n now", m.choosing()},
 				{"⏎ choose", m.choosing()},
 				{"l later", m.choosing() || m.showOnly()},
+				{"r run", m.runsHere()},
+				{"c copy", m.copies()},
 			} {
 				if strings.Contains(bar, c.key) != c.acts {
 					t.Errorf("step %d, in the pane %v, cursor %d: %q names %s: %v", m.step, m.inPane, m.cursor, bar, c.key,
