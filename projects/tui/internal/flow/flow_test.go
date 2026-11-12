@@ -724,6 +724,9 @@ func TestAStageThatOutlastsTheLimitIsARefusalAndRRunsItAgain(t *testing.T) {
 		t.Fatalf("the stage past its limit:\n%s", v)
 	}
 	t.Setenv("FAKE_FLOW_SLOW", "")
+	// the run again has the limit a stage has, not the tenth of a second the first had: the fake kit is a bash script,
+	// and on a busy machine its start alone outlasts that
+	m.limit = deadline
 	m = drive(m, refreshAll...)
 	if v := view(m); !shows(m, Release, "3") || strings.Contains(v, "took longer") {
 		t.Errorf("Refresh All did not run it again:\n%s", v)
