@@ -475,3 +475,153 @@ YAML
   [ "$status" -eq 2 ]
   [ ! -e "${FAKE_DIR}/curl.calls" ]
 }
+
+# one-bot <jobs> sets up the one bot, kit-bot, with its key kept and a GitHub that knows it.
+one-bot() {
+  write-bots <<YAML
+bots:
+  - name: kit-bot
+    host: github.com
+    app: 12345
+    owner: empowerite
+    jobs: [$1]
+YAML
+  kit-bash 'secrets:put kit-bot github.com/12345' < "${pem}"
+  github-routes github.com 12345 kit-bot
+}
+
+@test "--check names what a job lacks and what no job needs" {
+  one-bot work
+  fixture inst.json <<<'{"id":99,"permissions":{"metadata":"read","contents":"write","issues":"write","pull_requests":"write","statuses":"read","actions":"write"},"repository_selection":"selected","html_url":"https://github.com/settings/installations/99"}'
+  run --separate-stderr kit bots --check --json
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '{name, repository, reached, lacks, extra}' <<<"$output")" = '{"name":"kit-bot","repository":"empowerite/kit","reached":true,"lacks":{"work":["checks: read"]},"extra":["actions: write"]}' ]
+  run --separate-stderr kit bots --check
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'reaches empowerite/kit'* ]]
+  [[ "$output" == *'work'*'checks: read'* ]]
+  [[ "$output" == *'actions: write'* ]]
+  run --separate-stderr kit bots --check --bot=kit-bot --jq
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'"reached": true'* ]]
+}
+
+@test "--check of an installation that fits its jobs says so" {
+  one-bot review
+  fixture inst.json <<<'{"id":99,"permissions":{"metadata":"read","pull_requests":"write","contents":"read","checks":"read"},"repository_selection":"all","html_url":"https://github.com/settings/installations/99"}'
+  run --separate-stderr kit bots --check
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'match its jobs'* ]]
+  run --separate-stderr kit bots --check --json
+  [ "$(jq -c '[.lacks, .extra]' <<<"$output")" = '[{},[]]' ]
+}
+
+@test "--check says where the installation does not reach this repository" {
+  one-bot work
+  fixture none.json <<<'{"message":"Not Found"}'
+  : > "${FAKE_DIR}/curl.routes"
+  curl-route "*api.github.com/app" 0 200 app.json
+  curl-route "*/repos/empowerite/kit/installation" 22 404 none.json
+  fixture list.json <<<'[{"id":99,"account":{"login":"empowerite"},"repository_selection":"selected","html_url":"https://github.com/settings/installations/99"}]'
+  curl-route '*/app/installations?per_page*' 0 200 list.json
+  run --separate-stderr kit bots --check
+  [ "$status" -eq 1 ]
+  [[ "$output" == *'does not reach empowerite/kit'*'https://github.com/settings/installations/99'* ]]
+  run --separate-stderr kit bots --check --json
+  [ "$status" -eq 1 ]
+  [ "$(jq -c '{reached, page}' <<<"$output")" = '{"reached":false,"page":"https://github.com/settings/installations/99"}' ]
+}
+
+@test "--check outside a repository judges the App's permissions and says it judged no repository" {
+  one-bot work
+  fixture app.json <<<'{"slug":"kit-bot","owner":{"login":"empowerite"},"permissions":{"metadata":"read","contents":"write","issues":"write","pull_requests":"write","checks":"read","statuses":"read","actions":"read"},"html_url":"https://github.com/apps/kit-bot"}'
+  fixture list.json <<<'[{"id":99,"account":{"login":"empowerite"},"repository_selection":"all","html_url":"https://github.com/settings/installations/99"}]'
+  curl-route '*/app/installations?per_page*' 0 200 list.json
+  mkdir "${BATS_TEST_TMPDIR}/outside"
+  cd "${BATS_TEST_TMPDIR}/outside"
+  run --separate-stderr kit bots --check
+  [ "$status" -eq 0 ]
+  [[ "$output" == *'no repository'* ]]
+  [[ "$output" == *'match its jobs'* ]]
+  run --separate-stderr kit bots --check --json
+  [ "$(jq -c '{repository, reached, installation: .installation.id}' <<<"$output")" = '{"repository":null,"reached":null,"installation":99}' ]
+}
+
+@test "--check of an App installed nowhere names the page to install it" {
+  one-bot work
+  : > "${FAKE_DIR}/curl.routes"
+  curl-route "*api.github.com/app" 0 200 app.json
+  curl-route "*/repos/empowerite/kit/installation" 22 404 none.json
+  fixture empty.json <<<'[]'
+  curl-route '*/app/installations?per_page*' 0 200 empty.json
+  run --separate-stderr kit bots --check
+  [ "$status" -eq 1 ]
+  [[ "$output" == *'https://github.com/apps/kit-bot/installations/new'* ]]
+}
+
+@test "--check with no key says how to add it" {
+  one-bot work
+  rm "${FAKE_DIR}"/secrets/*
+  run --separate-stderr kit bots --check
+  [ "$status" -eq 1 ]
+  [[ "$stderr" == *'kit bots --add=kit-bot'* ]]
+}
+
+@test "--check refuses a bot it does not know, and a form it lacks" {
+  one-bot work
+  run --separate-stderr kit bots --check --bot=ghost
+  [ "$status" -eq 2 ]
+  [[ "$stderr" == *ghost* ]]
+  run --separate-stderr kit bots --bot=kit-bot
+  [ "$status" -eq 2 ]
+  run --separate-stderr kit bots --check --bot=
+  [ "$status" -eq 2 ]
+  run --separate-stderr kit bots --check token
+  [ "$status" -eq 2 ]
+  run --separate-stderr kit bots token --json
+  [ "$status" -eq 2 ]
+  run --separate-stderr kit bots --check --add=x --app=1 --key=k
+  [ "$status" -eq 2 ]
+}
+
+@test "token prints only the token" {
+  one-bot work
+  run --separate-stderr kit bots token
+  [ "$status" -eq 0 ]
+  [ "$output" = ghs_abc ]
+  called '--request POST.*/app/installations/99/access_tokens'
+  grep --quiet -F '"repositories":["kit"]' "${FAKE_DIR}/curl.calls"
+  ! called '--request DELETE.*/installation/token'
+  run --separate-stderr kit bots --bot=kit-bot token
+  [ "$output" = ghs_abc ]
+}
+
+@test "token outside a repository refuses, exit 1" {
+  one-bot work
+  mkdir "${BATS_TEST_TMPDIR}/outside"
+  cd "${BATS_TEST_TMPDIR}/outside"
+  run --separate-stderr kit bots token
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [[ "$stderr" == *'repository'* ]]
+}
+
+@test "token where the installation does not reach names kit bots --check" {
+  one-bot work
+  fixture none.json <<<'{"message":"Not Found"}'
+  : > "${FAKE_DIR}/curl.routes"
+  curl-route "*/repos/empowerite/kit/installation" 22 404 none.json
+  run --separate-stderr kit bots token
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [[ "$stderr" == *'kit bots --check'* ]]
+}
+
+@test "--check judges every job, write covering read, and an admin held is extra" {
+  one-bot 'work, review, workflows'
+  fixture inst.json <<<'{"id":99,"permissions":{"metadata":"read","contents":"admin","pull_requests":"write","workflows":"read","checks":"write"},"repository_selection":"selected","html_url":"https://github.com/settings/installations/99"}'
+  run --separate-stderr kit bots --check --json
+  [ "$(jq -c '[.lacks | keys[]]' <<<"$output")" = '["work","workflows"]' ]
+  [ "$(jq -c '.lacks.workflows' <<<"$output")" = '["workflows: write"]' ]
+  [ "$(jq -c '.extra' <<<"$output")" = '["checks: write","contents: admin"]' ]
+}

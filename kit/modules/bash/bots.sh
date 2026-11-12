@@ -26,8 +26,8 @@ declare -gra bots_jobs=(work review workflows)
 bots:file() { printf '%s\n' "${XDG_CONFIG_HOME:-${HOME}/.config}/kit/bots.yml"; }
 
 # bots:json prints {bots: [...]} as the file holds them, one line, a bot with no jobs having work and review, and no
-# bots where the file is missing or empty. It
-# returns 1, saying what is wrong, for a file that does not parse or whose bots are not a list of {name, host, app}.
+# bots where the file is missing or empty. It returns 1, saying what is wrong, for a file that does not parse or whose
+# bots are not a list of {name, host, app}.
 bots:json() {
   local file doc
   file=$(bots:file)
@@ -307,22 +307,31 @@ bots:adopt() {
     "$(secrets:backend)"
 }
 
+# bots:reaches <app> <pem> <owner/repo> prints the App's installation on the repository, {id, permissions,
+# repository_selection, html_url}, or nothing where the App has none there, which is no failure. It returns 1, with the
+# forge's reason on stderr, where the lookup itself failed.
+bots:reaches() {
+  local errors installation=''
+  file:temp errors bots-errors || return 1
+  installation=$(bots:forge installation "$1" "$2" "$3" 2> "${errors}") || true  # 1 and silent: none
+  if [[ -s "${errors}" ]]
+  then
+    cat "${errors}" >&2
+    return 1
+  fi
+  [[ -z "${installation}" ]] || printf '%s\n' "${installation}"
+}
+
 # bots:prove <app> <pem> <html_url> mints an installation token with the App's key, narrowed to this repository where
 # the App is installed on it, else, with bot-proof's token of metadata alone, from the App's first installation, and
-# revokes it. With no
-# installation at all it names the App's install page and returns 1; a lookup that failed returns 1 saying why.
+# revokes it. With no installation at all it names the App's install page and returns 1; a lookup that failed returns 1
+# saying why.
 bots:prove() {
-  local app=$1 pem=$2 html=$3 repo installation='' installations reached='' errors token id
+  local app=$1 pem=$2 html=$3 repo installation='' installations reached='' token id
   repo=$(bots:repository)
-  file:temp errors bots-errors || return 1
   if [[ -n "${repo}" ]]
   then
-    installation=$(bots:forge installation "${app}" "${pem}" "${repo}" 2> "${errors}") || true  # 1 and silent: none
-    if [[ -s "${errors}" ]]
-    then
-      cat "${errors}" >&2
-      return 1
-    fi
+    installation=$(bots:reaches "${app}" "${pem}" "${repo}") || return 1
     [[ -z "${installation}" ]] || reached=${repo}
   fi
   if [[ -z "${installation}" ]]
@@ -343,6 +352,107 @@ bots:prove() {
     token=$(bots:forge proof "${app}" "${pem}" "${id}") || return 1
   fi
   bots:forge revoke "$(jq --raw-output .token <<<"${token}")" || return 1
+}
+
+# bots:check <bot-json> prints {name, installation, page, repository, reached, lacks, extra} in one line: the bot's
+# App against its jobs. reached is true where the App's installation reaches this repository, false where it does not,
+# and null outside a repository, which judges none. The permissions judged are the installation's where it reaches the
+# repository, else the App's own, and installation is the one reaching it, else the App's first, or null with none.
+# page is the installation's settings page, else the App's page to install it. lacks maps each job to the permissions
+# it needs that are not held, as "<permission>: <level>"; extra lists each permission held beyond what every job needs,
+# metadata aside, a write held where read is needed being "<permission>: write". It returns 1, saying why, where the
+# key or a call fails.
+bots:check() {
+  local pem app repo installation='' reached=null held app_json html job needs='{}' status=0
+  local -a jobs
+  app=$(jq --raw-output .app <<<"$1")
+  list:read jobs jq --raw-output '.jobs[]' <<<"$1" || return 1
+  file:temp pem bots-key || return 1
+  bots:key "$1" "${pem}" || return 1
+  app_json=$(bots:forge app "${app}" "${pem}") || status=$?
+  if (( status == 0 ))
+  then
+    html=$(jq --raw-output .html_url <<<"${app_json}")
+    held=$(jq --compact-output .permissions <<<"${app_json}")
+    repo=$(bots:repository)
+  fi
+  if (( status == 0 )) && [[ -n "${repo}" ]]
+  then
+    installation=$(bots:reaches "${app}" "${pem}" "${repo}") || status=$?
+    if [[ -n "${installation}" ]]
+    then
+      reached=true
+      held=$(jq --compact-output .permissions <<<"${installation}")
+    else reached=false
+    fi
+  fi
+  if (( status == 0 )) && [[ "${reached}" != true ]]
+  then
+    installation=$(bots:forge installations "${app}" "${pem}" | head -n 1) || status=$?
+  fi
+  rm -f "${pem}"
+  (( status == 0 )) || return "${status}"
+  for job in "${jobs[@]}"
+  do
+    needs=$(jq --compact-output --arg job "${job}" --argjson need "$(bots:jobs-need "${job}")" '.[$job] = $need' \
+      <<<"${needs}") || return 1
+  done
+  # shellcheck disable=SC2016  # $bot, $held, $needs, and the rest are jq's
+  jq --null-input --compact-output --argjson bot "$1" --argjson held "${held}" --argjson needs "${needs}" \
+    --arg repo "${repo}" --arg html "${html}" --argjson reached "${reached}" \
+    --argjson installation "${installation:-null}" '
+    def rank: if . == null then 0 else {read: 1, write: 2, admin: 3}[.] // 0 end;
+    ([$needs[] | to_entries[]] | group_by(.key) | map({key: .[0].key, value: (map(.value) | max_by(rank))})
+      | from_entries) as $all
+    | {name: $bot.name,
+       installation: ($installation | if . then {id, repository_selection, html_url} else null end),
+       page: ($installation.html_url // "\($html)/installations/new"),
+       repository: ($repo | if . == "" then null else . end),
+       reached: $reached,
+       lacks: ($needs | to_entries
+         | map({key, value: [.value | to_entries[] | select(($held[.key] | rank) < (.value | rank))
+             | "\(.key): \(.value)"]})
+         | map(select(.value | length > 0)) | from_entries),
+       extra: [$held | to_entries[] | select(.key != "metadata" and (.value | rank) > ($all[.key] | rank))
+         | "\(.key): \(.value)"]}'
+}
+
+# bots:check-text <check> prints the document bots:check made as sentences, one thing to a line.
+bots:check-text() {
+  jq --raw-output '
+    "\(.name): " + (
+      if .reached == true then "its installation reaches \(.repository)"
+      elif .reached == false then "its installation does not reach \(.repository); add the repository on \(.page)"
+      else "no repository here, so its permissions are judged alone" end),
+    (.lacks | to_entries[] | "the \(.key) job lacks: \(.value | join(", "))"),
+    (if (.extra | length) > 0 then "no job needs: \(.extra | join(", "))" else empty end),
+    (if (.lacks | length) == 0 and (.extra | length) == 0 then "its permissions match its jobs" else empty end)' <<<"$1"
+}
+
+# bots:token <bot-json> prints {token, expires_at}, an installation token narrowed to this repository, and revokes
+# nothing: the caller has it to use. It returns 1, saying what to do, outside a repository, and where the
+# installation does not reach this repository, which names kit bots --check.
+bots:token() {
+  local pem app repo installation='' status=0
+  repo=$(bots:repository)
+  if [[ -z "${repo}" ]]
+  then
+    error "a token is narrowed to one repository, and there is no repository here; run this inside one"
+    return 1
+  fi
+  app=$(jq --raw-output .app <<<"$1")
+  file:temp pem bots-key || return 1
+  bots:key "$1" "${pem}" || return 1
+  installation=$(bots:reaches "${app}" "${pem}" "${repo}") || status=$?
+  if (( status == 0 )) && [[ -z "${installation}" ]]
+  then
+    error "$(jq --raw-output .name <<<"$1")'s installation does not reach ${repo}; run: kit bots --check"
+    status=1
+  fi
+  (( status != 0 )) || bots:forge token "${app}" "${pem}" "$(jq --raw-output .id <<<"${installation}")" "${repo}" \
+    || status=$?
+  rm -f "${pem}"
+  return "${status}"
 }
 
 # bots:write <name> <host> <app> <owner> <job>… sets the bot's entry in the bots file, in place if it is there, else

@@ -5,6 +5,8 @@
 #   kit bots [--text | --json | --jq]
 #   kit bots --add=<name> --app=<id> --key=<source> [--jobs=<job>…]
 #   kit bots --remove=<name>
+#   kit bots --check [--bot=<name>] [--text | --json | --jq]
+#   kit bots [--bot=<name>] token
 #
 # A bot is a GitHub App you have set up to act for you. Its public facts are in kit/bots.yml under XDG_CONFIG_HOME, else
 # ~/.config, which you may edit by hand; kit keeps your comments when it edits the file. Its private key is in the
@@ -23,6 +25,14 @@
 #
 # --remove forgets a bot and deletes its key from the store; the App stays on the forge.
 #
+# --check compares the App's permissions with its jobs: what a job lacks, and what no job needs. It says whether the
+# App's installation reaches this repository, and where not, the installation's page to add it on. The JSON is {name,
+# installation, page, repository, reached, lacks, extra}. Outside a repository it judges the App's permissions alone,
+# reached null. It exits 1 where the installation does not reach this repository.
+#
+# token prints an installation token narrowed to this repository, and only the token, for a pipe. It is good for an
+# hour, and kit does not revoke it; it refuses outside a repository.
+#
 # Arguments:
 #   --text            prints the bots as text, even on a terminal
 #   --json            one JSON object, as above
@@ -33,6 +43,10 @@
 #   --jobs            what the bot is set up to do, one or more <job>, repeated or joined with :, as --jobs=work:review;
 #                     work and review without it
 #   --remove          forgets a bot and deletes its key
+#   --check           compares the App's permissions with its jobs and its installation with this repository
+#   --bot             the bot --check or token is for, a <name>; the one kit.yml names, else the only one on the
+#                     primary remote's host, without it
+#   token             prints an installation token for this repository
 #   <name>            a bot's name, which is its App's slug: letters, digits, and -
 #   <id>              a GitHub App's ID, as its settings page shows it
 #   <source>          a PEM file, or keychain:<service>/<account>, an item another tool stored in the keychain; the
@@ -40,8 +54,8 @@
 #   <job>             work, review, or workflows
 #
 # Exits 0 when it printed or edited, 1 when the file does not read, the App did not accept the key or is installed
-# nowhere, or a store or a write failed, and 2 on a usage error, a key source that names nothing, or a name that is
-# not the App's slug or a bot's.
+# nowhere or does not reach this repository, or a store or a write failed, and 2 on a usage error, a key source that
+# names nothing, or a name that is not the App's slug or a bot's.
 #
 # see: modules/bash/bots.sh, modules/bash/secrets.sh, issue #258
 
@@ -52,7 +66,7 @@ kit:enter
 use bots
 guard:arguments bots "$@" || exit $?
 
-action=list form=text formed='' name='' app='' key='' forms=0
+action=list form=text formed='' name='' app='' key='' bot='' forms=0
 jobs=()
 for word in "$@"
 do
@@ -63,6 +77,15 @@ do
       action=${action#--}
       forms=$(( forms + 1 ))
       ;;
+    (--check | token)
+      action=${word#--}
+      forms=$(( forms + 1 ))
+      ;;
+    (--bot=)
+      error "--bot names a bot: --bot=<name>"
+      exit 2
+      ;;
+    (--bot=*) bot=${word#--bot=} ;;
     (--app=*) app=${word#--app=} ;;
     (--key=*) key=${word#--key=} ;;
     (--jobs=)
@@ -80,10 +103,10 @@ do
 done
 if (( forms > 1 ))
 then
-  error "--add and --remove are forms of their own; run one: kit help bots"
+  error "--add, --remove, --check, and token are forms of their own; run one: kit help bots"
   exit 2
 fi
-if [[ "${action}" != list && -z "${name}" ]]
+if [[ "${action}" == @(add|remove) && -z "${name}" ]]
 then
   error "--${action} names a bot: --${action}=<name>"
   exit 2
@@ -93,13 +116,34 @@ then
   error "--app, --key, and --jobs go with --add; see: kit help bots"
   exit 2
 fi
-if [[ "${action}" != list && -n "${formed}" ]]
+if [[ "${action}" != @(list|check) && -n "${formed}" ]]
 then
-  error "--text, --json, and --jq are the list's forms; --${action} prints one line"
+  error "--text, --json, and --jq are the forms of the list and --check; ${action} prints one line"
+  exit 2
+fi
+
+if [[ -n "${bot}" && "${action}" != @(check|token) ]]
+then
+  error "--bot goes with --check and token; see: kit help bots"
   exit 2
 fi
 
 case "${action}" in
+  (check)
+    bot_json=$(bots:choose "${bot}") || exit $?
+    check=$(bots:check "${bot_json}") || exit $?
+    case "${form}" in
+      (json) printf '%s\n' "${check}" ;;
+      (jq) jq . <<<"${check}" ;;
+      (text) bots:check-text "${check}" ;;
+    esac
+    [[ "$(jq --raw-output .reached <<<"${check}")" != false ]] || exit 1
+    ;;
+  (token)
+    bot_json=$(bots:choose "${bot}") || exit $?
+    token=$(bots:token "${bot_json}") || exit $?
+    jq --raw-output .token <<<"${token}"
+    ;;
   (add)
     [[ -n "${app}" ]] || { error "--add needs --app=<id>, the App's ID"; exit 2; }
     [[ -n "${key}" ]] || { error "--add needs --key=<source>, a PEM file or keychain:<service>/<account>"; exit 2; }
