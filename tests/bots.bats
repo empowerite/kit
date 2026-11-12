@@ -494,15 +494,15 @@ YAML
   one-bot work
   fixture inst.json <<<'{"id":99,"permissions":{"metadata":"read","contents":"write","issues":"write","pull_requests":"write","statuses":"read","actions":"write"},"repository_selection":"selected","html_url":"https://github.com/settings/installations/99"}'
   run --separate-stderr kit bots --check --json
-  [ "$status" -eq 0 ]
+  [ "$status" -eq 1 ]
   [ "$(jq -c '{name, repository, reached, lacks, extra}' <<<"$output")" = '{"name":"kit-bot","repository":"empowerite/kit","reached":true,"lacks":{"work":["checks: read"]},"extra":["actions: write"]}' ]
   run --separate-stderr kit bots --check
-  [ "$status" -eq 0 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *'reaches empowerite/kit'* ]]
   [[ "$output" == *'work'*'checks: read'* ]]
   [[ "$output" == *'actions: write'* ]]
   run --separate-stderr kit bots --check --bot=kit-bot --jq
-  [ "$status" -eq 0 ]
+  [ "$status" -eq 1 ]
   [[ "$output" == *'"reached": true'* ]]
 }
 
@@ -545,6 +545,17 @@ YAML
   [[ "$output" == *'match its jobs'* ]]
   run --separate-stderr kit bots --check --json
   [ "$(jq -c '{repository, reached, installation: .installation.id}' <<<"$output")" = '{"repository":null,"reached":null,"installation":99}' ]
+}
+
+@test "--check outside a repository of an App installed nowhere says so, names the page, exit 1" {
+  one-bot work
+  fixture empty.json <<<'[]'
+  curl-route '*/app/installations?per_page*' 0 200 empty.json
+  mkdir "${BATS_TEST_TMPDIR}/outside"
+  cd "${BATS_TEST_TMPDIR}/outside"
+  run --separate-stderr kit bots --check
+  [ "$status" -eq 1 ]
+  [[ "$output" == *'installed nowhere'*'https://github.com/apps/kit-bot/installations/new'* ]]
 }
 
 @test "--check of an App installed nowhere names the page to install it" {

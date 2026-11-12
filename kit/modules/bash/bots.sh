@@ -363,7 +363,7 @@ bots:prove() {
 # metadata aside, a write held where read is needed being "<permission>: write". It returns 1, saying why, where the
 # key or a call fails.
 bots:check() {
-  local pem app repo installation='' reached=null held app_json html job needs='{}' status=0
+  local pem app repo installation='' installations reached=null held app_json html job needs='{}' status=0
   local -a jobs
   app=$(jq --raw-output .app <<<"$1")
   list:read jobs jq --raw-output '.jobs[]' <<<"$1" || return 1
@@ -388,7 +388,7 @@ bots:check() {
   fi
   if (( status == 0 )) && [[ "${reached}" != true ]]
   then
-    installation=$(bots:forge installations "${app}" "${pem}" | head -n 1) || status=$?
+    installations=$(bots:forge installations "${app}" "${pem}") && installation=${installations%%$'\n'*} || status=$?
   fi
   rm -f "${pem}"
   (( status == 0 )) || return "${status}"
@@ -413,7 +413,7 @@ bots:check() {
          | map({key, value: [.value | to_entries[] | select(($held[.key] | rank) < (.value | rank))
              | "\(.key): \(.value)"]})
          | map(select(.value | length > 0)) | from_entries),
-       extra: [$held | to_entries[] | select(.key != "metadata" and (.value | rank) > ($all[.key] | rank))
+       extra: [$held | to_entries | sort_by(.key)[] | select(.key != "metadata" and (.value | rank) > ($all[.key] | rank))
          | "\(.key): \(.value)"]}'
 }
 
@@ -423,6 +423,7 @@ bots:check-text() {
     "\(.name): " + (
       if .reached == true then "its installation reaches \(.repository)"
       elif .reached == false then "its installation does not reach \(.repository); add the repository on \(.page)"
+      elif .installation == null then "the App is installed nowhere; install it at \(.page)"
       else "no repository here, so its permissions are judged alone" end),
     (.lacks | to_entries[] | "the \(.key) job lacks: \(.value | join(", "))"),
     (if (.extra | length) > 0 then "no job needs: \(.extra | join(", "))" else empty end),

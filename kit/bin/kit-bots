@@ -28,7 +28,9 @@
 # --check compares the App's permissions with its jobs: what a job lacks, and what no job needs. It says whether the
 # App's installation reaches this repository, and where not, the installation's page to add it on. The JSON is {name,
 # installation, page, repository, reached, lacks, extra}. Outside a repository it judges the App's permissions alone,
-# reached null. It exits 1 where the installation does not reach this repository.
+# reached null. It exits 1 where the installation does not reach this repository, where the App is installed nowhere,
+# and where a job lacks a permission, since that job would fail when the bot acts; a permission no job needs is advice,
+# and exits 0.
 #
 # token prints an installation token narrowed to this repository, and only the token, for a pipe. It is good for an
 # hour, and kit does not revoke it; it refuses outside a repository.
@@ -54,8 +56,8 @@
 #   <job>             work, review, or workflows
 #
 # Exits 0 when it printed or edited, 1 when the file does not read, the App did not accept the key or is installed
-# nowhere or does not reach this repository, or a store or a write failed, and 2 on a usage error, a key source that
-# names nothing, or a name that is not the App's slug or a bot's.
+# nowhere, does not reach this repository, or lacks a permission a job needs, or a store or a write failed, and 2 on a
+# usage error, a key source that names nothing, or a name that is not the App's slug or a bot's.
 #
 # see: modules/bash/bots.sh, modules/bash/secrets.sh, issue #258
 
@@ -137,7 +139,8 @@ case "${action}" in
       (jq) jq . <<<"${check}" ;;
       (text) bots:check-text "${check}" ;;
     esac
-    [[ "$(jq --raw-output .reached <<<"${check}")" != false ]] || exit 1
+    jq --exit-status '.reached != false and .lacks == {} and (.reached != null or .installation != null)' \
+      <<<"${check}" >/dev/null || exit 1
     ;;
   (token)
     bot_json=$(bots:choose "${bot}") || exit $?
