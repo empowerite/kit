@@ -1,6 +1,6 @@
 // A table's layers, as a screen opens them over itself, in the order shell.Layers follows, the topmost first: a field's
 // card, which moves its column too where it hangs from the column's name, and widens into the fields dialog; the fields
-// dialog, its field's card beside its list; and the presets' menu. A screen reaches each through its model, so the
+// dialog, its field's card beside its list; the presets dialog; and the presets' menu. A screen reaches each through its model, so the
 // layers are the same on every screen that has a table.
 package table
 
@@ -12,8 +12,9 @@ import (
 
 // Overlays are the functions of a screen's model M that reach its table's layers: the host of the table selected;
 // the card, the fields dialog, and the presets' menu it keeps; what the screen does once a field's card shows, as asking
-// kit for the caller's login, which @me names; what it does with the line of the presets' menu chosen; and what it does
-// with the line whose view the person stars, or no longer.
+// kit for the caller's login, which @me names; what it does with the line of the presets' menu chosen; what it does
+// with the line whose view the person stars, or no longer; the presets dialog it keeps; and what it does with what that
+// asks.
 type Overlays[M any] struct {
 	Host    func(*M) Host
 	Pop     func(*M) *Popover
@@ -22,6 +23,8 @@ type Overlays[M any] struct {
 	Popped  func(*M) tea.Cmd
 	Choose  func(*M, int)
 	Star    func(*M, int)
+	Manage  func(*M) *Manage
+	Managed func(*M, ManageDo)
 }
 
 // Layers gives the table's layers, the topmost first.
@@ -65,6 +68,22 @@ func (o Overlays[M]) Layers() shell.Layers[M] {
 				lines = shell.Over(lines, box, top, left)
 				card, top, left := o.Cols(&m).CardBox(o.Host(&m))
 				return shell.Over(lines, card, top, left)
+			},
+		},
+		{ // the presets dialog
+			Open: func(m M) bool { return o.Manage(&m).Open },
+			Key: func(m M, k tea.KeyPressMsg) (M, tea.Cmd) {
+				o.Managed(&m, o.Manage(&m).Key(o.Host(&m), k))
+				return m, nil
+			},
+			Click: func(m M, c tea.MouseClickMsg) (M, tea.Cmd, bool) {
+				o.Managed(&m, o.Manage(&m).Click(o.Host(&m), c.X, c.Y))
+				return m, nil, true
+			},
+			Keys: func(m M) shell.Segment { return o.Manage(&m).Keys(o.Host(&m)) },
+			Draw: func(m M, lines []string) []string {
+				box, top, left := o.Manage(&m).Box(o.Host(&m))
+				return shell.Over(lines, box, top, left)
 			},
 		},
 		{ // the presets' menu, whose * and a click on a star star a view, or no longer

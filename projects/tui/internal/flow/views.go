@@ -277,18 +277,17 @@ func (m *Model) keepStarred(saved []table.Preset, starred []string, what string)
 	return true
 }
 
-// starPreset stars the view the presets' menu's line k names, or no longer, and keeps the favorites in the file, as
-// table.KeepFavorites does, saying what it did, or why it could not.
+// starPreset stars the view the presets' menu's line k names, or no longer, as favor says.
 func (m *Model) starPreset(k int) {
-	name, ok := table.PresetView(m, k)
-	if !ok {
-		return
+	if name, ok := table.PresetView(m, k); ok {
+		m.favor(name, m.viewsOf(m.stage).Star(name))
 	}
-	v := m.viewsOf(m.stage)
-	starred, did := v.Star(name), "starred"
-	if v.Favorite(name) {
-		did = "unstarred"
-	}
+}
+
+// favor keeps the selected stage's favorites as given, as table.KeepFavorites does, a view starred, no longer, or moved
+// among them, saying what it did to the view, or why it could not.
+func (m *Model) favor(name string, starred []string) {
+	did := table.Favored(m.viewsOf(m.stage), name, starred)
 	if err := table.KeepFavorites(m.presetsPath, m.stages[m.stage].name, starred); err != nil {
 		m.note.Text, m.note.Done = fmt.Sprintf("%s the preset could not be %s: %v", Failed, did, err), false
 		return
@@ -354,20 +353,36 @@ func (m *Model) renamePreset() {
 	m.done(Renamed + " renamed the preset " + from + " to " + name)
 }
 
-// deletePreset drops the person's view the line was set to, as choosePreset has it only while there is one, and sets
-// the stage as the view it opens on.
-func (m *Model) deletePreset() {
-	v, _ := m.own()
-	if !m.keep(m.viewsOf(m.stage).Delete(v.Name), "deleted") {
+// deletePreset drops a view of the person's, as the presets dialog asks only of one, and sets the stage as the view it
+// opens on where the line was set to it.
+func (m *Model) deletePreset(name string) {
+	if _, ok := m.viewsOf(m.stage).Mine(name); !ok || !m.keep(m.viewsOf(m.stage).Delete(name), "deleted") {
 		return
 	}
-	m.apply(m.viewsOf(m.stage).Opening())
-	m.done(Deleted + " deleted the preset " + v.Name)
+	if m.stages[m.stage].ViewName == name {
+		m.apply(m.viewsOf(m.stage).Opening())
+	}
+	m.done(Deleted + " deleted the preset " + name)
+}
+
+// managedPreset does what the presets dialog asks: keeps the favorites as given; gives the preset line the keyboard,
+// for a view's new name, its name typed already; or deletes a view.
+func (m *Model) managedPreset(do table.ManageDo) {
+	switch do.Act {
+	case table.ManageFavorites:
+		m.favor(do.Name, do.Favorites)
+	case table.ManageRename:
+		s := &m.stages[m.stage]
+		s.SavingAs, s.Naming, s.Renaming = true, do.Name, do.Name
+		m.onPreset, m.inRows, m.inPanel, m.stop = true, false, false, -1
+	case table.ManageDelete:
+		m.deletePreset(do.Name)
+	}
 }
 
 // choosePreset closes the menu and takes its line k: Save keeps the panel under the person's view the line was set to;
-// Save As… gives the preset line the keyboard, for a name, that view's typed already; Rename… does too, for its new
-// name; Delete drops it; a view applies. A line that does not act now does nothing.
+// Save As… gives the preset line the keyboard, for a name, that view's typed already; Manage… opens the presets dialog,
+// on the view the line was set to; a view applies. A line that does not act now does nothing.
 func (m *Model) choosePreset(k int) {
 	m.presetsMenu.Open = false
 	if !table.PresetEnabled(m, k) {
@@ -378,14 +393,12 @@ func (m *Model) choosePreset(k int) {
 	switch k {
 	case table.ItemSave:
 		m.saveAs(v.Name)
-	case table.ItemSaveAs, table.ItemRename:
+	case table.ItemSaveAs:
 		s.SavingAs, s.Naming, s.Renaming = true, v.Name, ""
-		if k == table.ItemRename {
-			s.Renaming = v.Name
-		}
 		m.onPreset, m.inRows, m.inPanel, m.stop = true, false, false, -1
-	case table.ItemDelete:
-		m.deletePreset()
+	case table.ItemManage:
+		m.manage = table.Manage{Open: true}
+		m.manage.At = max(0, slices.Index(m.manage.Listed(m), s.ViewName))
 	default:
 		name := table.PresetItems(m)[k].Name
 		vs := m.views(m.stage)

@@ -54,6 +54,18 @@ func (v Views) Star(name string) []string {
 	return append(v.Favorites(), name)
 }
 
+// Favored says what favorites as given do to a view: starred where it was not a favorite, unstarred where it no longer
+// is, and moved where it stays one.
+func Favored(v Views, name string, starred []string) string {
+	switch now := slices.Contains(starred, name); {
+	case now && !v.Favorite(name):
+		return "starred"
+	case !now:
+		return "unstarred"
+	}
+	return "moved"
+}
+
 // Renamed gives the names of the views the person starred, the view renamed from one name to another starred by its new
 // name in its place.
 func (v Views) Renamed(from, to string) []string {

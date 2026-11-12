@@ -55,6 +55,7 @@ type Sheet struct {
 	pop           Popover
 	cols          Columns
 	presets       PresetMenu
+	manage        Manage
 	note          shell.Notice
 	built         *Shown
 	browse        func(string) error
@@ -478,6 +479,8 @@ func (s *Sheet) layers() shell.Layers[Sheet] {
 		Pop:     func(s *Sheet) *Popover { return &s.pop },
 		Cols:    func(s *Sheet) *Columns { return &s.cols },
 		Presets: func(s *Sheet) *PresetMenu { return &s.presets },
+		Manage:  func(s *Sheet) *Manage { return &s.manage },
+		Managed: (*Sheet).managed,
 		Popped:  func(*Sheet) tea.Cmd { return nil },
 		Choose:  (*Sheet).choose,
 		Star:    (*Sheet).star,
@@ -760,10 +763,9 @@ func (s *Sheet) Notice() shell.Notice { return s.note }
 // Faded takes a notice's fade, as shell.Notice's Faded does.
 func (s *Sheet) Faded(f shell.FadedMsg) { s.note = s.note.Faded(f) }
 
-// choose closes the presets' menu and takes its line k: Save keeps the panel under
-// the person's preset the line was set to; Save As… gives the preset line the keyboard, for a name, that preset's
-// typed already; Rename… does too, for its new name; Delete drops it; a preset applies. A line that does not act now
-// does nothing.
+// choose closes the presets' menu and takes its line k: Save keeps the panel under the person's preset the line was set
+// to; Save As… gives the preset line the keyboard, for a name, that preset's typed already; Manage… opens the presets
+// dialog, on the preset the line was set to; a preset applies. A line that does not act now does nothing.
 func (s *Sheet) choose(k int) {
 	s.presets.Open = false
 	if !PresetEnabled(s, k) {
@@ -773,19 +775,34 @@ func (s *Sheet) choose(k int) {
 	switch k {
 	case ItemSave:
 		s.saveAs(v.Name)
-	case ItemSaveAs, ItemRename:
+	case ItemSaveAs:
 		s.tbl.SavingAs, s.tbl.Naming, s.tbl.Renaming = true, v.Name, ""
-		if k == ItemRename {
-			s.tbl.Renaming = v.Name
-		}
 		s.onControls, s.inRows, s.stop = true, false, -1
-	case ItemDelete:
-		if s.keep(s.Views().Delete(v.Name), "deleted") {
-			s.apply(s.Views().Opening())
-			s.note = s.note.Did(Deleted + " deleted the preset " + v.Name)
-		}
+	case ItemManage:
+		s.manage = Manage{Open: true}
+		s.manage.At = max(0, slices.Index(s.manage.Listed(s), s.tbl.ViewName))
 	default:
 		s.apply(s.Views().Chosen(PresetItems(s)[k].Name))
+	}
+}
+
+// managed does what the presets dialog asks: keeps the favorites as given; gives the preset line the keyboard, for a
+// view's new name, its name typed already; or deletes a view, the table set as the one it opens on where it was set as
+// the view.
+func (s *Sheet) managed(do ManageDo) {
+	switch do.Act {
+	case ManageFavorites:
+		s.favor(do.Name, do.Favorites)
+	case ManageRename:
+		s.tbl.SavingAs, s.tbl.Naming, s.tbl.Renaming = true, do.Name, do.Name
+		s.onControls, s.inRows, s.stop = true, false, -1
+	case ManageDelete:
+		if _, ok := s.Views().Mine(do.Name); ok && s.keep(s.Views().Delete(do.Name), "deleted") {
+			if s.tbl.ViewName == do.Name {
+				s.apply(s.Views().Opening())
+			}
+			s.note = s.note.Did(Deleted + " deleted the preset " + do.Name)
+		}
 	}
 }
 
@@ -841,7 +858,9 @@ func (s *Sheet) rename() {
 	case !s.keepStarred(saved, s.Views().Renamed(from, name), "renamed"):
 		return
 	default:
-		s.tbl.ViewName = name
+		if s.tbl.ViewName == from {
+			s.tbl.ViewName = name
+		}
 		s.note = s.note.Did(Renamed + " renamed the preset " + from + " to " + name)
 	}
 	s.tbl.SavingAs, s.tbl.Naming, s.tbl.Renaming = false, "", ""
@@ -865,17 +884,17 @@ func (s *Sheet) keepStarred(saved []Preset, starred []string, what string) bool 
 	return true
 }
 
-// star stars the view the presets' menu's line k names, or no longer, and keeps the favorites in the file, as
-// KeepFavorites does, saying what it did, or why it could not.
+// star stars the view the presets' menu's line k names, or no longer, as favor says.
 func (s *Sheet) star(k int) {
-	name, ok := PresetView(s, k)
-	if !ok {
-		return
+	if name, ok := PresetView(s, k); ok {
+		s.favor(name, s.Views().Star(name))
 	}
-	starred, did := s.Views().Star(name), "starred"
-	if s.Views().Favorite(name) {
-		did = "unstarred"
-	}
+}
+
+// favor keeps the favorites as given, as KeepFavorites does, a view starred, no longer, or moved among them, saying
+// what it did to the view, or why it could not.
+func (s *Sheet) favor(name string, starred []string) {
+	did := Favored(s.Views(), name, starred)
 	if err := KeepFavorites(s.path, s.store, starred); err != nil {
 		s.note.Text, s.note.Done = fmt.Sprintf("%s the preset could not be %s: %v", Failed, did, err), false
 		return

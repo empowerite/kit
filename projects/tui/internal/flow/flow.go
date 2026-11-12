@@ -187,6 +187,7 @@ type Model struct {
 	starred       map[string][]string       // the names of the views the person starred, by stage, in their order
 	presetsPath   string                    // that file, or none
 	presetsMenu   table.PresetMenu          // the preset line's menu of views: whether it is open, and its line under the keyboard
+	manage        table.Manage              // the presets dialog, which Manage… in the presets' menu opens
 	fold          bool                      // whether the tables fold a value every row of a group shares, as kittui's settings say
 	hide          bool                      // whether the tables keep the columns no row holds a value in from showing, as kittui's settings say
 	glyphs        bool                      // whether the tables draw an emoji every row shown shares, as kittui's settings say

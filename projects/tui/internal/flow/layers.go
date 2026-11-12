@@ -35,6 +35,8 @@ func (m Model) layers() shell.Layers[Model] {
 		Pop:     func(m *Model) *table.Popover { return &m.pop },
 		Cols:    func(m *Model) *table.Columns { return &m.cols },
 		Presets: func(m *Model) *table.PresetMenu { return &m.presetsMenu },
+		Manage:  func(m *Model) *table.Manage { return &m.manage },
+		Managed: (*Model).managedPreset,
 		Popped:  (*Model).askMe,
 		Choose:  (*Model).choosePreset,
 		Star:    (*Model).starPreset,

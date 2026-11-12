@@ -20,8 +20,8 @@ import (
 
 // Presets ends the preset line, after the name of the view the table is set as, and a click on it drops the presets
 // down. FieldsButton, after its glyph, Fields, stands before the selector, and opens the columns dialog. The presets'
-// menu's items are SaveIt, SaveAs, RenameIt, and DeleteIt, Save and Delete after their glyphs, Save and Deleted;
-// those, and Renamed, start what each did says. SavingAsWord and RenamingWord stand, dim, before the name typed for
+// menu's items are SaveIt, after its glyph, Save, SaveAs, and ManageIt, which opens the presets dialog, whose RenameIt
+// and DeleteIt stand after Renamed and Deleted; Save, Renamed, and Deleted start what each did says. SavingAsWord and RenamingWord stand, dim, before the name typed for
 // Save As… and Rename…. Checked marks the view the table is set as. Starred stands at the right of a view the person
 // starred, Unstarred at the right of the others, and Starring starts what starring one says.
 const (
@@ -47,8 +47,7 @@ const (
 const (
 	ItemSave = iota
 	ItemSaveAs
-	ItemRename
-	ItemDelete
+	ItemManage
 	ItemViews // the rule after them; the views follow
 )
 
@@ -76,13 +75,12 @@ type presetLine struct {
 	view string
 }
 
-// presetLines gives the presets' menu's lines: Save and Delete after their glyphs, Save As… and Rename… between them
-// without, a rule, then the views in sections, each under its heading where it has a view: the person's favorites, in
+// presetLines gives the presets' menu's lines: Save after its glyph, Save As…, and Manage…, a rule, then the views in sections, each under its heading where it has a view: the person's favorites, in
 // their order; the table's own views; and the person's. A view stands once, in favorites where it is one; the one the
 // table is set as is checked; and each has Starred or Unstarred at its right, as the person starred it or not.
 func presetLines(h Host) []presetLine {
 	lines := []presetLine{{item: shell.Item{Glyph: Save, Name: SaveIt}}, {item: shell.Item{Name: SaveAs}},
-		{item: shell.Item{Name: RenameIt}}, {item: shell.Item{Glyph: Deleted, Name: DeleteIt}}, {}}
+		{item: shell.Item{Name: ManageIt}}, {}}
 	v := h.Views()
 	is, favorites := v.Is(*h.Table()), v.Favorites()
 	section := func(heading string, names []string) {
@@ -135,17 +133,14 @@ func PresetView(h Host, k int) (string, bool) {
 }
 
 // PresetEnabled says whether a line of the presets' menu acts: Save while the line was set to a view of the person's
-// own that the panel no longer is; Rename… and Delete while it was set to one; Save As… and every view always; a rule
-// or a heading never.
+// own that the panel no longer is; Save As…, Manage…, and every view always; a rule or a heading never.
 func PresetEnabled(h Host, k int) bool {
 	v := h.Views()
 	mine, own := v.Mine(h.Table().ViewName)
 	switch k {
 	case ItemSave:
 		return own && !v.Same(v.Current(h.Table().View), mine)
-	case ItemRename, ItemDelete:
-		return own
-	case ItemSaveAs:
+	case ItemSaveAs, ItemManage:
 		return true
 	}
 	_, ok := PresetView(h, k)

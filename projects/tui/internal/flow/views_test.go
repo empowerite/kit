@@ -179,9 +179,9 @@ func TestChoosingAViewSetsThePanelAndAChangeStrikesTheNameThrough(t *testing.T) 
 	for _, i := range table.PresetItems(&m) {
 		names = append(names, i.Name)
 	}
-	if !slices.Equal(names, []string{SaveIt, SaveAs, RenameIt, DeleteIt, "", table.BuiltinHeading, "All Issues", "Backlog", "Underway",
+	if !slices.Equal(names, []string{SaveIt, SaveAs, table.ManageIt, "", table.BuiltinHeading, "All Issues", "Backlog", "Underway",
 		"By Milestone", "By Iteration", "By Swimlane", "Compact"}) ||
-		table.PresetItems(&m)[6].Glyph != Checked || m.presetsMenu.At != 6 {
+		table.PresetItems(&m)[5].Glyph != Checked || m.presetsMenu.At != 5 {
 		t.Fatalf("the presets: %q, at %d", names, m.presetsMenu.At)
 	}
 	if !strings.Contains(keysOf(m), "esc close") {
@@ -207,9 +207,9 @@ func TestChoosingAViewSetsThePanelAndAChangeStrikesTheNameThrough(t *testing.T) 
 	if m.dropEnd() != m.dropStart()+ansi.StringWidth(selector("Compact")) || m.dropStart() < m.paneWidth()/2 {
 		t.Errorf("▼ from %d to %d", m.dropStart(), m.dropEnd())
 	}
-	// a stage's own view is never saved over, renamed, or deleted: those lines are dim
-	if table.PresetEnabled(&m, table.ItemSave) || table.PresetEnabled(&m, table.ItemRename) || table.PresetEnabled(&m, table.ItemDelete) {
-		t.Error("Save, Rename…, or Delete acts on a stage's own view")
+	// a stage's own view is never saved over: Save is dim
+	if table.PresetEnabled(&m, table.ItemSave) || !table.PresetEnabled(&m, table.ItemManage) {
+		t.Error("Save acts on a stage's own view")
 	}
 	// the menu then opens on Save As…, no name typed for a stage's own view; saving with no name is refused, as is
 	// saving over a stage's own view; the change stays
@@ -240,7 +240,7 @@ func TestChoosingAViewSetsThePanelAndAChangeStrikesTheNameThrough(t *testing.T) 
 	}
 	// the menu's keys: up, a letter to the next item it starts, and esc
 	m = drive(m, press(tea.KeyEnter))
-	if m = drive(m, typed("c")[0]); m.presetsMenu.At != 12 {
+	if m = drive(m, typed("c")[0]); m.presetsMenu.At != 11 {
 		t.Errorf("c in the menu: %d", m.presetsMenu.At)
 	}
 	m = drive(m, up, esc)
@@ -301,8 +301,8 @@ func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 	}
 	// the menu lists it after a rule
 	m = drive(m, press(tea.KeyEnter))
-	if items := table.PresetItems(&m); len(items) != 15 || items[13].Name != table.MineHeading || items[14].Name != "Triage" ||
-		items[14].Glyph != Checked || m.presetsMenu.At != 14 {
+	if items := table.PresetItems(&m); len(items) != 14 || items[12].Name != table.MineHeading || items[13].Name != "Triage" ||
+		items[13].Glyph != Checked || m.presetsMenu.At != 13 {
 		t.Errorf("the menu: %+v, at %d", items, m.presetsMenu.At)
 	}
 	m = drive(m, esc)
@@ -324,7 +324,7 @@ func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 	// another session reads it, and choosing it sets the panel
 	n := onDropdown(t, file)
 	n = drive(n, press(tea.KeyEnter))
-	n.presetsMenu.At = 14
+	n.presetsMenu.At = 13
 	if n = drive(n, press(tea.KeyEnter)); n.stages[0].ViewName != "Triage" || n.panel(0).Showing() != grid.Others ||
 		len(n.panel(0).SortKeys()) != 1 || !slices.Equal(n.panel(0).Groups(), []string{"assignees"}) ||
 		!n.panel(0).Fold {
@@ -349,11 +349,23 @@ func TestAStarredViewStandsFirstAndTheFileKeepsIt(t *testing.T) {
 		t.Errorf("All Issues unstarred: %q", table.ReadFavorites(file))
 	}
 	m.starPreset(table.ItemSave)
+	// Save, dim on a stage's own view, does nothing chosen
+	if m.choosePreset(table.ItemSave); m.stages[0].ViewName != "All Issues" || len(m.viewsOf(0).Saved) != 0 {
+		t.Errorf("Save on All Issues: %q", m.stages[0].ViewName)
+	}
+	// Manage… opens the presets dialog, on the view the stage is set as, where space stars it too
+	m.choosePreset(table.ItemManage)
+	if !m.manage.Open || m.manage.Listed(&m)[m.manage.At] != "All Issues" || !strings.Contains(raw(m), "issues presets") {
+		t.Fatalf("Manage…: %+v\n%s", m.manage, raw(m))
+	}
+	if m = drive(m, press(tea.KeySpace), esc); !slices.Equal(table.ReadFavorites(file)["issues"], []string{"All Issues"}) || m.manage.Open {
+		t.Errorf("space in the dialog: %q", table.ReadFavorites(file))
+	}
 	if err := os.WriteFile(file, []byte("{"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	m.starPreset(table.ItemViews + 2)
-	if len(m.viewsOf(0).Favorites()) != 0 || !strings.Contains(m.note.Text, "could not be starred") {
+	if len(m.viewsOf(0).Favorites()) != 1 || !strings.Contains(m.note.Text, "could not be unstarred") {
 		t.Errorf("starred over a file that does not read: %q", m.note.Text)
 	}
 }
@@ -633,9 +645,8 @@ func TestSaveRenameAndDeleteActOnThePersonsView(t *testing.T) {
 	m = name("Other")
 	m.setPanel(m.panel(0).Placed("age", grid.Hidden))
 	m = name("Triage")
-	if table.PresetEnabled(&m, table.ItemSave) || !table.PresetEnabled(&m, table.ItemRename) || !table.PresetEnabled(&m, table.ItemDelete) {
-		t.Fatalf("on Triage as it is: save %v, rename %v, delete %v", table.PresetEnabled(&m, table.ItemSave),
-			table.PresetEnabled(&m, table.ItemRename), table.PresetEnabled(&m, table.ItemDelete))
+	if table.PresetEnabled(&m, table.ItemSave) {
+		t.Fatal("Save acts on Triage as it is")
 	}
 	// changed, Save overwrites it
 	m.setPanel(m.panel(0).Placed("age", grid.Column))
@@ -646,8 +657,8 @@ func TestSaveRenameAndDeleteActOnThePersonsView(t *testing.T) {
 	if v, _ := m.own(); v.Name != "Triage" || !m.same(0, v, m.current(0)) || !strings.Contains(keysOf(m), Save+" saved the preset Triage") {
 		t.Errorf("Save: %q", keysOf(m))
 	}
-	// Rename… types its name already; a stage's own name and another of the person's are refused
-	m.choosePreset(table.ItemRename)
+	// Rename…, in the presets dialog, types its name already; a stage's own name and another of the person's are refused
+	m.managedPreset(table.ManageDo{Act: table.ManageRename, Name: "Triage"})
 	if !strings.HasSuffix(presetText(m), Renaming+" Triage▏") || !strings.Contains(m.keys().String(), "⏎ rename") {
 		t.Fatalf("Rename…: %q, %q", presetText(m), m.keys().String())
 	}
@@ -664,13 +675,10 @@ func TestSaveRenameAndDeleteActOnThePersonsView(t *testing.T) {
 		t.Errorf("renamed: view %q, %q, %s", m.stages[0].ViewName, m.note.Text, data)
 	}
 	// Delete drops it, and the stage is Default
-	m.choosePreset(table.ItemDelete)
+	m.managedPreset(table.ManageDo{Act: table.ManageDelete, Name: "Mine"})
 	if data, _ := os.ReadFile(file); strings.Contains(string(data), "Mine") || m.is(0) != "All Issues" ||
 		!strings.Contains(m.note.Text, Deleted+" deleted the preset Mine") {
 		t.Errorf("deleted: %q, is %q, %s", m.note.Text, m.is(0), data)
-	}
-	if table.PresetEnabled(&m, table.ItemRename) || table.PresetEnabled(&m, table.ItemDelete) {
-		t.Error("Rename… or Delete acts on Default")
 	}
 }
 
@@ -707,14 +715,14 @@ func TestRenameAndDeleteRefuseWhatTheyCannotDo(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "presets.json")
 	m := onDropdown(t, file)
-	if m.choosePreset(table.ItemDelete); m.is(0) != "All Issues" || m.note.Text != "" {
+	if m.managedPreset(table.ManageDo{Act: table.ManageDelete, Name: "All Issues"}); m.is(0) != "All Issues" || m.note.Text != "" {
 		t.Errorf("Delete on Default: %q", m.note.Text)
 	}
 	m.choosePreset(table.ItemSaveAs)
 	m.stages[0].Naming = "Mine"
 	m = drive(m, press(tea.KeyEnter))
 	rename := func(name string) Model {
-		m.choosePreset(table.ItemRename)
+		m.managedPreset(table.ManageDo{Act: table.ManageRename, Name: m.stages[0].ViewName})
 		m.stages[0].Naming = name
 		return drive(m, press(tea.KeyEnter))
 	}
@@ -730,7 +738,7 @@ func TestRenameAndDeleteRefuseWhatTheyCannotDo(t *testing.T) {
 		t.Errorf("rename, unwritable: %q", m.note.Text)
 	}
 	m = drive(m, esc)
-	if m.choosePreset(table.ItemDelete); !strings.Contains(m.note.Text, "could not be deleted") || m.stages[0].ViewName != "Mine" {
+	if m.managedPreset(table.ManageDo{Act: table.ManageDelete, Name: "Mine"}); !strings.Contains(m.note.Text, "could not be deleted") || m.stages[0].ViewName != "Mine" {
 		t.Errorf("delete, unwritable: %q", m.note.Text)
 	}
 	// the file cannot be written beside, as a directory stands where it would be; or replaced, as it is a directory

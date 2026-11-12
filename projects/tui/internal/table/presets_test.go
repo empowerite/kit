@@ -33,14 +33,14 @@ func itemNames(h Host) []string {
 
 func TestThePresetsMenuListsWhatCanBeDoneWithViewsThenTheViews(t *testing.T) {
 	h := presetting()
-	want := []string{SaveIt, SaveAs, RenameIt, DeleteIt, "", BuiltinHeading, Default, "Grouped", MineHeading, "Mine"}
-	if got := itemNames(h); !slices.Equal(got, want) || PresetItems(h)[6].Glyph != Checked ||
-		PresetItems(h)[6].Keys != Unstarred {
+	want := []string{SaveIt, SaveAs, ManageIt, "", BuiltinHeading, Default, "Grouped", MineHeading, "Mine"}
+	if got := itemNames(h); !slices.Equal(got, want) || PresetItems(h)[5].Glyph != Checked ||
+		PresetItems(h)[5].Keys != Unstarred {
 		t.Fatalf("the menu: %q", got)
 	}
-	// set as Default, a table's own: Save, Rename…, and Delete are dim; Save As… acts; a heading never does
-	for k, acts := range map[int]bool{ItemViews: false, ItemSave: false, ItemSaveAs: true, ItemRename: false,
-		ItemDelete: false, 5: false, 6: true, -1: false, 99: false} {
+	// set as Default, a table's own: Save is dim; Save As… and Manage… act; a heading never does
+	for k, acts := range map[int]bool{ItemViews: false, ItemSave: false, ItemSaveAs: true, ItemManage: true,
+		4: false, 5: true, -1: false, 99: false} {
 		if got := PresetEnabled(h, k); got != acts {
 			t.Errorf("line %d acts %v", k, got)
 		}
@@ -48,7 +48,7 @@ func TestThePresetsMenuListsWhatCanBeDoneWithViewsThenTheViews(t *testing.T) {
 	// set as Mine, then changed: Save, Rename…, and Delete act
 	h.tbl.ViewName = "Mine"
 	h.tbl.View = h.tbl.View.Placed("state", grid.Hidden)
-	if !PresetEnabled(h, ItemSave) || !PresetEnabled(h, ItemRename) || !PresetEnabled(h, ItemDelete) {
+	if !PresetEnabled(h, ItemSave) {
 		t.Error("Mine changed")
 	}
 }
@@ -56,7 +56,7 @@ func TestThePresetsMenuListsWhatCanBeDoneWithViewsThenTheViews(t *testing.T) {
 func TestThePresetsMenuDropsFromTheSelectorAndTakesKeysAndClicks(t *testing.T) {
 	h := presetting()
 	pm := PresetMenu{}.Drop(h)
-	if !pm.Open || pm.At != 6 {
+	if !pm.Open || pm.At != 5 {
 		t.Fatalf("dropped at %d", pm.At)
 	}
 	// set as none of them, it drops at Save As…
@@ -68,10 +68,10 @@ func TestThePresetsMenuDropsFromTheSelectorAndTakesKeysAndClicks(t *testing.T) {
 	if top != 4 || left+ansi.StringWidth(box[0]) != 70 || !strings.Contains(ansi.Strip(box[0]), PresetsTitle) {
 		t.Errorf("the box at %d, %d: %q", top, left, ansi.Strip(box[0]))
 	}
-	if chosen, _ := pm.Key(h, key("down")); chosen != -1 || pm.At != 7 {
+	if chosen, _ := pm.Key(h, key("down")); chosen != -1 || pm.At != 6 {
 		t.Errorf("down: %d, at %d", chosen, pm.At)
 	}
-	if chosen, _ := pm.Key(h, tea.KeyPressMsg{Code: tea.KeyEnter}); chosen != 7 {
+	if chosen, _ := pm.Key(h, tea.KeyPressMsg{Code: tea.KeyEnter}); chosen != 6 {
 		t.Errorf("enter: %d", chosen)
 	}
 	pm = PresetMenu{}.Drop(h)
@@ -142,9 +142,9 @@ func TestThePresetLineNamesTheViewTheTableIsSetAs(t *testing.T) {
 func TestTheViewsThePersonStarredStandFirst(t *testing.T) {
 	h := presetting()
 	h.views.Starred = []string{"Mine", "gone", "Mine"}
-	want := []string{SaveIt, SaveAs, RenameIt, DeleteIt, "", FavoritesHeading, "Mine", BuiltinHeading, Default, "Grouped"}
-	if got := itemNames(h); !slices.Equal(got, want) || PresetItems(h)[6].Keys != Starred ||
-		PresetItems(h)[8].Keys != Unstarred || !slices.Equal(h.views.Favorites(), []string{"Mine"}) {
+	want := []string{SaveIt, SaveAs, ManageIt, "", FavoritesHeading, "Mine", BuiltinHeading, Default, "Grouped"}
+	if got := itemNames(h); !slices.Equal(got, want) || PresetItems(h)[5].Keys != Starred ||
+		PresetItems(h)[7].Keys != Unstarred || !slices.Equal(h.views.Favorites(), []string{"Mine"}) {
 		t.Fatalf("the menu: %q, favorites %q", got, h.views.Favorites())
 	}
 	if v := h.views; !slices.Equal(v.Star(Default), []string{"Mine", Default}) || len(v.Star("Mine")) != 0 ||
@@ -153,20 +153,20 @@ func TestTheViewsThePersonStarredStandFirst(t *testing.T) {
 		t.Errorf("starring: %q, %q, %q", v.Star(Default), v.Star("Mine"), v.Renamed("Mine", "Ours"))
 	}
 	pm := PresetMenu{}.Drop(h)
-	if chosen, star := pm.Key(h, tea.KeyPressMsg{Code: '*', Text: "*"}); chosen != -1 || star != 8 {
+	if chosen, star := pm.Key(h, tea.KeyPressMsg{Code: '*', Text: "*"}); chosen != -1 || star != 7 {
 		t.Errorf("* on Default: %d, %d", chosen, star)
 	}
-	pm.At = 5
+	pm.At = 4
 	if chosen, star := pm.Key(h, tea.KeyPressMsg{Code: '*', Text: "*"}); chosen != -1 || star != -1 {
 		t.Errorf("* on a heading: %d, %d", chosen, star)
 	}
 	box, top, left := pm.Box(h)
-	plain := ansi.Strip(box[1+6])
+	plain := ansi.Strip(box[1+5])
 	at := left + ansi.StringWidth(plain[:strings.LastIndex(plain, Starred)])
-	if chosen, star := pm.Click(h, at, top+1+6); chosen != -1 || star != 6 || !pm.Open || pm.At != 6 {
+	if chosen, star := pm.Click(h, at, top+1+5); chosen != -1 || star != 5 || !pm.Open || pm.At != 5 {
 		t.Errorf("a click on Mine's star: %d, %d", chosen, star)
 	}
-	if chosen, star := pm.Click(h, at-2, top+1+6); chosen != 6 || star != -1 {
+	if chosen, star := pm.Click(h, at-2, top+1+5); chosen != 5 || star != -1 {
 		t.Errorf("a click on Mine's name: %d, %d", chosen, star)
 	}
 	if _, ok := PresetView(h, 99); ok {

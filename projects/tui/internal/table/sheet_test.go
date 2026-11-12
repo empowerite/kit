@@ -331,7 +331,7 @@ func TestThePresetsAreChosenSavedRenamedAndDeleted(t *testing.T) {
 	s.choose(ItemSaveAs)
 	s.tbl.Naming = "theirs too"
 	pressed(&s, "enter")
-	s.choose(ItemRename)
+	s.managed(ManageDo{Act: ManageRename, Name: s.tbl.ViewName})
 	s.tbl.Naming = "mine"
 	if pressed(&s, "enter"); !strings.Contains(s.Notice().Text, "a preset already") {
 		t.Errorf("renamed to one taken: %q", s.Notice().Text)
@@ -340,7 +340,7 @@ func TestThePresetsAreChosenSavedRenamedAndDeleted(t *testing.T) {
 	if pressed(&s, "enter"); s.tbl.SavingAs {
 		t.Error("renamed to its own name")
 	}
-	s.choose(ItemRename)
+	s.managed(ManageDo{Act: ManageRename, Name: s.tbl.ViewName})
 	s.tbl.Naming = "ours"
 	if pressed(&s, "enter"); s.tbl.ViewName != "ours" || !strings.Contains(s.Notice().Text, "renamed the preset") {
 		t.Errorf("renamed: %q %q", s.tbl.ViewName, s.Notice().Text)
@@ -351,7 +351,7 @@ func TestThePresetsAreChosenSavedRenamedAndDeleted(t *testing.T) {
 		t.Error("up while naming")
 	}
 	// Delete drops the preset, and the table is set as Default
-	s.choose(ItemDelete)
+	s.managed(ManageDo{Act: ManageDelete, Name: s.tbl.ViewName})
 	if s.tbl.ViewName != Default || !strings.Contains(s.Notice().Text, "deleted the preset ours") {
 		t.Errorf("deleted: %q %q", s.tbl.ViewName, s.Notice().Text)
 	}
@@ -410,7 +410,7 @@ func TestAPresetThatCannotBeKeptSaysWhy(t *testing.T) {
 	if s.rename(); !strings.Contains(s.Notice().Text, "could not be renamed") {
 		t.Errorf("renamed under a file: %q", s.Notice().Text)
 	}
-	s.choose(ItemDelete)
+	s.managed(ManageDo{Act: ManageDelete, Name: s.tbl.ViewName})
 	if !strings.Contains(s.Notice().Text, "could not be deleted") {
 		t.Errorf("deleted under a file: %q", s.Notice().Text)
 	}
@@ -517,7 +517,7 @@ func TestASheetOpensOnTheFirstOfItsOwnPresets(t *testing.T) {
 	}
 	s.saved = []Preset{{Name: "ours"}}
 	s.apply(s.Views().Chosen("ours"))
-	if s.choose(ItemDelete); s.tbl.ViewName != "By kind" {
+	if s.managed(ManageDo{Act: ManageDelete, Name: s.tbl.ViewName}); s.tbl.ViewName != "By kind" {
 		t.Errorf("after a delete: on %q", s.tbl.ViewName)
 	}
 }
@@ -829,6 +829,38 @@ func TestTwoWritersOfThePresetsFileKeepEachOthersPresets(t *testing.T) {
 	t.Cleanup(func() { _ = os.Chmod(locked, 0o700) })
 	if _, err := KeepPresets(filepath.Join(locked, "presets.json"), "third", nil, nil); err == nil {
 		t.Error("kept in a directory that cannot be written to")
+	}
+}
+
+// Manage… opens the presets dialog, on the view the table is set as; its keys and clicks reach the sheet: space stars a
+// view, shift with up or down moves a favorite, and a click off it closes it.
+func TestManageOpensThePresetsDialog(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "presets.json")
+	s := sheet(path)
+	s.choose(ItemManage)
+	if !s.manage.Open || s.manage.Listed(&s)[s.manage.At] != Default || !s.Layered() {
+		t.Fatalf("Manage…: %+v", s.manage)
+	}
+	if seg, _ := s.Keys(); !strings.Contains(shellLine(seg), "␣ star") {
+		t.Errorf("the dialog's keys: %s", shellLine(seg))
+	}
+	if !strings.Contains(strings.Join(screenOf(s), "\n"), "things presets") {
+		t.Error("the dialog drawn")
+	}
+	pressed(&s, "space", "down", "space")
+	if !slices.Equal(ReadFavorites(path)["things"], []string{Default, "Compact"}) {
+		t.Fatalf("two starred: %q", ReadFavorites(path))
+	}
+	if s.Key(press("shift+up")); !slices.Equal(ReadFavorites(path)["things"], []string{"Compact", Default}) ||
+		!strings.Contains(s.Notice().Text, "moved the preset Compact") {
+		t.Errorf("Compact moved first: %q, %q", ReadFavorites(path), s.Notice().Text)
+	}
+	if s.Click(testkit.Click(0, 23)); s.manage.Open {
+		t.Error("a click off the dialog left it open")
+	}
+	// a table's own view is never deleted
+	if s.managed(ManageDo{Act: ManageDelete, Name: Default}); strings.Contains(s.Notice().Text, "deleted") {
+		t.Errorf("deleted Default: %q", s.Notice().Text)
 	}
 }
 
