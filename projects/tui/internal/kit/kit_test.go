@@ -398,19 +398,28 @@ func TestWelcomeFixIsACommandNotYetStarted(t *testing.T) {
 	}
 }
 
-func TestWelcomeKeepRunsKitWelcomeKeepAndGivesKitsRefusal(t *testing.T) {
+func TestWelcomeKeepRunsKitWelcomeKeepAndGivesTheCheckKitSaysOrItsRefusal(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "record")
 	t.Setenv("FAKE_KIT_RECORD", record)
 	dir := t.TempDir()
-	if err := fake(t, dir).WelcomeKeep(context.Background(), Check{ID: "terminal-iterm-option"}); err != nil {
+	c, err := fake(t, dir).WelcomeKeep(context.Background(), Check{ID: "terminal-iterm-option"})
+	if err != nil {
 		t.Fatal(err)
 	}
+	if c == nil || c.ID != "terminal-iterm-option" || !c.OK || !strings.HasPrefix(c.Line, "kept: ") {
+		t.Errorf("kept, kit says %+v", c)
+	}
 	got, _ := os.ReadFile(record)
-	if !strings.HasPrefix(string(got), "welcome --keep=terminal-iterm-option\n") {
+	if !strings.HasPrefix(string(got), "welcome --keep=terminal-iterm-option --json\n") {
 		t.Errorf("kept as %q", got)
 	}
+	t.Setenv("FAKE_KIT_KEPT", "null")
+	c, err = fake(t, dir).WelcomeKeep(context.Background(), Check{ID: "terminal-probe-color"})
+	if c != nil || err != nil {
+		t.Errorf("where kit did not ask the terminal: %+v, %v", c, err)
+	}
 	t.Setenv("FAKE_KIT_REFUSE", "welcome")
-	if err := fake(t, dir).WelcomeKeep(context.Background(), Check{ID: "tool-jq"}); err == nil {
+	if _, err := fake(t, dir).WelcomeKeep(context.Background(), Check{ID: "tool-jq"}); err == nil {
 		t.Error("a refusal is no error")
 	}
 }

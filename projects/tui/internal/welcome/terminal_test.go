@@ -79,22 +79,6 @@ func TestAFailedTerminalFindingOffersLaterAndKeep(t *testing.T) {
 	}
 }
 
-func TestKeepRunsKitWelcomeKeepAndReadsTheChecksAgain(t *testing.T) {
-	record := filepath.Join(t.TempDir(), "calls")
-	t.Setenv("FAKE_WELCOME_CALLS", record)
-	m, _ := terminal(t, press('k'))
-	got := calls(t, record)
-	if len(got) < 3 || got[len(got)-2] != "welcome --keep=terminal-iterm-option" ||
-		!strings.HasPrefix(got[len(got)-1], "welcome --checks --json") {
-		t.Fatalf("calls %q", got)
-	}
-	for _, c := range m.checks {
-		if c.ID == "terminal-iterm-option" && !c.OK {
-			t.Errorf("the kept check still fails")
-		}
-	}
-}
-
 func TestTabThenEnterKeeps(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_WELCOME_CALLS", record)
@@ -117,6 +101,31 @@ func TestAClickOnKeepKeepsAndOnLaterLeavesIt(t *testing.T) {
 	x, y = buttonAt(t, m, " later ")
 	if m = drive(m, testkit.Click(x, y)); !m.deferred["terminal-iterm-option"] {
 		t.Errorf("a click on later did not leave it for later")
+	}
+}
+
+func TestAKeepTakesTheCheckKitSaysAndChecksNothingAgain(t *testing.T) {
+	record := filepath.Join(t.TempDir(), "calls")
+	t.Setenv("FAKE_WELCOME_CALLS", record)
+	m, _ := terminal(t)
+	before := len(calls(t, record))
+	m, _ = terminal(t, press('k'))
+	got := calls(t, record)
+	if len(got) <= before || got[len(got)-1] != "welcome --keep=terminal-iterm-option --json" {
+		t.Errorf("the calls after the keep: %q", got)
+	}
+	if line := rowOf(t, m, "sends ⌥ as a plain key"); !strings.Contains(line, "kept: ") {
+		t.Errorf("the kept finding: %q", line)
+	}
+}
+
+func TestAKeepKitDoesNotSayTheCheckOfChecksAgain(t *testing.T) {
+	record := filepath.Join(t.TempDir(), "calls")
+	t.Setenv("FAKE_WELCOME_CALLS", record)
+	t.Setenv("FAKE_WELCOME_KEPT", "null")
+	terminal(t, press('k'))
+	if got := calls(t, record); got[len(got)-1] != "welcome --checks --json --progress" {
+		t.Errorf("the calls after the keep: %q", got)
 	}
 }
 

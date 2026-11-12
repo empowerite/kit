@@ -7,7 +7,7 @@
 // terminal handed over, then reads the checks again; later leaves it for this session and moves to the step's next
 // failed check. A fix kit only shows, as one that must run in the person's own shell, is drawn with its lines and no
 // choices: n and enter do nothing there, and l still leaves it for later. A terminal's failed finding offers later and
-// keep instead, its fix shown under it and never run: keep runs kit welcome --keep=<id>, then reads the checks again,
+// keep instead, its fix shown under it and never run: keep runs kit welcome --keep=<id> and takes the check kit says,
 // so it holds from then on; k keeps it at once. A terminal's findings that hold, not kept, are drawn on no row: its
 // heading says the terminal, and what failed or is kept stands under it. The other steps are markdown pages drawn as
 // text, but the terms and customize, whose pages of sections are tables, as sections.go draws them, each table's keys
@@ -125,9 +125,11 @@ const (
 	keep
 )
 
-// keptMsg says kit welcome --keep= has run for a check, and how it ended.
+// keptMsg says kit welcome --keep= has run for a check, and how it ended: the check as kit now judges it, or nil where
+// kit did not say it.
 type keptMsg struct {
 	id, key string // the check's id and its key on the screen
+	check   *kit.Check
 	err     error
 }
 
@@ -370,12 +372,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.fixed(msg)
 		return m, m.again()
 	case keptMsg:
-		if msg.err != nil {
+		// a refusal changed nothing, and the check kit says is the one a keep changes, so only kit's silence reads
+		// the checks again
+		switch {
+		case msg.err != nil:
 			m.notes[msg.key] = note{text: fmt.Sprintf("kit refused to keep it: %v", msg.err), refusal: true}
-		} else {
+		case msg.check == nil:
 			delete(m.notes, msg.key)
+			return m, m.again()
+		default:
+			delete(m.notes, msg.key)
+			for i := range m.checks {
+				if m.checks[i].Key() == msg.key {
+					m.checks[i] = *msg.check
+				}
+			}
 		}
-		return m, m.again()
 	case tea.KeyPressMsg:
 		m.copied = ""
 		return m.key(msg)
@@ -900,12 +912,15 @@ func (m Model) keeping() bool {
 	return !c.OK && terminalFinding(c)
 }
 
-// keep runs kit welcome --keep=<id> for the check under the cursor, so it holds from now on; the checks are read again
-// when it ends.
+// keep runs kit welcome --keep=<id> for the check under the cursor, so it holds from now on; the row takes the check
+// kit then says, and the checks are read again only where kit says none.
 func (m Model) keep() tea.Cmd {
 	c := m.checks[m.cursor]
 	r, key := m.over(), c.Key()
-	return func() tea.Msg { return keptMsg{id: c.ID, key: key, err: r.WelcomeKeep(context.Background(), c)} }
+	return func() tea.Msg {
+		kept, err := r.WelcomeKeep(context.Background(), c)
+		return keptMsg{id: c.ID, key: key, check: kept, err: err}
+	}
 }
 
 // showOnly says whether the cursor is on a failed check whose fix kit shows and never runs.

@@ -553,11 +553,20 @@ func (r Runner) WelcomeFix(c Check) *exec.Cmd {
 	return cmd
 }
 
-// WelcomeKeep runs kit welcome --keep=<id>, over the workspace, as over names it: a terminal's finding kept as it is,
-// so it holds from now on. Kit's refusal, as for a check that is no terminal's finding, is the error.
-func (r Runner) WelcomeKeep(ctx context.Context, c Check) error {
-	_, err := r.within(ctx, callLimit, append(os.Environ(), "NO_COLOR=1"), r.over("welcome", "--keep="+c.ID)...)
-	return err
+// WelcomeKeep runs kit welcome --keep=<id> --json, over the workspace, as over names it: a terminal's finding kept as
+// it is, so it holds from now on. It gives the check as kit now judges it, or nil where kit did not ask the terminal,
+// so the screen reads only that one again. Kit's refusal, as for a check that is no terminal's finding, is the error.
+func (r Runner) WelcomeKeep(ctx context.Context, c Check) (*Check, error) {
+	out, err := r.within(ctx, callLimit, append(os.Environ(), "NO_COLOR=1"),
+		r.over("welcome", "--keep="+c.ID, "--json")...)
+	if err != nil {
+		return nil, err
+	}
+	var kept *Check
+	if err := json.Unmarshal(out, &kept); err != nil {
+		return nil, fmt.Errorf("kit welcome --keep= said what is not a check: %w", err)
+	}
+	return kept, nil
 }
 
 // Catalogue is the tutorials kit knows, as kit tutorials --json prints them: the kit's version, the base every link
