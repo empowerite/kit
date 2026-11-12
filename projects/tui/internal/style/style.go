@@ -41,6 +41,8 @@ var (
 	gain    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("2"))
 	loss    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("1"))
 	repo    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("13"))
+	text    = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+	literal = lipgloss.NewStyle().Foreground(lipgloss.Color("5"))
 	band    = lipgloss.NewStyle().Background(lipgloss.Color("236"))
 	// on the menu's own bright cyan, black: 16 is the 256-color cube's black, which no theme remaps as it may 0
 	selected = lipgloss.NewStyle().Background(lipgloss.Color("14")).Foreground(lipgloss.Color("16"))
@@ -99,6 +101,13 @@ func Loss(s string) string { return loss.Render(s) }
 
 // Warn draws what wants attention but is not wrong, such as uncommitted paths: yellow, as git status draws them.
 func Warn(s string) string { return warn.Render(s) }
+
+// Text draws a string a value holds, green, where a value is drawn as JSON is: a key is Tint, a number Warn, a true or
+// false Literal, and a null or the marks between them Off.
+func Text(s string) string { return text.Render(s) }
+
+// Literal draws a true or a false, magenta.
+func Literal(s string) string { return literal.Render(s) }
 
 // Repo draws a repository's owner/name: bold, in bright magenta, a color of its own.
 func Repo(s string) string { return repo.Render(s) }

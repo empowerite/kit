@@ -2,5 +2,9 @@
   {"key": "primary", "setting": "primary", "value": "upstream", "from": "set", "links": {}},
   {"key": "gate", "setting": "gate", "value": null, "from": "default", "links": {}},
   {"key": "log_days", "setting": "log_days", "value": 14, "from": "default", "links": {}},
-  {"key": "flow", "setting": "flow", "value": ["issues", "changes"], "from": "set", "links": {}}
+  {"key": "flow", "setting": "flow", "value": ["issues", "changes"], "from": "set", "links": {}},
+  {"key": "policy", "setting": "policy", "value": {"commit_subject": ""}, "from": "set", "links": {}},
+  {"key": "trackers", "setting": "trackers", "value": [], "from": "default", "links": {}},
+  {"key": "answers", "setting": "answers", "value": {}, "from": "default", "links": {}},
+  {"key": "bash_path", "setting": "bash_path", "value": "", "from": "set", "links": {}}
 ], "errors": []}

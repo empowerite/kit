@@ -13,7 +13,7 @@ import (
 func TestEveryStyleDrawsItsTextWholeAndInItsOwnWay(t *testing.T) {
 	styles := map[string]func(string) string{"Mark": Mark, "Gain": Gain, "Loss": Loss, "Warn": Warn, "Repo": Repo,
 		"Chosen": Chosen, "Menu": Menu, "Off": Off, "Label": Label, "Cursor": Cursor, "Refusal": Refusal,
-		"Selected": Selected, "Link": Link}
+		"Selected": Selected, "Link": Link, "Text": Text, "Literal": Literal}
 	drawn := map[string]string{}
 	for name, draw := range styles {
 		got := draw("kit 🏭")
