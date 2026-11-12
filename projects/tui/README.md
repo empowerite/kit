@@ -117,8 +117,9 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     stand, then the hidden, a dim rule between each two of those it has, each with whether it shows, its sort and its
     place among the keys, and its group's depth.
     What it sets applies at once: space shows or hides, s turns the sort, g groups, ⇧↑↓ moves a field, into the groups
-    or out, and ⏎ or a click on its label opens its card; a click on a line's box, sort, or group does as space, s, or
-    g.
+    or out, and → or ⏎ gives the card the keyboard, which ← gives back; a click on a line's box, sort, or group does as
+    space, s, or g, and one on its label gives its card the keyboard. At the list's right stands the card of the field
+    under the keyboard, as wide as the widest field's, so the dialog stands still as the keyboard moves.
   - Maximize, first in the tab's menu, gives the rows the bar's lines but one, for the session: the title names the
     tab, its count, and its :, and a click anywhere on them drops the tab's menu as the bar's does; a line in the tab's
     color runs under it, and the header follows; Restore, in its place, puts the bar back as it was, and a tab's
@@ -155,13 +156,14 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     and, for a list, One row per assignee, which flattens it, or All assignees on one row, which gathers it again; its
     filter, the checklist of values it lets through or holds back, for an enum, a person, a label, a time, or a number;
     its rendering; and ☑ Show. What it sets applies at once, and the card stays open; a section the field cannot use is
-    left out. ⏎ on a field in the columns dialog, or a click on its label, opens the card beside the dialog, without the
-    sort, the grouping, and Show, which the dialog's line shows already. Flattened, a row stands once per value it
-    holds, and once where it holds none, the header names one value, and the column sorts; a preset keeps it flat.
-    Grouping by a list places a row under each of its values as flattening does, so a list the rows group by sorts its
-    groups. Every count, the tab's and each heading's, counts a row once, however many copies of it stand. A card opened
-    from a column's name, in the header or the heading over the groups, takes shift with ← or →, which moves the column
-    a place among those the header names, or a depth among the groups, the card with it.
+    left out. A card opened from a name or a chip has all ▸ at the right of its top edge, which a click, or ⇥, widens
+    into the columns dialog, on its field. Beside the dialog's list the card leaves out the sort, the grouping, and
+    Show, which the list's line shows already. Flattened, a row stands once per value it holds, and once where it holds
+    none, the header names one value, and the column sorts; a preset keeps it flat. Grouping by a list places a row
+    under each of its values as flattening does, so a list the rows group by sorts its groups. Every count, the tab's
+    and each heading's, counts a row once, however many copies of it stand. A card opened from a column's name, in the
+    header or the heading over the groups, takes shift with ← or →, which moves the column a place among those the
+    header names, or a depth among the groups, the card with it.
     Sorting always adds to the keys: a column that did not sort comes after the others, and one that did turns in its
     place; grouping always adds the column innermost, and the columns dialog orders both. The groups order the rows
     before any key, the outermost 1, so a column's ▲ or ▼ carries its place after them, raised after ▲ and lowered after

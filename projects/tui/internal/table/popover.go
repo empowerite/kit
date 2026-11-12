@@ -19,6 +19,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
@@ -40,6 +41,13 @@ type Popover struct {
 
 // hangs says whether the card hangs from what was clicked, its title over it, rather than beside the columns dialog.
 func (p Popover) hangs() bool { return p.Header || p.Heading || p.Chip }
+
+// AllFields stands on the top edge of a card that hangs from what was clicked, at its right: a click on it, or tab,
+// widens the card into the columns dialog, on its field.
+const AllFields = "all ▸"
+
+// allCells is how many cells AllFields takes on the top edge, between ╴ and ╶, the rule and the corner after it.
+var allCells = 1 + ansi.StringWidth(AllFields) + 3
 
 // PopLine is one line of a card: what it draws, and what space does on it, nil for a heading or a gap. Picked says
 // a choice is the one taken, which space on it again leaves as it is; a box toggles, picked or not. Input is the line a
@@ -370,6 +378,9 @@ func (p Popover) Keys(h Host) shell.Segment {
 	if p.Header || p.Heading {
 		s.Bindings = append(s.Bindings, ShiftKeys(h, p.Field)...)
 	}
+	if p.hangs() {
+		s.Bindings = append(s.Bindings, shell.Bind("⇥", "all fields", "tab"))
+	}
 	if lines := p.Lines(h); p.At >= 0 && p.At < len(lines) && lines[p.At].Input {
 		return s.With(shell.Bind("⏎", "add", "enter"))
 	}
@@ -399,24 +410,31 @@ func (p *Popover) Act(h Host, k int) {
 }
 
 // Key takes a key while the card is open, as the card's comment says: shift with left or right moves a column whose
-// name it hangs from a place, as Shifted says, the card with it; every other key does nothing.
-func (p *Popover) Key(h Host, k tea.KeyPressMsg) {
+// name it hangs from a place, as Shifted says, the card with it; tab, on a card that hangs from what was clicked,
+// closes it and gives its field, to widen into the columns dialog; every other key does nothing. It gives the field to
+// widen into, or nothing.
+func (p *Popover) Key(h Host, k tea.KeyPressMsg) string {
 	if d, ok := ShiftStep(k.String()); ok && (p.Header || p.Heading) {
 		if q, ok := Shifted(h, p.Field, d); ok {
 			h.SetPanel(q)
 			Reveal(h, p.Field)
 			p.follow(h)
 		}
-		return
+		return ""
+	}
+	if k.String() == "tab" && p.hangs() {
+		id := p.Field
+		*p = Popover{}
+		return id
 	}
 	lines := p.Lines(h)
 	if on := p.At >= 0 && p.At < len(lines) && lines[p.At].Input; on && k.String() == "enter" {
 		p.Act(h, p.At)
-		return
+		return ""
 	} else if on && k.String() != "space" {
 		if typed, ok := shell.Type(p.Typed, k); ok {
 			p.Typed = typed
-			return
+			return ""
 		}
 	}
 	switch k.String() {
@@ -431,12 +449,13 @@ func (p *Popover) Key(h Host, k tea.KeyPressMsg) {
 			p.Act(h, p.At)
 		}
 	}
+	return ""
 }
 
 // Box gives the card's lines, a dialog titled by the field's label, its keys on the keys bar alone, and the screen
 // line and column it is drawn from: from a column's name or a chip, its title over it, or nearer the screen's left
-// where it would run past the edge; from the columns dialog, its right edge at the screen's, its top on the dialog's, or higher
-// where it would run past the keys bar.
+// where it would run past the edge, AllFields on its top edge at the right; from the columns dialog, its right edge at
+// the screen's, its top on the dialog's, or higher where it would run past the keys bar.
 func (p Popover) Box(h Host) (box []string, top, left int) {
 	var body []string
 	for k, l := range p.Lines(h) {
@@ -447,9 +466,15 @@ func (p Popover) Box(h Host) (box []string, top, left int) {
 		body = append(body, text)
 	}
 	width, height := h.Size()
-	box = shell.Dialog(labelOf(h, p.Field), body, width)
+	label := labelOf(h, p.Field)
+	if p.hangs() && len(body) > 0 {
+		// room on the top edge for the title, then AllFields: the corner, a rule, a space, the title, a space
+		body[0] = pane.Pad(body[0], ansi.StringWidth(label)+4+allCells-2, false)
+	}
+	box = shell.Dialog(label, body, width)
 	w := ansi.StringWidth(box[0])
 	if p.hangs() {
+		box[0] = ansi.Cut(box[0], 0, w-allCells) + style.Menu("╴") + style.Tint(AllFields) + style.Menu("╶─╮")
 		// the title on its top edge over the name, where the header draws it, after the corner, a rule, and a space
 		top, left = p.Y, min(p.X-3, width-w)
 	} else {
@@ -458,15 +483,23 @@ func (p Popover) Box(h Host) (box []string, top, left int) {
 	return box, max(1, min(top, height-1-len(box))), max(0, left)
 }
 
-// Click takes a click while the card is open: on one of its lines that acts, it acts on it, as space does; off the
-// box, or on the top edge of a card that hangs from a column's name or a chip, which the edge's title covers, it closes
-// it, as a second click on a name closes what the first opened; on the box elsewhere, nothing.
-func (p *Popover) Click(h Host, x, y int) {
+// Click takes a click while the card is open: on one of its lines that acts, it acts on it, as space does; on
+// AllFields, it closes the card and gives its field, to widen into the columns dialog; off the box, or elsewhere on the
+// top edge of a card that hangs from a column's name or a chip, which the edge's title covers, it closes it, as a
+// second click on a name closes what the first opened; on the box elsewhere, nothing. It gives the field to widen into,
+// or nothing.
+func (p *Popover) Click(h Host, x, y int) string {
 	box, top, left := p.Box(h)
+	w := ansi.StringWidth(box[0])
 	switch line, on := (shell.Placed{Lines: box, Top: top, Left: left}).Hit(x, y); {
+	case on && p.hangs() && y == top && x >= left+w-allCells && x < left+w-2:
+		id := p.Field
+		*p = Popover{}
+		return id
 	case !on, p.hangs() && y == top:
 		*p = Popover{}
 	case line >= 0:
 		p.Act(h, line)
 	}
+	return ""
 }

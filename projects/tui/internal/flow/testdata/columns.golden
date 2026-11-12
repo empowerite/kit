@@ -2,23 +2,23 @@
   ➊╶───────────────╮➁╶────────────────╮➂╶───────────────╮➃╶──────────────────╮➄╶─────────────────╮
   │ 🎫 issues  7 : │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  7    │  📦 releases  3   │
   ╵                ╰──────────────────╰─────────────────╰────────────────────╰───────────────────╰──────────────────────
-  ▾ organization · repository ▾ 2                                             ╭─ issues fields ───────────────────────╮
-    ·──────────────·─────────────                                             │   field           type    sort  group │
-  ▾ empowerite 2                                                              │ ☑ organization    enum    ·     ▤₁    │
-                                                                              │ ☑ repository      enum    ·     ▤₂    │
-        id   source  status  age  change  state             where   title     │ ───────────────────────────────────── │
-        ·────·───────·───────▼────·───────·─────────────────·───────·─────────│ ☑ id              ref     ·           │
-    ▾ jig 1                                                                   │ ☑ source          enum    ·     ·     │
-        #7   github  💤      40d                                    🎫 Fix the│ ☑ status          enum    ·     ·     │
-    ▾ kit 1                                                                   │ ☑ age             time    ▼           │
-      ▸ #31  github  🛫       3h  🔀 #12  💬 comments:open  👤 ada  🎫 kit com│ ☑ change          ref     ·     ·     │
-                                                                              │ ☑ state           enum    ·     ·     │
-                                                                              │ ☑ where           text    ·     ·     │
-                                                                              │ ☑ labels          label   ·     ·     │
-                                                                              │ ☑ title           text    ·           │
-                                                                              │ ───────────────────────────────────── │
-                                                                              │ ☐ assignees ⊘     person  ·     ·     │
-                                                                              │ ☐ milestone       enum    ·     ·     │
-                                                                              │ ☐ iteration       enum    ·     ·     │
-                                                                              │ ☐ swimlane        enum    ·     ·     │
- esc close ↑↓ move ⇧↑↓ order ␣ show/hide s sort g group ⏎ settings
+  ▾ organization · repository ▾ 2            ╭─ issues fields ───────────────────────╮╭─ assignees ───────────────────╮
+    ·──────────────·─────────────            │   field           type    sort  group ││ rows                          │
+  ▾ empowerite 2                             │ ☑ organization    enum    ·     ▤₁    ││ ⦾ One row per assignee        │
+                                             │ ☑ repository      enum    ·     ▤₂    ││ ⦿ All assignees on one row    │
+        id   source  status  age  change  sta│ ───────────────────────────────────── ││                               │
+        ·────·───────·───────▼────·───────·──│ ☑ id              ref     ·           ││ filtering                     │
+    ▾ jig 1                                  │ ☑ source          enum    ·     ·     ││ ⦿ include  ⦾ exclude          │
+        #7   github  💤      40d             │ ☑ status          enum    ·     ·     ││ ☑ @me ada                     │
+    ▾ kit 1                                  │ ☑ age             time    ▼           ││ ☐ ada                         │
+      ▸ #31  github  🛫       3h  🔀 #12  💬 │ ☑ change          ref     ·     ·     ││ ☐ bob                         │
+                                             │ ☑ state           enum    ·     ·     ││ ☐ jeffrey-aguilera            │
+                                             │ ☑ where           text    ·     ·     ││ ☐ none                        │
+                                             │ ☑ labels          label   ·     ·     ││                               │
+                                             │ ☑ title           text    ·           ││ rendering                     │
+                                             │ ───────────────────────────────────── ││ ⦿ auto text                   │
+                                             │ ☐ assignees ⊘     person  ·     ·     ││ ⦾ glyph+text                  │
+                                             │ ☐ milestone       enum    ·     ·     ││ ⦾ text                        │
+                                             │ ☐ iteration       enum    ·     ·     │╰───────────────────────────────╯
+                                             │ ☐ swimlane        enum    ·     ·     │
+ esc close ↑↓ move ⇧↑↓ order ␣ show/hide s sort g group → settings

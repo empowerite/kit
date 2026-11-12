@@ -360,24 +360,24 @@ func TestThePresetsAreChosenSavedRenamedAndDeleted(t *testing.T) {
 	if strings.Contains(s.Notice().Text, "saved") {
 		t.Error("Save on Default")
 	}
-	// 📇 Fields opens the fields dialog, whose enter opens a field's card, which esc closes
+	// 📇 Fields opens the fields dialog, whose enter gives a field's card the keyboard, which esc gives back
 	if clickOn(t, &s, FieldsButton, 0); !s.Layered() || !s.cols.Open {
 		t.Fatal("📇 Fields")
 	}
 	pressed(&s, "space")
 	pressed(&s, "enter")
-	if !s.pop.Open {
-		t.Fatal("enter in the dialog opens the popover")
+	if !s.cols.InCard {
+		t.Fatal("enter in the dialog gives the card the keyboard")
 	}
 	if seg, layer := s.Keys(); !layer || len(seg.Bindings) == 0 {
-		t.Error("the popover's keys")
+		t.Error("the card's keys")
 	}
-	if box := strings.Join(screenOf(s), "\n"); !strings.Contains(box, "─") {
-		t.Error("the popover drawn")
+	if box := strings.Join(screenOf(s), "\n"); !strings.Contains(box, "rendering") {
+		t.Error("the card drawn beside the list")
 	}
 	pressed(&s, "esc", "esc")
 	if s.Layered() {
-		t.Error("esc closes the popover, then the dialog")
+		t.Error("esc gives the list the keyboard, then closes the dialog")
 	}
 }
 
@@ -733,8 +733,19 @@ func TestTheLayersTakeKeysAndClicks(t *testing.T) {
 	if x, y := spot(s, "☑"); !s.Click(testkit.Click(x, y)) || !s.cols.Open {
 		t.Error("a click in the fields dialog")
 	}
-	if x, y := spot(s, "☑"); !s.Click(testkit.Click(x+4, y)) || !s.pop.Open || s.pop.Header {
-		t.Errorf("a click on a field's label: %+v", s.pop)
+	if x, y := spot(s, "☑"); !s.Click(testkit.Click(x+4, y)) || !s.cols.InCard {
+		t.Errorf("a click on a field's label: %+v", s.cols)
+	}
+	// a card opened alone widens into the dialog, by tab or a click on its all ▸
+	s.cols = Columns{}
+	s.pop = OpenCard(&s, "kind", false)
+	if pressed(&s, "tab"); s.pop.Open || !s.cols.Open || s.cols.Listed(&s)[s.cols.At] != "kind" {
+		t.Errorf("tab on kind's card: %+v", s.cols)
+	}
+	s.cols = Columns{}
+	s.pop = OpenCard(&s, "kind", false)
+	if clickOn(t, &s, AllFields, 1); s.pop.Open || !s.cols.Open {
+		t.Errorf("a click on all ▸: %+v", s.cols)
 	}
 	s.pop = Popover{}
 	s.cols = Columns{}

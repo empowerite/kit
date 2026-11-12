@@ -532,10 +532,14 @@ func TestTheRowsUnderAHeadingStandInFromIt(t *testing.T) {
 	}
 }
 
-// popLineAt gives the screen line of the popover's line that has the text, after its glyph, and a column inside it.
+// popLineAt gives the screen line of the card's line that has the text, after its glyph, and a column inside it: the
+// card beside the columns dialog's list while it has the keyboard, else the card open.
 func popLineAt(t *testing.T, m Model, text string) (x, y int) {
 	t.Helper()
 	box, top, left := m.pop.Box(&m)
+	if m.cols.InCard {
+		box, top, left = m.cols.CardBox(&m)
+	}
 	for k, l := range box {
 		if strings.Contains(ansi.Strip(l), " "+text+" ") {
 			return left + 3, top + k
@@ -545,35 +549,35 @@ func popLineAt(t *testing.T, m Model, text string) (x, y int) {
 	return -1, -1
 }
 
-// popoverOf opens a field's card from the columns dialog, enter on its line, the keyboard on its filter's mode.
+// popoverOf gives a field's card beside the columns dialog's list the keyboard, enter on its line, on its filter's mode.
 func popoverOf(m Model, id string) Model {
 	m.cols = table.Columns{Open: true}
 	m.cols.At = slices.Index(m.cols.Listed(&m), id)
 	m = drive(m, press(tea.KeyEnter))
-	m.pop = m.pop.AtFilter(&m)
+	m.cols.CardAt = m.cols.Card(&m).AtFilter(&m).At
 	return m
 }
 
-// Enter on a field's line in the columns dialog opens its card, which has the keyboard: up and down move between the
-// lines that act, past the headings; space takes a rendering, and toggles a value of the filter, or its mode; each
-// applies at once, the rows and the preset line's chips following it. The dialog's line shows the sort, so the card
-// beside it has none. Esc closes it, and the dialog has the keyboard again. A click on a line acts on it, and a click
-// off the box closes it.
+// Enter on a field's line in the columns dialog gives its card, beside the list, the keyboard: up and down move between
+// the lines that act, past the headings; space takes a rendering, and toggles a value of the filter, or its mode; each
+// applies at once, the rows and the preset line's chips following it. The list's line shows the sort, so the card
+// beside it has none. Esc gives the list the keyboard again. A click on a line acts on it, and a click off the dialog
+// closes it.
 func TestAFieldsPopoverFiltersAndDrawsIt(t *testing.T) {
 	m := loaded(t, viewing(""))
 	m.apply(m.viewsOf(0).Chosen("Backlog"))
 	m = popoverOf(m, "assignees")
-	if !m.pop.Open || m.pop.Field != "assignees" || !strings.Contains(view(m), "╭─ assignees ") {
+	if !m.cols.InCard || m.cols.Card(&m).Field != "assignees" || !strings.Contains(view(m), "╭─ assignees ") {
 		t.Fatalf("enter on assignees:\n%s", view(m))
 	}
 	// the keyboard on the filter's mode; there is no sort to take
 	if v := view(m); strings.Contains(v, "ascending") || !strings.Contains(m.keys().String(), "␣ toggle") {
-		t.Errorf("the popover's first line: %q\n%s", m.keys().String(), v)
+		t.Errorf("the card's first line: %q\n%s", m.keys().String(), v)
 	}
 	// @me, the caller, is ada; checked, only her issue shows, and the preset line has its chip
 	m = drive(m, down)
-	if keys := m.keys().String(); keys != "esc close ↑↓ move ␣ toggle" || !strings.Contains(view(m), "@me ada") {
-		t.Errorf("the popover's keys on @me: %q", keys)
+	if keys := m.keys().String(); keys != "← fields ↑↓ move ␣ toggle" || !strings.Contains(view(m), "@me ada") {
+		t.Errorf("the card's keys on @me: %q", keys)
 	}
 	if m = drive(m, press(tea.KeySpace)); !slices.Equal(keys(m), []string{"#7"}) ||
 		!strings.Contains(presetText(m), "assignees: @me") {
@@ -592,9 +596,9 @@ func TestAFieldsPopoverFiltersAndDrawsIt(t *testing.T) {
 	if m = drive(m, testkit.Click(x, y)); m.panel(0).Field("assignees").Rendering != "text" || strings.Contains(drawn(m), Owner) {
 		t.Errorf("a click on text: %+v\n%s", m.panel(0).Field("assignees"), view(m))
 	}
-	// esc closes it; the columns dialog has the keyboard, and marks the field filtered
-	if m = drive(m, esc); m.pop.Open || !m.cols.Open || !strings.Contains(view(m), "assignees ⊘") {
-		t.Errorf("esc: open %v, dialog %v\n%s", m.pop.Open, m.cols.Open, view(m))
+	// esc gives the list the keyboard, which marks the field filtered
+	if m = drive(m, esc); m.cols.InCard || !m.cols.Open || !strings.Contains(view(m), "assignees ⊘") {
+		t.Errorf("esc: in the card %v, dialog %v\n%s", m.cols.InCard, m.cols.Open, view(m))
 	}
 	// a click on the preset line's chip, the dialog closed, opens the card under it, on its filter
 	m = drive(m, esc)
@@ -606,15 +610,15 @@ func TestAFieldsPopoverFiltersAndDrawsIt(t *testing.T) {
 	}
 	m = drive(m, esc)
 	m.cols = table.Columns{Open: true}
-	// a click off the box closes it, acting on nothing
+	// a click off the dialog closes it, acting on nothing
 	m = drive(m, press(tea.KeyEnter))
 	before := m.panel(0).Fields
-	if m = drive(m, testkit.Click(2, m.rowsTop())); m.pop.Open || !reflect.DeepEqual(m.panel(0).Fields, before) {
-		t.Errorf("a click off the popover: open %v", m.pop.Open)
+	if m = drive(m, testkit.Click(2, m.rowsTop())); m.cols.Open || !reflect.DeepEqual(m.panel(0).Fields, before) {
+		t.Errorf("a click off the dialog: open %v", m.cols.Open)
 	}
 	// an enum's values are the catalog's, with their glyphs, then none
-	m = popoverOf(drive(m, esc, esc, tab), "state")
-	if v := view(m); m.pop.Field != "state" || !strings.Contains(v, grid.Unticked+" 🔨 draft") ||
+	m = popoverOf(drive(m, esc, tab), "state")
+	if v := view(m); m.cols.Card(&m).Field != "state" || !strings.Contains(v, grid.Unticked+" 🔨 draft") ||
 		!strings.Contains(v, grid.Unticked+" 🏁 ready") || !strings.Contains(v, grid.Unticked+" none") {
 		t.Errorf("state's popover:\n%s", v)
 	}

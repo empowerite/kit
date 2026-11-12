@@ -50,8 +50,10 @@ func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 		t.Errorf("the fields: %q", got)
 	}
 	box, top, left := m.cols.Box(&m)
+	card, _, cleft := m.cols.CardBox(&m)
 	text := ansi.Strip(strings.Join(box, "\n"))
-	if top != m.top() || left+ansi.StringWidth(box[0]) != m.paneWidth() || !strings.Contains(text, "issues fields") ||
+	if top != m.top() || left+ansi.StringWidth(box[0]) != cleft || cleft+ansi.StringWidth(card[0]) != m.paneWidth() ||
+		!strings.Contains(text, "issues fields") ||
 		!strings.Contains(text, "field") || !strings.Contains(text, grid.Ticked+" assignees") ||
 		!strings.Contains(text, "▼") || !strings.Contains(text, grid.Unticked+" organization") ||
 		!strings.Contains(keysOf(m), "s sort") {
@@ -66,8 +68,9 @@ func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 
 // What the dialog sets applies at once: space hides a field or shows it, s turns its sort, none, ascending, descending,
 // none, g groups by it within the groups or no longer, and shift with up or down moves it, the keyboard with it, into
-// the groups or out of them. A click on a line's box, its sort, or its group does as space, s, or g; enter opens its
-// card over the dialog; esc, or a click off the dialog, closes it.
+// the groups or out of them. A click on a line's box, its sort, or its group does as space, s, or g; a click on its
+// label, or enter, gives its card beside the list the keyboard, which esc gives back; esc, or a click off the dialog,
+// closes it.
 func TestTheColumnsDialogAppliesAtOnce(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 110, Height: 30})
 	// the organization and the repository, columns between source and assignees once ungrouped, have tests of their own
@@ -125,19 +128,20 @@ func TestTheColumnsDialogAppliesAtOnce(t *testing.T) {
 		t.Errorf("a click on assignees' group: %q", m.panel(0).Groups())
 	}
 	x, y = columnsAt(t, m, "assignees")
-	if m = drive(m, testkit.Click(x+4, y)); m.cols.Listed(&m)[m.cols.At] != "assignees" || !m.cols.Open {
-		t.Errorf("a click on assignees' label: at %d", m.cols.At)
+	if m = drive(m, testkit.Click(x+4, y)); m.cols.Listed(&m)[m.cols.At] != "assignees" || !m.cols.Open || !m.cols.InCard {
+		t.Errorf("a click on assignees' label: %+v", m.cols)
 	}
+	m = drive(m, esc)
 	_, top, _ := m.cols.Box(&m)
 	if m = drive(m, testkit.Click(x, top+1)); !m.cols.Open {
 		t.Error("a click on the headings closed the dialog")
 	}
-	// enter opens the field's card over the dialog; esc closes it, then the dialog
-	if m = drive(m, press(tea.KeyEnter)); !m.pop.Open || m.pop.Field != "assignees" || !m.cols.Open {
-		t.Fatalf("enter: popover %+v", m.pop)
+	// enter gives the field's card the keyboard; esc gives it back, then closes the dialog
+	if m = drive(m, press(tea.KeyEnter)); !m.cols.InCard || m.cols.Card(&m).Field != "assignees" || !m.cols.Open {
+		t.Fatalf("enter: %+v", m.cols)
 	}
-	if m = drive(m, esc, esc); m.pop.Open || m.cols.Open {
-		t.Errorf("esc twice: popover %v, dialog %v", m.pop.Open, m.cols.Open)
+	if m = drive(m, esc, esc); m.cols.InCard || m.cols.Open {
+		t.Errorf("esc twice: in the card %v, dialog %v", m.cols.InCard, m.cols.Open)
 	}
 	m.cols = table.Columns{Open: true}
 	if m = drive(m, testkit.Click(1, m.rowsTop()+3)); m.cols.Open {

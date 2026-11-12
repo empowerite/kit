@@ -84,7 +84,6 @@ func (m *Model) InRows() bool { return m.inRows && len(m.stages) > 0 }
 // Views gives the selected stage's views, its own and the person's.
 func (m *Model) Views() table.Views { return m.viewsOf(m.stage) }
 
-
 // Color gives the selected stage's color, its tab's.
 func (m *Model) Color() string { return stageColors[m.stages[m.stage].name] }
 

@@ -33,6 +33,14 @@ func press(name string) tea.KeyPressMsg {
 		return tea.KeyPressMsg{Code: tea.KeyEnter}
 	case "shift+up":
 		return tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModShift}
+	case "right":
+		return tea.KeyPressMsg{Code: tea.KeyRight}
+	case "left":
+		return tea.KeyPressMsg{Code: tea.KeyLeft}
+	case "tab":
+		return tea.KeyPressMsg{Code: tea.KeyTab}
+	case "shift+tab":
+		return tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}
 	case "s", "g":
 		return tea.KeyPressMsg{Code: rune(name[0]), Text: name}
 	}
@@ -46,8 +54,10 @@ func TestTheColumnsDialogShowsSortsGroupsAndMovesAField(t *testing.T) {
 		t.Fatalf("listed: %q", got)
 	}
 	box, top, left := c.Box(h)
-	if top != 4 || left+ansi.StringWidth(box[0]) != h.w-1 || !strings.Contains(ansi.Strip(box[0]), "things fields") {
-		t.Errorf("the box at %d, %d: %q", top, left, ansi.Strip(box[0]))
+	card, ctop, cleft := c.CardBox(h)
+	if top != 4 || left+ansi.StringWidth(box[0]) != cleft || cleft+ansi.StringWidth(card[0]) != h.w-1 || ctop != top ||
+		!strings.Contains(ansi.Strip(box[0]), "things fields") || !strings.Contains(ansi.Strip(card[0]), "state") {
+		t.Errorf("the box at %d, %d: %q, the card at %d", top, left, ansi.Strip(box[0]), cleft)
 	}
 	// space hides state, and again shows it; s sorts it, g groups by it
 	c.Key(h, press("space"))
@@ -90,12 +100,92 @@ func TestTheColumnsDialogShowsSortsGroupsAndMovesAField(t *testing.T) {
 	if got := ansi.Strip(c.Line(h, "who")); !strings.Contains(got, grid.Filtered) {
 		t.Errorf("a filtered line: %q", got)
 	}
-	// enter gives the field's card to open, beside the dialog
-	if pop, ok := c.Key(h, press("enter")); !ok || pop.Field != c.Listed(h)[c.At] || pop.Header {
-		t.Errorf("enter: %+v %v", pop, ok)
+	// enter gives the field's card, beside the list, the keyboard; esc gives it back, and again closes the dialog
+	if c.Key(h, press("enter")); !c.InCard || c.Card(h).Field != c.Listed(h)[c.At] {
+		t.Errorf("enter: %+v", c)
+	}
+	if c.Key(h, press("esc")); c.InCard || !c.Open {
+		t.Error("esc in the card left the dialog")
 	}
 	if c.Key(h, press("esc")); c.Open {
 		t.Error("esc left it open")
+	}
+}
+
+// The card of the field under the keyboard stands beside the list, as wide as the widest field's, so the dialog stands
+// still as the keyboard moves; it has what the list's line does not, the filter and the rendering. Right, enter, or tab
+// gives it the keyboard, and left, esc, or shift-tab gives it back; a click on one of its lines acts on it. A field the
+// catalog does not know has no card, and the keys that would reach one do nothing.
+func TestTheColumnsDialogHoldsTheFieldsCardBesideIt(t *testing.T) {
+	h := listing()
+	c := Columns{Open: true}
+	card, _, cleft := c.CardBox(h)
+	for c.At = range c.Listed(h) {
+		if _, _, left := c.CardBox(h); left != cleft {
+			t.Errorf("%s's card at %d, not %d", c.Listed(h)[c.At], left, cleft)
+		}
+	}
+	c.At = 0
+	if text := ansi.Strip(strings.Join(card, "\n")); strings.Contains(text, "sort") || strings.Contains(text, ShowIt) ||
+		!strings.Contains(text, "filtering") || !strings.Contains(text, "rendering") {
+		t.Errorf("state's card beside the list:\n%s", text)
+	}
+	// right gives the card the keyboard, on its filter's mode; down and space check open; left gives it back
+	if c.Key(h, press("right")); !c.InCard || !c.Card(h).Lines(h)[c.CardAt].Mode ||
+		!strings.Contains((shell.Path{c.Keys(h)}).String(), "← fields") {
+		t.Fatalf("right: %+v, %q", c, (shell.Path{c.Keys(h)}).String())
+	}
+	c.Key(h, key("down"))
+	c.Key(h, key("space"))
+	if f := h.panel.Field("state").Filter; !slices.Equal(f.Values, []string{"open"}) ||
+		!strings.Contains(ansi.Strip(c.Line(h, "state")), grid.Filtered) {
+		t.Errorf("open checked in the card: %+v", f)
+	}
+	if c.Key(h, press("left")); c.InCard {
+		t.Error("left in the card")
+	}
+	if c.Key(h, press("tab")); !c.InCard {
+		t.Error("tab")
+	}
+	c.Key(h, press("shift+tab"))
+	// a click on the card's open unchecks it, and gives the card the keyboard; one on its edge does nothing
+	card, ctop, cleft := c.CardBox(h)
+	if c.Click(h, cleft+3, ctop+3, false); len(h.panel.Field("state").Filter.Values) != 0 || !c.InCard || c.CardAt != 2 {
+		t.Errorf("a click on the card's open: %+v, %+v", h.panel.Field("state").Filter, c)
+	}
+	if c.Click(h, cleft, ctop+3, false); !c.Open || len(h.panel.Field("state").Filter.Values) != 0 {
+		t.Error("a click on the card's edge")
+	}
+	heading := slices.Index(texts(c.Card(h), h), "rendering")
+	if c.Click(h, cleft+3, ctop+1+heading, false); c.CardAt != 2 || len(card) == 0 {
+		t.Errorf("a click on the card's heading moved the keyboard: %d", c.CardAt)
+	}
+	// a field the catalog does not know has no card: right does nothing, nor does a click on its label
+	h.panel.Columns = append(h.panel.Columns, "extra")
+	c = Columns{Open: true, At: slices.Index(h.panel.Listed(), "extra")}
+	_, top, left := c.Box(h)
+	if card, _, _ := c.CardBox(h); card != nil {
+		t.Error("a card for a field the catalog does not know")
+	}
+	if c.Key(h, press("right")); c.InCard {
+		t.Error("right into no card")
+	}
+	if c.Click(h, left+6, top+2+c.At, false); c.InCard {
+		t.Error("a click on extra's label into no card")
+	}
+	if (Columns{At: 99}).Card(h).Open {
+		t.Error("a card past the list")
+	}
+	// OpenColumns opens the dialog on a field, its card with the keyboard; on the first for a field it does not list
+	if o := OpenColumns(h, "who"); !o.Open || o.Listed(h)[o.At] != "who" || !o.InCard || o.CardAt < 0 {
+		t.Errorf("open on who: %+v", o)
+	}
+	if o := OpenColumns(h, "nonesuch"); o.At != 0 {
+		t.Errorf("open on no field: %+v", o)
+	}
+	h.fields, h.panel.Columns = nil, []string{"extra"}
+	if (Columns{}).cardInner(h) != 0 {
+		t.Error("a card's width with no card")
 	}
 }
 
@@ -121,11 +211,11 @@ func TestTheColumnsDialogTakesClicksAndNamesItsKeys(t *testing.T) {
 	if h.panel.Field("state").Placement != grid.Hidden {
 		t.Errorf("a click on state's box: %+v", h.panel.Field("state"))
 	}
-	if pop, ok := c.Click(h, left+6, y, false); !ok || c.At != 1 || pop.Field != c.Listed(h)[1] || pop.Header || pop.Y != top {
-		t.Errorf("a click on a label: at %d, %+v", c.At, pop)
+	if c.Click(h, left+6, y, false); c.At != 1 || !c.InCard {
+		t.Errorf("a click on a label: %+v", c)
 	}
-	if _, ok := c.Click(h, left+3, top+2, false); ok {
-		t.Error("a click on a box opened a card")
+	if c.Click(h, left+3, top+2, false); c.InCard {
+		t.Error("a click on a box left the card the keyboard")
 	}
 	if c.Click(h, left, top+1, false); !c.Open {
 		t.Error("a click on the headings closed it")

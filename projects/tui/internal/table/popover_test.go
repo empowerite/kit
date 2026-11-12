@@ -143,6 +143,24 @@ func TestAPopoverHangsWhereItWasOpenedAndTakesClicks(t *testing.T) {
 	if p.Click(h, left+4, top); p.Open {
 		t.Error("a click on the title, over the name, left the card open")
 	}
+	// all ▸ on the top edge widens the card into the columns dialog, as tab does; beside the dialog there is none
+	p = OpenPopover(h, "state", 20, 3, true)
+	box, top, left = p.Box(h)
+	edge := ansi.Strip(box[0])
+	if !strings.HasSuffix(edge, "╴"+AllFields+"╶─╮") || !strings.Contains((shell.Path{p.Keys(h)}).String(), "⇥ all fields") {
+		t.Errorf("the top edge: %q", edge)
+	}
+	if id := p.Click(h, left+ansi.StringWidth(box[0])-5, top); id != "state" || p.Open {
+		t.Errorf("a click on all ▸: %q", id)
+	}
+	p = OpenPopover(h, "state", 20, 3, true)
+	if id := p.Key(h, tea.KeyPressMsg{Code: tea.KeyTab}); id != "state" || p.Open {
+		t.Errorf("tab: %q", id)
+	}
+	if bbox, _, _ := beside.Box(h); beside.Key(h, tea.KeyPressMsg{Code: tea.KeyTab}) != "" ||
+		strings.Contains(ansi.Strip(bbox[0]), AllFields) {
+		t.Error("tab beside the dialog")
+	}
 	p = OpenPopover(h, "state", 20, 3, true)
 	if p.Click(h, 0, 0); p.Open {
 		t.Error("a click off the box left it open")

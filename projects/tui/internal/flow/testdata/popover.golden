@@ -2,23 +2,23 @@
   ➊╶───────────────╮➁╶────────────────╮➂╶───────────────╮➃╶──────────────────╮➄╶─────────────────╮
   │ 🎫 issues  7 : │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  7    │  📦 releases  3   │
   ╵                ╰──────────────────╰─────────────────╰────────────────────╰───────────────────╰──────────────────────
-  ▾ source · organization · repository ▾ 2                                    ╭─ issues fi╭─ assignees ────────────────╮
-    ·────────·──────────────·─────────────                                    │   field   │ rows                       │
-  ▾ github · empowerite 2                                                     │ ☑ source  │ ⦾ One row per assignee     │
-                                                                              │ ☑ organiza│ ⦿ All assignees on one row │
-        id   status  assignees  age  change  state             where   title  │ ☑ reposito│                            │
-        ·────·───────×·─────────·────·───────·─────────────────·───────·──────│ ──────────│ filtering                  │
-    ▾ jig 1                                                                   │ ☑ id      │ ⦿ include  ⦾ exclude       │
-      ▸ #7   💤      ada    +1  40d                                    🎫 Fix │ ☑ status  │ ☑ @me ada                  │
-    ▾ kit 1                                                                   │ ☑ assignee│ ☐ ada                      │
-      ▸ #31  🛫      ada         3h  🔀 #12  💬 comments:open  👤 ada  🎫 kit │ ☑ age     │ ☐ bob                      │
-                                                                              │ ☑ change  │ ☐ jeffrey-aguilera         │
-                                                                              │ ☑ state   │ ☐ none                     │
-                                                                              │ ☑ where   │                            │
-                                                                              │ ☑ labels  │ rendering                  │
-                                                                              │ ☑ title   │ ⦿ auto text                │
-                                                                              │ ──────────│ ⦾ glyph+text               │
-                                                                              │ ☐ mileston│ ⦾ text                     │
-                                                                              │ ☐ iteratio╰────────────────────────────╯
-                                                                              │ ☐ swimlane        enum    ·     ·     │
- esc close ↑↓ move ␣ toggle
+  ▾ source · organization · repository ▾ 2   ╭─ issues fields ───────────────────────╮╭─ assignees ───────────────────╮
+    ·────────·──────────────·─────────────   │   field           type    sort  group ││ rows                          │
+  ▾ github · empowerite 2                    │ ☑ source          enum    ·     ▤₁    ││ ⦾ One row per assignee        │
+                                             │ ☑ organization    enum    ·     ▤₂    ││ ⦿ All assignees on one row    │
+        id   status  assignees  age  change  │ ☑ repository      enum    ·     ▤₃    ││                               │
+        ·────·───────×·─────────·────·───────│ ───────────────────────────────────── ││ filtering                     │
+    ▾ jig 1                                  │ ☑ id              ref     ·           ││ ⦿ include  ⦾ exclude          │
+      ▸ #7   💤      ada    +1  40d          │ ☑ status          enum    ·     ·     ││ ☑ @me ada                     │
+    ▾ kit 1                                  │ ☑ assignees ⊘     person  ·     ·     ││ ☐ ada                         │
+      ▸ #31  🛫      ada         3h  🔀 #12  │ ☑ age             time    ·           ││ ☐ bob                         │
+                                             │ ☑ change          ref     ·     ·     ││ ☐ jeffrey-aguilera            │
+                                             │ ☑ state           enum    ·     ·     ││ ☐ none                        │
+                                             │ ☑ where           text    ·     ·     ││                               │
+                                             │ ☑ labels          label   ·     ·     ││ rendering                     │
+                                             │ ☑ title           text    ·           ││ ⦿ auto text                   │
+                                             │ ───────────────────────────────────── ││ ⦾ glyph+text                  │
+                                             │ ☐ milestone       enum    ·     ·     ││ ⦾ text                        │
+                                             │ ☐ iteration       enum    ·     ·     │╰───────────────────────────────╯
+                                             │ ☐ swimlane        enum    ·     ·     │
+ ← fields ↑↓ move ␣ toggle
