@@ -347,9 +347,11 @@ JSON
     run call open-prs
     [ "$status" -eq 0 ]
     [ "$(jq --compact-output --sort-keys \
-      'del(.age, .createdAt, .ref) | .closes |= map(del(.age, .source, .organization, .repository))' <<<"$output")" \
-      = "$(jq --compact-output --sort-keys . <<<"${expected}")" ]
+      'del(.age, .createdAt, .ref, .source) | .closes |= map(del(.age, .source, .organization, .repository))' \
+      <<<"$output")" = "$(jq --compact-output --sort-keys . <<<"${expected}")" ]
     [ "$(jq '.closes[0].age > 0' <<<"$output")" = true ]
+    # the change names the forge it is on
+    [ "$(jq --raw-output .source <<<"$output")" = "${forge}" ]
     # each issue a change closes names the tracker that holds it, the forge's own, and where in it the issue is
     [ "$(jq --raw-output '[.closes[].source] | unique | join(" ")' <<<"$output")" = "${forge}" ]
     [ "$(jq --raw-output '[.closes[] | "\(.organization)/\(.repository)"] | unique | join(" ")' <<<"$output")" \

@@ -4,6 +4,7 @@
 # rest is shared, so a pull request on GitHub and a merge request on GitLab fold into the same document:
 #
 #   number, ref, branch, title, author, createdAt
+#   source      the forge the change is on: github, gitlab, or ado
 #   fork        the owner of the repository the change's branch lives in, when that is not the base repository: a
 #               login on GitHub, a namespace's path on GitLab; null for a branch in the base repository, or a fork
 #               whose owner the forge does not name
@@ -108,16 +109,17 @@ def reviewers($author):
     if any(.[]; .login == $r.login) then . else . + [$r] end)
   | map({login, state, at: (if .at == null then null else .at | epoch end)}) | sort_by(.login);
 
-# document($now) reads {number, ref, branch, fork, title, author, createdAt, pushed, draft, conflicted, approval, runs,
-# unresolved, labels, closes, reviewers} and gives the document. pushed is {at, by}, or null, and comes out with its
-# age in place of at. labels are the forge's, as labels reads them. Each of closes is {number, title, assignees,
-# labels, createdAt, source, organization, repository}, and comes out with its age; an issue an older answer gives
-# without a time has a null age, one without a source, an organization, or a repository a null one, and one without
-# labels none. reviewers are as reviewers reads them, none where the answer names none; each run comes out with at
-# in seconds since the epoch, null where it was empty, and without since.
+# document($now) reads {number, ref, source, branch, fork, title, author, createdAt, pushed, draft, conflicted,
+# approval, runs, unresolved, labels, closes, reviewers} and gives the document. pushed is {at, by}, or null, and comes
+# out with its age in place of at. labels are the forge's, as labels reads them. Each of closes is {number, title,
+# assignees, labels, createdAt, source, organization, repository}, and comes out with its age; an issue an older answer
+# gives without a time has a null age, one without a source, an organization, or a repository a null one, and one
+# without labels none. reviewers are as reviewers reads them, none where the answer names none; each run comes out with
+# at in seconds since the epoch, null where it was empty, and without since.
 def document($now):
   (.runs | checks($now)) as $checks
-  | { number, ref, branch, fork: (.fork // null), title, author, createdAt, age: ($now - (.createdAt | epoch)),
+  | { number, ref, source: (.source // null), branch, fork: (.fork // null), title, author, createdAt,
+      age: ($now - (.createdAt | epoch)),
       pushed: (if .pushed == null then null else {age: ($now - (.pushed.at | epoch)), by: (.pushed.by // null)} end),
       state: (. + {checks: $checks} | state), checks: $checks, unresolved, labels: (.labels | labels),
       closes: [.closes[] | { number, title, assignees: (.assignees // []), labels: (.labels | labels),
@@ -154,7 +156,8 @@ def github_prs($now):
   | ([$repository.issues.nodes[]? | {key: "\(.number)", value: [.assignees.nodes[]?.login]}] | from_entries)
     as $assigned
   | $repository.pullRequests.nodes[]
-  | { number, ref: "#\(.number)", branch: .headRefName, title, author: (.author.login // ""), createdAt,
+  | { number, ref: "#\(.number)", source: "github", branch: .headRefName, title, author: (.author.login // ""),
+      createdAt,
       fork: (if .isCrossRepository then .headRepositoryOwner.login // null else null end),
       pushed: (.commits.nodes[0].commit // {}
                | if .committedDate == null then null else {at: .committedDate, by: .author.user.login} end),
@@ -262,8 +265,8 @@ def gitlab_pipeline_jobs:
 # started it; null when the branch has no pipeline. Its reviewers are those who approved it, at the time each did, then
 # each reviewer it names without an approval, asked.
 def gitlab_pr($now; $jobs; $discussions; $closes; $fork; $approvals):
-  { number: .iid, ref: "!\(.iid)", branch: .source_branch, title, author: (.author.username // ""),
-    createdAt: .created_at, draft, conflicted: .has_conflicts, fork: $fork,
+  { number: .iid, ref: "!\(.iid)", source: "gitlab", branch: .source_branch, title,
+    author: (.author.username // ""), createdAt: .created_at, draft, conflicted: .has_conflicts, fork: $fork,
     pushed: (.head_pipeline // {}
              | if .created_at == null then null else {at: .created_at, by: (.user.username // null)} end),
     approval: ((.detailed_merge_status // "") == "not_approved"), labels,
@@ -509,8 +512,9 @@ def ado_reviewers:
 # work items linked to it, and gives its document. Azure DevOps tells no push's time without a further call, so pushed
 # is null. A pull request from a fork names the fork's repository as its owner.
 def ado_pr($now; $policies; $threads; $closes; $path):
-  { number: .pullRequestId, ref: "!\(.pullRequestId)", branch: (.sourceRefName | ltrimstr("refs/heads/")), title,
-    author: (.createdBy.uniqueName // ""), createdAt: .creationDate, draft: (.isDraft // false),
+  { number: .pullRequestId, ref: "!\(.pullRequestId)", source: "ado",
+    branch: (.sourceRefName | ltrimstr("refs/heads/")), title, author: (.createdBy.uniqueName // ""),
+    createdAt: .creationDate, draft: (.isDraft // false),
     conflicted: (.mergeStatus == "conflicts"), fork: (.forkSource.repository.name // null), pushed: null,
     approval: ado_blocked($policies), labels: [.labels[]? | .name], reviewers: ado_reviewers,
     runs: ado_runs($policies), unresolved: ado_unresolved($threads),

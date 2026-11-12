@@ -543,7 +543,8 @@ const jumps = "kittui:"
 func jumpTo(stage, key string) string { return jumps + stage + "/" + key }
 
 // pullKey gives the key of a member's pull request's row under changes: its reference as kit printed it, else, as
-// where changes is another app's, #<number>, or !<number> for a GitLab merge request, after the member over a group.
+// where changes is another app's, #<number>, or !<number> for a GitLab merge request or an Azure DevOps pull request,
+// after the member over a group.
 func (m Model) pullKey(member, source string, number int) string {
 	if s := m.find("changes"); s != nil {
 		for _, p := range of[pull](*s) {
@@ -552,7 +553,7 @@ func (m Model) pullKey(member, source string, number int) string {
 			}
 		}
 	}
-	if source == "gitlab" {
+	if source == "gitlab" || source == "ado" {
 		return m.keyOf(member, "!"+strconv.Itoa(number))
 	}
 	return m.keyOf(member, "#"+strconv.Itoa(number))

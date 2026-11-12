@@ -248,9 +248,9 @@ added='"milestones","bots","attestations","code-scanning","dependabot","secret-s
   run call open-prs
   [ "$status" -eq 0 ]
   [ "$(jq --compact-output --sort-keys \
-    'del(.age, .createdAt, .ref) | .closes |= map(del(.age, .source, .organization, .repository))' <<<"$output")" \
-    = "$(jq --compact-output --sort-keys . <<<"${expected}")" ]
-  [ "$(jq --raw-output .ref <<<"$output")" = '!3' ]
+    'del(.age, .createdAt, .ref, .source) | .closes |= map(del(.age, .source, .organization, .repository))' \
+    <<<"$output")" = "$(jq --compact-output --sort-keys . <<<"${expected}")" ]
+  [ "$(jq --raw-output '"\(.ref) \(.source)"' <<<"$output")" = '!3 ado' ]
   [ "$(jq --raw-output '[.closes[] | "\(.source) \(.organization)/\(.repository)"] | join(" ")' <<<"$output")" \
     = 'ado empowerite/example' ]
   # a draft is drawn as one, and a blocking review policy that has not approved blocks the merge

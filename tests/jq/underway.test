@@ -14,10 +14,11 @@ import "underway" as underway; underway::rows({"7-fix": "/desk/worktrees/7-fix"}
 [{"number": 3, "branch": "7-fix", "closes": [{"number": 7, "age": 100}]}, {"number": 4, "branch": "8-also", "closes": [{"number": 8, "age": 90}]}, {"number": 5, "branch": "9-gone", "closes": [{"number": 9, "age": 80}]}]
 [[3,true,false],[4,false,true],[5,false,false]]
 
-# The change in a row is its number, title, author, state, branch, fork, and last push, and nothing else.
+# The change in a row is its number, the forge it is on, its title, author, state, branch, fork, and last push, and
+# nothing else; a change without a source has a null one.
 import "underway" as underway; underway::rows({}; []) | map(.pr)
-[{"number": 3, "title": "Fix", "author": "ada", "state": "draft", "branch": "7-fix", "fork": "cy", "pushed": {"age": 60, "by": "dee"}, "ref": "#3", "age": 5, "closes": [{"number": 7, "title": "Seven", "age": 9}]}, {"number": 4, "title": "Also", "author": "ada", "state": "draft", "branch": "8-also", "fork": null, "pushed": null, "closes": [{"number": 8, "title": "Eight", "age": 8}]}]
-[{"number":3,"title":"Fix","author":"ada","state":"draft","branch":"7-fix","fork":"cy","pushed":{"age":60,"by":"dee"}},{"number":4,"title":"Also","author":"ada","state":"draft","branch":"8-also","fork":null,"pushed":null}]
+[{"number": 3, "source": "gitlab", "title": "Fix", "author": "ada", "state": "draft", "branch": "7-fix", "fork": "cy", "pushed": {"age": 60, "by": "dee"}, "ref": "#3", "age": 5, "closes": [{"number": 7, "title": "Seven", "age": 9}]}, {"number": 4, "title": "Also", "author": "ada", "state": "draft", "branch": "8-also", "fork": null, "pushed": null, "closes": [{"number": 8, "title": "Eight", "age": 8}]}]
+[{"number":3,"source":"gitlab","title":"Fix","author":"ada","state":"draft","branch":"7-fix","fork":"cy","pushed":{"age":60,"by":"dee"}},{"number":4,"source":null,"title":"Also","author":"ada","state":"draft","branch":"8-also","fork":null,"pushed":null}]
 
 # Logins keep the rows whose issue one of them is assigned, whoever opened the change; except, the others.
 import "underway" as underway; [underway::by_owners(["ada"]; false), underway::by_owners(["ada"]; true), underway::by_owners([]; false)] | map(map(.number))

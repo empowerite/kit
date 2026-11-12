@@ -407,9 +407,10 @@ func TestALinkToAnotherAppsTabAsksKittuiForThatAppAtTheRow(t *testing.T) {
 	if got := values["#1 #2"]["change"]; got != jumpTo("changes", "#2") {
 		t.Errorf("the change leads to %q", got)
 	}
-	// a merge request changes does not hold is !<number> on GitLab, #<number> elsewhere
-	if got, other := m.pullKey("", "gitlab", 5), m.pullKey("", "github", 5); got != "!5" || other != "#5" {
-		t.Errorf("a pull request changes does not hold: %q on GitLab, %q on GitHub", got, other)
+	// a change changes does not hold is !<number> on GitLab and Azure DevOps, #<number> elsewhere
+	gitlab, ado, github := m.pullKey("", "gitlab", 5), m.pullKey("", "ado", 5), m.pullKey("", "github", 5)
+	if gitlab != "!5" || ado != "!5" || github != "#5" {
+		t.Errorf("a change changes does not hold: %q on GitLab, %q on Azure DevOps, %q on GitHub", gitlab, ado, github)
 	}
 	here := jumpTo("workspace/worktrees", "/home/kit/worktrees/1-the-first-release-v0-1-0")
 	if got := values["#1 #2"]["where"]; got != here {

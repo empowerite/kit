@@ -75,6 +75,21 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ "${#lines[0]}" -eq "${#lines[1]}" ]
 }
 
+@test "a change is drawn as the forge it is on names one: !<number> on GitLab and Azure DevOps, #<number> on GitHub" {
+  local doc='[
+    {"number": 7, "title": "Seven", "age": 300, "status": "underway",
+     "pr": {"number": 3, "source": "gitlab", "state": "draft"}},
+    {"number": 8, "title": "Eight", "age": 200, "status": "underway",
+     "pr": {"number": 4, "source": "ado", "state": "draft"}},
+    {"number": 9, "title": "Nine", "age": 100, "status": "underway",
+     "pr": {"number": 5, "source": "github", "state": "draft"}}]'
+  run --separate-stderr bash -c 'source "${kit_root}/modules/bash/1st.sh" && use flow && issues:draw "$1" all' _ "${doc}"
+  [ "$status" -eq 0 ]
+  [[ "${stderr_lines[0]}" == *"🔀 !3 "* ]]
+  [[ "${stderr_lines[1]}" == *"🔀 !4 "* ]]
+  [[ "${stderr_lines[2]}" == *"🔀 #5 "* ]]
+}
+
 @test "kit flow issues paints the issue's number cyan, the pull request's magenta, and its state in its family" {
   local esc=$'\x1b'
   run env -u NO_COLOR CLICOLOR_FORCE=1 "${kit_root}/bin/kit" flow issues
@@ -90,8 +105,8 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
     = '[[7,"underway",3,true],[7,"underway",5,false],[11,"underway",5,false]]' ]
   [ "$(jq -c '.[0] | keys_unsorted' <<<"$output")" = '["number","title","assignees","labels","age","source",'\
 '"organization","repository","milestone","iteration","swimlane","status","branch","pr","here","local","worktree"]' ]
-  [ "$(jq -c '.[0].pr' <<<"$output")" = '{"number":3,"title":"Fix the thing","author":"ada","state":"draft",'\
-'"branch":"7-fix-the-thing","fork":null,"pushed":null}' ]
+  [ "$(jq -c '.[0].pr' <<<"$output")" = '{"number":3,"source":"github","title":"Fix the thing","author":"ada",'\
+'"state":"draft","branch":"7-fix-the-thing","fork":null,"pushed":null}' ]
   [ "$(jq -c 'map(.local)' <<<"$output")" = '[false,false,false]' ]
   [ "$(jq -c '[.[0].assignees, .[1].worktree, (.[0].age | type)]' <<<"$output")" = '[["bob"],null,"number"]' ]
   [ "$(jq -r '.[0].worktree' <<<"$output")" -ef worktrees/7-fix-the-thing ]

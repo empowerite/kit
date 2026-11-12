@@ -99,7 +99,7 @@ issues:documents() {
 # A cell is blank in a row that has none, and a column takes no room when no row has one: column 5 when no issue is
 # underway, and column 6 when none is underway or claimed.
 issues:draw() {
-  local doc=$1 choice=$2 sigil desk row ref assignees age status number state where author fork pushed by branch
+  local doc=$1 choice=$2 desk row ref assignees age status number state where author fork pushed by branch
   local milestone iteration swimlane title width glyph
   local ref_w=0 owner_w=0 age_w=0 pr_w=0 state_w=0 where_w=0 fork_w=0 pushed_w=0 by_w=0 milestone_w=0
   local iteration_w=0 swimlane_w=0
@@ -109,11 +109,14 @@ issues:draw() {
     flow:none 'no open issue'
     return 0
   fi
-  sigil=$(forge:noun 2>/dev/null | cut -f 1) || true  # with no forge's noun, the rows draw with no sigil
-  # The desk is the first checkout git lists; issues:checkouts names each checkout's path as git lists it.
+  # The desk is the first checkout git lists; issues:checkouts names each checkout's path as git lists it. A change is
+  # drawn as the forge it is on names one: !<number> on GitLab and Azure DevOps, #<number> elsewhere.
   desk=$(git worktree list --porcelain 2>/dev/null | sed -n '1s/^worktree //p') || true
   readarray -t rows < <(jq --raw-output --arg desk "${desk}" '.[] | ["#\(.number)", ((.assignees // []) | join(" ")),
-    (.age // "" | tostring), .status, (.pr.number // "" | tostring), (.pr.state // ""),
+    (.age // "" | tostring), .status,
+    (.pr // null | if . == null then "" else (if .source | IN("gitlab", "ado") then "!" else "#" end) + "\(.number)"
+                   end),
+    (.pr.state // ""),
     (if .status == "backlog" then (if .branch then "branch" else "none" end)
      elif .here then (if .worktree == $desk then "desk" else "linked" end) elif .local then "local" else "" end),
     (.pr.author // ""), (.pr.fork // ""), (.pr.pushed.age // "" | tostring),
@@ -125,7 +128,6 @@ issues:draw() {
       iteration swimlane title <<<"${row}"
     age=$(flow:age "${age}")
     pushed=$(flow:age "${pushed}")
-    [[ -z "${number}" ]] || number="${sigil:-#}${number}"
     case "${where}" in
       (desk | linked) where=here ;;
       (branch) where=${branch} ;;
@@ -176,7 +178,7 @@ issues:draw() {
       if [[ -n "${number}" ]]
       then
         row+="${flow_gap}${flow_glyphs[Change]} $(flow:paint "${flow_change_sgr}" \
-          "$(flow:cell "${sigil:-#}${number}" "${pr_w}" right)")"
+          "$(flow:cell "${number}" "${pr_w}" right)")"
         row+=" $(flow:state-emoji "${state}") $(flow:paint "$(flow:state-sgr "${state}")" \
           "$(flow:cell "${state}" "${state_w}")")"
       else
