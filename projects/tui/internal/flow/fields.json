@@ -2,6 +2,7 @@
   "stages": [
     {
       "stage": "workspace/repos", "command": ["workspace", "repos", "--json"], "staged": true,
+      "summary": "Each member of the workspace stands here, cloned or not, with its forge, its clone, and its desk's branch",
       "takes": ["workspace"], "record": ".rows[]", "key": ".repository",
       "empty": "no repository",
       "fields": [
@@ -38,6 +39,7 @@
     },
     {
       "stage": "issues", "command": ["flow", "issues", "--json"], "staged": true, "forge": true,
+      "summary": "Every open issue stands here, with its status, its milestone, its iteration, and its swimlane",
       "takes": ["owner", "fresh", "cached", "workspace"], "record": ".[]", "key": ".number, .pr.number?",
       "empty": "no open issue",
       "fields": [
@@ -108,6 +110,7 @@
     },
     {
       "stage": "changes", "command": ["flow", "changes", "--json"], "staged": true, "forge": true,
+      "summary": "Each open pull request stands here, with the issues it closes",
       "takes": ["owner", "fresh", "cached", "workspace"], "record": ".[]", "key": ".number",
       "empty": "no open pull request",
       "fields": [
@@ -156,6 +159,7 @@
     },
     {
       "stage": "builds", "command": ["flow", "builds", "--json"], "staged": true, "forge": true,
+      "summary": "The CI runs no pull request owns stand here, as those on the default branch",
       "takes": ["cached", "workspace"], "record": ".[]", "key": ".id",
       "empty": "no build since the last 20 runs",
       "fields": [
@@ -200,6 +204,7 @@
     },
     {
       "stage": "incoming", "command": ["flow", "incoming", "--json"], "staged": true,
+      "summary": "The last fetch brought these from each remote: new commits, and branches and tags that are new or gone",
       "takes": ["no-fetch", "cached", "workspace"], "record": ".rows[]",
       "empty": "no remote to fetch",
       "fields": [
@@ -273,6 +278,7 @@
     },
     {
       "stage": "releases", "command": ["flow", "releases", "--json"], "staged": true, "forge": true,
+      "summary": "Each version you tagged stands here, with its assets and its notes",
       "takes": ["cached", "workspace"], "record": ".[]",
       "empty": "no release",
       "fields": [
@@ -319,6 +325,7 @@
     },
     {
       "stage": "workspace/remotes", "command": ["workspace", "remotes", "--json"], "staged": true,
+      "summary": "Each remote stands here, with its forge, its organization and repository, its URL, and its default branch",
       "takes": ["workspace"], "record": ".rows[]",
       "fields": [
         {"id": "remote", "label": "remote", "type": "text", "path": ".remote", "sort": true, "glyph": "📡",
@@ -354,6 +361,7 @@
     },
     {
       "stage": "workspace/branches", "command": ["workspace", "branches", "--json"], "staged": true,
+      "summary": "Each branch stands here: a remote's, with the local branches that pull from it, and each local one",
       "takes": ["workspace"], "record": ".rows[]",
       "fields": [
         {"id": "kind", "label": "kind", "type": "enum", "path": ".kind", "sort": true, "group": true, "filter": true,
@@ -396,6 +404,7 @@
     },
     {
       "stage": "workspace/worktrees", "command": ["workspace", "worktrees", "--json"], "staged": true,
+      "summary": "Each worktree stands here, the desk first, with its branch and how far it is ahead and behind its upstream",
       "takes": ["workspace"], "record": ".rows[]",
       "fields": [
         {"id": "kind", "label": "kind", "type": "enum", "path": ".kind", "sort": true, "group": true, "filter": true,
@@ -440,6 +449,7 @@
     },
     {
       "stage": "workspace/commits", "command": ["workspace", "commits", "--json"], "staged": true,
+      "summary": "The commits the local branches hold and the default branch does not stand here, the newest first",
       "takes": ["workspace"], "record": ".rows[]",
       "fields": [
         {"id": "commit", "label": "commit", "type": "ref", "path": ".commit", "sort": true, "glyph": "🔘",
@@ -476,6 +486,7 @@
     },
     {
       "stage": "workspace/tags", "command": ["workspace", "tags", "--json"], "staged": true,
+      "summary": "Each tag stands here, with the commit it names",
       "takes": ["workspace"], "record": ".rows[]",
       "fields": [
         {"id": "tag", "label": "tag", "type": "text", "path": ".tag", "sort": true, "glyph": "📌",
@@ -508,6 +519,7 @@
     },
     {
       "stage": "packages/packages", "command": ["packages", "packages", "--json"], "staged": true,
+      "summary": "Each package in reach stands here, with its state, its origin, and what it depends on",
       "takes": ["workspace"], "record": ".rows[]",
       "empty": "no package in reach",
       "fields": [
@@ -547,6 +559,7 @@
     },
     {
       "stage": "issues/milestones", "command": ["issues", "milestones", "--json"], "staged": true, "forge": true,
+      "summary": "Each milestone of the repository stands here, open and closed, by number",
       "takes": ["workspace"], "record": ".rows[]", "empty": "no milestone",
       "fields": [
         {"id": "number", "label": "number", "type": "ref", "path": ".number", "sort": true, "renderings": ["text"],
@@ -580,6 +593,7 @@
     },
     {
       "stage": "issues/iterations", "command": ["issues", "iterations", "--json"], "staged": true, "marked": false,
+      "summary": "Each iteration stands here, by its start, as the forge plans them",
       "forge": true, "takes": ["workspace"], "record": ".rows[]", "empty": "no iteration",
       "fields": [
         {"id": "title", "label": "title", "type": "text", "path": ".title", "sort": true, "renderings": ["text"],
@@ -610,6 +624,7 @@
     },
     {
       "stage": "changes/reviews", "command": ["changes", "reviews", "--json"], "staged": true, "forge": true,
+      "summary": "Each open change stands here, with the reviewers it asks and those who reviewed it",
       "takes": ["fresh", "workspace"], "record": ".rows[]", "empty": "no review asked for or given on an open change",
       "fields": [
         {"id": "change", "label": "change", "type": "ref", "path": ".change", "sort": true, "group": true,
@@ -644,6 +659,7 @@
     },
     {
       "stage": "changes/checks", "command": ["changes", "checks", "--json"], "staged": true, "forge": true,
+      "summary": "Each open change stands here, with the latest run of each check on its head commit",
       "takes": ["fresh", "workspace"], "record": ".rows[]", "empty": "no check on an open change",
       "fields": [
         {"id": "change", "label": "change", "type": "ref", "path": ".change", "sort": true, "group": true,
@@ -679,6 +695,7 @@
     },
     {
       "stage": "changes/merged", "command": ["changes", "merged", "--json"], "staged": true, "forge": true,
+      "summary": "The changes merged last stand here, the latest first, 50 at most",
       "takes": ["workspace"], "record": ".rows[]", "empty": "no change merged",
       "fields": [
         {"id": "number", "label": "number", "type": "ref", "path": ".number", "sort": true, "glyph": "🔀",
@@ -712,6 +729,7 @@
     },
     {
       "stage": "delivery/artifacts", "command": ["delivery", "artifacts", "--json"], "staged": true, "forge": true,
+      "summary": "The artifacts the runs kept stand here, the newest 100 at most",
       "takes": ["workspace"], "record": ".rows[]", "empty": "no artifact",
       "fields": [
         {"id": "name", "label": "name", "type": "text", "path": ".name", "sort": true, "renderings": ["text"],
@@ -747,6 +765,7 @@
     },
     {
       "stage": "delivery/environments", "command": ["delivery", "environments", "--json"], "staged": true,
+      "summary": "Each deployment environment stands here, with what guards it",
       "forge": true, "takes": ["workspace"], "record": ".rows[]", "empty": "no environment",
       "fields": [
         {"id": "name", "label": "name", "type": "text", "path": ".name", "sort": true, "renderings": ["text"],
@@ -776,6 +795,7 @@
     },
     {
       "stage": "delivery/deployments", "command": ["delivery", "deployments", "--json"], "staged": true, "forge": true,
+      "summary": "The deployments stand here, the newest 50 at most",
       "takes": ["workspace"], "record": ".rows[]", "empty": "no deployment",
       "fields": [
         {"id": "state", "label": "state", "type": "enum", "path": ".state", "sort": true, "group": true, "filter": true,
@@ -815,6 +835,7 @@
     },
     {
       "stage": "people/people", "command": ["people", "people", "--json"], "staged": true, "marked": false,
+      "summary": "Everyone with access to the repository stands here, people and bots, each with a role",
       "forge": true, "takes": ["workspace"], "record": ".rows[]", "empty": "no one has access",
       "fields": [
         {"id": "login", "label": "login", "type": "person", "path": ".login", "sort": true, "group": true,
@@ -844,6 +865,7 @@
     },
     {
       "stage": "people/teams", "command": ["people", "teams", "--json"], "staged": true, "marked": false, "forge": true,
+      "summary": "Each team with access stands here, with its members",
       "takes": ["workspace"], "record": ".rows[]", "empty": "no team has access",
       "fields": [
         {"id": "team", "label": "team", "type": "text", "path": ".team", "sort": true, "renderings": ["text"],
@@ -872,6 +894,7 @@
     },
     {
       "stage": "people/agents", "command": ["people", "agents", "--json"], "staged": true, "marked": false,
+      "summary": "The bots that acted in the newest commits, changes, and reviews stand here",
       "forge": true, "takes": ["workspace"], "record": ".rows[]", "empty": "no bot acted lately",
       "fields": [
         {"id": "login", "label": "bot", "type": "person", "path": ".login", "sort": true, "group": true, "filter": true,
@@ -898,6 +921,7 @@
     },
     {
       "stage": "audit/evidence", "command": ["audit", "evidence", "--json"], "staged": true, "forge": true,
+      "summary": "The attestations of the newest releases' assets and artifacts stand here",
       "takes": ["workspace"], "record": ".rows[]", "empty": "no attestation",
       "fields": [
         {"id": "subject", "label": "subject", "type": "text", "path": ".subject", "sort": true, "group": true,
@@ -929,6 +953,7 @@
     },
     {
       "stage": "audit/findings", "command": ["audit", "findings", "--json"], "staged": true, "forge": true,
+      "summary": "The code scanning, Dependabot, and secret scanning alerts stand here, open and dismissed",
       "takes": ["workspace"], "record": ".rows[]", "empty": "no alert",
       "fields": [
         {"id": "tool", "label": "tool", "type": "enum", "path": ".tool", "sort": true, "group": true, "filter": true,
@@ -968,6 +993,7 @@
     },
     {
       "stage": "audit/controls", "command": ["audit", "controls", "--json"], "staged": true, "marked": false,
+      "summary": "The rulesets and the protection that guard the default branch stand here",
       "forge": true, "takes": ["workspace"], "record": ".rows[]", "empty": "no control guards the default branch",
       "fields": [
         {"id": "control", "label": "control", "type": "text", "path": ".control", "sort": true, "renderings": ["text"],
@@ -1002,6 +1028,7 @@
     },
     {
       "stage": "audit/waivers", "command": ["audit", "waivers", "--json"], "staged": true, "marked": false,
+      "summary": "Who may bypass each control stands here, and each alert dismissed",
       "forge": true, "takes": ["workspace"], "record": ".rows[]", "empty": "no waiver",
       "fields": [
         {"id": "waives", "label": "waives", "type": "text", "path": ".waives", "sort": true, "group": true,
@@ -1037,6 +1064,7 @@
     },
     {
       "stage": "audit/policy", "command": ["audit", "policy", "--json"], "staged": true, "takes": ["workspace"],
+      "summary": "Each rule kit policy judges by stands here",
       "record": ".rows[]", "empty": "no rule",
       "fields": [
         {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
@@ -1070,6 +1098,7 @@
     },
     {
       "stage": "platform/services", "command": ["platform", "services", "--json"], "staged": true,
+      "summary": "Each capability kit fills stands here, with the service that answers it",
       "takes": ["workspace"], "record": ".rows[]", "empty": "no capability",
       "fields": [
         {"id": "capability", "label": "capability", "type": "text", "path": ".capability", "sort": true,
@@ -1100,6 +1129,7 @@
     },
     {
       "stage": "platform/toolchains", "command": ["platform", "toolchains", "--json"], "staged": true,
+      "summary": "Each toolchain kit can use stands here, a row for each role it fills",
       "takes": ["workspace"], "record": ".rows[]", "empty": "no toolchain",
       "fields": [
         {"id": "provider", "label": "provider", "type": "enum", "path": ".provider", "sort": true, "group": true,
@@ -1131,6 +1161,7 @@
     },
     {
       "stage": "platform/tools", "command": ["platform", "tools", "--json"], "staged": true, "takes": ["workspace"],
+      "summary": "Each tool the chosen toolchain and the dependency providers pin stands here",
       "record": ".rows[]", "empty": "no tool is pinned",
       "fields": [
         {"id": "name", "label": "name", "type": "text", "path": ".name", "sort": true, "renderings": ["text"],
@@ -1160,6 +1191,7 @@
     },
     {
       "stage": "platform/settings", "command": ["platform", "settings", "--json"], "staged": true,
+      "summary": "Each setting stands here, with the value kit.yml sets, or its default",
       "takes": ["workspace"], "record": ".rows[]", "empty": "no setting",
       "fields": [
         {"id": "setting", "label": "setting", "type": "text", "path": ".setting", "sort": true, "renderings": ["text"],

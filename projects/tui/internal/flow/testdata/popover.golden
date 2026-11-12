@@ -2,6 +2,8 @@
   ➊╶───────────────╮➁╶────────────────╮➂╶───────────────╮➃╶──────────────────╮➄╶─────────────────╮
   │ 🎫 issues  7 : │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  7    │  📦 releases  3   │
   ╵                ╰──────────────────╰─────────────────╰────────────────────╰───────────────────╰──────────────────────
+  Issues — Every open issue stands here, with its status, its milestone, its iteration, and its swimlane
+
   ▾ source · organization · repository ▾ 2   ╭─ issues fields ───────────────────────╮╭─ assignees ───────────────────╮
     ·────────·──────────────·─────────────   │   field           type    sort  group ││ rows                          │
   ▾ github · empowerite 2                    │ ☑ source          enum    ·     ▤₁    ││ ⦾ One row per assignee        │
@@ -19,6 +21,4 @@
                                              │ ☑ title           text    ·           ││ ⦿ auto text                   │
                                              │ ───────────────────────────────────── ││ ⦾ glyph+text                  │
                                              │ ☐ milestone       enum    ·     ·     ││ ⦾ text                        │
-                                             │ ☐ iteration       enum    ·     ·     │╰───────────────────────────────╯
-                                             │ ☐ swimlane        enum    ·     ·     │
  ← fields ↑↓ move ␣ toggle

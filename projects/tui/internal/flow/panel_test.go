@@ -254,7 +254,7 @@ func TestAColumnNoRowFillsHasNoCheckbox(t *testing.T) {
 }
 
 func TestTheWheelScrollsTheRowsAndLeavesTheCursor(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 9}, tab, tab, down)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 9 + titleHeight}, tab, tab, down)
 	turn := func(b tea.MouseButton) tea.Msg { return tea.MouseWheelMsg{X: 10, Y: m.headerTop() + 1, Button: b} }
 	if m = drive(m, turn(tea.MouseWheelDown)); m.find("builds").Offset == 0 || m.find("builds").Cursor != 0 {
 		t.Fatalf("the wheel down: offset %d, cursor %d\n%s", m.find("builds").Offset, m.find("builds").Cursor, view(m))
@@ -641,7 +641,7 @@ func TestTheCallerIsNoOneWhileKitCannotSayWhoItIs(t *testing.T) {
 // on the name, the card's title now, closes it. Enter on its first line sorts by it, ascending. Where the terminal
 // sends option with a click, the click adds the column after the other sort keys, and opens nothing.
 func TestAClickOnAColumnsNameOpensItsCard(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30})
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30 + titleHeight})
 	unfold(&m)
 	at := func(name string) int {
 		l := lines(m)[m.headerTop()]

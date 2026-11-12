@@ -2,6 +2,8 @@
   ➀╶───────────────╴➋╶────────────────╮➂╶───────────────╮➃╶──────────────────╮➄╶
     🎫 issues  7    │ 🔀 changes  3 : │  🏭 builds  4   │  🛬 incoming  7    │ ▹
   ──────────────────╯                 ╰─────────────────╰────────────────────╰──
+  Changes — Each open pull request stands here, with the issues it closes
+
   ▾ 3                                                    📇 Fields  Default ▼
   ───
     change  title         author  state  age  checks  threads  labels   branch
@@ -9,8 +11,6 @@
   ▸ 🔀 #2   The first r…  jeffr…  🏁      8d  ✅               kind…  1-the-…
   ▸ 🔀 #3   A spike on …  ada     🔨     90m  🏃      💬 2 u…           3-a-sp…
   ▸ 🔀 #4   Lint every …  bob     🔥     25h  ❌                        4-lint…
-
-
 
 
 

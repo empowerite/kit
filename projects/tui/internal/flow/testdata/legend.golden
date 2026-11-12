@@ -2,23 +2,23 @@
   ➊╶───────────────╮➁╶────────────────╮➂╶───────────────╮➃╶──────────────────╮➄╶
   │ 🎫 issues  7 : │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  7    │
   ╵                ╰──────────────────╰─────────────────╰────────────────────╰──
+  Issues — Every open issue stands here, with its status, its milestone, its i…
+
   ▾ source · organization · repository ▾ 7            📇 Fields  All Issues ▼
     ·────────·──────────────·─────────────
   ▾ github · empowerite 7
-
-      ▸ id   status  assign  age  change  state  where    labels   title
-        ·────·───────×·──╭─ issues legend ──────────────────────────── ↖ ↗ ↙ ↘ ╮
-    ▾ jig 1              │ =  kit menu              ▼  presets menu            │
-      ▸ #7   💤      ada │ -  workspace menu        ·  sortable: click to sort │
-    ▾ kit 6              │ 🔎 search: / or click    ·  separator               │
-      ▸ #1   🛫      jeff│ ➊  selected tab          ▸  closed: click to open   │
-      ▸ #8   🛫          │ ➁  tab: click to select  ×  list: click to flatten  │
-      ▸ #8   🛫          │ 🎫 issues stage          💤 backlog                 │
-      ▸ #46  💤      jeff│ :  tab menu              🎫 issue 🔗                │
-      ▸ #31  🛫      ada │ 🔀 changes stage         🛫 underway                │
-      ▸ #45  💤          │ 🏭 builds stage          🔀 pull request †          │
-                         │ 🛬 incoming stage        🌿 branch or worktree †    │
-                         │ ▾  open: click to close  👤 assignees or author     │
+                         ╭─ issues legend ──────────────────────────── ↖ ↗ ↙ ↘ ╮
+      ▸ id   status  assi│ =  kit menu              ▼  presets menu            │
+        ·────·───────×·──│ -  workspace menu        ·  sortable: click to sort │
+    ▾ jig 1              │ 🔎 search: / or click    ·  separator               │
+      ▸ #7   💤      ada │ ➊  selected tab          ▸  closed: click to open   │
+    ▾ kit 6              │ ➁  tab: click to select  ×  list: click to flatten  │
+      ▸ #1   🛫      jeff│ 🎫 issues stage          💤 backlog                 │
+      ▸ #8   🛫          │ :  tab menu              🎫 issue 🔗                │
+      ▸ #8   🛫          │ 🔀 changes stage         🛫 underway                │
+      ▸ #46  💤      jeff│ 🏭 builds stage          🔀 pull request †          │
+      ▸ #31  🛫      ada │ 🛬 incoming stage        🌿 branch or worktree †    │
+      ▸ #45  💤          │ ▾  open: click to close  👤 assignees or author     │
                          │ 📇 fields dialog         🌱 local branch            │
                          ╰─────────────────────────────────────────────────────╯
  = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-5 jump : tab menu

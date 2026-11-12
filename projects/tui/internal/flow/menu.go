@@ -235,7 +235,7 @@ func (m Model) menuTop() int {
 	if m.maximized {
 		return shell.Top
 	}
-	return m.top() - 2
+	return m.top() - titleHeight - 2
 }
 
 // tabMenuAt gives the screen column the selected tab's : is drawn at, which drops its menu down: on the bar, as its MenuAt

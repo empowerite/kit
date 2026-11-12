@@ -270,7 +270,7 @@ func TestTheMenuOnTheRightmostTabEndsUnderTheGlyphAndLeavesTheRestInPlace(t *tes
 // scrolled its first line away; and a click on that first line, pinned atop the pane, hides it too.
 func TestAfterShowMoreTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T) {
 	wheel := tea.MouseWheelMsg{X: 10, Y: Model{}.top() + 2, Button: tea.MouseWheelDown}
-	size := tea.WindowSizeMsg{Width: 100, Height: 12}
+	size := tea.WindowSizeMsg{Width: 100, Height: 12 + titleHeight}
 	tall := func() Model {
 		m := loaded(t, options(), size)
 		return drive(m, tallBuild(m, 5), tab, tab, press(':'), typed("s")[0], press(tea.KeyEnter), wheel)
@@ -295,7 +295,7 @@ func TestAfterShowMoreTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T)
 // has no item to hide them: a header that never scrolls, a thin dim line under it, and no row of its own, so a click
 // on it chooses nothing. Incoming, whose rows are no columns, has none.
 func TestTheHeaderStandsTheColumnsNamesOverTheRows(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 10}, tab)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 10 + titleHeight}, tab)
 	if slices.ContainsFunc(m.tabItems(), func(i shell.Item) bool { return strings.Contains(i.Name, "Header") }) {
 		t.Errorf("the tab's menu offers the headers: %+v", m.tabItems())
 	}

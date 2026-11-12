@@ -38,6 +38,9 @@ func TestATutorialsPageOpensWithItsTitleLine(t *testing.T) {
 	if !strings.Contains(page[end+1], "Each application shows one side of the work in this repository.") {
 		t.Errorf("a blank, then the page: %q", page[end+1])
 	}
+	if got := titleOf(kit.Tutorial{Title: "Gone"}); got != "# Gone" {
+		t.Errorf("a tutorial with no summary is titled by its title alone: %q", got)
+	}
 }
 
 // The arrows move the cursor in reading order, left and right along a row and on to the next, up and down a column,

@@ -49,13 +49,14 @@ func TestTheTabsMenusFirstSectionIsRefreshWatchAndMaximize(t *testing.T) {
 	}
 }
 
-func TestMaximizeGivesTheRowsTwoLines(t *testing.T) {
-	// twelve lines tall, issues' heading and its seven rows overflow the pane
-	size := tea.WindowSizeMsg{Width: 120, Height: 12}
+func TestMaximizeGivesTheRowsTheTitleLinesAndTwoMore(t *testing.T) {
+	// fourteen lines tall, issues' heading and its seven rows overflow the pane, maximized or not
+	size := tea.WindowSizeMsg{Width: 120, Height: 14}
 	normal := loaded(t, viewing(""), size)
 	m := maximize(t, normal)
-	if m.rowsHeight() != normal.rowsHeight()+2 || m.rowsTop() != normal.rowsTop()-2 || m.top() != 2 ||
-		normal.top() != 1+tabs.Height {
+	more := 2 + titleHeight
+	if m.rowsHeight() != normal.rowsHeight()+more || m.rowsTop() != normal.rowsTop()-more || m.top() != 2 ||
+		normal.top() != 1+tabs.Height+titleHeight {
 		t.Fatalf("rows %d from %d, maximized %d from %d", normal.rowsHeight(), normal.rowsTop(), m.rowsHeight(), m.rowsTop())
 	}
 	// the lines under the control line that are not blank: the frozen heading, the header, and the rows
@@ -69,7 +70,7 @@ func TestMaximizeGivesTheRowsTwoLines(t *testing.T) {
 		}
 		return n
 	}
-	if len(lines(m)) != len(lines(normal)) || rowLines(m) != rowLines(normal)+2 {
+	if len(lines(m)) != len(lines(normal)) || rowLines(m) != rowLines(normal)+more {
 		t.Errorf("%d lines of rows, %d maximized; %d lines, %d maximized:\n%s\n%s", rowLines(normal), rowLines(m),
 			len(lines(normal)), len(lines(m)), view(normal), view(m))
 	}
@@ -246,4 +247,27 @@ func onFrom(m Model) int {
 	b := m.menuBar()
 	return ansi.StringWidth(shell.MenuBar{Screen: b.Screen, Workspace: b.Workspace, On: b.On}.Line(1000)) -
 		ansi.StringWidth(b.On)
+}
+
+func TestEachTabOpensWithItsTitleLineUnderTheBarButNotMaximized(t *testing.T) {
+	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 200, Height: 30})
+	for i, s := range m.stages {
+		m.stage = i
+		name := label(s.name)
+		name = strings.ToUpper(name[:1]) + name[1:]
+		want := "  " + name + " — " + catalog[s.name].Summary
+		if got := lines(m)[1+tabs.Height]; catalog[s.name].Summary == "" || got != want {
+			t.Errorf("%s: the title line %q, not %q", s.name, got, want)
+		}
+		if got := lines(m)[2+tabs.Height]; got != "" {
+			t.Errorf("%s: a blank under the title line, not %q", s.name, got)
+		}
+		if !strings.HasPrefix(m.title(), "  "+style.Label(name)+" — ") {
+			t.Errorf("%s: the name bold, the summary plain: %q", s.name, m.title())
+		}
+	}
+	m.stage = 0
+	if m = maximize(t, m); strings.Contains(view(m), " — "+catalog[m.stages[0].name].Summary) {
+		t.Errorf("a maximized tab draws its banner, and no title line:\n%s", view(m))
+	}
 }

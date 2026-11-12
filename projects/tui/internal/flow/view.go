@@ -14,6 +14,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/markdown"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
@@ -25,13 +26,31 @@ import (
 // Flow; a click on either drops the menu down.
 func (m Model) appLabel() string { return "kit " + string(m.app) }
 
-// top gives the screen line the pane starts on: right under the bar, which is open there to the selected tab; or,
-// maximized, under the title and the banner, the line under it in the tab's color.
+// top gives the screen line the pane starts on: under the bar, which is open there to the selected tab, its title
+// line, and a blank; or, maximized, under the title and the banner, the line under it in the tab's color.
 func (m Model) top() int {
 	if m.maximized {
 		return 2
 	}
-	return 1 + tabs.Height
+	return 1 + tabs.Height + titleHeight
+}
+
+// titleHeight is the lines the selected tab's title line takes under the bar: the line, and the blank under it.
+const titleHeight = 2
+
+// title gives the selected tab's title line, under the bar: its name bold, a dash, and what its catalog entry says it
+// holds, as internal/markdown draws a page's title, clipped to the pane; its name alone for a stage the catalog does
+// not describe.
+func (m Model) title() string {
+	if len(m.stages) == 0 {
+		return ""
+	}
+	name := label(m.stages[m.stage].name)
+	heading := "# " + strings.ToUpper(name[:1]) + name[1:]
+	if c := catalog[m.stages[m.stage].name]; c != nil && c.Summary != "" {
+		heading += " — " + c.Summary
+	}
+	return pane.Clip("  "+markdown.Render(heading, 1<<16)[0], m.paneWidth())
 }
 
 // banner gives the line under the title of a maximized tab: Banner, as wide as the pane, in the color the bar draws the
@@ -48,13 +67,14 @@ func (m Model) View() tea.View {
 }
 
 // frame gives the screen's lines over its last, before the legend and the layers are drawn over them: the title, the
-// tab bar, or the banner of a maximized tab, and the pane.
+// tab bar and the selected tab's title line, or the banner of a maximized tab, and the pane.
 func (m Model) frame() []string {
 	lines := []string{m.menuBar().Line(m.width)}
 	if m.maximized {
 		lines = append(lines, m.banner())
 	} else {
 		lines = append(lines, strings.Split(m.bar().View(), "\n")...)
+		lines = append(lines, m.title(), "")
 	}
 	return append(lines, m.pane()...)
 }

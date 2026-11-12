@@ -373,7 +373,7 @@ func TestAClickOnARowSelectsItAndAgainOpensOrClosesIt(t *testing.T) {
 		t.Errorf("the clicks changed the screen:\n%s", view(m))
 	}
 	// on a short pane, the … line above is no row's
-	m = loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 10}, tab, tab, down, down, down, down)
+	m = loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 10 + titleHeight}, tab, tab, down, down, down, down)
 	if m.find("builds").Cursor != 3 || !strings.Contains(lines(m)[m.rowsTop()], "above") {
 		t.Fatalf("the short pane: cursor %d\n%s", m.find("builds").Cursor, view(m))
 	}
@@ -1030,25 +1030,27 @@ func TestAReleaseIsARowOfItsFieldsLeadingToItsPageAndItsAssets(t *testing.T) {
 }
 
 func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
-	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 10}, tab, tab, down, down, down, down)
+	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 10 + titleHeight}, tab, tab, down, down, down, down)
 	got := lines(m)
-	if len(got) != 10 {
-		t.Fatalf("%d lines on a screen of 10:\n%s", len(got), view(m))
+	if len(got) != 10+titleHeight {
+		t.Fatalf("%d lines on a screen of %d:\n%s", len(got), 10+titleHeight, view(m))
 	}
-	if !strings.HasPrefix(got[0], "  "+shell.App+" kit flow") || !shows(m, Build, "4") || got[9] != " "+at80(keysFor(m, opens)) {
+	if !strings.HasPrefix(got[0], "  "+shell.App+" kit flow") || !shows(m, Build, "4") ||
+		got[9+titleHeight] != " "+at80(keysFor(m, opens)) {
 		t.Errorf("the title, the bar, or the keys moved:\n%s", view(m))
 	}
 	// three lines of pane: … 2 above, the cursor's row, and the last row, which needs no … line
-	if !strings.Contains(got[6], "… 2 above") || !strings.Contains(got[7], "#159") || !strings.Contains(cursor(m), "#159") ||
-		!strings.Contains(got[8], "nightly") || strings.Contains(view(m), "release/0.1.0") {
+	if !strings.Contains(got[6+titleHeight], "… 2 above") || !strings.Contains(got[7+titleHeight], "#159") ||
+		!strings.Contains(cursor(m), "#159") || !strings.Contains(got[8+titleHeight], "nightly") ||
+		strings.Contains(view(m), "release/0.1.0") {
 		t.Errorf("the pane did not scroll to the cursor:\n%s", view(m))
 	}
 	// a pane of three lines holds the … lines and the row; one more line shows what the row opens to
-	m = drive(m, toggle, tea.WindowSizeMsg{Width: 80, Height: 12})
+	m = drive(m, toggle, tea.WindowSizeMsg{Width: 80, Height: 12 + titleHeight})
 	if !strings.Contains(view(m), "an underway") || openRows(m) == 0 {
 		t.Errorf("the open row's detail is not shown with its row:\n%s", view(m))
 	}
-	m = drive(m, tea.WindowSizeMsg{Width: 80, Height: 10})
+	m = drive(m, tea.WindowSizeMsg{Width: 80, Height: 10 + titleHeight})
 	// a page is the pane less one row: two rows here
 	m = drive(m, press(tea.KeyPgUp))
 	if !m.inRows || m.find("builds").Cursor != 1 {
@@ -1214,10 +1216,10 @@ func TestAgeIsKitStatuss(t *testing.T) {
 }
 
 func TestAPaneTooShortSaysHowManyLinesAreAboveAndBelow(t *testing.T) {
-	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 11}, tab, tab, down, down, down, toggle)
+	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 11 + titleHeight}, tab, tab, down, down, down, toggle)
 	got := lines(m)
-	if len(got) != 11 || got[10] != " "+at80(keysFor(m, closes)) {
-		t.Fatalf("the screen is not 11 lines with the keys last:\n%s", view(m))
+	if len(got) != 11+titleHeight || got[10+titleHeight] != " "+at80(keysFor(m, closes)) {
+		t.Fatalf("the screen is not %d lines with the keys last:\n%s", 11+titleHeight, view(m))
 	}
 	v := view(m)
 	if !strings.Contains(v, "… 1 above") || !strings.Contains(v, "… 12 more") ||

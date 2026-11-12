@@ -2,6 +2,8 @@
   ➀╶───────────────╮➁╶────────────────╮➂╶───────────────╴➍╶──────────────────╮➄╶
     🎫 issues  7   │  🔀 changes  3   │  🏭 builds  4    │ 🛬 incoming  7  : │ ▹
   ─────────────────╰──────────────────╰──────────────────╯                   ╰──
+  Incoming — The last fetch brought these from each remote: new commits, and b…
+
   ▾ 10                                                   📇 Fields  Default ▼
   ────
     kind  remote    ref              change     age  local         subject
@@ -16,8 +18,6 @@
   ▸ 🌿    upstream  old-experiment   🔖 gone    10d                an experime…
   ▸ 📌    upstream  release/0.2.0    new        24h                release 0.2…
     📡    backup    main             unchanged
-
-
 
 
 

@@ -272,7 +272,7 @@ func TestTheFoldAfterTheLastNameOpensAndClosesTheRows(t *testing.T) {
 // header apart from the frozen headings over it. A click on a frozen heading's ▾ folds it; with no row to stand over,
 // the header goes.
 func TestTheHeadingsOfOneValueAreFrozenOverTheHeader(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 14})
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 14 + titleHeight})
 	m.setPanel(regroup(m.panel(m.stage), "source", "assignees"))
 	github := lines(m)[m.rowsTop()]
 	if table.Frozen(&m) != 2 || !strings.Contains(github, "github") || m.headerTop() != m.rowsTop()+2 ||

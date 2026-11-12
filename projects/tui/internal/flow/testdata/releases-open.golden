@@ -2,6 +2,8 @@
   ➁╶────────────────╮➂╶───────────────╮➃╶──────────────────╴➎╶─────────────────╮
     🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  7     │ 📦 releases  3 : │
   ──────────────────╰─────────────────╰─────────────────────╯                  ╵
+  Releases — Each version you tagged stands here, with its assets and its notes
+
   ▾ 3                                                    📇 Fields  Default ▼
   ───
     version     kind  age  latest  assets                      notes
@@ -13,8 +15,6 @@
                                                                change lands.   
   ▸ 0.1.0       📦     6h  ⭐      📎 kit-0.1.0.tar.gz     +1  ## What's Chang…
   ▸ 0.1.0-rc.7  🧪    28h          📎 kit-0.1.0-rc.7.tar.gz    The last candid…
-
-
 
 
 

@@ -2,6 +2,8 @@
   ➊╶──────────────╮➁╶────────────────╮➂╶─────────────────╮
   │ 📚 repos  2 : │  📡 remotes  1   │  🌿 branches  4   │
   ╵               ╰──────────────────╰───────────────────╰──────────────────────────────────────────────────────────────
+  Repos — Each member of the workspace stands here, cloned or not, with its forge, its clone, and its desk's branch
+
   ▾ forge 2                                                                                                            
     ·──────
   ▾ github 2
@@ -10,8 +12,6 @@
       ·───────────────────────────×·───────────·────────────────────────────────────·───────·──────×·──────────────────
     ▸ github.com/empowerite/kit   origin +1  …/empowerite/kit                     main    ↑1 ↓0  1-the-first-relea…
       github.com/empowerite/edge               not cloned
-
-
 
 
 

@@ -2,6 +2,8 @@
   ➀╶──────────────╮➁╶────────────────╴➌╶─────────────────╮➃╶──────────────────╮➄╶────────────────╮➅╶─────────────╮
     📚 repos  2   │  📡 remotes  1    │ 🌿 branches  4 : │  🌳 worktrees  2   │  🔘 commits  2   │  📌 tags  2   │
   ────────────────╰───────────────────╯                  ╰────────────────────╰──────────────────╰───────────────╰──────
+  Branches — Each branch stands here: a remote's, with the local branches that pull from it, and each local one
+
   ▾ 4
   ───
     kind  branch   default  remote  local    ahead  commit      age  worktree                   subject
@@ -10,7 +12,5 @@
     🌿    main     ⚓       origin  main     =      🔘 5d469b3  10s  🌳 /src/r                  one
     🔖    old               origin  old             🔘 5d469b3  10s                             one
     🌱    scratch                   scratch         🔘 5d469b3  10s                             one
-
-
 
  = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-6 jump : tab menu

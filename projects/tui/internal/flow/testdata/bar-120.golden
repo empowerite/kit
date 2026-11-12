@@ -2,6 +2,8 @@
   ➊╶───────────────╮➁╶────────────────╮➂╶───────────────╮➃╶──────────────────╮➄╶─────────────────╮
   │ 🎫 issues  7 : │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  7    │  📦 releases  3   │
   ╵                ╰──────────────────╰─────────────────╰────────────────────╰───────────────────╰──────────────────────
+  Issues — Every open issue stands here, with its status, its milestone, its iteration, and its swimlane
+
   ▾ source · organization · repository ▾ 7                                                    📇 Fields  All Issues ▼
     ·────────·──────────────·─────────────
   ▾ github · empowerite 7
@@ -17,8 +19,6 @@
       ▸ #46  💤      jeffrey-aguilera   2d                                      bug             🎫 A noun lists, a n…
       ▸ #31  🛫      ada                3h  🔀 #12  💬 comments:open  👤 ada                      🎫 kit commit, kit s…
       ▸ #45  💤                         2h                                      kindfeatu… +2  🎫 kit flow is the o…
-
-
 
 
  = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-5 jump : tab menu
