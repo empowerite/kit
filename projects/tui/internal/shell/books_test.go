@@ -70,7 +70,7 @@ func names(b BooksMenu) ([]string, []int) {
 
 func TestBooksDrawsNoLineThatOpensNothing(t *testing.T) {
 	got, acting := names(BooksMenu{Workspace: inGroups})
-	if strings.Join(got, "|") != "w 2|v 1||w 2|o/b · not cloned||Open…|Manage…" {
+	if strings.Join(got, "|") != "w 2|v 1||w 2|o/b · not cloned||o/a||Open…|Manage…" {
 		t.Errorf("the lines: %q", got)
 	}
 	if len(acting) != 5 {
@@ -88,7 +88,7 @@ func TestBooksDrawsNoLineThatOpensNothing(t *testing.T) {
 		t.Errorf("kit's line alone: %q", got)
 	}
 	if got, _ := names(BooksMenu{Refusal: "x", Workspace: inGroups}); strings.Join(got, "|") !=
-		"x||w 2|v 1||w 2|o/b · not cloned||Open…|Manage…" {
+		"x||w 2|v 1||w 2|o/b · not cloned||o/a||Open…|Manage…" {
 		t.Errorf("kit's line, the groups, and the favorites: %q", got)
 	}
 }
@@ -123,22 +123,33 @@ func TestBooksDropsDownTheRecentRepositoriesPickedByTheirFolder(t *testing.T) {
 		{Name: "github.com/o/b", Member: "github.com/o/b", Checkout: "/far/b"}}
 	b := BooksMenu{Workspace: ws}
 	got, acting := names(b)
-	if strings.Join(got, "|") != "w 2|v 1||w 2|o/b · not cloned||scratch||Open…|Manage…" {
+	if strings.Join(got, "|") != "w 2|v 1||w 2|o/b · not cloned||o/a|scratch||Open…|Manage…" {
 		t.Errorf("the lines: %q", got)
 	}
-	if acting[len(acting)-3] != 6 || acting[len(acting)-2] != 8 {
+	if acting[len(acting)-3] != 7 || acting[len(acting)-2] != 9 {
 		t.Errorf("the lines that act: %v", acting)
 	}
-	if items := b.Items(); items[6].Glyph != Opened {
-		t.Errorf("a recent one's glyph: %+v", items[6])
+	if items := b.Items(); items[6].Glyph != Opened || items[7].Glyph != Opened {
+		t.Errorf("a recent one's glyph: %+v", items[6:8])
 	}
-	if b.target(6) != "/srv/scratch" {
-		t.Errorf("scratch picks %q", b.target(6))
+	if b.target(7) != "/srv/scratch" {
+		t.Errorf("scratch picks %q", b.target(7))
+	}
+	// the repository shown is drawn first among them, dim, and picks nothing
+	if b.enabled(6) || b.target(6) != "" {
+		t.Errorf("o/a, the one shown, acts: %q", b.target(6))
+	}
+	// unless a favorite draws it already
+	ws.Favorites = append(ws.Favorites, kit.WorkspaceFavorite{Name: "github.com/o/a", Kind: "repository",
+		Checkout: "/code/a"})
+	if got, _ := names(BooksMenu{Workspace: ws}); strings.Join(got, "|") !=
+		"w 2|v 1||w 2|o/b · not cloned|o/a||scratch||Open…|Manage…" {
+		t.Errorf("o/a a favorite: %q", got)
 	}
 }
 
 // A worktree is no workspace of its own: in a worktree of o/a, o/a's desk among the recent is the repository shown, and
-// is not drawn, as the folder shown is not.
+// is not drawn again: o/a has the one line of the repository shown, dim.
 func TestBooksTellsTwoFoldersOfOneRepositoryApart(t *testing.T) {
 	ws := kit.Workspace{Kind: "repository", Name: "github.com/o/a", Member: "github.com/o/a", Checkout: "/code/a/worktrees/1-x",
 		Recent: []kit.WorkspaceRecent{{Name: "github.com/o/a", Member: "github.com/o/a", Checkout: "/code/a/worktrees/1-x"},
@@ -148,14 +159,14 @@ func TestBooksTellsTwoFoldersOfOneRepositoryApart(t *testing.T) {
 	for k := range got {
 		got[k] = ansi.Strip(got[k])
 	}
-	if strings.Join(got, "|") != "o/c||Open…|Manage…" || len(acting) != 3 {
+	if strings.Join(got, "|") != "o/a|o/c||Open…|Manage…" || len(acting) != 3 || acting[0] != 1 {
 		t.Errorf("the lines: %q, acting %v", got, acting)
 	}
 }
 
 func TestBooksDropsDownTheGroupsThenTheFavorites(t *testing.T) {
 	got, acting := names(BooksMenu{Workspace: inGroups})
-	want := []string{"w 2", "v 1", "", "w 2", "o/b · not cloned", "", "Open…", "Manage…"}
+	want := []string{"w 2", "v 1", "", "w 2", "o/b · not cloned", "", "o/a", "", "Open…", "Manage…"}
 	if strings.Join(got, "|") != strings.Join(want, "|") {
 		t.Errorf("the lines: %q", got)
 	}
@@ -177,7 +188,7 @@ func TestBooksDropsDownEveryOtherGroupAfterTheFavorites(t *testing.T) {
 	ws.Workspaces = []kit.WorkspaceGroup{{Name: "w", Members: 2}, {Name: "x", Members: 3}, {Name: "v", Members: 1},
 		{Name: "y", Members: 4}}
 	got, acting := names(BooksMenu{Workspace: ws})
-	want := []string{"w 2", "v 1", "", "w 2", "o/b · not cloned", "", "x 3", "y 4", "", "Open…", "Manage…"}
+	want := []string{"w 2", "v 1", "", "w 2", "o/b · not cloned", "", "x 3", "y 4", "", "o/a", "", "Open…", "Manage…"}
 	if strings.Join(got, "|") != strings.Join(want, "|") {
 		t.Errorf("the lines: %q", got)
 	}

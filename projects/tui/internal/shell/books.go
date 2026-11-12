@@ -5,9 +5,9 @@
 // the favorites, however many; every other group in the file; the repositories opened by their folder, the newest
 // first; and last Open…, which opens a repository by its folder, and Manage…, which opens the workspaces' screen; a
 // rule between two of those it has. A line that cannot
-// switch now stays, dim: the workspace shown, and a repository not cloned. The recent ones leave out the one shown, and
-// one that reads as the workspace shown or as another, two folders of one repository, says its folder, dim. When kit could not say, its line comes
-// first, dim. A pick asks kittui to switch, by the workspace's name as kit names it, a recent repository by its
+// switch now stays, dim: the workspace shown, and a repository not cloned. The repository shown always has its line,
+// dim, first among the recent ones, unless a favorite draws it already, and one that reads as another of them, two
+// folders of one repository, says its folder, dim. When kit could not say, its line comes first, dim. A pick asks kittui to switch, by the workspace's name as kit names it, a recent repository by its
 // folder; Open… asks for the Open… dialog, and Manage… for the workspaces' screen.
 package shell
 
@@ -207,13 +207,16 @@ func (b BooksMenu) lines() []booksLine {
 }
 
 // recents gives the lines of the recent repositories, each picked by its folder, but those drawn above already, by
-// kit's name for them, and the one shown, which the title names, by its folder or as the repository a worktree shown
-// belongs to, since a worktree is no workspace of its own; one that reads as the workspace shown, or as another
-// of them, as a clone and a worktree of one repository do, says its folder after its name, dim, to tell them apart.
+// kit's name for them. The repository shown comes first, dim, as it cannot be switched to, unless drawn above already;
+// a recent one that is the repository shown, by its folder or as the repository a worktree shown belongs to, since a
+// worktree is no workspace of its own, is not drawn again. One that reads as another of them, as a clone and a worktree
+// of one repository do, says its folder after its name, dim, to tell them apart.
 func recents(ws kit.Workspace, drawn map[string]bool) []booksLine {
 	var kept []kit.WorkspaceRecent
 	reads := map[string]int{}
-	if ws.Kind == "repository" {
+	shown := ws.Kind == "repository" && ws.Checkout != "" && !drawn[ws.Name]
+	if shown {
+		kept = append(kept, kit.WorkspaceRecent{Name: ws.Name, Member: ws.Member, Checkout: ws.Checkout})
 		reads[repoName(ws.Member, ws.Checkout)]++
 	}
 	for _, r := range ws.Recent {
@@ -230,7 +233,7 @@ func recents(ws kit.Workspace, drawn map[string]bool) []booksLine {
 		if reads[name] > 1 {
 			name += " " + style.Off("· "+filepath.Base(r.Checkout))
 		}
-		out = append(out, booksLine{Item{Glyph: Opened, Name: name}, r.Checkout, true})
+		out = append(out, booksLine{Item{Glyph: Opened, Name: name}, r.Checkout, !shown || len(out) > 0})
 	}
 	return out
 }
