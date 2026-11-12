@@ -4,10 +4,10 @@
    --input  prints the facts as JSON instead of judging them
    --facts  judges the facts document in <file>, and gathers nothing; for testing a rule against a
             fixture
-   --rules  lists each rule the policy judges by: its name, its pattern, and where the pattern is
-            set, as a table; it reads no forge and judges nothing. On a branch past the default it
-            lists the base's rules, as kit policy judges by them, and fails as kit policy does when
-            the base cannot be named or read
+   --rules  lists each rule the policy judges by, commit_reference last: its name, its pattern or
+            value, and where it is set, as a table; it reads no forge and judges nothing. On a
+            branch past the default it lists the base's rules, as kit policy judges by them, and
+            fails as kit policy does when the base cannot be named or read
 
 
  kit policy

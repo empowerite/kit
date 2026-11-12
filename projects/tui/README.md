@@ -28,10 +28,10 @@ Search works the same on every screen. `/` or a click on the search field at the
 typing filters as it goes. ⏎, ↓, esc, or tab gives the view focus and keeps the filter, ⌃U clears it, and ⌃R recalls
 a past search.
 
-`kit x y` opens screen x on y. `kit flow issues` opens the picture with the issues stage maximized, and both
-`kit flow backlog` and `kit flow underway` open it the same way, issues set as its Backlog or Underway preset.
-`kit tutorials screens` opens the tutorials with the cursor on that card. `kit help commit` opens the palette on the
-commit verb's page, and `kit tui commit` opens its form.
+`kit <verb> <argument>` opens the verb's screen on the argument. `kit flow issues` opens the picture with the issues
+stage maximized, and both `kit flow backlog` and `kit flow underway` open it the same way, issues set as its Backlog
+or Underway preset. `kit tutorials screens` opens the tutorials with the cursor on that card. `kit help commit` opens
+the palette on the commit verb's page, and `kit tui commit` opens its form.
 
 ## The apps
 
@@ -331,8 +331,9 @@ go test ./internal/flow ./internal/form ./internal/welcome -update
 
 Name the packages. `./...` fails, because packages that do not import `internal/testkit` have no `-update` flag.
 
-`internal/syntax/testdata/*.json` are copies of what `kit syntax <verb>` prints. `tests/syntax.bats` fails when one
-is stale, and it prints the command that refreshes it.
+`internal/syntax/testdata/*.json` are copies of what `kit syntax <verb>` prints, one for every verb, and
+`internal/form/testdata/*.golden` the form drawn from each. `tests/syntax.bats` fails when one is stale or a verb has
+none, and `bin/contracts` at the root writes them afresh; see [testing.md](../../docs/testing.md#contracts).
 
 Tests that run kit run a fake one, a `testdata/fake-kit` script, never the real one. The flow legend tests read the
 real [kit/bin/kit-flow](../../kit/bin/kit-flow), and each app verb's header, as kit-issues, so the picture and the

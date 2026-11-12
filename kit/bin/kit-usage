@@ -10,7 +10,7 @@
 # Arguments:
 #   <verb>…   the verbs, by whole name; default: every verb, in name order
 #
-# Exits 0 on success, and 2 when a name is not a verb.
+# Exits 0 on success, 1 when a header named leaves the verb template, and 2 when a name is not a verb.
 #
 # see: modules/bash/help.sh
 

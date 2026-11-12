@@ -1,0 +1,637 @@
+[
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "kit check fails when a delivered file differs from the pinned release\n\nUsage:\n  kit check\n\nIts whole page is the resource kit://help/check.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
+    "name": "check",
+    "title": "kit check"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "kit context prints the rules that govern a file\n\nUsage:\n  kit context <path>… [--json | --jq]\n\nIts whole page is the resource kit://help/context.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "jq": {
+          "description": "the same JSON, formatted by jq for a person",
+          "type": "boolean"
+        },
+        "json": {
+          "description": "one JSON object per path: path, kinds, and rules",
+          "type": "boolean"
+        },
+        "path": {
+          "description": "the files, relative to the current directory; need not exist",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "type": "object"
+    },
+    "name": "context",
+    "title": "kit context"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": true
+    },
+    "description": "kit flow shows where the work stands, from the issues to releases\n\nUsage:\n  kit flow [--fresh] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]\n  kit flow --stages\n  kit flow --me\n  kit flow --capabilities\n  kit flow --quota\n  kit flow --marks\n  kit flow issues [--json | --jq] [--cached] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]]\n  kit flow incoming [--json | --jq] [--cached]\n  kit flow changes [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]] [<number>…]\n  kit flow builds [--json | --jq] [--cached]\n  kit flow releases [--json | --jq] [--cached]\n\nIts whole page is the resource kit://help/flow.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "all": {
+          "description": "every issue and pull request (the default); it stands alone",
+          "type": "boolean"
+        },
+        "cached": {
+          "description": "with --json and a stage, prints what that stage printed last here with the same arguments, whatever its age, and reads nothing; refuses when it has printed nothing yet",
+          "type": "boolean"
+        },
+        "capabilities": {
+          "description": "prints what the primary's forge can do, as one JSON object: {contract, forge, provider, features}, each feature native or none, as modules/bash/forge.sh declares them; it asks nothing",
+          "type": "boolean"
+        },
+        "fresh": {
+          "description": "reads the open issues and pull requests afresh, not the snapshot of the last minute",
+          "type": "boolean"
+        },
+        "jq": {
+          "description": "the same JSON, formatted by jq for a person",
+          "type": "boolean"
+        },
+        "json": {
+          "description": "the picture as one JSON object, each stage under its name",
+          "type": "boolean"
+        },
+        "marks": {
+          "description": "prints a mark per stage, as one JSON object, which changes when what the stage draws does: read again, a mark that differs says the stage is stale; on GitHub, nothing changed costs no request",
+          "type": "boolean"
+        },
+        "me": {
+          "description": "prints the caller's login on the primary's forge, the login --mine and --others match",
+          "type": "boolean"
+        },
+        "mine": {
+          "description": "only the caller's: assigned issues, and opened pull requests",
+          "type": "boolean"
+        },
+        "number": {
+          "description": "only these pull requests, by number or issue closed: #7",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "others": {
+          "description": "everyone else's; unassigned issues included",
+          "type": "boolean"
+        },
+        "owner": {
+          "description": "only the named login's; give it once or more, or join the logins with :, --owner=a:b",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "quota": {
+          "description": "prints the caller's rate limits on the primary's forge, as one JSON array: each forge's {forge, limits}, each limit {name, limit, remaining, reset}; reading them costs a request at most. A forge without rate limits gives none, and asks nothing",
+          "type": "boolean"
+        },
+        "stage": {
+          "description": "issues: every open issue, oldest first: in the backlog, or underway, closed by an open pull request or named by a branch: who works on each, and where; incoming: what fetching every remote brought: default-branch commits, branches new and gone; changes: the open pull requests, each with the issues it closes; builds: the runs not owned by any pull request: the default branch, tags, schedules; releases: the releases on the forge, newest first",
+          "enum": [
+            "issues",
+            "incoming",
+            "changes",
+            "builds",
+            "releases"
+          ],
+          "type": "string"
+        },
+        "stages": {
+          "description": "prints the stages the picture draws, one per line, in order",
+          "type": "boolean"
+        },
+        "text": {
+          "description": "prints the picture as text, even on a terminal",
+          "type": "boolean"
+        },
+        "today": {
+          "description": "only the issues opened in the last 24 hours",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "name": "flow",
+    "title": "kit flow"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "kit help prints kit's overview, a verb's page, or a group's verbs\n\nUsage:\n  kit help [--text] [<verb> | <group>]…\n\nIts whole page is the resource kit://help/help.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "group": {
+          "description": "a group's name, as kit help heads them",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "text": {
+          "description": "prints the help, even on a terminal",
+          "type": "boolean"
+        },
+        "verb": {
+          "description": "a verb's name, or its start: re matches rebase and region",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "name": "help",
+    "title": "kit help"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "kit kinds lists the kinds of file, or the kinds a path is of\n\nUsage:\n  kit kinds [--json | --jq] [<kind> | <path>]…\n\nIts whole page is the resource kit://help/kinds.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "jq": {
+          "description": "the same JSON, formatted by jq for a person",
+          "type": "boolean"
+        },
+        "json": {
+          "description": "one JSON object per kind, or per path with its kinds",
+          "type": "boolean"
+        },
+        "kind": {
+          "description": "the name of a defined kind; only these kinds are listed",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "path": {
+          "description": "a file to classify, relative to the current directory",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "name": "kinds",
+    "title": "kit kinds"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "kit lint runs each rule's linter over the paths it governs\n\nUsage:\n  kit lint [--all-files] [<path>…]\n\nIts whole page is the resource kit://help/lint.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "all-files": {
+          "description": "with no paths, every tracked file instead of the staged ones",
+          "type": "boolean"
+        },
+        "path": {
+          "description": "the files to check; default: the staged files",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "name": "lint",
+    "title": "kit lint"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "kit packages lists the packages in reach, and changes which are active\n\nUsage:\n  kit packages [--active | --inactive] [--text | --json | --jq] [<package>…]\n  kit packages --stages\n  kit packages --marks\n  kit packages packages [--text | --json | --jq]\n\nIts whole page is the resource kit://help/packages.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "active": {
+          "description": "only the active packages",
+          "type": "boolean"
+        },
+        "inactive": {
+          "description": "the packages that are not active, excluded ones among them",
+          "type": "boolean"
+        },
+        "jq": {
+          "description": "the same JSON, formatted by jq for a person",
+          "type": "boolean"
+        },
+        "json": {
+          "description": "one JSON object per package: name, origin, state, and description; with packages, the stage's document, {rows, errors}",
+          "type": "boolean"
+        },
+        "marks": {
+          "description": "prints the stage's mark, as one JSON object, which changes when kit.yml or .kit/packages/ does",
+          "type": "boolean"
+        },
+        "package": {
+          "description": "a name, such as style/bash, or a glob, such as 'style/*'",
+          "items": {
+            "enum": [
+              "agents/claude",
+              "agents/copilot",
+              "agents/cursor",
+              "agents/gemini",
+              "agents/generic",
+              "empowerite",
+              "github/ci",
+              "hooks/lefthook",
+              "kit",
+              "policy/conventional",
+              "policy/opa",
+              "style/bash",
+              "style/gitignore",
+              "style/json",
+              "style/just",
+              "style/markdown",
+              "style/prose",
+              "style/workflows",
+              "style/yaml",
+              "workflow"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "stages": {
+          "description": "prints the stages, one per line: packages",
+          "type": "boolean"
+        },
+        "subcommand": {
+          "description": "packages: the stage: a row per package in reach, {name, state, origin, depends, includes, dependents, bundles, description}, keyed by its name; dependents are the active packages that depend on it, and bundles the active ones that include it",
+          "enum": [
+            "packages"
+          ],
+          "type": "string"
+        },
+        "text": {
+          "description": "lists the packages as text, even on a terminal; with packages, the stage as a table",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "name": "packages",
+    "title": "kit packages"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "kit syntax prints a verb's grammar as JSON, and checks its header\n\nUsage:\n  kit syntax [--check | --list] [<verb>…]\n  kit syntax <verb> --choices=<argument> [<answer>…]\n  kit syntax <verb> --extend [<answer>…]\n  kit syntax <verb> --match [<word>…]\n\nIts whole page is the resource kit://help/syntax.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "answer": {
+          "description": "an argument answered already, or a subcommand word chosen",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "check": {
+          "description": "prints no JSON; names each fault in the header, and fails",
+          "type": "boolean"
+        },
+        "choices": {
+          "description": "prints that argument's choices instead, one per line",
+          "type": "string"
+        },
+        "extend": {
+          "description": "prints the arguments the verb learns from the answers",
+          "type": "boolean"
+        },
+        "list": {
+          "description": "prints no JSON; one line per verb: verb, purpose, group, tab-separated",
+          "type": "boolean"
+        },
+        "match": {
+          "description": "judges the words as the guard judges a command line",
+          "type": "boolean"
+        },
+        "verb": {
+          "description": "the verbs to print; none prints every verb",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "word": {
+          "description": "the words of the command line to judge, after kit <verb>",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "name": "syntax",
+    "title": "kit syntax"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "kit toolchains lists the toolchains kit found here, and records which one to use\n\nUsage:\n  kit toolchains [--json | --jq]\n\nIts whole page is the resource kit://help/toolchains.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "jq": {
+          "description": "the same JSON, formatted by jq for a person",
+          "type": "boolean"
+        },
+        "json": {
+          "description": "one JSON object per row: provider, role, usable, active, chosen, and fills",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "name": "toolchains",
+    "title": "kit toolchains"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "description": "kit tools lists, installs, and updates what the chosen toolchain and the dependencies pin\n\nUsage:\n  kit tools [--toolchain=<name>] [--json | --jq]\n\nIts whole page is the resource kit://help/tools.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "jq": {
+          "description": "the same JSON, formatted by jq for a person",
+          "type": "boolean"
+        },
+        "json": {
+          "description": "one JSON object per tool: name, pinned, installed, latest with --outdated, and from",
+          "type": "boolean"
+        },
+        "toolchain": {
+          "description": "uses this toolchain for the run, as KIT_TOOLCHAIN does; kit takes it even after run's command",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "tools",
+    "title": "kit tools"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "description": "kit version prints this release's version\n\nUsage:\n  kit version\n\nIts whole page is the resource kit://help/version.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object"
+    },
+    "name": "version",
+    "title": "kit version"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    },
+    "description": "kit assign assigns issues to the caller, or to someone else\n\nUsage:\n  kit assign [--to=<login>] <reference>…\n\nIts whole page is the resource kit://help/assign.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "reference": {
+          "description": "the issues, each named with its tracker: 7, #7, or AB#4521",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "to": {
+          "description": "the login to assign, in every issue's tracker; default: the caller",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reference"
+      ],
+      "type": "object"
+    },
+    "name": "assign",
+    "title": "kit assign"
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    },
+    "description": "kit close closes issues as not planned, or as a duplicate of another\n\nUsage:\n  kit close (--not-planned | --duplicate-of=<original>) <reference>…\n\nIts whole page is the resource kit://help/close.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "duplicate-of": {
+          "description": "closes them as duplicates of the original issue",
+          "type": "string"
+        },
+        "not-planned": {
+          "description": "closes them as not planned",
+          "type": "boolean"
+        },
+        "reference": {
+          "description": "the issues, each named with its tracker: 7, #7, or AB#4521",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "reference"
+      ],
+      "type": "object"
+    },
+    "name": "close",
+    "title": "kit close"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    },
+    "description": "kit gather gathers issues under a new parent issue\n\nUsage:\n  kit gather --title=<text> <reference>…\n\nIts whole page is the resource kit://help/gather.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "reference": {
+          "description": "the issues to gather, each named with its tracker: 7, #7, or AB#4521",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "title": {
+          "description": "the parent issue's title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "reference"
+      ],
+      "type": "object"
+    },
+    "name": "gather",
+    "title": "kit gather"
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    },
+    "description": "kit settle settles the issues a closed pull request names\n\nUsage:\n  kit settle [<number>]\n\nIts whole page is the resource kit://help/settle.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "number": {
+          "description": "the pull request to settle; default: this checkout's",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "settle",
+    "title": "kit settle"
+  },
+  {
+    "annotations": {
+      "destructiveHint": true,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    },
+    "description": "kit unassign takes the caller, or everyone, off issues\n\nUsage:\n  kit unassign [--all] <reference>…\n\nIts whole page is the resource kit://help/unassign.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "all": {
+          "description": "takes every assignee off, not only the caller",
+          "type": "boolean"
+        },
+        "reference": {
+          "description": "the issues, each named with its tracker: 7, #7, or AB#4521",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "reference"
+      ],
+      "type": "object"
+    },
+    "name": "unassign",
+    "title": "kit unassign"
+  },
+  {
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    },
+    "description": "kit work starts or resumes work on issues\n\nUsage:\n  kit work <reference>…\n  kit work --title=<text> [<reference>…]\n  kit work --pr=<number> <reference>…\n\nIts whole page is the resource kit://help/work.",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "pr": {
+          "description": "adds the issues to one of the caller's own open pull requests instead: each is assigned to the caller and closed by it",
+          "type": "string"
+        },
+        "reference": {
+          "description": "the issues, each named with its tracker: 7, #7, or AB#4521; the first is the primary, and the one pull request closes them all",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "title": {
+          "description": "creates an issue with that title and starts it; with references, creates it as their parent, as kit gather does, and starts it with them",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": "work",
+    "title": "kit work"
+  }
+]

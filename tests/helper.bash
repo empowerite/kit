@@ -310,6 +310,27 @@ route() {
   printf '%s\t%s\n' "$1" "$2" >> "${FAKE_DIR}/${tool}.routes"
 }
 
+# snapshot <path> succeeds when the file at <path>, absolute or from the checkout's root, holds exactly what stdin
+# does. Otherwise, a missing file too, it prints the diff and how to write it again, and fails. With KIT_SNAPSHOTS=write
+# it writes the file instead, and its directory, and succeeds: bin/contracts does that, and git diff shows what changed.
+# A snapshot holds a part of the kit's public surface, so a change to that part is a diff a review sees.
+snapshot() {
+  local path=$1 got
+  [[ "${path}" == /* ]] || path=${kit_root}/../${path}
+  got=$(cat)
+  if [[ "${KIT_SNAPSHOTS:-}" == write ]]
+  then
+    mkdir -p "$(dirname "${path}")" && printf '%s\n' "${got}" > "${path}"
+    return
+  fi
+  # the snapshot is compared from a variable, not a process substitution, whose descriptor a loaded machine loses
+  if [[ ! -f "${path}" ]] || ! diff -u "${path}" - <<<"${got}"
+  then
+    echo "stale: $1; run bin/contracts, and review the diff"
+    return 1
+  fi
+}
+
 # in-order <text> <word>… succeeds when the text holds each word, each after the one before, and otherwise names the
 # first word it lacks. A test of what a picture holds checks its words this way, so a change to a glyph or a column's
 # padding breaks only the test that pins that drawing.

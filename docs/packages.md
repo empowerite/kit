@@ -279,6 +279,8 @@ answers:
 | `forge` | The code forge provider the workflow commands use, `ado`, `github`, or `gitlab`: the primary remote's. The code forge is the service that hosts the repository. When absent, it is detected from the primary's host: `github.com`, `gitlab.com`, or `dev.azure.com`, a CI runner's own server (`GITHUB_SERVER_URL`, `CI_SERVER_HOST`, `SYSTEM_COLLECTIONURI`), or a host the `gh` or `glab` CLI has logged in to. A primary on a host none of these names is refused where its pull request is read, naming this setting. `none` says the primary has no forge the kit knows, as on Bitbucket or a plain git server: nothing is asked of a forge, and it wins over the host and a runner's server. |
 | `forges` | The code forge of each other remote, by name: `forges: {upstream: gitlab}`. A remote not named takes the code forge its host names, or none. |
 | `primary` | The primary remote. Ahead and behind, the default branch, pull requests, builds, releases, and issues are read from it. `kit work` and `kit submit` fetch from and push to `origin` whatever it is. Default: `origin`. |
+| `forge_settings` | Each code forge's own settings, by forge, read only when that forge is the primary remote's: `forge_settings: {ado: {type: Bug}}`, and `stand_ins` for any forge; see [architecture.md](architecture.md#code-forges-seams-and-providers). |
+| `bot` | The name of this repository's bot: the slug of the GitHub App that acts for you here, as `kit bots` lists it. Without it, the bot is the only one in your bots file on the primary remote's host. |
 | `gate` | What `kit gate` runs. When absent, the kit detects a justfile `ci` recipe, a Makefile `ci` target, or a `package.json` `ci` script. |
 | `require_signing` | `true` makes `kit commit`, `kit work`, and `kit rebase` refuse before writing anything when git has no `user.signingkey`, makes `kit commit`, `kit work`'s start commit, and `kit rebase` sign every commit they make, refusing the commit when git cannot sign it, and makes `kit release` sign its tag. |
 | `log_days` | How many days kit keeps its logs under `.kit/logs/`, 14 when absent; `0` turns them off. See [logs.md](logs.md). |
@@ -290,11 +292,12 @@ answers:
 | `sources` | Other releases a repository takes packages from, each with a `name`, a `url`, and a `digest`; see below. |
 | `trackers` | Trackers other than the code forge's own whose issues the workflow accepts, each with a prefix and a provider; see [trackers.md](trackers.md). |
 | `bash_path` | The bash module path: the directories `use` sources a bash module from, in order, starting with `kit:modules/bash/`. A directory that does not exist is skipped; see [modules.md](modules.md#the-module-path). |
-| `flow` | The stages `kit flow` draws, in order: `issues`, `desk`, `worktrees`, `changes`, `builds`, `incoming`, `releases`. A stage left out is not drawn; `kit flow <stage>` still prints it. `issues` lists every open issue, in the backlog or underway, so `backlog` and `underway` are no stages. Default: all seven, in that order. |
+| `tools` | The tools the kit toolchain pins, by name: each a version and the url of its download, which `tools.lock` records for every platform; see [using-kit.md](toolchains/using-kit.md). |
+| `flow` | The stages `kit flow` draws, in order: `issues`, `changes`, `builds`, `incoming`, `releases`. A stage left out is not drawn; `kit flow <stage>` still prints it. `issues` lists every open issue, in the backlog or underway, so `backlog` and `underway` are no stages. Default: all five, in that order. |
 
 A provider setting, `forge`, a value of `forges`, `policy_engine`, or the `provider` of a tracker, takes one of the
-kit's providers. It also takes one the repository adds on its bash module path: `forge: bitbucket`
-with a `modules/bash/forge/bitbucket.sh`. See [modules.md](modules.md#writing-a-bash-module).
+kit's providers. It also takes one the repository adds on its bash module path: `forge: bitbucket` with a
+`forge/bitbucket.sh` in a directory of that path. See [modules.md](modules.md#writing-a-bash-module).
 
 ## Sources
 

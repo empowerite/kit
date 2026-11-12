@@ -17,4 +17,20 @@ load helper
   done
 }
 
+@test "an Exits line names 2, the guard's status for a usage error, and every status its verb's own file exits with" {
+  local verb name exits status
+  for verb in "${kit_root}"/bin/kit-*
+  do
+    [[ -x "${verb}" ]] || continue
+    name=${verb##*/kit-}
+    # the header's paragraph from its Exits line to the next line of a lone #, on one line
+    exits=$(awk '/^# Exits / { on = 1 } on && /^#$/ { exit } on { sub(/^# ?/, ""); print }' "${verb}" | paste -s -d ' ' -)
+    for status in 2 $(grep --only-matching --extended-regexp '\bexit [0-9]+' "${verb}" | cut -d ' ' -f 2 | sort -u)
+    do
+      [[ "${exits}" =~ (Exits|,|;|and|or)\ ${status}[\ ,.] ]] \
+        || { echo "kit ${name}: its Exits line does not name ${status}"; return 1; }
+    done
+  done
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

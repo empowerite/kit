@@ -66,9 +66,9 @@ rewrites them.
 - A name may be a dotted path in `kit.yml`, such as `«answers.ci_runner»`, which is `ci_runner` under
   `answers:`. Making a file fills it with that setting's value, and `kit new file` refuses when the settings leave it
   unset and it has no default. Checking a file binds it as it binds `path`: the setting's value is literal text.
-- `path`, `name`, and `stem` come from the path. For `bin/deploy.sh` they are `bin/deploy.sh`, `deploy.sh`, and
-  `deploy`. They are bound before a file is checked, so they are literal text there: a script whose banner names
-  another file does not match.
+- `path`, `name`, and `stem` come from the path. For `scripts/deploy.sh` they are `scripts/deploy.sh`, `deploy.sh`, and
+  `deploy`. They are bound before a file is checked, so they are literal text there: a script whose banner names another
+  file does not match.
 - A name that appears once takes one value. A name that appears more than once takes one value per appearance, in
   template order: the three `«settings»` holes of the just templates are three values. Making a file with one value
   fills every appearance.

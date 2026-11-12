@@ -9,9 +9,9 @@ kit context "${path}"
 
 - The output is the rule files to read, one per line. Given several paths, it prints each rule once.
 - `--json` prints one object per path, with that path's rules.
-- Every call appends one line per path to `kit/context.log` in git's common directory, `.git/kit/context.log` at
-  the desk and the desk's `.git/kit/context.log` from a worktree: the epoch time and the path. `kit context --claude`
-  and `kit new file` append to it too.
+- Every call appends one line per path to the context log in git's common directory, `.git/kit/context.log` at the desk
+  and the desk's `.git/kit/context.log` from a worktree: the epoch time and the path. `kit context --claude` and
+  `kit new file` append to it too.
 - The log is never pruned, and `kit uninstall` leaves it.
 
 Each rule is written once, in `.kit/rules/<kind>.md`, and copied nowhere else. A style package adds

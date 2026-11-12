@@ -1,0 +1,30 @@
+{
+  "verb": "ready",
+  "purpose": "marks a draft pull request ready for review",
+  "usage": [
+    "kit ready [<number>]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "number",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "<number>": {
+      "description": "the pull request to mark; default: this checkout's"
+    }
+  }
+}

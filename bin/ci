@@ -12,7 +12,8 @@
 #   - ajv: the front matter of every page of the tutorials site against its schema
 #   - npm run check over projects/tutorials/, the tutorials site: tsc, its tests, and a build for a base
 #     that fails on an empty page, a dead link, or a bad base
-#   - the bats suite, one job per CPU, each test stopped and failed at five minutes
+#   - the bats suite, one job per CPU, each test stopped and failed at five minutes, with KIT_SNAPSHOTS empty, so a
+#     snapshot of the kit's surface is compared, never written; bin/contracts writes them
 #   - gofmt, go vet, and go test over projects/tui/, the kit tui binary, with every one of its statements covered
 #   - kit/bin/kit check over this repository's installed copy of its own kit
 #
@@ -72,7 +73,7 @@ ajv validate --spec=draft2020 -s projects/tutorials/frontmatter.schema.json -d "
 # The slowest test takes about a minute on a runner and over two at a desk; one that waits on a terminal forever
 # fails at five minutes, naming itself. The tests run side by side, one job per CPU, on GNU parallel from kit.yml:
 # nearly all their time goes to starting short processes, so more jobs than CPUs only queue.
-BATS_TEST_TIMEOUT=300 bats --jobs "$(getconf _NPROCESSORS_ONLN)" --timing --print-output-on-failure tests/
+KIT_SNAPSHOTS='' BATS_TEST_TIMEOUT=300 bats --jobs "$(getconf _NPROCESSORS_ONLN)" --timing --print-output-on-failure tests/
 (cd projects/tui && test -z "$(gofmt -l .)" && go vet ./... && go test -coverprofile="${frontmatter}/tui.cover" ./...)
 # The TUI's tests reach every one of its statements: a statement no test reaches fails the gate, naming each function
 # that holds one. The total is no measure of it, as one statement in thousands still rounds to 100.0%.

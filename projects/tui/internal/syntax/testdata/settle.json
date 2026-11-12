@@ -1,0 +1,30 @@
+{
+  "verb": "settle",
+  "purpose": "settles the issues a closed pull request names",
+  "usage": [
+    "kit settle [<number>]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "number",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "<number>": {
+      "description": "the pull request to settle; default: this checkout's"
+    }
+  }
+}

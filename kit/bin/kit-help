@@ -21,7 +21,8 @@
 #   <verb>    a verb's name, or its start: re matches rebase and region
 #   <group>   a group's name, as kit help heads them
 #
-# Exits 0 on success, and 2 when a name matches no verb and no group; it prints nothing then.
+# Exits 0 on success, 1 when kittui cannot be built, and 2 when a name matches no verb and no group; it prints nothing
+# then.
 #
 # see: modules/bash/help.sh
 

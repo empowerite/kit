@@ -23,7 +23,7 @@
 #
 # Arguments:
 #
-# Exits 0 when there are no findings, and 1 otherwise.
+# Exits 0 when there are no findings, 1 otherwise, and 2 on a usage error.
 #
 # see: modules/bash/place.sh, modules/bash/materialize.sh, modules/bash/region.sh
 

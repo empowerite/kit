@@ -5,8 +5,8 @@ a repository, kit looks at that repository. A group lets you see several at once
 
 ## The file
 
-Groups are yours alone. kit keeps them in `kit/workspaces.yml` under `XDG_CONFIG_HOME`, else `~/.config`. You can edit
-the file by hand; when kit edits it, your comments stay where they were.
+Groups are yours alone. kit keeps them in `${XDG_CONFIG_HOME:-~/.config}/kit/workspaces.yml`. You can edit the file by
+hand; when kit edits it, your comments stay where they were.
 
 ```yaml
 # where your clones are; kit looks for checkouts here, four levels down
@@ -67,18 +67,17 @@ answers. A bare repository has no working tree, and a `.git` directory is not in
 repository: there, too, kit starts on the last group used, and with none, `kit flow` draws the desks below and `kit
 workspace` refuses.
 
-`kit workspaces --use=<name>` keeps the last group used in `kit/workspaces/last` under `XDG_CACHE_HOME`, else
-`~/.cache`: kit's own to rewrite, apart from your file. A last group the file does not hold is none, and
-`kit workspaces --delete` of the last group used forgets it, so a group made later under its name is not the last
-used.
+`kit workspaces --use=<name>` keeps the last group used in `${XDG_CACHE_HOME:-~/.cache}/kit/workspaces/last`: kit's own
+to rewrite, apart from your file. A last group the file does not hold is none, and `kit workspaces --delete` of the last
+group used forgets it, so a group made later under its name is not the last used.
 
 `kit workspaces --use=<folder>`, with a folder written as a path, as `.`, `~/Code/edge`, or `/srv/edge`, keeps the
-repository whose working tree holds it first among the recent repositories, in `kit/workspaces/recent` under
-`XDG_CACHE_HOME`: ten at most, each once, the newest first. A linked worktree is no workspace of its own: its folder
-is kept as its repository's desk, and one kept before stands as that desk. A recent repository is no group: kit starts
-on it only inside it, as on any other. The workspace menu offers them, and its **Open Repository…** keeps the one it
-opens there. `kit --workspace=<path> workspaces --current`, with an absolute path, names the repository whose working
-tree holds it, and refuses with 2 where none does.
+repository whose working tree holds it first among the recent repositories, in
+`${XDG_CACHE_HOME:-~/.cache}/kit/workspaces/recent`: ten at most, each once, the newest first. A linked worktree is no
+workspace of its own: its folder is kept as its repository's desk, and one kept before stands as that desk. A recent
+repository is no group: kit starts on it only inside it, as on any other. The workspace menu offers them, and its **Open
+Repository…** keeps the one it opens there. `kit --workspace=<path> workspaces --current`, with an absolute path, names
+the repository whose working tree holds it, and refuses with 2 where none does.
 
 `kit flow`, `kit workspace`, and `kit workspaces --current` follow this rule. Every other verb runs in its folder's
 repository, or refuses outside one, and takes no `--workspace=`. `--workspace=` is an option of `kit` itself, which the
@@ -130,9 +129,9 @@ built. The forms that read print JSON with `--json`; `kit help workspaces` gives
 print one line, which says what changed, or that nothing needed to, as `📚 empowerite holds them already`, and take
 no `--json`. Each, and `--use`, takes the file's lock first, so two commands that edit the file at once each land.
 
-`kit workspaces` exits 1 when the file cannot be read or edited, as when another command holds its lock past the
-wait of 30 seconds by the clock, or `kit/workspaces/` under `XDG_CACHE_HOME` cannot be written, and 2 for a usage
-error, an unknown workspace, or a new name that is refused or taken.
+`kit workspaces` exits 1 when the file cannot be read or edited, as when another command holds its lock past the wait of
+30 seconds by the clock, or `${XDG_CACHE_HOME:-~/.cache}/kit/workspaces/` cannot be written, and 2 for a usage error, an
+unknown workspace, or a new name that is refused or taken.
 
 ## kit flow over a workspace
 

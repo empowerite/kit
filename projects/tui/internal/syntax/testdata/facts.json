@@ -1,0 +1,32 @@
+{
+  "verb": "facts",
+  "purpose": "prints the facts a policy engine judges, as JSON",
+  "usage": [
+    "kit facts [--moment=<moment>]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "name": "moment",
+              "value": "moment",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--moment": {
+      "description": "the moment to gather for: ci, the default, or commit",
+      "choices": "closed"
+    }
+  }
+}

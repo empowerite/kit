@@ -1,0 +1,224 @@
+[
+  {
+    "description": "the entry every agent reads first: integrity, the desk, and the rules",
+    "mimeType": "text/markdown",
+    "name": "1st.md",
+    "uri": "kit://1st.md"
+  },
+  {
+    "description": "the rule for files of kind bash",
+    "mimeType": "text/markdown",
+    "name": "rules/bash",
+    "uri": "kit://rules/bash"
+  },
+  {
+    "description": "the rule for files of kind gitignore",
+    "mimeType": "text/markdown",
+    "name": "rules/gitignore",
+    "uri": "kit://rules/gitignore"
+  },
+  {
+    "description": "the rule for files of kind jq",
+    "mimeType": "text/markdown",
+    "name": "rules/jq",
+    "uri": "kit://rules/jq"
+  },
+  {
+    "description": "the rule for files of kind json",
+    "mimeType": "text/markdown",
+    "name": "rules/json",
+    "uri": "kit://rules/json"
+  },
+  {
+    "description": "the rule for files of kind just",
+    "mimeType": "text/markdown",
+    "name": "rules/just",
+    "uri": "kit://rules/just"
+  },
+  {
+    "description": "the rule for files of kind markdown",
+    "mimeType": "text/markdown",
+    "name": "rules/markdown",
+    "uri": "kit://rules/markdown"
+  },
+  {
+    "description": "the rule for files of kind sh",
+    "mimeType": "text/markdown",
+    "name": "rules/sh",
+    "uri": "kit://rules/sh"
+  },
+  {
+    "description": "the rule for files of kind workflows",
+    "mimeType": "text/markdown",
+    "name": "rules/workflows",
+    "uri": "kit://rules/workflows"
+  },
+  {
+    "description": "the paths and first lines that make a file of kind ",
+    "mimeType": "application/yaml",
+    "name": "kinds/any",
+    "uri": "kit://kinds/any"
+  },
+  {
+    "description": "the paths and first lines that make a file of kind ",
+    "mimeType": "application/yaml",
+    "name": "kinds/bash",
+    "uri": "kit://kinds/bash"
+  },
+  {
+    "description": "the paths and first lines that make a file of kind ",
+    "mimeType": "application/yaml",
+    "name": "kinds/gitignore",
+    "uri": "kit://kinds/gitignore"
+  },
+  {
+    "description": "the paths and first lines that make a file of kind ",
+    "mimeType": "application/yaml",
+    "name": "kinds/jq",
+    "uri": "kit://kinds/jq"
+  },
+  {
+    "description": "the paths and first lines that make a file of kind ",
+    "mimeType": "application/yaml",
+    "name": "kinds/json",
+    "uri": "kit://kinds/json"
+  },
+  {
+    "description": "the paths and first lines that make a file of kind ",
+    "mimeType": "application/yaml",
+    "name": "kinds/just",
+    "uri": "kit://kinds/just"
+  },
+  {
+    "description": "the paths and first lines that make a file of kind ",
+    "mimeType": "application/yaml",
+    "name": "kinds/markdown",
+    "uri": "kit://kinds/markdown"
+  },
+  {
+    "description": "the paths and first lines that make a file of kind ",
+    "mimeType": "application/yaml",
+    "name": "kinds/sh",
+    "uri": "kit://kinds/sh"
+  },
+  {
+    "description": "the paths and first lines that make a file of kind ",
+    "mimeType": "application/yaml",
+    "name": "kinds/text",
+    "uri": "kit://kinds/text"
+  },
+  {
+    "description": "the paths and first lines that make a file of kind ",
+    "mimeType": "application/yaml",
+    "name": "kinds/workflows",
+    "uri": "kit://kinds/workflows"
+  },
+  {
+    "description": "the paths and first lines that make a file of kind ",
+    "mimeType": "application/yaml",
+    "name": "kinds/yaml",
+    "uri": "kit://kinds/yaml"
+  },
+  {
+    "description": "the whole help page of kit check, the check tool",
+    "mimeType": "text/plain",
+    "name": "help/check",
+    "uri": "kit://help/check"
+  },
+  {
+    "description": "the whole help page of kit context, the context tool",
+    "mimeType": "text/plain",
+    "name": "help/context",
+    "uri": "kit://help/context"
+  },
+  {
+    "description": "the whole help page of kit flow, the flow tool",
+    "mimeType": "text/plain",
+    "name": "help/flow",
+    "uri": "kit://help/flow"
+  },
+  {
+    "description": "the whole help page of kit help, the help tool",
+    "mimeType": "text/plain",
+    "name": "help/help",
+    "uri": "kit://help/help"
+  },
+  {
+    "description": "the whole help page of kit kinds, the kinds tool",
+    "mimeType": "text/plain",
+    "name": "help/kinds",
+    "uri": "kit://help/kinds"
+  },
+  {
+    "description": "the whole help page of kit lint, the lint tool",
+    "mimeType": "text/plain",
+    "name": "help/lint",
+    "uri": "kit://help/lint"
+  },
+  {
+    "description": "the whole help page of kit packages, the packages tool",
+    "mimeType": "text/plain",
+    "name": "help/packages",
+    "uri": "kit://help/packages"
+  },
+  {
+    "description": "the whole help page of kit syntax, the syntax tool",
+    "mimeType": "text/plain",
+    "name": "help/syntax",
+    "uri": "kit://help/syntax"
+  },
+  {
+    "description": "the whole help page of kit toolchains, the toolchains tool",
+    "mimeType": "text/plain",
+    "name": "help/toolchains",
+    "uri": "kit://help/toolchains"
+  },
+  {
+    "description": "the whole help page of kit tools, the tools tool",
+    "mimeType": "text/plain",
+    "name": "help/tools",
+    "uri": "kit://help/tools"
+  },
+  {
+    "description": "the whole help page of kit version, the version tool",
+    "mimeType": "text/plain",
+    "name": "help/version",
+    "uri": "kit://help/version"
+  },
+  {
+    "description": "the whole help page of kit assign, the assign tool",
+    "mimeType": "text/plain",
+    "name": "help/assign",
+    "uri": "kit://help/assign"
+  },
+  {
+    "description": "the whole help page of kit close, the close tool",
+    "mimeType": "text/plain",
+    "name": "help/close",
+    "uri": "kit://help/close"
+  },
+  {
+    "description": "the whole help page of kit gather, the gather tool",
+    "mimeType": "text/plain",
+    "name": "help/gather",
+    "uri": "kit://help/gather"
+  },
+  {
+    "description": "the whole help page of kit settle, the settle tool",
+    "mimeType": "text/plain",
+    "name": "help/settle",
+    "uri": "kit://help/settle"
+  },
+  {
+    "description": "the whole help page of kit unassign, the unassign tool",
+    "mimeType": "text/plain",
+    "name": "help/unassign",
+    "uri": "kit://help/unassign"
+  },
+  {
+    "description": "the whole help page of kit work, the work tool",
+    "mimeType": "text/plain",
+    "name": "help/work",
+    "uri": "kit://help/work"
+  }
+]

@@ -57,7 +57,7 @@ see: [forges.md](forges.md), [../workspaces.md](../workspaces.md), `kit/modules/
 | The tags | read | `forge:tags`: each provider's runs, for the builds stage; `workspace:tags`: the tags stage of `kit workspace`; `flow:refs`: the incoming stage; `flow:incoming-rows`: the incoming stage's rows, a tag's commit, tagger, and subject; `workspace:marks` |
 | Tag a release and push it | write | `releases:release`: `kit release` |
 | The staged paths | read | `kit lint` with no paths; `commit:checks`, `commit:commit`: `kit commit`; `commit:submit`: `kit submit` says they stay staged |
-| The tracked paths | read | `kit lint --all`; `generate:discover`: `kit generate`; `syntax:tracked`: the paths `kit context`, `kit lint`, and `kit generate` complete; `context:named`: `kit context`; `materialize:all`: `kit install`, `kit update`, `kit check`; `commit:named`, `commit:index`: `kit commit` |
+| The tracked paths | read | `kit lint --all-files`; `generate:discover`: `kit generate`; `syntax:tracked`: the paths `kit context`, `kit lint`, and `kit generate` complete; `context:named`: `kit context`; `materialize:all`: `kit install`, `kit update`, `kit check`; `commit:named`, `commit:index`: `kit commit` |
 | The files of the index or a tree, as facts | read | `facts:tree`: `kit facts`, `kit policy`, `kit commit` |
 | A file as the index or a tree holds it | read | `policy:object`, `policy:blob`, `policy:base-held`, `policy:base-tree`: `kit policy` and `kit commit` read `kit.yml` and `.kit/policy/` as the base holds them; `commit:behind`, `commit:unchanged` |
 | The tree a commit would make | write | `commit:index`, `commit:tree`, `commit:same-tree`: `kit commit` builds it in a scratch index and writes its tree objects |

@@ -284,15 +284,32 @@ setup() {
   [[ "$output" == *"kit syntax has no choices for '<verb>'; run: cd "*" && kit help syntax"* ]]
 }
 
-@test "the Go fixtures under projects/tui/ are what kit syntax prints today" {
-  local fixture verb printed
-  for fixture in "${kit_root}"/../projects/tui/internal/syntax/testdata/*.json
+@test "snapshot passes on the same bytes, fails on others, writes when told to, and the gate never tells it to" {
+  printf 'a\nb\n' > "${BATS_TEST_TMPDIR}/kept"
+  snapshot "${BATS_TEST_TMPDIR}/kept" <<<$'a\nb'
+  run snapshot "${BATS_TEST_TMPDIR}/kept" <<<$'a\nc'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"stale: ${BATS_TEST_TMPDIR}/kept; run bin/contracts, and review the diff" ]]
+  run snapshot "${BATS_TEST_TMPDIR}/none" <<<'a'
+  [ "$status" -eq 1 ]
+  KIT_SNAPSHOTS=write run snapshot "${BATS_TEST_TMPDIR}/new/kept" <<<'a'
+  [ "$status" -eq 0 ]
+  [ "$(cat "${BATS_TEST_TMPDIR}/new/kept")" = a ]
+  grep --quiet "^KIT_SNAPSHOTS='' BATS_TEST_TIMEOUT=300 bats " "${kit_root}/../bin/ci"
+}
+
+@test "every verb's syntax is its snapshot under projects/tui/, every snapshot there is a verb's, and so is the list" {
+  local verb fixture every dir=projects/tui/internal/syntax/testdata
+  "${kit_root}/bin/kit" syntax --list | snapshot tests/snapshots/verbs.tsv
+  # one call prints every verb's syntax, each as kit syntax <verb> prints it alone
+  every=$("${kit_root}/bin/kit" syntax)
+  for verb in $("${kit_root}/bin/kit" syntax --list | cut -f 1)
   do
-    verb=$(basename "${fixture}" .json)
-    # kit's output is compared from a variable, not a process substitution, whose descriptor a loaded machine loses
-    printed=$("${kit_root}/bin/kit" syntax "${verb}")
-    diff - "${fixture}" <<<"${printed}" >/dev/null \
-      || { echo "stale: ${verb}; rerun: kit syntax ${verb} > projects/tui/internal/syntax/testdata/${verb}.json"; return 1; }
+    jq --arg verb "${verb}" '.[] | select(.verb == $verb)' <<<"${every}" | snapshot "${dir}/${verb}.json"
+  done
+  for fixture in "${kit_root}/../${dir}"/*.json
+  do
+    [[ -x "${kit_root}/bin/kit-$(basename "${fixture}" .json)" ]] || { echo "no verb has ${fixture}"; return 1; }
   done
 }
 
@@ -311,6 +328,11 @@ setup() {
   [ "$(jq -c '[.status, .literals, .missing]' <<<"$output")" = '[1,["add"],"<package>"]' ]
   run "${kit_root}/bin/kit" syntax packages --match -- add style/bash
   [ "$(jq -c '[.status, .literals, .operands]' <<<"$output")" = '[0,["add"],["style/bash"]]' ]
+  # a subcommand word after an optional group of flags opens its line too: kit tools run lacks its command
+  run "${kit_root}/bin/kit" syntax tools --match -- run
+  [ "$(jq -c '[.status, .literals, .missing]' <<<"$output")" = '[1,["run"],"<command>"]' ]
+  run "${kit_root}/bin/kit" syntax tools --match -- --toolchain=kit run bats --version
+  [ "$(jq -c '[.status, .literals, .operands]' <<<"$output")" = '[0,["run"],["bats","--version"]]' ]
   run "${kit_root}/bin/kit" syntax packages --match -- style/bash
   [ "$(jq -c '[.status, .literals, .operands]' <<<"$output")" = '[0,[],["style/bash"]]' ]
 }

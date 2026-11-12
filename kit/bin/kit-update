@@ -37,7 +37,7 @@
 #
 # Exits 0 when the update is complete, and 1 when a base is missing, a region is marked wrongly, a file needs to be
 # resolved by hand, the packages' depends and includes lines form a cycle, or a list it reads, such as the packages
-# kit.yml declares, cannot be read. At a cycle, nothing is written.
+# kit.yml declares, cannot be read, and 2 on a usage error. At a cycle, nothing is written.
 #
 # see: modules/bash/place.sh, modules/bash/manifest.sh, modules/bash/release.sh
 

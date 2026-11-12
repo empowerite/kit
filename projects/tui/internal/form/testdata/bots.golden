@@ -1,0 +1,17 @@
+ kit bots - lists, adopts, and forgets the bots that act for you
+
+   one of
+   *kit bots*             lists, adopts, and forgets the bots that act for you
+
+     --text   --json   --jq
+                           prints the bots as text, even on a terminal
+
+   --add                adopts the App that <name> is the slug of, with --app and --key
+   --remove             forgets a bot and deletes its key
+   --check              compares the App's permissions with its jobs and its installation with this
+                        repository
+   --bot token
+   --bot run <command>
+
+
+ kit bots

@@ -123,7 +123,7 @@ refused, so no module loads from outside the path. A module:
 
 A seam's providers sit in a directory named for the seam, beside it: `forge.sh` and `forge/github.sh`, and
 `use:modules 'forge/*'` lists them. A provider counts wherever it is on the path. A repository adds one by putting it
-in the seam's directory under a directory of its own on the path, such as `modules/bash/forge/local.sh`.
+in the seam's directory under a directory of its own on the path, as `forge/local.sh` there.
 
 ### Overriding a function
 
@@ -262,6 +262,12 @@ from arguments, stays inline where it is used.
 | `underway.jq` | the issues closed by an open change, one row per issue and change, and the rows the owner flags keep |
 | `changes.jq` | the open changes that close one of the issues named |
 | `completion.jq` | what the word being typed may be, from a verb's syntax: a flag, an option's value, a literal word, or an operand |
+| `apps.jq` | the app verbs' documents: a forge call's objects as rows, kit's own reads, a stage as text |
+| `glyphs.jq` | the glyphs kit flow draws, what each means, and each stage's legend |
+| `serve.jq` | a verb as a kit serve tool: its input schema from its syntax, and a call's arguments as its words |
+| `terminal.jq` | the terminal kit runs in, judged from its settings and its answers, as kit welcome's checks |
+| `version.jq` | semantic versions: their precedence, which is higher, and the highest of several |
+| `workspace.jq` | kit workspace's rows, made from what git prints |
 
 A jq module is `<module>.jq` in `modules/jq/`, a file of `def`s. A bash module runs it with `-L "${kit_jq}"` and
 imports it under its own name, so the jq function reads as the bash function does, with `::` for `:`:

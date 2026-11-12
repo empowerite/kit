@@ -74,11 +74,16 @@ def unknown_word($alts; $st):
 # that opens another alternative; else the first whose walk completes, the one that takes the most words winning a tie. It gives {index}, {refusal}, or {} when nothing selects.
 def walk_sequence($nodes; $st):
   # opens($alt; $next) says whether the alternative opens with the literal $next: as its first node, or as a word of
-  # a required group it opens with, so (select | add | remove) <package>… opens with each of its three words.
+  # a required group it opens with, so (select | add | remove) <package>… opens with each of its three words; an
+  # optional group of flags and options before it takes no word, so [--toolchain <name>] (install | run <command>…)
+  # opens with run too.
   def opens($alt; $next):
     ($alt | length) > 0
     and (($alt[0].kind == "literal" and $alt[0].name == $next)
-         or ($alt[0].kind == "group" and ($alt[0].optional | not) and any($alt[0].alternatives[]; opens(.; $next))));
+         or ($alt[0].kind == "group" and ($alt[0].optional | not) and any($alt[0].alternatives[]; opens(.; $next)))
+         or ($alt[0].kind == "group" and $alt[0].optional
+             and ([$alt[0] | .. | objects | select(.kind == "literal" or .kind == "operand")] | length) == 0
+             and opens($alt[1:]; $next)));
   def choose($alts; $s):
     ($s.pos[0].word) as $next
     | [range($alts | length) | select(opens($alts[.]; $next))] as $by_literal

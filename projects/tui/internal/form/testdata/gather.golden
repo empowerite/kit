@@ -1,0 +1,8 @@
+ kit gather - gathers issues under a new parent issue
+
+   --title required       the parent issue's title
+
+   <reference>… required  the issues to gather, each named with its tracker: 7, #7, or AB#4521
+
+
+ kit gather

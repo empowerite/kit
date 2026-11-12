@@ -44,8 +44,7 @@ Everything else:
   - [a dev container](docs/toolchains/using-devcontainer.md)
   - [apt, dnf, or pacman](docs/toolchains/using-system-packages.md)
   - [none](docs/toolchains/using-no-toolchain.md): the tools already on the machine
-- `kit flow` shows where work stands in seven stages: issues, desk, worktrees, changes, builds, incoming, and
-  releases.
+- `kit flow` shows where work stands in five stages: issues, changes, builds, incoming, and releases.
 - `kit workspace` shows what git holds across a workspace: remotes, branches, worktrees, commits, and tags.
 - Adapters for Claude Code, Cursor, GitHub Copilot, and Gemini CLI put the rules where each one looks. The Claude
   Code and Gemini CLI adapters also deny raw git commands the rules forbid, such as `git rebase`. The deny list

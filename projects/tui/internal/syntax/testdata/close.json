@@ -1,0 +1,49 @@
+{
+  "verb": "close",
+  "purpose": "closes issues as not planned, or as a duplicate of another",
+  "usage": [
+    "kit close (--not-planned | --duplicate-of=<original>) <reference>…"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": false,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "not-planned",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "option",
+              "name": "duplicate-of",
+              "value": "original",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "reference",
+        "repeat": true
+      }
+    ]
+  ],
+  "arguments": {
+    "--not-planned": {
+      "description": "closes them as not planned"
+    },
+    "--duplicate-of": {
+      "description": "closes them as duplicates of the original issue"
+    },
+    "<reference>": {
+      "description": "the issues, each named with its tracker: 7, #7, or AB#4521"
+    }
+  }
+}

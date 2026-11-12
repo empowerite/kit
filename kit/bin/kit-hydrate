@@ -24,7 +24,7 @@
 #   --quick   for a shell hook: silent when everything is in place
 #
 # Exits 0 on success, 1 when kit.yml cannot be read, with --quick too, and 1 in a repository that declares no kit
-# version, unless --quick.
+# version, unless --quick, and 2 on a usage error.
 #
 # see: modules/bash/materialize.sh, docs/toolchains.md
 

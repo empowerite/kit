@@ -199,6 +199,27 @@ call() {
   [ "$(answer 1 | wc -c)" -lt 20000 ]
 }
 
+@test "tools/list and resources/list are their snapshots: each tool's name, hints, and input, and each resource" {
+  serve "$(modern 1 tools/list)" "$(modern 2 resources/list)"
+  answer 1 | jq --sort-keys .result.tools | snapshot tests/snapshots/tools.json
+  answer 2 | jq --sort-keys .result.resources | snapshot tests/snapshots/resources.json
+}
+
+@test "every verb is a tool or is named here as not one, and kit-serve's header names the tools in their groups" {
+  # not offered: each writes, needs a terminal, draws one of kittui's apps, or is a gate's, a person's, or a script's
+  local tools header withheld='audit bots changes ci commit completion delivery facts gate generate hydrate install
+    issues linked new people platform policy ready rebase region release root serve submit template tidy trust tui
+    tutorials uninstall update usage welcome workspace workspaces'
+  serve "$(modern 1 tools/list)"
+  tools=$(answer 1 | jq --raw-output '[.result.tools[].name] | join(" ")')
+  [ "$(tr -s ' \n' '\n' <<<"${tools} ${withheld}" | LC_ALL=C sort)" \
+    = "$("${kit_checkout}/bin/kit" syntax --list | cut -f 1 | LC_ALL=C sort)" ]
+  # each group's bullet names its tools, up to the ", which" that says what they do
+  header=$(sed -n 's/^#   - \([a-z, ]*\), which .*/\1/p' "${kit_checkout}/bin/kit-serve" | sed 's/, and /, /; s/,//g' \
+    | paste -s -d ' ' -)
+  [ "$(tr ' ' '\n' <<<"${header}" | LC_ALL=C sort)" = "$(tr ' ' '\n' <<<"${tools}" | LC_ALL=C sort)" ]
+}
+
 @test "a tool runs its verb from typed arguments: context names a bash file's rule, and lint's finding comes back as an error" {
   command -v shellcheck >/dev/null || skip "shellcheck, the bash rule's linter, is not on PATH"
   printf '#!/usr/bin/env bash\nset -o errexit -o nounset -o pipefail\necho $1\n' > tool.sh

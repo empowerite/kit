@@ -1,0 +1,306 @@
+{
+  "verb": "workspace",
+  "purpose": "shows a workspace's git: its remotes, branches, worktrees, commits, and tags",
+  "usage": [
+    "kit workspace [--text | --json | --jq]",
+    "kit workspace --stages",
+    "kit workspace --marks",
+    "kit workspace repos [--text | --json | --jq]",
+    "kit workspace remotes [--text | --json | --jq]",
+    "kit workspace branches [--text | --json | --jq]",
+    "kit workspace worktrees [--text | --json | --jq]",
+    "kit workspace commits [--text | --json | --jq]",
+    "kit workspace tags [--text | --json | --jq]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "flag",
+        "name": "stages",
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "flag",
+        "name": "marks",
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "repos",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "remotes",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "branches",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "worktrees",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "commits",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "tags",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--text": {
+      "description": "prints the picture as text, even on a terminal"
+    },
+    "--json": {
+      "description": "the picture as one JSON object: stages, then each stage's document under its name"
+    },
+    "--jq": {
+      "description": "the same JSON, formatted by jq for a person"
+    },
+    "--stages": {
+      "description": "prints the stages the picture draws, one per line, in order, the same over any workspace"
+    },
+    "--marks": {
+      "description": "prints a mark per stage, as one JSON object, which changes when what the stage draws does"
+    },
+    "repos": {
+      "description": "each member of the workspace, cloned or not: its forge, its clone, its desk's branch, its worktrees, and the local branches no checkout has"
+    },
+    "remotes": {
+      "description": "each remote: its forge, its organization and repository, its URL, its default branch, and its branches, counted"
+    },
+    "branches": {
+      "description": "each branch: a remote's, with the local branches that pull from it, and each local branch whose upstream is gone or that has none, with its commit and the worktree it is checked out in"
+    },
+    "worktrees": {
+      "description": "each worktree, the desk first: its branch, what it is ahead and behind its upstream and the default branch, and its paths changed and untracked"
+    },
+    "commits": {
+      "description": "the commits the local branches hold and the default branch does not, the newest first: each one's branches, whether a remote has it, and the issue its subject starts with"
+    },
+    "tags": {
+      "description": "the tags, the newest first: annotated or lightweight, their commit, and their tagger"
+    }
+  }
+}

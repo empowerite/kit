@@ -1,0 +1,114 @@
+{
+  "verb": "tutorials",
+  "purpose": "lists kit's tutorials, and opens one, in kittui or the browser",
+  "usage": [
+    "kit tutorials [--text | --json | --jq] [--tag=<audience>…]",
+    "kit tutorials [--text] [--tag=<audience>…] <tutorial>"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "name": "tag",
+              "value": "audience",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "name": "tag",
+              "value": "audience",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "tutorial",
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--text": {
+      "description": "prints the list, even on a terminal"
+    },
+    "--json": {
+      "description": "one JSON object: {version, base, audiences, tutorials}, each tutorial {id, title, summary, glyph, audience, where, url, file}: where is kit or online, url the link of one online, file the page of one in the kit, and the other empty"
+    },
+    "--jq": {
+      "description": "the same JSON, formatted by jq for a person"
+    },
+    "--tag": {
+      "description": "keeps the tutorials for that audience; given again, or with audiences joined by :, as --tag=ui:maintainer, it keeps the tutorials for any of them",
+      "choices": "closed"
+    },
+    "<audience>": {
+      "description": "an audience's id, as --json names it: newcomer, ui, maintainer",
+      "choices": "closed"
+    },
+    "<tutorial>": {
+      "description": "a tutorial's id, as --json names it; kittui opens on its card, or it opens in the browser",
+      "choices": "closed"
+    }
+  }
+}

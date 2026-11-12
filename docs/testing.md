@@ -13,6 +13,40 @@ GitHub runner. Some of the numbers are still being measured; each one says where
   `TMPDIR`, and the kit's cache under the test's own directory. It also clears what CI and a desk set, such as
   `GITHUB_ACTIONS`, `KIT_TOOLCHAIN`, and `MISE_ENV`, so a test reads the same in both places.
 
+## Contracts
+
+The kit's public surface has snapshots in the repository, and a test fails when the kit prints anything else. A
+change to the surface is then a diff a review sees.
+
+| What | Snapshot | Held by |
+| --- | --- | --- |
+| the verbs, each with its purpose and group: `kit syntax --list` | `tests/snapshots/verbs.tsv` | `tests/syntax.bats` |
+| every verb's grammar: `kit syntax <verb>` | `projects/tui/internal/syntax/testdata/<verb>.json` | `tests/syntax.bats` |
+| the form kittui draws from each grammar | `projects/tui/internal/form/testdata/<verb>.golden` | `go test` |
+| the tools and the resources `kit serve` offers | `tests/snapshots/tools.json`, `tests/snapshots/resources.json` | `tests/serve.bats` |
+
+`bin/contracts` writes them all afresh: it runs those tests with `KIT_SNAPSHOTS=write`, and the form's with
+`-update`. Review `git diff`, and commit what changed with the change that changed it. `bin/ci` runs the suite with
+`KIT_SNAPSHOTS` empty, so the gate never writes one.
+
+`tests/claims.bats` holds what the pages say to the code: every tracked Markdown and MDX page but those under
+`docs/superpowers/`, dated plans, specs, and reviews, and under `tests/` and a `testdata/`, which are fixtures.
+
+- Every `kit <verb> …` in a code span, and on a line of a shell's fenced block, names a verb, and flags it takes, and
+  is a command line its grammar takes, as the loader's guard judges one; a form such as `<path>` or `[--all]` is not
+  judged past its verb.
+- Every `kit.yml` key a page names is one the schema describes and `settings:validate` knows, and the table of the
+  keys in [packages.md](packages.md#settings) names all of them.
+- Every path a code span names from the root, or from `kit/`, is there.
+- A count of what the code holds is the count: the stages `kit flow` draws, the checks `kit ci` runs, the seams, the
+  tools of `kit serve` that read only and that run what the files name, the steps of `kit welcome`, and the tracker
+  providers. A list of the stages is the stages, in their order, and the tables of the seams, of the tools, and of the
+  jq modules name every one.
+
+A page that shows a command meant to fail puts `<!-- kit:claims skip -->` on the line before it, and an MDX page
+`{/* kit:claims skip */}`: nothing is judged up to the next blank line, or to the end of the fenced block that opens
+next.
+
 ## Time limits
 
 A test that waits forever must fail fast, not run until GitHub stops it. One did: a test started the real `kittui`
@@ -23,7 +57,7 @@ on a terminal, and run 41556526134 waited two hours before it was cancelled.
 - bats counts down that limit in a background job of the test's own shell, so a test waits for the jobs it started
   by their process IDs, `wait "${pids[@]}"`. A bare `wait` waits for the countdown too, and the test fails at the
   limit however soon its own jobs end.
-- The CI job fails at 35 minutes. `ci_timeout_minutes` in `kit.yml` sets it; see
+- The CI job fails at 35 minutes. `answers.ci_timeout_minutes` in `kit.yml` sets it; see
   [packages/github/ci.md](packages/github/ci.md). It is about twice the longest run.
 
 ## How long a run takes

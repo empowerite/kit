@@ -1,0 +1,6 @@
+ kit ready - marks a draft pull request ready for review
+
+   <number>  the pull request to mark; default: this checkout's
+
+
+ kit ready

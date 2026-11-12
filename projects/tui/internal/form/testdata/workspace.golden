@@ -1,0 +1,29 @@
+ kit workspace - shows a workspace's git: its remotes, branches, worktrees, commits, and tags
+
+   one of
+   *kit workspace*  shows a workspace's git: its remotes, branches, worktrees, commits, and tags
+
+     --text   --json   --jq
+                           prints the picture as text, even on a terminal
+
+   --stages       prints the stages the picture draws, one per line, in order, the same over any
+                  workspace
+   --marks        prints a mark per stage, as one JSON object, which changes when what the stage
+                  draws does
+   repos          each member of the workspace, cloned or not: its forge, its clone, its desk's
+                  branch, its worktrees, and the local branches no checkout has
+   remotes        each remote: its forge, its organization and repository, its URL, its default
+                  branch, and its branches, counted
+   branches       each branch: a remote's, with the local branches that pull from it, and each local
+                  branch whose upstream is gone or that has none, with its commit and the worktree
+                  it is checked out in
+   worktrees      each worktree, the desk first: its branch, what it is ahead and behind its
+                  upstream and the default branch, and its paths changed and untracked
+   commits        the commits the local branches hold and the default branch does not, the newest
+                  first: each one's branches, whether a remote has it, and the issue its subject
+                  starts with
+   tags           the tags, the newest first: annotated or lightweight, their commit, and their
+                  tagger
+
+
+ kit workspace

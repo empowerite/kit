@@ -19,7 +19,7 @@
 #
 # Arguments:
 #
-# Exits 0 when the gate passes, and 1 otherwise.
+# Exits 0 when the gate passes, 1 otherwise, and 2 on a usage error.
 #
 # see: modules/bash/toolchain.sh, packages/github/ci/templates/repo/.github/workflows/kit-ci.yml
 

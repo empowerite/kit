@@ -1,0 +1,239 @@
+{
+  "verb": "bots",
+  "purpose": "lists, adopts, and forgets the bots that act for you",
+  "usage": [
+    "kit bots [--text | --json | --jq]",
+    "kit bots --add=<name> --app=<id> --key=<source> [--jobs=<job>…]",
+    "kit bots --remove=<name>",
+    "kit bots --check [--bot=<name>] [--text | --json | --jq]",
+    "kit bots [--bot=<name>] token",
+    "kit bots [--bot=<name>] run <command>…"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "option",
+        "name": "add",
+        "value": "name",
+        "repeat": false
+      },
+      {
+        "kind": "option",
+        "name": "app",
+        "value": "id",
+        "repeat": false
+      },
+      {
+        "kind": "option",
+        "name": "key",
+        "value": "source",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "name": "jobs",
+              "value": "job",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "option",
+        "name": "remove",
+        "value": "name",
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "flag",
+        "name": "check",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "name": "bot",
+              "value": "name",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "name": "bot",
+              "value": "name",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "literal",
+        "name": "token",
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "name": "bot",
+              "value": "name",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "literal",
+        "name": "run",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "command",
+        "repeat": true
+      }
+    ]
+  ],
+  "arguments": {
+    "--text": {
+      "description": "prints the bots as text, even on a terminal"
+    },
+    "--json": {
+      "description": "one JSON object, as above"
+    },
+    "--jq": {
+      "description": "the same JSON, formatted by jq for a person"
+    },
+    "--add": {
+      "description": "adopts the App that <name> is the slug of, with --app and --key"
+    },
+    "--app": {
+      "description": "the App's ID, a number"
+    },
+    "--key": {
+      "description": "the App's private key, a <source>"
+    },
+    "--jobs": {
+      "description": "what the bot is set up to do, one or more <job>, repeated or joined with :, as --jobs=work:review; work and review without it"
+    },
+    "--remove": {
+      "description": "forgets a bot and deletes its key"
+    },
+    "--check": {
+      "description": "compares the App's permissions with its jobs and its installation with this repository"
+    },
+    "--bot": {
+      "description": "the bot --check, token, or run is for, a <name>; the one kit.yml names, else the only one on the primary remote's host, without it"
+    },
+    "token": {
+      "description": "prints an installation token for this repository"
+    },
+    "run": {
+      "description": "runs a command as the bot"
+    },
+    "<command>": {
+      "description": "the command to run, and its arguments"
+    },
+    "<name>": {
+      "description": "a bot's name, which is its App's slug: letters, digits, and -"
+    },
+    "<id>": {
+      "description": "a GitHub App's ID, as its settings page shows it"
+    },
+    "<source>": {
+      "description": "a PEM file, or keychain:<service>/<account>, an item another tool stored in the keychain; the key is read as is, CRLF line ends and PKCS#8 included, and kept with LF line ends"
+    },
+    "<job>": {
+      "description": "work, review, or workflows"
+    }
+  }
+}

@@ -143,13 +143,13 @@ The `workflow` package delivers these steps to agents as `.kit/workflow.md`, wit
 package's entry file, `.kit/1st.md`, holds what every repository keeps: the integrity rules, the desk, and the kit
 commands that replace raw git commands.
 
-`kit flow` draws where the work stands in seven stages: issues, desk, worktrees, changes, builds, incoming,
-releases. On a terminal the picture is interactive; without one, or with `--text`, it prints. `kit flow <stage>` prints
-one stage. issues lists every open issue with its status. One in the backlog, which no open pull request closes and
-no branch names, is the next `kit work <N>`, a pick, not a search. One underway shows who works on it, and where: the
-pull request that closes it, or, before there is one, the branch named for it, `<N>-<slug>`, on the desk or the
-primary remote. Backlog and underway are one stage, not two, so an issue is found wherever its work stands; kittui's presets
-show either alone, or the issues by milestone, iteration, or swimlane.
+`kit flow` draws where the work stands in five stages: issues, changes, builds, incoming, and releases. On a terminal
+the picture is interactive; without one, or with `--text`, it prints. `kit flow <stage>` prints one stage. issues lists
+every open issue with its status. One in the backlog, which no open pull request closes and no branch names, is the next
+`kit work <N>`, a pick, not a search. One underway shows who works on it, and where: the pull request that closes it,
+or, before there is one, the branch named for it, `<N>-<slug>`, on the desk or the primary remote. Backlog and underway
+are one stage, not two, so an issue is found wherever its work stands; kittui's presets show either alone, or the issues
+by milestone, iteration, or swimlane.
 
 ### Code forges, seams, and providers
 
@@ -172,8 +172,8 @@ exists.
 | Seam | Providers | Chosen by |
 | --- | --- | --- |
 | `kit/modules/bash/forge.sh` | `forge/github.sh` over `gh`, `forge/gitlab.sh` over `glab`, `forge/ado.sh` over `az` | the `forge` setting, else the primary remote's host |
-| `kit/modules/bash/tracker.sh` | `tracker/forge.sh`, `tracker/ado.sh` | the reference's prefix, `#7` or `AB#4521`; see [trackers.md](trackers.md) |
-| `kit/modules/bash/toolchain.sh` | `toolchain/mise.sh`, `toolchain/nix.sh`, `toolchain/brew.sh`, `toolchain/docker.sh`, `toolchain/devcontainer.sh`, and for the system role `toolchain/apt.sh`, `toolchain/dnf.sh`, `toolchain/pacman.sh` | the one active or usable where kit runs, else the person's choice; see [toolchains.md](toolchains.md) |
+| `kit/modules/bash/tracker.sh` | `tracker/forge.sh`, `tracker/ado.sh`, and `tracker/web.sh`, a ticket system kit reaches through its pages alone | the reference's prefix, `#7` or `AB#4521`; see [trackers.md](trackers.md) |
+| `kit/modules/bash/toolchain.sh` | `toolchain/kit.sh`, `toolchain/mise.sh`, `toolchain/nix.sh`, `toolchain/brew.sh`, `toolchain/docker.sh`, `toolchain/devcontainer.sh`, and for the system role `toolchain/apt.sh`, `toolchain/dnf.sh`, `toolchain/pacman.sh` | the one active or usable where kit runs, else the person's choice; see [toolchains.md](toolchains.md) |
 | `kit/modules/bash/dependencies.sh` | `dependencies/npm.sh`, `dependencies/uv.sh` | every one usable here at once: its tool on `PATH`, its manifest and its lock at the root; see [toolchains.md](toolchains.md#dependencies) |
 | `kit/modules/bash/policy.sh` | `policy/patterns.sh`, `policy/opa.sh` | `policy_engine: opa` or a `.rego` file under `.kit/policy/`, else patterns; see [policy.md](policy.md) |
 
@@ -247,6 +247,8 @@ other three, `kit gate`, `kit check`, and `kit policy`, run without one.
 | A file follows its rule's mechanical checks | `kit lint`, each rule's linter over the files it governs |
 | A file keeps its style's shape | `kit lint`, against the style's templates; `kit new file` creates it in that shape |
 | The forbidden git commands were not used | no check; the deny list prevents them where the harness has one (Claude Code, Gemini CLI), and elsewhere this rests on the report in the pull request body, which `kit ci` does not verify |
+| A verb's grammar, and the tools and resources `kit serve` offers, change only as a reviewed diff | this repository's gate: their snapshots, in `tests/syntax.bats` and `tests/serve.bats`; see [testing.md](testing.md#contracts) |
+| A page names verbs, flags, settings, and paths that exist, and counts and lists what the code holds as it holds them | this repository's gate: `tests/claims.bats` |
 | The desk was not changed | no check; `kit rebase` refuses the root checkout and `kit work` never switches its branch, and the deny lists refuse a few raw git commands where a harness has one |
 
 No check verifies that an agent followed a rule after reading it. The linters cover the mechanical part for the kinds

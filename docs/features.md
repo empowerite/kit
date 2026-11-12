@@ -95,7 +95,7 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
 5. `kit gate` runs the gate locally, with the same tools CI uses.
 6. A human merges, and `kit tidy` removes the finished worktrees and the branches whose upstream is gone.
 
-`kit flow` draws where the work stands. Work moves left to right through seven stages:
+`kit flow` draws where the work stands. Work moves left to right through five stages:
 
 - `issues`: every open issue, oldest first, each with its assignees, its age, its milestone, iteration, and swimlane,
   and its status. One underway has a row per pull request that closes it: the pull request and its state, and where
@@ -103,17 +103,18 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
   it, `<N>-<slug>`, on the desk or the primary remote: its row names the branch. One with neither is in the backlog.
   A forge that lacks milestones, iterations, or swimlanes can take each from a label, or a default, as
   `forge_settings.<forge>.stand_ins` in `kit.yml` says.
-- `incoming`: what fetching every remote brought, the primary first: commits on each default branch, branches new,
-  updated, force-pushed, and gone, new tags, and each local branch now behind its upstream. It never rebases, merges,
-  or pulls. Its JSON holds every one as a flat row, which kittui draws as a table that sorts, groups, filters, and
-  keeps presets, as every stage does.
-- `desk`: the root checkout, wherever kit runs in the repository, with its commits and its uncommitted paths
-- `worktrees`: every linked worktree, each with its commits and its uncommitted paths
 - `changes`: every open pull request with its state, age, and checks, and under it the issues it closes
 - `builds`: the runs not owned by any pull request, newest first: pushes to the default branch or a tag, and scheduled
   or manual runs. Each shows its state, number, commit, and title, with its age and duration; a failed job names the
   step that failed
+- `incoming`: what fetching every remote brought, the primary first: commits on each default branch, branches new,
+  updated, force-pushed, and gone, new tags, and each local branch now behind its upstream. It never rebases, merges,
+  or pulls. Its JSON holds every one as a flat row, which kittui draws as a table that sorts, groups, filters, and
+  keeps presets, as every stage does.
 - `releases`: the releases on the code forge, newest first
+
+The desk and its worktrees are no stage of `kit flow`: `kit workspace worktrees` draws them, each with its commits
+and its uncommitted paths.
 
 On a terminal the picture is interactive. Elsewhere, or with `--text`, each stage prints under a heading with its
 glyph and its count. `kit flow <stage>` prints one stage, with that stage's flags: `kit flow issues --today`
@@ -274,7 +275,8 @@ see: [trackers.md](trackers.md), [architecture.md](architecture.md#code-forges-s
 ## Workspaces
 
 - A workspace is one repository, or a named group of them. `kit workspaces` lists your groups and favorites, shows a
-  group's members with their checkouts, and edits `kit/workspaces.yml`, your comments kept.
+  group's members with their checkouts, and edits `${XDG_CONFIG_HOME:-~/.config}/kit/workspaces.yml`, your comments
+  kept.
 - Inside a repository, kit starts on that repository; outside one, on the last group used.
 
 see: [workspaces.md](workspaces.md)

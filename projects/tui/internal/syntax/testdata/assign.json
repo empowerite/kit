@@ -1,0 +1,39 @@
+{
+  "verb": "assign",
+  "purpose": "assigns issues to the caller, or to someone else",
+  "usage": [
+    "kit assign [--to=<login>] <reference>…"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "name": "to",
+              "value": "login",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "reference",
+        "repeat": true
+      }
+    ]
+  ],
+  "arguments": {
+    "--to": {
+      "description": "the login to assign, in every issue's tracker; default: the caller"
+    },
+    "<reference>": {
+      "description": "the issues, each named with its tracker: 7, #7, or AB#4521"
+    }
+  }
+}

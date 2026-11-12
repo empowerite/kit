@@ -41,7 +41,7 @@
 #
 # Arguments:
 #
-# Exits 0 when stdin ends, and 2 on a usage error.
+# Exits 0 when stdin ends, 1 without jq, and 2 on a usage error.
 #
 # see: modules/bash/serve.sh, docs/serve.md
 
