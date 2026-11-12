@@ -93,7 +93,7 @@ func TestOpenFindsTheClonesUnderTheFolderTypedAsATreeOfRepositories(t *testing.T
 	}
 	d = d.Found(msg)
 	v := drawn(d)
-	for _, want := range []string{"▾ a 2", "a/worktrees/w1", "▾ b/c 1", "Default", "clone", Adding +
+	for _, want := range []string{"▾ a 2", "  worktrees/w1", "▾ " + Alone + " 2", "Default", "clone", Adding +
 		" Add All to a Workspace…", Removing + " Remove from the Workspace Shown", Opening + " Open"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("no %q:\n%s", want, v)
@@ -125,11 +125,11 @@ func TestOpenFindsTheClonesUnderTheFolderTypedAsATreeOfRepositories(t *testing.T
 func TestTheClonesTreeFoldsALevelAtATime(t *testing.T) {
 	d := found(t, cloneTree(t), kit.Workspace{})
 	d, _ = d.Key(key("<"))
-	if v := drawn(d); !strings.Contains(v, "▸ a 2") || strings.Contains(v, "a/worktrees/w1") {
+	if v := drawn(d); !strings.Contains(v, "▸ a 2") || strings.Contains(v, "  worktrees/w1") {
 		t.Errorf("after <:\n%s", v)
 	}
 	d, _ = d.Key(key(">"))
-	if v := drawn(d); !strings.Contains(v, "▾ a 2") || !strings.Contains(v, "a/worktrees/w1") {
+	if v := drawn(d); !strings.Contains(v, "▾ a 2") || !strings.Contains(v, "  worktrees/w1") {
 		t.Errorf("after >:\n%s", v)
 	}
 	d = cursorOn(t, d, "\x00a")
@@ -151,12 +151,12 @@ func TestTheClonesMarkTheMembersOfTheGroupShown(t *testing.T) {
 		t.Fatalf("no row %s:\n%s", clone, drawn(d))
 		return false
 	}
-	if !marked(d, "b/c") || marked(d, "a") {
+	if !marked(d, "b/c") || marked(d, "a") || marked(d, "worktrees/w1") {
 		t.Errorf("the members:\n%s", drawn(d))
 	}
 	ws := group(dir)
 	ws.Members = append(ws.Members, kit.WorkspaceMember{Checkout: filepath.Join(dir, "a")})
-	if d = d.Told(ws); !marked(d, "a") || !marked(d, "a/worktrees/w1") {
+	if d = d.Told(ws); !marked(d, "a") || !marked(d, "worktrees/w1") {
 		t.Errorf("told a is a member:\n%s", drawn(d))
 	}
 }
@@ -363,6 +363,47 @@ func TestADesksIsTheRepositoryAWorktreeBelongsTo(t *testing.T) {
 		if got := c.repository(desk); got != want {
 			t.Errorf("the heading of %s: %q", desk, got)
 		}
+	}
+}
+
+// A repository found with its worktrees has a heading of its own, in the order the walk found them, each worktree
+// written from its desk; those found alone stand under one heading, last, and a worktree whose desk lies outside the
+// folder walked has its desk's heading, written whole. The Flat preset lists every clone, by repository and folder.
+func TestTheClonesFoundAloneStandUnderOneHeadingLast(t *testing.T) {
+	dir := t.TempDir()
+	for _, p := range []string{"m/.git", "z/.git", "b/.git"} {
+		if err := os.MkdirAll(filepath.Join(dir, p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for wt, gitdir := range map[string]string{"z/wt": "../.git/worktrees/wt", "far": "/srv/elsewhere/.git/worktrees/far"} {
+		if err := os.MkdirAll(filepath.Join(dir, wt), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, wt, ".git"), []byte("gitdir: "+gitdir), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var heads []string
+	d := found(t, dir, kit.Workspace{})
+	for _, l := range strings.Split(drawn(d), "\n") {
+		if f := strings.Fields(strings.Trim(l, "│ ")); len(f) > 1 && f[0] == "▾" && f[1] != "repository" {
+			heads = append(heads, strings.Join(f[1:], " "))
+		}
+	}
+	if got := strings.Join(heads, "|"); got != "/srv/elsewhere 1|z 2|"+Alone+" 2" {
+		t.Errorf("the headings: %q\n%s", got, drawn(d))
+	}
+	if v := drawn(d); !strings.Contains(v, "      wt") || !strings.Contains(v, "      far") {
+		t.Errorf("each worktree from its desk:\n%s", v)
+	}
+	d, _ = clickOn(t, d, "Default")
+	d, _ = d.Key(key("down"))
+	d, _ = d.Key(key("enter"))
+	v := drawn(d)
+	if b, m, wt := strings.Index(v, " b "), strings.Index(v, " m "), strings.Index(v, " wt "); !strings.Contains(v,
+		"Flat") || b < 0 || m < b || wt < 0 || strings.Contains(v, "▾ z 2") {
+		t.Errorf("flat, by repository and folder:\n%s", v)
 	}
 }
 

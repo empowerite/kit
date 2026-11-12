@@ -162,6 +162,21 @@ favorite repository with no checkout. **Open Repository…**, last, opens a dial
 completes a folder, the folders it can complete to stand under it, and a plain click on one opens it. Enter, or a click
 on Open, asks kit; a folder in no git working tree is refused with one line in the dialog, which stays open.
 
+Find clones, or `⌃F`, walks the folder typed for git working trees and shows them as a table, as kittui shows every
+list. Each repository found with its worktrees is a heading over its checkout and its worktrees, and the repositories
+found alone stand under one heading, no worktrees, last. A ▸ or ▾ opens or closes a heading, and `<` and `>` close or
+open every heading a level at a time. A 📚 column marks a clone whose repository is a member of the group shown.
+Space, `⇧↑↓`, `⌃A`, or a plain click on a row's mark selects clones, and three lines under the table act on them, each
+a plain click, dim while it cannot act:
+
+- Add (`+`) drops down the groups in the file, and the one chosen takes the selected clones as members, or every
+  clone found while none is selected.
+- Remove (`-`) takes the selected clones out of the group shown.
+- Open (`⏎`) opens the clone under the cursor.
+
+Add and Remove run `kit workspaces --add=` and `--remove=` with the clones' folders. What kit says stands in the
+dialog, which stays open, and the 📚 column follows the group as it is now. Esc goes back to the folders.
+
 **Manage…**, after it, opens the workspaces' screen: every group a row, with whether it is a favorite, how many
 members it has, and the members. The app's menu, `=`, holds what it does to the group under the cursor, each a line
 that a plain click does and a key does with the menu closed, and each a `kit workspaces` command kittui runs. It

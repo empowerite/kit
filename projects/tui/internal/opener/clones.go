@@ -1,8 +1,10 @@
 // The clones a walk found, as the Open Repository… dialog shows them: a table, as every one of kittui's is, a sheet of
-// the catalog's clones.json. Each repository is a heading, its desk and its linked worktrees under it, which its ▸ or ▾
-// opens and closes, > and < a level at a time, as the table's outline does; whether a clone's repository is a member
-// of the workspace shown is a column of its own. Space selects the clone under the cursor, or a heading every clone
-// under it, ⇧↑↓ as the cursor moves, ⌃A every clone, and a plain click on a row's mark does as space does on it.
+// the catalog's clones.json. Each repository found with its worktrees is a heading, its desk and its linked worktrees
+// under it, each worktree written from its desk, and the repositories found alone stand under one heading, last. A ▸
+// or ▾ opens and closes its heading, > and < every heading a level at a time, as the table's outline does; whether a
+// clone's repository is a member of the workspace shown is a column of its own. Space selects the clone under the
+// cursor, or a heading every clone under it, ⇧↑↓ as the cursor moves, ⌃A every clone, and a plain click on a row's
+// mark does as space does on it.
 //
 // Under the table stand three lines, each a plain click, dim while it cannot act: Add, + with the keyboard, drops down
 // the groups kit keeps, and the one chosen takes the selected clones as members, or every clone found while none is
@@ -16,6 +18,7 @@ import (
 	_ "embed"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -58,7 +61,9 @@ func newClones(found ClonesMsg, home string, ws kit.Workspace) *clones {
 }
 
 // mark gives the table its records again, each clone's repository marked when it is a member of the workspace shown,
-// a group whose members' checkouts hold its desk.
+// a group whose members' checkouts hold its desk. A repository found with its worktrees stands under a heading of its
+// own, those first, in the order the walk found them, each worktree written from its desk; one found alone, a desk
+// with no worktree beside it, stands under Alone, last.
 func (c *clones) mark(ws kit.Workspace) {
 	members := map[string]bool{}
 	if ws.Kind == "group" {
@@ -68,22 +73,46 @@ func (c *clones) mark(ws kit.Workspace) {
 			}
 		}
 	}
-	records := make([]table.Record, 0, len(c.found.Clones))
+	found := map[string]int{}
+	for _, desk := range c.found.Desks {
+		found[desk]++
+	}
+	var grouped, alone []table.Record
 	for k, rel := range c.found.Clones {
-		desk := c.found.Desks[k]
+		desk, path := c.found.Desks[k], filepath.Join(c.found.Under, rel)
 		member := table.Value{}
 		if members[real(desk)] {
 			member = table.One(Group)
 		}
-		records = append(records, table.Record{Row: grid.Row{Key: filepath.Join(c.found.Under, rel)},
-			Values: map[string]table.Value{"repository": table.One(c.repository(desk)), "clone": table.One(rel),
-				"member": member}})
+		heading := c.repository(desk)
+		if found[desk] == 1 && desk == path {
+			heading = Alone
+		}
+		r := table.Record{Row: grid.Row{Key: path}, Values: map[string]table.Value{"repository": table.One(heading),
+			"clone": table.One(within(desk, path, rel)), "member": member}}
+		if heading == Alone {
+			alone = append(alone, r)
+		} else {
+			grouped = append(grouped, r)
+		}
 	}
-	c.SetRecords(records)
+	c.SetRecords(append(grouped, alone...))
 	if !c.InRows() {
 		c.FocusRows()
 	}
 }
+
+// within gives the name a clone's row draws: a linked worktree's folder from its desk, under whose heading it stands;
+// any other clone's, as a desk's, as written from the folder walked.
+func within(desk, path, rel string) string {
+	if r, err := filepath.Rel(desk, path); err == nil && r != "." && r != ".." && !strings.HasPrefix(r, "../") {
+		return r
+	}
+	return rel
+}
+
+// Alone is the heading over the repositories a walk found without a worktree beside them.
+const Alone = "no worktrees"
 
 // real gives a folder as the disk names it, its links followed, or as it is where it cannot.
 func real(path string) string {

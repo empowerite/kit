@@ -4,7 +4,7 @@
       "stage": "opener/clones", "record": ".", "empty": "no clone under it",
       "fields": [
         {"id": "repository", "label": "repository", "type": "text", "path": ".repository", "sort": true,
-         "group": true, "renderings": ["text"], "placement": "group", "depth": 1},
+         "group": true, "renderings": ["text"], "placement": "group", "depth": 1, "order": "given"},
         {"id": "clone", "label": "clone", "type": "text", "path": ".clone", "sort": true, "renderings": ["text"],
          "width": "whole", "placement": "column"},
         {"id": "member", "label": "📚", "type": "text", "path": ".member", "sort": true, "group": true,
@@ -12,7 +12,9 @@
       ],
       "presets": [
         {"name": "Default", "fields": {}},
-        {"name": "Flat", "fields": {"repository": {"placement": "column", "position": 1}}}
+        {"name": "Flat", "fields": {"repository": {"placement": "column", "position": 1, "sort": "asc",
+                                                  "priority": 1},
+                                   "clone": {"sort": "asc", "priority": 2}}}
       ]
     }
   ]
