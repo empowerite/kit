@@ -1,4 +1,4 @@
-// A field's popover filters its rows by the values checked, and pins how it is drawn.
+// A field's card filters its rows by the values checked, pins how it is drawn, and shows or hides it.
 package table
 
 import (
@@ -13,7 +13,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 )
 
-// texts gives the popover's lines as they read.
+// texts gives the card's lines as they read.
 func texts(p Popover, h Host) []string {
 	var out []string
 	for _, l := range p.Lines(h) {
@@ -40,8 +40,9 @@ func TestAPopoverFiltersByTheValuesChecked(t *testing.T) {
 	p := OpenPopover(h, "state", 10, 3, true)
 	want := []string{"filtering", grid.Picked + " include  " + grid.Unpicked + " exclude", grid.Unticked + " 🟢 open",
 		grid.Unticked + " 🔴 closed", grid.Unticked + " ❔ merged", grid.Unticked + " " + grid.NoValue, "", "rendering",
-		grid.Picked + " auto glyph+text", grid.Unpicked + " glyph+text", grid.Unpicked + " text", grid.Unpicked + " glyph"}
-	if got := texts(p, h); !slices.Equal(got, want) || p.At != 1 {
+		grid.Picked + " auto glyph+text", grid.Unpicked + " glyph+text", grid.Unpicked + " text", grid.Unpicked + " glyph", "", grid.Ticked + " " + ShowIt}
+	if got := texts(p, h); !slices.Equal(got, want) || p.At != 1 || p.AtFilter(h).At != 1 ||
+		OpenPopover(h, "title", 0, 0, false).AtFilter(h).At != 1 {
 		t.Fatalf("the lines, at %d:\n%q", p.At, got)
 	}
 	// space on a value checks it; on the mode, it excludes what is checked
@@ -124,17 +125,25 @@ func TestAPopoverHangsWhereItWasOpenedAndTakesClicks(t *testing.T) {
 		t.Errorf("from the header: %d, %d, %q", top, left, ansi.Strip(box[0]))
 	}
 	beside := OpenPopover(h, "state", 20, 30, false)
-	if _, top, left := beside.Box(h); left+ansi.StringWidth(box[0]) != h.w || top+len(box) > h.h-1 {
+	if box, top, left := beside.Box(h); left+ansi.StringWidth(box[0]) != h.w || top+len(box) > h.h-1 {
 		t.Errorf("beside: %d, %d", top, left)
 	}
-	// a click on a line acts on it; on the edge, nothing; off the box, it closes
+	// a click on a line acts on it; on the edge, nothing; on the title over the name, or off the box, it closes
 	p.Click(h, left+2, top+3)
 	if f := h.panel.Field("state").Filter; !slices.Equal(f.Values, []string{"open"}) {
 		t.Errorf("a click on open: %+v", f)
 	}
-	if p.Click(h, left, top); !p.Open {
+	if p.Click(h, left, top+1); !p.Open {
 		t.Error("a click on the edge closed it")
 	}
+	_, btop, bleft := beside.Box(h)
+	if beside.Click(h, bleft+1, btop); !beside.Open {
+		t.Error("a click on the top edge of a card beside the dialog closed it")
+	}
+	if p.Click(h, left+4, top); p.Open {
+		t.Error("a click on the title, over the name, left the card open")
+	}
+	p = OpenPopover(h, "state", 20, 3, true)
 	if p.Click(h, 0, 0); p.Open {
 		t.Error("a click off the box left it open")
 	}

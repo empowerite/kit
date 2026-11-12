@@ -164,7 +164,7 @@ func TestTheKeyboardMovesThroughTheControlLineAndTheRows(t *testing.T) {
 	if !s.Focused() || s.Stop() != 0 {
 		t.Fatalf("focused on stop %d", s.Stop())
 	}
-	if seg, _ := s.Keys(); !strings.Contains(shellLine(seg), "⏎ menu") {
+	if seg, _ := s.Keys(); !strings.Contains(shellLine(seg), "⏎ settings") {
 		t.Errorf("on the kind: %s", shellLine(seg))
 	}
 	// tab to the rows' stop, then the preset picker, whose keys are the preset line's; shift-tab back
@@ -178,16 +178,16 @@ func TestTheKeyboardMovesThroughTheControlLineAndTheRows(t *testing.T) {
 	if pressed(&s, "shift+tab"); s.Stop() != 1 {
 		t.Errorf("shift-tab: %d", s.Stop())
 	}
-	// enter on the kind drops its column menu, which esc closes
+	// enter on the kind opens its card, which esc closes
 	pressed(&s, "shift+tab", "enter")
-	if !s.Layered() || !s.column.Heading {
+	if !s.Layered() || !s.pop.Heading || s.pop.Field != "kind" {
 		t.Fatal("enter on the kind's stop")
 	}
 	if seg, layer := s.Keys(); !layer || !strings.Contains(shellLine(seg), "esc") {
-		t.Errorf("the menu's keys: %s", shellLine(seg))
+		t.Errorf("the card's keys: %s", shellLine(seg))
 	}
 	if pressed(&s, "esc"); s.Layered() {
-		t.Error("esc closes the menu")
+		t.Error("esc closes the card")
 	}
 	// down enters the rows on the first group's heading; down again on apple
 	pressed(&s, "down", "down")
@@ -414,12 +414,12 @@ func TestAPresetThatCannotBeKeptSaysWhy(t *testing.T) {
 
 func TestAPlainClickReachesEveryControlOfTheSheet(t *testing.T) {
 	s := sheet("")
-	// the kind's name in the heading drops its menu; a click off it closes it
-	if !clickOn(t, &s, "kind ▾", 0) || !s.Layered() || !s.column.Heading {
+	// the kind's name in the heading opens its card; a click off it closes it
+	if !clickOn(t, &s, "kind ▾", 0) || !s.Layered() || !s.pop.Heading {
 		t.Fatal("a click on the kind")
 	}
 	if !s.Click(testkit.Click(70, 22)) || s.Layered() {
-		t.Error("a click off the menu closes it")
+		t.Error("a click off the card closes it")
 	}
 	// the ▾ before kind closes the level, and again opens it
 	clickOn(t, &s, "▾ kind", 0)
@@ -438,13 +438,14 @@ func TestAPlainClickReachesEveryControlOfTheSheet(t *testing.T) {
 	if s.Click(testkit.Click(40, 4)); !s.Focused() || s.Stop() != -1 || s.Layered() {
 		t.Error("a click on the control line")
 	}
-	// a name in the header drops its menu down; its Hide hides it
-	if clickOn(t, &s, "tags", 0); !s.Layered() || s.column.Heading {
+	// a name in the header opens its card under it; its Show hides it, and esc closes the card
+	if clickOn(t, &s, "tags", 0); !s.Layered() || !s.pop.Header || s.pop.Field != "tags" {
 		t.Fatal("a click on the header's tags")
 	}
-	if clickOn(t, &s, Hide, 0); slices.Contains(s.ShownColumns(), "tags") {
-		t.Error("Hide")
+	if clickOn(t, &s, ShowIt, 0); slices.Contains(s.ShownColumns(), "tags") {
+		t.Error("Show")
 	}
+	pressed(&s, "esc")
 	// the rule under name turns its sort, a step a click, and a shift-click turns it off
 	_, rule := spot(s, "·─")
 	x, _ := spot(s, "name")
@@ -706,27 +707,27 @@ func TestTheControlLinesKeysMoveFoldAndDrop(t *testing.T) {
 
 func TestTheLayersTakeKeysAndClicks(t *testing.T) {
 	s := sheet("")
-	// the column menu's Options… opens the field's popover, by its key and by a click
-	s.column = OpenColumnMenu(&s, "kind", false)
-	s.column.At = s.column.LineOf(&s, ActMore)
-	if pressed(&s, "enter"); !s.pop.Open {
-		t.Fatal("Options… by its key")
+	// a column's card takes keys, and names them
+	s.pop = OpenCard(&s, "kind", false)
+	at := s.pop.At
+	if pressed(&s, "down"); s.pop.At == at {
+		t.Fatal("down in the card")
 	}
 	if seg, _ := s.Keys(); len(seg.Bindings) == 0 {
-		t.Error("the popover's keys")
+		t.Error("the card's keys")
 	}
 	s.Click(testkit.Click(0, 0))
 	s.pop = Popover{}
-	s.column = OpenColumnMenu(&s, "kind", false)
-	if clickOn(t, &s, More, 0); !s.pop.Open {
-		t.Fatal("Options… by a click")
-	}
-	s.pop = Popover{}
-	// the fields dialog takes a click, and the presets' menu a click off it
+	// the fields dialog takes a click, a click on a field's label opening its card over it, and the presets' menu a
+	// click off it
 	s.choose(ItemFields)
 	if x, y := spot(s, "☑"); !s.Click(testkit.Click(x, y)) || !s.cols.Open {
 		t.Error("a click in the fields dialog")
 	}
+	if x, y := spot(s, "☑"); !s.Click(testkit.Click(x+4, y)) || !s.pop.Open || s.pop.Header {
+		t.Errorf("a click on a field's label: %+v", s.pop)
+	}
+	s.pop = Popover{}
 	s.cols = Columns{}
 	s.presets = s.presets.Drop(&s)
 	if !s.Click(testkit.Click(1, 22)) || s.presets.Open {
@@ -745,13 +746,13 @@ func TestTheEdgesOfAnEmptyTableAndAMenuThatLostItsName(t *testing.T) {
 	if got := pressed(&empty, "shift+tab", "down", "x"); got[0] || !got[1] || got[2] || empty.InRows() {
 		t.Errorf("the picker took %v", got)
 	}
-	// a column menu hung from a name the heading over the groups no longer shows draws nothing
+	// a card hung from a name the heading over the groups no longer shows stays where it was
 	s := sheet("")
 	s.OpenFieldMenu("kind")
+	x, y := s.pop.X, s.pop.Y
 	s.SetPanel(s.Panel().Placed("kind", grid.Column))
-	lines := make([]string, 24)
-	if got := s.Over(lines); !slices.Equal(got, lines) {
-		t.Errorf("a menu without its name drew %q", got)
+	if got := s.Over(make([]string, 24)); !strings.Contains(ansi.Strip(got[y-2]), "kind") || s.pop.X != x || s.pop.Y != y {
+		t.Errorf("a card without its name moved to %d, %d", s.pop.X, s.pop.Y)
 	}
 }
 

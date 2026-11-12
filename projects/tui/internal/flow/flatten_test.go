@@ -1,5 +1,5 @@
 // A field that holds a list, as an issue's assignees or labels, sorts by size while a row holds all its values; its
-// column's menu flattens it, a row per value, which sorts by value, and gathers the values onto one row again.
+// column's card flattens it, a row per value, which sorts by value, and gathers the values onto one row again.
 package flow
 
 import (
@@ -38,17 +38,18 @@ func TestAFieldThatHoldsAListNamesOneValueAndNeverSorts(t *testing.T) {
 	}
 }
 
-// A click on the name of a column that holds a list drops its menu, whose × line flattens it: the header names one
-// value, a row stands once per value it holds, and once where it holds none, every count still the rows', and the rule
-// under the name sorts by it; the preset the panel is read back as says it is flat. Its ÷ line gathers the values
-// onto one row again, and its sort no longer orders them.
-func TestTheColumnMenuFlattensAListAndItsRowsSort(t *testing.T) {
+// A click on the name of a column that holds a list opens its card, whose One row per line flattens it: the header
+// names one value, a row stands once per value it holds, and once where it holds none, every count still the rows',
+// and the rule under the name sorts by it; the preset the panel is read back as says it is flat. Its All … on one row
+// line gathers the values onto one row again, and its sort no longer orders them.
+func TestTheCardFlattensAListAndItsRowsSort(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 120, Height: 30})
-	choose := func(m Model, column string, act table.ColAct) Model {
+	// choose clicks a column's name, then its card's line that reads as line, then closes the card
+	choose := func(m Model, column, line string) Model {
 		x, _ := m.columnName(column)
 		m = drive(m, testkit.Click(x, m.headerTop()))
-		_, top, left := m.colMenu.Box(&m)
-		return drive(m, testkit.Click(left+3, top+1+m.colMenu.LineOf(&m, act)))
+		_, top, left := m.pop.Box(&m)
+		return drive(m, testkit.Click(left+3, top+1+cardLine(m, line)), esc)
 	}
 	rows := func(m Model, key string) int {
 		n := 0
@@ -59,7 +60,7 @@ func TestTheColumnMenuFlattensAListAndItsRowsSort(t *testing.T) {
 		}
 		return n
 	}
-	m = choose(m, "assignees", table.ActFlatten)
+	m = choose(m, "assignees", table.FlattenIt("assignee"))
 	header := lines(m)[m.headerTop()]
 	if !m.panel(m.stage).Field("assignees").Flat || !strings.Contains(header, "assignee ") ||
 		strings.Contains(header, "assignees") || rows(m, "#7") != 2 || rows(m, "#45") != 1 {
@@ -81,11 +82,11 @@ func TestTheColumnMenuFlattensAListAndItsRowsSort(t *testing.T) {
 		t.Errorf("the preset: %+v", pr.Fields["assignees"])
 	}
 	// labels too, the rows a copy per pair of values
-	if m = choose(m, "labels", table.ActFlatten); rows(m, "#45") != 3 || !strings.Contains(lines(m)[m.headerTop()], "label ") {
+	if m = choose(m, "labels", table.FlattenIt("label")); rows(m, "#45") != 3 || !strings.Contains(lines(m)[m.headerTop()], "label ") {
 		t.Errorf("labels flat too: #45 %d rows", rows(m, "#45"))
 	}
 	// gathered, its sort orders the rows by size, how many assignees each holds
-	m = choose(choose(m, "labels", table.ActGather), "assignees", table.ActGather)
+	m = choose(choose(m, "labels", table.GatherIt("labels")), "assignees", table.GatherIt("assignees"))
 	if p := m.panel(m.stage); p.Field("assignees").Flat || len(p.SortKeys()) != 1 || !p.Counts("assignees") ||
 		rows(m, "#7") != 1 ||
 		!strings.Contains(lines(m)[m.headerTop()], "assignees") || slices.Contains(p.Groups(), "assignees") {

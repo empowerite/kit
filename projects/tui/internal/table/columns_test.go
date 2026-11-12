@@ -90,7 +90,7 @@ func TestTheColumnsDialogShowsSortsGroupsAndMovesAField(t *testing.T) {
 	if got := ansi.Strip(c.Line(h, "who")); !strings.Contains(got, grid.Filtered) {
 		t.Errorf("a filtered line: %q", got)
 	}
-	// enter gives the field's popover to open, beside the dialog
+	// enter gives the field's card to open, beside the dialog
 	if pop, ok := c.Key(h, press("enter")); !ok || pop.Field != c.Listed(h)[c.At] || pop.Header {
 		t.Errorf("enter: %+v %v", pop, ok)
 	}
@@ -107,7 +107,7 @@ func TestTheColumnsDialogTakesClicksAndNamesItsKeys(t *testing.T) {
 	if c.Row(h, top) != -1 || c.Row(h, top+2) != 0 || c.Row(h, top+3) != -1 || c.Row(h, top+4) != 1 || c.Row(h, top+40) != -1 {
 		t.Errorf("rows: %d %d %d %d", c.Row(h, top), c.Row(h, top+2), c.Row(h, top+3), c.Row(h, top+4))
 	}
-	// on who's line: its sort cell does nothing, its group cell groups by it, its box hides it, its label moves there
+	// on who's line: its sort cell does nothing, its group cell groups by it, its box hides it, its label opens its card
 	y := top + 4
 	c.Click(h, left+4+LabelCells+TypeCells+SortCells, y, false)
 	if !slices.Equal(h.panel.Groups(), []string{"state", "who"}) {
@@ -121,15 +121,17 @@ func TestTheColumnsDialogTakesClicksAndNamesItsKeys(t *testing.T) {
 	if h.panel.Field("state").Placement != grid.Hidden {
 		t.Errorf("a click on state's box: %+v", h.panel.Field("state"))
 	}
-	c.Click(h, left+6, top+2, false)
-	if c.At != 0 {
-		t.Errorf("a click on a label: at %d", c.At)
+	if pop, ok := c.Click(h, left+6, y, false); !ok || c.At != 1 || pop.Field != c.Listed(h)[1] || pop.Header || pop.Y != top {
+		t.Errorf("a click on a label: at %d, %+v", c.At, pop)
+	}
+	if _, ok := c.Click(h, left+3, top+2, false); ok {
+		t.Error("a click on a box opened a card")
 	}
 	if c.Click(h, left, top+1, false); !c.Open {
 		t.Error("a click on the headings closed it")
 	}
 	keys := (shell.Path{c.Keys(h)}).String()
-	for _, want := range []string{"close", "move", "show/hide", "options"} {
+	for _, want := range []string{"close", "move", "show/hide", "settings"} {
 		if !strings.Contains(keys, want) {
 			t.Errorf("the keys %q have no %s", keys, want)
 		}

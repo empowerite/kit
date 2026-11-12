@@ -42,8 +42,15 @@ func (m *Model) toControls() {
 	}
 }
 
-// headingKey takes a key while the keyboard stands on a stop of the heading over the groups, as table.HeadingKey says.
-func (m *Model) headingKey(k tea.KeyPressMsg) (tea.Cmd, bool) { return nil, table.HeadingKey(m, k) }
+// headingKey takes a key while the keyboard stands on a stop of the heading over the groups, as table.HeadingKey says;
+// a column's card it opens asks kit for the caller's login, which @me names.
+func (m *Model) headingKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
+	took := table.HeadingKey(m, k)
+	if m.pop.Open {
+		return m.askMe(), took
+	}
+	return nil, took
+}
 
 // headingKeys gives the segment of a stop of the heading over the groups while it has the keyboard, as
 // table.HeadingKeys says.

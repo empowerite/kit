@@ -105,7 +105,7 @@ func PresetKeys(h Host) shell.Segment {
 
 // HeadingKeys gives the segment of a stop of the heading over the groups while it has the keyboard: up or esc gives
 // the bar the keyboard, down the rows, tab and shift-tab move where there is another stop, or the preset picker, as
-// presets says, to move to, left and right close and open the stop's level, and enter drops a name's column menu.
+// presets says, to move to, left and right close and open the stop's level, and enter opens a name's card.
 func HeadingKeys(h Host, stop Stop, presets bool) shell.Segment {
 	s := shell.Segment{Bindings: []shell.Binding{shell.Bind("↑", TabsHint, "up"), shell.Bind("esc", TabsHint)}}
 	if len(h.Rows()) > 0 {
@@ -116,13 +116,13 @@ func HeadingKeys(h Host, stop Stop, presets bool) shell.Segment {
 	}
 	s.Bindings = append(s.Bindings, shell.Bind("←→", "fold", "left", "right"))
 	if stop.Column != "" {
-		return s.With(shell.Bind("⏎", "menu", "enter"))
+		return s.With(shell.Bind("⏎", "settings", "enter"))
 	}
 	return s
 }
 
 // Keyboard is a host whose control line takes the keyboard: the stop of the heading over the groups it stands on, -1
-// the preset picker, and setting it; the line giving the keyboard up, to the bar; the column menu dropped around a
+// the preset picker, and setting it; the line giving the keyboard up, to the bar; the card opened around a
 // column's name in the heading; and whether the table has a preset line.
 type Keyboard interface {
 	Host
@@ -135,7 +135,7 @@ type Keyboard interface {
 
 // HeadingKey takes a key while the keyboard stands on a stop of the heading over the groups, and says whether it took
 // it: tab and shift-tab move between the stops, and tab past the last to the preset picker; right opens the stop's
-// level and left closes it; enter on a name drops its column's menu, and on the rows' opens or closes their level, as
+// level and left closes it; enter on a name opens its column's card, and on the rows' opens or closes their level, as
 // space does on any stop; up or esc gives the bar the keyboard, and down the rows, when the table has some.
 func HeadingKey(h Keyboard, k tea.KeyPressMsg) bool {
 	stops := Stops(h)

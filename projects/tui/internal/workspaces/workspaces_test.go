@@ -507,7 +507,7 @@ func TestOnAHeadingOnlyNewActs(t *testing.T) {
 
 // A click on a column's name drops its menu down, which then takes the keys, and the keys bar names its own alone; esc
 // closes it.
-func TestAColumnsMenuTakesTheKeysWhileOpen(t *testing.T) {
+func TestAColumnsCardTakesTheKeysWhileOpen(t *testing.T) {
 	m, _ := opened(t, listJSON)
 	x, y := lineAt(t, m, "workspace  #")
 	m, _ = drive(m, left(x+1, y))
@@ -515,10 +515,10 @@ func TestAColumnsMenuTakesTheKeysWhileOpen(t *testing.T) {
 		t.Fatalf("a click on workspace: layered %v, %q\n%s", m.sheet.Layered(), m.keys().Line(120), view(m))
 	}
 	if m, _ = drive(m, testkit.Press("n")); m.prompt.open {
-		t.Error("n reached the screen past the column's menu")
+		t.Error("n reached the screen past the column's card")
 	}
 	if m, _ = drive(m, testkit.Press("esc")); m.sheet.Layered() {
-		t.Error("esc leaves the column's menu open")
+		t.Error("esc leaves the column's card open")
 	}
 }
 

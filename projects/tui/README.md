@@ -103,7 +103,7 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     from every preset. ↓ from the tabs reaches the line, on the heading over the groups' first stop; ⇥ and ⇧⇥ move
     between the groups' names, the rows' ▾ and count after them, and the pill; → opens the level of the stop under the
     keyboard and ← closes it, as ␣ turns it. ↓ from the line enters the rows on the outline's first line, the first
-    group's heading where the rows group, as ↑ from there comes back. On a name ⏎ drops the column's menu; on the rows'
+    group's heading where the rows group, as ↑ from there comes back. On a name ⏎ opens the column's card; on the rows'
     ⏎ opens or closes them. ⏎ or a click on the pill drops down the presets' menu, in the tab's color, as the pill is,
     titled Presets at its left as a dialog is, from the control line, its right edge over the ▼: 📇 Fields…, the columns
     dialog, then Save, Save As…, Rename…, Delete, and the presets. Save As… takes a name in the selector's place, the
@@ -116,7 +116,8 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     stand, then the hidden, a dim rule between each two of those it has, each with whether it shows, its sort and its
     place among the keys, and its group's depth.
     What it sets applies at once: space shows or hides, s turns the sort, g groups, ⇧↑↓ moves a field, into the groups
-    or out, and ⏎ opens its Options…; a click on a line's box, sort, or group does as space, s, or g.
+    or out, and ⏎ or a click on its label opens its card; a click on a line's box, sort, or group does as space, s, or
+    g.
   - Maximize, first in the tab's menu, gives the rows the bar's lines but one, for the session: the title names the
     tab, its count, and its :, and a click anywhere on them drops the tab's menu as the bar's does; a line in the tab's
     color runs under it, and the header follows; Restore, in its place, puts the bar back as it was, and a tab's
@@ -146,35 +147,38 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     legend taller than the room under the tab bar stands in columns. It opens in
     the bottom right corner; the arrows on its top edge, ↖ ↗ ↙ ↘, move it to another, the one it stands in dim. It
     takes no other key or click, so the rows under it go on as they were.
-  - ⏎ on a field in the columns dialog opens its popover: the checklist of values its filter lets through or holds back,
-    for an enum or a person, and its rendering; the sort is the column menu's. What it sets applies at once. A click on
-    a column's name drops down its menu, around the name, as ='s and :'s hang around theirs, titled by the name, which
-    no line repeats: its sort, a radio that shows it, Ascending, Descending, or Unsorted, which takes it out of the
-    keys, as a shift-click on its sort does; for a list, × One row per assignee, which flattens it, and ÷ All assignees
-    on one row, which gathers it again; ▤ Group and ▢ Ungroup; ☐ Hide; and ⋯ Options…, its popover, titled over the
-    name. Flattened, a row stands once per value it holds, and once where it holds none, the header names one value, and
-    the column sorts; a preset keeps it flat. Grouping by a list places a row under each of its values as flattening
-    does, so a list the rows group by sorts its groups. Every count, the tab's and each heading's, counts a row once,
-    however many copies of it stand. A column's menu, and a group heading's, which has Ungroup too, take shift with ← or
-    →, which moves the column a place among those the header names, or a depth among the groups, the menu with it.
+  - A field's card, in `popover.go`, holds every setting of one field. A click on a column's name opens it under the
+    name, its title over the name, as ='s and :'s menus hang around theirs, and a second click on the name closes it:
+    its sort, a radio, Ascending, Descending, or Unsorted, which takes it out of the keys, as a shift-click on its sort
+    does; its rows, ☐ Group, which groups the rows by it, innermost, or no longer, its depth after it while it groups,
+    and, for a list, One row per assignee, which flattens it, or All assignees on one row, which gathers it again; its
+    filter, the checklist of values it lets through or holds back, for an enum, a person, a label, a time, or a number;
+    its rendering; and ☑ Show. What it sets applies at once, and the card stays open; a section the field cannot use is
+    left out. ⏎ on a field in the columns dialog, or a click on its label, opens the card beside the dialog, without the
+    sort, the grouping, and Show, which the dialog's line shows already. Flattened, a row stands once per value it
+    holds, and once where it holds none, the header names one value, and the column sorts; a preset keeps it flat.
+    Grouping by a list places a row under each of its values as flattening does, so a list the rows group by sorts its
+    groups. Every count, the tab's and each heading's, counts a row once, however many copies of it stand. A card opened
+    from a column's name, in the header or the heading over the groups, takes shift with ← or →, which moves the column
+    a place among those the header names, or a depth among the groups, the card with it.
     Sorting always adds to the keys: a column that did not sort comes after the others, and one that did turns in its
     place; grouping always adds the column innermost, and the columns dialog orders both. The groups order the rows
     before any key, the outermost 1, so a column's ▲ or ▼ carries its place after them, raised after ▲ and lowered after
-    ▼, as each points, ▲² and ▼₂, wherever more than one thing orders the rows; the menu's triangles carry ⁿ and ₙ
+    ▼, as each points, ▲² and ▼₂, wherever more than one thing orders the rows; the card's triangles carry ⁿ and ₙ
     there. The line under the keyboard in a menu or a dialog stands on the menu's bright cyan, in black, and a dialog's
     keys are the keys bar's alone. A column's sort mark stands on the rule under the first cell of its name, wherever
     the name aligns. A dim · there says the column can sort and does not; a column that cannot sort has the rule alone.
     A list has its mark under that first cell, what a click on it does: ×, dim, while a row holds all its values, which
     flattens it, and ÷ once flattened, which gathers it. Its sort's mark stands after it, which sorts by size while the
     list is whole.
-    Every column's menu stands in one order: its sort, by size for a list a row holds whole, then its grouping, then
-    its flattening, then Hide and Options….
+    Every column's card stands in one order: its sort, by size for a list a row holds whole, then its rows, grouping
+    before flattening, then its filter, its rendering, and Show.
     A plain click on the rule under the name turns the sort a step: ascending, after the other keys; descending, in its
     place; then off on the last key, and ascending again on any other, so a turn never moves the keys after it. A
-    shift-click turns it off wherever it stands, as Unsorted in the menu does. A terminal such as iTerm keeps ⌥, ⌃, and
-    the right button with a click for its own selection and menu, and others keep shift, so a plain click and the menu
+    shift-click turns it off wherever it stands, as Unsorted on the card does. A terminal such as iTerm keeps ⌥, ⌃, and
+    the right button with a click for its own selection and menu, and others keep shift, so a plain click and the card
     are the ways that work everywhere. Where the terminal sends them, ⌥ with a click turns a sort, ⌃ groups or ungroups,
-    and the right button drops the menu too. The presets' menu hangs around the preset line's selector the same way.
+    and the right button opens the card too. The presets' menu hangs around the preset line's selector the same way.
   - A field whose rendering is auto drops a glyph every row shown shares, and, while the columns are short of width,
     steps down to its next, shorter rendering, from the rightmost column leftward. A glyph that links, to a page or to
     another stage's row, is a button, so it stays, and a field drawn without its glyph links from nothing. The title
@@ -254,7 +258,7 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   automatic choice among a field's renderings; a preset set on a panel, and read back from it; a table's views, and
   the rules of which it is set as and what the person's can be saved, renamed, and deleted as; the file the person's
   presets are kept in; and a table's state, as a screen keeps one for each table. A table's controls take a `Host`,
-  which a screen implements once, for the table selected: the field popover, the columns dialog, the column menu, the
+  which a screen implements once, for the table selected: the field's card, the columns dialog, the
   outline, the heading over the groups, the preset line and its menu, the pane's layout, the cursor's moves, and the
   selection. It also builds a table's rows from its records, draws their lines, the header, the rule with each sort's
   mark, and the control line, names the keys of the rows, the preset line, and the heading over the groups, takes

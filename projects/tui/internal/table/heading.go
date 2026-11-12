@@ -72,7 +72,7 @@ func NamesIn(text string, groups []string, label func(id string) string) []NameS
 }
 
 // Stop is where the keyboard stands on the heading over the groups: a group's name, with the fold before it, which
-// drops its column's menu; or the rows', the fold after the last name and the count after it. Level is the level its
+// opens its column's card; or the rows', the fold after the last name and the count after it. Level is the level its
 // fold opens or closes, from 0 the outermost, the rows' under the last group; From and Until the screen columns it
 // takes, from its first to the one past it.
 type Stop struct {

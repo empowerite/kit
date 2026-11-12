@@ -127,7 +127,8 @@ func (m *Model) SetStop(k int) { m.stop = k }
 // LeaveControls gives up the control line's keyboard, to the bar.
 func (m *Model) LeaveControls() { m.onPreset = false }
 
-// OpenFieldMenu drops the column menu around a column's name in the heading over the groups, as openFieldMenu does.
+// OpenFieldMenu opens a column's card around its name in the heading over the groups, as openFieldMenu does; headingKey
+// asks kit for the caller's login.
 func (m *Model) OpenFieldMenu(column string) { m.openFieldMenu(column) }
 
 // HasPresets says whether the selected stage's table has a preset line.

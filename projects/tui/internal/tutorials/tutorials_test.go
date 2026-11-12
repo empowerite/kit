@@ -310,7 +310,7 @@ func TestTheSearchNarrowsTheCards(t *testing.T) {
 
 // The table's control line stands where the tabs stood, and does what they did: By audience groups the cards under
 // a heading for each audience, the table's own, its count with it, a tutorial for two under both, each heading a band
-// of the pane; the audience's column menu filters by an audience, and a closed group folds its cards away. Its keys
+// of the pane; the audience's card filters by an audience, and a closed group folds its cards away. Its keys
 // are the table's, but up and esc, which leave it where it is, and down enters the cards.
 func TestTheControlLineGroupsAndFiltersTheCards(t *testing.T) {
 	m, _ := loaded(t)
@@ -349,7 +349,7 @@ func TestTheControlLineGroupsAndFiltersTheCards(t *testing.T) {
 	if m = drive(m, down, down); !m.focused() || m.cursor != 2 {
 		t.Errorf("down past a heading: cursor %d", m.cursor)
 	}
-	// a filter by an audience, as its column menu sets it, leaves the tutorials for it, under each of their groups, the
+	// a filter by an audience, as its card sets it, leaves the tutorials for it, under each of their groups, the
 	// cursor kept among them
 	m.sheet.SetPanel(m.sheet.Panel().FilteredBy(audienceField, grid.Filter{Values: []string{"UI"}}))
 	m.settle()

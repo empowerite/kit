@@ -1,11 +1,15 @@
-// A field's popover: a small box over the screen that sets, for one field of the table, which of its values the rows
-// must hold, and how it is drawn; how they sort is the column menu's, and the header's. It has the keyboard while it is
-// open: up and down move between its lines, space or enter acts on the one under the keyboard, and esc closes it; a
-// click on a line acts on it, and a click off the box closes it. What it sets applies at once, so the rows, the
-// columns dialog, and the preset line's chips follow it.
+// A field's card: a small box over the screen that holds every setting of one field of the table: how the rows sort
+// by it, whether they group by it, whether a list it holds stands a row per value, which of its values the rows must
+// hold, how it is drawn, and whether it shows. A click on a column's name opens it under the name, as the keyboard does
+// on a name in the heading over the groups, and shift with left or right moves the column a place, the card with it; a
+// click on a field in the columns dialog opens it beside the dialog. It has the keyboard while it is open: up and down
+// move between its lines, space or enter acts on the one under the keyboard, and esc closes it; a click on a line acts
+// on it, and a click off the box closes it. What it sets applies at once, so the rows, the header, the columns dialog,
+// and the preset line's chips follow it.
 package table
 
 import (
+	"cmp"
 	"slices"
 	"strconv"
 	"strings"
@@ -18,30 +22,32 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
-// Popover is a field's popover while it is open: the field, by id; its line under the keyboard; and the screen cell it
-// hangs from, the columns dialog's corner, whose right edge it keeps, or its name in the header, which its title
-// covers.
+// Popover is a field's card while it is open: the field, by id; its line under the keyboard; and the screen cell it
+// hangs from, the columns dialog's corner, whose right edge it keeps, or its column's name in the header, or, as
+// Heading says, in the heading over the groups, which its title covers, and which it follows as the column moves.
 type Popover struct {
-	Open   bool
-	Field  string
-	At     int
-	X, Y   int
-	Header bool
-	Typed  string
+	Open    bool
+	Field   string
+	At      int
+	X, Y    int
+	Header  bool
+	Heading bool
+	Typed   string
 }
 
-// PopLine is one line of a popover: what it draws, and what space does on it, nil for a heading or a gap. Picked says
-// a choice is the one taken, which space on it again leaves as it is; a value's box toggles, picked or not. Input is
-// the line a range is typed on, which takes the keys typed while it is under the keyboard.
+// PopLine is one line of a card: what it draws, and what space does on it, nil for a heading or a gap. Picked says
+// a choice is the one taken, which space on it again leaves as it is; a box toggles, picked or not. Input is the line a
+// range is typed on, which takes the keys typed while it is under the keyboard. Mode is the filter's include or exclude.
 type PopLine struct {
 	Text   string
 	Act    func(grid.Panel) grid.Panel
 	Picked bool
 	Box    bool
 	Input  bool
+	Mode   bool
 }
 
-// OpenPopover gives a field's popover, open, hanging from the screen cell x, y, the first line that acts under the
+// OpenPopover gives a field's card, open, hanging from the screen cell x, y, the first line that acts under the
 // keyboard; from the header, its title covers the name there, else it opens beside the cell.
 func OpenPopover(h Host, id string, x, y int, header bool) Popover {
 	p := Popover{Open: true, Field: id, X: x, Y: y, Header: header, At: -1}
@@ -49,20 +55,63 @@ func OpenPopover(h Host, id string, x, y int, header bool) Popover {
 	return p
 }
 
-// Lines gives the popover's lines for its field, under two dim headings, each where the field has it, a blank line
-// between them. filtering, for an
-// enum, a person, or a label: whether the values checked are let through or held back, include or exclude, one line
-// that toggles, then a box per value, as FilterValues lists them, an enum's known values with their glyphs, a label's
-// names as its pills draw them, and @me with the caller's login once known. rendering: auto, with the rendering it
-// chooses now, dim, then each of the field's renderings, a radio.
+// OpenCard gives a column's card, open, hanging from its name in the header or, as heading says, in the heading over
+// the groups, the first line that acts under the keyboard.
+func OpenCard(h Host, column string, heading bool) Popover {
+	p := Popover{Open: true, Field: column, Header: !heading, Heading: heading, At: -1}
+	p.follow(h)
+	p.At = p.Move(h, -1, 1)
+	return p
+}
+
+// AtFilter gives the card with the keyboard on its filter's mode, where its field filters, else as it was.
+func (p Popover) AtFilter(h Host) Popover {
+	if k := slices.IndexFunc(p.Lines(h), func(l PopLine) bool { return l.Mode }); k >= 0 {
+		p.At = k
+	}
+	return p
+}
+
+// follow puts a card that hangs from its column's name where the name now stands, wherever the column has moved; one
+// whose name no longer shows, hidden or no longer grouping, stays where it was.
+func (p *Popover) follow(h Host) {
+	switch {
+	case p.Heading:
+		if x, y := h.HeadingName(p.Field); y >= 0 {
+			p.X, p.Y = x, y
+		}
+	case p.Header:
+		if x, name := h.HeaderName(p.Field); name != "" && x >= 0 {
+			p.X, p.Y = x, h.HeaderTop()
+		}
+	}
+}
+
+// Lines gives the card's lines for its field, in sections under dim headings, each where the field has it, a blank
+// line between them. sort, for a field that sorts: a radio, Ascending, Descending, or Unsorted, a list
+// sorting by size, and ⁿ and ₙ on the triangles where something else orders the rows too. rows: a box that
+// groups the rows by it, innermost, or no longer, its depth after it while it groups, for a field that can; and for a
+// field that holds a list, a radio, a row per value or all on one row. filtering, for an enum, a person, a label, a
+// time, or a number: whether the values checked are let through or held back, include or exclude, one line that
+// toggles, then a box per value, as FilterValues lists them, an enum's known values with their glyphs, a label's names
+// as its pills draw them, and @me with the caller's login once known, and a line a range is typed on for a time or a
+// number. rendering: auto, with the rendering it chooses now, dim, then each of the field's renderings, a radio. Last,
+// after a blank line, a box that shows the field, or hides it. Beside the columns dialog, whose lines show a field's
+// sort, its grouping, and whether it shows, the card leaves those out, so nothing stands twice.
 func (p Popover) Lines(h Host) []PopLine {
 	f, ok := field(h, p.Field)
 	if !ok {
 		return nil
 	}
-	id, g := f.ID, h.Panel().Field(f.ID)
+	panel := h.Panel()
+	id, g := f.ID, panel.Field(f.ID)
 	var out []PopLine
-	heading := func(text string) { out = append(out, PopLine{Text: style.Off(text)}) }
+	heading := func(text string) {
+		if len(out) > 0 {
+			out = append(out, PopLine{})
+		}
+		out = append(out, PopLine{Text: style.Off(text)})
+	}
 	radio := func(text string, picked bool, act func(grid.Panel) grid.Panel) {
 		glyph := style.Off(grid.Unpicked)
 		if picked {
@@ -70,13 +119,52 @@ func (p Popover) Lines(h Host) []PopLine {
 		}
 		out = append(out, PopLine{Text: glyph + " " + text, Act: act, Picked: picked})
 	}
+	box := func(text string, ticked bool, act func(grid.Panel) grid.Panel) {
+		glyph := style.Off(grid.Unticked)
+		if ticked {
+			glyph = style.Tint(grid.Ticked)
+		}
+		out = append(out, PopLine{Text: glyph + " " + text, Box: true, Act: act})
+	}
+	alone := p.Header || p.Heading
+	if alone && panel.Sorts(id) {
+		heading("sort")
+		up, down, by := "", "", ""
+		if place, total := panel.Place(id); total-min(place, 1) > 0 {
+			up, down = "ⁿ", "ₙ"
+		}
+		if panel.Counts(id) {
+			by = BySize
+		}
+		sorted := func(d grid.Direction) func(grid.Panel) grid.Panel {
+			return func(q grid.Panel) grid.Panel { return q.SortedAs(id, d) }
+		}
+		radio("▲"+up+" Ascending"+by, g.Sort == grid.Ascending, sorted(grid.Ascending))
+		radio("▼"+down+" Descending"+by, g.Sort == grid.Descending, sorted(grid.Descending))
+		radio(Unsorted, g.Sort == grid.Unsorted, sorted(grid.Unsorted))
+	}
+	if alone && panel.Groupable[id] || panel.Lists(id) {
+		heading("rows")
+	}
+	if alone && panel.Groupable[id] {
+		text := GroupIt
+		if g.Placement == grid.Group {
+			text += " " + style.Tint(grid.GroupMark(g.Depth))
+		}
+		box(text, g.Placement == grid.Group, func(q grid.Panel) grid.Panel { return q.Grouped(id, true) })
+	}
+	if panel.Lists(id) {
+		radio(FlattenIt(panel.Ones[id]), g.Flat, func(q grid.Panel) grid.Panel { return q.Flattened(id, true) })
+		radio(GatherIt(cmp.Or(panel.Labels[id], id)), !g.Flat,
+			func(q grid.Panel) grid.Panel { return q.Flattened(id, false) })
+	}
 	if f.Filter && Types[f.Type].Filters {
 		heading("filtering")
 		mode := style.Tint(grid.Picked) + " include  " + style.Off(grid.Unpicked) + " exclude"
 		if g.Filter.Exclude {
 			mode = style.Off(grid.Unpicked) + " include  " + style.Tint(grid.Picked) + " exclude"
 		}
-		out = append(out, PopLine{Text: mode, Box: true, Act: func(p grid.Panel) grid.Panel {
+		out = append(out, PopLine{Text: mode, Box: true, Mode: true, Act: func(p grid.Panel) grid.Panel {
 			f := p.Field(id).Filter
 			return p.FilteredBy(id, grid.Filter{Values: f.Values, Exclude: !f.Exclude})
 		}})
@@ -90,11 +178,7 @@ func (p Popover) Lines(h Host) []PopLine {
 			case v == grid.Caller && h.Me() != "":
 				name += " " + style.Off(h.Me())
 			}
-			box := style.Off(grid.Unticked)
-			if slices.Contains(g.Filter.Values, v) {
-				box = style.Tint(grid.Ticked)
-			}
-			out = append(out, PopLine{Text: box + " " + name, Box: true, Act: func(p grid.Panel) grid.Panel {
+			box(name, slices.Contains(g.Filter.Values, v), func(p grid.Panel) grid.Panel {
 				filter := p.Field(id).Filter
 				if k := slices.Index(filter.Values, v); k >= 0 {
 					filter.Values = slices.Delete(slices.Clone(filter.Values), k, k+1)
@@ -102,14 +186,11 @@ func (p Popover) Lines(h Host) []PopLine {
 					filter.Values = append(slices.Clone(filter.Values), v)
 				}
 				return p.FilteredBy(id, filter)
-			}})
+			})
 		}
 		if Ranged(f) {
 			out = append(out, p.inputLine(id))
 		}
-	}
-	if len(out) > 0 {
-		out = append(out, PopLine{})
 	}
 	heading("rendering")
 	for _, r := range append([]string{""}, f.Renderings...) {
@@ -119,10 +200,20 @@ func (p Popover) Lines(h Host) []PopLine {
 		}
 		radio(name, g.Rendering == r, func(p grid.Panel) grid.Panel { return p.Rendered(id, r) })
 	}
+	if !alone {
+		return out
+	}
+	out = append(out, PopLine{})
+	box(ShowIt, g.Placement != grid.Hidden, func(q grid.Panel) grid.Panel {
+		if q.Field(id).Placement == grid.Hidden {
+			return q.Placed(id, grid.Column)
+		}
+		return q.Placed(id, grid.Hidden)
+	})
 	return out
 }
 
-// FilterValues gives the values a field's filter offers, as the popover lists them: @me for a person, an enum's known
+// FilterValues gives the values a field's filter offers, as the card lists them: @me for a person, an enum's known
 // values, those the rows hold that are not known, sorted, none, a row with no value, then any the filter names that
 // are none of those.
 func FilterValues(h Host, f Field) []string {
@@ -228,14 +319,14 @@ func isRange(s string) bool {
 	return ok
 }
 
-// Move gives the line of the popover from k on, by step, that acts, stopping at the first and the last; k itself when
+// Move gives the line of the card from k on, by step, that acts, stopping at the first and the last; k itself when
 // none does.
 func (p Popover) Move(h Host, k, step int) int {
 	lines := p.Lines(h)
 	return shell.Step(k, len(lines), step, func(j int) bool { return lines[j].Act != nil })
 }
 
-// Acts says whether space on the popover's line under the keyboard changes anything: a value's box and the filter's
+// Acts says whether space on the card's line under the keyboard changes anything: a box and the filter's
 // mode always do, and a choice not taken.
 func (p Popover) Acts(h Host) bool {
 	lines := p.Lines(h)
@@ -246,9 +337,10 @@ func (p Popover) Acts(h Host) bool {
 	return l.Act != nil && (l.Box || !l.Picked)
 }
 
-// Keys gives the popover's keys, on the keys bar, which it owns: esc closes it; up and down move, where there is a
-// line that acts that way; and space or enter toggles a value's box, or takes a choice not taken, or, on the line a
-// range is typed on, enter adds it.
+// Keys gives the card's keys, on the keys bar, which it owns: esc closes it; up and down move, where there is a line
+// that acts that way; shift with left or right moves the column, on a card that hangs from its name, where it moves
+// that way; and space or enter toggles a box, or takes a choice not taken, or, on the line a range is typed on, enter
+// adds it.
 func (p Popover) Keys(h Host) shell.Segment {
 	s := shell.Segment{Owns: true, Bindings: []shell.Binding{shell.Bind("esc", "close")}}
 	var moves []string
@@ -260,6 +352,9 @@ func (p Popover) Keys(h Host) shell.Segment {
 	}
 	if len(moves) > 0 {
 		s.Bindings = append(s.Bindings, shell.Bind("↑↓", "move", moves...))
+	}
+	if p.Header || p.Heading {
+		s.Bindings = append(s.Bindings, ShiftKeys(h, p.Field)...)
 	}
 	if lines := p.Lines(h); p.At >= 0 && p.At < len(lines) && lines[p.At].Input {
 		return s.With(shell.Bind("⏎", "add", "enter"))
@@ -274,8 +369,8 @@ func (p Popover) Keys(h Host) shell.Segment {
 	return s
 }
 
-// Act acts on the popover's line k: it is then under the keyboard, and the table's panel changes as the line says, at
-// once.
+// Act acts on the card's line k: it is then under the keyboard, and the table's panel changes as the line says, at
+// once, the card following its column's name wherever that now stands.
 func (p *Popover) Act(h Host, k int) {
 	lines := p.Lines(h)
 	if k < 0 || k >= len(lines) || lines[k].Act == nil {
@@ -283,13 +378,23 @@ func (p *Popover) Act(h Host, k int) {
 	}
 	p.At = k
 	h.SetPanel(lines[k].Act(h.Panel()))
+	p.follow(h)
 	if lines[k].Input && isRange(Typed(p.Typed)) {
 		p.Typed = ""
 	}
 }
 
-// Key takes a key while the popover is open, as the popover's comment says; every other key does nothing.
+// Key takes a key while the card is open, as the card's comment says: shift with left or right moves a column whose
+// name it hangs from a place, as Shifted says, the card with it; every other key does nothing.
 func (p *Popover) Key(h Host, k tea.KeyPressMsg) {
+	if d, ok := ShiftStep(k.String()); ok && (p.Header || p.Heading) {
+		if q, ok := Shifted(h, p.Field, d); ok {
+			h.SetPanel(q)
+			Reveal(h, p.Field)
+			p.follow(h)
+		}
+		return
+	}
 	lines := p.Lines(h)
 	if on := p.At >= 0 && p.At < len(lines) && lines[p.At].Input; on && k.String() == "enter" {
 		p.Act(h, p.At)
@@ -314,7 +419,7 @@ func (p *Popover) Key(h Host, k tea.KeyPressMsg) {
 	}
 }
 
-// Box gives the popover's lines, a dialog titled by the field's label, its keys on the keys bar alone, and the screen
+// Box gives the card's lines, a dialog titled by the field's label, its keys on the keys bar alone, and the screen
 // line and column it is drawn from: from the header, its title over the name, or nearer the screen's left where it
 // would run past the edge; from the columns dialog, its right edge at the screen's, its top on the dialog's, or higher
 // where it would run past the keys bar.
@@ -330,7 +435,7 @@ func (p Popover) Box(h Host) (box []string, top, left int) {
 	width, height := h.Size()
 	box = shell.Dialog(labelOf(h, p.Field), body, width)
 	w := ansi.StringWidth(box[0])
-	if p.Header {
+	if p.Header || p.Heading {
 		// the title on its top edge over the name, where the header draws it, after the corner, a rule, and a space
 		top, left = p.Y, min(p.X-3, width-w)
 	} else {
@@ -339,12 +444,13 @@ func (p Popover) Box(h Host) (box []string, top, left int) {
 	return box, max(1, min(top, height-1-len(box))), max(0, left)
 }
 
-// Click takes a click while the popover is open: on one of its lines that acts, it acts on it, as space does; on the
-// box elsewhere, nothing; off the box, it closes it.
+// Click takes a click while the card is open: on one of its lines that acts, it acts on it, as space does; off the
+// box, or on the top edge of a card that hangs from its column's name, which the edge's title covers, it closes it, as
+// a second click on a name closes what the first opened; on the box elsewhere, nothing.
 func (p *Popover) Click(h Host, x, y int) {
 	box, top, left := p.Box(h)
 	switch line, on := (shell.Placed{Lines: box, Top: top, Left: left}).Hit(x, y); {
-	case !on:
+	case !on, (p.Header || p.Heading) && y == top:
 		*p = Popover{}
 	case line >= 0:
 		p.Act(h, line)

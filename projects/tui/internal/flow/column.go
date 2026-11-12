@@ -1,4 +1,4 @@
-// Where a column's name stands, in the header and in the heading over the groups, which the column menu, internal/
+// Where a column's name stands, in the header and in the heading over the groups, which the column's card, internal/
 // table's, hangs from; and the sorts' marks on the rule under the header, a click on which turns a column's sort.
 package flow
 
@@ -10,26 +10,20 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
-// openFieldMenu drops the column menu around a column's name in the heading over the groups, on the control line,
-// which then has the keyboard, the first line that acts under it.
-func (m *Model) openFieldMenu(column string) {
+// openFieldMenu opens a column's card around its name in the heading over the groups, on the control line, which
+// then has the keyboard, the first line that acts under it; it asks kit for the caller's login, which @me names.
+func (m *Model) openFieldMenu(column string) tea.Cmd {
 	m.onPreset, m.inRows, m.inPanel = m.presets(m.stage), false, false
 	m.stop = slices.IndexFunc(m.stops(), func(s table.Stop) bool { return s.Column == column })
-	m.colMenu = table.OpenColumnMenu(m, column, true)
+	m.pop = table.OpenCard(m, column, true)
+	return m.askMe()
 }
 
-// openColumnMenu drops the column menu down from a column's name in the header, the first line that acts under the
-// keyboard.
-func (m *Model) openColumnMenu(column string) { m.colMenu = table.OpenColumnMenu(m, column, false) }
-
-// columnAct does what the column menu's line k says, as table.ColumnMenu does, and opens the field's popover where
-// it says to, which asks kit for the caller's login.
-func (m *Model) columnAct(k int) tea.Cmd {
-	if pop, ok := m.colMenu.Act(m, k); ok {
-		m.pop = pop
-		return m.askMe()
-	}
-	return nil
+// openColumnMenu opens a column's card under its name in the header, the first line that acts under the keyboard; it
+// asks kit for the caller's login, which @me names.
+func (m *Model) openColumnMenu(column string) tea.Cmd {
+	m.pop = table.OpenCard(m, column, false)
+	return m.askMe()
 }
 
 // fieldName gives the screen column and line a column's name stands on in the heading over the groups, as

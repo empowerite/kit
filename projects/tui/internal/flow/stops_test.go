@@ -35,7 +35,7 @@ func TestDownFromTheBarReachesTheGroupsNamesAndRightThePresetPicker(t *testing.T
 	if !strings.Contains(control, style.Selected(grid0(m))) || m.presetLine() != table.PresetLine(&m, false) {
 		t.Errorf("assignees's stop is not drawn under the keyboard: %q", control)
 	}
-	for _, want := range []string{"⇥·⇧⇥ move", "←→ fold", "⏎ menu", "↓ rows"} {
+	for _, want := range []string{"⇥·⇧⇥ move", "←→ fold", "⏎ settings", "↓ rows"} {
 		if !strings.Contains(keysOf(m), want) {
 			t.Errorf("the keys on a name lack %q: %q", want, keysOf(m))
 		}
@@ -79,12 +79,12 @@ func TestEnterAndSpaceActOnTheStop(t *testing.T) {
 		t.Errorf("enter on the rows' stop left them open: %v", m.stages[0].Open)
 	}
 	m = drive(m, press(tea.KeyEnter))
-	// enter on a name drops its column's menu; esc closes it, the keyboard back on the name
-	if m = drive(m, backTab, press(tea.KeyEnter)); !m.colMenu.Open || m.colMenu.Column != "assignees" {
-		t.Fatalf("enter on assignees: menu %v, %q", m.colMenu.Open, m.colMenu.Column)
+	// enter on a name opens its column's card; esc closes it, the keyboard back on the name
+	if m = drive(m, backTab, press(tea.KeyEnter)); !m.pop.Open || m.pop.Field != "assignees" || !m.pop.Heading {
+		t.Fatalf("enter on assignees: card %v, %q", m.pop.Open, m.pop.Field)
 	}
-	if m = drive(m, esc); m.colMenu.Open || !isOnStop(m) || m.stop != 0 {
-		t.Errorf("esc in assignees's menu: open %v, stop %d", m.colMenu.Open, m.stop)
+	if m = drive(m, esc); m.pop.Open || !isOnStop(m) || m.stop != 0 {
+		t.Errorf("esc in assignees's card: open %v, stop %d", m.pop.Open, m.stop)
 	}
 }
 

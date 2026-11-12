@@ -19,10 +19,11 @@ import (
 )
 
 // The heading over the groups the person chose stands on the control line, apart from the rows, and names their
-// columns; a click on a name drops that column's menu around it, as the header's names do, the control line under
-// the keyboard. Ungroup there leaves the rows grouped by the others. A click on a value's heading, which names no
-// column, puts the cursor on it, and one on its ▾ folds its rows away, and another unfolds them; ⏎ there drops no menu.
-func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
+// columns; a click on a name opens that column's card around it, as the header's names do, the control line under
+// the keyboard. Its Group box, unticked, leaves the rows grouped by the others. A click on a value's heading, which
+// names no column, puts the cursor on it, and one on its ▾ folds its rows away, and another unfolds them; ⏎ there opens
+// no card.
+func TestANameInTheHeadingOverTheGroupsOpensItsCard(t *testing.T) {
 	m := nested(t)
 	all := len(m.rows(0))
 	spots := table.BarNames(&m)
@@ -48,54 +49,53 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 		t.Errorf("the rule does not start at the first column: %q", rule)
 	}
 	m.stages[0].Cursor = 2
-	if m = drive(m, testkit.Click(spots[1].From+1, m.top())); !m.colMenu.Open || !m.colMenu.Heading ||
-		m.colMenu.Column != "assignees" || m.inRows || len(m.rows(0)) != all {
-		t.Fatalf("a click on assignees: menu %+v, in rows %v, %d rows of %d", m.colMenu, m.inRows, len(m.rows(0)), all)
+	if m = drive(m, testkit.Click(spots[1].From+1, m.top())); !m.pop.Open || !m.pop.Heading ||
+		m.pop.Field != "assignees" || m.inRows || len(m.rows(0)) != all {
+		t.Fatalf("a click on assignees: card %+v, in rows %v, %d rows of %d", m.pop, m.inRows, len(m.rows(0)), all)
 	}
-	box, top, _ := m.colMenu.Box(&m)
-	if edge := ansi.Strip(box[0]); top != m.top() || !strings.Contains(edge, "╴assignees╶") ||
-		!m.colMenu.Enabled(&m, m.colMenu.LineOf(&m, table.ActUngroup)) || m.colMenu.Enabled(&m, m.colMenu.LineOf(&m, table.ActGroup)) {
-		t.Errorf("the box hangs at %d, %q:\n%s", top, edge, raw(m))
+	grouped := table.GroupIt + " " + grid.GroupMark(m.panel(0).Field("assignees").Depth)
+	box, top, left := m.pop.Box(&m)
+	if edge := ansi.Strip(box[0]); top > m.top() || left+3 != spots[1].From || !strings.Contains(edge, " assignees ") ||
+		cardLine(m, grouped) < 0 {
+		t.Errorf("the box hangs at %d, %d, %q:\n%s", top, left, edge, raw(m))
 	}
-	// Ungroup leaves the rows grouped by source alone, and closes the menu
-	m.colMenu.At = m.colMenu.LineOf(&m, table.ActUngroup)
-	if m = drive(m, press(tea.KeyEnter)); m.colMenu.Open || !slices.Equal(m.panel(0).Groups(), []string{"source"}) {
-		t.Fatalf("ungroup assignees: menu %v, groups %q", m.colMenu.Open, m.panel(0).Groups())
+	// unticking Group leaves the rows grouped by source alone, and the card stays
+	m.pop.At = cardLine(m, grouped)
+	if m = drive(m, press(tea.KeyEnter)); !m.pop.Open || !slices.Equal(m.panel(0).Groups(), []string{"source"}) {
+		t.Fatalf("ungroup assignees: card %v, groups %q", m.pop.Open, m.panel(0).Groups())
 	}
+	m = drive(m, esc)
 	// a click on a value's heading puts the cursor on it, folding nothing; one on its ▾ folds it, menu or none; ⏎ there
 	// drops none, nor does the keys bar offer one
 	all = len(m.rows(0))
 	y := rowY(m, m.rows(0)[1].Key)
-	if m = drive(m, testkit.Click(8, y)); m.colMenu.Open || len(m.rows(0)) != all || m.stages[0].Cursor != 1 {
-		t.Fatalf("a click on a value's heading: menu %v, %d rows of %d, cursor %d", m.colMenu.Open, len(m.rows(0)), all,
+	if m = drive(m, testkit.Click(8, y)); m.pop.Open || len(m.rows(0)) != all || m.stages[0].Cursor != 1 {
+		t.Fatalf("a click on a value's heading: card %v, %d rows of %d, cursor %d", m.pop.Open, len(m.rows(0)), all,
 			m.stages[0].Cursor)
 	}
 	fold := table.FoldAt(m.rows(0)[1])
-	if m = drive(m, testkit.Click(fold, y)); m.colMenu.Open || len(m.rows(0)) != 2 {
-		t.Fatalf("a click on a value's ▾: menu %v, %d rows", m.colMenu.Open, len(m.rows(0)))
+	if m = drive(m, testkit.Click(fold, y)); m.pop.Open || len(m.rows(0)) != 2 {
+		t.Fatalf("a click on a value's ▾: card %v, %d rows", m.pop.Open, len(m.rows(0)))
 	}
-	if last := lines(m)[len(lines(m))-1]; strings.Contains(last, "⏎ menu") {
+	if last := lines(m)[len(lines(m))-1]; strings.Contains(last, "⏎ settings") {
 		t.Errorf("the keys on a value's heading: %q", last)
 	}
-	if m = drive(m, press(tea.KeyEnter)); m.colMenu.Open {
-		t.Error("⏎ on a value's heading dropped a menu")
+	if m = drive(m, press(tea.KeyEnter)); m.pop.Open {
+		t.Error("⏎ on a value's heading opened a card")
 	}
 	if m = drive(m, testkit.Click(fold, y)); len(m.rows(0)) != all {
 		t.Errorf("a click on the value's ▸: %d rows of %d", len(m.rows(0)), all)
 	}
-	// Options… there opens the field's popover, hanging from its name in the heading; a column not grouped has no
-	// name there
+	// source's card hangs from its name in the heading; a column not grouped has no name there
 	m = drive(m, testkit.Click(table.BarNames(&m)[0].From, m.top()))
 	x, y := m.fieldName("source")
-	m.columnAct(m.colMenu.LineOf(&m, table.ActMore))
 	if !m.pop.Open || m.pop.Field != "source" || m.pop.X != x || m.pop.Y != y || y != m.top() {
-		t.Errorf("Options… from the heading: %+v, source at %d, %d", m.pop, x, y)
+		t.Errorf("source's card from the heading: %+v, source at %d, %d", m.pop, x, y)
 	}
 	m.pop = table.Popover{}
-	m.colMenu = table.ColumnMenu{}
 	// a click on the control line off its names and folds does nothing where the stage has no presets
-	if m = drive(m, testkit.Click(m.paneWidth()/2, m.top())); m.colMenu.Open || m.onPreset {
-		t.Errorf("a click on the control line without presets: menu %v, on the preset line %v", m.colMenu.Open, m.onPreset)
+	if m = drive(m, testkit.Click(m.paneWidth()/2, m.top())); m.pop.Open || m.onPreset {
+		t.Errorf("a click on the control line without presets: card %v, on the preset line %v", m.pop.Open, m.onPreset)
 	}
 	if _, y := m.fieldName("age"); y != -1 {
 		t.Errorf("age, not grouped, stands in the heading on line %d", y)
@@ -106,14 +106,15 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 		t.Errorf("the sort targets while loading: %+v", spots)
 	}
 	m.stages[0].src.Loading = false
-	// once the heading no longer names the column, the menu draws nothing, and a click closes it
+	// once the heading no longer names the column, the card stays where it was, and a click off it closes it
 	m = drive(m, testkit.Click(table.BarNames(&m)[0].From, m.top()))
+	x = m.pop.X
 	m.setPanel(m.panel(0).Grouped("source", true))
-	if box, _, _ := m.colMenu.Box(&m); box != nil {
-		t.Error("the menu of a heading gone still draws")
+	if box, _, _ := m.pop.Box(&m); box == nil || m.pop.X != x {
+		t.Error("the card of a heading gone moved")
 	}
-	if m = drive(m, testkit.Click(1, m.rowsTop())); m.colMenu.Open {
-		t.Error("a click did not close the menu of a heading gone")
+	if m = drive(m, testkit.Click(m.paneWidth()-1, m.rowsTop()+20)); m.pop.Open {
+		t.Error("a click did not close the card of a heading gone")
 	}
 	// a click on the rule under the heading, on a group's sort mark, sorts the groups by it
 	m = nested(t)
@@ -191,8 +192,8 @@ func TestALevelsFoldInTheHeadingOverTheGroupsOpensAndClosesIt(t *testing.T) {
 	if glyph(m, "source") != grid.Unfolded || glyph(m, "assignees") != grid.Joined || glyph(m, "") != grid.Unfolded {
 		t.Fatalf("the folds: %q", ansi.Strip(lines(m)[m.top()]))
 	}
-	if m = drive(m, testkit.Click(spots[1].From-2, m.top())); len(m.rows(0)) != all || m.colMenu.Open {
-		t.Fatalf("a click on assignees' ·: %d rows of %d, menu %v", len(m.rows(0)), all, m.colMenu.Open)
+	if m = drive(m, testkit.Click(spots[1].From-2, m.top())); len(m.rows(0)) != all || m.pop.Open {
+		t.Fatalf("a click on assignees' ·: %d rows of %d, card %v", len(m.rows(0)), all, m.pop.Open)
 	}
 	// from the keyboard, assignees' stop folds as source's does, and the rows' stop stands where its fold is drawn
 	if stops := m.stops(); len(stops) != 3 || stops[1].Level != 0 || stops[2].Level != 2 {

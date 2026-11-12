@@ -284,7 +284,7 @@ func TestSortByInAColumnsMenuSortsTheRows(t *testing.T) {
 		x := ansi.StringWidth(lines(m)[m.headerTop()][:at(name)])
 		return strings.Trim(ansi.Strip(ansi.Cut(lines(m)[ruleY(m)], x, x+ansi.StringWidth(name)+1)), "─"+Sortable)
 	}
-	if m = drive(m, testkit.Click(at("age"), m.headerTop()), press(tea.KeyEnter)); under("age") != "▲" {
+	if m = drive(m, testkit.Click(at("age"), m.headerTop()), press(tea.KeyEnter), esc); under("age") != "▲" {
 		t.Fatalf("a click on age: %s\n%s", order(), view(m))
 	}
 	if got := order(); got != "#45 #46 #7" {
@@ -297,17 +297,17 @@ func TestSortByInAColumnsMenuSortsTheRows(t *testing.T) {
 	if m = drive(m, option); under("source") != "▲²" || under("age") != "▼₁" {
 		t.Errorf("an option-click on source:\n%s", view(m))
 	}
-	// shift, which a terminal often keeps for its own selection, adds nothing: the click drops the menu, as ever
+	// shift, which a terminal often keeps for its own selection, adds nothing: the click opens the card, as ever
 	shift := tea.MouseClickMsg{X: at("source"), Y: m.headerTop(), Button: tea.MouseLeft, Mod: tea.ModShift}
-	if m = drive(m, shift); len(m.panel(m.stage).SortKeys()) != 2 || !m.colMenu.Open {
+	if m = drive(m, shift); len(m.panel(m.stage).SortKeys()) != 2 || !m.pop.Open {
 		t.Errorf("a shift-click on source: %+v", m.panel(m.stage).SortKeys())
 	}
 	// builds' commit does not sort
 	m = drive(m, esc)
 	m = drive(m, tabsTo("builds")...)
-	if m = drive(m, testkit.Click(at("commit"), m.headerTop())); m.colMenu.Enabled(&m, m.colMenu.LineOf(&m, table.ActUp)) || m.colMenu.At <= m.colMenu.LineOf(&m, table.ActUnsorted) ||
+	if m = drive(m, testkit.Click(at("commit"), m.headerTop())); !m.pop.Open || cardLine(m, "sort") >= 0 ||
 		m.stages[m.stage].name != "builds" {
-		t.Errorf("commit's menu sorts: %+v", m.colMenu)
+		t.Errorf("commit's card sorts: %q", cardLines(m))
 	}
 }
 
@@ -334,8 +334,8 @@ func TestGroupingNestsAndIndentsTheRows(t *testing.T) {
 	if !strings.HasPrefix(lines(m)[first], "    ") || strings.Contains(lines(m)[first], GitHub) {
 		t.Errorf("a row grouped two deep is not indented four cells, or keeps its source:\n%s", view(m))
 	}
-	// a click on a name in the indented header drops its menu, whose ▲ Ascending sorts by it, ▲ on the rule under it
-	if m = drive(m, esc, testkit.Click(strings.Index(lines(m)[m.headerTop()], "age"), m.headerTop()), press(tea.KeyEnter)); m.panel(m.stage).Mark("age") != "▲" ||
+	// a click on a name in the indented header opens its card, whose ▲ Ascending sorts by it, ▲ on the rule under it
+	if m = drive(m, esc, testkit.Click(strings.Index(lines(m)[m.headerTop()], "age"), m.headerTop()), press(tea.KeyEnter), esc); m.panel(m.stage).Mark("age") != "▲" ||
 		ansi.Cut(lines(m)[ruleY(m)], strings.Index(lines(m)[m.headerTop()], "age"), strings.Index(lines(m)[m.headerTop()], "age")+1) != "▲" {
 		t.Errorf("a click on age in the indented header:\n%s", view(m))
 	}
@@ -375,8 +375,8 @@ func TestACtrlClickGroupsAndOnAHeadingUngroups(t *testing.T) {
 	if m = drive(m, tea.MouseClickMsg{X: 10, Y: heading("▾ github"), Button: tea.MouseLeft, Mod: tea.ModCtrl}); len(group()) != 0 {
 		t.Errorf("a ctrl-click on a source heading: %q\n%s", group(), view(m))
 	}
-	// a plain click on a name drops its menu, and groups nothing
-	if m = drive(m, testkit.Click(at("age"), m.headerTop())); len(group()) != 0 || !m.colMenu.Open {
+	// a plain click on a name opens its card, and groups nothing
+	if m = drive(m, testkit.Click(at("age"), m.headerTop())); len(group()) != 0 || !m.pop.Open {
 		t.Errorf("a click on age: group %q, sort %+v", group(), m.panel(m.stage).SortKeys())
 	}
 }
@@ -498,8 +498,8 @@ func TestAGroupsHeadingFoldsAndUnfoldsItsRows(t *testing.T) {
 	if m = drive(m, testkit.Click(fold+3, m.rowsTop())); len(m.rows(m.stage)) != rows {
 		t.Fatalf("a click on the heading's value: %d rows of %d", len(m.rows(m.stage)), rows)
 	}
-	if m = drive(m, testkit.Click(fold, m.rowsTop())); len(m.rows(m.stage)) != 2 || m.colMenu.Open {
-		t.Fatalf("a click on the heading's ▾: %d rows, menu %v\n%s", len(m.rows(m.stage)), m.colMenu.Open, view(m))
+	if m = drive(m, testkit.Click(fold, m.rowsTop())); len(m.rows(m.stage)) != 2 || m.pop.Open {
+		t.Fatalf("a click on the heading's ▾: %d rows, card %v\n%s", len(m.rows(m.stage)), m.pop.Open, view(m))
 	}
 	if m = drive(m, testkit.Click(fold, m.rowsTop())); len(m.rows(m.stage)) != rows {
 		t.Fatalf("a click on the heading's ▸: %d rows", len(m.rows(m.stage)))
@@ -545,18 +545,20 @@ func popLineAt(t *testing.T, m Model, text string) (x, y int) {
 	return -1, -1
 }
 
-// popoverOf opens a field's Options… from the columns dialog, enter on its line.
+// popoverOf opens a field's card from the columns dialog, enter on its line, the keyboard on its filter's mode.
 func popoverOf(m Model, id string) Model {
 	m.cols = table.Columns{Open: true}
 	m.cols.At = slices.Index(m.cols.Listed(&m), id)
-	return drive(m, press(tea.KeyEnter))
+	m = drive(m, press(tea.KeyEnter))
+	m.pop = m.pop.AtFilter(&m)
+	return m
 }
 
-// Enter on a field's line in the columns dialog opens its popover, which has the keyboard: up and down move between the
+// Enter on a field's line in the columns dialog opens its card, which has the keyboard: up and down move between the
 // lines that act, past the headings; space takes a rendering, and toggles a value of the filter, or its mode; each
-// applies at once, the rows and the preset line's chips following it. The sort is the column menu's, so the popover has
-// none. Esc closes it, and the dialog has the keyboard again. A click on a line acts on it, and a click off the box
-// closes it.
+// applies at once, the rows and the preset line's chips following it. The dialog's line shows the sort, so the card
+// beside it has none. Esc closes it, and the dialog has the keyboard again. A click on a line acts on it, and a click
+// off the box closes it.
 func TestAFieldsPopoverFiltersAndDrawsIt(t *testing.T) {
 	m := loaded(t, viewing(""))
 	m.apply(m.viewsOf(0).Chosen("Backlog"))
@@ -564,7 +566,7 @@ func TestAFieldsPopoverFiltersAndDrawsIt(t *testing.T) {
 	if !m.pop.Open || m.pop.Field != "assignees" || !strings.Contains(view(m), "╭─ assignees ") {
 		t.Fatalf("enter on assignees:\n%s", view(m))
 	}
-	// the keyboard starts on the filter's mode; there is no sort to take
+	// the keyboard on the filter's mode; there is no sort to take
 	if v := view(m); strings.Contains(v, "ascending") || !strings.Contains(m.keys().String(), "␣ toggle") {
 		t.Errorf("the popover's first line: %q\n%s", m.keys().String(), v)
 	}
@@ -621,50 +623,40 @@ func TestTheCallerIsNoOneWhileKitCannotSayWhoItIs(t *testing.T) {
 	}
 }
 
-// A click on a column's name drops its menu down under the name, and sorts nothing; a second click on the name, off
-// the menu, closes it. Options… opens the field's popover under the name. Where the terminal sends option with a click,
-// the click adds the column after the other sort keys, and drops nothing.
-func TestAClickOnAColumnsNameDropsItsMenu(t *testing.T) {
+// A click on a column's name opens its card under the name, its title over the name, and sorts nothing; a second click
+// on the name, the card's title now, closes it. Enter on its first line sorts by it, ascending. Where the terminal
+// sends option with a click, the click adds the column after the other sort keys, and opens nothing.
+func TestAClickOnAColumnsNameOpensItsCard(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30})
 	unfold(&m)
 	at := func(name string) int {
 		l := lines(m)[m.headerTop()]
 		return ansi.StringWidth(l[:strings.Index(l, name)])
 	}
+	x := at("age")
 	click := func(name string, mod tea.KeyMod) {
 		m = drive(m, tea.MouseClickMsg{X: at(name), Y: m.headerTop(), Button: tea.MouseLeft, Mod: mod})
 	}
 	sorts := func() []grid.SortKey { return m.panel(m.stage).SortKeys() }
-	if click("age", 0); len(sorts()) != 0 || !m.colMenu.Open || m.colMenu.Column != "age" {
-		t.Fatalf("a click on age: %+v, menu %+v", sorts(), m.colMenu)
+	if click("age", 0); len(sorts()) != 0 || !m.pop.Open || m.pop.Field != "age" || !m.pop.Header {
+		t.Fatalf("a click on age: %+v, card %+v", sorts(), m.pop)
 	}
-	// the box hangs around the name, its top edge drawing it where the header does, as ='s menu hangs from =
-	if box, top, left := m.colMenu.Box(&m); top != m.headerTop() || !strings.Contains(ansi.Strip(box[0]), "╴age╶") ||
-		ansi.StringWidth(ansi.Cut(lines(m)[m.headerTop()], left, at("age"))) != at("age")-left ||
-		ansi.Strip(ansi.Cut(lines(m)[m.headerTop()], at("age"), at("age")+3)) != "age" {
-		t.Errorf("the menu does not hang from the name: %d, %d\n%s", top, left, view(m))
+	if box, top, left := m.pop.Box(&m); top != m.headerTop() || !strings.Contains(ansi.Strip(box[0]), "╭─ age ") ||
+		left+3 != x || !strings.Contains(view(m), "╭─ age ") {
+		t.Errorf("the card's title is not over the name: %d, %d\n%s", top, left, view(m))
 	}
 	if x, name := m.columnName("age"); name != "age" || x != at("age") {
 		t.Errorf("age's name in the header: %q at %d, not %d", name, x, at("age"))
 	}
-	if click("age", 0); m.colMenu.Open || len(sorts()) != 0 {
-		t.Fatalf("a second click on age: %+v, menu %v", sorts(), m.colMenu.Open)
+	if m = drive(m, testkit.Click(x, m.headerTop())); m.pop.Open || len(sorts()) != 0 {
+		t.Fatalf("a second click on age: %+v, card %v", sorts(), m.pop.Open)
 	}
 	click("age", 0)
-	if m = drive(m, press(tea.KeyEnter)); !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}}) {
+	if m = drive(m, press(tea.KeyEnter), esc); !slices.Equal(sorts(), []grid.SortKey{{Column: "age"}}) || m.pop.Open {
 		t.Fatalf("▲ Ascending on age: %+v", sorts())
 	}
-	click("age", 0)
-	m = drive(m, typed("o")...)
-	if m = drive(m, press(tea.KeyEnter)); !m.pop.Open || m.pop.Field != "age" || !strings.Contains(view(m), "╭─ age ") {
-		t.Fatalf("Options… on age: popover %+v\n%s", m.pop, view(m))
-	}
-	if _, top, left := m.pop.Box(&m); top != m.headerTop() || left+3 != at("age") {
-		t.Errorf("the popover's title is not over the name: %d, %d", top, left)
-	}
-	m = drive(m, esc)
-	if click("source", tea.ModAlt); len(sorts()) != 2 || m.colMenu.Open {
-		t.Errorf("an option-click on source: %+v, menu %v", sorts(), m.colMenu.Open)
+	if click("source", tea.ModAlt); len(sorts()) != 2 || m.pop.Open {
+		t.Errorf("an option-click on source: %+v, card %v", sorts(), m.pop.Open)
 	}
 }
 

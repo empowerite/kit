@@ -12,7 +12,7 @@ order: 13
 
 ## Left: the groups
 
-- `▾ source`  the rows are grouped by source. Click the name for its column menu.
+- `▾ source`  the rows are grouped by source. Click the name for its settings.
 - `▾`  open. Click to close that level.
 - `▸`  closed. Click to open it.
 - `3`  how many rows
@@ -40,4 +40,4 @@ Save, Rename…, and Delete are dim on the built-in presets.
 - `↓` from the tabs reaches the line. `↓` again enters the rows.
 - `⇥` `⇧⇥`  move between the names, the count, and the preset
 - `→` `←`  open and close the level under the cursor
-- `⏎`  on a name: its column menu. On the preset: the presets menu.
+- `⏎`  on a name: its settings. On the preset: the presets menu.

@@ -54,7 +54,6 @@ type Sheet struct {
 	pop           Popover
 	cols          Columns
 	presets       PresetMenu
-	column        ColumnMenu
 	note          shell.Notice
 	built         *Shown
 	browse        func(string) error
@@ -391,12 +390,12 @@ func (s *Sheet) SetStop(k int) { s.stop = k }
 // LeaveControls gives up the control line's keyboard, to the screen.
 func (s *Sheet) LeaveControls() { s.onControls = false }
 
-// OpenFieldMenu drops the column menu around a column's name in the heading over the groups, on the control line,
-// which then has the keyboard on that name's stop.
+// OpenFieldMenu opens a column's card around its name in the heading over the groups, on the control line, which
+// then has the keyboard on that name's stop.
 func (s *Sheet) OpenFieldMenu(column string) {
 	s.onControls, s.inRows = s.HasPresets(), false
 	s.stop = slices.IndexFunc(Stops(s), func(st Stop) bool { return st.Column == column })
-	s.column = OpenColumnMenu(s, column, true)
+	s.pop = OpenCard(s, column, true)
 }
 
 // HasPresets says whether the table has a preset line: one with fields, the views of which it names.
@@ -474,7 +473,6 @@ func (s *Sheet) layers() shell.Layers[Sheet] {
 		Pop:     func(s *Sheet) *Popover { return &s.pop },
 		Cols:    func(s *Sheet) *Columns { return &s.cols },
 		Presets: func(s *Sheet) *PresetMenu { return &s.presets },
-		Column:  func(s *Sheet) *ColumnMenu { return &s.column },
 		Popped:  func(*Sheet) tea.Cmd { return nil },
 		Choose:  (*Sheet).choose,
 	}.Layers()
@@ -633,11 +631,11 @@ func (s *Sheet) Wheel(w tea.MouseWheelMsg) bool {
 }
 
 // click takes a plain click on the pane: on the control line, on a level's ▾ or ▸ it opens or closes the level, on a
-// column's name it drops the column's menu around it, and elsewhere the preset line has the keyboard, and on the
+// column's name it opens the column's card around it, and elsewhere the preset line has the keyboard, and on the
 // selector the presets drop down; on the rule under the heading over the groups, as BarRuleClick says; on the rule, a
 // sort's target turns its sort, a shift-click off, and a list's ×
 // flattens or gathers it; on the header, its ▹ or ◃ scrolls the columns, its fold opens or closes it, and a column's
-// name drops the column's menu down; on a row, the cursor goes there, the rows have the keyboard, and its ▸ or ▾ opens
+// name opens the column's card under it; on a row, the cursor goes there, the rows have the keyboard, and its ▸ or ▾ opens
 // or closes it, and a value that leads somewhere, a page or a file, is opened, as open says; where rows can be
 // selected, a click on a row's box, as BoxAt says, selects it or unselects it. A line about the table does nothing.
 func (s *Sheet) click(x, y int, shift bool) {
@@ -661,7 +659,7 @@ func (s *Sheet) click(x, y int, shift bool) {
 		case fold:
 			ToggleHeader(s)
 		case column != "":
-			s.column = OpenColumnMenu(s, column, false)
+			s.pop = OpenCard(s, column, false)
 		}
 	default:
 		row, link, fold, ok := RowAt(s, x, y)

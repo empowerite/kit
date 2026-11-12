@@ -5,11 +5,11 @@
 // which, as its label, and so does the glyph on its card's top edge, 📦 or 🌐. The control line is the table's, on the
 // screen's second line: the heading over the groups, which names the field the cards are grouped by, and the preset
 // line, Default, By audience, or In the kit or online, the person's presets beside them, and Fields…,
-// where the cards are sorted, grouped, and filtered by any field a column menu or the columns dialog offers. The cards
+// where the cards are sorted, grouped, and filtered by any field a column's card or the columns dialog offers. The cards
 // stand as the table's rows stand: in its order, under its groups' headings, each heading drawn as the table draws it,
 // a tutorial for several audiences under each of theirs, and a closed group's cards folded away. The tags given on the
 // command line, kit tutorials --tag=<audience>, filter the cards to the tutorials for any of the audiences they name,
-// once the catalogue is read, as the audience's column menu would; and a tutorial's id given, kit tutorials
+// once the catalogue is read, as the audience's card would; and a tutorial's id given, kit tutorials
 // <tutorial>, puts the cursor on its card, the tags' filter dropped when it hides that card.
 //
 // Under the control line, the pane draws the cards as a grid, as many columns as fit and at least one: each card has
@@ -378,7 +378,7 @@ func whereOf(t kit.Tutorial) string {
 }
 
 // filterByTags filters the cards to the tutorials for any of the audiences the tags name, by their labels, as the
-// audience's column menu filters them; tags that name none filter nothing.
+// audience's card filters them; tags that name none filter nothing.
 func (m *Model) filterByTags() {
 	var labels []string
 	for _, a := range m.catalog.Audiences {

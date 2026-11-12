@@ -5,8 +5,9 @@
 // either moves the field a place, across into the groups or out of them, or into the hidden; space shows or hides it,
 // s turns its sort, as the panel's Sorted says: ascending, as a key after the others, descending, then none on the
 // last key and ascending again on any other; and g groups by it, within the groups there are, or no longer; enter
-// opens its Options…, and esc closes the dialog. A click on a line's box, its sort, or its group does what space, s,
-// or g does, and a shift-click on its sort turns the sort off; one off the dialog closes it.
+// opens its card, and esc closes the dialog. A click on a line's box, its sort, or its group does what space, s, or g
+// does, and a shift-click on its sort turns the sort off; a click on its label opens its card, as enter does; one off
+// the dialog closes it.
 package table
 
 import (
@@ -171,7 +172,7 @@ func (c *Columns) Act(h Host, key string) {
 }
 
 // Key takes a key while the columns dialog is open: up and down move between its lines; space, s, g, and shift with up
-// or down act on the field under the keyboard, as Act says; enter gives the field's popover to open, over the dialog,
+// or down act on the field under the keyboard, as Act says; enter gives the field's card to open, over the dialog,
 // and whether it does; and esc closes the dialog.
 func (c *Columns) Key(h Host, k tea.KeyPressMsg) (Popover, bool) {
 	switch key := k.String(); key {
@@ -191,18 +192,18 @@ func (c *Columns) Key(h Host, k tea.KeyPressMsg) (Popover, bool) {
 
 // Click takes a click while the columns dialog is open, shift held or not: on a field's box, its sort, or its group,
 // it acts as space, s, or g does, the keyboard on the field, but that a shift-click on its sort turns the sort off;
-// on its label, the keyboard goes there; on the dialog elsewhere, its edges among it, nothing; off it, the dialog
-// closes.
-func (c *Columns) Click(h Host, x, y int, shift bool) {
+// on its label or its type, the keyboard goes there and it gives the field's card to open, as enter does, and says it
+// does; on the dialog elsewhere, its edges among it, nothing; off it, the dialog closes.
+func (c *Columns) Click(h Host, x, y int, shift bool) (Popover, bool) {
 	box, top, left := c.Box(h)
 	line, on := (shell.Placed{Lines: box, Top: top, Left: left}).Hit(x, y)
 	if !on {
 		*c = Columns{}
-		return
+		return Popover{}, false
 	}
 	k := c.Row(h, y)
 	if line < 0 || k < 0 {
-		return
+		return Popover{}, false
 	}
 	c.At = k
 	switch cell := x - left - 2; {
@@ -214,12 +215,15 @@ func (c *Columns) Click(h Host, x, y int, shift bool) {
 		h.SetPanel(h.Panel().SortedAs(c.Listed(h)[k], grid.Unsorted))
 	case cell >= 2+LabelCells+TypeCells:
 		c.Act(h, "s")
+	default:
+		return OpenPopover(h, c.Listed(h)[k], left, top, false), true
 	}
+	return Popover{}, false
 }
 
 // Keys gives the keys bar's segment while the columns dialog is open, each key where it acts on the field under
 // the keyboard: up and down where there is a line that way, shift with either where the field moves that way, s where
-// it sorts, g where it groups, and enter where it has Options….
+// it sorts, g where it groups, and enter where it has a card.
 func (c Columns) Keys(h Host) shell.Segment {
 	s := shell.Segment{Owns: true, Bindings: []shell.Binding{shell.Bind("esc", "close")}}
 	id, p := c.Listed(h)[c.At], h.Panel()
@@ -250,7 +254,7 @@ func (c Columns) Keys(h Host) shell.Segment {
 		s.Bindings = append(s.Bindings, shell.Bind("g", "group"))
 	}
 	if len((Popover{Field: id}).Lines(h)) > 0 {
-		s.Bindings = append(s.Bindings, shell.Bind("⏎", "options", "enter"))
+		s.Bindings = append(s.Bindings, shell.Bind("⏎", "settings", "enter"))
 	}
 	return s
 }

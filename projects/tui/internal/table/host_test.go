@@ -87,10 +87,10 @@ func (h *host) Pane() (int, int)         { return 4, h.w - 1 }
 func (h *host) ShownColumns() []string   { return h.panel.Columns }
 func (h *host) HeaderTop() int           { return 6 }
 
-// HeaderName gives where a column's name stands in the header: each column eight cells after the one before, from 4,
-// its label its first line; none for title, which the header does not name.
+// HeaderName gives where a column's name stands in the header: each column eight cells after the one before, in the
+// order the panel arranges them, from 4, its label its first line; none for title, which the header does not name.
 func (h *host) HeaderName(column string) (int, string) {
-	k := slices.Index(h.panel.Columns, column)
+	k := slices.Index(h.panel.Arrange(h.panel.Columns), column)
 	if k < 0 || column == "title" {
 		return 0, ""
 	}

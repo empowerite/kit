@@ -67,7 +67,7 @@ func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 // What the dialog sets applies at once: space hides a field or shows it, s turns its sort, none, ascending, descending,
 // none, g groups by it within the groups or no longer, and shift with up or down moves it, the keyboard with it, into
 // the groups or out of them. A click on a line's box, its sort, or its group does as space, s, or g; enter opens its
-// Options… over the dialog; esc, or a click off the dialog, closes it.
+// card over the dialog; esc, or a click off the dialog, closes it.
 func TestTheColumnsDialogAppliesAtOnce(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 110, Height: 30})
 	// the organization and the repository, columns between source and assignees once ungrouped, have tests of their own
@@ -132,7 +132,7 @@ func TestTheColumnsDialogAppliesAtOnce(t *testing.T) {
 	if m = drive(m, testkit.Click(x, top+1)); !m.cols.Open {
 		t.Error("a click on the headings closed the dialog")
 	}
-	// enter opens the field's Options… over the dialog; esc closes it, then the dialog
+	// enter opens the field's card over the dialog; esc closes it, then the dialog
 	if m = drive(m, press(tea.KeyEnter)); !m.pop.Open || m.pop.Field != "assignees" || !m.cols.Open {
 		t.Fatalf("enter: popover %+v", m.pop)
 	}

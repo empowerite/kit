@@ -458,7 +458,7 @@ func superscript(n int) string {
 	return strings.Map(func(r rune) rune { return digits[r-'0'] }, strconv.Itoa(n))
 }
 
-// Grouped gives the panel grouping the rows by the column alone, or, with nest, as the column menu's Group and a
+// Grouped gives the panel grouping the rows by the column alone, or, with nest, as the column card's Group and a
 // ctrl-click on a name ask, within the groups it has, innermost; a column it groups by already, it no longer does,
 // alone or among the others, and it is a column again. A column that cannot group changes nothing.
 func (p Panel) Grouped(column string, nest bool) Panel {

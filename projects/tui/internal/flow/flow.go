@@ -186,7 +186,6 @@ type Model struct {
 	saved         map[string][]table.Preset // the person's views, by stage, as their file keeps them
 	presetsPath   string                    // that file, or none
 	presetsMenu   table.PresetMenu          // the preset line's menu of views: whether it is open, and its line under the keyboard
-	colMenu       table.ColumnMenu          // the menu a click on a column's name drops, while it is open
 	fold          bool                      // whether the tables fold a value every row of a group shares, as kittui's settings say
 	hide          bool                      // whether the tables keep the columns no row holds a value in from showing, as kittui's settings say
 	glyphs        bool                      // whether the tables draw an emoji every row shown shares, as kittui's settings say
@@ -455,7 +454,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.books = m.books.Opened()
 		case len(m.stages) > 0 && grouping(msg) && msg.Y >= m.top() && msg.Y < m.top()+m.paneHeight() &&
 			msg.X < m.paneWidth():
-			m.groupClick(msg.X, msg.Y, extends(msg), msg.Button == tea.MouseRight)
+			return m, m.groupClick(msg.X, msg.Y, extends(msg), msg.Button == tea.MouseRight)
 		case msg.Button != tea.MouseLeft:
 			// the bar takes a left click alone, and nothing else here takes another
 		case msg.Y == 0 && msg.X >= m.searchAt():
@@ -644,32 +643,31 @@ func grouping(msg tea.MouseClickMsg) bool {
 // own selection, and never sends it.
 func extends(msg tea.MouseClickMsg) bool { return msg.Mod&tea.ModAlt != 0 }
 
-// groupClick takes a click that groups, as grouping says: a right click on a column's name in the header drops the
-// column menu down under it; a ctrl-click there groups the rows by it, as clickHeader says; on a group's heading, they no
+// groupClick takes a click that groups, as grouping says: a right click on a column's name in the header opens the
+// column's card under it; a ctrl-click there groups the rows by it, as clickHeader says; on a group's heading, they no
 // longer group by its column, the other groups kept.
-func (m *Model) groupClick(x, y int, nest, right bool) {
+func (m *Model) groupClick(x, y int, nest, right bool) tea.Cmd {
 	if column := m.headerColumn(x, y); right && column != "" {
-		m.openColumnMenu(column)
-		return
+		return m.openColumnMenu(column)
 	}
 	if m.inHeader(y) {
-		m.clickHeader(x, y, nest, true)
-		return
+		return m.clickHeader(x, y, nest, true)
 	}
 	lines := m.allLines(m.stage)
 	k, ok := m.placeAt(y)
 	if !ok || k < 0 || lines[k].Row < 0 {
-		return
+		return nil
 	}
 	p := m.panel(m.stage)
 	if column := p.Heading(m.rows(m.stage)[lines[k].Row]); column != "" {
 		m.setPanel(p.Grouped(column, true))
 	}
+	return nil
 }
 
 // clickHeader takes a click on the header, which is no row, above its rule, where each column's sort target stands, as
 // sortAt says: on its ▹ or ◃ it scrolls the columns, as table.ScrollColumns does; on its gutter it opens the header, or
-// closes it, when it hides lines; on a column's name it drops the column menu down under it. Where the terminal sends
+// closes it, when it hides lines; on a column's name it opens the column's card under it. Where the terminal sends
 // option or ctrl with a click, as many do not, also, as option asks, turns the column's sort, as the panel's Sorted
 // says, and group, as ctrl asks, groups the rows by it within the groups they have, innermost, or no longer, as the
 // panel's Grouped says. Elsewhere it does nothing.
@@ -687,7 +685,7 @@ func (m *Model) clickHeader(x, y int, also, group bool) tea.Cmd {
 	case also:
 		m.setPanel(p.Sorted(column))
 	default:
-		m.openColumnMenu(column)
+		return m.openColumnMenu(column)
 	}
 	return nil
 }
@@ -1283,7 +1281,7 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 
 // controlClick takes a click on the control line, the pane's first: on the ▾ or ▸ before a column's name in the
 // heading over the groups, or after the last, it opens or closes the level, as toggleLevel says; on a column's name
-// it drops the column's menu around it; on the preset's selector it drops the presets down; elsewhere it gives the
+// it opens the column's card around it; on the preset's selector it drops the presets down; elsewhere it gives the
 // preset line the keyboard, where the stage has one.
 func (m *Model) controlClick(x int) tea.Cmd {
 	if level, ok := table.LevelAt(m, x); ok {
@@ -1291,8 +1289,7 @@ func (m *Model) controlClick(x int) tea.Cmd {
 		return nil
 	}
 	if name, ok := table.NameAt(m, x); ok {
-		m.openFieldMenu(name.Column)
-		return nil
+		return m.openFieldMenu(name.Column)
 	}
 	if m.presets(m.stage) {
 		return m.presetClick(x)

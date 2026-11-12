@@ -1,7 +1,7 @@
 // The picture's layers: what it opens over itself, in the one order the keys, the clicks, the keys bar, and the drawing
 // follow, as shell.Layers says, the topmost first: what an issues action asks, which takes every key and click until it
-// is answered; a field's popover; the fields dialog, which the popover opens over; the presets' menu; the column menu;
-// the searches remembered under the search's ▾; the app's menu; the workspace menu's dropdown; and the tab's menu. The
+// is answered; a field's card; the fields dialog, which the card opens over; the presets' menu; the searches remembered
+// under the search's ▾; the app's menu; the workspace menu's dropdown; and the tab's menu. The
 // two menus that hang from the bar take a left click, and leave the others to the screen, as a right click under them
 // groups.
 package flow
@@ -35,7 +35,6 @@ func (m Model) layers() shell.Layers[Model] {
 		Pop:     func(m *Model) *table.Popover { return &m.pop },
 		Cols:    func(m *Model) *table.Columns { return &m.cols },
 		Presets: func(m *Model) *table.PresetMenu { return &m.presetsMenu },
-		Column:  func(m *Model) *table.ColumnMenu { return &m.colMenu },
 		Popped:  (*Model).askMe,
 		Choose:  (*Model).choosePreset,
 	}.Layers()...)
