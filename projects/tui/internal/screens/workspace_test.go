@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/opener"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 	"github.com/empowerite/kit/projects/tui/internal/welcome"
@@ -355,7 +356,7 @@ func TestOpenIsDoneByPlainClicksOverTheScreen(t *testing.T) {
 		t.Fatalf("no line holds %q:\n%s", text, ansi.Strip(m.View().Content))
 		return 0, 0
 	}
-	if m = drive(m, testkit.Click(at(shell.Folder+" far/"))); !m.opener.Open || m.opener.Typed != parent+"/far/" {
+	if m = drive(m, testkit.Click(at(opener.Folder+" far/"))); !m.opener.Open || m.opener.Typed != parent+"/far/" {
 		t.Fatalf("a click on far/: %+v", m.opener)
 	}
 	m = drive(m, testkit.Click(at(shell.Opening+" Open")))
@@ -388,7 +389,8 @@ func TestTheWheelScrollsTheOpenDialogsFolders(t *testing.T) {
 	}
 }
 
-// ⌃F in the Open… dialog walks the folder typed, and the clones it finds stand in the dialog, each opened by a click.
+// ⌃F in the Open… dialog walks the folder typed, and the clones it finds stand in the dialog as a table: a click on
+// one, then on Open, opens it.
 func TestTheOpenDialogFindsAndOpensTheClonesUnderAFolder(t *testing.T) {
 	m, record, _ := workspaced(t, map[string]string{"current.json": repoJSON})
 	parent := t.TempDir()
@@ -398,17 +400,44 @@ func TestTheOpenDialogFindsAndOpensTheClonesUnderAFolder(t *testing.T) {
 	m = drive(m, shell.OpenMsg{}, tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl})
 	m = drive(m, typed(parent+"/")...)
 	m = drive(m, tea.KeyPressMsg{Code: 'f', Mod: tea.ModCtrl})
-	view := ansi.Strip(m.View().Content)
-	if !strings.Contains(view, shell.Clone+" far") {
-		t.Fatalf("no clone found:\n%s", view)
-	}
-	for y, l := range strings.Split(view, "\n") {
-		if k := strings.Index(l, shell.Clone+" far"); k >= 0 {
-			m = drive(m, testkit.Click(ansi.StringWidth(l[:k]), y))
-			break
+	clickOn := func(text string, right int) {
+		t.Helper()
+		for y, l := range strings.Split(ansi.Strip(m.View().Content), "\n") {
+			if k := strings.Index(l, text); k >= 0 {
+				m = drive(m, testkit.Click(ansi.StringWidth(l[:k])+right, y))
+				return
+			}
 		}
+		t.Fatalf("no %q:\n%s", text, ansi.Strip(m.View().Content))
 	}
+	clickOn("  far", 4)
+	clickOn(shell.Opening+" Open far", 1)
 	if got, _ := os.ReadFile(record); !strings.Contains(string(got), "use "+filepath.Join(parent, "far")) {
-		t.Errorf("a click on the clone did not ask kit: %q", got)
+		t.Errorf("a click on the clone, then on Open, did not ask kit: %q", got)
+	}
+}
+
+// The clones the Open… dialog finds are added to a group kit keeps: kit runs with their folders, and what it said
+// stands in the dialog, which stays open, kit asked for the workspace again; kit's line, when it refuses, stands there.
+func TestTheOpenDialogAddsTheClonesFoundToAWorkspace(t *testing.T) {
+	current := strings.Replace(repoJSON, `"favorites":[]`, `"favorites":[],"workspaces":[{"name":"w","members":1}]`, 1)
+	m, record, _ := workspaced(t, map[string]string{"current.json": current})
+	parent := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(parent, "far", ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	m = drive(m, shell.OpenMsg{}, tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl})
+	m = drive(m, typed(parent+"/")...)
+	m = drive(m, tea.KeyPressMsg{Code: 'f', Mod: tea.ModCtrl}, testkit.Press("+"), testkit.Press("enter"))
+	view := ansi.Strip(m.View().Content)
+	if got, _ := os.ReadFile(record); !strings.Contains(string(got), "workspaces --add=w "+filepath.Join(parent,
+		"far")) || !strings.Contains(view, "📚 the fake did it") || !m.opener.Open || m.opener.Busy {
+		t.Errorf("Add All to w: %q\n%s", got, view)
+	}
+	t.Setenv("FAKE_KIT_REFUSE", "workspaces-edit")
+	m = drive(m, testkit.Press("+"), testkit.Press("enter"))
+	if view := ansi.Strip(m.View().Content); !strings.Contains(view, "❌ kit workspaces refuses the edit") ||
+		!m.opener.Open {
+		t.Errorf("kit refused:\n%s", view)
 	}
 }

@@ -26,6 +26,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/app"
 	"github.com/empowerite/kit/projects/tui/internal/flow"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/opener"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/tutorials"
@@ -44,7 +45,7 @@ type Model struct {
 	refusal   string                       // kit's line, when a screen asked for could not open, until the next key
 	settings  shell.Settings
 	dialog    shell.SettingsDialog
-	opener    shell.OpenDialog     // the Open… dialog, which the workspace menu's Open… opens over the screen shown
+	opener    opener.Dialog        // the Open… dialog, which the workspace menu's Open… opens over the screen shown
 	home      string               // where kittui was started, which the screens read over anything but a repository
 	start     string               // the group the first screen was made over, as kittui started with --workspace
 	workspace kit.Workspace        // the workspace kit said last, zero until it says
@@ -148,8 +149,43 @@ func (m Model) opening() Model {
 	if m.workspace.Kind == "repository" && m.workspace.Checkout != "" {
 		start = filepath.Dir(m.workspace.Checkout)
 	}
-	m.opener = shell.NewOpen(start, home)
+	m.opener = opener.New(start, home, m.workspace)
 	return m
+}
+
+// asking does what the Open… dialog asks, as it was before: open a repository's folder, or run kit, as it asks to
+// add clones to a group; else it walks for clones, when the dialog began a walk.
+func (m Model) asking(was opener.Dialog, ask opener.Ask) (tea.Model, tea.Cmd) {
+	switch {
+	case ask.Open != "":
+		return m.openFolder(ask.Open)
+	case ask.Words != nil:
+		r := m.runner
+		return m, func() tea.Msg {
+			out, err := r.Act(context.Background(), ask.Words...)
+			return editedMsg{out: out, err: err}
+		}
+	}
+	return m, m.opener.Walk(was)
+}
+
+// editedMsg is kit's answer to what the Open… dialog asked it to run: what it printed, or why it refused.
+type editedMsg struct {
+	out string
+	err error
+}
+
+// edited takes kit's answer to what the Open… dialog asked it to run: its line, when it refused, in the dialog; else
+// the last line kit printed, and kit asked for the workspace again, as after a screen had it change the groups, so the
+// dialog marks the members as they are now.
+func (m Model) edited(msg editedMsg) (tea.Model, tea.Cmd) {
+	if msg.err != nil {
+		m.opener = m.opener.Refused(refusalLine(msg.err))
+		return m, nil
+	}
+	lines := strings.Split(strings.TrimSpace(msg.out), "\n")
+	m.opener = m.opener.Done(strings.TrimSpace(lines[len(lines)-1]))
+	return m.regrouped(shell.ChangedMsg{})
 }
 
 // openFolder asks kit for the repository whose working tree holds the folder, as the latest ask, the Open… dialog's.
@@ -190,6 +226,9 @@ func (m Model) answered(msg workspaceMsg) (tea.Model, tea.Cmd) {
 		moved = msg.ws.Kind != m.workspace.Kind || msg.ws.Name != m.workspace.Name
 	}
 	m.workspace, m.refused = msg.ws, ""
+	if m.opener.Open {
+		m.opener = m.opener.Told(msg.ws)
+	}
 	m.runner.Dir, m.runner.Group, m.runner.NoGroup = m.home, "", msg.ws.Kind != "group"
 	switch {
 	case msg.ws.Kind == "group":
@@ -314,9 +353,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.opened(msg)
 	case shell.OpenMsg:
 		return m.opening(), nil
-	case shell.ClonesMsg:
+	case opener.ClonesMsg:
 		m.opener = m.opener.Found(msg)
 		return m, nil
+	case editedMsg:
+		return m.edited(msg)
 	case shell.ChangedMsg:
 		return m.regrouped(msg)
 	case shell.PickMsg:
@@ -333,11 +374,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.back()
 		}
 		if m.opener.Open && msg.String() != "ctrl+c" {
-			was, folder := m.opener, ""
-			if m.opener, folder = m.opener.Key(msg); folder != "" {
-				return m.openFolder(folder)
-			}
-			return m, m.opener.Walk(was)
+			was, ask := m.opener, opener.Ask{}
+			m.opener, ask = m.opener.Key(msg)
+			return m.asking(was, ask)
 		}
 		if m.dialog.Open && msg.String() != "ctrl+c" {
 			was := m.settings
@@ -349,11 +388,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.back()
 		}
 		if m.opener.Open {
-			was, folder := m.opener, ""
-			if m.opener, folder = m.opener.Click(msg, m.height(), m.width()); folder != "" {
-				return m.openFolder(folder)
-			}
-			return m, m.opener.Walk(was)
+			was, ask := m.opener, opener.Ask{}
+			m.opener, ask = m.opener.Click(msg, m.height(), m.width())
+			return m.asking(was, ask)
 		}
 		if m.dialog.Open {
 			was := m.settings
@@ -362,7 +399,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.MouseWheelMsg:
 		if m.opener.Open {
-			m.opener = m.opener.Wheel(msg)
+			m.opener = m.opener.Wheel(msg, m.height(), m.width())
 			return m, nil
 		}
 		if m.dialog.Open {
