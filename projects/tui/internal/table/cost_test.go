@@ -2,9 +2,8 @@ package table
 
 import (
 	"fmt"
-	"math"
+	"runtime"
 	"testing"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -38,44 +37,40 @@ func TestASheetsLinesAreDrawnOnceForWhatItShows(t *testing.T) {
 	}
 }
 
-// With ten thousand rows, a turn of the mouse wheel over them and its drawing take well under the 16 ms a frame lasts
-// at 60 frames a second: a wheel spun sends dozens of turns, and the screen is drawn after each, so a turn costs what
-// the columns and the lines on the screen do, not every row, and the rows keep up with the wheel. The race detector
-// slows everything about tenfold, so its bound is ten times as wide.
-func TestATurnOfTheWheelOverTenThousandRowsIsWellUnderAFramesTime(t *testing.T) {
-	budget := 16 * time.Millisecond / 2
-	if raceEnabled {
-		budget *= 10
+// A turn of the mouse wheel and its drawing copy no row: a wheel spun sends dozens of turns, and the screen is drawn
+// after each, so a turn that copied every row of a table of ten thousand, a few hundred bytes each, several times over,
+// would allocate tens of megabytes and leave the collector the rest of the frame. What a turn allocates is counted, not
+// timed, so the machine's load weighs on it not at all: over ten thousand rows a turn may allocate no more than 64
+// bytes a row past what it does over a thousand, the few a row a slice of each row's text takes.
+func TestATurnOfTheWheelCopiesNoRow(t *testing.T) {
+	allocated := func(rows int) uint64 {
+		s := NewSheet(things, "things", "75", "")
+		s.Place(4, 36, 120, 40)
+		records := make([]Record, rows)
+		for i := range records {
+			records[i] = thing(fmt.Sprintf("thing %05d", i), []string{"fruit", "vegetable"}[i%2],
+				"a note that says what the thing is, at some length")
+		}
+		s.SetRecords(records)
+		_ = s.View()
+		turn := tea.MouseWheelMsg{Button: tea.MouseWheelDown, X: 5, Y: s.top + s.height/2}
+		var before, after runtime.MemStats
+		runtime.ReadMemStats(&before)
+		for range turns {
+			s.Wheel(turn)
+			_ = s.View()
+		}
+		runtime.ReadMemStats(&after)
+		if s.tbl.Offset == 0 {
+			t.Errorf("the wheel did not scroll %d rows", rows)
+		}
+		return (after.TotalAlloc - before.TotalAlloc) / turns
 	}
-	s := NewSheet(things, "things", "75", "")
-	s.Place(4, 36, 120, 40)
-	records := make([]Record, 10000)
-	for i := range records {
-		records[i] = thing(fmt.Sprintf("thing %05d", i), []string{"fruit", "vegetable"}[i%2],
-			"a note that says what the thing is, at some length")
-	}
-	s.SetRecords(records)
-	_ = s.View()
-	turn := tea.MouseWheelMsg{Button: tea.MouseWheelDown, X: 5, Y: s.top + s.height/2}
-	if per := best(func() { s.Wheel(turn); _ = s.View() }); per > budget {
-		t.Errorf("a turn of the wheel and its drawing take %v, over %v", per, budget)
-	}
-	if s.tbl.Offset == 0 {
-		t.Error("the wheel did not scroll the rows")
+	few, many := allocated(1000), allocated(10000)
+	if many > few+9000*64 {
+		t.Errorf("a turn over ten thousand rows allocates %d bytes, over a thousand %d: it copies the rows", many, few)
 	}
 }
 
-// best gives how long do takes, the least of three batches of ten, so a moment the machine is busy elsewhere, or a
-// slower core, does not count against it.
-func best(do func()) time.Duration {
-	const batches, n = 3, 10
-	least := time.Duration(math.MaxInt64)
-	for range batches {
-		start := time.Now()
-		for range n {
-			do()
-		}
-		least = min(least, time.Since(start)/n)
-	}
-	return least
-}
+// turns is how many turns of the wheel TestATurnOfTheWheelCopiesNoRow counts the allocations of.
+const turns = 20

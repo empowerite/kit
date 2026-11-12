@@ -884,8 +884,13 @@ func Level(r Row) int {
 }
 
 // Every gives the whole outline the rows stand for, as group drew it: each closed heading followed by the rows it folds
-// away, in their places, which hold nothing folded.
+// away, in their places, which hold nothing folded. Where no row folds any away, as while no heading is closed, the
+// outline is the rows themselves, given as they are, not copied: a turn of the wheel asks for it several times, over
+// every row. Its callers read what it gives, and change none of it.
 func Every(rows []Row) []Row {
+	if !slices.ContainsFunc(rows, func(r Row) bool { return len(r.Folded) > 0 }) {
+		return rows
+	}
 	var out []Row
 	for _, r := range rows {
 		folded := r.Folded
