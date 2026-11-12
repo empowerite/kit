@@ -114,7 +114,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ "$(git rev-parse origin/main)" != "${before}" ]
 }
 
-@test "the primary setting names the primary: it is fetched first, and ahead and behind count against it" {
+@test "the primary setting names the primary: it is fetched first, and what is behind counts against it" {
   printf 'forge: gitlab\nprimary: upstream\nforges: {origin: github}\n' > kit.yml
   push-to upstream u1 main
   push-to upstream u2 main
@@ -124,10 +124,8 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
     = '["upstream",[["upstream","gitlab",2],["origin","github",0]]]' ]
   run kit flow incoming
   in-order "${lines[0]}" 'upstream' 'gitlab' '../upstream.git'
-  run kit flow desk --json
-  [ "$(jq -c '[.ahead, .behind]' <<<"$output")" = '[0,2]' ]
-  run kit flow desk
-  [[ "${lines[0]}" == *"↑0 ↓2"* ]]
+  run kit workspace worktrees --json
+  [ "$(jq -c '.rows[0] | [.kind, .base]' <<<"$output")" = '["desk",[0,2]]' ]
 }
 
 @test "a remote whose fetch fails shows ❌ and git's line, the others still show, and the stage exits 1" {
@@ -149,11 +147,10 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ "$(jq -c '[.rows[] | select(.kind == "remote") | [.remote, .change, (.subject != null)]]' <<<"$output")" \
     = '[["origin","unchanged",false],["gone","failed",true],["upstream","unchanged",false]]' ]
   # in the picture, incoming draws the failed remote beside the others, and the picture exits 1
-  printf 'forge: github\nforges: {upstream: gitlab}\nflow: [incoming, desk]\n' > kit.yml
+  printf 'forge: github\nforges: {upstream: gitlab}\nflow: [incoming]\n' > kit.yml
   run kit flow
   [ "$status" -eq 1 ]
   in-order "$output" $'INCOMING\n' 'origin' 'github' 'gone' 'no forge' $'\n❌ fatal: '
-  [[ "$output" == *$'DESK 1\n'* ]]
   run kit flow --json
   [ "$status" -eq 1 ]
   [ "$(jq -c '[.incoming.remotes[].name]' <<<"$output")" = '["origin","gone","upstream"]' ]

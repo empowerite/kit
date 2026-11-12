@@ -52,12 +52,17 @@ func stagesIn(s shell.Screen) []string {
 }
 
 // AppOf gives the app kit flow's or an app verb's words open on, and the words: Flow for kit flow, which opens on
-// the stage named among them; for an app verb, the app with a tab of a stage named among them, else the verb's home,
-// the app whose verb it is.
+// the stage named among them, but Repositories on its worktrees for kit flow desk or worktrees, which are no stages of
+// kit flow's; for an app verb, the app with a tab of a stage named among them, else the verb's home, the app whose verb
+// it is.
 func AppOf(verb string, words []string) (shell.Screen, []string) {
 	words = slices.Clone(words)
 	home := slices.IndexFunc(apps, func(a entityApp) bool { return a.verb == verb })
 	if home < 0 {
+		if i := slices.IndexFunc(words, func(w string) bool { return w == "desk" || w == "worktrees" }); i >= 0 {
+			words[i] = "worktrees"
+			return shell.Repositories, words
+		}
 		return shell.Flow, words
 	}
 	for _, w := range words {

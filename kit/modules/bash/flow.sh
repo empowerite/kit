@@ -1,37 +1,34 @@
 # shellcheck shell=bash
-# flow.sh - the picture of the work: seven stages, drawn one at a time or all together (sourced module)
+# flow.sh - the picture of the work: five stages, drawn one at a time or all together (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
 #
-# kit flow draws the picture. Work moves left to right through seven stages:
+# kit flow draws the picture. Work moves left to right through five stages:
 #
-#   issues → desk → worktrees → changes → builds → incoming → releases
+#   issues → changes → builds → incoming → releases
 #
 # The flow setting in kit.yml names the stages the picture draws, in order. flow:render draws one stage, or
 # the picture: every stage under its heading: its glyph, its name, and its count, dim. The rows of issues, changes,
-# builds, and releases live in the modules named after them. The desk, worktrees, and incoming stages, and the cells
-# every table shares, are here.
+# builds, and releases live in the modules named after them. The incoming stage, and the cells
+# every table shares, are here. The desk and the worktrees are kit workspace worktrees', in modules/bash/workspace.sh.
 #
-# The desk stage is the root checkout, wherever kit runs in the repository. Where it runs decides what worktrees
-# and changes draw:
+# Where it runs decides what changes draws:
 #
-#   - At a desk, the root checkout: every linked worktree, the branches whose upstream is gone, and every open pull
-#     request.
-#   - In a linked worktree: that worktree, and the pull request its branch holds, whoever opened it. The owner flags
-#     never hide it.
+#   - At a desk, the root checkout: every open pull request.
+#   - In a linked worktree: the pull request its branch holds, whoever opened it. The owner flags never hide it.
 #   - Above desks, in a directory inside no repository's working tree, a bare repository or a .git directory too:
 #     it walks down. Every directory that holds a .git directory is a desk. The walk stops there, and draws that
 #     desk's picture under its path, with the same arguments. It skips hidden directories and symbolic links, and
 #     goes no deeper than flow_walk_depth. The desks are drawn in path order, each with a fetch of its own.
 #
-# issues, desk, incoming, builds, and releases draw the same anywhere in a repository.
+# issues, incoming, builds, and releases draw the same anywhere in a repository.
 #
 # The primary remote is the primary setting in kit.yml, else origin; modules/bash/forge.sh says how. The incoming
 # stage fetches every remote, and the rest measure against the primary.
 #
 # The picture collects first and draws after. The forge stages run in the background while the remotes are fetched.
-# Then the checkouts are measured, and every stage is drawn in order. A repository with no primary remote draws its
-# checkouts alone, and says so once.
+# Then every stage is drawn in order. A repository with no primary remote fetches nothing, asks no forge, and says so
+# once.
 #
 # Which pull requests and issues are shown:
 #
@@ -66,9 +63,6 @@ use file git settings workspaces issues changes builds releases
 
 # flow_walk_depth is how many directories below the one it runs in kit flow looks for desks, above desks.
 flow_walk_depth=4
-
-# flow_commit_cap is how many uncommitted paths or commits a checkout block lists before it counts the rest.
-flow_commit_cap=10
 
 # flow_sep separates the cells of every row kit flow prints, and flow_gap replaces it before a cell that
 # opens with a glyph, which marks the boundary already. A blank cell that stands in for one takes the gap too.
@@ -124,6 +118,24 @@ declare -gA flow_glyphs=(
   [Milestone]='⛳'
   [Iteration]='📅'
   [Swimlane]='🏊'
+  [Review]='🧐'
+  [Check]='🩺'
+  [Merged]='🤝'
+  [Artifact]='📀'
+  [Environment]='🏢'
+  [Deployment]='🚀'
+  [Person]='🧑'
+  [Team]='👪'
+  [Agent]='🤖'
+  [Evidence]='🧾'
+  [Finding]='🐛'
+  [Control]='🔒'
+  [Waiver]='🔓'
+  [Policy]='📏'
+  [Service]='🔌'
+  [Toolchain]='🧰'
+  [Tool]='🔩'
+  [Setting]='🔧'
   [Other]='🔳'
 )
 declare -gA flow_stage_glyphs=(
@@ -152,15 +164,13 @@ flow:stage-purpose() {
   case "$1" in
     (issues) printf 'every open issue, oldest first, in the backlog or underway: who works on each, and where\n' ;;
     (incoming) printf 'what the fetch brought: commits on the default branch, branches new and gone\n' ;;
-    (desk) printf 'the root checkout: branch, ahead and behind, commits, uncommitted paths\n' ;;
-    (worktrees) printf 'every linked worktree: branch, ahead and behind, commits, uncommitted paths\n' ;;
     (changes) printf 'the open pull requests, each with the issues it closes\n' ;;
     (builds) printf 'the runs not owned by any pull request: the default branch, tags, schedules\n' ;;
     (releases) printf 'the releases on the forge, newest first\n' ;;
   esac
 }
 
-# flow:choices <key> [<answer>…] answers kit syntax --choices for <stage>: the seven stages, a closed set, each with
+# flow:choices <key> [<answer>…] answers kit syntax --choices for <stage>: the five stages, a closed set, each with
 # what it lists.
 flow:choices() {
   local stage
@@ -699,16 +709,6 @@ flow:select() {
   fi
 }
 
-# flow:fork <branch> <default-branch> prints the commit where <branch> left the default branch at the primary
-# remote, or else the local one, or nothing.
-flow:fork() {
-  local primary
-  primary=$(forge:primary) || return $?
-  # A branch with no fork from either has none, and prints nothing.
-  git merge-base --end-of-options "${primary}/$2" "$1" 2>/dev/null \
-    || git merge-base --end-of-options "$2" "$1" 2>/dev/null || true
-}
-
 # flow:relative <path> prints <path> relative to the directory the command was run from: ".", a path down, or
 # a path up through ../. Both paths are resolved physically (the target through its nearest existing directory),
 # so a symlinked directory on either side still gives the right ../ path.
@@ -738,165 +738,6 @@ flow:relative() {
   else
     printf '%s%s\n' "${up}" "${target#"${here}"/}"
   fi
-}
-
-# flow:checkout <path> <branch> <default-branch> prints one JSON object that measures the checkout at <path>.
-# The fork point is where the branch left the primary remote's default branch. The fields:
-#
-#   path, relative      the checkout's path, and that path relative to the caller's directory
-#   branch, detached    the branch (empty when detached), and whether the checkout is detached
-#   ahead, behind       the commits on the branch past the fork point, and on the primary's default branch past it
-#   added, removed      the lines the working tree adds and removes against the fork point
-#   uncommitted         the number of uncommitted paths
-#   changes             each uncommitted path as {status, path}, with git's two-letter status
-#   commits             the commits past the fork point, as [{sha, subject}]
-#
-# A detached checkout measures its lines against its own HEAD and lists no commits.
-flow:checkout() {
-  local path=$1 branch=$2 default_branch=$3 fork='' ahead=0 behind=0 added=0 removed=0 changes a r _ primary row
-  local -a numstat
-  primary=$(forge:primary) || return $?
-  [[ -n "${branch}" ]] && fork=$(flow:fork "${branch}" "${default_branch}")
-  if [[ -n "${fork}" ]]
-  then
-    ahead=$(git rev-list --count "${fork}..${branch}" 2>/dev/null || printf 0)
-    behind=$(git rev-list --count "${fork}..${primary}/${default_branch}" 2>/dev/null || printf 0)
-  fi
-  # A checkout with no commit has no HEAD to diff against, and counts no line. Any other's lines are counted, and a
-  # diff git cannot make fails the measure.
-  if git -C "${path}" rev-parse --verify --quiet HEAD >/dev/null
-  then
-    if ! list:read numstat git -C "${path}" diff --numstat "${fork:-HEAD}"
-    then
-      error "run: git -C '${path}' diff --numstat ${fork:-HEAD} (the lines changed in ${path} could not be counted)"
-      return 1
-    fi
-  fi
-  for row in "${numstat[@]}"
-  do
-    IFS=$'\t' read -r a r _ <<<"${row}"
-    [[ -n "${a}" && "${a}" != '-' ]] && added=$(( added + a ))
-    [[ -n "${r}" && "${r}" != '-' ]] && removed=$(( removed + r ))
-  done
-  if ! changes=$(git -C "${path}" status --porcelain)
-  then
-    error "run: git -C '${path}' status (the uncommitted paths in ${path} could not be read)"
-    return 1
-  fi
-  {
-    [[ -n "${fork}" ]] && git -C "${path}" log --format='%h%x09%s' "${fork}..${branch}" 2>/dev/null
-    true
-  } | jq -L "${kit_jq}" --raw-input --slurp --compact-output \
-    --arg path "${path}" --arg relative "$(flow:relative "${path}")" --arg branch "${branch}" \
-    --argjson ahead "${ahead}" --argjson behind "${behind}" --argjson added "${added}" --argjson removed "${removed}" \
-    --arg changes "${changes}" \
-    'import "flow" as flow; flow::checkout($ARGS.named | del(.changes); $changes)'
-}
-
-# flow:label <relative> <branch> prints a checkout's label and its plain width, tab-separated. The label is:
-#
-#   - for a detached checkout: its path
-#   - at ".": the branch alone
-#   - when the path's last component is the branch or ends in "-<branch>": the path, with the directory dim and
-#     the branch underlined
-#   - otherwise: "<branch> on <path>"
-flow:label() {
-  local relative=$1 branch=$2 dir
-  if [[ -z "${branch}" ]]
-  then
-    printf '%s\t%s\n' "${relative}" "${#relative}"
-  elif [[ "${relative}" == "." ]]
-  then
-    printf '%s\t%s\n' "${branch}" "${#branch}"
-  elif [[ "${relative##*/}" == "${branch}" || "${relative##*/}" == *"-${branch}" ]]
-  then
-    dir=${relative%"${branch}"}
-    printf '%s%s\t%s\n' "$(flow:paint 90 "${dir}")" "$(flow:paint 4 "${branch}")" "${#relative}"
-  else
-    printf '%s %s %s\t%s\n' "${branch}" "$(flow:paint 90 on)" "${relative}" $(( ${#branch} + 4 + ${#relative} ))
-  fi
-}
-
-# flow:paint-count <count> <sign> <sgr> <width> <side> prints <sign><count> padded to <width> characters,
-# aligned to <side> (left or right). The text is in <sgr> above zero and dim at zero. It pads by characters,
-# because the arrows are multibyte and printf's field width counts bytes.
-flow:paint-count() {
-  local count=$1 sign=$2 sgr=$3 width=$4 side=$5 text pad=''
-  (( count > 0 )) || sgr=90
-  text="${sign}${count}"
-  (( ${#text} < width )) && printf -v pad '%*s' $(( width - ${#text} )) ''
-  if [[ "${side}" == right ]]
-  then
-    printf '%s%s' "${pad}" "$(flow:paint "${sgr}" "${text}")"
-  else
-    printf '%s%s' "$(flow:paint "${sgr}" "${text}")" "${pad}"
-  fi
-}
-
-# flow:measures <checkout-json> [<widths>] prints "↑a ↓b · +x -y", then " · n uncommitted" in yellow when n is
-# above zero. <widths> is flow:count-widths' line. With it, ahead and added are right-aligned, and behind and
-# removed left-aligned, in columns of those widths, so the dots line up across rows.
-flow:measures() {
-  local ahead behind added removed uncommitted ahead_w=0 behind_w=0 added_w=0 removed_w=0
-  IFS=$'\t' read -r ahead behind added removed uncommitted \
-    < <(jq --raw-output '[.ahead, .behind, .added, .removed, .uncommitted] | @tsv' <<<"$1")
-  [[ -n "${2:-}" ]] && IFS=' ' read -r ahead_w behind_w added_w removed_w <<<"$2"
-  # The last column is padded only when something follows it, so no row ends in trailing spaces.
-  (( uncommitted > 0 )) || removed_w=0
-  printf '%s %s%s%s %s' \
-    "$(flow:paint-count "${ahead}" '↑' '1;32' "${ahead_w}" right)" \
-    "$(flow:paint-count "${behind}" '↓' '1;31' "${behind_w}" left)" \
-    "${flow_sep}" \
-    "$(flow:paint-count "${added}" '+' '1;32' "${added_w}" right)" \
-    "$(flow:paint-count "${removed}" '-' '1;31' "${removed_w}" left)"
-  (( uncommitted > 0 )) && printf '%s%s' "${flow_sep}" "$(flow:paint 33 "${uncommitted} uncommitted")"
-  return 0
-}
-
-# flow:count-widths <checkout-json>… prints the widest "↑a", "↓b", "+x", and "-y" across the checkouts, as four
-# numbers on one line.
-flow:count-widths() {
-  printf '%s\n' "$@" | jq -L "${kit_jq}" --raw-output --slurp 'import "flow" as flow; flow::widths'
-}
-
-# flow:checkout-block <glyph> <checkout-json> <label-width> [<widths>] prints a checkout:
-#
-#   1. its row, with the counts in flow:count-widths' columns
-#   2. its uncommitted paths, each with its status in yellow
-#   3. its commits, each with its hash dim
-#
-# Past flow_commit_cap, it prints the first paths and a count of the rest. For commits, it prints the newest
-# ones, a dim count of the hidden ones, and the oldest one.
-flow:checkout-block() {
-  local glyph=$1 doc=$2 label_w=$3 widths=${4:-} relative branch label width mark='' sha subject code path
-  IFS=$'\x1f' read -r relative branch < <(jq --raw-output '[.relative, .branch] | join("\u001f")' <<<"${doc}")
-  IFS=$'\t' read -r label width < <(flow:label "${relative}" "${branch}")
-  [[ -n "${branch}" ]] || mark="${flow_gap}$(flow:paint 33 "${flow_glyphs[Detached]} detached HEAD")"
-  printf '%s %s%*s%s%s%s\n' "${glyph}" "${label}" $(( label_w - width )) '' "${mark}" "${flow_sep}" \
-    "$(flow:measures "${doc}" "${widths}")" >&2
-  # A status can start with a space, which a tab-separated read would drop, so the separator is \x1f instead.
-  while IFS=$'\x1f' read -r code path
-  do
-    [[ -n "${path}" ]] || continue
-    if [[ "${code}" == '…' ]]
-    then
-      printf '   %s\n' "$(flow:paint 90 "… ${path}")" >&2
-    else
-      printf '   %s %s\n' "$(flow:paint 33 "${code}")" "${path}" >&2
-    fi
-  done < <(jq -L "${kit_jq}" --raw-output --argjson cap "${flow_commit_cap}" \
-    'import "flow" as flow; flow::changes_shown($cap) | join("\u001f")' <<<"${doc}")
-  while IFS=$'\t' read -r sha subject
-  do
-    [[ -n "${sha}" ]] || continue
-    if [[ "${sha}" == '…' ]]
-    then
-      printf '   %s\n' "$(flow:paint 90 "… ${subject}")" >&2
-    else
-      printf '   %s %s\n' "$(flow:paint 90 "${sha}")" "${subject}" >&2
-    fi
-  done < <(jq -L "${kit_jq}" --raw-output --argjson cap "${flow_commit_cap}" \
-    'import "flow" as flow; flow::commits_shown($cap) | @tsv' <<<"${doc}")
 }
 
 # flow:check-cell <checks-json> prints the checks cell, with the duration dim:
@@ -999,9 +840,9 @@ flow:issue-row() {
 # the table.
 flow:pr-block() {
   local doc=$1 title_w=$2 owner_w=$3 state_w=$4 age_w=$5 worktree=$6 issue_widths=$7
-  local number ref title author branch state age unresolved row issue checks
-  IFS=$'\x1f' read -r number ref title author branch state age unresolved \
-    < <(jq --raw-output '[.number, (.ref // "#\(.number)"), .title, .author, .branch, .state, .age, .unresolved]
+  local ref title author branch state age unresolved row issue checks
+  IFS=$'\x1f' read -r ref title author branch state age unresolved \
+    < <(jq --raw-output '[(.ref // "#\(.number)"), .title, .author, .branch, .state, .age, .unresolved]
           | map(tostring)
           | join("\u001f")' <<<"${doc}")
   row="${flow_glyphs[Change]} $(flow:paint "${flow_change_sgr}" "${ref}") $(flow:cell "${title}" $(( title_w - ${#ref} - 1 )))"
@@ -1055,139 +896,10 @@ flow:pr-table() {
   done <<<"${prs}"
 }
 
-# flow_worktrees and flow_gone hold what flow:worktrees measured: each linked worktree's document in
-# issue-number order, or the one worktree's, each flow:checkout's JSON; and the branches whose upstream is gone,
-# one per line, none in a worktree.
-declare -g flow_gone=''
-declare -ga flow_worktrees=()
-
-# flow:desk [--json] is the desk stage. It measures the root checkout, wherever kit runs in the repository, and
-# draws its block. With --json it prints the checkout's object instead.
-flow:desk() {
-  local main_root branch doc default_branch
-  default_branch=$(git:default-branch) || return $?
-  main_root=$(git:main-root)
-  branch=$(git -C "${main_root}" symbolic-ref --quiet --short HEAD 2>/dev/null || true)  # detached: none
-  doc=$(flow:checkout "${main_root}" "${branch}" "${default_branch}") || return $?
-  if [[ " $* " == *" --json "* ]]
-  then
-    printf '%s\n' "${doc}"
-  else
-    flow:draw-desk "${doc}"
-  fi
-}
-
-# flow:draw-desk <checkout-json> draws the desk's block.
-flow:draw-desk() {
-  local relative branch width
-  IFS=$'\x1f' read -r relative branch < <(jq --raw-output '[.relative, .branch] | join("\u001f")' <<<"$1")
-  IFS=$'\t' read -r _ width < <(flow:label "${relative}" "${branch}")
-  flow:checkout-block "${flow_glyphs[Desk]}" "$1" "${width}"
-}
-
-# flow:linked <default-branch> measures every linked worktree, from the primary's default branch, into
-# flow_worktrees. A worktree whose directory is gone, which git lists as prunable, is left out with a warning that
-# names kit tidy, which prunes it.
-flow:linked() {
-  local path branch row text doc
-  local -a rows
-  flow_worktrees=()
-  list:read rows git:linked-worktrees || return 1
-  printf -v text '%s\n' "${rows[@]}"
-  list:read rows flow:by-number <<<"${text}" || return 1
-  for row in "${rows[@]}"
-  do
-    IFS=$'\t' read -r path _ branch <<<"${row}"
-    [[ -n "${path}" ]] || continue
-    if [[ ! -d "${path}" ]]
-    then
-      warn "$(flow:relative "${path}"): the worktree's directory is gone; run: kit tidy"
-      continue
-    fi
-    doc=$(flow:checkout "${path}" "${branch}" "$1") || return 1
-    flow_worktrees+=("${doc}")
-  done
-}
-
-# flow:draw-checkouts draws what flow:worktrees measured: each worktree's block, the labels and the counts in
-# columns, a blank line between blocks.
-flow:draw-checkouts() {
-  local label_w=0 width relative branch widths doc first=true
-  for doc in "${flow_worktrees[@]}"
-  do
-    IFS=$'\x1f' read -r relative branch < <(jq --raw-output '[.relative, .branch] | join("\u001f")' <<<"${doc}")
-    IFS=$'\t' read -r _ width < <(flow:label "${relative}" "${branch}")
-    (( width > label_w )) && label_w=${width}
-  done
-  widths=$(flow:count-widths "${flow_worktrees[@]}")
-  for doc in "${flow_worktrees[@]}"
-  do
-    if [[ "${first}" == true ]]
-    then first=false
-    else printf '\n' >&2
-    fi
-    flow:checkout-block "${flow_glyphs[Branch]}" "${doc}" "${label_w}" "${widths}"
-  done
-}
-
 # flow:in-worktree succeeds in a linked worktree, whose git directory is not the repository's common one.
 flow:in-worktree() {
   [[ "$(git rev-parse --path-format=absolute --git-dir)" \
     != "$(git rev-parse --path-format=absolute --git-common-dir)" ]]
-}
-
-# flow:worktrees [--json] is the worktrees stage. It measures the linked worktrees and draws them: at a desk,
-# every one in issue-number order, and the branches whose upstream is gone; in a worktree, that worktree alone.
-# With --json it prints flow:worktrees-json's object instead.
-flow:worktrees() {
-  local default_branch here branch doc
-  default_branch=$(git:default-branch) || return $?
-  flow_gone='' flow_worktrees=()
-  if flow:in-worktree
-  then
-    here=$(git rev-parse --show-toplevel)
-    branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)  # detached: none
-    doc=$(flow:checkout "${here}" "${branch}" "${default_branch}") || return 1
-    flow_worktrees=("${doc}")
-  else
-    flow:linked "${default_branch}" || return 1
-    flow_gone=$(git:gone-branches)
-  fi
-  if [[ " $* " == *" --json "* ]]
-  then
-    flow:worktrees-json
-  else
-    flow:draw-worktrees
-  fi
-}
-
-# flow:worktrees-json prints what flow:worktrees measured as one object: worktrees, the checkouts' documents;
-# and goneBranches, the names.
-flow:worktrees-json() {
-  local gone
-  gone=$(printf '%s\n' "${flow_gone}" | jq --raw-input . | jq --slurp --compact-output 'map(select(. != ""))')
-  jq --null-input --compact-output \
-    --argjson worktrees "$(printf '%s\n' "${flow_worktrees[@]}" | jq --slurp --compact-output .)" \
-    --argjson goneBranches "${gone}" '{worktrees: $worktrees, goneBranches: $goneBranches}'
-}
-
-# flow:draw-worktrees draws what flow:worktrees measured: the checkout blocks, or a dim line that says no
-# worktree; then, after a blank line, each gone branch as 🔖 <branch> · upstream gone · kit tidy removes it.
-flow:draw-worktrees() {
-  local branch
-  if (( ${#flow_worktrees[@]} == 0 ))
-  then
-    flow:none 'no worktree'
-  else
-    flow:draw-checkouts
-  fi
-  [[ -n "${flow_gone}" ]] || return 0
-  printf '\n' >&2
-  while IFS= read -r branch
-  do
-    printf '%s %s%s%s\n' "${flow_glyphs[Gone]}" "${branch}" "${flow_sep}" \
-      "$(flow:paint 90 "upstream gone${flow_sep}kit tidy removes it")" >&2
-  done <<<"${flow_gone}"
 }
 
 # flow:stage <stage> [<argument>…] prints one stage, without its heading, with the arguments the stage takes.
@@ -1197,8 +909,6 @@ flow:stage() {
   case "${stage}" in
     (issues) issues:render "$@" ;;
     (incoming) flow:incoming "$@" ;;
-    (desk) flow:desk "$@" ;;
-    (worktrees) flow:worktrees "$@" ;;
     (changes) changes:render "$@" ;;
     (builds) builds:render "$@" ;;
     (releases) releases:render "$@" ;;
@@ -1207,7 +917,7 @@ flow:stage() {
 
 # flow:kept <stage> <argument>… prints the path that keeps the stage's last JSON, as this checkout printed it with these
 # arguments: under kit/flow/ in the repository's common git directory, which every worktree shares, named for the
-# stage, the checkout, and the arguments, since desk and worktrees draw what the checkout they run in sees.
+# stage, the checkout, and the arguments, since changes draws what the checkout it runs in sees.
 flow:kept() {
   local common top
   common=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || return 1
@@ -1294,12 +1004,12 @@ flow:picture-document() {
 
 # flow:picture [--no-fetch] [--json] [<owner flag>…] draws every stage the flow setting names, in its order, or
 # prints the picture as one JSON object. It collects first and draws after: the forge stages run in the background
-# while the remotes are fetched; then the checkouts are measured; then each stage is drawn in order, under its
-# heading. A stage that failed is drawn as its refusal, and the picture returns 1 at the end, in either form. So does
-# a fetch that failed: incoming draws it on its remote's line, and without incoming, the primary is fetched alone and
-# a failure warns once. With no primary remote it fetches nothing and asks the forge nothing: it draws the checkouts,
-# says so once, and returns 0. A primary whose forge kit cannot tell is fetched, and drawn with the checkouts; the
-# forge stages are left out, said once. It returns 1 when a setting is wrong.
+# while the remotes are fetched; then each stage is drawn in order, under its heading. A stage that failed is drawn as
+# its refusal, and the picture returns 1 at the end, in either form. So does a fetch that failed: incoming draws it on
+# its remote's line, and without incoming, the primary is fetched alone and a failure warns once. With no primary
+# remote it fetches nothing and asks the forge nothing: it says so once, and returns 0. A primary whose forge kit
+# cannot tell is fetched, and drawn with incoming; the forge stages are left out, said once. It returns 1 when a
+# setting is wrong.
 flow:picture() {
   local json=false no_fetch=false reachable=true forged=true failed=false first=true stage doc code choice scratch text
   local primary host said
@@ -1337,7 +1047,7 @@ flow:picture() {
         ) > "${scratch}/${stage}.json" 2> "${scratch}/${stage}.err" &
     esac
   done
-  # The fetch comes before the checkouts are measured, so ahead and behind count against the primary as it is now.
+  # The fetch keeps the primary's branches as it has them now, the branches that claim an issue in the backlog.
   if [[ "${reachable}" == false ]]
   then
     true
@@ -1348,15 +1058,9 @@ flow:picture() {
     printf '%s\n' "${code}" > "${scratch}/incoming.status"
   elif [[ "${no_fetch}" == false ]] && ! git fetch --quiet --prune --end-of-options "${primary}" 2>/dev/null
   then
-    warn "git fetch --prune failed; ahead and behind counts may be stale"
+    warn "git fetch --prune failed; the branches on ${primary} may be stale"
     failed=true
   fi
-  for stage in desk worktrees
-  do
-    list:among "${stage}" "${stages[@]}" || continue
-    flow:stage "${stage}" --json > "${scratch}/${stage}.json" 2> "${scratch}/${stage}.err" && code=0 || code=$?
-    printf '%s\n' "${code}" > "${scratch}/${stage}.status"
-  done
   wait
   # One rule for both forms: a stage that ran and failed makes the picture return 1, as a fetch that failed does. A
   # stage that did not run, with no primary remote, is no failure.
@@ -1391,7 +1095,6 @@ flow:picture() {
   for stage in "${stages[@]}"
   do
     case "${stage}" in
-      (desk | worktrees) ;;
       (incoming) [[ "${reachable}" == true ]] || continue ;;
       (*) [[ "${reachable}" == true && "${forged}" == true ]] || continue
     esac
@@ -1416,14 +1119,6 @@ flow:picture() {
       (incoming)
         flow:heading incoming
         flow:incoming-text "${doc}"
-        ;;
-      (desk)
-        flow:heading desk 1
-        flow:draw-desk "${doc}"
-        ;;
-      (worktrees)
-        flow:heading worktrees "$(jq '.worktrees | length' <<<"${doc}")"
-        flow:draw-worktrees
         ;;
       (changes)
         flow:heading changes "$(jq 'length' <<<"${doc}")"
@@ -1456,7 +1151,7 @@ flow:render() {
     return
   fi
   case "${1:-}" in
-    (issues | desk | worktrees | changes | incoming | builds | releases)
+    (issues | changes | incoming | builds | releases)
       stage=$1
       shift
   esac
@@ -1541,20 +1236,6 @@ flow:above() {
     cat "${scratch}/${index}.err" "${scratch}/${index}.out" >&2
   done
   [[ "${failed}" == false ]]
-}
-
-# flow:by-number sorts git:worktrees lines by the issue number their directory name starts with. A directory
-# name that does not start with a number sorts first.
-flow:by-number() {
-  local path rest dir number
-  while IFS=$'\t' read -r path rest
-  do
-    [[ -n "${path}" ]] || continue
-    dir=${path##*/}
-    number=${dir%%-*}
-    [[ "${number}" =~ ^[0-9]+$ ]] || number=0
-    printf '%s\t%s\t%s\n' "${number}" "${path}" "${rest}"
-  done | sort -n -k1,1 | cut -f2-
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

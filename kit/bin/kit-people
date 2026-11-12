@@ -48,6 +48,30 @@
 #                       document is limited, at the bots drawn. GitLab's are its bot users among the members, acted
 #                       null, last the day each last acted. Azure DevOps names no bots, and draws none
 #
+# Legend
+#
+# Each stage lists the glyphs it draws in kittui, one per line. A glyph can show under more than one stage.
+#
+# kit:generate legend `k=$(command -v kit); jq -nr -L "${k%/bin/kit}/modules/jq" 'import "glyphs" as g; g::legend_for("people")'`
+#   📚  workspace: a group, in the workspace menu that drops down from - in kittui's title
+#
+# people:
+#
+#   🧑  person: one with access to the repository, and their role
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# teams:
+#
+#   👪  team: a team with access to the repository, and its members
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# agents:
+#
+#   🤖  agent: a bot that acts on the repository, what it did, and when last
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# kit:end legend
+#
 # Arguments:
 #   --text              prints the stages as text, even on a terminal
 #   --json              the stages as one JSON object: stages, then each stage's document under its name, null for one

@@ -70,6 +70,9 @@ func TestKitFlowOpensFlowAndKitWorkspacesWordsTheAppWithTheTabNamed(t *testing.T
 		{"flow", "changes", shell.Flow, "changes"},
 		{"flow", "builds", shell.Flow, "builds"},
 		{"flow", "incoming --no-fetch", shell.Flow, "incoming --no-fetch"},
+		// desk and worktrees are no stages of kit flow: Repositories' worktrees draws them, the desk its first row
+		{"flow", "desk", shell.Repositories, "worktrees"},
+		{"flow", "worktrees --no-fetch", shell.Repositories, "worktrees --no-fetch"},
 		{"workspace", "", shell.Repositories, ""},
 		{"workspace", "branches", shell.Repositories, "branches"},
 		{"packages", "", shell.Packages, ""},

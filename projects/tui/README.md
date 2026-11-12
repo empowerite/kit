@@ -332,4 +332,5 @@ Name the packages. `./...` fails, because packages that do not import `internal/
 is stale, and it prints the command that refreshes it.
 
 Tests that run kit run a fake one, a `testdata/fake-kit` script, never the real one. The flow legend tests read the
-real [kit/bin/kit-flow](../../kit/bin/kit-flow), so the picture and the help agree on every glyph.
+real [kit/bin/kit-flow](../../kit/bin/kit-flow), and each app verb's header, as kit-issues, so the picture and the
+help agree on every glyph.

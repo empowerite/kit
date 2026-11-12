@@ -29,12 +29,14 @@
                               where
    incoming                   what fetching every remote brought: default-branch commits, branches
                               new and gone
-   desk                       the root checkout: branch, ahead and behind, uncommitted paths
-   worktrees                  every linked worktree: branch, ahead and behind, uncommitted paths
    changes                    the open pull requests, each with the issues it closes
    builds                     the runs not owned by any pull request: the default branch, tags,
                               schedules
    releases                   the releases on the forge, newest first
+   desk                       no stage of kit flow: kit workspace worktrees draws the root checkout,
+                              its first row
+   worktrees                  no stage of kit flow: kit workspace worktrees draws the linked
+                              worktrees
    backlog                    no stage of kit flow: issues lists them; on a terminal it opens issues
                               on its Backlog preset
    underway                   no stage of kit flow: issues lists them; on a terminal it opens issues

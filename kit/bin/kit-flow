@@ -10,19 +10,20 @@
 #   kit flow --marks
 #   kit flow issues [--json | --jq] [--cached] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]]
 #   kit flow incoming [--no-fetch] [--json | --jq] [--cached]
-#   kit flow desk [--json | --jq] [--cached]
-#   kit flow worktrees [--json | --jq] [--cached]
 #   kit flow changes [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]] [<number>…]
 #   kit flow builds [--json | --jq] [--cached]
 #   kit flow releases [--json | --jq] [--cached]
+#   kit flow desk [--text | --json | --jq]
+#   kit flow worktrees [--text | --json | --jq]
 #   kit flow backlog [--text | --json | --jq] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]]
 #   kit flow underway [--text | --json | --jq] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]]
 #
-# Draws the picture of the work. It changes nothing. Work moves left to right through seven stages:
+# Draws the picture of the work. It changes nothing. Work moves left to right through five stages:
 #
-#   issues → desk → worktrees → changes → builds → incoming → releases
+#   issues → changes → builds → incoming → releases
 #
-# The fetch lands on the desk, the root checkout. Worktrees branch from it, and pull requests come from them.
+# The desk, the root checkout, and the worktrees that branch from it are no stages of kit flow: kit workspace
+# worktrees draws them, the desk its first row. Pull requests come from the worktrees.
 #
 # One remote is the primary: the primary setting in kit.yml, else origin. Ahead and behind, the default branch, pull
 # requests, builds, releases, and issues are read from it. incoming fetches every remote, the primary first, and
@@ -31,15 +32,15 @@
 #
 # The flow setting in kit.yml names the stages drawn, in order. On a terminal, kit flow opens the picture in
 # kittui, and kit flow <stage> opens it with that stage maximized. Without one, or with --text, --json, or --jq, it
-# prints the stages as text. Where it runs decides what worktrees and changes draw:
+# prints the stages as text. Where it runs decides what changes draws:
 #
-#   - at a desk: every linked worktree, and every open pull request
-#   - in a worktree: that worktree, and the pull request its branch holds
+#   - at a desk: every open pull request
+#   - in a worktree: the pull request its branch holds
 #   - above desks, in a directory inside no repository's working tree, a bare repository or a .git directory too,
 #     with no group used last, or under kit --workspace=none: each desk below it, under its path, four levels down
 #
-# issues, desk, incoming, builds, and releases draw the same anywhere. A repository with no primary
-# remote draws its checkouts, fetches nothing, and says so once.
+# issues, incoming, builds, and releases draw the same anywhere. A repository with no primary remote
+# fetches nothing, asks no forge, and says so once.
 #
 # The open pull requests and the open issues are read from the forge at most once a minute. The stages read within
 # that minute draw the same snapshot, kept in the repository's common git directory, so they agree. A command that
@@ -50,13 +51,14 @@
 #
 # The filters combine: --mine --owner=bob. --mine alone leaves out the owner column.
 #
-# backlog and underway are no stages: on a terminal, either opens the picture in kittui with issues maximized, on its
-# Backlog or Underway preset; with --text, --json, or --jq, or without a terminal, it exits 2 and names kit flow
-# issues.
+# desk and worktrees are no stages: on a terminal, either opens kit workspace worktrees, the desk its first row; with
+# --text, --json, or --jq, or without a terminal, it exits 2 and names kit workspace worktrees. Nor are backlog and
+# underway: on a terminal, either opens the picture in kittui with issues maximized, on its Backlog or Underway preset;
+# with --text, --json, or --jq, or without a terminal, it exits 2 and names kit flow issues.
 #
 # One stage prints without its heading. With --json, a stage prints what the picture holds under its name: an array
-# for issues, changes, builds, and releases; an object for desk, worktrees, and incoming. Above desks, --json prints
-# an array with one {path, status} per desk. Each row of issues, changes, builds, releases, and incoming's rows says
+# for issues, changes, builds, and releases; an object for incoming. Above desks, --json prints an array with one
+# {path, status} per desk. Each row of issues, changes, builds, releases, and incoming's rows says
 # where it is from: organization and repository, the owner and the name of the repository kit read it in, as its
 # primary remote's URL names them past the host, no organization for a primary on this machine; and source, the
 # forge, git for incoming's. An issue keeps those of the tracker that holds it.
@@ -109,18 +111,17 @@
 #
 # Over a workspace
 #
-# kit --workspace=<workspace> flow, the kit option before the verb, names a group, or a repository by its host and
-# path, as kit workspaces names them. Outside a repository, without it, the workspace is the last group used, as kit
-# workspaces --current says. Each form then runs in
-# every member's checkout at once, each under that checkout's own kit.yml, and the stages are kit's seven, whatever the
-# kit.yml where it runs says. With --json, a stage prints {rows, errors}: each row, or each desk, worktrees, or
-# incoming object, gains member, its host and path; a member that could not be read is {member, error},
-# its line, under errors, and every other member still draws, and the stage exits 1 after it. The picture prints
-# {stages, <stage>…}, each stage so. As text, the picture draws each cloned member's picture under its member, and
-# exits 1 when one of them did. A member with no checkout draws nothing; kit workspace repos lists every member, cloned
-# or not. --marks and --quota span the members: a member that could not be read says its line, its marks are
-# {member, error} under errors beside the others', its rate limits are left out, and kit flow exits 1 after the rest.
-# A pull request's number names one repository's, and is refused.
+# kit --workspace=<workspace> flow, the kit option before the verb, names a group, or a repository by its host and path,
+# as kit workspaces names them. Outside a repository, without it, the workspace is the last group used, as kit
+# workspaces --current says. Each form then runs in every member's checkout at once, each under that checkout's own
+# kit.yml, and the stages are kit's five, whatever the kit.yml where it runs says. With --json, a stage prints {rows,
+# errors}: each row, or each incoming object, gains member, its host and path; a member that could not be read is
+# {member, error}, its line, under errors, and every other member still draws, and the stage exits 1 after it. The
+# picture prints {stages, <stage>…}, each stage so. As text, the picture draws each cloned member's picture under its
+# member, and exits 1 when one of them did. A member with no checkout draws nothing; kit workspace repos lists every
+# member, cloned or not. --marks and --quota span the members: a member that could not be read says its line, its marks
+# are {member, error} under errors beside the others', its rate limits are left out, and kit flow exits 1 after the
+# rest. A pull request's number names one repository's, and is refused.
 #
 # Legend
 #
@@ -249,23 +250,23 @@
 #   issues              every open issue, oldest first: in the backlog, which no open pull request closes, or
 #                       underway, closed by one: who works on each, and where
 #   incoming            what fetching every remote brought: default-branch commits, branches new and gone
-#   desk                the root checkout: branch, ahead and behind, uncommitted paths
-#   worktrees           every linked worktree: branch, ahead and behind, uncommitted paths
 #   changes             the open pull requests, each with the issues it closes
 #   builds              the runs not owned by any pull request: the default branch, tags, schedules
 #   releases            the releases on the forge, newest first
+#   desk                no stage of kit flow: kit workspace worktrees draws the root checkout, its first row
+#   worktrees           no stage of kit flow: kit workspace worktrees draws the linked worktrees
 #   backlog             no stage of kit flow: issues lists them; on a terminal it opens issues on its Backlog preset
 #   underway            no stage of kit flow: issues lists them; on a terminal it opens issues on its Underway preset
 #
 # Exits 0 when the picture is drawn, 1 when the forge, the fetch, the workspace file, a member of the workspace, a desk
 # below, or git's list of the worktrees, the desks, or the remote branches cannot be read: with --json, what was read
 # is still printed, and names what could not, a remote's error, a member under errors, or a stage of null. It exits 1
-# too when git cannot count the lines changed in a checkout or read its uncommitted paths, or a setting is wrong; 1,
-# printing nothing, when --workspace=, or kit flow outside a repository with a group used last, meets a workspace file
-# kit workspaces refuses; and 2 on a usage error, as kit flow backlog or underway off a terminal, or with a form. A
-# wrong setting is a flow setting that is not a list of distinct stages, or names backlog or underway, a primary that
-# names no remote, or a forges key that is no remote name. With --marks, when the forge cannot answer, its stages'
-# marks are null beside every local stage's, and kit flow exits 1.
+# too when a setting is wrong; 1, printing nothing, when --workspace=, or kit flow outside a repository with a group
+# used last, meets a workspace file kit workspaces refuses; and 2 on a usage error, as kit flow desk, worktrees,
+# backlog, or underway off a terminal, or with a form. A wrong setting is a flow setting that is not a list of distinct
+# stages, or names desk, worktrees, backlog, or underway, a primary that names no remote, or a forges key that is no
+# remote name. With --marks, when the forge cannot answer, its stages' marks are null beside every local stage's, and
+# kit flow exits 1.
 #
 # see: modules/bash/flow.sh, modules/bash/issues.sh, modules/bash/changes.sh, modules/bash/builds.sh,
 # modules/bash/releases.sh
@@ -278,6 +279,21 @@ use flow tui workspaces terminal
 workspaces:misplaced flow "$@" || exit $?
 guard:arguments flow "$@" || exit $?
 guard:require tool:git
+
+# desk and worktrees are no stages of kit flow: kit workspace worktrees draws them, the desk its first row. On a
+# terminal, kit flow desk or worktrees opens it, as kittui does; asked for text or JSON, or off a terminal, it names it.
+# shellcheck disable=SC2154  # syntax_literals and syntax_options are set by guard:arguments
+if [[ "${syntax_literals[0]:-}" == desk || "${syntax_literals[0]:-}" == worktrees ]]
+then
+  if [[ -z "${syntax_options[--text]+x}${syntax_options[--json]+x}${syntax_options[--jq]+x}" \
+    && -t 0 && -t 1 && -t 2 ]]
+  then
+    exec "${kit_root}/bin/kit" ${KIT_WORKSPACE:+"--workspace=${KIT_WORKSPACE}"} workspace worktrees
+  fi
+  error "${syntax_literals[0]} is no stage of kit flow: kit workspace worktrees draws the desk and the worktrees, the" \
+    "desk its first row; run: kit workspace worktrees"
+  exit 2
+fi
 
 # Over a workspace, every form runs in each member's checkout, under that checkout's settings, before this one's are
 # read; see modules/bash/across.sh. The workspace is the kit option's, kit --workspace=<workspace> flow, which bin/kit,

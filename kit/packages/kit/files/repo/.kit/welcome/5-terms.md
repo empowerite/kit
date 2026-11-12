@@ -44,14 +44,14 @@ committed.
 
 Your root checkout, where you cloned the repository. You read, review, and try things there. Agents never change it.
 
-`kit flow desk`
+`kit workspace worktrees`
 
 ### worktree
 
 A second checkout of the same repository, on a branch of its own. Each issue's work happens in a worktree of its own,
 so the work on two issues never mixes.
 
-`kit flow worktrees`
+`kit workspace worktrees`
 
 `git worktree list`
 

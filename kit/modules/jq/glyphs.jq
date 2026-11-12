@@ -12,7 +12,8 @@
 #   stages    each stage in its verb's order: stage; glyph, the name of the one beside its tab; legend, the glyphs
 #             it draws, each by name, with link, row or page, when a click on it in kittui leads to a row of another
 #             stage or to a page; states, page, when the stage's legend lists the states, and a click on one opens
-#             the pull request's page; and screen, the verb that draws it, kit workspace's workspace, else kit flow's
+#             the pull request's page; and screen, the app verb that draws it, as workspace or issues, else kit
+#             flow's
 #
 # A meaning is one glyph's wherever it is drawn, so a stage's legend never words it otherwise.
 #
@@ -43,9 +44,9 @@ def line($glyph; $meaning; $more):
 # screen($screen) gives a stage or a group of the table if its verb is $screen: flow, else its screen.
 def screen($screen): select((.screen // "flow") == $screen);
 
-# legend($d; $screen) gives the legend of the table $d as kit help flow, or kit help workspace for the workspace
-# screen, prints it, the comment lines of its verb's header: the title's glyph, then each of the screen's stages' glyphs
-# under its name, and under a stage that lists them the states, then any other.
+# legend($d; $screen) gives the legend of the table $d as kit help flow, or an app verb's help for its screen, as kit
+# help workspace for workspace's, prints it, the comment lines of its verb's header: the title's glyph, then each of
+# the screen's stages' glyphs under its name, and under a stage that lists them the states, then any other.
 def legend($d; $screen):
   glyph($d; "Other") as $other
   | (glyph($d; $d.title) | line(.glyph; .meaning; .more)), "#",

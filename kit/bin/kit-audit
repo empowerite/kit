@@ -71,6 +71,40 @@
 #                       or workspace, the finer fields null; a place the clone has none of, as the organization of
 #                       one with no remote, is ""
 #
+# Legend
+#
+# Each stage lists the glyphs it draws in kittui, one per line. A glyph can show under more than one stage.
+#
+# kit:generate legend `k=$(command -v kit); jq -nr -L "${k%/bin/kit}/modules/jq" 'import "glyphs" as g; g::legend_for("audit")'`
+#   📚  workspace: a group, in the workspace menu that drops down from - in kittui's title
+#
+# evidence:
+#
+#   🧾  evidence: an attestation of what was built, and who signed it
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# findings:
+#
+#   🐛  finding: a scanner's alert, and its severity
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# controls:
+#
+#   🔒  control: a ruleset or a branch protection, and what it enforces
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# waivers:
+#
+#   🔓  waiver: a control bypassed or an alert dismissed, by whom and why
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# policy:
+#
+#   📏  policy rule: a rule kit policy holds the files to
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# kit:end legend
+#
 # Arguments:
 #   --text              prints the stages as text, even on a terminal
 #   --json              the stages as one JSON object: stages, then each stage's document under its name, null for one

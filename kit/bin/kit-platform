@@ -42,6 +42,35 @@
 #   settings            {setting, value, from}: value is kit.yml's, or the schema's default, null where it names none;
 #                       from is set or default
 #
+# Legend
+#
+# Each stage lists the glyphs it draws in kittui, one per line. A glyph can show under more than one stage.
+#
+# kit:generate legend `k=$(command -v kit); jq -nr -L "${k%/bin/kit}/modules/jq" 'import "glyphs" as g; g::legend_for("platform")'`
+#   📚  workspace: a group, in the workspace menu that drops down from - in kittui's title
+#
+# services:
+#
+#   🔌  service: a capability kit uses, and what answers it
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# toolchains:
+#
+#   🧰  toolchain: what installs the tools, the system's or the project's
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# tools:
+#
+#   🔩  tool: a tool kit pins, and the version installed
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# settings:
+#
+#   🔧  setting: a key of kit.yml, its value set there or its default
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# kit:end legend
+#
 # Arguments:
 #   --text              prints the stages as text, even on a terminal
 #   --json              the stages as one JSON object: stages, then each stage's document under its name, null for one

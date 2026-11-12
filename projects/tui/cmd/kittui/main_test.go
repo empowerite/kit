@@ -365,8 +365,8 @@ func TestNoVerbOpensTheWelcomeGuide(t *testing.T) {
 	}
 }
 
-// kit flow opens Flow, on the stage its words name, its desk too; kit workspace opens the app with the tab its words
-// name, maximized on it, and with no tab named, Repositories.
+// kit flow opens Flow, on the stage its words name, and kit flow desk Repositories' worktrees; kit workspace opens
+// the app with the tab its words name, maximized on it, and with no tab named, Repositories.
 func TestFlowAndWorkspaceOpenTheAppWithTheTabNamed(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	r := testkit.Runner(t, "flow")
@@ -375,7 +375,8 @@ func TestFlowAndWorkspaceOpenTheAppWithTheTabNamed(t *testing.T) {
 		words []string
 		want  shell.Screen
 	}{
-		{"flow", nil, shell.Flow}, {"flow", []string{"changes"}, shell.Flow}, {"flow", []string{"desk"}, shell.Flow},
+		{"flow", nil, shell.Flow}, {"flow", []string{"changes"}, shell.Flow},
+		{"flow", []string{"desk"}, shell.Repositories},
 		{"workspace", nil, shell.Repositories}, {"workspace", []string{"branches"}, shell.Repositories},
 		{"packages", nil, shell.Packages}, {"packages", []string{"packages"}, shell.Packages},
 		{"issues", nil, shell.Issues}, {"issues", []string{"backlog"}, shell.Issues},

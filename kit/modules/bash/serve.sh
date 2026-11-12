@@ -115,12 +115,12 @@ declare -grA serve_listing_acts=(
   [tools]='install, update, or run the tools, or ask which are outdated'
 )
 
-# The words a tool does not offer for another reason: context's hook mode is the harness's own, and flow's backlog and
-# underway are no stages, only kittui's presets of the issues stage. A workspace, which reads other clones, is a kit
-# option, before the verb, so no tool offers one.
+# The words a tool does not offer for another reason: context's hook mode is the harness's own, and flow's desk and
+# worktrees are no stages, only kit workspace worktrees named, nor are its backlog and underway, only kittui's presets
+# of the issues stage. A workspace, which reads other clones, is a kit option, before the verb, so no tool offers one.
 declare -grA serve_hidden=(
   [context]='--claude'
-  [flow]='backlog underway'
+  [flow]='desk worktrees backlog underway'
 )
 
 # The tools whose operands are paths. A call to one is refused when a word it makes, but a flag, leads outside the

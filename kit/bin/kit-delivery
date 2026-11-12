@@ -52,6 +52,36 @@
 #                       changed last, and names each one's ref, commit, and actor from its run among the 100 newest;
 #                       where there are more, the document is limited, at how many it drew
 #
+# Legend
+#
+# Each stage lists the glyphs it draws in kittui, one per line. A glyph can show under more than one stage. In kittui's
+# legend, a dim 🔗 after a meaning says a click on the glyph opens its page, as a deployment's state opens its log.
+#
+# kit:generate legend `k=$(command -v kit); jq -nr -L "${k%/bin/kit}/modules/jq" 'import "glyphs" as g; g::legend_for("delivery")'`
+#   📚  workspace: a group, in the workspace menu that drops down from - in kittui's title
+#
+# artifacts:
+#
+#   📀  artifact: a file a build kept, until it expires
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# environments:
+#
+#   🏢  environment: where a deployment goes, and the rules that guard it
+#   🌿  branch or worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# deployments:
+#
+#   🚀  deployment: a commit deployed to an environment, and by whom
+#   ✅  passed: every check, or a build
+#   🏃  running: checks or a build still running or queued
+#   🛑  cancelled or skipped: a build
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#   🔘  commit: its short hash
+#
+# kit:end legend
+#
 # Arguments:
 #   --text              prints the stages as text, even on a terminal
 #   --json              the stages as one JSON object: stages, then each stage's document under its name, null for one

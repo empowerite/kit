@@ -99,7 +99,7 @@ across:line() {
   printf '%s\n' "${line#❌ }"
 }
 
-# across:flow <workspace> <word>… draws what kit flow's words ask for across the workspace: --stages, kit's seven
+# across:flow <workspace> <word>… draws what kit flow's words ask for across the workspace: --stages, kit's five
 # stages, whatever the kit.yml where kit runs says; --marks and --quota, spanning the members; a stage with --json or
 # --jq as across:stage gives it; the picture as JSON, as across:picture gives it; and a stage or the picture as text,
 # each member's under it. It checks the workspace file, as workspaces:check does, before it reads it, and resolves the
@@ -128,7 +128,7 @@ across:flow() {
       across:quota "${workspace}"
       return
       ;;
-    (issues | desk | worktrees | changes | incoming | builds | releases)
+    (issues | changes | incoming | builds | releases)
       stage=$1
       shift
   esac
@@ -163,9 +163,7 @@ across:stage() {
   shift 2
   file:scratch dir
   across:start "${workspace}" "${dir}" "${stage}" "$@" >/dev/null || return $?
-  case "${stage}" in
-    (desk | worktrees | incoming) kind=object
-  esac
+  [[ "${stage}" != incoming ]] || kind=object
   across:merge "${dir}" "${kind}" "${stage}"
 }
 
@@ -233,9 +231,7 @@ across:picture() {
   while IFS= read -r stage
   do
     kind=array
-    case "${stage}" in
-      (desk | worktrees | incoming) kind=object
-    esac
+    [[ "${stage}" != incoming ]] || kind=object
     doc=$(across:cut "${dir}" "${stage}" "${kind}") || failed=true
     [[ -n "${doc}" ]] || return 1
     named+=(--argjson "${stage}" "${doc}")
@@ -269,13 +265,13 @@ across:cut() {
   (( ${#errors[@]} == 0 ))
 }
 
-# across:repos <workspace> [<pictures>] prints the repos stage's document, {rows, errors}: a row per member, in the
-# workspace's order, cloned or not, as workspaces:member-json gives it, with its desk's branch, ahead, and behind, its
-# worktrees and branches, as across:branches gives them, each null for a member not cloned, and error, the desk's line
-# where it could not be read, workspaces:unread's for a clone whose kit.yml does not parse, else null. A member's desk
-# is read from its picture in <pictures>, as across:start left them, where it holds one, else by kit flow desk. No
-# workspace is the repository here, by here, its checkout the clone, even from one of its linked worktrees; outside one
-# it returns 2. It returns 1, after the document, when a row has an error.
+# across:repos <workspace> prints the repos stage's document, {rows, errors}: a row per member, in the workspace's
+# order, cloned or not, as workspaces:member-json gives it, with its desk's branch, ahead, and behind, its worktrees and
+# branches, as across:branches gives them, each null for a member not cloned, and error, the desk's line where it could
+# not be read, workspaces:unread's for a clone whose kit.yml does not parse, else null. A member's desk is the first row
+# of its kit workspace worktrees, ahead and behind the primary's default branch. No workspace is the repository here,
+# by here, its checkout the clone, even from one of its linked worktrees; outside one it returns 2. It returns 1, after
+# the document, when a row has an error.
 across:repos() {
   local resolved top member row
   if [[ -n "$1" ]]
@@ -300,13 +296,13 @@ across:repos() {
     fi
     resolved=$(jq --compact-output '{members: [.]}' <<<"${row}")
   fi
-  across:repos-of "${resolved}" "${1:-${member:-${top}}}" "${2:-}"
+  across:repos-of "${resolved}" "${1:-${member:-${top}}}"
 }
 
-# across:repos-of <resolved> <workspace> <pictures> prints the repos document of the members <resolved> holds, as
-# across:repos says, reading at once the desks no picture holds, and returns 1 as it does.
+# across:repos-of <resolved> <workspace> prints the repos document of the members <resolved> holds, as across:repos
+# says, reading their desks at once, and returns 1 as it does.
 across:repos-of() {
-  local resolved=$1 workspace=$2 pictures=$3 dir checkout n=0 k desk error unread lists failed=false
+  local resolved=$1 workspace=$2 dir n=0 desk error unread lists failed=false
   local -a checkouts=() members=() rows=()
   file:scratch dir
   readarray -t checkouts < <(jq --raw-output '.members[] | .checkout // ""' <<<"${resolved}")
@@ -314,15 +310,7 @@ across:repos-of() {
   for n in "${!checkouts[@]}"
   do
     [[ -n "${checkouts[${n}]}" ]] || continue
-    k=$(across:picture-of "${pictures}" "${members[${n}]}")
-    if [[ -n "${k}" ]] && jq --exit-status '.desk | type == "object"' "${pictures}/${k}.out" >/dev/null 2>&1
-    then
-      jq --compact-output .desk "${pictures}/${k}.out" > "${dir}/${n}.out"
-      printf 0 > "${dir}/${n}.status"
-      : > "${dir}/${n}.err"
-    else
-      across_verb=flow across:run "${checkouts[${n}]}" "${dir}/${n}" "${workspace}" desk --json &
-    fi
+    across_verb=workspace across:run "${checkouts[${n}]}" "${dir}/${n}" "${workspace}" worktrees --json &
   done
   wait
   for n in "${!checkouts[@]}"
@@ -332,15 +320,14 @@ across:repos-of() {
     then
       lists=$(across:branches "${checkouts[${n}]}" 2>/dev/null) || lists='{"worktrees": null, "branches": null}'
     fi
-    if [[ -f "${dir}/${n}.status" ]]
+    # The desk is the first row of the member's worktrees, kind desk.
+    if [[ -f "${dir}/${n}.status" ]] && ! { across:exited-0 "${dir}/${n}" && desk=$(jq --compact-output \
+      --exit-status '.rows[] | select(.kind == "desk") | {branch, ahead: .base[0], behind: .base[1]}' \
+      "${dir}/${n}.out" 2>/dev/null); }
     then
-      if jq --exit-status 'type == "object"' "${dir}/${n}.out" >/dev/null 2>&1
-      then
-        desk=$(<"${dir}/${n}.out")
-      else
-        error=$(across_verb=flow across:error "${dir}/${n}" "${members[${n}]}" desk | jq --raw-output .error)
-        failed=true
-      fi
+      desk=null
+      error=$(across_verb=workspace across:error "${dir}/${n}" "${members[${n}]}" worktrees | jq --raw-output .error)
+      failed=true
     fi
     # A clone whose kit.yml does not parse is filed under origin: its line says so and holds yq's, as the desk's read
     # of that clone stops on the same file.
@@ -375,19 +362,6 @@ across:branches() {
          path: (map(select(startswith("worktree "))[9:]) | first)}] as $all
     | {worktrees: ($all[1:] | sort_by(.path)),
        branches: [$heads | split("\n")[] | select(. != "") | select(. as $b | $all | any(.branch == $b) | not)]}'
-}
-
-# across:picture-of <pictures> <member> prints the number of the member's picture in <pictures>, or nothing.
-across:picture-of() {
-  local file
-  [[ -n "$1" ]] || return 0
-  for file in "$1"/*.member
-  do
-    [[ -e "${file}" && "$(<"${file}")" == "$2" ]] || continue
-    file=${file##*/}
-    printf '%s\n' "${file%.member}"
-    return 0
-  done
 }
 
 # across:text <workspace> <stage> <word>… draws a stage, or with none the picture, as text across the workspace: each

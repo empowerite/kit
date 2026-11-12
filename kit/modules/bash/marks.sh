@@ -8,8 +8,6 @@
 #   - changes: the issues mark and the runs mark, as a change's checks are its runs
 #   - builds: the runs mark
 #   - releases: the releases mark
-#   - desk: the root checkout's status, its branch and what it tracks among them, and the remote-tracking refs
-#   - worktrees: the linked worktrees, each one's status, and the remote-tracking refs
 #   - incoming: what every remote has, as git ls-remote lists its branches and tags
 #
 # The forge's marks are its seam's, as modules/bash/forge.sh says, of the issues, the runs, and the releases alone, so
@@ -51,8 +49,6 @@ marks:stages() {
   for stage in "${stages[@]}"
   do
     case "${stage}" in
-      (desk) args+=(--arg desk "$(marks:desk)") ;;
-      (worktrees) args+=(--arg worktrees "$(marks:worktrees)") ;;
       (incoming) args+=(--arg incoming "$(marks:incoming)") ;;
     esac
   done
@@ -73,40 +69,6 @@ marks:stages() {
 
 # marks:sum prints a short sum of what it reads, the mark a stage's local state makes.
 marks:sum() { cksum | cut -d ' ' -f 1; }
-
-# marks:refs prints the remote-tracking refs, each with the commit it names, as a fetch moves them. A repository git
-# cannot read gives none: a mark only tells a picture when to read a stage again.
-marks:refs() { git for-each-ref --format='%(objectname) %(refname)' refs/remotes 2>/dev/null || true; }
-
-# marks:status <path> prints a checkout's status as git reports it with its branch: the commit, the branch, what it
-# tracks and how far apart they are, and each path changed.
-marks:status() {
-  # A checkout git cannot read gives nothing: a mark only tells a picture when to read a stage again.
-  git -C "$1" status --porcelain=v2 --branch 2>/dev/null || true
-}
-
-# marks:desk prints the desk's mark: its status and the remote-tracking refs, summed.
-marks:desk() {
-  local desk
-  desk=$(git worktree list --porcelain 2>/dev/null | sed -n '1s/^worktree //p')
-  [[ -n "${desk}" ]] || return 0
-  { marks:status "${desk}"; marks:refs; } | marks:sum
-}
-
-# marks:worktrees prints the linked worktrees' mark: the list of them, each one's status, and the remote-tracking
-# refs, summed.
-marks:worktrees() {
-  local list path
-  list=$(git worktree list --porcelain 2>/dev/null) || return 0
-  {
-    printf '%s\n' "${list}"
-    while IFS= read -r path
-    do
-      marks:status "${path}"
-    done < <(sed -n 's/^worktree //p' <<<"${list}" | tail -n +2)
-    marks:refs
-  } | marks:sum
-}
 
 # marks:incoming prints what every remote has, as git ls-remote lists its branches and tags, summed; nothing when a
 # remote cannot be reached without asking for a password, which git and ssh are told never to ask.

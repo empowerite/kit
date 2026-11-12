@@ -104,20 +104,31 @@ EOF
   [ "$output" = '{"rows":[{"branch":"main","member":"github.com/o/a"}],"errors":[]}' ]
 }
 
-@test "kit --workspace= flow desk prints each cloned member's desk, tagged, in the group's order" {
+@test "kit --workspace= flow incoming prints each cloned member's incoming, tagged, in the group's order" {
   two-desks
   cd "${BATS_TEST_TMPDIR}"
-  run "${kit_root}/bin/kit" --workspace=w flow desk --json
+  run "${kit_root}/bin/kit" --workspace=w flow incoming --no-fetch --json
   [ "$status" -eq 0 ]
-  [ "$(jq -c '[.rows[] | [.member, .branch]]' <<<"$output")" = '[["github.com/o/a","main"],["github.com/o/b","main"]]' ]
+  [ "$(jq -c '[.rows[] | [.member, .fetched]]' <<<"$output")" = '[["github.com/o/a",false],["github.com/o/b",false]]' ]
   [ "$(jq -c .errors <<<"$output")" = '[]' ]
+}
+
+@test "kit --workspace= flow desk or worktrees exits 2 as JSON and names kit workspace worktrees, as it does in one" {
+  two-desks
+  cd "${BATS_TEST_TMPDIR}"
+  run --separate-stderr "${kit_root}/bin/kit" --workspace=w flow desk --json
+  [ "$status" -eq 2 ]
+  [[ -z "$output" && "$stderr" == *"run: cd "*" && kit workspace worktrees" ]]
+  run --separate-stderr "${kit_root}/bin/kit" --workspace=w flow worktrees
+  [ "$status" -eq 2 ]
+  [[ -z "$output" && "$stderr" == *"run: cd "*" && kit workspace worktrees" ]]
 }
 
 @test "a member whose checkout is gone since the roots were walked is its line in errors, and the others still draw" {
   two-desks
   cd "${BATS_TEST_TMPDIR}"
   run kit-bash "across:members() { printf '%s\t%s\n' github.com/o/a '${BATS_TEST_TMPDIR}/code/a' \
-    github.com/o/b '${BATS_TEST_TMPDIR}/gone'; }; across:stage w desk --json"
+    github.com/o/b '${BATS_TEST_TMPDIR}/gone'; }; across:stage w incoming --no-fetch --json"
   [ "$status" -eq 1 ]
   [ "$(jq -c '[.rows[].member]' <<<"$output")" = '["github.com/o/a"]' ]
   [ "$(jq -r '.errors[0].member' <<<"$output")" = github.com/o/b ]
@@ -127,7 +138,7 @@ EOF
 @test "a group with no member cloned prints no rows and no errors, and exits 0" {
   workspaces-file <<<'workspaces: {w: {repos: [github.com/o/a]}}'
   cd "${BATS_TEST_TMPDIR}"
-  run "${kit_root}/bin/kit" --workspace=w flow desk --json
+  run "${kit_root}/bin/kit" --workspace=w flow incoming --no-fetch --json
   [ "$status" -eq 0 ]
   [ "$output" = '{"rows":[],"errors":[]}' ]
 }
@@ -135,7 +146,7 @@ EOF
 @test "kit --workspace= flow refuses a workspace it does not know, and a pull request's number, with 2" {
   workspaces-file <<<'workspaces: {w: {repos: [github.com/o/a]}}'
   cd "${BATS_TEST_TMPDIR}"
-  run "${kit_root}/bin/kit" --workspace=nosuch flow desk --json
+  run "${kit_root}/bin/kit" --workspace=nosuch flow incoming --no-fetch --json
   [ "$status" -eq 2 ]
   run "${kit_root}/bin/kit" --workspace=w flow changes --json 7
   [ "$status" -eq 2 ]
@@ -145,7 +156,7 @@ EOF
 @test "a workspace file that does not parse stops kit flow and kit workspace over a workspace with 1, not 2" {
   workspaces-file <<<'workspaces: [x'
   cd "${BATS_TEST_TMPDIR}"
-  run --separate-stderr "${kit_root}/bin/kit" --workspace=w flow desk --json
+  run --separate-stderr "${kit_root}/bin/kit" --workspace=w flow incoming --no-fetch --json
   [ "$status" -eq 1 ]
   [ -z "$output" ]
   run --separate-stderr "${kit_root}/bin/kit" --workspace=w flow --stages
@@ -161,7 +172,7 @@ EOF
 
 @test "a file kit workspaces refuses is refused by kit flow and kit workspace, with 1 and no document" {
   workspaces-file <<<'workspaces: {w: {repos: [github.com/o/a], exclude: [nonsense]}}'
-  for words in "flow desk" "workspace repos" "workspace branches"
+  for words in "flow incoming --no-fetch" "workspace repos" "workspace branches"
   do
     # shellcheck disable=SC2086  # each holds its words
     run --separate-stderr "${kit_root}/bin/kit" --workspace=w ${words} --json
@@ -169,10 +180,10 @@ EOF
   done
 }
 
-@test "without --workspace=, kit flow desk --json prints the desk's object as before" {
+@test "without --workspace=, kit flow incoming --json prints the repository's object as before" {
   desk-at "${BATS_TEST_TMPDIR}/code/a" github.com/o/a
   cd "${BATS_TEST_TMPDIR}/code/a"
-  run "${kit_root}/bin/kit" flow desk --json
+  run "${kit_root}/bin/kit" flow incoming --no-fetch --json
   [ "$status" -eq 0 ]
   [ "$(jq -r 'type' <<<"$output")" = object ]
 }
@@ -235,13 +246,13 @@ EOF
   [[ "${lines[3]}" =~ ^github\.com/o/c\ +github\ +not\ cloned ]]
 }
 
-@test "kit --workspace= flow --stages lists kit's seven stages, and repos is kit workspace's first" {
+@test "kit --workspace= flow --stages lists kit's five stages, and repos is kit workspace's first" {
   workspaces-file <<<'workspaces: {w: {repos: [github.com/o/a]}}'
   cd "${BATS_TEST_TMPDIR}"
   run "${kit_root}/bin/kit" --workspace=w flow --stages
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = issues ]
-  [ "${#lines[@]}" -eq 7 ]
+  [ "${#lines[@]}" -eq 5 ]
   [[ "$output" != *repos* ]]
   run "${kit_root}/bin/kit" workspace --stages
   [ "${lines[0]}" = repos ]
@@ -249,13 +260,13 @@ EOF
   [ "$status" -eq 2 ]
 }
 
-# local-desks makes two-desks' desks draw only desk and worktrees, which read no forge.
+# local-desks makes two-desks' desks draw only incoming, which reads no forge, and with --no-fetch, no remote.
 local-desks() {
   two-desks
   local d
   for d in "${BATS_TEST_TMPDIR}/code/a" "${BATS_TEST_TMPDIR}/code/b b"
   do
-    printf 'flow: [desk, worktrees]\n' > "${d}/kit.yml"
+    printf 'flow: [incoming]\n' > "${d}/kit.yml"
     git -C "${d}" add kit.yml && git -C "${d}" commit --quiet --message settings
   done
 }
@@ -266,9 +277,8 @@ local-desks() {
   run "${kit_root}/bin/kit" --workspace=w flow --no-fetch --json
   [ "$status" -eq 0 ]
   [ "$(jq -r '.stages[0]' <<<"$output")" = issues ]
-  [ "$(jq -r 'has("repos")' <<<"$output")" = false ]
-  [ "$(jq -c '[.desk.rows[].member]' <<<"$output")" = '["github.com/o/a","github.com/o/b"]' ]
-  [ "$(jq -c '[.worktrees.rows[].member]' <<<"$output")" = '["github.com/o/a","github.com/o/b"]' ]
+  [ "$(jq -r 'has("repos") or has("desk") or has("worktrees")' <<<"$output")" = false ]
+  [ "$(jq -c '[.incoming.rows[].member]' <<<"$output")" = '["github.com/o/a","github.com/o/b"]' ]
   [ "$(jq -c '.issues.rows' <<<"$output")" = '[]' ]
 }
 
@@ -291,19 +301,29 @@ local-desks() {
 }
 
 @test "kit --workspace= flow --marks changes a stage's mark when one member's changes" {
-  local-desks
+  local d
+  two-desks
+  for d in "${BATS_TEST_TMPDIR}/code/a" "${BATS_TEST_TMPDIR}/code/b b"
+  do
+    printf 'flow: [issues]\n' > "${d}/kit.yml"
+    git -C "${d}" add kit.yml && git -C "${d}" commit --quiet --message settings
+  done
+  # each member's forge answers the issues' mark, the issues stage's
+  fake-tools gh
+  printf 'HTTP/2.0 200 OK\r\nETag: W/"one"\r\n\r\n[]\n' > "${FAKE_DIR}/mark.txt"
+  route 'api --include*' mark.txt
   cd "${BATS_TEST_TMPDIR}"
   run "${kit_root}/bin/kit" --workspace=w flow --marks
   [ "$status" -eq 0 ]
-  before=$(jq -r .desk <<<"$output")
-  [ "${before}" != null ]
+  before=$(jq -r .issues <<<"$output")
+  [ "${before}" = 'W/"one" W/"one"' ]
   [ "$(jq -r 'has("repos")' <<<"$output")" = false ]
   run "${kit_root}/bin/kit" --workspace=w workspace --marks
   repos=$(jq -r .repos <<<"$output")
-  printf 'x\n' > "${BATS_TEST_TMPDIR}/code/b b/x"
+  printf 'HTTP/2.0 200 OK\r\nETag: W/"two"\r\n\r\n[]\n' > "${FAKE_DIR}/mark.txt"
   git -C "${BATS_TEST_TMPDIR}/code/a" switch --quiet --create other
   run "${kit_root}/bin/kit" --workspace=w flow --marks
-  [ "$(jq -r .desk <<<"$output")" != "${before}" ]
+  [ "$(jq -r .issues <<<"$output")" != "${before}" ]
   run "${kit_root}/bin/kit" --workspace=w workspace --marks
   [ "$(jq -r .repos <<<"$output")" != "${repos}" ]
 }
@@ -359,7 +379,7 @@ local-desks() {
 @test "a member on a host kit has no forge for draws its forge's stages as nothing to read, and the picture exits 0" {
   local-desks
   d="${BATS_TEST_TMPDIR}/code/b b"
-  printf 'flow: [desk, worktrees, issues]\n' > "$d/kit.yml"
+  printf 'flow: [incoming, issues]\n' > "$d/kit.yml"
   git -C "$d" commit --quiet --all --message settings
   git -C "$d" remote set-url origin https://bitbucket.org/o/b.git
   workspaces-file <<EOF
@@ -372,7 +392,7 @@ EOF
   [ "$status" -eq 0 ]
   [ "$(jq -c '.issues' <<<"$output")" = '{"rows":[],"errors":[]}' ]
   [ "$(jq -c '[.[] | objects | .errors[]]' <<<"$output")" = '[]' ]
-  [ "$(jq -c '[.desk.rows[].member]' <<<"$output")" = '["github.com/o/a","bitbucket.org/o/b"]' ]
+  [ "$(jq -c '[.incoming.rows[].member]' <<<"$output")" = '["github.com/o/a","bitbucket.org/o/b"]' ]
 }
 
 @test "kit workspace over a workspace prints a stage read in part and exits 1, and repos a desk it could not read" {
@@ -429,28 +449,28 @@ EOF
 @test "--workspace= is a kit option, before the verb; an empty one, one whose workspace is the next word, one after the verb, and one beside --version= are refused with 2" {
   two-desks
   cd "${BATS_TEST_TMPDIR}"
-  run "${kit_root}/bin/kit" --workspace=w flow desk --json
+  run "${kit_root}/bin/kit" --workspace=w flow incoming --no-fetch --json
   [ "$status" -eq 0 ]
   [ "$(jq -c '[.rows[].member]' <<<"$output")" = '["github.com/o/a","github.com/o/b"]' ]
-  run "${kit_root}/bin/kit" --workspace='' flow desk --json
+  run "${kit_root}/bin/kit" --workspace='' flow incoming --json
   [ "$status" -eq 2 ]
   [[ "$output" == *"--workspace= needs a workspace"* ]]
-  run "${kit_root}/bin/kit" --workspace w flow desk --json
+  run "${kit_root}/bin/kit" --workspace w flow incoming --json
   [ "$status" -eq 2 ]
   [[ "$output" == *"--workspace takes its workspace after =: kit --workspace=<workspace> <verb>"* ]]
-  for words in "flow desk --workspace=w --json" "workspace repos --workspace w" "workspaces --current --workspace=w"
+  for words in "flow incoming --workspace=w --json" "workspace repos --workspace w" "workspaces --current --workspace=w"
   do
     # shellcheck disable=SC2086  # each holds its words
     run "${kit_root}/bin/kit" ${words}
     [ "$status" -eq 2 ]
     [[ "$output" == *"--workspace is a kit option, before the verb: kit --workspace=<workspace> ${words%% *}"* ]]
   done
-  run "${kit_root}/bin/kit" --workspace=w --version=9.9.9 flow desk --json
+  run "${kit_root}/bin/kit" --workspace=w --version=9.9.9 flow incoming --json
   [ "$status" -eq 2 ]
   [[ "$output" == *"--workspace= runs each member on the release it pins, so it takes no --version= or KIT_VERSION"* ]]
 }
 
-@test "a command over a workspace walks the roots once, and the JSON picture reads no member's desk twice" {
+@test "a command over a workspace walks the roots once" {
   local-desks
   cd "${BATS_TEST_TMPDIR}"
   calls=${BATS_TEST_TMPDIR}/calls
@@ -462,13 +482,12 @@ EOF
       run() { printf '%s\\n' \"\$*\" >> '${calls}'; \"\${kit_root}/bin/\$1\" \"\${@:2}\"; }
       across:flow w ${words}" >/dev/null 2>&1 || true
     [ "$(grep -c '^walk$' "${calls}")" -eq 1 ]
-    [[ "${words}" != *--json* ]] || [ "$(grep -c '^kit flow desk' "${calls}")" -eq 0 ]
   done
 }
 
 @test "a stage as text over a workspace kit does not know exits 2" {
   cd "${BATS_TEST_TMPDIR}"
-  run "${kit_root}/bin/kit" --workspace=bogus flow desk
+  run "${kit_root}/bin/kit" --workspace=bogus flow incoming
   [ "$status" -eq 2 ]
   [[ "$output" != *"none of bogus"* ]]
 }
@@ -483,13 +502,13 @@ EOF
   [ "$output" = '{"rows":[{"fetched":true,"member":"github.com/o/a"}],"errors":[{"member":"github.com/o/b","error":"kit flow incoming exited 3"}]}' ]
 }
 
-@test "over a workspace, the stages are kit's seven, whatever the kit.yml where kit runs says" {
+@test "over a workspace, the stages are kit's five, whatever the kit.yml where kit runs says" {
   local-desks
   cd "${BATS_TEST_TMPDIR}/code/a"
   run "${kit_root}/bin/kit" --workspace=w flow --stages
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = issues ]
-  [ "${#lines[@]}" -eq 7 ]
+  [ "${#lines[@]}" -eq 5 ]
 }
 
 @test "on a terminal, kit --workspace= flow hands off to kittui; --json, --text, and a stage stay across the members" {
@@ -504,8 +523,10 @@ EOF
   [[ "$output" == *'"stages":'* && "$output" != *"kittui"* ]]
   run pty "'${kit_root}/bin/kit' --workspace=w flow --text --no-fetch"
   [[ "$output" != *"kittui"* ]]
-  run pty "'${kit_root}/bin/kit' --workspace=w flow desk"
+  run pty "'${kit_root}/bin/kit' --workspace=w flow incoming --no-fetch"
   [[ "$output" != *"kittui"* ]]
+  run pty "'${kit_root}/bin/kit' --workspace=w flow desk"
+  [[ "$output" == *"kittui native-native workspace --workspace=w worktrees"* ]]
   run pty "'${kit_root}/bin/kit' --workspace=w flow backlog"
   [[ "$output" == *"kittui native-native flow --workspace=w backlog"* ]]
   run pty "'${kit_root}/bin/kit' --workspace=w flow underway --json"
@@ -513,7 +534,7 @@ EOF
   run pty "'${kit_root}/bin/kit' --workspace=w flow --stages"
   [[ "$output" == *"issues"* && "$output" != *"kittui"* ]]
   run pty "'${kit_root}/bin/kit' --workspace=w flow --marks"
-  [[ "$output" == *'"desk":'* && "$output" != *"kittui"* ]]
+  [[ "$output" == *'"issues":'* && "$output" != *"kittui"* ]]
   run pty "'${kit_root}/bin/kit' --workspace=w flow --quota"
   [[ "$output" != *"kittui"* ]]
   run pty "'${kit_root}/bin/kit' --workspace=w flow --me"
@@ -533,7 +554,7 @@ EOF
   workspaces-file < "${BATS_TEST_TMPDIR}/kept.yml"
   "${kit_root}/bin/kit" workspaces --use w
   run --separate-stderr "${kit_root}/bin/kit" flow --json --no-fetch
-  [ "$(jq -c '[.desk.rows[].member]' <<<"$output")" = '["github.com/o/a","github.com/o/b"]' ]
+  [ "$(jq -c '[.incoming.rows[].member]' <<<"$output")" = '["github.com/o/a","github.com/o/b"]' ]
   run --separate-stderr "${kit_root}/bin/kit" workspace repos --json
   [ "$(jq -c '[.rows[].by]' <<<"$output")" = '["fixed","fixed","fixed"]' ]
   run --separate-stderr "${kit_root}/bin/kit" --workspace=none flow --json --no-fetch
@@ -543,8 +564,8 @@ EOF
   run "${kit_root}/bin/kit" workspaces --new none github.com/o/a
   [[ "$status" -eq 2 && "$output" == *"--workspace=none names no workspace"* ]]
   cd code/a && workspaces-file <<<'workspaces: [unclosed'
-  run --separate-stderr "${kit_root}/bin/kit" flow desk --json
-  [[ "$status" -eq 0 && -z "$stderr" && "$(jq -r .branch <<<"$output")" == main ]]
+  run --separate-stderr "${kit_root}/bin/kit" flow incoming --no-fetch --json
+  [[ "$status" -eq 0 && -z "$stderr" && "$(jq -r .primary <<<"$output")" == origin ]]
   # outside a repository, its .git directory too, with a group used, the group must be read
   for dir in .git "${BATS_TEST_TMPDIR}"
   do
@@ -579,7 +600,7 @@ EOF
       else
         [ "${current}" = '["group","w","last"]' ]
         [ "${flow_status}" -eq 0 ]
-        [ "$(jq -c '[.desk.rows[].member]' <<<"${flow_output}")" = '["github.com/o/a","github.com/o/b"]' ]
+        [ "$(jq -c '[.incoming.rows[].member]' <<<"${flow_output}")" = '["github.com/o/a","github.com/o/b"]' ]
         [ "$status" -eq 0 ]
         [ "$(jq -c '[.rows[].repository]' <<<"$output")" = '["github.com/o/a","github.com/o/b","github.com/o/c"]' ]
       fi

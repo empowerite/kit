@@ -181,7 +181,7 @@ call() {
       and .properties.path.type == "array" and .properties.json.type == "boolean"
       and (.properties.path.description | startswith("the files"))'
   answer 1 | jq --exit-status '.result.tools[] | select(.name == "flow") | .inputSchema.properties
-    | (.stage.enum | index("issues") and index("releases") and (index("backlog") or index("underway") | not))
+    | (.stage.enum | index("issues") and index("releases") and (index("backlog") or index("underway") | not) and (index("desk") or index("worktrees") | not))
       and (has("no-fetch") | not) and .owner.type == "array"'
   answer 1 | jq --exit-status '.result.tools[] | select(.name == "packages") | .inputSchema.properties.package.items.enum
     | index("kit") and index("workflow")'
@@ -332,7 +332,7 @@ call() {
     "$(call 2 context '{"path":["../outside.sh"]}')" "$(call 3 kinds '{"path":["link.sh"]}')" \
     "$(call 4 context '{"path":["nosuch/../../outside.sh"]}')" \
     "$(call 5 kinds "$(jq --null-input --compact-output --arg path "${outside}" '{kind: [$path]}')")" \
-    "$(call 6 flow '{"workspace":"x","stage":"desk"}')" "$(call 7 context '{"path":["kit.yml"]}')"
+    "$(call 6 flow '{"workspace":"x","stage":"incoming"}')" "$(call 7 context '{"path":["kit.yml"]}')"
   for id in 1 2 3 4 5
   do
     answer "${id}" | jq --exit-status '.error | .code == -32602 and (.message | contains("is outside the repository"))'

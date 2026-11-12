@@ -302,6 +302,71 @@ func TestTheLegendMarksEveryGlyphAClickLeadsSomewhereFrom(t *testing.T) {
 	}
 }
 
+// Every tab of an app verb's, as Issues' milestones or Trust's waivers, has its glyph beside its name, its group's
+// color, and a legend, its own glyph first, as kit workspace's need not; each glyph its rows draw, every row open, is
+// in that legend, and each a click on leads somewhere is marked there, as the tabs of kit flow's are.
+func TestEveryAppVerbsTabHasItsGlyphAndALegendOfWhatItDraws(t *testing.T) {
+	for _, a := range apps {
+		for i, name := range a.stages {
+			if verb, _ := verbOf(name); verb == "flow" {
+				continue
+			}
+			if stageGlyphs[name] == "" || stageColors[name] == "" || len(legends[name]) == 0 {
+				t.Errorf("%s: glyph %q, color %q, legend %v", name, stageGlyphs[name], stageColors[name], legends[name])
+				continue
+			}
+			if verb, _ := verbOf(name); verb != workspaceVerb && legends[name][0].glyph != stageGlyphs[name] {
+				t.Errorf("%s's legend starts with %s, not its own %s", name, legends[name][0].glyph, stageGlyphs[name])
+			}
+			m := appOf(t, a.screen, tea.WindowSizeMsg{Width: 200, Height: 80})
+			for range i {
+				m = drive(m, tab)
+			}
+			for range m.rows(i) {
+				m = drive(m, down, toggle)
+			}
+			own := map[string]bool{}
+			for _, e := range legends[name] {
+				maps.Copy(own, glyphsOf(e.glyph))
+			}
+			var pane []string
+			for _, l := range m.lines() {
+				pane = append(pane, ansi.Strip(l.Text))
+			}
+			for g := range glyphsOf(strings.Join(pane, "\n")) {
+				if !own[g] {
+					t.Errorf("%s draws %s, which its legend lacks", name, g)
+				}
+			}
+			drawn := map[string]string{}
+			for _, r := range m.rows(i) {
+				for _, c := range r.Cells {
+					if c.Link == "" || len(c.Values) == 0 {
+						continue
+					}
+					glyph, _, _ := strings.Cut(ansi.Strip(c.Values[0]), " ")
+					if len(glyphsOf(glyph)) == 0 {
+						continue
+					}
+					drawn[glyph] = ToPage
+					if strings.HasPrefix(c.Link, jumps) {
+						drawn[glyph] = ToRow
+					}
+					if marks[name][glyph] != drawn[glyph] {
+						t.Errorf("%s: %s leads to %q, but its legend marks it %q", name, glyph, c.Link, marks[name][glyph])
+					}
+				}
+			}
+			// kit workspace's fixtures leave some of its links out, as a remote's forge page, which its own tests hold
+			for glyph, mark := range marks[name] {
+				if verb, _ := verbOf(name); verb != workspaceVerb && drawn[glyph] != mark {
+					t.Errorf("%s's legend marks %s %s, which no row leads from", name, glyph, mark)
+				}
+			}
+		}
+	}
+}
+
 // The glyphs region is what its command makes from the kit's table of glyphs, legend.jq's Go gofmt'd, so a change to
 // the table that kit generate has not carried here fails.
 func TestTheGlyphsRegionIsWhatTheKitsTableGives(t *testing.T) {
