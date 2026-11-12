@@ -191,8 +191,10 @@ func TestALevelsFoldInTheHeadingOverTheGroupsOpensAndClosesIt(t *testing.T) {
 	if stops := m.stops(); len(stops) != 3 || stops[1].Level != 0 || stops[2].Level != 2 {
 		t.Fatalf("the stops: %+v", stops)
 	}
-	if single := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30}); len(single.stops()) != 1 {
-		t.Errorf("one level of one value, ▾ source 3: stops %+v", single.stops())
+	// underway's levels, source, organization, and repository, each of one value: a stop each, and none for the rows
+	if single := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30}, tab); len(single.stops()) != 3 ||
+		slices.ContainsFunc(single.stops(), func(s table.Stop) bool { return s.Column == "" }) {
+		t.Errorf("three levels of one value, ▾ source · organization · repository 4: stops %+v", single.stops())
 	}
 	// one assignee's heading closed by hand, to be found closed again
 	ada := slices.IndexFunc(m.rows(0), func(r row) bool { return strings.HasSuffix(r.Key, "\x00ada") })

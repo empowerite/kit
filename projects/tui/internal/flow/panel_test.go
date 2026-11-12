@@ -106,13 +106,14 @@ func TestSlashGivesTheSearchTheKeyboardAndTypingNarrowsTheRowsAndTheCount(t *tes
 }
 
 func TestSlashFindsAndANumberWithAltLeavesTheSearchForItsStage(t *testing.T) {
-	m := drive(intoRows(loaded(t, options())), down)
+	// past jig's #7 and kit's heading, to kit's first row
+	m := drive(intoRows(loaded(t, options())), down, down)
 	m = drive(m, typed("/")...)
 	if !m.inPanel || !m.inRows {
 		t.Fatalf("/: in panel %v, in rows %v", m.inPanel, m.inRows)
 	}
 	// the band stays on the row under the cursor while the search has the keyboard
-	if !strings.HasPrefix(cursor(m), "#46") {
+	if !strings.HasPrefix(cursor(m), "#45") {
 		t.Errorf("the cursor's row lost its band: %q", cursor(m))
 	}
 	m = drive(m, tea.KeyPressMsg{Code: '3', Mod: tea.ModAlt})
@@ -178,13 +179,13 @@ func TestTheSearchStandsOnTheTopRight(t *testing.T) {
 // gutter elsewhere, as on the selection's cell, opens nothing.
 func TestAClickOnAGutterOpensItsRow(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 60}, typed("/")[0])
-	// #45 stands under source's heading, two cells in
-	y := rowY(m, "#45")
+	// #45 stands under its repository's heading, two cells in
+	y, at := rowY(m, "#45"), slices.IndexFunc(m.rows(0), func(r row) bool { return r.Key == "#45" })
 	if m = drive(m, testkit.Click(m.indent(0), y)); m.stages[0].Open["#45"] {
 		t.Fatalf("a click on #45's selection cell opened it")
 	}
 	gutter := m.indent(0) + table.FoldCell
-	if m = drive(m, testkit.Click(gutter, y)); m.inPanel || !m.inRows || m.stages[0].Cursor != 2 ||
+	if m = drive(m, testkit.Click(gutter, y)); m.inPanel || !m.inRows || m.stages[0].Cursor != at ||
 		!m.stages[0].Open["#45"] {
 		t.Errorf("a click on #45's gutter: in panel %v, cursor %d\n%s", m.inPanel, m.stages[0].Cursor, view(m))
 	}
@@ -397,11 +398,12 @@ func TestUnderwayGroupsByChange(t *testing.T) {
 	}
 }
 
-// A view, as it loads, groups the rows by each column whose value is the same on every row, as underway's source and
-// repository while one tracker and one repository hold every issue: a group as any other, under the heading over the groups, ▤₁ in the columns dialog,
-// and the preset line still names the view. Once grouped, it is the person's: a search that leaves one row, or the
-// rows loaded again, change nothing, and Ungroup ungroups it for good. Setting the view again groups again; with
-// kittui's setting, Auto-group, off, a view set groups nothing.
+// A view, as it loads, groups the rows by each column whose value is the same on every row, where it groups by nothing:
+// as a view that has underway's source, organization, and repository as columns, while one tracker and one repository
+// hold every issue: a group as any other, under the heading over the groups, ▤₁ in the columns dialog, and the preset
+// line still names the view. Once grouped, it is the person's: a search that leaves one row, or the rows loaded again,
+// change nothing, and Ungroup ungroups it for good. Setting the view again groups again; with kittui's setting,
+// Auto-group, off, a view set groups nothing. Default groups by the three as the catalog says.
 func TestAViewAsItLoadsGroupsByAColumnTheSameOnEveryRow(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, tab)
 	heading := func(m Model) string {
@@ -410,12 +412,21 @@ func TestAViewAsItLoadsGroupsByAColumnTheSameOnEveryRow(t *testing.T) {
 		}
 		return ""
 	}
-	// two levels, source and repository, each of one value: the first's fold is the only one, the second's a dim
-	// separator, and the rows' would repeat it
-	both := []string{"source", "repository"}
-	if got := heading(m); got != grid.Unfolded+" source "+grid.Joined+" repository 4" || !slices.Equal(m.panel(m.stage).Groups(), both) ||
-		m.is(m.stage) != Opening || !strings.Contains(m.cols.Line(&m, "source"), grid.GroupMark(1)) {
-		t.Fatalf("underway's heading %q, groups %q, view %q:\n%s", got, m.panel(m.stage).Groups(), m.is(m.stage), view(m))
+	// three levels, source, organization, and repository, each of one value: the first's fold is the only one, the
+	// others' dim separators, and the rows' would repeat it
+	both := []string{"source", "organization", "repository"}
+	want := grid.Unfolded + " source " + grid.Joined + " organization " + grid.Joined + " repository 4"
+	if got := heading(m); got != want || !slices.Equal(m.panel(m.stage).Groups(), both) || m.is(m.stage) != Opening {
+		t.Fatalf("Default's heading %q, groups %q, view %q:\n%s", got, m.panel(m.stage).Groups(), m.is(m.stage), view(m))
+	}
+	column := table.Setting{Placement: table.PlaceColumn}
+	flat := table.Preset{Name: "Flat", Fields: map[string]table.Setting{"source": column, "organization": column,
+		"repository": column}}
+	m.saved["underway"] = []table.Preset{flat}
+	if m.apply(flat); heading(m) != want || !slices.Equal(m.panel(m.stage).Groups(), both) || m.is(m.stage) != "Flat" ||
+		!strings.Contains(m.cols.Line(&m, "source"), grid.GroupMark(1)) {
+		t.Fatalf("underway's heading %q, groups %q, view %q:\n%s", heading(m), m.panel(m.stage).Groups(), m.is(m.stage),
+			view(m))
 	}
 	// a search that leaves one row, and the rows loaded again, leave the group as it is
 	p := m.panel(m.stage)
@@ -430,7 +441,7 @@ func TestAViewAsItLoadsGroupsByAColumnTheSameOnEveryRow(t *testing.T) {
 		t.Errorf("loaded again: %q", m.panel(m.stage).Groups())
 	}
 	// ungrouped, it stays so through a load; the preset line names the view, as the panel is as it says
-	m.setPanel(m.panel(m.stage).Grouped("source", true).Grouped("repository", true))
+	m.setPanel(regroup(m.panel(m.stage)))
 	if m = drive(m, m.again("underway", false)()); len(m.panel(m.stage).Groups()) > 0 || !rowsAlone(heading(m)) ||
 		!strings.Contains(lines(m)[m.headerTop()], "source") {
 		t.Errorf("ungrouped, then loaded again: %q\n%s", m.panel(m.stage).Groups(), view(m))
@@ -505,7 +516,7 @@ func TestTheRowsUnderAHeadingStandInFromIt(t *testing.T) {
 		before, _, _ := strings.Cut(lines(m)[k], glyph)
 		return ansi.StringWidth(before)
 	}
-	if h, r := column(m, "▾ github", grid.Unfolded), column(m, "#45", "▸"); r != h+2 {
+	if h, r := column(m, "▾ kit", grid.Unfolded), column(m, "#45", "▸"); r != h+2 {
 		t.Errorf("grouped as the view loaded, the heading's ▾ at %d, a row's ▸ at %d:\n%s", h, r, view(m))
 	}
 	unfold(&m)

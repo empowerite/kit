@@ -65,7 +65,8 @@ func TestTheColumnMenuFlattensAListAndItsRowsSort(t *testing.T) {
 		strings.Contains(header, "assignees") || rows(m, "#7") != 2 || rows(m, "#45") != 1 {
 		t.Fatalf("assignees flat: #7 %d rows, #45 %d\n%s", rows(m, "#7"), rows(m, "#45"), raw(m))
 	}
-	for _, want := range []string{"backlog  3", "source 3", "github 3"} {
+	// jig's #7 stands on two lines, one row
+	for _, want := range []string{"backlog  3", "repository ▾ 3", "github · empowerite 3", "jig 1"} {
 		if !strings.Contains(raw(m), want) {
 			t.Errorf("a count is no longer the rows': no %q\n%s", want, raw(m))
 		}

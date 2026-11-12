@@ -247,9 +247,9 @@ func TestChoosingAViewSetsThePanelAndAChangeStrikesTheNameThrough(t *testing.T) 
 	// Default shows every column the catalog places, again
 	m = drive(m, press(tea.KeyEnter), down, press(tea.KeyEnter), press(tea.KeyEnter), up)
 	columns := slices.DeleteFunc(slices.Clone(fieldsOf("backlog")), func(f table.Field) bool { return f.Placement != table.PlaceColumn })
-	// less source, which the view groups the rows by as it loads
-	if m = drive(m, press(tea.KeyEnter)); len(shownNow(m)) != len(columns)-1 || m.is(0) != "Default" ||
-		!slices.Equal(m.panel(0).Groups(), []string{"source"}) {
+	// under source, organization, and repository, as the catalog groups them
+	if m = drive(m, press(tea.KeyEnter)); len(shownNow(m)) != len(columns) || m.is(0) != "Default" ||
+		!slices.Equal(m.panel(0).Groups(), []string{"source", "organization", "repository"}) {
 		t.Errorf("Default: %q", shownNow(m))
 	}
 }
@@ -284,9 +284,13 @@ func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 	if err != nil || json.Unmarshal(data, &kept) != nil || kept.Version != 2 || len(kept.Stages["backlog"]) != 1 {
 		t.Fatalf("the file: %s, %v", data, err)
 	}
-	// by field id: branch hidden, assignees grouped and filtered to everyone but the caller, age sorted descending
+	// by field id: branch hidden, assignees grouped and filtered to everyone but the caller, age sorted descending, and
+	// source, organization, and repository, which the catalog groups by, columns again, as grouping by assignees alone
+	// leaves them
+	column := table.Setting{Placement: table.PlaceColumn}
 	want := map[string]table.Setting{"branch": {Placement: table.PlaceHidden}, "age": {Sort: "desc", Priority: 1},
-		"assignees": {Placement: table.PlaceGroup, Depth: 1, Filter: &table.ValueFilter{Exclude: []string{caller}}}}
+		"assignees": {Placement: table.PlaceGroup, Depth: 1, Filter: &table.ValueFilter{Exclude: []string{caller}}},
+		"source":    column, "organization": column, "repository": column}
 	// whether shared values fold is kittui's setting, so the preset does not keep it
 	if v := kept.Stages["backlog"][0]; v.Name != "Triage" || !reflect.DeepEqual(v.Fields, want) ||
 		strings.Contains(string(data), "fold") {
@@ -497,6 +501,7 @@ func TestViewsJSONBecomesPresetsJSONOnce(t *testing.T) {
 	if err != nil || json.Unmarshal(data, &kept) != nil || kept.Version != 2 {
 		t.Fatalf("presets.json: %s, %v", data, err)
 	}
+	column := table.Setting{Placement: table.PlaceColumn}
 	want := map[string][]table.Preset{
 		"backlog": {
 			{Name: "Mine", Fields: map[string]table.Setting{
@@ -506,18 +511,23 @@ func TestViewsJSONBecomesPresetsJSONOnce(t *testing.T) {
 				"assignees": {Placement: table.PlaceColumn, Position: 4, Filter: &table.ValueFilter{Include: []string{caller}}},
 				"age":       {Placement: table.PlaceColumn, Position: 5, Sort: "desc", Priority: 1},
 				"branch":    {Placement: table.PlaceHidden},
-				// the fields the version 1 file could not name, as repository and labels, stand after the columns it
-				// named, in the catalog's order
-				"repository": {Placement: table.PlaceColumn, Position: 6},
-				"labels":     {Placement: table.PlaceColumn, Position: 7},
+				// the fields the version 1 file could not name, as organization, repository, and labels, stand after
+				// the columns it named, in the catalog's order
+				"organization": {Placement: table.PlaceColumn, Position: 6},
+				"repository":   {Placement: table.PlaceColumn, Position: 7},
+				"labels":       {Placement: table.PlaceColumn, Position: 8},
 			}},
+			// a view groups by what it grouped by alone: source, organization, and repository, which the catalog
+			// groups by, are columns
 			{Name: "Others", Fields: map[string]table.Setting{
 				"assignees": {Placement: table.PlaceGroup, Depth: 1, Filter: &table.ValueFilter{Exclude: []string{caller}}},
+				"source":    column, "organization": column, "repository": column,
 			}},
-			{Name: "All"},
+			{Name: "All", Fields: map[string]table.Setting{"source": column, "organization": column, "repository": column}},
 		},
 		"changes": {
-			{Name: "Authors", Fields: map[string]table.Setting{"author": {Placement: table.PlaceGroup, Depth: 1}}},
+			{Name: "Authors", Fields: map[string]table.Setting{"author": {Placement: table.PlaceGroup, Depth: 1},
+				"source": column, "organization": column, "repository": column}},
 		},
 	}
 	if !reflect.DeepEqual(kept.Stages, want) || !reflect.DeepEqual(m.saved, want) {

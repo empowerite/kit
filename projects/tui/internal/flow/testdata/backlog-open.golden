@@ -2,23 +2,23 @@
   ➊╶────────────────╮➁╶─────────────────╮➂╶────────────────╮➃╶───────────────╮➄╶
   │ 🎫 backlog  3 : │  🛫 underway  4   │  🔀 changes  3   │  🏭 builds  4   │
   ╵                 ╰───────────────────╰──────────────────╰─────────────────╰──
-  ▾ source 3                                                        Default ▼
-    ·───────
-  ▾ github 3
+  ▾ source · organization · repository ▾ 3                          Default ▼
+    ·────────·──────────────·─────────────
+  ▾ github · empowerite 3
 
-      id   repository  assignees    age  branch       labels       title
-      ·────·───────────×·───────────·────·────────────×·───────────·───────────
-    ▾ #45  kit                       2h               kindfeatu  🎫 kit flow 
-                                                      re          is the one  
-                                                      areatui   picture:    
-                                                      good        five stages,
-                                                      first        interactive 
-                                                      issue       on a        
-                                                                   terminal,   
-                                                                   and the     
-                                                                   listing     
-                                                                   verbs fold  
-                                                                   into it     
-    ▸ #46  kit         jeffrey-ag…   2d  46-a-noun-…  bug        🎫 A noun l…
-    ▸ #7   jig         ada      +1  40d                            🎫 Fix the …
- = menu - workspace / search ? legend │ … │ esc tabs ↑↓ move ␣·⇧↑↓ select ⌃A al…
+        id   assignees       age  branch          labels           title
+        ·────×·──────────────·────·───────────────×·───────────────·───────────
+    ▾ jig 1
+      ▾ #7   ada             40d                                   🎫 Fix the  
+             bob                                                   thing       
+    ▾ kit 2
+      ▸ #45                   2h                  kindfeat… +2  🎫 kit flow…
+      ▸ #46  jeffrey-aguil…   2d  46-a-noun-lis…  bug            🎫 A noun l…
+
+
+
+
+
+
+
+ = menu - workspace / search ? legend │ … │ esc tabs ↑↓ move [] group ␣·⇧↑↓ sel…

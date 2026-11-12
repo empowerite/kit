@@ -240,26 +240,31 @@ func TestAPresetSetsThePanel(t *testing.T) {
 	g := p.Panel(fields, grid.Panel{Owner: ownerOf("backlog"), Ones: onesOf("backlog")})
 	if got := g.Arrange(columnsOf("backlog")); !slices.Equal(got, []string{"title", "id", "member", "source",
 		"organization", "repository", "assignees", "age", "branch", "labels"}) ||
-		!slices.Equal(g.Groups(), []string{"source"}) || g.Field("branch").Placement != grid.Hidden ||
+		!slices.Equal(g.Groups(), []string{"source", "organization", "repository"}) ||
+		g.Field("branch").Placement != grid.Hidden ||
 		!slices.Equal(g.SortKeys(), []grid.SortKey{{Column: "age", Desc: true}, {Column: "assignees"}}) ||
 		g.Showing() != grid.Others || g.Field("branch").Rendering != "text" {
 		t.Errorf("the panel: %q %+v", got, g.Fields)
 	}
 	back := table.PresetOf(g, fields)
 	if !reflect.DeepEqual(table.PresetOf(back.Panel(fields, grid.Panel{}), fields), back) ||
-		back.Fields["source"] != (table.Setting{Placement: table.PlaceGroup, Depth: 1}) || back.Fields["title"].Position != 1 {
+		back.Fields["source"] != (table.Setting{}) || back.Fields["title"].Position != 1 {
 		t.Errorf("the preset again: %+v", back)
 	}
-	// the stage's own: Default shows every column but member, which only a group's rows hold, and organization;
-	// Compact, the few that say what a row is
+	// source grouped outermost, as the catalog groups it, says nothing read back; organization and repository, which
+	// Triage names not, group under it as the catalog says
+	// the stage's own: Default shows every column but member, which only a group's rows hold, and groups by source,
+	// organization, and repository, as every stage whose rows belong to a repository does; Compact, the few that say
+	// what a row is
 	builds := catalog["builds"]
 	if d := builds.Presets[0].Panel(builds.Fields, grid.Panel{}); builds.Presets[0].Name != Opening ||
-		!slices.Equal(hiddenOf(grid.Panel{Fields: d.Fields, Columns: columnsOf("builds")}), []string{"member", "organization"}) {
+		!slices.Equal(hiddenOf(grid.Panel{Fields: d.Fields, Columns: columnsOf("builds")}), []string{"member"}) ||
+		!slices.Equal(d.Groups(), []string{"source", "organization", "repository"}) {
 		t.Errorf("Default: %+v", d.Fields)
 	}
 	if c := builds.Presets[1].Panel(builds.Fields, grid.Panel{Columns: columnsOf("builds")}); builds.Presets[1].Name != "Compact" ||
-		!slices.Equal(hiddenOf(c), []string{"member", "source", "organization", "repository", "run", "event", "branch",
-			"commit", "took"}) {
+		!slices.Equal(hiddenOf(c), []string{"member", "run", "event", "branch", "commit", "took"}) ||
+		!slices.Equal(c.Groups(), []string{"source", "organization", "repository"}) {
 		t.Errorf("Compact: %+v", c.Fields)
 	}
 	// a rendering pinned draws the field
@@ -272,23 +277,22 @@ func TestAPresetSetsThePanel(t *testing.T) {
 	}
 }
 
-// An issue's organization and repository, as kit prints them, are fields of backlog and of underway: the repository a
-// column, the organization hidden until the person shows it; each draws each row's, and a filter on them offers the
-// values the rows hold.
+// An issue's organization and repository, as kit prints them, are fields of backlog and of underway, which group the
+// rows under them: the source and the organization every issue shares as one heading, each repository's under it;
+// a filter on them offers the values the rows hold.
 func TestAnIssuesOrganizationAndRepositoryAreFields(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
 	for _, stage := range []string{"backlog", "underway"} {
-		for id, placed := range map[string]string{"organization": table.PlaceHidden, "repository": table.PlaceColumn} {
-			if f := fieldIn(stage, id); f.Placement != placed || !f.Filter || !f.Group {
+		for id, depth := range map[string]int{"source": 1, "organization": 2, "repository": 3} {
+			if f := fieldIn(stage, id); f.Placement != table.PlaceGroup || f.Depth != depth || !f.Filter || !f.Group {
 				t.Errorf("%s.%s: %+v", stage, id, f)
 			}
 		}
 	}
-	if strings.Contains(raw(m), "organization") {
-		t.Errorf("the organization is drawn while hidden:\n%s", raw(m))
-	}
-	if !strings.Contains(raw(m), "jig") || !strings.Contains(raw(m), "kit") {
-		t.Errorf("the repository shown:\n%s", raw(m))
+	for _, heading := range []string{"▾ github · empowerite 3", "▾ jig 1", "▾ kit 2"} {
+		if !strings.Contains(raw(m), heading) {
+			t.Errorf("no heading %q:\n%s", heading, raw(m))
+		}
 	}
 	if got := table.FilterValues(&m, fieldIn("backlog", "repository")); !slices.Equal(got, []string{"jig", "kit", grid.NoValue}) {
 		t.Errorf("the repository's filter offers %q", got)
@@ -300,6 +304,39 @@ func TestAnIssuesOrganizationAndRepositoryAreFields(t *testing.T) {
 	m = drive(m, tab)
 	if got := m.records(m.stages[m.stage])[0].values["organization"].Raw; !slices.Equal(got, []string{"empowerite"}) {
 		t.Errorf("underway's organization: %q", got)
+	}
+}
+
+// The workspace kittui reads can cross repositories, so every stage whose rows belong to one groups them, in each of
+// its own views, by source, organization, and repository, the outermost first, a view the person saves keeping the
+// groups they chose: repos, whose rows are repositories, by source and organization alone; remotes, whose
+// organization and repository are those a remote names, and audit policy, whose rows merge up to a scope, by
+// none of them.
+func TestEveryStageGroupsItsOwnViewsBySourceOrganizationAndRepository(t *testing.T) {
+	want := []string{"source", "organization", "repository"}
+	for name, s := range catalog {
+		switch name {
+		case "workspace/repos":
+			want := want[:2]
+			for _, pr := range s.Presets {
+				if got := pr.Panel(s.Fields, grid.Panel{}).Groups(); !slices.Equal(got, want) {
+					t.Errorf("%s %s groups by %q", name, pr.Name, got)
+				}
+			}
+			continue
+		case "workspace/remotes", "audit/policy":
+			for _, f := range s.Fields {
+				if f.Placement == table.PlaceGroup {
+					t.Errorf("%s groups by %s", name, f.ID)
+				}
+			}
+			continue
+		}
+		for _, pr := range s.Presets {
+			if got := pr.Panel(s.Fields, grid.Panel{}).Groups(); !slices.Equal(got, want) {
+				t.Errorf("%s %s groups by %q", name, pr.Name, got)
+			}
+		}
 	}
 }
 

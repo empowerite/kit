@@ -1008,7 +1008,9 @@ func (m *Model) take(msg source.Answer[[]byte]) {
 
 // autoGroup groups a stage's rows as its view groups them as it loads, once it has rows to look at: by each column
 // whose value is the same on every row the panel lets through, as the panel's AutoGrouped says, where kittui's
-// settings auto-group and the view groups by nothing. It runs once a view, on the first rows after the view is set, as
+// settings auto-group and the view groups by nothing. A group the catalog places a field in, as source, organization,
+// and repository, which the view does not name, is hidden where no row holds a value of it, rather than standing every
+// row under a heading of none. It runs once a view, on the first rows after the view is set, as
 // the screen opens or the preset line sets another; past that, the groups are the person's, as any they chose, and
 // the preset line names the view still.
 func (m *Model) autoGroup(name string) {
@@ -1023,13 +1025,21 @@ func (m *Model) autoGroup(name string) {
 	s.Grouping = false
 	all := laid(s.name, m.records(*s), func(id string) string { return s.View.Field(id).Rendering })
 	p := m.panel(i)
-	next := p.AutoGrouped(all, columnsOf(s.name))
-	if m.runner.Group != "" && p.Fold && p.Groupable["member"] && len(p.Groups()) == 0 {
+	columns, named := columnsOf(s.name), m.chosen(i).Fields
+	// a group the catalog gives, which the view does not name, stands aside where no row holds a value of it
+	base := p
+	for _, f := range fieldsOf(s.name) {
+		if _, own := named[f.ID]; f.Placement == table.PlaceGroup && !own && grid.Blank(all, columns, f.ID) {
+			base = base.Placed(f.ID, grid.Hidden)
+		}
+	}
+	next := base.AutoGrouped(all, columns)
+	if m.runner.Group != "" && base.Fold && base.Groupable["member"] && len(base.Groups()) == 0 {
 		// over a group, the rows stand under their member first, then under what they share
 		ids := slices.DeleteFunc(next.Groups(), func(id string) bool { return id == "member" })
-		next = p.GroupedBy(append([]string{"member"}, ids...))
+		next = base.GroupedBy(append([]string{"member"}, ids...))
 	}
-	if len(next.Groups()) == len(p.Groups()) {
+	if slices.Equal(next.Groups(), p.Groups()) {
 		return
 	}
 	s.View = next

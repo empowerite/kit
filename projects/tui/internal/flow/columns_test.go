@@ -37,7 +37,8 @@ func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 	if strings.Contains(lines(m)[m.top()], "◫") || strings.Contains(lines(m)[m.top()], Fields) {
 		t.Errorf("an icon on the header: %q", lines(m)[m.top()])
 	}
-	m.setPanel(regroup(m.panel(0).SortedAs("age", grid.Descending), "assignees"))
+	// organization, which the view groups by, hidden, to stand last
+	m.setPanel(regroup(m.panel(0).SortedAs("age", grid.Descending), "assignees").Placed("organization", grid.Hidden))
 	if m.presetsMenu = m.presetsMenu.Drop(&m); table.PresetItems(&m)[table.ItemFields] != (shell.Item{Glyph: Fields, Name: FieldsIt}) ||
 		table.PresetItems(&m)[table.ItemFields+1].Name != "" || !table.PresetEnabled(&m, table.ItemFields) {
 		t.Fatalf("the presets' menu: %+v", table.PresetItems(&m))
@@ -69,8 +70,8 @@ func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 // Options… over the dialog; esc, or a click off the dialog, closes it.
 func TestTheColumnsDialogAppliesAtOnce(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 110, Height: 30})
-	// the repository, a column between source and assignees, has tests of its own
-	m.setPanel(regroup(m.panel(0)).Placed("repository", grid.Hidden))
+	// the organization and the repository, columns between source and assignees once ungrouped, have tests of their own
+	m.setPanel(regroup(m.panel(0)).Placed("organization", grid.Hidden).Placed("repository", grid.Hidden))
 	m.cols = table.Columns{Open: true}
 	at := func(id string) { m.cols.At = slices.Index(m.cols.Listed(&m), id) }
 	at("branch")

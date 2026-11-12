@@ -2,21 +2,21 @@
   ➊╶────────────────╮➁╶─────────────────╮➂╶────────────────╮➃╶───────────────╮➄╶
   │ 🎫 backlog  3 : │  🛫 underway  4   │  🔀 changes  3   │  🏭 builds  4   │
   ╵                 ╰───────────────────╰──────────────────╰─────────────────╰──
-  ▾ source 3                                                        Default ▼
-    ·───────                                      ╭─ backlog legend ── ↖ ↗ ↙ ↘ ╮
-  ▾ github 3                                      │ =  kit menu                │
-                                                  │ -  workspace menu          │
-      id   repository  assignees    age  branch   │ 🔎 search: / or click      │
-      ·────·───────────×·───────────·────·────────│ ➊  selected tab            │
-    ▸ #45  kit                       2h           │ ➁  tab: click to select    │
-    ▸ #46  kit         jeffrey-ag…   2d  46-a-noun│ 🎫 backlog stage           │
-    ▸ #7   jig         ada      +1  40d           │ :  tab menu                │
-                                                  │ 🛫 underway stage          │
-                                                  │ 🔀 changes stage           │
-                                                  │ 🏭 builds stage            │
+  ▾ source · organization · repository ▾ 3        ╭─ backlog legend ── ↖ ↗ ↙ ↘ ╮
+    ·────────·──────────────·─────────────        │ =  kit menu                │
+  ▾ github · empowerite 3                         │ -  workspace menu          │
+                                                  │ 🔎 search: / or click      │
+        id   assignees       age  branch          │ ➊  selected tab            │
+        ·────×·──────────────·────·───────────────│ ➁  tab: click to select    │
+    ▾ jig 1                                       │ 🎫 backlog stage           │
+      ▸ #7   ada         +1  40d                  │ :  tab menu                │
+    ▾ kit 2                                       │ 🛫 underway stage          │
+      ▸ #45                   2h                  │ 🔀 changes stage           │
+      ▸ #46  jeffrey-aguil…   2d  46-a-noun-lis…  │ 🏭 builds stage            │
                                                   │ ▾  open: click to close    │
                                                   │ ▼  presets menu            │
                                                   │ ·  sortable: click to sort │
+                                                  │ ·  separator               │
                                                   │ ×  list: click to flatten  │
                                                   │ ▸  closed: click to open   │
                                                   │ 🎫 issue 🔗                │

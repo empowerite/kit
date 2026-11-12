@@ -961,6 +961,15 @@ func (p Panel) AutoGrouped(rows []Row, columns []string) Panel {
 	return p.GroupedBy(ids)
 }
 
+// Blank says whether no row of the rows holds a value in the named column, as its sort key says; columns names each
+// cell's column, in the stage's order. A column the rows do not have is blank.
+func Blank(rows []Row, columns []string, name string) bool {
+	j := slices.Index(columns, name)
+	return j < 0 || !slices.ContainsFunc(rows, func(r Row) bool {
+		return !r.Aside && len(r.Cells) > 1 && j < len(r.Cells) && r.Cells[j].key() != ""
+	})
+}
+
 // constant gives those of the columns whose value is the same on every one of the rows, as their sort key says, each
 // cell holding one value and none blank; none for fewer than two rows.
 func constant(rows []Row, columns []int) []int {

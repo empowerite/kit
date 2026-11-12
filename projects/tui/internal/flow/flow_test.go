@@ -152,15 +152,16 @@ func loaded(t *testing.T, o Options, msgs ...tea.Msg) Model {
 
 func press(code rune) tea.KeyPressMsg { return tea.KeyPressMsg{Code: code} }
 
-// unfold turns Auto-group off, as kittui's settings do, and sets each stage's view again, so its rows, loaded already,
-// stand as a view set while Auto-group is off leaves them: grouped by nothing, the source, one tracker's on every row,
-// a column.
+// unfold turns Auto-group off, as kittui's settings do, sets each stage's view again, and ungroups it, so its rows,
+// loaded already, stand flat: grouped by nothing, not even the source, organization, and repository the view groups
+// by, which are columns.
 func unfold(m *Model) {
 	folding(m, false)
 	at := m.stage
 	for i := range m.stages {
 		m.stage = i
 		m.apply(m.chosen(i))
+		m.setPanel(regroup(m.panel(i)))
 	}
 	m.stage = at
 }
@@ -671,7 +672,8 @@ func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
 	}{
 		{nil, barKeys},
 		{[]tea.Msg{tab, tab, tab, down, down}, opens},
-		{[]tea.Msg{down, down, down, down, down}, opens},
+		// past the headings, jig's #7, and kit's heading, to #45, which [ and ] step from group to group
+		{[]tea.Msg{down, down, down, down, down, down}, strings.Replace(opens, "↑↓ move ", "↑↓ move [] group ", 1)},
 		{[]tea.Msg{tab, tab, tab, down, down, right}, closes},
 		{[]tea.Msg{press('?')}, barKeys},
 		{[]tea.Msg{press('?'), press(tea.KeyPgDown)}, barKeys},
@@ -922,9 +924,9 @@ func TestChangesCarryTheirChecksThreadsAndIssues(t *testing.T) {
 
 func TestBacklogOpensToItsDetail(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 24})
-	// the source, repository, and labels columns have tests of their own
-	m.setPanel(m.panel(m.stage).Placed("source", grid.Hidden).Placed("repository", grid.Hidden).Placed("labels",
-		grid.Hidden))
+	// the source, organization, repository, and labels have tests of their own, so the rows stand ungrouped
+	m.setPanel(m.panel(m.stage).Placed("source", grid.Hidden).Placed("organization", grid.Hidden).Placed("repository",
+		grid.Hidden).Placed("labels", grid.Hidden))
 	m = drive(intoRows(m), toggle)
 	v := view(m)
 	// the title has what the other columns leave, with its glyph, which leads to the issue's page, and the branch, which
@@ -1175,9 +1177,10 @@ func TestOpenAppReadsTheStagesAndTheWords(t *testing.T) {
 }
 
 func TestTheSelectedRowIsChosen(t *testing.T) {
+	// the first row is jig's #7, under its repository's heading
 	m := intoRows(loaded(t, options()))
 	chosen, _, _ := strings.Cut(style.Mark("#"), "#")
-	if !strings.Contains(m.View().Content, chosen+"#") || !strings.HasPrefix(cursor(m), "#45") {
+	if !strings.Contains(m.View().Content, chosen+"#") || !strings.HasPrefix(cursor(m), "#7") {
 		t.Errorf("the row under the cursor is not drawn as chosen:\n%s", m.View().Content)
 	}
 }
@@ -1406,9 +1409,9 @@ func TestTookIsToTheSecond(t *testing.T) {
 func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	// underway is the second stage, between backlog and incoming
 	m := loaded(t, bare(), tab)
-	// the source and labels columns have tests of their own
-	m.setPanel(m.panel(m.stage).Placed("source", grid.Hidden).Placed("repository", grid.Hidden).Placed("labels",
-		grid.Hidden))
+	// the source, organization, repository, and labels have tests of their own, so the rows stand ungrouped
+	m.setPanel(m.panel(m.stage).Placed("source", grid.Hidden).Placed("organization", grid.Hidden).Placed("repository",
+		grid.Hidden).Placed("labels", grid.Hidden))
 	asCatalog(&m, m.stage) // auto_test has what the screen chooses
 	if m.stages[m.stage].name != "underway" || !shows(m, InFlight, "4") {
 		t.Fatalf("underway is not the second stage:\n%s", view(m))

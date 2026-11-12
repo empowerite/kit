@@ -2,20 +2,20 @@
   ➊╶────────────────╮➁╶─────────────────╮➂╶────────────────╮➃╶───────────────╮➄╶──────────────────╮➅╶─────────────────╮
   │ 🎫 backlog  3 : │  🛫 underway  4   │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  7    │  📦 releases  3   │
   ╵                 ╰───────────────────╰──────────────────╰─────────────────╰────────────────────╰───────────────────╰─
-  ▾ 1                                                                         ╭─ backlog fields ──────────────────────╮
-  ───                                                                         │   field           type    sort  group │
-    id  source     repository  age  title                                     │ ☑ id              ref     ·           │
-    ·───·──────────·───────────▼────·─────────────────────────────────────────│ ☑ source          enum    ·     ·     │
-    #7  🐙 github  jig         40d  🎫 Fix the thing                          │ ☑ repository      enum    ·     ·     │
+  ▾ organization · repository 1                                               ╭─ backlog fields ──────────────────────╮
+    ·──────────────·───────────                                               │   field           type    sort  group │
+  ▾ empowerite · jig 1                                                        │ ☑ organization    enum    ·     ▤₁    │
+                                                                              │ ☑ repository      enum    ·     ▤₂    │
+      id  source     age  title                                               │ ───────────────────────────────────── │
+      ·───·──────────▼────·───────────────────────────────────────────────────│ ☑ id              ref     ·           │
+      #7  🐙 github  40d  🎫 Fix the thing                                    │ ☑ source          enum    ·     ·     │
                                                                               │ ☑ age             time    ▼           │
                                                                               │ ☑ branch          text    ·           │
                                                                               │ ☑ labels          label   ·     ·     │
                                                                               │ ☑ title           text    ·           │
                                                                               │ ───────────────────────────────────── │
-                                                                              │ ☐ organization    enum    ·     ·     │
                                                                               │ ☐ assignees ⊘     person  ·     ·     │
                                                                               ╰───────────────────────────────────────╯
-
 
 
 

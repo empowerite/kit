@@ -1,16 +1,16 @@
   = kit flow · - empowerite/kit · ➊ backlog ╭╴:╶────────────────────────────────╮                            🔎 /search
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│ 🔄 Refresh                      R │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  ▾ source 3                                │ 🔭 Watch                        W │                           Default ▼
-    ·───────                                │ ⤡  Restore                      M │
-  ▾ github 3                                │ ───────────────────────────────── │
+  ▾ source · organization · repository ▾ 3  │ 🔭 Watch                        W │                           Default ▼
+    ·────────·──────────────·─────────────  │ ⤡  Restore                      M │
+  ▾ github · empowerite 3                   │ ───────────────────────────────── │
                                             │ 🔽 Show More                    > │
-      id   repository  assignees         age│ 🔼 Show Less                    < │ title
-      ·────·───────────×·────────────────·──│ ⏬ Show Selected                  │─·────────────────────────────────────
-    ▸ #45  kit                            2h│ ⏫ Hide Selected                  │ 🎫 kit flow is the one picture: five…
-    ▸ #46  kit         jeffrey-aguilera   2d│ ───────────────────────────────── │ 🎫 A noun lists, a noun with a verb …
-    ▸ #7   jig         ada           +1  40d│ 📋 Select All                  ⌃A │ 🎫 Fix the thing
-                                            │ 🧹 Clear Selection                │
-                                            │ ───────────────────────────────── │
+        id   assignees         age  branch  │ 🔼 Show Less                    < │
+        ·────×·────────────────·────·───────│ ⏬ Show Selected                  │──────────────────────────────────────
+    ▾ jig 1                                 │ ⏫ Hide Selected                  │
+      ▸ #7   ada           +1  40d          │ ───────────────────────────────── │e thing
+    ▾ kit 2                                 │ 📋 Select All                  ⌃A │
+      ▸ #45                     2h          │ 🧹 Clear Selection                │ow is the one picture: five stages, i…
+      ▸ #46  jeffrey-aguilera   2d  🌿 46-a-│ ───────────────────────────────── │ lists, a noun with a verb acts
                                             │ 📝 New…                         N │
                                             │ 🌱 Start Local Work for Each      │
                                             │ 🌿 Start Local Work Together…     │
