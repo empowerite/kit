@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh api --paginate --slurp repos/{owner}/{repo}/collaborators?per_page=100",
+  "description": "Everyone with access to the repository, of their own, through a team, or as the organization's members, the default affiliation all, as an array of the pages gh read, each an array, which kit draws as the people stage's in `modules/bash/forge/github.sh` (forge/github:collaborators, with `modules/jq/forge.jq` forge::github_collaborators). GitHub answers it only to a caller who may push, and any other 403 Must have push access. The types are those of GET /repos/{owner}/{repo}/collaborators in GitHub's REST OpenAPI, https://github.com/github/rest-api-description, as https://docs.github.com/rest/collaborators/collaborators describes them.",
+  "type": "array",
+  "items": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "properties": {
+        "login": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "description": "User, or Bot for an app's account."
+        },
+        "name": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Null, or absent, where GitHub shows none, as its list mostly does."
+        },
+        "role_name": {
+          "type": "string",
+          "description": "The highest role any source gives: admin, maintain, write, triage, read, or a custom role's name."
+        }
+      },
+      "required": [
+        "login",
+        "type",
+        "role_name"
+      ],
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    [
+      [
+        {
+          "login": "ada",
+          "type": "User",
+          "name": null,
+          "role_name": "admin"
+        },
+        {
+          "login": "dependabot[bot]",
+          "type": "Bot",
+          "role_name": "write"
+        }
+      ]
+    ]
+  ]
+}

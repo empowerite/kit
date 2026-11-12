@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# kit-version - prints this release's version (kit verb: installation)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit version
+#
+# kit version takes no arguments. It prints the version of the kit that runs, or unreleased for a checkout of the
+# kit that has no version file.
+#
+# Arguments:
+#
+# Exits 0, and 2 on a usage error.
+#
+# see: bin/kit
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter --any-clone
+use release
+
+guard:arguments version "$@" || exit $?
+
+release:version
+
+# ----------------------------------------------------------------------------------------------------------------------

@@ -1,0 +1,402 @@
+// The app's menu is the same on every screen: kit's screens, the guides then the apps, the one it is on dim, the
+// settings, and quit; its keys and clicks choose, and the box hangs from its glyph, whatever is under it kept in its
+// columns.
+package shell
+
+import (
+	"image"
+	"slices"
+	"strconv"
+	"strings"
+	"testing"
+
+	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
+
+	"github.com/empowerite/kit/projects/tui/internal/pane"
+	"github.com/empowerite/kit/projects/tui/internal/style"
+)
+
+// key gives the press of a key, with its text when it types one.
+func key(s string) tea.KeyPressMsg {
+	switch s {
+	case "up":
+		return tea.KeyPressMsg{Code: tea.KeyUp}
+	case "down":
+		return tea.KeyPressMsg{Code: tea.KeyDown}
+	case "enter":
+		return tea.KeyPressMsg{Code: tea.KeyEnter}
+	case "esc":
+		return tea.KeyPressMsg{Code: tea.KeyEscape}
+	case "space":
+		return tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}
+	}
+	return tea.KeyPressMsg{Code: rune(s[0]), Text: s}
+}
+
+func TestTheMenuHasItsScreensOwnItemsKitsScreensTheSettingsAndQuit(t *testing.T) {
+	m := Menu{Here: Welcome, Own: []Item{{Glyph: "🔄", Name: "Refresh All"}}}.Opened()
+	var names []string
+	for _, item := range m.Items() {
+		names = append(names, item.Name)
+	}
+	if got := strings.Join(names, "|"); got != "Welcome|Tutorials|Help||Flow|Issues|Changes|Repositories|Delivery|"+
+		"People|Trust|Platform|Packages||Refresh All|Settings…||Quit" {
+		t.Fatalf("the items: %q", got)
+	}
+	// its own, kit's screens, the one it is on too, the settings, and quit can be chosen; the rules cannot
+	for k, want := range []bool{true, true, true, false, true, true, true, true, true, true, true, true, true, false,
+		true, true, false, true} {
+		if m.enabled(k) != want {
+			t.Errorf("item %d (%s) enabled %v", k, names[k], !want)
+		}
+	}
+	if (Menu{}).Items()[14].Name != "Settings…" || m.At != 0 || !m.Open {
+		t.Errorf("a menu with no items of its screen's, or the keyboard on its first that acts: %+v", m)
+	}
+}
+
+func TestTheMenusKeysMoveChooseAndClose(t *testing.T) {
+	// the menu opens on the screen it is on, issues; on one with no line of its own, on its first that acts
+	m := Menu{Here: Issues}.Opened()
+	if m.At != 5 || !m.Open || (Menu{Here: Manage}).Opened().At != 0 {
+		t.Fatalf("opened at %d, open %v; on the workspaces' screen, at %d", m.At, m.Open, (Menu{Here: Manage}).Opened().At)
+	}
+	for _, step := range []struct {
+		key  string
+		want int
+	}{{"up", 4}, {"up", 2}, {"up", 1}, {"up", 0}, {"up", 0}, {"down", 1}, {"down", 2}, {"down", 4}, {"down", 5}, {"down", 6}, {"down", 7}, {"down", 8}, {"down", 9}, {"down", 10},
+		{"down", 11}, {"down", 12}, {"down", 14}, {"down", 16}, {"down", 16}, {"up", 14}, {"w", 0}, {"q", 16},
+		{"z", 16}} {
+		if m, _ = m.Key(key(step.key)); m.At != step.want {
+			t.Errorf("%s: item %d, want %d", step.key, m.At, step.want)
+		}
+	}
+	if m, c := m.Key(key("enter")); m.Open || c != (Choice{Quit: true}) {
+		t.Errorf("quit: open %v, %+v", m.Open, c)
+	}
+	if m, c := m.Opened().Key(key("h")); !m.Open || c != (Choice{}) {
+		t.Errorf("h: open %v, %+v", m.Open, c)
+	} else if m, c = m.Key(key("enter")); c != (Choice{Screen: Help}) || m.Open {
+		t.Errorf("help: open %v, %+v", m.Open, c)
+	}
+	if m, c := m.Opened().Key(key("s")); !m.Open || c != (Choice{}) {
+		t.Errorf("s: open %v, %+v", m.Open, c)
+	} else if m, c = m.Key(key("enter")); c.Screen != SettingsScreen || c.From == nil ||
+		*c.From != (image.Point{X: At - 2 + 5, Y: Top + 1 + 14}) || !m.Open || m.At != 14 {
+		// the menu stays open on Settings…, which the dialog then stands over, and esc closes it back to the menu
+		t.Errorf("settings: open %v at %d, %+v", m.Open, m.At, c)
+	}
+	own, _ := Menu{Here: Help, Own: []Item{{Name: "Mine"}}}.Opened().Key(key("m"))
+	if _, c := own.Key(key("enter")); c != (Choice{Own: "Mine"}) {
+		t.Errorf("its own: %+v", c)
+	}
+	// enter on nothing chosen does nothing; esc and = close
+	if m, c := (Menu{Here: Issues, Dropdown: Dropdown{Open: true, At: -1}}).Key(key("enter")); !m.Open || c != (Choice{}) {
+		t.Errorf("enter on nothing: %v %+v", m.Open, c)
+	}
+	for _, k := range []string{"esc", "="} {
+		if m, _ := m.Opened().Key(key(k)); m.Open {
+			t.Errorf("%s did not close the menu", k)
+		}
+	}
+	if (Choice{Screen: Welcome}).Switch()() != (SwitchMsg{Screen: Welcome}) {
+		t.Error("Switch")
+	}
+	from := &image.Point{X: 5, Y: 16}
+	if (Choice{Screen: SettingsScreen, From: from}).Switch()() != (SwitchMsg{Screen: SettingsScreen, From: from}) {
+		t.Error("Switch from Settings…")
+	}
+}
+
+func TestTheMenuHangsFromTheTitlesGlyphAndAClickChooses(t *testing.T) {
+	m := Menu{Here: Issues}.Opened()
+	screen := strings.Split(strings.Repeat(strings.Repeat("x", 60)+"\n", 20), "\n")
+	drawn := m.Overlay(screen, 60)
+	if !strings.HasPrefix(ansi.Strip(drawn[Top]), "╭╴"+App+"╶") || !strings.HasPrefix(ansi.Strip(drawn[1]), "│ "+Home+" Welcome") ||
+		ansi.StringWidth(drawn[3]) != 60 {
+		t.Errorf("the menu over the screen:\n%s", ansi.Strip(strings.Join(drawn, "\n")))
+	}
+	if got := (Menu{}).Overlay([]string{"a"}, 60); got[0] != "a" {
+		t.Errorf("a closed menu drew: %q", got)
+	}
+	// a click on welcome chooses it; on issues, where it is, it closes the menu and asks nothing; off the box, it closes
+	if m, c := m.Click(3, Top+1, 60); c != (Choice{Screen: Welcome}) || m.Open {
+		t.Errorf("a click on welcome: %v %+v", m.Open, c)
+	}
+	if m, c := m.Click(3, Top+6, 60); c != (Choice{}) || m.Open {
+		t.Errorf("a click on issues: %v %+v", m.Open, c)
+	}
+	if m, c := m.Click(50, 15, 60); c != (Choice{}) || m.Open {
+		t.Errorf("a click off the menu: %v %+v", m.Open, c)
+	}
+	// a click on Settings… leaves the menu open on it, and says the cell its name starts at, where the Settings dialog
+	// then stands its own Settings…, over the menu
+	if m, c := m.Click(3, Top+15, 60); !m.Open || m.At != 14 || c.Screen != SettingsScreen || c.From == nil ||
+		at(m.Overlay(slices.Clone(screen), 60), "Settings…") != *c.From {
+		t.Errorf("a click on Settings…: open %v at %d, %+v", m.Open, m.At, c)
+	} else if d := (SettingsDialog{Open: true, From: c.From}); at(d.Overlay(m.Overlay(slices.Clone(screen), 60),
+		Settings{}, 60), "╭─ Settings…").Add(image.Point{X: 3}) != *c.From {
+		t.Errorf("the dialog over the menu:\n%s", ansi.Strip(strings.Join(d.Overlay(m.Overlay(slices.Clone(screen), 60),
+			Settings{}, 60), "\n")))
+	}
+	// = and the name after it, "kit", take the click, on the title line alone
+	if !OnApp(At, Top, "kit") || !OnApp(0, Top, "kit") || !OnApp(At+4, Top, "kit") || OnApp(At+5, Top, "kit") ||
+		OnApp(At, Top+1, "kit") {
+		t.Error("OnApp")
+	}
+	if Title("kit", false) != "  "+style.Tint(App)+" kit" || Title("kit", true) != "  "+style.Menu(App)+" kit" {
+		t.Errorf("the title: %q %q", Title("kit", false), Title("kit", true))
+	}
+}
+
+// at gives the screen cell the text first starts at among the lines, their styles apart; -1, -1 where none holds it.
+func at(lines []string, text string) image.Point {
+	for y, l := range lines {
+		if before, _, ok := strings.Cut(ansi.Strip(l), text); ok {
+			return image.Point{X: ansi.StringWidth(before), Y: y}
+		}
+	}
+	return image.Point{X: -1, Y: -1}
+}
+
+// The Settings dialog opened from Settings… stands its title on the cell the menu drew it from, as near as the screen
+// lets: against the right edge, or the bottom, where it would run past them.
+func TestTheSettingsDialogStandsOverTheMenusSettings(t *testing.T) {
+	d := SettingsDialog{Open: true, From: &image.Point{X: 7, Y: 3}}
+	box := d.box(Settings{}, 120)
+	if top, left := d.place(box, 30, 120); top != 3 || left != 4 {
+		t.Errorf("placed at %d, %d", top, left)
+	}
+	wide := ansi.StringWidth(box[0])
+	if top, left := (SettingsDialog{From: &image.Point{X: 119, Y: 29}}).place(box, 30, 120); top != 30-len(box) ||
+		left != 120-wide {
+		t.Errorf("against the edges: %d, %d", top, left)
+	}
+	if top, left := (SettingsDialog{From: &image.Point{X: 0, Y: 0}}).place(box, 30, 120); top != 0 || left != 0 {
+		t.Errorf("against the corner: %d, %d", top, left)
+	}
+}
+
+// A box without its glyph keeps to room's right; one whose glyph is near the right turns its corner there; the rows
+// past the screen's last are not drawn.
+func TestABoxKeepsToTheRoomItHas(t *testing.T) {
+	items := []Item{{Name: "One"}}
+	all := func(int) bool { return true }
+	if box, left := Box(items, all, 0, ":", -1, 40); left+ansi.StringWidth(box[0]) != 40 {
+		t.Errorf("no glyph: left %d, width %d", left, ansi.StringWidth(box[0]))
+	}
+	if box, left := Box(items, all, 0, ":", 38, 40); left+ansi.StringWidth(box[0]) != 40 ||
+		!strings.HasSuffix(ansi.Strip(box[0]), "╴:╮") {
+		t.Errorf("a glyph near the right: left %d, %q", left, ansi.Strip(box[0]))
+	}
+	if got := Over([]string{"a"}, []string{"x", "y"}, 0, 0); len(got) != 1 {
+		t.Errorf("a box past the last line: %q", got)
+	}
+}
+
+// The search types what is pressed, erases with backspace, clears with ⌃U, recalls with ⌃R, and gives the view focus
+// on enter, down, esc, or tab, what is typed kept; it stands right-aligned while idle, and in use over the tab bar's
+// rightmost number that leaves room to type.
+func TestTheSearchIsTheSameOnEveryScreen(t *testing.T) {
+	s := Search{Focused: true}
+	for _, k := range []string{"c", "o", "=", "/"} {
+		s, _ = s.Key(key(k))
+	}
+	if s, did := s.Key(tea.KeyPressMsg{Code: tea.KeyBackspace}); did != Typed || s.Query != "co=" {
+		t.Errorf("typing and backspace: %q", s.Query)
+	}
+	if _, did := s.Key(key("up")); did != NotSearch {
+		t.Error("up was the search's")
+	}
+	for _, k := range []tea.KeyPressMsg{key("esc"), {Code: tea.KeyTab}, key("enter"), key("down")} {
+		if left, did := s.Key(k); did != Left || left.Focused || left.Query != s.Query {
+			t.Errorf("%s did not give the view focus, what is typed kept: %+v", k, left)
+		}
+	}
+	if cleared, did := s.Key(tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}); did != Typed || cleared.Query != "" ||
+		!cleared.Focused {
+		t.Errorf("⌃U: %+v", cleared)
+	}
+	if recalled, did := s.Key(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl}); did != Recalled || recalled.Query != s.Query {
+		t.Errorf("⌃R: %+v", recalled)
+	}
+	if q, _ := Type("", tea.KeyPressMsg{Code: tea.KeyBackspace}); q != "" {
+		t.Error("backspace on nothing")
+	}
+	if SearchLine("co", true) != Find+" co▏" || SearchLine("co", false) != Find+" co" ||
+		SearchLine("", false) != Find+" "+style.Off(Idle) {
+		t.Error("the search's line")
+	}
+	// right-aligned a cell short of the edge, idle or with the keyboard, until what is typed needs more room; then it
+	// grows leftward, as far as the screen's first cell
+	idle := 80 - 1 - ansi.StringWidth(Find+" "+Idle)
+	for _, line := range []string{SearchLine("", false), SearchLine("", true), SearchLine("co", true)} {
+		if at := SearchAt(80, line); at != idle {
+			t.Errorf("%q at %d", line, at)
+		}
+	}
+	if at := SearchAt(80, SearchLine("a longer query", true)); at != 80-1-ansi.StringWidth(Find+" a longer query▏") {
+		t.Errorf("a long query at %d", at)
+	}
+	if SearchAt(5, SearchLine("", false)) != 0 {
+		t.Error("too narrow a screen")
+	}
+}
+
+// A box and a title in a group's color say what the menu's own do, the edges and the line under the keyboard drawn in
+// that color, as style.MenuIn draws them; no color is the menu's own.
+func TestABoxInAGroupsColorSaysWhatTheMenusOwnDoes(t *testing.T) {
+	items := []Item{{Glyph: "💾", Name: "Save"}, {}, {Name: "Default"}}
+	enabled := func(k int) bool { return items[k].Name != "" }
+	own, left := Box(items, enabled, 2, "", -1, 40)
+	blue, at := BoxColored(items, enabled, 2, "", -1, 40, "75")
+	if plain, _ := BoxColored(items, enabled, 2, "", -1, 40, ""); strings.Join(plain, "\n") != strings.Join(own, "\n") {
+		t.Errorf("no color is not the menu's own:\n%s", strings.Join(plain, "\n"))
+	}
+	edge, under := style.MenuIn("75")
+	if at != left || len(blue) != len(own) || blue[0] != edge(ansi.Strip(blue[0])) ||
+		!strings.Contains(blue[3], "48;5;75") || blue[3] == own[3] || under("x") == style.Selected("x") || strings.Contains(strings.Join(blue, ""), style.Menu("│")) {
+		t.Errorf("the box in 75, at %d:\n%q", at, blue)
+	}
+	for k := range own {
+		if ansi.Strip(blue[k]) != ansi.Strip(own[k]) {
+			t.Errorf("line %d says %q, not %q", k, ansi.Strip(blue[k]), ansi.Strip(own[k]))
+		}
+	}
+	if got := TitledColored("Presets", 20, "75"); ansi.Strip(got) != ansi.Strip(Titled("Presets", 20)) ||
+		got != edge(ansi.Strip(got)) || TitledColored("Presets", 20, "") != Titled("Presets", 20) {
+		t.Errorf("the title in 75: %q", got)
+	}
+}
+
+// A menu shows each line's keys at its right, flush with the widest, dim but under the keyboard, where the line is
+// drawn as one; a menu with no keys has no room for them; and quit's are ⌃Q, on every screen.
+func TestAMenuShowsEachLinesKeysAtItsRight(t *testing.T) {
+	items := []Item{{Glyph: "✅", Name: "Select All", Keys: "⌃A"}, {Name: "Find", Keys: "⇧⌃F"}, {Name: "Refresh"}, {},
+		{Name: "Off", Keys: "⌃O"}}
+	enabled := func(k int) bool { return k < 3 }
+	box, _ := Box(items, enabled, 1, "", -1, 40)
+	for k, want := range map[int]string{1: "│ ✅ Select All   ⌃A │", 2: "│    Find        ⇧⌃F │",
+		3: "│    Refresh         │", 5: "│    Off          ⌃O │"} {
+		if got := ansi.Strip(box[k]); got != want {
+			t.Errorf("line %d: %q, want %q", k, got, want)
+		}
+	}
+	_, under := style.MenuIn("")
+	if !strings.Contains(box[1], style.Off("   ⌃A")) || !strings.Contains(box[2], under("    Find        ⇧⌃F ")) ||
+		!strings.Contains(box[5], style.Off("    Off          ⌃O ")) {
+		t.Errorf("the keys' styles:\n%q", box)
+	}
+	if plain, _ := Box([]Item{{Name: "Refresh"}}, Every, 0, "", -1, 40); ansi.Strip(plain[1]) != "│    Refresh │" {
+		t.Errorf("no keys: %q", ansi.Strip(plain[1]))
+	}
+	if quit := (Menu{}).Items(); quit[len(quit)-1].Keys != "⌃Q" {
+		t.Errorf("quit: %+v", quit[len(quit)-1])
+	}
+}
+
+// A dialog is a box with its title on the top edge, a plain bottom edge, its keys being the keys bar's alone, and its
+// lines inside, every line as wide as the others; a line too long for the room is clipped.
+func TestADialogBoxesItsLinesUnderItsTitle(t *testing.T) {
+	lines := Dialog("Close these?", []string{"#45 one", "#46 two"}, 60)
+	plain := make([]string, len(lines))
+	for k, l := range lines {
+		plain[k] = ansi.Strip(l)
+	}
+	if len(lines) != 4 || !strings.HasPrefix(plain[0], "╭─ Close these? ") || !strings.HasSuffix(plain[0], "╮") ||
+		!strings.HasPrefix(plain[1], "│ #45 one ") || strings.Trim(plain[3], "╰─╯") != "" {
+		t.Errorf("the dialog:\n%s", strings.Join(plain, "\n"))
+	}
+	for _, l := range plain {
+		if ansi.StringWidth(l) != ansi.StringWidth(plain[0]) {
+			t.Errorf("a line of another width: %q", l)
+		}
+	}
+	narrow := Dialog("A title far too long", []string{"a line far too long for the room"}, 16)
+	for _, l := range narrow {
+		if w := ansi.StringWidth(l); w != 16 {
+			t.Errorf("narrow: a line of %d cells: %q", w, ansi.Strip(l))
+		}
+	}
+}
+
+// The menu bar is every screen's: the kit menu and the screen's name, each part given after a separator, and the
+// search field at the right end; the left part is clipped two cells short of it, and what the view stands on is found
+// where it is drawn, whole or cut.
+func TestTheMenuBarIsEveryScreens(t *testing.T) {
+	b := MenuBar{Screen: "kit flow", Workspace: "- o/r", On: "➊ issues 7 :", Search: SearchLine("", false)}
+	line := ansi.Strip(b.Line(60))
+	if !strings.HasPrefix(line, "  "+App+" kit flow · - o/r · ➊ issues 7 :") || !strings.HasSuffix(line, Find+" "+Idle) ||
+		ansi.StringWidth(line) != 59 {
+		t.Errorf("the menu bar at 60: %q", line)
+	}
+	from, until, whole := b.OnSpan(60)
+	if !whole || ansi.Strip(ansi.Cut(b.Line(60), from, until)) != b.On {
+		t.Errorf("what the view stands on spans %d to %d, whole %v", from, until, whole)
+	}
+	if _, _, whole = b.OnSpan(35); whole {
+		t.Error("at 35 what the view stands on is cut, not whole")
+	}
+	if from, _, _ = b.OnSpan(15); from != -1 {
+		t.Errorf("at 15 what the view stands on does not show, yet starts at %d", from)
+	}
+	if bare := (MenuBar{Screen: "kit flow"}); bare.SearchAt(60) != 60 || ansi.Strip(bare.Line(60)) != "  "+App+" kit flow" {
+		t.Errorf("with no part and no search: %q", ansi.Strip(bare.Line(60)))
+	}
+	if at := b.WorkspaceAt(); ansi.Strip(ansi.Cut(b.Line(60), at, at+1)) != Workspaces {
+		t.Errorf("the workspace menu is not at %d", at)
+	}
+}
+
+// A menu taller than the rows it has shows the items around the one under the keyboard, a ▴ on its top edge while
+// items are above them and a ▾ on its bottom edge while items are below, its glyph on the top edge still.
+func TestABoxTallerThanItsRowsScrollsToTheKeyboard(t *testing.T) {
+	var items []Item
+	for k := range 10 {
+		items = append(items, Item{Name: "item " + strconv.Itoa(k)})
+	}
+	box, _, first := BoxIn(items, Every, 5, "=", 4, 80, 6)
+	text := ansi.Strip(strings.Join(box, "\n"))
+	if len(box) != 6 || first != 3 || !strings.Contains(box[0], "▴") || !strings.Contains(box[5], "▾") ||
+		!strings.Contains(text, "item 5") || strings.Contains(text, "item 2") || !strings.Contains(box[0], "╴=╶") {
+		t.Errorf("at 5, first %d:\n%s", first, text)
+	}
+	if box, _, first = BoxIn(items, Every, 0, "=", 4, 80, 6); first != 0 || strings.Contains(box[0], "▴") ||
+		!strings.Contains(box[5], "▾") {
+		t.Errorf("at 0, first %d:\n%s", first, ansi.Strip(strings.Join(box, "\n")))
+	}
+	if box, _, first = BoxIn(items, Every, 9, "=", 4, 80, 6); first != 6 || !strings.Contains(box[0], "▴") ||
+		strings.Contains(box[5], "▾") {
+		t.Errorf("at 9, first %d:\n%s", first, ansi.Strip(strings.Join(box, "\n")))
+	}
+}
+
+func TestTheMenusLineForTheScreenItIsOnIsBoldAndClosesTheMenuAskingNothing(t *testing.T) {
+	m := Menu{Here: Issues}.Opened()
+	if items := m.Items(); !items[5].Here || items[0].Here || items[14].Here {
+		t.Fatalf("only issues is here: %+v", items)
+	}
+	// off the keyboard, it is bold
+	m.At = 0
+	box, _ := m.box(60)
+	issues := " " + pane.Pad(Ticket, 2, false) + " " + pane.Pad("Issues", pane.Width([]string{"Repositories"}), false)
+	if !strings.Contains(box[6], style.Label(issues)) || strings.Contains(box[6], style.Off(issues)) ||
+		strings.Contains(box[7], style.Label(" ")) {
+		t.Errorf("issues' line is not bold, or another is:\n%q\n%q", box[6], box[7])
+	}
+	// under the keyboard, it is the bar, bold, across the keys' column too, which Quit's ⌃Q gives every line
+	m.At = 5
+	if box, _ = m.box(60); !strings.Contains(box[6], style.MenuHereIn("")(issues+"    "+" ")) ||
+		strings.Contains(box[6], style.Selected(issues+"    "+" ")) {
+		t.Errorf("issues under the keyboard: %q", box[6])
+	}
+	if m, c := m.Key(key("enter")); m.Open || c != (Choice{}) {
+		t.Errorf("enter on issues: open %v, %+v", m.Open, c)
+	}
+	// a line of a menu that belongs to a group is bold on the group's color
+	lines, _ := BoxColored([]Item{{Name: "Here", Here: true}}, func(int) bool { return true }, 0, App, At, 60, "75")
+	if !strings.Contains(lines[1], style.MenuHereIn("75")(" "+pane.Pad("", 2, false)+" Here ")) {
+		t.Errorf("a colored menu's line here: %q", lines[1])
+	}
+}

@@ -1,0 +1,267 @@
+{
+  "verb": "delivery",
+  "purpose": "lists the artifacts, environments, and deployments the forge holds",
+  "usage": [
+    "kit delivery [--text | --json | --jq]",
+    "kit delivery --stages",
+    "kit delivery --marks",
+    "kit delivery artifacts [--text | --json | --jq]",
+    "kit delivery environments [--text | --json | --jq]",
+    "kit delivery deployments [--text | --json | --jq]",
+    "kit delivery releases [--text | --json | --jq]",
+    "kit delivery builds [--text | --json | --jq]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "flag",
+        "name": "stages",
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "flag",
+        "name": "marks",
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "artifacts",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "environments",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "deployments",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "releases",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "builds",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--text": {
+      "description": "prints the stages as text, even on a terminal"
+    },
+    "--json": {
+      "description": "the stages as one JSON object: stages, then each stage's document under its name, null for one that could not be read"
+    },
+    "--jq": {
+      "description": "the same JSON, formatted by jq for a person"
+    },
+    "--stages": {
+      "description": "prints the stages, one per line, in order, the same over any workspace"
+    },
+    "--marks": {
+      "description": "prints a mark per stage, as one JSON object, which changes when what the stage draws does: the forge's own mark of its runs, as a run makes each; environments' and deployments' also hold the forge's mark of their own kind, as another tool may deploy and a person may edit one"
+    },
+    "artifacts": {
+      "description": "the artifacts the runs kept, the newest 100 at most"
+    },
+    "environments": {
+      "description": "the deployment environments, each with what guards it"
+    },
+    "deployments": {
+      "description": "the deployments, the newest 50 at most"
+    },
+    "releases": {
+      "description": "a tab kit flow prints; on a terminal it opens in kittui, and with a form it is refused"
+    },
+    "builds": {
+      "description": "a tab kit flow prints; on a terminal it opens in kittui, and with a form it is refused"
+    }
+  }
+}

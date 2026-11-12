@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh api graphql --field owner=${owner} --field name=${name} --raw-field query=${query}",
+  "description": "The 50 merged pull requests updated last, pullRequests(states: MERGED, first: 50, orderBy: {field: UPDATED_AT, direction: DESC}), which kit asks for in `modules/bash/forge/github.sh` (forge/github:merged-prs) and folds in `modules/jq/forge.jq` (forge::github_merged), ordered by mergedAt; a totalCount past the nodes keeps those merged since the oldest updatedAt, which a merge moves, and ends the list with limited. PullRequestOrderField has CREATED_AT and UPDATED_AT alone. The types are the Repository, PullRequest, and Actor objects of GitHub's GraphQL schema, https://docs.github.com/public/fpt/schema.docs.graphql.",
+  "type": "object",
+  "properties": {
+    "data": {
+      "type": "object",
+      "properties": {
+        "repository": {
+          "type": ["object", "null"],
+          "description": "Repository, null when GitHub has none of that owner and name",
+          "properties": {
+            "pullRequests": {
+              "type": "object",
+              "description": "PullRequestConnection, merged, updated last first",
+              "properties": {
+                "totalCount": {
+                  "type": "integer"
+                },
+                "nodes": {
+                  "type": ["array", "null"],
+                  "items": {
+                    "type": ["object", "null"],
+                    "description": "PullRequest",
+                    "properties": {
+                      "number": {
+                        "type": "integer"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      "headRefName": {
+                        "type": "string"
+                      },
+                      "mergedAt": {
+                        "type": ["string", "null"],
+                        "format": "date-time"
+                      },
+                      "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "author": {
+                        "$ref": "#/$defs/Actor"
+                      },
+                      "mergedBy": {
+                        "$ref": "#/$defs/Actor"
+                      }
+                    },
+                    "required": ["number", "title", "url", "headRefName", "mergedAt", "updatedAt", "author", "mergedBy"],
+                    "additionalProperties": true
+                  }
+                }
+              },
+              "required": ["totalCount", "nodes"],
+              "additionalProperties": true
+            }
+          },
+          "required": ["pullRequests"],
+          "additionalProperties": true
+        }
+      },
+      "required": ["repository"],
+      "additionalProperties": true
+    }
+  },
+  "required": ["data"],
+  "additionalProperties": true,
+  "$defs": {
+    "Actor": {
+      "type": ["object", "null"],
+      "description": "Actor by its login, null for a deleted account",
+      "properties": {
+        "login": {
+          "type": "string"
+        }
+      },
+      "required": ["login"],
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "data": {
+        "repository": {
+          "pullRequests": {
+            "totalCount": 1,
+            "nodes": [
+              {
+                "number": 2,
+                "title": "Do the other thing",
+                "url": "https://github.com/empowerite/example/pull/2",
+                "headRefName": "9-other",
+                "mergedAt": "2026-10-03T09:00:00Z",
+                "updatedAt": "2026-10-03T09:00:01Z",
+                "author": {
+                  "login": "bob"
+                },
+                "mergedBy": null
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+# kit-check - fails when a delivered file differs from the pinned release (kit verb: checks)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit check
+#
+# kit check takes no arguments. It compares the repository with the release pinned in kit.yml, and reports a finding
+# when:
+#
+#   - kit.yml declares a kit version other than the pinned release
+#   - a delivered file is missing, or differs from the release's copy
+#   - a merged JSON file lacks an entry the kit writes, or jq is not on PATH to read it
+#   - a path under .kit/ is not the link or the readonly copy kit keeps there
+#   - .kit/.gitignore is not what kit writes
+#   - a file under a delivered directory comes from no active package
+#   - a delivered path is tracked by git
+#   - a file that should hold a kit region has none
+#   - a file the repository owns lacks a line a package expects in it
+#   - a generated region differs from what its command makes
+#
+# Files delivered to the home directory are checked only where kit install ran, that is, where ~/.kit/manifest
+# exists. Elsewhere, such as on a CI runner, kit check says so and skips them.
+#
+# Arguments:
+#
+# Exits 0 when there are no findings, 1 otherwise, and 2 on a usage error.
+#
+# see: modules/bash/place.sh, modules/bash/materialize.sh, modules/bash/region.sh
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use release generate template settings resolve render region place materialize manifest
+
+guard:arguments check "$@" || exit $?
+
+settings:require
+declare -a packages unmet_lines
+list:read packages settings:packages || exit 1
+version=$(settings:version)
+render:all "${kit_root}" "${packages[@]}"
+findings=0
+if [[ "${version}" != "$(release:version)" ]]
+then
+  error "kit.yml declares kit ${version}, and this is kit $(release:version); run: $(release:update-command)"
+  findings=$(( findings + 1 ))
+fi
+for base in $(release:bases)
+do
+  delivered=$(place:delivered "${kit_root}" "${base}" "${packages[@]}")
+  [[ -n "${delivered}" ]] || continue
+  if [[ "${base}" != repo && ! -f "$(manifest:path "${base}")" ]]
+  then
+    info "${base}: nothing is installed under $(release:base-root "${base}") on this machine; not checked"
+    continue
+  fi
+  dest='' kind=''
+  while IFS=$'\t' read -r path src
+  do
+    release:dest "${base}" "${path}" dest
+    place:kind "${src}" "${dest}" kind
+    if materialize:owned "${base}" "${path}" && [[ "${kind}" == copy ]]
+    then
+      # A materialized path is judged below, by materialize:all --check.
+      continue
+    fi
+    if [[ ! -f "${dest}" ]]
+    then
+      error "${dest} is missing; run: kit update"
+      findings=$(( findings + 1 ))
+    elif [[ "${kind}" == merge ]] && ! command -v jq >/dev/null 2>&1
+    then
+      guard:missing jq "jq is not on PATH, so ${dest} could not be read"
+      findings=$(( findings + 1 ))
+    elif [[ "${kind}" == region ]]
+    then
+      # The directive, and the host file's shape when the package states one, are checked here. The region's
+      # content is checked below, with every other generated region.
+      if ! place:installed "${src}" "${dest}" >/dev/null
+      then
+        error "${dest} has no kit region; run: kit update"
+        findings=$(( findings + 1 ))
+      elif host=$(region:host "${src}") && [[ -n "${host}" ]]
+      then
+        rest=${host##*/packages/}
+        if ! line=$(template:leaves "${host}" "${dest}")
+        then
+          # template:leaves named what is wrong with the template itself, above.
+          error "${dest}: the ${rest%%/hosts/*} package's host template could not be read, so the file's shape is" \
+            "unchecked; see above"
+          findings=$(( findings + 1 ))
+        elif [[ -n "${line}" ]]
+        then
+          error "${dest} does not have the shape of the ${rest%%/hosts/*} package's host template; it leaves" \
+            "${rest#*/hosts/repo/} at $( [[ "${line}" == end ]] && printf 'its end' || printf 'line %s: %s' "${line}" \
+            "$(sed -n "${line}p" "${host}")")"
+          findings=$(( findings + 1 ))
+        fi
+      fi
+    elif ! place:holds "${src}" "${dest}"
+    then
+      case "${kind}" in
+        (merge) error "${dest} is missing an entry the kit writes; run: kit update" ;;
+        (*) error "${dest} differs from the pinned release; run: kit update" ;;
+      esac
+      findings=$(( findings + 1 ))
+    fi
+  done <<<"${delivered}"
+done
+# Every materialized path, .kit/.gitignore, a stray file under a delivered directory, and a tracked delivered path.
+count=$(materialize:all --check "${packages[@]}") || exit 1
+findings=$(( findings + count ))
+# The kit never writes a line a package expects in a file the repository owns; it only reports one that is missing.
+list:read unmet_lines resolve:unmet "${kit_root}" "${packages[@]}" || exit 1
+for unmet in "${unmet_lines[@]}"
+do
+  [[ -n "${unmet}" ]] || continue
+  error "${unmet}"
+  findings=$(( findings + 1 ))
+done
+# Every generated region, the kit's and the repository's own.
+generate:run --check || findings=$(( findings + 1 ))
+if (( findings > 0 ))
+then
+  error "${findings} finding(s), each named above with what to do about it"
+  exit 1
+fi
+ok "kit ${version}, packages ${packages[*]:-none}: every delivered file matches the pinned release."
+
+# ----------------------------------------------------------------------------------------------------------------------

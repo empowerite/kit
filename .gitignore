@@ -1,0 +1,22 @@
+# .gitignore - untracked files and folders
+# ----------------------------------------------------------------------------------------------------------------------
+
+# direnv per-checkout cache; see: https://direnv.net/
+/.direnv/
+
+# kit tools install puts the gate's npm tools here, from package.json; see: docs/toolchains.md#dependencies
+/node_modules/
+
+# npm ci and npm run check in the tutorials site; see: projects/tutorials/README.md
+/projects/tutorials/node_modules/
+/projects/tutorials/dist/
+
+# the superpowers brainstorming companion's mockups and session state
+/.superpowers/
+
+# kit:generate .gitignore
+# per-issue worktrees for agents; see: .kit/1st.md
+/worktrees/
+# kit:end .gitignore
+
+# ----------------------------------------------------------------------------------------------------------------------

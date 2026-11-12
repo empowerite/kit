@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# kit-commit - commits what is staged, after the kit's checks (kit verb: workflow)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit commit [--all] (--message=<text>… | --file=<path>) [<path>…]
+#
+# Commits in a worktree, never on the desk or the default branch. Before the commit exists, kit commit:
+#
+#   - refuses when nothing is staged, and refuses a staged path the kit placed under .kit/
+#   - runs kit lint and kit generate --check over the staged paths; no hook manager is needed
+#   - refuses a path staged as added or changed that is not on the disk: run git restore, or git rm --cached
+#   - puts the branch's issue in front of a subject that names none: 7-fix-the-thing gives #7; with
+#     policy.commit_reference trailer, as the policy/conventional package sets it, it adds a Refs: #7 trailer instead,
+#     to a message that has none
+#   - judges the subject and the tree the commit will make by the repository's policy, as kit policy does in CI
+#   - refuses a staged path a live lease on the branch holds, as kit leases lists them, of an issue the commit does
+#     not name in its subject or a Refs: trailer, naming who took it: name that issue, or ask its holder
+#   - with require_signing true in kit.yml, refuses when git has no user.signingkey; otherwise it warns when commits
+#     here are not signed
+#
+# With require_signing true, the commit is signed, and refused when git cannot sign it. The message is committed as
+# kit commit judged it, whatever commit.cleanup says: a subject that starts with # stays the subject.
+#
+# Without paths, kit commit never undoes a commit the index did not see. It refuses a staged path that is as it was
+# before the last commit that changed it, while the disk holds something else.
+#
+# With or without paths, it refuses when a commit landed on HEAD while the checks ran; run kit commit again.
+#
+# The commit renews the lease of each issue it names, by the lease's term, when the lease is live and on the branch.
+#
+# A commit from an index of its own, one GIT_INDEX_FILE names, would leave the shared index behind, its paths staged
+# as the commit reverted. So kit commit brings the shared index up to the commit, for the paths the commit changed
+# alone: a path staged there as the commit's parent has it takes the commit's copy, and a path staged otherwise stays
+# as it is, with a warning that names it. git writes the shared index under its own lock, and a path staged there
+# meanwhile is left as staged.
+#
+# A subject or a Refs: trailer that names another issue attaches it to the branch's pull request: kit commit adds a
+# Closes line for it to the pull request's body, and assigns the caller to it when no one is assigned.
+#
+# kit commit opens no editor.
+#
+# Arguments:
+#   --all             stages every tracked change first, as git commit --all does
+#   --message=<text>   the message; the first is the subject, the rest are paragraphs
+#   --file=<path>      the message from a file; its first line is the subject
+#   <path>…            commits these paths alone; each must be known to git
+#
+# Exits 0 on a commit, 1 on a refusal, and 2 on a usage error.
+#
+# see: modules/bash/commit.sh, modules/bash/leases.sh, kit-submit
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use commit dependencies
+guard:arguments commit "$@" || exit $?
+# The policy engine runs as kit gate runs the repository's tools: the chosen toolchain's directories first on PATH.
+dependencies:onto-path
+
+guard:require tool:git tool:jq
+commit:commit "$@"
+
+# ----------------------------------------------------------------------------------------------------------------------

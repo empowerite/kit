@@ -1,0 +1,894 @@
+{
+  "$comment": "kit:generated -- the schema of kit.yml, from the kit package; see: \"Changing what kit adds\" in .kit/1st.md, to replace it",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/empowerite/kit/.kit/kit.schema.json",
+  "title": "kit.yml",
+  "description": "The repository's settings. The kit writes three keys in it, version, packages, and excludes, and reads the rest. kit adds this schema through its kit package; to change it, see \"Changing what kit adds\" in .kit/1st.md rather than editing it. Each key is described in https://github.com/empowerite/kit/blob/main/docs/packages.md. To have an editor validate the file against this schema, add the modeline: # yaml-language-server: $schema=.kit/kit.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "forge": {
+      "type": "string",
+      "description": "The forge (the service that hosts the repository) of the primary remote, which the workflow commands use: github, gitlab, or ado (Azure DevOps). When absent, it is detected from the primary's host: github.com, gitlab.com, dev.azure.com, or a host under visualstudio.com, or a host the gh or glab CLI has logged in to. Otherwise it must be set here, as for an Azure DevOps Server, or set to none for a primary on a host with no forge the kit knows, such as Bitbucket or a plain git server: then nothing is asked of a forge, and a change is not read.",
+      "anyOf": [
+        {
+          "enum": [
+            "github",
+            "gitlab",
+            "ado",
+            "none"
+          ]
+        },
+        {
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "a provider the repository adds on its module path, bash_path"
+        }
+      ]
+    },
+    "forges": {
+      "type": "object",
+      "description": "The forge of each remote named, by remote: {upstream: gitlab}. A remote not named here takes the forge its host names, or none; none names a remote with no forge. For the primary, forge wins over this.",
+      "additionalProperties": {
+        "type": "string",
+        "anyOf": [
+          {
+            "enum": [
+              "github",
+              "gitlab",
+              "ado",
+              "none"
+            ]
+          },
+          {
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "description": "a provider the repository adds on its module path, bash_path"
+          }
+        ]
+      }
+    },
+    "forge_settings": {
+      "type": "object",
+      "description": "Each forge's own settings, by forge, read only when that forge is the primary's: {ado: {type: Bug}}, and stand_ins for any forge.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "stand_ins": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Stand-ins for features the forge lacks, or that the repository marks its own way; each is used even where the forge has the feature.",
+            "properties": {
+              "drafts": {
+                "description": "A change is a draft while it has the label, or while its title starts with the prefix, which kit leaves off the title it judges; kit ready takes either off.",
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "label"
+                    ],
+                    "properties": {
+                      "label": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "title_prefix"
+                    ],
+                    "properties": {
+                      "title_prefix": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              "closing-issues": {
+                "description": "The issues a change closes are the forge's own its body names with a closing keyword: Closes #7.",
+                "const": "body"
+              },
+              "marks": {
+                "description": "The forge's stages are stale every so many seconds, 10 at the least, for a forge without cheap marks.",
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "every"
+                ],
+                "properties": {
+                  "every": {
+                    "type": "number",
+                    "minimum": 10
+                  }
+                }
+              },
+              "milestones": {
+                "description": "An issue's milestone is the rest of the name of its first label that starts with label_prefix, else default, else none; used even where the forge has milestones, for the issue's field alone.",
+                "type": "object",
+                "additionalProperties": false,
+                "minProperties": 1,
+                "properties": {
+                  "label_prefix": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "default": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "iterations": {
+                "description": "An issue's iteration is the rest of the name of its first label that starts with label_prefix, else default, else none; used even where the forge has iterations, for the issue's field alone.",
+                "type": "object",
+                "additionalProperties": false,
+                "minProperties": 1,
+                "properties": {
+                  "label_prefix": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "default": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "swimlanes": {
+                "description": "An issue's swimlane is the rest of the name of its first label that starts with label_prefix, else default, else none; used even where the forge has swimlanes, for the issue's field alone.",
+                "type": "object",
+                "additionalProperties": false,
+                "minProperties": 1,
+                "properties": {
+                  "label_prefix": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "default": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "properties": {
+        "ado": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Azure DevOps: how the forge's own tracker, Azure Boards, opens and closes a work item.",
+          "properties": {
+            "type": {
+              "type": "string",
+              "description": "The type of a new work item. Default: Task."
+            },
+            "closed_state": {
+              "type": "string",
+              "description": "The state a work item closed as completed is set to. Default: Closed."
+            },
+            "removed_state": {
+              "type": "string",
+              "description": "The state a work item closed as not planned or a duplicate is set to. Default: Removed."
+            },
+            "stand_ins": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "Stand-ins for features the forge lacks, or that the repository marks its own way; each is used even where the forge has the feature.",
+              "properties": {
+                "drafts": {
+                  "description": "A change is a draft while it has the label, or while its title starts with the prefix, which kit leaves off the title it judges; kit ready takes either off.",
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "label"
+                      ],
+                      "properties": {
+                        "label": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "title_prefix"
+                      ],
+                      "properties": {
+                        "title_prefix": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  ]
+                },
+                "closing-issues": {
+                  "description": "The issues a change closes are the forge's own its body names with a closing keyword: Closes #7.",
+                  "const": "body"
+                },
+                "marks": {
+                  "description": "The forge's stages are stale every so many seconds, 10 at the least, for a forge without cheap marks.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "every"
+                  ],
+                  "properties": {
+                    "every": {
+                      "type": "number",
+                      "minimum": 10
+                    }
+                  }
+                },
+                "milestones": {
+                  "description": "An issue's milestone is the rest of the name of its first label that starts with label_prefix, else default, else none; used even where the forge has milestones, for the issue's field alone.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "minProperties": 1,
+                  "properties": {
+                    "label_prefix": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "default": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "iterations": {
+                  "description": "An issue's iteration is the rest of the name of its first label that starts with label_prefix, else default, else none; used even where the forge has iterations, for the issue's field alone.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "minProperties": 1,
+                  "properties": {
+                    "label_prefix": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "default": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "swimlanes": {
+                  "description": "An issue's swimlane is the rest of the name of its first label that starts with label_prefix, else default, else none; used even where the forge has swimlanes, for the issue's field alone.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "minProperties": 1,
+                  "properties": {
+                    "label_prefix": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "default": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "bot": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9-]*$",
+      "description": "The name of this repository's bot: the slug of the GitHub App that acts for you here, as `kit bots` lists it. Without it, the bot is the only one in your bots file on the primary remote's host."
+    },
+    "primary": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The primary remote. Ahead and behind, the default branch, pull requests, builds, releases, and issues are read from it. Default: origin."
+    },
+    "push": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The remote a branch goes to, as a fork's origin: kit work and kit submit fetch from it, look a branch up on it, fast-forward from it, and push to it, and a pull request opens on the primary from the branch there. kit rebase and kit release read the primary. It must name a remote. Default: the primary."
+    },
+    "gate": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The command kit gate runs. When absent, kit gate detects a root justfile ci recipe, a Makefile ci target, or a package.json ci script."
+    },
+    "require_signing": {
+      "type": "boolean",
+      "description": "When true, kit commit, kit work's start commit, and kit rebase sign every commit they make, and refuse before writing anything when git has no signing key configured; kit release signs its tag."
+    },
+    "log_days": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 14,
+      "description": "How many days kit keeps its logs under .kit/logs/: kit-YYYY-MMDD.log, a line per kit call, and mcp-YYYY-MMDD.log, a line per kit serve request. A day's first line removes each log last written more than this many days before. 0 writes no logs."
+    },
+    "facts": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "What kit facts hands a policy engine beyond names.",
+      "properties": {
+        "read": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Globs of the files whose content kit facts gives as text in the tree, so a rule can judge what a file says. A binary file, or one over 65536 bytes, has no text, and kit warns. A glob that matches nothing is ignored."
+        }
+      }
+    },
+    "linked_exempt": {
+      "type": "array",
+      "description": "Logins whose changes kit linked passes without a linked issue, and kit policy passes without checking the branch, the commit subjects, the pull request title, or the tree, each saying so by name: a bot such as dependabot[bot], whose changes have no issue and never will. One login per line under the key.",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "answers": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z_]+$": {
+          "type": "string",
+          "description": "The value a package's templates use for this key, written @key@ in a template."
+        }
+      }
+    },
+    "trackers": {
+      "type": "array",
+      "description": "The issue trackers the workflow uses in addition to the forge's own issues. The forge's tracker handles the # prefix unless an entry here claims it. A reference names its tracker by its prefix: #7, AB#4521.",
+      "items": {
+        "type": "object",
+        "required": [
+          "prefix",
+          "provider"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "prefix": {
+            "type": "string",
+            "pattern": "^[A-Za-z]*#?$",
+            "description": "The text a reference to this tracker starts with, before the number: AB# for Azure DevOps work items."
+          },
+          "provider": {
+            "type": "string",
+            "description": "The tracker that handles the prefix: forge for the forge's own issues, ado for Azure DevOps work items, web for a ticket system kit reaches through its pages alone.",
+            "anyOf": [
+              {
+                "enum": [
+                  "forge",
+                  "ado",
+                  "web"
+                ]
+              },
+              {
+                "pattern": "^[a-z][a-z0-9-]*$",
+                "description": "a provider the repository adds on its module path, bash_path"
+              }
+            ]
+          },
+          "organization": {
+            "type": "string",
+            "description": "ado: the organization's URL, https://dev.azure.com/<name>."
+          },
+          "project": {
+            "type": "string",
+            "description": "ado: the project a new work item is created in."
+          },
+          "type": {
+            "type": "string",
+            "description": "ado: the type of a new work item. Default: Task."
+          },
+          "closed_state": {
+            "type": "string",
+            "description": "ado: the state kit close --completed sets. Default: Closed."
+          },
+          "removed_state": {
+            "type": "string",
+            "description": "ado: the state a work item closed as not planned or a duplicate is set to. Default: Removed."
+          },
+          "new": {
+            "type": "string",
+            "description": "web: the page a person files a new issue at; {title} in it stands for the title, encoded for a URL."
+          },
+          "url": {
+            "type": "string",
+            "description": "web: an issue's page; {id} in it stands for the issue's number."
+          }
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The rules that the branch name, the worktree's path, commit subjects, and the open change's title must meet. Each is a pattern, an extended regular expression limited to the subset RE2 also supports, or a map of a pattern and its remedy, which a refusal names. An absent key takes the kit's default, the kit package's policy, or an active package's, the later in packages winning; these win over both. An empty pattern turns that rule off. A pattern set without a remedy has none; a remedy set alone keeps the pattern below it.",
+      "properties": {
+        "branch": {
+          "$ref": "#/$defs/rule",
+          "description": "The rule for the branch name. Default: ^[a-z0-9]+-[a-z0-9][a-z0-9-]*$, the shape kit work gives a branch."
+        },
+        "worktree": {
+          "$ref": "#/$defs/rule",
+          "description": "The rule for a worktree's path from the main checkout's root, judged where kit policy runs in a linked worktree. Default: ^worktrees/[a-z0-9]+-[a-z0-9][a-z0-9-]*$, where kit work checks a branch out."
+        },
+        "commit_subject": {
+          "$ref": "#/$defs/rule",
+          "description": "The rule for the subject of every commit since the branch forked. Default: ^([A-Z]+)?#[0-9]+ [^ ], a subject that starts with its issue's reference."
+        },
+        "change_title": {
+          "$ref": "#/$defs/rule",
+          "description": "The rule for the open change's title, a pull request on GitHub or a merge request on GitLab. Default: ^[^[:cntrl:]]{1,120}$."
+        },
+        "commit_reference": {
+          "enum": [
+            "prefix",
+            "trailer"
+          ],
+          "description": "Where a commit carries its issue's reference: prefix, in front of the subject, as #7 <subject>; or trailer, in a Refs: #7 trailer in the message's last paragraph, which every commit past the fork must then carry, and kit commit and kit work supply. Default: prefix; the policy/conventional package sets trailer."
+        }
+      }
+    },
+    "policy_engine": {
+      "type": "string",
+      "description": "The policy engine: patterns, matched in bash, or opa, which evaluates the Rego under .kit/policy. When absent, opa is used if a .rego file is there, and patterns otherwise.",
+      "anyOf": [
+        {
+          "enum": [
+            "patterns",
+            "opa"
+          ]
+        },
+        {
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "description": "a provider the repository adds on its module path, bash_path"
+        }
+      ]
+    },
+    "bash_path": {
+      "type": "array",
+      "description": "The bash module path: the directories that `use <module>` sources every <module>.sh from, in order, so a later directory overrides or extends an earlier one. It starts with kit:modules/bash/, the kit's own modules. An entry is kit:<dir>, a directory in the installed kit; an absolute directory; ~/<dir>, in the home directory; or a directory relative to the repository root. A directory that does not exist is skipped, as PATH skips one. Default: [kit:modules/bash/].",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "contains": {
+        "const": "kit:modules/bash/"
+      }
+    },
+    "flow": {
+      "type": "array",
+      "description": "The stages kit flow draws, in order: issues, desk, worktrees, changes, builds, incoming, releases. A stage left out is not drawn, but kit flow <stage> still prints it. issues lists every open issue, in the backlog or underway, so backlog and underway are no stages. Default: all seven, in that order.",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "issues",
+          "incoming",
+          "desk",
+          "worktrees",
+          "changes",
+          "builds",
+          "releases"
+        ]
+      }
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^(unreleased|[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z.]+)?)$",
+      "description": "The kit release the repository runs and is installed at: bin/kit, the loader, reads this line alone, so it is a plain version on one line. kit install and kit update write it; kit --version=<release> update moves it. A checkout of the kit itself declares unreleased."
+    },
+    "packages": {
+      "type": "array",
+      "description": "The active packages, in dependency order, written by kit install, kit update, and kit package.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "excludes": {
+      "type": "array",
+      "description": "Members of an active bundle removed with kit packages remove, which kit update leaves out.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "sources": {
+      "type": "array",
+      "description": "The artifact sources, in order: package sources, a later one's package replacing a package of the same name, and the pull path's default, the sources searched for what kit fetches, the first hit winning. See docs/packages.md.",
+      "items": {
+        "oneOf": [
+          {
+            "enum": [
+              "direct",
+              "off"
+            ],
+            "description": "direct is the open internet, each kind at its home; off ends the pull path."
+          },
+          {
+            "type": "object",
+            "required": [
+              "name",
+              "url"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]*$",
+                "description": "The source's name, which kit packages and kit tools sources show, and a bash_path entry <name>:<dir> uses."
+              },
+              "kind": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9-]*$",
+                "description": "The protocol it speaks, a provider of the sources seam: kit-packages when absent."
+              },
+              "url": {
+                "type": "string",
+                "pattern": "^(git:[^@]+@.+|[a-z]+://.+)$",
+                "description": "Where it is: for kit-packages, git:<owner>/<repo>@<tag>, the forge's tarball of that tag, or a URL curl fetches."
+              },
+              "digest": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "description": "For kit-packages, the sha256 digest of the tarball's bytes; a source with any other is refused."
+              },
+              "expect": {
+                "type": "string",
+                "pattern": "^[0-9]+[smhd]$",
+                "description": "How long a pushed version usually takes to show here, as 30m, 12h, or 1d."
+              }
+            },
+            "if": {
+              "anyOf": [
+                {
+                  "not": {
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                },
+                {
+                  "properties": {
+                    "kind": {
+                      "const": "kit-packages"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ]
+                }
+              ]
+            },
+            "then": {
+              "required": [
+                "digest"
+              ],
+              "properties": {
+                "name": true,
+                "kind": true,
+                "url": true,
+                "digest": true,
+                "expect": true
+              },
+              "additionalProperties": false
+            },
+            "else": {
+              "not": {
+                "required": [
+                  "digest"
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "tools": {
+      "type": "object",
+      "description": "The tools kit pins as the tool manager, by name: each a version and what its download is, a url or a coordinate any source on the pull path that speaks its protocol serves; tools.lock records each download's artifact and hash for every platform. See docs/toolchains/using-kit.md.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version"
+        ],
+        "properties": {
+          "version": {
+            "type": "string",
+            "description": "The exact version, quoted so YAML keeps it as written: \"1.20\", not 1.2."
+          },
+          "url": {
+            "type": "string",
+            "pattern": "^https?://.+",
+            "description": "The download, with {version}, {platform}, {os}, {arch}, and {ext} filled in; only direct, the open internet, serves it."
+          },
+          "release": {
+            "type": "string",
+            "pattern": "^[^/@]+/[^/@]+$",
+            "description": "A GitHub release's repository, <owner>/<repo>, whose file asset names; a github-releases source serves it."
+          },
+          "asset": {
+            "type": "string",
+            "description": "The release's file, filled in as url is."
+          },
+          "tag": {
+            "type": "string",
+            "description": "A release's, an archive's, or an image's tag: v{version} by default, and {version} for an image."
+          },
+          "module": {
+            "type": "string",
+            "description": "A Go module's path, whose zip a goproxy source serves, as golang.org/toolchain."
+          },
+          "module_version": {
+            "type": "string",
+            "description": "The module's version, v{version} by default, filled in as url is."
+          },
+          "npm": {
+            "type": "string",
+            "description": "An npm package, whose tarball at the version an npm source serves."
+          },
+          "archive": {
+            "type": "string",
+            "pattern": "^[^/@]+/[^/@]+$",
+            "description": "A GitHub tag's source tarball, <owner>/<repo>, at tag: (v{version} by default); a github-releases source serves it."
+          },
+          "dist": {
+            "enum": [
+              "node",
+              "go",
+              "gnu"
+            ],
+            "description": "A project's own download directory, whose file: a dist source serves: node, go, or gnu."
+          },
+          "file": {
+            "type": "string",
+            "description": "The dist's file, its path in the directory, filled in as url is."
+          },
+          "image": {
+            "type": "string",
+            "description": "An OCI image, <registry>/<repository>, whose first layer at tag: ({version} by default) an oci source serves."
+          },
+          "bin": {
+            "type": "string",
+            "description": "The directory, in what the url unpacks to, that holds the tool's commands; . by default."
+          },
+          "profile": {
+            "enum": [
+              "desk",
+              "ci"
+            ],
+            "description": "Install it on a desk alone, or on a runner alone; both when absent."
+          },
+          "os": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The tool's names for kit's linux and macos, as {macos: darwin}."
+          },
+          "arch": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The tool's names for kit's x64 and arm64, as {x64: amd64}."
+          },
+          "ext": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Each os's ending for {ext}, as {linux: tar.gz, macos: zip}, for a tool that ships one kind of file to each."
+          },
+          "platforms": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "linux-x64",
+                "linux-arm64",
+                "macos-x64",
+                "macos-arm64"
+              ]
+            },
+            "description": "The platforms it is locked for; all four when absent."
+          }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "url"
+            ]
+          },
+          {
+            "required": [
+              "release",
+              "asset"
+            ]
+          },
+          {
+            "required": [
+              "module"
+            ]
+          },
+          {
+            "required": [
+              "npm"
+            ]
+          },
+          {
+            "required": [
+              "archive"
+            ]
+          },
+          {
+            "required": [
+              "dist",
+              "file"
+            ]
+          },
+          {
+            "required": [
+              "image"
+            ]
+          }
+        ]
+      }
+    },
+    "publish": {
+      "type": "object",
+      "description": "The repository's own artifacts, by name: what the runner built, what each is on the pull path, and the targets kit publish pushes a release and a pre-release to, from a runner alone. See docs/features.md.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "files",
+          "targets"
+        ],
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "description": "The files the runner built, {version} filled in."
+          },
+          "release": {
+            "type": "string",
+            "pattern": "^[^/@]+/[^/@]+$",
+            "description": "What it is on the pull path: a GitHub release's repository, with asset."
+          },
+          "asset": {
+            "type": "string",
+            "description": "The release's file the pull path serves, {version} filled in."
+          },
+          "tag": {
+            "type": "string",
+            "description": "The release's tag, v{version} by default."
+          },
+          "module": {
+            "type": "string",
+            "description": "What it is on the pull path: a Go module's path."
+          },
+          "module_version": {
+            "type": "string",
+            "description": "The module's version, v{version} by default."
+          },
+          "npm": {
+            "type": "string",
+            "description": "What it is on the pull path: an npm package."
+          },
+          "url": {
+            "type": "string",
+            "description": "What it is on the pull path: a download only direct serves."
+          },
+          "targets": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "release": {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]*$"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "kind"
+                      ],
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9-]*$"
+                        }
+                      },
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    }
+                  ],
+                  "description": "A target's kind, a provider of the targets seam (vcs-tag, github-release, artifactory-local, npm-publish), or a map of its kind and the keys it takes."
+                }
+              },
+              "prerelease": {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]*$"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "kind"
+                      ],
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9-]*$"
+                        }
+                      },
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    }
+                  ],
+                  "description": "A target's kind, a provider of the targets seam (vcs-tag, github-release, artifactory-local, npm-publish), or a map of its kind and the keys it takes."
+                }
+              }
+            },
+            "description": "Where a release goes, and where a pre-release goes."
+          },
+          "verify": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The pull sources that check its visibility, by name; the whole path by default."
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "rule": {
+      "description": "A policy rule: its pattern, or a map of the pattern and the remedy a refusal names after it.",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "pattern": {
+              "type": "string",
+              "description": "The extended regular expression the name must match; empty turns the rule off."
+            },
+            "remedy": {
+              "type": "string",
+              "description": "What to do instead, printed in parentheses after a refusal."
+            }
+          }
+        }
+      ]
+    }
+  }
+}

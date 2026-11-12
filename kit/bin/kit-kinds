@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+# kit-kinds - lists the kinds of file, or the kinds a path is of (kit verb: files)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit kinds [--json | --jq] [<kind> | <path>]…
+#
+# Alone, it lists every kind under .kit/kinds/, in name order. A row is the kind's name, the file that defines it,
+# and what makes a path of it: its globs, its first-line patterns, the kinds it is made of, and the kinds it embeds.
+#
+# A word that names a kind lists that kind alone. Any other word is a path, and its kinds print instead: one path
+# prints one kind per line; several print one line each, the path, a tab, and its kinds. A path named like a kind,
+# such as a directory named bash, is given as ./bash. Kind names and paths do not mix in one call.
+#
+# A path is of every kind whose glob matches it, or whose pattern matches its first line. It is also of every kind
+# made of one of those. A path need not exist; it is then matched by its name alone. kit new kind makes a kind.
+#
+# Arguments:
+#   --json    one JSON object per kind, or per path with its kinds
+#   --jq      the same JSON, formatted by jq for a person
+#   <kind>    the name of a defined kind; only these kinds are listed
+#   <path>    a file to classify, relative to the current directory
+#
+# Exits 0 when it printed, 1 when a kinds file is malformed, and 2 on a usage error or kinds mixed with paths.
+#
+# see: modules/bash/context.sh, docs/context.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use context materialize
+guard:arguments kinds "$@" || exit $?
+materialize:hydrate
+
+json=false
+words=() names=() paths=()
+for arg in "$@"
+do
+  case "${arg}" in
+    (--json) json=true ;;
+    (*) words+=("${arg}")
+  esac
+done
+context:load || exit 1
+
+# A word shaped like a kind's name that names a defined kind filters the listing; any other word is a path. A
+# word of another shape is never looked up, so a path such as '*' or '@' is no array subscript.
+for word in "${words[@]}"
+do
+  if [[ "${word}" =~ ^[a-z][a-z0-9-]*$ && -n "${context_kind_paths[${word}]+x}" ]]
+  then
+    names+=("${word}")
+  else
+    paths+=("${word}")
+  fi
+done
+if (( ${#names[@]} && ${#paths[@]} ))
+then
+  error "kit kinds takes kind names or paths, not both: kinds ${names[*]}; paths ${paths[*]}; run: kit help kinds"
+  exit 2
+fi
+
+if (( ${#paths[@]} ))
+then
+  root=$(pwd -P)
+  for index in "${!paths[@]}"
+  do
+    path=${paths[${index}]}
+    # A path typed at the root needs no resolving; any other goes through context:relative, which forks git.
+    if [[ "${path}" == /* || "${kit_invoked_in}" != "${root}" || "${path}" == *..* ]]
+    then
+      paths[index]=$(context:relative "${path}")
+    else
+      paths[index]=${path#./}
+    fi
+  done
+  if [[ "${json}" == true ]]
+  then
+    printf '%s\n' "${paths[@]}" | context:classify \
+      | jq --raw-input --compact-output 'split("\t") | {path: .[0], kinds: (.[1] | split(" ") | map(select(. != "")))}'
+  elif (( ${#paths[@]} == 1 ))
+  then
+    printf '%s\n' "${paths[0]}" | context:classify | cut -f 2 | tr ' ' '\n' | awk 'NF'
+  else
+    printf '%s\n' "${paths[@]}" | context:classify
+  fi
+  exit 0
+fi
+
+# One JSON object per kind, from the kinds files, in name order; the named ones alone when names are given.
+kinds=$(context:read-kinds .kit/kinds/*.yml | jq --raw-input --slurp --compact-output --args '
+  ($ARGS.positional) as $names
+  | [split("\n")[] | select(length > 0) | split("\u001f")]
+  | reduce .[] as [$file, $kind, $field, $value] ({};
+      if $field == "name" then .[$kind] = {name: $kind, file: $file, paths: [], content: [], kinds: [], embeds: []}
+      else .[$kind][$field] += [$value] end)
+  | [.[]] | sort_by(.name)[]
+  | select(($names | length) == 0 or (.name as $n | $names | index($n)))' "${names[@]}")
+
+if [[ "${json}" == true ]]
+then
+  printf '%s\n' "${kinds}" | awk 'NF'
+  exit 0
+fi
+if (( ${#context_kind_paths[@]} == 0 ))
+then
+  # A repository with no package yet has no kinds: one dim line says so, where an empty screen would say nothing.
+  out:emit '•' '90' "no kinds under .kit/kinds/; kit install brings the kit package's"
+  exit 0
+fi
+[[ -n "${kinds}" ]] || exit 0
+jq --raw-output --slurp '
+  (map(.name | length) | max) as $w | (map(.file | length) | max) as $f
+  | .[] | [
+      (.name + (" " * ($w - (.name | length)))),
+      (.file + (" " * ($f - (.file | length)))),
+      ([(.paths | join(" ")), (.content | map("first line " + .) | join(" ")),
+        (if .kinds | length > 0 then "any of " + (.kinds | join(" ")) else empty end),
+        (if .embeds | length > 0 then "embeds " + (.embeds | join(" ")) else empty end)]
+       | map(select(length > 0)) | join(" · "))
+    ] | join("  ")' <<<"${kinds}"
+
+# ----------------------------------------------------------------------------------------------------------------------

@@ -1,0 +1,23 @@
+ kit delivery - lists the artifacts, environments, and deployments the forge holds
+
+   one of
+   *kit delivery*  lists the artifacts, environments, and deployments the forge holds
+
+     --text   --json   --jq
+                           prints the stages as text, even on a terminal
+
+   --stages      prints the stages, one per line, in order, the same over any workspace
+   --marks       prints a mark per stage, as one JSON object, which changes when what the stage
+                 draws does: the forge's own mark of its runs, as a run makes each; environments'
+                 and deployments' also hold the forge's mark of their own kind, as another tool may
+                 deploy and a person may edit one
+   artifacts     the artifacts the runs kept, the newest 100 at most
+   environments  the deployment environments, each with what guards it
+   deployments   the deployments, the newest 50 at most
+   releases      a tab kit flow prints; on a terminal it opens in kittui, and with a form it is
+                 refused
+   builds        a tab kit flow prints; on a terminal it opens in kittui, and with a form it is
+                 refused
+
+
+ kit delivery

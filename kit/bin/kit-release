@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# kit-release - tags HEAD as a release and pushes the tag (kit verb: workflow)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit release <version> [--lower] [--wait=<duration>]
+#
+# Tags HEAD as release/<version>, annotated, and signed when require_signing is true in kit.yml. It pushes that tag,
+# and only that tag, to the primary remote: the primary setting in kit.yml, else origin. No branch is pushed. That
+# is how a release starts: the repository's release workflow, where it has one, publishes it. Before tagging, kit
+# release refuses:
+#
+#   - a version that is not <major>.<minor>.<patch>, with -<suffix> for a pre-release
+#   - a tag that exists already, here or on the primary: a version is tagged once
+#   - a release, a version with no suffix, when HEAD is not on the default branch at the primary
+#   - a version not higher than every release tag on the primary, unless --lower
+#
+# A pre-release may be tagged on any commit; the push then sends the commits only the tag reaches, and says so.
+# Versions compare by semantic-version precedence. --lower is for a fix to an older line: kit asks nothing itself, so
+# the confirmation is this flag.
+#
+# With --wait, it then waits for visibility, for whoever wants that: until each pull source that checks an artifact
+# under publish: in kit.yml serves the version with the hash its release-hashes tag records, or one blocks it or
+# serves other bytes, or the duration passes. It asks again every 30 seconds, KIT_RELEASE_POLL to change it. Where
+# release/<version> is on the primary already, it does not tag, and only waits. kit publish, on a runner, pushes the
+# artifacts; the push is done when the targets take it, and a pull source may show it later, after a scan or an
+# approval.
+#
+# Arguments:
+#   <version>           the version to release: 0.1.0, or 0.1.0-rc.7 for a pre-release
+#   --lower             confirms a version not higher than the primary remote's highest release
+#   --wait=<duration>   then waits that long, at most, for every pull source to serve it: 30m, 2h, or 1d
+#
+# Exits 0 when the tag is on the primary, and with --wait every source serves it; 1 on a refusal, a primary that names
+# no remote among them, release tags on the primary that cannot be read, or a source that blocks the version or serves
+# other bytes; 2 on a usage error; and 3 when the wait ends with a source still pending.
+#
+# see: modules/bash/releases.sh, modules/jq/version.jq, kit-flow
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use releases
+guard:arguments release "$@" || exit $?
+
+guard:require tool:git tool:jq
+# shellcheck disable=SC2154  # syntax_operands and syntax_options are set by guard:arguments
+version=${syntax_operands[0]}
+if [[ -z "${syntax_options[--wait]+x}" ]]
+then
+  releases:release "${version}" "${syntax_options[--lower]:+lower}"
+  exit
+fi
+use visibility
+if ! wait=$(visibility:seconds "${syntax_options[--wait]}")
+then
+  error "--wait=${syntax_options[--wait]} is no duration: a whole number and s, m, h, or d, as 30m;" \
+    "run: kit help release"
+  exit 2
+fi
+primary=$(forge:primary) || exit 1
+if releases:valid "${version}" \
+  && [[ -n "$(git ls-remote --tags --end-of-options "${primary}" "refs/tags/release/${version}")" ]]
+then
+  step "release/${version} is on ${primary} already, so kit release only waits"
+else
+  releases:release "${version}" "${syntax_options[--lower]:+lower}" || exit
+fi
+releases:wait "${version}" "${wait}"
+
+# ----------------------------------------------------------------------------------------------------------------------

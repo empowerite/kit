@@ -1,0 +1,11 @@
+{
+  "verb": "gate",
+  "purpose": "runs the repository's gate",
+  "usage": [
+    "kit gate"
+  ],
+  "syntax": [
+    []
+  ],
+  "arguments": {}
+}

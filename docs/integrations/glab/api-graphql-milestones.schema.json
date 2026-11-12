@@ -1,0 +1,141 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "glab api graphql --field path=${project} [--field after=${cursor}] --raw-field query=${query}",
+  "description": "The project's milestones, open and closed, 100 a page, which kit draws as the milestones stage's in `modules/bash/forge/gitlab.sh` (forge/gitlab:milestones, with `modules/jq/forge.jq` forge::gitlab_milestones), following endCursor while hasNextPage. The count of a milestone's issues is its stats, which the REST list lacks. The types are those of Project.milestones and Milestone, MilestoneStats in GitLab's GraphQL schema, https://docs.gitlab.com/api/graphql/reference/.",
+  "type": "object",
+  "properties": {
+    "data": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "object",
+          "properties": {
+            "milestones": {
+              "type": "object",
+              "properties": {
+                "pageInfo": {
+                  "type": "object",
+                  "properties": {
+                    "hasNextPage": {
+                      "type": "boolean"
+                    },
+                    "endCursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "hasNextPage"
+                  ]
+                },
+                "nodes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "iid": {
+                        "type": "string",
+                        "description": "The number in the project; GraphQL gives an ID as text."
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "state": {
+                        "enum": [
+                          "active",
+                          "closed"
+                        ]
+                      },
+                      "dueDate": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "format": "date"
+                      },
+                      "webPath": {
+                        "type": "string",
+                        "description": "The milestone's page, without the host."
+                      },
+                      "stats": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "properties": {
+                          "totalIssuesCount": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "closedIssuesCount": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [],
+                        "description": "Nullable in GitLab's schema, as are its counts; kit reads null as none."
+                      }
+                    },
+                    "required": [
+                      "iid",
+                      "title",
+                      "state",
+                      "webPath"
+                    ],
+                    "additionalProperties": true
+                  }
+                }
+              },
+              "required": [
+                "pageInfo",
+                "nodes"
+              ]
+            }
+          },
+          "required": [
+            "milestones"
+          ]
+        }
+      },
+      "required": [
+        "project"
+      ]
+    }
+  },
+  "required": [
+    "data"
+  ],
+  "examples": [
+    {
+      "data": {
+        "project": {
+          "milestones": {
+            "pageInfo": {
+              "hasNextPage": false,
+              "endCursor": null
+            },
+            "nodes": [
+              {
+                "iid": "2",
+                "title": "v0.1",
+                "state": "active",
+                "dueDate": "2026-12-01",
+                "webPath": "/empowerite/kit/-/milestones/2",
+                "stats": {
+                  "totalIssuesCount": 5,
+                  "closedIssuesCount": 2
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "glab api projects/${project}/labels?per_page=100 --paginate",
+  "description": "The project's labels, ${project} its path URL-encoded, whose names and colors kit reads to color the labels of the merge requests and of the issues they close in `modules/bash/forge/gitlab.sh` (forge/gitlab:open-prs), with `modules/jq/forge.jq` (forge::colored); --paginate prints one such array per page. The types are APIEntitiesProjectLabel of GET /api/v4/projects/{id}/labels in GitLab's REST OpenAPI, https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/openapi/openapi_v3.yaml, as https://docs.gitlab.com/api/labels/ describes it.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "color": {
+        "type": "string",
+        "description": "A 6-digit hex color with a leading #, as #d9534f, or a CSS color name."
+      }
+    },
+    "required": ["name", "color"],
+    "additionalProperties": true
+  },
+  "examples": [
+    [
+      {
+        "name": "bug",
+        "color": "#D73A4A"
+      },
+      {
+        "name": "kind=fix",
+        "color": "#0E8A16"
+      }
+    ]
+  ]
+}

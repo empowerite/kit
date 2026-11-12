@@ -1,0 +1,7 @@
+# packages/style/prose/package.yml - the style/prose package: the style of prose in every file, documents and comments
+# ----------------------------------------------------------------------------------------------------------------------
+# see: docs/packages/style.md
+
+description: "Prose style for every text file: the indicative to describe, the imperative to instruct"
+depends:
+  - kit

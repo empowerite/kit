@@ -1,0 +1,7 @@
+# packages/policy/opa/package.yml - the policy/opa package: the kit's naming policy as Rego, for Open Policy Agent
+# ----------------------------------------------------------------------------------------------------------------------
+# see: docs/packages.md
+
+description: "The policy as Rego on Open Policy Agent, covering names and files"
+depends:
+  - kit

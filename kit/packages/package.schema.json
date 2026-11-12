@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/empowerite/kit/packages/package.schema.json",
+  "title": "package.yml",
+  "description": "The metadata of one kit package, packages/<name>/package.yml. Each key is described in docs/packages.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "description"
+  ],
+  "properties": {
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "description": "One line, shown by kit packages."
+    },
+    "default": {
+      "type": "boolean",
+      "description": "When true, the package is active unless removed. kit install activates every default package."
+    },
+    "depends": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*(/[a-z][a-z0-9-]*)?$",
+        "description": "The name of another package in the release, activated with this one. kit packages remove refuses it while this one is active."
+      }
+    },
+    "includes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9-]*(/[a-z][a-z0-9-]*)?$",
+        "description": "The name of a member of this bundle: another package in the release, activated with this one. Unlike a dependency, a member can be removed on its own; kit packages remove records it as excluded, and kit update leaves it out."
+      }
+    },
+    "answers": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z_]+$": {
+          "type": "string",
+          "description": "The default value of a template key, written @key@ in the package's templates."
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The policy rules the package sets, with the same keys as kit.yml's policy: each a pattern, or a map of a pattern and the remedy a refusal names. The kit package's are the kit's defaults; an active package's win over them, the later in kit.yml's packages winning, and kit.yml's policy wins over all.",
+      "properties": {
+        "branch": {
+          "$ref": "#/$defs/rule"
+        },
+        "worktree": {
+          "$ref": "#/$defs/rule"
+        },
+        "commit_subject": {
+          "$ref": "#/$defs/rule"
+        },
+        "change_title": {
+          "$ref": "#/$defs/rule"
+        },
+        "commit_reference": {
+          "enum": [
+            "prefix",
+            "trailer"
+          ],
+          "description": "Where a commit carries its issue's reference: prefix, in front of the subject, or trailer, in a Refs: trailer."
+        }
+      }
+    },
+    "expects": {
+      "type": "array",
+      "description": "Lines the package expects in files the repository owns, such as the line that includes a delivered file (extends: [.kit/lefthook.yml]). kit check reports each missing line with its remedy. The kit never writes these lines.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "pattern",
+          "remedy"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The file, relative to the repository root."
+          },
+          "pattern": {
+            "type": "string",
+            "minLength": 1,
+            "description": "An extended regular expression some line of the file must match."
+          },
+          "remedy": {
+            "type": "string",
+            "minLength": 1,
+            "description": "What to add, and why, printed when no line matches."
+          }
+        }
+      }
+    },
+    "notices": {
+      "type": "array",
+      "description": "What happens next, told to the person when the kit places a path afresh, or merges an entry into it that was not there: on kit install, kit packages add, and kit update.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "text"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The file, relative to the repository root, as the package delivers it."
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The line printed after the path, in the indicative or the imperative."
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "rule": {
+      "description": "A policy rule: its pattern, an extended regular expression in the subset RE2 also reads, empty to turn the rule off, or a map of the pattern and the remedy a refusal names after it.",
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "pattern": {
+              "type": "string"
+            },
+            "remedy": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

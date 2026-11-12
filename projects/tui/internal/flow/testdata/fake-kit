@@ -1,0 +1,270 @@
+#!/usr/bin/env bash
+# fake-kit - stands in for kit in the flow tests: answers flow and the app verbs, as their stages (test helper)
+# ----------------------------------------------------------------------------------------------------------------------
+# Each stage's JSON is the fixture beside this file, <stage>.json. FAKE_FLOW_CALLS names a file every call's words
+# are appended to, one line each, so a test reads the order the stages ran in; FAKE_FLOW_DIRS names one each call's
+# directory, as pwd -P gives it, and its words are appended to, a tab between them. FAKE_FLOW_STAGES is what --stages
+# prints, space-separated; unset, it prints the five. FAKE_FLOW_REFUSE names a stage whose --json answer is a
+# refusal, exit 1, or stages to refuse --stages with exit 2. FAKE_FLOW_SILENT names a stage that exits 1 with
+# nothing on stderr. FAKE_FLOW_PART names a stage, or workspace/<stage>, kit read in part: it prints the file
+# FAKE_FLOW_PART_JSON names and exits 1 with nothing on stderr, as incoming does when a remote's fetch fails.
+# FAKE_FLOW_SLOW names a stage that sleeps five seconds before it answers. FAKE_FLOW_ABOVE names a stage that
+# answers as kit does above repositories: an array of {path, status}, one per repository. With --no-fetch, incoming
+# answers incoming-no-fetch.json: fetched false, and the remotes without what a fetch brings. trust --check holds only
+# while FAKE_FLOW_TRUSTED is set.
+# --me prints FAKE_FLOW_ME, ada when it is unset; FAKE_FLOW_REFUSE=me refuses it with exit 1. --quota prints
+# FAKE_FLOW_QUOTA, and refuses with exit 1 while it is unset, as kit does with no forge to read; --marks prints
+# FAKE_FLOW_MARKS, a file it reads again each time, and refuses the same way without one; where a mark there is null,
+# it prints the marks and exits 1, as kit does when the forge cannot answer. A stage given --cached
+# prints <stage>.json from the directory FAKE_FLOW_KEPT names, and refuses with exit 1 without one, as kit does
+# before the stage has printed. new issue --list --json
+# prints trackers.json beside this file; FAKE_FLOW_REFUSE=new refuses it with exit 1. The verbs that act,
+# assign, unassign, close, gather, and work, say what they were asked on stderr, as kit says what it did; one that
+# FAKE_FLOW_REFUSE names refuses with exit 1. workspace --stages prints kit workspace's six, and workspace <stage>
+# --json prints workspace-<stage>.json beside this file, or refuses with exit 1 where FAKE_FLOW_REFUSE names
+# workspace/<stage>; workspace --marks prints FAKE_WORKSPACE_MARKS, a file it reads again each time, and refuses with
+# exit 1 without one. packages --stages prints kit packages' one stage, packages <stage> --json prints
+# packages-<stage>.json beside this file, or refuses with exit 1 where FAKE_FLOW_REFUSE names packages/<stage>;
+# packages --marks prints FAKE_PACKAGES_MARKS, as workspace --marks does; and packages select, add, and remove say what
+# they were asked on stderr, or refuse with exit 1 where FAKE_FLOW_REFUSE names packages <verb>. The app verbs, issues,
+# changes, delivery, people, audit, and platform, answer as kit packages does: --stages prints the verb's stages,
+# <stage> --json prints <verb>-<stage>.json beside this file, or refuses with exit 1 where FAKE_FLOW_REFUSE names
+# <verb>/<stage>, and --marks prints the file FAKE_<VERB>_MARKS names, as FAKE_PEOPLE_MARKS, and refuses with exit 1
+# without one. A --workspace=<workspace> before the verb is handed to the verb's words, and one after it is refused.
+
+set -o errexit -o nounset -o pipefail
+
+here=$(cd "$(dirname "$0")" && pwd)
+# --workspace=<workspace> is a kit option, before the verb, as bin/kit, the loader, takes it: one after the verb is
+# refused, as kit refuses it. The fake hands the workspace to the verb's words, at their end, as it records them.
+for word in "${@:2}"
+do
+  if [[ "${word}" == --workspace || "${word}" == --workspace=* ]]
+  then
+    echo "❌ --workspace is a kit option, before the verb: kit --workspace=<workspace> $1" >&2
+    exit 2
+  fi
+done
+if [[ "${1:-}" == --workspace=* ]]
+then
+  given=${1#--workspace=}
+  shift
+  set -- "$@" --workspace "${given}"
+fi
+[[ -z "${FAKE_FLOW_CALLS:-}" ]] || printf '%s\n' "$*" >> "${FAKE_FLOW_CALLS}"
+[[ -z "${FAKE_FLOW_DIRS:-}" ]] || printf '%s\t%s\n' "$(pwd -P)" "$*" >> "${FAKE_FLOW_DIRS}"
+
+case "${1:-}" in
+  (assign | unassign | close | gather | work)
+    if [[ "${FAKE_FLOW_REFUSE:-}" == "$1" ]]
+    then
+      echo "❌ kit $1 refuses for the test; run: kit help $1" >&2
+      exit 1
+    fi
+    echo "→ kit $1 runs" >&2
+    echo "✅ kit $*" >&2
+    exit 0
+    ;;
+esac
+
+if [[ "$*" == "new issue --list --json" ]]
+then
+  if [[ "${FAKE_FLOW_REFUSE:-}" == new ]]
+  then
+    echo "❌ kit new: the forge cannot be read; run: kit help new" >&2
+    exit 1
+  fi
+  cat "${here}/trackers.json"
+  exit 0
+fi
+
+if [[ "${1:-}" == workspace ]]
+then
+  case "${2:-}" in
+    (--stages) printf '%s\n' repos remotes branches worktrees commits tags ;;
+    (--marks)
+      if [[ -z "${FAKE_WORKSPACE_MARKS:-}" || ! -f "${FAKE_WORKSPACE_MARKS}" ]]
+      then
+        echo "❌ kit workspace: the marks cannot be read; run: kit help workspace" >&2
+        exit 1
+      fi
+      cat "${FAKE_WORKSPACE_MARKS}"
+      ;;
+    (*)
+      if [[ "${FAKE_FLOW_REFUSE:-}" == "workspace/${2:-}" ]]
+      then
+        echo "❌ kit workspace ${2:-} refuses for the test; run: kit help workspace" >&2
+        exit 1
+      fi
+      if [[ "${FAKE_FLOW_PART:-}" == "workspace/${2:-}" ]]
+      then
+        cat "${FAKE_FLOW_PART_JSON}"
+        exit 1
+      fi
+      cat "${here}/workspace-${2:-}.json"
+  esac
+  exit 0
+fi
+
+if [[ "${1:-}" == packages ]]
+then
+  case "${2:-}" in
+    (--stages) printf '%s\n' packages ;;
+    (--marks)
+      if [[ -z "${FAKE_PACKAGES_MARKS:-}" || ! -f "${FAKE_PACKAGES_MARKS}" ]]
+      then
+        echo "❌ kit packages: the marks cannot be read; run: kit help packages" >&2
+        exit 1
+      fi
+      cat "${FAKE_PACKAGES_MARKS}"
+      ;;
+    (select | add | remove)
+      if [[ "${FAKE_FLOW_REFUSE:-}" == "packages $2" ]]
+      then
+        echo "❌ kit packages $2 refuses for the test; run: kit help packages" >&2
+        exit 1
+      fi
+      echo "✅ kit $*" >&2
+      ;;
+    (*)
+      if [[ "${FAKE_FLOW_REFUSE:-}" == "packages/${2:-}" ]]
+      then
+        echo "❌ kit packages ${2:-} refuses for the test; run: kit help packages" >&2
+        exit 1
+      fi
+      cat "${here}/packages-${2:-}.json"
+  esac
+  exit 0
+fi
+
+declare -A app_stages=([issues]="milestones iterations" [changes]="reviews checks merged"
+  [delivery]="artifacts environments deployments" [people]="people teams agents"
+  [audit]="evidence findings controls waivers policy enforcement" [platform]="services toolchains tools settings")
+if [[ -n "${app_stages[${1:-flow}]:-}" ]]
+then
+  verb=$1
+  case "${2:-}" in
+    (--stages)
+      read -r -a stages <<<"${app_stages[${verb}]}"
+      printf '%s\n' "${stages[@]}"
+      ;;
+    (--marks)
+      marks="FAKE_${verb^^}_MARKS"
+      if [[ -z "${!marks:-}" || ! -f "${!marks}" ]]
+      then
+        echo "❌ kit ${verb}: the marks cannot be read; run: kit help ${verb}" >&2
+        exit 1
+      fi
+      cat "${!marks}"
+      ;;
+    (*)
+      if [[ "${FAKE_FLOW_REFUSE:-}" == "${verb}/${2:-}" ]]
+      then
+        echo "❌ kit ${verb} ${2:-} refuses for the test; run: kit help ${verb}" >&2
+        exit 1
+      fi
+      cat "${here}/${verb}-${2:-}.json"
+  esac
+  exit 0
+fi
+
+if [[ "${1:-}" == trust ]]
+then
+  [[ -n "${FAKE_FLOW_TRUSTED:-}" ]]
+  exit
+fi
+if [[ "${1:-}" != flow ]]
+then
+  echo "❌ no kit verb '${1:-}'; run: kit help" >&2
+  exit 2
+fi
+shift
+
+case "${1:-}" in
+  (--stages)
+    if [[ "${FAKE_FLOW_REFUSE:-}" == stages ]]
+    then
+      echo "❌ kit flow refuses for the test; run: kit help flow" >&2
+      exit 2
+    fi
+    for stage in ${FAKE_FLOW_STAGES-issues changes builds incoming releases}
+    do
+      printf '%s\n' "${stage}"
+    done
+    ;;
+  (--marks)
+    if [[ -z "${FAKE_FLOW_MARKS:-}" || ! -f "${FAKE_FLOW_MARKS}" ]]
+    then
+      echo "❌ kit flow: the marks cannot be read; run: kit help flow" >&2
+      exit 1
+    fi
+    cat "${FAKE_FLOW_MARKS}"
+    if jq --exit-status 'any(.[]; . == null)' "${FAKE_FLOW_MARKS}" >/dev/null
+    then
+      echo "❌ kit flow: the forge cannot answer; run: gh auth status (the marks could not be read)" >&2
+      exit 1
+    fi
+    ;;
+  (--quota)
+    if [[ -z "${FAKE_FLOW_QUOTA:-}" ]]
+    then
+      echo "❌ kit flow: the rate limits cannot be read; run: kit help flow" >&2
+      exit 1
+    fi
+    printf '%s\n' "${FAKE_FLOW_QUOTA}"
+    ;;
+  (--me)
+    if [[ "${FAKE_FLOW_REFUSE:-}" == me ]]
+    then
+      echo "❌ kit flow: the forge cannot be read; run: kit help flow" >&2
+      exit 1
+    fi
+    printf '%s\n' "${FAKE_FLOW_ME-ada}"
+    ;;
+  (issues | changes | incoming | builds | releases)
+    stage=$1
+    shift
+    if [[ "${1:-}" != --json ]]
+    then
+      echo "❌ kit flow ${stage} takes --json in the test; run: kit help flow" >&2
+      exit 2
+    fi
+    shift
+    if [[ " $* " == *" --cached "* ]]
+    then
+      if [[ -z "${FAKE_FLOW_KEPT:-}" || ! -f "${FAKE_FLOW_KEPT}/${stage}.json" ]]
+      then
+        echo "❌ kit flow ${stage} has printed nothing here yet; run it without --cached" >&2
+        exit 1
+      fi
+      cat "${FAKE_FLOW_KEPT}/${stage}.json"
+      exit 0
+    fi
+    if [[ "${FAKE_FLOW_REFUSE:-}" == "${stage}" ]]
+    then
+      echo "❌ kit flow ${stage}: the forge cannot be read; run: kit help flow" >&2
+      exit 1
+    fi
+    [[ "${FAKE_FLOW_SILENT:-}" != "${stage}" ]] || exit 1
+    if [[ "${FAKE_FLOW_PART:-}" == "${stage}" ]]
+    then
+      cat "${FAKE_FLOW_PART_JSON}"
+      exit 1
+    fi
+    [[ "${FAKE_FLOW_SLOW:-}" != "${stage}" ]] || sleep 5
+    if [[ "${FAKE_FLOW_ABOVE:-}" == "${stage}" ]]
+    then
+      printf '[{"path": "kit", "status": %s}, {"path": "jig", "status": null}]\n' "$(cat "${here}/${stage}.json")"
+    elif [[ "${stage}" == incoming && " $* " == *" --no-fetch "* ]]
+    then
+      cat "${here}/incoming-no-fetch.json"
+    else
+      cat "${here}/${stage}.json"
+    fi
+    ;;
+  (*)
+    echo "❌ kit flow: no stage '${1:-}'; run: kit help flow" >&2
+    exit 2
+esac
+
+# ----------------------------------------------------------------------------------------------------------------------

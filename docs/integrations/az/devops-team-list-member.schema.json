@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "az devops team list-member --team ${team} --project ${project} --top 101 --output json",
+  "description": "A team's members, the first 101, so a 101st says there are more than the 100 kit draws, which kit draws as the teams stage's members and, across the teams, the people stage's in `modules/bash/forge/ado.sh` (forge/ado:teams-read, with `modules/jq/forge.jq` forge::ado_teams and forge::ado_collaborators); every call kit makes through forge/ado:az also carries --org ${organization} --detect false --only-show-errors. The extension reads TeamMember and IdentityRef, https://learn.microsoft.com/rest/api/azure/devops/core/teams/get-team-members-with-extended-properties?view=azure-devops-rest-7.1.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "isTeamAdmin": {
+        "type": "boolean"
+      },
+      "identity": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "uniqueName": {
+            "type": "string"
+          },
+          "isContainer": {
+            "type": "boolean",
+            "description": "True for a group the team holds; absent for a person."
+          }
+        },
+        "required": [
+          "id",
+          "displayName"
+        ],
+        "additionalProperties": true
+      }
+    },
+    "required": [
+      "identity"
+    ],
+    "additionalProperties": true
+  },
+  "examples": [
+    [
+      {
+        "isTeamAdmin": true,
+        "identity": {
+          "id": "19d9411e-9a34-45bb-b985-d24d9d87c0c9",
+          "displayName": "Ada",
+          "uniqueName": "ada@example.com"
+        }
+      },
+      {
+        "isTeamAdmin": false,
+        "identity": {
+          "id": "8c8c7d32-6b1b-47f4-b2e9-30b477b5ab3d",
+          "displayName": "Release managers",
+          "uniqueName": "[acme]\\Release managers",
+          "isContainer": true
+        }
+      }
+    ]
+  ]
+}

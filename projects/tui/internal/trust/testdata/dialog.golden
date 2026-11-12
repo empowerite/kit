@@ -1,0 +1,30 @@
+
+  Trust this clone?
+
+  /the/clone
+
+  kit runs nothing a clone names until you trust it. Trusting this one lets kit:
+  • run bin/ci for kit gate (gate)
+  • run shellcheck --shell=bash for kit lint (lint: in .kit/rules/bash.md)
+
+  You accept code from whoever can push to it. kit does not check each pull;
+  review and signed commits do. It asks again when a pull changes what the clone
+  asks it to run.
+
+  [ Trust ]   [ Not now ]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+←→ choose · ⏎ press · esc not now

@@ -1,0 +1,77 @@
+{
+  "verb": "commit",
+  "purpose": "commits what is staged, after the kit's checks",
+  "usage": [
+    "kit commit [--all] (--message=<text>… | --file=<path>) [<path>…]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "all",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": false,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "name": "message",
+              "value": "text",
+              "repeat": true
+            }
+          ],
+          [
+            {
+              "kind": "option",
+              "name": "file",
+              "value": "path",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "path",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--all": {
+      "description": "stages every tracked change first, as git commit --all does"
+    },
+    "--message": {
+      "description": "the message; the first is the subject, the rest are paragraphs"
+    },
+    "--file": {
+      "description": "the message from a file; its first line is the subject"
+    },
+    "<path>": {
+      "description": "commits these paths alone; each must be known to git",
+      "choices": "open"
+    }
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "rows": [
+    {
+      "key": "origin/7-fix",
+      "kind": "remote",
+      "branch": "7-fix",
+      "remote": "origin",
+      "local": [
+        "7-fix"
+      ],
+      "upstream": [
+        1,
+        0
+      ],
+      "default": null,
+      "commit": "0553f99",
+      "age": 10,
+      "subject": "#7 fix the thing",
+      "worktree": [
+        "/src/r/worktrees/7-fix"
+      ],
+      "links": {
+        "branch": "https://github.com/o/r/tree/7-fix",
+        "commit": "https://github.com/o/r/commit/0553f99",
+        "worktree": "row:worktrees//src/r/worktrees/7-fix"
+      },
+      "source": "git",
+      "organization": "o",
+      "repository": "r"
+    },
+    {
+      "key": "origin/main",
+      "kind": "remote",
+      "branch": "main",
+      "remote": "origin",
+      "local": [
+        "main"
+      ],
+      "upstream": [
+        0,
+        0
+      ],
+      "default": "default",
+      "commit": "5d469b3",
+      "age": 10,
+      "subject": "one",
+      "worktree": [
+        "/src/r"
+      ],
+      "links": {
+        "branch": "https://github.com/o/r/tree/main",
+        "commit": "https://github.com/o/r/commit/5d469b3",
+        "worktree": "row:worktrees//src/r"
+      },
+      "source": "git",
+      "organization": "o",
+      "repository": "r"
+    },
+    {
+      "key": "origin/old",
+      "kind": "gone",
+      "branch": "old",
+      "remote": "origin",
+      "local": [
+        "old"
+      ],
+      "upstream": null,
+      "default": null,
+      "commit": "5d469b3",
+      "age": 10,
+      "subject": "one",
+      "worktree": [],
+      "links": {
+        "branch": null,
+        "commit": null,
+        "worktree": null
+      },
+      "source": "git",
+      "organization": "o",
+      "repository": "r"
+    },
+    {
+      "key": "scratch",
+      "kind": "local",
+      "branch": "scratch",
+      "remote": null,
+      "local": [
+        "scratch"
+      ],
+      "upstream": null,
+      "default": null,
+      "commit": "5d469b3",
+      "age": 10,
+      "subject": "one",
+      "worktree": [],
+      "links": {
+        "branch": null,
+        "commit": null,
+        "worktree": null
+      },
+      "source": "git",
+      "organization": "o",
+      "repository": "r"
+    }
+  ],
+  "errors": []
+}

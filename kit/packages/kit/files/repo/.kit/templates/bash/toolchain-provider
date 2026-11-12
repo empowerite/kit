@@ -1,0 +1,14 @@
+«head»
+toolchain/«stem»:active()«call_active…= { error "not written yet"; return 1; }»
+toolchain/«stem»:file()«call_file…= { error "not written yet"; return 1; }»
+toolchain/«stem»:inputs()«call_inputs…= { error "not written yet"; return 1; }»
+toolchain/«stem»:install()«call_install…= { error "not written yet"; return 1; }»
+toolchain/«stem»:outdated()«call_outdated…= { error "not written yet"; return 1; }»
+toolchain/«stem»:path()«call_path…= { error "not written yet"; return 1; }»
+toolchain/«stem»:pins()«call_pins…= { error "not written yet"; return 1; }»
+toolchain/«stem»:require()«call_require…= { error "not written yet"; return 1; }»
+toolchain/«stem»:roles()«call_roles…= { error "not written yet"; return 1; }»
+toolchain/«stem»:update()«call_update…= { error "not written yet"; return 1; }»
+toolchain/«stem»:usable()«call_usable…= { error "not written yet"; return 1; }»
+# The seam's calls end here; what follows is this provider's own.
+«rest»

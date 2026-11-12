@@ -1,0 +1,76 @@
+{
+  "verb": "toolchains",
+  "purpose": "lists the toolchains kit found here, and records which one to use",
+  "usage": [
+    "kit toolchains [--json | --jq]",
+    "kit toolchains use <name> [--system]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "use",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "name",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "system",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--json": {
+      "description": "one JSON object per row: provider, role, usable, active, chosen, and fills"
+    },
+    "--jq": {
+      "description": "the same JSON, formatted by jq for a person"
+    },
+    "use": {
+      "description": "records the project's tool manager; ambient uses none"
+    },
+    "<name>": {
+      "description": "mise, nix, brew, docker, devcontainer, apt, dnf, pacman, or ambient"
+    },
+    "--system": {
+      "description": "records it for the system role, which supplies bash, git, jq, and yq"
+    }
+  }
+}

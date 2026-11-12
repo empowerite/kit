@@ -1,0 +1,306 @@
+{
+  "verb": "audit",
+  "purpose": "lists the forge's attestations, alerts, controls, waivers, the policy, and what binds",
+  "usage": [
+    "kit audit [--text | --json | --jq]",
+    "kit audit --stages",
+    "kit audit --marks",
+    "kit audit evidence [--text | --json | --jq]",
+    "kit audit findings [--text | --json | --jq]",
+    "kit audit controls [--text | --json | --jq]",
+    "kit audit waivers [--text | --json | --jq]",
+    "kit audit policy [--text | --json | --jq]",
+    "kit audit enforcement [--text | --json | --jq]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "flag",
+        "name": "stages",
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "flag",
+        "name": "marks",
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "evidence",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "findings",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "controls",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "waivers",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "policy",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "enforcement",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--text": {
+      "description": "prints the stages as text, even on a terminal"
+    },
+    "--json": {
+      "description": "the stages as one JSON object: stages, then each stage's document under its name, null for one that could not be read"
+    },
+    "--jq": {
+      "description": "the same JSON, formatted by jq for a person"
+    },
+    "--stages": {
+      "description": "prints the stages, one per line, in order, the same over any workspace"
+    },
+    "--marks": {
+      "description": "prints a mark per stage, as one JSON object: evidence's moves with the forge's runs and releases, findings' with its runs and alerts, each scanner's off or refused where it is, policy's with kit.yml and .kit/policy, enforcement's with the files its local rows read; controls and waivers have none, null, as each is read again only on Refresh, kittui offering no Watch for them"
+    },
+    "evidence": {
+      "description": "the attestations of the 5 newest releases' assets and the 20 newest artifacts"
+    },
+    "findings": {
+      "description": "the code scanning, Dependabot, and secret scanning alerts, open and dismissed"
+    },
+    "controls": {
+      "description": "the rulesets and the protection that guard the default branch"
+    },
+    "waivers": {
+      "description": "who may bypass each control, and each alert dismissed"
+    },
+    "policy": {
+      "description": "each rule kit policy judges by, as kit policy --rules lists them"
+    },
+    "enforcement": {
+      "description": "what binds an agent and what is advice, per harness and for the repository, in four tiers"
+    }
+  }
+}

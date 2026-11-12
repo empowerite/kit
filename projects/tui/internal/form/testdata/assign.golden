@@ -1,0 +1,8 @@
+ kit assign - assigns issues to the caller, or to someone else
+
+   --to                   the login to assign, in every issue's tracker; default: the caller
+
+   <reference>… required  the issues, each named with its tracker: 7, #7, or AB#4521
+
+
+ kit assign

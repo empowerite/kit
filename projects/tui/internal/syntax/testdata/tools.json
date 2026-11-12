@@ -1,0 +1,210 @@
+{
+  "verb": "tools",
+  "purpose": "lists, installs, and updates what the chosen toolchain and the dependencies pin",
+  "usage": [
+    "kit tools [--outdated [--check]] [--toolchain=<name>] [--json | --jq]",
+    "kit tools [--toolchain=<name>] (install | update | path | run <command>…)",
+    "kit tools sources [--env | --json | --jq]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "outdated",
+              "repeat": false
+            },
+            {
+              "kind": "group",
+              "optional": true,
+              "alternatives": [
+                [
+                  {
+                    "kind": "flag",
+                    "name": "check",
+                    "repeat": false
+                  }
+                ]
+              ],
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "name": "toolchain",
+              "value": "name",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "name": "toolchain",
+              "value": "name",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": false,
+        "alternatives": [
+          [
+            {
+              "kind": "literal",
+              "name": "install",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "literal",
+              "name": "update",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "literal",
+              "name": "path",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "literal",
+              "name": "run",
+              "repeat": false
+            },
+            {
+              "kind": "operand",
+              "name": "command",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "sources",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "env",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--outdated": {
+      "description": "only the tools behind their latest version; reaches the network"
+    },
+    "--check": {
+      "description": "with --outdated: fails when any tool is behind"
+    },
+    "--toolchain": {
+      "description": "uses this toolchain for the run, as KIT_TOOLCHAIN does; kit takes it even after run's command"
+    },
+    "<name>": {
+      "description": "mise, nix, brew, docker, devcontainer, or ambient"
+    },
+    "--json": {
+      "description": "one JSON object per tool: name, pinned, installed, latest with --outdated, and from; and tagged where a newer version is tagged upstream than the pull path serves"
+    },
+    "--jq": {
+      "description": "the same JSON, formatted by jq for a person"
+    },
+    "install": {
+      "description": "installs every pinned tool, then every package; ambient, names what else to install"
+    },
+    "update": {
+      "description": "moves every tool and package to its latest, and rewrites the pins"
+    },
+    "path": {
+      "description": "prints the directories that put the tools first on PATH, then the packages'"
+    },
+    "sources": {
+      "description": "prints the pull path: each source, its kind, its url, and its layer (env, workspace, kit.yml)"
+    },
+    "--env": {
+      "description": "with sources: the package managers' settings for the path, NAME=value a line"
+    },
+    "run": {
+      "description": "runs the command with the tools, or in their container"
+    },
+    "<command>": {
+      "description": "the command and its arguments, as typed, dash-words included"
+    }
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "verb": "kinds",
+  "purpose": "lists the kinds of file, or the kinds a path is of",
+  "usage": [
+    "kit kinds [--json | --jq] [<kind> | <path>]…"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "kind",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "operand",
+              "name": "path",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": true
+      }
+    ]
+  ],
+  "arguments": {
+    "--json": {
+      "description": "one JSON object per kind, or per path with its kinds"
+    },
+    "--jq": {
+      "description": "the same JSON, formatted by jq for a person"
+    },
+    "<kind>": {
+      "description": "the name of a defined kind; only these kinds are listed"
+    },
+    "<path>": {
+      "description": "a file to classify, relative to the current directory"
+    }
+  }
+}

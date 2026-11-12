@@ -1,0 +1,14 @@
+# backlog.test - the backlog jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line. The input
+# is the open issues.
+
+# An issue an open change closes leaves the backlog, and one with a branch on origin carries it.
+import "backlog" as backlog; backlog::unclaimed([{"closes": [{"number": 7}]}]; ["8-start", "80-other"]; []; false) | map({number, branch})
+[{"number": 7, "assignees": []}, {"number": 8, "assignees": []}, {"number": 9, "assignees": []}]
+[{"number":8,"branch":"8-start"},{"number":9,"branch":null}]
+
+# Logins keep the issues assigned to one of them, and with except, those assigned to none of them.
+import "backlog" as backlog; [backlog::unclaimed([]; []; ["ada"]; false), backlog::unclaimed([]; []; ["ada"]; true)] | map(map(.number))
+[{"number": 1, "assignees": ["ada"]}, {"number": 2, "assignees": ["bob"]}, {"number": 3, "assignees": []}]
+[[1],[2,3]]

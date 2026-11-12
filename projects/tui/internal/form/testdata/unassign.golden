@@ -1,0 +1,8 @@
+ kit unassign - takes the caller, or everyone, off issues
+
+   --all                  takes every assignee off, not only the caller
+
+   <reference>… required  the issues, each named with its tracker: 7, #7, or AB#4521
+
+
+ kit unassign

@@ -1,0 +1,6 @@
+ kit settle - settles the issues a closed pull request names
+
+   <number>  the pull request to settle; default: this checkout's
+
+
+ kit settle

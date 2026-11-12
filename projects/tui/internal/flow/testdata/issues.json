@@ -1,0 +1,233 @@
+[
+  {
+    "number": 7,
+    "ref": "#7",
+    "tracker": "#",
+    "title": "Fix the thing",
+    "assignees": [
+      "ada",
+      "bob"
+    ],
+    "labels": [],
+    "age": 3456000,
+    "source": "github",
+    "organization": "empowerite",
+    "repository": "jig",
+    "milestone": "v1",
+    "iteration": null,
+    "swimlane": null,
+    "status": "backlog",
+    "branch": null,
+    "pr": null,
+    "here": null,
+    "local": null,
+    "worktree": null,
+    "createdAt": "2026-10-02T00:00:00Z"
+  },
+  {
+    "number": 1,
+    "ref": "#1",
+    "tracker": "#",
+    "title": "The first release, v0.1.0: the kit verbs, the picture, and the forge seam on GitHub and GitLab",
+    "assignees": [
+      "jeffrey-aguilera"
+    ],
+    "labels": [
+      {
+        "name": "priority:high",
+        "color": "#b60205"
+      },
+      {
+        "name": "release",
+        "color": "#fbca04"
+      }
+    ],
+    "age": 714296,
+    "source": "github",
+    "organization": "empowerite",
+    "repository": "kit",
+    "milestone": "v0.1.0",
+    "iteration": "Sprint 3",
+    "swimlane": "release",
+    "status": "underway",
+    "branch": "1-the-first-release-v0-1-0",
+    "pr": {
+      "number": 2,
+      "source": "github",
+      "title": "The first release, v0.1.0",
+      "author": "jeffrey-aguilera",
+      "state": "ready",
+      "branch": "1-the-first-release-v0-1-0",
+      "fork": null,
+      "pushed": {
+        "age": 3600,
+        "by": "jeffrey-aguilera"
+      }
+    },
+    "here": true,
+    "local": false,
+    "worktree": "/home/kit/worktrees/1-the-first-release-v0-1-0"
+  },
+  {
+    "number": 8,
+    "ref": "#8",
+    "tracker": "#",
+    "title": "Lint the modules",
+    "assignees": [],
+    "labels": [],
+    "age": 200000,
+    "source": "github",
+    "organization": "empowerite",
+    "repository": "kit",
+    "milestone": "v0.1.0",
+    "iteration": null,
+    "swimlane": "quality",
+    "status": "underway",
+    "branch": "4-lint-every-module",
+    "pr": {
+      "number": 4,
+      "source": "github",
+      "title": "Lint every module",
+      "author": "bob",
+      "state": "failing:gate",
+      "branch": "4-lint-every-module",
+      "fork": "bob",
+      "pushed": {
+        "age": 90000,
+        "by": "cy"
+      }
+    },
+    "here": false,
+    "local": false,
+    "worktree": null
+  },
+  {
+    "number": 8,
+    "ref": "#8",
+    "tracker": "#",
+    "title": "Lint the modules",
+    "assignees": [],
+    "labels": [],
+    "age": 200000,
+    "source": "github",
+    "organization": "empowerite",
+    "repository": "kit",
+    "milestone": "v0.1.0",
+    "iteration": null,
+    "swimlane": "quality",
+    "status": "underway",
+    "branch": "11-lint-shared",
+    "pr": {
+      "number": 11,
+      "source": "github",
+      "title": "Lint the modules with one shared config",
+      "author": "ada",
+      "state": "draft",
+      "branch": "11-lint-shared",
+      "fork": null,
+      "pushed": {
+        "age": 7200,
+        "by": "ada"
+      }
+    },
+    "here": false,
+    "local": true,
+    "worktree": null
+  },
+  {
+    "number": 46,
+    "ref": "#46",
+    "tracker": "#",
+    "title": "A noun lists, a noun with a verb acts",
+    "assignees": [
+      "jeffrey-aguilera"
+    ],
+    "labels": [
+      {
+        "name": "bug",
+        "color": "#d73a4a"
+      }
+    ],
+    "age": 172800,
+    "source": "github",
+    "organization": "empowerite",
+    "repository": "kit",
+    "milestone": "v0.2.0",
+    "iteration": "Sprint 4",
+    "swimlane": "tui",
+    "status": "backlog",
+    "branch": null,
+    "pr": null,
+    "here": null,
+    "local": null,
+    "worktree": null,
+    "createdAt": "2026-11-09T00:00:00Z"
+  },
+  {
+    "number": 31,
+    "ref": "#31",
+    "tracker": "#",
+    "title": "kit commit, kit submit, and kit land: one verb per step from a worktree to a merged pull request",
+    "assignees": [
+      "ada"
+    ],
+    "labels": [],
+    "age": 10800,
+    "source": "github",
+    "organization": "empowerite",
+    "repository": "kit",
+    "milestone": "v0.1.0",
+    "iteration": "Sprint 3",
+    "swimlane": null,
+    "status": "underway",
+    "branch": "31-commit-submit-land",
+    "pr": {
+      "number": 12,
+      "source": "github",
+      "title": "kit commit, kit submit, and kit land",
+      "author": "ada",
+      "state": "comments:open",
+      "branch": "31-commit-submit-land",
+      "fork": null,
+      "pushed": null
+    },
+    "here": false,
+    "local": false,
+    "worktree": null
+  },
+  {
+    "number": 45,
+    "ref": "#45",
+    "tracker": "#",
+    "title": "kit flow is the one picture: five stages, interactive on a terminal, and the listing verbs fold into it",
+    "assignees": [],
+    "labels": [
+      {
+        "name": "kind=feature",
+        "color": "#a2eeef"
+      },
+      {
+        "name": "area::tui",
+        "color": null
+      },
+      {
+        "name": "good first issue",
+        "color": "#7057ff"
+      }
+    ],
+    "age": 7200,
+    "source": "github",
+    "organization": "empowerite",
+    "repository": "kit",
+    "milestone": null,
+    "iteration": null,
+    "swimlane": null,
+    "status": "backlog",
+    "branch": null,
+    "pr": null,
+    "here": null,
+    "local": null,
+    "worktree": null,
+    "createdAt": "2026-11-10T22:00:00Z"
+  }
+]

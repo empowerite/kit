@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "az devops invoke --area git --resource pullRequestThreads --route-parameters project=${project} repositoryId=${repository} pullRequestId=${id} --api-version 7.1 --output json",
+  "description": "The pull request's comment threads, which `modules/bash/forge/ado.sh` (forge/ado:open-prs) reads and `modules/jq/forge.jq`'s ado_unresolved counts: those a person opened, active or pending, not deleted; every call kit makes through forge/ado:az also carries --org ${organization} --detect false --only-show-errors. az devops invoke prints the REST API's answer as it comes, a collection of GitPullRequestCommentThread with its Comment list, https://learn.microsoft.com/rest/api/azure/devops/git/pull-request-threads/list?view=azure-devops-rest-7.1.",
+  "type": "object",
+  "properties": {
+    "count": {
+      "type": "integer"
+    },
+    "value": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/thread"
+      }
+    }
+  },
+  "required": ["count", "value"],
+  "additionalProperties": true,
+  "$defs": {
+    "thread": {
+      "description": "GitPullRequestCommentThread.",
+      "type": "object",
+      "properties": {
+        "status": {
+          "description": "CommentThreadStatus, left out of a thread Azure DevOps writes itself, such as a vote.",
+          "type": "string",
+          "enum": ["unknown", "active", "fixed", "wontFix", "closed", "byDesign", "pending"]
+        },
+        "isDeleted": {
+          "type": "boolean"
+        },
+        "comments": {
+          "type": "array",
+          "items": {
+            "description": "Comment.",
+            "type": "object",
+            "properties": {
+              "commentType": {
+                "description": "CommentType: text is a person's comment, system one Azure DevOps writes.",
+                "type": "string",
+                "enum": ["unknown", "text", "codeChange", "system"]
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "required": ["comments"],
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "count": 3,
+      "value": [
+        {
+          "status": "fixed",
+          "comments": [
+            {
+              "commentType": "text"
+            }
+          ]
+        },
+        {
+          "status": "active",
+          "comments": [
+            {
+              "commentType": "text"
+            }
+          ]
+        },
+        {
+          "status": "active",
+          "comments": [
+            {
+              "commentType": "system"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

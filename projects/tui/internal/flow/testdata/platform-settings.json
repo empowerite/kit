@@ -1,0 +1,10 @@
+{"rows": [
+  {"key": "primary", "setting": "primary", "value": "upstream", "from": "set", "links": {}, "source": "kit", "organization": "o", "repository": "r"},
+  {"key": "gate", "setting": "gate", "value": null, "from": "default", "links": {}, "source": "kit", "organization": "o", "repository": "r"},
+  {"key": "log_days", "setting": "log_days", "value": 14, "from": "default", "links": {}, "source": "kit", "organization": "o", "repository": "r"},
+  {"key": "flow", "setting": "flow", "value": ["issues", "changes"], "from": "set", "links": {}, "source": "kit", "organization": "o", "repository": "r"},
+  {"key": "policy", "setting": "policy", "value": {"commit_subject": ""}, "from": "set", "links": {}, "source": "kit", "organization": "o", "repository": "r"},
+  {"key": "trackers", "setting": "trackers", "value": [], "from": "default", "links": {}, "source": "kit", "organization": "o", "repository": "r"},
+  {"key": "answers", "setting": "answers", "value": {}, "from": "default", "links": {}, "source": "kit", "organization": "o", "repository": "r"},
+  {"key": "bash_path", "setting": "bash_path", "value": "", "from": "set", "links": {}, "source": "kit", "organization": "o", "repository": "r"}
+], "errors": []}

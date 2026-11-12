@@ -1,0 +1,243 @@
+#!/usr/bin/env bash
+# kit-update - moves the repository and the home directory to the release that runs it (kit verb: installation)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit update
+#
+# kit update takes no arguments. It moves the repository and the home directory from the release kit.yml declares,
+# the previous release, to the release that runs it, and writes that release's version into kit.yml. bin/kit, the
+# loader, runs the release kit.yml declares, so the release to move to is named with the kit option: kit
+# --version=0.2.0 update. A plain kit update runs the declared release, and brings every delivered file back to it.
+# The active packages are resolved again from the release that runs: a package an active one now depends on or
+# includes comes in, and so does a new default package. A package kit.yml declares as excluded stays out, unless a
+# package depends on it. For each delivered file:
+#
+#   - a file new in this release is written when nothing, or the same content, is there, and refused otherwise
+#   - a merged JSON file is merged by key
+#   - a region is regenerated
+#   - a missing file is written
+#   - a path under .kit/ is brought to its state: a link to its source, or a readonly copy
+#   - any other file unchanged since the previous release is replaced
+#   - any other file edited since the previous release gets a three-way merge, which leaves conflict markers on a
+#     conflict
+#
+# A merge by key, or a three-way merge, needs the previous release as its base. The base is the first of:
+#
+#   1. the directory KIT_BASE names
+#   2. this release, when the previous release is the same version
+#   3. the previous release, from the kit's cache, or downloaded from its public tarball; never for an unreleased
+#      previous version
+#
+# kit update checks, before it writes anything, that every merge has its base and that every region it regenerates
+# is marked rightly: one directive with one end line after it, or neither. When a base is missing, or a region's
+# markers are out of order, doubled, or never closed, it names each path, writes nothing, and the declared version
+# stays the previous one, so the next run starts from the same place.
+#
+# Arguments:
+#
+# Exits 0 when the update is complete, and 1 when a base is missing, a region is marked wrongly, a file needs to be
+# resolved by hand, the packages' depends and includes lines form a cycle, or a list it reads, such as the packages
+# kit.yml declares, cannot be read, and 2 on a usage error. At a cycle, nothing is written.
+#
+# see: modules/bash/place.sh, modules/bash/manifest.sh, modules/bash/release.sh
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use release settings resolve render place materialize manifest file
+
+guard:arguments update "$@" || exit $?
+
+guard:require tool:jq
+settings:require
+# The sources' roots are read here, in this shell, so the subshells below inherit them: read in one, they are read
+# again in the next.
+resolve:roots || exit 1
+declare -a recorded excluded defaults packages delivered
+list:read recorded settings:packages || exit 1
+list:read excluded settings:excludes || exit 1
+list:read defaults resolve:defaults "${kit_root}" || exit 1
+# A default removed by kit packages remove is excluded, and stays out.
+for package in "${excluded[@]}"
+do
+  readarray -t defaults < <(list:without "${package}" "${defaults[@]}")
+done
+resolve:require "${kit_root}" "${recorded[@]}"
+# The active set is resolved again from this release; the header says what comes in and what stays out.
+list:read packages resolve:active "${kit_root}" "${excluded[*]}" "${defaults[@]}" "${recorded[@]}" || exit 1
+for package in "${excluded[@]}"
+do
+  if list:among "${package}" "${packages[@]}"
+  then
+    needed=$(resolve:dependents "${kit_root}" "${package}" "${packages[@]}" | paste -s -d ' ' -)
+    warn "${package} was excluded, but ${needed} depends on it, so it is back"
+  fi
+done
+list:read excluded resolve:exclusions "${excluded[*]}" "${packages[@]}" || exit 1
+previous=$(settings:version)
+current=$(release:version)
+render:all "${kit_root}" "${packages[@]}"
+section "kit update ${previous} → ${current}, packages: ${packages[*]}"
+
+base_root=""
+if [[ -n "${KIT_BASE:-}" ]]
+then
+  base_root=${KIT_BASE}
+elif [[ "${previous}" == "${current}" ]]
+then
+  base_root=${kit_root}
+elif [[ "${previous}" != "$(release:unreleased)" ]]
+then
+  # A base that cannot be fetched has said so. The update goes on without it, and refuses each edited file that
+  # needs it.
+  base_root=$(release:fetch "${previous}" || true)
+fi
+# The base is read, not validated: the current release was validated above, and a package the base predates renders
+# nothing from it.
+if [[ -n "${base_root}" ]] && ! render:packages "${base_root}" "${packages[@]}"
+then
+  error "the base release at ${base_root} could not be read; see above"
+  exit 1
+fi
+
+# recorded-digest <base> <path> prints the digest the manifest records for the path. When it records none, as in a
+# fresh clone or bin/refresh's export, where the manifest is not committed, it prints the base release's digest of
+# the path, read from base_delivered, when that release delivers it. A path with neither is new in this release.
+recorded-digest() {
+  local recorded src
+  recorded=$(manifest:recorded "$1" "$2")
+  if [[ -z "${recorded}" && -n "${base_delivered}" ]]
+  then
+    src=$(awk -F '\t' -v p="$2" '$1 == p { print $2 }' <<<"${base_delivered}")
+    [[ -z "${src}" ]] || recorded=$(file:digest < "${src}")
+  fi
+  printf '%s\n' "${recorded}"
+}
+
+# lacks-base <base> <path> <src> is true when updating the path needs the base release, and the base release is
+# missing.
+lacks-base() {
+  local base=$1 path=$2 src=$3 dest recorded kind
+  dest=$(release:dest "${base}" "${path}")
+  recorded=$(recorded-digest "${base}" "${path}")
+  [[ -n "${recorded}" ]] || return 1
+  # A materialized path is brought to its state from this release alone.
+  if materialize:owned "${base}" "${path}" && [[ "$(place:kind "${src}" "${dest}")" == copy ]]
+  then
+    return 1
+  fi
+  [[ -z "${base_root}" || -z "$(place:source-of "${base_root}" "${base}" "${path}" "${packages[@]}")" ]] || return 1
+  kind=$(place:kind "${src}" "${dest}")
+  [[ "${kind}" == merge ]] && return 0
+  [[ "${kind}" != region ]] && place:installed "${src}" "${dest}" >/dev/null 2>&1 \
+    && [[ "${recorded}" != "$(place:installed "${src}" "${dest}" | file:digest)" ]]
+}
+
+# Find every path that lacks its base, and every region a write would refuse, before writing anything, so an update
+# is all or nothing.
+skipped=0
+refused=0
+base_delivered=""
+for base in $(release:bases)
+do
+  [[ -z "${base_root}" ]] || base_delivered=$(place:delivered "${base_root}" "${base}" "${packages[@]}")
+  list:read delivered place:delivered "${kit_root}" "${base}" "${packages[@]}" || exit 1
+  for row in "${delivered[@]}"
+  do
+    IFS=$'\t' read -r path src <<<"${row}"
+    [[ -n "${path}" ]] || continue
+    if lacks-base "${base}" "${path}" "${src}"
+    then
+      error "$(release:dest "${base}" "${path}") cannot be updated without the base release ${previous};" \
+        "set KIT_BASE to a copy of it"
+      skipped=$(( skipped + 1 ))
+    fi
+  done
+  count=$(place:delivered "${kit_root}" "${base}" "${packages[@]}" | cut -f 1 \
+    | place:refusals "${base}" "${packages[@]}")
+  refused=$(( refused + count ))
+done
+if (( skipped > 0 ))
+then
+  error "${skipped} path(s) stay at ${previous}, and so does the manifest; set KIT_BASE, then run:" \
+    "$(release:update-command "${previous}")"
+  exit 1
+fi
+if (( refused > 0 ))
+then
+  error "${refused} region(s) cannot be written, each named above; nothing is written, and the manifest stays at" \
+    "${previous}; mend the markers, then run: $(release:update-command "${previous}")"
+  exit 1
+fi
+
+conflicts=0
+for base in $(release:bases)
+do
+  [[ -z "${base_root}" ]] || base_delivered=$(place:delivered "${base_root}" "${base}" "${packages[@]}")
+  list:read delivered place:delivered "${kit_root}" "${base}" "${packages[@]}" || exit 1
+  for row in "${delivered[@]}"
+  do
+    IFS=$'\t' read -r path src <<<"${row}"
+    [[ -n "${path}" ]] || continue
+    dest=$(release:dest "${base}" "${path}")
+    recorded=$(recorded-digest "${base}" "${path}")
+    if [[ -z "${recorded}" ]]
+    then
+      place:new "${src}" "${dest}" "new in ${current}" || conflicts=$(( conflicts + 1 ))
+      continue
+    fi
+    previous_src=""
+    [[ -n "${base_root}" ]] && previous_src=$(place:source-of "${base_root}" "${base}" "${path}" "${packages[@]}")
+    kind=$(place:kind "${src}" "${dest}")
+    if materialize:owned "${base}" "${path}" && [[ "${kind}" == copy ]]
+    then
+      # A materialized path is a link to its source or a copy of the release's file, brought to that state, never
+      # merged: an edit under .kit/ is nobody's to keep.
+      case "$(materialize:one "${src}" "${dest}")" in
+        (kept) step "${dest}: as ${current} has it" ;;
+        (placed) step "${dest}: placed from ${current}" ;;
+        (replaced) step "${dest}: replaced from ${current}"
+      esac
+      continue
+    fi
+    if [[ "${kind}" == merge ]]
+    then
+      step "${dest}: merged by key"
+      place:content "${src}" "${dest}" "${previous_src}"
+    elif [[ "${kind}" == region ]]
+    then
+      # A region's content comes from its command, so it is regenerated, never merged.
+      place:content "${src}" "${dest}"
+      step "${dest}: the region regenerated"
+    elif ! place:installed "${src}" "${dest}" >/dev/null 2>&1
+    then
+      step "${dest}: missing, written"
+      place:content "${src}" "${dest}"
+    elif [[ "${recorded}" == "$(place:installed "${src}" "${dest}" | file:digest)" ]]
+    then
+      step "${dest}: unchanged since ${previous}, replaced"
+      place:content "${src}" "${dest}"
+    else
+      step "${dest}: edited since ${previous}, three-way merged"
+      if ! git merge-file --marker-size 7 "${dest}" "${previous_src}" "${src}"
+      then
+        warn "${dest}: conflict markers are left in the file; resolve them, then run: kit check"
+        conflicts=$(( conflicts + 1 ))
+      fi
+    fi
+  done
+  place:retire "${base_root}" "${base}" "${previous}" "${current}" "${packages[@]}"
+done
+
+# Before the manifest is rewritten, so a path the loop refused to overwrite is still unrecorded, and stays as it is.
+materialize:all "${packages[@]}"
+manifest:write-all "${excluded[*]}" "${packages[@]}"
+if (( conflicts > 0 ))
+then
+  error "${conflicts} file(s) need a hand; see above."
+  exit 1
+fi
+release:finish "${packages[@]}"
+
+# ----------------------------------------------------------------------------------------------------------------------

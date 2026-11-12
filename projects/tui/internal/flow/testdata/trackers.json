@@ -1,0 +1,8 @@
+[
+  {"prefix": "#", "provider": "forge", "label": "github empowerite/kit",
+    "url": "https://github.com/empowerite/kit/issues/new", "error": null},
+  {"prefix": "AB#", "provider": "ado", "label": "ado Claims Team",
+    "url": "https://dev.azure.com/example/Claims%20Team/_workitems/create/Task", "error": null},
+  {"prefix": "BZ#", "provider": "web", "label": "web", "url": null,
+    "error": "the BZ# tracker has no new page; set new in its record under trackers in kit.yml"}
+]

@@ -1,0 +1,10 @@
+ kit help - prints kit's overview, a verb's page, or a group's verbs
+
+   --text   prints the help, even on a terminal
+
+   one of
+   <verb>   a verb's name, or its start: re matches rebase and region
+   <group>  a group's name, as kit help heads them
+
+
+ kit help

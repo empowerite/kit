@@ -1,0 +1,12 @@
+ kit toolchains - lists the toolchains kit found here, and records which one to use
+
+   one of
+   *kit toolchains*  lists the toolchains kit found here, and records which one to use
+
+     --json   --jq
+                   one JSON object per row: provider, role, usable, active, chosen, and fills
+
+   use             records the project's tool manager; ambient uses none
+
+
+ kit toolchains

@@ -1,0 +1,28 @@
+{
+  "stages": [
+    {
+      "stage": "tutorials", "record": ".tutorials[]",
+      "fields": [
+        {"id": "order", "label": "#", "type": "number", "path": "the tutorial's place in the catalogue", "sort": true,
+         "renderings": ["text"], "dim": true, "right": true, "placement": "hidden"},
+        {"id": "title", "label": "title", "type": "text", "path": ".title", "sort": true, "renderings": ["text"],
+         "width": "whole", "placement": "column"},
+        {"id": "audience", "label": "audience", "one": "audience", "type": "label", "path": ".audience",
+         "group": true, "filter": true, "renderings": ["pills", "text"], "placement": "column"},
+        {"id": "where", "label": "where", "one": "place", "type": "label", "path": ".where", "group": true,
+         "filter": true, "renderings": ["pills", "text"], "placement": "hidden"},
+        {"id": "summary", "label": "summary", "type": "text", "path": ".summary", "renderings": ["text"],
+         "wrap": true, "placement": "column"},
+        {"id": "tutorial", "label": "id", "type": "text", "path": ".id", "renderings": ["text"], "dim": true,
+         "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default", "fields": {"order": {"sort": "asc", "priority": 1}}},
+        {"name": "By audience", "fields": {"audience": {"placement": "group", "depth": 1},
+                                           "order": {"sort": "asc", "priority": 1}}},
+        {"name": "In the kit or online", "fields": {"where": {"placement": "group", "depth": 1},
+                                                    "order": {"sort": "asc", "priority": 1}}}
+      ]
+    }
+  ]
+}

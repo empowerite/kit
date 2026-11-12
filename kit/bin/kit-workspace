@@ -1,0 +1,305 @@
+#!/usr/bin/env bash
+# kit-workspace - shows a workspace's git: its remotes, branches, worktrees, commits, and tags (kit verb: workflow)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit workspace [--text | --json | --jq]
+#   kit workspace --stages
+#   kit workspace --marks
+#   kit workspace repos [--text | --json | --jq]
+#   kit workspace remotes [--text | --json | --jq]
+#   kit workspace branches [--text | --json | --jq]
+#   kit workspace worktrees [--text | --json | --jq]
+#   kit workspace commits [--text | --json | --jq]
+#   kit workspace tags [--text | --json | --jq]
+#
+# Draws what git holds across a workspace: its members, then a stage for each of git's entities. It changes nothing,
+# and asks no remote: what a remote has is what the last fetch left. The stages, in order:
+#
+#   repos → remotes → branches → worktrees → commits → tags
+#
+# HEAD is no stage of its own. A remote's HEAD is its default branch, ⚓ on its row and on the branch's; a worktree's
+# is its branch, or its commit where it is detached, and a commit's row names the worktrees whose HEAD it is.
+#
+# kit --workspace=<workspace> workspace, the kit option before the verb, draws each stage across a workspace's members
+# with checkouts: a group's name, or a repository's host and path, as kit workspaces names it; none names no
+# workspace. Without it, the workspace is the repository here, in its working tree, and outside one, a bare repository
+# or a .git directory too, the last group used, as kit workspaces --current says. The repository is read from its main
+# checkout, so a linked worktree draws what the desk draws, and repos lists it alone. On a terminal, kit workspace
+# opens the picture in kittui, and kit workspace <stage> opens it with that stage maximized. Without one, or with
+# --text, --json, or --jq, it prints the stages as text.
+#
+# With --json, a stage prints {rows, errors}. A row is {key, …, links}: key is the row's own in its stage, and links
+# gives where a value leads, by its field: a page on the forge, or row:<stage>/<key>, a row of another stage. Every
+# row says where it is from: organization and repository, the owner and the name of the repository kit read it in,
+# as its primary remote's URL names them past the host, no organization for a primary on this machine; and source,
+# git, kit for a member repos lists that is not cloned. A remote's row says the organization and the repository it
+# is, and repos' repository is the member, host and path. Over a workspace, each row gains member, its host and path,
+# and a member that could not be read is {member, error} under errors, while every other member still draws. --marks
+# over a workspace names such a member the same way, under errors beside the marks, and says its line.
+#
+#   repos               {repository, host, path, forge, remotes, checkout, checkouts, by, branch, ahead, behind,
+#                       worktrees, branches, error}: remotes is [{name, url, forge}]; by is fixed for a group's member,
+#                       given for a repository named, and here for the one kit runs in; checkout is the clone, also
+#                       from one of its linked worktrees; branch, ahead, and behind are its desk's; worktrees is
+#                       [{branch, path}]; branches is the local branches no checkout has; each is null for a member not
+#                       cloned; error is the desk's line where it could not be read. Its rows have no key or links
+#   remotes             {remote, forge, organization, repository, host, url, push, default, branches, primary}:
+#                       organization and repository are the path the URL names past its host, up to its last segment
+#                       and that segment; push is null where it is the URL; primary is "primary" or null
+#   branches            {kind, branch, remote, local, upstream, default, commit, age, subject, worktree}: kind is
+#                       remote, gone, or local; local is the local branches; upstream is [ahead, behind] of the
+#                       first, or null; default is "default" for the remote's default branch, else null; worktree is
+#                       the paths
+#   worktrees           {kind, path, branch, detached, head, upstream, track, base, changes, untracked, locked,
+#                       prunable}: kind is desk or linked; track and base are [ahead, behind] of the upstream and of the
+#                       primary's default branch, or null
+#   commits             {commit, subject, author, age, issue, branches, pushed, worktrees}: issue is the #<number> the
+#                       subject starts with, or null; pushed is pushed or local; worktrees is the paths whose HEAD it is
+#   tags                {tag, kind, commit, tagger, age, subject}: kind is annotated or lightweight; tagger is null for
+#                       a lightweight tag
+#
+# An age is in seconds. commits lists at most 200, and tags the newest 100.
+#
+# Legend
+#
+# Each stage lists the glyphs it draws, one per line. A glyph can show under more than one stage. In kittui's legend,
+# a dim † after a meaning says a click on the glyph goes to its row in another stage, and a dim 🔗 that a click opens
+# the glyph's page.
+#
+# kit:generate legend `k=$(command -v kit); jq -nr -L "${k%/bin/kit}/modules/jq" 'import "glyphs" as g; g::legend_for("workspace")'`
+#   📚  workspace: a group, in the workspace menu that drops down from - in kittui's title
+#
+# repos:
+#
+#   📚  workspace: a group, in the workspace menu that drops down from - in kittui's title
+#   🐙  on GitHub: the forge of a remote, or the tracker that holds an issue
+#   🦊  on GitLab: the forge of a remote, or the tracker that holds an issue
+#   🌿  branch or worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
+#   🌱  local branch: this desk has it: under issues, and no checkout does; under branches, and no remote does
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# remotes:
+#
+#   📡  remote: its name, its forge or no forge, and its host
+#   🐙  on GitHub: the forge of a remote, or the tracker that holds an issue
+#   🦊  on GitLab: the forge of a remote, or the tracker that holds an issue
+#   ⚓  default branch: the one the remote's HEAD names
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# branches:
+#
+#   🌿  branch or worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
+#   🌱  local branch: this desk has it: under issues, and no checkout does; under branches, and no remote does
+#   🔖  branch gone: its upstream is gone; kit tidy removes it
+#   ⚓  default branch: the one the remote's HEAD names
+#   🌳  worktree: a checkout of the repository, the desk or a linked one
+#   🔘  commit: its short hash
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# worktrees:
+#
+#   💻  desk: the root checkout
+#   🌳  worktree: a checkout of the repository, the desk or a linked one
+#   🌿  branch or worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
+#   ❗  no branch: a detached HEAD
+#   🔘  commit: its short hash
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# commits:
+#
+#   🔘  commit: its short hash
+#   🎫  issue: its number and title
+#   🌿  branch or worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
+#   🌳  worktree: a checkout of the repository, the desk or a linked one
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# tags:
+#
+#   📌  tag: a name on a commit; under incoming, one the fetch brought
+#   🔘  commit: its short hash
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# kit:end legend
+#
+# Arguments:
+#   --text              prints the picture as text, even on a terminal
+#   --json              the picture as one JSON object: stages, then each stage's document under its name
+#   --jq                the same JSON, formatted by jq for a person
+#   --stages            prints the stages the picture draws, one per line, in order, the same over any workspace
+#   --marks             prints a mark per stage, as one JSON object, which changes when what the stage draws does
+#   repos               each member of the workspace, cloned or not: its forge, its clone, its desk's branch, its
+#                       worktrees, and the local branches no checkout has
+#   remotes             each remote: its forge, its organization and repository, its URL, its default branch, and its
+#                       branches, counted
+#   branches            each branch: a remote's, with the local branches that pull from it, and each local branch whose
+#                       upstream is gone or that has none, with its commit and the worktree it is checked out in
+#   worktrees           each worktree, the desk first: its branch, what it is ahead and behind its upstream and the
+#                       default branch, and its paths changed and untracked
+#   commits             the commits the local branches hold and the default branch does not, the newest first: each
+#                       one's branches, whether a remote has it, and the issue its subject starts with
+#   tags                the tags, the newest first: annotated or lightweight, their commit, and their tagger
+#
+# Exits 0 when the picture is drawn, 1 when a repository, a member, a member's desk, or the workspace file cannot be
+# read: what was read is still drawn, as text or with --json, and names what could not, a member under errors or a
+# repos row's error, as for a clone whose kit.yml does not parse. It exits 1, printing nothing, when --workspace=, or
+# kit workspace outside a repository with a group used last, meets a workspace file kit workspaces refuses, and 2 on a
+# usage error, or outside a repository's working tree, a bare repository or a .git directory too, with no workspace: no
+# group used, or --workspace=none.
+#
+# see: modules/bash/workspace.sh, modules/jq/workspace.jq, modules/bash/across.sh
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use workspace across tui terminal
+workspaces:misplaced workspace "$@" || exit $?
+guard:arguments workspace "$@" || exit $?
+guard:require tool:git
+
+# The workspace is the kit option's, kit --workspace=<workspace> workspace, which bin/kit, the loader, hands on.
+workspace=${KIT_WORKSPACE:-}
+# shellcheck disable=SC2154  # syntax_literals and syntax_options are set by guard:arguments
+stage=${syntax_literals[0]:-}
+
+# shellcheck disable=SC2154  # workspace_stages is set by modules/bash/workspace.sh
+stages=("${workspace_stages[@]}")
+if [[ -n "${syntax_options[--stages]+x}" ]]
+then
+  printf '%s\n' "${stages[@]}"
+  exit 0
+fi
+
+# Outside a repository, the workspace is the last group used, as kit workspaces --current says; --workspace=none names
+# none.
+workspace=$(workspaces:across "${workspace}") || exit $?
+
+# On a terminal, with no form chosen, the picture is kittui's, which runs this kit, the stage named maximized.
+if [[ -z "${syntax_options[--text]+x}${syntax_options[--json]+x}${syntax_options[--jq]+x}${syntax_options[--marks]+x}" \
+  && -t 0 && -t 1 && -t 2 ]] && { [[ -n "${workspace}" ]] || workspaces:in-repository >/dev/null; } \
+  && tui:binary --probe >/dev/null 2>&1
+then
+  binary=$(tui:binary) || exit 1
+  terminal:export-probes
+  export KIT="${kit_root}/bin/kit"
+  exec "${binary}" workspace ${workspace:+--workspace="${workspace}"} "$@"
+fi
+
+# A bare repository, or a .git directory, has no working tree to read, so it is outside a repository too.
+if [[ -z "${workspace}" ]] && ! workspaces:in-repository >/dev/null
+then
+  error "kit workspace reads a repository: run it in one, or name a workspace: kit --workspace=<workspace> workspace;" \
+    "see: kit workspaces"
+  exit 2
+fi
+
+# Over a workspace, each member's checkout runs kit workspace, and the workspace is resolved once.
+# shellcheck disable=SC2034  # across_verb and across_resolved are read by modules/bash/across.sh
+across_verb=workspace
+if [[ -n "${workspace}" ]]
+then
+  # shellcheck disable=SC2034  # read by modules/bash/across.sh
+  across_resolved=$(workspaces:resolve "${workspace}") || exit $?
+fi
+
+# marks prints a mark per stage: the repository here's, or every member's, joined.
+marks() {
+  local into
+  if [[ -z "${workspace}" ]]
+  then
+    workspace:marks
+    return
+  fi
+  file:scratch into
+  across:start "${workspace}" "${into}" --marks >/dev/null || return $?
+  across:marks-merge "${into}" "$(across:repos-mark "${workspace}")"
+}
+
+if [[ -n "${syntax_options[--marks]+x}" ]]
+then
+  marks
+  exit $?
+fi
+
+# document <stage> prints the stage's {rows, errors}: the repository here's rows, or every member's, merged; repos
+# lists the members, cloned or not, or the repository here alone. It returns 1, after the document, when a part of it
+# could not be read: a member under errors, or a desk repos could not read.
+document() {
+  local rows into
+  if [[ "$1" == repos ]]
+  then
+    repos
+    return
+  fi
+  if [[ -n "${workspace}" ]]
+  then
+    file:scratch into
+    across:start "${workspace}" "${into}" "$1" --json >/dev/null || return $?
+    across:merge "${into}" document "$1"
+    return
+  fi
+  rows=$(workspace:stage "$1") || return 1
+  rows=$(workspaces:placed git "${rows}") || return 1
+  jq --compact-output '{rows: ., errors: []}' <<<"${rows}"
+}
+
+# repos prints the repos stage's document, as across:repos does, each row saying where it is from: the organization
+# its path names, up to its last segment, and source git, or kit for a member not cloned. It returns 1, after the
+# document, as across:repos does.
+repos() {
+  local doc status=0
+  doc=$(across:repos "${workspace}") || status=$?
+  [[ -n "${doc}" ]] || return "${status}"
+  jq --compact-output '.rows |= map(. + {organization: (.path // "" | split("/") | if length > 1 then .[:-1]
+    | join("/") else null end), source: (if .checkout then "git" else "kit" end)})' <<<"${doc}" || return 1
+  return "${status}"
+}
+
+# shown <stage> <document> prints the stage's document in the form asked for: JSON, formatted, or text.
+shown() {
+  if [[ -n "${syntax_options[--json]+x}" ]]
+  then
+    printf '%s\n' "$2"
+  elif [[ -n "${syntax_options[--jq]+x}" ]]
+  then
+    jq . <<<"$2"
+  else
+    workspace:text "$1" "$2"
+  fi
+}
+
+# A stage read in part is shown as far as it was read, and the verb exits 1 after it; one with no document stops it.
+status=0
+if [[ -n "${stage}" ]]
+then
+  doc=$(document "${stage}") || status=1
+  [[ -n "${doc}" ]] || exit 1
+  shown "${stage}" "${doc}"
+  exit "${status}"
+fi
+
+named=()
+first=true
+for each in "${stages[@]}"
+do
+  doc=$(document "${each}") || status=1
+  [[ -n "${doc}" ]] || exit 1
+  if [[ -n "${syntax_options[--json]+x}${syntax_options[--jq]+x}" ]]
+  then
+    named+=(--argjson "${each}" "${doc}")
+    continue
+  fi
+  [[ "${first}" == true ]] || printf '\n'
+  first=false
+  printf '%s:\n' "${each}"
+  workspace:text "${each}" "${doc}"
+done
+if (( ${#named[@]} > 0 ))
+then
+  picture=$(jq --null-input --compact-output --argjson stages "$(printf '%s\n' "${stages[@]}" \
+    | workspaces:lines-json)" "${named[@]}" '{stages: $stages} + $ARGS.named')
+  shown '' "${picture}"
+fi
+exit "${status}"
+
+# ----------------------------------------------------------------------------------------------------------------------

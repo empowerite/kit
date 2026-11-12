@@ -1,0 +1,15 @@
+# packages/agents/claude/package.yml - the agents/claude package: Claude Code's deny list, and the kit context hook
+# ----------------------------------------------------------------------------------------------------------------------
+# see: docs/packages.md
+
+description: "Claude Code: the deny list, a hook that names a file's rules, and the kit's MCP server"
+depends:
+  - kit
+  - agents/generic
+notices:
+  - path: .claude/CLAUDE.md
+    text: "Claude Code reads it when a session starts; an open session reads it at its next /clear, /compact, or restart"
+  - path: .claude/settings.json
+    text: "Claude Code reloads its settings when they change, so the deny list and the hook apply in open sessions too"
+  - path: .mcp.json
+    text: "Claude Code asks once, at the start of the next session, whether to use the kit server this file names; say yes, and the agent can call the kit's verbs as tools"

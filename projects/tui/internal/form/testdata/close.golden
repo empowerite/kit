@@ -1,0 +1,10 @@
+ kit close - closes issues as not planned, or as a duplicate of another
+
+   one of required
+   --not-planned          closes them as not planned
+   --duplicate-of         closes them as duplicates of the original issue
+
+   <reference>… required  the issues, each named with its tracker: 7, #7, or AB#4521
+
+
+ kit close

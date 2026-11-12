@@ -1,0 +1,25 @@
+# completion.test - the completion jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line. The input
+# is a verb's syntax, cut down to what each case needs.
+
+# A word that starts with - is a flag or an option: one given already, --all or --file=x, is left out unless it
+# repeats, and an option ends in =.
+import "completion" as completion; completion::next(["--all", "--message=x", "--file=y"]; "-") | .candidates | map(.[0])
+{"syntax":[[{"kind":"flag","name":"all","repeat":false},{"kind":"option","name":"message","value":"text","repeat":true},{"kind":"option","name":"file","value":"path","repeat":false},{"kind":"option","name":"rule","value":"rule","repeat":false}]],"arguments":{"--all":{"description":"stages"}}}
+["--message=","--rule="]
+
+# Inside --name=, the word is that option's value; the word after an option given with no = is no value of it.
+import "completion" as completion; [completion::next([]; "--rule=ma"), completion::next(["--rule"]; "")] | map({mode, key, value, prefix})
+{"syntax":[[{"kind":"option","name":"rule","value":"rule","repeat":false}]],"arguments":{}}
+[{"mode":"value","key":"--rule","value":"rule","prefix":"--rule="},{"mode":"positional","key":null,"value":null,"prefix":null}]
+
+# A verb with literal words offers them until one is typed, and then its operands.
+import "completion" as completion; [completion::next([]; ""), completion::next(["add"]; "")] | map({candidates, operands})
+{"syntax":[[{"kind":"literal","name":"list","repeat":false}],[{"kind":"literal","name":"add","repeat":false},{"kind":"operand","name":"package","repeat":true}]],"arguments":{"add":{"description":"activates"}}}
+[{"candidates":[["add","activates"],["list",""]],"operands":null},{"candidates":[],"operands":["<package>"]}]
+
+# A list that joins with : completes its next value after the last :, keeping the values typed before it.
+import "completion" as completion; [completion::next([]; "--tag=a:b"), completion::next([]; "--tag=")] | map(.prefix)
+{"syntax":[[{"kind":"option","name":"tag","value":"audience","repeat":true}]],"arguments":{}}
+["--tag=a:","--tag="]

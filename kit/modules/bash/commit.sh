@@ -1,0 +1,860 @@
+# shellcheck shell=bash
+# commit.sh - the commit and the push as kit commands: the checks their rules require, then git (sourced module)
+# ----------------------------------------------------------------------------------------------------------------------
+# kit commit and kit submit replace git commit and git push for an agent, as kit rebase replaces git rebase: the kit
+# command adds the check the rule requires, and a harness's deny list refuses the raw command. Both run in a worktree
+# only. The root checkout is the human's desk, and the default branch advances by a merged change, never by a commit
+# made on it.
+#
+# Before a commit exists, kit commit:
+#
+#   - refuses a staged path the kit placed under .kit/, read from .kit/.gitignore, which names every one
+#   - runs kit lint and kit generate --check over the staged paths, so the pre-commit checks hold with no hook manager,
+#     and refuses a path staged as added or changed that is not on the disk, which no check could read
+#   - supplies the issue's reference from the branch when the message carries none: in front of the subject, as
+#     #7 <subject>, or with policy.commit_reference trailer, as a Refs: #7 trailer in the message's last paragraph
+#   - judges the subject, and the tree the commit will make, by the repository's policy through the policy seam, as
+#     kit policy judges them in CI
+#   - refuses a staged path that a live lease on the branch holds, of an issue the commit does not name, naming who
+#     took it; the branch's own lease, the one of the issue its name starts with, holds every path of the branch, and
+#     refuses none
+#   - with require_signing true in kit.yml, refuses when git has no user.signingkey; otherwise it warns when commits
+#     here are not signed
+#
+# The commit keeps its message as kit commit judged it: --cleanup=whitespace, so a commit.cleanup of strip never drops
+# a subject that starts with #. With require_signing true it is signed, and refused when git cannot sign it.
+#
+# A commit from an index of its own, as GIT_INDEX_FILE names, brings the shared index up to it, for the paths it
+# changed alone: a path the shared index stages as the parent has it takes the commit's copy, and one staged otherwise
+# stays, with a warning. So the next commit from the shared index is not refused as one that would undo it.
+#
+# After the commit, the lease of each issue it names, when that lease is live and on the branch, is renewed by its term,
+# so a lease lives while its work goes on.
+#
+# A commit whose subject, or a Refs: trailer, names an issue other than the branch's own attaches that issue to the
+# branch's change, so kit commit then adds a `Closes <reference>` line to the change's body, and assigns the caller to
+# the issue when no one is assigned. The commit exists by then, so a forge that fails only warns.
+#
+# kit submit commits when there is something to commit, then pushes the branch to the branch of its own name on its
+# remote, setting the upstream on the first push. Its remote is the push remote, the push setting in kit.yml, else the
+# primary, unless its upstream is a branch of its own name on another remote. It names the refspec, so push.default
+# and an upstream of another name, such as the origin/main a branch started from, never decide where the branch goes.
+# It never rebases: a push the remote refuses as not fast-forward names kit rebase as the remedy, so one verb does
+# one thing and a conflict with the default branch never blocks sharing work.
+#
+# see: kit/bin/kit-commit, kit/bin/kit-submit, modules/bash/policy.sh, docs/features.md
+
+use git policy facts tracker context settings materialize leases
+
+# commit:parse <argument>… reads the options both verbs share into commit_all, commit_messages, commit_file, and
+# commit_paths. guard:arguments has judged the shape of the line already, so this reads what it let through.
+commit:parse() {
+  local arg
+  commit_all=false
+  commit_messages=()
+  commit_file=''
+  commit_paths=()
+  while (( $# > 0 ))
+  do
+    arg=$1
+    shift
+    case "${arg}" in
+      (--all) commit_all=true ;;
+      (--message)
+        commit_messages+=("$1")
+        shift ;;
+      (--message=*) commit_messages+=("${arg#--message=}") ;;
+      (--file)
+        commit_file=$1
+        shift ;;
+      (--file=*) commit_file=${arg#--file=} ;;
+      (--) commit_paths+=("$@"); break ;;
+      (*) commit_paths+=("${arg}")
+    esac
+  done
+}
+
+# commit:branch prints the branch checked out here, or refuses: no branch, the root checkout, the default branch, or
+# a default branch that cannot be read.
+commit:branch() {
+  local branch default_branch
+  branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)  # detached is refused below
+  if [[ -z "${branch}" ]]
+  then
+    error "no branch is checked out here, so there is nothing to commit to; run: kit work <N>"
+    return 1
+  fi
+  if [[ "$(git rev-parse --show-toplevel)" == "$(git:main-root)" ]]
+  then
+    error "refusing to commit on ${branch}: this is the root checkout, the human's desk; work in a worktree:" \
+      "kit work <N>"
+    return 1
+  fi
+  default_branch=$(git:default-branch) || return 1
+  if [[ "${branch}" == "${default_branch}" ]]
+  then
+    error "refusing to commit on ${branch}: it is the default branch, which advances by a merged change"
+    return 1
+  fi
+  printf '%s\n' "${branch}"
+}
+
+# commit:placed prints each path .kit/.gitignore names, one per line, as kit placed it: .kit/<entry>. A directory,
+# such as /logs/, loses its trailing slash, so commit:guard holds every path under it.
+commit:placed() {
+  [[ -f .kit/.gitignore ]] || return 0
+  sed -n -e '/^\//!d' -e 's@^/@.kit/@' -e 's@/*$@@' -e p .kit/.gitignore
+}
+
+# commit:guard <path>… refuses a path kit placed, or one under a directory it placed. The paths are root-relative.
+commit:guard() {
+  local path placed refused=0
+  local -a placed_paths=()
+  readarray -t placed_paths < <(commit:placed)
+  for path in "$@"
+  do
+    for placed in "${placed_paths[@]}"
+    do
+      if [[ "${path}" == "${placed}" || "${path}" == "${placed}"/* ]]
+      then
+        error "${path} is kit's, placed from a package; run: git rm --cached '${path}' (a delivered file never" \
+          "reaches a commit)"
+        refused=1
+        break
+      fi
+    done
+  done
+  (( refused == 0 ))
+}
+
+# commit:with-reference <branch> <subject> prints the subject with the branch's issue reference in front, when the
+# subject carries no reference of its own and the branch was made for an issue. With policy.commit_reference trailer,
+# the reference goes in a trailer instead (commit:with-trailer), and the subject is printed as it is.
+commit:with-reference() {
+  local branch=$1 subject=$2 reference
+  if [[ "${subject}" =~ ^([A-Z]+)?#[0-9]+\  || "$(commit:reference-mode)" == trailer ]]
+  then
+    printf '%s\n' "${subject}"
+    return 0
+  fi
+  reference=$(tracker:branch-ref "${branch}")
+  if [[ -n "${reference}" ]]
+  then
+    step "subject: ${reference} supplied from the branch"
+    printf '%s %s\n' "${reference}" "${subject}"
+  else
+    printf '%s\n' "${subject}"
+  fi
+}
+
+# commit:reference-mode prints where a commit carries its issue's reference, policy.commit_reference by the disk's
+# policy: prefix, or trailer. A policy that cannot be read is prefix here; the judge reads it again, and refuses.
+commit:reference-mode() {
+  local rules
+  rules=$(policy:rules 2>/dev/null) || rules='{}'
+  jq --raw-output '.commit_reference // "prefix"' <<<"${rules}"
+}
+
+# commit:with-trailer <branch> <message> adds a Refs: <reference> trailer, the branch's issue, to the message file,
+# in its last paragraph as git interpret-trailers puts it, where policy.commit_reference is trailer, the branch was
+# made for an issue, and the message has no Refs: trailer of its own.
+commit:with-trailer() {
+  local branch=$1 message=$2 reference trailers
+  [[ "$(commit:reference-mode)" == trailer ]] || return 0
+  trailers=$(git interpret-trailers --parse < "${message}") || return 1
+  ! grep --quiet --ignore-case '^refs:' <<<"${trailers}" || return 0
+  reference=$(tracker:branch-ref "${branch}")
+  [[ -n "${reference}" ]] || return 0
+  git interpret-trailers --in-place --trailer "Refs: ${reference}" "${message}" || return 1
+  step "trailer: Refs: ${reference} supplied from the branch"
+}
+
+# commit:attach <branch> <subject> attaches each issue HEAD names that is not the branch's own: the reference in
+# front of the subject, and each in a Refs: trailer of HEAD's message (commit:attach-one).
+commit:attach() {
+  local branch=$1 subject=$2 ref trailed
+  local -a refs=() trailed_refs=()
+  [[ ! "${subject}" =~ ^(([A-Z]+)?#[0-9]+)\  ]] || refs+=("${BASH_REMATCH[1]}")
+  # HEAD is the commit just made; one whose trailers cannot be read attaches what its subject names alone.
+  if trailed=$(git log -1 --format='%(trailers:key=Refs,valueonly=true,unfold=true,separator=%x2c)' HEAD 2>/dev/null)
+  then
+    IFS=, read -r -a trailed_refs <<<"${trailed}"
+    for ref in "${trailed_refs[@]}"
+    do
+      ref=${ref#"${ref%%[! ]*}"}
+      ref=${ref%"${ref##*[! ]}"}
+      [[ -z "${ref}" ]] || refs+=("${ref}")
+    done
+  fi
+  for ref in "${refs[@]}"
+  do
+    commit:attach-one "${branch}" "${ref}"
+  done
+}
+
+# commit:attach-one <branch> <reference> closes the issue in the branch's open change, and assigns the caller to it
+# when it has no assignee, when that issue is not the branch's own. It asks the forge nothing otherwise, nor in a
+# repository with no forge, and it only warns: the commit exists already.
+commit:attach-one() {
+  local branch=$1 ref pr prefix me assignees
+  ref=$(tracker:normal "$2" 2>/dev/null) || return 0
+  [[ "${ref}" != "$(tracker:branch-ref "${branch}")" ]] || return 0
+  use issue
+  forge:provider >/dev/null 2>&1 || return 0
+  if ! pr=$(forge:pr-for-branch "${branch}")
+  then
+    warn "${ref} is not closed by a change: ${branch}'s change could not be read; add Closes ${ref} to its body by hand"
+  elif [[ -z "${pr}" ]]
+  then
+    warn "${ref} is not closed by a change: ${branch} has no open change; add Closes ${ref} to its body when it has one"
+  else
+    issue:link-in-body "${pr}" "${ref}" \
+      || warn "${ref} could not be added to change ${pr}'s body; add Closes ${ref} by hand"
+  fi
+  prefix=$(tracker:parse "${ref}" | cut -f 1)
+  assignees=$(tracker:of "${ref}" assignees) || { warn "${ref}'s assignees could not be read"; return 0; }
+  [[ -z "${assignees}" ]] || return 0
+  me=$(tracker:at "${prefix}" me) \
+    || { warn "${ref} has no assignee, and its tracker could not say who you are; assign it by hand"; return 0; }
+  if tracker:of "${ref}" assign "${me}"
+  then
+    ok "${ref} assigned to ${me}, as no one was"
+  else
+    warn "${ref} could not be assigned to ${me}; assign it by hand"
+  fi
+}
+
+# commit:judge <branch> <message> [<path>…] refuses a subject, a branch, or a tree the policy does not allow, the
+# subject and the trailers read from the message file. It prints warnings first, and they never refuse. It uses the
+# engine kit policy uses, with the facts of the commit moment: this one commit, and the tree it will make. With
+# <path>…, that tree is HEAD and those paths as the disk has them, as git commit --only makes it. It is built in an
+# index of its own, so what another session staged never shows in it. With no path, the tree is the index.
+commit:judge() {
+  local branch=$1 subject trailers work warnings refusals line
+  subject=$(head -n 1 "$2")
+  # shellcheck disable=SC2154  # facts_trailers_jq is set by modules/bash/facts.sh
+  trailers=$(git interpret-trailers --parse < "$2" | jq --raw-input --slurp --compact-output "${facts_trailers_jq}"'
+    split("\n") | map(select(. != "")) | trailers') || return 1
+  shift 2
+  file:scratch work || return 1
+  if (( $# > 0 ))
+  then
+    if ! commit:index "${work}/index" "$@"
+    then
+      commit:unjudged "${work}" "the tree of the named paths could not be built"
+      return 1
+    fi
+    # The policy reads kit.yml and the repository's Rego as the commit will have them, never as the disk does.
+    GIT_INDEX_FILE=${work}/index policy:from '' "${work}/policy" || { commit:unjudged "${work}"; return 1; }
+    GIT_INDEX_FILE=${work}/index facts:document commit > "${work}/facts" || { commit:unjudged "${work}"; return 1; }
+  else
+    policy:from '' "${work}/policy" || { commit:unjudged "${work}"; return 1; }
+    facts:document commit > "${work}/facts" || { commit:unjudged "${work}"; return 1; }
+  fi
+  jq --arg branch "${branch}" --arg subject "${subject}" --argjson trailers "${trailers}" \
+    '.branch = $branch | .commits = [{sha: "0000000", subject: $subject, trailers: $trailers}]' "${work}/facts" \
+    > "${work}/input" \
+    || { commit:unjudged "${work}"; return 1; }
+  # An engine that cannot judge refuses the commit: unjudged is never allowed.
+  if ! refusals=$(policy:deny "${work}/input")
+  then
+    commit:unjudged "${work}" "the policy could not be judged"
+    return 1
+  fi
+  # A warning is printed before any refusal and never fails the commit; one that cannot be judged does.
+  if ! warnings=$(policy:warn "${work}/input")
+  then
+    commit:unjudged "${work}" "the policy could not be judged"
+    return 1
+  fi
+  policy:from-disk
+  rm -rf "${work}"
+  while IFS= read -r line
+  do
+    [[ -n "${line}" ]] || continue
+    warn "${line/#commit 0000000 /the subject }"
+  done <<<"${warnings}"
+  [[ -n "${refusals}" ]] || return 0
+  while IFS= read -r line
+  do
+    [[ -n "${line}" ]] || continue
+    error "${line/#commit 0000000 /the subject }"
+  done <<<"${refusals}"
+  return 1
+}
+
+# commit:unjudged <work> [<why>] removes the judge's scratch directory, puts the policy back on the disk's settings, and
+# says why the commit is refused: by default, the facts for the policy could not be gathered.
+commit:unjudged() {
+  policy:from-disk
+  rm -rf "$1"
+  error "the commit is refused: ${2:-the facts for the policy could not be gathered}"
+}
+
+# commit:index <index> <path>… writes, at <index>, the index git commit --only -- <path>… builds: HEAD, or nothing
+# before the first commit, and each named path as the disk has it. A path the disk lacks is removed. The paths are
+# those the real index or HEAD holds under <path>…, so a file git ignores or does not track never joins, as with git.
+# The real index is only read.
+commit:index() {
+  local index=$1
+  shift
+  if git rev-parse --verify --quiet HEAD >/dev/null
+  then
+    GIT_INDEX_FILE=${index} git read-tree HEAD || return 1
+  else
+    GIT_INDEX_FILE=${index} git read-tree --empty || return 1
+  fi
+  { git ls-files -z -- "${@/#/:(literal)}" && GIT_INDEX_FILE=${index} git ls-files -z -- "${@/#/:(literal)}"; } \
+    | LC_ALL=C sort --zero-terminated --unique \
+    | GIT_INDEX_FILE=${index} git update-index --add --remove --replace -z --stdin
+}
+
+# commit:checks <path>… runs the pre-commit checks over the paths that exist: kit lint, then kit generate --check.
+# The paths are root-relative; they are passed absolute, so the verbs resolve them the same from any directory. A
+# path the index stages as added or changed that is not on the disk is refused, naming it, before any check runs,
+# since the commit would take the staged file with nothing here to check. A deletion has no file to check.
+commit:checks() {
+  local path gone=false
+  local -a present=() staged=()
+  local -A kept=()
+  list:read0 staged git diff --cached --name-only --diff-filter=ACMR -z || return 1
+  for path in "${staged[@]}"
+  do
+    kept[${path}]=1
+  done
+  for path in "$@"
+  do
+    if [[ -e "${path}" ]]
+    then
+      present+=("${PWD}/${path}")
+    elif [[ ! -L "${path}" && -n "${kept[${path}]+x}" ]]
+    then
+      error "'${path}' is staged but is not on the disk; run: git restore -- '${path}', or git rm --cached --" \
+        "'${path}'"
+      gone=true
+    fi
+  done
+  [[ "${gone}" == false ]] || return 1
+  (( ${#present[@]} > 0 )) || return 0
+  if ! run kit lint "${present[@]}"
+  then
+    error "the commit is refused: a linter failed over the staged paths"
+    return 1
+  fi
+  if ! run kit generate --check "${present[@]}"
+  then
+    error "the commit is refused: a region is stale; run: kit generate"
+    return 1
+  fi
+}
+
+# commit:behind <path>… refuses a staged path that would undo a commit the index never saw. Such a path is staged as it
+# was before the last commit on HEAD that changed it, absent when that commit added it, while the disk holds something
+# else: an index another session's commit passed by. A change put back on purpose matches the disk, and passes. It
+# names every such path and returns 1.
+commit:behind() {
+  local path last before staged behind=false
+  for path in "$@"
+  do
+    last=$(git log -1 --format=%H HEAD -- ":(literal)${path}")
+    [[ -n "${last}" ]] || continue
+    # A path the commit added has no blob before it, which reads as absent.
+    before=$(git rev-parse --verify --quiet "${last}^:${path}" || true)
+    staged=$(git ls-files --stage -- ":(literal)${path}" | cut -d ' ' -f 2)
+    [[ "${staged}" == "${before}" ]] || continue
+    if [[ -n "${staged}" ]]
+    then
+      git diff --quiet -- ":(literal)${path}" && continue
+    else
+      [[ -e "${path}" || -L "${path}" ]] || continue
+    fi
+    error "${path} is staged as it was before $(git log -1 --format='%h %s' "${last}"); committing it would undo" \
+      "that commit; run: git restore --staged -- '${path}'"
+    behind=true
+  done
+  [[ "${behind}" == false ]]
+}
+
+# commit:named <path>… prints, NUL-separated, every file git knows under the named paths: in the index, or in HEAD,
+# which holds what git mv or git rm took away. A named path is a path, never a pattern, and a directory names every
+# file under it. It refuses a path under which git knows no file, naming it, and returns 1.
+commit:named() {
+  local path
+  local -a known=() files=()
+  # A path git mv or git rm took away is in HEAD alone, which git commit takes; a first commit has no HEAD.
+  git rev-parse --verify --quiet HEAD >/dev/null && known=(--with-tree=HEAD)
+  for path in "$@"
+  do
+    list:read0 files git ls-files -z "${known[@]}" -- ":(literal)${path}" || return 1
+    if (( ${#files[@]} == 0 ))
+    then
+      error "${path} is not known to git; run: git add '${path}'"
+      return 1
+    fi
+    printf '%s\0' "${files[@]}"
+  done | LC_ALL=C sort --zero-terminated --unique
+  local -a statuses=("${PIPESTATUS[@]}")
+  (( statuses[0] == 0 && statuses[1] == 0 ))
+}
+
+# commit:unchanged <file>… succeeds when every file is as HEAD has it on the disk, so committing them alone would
+# commit nothing. Before the first commit, nothing is unchanged.
+commit:unchanged() {
+  git rev-parse --verify --quiet HEAD >/dev/null || return 1
+  git diff --quiet HEAD -- "${@/#/:(literal)}"
+}
+
+# commit:tree [<file>…] prints the tree the commit would make: the index's, or, with files, HEAD's with those files as
+# the disk has them, built in an index of its own. kit commit takes it before its checks and again before git
+# commits, so what another session staged or wrote meanwhile is never committed unchecked.
+commit:tree() {
+  local work tree
+  if (( $# == 0 ))
+  then
+    git write-tree
+    return
+  fi
+  file:scratch work || return 1
+  commit:index "${work}/index" "$@" || return 1
+  tree=$(GIT_INDEX_FILE=${work}/index git write-tree) || return 1
+  rm -rf "${work}"
+  printf '%s\n' "${tree}"
+}
+
+# commit:moved <head> refuses when HEAD is no longer <head>, the commit kit commit started on: another session
+# committed while the checks ran. Without paths, the index never saw that commit; with paths, the policy never judged
+# the tree it makes. Git refuses a HEAD that moves during its own hook.
+commit:moved() {
+  local head
+  head=$(git rev-parse --verify --quiet HEAD || true)  # a repository with no commit has no HEAD: empty
+  [[ "${head}" != "$1" ]] || return 0
+  error "HEAD moved to $(git log -1 --format='%h %s') while kit commit checked; nothing is committed; run kit commit again"
+  return 1
+}
+
+# commit:same-tree <tree> [<file>…] refuses when the tree the commit would make is no longer <tree>, the one kit commit
+# checked: another session staged or wrote a path meanwhile.
+commit:same-tree() {
+  local tree
+  tree=$(commit:tree "${@:2}") || return 1
+  [[ "${tree}" != "$1" ]] || return 0
+  error "the index changed while kit commit checked, so what was checked is not what git would commit; nothing is" \
+    "committed; run kit commit again"
+  return 1
+}
+
+# commit:made <head> prints the commit kit commit just made on <head>, the HEAD it started on, empty before the first
+# commit: the first commit after <head> on HEAD's first-parent line. A commit another session lands right after it is
+# never taken for it. It returns 1 when that commit's parent is not <head>, as when HEAD was reset meanwhile.
+commit:made() {
+  local head=$1 made parent
+  local -a line=()
+  if [[ -n "${head}" ]]
+  then
+    list:read line git rev-list --first-parent "${head}..HEAD" || return 1
+  else
+    list:read line git rev-list --first-parent HEAD || return 1
+  fi
+  (( ${#line[@]} > 0 )) || return 1
+  made=${line[-1]}
+  parent=$(git rev-parse --verify --quiet "${made}^" || true)  # a first commit has no parent: empty
+  [[ "${parent}" == "${head}" ]] || return 1
+  printf '%s\n' "${made}"
+}
+
+# commit:plan <shared> <base> <commit> decides, for each path <commit> changed from <base>, what the shared index at
+# <shared> does with it, into the caller's arrays: commit_take, the paths whose shared copy is <base>'s, which take the
+# commit's, and commit_keep, the paths the shared index stages otherwise, which stay. A path already as the commit has
+# it is in neither. commit_copy and commit_was map each path to its copy in the commit and in <base>, as
+# `<mode> <object>`, with a mode of 000000 for no file. Unmerged in the shared index is staged otherwise.
+commit:plan() {
+  local shared=$1 base=$2 commit=$3 i path
+  local -a changed=() staged=() mode=()
+  local -A held=()
+  commit_take=() commit_keep=() commit_copy=() commit_was=()
+  # Raw records come in pairs: ':<mode> <mode> <object> <object> <status>', then the path.
+  list:read0 changed git diff-tree -r -z --no-renames "${base}" "${commit}" || return 1
+  # The shared index's paths that differ from <base>: any other path is as <base> has it.
+  GIT_INDEX_FILE=${shared} list:read0 staged git diff-index --cached -z --no-renames "${base}" || return 1
+  for (( i = 0; i + 1 < ${#staged[@]}; i += 2 ))
+  do
+    read -r -a mode <<<"${staged[i]#:}"
+    if [[ "${mode[4]}" == U ]]
+    then
+      held[${staged[i + 1]}]=unmerged
+    elif [[ "${held[${staged[i + 1]}]:-}" != unmerged ]]
+    then
+      held[${staged[i + 1]}]="${mode[1]} ${mode[3]}"
+    fi
+  done
+  for (( i = 0; i + 1 < ${#changed[@]}; i += 2 ))
+  do
+    read -r -a mode <<<"${changed[i]#:}"
+    path=${changed[i + 1]}
+    commit_was[${path}]="${mode[0]} ${mode[2]}"
+    commit_copy[${path}]="${mode[1]} ${mode[3]}"
+    if [[ -z "${held[${path}]+x}" ]]
+    then
+      commit_take+=("${path}")
+    elif [[ "${held[${path}]}" != "${commit_copy[${path}]}" ]]
+    then
+      commit_keep+=("${path}")
+    fi
+  done
+}
+
+# commit:entries <map> <path>… prints, NUL-separated, an entry git update-index --index-info reads for each path: its
+# copy in <map>, commit_copy or commit_was. A mode of 000000 removes the path.
+commit:entries() {
+  local -n commit_entries_map=$1
+  local path
+  shift
+  for path in "$@"
+  do
+    printf '%s\t%s\0' "${commit_entries_map[${path}]}" "${path}"
+  done
+}
+
+# commit:shared-index prints the shared index, the one git uses with no GIT_INDEX_FILE, when kit commit commits from
+# another, as GIT_INDEX_FILE names. It returns 1 when the index in use is the shared one, or there is no shared one.
+commit:shared-index() {
+  local shared current
+  [[ -n "${GIT_INDEX_FILE:-}" ]] || return 1
+  shared=$(unset GIT_INDEX_FILE; git rev-parse --path-format=absolute --git-path index) || return 1
+  current=$(git rev-parse --path-format=absolute --git-path index) || return 1
+  [[ -f "${shared}" && ! "${current}" -ef "${shared}" ]] || return 1
+  printf '%s\n' "${shared}"
+}
+
+# commit:share <shared> <commit> brings the shared index at <shared> up to <commit>, made from another index, which
+# leaves the shared one behind: git status there would show the commit's paths staged as reverted. For each path the
+# commit changed, a shared copy that is the parent's takes the commit's, and one staged otherwise stays, with a warning
+# naming it. No other path is touched, and the file is never copied: git writes it under its own lock. Each try is a
+# two-tree git read-tree -m from the parent to the commit, with the paths that stay put back as the parent has them,
+# so a path staged meanwhile fails the try whole and the next decides again. A lock another git holds fails a try
+# too. After five, git update-index writes the paths to take as last decided, as when the shared index is unmerged,
+# which read-tree refuses; when that fails too, kit warns, naming each path.
+commit:share() {
+  local shared=$1 commit=$2 base target short work path tries=0
+  local -a commit_take=() commit_keep=()
+  # shellcheck disable=SC2034  # commit:plan fills them, and commit:entries reads them by name
+  local -A commit_copy=() commit_was=()
+  short=$(git rev-parse --short "${commit}") || return 1
+  if ! base=$(git rev-parse --verify --quiet "${commit}^")
+  then
+    base=$(git hash-object -t tree -w /dev/null) || return 1
+  fi
+  while true
+  do
+    commit:plan "${shared}" "${base}" "${commit}" || return 1
+    (( ${#commit_take[@]} > 0 )) || break
+    if (( ${#commit_keep[@]} == 0 ))
+    then
+      target=${commit}
+    else
+      file:scratch work || return 1
+      GIT_INDEX_FILE=${work}/index git read-tree "${commit}" || return 1
+      commit:entries commit_was "${commit_keep[@]}" | GIT_INDEX_FILE=${work}/index git update-index -z --index-info \
+        || return 1
+      target=$(GIT_INDEX_FILE=${work}/index git write-tree) || return 1
+      rm -rf "${work}"
+    fi
+    # -i reads the index alone: what the disk holds is no part of it, and stays as it is.
+    if GIT_INDEX_FILE=${shared} git read-tree -m -i "${base}" "${target}" 2>/dev/null
+    then
+      step "the shared index takes ${short}'s copy of ${#commit_take[@]} path(s)"
+      break
+    fi
+    if (( ++tries == 5 ))
+    then
+      if commit:entries commit_copy "${commit_take[@]}" \
+        | GIT_INDEX_FILE=${shared} git update-index -z --index-info 2>/dev/null
+      then
+        step "the shared index takes ${short}'s copy of ${#commit_take[@]} path(s)"
+        break
+      fi
+      for path in "${commit_take[@]}"
+      do
+        warn "${path} is staged as it was before ${short}, and the shared index could not take ${short}'s copy;" \
+          "run, without GIT_INDEX_FILE: git restore --staged -- '${path}'"
+      done
+      break
+    fi
+    sleep 0.2
+  done
+  for path in "${commit_keep[@]}"
+  do
+    warn "${path} is staged differently in the shared index; left as it is"
+  done
+}
+
+# commit:commit <argument>… makes the commit as the file header says, from the options commit:parse reads. The first
+# --message, or the file's first line, is the subject; the rest are the body. <path>… commits those paths alone, as
+# git commit -- <path>… does. It returns 2 on a usage error and 1 on a refusal.
+commit:commit() {
+  local branch subject path rest message head tree names made shared
+  local -a staged=() named=() sign=()
+  commit:parse "$@" || return 2
+  head=$(git rev-parse --verify --quiet HEAD || true)  # a repository with no commit has no HEAD: empty
+  if (( ${#commit_messages[@]} == 0 )) && [[ -z "${commit_file}" ]]
+  then
+    error "say what the commit is: --message=<text>, or --file=<path>; kit commit opens no editor; run: kit help commit"
+    return 2
+  fi
+  if [[ -n "${commit_file}" ]]
+  then
+    commit_file=$(context:relative "${commit_file}")
+    if [[ ! -f "${commit_file}" ]]
+    then
+      error "no message file at ${commit_file}; run: kit help commit"
+      return 2
+    fi
+  fi
+  if [[ "${commit_all}" == true ]] && (( ${#commit_paths[@]} > 0 ))
+  then
+    error "--all takes every change to a tracked file, so it does not go with named paths; name the paths, or use" \
+      "--all alone"
+    return 2
+  fi
+  branch=$(commit:branch) || return 1
+  # The facts the policy judges name each path's kinds, read from .kit/, so .kit/ is put in place first, as every
+  # verb that reads a delivered file has it; a fresh worktree's commit is then judged by its kinds, never by none.
+  materialize:hydrate || return 1
+  if [[ "$(settings:value require_signing)" == true ]]
+  then
+    guard:require signing-key || return 1
+    sign=(--gpg-sign)
+  fi
+  if (( ${#commit_paths[@]} > 0 ))
+  then
+    for path in "${commit_paths[@]}"
+    do
+      named+=("$(context:relative "${path}")")
+    done
+    names=$(commit:named "${named[@]}" | tr '\0' '\n') || return 1
+    readarray -t staged <<<"${names}"
+    if commit:unchanged "${staged[@]}"
+    then
+      if (( ${#named[@]} == 1 ))
+      then
+        error "nothing to commit: ${named[0]} is as HEAD has it"
+      else
+        error "nothing to commit: ${named[*]} are as HEAD has them"
+      fi
+      return 1
+    fi
+  else
+    [[ "${commit_all}" == false ]] || git add --update
+    list:read0 staged git diff --cached --name-only --diff-filter=ACMRD -z || return 1
+    if (( ${#staged[@]} == 0 ))
+    then
+      error "nothing is staged; run: git add <path>…, or kit commit --all for every change to a tracked file"
+      return 1
+    fi
+    commit:behind "${staged[@]}" || return 1
+  fi
+  if (( ${#commit_paths[@]} > 0 ))
+  then
+    tree=$(commit:tree "${staged[@]}") || return 1
+  else
+    tree=$(commit:tree) || return 1
+  fi
+  if [[ -n "${commit_file}" ]]
+  then
+    subject=$(head -n 1 "${commit_file}")
+  else
+    subject=${commit_messages[0]%%$'\n'*}
+  fi
+  subject=$(commit:with-reference "${branch}" "${subject}")
+  file:temp message message || return 1
+  {
+    printf '%s\n' "${subject}"
+    if [[ -n "${commit_file}" ]]
+    then
+      tail -n +2 "${commit_file}"
+    else
+      rest=${commit_messages[0]#*$'\n'}
+      [[ "${rest}" == "${commit_messages[0]}" ]] || printf '%s\n' "${rest}"
+      for rest in "${commit_messages[@]:1}"
+      do
+        printf '\n%s\n' "${rest}"
+      done
+    fi
+  } > "${message}"
+  commit:with-trailer "${branch}" "${message}" || return 1
+  commit:guard "${staged[@]}" || return 1
+  leases:commit-held "${branch}" "${message}" "${staged[@]}" || return 1
+  commit:checks "${staged[@]}" || return 1
+  # Named paths are committed alone, so the policy judges the tree they make; otherwise, the index is the tree.
+  if (( ${#commit_paths[@]} > 0 ))
+  then
+    commit:judge "${branch}" "${message}" "${staged[@]}" || return 1
+  else
+    commit:judge "${branch}" "${message}" || return 1
+  fi
+  if (( ${#sign[@]} == 0 )) && [[ "$(git config --type=bool commit.gpgsign 2>/dev/null)" != true ]]
+  then
+    warn "commits here are not signed; set commit.gpgsign to true, with user.signingkey, so the work is signed"
+  fi
+  # A HEAD that moved during the checks was never judged, so the commit is refused either way, and so is a tree that
+  # changed under the checks.
+  commit:moved "${head}" || { rm -f "${message}"; return 1; }
+  if (( ${#commit_paths[@]} > 0 ))
+  then
+    commit:same-tree "${tree}" "${staged[@]}" || { rm -f "${message}"; return 1; }
+    commit:git "${message}" "${sign[@]}" -- "${staged[@]/#/:(literal)}" || return 1
+  else
+    commit:same-tree "${tree}" || { rm -f "${message}"; return 1; }
+    commit:git "${message}" "${sign[@]}" || return 1
+  fi
+  made=$(commit:made "${head}") || made=''
+  subject=$(git log -1 --format=%s "${made:-HEAD}")
+  ok "committed $(git rev-parse --short "${made:-HEAD}"): ${subject}"
+  # A commit made from an index of its own leaves the shared one behind, so it is brought up to the commit.
+  if shared=$(commit:shared-index)
+  then
+    if [[ -z "${made}" ]]
+    then
+      warn "HEAD moved past the commit as it was made, so the shared index is left as it is; run, without" \
+        "GIT_INDEX_FILE: git status"
+    elif ! commit:share "${shared}" "${made}"
+    then
+      warn "the shared index could not be read, so it is left as it is; run, without GIT_INDEX_FILE: git status"
+    fi
+  fi
+  leases:commit-renew "${branch}" "${made:-HEAD}"
+  commit:attach "${branch}" "${subject}"
+}
+
+# commit:git <message> [--gpg-sign] [-- <path>…] runs git commit with the message file as written: --cleanup=whitespace
+# keeps a line that starts with #, whatever commit.cleanup says. It removes the message file either way. With
+# --gpg-sign, a commit git fails to make is refused as one git could not sign when git's words say the signing failed,
+# and said to have failed otherwise, as when a hook refuses it (git:commit). Under a bot, KIT_BOT_LOGIN, the message
+# ends with the trailer Agent: <the bot's login>, once, and never at the subject: it joins the message's last trailer
+# block, or a block of its own after the body, whatever the message's own --- or # lines hold.
+commit:git() {
+  local message=$1 status=0
+  shift
+  if [[ -n "${KIT_BOT_LOGIN:-}" ]]
+  then
+    git interpret-trailers --in-place --no-divider --if-exists addIfDifferent \
+      --trailer "Agent: ${KIT_BOT_LOGIN}" "${message}" \
+      || {
+        rm -f "${message}"
+        error "git could not add the Agent: ${KIT_BOT_LOGIN} trailer to the message; nothing is committed"
+        return 1
+      }
+  fi
+  git:commit . "the commit" --quiet --cleanup=whitespace --file "${message}" "$@" || status=$?
+  rm -f "${message}"
+  (( status == 0 )) || return 1
+}
+
+# commit:submit pushes the branch with git:push, to its own name on the remote git:pushes-to prints, setting the
+# upstream on the first push. It commits nothing: what is staged stays staged, and is said to be no part of the push.
+# It never forces: when the remote refuses the push, the remedy is kit rebase.
+commit:submit() {
+  local branch remote first=false ahead refused status=0
+  local -a staged=()
+  branch=$(commit:branch) || return 1
+  list:read0 staged git diff --cached --name-only -z || return 1
+  if (( ${#staged[@]} > 0 ))
+  then
+    info "${#staged[@]} staged path(s) stay staged, and are no part of the push; kit commit commits them"
+  fi
+  # A branch with no upstream of its own name, such as one started from origin/main, has its first push here.
+  remote=$(git:pushes-to "${branch}") || status=$?
+  (( status != 2 )) || return 1
+  (( status == 0 )) || first=true
+  if [[ "${first}" == true ]]
+  then
+    if ! refused=$(git:push . "${branch}" 2>&1)
+    then
+      commit:push-refused "${branch}" "${remote}" "${refused}"
+      return 1
+    fi
+    ok "pushed ${branch} to ${remote}, which is its upstream from now on"
+    return 0
+  fi
+  # A remote-tracking ref that is gone, as after a prune once the remote's branch was deleted, is no measure of what
+  # the remote has: the push is a first push in effect.
+  if ! git rev-parse --quiet --verify "refs/remotes/${remote}/${branch}^{commit}" >/dev/null
+  then
+    if ! refused=$(git:push . "${branch}" 2>&1)
+    then
+      commit:push-refused "${branch}" "${remote}" "${refused}"
+      return 1
+    fi
+    ok "pushed ${branch} to ${remote}; this clone had no ${remote}/${branch}"
+    return 0
+  fi
+  ahead=$(git rev-list --count "refs/remotes/${remote}/${branch}..HEAD" 2>/dev/null || echo 0)
+  if (( ahead == 0 ))
+  then
+    ok "nothing to submit: ${branch} is at ${remote}/${branch}"
+    return 0
+  fi
+  if ! refused=$(git:push . "${branch}" 2>&1)
+  then
+    commit:push-refused "${branch}" "${remote}" "${refused}"
+    return 1
+  fi
+  ok "pushed ${branch} to ${remote}: ${ahead} commit(s)"
+}
+
+# commit:push-refused <branch> <remote> <git-output> says why the push to the remote did not happen, with the remedy,
+# and git's own words as the detail.
+commit:push-refused() {
+  local line
+  if grep --quiet 'non-fast-forward\|fetch first\|stale info' <<<"$3"
+  then
+    error "$2 refused the push of $1: it has commits this branch lacks; run: kit rebase"
+  else
+    error "$2 refused the push of $1"
+  fi
+  while IFS= read -r line
+  do
+    [[ -n "${line}" ]] && step "${line}"
+  done <<<"$3"
+}
+
+# commit:choices <key> [<answer>…] answers kit syntax --choices for <path>: an open set, every path git status reports,
+# with what became of it as the description, and active for a path that is staged already. kit submit answers the same.
+commit:choices() {
+  local record xy path skip=false description state
+  local -a records
+  [[ "$1" == '<path>' ]] || return 1
+  if [[ "${2:-}" == --kind ]]
+  then
+    printf 'open\n'
+    return 0
+  fi
+  list:read0 records git status --porcelain=v1 -z || return 1
+  for record in "${records[@]}"
+  do
+    # a rename's or copy's old name is the record after it
+    if [[ "${skip}" == true ]]
+    then
+      skip=false
+      continue
+    fi
+    xy=${record:0:2} path=${record:3}
+    [[ "${xy:0:1}" != [RC] ]] || skip=true
+    case "${xy}" in
+      ('??') description=untracked ;;
+      (' M' | MM | AM) description=modified ;;
+      (' D') description=deleted ;;
+      ('A ') description=added ;;
+      ('M ') description=staged ;;
+      ('D ') description='deleted, staged' ;;
+      (R* | C*) description=renamed ;;
+      (*) description=changed
+    esac
+    state=''
+    [[ "${xy:0:1}" == [' ?'] ]] || state=active
+    printf '%s\t%s\t%s\t\n' "${path}" "${description}" "${state}"
+  done
+  return 0
+}
+
+# ----------------------------------------------------------------------------------------------------------------------

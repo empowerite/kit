@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh repo view --json ${field} --jq .${field}",
+  "description": "The checkout's repository, ${field} nameWithOwner or url, which kit reads in `modules/bash/forge/github.sh` (forge/github:repo, forge/github:repo-url), which `modules/bash/tracker/forge.sh` (tracker/forge:url, tracker/forge:new-url) reaches through the forge. The types are the Repository object of GitHub's GraphQL schema, https://docs.github.com/public/fpt/schema.docs.graphql.",
+  "type": "object",
+  "properties": {
+    "nameWithOwner": {
+      "type": "string"
+    },
+    "url": {
+      "type": "string",
+      "format": "uri"
+    }
+  },
+  "additionalProperties": true,
+  "examples": [
+    {
+      "nameWithOwner": "empowerite/example",
+      "url": "https://github.com/empowerite/example"
+    }
+  ]
+}

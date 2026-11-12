@@ -1,0 +1,625 @@
+#!/bin/sh
+# kit - the kit loader: runs the release the clone asks for, then the verb in it (executed entrypoint)
+# ----------------------------------------------------------------------------------------------------------------------
+# kit [<kit-option>…] [<verb> [<argument>…]]
+#
+# The kit you install is this loader. It chooses a release, and runs the verb's script, bin/kit-<verb>, in it. Each
+# repository can pin a release of its own, and so can each worktree, so the release that runs depends on where kit is
+# typed, never on which kit is installed. The first of these chooses it:
+#
+#   1. --version=<release>, or -v=<release>, for this call and every kit call it makes in the same clone
+#   2. KIT_VERSION, the same thing, from the environment
+#   3. version: in the kit.yml at the root of the clone kit runs in: the nearest directory at or above the working
+#      directory that holds .git, a directory in a desk and a file in a worktree. It looks no further, so a worktree
+#      outside its desk reads its own kit.yml alone. A clone whose kit.yml declares no version has the one its
+#      .kit/manifest records, if any.
+#   4. this release, outside a clone, and in a clone that declares none
+#
+# A release is named by its version, 0.1.0, or, by --version= or KIT_VERSION alone, by the absolute path of a copy
+# of one, a directory with bin/kit in it; kit.yml names a version, or unreleased, which a checkout of the kit
+# declares: the clone's own kit/, where it holds bin/kit beside modules/bash/1st.sh, and elsewhere this release. A
+# version is read from the kit's cache, ${XDG_CACHE_HOME:-~/.cache}/kit/kit-<version>; one that is not there is
+# downloaded from its release on GitHub, with the .sha256 the release publishes beside it, and unpacked into the
+# cache only when its bytes have that digest.
+#
+# kit runs nothing in a clone until you trust it, as kit trust records it in kit/trusted under XDG_CONFIG_HOME, else
+# ~/.config: a clone, with every worktree of it, while it asks kit to run what it asked when you trusted it, by the
+# digest of that, or a folder, with every clone under it, whatever they ask. In a clone you have not trusted, or one
+# that asks something new, the loader runs kit help, kit version, kit trust, and kit syntax alone, on this release,
+# whatever the clone names, and on a terminal kit tui, which bare kit runs, whose kittui asks you to trust the clone
+# before it reads anything there. Any other verb, on a terminal, runs this release's kit trust first, which shows what
+# the clone asks kit to run and asks you; after a yes, the call runs as it was typed. Without a terminal, or after a no,
+# it is refused. kit trust runs on this release in a clone you trust too.
+#
+# The kit options:
+#
+#   -h, --help                 kit help, in the release chosen
+#   -v, --version              kit version, in the release chosen
+#   -v=<release>, --version=<release>
+#                              runs that release
+#   --workspace=<workspace>    runs the verb across a workspace: a group's name, or a repository's host and path, as
+#                              kit workspaces names it; none names no workspace
+#   --                         ends the kit options, so the next word is the verb
+#
+# A kit option takes its value after =, never as the next word, so the first word that does not start with - is the
+# verb. With no verb, kit runs kit tui. An option this loader does not know is refused: a later kit may know it, and
+# the remedy is to update the kit you installed.
+#
+# What the loader chose reaches the release through the environment, and the verb's own arguments reach it as they
+# were typed. KIT_VERSION is the chosen release's directory, and KIT_VERSION_ROOT the clone it was chosen for, or the
+# working directory outside one. A kit call in that same clone runs the same release; a kit call in another clone
+# chooses again, from that clone's kit.yml, so a run that crosses repositories runs each one's own release.
+#
+# KIT_WORKSPACE is the workspace --workspace= named, and empty without it: the loader sets it on every call, from the
+# option alone, so a call never takes the workspace of the call that made it. A workspace holds repositories that pin
+# releases of their own, so a call across one runs on this release, and each member's own call, which the verb makes
+# in the member's checkout, runs the release that member pins. --workspace= beside --version=, or beside a KIT_VERSION
+# set by hand, is refused. --workspace=none names no workspace, and chooses the release as a call without it does.
+#
+# This file is POSIX sh, and the only programs it runs on the common path are sed, which reads kit.yml's version:
+# line, and, in a clone trusted by a record of its own, awk and sha256sum, or shasum, which digest what it asks, so it
+# runs before bash 4.4, git, jq, or yq is installed. What it reads, kit.yml's version: line, the trust file, the
+# cache's layout, the release's URL, and the environment it hands on, every release keeps, so any installed kit runs
+# any release. The rest of a call is the release's own: it
+# runs libexec/kit-call with bash, which checks bash's version, logs the call, and runs the verb.
+#
+# Exits 2 on an option it does not know, and 1 when the release cannot be found, fetched, or trusted; otherwise, as
+# the verb exits.
+#
+# see: libexec/kit-call, modules/bash/release.sh, docs/releases.md
+
+set -o errexit -o nounset
+
+# say <icon> <sgr> <message> prints one line to stderr, as modules/bash/1st.sh prints its messages: in color when
+# stderr is a terminal or CLICOLOR_FORCE is set to other than 0, and never when NO_COLOR is set.
+say() {
+  if [ -z "${NO_COLOR:-}" ] && { [ -t 2 ] || { [ -n "${CLICOLOR_FORCE:-}" ] && [ "${CLICOLOR_FORCE}" != 0 ]; }; }
+  then
+    printf '\033[%sm%s %s\033[0m\n' "$2" "$1" "$3" >&2
+  else
+    printf '%s %s\n' "$1" "$3" >&2
+  fi
+}
+
+# refuse <message>… prints an error, its words joined by spaces, and under GitHub Actions the matching workflow
+# command.
+refuse() {
+  say '❌' 31 "$*"
+  [ -z "${GITHUB_ACTIONS:-}" ] || printf '::error::%s\n' "$*" >&2
+}
+
+# version_of <root> prints the version of the release at <root>: its version file, or unreleased for a checkout,
+# which has none. It reads with the read builtin, so it starts no process.
+version_of() {
+  version_of_line=unreleased
+  if [ -f "$1/version" ]
+  then
+    IFS= read -r version_of_line < "$1/version" || :  # a last line with no newline is read all the same
+  fi
+  printf '%s\n' "${version_of_line}"
+}
+
+# clone_root prints the root of the clone the working directory is in, by its physical path: the nearest directory
+# at or above it that holds .git. It fails outside a clone.
+clone_root() {
+  clone_root_dir=$(pwd -P)
+  while :
+  do
+    if [ -e "${clone_root_dir}/.git" ]
+    then
+      printf '%s\n' "${clone_root_dir:-/}"
+      return 0
+    fi
+    [ -n "${clone_root_dir}" ] || return 1
+    clone_root_dir=${clone_root_dir%/*}
+  done
+}
+
+# trust_name <clone> prints the name a clone is trusted by, as modules/bash/1st.sh's kit:trust-name does: its root,
+# and for a worktree, its desk, but only where the desk confirms the worktree. The worktree's .git file names an
+# admin directory, which must be in the .git/worktrees/ of the desk its commondir file names, and whose gitdir file
+# must name this .git back by its absolute path; a .git file of any other kind leaves the root as the name, so a
+# clone cannot borrow the trust of a repository it only names.
+trust_name() {
+  trust_name_value=$1
+  trust_name_line=''
+  if [ -f "$1/.git" ] && { IFS= read -r trust_name_line < "$1/.git" || [ -n "${trust_name_line}" ]; }
+  then
+    case ${trust_name_line} in
+      ('gitdir: '*)
+        trust_name_admin=${trust_name_line#gitdir: }
+        case ${trust_name_admin} in
+          (/*) ;;
+          (*) trust_name_admin=$1/${trust_name_admin} ;;
+        esac
+        trust_name_back=''
+        trust_name_common=''
+        if { IFS= read -r trust_name_back < "${trust_name_admin}/gitdir" || [ -n "${trust_name_back}" ]; } \
+          2>/dev/null \
+          && { IFS= read -r trust_name_common < "${trust_name_admin}/commondir" || [ -n "${trust_name_common}" ]; } \
+          2>/dev/null \
+          && case ${trust_name_back} in (/*/.git) true ;; (*) false ;; esac \
+          && [ "$(cd "${trust_name_back%/.git}" 2>/dev/null && pwd -P)" = "$1" ]
+        then
+          case ${trust_name_common} in
+            (/*) ;;
+            (*) trust_name_common=${trust_name_admin}/${trust_name_common} ;;
+          esac
+          # The admin directory must be one the desk made, in its own .git/worktrees/: one the clone made elsewhere
+          # could name any desk's .git as its common dir.
+          if trust_name_common=$(cd "${trust_name_common}" 2>/dev/null && pwd -P) \
+            && trust_name_admin=$(cd "${trust_name_admin}" 2>/dev/null && pwd -P) \
+            && [ "${trust_name_admin%/*}" = "${trust_name_common}/worktrees" ]
+          then
+            trust_name_value=${trust_name_common%/.git}
+          fi
+        fi
+        ;;
+    esac
+  fi
+  printf '%s\n' "${trust_name_value}"
+}
+
+# trust_text is the awk program that prints what a clone asks kit to run, as modules/bash/1st.sh's kit_trust_text,
+# which says what it reads: the same program, which every release keeps.
+# shellcheck disable=SC2016  # the program is awk's, whose $0 and fields are its own, not the shell's
+trust_text='
+BEGIN {
+  data = "^(answers|excludes|facts|flow|forge|forge_settings|forges|linked_exempt|log_days|packages|policy|primary|"
+  data = data "require_signing|trackers)[[:space:]]*:"
+}
+function emit() {
+  if (!named) printf "== %s\n", FILENAME
+  named = 1
+  print
+}
+FNR == 1 {
+  named = 0
+  mode = "whole"
+  keep = 1
+  first = $0
+  sub(/\r$/, "", first)
+  if (FILENAME == "kit.yml") mode = "settings"
+  else if (FILENAME == ".kit/manifest") mode = "manifest"
+  else if (first == "---") { mode = "front"; next }
+}
+mode == "settings" {
+  if ($0 ~ /^[^[:space:]#-]/)
+    keep = $0 !~ data
+  if (keep) emit()
+  next
+}
+mode == "manifest" { if ($0 ~ /^version /) emit(); next }
+mode == "front" { if ($0 == "---") mode = "done"; else emit(); next }
+mode == "whole" { emit() }
+'
+
+# trust_digest <clone> prints the sha256 of what the clone at <clone> asks kit to run, as modules/bash/1st.sh's
+# kit:trust-digest does, which says which files: trust_text over the same files, in byte order.
+trust_digest() {
+  trust_digest_line=$(
+    LC_ALL=C
+    export LC_ALL
+    cd "$1" 2>/dev/null || exit 1
+    set --
+    for trust_digest_file in kit.yml .kit/manifest .kit/packages/*/files/repo/.kit/rules/*.md \
+      .kit/packages/*/files/repo/.kit/styles/*.md .kit/packages/*/*/files/repo/.kit/rules/*.md \
+      .kit/packages/*/*/files/repo/.kit/styles/*.md
+    do
+      [ ! -f "${trust_digest_file}" ] || set -- "$@" "${trust_digest_file}"
+    done
+    # a directory that is not there, as .kit/styles/ in a clone with no style, lists nothing, and find says so
+    trust_digest_found=$(find .kit/.gitignore .kit/rules .kit/styles -maxdepth 1 \
+      \( -name '*.md' -o -name .gitignore \) -type f -perm -0200 2>/dev/null || :)
+    trust_digest_writable="
+${trust_digest_found}
+"
+    trust_digest_ignore=''
+    if [ -f .kit/.gitignore ] && [ ! -L .kit/.gitignore ]
+    then
+      case ${trust_digest_writable} in
+        (*"
+.kit/.gitignore
+"*) ;;
+        (*)
+          while IFS= read -r trust_digest_entry || [ -n "${trust_digest_entry}" ]
+          do
+            trust_digest_ignore="${trust_digest_ignore}
+${trust_digest_entry}"
+          done < .kit/.gitignore
+          ;;
+      esac
+    fi
+    trust_digest_ignore="${trust_digest_ignore}
+"
+    for trust_digest_file in .kit/rules/*.md .kit/styles/*.md
+    do
+      if [ -L "${trust_digest_file}" ]
+      then
+        case ${trust_digest_ignore} in
+          (*"
+/${trust_digest_file#.kit/}
+"*) continue ;;
+        esac
+        [ -f "${trust_digest_file}" ] || continue
+      else
+        case ${trust_digest_writable} in
+          (*"
+${trust_digest_file}
+"*) ;;
+          (*) continue ;;
+        esac
+      fi
+      set -- "$@" "${trust_digest_file}"
+    done
+    { [ "$#" -eq 0 ] || awk "${trust_text}" "$@"; } | if command -v sha256sum >/dev/null 2>&1
+    then
+      sha256sum
+    else
+      shasum -a 256
+    fi
+  ) || return 1
+  printf '%s\n' "${trust_digest_line%% *}"
+}
+
+# trusted <name> <clone> succeeds when the trust file, kit/trusted under XDG_CONFIG_HOME, else ~/.config, trusts
+# <name>, as modules/bash/1st.sh's kit:trusted reads it: a folder above it, a line that ends in /, or a line for
+# <name> with the digest of what <clone> asks kit to run now. It returns 1 when no line names it, and 3 when a line
+# names it with another digest, or none.
+trusted() {
+  trusted_file=${XDG_CONFIG_HOME:-${HOME}/.config}/kit/trusted
+  [ -f "${trusted_file}" ] || return 1
+  trusted_status=1
+  trusted_have=''
+  while IFS= read -r trusted_line || [ -n "${trusted_line}" ]
+  do
+    trusted_want=''
+    case ${trusted_line} in
+      ('' | '#'*) continue ;;
+      ([0-9a-f]*'  /'* | [0-9a-f]*'  ~/'*)
+        trusted_want=${trusted_line%%  *}
+        case ${trusted_want} in
+          (*[!0-9a-f]*) trusted_want='' ;;
+          (*) trusted_line=${trusted_line#*  } ;;
+        esac
+        ;;
+    esac
+    case ${trusted_line} in
+      (\~/*) trusted_line=$(cd "${HOME}" 2>/dev/null && pwd -P || printf '%s' "${HOME}")/${trusted_line#\~/} ;;
+    esac
+    case ${trusted_line} in
+      (*/)
+        if [ -z "${trusted_want}" ]
+        then
+          case "$1/" in
+            ("${trusted_line}"*) return 0 ;;
+          esac
+        fi
+        ;;
+      (*)
+        [ "$1" = "${trusted_line}" ] || continue
+        trusted_status=3
+        [ -n "${trusted_want}" ] || continue
+        [ -n "${trusted_have}" ] || trusted_have=$(trust_digest "$2") || trusted_have=none
+        [ "${trusted_want}" != "${trusted_have}" ] || return 0
+        ;;
+    esac
+  done < "${trusted_file}"
+  return "${trusted_status}"
+}
+
+# pinned <clone> prints the release <clone>'s kit.yml declares: its top-level version: line, without quotes and
+# without a comment beside it. Without one, it prints the version .kit/manifest records, or nothing.
+pinned() {
+  pinned_value=''
+  if [ -f "$1/kit.yml" ]
+  then
+    pinned_value=$(sed -n -e '/^version:/{' -e 's/^version:[[:space:]]*//' -e 's/^#.*$//' \
+      -e 's/[[:space:]]\{1,\}#.*$//' -e 's/[[:space:]]*$//' -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'\$/\1/" \
+      -e p -e q -e '}' "$1/kit.yml")
+  fi
+  if [ -z "${pinned_value}" ] && [ -f "$1/.kit/manifest" ]
+  then
+    pinned_value=$(sed -n 's/^version //p' "$1/.kit/manifest")
+  fi
+  printf '%s\n' "${pinned_value}"
+}
+
+# digest <file> prints the sha256 of a file's bytes, as modules/bash/file.sh's file:digest does.
+digest() {
+  if command -v sha256sum >/dev/null 2>&1
+  then
+    sha256sum "$1" | cut -d ' ' -f 1
+  else
+    shasum -a 256 "$1" | cut -d ' ' -f 1
+  fi
+}
+
+# is_version <word> succeeds when the word has a version's shape: three numbers joined by dots, then, for a
+# pre-release, a - and letters, digits, and dots. It starts no process.
+is_version() {
+  is_version_rest=$1
+  for is_version_part in 1 2 3
+  do
+    is_version_digits=${is_version_rest%%[!0-9]*}
+    [ -n "${is_version_digits}" ] || return 1
+    is_version_rest=${is_version_rest#"${is_version_digits}"}
+    [ "${is_version_part}" = 3 ] && break
+    case ${is_version_rest} in
+      (.*) is_version_rest=${is_version_rest#.} ;;
+      (*) return 1 ;;
+    esac
+  done
+  case ${is_version_rest} in
+    ('') return 0 ;;
+    (-*[!0-9A-Za-z.]* | -) return 1 ;;
+    (-*) return 0 ;;
+    (*) return 1 ;;
+  esac
+}
+
+# fetch <version> <dir> unpacks a release into <dir>, in the cache, from its public tarball, which must have the
+# digest the release publishes beside it, as modules/bash/release.sh's release:fetch does. It unpacks beside <dir>,
+# in a directory named for this process, so the move into place stays on one file system. It says why when it cannot.
+fetch() {
+  fetch_tarball="https://github.com/empowerite/kit/releases/download/release/$1/kit-$1.tar.gz"
+  fetch_fresh="${2%/*}/.fetch-$1-$$"
+  mkdir -p "${2%/*}"
+  rm -rf "${fetch_fresh}"
+  mkdir "${fetch_fresh}"
+  say '→' 36 "Fetching kit $1 from its release"
+  if ! curl --fail --silent --location --output "${fetch_fresh}/kit.tar.gz" "${fetch_tarball}" 2>/dev/null
+  then
+    rm -rf "${fetch_fresh}"
+    refuse "kit $1 could not be fetched from its release; set KIT_VERSION to the path of a copy of it"
+    return 1
+  fi
+  if ! curl --fail --silent --location --output "${fetch_fresh}/kit.tar.gz.sha256" "${fetch_tarball}.sha256" \
+    2>/dev/null
+  then
+    rm -rf "${fetch_fresh}"
+    refuse "kit $1 publishes no digest beside its tarball, so it is not trusted; set KIT_VERSION to the path of" \
+      "a copy of it"
+    return 1
+  fi
+  fetch_published=$(cut -d ' ' -f 1 "${fetch_fresh}/kit.tar.gz.sha256")
+  fetch_have=$(digest "${fetch_fresh}/kit.tar.gz")
+  if [ "${fetch_have}" != "${fetch_published}" ]
+  then
+    rm -rf "${fetch_fresh}"
+    refuse "kit $1's tarball has digest ${fetch_have}, not the ${fetch_published} its release publishes; it is" \
+      "not unpacked"
+    return 1
+  fi
+  mkdir "${fetch_fresh}/tree"
+  if ! tar --extract --gzip --file "${fetch_fresh}/kit.tar.gz" --directory "${fetch_fresh}/tree" \
+    --strip-components 1 2>/dev/null
+  then
+    rm -rf "${fetch_fresh}"
+    refuse "kit $1's tarball could not be unpacked; set KIT_VERSION to the path of a copy of it"
+    return 1
+  fi
+  # Another call may have unpacked the same release meanwhile; its copy is as good as this one.
+  [ -e "$2" ] || mv "${fetch_fresh}/tree" "$2"
+  rm -rf "${fetch_fresh}"
+}
+
+# release <release> <from> prints the directory of a release, named as kit options and kit.yml name one: a version,
+# unreleased, or an absolute path. <from> says where the name came from, for the refusal.
+release() {
+  case $1 in
+    (/*)
+      case $2 in
+        (*/kit.yml)
+          refuse "$2 names $1; kit.yml names a release by its version, and a path only --version= or KIT_VERSION names"
+          return 1
+          ;;
+      esac
+      if [ -x "$1/bin/kit" ]
+      then
+        (cd "$1" && pwd -P)
+        return 0
+      fi
+      refuse "$2 names $1, which is not a kit release: it has no bin/kit"
+      return 1
+      ;;
+    (unreleased)
+      if [ -n "${clone}" ] && [ -x "${clone}/kit/bin/kit" ] && [ -f "${clone}/kit/modules/bash/1st.sh" ]
+      then
+        (cd "${clone}/kit" && pwd -P)
+      else
+        printf '%s\n' "${self_root}"
+      fi
+      return 0
+      ;;
+    (*[!0-9A-Za-z.-]* | .* | *..* | -*)
+      refuse "$2 names '$1', which is not a kit version"
+      return 1
+      ;;
+  esac
+  if [ "$1" = "$(version_of "${self_root}")" ]
+  then
+    printf '%s\n' "${self_root}"
+    return 0
+  fi
+  release_cache="${XDG_CACHE_HOME:-${HOME}/.cache}/kit/kit-$1"
+  if [ ! -x "${release_cache}/bin/kit" ]
+  then
+    if ! is_version "$1"
+    then
+      refuse "$2 names '$1', which is not a kit version"
+      return 1
+    fi
+    fetch "$1" "${release_cache}" || return 1
+  fi
+  printf '%s\n' "${release_cache}"
+}
+
+# This release's directory: two above this file, whose symlinks are followed first, as Homebrew links bin/kit into a
+# bin of its own. readlink without -f is not POSIX, but every system the kit runs on has it.
+self=$0
+case ${self} in
+  (*/*) ;;
+  (*) self=$(command -v -- "${self}") ;;
+esac
+while [ -L "${self}" ]
+do
+  link=$(readlink "${self}")
+  case ${link} in
+    (/*) self=${link} ;;
+    (*) self=${self%/*}/${link} ;;
+  esac
+done
+self_root=$(cd "${self%/*}/.." && pwd -P)
+
+verb=''
+want=''
+workspace=''
+while [ "$#" -gt 0 ]
+do
+  case $1 in
+    (-h | --help) verb=help; shift; break ;;
+    (-v | --version) verb=version; shift; break ;;
+    (-v=* | --version=*)
+      want=${1#*=}
+      if [ -z "${want}" ]
+      then
+        refuse "${1%%=*}= needs a release: a version, as ${1%%=*}=0.1.0, or the path of a copy of one"
+        exit 2
+      fi
+      shift
+      ;;
+    (--workspace=*)
+      workspace=${1#*=}
+      if [ -z "${workspace}" ]
+      then
+        refuse "--workspace= needs a workspace: a group's name, or a repository's host and path, as kit workspaces" \
+          "names it; none names no workspace"
+        exit 2
+      fi
+      shift
+      ;;
+    (--workspace)
+      refuse "--workspace takes its workspace after =: kit --workspace=<workspace> <verb>"
+      exit 2
+      ;;
+    (--) shift; break ;;
+    (-*)
+      refuse "kit $(version_of "${self_root}") does not know the option ${1%%=*}; update the kit you installed, or" \
+        "see: kit help"
+      exit 2
+      ;;
+    (*) break ;;
+  esac
+done
+[ -z "${verb}" ] || set -- "${verb}" "$@"
+across=''
+if [ -n "${workspace}" ] && [ "${workspace}" != none ]
+then
+  across=yes
+  if [ -n "${want}" ] || { [ -n "${KIT_VERSION:-}" ] && [ -z "${KIT_VERSION_ROOT:-}" ]; }
+  then
+    refuse "--workspace= runs each member on the release it pins, so it takes no --version= or KIT_VERSION; run" \
+      "one member with its own: kit --version=<release> <verb> in its checkout"
+    exit 2
+  fi
+fi
+KIT_WORKSPACE=${workspace}
+export KIT_WORKSPACE
+
+clone=$(clone_root) || clone=''
+here=${clone:-$(pwd -P)}
+untrusted=''
+trust=0
+if [ -n "${clone}" ]
+then
+  name=$(trust_name "${clone}")
+  trusted "${name}" "${clone}" || trust=$?
+fi
+if [ "${trust}" != 0 ]
+then
+  if [ "${trust}" = 3 ]
+  then
+    why="${name} asks kit to run something new since you trusted it"
+    remedy="see what it asks, and trust it again: kit trust"
+  else
+    why="kit runs nothing in ${name} until you trust it"
+    remedy="see what it asks kit to run, and trust it: kit trust"
+  fi
+  case ${1:-tui} in
+    (help | version | trust | syntax) untrusted=yes ;;
+  esac
+  # kit tui, as bare kit runs it, on a terminal, where kittui asks to trust the clone before it reads anything there
+  if [ "${1:-tui}" = tui ] && [ -t 0 ] && [ -t 1 ] && [ -t 2 ]
+  then
+    untrusted=yes
+  fi
+  case ${untrusted}:${1:-tui} in
+    (yes:*) ;;
+    (*)
+      # On a terminal, this release's kit trust shows what the clone asks kit to run, and asks; after a yes, the call
+      # runs again as it was typed. It asks once per clone in a call, so a trust that does not hold refuses.
+      if [ -t 0 ] && [ -t 2 ] && [ "${kit_trust_asked:-}" != "${name}" ]
+      then
+        say '→' 36 "${why}"
+        "${self}" trust || exit 1
+        kit_trust_asked=${name}
+        export kit_trust_asked
+        exec "${self}" ${want:+"--version=${want}"} ${workspace:+"--workspace=${workspace}"} "$@"
+      fi
+      refuse "${why}; ${remedy}"
+      exit 1
+      ;;
+  esac
+fi
+if [ -n "${untrusted}" ] || [ "${1:-}" = trust ]
+then
+  # A clone you have not trusted chooses no release: what it names could be code of its own. kit trust always runs
+  # on this release, so a clone you trusted can never keep you from taking the trust back.
+  root=${self_root}
+elif [ -n "${across}" ]
+then
+  root=${self_root}
+elif [ -n "${want}" ]
+then
+  root=$(release "${want}" --version) || exit 1
+elif [ -n "${KIT_VERSION:-}" ] && { [ -z "${KIT_VERSION_ROOT:-}" ] || [ "${KIT_VERSION_ROOT}" = "${here}" ]; }
+then
+  root=$(release "${KIT_VERSION}" KIT_VERSION) || exit 1
+else
+  value=''
+  [ -z "${clone}" ] || value=$(pinned "${clone}")
+  if [ -n "${value}" ]
+  then
+    root=$(release "${value}" "${clone}/kit.yml") || exit 1
+  else
+    root=${self_root}
+  fi
+fi
+KIT_VERSION=${root}
+KIT_VERSION_ROOT=${here}
+export KIT_VERSION KIT_VERSION_ROOT
+
+if [ "${root}" != "${self_root}" ]
+then
+  # The chosen release's own loader chooses again, finds itself, and runs the call. A loader that keeps handing on
+  # would loop; the count stops it.
+  kit_loader_hops=$(( ${kit_loader_hops:-0} + 1 ))
+  if [ "${kit_loader_hops}" -gt 2 ]
+  then
+    refuse "kit at ${root} hands the call on again; it is not a kit release this loader can run"
+    exit 1
+  fi
+  export kit_loader_hops
+  exec "${root}/bin/kit" ${workspace:+"--workspace=${workspace}"} "$@"
+fi
+unset kit_loader_hops
+
+if ! command -v bash >/dev/null 2>&1
+then
+  refuse "kit needs bash 4.4 or later, and there is no bash on PATH; install it, then run: kit welcome"
+  exit 1
+fi
+exec bash "${self_root}/libexec/kit-call" "$@"
+
+# ----------------------------------------------------------------------------------------------------------------------

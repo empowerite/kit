@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "glab api graphql --raw-field path=${project} [--raw-field after=${cursor}] --raw-field query=${query}",
+  "description": "The project's members, its own, those inherited from its groups, those of the groups it is invited to, and those shared into its ancestors, as REST's members/all lists them, 100 a page, following endCursor while hasNextPage, which kit draws as the people stage's and, those with bot true, the agents stage's in `modules/bash/forge/gitlab.sh` (forge/gitlab:members, with `modules/jq/forge.jq` forge::gitlab_collaborators and forge::gitlab_bots). A user may come more than once, at each membership's level. REST's member entity says nothing of a bot, GraphQL's UserCore does. The types are Project.projectMembers, ProjectMemberRelation, AccessLevel, and UserCore in GitLab's GraphQL schema, https://docs.gitlab.com/api/graphql/reference/.",
+  "type": "object",
+  "properties": {
+    "data": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "projectMembers": {
+              "type": "object",
+              "properties": {
+                "pageInfo": {
+                  "type": "object",
+                  "properties": {
+                    "hasNextPage": {
+                      "type": "boolean"
+                    },
+                    "endCursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "hasNextPage"
+                  ],
+                  "additionalProperties": true
+                },
+                "nodes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "accessLevel": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "properties": {
+                          "integerValue": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ],
+                            "description": "10 guest, 15 planner, 20 reporter, 25 security manager, 30 developer, 40 maintainer, 50 owner; 5 minimal access."
+                          }
+                        }
+                      },
+                      "user": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "description": "Null for an invitation not yet taken.",
+                        "properties": {
+                          "username": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "bot": {
+                            "type": "boolean"
+                          },
+                          "lastActivityOn": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "date"
+                          },
+                          "webUrl": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "username",
+                          "bot"
+                        ]
+                      }
+                    }
+                  }
+                }
+              },
+              "required": [
+                "pageInfo",
+                "nodes"
+              ],
+              "additionalProperties": true
+            }
+          },
+          "required": [
+            "projectMembers"
+          ],
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "project"
+      ],
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "data"
+  ],
+  "examples": [
+    {
+      "data": {
+        "project": {
+          "projectMembers": {
+            "pageInfo": {
+              "hasNextPage": false,
+              "endCursor": null
+            },
+            "nodes": [
+              {
+                "accessLevel": {
+                  "integerValue": 50
+                },
+                "user": {
+                  "username": "ada",
+                  "name": "Ada",
+                  "bot": false,
+                  "lastActivityOn": "2026-10-03",
+                  "webUrl": "https://gitlab.com/ada"
+                }
+              },
+              {
+                "accessLevel": {
+                  "integerValue": 40
+                },
+                "user": {
+                  "username": "project_1_bot_3f2a",
+                  "name": "deploy",
+                  "bot": true,
+                  "lastActivityOn": null,
+                  "webUrl": "https://gitlab.com/project_1_bot_3f2a"
+                }
+              },
+              {
+                "accessLevel": null,
+                "user": null
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

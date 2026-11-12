@@ -1,0 +1,133 @@
+{
+  "verb": "trust",
+  "purpose": "trusts a clone, so kit runs what it asks for there",
+  "usage": [
+    "kit trust [--yes] [<path>]",
+    "kit trust --list",
+    "kit trust --check [<path>]",
+    "kit trust --asks [<path>]",
+    "kit trust --revoke [<path>]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "yes",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "path",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "flag",
+        "name": "list",
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "flag",
+        "name": "check",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "path",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "flag",
+        "name": "asks",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "path",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "flag",
+        "name": "revoke",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "path",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--yes": {
+      "description": "records the trust without asking, as a CI job does for its own checkout"
+    },
+    "--list": {
+      "description": "prints the clones and the folders you trust, one per line"
+    },
+    "--check": {
+      "description": "prints the name the clone is trusted by, and exits 0 when it is trusted, as it asks now, and 1 when not; it asks nothing and runs nothing of the clone's, for a screen that asks for the trust itself"
+    },
+    "--asks": {
+      "description": "prints what the clone asks kit to run, one line each, as kit trust shows it, and asks nothing"
+    },
+    "--revoke": {
+      "description": "takes the trust of a clone or a folder back"
+    },
+    "<path>": {
+      "description": "a clone, or a directory in one, the clone here when none is given; or a folder ending in /"
+    }
+  }
+}

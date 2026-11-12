@@ -1,0 +1,8 @@
+ kit lint - runs each rule's linter over the paths it governs
+
+   --all-files  with no paths, every tracked file instead of the staged ones
+
+   <path>…      the files to check; default: the staged files
+
+
+ kit lint

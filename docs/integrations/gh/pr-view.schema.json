@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh pr view ${number} --json ${fields} --jq ${filter}",
+  "description": "One pull request, ${fields} one of title, body, or state,mergeCommit, which kit reads in `modules/bash/forge/github.sh` (forge/github:pr-title, forge/github:pr-body, forge/github:pr-state). The types are the PullRequest object of GitHub's GraphQL schema, https://docs.github.com/public/fpt/schema.docs.graphql, as gh renders its fields (https://github.com/cli/cli/blob/trunk/api/queries_pr.go): mergeCommit as its oid alone, or null before a merge.",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "body": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string",
+      "description": "PullRequestState",
+      "enum": ["CLOSED", "MERGED", "OPEN"]
+    },
+    "mergeCommit": {
+      "type": ["object", "null"],
+      "description": "Commit",
+      "properties": {
+        "oid": {
+          "type": "string",
+          "description": "GitObjectID"
+        }
+      },
+      "required": ["oid"],
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true,
+  "examples": [
+    {
+      "state": "MERGED",
+      "mergeCommit": {
+        "oid": "abc123"
+      }
+    }
+  ]
+}

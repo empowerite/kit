@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+# kit-platform - lists the services, toolchains, tools, and settings kit runs with (kit verb: installation)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit platform [--text | --json | --jq]
+#   kit platform --stages
+#   kit platform --marks
+#   kit platform services [--text | --json | --jq]
+#   kit platform toolchains [--text | --json | --jq]
+#   kit platform tools [--text | --json | --jq]
+#   kit platform settings [--text | --json | --jq]
+#
+# Draws what kit runs with here, a stage for each of Platform's tabs in kittui. It changes nothing, and asks the forge
+# only whether its tool is signed in. The stages, in order:
+#
+#   services → toolchains → tools → settings
+#
+# kit --workspace=<workspace> platform, the kit option before the verb, draws each stage across a workspace's members
+# with checkouts, as kit workspace does: a group's name, or a repository's host and path, as kit workspaces names it;
+# none names no workspace. Without it, the workspace is the repository here, and outside one, the last group used, as
+# kit workspaces --current says. On a terminal, kit platform opens Platform in kittui, and kit platform <stage> opens
+# it on that tab, maximized. Without one, or with --text, it prints the stages as text; with --json or --jq, as JSON.
+#
+# With --json, a stage prints {rows, errors}. A row is {key, …, links}: key is the row's own in its stage, and links
+# gives where a value leads, by its field; no row of these stages leads anywhere. Every row says where it is from:
+# organization and repository, the owner and the name of the repository kit read it in, as its primary remote's URL
+# names them past the host, no organization for a primary on this machine; and source, kit, which reads them here. Over
+# a workspace, each row gains member, its host and path, and a member that could not be read is {member, error} under
+# errors, while every other member still draws.
+#
+#   services            {capability, service, provider, chosen, ready}: capability is hosting, review, ci, releases,
+#                       tracking <prefix>, toolchain, dependencies <provider>, or policy, and dependencies alone where
+#                       no provider's manifest and lock are here; service is what answers it, as github, mise, or
+#                       patterns, null for none, as for the forge's with no remote or a ci the forge lacks; provider is
+#                       kit's module that reaches it, as forge/github; chosen is set where kit.yml or a recorded choice
+#                       names it, else inferred; ready is whether its tool is there and signed in, null where it has
+#                       none. A forge or a policy engine kit.yml names wrong is {error}, its line, under errors
+#   toolchains          {provider, role, usable, active, chosen, fills}, as kit toolchains --json prints them, read in
+#                       each checkout as tools are, keyed by the checkout, provider, and role: mise project
+#   tools               {name, pinned, installed, from}, as kit tools --json prints them, read in each checkout of the
+#                       clone, the one here and each linked worktree, and each saying its worktree, the checkout's
+#                       folder, and its branch, null in a detached one; keyed by the checkout, from, and name;
+#                       ambient, {name, path, from}. A checkout kit tools refuses is {worktree, error} under errors
+#   settings            {setting, value, from}: value is kit.yml's, or the schema's default, null where it names none;
+#                       from is set or default
+#
+# Legend
+#
+# Each stage lists the glyphs it draws in kittui, one per line. A glyph can show under more than one stage.
+#
+# kit:generate legend `k=$(command -v kit); jq -nr -L "${k%/bin/kit}/modules/jq" 'import "glyphs" as g; g::legend_for("platform")'`
+#   📚  workspace: a group, in the workspace menu that drops down from - in kittui's title
+#
+# services:
+#
+#   🔌  service: a capability kit uses, and what answers it
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# toolchains:
+#
+#   🧰  toolchain: what installs the tools, the system's or the project's
+#   ✅  usable here: its tool is installed here, and for the project, its file is too
+#   ⚡  inside now: the run is already inside it
+#   📌  kit uses it: the one kit uses for its role
+#   ➕  adds the rest: brew, installing the Brewfile's tools the chosen toolchain does not pin
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# tools:
+#
+#   🔩  tool: a tool kit pins, and the version installed
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# settings:
+#
+#   🔧  setting: a key of kit.yml, its value set there or its default
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# kit:end legend
+#
+# Arguments:
+#   --text              prints the stages as text, even on a terminal
+#   --json              the stages as one JSON object: stages, then each stage's document under its name, null for one
+#                       that could not be read
+#   --jq                the same JSON, formatted by jq for a person
+#   --stages            prints the stages, one per line, in order, the same over any workspace
+#   --marks             prints a mark per stage, as one JSON object, which changes when what the stage draws does: a
+#                       hash of kit.yml for settings; for toolchains and tools, of the files the toolchains and the
+#                       dependency providers pin from and of those that keep kit's choice; and for services, of all of
+#                       those, the clone's git configuration, which holds its remotes, and .kit/policy
+#   services            each capability kit fills and the service that answers it: hosting, review, ci, and releases,
+#                       the primary's forge; tracking, each tracker prefix; the project's tool manager; each dependency
+#                       provider whose manifest and lock are here; and the policy engine
+#   toolchains          each toolchain kit can use, one row for each role it fills, as kit toolchains lists them
+#   tools               each tool the chosen toolchain and the dependency providers pin, as kit tools lists them
+#   settings            each key the settings schema names: the value kit.yml sets, or the schema's default
+#
+# Exits 0 when the stages are drawn, 1 when a stage could not be read, as tools where kit tools refuses: what was
+# read is still drawn, and the line names what was not; and 2 on a usage error, or outside a repository's working
+# tree with no workspace.
+#
+# see: modules/bash/apps.sh, modules/bash/apps/platform.sh, modules/jq/apps.jq, docs/apps.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use apps
+workspaces:misplaced platform "$@" || exit $?
+guard:arguments platform "$@" || exit $?
+apps:main platform "$@"
+
+# ----------------------------------------------------------------------------------------------------------------------

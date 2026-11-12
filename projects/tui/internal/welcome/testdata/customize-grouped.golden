@@ -1,0 +1,40 @@
+  = kit welcome · - empowerite/kit                                                                           🔎 /search
+  ➀╶──────────────────╮➁╶───────────────────╮➂╶──────────────╴➍╶───────────────╮➄╶───────────╮
+    👋 introduction   │  🧰 toolchains  3   │  🔧 setup  2    │ 🎨 customize : │  📖 terms   │
+  ────────────────────╰─────────────────────╰─────────────────╯                ╰─────────────╰──────────────────────────
+   Customize
+
+   kit is a starting point. Each part below is something teams change first. It ends with where to change it, the file
+   first, then the doc that explains it, and with the command that shows it.
+
+  ▾ command ▾ 6                                                                               📇 Fields  By command ▼
+    ·──────────
+      part                    settings      where              about                       commands
+      ·───────────────────────×·────────────×·─────────────────────────────────────────────×·──────────────────────────
+  ▾ kit flow 2
+    ▸ The stages of kit flow  flow        kit.yml        +1  flow: in kit.yml names th…  kit flow --stages
+    ▸ Primary and forges      primary +1  kit.yml        +1  primary: names the remote…  kit flow incoming --no-fetch
+  ▾ kit help 1
+    ▸ The docs                              .kit/README.md +1  kit help lists every comm…  kit help
+  ▾ kit packages 2
+    ▸ Packages                packages    kit.yml        +1  packages: in kit.yml list…  kit packages
+    ▸ A house package                       .kit/packages/ +1  A house package holds you…  kit packages --active
+  ▾ kit policy 1
+    ▸ Policy                  policy      kit.yml        +1  policy: in kit.yml sets t…  kit policy
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ = menu - workspace / search │ 1-5 jump : tab menu │ ↑·esc tabs ↓ rows ⇧⇥ groups ⏎ presets f fields

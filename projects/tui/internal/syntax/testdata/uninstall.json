@@ -1,0 +1,30 @@
+{
+  "verb": "uninstall",
+  "purpose": "takes the kit out of the repository and the home directory",
+  "usage": [
+    "kit uninstall [--dry-run]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "dry-run",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--dry-run": {
+      "description": "prints what it would take out, and changes nothing"
+    }
+  }
+}

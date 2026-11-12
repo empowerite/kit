@@ -1,0 +1,30 @@
+{
+  "verb": "gather",
+  "purpose": "gathers issues under a new parent issue",
+  "usage": [
+    "kit gather --title=<text> <reference>…"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "option",
+        "name": "title",
+        "value": "text",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "reference",
+        "repeat": true
+      }
+    ]
+  ],
+  "arguments": {
+    "--title": {
+      "description": "the parent issue's title"
+    },
+    "<reference>": {
+      "description": "the issues to gather, each named with its tracker: 7, #7, or AB#4521"
+    }
+  }
+}

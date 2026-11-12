@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# kit-packages - lists the packages in reach, and changes which are active (kit verb: installation)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit packages [--active | --inactive] [--text | --json | --jq] [<package>…]
+#   kit packages (select | add | remove) <package>…
+#   kit packages --stages
+#   kit packages --marks
+#   kit packages packages [--text | --json | --jq]
+#
+# Alone, it lists every package in reach, one row each: a mark, its name, its origin, and its description. ✅ marks
+# an active package, ❌ one the repository excludes. The packages come from the release and from .kit/packages/.
+# On a terminal, kit packages alone opens Packages in kittui, whose actions run select, add, and remove, and kit
+# packages packages opens it on that tab, maximized; with a filter, or with --text, it lists them as text there too.
+# With a verb, it changes which are active:
+#
+#   - add places the files the new packages deliver and rewrites the manifests. A different file already at a
+#     delivered path is named and left alone, and no manifest is written. A package named here is no longer excluded.
+#   - remove takes out the files, the kit's JSON entries, and the kit's regions, and rewrites the manifests. A
+#     copied file the repository edited is named and left. A member of a bundle that stays active is recorded as
+#     excluded, so kit update does not bring it back. Before it takes anything out, it judges every region it would
+#     take out: a region whose markers are out of order, doubled, or never closed is named, nothing is taken out,
+#     and it exits 1.
+#   - select is remove, then add, to reach the named set. It says what it kept for another package's sake. With
+#     nothing to change, it says the set.
+#
+# Packages is an app verb, as kit platform is: kit packages packages is its one stage, which prints {rows, errors},
+# and kit --workspace=<workspace> packages packages draws it across a workspace's members with checkouts, each row
+# tagged with its member. Each row says where it is from, as kit platform's do: organization and repository, the
+# owner and the name of the repository kit read it in, and source, kit. kit packages --json, with no stage, still
+# prints one object a package, of the repository here.
+#
+# Legend
+#
+# The packages stage lists the glyphs it draws in kittui, one per line.
+#
+# kit:generate legend `k=$(command -v kit); jq -nr -L "${k%/bin/kit}/modules/jq" 'import "glyphs" as g; g::legend_for("packages")'`
+#   📚  workspace: a group, in the workspace menu that drops down from - in kittui's title
+#
+# packages:
+#
+#   🧩  package: what kit delivers, in reach of the release or here
+#   🟢  active: a package kit.yml declares, whose files kit placed
+#   ⛔  excluded: a bundle's member removed, which kit update leaves out
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# kit:end legend
+#
+# Arguments:
+#   --active            only the active packages
+#   --inactive          the packages that are not active, excluded ones among them
+#   --text              lists the packages as text, even on a terminal; with packages, the stage as a table
+#   --json              one JSON object per package: name, origin, state, and description; with packages, the
+#                       stage's document, {rows, errors}
+#   --jq                the same JSON, formatted by jq for a person
+#   --stages            prints the stages, one per line: packages
+#   --marks             prints the stage's mark, as one JSON object, which changes when kit.yml or .kit/packages/ does
+#   select <package>…   makes exactly these, and what they need, the active set
+#   add <package>…      activates the packages, and what they depend on and include
+#   remove <package>…   deactivates the packages; refuses one an active package needs
+#   packages            the stage: a row per package in reach, {name, state, origin, depends, includes, dependents,
+#                       bundles, description}, keyed by its name; dependents are the active packages that depend on
+#                       it, and bundles the active ones that include it
+#   <package>…          a name, such as style/bash, or a glob, such as 'style/*'
+#
+# Exits 0 when it did it, 1 when it could not, as when a source in kit.yml cannot be fetched or has another digest, a
+# region is marked wrongly, or a path could not be taken out, or the stage could not be read, and 2 on a usage error
+# or a package name the kit does not know.
+#
+# see: modules/bash/package.sh, modules/bash/settings.sh, modules/bash/apps/packages.sh, docs/packages.md,
+# docs/apps.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use package settings sources apps tui
+workspaces:misplaced packages "$@" || exit $?
+# A package a source holds is a name the arguments may give only once the source is fetched, so a source that cannot
+# be is the refusal, not the name.
+case "${1:-}" in
+  (select | add | remove) sources:fetch-all || exit 1
+esac
+guard:arguments packages "$@" || exit $?
+
+# The app's forms are apps.sh's: --stages, --marks, and the stage; and kit packages alone where it opens the app, on a
+# terminal with kittui, or names a workspace to draw across.
+if [[ -n "${syntax_options[--stages]+x}${syntax_options[--marks]+x}" || "${syntax_literals[0]:-}" == packages ]] \
+  || { (( $# == 0 )) && { [[ -n "${KIT_WORKSPACE:-}" && "${KIT_WORKSPACE}" != none ]] \
+    || { [[ -t 0 && -t 1 && -t 2 ]] && tui:binary --probe >/dev/null 2>&1; }; }; }
+then
+  apps:main packages "$@"
+  exit
+fi
+settings:require
+
+case "${1:-}" in
+  (select) shift; package:select "$@" ;;
+  (add) shift; package:add "$@" ;;
+  (remove) shift; package:remove "$@" ;;
+  (*)
+    # --text is the list as it prints off a terminal.
+    listed=()
+    for word in "$@"
+    do
+      [[ "${word}" == --text ]] || listed+=("${word}")
+    done
+    package:list ${listed[@]+"${listed[@]}"}
+esac
+
+# ----------------------------------------------------------------------------------------------------------------------

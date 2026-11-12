@@ -1,0 +1,41 @@
+{
+  "version": "unreleased",
+  "base": "https://empowerite.github.io/kit/tutorials/main/",
+  "audiences": [
+    {"id": "newcomer", "label": "Just starting", "color": "#15803d"},
+    {"id": "ui", "label": "UI", "color": "#1d4ed8"},
+    {"id": "maintainer", "label": "Maintainer", "color": "#7c3aed"}
+  ],
+  "tutorials": [
+    {
+      "id": "kit-tutorials",
+      "title": "Reading kit's tutorials",
+      "summary": "How the tutorials are laid out, who each one is for, and how a page tells you that your kit is too old for a passage.",
+      "glyph": "🎓",
+      "audience": ["newcomer"],
+      "where": "online",
+      "url": "https://empowerite.github.io/kit/tutorials/main/kit-tutorials/?kit=unreleased",
+      "file": ""
+    },
+    {
+      "id": "kittui-tour",
+      "title": "Finding your way around kittui",
+      "summary": "The palette, the flow picture, and the menus every screen shares, a key and a click for each.",
+      "glyph": "🧭",
+      "audience": ["ui", "newcomer"],
+      "where": "online",
+      "url": "https://empowerite.github.io/kit/tutorials/main/kittui-tour/?kit=unreleased",
+      "file": ""
+    },
+    {
+      "id": "applications",
+      "title": "kit's applications",
+      "summary": "kit has an application for each side of the work, from Flow, the trip of the work from an issue to a release, to Packages.",
+      "glyph": "📚",
+      "audience": ["newcomer", "ui"],
+      "where": "kit",
+      "url": "",
+      "file": "@here@/applications.md"
+    }
+  ]
+}

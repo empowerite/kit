@@ -1,0 +1,76 @@
+# leases.test - the leases jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line.
+
+# A pattern holds what it matches and everything under it: * and ? within one segment, ** across any number, and a
+# character a regular expression gives a meaning to is itself.
+import "leases" as leases; [.[] as [$p, $path] | $p | leases::holds($path)]
+[["docs", "docs/policy.md"], ["docs/", "docs/a/b"], ["docs", "docs.md"], ["docs/*.md", "docs/a.md"], ["docs/*.md", "docs/x/a.md"], ["**", "a/b/c"], ["kit/**/x.sh", "kit/x.sh"], ["kit/**/x.sh", "kit/a/b/x.sh"], ["a?c", "abc"], ["a?c", "a/c"], ["[ab].txt", "b.txt"], ["[!ab].txt", "a.txt"], ["a.b", "axb"], ["a+b", "a+b"]]
+[true,true,false,true,false,true,true,true,true,false,true,false,false,true]
+
+# Two patterns overlap unless a pair of segments proves them apart: literals that differ, a literal the other's
+# pattern does not match, or patterns whose literal starts or ends differ; ** and a shorter pattern overlap.
+import "leases" as leases; [.[] as [$a, $b] | leases::overlap($a; $b)]
+[["docs/*.md", "docs/x.sh"], ["docs/*.md", "docs/a.md"], ["**", "x"], ["a/b", "a"], ["a/b", "a/c"], ["a*", "b*"], ["*.md", "*.sh"], ["a*", "*b"], ["[ab]x", "cx"], ["docs/", "docs/a"], ["x/**/y", "x/z"]]
+[false,true,true,true,false,false,false,true,false,true,true]
+
+# A claim refuses an empty path, one from /, and one with a .. segment; it keeps a path without ./ or a trailing /.
+import "leases" as leases; [.[] | [leases::refused] + [if [leases::refused] == [] then leases::tidy else null end]]
+["", "/etc", "a/../b", "./docs/", ".", "a..b"]
+[["a path is not empty",null],["'/etc' starts with /; a path is relative to the repository's root",null],["'a/../b' holds a .. segment; a path stays inside the repository",null],["docs"],["**"],["a..b"]]
+
+# A blob reads as a lease when it is an object with an issue, paths of strings, and an expiry; anything else does not,
+# and a lease without taken or renewed has them at its expiry.
+import "leases" as leases; [.[] | leases::read("7"; .) | {readable, paths, renewed}]
+["{\"issue\": \"#7\", \"paths\": [\"a\"], \"expires\": 9}", "not json", "[]", "{\"issue\": \"#7\", \"paths\": [1], \"expires\": 9}", "{\"issue\": \"#7\", \"paths\": [\"a\"]}"]
+[{"readable":true,"paths":["a"],"renewed":9},{"readable":false,"paths":null,"renewed":null},{"readable":false,"paths":null,"renewed":null},{"readable":false,"paths":null,"renewed":null},{"readable":false,"paths":null,"renewed":null}]
+
+# A lease is live before it expires, and one that does not read always is; a branch's own lease is the one of the issue
+# the branch's name starts with.
+import "leases" as leases; [.[] | [leases::live(100), leases::own]]
+[{"key": "7", "readable": true, "expires": 101, "branch": "7-fix"}, {"key": "7", "readable": true, "expires": 100, "branch": "17-fix"}, {"key": "9", "readable": false}]
+[[true,true],[false,false],[true,false]]
+
+# Leases compete unless they are one issue's, or both are on a branch and one is the branch's own; one that does not
+# read competes with every other.
+import "leases" as leases; [.[] as [$a, $b] | leases::compete($a; $b)]
+[[{"key": "7", "readable": true, "branch": "7-fix"}, {"key": "7", "readable": true, "branch": "7-fix"}], [{"key": "7", "readable": true, "branch": "7-fix"}, {"key": "9", "readable": true, "branch": "7-fix"}], [{"key": "8", "readable": true, "branch": "7-fix"}, {"key": "9", "readable": true, "branch": "7-fix"}], [{"key": "7", "readable": true, "branch": "7-fix"}, {"key": "9", "readable": true, "branch": "9-other"}], [{"key": "x", "readable": false}, {"key": "9", "readable": true, "branch": "7-fix"}], [{"key": "7", "readable": true, "branch": null}, {"key": "9", "readable": true, "branch": null}]]
+[false,false,true,true,true,true]
+
+# A claim is refused by each live lease it competes with that may overlap it: not by an expired one, a disjoint one,
+# or the branch's own, and always by one that does not read.
+import "leases" as leases; [leases::conflicts({key: "9", branch: "7-fix", paths: ["docs/a.md"]}; 100) | .key]
+[{"key": "7", "readable": true, "branch": "7-fix", "paths": ["**"], "expires": 200}, {"key": "8", "readable": true, "branch": "8-x", "paths": ["docs"], "expires": 200}, {"key": "10", "readable": true, "branch": "10-y", "paths": ["docs"], "expires": 50}, {"key": "11", "readable": true, "branch": "11-z", "paths": ["kit"], "expires": 200}, {"key": "junk", "readable": false}]
+["8","junk"]
+
+# The paths a lease leaves out are those none of its patterns holds.
+import "leases" as leases; [leases::outside(["docs", "kit/bin/kit-*"])]
+["docs/a.md", "kit/bin/kit-leases", "kit/modules/x.sh", "README.md"]
+["kit/modules/x.sh","README.md"]
+
+# An issue names its paths under a Paths heading, one a list item, until the next heading: the text in backticks, else
+# the first word, without the colon after it; a path no claim takes is left out.
+import "leases" as leases; leases::body_paths
+"Intro\n- not/this\n\n## Paths\r\n\n- `kit/bin/kit-leases`: the verb\n* docs/\n1. ./tests/x.bats and more\n- kit/bin/kit-work: the verb\n- /etc/passwd\n### Why\n- nor/this"
+["docs","kit/bin/kit-leases","kit/bin/kit-work","tests/x.bats"]
+
+# A body with no Paths heading names none.
+import "leases" as leases; leases::body_paths
+"## What\n- a/b"
+[]
+
+# A lease's lines say who holds what, where, and until when, or how long ago it expired; one that does not read says how
+# to release it.
+import "leases" as leases; [.[] | leases::line(1000)]
+[{"key": "7", "readable": true, "issue": "#7", "holder": "ada", "host": "desk", "branch": "7-fix", "paths": ["a", "b/**"], "expires": 4600}, {"key": "8", "readable": true, "issue": "#8", "holder": null, "host": null, "branch": null, "paths": ["**"], "expires": 280}, {"key": "x", "readable": false}]
+["#7  ada on desk, 7-fix, until 01:16, in 1h\n    a  b/**","#8  someone, a detached HEAD, expired 12m ago\n    **","refs/kit/leases/x does not read as a lease, so it holds every path until it is released: kit leases release x"]
+
+# A refusal says who holds what, where, and until when.
+import "leases" as leases; [.[] | leases::refusal(1000)]
+[{"key": "7", "readable": true, "issue": "#7", "holder": "ada", "branch": "7-fix", "paths": ["a", "b/**"], "expires": 1045}, {"key": "x", "readable": false}]
+["#7 holds a b/**, taken by ada on 7-fix, until 00:17, in 45s","refs/kit/leases/x does not read as a lease, so it holds every path; release it: kit leases release x"]
+
+# A span of time is said in its coarsest unit.
+import "leases" as leases; [leases::span(45), leases::span(720), leases::span(-7200), leases::span(200000)]
+null
+["45s","12m","2h","2d"]

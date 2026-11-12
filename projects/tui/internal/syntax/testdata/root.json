@@ -1,0 +1,11 @@
+{
+  "verb": "root",
+  "purpose": "prints the directory of the release that runs",
+  "usage": [
+    "kit root"
+  ],
+  "syntax": [
+    []
+  ],
+  "arguments": {}
+}

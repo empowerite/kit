@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# kit-tui - runs the interactive terminal UI (kit verb: interfaces)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit tui [<verb> [<argument>…]]
+#
+# Opens the welcome guide, or with a verb that verb's form, filled from the arguments given and asking only for
+# the rest. The form shows the command line it builds. Enter on it runs the verb, leaving that line in the
+# scrollback.
+#
+# kit tui is the kit CLI's default verb: kit with no verb runs it. A verb short of a required argument hands off to
+# it as kit tui -- <verb> <argument>…, when stdin, stdout, and stderr are terminals. The words follow a --, so kit
+# reads none of them as its own.
+#
+# In a clone kit does not trust yet, kittui asks you to trust it before it reads anything there: it names the clone and
+# what trusting it lets kit run, and offers Trust, which runs kit trust --yes on it, and Not now, which leaves it
+# untrusted and opens the palette, which reads kit help and kit syntax, as an untrusted clone allows. bin/kit, the
+# loader, lets kit tui through in such a clone on a terminal, on the kit you installed.
+#
+# kit tui runs kittui, which each release carries. In a checkout of the kit, it builds one from projects/tui/ with go,
+# once for each change to its sources or to go; a kittui on PATH is the last resort. kittui needs a terminal on stdin,
+# stdout, and stderr. Without one, kit tui refuses before it builds anything.
+#
+# Arguments:
+#   <verb>        the verb whose form to open; with none, the welcome guide, as kit welcome opens it
+#   <argument>…   the arguments given so far, which fill the form
+#
+# Exits as the verb it runs exits; 1 when the form is cancelled or kittui is missing, 2 without a terminal, and 130
+# on ctrl-c.
+#
+# see: bin/kit, modules/bash/1st.sh, modules/bash/tui.sh, projects/tui/
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+
+use tui terminal
+
+guard:arguments tui "$@" || exit $?
+# kittui refuses without a terminal; kit tui refuses first, in the same words, so it does not build anything it
+# cannot run.
+if [[ ! -t 0 || ! -t 1 || ! -t 2 ]]
+then
+  verb=${1:-}
+  [[ "${verb}" != -- ]] || verb=${2:-}
+  case "${verb}" in
+    (flow) error "kit flow needs an interactive terminal for its picture; run: kit flow --text" ;;
+    (workspace) error "kit workspace needs an interactive terminal for its picture; run: kit workspace --text" ;;
+    (welcome) error "kit welcome needs an interactive terminal; run: kit welcome --text" ;;
+    (help) error "kit help needs an interactive terminal for its palette; run: kit help --text" ;;
+    (*) error "kit tui needs an interactive terminal; run: kit help tui"
+  esac
+  exit 2
+fi
+binary=$(tui:binary) || exit 1
+terminal:export-probes
+export KIT="${kit_root}/bin/kit"
+exec "${binary}" "$@"
+
+# ----------------------------------------------------------------------------------------------------------------------

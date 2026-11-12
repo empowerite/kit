@@ -1,0 +1,74 @@
+# serve.test - the serve jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line.
+
+# A switch is a boolean, an operand that repeats is an array, an option is a string, and each takes its description.
+import "serve" as serve; serve::schema({})
+{"verb":"lint","usage":["kit lint [--all-files] [<path>…] [--rule=<rule>]"],"syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"all-files","repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"path","repeat":true}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","name":"rule","value":"rule","repeat":false}]],"repeat":false}]],"arguments":{"--all-files":{"description":"every file"},"<path>":{"description":"the files","choices":"open"},"--rule":{"description":"the rule"}}}
+{"type":"object","properties":{"all-files":{"type":"boolean","description":"every file"},"path":{"type":"array","items":{"type":"string"},"description":"the files"},"rule":{"type":"string","description":"the rule"}},"additionalProperties":false}
+
+# An argument every usage line requires is required; one that some line leaves out is not.
+import "serve" as serve; serve::schema({}) | .required
+{"verb":"x","usage":["kit x <path>… [--json]","kit x <path>"],"syntax":[[{"kind":"operand","name":"path","repeat":true},{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"json","repeat":false}]],"repeat":false}],[{"kind":"operand","name":"path","repeat":false}]],"arguments":{"<path>":{"description":"p"},"--json":{"description":"j"}}}
+["path"]
+
+# A word the server refuses takes its line out when the line requires it, and its alternative out when it is optional.
+import "serve" as serve; serve::schema({refused: ["--claude", "--outdated"]}) | [.properties | keys, (.required // [])]
+{"verb":"x","usage":["kit x [--outdated [--check]] [--json]","kit x --claude"],"syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"outdated","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"check","repeat":false}]],"repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"json","repeat":false}]],"repeat":false}],[{"kind":"flag","name":"claude","repeat":false}]],"arguments":{"--outdated":{"description":"o"},"--check":{"description":"c"},"--json":{"description":"j"},"--claude":{"description":"h"}}}
+[["json"],[]]
+
+# A line's leading word is one property, named as the server says, with every such word as its enum.
+import "serve" as serve; serve::schema({word: "stage"}) | .properties.stage
+{"verb":"flow","usage":["kit flow [--json]","kit flow backlog [--json]","kit flow desk"],"syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"json","repeat":false}]],"repeat":false}],[{"kind":"literal","name":"backlog","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"json","repeat":false}]],"repeat":false}],[{"kind":"literal","name":"desk","repeat":false}]],"arguments":{"--json":{"description":"j"},"backlog":{"description":"the issues"},"desk":{"description":"the checkout"}}}
+{"type":"string","enum":["backlog","desk"],"description":"backlog: the issues; desk: the checkout"}
+
+# A flag the server adds itself is never offered.
+import "serve" as serve; serve::schema({implied: ["no-fetch"]}) | .properties | keys
+{"verb":"flow","usage":["kit flow [--no-fetch] [--json]"],"syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"no-fetch","repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"json","repeat":false}]],"repeat":false}]],"arguments":{"--no-fetch":{"description":"n"},"--json":{"description":"j"}}}
+["json"]
+
+# A closed set of choices is the enum of the argument's values, for one value and for many.
+import "serve" as serve; serve::schema({choices: {"<package>": ["kit", "workflow"]}}) | .properties.package
+{"verb":"packages","usage":["kit packages [<package>…]"],"syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"package","repeat":true}]],"repeat":false}]],"arguments":{"<package>":{"description":"a name","choices":"closed"}}}
+{"type":"array","items":{"type":"string","enum":["kit","workflow"]},"description":"a name"}
+
+# The arguments become the words of the first line they fit: operands, flags, and options, in order.
+import "serve" as serve; serve::argv({"path": ["a b", "c"], "all-files": true, "rule": "bash", "toolchain": "mise"}; {})
+{"verb":"lint","usage":["kit lint [--all-files] [<path>…] [--rule=<rule>] [--toolchain=<name>]"],"syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"all-files","repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"path","repeat":true}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","name":"rule","value":"rule","repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","name":"toolchain","value":"name","repeat":false}]],"repeat":false}]],"arguments":{}}
+{"argv":["--all-files","a b","c","--rule=bash","--toolchain=mise"]}
+
+# A false switch and an empty list are not given; nothing given is the bare verb.
+import "serve" as serve; serve::argv({"json": false, "path": []}; {})
+{"verb":"lint","usage":["kit lint [<path>…] [--json]"],"syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"path","repeat":true}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"json","repeat":false}]],"repeat":false}]],"arguments":{}}
+{"argv":[]}
+
+# The leading word picks its line, and a flag the server adds itself joins any line that takes it.
+import "serve" as serve; [serve::argv({"stage": "desk"}; {word: "stage", implied: ["no-fetch"]}), serve::argv({"json": true}; {word: "stage", implied: ["no-fetch"]})]
+{"verb":"flow","usage":["kit flow [--no-fetch] [--json]","kit flow desk [--json]"],"syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"no-fetch","repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"json","repeat":false}]],"repeat":false}],[{"kind":"literal","name":"desk","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"json","repeat":false}]],"repeat":false}]],"arguments":{}}
+[{"argv":["desk"]},{"argv":["--no-fetch","--json"]}]
+
+# An unknown name is refused, naming the known ones; so is a value of the wrong type, and one that reads as a flag.
+import "serve" as serve; [serve::argv({"file": "x"}; {}), serve::argv({"json": "yes"}; {}), serve::argv({"path": "x"}; {}), serve::argv({"path": ["-x"]}; {})]
+{"verb":"lint","usage":["kit lint [<path>…] [--json]"],"syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"path","repeat":true}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"json","repeat":false}]],"repeat":false}]],"arguments":{}}
+[{"error":"unknown argument file; kit lint takes: path, json"},{"error":"json is true or false"},{"error":"path is a list of strings"},{"error":"path's value -x starts with -, so the verb would read it as a flag"}]
+
+# An option's value may start with -, since it follows the =: kit syntax names a flag so.
+import "serve" as serve; serve::argv({"verb": "context", "choices": "--json"}; {})
+{"verb":"syntax","usage":["kit syntax <verb> --choices=<argument>"],"syntax":[[{"kind":"operand","name":"verb","repeat":false},{"kind":"option","name":"choices","value":"argument","repeat":false}]],"arguments":{}}
+{"argv":["context","--choices=--json"]}
+
+# Arguments that fit no line, or leave out what every fitting line requires, are refused, naming the usage lines.
+import "serve" as serve; [serve::argv({"stage": "desk", "today": true}; {word: "stage"}), serve::argv({}; {})]
+{"verb":"x","usage":["kit x backlog [--today]","kit x desk","kit x <path>"],"syntax":[[{"kind":"literal","name":"backlog","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"today","repeat":false}]],"repeat":false}],[{"kind":"literal","name":"desk","repeat":false}],[{"kind":"operand","name":"path","repeat":false}]],"arguments":{}}
+[{"error":"these arguments fit no usage of kit x: kit x backlog [--today]; kit x desk; kit x <path>"},{"error":"these arguments fit no usage of kit x: kit x backlog [--today]; kit x desk; kit x <path>"}]
+
+# An operand's value that is a literal of the verb's own syntax is refused, offered or not; so is a value off its
+# property's enum, a glob among them, and a leading word off its enum. A value on its enum makes the words.
+import "serve" as serve; [serve::argv({"package": ["add", "kit"]}; {refused: ["add"], choices: {"<package>": ["kit", "workflow"]}}), serve::argv({"package": ["kit", "work*"]}; {refused: ["add"], choices: {"<package>": ["kit", "workflow"]}}), serve::argv({"subcommand": "nosuch", "package": ["kit"]}; {choices: {"<package>": ["kit", "workflow"]}}), serve::argv({"package": ["workflow"]}; {refused: ["add"], choices: {"<package>": ["kit", "workflow"]}})]
+{"verb":"packages","usage":["kit packages [<package>…]","kit packages add <package>…"],"syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"package","repeat":true}]],"repeat":false}],[{"kind":"literal","name":"add","repeat":false},{"kind":"operand","name":"package","repeat":true}]],"arguments":{"<package>":{"description":"a name","choices":"closed"}}}
+[{"error":"package's value add is a word kit packages acts on"},{"error":"package's value work* is not one of: kit, workflow"},{"error":"subcommand's value nosuch is not one of: add"},{"argv":["workflow"]}]
+
+# A value that holds a NUL is refused before any other fault, since no command line carries one.
+import "serve" as serve; [serve::argv({"path": ["a", "-b\u0000c"]}; {}), serve::argv({"path": ["a\u0000b"], "json": "yes"}; {})]
+{"verb":"lint","usage":["kit lint [<path>…] [--json]"],"syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"path","repeat":true}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"json","repeat":false}]],"repeat":false}]],"arguments":{}}
+[{"error":"path's value holds a NUL, which no command line carries"},{"error":"path's value holds a NUL, which no command line carries"}]

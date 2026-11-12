@@ -1,0 +1,24 @@
+  = kit flow · - empowerite/kit · ➊ issues ╭╴:╶────────────────────────────────╮                             🔎 /search
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│ 🔄 Refresh                      R │━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ▾ source · organization · repository ▾ 7 │ 🔭 Watch                        W │              📇 Fields  All Issues ▼
+    ·────────·──────────────·───────────── │ ⤡  Restore                      M │
+  ▾ github · empowerite 7                  │ ───────────────────────────────── │
+                                           │ 🔽 Show More                    > │
+        id   status  assignees         age │ 🔼 Show Less                    < │labels            title
+        ·────·───────×·────────────────·───│ ⏬ Show Selected                  │×·────────────────·────────────────────
+    ▾ jig 1                                │ ⏫ Hide Selected                  │
+      ▸ #7   💤      ada           +1  40d │ ───────────────────────────────── │                  🎫 Fix the thing
+    ▾ kit 6                                │ 📋 Select All                  ⌃A │
+      ▸ #1   🛫      jeffrey-aguilera   8d │ 🧹 Clear Selection                │priorityh… +1  🎫 The first release…
+        #8   🛫                         2d │ ───────────────────────────────── │                  🎫 Lint the modules
+        #8   🛫                         2d │ 📝 New…                         N │                  🎫 Lint the modules
+      ▸ #46  💤      jeffrey-aguilera   2d │ 🌱 Start Local Work for Each      │bug             🎫 A noun lists, a n…
+      ▸ #31  🛫      ada                3h │ 🌿 Start Local Work Together…     │                  🎫 kit commit, kit s…
+      ▸ #45  💤                         2h │ 🔀 Add to Pull Request…           │kindfeatu… +2  🎫 kit flow is the o…
+                                           │ 👤 Assign to Me                 A │
+                                           │ 👥 Assign to…                     │
+                                           │ 🚶 Unassign                       │
+                                           │ 🧺 Gather Under a Parent…         │
+                                           │ 🚫 Close as Not Planned           │
+                                           ╰─────────────────────────────────▾─╯
+ esc close ↑↓ move ⏎ choose

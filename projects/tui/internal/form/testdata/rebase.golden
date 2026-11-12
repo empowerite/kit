@@ -1,0 +1,6 @@
+ kit rebase - rebases a branch onto the default branch and pushes it
+
+   <path>  the checkout whose branch to rebase; default: the current one
+
+
+ kit rebase

@@ -1,0 +1,24 @@
+  = kit flow · - empowerite/kit                                      🔎 /search
+  ➀╶───────────────╴➋╶────────────────╮➂╶───────────────╮➃╶──────────────────╮➄╶
+    🎫 issues  7    │ 🔀 changes  3 : │  🏭 builds  4   │  🛬 incoming  7    │ ▹
+  ──────────────────╯                 ╰─────────────────╰────────────────────╰──
+  Changes — Open pull requests, and what stands between each and its merge
+
+  ▾ source · organization · repository 3                 📇 Fields  Default ▼
+    ·────────·──────────────·───────────
+  ▾ github · empowerite · kit 3
+
+    ▸ change  title         author  state  age  checks  thread  labels  branch
+      ·───────·─────────────·───────·──────·────·───────·───────×·──────·──────
+    ▸ 🔀 #2   The first r…  jeffr…  🏁      8d  ✅              kin…  1-the-…
+    ▸ 🔀 #3   A spike on …  ada     🔨     90m  🏃      💬 2 …          3-a-sp…
+    ▸ 🔀 #4   Lint every …  bob     🔥     25h  ❌                      4-lint…
+
+
+
+
+
+
+
+
+ = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-5 jump : tab menu

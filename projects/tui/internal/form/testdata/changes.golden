@@ -1,0 +1,20 @@
+ kit changes - lists each open change's reviews and checks, and the changes merged last
+
+   one of
+   *kit changes*  lists each open change's reviews and checks, and the changes merged last
+
+     --text   --json   --jq
+                           prints the stages as text, even on a terminal
+
+   --stages     prints the stages, one per line, in order, the same over any workspace
+   --marks      prints a mark per stage, as one JSON object, which changes when what the stage draws
+                does: for each, the forge's own marks of its issues, which move with its changes,
+                and of its runs
+   reviews      each open change's reviewers: those it asks, and those who reviewed it, by login
+   checks       each open change's checks: the latest run of each name on its head commit
+   merged       the changes merged last, 50 at most, merged last first
+   changes      a tab kit flow prints; on a terminal it opens in kittui, and with a form it is
+                refused
+
+
+ kit changes

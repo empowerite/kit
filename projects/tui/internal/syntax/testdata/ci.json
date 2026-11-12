@@ -1,0 +1,11 @@
+{
+  "verb": "ci",
+  "purpose": "runs the delivered CI job's four checks on any machine",
+  "usage": [
+    "kit ci"
+  ],
+  "syntax": [
+    []
+  ],
+  "arguments": {}
+}

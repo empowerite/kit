@@ -1,0 +1,24 @@
+  = kit repositories · - empowerite/kit                                                                      🔎 /search
+  ➊╶──────────────╮➁╶────────────────╮➂╶─────────────────╮
+  │ 📚 repos  2 : │  📡 remotes  1   │  🌿 branches  4   │
+  ╵               ╰──────────────────╰───────────────────╰──────────────────────────────────────────────────────────────
+  Repos — What is cloned, where, on which branch, and how far from upstream
+
+  ▾ source · organization 2                                                                                            
+    ·────────·─────────────
+  ▾ git · empowerite 2
+
+      repository                  forge   remotes      checkout                             branch  ahead  worktrees  ▹
+      ·───────────────────────────·───────×·───────────·────────────────────────────────────·───────·──────×·──────────
+    ▸ github.com/empowerite/kit   github  origin +1  …/empowerite/kit                     main    ↑1 ↓0  1-the-fir…
+      github.com/empowerite/edge  github               not cloned
+
+
+
+
+
+
+
+
+
+ = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-3 jump : tab menu

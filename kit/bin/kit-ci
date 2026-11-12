@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# kit-ci - runs the delivered CI job's four checks on any machine (kit verb: checks)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit ci
+#
+# kit ci takes no arguments. It runs four checks, in order:
+#
+#   1. kit linked: the pull request is linked to an open issue
+#   2. kit policy: the branch, the commit subjects, and the pull request title pass the policy
+#   3. kit gate: the repository's gate, its own CI command, passes
+#   4. kit check: every delivered file matches the pinned release
+#
+# The two judgements run first, before any command of the branch's own: the gate is one, and kit check runs the
+# commands the repository's kit:generate directives name, so either could move a ref the judgements read. Every
+# check runs even when an earlier one fails, so one run reports every finding.
+#
+# Arguments:
+#
+# Exits 0 when all four pass, 1 when any fails, and 2 on a usage error.
+#
+# see: bin/kit-gate, bin/kit-check, bin/kit-linked, bin/kit-policy
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use materialize
+guard:arguments ci "$@" || exit $?
+materialize:hydrate
+
+refused=0
+for verb in linked policy gate check
+do
+  section "kit ${verb}"
+  run kit "${verb}" || refused=$(( refused + 1 ))
+done
+if (( refused > 0 ))
+then
+  error "${refused} of 4 checks refused; see above"
+  exit 1
+fi
+ok "kit ci: the issue link, the policy, the gate, and the kit's check all passed."
+
+# ----------------------------------------------------------------------------------------------------------------------

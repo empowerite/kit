@@ -1,0 +1,110 @@
+# tutorials.yml - the catalogue of kit's tutorials, which kit tutorials lists as buttons
+# ----------------------------------------------------------------------------------------------------------------------
+# kit generate writes the region below from the front matter of the tutorials' pages, so a tutorial is described in one
+# place, its page: the site's top-level pages, each listed with its path on the site, and the pages that ship with the
+# kit, modules/tutorials/<id>.md, each listed with its file, from modules/. Edit a page, then run kit generate; a hand
+# edit here makes the region stale.
+# Only kit's own source repository has projects/tutorials, and there the region's command runs bin/tutorials, which must
+# be executable or the command fails. Anywhere else, as in a repository that carries this release, the command reprints
+# the region as it stands, so it is never stale, and a bin/tutorials of the repository's own is never run.
+
+# kit:generate catalogue `if [[ -d projects/tutorials ]]; then bin/tutorials catalogue; else awk -v r="$KIT_GENERATE_REGION" '$0 ~ "^# kit:end " r "$" {p=0} p {print} $0 ~ "^# kit:generate " r " " {p=1}' "$KIT_GENERATE_FILE"; fi`
+audiences:
+  - id: newcomer
+    label: Just starting
+    color: '#15803d'
+  - id: ui
+    label: UI
+    color: '#1d4ed8'
+  - id: maintainer
+    label: Maintainer
+    color: '#7c3aed'
+tutorials:
+  - id: kit-tutorials
+    path: kit-tutorials/
+    title: Reading kit's tutorials
+    summary: The tutorials share one layout, each names who it is for, and a page says when your kit is too old for a passage.
+    glyph: "\U0001F393"
+    audience:
+      - newcomer
+    order: 1
+  - id: applications
+    file: tutorials/applications.md
+    title: kit's applications
+    summary: kit has an application for each side of the work, from Flow, the trip of the work from an issue to a release, to Packages.
+    glyph: "\U0001F9ED"
+    audience:
+      - newcomer
+      - ui
+    order: 2
+  - id: screen
+    file: tutorials/screen.md
+    title: The screen at a glance
+    summary: Every kittui screen has the same parts, top to bottom, and five keys start you off.
+    glyph: "\U0001F4FA"
+    audience:
+      - newcomer
+      - ui
+    order: 10
+  - id: menu-bar
+    file: tutorials/menu-bar.md
+    title: The menu bar
+    summary: The first line of every screen holds the kit menu, the workspace menu, and the search.
+    glyph: "\U0001F51D"
+    audience:
+      - newcomer
+      - ui
+    order: 11
+  - id: tab-bar
+    file: tutorials/tab-bar.md
+    title: The tab bar
+    summary: The numbered tabs under the menu bar are one per stage, each with its count and its menu.
+    glyph: "\U0001F4D1"
+    audience:
+      - newcomer
+      - ui
+    order: 12
+  - id: control-line
+    file: tutorials/control-line.md
+    title: The control line
+    summary: The line over the rows says how they are grouped, and the preset they are set as.
+    glyph: "\U0001F4CA"
+    audience:
+      - ui
+    order: 13
+  - id: rows
+    file: tutorials/rows.md
+    title: The rows
+    summary: The rows stand under a header and its rule, and they sort, group, fold, and select.
+    glyph: "\U0001F4CB"
+    audience:
+      - ui
+    order: 14
+  - id: status-bar
+    file: tutorials/status-bar.md
+    title: The status bar
+    summary: The last line names the keys that work right now, and says what kittui just did.
+    glyph: "\U0001F4AC"
+    audience:
+      - newcomer
+      - ui
+    order: 15
+  - id: legend
+    file: tutorials/legend.md
+    title: The legend
+    summary: The ? key on an app shows what every glyph on the screen means.
+    glyph: "\U0001F511"
+    audience:
+      - newcomer
+      - ui
+    order: 16
+  - id: search
+    file: tutorials/search.md
+    title: The search
+    summary: The / key on any screen starts the search, rows narrow as you type, and a page's text highlights.
+    glyph: "\U0001F50E"
+    audience:
+      - newcomer
+      - ui
+    order: 17
+# kit:end catalogue

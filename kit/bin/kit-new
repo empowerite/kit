@@ -1,0 +1,208 @@
+#!/usr/bin/env bash
+# kit-new - makes a new file, or a new kind, rule, package, template, or verb (kit verb: files)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit new file <path> [--rule=<rule>] [--variant=<variant>] [--<hole>=<value>]…
+#   kit new kind <name> [--path=<glob>…] [--content=<regex>…] [--kinds=<kind>…] [--embeds=<kind>…] [--package=<name>]
+#   kit new rule <kind> [--lint=<command>] [--package=<name>]
+#   kit new style <kind> [--lint=<command>] [--package=<name>]
+#   kit new package <name> [--description=<text>] [--depends=<package>…]
+#   kit new template <rule> <variant> [--from=<path>] [--package=<name>]
+#   kit new module <name> --purpose=<text> [--jq]
+#   kit new provider <seam> <name>
+#   kit new verb <name> --purpose=<text> --group=<group>
+#   kit new issue [<prefix>] [--print] [--list] [--json]
+#
+# Makes one new thing, in its place and its house shape, and never overwrites anything:
+#
+#   - file: a file from a rule's template, then the rules to read before writing the rest, as kit context prints
+#   - kind, rule, style, template: a file in a package of the repository's own, under
+#     .kit/packages/<package>/files/repo/.kit/; the package is made when there is none
+#   - package: .kit/packages/<name>/package.yml, depending on kit
+#   - module, provider: a bash module in the repository's own directory on the module path, from the bash style's
+#     template
+#   - verb, or a module with --jq: in the kit's own source alone
+#   - issue: in a tracker, through the page a person files one at, which kit opens in the browser and prints; the
+#     tracker is the one the prefix names, the forge's own, #, by default
+#
+# When the package is active, the new file is placed; otherwise kit new names the command that activates the
+# package. A provider has one function for each call its seam makes, each refusing until it is written. A verb gets
+# the header kit help reads; a jq module gets its tests.
+#
+# The defaults, and the limits:
+#
+#   - <path> may be absolute inside the repository; a path outside it is refused
+#   - --rule defaults to the most specific rule that governs the path and has templates; a script with no extension
+#     needs the flag
+#   - --variant defaults to the first variant the rule lists that the path allows
+#   - the holes path, name, and stem take their values from the path; every other hole needs its flag
+#   - <rule> names the directory under .kit/templates/
+#   - a package's or a module's <name> has / between its parts
+#   - --package defaults to the repository's one package under .kit/packages/, or else local
+#   - --from: without it, the template is one body hole
+#   - --group is workflow, files, checks, installation, interfaces, or help
+#
+# A kind needs at least one --path, --content, or --kinds. kit new refuses an existing path, and a kind's name
+# already defined. Where the kit is not installed, as kit.yml declares no kit version, kind, rule, style, template,
+# package, module, and provider are refused, as they belong to the kit's packages and its module path: run kit
+# install first.
+#
+# Arguments:
+#   file                    makes a file from a template
+#   kind                    makes a kind of file
+#   rule                    makes a rule for a kind
+#   style                   makes a style for a kind
+#   package                 makes a package of the repository's own
+#   template                makes a template, listed in its package's rule or style
+#   module                  makes a bash module, or a jq module with --jq
+#   provider                makes a provider of a seam
+#   verb                    makes a verb of the kit
+#   issue                   opens the page that files a new issue in a tracker
+#   <path>                  the new file, relative to the repository root
+#   --rule=<rule>           the rule whose template to use
+#   --variant=<variant>     the template to use
+#   --<hole>=<value>        the value of a hole, «name», in the template
+#   <name>                  the name: lowercase letters, digits, and dashes
+#   <kind>                  the kind a rule or a style governs
+#   <rule>                  the rule or style whose template it is
+#   <variant>               the template's name, which kit new file --variant= takes
+#   <seam>                  the seam the provider answers: dependencies, forge, policy, sources, targets, toolchain, or
+#                           tracker
+#   --package=<name>        the package to put it in
+#   --path=<glob>           a glob the kind's paths match; ** matches any depth
+#   --content=<regex>       an extended regular expression the first line matches
+#   --kinds=<kind>          a kind this kind is made of; several repeat it, or join with :, --kinds=a:b
+#   --embeds=<kind>         a kind whose text appears inside this kind's files; several repeat it, or join with :
+#   --lint=<command>        the linter kit lint runs over the files
+#   --description=<text>    the package's one line, which kit packages shows
+#   --depends=<package>     a package this one depends on, beside kit; several repeat it, or join with :
+#   --from=<path>           a file to start the template from
+#   --purpose=<text>        what the module or verb does, for its banner
+#   --jq                    makes a jq module, with its tests
+#   --group=<group>         the heading kit help lists the verb under
+#   <prefix>                the tracker, by the prefix its references start with: # for the forge's own
+#   --print                 prints the page's URL, opening nothing
+#   --list                  lists the trackers a new issue can be filed in, and each one's page
+#   --json                  prints the list as JSON: an array of {prefix, provider, label, url, error}
+#
+# Exits 0 when it is made, 1 when the path exists, a template is missing or malformed, a list it reads, such as the
+# rules that govern the path, cannot be read, or the kit is not installed, and 2 on a usage error.
+#
+# see: modules/bash/new.sh, modules/bash/template.sh, docs/templates.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use context template new materialize settings
+guard:arguments new "$@" || exit $?
+materialize:hydrate
+
+# What the kit's packages and its module path hold is made only where the kit is installed, so a repository without
+# it gets no .kit/ from kit new.
+case "$1" in
+  (kind | rule | style | template | package | module | provider) settings:require || exit 1
+esac
+
+case "$1" in
+  (kind) shift; new:kind "$@"; exit $? ;;
+  (rule | style) new:rule "$@"; exit $? ;;
+  (package) shift; new:package "$@"; exit $? ;;
+  (template) shift; new:template "$@"; exit $? ;;
+  (module) shift; new:module "$@"; exit $? ;;
+  (provider) shift; new:provider "$@"; exit $? ;;
+  (verb) shift; new:verb "$@"; exit $? ;;
+  (issue) shift; new:issue "$@"; exit $?
+esac
+shift
+
+path='' rule_name='' variant=''
+declare -A values=()
+for arg in "$@"
+do
+  case "${arg}" in
+    (--) ;;
+    (--rule=?*) rule_name=${arg#--rule=} ;;
+    (--variant=?*) variant=${arg#--variant=} ;;
+    (--?*=*)
+      key=${arg%%=*}
+      key=${key#--}
+      values[${key}]=${arg#*=}
+      ;;
+    (*) path=${arg}
+  esac
+done
+# An absolute path inside the repository is made relative to the root. A path outside the repository is refused.
+root=$(pwd -P)
+if [[ "${path}" == /* ]]
+then
+  path=$(context:relative "${path}")
+  if [[ "${path}" == /* ]]
+  then
+    error "${path} is outside the repository at ${root}"
+    exit 2
+  fi
+fi
+path=${path#./}
+if [[ "${path}" == ../* || "${path}" == */../* ]]
+then
+  error "${path} climbs out of the repository; name it from the root"
+  exit 2
+fi
+if [[ -e "${path}" ]]
+then
+  error "${path} is there already; kit new makes a file, it never overwrites one"
+  exit 1
+fi
+
+resolved=$(new:resolve "${path}" "${rule_name}" "${variant}") || exit $?
+IFS=$'\x1f' read -r rule chosen executable template <<<"${resolved}"
+
+name=${path##*/}
+values[path]=${values[path]:-${path}}
+values[name]=${values[name]:-${name}}
+values[stem]=${values[stem]:-${name%.*}}
+missing=() unset=()
+settings=$(template:settings "${template}")
+holes=$(template:holes "${template}") || exit 1
+while IFS= read -r hole
+do
+  [[ -n "${hole}" && -z "${values[${hole}]+x}" ]] || continue
+  if [[ "${hole}" == *.* ]]
+  then
+    # A dotted hole is a path in kit.yml, which fills it when it is set.
+    [[ "$(jq --arg k "${hole}" 'has($k)' <<<"${settings}")" == true ]] || unset+=("${hole}")
+  else
+    missing+=("--${hole}=<…>")
+  fi
+done <<<"${holes}"
+if (( ${#missing[@]} > 0 ))
+then
+  error "the ${chosen} template of the $(template:rule-name "${rule}") rule needs ${missing[*]}"
+  exit 2
+fi
+if (( ${#unset[@]} > 0 ))
+then
+  error "the ${chosen} template of the $(template:rule-name "${rule}") rule reads ${unset[*]} from kit.yml," \
+    "which does not set it"
+  exit 2
+fi
+
+json='{}'
+for key in "${!values[@]}"
+do
+  json=$(jq --compact-output --arg k "${key}" --arg v "${values[${key}]}" '.[$k] = $v' <<<"${json}")
+done
+mkdir -p "$(dirname "${path}")"
+template:render "${template}" "${json}" > "${path}"
+[[ "${executable}" == true ]] && chmod +x "${path}"
+# A region the template carries is filled by its command now, so the new file is as kit generate keeps it.
+if grep --quiet 'kit:generate' "${path}"
+then
+  run kit generate "${path}" >/dev/null || warn "${path}: a region could not be filled; run: kit generate ${path}"
+fi
+context:log "${path}"
+ok "made ${path} from ${template}; read the rules below before writing the rest"
+context:rules "${path}"
+
+# ----------------------------------------------------------------------------------------------------------------------

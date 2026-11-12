@@ -1,0 +1,340 @@
+{
+  "fetched": true,
+  "primary": "origin",
+  "remotes": [
+    {
+      "name": "upstream",
+      "forge": "gitlab",
+      "host": "git.example.org",
+      "default": "main",
+      "commits": [],
+      "branches": {
+        "new": [],
+        "updated": [],
+        "gone": [
+          "old-experiment"
+        ]
+      },
+      "tags": [
+        "release/0.2.0"
+      ]
+    },
+    {
+      "name": "origin",
+      "forge": "github",
+      "host": "github.com",
+      "default": "main",
+      "commits": [
+        {
+          "sha": "a1b2c3d",
+          "subject": "#1 docs: the docs say what the code does"
+        },
+        {
+          "sha": "e4f5a6b",
+          "subject": "#1 yaml: yq reads every YAML file, cached under XDG_CACHE_HOME, and no awk parses one"
+        }
+      ],
+      "branches": {
+        "new": [
+          "42-settings"
+        ],
+        "updated": [
+          "46-a-noun-lists"
+        ],
+        "gone": []
+      },
+      "tags": []
+    },
+    {
+      "name": "backup",
+      "forge": "",
+      "host": "nas.local",
+      "default": "main",
+      "commits": [],
+      "branches": {
+        "new": [],
+        "updated": [],
+        "gone": []
+      },
+      "tags": []
+    }
+  ],
+  "rows": [
+    {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
+      "key": "origin remote",
+      "remote": "origin",
+      "primary": "primary",
+      "forge": "github",
+      "host": "github.com",
+      "url": "https://github.com/empowerite/kit.git",
+      "default": "main",
+      "kind": "remote",
+      "change": "fetched",
+      "ref": "main",
+      "sha": null,
+      "old": null,
+      "commits": null,
+      "author": null,
+      "age": null,
+      "subject": null,
+      "local": [],
+      "worktrees": [],
+      "ahead": null,
+      "behind": null,
+      "issues": []
+    },
+    {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
+      "key": "origin commit a1b2c3d",
+      "remote": "origin",
+      "primary": "primary",
+      "forge": "github",
+      "host": "github.com",
+      "url": "https://github.com/empowerite/kit.git",
+      "default": "main",
+      "kind": "commit",
+      "change": "new",
+      "ref": "main",
+      "sha": "a1b2c3d",
+      "old": null,
+      "commits": null,
+      "author": "Jeffrey Aguilera",
+      "age": 3600,
+      "subject": "#1 docs: the docs say what the code does",
+      "local": [],
+      "worktrees": [],
+      "ahead": null,
+      "behind": null,
+      "issues": [
+        "#1"
+      ]
+    },
+    {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
+      "key": "origin commit e4f5a6b",
+      "remote": "origin",
+      "primary": "primary",
+      "forge": "github",
+      "host": "github.com",
+      "url": "https://github.com/empowerite/kit.git",
+      "default": "main",
+      "kind": "commit",
+      "change": "new",
+      "ref": "main",
+      "sha": "e4f5a6b",
+      "old": null,
+      "commits": null,
+      "author": "Ada Lovelace",
+      "age": 7200,
+      "subject": "#1 yaml: yq reads every YAML file, cached under XDG_CACHE_HOME, and no awk parses one",
+      "local": [],
+      "worktrees": [],
+      "ahead": null,
+      "behind": null,
+      "issues": [
+        "#1"
+      ]
+    },
+    {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
+      "key": "origin branch 42-settings",
+      "remote": "origin",
+      "primary": "primary",
+      "forge": "github",
+      "host": "github.com",
+      "url": "https://github.com/empowerite/kit.git",
+      "default": "main",
+      "kind": "branch",
+      "change": "new",
+      "ref": "42-settings",
+      "sha": "b7c8d9e",
+      "old": null,
+      "commits": 3,
+      "author": "Ada Lovelace",
+      "age": 1800,
+      "subject": "#42 settings: one file holds them",
+      "local": [],
+      "worktrees": [],
+      "ahead": null,
+      "behind": null,
+      "issues": [
+        "#42"
+      ]
+    },
+    {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
+      "key": "origin branch 46-a-noun-lists",
+      "remote": "origin",
+      "primary": "primary",
+      "forge": "github",
+      "host": "github.com",
+      "url": "https://github.com/empowerite/kit.git",
+      "default": "main",
+      "kind": "branch",
+      "change": "updated",
+      "ref": "46-a-noun-lists",
+      "sha": "f1e2d3c",
+      "old": "0a1b2c3",
+      "commits": 2,
+      "author": "Jeffrey Aguilera",
+      "age": 600,
+      "subject": "#46 lists: a noun lists its items",
+      "local": [
+        "46-a-noun-lists"
+      ],
+      "worktrees": [
+        "/work/kit/worktrees/46-a-noun-lists"
+      ],
+      "ahead": null,
+      "behind": null,
+      "issues": [
+        "#46"
+      ]
+    },
+    {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
+      "key": "origin tracking main",
+      "remote": "origin",
+      "primary": "primary",
+      "forge": "github",
+      "host": "github.com",
+      "url": "https://github.com/empowerite/kit.git",
+      "default": "main",
+      "kind": "tracking",
+      "change": "behind",
+      "ref": "main",
+      "sha": "a1b2c3d",
+      "old": null,
+      "commits": 2,
+      "author": "Jeffrey Aguilera",
+      "age": 3600,
+      "subject": "#1 docs: the docs say what the code does",
+      "local": [
+        "main"
+      ],
+      "worktrees": [],
+      "ahead": 0,
+      "behind": 2,
+      "issues": [
+        "#1"
+      ]
+    },
+    {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
+      "key": "upstream remote",
+      "remote": "upstream",
+      "primary": null,
+      "forge": "gitlab",
+      "host": "git.example.org",
+      "url": "https://git.example.org/empowerite/kit.git",
+      "default": "main",
+      "kind": "remote",
+      "change": "fetched",
+      "ref": "main",
+      "sha": null,
+      "old": null,
+      "commits": null,
+      "author": null,
+      "age": null,
+      "subject": null,
+      "local": [],
+      "worktrees": [],
+      "ahead": null,
+      "behind": null,
+      "issues": []
+    },
+    {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
+      "key": "upstream branch old-experiment",
+      "remote": "upstream",
+      "primary": null,
+      "forge": "gitlab",
+      "host": "git.example.org",
+      "url": "https://git.example.org/empowerite/kit.git",
+      "default": "main",
+      "kind": "branch",
+      "change": "gone",
+      "ref": "old-experiment",
+      "sha": "9f8e7d6",
+      "old": "9f8e7d6",
+      "commits": null,
+      "author": "Grace Hopper",
+      "age": 864000,
+      "subject": "an experiment",
+      "local": [],
+      "worktrees": [],
+      "ahead": null,
+      "behind": null,
+      "issues": []
+    },
+    {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
+      "key": "upstream tag release/0.2.0",
+      "remote": "upstream",
+      "primary": null,
+      "forge": "gitlab",
+      "host": "git.example.org",
+      "url": "https://git.example.org/empowerite/kit.git",
+      "default": "main",
+      "kind": "tag",
+      "change": "new",
+      "ref": "release/0.2.0",
+      "sha": "c0ffee1",
+      "old": null,
+      "commits": null,
+      "author": "Grace Hopper",
+      "age": 86400,
+      "subject": "release 0.2.0",
+      "local": [],
+      "worktrees": [],
+      "ahead": null,
+      "behind": null,
+      "issues": []
+    },
+    {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
+      "key": "backup remote",
+      "remote": "backup",
+      "primary": null,
+      "forge": null,
+      "host": "nas.local",
+      "url": "ssh://nas.local/kit.git",
+      "default": "main",
+      "kind": "remote",
+      "change": "unchanged",
+      "ref": "main",
+      "sha": null,
+      "old": null,
+      "commits": null,
+      "author": null,
+      "age": null,
+      "subject": null,
+      "local": [],
+      "worktrees": [],
+      "ahead": null,
+      "behind": null,
+      "issues": []
+    }
+  ]
+}

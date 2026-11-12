@@ -1,0 +1,8 @@
+# kit:generated -- the sh kind, from the kit package
+# see: "Changing what kit adds" in .kit/1st.md, to replace it
+#
+# A POSIX shell script: by its shebang, #!/bin/sh or #!/usr/bin/env sh. It has no suffix of its own; a *.sh file is
+# bash, as the bash kind says.
+name: sh
+content:
+  - "^#!.*/(env +)?sh( |$)"

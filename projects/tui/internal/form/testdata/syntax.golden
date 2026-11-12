@@ -1,0 +1,15 @@
+ kit syntax - prints a verb's grammar as JSON, and checks its header
+
+   one of
+   *kit syntax*                prints a verb's grammar as JSON, and checks its header
+
+     --check   --list        prints no JSON; names each fault in the header, and fails
+
+     <verb>…                 the verbs to print; none prints every verb
+
+   <verb> --choices <answer>
+   <verb> --extend <answer>
+   <verb> --match <word>
+
+
+ kit syntax

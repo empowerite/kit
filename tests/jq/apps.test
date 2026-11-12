@@ -1,0 +1,148 @@
+# apps.test - the apps jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line.
+
+# A forge call's objects are each a row, and the {"limited": N} a capped call prints last is the document's limited.
+import "apps" as apps; apps::fold({key: .n, links: {}})
+[{"n": 2}, {"n": 1}, {"limited": 2}]
+{"rows":[{"key":2,"links":{}},{"key":1,"links":{}}],"errors":[],"limited":2}
+
+# A call that stopped nowhere gives no limited.
+import "apps" as apps; apps::fold({key: .n})
+[{"n": 1}]
+{"rows":[{"key":1}],"errors":[]}
+
+# Documents merge in order, their errors joined and limited the least; none merge into no rows and no errors.
+import "apps" as apps; apps::merge
+[{"rows": [{"key": 1}], "errors": [], "limited": 50}, {"rows": [{"key": 2}], "errors": [{"feature": "x", "off": true}]}, {"rows": [], "errors": [], "limited": 20}]
+{"rows":[{"key":1},{"key":2}],"errors":[{"feature":"x","off":true}],"limited":20}
+
+import "apps" as apps; apps::merge
+[]
+{"rows":[],"errors":[]}
+
+# A toolchain is keyed by its provider and role, and a tool by where it is pinned and its name.
+import "apps" as apps; [(.[0] | apps::toolchain), (.[1] | apps::tool)]
+[{"provider": "mise", "role": "project", "usable": true}, {"name": "jq", "pinned": "1.8", "from": "mise.toml"}]
+[{"key":"mise project","provider":"mise","role":"project","usable":true,"links":{}},{"key":"mise.toml jq","name":"jq","pinned":"1.8","from":"mise.toml","links":{}}]
+
+# Each key the schema names is a row, in its order: the value kit.yml sets, else the schema's default, null for none.
+import "apps" as apps; apps::settings({properties: {primary: {type: "string"}, log_days: {default: 14}, flow: {}}}) | map([.key, .value, .from])
+{"primary": "upstream", "flow": ["backlog"]}
+[["primary","upstream","set"],["log_days",14,"default"],["flow",["backlog"],"set"]]
+
+# No kit.yml, or one that is no map, sets nothing.
+import "apps" as apps; apps::settings({properties: {primary: {}}}) | map([.key, .value, .from])
+null
+[["primary",null,"default"]]
+
+# As text, a stage is a line of its fields' names, less key, links, and member, then a line per row: a list apart by
+# commas, an object as JSON, nothing for none.
+import "apps" as apps; apps::text
+[{"key": "a", "name": "a", "list": ["x", 1], "none": null, "links": {}, "member": "m"}, {"key": "bb", "name": "bb", "list": [], "none": {"k": true}}]
+"name  list  none"
+"a     x, 1"
+"bb          {\"k\":true}"
+
+import "apps" as apps; [apps::text]
+[]
+[]
+
+# A milestone is keyed by its number, its page the link of its title.
+import "apps" as apps; apps::milestone
+{"number": 2, "title": "v0.1", "state": "open", "due": 1796083200, "open": 3, "closed": 2, "url": "u"}
+{"key":2,"number":2,"title":"v0.1","state":"open","due":1796083200,"open":3,"closed":2,"links":{"title":"u"}}
+
+# An iteration is keyed by its id, and current when now falls between its start and its end, never when it has no dates.
+import "apps" as apps; [(.[] | apps::iteration | .current)]
+[{"id": "a", "title": "t", "start": 0, "end": 1, "url": "u"}, {"id": "b", "title": "t", "start": 0, "end": 99999999999, "url": "u"}, {"id": "c", "title": "t", "start": null, "end": null, "url": "u"}]
+[false,true,false]
+
+# A change's reviewers are a row each, keyed by the change's number and the login, with the change's unresolved
+# threads; a change with none, or a forge that names none, gives no row.
+import "apps" as apps; [.[] | apps::review]
+[{"number": 3, "title": "Fix", "unresolved": 1, "reviewers": [{"login": "bob", "state": "requested", "at": null}]}, {"number": 4, "title": "Four", "unresolved": 0, "reviewers": []}, {"number": 5, "title": "Five", "unresolved": 0}]
+[{"key":"3 bob","change":3,"title":"Fix","login":"bob","state":"requested","at":null,"unresolved":1,"links":{}}]
+
+# A change's checks are the latest run of each name, a row each, keyed by the change's number and the name.
+import "apps" as apps; [apps::check]
+{"number": 3, "title": "Fix", "runs": [{"name": "b", "verdict": "passed", "at": 20, "took": 5}, {"name": "a", "verdict": "failed", "at": 10, "took": 300}, {"name": "a", "verdict": "passed", "at": 30, "took": 30}, {"name": "c", "verdict": "pending", "at": null, "took": null}]}
+[{"key":"3 a","change":3,"title":"Fix","name":"a","verdict":"passed","at":30,"took":30,"links":{}},{"key":"3 b","change":3,"title":"Fix","name":"b","verdict":"passed","at":20,"took":5,"links":{}},{"key":"3 c","change":3,"title":"Fix","name":"c","verdict":"pending","at":null,"took":null,"links":{}}]
+
+# A merged change is keyed by its number, its page the link of its title.
+import "apps" as apps; apps::merged
+{"number": 2, "title": "Two", "author": "bob", "branch": "b", "merged": 9, "by": "ada", "url": "u"}
+{"key":2,"number":2,"title":"Two","author":"bob","branch":"b","merged":9,"by":"ada","links":{"title":"u"}}
+
+# An artifact is keyed by its id, its page the link of its name.
+import "apps" as apps; apps::artifact
+{"id": 13, "name": "a", "digest": null, "size": 5, "run": 7, "age": 1, "expires": null, "url": "u"}
+{"key":13,"id":13,"name":"a","digest":null,"size":5,"run":7,"age":1,"expires":null,"links":{"name":"u"}}
+
+# An environment is keyed by its name, and a page it has none of is no link.
+import "apps" as apps; apps::environment
+{"name": "prod", "protection": null, "approvers": null, "branches": null, "url": null}
+{"key":"prod","name":"prod","protection":null,"approvers":null,"branches":null,"links":{}}
+
+# A deployment's environment leads to that row of the environments stage, row:environments/<name>, its sha to the
+# commit, its state to its log.
+import "apps" as apps; map(apps::deployment)
+[{"id": 9, "environment": "prod", "ref": "main", "sha": "abc", "state": "success", "actor": "ada", "age": 1, "url": "l", "commit": "c"}, {"id": 8, "environment": null, "ref": null, "sha": null, "state": null, "actor": null, "age": null, "url": "l", "commit": null}]
+[{"key":9,"id":9,"environment":"prod","ref":"main","sha":"abc","state":"success","actor":"ada","age":1,"links":{"environment":"row:environments/prod","sha":"c","state":"l"}},{"key":8,"id":8,"environment":null,"ref":null,"sha":null,"state":null,"actor":null,"age":null,"links":{"state":"l"}}]
+
+# One with access is keyed by the login, a team by itself, its page its link, and a bot by its login, its page the
+# login's link; a page that is null leads nowhere.
+import "apps" as apps; [(.[0] | apps::person), (.[1] | apps::team), (.[2] | apps::agent), (.[3] | apps::agent)]
+[{"login": "ada", "name": null, "role": "admin", "kind": "user"}, {"team": "core", "name": "Core", "role": "write", "members": ["ada"], "url": "t"}, {"login": "x[bot]", "acted": ["commit"], "last": 1, "url": "b"}, {"login": "y", "acted": null, "last": null, "url": null}]
+[{"key":"ada","login":"ada","name":null,"role":"admin","kind":"user","links":{}},{"key":"core","team":"core","name":"Core","role":"write","members":["ada"],"links":{"team":"t"}},{"key":"x[bot]","login":"x[bot]","acted":["commit"],"last":1,"links":{"login":"b"}},{"key":"y","login":"y","acted":null,"last":null,"links":{}}]
+
+# An attestation is keyed by its digest and its kind, its page the subject's link; an alert by its tool and number,
+# its page the rule's link, who dismissed it and why left to the waivers; a control by its id, its page its link, its
+# checks and reviews left to the enforcement stage; a waiver by what it waives and for whom, leading to the control's
+# or the finding's row, and those hidden by the control and hidden; a rule by its name. A kind or an actor that is null
+# keys nothing.
+import "apps" as apps; [(.[0] | apps::attestation), (.[1] | apps::attestation), (.[2] | apps::alert("dependabot")), (.[3] | apps::control), (.[4] | apps::waiver), (.[5] | apps::waiver), (.[6] | apps::rule)]
+[{"subject": "s", "digest": "sha256:a", "kind": "k", "signer": null, "age": 1, "url": "u"}, {"subject": "s", "digest": "sha256:a", "kind": null, "signer": null, "age": null, "url": null}, {"number": 1, "rule": "r", "severity": null, "state": "open", "path": null, "age": 1, "url": "a", "by": null, "reason": null}, {"id": "protection", "control": "main", "target": ["main"], "enforcement": "active", "rules": null, "checks": null, "reviews": null, "source": "protection", "url": "p"}, {"waives": 7, "actor": null, "kind": "bypass", "reason": null, "by": null, "until": null, "hidden": 2, "url": "r"}, {"waives": 7, "actor": "release", "kind": "bypass", "reason": "always", "by": null, "until": null, "hidden": null, "url": null}, {"rule": "branch", "pattern": "", "from": "default", "engine": "patterns"}]
+[{"key":"sha256:a k","subject":"s","digest":"sha256:a","kind":"k","signer":null,"age":1,"links":{"subject":"u"}},{"key":"sha256:a","subject":"s","digest":"sha256:a","kind":null,"signer":null,"age":null,"links":{}},{"key":"dependabot 1","tool":"dependabot","number":1,"rule":"r","severity":null,"state":"open","path":null,"age":1,"links":{"rule":"a"}},{"key":"protection","id":"protection","control":"main","target":["main"],"enforcement":"active","rules":null,"kind":"protection","links":{"control":"p"}},{"key":"7 hidden","waives":7,"actor":null,"kind":"bypass","reason":null,"by":null,"until":null,"hidden":2,"links":{"waives":"row:controls/7","reason":"r"}},{"key":"7 release","waives":7,"actor":"release","kind":"bypass","reason":"always","by":null,"until":null,"hidden":null,"links":{"waives":"row:controls/7"}},{"key":"branch","rule":"branch","pattern":"","from":"default","engine":"patterns","links":{}}]
+
+# A dismissed alert is a waiver of the finding, keyed and linked by its tool and number, by whom and why; an open
+# one is none.
+import "apps" as apps; [.[] | apps::dismissal("dependabot")]
+[{"number": 1, "state": "dismissed", "url": "a", "by": "ada", "reason": "tolerable_risk"}, {"number": 2, "state": "open", "url": "b", "by": null, "reason": null}]
+[{"key":"dependabot 1","waives":"dependabot 1","actor":null,"kind":"dismissal","reason":"tolerable_risk","by":"ada","until":null,"hidden":null,"links":{"waives":"row:findings/dependabot 1","reason":"a"}}]
+
+# A rule its places agree on is one row at the narrowest place that holds them all, b at the organization o; one
+# they differ on is folded place by place, t apart in a and at c alone, so one more fold changes nothing.
+import "apps" as apps; map(.[0] as $w | .[1] | apps::placed($w)) | apps::scopes | map([.key, .scope])
+[[{"source":"g","organization":"o","repository":"a","branch":"main"},{"rule":"b","pattern":"x","from":"default","engine":"opa"}],[{"source":"g","organization":"o","repository":"a","branch":"2-y"},{"rule":"b","pattern":"x","from":"default","engine":"opa"}],[{"source":"g","organization":"o","repository":"c","branch":"main"},{"rule":"b","pattern":"x","from":"default","engine":"opa"}],[{"source":"g","organization":"o","repository":"a","branch":"main"},{"rule":"t","pattern":"1","from":"kit.yml","engine":"opa"}],[{"source":"g","organization":"o","repository":"a","branch":"2-y"},{"rule":"t","pattern":"2","from":"kit.yml","engine":"opa"}],[{"source":"g","organization":"o","repository":"c","branch":"main"},{"rule":"t","pattern":"2","from":"kit.yml","engine":"opa"}]]
+[["b g o","organization"],["t g o a 2-y","branch"],["t g o a main","branch"],["t g o c main","branch"]]
+
+# An enforcement row is keyed by its harness and its mechanism, and a forge's mechanism links to the control it rests
+# on, its row of the controls stage.
+import "apps" as apps; map(apps::enforced)
+[{"harness": "claude", "tier": "best-effort", "mechanism": "deny list", "status": "unknown", "evidence": "documented", "detail": "d", "passes": ["git merge"], "control": null}, {"harness": "repository", "tier": "authoritative", "mechanism": "required review", "status": "active", "evidence": "probed", "detail": "d", "passes": [], "control": 7}]
+[{"key":"claude deny list","harness":"claude","tier":"best-effort","mechanism":"deny list","status":"unknown","evidence":"documented","detail":"d","passes":["git merge"],"links":{}},{"key":"repository required review","harness":"repository","tier":"authoritative","mechanism":"required review","status":"active","evidence":"probed","detail":"d","passes":[],"links":{"mechanism":"row:controls/7"}}]
+
+# A merge needs the check and a review where an active control requires each, the first linked; who passes is who may
+# bypass every such control, a protection's admins where it does not bind them, its pull request allowances for the
+# review alone, and those the forge hides, of each control.
+import "apps" as apps; [apps::required(.; "CI")]
+{"state":"read","controls":[{"id":7,"control":"main","enforcement":"active","rules":["pull_request","required_status_checks"],"checks":["CI"],"reviews":1,"source":"ruleset"},{"id":"protection","control":"main","enforcement":"active","rules":["pull_request"],"checks":["CI"],"reviews":0,"source":"protection"},{"id":8,"control":"next","enforcement":"evaluate","rules":[],"checks":[],"reviews":2,"source":"ruleset"}],"bypasses":[{"waives":7,"actor":"release","reason":"always","hidden":null},{"waives":7,"actor":null,"reason":null,"hidden":2},{"waives":"protection","actor":"ada","reason":"pull_request","hidden":null}]}
+[{"key":"repository required check CI","harness":"repository","tier":"authoritative","mechanism":"required check CI","status":"active","evidence":"probed","detail":"ruleset main, protection main require the check CI to merge into the default branch","passes":["2 hidden on ruleset main"],"links":{"mechanism":"row:controls/7"}},{"key":"repository required review","harness":"repository","tier":"authoritative","mechanism":"required review","status":"active","evidence":"probed","detail":"ruleset main requires an approving review to merge into the default branch","passes":["release (always)","2 hidden on ruleset main"],"links":{"mechanism":"row:controls/7"}}]
+
+# A control that only evaluates binds nothing, so nothing requires the review, and a protection that binds its admins
+# lets them pass no more.
+import "apps" as apps; .controls[0].reviews = 0 | .controls[1].rules += ["enforce_admins"] | [apps::required(.; "CI") | [.status, .detail, .passes]]
+{"state":"read","controls":[{"id":7,"control":"main","enforcement":"active","rules":["pull_request","required_status_checks"],"checks":["CI"],"reviews":1,"source":"ruleset"},{"id":"protection","control":"main","enforcement":"active","rules":["pull_request"],"checks":["CI"],"reviews":0,"source":"protection"},{"id":8,"control":"next","enforcement":"evaluate","rules":[],"checks":[],"reviews":2,"source":"ruleset"}],"bypasses":[{"waives":7,"actor":"release","reason":"always","hidden":null},{"waives":7,"actor":null,"reason":null,"hidden":2},{"waives":"protection","actor":"ada","reason":"pull_request","hidden":null}]}
+[["active","ruleset main, protection main require the check CI to merge into the default branch",["2 hidden on ruleset main"]],["missing","no active control on the default branch requires an approving review; ruleset next only evaluates it, which binds nothing",["every merge"]]]
+
+# A control whose checks the forge does not show leaves the check unknown, never missing; who may bypass, unread, is
+# unknown too, null, and says why.
+import "apps" as apps; .controls[0].checks = null | .controls[1].checks = [] | .bypasses = null | .bypassed = "the forge says not who may bypass it" | [apps::required(.; "CI") | [.status, .evidence, .detail, .passes, .links]]
+{"state":"read","controls":[{"id":7,"control":"main","enforcement":"active","rules":["pull_request","required_status_checks"],"checks":["CI"],"reviews":1,"source":"ruleset"},{"id":"protection","control":"main","enforcement":"active","rules":["pull_request"],"checks":["CI"],"reviews":0,"source":"protection"},{"id":8,"control":"next","enforcement":"evaluate","rules":[],"checks":[],"reviews":2,"source":"ruleset"}],"bypasses":[{"waives":7,"actor":"release","reason":"always","hidden":null},{"waives":7,"actor":null,"reason":null,"hidden":2},{"waives":"protection","actor":"ada","reason":"pull_request","hidden":null}]}
+[["unknown","unverified","the forge does not show whether ruleset main requires the check CI",null,{"mechanism":"row:controls/7"}],["active","probed","ruleset main requires an approving review to merge into the default branch; the forge says not who may bypass it",null,{"mechanism":"row:controls/7"}]]
+
+# No forge requires either; a forge kit reads no rulesets of, one with them off, or one it could not read, is unknown.
+import "apps" as apps; map([apps::required(.; "CI") | [.status, .evidence, .detail, .passes]])
+[{"state": "none"}, {"state": "lacked"}, {"state": "off"}, {"state": "failed", "error": "run: gh auth status (the rulesets could not be read)"}]
+[[["missing","probed","the primary remote is on no code forge, so no control requires the check CI",["every merge"]],["missing","probed","the primary remote is on no code forge, so no control requires an approving review",["every merge"]]],[["unknown","unverified","kit reads no rulesets on this forge",null],["unknown","unverified","kit reads no rulesets on this forge",null]],[["unknown","unverified","the forge has its rulesets off here",null],["unknown","unverified","the forge has its rulesets off here",null]],[["unknown","unverified","run: gh auth status (the rulesets could not be read)",null],["unknown","unverified","run: gh auth status (the rulesets could not be read)",null]]]

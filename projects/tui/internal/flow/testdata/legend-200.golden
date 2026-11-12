@@ -1,0 +1,32 @@
+  = kit flow · - empowerite/kit                                                                                                                                                              🔎 /search
+  ➊╶───────────────╮➁╶────────────────╮➂╶───────────────╮➃╶──────────────────╮➄╶─────────────────╮
+  │ 🎫 issues  7 : │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  7    │  📦 releases  3   │
+  ╵                ╰──────────────────╰─────────────────╰────────────────────╰───────────────────╰──────────────────────────────────────────────────────────────────────────────────────────────────────
+  Issues — What is open, who has it, and where the work on it stands
+
+  ▾ source · organization · repository ▾ 7                                                                                                                                    📇 Fields  All Issues ▼
+    ·────────·──────────────·─────────────
+  ▾ github · empowerite 7
+
+        id   status  assignees         age  change  state             where     labels            title
+        ·────·───────×·────────────────·────·───────·─────────────────·─────────×·────────────────·────────────────────────────────────────────────────────────────────────────────────────────────────
+    ▾ jig 1
+      ▸ #7   💤      ada           +1  40d                                                        🎫 Fix the thing
+    ▾ kit 6
+      ▸ #1   🛫      jeffrey-aguilera   8d  🔀 #2   🏁 ready          🌿 here   priorityh… +1  🎫 The first release, v0.1.0: the kit verbs, the picture, and the forge seam on GitHub and GitLab
+        #8   🛫                         2d  🔀 #4   🔥 failing:gate   👤 bob                      🎫 Lint the modules
+        #8   🛫                         2d  🔀 #11  🔨 draft          🌱 local                    🎫 Lint the modules                           ╭─ issues legend ───────────────────────────── ↖ ↗ ↙ ↘ ╮
+        #46  💤      jeffrey-aguilera   2d                                      bug             🎫 A noun lists, a noun with a verb acts      │ =  kit menu              📇 fields dialog            │
+        #31  🛫      ada                3h  🔀 #12  💬 comments:open  👤 ada                      🎫 kit commit, kit submit, and kit land: one v│ -  workspace menu        ▼  presets menu, not a sort │
+      ▸ #45  💤                         2h                                      kindfeatu… +2  🎫 kit flow is the one picture: five stages, i│ 🔎 search: / or click    ·  sortable: click to sort  │
+                                                                                                                                                │ ➊  selected tab          ×  list: click to flatten   │
+                                                                                                                                                │ ➁  tab: click to select  ▸  closed: click to open    │
+                                                                                                                                                │ 🎫 issues stage          💤 backlog                  │
+                                                                                                                                                │ :  tab menu              🎫 issue 🔗                 │
+                                                                                                                                                │ 🔀 changes stage         🛫 underway                 │
+                                                                                                                                                │ 🏭 builds stage          🔀 pull request †           │
+                                                                                                                                                │ 🛬 incoming stage        🌿 branch or worktree †     │
+                                                                                                                                                │ 📦 releases stage        👤 assignees or author      │
+                                                                                                                                                │ ▾  open: click to close  🌱 local branch             │
+                                                                                                                                                ╰──────────────────────────────────────────────────────╯
+ = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-5 jump : tab menu

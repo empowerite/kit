@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "az devops invoke --area distributedtask --resource environmentdeploymentrecords --route-parameters project=${project} environmentId=${id} --query-parameters top=51 --api-version 7.1 --output json",
+  "description": "An environment's 51 deployment records as Azure DevOps lists them, taken to be newest first, which its reference leaves unsaid, a 51st saying there are more, each of the 20 environments changed last, which kit reads in `modules/bash/forge/ado.sh` (forge/ado:deployments) and folds in `modules/jq/forge.jq` (forge::ado_deployments). every call kit makes through forge/ado:az also carries --org ${organization} --detect false --only-show-errors. Each is an EnvironmentDeploymentExecutionRecord, https://learn.microsoft.com/rest/api/azure/devops/distributedtask/environmentdeployment-records/list?view=azure-devops-rest-7.1, whose parameter is top, not $top; it names no branch, commit, or person, so kit reads them from its owner, the run; result is null while it runs.",
+  "type": "object",
+  "properties": {
+    "count": {
+      "type": "integer"
+    },
+    "value": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "environmentId": {
+            "type": "integer"
+          },
+          "owner": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": ["string", "null"]
+              }
+            },
+            "required": ["id"],
+            "additionalProperties": true
+          },
+          "definition": {
+            "type": ["object", "null"],
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": ["string", "null"]
+              }
+            },
+            "additionalProperties": true
+          },
+          "queueTime": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "startTime": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "finishTime": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "result": {
+            "enum": [
+              "succeeded",
+              "succeededWithIssues",
+              "failed",
+              "canceled",
+              "skipped",
+              "abandoned",
+              null
+            ]
+          }
+        },
+        "required": ["id", "environmentId", "owner"],
+        "additionalProperties": true
+      }
+    }
+  },
+  "required": ["value"],
+  "additionalProperties": true,
+  "examples": [
+    {
+      "count": 1,
+      "value": [
+        {
+          "id": 9,
+          "environmentId": 1,
+          "owner": {
+            "id": 103,
+            "name": "49"
+          },
+          "definition": {
+            "id": 4,
+            "name": "kit"
+          },
+          "planType": "Build",
+          "stageName": "deploy",
+          "jobName": "deploy",
+          "queueTime": "2026-10-01T09:59:00Z",
+          "startTime": "2026-10-01T10:00:00Z",
+          "finishTime": "2026-10-01T10:05:00Z",
+          "result": "succeeded"
+        }
+      ]
+    }
+  ]
+}

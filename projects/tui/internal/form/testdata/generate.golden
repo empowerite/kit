@@ -1,0 +1,10 @@
+ kit generate - expands each kit:generate region, or checks that it is current
+
+   --check       writes nothing, and fails naming every stale file
+
+   --iterations  expands the named files <n> times instead of once
+
+   <path>…       the files to expand, relative to the current directory
+
+
+ kit generate

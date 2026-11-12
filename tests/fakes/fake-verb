@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# fake-verb - stands in for a kit verb that waits, exits, or reads, as libexec/kit-call runs it (test helper)
+# ----------------------------------------------------------------------------------------------------------------------
+# Copied as bin/kit-fake into a release. Its first word says what it does:
+#
+#   wait <file>     prints "waiting", then waits up to 30 seconds; when it ends, as by a signal, its EXIT trap writes
+#                   "ended" to <file>
+#   exit <status>   exits with <status>
+#   read            prints whether stdin is a terminal, whether it runs in the terminal's foreground process group,
+#                   and the line it reads from stdin
+
+set -o errexit -o nounset -o pipefail
+case "$1" in
+  (wait)
+    # the sleep runs in the background and this shell waits for it, so a signal ends this shell at once; its EXIT
+    # trap ends the sleep too
+    sleep 30 >/dev/null 2>&1 &
+    sleeping=$!
+    trap 'kill "${sleeping}" 2>/dev/null || :; printf "ended\n" > "$2"' EXIT
+    printf 'waiting\n'
+    wait "${sleeping}"
+    ;;
+  (exit) exit "$2" ;;
+  (read)
+    terminal=no foreground=no
+    [[ ! -t 0 ]] || terminal=yes
+    read -r group terminal_group < <(ps -o pgid= -o tpgid= -p "$$")
+    [[ "${group}" != "${terminal_group}" ]] || foreground=yes
+    printf 'terminal=%s foreground=%s\n' "${terminal}" "${foreground}"
+    IFS= read -r line
+    printf 'read=%s\n' "${line}"
+    ;;
+esac
+
+# ----------------------------------------------------------------------------------------------------------------------

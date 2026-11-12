@@ -1,0 +1,228 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh api graphql --field owner=${owner} --field name=${name} --field pr=${number} --raw-field after=${cursor} --raw-field query=${query}",
+  "description": "The checks on an open pull request's head commit past the first 100, 100 a page, with the commit's oid, which kit reads in `modules/bash/forge/github.sh` (forge/github:rest-of-pr with checks, from forge/github:open-prs), failing when the oid is no longer the one the first page gave. The types are the PullRequest, Commit, StatusCheckRollup, CheckRun, and StatusContext objects of GitHub's GraphQL schema, https://docs.github.com/public/fpt/schema.docs.graphql.",
+  "type": "object",
+  "properties": {
+    "data": {
+      "type": "object",
+      "properties": {
+        "repository": {
+          "type": ["object", "null"],
+          "description": "Repository, null when GitHub has none of that owner and name",
+          "properties": {
+            "pullRequest": {
+              "type": ["object", "null"],
+              "description": "PullRequest, null when the repository has none of that number",
+              "properties": {
+                "commits": {
+                  "type": "object",
+                  "description": "PullRequestCommitConnection, the head commit alone",
+                  "properties": {
+                    "nodes": {
+                      "type": ["array", "null"],
+                      "items": {
+                        "type": ["object", "null"],
+                        "description": "PullRequestCommit",
+                        "properties": {
+                          "commit": {
+                            "type": "object",
+                            "description": "Commit",
+                            "properties": {
+                              "oid": {
+                                "type": "string",
+                                "description": "GitObjectID"
+                              },
+                              "statusCheckRollup": {
+                                "anyOf": [
+                                  {
+                                    "$ref": "#/$defs/StatusCheckRollup"
+                                  },
+                                  {
+                                    "type": "null"
+                                  }
+                                ]
+                              }
+                            },
+                            "required": ["oid", "statusCheckRollup"],
+                            "additionalProperties": true
+                          }
+                        },
+                        "required": ["commit"],
+                        "additionalProperties": true
+                      }
+                    }
+                  },
+                  "required": ["nodes"],
+                  "additionalProperties": true
+                }
+              },
+              "required": ["commits"],
+              "additionalProperties": true
+            }
+          },
+          "required": ["pullRequest"],
+          "additionalProperties": true
+        }
+      },
+      "required": ["repository"],
+      "additionalProperties": true
+    }
+  },
+  "required": ["data"],
+  "additionalProperties": true,
+  "$defs": {
+    "PageInfo": {
+      "type": "object",
+      "description": "PageInfo",
+      "properties": {
+        "hasNextPage": {
+          "type": "boolean"
+        },
+        "endCursor": {
+          "type": ["string", "null"]
+        }
+      },
+      "required": ["hasNextPage", "endCursor"],
+      "additionalProperties": true
+    },
+    "CheckRun": {
+      "type": "object",
+      "description": "CheckRun",
+      "properties": {
+        "__typename": {
+          "const": "CheckRun"
+        },
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "description": "CheckStatusState",
+          "enum": ["COMPLETED", "IN_PROGRESS", "PENDING", "QUEUED", "REQUESTED", "WAITING"]
+        },
+        "conclusion": {
+          "type": ["string", "null"],
+          "description": "CheckConclusionState, null until the check completes",
+          "enum": ["ACTION_REQUIRED", "CANCELLED", "FAILURE", "NEUTRAL", "SKIPPED", "STALE", "STARTUP_FAILURE", "SUCCESS", "TIMED_OUT", null]
+        },
+        "startedAt": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "completedAt": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        }
+      },
+      "required": ["__typename", "name", "status", "conclusion", "startedAt", "completedAt"],
+      "additionalProperties": true
+    },
+    "StatusContext": {
+      "type": "object",
+      "description": "StatusContext",
+      "properties": {
+        "__typename": {
+          "const": "StatusContext"
+        },
+        "context": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "description": "StatusState",
+          "enum": ["ERROR", "EXPECTED", "FAILURE", "PENDING", "SUCCESS"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["__typename", "context", "state", "createdAt"],
+      "additionalProperties": true
+    },
+    "StatusCheckRollupContext": {
+      "description": "StatusCheckRollupContext, the union of CheckRun and StatusContext",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/CheckRun"
+        },
+        {
+          "$ref": "#/$defs/StatusContext"
+        }
+      ]
+    },
+    "StatusCheckRollupContextConnection": {
+      "type": "object",
+      "description": "StatusCheckRollupContextConnection",
+      "properties": {
+        "pageInfo": {
+          "$ref": "#/$defs/PageInfo"
+        },
+        "nodes": {
+          "type": ["array", "null"],
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/StatusCheckRollupContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "required": ["pageInfo", "nodes"],
+      "additionalProperties": true
+    },
+    "StatusCheckRollup": {
+      "type": "object",
+      "description": "StatusCheckRollup",
+      "properties": {
+        "contexts": {
+          "$ref": "#/$defs/StatusCheckRollupContextConnection"
+        }
+      },
+      "required": ["contexts"],
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "data": {
+        "repository": {
+          "pullRequest": {
+            "commits": {
+              "nodes": [
+                {
+                  "commit": {
+                    "oid": "abc",
+                    "statusCheckRollup": {
+                      "contexts": {
+                        "pageInfo": {
+                          "hasNextPage": false,
+                          "endCursor": "c2"
+                        },
+                        "nodes": [
+                          {
+                            "__typename": "CheckRun",
+                            "name": "c",
+                            "status": "COMPLETED",
+                            "conclusion": "FAILURE",
+                            "startedAt": "2026-10-01T10:02:00Z",
+                            "completedAt": "2026-10-01T10:03:00Z"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  ]
+}

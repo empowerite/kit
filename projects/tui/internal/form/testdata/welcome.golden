@@ -1,0 +1,15 @@
+ kit welcome - walks a newcomer through what kit needs, the toolchains, setup, and the workflow
+
+   one of
+   *kit welcome*  walks a newcomer through what kit needs, the toolchains, setup, and the workflow
+
+     --text     prints the guide, even on a terminal
+
+   --checks     prints the checks alone, one line each
+   --fix        runs one check's fix, then checks again
+   --keep       keeps a terminal's finding as it is: it holds from now on, in the profile it was
+                judged in; then says the check as it now is
+   --unkeep     undoes a keep, so the finding is judged again, and says it
+
+
+ kit welcome

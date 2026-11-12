@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# kit-toolchains - lists the toolchains kit found here, and records which one to use (kit verb: installation)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit toolchains [--json | --jq]
+#   kit toolchains use <name> [--system]
+#
+# Alone, it lists each manager kit can use, one row for each role it fills: a tool manager, which installs and pins
+# the versions of the repository's toolchain, the set of tools its work runs with; or a package manager, which installs
+# software on the machine. They are mise, nix, brew, docker, devcontainer, or, for the system, apt, dnf, or pacman.
+# kit finds them where it runs. The listing never asks which to use. The columns:
+#
+#   - ✅ marks a manager usable here: its tool is installed, and for the project role its file is here.
+#   - ⚡ marks one the run is already inside.
+#   - 📌 marks the one kit uses for the role. With several usable and none chosen, no row has it.
+#   - ➕ marks brew filling in for the project: it acts on the Brewfile's tools the chosen one does not pin.
+#
+# With use, it records the choice. The project choice is kept for this repository, and the system choice for the
+# person. A toolchain that is not usable here is refused, and the usable ones are named.
+#
+# Arguments:
+#   --json              one JSON object per row: provider, role, usable, active, chosen, and fills
+#   --jq                the same JSON, formatted by jq for a person
+#   use <name>          records the project's tool manager; ambient uses none
+#   <name>              mise, nix, brew, docker, devcontainer, apt, dnf, pacman, or ambient
+#   --system            records it for the system role, which supplies bash, git, jq, and yq
+#
+# Exits 0 when it did it, 1 when it could not, and 2 on a usage error.
+#
+# see: modules/bash/toolchain.sh, docs/toolchains.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use toolchain settings flow
+guard:arguments toolchains "$@" || exit $?
+# kit.yml selects no toolchain, and a key it does not know, as toolchains now is, is refused.
+settings:validate || exit 1
+
+# shellcheck disable=SC2154  # the syntax_ arrays are set by guard:arguments
+if [[ "${syntax_literals[0]:-}" == use ]]
+then
+  role=project
+  [[ -z "${syntax_options[--system]:-}" ]] || role=system
+  toolchain:choose "${role}" "${syntax_operands[0]}" || exit 1
+  ok "kit uses ${syntax_operands[0]} for the ${role}"
+  exit 0
+fi
+
+# The rows come cached from toolchain:detect, and the chosen one for each role from toolchain:chosen, which here
+# only reports.
+declare -A chosen=()
+for role in project system
+do
+  chosen[${role}]=$(toolchain:chosen "${role}" list) || exit 1
+done
+filler=$(toolchain:filler "${chosen[project]}") || exit 1
+
+json=false
+[[ -z "${syntax_options[--json]:-}" ]] || json=true
+rows=$(toolchain:detect) || exit 1
+
+if [[ "${json}" == true ]]
+then
+  while IFS=$'\t' read -r provider role usable active
+  do
+    jq --null-input --compact-output --arg provider "${provider}" --arg role "${role}" \
+      --argjson usable "$([[ "${usable}" == yes ]] && echo true || echo false)" \
+      --argjson active "$([[ "${active}" == yes ]] && echo true || echo false)" \
+      --argjson chosen "$([[ "${chosen[${role}]}" == "${provider}" ]] && echo true || echo false)" \
+      --argjson fills "$([[ "${role}" == project && "${filler}" == "${provider}" ]] && echo true || echo false)" \
+      '{provider: $provider, role: $role, usable: $usable, active: $active, chosen: $chosen, fills: $fills}'
+  done <<<"${rows}"
+  exit 0
+fi
+
+# A glyph is two columns wide and counts as one character, so a cell of six takes the glyph and four spaces.
+mark() {
+  if [[ "$1" == yes ]]
+  then printf '%s    ' "$2"
+  else printf '      '
+  fi
+}
+width=$(flow:width)
+{
+  printf '%s\n' "$(flow:paint 90 "$(printf '%-14s %-8s %s %s %s' provider role usable active chosen)")"
+  while IFS=$'\t' read -r provider role usable active
+  do
+    picked=no glyph=📌
+    [[ "${chosen[${role}]}" != "${provider}" ]] || picked=yes
+    [[ "${role}" != project || "${filler}" != "${provider}" ]] || picked=yes glyph=➕
+    line=$(printf '%-14s %-8s %s %s %s' "${provider}" "${role}" "$(mark "${usable}" ✅)" "$(mark "${active}" ⚡)" \
+      "$(mark "${picked}" "${glyph}")")
+    line=${line%"${line##*[![:space:]]}"}
+    # the row is far narrower than the least width, so it is clipped only on a terminal that cannot hold it
+    if (( ${#line} > width ))
+    then flow:cell "${line}" "${width}"; printf '\n'
+    else printf '%s\n' "${line}"
+    fi
+  done <<<"${rows}"
+}
+
+# ----------------------------------------------------------------------------------------------------------------------

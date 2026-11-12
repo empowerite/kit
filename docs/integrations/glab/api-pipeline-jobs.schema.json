@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "glab api projects/${home}/pipelines/${pipeline}/jobs?per_page=100 --paginate",
+  "description": "The jobs of a merge request's head pipeline, ${home} the id of the project the pipeline runs in, or this project's path URL-encoded when the merge request names none, which kit counts as the merge request's checks, the latest of each name, in `modules/bash/forge/gitlab.sh` (forge/gitlab:open-prs, with `modules/jq/forge.jq` forge::gitlab_runs); --paginate prints one such array per page. The types are APIEntitiesCiJob of GET /api/v4/projects/{id}/pipelines/{pipeline_id}/jobs in GitLab's REST OpenAPI, https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/openapi/openapi_v3.yaml, and the status's values and the nullable times those of https://docs.gitlab.com/api/jobs/.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string",
+        "enum": [
+          "created",
+          "waiting_for_resource",
+          "preparing",
+          "waiting_for_callback",
+          "pending",
+          "running",
+          "success",
+          "failed",
+          "canceling",
+          "canceled",
+          "skipped",
+          "manual",
+          "scheduled"
+        ]
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "started_at": {
+        "type": ["string", "null"],
+        "format": "date-time",
+        "description": "When the job started, null before it does."
+      },
+      "finished_at": {
+        "type": ["string", "null"],
+        "format": "date-time",
+        "description": "When the job finished, null before it does."
+      }
+    },
+    "required": ["name", "status", "created_at", "started_at", "finished_at"],
+    "additionalProperties": true
+  },
+  "examples": [
+    [
+      {
+        "name": "a",
+        "status": "failed",
+        "created_at": "2026-09-30T09:59:50.000Z",
+        "started_at": "2026-09-30T10:00:00.000Z",
+        "finished_at": "2026-09-30T10:05:00.000Z"
+      },
+      {
+        "name": "a",
+        "status": "success",
+        "created_at": "2026-10-01T09:59:50.000Z",
+        "started_at": "2026-10-01T10:00:00.120Z",
+        "finished_at": "2026-10-01T10:00:30.000Z"
+      },
+      {
+        "name": "b",
+        "status": "success",
+        "created_at": "2026-10-01T09:59:50.000Z",
+        "started_at": "2026-10-01T10:00:10.000Z",
+        "finished_at": "2026-10-01T10:01:00.450Z"
+      }
+    ]
+  ]
+}

@@ -1,0 +1,4 @@
+{"rows": [
+  {"key": 7, "id": 7, "control": "main", "target": ["~DEFAULT_BRANCH"], "enforcement": "active", "rules": ["deletion", "pull_request"], "source": "github", "links": {"control": "https://github.com/o/r/rules/7"}, "kind": "ruleset", "organization": "o", "repository": "r"},
+  {"key": "protection main", "id": "protection main", "control": "main", "target": ["main"], "enforcement": "active", "rules": null, "source": "github", "links": {"control": "https://github.com/o/r/settings/branches"}, "kind": "protection", "organization": "o", "repository": "r"}
+], "errors": []}

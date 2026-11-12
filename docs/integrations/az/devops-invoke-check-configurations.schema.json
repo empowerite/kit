@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "az devops invoke --area PipelinesChecks --resource queryconfigurations --route-parameters project=${project} --query-parameters $expand=settings --http-method POST --in-file ${resources} --api-version 7.1-preview.1 --output json",
+  "description": "The checks on every environment read, one request, ${resources} a file of [{type: environment, id, name}], which kit reads in `modules/bash/forge/ado.sh` (forge/ado:environments) and folds in `modules/jq/forge.jq` (forge::ado_environments). every call kit makes through forge/ado:az also carries --org ${organization} --detect false --only-show-errors. Each is a CheckConfiguration, https://learn.microsoft.com/rest/api/azure/devops/approvalsandchecks/check-configurations/query?view=azure-devops-rest-7.1, its settings expanded: an Approval's approvers, and a branch control's, a Task Check whose definitionRef is evaluatebranchProtection, allowedBranches, refs apart by commas. The settings' shapes are not in the reference, and the area's name, PipelinesChecks, is the client libraries'; neither was checked against a live organization.",
+  "type": "object",
+  "properties": {
+    "count": {
+      "type": "integer"
+    },
+    "value": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "isDisabled": {
+            "type": ["boolean", "null"]
+          },
+          "type": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": ["name"],
+            "additionalProperties": true
+          },
+          "resource": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": ["string", "null"]
+              }
+            },
+            "required": [
+              "type",
+              "id"
+            ],
+            "additionalProperties": true
+          },
+          "settings": {
+            "type": ["object", "null"],
+            "properties": {
+              "approvers": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "displayName": {
+                      "type": ["string", "null"]
+                    },
+                    "uniqueName": {
+                      "type": ["string", "null"]
+                    },
+                    "id": {
+                      "type": ["string", "null"]
+                    }
+                  },
+                  "additionalProperties": true
+                }
+              },
+              "definitionRef": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true
+              },
+              "inputs": {
+                "type": "object",
+                "properties": {
+                  "allowedBranches": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "type",
+          "resource"
+        ],
+        "additionalProperties": true
+      }
+    }
+  },
+  "required": ["value"],
+  "additionalProperties": true,
+  "examples": [
+    {
+      "count": 2,
+      "value": [
+        {
+          "id": 14,
+          "type": {
+            "id": "8c6f20a7-a545-4486-9777-f762fafe0d4d",
+            "name": "Approval"
+          },
+          "resource": {
+            "type": "environment",
+            "id": "1",
+            "name": "production"
+          },
+          "settings": {
+            "approvers": [
+              {
+                "displayName": "Ada",
+                "uniqueName": "ada",
+                "id": "a1"
+              }
+            ],
+            "minRequiredApprovers": 1
+          }
+        },
+        {
+          "id": 12,
+          "type": {
+            "id": "fe1de3ee-a436-41b4-bb20-f6eb4cb879a7",
+            "name": "Task Check"
+          },
+          "resource": {
+            "type": "environment",
+            "id": "1",
+            "name": "production"
+          },
+          "settings": {
+            "definitionRef": {
+              "id": "86b05a0c-73e6-4f7d-b3cf-e38f3b39a75b",
+              "name": "evaluatebranchProtection"
+            },
+            "inputs": {
+              "allowedBranches": "refs/heads/main"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+# Our team
+
+Ask in the team channel before your first deploy.
+
+<!-- the stages of kit flow, in order -->
+
+Work moves through the stages that `kit flow` draws. Each part ends with the command that shows it live.
+
+## The backlog
+
+An issue waits in the backlog until someone takes it. `kit flow issues` lists them.
+
+## Underway
+
+`kit work <N>` makes a worktree for issue N, on a branch of its own, and the issue is underway. You commit there
+with `kit commit`, which runs the checks a commit's rule requires.
+
+- `kit submit` pushes the branch and opens the pull request.
+- The build runs the gates; `kit flow builds` shows it.
+- A release tags what the build passed.
+
+## The desk
+
+The desk is the root checkout. People read and review there; agents never work there, so two never edit one tree.
+
+```sh
+kit flow desk
+```

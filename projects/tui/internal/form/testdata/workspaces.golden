@@ -1,0 +1,30 @@
+ kit workspaces - lists, shows, and edits your workspaces, and says which one kit starts on
+
+   one of
+   *kit workspaces*            lists, shows, and edits your workspaces, and says which one kit starts
+                             on
+
+     --text   --json   --jq  prints as text, even on a terminal
+
+   --show                    shows a workspace's members, each with its checkout
+   --current                 says which workspace kit starts on here, and why; under kit
+                             --workspace=<workspace>, the kit option before the verb, that one in
+                             place of where kit runs, none naming no workspace, and an absolute path
+                             the repository whose working tree holds it
+   --use                     remembers a group as the last used, which kit starts on outside a
+                             repository; given a <folder>, keeps the repository whose working tree
+                             holds it first among the recent ones, by its desk, a linked worktree's
+                             its repository's, ten at most, which the workspace menu offers
+   --new                     makes a group, with the repositories given as its members
+   --add <repository>
+   --add --from <repository>
+   --remove                  takes the repositories out of a group's members
+   --rename                  gives a group a new name, in its place in the file, and keeps it the
+                             last used if it was
+   --delete                  takes a group, and its favorite, out of the file, and forgets it as the
+                             last used; its checkouts are as they were
+   --favorite                adds a workspace to the favorites
+   --unfavorite              takes a workspace out of the favorites
+
+
+ kit workspaces

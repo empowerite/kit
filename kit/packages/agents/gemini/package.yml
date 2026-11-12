@@ -1,0 +1,11 @@
+# packages/agents/gemini/package.yml - the agents/gemini package: Gemini CLI reads AGENTS.md, and refuses the same commands
+# ----------------------------------------------------------------------------------------------------------------------
+# see: docs/packages.md, docs/packages/agents/gemini.md
+
+description: "Gemini CLI: AGENTS.md as a context file, the deny list, and the kit's MCP server"
+depends:
+  - kit
+  - agents/generic
+notices:
+  - path: .gemini/settings.json
+    text: "Gemini CLI starts the kit server under mcpServers in its next session, in a folder it trusts"

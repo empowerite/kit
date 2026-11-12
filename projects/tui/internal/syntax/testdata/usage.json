@@ -1,0 +1,30 @@
+{
+  "verb": "usage",
+  "purpose": "prints the usage lines of the verbs",
+  "usage": [
+    "kit usage [<verb>…]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "verb",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "<verb>": {
+      "description": "the verbs, by whole name; default: every verb, in name order"
+    }
+  }
+}

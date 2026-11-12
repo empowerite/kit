@@ -1,0 +1,185 @@
+{
+  "verb": "welcome",
+  "purpose": "walks a newcomer through what kit needs, the toolchains, setup, and the workflow",
+  "usage": [
+    "kit welcome [--text]",
+    "kit welcome --checks [--json | --jq] [--folder=<path>] [--progress]",
+    "kit welcome --fix=<check> [--folder=<path>]",
+    "kit welcome --keep=<check> [--json]",
+    "kit welcome --unkeep=<check> [--json]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "flag",
+        "name": "checks",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "name": "folder",
+              "value": "path",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "progress",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "option",
+        "name": "fix",
+        "value": "check",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "name": "folder",
+              "value": "path",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "option",
+        "name": "keep",
+        "value": "check",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "option",
+        "name": "unkeep",
+        "value": "check",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--text": {
+      "description": "prints the guide, even on a terminal"
+    },
+    "--checks": {
+      "description": "prints the checks alone, one line each"
+    },
+    "--json": {
+      "description": "the checks as a JSON array; with --keep= or --unkeep=, the check as it now is, one JSON object, or null where kit did not ask the terminal"
+    },
+    "--jq": {
+      "description": "the same JSON, formatted by jq for a person"
+    },
+    "--fix": {
+      "description": "runs one check's fix, then checks again"
+    },
+    "--keep": {
+      "description": "keeps a terminal's finding as it is: it holds from now on, in the profile it was judged in; then says the check as it now is"
+    },
+    "--unkeep": {
+      "description": "undoes a keep, so the finding is judged again, and says it"
+    },
+    "--folder": {
+      "description": "the folder whose working tree holds <path>: --checks prints its checks alone, and --fix runs a folder's check there; with none, --fix runs it in the repository here"
+    },
+    "--progress": {
+      "description": "with --checks, says on stderr what is being checked as it goes: ⏳ checking <check>, then \" in <folder>\" for a folder's, as each check starts, and ⏳ checked, then \" <folder>\" for a folder, as the machine's checks or a folder's end; kittui shows them while the checks run"
+    },
+    "<check>": {
+      "description": "a check's id, as --checks --json names it: tool-yq, toolchain-project"
+    }
+  }
+}

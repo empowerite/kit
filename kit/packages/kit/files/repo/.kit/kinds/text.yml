@@ -1,0 +1,18 @@
+# kit:generated -- the text kind, from the kit package
+# see: "Changing what kit adds" in .kit/1st.md, to replace it
+#
+# A file a person reads as text: every kind the kit defines that holds prose, in its documents or its comments, and
+# plain text files. The prose style governs this kind.
+name: text
+paths:
+  - "**/*.txt"
+kinds:
+  - bash
+  - gitignore
+  - jq
+  - json
+  - just
+  - markdown
+  - sh
+  - workflows
+  - yaml

@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# kit-tutorials - lists kit's tutorials, and opens one, in kittui or the browser (kit verb: help)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit tutorials [--text | --json | --jq] [--tag=<audience>…]
+#   kit tutorials [--text] [--tag=<audience>…] <tutorial>
+#
+# The tutorials are short lessons, each for some audiences: some ship with the kit, pages read on this machine, and
+# the others are a site online. On a terminal, it opens kittui's tutorials screen, a card for each tutorial that says
+# which it is, the audiences as filters; a tutorial in the kit opens there, and one online in the browser. Without a
+# terminal, or with --text, it prints each tutorial: its glyph and title, its summary, its audiences, and its link, or,
+# for one in the kit, the command that reads it. A tutorial named opens kittui's screen on its card, on a terminal;
+# without one, or with --text, one in the kit prints its title and its page, and one online opens in the browser, its
+# title and link printed first, so a machine with no browser has the link.
+#
+# A link depends on this kit's version: a release's own tutorials, the site's main branch for a checkout, and for a
+# pre-release the one built for it. Each link ends with ?kit=<version>, so a page can tell you when your kit is too old
+# for a passage. Nothing here runs a tutorial's commands.
+#
+# KIT_TUTORIALS_BASE replaces the site the links start from, as a site served on this machine; KIT_TUTORIALS_CATALOGUE
+# names another catalogue.
+#
+# Arguments:
+#   --text            prints the list, even on a terminal
+#   --json            one JSON object: {version, base, audiences, tutorials}, each tutorial {id, title, summary,
+#                     glyph, audience, where, url, file}: where is kit or online, url the link of one online, file the
+#                     page of one in the kit, and the other empty
+#   --jq              the same JSON, formatted by jq for a person
+#   --tag=<audience>  keeps the tutorials for that audience; given again, or with audiences joined by :, as
+#                     --tag=ui:maintainer, it keeps the tutorials for any of them
+#   <audience>        an audience's id, as --json names it: newcomer, ui, maintainer
+#   <tutorial>        a tutorial's id, as --json names it; kittui opens on its card, or it opens in the browser
+#
+# Exits 0 when it printed or opened, 1 when the catalogue or a tutorial's page in the kit is missing, and 2 on a usage
+# error, or a tutorial or audience that is unknown.
+#
+# see: modules/bash/tutorials.sh, modules/bash/tui.sh, docs/tutorials.md, issue #86
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use tutorials tui new terminal
+guard:arguments tutorials "$@" || exit $?
+
+# A --tag's audiences may come joined by :, --tag=a:b for --tag=a --tag=b.
+tags=() tutorial='' form=''
+while (( $# ))
+do
+  case "$1" in
+    (--tag=*)
+      IFS=: read -ra joined <<<"${1#--tag=}"
+      tags+=("${joined[@]}")
+      ;;
+    (--text | --json) form=$1 ;;
+    (--jq) form=--json ;;
+    (*) tutorial=$1
+  esac
+  shift
+done
+
+# screen [<tutorial>] puts kittui's tutorials screen in this process's place, on the tutorial's card when one is named,
+# the tags given filtering its cards: on a terminal, with no form chosen, with a kittui to run; else it returns.
+screen() {
+  local binary tag
+  local -a args=()
+  [[ -z "${form}" && -t 0 && -t 1 && -t 2 ]] && tui:binary --probe >/dev/null 2>&1 || return 0
+  binary=$(tui:binary) || exit 1
+  terminal:export-probes
+  export KIT="${kit_root}/bin/kit"
+  for tag in "${tags[@]}"
+  do
+    args+=("--tag=${tag}")
+  done
+  exec "${binary}" tutorials "${args[@]}" "$@"
+}
+
+# A tutorial named opens kittui's screen on its card. Without it, one in the kit prints its title and its page; one
+# online opens in the browser, after its title and link print, for a machine that cannot open one.
+if [[ -n "${tutorial}" ]]
+then
+  json=$(tutorials:json) || exit 1
+  entry=$(jq --compact-output --arg id "${tutorial}" '.tutorials[] | select(.id == $id)' <<<"${json}")
+  if [[ -z "${entry}" ]]
+  then
+    error "'${tutorial}' is not a tutorial; run: kit help tutorials"
+    exit 2
+  fi
+  screen "${tutorial}"
+  if [[ "$(jq --raw-output .where <<<"${entry}")" == kit ]]
+  then
+    jq --raw-output '"\(.glyph) \(.title)"' <<<"${entry}"
+    tutorials:page "$(jq --raw-output .file <<<"${entry}")" || exit 1
+    exit 0
+  fi
+  jq --raw-output '"\(.glyph) \(.title)\n\(.url)"' <<<"${entry}"
+  new:browse "$(jq --raw-output .url <<<"${entry}")"
+  exit 0
+fi
+
+json=$(tutorials:json "${tags[@]}") || exit 1
+
+if [[ "${form}" == --json ]]
+then
+  printf '%s\n' "${json}"
+  exit 0
+fi
+
+# On a terminal, with no form chosen, the screen is kittui's, which runs this kit. Without a kittui, the list prints,
+# as it does without a terminal.
+screen
+
+tutorials:text "${json}" "${tags[@]}"
+
+# ----------------------------------------------------------------------------------------------------------------------

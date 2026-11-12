@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# kit-facts - prints the facts a policy engine judges, as JSON (kit verb: plumbing)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit facts [--moment=<moment>]
+#
+# Prints the facts document: the JSON that kit policy hands its engine, and that a rule is written against. It holds
+# the moment, the branch, the worktree, the commits, the change, the tree of files git holds, and the policy settings:
+# each rule's pattern, and its remedy.
+#
+# At ci, the facts are those kit policy judges, and kit policy --input prints the same document. The tree is HEAD.
+# A change the forge cannot answer for is {"error": "<line>"}, the line kit says for the read, which kit policy
+# refuses. The worktree is a linked worktree's path from the main checkout's root, and null in the main checkout. At
+# commit, the tree is the index, the worktree null, commits is empty, and change is null; kit commit adds the commit it
+# makes.
+#
+# Arguments:
+#   --moment=<moment>   the moment to gather for: ci, the default, or commit
+#
+# Exits 0, 1 when a fact other than the change cannot be gathered, and 2 on a usage error.
+#
+# see: modules/bash/facts.sh, modules/bash/policy.sh, docs/policy.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use facts materialize policy file
+guard:arguments facts "$@" || exit $?
+materialize:hydrate
+
+# shellcheck disable=SC2154  # syntax_options is set by guard:arguments
+moment=${syntax_options[--moment]:-ci}
+# At commit, the policy settings in the document are the index's, as kit commit reads them.
+if [[ "${moment}" == commit ]]
+then
+  file:scratch scratch
+  # shellcheck disable=SC2154  # scratch is set by file:scratch
+  policy:from '' "${scratch}/policy"
+fi
+facts:document "${moment}"
+
+# ----------------------------------------------------------------------------------------------------------------------

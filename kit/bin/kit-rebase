@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# kit-rebase - rebases a branch onto the default branch and pushes it (kit verb: workflow)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit rebase [<path>]
+#
+# Rebases the branch checked out at <path> onto the default branch at the primary remote, and pushes it to its own
+# name on its remote: the remote of its upstream when the upstream has the branch's name, else the push remote, which
+# becomes its upstream. push.default never decides where it goes. The primary is the primary setting in kit.yml, else
+# origin; the push remote is the push setting, as a fork's origin, else the primary.
+# When the branch's remote has commits this checkout lacks, another session's, kit rebase takes them first: it
+# rebases onto them, then onto the default branch. With require_signing true in kit.yml, every commit the rebase
+# rewrites is signed. The push forces only over the tip kit rebase read, so a commit pushed after it read makes the
+# push fail rather than vanish. kit rebase refuses, before it fetches or rewrites anything:
+#
+#   - a checkout with no branch checked out
+#   - the root checkout, the desk, which belongs to the human, whatever branch it has
+#   - the default branch, in any checkout
+#   - a worktree with uncommitted changes
+#   - with require_signing true, a git with no signing key
+#
+# On a conflict, kit rebase aborts and leaves the worktree as it was.
+#
+# Arguments:
+#   <path>   the checkout whose branch to rebase; default: the current one
+#
+# Exits 0 when the branch is rebased and pushed, 1 on a refusal, a conflict, or a failed push, and 2 on a usage
+# error.
+#
+# see: modules/bash/git.sh
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use git
+
+guard:arguments rebase "$@" || exit $?
+
+guard:require tool:git
+git:rebase "$@"
+
+# ----------------------------------------------------------------------------------------------------------------------

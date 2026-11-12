@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# kit-gate - runs the repository's gate (kit verb: checks)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit gate
+#
+# kit gate takes no arguments. The gate is the repository's own CI command, the first of:
+#
+#   1. the `gate` setting in kit.yml
+#   2. `just ci`, when the root justfile has a ci recipe
+#   3. `make ci`, when the Makefile has a ci target
+#   4. `npm run ci`, when package.json has a ci script
+#
+# The gate runs with the tools the chosen tool manager pins, inside its container when that is docker.
+# kit toolchains shows which toolchain that is; KIT_TOOLCHAIN names one for a run.
+#
+# kit gate fails, and prints the remedy, when the repository has no gate or the root justfile cannot be read. A gate
+# that cannot run never counts as a pass. On a CI runner, each outcome is also written to the step summary.
+#
+# Arguments:
+#
+# Exits 0 when the gate passes, 1 otherwise, and 2 on a usage error.
+#
+# see: modules/bash/toolchain.sh, packages/github/ci/templates/repo/.github/workflows/kit-ci.yml
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use toolchain settings materialize
+guard:arguments gate "$@" || exit $?
+materialize:hydrate
+
+# detect-gate prints the command of the first gate found, or nothing. It fails when the root justfile cannot be read.
+detect-gate() {
+  local recipes
+  if [[ -f justfile || -f Justfile || -f .justfile ]]
+  then
+    if ! recipes=$(just --summary 2>&1)
+    then
+      error "the root justfile could not be read: ${recipes}"
+      summary "### ❌ The root justfile could not be read" "" "${recipes}"
+      return 1
+    fi
+    grep --quiet --line-regexp ci <<<"${recipes// /$'\n'}" && printf 'just ci\n' && return 0
+  fi
+  if [[ -f Makefile ]] && grep --quiet '^ci:' Makefile
+  then
+    printf 'make ci\n'
+    return 0
+  fi
+  if [[ -f package.json ]] && jq --exit-status '.scripts.ci' package.json >/dev/null 2>&1
+  then
+    printf 'npm run ci\n'
+    return 0
+  fi
+  return 0
+}
+
+gate=$(settings:value gate)
+[[ -n "${gate}" ]] || gate=$(detect-gate) || exit 1
+if [[ -z "${gate}" ]]
+then
+  error "set gate in kit.yml, or give the root justfile a ci recipe; there is no gate to run"
+  # shellcheck disable=SC2016  # markdown code spans, not expansions
+  summary "### ❌ The gate cannot run: the repository has none" "" \
+    'Set `gate` in `kit.yml`, or give the root justfile a `ci` recipe.'
+  exit 1
+fi
+# The toolchain is settled first, so a refusal to choose one is not reported as the gate failing. On a terminal, the
+# person may be asked to choose, so nothing is captured; elsewhere, the reason also goes to the step summary.
+if [[ -t 0 && -t 2 ]]
+then
+  toolchain:chosen project >/dev/null || exit 1
+else
+  file:temp reason reason || exit 1
+  # shellcheck disable=SC2154  # reason is set by file:temp
+  if ! toolchain:chosen project >/dev/null 2>"${reason}"
+  then
+    cat "${reason}" >&2
+    summary "### ❌ The gate cannot run" "" "$(grep -v '^::' "${reason}" | sed 's/^❌ //')"
+    rm -f "${reason}"
+    exit 1
+  fi
+  cat "${reason}" >&2
+  rm -f "${reason}"
+fi
+step "the gate: ${gate}"
+if ! toolchain:run bash -c "${gate}"
+then
+  error "the gate failed: ${gate}"
+  summary "### ❌ The gate failed: \`${gate}\`"
+  exit 1
+fi
+summary "✅ The gate passed: \`${gate}\`."
+
+# ----------------------------------------------------------------------------------------------------------------------

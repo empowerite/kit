@@ -1,0 +1,179 @@
+#!/usr/bin/env bash
+# kit-publish - pushes a release's artifacts to their targets, from a runner, through their tools (kit verb: workflow)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit publish <version> [--retire]
+#
+# Pushes each artifact under publish: in kit.yml to the targets its release or its pre-release names: a version with
+# a suffix is a pre-release. Each target is a provider of the targets seam, which runs its connector, the tool its
+# service ships: git for vcs-tag, gh for github-release, jf for artifactory-local, npm for npm-publish. kit never
+# speaks a service's upload API itself, and the runner carries the credentials.
+#
+# It runs on a runner alone, where GITHUB_ACTIONS, GITLAB_CI, or TF_BUILD is set, as the release workflow that a
+# pushed tag starts runs it. A pre-release is the exception: a desk may publish one, at its own risk. Before it
+# pushes to any target, it refuses:
+#
+#   - a version that is not <major>.<minor>.<patch>, with -<suffix> for a pre-release
+#   - a version whose tag, release/<version>, is not on the primary remote: kit release pushes it first
+#   - an artifact file that is not there, its {version} filled in
+#   - a target whose connector is not on PATH
+#   - a target that holds the version already: a version is never overwritten; update is a new version
+#
+# Once every target has taken it, it tags what it pushed as release-hashes/<version>, a tag of one line per artifact
+# with the hash its pull kind takes, and pushes that tag, so kit flow releases and kit release --wait can tell
+# whether a pull source serves the same bytes. The push is done when the targets take it; whether the pull path
+# serves it yet is visibility, which kit flow releases shows.
+#
+# With --retire, it takes the version back from each target that can: delete is retire.
+#
+# Arguments:
+#   <version>   the version to publish: 0.1.0, or 0.1.0-rc.7 for a pre-release
+#   --retire    takes the version back from its targets instead
+#
+# Exits 0 when every target took it, 1 on a refusal or a target that failed, and 2 on a usage error.
+#
+# see: modules/bash/targets.sh, modules/bash/visibility.sh, kit-release, docs/features.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use releases targets visibility settings forge file
+guard:arguments publish "$@" || exit $?
+settings:validate || exit 1
+guard:require tool:git tool:jq
+
+# shellcheck disable=SC2154  # the syntax_ arrays are set by guard:arguments
+version=${syntax_operands[0]}
+retire=false
+[[ -z "${syntax_options[--retire]+x}" ]] || retire=true
+if ! releases:valid "${version}"
+then
+  error "'${version}' is not a version: <major>.<minor>.<patch>, with -<suffix> for a pre-release;" \
+    "run: kit help publish"
+  exit 2
+fi
+kind=release
+[[ "${version}" != *-* ]] || kind=prerelease
+
+if ! runner=$(targets:runner) && [[ "${kind}" == release ]]
+then
+  error "a release is published from a runner, never at a desk; push its tag with kit release ${version}, and the" \
+    "release workflow publishes it (a pre-release may be published from a desk, at its own risk)"
+  exit 1
+fi
+[[ -n "${runner:-}" ]] || warn "publishing the pre-release ${version} from a desk, at your own risk"
+
+list:read artifacts targets:artifacts || exit 1
+if (( ${#artifacts[@]} == 0 )) || [[ -z "${artifacts[0]}" ]]
+then
+  error "kit.yml names no artifact under publish:, so there is nothing to publish; see: kit help publish"
+  exit 1
+fi
+targets:check "${artifacts[@]}" || exit 1
+
+primary=$(forge:primary) || exit 1
+if [[ -z "$(git ls-remote --tags --end-of-options "${primary}" "refs/tags/release/${version}")" ]]
+then
+  error "release/${version} is not on ${primary}; tag and push it first: kit release ${version}"
+  exit 1
+fi
+git fetch --quiet --no-tags --end-of-options "${primary}" "refs/tags/release/${version}:refs/tags/release/${version}" \
+  2>/dev/null || true  # a tag that is here already is the same one: the primary has it, as ls-remote said
+
+# plan holds one line per push, "<artifact>\t<target>\t<files>", the target as JSON with its artifact in it, and the
+# files apart by \x1f; nothing is pushed until every line passes.
+plan=()
+for artifact in "${artifacts[@]}"
+do
+  name=$(jq --raw-output .name <<<"${artifact}")
+  # shellcheck disable=SC2016  # the $ names are jq's own, which jq binds
+  list:read files jq --raw-output --arg v "${version}" '.files[] | gsub("\\{version\\}"; $v)' <<<"${artifact}" || exit 1
+  if [[ "${retire}" == false ]]
+  then
+    for file in "${files[@]}"
+    do
+      [[ -f "${file}" ]] || { error "${name}: ${file} is not here; build it before kit publish ${version}"; exit 1; }
+    done
+  fi
+  # shellcheck disable=SC2016  # the $ names are jq's own, which jq binds
+  list:read chosen jq --compact-output --arg kind "${kind}" --argjson artifact "${artifact}" \
+    '.targets[$kind][] | . + {artifact: $artifact}' <<<"${artifact}" || exit 1
+  if (( ${#chosen[@]} == 0 )) || [[ -z "${chosen[0]}" ]]
+  then
+    warn "${name} names no target for a ${kind}, so it is not pushed"
+    continue
+  fi
+  for target in "${chosen[@]}"
+  do
+    tkind=$(jq --raw-output .kind <<<"${target}")
+    connector=$(targets:call "${tkind}" connector) || exit 1
+    if ! command -v "${connector}" >/dev/null 2>&1
+    then
+      error "${name}: the ${tkind} target runs ${connector}, which is not on PATH; install it on the runner"
+      exit 1
+    fi
+    if [[ "${retire}" == false ]] && targets:call "${tkind}" pushed "${version}" "${target}"
+    then
+      error "${name}: the ${tkind} target holds ${version} already; a version is never overwritten, so publish a new" \
+        "one"
+      exit 1
+    fi
+    plan+=("${name}"$'\t'"${target}"$'\t'"$(IFS=$'\x1f'; printf '%s' "${files[*]}")")
+  done
+done
+
+status=0
+for line in "${plan[@]}"
+do
+  IFS=$'\t' read -r name target joined <<<"${line}"
+  IFS=$'\x1f' read -r -a files <<<"${joined}"
+  tkind=$(jq --raw-output .kind <<<"${target}")
+  if [[ "${retire}" == true ]]
+  then
+    step "${name}: retiring ${version} from ${tkind}"
+    if ! targets:call "${tkind}" retire "${version}" "${target}"
+    then
+      error "${name}: ${tkind} did not retire ${version}"
+      status=1
+    fi
+    continue
+  fi
+  step "${name}: pushing ${version} to ${tkind}"
+  if ! targets:call "${tkind}" push "${version}" "${target}" "${files[@]}"
+  then
+    error "${name}: ${tkind} did not take ${version}; see above"
+    exit 1
+  fi
+  ok "${name}: ${tkind} took ${version}"
+done
+if [[ "${retire}" == true ]]
+then
+  (( status == 0 )) && ok "retired ${version}"
+  exit "${status}"
+fi
+
+# What was pushed, by hash, as each artifact's pull kind hashes it, so visibility can tell the same bytes from others.
+recorded=''
+for artifact in "${artifacts[@]}"
+do
+  name=$(jq --raw-output .name <<<"${artifact}")
+  coordinate=$(visibility:coordinate "${artifact}" "${version}") || exit 1
+  hashkind=$(visibility:hash-kind "${coordinate}")
+  [[ -n "${hashkind}" ]] || continue
+  # shellcheck disable=SC2016  # the $ names are jq's own, which jq binds
+  list:read files jq --raw-output --arg v "${version}" '.files[] | gsub("\\{version\\}"; $v)' <<<"${artifact}" || exit 1
+  file=$(visibility:file "${artifact}" "${version}" "${files[@]}")
+  recorded+="${name}"$'\t'"$(sources:call "${hashkind}" hash "${file}" "${coordinate}")"$'\n'
+done
+if [[ -n "${recorded}" ]]
+then
+  blob=$(printf '%s' "${recorded}" | git hash-object -w --stdin) || exit 1
+  git tag "release-hashes/${version}" "${blob}" || exit 1
+  git push --quiet --end-of-options "${primary}" "refs/tags/release-hashes/${version}" || exit 1
+  step "release-hashes/${version} records what was pushed"
+fi
+ok "published ${version}${runner:+ from ${runner}}"
+summary "✅ Published ${version}."
+
+# ----------------------------------------------------------------------------------------------------------------------

@@ -1,0 +1,205 @@
+#!/usr/bin/env bash
+# kit-bots - lists, adopts, and forgets the bots that act for you (kit verb: workflow)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit bots [--text | --json | --jq]
+#   kit bots --add=<name> --app=<id> --key=<source> [--jobs=<job>…]
+#   kit bots --remove=<name>
+#   kit bots --check [--bot=<name>] [--text | --json | --jq]
+#   kit bots [--bot=<name>] token [--json]
+#   kit bots [--bot=<name>] run <command>…
+#
+# A bot is a GitHub App you have set up to act for you. Its public facts are in kit/bots.yml under XDG_CONFIG_HOME, else
+# ~/.config, which you may edit by hand; kit keeps your comments when it edits the file. Its private key is in the
+# operating system's secret store, the macOS keychain or the Linux Secret Service, never in the file, and no form
+# prints it. Where neither store exists, kit bots refuses, and names the one to install.
+#
+# With no option, it lists the bots. The list's JSON is {file, bots: [{name, host, app, owner, jobs, key}]}, key true
+# where the store holds the bot's key. The bot a repository uses is the one kit.yml names as bot:, else the only one on
+# its primary remote's host.
+#
+# --add adopts an App that exists, and proves its key before it stores anything: it signs for the App, reads it, finds
+# an installation, this repository's where the App reaches it, else the App's first, mints an installation token, and
+# revokes it. The name is the App's slug, so the bot's login is <name>[bot]. The host is the primary remote's,
+# github.com outside a repository, which works as well as inside one. An App that is installed nowhere is refused, with
+# the page to install it at. Adding a bot that is there replaces its entry and its key.
+#
+# --remove forgets a bot and deletes its key from the store; the App stays on the forge.
+#
+# --check compares the App's permissions with its jobs: what a job lacks, and what no job needs. It says whether the
+# App's installation reaches this repository, and where not, the installation's page to add it on. The JSON is {name,
+# installation, page, repository, reached, lacks, extra}. Outside a repository it judges the App's permissions alone,
+# reached null. It exits 1 where the installation does not reach this repository, where the App is installed nowhere,
+# and where a job lacks a permission, since that job would fail when the bot acts; a permission no job needs is advice,
+# and exits 0.
+#
+# token prints an installation token narrowed to this repository, and only the token, for a pipe; with --json, the
+# object {token, expires_at}. It is good for an hour, and kit does not revoke it; it refuses outside a repository.
+#
+# run runs the command as the bot, for as long as it runs, and exits with its status. The command has GH_TOKEN, a fresh
+# installation token narrowed to this repository; a gh on PATH that mints a new token when the old is within ten
+# minutes of its hour, so a session that runs all afternoon keeps working; and git's credential helper for the forge's
+# host answering with the same token, so git push pushes as the bot. KIT_BOT is the bot's name, KIT_BOT_LOGIN its login,
+# <name>[bot], and KIT_BOT_FOR the person's login, which a run inside a run keeps. The tokens live in a directory of the
+# run's own, readable by you alone, and are revoked and the directory removed when the command ends, or kit bots is
+# terminated or hung up, the status then being 128 and the signal's number. A token that could not be revoked is a
+# warning, since it expires within the hour. Every word after run is the command's, kit bots' own options included, and
+# none is parsed. A TERM or HUP sent to kit reaches the verb, and so the run. An interrupt from the terminal reaches
+# the command with the verb, as the terminal sends it to the whole group, and the command's own status stands.
+#
+# Arguments:
+#   --text            prints the bots as text, even on a terminal
+#   --json            one JSON object, as above; for token, {token, expires_at}
+#   --jq              the same JSON, formatted by jq for a person
+#   --add             adopts the App that <name> is the slug of, with --app and --key
+#   --app             the App's ID, a number
+#   --key             the App's private key, a <source>
+#   --jobs            what the bot is set up to do, one or more <job>, repeated or joined with :, as --jobs=work:review;
+#                     work and review without it
+#   --remove          forgets a bot and deletes its key
+#   --check           compares the App's permissions with its jobs and its installation with this repository
+#   --bot             the bot --check, token, or run is for, a <name>; the one kit.yml names, else the only one on the
+#                     primary remote's host, without it
+#   token             prints an installation token for this repository
+#   run               runs a command as the bot
+#   <command>         the command to run, and its arguments
+#   <name>            a bot's name, which is its App's slug: letters, digits, and -
+#   <id>              a GitHub App's ID, as its settings page shows it
+#   <source>          a PEM file, or keychain:<service>/<account>, an item another tool stored in the keychain; the
+#                     key is read as is, CRLF line ends and PKCS#8 included, and kept with LF line ends
+#   <job>             work, review, or workflows
+#
+# Exits 0 when it printed or edited, 1 when the file does not read, the App did not accept the key or is installed
+# nowhere, does not reach this repository, or lacks a permission a job needs, or a store or a write failed, and 2 on a
+# usage error, a key source that names nothing, or a name that is not the App's slug or a bot's; run exits with the
+# command's status, or 128 and the signal's number when interrupted.
+#
+# see: modules/bash/bots.sh, modules/bash/secrets.sh, issue #258
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use bots
+# The words after the first run are the command's, and are never parsed: only what stands before them, and run, is
+# judged, with a word standing for the command.
+head=("$@") command=()
+for (( position = 1; position <= $#; position++ ))
+do
+  [[ "${!position}" == run ]] || continue
+  head=("${@:1:position}") command=("${@:position + 1}")
+  break
+done
+guard:arguments bots "${head[@]}" ${command[@]:+command} || exit $?
+
+action=list form=text formed='' name='' app='' key='' bot='' forms=0
+jobs=()
+for word in "${head[@]}"
+do
+  case "${word}" in
+    (--text | --json | --jq) form=${word#--} formed=1 ;;
+    (--add=* | --remove=*)
+      action=${word%%=*} name=${word#*=}
+      action=${action#--}
+      forms=$(( forms + 1 ))
+      ;;
+    (--check | token)
+      action=${word#--}
+      forms=$(( forms + 1 ))
+      ;;
+    (run)
+      action=run
+      forms=$(( forms + 1 ))
+      ;;
+    (--bot=)
+      error "--bot names a bot: --bot=<name>"
+      exit 2
+      ;;
+    (--bot=*) bot=${word#--bot=} ;;
+    (--app=*) app=${word#--app=} ;;
+    (--key=*) key=${word#--key=} ;;
+    (--jobs=)
+      error "--jobs names jobs: --jobs=work:review"
+      exit 2
+      ;;
+    (--jobs=*)
+      IFS=: read -r -a more <<<"${word#--jobs=}"
+      jobs+=("${more[@]}")
+      ;;
+    (*)
+      error "'${word}' is no option of kit bots; see: kit help bots"
+      exit 2
+  esac
+done
+if (( forms > 1 ))
+then
+  error "--add, --remove, --check, token, and run are forms of their own; run one: kit help bots"
+  exit 2
+fi
+if [[ "${action}" == @(add|remove) && -z "${name}" ]]
+then
+  error "--${action} names a bot: --${action}=<name>"
+  exit 2
+fi
+if [[ "${action}" != add && ( -n "${app}" || -n "${key}" || ${#jobs[@]} -gt 0 ) ]]
+then
+  error "--app, --key, and --jobs go with --add; see: kit help bots"
+  exit 2
+fi
+if [[ "${action}" != @(list|check|token) && -n "${formed}" ]]
+then
+  error "--text, --json, and --jq are the forms of the list and --check; ${action} prints one line"
+  exit 2
+fi
+if [[ "${action}" == token && -n "${formed}" && "${form}" != json ]]
+then
+  error "token prints a token, or with --json {token, expires_at}; see: kit help bots"
+  exit 2
+fi
+
+if [[ -n "${bot}" && "${action}" != @(check|token|run) ]]
+then
+  error "--bot goes with --check, token, and run; see: kit help bots"
+  exit 2
+fi
+
+case "${action}" in
+  (check)
+    bot_json=$(bots:choose "${bot}") || exit $?
+    check=$(bots:check "${bot_json}") || exit $?
+    case "${form}" in
+      (json) printf '%s\n' "${check}" ;;
+      (jq) jq . <<<"${check}" ;;
+      (text) bots:check-text "${check}" ;;
+    esac
+    jq --exit-status '.reached != false and .lacks == {} and (.reached != null or .installation != null)' \
+      <<<"${check}" >/dev/null || exit 1
+    ;;
+  (token)
+    bot_json=$(bots:choose "${bot}") || exit $?
+    token=$(bots:token "${bot_json}") || exit $?
+    if [[ "${form}" == json && -n "${formed}" ]]
+    then jq --compact-output . <<<"${token}"
+    else jq --raw-output .token <<<"${token}"
+    fi
+    ;;
+  (run)
+    bot_json=$(bots:choose "${bot}") || exit $?
+    bots:run "${bot_json}" "${command[@]}"
+    ;;
+  (add)
+    [[ -n "${app}" ]] || { error "--add needs --app=<id>, the App's ID"; exit 2; }
+    [[ -n "${key}" ]] || { error "--add needs --key=<source>, a PEM file or keychain:<service>/<account>"; exit 2; }
+    bots:add "${name}" "${app}" "${key}" "${jobs[@]}"
+    ;;
+  (remove) bots:remove "${name}" ;;
+  (list)
+    list=$(bots:list)
+    case "${form}" in
+      (json) printf '%s\n' "${list}" ;;
+      (jq) jq . <<<"${list}" ;;
+      (text) bots:text "${list}" ;;
+    esac
+esac
+
+# ----------------------------------------------------------------------------------------------------------------------

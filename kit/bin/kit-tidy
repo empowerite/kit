@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# kit-tidy - removes merged worktrees and gone branches (kit verb: workflow)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit tidy [--dry-run]
+#   kit tidy --wait=<reference>
+#
+# Removes finished worktrees under worktrees/, and deletes each local branch whose upstream is gone. A worktree is
+# finished when:
+#
+#   - its pull request is merged or closed
+#   - it has no pull request, and its issue is closed
+#   - it is detached, clean, and at a commit the default branch already has
+#
+# kit tidy fetches every remote first, with --prune, and also prunes git's worktree records. It never touches:
+#
+#   - the default branch
+#   - a branch checked out in a live worktree
+#   - a branch with commits no remote ever had, and the worktree it is checked out in, whatever its change's state;
+#     a commit the change's head reaches, as the forge saw it, was pushed. When this clone lacks that head, the
+#     branch is kept, and kit tidy names the head and the fetch that brings it
+#   - a worktree with uncommitted changes
+#   - a detached worktree whose commit nothing else reaches
+#   - a worktree git will not remove, as a locked one
+#   - the worktree it runs in
+#
+# kit tidy --wait=<reference> waits for the pull request of the issue's worktree, the one under worktrees/ on the
+# issue's branch, asking the forge every 30 seconds, or every KIT_TIDY_WAIT_SECONDS. When it merges, kit tidy runs
+# the sweep above for that worktree alone: the worktree, then its branch once its upstream is gone, each kept for the
+# same reasons, uncommitted work among them. When it closes unmerged, kit tidy says so and keeps the worktree. It
+# never forces. ctrl-c stops the wait and removes nothing. Run it from another checkout, as the desk: kit tidy keeps
+# the worktree it runs in. After kit submit, an agent can run it in the background.
+#
+# Arguments:
+#   --dry-run              prints what kit tidy would do, and changes nothing
+#   --wait=<reference>     the issue whose pull request to wait for: 7, #7, or AB#4521, as kit work names it
+#
+# Exits 0 when the sweep is done, 1 when the forge or git's list of the worktrees cannot be read, and 2 on a usage
+# error, as for a reference no declared tracker reads. With --wait, it exits 0 when the change merged and its worktree
+# is removed; 1 when the change closed unmerged, the sweep kept the worktree, or no worktree, or no change, is the
+# issue's; and 130 when ctrl-c stopped the wait.
+#
+# see: modules/bash/git.sh
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use git
+guard:arguments tidy "$@" || exit $?
+
+# shellcheck disable=SC2154  # syntax_options is set by guard:arguments
+if [[ -n "${syntax_options[--wait]+x}" ]]
+then
+  git:tidy-wait "${syntax_options[--wait]}"
+else
+  git:tidy "$@"
+fi
+
+# ----------------------------------------------------------------------------------------------------------------------

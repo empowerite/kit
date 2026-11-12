@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "glab api projects/${project}/merge_requests?${query} [--paginate]",
+  "description": "A list of the project's merge requests, ${project} its path URL-encoded, read in `modules/bash/forge/gitlab.sh`: the open ones with --paginate, which prints one such array per page, for their source branches (forge/gitlab:branch-for-issue, with `modules/jq/forge.jq` forge::gitlab_branch_for_issue) and their iids (forge/gitlab:open-prs); the open one on a branch for its iid (forge/gitlab:pr-for-branch, forge/gitlab:pr-here); those on a branch in any state, newest first, for the newest one's iid, sha, or state (forge/gitlab:pr-last-for-branch, forge/gitlab:pr-head-for-branch, forge/gitlab:pr-state-for-branch with forge::gitlab_pr_state); the one updated last for its iid and updated_at (forge/gitlab:marks, with forge::gitlab_marks); and the 51 merged last, state=merged&order_by=merged_at&per_page=51, for their title, author, source branch, merge time, merger, and page (forge/gitlab:merged-prs, with forge::gitlab_merged). merge_user and merged_by, which GitLab deprecates for it, name the same merger, merge_user also who set an automatic merge; order_by=merged_at is GitLab 17.2's, and an older GitLab, which refuses it, is read with state=merged&order_by=updated_at&sort=desc&per_page=51 instead (forge::gitlab_merged_by_update). The types are APIEntitiesMergeRequestBasic of GET /api/v4/projects/{id}/merge_requests in GitLab's REST OpenAPI, https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/openapi/openapi_v3.yaml, and the state's values those of https://docs.gitlab.com/api/merge_requests/.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "iid": {
+        "type": "integer",
+        "description": "The merge request's number in its project."
+      },
+      "state": {
+        "type": "string",
+        "enum": ["opened", "closed", "locked", "merged"]
+      },
+      "source_branch": {
+        "type": "string"
+      },
+      "sha": {
+        "type": "string",
+        "description": "The head commit of the source branch."
+      },
+      "updated_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "title": {
+        "type": "string"
+      },
+      "author": {
+        "$ref": "#/$defs/User"
+      },
+      "merged_at": {
+        "type": ["string", "null"],
+        "format": "date-time",
+        "description": "When it was merged, null for one not merged."
+      },
+      "merge_user": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/User"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "merged_by": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/User"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "web_url": {
+        "type": "string"
+      }
+    },
+    "required": ["iid", "state", "source_branch", "sha", "updated_at"],
+    "additionalProperties": true
+  },
+  "$defs": {
+    "User": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string"
+        }
+      },
+      "required": ["username"],
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    [
+      {
+        "iid": 3,
+        "state": "opened",
+        "source_branch": "7-fix-the-thing",
+        "sha": "1f2e3d4",
+        "updated_at": "2026-11-02T09:00:00.000Z"
+      },
+      {
+        "iid": 2,
+        "state": "opened",
+        "source_branch": "9-other",
+        "sha": "5d376dd",
+        "updated_at": "2026-10-30T09:00:00.000Z"
+      }
+    ],
+    [
+      {
+        "iid": 2,
+        "state": "merged",
+        "source_branch": "9-other",
+        "sha": "5d376dd",
+        "updated_at": "2026-10-03T09:00:01.000Z",
+        "title": "Do the other thing",
+        "author": {
+          "username": "bob"
+        },
+        "merged_at": "2026-10-03T09:00:00.000Z",
+        "merge_user": {
+          "username": "ada"
+        },
+        "merged_by": {
+          "username": "ada"
+        },
+        "web_url": "https://gitlab.com/empowerite/example/-/merge_requests/2"
+      }
+    ]
+  ]
+}

@@ -1,0 +1,32 @@
+  = kit flow · - empowerite/kit                                      🔎 /search
+  ➀╶───────────────╴➋╶────────────────╮➂╶───────────────╮➃╶──────────────────╮➄╶
+    🎫 issues  7    │ 🔀 changes  3 : │  🏭 builds  4   │  🛬 incoming  7    │ ▹
+  ──────────────────╯                 ╰─────────────────╰────────────────────╰──
+  Changes — Open pull requests, and what stands between each and its merge
+
+  ▾ source · organization · repository 3                 📇 Fields  Default ▼
+    ·────────·──────────────·───────────
+  ▾ github · empowerite · kit 3
+
+    ▸ change  title         author  state  age  checks  thread  labels  branch
+      ·───────·─────────────·───────·──────·────·───────·───────×·──────·──────
+    ▸ 🔀 #2   The first r…  jeffr…  🏁      8d  ✅              kin…  1-the-…
+    ▸ 🔀 #3   A spike on …  ada     🔨     90m  🏃      💬 2 …          3-a-sp…
+    ▸ 🔀 #4   Lint every …  bob     🔥     25h  ❌                      4-lint…
+
+                  ╭─ changes legend ────────────────────────────────── ↖ ↗ ↙ ↘ ╮
+                  │ =  kit menu                    ▼  presets menu, not a sort │
+                  │ -  workspace menu              ·  sortable: click to sort  │
+                  │ 🔎 search: / or click          ▸  closed: click to open    │
+                  │ ➀  tab: click to select        ×  list: click to flatten   │
+                  │ ➋  selected tab                🔀 pull request 🔗          │
+                  │ 🎫 issues stage                🏁 ready 🔗                 │
+                  │ 🔀 changes stage               ✅ passed                   │
+                  │ :  tab menu                    🔨 draft 🔗                 │
+                  │ 🏭 builds stage                🏃 running                  │
+                  │ 🛬 incoming stage              💬 unresolved threads       │
+                  │ ▹  more tabs: click to scroll  💬 comments:open 🔗         │
+                  │ ▾  open: click to close        🔥 failing:gate 🔗          │
+                  │ 📇 fields dialog               ❌ failed                   │
+                  ╰────────────────────────────────────────────────────────────╯
+ = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-5 jump : tab menu

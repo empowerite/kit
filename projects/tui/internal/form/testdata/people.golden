@@ -1,0 +1,17 @@
+ kit people - lists who has access to the repository, its teams, and the bots that acted
+
+   one of
+   *kit people*  lists who has access to the repository, its teams, and the bots that acted
+
+     --text   --json   --jq
+                           prints the stages as text, even on a terminal
+
+   --stages    prints the stages, one per line, in order, the same over any workspace
+   --marks     prints a mark per stage, as one JSON object: null for each, as each is read again
+               only on Refresh, kittui offering no Watch for a tab kit never marks
+   people      who has access to the repository, people and bots, each with a role
+   teams       the teams with access, 20 at most, each with its members, 100 at most
+   agents      the bots that acted in the repository's newest commits, changes, and reviews
+
+
+ kit people

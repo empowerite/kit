@@ -1,0 +1,30 @@
+  = kit welcome · - w 3                                                                                      🔎 /search
+  ➀╶──────────────────╮➁╶────────────────╴➌╶──────────────╮➃╶───────────────╮➄╶───────────╮
+    👋 introduction   │  🧰 toolchains    │ 🔧 setup  5 : │  🎨 customize   │  📖 terms   │
+  ────────────────────╰───────────────────╯               ╰─────────────────╰─────────────╰─────────────────────────────
+   Setup — kit checks this machine, then each folder
+
+   Each line is a check. When one fails and kit knows the fix, choose now to run it or later to move on.
+
+
+  ▾ repository ▾ 6                                                                               📇 Fields  Default ▼
+    ──────────────
+      folder                  branch       kit    git  installed  .kit  hooks  toolchain  tools  check
+      ·───────────────────────·────────────·──────·────·──────────·─────·──────·──────────·──────·─────────────────────
+  ▾ This machine 2
+    ▾ forge-cli-github.com                                                                ✅
+         ✅ gh is on PATH; kit reaches github.com through it
+    ▾ forge-login-github.com                                                              ❌
+         ❌ gh is not logged in to github.com
+            gh auth login --hostname github.com · it needs you at the keyboard
+  ▾ github.com/o/a 2
+    ▾ 💻 a                    main         0.3.0  ✅   ✅         ✅    ❌     ✅         ✅     ✅                    
+         ❌ the git hooks are not installed; lefthook runs none                                                        
+            cd /code/a && lefthook install   ⧉   ▶️                                                                    
+    ▾ 🌳 7-the-topic          7-the-topic  none   ✅   💡         ·     ·      ✅         ·      ·
+         💡 kit is not installed here; it runs on what it infers
+            cd /code/a/worktrees/7-the-topic && kit install
+  ▾ github.com/o/b 1
+   ⬇¹¹
+
+ = menu - workspace / search │ 1-5 jump : tab menu │ esc tabs ↑↓ move ⇞⇟ page [] group ← hide c copy r run

@@ -1,0 +1,32 @@
+  = kit flow · - empowerite/kit                                                                              🔎 /search
+  ➀╶───────────────╴➋╶────────────────╮➂╶───────────────╮➃╶──────────────────╮➄╶─────────────────╮
+    🎫 issues  7    │ 🔀 changes  3 : │  🏭 builds  4   │  🛬 incoming  7    │  📦 releases  3   │
+  ──────────────────╯                 ╰─────────────────╰────────────────────╰───────────────────╰──────────────────────
+  Changes — Open pull requests, and what stands between each and its merge
+
+  ▾ source · organization · repository 3                                                         📇 Fields  Default ▼
+    ·────────·──────────────·───────────
+  ▾ github · empowerite · kit 3
+
+      change  title                 author            state  age  checks  threads          labels      branch
+      ·───────·─────────────────────·─────────────────·──────·────·───────·────────────────×·──────────·───────────────
+    ▸ 🔀 #2   The first release, …  jeffrey-aguilera  🏁      8d  ✅                       kindfix  1-the-first-rel…
+    ▸ 🔀 #3   A spike on the sett…  ada               🔨     90m  🏃      💬 2 unresolved              3-a-spike
+    ▸ 🔀 #4   Lint every module     bob               🔥     25h  ❌                                   4-lint-every-mo…
+
+                                                                ╭─ changes legend ──────────────────────────── ↖ ↗ ↙ ↘ ╮
+                                                                │ =  kit menu              ▼  presets menu, not a sort │
+                                                                │ -  workspace menu        ·  sortable: click to sort  │
+                                                                │ 🔎 search: / or click    ×  list: click to flatten   │
+                                                                │ ➀  tab: click to select  ▸  closed: click to open    │
+                                                                │ ➋  selected tab          🔀 pull request 🔗          │
+                                                                │ 🎫 issues stage          🏁 ready 🔗                 │
+                                                                │ 🔀 changes stage         ✅ passed                   │
+                                                                │ :  tab menu              🔨 draft 🔗                 │
+                                                                │ 🏭 builds stage          🏃 running                  │
+                                                                │ 🛬 incoming stage        💬 unresolved threads       │
+                                                                │ 📦 releases stage        💬 comments:open 🔗         │
+                                                                │ ▾  open: click to close  🔥 failing:gate 🔗          │
+                                                                │ 📇 fields dialog         ❌ failed                   │
+                                                                ╰──────────────────────────────────────────────────────╯
+ = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-5 jump : tab menu

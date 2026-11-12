@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "az repos pr show --id ${id} --output json",
+  "description": "One pull request, whose title, description, author, status, and merge commit kit reads in `modules/bash/forge/ado.sh` (forge/ado:pr-title, forge/ado:pr-body, forge/ado:pr-author, forge/ado:pr-state, with `modules/jq/forge.jq`'s ado_pr_state); every call kit makes through forge/ado:az also carries --org ${organization} --detect false --only-show-errors. The types are GitPullRequest's, https://learn.microsoft.com/rest/api/azure/devops/git/pull-requests/get-pull-request?view=azure-devops-rest-7.1, which the azure-devops extension reads at api-version 5.0 through its vendored SDK (azext_devops/devops_sdk/v5_0/git/models.py, https://github.com/Azure/azure-devops-cli-extension) and az prints with every attribute of the model, null when the service gives none, and each date-time as Python's isoformat, such as 2026-10-01T09:00:00.123000+00:00.",
+  "type": "object",
+  "$ref": "#/$defs/pullRequest",
+  "$defs": {
+    "pullRequest": {
+      "type": "object",
+      "properties": {
+        "pullRequestId": {
+          "type": "integer"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": ["string", "null"]
+        },
+        "status": {
+          "description": "PullRequestStatus.",
+          "type": "string",
+          "enum": ["notSet", "active", "abandoned", "completed", "all"]
+        },
+        "isDraft": {
+          "type": ["boolean", "null"]
+        },
+        "sourceRefName": {
+          "type": "string"
+        },
+        "mergeStatus": {
+          "description": "PullRequestAsyncStatus: conflicts is a conflicted pull request.",
+          "type": ["string", "null"],
+          "enum": ["notSet", "queued", "conflicts", "succeeded", "rejectedByPolicy", "failure", null]
+        },
+        "creationDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "createdBy": {
+          "$ref": "#/$defs/identityRef"
+        },
+        "lastMergeSourceCommit": {
+          "description": "The head of the source branch at the last merge.",
+          "anyOf": [{"$ref": "#/$defs/commitRef"}, {"type": "null"}]
+        },
+        "lastMergeCommit": {
+          "description": "The commit of the last merge, the merge commit of a completed pull request; null while a merge runs or when it failed.",
+          "anyOf": [{"$ref": "#/$defs/commitRef"}, {"type": "null"}]
+        },
+        "forkSource": {
+          "description": "GitForkRef, null unless the pull request comes from a fork.",
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "repository": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["name"],
+                  "additionalProperties": true
+                }
+              },
+              "required": ["repository"],
+              "additionalProperties": true
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "labels": {
+          "description": "WebApiTagDefinition[], null when the pull request has none.",
+          "type": ["array", "null"],
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "active": {
+                "type": ["boolean", "null"]
+              }
+            },
+            "required": ["name"],
+            "additionalProperties": true
+          }
+        }
+      },
+      "required": ["pullRequestId", "title", "description", "status", "isDraft", "sourceRefName", "mergeStatus", "creationDate", "createdBy", "lastMergeSourceCommit", "lastMergeCommit", "forkSource", "labels"],
+      "additionalProperties": true
+    },
+    "identityRef": {
+      "description": "IdentityRef; uniqueName is the login az signs in as.",
+      "type": "object",
+      "properties": {
+        "uniqueName": {
+          "type": ["string", "null"]
+        }
+      },
+      "required": ["uniqueName"],
+      "additionalProperties": true
+    },
+    "commitRef": {
+      "description": "GitCommitRef.",
+      "type": "object",
+      "properties": {
+        "commitId": {
+          "type": "string"
+        }
+      },
+      "required": ["commitId"],
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true,
+  "examples": [
+    {
+      "pullRequestId": 3,
+      "codeReviewId": 3,
+      "title": "Fix the thing",
+      "description": "Closes #7",
+      "status": "active",
+      "isDraft": false,
+      "sourceRefName": "refs/heads/7-fix-the-thing",
+      "targetRefName": "refs/heads/main",
+      "mergeStatus": "succeeded",
+      "creationDate": "2026-10-01T09:00:00.123000+00:00",
+      "createdBy": {
+        "displayName": "Ada",
+        "id": "d6245f20-2af8-44f4-9451-8107cb2767db",
+        "uniqueName": "ada"
+      },
+      "lastMergeSourceCommit": {
+        "commitId": "1f2e3d4"
+      },
+      "lastMergeCommit": null,
+      "forkSource": null,
+      "labels": [
+        {
+          "id": "8a2f3c1e-0d4b-4f5a-9c6e-7b1d2e3f4a5b",
+          "name": "kind=fix",
+          "active": true,
+          "url": null
+        }
+      ],
+      "closedDate": null,
+      "workItemRefs": [
+        {
+          "id": "7",
+          "url": "https://dev.azure.com/acme/_apis/wit/workItems/7"
+        }
+      ]
+    }
+  ]
+}

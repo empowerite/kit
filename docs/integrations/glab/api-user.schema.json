@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "glab api user",
+  "description": "The caller's user, whose username kit reads as the caller's login in `modules/bash/forge/gitlab.sh` (forge/gitlab:me, which forge/gitlab:require runs); `glab api --include user` (forge/gitlab:quota) prints the same body after the headers, and kit reads only its RateLimit headers there. The types are APIEntitiesUserPublic of GET /api/v4/user in GitLab's REST OpenAPI, https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/openapi/openapi_v3.yaml, as https://docs.gitlab.com/api/users/ describes it.",
+  "type": "object",
+  "properties": {
+    "username": {
+      "type": "string",
+      "description": "The caller's login."
+    }
+  },
+  "required": ["username"],
+  "additionalProperties": true,
+  "examples": [
+    {
+      "username": "ada"
+    }
+  ]
+}

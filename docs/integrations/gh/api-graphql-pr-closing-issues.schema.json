@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh api graphql --field owner=${owner} --field name=${name} --field number=${number} --raw-field after=${cursor} --raw-field query=${query}",
+  "description": "The issues one pull request closes, 100 a page, each with its state and repository, which kit reads in `modules/bash/forge/github.sh` (forge/github:pr-closing-issues; --raw-field after only past the first page), failing when the pull request is null. The types are the PullRequest and Issue objects of GitHub's GraphQL schema, https://docs.github.com/public/fpt/schema.docs.graphql.",
+  "type": "object",
+  "properties": {
+    "data": {
+      "type": "object",
+      "properties": {
+        "repository": {
+          "type": ["object", "null"],
+          "description": "Repository, null when GitHub has none of that owner and name",
+          "properties": {
+            "pullRequest": {
+              "type": ["object", "null"],
+              "description": "PullRequest, null when the repository has none of that number",
+              "properties": {
+                "closingIssuesReferences": {
+                  "type": ["object", "null"],
+                  "description": "IssueConnection",
+                  "properties": {
+                    "pageInfo": {
+                      "$ref": "#/$defs/PageInfo"
+                    },
+                    "nodes": {
+                      "type": ["array", "null"],
+                      "items": {
+                        "type": ["object", "null"],
+                        "description": "Issue",
+                        "properties": {
+                          "number": {
+                            "type": "integer"
+                          },
+                          "state": {
+                            "type": "string",
+                            "description": "IssueState",
+                            "enum": ["CLOSED", "OPEN"]
+                          },
+                          "repository": {
+                            "type": "object",
+                            "description": "Repository, by its owner/name",
+                            "properties": {
+                              "nameWithOwner": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["nameWithOwner"],
+                            "additionalProperties": true
+                          }
+                        },
+                        "required": ["number", "state", "repository"],
+                        "additionalProperties": true
+                      }
+                    }
+                  },
+                  "required": ["pageInfo", "nodes"],
+                  "additionalProperties": true
+                }
+              },
+              "required": ["closingIssuesReferences"],
+              "additionalProperties": true
+            }
+          },
+          "required": ["pullRequest"],
+          "additionalProperties": true
+        }
+      },
+      "required": ["repository"],
+      "additionalProperties": true
+    }
+  },
+  "required": ["data"],
+  "additionalProperties": true,
+  "$defs": {
+    "PageInfo": {
+      "type": "object",
+      "description": "PageInfo",
+      "properties": {
+        "hasNextPage": {
+          "type": "boolean"
+        },
+        "endCursor": {
+          "type": ["string", "null"]
+        }
+      },
+      "required": ["hasNextPage", "endCursor"],
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "data": {
+        "repository": {
+          "pullRequest": {
+            "closingIssuesReferences": {
+              "pageInfo": {
+                "hasNextPage": true,
+                "endCursor": "i1"
+              },
+              "nodes": [
+                {
+                  "number": 7,
+                  "state": "OPEN",
+                  "repository": {
+                    "nameWithOwner": "empowerite/example"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  ]
+}

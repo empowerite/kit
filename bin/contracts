@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# contracts - writes the snapshots of the kit's public surface afresh, so git diff shows how it changed
+# ----------------------------------------------------------------------------------------------------------------------
+# The kit's public surface is what a person, an agent, or kittui reads to call it. Each part of it has a snapshot in
+# the repository, and a test fails when the kit prints anything else, so a change to the surface is a diff a review
+# sees:
+#
+#   tests/snapshots/verbs.tsv                            kit syntax --list, in tests/syntax.bats
+#   projects/tui/internal/syntax/testdata/<verb>.json    kit syntax <verb>, every verb's, in tests/syntax.bats
+#   tests/snapshots/tools.json, resources.json           kit serve's tools/list and resources/list, in tests/serve.bats
+#   projects/tui/internal/form/testdata/<verb>.golden    the form kittui draws from each verb's syntax, in go test
+#
+# This script runs those tests with KIT_SNAPSHOTS=write, which writes each snapshot in place of comparing it, and
+# then the form's test with -update. Review git diff, and commit what changed with the change that changed it. The
+# gate runs the same tests with KIT_SNAPSHOTS empty, so it never writes one.
+#
+#   bin/contracts
+#
+# see: tests/helper.bash (snapshot), docs/testing.md
+
+set -o errexit -o nounset -o pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+KIT_SNAPSHOTS='write' kit/bin/kit tools run bats --filter 'is its snapshot|are their snapshots' tests/syntax.bats tests/serve.bats
+kit/bin/kit tools run go -C projects/tui test ./internal/form -run TestGoldenRenders -update
+git status --short -- tests/snapshots projects/tui/internal/syntax/testdata projects/tui/internal/form/testdata
+
+# ----------------------------------------------------------------------------------------------------------------------

@@ -1,0 +1,24 @@
+  = kit flow · - empowerite/kit                                                                              🔎 /search
+  ➊╶───────────────╮➁╶────────────────╮➂╶───────────────╮➃╶──────────────────╮➄╶─────────────────╮
+  │ 🎫 issues  7 : │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  7    │  📦 releases  3   │
+  ╵                ╰──────────────────╰─────────────────╰────────────────────╰───────────────────╰──────────────────────
+  Issues — What is open, who has it, and where the work on it stands
+
+  ▾ organization · repository ▾ 2            ╭─ issues fields ───────────────────────╮╭─ assignees ───────────────────╮
+    ·──────────────·─────────────            │   field           type    sort  group ││ rows                          │
+  ▾ empowerite 2                             │ ☑ organization    enum    ·     ▤₁    ││ ⦾ One row per assignee        │
+                                             │ ☑ repository      enum    ·     ▤₂    ││ ⦿ All assignees on one row    │
+        id   source  status  age  change  sta│ ───────────────────────────────────── ││                               │
+        ·────·───────·───────₁────·───────·──│ ☑ id              ref     ·           ││ filtering                     │
+    ▾ jig 1                                  │ ☑ source          enum    ·     ·     ││ ⦿ include  ⦾ exclude          │
+        #7   github  💤      40d             │ ☑ status          enum    ·     ·     ││ ☑ @me ada                     │
+    ▾ kit 1                                  │ ☑ age             time    ₁           ││ ☐ ada                         │
+      ▸ #31  github  🛫       3h  🔀 #12  💬 │ ☑ change          ref     ·     ·     ││ ☐ bob                         │
+                                             │ ☑ state           enum    ·     ·     ││ ☐ jeffrey-aguilera            │
+                                             │ ☑ where           text    ·     ·     ││ ☐ none                        │
+                                             │ ☑ labels          label   ·     ·     ││                               │
+                                             │ ☑ title           text    ·           ││ rendering                     │
+                                             │ ───────────────────────────────────── ││ ⦿ auto text                   │
+                                             │ ☐ assignees ⊘     person  ·     ·     ││ ⦾ glyph+text                  │
+                                             │ ☐ milestone       enum    ·     ·     ││ ⦾ text                        │
+ esc close ↑↓ move ⇧↑↓ order ␣ show/hide s sort g group → settings

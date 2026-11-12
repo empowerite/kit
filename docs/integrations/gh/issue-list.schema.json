@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh issue list --state open --limit ${forge_list_limit} --json number,title,assignees,labels,createdAt,url",
+  "description": "The open issues, without pull requests, which kit reads in `modules/bash/forge/github.sh` (forge/github:open-issues) and folds in `modules/jq/forge.jq` (forge::github_issues), taking each issue's repository from its url. The types are the Issue object of GitHub's GraphQL schema, https://docs.github.com/public/fpt/schema.docs.graphql, as gh renders its fields (https://github.com/cli/cli/blob/trunk/api/export_pr.go, https://github.com/cli/cli/blob/trunk/api/queries_repo.go): assignees and labels as plain lists.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "description": "Issue",
+    "properties": {
+      "number": {
+        "type": "integer"
+      },
+      "title": {
+        "type": "string"
+      },
+      "assignees": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/User"
+        }
+      },
+      "labels": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/Label"
+        }
+      },
+      "createdAt": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "url": {
+        "type": "string",
+        "format": "uri"
+      }
+    },
+    "required": ["number", "title", "assignees", "labels", "createdAt", "url"],
+    "additionalProperties": true
+  },
+  "$defs": {
+    "User": {
+      "type": "object",
+      "description": "A user as gh renders one: id, login, name, and databaseId",
+      "properties": {
+        "login": {
+          "type": "string"
+        }
+      },
+      "required": ["login"],
+      "additionalProperties": true
+    },
+    "Label": {
+      "type": "object",
+      "description": "A label as gh renders one: id, name, description, and color",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string",
+          "description": "The label's color, six hex digits without a #"
+        }
+      },
+      "required": ["name", "color"],
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    [
+      {
+        "number": 9,
+        "title": "Other thing",
+        "assignees": [],
+        "labels": [],
+        "createdAt": "2026-09-25T09:00:00Z",
+        "url": "https://github.com/empowerite/example/issues/9"
+      },
+      {
+        "number": 7,
+        "title": "Fix the thing",
+        "assignees": [
+          {
+            "id": "U_1",
+            "login": "bob",
+            "name": "Bob",
+            "databaseId": 2
+          }
+        ],
+        "labels": [
+          {
+            "id": "LA_1",
+            "name": "bug",
+            "description": "",
+            "color": "d73a4a"
+          }
+        ],
+        "createdAt": "2026-09-20T09:00:00Z",
+        "url": "https://github.com/empowerite/example/issues/7"
+      }
+    ]
+  ]
+}

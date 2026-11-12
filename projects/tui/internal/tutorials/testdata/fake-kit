@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# fake-kit - stands in for kit in the tutorials screen's tests: answers tutorials --json (test helper)
+# ----------------------------------------------------------------------------------------------------------------------
+# tutorials --json prints the file FAKE_TUTORIALS_CATALOGUE names, else catalogue.json beside this script, whatever
+# --tag says, as the screen reads every tutorial and selects the tag's tab itself; @here@ in it is this script's
+# directory, so a tutorial in the kit names its page in testdata. When FAKE_TUTORIALS_REFUSE is set,
+# it refuses as kit does, with exit 2. Every call is written to the file FAKE_TUTORIALS_CALLS names, when it is set.
+
+set -o errexit -o nounset -o pipefail
+
+here=$(cd "$(dirname "$0")" && pwd)
+
+[[ -z "${FAKE_TUTORIALS_CALLS:-}" ]] || printf '%s\n' "$*" >> "${FAKE_TUTORIALS_CALLS}"
+case "${1:-}" in
+  (tutorials)
+    if [[ -n "${FAKE_TUTORIALS_REFUSE:-}" ]]
+    then
+      echo "❌ kit tutorials refuses for the test; run: kit help tutorials" >&2
+      exit 2
+    fi
+    sed "s|@here@|${here}|g" "${FAKE_TUTORIALS_CATALOGUE:-${here}/catalogue.json}"
+    ;;
+  (*)
+    echo "❌ no kit verb '${1:-}' in the tutorials fake" >&2
+    exit 2
+esac
+
+# ----------------------------------------------------------------------------------------------------------------------

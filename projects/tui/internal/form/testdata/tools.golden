@@ -1,0 +1,23 @@
+ kit tools - lists, installs, and updates what the chosen toolchain and the dependencies pin
+
+   one of
+   *kit tools*                 lists, installs, and updates what the chosen toolchain and the
+                             dependencies pin
+
+     --outdated              only the tools behind their latest version; reaches the network
+
+     --check                 with --outdated: fails when any tool is behind
+
+     --toolchain             uses this toolchain for the run, as KIT_TOOLCHAIN does; kit takes it
+                             even after run's command
+
+     --json   --jq           one JSON object per tool: name, pinned, installed, latest with
+                             --outdated, and from; and tagged where a newer version is tagged
+                             upstream than the pull path serves
+
+   --toolchain (install | update | path | run <command>…)
+   sources                   prints the pull path: each source, its kind, its url, and its layer
+                             (env, workspace, kit.yml)
+
+
+ kit tools

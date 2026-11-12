@@ -1,0 +1,22 @@
+# packages/kit/package.yml - the kit package: the agents' entry point, the rules for each file kind, and kit context
+# ----------------------------------------------------------------------------------------------------------------------
+# see: docs/packages.md
+
+description: "The entry every agent reads, the kinds of file, and the rules by kind"
+default: true
+# The kit's own policy, the workflow's names that .kit/1st.md describes. kit policy judges by it wherever kit.yml's
+# policy: map sets no rule of its own; see docs/policy.md.
+policy:
+  branch:
+    pattern: '^[a-z0-9]+-[a-z0-9][a-z0-9-]*$'
+    remedy: 'start the work with kit work <issue>, which names the branch <key>-<slug>'
+  worktree:
+    pattern: '^worktrees/[a-z0-9]+-[a-z0-9][a-z0-9-]*$'
+    remedy: 'start the work with kit work <issue>, which checks the branch out in worktrees/<branch>'
+  commit_subject:
+    pattern: '^([A-Z]+)?#[0-9]+ [^ ]'
+    remedy: 'start the subject with its issue reference, as #7 <subject>; kit commit supplies it from the branch'
+  change_title:
+    pattern: '^[^[:cntrl:]]{1,120}$'
+    remedy: 'make the title one line of at most 120 characters'
+  commit_reference: prefix

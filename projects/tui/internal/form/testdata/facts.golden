@@ -1,0 +1,6 @@
+ kit facts - prints the facts a policy engine judges, as JSON
+
+   --moment  the moment to gather for: ci, the default, or commit
+
+
+ kit facts

@@ -1,0 +1,496 @@
+# forge.test - the forge jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line. Every case
+# fixes the time as $now, 1000000 seconds after the epoch.
+
+# A time reads the same with or without fractional seconds.
+import "forge" as forge; map(forge::epoch)
+["1970-01-12T13:46:40Z", "1970-01-12T13:46:40.123Z"]
+[1000000,1000000]
+
+# A time with an offset, as az prints one, microseconds and all, reads as the same instant in UTC.
+import "forge" as forge; map(forge::epoch)
+["1970-01-12T13:46:40.123000+00:00", "1970-01-12T14:46:40+01:00", "1970-01-12T08:16:40.5-05:30", "1970-01-12T13:46:40+0000"]
+[1000000,1000000,1000000,1000000]
+
+# A time that is no ISO 8601 time is an error, not nothing.
+import "forge" as forge; [.[] | try forge::epoch catch "error"]
+["yesterday"]
+["error"]
+
+# A label is a name and a color, #rrggbb in lower case: a name alone, as GitLab gives one without its details, has a
+# null color, as has one whose color is empty; GitHub's, without a #, gains one.
+import "forge" as forge; forge::labels
+["bug", {"name": "priority=high", "color": "B60205", "description": "x"}, {"name": "area::tui", "color": "#6699CC"}, {"name": "plain", "color": ""}]
+[{"name":"bug","color":null},{"name":"priority=high","color":"#b60205"},{"name":"area::tui","color":"#6699cc"},{"name":"plain","color":null}]
+
+# No labels, or none given, are none.
+import "forge" as forge; [.[] | forge::labels]
+[[], null]
+[[],[]]
+
+# A change's labels without a color, and those of the issues it closes, take the one a project's labels give their
+# name, in lower case after a #; one that has a color keeps it, and a name the project does not give stays without one.
+import "forge" as forge; forge::colored({"bug": "#D73A4A", "kind=fix": "0e8a16"}) | [.labels, .closes[].labels]
+{"labels": [{"name": "bug", "color": null}, {"name": "other", "color": null}], "closes": [{"labels": [{"name": "kind=fix", "color": null}, {"name": "bug", "color": "#000000"}]}]}
+[[{"name":"bug","color":"#d73a4a"},{"name":"other","color":null}],[{"name":"kind=fix","color":"#0e8a16"},{"name":"bug","color":"#000000"}]]
+
+# A GitLab merge request names its labels, and those of the issues it closes, by name alone.
+import "forge" as forge; forge::gitlab_pr(1000000; []; []; [{"iid": 7, "title": "Seven", "created_at": "1970-01-12T13:40:00Z", "labels": ["bug"]}]; null; {}) | [.labels, .closes[].labels]
+{"iid": 3, "source_branch": "7-fix", "title": "Fix it", "author": {"username": "ada"}, "created_at": "1970-01-12T13:30:00Z", "draft": true, "labels": ["kind=fix", "area::tui"]}
+[[{"name":"kind=fix","color":null},{"name":"area::tui","color":null}],[{"name":"bug","color":null}]]
+
+# A GitHub pull request's labels, and those of each issue it closes, are the answer's under each.
+import "forge" as forge; forge::github_prs(1000000) | [.labels, .closes[].labels]
+{"data": {"repository": {"nameWithOwner": "empowerite/example", "pullRequests": {"nodes": [{"number": 3, "title": "Fix", "isDraft": true, "headRefName": "7-fix", "createdAt": "1970-01-12T13:30:00Z", "author": {"login": "ada"}, "labels": {"nodes": [{"name": "kind:fix", "color": "0E8A16"}]}, "closingIssuesReferences": {"nodes": [{"number": 7, "title": "Seven", "createdAt": "1970-01-12T13:30:00Z", "repository": {"nameWithOwner": "empowerite/example"}, "labels": {"nodes": [{"name": "bug", "color": "D73A4A"}]}}, {"number": 8, "title": "Eight", "createdAt": "1970-01-12T13:30:00Z", "repository": {"nameWithOwner": "empowerite/example"}}]}, "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]}}]}}}}
+[[{"name":"kind:fix","color":"#0e8a16"}],[{"name":"bug","color":"#d73a4a"}],[]]
+
+# Of two runs of one name, the later counts, so a rerun that passed supersedes the run that failed.
+import "forge" as forge; forge::checks(1000000)
+[{"name": "test", "verdict": "failed", "at": "a", "since": 1, "took": 5}, {"name": "test", "verdict": "passed", "at": "b", "since": 2, "took": 50}, {"name": "lint", "verdict": "passed", "at": "a", "since": 1, "took": 9}]
+{"state":"SUCCESS","passed":2,"total":2,"failing":"","took":50}
+
+# A failed check makes the state FAILURE, and failing names the first, by name.
+import "forge" as forge; forge::checks(1000000)
+[{"name": "zeta", "verdict": "failed", "at": "", "since": null, "took": 3}, {"name": "beta", "verdict": "failed", "at": "", "since": null, "took": 4}]
+{"state":"FAILURE","passed":0,"total":2,"failing":"beta","took":4}
+
+# While a check is pending, took is the wait since the earliest pending run started.
+import "forge" as forge; forge::checks(1000000)
+[{"name": "a", "verdict": "pending", "at": "", "since": 999900, "took": null}, {"name": "b", "verdict": "pending", "at": "", "since": 999990, "took": null}]
+{"state":"PENDING","passed":0,"total":2,"failing":"","took":100}
+
+# With no runs, the state is NONE and took is null.
+import "forge" as forge; forge::checks(1000000)
+[]
+{"state":"NONE","passed":0,"total":0,"failing":"","took":null}
+
+# The first state that holds wins: a draft is a draft, whatever its checks.
+import "forge" as forge; map(forge::state)
+[{"draft": true, "checks": {"state": "FAILURE"}}, {"draft": false, "checks": {"state": "PENDING"}, "conflicted": true}, {"draft": false, "checks": {"state": "SUCCESS"}, "conflicted": true}, {"draft": false, "checks": {"state": "SUCCESS"}, "conflicted": false, "unresolved": 1, "approval": true}, {"draft": false, "checks": {"state": "SUCCESS"}, "conflicted": false, "unresolved": 0, "approval": true}, {"draft": false, "checks": {"state": "SUCCESS"}, "conflicted": false, "unresolved": 0, "approval": false}]
+["draft","queued","conflicted","comments:open","blocked:approval","ready"]
+
+# A GitHub check run is pending until it completes, and a status context's EXPECTED is pending too.
+import "forge" as forge; forge::github_runs | map([.name, .verdict, .took])
+[{"__typename": "CheckRun", "name": "test", "status": "COMPLETED", "conclusion": "SUCCESS", "startedAt": "1970-01-12T13:45:00Z", "completedAt": "1970-01-12T13:46:40Z"}, {"__typename": "CheckRun", "name": "lint", "status": "IN_PROGRESS", "conclusion": null, "startedAt": "1970-01-12T13:45:00Z", "completedAt": null}, {"__typename": "StatusContext", "context": "ci/legacy", "state": "EXPECTED", "createdAt": "1970-01-12T13:45:00Z"}, {"__typename": "CheckRun", "name": "skipped", "status": "COMPLETED", "conclusion": "SKIPPED", "startedAt": null, "completedAt": null}, {"__typename": "StatusContext", "context": "ci/other", "state": "ERROR", "createdAt": "1970-01-12T13:45:00Z"}]
+[["test","passed",100],["lint","pending",null],["ci/legacy","pending",null],["skipped","passed",null],["ci/other","failed",null]]
+
+# A GitLab job that is manual or skipped has passed, and one that is running is pending.
+import "forge" as forge; forge::gitlab_runs | map([.name, .verdict, .took])
+[{"name": "test", "status": "success", "started_at": "1970-01-12T13:45:00.5Z", "finished_at": "1970-01-12T13:46:40.5Z"}, {"name": "deploy", "status": "manual", "started_at": null, "finished_at": null, "created_at": "1970-01-12T13:45:00Z"}, {"name": "lint", "status": "running", "started_at": "1970-01-12T13:45:00Z", "finished_at": null}, {"name": "build", "status": "failed", "started_at": null, "finished_at": null}]
+[["test","passed",100],["deploy","passed",null],["lint","pending",null],["build","failed",null]]
+
+# A merge request folds into the document, with its ref written !<iid>; with no pipeline, its last push is unknown.
+import "forge" as forge; forge::gitlab_pr(1000000; [{"name": "test", "status": "success", "started_at": "1970-01-12T13:45:00Z", "finished_at": "1970-01-12T13:46:40Z"}]; [{"notes": [{"resolvable": true, "resolved": false}, {"resolvable": false}]}]; [{"iid": 7, "title": "Fix the thing", "created_at": "1970-01-12T13:40:00Z", "assignees": [{"username": "bob"}], "references": {"full": "empowerite/tools/example#7"}}]; null; {"approved_by": null})
+{"iid": 3, "source_branch": "7-fix-the-thing", "title": "Fix it", "author": {"username": "ada"}, "created_at": "1970-01-12T13:30:00Z", "draft": false, "has_conflicts": false, "detailed_merge_status": "mergeable"}
+{"number":3,"ref":"!3","source":"gitlab","branch":"7-fix-the-thing","fork":null,"title":"Fix it","author":"ada","createdAt":"1970-01-12T13:30:00Z","age":1000,"pushed":null,"state":"comments:open","checks":{"state":"SUCCESS","passed":1,"total":1,"failing":"","took":100},"unresolved":1,"labels":[],"closes":[{"number":7,"title":"Fix the thing","assignees":["bob"],"labels":[],"source":"gitlab","organization":"empowerite/tools","repository":"example","age":400}],"named":[],"reviewers":[],"runs":[{"name":"test","verdict":"passed","at":999900,"took":100}]}
+
+# A merge request from a fork names the fork's owner, and its head pipeline gives the last push: its age, and who
+# started it; a pipeline that names no one gives a null by.
+import "forge" as forge; [forge::gitlab_pr(1000000; []; []; []; "cy"; {}), (.head_pipeline.user = null | forge::gitlab_pr(1000000; []; []; []; null; {}))] | map({fork, pushed})
+{"iid": 3, "source_branch": "7-fix", "title": "Fix it", "author": {"username": "ada"}, "created_at": "1970-01-12T13:30:00Z", "draft": true, "head_pipeline": {"id": 11, "created_at": "1970-01-12T13:45:00.000Z", "user": {"username": "dee"}}}
+[{"fork":"cy","pushed":{"age":100,"by":"dee"}},{"fork":null,"pushed":{"age":100,"by":null}}]
+
+# A pull request from another repository names its owner's login, and its head commit gives the last push: its age,
+# and the login of its author. A branch in the base repository is no fork, and a commit without a time is unknown.
+import "forge" as forge; [forge::github_prs(1000000) | {fork, pushed}]
+{"data": {"repository": {"pullRequests": {"nodes": [{"number": 3, "title": "Fix", "isDraft": true, "headRefName": "7-fix", "createdAt": "1970-01-12T13:30:00Z", "isCrossRepository": true, "headRepositoryOwner": {"login": "cy"}, "author": {"login": "ada"}, "closingIssuesReferences": {"nodes": []}, "commits": {"nodes": [{"commit": {"committedDate": "1970-01-12T13:45:00Z", "author": {"user": {"login": "dee"}}, "statusCheckRollup": null}}]}}, {"number": 4, "title": "Also", "isDraft": true, "headRefName": "8-also", "createdAt": "1970-01-12T13:30:00Z", "isCrossRepository": false, "headRepositoryOwner": {"login": "empowerite"}, "author": {"login": "ada"}, "closingIssuesReferences": {"nodes": []}, "commits": {"nodes": [{"commit": {"committedDate": "1970-01-12T13:46:00Z", "author": {"user": null}, "statusCheckRollup": null}}]}}, {"number": 5, "title": "Old", "isDraft": true, "headRefName": "9-old", "createdAt": "1970-01-12T13:30:00Z", "author": {"login": "ada"}, "closingIssuesReferences": {"nodes": []}, "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]}}]}}}}
+[{"fork":"cy","pushed":{"age":100,"by":"dee"}},{"fork":null,"pushed":{"age":40,"by":null}},{"fork":null,"pushed":null}]
+
+# A closed issue's assignees come from the answer's open issues with an assignee, not from the issue itself: one they
+# do not name has none, as has an issue of another repository with the same number. Each says the organization and the
+# repository it is in.
+import "forge" as forge; forge::github_prs(1000000) | .closes[] | [.number, .assignees, .organization, .repository]
+{"data": {"repository": {"nameWithOwner": "empowerite/example", "issues": {"nodes": [{"number": 7, "assignees": {"nodes": [{"login": "bob"}, {"login": "cy"}]}}]}, "pullRequests": {"nodes": [{"number": 3, "title": "Fix", "isDraft": true, "headRefName": "7-fix", "createdAt": "1970-01-12T13:30:00Z", "author": {"login": "ada"}, "closingIssuesReferences": {"nodes": [{"number": 7, "title": "Seven", "createdAt": "1970-01-12T13:30:00Z", "repository": {"nameWithOwner": "empowerite/example"}}, {"number": 8, "title": "Eight, closed or unassigned", "createdAt": "1970-01-12T13:30:00Z", "repository": {"nameWithOwner": "empowerite/example"}}, {"number": 7, "title": "Seven elsewhere", "createdAt": "1970-01-12T13:30:00Z", "repository": {"nameWithOwner": "other/place"}}]}, "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]}}]}}}}
+[7,["bob","cy"],"empowerite","example"]
+[8,[],"empowerite","example"]
+[7,[],"other","place"]
+
+# A row says where it is from: the organization, repository, and source it has, even null, as an issue's own, else
+# those of here; anything but an object is as it was.
+import "forge" as forge; map(forge::from({organization: "o", repository: "r", source: "github"}))
+[{"n": 1}, {"n": 2, "organization": "x", "repository": null}, "text"]
+[{"n":1,"organization":"o","repository":"r","source":"github"},{"n":2,"organization":"x","repository":null,"source":"github"},"text"]
+
+# A rate limit that is spent gives the wait until it resets, in local time, which the suite runs in UTC, and in
+# minutes rounded up, the later of the two when both are; with neither spent, or no answer, nothing.
+import "forge" as forge; [.[] | [forge::github_spent(1000000)]]
+[{"resources": {"core": {"remaining": 10, "reset": 1003600}, "graphql": {"remaining": 0, "reset": 1000690}}}, {"resources": {"core": {"remaining": 0, "reset": 1001200}, "graphql": {"remaining": 0, "reset": 1000060}}}, {"resources": {"core": {"remaining": 0, "reset": 1000010}}}, {"resources": {"core": {"remaining": 1, "reset": 1000010}}}, {}]
+[["wait until 13:58, in 12m, when GitHub's GraphQL rate limit resets"],["wait until 14:06, in 20m, when GitHub's REST rate limit resets"],["wait until 13:46, in 1m, when GitHub's REST rate limit resets"],[],[]]
+
+# GitHub's rate limits are GraphQL's, first, and REST's, as rest; the others kit does not spend are left out.
+import "forge" as forge; forge::github_quota
+{"resources": {"core": {"limit": 5000, "remaining": 4990, "used": 10, "reset": 1000600}, "search": {"limit": 30, "remaining": 30, "reset": 1000060}, "graphql": {"limit": 5000, "remaining": 0, "used": 5000, "reset": 1000300}}}
+{"forge":"github","limits":[{"name":"graphql","limit":5000,"remaining":0,"reset":1000300},{"name":"rest","limit":5000,"remaining":4990,"reset":1000600}]}
+
+# GitLab's is the one its RateLimit headers name, whatever their case; without them, or with a limit that is no number,
+# none.
+import "forge" as forge; [.[] | forge::gitlab_quota]
+["HTTP/2.0 200 OK\r\nRatelimit-Limit: 2000\r\nRATELIMIT-NAME: throttle_authenticated_api\r\nratelimit-remaining: 7\r\nRatelimit-Reset: 1000060\r\n\r\n{}", "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{}", "HTTP/1.1 200 OK\nRatelimit-Limit: 600\nRatelimit-Remaining: 599\n\n{}", "HTTP/1.1 200 OK\nRatelimit-Limit: lots\nRatelimit-Remaining: 9\n\n{}"]
+[{"forge":"gitlab","limits":[{"name":"throttle_authenticated_api","limit":2000,"remaining":7,"reset":1000060}]},{"forge":"gitlab","limits":[]},{"forge":"gitlab","limits":[{"name":"api","limit":600,"remaining":599,"reset":null}]},{"forge":"gitlab","limits":[]}]
+
+# GitLab's marks, a kind each, are what its newest items say of when they changed: the issue and the merge request
+# updated last together, the pipelines' ids, states, and updates, the release's tag and time, the milestone's number
+# and update with the newest issue's, as closing an issue moves no milestone's, the deployment updated last, and the
+# environments; none says an empty list.
+import "forge" as forge; . as $lists | ["issues", "runs", "releases", "milestones", "deployments", "environments"] | map({key: ., value: (. as $kind | $lists | forge::gitlab_mark($kind))}) | from_entries
+{"issues": [{"iid": 7, "updated_at": "a", "title": "x"}], "mrs": [{"iid": 3, "updated_at": "b"}], "runs": [{"id": 11, "status": "running", "updated_at": "c"}], "releases": [], "milestones": [{"iid": 2, "updated_at": "d"}], "deployments": [{"id": 9, "status": "success", "updated_at": "e"}], "environments": [{"id": 1, "name": "prod", "state": "available", "updated_at": "f"}]}
+{"issues":"[[7,\"a\"],[3,\"b\"]]","runs":"[[11,\"running\",\"c\"]]","releases":"[]","milestones":"[[2,\"d\"],[7,\"a\"]]","deployments":"[[9,\"success\",\"e\"]]","environments":"[[1,\"prod\",\"available\",\"f\"]]"}
+
+# GitHub's open issues fold into one document each, oldest first, with the assignees by login, the labels by name and
+# color, the age in seconds, and the organization and the repository their url names, or null without one.
+import "forge" as forge; forge::github_issues(1000000)
+[{"number": 9, "title": "Other thing", "assignees": [], "createdAt": "1970-01-12T13:46:30Z"}, {"number": 7, "title": "Fix the thing", "assignees": [{"login": "bob"}], "labels": [{"id": "LA_1", "name": "priority=high", "description": "", "color": "B60205"}], "createdAt": "1970-01-12T13:46:20Z", "url": "https://github.com/empowerite/kit/issues/7"}]
+{"number":7,"ref":"#7","title":"Fix the thing","assignees":["bob"],"labels":[{"name":"priority=high","color":"#b60205"}],"createdAt":"1970-01-12T13:46:20Z","milestone":null,"iteration":null,"age":20,"source":"github","organization":"empowerite","repository":"kit"}
+{"number":9,"ref":"#9","title":"Other thing","assignees":[],"labels":[],"createdAt":"1970-01-12T13:46:30Z","milestone":null,"iteration":null,"age":10,"source":"github","organization":null,"repository":null}
+
+# GitLab's fold the same, from iid, username, the labels' details, and a created_at with fractional seconds; the
+# organization is the group, subgroups and all, its full reference names.
+import "forge" as forge; forge::gitlab_issues(1000000)
+[{"iid": 7, "title": "Fix the thing", "assignees": [{"username": "bob"}], "labels": [{"id": 4, "name": "area::tui", "color": "#6699CC", "text_color": "#FFFFFF"}], "created_at": "1970-01-12T13:46:20.000Z", "references": {"full": "empowerite/tools/kit#7"}}, {"iid": 9, "title": "Other thing", "assignees": [], "created_at": "1970-01-12T13:46:30.500Z"}]
+{"number":7,"ref":"#7","title":"Fix the thing","assignees":["bob"],"labels":[{"name":"area::tui","color":"#6699cc"}],"createdAt":"1970-01-12T13:46:20.000Z","milestone":null,"iteration":null,"age":20,"source":"gitlab","organization":"empowerite/tools","repository":"kit"}
+{"number":9,"ref":"#9","title":"Other thing","assignees":[],"labels":[],"createdAt":"1970-01-12T13:46:30.500Z","milestone":null,"iteration":null,"age":10,"source":"gitlab","organization":null,"repository":null}
+
+# An issue says its milestone and its iteration by title: GitHub's milestone from gh issue list, and its iteration the
+# one forge/github:open-issues puts beside it; GitLab's from its own fields, an iteration with no title by its dates.
+import "forge" as forge; [forge::github_issues(1000000) | {number, milestone, iteration}]
+[{"number": 7, "title": "a", "assignees": [], "createdAt": "1970-01-12T13:46:20Z", "milestone": {"number": 2, "title": "v0.1"}, "iteration": "Sprint 2"}, {"number": 9, "title": "b", "assignees": [], "createdAt": "1970-01-12T13:46:30Z", "milestone": null}]
+[{"number":7,"milestone":"v0.1","iteration":"Sprint 2"},{"number":9,"milestone":null,"iteration":null}]
+
+import "forge" as forge; [forge::gitlab_issues(1000000) | {number, milestone, iteration}]
+[{"iid": 7, "title": "a", "assignees": [], "created_at": "1970-01-12T13:46:20Z", "milestone": {"title": "v0.1"}, "iteration": {"title": "Sprint 2"}}, {"iid": 8, "title": "b", "assignees": [], "created_at": "1970-01-12T13:46:25Z", "milestone": null, "iteration": {"title": null, "start_date": "2026-11-02", "due_date": "2026-11-15"}}, {"iid": 9, "title": "c", "assignees": [], "created_at": "1970-01-12T13:46:30Z"}]
+[{"number":7,"milestone":"v0.1","iteration":"Sprint 2"},{"number":8,"milestone":null,"iteration":"2026-11-02 to 2026-11-15"},{"number":9,"milestone":null,"iteration":null}]
+
+# GitHub's pages of the open issues' project items give each issue in an iteration the first iteration's title, by
+# its number; a value of another kind of field is no iteration, and an issue in none is left out.
+import "forge" as forge; forge::github_issue_iterations
+[{"data": {"repository": {"issues": {"nodes": [{"number": 7, "projectItems": {"nodes": [{"fieldValues": {"nodes": [{}, {"title": "Sprint 2"}]}}, {"fieldValues": {"nodes": [{"title": "Sprint 9"}]}}]}}, {"number": 8, "projectItems": {"nodes": [{"fieldValues": {"nodes": [{}]}}]}}]}}}}, {"data": {"repository": {"issues": {"nodes": [{"number": 9, "projectItems": {"nodes": []}}, {"number": 10, "projectItems": {"nodes": [{"fieldValues": {"nodes": [{"title": "Sprint 1"}]}}]}}]}}}}]
+{"7":"Sprint 2","10":"Sprint 1"}
+
+# An Azure Boards work item's iteration is the last name of its iteration path; the project's root alone is none, and
+# it has no milestone.
+import "forge" as forge; [forge::ado_issues(1000000; "p/r") | {number, milestone, iteration}]
+[{"id": 7, "fields": {"System.Title": "a", "System.CreatedDate": "1970-01-12T13:46:20Z", "System.IterationPath": "Claims\\Release 1\\Sprint 4"}}, {"id": 8, "fields": {"System.Title": "b", "System.CreatedDate": "1970-01-12T13:46:30Z", "System.IterationPath": "Claims"}}]
+[{"number":7,"milestone":null,"iteration":"Sprint 4"},{"number":8,"milestone":null,"iteration":null}]
+
+# An issue's milestone, iteration, and swimlane are the stand-in's where the repository chose one: the rest of its
+# first label with the prefix, past one that holds the prefix alone, else the default; null where the forge lacks the
+# feature; else the forge's own, or null.
+import "forge" as forge; [.[] | forge::issue_fields({swimlanes: {label_prefix: "swimlane:", default: "none"}, milestones: {default: "later"}}; ["iterations"]) | {milestone, iteration, swimlane}]
+[{"labels": [{"name": "bug"}, {"name": "swimlane:"}, {"name": "swimlane:ops"}, {"name": "swimlane:dev"}], "milestone": "v1", "iteration": "Sprint 1"}, {"labels": []}]
+[{"milestone":"later","iteration":null,"swimlane":"ops"},{"milestone":"later","iteration":null,"swimlane":"none"}]
+
+import "forge" as forge; [.[] | forge::issue_fields({iterations: {label_prefix: "sprint/"}}; []) | {milestone, iteration, swimlane}]
+[{"labels": [{"name": "sprint/12"}], "milestone": "v1", "iteration": "Sprint 1"}, {"labels": [], "iteration": "Sprint 1"}]
+[{"milestone":"v1","iteration":"12","swimlane":null},{"milestone":null,"iteration":null,"swimlane":null}]
+
+# A draft has no publishing time and is dated by when it was made; releases come newest first.
+import "forge" as forge; [forge::github_releases(1800000000) | "\(.version) \(.kind) \(.at) \(.latest)"]
+[[{"tag_name": "release/0.0.9", "name": "a", "prerelease": false, "draft": false, "published_at": "2026-10-20T07:30:14Z", "created_at": "2026-10-20T07:30:14Z"}, {"tag_name": "release/0.1.0-rc.7", "name": "b", "prerelease": true, "draft": true, "published_at": null, "created_at": "2026-10-30T07:30:14Z"}]]
+["0.1.0-rc.7 draft 2026-10-30T07:30:14Z false","0.0.9 release 2026-10-20T07:30:14Z true"]
+
+# The pages join, and the latest is the newest release by when it was made, neither a draft nor a pre-release, as
+# GitHub names it: not the one published last, nor a newer pre-release.
+import "forge" as forge; [forge::github_releases(1800000000) | "\(.version) \(.kind) \(.latest)"]
+[[{"tag_name": "release/0.1.0", "name": "c", "prerelease": false, "draft": false, "published_at": "2026-10-27T07:30:14Z", "created_at": "2026-10-27T07:30:14Z"}, {"tag_name": "release/0.2.0-rc.1", "name": "d", "prerelease": true, "draft": false, "published_at": "2026-10-29T07:30:14Z", "created_at": "2026-10-29T07:30:14Z"}], [{"tag_name": "release/0.0.9", "name": "a", "prerelease": false, "draft": false, "published_at": "2026-10-28T07:30:14Z", "created_at": "2026-10-20T07:30:14Z"}]]
+["0.2.0-rc.1 pre-release false","0.0.9 release false","0.1.0 release true"]
+
+# GitLab: the branch for an issue starts with its number and a dash, and a merge request's state is said as GitHub says it.
+import "forge" as forge; [forge::gitlab_branch_for_issue(7)]
+[{"source_branch": "70-other"}, {"source_branch": "7-start"}]
+["7-start"]
+
+import "forge" as forge; [.[] | [.] | forge::gitlab_pr_state]
+[{"state": "merged"}, {"state": "locked"}, {"state": "opened"}]
+["MERGED","CLOSED","OPEN"]
+
+# A pull request's review threads or checks with a next page are named, with the cursor and the head commit; a list
+# held whole is not.
+import "forge" as forge; [forge::github_partial]
+{"data": {"repository": {"pullRequests": {"nodes": [{"number": 3, "reviewThreads": {"pageInfo": {"hasNextPage": true, "endCursor": "t1"}, "nodes": [{}]}, "commits": {"nodes": [{"commit": {"oid": "abc", "statusCheckRollup": null}}]}}, {"number": 4, "reviewThreads": {"pageInfo": {"hasNextPage": false}, "nodes": []}, "commits": {"nodes": [{"commit": {"oid": "def", "statusCheckRollup": {"contexts": {"pageInfo": {"hasNextPage": true, "endCursor": "c1"}, "nodes": [{}]}}}}]}}, {"number": 5, "reviewThreads": {"nodes": []}, "commits": {"nodes": []}}]}}}}
+["3\tthreads\tt1\tabc","4\tchecks\tc1\tdef"]
+
+# A merge request's head pipeline is one job, pipeline, of its own status, where its jobs cannot be read.
+import "forge" as forge; forge::gitlab_pipeline_jobs | map({name, status})
+{"head_pipeline": {"id": 11, "project_id": 99, "status": "failed"}}
+[{"name":"pipeline","status":"failed"}]
+
+# GitHub's milestone pages, each an array, fold into one document each, by number, the due date, a time at midnight, in
+# seconds since the epoch, or null for none.
+import "forge" as forge; forge::github_milestones
+[[{"number": 2, "title": "v0.1", "state": "open", "due_on": "2026-12-01T00:00:00Z", "open_issues": 3, "closed_issues": 2, "html_url": "u2"}], [{"number": 1, "title": "v0.0.9", "state": "closed", "due_on": null, "open_issues": 0, "closed_issues": 7, "html_url": "u1"}]]
+{"number":1,"title":"v0.0.9","state":"closed","due":null,"open":0,"closed":7,"url":"u1"}
+{"number":2,"title":"v0.1","state":"open","due":1796083200,"open":3,"closed":2,"url":"u2"}
+
+# GitLab's, from GraphQL, by iid, a string there: its dueDate a day, its active state open, those open the total less
+# those closed, and its page the host and its webPath.
+import "forge" as forge; forge::gitlab_milestones("https://gitlab.com")
+[{"iid": "2", "title": "v0.1", "state": "active", "dueDate": "2026-12-01", "webPath": "/o/r/-/milestones/2", "stats": {"totalIssuesCount": 5, "closedIssuesCount": 2}}, {"iid": "1", "title": "v0.0.9", "state": "closed", "dueDate": null, "webPath": "/o/r/-/milestones/1", "stats": {"totalIssuesCount": 0, "closedIssuesCount": 0}}]
+{"number":1,"title":"v0.0.9","state":"closed","due":null,"open":0,"closed":0,"url":"https://gitlab.com/o/r/-/milestones/1"}
+{"number":2,"title":"v0.1","state":"open","due":1796083200,"open":3,"closed":2,"url":"https://gitlab.com/o/r/-/milestones/2"}
+
+# GitLab's sort by number, not by the text of the iid; a milestone with no stats, or null counts, has no issues.
+import "forge" as forge; forge::gitlab_milestones("h") | [.number, .open, .closed]
+[{"iid": "10", "title": "c", "state": "active", "webPath": "/10", "stats": null}, {"iid": "2", "title": "a", "state": "active", "webPath": "/2", "stats": {"totalIssuesCount": null, "closedIssuesCount": null}}, {"iid": "9", "title": "b", "state": "closed", "webPath": "/9", "stats": {"totalIssuesCount": 4, "closedIssuesCount": 1}}]
+[2,0,0]
+[9,3,1]
+[10,0,0]
+
+# GitHub's iterations are those of each iteration field of each project, the running and the completed, by start, each
+# lasting its duration in days to the last second before the next day; a field that is no iteration field, and a project
+# with none, add none.
+import "forge" as forge; forge::github_iterations
+{"data": {"repository": {"projectsV2": {"nodes": [{"url": "p", "fields": {"nodes": [{}, {"configuration": {"iterations": [{"id": "b", "title": "Sprint 2", "startDate": "2026-11-16", "duration": 14}], "completedIterations": [{"id": "a", "title": "Sprint 1", "startDate": "2026-11-02", "duration": 14}]}}]}}, {"url": "q", "fields": {"nodes": []}}]}}}}
+{"id":"a","title":"Sprint 1","start":1793577600,"end":1794787199,"url":"p"}
+{"id":"b","title":"Sprint 2","start":1794787200,"end":1795996799,"url":"p"}
+
+# GitHub with no project linked has none.
+import "forge" as forge; [forge::github_iterations]
+{"data": {"repository": {"projectsV2": {"nodes": []}}}}
+[]
+
+# GitLab's last day is the iteration's due_date, so it ends with that day; a cadence's iteration with no title is named
+# by its dates.
+import "forge" as forge; forge::gitlab_iterations
+[{"id": 32, "title": null, "start_date": "2026-11-16", "due_date": "2026-11-29", "web_url": "u"}, {"id": 31, "title": "Sprint 1", "start_date": "2026-11-02", "due_date": "2026-11-15", "web_url": "u"}]
+{"id":31,"title":"Sprint 1","start":1793577600,"end":1794787199,"url":"u"}
+{"id":32,"title":"2026-11-16 to 2026-11-29","start":1794787200,"end":1795996799,"url":"u"}
+
+# Azure DevOps' team iterations are by start, one with no dates, as the project's root has, first with none.
+import "forge" as forge; forge::ado_iterations("u")
+[{"id": "a1", "name": "Sprint 1", "attributes": {"startDate": "2026-11-02T00:00:00Z", "finishDate": "2026-11-15T00:00:00Z"}}, {"id": "a0", "name": "Backlog", "attributes": null}]
+{"id":"a0","title":"Backlog","start":null,"end":null,"url":"u"}
+{"id":"a1","title":"Sprint 1","start":1793577600,"end":1794787199,"url":"u"}
+
+# A change's reviewers are each named once, as the first that names them says, by login: one asked again is asked,
+# whatever they said before. The author's own comments are no review, and a reviewer the forge names no login for, as
+# a deleted account, is none. A time comes out in seconds since the epoch.
+import "forge" as forge; forge::reviewers("ada")
+[{"login": "dee", "state": "requested", "at": null}, {"login": "ada", "state": "commented", "at": "1970-01-12T13:40:00Z"}, {"login": null, "state": "approved", "at": null}, {"login": "dee", "state": "approved", "at": "1970-01-12T13:40:00Z"}, {"login": "bob", "state": "changes", "at": "1970-01-12T13:41:40.5Z"}]
+[{"login":"bob","state":"changes","at":999700},{"login":"dee","state":"requested","at":null}]
+
+# GitHub asks a person or a team, and a reviewer's latest review approves, asks for changes, or comments; a dismissed
+# review stands as a comment, and a pending one, which only its author sees, is none.
+import "forge" as forge; forge::github_prs(1000000) | .reviewers
+{"data": {"repository": {"pullRequests": {"nodes": [{"number": 3, "title": "Fix", "isDraft": false, "headRefName": "7-fix", "createdAt": "1970-01-12T13:30:00Z", "author": {"login": "ada"}, "closingIssuesReferences": {"nodes": []}, "commits": {"nodes": [{"commit": {"statusCheckRollup": null}}]}, "reviewRequests": {"nodes": [{"requestedReviewer": {"slug": "core"}}, {"requestedReviewer": null}]}, "latestReviews": {"nodes": [{"author": {"login": "bob"}, "state": "CHANGES_REQUESTED", "submittedAt": "1970-01-12T13:40:00Z"}, {"author": {"login": "cy"}, "state": "DISMISSED", "submittedAt": "1970-01-12T13:40:00Z"}, {"author": {"login": "dee"}, "state": "PENDING", "submittedAt": null}, {"author": null, "state": "APPROVED", "submittedAt": "1970-01-12T13:40:00Z"}]}}]}}}}
+[{"login":"bob","state":"changes","at":999600},{"login":"core","state":"requested","at":null},{"login":"cy","state":"commented","at":999600}]
+
+# A GitLab merge request's approvers have approved, at the time each did, and a reviewer without an approval is asked.
+import "forge" as forge; forge::gitlab_pr(1000000; []; []; []; null; {"approved_by": [{"user": {"username": "carol"}, "approved_at": "1970-01-12T13:40:00.000Z"}, {"user": null}]}) | .reviewers
+{"iid": 3, "source_branch": "7-fix", "title": "Fix it", "author": {"username": "ada"}, "created_at": "1970-01-12T13:30:00Z", "draft": false, "reviewers": [{"username": "bob"}, {"username": "carol"}]}
+[{"login":"bob","state":"requested","at":null},{"login":"carol","state":"approved","at":999600}]
+
+# Azure DevOps' votes of 10 and 5 approve, -5 and -10 ask for changes, and 0 is a reviewer asked; one who declined is
+# none, and a team is named by its display name. A vote has no time.
+import "forge" as forge; [.[] | {vote, isContainer, hasDeclined, uniqueName, displayName}] | {reviewers: .} | forge::ado_reviewers
+[{"uniqueName": "a", "vote": 10}, {"uniqueName": "b", "vote": 5}, {"uniqueName": "c", "vote": -5}, {"uniqueName": "d", "vote": -10}, {"uniqueName": "e", "vote": 0}, {"uniqueName": "f", "vote": 0, "hasDeclined": true}, {"uniqueName": "vstfs:///x", "displayName": "Core Team", "isContainer": true, "vote": 0}]
+[{"login":"a","state":"approved","at":null},{"login":"b","state":"approved","at":null},{"login":"c","state":"changes","at":null},{"login":"d","state":"changes","at":null},{"login":"e","state":"requested","at":null},{"login":"Core Team","state":"requested","at":null}]
+
+# GitHub's merged pull requests come merged last first, each merger and author null for a deleted account, each with
+# the references its body closes; with every one read, one merged long ago and updated since is among them.
+import "forge" as forge; forge::github_merged
+{"data": {"repository": {"pullRequests": {"totalCount": 3, "nodes": [{"number": 3, "title": "Three", "url": "u3", "headRefName": "b3", "mergedAt": "1970-01-12T13:00:00Z", "updatedAt": "1970-01-12T13:50:00Z", "author": null, "mergedBy": null}, {"number": 4, "title": "Four", "url": "u4", "headRefName": "b4", "mergedAt": "1970-01-12T13:40:00Z", "updatedAt": "1970-01-12T13:40:00Z", "author": null, "mergedBy": null}, {"number": 5, "title": "Five", "url": "u5", "headRefName": "b5", "mergedAt": "1970-01-12T13:45:00Z", "updatedAt": "1970-01-12T13:46:00Z", "author": {"login": "bob"}, "mergedBy": {"login": "ada"}, "body": "Closes AB#4521"}]}}}}
+{"number":5,"title":"Five","author":"bob","branch":"b5","merged":999900,"by":"ada","url":"u5","named":["AB#4521"]}
+{"number":4,"title":"Four","author":null,"branch":"b4","merged":999600,"by":null,"url":"u4","named":[]}
+{"number":3,"title":"Three","author":null,"branch":"b3","merged":997200,"by":null,"url":"u3","named":[]}
+
+# Past the nodes GitHub read, a pull request merged before the oldest update among them may be missing, so only those
+# merged since are kept, then limited counts them: one merged long ago and updated since is left out.
+import "forge" as forge; forge::github_merged
+{"data": {"repository": {"pullRequests": {"totalCount": 9, "nodes": [{"number": 3, "title": "Three", "url": "u3", "headRefName": "b3", "mergedAt": "1970-01-12T13:00:00Z", "updatedAt": "1970-01-12T13:50:00Z", "author": null, "mergedBy": null}, {"number": 4, "title": "Four", "url": "u4", "headRefName": "b4", "mergedAt": "1970-01-12T13:40:00Z", "updatedAt": "1970-01-12T13:40:00Z", "author": null, "mergedBy": null}, {"number": 5, "title": "Five", "url": "u5", "headRefName": "b5", "mergedAt": "1970-01-12T13:45:00Z", "updatedAt": "1970-01-12T13:46:00Z", "author": {"login": "bob"}, "mergedBy": {"login": "ada"}}]}}}}
+{"number":5,"title":"Five","author":"bob","branch":"b5","merged":999900,"by":"ada","url":"u5","named":[]}
+{"number":4,"title":"Four","author":null,"branch":"b4","merged":999600,"by":null,"url":"u4","named":[]}
+{"limited":2}
+
+# GitLab's merged merge requests name who merged one by merge_user, else the deprecated merged_by; past the limit,
+# the list says it stopped there.
+import "forge" as forge; forge::gitlab_merged(1)
+[{"iid": 9, "title": "Nine", "author": {"username": "bob"}, "source_branch": "b9", "merged_at": "1970-01-12T13:40:00.000Z", "merged_by": {"username": "ada"}, "web_url": "u9"}, {"iid": 8, "title": "Eight", "merged_at": "1970-01-12T13:30:00Z", "web_url": "u8"}]
+{"number":9,"title":"Nine","author":"bob","branch":"b9","merged":999600,"by":"ada","url":"u9","named":[]}
+{"limited":1}
+
+# Azure DevOps' completed pull requests are dated by when they closed, by who closed them, each page under the
+# repository's.
+import "forge" as forge; forge::ado_merged(5; "https://dev.azure.com/o/p/_git/r")
+[{"pullRequestId": 2, "title": "Two", "sourceRefName": "refs/heads/b2", "createdBy": {"uniqueName": "bob"}, "closedBy": {"uniqueName": "ada"}, "closedDate": "1970-01-12T13:40:00.1234567Z"}, {"pullRequestId": 3, "title": "Three", "sourceRefName": "refs/heads/b3", "closedDate": "1970-01-12T13:45:00Z"}]
+{"number":3,"title":"Three","author":null,"branch":"b3","merged":999900,"by":null,"url":"https://dev.azure.com/o/p/_git/r/pullrequest/3","named":[]}
+{"number":2,"title":"Two","author":"bob","branch":"b2","merged":999600,"by":"ada","url":"https://dev.azure.com/o/p/_git/r/pullrequest/2","named":[]}
+
+# A GitLab older than 17.2 lists its merged merge requests by update instead: of the first $limit, those merged since
+# the oldest update among them are kept when it read more, so one merged long ago and updated since is left out.
+import "forge" as forge; forge::gitlab_merged_by_update(2)
+[{"iid": 7, "title": "Seven", "merged_at": "1970-01-12T13:00:00Z", "updated_at": "1970-01-12T13:50:00Z", "web_url": "u7"}, {"iid": 9, "title": "Nine", "author": {"username": "bob"}, "source_branch": "b9", "merged_at": "1970-01-12T13:45:00Z", "updated_at": "1970-01-12T13:45:00Z", "merge_user": {"username": "ada"}, "web_url": "u9"}, {"iid": 8, "title": "Eight", "merged_at": "1970-01-12T13:40:00Z", "updated_at": "1970-01-12T13:40:00Z", "web_url": "u8"}]
+{"number":9,"title":"Nine","author":"bob","branch":"b9","merged":999900,"by":"ada","url":"u9","named":[]}
+{"limited":1}
+
+# A GitHub artifact of a run GitHub no longer names is its download, one with no digest, no time, or no expiry has
+# none, and one expired is none; past the page, the list says it stopped at those drawn.
+import "forge" as forge; forge::github_artifacts(1000000; "https://github.com/o/r")
+{"total_count": 4, "artifacts": [{"id": 13, "name": "a", "size_in_bytes": 5, "digest": "sha256:ab", "created_at": "1970-01-12T13:40:00Z", "expires_at": "1970-01-12T13:50:00Z", "workflow_run": {"id": 7}}, {"id": 12, "name": "b", "size_in_bytes": 6, "digest": null, "created_at": null, "expires_at": null, "workflow_run": null, "archive_download_url": "z"}, {"id": 11, "name": "c", "expired": true}]}
+{"id":13,"name":"a","digest":"sha256:ab","size":5,"run":7,"age":400,"expires":1000200,"url":"https://github.com/o/r/actions/runs/7/artifacts/13"}
+{"id":12,"name":"b","digest":null,"size":6,"run":null,"age":null,"expires":null,"url":"z"}
+{"limited":2}
+
+# A GitLab job that kept no archive is no artifact, one is named for its job and its file, and GitLab names no digest
+# of one; a page of $limit jobs may not be all of them.
+import "forge" as forge; forge::gitlab_artifacts(1000000; 2)
+[{"id": 13, "name": "package", "artifacts_file": {"filename": "a.zip", "size": 5}, "pipeline": {"id": 7}, "finished_at": null, "created_at": "1970-01-12T13:40:00Z", "artifacts_expire_at": null, "web_url": "u"}, {"id": 12, "artifacts": []}]
+{"id":13,"name":"package: a.zip","digest":null,"size":5,"run":7,"age":400,"expires":null,"url":"u"}
+{"limited":1}
+
+# An Azure DevOps artifact is its run's, by id, its size a pipeline artifact's alone, and it is as old as its run.
+import "forge" as forge; forge::ado_artifacts(1000000; {"id": 7, "finishTime": null, "queueTime": "1970-01-12T13:40:00Z"}; "r")
+[{"id": 1, "name": "a", "resource": {"properties": {"artifactsize": "5"}}}, {"id": 2, "name": "b", "resource": {"type": "Container"}}]
+{"id":"7/1","name":"a","digest":null,"size":5,"run":7,"age":400,"expires":null,"url":"r?buildId=7&view=artifacts&type=publishedArtifacts"}
+{"id":"7/2","name":"b","digest":null,"size":null,"run":7,"age":400,"expires":null,"url":"r?buildId=7&view=artifacts&type=publishedArtifacts"}
+
+# A GitHub environment with no branch policy takes any branch, one for protected branches says so, and a tag's policy
+# is its ref; the list stops before the environment past $limit of those with policies of their own.
+import "forge" as forge; forge::github_environments({"a": ["main", "refs/tags/v*"]}; 1)
+[{"environments": [{"name": "a", "html_url": "ua", "protection_rules": [{"type": "wait_timer"}, {"type": "required_reviewers", "reviewers": [{"type": "Team", "reviewer": {"slug": "core"}}, {"type": "User", "reviewer": {"login": "ada"}}]}], "deployment_branch_policy": {"protected_branches": false, "custom_branch_policies": true}}, {"name": "b", "html_url": "ub", "deployment_branch_policy": {"protected_branches": true, "custom_branch_policies": false}}, {"name": "c", "html_url": "uc", "protection_rules": [], "deployment_branch_policy": null}, {"name": "d", "deployment_branch_policy": {"custom_branch_policies": true}}]}]
+{"name":"a","protection":["reviewers","wait"],"approvers":["core","ada"],"branches":["main","refs/tags/v*"],"url":"ua"}
+{"name":"b","protection":[],"approvers":[],"branches":["protected branches"],"url":"ub"}
+{"name":"c","protection":[],"approvers":[],"branches":null,"url":"uc"}
+{"limited":3}
+
+import "forge" as forge; forge::github_branch_policies
+{"branch_policies": [{"name": "main", "type": "branch"}, {"name": "v*", "type": "tag"}, {"name": "old"}]}
+["main","refs/tags/v*","old"]
+
+# GitLab's protection comes from its protected environments, null where it showed none; a count of approvals alone
+# names those who may deploy as its approvers.
+import "forge" as forge; forge::gitlab_environments([{"name": "a", "required_approval_count": 1, "deploy_access_levels": [{"access_level_description": "Maintainers"}]}]; "https://g/o/r")
+[{"id": 1, "name": "a"}, {"id": 2, "name": "b"}]
+{"name":"a","protection":["deployers","reviewers"],"approvers":["Maintainers"],"branches":null,"url":"https://g/o/r/-/environments/1"}
+{"name":"b","protection":[],"approvers":[],"branches":null,"url":"https://g/o/r/-/environments/2"}
+
+import "forge" as forge; forge::gitlab_environments(null; "https://g/o/r")
+[{"id": 1, "name": "a"}]
+{"name":"a","protection":null,"approvers":null,"branches":null,"url":"https://g/o/r/-/environments/1"}
+
+# Azure DevOps' checks guard the environment they name: an approval, a branch control, or another kind by its name; a
+# check turned off guards nothing.
+import "forge" as forge; forge::ado_environments({"value": [{"type": {"name": "Approval"}, "resource": {"id": "1"}, "settings": {"approvers": [{"uniqueName": "ada"}, {"displayName": "Core"}]}}, {"type": {"name": "Task Check"}, "resource": {"id": "1"}, "settings": {"definitionRef": {"name": "evaluatebranchProtection"}, "inputs": {"allowedBranches": "refs/heads/main, refs/heads/release/*"}}}, {"type": {"name": "Business Hours"}, "resource": {"id": "1"}}, {"type": {"name": "Approval"}, "resource": {"id": "1"}, "isDisabled": true, "settings": {"approvers": [{"uniqueName": "bob"}]}}]}; "https://d/o/p")
+{"value": [{"id": 1, "name": "a"}, {"id": 2, "name": "b"}]}
+{"name":"a","protection":["branches","business-hours","reviewers"],"approvers":["ada","Core"],"branches":["main","release/*"],"url":"https://d/o/p/_environments/1"}
+{"name":"b","protection":[],"approvers":[],"branches":null,"url":"https://d/o/p/_environments/2"}
+
+# A GitHub deployment is in the state of its latest status, else its own, and one with no status, ref, or commit still
+# has a page and a commit page; past the 50 read, the list says it stopped.
+import "forge" as forge; forge::github_deployments(1000000; 1)
+{"data": {"repository": {"url": "https://github.com/o/r", "deployments": {"totalCount": 2, "nodes": [{"databaseId": 9, "environment": "prod", "ref": null, "commitOid": "abc", "state": "WAITING", "createdAt": "1970-01-12T13:40:00Z", "creator": {"login": "ada"}, "commit": null, "latestStatus": null}, null]}}}}
+{"id":9,"environment":"prod","ref":null,"sha":"abc","state":"waiting","actor":"ada","age":400,"url":"https://github.com/o/r/deployments/prod","commit":"https://github.com/o/r/commit/abc"}
+{"limited":1}
+
+# A GitLab deployment with no job is its environment's, and one with no user has no actor.
+import "forge" as forge; forge::gitlab_deployments(1000000; 5; "https://g/o/r")
+[{"id": 9, "environment": {"id": 1, "name": "prod"}, "ref": "main", "sha": "abc", "status": "blocked", "user": null, "created_at": "1970-01-12T13:40:00Z", "deployable": null}]
+{"id":9,"environment":"prod","ref":"main","sha":"abc","state":"waiting","actor":null,"age":400,"url":"https://g/o/r/-/environments/1","commit":"https://g/o/r/-/commit/abc"}
+
+# An Azure DevOps deployment names its ref, commit, and actor from its run, none for a run past those read, and no
+# commit page for a run of another repository; one with no result is running.
+import "forge" as forge; forge::ado_deployments(1000000; {"value": [{"id": 1, "name": "prod"}]}; [{"id": 7, "sourceBranch": "refs/heads/main", "sourceVersion": "abc", "requestedFor": {"uniqueName": "ada"}, "repository": {"name": "other"}}]; 5; true; "r"; {"name": "example", "url": "u"})
+[{"id": 9, "environmentId": 1, "owner": {"id": 7}, "startTime": "1970-01-12T13:40:00Z", "finishTime": null, "result": null}, {"id": 8, "environmentId": 1, "owner": {"id": 6}, "startTime": "1970-01-12T13:30:00Z", "finishTime": "1970-01-12T13:31:00Z", "result": "canceled"}]
+{"id":9,"environment":"prod","ref":"main","sha":"abc","state":"running","actor":"ada","age":400,"url":"r?buildId=7","commit":null}
+{"id":8,"environment":"prod","ref":null,"sha":null,"state":"cancelled","actor":null,"age":1000,"url":"r?buildId=6","commit":null}
+{"limited":2}
+
+# Azure DevOps' deployment records are ordered by when they started as times, not as text, whatever form az gives.
+import "forge" as forge; [forge::ado_deployments(1000000; {"value": []}; []; 5; false; "r"; {"name": "x", "url": "u"}) | .id]
+[{"id": 1, "environmentId": 1, "owner": {"id": 7}, "startTime": "1970-01-12T13:41:00.500000+00:00", "result": "succeeded"}, {"id": 2, "environmentId": 1, "owner": {"id": 7}, "startTime": "1970-01-12T13:40:00Z", "result": "succeeded"}, {"id": 3, "environmentId": 1, "owner": {"id": 7}, "startTime": "1970-01-12T14:39:00+01:00", "result": "succeeded"}]
+[1,2,3]
+
+# A GitHub collaborator with no name shown, or no role, has them null, and a bot account is a bot; a team's permission
+# is the role a collaborator's would name, a custom role its own name.
+import "forge" as forge; [forge::github_collaborators], [("pull", "push", "maintain", "custom", null) | forge::github_role]
+[[{"login": "ada", "type": "User"}, null, {"login": "app[bot]", "type": "Bot", "name": "App", "role_name": "write"}]]
+[{"login":"ada","name":null,"role":null,"kind":"user"},{"login":"app[bot]","name":"App","role":"write","kind":"bot"}]
+["read","write","maintain","custom",null]
+
+# A GitHub team the caller cannot see has its members null, a team cut past its members says the list stopped at the
+# teams drawn, and more teams than read say it stopped at the limit.
+import "forge" as forge; [forge::github_teams({t0: {members: {totalCount: 3, nodes: [{"login": "ada"}, null]}}}; 2)], [forge::github_teams({}; 1)]
+[{"slug": "a", "name": "A", "permission": "admin"}, {"slug": "b", "name": "B"}]
+[{"team":"a","name":"A","role":"admin","members":["ada"],"url":null},{"team":"b","name":"B","role":null,"members":null,"url":null},{"limited":2}]
+[{"team":"a","name":"A","role":"admin","members":null,"url":null},{"limited":1}]
+
+# A GitHub bot's acts merge under one login, a Bot's GraphQL login gaining [bot]; a pending review, which has no time,
+# still says it reviewed; nodes, authors, and reviews that are null are no one's; a bot GitHub gave no page has none.
+import "forge" as forge; [forge::github_bots]
+{"data": {"repository": {"url": "https://ghe.example/o/r", "defaultBranchRef": {"target": {"history": {"nodes": [null, {"committedDate": "1970-01-01T00:01:40Z", "author": {"name": "x[bot]", "user": null}}]}}}, "open": {"nodes": [null, {"createdAt": "1970-01-01T00:00:50Z", "author": {"__typename": "Bot", "login": "x"}, "latestReviews": null}]}, "merged": {"nodes": [{"createdAt": "1970-01-01T00:00:10Z", "author": null, "latestReviews": {"nodes": [null, {"submittedAt": null, "author": {"__typename": "Bot", "login": "y", "url": "https://ghe.example/apps/y"}}]}}]}}}}
+[{"login":"x[bot]","acted":["commit","change"],"last":100,"url":null},{"login":"y[bot]","acted":["review"],"last":null,"url":"https://ghe.example/apps/y"}]
+
+# A repository with no default branch's commits and no changes has no bots.
+import "forge" as forge; [forge::github_bots]
+{"data": {"repository": {"defaultBranchRef": null, "open": null, "merged": {"nodes": []}}}}
+[]
+
+# A GitLab member with no access level shown has no role, a level GitLab adds later is its number, and a user who is no
+# bot, or a bot never seen acting, has none of that.
+import "forge" as forge; [forge::gitlab_collaborators], [forge::gitlab_bots]
+[{"accessLevel": null, "user": {"username": "a", "bot": false}}, {"accessLevel": {"integerValue": 35}, "user": {"username": "b", "name": "B", "bot": true, "lastActivityOn": null, "webUrl": null}}, {"accessLevel": {"integerValue": 10}, "user": null}]
+[{"login":"a","name":null,"role":null,"kind":"user"},{"login":"b","name":"B","role":"35","kind":"bot"}]
+[{"login":"b","acted":null,"last":null,"url":null}]
+
+# A GitLab project shared with no group, or one whose answer names none, has no teams.
+import "forge" as forge; [forge::gitlab_teams({}; "https://h"; 20)]
+{"shared_with_groups": null}
+[]
+
+# An Azure DevOps team with no members read has none, and a member with no identity is no one; an administrator of
+# one team is an admin, a member of another.
+import "forge" as forge; [forge::ado_teams({b: [{"identity": {"uniqueName": "ada"}}]}; "u"; 20)], [forge::ado_collaborators({a: [{"isTeamAdmin": true, "identity": {"uniqueName": "ada", "displayName": "Ada"}}, {"identity": null}], b: [{"identity": {"uniqueName": "ada"}}, {"identity": {"id": "g", "isContainer": true}}]}; 20)]
+[{"id": "a", "name": "A"}, {"id": "b", "name": "B"}]
+[{"team":"A","name":"A","role":null,"members":[],"url":"u/_settings/teams"},{"team":"B","name":"B","role":null,"members":["ada"],"url":"u/_settings/teams"}]
+[{"login":"ada","name":"Ada","role":"admin","kind":"user"},{"login":"g","name":null,"role":"member","kind":"group"}]
+
+# A GitHub alert with no rule, severity, location, or dismisser shown has none of them; code scanning's state is its
+# own, and a secret resolved is dismissed, its resolution the reason; an alert on two pages is drawn once, as the
+# last page gives it, the newest number first.
+import "forge" as forge; [forge::github_code_scanning(100)], [forge::github_secret_scanning(100)]
+[[{"number": 3, "state": "open", "created_at": null, "html_url": "u", "rule": null, "most_recent_instance": null}], [{"number": 4, "state": "resolved", "html_url": "v", "resolution": "revoked"}, {"number": 3, "state": "dismissed", "html_url": "u", "dismissed_by": null, "dismissed_reason": "won't fix", "dismissed_comment": ""}]]
+[{"number":4,"rule":null,"severity":null,"state":"resolved","path":null,"age":null,"url":"v","by":null,"reason":null},{"number":3,"rule":null,"severity":null,"state":"dismissed","path":null,"age":null,"url":"u","by":null,"reason":"won't fix"}]
+[{"number":4,"rule":null,"severity":null,"state":"dismissed","path":null,"age":null,"url":"v","by":null,"reason":"revoked"},{"number":3,"rule":null,"severity":null,"state":"dismissed","path":null,"age":null,"url":"u","by":null,"reason":null}]
+
+# A pattern names a branch as fnmatch does: * within a path segment, ** across them, and a character that is a
+# regular expression's own is itself.
+import "forge" as forge; [("refs/heads/ma*", "refs/heads/**", "refs/heads/*", "refs/heads/m.in") | forge::fnmatch("refs/heads/main")], ("refs/heads/*" | forge::fnmatch("refs/heads/a/b"))
+null
+[true,true,true,false]
+false
+
+# A GitLab vulnerability with no identifier, location, or time shown has its title for a rule, and none of the rest.
+import "forge" as forge; [forge::gitlab_vulnerabilities(100)]
+[{"id": "gid://gitlab/Vulnerability/12", "title": "T", "severity": null, "state": "CONFIRMED", "detectedAt": null, "primaryIdentifier": null, "location": null, "webUrl": null}]
+[{"number":12,"rule":"T","severity":null,"state":"open","path":null,"age":null,"url":null,"by":null,"reason":null}]
+
+# A change's body names the references a closing keyword names, in either case, each once, in the order it names them;
+# a keyword inside a word, as enclosed, names none, and no body names none.
+import "forge" as forge; map(forge::named)
+["Some text.\nCloses AB#4521\nfixes ab#9 and Resolves: AB#10.\nCloses #7, closes LIN#3; Closes AB#4521 enclosed #8", null]
+[["AB#4521","ab#9","AB#10","#7","LIN#3"],[]]
+
+# A GitHub ruleset's checks are the contexts of its status checks rule, sorted, and its reviews the most its pull
+# request rules require; a rule whose parameters GitHub does not show leaves them null, and a ruleset with neither
+# rule requires none. The branch's protection gives its own, as forge/github:controls reads them.
+import "forge" as forge; [forge::github_rulesets({rules: ["pull_request"], checks: ["ci"], reviews: 2}) | [.id, .checks, .reviews]]
+{"data": {"repository": {"url": "u", "defaultBranchRef": {"name": "main"}, "rulesets": {"nodes": [{"databaseId": 7, "name": "main", "enforcement": "ACTIVE", "conditions": null, "rules": {"nodes": [{"type": "PULL_REQUEST", "parameters": {"requiredApprovingReviewCount": 1}}, {"type": "REQUIRED_STATUS_CHECKS", "parameters": {"requiredStatusChecks": [{"context": "lint"}, {"context": "CI"}]}}, {"type": "DELETION", "parameters": null}]}}, {"databaseId": 8, "name": "hidden", "enforcement": "EVALUATE", "conditions": null, "rules": {"nodes": [{"type": "PULL_REQUEST", "parameters": null}, {"type": "REQUIRED_STATUS_CHECKS", "parameters": null}]}}, {"databaseId": 9, "name": "none", "enforcement": "ACTIVE", "conditions": null, "rules": {"nodes": [{"type": "DELETION"}]}}]}}}}
+[[7,["CI","lint"],1],[8,null,null],[9,[],0],["protection",["ci"],2]]
+
+# A protection's checks are its contexts and its checks' contexts, sorted, once each, and its reviews the approving
+# reviews it requires: none and 0 where it requires neither, and null where it requires reviews and says not how many.
+import "forge" as forge; map([forge::github_protection_checks, forge::github_protection_reviews])
+[{"required_status_checks": {"contexts": ["b"], "checks": [{"context": "a"}, {"context": "b"}]}, "required_pull_request_reviews": {"required_approving_review_count": 1}}, {"required_status_checks": null, "required_pull_request_reviews": null}, {"required_pull_request_reviews": {}}]
+[[["a","b"],1],[[],0],[[],null]]
+
+# Azure DevOps' build policy requires its build, by its display name or its definition, a status policy its status,
+# genre/name, a reviewers policy its approvers, null where it says not how many, and any other policy neither.
+import "forge" as forge; [forge::ado_controls("u") | [.id, .checks, .reviews]]
+[{"id": 1, "isEnabled": true, "isBlocking": true, "type": {"displayName": "Build"}, "settings": {"buildDefinitionId": 5, "displayName": ""}}, {"id": 2, "isEnabled": true, "isBlocking": true, "type": {"displayName": "Status"}, "settings": {"statusGenre": "kit", "statusName": "CI"}}, {"id": 3, "isEnabled": true, "isBlocking": true, "type": {"displayName": "Required reviewers"}, "settings": {}}, {"id": 4, "isEnabled": true, "isBlocking": true, "type": {"displayName": "Minimum number of reviewers"}, "settings": {"minimumApproverCount": 2}}, {"id": 5, "isEnabled": true, "isBlocking": true, "type": {"displayName": "Comment requirements"}, "settings": {}}]
+[[1,["build 5"],0],[2,["kit/CI"],0],[3,[],null],[4,[],2],[5,[],0]]
+
+# A work item's description is HTML: a heading reads as ##, a list item as -, a paragraph or a break as a new line,
+# and an entity as its character, so a Paths heading and its list read as an issue's Markdown does.
+import "forge" as forge; forge::ado_text
+"<div>Fix &amp; test</div><h2 style=\"x\">Paths</h2><ul><li><code>docs/**</code></li><li>kit/bin/kit-x</li></ul><br/>"
+"Fix & test\n\n## Paths\n\n- docs/**\n\n- kit/bin/kit-x"

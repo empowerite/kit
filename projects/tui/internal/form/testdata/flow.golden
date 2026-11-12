@@ -1,0 +1,46 @@
+ kit flow - shows where the work stands, from the issues to releases
+
+   one of
+   *kit flow*                   shows where the work stands, from the issues to releases
+
+     --no-fetch   --fresh     fetches nothing; incoming says so
+
+     --text   --json   --jq   prints the picture as text, even on a terminal
+
+     one of
+     --all                    every issue and pull request (the default); it stands alone
+     --mine --others --owner
+
+   --stages                   prints the stages the picture draws, one per line, in order
+   --me                       prints the caller's login on the primary's forge, the login --mine and
+                              --others match
+   --capabilities             prints what the primary's forge can do, as one JSON object: {contract,
+                              forge, provider, features}, each feature native or none, as
+                              modules/bash/forge.sh declares them; it asks nothing
+   --quota                    prints the caller's rate limits on the primary's forge, as one JSON
+                              array: each forge's {forge, limits}, each limit {name, limit,
+                              remaining, reset}; reading them costs a request at most. A forge
+                              without rate limits gives none, and asks nothing
+   --marks                    prints a mark per stage, as one JSON object, which changes when what
+                              the stage draws does: read again, a mark that differs says the stage
+                              is stale; on GitHub, nothing changed costs no request
+   issues                     every open issue, oldest first: in the backlog, or underway, closed by
+                              an open pull request or named by a branch: who works on each, and
+                              where
+   incoming                   what fetching every remote brought: default-branch commits, branches
+                              new and gone
+   changes                    the open pull requests, each with the issues it closes
+   builds                     the runs not owned by any pull request: the default branch, tags,
+                              schedules
+   releases                   the releases on the forge, newest first
+   desk                       no stage of kit flow: kit workspace worktrees draws the root checkout,
+                              its first row
+   worktrees                  no stage of kit flow: kit workspace worktrees draws the linked
+                              worktrees
+   backlog                    no stage of kit flow: issues lists them; on a terminal it opens issues
+                              on its Backlog preset
+   underway                   no stage of kit flow: issues lists them; on a terminal it opens issues
+                              on its Underway preset
+
+
+ kit flow

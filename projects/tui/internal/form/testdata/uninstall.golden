@@ -1,0 +1,6 @@
+ kit uninstall - takes the kit out of the repository and the home directory
+
+   --dry-run  prints what it would take out, and changes nothing
+
+
+ kit uninstall

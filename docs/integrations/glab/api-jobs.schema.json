@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "glab api projects/${project}/jobs?scope[]=success&per_page=100",
+  "description": "The project's 100 newest successful jobs, ${project} its path URL-encoded, newest first as GitLab orders them by id, which kit reads in `modules/bash/forge/gitlab.sh` (forge/gitlab:artifacts) and folds in `modules/jq/forge.jq` (forge::gitlab_artifacts): a job with artifacts_file kept an archive, and a page of 100 may not be all. The types are API::Entities::Ci::Job, https://gitlab.com/gitlab-org/gitlab/-/raw/master/lib/api/entities/ci/job.rb, with JobArtifactFile and JobArtifact beside it, as https://docs.gitlab.com/api/jobs/ describes them: artifacts_file is there only while the archive can be downloaded, and no artifact field carries a digest.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "integer"
+      },
+      "name": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "finished_at": {
+        "type": ["string", "null"],
+        "format": "date-time"
+      },
+      "artifacts_file": {
+        "type": "object",
+        "properties": {
+          "filename": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer"
+          }
+        },
+        "required": ["filename", "size"],
+        "additionalProperties": true
+      },
+      "artifacts": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "file_type": {
+              "type": "string"
+            },
+            "size": {
+              "type": ["integer", "null"]
+            },
+            "filename": {
+              "type": "string"
+            },
+            "file_format": {
+              "type": ["string", "null"]
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "artifacts_expire_at": {
+        "type": ["string", "null"],
+        "format": "date-time"
+      },
+      "pipeline": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          }
+        },
+        "required": ["id"],
+        "additionalProperties": true
+      },
+      "web_url": {
+        "type": "string",
+        "format": "uri"
+      }
+    },
+    "required": ["id", "created_at", "pipeline", "web_url"],
+    "additionalProperties": true
+  },
+  "maxItems": 100,
+  "examples": [
+    [
+      {
+        "id": 13,
+        "name": "package",
+        "status": "success",
+        "created_at": "2026-10-01T09:58:00.000Z",
+        "finished_at": "2026-10-01T10:00:00.000Z",
+        "artifacts_file": {
+          "filename": "kit-0.1.0.tar.gz",
+          "size": 2048
+        },
+        "artifacts": [
+          {
+            "file_type": "archive",
+            "size": 2048,
+            "filename": "kit-0.1.0.tar.gz",
+            "file_format": "zip"
+          }
+        ],
+        "artifacts_expire_at": "2026-12-30T10:00:00.000Z",
+        "pipeline": {
+          "id": 103
+        },
+        "web_url": "https://gitlab.com/empowerite/example/-/jobs/13"
+      },
+      {
+        "id": 12,
+        "name": "lint",
+        "status": "success",
+        "created_at": "2026-10-01T09:50:00.000Z",
+        "finished_at": "2026-10-01T09:51:00.000Z",
+        "artifacts": [],
+        "artifacts_expire_at": null,
+        "pipeline": {
+          "id": 103
+        },
+        "web_url": "https://gitlab.com/empowerite/example/-/jobs/12"
+      }
+    ]
+  ]
+}

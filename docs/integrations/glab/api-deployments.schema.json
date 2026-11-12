@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "glab api projects/${project}/deployments?order_by=${order}&sort=desc&per_page=${n}",
+  "description": "The project's newest deployments, ${project} its path URL-encoded, which kit reads in `modules/bash/forge/gitlab.sh`: 51 by created_at, which forge/gitlab:deployments reads and `modules/jq/forge.jq` folds (forge::gitlab_deployments), the first 50 printed, a 51st saying there are more; and 1 by updated_at, whose id, status, and update make a mark (forge/gitlab:marks, with forge::gitlab_marks), as a new status updates a deployment. The types are API::Entities::Deployment, https://gitlab.com/gitlab-org/gitlab/-/raw/master/lib/api/entities/deployment.rb, its deployable a job, as https://docs.gitlab.com/api/deployments/ describes it; order_by takes id, iid, created_at, updated_at, or finished_at, and status is created, running, success, failed, canceled, skipped, or blocked.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "integer"
+      },
+      "iid": {
+        "type": "integer"
+      },
+      "ref": {
+        "type": "string"
+      },
+      "sha": {
+        "type": "string"
+      },
+      "created_at": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "status": {
+        "enum": ["created", "running", "success", "failed", "canceled", "skipped", "blocked"]
+      },
+      "user": {
+        "type": ["object", "null"],
+        "properties": {
+          "username": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "environment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": ["name"],
+        "additionalProperties": true
+      },
+      "deployable": {
+        "type": ["object", "null"],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "web_url": {
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "additionalProperties": true
+      },
+      "updated_at": {
+        "type": "string",
+        "format": "date-time"
+      }
+    },
+    "required": ["id", "ref", "sha", "created_at", "status", "environment"],
+    "additionalProperties": true
+  },
+  "maxItems": 51,
+  "examples": [
+    [
+      {
+        "id": 9,
+        "iid": 1,
+        "ref": "release/0.1.0",
+        "sha": "8e817bf000000000000000000000000000000000",
+        "created_at": "2026-10-01T10:00:00.000Z",
+        "updated_at": "2026-10-01T10:05:00.000Z",
+        "status": "success",
+        "user": {
+          "username": "ada"
+        },
+        "environment": {
+          "id": 1,
+          "name": "production",
+          "external_url": null
+        },
+        "deployable": {
+          "id": 13,
+          "web_url": "https://gitlab.com/empowerite/example/-/jobs/13"
+        }
+      }
+    ]
+  ]
+}

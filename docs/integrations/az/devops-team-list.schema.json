@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "az devops team list --project ${project} --top 21 --output json",
+  "description": "The project's teams, the first 21, so a 21st says there are more than the 20 kit reads, which kit draws as the teams stage's in `modules/bash/forge/ado.sh` (forge/ado:teams-read, with `modules/jq/forge.jq` forge::ado_teams and forge::ado_collaborators); every call kit makes through forge/ado:az also carries --org ${organization} --detect false --only-show-errors. The extension reads WebApiTeam, https://learn.microsoft.com/rest/api/azure/devops/core/teams/get-teams?view=azure-devops-rest-7.1.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "description": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "projectName": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "name"
+    ],
+    "additionalProperties": true
+  },
+  "examples": [
+    [
+      {
+        "id": "564e8204-a90b-4432-883b-d4363c6125ca",
+        "name": "empowerite Team",
+        "description": "The default project team.",
+        "projectName": "empowerite"
+      }
+    ]
+  ]
+}

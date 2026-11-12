@@ -1,0 +1,154 @@
+{
+  "verb": "syntax",
+  "purpose": "prints a verb's grammar as JSON, and checks its header",
+  "usage": [
+    "kit syntax [--check | --list] [<verb>…]",
+    "kit syntax <verb> --choices=<argument> [<answer>…]",
+    "kit syntax <verb> --extend [<answer>…]",
+    "kit syntax <verb> --match [<word>…]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "check",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "list",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "verb",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "operand",
+        "name": "verb",
+        "repeat": false
+      },
+      {
+        "kind": "option",
+        "name": "choices",
+        "value": "argument",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "answer",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "operand",
+        "name": "verb",
+        "repeat": false
+      },
+      {
+        "kind": "flag",
+        "name": "extend",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "answer",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "operand",
+        "name": "verb",
+        "repeat": false
+      },
+      {
+        "kind": "flag",
+        "name": "match",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "word",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--check": {
+      "description": "prints no JSON; names each fault in the header, and fails"
+    },
+    "--list": {
+      "description": "prints no JSON; one line per verb: verb, purpose, group, tab-separated"
+    },
+    "--choices": {
+      "description": "prints that argument's choices instead, one per line"
+    },
+    "<answer>": {
+      "description": "an argument answered already, or a subcommand word chosen"
+    },
+    "--extend": {
+      "description": "prints the arguments the verb learns from the answers"
+    },
+    "--match": {
+      "description": "judges the words as the guard judges a command line"
+    },
+    "<word>": {
+      "description": "the words of the command line to judge, after kit <verb>"
+    },
+    "<verb>": {
+      "description": "the verbs to print; none prints every verb"
+    }
+  }
+}

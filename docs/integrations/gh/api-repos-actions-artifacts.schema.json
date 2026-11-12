@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh api repos/{owner}/{repo}/actions/artifacts?per_page=100",
+  "description": "The repository's 100 newest artifacts, one page, which kit reads in `modules/bash/forge/github.sh` (forge/github:artifacts) and folds in `modules/jq/forge.jq` (forge::github_artifacts): total_count past the page says GitHub holds more. The types are the artifact object of GET /repos/{owner}/{repo}/actions/artifacts in GitHub's REST description, https://github.com/github/rest-api-description, as https://docs.github.com/rest/actions/artifacts#list-artifacts-for-a-repository describes it: digest, the sha256 of the archive, is null for an artifact uploaded before GitHub kept one, and created_at, expires_at, and workflow_run are nullable. Checked live on cli/cli at API version 2022-11-28, which answers with digest.",
+  "type": "object",
+  "properties": {
+    "total_count": {
+      "type": "integer"
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "size_in_bytes": {
+            "type": "integer"
+          },
+          "digest": {
+            "type": ["string", "null"],
+            "pattern": "^sha256:[0-9a-f]+$"
+          },
+          "expired": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          },
+          "archive_download_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "workflow_run": {
+            "type": ["object", "null"],
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "head_branch": {
+                "type": ["string", "null"]
+              },
+              "head_sha": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "required": ["id", "name", "size_in_bytes", "expired", "created_at", "expires_at", "archive_download_url"],
+        "additionalProperties": true
+      }
+    }
+  },
+  "required": ["total_count", "artifacts"],
+  "additionalProperties": true,
+  "examples": [
+    {
+      "total_count": 1,
+      "artifacts": [
+        {
+          "id": 13,
+          "name": "kit-0.1.0.tar.gz",
+          "size_in_bytes": 2048,
+          "digest": "sha256:ab12",
+          "expired": false,
+          "created_at": "2026-10-01T10:00:00Z",
+          "expires_at": "2026-12-30T10:00:00Z",
+          "workflow_run": {
+            "id": 103,
+            "head_branch": "main",
+            "head_sha": "8e817bf"
+          },
+          "archive_download_url": "https://api.github.com/repos/empowerite/example/actions/artifacts/13/zip"
+        }
+      ]
+    }
+  ]
+}

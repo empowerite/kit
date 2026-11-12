@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "glab api projects/${project}/push_rule",
+  "description": "The project's push rules, which kit reads in `modules/bash/forge/gitlab.sh` (forge/gitlab:rulesets) and folds in `modules/jq/forge.jq` (forge::gitlab_controls): null where none was ever set, as https://docs.gitlab.com/api/project_push_rules/ says, and refused on a tier without them, Premium's. The types are those of its Get project push rules: commit_committer_check, reject_unsigned_commits, and reject_non_dco_commits are null when off.",
+  "type": [
+    "object",
+    "null"
+  ],
+  "properties": {
+    "id": {
+      "type": "integer"
+    },
+    "deny_delete_tag": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "member_check": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "prevent_secrets": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "commit_message_regex": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "branch_name_regex": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "max_file_size": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "reject_unsigned_commits": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": true,
+  "examples": [
+    {
+      "id": 3,
+      "project_id": 1,
+      "created_at": "2026-09-01T09:00:00.000Z",
+      "commit_message_regex": "",
+      "deny_delete_tag": true,
+      "member_check": false,
+      "prevent_secrets": true,
+      "max_file_size": 0,
+      "reject_unsigned_commits": null
+    },
+    null
+  ]
+}

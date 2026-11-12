@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# kit-changes - lists each open change's reviews and checks, and the changes merged last (kit verb: workflow)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit changes [--text | --json | --jq]
+#   kit changes --stages
+#   kit changes --marks
+#   kit changes reviews [--text | --json | --jq] [--fresh]
+#   kit changes checks [--text | --json | --jq] [--fresh]
+#   kit changes merged [--text | --json | --jq]
+#   kit changes changes [--text | --json | --jq]
+#
+# Draws what the forge says of the repository's changes, a stage for each of Changes' tabs in kittui that the forge
+# answers. It changes nothing. The tab changes is kit flow's, as kit flow changes prints it. The stages, in order:
+#
+#   reviews → checks → merged
+#
+# kit --workspace=<workspace> changes, the kit option before the verb, draws each stage across a workspace's members
+# with checkouts, as kit workspace does: a group's name, or a repository's host and path, as kit workspaces names it;
+# none names no workspace. Without it, the workspace is the repository here, and outside one, the last group used, as
+# kit workspaces --current says. On a terminal, kit changes opens Changes in kittui, and kit changes <stage> opens it on
+# that tab, maximized; so does kit changes changes. Without one, or with --text, it prints the stages as text; with
+# --json or --jq, as JSON; the tab of kit flow, with a form, is refused, naming kit flow.
+#
+# With --json, a stage prints {rows, errors}, and limited where the forge holds more than it read. A row is {key, …,
+# links}: key is the row's own in its stage, and links gives where a value leads, by its field. Every row says where it
+# is from: organization and repository, the owner and the name of the repository kit read it in, as its primary remote's
+# URL names them past the host, no organization for a primary on this machine; and source, the forge, as github or
+# gitlab. Over a workspace, each row gains member, its host and path, and a member that could not be read is {member,
+# error} under errors, while every other member still draws. A repository with no forge, or a forge without the stage's
+# feature, gives no rows and no errors. reviews and checks read the open changes as kit flow changes does, in one read
+# of the forge a minute, and afresh with --fresh, as kit flow changes --fresh does.
+#
+#   reviews             {change, title, login, state, at, unresolved}, keyed by the change's number and the login:
+#                       state is requested while the reviewer is asked and has not answered, else approved, changes,
+#                       or commented; at is when they answered, in seconds since the epoch, null while asked and on
+#                       Azure DevOps, whose votes have no time; unresolved counts the change's unresolved threads. The
+#                       author's own comments are no review
+#   checks              {change, title, name, verdict, at, took}, keyed by the change's number and the check's name:
+#                       verdict is passed, failed, or pending; at is when the run started, in seconds since the epoch,
+#                       or null; took is how long it ran, in seconds, null while it runs. A forge whose provider lacks
+#                       check-runs, as one written to a contract before 4, has no runs on its changes: the document
+#                       has no rows, and {feature: check-runs, off: true, lacked: true} under errors
+#   merged              {number, title, author, branch, merged, by, named}, keyed by its number: merged is when, in
+#                       seconds since the epoch, by who merged it, and named the references a closing keyword names
+#                       in its body, Fixes AB#12; the title links to its page. Where the forge holds
+#                       more, the document is limited, at how many it drew: a forge that lists them by update, as
+#                       GitHub does, keeps only those merged since the oldest update it read, as one merged before
+#                       may be missing
+#
+# Legend
+#
+# Each stage lists the glyphs it draws in kittui, one per line. A glyph can show under more than one stage.
+#
+# kit:generate legend `k=$(command -v kit); jq -nr -L "${k%/bin/kit}/modules/jq" 'import "glyphs" as g; g::legend_for("changes")'`
+#   📚  workspace: a group, in the workspace menu that drops down from - in kittui's title
+#
+# reviews:
+#
+#   🧐  review: a reviewer's answer on an open pull request, or a request for one
+#   🔀  pull request: a merge request, on GitLab
+#   💬  unresolved threads: review threads, with how many
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# checks:
+#
+#   🩺  check: the latest run of a check on an open pull request
+#   🔀  pull request: a merge request, on GitLab
+#   ✅  passed: every check, or a build
+#   🏃  running: checks or a build still running or queued
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# merged:
+#
+#   🤝  merged: a pull request merged into its base, and who merged it
+#   🔀  pull request: a merge request, on GitLab
+#   👤  assignees or author: an issue's assignees, a pull request's author, or who pushed last when not the author
+#   🌿  branch or worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# kit:end legend
+#
+# Arguments:
+#   --text              prints the stages as text, even on a terminal
+#   --json              the stages as one JSON object: stages, then each stage's document under its name, null for one
+#                       that could not be read
+#   --jq                the same JSON, formatted by jq for a person
+#   --stages            prints the stages, one per line, in order, the same over any workspace
+#   --marks             prints a mark per stage, as one JSON object, which changes when what the stage draws does:
+#                       for each, the forge's own marks of its issues, which move with its changes, and of its runs
+#   --fresh             reviews and checks read the open changes afresh, not the snapshot of the last minute
+#   reviews             each open change's reviewers: those it asks, and those who reviewed it, by login
+#   checks              each open change's checks: the latest run of each name on its head commit
+#   merged              the changes merged last, 50 at most, merged last first
+#   changes             a tab kit flow prints; on a terminal it opens in kittui, and with a form it is refused
+#
+# Exits 0 when the stages are drawn, 1 when a stage could not be read, after what was, and 2 on a usage error, or
+# outside a repository's working tree with no workspace.
+#
+# see: modules/bash/apps.sh, modules/bash/apps/changes.sh, modules/jq/apps.jq, docs/apps.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use apps
+workspaces:misplaced changes "$@" || exit $?
+guard:arguments changes "$@" || exit $?
+apps:main changes "$@"
+
+# ----------------------------------------------------------------------------------------------------------------------

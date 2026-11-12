@@ -1,0 +1,45 @@
+# issues.test - the issues jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line. The input
+# is the open issues.
+
+# An issue a change closes is underway, a row per change, with the change's branch; one no change closes is underway
+# too when a branch is named for it, with that branch and no change, and else in the backlog; the oldest issue first.
+import "issues" as issues; issues::rows([{"number": 3, "branch": "7-fix", "closes": [{"number": 7, "age": 100}]}, {"number": 4, "branch": "x", "closes": [{"number": 7, "age": 100}]}]; ["9-other", "main"]; {}; []) | map([.number, .status, .branch, .pr.number])
+[{"number": 7, "age": 100}, {"number": 9, "age": 300}, {"number": 11, "age": 50}]
+[[9,"underway","9-other",null],[7,"underway","7-fix",3],[7,"underway","x",4],[11,"backlog",null,null]]
+
+# The branch named for an issue no change closes is the desk's before the primary's, a checked-out one first, and says
+# where it is: here, in a checkout, or local, on the desk alone. Only a number and a dash name an issue: 90-x is not 9's.
+import "issues" as issues; issues::rows([]; ["8-remote", "9-remote", "90-x"]; {"8-here": "/desk/worktrees/8-here"}; ["8-local", "8-here", "10-local"]) | map([.number, .status, .branch, .here, .local, .worktree])
+[{"number": 8, "age": 300}, {"number": 9, "age": 200}, {"number": 10, "age": 100}, {"number": 11, "age": 50}]
+[[8,"underway","8-here",true,false,"/desk/worktrees/8-here"],[9,"underway","9-remote",false,false,null],[10,"underway","10-local",false,true,null],[11,"backlog",null,null,null,null]]
+
+# A backlog row has no change: pr, here, local, and worktree are null.
+import "issues" as issues; issues::rows([]; []; {}; []) | map([.pr, .here, .local, .worktree])
+[{"number": 9, "age": 300}]
+[[null,null,null,null]]
+
+# An issue underway takes its milestone, iteration, and swimlane from the open issue of its number, and none when no
+# open issue has its number.
+import "issues" as issues; issues::rows([{"number": 3, "branch": "b", "closes": [{"number": 7, "age": 100}, {"number": 8, "age": 90}]}]; []; {}; []) | map([.number, .milestone, .iteration, .swimlane])
+[{"number": 7, "age": 100, "milestone": "v1", "iteration": "Sprint 4", "swimlane": "ops"}]
+[[7,"v1","Sprint 4","ops"],[8,null,null,null]]
+
+# Every row's keys start in one order, whatever its status, any other the issue holds after them, but its key; an issue
+# that names no reference is #<number>.
+import "issues" as issues; issues::rows([{"number": 3, "branch": "b", "closes": [{"number": 7, "age": 100}]}]; []; {}; []) | map(keys_unsorted + [.ref])
+[{"number": 7, "age": 100}, {"ref": "#9", "number": 9, "age": 300, "url": "u"}, {"ref": "AB#4", "key": "ab4", "number": 4, "age": 200}]
+[["number","ref","tracker","title","assignees","labels","age","source","organization","repository","milestone","iteration","swimlane","status","branch","pr","here","local","worktree","url","#9"],["number","ref","tracker","title","assignees","labels","age","source","organization","repository","milestone","iteration","swimlane","status","branch","pr","here","local","worktree","AB#4"],["number","ref","tracker","title","assignees","labels","age","source","organization","repository","milestone","iteration","swimlane","status","branch","pr","here","local","worktree","#7"]]
+
+# An issue of another tracker, one with a key, is underway beside each open change that names it, by its branch or a
+# closing keyword in its body, whatever number the change closes on the forge; done, with no row, once a merged change
+# names it; underway on a branch its key names with no change; else in the backlog. The forge's #4 is not AB#4.
+import "issues" as issues; issues::rows([{"number": 3, "branch": "ab4-fix", "closes": [{"number": 4, "age": 10}]}, {"number": 5, "branch": "x", "named": ["ab#4", "#4"], "closes": []}]; ["ab6-start", "6-forge"]; {}; []; [{"number": 1, "branch": "ab5-done"}, {"number": 2, "branch": "y", "named": ["AB#7"]}]) | map([.ref, .status, .branch, .pr.number])
+[{"ref": "AB#4", "key": "ab4", "number": 4, "age": 400}, {"ref": "AB#5", "key": "ab5", "number": 5, "age": 300}, {"ref": "AB#6", "key": "ab6", "number": 6, "age": 200}, {"ref": "AB#7", "key": "ab7", "number": 7, "age": 150}, {"ref": "AB#8", "key": "ab8", "number": 8, "age": 100}]
+[["AB#4","underway","ab4-fix",3],["AB#4","underway","x",5],["AB#6","underway","ab6-start",null],["AB#8","backlog",null,null],["#4","underway","ab4-fix",3]]
+
+# The owners keep the rows of an issue one of them is assigned, or with except, none of them; none keeps every row.
+import "issues" as issues; [issues::by_owners(["ada"]; false), issues::by_owners(["ada"]; true), issues::by_owners([]; false)] | map(map(.number))
+[{"number": 7, "assignees": ["ada"]}, {"number": 9, "assignees": []}, {"number": 11, "assignees": null}]
+[[7],[9,11],[7,9,11]]

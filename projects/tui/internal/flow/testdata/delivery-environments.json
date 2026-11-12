@@ -1,0 +1,4 @@
+{"rows": [
+  {"key": "production", "name": "production", "protection": ["branches", "reviewers"], "approvers": ["ada"], "branches": ["main"], "links": {"name": "https://github.com/o/r/deployments/activity_log?environments_filter=production"}, "source": "github", "organization": "o", "repository": "r"},
+  {"key": "staging", "name": "staging", "protection": [], "approvers": [], "branches": null, "links": {"name": "https://github.com/o/r/deployments/activity_log?environments_filter=staging"}, "source": "github", "organization": "o", "repository": "r"}
+], "errors": []}

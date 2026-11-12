@@ -1,0 +1,6 @@
+ kit linked - refuses a pull request not linked to an open issue
+
+   <number>  the pull request to check; default: this checkout's
+
+
+ kit linked

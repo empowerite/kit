@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh pr list --head ${branch} --state ${state} --json ${field} --limit ${forge_list_limit} --jq ${filter}",
+  "description": "Pull requests, newest first: the open ones' headRefName, without --head or --jq, in `modules/bash/forge/github.sh` (forge/github:branch-for-issue), and the first one's number, headRefOid, or state on a branch, without --limit, in forge/github:on-branch (from forge/github:pr-for-branch, forge/github:pr-head-for-branch, forge/github:pr-last-for-branch, forge/github:pr-state-for-branch, and forge/github:pr-here). The types are the PullRequest object of GitHub's GraphQL schema, https://docs.github.com/public/fpt/schema.docs.graphql, as gh renders its fields (https://github.com/cli/cli/blob/trunk/api/queries_pr.go).",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "description": "PullRequest",
+    "properties": {
+      "headRefName": {
+        "type": "string"
+      },
+      "number": {
+        "type": "integer"
+      },
+      "headRefOid": {
+        "type": "string",
+        "description": "GitObjectID"
+      },
+      "state": {
+        "type": "string",
+        "description": "PullRequestState",
+        "enum": ["CLOSED", "MERGED", "OPEN"]
+      }
+    },
+    "additionalProperties": true
+  },
+  "examples": [
+    [
+      {
+        "headRefName": "9-other"
+      },
+      {
+        "headRefName": "7-fix-the-thing"
+      }
+    ]
+  ]
+}

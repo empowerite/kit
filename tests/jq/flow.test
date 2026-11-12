@@ -1,0 +1,8 @@
+# flow.test - the flow jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line.
+
+# A change is kept by its author: one of the logins, or with except, none of them.
+import "flow" as flow; [[.[] | flow::by_authors(["ada"]; false)], [.[] | flow::by_authors(["ada"]; true)]] | map(map(.number))
+[{"number": 1, "author": "ada"}, {"number": 2, "author": "bob"}]
+[[1],[2]]

@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# kit-settle - settles the issues a closed pull request names (kit verb: workflow)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit settle [<number>]
+#
+# Does for the issues a pull request names what its forge does not do itself, once the pull request is closed:
+#
+#   - merged: each issue in another tracker that its body closes (Closes AB#4521) gets a comment naming the merge
+#     commit, and is closed; the forge closes its own issues
+#   - closed without merging: each issue it names, the forge's own and the other trackers', gets a comment that it is
+#     backlog again, and its author is taken off it (in another tracker, the caller as that tracker knows the caller)
+#   - open: nothing
+#
+# It is safe to run again: an issue already closed, or no longer assigned, is left as it is. The delivered CI runs it
+# when a pull request closes, and kit tidy before it removes a finished worktree, so an issue is settled however the
+# pull request was closed.
+#
+# Arguments:
+#   <number>   the pull request to settle; default: this checkout's
+#
+# Exits 0 when every issue is settled, 1 when the forge or the trackers in kit.yml cannot be read or an issue could not
+# be settled, and 2 on a usage error.
+#
+# see: modules/bash/issue.sh, modules/bash/tracker.sh
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use issue
+
+guard:arguments settle "$@" || exit $?
+forge:require || exit 1
+# shellcheck disable=SC2154  # syntax_operands is set by guard:arguments
+pr=${syntax_operands[0]:-$(forge:pr-here)}
+if [[ -z "${pr}" ]]
+then
+  error "no pull request is named, and this checkout has none; run: kit settle <number>"
+  exit 2
+fi
+issue:settle "${pr}"
+
+# ----------------------------------------------------------------------------------------------------------------------

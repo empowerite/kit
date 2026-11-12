@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+# kit-issues - lists the forge's milestones and iterations of the repository (kit verb: workflow)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit issues [--text | --json | --jq]
+#   kit issues --stages
+#   kit issues --marks
+#   kit issues milestones [--text | --json | --jq]
+#   kit issues iterations [--text | --json | --jq]
+#   kit issues issues [--text | --json | --jq]
+#   kit issues backlog [--text | --json | --jq]
+#   kit issues underway [--text | --json | --jq]
+#
+# Draws the planning the forge keeps, a stage for each of Issues' tabs in kittui that the forge answers. It changes
+# nothing. Its first tab, issues, every open issue, in the backlog or underway, is kit flow's, as kit flow issues prints
+# it. The stages, in order:
+#
+#   milestones → iterations
+#
+# kit --workspace=<workspace> issues, the kit option before the verb, draws each stage across a workspace's members
+# with checkouts, as kit workspace does: a group's name, or a repository's host and path, as kit workspaces names it;
+# none names no workspace. Without it, the workspace is the repository here, and outside one, the last group used, as
+# kit workspaces --current says. On a terminal, kit issues opens Issues in kittui, and kit issues <stage> opens it on
+# that tab, maximized; so does kit issues issues, and kit issues backlog and kit issues underway open it on its Backlog
+# or Underway preset. Without one, or with --text, it prints the stages as text; with --json or --jq, as JSON; the tab
+# of kit flow, and its presets, with a form, are refused, naming kit flow issues.
+#
+# With --json, a stage prints {rows, errors}. A row is {key, …, links}: key is the row's own in its stage, and links
+# gives where a value leads, by its field. Every row says where it is from: organization and repository, the owner and
+# the name of the repository kit read it in, as its primary remote's URL names them past the host, no organization for a
+# primary on this machine; and source, the forge, as github or gitlab. Over a workspace, each row gains member, its host
+# and path, and a member that could not be read is {member, error} under errors, while every other member still draws. A
+# repository with no forge, or a forge without the stage's feature, gives no rows and no errors; a forge that has none
+# for this repository, as a GitLab tier without iterations, gives no rows and the error {feature, off: true}.
+#
+#   milestones          {number, title, state, due, open, closed}: state is open or closed, due is seconds since the
+#                       epoch or null for none, open and closed count the milestone's issues; the title links to its
+#                       page. Azure DevOps has no milestones
+#   iterations          {id, title, start, end, current}: start and end are seconds since the epoch, end the last
+#                       second of the last day, null where the iteration has no dates; current is true for the one
+#                       that holds now; the title links to the page of the project, the iteration, or the team's
+#                       sprints. A repository with no project linked on GitHub has none
+#
+# Legend
+#
+# Each stage lists the glyphs it draws in kittui, one per line. A glyph can show under more than one stage.
+#
+# kit:generate legend `k=$(command -v kit); jq -nr -L "${k%/bin/kit}/modules/jq" 'import "glyphs" as g; g::legend_for("issues")'`
+#   📚  workspace: a group, in the workspace menu that drops down from - in kittui's title
+#
+# milestones:
+#
+#   ⛳  milestone: a goal the forge gathers issues under, with its due day
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# iterations:
+#
+#   📅  iteration: a span of days the forge plans work in
+#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
+#
+# kit:end legend
+#
+# Arguments:
+#   --text              prints the stages as text, even on a terminal
+#   --json              the stages as one JSON object: stages, then each stage's document under its name, null for one
+#                       that could not be read
+#   --jq                the same JSON, formatted by jq for a person
+#   --stages            prints the stages, one per line, in order, the same over any workspace
+#   --marks             prints a mark per stage, as one JSON object, which changes when what the stage draws does:
+#                       the forge's own mark of its milestones for milestones, null for iterations, which has none
+#                       and is read again only on Refresh
+#   milestones          each milestone of the repository, open and closed, by number
+#   iterations          each iteration, by start: GitHub's from the projects linked to the repository, GitLab's with
+#                       its groups', and Azure DevOps' of its team, the one forge_settings.ado.team names, else the
+#                       project's default team
+#   issues              a tab kit flow prints; on a terminal it opens in kittui, and with a form it is refused
+#   backlog             the issues tab's Backlog preset; on a terminal it opens in kittui, and with a form it is refused
+#   underway            the issues tab's Underway preset; on a terminal it opens in kittui, and with a form it is
+#                       refused
+#
+# Exits 0 when the stages are drawn, 1 when a stage could not be read, after what was, and 2 on a usage error, or
+# outside a repository's working tree with no workspace.
+#
+# see: modules/bash/apps.sh, modules/bash/apps/issues.sh, modules/jq/apps.jq, docs/apps.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use apps
+workspaces:misplaced issues "$@" || exit $?
+guard:arguments issues "$@" || exit $?
+apps:main issues "$@"
+
+# ----------------------------------------------------------------------------------------------------------------------

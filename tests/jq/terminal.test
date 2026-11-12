@@ -1,0 +1,94 @@
+# terminal.test - the terminal jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line. The input
+# is null; a case gives its table as an argument, a small one with iTerm2's two findings, its probe rows, and ssh.
+
+# fill puts each key's value where the string names it in braces, and leaves a name it lacks as it is.
+import "terminal" as terminal; "{name} in {profile}, {missing}, {n}" | terminal::fill({"name": "iTerm2", "profile": "Work", "n": 2})
+null
+"iTerm2 in Work, {missing}, 2"
+
+# The heading comes first and holds; a failed finding names its profile, and its fix; more is the terminal's section.
+import "terminal" as terminal; terminal::checks({"docs": "D", "probes": {}, "terminals": {"iterm": {"name": "iTerm2", "anchor": "iterm2", "findings": [{"id": "triggers", "need": "speed", "line": "triggers run in {profile}", "held": "no triggers", "fix": "untick it in {profile}"}]}}}; "iterm"; {"profile": "Work"}; {"triggers": true}; null; [])
+null
+[{"id":"terminal-iterm","ok":true,"line":"iTerm2, profile Work","fix":null,"more":"D#iterm2"},{"id":"terminal-iterm-triggers","ok":false,"line":"triggers run in Work","fix":"untick it in Work","more":"D#iterm2"}]
+
+# With every finding held and every probe judged held, the heading says nothing in it slows or breaks kittui.
+import "terminal" as terminal; terminal::checks({"docs": "D", "probes": {"color": {"need": "color", "held": "{name} has colors", "failed": "{name} lacks colors"}}, "terminals": {"iterm": {"name": "iTerm2", "anchor": "iterm2", "findings": [{"id": "triggers", "need": "speed", "line": "triggers run", "held": "no triggers", "fix": "untick it"}]}}}; "iterm"; {"profile": "Work"}; {"triggers": false}; {"answered": true, "color": "truecolor"}; []) | map([.id, .ok, .line])
+null
+[["terminal-iterm",true,"iTerm2, profile Work: nothing in it slows or breaks kittui"],["terminal-iterm-triggers",true,"no triggers"],["terminal-probe-color",true,"iTerm2 has colors"]]
+
+# A kept finding holds in the profile it was kept in, says kept, and names how to undo it; in another profile it fails.
+import "terminal" as terminal; [("Work", "Default") as $p | terminal::checks({"docs": "D", "probes": {}, "terminals": {"iterm": {"name": "iTerm2", "anchor": "iterm2", "findings": [{"id": "triggers", "need": "speed", "line": "triggers run", "held": "no triggers", "fix": "untick it"}]}}}; "iterm"; {"profile": $p}; {"triggers": true}; null; ["terminal-iterm-triggers@Work"]) | .[1]]
+null
+[{"id":"terminal-iterm-triggers","ok":true,"line":"kept: triggers run","fix":null,"more":"kit welcome --unkeep=terminal-iterm-triggers"},{"id":"terminal-iterm-triggers","ok":false,"line":"triggers run","fix":"untick it","more":"D#iterm2"}]
+
+# A probe whose need has a failed finding is left out: the finding says why.
+import "terminal" as terminal; terminal::checks({"docs": "D", "probes": {"emoji-width": {"need": "widths", "held": "fine", "failed": "{name} draws it in {emoji_width}"}}, "terminals": {"iterm": {"name": "iTerm2", "anchor": "iterm2", "findings": [{"id": "unicode-9", "need": "widths", "line": "old widths", "held": "new widths", "fix": "tick it"}]}}}; "iterm"; {"profile": "Work"}; {"unicode-9": true}; {"answered": true, "emoji_width": 1}; []) | map(.id)
+null
+["terminal-iterm","terminal-iterm-unicode-9"]
+
+# A probe that measured badly holds where no setting of the terminal can fix it, and says what kittui does instead.
+import "terminal" as terminal; terminal::checks({"docs": "D", "probes": {"kitty-keyboard": {"need": "keys", "held": "fine", "failed": "no kitty"}}, "terminals": {"apple": {"name": "Terminal", "anchor": "terminal", "findings": [], "probes": {"kitty-keyboard": {"none": "kittui offers > and <"}}}}}; "apple"; {"profile": "Basic"}; {}; {"answered": true, "kitty_keyboard": false}; []) | .[1]
+null
+{"id":"terminal-probe-kitty-keyboard","ok":true,"line":"kittui offers > and <","fix":null,"more":"D#terminal"}
+
+# A probe that measured badly fails with the terminal's fix where a setting turns the feature on.
+import "terminal" as terminal; terminal::checks({"docs": "D", "probes": {"kitty-keyboard": {"need": "keys", "held": "fine", "failed": "{name} has no kitty"}}, "terminals": {"wezterm": {"name": "WezTerm", "anchor": "wezterm", "findings": [], "probes": {"kitty-keyboard": {"fix": "add it to {config}"}}}}}; "wezterm"; {"config": "w.lua"}; {}; {"answered": true, "kitty_keyboard": false}; []) | .[1]
+null
+{"id":"terminal-probe-kitty-keyboard","ok":false,"line":"WezTerm has no kitty","fix":"add it to w.lua","more":"D#wezterm"}
+
+# A probe that measured badly where no row fixes it fails with no fix, and says no setting kit knows explains it.
+import "terminal" as terminal; terminal::checks({"docs": "D", "probes": {"ambiguous-width": {"need": "widths", "held": "fine", "failed": "{name} draws ↑ in {ambiguous_width}"}}, "terminals": {"iterm": {"name": "iTerm2", "anchor": "iterm2", "findings": [{"id": "unicode-9", "need": "widths", "line": "old", "held": "new", "fix": "tick"}]}}}; "iterm"; {"profile": "Work"}; {"unicode-9": false}; {"answered": true, "ambiguous_width": 2}; []) | .[2]
+null
+{"id":"terminal-probe-ambiguous-width","ok":false,"line":"iTerm2 draws ↑ in 2; no setting kit knows explains it","fix":null,"more":"D#iterm2"}
+
+# A failed emoji width says when the terminal does not measure by grapheme; grapheme alone is no check.
+import "terminal" as terminal; [({"answered": true, "emoji_width": 1, "grapheme_width": false}, {"answered": true, "emoji_width": 2, "grapheme_width": false}) as $p | terminal::checks({"docs": "D", "probes": {"emoji-width": {"need": "widths", "held": "{name} is fine", "failed": "{name} draws 📚 in {emoji_width}"}}, "terminals": {"ssh": {"name": "ssh", "anchor": "over-ssh", "unread": "cannot read"}}}; "ssh"; null; {}; $p; []) | .[1].line]
+null
+["ssh draws 📚 in 1; no setting kit knows explains it, and it does not measure by grapheme","ssh is fine"]
+
+# A terminal that did not answer fails no probe, and each probe says so.
+import "terminal" as terminal; terminal::checks({"docs": "D", "probes": {"kitty-keyboard": {"need": "keys", "held": "fine", "failed": "bad"}, "color": {"need": "color", "held": "fine", "failed": "bad"}}, "terminals": {"ssh": {"name": "ssh", "anchor": "over-ssh", "unread": "cannot read"}}}; "ssh"; null; {}; {"answered": false}; []) | map([.id, .ok, .line])
+null
+[["terminal-ssh",true,"ssh: cannot read; it did not answer kit's questions"],["terminal-probe-kitty-keyboard",true,"ssh did not answer kit's question"],["terminal-probe-color",true,"ssh did not answer kit's question"]]
+
+# With no probes there is no probe check.
+import "terminal" as terminal; terminal::checks({"docs": "D", "probes": {"color": {"need": "color", "held": "fine", "failed": "bad"}}, "terminals": {"ssh": {"name": "ssh", "anchor": "over-ssh", "unread": "cannot read"}}}; "ssh"; null; {}; null; []) | map(.id)
+null
+["terminal-ssh"]
+
+# Settings kit could not read give a heading that says why, no finding, and probes judged as for an unread terminal.
+import "terminal" as terminal; terminal::checks({"docs": "D", "probes": {"color": {"need": "color", "held": "fine", "failed": "{name} lacks colors"}}, "terminals": {"iterm": {"name": "iTerm2", "anchor": "iterm2", "findings": [{"id": "triggers", "need": "speed", "line": "x", "held": "y", "fix": "z"}]}}}; "iterm"; {"unreadable": "it took more than a second"}; {}; {"answered": true, "color": "fewer"}; []) | map([.id, .ok, .line])
+null
+[["terminal-iterm",true,"iTerm2: kit could not read its settings: it took more than a second"],["terminal-probe-color",false,"iTerm2 lacks colors; no setting kit knows explains it"]]
+
+# terminals.json: every key and finding id is free of dashes and unique, and every need is one of the six.
+import "terminal" as terminal; terminal::data | [(.terminals | keys[] | select(test("-"))), (.terminals[] | (.findings // []) | map(.id) | select(length != (unique | length))), (.terminals[].findings[]? | select(.need | IN("speed", "clicks", "keys", "widths", "color", "copy") | not) | .id), (.probes[] | select(.need | IN("speed", "clicks", "keys", "widths", "color", "copy") | not))]
+null
+[]
+
+# terminals.json: every terminal has a name and an anchor, and either findings or the line said where it is unread.
+import "terminal" as terminal; terminal::data | [.terminals | to_entries[] | select((.value.name and .value.anchor and (.value.findings or .value.unread)) | not) | .key]
+null
+[]
+
+# A width the terminal did not report is not measured, so it holds.
+import "terminal" as terminal; terminal::checks({"docs": "D", "probes": {"emoji-width": {"need": "widths", "held": "{name} is fine", "failed": "{name} is not"}, "ambiguous-width": {"need": "widths", "held": "{name} is fine", "failed": "{name} is not"}}, "terminals": {"ssh": {"name": "ssh", "anchor": "over-ssh", "unread": "cannot read"}}}; "ssh"; null; {}; {"answered": true}; []) | map(.ok)
+null
+[true,true,true]
+
+# A terminal's own heading, where it has one, takes the place of its name and profile.
+import "terminal" as terminal; terminal::checks({"docs": "D", "probes": {}, "terminals": {"apple": {"name": "Terminal", "anchor": "terminal", "heading": "{name}, its default profile {profile}", "findings": []}}}; "apple"; {"profile": "Basic"}; {}; null; []) | .[0].line
+null
+"Terminal, its default profile Basic: nothing in it slows or breaks kittui"
+
+# A probe no setting can fix holds, and its line joins the heading, which the views always show.
+import "terminal" as terminal; terminal::checks({"docs": "D", "probes": {"kitty-keyboard": {"need": "keys", "held": "fine", "failed": "no kitty"}}, "terminals": {"apple": {"name": "Terminal", "anchor": "terminal", "findings": [], "probes": {"kitty-keyboard": {"none": "Terminal has no kitty keyboard protocol"}}}}}; "apple"; {"profile": "Basic"}; {}; {"answered": true, "kitty_keyboard": false}; []) | .[0].line
+null
+"Terminal, profile Basic: nothing in it slows or breaks kittui; Terminal has no kitty keyboard protocol"
+
+# A terminal that did not answer says so in its heading, which claims nothing it did not measure.
+import "terminal" as terminal; [("iterm", "ssh") as $k | terminal::checks({"docs": "D", "probes": {"color": {"need": "color", "held": "fine", "failed": "bad"}}, "terminals": {"iterm": {"name": "iTerm2", "anchor": "iterm2", "findings": []}, "ssh": {"name": "ssh", "anchor": "over-ssh", "unread": "cannot read"}}}; $k; (if $k == "iterm" then {"profile": "W"} else null end); {}; {"answered": false}; []) | .[0].line]
+null
+["iTerm2, profile W: nothing in its settings slows or breaks kittui; it did not answer kit's questions","ssh: cannot read; it did not answer kit's questions"]

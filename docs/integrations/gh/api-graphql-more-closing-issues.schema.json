@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh api graphql --field owner=${owner} --field name=${name} --field pr=${number} --raw-field after=${cursor} --raw-field query=${query}",
+  "description": "The issues an open pull request closes past the 10 the open pull requests' query gives, 100 a page, each as that query asks for one, which kit reads in `modules/bash/forge/github.sh` (forge/github:rest-of-closes, from forge/github:open-prs). The types are the PullRequest, Issue, and Label objects of GitHub's GraphQL schema, https://docs.github.com/public/fpt/schema.docs.graphql.",
+  "type": "object",
+  "properties": {
+    "data": {
+      "type": "object",
+      "properties": {
+        "repository": {
+          "type": ["object", "null"],
+          "description": "Repository, null when GitHub has none of that owner and name",
+          "properties": {
+            "pullRequest": {
+              "type": ["object", "null"],
+              "description": "PullRequest, null when the repository has none of that number",
+              "properties": {
+                "closingIssuesReferences": {
+                  "type": ["object", "null"],
+                  "description": "IssueConnection",
+                  "properties": {
+                    "pageInfo": {
+                      "$ref": "#/$defs/PageInfo"
+                    },
+                    "nodes": {
+                      "type": ["array", "null"],
+                      "items": {
+                        "anyOf": [
+                          {
+                            "$ref": "#/$defs/ClosingIssue"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "required": ["pageInfo", "nodes"],
+                  "additionalProperties": true
+                }
+              },
+              "required": ["closingIssuesReferences"],
+              "additionalProperties": true
+            }
+          },
+          "required": ["pullRequest"],
+          "additionalProperties": true
+        }
+      },
+      "required": ["repository"],
+      "additionalProperties": true
+    }
+  },
+  "required": ["data"],
+  "additionalProperties": true,
+  "$defs": {
+    "PageInfo": {
+      "type": "object",
+      "description": "PageInfo",
+      "properties": {
+        "hasNextPage": {
+          "type": "boolean"
+        },
+        "endCursor": {
+          "type": ["string", "null"]
+        }
+      },
+      "required": ["hasNextPage", "endCursor"],
+      "additionalProperties": true
+    },
+    "ClosingIssue": {
+      "type": "object",
+      "description": "Issue",
+      "properties": {
+        "number": {
+          "type": "integer"
+        },
+        "title": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "repository": {
+          "type": "object",
+          "description": "Repository, by its owner/name",
+          "properties": {
+            "nameWithOwner": {
+              "type": "string"
+            }
+          },
+          "required": ["nameWithOwner"],
+          "additionalProperties": true
+        },
+        "labels": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LabelConnection"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": ["number", "title", "createdAt", "repository", "labels"],
+      "additionalProperties": true
+    },
+    "Label": {
+      "type": "object",
+      "description": "Label",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string",
+          "description": "The label's color, six hex digits without a #"
+        }
+      },
+      "required": ["name", "color"],
+      "additionalProperties": true
+    },
+    "LabelConnection": {
+      "type": "object",
+      "description": "LabelConnection",
+      "properties": {
+        "nodes": {
+          "type": ["array", "null"],
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Label"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "required": ["nodes"],
+      "additionalProperties": true
+    }
+  },
+  "examples": [
+    {
+      "data": {
+        "repository": {
+          "pullRequest": {
+            "closingIssuesReferences": {
+              "pageInfo": {
+                "hasNextPage": true,
+                "endCursor": "c11"
+              },
+              "nodes": [
+                {
+                  "number": 11,
+                  "title": "Issue 11",
+                  "createdAt": "2026-09-21T09:00:00Z",
+                  "repository": {
+                    "nameWithOwner": "empowerite/example"
+                  },
+                  "labels": {
+                    "nodes": [
+                      {
+                        "name": "bug",
+                        "color": "D73A4A"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  ]
+}

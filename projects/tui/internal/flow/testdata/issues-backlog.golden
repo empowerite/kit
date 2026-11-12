@@ -1,0 +1,24 @@
+  = kit flow · - empowerite/kit                                      🔎 /search
+  ➊╶───────────────╮➁╶────────────────╮➂╶───────────────╮➃╶──────────────────╮➄╶
+  │ 🎫 issues  7 : │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  7    │
+  ╵                ╰──────────────────╰─────────────────╰────────────────────╰──
+  Issues — What is open, who has it, and where the work on it stands
+
+  ▾ source · organization · repository ▾ 3  status: ba…  📇 Fields  Backlog ▼
+    ·────────·──────────────·─────────────
+  ▾ github · empowerite 3
+
+        id   assignees         age  labels            title
+        ·────×·────────────────·────×·────────────────·────────────────────────
+    ▾ jig 1
+      ▸ #7   ada           +1  40d                    🎫 Fix the thing
+    ▾ kit 2
+      ▸ #46  jeffrey-aguilera   2d  bug             🎫 A noun lists, a noun …
+      ▸ #45                     2h  kindfeatu… +2  🎫 kit flow is the one p…
+
+
+
+
+
+
+ = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-5 jump : tab menu

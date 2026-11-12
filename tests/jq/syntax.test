@@ -1,0 +1,134 @@
+# syntax.test - the syntax jq module, run by jq -L kit/modules/jq --run-tests
+#
+# Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line.
+
+# The key of each kind of node, as the arguments object is keyed: a wildcard option keeps its angle brackets.
+import "syntax" as syntax; map(syntax::key)
+[{"kind":"flag","name":"all"},{"kind":"option","name":"message","value":"text","repeat":true},{"kind":"option","name":"hole","value":"value","wildcard":true},{"kind":"operand","name":"path","repeat":true},{"kind":"literal","name":"list","repeat":false}]
+["--all","--message","--<hole>","<path>","list"]
+
+# A sequence renders as the usage line it was read from: brackets, alternatives, values after =, and ….
+import "syntax" as syntax; syntax::render
+[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"all","repeat":false}]],"repeat":false},{"kind":"group","optional":false,"alternatives":[[{"kind":"option","name":"message","value":"text","repeat":true}],[{"kind":"option","name":"file","value":"path","repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"path","repeat":true}]],"repeat":false}]
+"[--all] (--message=<text>… | --file=<path>) [<path>…]"
+
+# A literal, an option, and a wildcard in a group that repeats.
+import "syntax" as syntax; syntax::render
+[{"kind":"literal","name":"file","repeat":false},{"kind":"option","name":"rule","value":"rule","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","name":"hole","value":"value","wildcard":true,"repeat":false}]],"repeat":true}]
+"file --rule=<rule> [--<hole>=<value>]…"
+
+# One node renders alone too.
+import "syntax" as syntax; syntax::render
+{"kind":"operand","name":"path","repeat":true}
+"<path>…"
+
+# undescribed lists the keys the syntax names and the arguments object lacks, once each, in order of appearance.
+import "syntax" as syntax; syntax::undescribed
+{"syntax":[[{"kind":"literal","name":"list","repeat":false}],[{"kind":"literal","name":"add","repeat":false},{"kind":"operand","name":"package","repeat":true}],[{"kind":"literal","name":"remove","repeat":false},{"kind":"operand","name":"package","repeat":true}]],"arguments":{"list":{"description":"x"}}}
+["add","<package>","remove"]
+
+# A verb that takes nothing has nothing undescribed.
+import "syntax" as syntax; syntax::undescribed
+{"syntax":[[]],"arguments":{}}
+[]
+
+# match sorts a complete line: the literal that selected the alternative, the operands with the dash-words a trailing
+# operand takes, and the options given.
+import "syntax" as syntax; syntax::match(["run","bash","-c","echo hi"])
+{"verb":"toolchain","syntax":[[{"kind":"group","optional":false,"alternatives":[[{"kind":"literal","name":"list","repeat":false}],[{"kind":"literal","name":"run","repeat":false},{"kind":"operand","name":"command","repeat":true}]],"repeat":false}]]}
+{"status":0,"literals":["run"],"operands":["bash","-c","echo hi"],"options":{},"values":{"<command>":["bash","-c","echo hi"]}}
+
+# A group that repeats is walked again for each word it takes, so kit help [<verb> | <group>]… takes several names; it
+# stops at a word no alternative takes, and nothing given is nothing to walk.
+import "syntax" as syntax; . as $s | [($s | syntax::match(["tidy", "gate"]) | [.status, .operands]), ($s | syntax::match([]) | .status), ($s | syntax::match(["tidy", "--x"]) | .refusal)]
+{"verb":"help","syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"verb","repeat":false}],[{"kind":"operand","name":"group","repeat":false}]],"repeat":true}]]}
+[[0,["tidy","gate"]],0,"unknown flag '--x'; run: kit help help"]
+
+# A required group with nothing given is what is missing, named by the first key of each alternative.
+import "syntax" as syntax; syntax::match(["--all"])
+{"verb":"commit","syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"all","repeat":false}]],"repeat":false},{"kind":"group","optional":false,"alternatives":[[{"kind":"option","name":"message","value":"text","repeat":true}],[{"kind":"option","name":"file","value":"path","repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"path","repeat":true}]],"repeat":false}]]}
+{"status":1,"missing":"--message or --file","literals":[],"operands":[],"options":{"--all":["1"]},"values":{"--all":["1"]}}
+
+# Two alternatives of one group together, an option without its value, an option whose value is the next word, a
+# word no alternative takes, and a flag given with a value are each refused in the CLI's words.
+import "syntax" as syntax; [syntax::match(["--message=m","--file=f"]), syntax::match(["--message="]), syntax::match(["--message","m"]), syntax::match(["--file"]), syntax::match(["--bogus"]), syntax::match(["--all=1"])] | map(.refusal)
+{"verb":"commit","syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"all","repeat":false}]],"repeat":false},{"kind":"group","optional":false,"alternatives":[[{"kind":"option","name":"message","value":"text","repeat":true}],[{"kind":"option","name":"file","value":"path","repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"path","repeat":true}]],"repeat":false}]]}
+["--message cannot be combined with --file; run: kit help commit","--message needs a value; run: kit help commit","--message takes its value after =: --message=<text>; run: kit help commit","--file takes its value after =: --file=<path>; run: kit help commit","unknown flag '--bogus'; run: kit help commit","unknown flag '--all=1'; run: kit help commit"]
+
+# -- ends the flags, an option given twice keeps both values, and a flag given twice counts once.
+import "syntax" as syntax; syntax::match(["--message=a b","--message=c","--all","--all","--","--weird"])
+{"verb":"commit","syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"all","repeat":false}]],"repeat":false},{"kind":"group","optional":false,"alternatives":[[{"kind":"option","name":"message","value":"text","repeat":true}],[{"kind":"option","name":"file","value":"path","repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"path","repeat":true}]],"repeat":false}]]}
+{"status":0,"literals":[],"operands":["--weird"],"options":{"--message":["a b","c"],"--all":["1"]},"values":{"--message":["a b","c"],"--all":["1"],"<path>":["--weird"]}}
+
+# A verb that takes nothing refuses any word, and a wildcard option takes any --x=y that no named option took.
+import "syntax" as syntax; [syntax::match(["--json"]), ({"verb":"new","syntax":[[{"kind":"literal","name":"file","repeat":false},{"kind":"operand","name":"path","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","wildcard":true,"name":"hole","value":"value","repeat":false}]],"repeat":true}]]} | syntax::match(["file","p","--purpose=x"]))]
+{"verb":"version","syntax":[[]]}
+[{"status":2,"refusal":"kit version takes no arguments; run: kit help version"},{"status":0,"literals":["file"],"operands":["p"],"options":{"--purpose":["x"]},"values":{"--purpose":["x"],"<path>":["p"]}}]
+
+# A word for an operand that opens one alternative cannot go with a flag that selects another.
+import "syntax" as syntax; [syntax::match(["7","--title=x"]), syntax::match(["--title=x"]), syntax::match(["7"])] | map(.refusal // .status)
+{"verb":"issue","syntax":[[{"kind":"group","optional":false,"alternatives":[[{"kind":"operand","name":"reference","repeat":true}],[{"kind":"option","name":"title","value":"text","repeat":false}]],"repeat":false}]]}
+["<reference> cannot be combined with --title; run: kit help issue",0,0]
+
+# A verb's own flag after a repeated operand's first word belongs to the command that operand is; one before it does
+# not, and one the walk used stays a flag.
+import "syntax" as syntax; [syntax::match(["run","kit","generate","--check"]), syntax::match(["run","--check","kit"]), syntax::match(["outdated","--check"])] | map(.refusal // [.operands, .options])
+{"verb":"toolchains","syntax":[[{"kind":"group","optional":false,"alternatives":[[{"kind":"literal","name":"outdated","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"check","repeat":false}]],"repeat":false}],[{"kind":"literal","name":"run","repeat":false},{"kind":"operand","name":"command","repeat":true}]],"repeat":false}]]}
+[[["kit","generate","--check"],{}],"--check cannot be combined with run; run: kit help toolchains",[[],{"--check":["1"]}]]
+
+# An option written once is refused twice; a repeated one keeps both values; a wildcard option may be empty.
+import "syntax" as syntax; [syntax::match(["--title=a","--title=b"]) | .refusal, ({"verb":"new","syntax":[[{"kind":"literal","name":"file","repeat":false},{"kind":"operand","name":"path","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","wildcard":true,"name":"hole","value":"value","repeat":false}]],"repeat":true}]]} | syntax::match(["file","p","--purpose="]) | .options)]
+{"verb":"issue","syntax":[[{"kind":"group","optional":false,"alternatives":[[{"kind":"operand","name":"reference","repeat":true}],[{"kind":"option","name":"title","value":"text","repeat":false}]],"repeat":false}]]}
+["--title is given twice; run: kit help issue",{"--purpose":[""]}]
+
+# A required alternative that opens with an optional group is missing what follows the group, not the group's flag.
+import "syntax" as syntax; syntax::match([]) | .missing
+{"verb":"x","syntax":[[{"kind":"group","optional":false,"alternatives":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"v","repeat":false}]],"repeat":false},{"kind":"operand","name":"path","repeat":false}],[{"kind":"flag","name":"claude","repeat":false}]],"repeat":false}]]}
+"<path> or --claude"
+
+# A flag two alternatives share selects neither by itself: the words that follow decide, and nothing is "combined
+# with" itself.
+import "syntax" as syntax; [syntax::match(["--a", "one"]), syntax::match(["--a", "two", "x"])] | map(.refusal // .literals)
+{"verb":"x","syntax":[[{"kind":"group","optional":false,"alternatives":[[{"kind":"flag","name":"a","repeat":false},{"kind":"literal","name":"one","repeat":false}],[{"kind":"flag","name":"a","repeat":false},{"kind":"literal","name":"two","repeat":false},{"kind":"operand","name":"y","repeat":false}]],"repeat":false}]]}
+[["one"],["two"]]
+
+# In an alternative with a wildcard option, a --name=value another alternative names is the wildcard's: a template
+# hole may share a name with another kind's option. Written apart, or where no wildcard is open, it is still refused.
+import "syntax" as syntax; . as $s | [($s | syntax::match(["file", "x.sh", "--purpose=p"]) | .refusal // .options), ($s | syntax::match(["file", "x.sh", "--purpose", "p"]) | .refusal), ($s | syntax::match(["module", "m", "--purpose=p"]) | .options), ($s | syntax::match(["kind", "k", "--purpose=p"]) | .refusal)]
+{"verb":"new","syntax":[[{"kind":"group","optional":false,"alternatives":[[{"kind":"literal","name":"file","repeat":false},{"kind":"operand","name":"path","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","wildcard":true,"name":"hole","value":"value","repeat":false}]],"repeat":true}],[{"kind":"literal","name":"module","repeat":false},{"kind":"operand","name":"name","repeat":false},{"kind":"option","name":"purpose","value":"text","repeat":false}],[{"kind":"literal","name":"kind","repeat":false},{"kind":"operand","name":"name","repeat":false}]],"repeat":false}]]}
+[{"--purpose":["p"]},"--purpose takes its value after =: --purpose=<text>; run: kit help new",{"--purpose":["p"]},"--purpose cannot be combined with kind; run: kit help new"]
+
+# An empty value is a wildcard's hole, which may be empty, but a named option still needs one.
+import "syntax" as syntax; . as $s | [($s | syntax::match(["file", "x.sh", "--purpose="]) | .refusal // .options), ($s | syntax::match(["module", "m", "--purpose="]) | .refusal)]
+{"verb":"new","syntax":[[{"kind":"group","optional":false,"alternatives":[[{"kind":"literal","name":"file","repeat":false},{"kind":"operand","name":"path","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","wildcard":true,"name":"hole","value":"value","repeat":false}]],"repeat":true}],[{"kind":"literal","name":"module","repeat":false},{"kind":"operand","name":"name","repeat":false},{"kind":"option","name":"purpose","value":"text","repeat":false}]],"repeat":false}]]}
+[{"--purpose":[""]},"--purpose needs a value; run: kit help new"]
+
+# A literal inside the required group an alternative opens with opens that alternative, over an earlier line whose
+# operand would take the word: kit packages add x is the acting line, a bare add is short of its package, a name alone
+# is the listing's, and a flag of the listing cannot go with add.
+import "syntax" as syntax; . as $s | [($s | syntax::match(["add", "x"]) | [.literals, .operands]), ($s | syntax::match(["add"]) | [.status, .missing]), ($s | syntax::match(["x"]) | [.literals, .operands]), ($s | syntax::match(["add", "--json", "x"]) | .refusal)]
+{"verb":"packages","syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"json","repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"package","repeat":true}]],"repeat":false}],[{"kind":"group","optional":false,"alternatives":[[{"kind":"literal","name":"select","repeat":false}],[{"kind":"literal","name":"add","repeat":false}],[{"kind":"literal","name":"remove","repeat":false}]],"repeat":false},{"kind":"operand","name":"package","repeat":true}]]}
+[[["add"],["x"]],[1,"<package>"],[[],["x"]],"--json cannot be combined with add; run: kit help packages"]
+
+# An optional group of flags before a required group takes no word, so a literal of that group opens the alternative:
+# kit tools run is short of its command, not an unknown word, and the listing's flag still selects the listing.
+import "syntax" as syntax; . as $s | [($s | syntax::match(["run"]) | [.status, .literals, .missing]), ($s | syntax::match(["--toolchain=kit", "run", "bats"]) | [.literals, .operands]), ($s | syntax::match(["--outdated"]) | .status)]
+{"verb":"tools","syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"outdated","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"check","repeat":false}]],"repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","name":"toolchain","value":"name","repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"json","repeat":false}],[{"kind":"flag","name":"jq","repeat":false}]],"repeat":false}],[{"kind":"group","optional":true,"alternatives":[[{"kind":"option","name":"toolchain","value":"name","repeat":false}]],"repeat":false},{"kind":"group","optional":false,"alternatives":[[{"kind":"literal","name":"install","repeat":false}],[{"kind":"literal","name":"update","repeat":false}],[{"kind":"literal","name":"path","repeat":false}],[{"kind":"literal","name":"run","repeat":false},{"kind":"operand","name":"command","repeat":true}]],"repeat":false}]]}
+[[1,["run"],"<command>"],[["run"],["bats"]],0]
+
+# An alternative that holds every flag given is chosen over others that hold some of them, so a picture's line with
+# every flag and a stage's line with a few never read as "combined"; two that each lack one the other has still do.
+import "syntax" as syntax; . as $s | [($s | syntax::match(["--a", "--b"]) | .refusal // .options), ($s | syntax::match(["--b"]) | .refusal // .options), ($s | syntax::match(["--a", "--c"]) | .refusal)]
+{"verb":"x","syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"a","repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"b","repeat":false}]],"repeat":false}],[{"kind":"literal","name":"one","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"b","repeat":false}]],"repeat":false}],[{"kind":"literal","name":"two","repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"c","repeat":false}]],"repeat":false}]]}
+[{"--a":["1"],"--b":["1"]},{"--b":["1"]},"--a cannot be combined with --c; run: kit help x"]
+
+# A list whose value is a name joins its values with : as well as repeating, and refuses an empty one; a list whose
+# value may hold a colon keeps it whole.
+import "syntax" as syntax; . as $s | [($s | syntax::match(["--tag=a:b", "--tag=c"]) | .options), ($s | syntax::match(["--path=x:y"]) | .options), ($s | syntax::match(["--tag=a:"]) | .refusal), ($s | syntax::match(["--tag=a::b"]) | .refusal)]
+{"verb":"x","syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"option","name":"tag","value":"audience","repeat":true}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","name":"path","value":"glob","repeat":true}]],"repeat":false}]]}
+[{"--tag":["a","b","c"]},{"--path":["x:y"]},"--tag=a: holds an empty value; join its values with one : each; run: kit help x","--tag=a::b holds an empty value; join its values with one : each; run: kit help x"]
+
+# joins is true for a list whose value is a name alone.
+import "syntax" as syntax; map(syntax::joins)
+[{"kind":"option","name":"tag","value":"audience","repeat":true},{"kind":"option","name":"owner","value":"login","repeat":true},{"kind":"option","name":"message","value":"text","repeat":true},{"kind":"option","name":"to","value":"login","repeat":false},{"kind":"operand","name":"package","repeat":true}]
+[true,true,false,false,false]

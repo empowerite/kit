@@ -1,0 +1,213 @@
+#!/usr/bin/env bash
+# kit-policy - refuses a branch, subject, or title the policy forbids (kit verb: checks)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit policy [--input | --facts=<file> | --rules [--json | --jq]]
+#
+# Fails when the branch, its commits, its change, or its tree breaks the repository's policy, or the branch changed a
+# path outside its lease. kit policy collects these facts once:
+#
+#   - the branch name
+#   - the worktree's path under the main checkout, as worktrees/7-fix-the-thing, in a worktree
+#   - the subject of each commit since the branch forked from the default branch
+#   - the open pull request's title
+#   - the tree of files at HEAD
+#
+# Each rule is a pattern, with a remedy that a refusal names after it. The kit's defaults are the kit package's
+# policy, the workflow's names; an active package's policy, as policy/conventional's, wins over them, the later in
+# kit.yml's packages winning; and kit.yml's policy: map wins over all. With commit_reference trailer, each commit must
+# carry a Refs: trailer naming its issue. The policy engine then reports every refusal and every warning. A warning is printed and never fails. The engine
+# is patterns (the default) or Open Policy Agent. kit policy first refuses facts it cannot judge: a branch whose
+# commits are null, as the fork is not here, and a change that holds an error, as the forge could not answer for it.
+# The refusal comes before either engine runs, and a document given with --facts is refused the same way.
+#
+# On a branch past the default one, the policy that judges it is its base's: policy, policy_engine, linked_exempt,
+# facts, forge, and forges from the base's kit.yml; everything the base holds or delivers under .kit/policy/, which
+# is all opa loads; and the kinds the base holds or delivers, which classify the tree. So a branch cannot loosen the
+# rule that judges it. The base is <primary>/<default> at a desk and, on a CI runner, the base the change's event names,
+# which no command of the branch can move: a pull request's or a merge group's base commit, or a merge request's
+# target branch at its tip; a runner that names a change and no base it can have fails. On a runner the branch is the
+# change's head branch, whatever its name, or a merge group's head. A change to the policy is
+# judged by the policy before it. A base with no kit.yml, where the kit is not installed yet, leaves the checkout's
+# own settings and Rego to judge, as on the default branch, so the change that installs the kit sets its first
+# policy. --input prints the facts that policy judges; --facts judges by the disk's.
+#
+# The facts are the document a policy rule is written against. A pull request by a login the repository lists under
+# linked_exempt in kit.yml passes with nothing checked, and the output says so. That is for a bot such as
+# dependabot[bot]; the same setting passes it through kit linked.
+#
+# A <file> that is relative starts from the directory the command was typed in. A file that is missing, or is not a
+# JSON object with a policy key, is refused with exit 2.
+#
+# A branch past the default one is held to its own lease, the one of the issue its name starts with, as kit leases
+# --check holds it: each path it changed since its merge base with the base, outside the lease, is refused. On a CI
+# runner, whose clone holds no lease, the lease is the primary remote's copy, which kit work and kit submit push. A
+# branch whose issue holds no lease is held to none, and the output says so.
+#
+# kit ci runs kit policy before the gate. On a CI runner, refusals are also written to the step summary.
+#
+# Arguments:
+#   --input           prints the facts as JSON instead of judging them
+#   --facts=<file>    judges the facts document in <file>, and gathers nothing; for testing a rule against a fixture
+#   --rules           lists each rule the policy judges by, commit_reference last: its name, its pattern or value, and
+#                     where it is set, as a table; it reads no forge and judges nothing. On a branch past the default
+#                     it lists the base's rules, as kit policy judges by them, and fails as kit policy does when the
+#                     base cannot be named or read
+#   --json            with --rules, one JSON object a line: rule, pattern, from, and engine; from is kit.yml where its
+#                     policy: map sets the rule, an active package's name where its package.yml does, else default,
+#                     and engine is the engine that judges, patterns or opa
+#   --jq              the same JSON, formatted by jq for a person
+#
+# Exits 0 when the policy refuses nothing, with or without warnings, 1 on any refusal, on a path outside the branch's
+# lease or a lease that does not read, when the forge cannot answer for the open change, when linked_exempt in kit.yml
+# or another fact cannot be read, or when the base cannot be named, is not here, or its policy cannot be read, as when
+# a package its kit.yml lists is not in reach, and 2 on a usage error.
+#
+# see: modules/bash/policy.sh, modules/bash/leases.sh, docs/policy.md
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use policy settings materialize yaml file context flow dependencies
+guard:arguments policy "$@" || exit $?
+# The policy engine runs as kit gate runs the repository's tools: the chosen toolchain's directories first on PATH.
+dependencies:onto-path
+materialize:hydrate
+
+# shellcheck disable=SC2154  # syntax_options is set by guard:arguments
+if [[ -z "${syntax_options[--facts]:-}" ]]
+then
+  past=$(policy:branch-past) || exit 1
+  if [[ -n "${past}" ]]
+  then
+    file:scratch judged
+    # shellcheck disable=SC2154  # judged is set by file:scratch
+    policy:from-base "${judged}" || exit 1
+  fi
+fi
+
+if [[ -n "${syntax_options[--rules]:-}" ]]
+then
+  listed=$(policy:listed) || exit 1
+  engine=$(policy:engine) || exit 1
+  if [[ -n "${syntax_options[--json]:-}" ]]
+  then
+    jq --raw-input --compact-output --arg engine "${engine}" \
+      'split("\t") | {rule: .[0], pattern: .[1], from: .[2], engine: $engine}' <<<"${listed}"
+  else
+    printf '%s\n' "$(flow:paint 90 "$(printf '%-15s %-8s %-8s %s' rule from engine pattern)")"
+    while IFS= read -r line
+    do
+      # a tab is whitespace to read, which would drop an empty pattern's field, so the line is cut by hand
+      rule=${line%%$'\t'*} from=${line##*$'\t'} pattern=${line#*$'\t'}
+      pattern=${pattern%$'\t'*}
+      printf '%-15s %-8s %-8s %s\n' "${rule}" "${from}" "${engine}" "${pattern:-(off)}"
+    done <<<"${listed}"
+  fi
+  exit 0
+fi
+
+if [[ "${1:-}" == --input ]]
+then
+  policy:input
+  exit 0
+fi
+
+if [[ -n "${syntax_options[--facts]:-}" ]]
+then
+  input=$(context:relative "${syntax_options[--facts]}")
+  if ! jq --exit-status 'type == "object" and has("policy")' "${input}" >/dev/null 2>&1
+  then
+    error "'${input}' is missing or is not a facts document; --facts takes a facts document, as kit facts prints"
+    exit 2
+  fi
+else
+  file:scratch scratch
+  # shellcheck disable=SC2154  # scratch is set by file:scratch
+  input=${scratch}/input
+  policy:input > "${input}"
+fi
+if jq --exit-status '.branch != null and .commits == null' "${input}" >/dev/null
+then
+  error "no commit was checked: the fork from the branch's base is not here; fetch it with full history" \
+    "(fetch-depth: 0 in a GitHub checkout), then run: kit policy"
+  summary "### ❌ No commit was checked" "" \
+    "The fork from the branch's base is not in the clone; fetch it with full history."
+  exit 1
+fi
+if jq --exit-status '.change | type == "object" and has("error")' "${input}" >/dev/null
+then
+  unread=$(jq --raw-output '.change.error | tostring' "${input}")
+  error "the change could not be read, so its title is unchecked: ${unread}; then run: kit policy"
+  summary "### ❌ The change could not be read" "" "Its title is unchecked: ${unread}."
+  exit 1
+fi
+author=$(jq --raw-output '.change.author // empty' "${input}")
+if [[ -n "${author}" ]]
+then
+  declare -a exempt
+  list:read exempt yaml:list "$(settings:file)" linked_exempt || exit 1
+  for login in "${exempt[@]}"
+  do
+    [[ -n "${login}" && "${login}" == "${author}" ]] || continue
+    use forge
+    IFS=$'\t' read -r sigil noun < <(forge:noun) || exit 1
+    number=$(jq --raw-output '.change.number' "${input}")
+    ok "${noun} ${sigil}${number} is ${author}'s, exempt from the policy by kit.yml"
+    summary "✅ The ${noun} ${sigil}${number} is ${author}'s, exempt from the policy by kit.yml."
+    exit 0
+  done
+fi
+engine=$(policy:engine)
+warnings=$(policy:warn "${input}") || exit 1
+refusals=$(policy:deny "${input}") || exit 1
+# A branch past the default one is held to its own lease too, by the paths it changed since its base.
+leased=0
+if [[ -n "${past:-}" ]]
+then
+  use leases
+  base=$(policy:base) || exit 1
+  runner=false
+  ! policy:change-named || runner=true
+  leases:check "${past}" "${base}" "${runner}" || leased=1
+fi
+warning_count=0
+if [[ -n "${warnings}" ]]
+then
+  warning_count=$(wc -l <<<"${warnings}" | tr -d ' ')
+  while IFS= read -r warning
+  do
+    warn "${warning}"
+  done <<<"${warnings}"
+  summary "### ⚠️ ${warning_count} warning(s) by the policy" "" "- ${warnings//$'\n'/$'\n'- }" ""
+fi
+if [[ -n "${refusals}" ]]
+then
+  while IFS= read -r refusal
+  do
+    error "${refusal}"
+  done <<<"${refusals}"
+  count=$(wc -l <<<"${refusals}" | tr -d ' ')
+  error "${count} refusal(s) by the ${engine} policy; kit.yml holds the patterns, docs/policy.md says how"
+  summary "### ❌ ${count} refusal(s) by the policy" "" "- ${refusals//$'\n'/$'\n'- }"
+  exit 1
+fi
+(( leased == 0 )) || exit 1
+with=''
+(( warning_count == 0 )) || with=", with ${warning_count} warning(s)"
+if jq --exit-status '.branch == null' "${input}" >/dev/null
+then
+  # On the default branch, or detached, there is no branch past the default branch, so only the tree is judged.
+  ok "the ${engine} policy allows the tree at HEAD; on $(jq --raw-output .default_branch "${input}"), no branch or" \
+    "commit is judged${with}"
+  summary "✅ The policy allows the tree at HEAD; no branch or commit is judged${with}."
+  exit 0
+fi
+subjects=$(jq --raw-output '["the branch", if .worktree then "the worktree" else empty end,
+  "\(.commits | length) commit(s)", if .change then "the change title" else empty end, "the tree"] | join(", ")' \
+  "${input}")
+ok "the ${engine} policy allows ${subjects}${with}"
+summary "✅ The policy allows ${subjects}${with}."
+
+# ----------------------------------------------------------------------------------------------------------------------

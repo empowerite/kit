@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+# kit-leases - lists, takes, renews, and releases the paths each issue's work claims (kit verb: workflow)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit leases [--json | --jq]
+#   kit leases take <reference> [--for=<duration>] [--holder=<name>] [<path>…]
+#   kit leases renew <reference>… [--for=<duration>]
+#   kit leases release <reference>…
+#   kit leases --check
+#
+# A lease says which paths an issue's work will change, who took it, on which branch, and until when, so sessions that
+# work at once can tell who holds what. It is a JSON blob at refs/kit/leases/<key>, the key a branch name starts with
+# for the issue, 73 for #73, so every worktree of the clone sees it. Each change to a lease is a compare and swap, so
+# two sessions that claim at once are judged one after the other. A lease is not a lock, not an identity, and not
+# proof that its holder is alive: it expires, an hour after it is taken or renewed unless --for says otherwise.
+#
+# Alone, it lists every lease in the clone, the live first: its issue, who took it, on which host and branch, when it
+# expires, and its paths. A lease that does not read is named with the command that releases it. The JSON is {now,
+# leases}, each lease {key, readable, issue, paths, holder, host, branch, worktree, taken, renewed, expires, live, oid},
+# times in seconds since the epoch.
+#
+# take claims the paths for the issue, ** without any, on the branch checked out here. A live lease of the issue keeps
+# its paths, and the new ones join them; an expired one is replaced. The claim is refused, and nothing is written, when
+# it may overlap a live lease of another issue: the refusal says who holds what, so you ask before you take a path
+# someone else holds. A lease that does not read overlaps every claim. Leases on one branch nest in the branch's own
+# lease, the one of the issue the branch's name starts with, and never compete with it. kit work takes the lease for
+# its issue: the paths the issue lists under a Paths heading, or **.
+#
+# renew moves each lease's expiry to its term from now, or --for's. A lease that expired is judged again first, as a
+# new claim is. kit commit renews the lease of each issue it names, in its subject or a Refs: trailer, and refuses a
+# staged path that the live lease on the branch of an issue it does not name holds, unless it is the branch's own.
+#
+# release deletes each lease, and the push remote's copy of it, which kit work and kit submit push so CI reads the
+# claim. --check holds the paths the branch changed since its merge base with its base to the branch's own lease, as
+# kit policy does in CI: each one outside it is refused. On a CI runner, whose clone holds no lease, the lease is the
+# push remote's copy: the push setting in kit.yml, else the primary. A branch whose issue holds no lease is held to
+# none.
+#
+# A path is relative to the repository's root and holds itself and everything under it: docs holds docs/policy.md. *
+# and ? match within one segment, […] one character of a set, and ** any number of segments. Two claims overlap unless
+# kit can prove they hold no path in common, so the judgement errs toward refusing.
+#
+# Arguments:
+#   --json              one JSON object, {now, leases}: every lease, and whether it is live
+#   --jq                the same JSON, formatted by jq for a person
+#   take                claims the paths for the issue, here
+#   renew               moves each lease's expiry to its term from now
+#   release             deletes each lease, here and on the push remote
+#   --check             refuses a path the branch changed outside its own lease
+#   --for=<duration>    the lease's term: a number and a unit, s, m, h, or d, as 90s, 45m, 2h, or 1d; 1h for take
+#                       without it, and the lease's own term for renew
+#   --holder=<name>     who takes the lease, as kit leases prints it; git's user.name, else the login, without it
+#   <reference>         an issue, named with its tracker: 7, #7, or AB#4521; for renew and release, a key kit leases
+#                       lists, too
+#   <path>…             the paths the issue's work will change, from the repository's root, as globs: docs/**
+#
+# Exits 0 when it listed, claimed, renewed, or released, or the branch's paths are inside its lease, 1 when a claim is
+# refused, an issue holds no lease to renew, a lease does not read, a path is outside the branch's lease, or git or the
+# remote could not be read, and 2 on a usage error, a reference no tracker reads, a path no claim takes, or a duration
+# kit does not read.
+#
+# see: modules/bash/leases.sh, modules/jq/leases.jq, docs/superpowers/specs/2026-11-12-leases-design.md, issue #73
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use leases
+guard:arguments leases "$@" || exit $?
+guard:require tool:git tool:jq
+if ! git rev-parse --git-dir >/dev/null 2>&1
+then
+  error "kit leases runs in a git repository, where the leases are refs; cd into one"
+  exit 1
+fi
+
+# shellcheck disable=SC2154  # syntax_literals, syntax_operands, and syntax_options are set by guard:arguments
+term=''
+if [[ -n "${syntax_options[--for]+x}" ]]
+then
+  term=$(leases:term "${syntax_options[--for]}") || exit $?
+fi
+# shellcheck disable=SC2154  # syntax_literals, syntax_operands, and syntax_options are set by guard:arguments
+case "${syntax_literals[0]:-}" in
+  (take)
+    leases:take "${syntax_operands[0]}" "${term}" "${syntax_options[--holder]:-}" "${syntax_operands[@]:1}"
+    ;;
+  (renew) leases:renew "${term}" "${syntax_operands[@]}" ;;
+  (release) leases:release "${syntax_operands[@]}" ;;
+  (*)
+    if [[ -n "${syntax_options[--check]+x}" ]]
+    then
+      use policy
+      branch=$(policy:branch-past) || exit 1
+      if [[ -z "${branch}" ]]
+      then
+        info "on the default branch, or a detached HEAD, no branch is held to a lease"
+        exit 0
+      fi
+      base=$(policy:base) || exit 1
+      runner=false
+      ! policy:change-named || runner=true
+      leases:check "${branch}" "${base}" "${runner}"
+    elif [[ -n "${syntax_options[--json]+x}" ]]
+    then
+      leases:list json
+    else
+      leases:list text
+    fi
+esac
+
+# ----------------------------------------------------------------------------------------------------------------------

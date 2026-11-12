@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# kit-help - prints kit's overview, a verb's page, or a group's verbs (kit verb: help)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit help [--text] [<verb> | <group>]…
+#
+# Shows the help each verb's header holds. On a terminal, it opens the palette of verbs: on the verb's
+# page, on the group's first verb, or at the top. Enter there opens a verb's form. Without a terminal, with --text,
+# or with more than one name, it prints. kit <verb> --help, or -h, prints the same page as kit help --text <verb>.
+#
+#   - With no argument, it prints what kit is, and every verb's purpose under its group. The plumbing, the verbs
+#     that scripts, hooks, and the TUI call, is summed up in one line; kit help plumbing lists them.
+#   - A name that matches one verb prints that verb's page: its usage, its description, and the verbs beside it.
+#   - A name that matches several verbs prints each one's usage and purpose.
+#   - A group's name, when no verb starts with it, prints the group's verbs with their purposes.
+#
+# The answers follow one another in the order named, a blank line between them.
+#
+# Arguments:
+#   --text    prints the help, even on a terminal
+#   <verb>    a verb's name, or its start: re matches rebase and region
+#   <group>   a group's name, as kit help heads them
+#
+# Exits 0 on success, 1 when kittui cannot be built, and 2 when a name matches no verb and no group; it prints nothing
+# then.
+#
+# see: modules/bash/help.sh
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+use help tui terminal
+guard:arguments help "$@" || exit $?
+
+# --text is a flag among the names; the names alone are what is shown.
+text=false
+names=()
+for word in "$@"
+do
+  if [[ "${word}" == --text ]]
+  then
+    text=true
+  else
+    names+=("${word}")
+  fi
+done
+set -- ${names[@]+"${names[@]}"}
+
+# Every name is judged first, so a name that matches nothing is refused before anything is printed. A name is a verb's,
+# the start of one, or a group's, in that order, so a verb named as a group is, as help, wins.
+for word in "$@"
+do
+  # shellcheck disable=SC2154  # help_groups is set by modules/bash/help.sh
+  if [[ -z "$(help:verbs "${word}")" && " ${help_groups[*]} " != *" ${word} "* ]]
+  then
+    guard:unknown-verb "${word}" || exit $?
+  fi
+done
+# On a terminal, one name or none opens the palette, which runs this kit: on the verb when the name matches one, on
+# the group when it names one. Without a kittui, the help prints, as it does without a terminal.
+if [[ "${text}" == false ]] && (( $# <= 1 )) && [[ -t 0 && -t 1 && -t 2 ]] && tui:binary --probe >/dev/null 2>&1
+then
+  target=''
+  if (( $# == 1 ))
+  then
+    readarray -t verbs < <(help:verbs "$1")
+    if (( ${#verbs[@]} == 1 ))
+    then
+      target=${verbs[0]}
+    elif (( ${#verbs[@]} == 0 ))
+    then
+      target=$1
+    fi
+  fi
+  if (( $# == 0 )) || [[ -n "${target}" ]]
+  then
+    binary=$(tui:binary) || exit 1
+    terminal:export-probes
+    export KIT="${kit_root}/bin/kit"
+    exec "${binary}" help ${target:+"${target}"}
+  fi
+fi
+
+if (( $# == 0 ))
+then
+  help:overview
+  exit 0
+fi
+
+first=true
+for word in "$@"
+do
+  [[ "${first}" == true ]] || printf '\n'
+  first=false
+  readarray -t verbs < <(help:verbs "${word}")
+  if (( ${#verbs[@]} == 1 ))
+  then
+    help:page "${verbs[0]}"
+  elif (( ${#verbs[@]} > 1 ))
+  then
+    printf 'usage: kit <verb> [<argument>…]\n\n'
+    help:summary "${verbs[@]}"
+    printf '\nRun kit help <verb> for a verb'"'"'s page.\n'
+  else
+    readarray -t verbs < <(help:members "${word}")
+    help:listing "${word}" "${verbs[@]}"
+  fi
+done
+
+# ----------------------------------------------------------------------------------------------------------------------

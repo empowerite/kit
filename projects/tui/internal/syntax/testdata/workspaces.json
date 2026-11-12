@@ -1,0 +1,316 @@
+{
+  "verb": "workspaces",
+  "purpose": "lists, shows, and edits your workspaces, and says which one kit starts on",
+  "usage": [
+    "kit workspaces [--text | --json | --jq]",
+    "kit workspaces --show=<workspace> [--text | --json | --jq]",
+    "kit workspaces --current [--text | --json | --jq]",
+    "kit workspaces --use=<workspace>",
+    "kit workspaces --new=<name> [--from=<command>] [<repository>…]",
+    "kit workspaces --add=<name> <repository>…",
+    "kit workspaces --add=<name> --from=<command> [<repository>…]",
+    "kit workspaces --remove=<name> <repository>…",
+    "kit workspaces --rename=<name> <new-name>",
+    "kit workspaces --delete=<name>",
+    "kit workspaces --favorite=<workspace>",
+    "kit workspaces --unfavorite=<workspace>"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "option",
+        "name": "show",
+        "value": "workspace",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "flag",
+        "name": "current",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "option",
+        "name": "use",
+        "value": "workspace",
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "option",
+        "name": "new",
+        "value": "name",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "name": "from",
+              "value": "command",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "repository",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "option",
+        "name": "add",
+        "value": "name",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "repository",
+        "repeat": true
+      }
+    ],
+    [
+      {
+        "kind": "option",
+        "name": "add",
+        "value": "name",
+        "repeat": false
+      },
+      {
+        "kind": "option",
+        "name": "from",
+        "value": "command",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "repository",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "option",
+        "name": "remove",
+        "value": "name",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "repository",
+        "repeat": true
+      }
+    ],
+    [
+      {
+        "kind": "option",
+        "name": "rename",
+        "value": "name",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "new-name",
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "option",
+        "name": "delete",
+        "value": "name",
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "option",
+        "name": "favorite",
+        "value": "workspace",
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "option",
+        "name": "unfavorite",
+        "value": "workspace",
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--text": {
+      "description": "prints as text, even on a terminal"
+    },
+    "--json": {
+      "description": "one JSON object, as each form below says"
+    },
+    "--jq": {
+      "description": "the same JSON, formatted by jq for a person"
+    },
+    "--show": {
+      "description": "shows a workspace's members, each with its checkout"
+    },
+    "--current": {
+      "description": "says which workspace kit starts on here, and why; under kit --workspace=<workspace>, the kit option before the verb, that one in place of where kit runs, none naming no workspace, and an absolute path the repository whose working tree holds it"
+    },
+    "--use": {
+      "description": "remembers a group as the last used, which kit starts on outside a repository; given a <folder>, keeps the repository whose working tree holds it first among the recent ones, by its desk, a linked worktree's its repository's, ten at most, which the workspace menu offers"
+    },
+    "--new": {
+      "description": "makes a group, with the repositories given as its members"
+    },
+    "--add": {
+      "description": "adds the repositories to a group's members"
+    },
+    "--remove": {
+      "description": "takes the repositories out of a group's members"
+    },
+    "--rename": {
+      "description": "gives a group a new name, in its place in the file, and keeps it the last used if it was"
+    },
+    "--delete": {
+      "description": "takes a group, and its favorite, out of the file, and forgets it as the last used; its checkouts are as they were"
+    },
+    "--from": {
+      "description": "runs the command, by bash from where kit runs, each line it prints a repository, as a member, a git URL, or a checkout's directory, as gh repo list <owner> --json url --jq '.[].url' prints them: they join the group, or, with a pattern among the repositories, those it matches"
+    },
+    "--favorite": {
+      "description": "adds a workspace to the favorites"
+    },
+    "--unfavorite": {
+      "description": "takes a workspace out of the favorites"
+    },
+    "<workspace>": {
+      "description": "a group's name, or a repository: github.com/empowerite/edge or a git URL; for --use, a <folder> too"
+    },
+    "<name>": {
+      "description": "a group's name: a lowercase letter or a digit, then lowercase letters, digits, and . _ -, and never none"
+    },
+    "<new-name>": {
+      "description": "the name --rename gives the group, as a <name> is written and no other group's"
+    },
+    "<repository>": {
+      "description": "github.com/empowerite/edge, a git URL, or a checkout's directory; or a pattern, which holds *, ?, or [, as github.com/empowerite/homebrew-*: the repositories it matches among what --from printed, else, for --remove, the group's members, else the checkouts under the roots; one that matches none is refused"
+    },
+    "<folder>": {
+      "description": "a folder in a git working tree, written as a path: it starts with /, ./, ../, or ~/, or is ., .., or ~"
+    }
+  }
+}

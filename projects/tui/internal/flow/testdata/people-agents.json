@@ -1,0 +1,4 @@
+{"rows": [
+  {"key": "dependabot[bot]", "login": "dependabot[bot]", "acted": ["change"], "last": 1790931600, "links": {"login": "https://github.com/apps/dependabot"}, "source": "github", "organization": "o", "repository": "r"},
+  {"key": "copilot[bot]", "login": "copilot[bot]", "acted": ["review", "commit"], "last": 1790935200, "links": {"login": "https://github.com/apps/copilot"}, "source": "github", "organization": "o", "repository": "r"}
+], "errors": []}

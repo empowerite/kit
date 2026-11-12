@@ -1,0 +1,170 @@
+{
+  "verb": "leases",
+  "purpose": "lists, takes, renews, and releases the paths each issue's work claims",
+  "usage": [
+    "kit leases [--json | --jq]",
+    "kit leases take <reference> [--for=<duration>] [--holder=<name>] [<path>…]",
+    "kit leases renew <reference>… [--for=<duration>]",
+    "kit leases release <reference>…",
+    "kit leases --check"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "take",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "reference",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "name": "for",
+              "value": "duration",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "name": "holder",
+              "value": "name",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "path",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "renew",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "reference",
+        "repeat": true
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "name": "for",
+              "value": "duration",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "release",
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "reference",
+        "repeat": true
+      }
+    ],
+    [
+      {
+        "kind": "flag",
+        "name": "check",
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--json": {
+      "description": "one JSON object, {now, leases}: every lease, and whether it is live"
+    },
+    "--jq": {
+      "description": "the same JSON, formatted by jq for a person"
+    },
+    "take": {
+      "description": "claims the paths for the issue, here"
+    },
+    "renew": {
+      "description": "moves each lease's expiry to its term from now"
+    },
+    "release": {
+      "description": "deletes each lease, here and on the push remote"
+    },
+    "--check": {
+      "description": "refuses a path the branch changed outside its own lease"
+    },
+    "--for": {
+      "description": "the lease's term: a number and a unit, s, m, h, or d, as 90s, 45m, 2h, or 1d; 1h for take without it, and the lease's own term for renew"
+    },
+    "--holder": {
+      "description": "who takes the lease, as kit leases prints it; git's user.name, else the login, without it"
+    },
+    "<reference>": {
+      "description": "an issue, named with its tracker: 7, #7, or AB#4521; for renew and release, a key kit leases lists, too"
+    },
+    "<path>": {
+      "description": "the paths the issue's work will change, from the repository's root, as globs: docs/**"
+    }
+  }
+}

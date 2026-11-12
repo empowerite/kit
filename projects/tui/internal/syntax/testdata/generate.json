@@ -1,0 +1,66 @@
+{
+  "verb": "generate",
+  "purpose": "expands each kit:generate region, or checks that it is current",
+  "usage": [
+    "kit generate [--check] [--iterations=<n>] [<path>…]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "check",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "name": "iterations",
+              "value": "n",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "operand",
+              "name": "path",
+              "repeat": true
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "--check": {
+      "description": "writes nothing, and fails naming every stale file"
+    },
+    "--iterations": {
+      "description": "expands the named files <n> times instead of once"
+    },
+    "<path>": {
+      "description": "the files to expand, relative to the current directory",
+      "choices": "open"
+    }
+  }
+}

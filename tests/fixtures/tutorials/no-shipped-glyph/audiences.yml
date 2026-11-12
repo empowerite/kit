@@ -1,0 +1,14 @@
+# audiences.yml - who a tutorial is for, the closed list a page's `audience:` tags come from
+#
+# kit shows the audiences in this order, by their labels, as the filters of `kit tutorials`. A tag not listed here
+# is refused, so adding an audience is an edit to this file.
+
+- id: newcomer
+  label: Just starting
+  color: "#15803d"
+- id: ui
+  label: UI
+  color: "#1d4ed8"
+- id: maintainer
+  label: Maintainer
+  color: "#7c3aed"

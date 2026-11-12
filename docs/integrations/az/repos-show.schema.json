@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "az repos show --repository ${repository} --project ${project} --output json",
+  "description": "The repository, which kit reads in `modules/bash/forge/ado.sh` (forge/ado:rulesets) for its id, which az repos policy list takes, a UUID, to filter by a branch. The types are the GitRepository of the Azure DevOps REST reference, https://learn.microsoft.com/rest/api/azure/devops/git/repositories/get-repository.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "defaultBranch": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "id"
+  ],
+  "additionalProperties": true,
+  "examples": [
+    {
+      "id": "e556f204-53c9-4153-9cd9-ef41a11e3345",
+      "name": "example",
+      "defaultBranch": "refs/heads/main"
+    }
+  ]
+}

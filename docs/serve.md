@@ -1,0 +1,238 @@
+# Serve
+
+`kit serve` is a local Model Context Protocol (MCP) server. It offers the kit's verbs to an agent as tools, in three
+groups: the verbs that read only; `check`, `lint`, `toolchains`, and `tools`, which run what the repository's files
+name; and the workflow verbs, which act on issues and pull requests. It offers the kit's files as resources. It reads
+requests on stdin and answers on stdout, in the repository it starts in, and does not open a network port.
+
+A tool is its verb, with typed input. Each flag, option, and operand of the verb is a property of the tool's input
+schema, built from the verb's own usage lines. So an agent calls a tool without knowing the verb's grammar:
+
+```json
+{"name": "context", "arguments": {"path": ["README.md"], "json": true}}
+```
+
+The server turns those arguments into the verb's words, here `kit context README.md --json`, and runs it.
+
+## What it offers
+
+Seven tools read only:
+
+| Tool | Runs |
+| --- | --- |
+| `context` | `kit context` |
+| `flow` | `kit flow` |
+| `help` | `kit help` |
+| `kinds` | `kit kinds` |
+| `packages` | `kit packages` |
+| `syntax` | `kit syntax` |
+| `version` | `kit version` |
+
+Four tools run what the repository's files name, so they do not say they read only:
+
+| Tool | Runs | What it runs |
+| --- | --- | --- |
+| `check` | `kit check` | the command of each generated region, to compare the region with what it makes |
+| `lint` | `kit lint` | the linter each rule names, over the paths the rule governs |
+| `toolchains` | `kit toolchains` | the toolchain's own definition, such as `mise.toml`, to see which is active |
+| `tools` | `kit tools` | the toolchain's own definition, such as `mise.toml` or a flake, to list its tools |
+
+Each carries `readOnlyHint` false, `destructiveHint` false, `idempotentHint` true, and `openWorldHint` false. A
+client that asks before a call that does not read only asks before these too.
+
+The workflow tools act on issues, their leases, and pull requests, as the same verbs do in a terminal:
+
+| Tool | Runs | Destructive |
+| --- | --- | --- |
+| `assign` | `kit assign` | no |
+| `close` | `kit close` | yes: it closes issues |
+| `gather` | `kit gather` | no |
+| `leases` | `kit leases` | yes: it releases leases |
+| `settle` | `kit settle` | yes: it closes issues, or takes people off them |
+| `unassign` | `kit unassign` | yes: it takes people off issues |
+| `work` | `kit work` | no |
+
+Each says so in its annotations: `readOnlyHint` is false, `destructiveHint` is true where the table says yes,
+`idempotentHint` is true for all but `gather`, which creates an issue each time, and `leases`, whose take and renew
+move a lease's expiry each time, and `openWorldHint` is true, as each asks the code forge or, for `leases`, pushes to
+the primary remote. A client can then ask before it calls one. `work` is the one tool that writes the repository: it
+makes a branch, a worktree, which it places `.kit/` in, and a draft pull request. `leases` writes the clone's refs
+under `refs/kit/`, which no file git sees holds.
+
+Each tool is described and typed from the verb's header, by the functions `kit help` and `kit syntax` use. So the
+help, the syntax, and the server cannot drift apart.
+
+- **The description** is the verb's purpose and the usage lines the tool offers. The verb's whole page is the
+  resource `kit://help/<verb>`, and the description says so.
+- **The input** has one property per argument:
+  - A flag, such as `--json`, is a boolean.
+  - An option, such as `--toolchain=<name>`, is a string.
+  - An operand, such as `<path>…`, is a string, or an array of strings when it repeats.
+  - An argument with a closed set of choices has them as its `enum`, such as the package names for `packages`.
+  - A line's leading word is one property too: `flow`'s `stage`, such as `issues` or `changes`.
+  - An argument every offered line needs is `required`, such as `context`'s `path`.
+- **A call that does not fit** is refused with `-32602`, and the verb does not run. The error says what is wrong:
+  - a NUL escape, `\u0000`, anywhere in the request, an argument's value among them, which no command line carries
+  - a name the tool does not take, with the names it does take
+  - a value of the wrong type
+  - an operand's value that starts with `-`, which the verb would read as a flag
+  - an operand's value that is a word the verb acts on, offered or not, such as `add` for `packages`; a listing-only
+    tool's error says to run the verb in a terminal
+  - a value off its property's `enum`, a glob among them
+  - a path outside the repository, given to `context`, `kinds`, or `lint`: absolute, through `..`, or through a
+    symbolic link, judged with every link followed, and a `..` after a link judged both as the kernel reads it and
+    as a shell's `cd` does, inside only when both are; a path whose last part is `..` is also judged as the verbs
+    read it, the parts before it as a shell does and the `..` as the kernel does; a path that does not exist is
+    judged by its nearest directory that does, and is outside when a `..` is left after it; a dangling link, whose
+    target does not exist, is outside; a path the system cannot judge because it is too long is outside too:
+    `PATH_MAX` or more without its `.` parts, counted from `/`, the repository root's own path included
+  - `workspace` for `flow`, a name it does not take, because it reads other clones
+  - arguments that fit none of the usage lines, which the error lists
+- **A call runs the verb** in a new process with stdin at end of file, so the verb cannot read the protocol stream.
+  The result's text is the verb's stdout, then its stderr. A verb that exits non-zero sets `isError`, and the text
+  names its exit status.
+
+The seven tools that read only carry `readOnlyHint`, and it holds. Such a tool runs no command the repository's files
+name, takes no word that acts, reads no path outside the repository, changes no file git sees, and never fetches:
+
+- A call does not place anything under `.kit/`. The server places `.kit/` when it starts, and again before a
+  message when `kit.yml` changed since.
+- `flow` never fetches. The server gives it `--no-fetch`, so `incoming` shows the refs as they are. Run `kit flow`
+  in a terminal to fetch.
+- An action is never offered. `packages` is a listing only, and so are `toolchains` and `tools`, which run the
+  toolchain's definition and so do not read only:
+  - `packages` does not offer `select`, `add`, or `remove`. It offers its one stage, `packages`, as `subcommand`.
+  - `toolchains` does not offer `use`.
+  - `tools` does not offer `install`, `update`, `path`, `run`, or `--outdated`, which reaches the network.
+
+  A call that names one of these is refused, as an argument or as a leading word's value, such as `add` for
+  `packages`' `subcommand`, and the error says to run the verb in a terminal.
+- `context` does not offer `--claude`, the hook mode. It is the harness's own.
+- A path stays inside the repository. `context` and `kinds` refuse a path that leads outside it, as `lint` does,
+  and every path when the server cannot read its own directory, as when that directory is gone. `flow` does not
+  offer a workspace, which reads other clones: `--workspace=` is an option of `kit` itself, before the verb.
+
+A tool's verb still writes the kit's own records, which git never sees: its line in `.kit/logs/`, the context log,
+and a toolchain's detection cache under `.kit/cache/`.
+
+`flow` asks the code forge over the network, and says so in its `openWorldHint`, as the workflow tools do.
+
+The verbs that change files, such as `new` and `generate`, are not tools. They change the working tree an agent is
+already editing, which the agent can do by itself. `commit` and `submit` are not tools either; an agent runs them in
+its shell, in the worktree it works in.
+
+The resources are the kit's files under `.kit/`, each as the repository has it, and each tool's help page:
+
+| Resource | File | Type |
+| --- | --- | --- |
+| `kit://1st.md` | `.kit/1st.md` | `text/markdown` |
+| `kit://workflow.md` | `.kit/workflow.md`, when the `workflow` package is active | `text/markdown` |
+| `kit://rules/<kind>` | `.kit/rules/<kind>.md` | `text/markdown` |
+| `kit://styles/<kind>` | `.kit/styles/<kind>.md` | `text/markdown` |
+| `kit://kinds/<file>` | `.kit/kinds/<file>.yml`, which defines one kind or several | `application/yaml` |
+| `kit://help/<verb>` | none: the page `kit help <verb>` prints, for each tool | `text/plain` |
+
+The server's instructions tell an agent to read `kit://1st.md` first, and to call `context` with a path before it
+changes that file.
+
+## The protocol
+
+`kit serve` was checked against the [2026-07-28 revision](https://modelcontextprotocol.io/specification/2026-07-28)
+of the specification. It answers two eras of the protocol, as the specification lets a dual-era server do:
+
+- The 2026-07-28 revision has no session. A client may ask `server/discover`, and every other request names its
+  version in `params._meta["io.modelcontextprotocol/protocolVersion"]`. A request that does not name one is refused with
+  `-32602`, and one that names a revision the server does not answer gets `-32022` with the revisions it does.
+- The revisions before it, `2025-11-25`, `2025-06-18`, and `2025-03-26`, open with `initialize`. The server answers
+  with the revision the client asks for, or the newest of them, and from then on a request does not need `_meta` and
+  `ping` is answered.
+
+Either way:
+
+- Stdout carries only protocol messages, one JSON object per line. Every log line goes to stderr.
+- Requests are answered one at a time, in order.
+- A message without an `id` is a notification, and does not get an answer, even when it fails.
+- A line that holds a NUL byte is not JSON. It is answered with `-32700`,
+  `Parse error: the line holds a NUL byte, which JSON text never does`, and nothing runs.
+- A request that holds a NUL escape, `\u0000`, anywhere, in its method, a name, a URI, or an argument, a key or a
+  value, is refused with `-32602`, `Invalid params: the request holds a NUL, which no command line carries`, and
+  nothing runs.
+- A request whose `params` is there and is neither an object nor `null`, such as an array or a string, is refused
+  with `-32602`, `Invalid params: params is an object`, before any method's handler runs. A request without
+  `params`, or with `params` of `null`, counts as one with none, and is served.
+- A list or a read carries `ttlMs` of 0 and `cacheScope` of `private`, because the files and the verbs' answers
+  change as the agent works.
+
+## How an agent finds it
+
+Each `agents/<harness>` package merges the server into its harness's MCP configuration, by key, and owns only that
+entry. `kit packages remove` takes the entry out and leaves the repository's own servers.
+
+| Package | File | Entry |
+| --- | --- | --- |
+| [`agents/claude`](packages/agents/claude.md) | `.mcp.json` | `mcpServers.kit` |
+| [`agents/cursor`](packages/agents/cursor.md) | `.cursor/mcp.json` | `mcpServers.kit`, with `type: stdio` |
+| [`agents/copilot`](packages/agents/copilot.md) | `.vscode/mcp.json` | `servers.kit`, with `type: stdio` |
+| [`agents/gemini`](packages/agents/gemini.md) | `.gemini/settings.json` | `mcpServers.kit` |
+
+The command is `kit serve`, with `kit` found on `PATH`, as the hook in `.claude/settings.json` already assumes.
+When the kit places an entry, `kit install`, `kit packages add`, and `kit update` say what the harness does next.
+Claude Code, for one, asks once, at the start of the next session, whether to use a project's servers.
+
+## When the kit changes
+
+A harness starts the server once per session, with the `PATH` it started with. What the server runs stays current
+on its own:
+
+- In a checkout of the kit itself, whose `kit.yml` declares `version: unreleased`, the checkout's own
+  `kit/bin/kit-serve` serves it, whichever kit the harness started, as `kit/bin/kit`, the loader, chooses the
+  release. A worktree that changes the kit is served by its own code, not by the desk's or a release's.
+- Before each message, the server looks for a file changed since it started, in its release's `bin/` and
+  `modules/` and in the repository's own module directories. When one has, it starts itself again from the changed
+  code over the same stdin, and the new process answers the message. An edit to a verb, a module, or the server
+  takes effect on the next message, with no reconnect.
+- After it starts again, it sends `notifications/tools/list_changed` and `notifications/resources/list_changed`,
+  and the client asks for both lists again. A `.kit/.gitignore` that changed, as `kit hydrate` rewrites it when what
+  it places changes, sends the second alone.
+- A changed bash file that does not parse is kept out. The server goes on with the code it runs, says so on stderr,
+  and tries again after the next change.
+- A `kit.yml` changed since, as when the agent adds a package, is placed by the server before the next message.
+  Then `.kit/.gitignore` changes too, and the client hears that the resources changed.
+- A `kit.yml` that cannot be placed, as one that does not parse, leaves every tool call and resource read refused
+  with -32603, `run: kit hydrate`, and the steps that failed on the server's stderr. The server places again before
+  each message, and answers as before once a placing succeeds.
+
+The harness's own configuration is read when its session starts, so a change to `.mcp.json` still needs a new
+session, or `/mcp` and Reconnect in Claude Code.
+
+`kit` on `PATH` is the harness's `PATH`, not a shell's. An app opened from the Dock may not have the `PATH` that mise
+or direnv sets in a terminal. This repository's own `house` package therefore registers the command by path from the
+project directory Claude Code names, as `${CLAUDE_PROJECT_DIR:-.}/kit/bin/kit`. A repository whose kit lives in the
+tree can do the same with an `.mcp.json` entry in a package of its own, after `agents/claude`.
+
+## Its log
+
+Each message the server answers is a line in `.kit/logs/mcp-YYYY-MMDD.log`, with its method, its outcome, and how
+long it took, and a tool's line ends with the command it ran. The server adds a line when it starts and one when it
+stops. [logs.md](logs.md) shows the lines, and how long they are kept.
+
+## Try it by hand
+
+Feed it request lines. This asks for the server's revisions and its tools, in the 2026-07-28 shape:
+
+```bash
+version='{"_meta": {"io.modelcontextprotocol/protocolVersion": "2026-07-28"}}'
+printf '%s\n' \
+  '{"jsonrpc": "2.0", "id": 1, "method": "server/discover"}' \
+  "{\"jsonrpc\": \"2.0\", \"id\": 2, \"method\": \"tools/list\", \"params\": ${version}}" \
+  | kit serve | jq .
+```
+
+The [MCP Inspector](https://github.com/modelcontextprotocol/inspector) drives it the way a harness does:
+
+```bash
+npx @modelcontextprotocol/inspector --cli kit serve --method tools/list
+npx @modelcontextprotocol/inspector --cli kit serve --method tools/call --tool-name context --tool-args-json '{"path": ["README.md"]}'
+```
+
+see: [modules/bash/serve.sh](../kit/modules/bash/serve.sh), [context.md](context.md)

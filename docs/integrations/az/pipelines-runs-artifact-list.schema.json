@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "az pipelines runs artifact list --run-id ${id} --project ${project} --output json",
+  "description": "A run's artifacts, each of the 20 newest runs', which kit reads in `modules/bash/forge/ado.sh` (forge/ado:artifacts) and folds in `modules/jq/forge.jq` (forge::ado_artifacts); every call kit makes through forge/ado:az also carries --org ${organization} --detect false --only-show-errors. Each is a BuildArtifact, https://learn.microsoft.com/rest/api/azure/devops/build/artifacts/list?view=azure-devops-rest-7.1: it keeps no digest, no time, and no expiry; a pipeline artifact's resource.properties holds artifactsize, its bytes as text, which the reference leaves type-specific.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "integer"
+      },
+      "name": {
+        "type": "string"
+      },
+      "source": {
+        "type": ["string", "null"]
+      },
+      "resource": {
+        "type": ["object", "null"],
+        "properties": {
+          "type": {
+            "type": ["string", "null"]
+          },
+          "data": {
+            "type": ["string", "null"]
+          },
+          "properties": {
+            "type": ["object", "null"],
+            "properties": {
+              "artifactsize": {
+                "type": ["string", "null"]
+              }
+            },
+            "additionalProperties": true
+          },
+          "url": {
+            "type": ["string", "null"]
+          },
+          "downloadUrl": {
+            "type": ["string", "null"]
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "required": ["id", "name"],
+    "additionalProperties": true
+  },
+  "examples": [
+    [
+      {
+        "id": 13,
+        "name": "kit-0.1.0.tar.gz",
+        "source": "3dc8fd7e-4368-5a92-293e-d53cefc8c4b3",
+        "resource": {
+          "type": "PipelineArtifact",
+          "data": "4FD1F5EFB0F2D1DD",
+          "properties": {
+            "artifactsize": "2048"
+          },
+          "url": "https://dev.azure.com/acme/empowerite/_apis/build/builds/103/artifacts?artifactName=kit",
+          "downloadUrl": "https://artprodcus3.artifacts.visualstudio.com/x/content?format=zip"
+        }
+      }
+    ]
+  ]
+}

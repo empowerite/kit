@@ -1,0 +1,11 @@
+{
+  "verb": "submit",
+  "purpose": "pushes the branch, and commits nothing",
+  "usage": [
+    "kit submit"
+  ],
+  "syntax": [
+    []
+  ],
+  "arguments": {}
+}

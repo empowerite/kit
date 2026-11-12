@@ -1,0 +1,153 @@
+#!/usr/bin/env bash
+# kit-trust - trusts a clone, so kit runs what it asks for there (kit verb: installation)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit trust [--yes] [<path>]
+#   kit trust --list
+#   kit trust --check [<path>]
+#   kit trust --asks [<path>]
+#   kit trust --revoke [<path>]
+#
+# kit runs nothing in a clone until you trust it: in a clone you do not trust, bin/kit, the loader, runs kit help,
+# kit version, and kit trust alone, on the kit you installed, and every other verb refuses. kit trust shows what the
+# clone asks kit to run: the release it pins, and whether that is the clone's own kit/; the bash it loads; its gate;
+# the sources it brings packages from; the tools it has kit download; and the lint: command of each rule and style.
+# Then it asks you, and records your answer for the clone and every worktree of it, with the digest of what it asks.
+# A folder, written with a / at its end, trusts every clone under it.
+#
+# Trusting a clone means you accept code from whoever can push to it. kit does not check each pull; review and signed
+# commits do. The trust holds while the clone asks kit to run what it asked: a pull that changes its kit.yml's
+# version, bash_path, gate, sources, or tools, or a rule's or a style's frontmatter, withdraws it, and kit asks again.
+# A pull that changes only the code those name, as the gate's script, keeps it. A folder's trust holds whatever its
+# clones ask.
+#
+# The records are in kit/trusted under XDG_CONFIG_HOME, else ~/.config: a line per clone, the digest and the absolute
+# path, and a line per folder, its absolute path, which you may write by hand.
+#
+# Arguments:
+#   --yes             records the trust without asking, as a CI job does for its own checkout
+#   --list            prints the clones and the folders you trust, one per line
+#   --check           prints the name the clone is trusted by, and exits 0 when it is trusted, as it asks now, and 1
+#                     when not; it asks nothing and runs nothing of the clone's, for a screen that asks for the trust
+#                     itself
+#   --asks            prints what the clone asks kit to run, one line each, as kit trust shows it, and asks nothing
+#   --revoke          takes the trust of a clone or a folder back
+#   <path>            a clone, or a directory in one, the clone here when none is given; or a folder ending in /
+#
+# Exits 0 when the clone or the folder is trusted, or the list or the asks are printed; 1 when you answer no, there is
+# no terminal to ask and no --yes, --revoke finds no record, or --check finds the clone not trusted; and 2 on a usage
+# error or a path in no clone.
+#
+# see: modules/bash/trust.sh, modules/bash/1st.sh, bin/kit
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter --any-clone
+use trust
+
+guard:arguments trust "$@" || exit $?
+# shellcheck disable=SC2154  # syntax_operands and syntax_options are set by guard:arguments
+if [[ -n "${syntax_options[--list]+x}" ]]
+then
+  trust:list
+  exit 0
+fi
+
+target=${syntax_operands[0]:-.}
+[[ "${target}" == /* ]] || target=${kit_invoked_in}/${target}
+clone=''
+if [[ "${target}" == */ ]]
+then
+  if [[ ! -d "${target}" ]]
+  then
+    error "${target} is not a folder"
+    exit 2
+  fi
+  record=$(cd "${target}" && pwd -P)
+  record=${record%/}/
+else
+  if ! clone=$(kit:clone-root "${target}")
+  then
+    error "${target} is in no clone; to trust every clone under a folder, end it with /: kit trust ${target%/}/"
+    exit 2
+  fi
+  record=$(kit:trust-name "${clone}")
+fi
+
+if [[ -n "${syntax_options[--check]+x}" ]]
+then
+  printf '%s\n' "${record}"
+  kit:trusted "${record}" "${clone}" || exit 1
+  exit 0
+fi
+
+if [[ -n "${syntax_options[--asks]+x}" ]]
+then
+  if [[ -z "${clone}" ]]
+  then
+    error "${record} is a folder; a clone asks kit to run what it asks, so name one: kit trust --asks <path>"
+    exit 2
+  fi
+  trust:asks "${clone}"
+  exit $?
+fi
+
+if [[ -n "${syntax_options[--revoke]+x}" ]]
+then
+  if ! trust:revoke "${record}"
+  then
+    error "kit trust holds no record of ${record}; see what it holds: kit trust --list"
+    exit 1
+  fi
+  ok "kit no longer trusts ${record}"
+  kit:trusted "${record}" && warn "a folder you trust still holds ${record}; see: kit trust --list"
+  exit 0
+fi
+
+status=0
+kit:trusted "${record}" "${clone}" || status=$?
+if (( status == 0 ))
+then
+  ok "kit trusts ${record} already"
+  exit 0
+fi
+digest=''
+if [[ -n "${clone}" ]]
+then
+  declare -a asks=()
+  list:read asks trust:asks "${clone}" || exit 1
+  digest=$(kit:trust-digest "${clone}") || exit 1
+  (( status != 3 )) || warn "${record} asks kit to run something new since you trusted it"
+  if (( ${#asks[@]} ))
+  then
+    info "${record} asks kit to:"
+    printf '  - %s\n' "${asks[@]}" >&2
+  else
+    info "${record} asks kit to run nothing beyond the kit itself"
+  fi
+  info "Trusting it lets kit run code from the clone: what kit.yml names, and what its files ask kit commands to run," \
+    "as a kit:generate directive does. kit does not check each pull; review and signed commits do."
+else
+  info "Trusting ${record} trusts every clone under it, and every worktree of one."
+fi
+
+if [[ -z "${syntax_options[--yes]+x}" ]]
+then
+  if [[ ! -t 0 || ! -t 2 ]]
+  then
+    error "there is no terminal to ask; to trust it without asking, run: kit trust --yes ${record}"
+    exit 1
+  fi
+  answer=''
+  read -r -p "Trust ${record}? [y/N] " answer
+  if [[ "${answer}" != [yY] && "${answer}" != [yY][eE][sS] ]]
+  then
+    info "${record} is not trusted; kit runs nothing there"
+    exit 1
+  fi
+fi
+trust:record "${record}" "${digest}"
+ok "kit trusts ${record}${clone:+, and every worktree of it, while it asks kit to run the same}"
+
+# ----------------------------------------------------------------------------------------------------------------------

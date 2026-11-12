@@ -1,0 +1,11 @@
+{
+  "issues": [
+    {"name": "Mine", "hidden": ["branch", "points"], "order": ["title", "id", "source", "assignees", "age", "branch"],
+     "sort": [{"column": "age", "desc": true}], "kept": ["source"], "show": "mine", "headers": true},
+    {"name": "Others", "group": ["assignees"], "show": "others", "headers": false},
+    {"name": "All", "sort": [{"column": "estimate"}], "headers": true}
+  ],
+  "changes": [
+    {"name": "Authors", "group": ["author"], "hidden": ["milestone"], "headers": true}
+  ]
+}

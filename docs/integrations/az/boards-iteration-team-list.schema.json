@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "az boards iteration team list [--team ${team}] --project ${project} --output json",
+  "description": "The iterations a team plans in, the team forge_settings.ado.team names, else the project's default team, which az takes when --team is left out, which kit draws as the iterations stage's in `modules/bash/forge/ado.sh` (forge/ado:iterations, with `modules/jq/forge.jq` forge::ado_iterations); every call kit makes through forge/ado:az also carries --org ${organization} --detect false --only-show-errors. The extension reads TeamSettingsIteration, https://learn.microsoft.com/rest/api/azure/devops/work/iterations/list?view=azure-devops-rest-7.1. An iteration with no dates has null attributes.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string"
+      },
+      "name": {
+        "type": "string"
+      },
+      "path": {
+        "type": "string"
+      },
+      "attributes": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "startDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "finishDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "The last day, at midnight."
+          },
+          "timeFrame": {
+            "enum": [
+              "past",
+              "current",
+              "future"
+            ]
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "required": [
+      "id",
+      "name"
+    ],
+    "additionalProperties": true
+  },
+  "examples": [
+    [
+      {
+        "id": "a1",
+        "name": "Sprint 1",
+        "path": "empowerite\\Sprint 1",
+        "attributes": {
+          "startDate": "2026-11-02T00:00:00Z",
+          "finishDate": "2026-11-15T00:00:00Z",
+          "timeFrame": "current"
+        }
+      },
+      {
+        "id": "a0",
+        "name": "Backlog",
+        "path": "empowerite",
+        "attributes": null
+      }
+    ]
+  ]
+}

@@ -1,0 +1,103 @@
+/* The site's look: a readable column of prose, and the marks of <Since>. */
+
+:root {
+  --ink: #1f2328;
+  --muted: #59636e;
+  --line: #d1d9e0;
+  --accent: #0969da;
+  --newer: #9a6700;
+  --newer-wash: #fff8c5;
+  color: var(--ink);
+  background: #ffffff;
+  font: 17px/1.6 system-ui, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e6edf3;
+    --muted: #9198a1;
+    --line: #3d444d;
+    --accent: #4493f8;
+    --newer: #d29922;
+    --newer-wash: #2e2a1a;
+    background: #0d1117;
+  }
+}
+
+body {
+  margin: 0;
+}
+
+header.site {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 1rem max(1rem, calc((100vw - 46rem) / 2));
+  border-bottom: 1px solid var(--line);
+}
+
+header.site nav {
+  display: flex;
+  gap: 1.5rem;
+}
+
+a {
+  color: var(--accent);
+}
+
+header.site a.home {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+main {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+code {
+  font-size: 0.9em;
+}
+
+ul.tutorials {
+  padding: 0;
+  list-style: none;
+}
+
+ul.tutorials li {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+ul.tutorials p {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+}
+
+.since {
+  margin: 1rem 0;
+  padding: 0 1rem;
+  border-left: 3px solid var(--line);
+}
+
+.since-mark {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-size: 0.85em;
+}
+
+.since-newer {
+  border-left-color: var(--newer);
+  background: var(--newer-wash);
+}
+
+.since-newer .since-mark {
+  color: var(--newer);
+  font-weight: 600;
+}

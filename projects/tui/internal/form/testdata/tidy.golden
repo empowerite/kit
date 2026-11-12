@@ -1,0 +1,11 @@
+ kit tidy - removes merged worktrees and gone branches
+
+   one of
+   *kit tidy*     removes merged worktrees and gone branches
+
+     --dry-run  prints what kit tidy would do, and changes nothing
+
+   --wait       the issue whose pull request to wait for: 7, #7, or AB#4521, as kit work names it
+
+
+ kit tidy

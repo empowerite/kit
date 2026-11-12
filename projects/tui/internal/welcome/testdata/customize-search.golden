@@ -1,0 +1,40 @@
+  = kit welcome · - empowerite/kit                                                                          🔎 kit flow
+  ➀╶──────────────────╮➁╶───────────────────╮➂╶──────────────╴➍╶───────────────╮➄╶───────────╮
+    👋 introduction   │  🧰 toolchains  3   │  🔧 setup  2    │ 🎨 customize : │  📖 terms   │
+  ────────────────────╰─────────────────────╰─────────────────╯                ╰─────────────╰──────────────────────────
+   Customize
+
+   kit is a starting point. Each part below is something teams change first. It ends with where to change it, the file
+   first, then the doc that explains it, and with the command that shows it.
+
+  ▾ 2                                                                                            📇 Fields  Default ▼
+  ───
+    part                    settings      where             about                          commands
+    ·───────────────────────×·────────────×·───────────────────────────────────────────────×·──────────────────────────
+  ▸ The stages of kit flow  flow        kit.yml       +1  flow: in kit.yml names the s…  kit flow --stages           
+  ▸ Primary and forges      primary +1  kit.yml       +1  primary: names the remote ki…  kit flow incoming --no-fetch
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ = menu - workspace / search │ 1-5 jump : tab menu │ esc tabs ↑↓ move → show

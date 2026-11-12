@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "glab api projects/${project}/merge_requests/${n}/discussions?per_page=100 --paginate",
+  "description": "A merge request's discussions, ${project} the project's path URL-encoded and ${n} its iid, whose notes kit counts as unresolved review threads when they are resolvable and not resolved, in `modules/bash/forge/gitlab.sh` (forge/gitlab:open-prs, with `modules/jq/forge.jq` forge::gitlab_pr); --paginate prints one such array per page. The types are APIEntitiesDiscussion and APIEntitiesNote of GET /api/v4/projects/{id}/merge_requests/{noteable_id}/discussions in GitLab's REST OpenAPI, https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/openapi/openapi_v3.yaml, as https://docs.gitlab.com/api/discussions/ describes them.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "notes": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "resolvable": {
+              "type": "boolean"
+            },
+            "resolved": {
+              "type": "boolean",
+              "description": "Whether the note is resolved; given for a resolvable note."
+            }
+          },
+          "required": ["resolvable"],
+          "additionalProperties": true
+        }
+      }
+    },
+    "required": ["notes"],
+    "additionalProperties": true
+  },
+  "examples": [
+    [
+      {
+        "notes": [
+          {
+            "resolvable": true,
+            "resolved": true
+          }
+        ]
+      },
+      {
+        "notes": [
+          {
+            "resolvable": true,
+            "resolved": false
+          }
+        ]
+      },
+      {
+        "notes": [
+          {
+            "resolvable": false,
+            "resolved": false
+          }
+        ]
+      }
+    ]
+  ]
+}

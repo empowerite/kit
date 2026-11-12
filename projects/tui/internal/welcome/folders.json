@@ -1,0 +1,51 @@
+{
+  "stages": [
+    {
+      "stage": "welcome/folders", "record": "a folder of the workspace, or a check of the machine",
+      "fields": [
+        {"id": "repository", "label": "repository", "type": "enum", "path": "the folder's repository, or This machine",
+         "order": "given", "group": true, "filter": true, "renderings": ["text"], "width": "whole",
+         "placement": "group", "depth": 1},
+        {"id": "folder", "label": "folder", "type": "text", "path": "the folder's name, or the machine's check",
+         "sort": true, "renderings": ["text"], "width": "whole", "placement": "column"},
+        {"id": "branch", "label": "branch", "type": "text", "path": "the folder's branch", "sort": true,
+         "renderings": ["text"], "width": "whole", "placement": "column"},
+        {"id": "kit", "label": "kit", "type": "text", "path": "the kit its kit.yml declares", "sort": true,
+         "renderings": ["text"], "width": "whole", "placement": "column"},
+        {"id": "git", "label": "git", "type": "enum", "path": "repo-git, worktree-scratch", "sort": true,
+         "filter": true, "values": [{"value": "failed", "glyph": "❌"}, {"value": "offered", "glyph": "💡"},
+                                    {"value": "held", "glyph": "✅"}],
+         "renderings": ["glyph", "glyph+text"], "placement": "column"},
+        {"id": "installed", "label": "installed", "type": "enum", "path": "kit-installed", "sort": true,
+         "filter": true, "values": [{"value": "failed", "glyph": "❌"}, {"value": "offered", "glyph": "💡"},
+                                    {"value": "held", "glyph": "✅"}],
+         "renderings": ["glyph", "glyph+text"], "placement": "column"},
+        {"id": "hydrated", "label": ".kit", "type": "enum", "path": "kit-hydrated", "sort": true,
+         "filter": true, "values": [{"value": "failed", "glyph": "❌"}, {"value": "offered", "glyph": "💡"},
+                                    {"value": "held", "glyph": "✅"}],
+         "renderings": ["glyph", "glyph+text"], "placement": "column"},
+        {"id": "hooks", "label": "hooks", "type": "enum", "path": "hooks-installed", "sort": true,
+         "filter": true, "values": [{"value": "failed", "glyph": "❌"}, {"value": "offered", "glyph": "💡"},
+                                    {"value": "held", "glyph": "✅"}],
+         "renderings": ["glyph", "glyph+text"], "placement": "column"},
+        {"id": "toolchain", "label": "toolchain", "type": "enum", "path": "toolchain-project", "sort": true,
+         "filter": true, "values": [{"value": "failed", "glyph": "❌"}, {"value": "offered", "glyph": "💡"},
+                                    {"value": "held", "glyph": "✅"}],
+         "renderings": ["glyph", "glyph+text"], "placement": "column"},
+        {"id": "tools", "label": "tools", "type": "enum", "path": "every other check", "sort": true,
+         "filter": true, "values": [{"value": "failed", "glyph": "❌"}, {"value": "offered", "glyph": "💡"},
+                                    {"value": "held", "glyph": "✅"}],
+         "renderings": ["glyph", "glyph+text"], "placement": "column"},
+        {"id": "check", "label": "check", "type": "enum", "path": "kit-check", "sort": true,
+         "filter": true, "values": [{"value": "failed", "glyph": "❌"}, {"value": "offered", "glyph": "💡"},
+                                    {"value": "held", "glyph": "✅"}],
+         "renderings": ["glyph", "glyph+text"], "placement": "column"}
+      ],
+      "presets": [
+        {"name": "Default", "fields": {}},
+        {"name": "Flat", "fields": {"repository": {"placement": "column", "position": 1},
+                                    "folder": {"sort": "asc", "priority": 1}}}
+      ]
+    }
+  ]
+}

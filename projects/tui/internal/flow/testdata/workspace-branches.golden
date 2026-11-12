@@ -1,0 +1,16 @@
+  = kit repositories · - empowerite/kit
+  ➀╶──────────────╮➁╶────────────────╴➌╶─────────────────╮➃╶──────────────────╮➄╶────────────────╮➅╶─────────────╮
+    📚 repos  2   │  📡 remotes  1    │ 🌿 branches  4 : │  🌳 worktrees  2   │  🔘 commits  2   │  📌 tags  2   │
+  ────────────────╰───────────────────╯                  ╰────────────────────╰──────────────────╰───────────────╰──────
+  Branches — Every branch, local and remote: how far ahead, and how old
+
+  ▾ source · organization · repository 4
+    ·────────·──────────────·───────────
+  ▾ git · o · r 4
+
+      kind  branch   default  remote  local    ahead  commit      age  worktree                   subject
+      ·─────·────────·────────·───────×·───────·──────·───────────·────·──────────────────────────·────────────────────
+    ▸ 🌿    7-fix             origin  7-fix    ↑1     🔘 0553f99  10s  🌳 …/worktrees/7-fix       #7 fix the thing
+      🌿    main     ⚓       origin  main     =      🔘 5d469b3  10s  🌳 /src/r                  one
+   ⬇²
+ = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-6 jump : tab menu

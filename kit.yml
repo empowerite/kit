@@ -1,0 +1,141 @@
+# yaml-language-server: $schema=.kit/kit.schema.json
+require_signing: true
+gate: bin/ci
+# Dependabot's pull requests have no issue and never will; kit linked and kit policy pass them by this name.
+linked_exempt:
+  - dependabot[bot]
+# The commit-subject rule is off for the history of #1, the first release, whose early commits predate it. Remove
+# this comment and the two lines below once that pull request merges, and the kit's default applies again.
+policy:
+  commit_subject: ''
+
+facts:
+  read:
+    - README.md
+version: unreleased
+packages:
+  - kit
+  - agents/generic
+  - agents/claude
+  - github/ci
+  - hooks/lefthook
+  - policy/opa
+  - style/bash
+  - style/gitignore
+  - style/json
+  - style/just
+  - style/markdown
+  - style/prose
+  - style/workflows
+  - style/yaml
+  - workflow
+  - empowerite
+  - house
+answers:
+  # About twice a run: the job takes 12 to 18 minutes on GitHub's runners, with bats on four jobs.
+  ci_timeout_minutes: "35"
+  ci_toolchain: kit
+
+# The tools the gate runs, pinned for the kit toolchain: tools.lock records what each download is, and its hash, for
+# every platform, and kit tools install puts them under ~/.kit/tools/, from the first source on the pull path that has
+# them: each tool is named by what it is, a GitHub release's file or tag, or a file of its project's own download
+# directory, so a mirror serves it as well as its home. A runner installs them all but lefthook, a desk's alone. git,
+# bash, and perl come from the machine; see: docs/toolchains/using-kit.md
+#
+#   actionlint   the workflows rule's linter, over .github/workflows/, in kit lint and the gate
+#   bats         runs tests/, the suite the gate runs
+#   gh           the GitHub provider's tool: workflow commands, kit linked, bin/release publish and retire
+#   go           kittui's language, under projects/tui/: go vet and go test in the gate, and the release's build
+#   jq           reads and writes JSON: the merged .claude/settings.json, the forge's documents, kit flow
+#   just         tests/gate.bats runs a justfile ci recipe, as kit gate finds it in a repository that uses just
+#   lefthook     runs the pre-commit hook, on a desk alone
+#   lychee       checks every link in the markdown, offline, fragments included, in the gate
+#   node         runs the npm tools package.json pins, and builds and tests projects/tutorials/ in the gate
+#   opa          the OPA policy engine; tests/policy.bats checks it matches the patterns engine
+#   parallel     GNU parallel, which bats --jobs runs the suite's tests on, with the machine's perl
+#   shellcheck   the bash rule's linter, over kit/, bin/, and tests/fakes/, in kit lint and the gate
+#   yq           reads YAML: kit.yml, every package.yml, the kinds files, and a rule's frontmatter
+tools:
+  actionlint:
+    version: "1.7.12"
+    release: rhysd/actionlint
+    asset: actionlint_{version}_{os}_{arch}.tar.gz
+    os: {macos: darwin}
+    arch: {x64: amd64}
+  bats:
+    version: "1.14.0"
+    archive: bats-core/bats-core
+    bin: bats-core-{version}/bin
+  gh:
+    version: "2.103.2"
+    release: cli/cli
+    asset: gh_{version}_{os}_{arch}.{ext}
+    os: {macos: macOS}
+    arch: {x64: amd64}
+    ext: {linux: tar.gz, macos: zip}
+    bin: gh_{version}_{os}_{arch}/bin
+  go:
+    version: "1.27.3"
+    dist: go
+    file: go{version}.{os}-{arch}.tar.gz
+    os: {macos: darwin}
+    arch: {x64: amd64}
+    bin: go/bin
+  jq:
+    version: "1.8.2"
+    release: jqlang/jq
+    tag: jq-{version}
+    asset: jq-{os}-{arch}
+    arch: {x64: amd64}
+  just:
+    version: "1.59.0"
+    release: casey/just
+    tag: "{version}"
+    asset: just-{version}-{arch}-{os}.tar.gz
+    os: {linux: unknown-linux-musl, macos: apple-darwin}
+    arch: {x64: x86_64, arm64: aarch64}
+  lefthook:
+    version: "2.2.2"
+    release: evilmartians/lefthook
+    asset: lefthook_{version}_{os}_{arch}
+    os: {linux: Linux, macos: MacOS}
+    arch: {x64: x86_64}
+    profile: desk
+  lychee:
+    version: "0.24.2"
+    release: lycheeverse/lychee
+    tag: lychee-v{version}
+    asset: lychee-{arch}-{os}.tar.gz
+    os: {linux: unknown-linux-musl, macos: apple-darwin}
+    arch: {x64: x86_64, arm64: aarch64}
+    bin: lychee-{arch}-{os}
+  node:
+    version: "24.22.2"
+    dist: node
+    file: v{version}/node-v{version}-{os}-{arch}.tar.gz
+    os: {macos: darwin}
+    bin: node-v{version}-{os}-{arch}/bin
+  opa:
+    version: "1.21.4"
+    release: open-policy-agent/opa
+    asset: opa_{os}_{arch}
+    os: {macos: darwin}
+    arch: {x64: amd64}
+  parallel:
+    version: "20260922"
+    dist: gnu
+    file: parallel/parallel-{version}.tar.bz2
+    bin: parallel-{version}/src
+  shellcheck:
+    version: "0.11.0"
+    release: koalaman/shellcheck
+    asset: shellcheck-v{version}.{os}.{arch}.tar.xz
+    os: {macos: darwin}
+    arch: {x64: x86_64, arm64: aarch64}
+    bin: shellcheck-v{version}
+  yq:
+    version: "4.54.1"
+    release: mikefarah/yq
+    asset: yq_{os}_{arch}
+    os: {macos: darwin}
+    arch: {x64: amd64}

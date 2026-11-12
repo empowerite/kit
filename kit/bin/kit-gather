@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# kit-gather - gathers issues under a new parent issue (kit verb: workflow)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit gather --title=<text> <reference>…
+#
+# Creates a parent issue in the forge's tracker and puts each issue under it, then prints the parent's reference. It
+# starts no work: kit work --title with the same issues gathers them and starts the parent.
+#
+# An issue in the forge's tracker is put under the parent as the forge nests one: a sub-issue on GitHub, a linked
+# item on GitLab. An issue in another tracker is a task line in the parent's body.
+#
+# Arguments:
+#   --title=<text>   the parent issue's title
+#   <reference>…     the issues to gather, each named with its tracker: 7, #7, or AB#4521
+#
+# Exits 0 when the parent is created and every issue is under it, 1 when the parent could not be created or an issue
+# could not be put under it, and 2 on a usage error or a reference no declared tracker reads.
+#
+# see: modules/bash/issue.sh, modules/bash/tracker.sh
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use issue
+
+guard:arguments gather "$@" || exit $?
+forge:require || exit 1
+# shellcheck disable=SC2154  # syntax_operands and syntax_options are set by guard:arguments
+issue:gather "${syntax_options[--title]}" "${syntax_operands[@]}"
+
+# ----------------------------------------------------------------------------------------------------------------------

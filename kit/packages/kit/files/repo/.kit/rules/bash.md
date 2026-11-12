@@ -1,0 +1,66 @@
+---
+# kit:generated -- the bash rule, from the kit package
+# see: "Changing what kit adds" in .kit/1st.md, to replace it
+kind:
+  - bash
+lint: shellcheck --shell=bash --external-sources
+templates:
+  - variant: dependencies-provider
+    path: "**/dependencies/*.sh"
+  - variant: forge-provider
+    path: "**/forge/*.sh"
+  - variant: policy-provider
+    path: "**/policy/*.sh"
+  - variant: sources-provider
+    path: "**/sources/*.sh"
+  - variant: targets-provider
+    path: "**/targets/*.sh"
+  - variant: toolchain-provider
+    path: "**/toolchain/*.sh"
+  - variant: tracker-provider
+    path: "**/tracker/*.sh"
+  - variant: verb
+    path: "kit/bin/kit-*"
+    executable: true
+---
+# Bash
+
+Applies to files of kind `bash`, and to the bodies of every kind that embeds it:
+
+- `*.sh` and `*.bash` files, and a script with no suffix whose first line is a bash shebang
+- recipe bodies in a justfile that bash runs: `[script]` bodies, and shebang bodies under `#!/usr/bin/env bash`
+- `run:` blocks in workflows
+
+## Running
+
+1. An executed script starts with `#!/usr/bin/env bash`, never `#!/bin/bash`. On macOS, `/bin/bash` is bash 3.2.
+2. An executed script sets `errexit`, `nounset`, and `pipefail` before anything else, so a failure stops it rather
+   than letting it report success.
+3. A sourced file sets no shell options, because they would change its caller's options.
+4. Where BSD and GNU tools differ, use the form both accept: `sed -n`, `head -n 1`, `mkdir -p`, `rm -f`, `cut -d`,
+   `cp -R`, `find -type`, `read -r`, and `git -C`. A script must run the same on a desk and on a CI runner.
+
+## Behavior
+
+1. A secret never appears in `argv`. Pipe it: `printf '%s' "${secret}" | gh secret set NAME`.
+2. Diagnostics go to stderr. Stdout is for data a caller can pipe.
+3. A command that changes a remote, a branch, or a worktree is guarded by a check that names what it is about to
+   do. If the change removes work, as a sweep of worktrees or branches does, the command also has `--dry-run`.
+4. Read the default branch from `origin/HEAD`, with `main` as the fallback. Never hard-code it.
+5. shellcheck passes with no directive. Where a directive is needed, its reason is on the same line.
+
+## Modules on the kit's module path
+
+A module, a file that `use` loads from the kit's bash module path, is a sourced file. Name each function in it
+`<module>:<name>`, where `<module>` is the module's name, its path from the module directory without `.sh`, so every
+function says where it is defined: `forge:repo` in `forge.sh`, and `toolchain/brew:install` in `toolchain/brew.sh`.
+
+A seam's provider, `<seam>/<name>.sh`, defines the seam's calls first, one function each, in the order of their
+names, then the line `# The seam's calls end here; what follows is this provider's own.`, then any functions of its
+own. The seam's template, `.kit/templates/bash/<seam>-provider`, holds that shape, so `kit lint` refuses a provider
+that lacks a call, renames one, or puts one of its own among them. `kit new provider <seam> <name>` makes one.
+
+A verb, `kit/bin/kit-<verb>` in the kit's own source, has the header kit help, kit syntax, and kit serve read. The verb
+template, `.kit/templates/bash/verb`, holds it: the banner with the verb's purpose and group, a `Usage:` block, the
+description, an `Arguments:` block, `Exits`, and `see:`. So `kit lint` refuses a header that leaves that shape, and
+`kit new verb <name>` makes one in it.

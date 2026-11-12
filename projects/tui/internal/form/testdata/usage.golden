@@ -1,0 +1,6 @@
+ kit usage - prints the usage lines of the verbs
+
+   <verb>…  the verbs, by whole name; default: every verb, in name order
+
+
+ kit usage

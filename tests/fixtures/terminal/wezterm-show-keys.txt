@@ -1,0 +1,12 @@
+Default key table
+-----------------
+
+        CTRL                 Tab                ->   ActivateTabRelative(1)
+        SHIFT | CTRL         Tab                ->   ActivateTabRelative(-1)
+        ALT                  Enter              ->   ToggleFullScreen
+
+Mouse
+-----
+
+                       Down { streak: 1, button: Left }     ->   SelectTextAtMouseCursor(Cell)
+        SHIFT          Down { streak: 1, button: Left }     ->   ExtendSelectionToMouseCursor(None)

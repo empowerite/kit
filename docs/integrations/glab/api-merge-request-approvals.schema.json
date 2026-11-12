@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "glab api projects/${project}/merge_requests/${n}/approvals",
+  "description": "The approvals of one open merge request, ${project} the project's path URL-encoded and ${n} its iid, which kit folds into the open change's reviewers in `modules/bash/forge/gitlab.sh` (forge/gitlab:open-prs, with `modules/jq/forge.jq` forge::gitlab_pr). Every tier answers it; GitLab Community Edition answers with fewer attributes, approved_by among them. approved_by lists every user who approved, whether an approval rule counts them or not, each with when they did. The fields are those of GET /projects/:id/merge_requests/:merge_request_iid/approvals in https://docs.gitlab.com/api/merge_request_approvals/.",
+  "type": "object",
+  "properties": {
+    "approved_by": {
+      "type": ["array", "null"],
+      "items": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": ["object", "null"],
+            "properties": {
+              "username": {
+                "type": "string"
+              }
+            },
+            "required": ["username"],
+            "additionalProperties": true
+          },
+          "approved_at": {
+            "type": ["string", "null"],
+            "format": "date-time"
+          }
+        },
+        "required": ["user"],
+        "additionalProperties": true
+      }
+    }
+  },
+  "required": ["approved_by"],
+  "additionalProperties": true,
+  "examples": [
+    {
+      "approved": true,
+      "approved_by": [
+        {
+          "user": {
+            "username": "carol"
+          },
+          "approved_at": "2026-10-02T09:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "approved": false,
+      "approved_by": []
+    }
+  ]
+}

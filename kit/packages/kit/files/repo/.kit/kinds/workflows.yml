@@ -1,0 +1,10 @@
+# kit:generated -- the workflows kind, from the kit package
+# see: "Changing what kit adds" in .kit/1st.md, to replace it
+#
+# A GitHub Actions workflow. It is of kind yaml as well, and its run: blocks are bash, which embeds: says.
+name: workflows
+paths:
+  - ".github/workflows/*.yml"
+  - ".github/workflows/*.yaml"
+embeds:
+  - bash

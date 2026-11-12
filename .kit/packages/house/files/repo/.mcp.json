@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "kit": {
+      "command": "${CLAUDE_PROJECT_DIR:-.}/kit/bin/kit",
+      "args": ["serve"]
+    }
+  }
+}

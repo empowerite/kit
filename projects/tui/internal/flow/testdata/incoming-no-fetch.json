@@ -1,0 +1,131 @@
+{
+  "fetched": false,
+  "primary": "origin",
+  "remotes": [
+    {
+      "name": "upstream",
+      "forge": "gitlab",
+      "host": "git.example.org"
+    },
+    {
+      "name": "origin",
+      "forge": "github",
+      "host": "github.com"
+    },
+    {
+      "name": "backup",
+      "forge": "",
+      "host": "nas.local"
+    }
+  ],
+  "rows": [
+    {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
+      "key": "origin remote",
+      "remote": "origin",
+      "primary": "primary",
+      "forge": "github",
+      "host": "github.com",
+      "url": "https://github.com/empowerite/kit.git",
+      "default": "main",
+      "kind": "remote",
+      "change": "not fetched",
+      "ref": "main",
+      "sha": null,
+      "old": null,
+      "commits": null,
+      "author": null,
+      "age": null,
+      "subject": null,
+      "local": [],
+      "worktrees": [],
+      "ahead": null,
+      "behind": null,
+      "issues": []
+    },
+    {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
+      "key": "origin tracking main",
+      "remote": "origin",
+      "primary": "primary",
+      "forge": "github",
+      "host": "github.com",
+      "url": "https://github.com/empowerite/kit.git",
+      "default": "main",
+      "kind": "tracking",
+      "change": "behind",
+      "ref": "main",
+      "sha": "a1b2c3d",
+      "old": null,
+      "commits": 2,
+      "author": "Jeffrey Aguilera",
+      "age": 3600,
+      "subject": "#1 docs: the docs say what the code does",
+      "local": [
+        "main"
+      ],
+      "worktrees": [],
+      "ahead": 0,
+      "behind": 2,
+      "issues": [
+        "#1"
+      ]
+    },
+    {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
+      "key": "upstream remote",
+      "remote": "upstream",
+      "primary": null,
+      "forge": "gitlab",
+      "host": "git.example.org",
+      "url": "https://git.example.org/empowerite/kit.git",
+      "default": "main",
+      "kind": "remote",
+      "change": "not fetched",
+      "ref": "main",
+      "sha": null,
+      "old": null,
+      "commits": null,
+      "author": null,
+      "age": null,
+      "subject": null,
+      "local": [],
+      "worktrees": [],
+      "ahead": null,
+      "behind": null,
+      "issues": []
+    },
+    {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
+      "key": "backup remote",
+      "remote": "backup",
+      "primary": null,
+      "forge": null,
+      "host": "nas.local",
+      "url": "ssh://nas.local/kit.git",
+      "default": "main",
+      "kind": "remote",
+      "change": "not fetched",
+      "ref": "main",
+      "sha": null,
+      "old": null,
+      "commits": null,
+      "author": null,
+      "age": null,
+      "subject": null,
+      "local": [],
+      "worktrees": [],
+      "ahead": null,
+      "behind": null,
+      "issues": []
+    }
+  ]
+}

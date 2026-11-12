@@ -1,0 +1,20 @@
+{
+  "rows": [
+    {
+      "repository": "github.com/empowerite/kit", "host": "github.com", "path": "empowerite/kit", "forge": "github",
+      "remotes": [{"name": "origin", "url": "https://github.com/empowerite/kit.git", "forge": "github"},
+                  {"name": "upstream", "url": "https://github.com/jeffrey-aguilera/kit.git", "forge": "github"}],
+      "checkout": "/srv/code/github.com/empowerite/kit", "checkouts": ["/srv/code/github.com/empowerite/kit"],
+      "by": "fixed", "branch": "main", "ahead": 1, "behind": 0,
+      "worktrees": [{"branch": "1-the-first-release", "path": "/srv/code/github.com/empowerite/kit/worktrees/1"}],
+      "branches": ["spike", "tidy"], "error": null, "organization": "empowerite", "source": "git"
+    },
+    {
+      "repository": "github.com/empowerite/edge", "host": "github.com", "path": "empowerite/edge", "forge": "github",
+      "remotes": [], "checkout": null, "checkouts": [], "by": "fixed",
+      "branch": null, "ahead": null, "behind": null, "worktrees": null, "branches": null, "error": null,
+      "organization": "empowerite", "source": "git"
+    }
+  ],
+  "errors": []
+}

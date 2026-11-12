@@ -1,0 +1,16 @@
+ kit tutorials - lists kit's tutorials, and opens one, in kittui or the browser
+
+   one of
+   *kit tutorials*            lists kit's tutorials, and opens one, in kittui or the browser
+
+     --text   --json   --jq
+                            prints the list, even on a terminal
+
+     --tag                  keeps the tutorials for that audience; given again, or with audiences
+                            joined by :, as --tag=ui:maintainer, it keeps the tutorials for any of
+                            them
+
+   --text --tag <tutorial>
+
+
+ kit tutorials

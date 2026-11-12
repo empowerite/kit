@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "gh api graphql --field owner=${owner} --field name=${name} --raw-field query=${query}",
+  "description": "The repository's 50 newest deployments, deployments(first: 50, orderBy: {field: CREATED_AT, direction: DESC}), which kit asks for in `modules/bash/forge/github.sh` (forge/github:deployments) and folds in `modules/jq/forge.jq` (forge::github_deployments); a totalCount past the nodes says GitHub holds more. A point of the GraphQL rate limit, checked by rateLimit on cli/cli. The types are the Repository, Deployment, and DeploymentStatus objects of GitHub's GraphQL schema, https://docs.github.com/public/fpt/schema.docs.graphql, introspected: DeploymentOrderField has CREATED_AT alone; ref, commit, state, environment, and latestStatus are nullable.",
+  "type": "object",
+  "properties": {
+    "data": {
+      "type": "object",
+      "properties": {
+        "repository": {
+          "description": "Repository, null when GitHub has none of that owner and name",
+          "type": ["object", "null"],
+          "properties": {
+            "url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "deployments": {
+              "type": "object",
+              "properties": {
+                "totalCount": {
+                  "type": "integer"
+                },
+                "nodes": {
+                  "type": ["array", "null"],
+                  "items": {
+                    "type": ["object", "null"],
+                    "properties": {
+                      "databaseId": {
+                        "type": ["integer", "null"]
+                      },
+                      "environment": {
+                        "type": ["string", "null"]
+                      },
+                      "ref": {
+                        "type": ["object", "null"],
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": true
+                      },
+                      "commitOid": {
+                        "type": "string"
+                      },
+                      "state": {
+                        "enum": [
+                          "ABANDONED",
+                          "ACTIVE",
+                          "DESTROYED",
+                          "ERROR",
+                          "FAILURE",
+                          "INACTIVE",
+                          "PENDING",
+                          "SUCCESS",
+                          "QUEUED",
+                          "IN_PROGRESS",
+                          "WAITING",
+                          null
+                        ]
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "creator": {
+                        "type": ["object", "null"],
+                        "properties": {
+                          "login": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": true
+                      },
+                      "commit": {
+                        "type": ["object", "null"],
+                        "properties": {
+                          "url": {
+                            "type": "string",
+                            "format": "uri"
+                          }
+                        },
+                        "additionalProperties": true
+                      },
+                      "latestStatus": {
+                        "type": ["object", "null"],
+                        "properties": {
+                          "state": {
+                            "enum": [
+                              "PENDING",
+                              "SUCCESS",
+                              "FAILURE",
+                              "INACTIVE",
+                              "ERROR",
+                              "QUEUED",
+                              "IN_PROGRESS",
+                              "WAITING"
+                            ]
+                          },
+                          "logUrl": {
+                            "type": ["string", "null"],
+                            "format": "uri"
+                          },
+                          "environmentUrl": {
+                            "type": ["string", "null"],
+                            "format": "uri"
+                          }
+                        },
+                        "additionalProperties": true
+                      }
+                    },
+                    "required": [
+                      "databaseId",
+                      "environment",
+                      "ref",
+                      "commitOid",
+                      "state",
+                      "createdAt",
+                      "creator",
+                      "commit",
+                      "latestStatus"
+                    ],
+                    "additionalProperties": true
+                  }
+                }
+              },
+              "required": ["totalCount", "nodes"],
+              "additionalProperties": true
+            }
+          },
+          "required": ["url", "deployments"],
+          "additionalProperties": true
+        }
+      },
+      "required": ["repository"],
+      "additionalProperties": true
+    }
+  },
+  "required": ["data"],
+  "additionalProperties": true,
+  "examples": [
+    {
+      "data": {
+        "repository": {
+          "url": "https://github.com/empowerite/example",
+          "deployments": {
+            "totalCount": 1,
+            "nodes": [
+              {
+                "databaseId": 9,
+                "environment": "production",
+                "ref": {
+                  "name": "release/0.1.0"
+                },
+                "commitOid": "8e817bf000000000000000000000000000000000",
+                "state": "ACTIVE",
+                "createdAt": "2026-10-01T10:00:00Z",
+                "creator": {
+                  "login": "ada"
+                },
+                "commit": {
+                  "url": "https://github.com/empowerite/example/commit/8e817bf000000000000000000000000000000000"
+                },
+                "latestStatus": {
+                  "state": "SUCCESS",
+                  "logUrl": "https://github.com/empowerite/example/actions/runs/103/job/1",
+                  "environmentUrl": null
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

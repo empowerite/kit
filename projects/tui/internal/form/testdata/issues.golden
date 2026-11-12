@@ -1,0 +1,25 @@
+ kit issues - lists the forge's milestones and iterations of the repository
+
+   one of
+   *kit issues*  lists the forge's milestones and iterations of the repository
+
+     --text   --json   --jq
+                           prints the stages as text, even on a terminal
+
+   --stages    prints the stages, one per line, in order, the same over any workspace
+   --marks     prints a mark per stage, as one JSON object, which changes when what the stage draws
+               does: the forge's own mark of its milestones for milestones, null for iterations,
+               which has none and is read again only on Refresh
+   milestones  each milestone of the repository, open and closed, by number
+   iterations  each iteration, by start: GitHub's from the projects linked to the repository,
+               GitLab's with its groups', and Azure DevOps' of its team, the one
+               forge_settings.ado.team names, else the project's default team
+   issues      a tab kit flow prints; on a terminal it opens in kittui, and with a form it is
+               refused
+   backlog     the issues tab's Backlog preset; on a terminal it opens in kittui, and with a form it
+               is refused
+   underway    the issues tab's Underway preset; on a terminal it opens in kittui, and with a form
+               it is refused
+
+
+ kit issues

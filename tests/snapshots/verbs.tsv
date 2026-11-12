@@ -1,0 +1,55 @@
+assign	assigns issues to the caller, or to someone else	workflow
+audit	lists the forge's attestations, alerts, controls, waivers, the policy, and what binds	workflow
+bots	lists, adopts, and forgets the bots that act for you	workflow
+changes	lists each open change's reviews and checks, and the changes merged last	workflow
+check	fails when a delivered file differs from the pinned release	checks
+ci	runs the delivered CI job's four checks on any machine	checks
+close	closes issues as not planned, or as a duplicate of another	workflow
+commit	commits what is staged, after the kit's checks	workflow
+completion	prints shell completion for kit	plumbing
+context	prints the rules that govern a file	files
+delivery	lists the artifacts, environments, and deployments the forge holds	workflow
+facts	prints the facts a policy engine judges, as JSON	plumbing
+flow	shows where the work stands, from the issues to releases	workflow
+gate	runs the repository's gate	checks
+gather	gathers issues under a new parent issue	workflow
+generate	expands each kit:generate region, or checks that it is current	files
+help	prints kit's overview, a verb's page, or a group's verbs	help
+hydrate	places what the active packages deliver under .kit/	installation
+install	mirrors the release into the repository and the home directory	installation
+issues	lists the forge's milestones and iterations of the repository	workflow
+kinds	lists the kinds of file, or the kinds a path is of	files
+leases	lists, takes, renews, and releases the paths each issue's work claims	workflow
+linked	refuses a pull request not linked to an open issue	checks
+lint	runs each rule's linter over the paths it governs	checks
+new	makes a new file, or a new kind, rule, package, template, or verb	files
+packages	lists the packages in reach, and changes which are active	installation
+people	lists who has access to the repository, its teams, and the bots that acted	workflow
+platform	lists the services, toolchains, tools, and settings kit runs with	installation
+policy	refuses a branch, subject, or title the policy forbids	checks
+publish	pushes a release's artifacts to their targets, from a runner, through their tools	workflow
+ready	marks a draft pull request ready for review	workflow
+rebase	rebases a branch onto the default branch and pushes it	workflow
+region	prints the region an active package delivers at a path	plumbing
+release	tags HEAD as a release and pushes the tag	workflow
+root	prints the directory of the release that runs	plumbing
+serve	serves the kit to an agent over the Model Context Protocol	interfaces
+settle	settles the issues a closed pull request names	workflow
+submit	pushes the branch, and commits nothing	workflow
+syntax	prints a verb's grammar as JSON, and checks its header	plumbing
+template	rewrites a template's ASCII holes into guillemets	plumbing
+tidy	removes merged worktrees and gone branches	workflow
+toolchains	lists the toolchains kit found here, and records which one to use	installation
+tools	lists, installs, and updates what the chosen toolchain and the dependencies pin	installation
+trust	trusts a clone, so kit runs what it asks for there	installation
+tui	runs the interactive terminal UI	interfaces
+tutorials	lists kit's tutorials, and opens one, in kittui or the browser	help
+unassign	takes the caller, or everyone, off issues	workflow
+uninstall	takes the kit out of the repository and the home directory	installation
+update	moves the repository and the home directory to the release that runs it	installation
+usage	prints the usage lines of the verbs	plumbing
+version	prints this release's version	installation
+welcome	walks a newcomer through what kit needs, the toolchains, setup, and the workflow	help
+work	starts or resumes work on issues	workflow
+workspace	shows a workspace's git: its remotes, branches, worktrees, commits, and tags	workflow
+workspaces	lists, shows, and edits your workspaces, and says which one kit starts on	workflow

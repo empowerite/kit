@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+# kit-linked - refuses a pull request not linked to an open issue (kit verb: checks)
+# ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit linked [<number>]
+#
+# Fails when a pull request is not linked to an open issue of this repository. kit ci runs it in the delivered CI
+# job, and anyone can run it on any pull request.
+#
+# A linked issue counts when it is open and belongs to this repository. A closed issue, or one in another
+# repository, is reported and does not count. One whose state its tracker cannot read is named, beside the tracker's
+# own line, and does not count; when no issue counts, the refusal says the states could not be read. On a CI runner,
+# the remedy is also written to the step summary.
+#
+# A pull request by a login the repository lists under linked_exempt in kit.yml passes without an issue, and the
+# output names the exemption. That is for a bot such as dependabot[bot], whose pull requests never have an issue.
+# The repository says which logins it trusts that way; the kit decides nothing for it. On a branch past the default
+# one, linked_exempt is read from the kit.yml on its base, so a branch cannot exempt its own author: <primary>/<default>
+# at a desk and, on a CI runner, the base the change's event names, which no command of the branch can move: a pull
+# request's or a merge group's base commit, or a merge request's target branch at its tip. On a runner the branch is
+# the change's head branch, whatever its name, and kit ci runs kit linked before the gate. A base with no kit.yml,
+# where the kit is not installed yet, leaves the checkout's own kit.yml to say, as on the default branch.
+#
+# Arguments:
+#   <number>   the pull request to check; default: this checkout's
+#
+# Exits 0 when at least one linked issue counts or the author is exempt, 1 when neither holds, there is no pull
+# request to check, the forge cannot say which pull request this checkout is working on, the pull request's body
+# cannot be read, linked_exempt in kit.yml cannot be read, or the base cannot be named, is not here, or its kit.yml
+# cannot be read, and 2 on a usage error.
+#
+# see: modules/bash/forge.sh, modules/bash/policy.sh
+
+set -o errexit -o nounset -o pipefail
+# shellcheck source=modules/bash/1st.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
+kit:enter
+use forge tracker yaml settings policy file
+guard:arguments linked "$@" || exit $?
+
+if (( $# > 0 )) && [[ ! "$1" =~ ^[0-9]+$ ]]
+then
+  error "'$1' is not a number; run: kit help linked"
+  exit 2
+fi
+# On a branch past the default one, linked_exempt is the base's.
+past=$(policy:branch-past) || exit 1
+if [[ -n "${past}" ]]
+then
+  file:scratch judged
+  # shellcheck disable=SC2154  # judged is set by file:scratch
+  policy:from-base "${judged}" || exit 1
+fi
+
+number=${1:-}
+[[ -n "${number}" ]] || number=$(forge:pr-here) || exit 1
+if [[ ! "${number}" =~ ^[0-9]+$ ]]
+then
+  error "name the change: kit linked <number> (none was given, and this checkout is working on none)"
+  exit 1
+fi
+IFS=$'\t' read -r sigil noun < <(forge:noun) || exit 1
+change="${noun} ${sigil}${number}"
+repo=$(forge:repo) || exit 1
+url=$(forge:pr-url "${number}") || exit 1
+remedy=$(printf '%s\n' \
+  "Link an open issue of this repository to [the ${noun}](${url}):" "" \
+  "1. add a line \`Closes <reference>\` to its description for each open issue it resolves, #7 or AB#4521" \
+  "2. re-run the check: linking fires no event, so it does not re-run on its own" "" \
+  "\`kit work <N>\` makes this link when it starts the work.")
+# The author is asked for only when a login is exempt, so a repository with none makes no extra call.
+declare -a exempt
+list:read exempt yaml:list "$(settings:file)" linked_exempt || exit 1
+if (( ${#exempt[@]} > 0 ))
+then
+  author=$(forge:pr-author "${number}") || exit 1
+  for login in "${exempt[@]}"
+  do
+    [[ -n "${login}" && "${login}" == "${author}" ]] || continue
+    ok "${change} is ${author}'s, exempt from the linked-issue check by kit.yml"
+    summary "✅ The ${change} is ${author}'s, exempt from the linked-issue check by kit.yml."
+    exit 0
+  done
+fi
+# A forge that says nothing of what a change closes leaves the body to say it.
+refs=$(forge:pr-closing-issues "${number}") || (( $? == 3 )) || exit 1
+# The forge does not link issues of other trackers, such as Azure DevOps. A closing keyword in the pull request's
+# body links them: `Closes AB#4521`.
+body=$(forge:pr-body "${number}") || exit 1
+others=$(tracker:body-refs "${body}") || exit 1
+if [[ -z "${refs}${others}" ]]
+then
+  error "${change} is not linked to any issue"
+  summary "### ❌ The ${change} is not linked to any issue" "" "${remedy}"
+  exit 1
+fi
+open=0
+unread=0
+while read -r n state issue_repo
+do
+  [[ -n "${n}" ]] || continue
+  if [[ "${issue_repo}" != "${repo}" ]]
+  then
+    warn "skipping ${issue_repo}#${n}: it belongs to another repository"
+  elif [[ "${state}" != OPEN ]]
+  then
+    warn "#${n} is ${state}; merging will not change it"
+  else
+    open=$(( open + 1 ))
+  fi
+done <<<"${refs}"
+while read -r ref
+do
+  [[ -n "${ref}" ]] || continue
+  # The tracker says what failed in a line of its own; the issue does not count, and is never called closed.
+  if ! state=$(tracker:of "${ref}" state)
+  then
+    warn "${ref}'s state could not be read, so it does not count"
+    unread=$(( unread + 1 ))
+    continue
+  fi
+  if [[ "${state}" != OPEN ]]
+  then
+    warn "${ref} is ${state}; merging will not change it"
+  else
+    open=$(( open + 1 ))
+  fi
+done <<<"${others}"
+if (( open == 0 && unread > 0 ))
+then
+  error "run: kit linked again once the tracker answers (the state of ${unread} linked issue(s) could not be read," \
+    "and no other linked issue is open in this repository)"
+  summary "### ❌ The state of ${unread} linked issue(s) could not be read" "" "${remedy}"
+  exit 1
+fi
+if (( open == 0 ))
+then
+  error "every issue ${change} is linked to is closed or belongs to another repository"
+  summary "### ❌ Every linked issue is closed or belongs to another repository" "" "${remedy}"
+  exit 1
+fi
+closes=$({
+  [[ -z "${refs}" ]] || cut -d ' ' -f 1 <<<"${refs}" | sed 's/^/#/'
+  [[ -z "${others}" ]] || printf '%s\n' "${others}"
+} | paste -s -d ' ' -)
+ok "${change} is linked to ${closes}"
+summary "✅ Linked to ${closes}."
+
+# ----------------------------------------------------------------------------------------------------------------------

@@ -1,0 +1,38 @@
+{
+  "verb": "unassign",
+  "purpose": "takes the caller, or everyone, off issues",
+  "usage": [
+    "kit unassign [--all] <reference>…"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "all",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "operand",
+        "name": "reference",
+        "repeat": true
+      }
+    ]
+  ],
+  "arguments": {
+    "--all": {
+      "description": "takes every assignee off, not only the caller"
+    },
+    "<reference>": {
+      "description": "the issues, each named with its tracker: 7, #7, or AB#4521"
+    }
+  }
+}

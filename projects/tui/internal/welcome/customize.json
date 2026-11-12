@@ -1,0 +1,32 @@
+{
+  "stages": [
+    {
+      "stage": "welcome/customize", "record": "## <part>",
+      "fields": [
+        {"id": "order", "label": "#", "type": "number", "path": "the section's place on the page", "sort": true,
+         "renderings": ["text"], "dim": true, "right": true, "placement": "hidden"},
+        {"id": "part", "label": "part", "type": "text", "path": "## <part>", "sort": true, "renderings": ["text"],
+         "width": "whole", "placement": "column"},
+        {"id": "settings", "label": "settings", "one": "setting", "type": "label", "path": "`<key>:`",
+         "group": true, "filter": true, "renderings": ["pills", "text"], "placement": "column"},
+        {"id": "where", "label": "where", "one": "place", "type": "text", "path": "→ [<text>](<target>)",
+         "renderings": ["text"], "width": "whole", "placement": "column"},
+        {"id": "about", "label": "about", "type": "text", "path": "the paragraphs and the list items",
+         "renderings": ["text"], "wrap": true, "placement": "column"},
+        {"id": "commands", "label": "commands", "one": "command", "type": "text", "path": "`<command>`",
+         "renderings": ["text"], "dim": true, "width": "whole", "placement": "column"},
+        {"id": "command", "label": "command", "type": "enum", "path": "the first command's tool and verb",
+         "sort": true, "group": true, "filter": true, "renderings": ["text"], "dim": true, "width": "whole",
+         "placement": "hidden"}
+      ],
+      "presets": [
+        {"name": "Default", "fields": {"order": {"sort": "asc", "priority": 1}}},
+        {"name": "By command", "fields": {"command": {"placement": "group", "depth": 1},
+                                          "order": {"sort": "asc", "priority": 1}}},
+        {"name": "Compact", "fields": {"settings": {"placement": "hidden"}, "commands": {"placement": "hidden"},
+                                       "where": {"placement": "hidden"},
+                                       "order": {"sort": "asc", "priority": 1}}}
+      ]
+    }
+  ]
+}
