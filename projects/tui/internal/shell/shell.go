@@ -217,9 +217,14 @@ func (m Menu) choice(k, room int) Choice {
 	return Choice{Own: item.Name}
 }
 
-// Opened gives the menu dropped down, its first item that does something under the keyboard.
+// Opened gives the menu dropped down, the line of the screen it is on under the keyboard, so the menu opens where you
+// are; on a screen with no line of its own, as the workspaces' screen, its first item that does something.
 func (m Menu) Opened() Menu {
-	m.Dropdown = m.Dropdown.Opened(m.Items(), m.enabled)
+	items := m.Items()
+	m.Dropdown = m.Dropdown.Opened(items, m.enabled)
+	if k := slices.IndexFunc(items, func(item Item) bool { return item.Here }); k >= 0 {
+		m.At = k
+	}
 	return m
 }
 

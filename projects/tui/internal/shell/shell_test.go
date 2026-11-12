@@ -57,11 +57,15 @@ func TestTheMenuHasItsScreensOwnItemsKitsScreensTheSettingsAndQuit(t *testing.T)
 }
 
 func TestTheMenusKeysMoveChooseAndClose(t *testing.T) {
+	// the menu opens on the screen it is on, issues; on one with no line of its own, on its first that acts
 	m := Menu{Here: Issues}.Opened()
+	if m.At != 5 || !m.Open || (Menu{Here: Manage}).Opened().At != 0 {
+		t.Fatalf("opened at %d, open %v; on the workspaces' screen, at %d", m.At, m.Open, (Menu{Here: Manage}).Opened().At)
+	}
 	for _, step := range []struct {
 		key  string
 		want int
-	}{{"down", 1}, {"down", 2}, {"down", 4}, {"down", 5}, {"down", 6}, {"down", 7}, {"down", 8}, {"down", 9}, {"down", 10},
+	}{{"up", 4}, {"up", 2}, {"up", 1}, {"up", 0}, {"up", 0}, {"down", 1}, {"down", 2}, {"down", 4}, {"down", 5}, {"down", 6}, {"down", 7}, {"down", 8}, {"down", 9}, {"down", 10},
 		{"down", 11}, {"down", 12}, {"down", 14}, {"down", 16}, {"down", 16}, {"up", 14}, {"w", 0}, {"q", 16},
 		{"z", 16}} {
 		if m, _ = m.Key(key(step.key)); m.At != step.want {
@@ -373,6 +377,8 @@ func TestTheMenusLineForTheScreenItIsOnIsBoldAndClosesTheMenuAskingNothing(t *te
 	if items := m.Items(); !items[5].Here || items[0].Here || items[14].Here {
 		t.Fatalf("only issues is here: %+v", items)
 	}
+	// off the keyboard, it is bold
+	m.At = 0
 	box, _ := m.box(60)
 	issues := " " + pane.Pad(Ticket, 2, false) + " " + pane.Pad("Issues", pane.Width([]string{"Repositories"}), false)
 	if !strings.Contains(box[6], style.Label(issues)) || strings.Contains(box[6], style.Off(issues)) ||
