@@ -15,21 +15,33 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
-// The team's folder is .kit/presets at the root of the clone kit flow runs in, where kit trusts it; none where it does
-// not, or where there is no clone.
+// The team's folder is .kit/presets at the root of the clone kit flow runs in, where kit trusts it and the kit is
+// installed; none where it does not trust it, where kit.yml declares no kit version, or where there is no clone.
 func TestTheTeamsFolderIsInTheCloneKitTrusts(t *testing.T) {
 	repo, _ := filepath.EvalSymlinks(t.TempDir())
 	if out, err := exec.Command("git", "init", "-q", repo).CombinedOutput(); err != nil {
 		t.Fatalf("git init: %v %s", err, out)
 	}
 	r := runner(t)
-	r.Dir = filepath.Join(repo)
+	r.Dir = filepath.Join(repo, "sub")
+	if err := os.MkdirAll(r.Dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "kit.yml"), []byte("version: 0.1.0\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	if got := teamFolder(r); got != "" {
 		t.Errorf("an untrusted clone: %q", got)
 	}
 	t.Setenv("FAKE_FLOW_TRUSTED", "1")
 	if got := teamFolder(r); got != filepath.Join(repo, table.TeamDir) {
 		t.Errorf("a trusted clone: %q", got)
+	}
+	if err := os.WriteFile(filepath.Join(repo, "kit.yml"), []byte("log_days: 3\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := teamFolder(r); got != "" {
+		t.Errorf("a trusted clone without the kit: %q", got)
 	}
 	r.Dir = t.TempDir()
 	if got := teamFolder(r); got != "" {

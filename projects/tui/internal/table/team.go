@@ -1,7 +1,7 @@
 // A team's presets: checked into the workspace, so everyone who works in it has them, under .kit/presets at its root,
 // in a folder per table, a file per preset, so two people adding presets never touch one file. A file is named by its
 // preset's slug, as Slug gives it, and holds the preset, its name among it. A screen reads them only in a clone kit
-// trusts; writing one is a change in the working tree, which the person commits as any other.
+// trusts and the kit is installed in; writing one is a change in the working tree, which the person commits as any other.
 package table
 
 import (

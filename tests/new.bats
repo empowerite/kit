@@ -62,6 +62,10 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   run kit new module notes --purpose='notes on the work'
   [ "$status" -eq 1 ]
   [[ "$output" == *"add one under bash_path in kit.yml"* ]]
+  run kit new provider tracker jira
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"add one under bash_path in kit.yml"* ]]
+  [[ "$output" != *mkdir* ]]
   printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' >> kit.yml
   mkdir bash
   run kit new module notes --purpose='notes on the work'

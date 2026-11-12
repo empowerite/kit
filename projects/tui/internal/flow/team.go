@@ -1,5 +1,6 @@
 // The team's presets, as internal/table keeps them: under .kit/presets at the root of the clone kit flow runs in, a
-// folder per stage, read only where kit trusts the clone. The presets dialog shares one of the person's with the team,
+// folder per stage, read only where kit trusts the clone and the kit is installed there, so a clone without it gets no
+// .kit/. The presets dialog shares one of the person's with the team,
 // moving it there, and copies one of the team's into the person's; renaming, deleting, or saving one of the team's
 // changes its file, a change in the working tree the person commits as any other.
 package flow
@@ -22,7 +23,8 @@ const (
 )
 
 // teamFolder gives the folder the team's presets are kept in, in the clone the runner runs in: table.TeamDir under its
-// root; none where kit does not trust it, or it is no clone.
+// root; none where kit does not trust it, it is no clone, or the kit is not installed there, as its kit.yml declares
+// no kit version.
 func teamFolder(r kit.Runner) string {
 	if !r.Trusted() {
 		return ""
@@ -30,13 +32,18 @@ func teamFolder(r kit.Runner) string {
 	return teamUnder(r.Dir)
 }
 
-// teamUnder gives table.TeamDir under the root of the clone dir is in, as git says; none where it is in none.
+// teamUnder gives table.TeamDir under the root of the clone dir is in, as git says; none where it is in none, or the
+// kit is not installed in it.
 func teamUnder(dir string) string {
 	out, err := exec.Command("git", "-C", dir, "rev-parse", "--show-toplevel").Output()
 	if err != nil {
 		return ""
 	}
-	return filepath.Join(strings.TrimSpace(string(out)), table.TeamDir)
+	root := strings.TrimSpace(string(out))
+	if !kit.Installed(root) {
+		return ""
+	}
+	return filepath.Join(root, table.TeamDir)
 }
 
 // readTeam reads each stage's team presets from the team's folder, by the stages' names; a file that does not read is

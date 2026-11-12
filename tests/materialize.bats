@@ -120,6 +120,21 @@ setup() {
   [ ! -e .kit ]
 }
 
+@test "kit new makes nothing of the kit's packages or its module path in a repository that declares no kit version" {
+  printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' > kit.yml
+  mkdir bash
+  for made in 'kind toml --path=**/*.toml' 'rule markdown' 'style markdown' 'template markdown page' 'package team' \
+    'module notes --purpose=notes' 'provider tracker jira'
+  do
+    read -r -a words <<<"${made}"
+    run "${kit_checkout}/bin/kit" new "${words[@]}"
+    [ "$status" -eq 1 ] || { echo "kit new ${made}: ${status}"; return 1; }
+    [[ "$output" == *"kit install (kit.yml declares no kit version in this repository)"* ]]
+  done
+  [ ! -e .kit ]
+  [ -z "$(ls -A bash)" ]
+}
+
 @test "update brings a path the new release delivers to its state, and removes one it retired, with .kit/.gitignore following" {
   "${kit_checkout}/bin/kit" install
   grep --quiet --line-regexp '/rules/just.md' .kit/.gitignore

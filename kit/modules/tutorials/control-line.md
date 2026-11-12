@@ -36,7 +36,8 @@ With no groups, it is the rows' `▾` and their count alone.
 
 Save is dim on the built-in presets, and they cannot be renamed or deleted. Click a preset's ☆, or press `*` on it, to
 make it a favorite; ★ marks one. Your team's presets are files in the repository, under `.kit/presets`; in Manage…, Share
-with team moves one of yours there, for you to commit, and Copy to mine copies one of theirs to yours.
+with team moves one of yours there, for you to commit, and Copy to mine copies one of theirs to yours. A repository
+without kit installed has no team presets.
 
 ## Keys
 

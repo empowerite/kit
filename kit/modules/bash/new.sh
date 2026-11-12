@@ -549,7 +549,7 @@ new:seam-calls() {
 # new:provider <seam> <name> writes a provider of the seam into the repository's own directory on the module path:
 # <seam>/<name>.sh, with one function for each call the seam makes, each refusing until it is written.
 new:provider() {
-  local seam=$1 name=$2 call body='' module
+  local seam=$1 name=$2 call body='' module dir
   local -a calls
   new:name "${seam}" seam || return 2
   new:name "${name}" provider || return 2
@@ -567,7 +567,8 @@ new:provider() {
     body+="${module}:${call}() {"$'\n'"  error \"${module}: ${call} is not written yet\""$'\n'"  return 1"$'\n'"}"$'\n\n'
   done
   body+="# The seam's calls end here; what follows is this provider's own."
-  new:bash-file "$(new:module-dir)/${module}.sh" module "the ${name} provider of the ${seam} seam (sourced module)" \
+  dir=$(new:module-dir) || return 1
+  new:bash-file "${dir}/${module}.sh" module "the ${name} provider of the ${seam} seam (sourced module)" \
     "${body}"
 }
 

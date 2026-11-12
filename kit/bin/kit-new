@@ -43,7 +43,9 @@
 #   - --group is workflow, files, checks, installation, interfaces, or help
 #
 # A kind needs at least one --path, --content, or --kinds. kit new refuses an existing path, and a kind's name
-# already defined.
+# already defined. Where the kit is not installed, as kit.yml declares no kit version, kind, rule, style, template,
+# package, module, and provider are refused, as they belong to the kit's packages and its module path: run kit
+# install first.
 #
 # Arguments:
 #   file                    makes a file from a template
@@ -82,8 +84,8 @@
 #   --list                  lists the trackers a new issue can be filed in, and each one's page
 #   --json                  prints the list as JSON: an array of {prefix, provider, label, url, error}
 #
-# Exits 0 when it is made, 1 when the path exists, a template is missing or malformed, or a list it reads, such as the
-# rules that govern the path, cannot be read, and 2 on a usage error.
+# Exits 0 when it is made, 1 when the path exists, a template is missing or malformed, a list it reads, such as the
+# rules that govern the path, cannot be read, or the kit is not installed, and 2 on a usage error.
 #
 # see: modules/bash/new.sh, modules/bash/template.sh, docs/templates.md
 
@@ -91,9 +93,15 @@ set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
-use context template new materialize
+use context template new materialize settings
 guard:arguments new "$@" || exit $?
 materialize:hydrate
+
+# What the kit's packages and its module path hold is made only where the kit is installed, so a repository without
+# it gets no .kit/ from kit new.
+case "$1" in
+  (kind | rule | style | template | package | module | provider) settings:require || exit 1
+esac
 
 case "$1" in
   (kind) shift; new:kind "$@"; exit $? ;;
