@@ -2,6 +2,8 @@
   ➀╶────────────────╮➁╶──────────────╴➌╶────────────╮➃╶─────────────╮➄╶─────────╮
     👋 introduction │  🧰 toolchains  │ 🔧 setup  6 │  🎨 customize │  📖 terms │
   ──────────────────╰─────────────────╯             ╰───────────────╰───────────╰───────────────────────────────────────
+   Setup — kit checks this machine, then each folder
+
    Each line is a check. When one fails and kit knows the fix, choose now to run it or later to move on.
 
    This machine
@@ -23,8 +25,6 @@
           kit toolchains use mise
           or: kit toolchains use brew
        ❌ shellcheck is not installed; kit lint runs it for .kit/rules/bash.md
-          https://docs/toolchains.md
-       ❌ kit check finds 2 problem(s); run kit check to see each one
-
+   … 2 more
 
  = menu - workspace / search │ ⇥·⇧⇥ tab ↓ checks 1-5 jump

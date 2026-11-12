@@ -21,6 +21,21 @@ func TestHeadingsAreBoldAndSetApartByOneBlankLine(t *testing.T) {
 	}
 }
 
+func TestATitleBoldsItsNameAndNotWhatFollowsItsDash(t *testing.T) {
+	lines := Render("# Terms — These are the words `kit` uses.\ntext\n", 80)
+	want := []string{style.Label("Terms") + " — These are the words " + style.Mark("kit") + " uses.", "", "text"}
+	if strings.Join(lines, "\n") != strings.Join(want, "\n") {
+		t.Errorf("got %q\nwant %q", lines, want)
+	}
+	if got := plain("# Customize — kit is a starting point, and these are the parts teams change first.", 30); got !=
+		"Customize — kit is a starting\npoint, and these are the parts\nteams change first." {
+		t.Errorf("a long title wraps as a paragraph does: got %q", got)
+	}
+	if lines := Render("## Next — then", 40); len(lines) != 1 || lines[0] != style.Label("Next — then") {
+		t.Errorf("only a page's title splits at its dash: got %q", lines)
+	}
+}
+
 func TestInlineCodeIsInTheAccentAndStrongIsBold(t *testing.T) {
 	lines := Render("Run `kit flow` **now**, then `kit work`.", 80)
 	want := "Run " + style.Mark("kit") + " " + style.Mark("flow") + " " + style.Label("now") + ", then " +

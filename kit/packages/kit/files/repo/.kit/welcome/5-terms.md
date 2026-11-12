@@ -1,8 +1,6 @@
 <!-- kit:generated -- kit welcome's fifth step, the terms, from the kit package -->
 <!-- see: "Changing what kit adds" in .kit/1st.md, to replace it -->
-# Terms
-
-The words kit uses, by topic, and a command that shows each one.
+# Terms — These are the words kit uses, by topic, each with a command that shows it
 
 <!-- each `## ` heading is a topic; each `### ` heading under it names the terms that share one meaning,
 comma-separated; each line of one backticked command under it is an example, the first naming the command it

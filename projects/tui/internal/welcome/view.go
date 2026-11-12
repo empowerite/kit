@@ -401,20 +401,16 @@ func (m Model) stepLines() []line {
 	return append(out, m.stepTail(rows)...)
 }
 
-// stepHead gives the lines a step with checks starts with: its page, the setup step's without its heading, which the
-// tab names, the lines the search lets through, and kit's refusal.
+// stepHead gives the lines a step with checks starts with: its page, the lines the search lets through, and kit's
+// refusal.
 func (m Model) stepHead() []line {
 	w := m.width - 1
 	var out []line
 	add := func(row int, text string) { out = append(out, line{row, pane.Clip(text, w)}) }
 	query := m.search().Query
 	if t := m.tabs[m.step]; t.missing == "" && t.page != "" {
-		page := t.page
-		if t.id == setupID {
-			page = withoutHeading(page)
-		}
 		shown := 0
-		for _, l := range render(page, w-len(lead)) {
+		for _, l := range render(t.page, w-len(lead)) {
 			if matches(l, query) {
 				add(-1, strings.TrimRight(lead+l, " "))
 				shown++
@@ -431,22 +427,6 @@ func (m Model) stepHead() []line {
 		add(-1, "")
 	}
 	return out
-}
-
-// withoutHeading gives a page without the heading it opens with, after its comments, if it opens with one.
-func withoutHeading(page string) string {
-	lines := strings.SplitAfter(page, "\n")
-	for k, l := range lines {
-		text := strings.TrimSpace(l)
-		switch {
-		case text == "" || strings.HasPrefix(text, "<!--"):
-			continue
-		case strings.HasPrefix(text, "# "):
-			return strings.Join(lines[:k], "") + strings.Join(lines[k+1:], "")
-		}
-		break
-	}
-	return page
 }
 
 // addChecking adds the lines that say the checks run: checking…, then, dim under it, the check each folder is on, and

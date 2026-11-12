@@ -1,10 +1,9 @@
 <!-- kit:generated -- kit welcome's third step, setup, from the kit package -->
 <!-- see: "Changing what kit adds" in .kit/1st.md, to replace it -->
-# Setup
+# Setup — kit checks this machine once, then each folder of the workspace on its own
 
-With kit's own tools in place and the system toolchain settled, this step checks the rest. It checks the machine
-once, then each folder of the workspace on its own, since each branch can have a `kit.yml` or none, and pin its own
-kit:
+With kit's own tools in place and the system toolchain settled, this step checks the rest. Each folder is checked on
+its own, since each branch can have a `kit.yml` or none, and pin its own kit:
 
 - This machine: for each code forge among the folders' remotes, its command-line tool, installed and logged in, once
   per host.

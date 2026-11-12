@@ -1,8 +1,6 @@
 <!-- kit:generated -- kit welcome's first step, the introduction, from the kit package -->
 <!-- see: "Changing what kit adds" in .kit/1st.md, to replace it -->
-# Welcome
-
-kit keeps a repository trustworthy while people and agents work in it side by side.
+# Introduction — kit keeps a repository trustworthy while people and agents work in it side by side
 
 ## What kit is
 

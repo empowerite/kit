@@ -75,15 +75,16 @@ func hasTopics(md string) bool {
 
 // pageSections reads a page's sections as its headings make them: under its topics, where it has some, as
 // parseTopics reads them, else as parseSections does, each section under one topic, the page's title, the lead's
-// `# ` heading, where it has one.
+// `# ` heading, where it has one, up to its dash.
 func pageSections(md string) (lead string, sections []section) {
 	if hasTopics(md) {
 		return parseTopics(md)
 	}
 	lead, sections = parseSections(md)
 	if m := pageTitle.FindStringSubmatch(lead); m != nil {
+		name, _, _ := strings.Cut(m[1], " — ")
 		for k := range sections {
-			sections[k].topic = m[1]
+			sections[k].topic = name
 		}
 	}
 	return lead, sections

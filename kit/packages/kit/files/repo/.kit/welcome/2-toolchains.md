@@ -1,6 +1,6 @@
 <!-- kit:generated -- kit welcome's second step, the toolchains, from the kit package -->
 <!-- see: "Changing what kit adds" in .kit/1st.md, to replace it -->
-# Toolchains
+# Toolchains — kit checks the four tools it runs on, and the toolchain that installs them on this machine
 
 A toolchain is the set of tools a repository's work runs with, such as Go and its linters. Two kinds of manager
 install tools:

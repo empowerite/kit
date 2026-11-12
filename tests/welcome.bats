@@ -52,16 +52,16 @@ case "$*" in
 esac'
 }
 
-# outline prints the outline of the text guide on stdin: each page's heading, and ✅ or ❌ for each check, a run
-# of the same glyph once.
+# outline prints the outline of the text guide on stdin: each page's heading, up to its dash, and ✅ or ❌ for each
+# check, a run of the same glyph once.
 outline() {
-  grep --extended-regexp '^(# |✅|❌)' | sed -E 's/^(✅|❌).*/\1/' | uniq | paste -s -d '|' -
+  grep --extended-regexp '^(# |✅|❌)' | sed -E 's/^(✅|❌).*/\1/; s/ — .*//' | uniq | paste -s -d '|' -
 }
 
 # under prints "<heading>|<glyph> <word>" for each check in the text guide on stdin: the heading of the page above
-# it, and the check's glyph and first word.
+# it, up to its dash, and the check's glyph and first word.
 under() {
-  awk '/^# / { heading = $0 } /^(✅|❌)/ { print heading "|" $1 " " $2 }'
+  awk '/^# / { heading = $0; sub(/ — .*/, "", heading) } /^(✅|❌)/ { print heading "|" $1 " " $2 }'
 }
 
 # ambient-system chooses ambient for the system role, so no toolchain names a command for a missing tool.
@@ -109,7 +109,7 @@ ambient-system() {
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
   [ "$status" -eq 1 ]
   # each step's page in order, the checks of steps 2 and 3 under their pages, then what is left
-  [ "$(outline <<<"$output")" = "$(printf '%s|' '# Welcome' '# Toolchains' ✅ '# Setup' \
+  [ "$(outline <<<"$output")" = "$(printf '%s|' '# Introduction' '# Toolchains' ✅ '# Setup' \
     ✅ ❌ ✅ '# Customize' '# Terms' '# What is left' | sed 's/|$//')" ]
   # bash, git, jq, and yq, then the system toolchain, then the desk's checks, under a line that names it
   [ "$(under <<<"$output")" = "$(printf '%s\n' '# Toolchains|✅ bash' '# Toolchains|✅ git' \
@@ -397,7 +397,7 @@ ambient-system() {
   fake-script yq 'exit 1'
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
   [ "$status" -eq 1 ]
-  [ "${lines[0]}" = "# Welcome" ]
+  [[ "${lines[0]}" == "# Introduction — "* ]]
   [[ "$output" == *$'\n❌ yq is not installed; kit reads its YAML through it\n   brew install yq\n'* ]]
   [[ "$output" == *$'# What is left\n\n- tool-yq: brew install yq\n'* ]]
   [[ "$output" != *"kit:generated"* ]]
@@ -576,8 +576,8 @@ folders() {
   printf '# Our team\n\nAsk in #dev.\n' > .kit/packages/house/files/repo/.kit/welcome/7-our-team.md
   "${kit_root}/bin/kit" packages add house >/dev/null 2>&1
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
-  [ "$(grep --extended-regexp '^# ' <<<"$output" | paste -s -d '|' -)" = "$(printf '%s|' '# Welcome' \
-    '# Toolchains' '# Setup' '# Customize' '# Our terms' \
+  [ "$(grep --extended-regexp '^# ' <<<"$output" | sed 's/ — .*//' | paste -s -d '|' -)" = "$(printf '%s|' \
+    '# Introduction' '# Toolchains' '# Setup' '# Customize' '# Our terms' \
     '# Our team' '# What is left' | sed 's/|$//')" ]
   [ "$(readlink .kit/welcome/5-terms.md)" = ../packages/house/files/repo/.kit/welcome/5-terms.md ]
 }
@@ -591,7 +591,7 @@ folders() {
   printf '# Notes\n' > .kit/packages/house/files/repo/.kit/welcome/notes.md
   "${kit_root}/bin/kit" packages add house >/dev/null 2>&1
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
-  [[ "$(grep --extended-regexp '^# ' <<<"$output" | paste -s -d '|' -)" == *'# Terms|# Nine|# Ten|# Notes|# What is left' ]]
+  [[ "$(grep --extended-regexp '^# ' <<<"$output" | sed 's/ — .*//' | paste -s -d '|' -)" == *'# Terms|# Nine|# Ten|# Notes|# What is left' ]]
 }
 
 @test "on a terminal, kit welcome hands off to kittui; --text, --checks, or no terminal stays in text" {
@@ -601,13 +601,13 @@ folders() {
   export FAKES="${BATS_TEST_TMPDIR}/fake" PATH="${BATS_TEST_TMPDIR}/fake:${PATH}"
   run pty "'${kit_root}/bin/kit' welcome"
   [[ "$output" == *"kittui native-native welcome"* ]]
-  [[ "$output" != *"# Welcome"* ]]
+  [[ "$output" != *"# Introduction — "* ]]
   run pty "'${kit_root}/bin/kit' welcome --text"
-  [[ "$output" == *"# Welcome"* && "$output" != *"kittui"* ]]
+  [[ "$output" == *"# Introduction — "* && "$output" != *"kittui"* ]]
   run pty "'${kit_root}/bin/kit' welcome --checks"
   [[ "$output" == *"✅ bash "* && "$output" != *"kittui"* ]]
   run --separate-stderr "${kit_root}/bin/kit" welcome </dev/null
-  [ "${lines[0]}" = "# Welcome" ]
+  [[ "${lines[0]}" == "# Introduction — "* ]]
   [[ "$output" != *"kittui"* ]]
 }
 

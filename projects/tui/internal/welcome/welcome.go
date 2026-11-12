@@ -3,20 +3,20 @@
 // an id, which kit's checks name as their step, a glyph, a name, and its page. A page kit knows keeps its glyph, its
 // name, and its checks; any other, as a house package adds, is a plain page. A step with checks draws its page, then
 // its checks, one row each; the setup step, where kit names each check's folder, draws them as one table, as setup.go
-// says, without its page's heading, which its tab names. A failed check with a fix offers now and later on the cursor's
-// row: now runs kit welcome --fix <id> with the terminal handed over, then reads the checks again; later leaves it for
-// this session and moves to the step's next failed check. A fix kit only shows, as one that must run in the person's
-// own shell, is drawn with its lines and no choices: n and enter do nothing there, and l still leaves it for later. A
-// terminal's failed finding offers later and keep instead, its fix shown under it and never run: keep runs kit welcome
-// --keep=<id>, then reads the checks again, so it holds from then on; k keeps it at once. A terminal's findings that
-// hold, not kept, are drawn on no row: its heading says the terminal, and what failed or is kept stands under it. The
-// other steps are markdown pages drawn as text, but the terms and customize, whose pages of sections are tables, as
-// sections.go draws them, each table's keys and clicks its own while the pane has the keyboard. The introduction's page
-// ends with what the checks found: checking… while they run, then that all of them pass, or how many need the person's
-// attention, under a rule, each failed check's line a link to it, with the glyph and name of its step, and its fix under
-// it with Run, where kit runs it, and Copy. Enter or a click on a link goes to that check, on its step, with the cursor
-// on it; Run, or r on the link, runs the fix as now does, and Copy, or c, puts it on the clipboard. When kit refused
-// the checks, the introduction says what kit said.
+// says. A failed check with a fix offers now and later on the cursor's row: now runs kit welcome --fix <id> with the
+// terminal handed over, then reads the checks again; later leaves it for this session and moves to the step's next
+// failed check. A fix kit only shows, as one that must run in the person's own shell, is drawn with its lines and no
+// choices: n and enter do nothing there, and l still leaves it for later. A terminal's failed finding offers later and
+// keep instead, its fix shown under it and never run: keep runs kit welcome --keep=<id>, then reads the checks again,
+// so it holds from then on; k keeps it at once. A terminal's findings that hold, not kept, are drawn on no row: its
+// heading says the terminal, and what failed or is kept stands under it. The other steps are markdown pages drawn as
+// text, but the terms and customize, whose pages of sections are tables, as sections.go draws them, each table's keys
+// and clicks its own while the pane has the keyboard. The introduction's page ends with what the checks found:
+// checking… while they run, then that all of them pass, or how many need the person's attention, under a rule, each
+// failed check's line a link to it, with the glyph and name of its step, and its fix under it with Run, where kit runs
+// it, and Copy. Enter or a click on a link goes to that check, on its step, with the cursor on it; Run, or r on the
+// link, runs the fix as now does, and Copy, or c, puts it on the clipboard. When kit refused the checks, the
+// introduction says what kit said.
 //
 // The steps are a tab bar, internal/tabs. While it has the keyboard, tab and shift-tab move between the steps; a step's
 // number, or a click on the bar, selects it from anywhere and gives the bar the keyboard. Down, or enter, gives the

@@ -1,10 +1,11 @@
-// Package markdown draws a page's markdown as text, for every screen that shows a page alike: headings bold, inline
-// code in the accent, list items kept with a hanging indent, and paragraphs wrapped to the width. It is no markdown
-// library: front matter at the top is dropped, a code block keeps its lines, a table its rows, a comment is dropped,
-// and a link keeps its text, with its URL when it is a web address. A link to one of kittui's screens, kittui: and the
-// screen's name, as [Flow](kittui:flow) is, or the screen's name, a slash, and one of its tabs, as
-// [Backlog](kittui:flow/backlog) is, is drawn as a link, and Page says where each one stands, for a screen that follows
-// it on a click. A line naming a verb, as `kit packages` does, is text: the screen opens no form.
+// Package markdown draws a page's markdown as text, for every screen that shows a page alike: headings bold, but a
+// page's title, `# <name> — <about>`, has only its name bold, inline code in the accent, list items kept with a hanging
+// indent, and paragraphs wrapped to the width. It is no markdown library: front matter at the top is dropped, a code
+// block keeps its lines, a table its rows, a comment is dropped, and a link keeps its text, with its URL when it is a
+// web address. A link to one of kittui's screens, kittui: and the screen's name, as [Flow](kittui:flow) is, or the
+// screen's name, a slash, and one of its tabs, as [Backlog](kittui:flow/backlog) is, is drawn as a link, and Page says
+// where each one stands, for a screen that follows it on a click. A line naming a verb, as `kit packages` does, is
+// text: the screen opens no form.
 package markdown
 
 import (
@@ -141,9 +142,13 @@ func render(md string, width int) []string {
 		case Heading.MatchString(text):
 			flush()
 			blank()
-			title := strings.ReplaceAll(Heading.FindStringSubmatch(text)[1], "`", "")
-			for _, l := range WrapWords(strings.Fields(title), width, "", "") {
-				out = append(out, style.Label(l))
+			title := Heading.FindStringSubmatch(text)[1]
+			if name, about, ok := strings.Cut(title, " — "); ok && strings.HasPrefix(text, "# ") {
+				out = append(out, WrapWords(titled(name, about), width, "", "")...)
+			} else {
+				for _, l := range WrapWords(strings.Fields(strings.ReplaceAll(title, "`", "")), width, "", "") {
+					out = append(out, style.Label(l))
+				}
 			}
 			blank()
 		case strings.HasPrefix(text, "|"):
@@ -169,6 +174,16 @@ func render(md string, width int) []string {
 		out = out[:len(out)-1]
 	}
 	return out
+}
+
+// titled gives the words of a page's title line, `# <name> — <about>`: its name bold, then the dash and what it says
+// of the page, drawn as a paragraph's words are.
+func titled(name, about string) []string {
+	var words []string
+	for _, w := range strings.Fields(strings.ReplaceAll(name, "`", "")) {
+		words = append(words, style.Label(w))
+	}
+	return append(append(words, "—"), inline(about)...)
 }
 
 // withoutFront gives a page without the front matter at its top: the lines from a first line of --- to the next.

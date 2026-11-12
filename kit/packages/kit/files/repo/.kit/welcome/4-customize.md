@@ -1,9 +1,9 @@
 <!-- kit:generated -- kit welcome's fourth step, customize, from the kit package -->
 <!-- see: "Changing what kit adds" in .kit/1st.md, to replace it -->
-# Customize
+# Customize — kit is a starting point, and these are the parts teams change first
 
-kit is a starting point. Each part below is something teams change first. It ends with where to change it, the file
-first, then the doc that explains it, and with the command that shows it.
+Each part ends with where to change it, the file first, then the doc that explains it, and with the command that
+shows it.
 
 ## Packages
 

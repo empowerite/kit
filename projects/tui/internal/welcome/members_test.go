@@ -58,9 +58,9 @@ func TestTheSetupStepIsOneTableTheMachineFirstThenARowPerFolder(t *testing.T) {
 	m, _, _ := group(t, stepKey(setupStep))
 	v := view(m)
 	testkit.Golden(t, filepath.Join("testdata", "setup-folders.golden"), v)
-	// the tab names the step, so its page's heading goes
-	if strings.Contains(v, "   Setup\n") {
-		t.Errorf("the heading shows:\n%s", v)
+	// the page opens with its title line, as every step's does: its name, a dash, and what it holds
+	if !strings.Contains(v, "   Setup — kit checks this machine, then each folder\n\n") {
+		t.Errorf("no title line:\n%s", v)
 	}
 	machine, a, desk, topic := strings.Index(v, "This machine"), strings.Index(v, "github.com/o/a"),
 		strings.Index(v, deskGlyph+" a "), strings.Index(v, worktreeGlyph+" 7-the-topic")
