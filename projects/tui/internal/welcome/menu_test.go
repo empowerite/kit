@@ -58,8 +58,8 @@ func TestColonDropsTheTabsMenuDown(t *testing.T) {
 	if m = drive(m, typed(';'), esc); m.tabMenu.Open || m.step != chains {
 		t.Errorf("; and esc: open %v, step %d", m.tabMenu.Open, m.step)
 	}
-	// while it is open, the introduction's scrolling keys are the menu's
-	m, _ = loaded(t, down, down, down, typed(':'), pgdown)
+	// while it is open, a page's scrolling keys are the menu's: the introduction's, long enough to scroll, stays put
+	m, _ = loaded(t, down, typed(':'), pgdown)
 	if !m.tabMenu.Open || m.offsets[introduction] != 0 {
 		t.Errorf("pgdown with the menu open: open %v, offset %d", m.tabMenu.Open, m.offsets[introduction])
 	}

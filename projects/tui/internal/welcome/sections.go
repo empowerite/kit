@@ -245,12 +245,11 @@ const sheetRoom = 7
 // placeSheets places each step's table in the pane, under its lead where it shows.
 func (m *Model) placeSheets() {
 	for i, t := range m.tabs {
-		if t.sheet != nil && t.sheet != m.checksSheet {
+		if t.sheet != nil {
 			n := len(m.leadLines(i))
 			t.sheet.Place(m.paneTop()+n, m.paneHeight()-n, m.width, m.height)
 		}
 	}
-	m.placeChecks()
 }
 
 // sheetPane gives the pane of the selected step drawn as a table: the lead, then the table's lines, each clipped to

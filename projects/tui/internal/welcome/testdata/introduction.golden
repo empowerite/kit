@@ -4,27 +4,27 @@
   ╵                   ╰─────────────────────╰────────────────╰─────────────────╰─────────────╰──────────────────────────
    Welcome
 
-   5 checks need your attention    Run Selected Fixes 
-   ────────────────────────────
-  ▾ fix ▾ 5                                                                                      📇 Fields  Default ▼
-    ×·─────
-      check                                                                  folder           step
-      ·──────────────────────────────────────────────────────────────────────·─────────────────────────────────────────
-□ ▾ brew install jq 1
-  □   jq is not installed                                                    💻 this machine  🧰 toolchains
-  ▾ eval "$(/opt/homebrew/bin/brew shellenv)" 1
-      brew is installed but not on PATH                                      💻 this machine  🧰 toolchains
-□ ▾ gh auth login --hostname github.com 1
-  □   gh is not logged in to github.com                                      💻 this machine  🔧 setup
-□ ▾ kit toolchains use mise 1
-  □   several toolchains are usable for the project: mise, brew; choose one  💻 this machine  🧰 toolchains
-  ▾ no fix 1
-      kit check finds 2 differences from the release                         💻 this machine  🔧 setup
-
    kit keeps a repository trustworthy while people and agents work in it side by side.
 
    What kit is
 
    kit is your house rules as a versioned release, and the checks that hold the work to them. It places the rules where
+   people and agents both look: .kit/1st.md, which every agent reads first, a rule for each kind of file, and the files
+   each agent harness reads. Its commands do what the rules describe, so the right way is also the short way. Take a
+   new release, and the rules and checks move with it, in every repository that takes it.
 
- = menu - workspace / search │ ⇥·⇧⇥ tab ↓ checks 1-5 jump : tab menu
+   Who it is for
+
+   • People who work with coding agents, and want an agent's "done" to mean what theirs means.
+   • Teams that keep one set of rules across many repositories, versioned rather than copied.
+   • The agents themselves: kit tells an agent where the rules are, which command does each step, and why a check
+     refused, in a line it can act on.
+
+   What it solves
+
+   For people:
+
+   • Rules drift between repositories, branches, and colleagues. kit delivers the same rules and checks to each, and
+   … 26 more
+
+ = menu - workspace / search │ ⇥·⇧⇥ tab ↓ page 1-5 jump : tab menu

@@ -1,7 +1,7 @@
 // Every step's screen at 120×30, the design width, but customize's, which customize_test.go pins with its others, is
-// pinned as a golden file without its escapes; so are the introduction with its first failed check selected, the first
-// step with checks, as the introduction's first failed check opens it, with its failed check left for later, and the
-// terms searched for kit flow, the rows with the keyboard.
+// pinned as a golden file without its escapes: the introduction, its page alone; the toolchains with the cursor on
+// their first failed check; setup with the cursor on its first row; the terms; and the terms searched for kit flow,
+// the rows with the keyboard.
 package welcome
 
 import (
@@ -13,14 +13,14 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
+// The screens the file says match their golden files.
 func TestGoldenViews(t *testing.T) {
 	for file, keys := range map[string][]tea.Msg{
-		"introduction.golden":          nil,
-		"introduction-selected.golden": {down, down, down, press(' ')},
-		"toolchains.golden":            {down, down, down, enter},
-		"setup.golden":                 {tabKey, tabKey, down},
-		"terms.golden":                 {stepKey(terms)},
-		"terms-search.golden":          searched("kit flow"),
+		"introduction.golden": nil,
+		"toolchains.golden":   toChains,
+		"setup.golden":        {tabKey, tabKey, down},
+		"terms.golden":        {stepKey(terms)},
+		"terms-search.golden": searched("kit flow"),
 	} {
 		m, _ := loaded(t, keys...)
 		testkit.Golden(t, filepath.Join("testdata", file), view(m))

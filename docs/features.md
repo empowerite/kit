@@ -165,7 +165,7 @@ see: [architecture.md](architecture.md#the-workflow-and-the-gate)
 
 `kit welcome` is where a newcomer starts. It is a guide in five steps:
 
-1. Introduction: what kit is, who it is for, what it solves, and what the checks found.
+1. Introduction: what kit is, where it runs, and who it is for.
 2. Toolchains: bash, git, jq, and yq, which kit runs on; then the system toolchain. Several usable means you choose.
 3. Setup: each code forge's login, once for the machine; then each folder of the workspace on its own, the desk then
    each worktree, by repository: kit installed, with the version its `kit.yml` declares, `.kit/` in place, the hooks,
@@ -176,9 +176,10 @@ see: [architecture.md](architecture.md#the-workflow-and-the-gate)
 kit's screens and what each shows, Flow first, how work moves from an issue to a release, are a tutorial that ships
 with the kit, `kit tutorials applications`; see [tutorials.md](tutorials.md).
 
-- On a terminal, it opens in kittui, on the first step with a failed check. A failed check offers its fix on the row
-  under the cursor: ⧉, or `c`, copies it, and ▶️, or `r`, runs it where kit can. A folder's fix is shown and copied
-  with `cd <folder> &&` in front, as every remedy kit prints is, so it runs wherever it is pasted.
+- On a terminal, it opens in kittui, on the introduction. A step's tab counts its failed checks in red. A failed
+  check offers its fix on the row under the cursor: ⧉, or `c`, copies it, and ▶️, or `r`, runs it where kit can. A
+  folder's fix is shown and copied with `cd <folder> &&` in front, as every remedy kit prints is, so it runs wherever
+  it is pasted.
 - Without a terminal, or with `--text`, it prints each page with its checks, and does not run anything. It exits 1
   when a check fails.
 - A check that holds can still offer a fix: an offer, drawn 💡, which needs no attention and fails nothing. kit runs in

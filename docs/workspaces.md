@@ -248,7 +248,7 @@ once, for every host among the folders' remotes. The folders are judged at once.
 
 On a terminal, kittui's setup step draws the checks as one table: the machine's first, then each repository, a row
 per folder with its branch, its kit, and a column for each kind of check, its failed checks under it, each offering
-its fix. The introduction names each folder above its failed checks.
+its fix. A group's members with no checkout are named under the table.
 
 ## Still to come
 

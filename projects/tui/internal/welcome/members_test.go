@@ -1,6 +1,6 @@
 // Over a group, Welcome reads the checks once, over the group, as kit judges each member's desk and worktrees itself:
 // the setup step draws them as one table, the machine first, then a row per folder of each repository, and a folder's
-// fix runs in its folder. The members not cloned are named in the introduction.
+// fix runs in its folder. The members not cloned are named at the end of the setup step.
 package welcome
 
 import (
@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
@@ -44,13 +45,25 @@ func group(t *testing.T, msgs ...tea.Msg) (Model, *ran, string) {
 	return drive(g, append(testkit.Start(g, at120), msgs...)...), r, calls
 }
 
+// A group's checks are read once, over the group, which the title names; the setup step ends with a blank line, then
+// the members not cloned, and no other step names them.
 func TestAGroupsChecksAreReadOnceOverTheGroupWithTheUnclonedNamed(t *testing.T) {
 	m, _, path := group(t)
 	if got := calls(t, path); len(got) != 1 || got[0] != "--workspace=w welcome --checks --json --progress" {
 		t.Errorf("the reads: %q", got)
 	}
-	if v := view(m); !strings.Contains(v, "not cloned: o/c") || !strings.Contains(v, "- w 3") {
+	if v := view(m); strings.Contains(v, "not cloned") || !strings.Contains(v, "- w 3") {
 		t.Errorf("the introduction:\n%s", v)
+	}
+	if v := view(drive(m, stepKey(chains))); strings.Contains(v, "not cloned") {
+		t.Errorf("the toolchains name the members not cloned:\n%s", v)
+	}
+	// a screen tall enough for every line of the step
+	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 60}, stepKey(setupStep))
+	lines := m.lines()
+	if n := len(lines); n < 2 || lines[n-2].text != "" || ansi.Strip(lines[n-1].text) != "   not cloned: o/c" ||
+		!strings.Contains(view(m), "\n   not cloned: o/c\n") {
+		t.Errorf("setup does not end with the members not cloned:\n%s", view(m))
 	}
 }
 
@@ -170,29 +183,10 @@ func TestAFoldersOfferOffersCopyAndRunAsAFailedCheckDoes(t *testing.T) {
 	}
 }
 
-func TestTheIntroductionNamesEachFailedChecksFolder(t *testing.T) {
-	m, _, _ := group(t)
-	v := view(m)
-	testkit.Golden(t, filepath.Join("testdata", "introduction-folders.golden"), v)
-	if !strings.Contains(v, "several toolchains are usable") || !strings.Contains(v, "b "+deskGlyph+" code/b on main") ||
-		!strings.Contains(v, "💻 this machine") {
-		t.Errorf("the desk's failed check does not name its folder:\n%s", v)
-	}
-	// the worktree's offer needs no attention, so neither it nor its folder is named
-	if strings.Contains(v, "kit is not installed here") || strings.Contains(v, "7-the-topic") {
-		t.Errorf("the offer is among the failures:\n%s", v)
-	}
-	// a search for a folder keeps that folder's checks
-	m = drive(m, press('/'))
-	m = drive(m, testkit.Typed("code/b")...)
-	if v := view(m); !strings.Contains(v, "several toolchains") || strings.Contains(v, "lefthook runs none") {
-		t.Errorf("searched for the folder:\n%s", v)
-	}
-}
-
+// Over a group, kit's refusal of the checks shows on each step with checks, as over a repository.
 func TestAGroupKitRefusesSaysKitsLine(t *testing.T) {
 	t.Setenv("FAKE_WELCOME_REFUSE", "1")
-	m, _, _ := group(t)
+	m, _, _ := group(t, stepKey(setupStep))
 	if v := view(m); !strings.Contains(v, "kit welcome refuses for the test") {
 		t.Errorf("kit refused:\n%s", v)
 	}
@@ -209,8 +203,8 @@ func TestAGroupsChecksEndWithTheScreen(t *testing.T) {
 	}
 }
 
-// The setup step's search keeps a folder whose branch holds it, with its failed checks, and one whose check's line does;
-// a search nothing holds says so.
+// The setup step's search keeps a folder whose branch holds it, with its failed checks, one whose check's line does,
+// and one whose path does; a search nothing holds says so.
 func TestTheSetupStepsSearchNamesTheFolder(t *testing.T) {
 	search := func(text string) Model {
 		m, _, _ := group(t, append([]tea.Msg{stepKey(setupStep), tea.KeyPressMsg{Code: '/', Text: "/"}},
@@ -224,6 +218,9 @@ func TestTheSetupStepsSearchNamesTheFolder(t *testing.T) {
 	if v := view(search("lefthook runs none")); !strings.Contains(v, "the git hooks are not installed") ||
 		strings.Contains(v, "kit is not installed here") {
 		t.Errorf("searched for a check's line:\n%s", v)
+	}
+	if v := view(search("code/b")); !strings.Contains(v, "several toolchains") || strings.Contains(v, "lefthook runs none") {
+		t.Errorf("searched for a folder:\n%s", v)
 	}
 	if v := view(search("zzz")); !strings.Contains(v, "no check matches the search") {
 		t.Errorf("searched for nothing there:\n%s", v)

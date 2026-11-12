@@ -3,9 +3,11 @@
 package welcome
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -61,12 +63,15 @@ func loaded(t *testing.T, msgs ...tea.Msg) (Model, *ran) {
 	return drive(m, append(testkit.Start(m, at120), msgs...)...), r
 }
 
-// atChains opens the screen as loaded does, then follows the introduction's first failed check, jq, the first under
-// the toolchains, as a newcomer would: down to the table's control line, its first group's heading, and its first row,
-// then enter. Then it sends the messages.
+// toChains are the keys that put the cursor on the toolchains step's first failed check, jq, its second row: the
+// step's number, then down into its rows, on its first, and down once more.
+var toChains = []tea.Msg{stepKey(chains), down, down}
+
+// atChains opens the screen as loaded does, then puts the cursor on jq, the toolchains step's first failed check, as
+// toChains does. Then it sends the messages.
 func atChains(t *testing.T, msgs ...tea.Msg) (Model, *ran) {
 	t.Helper()
-	return loaded(t, append([]tea.Msg{down, down, down, enter}, msgs...)...)
+	return loaded(t, append(slices.Clone(toChains), msgs...)...)
 }
 
 // repoWith makes a git repository with the pages under .kit/welcome, and gives the fake runner in it.
@@ -91,7 +96,8 @@ func repoWith(t *testing.T, pages map[string]string) kit.Runner {
 }
 
 // house opens the screen at 120×30 in a repository whose .kit is testdata/house's, as a house package composes it:
-// the kit package's pages linked, 5-terms.md replaced, and 7-our-team.md added, a plain page long enough to scroll. Then it sends the messages.
+// the kit package's pages linked, 5-terms.md replaced, and 7-our-team.md added, a plain page long enough to scroll.
+// Then it sends the messages.
 func house(t *testing.T, msgs ...tea.Msg) (Model, *ran) {
 	t.Helper()
 	m, r := fake(t)
@@ -147,10 +153,9 @@ func calls(t *testing.T, path string) []string {
 	return strings.Split(strings.TrimSpace(string(got)), "\n")
 }
 
-// The keys bar in each place the keyboard can be, as the path to it draws it, STEP for the step's name, which esc names
-// as it gives the bar the keyboard: on the bar over a step with checks or the introduction with failed checks, and over
-// a page; on a check's row that offers no fix, on a row whose fix kit runs, on a row whose fix kit only shows;
-// and in a page. jump names the number keys of the known steps.
+// The keys bar in each place the keyboard can be, as the path to it draws it: on the bar over a step with checks, and
+// over a page; on a check's row that offers no fix, on a row whose fix kit runs, on a row whose fix kit only shows; and
+// in a page. jump names the number keys of the known steps.
 var (
 	jump       = "1-" + strconv.Itoa(len(known)) + " jump"
 	stepKeys   = "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ checks " + jump + " : tab menu"
@@ -180,30 +185,12 @@ var ourTeam = len(known)
 // keysAt gives the keys bar where the keyboard is, as the path to it draws it.
 func keysAt(m Model) string { return m.keys().String() }
 
-// rowRuns says whether r runs a fix where the keyboard is: on a row of the introduction's table whose fix kit runs.
-func rowRuns(m Model) bool {
-	i := -1
-	if m.introGridded() && m.inPane {
-		i = m.checkUnder()
+// clipboard gives what the messages put on the clipboard, or nothing.
+func clipboard(msgs []tea.Msg) string {
+	for _, msg := range msgs {
+		if strings.Contains(fmt.Sprintf("%T", msg), "Clipboard") {
+			return fmt.Sprint(msg)
+		}
 	}
-	return i >= 0 && runnable(m.checks[i]) || m.runsHere()
-}
-
-// rowCopies says whether c copies a fix where the keyboard is: on a row of the introduction's table with a fix.
-func rowCopies(m Model) bool {
-	i := -1
-	if m.introGridded() && m.inPane {
-		i = m.checkUnder()
-	}
-	return i >= 0 && m.checks[i].Fix != "" || m.copies()
-}
-
-// where gives where the keyboard is in the pane: the check under the cursor, and the cursor of the introduction's
-// table.
-func where(m Model) string {
-	at := strconv.Itoa(m.cursor)
-	if m.introGridded() {
-		at += " " + strconv.Itoa(m.sheet().Table().Cursor) + " " + strconv.FormatBool(m.sheet().InRows())
-	}
-	return at
+	return ""
 }

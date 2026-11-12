@@ -22,11 +22,11 @@ func hear(m Model, msgs ...tea.Msg) (Model, tea.Cmd) {
 	return m, cmd
 }
 
-// While the checks run, the screen says under checking… the check each folder, and the machine, is on, as kit says
-// it starts each; a folder whose checks end leaves the list, an earlier run's lines are dropped, the run's end stops
-// the listening, and its answer clears the list.
+// While the checks run, a step with checks says under checking… the check each folder, and the machine, is on, as kit
+// says it starts each; a folder whose checks end leaves the list, an earlier run's lines are dropped, the run's end
+// stops the listening, and its answer clears the list.
 func TestCheckingSaysWhatEachFolderIsOn(t *testing.T) {
-	m, _ := loaded(t)
+	m, _ := loaded(t, stepKey(chains))
 	m.checking.Again(m.env(), false)
 	run := int64(m.checking.Gen())
 	m.run.Store(run)

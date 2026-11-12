@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -55,28 +54,12 @@ func TestTheKnownStepsAreTheFiveInOrder(t *testing.T) {
 	}
 }
 
-// The screen opens on the introduction, and stays there when the checks answer: the introduction says how many failed,
-// with Run Selected Fixes beside it, dim while none is selected, over a table of them grouped by fix; each step with a
-// failed check counts them in red on the bar.
-func TestItStaysOnTheIntroductionAndItSaysWhatTheChecksFound(t *testing.T) {
+// The screen opens on the introduction, a page, and stays there when the checks answer; each step with a failed check
+// counts them in red on the bar, from every step, the pane's keyboard on another step's rows too.
+func TestItStaysOnTheIntroductionAndTheBarCountsTheFailedChecks(t *testing.T) {
 	m, _ := loaded(t)
-	if m.step != introduction || m.inPane || keysAt(m) != stepKeys || !m.introGridded() {
+	if m.step != introduction || m.inPane || m.hasRows() || keysAt(m) != pageKeys {
 		t.Fatalf("step %d, in the pane %v, keys %q", m.step, m.inPane, keysAt(m))
-	}
-	got := view(m)
-	for _, want := range []string{
-		"\n   5 checks need your attention    " + runSelected + " \n   " + strings.Repeat("─", 28) + "\n",
-		"\n□ ▾ brew install jq 1\n  □   jq is not installed ",
-		"\n  ▾ eval \"$(/opt/homebrew/bin/brew shellenv)\" 1\n      brew is installed but not on PATH ",
-		"\n□ ▾ gh auth login --hostname github.com 1\n",
-		"\n  ▾ " + noFix + " 1\n      kit check finds 2 differences from the release ",
-	} {
-		if !strings.Contains(got, want) {
-			t.Errorf("no %q:\n%s", want, got)
-		}
-	}
-	if head := strings.Split(m.View().Content, "\n")[paneTop+2]; !strings.Contains(head, style.Off(" "+runSelected+" ")) {
-		t.Errorf("Run Selected Fixes is not dim with none selected: %q", head)
 	}
 	bar := strings.Split(m.View().Content, "\n")[2]
 	for _, count := range []string{"3", "2"} {
@@ -84,265 +67,42 @@ func TestItStaysOnTheIntroductionAndItSaysWhatTheChecksFound(t *testing.T) {
 			t.Errorf("no count %s in red: %q", count, bar)
 		}
 	}
-	// the counts stay red while the pane has the keyboard and the other tabs are dim
 	if m, _ = atChains(t); !strings.Contains(strings.Split(m.View().Content, "\n")[2], style.Loss("2")) {
 		t.Errorf("setup's count is not red from the toolchains: %q", strings.Split(m.View().Content, "\n")[2])
 	}
-	// one failed check is one that needs you, and with no fix kit runs there is no Run Selected Fixes
-	m, _ = fake(t)
-	if err := os.WriteFile(os.Getenv("FAKE_WELCOME_STATE"), []byte("jq\ntoolchain-project\ngh-auth\nkit-check\n"),
-		0o644); err != nil {
-		t.Fatal(err)
-	}
-	m = drive(m, testkit.Start(m, at120)...)
-	one := "\n   1 check needs your attention\n   " + strings.Repeat("─", 28) + "\n"
-	if got := view(m); m.step != introduction || !strings.Contains(got, one) || strings.Contains(got, runSelected) {
-		t.Errorf("step %d:\n%s", m.step, got)
-	}
 }
 
-// onCheck moves the introduction's table down, from the bar, until the row under its cursor is the check's, and says
-// whether it found it.
-func onCheck(m Model, id string) (Model, bool) {
-	for range 40 {
-		if i := m.checkUnder(); m.inPane && i >= 0 && m.checks[i].ID == id {
-			return m, true
+// The introduction draws its page and nothing else, whatever the checks do: while they first run, once they fail,
+// while they run again, and once kit refuses them, as the toolchains, a step with checks, say each.
+func TestTheIntroductionIsItsPageAlone(t *testing.T) {
+	alone := func(m Model, when, says string) {
+		t.Helper()
+		page, lines := m.pageLines(introduction), m.lines()
+		same := len(lines) == len(page)
+		for k := range lines {
+			same = same && lines[k].row == -1 && lines[k].text == page[k]
 		}
-		m = drive(m, down)
-	}
-	return m, false
-}
-
-// Down gives the introduction's table the keyboard; on a check's row, enter goes to its check, on its step, with the
-// cursor on it, and back on the introduction the table's cursor is where it was left.
-func TestEnterOnARowGoesToItsCheckOnItsStep(t *testing.T) {
-	m, r := loaded(t)
-	m, found := onCheck(m, "jq")
-	if !found || keysAt(m) != paneKeysOf(m)+" ⏎ go to the check c copy r run" {
-		t.Fatalf("on jq: found %v, keys %q", found, keysAt(m))
-	}
-	if m = drive(m, enter); m.step != chains || !m.inPane || m.cursor != 1 || !m.runsHere() ||
-		keysAt(m) != choiceKeys || len(r.calls) != 0 {
-		t.Fatalf("enter on jq's row: step %d, in the pane %v, cursor %d, ran %q", m.step, m.inPane, m.cursor, r.calls)
-	}
-	m = drive(m, press('1'))
-	if rows, at := m.sheet().Rows(), m.sheet().Table().Cursor; m.step != introduction || at >= len(rows) ||
-		rows[at].Key != "jq" {
-		t.Errorf("back on the introduction: step %d, the table's cursor %d", m.step, at)
-	}
-}
-
-// paneKeysOf gives the keys bar's segment of the introduction's table's rows, before what the introduction adds.
-func paneKeysOf(m Model) string {
-	seg, _ := m.sheet().Keys()
-	path := m.keys()
-	path[len(path)-1] = seg
-	return path.String()
-}
-
-// A click on a row's step goes to its check, as enter does; a click on the rest of the row only puts the cursor on it;
-// a click on the introduction's title does nothing.
-func TestAClickOnARowsStepGoesToItsCheck(t *testing.T) {
-	m, _ := loaded(t)
-	drawn := strings.Split(view(m), "\n")
-	y := slices.IndexFunc(drawn, func(l string) bool { return strings.Contains(l, "gh is not") })
-	x := ansi.StringWidth(drawn[y][:strings.Index(drawn[y], "🔧")])
-	if m := drive(m, testkit.Click(10, y)); m.step != introduction || !m.inPane ||
-		m.checks[m.checkUnder()].ID != "gh-auth" {
-		t.Errorf("a click on gh-auth's line: step %d, in the pane %v", m.step, m.inPane)
-	}
-	if m = drive(m, testkit.Click(x, y)); m.step != setup || m.checks[m.cursor].ID != "gh-auth" || !m.inPane ||
-		!m.runsHere() || strings.Contains(view(m), "opened") {
-		t.Errorf("a click on gh-auth's step: step %d, cursor %d, in the pane %v:\n%s", m.step, m.cursor, m.inPane,
-			view(m))
-	}
-	if m, _ = loaded(t, testkit.Click(6, paneTop)); m.step != introduction || m.inPane {
-		t.Errorf("a click on the introduction's title: step %d, in the pane %v", m.step, m.inPane)
-	}
-}
-
-// Only the row under the table's cursor ends with its fix's pair, ⧉ and ▶️, at the pane's right, the row's words
-// clipped short of it, and a row whose fix kit only shows with ⧉ alone; a click on ⧉ copies the fix, on ▶️ runs it, and
-// on the row's words neither. The bar with the keyboard, no row draws it.
-func TestTheRowUnderTheTablesCursorOffersCopyAndRun(t *testing.T) {
-	m, r := loaded(t)
-	pair := "   " + fix.CopyName + "   " + fix.RunName + " "
-	if strings.Contains(view(m), fix.CopyName) {
-		t.Fatalf("⧉ with the bar on the keyboard:\n%s", view(m))
-	}
-	m, _ = onCheck(m, "jq")
-	got := view(m)
-	if row := rowOf(t, m, "jq is not installed"); !strings.HasSuffix(row, pair) || ansi.StringWidth(row) != m.width-1 {
-		t.Errorf("jq's row: %q", row)
-	}
-	if strings.Count(got, fix.CopyName) != 1 {
-		t.Errorf("⧉ on more than the cursor's row:\n%s", got)
-	}
-	m = drive(m, buttonClick("jq is not installed", "jq is not installed"))
-	if len(r.calls) != 0 || strings.Contains(view(m), fix.CopiedName) {
-		t.Fatalf("a click on the row's words ran %q:\n%s", r.calls, view(m))
-	}
-	m, msgs := testkit.Drive(m, nil, buttonClick("jq is not installed", fix.CopyName).(clickMsg).at(m))
-	if got := clipboard(msgs); got != "brew install jq" || !strings.Contains(view(m), fix.CopiedName) {
-		t.Fatalf("a click on ⧉ copied %q:\n%s", got, view(m))
-	}
-	// the click reads the pair as drawn, copied in ⧉'s place
-	if m = drive(m, buttonClick("jq is not installed", fix.RunName)); len(r.calls) != 1 ||
-		strings.Join(r.calls[0], " ") != "welcome --fix jq" || m.step != introduction {
-		t.Fatalf("a click on ▶️ ran %q, step %d", r.calls, m.step)
-	}
-	m, _ = onCheck(drive(m, esc), "brew-path")
-	if row := rowOf(t, m, "brew is installed but not on PATH"); !strings.HasSuffix(row, "   "+fix.CopyName+" ") {
-		t.Errorf("brew-path's row: %q", row)
-	}
-	m, msgs = testkit.Drive(m, nil, buttonClick("brew is installed but not on PATH", fix.CopyName).(clickMsg).at(m))
-	if got := clipboard(msgs); !strings.HasPrefix(got, "eval ") || len(r.calls) != 1 {
-		t.Errorf("a click on brew-path's ⧉ copied %q, ran %q", got, r.calls)
-	}
-}
-
-// clipboard gives what the messages put on the clipboard, or nothing.
-func clipboard(msgs []tea.Msg) string {
-	for _, msg := range msgs {
-		if strings.Contains(fmt.Sprintf("%T", msg), "Clipboard") {
-			return fmt.Sprint(msg)
+		v := view(m)
+		if !same || strings.Contains(v, "checking…") || strings.Contains(v, Passed) || strings.Contains(v, Failed) ||
+			strings.Contains(v, "kit welcome refuses") || strings.Contains(v, "not cloned") {
+			t.Errorf("%s, the introduction is not its page alone:\n%s", when, v)
+		}
+		if v := view(drive(m, stepKey(chains))); !strings.Contains(v, says) {
+			t.Errorf("%s, the toolchains do not say %q:\n%s", when, says, v)
 		}
 	}
-	return ""
-}
-
-// r on a row runs its fix, with the terminal handed over, then the checks run again, the screen still on the
-// introduction; c copies it, which the row's ⧉ says, copied, until the next key. Neither does anything on a check
-// with no fix, and r nothing on one kit only shows.
-func TestROnARowRunsItsFixAndCCopiesIt(t *testing.T) {
-	m, r := loaded(t)
-	m, _ = onCheck(m, "jq")
-	m, msgs := testkit.Drive(m, nil, press('c'))
-	if got := clipboard(msgs); got != "brew install jq" || len(r.calls) != 0 || m.step != introduction {
-		t.Fatalf("c on jq's row copied %q, ran %q, step %d", got, r.calls, m.step)
+	m, _ := fake(t)
+	m = drive(m, at120, m.read()())
+	if m.step != introduction || m.tabs[introduction].page == "" || !m.checking.Running() {
+		t.Fatalf("step %d, page %q, running %v", m.step, m.tabs[introduction].page, m.checking.Running())
 	}
-	if got := rowOf(t, m, "jq is not installed"); !strings.HasSuffix(got, "   "+fix.CopiedName+"   "+fix.RunName+" ") {
-		t.Errorf("jq's row does not say copied: %q", got)
-	}
-	if m = drive(m, down, up); strings.Contains(view(m), fix.CopiedName) {
-		t.Errorf("copied stays after a key:\n%s", view(m))
-	}
-	if m = drive(m, press('r')); len(r.calls) != 1 || strings.Join(r.calls[0], " ") != "welcome --fix jq" ||
-		m.step != introduction {
-		t.Fatalf("r on jq's row ran %q, step %d", r.calls, m.step)
-	}
-	if strings.Contains(view(m), "jq is not installed") {
-		t.Errorf("jq still fails after its fix:\n%s", view(m))
-	}
-	// the show-only fix, brew-path's: c copies it, r runs nothing
-	m, _ = onCheck(drive(m, esc), "brew-path")
-	if keysAt(m) != paneKeysOf(m)+" ⏎ go to the check c copy" {
-		t.Errorf("brew-path's keys: %q", keysAt(m))
-	}
-	if m, msgs = testkit.Drive(m, nil, press('r'), press('c')); len(r.calls) != 1 ||
-		clipboard(msgs) != `eval "$(/opt/homebrew/bin/brew shellenv)"` {
-		t.Errorf("r and c on brew-path's row: ran %q, copied %q", r.calls, clipboard(msgs))
-	}
-	// kit-check has no fix: c copies nothing
-	m, _ = onCheck(drive(m, esc), "kit-check")
-	if m, msgs = testkit.Drive(m, nil, press('c')); clipboard(msgs) != "" {
-		t.Errorf("c on kit-check's row copied %q", clipboard(msgs))
-	}
-}
-
-// Only a row whose fix kit runs can be selected: ctrl+a selects those, which Run Selected Fixes counts, in the accent;
-// a click on it runs each in turn, in the order of their steps, the selection then cleared, and the checks again once
-// the last ends.
-func TestRunSelectedFixesRunsEachFixSelected(t *testing.T) {
-	m, r := loaded(t)
-	m, _ = onCheck(m, "jq")
-	m = drive(m, tea.KeyPressMsg{Code: 'a', Mod: tea.ModCtrl})
-	if got := m.checksSheet.Selected(); !slices.Equal(got, []string{"jq", "toolchain-project", "gh-auth"}) {
-		t.Fatalf("ctrl+a selected %q", got)
-	}
-	head := strings.Split(m.View().Content, "\n")[paneTop+2]
-	if !strings.Contains(head, style.Tint(" "+runSelected+" (3) ")) {
-		t.Errorf("Run Selected Fixes does not count 3 in the accent: %q", head)
-	}
-	if !strings.HasSuffix(keysAt(m), " "+runSelectedKey+" run selected") {
-		t.Errorf("the keys do not name R: %q", keysAt(m))
-	}
-	plain := ansi.Strip(head)
-	x := ansi.StringWidth(plain[:strings.Index(plain, runSelected)])
-	if m = drive(m, testkit.Click(x, paneTop+2)); len(r.calls) != 3 ||
-		strings.Join(r.calls[0], " ") != "welcome --fix jq" ||
-		strings.Join(r.calls[1], " ") != "welcome --fix toolchain-project" ||
-		strings.Join(r.calls[2], " ") != "welcome --fix gh-auth" {
-		t.Fatalf("Run Selected Fixes ran %q", r.calls)
-	}
-	if len(m.checksSheet.Selected()) != 0 || len(m.queue) != 0 || strings.Contains(view(m), "jq is not installed") {
-		t.Errorf("after the run: selected %q, queued %d:\n%s", m.checksSheet.Selected(), len(m.queue), view(m))
-	}
-	// R does the same from the keyboard; with none selected it runs none
-	if m = drive(m, press('R')); len(r.calls) != 3 {
-		t.Errorf("R with none selected ran %q", r.calls)
-	}
-}
-
-// Space on a row whose fix kit only shows, or with no fix, selects nothing, nor does a click on its gutter; a click on
-// a row's box selects it, and on a group's heading's box every row of the group.
-func TestOnlyAFixKitRunsIsSelected(t *testing.T) {
-	m, _ := loaded(t)
-	m, _ = onCheck(m, "brew-path")
-	if m = drive(m, press(' ')); len(m.checksSheet.Selected()) != 0 {
-		t.Errorf("space on brew-path selected %q", m.checksSheet.Selected())
-	}
-	drawn := strings.Split(view(m), "\n")
-	at := func(text string) int {
-		return slices.IndexFunc(drawn, func(l string) bool { return strings.Contains(l, text) })
-	}
-	if m = drive(m, testkit.Click(2, at("brew is installed but not"))); len(m.checksSheet.Selected()) != 0 {
-		t.Errorf("a click on brew-path's gutter selected %q", m.checksSheet.Selected())
-	}
-	if m = drive(m, testkit.Click(2, at("jq is not installed"))); !slices.Equal(m.checksSheet.Selected(),
-		[]string{"jq"}) {
-		t.Errorf("a click on jq's box selected %q", m.checksSheet.Selected())
-	}
-	if m = drive(m, testkit.Click(0, at("gh auth login --hostname"))); !slices.Equal(m.checksSheet.Selected(),
-		[]string{"jq", "gh-auth"}) {
-		t.Errorf("a click on gh's heading's box selected %q", m.checksSheet.Selected())
-	}
-	if got := view(m); !strings.Contains(got, "\n▣ ▾ brew install jq 1\n  ▣   jq is not installed") {
-		t.Errorf("jq is not drawn selected:\n%s", got)
-	}
-}
-
-// Run Selected Fixes runs a fix once in a folder however many of its checks name it, and once in each folder it is
-// selected in; the table groups the checks it fixes under one heading.
-func TestRunSelectedFixesRunsAFixOnceInAFolder(t *testing.T) {
-	m, r := loaded(t)
-	m.checks = []kit.Check{
-		{ID: "kit-hydrated", Step: "setup", Line: ".kit/ is not in place", Fix: "kit hydrate", Runs: true, Folder: "/c/a"},
-		{ID: "kit-check", Step: "setup", Line: "kit check finds 58 problem(s)", Fix: "kit hydrate", Runs: true,
-			Folder: "/c/a"},
-		{ID: "kit-hydrated", Step: "setup", Line: ".kit/ is not in place", Fix: "kit hydrate", Runs: true, Folder: "/c/b"},
-		{ID: "dependencies-npm", Step: "setup", Line: "npm has not installed every package", Fix: "kit tools install",
-			Runs: true, Folder: "/c/b"},
-	}
-	m.takeChecks()
-	m.placeChecks()
-	if got := view(m); !strings.Contains(got, "\n□ ▾ kit hydrate 3\n") || !strings.Contains(got, "kit tools install 1") {
-		t.Errorf("not grouped by fix:\n%s", got)
-	}
-	m, _ = onCheck(m, "kit-hydrated")
-	m = drive(m, up, press(' '))
-	if got := m.checksSheet.Selected(); len(got) != 3 {
-		t.Fatalf("space on kit hydrate's heading selected %q", got)
-	}
-	m.exec = func(cmd *exec.Cmd, done tea.ExecCallback) tea.Cmd {
-		r.calls = append(r.calls, cmd.Args[1:])
-		return func() tea.Msg { return done(nil) }
-	}
-	drive(m, press('R'))
-	if len(r.calls) != 2 || strings.Join(r.calls[0], " ") != "welcome --fix kit-hydrated --folder=/c/a" ||
-		strings.Join(r.calls[1], " ") != "welcome --fix kit-hydrated --folder=/c/b" {
-		t.Errorf("ran %q", r.calls)
-	}
+	alone(m, "while the checks first run", "   checking…")
+	m, _ = loaded(t)
+	alone(m, "once they fail", Failed+" jq is not installed")
+	m.checking.Again(m.env(), false)
+	alone(m, "while they run again", "add it to your shell profile to keep it\n\n   checking…\n")
+	refused := source.Answer[[]kit.Check]{Name: "checks", Err: errors.New("kit welcome refuses"), Gen: m.checking.Gen()}
+	alone(drive(m, refused), "once kit refuses them", "   "+Failed+" kit welcome refuses\n")
 }
 
 // A folder's check on a step that draws no folder above its checks says its repository and its folder after its line,
@@ -365,41 +125,7 @@ func TestAFoldersCheckOffSetupSaysItsFolderAfterItsLine(t *testing.T) {
 	}
 }
 
-// A row's step leads to a check its step's search hides: the search is cleared, so the check shows under the cursor.
-func TestARowClearsASearchThatHidesItsCheck(t *testing.T) {
-	keys := append([]tea.Msg{press('3'), tea.KeyPressMsg{Code: '/', Text: "/"}}, testkit.Typed("zzz")...)
-	m, _ := loaded(t, append(keys, esc, press('1'))...)
-	m, _ = onCheck(m, "gh-auth")
-	if m = drive(m, enter); m.step != setup || m.checks[m.cursor].ID != "gh-auth" || m.search().Query != "" ||
-		!strings.Contains(view(m), " ▸ ❌ gh is not logged in") {
-		t.Errorf("step %d, cursor %d, search %q:\n%s", m.step, m.cursor, m.search().Query, view(m))
-	}
-}
-
-// The introduction follows the checks as they run again: a fix that holds takes its row away, and while they run, the
-// line over the table says checking…, and the folders they are on follow the table. Kit's refusal when they run again
-// stands over the table.
-func TestTheIntroductionFollowsTheChecksAsTheyRunAgain(t *testing.T) {
-	m, _ := atChains(t, press('r'), press('1'))
-	if got := view(m); m.step != introduction || !strings.Contains(got, "\n   4 checks need your attention ") ||
-		strings.Contains(got, "jq is not installed") {
-		t.Errorf("step %d:\n%s", m.step, got)
-	}
-	m.checking.Again(m.env(), false)
-	if got := view(m); !strings.Contains(got, runSelected+"   checking…\n") {
-		t.Errorf("no checking over the table:\n%s", got)
-	}
-	chainsChecking := "add it to your shell profile to keep it\n\n   checking…\n"
-	if got := view(drive(m, press('2'))); !strings.Contains(got, chainsChecking) {
-		t.Errorf("no checking under the toolchains' checks:\n%s", got)
-	}
-	refused := source.Answer[[]kit.Check]{Name: "checks", Err: errors.New("kit welcome refuses"), Gen: m.checking.Gen()}
-	m = drive(m, refused, press('1'))
-	if got := view(m); !strings.Contains(got, "\n   ❌ kit welcome refuses\n\n   4 checks need your attention ") {
-		t.Errorf("no refusal over the table:\n%s", got)
-	}
-}
-
+// With every check passing, the screen opens on the introduction, its page alone, and no step counts a failure.
 func TestItOpensOnTheIntroductionWhenEveryCheckPasses(t *testing.T) {
 	m, _ := fake(t)
 	state := []byte("jq\ntoolchain-project\ngh-auth\nkit-check\nbrew-path\n")
@@ -411,10 +137,10 @@ func TestItOpensOnTheIntroductionWhenEveryCheckPasses(t *testing.T) {
 		t.Errorf("step %d, in the pane %v", m.step, m.inPane)
 	}
 	if got := view(m); strings.Contains(got, "setup 0") || strings.Contains(got, "toolchains 0") ||
-		!strings.Contains(got, "\n   ✅ all checks pass\n") || strings.Contains(got, "need your attention") {
-		t.Errorf("a step counts no failure, and the introduction says all pass:\n%s", got)
+		strings.Contains(got, Passed) {
+		t.Errorf("a step counts no failure, or the introduction draws a check:\n%s", got)
 	}
-	// with no link, the introduction is a page
+	// the introduction is a page, whose keys scroll it
 	if m = drive(m, down); !m.inPane || keysAt(m) != scrollKeys {
 		t.Errorf("down: in the pane %v, keys %q", m.inPane, keysAt(m))
 	}
@@ -428,12 +154,13 @@ func TestAPersonWhoMovedBeforeTheChecksAnsweredStaysThere(t *testing.T) {
 	}
 }
 
+// While the checks first run, each step with checks counts …, not in red, and says checking…; the introduction does
+// not.
 func TestCheckingShowsWhileTheChecksRun(t *testing.T) {
 	m, _ := fake(t)
 	m = drive(m, at120)
-	if got := view(m); !strings.Contains(got, "\n   checking…\n") ||
-		strings.Contains(m.View().Content, style.Loss("…")) {
-		t.Errorf("the introduction does not say it is checking, or … is red:\n%s", got)
+	if got := view(m); strings.Contains(got, "checking…") || strings.Contains(m.View().Content, style.Loss("…")) {
+		t.Errorf("the introduction says it is checking, or … is red:\n%s", got)
 	}
 	// a count is right-aligned in its tab, so the spaces before it are folded to one
 	labels := regexp.MustCompile(` +`).ReplaceAllString(strings.Split(view(m), "\n")[2], " ")
@@ -595,8 +322,10 @@ func TestAFailedCheckWithoutAFixShowsWhereToReadMore(t *testing.T) {
 	}
 }
 
+// Esc in a step's rows gives the bar the keyboard, and on the bar does nothing; a page takes the keyboard on down,
+// scrolls, and gives it back on esc, still scrolled, or on up at its top.
 func TestEscGivesTheBarTheKeyboardAndNeverQuits(t *testing.T) {
-	m, _ := house(t, down, down, down, enter)
+	m, _ := house(t, toChains...)
 	next, cmd := m.Update(esc)
 	m = next.(Model)
 	if cmd != nil || m.inPane || keysAt(m) != inHouse(stepKeys) {
@@ -655,7 +384,7 @@ func TestLeftAndRightMoveStepsOnlyFromTheBar(t *testing.T) {
 // page the keyboard; a click on a line that is no check's does nothing.
 func TestAClickOnACheckSelectsIt(t *testing.T) {
 	click := func(y int) tea.Msg { return testkit.Click(6, y) }
-	m, _ := house(t, down, down, down, enter, esc)
+	m, _ := house(t, append(slices.Clone(toChains), esc)...)
 	lines := m.stepLines()
 	at := slices.IndexFunc(lines, func(l line) bool { return l.row >= 0 && l.row != m.cursor })
 	want := lines[at].row
@@ -738,26 +467,27 @@ func TestUpAndDownMoveOverTheStepsRowsAndLeaveThemAtTheTop(t *testing.T) {
 	}
 }
 
-// When kit refuses the checks, the screen stays on the introduction, which says what kit said, in red, as each step
-// with checks does; those count ! in red on the bar.
+// When kit refuses the checks, the screen stays on the introduction, its page alone, and each step with checks says
+// what kit said, in red, and counts ! in red on the bar.
 func TestARefusalOfTheChecksShowsInRed(t *testing.T) {
 	t.Setenv("FAKE_WELCOME_REFUSE", "1")
 	m, _ := loaded(t)
 	want := "❌ kit welcome refuses for the test; run: kit help welcome"
 	fields := strings.Join(strings.Fields(view(m)), " ")
-	if m.step != introduction || !strings.Contains(view(m), "\n   "+want+"\n") ||
-		strings.Contains(view(m), "checking…") ||
+	if m.step != introduction || strings.Contains(view(m), want) || strings.Contains(view(m), "checking…") ||
 		!strings.Contains(fields, "🧰 toolchains !") || !strings.Contains(fields, "🔧 setup !") {
 		t.Errorf("step %d:\n%s", m.step, view(m))
 	}
-	if !strings.Contains(m.View().Content, style.Refusal(want)) || !strings.Contains(m.View().Content, style.Loss("!")) {
-		t.Errorf("the refusal, or a step's !, is not red: %q", m.View().Content)
+	if !strings.Contains(m.View().Content, style.Loss("!")) {
+		t.Errorf("a step's ! is not red: %q", m.View().Content)
 	}
 	if m = drive(m, down); !m.inPane || keysAt(m) != scrollKeys {
-		t.Errorf("down on the introduction with no links: in the pane %v, keys %q", m.inPane, keysAt(m))
+		t.Errorf("down on the introduction: in the pane %v, keys %q", m.inPane, keysAt(m))
 	}
-	if m = drive(m, esc, tabKey); m.step != chains || !strings.Contains(view(m), "   "+want) {
-		t.Errorf("the toolchains do not show the refusal:\n%s", view(m))
+	m = drive(m, esc, tabKey)
+	if m.step != chains || !strings.Contains(view(m), "\n   "+want+"\n") ||
+		!strings.Contains(m.View().Content, style.Refusal(want)) {
+		t.Errorf("the toolchains do not show the refusal in red:\n%s", view(m))
 	}
 }
 func TestAPageScrollsWithWhatIsHiddenCounted(t *testing.T) {
@@ -837,16 +567,16 @@ func TestTheKeysBarNamesOnlyTheKeysThatActThere(t *testing.T) {
 			}{
 				{"n now", false},
 				{"l later", false},
-				{"r run", rowRuns(m)},
-				{"c copy", rowCopies(m)},
+				{"r run", m.runsHere()},
+				{"c copy", m.copies()},
 			} {
 				if strings.Contains(bar, c.key) != c.acts {
 					t.Errorf("step %d, in the pane %v, cursor %d: %q names %s: %v", m.step, m.inPane, m.cursor, bar, c.key,
 						!c.acts)
 				}
 			}
-			before := where(m)
-			if m = drive(m, down); where(m) == before && k > 0 {
+			before := m.cursor
+			if m = drive(m, down); m.cursor == before && k > 0 {
 				break
 			}
 		}
@@ -980,6 +710,8 @@ func TestWithNoPagesInTheRepositoryTheKitPackagesAreTheSteps(t *testing.T) {
 	}
 }
 
+// A house package's pages are the steps: a page in a known step's place keeps the step, its glyph, and its checks, and
+// a page added is a plain page, last, the bar scrolled to show it whole.
 func TestAHousePackagesPagesAreStepsAndItsReplacementKeepsTheStep(t *testing.T) {
 	m, _ := house(t)
 	if len(m.tabs) != len(known)+1 {
@@ -994,11 +726,11 @@ func TestAHousePackagesPagesAreStepsAndItsReplacementKeepsTheStep(t *testing.T) 
 	if added.id != "our-team" || added.glyph != pageGlyph || added.name != "our team" || added.checked {
 		t.Errorf("the added step: %+v", added)
 	}
-	// the screen stays on the introduction, and its first row still goes to the first failed check, under the toolchains
+	// the screen stays on the introduction, and the toolchains keep their checks, jq's fix one kit runs
 	if m.step != introduction {
 		t.Errorf("step %d", m.step)
 	}
-	if m = drive(m, down, down, down, enter); m.step != chains || !m.runsHere() {
+	if m = drive(m, toChains...); m.step != chains || !m.runsHere() {
 		t.Errorf("step %d, runs here %v", m.step, m.runsHere())
 	}
 	// the replaced page shows under terms; the added one last, a page with no checks
@@ -1246,22 +978,5 @@ func TestEscSaysItGoesBackToTheTabs(t *testing.T) {
 	m = drive(m, down, down)
 	if want := "│ esc tabs "; !m.inPane || !strings.Contains(m.keys().String(), want) {
 		t.Errorf("in the pane %v: %q does not hold %q", m.inPane, m.keys().String(), want)
-	}
-}
-
-// Once every check passes, the introduction's table goes, and the keyboard with it, back to the bar; while they run
-// again, checking… follows all checks pass.
-func TestTheTableGoesOnceEveryCheckPasses(t *testing.T) {
-	m, _ := loaded(t)
-	m, _ = onCheck(m, "jq")
-	for i := range m.checks {
-		m.checks[i].OK = true
-	}
-	if m.takeChecks(); m.inPane || m.gridded() {
-		t.Fatalf("in the pane %v, gridded %v", m.inPane, m.gridded())
-	}
-	m.checking.Again(m.env(), false)
-	if got := view(m); !strings.Contains(got, "\n   ✅ all checks pass\n\n   checking…\n") {
-		t.Errorf("no checking under all checks pass:\n%s", got)
 	}
 }

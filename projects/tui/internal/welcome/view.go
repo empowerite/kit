@@ -134,9 +134,6 @@ func (m Model) keys() shell.Path {
 		search := shell.SearchKeys(down, m.search().Query, m.recalls())
 		search.Owns = true
 		return append(path, search)
-	case m.inPane && m.introGridded():
-		seg, _ := m.sheet().Keys()
-		return append(path, m.introKeys(seg))
 	case m.inPane && m.gridded():
 		seg, _ := m.sheet().Keys()
 		return append(path, seg)
@@ -193,10 +190,7 @@ func (m Model) count(i int) string {
 // table, its lead and its table.
 func (m Model) pane() []string {
 	h := m.paneHeight()
-	switch {
-	case m.introGridded():
-		return m.introPane()
-	case m.gridded():
+	if m.gridded() {
 		// the table fills the pane under the lead
 		return m.sheetPane()
 	}
@@ -214,16 +208,14 @@ func (m Model) pane() []string {
 	return out
 }
 
-// lines gives the selected step's lines: a step with checks has its page and its checks, the introduction its page and
-// what the checks found, and any other step its page.
+// lines gives the selected step's lines: a step with checks has its page and its checks, setup then the members of the
+// workspace's group with no checkout, and any other step its page.
 func (m Model) lines() []line {
 	switch {
 	case m.foldered(m.step):
-		return m.setupLines()
-	case m.checked():
-		return m.stepLines()
-	case m.isIntroduction(m.step):
-		return m.introductionLines()
+		return append(m.setupLines(), m.notCloned()...)
+	case m.hasRows():
+		return append(m.stepLines(), m.notCloned()...)
 	}
 	var out []line
 	for _, l := range m.pageLines(m.step) {
@@ -232,64 +224,14 @@ func (m Model) lines() []line {
 	return out
 }
 
-// introductionLines gives the introduction's lines: its page's title and the blank line under it, then what the checks
-// found, so it shows before the page's words however long they run, then a blank line and the rest of the page.
-func (m Model) introductionLines() []line {
-	page := m.pageLines(m.step)
-	k := min(2, len(page))
-	var out []line
-	for _, l := range page[:k] {
-		out = append(out, line{-1, l})
-	}
-	out = append(append(out, m.findings()...), line{-1, ""})
-	for _, l := range page[k:] {
-		out = append(out, line{-1, l})
-	}
-	return out
-}
-
-// findings gives what the checks found, as the introduction draws it while no check failed, as its failed checks'
-// table, checks.go's, draws them: checking… until they first answer; then ✅ when every check passed, and the folders not
-// cloned. Kit's refusal, in red, comes first when kit refused them, and checking… last while they run again.
-func (m Model) findings() []line {
-	w := m.width - 1
-	var out []line
-	add := func(row int, text string) { out = append(out, line{row, pane.Clip(text, w)}) }
-	for _, l := range m.refusalLines() {
-		add(-1, l)
-	}
-	if m.refusal != "" && !m.checking.Loading {
-		add(-1, "")
-	}
-	if m.checking.Loading {
-		if m.checking.Running() && m.refusal == "" {
-			m.addChecking(add)
-		}
-		return out
-	}
-	if len(m.failed()) == 0 && m.refusal == "" {
-		add(-1, lead+Passed+" "+style.Label("all checks pass"))
-	}
-	if gone := uncloned(m.workspace); len(gone) > 0 {
-		add(-1, lead+style.Off("not cloned: "+strings.Join(gone, ", ")))
-	}
-	if m.checking.Running() {
-		add(-1, "")
-		m.addChecking(add)
-	}
-	return out
-}
-
-// refusalLines gives kit's refusal of the checks, ❌ before it, in red, wrapped to the screen; none when kit ran them.
-func (m Model) refusalLines() []string {
-	if m.refusal == "" {
+// notCloned gives the lines setup ends with where the workspace's group has members with no checkout: a blank line,
+// then their names, dim. Any other step has none.
+func (m Model) notCloned() []line {
+	gone := uncloned(m.workspace)
+	if m.tabs[m.step].id != setupID || len(gone) == 0 {
 		return nil
 	}
-	var out []string
-	for _, l := range wrapWords(strings.Fields(Failed+" "+m.refusal), m.width-1-len(lead), "", "") {
-		out = append(out, lead+style.Refusal(l))
-	}
-	return out
+	return []line{{-1, ""}, {-1, pane.Clip(lead+style.Off("not cloned: "+strings.Join(gone, ", ")), m.width-1)}}
 }
 
 // pageLines gives a page's lines: the page drawn to the width, a dim line while the pages are read, or the dim lines
