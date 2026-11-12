@@ -90,7 +90,7 @@ func TestPackagesActionsAreInItsMenuDimUntilTheyApply(t *testing.T) {
 		}
 	}
 	if item(m, "Assign to Me") >= 0 {
-		t.Error("Packages offers the backlog's actions")
+		t.Error("Packages offers the issues' actions")
 	}
 	m, _ = packaged(t, "agents/cursor")
 	if !m.enabled(item(m, AddPackages)) || m.enabled(item(m, RemovePackages)) || !m.enabled(item(m, OnlyPackages)) {

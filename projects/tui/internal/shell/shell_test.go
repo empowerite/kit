@@ -320,9 +320,9 @@ func TestADialogBoxesItsLinesUnderItsTitle(t *testing.T) {
 // search field at the right end; the left part is clipped two cells short of it, and what the view stands on is found
 // where it is drawn, whole or cut.
 func TestTheMenuBarIsEveryScreens(t *testing.T) {
-	b := MenuBar{Screen: "kit flow", Workspace: "- o/r", On: "➊ backlog 3 :", Search: SearchLine("", false)}
+	b := MenuBar{Screen: "kit flow", Workspace: "- o/r", On: "➊ issues 7 :", Search: SearchLine("", false)}
 	line := ansi.Strip(b.Line(60))
-	if !strings.HasPrefix(line, "  "+App+" kit flow · - o/r · ➊ backlog 3 :") || !strings.HasSuffix(line, Find+" "+Idle) ||
+	if !strings.HasPrefix(line, "  "+App+" kit flow · - o/r · ➊ issues 7 :") || !strings.HasSuffix(line, Find+" "+Idle) ||
 		ansi.StringWidth(line) != 59 {
 		t.Errorf("the menu bar at 60: %q", line)
 	}

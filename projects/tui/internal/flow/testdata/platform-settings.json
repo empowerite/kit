@@ -2,5 +2,5 @@
   {"key": "primary", "setting": "primary", "value": "upstream", "from": "set", "links": {}},
   {"key": "gate", "setting": "gate", "value": null, "from": "default", "links": {}},
   {"key": "log_days", "setting": "log_days", "value": 14, "from": "default", "links": {}},
-  {"key": "flow", "setting": "flow", "value": ["backlog", "changes"], "from": "set", "links": {}}
+  {"key": "flow", "setting": "flow", "value": ["issues", "changes"], "from": "set", "links": {}}
 ], "errors": []}

@@ -8,7 +8,7 @@ Work moves through the stages that `kit flow` draws. Each part ends with the com
 
 ## The backlog
 
-An issue waits in the backlog until someone takes it. `kit flow backlog` lists them.
+An issue waits in the backlog until someone takes it. `kit flow issues` lists them.
 
 ## Underway
 

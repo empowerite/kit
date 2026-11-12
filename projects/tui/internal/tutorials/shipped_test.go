@@ -170,16 +170,18 @@ func TestALinkOnATutorialsPageOpensTheScreenItLeadsTo(t *testing.T) {
 		}
 		return cmd()
 	}
-	x, y := cell(m, "Flow,", paneTop)
+	// the link's line, under the title line, whose summary names Flow too
+	_, at := cell(m, "Open", paneTop)
+	x, y := cell(m, "Flow,", at)
 	if got := asked(x, y); got != (shell.SwitchMsg{Screen: shell.Flow, Crumb: true}) {
 		t.Errorf("a click on Flow asked %#v", got)
 	}
-	x, y = cell(m, "Backlog", paneTop)
-	if got := asked(x+6, y); got != (shell.JumpMsg{Screen: shell.Flow, To: "backlog/"}) {
-		t.Errorf("a click on Backlog's last letter asked %#v", got)
+	x, y = cell(m, "Issues", paneTop)
+	if got := asked(x+5, y); got != (shell.JumpMsg{Screen: shell.Flow, To: "issues/"}) {
+		t.Errorf("a click on Issues' last letter asked %#v", got)
 	}
-	if got := asked(x+7, y); got != nil {
-		t.Errorf("a click past Backlog asked %#v", got)
+	if got := asked(x+6, y); got != nil {
+		t.Errorf("a click past Issues asked %#v", got)
 	}
 	if got := asked(x-1, y+1); got != nil {
 		t.Errorf("a click under the link asked %#v", got)

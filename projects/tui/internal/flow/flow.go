@@ -7,7 +7,7 @@
 // menu down, as a click on = or the screen's name does, - the workspace menu, and : or ; the selected tab's, as a click
 // anywhere on the tab does; F1 or ? shows the legend over the rows, and again hides it; / or a click on the search,
 // always on the screen's top right, gives the search the keyboard. A click on a linked glyph, as an issue's before its
-// title, opens its page in the browser, and one on a glyph that names a row of another stage, as underway's pull
+// title, opens its page in the browser, and one on a glyph that names a row of another stage, as an issue's pull
 // request, selects that stage with the row under the cursor. The rows take the screen's width. Maximize, in the tab's
 // menu, gives the rows the bar's lines but one, the tab named in the title, and Restore puts the bar back. Esc goes
 // back one level: from the search, then from the rows to the bar. Ctrl-c quits with 130 from anywhere, and ctrl-q quits
@@ -16,6 +16,7 @@
 package flow
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -38,7 +39,7 @@ import (
 
 // Options is how the screen opens: the app it is, as apps.go defines it; the stages in the picture's order; the stage
 // it opens on, maximized, when one is named; origin, when known, for the URLs and for the workspace menu until kit says
-// the workspace; whether the fetch is skipped; the filters backlog, underway, and changes take; whether each stage's
+// the workspace; whether the fetch is skipped; the filters issues and changes take; whether each stage's
 // first read is fresh; and whether every stage's headers are hidden, as a test of the rows alone asks.
 type Options struct {
 	App       shell.Screen
@@ -47,6 +48,7 @@ type Options struct {
 	Origin    Origin
 	NoFetch   bool
 	Filters   []string
+	Preset    string // the view the stage it opens on is set as, when one is named; else the stage's opening one
 	Fresh     bool
 	NoHeaders bool
 	Presets   string       // the file the person's presets are kept in; none keeps them for the session alone
@@ -180,7 +182,7 @@ type Model struct {
 	note          shell.Notice              // what kit did, or why something was not done, in place of the keys
 	copied        bool                      // whether the refusal's command was just copied, until the next key or click
 	handOver      fix.Exec                  // hands the terminal to a fix: tea.ExecProcess but in tests
-	ask           *ask                      // what a backlog action asks before kit runs, while it asks
+	ask           *ask                      // what an issues action asks before kit runs, while it asks
 	saved         map[string][]table.Preset // the person's views, by stage, as their file keeps them
 	presetsPath   string                    // that file, or none
 	presetsMenu   table.PresetMenu          // the preset line's menu of views: whether it is open, and its line under the keyboard
@@ -210,7 +212,7 @@ type Model struct {
 }
 
 // built holds each stage's rows as they were last built, and each stage's lines as they were last drawn from them. A
-// stage that loads, a refresh, or a new width replaces it, since a stage's rows may draw from another's, as underway's
+// stage that loads, a refresh, or a new width replaces it, since a stage's rows may draw from another's, as issues'
 // pull requests' keys from changes'; New sets the first, so there always is one, for the width the screen has.
 type built struct {
 	stages map[int]shown
@@ -229,12 +231,13 @@ func (m *Model) rebuild() {
 }
 
 // open opens the screen on the stages the options name, origin read from git, and kit flow's words: the tab named,
-// which it opens on, maximized, as kit flow <stage> asks; --no-fetch; the owner's flags, the filters backlog,
-// underway, and changes take; and --fresh, which reads each stage afresh the first time.
+// which it opens on, maximized, as kit flow <stage> asks, set as the preset named, as kit flow backlog asks;
+// --no-fetch; the owner's flags, the filters issues and changes take; and --fresh, which reads each stage afresh the
+// first time.
 func open(r kit.Runner, o Options, w Words) Model {
 	o.Origin, o.Presets, o.History = ReadOrigin(r.Dir), table.PresetsPath(), shell.RecentFile()
 	if k := slices.IndexFunc(o.Stages, func(name string) bool { return label(name) == w.Tab }); w.Tab != "" && k >= 0 {
-		o.Focus = o.Stages[k]
+		o.Focus, o.Preset = o.Stages[k], w.Preset
 	}
 	o.NoFetch, o.Filters, o.Fresh = w.NoFetch, slices.Clone(w.Owner), w.Fresh
 	m := New(r, o)
@@ -242,9 +245,10 @@ func open(r kit.Runner, o Options, w Words) Model {
 	return m
 }
 
-// New opens the screen on the options; every stage loads once Init starts it, its panel set as its Default preset
-// says. A stage kittui does not know shows a line saying so, and runs nothing. The stage named to focus on is
-// selected and maximized, the bar's keys on its title as they are on any maximized tab's.
+// New opens the screen on the options; every stage loads once Init starts it, its panel set as the first of its own
+// presets says, or, for the stage it opens on, as the preset named does. A stage kittui does not know shows a line
+// saying so, and runs nothing. The stage named to focus on is selected and maximized, the bar's keys on its title as
+// they are on any maximized tab's.
 func New(r kit.Runner, o Options) Model {
 	m := Model{app: o.App, runner: r, limit: deadline, origin: o.Origin, noFetch: o.NoFetch, fresh: o.Fresh,
 		filters: o.Filters, width: 80, height: 24, browse: browser, handOver: tea.ExecProcess, appMenu: shell.Menu{Here: o.App},
@@ -280,12 +284,18 @@ func New(r kit.Runner, o Options) Model {
 	m.rebuild()
 	for _, name := range o.Stages {
 		s := stage{name: name, src: m.stageLoad(name),
-			Table: table.Table{Open: grid.Outline{}, Picked: map[string]bool{}, ViewName: Opening, Grouping: true}}
+			Table: table.Table{Open: grid.Outline{}, Picked: map[string]bool{}, Grouping: true}}
 		if !sourced(name) {
 			s.src.Loading, s.refusal = false, fmt.Sprintf("kittui does not draw the stage '%s'", label(name))
 		}
-		if c := catalog[name]; c != nil {
-			s.View = c.Presets[slices.IndexFunc(c.Presets, func(p table.Preset) bool { return p.Name == Opening })].Panel(c.Fields, s.View)
+		views := m.viewsNamed(name)
+		v := views.Opening()
+		if name == o.Focus && o.Preset != "" {
+			v = views.Chosen(o.Preset)
+		}
+		s.ViewName = v.Name
+		if catalog[name] != nil {
+			s.View = v.Panel(fieldsOf(name), s.View)
 		}
 		m.stages = append(m.stages, s)
 	}
@@ -510,7 +520,7 @@ func (m Model) barTakes(msg tea.Msg) (tabs.Bar, bool) {
 	return m.bar().Update(msg)
 }
 
-// dropDown drops a menu down: the app's, or the selected tab's, which on backlog asks kit for the caller's login the
+// dropDown drops a menu down: the app's, or the selected tab's, which on issues asks kit for the caller's login the
 // first time, as Add to Pull Request needs it.
 func (m *Model) dropDown(app bool) tea.Cmd {
 	if app {
@@ -518,7 +528,7 @@ func (m *Model) dropDown(app bool) tea.Cmd {
 		return nil
 	}
 	m.openMenu()
-	if !m.tabMenu.Open || m.stages[m.stage].name != "backlog" {
+	if !m.tabMenu.Open || m.stages[m.stage].name != issuesStage {
 		return nil
 	}
 	return m.askMe()
@@ -1091,15 +1101,18 @@ func (s *stage) decode(data []byte, over bool) error {
 	case over && c.Record != ".[]":
 		rows = membersRecords(rows, c.Record)
 	}
-	key := c.Key
-	if key == "" {
-		key = ".key"
+	// the key's paths a record must hold, as a refusal names them: those not after ?, which may be missing
+	var key []string
+	for _, path := range strings.Split(cmp.Or(c.Key, ".key"), ",") {
+		if path = strings.TrimSpace(path); !strings.HasSuffix(path, "?") {
+			key = append(key, path)
+		}
 	}
 	all, seen := make([]parsed, len(rows)), map[string]bool{}
 	for k, r := range rows {
 		p, ok := parsed{value: decodeRecord(r)}, false
 		if p.key, ok = c.KeyFrom(p.value); !ok {
-			return fmt.Errorf("%s printed a record without %s", command(s.name), key)
+			return fmt.Errorf("%s printed a record without %s", command(s.name), strings.Join(key, ", "))
 		}
 		if p.member, p.links, ok = memberAndLinks(p.value); !ok {
 			return fmt.Errorf("%s printed the record %s, whose member or links cannot be read", command(s.name),

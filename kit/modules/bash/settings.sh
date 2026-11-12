@@ -274,11 +274,12 @@ settings:require() {
 }
 
 # settings_stages names the stages of kit flow, in the order work moves: the values the flow setting takes.
-declare -gra settings_stages=(backlog underway desk worktrees changes builds incoming releases)
+declare -gra settings_stages=(issues desk worktrees changes builds incoming releases)
 
 # settings:stages prints the stages the flow setting names, one per line, in its order: what kit flow draws.
 # Without the setting, or with it null, it prints every stage. It refuses, with the valid names, and returns 1: a
-# setting that is not a list, a list that names no stage, a name that is no stage, and a name given twice.
+# setting that is not a list, a list that names no stage, a name that is no stage, and a name given twice. backlog
+# and underway are refused with the stage that lists both: issues.
 settings:stages() {
   local settings type value stage
   local -a stages=() seen=()
@@ -301,6 +302,12 @@ settings:stages() {
   esac
   for stage in "${stages[@]}"
   do
+    if [[ "${stage}" == backlog || "${stage}" == underway ]]
+    then
+      error "'${stage}' is no stage of kit flow: issues lists every open issue, backlog and underway alike; name" \
+        "issues (flow in ${settings})"
+      return 1
+    fi
     if ! list:among "${stage}" "${settings_stages[@]}"
     then
       error "'${stage}' is not a stage; the stages are: ${settings_stages[*]} (flow in ${settings})"

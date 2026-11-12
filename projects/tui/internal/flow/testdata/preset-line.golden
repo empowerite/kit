@@ -1,22 +1,22 @@
   = kit flow · - empowerite/kit                                      🔎 /search
-  ➊╶────────────────╮➁╶─────────────────╮➂╶────────────────╮➃╶───────────────╮➄╶
-  │ 🎫 backlog  3 : │  🛫 underway  4   │  🔀 changes  3   │  🏭 builds  4   │
-  ╵                 ╰───────────────────╰──────────────────╰─────────────────╰──
-  ▾ source · organization · repository ▾ 3  source: ¬gitlab  assi…  Default ▼
+  ➊╶───────────────╮➁╶────────────────╮➂╶───────────────╮➃╶──────────────────╮➄╶
+  │ 🎫 issues  7 : │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  7    │
+  ╵                ╰──────────────────╰─────────────────╰────────────────────╰──
+  ▾ source · organization · repository ▾ 7  source: ¬gitlab  a…  All Issues ▼
     ·────────·──────────────·─────────────
-  ▾ github · empowerite 3
+  ▾ github · empowerite 7
 
-        id   assignees       age  branch          labels           title
-        ·────×·──────────────·────·───────────────×·───────────────·───────────
+      ▸ id   status  assign  age  change  state  where    labels   title
+        ·────·───────×·──────·────·───────·──────·────────×·───────·───────────
     ▾ jig 1
-      ▸ #7   ada         +1  40d                                   🎫 Fix the …
-    ▾ kit 2
-      ▸ #45                   2h                  kindfeat… +2  🎫 kit flow…
-      ▸ #46  jeffrey-aguil…   2d  46-a-noun-lis…  bug            🎫 A noun l…
-
-
-
-
+      ▸ #7   💤      ada +1  40d                                   🎫 Fix the …
+    ▾ kit 6
+      ▸ #1   🛫      jeffr…   8d  🔀 #2   🏁     🌿 here  p… +1  🎫 The firs…
+      ▸ #8   🛫               2d  🔀 #4   🔥     👤 bob            🎫 Lint the…
+      ▸ #8   🛫               2d  🔀 #11  🔨     🌱 loc…           🎫 Lint the…
+      ▸ #46  💤      jeffr…   2d                          bug    🎫 A noun l…
+      ▸ #31  🛫      ada      3h  🔀 #12  💬     👤 ada            🎫 kit comm…
+      ▸ #45  💤               2h                          k… +2  🎫 kit flow…
 
 
 

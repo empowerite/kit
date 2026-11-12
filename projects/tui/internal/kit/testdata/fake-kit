@@ -2,11 +2,11 @@
 # fake-kit - stands in for kit in the runner's tests: answers syntax and help, and records any other call (test helper)
 # ----------------------------------------------------------------------------------------------------------------------
 # The syntax answers come from the syntax package's fixtures, and --list names a few verbs with their purposes and
-# groups as the kit prints them; help is a fixed page; flow --stages names two stages, flow --me prints ada, another
-# flag of flow is refused, and a stage echoes its words as JSON, after sleeping FAKE_KIT_SLEEP seconds when it is set,
-# with the sleep's pid written to the file FAKE_KIT_RECORD names; workspace --stages names two stages, each other app
-# verb's --stages its own, as kit audit's five, and a stage of theirs answers with no rows; root prints a fixed
-# directory, and welcome --checks the welcome screen's fixture; any other verb's arguments and working directory,
+# groups as the kit prints them; help is a fixed page; flow --stages names kit flow's five, flow --me prints ada,
+# another flag of flow is refused, and a stage echoes its words as JSON, after sleeping FAKE_KIT_SLEEP seconds when it
+# is set, with the sleep's pid written to the file FAKE_KIT_RECORD names; workspace --stages names two stages, each
+# other app verb's --stages its own, as kit audit's five, and a stage of theirs answers with no rows; root prints a
+# fixed directory, and welcome --checks the welcome screen's fixture; any other verb's arguments and working directory,
 # welcome --fix's and --keep='s too, are written to that file, for the exec test to read, and --keep= then prints the
 # check kept, or FAKE_KIT_KEPT when it is set; FAKE_KIT_REFUSE=welcome refuses those two with exit 2. Every syntax
 # answer about the verb FAKE_KIT_REFUSE names (its grammar, choices, extension, and match) is a refusal instead, as the
@@ -144,11 +144,11 @@ case "${1:-}" in
       "${plain}" "$2"
     ;;
   (flow)
-    # --stages names two stages; a stage answers with the words after its name, so a test reads them back
+    # --stages names kit flow's five; a stage answers with the words after its name, so a test reads them back
     shift
     if [[ "${1:-}" == --stages ]]
     then
-      printf 'backlog\nincoming\n'
+      printf '%s\n' issues changes builds incoming releases
     elif [[ "${1:-}" == --me ]]
     then
       printf 'ada\n'
@@ -162,8 +162,8 @@ case "${1:-}" in
       printf '[{"forge": "%s", "limits": [{"name": "core", "limit": 5000, "remaining": 4999, "reset": 0}]}]\n' "${*:2}"
     elif [[ -n "${FAKE_KIT_POLLS:-}" && "${1:-}" == --marks ]]
     then
-      # and the marks give the words after --marks as backlog's, and none for desk
-      printf '{"backlog": "%s", "desk": null}\n' "${*:2}"
+      # and the marks give the words after --marks as issues', and none for desk
+      printf '{"issues": "%s", "desk": null}\n' "${*:2}"
     elif [[ "${1:-}" == --* ]]
     then
       # a flag the fake does not answer is refused, as kit refuses one it cannot read, so a screen that asks for

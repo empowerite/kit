@@ -287,7 +287,7 @@ answers:
 | `sources` | Other releases a repository takes packages from, each with a `name`, a `url`, and a `digest`; see below. |
 | `trackers` | Trackers other than the code forge's own whose issues the workflow accepts, each with a prefix and a provider; see [trackers.md](trackers.md). |
 | `bash_path` | The bash module path: the directories `use` sources a bash module from, in order, starting with `kit:modules/bash/`. A directory that does not exist is skipped; see [modules.md](modules.md#the-module-path). |
-| `flow` | The stages `kit flow` draws, in order: `backlog`, `underway`, `desk`, `worktrees`, `changes`, `builds`, `incoming`, `releases`. A stage left out is not drawn; `kit flow <stage>` still prints it. Default: all eight, in that order. |
+| `flow` | The stages `kit flow` draws, in order: `issues`, `desk`, `worktrees`, `changes`, `builds`, `incoming`, `releases`. A stage left out is not drawn; `kit flow <stage>` still prints it. `issues` lists every open issue, in the backlog or underway, so `backlog` and `underway` are no stages. Default: all seven, in that order. |
 
 A provider setting, `forge`, a value of `forges`, `policy_engine`, or the `provider` of a tracker, takes one of the
 kit's providers. It also takes one the repository adds on its bash module path: `forge: bitbucket`

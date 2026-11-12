@@ -50,7 +50,7 @@ func TestTheTabsMenusFirstSectionIsRefreshWatchAndMaximize(t *testing.T) {
 }
 
 func TestMaximizeGivesTheRowsTwoLines(t *testing.T) {
-	// twelve lines tall, the backlog's heading and its three rows overflow the pane
+	// twelve lines tall, issues' heading and its seven rows overflow the pane
 	size := tea.WindowSizeMsg{Width: 120, Height: 12}
 	normal := loaded(t, viewing(""), size)
 	m := maximize(t, normal)
@@ -82,18 +82,18 @@ func TestMaximizeGivesTheRowsTwoLines(t *testing.T) {
 // The title names the tab: its number, its name, the stale dot while it is stale, a space, and its count.
 func TestMaximizeTitleNamesTheTabAndItsCount(t *testing.T) {
 	m := maximize(t, loaded(t, viewing("")))
-	want := "  " + shell.App + " kit flow · " + shell.Workspaces + " empowerite/kit · ➊ backlog 3 " + tabs.Menu
+	want := "  " + shell.App + " kit flow · " + shell.Workspaces + " empowerite/kit · ➊ issues 7 " + tabs.Menu
 	if got := lines(m)[0]; got != want {
 		t.Errorf("the title:\n%q\nwant\n%q", got, want)
 	}
 	// the tab's number and name in its color, the name as the bar draws it
-	mark, _ := style.In(stageColors["backlog"])
-	if first := strings.Split(m.View().Content, "\n")[0]; !strings.Contains(first, mark("backlog")) ||
+	mark, _ := style.In(stageColors["issues"])
+	if first := strings.Split(m.View().Content, "\n")[0]; !strings.Contains(first, mark("issues")) ||
 		!strings.Contains(first, mark("➊")) {
 		t.Errorf("the tab's name is not in its color: %q", strings.Split(m.View().Content, "\n")[0])
 	}
 	// a number selects a tab, still maximized, and the title names it
-	if m = drive(m, press('2')); !m.maximized || !strings.HasSuffix(lines(m)[0], " · ➋ underway 4 "+tabs.Menu) {
+	if m = drive(m, press('2')); !m.maximized || !strings.HasSuffix(lines(m)[0], " · ➋ changes 3 "+tabs.Menu) {
 		t.Errorf("after 2, the title: %q", lines(m)[0])
 	}
 	// the search stays at its right
@@ -108,10 +108,10 @@ func TestTheRuleIsTheTabsColor(t *testing.T) {
 		mark, _ := style.In(stageColors[stage])
 		return mark(strings.Repeat(Banner, m.paneWidth()))
 	}
-	if got := strings.Split(m.View().Content, "\n")[1]; got != rule("backlog") {
-		t.Errorf("line 2:\n%q\nwant\n%q", got, rule("backlog"))
+	if got := strings.Split(m.View().Content, "\n")[1]; got != rule("issues") {
+		t.Errorf("line 2:\n%q\nwant\n%q", got, rule("issues"))
 	}
-	if m = drive(m, press('3')); strings.Split(m.View().Content, "\n")[1] != rule("changes") {
+	if m = drive(m, press('2')); strings.Split(m.View().Content, "\n")[1] != rule("changes") {
 		t.Errorf("changes' line: %q", strings.Split(m.View().Content, "\n")[1])
 	}
 }
@@ -178,7 +178,7 @@ func TestClicksFollowTheTop(t *testing.T) {
 // Where the title is clipped short of the tab's :, : still drops the menu, against the rows' right edge, and so does a
 // click on what the title shows of the tab.
 func TestANarrowTitleHidesTheKebabAndColonStillDropsTheMenu(t *testing.T) {
-	m := maximize(t, loaded(t, viewing(""), tea.WindowSizeMsg{Width: 59, Height: 24}))
+	m := maximize(t, loaded(t, viewing(""), tea.WindowSizeMsg{Width: 56, Height: 24}))
 	if m.tabMenuAt() != -1 || strings.Contains(lines(m)[0], tabs.Menu) {
 		t.Fatalf("the : at %d: %q", m.tabMenuAt(), lines(m)[0])
 	}
@@ -201,7 +201,7 @@ func TestANarrowTitleHidesTheKebabAndColonStillDropsTheMenu(t *testing.T) {
 
 func TestMaximizedTheKeysDropTheBars(t *testing.T) {
 	m := maximize(t, loaded(t, viewing("")))
-	if bar := lines(m)[len(lines(m))-1]; strings.Contains(bar, "⇥·⇧⇥") || !strings.Contains(bar, "1-6") ||
+	if bar := lines(m)[len(lines(m))-1]; strings.Contains(bar, "⇥·⇧⇥") || !strings.Contains(bar, "1-5") ||
 		!strings.Contains(bar, ": tab menu") || !strings.Contains(bar, "↓ groups") {
 		t.Errorf("the keys bar: %q", bar)
 	}
@@ -221,9 +221,9 @@ func TestMaximizedTheKeysDropTheBars(t *testing.T) {
 
 func TestGoldenMaximized(t *testing.T) {
 	m := maximize(t, loaded(t, viewing("")))
-	testkit.Golden(t, filepath.Join("testdata", "backlog-max.golden"), raw(m))
+	testkit.Golden(t, filepath.Join("testdata", "issues-max.golden"), raw(m))
 	m = drive(m, testkit.Click(m.tabMenuAt(), 0))
-	testkit.Golden(t, filepath.Join("testdata", "backlog-max-menu.golden"), raw(m))
+	testkit.Golden(t, filepath.Join("testdata", "issues-max-menu.golden"), raw(m))
 }
 
 // A tab's menu line shows its key at its right, a letter in upper case, and the key chooses the line with the menu

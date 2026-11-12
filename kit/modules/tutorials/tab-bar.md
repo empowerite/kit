@@ -7,9 +7,9 @@ order: 12
 ---
 
 ```text
-  ➊╶────────────────╮➁╶─────────────────╮➂╶────────────────╮
-  │ 🎫 backlog  3 : │  🛫 underway  4   │  🔀 changes  3   │
-  ╵                 ╰───────────────────╰──────────────────╰──
+  ➊╶───────────────╮➁╶────────────────╮➂╶───────────────╮
+  │ 🎫 issues  7 : │  🔀 changes  3   │  🏭 builds  4   │
+  ╵                ╰──────────────────╰─────────────────╰──
 ```
 
 Each app has its own tabs: one stage of kit each. The welcome and the tutorials have none.
@@ -40,4 +40,4 @@ Each app has its own tabs: one stage of kit each. The welcome and the tutorials 
 - **Show More** `>` and **Show Less** `<`  open or close a level of the rows
 - **Show Selected** and **Hide Selected**
 
-Some stages add their own lines. The backlog has **New…** `N` and **Assign to Me** `A`.
+Some stages add their own lines. The issues tab has **New…** `N` and **Assign to Me** `A`.

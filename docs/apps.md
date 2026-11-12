@@ -67,9 +67,10 @@ or outside a repository's working tree with no workspace.
 
 ## Issues: kit issues
 
-`kit issues` prints the planning the forge keeps. Its other tabs in kittui, the backlog and what is underway, are
-`kit flow`'s: `kit issues backlog` and `kit issues underway` open on a terminal, and with a form refuse with 2, naming
-`kit flow backlog --json` or `kit flow underway --json`.
+`kit issues` prints the planning the forge keeps. Its first tab in kittui, issues, every open issue in the backlog or
+underway, is `kit flow`'s: `kit issues issues` opens it on a terminal, and `kit issues backlog` and `kit issues
+underway` open it on its Backlog or Underway preset; with a form, each refuses with 2, naming `kit flow issues --json`.
+The tab's presets are All Issues, which it opens on, Backlog, Underway, By Milestone, By Iteration, and By Swimlane.
 
 | Stage | A row per | Fields | Mark |
 | --- | --- | --- | --- |
@@ -103,7 +104,7 @@ or outside a repository's working tree with no workspace.
 - `reviews` and `checks` read the open changes as `kit flow changes` does, from the forge's snapshot of them, so they
   cost no request more: one GraphQL request a minute on GitHub. Azure DevOps names the reviewers in its list of pull
   requests. GitLab reads each open merge request's approvals beside its discussions, a request each, in every read of
-  the open changes: `kit flow changes`, `underway`, and `backlog` pay it as well. On GitHub, a token without
+  the open changes: `kit flow changes` and `issues` pay it as well. On GitHub, a token without
   `read:org` is refused a team asked to review; the read asks again without teams, and draws no team among them.
   With `--fresh`, each reads the open changes afresh, as `kit flow changes --fresh` does, so kittui's Refresh on
   either tab shows a review given within the minute.

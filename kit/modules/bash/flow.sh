@@ -1,16 +1,16 @@
 # shellcheck shell=bash
-# flow.sh - the picture of the work: eight stages, drawn one at a time or all together (sourced module)
+# flow.sh - the picture of the work: seven stages, drawn one at a time or all together (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
 #
-# kit flow draws the picture. Work moves left to right through eight stages:
+# kit flow draws the picture. Work moves left to right through seven stages:
 #
-#   backlog → underway → desk → worktrees → changes → builds → incoming → releases
+#   issues → desk → worktrees → changes → builds → incoming → releases
 #
 # The flow setting in kit.yml names the stages the picture draws, in order. flow:render draws one stage, or
-# the picture: every stage under its heading: its glyph, its name, and its count, dim. The rows of backlog,
-# underway, changes, builds, and releases live in the modules named after them. The desk, worktrees, and incoming
-# stages, and the cells every table shares, are here.
+# the picture: every stage under its heading: its glyph, its name, and its count, dim. The rows of issues, changes,
+# builds, and releases live in the modules named after them. The desk, worktrees, and incoming stages, and the cells
+# every table shares, are here.
 #
 # The desk stage is the root checkout, wherever kit runs in the repository. Where it runs decides what worktrees
 # and changes draw:
@@ -24,7 +24,7 @@
 #     desk's picture under its path, with the same arguments. It skips hidden directories and symbolic links, and
 #     goes no deeper than flow_walk_depth. The desks are drawn in path order, each with a fetch of its own.
 #
-# backlog, underway, desk, incoming, builds, and releases draw the same anywhere in a repository.
+# issues, desk, incoming, builds, and releases draw the same anywhere in a repository.
 #
 # The primary remote is the primary setting in kit.yml, else origin; modules/bash/forge.sh says how. The incoming
 # stage fetches every remote, and the rest measure against the primary.
@@ -59,10 +59,10 @@
 # --json prints the picture as one object: stages, the names in order, and under each name what kit flow <stage>
 # --json prints. A stage that could not be read is null. Above desks it is an array of {path, status}, one per desk.
 #
-# see: kit/bin/kit-flow, modules/bash/backlog.sh, modules/bash/underway.sh, modules/bash/changes.sh,
-# modules/bash/builds.sh, modules/bash/releases.sh
+# see: kit/bin/kit-flow, modules/bash/issues.sh, modules/bash/changes.sh, modules/bash/builds.sh,
+# modules/bash/releases.sh
 
-use file git settings workspaces backlog underway changes builds releases
+use file git settings workspaces issues changes builds releases
 
 # flow_walk_depth is how many directories below the one it runs in kit flow looks for desks, above desks.
 flow_walk_depth=4
@@ -88,6 +88,7 @@ declare -gA flow_glyphs=(
   [Issue]='🎫'
   [GitHub]='🐙'
   [GitLab]='🦊'
+  [Waiting]='💤'
   [InFlight]='🛫'
   [Desk]='💻'
   [Branch]='🌿'
@@ -120,11 +121,13 @@ declare -gA flow_glyphs=(
   [Package]='🧩'
   [Active]='🟢'
   [Excluded]='⛔'
+  [Milestone]='⛳'
+  [Iteration]='📅'
+  [Swimlane]='🏊'
   [Other]='🔳'
 )
 declare -gA flow_stage_glyphs=(
-  [backlog]='🎫'
-  [underway]='🛫'
+  [issues]='🎫'
   [desk]='💻'
   [worktrees]='🌿'
   [changes]='🔀'
@@ -147,8 +150,7 @@ declare -gA flow_state_glyphs=(
 # flow:stage-purpose <stage> prints what a stage lists, in a few words.
 flow:stage-purpose() {
   case "$1" in
-    (backlog) printf 'the open issues not closed by any open pull request, oldest first\n' ;;
-    (underway) printf 'the open issues closed by an open pull request: who works on each, and where\n' ;;
+    (issues) printf 'every open issue, oldest first, in the backlog or underway: who works on each, and where\n' ;;
     (incoming) printf 'what the fetch brought: commits on the default branch, branches new and gone\n' ;;
     (desk) printf 'the root checkout: branch, ahead and behind, commits, uncommitted paths\n' ;;
     (worktrees) printf 'every linked worktree: branch, ahead and behind, commits, uncommitted paths\n' ;;
@@ -158,7 +160,7 @@ flow:stage-purpose() {
   esac
 }
 
-# flow:choices <key> [<answer>…] answers kit syntax --choices for <stage>: the eight stages, a closed set, each with
+# flow:choices <key> [<answer>…] answers kit syntax --choices for <stage>: the seven stages, a closed set, each with
 # what it lists.
 flow:choices() {
   local stage
@@ -656,7 +658,7 @@ flow:filter-of() {
   flow:filter "${mine}" "${others}" "${owners[@]}"
 }
 
-# flow:filter <mine> <others> <login>… prints, on one line, the arguments flow:select and backlog:collect take to
+# flow:filter <mine> <others> <login>… prints, on one line, the arguments flow:select and issues:documents take to
 # keep the rows the owner flags ask for, as the union of the filters: --except and the caller's login when --others
 # is given without --mine and the caller is not among the logins; else the logins named, with the caller's under
 # --mine; nothing when every row is kept. It asks the forge for the caller's login only when a flag needs it.
@@ -940,7 +942,7 @@ flow:issue-widths() {
   printf '%s %s %s %s\n' "${ref_w}" "${owner_w}" "${age_w}" "${branch_w}"
 }
 
-# flow:issue-row <issue-json> <widths> <state> <indent> prints one issue as the backlog and changes stages draw
+# flow:issue-row <issue-json> <widths> <state> <indent> prints one issue as the changes stage draws
 # it: <indent>, the number right-aligned, the assignees when any issue in the table has one, then <state> with the
 # age when <state> is given, as under a change, else the age alone, then the branch when any issue has one, and last
 # the title, clipped to what the terminal's width leaves. <widths> is flow:issue-widths' line. Every cell after
@@ -1193,8 +1195,7 @@ flow:stage() {
   local stage=$1
   shift
   case "${stage}" in
-    (backlog) backlog:render "$@" ;;
-    (underway) underway:render "$@" ;;
+    (issues) issues:render "$@" ;;
     (incoming) flow:incoming "$@" ;;
     (desk) flow:desk "$@" ;;
     (worktrees) flow:worktrees "$@" ;;
@@ -1244,7 +1245,7 @@ flow:stage-json() {
 }
 
 # flow:stage-args <stage> <argument>… prints, one per line, the arguments among those given that the stage takes:
-# --json for every stage, --no-fetch for incoming, and the owner flags for backlog, underway, and changes.
+# --json for every stage, --no-fetch for incoming, and the owner flags for issues and changes.
 flow:stage-args() {
   local stage=$1 arg
   shift
@@ -1254,7 +1255,7 @@ flow:stage-args() {
       (--json) printf '%s\n' "${arg}" ;;
       (--no-fetch) [[ "${stage}" != incoming ]] || printf '%s\n' "${arg}" ;;
       (--all | --mine | --others | --owner=?*)
-        list:among "${stage}" backlog underway changes && printf '%s\n' "${arg}"
+        list:among "${stage}" issues changes && printf '%s\n' "${arg}"
     esac
   done
   return 0
@@ -1266,7 +1267,7 @@ flow:asks-forge() {
   for stage in "$@"
   do
     case "${stage}" in
-      (backlog | underway | changes | builds | releases) return 0
+      (issues | changes | builds | releases) return 0
     esac
   done
   return 1
@@ -1327,7 +1328,7 @@ flow:picture() {
   for stage in "${stages[@]}"
   do
     case "${stage}" in
-      (backlog | underway | changes | builds | releases)
+      (issues | changes | builds | releases)
         [[ "${reachable}" == true && "${forged}" == true ]] || continue
         readarray -t args < <(flow:stage-args "${stage}" --json "$@")
         (
@@ -1408,13 +1409,9 @@ flow:picture() {
     fi
     doc=$(<"${scratch}/${stage}.json")
     case "${stage}" in
-      (backlog)
-        flow:heading backlog "$(jq 'length' <<<"${doc}")"
-        backlog:draw "${doc}" "${choice}"
-        ;;
-      (underway)
-        flow:heading underway "$(jq 'length' <<<"${doc}")"
-        underway:draw "${doc}" "${choice}"
+      (issues)
+        flow:heading issues "$(jq 'length' <<<"${doc}")"
+        issues:draw "${doc}" "${choice}"
         ;;
       (incoming)
         flow:heading incoming
@@ -1459,7 +1456,7 @@ flow:render() {
     return
   fi
   case "${1:-}" in
-    (backlog | underway | desk | worktrees | changes | incoming | builds | releases)
+    (issues | desk | worktrees | changes | incoming | builds | releases)
       stage=$1
       shift
   esac

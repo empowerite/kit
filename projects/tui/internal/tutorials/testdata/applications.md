@@ -11,7 +11,7 @@ that prints it.
 ## Flow
 
 The whole trip of the work, from an issue to a release, one stage to a tab. Open [Flow](kittui:flow), or its
-[Backlog](kittui:flow/backlog).
+[Issues](kittui:flow/issues).
 
 `kit flow`
 
@@ -19,7 +19,7 @@ The whole trip of the work, from an issue to a release, one stage to a tab. Open
 
 The work to do: the backlog, and the issues underway.
 
-`kit flow backlog`
+`kit flow issues`
 
 ## Changes
 

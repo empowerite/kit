@@ -14,7 +14,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
-// narrow gives the backlog at 40 cells, too narrow for its columns, its rows with the keyboard.
+// narrow gives issues at 40 cells, too narrow for its columns, its rows with the keyboard.
 func narrow(t *testing.T) Model {
 	t.Helper()
 	return intoRows(loaded(t, options(), tea.WindowSizeMsg{Width: 40, Height: 16}))
@@ -40,7 +40,7 @@ func TestTabScrollsTheColumnsOfAStageWiderThanTheScreen(t *testing.T) {
 		t.Errorf("the rows' keys of a stage cut: %s", keys)
 	}
 	m = drive(m, tab)
-	if _, head := headerOf(t, m); !strings.Contains(head, "id  "+grid.Before) || !strings.Contains(view(m), "#45") ||
+	if _, head := headerOf(t, m); !strings.Contains(head, "id  "+grid.Before) || !strings.Contains(view(m), "#7") ||
 		!strings.Contains(view(m), "🎫") || !m.inRows || m.stage != 0 {
 		t.Errorf("tab scrolls a column, the id put, the keyboard in the rows:\n%s", view(m))
 	}

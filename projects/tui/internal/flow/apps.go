@@ -23,7 +23,7 @@ type entityApp struct {
 
 // apps are kittui's apps built around one entity, in the app menu's order.
 var apps = []entityApp{
-	{shell.Issues, "issues", []string{"backlog", "underway", "issues/milestones", "issues/iterations"}},
+	{shell.Issues, "issues", []string{issuesStage, "issues/milestones", "issues/iterations"}},
 	{shell.Changes, "changes", []string{"changes", "changes/reviews", "changes/checks", "changes/merged"}},
 	{shell.Repositories, workspaceVerb, []string{"workspace/repos", "workspace/worktrees", "workspace/branches",
 		"workspace/commits", "workspace/tags", "workspace/remotes", "incoming"}},
@@ -107,19 +107,25 @@ func OpenApp(r kit.Runner, app shell.Screen, words Words) (Model, error) {
 	return open(r, Options{App: app, Stages: stages}, words), nil
 }
 
-// Words are kit flow's words, as an app takes them: the tab it opens on, by the name the tab gives it; whether the
-// fetch is skipped, as --no-fetch asks; whether each stage's first read is fresh, as --fresh asks; and the owner's
-// flags, --all, --mine, --others, and --owner=<login>, which each command whose catalog entry takes owner is given.
+// Words are kit flow's words, as an app takes them: the tab it opens on, by the name the tab gives it, and the preset
+// it is set as there, none for its own first; whether the fetch is skipped, as --no-fetch asks; whether each stage's
+// first read is fresh, as --fresh asks; and the owner's flags, --all, --mine, --others, and --owner=<login>, which
+// each command whose catalog entry takes owner is given.
 type Words struct {
 	Tab     string
+	Preset  string
 	NoFetch bool
 	Fresh   bool
 	Owner   []string
 }
 
+// issuesPresets gives the preset of issues each word that names one opens it on, as kit flow backlog does: the words
+// of the stages issues took the place of.
+var issuesPresets = map[string]string{"backlog": "Backlog", "underway": "Underway"}
+
 // ParseWords gives kit flow's words, as kittui was started with them: --no-fetch, --fresh, the owner's flags, and the
-// first other word that is no flag, as the tab; any other word, as --jq, which the picture on a terminal has no use
-// for, is no word of the app's.
+// first other word that is no flag, as the tab, backlog and underway as issues set as its preset of the word's name;
+// any other word, as --jq, which the picture on a terminal has no use for, is no word of the app's.
 func ParseWords(words []string) Words {
 	var w Words
 	for _, word := range words {
@@ -130,6 +136,8 @@ func ParseWords(words []string) Words {
 			w.Fresh = true
 		case word == "--all" || word == "--mine" || word == "--others" || strings.HasPrefix(word, "--owner="):
 			w.Owner = append(w.Owner, word)
+		case w.Tab == "" && issuesPresets[word] != "":
+			w.Tab, w.Preset = issuesStage, issuesPresets[word]
 		case w.Tab == "" && !strings.HasPrefix(word, "-"):
 			w.Tab = word
 		}
@@ -137,9 +145,9 @@ func ParseWords(words []string) Words {
 	return w
 }
 
-// Rest gives the words without the tab, as every app opened later takes them.
+// Rest gives the words without the tab and its preset, as every app opened later takes them.
 func (w Words) Rest() Words {
-	w.Tab = ""
+	w.Tab, w.Preset = "", ""
 	return w
 }
 

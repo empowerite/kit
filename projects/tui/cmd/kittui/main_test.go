@@ -378,6 +378,7 @@ func TestFlowAndWorkspaceOpenTheAppWithTheTabNamed(t *testing.T) {
 		{"workspace", nil, shell.Repositories}, {"workspace", []string{"branches"}, shell.Repositories},
 		{"packages", nil, shell.Packages}, {"packages", []string{"packages"}, shell.Packages},
 		{"issues", nil, shell.Issues}, {"issues", []string{"backlog"}, shell.Issues},
+		{"flow", []string{"underway"}, shell.Flow},
 		{"changes", []string{"changes"}, shell.Changes}, {"delivery", []string{"deployments"}, shell.Delivery},
 		{"people", nil, shell.People}, {"audit", []string{"waivers"}, shell.Trust}, {"platform", nil, shell.Platform},
 	} {
@@ -419,8 +420,9 @@ func TestEveryOtherScreenEndsZeroOr130(t *testing.T) {
 	}
 }
 
-// An app's verb opens its app on the tab its words name, maximized, as kit issues backlog opens Issues on backlog; with
-// none named it opens the app's first tab, the bar and the rows as they always were.
+// An app's verb opens its app on the tab its words name, maximized, as kit issues milestones opens Issues on
+// milestones, and kit issues backlog on issues, set as Backlog; with none named it opens the app's first tab, the bar
+// and the rows as they always were.
 func TestAnAppsVerbOpensItOnTheTabNamed(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	r := testkit.Runner(t, "flow")
@@ -431,7 +433,8 @@ func TestAnAppsVerbOpensItOnTheTabNamed(t *testing.T) {
 		spot      string
 		maximized bool
 	}{
-		{"issues", []string{"backlog"}, shell.Issues, "backlog", true},
+		{"issues", []string{"backlog"}, shell.Issues, "issues", true},
+		{"issues", []string{"milestones"}, shell.Issues, "milestones", true},
 		{"audit", nil, shell.Trust, "evidence", false},
 		{"audit", []string{"waivers"}, shell.Trust, "waivers", true},
 	} {

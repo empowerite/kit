@@ -3,7 +3,7 @@
 // indent, and paragraphs wrapped to the width. It is no markdown library: front matter at the top is dropped, a code
 // block keeps its lines, a table its rows, a comment is dropped, and a link keeps its text, with its URL when it is a
 // web address. A link to one of kittui's screens, kittui: and the screen's name, as [Flow](kittui:flow) is, or the
-// screen's name, a slash, and one of its tabs, as [Backlog](kittui:flow/backlog) is, is drawn as a link, and Page says
+// screen's name, a slash, and one of its tabs, as [Issues](kittui:flow/issues) is, is drawn as a link, and Page says
 // where each one stands, for a screen that follows it on a click. A line naming a verb, as `kit packages` does, is
 // text: the screen opens no form.
 package markdown

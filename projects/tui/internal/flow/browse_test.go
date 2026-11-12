@@ -101,7 +101,7 @@ func TestOverSSHOpenSelectedShowsTheFirstLinkAndCountsTheRest(t *testing.T) {
 	}
 	// one page asked says no more
 	delete(m.stages[0].Picked, "#7")
-	delete(m.stages[0].Picked, "#46")
+	delete(m.stages[0].Picked, "#45")
 	if m = choose(t, m, "Open Selected"); m.note.Text != "Open "+pages[0]+" in a browser" {
 		t.Errorf("one page: %q", m.note.Text)
 	}

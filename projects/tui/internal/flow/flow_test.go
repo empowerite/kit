@@ -29,8 +29,8 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
-// six is the picture's default order.
-var six = []string{"backlog", "underway", "changes", "builds", "incoming", "releases"}
+// five is the picture's default order.
+var five = []string{"issues", "changes", "builds", "incoming", "releases"}
 
 // runner gives a kit.Runner over testdata/fake-kit.
 func runner(t *testing.T) kit.Runner {
@@ -45,10 +45,10 @@ func bare() Options {
 	return o
 }
 
-// options gives Flow on the six stages and origin as a test knows them, and the tables without their preset line,
+// options gives Flow on the five stages and origin as a test knows them, and the tables without their preset line,
 // which views_test.go tests, so down from the bar enters the rows.
 func options() Options {
-	return Options{App: shell.Flow, Stages: six, Origin: Origin{Host: "github.com", Repo: "empowerite/kit"},
+	return Options{App: shell.Flow, Stages: five, Origin: Origin{Host: "github.com", Repo: "empowerite/kit"},
 		NoPresets: true, Clock: &testkit.Clock{}}
 }
 
@@ -277,10 +277,10 @@ func TestEveryStageLoadsAtOnceWithItsWords(t *testing.T) {
 	o := options()
 	o.NoFetch, o.Filters = true, []string{"--mine", "--owner=bob"}
 	m := New(runner(t), o)
-	// the six read what kit kept of them, then load
+	// the five read what kit kept of them, then load
 	batch, ok := m.Init()().(tea.BatchMsg)
-	if !ok || len(batch) != 12 {
-		t.Fatalf("Init did not start the six at once: %T of %d", batch, len(batch))
+	if !ok || len(batch) != 10 {
+		t.Fatalf("Init did not start the five at once: %T of %d", batch, len(batch))
 	}
 	for i := range m.stages {
 		if !m.stages[i].src.Loading || m.count(i) != "…" {
@@ -291,8 +291,7 @@ func TestEveryStageLoadsAtOnceWithItsWords(t *testing.T) {
 		t.Errorf("the pane does not say loading:\n%s", view(m))
 	}
 	m = drive(m, batch)
-	want := []string{"flow backlog --json --mine --owner=bob", "flow underway --json --mine --owner=bob",
-		"flow changes --json --mine --owner=bob",
+	want := []string{"flow issues --json --mine --owner=bob", "flow changes --json --mine --owner=bob",
 		"flow builds --json", "flow incoming --json --no-fetch", "flow releases --json"}
 	if got := calls(t, record); strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Errorf("the calls:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
@@ -306,7 +305,7 @@ func TestEveryStageLoadsAtOnceWithItsWords(t *testing.T) {
 
 func TestLeftAndRightMoveAlongTheBarOnlyWhileItHasTheKeyboard(t *testing.T) {
 	m := loaded(t, options())
-	if mark, _ := style.In(stageColors["backlog"]); m.stage != 0 || !strings.Contains(m.View().Content, mark("➊")) {
+	if mark, _ := style.In(stageColors["issues"]); m.stage != 0 || !strings.Contains(m.View().Content, mark("➊")) {
 		t.Fatalf("the first stage is not selected:\n%s", view(m))
 	}
 	// left at the first stage stays there, and right at the last
@@ -314,26 +313,26 @@ func TestLeftAndRightMoveAlongTheBarOnlyWhileItHasTheKeyboard(t *testing.T) {
 	if m.stage != 0 {
 		t.Errorf("left at the first stage: stage %d", m.stage)
 	}
-	if last := drive(m, tab, tab, tab, tab, tab, tab); last.stage != 5 {
+	if last := drive(m, tab, tab, tab, tab, tab); last.stage != 4 {
 		t.Errorf("right at the last stage: stage %d", last.stage)
 	}
-	m = drive(m, tab, tab)
-	if mark, _ := style.In(stageColors["changes"]); m.stage != 2 || !strings.Contains(m.View().Content, Change+" "+mark("changes")) {
-		t.Errorf("right twice: stage %d\n%s", m.stage, view(m))
+	m = drive(m, tab)
+	if mark, _ := style.In(stageColors["changes"]); m.stage != 1 || !strings.Contains(m.View().Content, Change+" "+mark("changes")) {
+		t.Errorf("right once: stage %d\n%s", m.stage, view(m))
 	}
 	// inside the rows, left and right are the rows' own, and move nothing
 	m = drive(m, down, down, right, left)
-	if m.stage != 2 || !m.inRows {
+	if m.stage != 1 || !m.inRows {
 		t.Errorf("left and right inside the rows: stage %d, in rows %v", m.stage, m.inRows)
 	}
 	// esc gives the bar the keyboard back, and right moves again, onto the next stage's first row
 	m = drive(m, esc, tab, down, down)
-	if m.stage != 3 || !strings.Contains(cursor(m), "release/0.1.0") {
+	if m.stage != 2 || !strings.Contains(cursor(m), "release/0.1.0") {
 		t.Errorf("the next stage's first row is not under the cursor:\n%s", view(m))
 	}
 	// from builds, three to the right stops at the end: incoming, releases, and there
 	m = drive(m, esc, tab, tab, tab)
-	if m.stage != 5 {
+	if m.stage != 4 {
 		t.Errorf("right past the end of the bar: %d", m.stage)
 	}
 }
@@ -342,7 +341,7 @@ func TestLeftAndRightMoveAlongTheBarOnlyWhileItHasTheKeyboard(t *testing.T) {
 // a click on its ▸ opens it, and on its ▾ closes it. A click on a … line, on the legend, or off the pane does nothing.
 func TestAClickOnARowSelectsItAndAgainOpensOrClosesIt(t *testing.T) {
 	click := testkit.Click
-	m := loaded(t, bare(), tab, tab, tab)
+	m := loaded(t, bare(), tabsTo("builds")...)
 	// the screen line the row is drawn on, as the person sees it
 	if y := slices.IndexFunc(strings.Split(raw(m), "\n"), func(l string) bool { return strings.Contains(l, "#160") }); y != m.rowsTop()+1 {
 		t.Fatalf("the second row is drawn on line %d, not %d", y, m.rowsTop()+1)
@@ -359,7 +358,7 @@ func TestAClickOnARowSelectsItAndAgainOpensOrClosesIt(t *testing.T) {
 	if m = drive(m, click(table.FoldCell, m.rowsTop()+1)); openRows(m) != 0 {
 		t.Errorf("a click on its ▾ did not close it:\n%s", view(m))
 	}
-	if m = drive(m, click(6, m.rowsTop())); m.find("builds").Cursor != 1 || m.stage != 3 {
+	if m = drive(m, click(6, m.rowsTop())); m.find("builds").Cursor != 1 || m.stage != 2 {
 		t.Errorf("a click on the first row: cursor %d, stage %d", m.find("builds").Cursor, m.stage)
 	}
 	before := view(m)
@@ -374,7 +373,7 @@ func TestAClickOnARowSelectsItAndAgainOpensOrClosesIt(t *testing.T) {
 		t.Errorf("the clicks changed the screen:\n%s", view(m))
 	}
 	// on a short pane, the … line above is no row's
-	m = loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 10}, tab, tab, tab, down, down, down, down)
+	m = loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 10}, tab, tab, down, down, down, down)
 	if m.find("builds").Cursor != 3 || !strings.Contains(lines(m)[m.rowsTop()], "above") {
 		t.Fatalf("the short pane: cursor %d\n%s", m.find("builds").Cursor, view(m))
 	}
@@ -385,16 +384,16 @@ func TestAClickOnARowSelectsItAndAgainOpensOrClosesIt(t *testing.T) {
 
 func TestANumberOrAClickSelectsAStageFromAnywhere(t *testing.T) {
 	m := loaded(t, options(), down)
-	if m = drive(m, tea.KeyPressMsg{Code: '5', Text: "5"}); m.stage != 4 || m.inRows {
-		t.Errorf("5 in the rows: stage %d, in rows %v", m.stage, m.inRows)
+	if m = drive(m, tea.KeyPressMsg{Code: '4', Text: "4"}); m.stage != 3 || m.inRows {
+		t.Errorf("4 in the rows: stage %d, in rows %v", m.stage, m.inRows)
 	}
-	for _, k := range []tea.KeyPressMsg{{Code: tea.KeyKp6}, {Code: '6', Mod: tea.ModAlt}, {Code: '6', Mod: tea.ModSuper}} {
-		if m = drive(loaded(t, options(), down), k); m.stage != 5 || m.inRows {
+	for _, k := range []tea.KeyPressMsg{{Code: tea.KeyKp5}, {Code: '5', Mod: tea.ModAlt}, {Code: '5', Mod: tea.ModSuper}} {
+		if m = drive(loaded(t, options(), down), k); m.stage != 4 || m.inRows {
 			t.Errorf("%s: stage %d, in rows %v", k, m.stage, m.inRows)
 		}
 	}
-	if m = drive(m, tea.KeyPressMsg{Code: '9', Text: "9"}); m.stage != 5 {
-		t.Errorf("9 with six stages moved to %d", m.stage)
+	if m = drive(m, tea.KeyPressMsg{Code: '9', Text: "9"}); m.stage != 4 {
+		t.Errorf("9 with five stages moved to %d", m.stage)
 	}
 	// wide enough that ➂ shows with the last stage selected
 	m = drive(m, tea.WindowSizeMsg{Width: 200, Height: 24})
@@ -408,7 +407,7 @@ func TestANumberOrAClickSelectsAStageFromAnywhere(t *testing.T) {
 }
 
 func TestDownEntersTheRowsAndUpOnTheFirstRowReturnsToTheBar(t *testing.T) {
-	m := loaded(t, options(), tab, tab, tab)
+	m := loaded(t, options(), tab, tab)
 	if m.inRows || cursor(m) != "" {
 		t.Fatalf("on the bar, a row has the focus:\n%s", view(m))
 	}
@@ -439,7 +438,7 @@ func TestDownEntersTheRowsAndUpOnTheFirstRowReturnsToTheBar(t *testing.T) {
 }
 
 func TestRightOpensARowAndLeftClosesIt(t *testing.T) {
-	m := loaded(t, options(), tab, tab, tab, down, down, right)
+	m := loaded(t, options(), tab, tab, down, down, right)
 	v := view(m)
 	for _, want := range []string{"build", "publish"} {
 		if !strings.Contains(v, want) {
@@ -454,7 +453,7 @@ func TestRightOpensARowAndLeftClosesIt(t *testing.T) {
 		t.Errorf("right or enter closed the row:\n%s", view(m))
 	}
 	m = drive(m, left, left)
-	if v := view(m); strings.Contains(v, "publish") || m.stage != 3 {
+	if v := view(m); strings.Contains(v, "publish") || m.stage != 2 {
 		t.Errorf("left did not close the row, or moved the stage:\n%s", v)
 	}
 	// enter on the bar opens nothing
@@ -472,7 +471,7 @@ func TestRightOpensARowAndLeftClosesIt(t *testing.T) {
 func TestRefreshAllRunsEveryStageAgain(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
-	m := loaded(t, options(), tab, tab, tab, tab, tab, press('='), typed("r")[0], typed("r")[0])
+	m := loaded(t, options(), tab, tab, tab, tab, press('='), typed("r")[0], typed("r")[0])
 	next, cmd := m.Update(press(tea.KeyEnter))
 	m = next.(Model)
 	// releases keeps its rows, stale, its dot on its tab, until the answer comes
@@ -480,8 +479,8 @@ func TestRefreshAllRunsEveryStageAgain(t *testing.T) {
 		t.Fatalf("Refresh All did not run releases again:\n%s", view(m))
 	}
 	m = drive(m, cmd())
-	// the six, then the six again
-	if got := calls(t, record); len(got) != 12 || slices.Index(got[6:], "flow releases --json") < 0 {
+	// the five, then the five again
+	if got := calls(t, record); len(got) != 10 || slices.Index(got[5:], "flow releases --json") < 0 {
 		t.Errorf("the calls: %q", got)
 	}
 	if !shows(m, Release, "3") || m.find("releases").src.Stale {
@@ -491,7 +490,7 @@ func TestRefreshAllRunsEveryStageAgain(t *testing.T) {
 
 func TestARefusedStageShowsKitsLineAndRefreshTriesAgain(t *testing.T) {
 	t.Setenv("FAKE_FLOW_REFUSE", "changes")
-	m := loaded(t, options(), tab, tab)
+	m := loaded(t, options(), tab)
 	v := view(m)
 	refusal := Failed + " kit flow changes: the forge cannot be read; run: kit help flow"
 	if !shows(m, Change, "!") || !strings.Contains(v, refusal) {
@@ -508,25 +507,25 @@ func TestARefusedStageShowsKitsLineAndRefreshTriesAgain(t *testing.T) {
 }
 
 func TestAStageThatDiesSilentlyIsARefusalNotAnEmptyStage(t *testing.T) {
-	t.Setenv("FAKE_FLOW_SILENT", "backlog")
+	t.Setenv("FAKE_FLOW_SILENT", "issues")
 	m := loaded(t, options())
 	v := view(m)
 	if !shows(m, Issue, "!") || strings.Contains(v, "no open issue") ||
-		!strings.Contains(v, Failed+" kit flow backlog --json exited 1 with nothing on stderr") {
+		!strings.Contains(v, Failed+" kit flow issues --json exited 1 with nothing on stderr") {
 		t.Errorf("the silent failure:\n%s", v)
 	}
 	// a kit killed by a signal has no code; one with a line keeps it
-	if got := refusalOf("backlog", &kit.ExitError{Code: -1}); got != "kit flow backlog --json was killed" {
+	if got := refusalOf("issues", &kit.ExitError{Code: -1}); got != "kit flow issues --json was killed" {
 		t.Errorf("killed: %q", got)
 	}
-	if got := refusalOf("backlog", &kit.ExitError{Code: 1, Stderr: "❌ the line\n"}); got != "the line" {
+	if got := refusalOf("issues", &kit.ExitError{Code: 1, Stderr: "❌ the line\n"}); got != "the line" {
 		t.Errorf("with a line: %q", got)
 	}
 }
 
 func TestADocumentOfAnotherShapeIsOneRefusalLine(t *testing.T) {
 	t.Setenv("FAKE_FLOW_ABOVE", "incoming")
-	m := loaded(t, options(), tab, tab, tab, tab)
+	m := loaded(t, options(), tab, tab, tab)
 	v := view(m)
 	// the line wraps at the pane's width, as every refusal does
 	want := `kit flow incoming --json printed an array where an object with "rows" was expected`
@@ -534,23 +533,23 @@ func TestADocumentOfAnotherShapeIsOneRefusalLine(t *testing.T) {
 		!strings.Contains(v, Failed+" kit flow incoming --json printed an array where an object with") {
 		t.Errorf("an array for incoming: %q\n%s", m.find("incoming").refusal, v)
 	}
-	t.Setenv("FAKE_FLOW_ABOVE", "backlog")
+	t.Setenv("FAKE_FLOW_ABOVE", "issues")
 	m = loaded(t, options())
 	v = view(m)
-	want = "kit flow backlog --json printed a record without .number"
+	want = "kit flow issues --json printed a record without .number"
 	if m.stages[0].refusal != want || !shows(m, Issue, "!") || strings.Contains(v, "#0") ||
 		!strings.Contains(v, Failed+" "+want) {
-		t.Errorf("desks for backlog: %q\n%s", m.stages[0].refusal, v)
+		t.Errorf("desks for issues: %q\n%s", m.stages[0].refusal, v)
 	}
 	for name, data := range map[string]string{"changes": "{}",
 		"releases": `[{"version": "1"}, {}]`, "builds": `{"id": 1}`, "incoming": `{"fetched": false}`,
-		"underway": `[{"number": 1, "pr": {}}]`} {
+		"issues": `[{"pr": {"number": 2}}]`} {
 		if (&stage{name: name}).decode([]byte(data), false) == nil {
 			t.Errorf("%s took %s", name, data)
 		}
 	}
-	for name, data := range map[string]string{"backlog": "[]", "incoming": `{"fetched": false, "rows": []}`,
-		"underway": `[{"number": 1, "pr": {"number": 2}}]`, "changes": "[]",
+	for name, data := range map[string]string{"issues": `[{"number": 1, "pr": {"number": 2}}, {"number": 1}]`,
+		"incoming": `{"fetched": false, "rows": []}`, "changes": "[]",
 		"releases": `[{"key": "release/1", "version": "1"}]`, "builds": `[{"id": 1}]`} {
 		if err := (&stage{name: name}).decode([]byte(data), false); err != nil {
 			t.Errorf("%s refused %s: %v", name, data, err)
@@ -591,12 +590,12 @@ func TestQuitCodes(t *testing.T) {
 
 // Esc walks back from the rows to the bar and leaves the legend as it is: only F1 or ? takes it away.
 func TestEscWalksBackFromTheRowsToTheBarAndKeepsTheLegend(t *testing.T) {
-	m := loaded(t, options(), tab, tab, tab, down, down, press('?'))
+	m := loaded(t, options(), tab, tab, down, down, press('?'))
 	if !m.legend.open || !strings.Contains(view(m), "builds legend") {
 		t.Fatalf("? did not show the legend:\n%s", view(m))
 	}
 	next, cmd := m.Update(press(tea.KeyEscape))
-	if m = next.(Model); cmd != nil || !m.legend.open || m.inRows || m.stage != 3 || cursor(m) != "" {
+	if m = next.(Model); cmd != nil || !m.legend.open || m.inRows || m.stage != 2 || cursor(m) != "" {
 		t.Fatalf("esc in the rows: legend %v, in rows %v, stage %d\n%s", m.legend.open, m.inRows, m.stage, view(m))
 	}
 	// on the bar, esc does nothing
@@ -647,8 +646,8 @@ func fit(keys string, room int) string {
 // keys, the stages' bar's, then the rows', each control's between rules; ? and F1 show the legend from anywhere.
 const (
 	screenKeys = "= menu - workspace / search ? legend │ "
-	barKeys    = screenKeys + "⇥·⇧⇥ tab ↓ groups 1-6 jump : tab menu"
-	inRows     = screenKeys + "1-6 jump : tab menu │ esc tabs ↑↓ move ␣·⇧↑↓ select ⌃A all"
+	barKeys    = screenKeys + "⇥·⇧⇥ tab ↓ groups 1-5 jump : tab menu"
+	inRows     = screenKeys + "1-5 jump : tab menu │ esc tabs ↑↓ move ␣·⇧↑↓ select ⌃A all"
 	opens      = inRows + " → show"
 	closes     = inRows + " ← hide"
 )
@@ -671,10 +670,10 @@ func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
 		keys string
 	}{
 		{nil, barKeys},
-		{[]tea.Msg{tab, tab, tab, down, down}, opens},
+		{[]tea.Msg{tab, tab, down, down}, opens},
 		// past the headings, jig's #7, and kit's heading, to #45, which [ and ] step from group to group
 		{[]tea.Msg{down, down, down, down, down, down}, strings.Replace(opens, "↑↓ move ", "↑↓ move [] group ", 1)},
-		{[]tea.Msg{tab, tab, tab, down, down, right}, closes},
+		{[]tea.Msg{tab, tab, down, down, right}, closes},
 		{[]tea.Msg{press('?')}, barKeys},
 		{[]tea.Msg{press('?'), press(tea.KeyPgDown)}, barKeys},
 	} {
@@ -708,7 +707,7 @@ func TestAStageThatOutlastsTheLimitIsARefusalAndRRunsItAgain(t *testing.T) {
 	t.Setenv("FAKE_FLOW_SLOW", "releases")
 	m := New(runner(t), options())
 	m.limit = 100 * time.Millisecond
-	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 24}, tab, tab, tab, tab, tab)
+	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 24}, tab, tab, tab, tab)
 	start := time.Now()
 	msg := m.load("releases", false)()
 	// the fake sleeps five seconds: the answer comes at the limit only when the sleep is killed with the kit
@@ -775,7 +774,7 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 	}
 	o := options()
 	o.NoFetch, o.Origin = true, Origin{}
-	m = loaded(t, o, tab, tab, tab, tab)
+	m = loaded(t, o, tab, tab, tab)
 	if first := lines(m)[0]; first != "  "+shell.App+" kit flow · "+shell.Workspaces {
 		t.Errorf("the title with --no-fetch: %q", first)
 	}
@@ -803,7 +802,7 @@ func TestTheTitleCarriesOriginAndTheFetchIsTheIncomingStage(t *testing.T) {
 }
 
 func TestIncomingIsATableOfEverythingIncoming(t *testing.T) {
-	m := loaded(t, options(), tab, tab, tab, tab)
+	m := loaded(t, options(), tab, tab, tab)
 	// a row a thing incoming, kit's order, the primary's first: each remote itself, each commit, branch, and tag, and
 	// each local branch behind its upstream
 	want := []string{
@@ -850,20 +849,20 @@ func TestIncomingIsATableOfEverythingIncoming(t *testing.T) {
 	}
 	m.setPanel(base)
 	// the count leaves out the remotes' own rows: seven things came in
-	if !shows(m, Fetched, "7") || m.count(4) != "7" {
+	if !shows(m, Fetched, "7") || m.count(3) != "7" {
 		t.Errorf("incoming does not count what came in alone: %q", lines(m)[2])
 	}
 	// a remote whose fetch failed says so in its row, with git's line
 	setRows(t, &m, remoteRow("upstream", "remote", "failed", "fatal: could not read from remote repository"))
 	if v := view(m); !strings.Contains(v, Failed+" failed") || !strings.Contains(v, "fatal: could not read from") ||
-		m.count(4) != "0" {
-		t.Errorf("a failed fetch: count %s\n%s", m.count(4), v)
+		m.count(3) != "0" {
+		t.Errorf("a failed fetch: count %s\n%s", m.count(3), v)
 	}
 	// with every remote unchanged, each says so and the count is zero
 	setRows(t, &m, remoteRow("origin", "remote", "unchanged", ""), remoteRow("upstream", "remote", "unchanged", ""),
 		remoteRow("backup", "remote", "unchanged", ""))
-	if v := view(m); strings.Count(v, "unchanged") != 3 || m.count(4) != "0" {
-		t.Errorf("three remotes unchanged: count %s\n%s", m.count(4), v)
+	if v := view(m); strings.Count(v, "unchanged") != 3 || m.count(3) != "0" {
+		t.Errorf("three remotes unchanged: count %s\n%s", m.count(3), v)
 	}
 	// a row's key the catalog does not name stands under more, which Everything a click away shows
 	if got := m.records(*m.find("incoming")); len(got) != 3 || got[0].values["more"].Raw != nil {
@@ -906,7 +905,7 @@ func setRows(t *testing.T, m *Model, rows ...map[string]any) {
 
 func TestChangesCarryTheirChecksThreadsAndIssues(t *testing.T) {
 	// a change's row is wide: at 80 columns its right end is clipped, so the screen is wider here
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24}, tab, tab, down, down, toggle)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24}, tab, down, down, toggle)
 	v := view(m)
 	// the checks of the failing one are cut at the cap, to give the title room
 	for _, want := range []string{style.Opened + " 🔀 #2", "jeffrey-aguilera  🏁 ready", Passed + " 1 / 1 3m",
@@ -928,12 +927,13 @@ func TestChangesCarryTheirChecksThreadsAndIssues(t *testing.T) {
 	}
 }
 
-func TestBacklogOpensToItsDetail(t *testing.T) {
+func TestTheBacklogOpensToItsDetail(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 24})
+	m.apply(m.viewsOf(0).Chosen("Backlog"))
 	// the source, organization, repository, and labels have tests of their own, so the rows stand ungrouped
 	m.setPanel(m.panel(m.stage).Placed("source", grid.Hidden).Placed("organization", grid.Hidden).Placed("repository",
 		grid.Hidden).Placed("labels", grid.Hidden))
-	m = drive(intoRows(m), toggle)
+	m = drive(intoRows(m), down, down, toggle)
 	v := view(m)
 	// the title has what the other columns leave, with its glyph, which leads to the issue's page, and the branch, which
 	// one row alone has, with its own; two assignees are the first and +1, as any list's are; every row's assignee
@@ -945,12 +945,14 @@ func TestBacklogOpensToItsDetail(t *testing.T) {
 		}
 	}
 	// the issue's page is its title's glyph's, not a line of its own, and nothing says how to start it
-	if strings.Contains(v, "https://") || strings.Contains(v, "kit work 45") ||
-		last(m.rows(0)[1].Cells).Link != "https://github.com/empowerite/kit/issues/45" {
+	rows := m.rows(0)
+	k := slices.IndexFunc(rows, func(r row) bool { return r.Key == "#45" })
+	if strings.Contains(v, "https://") || strings.Contains(v, "kit work 45") || k < 0 ||
+		last(rows[k].Cells).Link != "https://github.com/empowerite/kit/issues/45" {
 		t.Errorf("the backlog's links:\n%s", v)
 	}
 	// open, the row of two assignees names each down its column, one to a line, as a row of labels does
-	if v = view(drive(m, down, down, toggle)); !strings.Contains(v, "#7   ada") || !strings.Contains(v, "     bob") ||
+	if v = view(drive(m, toggle, up, up, toggle)); !strings.Contains(v, "#7   ada") || !strings.Contains(v, "     bob") ||
 		strings.Contains(v, "ada bob") || strings.Contains(v, "+1") {
 		t.Errorf("#7 open:\n%s", v)
 	}
@@ -962,7 +964,7 @@ func TestBacklogOpensToItsDetail(t *testing.T) {
 // asset, each leading to its own download. The name, the tag, the date, the page, and the downloads are fields a
 // preset shows, hidden by default.
 func TestAReleaseIsARowOfItsFieldsLeadingToItsPageAndItsAssets(t *testing.T) {
-	m := intoRows(loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30}, tab, tab, tab, tab, tab))
+	m := intoRows(loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30}, tab, tab, tab, tab))
 	v := view(m)
 	for _, want := range []string{"0.2.0       " + Draft + " draft", "0.1.0       " + Release + " release",
 		Latest + " latest", "📎 kit-0.1.0.tar.gz     +1", "## What's Changed", "0.1.0-rc.7  " + Pre + " pre-release  28h",
@@ -1028,7 +1030,7 @@ func TestAReleaseIsARowOfItsFieldsLeadingToItsPageAndItsAssets(t *testing.T) {
 }
 
 func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
-	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 10}, tab, tab, tab, down, down, down, down)
+	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 10}, tab, tab, down, down, down, down)
 	got := lines(m)
 	if len(got) != 10 {
 		t.Fatalf("%d lines on a screen of 10:\n%s", len(got), view(m))
@@ -1101,30 +1103,30 @@ func TestEveryLineFitsTheWidthInCells(t *testing.T) {
 // the width; at 80 columns or fewer, a long title is clipped. Esc leaves the rows for the bar, whence right is the next
 // stage; up would stop on the control line, and right there opens a level.
 func everyLineFits(t *testing.T, width int, legend bool) {
-	// one load for the six: each stage in turn, its first row open, then back to the bar
+	// one load for the five: each stage in turn, its first row open, then back to the bar
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: width, Height: 40})
 	if legend {
 		m = drive(m, press('?'))
 	}
-	for i := range six {
+	for i := range five {
 		if i > 0 {
 			m = drive(m, esc, tab)
 		}
 		if m.stage != i {
-			t.Fatalf("at %d, legend %v: on stage %d, not %s's", width, legend, m.stage, six[i])
+			t.Fatalf("at %d, legend %v: on stage %d, not %s's", width, legend, m.stage, five[i])
 		}
 		m = drive(intoRows(m), toggle)
 		clipped := false
 		for _, l := range strings.Split(m.View().Content, "\n") {
 			if n := ansi.StringWidth(l); n > width {
-				t.Errorf("%s at %d, legend %v: a line of %d cells: %q", six[i], width, legend, n, ansi.Strip(l))
+				t.Errorf("%s at %d, legend %v: a line of %d cells: %q", five[i], width, legend, n, ansi.Strip(l))
 			}
 			// a clipped row ends in …
 			clipped = clipped || strings.Contains(strings.TrimRight(ansi.Strip(l), " "), "…")
 		}
-		long := six[i] == "changes" || six[i] == "backlog" || six[i] == "underway"
+		long := five[i] == "changes" || five[i] == "issues"
 		if width <= 80 && long && !clipped {
-			t.Errorf("%s at %d: no long title was clipped:\n%s", six[i], width, view(m))
+			t.Errorf("%s at %d: no long title was clipped:\n%s", five[i], width, view(m))
 		}
 	}
 }
@@ -1164,15 +1166,22 @@ func TestOpenAppReadsTheStagesAndTheWords(t *testing.T) {
 	if got := calls(t, record); strings.Join(got, "\n") != "flow --stages\ndelivery --stages" {
 		t.Errorf("OpenApp ran %q", got)
 	}
-	// a stage of the picture named opens on it, maximized, as kit flow <stage> does; the filters still reach the stages
-	if m, err = OpenApp(runner(t), shell.Issues, ParseWords([]string{"underway", "--mine"})); err != nil {
-		t.Fatal(err)
-	}
-	if m.stages[m.stage].name != "underway" || !m.maximized || strings.Join(m.filters, " ") != "--mine" {
-		t.Errorf("OpenApp underway: on %q, maximized %v, filters %q", m.stages[m.stage].name, m.maximized, m.filters)
-	}
-	if !strings.Contains(lines(m)[0], "kit issues · ") || !strings.Contains(lines(m)[0], " · ➋ underway") {
-		t.Errorf("OpenApp underway, the title: %q", lines(m)[0])
+	// a stage of the picture named opens on it, maximized, as kit flow <stage> does; the filters still reach the stages;
+	// underway, as backlog, opens on issues, set as the preset of its name, which the other stages are not
+	for word, preset := range map[string]string{"issues": "All Issues", "underway": "Underway", "backlog": "Backlog"} {
+		if m, err = OpenApp(runner(t), shell.Issues, ParseWords([]string{word, "--mine"})); err != nil {
+			t.Fatal(err)
+		}
+		s := m.stages[m.stage]
+		if s.name != "issues" || !m.maximized || strings.Join(m.filters, " ") != "--mine" || s.ViewName != preset ||
+			m.is(m.stage) != preset || m.stages[1].ViewName != table.Default {
+			t.Errorf("OpenApp %s: on %q set as %q, maximized %v, filters %q", word, s.name, s.ViewName, m.maximized,
+				m.filters)
+		}
+		if !strings.Contains(lines(m)[0], "kit issues · ") || !strings.Contains(lines(m)[0], " · ➊ issues") {
+			t.Errorf("OpenApp %s, the title: %q", word, lines(m)[0])
+		}
+		m.Close()
 	}
 	t.Setenv("FAKE_FLOW_REFUSE", "stages")
 	_, err = OpenApp(runner(t), shell.Issues, Words{})
@@ -1205,7 +1214,7 @@ func TestAgeIsKitStatuss(t *testing.T) {
 }
 
 func TestAPaneTooShortSaysHowManyLinesAreAboveAndBelow(t *testing.T) {
-	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 11}, tab, tab, tab, down, down, down, toggle)
+	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 11}, tab, tab, down, down, down, toggle)
 	got := lines(m)
 	if len(got) != 11 || got[10] != " "+at80(keysFor(m, closes)) {
 		t.Fatalf("the screen is not 11 lines with the keys last:\n%s", view(m))
@@ -1216,7 +1225,7 @@ func TestAPaneTooShortSaysHowManyLinesAreAboveAndBelow(t *testing.T) {
 		t.Errorf("the open row is not shown between its … lines:\n%s", v)
 	}
 	// a pane that holds every line says nothing of the kind
-	m = loaded(t, options(), tab, tab, tab)
+	m = loaded(t, options(), tab, tab)
 	if strings.Contains(view(m), " above") || strings.Contains(view(m), " more") {
 		t.Errorf("a pane that fits says lines are hidden:\n%s", view(m))
 	}
@@ -1239,26 +1248,26 @@ func cellsOf(line, text string) []int {
 // stage's name is in the accent wherever the keyboard is; while the rows have it, the others are dim.
 func TestTheBarScrollsToTheSelectedStage(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 200, Height: 24})
-	for _, name := range six {
+	for _, name := range five {
 		if bar := lines(m)[2]; !strings.Contains(bar, name) {
 			t.Errorf("at 200, %s is not whole: %q", name, bar)
 		}
 	}
-	if mark, _ := style.In(stageColors["backlog"]); !strings.Contains(m.View().Content, Issue+" "+mark("backlog")) {
+	if mark, _ := style.In(stageColors["issues"]); !strings.Contains(m.View().Content, Issue+" "+mark("issues")) {
 		t.Errorf("the selected name is not marked: %q", lines(m)[2])
 	}
-	m = drive(m, tab, tab, tab, tab, down)
+	m = drive(m, tab, tab, tab, down)
 	dim, _, _ := strings.Cut(style.Off("x"), "x")
 	mark, _ := style.In(stageColors["incoming"])
 	if bar := strings.Split(m.View().Content, "\n")[2]; !strings.Contains(bar, mark("incoming")) ||
-		!strings.Contains(bar, dim+" 🛫 underway") {
+		!strings.Contains(bar, dim+" 🔀 changes") {
 		t.Errorf("with the rows' keyboard, the selected stage left its color, or the others are not dim: %q", bar)
 	}
-	// at 90, ◃ says tabs are hidden on the left; at 80 it is blank, the view starting on a whole tab
+	// at 70, ◃ says tabs are hidden on the left; at 58 it is blank, the view starting on a whole tab
 	for _, c := range []struct {
 		width  int
 		before string
-	}{{90, " " + tabs.Before}, {80, "  "}} {
+	}{{70, " " + tabs.Before}, {58, "  "}} {
 		m = drive(m, tea.WindowSizeMsg{Width: c.width, Height: 24})
 		bar := lines(m)[2]
 		if !strings.Contains(squeeze(bar), "│ "+Fetched+" incoming 7 "+tabs.Menu+" │") || !strings.HasPrefix(bar, c.before) ||
@@ -1269,10 +1278,10 @@ func TestTheBarScrollsToTheSelectedStage(t *testing.T) {
 }
 
 func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testing.T) {
-	// builds is the fourth stage; its first row, a run of ten jobs, opened, takes about three panes on a short screen
+	// builds is the third stage; its first row, a run of ten jobs, opened, takes about three panes on a short screen
 	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 120, Height: 12})
-	m = drive(m, tallBuild(m, 10), tab, tab, tab, down, down, toggle)
-	if m.stage != 3 || m.find("builds").Cursor != 1 || !strings.Contains(view(m), " more") {
+	m = drive(m, tallBuild(m, 10), tab, tab, down, down, toggle)
+	if m.stage != 2 || m.find("builds").Cursor != 1 || !strings.Contains(view(m), " more") {
 		t.Fatalf("the open row does not overflow the pane:\n%s", view(m))
 	}
 	bare := func(s string) string {
@@ -1314,7 +1323,7 @@ func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testi
 
 func TestBuildsCarryTheirStateAndOpenToTheirCommitAttemptJobsFailedFirstThenTheirURL(t *testing.T) {
 	// builds is the seventh stage, between incoming and releases
-	m := loaded(t, bare(), tab, tab, tab)
+	m := loaded(t, bare(), tab, tab)
 	if m.stages[m.stage].name != "builds" || !shows(m, Build, "4") {
 		t.Fatalf("builds is not the seventh stage:\n%s", view(m))
 	}
@@ -1369,7 +1378,7 @@ func TestBuildsCarryTheirStateAndOpenToTheirCommitAttemptJobsFailedFirstThenThei
 		t.Errorf("the jobs' durations are not right-aligned:\n%s", v)
 	}
 	if b := m.find("builds"); strings.Contains(v, "https://") ||
-		m.rows(slices.Index(six, "builds"))[b.Cursor].Cells[0].Link != "https://github.com/empowerite/kit/actions/runs/41309409467" {
+		m.rows(slices.Index(five, "builds"))[b.Cursor].Cells[0].Link != "https://github.com/empowerite/kit/actions/runs/41309409467" {
 		t.Errorf("the run's page is not its state's glyph's:\n%s", v)
 	}
 	// a first attempt says nothing of it
@@ -1390,10 +1399,10 @@ func TestBuildsCarryTheirStateAndOpenToTheirCommitAttemptJobsFailedFirstThenThei
 
 func TestBuildsRefuseADocumentWithoutIDs(t *testing.T) {
 	t.Setenv("FAKE_FLOW_ABOVE", "builds")
-	m := loaded(t, options(), tab, tab, tab)
+	m := loaded(t, options(), tab, tab)
 	want := "kit flow builds --json printed a record without .id"
-	if m.stages[3].refusal != want || !shows(m, Build, "!") {
-		t.Errorf("desks for builds: %q\n%s", m.stages[3].refusal, view(m))
+	if m.stages[2].refusal != want || !shows(m, Build, "!") {
+		t.Errorf("desks for builds: %q\n%s", m.stages[2].refusal, view(m))
 	}
 	if err := (&stage{name: "builds"}).decode([]byte(`{"id": 1}`), false); err == nil ||
 		!strings.Contains(err.Error(), "printed an object where an array was expected") {
@@ -1417,14 +1426,15 @@ func TestTookIsToTheSecond(t *testing.T) {
 }
 
 func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
-	// underway is the second stage, between backlog and incoming
-	m := loaded(t, bare(), tab)
+	// issues is the first stage, set as Underway: an issue a pull request closes, once beside each
+	m := loaded(t, bare())
+	m.apply(m.viewsOf(0).Chosen("Underway"))
 	// the source, organization, repository, and labels have tests of their own, so the rows stand ungrouped
 	m.setPanel(m.panel(m.stage).Placed("source", grid.Hidden).Placed("organization", grid.Hidden).Placed("repository",
 		grid.Hidden).Placed("labels", grid.Hidden))
 	asCatalog(&m, m.stage) // auto_test has what the screen chooses
-	if m.stages[m.stage].name != "underway" || !shows(m, InFlight, "4") {
-		t.Fatalf("underway is not the second stage:\n%s", view(m))
+	if m.stages[m.stage].name != "issues" || !shows(m, Issue, "7") || table.Counted(m.every(0)) != 4 {
+		t.Fatalf("issues set as Underway is not the first stage:\n%s", view(m))
 	}
 	rows := lines(m)[m.rowsTop() : m.rowsTop()+4]
 	for i, want := range [][]string{
@@ -1487,7 +1497,7 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	}
 	// the pull request's glyph leads to its row under changes, the state's to its page, the title's to the issue's
 	links := func(m Model) (string, string) {
-		r := m.rows(1)[m.find("underway").Cursor]
+		r := m.rows(0)[m.find("issues").Cursor]
 		if r.Cells[3].Link != jumpTo("changes", "#2") && r.Cells[3].Link != jumpTo("changes", "#4") {
 			t.Errorf("the pull request's glyph leads to %q", r.Cells[3].Link)
 		}
@@ -1504,36 +1514,37 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 		strings.Contains(v, Desk+" /") {
 		t.Errorf("the open row elsewhere:\n%s", v)
 	}
-	if s := m.find("underway"); s.Open["#8 #4"] || grid.Opens(m.rows(1), nil, s.Cursor, m.paneWidth()) {
+	if s := m.find("issues"); s.Open["#8 #4"] || grid.Opens(m.rows(0), nil, s.Cursor, m.paneWidth()) {
 		t.Errorf("a row elsewhere with a short title opens: %v", s.Open)
 	}
 	// the URLs kit prints win, as a merge request's on GitLab
-	s := m.find("underway")
-	of[underway](*s)[1].URL = "https://git.example.org/g/kit/-/issues/8"
-	of[underway](*s)[1].PR.URL = "https://git.example.org/g/kit/-/merge_requests/4"
+	s := m.find("issues")
+	of[issue](*s)[2].URL = "https://git.example.org/g/kit/-/issues/8"
+	of[issue](*s)[2].PR.URL = "https://git.example.org/g/kit/-/merge_requests/4"
 	m.rebuild()
 	if pr, issue := links(m); issue != "https://git.example.org/g/kit/-/issues/8" ||
 		pr != "https://git.example.org/g/kit/-/merge_requests/4" {
 		t.Errorf("kit's URLs do not win: %q %q", pr, issue)
 	}
-	// an empty stage says no issue is underway
-	m = drive(m, reanswer(m, "underway", "[]"))
-	if !strings.Contains(view(m), "   no issue is underway") || !shows(m, InFlight, "0") {
-		t.Errorf("the empty underway:\n%s", view(m))
+	// an empty stage, set as Underway, says no row matches
+	m = drive(m, reanswer(m, "issues", "[]"))
+	if !strings.Contains(view(m), "no row matches the panel") || !shows(m, Issue, "0") {
+		t.Errorf("the empty issues:\n%s", view(m))
 	}
 }
 
-func TestUnderwayRefusesADocumentWithoutPullRequests(t *testing.T) {
-	t.Setenv("FAKE_FLOW_ABOVE", "underway")
-	m := loaded(t, options(), tab)
-	want := "kit flow underway --json printed a record without .number, .pr.number"
-	if m.stages[1].refusal != want || !shows(m, InFlight, "!") {
-		t.Errorf("desks for underway: %q\n%s", m.stages[1].refusal, view(m))
+// An issue's row is keyed by its number, and, underway, its pull request's after it: an issue in the backlog is one
+// row, one two pull requests close two, and two rows of one key are refused.
+func TestIssuesKeyEachRowByTheIssueAndItsPullRequest(t *testing.T) {
+	s := stage{name: "issues"}
+	if err := s.decode([]byte(`[{"number": 1, "pr": null}, {"number": 2, "pr": {"number": 3}},
+		{"number": 2, "pr": {"number": 4}}]`), false); err != nil || len(s.parsed) != 3 || s.parsed[0].key != "1" ||
+		s.parsed[1].key != "2 3" || s.parsed[2].key != "2 4" {
+		t.Errorf("the keys: %v %+v", err, s.parsed)
 	}
-	// backlog's issues are not underway's: each needs its pull request
-	err := (&stage{name: "underway"}).decode([]byte(`[{"number": 1}]`), false)
-	if err == nil || !strings.Contains(err.Error(), "without .number, .pr.number") {
-		t.Errorf("underway took issues without pull requests: %v", err)
+	err := (&stage{name: "issues"}).decode([]byte(`[{"number": 1}, {"number": 1, "pr": {}}]`), false)
+	if err == nil || !strings.Contains(err.Error(), "printed two records of the key 1") {
+		t.Errorf("issues took two rows of one key: %v", err)
 	}
 	// incoming before its rows is refused
 	if err := (&stage{name: "incoming"}).decode([]byte(`{"fetched": true, "commits": []}`), false); err == nil ||
@@ -1542,17 +1553,19 @@ func TestUnderwayRefusesADocumentWithoutPullRequests(t *testing.T) {
 	}
 }
 
-// A click on underway's pull request glyph selects changes, the cursor on that pull request's row; a click on its
+// A click on an issue's pull request glyph selects changes, the cursor on that pull request's row; a click on its
 // state's glyph opens its page; without changes in the picture, the pull request's glyph opens the page too.
-func TestUnderwaysPullRequestLeadsToItsRowUnderChangesAndItsStateToItsPage(t *testing.T) {
-	m := drive(intoRows(loaded(t, bare(), tab)), down)
+func TestAnIssuesPullRequestLeadsToItsRowUnderChangesAndItsStateToItsPage(t *testing.T) {
+	m := loaded(t, bare())
+	m.apply(m.viewsOf(0).Chosen("Underway"))
+	m = drive(intoRows(m), down)
 	at := func(m Model, glyph string) int {
-		return cellsOf(lines(m)[m.rowLine(m.find("underway").Cursor)], glyph)[0]
+		return cellsOf(lines(m)[m.rowLine(m.find("issues").Cursor)], glyph)[0]
 	}
-	change, state, y := at(m, "🔀 #4"), at(m, "🔥"), m.rowLine(m.find("underway").Cursor)
+	change, state, y := at(m, "🔀 #4"), at(m, "🔥"), m.rowLine(m.find("issues").Cursor)
 	browsed = nil
 	if m = drive(m, testkit.Click(state, y)); len(browsed) != 1 || !strings.HasSuffix(browsed[0], "/kit/pull/4") ||
-		m.stages[m.stage].name != "underway" {
+		m.stages[m.stage].name != "issues" {
 		t.Fatalf("a click on the state: %v\n%s", browsed, view(m))
 	}
 	m = drive(m, testkit.Click(change, y))
@@ -1571,9 +1584,9 @@ func TestUnderwaysPullRequestLeadsToItsRowUnderChangesAndItsStateToItsPage(t *te
 	// without changes, the pull request's glyph opens its page
 	o := options()
 	o.Stages = slices.DeleteFunc(slices.Clone(o.Stages), func(s string) bool { return s == "changes" })
-	m = loaded(t, o, tab)
-	// the first row stands under the heading over the groups and source's value, as the view grouped it as it loaded
-	first := m.rows(1)[2]
+	m = loaded(t, o)
+	rows := m.rows(0)
+	first := rows[slices.IndexFunc(rows, func(r row) bool { return r.Key == "#1 #2" })]
 	link := ""
 	for _, c := range first.Cells {
 		if strings.Contains(c.Link, "/pull/") {
@@ -1598,18 +1611,18 @@ func init() {
 	}
 }
 
-// Backlog and underway say which tracker holds each issue: its glyph and the source kit names, dim; a source kittui
+// Issues say which tracker holds each issue, in the backlog and underway: its glyph and the source kit names, dim; a
+// source kittui
 // has no glyph for by its name alone; and none at all leaves the column out, as an empty one. While one tracker holds
 // every issue, the view groups the rows by it as it loads, so it is said once, in its group's heading, as any group's
 // value, and the column leaves them; with Auto-group off, it stands under the source header, the glyph every row
 // shares left out.
-func TestBacklogAndUnderwaySayWhichTrackerHoldsEachIssue(t *testing.T) {
+func TestIssuesSayWhichTrackerHoldsEachIssue(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
-	for i, name := range []string{"backlog", "underway"} {
+	for i, name := range []string{"All Issues", "Underway"} {
 		if i > 0 {
-			m = drive(m, tab)
 			folding(&m, true)
-			m.apply(m.chosen(m.stage))
+			m.apply(m.viewsOf(0).Chosen(name))
 		}
 		if l := lines(m); strings.Contains(l[m.headerTop()], "source") || !strings.Contains(l[m.rowsTop()], "github") ||
 			strings.Count(view(m), "github") != 1 {
@@ -1621,14 +1634,14 @@ func TestBacklogAndUnderwaySayWhichTrackerHoldsEachIssue(t *testing.T) {
 			t.Errorf("%s not folding does not say the source:\n%s", name, view(m))
 		}
 	}
-	source := fieldsOf("backlog")[slices.IndexFunc(fieldsOf("backlog"), func(f table.Field) bool { return f.ID == "source" })]
+	source := fieldsOf("issues")[slices.IndexFunc(fieldsOf("issues"), func(f table.Field) bool { return f.ID == "source" })]
 	if c := source.Draw([]table.Value{table.Some("gitlab"), table.Some("AB#"), table.Some("")}, ""); c[0].Values[0] != style.Off(GitLab+" gitlab") ||
 		c[1].Values[0] != style.Off("AB#") || len(c[2].Values) != 0 {
 		t.Errorf("the source cells: %q %q %q", c[0].Values, c[1].Values, c[2].Values)
 	}
-	s := m.find("underway")
-	for k := range of[underway](*s) {
-		of[underway](*s)[k].Source = ""
+	s := m.find("issues")
+	for k := range of[issue](*s) {
+		of[issue](*s)[k].Source = ""
 	}
 	m.rebuild()
 	if strings.Contains(lines(m)[m.top()], "source") {
@@ -1685,22 +1698,22 @@ func TestOverAGroupEveryLoadCarriesTheWorkspace(t *testing.T) {
 	}
 }
 
-// tabsTo gives the tabs from the bar's first stage to the named one, in options()' six.
-func tabsTo(name string) []tea.Msg { return slices.Repeat([]tea.Msg{tab}, slices.Index(six, name)) }
+// tabsTo gives the tabs from the bar's first stage to the named one, in options()' five.
+func tabsTo(name string) []tea.Msg { return slices.Repeat([]tea.Msg{tab}, slices.Index(five, name)) }
 
-// reloaded gives backlog alone, answered with the first document, then the second as its latest load's answer: after
+// reloaded gives issues alone, answered with the first document, then the second as its latest load's answer: after
 // a restart, or, kept, the first is what kit kept and the second its load's.
 func reloaded(t *testing.T, kept bool, first, second string) Model {
 	t.Helper()
 	o := options()
-	o.Stages = []string{"backlog"}
-	a := answer("backlog", first)
+	o.Stages = []string{"issues"}
+	a := answer("issues", first)
 	a.Kept = kept
 	m := drive(New(runner(t), o), a)
 	if !kept {
-		m.restart("backlog")
+		m.restart("issues")
 	}
-	return drive(m, source.Answer[[]byte]{Name: "backlog", Gen: m.find("backlog").src.Gen(), Value: []byte(second)})
+	return drive(m, source.Answer[[]byte]{Name: "issues", Gen: m.find("issues").src.Gen(), Value: []byte(second)})
 }
 
 // A reload whose rows hold null where the rows before held a value shows nothing there: each row is read fresh.
@@ -1709,7 +1722,7 @@ func TestAReloadKeepsNoFieldOfTheRowThatStoodThere(t *testing.T) {
 		m := reloaded(t, kept,
 			`[{"number":5,"title":"five","branch":"5-five","source":"github"},{"number":7,"title":"seven","branch":null}]`,
 			`[{"number":7,"title":"seven","branch":null,"source":null}]`)
-		got := m.records(*m.find("backlog"))
+		got := m.records(*m.find("issues"))
 		if len(got) != 1 || got[0].Key != "#7" || got[0].values["branch"].Raw != nil || got[0].values["source"].Raw != nil {
 			t.Errorf("kept %v: the reloaded rows %+v", kept, got)
 		}
@@ -1720,8 +1733,8 @@ func TestAReloadKeepsNoFieldOfTheRowThatStoodThere(t *testing.T) {
 func TestAFreshAnswerKeepsNoFieldOfTheKeptCopy(t *testing.T) {
 	m := reloaded(t, true, `[{"number":5,"title":"five","branch":"5-five","source":"github"}]`,
 		`[{"number":5,"title":"five","branch":null,"source":null}]`)
-	if got := m.records(*m.find("backlog")); len(got) != 1 || got[0].values["branch"].Raw != nil ||
-		got[0].values["source"].Raw != nil || m.find("backlog").src.Stale {
+	if got := m.records(*m.find("issues")); len(got) != 1 || got[0].values["branch"].Raw != nil ||
+		got[0].values["source"].Raw != nil || m.find("issues").src.Stale {
 		t.Errorf("the fresh rows over the kept: %+v", got)
 	}
 }
@@ -1729,16 +1742,16 @@ func TestAFreshAnswerKeepsNoFieldOfTheKeptCopy(t *testing.T) {
 // Nothing printed, null, or {"rows": null} is a refusal naming the command, and so is a record without its key; an
 // empty array is the empty stage.
 func TestANullOrEmptyDocumentIsARefusal(t *testing.T) {
-	for name, doc := range map[string]string{"backlog": "null", "changes": "", "incoming": "null",
+	for name, doc := range map[string]string{"issues": "null", "changes": "", "incoming": "null",
 		"workspace/tags": `{"rows":null}`, "builds": `[{"number":3}]`} {
 		if err := (&stage{name: name}).decode([]byte(doc), false); err == nil ||
 			!strings.HasPrefix(err.Error(), command(name)+" printed ") {
 			t.Errorf("%s %q: %v", name, doc, err)
 		}
 	}
-	s := stage{name: "backlog"}
+	s := stage{name: "issues"}
 	if err := s.decode([]byte("[]"), false); err != nil || len(s.rows) != 0 {
-		t.Errorf("an empty backlog: %v, %d rows", err, len(s.rows))
+		t.Errorf("empty issues: %v, %d rows", err, len(s.rows))
 	}
 	// a stage the catalog does not name decodes nothing, and its command is its name's
 	if err := (&stage{name: "nonesuch"}).decode([]byte("[]"), false); err == nil || command("nonesuch") != "kit nonesuch" {

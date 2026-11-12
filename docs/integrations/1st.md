@@ -13,7 +13,7 @@ descriptions of its API and its configuration files the provider publishes.
 
 | Page | Category | Seam | What in kit uses it |
 | --- | --- | --- | --- |
-| [forges.md](forges.md) | code forges: the repository, its branches, and its changes | `kit/modules/bash/forge.sh` | `kit work`, `kit submit`, `kit linked`, `kit policy`, `kit tidy`, and the changes and underway stages of `kit flow` |
+| [forges.md](forges.md) | code forges: the repository, its branches, and its changes | `kit/modules/bash/forge.sh` | `kit work`, `kit submit`, `kit linked`, `kit policy`, `kit tidy`, and the changes and issues stages of `kit flow` |
 | [trackers.md](trackers.md) | trackers: issues, their parents, iterations, and milestones | `kit/modules/bash/tracker.sh`; see [../trackers.md](../trackers.md) | `kit work`, `kit gather`, `kit assign`, `kit close`, `kit settle`, `kit new issue`, and the backlog stage |
 | [ci.md](ci.md) | continuous integration: runs, their jobs, and a change's checks | the forge seam's `runs` and a change's checks | `kit ci`, which a pipeline runs, and the builds and changes stages |
 | [cd.md](cd.md) | continuous delivery: releases, environments, and deployments | the forge seam's `releases` | `kit release`, and the releases stage |

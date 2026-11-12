@@ -33,8 +33,8 @@ func TestAFieldThatHoldsAListNamesOneValueAndNeverSorts(t *testing.T) {
 			}
 		}
 	}
-	if got := onesOf("backlog"); got["assignees"] != "assignee" || got["labels"] != "label" || len(got) != 2 {
-		t.Errorf("backlog's lists: %v", got)
+	if got := onesOf("issues"); got["assignees"] != "assignee" || got["labels"] != "label" || len(got) != 2 {
+		t.Errorf("issues' lists: %v", got)
 	}
 }
 
@@ -66,7 +66,7 @@ func TestTheColumnMenuFlattensAListAndItsRowsSort(t *testing.T) {
 		t.Fatalf("assignees flat: #7 %d rows, #45 %d\n%s", rows(m, "#7"), rows(m, "#45"), raw(m))
 	}
 	// jig's #7 stands on two lines, one row
-	for _, want := range []string{"backlog  3", "repository ▾ 3", "github · empowerite 3", "jig 1"} {
+	for _, want := range []string{"issues  7", "repository ▾ 7", "github · empowerite 7", "jig 1"} {
 		if !strings.Contains(raw(m), want) {
 			t.Errorf("a count is no longer the rows': no %q\n%s", want, raw(m))
 		}
@@ -76,7 +76,7 @@ func TestTheColumnMenuFlattensAListAndItsRowsSort(t *testing.T) {
 	if m = drive(m, testkit.Click(x+1, ruleY(m))); m.panel(m.stage).Mark("assignees") != "▲" {
 		t.Errorf("a click under assignee: %q", m.panel(m.stage).Mark("assignees"))
 	}
-	if pr := table.PresetOf(m.panel(m.stage), fieldsOf("backlog")); !pr.Fields["assignees"].Flat ||
+	if pr := table.PresetOf(m.panel(m.stage), fieldsOf("issues")); !pr.Fields["assignees"].Flat ||
 		pr.Fields["assignees"].Sort != "asc" {
 		t.Errorf("the preset: %+v", pr.Fields["assignees"])
 	}

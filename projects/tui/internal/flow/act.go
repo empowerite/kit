@@ -1,4 +1,4 @@
-// The backlog's actions: what the tab's menu offers on the issues selected in backlog, each a kit verb kittui runs and
+// The issues' actions: what the tab's menu offers on the issues selected in issues, each a kit verb kittui runs and
 // never does itself, so a terminal, an agent over kit serve, and the menu do the same thing. An action that changes
 // what others see first shows the issues it will change and asks; one that wants an answer, a title, a login, an issue,
 // or one of the caller's pull requests, asks for it. While kit runs, the keys bar says so; then it says what kit did,
@@ -21,7 +21,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
-// The glyphs beside the backlog's actions that the picture's own glyphs do not name already: a new issue written, the
+// The glyphs beside the issues' actions that the picture's own glyphs do not name already: a new issue written, the
 // issues handed to someone, the caller walking away from them, gathered in a basket, closed as not planned, and
 // closed as a twin.
 const (
@@ -33,14 +33,18 @@ const (
 	Twin   = "♊"
 )
 
-// actions gives the backlog's actions, in the tab's menu's order, on backlog, the Packages app's on its stage, as
+// issuesStage is kit flow's stage of every open issue, in the backlog and underway, whose rows the issues' actions act
+// on.
+const issuesStage = "issues"
+
+// actions gives the issues' actions, in the tab's menu's order, on issues, the Packages app's on its stage, as
 // packages.go says, and none elsewhere: New… first, which files an issue and needs none selected, then those on the
 // issues selected, there with nothing selected too, dim, so the menu shows what selecting issues makes possible.
 func (m Model) actions() []shell.Item {
 	if m.onPackages() {
 		return packageActions()
 	}
-	if len(m.stages) == 0 || m.stages[m.stage].name != "backlog" {
+	if len(m.stages) == 0 || m.stages[m.stage].name != issuesStage {
 		return nil
 	}
 	return []shell.Item{
@@ -79,16 +83,21 @@ type call struct {
 	words []string
 }
 
-// memberRefs is the issues selected in one member's backlog: the member, none over a repository, its checkout, and
-// the issues' references.
+// memberRefs is the issues selected in one member's issues: the member, none over a repository, its checkout, and
+// the issues' references, each once.
 type memberRefs struct {
 	member, dir string
 	refs        []string
 }
 
-// refOf gives a backlog row's member and its issue's reference, #45, from the row's key, which holds the member
-// before the reference over a group.
+// refOf gives a row's member and what it names, from the row's key, which holds the member before it over a group: an
+// issues row's issue's reference, #45, the pull request's after it for an issue underway, as #45 #46, left out; or a
+// packages row's package.
 func refOf(key string) (member, ref string) {
+	if k := strings.Index(key, "#"); k >= 0 {
+		ref, _, _ = strings.Cut(key[k:], " ")
+		return strings.TrimSuffix(key[:k], " "), ref
+	}
 	if k := strings.LastIndex(key, " "); k >= 0 {
 		return key[:k], key[k+1:]
 	}
@@ -109,7 +118,8 @@ func (m Model) checkoutOf(member string) string {
 	return ""
 }
 
-// refsByMember gives the issues selected in backlog, a member's together, the members in the rows' order.
+// refsByMember gives the issues selected in issues, a member's together, the members in the rows' order, an issue
+// underway that two selected rows stand for once.
 func (m Model) refsByMember() []memberRefs {
 	var out []memberRefs
 	for _, r := range m.selectedRows() {
@@ -119,7 +129,9 @@ func (m Model) refsByMember() []memberRefs {
 			out = append(out, memberRefs{member: member, dir: m.checkoutOf(member)})
 			k = len(out) - 1
 		}
-		out[k].refs = append(out[k].refs, ref)
+		if !slices.Contains(out[k].refs, ref) {
+			out[k].refs = append(out[k].refs, ref)
+		}
 	}
 	return out
 }
@@ -140,12 +152,14 @@ type actedMsg struct {
 	err error
 }
 
-// refs gives the references of the issues selected in backlog, in the rows' order: #45, whatever their member.
+// refs gives the references of the issues selected in issues, in the rows' order: #45, whatever their member, each
+// once.
 func (m Model) refs() []string {
 	var out []string
 	for _, r := range m.selectedRows() {
-		_, ref := refOf(r.Key)
-		out = append(out, ref)
+		if _, ref := refOf(r.Key); !slices.Contains(out, ref) {
+			out = append(out, ref)
+		}
 	}
 	return out
 }
@@ -171,7 +185,7 @@ func (m Model) mine() (numbers []int, lines []string) {
 	return numbers, lines
 }
 
-// acting says whether an item of the tab's menu is one of the backlog's actions, and whether it does anything now:
+// acting says whether an item of the tab's menu is one of the issues' actions, and whether it does anything now:
 // New… always; the rest none while no issue is selected, and Add to Pull Request only while the caller has an open
 // pull request to add to.
 func (m Model) acting(name string) (action, enabled bool) {
@@ -203,7 +217,7 @@ func (m *Model) nowhere(member string) tea.Cmd {
 	return nil
 }
 
-// cursorMember gives the member of the backlog row under the cursor, over a group, or none.
+// cursorMember gives the member of the issues row under the cursor, over a group, or none.
 func (m Model) cursorMember() string {
 	rows, k := m.rows(m.stage), m.stages[m.stage].Cursor
 	if k < 0 || k >= len(rows) || rows[k].Aside {
@@ -213,7 +227,7 @@ func (m Model) cursorMember() string {
 	return member
 }
 
-// act does what the backlog's action named asks: it runs kit at once, or asks first. Over a group, an action on the
+// act does what the issues' action named asks: it runs kit at once, or asks first. Over a group, an action on the
 // issues runs in each member's checkout, with that member's issues; one that acts in one member runs in its.
 func (m *Model) act(name string) tea.Cmd {
 	if m.onPackages() {
@@ -303,7 +317,7 @@ func (m *Model) act(name string) tea.Cmd {
 
 // newIssue takes what kit said of the trackers: a dialog that picks the one to file a new issue in, each line its
 // prefix and where, the page opened once it is picked; it starts on the forge's own, which kit lists first, as
-// backlog's issues are. A tracker that gives no page is left out; with none left, the notice says why.
+// the issues' are. A tracker that gives no page is left out; with none left, the notice says why.
 func (m *Model) newIssue(msg trackersMsg) tea.Cmd {
 	m.note.Text = ""
 	if msg.err != nil {
@@ -342,11 +356,11 @@ func (m Model) listed() []string {
 	return out
 }
 
-// issueTitle gives a member's backlog issue's title, by its reference, or nothing; it asks only on backlog, whose
-// actions are the only ones that name issues.
+// issueTitle gives a member's issue's title, by its reference, as issues read it, or nothing; it asks only on issues,
+// whose actions are the only ones that name issues.
 func (m Model) issueTitle(member, ref string) (title string) {
 	n, _ := strconv.Atoi(strings.TrimPrefix(ref, "#"))
-	for _, i := range of[issue](*m.find("backlog")) {
+	for _, i := range of[issue](*m.find(issuesStage)) {
 		if i.Number == n && i.Member == member {
 			title = i.Title
 		}
@@ -407,7 +421,7 @@ func (m *Model) run(calls []call) tea.Cmd {
 // stage, after a Packages action, reads the active set again.
 func (m *Model) acted(msg actedMsg) tea.Cmd {
 	lines := strings.Split(strings.TrimSpace(ansi.Strip(msg.out)), "\n")
-	name := "backlog"
+	name := issuesStage
 	if m.onPackages() {
 		name = packagesStage
 	}

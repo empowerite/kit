@@ -63,15 +63,14 @@ type Sheet struct {
 
 var _ Keyboard = (*Sheet)(nil)
 
-// NewSheet gives a sheet of the catalog's table, named and colored, its rows folding as kittui's settings do until
-// told otherwise, set as the table's Default preset, with the person's presets of it read from the file at path, under
-// the catalog's name for the table, or the sheet's where the catalog names it not; none keeps them for the session
-// alone. A file that does not read is said in place of the keys, and left as it is.
+// NewSheet gives a sheet of the catalog's table, named and colored, its rows folding as kittui's settings do until told
+// otherwise, set as the first of the table's own presets, with the person's presets of it read from the file at path,
+// under the catalog's name for the table, or the sheet's where the catalog names it not; none keeps them for the
+// session alone. A file that does not read is said in place of the keys, and left as it is.
 func NewSheet(schema *Schema, name, color, path string) Sheet {
 	s := Sheet{schema: schema, name: name, color: color, path: path, store: name, fold: true, hide: true, stop: -1, width: 80,
 		browse: shell.Browse,
-		screen: 24, height: 20, tbl: Table{Open: grid.Outline{}, Picked: map[string]bool{}, ViewName: Opening,
-			Grouping: true}}
+		screen: 24, height: 20, tbl: Table{Open: grid.Outline{}, Picked: map[string]bool{}, Grouping: true}}
 	if schema != nil && schema.Stage != "" {
 		s.store = schema.Stage
 	}
@@ -82,7 +81,8 @@ func NewSheet(schema *Schema, name, color, path string) Sheet {
 		s.note.Text = fmt.Sprintf("%s %v; the file is left as it is", Failed, err)
 	}
 	s.saved = all[s.store]
-	s.tbl.View = s.Views().Chosen(Opening).Panel(schema.Of(), grid.Panel{})
+	opening := s.Views().Opening()
+	s.tbl.ViewName, s.tbl.View = opening.Name, opening.Panel(schema.Of(), grid.Panel{})
 	return s
 }
 
@@ -302,14 +302,14 @@ func (s *Sheet) Settle() {
 // InRows says whether the rows have the keyboard.
 func (s *Sheet) InRows() bool { return s.inRows }
 
-// Views gives the table's views, its own and the person's.
+// Views gives the table's views, its own and the person's; a table whose catalog gives it none has Default.
 func (s *Sheet) Views() Views {
 	var own []Preset
 	if s.schema != nil {
 		own = slices.Clone(s.schema.Presets)
 	}
-	if !slices.ContainsFunc(own, func(p Preset) bool { return p.Name == Opening }) {
-		own = append([]Preset{{Name: Opening}}, own...)
+	if len(own) == 0 {
+		own = []Preset{{Name: Default}}
 	}
 	return Views{Fields: s.schema.Of(), Own: own, Saved: s.saved}
 }
@@ -768,7 +768,7 @@ func (s *Sheet) choose(k int) {
 		s.onControls, s.inRows, s.stop = true, false, -1
 	case ItemDelete:
 		if s.keep(s.Views().Delete(v.Name), "deleted") {
-			s.apply(s.Views().Chosen(Opening))
+			s.apply(s.Views().Opening())
 			s.note = s.note.Did(Deleted + " deleted the preset " + v.Name)
 		}
 	default:

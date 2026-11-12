@@ -10,10 +10,10 @@ Every kittui screen stacks the same parts. An app, such as Flow, looks like this
 
 ```text
   = kit flow · - owner/repo                 🔎 /search   ← menu bar
-  ➊╶────────────────╮➁╶─────────────────╮                ← tab bar
-  │ 🎫 backlog  3 : │  🛫 underway  4   │
-  ╵                 ╰───────────────────╰──
-  ▾ source 3                          Default ▼          ← control line
+  ➊╶───────────────╮➁╶────────────────╮                  ← tab bar
+  │ 🎫 issues  7 : │  🔀 changes  3   │
+  ╵                ╰──────────────────╰──
+  ▾ source 7                       All Issues ▼          ← control line
       id   age  title                                    ← header
       ·────·────·──────────────                          ← rule
     ▸ #45   2h  🎫 kit flow is the…                      ← rows

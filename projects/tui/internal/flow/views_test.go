@@ -33,7 +33,7 @@ func toPresets(m Model) Model {
 	}
 }
 
-// onDropdown gives backlog with the keyboard on its preset line, its views kept in file.
+// onDropdown gives issues with the keyboard on its preset line, its views kept in file.
 func onDropdown(t *testing.T, file string) Model {
 	t.Helper()
 	m := toPresets(loaded(t, viewing(file), tea.WindowSizeMsg{Width: 140, Height: 40}))
@@ -64,14 +64,14 @@ func keysOf(m Model) string { return lines(m)[len(lines(m))-1] }
 // groups at its left: it names the view, and the rows start under it, the names of the columns over the first row.
 func TestThePresetLineStandsOnTheControlLineAndNamesTheView(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 140, Height: 40}, press('?'))
-	if got := presetText(m); got != selector(Opening) || m.presetTop() != m.top() || m.rowsTop() != m.top()+2 ||
+	if got := presetText(m); got != selector("All Issues") || m.presetTop() != m.top() || m.rowsTop() != m.top()+2 ||
 		!strings.Contains(lines(m)[m.headerTop()], "assignees") || !strings.Contains(lines(m)[m.top()], "source") {
 		t.Errorf("the preset line: %q, on line %d, rows from %d", got, m.presetTop(), m.rowsTop())
 	}
 	// the selector stands at its right end, after how many rows are selected, which the rule no longer says
 	m.stages[0].Picked[m.rows(0)[slices.IndexFunc(m.rows(0), func(r row) bool { return !r.Aside })].Key] = true
 	if got := ansi.Truncate(ansi.Strip(lines(m)[m.presetTop()]), m.paneWidth(), ""); !strings.HasPrefix(got, "  ▾ source") ||
-		!strings.HasSuffix(got, " 1 selected  "+selector(Opening)) || strings.Contains(m.rule(), "selected") {
+		!strings.HasSuffix(got, " 1 selected  "+selector("All Issues")) || strings.Contains(m.rule(), "selected") {
 		t.Errorf("one row selected: %q", got)
 	}
 	m.stages[0].Picked = map[string]bool{}
@@ -89,7 +89,7 @@ func TestThePresetLineStandsOnTheControlLineAndNamesTheView(t *testing.T) {
 		t.Errorf("the line names a save or a rename before Save As…: %q", keys)
 	}
 	// incoming has its preset line too, as every stage with columns does
-	m = drive(m, esc, press('5'))
+	m = drive(m, esc, press('4'))
 	if m.stages[m.stage].name != "incoming" || !m.presets(m.stage) {
 		t.Errorf("%s has no preset line: %q", m.stages[m.stage].name, keysOf(m))
 	}
@@ -139,7 +139,7 @@ func TestDownAndUpPassThroughThePresetLine(t *testing.T) {
 func TestAChipStandsForEachFilter(t *testing.T) {
 	m := onDropdown(t, "")
 	m.setPanel(m.panel(0).Shown(grid.Mine))
-	if got := presetText(m); !strings.HasPrefix(got, "assignees: @me") || !strings.HasSuffix(got, "@me  "+selector(Opening)) {
+	if got := presetText(m); !strings.HasPrefix(got, "assignees: @me") || !strings.HasSuffix(got, "@me  "+selector("All Issues")) {
 		t.Errorf("mine: %q", got)
 	}
 	m.setPanel(m.panel(0).Shown(grid.Others))
@@ -162,13 +162,13 @@ func TestChoosingAViewSetsThePanelAndAChangeStrikesTheNameThrough(t *testing.T) 
 	// the menu is titled Presets at its left, as a dialog is, not by the preset the table is set as; it stands on the
 	// control line, as the columns dialog does, its right edge on the selector's ▼
 	if box, top, left := m.presetsMenu.Box(&m); !strings.HasPrefix(ansi.Strip(box[0]), "╭─ "+table.PresetsTitle+" ─") ||
-		strings.Contains(box[0], Opening) || top != m.top() || left+ansi.StringWidth(box[0]) != m.dropEnd() {
+		strings.Contains(box[0], "All Issues") || top != m.top() || left+ansi.StringWidth(box[0]) != m.dropEnd() {
 		t.Errorf("the menu's title, at %d, %d: %q", top, left, ansi.Strip(box[0]))
 	}
 	// it is in its tab's color, as the selector is, not the menus' own
 	if box, _, _ := m.presetsMenu.Box(&m); box[0] != shell.TitledColored(table.PresetsTitle, ansi.StringWidth(box[0]),
-		stageColors["backlog"]) || strings.Contains(strings.Join(box, ""), style.Menu("│")) {
-		t.Errorf("the menu is not in backlog's color: %q", box)
+		stageColors["issues"]) || strings.Contains(strings.Join(box, ""), style.Menu("│")) {
+		t.Errorf("the menu is not in issues' color: %q", box)
 	}
 	// the menu is drawn, under the line, whole
 	if drawn := raw(m); !strings.Contains(drawn, SaveAs) || !strings.Contains(drawn, "Compact") {
@@ -178,21 +178,23 @@ func TestChoosingAViewSetsThePanelAndAChangeStrikesTheNameThrough(t *testing.T) 
 	for _, i := range table.PresetItems(&m) {
 		names = append(names, i.Name)
 	}
-	if !slices.Equal(names, []string{FieldsIt, "", SaveIt, SaveAs, RenameIt, DeleteIt, "", "Default", "Compact"}) ||
+	if !slices.Equal(names, []string{FieldsIt, "", SaveIt, SaveAs, RenameIt, DeleteIt, "", "All Issues", "Backlog", "Underway",
+		"By Milestone", "By Iteration", "By Swimlane", "Compact"}) ||
 		table.PresetItems(&m)[7].Glyph != Checked || m.presetsMenu.At != 7 {
 		t.Fatalf("the presets: %q, at %d", names, m.presetsMenu.At)
 	}
 	if !strings.Contains(keysOf(m), "esc close") {
 		t.Errorf("the keys with the menu open: %q", keysOf(m))
 	}
-	m = drive(m, down, press(tea.KeyEnter))
-	if m.presetsMenu.Open || m.stages[0].ViewName != "Compact" || !slices.Equal(shownNow(m), []string{"id", "title"}) ||
+	m = drive(m, append(slices.Repeat([]tea.Msg{down}, 6), press(tea.KeyEnter))...)
+	if m.presetsMenu.Open || m.stages[0].ViewName != "Compact" ||
+		!slices.Equal(shownNow(m), []string{"id", "status", "change", "state", "title"}) ||
 		presetText(m) != selector("Compact") {
 		t.Fatalf("Compact: %q, %q", shownNow(m), presetText(m))
 	}
 	// a column shown again differs from every view: the line names the one it was set to, struck through
 	m.setPanel(m.panel(0).Placed("age", grid.Column))
-	color := stageColors["backlog"]
+	color := stageColors["issues"]
 	if got := presetText(m); m.is(0) != "" || got != selector("Compact") ||
 		!strings.Contains(controlLine(m), table.SelectorPill("Compact", table.SelectorFocus, true)) {
 		t.Errorf("a change does not strike the view through: %q", got)
@@ -231,33 +233,33 @@ func TestChoosingAViewSetsThePanelAndAChangeStrikesTheNameThrough(t *testing.T) 
 		t.Errorf("esc did not stop Save As…, or left the line: %q", presetText(m))
 	}
 	// the table set as another view names that one
-	m.setPanel(m.builtins(0)[0].Panel(fieldsOf("backlog"), m.panel(0)))
-	if got := presetText(m); got != selector(Opening) {
-		t.Errorf("the table as Default: %q", got)
+	m.setPanel(m.builtins(0)[0].Panel(fieldsOf("issues"), m.panel(0)))
+	if got := presetText(m); got != selector("All Issues") {
+		t.Errorf("the table as All Issues: %q", got)
 	}
 	// the menu's keys: up, a letter to the next item it starts, and esc
 	m = drive(m, press(tea.KeyEnter))
-	if m = drive(m, typed("c")[0]); m.presetsMenu.At != 8 {
+	if m = drive(m, typed("c")[0]); m.presetsMenu.At != 13 {
 		t.Errorf("c in the menu: %d", m.presetsMenu.At)
 	}
 	m = drive(m, up, esc)
 	if m.presetsMenu.Open || !m.onPreset {
 		t.Errorf("esc in the menu: open %v", m.presetsMenu.Open)
 	}
-	// Default shows every column the catalog places, again
+	// All Issues shows every column the catalog places, again
 	m = drive(m, press(tea.KeyEnter), down, press(tea.KeyEnter), press(tea.KeyEnter), up)
-	columns := slices.DeleteFunc(slices.Clone(fieldsOf("backlog")), func(f table.Field) bool { return f.Placement != table.PlaceColumn })
+	columns := slices.DeleteFunc(slices.Clone(fieldsOf("issues")), func(f table.Field) bool { return f.Placement != table.PlaceColumn })
 	// under source, organization, and repository, as the catalog groups them
-	if m = drive(m, press(tea.KeyEnter)); len(shownNow(m)) != len(columns) || m.is(0) != "Default" ||
+	if m = drive(m, press(tea.KeyEnter)); len(shownNow(m)) != len(columns) || m.is(0) != "All Issues" ||
 		!slices.Equal(m.panel(0).Groups(), []string{"source", "organization", "repository"}) {
-		t.Errorf("Default: %q", shownNow(m))
+		t.Errorf("All Issues: %q", shownNow(m))
 	}
 }
 
 func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "kit", "presets.json")
 	m := onDropdown(t, file)
-	p := m.panel(0).Placed("branch", grid.Hidden).Sorted("age").Sorted("age").Shown(grid.Others)
+	p := m.panel(0).Placed("labels", grid.Hidden).Sorted("age").Sorted("age").Shown(grid.Others)
 	p = p.Grouped("assignees", false)
 	m.setPanel(p)
 	// off Save As…, what is typed names nothing
@@ -281,37 +283,37 @@ func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 		Version int                       `json:"version"`
 		Stages  map[string][]table.Preset `json:"stages"`
 	}
-	if err != nil || json.Unmarshal(data, &kept) != nil || kept.Version != 2 || len(kept.Stages["backlog"]) != 1 {
+	if err != nil || json.Unmarshal(data, &kept) != nil || kept.Version != 2 || len(kept.Stages["issues"]) != 1 {
 		t.Fatalf("the file: %s, %v", data, err)
 	}
-	// by field id: branch hidden, assignees grouped and filtered to everyone but the caller, age sorted descending, and
+	// by field id: labels hidden, assignees grouped and filtered to everyone but the caller, age sorted descending, and
 	// source, organization, and repository, which the catalog groups by, columns again, as grouping by assignees alone
 	// leaves them
 	column := table.Setting{Placement: table.PlaceColumn}
-	want := map[string]table.Setting{"branch": {Placement: table.PlaceHidden}, "age": {Sort: "desc", Priority: 1},
+	want := map[string]table.Setting{"labels": {Placement: table.PlaceHidden}, "age": {Sort: "desc", Priority: 1},
 		"assignees": {Placement: table.PlaceGroup, Depth: 1, Filter: &table.ValueFilter{Exclude: []string{caller}}},
 		"source":    column, "organization": column, "repository": column}
 	// whether shared values fold is kittui's setting, so the preset does not keep it
-	if v := kept.Stages["backlog"][0]; v.Name != "Triage" || !reflect.DeepEqual(v.Fields, want) ||
+	if v := kept.Stages["issues"][0]; v.Name != "Triage" || !reflect.DeepEqual(v.Fields, want) ||
 		strings.Contains(string(data), "fold") {
 		t.Errorf("the view kept: %s", data)
 	}
 	// the menu lists it after a rule
 	m = drive(m, press(tea.KeyEnter))
-	if items := table.PresetItems(&m); len(items) != 11 || items[9].Name != "" || items[10].Name != "Triage" ||
-		items[10].Glyph != Checked || m.presetsMenu.At != 10 {
+	if items := table.PresetItems(&m); len(items) != 16 || items[14].Name != "" || items[15].Name != "Triage" ||
+		items[15].Glyph != Checked || m.presetsMenu.At != 15 {
 		t.Errorf("the menu: %+v, at %d", items, m.presetsMenu.At)
 	}
 	m = drive(m, esc)
 	// changed, then Save As… again, its name typed already, it is overwritten; up while naming stops, and leaves the
 	// line
-	m.setPanel(m.panel(0).Placed("branch", grid.Column))
+	m.setPanel(m.panel(0).Placed("labels", grid.Column))
 	m.choosePreset(table.ItemSaveAs)
 	if !m.stages[0].SavingAs || m.stages[0].Naming != "Triage" || !strings.HasSuffix(presetText(m), SavingAs+" Triage▏") {
 		t.Fatalf("Save As… on Triage: %q", presetText(m))
 	}
 	m = drive(m, press(tea.KeyEnter))
-	if data, _ = os.ReadFile(file); strings.Count(string(data), `"name"`) != 1 || strings.Contains(string(data), "branch") {
+	if data, _ = os.ReadFile(file); strings.Count(string(data), `"name"`) != 1 || strings.Contains(string(data), "labels") {
 		t.Errorf("overwritten: %s", data)
 	}
 	m.choosePreset(table.ItemSaveAs)
@@ -321,7 +323,7 @@ func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 	// another session reads it, and choosing it sets the panel
 	n := onDropdown(t, file)
 	n = drive(n, press(tea.KeyEnter))
-	n.presetsMenu.At = 10
+	n.presetsMenu.At = 15
 	if n = drive(n, press(tea.KeyEnter)); n.stages[0].ViewName != "Triage" || n.panel(0).Showing() != grid.Others ||
 		len(n.panel(0).SortKeys()) != 1 || !slices.Equal(n.panel(0).Groups(), []string{"assignees"}) ||
 		!n.panel(0).Fold {
@@ -342,7 +344,7 @@ func TestClicksOpenThePresetsAndChooseOne(t *testing.T) {
 		t.Fatalf("a click on the name: menu %v, on the line %v\n%s", m.presetsMenu.Open, m.onPreset, raw(m))
 	}
 	box, top, left := m.presetsMenu.Box(&m)
-	if m = drive(m, testkit.Click(left+3, top+9)); m.presetsMenu.Open || m.stages[0].ViewName != "Compact" {
+	if m = drive(m, testkit.Click(left+3, top+14)); m.presetsMenu.Open || m.stages[0].ViewName != "Compact" {
 		t.Fatalf("a click on Compact: menu %v, view %q\n%v", m.presetsMenu.Open, m.stages[0].ViewName, box)
 	}
 	// a click anywhere else closes the menu
@@ -378,7 +380,7 @@ func TestAPresetsFileThatDoesNotReadIsSaidAndLeftAsItIs(t *testing.T) {
 			t.Fatal(err)
 		}
 		m := loaded(t, viewing(file), tea.WindowSizeMsg{Width: 140, Height: 40})
-		if !strings.Contains(m.note.Text, says) || m.note.Done || len(m.views(0)) != 2 {
+		if !strings.Contains(m.note.Text, says) || m.note.Done || len(m.views(0)) != 7 {
 			t.Errorf("a bad file: %q", m.note.Text)
 		}
 		if data, _ := os.ReadFile(file); string(data) != content {
@@ -410,7 +412,7 @@ func TestAPresetsFileThatDoesNotReadIsSaidAndLeftAsItIs(t *testing.T) {
 // listed after the stage's own, and saving over it overwrites it.
 func TestAViewNamedAsAStageOnceNamedItsOwnIsThePersons(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "presets.json")
-	kept := `{"version": 2, "stages": {"backlog": [{"name": "Everything", "headers": true},
+	kept := `{"version": 2, "stages": {"issues": [{"name": "Everything", "headers": true},
 		{"name": "Minimal", "fields": {"age": {"placement": "hidden"}}, "headers": true}]}}`
 	if err := os.WriteFile(file, []byte(kept), 0o644); err != nil {
 		t.Fatal(err)
@@ -420,14 +422,15 @@ func TestAViewNamedAsAStageOnceNamedItsOwnIsThePersons(t *testing.T) {
 	for _, v := range m.views(0) {
 		names = append(names, v.Name)
 	}
-	if !slices.Equal(names, []string{"Default", "Compact", "Everything", "Minimal"}) || m.builtin(0, "Minimal") {
+	if !slices.Equal(names, []string{"All Issues", "Backlog", "Underway", "By Milestone", "By Iteration",
+		"By Swimlane", "Compact", "Everything", "Minimal"}) || m.builtin(0, "Minimal") {
 		t.Fatalf("the views: %q", names)
 	}
-	m.setPanel(m.panel(0).Placed("branch", grid.Hidden))
+	m.setPanel(m.panel(0).Placed("labels", grid.Hidden))
 	m.choosePreset(table.ItemSaveAs)
 	m = drive(m, typed("Minimal")...)
 	m = drive(m, press(tea.KeyEnter))
-	if data, _ := os.ReadFile(file); !strings.Contains(string(data), `"branch"`) || strings.Contains(string(data), `"age"`) {
+	if data, _ := os.ReadFile(file); !strings.Contains(string(data), `"labels"`) || strings.Contains(string(data), `"age"`) {
 		t.Errorf("Minimal was not overwritten: %s", data)
 	}
 }
@@ -487,7 +490,7 @@ func TestViewsJSONBecomesPresetsJSONOnce(t *testing.T) {
 	file := filepath.Join(dir, "presets.json")
 	m := loaded(t, viewing(file))
 	if !m.note.Done || m.note.Text != Save+" views.json is now presets.json, without the columns kittui no longer knows: "+
-		"milestone in backlog Mine; estimate in backlog All; milestone in changes Authors" {
+		"milestone in changes Authors; points in issues Mine; estimate in issues All" {
 		t.Errorf("the notice: %q", m.note.Text)
 	}
 	if data, _ := os.ReadFile(filepath.Join(dir, "views.json")); string(data) != string(v1) {
@@ -503,19 +506,22 @@ func TestViewsJSONBecomesPresetsJSONOnce(t *testing.T) {
 	}
 	column := table.Setting{Placement: table.PlaceColumn}
 	want := map[string][]table.Preset{
-		"backlog": {
+		"issues": {
 			{Name: "Mine", Fields: map[string]table.Setting{
 				"title":     {Placement: table.PlaceColumn, Position: 1},
 				"id":        {Placement: table.PlaceColumn, Position: 2},
 				"source":    {Placement: table.PlaceColumn, Position: 3},
 				"assignees": {Placement: table.PlaceColumn, Position: 4, Filter: &table.ValueFilter{Include: []string{caller}}},
 				"age":       {Placement: table.PlaceColumn, Position: 5, Sort: "desc", Priority: 1},
-				"branch":    {Placement: table.PlaceHidden},
-				// the fields the version 1 file could not name, as organization, repository, and labels, stand after
-				// the columns it named, in the catalog's order
+				// branch, hidden, is as the catalog places it; the fields the version 1 file could not name, as
+				// organization, repository, and labels, stand after the columns it named, in the catalog's order
 				"organization": {Placement: table.PlaceColumn, Position: 6},
 				"repository":   {Placement: table.PlaceColumn, Position: 7},
-				"labels":       {Placement: table.PlaceColumn, Position: 8},
+				"status":       {Placement: table.PlaceColumn, Position: 8},
+				"change":       {Placement: table.PlaceColumn, Position: 9},
+				"state":        {Placement: table.PlaceColumn, Position: 10},
+				"where":        {Placement: table.PlaceColumn, Position: 11},
+				"labels":       {Placement: table.PlaceColumn, Position: 12},
 			}},
 			// a view groups by what it grouped by alone: source, organization, and repository, which the catalog
 			// groups by, are columns
@@ -535,8 +541,8 @@ func TestViewsJSONBecomesPresetsJSONOnce(t *testing.T) {
 	}
 	// each show is the owner's filter: mine, others, and all
 	for k, show := range []grid.Show{grid.Mine, grid.Others, grid.All} {
-		if got := m.saved["backlog"][k].Panel(fieldsOf("backlog"), grid.Panel{Owner: "assignees"}).Showing(); got != show {
-			t.Errorf("%s shows %v, not %v", m.saved["backlog"][k].Name, got, show)
+		if got := m.saved["issues"][k].Panel(fieldsOf("issues"), grid.Panel{Owner: "assignees"}).Showing(); got != show {
+			t.Errorf("%s shows %v, not %v", m.saved["issues"][k].Name, got, show)
 		}
 	}
 	// read again, presets.json is what is read, and nothing is noted
@@ -567,17 +573,21 @@ func TestViewsJSONBecomesPresetsJSONOnce(t *testing.T) {
 	}
 }
 
-// Incoming has its catalog's presets, Default and Compact, as every stage, and a view the line was set to that is gone
-// gives way to Default.
-func TestIncomingHasItsPresetsAndAViewGoneGivesWayToDefault(t *testing.T) {
+// Incoming has its catalog's presets, Default and Compact, as every stage but issues, and a view the line was set to
+// that is gone gives way to the stage's first: Default, or issues' All Issues.
+func TestIncomingHasItsPresetsAndAViewGoneGivesWayToTheOpeningOne(t *testing.T) {
 	m := loaded(t, options())
-	incoming := slices.Index(six, "incoming")
-	if vs := m.builtins(incoming); len(vs) != 2 || vs[0].Name != Opening || vs[1].Name != "Compact" {
+	incoming := slices.Index(five, "incoming")
+	if vs := m.builtins(incoming); len(vs) != 2 || vs[0].Name != table.Default || vs[1].Name != "Compact" {
 		t.Errorf("incoming's views: %+v", vs)
 	}
 	m.stages[0].ViewName = "Gone"
-	if v := m.chosen(0); v.Name != Opening {
+	if v := m.chosen(0); v.Name != "All Issues" {
 		t.Errorf("a view gone: %q", v.Name)
+	}
+	m.stages[incoming].ViewName = "Gone"
+	if v := m.chosen(incoming); v.Name != table.Default {
+		t.Errorf("a view of incoming's gone: %q", v.Name)
 	}
 }
 
@@ -628,7 +638,7 @@ func TestSaveRenameAndDeleteActOnThePersonsView(t *testing.T) {
 	}
 	// Delete drops it, and the stage is Default
 	m.choosePreset(table.ItemDelete)
-	if data, _ := os.ReadFile(file); strings.Contains(string(data), "Mine") || m.is(0) != Opening ||
+	if data, _ := os.ReadFile(file); strings.Contains(string(data), "Mine") || m.is(0) != "All Issues" ||
 		!strings.Contains(m.note.Text, Deleted+" deleted the preset Mine") {
 		t.Errorf("deleted: %q, is %q, %s", m.note.Text, m.is(0), data)
 	}
@@ -670,7 +680,7 @@ func TestRenameAndDeleteRefuseWhatTheyCannotDo(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "presets.json")
 	m := onDropdown(t, file)
-	if m.choosePreset(table.ItemDelete); m.is(0) != Opening || m.note.Text != "" {
+	if m.choosePreset(table.ItemDelete); m.is(0) != "All Issues" || m.note.Text != "" {
 		t.Errorf("Delete on Default: %q", m.note.Text)
 	}
 	m.choosePreset(table.ItemSaveAs)
@@ -717,11 +727,11 @@ func TestRenameAndDeleteRefuseWhatTheyCannotDo(t *testing.T) {
 func TestThePresetLineIsTheTabsColorAndWaitsForTheRows(t *testing.T) {
 	m := New(runner(t), viewing(""))
 	if lines, _ := m.header(); lines != nil || m.presets(0) || strings.Contains(view(m), Presets) {
-		t.Errorf("while backlog loads: header %q, preset line %v\n%s", lines, m.presets(0), view(m))
+		t.Errorf("while issues load: header %q, preset line %v\n%s", lines, m.presets(0), view(m))
 	}
 	m = loaded(t, viewing(""))
-	if line, _ := m.control(); !m.presets(0) || !strings.Contains(line, table.SelectorPill(Opening, stageColors["backlog"], false)) {
-		t.Errorf("backlog's preset line: %q", line)
+	if line, _ := m.control(); !m.presets(0) || !strings.Contains(line, table.SelectorPill("All Issues", stageColors["issues"], false)) {
+		t.Errorf("issues' preset line: %q", line)
 	}
 }
 

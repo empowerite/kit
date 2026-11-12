@@ -99,7 +99,7 @@ across:line() {
   printf '%s\n' "${line#❌ }"
 }
 
-# across:flow <workspace> <word>… draws what kit flow's words ask for across the workspace: --stages, kit's eight
+# across:flow <workspace> <word>… draws what kit flow's words ask for across the workspace: --stages, kit's seven
 # stages, whatever the kit.yml where kit runs says; --marks and --quota, spanning the members; a stage with --json or
 # --jq as across:stage gives it; the picture as JSON, as across:picture gives it; and a stage or the picture as text,
 # each member's under it. It checks the workspace file, as workspaces:check does, before it reads it, and resolves the
@@ -128,7 +128,7 @@ across:flow() {
       across:quota "${workspace}"
       return
       ;;
-    (backlog | underway | desk | worktrees | changes | incoming | builds | releases)
+    (issues | desk | worktrees | changes | incoming | builds | releases)
       stage=$1
       shift
   esac

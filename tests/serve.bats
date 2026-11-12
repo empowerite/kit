@@ -181,7 +181,8 @@ call() {
       and .properties.path.type == "array" and .properties.json.type == "boolean"
       and (.properties.path.description | startswith("the files"))'
   answer 1 | jq --exit-status '.result.tools[] | select(.name == "flow") | .inputSchema.properties
-    | (.stage.enum | index("backlog") and index("releases")) and (has("no-fetch") | not) and .owner.type == "array"'
+    | (.stage.enum | index("issues") and index("releases") and (index("backlog") or index("underway") | not))
+      and (has("no-fetch") | not) and .owner.type == "array"'
   answer 1 | jq --exit-status '.result.tools[] | select(.name == "packages") | .inputSchema.properties.package.items.enum
     | index("kit") and index("workflow")'
   # check, lint, toolchains, and tools run what the repository's files name, and the workflow tools act: none of them

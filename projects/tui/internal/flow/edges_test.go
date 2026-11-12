@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/style"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 	"github.com/empowerite/kit/projects/tui/internal/tabs"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
@@ -53,7 +54,7 @@ func TestRefreshAndDownDoNothingWhereThereIsNothingToLoadOrEnter(t *testing.T) {
 		t.Errorf("Refresh All ran %q", calls(t, record))
 	}
 	// a stage the catalog does not name has Default alone, as it opens
-	if vs := m.builtins(0); len(vs) != 1 || vs[0].Name != Opening {
+	if vs := m.builtins(0); len(vs) != 1 || vs[0].Name != table.Default {
 		t.Errorf("the views of a stage the catalog does not name: %+v", vs)
 	}
 }
@@ -66,7 +67,7 @@ func TestADocumentKitFlowCannotDecodeIsARefusal(t *testing.T) {
 	}{
 		{"releases", `[{"key": "v", "version": 5}]`},
 		{"releases", `[{`},
-		{"backlog", `[{"number": "x"}]`},
+		{"issues", `[{"number": "x"}]`},
 		{"incoming", `{`},
 		{"builds", `[{"id": "x"}]`},
 	} {
@@ -81,7 +82,7 @@ func TestADocumentKitFlowCannotDecodeIsARefusal(t *testing.T) {
 // staying on it, and shows every line of it on the way, from its last page up to its first.
 func TestPageUpInsideATallOpenRowScrollsBackThroughIt(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 12})
-	m = drive(m, tallBuild(m, 10), tab, tab, tab, down, down, toggle)
+	m = drive(m, tallBuild(m, 10), tab, tab, down, down, toggle)
 	text := func(s string) string {
 		return strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(ansi.Strip(s)), style.Focus+style.Opened))
 	}
@@ -159,8 +160,7 @@ func TestTheCellsDrawWhatIsMissingOrUnknown(t *testing.T) {
 // Every stage that is empty says what it lacks, in its own words.
 func TestEveryEmptyStageSaysWhatItLacks(t *testing.T) {
 	for name, want := range map[string]string{
-		"backlog":           "no open issue without a pull request",
-		"underway":          "no issue is underway",
+		"issues":            "no open issue",
 		"incoming":          "no remote to fetch",
 		"changes":           "no open pull request",
 		"builds":            "no build since the last 20 runs",
@@ -177,22 +177,22 @@ func TestEveryEmptyStageSaysWhatItLacks(t *testing.T) {
 }
 
 // On a screen too narrow for every stage, the bar scrolls, the selected stage whole, and the next cut at the edge; ▹,
-// which would cut backlog, is hidden.
+// which would cut issues, is hidden.
 func TestOnANarrowScreenTheBarScrolls(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 30, Height: 24})
 	bar := lines(m)[2]
-	if !strings.Contains(squeeze(bar), "│ 🎫 backlog 3 "+tabs.Menu+" │") || strings.Contains(bar, tabs.After) ||
-		!strings.Contains(bar, "🛫 u") {
-		t.Errorf("at 30 columns, the bar does not scroll with backlog whole: %q", bar)
+	if !strings.Contains(squeeze(bar), "│ 🎫 issues 7 "+tabs.Menu+" │") || strings.Contains(bar, tabs.After) ||
+		!strings.Contains(bar, "🔀 cha") {
+		t.Errorf("at 30 columns, the bar does not scroll with issues whole: %q", bar)
 	}
 }
 
 // Nothing and null are what kit printed when it printed nothing: a refusal, the stage's line, never an empty stage.
 func TestNothingOrNullOnStdoutIsARefusalNotAnEmptyStage(t *testing.T) {
 	for what, err := range map[string]error{
-		"null for backlog":     (&stage{name: "backlog"}).decode([]byte("null"), false),
+		"null for issues":      (&stage{name: "issues"}).decode([]byte("null"), false),
 		"nothing for incoming": (&stage{name: "incoming"}).decode(nil, false),
-		"rows of null":         (&stage{name: "backlog"}).decode([]byte(`{"rows": null}`), true),
+		"rows of null":         (&stage{name: "issues"}).decode([]byte(`{"rows": null}`), true),
 	} {
 		if err == nil || !strings.Contains(err.Error(), "printed n") {
 			t.Errorf("%s: %v", what, err)

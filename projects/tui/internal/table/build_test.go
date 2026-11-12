@@ -86,7 +86,7 @@ func records() []Record {
 }
 
 func TestRecordsAreLaidOutInTheirFieldsAndBuilt(t *testing.T) {
-	s := &Schema{Fields: []Field{state, list, title}, Presets: []Preset{{Name: Opening}}}
+	s := &Schema{Fields: []Field{state, list, title}, Presets: []Preset{{Name: Default}}}
 	rs := records()
 	all := Lay(s.Fields, rs, func(id string) string { return "text" })
 	if len(all) != 4 || len(all[0].Cells) != 1 || len(all[1].Cells) != 3 || all[1].Cells[0].Values[0] != "open" {

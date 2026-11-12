@@ -1,10 +1,10 @@
 // Every stage's screen at 80×24, closed and with its first row open, is pinned as a golden file without its escapes,
 // its preset line over its table, each field drawn as automatic chooses: without a glyph its rows all share, and, as
-// changes at 80, stepped down to a shorter rendering where the columns are short of width; underway's and builds' are
-// at 120×24, the common width. So is the bar at 120 columns, with the legend and without, and the legend at 80,
-// scrolled to changes; and backlog's preset line once its table differs from every view, filtered to the others' issues
-// and to those not on GitLab, under the keyboard; and, at 120 columns, the sidebar's field editor with a field in each
-// section, and with assignees' popover open over it, @me checked.
+// changes at 80, stepped down to a shorter rendering where the columns are short of width; builds' are at 120×24, the
+// common width. So are issues at 120, and set as Backlog at 80 and as By Milestone at 120; the bar at 120 columns, with
+// the legend and without, and the legend at 80, scrolled to changes; and issues' preset line once its table differs
+// from every view, filtered to the others' issues and to those not on GitLab, under the keyboard; and, at 120 columns,
+// the sidebar's field editor with a field in each section, and with assignees' popover open over it, @me checked.
 package flow
 
 import (
@@ -20,9 +20,9 @@ import (
 
 func TestGoldenViews(t *testing.T) {
 	at80 := tea.WindowSizeMsg{Width: 80, Height: 24}
-	for i, name := range six {
+	for i, name := range five {
 		size := at80
-		if name == "underway" || name == "builds" {
+		if name == "builds" {
 			size.Width = 120
 		}
 		m := loaded(t, viewing(""), size)
@@ -36,6 +36,17 @@ func TestGoldenViews(t *testing.T) {
 	}
 	golden := func(file string, msgs ...tea.Msg) {
 		testkit.Golden(t, filepath.Join("testdata", file), raw(loaded(t, viewing(""), msgs...)))
+	}
+	at120 := tea.WindowSizeMsg{Width: 120, Height: 24}
+	golden("issues-120.golden", at120)
+	presets := map[string]string{"issues-backlog.golden": "Backlog", "issues-milestone.golden": "By Milestone"}
+	for file, preset := range presets {
+		m := loaded(t, viewing(""), at80)
+		if preset == "By Milestone" {
+			m = drive(m, at120)
+		}
+		m.apply(m.viewsOf(0).Chosen(preset))
+		testkit.Golden(t, filepath.Join("testdata", file), raw(m))
 	}
 	golden("legend.golden", at80, press('?'))
 	golden("bar-120.golden", tea.WindowSizeMsg{Width: 120, Height: 24})
@@ -57,7 +68,7 @@ func TestGoldenViews(t *testing.T) {
 	m.setPanel(m.panel(0).SortedAs("age", grid.Descending).Grouped("source", true))
 	m = drive(popoverOf(m, "assignees"), press(tea.KeyDown), press(tea.KeySpace), esc, press(tea.KeySpace))
 	testkit.Golden(t, filepath.Join("testdata", "columns.golden"), raw(m))
-	// backlog's assignees' popover open over the columns dialog, @me checked
+	// issues' assignees' popover open over the columns dialog, @me checked
 	testkit.Golden(t, filepath.Join("testdata", "popover.golden"), raw(drive(popoverOf(loaded(t, viewing("")), "assignees"),
 		press(tea.KeyDown), press(tea.KeySpace))))
 }

@@ -37,9 +37,9 @@
       ]
     },
     {
-      "stage": "backlog", "command": ["flow", "backlog", "--json"], "staged": true, "forge": true,
-      "takes": ["owner", "fresh", "cached", "workspace"], "record": ".[]", "key": ".number",
-      "empty": "no open issue without a pull request",
+      "stage": "issues", "command": ["flow", "issues", "--json"], "staged": true, "forge": true,
+      "takes": ["owner", "fresh", "cached", "workspace"], "record": ".[]", "key": ".number, .pr.number?",
+      "empty": "no open issue",
       "fields": [
         {"id": "id", "label": "id", "type": "ref", "path": ".number", "sort": true, "renderings": ["text"],
          "placement": "column"},
@@ -52,46 +52,22 @@
          "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "group", "depth": 2},
         {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
          "filter": true, "renderings": ["text"], "dim": true, "placement": "group", "depth": 3},
+        {"id": "status", "label": "status", "type": "enum", "path": ".status", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "backlog", "glyph": "💤"}, {"value": "underway", "glyph": "🛫"}],
+         "renderings": ["glyph", "glyph+text", "text"], "placement": "column"},
         {"id": "assignees", "label": "assignees", "one": "assignee", "type": "person", "path": ".assignees",
          "group": true, "filter": true, "owns": true, "glyph": "👤", "renderings": ["glyph+text", "text"],
          "dim": true, "placement": "column"},
-        {"id": "age", "label": "age", "type": "time", "filter": true, "path": ".age", "sort": true, "renderings": ["age"], "dim": true,
-         "right": true, "placement": "column"},
+        {"id": "age", "label": "age", "type": "time", "filter": true, "path": ".age", "sort": true,
+         "renderings": ["age"], "dim": true, "right": true, "placement": "column"},
+        {"id": "milestone", "label": "milestone", "type": "enum", "path": ".milestone", "sort": true, "group": true,
+         "filter": true, "other": "⛳", "renderings": ["glyph+text", "text"], "dim": true, "placement": "hidden"},
+        {"id": "iteration", "label": "iteration", "type": "enum", "path": ".iteration", "sort": true, "group": true,
+         "filter": true, "other": "📅", "renderings": ["glyph+text", "text"], "dim": true, "placement": "hidden"},
+        {"id": "swimlane", "label": "swimlane", "type": "enum", "path": ".swimlane", "sort": true, "group": true,
+         "filter": true, "other": "🏊", "renderings": ["glyph+text", "text"], "dim": true, "placement": "hidden"},
         {"id": "branch", "label": "branch", "type": "text", "path": ".branch", "sort": true, "glyph": "🌿",
-         "renderings": ["glyph+text", "text"], "dim": true, "placement": "column"},
-        {"id": "labels", "label": "labels", "one": "label", "type": "label", "path": ".labels[].name", "filter": true,
-         "group": true, "renderings": ["pills", "text"], "placement": "column"},
-        {"id": "title", "label": "title", "type": "text", "path": ".title", "sort": true, "glyph": "🎫",
-         "renderings": ["glyph+text", "text"], "wrap": true, "placement": "column"}
-      ],
-      "presets": [
-        {"name": "Default"},
-        {"name": "Compact", "fields": {
-          "assignees": {"placement": "hidden"}, "age": {"placement": "hidden"},
-          "branch": {"placement": "hidden"}, "labels": {"placement": "hidden"}}}
-      ]
-    },
-    {
-      "stage": "underway", "command": ["flow", "underway", "--json"], "staged": true, "forge": true,
-      "takes": ["owner", "fresh", "cached", "workspace"], "record": ".[]", "key": ".number, .pr.number",
-      "empty": "no issue is underway",
-      "fields": [
-        {"id": "id", "label": "id", "type": "ref", "path": ".number", "sort": true, "renderings": ["text"],
-         "placement": "column"},
-        {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
-         "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
-        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
-         "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
-         "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "group", "depth": 1},
-        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
-         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "group", "depth": 2},
-        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
-         "filter": true, "renderings": ["text"], "dim": true, "placement": "group", "depth": 3},
-        {"id": "assignees", "label": "assignees", "one": "assignee", "type": "person", "path": ".assignees",
-         "group": true, "filter": true, "owns": true, "glyph": "👤", "renderings": ["glyph+text", "text"],
-         "dim": true, "placement": "column"},
-        {"id": "age", "label": "age", "type": "time", "filter": true, "path": ".age", "sort": true, "renderings": ["age"], "dim": true,
-         "right": true, "placement": "column"},
+         "renderings": ["glyph+text", "text"], "dim": true, "placement": "hidden"},
         {"id": "change", "label": "change", "type": "ref", "path": ".pr.number", "sort": true, "group": true,
          "glyph": "🔀", "renderings": ["glyph+text", "text"], "placement": "column"},
         {"id": "state", "label": "state", "type": "enum", "path": ".pr.state", "sort": true, "group": true,
@@ -104,23 +80,30 @@
         {"id": "where", "label": "where", "type": "text", "path": ".here, .local, .pr.author", "sort": true,
          "group": true, "renderings": ["where"], "placement": "column"},
         {"id": "fork", "label": "fork", "type": "person", "path": ".pr.fork", "sort": true, "group": true,
-         "filter": true, "glyph": "🍴", "renderings": ["glyph+text", "text"], "dim": true, "placement": "column"},
-        {"id": "pushed", "label": "pushed", "type": "time", "filter": true, "path": ".pr.pushed.age", "sort": true, "glyph": "📤",
-         "renderings": ["glyph+age", "age"], "dim": true,
-         "right": true, "placement": "column"},
+         "filter": true, "glyph": "🍴", "renderings": ["glyph+text", "text"], "dim": true, "placement": "hidden"},
+        {"id": "pushed", "label": "pushed", "type": "time", "filter": true, "path": ".pr.pushed.age", "sort": true,
+         "glyph": "📤", "renderings": ["glyph+age", "age"], "dim": true, "right": true, "placement": "hidden"},
         {"id": "by", "label": "by", "type": "person", "path": ".pr.pushed.by", "sort": true, "group": true,
-         "filter": true, "glyph": "👤", "renderings": ["glyph+text", "text"], "dim": true, "placement": "column"},
+         "filter": true, "glyph": "👤", "renderings": ["glyph+text", "text"], "dim": true, "placement": "hidden"},
         {"id": "labels", "label": "labels", "one": "label", "type": "label", "path": ".labels[].name", "filter": true,
          "group": true, "renderings": ["pills", "text"], "placement": "column"},
         {"id": "title", "label": "title", "type": "text", "path": ".title", "sort": true, "glyph": "🎫",
          "renderings": ["glyph+text", "text"], "wrap": true, "placement": "column"}
       ],
       "presets": [
-        {"name": "Default"},
+        {"name": "All Issues"},
+        {"name": "Backlog", "fields": {
+          "status": {"placement": "hidden", "filter": {"include": ["backlog"]}}, "branch": {"placement": "column"},
+          "change": {"placement": "hidden"}, "state": {"placement": "hidden"}, "where": {"placement": "hidden"}}},
+        {"name": "Underway", "fields": {
+          "status": {"placement": "hidden", "filter": {"include": ["underway"]}}, "fork": {"placement": "column"},
+          "pushed": {"placement": "column"}, "by": {"placement": "column"}}},
+        {"name": "By Milestone", "fields": {"milestone": {"placement": "group", "depth": 4}}},
+        {"name": "By Iteration", "fields": {"iteration": {"placement": "group", "depth": 4}}},
+        {"name": "By Swimlane", "fields": {"swimlane": {"placement": "group", "depth": 4}}},
         {"name": "Compact", "fields": {
-          "assignees": {"placement": "hidden"}, "age": {"placement": "hidden"},
-          "where": {"placement": "hidden"}, "fork": {"placement": "hidden"}, "pushed": {"placement": "hidden"},
-          "by": {"placement": "hidden"}, "labels": {"placement": "hidden"}}}
+          "assignees": {"placement": "hidden"}, "age": {"placement": "hidden"}, "where": {"placement": "hidden"},
+          "labels": {"placement": "hidden"}}}
       ]
     },
     {

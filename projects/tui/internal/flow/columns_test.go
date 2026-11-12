@@ -37,7 +37,7 @@ func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 	if strings.Contains(lines(m)[m.top()], "◫") || strings.Contains(lines(m)[m.top()], Fields) {
 		t.Errorf("an icon on the header: %q", lines(m)[m.top()])
 	}
-	// organization, which the view groups by, hidden, to stand last
+	// organization, which the view groups by, hidden, to stand among the hidden, after the columns
 	m.setPanel(regroup(m.panel(0).SortedAs("age", grid.Descending), "assignees").Placed("organization", grid.Hidden))
 	if m.presetsMenu = m.presetsMenu.Drop(&m); table.PresetItems(&m)[table.ItemFields] != (shell.Item{Glyph: Fields, Name: FieldsIt}) ||
 		table.PresetItems(&m)[table.ItemFields+1].Name != "" || !table.PresetEnabled(&m, table.ItemFields) {
@@ -46,12 +46,12 @@ func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 	if m.choosePreset(table.ItemFields); m.presetsMenu.Open || !m.cols.Open || m.cols.At != 0 {
 		t.Fatalf("Fields… did not open the dialog: menu %v, dialog %+v", m.presetsMenu.Open, m.cols)
 	}
-	if got := m.cols.Listed(&m); got[0] != "assignees" || got[len(got)-1] != "organization" {
+	if got := m.cols.Listed(&m); got[0] != "assignees" || slices.Index(got, "organization") < slices.Index(got, "title") {
 		t.Errorf("the fields: %q", got)
 	}
 	box, top, left := m.cols.Box(&m)
 	text := ansi.Strip(strings.Join(box, "\n"))
-	if top != m.top() || left+ansi.StringWidth(box[0]) != m.paneWidth() || !strings.Contains(text, "backlog fields") ||
+	if top != m.top() || left+ansi.StringWidth(box[0]) != m.paneWidth() || !strings.Contains(text, "issues fields") ||
 		!strings.Contains(text, "field") || !strings.Contains(text, grid.Ticked+" assignees") ||
 		!strings.Contains(text, "▼") || !strings.Contains(text, grid.Unticked+" organization") ||
 		!strings.Contains(keysOf(m), "s sort") {
@@ -74,13 +74,13 @@ func TestTheColumnsDialogAppliesAtOnce(t *testing.T) {
 	m.setPanel(regroup(m.panel(0)).Placed("organization", grid.Hidden).Placed("repository", grid.Hidden))
 	m.cols = table.Columns{Open: true}
 	at := func(id string) { m.cols.At = slices.Index(m.cols.Listed(&m), id) }
-	at("branch")
-	if m = drive(m, press(tea.KeySpace)); m.panel(0).Field("branch").Placement != grid.Hidden ||
-		m.cols.Listed(&m)[m.cols.At] != "branch" {
-		t.Fatalf("space on branch: %+v, at %q", m.panel(0).Field("branch"), m.cols.Listed(&m)[m.cols.At])
+	at("change")
+	if m = drive(m, press(tea.KeySpace)); m.panel(0).Field("change").Placement != grid.Hidden ||
+		m.cols.Listed(&m)[m.cols.At] != "change" {
+		t.Fatalf("space on change: %+v, at %q", m.panel(0).Field("change"), m.cols.Listed(&m)[m.cols.At])
 	}
-	if m = drive(m, press(tea.KeySpace)); m.panel(0).Field("branch").Placement != grid.Column {
-		t.Fatalf("space on hidden branch: %+v", m.panel(0).Field("branch"))
+	if m = drive(m, press(tea.KeySpace)); m.panel(0).Field("change").Placement != grid.Column {
+		t.Fatalf("space on hidden change: %+v", m.panel(0).Field("change"))
 	}
 	at("age")
 	for _, want := range []string{"▲", "▼", ""} {
@@ -93,9 +93,10 @@ func TestTheColumnsDialogAppliesAtOnce(t *testing.T) {
 		m.cols.At != 0 {
 		t.Fatalf("g on source: %q, at %d", m.panel(0).Groups(), m.cols.At)
 	}
-	// shift up moves assignees a place, then past the first column into the groups; id, which cannot group, stays
+	// shift up moves assignees a place, past status, then past id, the first column, into the groups; id, which cannot
+	// group, stays
 	at("assignees")
-	m = drive(m, testkit.Press("shift+up"), testkit.Press("shift+up"))
+	m = drive(m, testkit.Press("shift+up"), testkit.Press("shift+up"), testkit.Press("shift+up"))
 	if groups := m.panel(0).Groups(); !slices.Equal(groups, []string{"source", "assignees"}) || m.cols.At != 1 {
 		t.Errorf("shift+up into the groups: %q, at %d", groups, m.cols.At)
 	}

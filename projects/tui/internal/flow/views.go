@@ -28,9 +28,6 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
-// Opening is the name of the view a stage opens on, one of its own.
-const Opening = table.Opening
-
 // The preset line's words and glyphs, internal/table's: Presets ends its selector; the presets' menu's lines; and
 // what each did starts with.
 const (
@@ -116,13 +113,16 @@ func migrate(path string) (map[string][]table.Preset, string, error) {
 	return out, note, nil
 }
 
-// builtins gives a stage's own views, its presets in the catalog, in the catalog's order; a stage without columns has
-// Default alone, as it opens.
-func (m Model) builtins(i int) []table.Preset {
-	if s := catalog[m.stages[i].name]; s != nil {
+// builtins gives a stage's own views, its presets in the catalog, in the catalog's order, the first the one it opens
+// on; a stage without columns has Default alone, as it opens.
+func (m Model) builtins(i int) []table.Preset { return builtinsOf(m.stages[i].name) }
+
+// builtinsOf gives a stage's own views by its name, as builtins does.
+func builtinsOf(name string) []table.Preset {
+	if s := catalog[name]; s != nil {
 		return slices.Clone(s.Presets)
 	}
-	return []table.Preset{{Name: Opening}}
+	return []table.Preset{{Name: table.Default}}
 }
 
 // preset gives a view of views.json as a preset of the stage's: each column's label, or its id, as the field's id,
@@ -196,9 +196,11 @@ func (v named) preset(stage string) (table.Preset, []string) {
 }
 
 // viewsOf gives a stage's views, as table.Views keeps them: its fields, its own views, and the person's.
-func (m Model) viewsOf(i int) table.Views {
-	name := m.stages[i].name
-	return table.Views{Fields: fieldsOf(name), Own: m.builtins(i), Saved: m.saved[name]}
+func (m Model) viewsOf(i int) table.Views { return m.viewsNamed(m.stages[i].name) }
+
+// viewsNamed gives a stage's views by its name, as viewsOf does.
+func (m Model) viewsNamed(name string) table.Views {
+	return table.Views{Fields: fieldsOf(name), Own: builtinsOf(name), Saved: m.saved[name]}
 }
 
 // views gives a stage's views, its own first, then the person's.
@@ -207,7 +209,7 @@ func (m Model) views(i int) []table.Preset { return m.viewsOf(i).All() }
 // builtin says whether a name is one of a stage's own views.
 func (m Model) builtin(i int, name string) bool { return m.viewsOf(i).Builtin(name) }
 
-// chosen gives the view a stage's preset line was last set to, or Default when that view is gone.
+// chosen gives the view a stage's preset line was last set to, or the one it opens on when that view is gone.
 func (m Model) chosen(i int) table.Preset { return m.viewsOf(i).Chosen(m.stages[i].ViewName) }
 
 // current gives a stage's panel as a view would keep it.
@@ -322,13 +324,13 @@ func (m *Model) renamePreset() {
 }
 
 // deletePreset drops the person's view the line was set to, as choosePreset has it only while there is one, and sets
-// the stage as Default.
+// the stage as the view it opens on.
 func (m *Model) deletePreset() {
 	v, _ := m.own()
 	if !m.keep(m.viewsOf(m.stage).Delete(v.Name), "deleted") {
 		return
 	}
-	m.apply(m.viewsOf(m.stage).Chosen(Opening))
+	m.apply(m.viewsOf(m.stage).Opening())
 	m.done(Deleted + " deleted the preset " + v.Name)
 }
 

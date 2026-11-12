@@ -17,8 +17,20 @@ import (
 func views() Views {
 	fields := []Field{state, title}
 	return Views{Fields: fields,
-		Own:   []Preset{{Name: Opening}, {Name: "Grouped", Fields: map[string]Setting{"state": {Placement: PlaceGroup, Depth: 1}}}},
+		Own:   []Preset{{Name: Default}, {Name: "Grouped", Fields: map[string]Setting{"state": {Placement: PlaceGroup, Depth: 1}}}},
 		Saved: []Preset{{Name: "Mine", Fields: map[string]Setting{"title": {Placement: PlaceHidden}}}}}
+}
+
+// A table opens on the first of its own views, and one without any of its own on Default; a view gone gives way to it.
+func TestATableOpensOnTheFirstOfItsOwnViews(t *testing.T) {
+	v := views()
+	v.Own = v.Own[1:]
+	if got := v.Opening().Name; got != "Grouped" || v.Chosen("gone").Name != "Grouped" {
+		t.Errorf("opens on %q, a view gone gives %q", got, v.Chosen("gone").Name)
+	}
+	if got := (Views{}).Opening(); got.Name != Default || len(got.Fields) != 0 {
+		t.Errorf("no views of its own: %+v", got)
+	}
 }
 
 func TestATableIsSetAsTheViewItsPanelIsAs(t *testing.T) {
@@ -27,25 +39,25 @@ func TestATableIsSetAsTheViewItsPanelIsAs(t *testing.T) {
 		for _, p := range v.All() {
 			yield(p.Name)
 		}
-	}); !slices.Equal(names, []string{Opening, "Grouped", "Mine"}) {
+	}); !slices.Equal(names, []string{Default, "Grouped", "Mine"}) {
 		t.Errorf("the views: %q", names)
 	}
-	if !v.Builtin("Grouped") || v.Builtin("Mine") || v.Chosen("gone").Name != Opening || v.Chosen("Mine").Name != "Mine" {
+	if !v.Builtin("Grouped") || v.Builtin("Mine") || v.Chosen("gone").Name != Default || v.Chosen("Mine").Name != "Mine" {
 		t.Error("builtin, chosen")
 	}
 	mine := v.Chosen("Mine").Panel(v.Fields, grid.Panel{})
 	// chosen Default, the panel as Mine says: it is Mine
-	if got := v.Is(Table{ViewName: Opening, View: mine}); got != "Mine" {
+	if got := v.Is(Table{ViewName: Default, View: mine}); got != "Mine" {
 		t.Errorf("as Mine: %q", got)
 	}
 	// as it grouped the rows as they loaded, it is the view chosen still
 	grouped := v.Chosen("Grouped")
-	if got := v.Is(Table{ViewName: Opening, View: grouped.Panel(v.Fields, grid.Panel{}), Grouped: &grouped}); got != Opening {
+	if got := v.Is(Table{ViewName: Default, View: grouped.Panel(v.Fields, grid.Panel{}), Grouped: &grouped}); got != Default {
 		t.Errorf("as it grouped: %q", got)
 	}
 	// as no view says, it is none
 	other := (Preset{Fields: map[string]Setting{"state": {Placement: PlaceHidden}}}).Panel(v.Fields, grid.Panel{})
-	if got := v.Is(Table{ViewName: Opening, View: other}); got != "" {
+	if got := v.Is(Table{ViewName: Default, View: other}); got != "" {
 		t.Errorf("as none: %q", got)
 	}
 	if p, ok := v.Mine("Mine"); !ok || p.Name != "Mine" {
@@ -71,7 +83,7 @@ func TestThePersonsViewsAreSavedRenamedAndDeleted(t *testing.T) {
 		t.Errorf("save as Yours: %v %+v", err, saved)
 	}
 	v.Saved = append(v.Saved, Preset{Name: "Yours"})
-	for name, want := range map[string]error{"": ErrUnnamed, Opening: ErrBuiltin, "Yours": ErrTaken} {
+	for name, want := range map[string]error{"": ErrUnnamed, Default: ErrBuiltin, "Yours": ErrTaken} {
 		if _, err := v.Rename("Mine", name); !errors.Is(err, want) {
 			t.Errorf("rename to %q: %v", name, err)
 		}
@@ -108,11 +120,11 @@ func TestThePersonsPresetsAreKeptInAFileOfTheirOwn(t *testing.T) {
 	if _, err := ReadPresets(file); !os.IsNotExist(err) {
 		t.Errorf("no file: %v", err)
 	}
-	kept := map[string][]Preset{"backlog": {{Name: "Mine"}}}
+	kept := map[string][]Preset{"issues": {{Name: "Mine"}}}
 	if err := WritePresets(file, kept); err != nil {
 		t.Fatal(err)
 	}
-	if got, err := ReadPresets(file); err != nil || got["backlog"][0].Name != "Mine" {
+	if got, err := ReadPresets(file); err != nil || got["issues"][0].Name != "Mine" {
 		t.Errorf("read back: %v %+v", err, got)
 	}
 	for content, says := range map[string]string{"{not json": "does not read as presets", `{"version": 1}`: "version 1, not 2"} {

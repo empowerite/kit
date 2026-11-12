@@ -1,32 +1,32 @@
   = kit flow · - empowerite/kit                                                                              🔎 /search
-  ➀╶────────────────╮➁╶─────────────────╴➌╶────────────────╮➃╶───────────────╮➄╶──────────────────╮➅╶─────────────────╮
-    🎫 backlog  3   │  🛫 underway  4    │ 🔀 changes  3 : │  🏭 builds  4   │  🛬 incoming  7    │  📦 releases  3   │
-  ──────────────────╰────────────────────╯                 ╰─────────────────╰────────────────────╰───────────────────╰─
-  ▾ 3                                                                                                       Default ▼
-  ───
-    change  title                   author            state  age  checks  threads          labels      branch
-    ·───────·───────────────────────·─────────────────·──────·────·───────·────────────────×·──────────·───────────────
-  ▸ 🔀 #2   The first release, v0…  jeffrey-aguilera  🏁      8d  ✅                       kindfix  1-the-first-rel…
-  ▸ 🔀 #3   A spike on the settin…  ada               🔨     90m  🏃      💬 2 unresolved              3-a-spike
-  ▸ 🔀 #4   Lint every module       bob               🔥     25h  ❌                                   4-lint-every-mo…
-
-
-
-
-
-                                                                 ╭─ changes legend ─────────────────────────── ↖ ↗ ↙ ↘ ╮
-                                                                 │ =  kit menu              ▼  presets menu            │
-                                                                 │ -  workspace menu        ·  sortable: click to sort │
-                                                                 │ 🔎 search: / or click    ×  list: click to flatten  │
-                                                                 │ ➀  tab: click to select  ▸  closed: click to open   │
-                                                                 │ ➌  selected tab          🔀 pull request 🔗         │
-                                                                 │ 🎫 backlog stage         🏁 ready 🔗                │
-                                                                 │ 🛫 underway stage        ✅ passed                  │
-                                                                 │ 🔀 changes stage         🔨 draft 🔗                │
-                                                                 │ :  tab menu              🏃 running                 │
-                                                                 │ 🏭 builds stage          💬 unresolved threads      │
-                                                                 │ 🛬 incoming stage        💬 comments:open 🔗        │
-                                                                 │ 📦 releases stage        🔥 failing:gate 🔗         │
-                                                                 │ ▾  open: click to close  ❌ failed                  │
-                                                                 ╰─────────────────────────────────────────────────────╯
- = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-6 jump : tab menu
+  ➀╶───────────────╴➋╶────────────────╮➂╶───────────────╮➃╶──────────────────╮➄╶─────────────────╮
+    🎫 issues  7    │ 🔀 changes  3 : │  🏭 builds  4   │  🛬 incoming  7    │  📦 releases  3   │
+  ──────────────────╯                 ╰─────────────────╰────────────────────╰───────────────────╰──────────────────────
+  ▾ 3                                                                                     ╭─ changes legend ── ↖ ↗ ↙ ↘ ╮
+  ───                                                                                     │ =  kit menu                │
+    change  title                   author            state  age  checks  threads         │ -  workspace menu          │
+    ·───────·───────────────────────·─────────────────·──────·────·───────·───────────────│ 🔎 search: / or click      │
+  ▸ 🔀 #2   The first release, v0…  jeffrey-aguilera  🏁      8d  ✅                      │ ➀  tab: click to select    │
+  ▸ 🔀 #3   A spike on the settin…  ada               🔨     90m  🏃      💬 2 unresolved │ ➋  selected tab            │
+  ▸ 🔀 #4   Lint every module       bob               🔥     25h  ❌                      │ 🎫 issues stage            │
+                                                                                          │ 🔀 changes stage           │
+                                                                                          │ :  tab menu                │
+                                                                                          │ 🏭 builds stage            │
+                                                                                          │ 🛬 incoming stage          │
+                                                                                          │ 📦 releases stage          │
+                                                                                          │ ▾  open: click to close    │
+                                                                                          │ ▼  presets menu            │
+                                                                                          │ ·  sortable: click to sort │
+                                                                                          │ ×  list: click to flatten  │
+                                                                                          │ ▸  closed: click to open   │
+                                                                                          │ 🔀 pull request 🔗         │
+                                                                                          │ 🏁 ready 🔗                │
+                                                                                          │ ✅ passed                  │
+                                                                                          │ 🔨 draft 🔗                │
+                                                                                          │ 🏃 running                 │
+                                                                                          │ 💬 unresolved threads      │
+                                                                                          │ 💬 comments:open 🔗        │
+                                                                                          │ 🔥 failing:gate 🔗         │
+                                                                                          │ ❌ failed                  │
+                                                                                          ╰────────────────────────────╯
+ = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-5 jump : tab menu

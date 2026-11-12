@@ -33,11 +33,11 @@ see: [forges.md](forges.md), [../workspaces.md](../workspaces.md), `kit/modules/
 | The branch checked out, and HEAD's commit | read | `commit:branch`: `kit commit`, `kit submit`; `git:rebase`: `kit rebase`; `policy:branch`: `kit policy`, `kit facts`; `issue:start`: `kit work`; `changes:documents`: the changes stage; each provider's `pr-here`: `kit linked`, `kit ready`, `kit settle`; the desk and worktrees stages; `welcome:where` |
 | Uncommitted changes | read | `git:clean`: `kit tidy`, `kit rebase`, `kit work`; `flow:checkout`: the desk and worktrees stages; `commit:choices`: the paths `kit commit` completes |
 | A checkout's status with its branch | read | `workspace:worktrees`: the worktrees stage of `kit workspace`; `marks:status`: the desk and worktrees marks of `kit flow --marks`; `workspace:marks`: `kit workspace --marks` |
-| Every worktree, the desk first | read | `git:linked-worktrees`: the worktrees stage; `git:worktrees`: `kit tidy`; `issue:worktree`: `kit work`; `underway:checkouts`: the underway stage; `workspace:paths`, `workspace::worktrees`, `workspace::heads`: `kit workspace`; `across:branches`: `kit workspace` over a workspace; `marks:desk`, `marks:worktrees` |
+| Every worktree, the desk first | read | `git:linked-worktrees`: the worktrees stage; `git:worktrees`: `kit tidy`; `issue:worktree`: `kit work`; `issues:checkouts`: the issues stage; `workspace:paths`, `workspace::worktrees`, `workspace::heads`: `kit workspace`; `across:branches`: `kit workspace` over a workspace; `marks:desk`, `marks:worktrees` |
 | Add a worktree for a branch | write | `issue:worktree`: `kit work` |
 | Remove a finished worktree, and prune git's records | write | `git:tidy-worktree`, `git:tidy`: `kit tidy` |
 | The default branch | read | `git:default-branch`, the primary's HEAD, else `main`: `kit commit`, `kit rebase`, `kit tidy`, `kit work`, `kit release`, `kit facts`, `kit policy`, `kit flow`, `kit workspace`; `flow:remote-default`: the incoming stage; `workspace:remote-facts`: the remotes stage of `kit workspace`; `policy:base` says why one is missing |
-| Local and remote branches, with their upstreams | read | `flow:incoming-rows`: the incoming stage, the local branches on each remote branch; `workspace:branches`: the branches stage of `kit workspace`; `underway:branches`: the underway stage; `backlog:collect`: the backlog stage; `across:branches`; `git:gone-branches`: `kit tidy`, the worktrees stage |
+| Local and remote branches, with their upstreams | read | `flow:incoming-rows`: the incoming stage, the local branches on each remote branch; `workspace:branches`: the branches stage of `kit workspace`; `issues:branches` and `issues:documents`: the issues stage; `across:branches`; `git:gone-branches`: `kit tidy`, the worktrees stage |
 | A ref names a commit | read | `commit:submit`, `commit:index`, `commit:named`, `commit:moved`: `kit commit`, `kit submit`; `git:rebase`, `git:unpushed`; `issue:worktree`; `releases:release`; `policy:base`, `facts:document`; `workspace:base`; `flow:remote-default`, `flow:checkout` |
 | A branch name is valid | read | `policy:target-here`: `kit policy` on a GitLab merge request |
 | A branch's upstream | read | `git:pushes-to`: `kit submit`, `kit work`, `kit rebase` |
@@ -221,7 +221,7 @@ kit never runs `git config` to write, `git remote add`, or `git remote set-head`
 
 One record per worktree, the main checkout first, each line `${label} ${value}` or a bare label, and a blank line
 after each record. `git:linked-worktrees`, `git:worktrees`, `workspace::worktrees`, `workspace::heads`,
-`underway:checkouts`, `issue:worktree`, and `across:branches` read it; the marks hash it whole.
+`issues:checkouts`, `issue:worktree`, and `across:branches` read it; the marks hash it whole.
 [git's porcelain format](https://git-scm.com/docs/git-worktree#_porcelain_format).
 
 | Field | What it holds | What kit does with it |
@@ -275,8 +275,8 @@ no ref name and no subject holds; the other formats separate them with a space.
 | --- | --- | --- |
 | `%(refname)` | the full ref name | `workspace::branches` tells `refs/heads/` from `refs/remotes/`, and a remote's name by the longest that starts the ref; `flow:refs` diffs it before and after a fetch; the marks hash it |
 | `%(refname:short)` | the name without `refs/heads/` or `refs/tags/` | `git:gone-branches`, `workspace:commits`, and `across:branches` take the branch; `workspace::tags` the tag |
-| `%(refname:lstrip=2)` | the name past `refs/heads/` or `refs/tags/` | `underway:branches` takes the local branches; `forge:tags` the tags, as one JSON array |
-| `%(refname:lstrip=3)` | the name past `refs/remotes/${primary}/` | `backlog:collect` takes the primary's branches, `HEAD` left out |
+| `%(refname:lstrip=2)` | the name past `refs/heads/` or `refs/tags/` | `issues:branches` takes the local branches; `forge:tags` the tags, as one JSON array |
+| `%(refname:lstrip=3)` | the name past `refs/remotes/${primary}/` | `issues:documents` takes the primary's branches, `HEAD` left out |
 | `%(symref)` | the ref a symbolic ref names, empty for any other | a remote's `HEAD` is left out of its branches, which are counted by their empty `symref` |
 | `%(objectname)` | the object the ref names | `flow:fetch-diff` tells a ref `new`, `moved`, or `gone` between two `flow:refs`; the marks hash it |
 | `%(objectname:short)` | the same, abbreviated | a branch's commit; a lightweight tag's commit |
@@ -419,6 +419,6 @@ kit turns git's output into JSON in several places, and none of them is git's fo
 rows of `kit workspace` from several git commands joined with each remote's forge and links, `flow::checkout` makes
 the desk and worktrees stages' documents from `git status --porcelain`, `git diff --numstat`, and `git log`,
 `facts:tree` makes the `tree` of `kit facts` from `git ls-files` or `git ls-tree` with each path's kinds, and
-`forge:tags` and `underway:checkouts` make a list and a map. A schema of any of them describes a verb's output, not
+`forge:tags` and `issues:checkouts` make a list and a map. A schema of any of them describes a verb's output, not
 git's, so this page writes none; [../workspaces.md](../workspaces.md) says what `kit workspace --json` prints, and
 [../policy.md](../policy.md) what the facts hold.

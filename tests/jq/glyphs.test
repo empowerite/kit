@@ -27,7 +27,7 @@ null
 # glyphs.json gives a legend whose every stage is one kit flow draws, in its order.
 import "glyphs" as glyphs; [glyphs::legend | select(test("^# [a-z]+:$")) | ltrimstr("# ") | rtrimstr(":")]
 null
-["backlog","underway","desk","worktrees","changes","builds","incoming","releases"]
+["issues","desk","worktrees","changes","builds","incoming","releases"]
 
 # kit workspace's legend has its own stages alone, in its order.
 import "glyphs" as glyphs; [glyphs::legend_for("workspace") | select(test("^# [a-z]+:$")) | ltrimstr("# ") | rtrimstr(":")]

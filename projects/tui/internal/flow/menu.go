@@ -42,7 +42,7 @@ const (
 // tabItems gives the tab's menu's lines, top to bottom: the stage loaded again; watched, or no longer, as watch.go
 // says, where its verb marks it; the tab maximized, or restored once it is; a rule; a level more of the outline and a
 // level less, and the selection shown and hidden, as folds names them; a rule; every row selected and none; a rule;
-// and what acts on the rows selected: on backlog, the actions there, then each one's page opened. A line with a key
+// and what acts on the rows selected: on issues, the actions there, then each one's page opened. A line with a key
 // shows it at its right; the key does the same with the menu closed, as shortcut says.
 func (m Model) tabItems() []shell.Item {
 	size := shell.Item{Glyph: Maximize, Name: "Maximize", Keys: "M"}

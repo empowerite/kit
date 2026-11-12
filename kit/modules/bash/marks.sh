@@ -4,7 +4,7 @@
 # A picture that has drawn a stage reads its mark again, cheaply, and knows the stage is stale once the mark differs
 # from the one it read when the stage loaded. Each stage's mark is read from what it draws:
 #
-#   - backlog and underway: the forge's issues mark, of the issue or change updated last
+#   - issues: the forge's issues mark, of the issue or change updated last
 #   - changes: the issues mark and the runs mark, as a change's checks are its runs
 #   - builds: the runs mark
 #   - releases: the releases mark
@@ -34,7 +34,7 @@ marks:stages() {
   for stage in "${stages[@]}"
   do
     case "${stage}" in
-      (backlog | underway | changes | builds | releases)
+      (issues | changes | builds | releases)
         [[ -z "${forge}" ]] || continue
         # A forge without marks has none, which is no failure: its stages are read again only when asked.
         if forge:none || ! forge:serves marks 2>/dev/null
@@ -62,7 +62,7 @@ marks:stages() {
     ($ARGS.named | del(.forge) | map_values(or_null)) as $local
     | [ $ARGS.positional[]
         | {key: ., value: (
-            if . == "backlog" or . == "underway" then $forge.issues
+            if . == "issues" then $forge.issues
             elif . == "changes" then both($forge.issues; $forge.runs)
             elif . == "builds" then $forge.runs
             elif . == "releases" then $forge.releases

@@ -4,7 +4,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # origin is a bare repository beside the desk, so the fetch is real git. The forge, where a test needs one, is a fake
 # gh: forge-world sets the caller ada, issues 7, 9, and 11, change 3 closing 7, two runs, and three releases, the world
-# of backlog.bats and changes.bats.
+# of issues-backlog.bats and changes.bats.
 
 bats_require_minimum_version 1.5.0
 
@@ -241,7 +241,7 @@ fake-tui() {
 @test "kit flow --stages prints the configured stages in order, every stage without the setting, and refuses a name that is none" {
   run "${kit_root}/bin/kit" flow --stages
   [ "$status" -eq 0 ]
-  [ "$output" = $'backlog\nunderway\ndesk\nworktrees\nchanges\nbuilds\nincoming\nreleases' ]
+  [ "$output" = $'issues\ndesk\nworktrees\nchanges\nbuilds\nincoming\nreleases' ]
   stages 'releases, worktrees, desk'
   run "${kit_root}/bin/kit" flow --stages
   [ "$status" -eq 0 ]
@@ -249,7 +249,7 @@ fake-tui() {
   printf 'flow: [worktrees, nope]\n' > kit.yml
   run "${kit_root}/bin/kit" flow --stages
   [ "$status" -eq 1 ]
-  [[ "$output" == *"'nope' is not a stage; the stages are: backlog underway desk worktrees changes builds incoming releases (flow in kit.yml)"* ]]
+  [[ "$output" == *"'nope' is not a stage; the stages are: issues desk worktrees changes builds incoming releases (flow in kit.yml)"* ]]
   run "${kit_root}/bin/kit" flow --no-fetch
   [ "$status" -eq 1 ]
   [[ "$output" == *"'nope' is not a stage"* ]]
@@ -306,59 +306,56 @@ fake-tui() {
   [ "${lines[0]}" = "{" ]
 }
 
-@test "with a forge, the picture counts the backlog, the changes, the builds, and the releases, a blank line between stages" {
+@test "with a forge, the picture counts the issues, the changes, the builds, and the releases, a blank line between stages" {
   forge-world
   run --keep-empty-lines "${kit_root}/bin/kit" flow --no-fetch
   [ "$status" -eq 0 ]
   # each stage's rows are drawn as its own tests pin them; here, the stages, their counts, and what each holds
-  [[ "${lines[0]}" == *"BACKLOG 2" ]]
-  in-order "${lines[1]}" '#9' '9-other' 'Other thing'
-  in-order "${lines[2]}" '#11' 'ada' 'Third thing'
-  [ "${lines[3]}" = "" ]
-  [[ "${lines[4]}" == *"UNDERWAY 1" ]]
-  in-order "${lines[5]}" '#7' 'bob' '#3' 'draft' 'ada' 'Fix the thing'
-  [ "${lines[6]}" = "" ]
-  [[ "${lines[7]}" == *"DESK 1" ]]
-  in-order "${lines[8]}" 'main'
-  [ "${lines[9]}" = "" ]
-  [[ "${lines[10]}" == *"WORKTREES 0" ]]
-  [ "${lines[11]}" = "no worktree" ]
-  [ "${lines[12]}" = "" ]
-  [[ "${lines[13]}" == *"CHANGES 1" ]]
-  in-order "${lines[14]}" '#3' 'Fix the thing' 'ada' 'draft' '7-fix-the-thing'
-  in-order "${lines[15]}" '#7' 'bob' 'in flight' 'Fix the thing'
-  [ "${lines[16]}" = "" ]
-  [[ "${lines[17]}" == *"BUILDS 1" ]]
-  in-order "${lines[18]}" 'kit' 'push' 'main' '3m 36s'
-  [ "${lines[19]}" = "" ]
-  [[ "${lines[20]}" == *"INCOMING" ]]
-  in-order "${lines[21]}" 'origin' 'github' "${work}/origin.git"
-  in-order "${lines[22]}" 'not fetched'
-  [ "${lines[23]}" = "" ]
-  [[ "${lines[24]}" == *"RELEASES 3" ]]
-  in-order "${lines[25]}" '0.1.0-rc.7' 'draft'
-  in-order "${lines[27]}" '0.0.9' 'release' 'latest'
-  [ "${#lines[@]}" -eq 28 ]
+  [[ "${lines[0]}" == *"ISSUES 3" ]]
+  in-order "${lines[1]}" '#7' 'bob' '🛫' '#3' 'draft' 'ada' 'Fix the thing'
+  in-order "${lines[2]}" '#9' '💤' '9-other' 'Other thing'
+  in-order "${lines[3]}" '#11' 'ada' '💤' 'Third thing'
+  [ "${lines[4]}" = "" ]
+  [[ "${lines[5]}" == *"DESK 1" ]]
+  in-order "${lines[6]}" 'main'
+  [ "${lines[7]}" = "" ]
+  [[ "${lines[8]}" == *"WORKTREES 0" ]]
+  [ "${lines[9]}" = "no worktree" ]
+  [ "${lines[10]}" = "" ]
+  [[ "${lines[11]}" == *"CHANGES 1" ]]
+  in-order "${lines[12]}" '#3' 'Fix the thing' 'ada' 'draft' '7-fix-the-thing'
+  in-order "${lines[13]}" '#7' 'bob' 'in flight' 'Fix the thing'
+  [ "${lines[14]}" = "" ]
+  [[ "${lines[15]}" == *"BUILDS 1" ]]
+  in-order "${lines[16]}" 'kit' 'push' 'main' '3m 36s'
+  [ "${lines[17]}" = "" ]
+  [[ "${lines[18]}" == *"INCOMING" ]]
+  in-order "${lines[19]}" 'origin' 'github' "${work}/origin.git"
+  in-order "${lines[20]}" 'not fetched'
+  [ "${lines[21]}" = "" ]
+  [[ "${lines[22]}" == *"RELEASES 3" ]]
+  in-order "${lines[23]}" '0.1.0-rc.7' 'draft'
+  in-order "${lines[25]}" '0.0.9' 'release' 'latest'
+  [ "${#lines[@]}" -eq 26 ]
   run "${kit_root}/bin/kit" flow --no-fetch --json
   [ "$status" -eq 0 ]
   [ "$(jq -c '.stages' <<<"$output")" \
-    = '["backlog","underway","desk","worktrees","changes","builds","incoming","releases"]' ]
+    = '["issues","desk","worktrees","changes","builds","incoming","releases"]' ]
   [ "$(jq -c 'keys_unsorted' <<<"$output")" \
-    = '["stages","backlog","underway","desk","worktrees","changes","builds","incoming","releases"]' ]
-  [ "$(jq -c '[(.backlog | map(.number)), (.underway | map([.number, .pr.number, .here])), (.changes | map(.number)),
+    = '["stages","issues","desk","worktrees","changes","builds","incoming","releases"]' ]
+  [ "$(jq -c '[(.issues | map([.number, .status, .pr.number, .here])), (.changes | map(.number)),
                (.builds | map(.id)), (.releases | map(.version))]' <<<"$output")" \
-    = '[[9,11],[[7,3,false]],[3],[11],["0.1.0-rc.7","0.1.0-rc.6","0.0.9"]]' ]
-  [ "$(jq -c '.underway | del(.. | .age?)' <<<"$output")" \
-    = "$("${kit_root}/bin/kit" flow underway --json | jq -c 'del(.. | .age?)')" ]
+    = '[[[7,"underway",3,false],[9,"backlog",null,null],[11,"backlog",null,null]],[3],[11],["0.1.0-rc.7","0.1.0-rc.6","0.0.9"]]' ]
+  [ "$(jq -c '.issues | del(.. | .age?)' <<<"$output")" \
+    = "$("${kit_root}/bin/kit" flow issues --json | jq -c 'del(.. | .age?)')" ]
   # the ages count seconds from now, so they are left out of the comparison
   [ "$(jq -c '.changes | del(.. | .age?)' <<<"$output")" \
     = "$("${kit_root}/bin/kit" flow changes --json | jq -c 'del(.. | .age?)')" ]
-  # the filters reach the backlog and the changes; underway's #7 is bob's, though ada opened its change
+  # the filters reach the issues and the changes; #7 is bob's, though ada opened its change
   run "${kit_root}/bin/kit" flow --no-fetch --mine --json
-  [ "$(jq -c '[(.backlog | map(.number)), (.underway | map(.number)), (.changes | map(.number))]' <<<"$output")" \
-    = '[[11],[],[3]]' ]
+  [ "$(jq -c '[(.issues | map(.number)), (.changes | map(.number))]' <<<"$output")" = '[[11],[3]]' ]
   run "${kit_root}/bin/kit" flow --no-fetch --owner=nobody --json
-  [ "$(jq -c '[.backlog, .underway, .changes]' <<<"$output")" = '[[],[],[]]' ]
+  [ "$(jq -c '[.issues, .changes]' <<<"$output")" = '[[],[]]' ]
 }
 
 @test "the stages of a load share one read of the open changes and one of the issues, and --fresh reads them afresh" {
@@ -366,13 +363,13 @@ fake-tui() {
   forge-world
   run "${kit_root}/bin/kit" flow --no-fetch --json
   [ "$status" -eq 0 ]
-  # backlog, underway, and changes run at once in the picture, and each needs the open changes; the issues are a
-  # list and a GraphQL read of their iterations, beside the open changes' own
+  # issues and changes run at once in the picture, and each needs the open changes; the issues are a list and a
+  # GraphQL read of their iterations, beside the open changes' own
   [ "$(grep --count '^api graphql' "${FAKE_DIR}/gh.calls")" -eq 2 ]
   [ "$(grep --count '^issue list' "${FAKE_DIR}/gh.calls")" -eq 1 ]
   [ "$(grep --count 'projectItems(first' "${FAKE_DIR}/gh.calls")" -eq 1 ]
   # kittui loads each stage on its own, then again the ones a fetch moves; the forge is not asked again
-  for stage in backlog underway changes backlog underway
+  for stage in issues changes issues changes
   do
     run "${kit_root}/bin/kit" flow "${stage}" --json
     [ "$status" -eq 0 ]
@@ -382,9 +379,9 @@ fake-tui() {
   [ "$(grep --count 'projectItems(first' "${FAKE_DIR}/gh.calls")" -eq 1 ]
   # --fresh takes no snapshot read before the stage began
   sleep 1
-  run in_flow flow:render backlog --json --fresh
+  run in_flow flow:render issues --json --fresh
   [ "$status" -eq 0 ]
-  [ "$(jq -c 'map(.number)' <<<"$output")" = '[9,11]' ]
+  [ "$(jq -c 'map(.number)' <<<"$output")" = '[7,9,11]' ]
   [ "$(grep --count '^api graphql' "${FAKE_DIR}/gh.calls")" -eq 4 ]
   [ "$(grep --count '^issue list' "${FAKE_DIR}/gh.calls")" -eq 2 ]
   [ "$(grep --count 'projectItems(first' "${FAKE_DIR}/gh.calls")" -eq 2 ]
@@ -400,22 +397,20 @@ fake-tui() {
   empty-forge
   run --keep-empty-lines "${kit_root}/bin/kit" flow --no-fetch
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == *"BACKLOG 0" ]]
-  [ "${lines[1]}" = "no open issue without a pull request" ]
-  [[ "${lines[3]}" == *"UNDERWAY 0" ]]
-  [ "${lines[4]}" = "no issue is underway" ]
-  [[ "${lines[12]}" == *"CHANGES 0" ]]
-  [ "${lines[13]}" = "no open pull request" ]
-  [[ "${lines[15]}" == *"BUILDS 0" ]]
-  [ "${lines[16]}" = "no build since the last 20 runs" ]
-  [[ "${lines[22]}" == *"RELEASES 0" ]]
-  [ "${lines[23]}" = "no release yet" ]
-  [ "${#lines[@]}" -eq 24 ]
-  run "${kit_root}/bin/kit" flow backlog
+  [[ "${lines[0]}" == *"ISSUES 0" ]]
+  [ "${lines[1]}" = "no open issue" ]
+  [[ "${lines[9]}" == *"CHANGES 0" ]]
+  [ "${lines[10]}" = "no open pull request" ]
+  [[ "${lines[12]}" == *"BUILDS 0" ]]
+  [ "${lines[13]}" = "no build since the last 20 runs" ]
+  [[ "${lines[19]}" == *"RELEASES 0" ]]
+  [ "${lines[20]}" = "no release yet" ]
+  [ "${#lines[@]}" -eq 21 ]
+  run "${kit_root}/bin/kit" flow issues
   [ "$status" -eq 0 ]
-  [ "$output" = "no open issue without a pull request" ]
-  run env -u NO_COLOR CLICOLOR_FORCE=1 "${kit_root}/bin/kit" flow backlog
-  [ "$output" = "${esc}[90mno open issue without a pull request${esc}[0m" ]
+  [ "$output" = "no open issue" ]
+  run env -u NO_COLOR CLICOLOR_FORCE=1 "${kit_root}/bin/kit" flow issues
+  [ "$output" = "${esc}[90mno open issue${esc}[0m" ]
   run "${kit_root}/bin/kit" flow releases
   [ "$output" = "no release yet" ]
   run "${kit_root}/bin/kit" flow changes --json
@@ -435,13 +430,13 @@ fake-tui() {
   export PATH="$(shims gh)"
   run "${kit_root}/bin/kit" flow --no-fetch
   [ "$status" -eq 1 ]
-  [[ "${lines[0]}" == *"BACKLOG" ]]
+  [[ "${lines[0]}" == *"ISSUES" ]]
   [[ "${lines[1]}" == "❌ "* ]]
   in-order "$output" $'DESK 1\n' 'main'
   run "${kit_root}/bin/kit" flow --no-fetch --json
   [ "$status" -eq 1 ]
-  [ "$(jq -c '[.backlog, .underway, .changes, .builds, .releases, .desk.branch]' <<<"${lines[${#lines[@]} - 1]}")" \
-    = '[null,null,null,null,null,"main"]' ]
+  [ "$(jq -c '[.issues, .changes, .builds, .releases, .desk.branch]' <<<"${lines[${#lines[@]} - 1]}")" \
+    = '[null,null,null,null,"main"]' ]
   run "${kit_root}/bin/kit" flow changes
   [ "$status" -eq 1 ]
 }
@@ -462,7 +457,7 @@ fake-tui() {
   run "${kit_root}/bin/kit" flow --json
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == *"no origin: nothing fetched, no pull request shown" ]]
-  [ "$(jq -c '[.backlog, .incoming, .changes, .builds, .releases, .desk.branch, .worktrees.worktrees]' \
+  [ "$(jq -c '[.issues, .incoming, .changes, .builds, .releases, .desk.branch, .worktrees.worktrees]' \
     <<<"${lines[1]}")" = '[null,{"fetched":false,"primary":"origin","remotes":[],"rows":[]},null,null,null,"main",[]]' ]
   run "${kit_root}/bin/kit" flow changes
   [ "$status" -eq 1 ]
@@ -484,10 +479,10 @@ fake-tui() {
   [[ "${lines[0]}" == *"origin is a local path, so it does not name a forge; kit does not show any pull request"* ]]
   [[ "$output" == *"💻 DESK 1"* ]]
   [[ "$output" == *"🌿 WORKTREES 0"* ]]
-  [[ "$output" != *"BACKLOG"* ]]
+  [[ "$output" != *"ISSUES"* ]]
   run "${kit_root}/bin/kit" flow --json
   [ "$status" -eq 0 ]
-  [ "$(jq -c '[.backlog, .changes, .builds, .releases, .desk.branch]' <<<"${lines[${#lines[@]} - 1]}")" = \
+  [ "$(jq -c '[.issues, .changes, .builds, .releases, .desk.branch]' <<<"${lines[${#lines[@]} - 1]}")" = \
     '[null,null,null,null,"main"]' ]
 }
 
@@ -521,15 +516,27 @@ fake-tui() {
 
 @test "on a terminal, kit flow <stage> hands off to kittui on that stage; a stage not drawn, --today, or a number stays in text" {
   fake-tui
-  stages 'backlog, desk, changes'
+  stages 'issues, desk, changes'
   run pty "'${kit_root}/bin/kit' flow desk"
   [[ "$output" == *"kittui native-native flow desk"* && "$output" != *"DESK"* ]]
   run pty "'${kit_root}/bin/kit' flow builds"
   [[ "$output" != *"kittui"* ]]
-  run pty "'${kit_root}/bin/kit' flow backlog --today"
+  run pty "'${kit_root}/bin/kit' flow issues --today"
   [[ "$output" != *"kittui"* ]]
   run pty "'${kit_root}/bin/kit' flow changes 7"
   [[ "$output" != *"kittui"* ]]
+}
+
+@test "on a terminal, kit flow backlog and underway hand off to kittui as they are, which opens issues on that preset" {
+  fake-tui
+  run pty "'${kit_root}/bin/kit' flow backlog --mine"
+  [[ "$output" == *"kittui native-native flow backlog --mine"* ]]
+  run pty "'${kit_root}/bin/kit' flow underway"
+  [[ "$output" == *"kittui native-native flow underway"* ]]
+  run pty "'${kit_root}/bin/kit' flow backlog --text"
+  [[ "$output" == *"backlog is no stage of kit flow"*"run: kit flow issues"* && "$output" != *"kittui"* ]]
+  run pty "env PATH='$(without-kittui)' '${kit_root}/bin/kit' flow underway"
+  [[ "$output" == *"underway is no stage of kit flow"* && "$output" != *"kittui"* ]]
 }
 
 @test "kittui runs the kit that handed off, named in KIT" {
@@ -649,8 +656,8 @@ fake-tui() {
   first=$output
   # every stage the picture draws has a mark, or null
   [ "$(jq --compact-output 'keys' <<<"${first}")" \
-    = '["backlog","builds","changes","desk","incoming","releases","underway","worktrees"]' ]
-  [ "$(jq --compact-output '[.backlog, .underway, .changes, .builds, .releases]' <<<"${first}")" = '[null,null,null,null,null]' ]
+    = '["builds","changes","desk","incoming","issues","releases","worktrees"]' ]
+  [ "$(jq --compact-output '[.issues, .changes, .builds, .releases]' <<<"${first}")" = '[null,null,null,null]' ]
   [ "$(jq '[.desk, .worktrees, .incoming] | all(type == "string")' <<<"${first}")" = true ]
   # nothing changed, nothing moves
   [ "$(marks)" = "${first}" ]
@@ -672,8 +679,8 @@ fake-tui() {
   printf 'forge: github\n' > kit.yml
   PATH=$(shims gh) run --separate-stderr marks
   [ "$status" -eq 1 ]
-  forged=$(jq --compact-output '[.backlog, .underway, .changes, .builds, .releases]' <<<"$output")
-  [ "${forged}" = '[null,null,null,null,null]' ]
+  forged=$(jq --compact-output '[.issues, .changes, .builds, .releases]' <<<"$output")
+  [ "${forged}" = '[null,null,null,null]' ]
   [ "$(jq --raw-output '.desk | type' <<<"$output")" = string ]
   [[ "$stderr" == *"could not be read"* ]]
 }
@@ -689,8 +696,8 @@ fake-tui() {
   run --separate-stderr "${kit_root}/bin/kit" flow --marks
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
   [ -z "$stderr" ]
-  [ "$(jq --compact-output '[.backlog, .underway, .changes, .builds, .releases]' <<<"$output")" \
-    = '["W/\"x\"","W/\"x\"","W/\"x\" W/\"x\"","W/\"x\"","W/\"x\""]' ]
+  [ "$(jq --compact-output '[.issues, .changes, .builds, .releases]' <<<"$output")" \
+    = '["W/\"x\"","W/\"x\" W/\"x\"","W/\"x\"","W/\"x\""]' ]
   # the issues, the runs, and the releases: a request each, and none for what kit flow draws nothing of
   [ "$(grep --count '^api --include' "${FAKE_DIR}/gh.calls")" -eq 3 ]
 }
@@ -800,7 +807,7 @@ fake-tui() {
   [ "${lines[1]}" = "   #1  🛫 in flight  🎫 One" ]
 }
 
-@test "a change's number is magenta and the number of an issue it closes cyan, as the backlog draws them" {
+@test "a change's number is magenta and the number of an issue it closes cyan, as the issues stage draws them" {
   local esc=$'\x1b'
   doc='{"number":2,"title":"The first","author":"ada","branch":"2-the-first","state":"queued","age":60,'
   doc+='"unresolved":0,"checks":{"state":"NONE"},"closes":[{"number":1,"title":"One","assignees":[],"age":120}]}'
@@ -844,7 +851,7 @@ fake-tui() {
   run "${kit_root}/bin/kit" flow --me
   [ "$status" -eq 0 ]
   [ "$output" = "ada" ]
-  run "${kit_root}/bin/kit" flow --me backlog
+  run "${kit_root}/bin/kit" flow --me issues
   [ "$status" -eq 2 ]
 }
 
@@ -865,16 +872,15 @@ fake-tui() {
   [[ "$output" == *"--mine cannot be combined with incoming; run: kit help flow"* ]]
 }
 
-@test "kit syntax flow lists the eight stages as a closed set, each described, and the removed verbs are no verbs" {
+@test "kit syntax flow lists the seven stages as a closed set, each described, and the removed verbs are no verbs" {
   run "${kit_root}/bin/kit" syntax flow --choices '<stage>'
   [ "$status" -eq 0 ]
-  [ "$(cut -f 1 <<<"$output" | paste -s -d ' ' -)" = "backlog underway desk worktrees changes builds incoming releases" ]
-  [[ "${lines[2]}" == $'desk\tthe root checkout: '* ]]
-  [[ "${lines[0]}" == $'backlog\tthe open issues not closed by any open pull request, oldest first\t\t' ]]
-  [[ "${lines[1]}" == $'underway\tthe open issues closed by an open pull request: who works on each, and where\t\t' ]]
+  [ "$(cut -f 1 <<<"$output" | paste -s -d ' ' -)" = "issues desk worktrees changes builds incoming releases" ]
+  [[ "${lines[1]}" == $'desk\tthe root checkout: '* ]]
+  [[ "${lines[0]}" == $'issues\tevery open issue, oldest first, in the backlog or underway: who works on each, and where\t\t' ]]
   # changes is a verb again, Changes' app's, kit changes, which kit flow changes is a tab of
   local verb
-  for verb in backlog incoming worktrees releases
+  for verb in backlog underway incoming worktrees releases
   do
     run "${kit_root}/bin/kit" "${verb}"
     [ "$status" -eq 2 ]
@@ -894,17 +900,17 @@ fake-tui() {
 }
 
 @test "flow in kit.yml must be a list of stages: a scalar, an empty list, and a repeated name are refused, and null means every stage" {
-  printf 'flow: backlog\n' > kit.yml
+  printf 'flow: issues\n' > kit.yml
   run "${kit_root}/bin/kit" flow --stages
   [ "$status" -eq 1 ]
-  [[ "$output" == *"flow in kit.yml must be a list of stages, not 'backlog'"* ]]
+  [[ "$output" == *"flow in kit.yml must be a list of stages, not 'issues'"* ]]
   run "${kit_root}/bin/kit" flow --no-fetch
   [ "$status" -eq 1 ]
-  [[ "$output" == *"must be a list of stages, not 'backlog'"* && "$output" != *"WORKTREES"* ]]
+  [[ "$output" == *"must be a list of stages, not 'issues'"* && "$output" != *"WORKTREES"* ]]
   printf 'flow: []\n' > kit.yml
   run "${kit_root}/bin/kit" flow --stages
   [ "$status" -eq 1 ]
-  [[ "$output" == *"flow in kit.yml names no stage; the stages are: backlog underway desk worktrees changes builds incoming releases"* ]]
+  [[ "$output" == *"flow in kit.yml names no stage; the stages are: issues desk worktrees changes builds incoming releases"* ]]
   run "${kit_root}/bin/kit" flow --no-fetch --json
   [ "$status" -eq 1 ]
   [[ "$output" == *"names no stage"* && "$output" != *'"stages"'* ]]
@@ -918,7 +924,7 @@ fake-tui() {
   printf 'flow:\n' > kit.yml
   run "${kit_root}/bin/kit" flow --stages
   [ "$status" -eq 0 ]
-  [ "$output" = $'backlog\nunderway\ndesk\nworktrees\nchanges\nbuilds\nincoming\nreleases' ]
+  [ "$output" = $'issues\ndesk\nworktrees\nchanges\nbuilds\nincoming\nreleases' ]
 }
 
 @test "a primary or a forges key that is no remote is refused with 1 by every stage, before git sees it" {
@@ -927,7 +933,7 @@ fake-tui() {
     'forges: {"--upload-pack=touch pwned": github}'
   do
     printf '%s\n' "${setting}" > kit.yml
-    for args in '' '--json' 'incoming' 'releases' 'backlog' 'underway' 'changes' 'desk' 'worktrees'
+    for args in '' '--json' 'incoming' 'releases' 'issues' 'changes' 'desk' 'worktrees'
     do
       # shellcheck disable=SC2086  # args is zero or one word, a stage, and empty means none
       run "${kit_root}/bin/kit" flow ${args}
@@ -942,7 +948,7 @@ fake-tui() {
   run "${kit_root}/bin/kit" flow incoming
   [[ "$output" == *"primary '--upload-pack=touch pwned' in kit.yml is not a remote; the remotes are: origin"* ]]
   printf 'forges: {"--upload-pack=touch pwned": github}\n' > kit.yml
-  run "${kit_root}/bin/kit" flow backlog
+  run "${kit_root}/bin/kit" flow issues
   [[ "$output" == *"'--upload-pack=touch pwned' in forges in kit.yml is not a remote name"* ]]
   [ -z "$(find "${work}" "${BATS_TEST_TMPDIR}" -name pwned)" ]
   # a forges key may name a remote this desk lacks: it is only compared with a remote's name
@@ -971,7 +977,7 @@ fake-tui() {
 @test "the picture draws its glyphs by name, from the kit's one table, and no stage's code spells one out" {
   local glyphs file
   glyphs=$(jq -r '[.glyphs[].glyph, .states[].glyph] | join("|")' "${kit_root}/modules/jq/glyphs.json")
-  for file in flow underway backlog changes builds releases
+  for file in flow issues changes builds releases
   do
     # a line in the glyphs region, or a comment, may name a glyph; the code that draws one names it by its name
     if awk '/kit:generate glyphs/ { skip = 1 } /kit:end glyphs/ { skip = 0; next } !skip && !/^ *#/' \

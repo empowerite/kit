@@ -94,12 +94,13 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
 5. `kit gate` runs the gate locally, with the same tools CI uses.
 6. A human merges, and `kit tidy` removes the finished worktrees and the branches whose upstream is gone.
 
-`kit flow` draws where the work stands. Work moves left to right through eight stages:
+`kit flow` draws where the work stands. Work moves left to right through seven stages:
 
-- `backlog`: the open issues not closed by any open pull request, oldest first, each with its assignees, its age, and
-  the branch started for it on the primary remote
-- `underway`: the open issues closed by an open pull request, one row per issue and pull request: the assignees, the
-  pull request and its state, and where the work is, here or on the author's desk
+- `issues`: every open issue, oldest first, each with its assignees, its age, its milestone, iteration, and swimlane,
+  and its status. One in the backlog, which no open pull request closes, names the branch started for it on the
+  primary remote. One underway has a row per pull request that closes it: the pull request and its state, and where
+  the work is, here or on the author's desk. A forge that lacks milestones, iterations, or swimlanes can take each from
+  a label, or a default, as `forge_settings.<forge>.stand_ins` in `kit.yml` says.
 - `incoming`: what fetching every remote brought, the primary first: commits on each default branch, branches new,
   updated, force-pushed, and gone, new tags, and each local branch now behind its upstream. It never rebases, merges,
   or pulls. Its JSON holds every one as a flat row, which kittui draws as a table that sorts, groups, filters, and
@@ -113,7 +114,7 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
 - `releases`: the releases on the code forge, newest first
 
 On a terminal the picture is interactive. Elsewhere, or with `--text`, each stage prints under a heading with its
-glyph and its count. `kit flow <stage>` prints one stage, with that stage's flags: `kit flow backlog --today`
+glyph and its count. `kit flow <stage>` prints one stage, with that stage's flags: `kit flow issues --today`
 keeps the issues opened in the last 24 hours. `--json` prints the picture as one object keyed by stage, or one stage's
 document. The `flow` setting in `kit.yml` names the stages drawn, in order.
 
@@ -215,7 +216,7 @@ and stderr, nothing opens: a verb short of an argument refuses in one line, as b
 see: [modules.md](modules.md#writing-a-verb)
 
 kittui's app menu, under `=` on every screen's title line, lists the guides, then the apps. The first, Flow, is the
-picture `kit flow` draws: every stage the `flow` setting in `kit.yml` names, in its order, from backlog to releases.
+picture `kit flow` draws: every stage the `flow` setting in `kit.yml` names, in its order, from the issues to releases.
 Each other app is built around one entity: its first tab is that entity's home, and its other tabs the entities around
 it. Each app has a verb, `kit issues`, `kit changes`, `kit workspace`, `kit delivery`, `kit people`, `kit audit`
 (Trust), `kit platform`, and `kit packages`, and Flow has `kit flow`; on a terminal one opens its app, and
@@ -223,8 +224,8 @@ it. Each app has a verb, `kit issues`, `kit changes`, `kit workspace`, `kit deli
 
 | App | Its entity | Its tabs |
 | --- | --- | --- |
-| Flow | the work, from backlog to releases | the `flow` setting's stages: backlog, underway, changes, builds, incoming, releases |
-| Issues | the issue | backlog, underway, milestones, iterations |
+| Flow | the work, from the issues to releases | the `flow` setting's stages: issues, changes, builds, incoming, releases |
+| Issues | the issue | issues, milestones, iterations |
 | Changes | the pull or merge request | changes, reviews, checks, merged |
 | Repositories | the repository | repos, worktrees, branches, commits, tags, remotes, incoming |
 | Delivery | the release | releases, builds, artifacts, environments, deployments |
@@ -234,8 +235,8 @@ it. Each app has a verb, `kit issues`, `kit changes`, `kit workspace`, `kit deli
 | Packages | the package | packages |
 
 A link to a row of a tab the app does not have opens the app built around that tab's entity, on the tab, with the row
-under the cursor once it loads: from Issues, an underway issue's pull request leads to Changes, and the checkout it is
-worked in to Repositories' worktrees; from any app but Repositories, a member's name, over a group, leads to
+under the cursor once it loads: from Issues, the pull request of an issue underway leads to Changes, and the checkout
+it is worked in to Repositories' worktrees; from any app but Repositories, a member's name, over a group, leads to
 Repositories' repos.
 
 A link to another app leaves a crumb on the title line of the app it opens: after the workspace menu, and after the

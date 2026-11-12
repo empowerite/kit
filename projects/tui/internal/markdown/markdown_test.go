@@ -89,17 +89,17 @@ func TestFrontMatterIsDropped(t *testing.T) {
 }
 
 func TestALinkToAScreenIsDrawnAsALinkAndPageSaysWhereItStands(t *testing.T) {
-	md := "1. [Backlog](kittui:flow/backlog): new.\n\nOpen [the Flow app](kittui:flow), or see [the site](https://x.y)."
+	md := "1. [Issues](kittui:flow/issues): new.\n\nOpen [the Flow app](kittui:flow), or see [the site](https://x.y)."
 	lines, links := Page(md, 22)
-	want := "1. Backlog: new.\n\nOpen the Flow app, or\nsee the site\n(https://x.y)."
+	want := "1. Issues: new.\n\nOpen the Flow app, or\nsee the site\n(https://x.y)."
 	if got := ansi.Strip(strings.Join(lines, "\n")); got != want {
 		t.Errorf("got %q\nwant %q", got, want)
 	}
-	if !strings.Contains(lines[0], style.Link("Backlog")) || strings.Contains(strings.Join(lines, ""), "\x1b]8") {
+	if !strings.Contains(lines[0], style.Link("Issues")) || strings.Contains(strings.Join(lines, ""), "\x1b]8") {
 		t.Errorf("a link is drawn in its style, its markers taken out: %q", lines[0])
 	}
 	// a link of several words is one for each word, each where it stands on its line; a web link is no screen's
-	wantLinks := []Link{{0, 3, 7, "flow/backlog"}, {2, 5, 3, "flow"}, {2, 9, 4, "flow"}, {2, 14, 3, "flow"}}
+	wantLinks := []Link{{0, 3, 6, "flow/issues"}, {2, 5, 3, "flow"}, {2, 9, 4, "flow"}, {2, 14, 3, "flow"}}
 	if len(links) != len(wantLinks) {
 		t.Fatalf("got %+v", links)
 	}

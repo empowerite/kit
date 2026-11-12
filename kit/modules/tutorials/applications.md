@@ -13,18 +13,19 @@ any app from the = menu, or run its command.
 
 All your work, from an issue to a release, with one tab for each step:
 
-1. [Backlog](kittui:flow/backlog): issues no one has started.
-2. [Underway](kittui:flow/underway): issues someone is working on. `kit work <N>` starts issue N.
-3. [Changes](kittui:flow/changes): pull requests. A person merges each one.
-4. [Builds](kittui:flow/builds): CI runs outside any pull request, such as those on the default branch.
-5. [Incoming](kittui:flow/incoming): what the last fetch brought in.
-6. [Releases](kittui:flow/releases): the versions you tagged.
+1. [Issues](kittui:flow/issues): every open issue. 💤 marks one no one has started, in the backlog, and 🛫 one
+   someone is working on, underway. `kit work <N>` starts issue N. Its presets show the Backlog alone, what is
+   Underway, or the issues by milestone, iteration, or swimlane.
+2. [Changes](kittui:flow/changes): pull requests. A person merges each one.
+3. [Builds](kittui:flow/builds): CI runs outside any pull request, such as those on the default branch.
+4. [Incoming](kittui:flow/incoming): what the last fetch brought in.
+5. [Releases](kittui:flow/releases): the versions you tagged.
 
 Open [Flow](kittui:flow), or run `kit flow`.
 
 ## 🎫 Issues
 
-The work to do: the backlog, what is underway, milestones, and iterations.
+The work to do: every open issue, in the backlog or underway, then the milestones and the iterations.
 
 Open [Issues](kittui:issues), or run `kit issues`.
 

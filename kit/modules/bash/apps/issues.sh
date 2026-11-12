@@ -1,8 +1,8 @@
 # shellcheck shell=bash
 # issues.sh - kit issues' stages: the forge's milestones and iterations (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-# Issues is the app whose other tabs, the backlog and what is underway, are kit flow's. The two stages here ask the
-# forge through the seam of modules/bash/forge.sh, and read nothing else:
+# Issues is the app whose first tab, every open issue, in the backlog or underway, is kit flow's issues stage. The
+# two stages here ask the forge through the seam of modules/bash/forge.sh, and read nothing else:
 #
 #   milestones    a row per milestone, open and closed, by number: its title, state, due date, and how many of its
 #                 issues are open and closed, GitLab's and GitHub's; Azure DevOps has none
@@ -19,9 +19,10 @@ use apps forge
 # shellcheck disable=SC2034  # read by modules/bash/apps.sh
 issues_stages=(milestones iterations)
 
-# issues_elsewhere names the tabs of Issues that kit flow prints.
+# issues_elsewhere names the tab of Issues that kit flow prints, and its Backlog and Underway presets, by the words
+# that open them.
 # shellcheck disable=SC2034  # read by modules/bash/apps.sh
-declare -gA issues_elsewhere=([backlog]='kit flow backlog' [underway]='kit flow underway')
+declare -gA issues_elsewhere=([issues]='kit flow issues' [backlog]='kit flow issues' [underway]='kit flow issues')
 
 # apps/issues:milestones prints the milestones document: each milestone the forge's milestones call prints, through
 # apps::milestone. A primary with no forge, or a forge without milestones, gives none.

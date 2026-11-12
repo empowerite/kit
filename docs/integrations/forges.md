@@ -11,7 +11,7 @@ Every such call goes through one seam, `kit/modules/bash/forge.sh`, whose header
 or the primary remote's host picks the provider: `forge/github.sh` over `gh`, `forge/gitlab.sh` over `glab`, or
 `forge/ado.sh` over `az`. `kit work` links a branch to an issue and opens a draft change. `kit linked` and
 `kit policy` read the change in CI. `kit settle` and `kit tidy` read its state when it closes, and the changes and
-underway stages of `kit flow` draw every open change with its checks and threads. The forge seam's issue calls are
+issues stages of `kit flow` draw every open change with its checks and threads. The forge seam's issue calls are
 on [trackers.md](trackers.md), its `runs` on [ci.md](ci.md), and its `releases` on [cd.md](cd.md).
 see: [architecture.md](../architecture.md#code-forges-seams-and-providers), `kit/modules/bash/forge.sh`
 
@@ -23,7 +23,7 @@ see: [architecture.md](../architecture.md#code-forges-seams-and-providers), `kit
 | The repository as owner and name | read | `forge:repo`: `kit work`, `kit linked` |
 | The repository's and a change's browser URL | read | `forge:repo-url`, `forge:pr-url`: the messages of `kit work` and `kit linked` |
 | The change's sigil and name, `#` and pull request | none | `forge:noun`, a constant of the provider |
-| The caller's login | read | `forge:me`: `kit work` assigns the caller; the underway stage marks the caller's issues |
+| The caller's login | read | `forge:me`: `kit work` assigns the caller; the issues stage keeps the caller's issues under `--mine` |
 | The caller's rate limits, at most one request | read | `forge:quota`: `kit flow` |
 | A cheap mark that changes when issues, changes, runs, or releases do | read | `forge:marks`: `kit flow` reloads a stage when its mark moves |
 | Make a branch linked to an issue, from the default branch, pushed | write | `forge:link-branch`: `kit work` |
@@ -39,7 +39,7 @@ see: [architecture.md](../architecture.md#code-forges-seams-and-providers), `kit
 | The issues the change closes, with their state | read | `forge:pr-closing-issues`: `kit linked`, `kit settle` |
 | The change's review threads, resolved or not | read | `forge:open-prs`: the changes stage; planned: kittui's reviews tab |
 | The change's checks rollup on its head commit | read | `forge:open-prs`: the changes stage; planned: kittui's checks tab |
-| Every open change, whole, with the above | read | `forge:open-prs`: the changes, backlog, and underway stages |
+| Every open change, whole, with the above | read | `forge:open-prs`: the changes and issues stages |
 | Merged changes | read | planned: kittui's merged tab |
 
 ## Providers

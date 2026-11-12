@@ -47,7 +47,7 @@ func TestASpotPutsThePictureBackWhereItStood(t *testing.T) {
 		t.Error("what is no spot moved the picture")
 	}
 	// a picture of no app's is flow's
-	if name, _ := loaded(t, Options{Stages: []string{"backlog"}}).Spot(); name != "flow › backlog" {
+	if name, _ := loaded(t, Options{Stages: []string{"issues"}}).Spot(); name != "flow › issues" {
 		t.Errorf("the name of no app's picture is %q", name)
 	}
 }
@@ -60,7 +60,7 @@ func TestThePicturesCrumbIsClickedOrKeyedBack(t *testing.T) {
 	if m.Backs(testkit.Press("backspace")) {
 		t.Error("⌫ goes back with no crumb")
 	}
-	m = m.Crumbed("issues › backlog").(Model)
+	m = m.Crumbed("issues › milestones").(Model)
 	at := testkit.Column(m.View().Content, []rune(shell.Back)[0])
 	if at < 0 || !m.OnCrumb(testkit.Click(at, shell.Top)) || !m.Backs(testkit.Press("backspace")) {
 		t.Fatalf("the crumb at %d is not the way back", at)

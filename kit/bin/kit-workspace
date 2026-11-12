@@ -99,7 +99,7 @@
 #   🐙  on GitHub: the forge of a remote, or the tracker that holds an issue
 #   🦊  on GitLab: the forge of a remote, or the tracker that holds an issue
 #   🌿  branch or worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
-#   🌱  local branch: this desk has it: under underway, and no checkout does; under branches, and no remote does
+#   🌱  local branch: this desk has it: under issues, and no checkout does; under branches, and no remote does
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # remotes:
@@ -113,7 +113,7 @@
 # branches:
 #
 #   🌿  branch or worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
-#   🌱  local branch: this desk has it: under underway, and no checkout does; under branches, and no remote does
+#   🌱  local branch: this desk has it: under issues, and no checkout does; under branches, and no remote does
 #   🔖  branch gone: its upstream is gone; kit tidy removes it
 #   ⚓  default branch: the one the remote's HEAD names
 #   🌳  worktree: a checkout of the repository, the desk or a linked one

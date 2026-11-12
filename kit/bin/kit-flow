@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# kit-flow - shows where the work stands, from backlog to releases (kit verb: workflow)
+# kit-flow - shows where the work stands, from the issues to releases (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
 # kit flow [--no-fetch] [--fresh] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]
 #
-# Draws the picture of the work. It changes nothing. Work moves left to right through eight stages:
+# Draws the picture of the work. It changes nothing. Work moves left to right through seven stages:
 #
-#   backlog → underway → desk → worktrees → changes → builds → incoming → releases
+#   issues → desk → worktrees → changes → builds → incoming → releases
 #
 # The fetch lands on the desk, the root checkout. Worktrees branch from it, and pull requests come from them.
 #
@@ -23,7 +23,7 @@
 #   - above desks, in a directory inside no repository's working tree, a bare repository or a .git directory too,
 #     with no group used last, or under kit --workspace=none: each desk below it, under its path, four levels down
 #
-# backlog, underway, desk, incoming, builds, and releases draw the same anywhere. A repository with no primary
+# issues, desk, incoming, builds, and releases draw the same anywhere. A repository with no primary
 # remote draws its checkouts, fetches nothing, and says so once.
 #
 # The open pull requests and the open issues are read from the forge at most once a minute. The stages read within
@@ -55,14 +55,16 @@
 #                       again, a mark that differs says the stage is stale; on GitHub, nothing changed costs no request
 #   --today             only the issues opened in the last 24 hours
 #   <number>…           only these pull requests, by number or issue closed: #7
-#   backlog             the open issues not closed by any open pull request, oldest first; underway has the rest
-#   underway            the open issues closed by an open pull request: who works on each, and where
+#   issues              every open issue, oldest first: in the backlog, which no open pull request closes, or
+#                       underway, closed by one: who works on each, and where
 #   incoming            what fetching every remote brought: default-branch commits, branches new and gone
 #   desk                the root checkout: branch, ahead and behind, uncommitted paths
 #   worktrees           every linked worktree: branch, ahead and behind, uncommitted paths
 #   changes             the open pull requests, each with the issues it closes
 #   builds              the runs not owned by any pull request: the default branch, tags, schedules
 #   releases            the releases on the forge, newest first
+#   backlog             no stage of kit flow: issues lists them; on a terminal it opens issues on its Backlog preset
+#   underway            no stage of kit flow: issues lists them; on a terminal it opens issues on its Underway preset
 #
 # The filters combine: --mine --owner=bob. --mine alone leaves out the owner column.
 #
@@ -76,9 +78,7 @@
 #
 # kit flow --marks
 #
-# kit flow backlog [--json | --jq] [--cached] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]]
-#
-# kit flow underway [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]]
+# kit flow issues [--json | --jq] [--cached] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]]
 #
 # kit flow incoming [--no-fetch] [--json | --jq] [--cached]
 #
@@ -92,22 +92,35 @@
 #
 # kit flow releases [--json | --jq] [--cached]
 #
-# One stage prints without its heading. With --json, a stage prints what the picture holds under its name: an array
-# for backlog, underway, changes, builds, and releases; an object for desk, worktrees, and incoming. Above desks,
-# --json prints an array with one {path, status} per desk. Each row of backlog, underway, changes, builds, releases,
-# and incoming's rows says where it is from: organization and repository, the owner and the name of the repository
-# kit read it in, as its primary remote's URL names them past the host, no organization for a primary on this
-# machine; and source, the forge, git for incoming's. An issue keeps those of the tracker that holds it.
+# kit flow backlog [--text | --json | --jq] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]]
 #
-# Every open issue is in backlog or underway, never both. underway has one row per issue and pull request, the oldest
-# issue first. Its owner flags match the issue's assignees. A row's JSON is {number, title, assignees, age, source,
-# organization, repository, pr, here, local, worktree}. pr is {number, title, author, state, branch, fork, pushed}. fork
+# kit flow underway [--text | --json | --jq] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]]
+#
+# backlog and underway are no stages: on a terminal, either opens the picture in kittui with issues maximized, on its
+# Backlog or Underway preset; with --text, --json, or --jq, or without a terminal, it exits 2 and names kit flow
+# issues.
+#
+# One stage prints without its heading. With --json, a stage prints what the picture holds under its name: an array
+# for issues, changes, builds, and releases; an object for desk, worktrees, and incoming. Above desks, --json prints
+# an array with one {path, status} per desk. Each row of issues, changes, builds, releases, and incoming's rows says
+# where it is from: organization and repository, the owner and the name of the repository kit read it in, as its
+# primary remote's URL names them past the host, no organization for a primary on this machine; and source, the
+# forge, git for incoming's. An issue keeps those of the tracker that holds it.
+#
+# issues lists every open issue, the oldest first, each with its status: backlog, when no open pull request closes it,
+# or underway, with a row per issue and pull request that closes it. Its owner flags match the issue's assignees. A
+# row's JSON is {number, title, assignees, labels, age, source, organization, repository, milestone, iteration,
+# swimlane, status, branch, pr, here, local, worktree}. milestone, iteration, and swimlane are each a name or null:
+# the forge's own, or what a stand-in in kit.yml chooses, as modules/bash/forge.sh says. branch is the pull request's
+# branch for an issue underway, and for one in the backlog the primary's branch whose name starts with its number and a
+# dash, which claims it, or null. pr, here, local, and worktree are null for an issue in the backlog. pr is {number,
+# title, author, state, branch, fork, pushed}. fork
 # is the owner of the repository the branch lives in when that is not the base repository, a login on GitHub and a
 # namespace's path on GitLab, or null. pushed is {age, by} of the branch's last push, or null when the forge does not
 # tell it cheaply: age in seconds, by a login or null. GitHub's is the head commit's, and GitLab's the head pipeline's.
 # here is true when a checkout on this desk has the branch, and worktree is that checkout's path, or null. local is true
 # when the desk has the branch and no checkout has it. A change's JSON, under changes, carries the same fork and pushed.
-# source names the tracker that holds an issue, under backlog and underway, and each issue a change closes: github or
+# source names the tracker that holds an issue, under issues, and each issue a change closes: github or
 # gitlab, the code forge's own; trackers kit.yml declares add their own. organization and repository say where in that
 # tracker the issue is: on GitHub, the repository's owner and name; on GitLab, its group, subgroups and all, and the
 # project. Each is null where the tracker has none.
@@ -145,7 +158,7 @@
 # kit --workspace=<workspace> flow, the kit option before the verb, names a group, or a repository by its host and
 # path, as kit workspaces names them. Outside a repository, without it, the workspace is the last group used, as kit
 # workspaces --current says. Each form then runs in
-# every member's checkout at once, each under that checkout's own kit.yml, and the stages are kit's eight, whatever the
+# every member's checkout at once, each under that checkout's own kit.yml, and the stages are kit's seven, whatever the
 # kit.yml where it runs says. With --json, a stage prints {rows, errors}: each row, or each desk, worktrees, or
 # incoming object, gains member, its host and path; a member that could not be read is {member, error},
 # its line, under errors, and every other member still draws, and the stage exits 1 after it. The picture prints
@@ -164,26 +177,21 @@
 # kit:generate legend `k=$(command -v kit); jq -nr -L "${k%/bin/kit}/modules/jq" 'import "glyphs" as g; g::legend'`
 #   📚  workspace: a group, in the workspace menu that drops down from - in kittui's title
 #
-# backlog:
+# issues:
 #
 #   🎫  issue: its number and title
-#   🐙  on GitHub: the forge of a remote, or the tracker that holds an issue
-#   🦊  on GitLab: the forge of a remote, or the tracker that holds an issue
-#   👤  assignees or author: an issue's assignees, a pull request's author, or who pushed last when not the author
-#   🌿  branch or worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
-#   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
-#
-# underway:
-#
+#   💤  backlog: an open issue no open pull request closes
 #   🛫  underway: an issue an open pull request closes
 #   👤  assignees or author: an issue's assignees, a pull request's author, or who pushed last when not the author
+#   ⛳  milestone: a goal the forge gathers issues under, with its due day
+#   📅  iteration: a span of days the forge plans work in
+#   🏊  swimlane: the lane an issue runs in: the forge's own, or what kit.yml's stand-in reads
 #   🔀  pull request: a merge request, on GitLab
 #   💻  desk: the root checkout
 #   🌿  branch or worktree: a linked worktree, a branch on a remote, or the branch a pull request is on
-#   🌱  local branch: this desk has it: under underway, and no checkout does; under branches, and no remote does
+#   🌱  local branch: this desk has it: under issues, and no checkout does; under branches, and no remote does
 #   🍴  fork owner: the pull request's branch is in their repository
 #   📤  last push: how long ago
-#   🎫  issue: its number and title
 #   🐙  on GitHub: the forge of a remote, or the tracker that holds an issue
 #   🦊  on GitLab: the forge of a remote, or the tracker that holds an issue
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
@@ -265,12 +273,13 @@
 # is still printed, and names what could not, a remote's error, a member under errors, or a stage of null. It exits 1
 # too when git cannot count the lines changed in a checkout or read its uncommitted paths, or a setting is wrong; 1,
 # printing nothing, when --workspace=, or kit flow outside a repository with a group used last, meets a workspace file
-# kit workspaces refuses; and 2 on a usage error. A wrong setting is a flow setting that is not a list of distinct
-# stages, a primary that names no remote, or a forges key that is no remote name. With --marks, when the forge cannot
-# answer, its stages' marks are null beside every local stage's, and kit flow exits 1.
+# kit workspaces refuses; and 2 on a usage error, as kit flow backlog or underway off a terminal, or with a form. A
+# wrong setting is a flow setting that is not a list of distinct stages, or names backlog or underway, a primary that
+# names no remote, or a forges key that is no remote name. With --marks, when the forge cannot answer, its stages'
+# marks are null beside every local stage's, and kit flow exits 1.
 #
-# see: modules/bash/flow.sh, modules/bash/backlog.sh, modules/bash/underway.sh, modules/bash/changes.sh,
-# modules/bash/builds.sh, modules/bash/releases.sh
+# see: modules/bash/flow.sh, modules/bash/issues.sh, modules/bash/changes.sh, modules/bash/builds.sh,
+# modules/bash/releases.sh
 
 set -o errexit -o nounset -o pipefail
 # shellcheck source=modules/bash/1st.sh
@@ -297,6 +306,24 @@ fi
 if [[ -z "${syntax_options[--me]+x}${syntax_options[--capabilities]+x}" ]]
 then
   workspace=$(workspaces:across "${workspace}") || exit $?
+fi
+# backlog and underway are no stages of kit flow: issues lists both. On a terminal, kit flow backlog or underway opens
+# the picture in kittui, which reads the word as issues on that preset; asked for text or JSON, off a terminal, or
+# with no kittui, it names kit flow issues.
+if [[ "${syntax_literals[0]:-}" == backlog || "${syntax_literals[0]:-}" == underway ]]
+then
+  if [[ -z "${syntax_options[--text]+x}${syntax_options[--json]+x}${syntax_options[--jq]+x}" \
+    && -t 0 && -t 1 && -t 2 ]] && { [[ -n "${workspace}" ]] || workspaces:in-repository >/dev/null; } \
+    && tui:binary --probe >/dev/null 2>&1
+  then
+    binary=$(tui:binary) || exit 1
+    terminal:export-probes
+    export KIT="${kit_root}/bin/kit"
+    exec "${binary}" flow ${workspace:+--workspace="${workspace}"} "$@"
+  fi
+  error "${syntax_literals[0]} is no stage of kit flow: issues lists every open issue, its status backlog or" \
+    "underway; run: kit flow issues"
+  exit 2
 fi
 # On a terminal, the picture over a workspace is kittui's, as it is inside a repository; a stage, a form, what prints
 # a list or a line (--stages, --marks, --quota, --me), or no kittui stays in text.

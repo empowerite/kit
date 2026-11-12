@@ -15,7 +15,7 @@ import (
 // one gives a cell of one value.
 func one(s string) Cell { return Cell{Values: []string{s}} }
 
-// issues are three rows like backlog's: number, assignees, age, and a title that wraps.
+// issues are three rows like issues': number, assignees, age, and a title that wraps.
 func issues() []Row {
 	return []Row{
 		{Key: "#1", Cells: []Cell{{Values: []string{"#1"}, Right: true},

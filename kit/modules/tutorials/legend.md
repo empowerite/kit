@@ -7,7 +7,7 @@ order: 16
 ---
 
 ```text
-  ╭─ backlog legend ── ↖ ↗ ↙ ↘ ╮
+  ╭─ issues legend ─── ↖ ↗ ↙ ↘ ╮
   │ =  kit menu                │
   │ -  workspace menu          │
   │ ➊  selected tab            │

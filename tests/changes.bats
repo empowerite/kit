@@ -3,7 +3,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # The world is forge-conformance.bats's, seen through a fake gh: the caller ada; issue 7 "Fix the thing", assigned to
 # bob, with change 3, a draft by ada on branch 7-fix-the-thing, closing it. Issues 9 and 11 are in no change, so they are
-# the backlog stage's and not drawn here.
+# in the backlog, which the issues stage draws, and not drawn here.
 
 bats_require_minimum_version 1.5.0
 
@@ -52,7 +52,7 @@ JSON
 
 kit() { "${kit_checkout}/bin/kit" "$@"; }
 
-@test "kit flow changes draws each open change as kit flow does, and under it the issues it closes as the backlog stage draws one, in flight" {
+@test "kit flow changes draws each open change as kit flow does, and under it the issues it closes, each in flight" {
   run kit flow changes
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]

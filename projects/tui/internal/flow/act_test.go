@@ -1,4 +1,4 @@
-// The backlog's actions run kit's verbs on the issues selected there: at once, or after a dialog asks for an answer
+// The issues' actions run kit's verbs on the issues selected there: at once, or after a dialog asks for an answer
 // or a yes; the keys bar says what kit did, or why it refused.
 package flow
 
@@ -48,20 +48,20 @@ func acted(t *testing.T, record string) []string {
 	return out
 }
 
-// selecting gives the picture loaded with backlog's first two issues selected, recording kit's calls.
+// selecting gives the picture loaded with two of issues' backlog selected, recording kit's calls.
 func selecting(t *testing.T) (Model, string) {
 	t.Helper()
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 40}, down)
 	m.stages[0].Picked["#45"], m.stages[0].Picked["#46"] = true, true
-	if got := m.refs(); !slices.Equal(got, []string{"#45", "#46"}) {
+	if got := m.refs(); !slices.Equal(got, []string{"#46", "#45"}) {
 		t.Fatalf("selected: %q", got)
 	}
 	return m, record
 }
 
-func TestTheBacklogsActionsAreInItsMenuDimUntilIssuesAreSelected(t *testing.T) {
+func TestTheIssuesActionsAreInItsMenuDimUntilIssuesAreSelected(t *testing.T) {
 	m := loaded(t, options(), down)
 	for _, name := range []string{"Start Local Work for Each", "Assign to Me", "Close as Not Planned", "Copy Links"} {
 		if k := item(m, name); k < 0 || m.enabled(k) {
@@ -83,33 +83,53 @@ func TestTheBacklogsActionsAreInItsMenuDimUntilIssuesAreSelected(t *testing.T) {
 	// another tab offers none of them, even with rows selected there
 	m = drive(m, esc, tab, down, press(tea.KeySpace))
 	if item(m, "Assign to Me") >= 0 {
-		t.Error("underway offers the backlog's actions")
+		t.Error("changes offers the issues' actions")
 	}
 }
 
 func TestAssignToMeRunsKitAndTheKeysBarSaysWhatItDid(t *testing.T) {
 	m, record := selecting(t)
 	m = choose(t, m, "Assign to Me")
-	if got := acted(t, record); !slices.Equal(got, []string{"assign #45 #46"}) {
+	if got := acted(t, record); !slices.Equal(got, []string{"assign #46 #45"}) {
 		t.Fatalf("the calls: %q", got)
 	}
 	last := lines(m)[len(lines(m))-1]
-	if !strings.Contains(last, "✅ kit assign #45 #46") || m.selected() != 0 || strings.Contains(m.View().Content,
+	if !strings.Contains(last, "✅ kit assign #46 #45") || m.selected() != 0 || strings.Contains(m.View().Content,
 		style.Refusal("✅")) {
 		t.Errorf("after assign: %q, %d selected", last, m.selected())
 	}
 	// what reads the forge's issues read them again
 	if got := calls(t, record); !slices.ContainsFunc(got, func(c string) bool {
-		return strings.HasPrefix(c, "flow backlog --json") && strings.Contains(c, "--fresh")
+		return strings.HasPrefix(c, "flow issues --json") && strings.Contains(c, "--fresh")
 	}) {
-		t.Errorf("backlog was not read afresh: %q", got)
+		t.Errorf("issues were not read afresh: %q", got)
+	}
+}
+
+// An issue underway is acted on as one in the backlog is, by its number: the rows of one issue two pull requests close
+// stand for it once.
+func TestAnIssueUnderwayIsActedOnByItsNumberOnce(t *testing.T) {
+	m, record := selecting(t)
+	m.stages[0].Picked = map[string]bool{"#7": true, "#8 #4": true, "#8 #11": true}
+	if got := m.refs(); !slices.Equal(got, []string{"#7", "#8"}) {
+		t.Fatalf("selected: %q", got)
+	}
+	if m = choose(t, m, "Assign to Me"); !slices.Equal(acted(t, record), []string{"assign #7 #8"}) {
+		t.Errorf("the calls: %q", acted(t, record))
+	}
+	if member, ref := refOf("github.com/o/a #8 #4"); member != "github.com/o/a" || ref != "#8" {
+		t.Errorf("a member's issue underway: %q %q", member, ref)
+	}
+	// an issue issues do not hold has no title
+	if got := m.issueTitle("", "#8"); got != "Lint the modules" || m.issueTitle("", "#99") != "" {
+		t.Errorf("the titles: %q", got)
 	}
 }
 
 func TestStartForEachRunsKitWorkOncePerIssue(t *testing.T) {
 	m, record := selecting(t)
 	choose(t, m, "Start Local Work for Each")
-	if got := acted(t, record); !slices.Equal(got, []string{"work #45", "work #46"}) {
+	if got := acted(t, record); !slices.Equal(got, []string{"work #46", "work #45"}) {
 		t.Errorf("the calls: %q", got)
 	}
 }
@@ -128,7 +148,7 @@ func TestAClosingActionListsTheIssuesAndRunsOnlyOnYes(t *testing.T) {
 	}
 	m = choose(t, m, "Close as Not Planned")
 	m = drive(m, press(tea.KeyEnter))
-	if got := acted(t, record); !slices.Equal(got, []string{"close --not-planned #45 #46"}) {
+	if got := acted(t, record); !slices.Equal(got, []string{"close --not-planned #46 #45"}) {
 		t.Errorf("the calls: %q", got)
 	}
 	if m = drive(m, typed("x")...); strings.Contains(lines(m)[len(lines(m))-1], "kit close") {
@@ -138,10 +158,10 @@ func TestAClosingActionListsTheIssuesAndRunsOnlyOnYes(t *testing.T) {
 
 func TestAnActionThatAsksTakesTheTypedAnswer(t *testing.T) {
 	for _, c := range []struct{ name, answer, want string }{
-		{"Start Local Work Together…", "The plan", "work --title The plan #45 #46"},
-		{"Gather Under a Parent…", "The plan", "gather --title The plan #45 #46"},
-		{"Assign to…", "bob", "assign --to bob #45 #46"},
-		{"Close as Duplicate of…", "#7", "close --duplicate-of #7 #45 #46"},
+		{"Start Local Work Together…", "The plan", "work --title The plan #46 #45"},
+		{"Gather Under a Parent…", "The plan", "gather --title The plan #46 #45"},
+		{"Assign to…", "bob", "assign --to bob #46 #45"},
+		{"Close as Duplicate of…", "#7", "close --duplicate-of #7 #46 #45"},
 	} {
 		m, record := selecting(t)
 		m = choose(t, m, c.name)
@@ -176,7 +196,7 @@ func TestAddToPullRequestPicksOneOfTheCallersOwn(t *testing.T) {
 		t.Fatalf("the dialog:\n%s", view(m))
 	}
 	m = drive(m, up, down, up, press(tea.KeyEnter))
-	if got := acted(t, record); !slices.Equal(got, []string{"work --pr " + strconv.Itoa(numbers[0]) + " #45 #46"}) {
+	if got := acted(t, record); !slices.Equal(got, []string{"work --pr " + strconv.Itoa(numbers[0]) + " #46 #45"}) {
 		t.Errorf("the calls: %q", got)
 	}
 	// someone with no open pull request has nothing to add to: the item is dim
@@ -201,7 +221,7 @@ func TestARefusalStaysInTheKeysBarAndKeepsTheSelection(t *testing.T) {
 
 func TestCopyLinksCopiesEachIssueAsMarkdown(t *testing.T) {
 	m, _ := selecting(t)
-	if got := m.links(); !strings.HasPrefix(got, "- [#45 ") || !strings.Contains(got, "](https://") ||
+	if got := m.links(); !strings.HasPrefix(got, "- [#46 ") || !strings.Contains(got, "](https://") ||
 		strings.Count(got, "\n") != 1 {
 		t.Errorf("the links: %q", got)
 	}
@@ -212,9 +232,9 @@ func TestCopyLinksCopiesEachIssueAsMarkdown(t *testing.T) {
 		t.Errorf("copy links: %q", lines(m)[len(lines(m))-1])
 	}
 	// an issue with no page, where the screen knows no origin, is its reference and title alone
-	m = New(runner(t), Options{Stages: []string{"backlog"}, NoPresets: true, Clock: &testkit.Clock{}})
+	m = New(runner(t), Options{Stages: []string{"issues"}, NoPresets: true, Clock: &testkit.Clock{}})
 	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 24},
-		answer("backlog", `[{"number": 7, "title": "seven"}]`))
+		answer("issues", `[{"number": 7, "title": "seven"}]`))
 	m.stages[0].Picked["#7"] = true
 	if got := m.links(); got != "- #7 seven" {
 		t.Errorf("the link of an issue with no page: %q", got)
@@ -285,7 +305,7 @@ func TestNewOffersTheTrackersAndOpensThePagePicked(t *testing.T) {
 	}
 }
 
-// overMembers gives the picture over a group of a and b, each cloned at a directory of its own, backlog loaded with an
+// overMembers gives the picture over a group of a and b, each cloned at a directory of its own, issues loaded with an
 // issue of each, and the file each call's directory and words are recorded in, and the two directories, as pwd -P
 // gives them.
 func overMembers(t *testing.T) (Model, string, string, string) {
@@ -297,8 +317,8 @@ func overMembers(t *testing.T) (Model, string, string, string) {
 	ws := group
 	ws.Members = []kit.WorkspaceMember{{Repository: "github.com/o/a", Checkout: a},
 		{Repository: "github.com/o/b", Checkout: b}}
-	m := over(t, "backlog")
-	m = drive(m, shell.WorkspaceMsg{Workspace: ws}, answer("backlog", twoMembers),
+	m := over(t, "issues")
+	m = drive(m, shell.WorkspaceMsg{Workspace: ws}, answer("issues", twoMembers),
 		tea.WindowSizeMsg{Width: 120, Height: 40})
 	return m, dirs, a, b
 }
@@ -424,10 +444,10 @@ func TestOverARepositoryGivenAnActionRunsInItsCheckout(t *testing.T) {
 	a, _ := filepath.EvalSymlinks(t.TempDir())
 	r := runner(t)
 	r.Group = "github.com/o/a"
-	m := New(r, Options{Stages: []string{"backlog"}, NoPresets: true, Clock: &testkit.Clock{}})
+	m := New(r, Options{Stages: []string{"issues"}, NoPresets: true, Clock: &testkit.Clock{}})
 	ws := kit.Workspace{Kind: "repository", Name: "github.com/o/a", Member: "github.com/o/a", Checkout: a}
 	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 40}, shell.WorkspaceMsg{Workspace: ws},
-		answer("backlog", `{"rows": [{"number": 1, "title": "a1", "member": "github.com/o/a"}], "errors": []}`))
+		answer("issues", `{"rows": [{"number": 1, "title": "a1", "member": "github.com/o/a"}], "errors": []}`))
 	m.stages[0].Picked["github.com/o/a #1"] = true
 	choose(t, m, "Assign to Me")
 	if got, want := ranIn(t, dirs), []string{a + "\tassign #1"}; !slices.Equal(got, want) {
@@ -444,8 +464,8 @@ func TestAMemberWhoseCheckoutKitHasNotSaidIsNotActedOn(t *testing.T) {
 	dirs := filepath.Join(t.TempDir(), "dirs")
 	t.Setenv("FAKE_FLOW_DIRS", dirs)
 	// kit has not said the workspace yet: no member's checkout is known
-	m := drive(over(t, "backlog"), shell.WorkspaceMsg{Workspace: kit.Workspace{Kind: "group", Name: "w"}},
-		answer("backlog", twoMembers))
+	m := drive(over(t, "issues"), shell.WorkspaceMsg{Workspace: kit.Workspace{Kind: "group", Name: "w"}},
+		answer("issues", twoMembers))
 	m.stages[0].Picked["github.com/o/a #1"] = true
 	m = choose(t, m, "Assign to Me")
 	if got := ranIn(t, dirs); len(got) != 0 {

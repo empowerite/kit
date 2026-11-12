@@ -47,16 +47,16 @@ func recordKeys(m Model, name string) []string {
 }
 
 func TestOverAGroupEachStageDrawsEveryMembersRows(t *testing.T) {
-	m := over(t, "backlog")
-	m = drive(m, answer("backlog", `{"rows": [{"number": 1, "title": "a1", "member": "github.com/o/a"},
+	m := over(t, "issues")
+	m = drive(m, answer("issues", `{"rows": [{"number": 1, "title": "a1", "member": "github.com/o/a"},
 		{"number": 1, "title": "b1", "member": "github.com/o/b"}], "errors": []}`))
-	if s := m.find("backlog"); s.refusal != "" {
+	if s := m.find("issues"); s.refusal != "" {
 		t.Fatalf("refused: %s", s.refusal)
 	}
-	if got := recordKeys(m, "backlog"); strings.Join(got, "|") != "github.com/o/a #1|github.com/o/b #1" {
+	if got := recordKeys(m, "issues"); strings.Join(got, "|") != "github.com/o/a #1|github.com/o/b #1" {
 		t.Errorf("the keys: %q", got)
 	}
-	records := m.records(*m.find("backlog"))
+	records := m.records(*m.find("issues"))
 	if got := records[1].values["title"].Link; got != "https://github.com/o/b/issues/1" {
 		t.Errorf("b's issue links to %q", got)
 	}
@@ -80,13 +80,13 @@ func TestAMemberThatFailedIsItsLineAndTheOthersDraw(t *testing.T) {
 }
 
 func TestAPullRequestsLinkLandsOnItsMembersRow(t *testing.T) {
-	m := over(t, "underway", "changes")
+	m := over(t, "issues", "changes")
 	m = drive(m, answer("changes", `{"rows": [{"number": 7, "title": "a7", "member": "github.com/o/a"},
 		{"number": 7, "title": "b7", "member": "github.com/o/b"}], "errors": []}`))
-	m = drive(m, answer("underway", `{"rows": [
+	m = drive(m, answer("issues", `{"rows": [
 		{"number": 1, "title": "a1", "pr": {"number": 7}, "member": "github.com/o/a"},
 		{"number": 1, "title": "b1", "pr": {"number": 7}, "member": "github.com/o/b"}], "errors": []}`))
-	records := m.records(*m.find("underway"))
+	records := m.records(*m.find("issues"))
 	link := records[1].values["change"].Link
 	if link != jumpTo("changes", "github.com/o/b #7") {
 		t.Fatalf("b's change links to %q", link)
@@ -106,10 +106,10 @@ func TestAPullRequestsLinkLandsOnItsMembersRow(t *testing.T) {
 }
 
 func TestOverAGroupAnArrayIsNoEnvelope(t *testing.T) {
-	m := over(t, "backlog")
-	m = drive(m, answer("backlog", `[]`))
-	want := `kit flow backlog --json printed an array where an object with "rows" was expected`
-	if got := m.find("backlog").refusal; got != want {
+	m := over(t, "issues")
+	m = drive(m, answer("issues", `[]`))
+	want := `kit flow issues --json printed an array where an object with "rows" was expected`
+	if got := m.find("issues").refusal; got != want {
 		t.Errorf("the refusal: %q", got)
 	}
 }
@@ -121,16 +121,16 @@ func TestOverOneRepositoryTheStagesDecodeAsBefore(t *testing.T) {
 	}
 }
 
-// twoMembers is backlog's document over the group w: an issue of a and one of b.
+// twoMembers is issues' document over the group w: an issue of a and one of b.
 const twoMembers = `{"rows": [{"number": 1, "title": "a1", "member": "github.com/o/a"},
 	{"number": 2, "title": "b2", "member": "github.com/o/b"}], "errors": []}`
 
 func TestOverAGroupTheRowsGroupByMemberAsTheyLoad(t *testing.T) {
-	m := drive(over(t, "backlog"), answer("backlog", twoMembers))
+	m := drive(over(t, "issues"), answer("issues", twoMembers))
 	if groups := m.panel(0).Groups(); len(groups) == 0 || groups[0] != "member" {
-		t.Fatalf("the groups as backlog loads: %q", groups)
+		t.Fatalf("the groups as issues load: %q", groups)
 	}
-	member := m.records(*m.find("backlog"))[0].values["member"]
+	member := m.records(*m.find("issues"))[0].values["member"]
 	if member.Of != "a" || !slices.Equal(member.Raw, []string{"github.com/o/a"}) {
 		t.Errorf("a's member: %+v", member)
 	}
@@ -147,27 +147,27 @@ func TestAMembersNameLeadsToItsReposRow(t *testing.T) {
 	if got := m.records(*m.find("workspace/remotes"))[0].values["member"].Link; got != jumpTo("workspace/repos", "github.com/o/b") {
 		t.Errorf("b's member links to %q", got)
 	}
-	m = drive(over(t, "backlog"), answer("backlog", twoMembers))
-	if got := m.records(*m.find("backlog"))[1].values["member"].Link; got != jumpTo("workspace/repos", "github.com/o/b") {
+	m = drive(over(t, "issues"), answer("issues", twoMembers))
+	if got := m.records(*m.find("issues"))[1].values["member"].Link; got != jumpTo("workspace/repos", "github.com/o/b") {
 		t.Errorf("in kit flow's picture, b's member links to %q", got)
 	}
 }
 
 func TestMembersOfTwoOwnersAreNamedInFull(t *testing.T) {
-	m := over(t, "backlog")
+	m := over(t, "issues")
 	two := group
 	two.Members = []kit.WorkspaceMember{{Repository: "github.com/o/a"}, {Repository: "github.com/p/b"}}
-	m = drive(m, shell.WorkspaceMsg{Workspace: two}, answer("backlog", `{"rows": [
+	m = drive(m, shell.WorkspaceMsg{Workspace: two}, answer("issues", `{"rows": [
 		{"number": 1, "title": "a1", "member": "github.com/o/a"},
 		{"number": 2, "title": "b2", "member": "github.com/p/b"}], "errors": []}`))
-	if got := m.records(*m.find("backlog"))[1].values["member"].Of; got != "github.com/p/b" {
+	if got := m.records(*m.find("issues"))[1].values["member"].Of; got != "github.com/p/b" {
 		t.Errorf("b of another owner is named %q", got)
 	}
 }
 
 func TestOverOneRepositoryARowHasNoMember(t *testing.T) {
 	m := loaded(t, options())
-	if v := m.records(*m.find("backlog"))[0].values["member"]; len(v.Raw) != 0 || v.Link != "" {
+	if v := m.records(*m.find("issues"))[0].values["member"]; len(v.Raw) != 0 || v.Link != "" {
 		t.Errorf("a repository's issue has a member: %+v", v)
 	}
 	if groups := m.panel(0).Groups(); slices.Contains(groups, "member") {
@@ -177,24 +177,24 @@ func TestOverOneRepositoryARowHasNoMember(t *testing.T) {
 
 func TestOverAGroupOnlyRowsAndErrorsAreTheStagesDocument(t *testing.T) {
 	for data, want := range map[string]string{
-		``: `kit flow backlog --json printed nothing where an object with "rows" was expected`,
-		`{"errors": []}`: `kit flow backlog --json printed an object without "rows" where an object with "rows" ` +
+		``: `kit flow issues --json printed nothing where an object with "rows" was expected`,
+		`{"errors": []}`: `kit flow issues --json printed an object without "rows" where an object with "rows" ` +
 			"was expected",
-		`{"rows": 1}`: `kit flow backlog --json printed a number "rows" where an object with "rows" was expected`,
-		`{"rows": [{"number": "1"}]}`: "kit flow backlog --json: json: cannot unmarshal string into Go struct " +
+		`{"rows": 1}`: `kit flow issues --json printed a number "rows" where an object with "rows" was expected`,
+		`{"rows": [{"number": "1"}]}`: "kit flow issues --json: json: cannot unmarshal string into Go struct " +
 			"field issue.number of type int",
-		`{bad`: "kit flow backlog --json: invalid character 'b' looking for beginning of object key string",
-		`nope`: "kit flow backlog --json: invalid character 'o' in literal null (expecting 'u')",
+		`{bad`: "kit flow issues --json: invalid character 'b' looking for beginning of object key string",
+		`nope`: "kit flow issues --json: invalid character 'o' in literal null (expecting 'u')",
 	} {
-		m := drive(over(t, "backlog"), answer("backlog", data))
-		if got := m.find("backlog").refusal; got != want {
+		m := drive(over(t, "issues"), answer("issues", data))
+		if got := m.find("issues").refusal; got != want {
 			t.Errorf("%q: %q, want %q", data, got, want)
 		}
 	}
 }
 
 func TestAMemberOfNoOwnerIsNamedAsKitNamesIt(t *testing.T) {
-	m := over(t, "backlog")
+	m := over(t, "issues")
 	if got := m.short("local"); got != "local" {
 		t.Errorf("local is named %q", got)
 	}

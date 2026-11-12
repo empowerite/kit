@@ -7,7 +7,7 @@ order: 11
 ---
 
 ```text
-  = kit flow · - owner/repo  ↩ Issues backlog       🔎 /search
+  = kit flow · - owner/repo  ↩ Issues milestones    🔎 /search
 ```
 
 Left to right:

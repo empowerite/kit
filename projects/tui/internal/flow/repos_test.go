@@ -49,7 +49,7 @@ func TestReposIsRepositoriesFirstTabAndNotIssues(t *testing.T) {
 		t.Errorf("the workspace opens on %q first", m.stages[0].name)
 	}
 	m.Close()
-	t.Setenv("FAKE_FLOW_STAGES", "backlog builds")
+	t.Setenv("FAKE_FLOW_STAGES", "issues builds")
 	if m, err = OpenApp(runner(t), shell.Issues, Words{}); err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestReposIsRepositoriesFirstTabAndNotIssues(t *testing.T) {
 	for _, s := range m.stages {
 		names = append(names, s.name)
 	}
-	if got := strings.Join(names, " "); got != "backlog issues/milestones issues/iterations" {
+	if got := strings.Join(names, " "); got != "issues issues/milestones issues/iterations" {
 		t.Errorf("Issues opens %q", got)
 	}
 	m.Close()
@@ -105,7 +105,7 @@ func TestAnEmptyReposTabSaysSo(t *testing.T) {
 
 func TestTheReposTabCountsNoOtherTab(t *testing.T) {
 	for _, f := range fieldsOf("workspace/repos") {
-		if f.ID == "backlog" || f.ID == "releases" {
+		if f.ID == "issues" || f.ID == "releases" {
 			t.Errorf("the repos tab has a field %s", f.ID)
 		}
 	}

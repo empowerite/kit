@@ -71,9 +71,9 @@ The branch that holds the finished work, such as main. Work reaches it only thro
 
 ### issue
 
-One piece of work to do. Work starts from an issue.
+One piece of work to do. Work starts from an issue. Every open one is in the backlog or underway.
 
-`kit flow backlog`
+`kit flow issues`
 
 ### tracker
 
@@ -84,15 +84,15 @@ names its tracker: `#7` is the code forge's, and `AB#4521` is one that kit.yml d
 
 ### backlog
 
-The open issues that no one has started.
+The open issues that no one has started: no open pull request closes them. 💤 marks one.
 
-`kit flow backlog`
+`kit flow issues`
 
 ### underway
 
-An issue someone started. `kit work` gave it a branch, a worktree, and a draft pull request.
+An issue someone started. `kit work` gave it a branch, a worktree, and a draft pull request. 🛫 marks one.
 
-`kit flow underway`
+`kit flow issues`
 
 ### commit
 
@@ -284,7 +284,7 @@ One of kit's screens, such as Flow or Platform. The = menu opens each one.
 
 ### stage
 
-One tab of an application, such as the backlog or the builds. The `flow` setting in kit.yml picks the stages Flow
+One tab of an application, such as the issues or the builds. The `flow` setting in kit.yml picks the stages Flow
 draws.
 
 `kit flow --stages`

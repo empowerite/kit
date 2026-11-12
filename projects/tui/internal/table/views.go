@@ -11,8 +11,8 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 )
 
-// Opening is the name of the view a table opens on, one of its own.
-const Opening = "Default"
+// Default is the name of the one view of its own a table has when its catalog gives it none, which it opens on.
+const Default = "Default"
 
 // The refusals of a name to save or rename a view as: none, one of the table's own, or another of the person's.
 var (
@@ -21,7 +21,7 @@ var (
 	ErrTaken   = errors.New("the name is a preset already")
 )
 
-// Views is a table's views: its fields, its own views, and the person's.
+// Views is a table's views: its fields, its own views, the one it opens on the first, and the person's.
 type Views struct {
 	Fields []Field
 	Own    []Preset
@@ -36,13 +36,21 @@ func (v Views) Builtin(name string) bool {
 	return slices.ContainsFunc(v.Own, func(p Preset) bool { return p.Name == name })
 }
 
-// Chosen gives the view of the name, the one a preset line was last set to, or Opening when that view is gone.
+// Opening gives the view the table opens on: the first of its own, or Default, as it is, when it has none.
+func (v Views) Opening() Preset {
+	if len(v.Own) == 0 {
+		return Preset{Name: Default}
+	}
+	return v.Own[0]
+}
+
+// Chosen gives the view of the name, the one a preset line was last set to, or the opening one when that view is gone.
 func (v Views) Chosen(name string) Preset {
 	all := v.All()
 	if k := slices.IndexFunc(all, func(p Preset) bool { return p.Name == name }); k >= 0 {
 		return all[k]
 	}
-	return all[slices.IndexFunc(all, func(p Preset) bool { return p.Name == Opening })]
+	return v.Opening()
 }
 
 // Current gives a panel as a view would keep it.

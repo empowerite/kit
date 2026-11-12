@@ -1,7 +1,7 @@
- kit flow - shows where the work stands, from backlog to releases
+ kit flow - shows where the work stands, from the issues to releases
 
    one of
-   *kit flow*                   shows where the work stands, from backlog to releases
+   *kit flow*                   shows where the work stands, from the issues to releases
 
      --no-fetch   --fresh     fetches nothing; incoming says so
 
@@ -24,9 +24,8 @@
    --marks                    prints a mark per stage, as one JSON object, which changes when what
                               the stage draws does: read again, a mark that differs says the stage
                               is stale; on GitHub, nothing changed costs no request
-   backlog                    the open issues not closed by any open pull request, oldest first;
-                              underway has the rest
-   underway                   the open issues closed by an open pull request: who works on each, and
+   issues                     every open issue, oldest first: in the backlog, which no open pull
+                              request closes, or underway, closed by one: who works on each, and
                               where
    incoming                   what fetching every remote brought: default-branch commits, branches
                               new and gone
@@ -36,6 +35,10 @@
    builds                     the runs not owned by any pull request: the default branch, tags,
                               schedules
    releases                   the releases on the forge, newest first
+   backlog                    no stage of kit flow: issues lists them; on a terminal it opens issues
+                              on its Backlog preset
+   underway                   no stage of kit flow: issues lists them; on a terminal it opens issues
+                              on its Underway preset
 
 
  kit flow

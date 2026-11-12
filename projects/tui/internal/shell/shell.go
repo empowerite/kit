@@ -83,7 +83,7 @@ type screenItem struct {
 }
 
 // sections are the app's menu's screens, in its order, a rule between each group: the guides, which come with kit
-// whatever the work is, then the apps: the flow, the picture of the work from backlog to releases, and each other a
+// whatever the work is, then the apps: the flow, the picture of the work from issues to releases, and each other a
 // picture of the work around one entity.
 var sections = [][]screenItem{
 	{{Item{Glyph: Home, Name: "Welcome"}, Welcome}, {Item{Glyph: Learn, Name: "Tutorials"}, Tutorials},

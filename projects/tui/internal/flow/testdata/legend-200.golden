@@ -1,32 +1,32 @@
   = kit flow · - empowerite/kit                                                                                                                                                              🔎 /search
-  ➊╶────────────────╮➁╶─────────────────╮➂╶────────────────╮➃╶───────────────╮➄╶──────────────────╮➅╶─────────────────╮
-  │ 🎫 backlog  3 : │  🛫 underway  4   │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  7    │  📦 releases  3   │
-  ╵                 ╰───────────────────╰──────────────────╰─────────────────╰────────────────────╰───────────────────╰─────────────────────────────────────────────────────────────────────────────────
-  ▾ source · organization · repository ▾ 3                                                                                                                                                  Default ▼
-    ·────────·──────────────·─────────────
-  ▾ github · empowerite 3
-
-        id   assignees         age  branch              labels              title
-        ·────×·────────────────·────·───────────────────×·──────────────────·─────────────────────────────────────────────────────────────────────────────────────────────╭─ backlog legend ── ↖ ↗ ↙ ↘ ╮
-    ▾ jig 1                                                                                                                                                               │ =  kit menu                │
-      ▸ #7   ada           +1  40d                                          🎫 Fix the thing                                                                              │ -  workspace menu          │
-    ▾ kit 2                                                                                                                                                               │ 🔎 search: / or click      │
-      ▸ #45                     2h                      kindfeature  +2  🎫 kit flow is the one picture: five stages, interactive on a terminal, and the listing verbs │ ➊  selected tab            │
-        #46  jeffrey-aguilera   2d  🌿 46-a-noun-lists  bug               🎫 A noun lists, a noun with a verb acts                                                      │ ➁  tab: click to select    │
-                                                                                                                                                                          │ 🎫 backlog stage           │
-                                                                                                                                                                          │ :  tab menu                │
-                                                                                                                                                                          │ 🛫 underway stage          │
-                                                                                                                                                                          │ 🔀 changes stage           │
-                                                                                                                                                                          │ 🏭 builds stage            │
-                                                                                                                                                                          │ 🛬 incoming stage          │
-                                                                                                                                                                          │ 📦 releases stage          │
-                                                                                                                                                                          │ ▾  open: click to close    │
-                                                                                                                                                                          │ ▼  presets menu            │
+  ➊╶───────────────╮➁╶────────────────╮➂╶───────────────╮➃╶──────────────────╮➄╶─────────────────╮
+  │ 🎫 issues  7 : │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  7    │  📦 releases  3   │
+  ╵                ╰──────────────────╰─────────────────╰────────────────────╰───────────────────╰──────────────────────────────────────────────────────────────────────────────────────────────────────
+  ▾ source · organization · repository ▾ 7                                                                                                                                               All Issues ▼
+    ·────────·──────────────·─────────────                                                                                                                                ╭─ issues legend ─── ↖ ↗ ↙ ↘ ╮
+  ▾ github · empowerite 7                                                                                                                                                 │ =  kit menu                │
+                                                                                                                                                                          │ -  workspace menu          │
+        id   status  assignees         age  change  state             where     labels            title                                                                   │ 🔎 search: / or click      │
+        ·────·───────×·────────────────·────·───────·─────────────────·─────────×·────────────────·───────────────────────────────────────────────────────────────────────│ ➊  selected tab            │
+    ▾ jig 1                                                                                                                                                               │ ➁  tab: click to select    │
+      ▸ #7   💤      ada           +1  40d                                                        🎫 Fix the thing                                                        │ 🎫 issues stage            │
+    ▾ kit 6                                                                                                                                                               │ :  tab menu                │
+      ▸ #1   🛫      jeffrey-aguilera   8d  🔀 #2   🏁 ready          🌿 here   priorityh… +1  🎫 The first release, v0.1.0: the kit verbs, the picture, and the forge │ 🔀 changes stage           │
+        #8   🛫                         2d  🔀 #4   🔥 failing:gate   👤 bob                      🎫 Lint the modules                                                     │ 🏭 builds stage            │
+        #8   🛫                         2d  🔀 #11  🔨 draft          🌱 local                    🎫 Lint the modules                                                     │ 🛬 incoming stage          │
+        #46  💤      jeffrey-aguilera   2d                                      bug             🎫 A noun lists, a noun with a verb acts                                │ 📦 releases stage          │
+        #31  🛫      ada                3h  🔀 #12  💬 comments:open  👤 ada                      🎫 kit commit, kit submit, and kit land: one verb per step from a worktr│ ▾  open: click to close    │
+      ▸ #45  💤                         2h                                      kindfeatu… +2  🎫 kit flow is the one picture: five stages, interactive on a terminal, │ ▼  presets menu            │
                                                                                                                                                                           │ ·  sortable: click to sort │
                                                                                                                                                                           │ ·  separator               │
                                                                                                                                                                           │ ×  list: click to flatten  │
                                                                                                                                                                           │ ▸  closed: click to open   │
+                                                                                                                                                                          │ 💤 backlog                 │
                                                                                                                                                                           │ 🎫 issue 🔗                │
-                                                                                                                                                                          │ 🌿 branch or worktree      │
+                                                                                                                                                                          │ 🛫 underway                │
+                                                                                                                                                                          │ 🔀 pull request †          │
+                                                                                                                                                                          │ 🌿 branch or worktree †    │
+                                                                                                                                                                          │ 👤 assignees or author     │
+                                                                                                                                                                          │ 🌱 local branch            │
                                                                                                                                                                           ╰────────────────────────────╯
- = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-6 jump : tab menu
+ = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-5 jump : tab menu

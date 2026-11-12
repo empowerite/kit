@@ -102,7 +102,7 @@
 #   pr-closing-issues <n>         one line per issue the pull request closes: "<number> <state> <owner/name>"
 #   open-prs                      one JSON object per open pull request, the documents kit flow draws, and kit
 #                                 changes' reviews and checks: modules/jq/forge.jq's header names their fields
-#   open-issues                   one JSON object per open issue, oldest first, the documents the backlog stage draws:
+#   open-issues                   one JSON object per open issue, oldest first, the documents the issues stage draws:
 #                                 each says its milestone and its iteration, a title or null, as the forge has them
 #                                 (since 5); the seam adds its swimlane, and answers each of the three from a stand-in
 #                                 where the repository chose one, as below

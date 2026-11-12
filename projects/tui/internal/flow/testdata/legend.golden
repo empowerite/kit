@@ -1,24 +1,24 @@
   = kit flow · - empowerite/kit                                      🔎 /search
-  ➊╶────────────────╮➁╶─────────────────╮➂╶────────────────╮➃╶───────────────╮➄╶
-  │ 🎫 backlog  3 : │  🛫 underway  4   │  🔀 changes  3   │  🏭 builds  4   │
-  ╵                 ╰───────────────────╰──────────────────╰─────────────────╰──
-  ▾ source · organization · repository ▾ 3        ╭─ backlog legend ── ↖ ↗ ↙ ↘ ╮
-    ·────────·──────────────·─────────────        │ =  kit menu                │
-  ▾ github · empowerite 3                         │ -  workspace menu          │
-                                                  │ 🔎 search: / or click      │
-        id   assignees       age  branch          │ ➊  selected tab            │
-        ·────×·──────────────·────·───────────────│ ➁  tab: click to select    │
-    ▾ jig 1                                       │ 🎫 backlog stage           │
-      ▸ #7   ada         +1  40d                  │ :  tab menu                │
-    ▾ kit 2                                       │ 🛫 underway stage          │
-      ▸ #45                   2h                  │ 🔀 changes stage           │
-      ▸ #46  jeffrey-aguil…   2d  46-a-noun-lis…  │ 🏭 builds stage            │
-                                                  │ ▾  open: click to close    │
-                                                  │ ▼  presets menu            │
-                                                  │ ·  sortable: click to sort │
-                                                  │ ·  separator               │
-                                                  │ ×  list: click to flatten  │
-                                                  │ ▸  closed: click to open   │
-                                                  │ 🎫 issue 🔗                │
-                                                  ╰────────────────────────────╯
- = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-6 jump : tab menu
+  ➊╶───────────────╮➁╶────────────────╮➂╶───────────────╮➃╶──────────────────╮➄╶
+  │ 🎫 issues  7 : │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  7    │
+  ╵                ╰──────────────────╰─────────────────╰────────────────────╰──
+  ▾ source · organization · repository ▾ 7                       All Issues ▼
+    ·────────·──────────────·─────────────
+  ▾ github · empowerite 7
+
+      ▸ id   status  assign  age  change  state  where    labels   title
+        ·────·───────×·──╭─ issues legend ──────────────────────────── ↖ ↗ ↙ ↘ ╮
+    ▾ jig 1              │ =  kit menu              ·  sortable: click to sort │
+      ▸ #7   💤      ada │ -  workspace menu        ·  separator               │
+    ▾ kit 6              │ 🔎 search: / or click    ▸  closed: click to open   │
+      ▸ #1   🛫      jeff│ ➊  selected tab          ×  list: click to flatten  │
+      ▸ #8   🛫          │ ➁  tab: click to select  💤 backlog                 │
+      ▸ #8   🛫          │ 🎫 issues stage          🎫 issue 🔗                │
+      ▸ #46  💤      jeff│ :  tab menu              🛫 underway                │
+      ▸ #31  🛫      ada │ 🔀 changes stage         🔀 pull request †          │
+      ▸ #45  💤          │ 🏭 builds stage          🌿 branch or worktree †    │
+                         │ 🛬 incoming stage        👤 assignees or author     │
+                         │ ▾  open: click to close  🌱 local branch            │
+                         │ ▼  presets menu                                     │
+                         ╰─────────────────────────────────────────────────────╯
+ = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-5 jump : tab menu

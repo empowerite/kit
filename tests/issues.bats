@@ -104,15 +104,17 @@ JSON
   [ "$output" = '{"rows":[],"errors":[{"feature":"iterations","off":true}]}' ]
 }
 
-@test "the other Issues tabs are kit flow's: kit issues backlog --json refuses with 2, and names the command" {
+@test "Issues' first tab is kit flow's: kit issues issues, backlog, or underway --json refuses with 2, naming kit flow issues" {
   github-world
-  for tab in backlog underway
+  for tab in issues backlog underway
   do
     run --separate-stderr "${kit_root}/bin/kit" issues "${tab}" --json
     [ "$status" -eq 2 ]
     [ -z "$output" ]
-    [[ "$stderr" == *"run: kit flow ${tab} --json"* ]]
+    [[ "$stderr" == *"run: kit flow issues --json"* ]]
   done
+  run --separate-stderr "${kit_root}/bin/kit" issues --stages
+  [ "$output" = $'milestones\niterations' ]
 }
 
 @test "on Azure DevOps, which has no milestones, milestones is no rows and no errors, and exits 0" {

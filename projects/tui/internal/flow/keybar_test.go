@@ -29,8 +29,8 @@ func TestEveryKeyTheBarNamesDoesSomething(t *testing.T) {
 	}{
 		{"on the bar", nil, false},
 		{"on the bar, the legend shown", []tea.Msg{press('?')}, false},
-		{"on a row that opens", []tea.Msg{tab, tab, tab, down}, false},
-		{"on a row open", []tea.Msg{tab, tab, tab, down, right}, false},
+		{"on a row that opens", []tea.Msg{tab, tab, down}, false},
+		{"on a row open", []tea.Msg{tab, tab, down, right}, false},
 		{"in the search", typed("/"), false},
 		{"in the search, typed", typed("/o"), false},
 		{"in the rows, then the search", append([]tea.Msg{down}, typed("/")...), false},

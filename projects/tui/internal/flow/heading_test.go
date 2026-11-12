@@ -148,7 +148,7 @@ func TestTheHeadingOverTheGroupsNamesItsColumnsWhereItSaysThem(t *testing.T) {
 	}
 }
 
-// levels gives how many headings of each level show in the nested backlog, the sources' and the assignees', and how
+// levels gives how many headings of each level show in the nested issues, the sources' and the assignees', and how
 // many rows.
 func levels(m Model) (sources, assignees, rows int) {
 	for _, r := range m.rows(0) {
@@ -198,8 +198,10 @@ func TestALevelsFoldInTheHeadingOverTheGroupsOpensAndClosesIt(t *testing.T) {
 	if stops := m.stops(); len(stops) != 3 || stops[1].Level != 0 || stops[2].Level != 2 {
 		t.Fatalf("the stops: %+v", stops)
 	}
-	// underway's levels, source, organization, and repository, each of one value: a stop each, and none for the rows
-	if single := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30}, tab); len(single.stops()) != 3 ||
+	// the levels of issues set as Underway, source, organization, and repository, each of one value: a stop each, and
+	// none for the rows
+	single := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30})
+	if single.apply(single.viewsOf(0).Chosen("Underway")); len(single.stops()) != 3 ||
 		slices.ContainsFunc(single.stops(), func(s table.Stop) bool { return s.Column == "" }) {
 		t.Errorf("three levels of one value, ▾ source · organization · repository 4: stops %+v", single.stops())
 	}
@@ -315,20 +317,20 @@ func TestTheCursorsBandRunsThePanesWidth(t *testing.T) {
 func TestAHeadingAcrossHasOneFold(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30})
 	m.setPanel(regroup(m.panel(m.stage), "assignees", "source"))
-	k := slices.IndexFunc(m.rows(0), func(r row) bool { return strings.HasSuffix(r.Key, "\x00ada") })
+	k := slices.IndexFunc(m.rows(0), func(r row) bool { return strings.HasSuffix(r.Key, "\x00jeffrey-aguilera") })
 	folds, text := table.FoldsAt(m.rows(0)[k]), ansi.Strip(m.rows(0)[k].Cells[0].Values[0])
-	if len(folds) != 1 || !strings.HasPrefix(text, grid.Unfolded+" ada "+grid.Joined+" ") {
-		t.Fatalf("ada's line: %q, folds at %v", text, folds)
+	if len(folds) != 1 || !strings.HasPrefix(text, grid.Unfolded+" jeffrey-aguilera "+grid.Joined+" ") {
+		t.Fatalf("jeffrey-aguilera's line: %q, folds at %v", text, folds)
 	}
 	all, y := len(m.rows(0)), rowY(m, m.rows(0)[k].Key)
-	joined := folds[0] + ansi.StringWidth(grid.Unfolded+" ada ")
+	joined := folds[0] + ansi.StringWidth(grid.Unfolded+" jeffrey-aguilera ")
 	if m = drive(m, testkit.Click(joined, y)); len(m.rows(0)) != all {
-		t.Fatalf("a click on the · on ada's line folded it: %d rows of %d", len(m.rows(0)), all)
+		t.Fatalf("a click on the · on jeffrey-aguilera's line folded it: %d rows of %d", len(m.rows(0)), all)
 	}
-	if m = drive(m, testkit.Click(folds[0], y)); len(m.rows(0)) != all-1 || m.stages[0].Open.Open(m.rows(0)[k]) {
-		t.Fatalf("a click on ada's fold: %d rows of %d", len(m.rows(0)), all)
+	if m = drive(m, testkit.Click(folds[0], y)); len(m.rows(0)) != all-2 || m.stages[0].Open.Open(m.rows(0)[k]) {
+		t.Fatalf("a click on jeffrey-aguilera's fold: %d rows of %d", len(m.rows(0)), all)
 	}
 	if m = drive(m, testkit.Click(folds[0], y)); len(m.rows(0)) != all {
-		t.Errorf("a click on ada's fold again: %d rows of %d", len(m.rows(0)), all)
+		t.Errorf("a click on jeffrey-aguilera's fold again: %d rows of %d", len(m.rows(0)), all)
 	}
 }

@@ -27,7 +27,7 @@ func TestAPictureAndAnotherScreenSavingPresetsKeepEachOthers(t *testing.T) {
 		t.Fatal(err)
 	}
 	all, err := table.ReadPresets(file)
-	if err != nil || len(all["backlog"]) != 1 || all["backlog"][0].Name != "Mine" || len(all["welcome/terms"]) != 2 {
+	if err != nil || len(all["issues"]) != 1 || all["issues"][0].Name != "Mine" || len(all["welcome/terms"]) != 2 {
 		t.Fatalf("both writers' presets: %v %+v", err, all)
 	}
 	if m.saved["welcome/terms"] == nil {

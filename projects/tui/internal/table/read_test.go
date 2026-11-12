@@ -105,7 +105,8 @@ func TestAFieldReadsItsPath(t *testing.T) {
 		{Schema{}, `{"k":"v"}`, "", false}, {Schema{Key: ".t"}, string(rec), "true", true},
 		{Schema{Key: ".l"}, string(rec), "", false}, {Schema{Key: ".a"}, string(rec), "", false},
 		{Schema{Key: ".l[].name"}, string(rec), "p q", true}, {Schema{Key: ".u"}, string(rec), "1 2", true},
-		{Schema{}, `[1]`, "", false},
+		{Schema{}, `[1]`, "", false}, {Schema{Key: ".n, .nope?"}, string(rec), "3", true},
+		{Schema{Key: ".n, .a.b?"}, string(rec), "3 x", true}, {Schema{Key: ".nope?"}, string(rec), "", false},
 	} {
 		if key, ok := c.schema.KeyOf(json.RawMessage(c.rec)); key != c.key || ok != c.ok {
 			t.Errorf("the key %q of %s: %q %v, want %q %v", c.schema.Key, c.rec, key, ok, c.key, c.ok)
@@ -137,7 +138,7 @@ func TestTheCatalogRefusesWhatATableCannotIndexBy(t *testing.T) {
 	for want, stages := range map[string]string{
 		"declared twice":                     ok + "," + ok,
 		`field "x" of "a" is declared twice`: stage("a", "", field+","+field, def),
-		"no preset named Default":            stage("a", "", field, `{"name": "Compact"}`),
+		"no preset to open on":               stage("a", "", field, ""),
 		"has no rendering":                   stage("a", "", `{"id": "x", "label": "x", "type": "text"}`, def),
 		`record "..x"`:                       plain(`, "record": "..x", "command": ["t", "--json"]`),
 		`record ""`:                          plain(`, "command": ["t", "--json"]`),

@@ -8,7 +8,7 @@
 #
 #   <verb>_stages           the stages, in the app's tab order: platform_stages=(services toolchains tools settings)
 #   <verb>_elsewhere        optional, declared with declare -gA: each tab of the app that another kit command prints,
-#                           to that command: ([backlog]='kit flow backlog')
+#                           to that command: ([issues]='kit flow issues')
 #   apps/<verb>:<stage>     prints the stage's document, {rows, errors}, and limited when a capped call stopped; it
 #                           returns 1, after its ❌ line, when nothing could be read
 #   apps/<verb>:mark-<stage>  prints the stage's mark, a text that changes when what the stage draws does, or nothing

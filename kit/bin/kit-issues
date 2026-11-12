@@ -4,8 +4,8 @@
 # kit issues [--text | --json | --jq]
 #
 # Draws the planning the forge keeps, a stage for each of Issues' tabs in kittui that the forge answers. It changes
-# nothing. The tabs backlog and underway are kit flow's, as kit flow backlog and kit flow underway print them. The
-# stages, in order:
+# nothing. Its first tab, issues, every open issue, in the backlog or underway, is kit flow's, as kit flow issues prints
+# it. The stages, in order:
 #
 #   milestones → iterations
 #
@@ -13,8 +13,9 @@
 # with checkouts, as kit workspace does: a group's name, or a repository's host and path, as kit workspaces names it;
 # none names no workspace. Without it, the workspace is the repository here, and outside one, the last group used, as
 # kit workspaces --current says. On a terminal, kit issues opens Issues in kittui, and kit issues <stage> opens it on
-# that tab, maximized; so do kit issues backlog and kit issues underway. Without one, or with --text, it prints the
-# stages as text; with --json or --jq, as JSON; the tabs of kit flow, with a form, are refused, naming kit flow.
+# that tab, maximized; so does kit issues issues, and kit issues backlog and kit issues underway open it on its Backlog
+# or Underway preset. Without one, or with --text, it prints the stages as text; with --json or --jq, as JSON; the tab
+# of kit flow, and its presets, with a form, are refused, naming kit flow issues.
 #
 #   --text              prints the stages as text, even on a terminal
 #   --json              the stages as one JSON object: stages, then each stage's document under its name, null for one
@@ -28,8 +29,10 @@
 #   iterations          each iteration, by start: GitHub's from the projects linked to the repository, GitLab's with
 #                       its groups', and Azure DevOps' of its team, the one forge_settings.ado.team names, else the
 #                       project's default team
-#   backlog             a tab kit flow prints; on a terminal it opens in kittui, and with a form it is refused
-#   underway            a tab kit flow prints; on a terminal it opens in kittui, and with a form it is refused
+#   issues              a tab kit flow prints; on a terminal it opens in kittui, and with a form it is refused
+#   backlog             the issues tab's Backlog preset; on a terminal it opens in kittui, and with a form it is refused
+#   underway            the issues tab's Underway preset; on a terminal it opens in kittui, and with a form it is
+#                       refused
 #
 # kit issues --stages
 #
@@ -38,6 +41,8 @@
 # kit issues milestones [--text | --json | --jq]
 #
 # kit issues iterations [--text | --json | --jq]
+#
+# kit issues issues [--text | --json | --jq]
 #
 # kit issues backlog [--text | --json | --jq]
 #

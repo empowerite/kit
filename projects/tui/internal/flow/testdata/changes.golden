@@ -1,7 +1,7 @@
   = kit flow · - empowerite/kit                                      🔎 /search
-  ➀╶────────────────╮➁╶─────────────────╴➌╶────────────────╮➃╶───────────────╮➄╶
-    🎫 backlog  3   │  🛫 underway  4    │ 🔀 changes  3 : │  🏭 builds  4   │ ▹
-  ──────────────────╰────────────────────╯                 ╰─────────────────╰──
+  ➀╶───────────────╴➋╶────────────────╮➂╶───────────────╮➃╶──────────────────╮➄╶
+    🎫 issues  7    │ 🔀 changes  3 : │  🏭 builds  4   │  🛬 incoming  7    │ ▹
+  ──────────────────╯                 ╰─────────────────╰────────────────────╰──
   ▾ 3                                                               Default ▼
   ───
     change  title         author  state  age  checks  threads  labels   branch
@@ -21,4 +21,4 @@
 
 
 
- = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-6 jump : tab menu
+ = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-5 jump : tab menu

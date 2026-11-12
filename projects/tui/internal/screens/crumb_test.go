@@ -132,9 +132,9 @@ func TestManageLeavesACrumbAndAMoveDropsIt(t *testing.T) {
 }
 
 // Every link on a page that ships with the kit's tutorials opens one of kittui's screens with the tutorials as its
-// crumb, which ⌫ goes back to; and a link to a tab names one of its app's stages: one of Flow's, as kit-flow's header
-// orders them, since the fake kit's Flow has two, or one an app built around an entity jumps to. Each is followed by
-// step, as an app such as People ticks while it loads over the fake kit, which drive would wait on for ever.
+// crumb, which ⌫ goes back to; and a link to a tab names one of its app's stages, one of Flow's as kit-flow's header
+// orders them, and lands on that tab, as a click on it does: a jump to the app at the stage. Each is followed by step,
+// as an app such as People ticks while it loads over the fake kit, which drive would wait on for ever.
 func TestEveryLinkOnAShippedTutorialOpensAScreenThatLeadsBack(t *testing.T) {
 	t.Setenv("FAKE_KIT_RECORD", filepath.Join(t.TempDir(), "record"))
 	root := filepath.Join("..", "..", "..", "..", "kit")
@@ -144,7 +144,7 @@ func TestEveryLinkOnAShippedTutorialOpensAScreenThatLeadsBack(t *testing.T) {
 	}
 	var flowStages []string
 	for _, l := range strings.Split(string(header), "\n") {
-		if strings.HasPrefix(l, "#   backlog → ") {
+		if strings.HasPrefix(l, "#   issues → ") {
 			flowStages = strings.Split(strings.TrimPrefix(l, "#   "), " → ")
 			break
 		}
@@ -166,13 +166,10 @@ func TestEveryLinkOnAShippedTutorialOpensAScreenThatLeadsBack(t *testing.T) {
 			screen, stage, _ := strings.Cut(l.To, "/")
 			m := drive(help(t), shell.SwitchMsg{Screen: shell.Tutorials})
 			var msg tea.Msg = shell.SwitchMsg{Screen: shell.Screen(screen), Crumb: true}
-			switch {
-			case stage == "":
-			case screen == string(shell.Flow):
-				if !slices.Contains(flowStages, stage) {
-					t.Errorf("%s: Flow has no stage %s", where, stage)
-				}
-			default:
+			if screen == string(shell.Flow) && stage != "" && !slices.Contains(flowStages, stage) {
+				t.Errorf("%s: Flow has no stage %s", where, stage)
+			}
+			if stage != "" {
 				msg = shell.JumpMsg{Screen: shell.Screen(screen), To: stage + "/"}
 			}
 			if m = step(m, msg); m.here != shell.Screen(screen) || !strings.Contains(title(m), shell.Back+" tutorials") {

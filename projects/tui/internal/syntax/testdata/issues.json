@@ -7,6 +7,7 @@
     "kit issues --marks",
     "kit issues milestones [--text | --json | --jq]",
     "kit issues iterations [--text | --json | --jq]",
+    "kit issues issues [--text | --json | --jq]",
     "kit issues backlog [--text | --json | --jq]",
     "kit issues underway [--text | --json | --jq]"
   ],
@@ -94,6 +95,41 @@
       {
         "kind": "literal",
         "name": "iterations",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "issues",
         "repeat": false
       },
       {
@@ -218,11 +254,14 @@
     "iterations": {
       "description": "{id, title, start, end, current}: start and end are seconds since the epoch, end the last second of the last day, null where the iteration has no dates; current is true for the one that holds now; the title links to the page of the project, the iteration, or the team's sprints. A repository with no project linked on GitHub has none"
     },
-    "backlog": {
+    "issues": {
       "description": "a tab kit flow prints; on a terminal it opens in kittui, and with a form it is refused"
     },
+    "backlog": {
+      "description": "the issues tab's Backlog preset; on a terminal it opens in kittui, and with a form it is refused"
+    },
     "underway": {
-      "description": "a tab kit flow prints; on a terminal it opens in kittui, and with a form it is refused"
+      "description": "the issues tab's Underway preset; on a terminal it opens in kittui, and with a form it is refused"
     }
   }
 }

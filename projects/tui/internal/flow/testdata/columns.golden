@@ -1,24 +1,24 @@
   = kit flow · - empowerite/kit                                                                              🔎 /search
-  ➊╶────────────────╮➁╶─────────────────╮➂╶────────────────╮➃╶───────────────╮➄╶──────────────────╮➅╶─────────────────╮
-  │ 🎫 backlog  3 : │  🛫 underway  4   │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  7    │  📦 releases  3   │
-  ╵                 ╰───────────────────╰──────────────────╰─────────────────╰────────────────────╰───────────────────╰─
-  ▾ organization · repository 1                                               ╭─ backlog fields ──────────────────────╮
-    ·──────────────·───────────                                               │   field           type    sort  group │
-  ▾ empowerite · jig 1                                                        │ ☑ organization    enum    ·     ▤₁    │
+  ➊╶───────────────╮➁╶────────────────╮➂╶───────────────╮➃╶──────────────────╮➄╶─────────────────╮
+  │ 🎫 issues  7 : │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  7    │  📦 releases  3   │
+  ╵                ╰──────────────────╰─────────────────╰────────────────────╰───────────────────╰──────────────────────
+  ▾ organization · repository ▾ 2                                             ╭─ issues fields ───────────────────────╮
+    ·──────────────·─────────────                                             │   field           type    sort  group │
+  ▾ empowerite 2                                                              │ ☑ organization    enum    ·     ▤₁    │
                                                                               │ ☑ repository      enum    ·     ▤₂    │
-      id  source     age  title                                               │ ───────────────────────────────────── │
-      ·───·──────────▼────·───────────────────────────────────────────────────│ ☑ id              ref     ·           │
-      #7  🐙 github  40d  🎫 Fix the thing                                    │ ☑ source          enum    ·     ·     │
-                                                                              │ ☑ age             time    ▼           │
-                                                                              │ ☑ branch          text    ·           │
+        id   source  status  age  change  state             where   title     │ ───────────────────────────────────── │
+        ·────·───────·───────▼────·───────·─────────────────·───────·─────────│ ☑ id              ref     ·           │
+    ▾ jig 1                                                                   │ ☑ source          enum    ·     ·     │
+        #7   github  💤      40d                                    🎫 Fix the│ ☑ status          enum    ·     ·     │
+    ▾ kit 1                                                                   │ ☑ age             time    ▼           │
+      ▸ #31  github  🛫       3h  🔀 #12  💬 comments:open  👤 ada  🎫 kit com│ ☑ change          ref     ·     ·     │
+                                                                              │ ☑ state           enum    ·     ·     │
+                                                                              │ ☑ where           text    ·     ·     │
                                                                               │ ☑ labels          label   ·     ·     │
                                                                               │ ☑ title           text    ·           │
                                                                               │ ───────────────────────────────────── │
                                                                               │ ☐ assignees ⊘     person  ·     ·     │
-                                                                              ╰───────────────────────────────────────╯
-
-
-
-
-
+                                                                              │ ☐ milestone       enum    ·     ·     │
+                                                                              │ ☐ iteration       enum    ·     ·     │
+                                                                              │ ☐ swimlane        enum    ·     ·     │
  esc close ↑↓ move ⇧↑↓ order ␣ show/hide s sort g group ⏎ options

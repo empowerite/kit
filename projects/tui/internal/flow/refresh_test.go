@@ -60,7 +60,7 @@ func TestANewerRefreshSupersedesTheOneBefore(t *testing.T) {
 	}
 }
 
-// Refresh All reads the forge afresh for backlog, underway, and changes, past kit's shared snapshot of the open issues
+// Refresh All reads the forge afresh for issues and changes, past kit's shared snapshot of the open issues
 // and pull requests; the stages that never share it are not told.
 func TestRefreshAllReadsTheForgeAfreshWhereTheStagesShareItsRead(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
@@ -69,21 +69,21 @@ func TestRefreshAllReadsTheForgeAfreshWhereTheStagesShareItsRead(t *testing.T) {
 	drive(m, refreshAll...)
 	got := calls(t, record)
 	slices.Sort(got)
-	want := []string{"flow backlog --json --fresh", "flow builds --json", "flow changes --json --fresh",
-		"flow incoming --json", "flow releases --json", "flow underway --json --fresh"}
+	want := []string{"flow builds --json", "flow changes --json --fresh", "flow incoming --json",
+		"flow issues --json --fresh", "flow releases --json"}
 	if !slices.Equal(got, want) {
 		t.Errorf("Refresh All ran %q, not %q", got, want)
 	}
 }
 
-// The tab's menu's Refresh runs its stage again, reading the forge afresh; on backlog, underway, or changes, which
-// share kit's one read of the open issues and pull requests, it runs all three afresh, so they stay one snapshot.
+// The tab's menu's Refresh runs its stage again, reading the forge afresh; on issues or changes, which share kit's one
+// read of the open issues and pull requests, it runs both afresh, so they stay one snapshot.
 func TestRefreshInTheTabsMenuRunsItsStageAndTheStagesThatShareItsRead(t *testing.T) {
 	for _, c := range []struct {
 		stage string
 		want  []string
 	}{
-		{"changes", []string{"flow backlog --json --fresh", "flow changes --json --fresh", "flow underway --json --fresh"}},
+		{"changes", []string{"flow changes --json --fresh", "flow issues --json --fresh"}},
 		{"builds", []string{"flow builds --json"}},
 	} {
 		record := filepath.Join(t.TempDir(), "calls")

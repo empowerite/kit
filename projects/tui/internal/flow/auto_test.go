@@ -51,7 +51,7 @@ func sources(names ...string) []table.Value {
 }
 
 func TestAGlyphEveryRowSharesIsDropped(t *testing.T) {
-	fields := columns("backlog", "source", "title")
+	fields := columns("issues", "source", "title")
 	titles := []table.Value{table.One("Fix the thing"), table.One("Lint the modules")}
 	got := table.Automatic(fields, map[string][]table.Value{"source": sources("github", "github"), "title": titles}, 200, false)
 	if got["source"] != "text" || got["title"] != "text" {
@@ -154,7 +154,7 @@ func TestATableShortOfWidthStepsDownFromTheRightmostColumn(t *testing.T) {
 	}
 }
 
-// The screen draws the choice: a glyph backlog's rows all share is gone from them, and from the group's heading, but
+// The screen draws the choice: a glyph issues' rows all share is gone from them, and from the group's heading, but
 // the title's, which leads to the issue's page, stays; a search that matched a glyph's word still lets its rows
 // through once the field is drawn without it; and changes at 80 columns draws its checks by their glyph, while at 160
 // it has the width for their counts. A rendering pinned in the popover draws the glyph again, and so does the panel's
@@ -168,16 +168,16 @@ func TestTheScreenDrawsTheRenderingsAutomaticChooses(t *testing.T) {
 	text := strings.Join(pane, "\n")
 	if !strings.Contains(text, Issue+" Fix the thing") || strings.Contains(text, GitHub) ||
 		!strings.Contains(text, "▾ github") {
-		t.Errorf("backlog keeps a glyph every row shares, or drops the title's:\n%s", text)
+		t.Errorf("issues keep a glyph every row shares, or drops the title's:\n%s", text)
 	}
 	if got := m.shown(0).drawn; got["source"] != "text" || got["title"] != "glyph+text" || got["id"] != "text" {
-		t.Errorf("backlog's renderings: %v", got)
+		t.Errorf("issues' renderings: %v", got)
 	}
 	// a search for 🐙, which the sources no longer draw, still lets every row through
 	p := m.panel(0)
 	p.Query = GitHub
 	m.setPanel(p)
-	if n := table.Counted(m.every(0)); n != 3 {
+	if n := table.Counted(m.every(0)); n != 7 {
 		t.Errorf("a search for the sources' glyph lets %d rows through", n)
 	}
 	// pinned, the source draws its glyph again
@@ -197,7 +197,7 @@ func TestTheScreenDrawsTheRenderingsAutomaticChooses(t *testing.T) {
 	setting.SharedEmoji = false
 	n, _ = m.Update(shell.SettingsMsg{Settings: setting})
 	m = n.(Model)
-	changes := slices.Index(six, "changes")
+	changes := slices.Index(five, "changes")
 	at := func(width int) map[string]string {
 		m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: width, Height: 24})
 		return m.shown(changes).drawn

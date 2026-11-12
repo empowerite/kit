@@ -26,7 +26,7 @@ func TestALabelIsDrawnAsStylesPill(t *testing.T) {
 // A row's labels column says how many it has, dim; its open row draws each as a pill, down the column, one to a line; a
 // row with one label draws it in the column, as it is, no count; a row with none says nothing there.
 func TestTheLabelsColumnCountsAndTheOpenRowDrawsThePills(t *testing.T) {
-	f := fieldIn("backlog", "labels")
+	f := fieldIn("issues", "labels")
 	cells := f.Draw([]table.Value{table.Labelled([]table.Label{{Name: "bug", Color: "#d73a4a"}, {Name: "priority=high"}}), {}}, "")
 	if cells[0].Summary != "" || !slices.Equal(cells[0].Raw, []string{"bug", "priority=high"}) ||
 		len(cells[0].Values) != 2 || cells[1].Summary != "" || len(cells[1].Values) != 0 {
@@ -61,7 +61,7 @@ func TestTheLabelsColumnCountsAndTheOpenRowDrawsThePills(t *testing.T) {
 // A filter on labels keeps the rows that hold one of the names it includes, or, excluding, none of them; none keeps
 // the rows without a label.
 func TestAFilterOnLabelsKeepsTheRowsThatHoldOne(t *testing.T) {
-	f := fieldIn("backlog", "labels")
+	f := fieldIn("issues", "labels")
 	vs := []table.Value{table.Labelled([]table.Label{{Name: "bug"}, {Name: "kind=fix"}}), table.Labelled([]table.Label{{Name: "docs"}}), {}}
 	var rows []grid.Row
 	for k, c := range f.Draw(vs, "") {

@@ -28,21 +28,23 @@ Search works the same on every screen. `/` or a click on the search field at the
 typing filters as it goes. ⏎, ↓, esc, or tab gives the view focus and keeps the filter, ⌃U clears it, and ⌃R recalls
 a past search.
 
-`kit x y` opens screen x on y. `kit flow backlog` opens the picture with the backlog stage maximized, and
+`kit x y` opens screen x on y. `kit flow issues` opens the picture with the issues stage maximized, and both
+`kit flow backlog` and `kit flow underway` open it the same way, issues set as its Backlog or Underway preset.
 `kit tutorials screens` opens the tutorials with the cursor on that card. `kit help commit` opens the palette on the
 commit verb's page, and `kit tui commit` opens its form.
 
 ## The apps
 
-Flow and the workspace's picture are two of nine apps, each this screen over its own tabs, one stage of kit for
-each, drawn from the catalog alone. `kit <verb>` at a terminal opens the app on its first tab, and `kit <verb> <tab>`
-opens it on that tab, maximized; a tab of kit flow's, as `kit issues backlog`, opens the same way, and the app that
-holds it opens. Each tab reads one kit command with `--json`, the entry of that stage in `internal/flow/fields.json`:
+Flow and the workspace's picture are two of nine apps, each this screen over its own tabs, one stage of kit for each,
+drawn from the catalog alone. `kit <verb>` at a terminal opens the app on its first tab, and `kit <verb> <tab>` opens it
+on that tab, maximized; a tab of kit flow's, as `kit issues issues`, opens the same way, and the app that holds it
+opens. `kit issues backlog` and `kit issues underway` open Issues on its issues tab, set as that preset. Each tab reads
+one kit command with `--json`, the entry of that stage in `internal/flow/fields.json`:
 
 | App | Verb | Tab and the command it reads |
 | --- | --- | --- |
 | Flow | `kit flow` | each stage of the `flow` setting that kittui draws, as `kit flow <stage> --json` |
-| Issues | `kit issues` | backlog and underway, `kit flow`'s; milestones and iterations, `kit issues <tab>` |
+| Issues | `kit issues` | issues, `kit flow issues`, the backlog and underway; milestones and iterations, `kit issues <tab>` |
 | Changes | `kit changes` | changes, `kit flow changes`; reviews, checks, and merged, `kit changes <tab>` |
 | Repositories | `kit workspace` | repos, worktrees, branches, commits, tags, remotes: `kit workspace <tab>`; incoming: `kit flow` |
 | Delivery | `kit delivery` | releases and builds, `kit flow`'s; artifacts, environments, deployments, `kit delivery <tab>` |
@@ -83,7 +85,9 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
 - `internal/syntax/` decodes the grammar `kit syntax` prints.
 - `internal/flow/` draws `kit flow`: the stages as tabs, and each stage's rows. `fields.json` is the catalog. It
   declares each stage's fields, each by a stable id, with its label, its type, what it can sort, group, and filter by,
-  and its renderings in order, and the stage's own presets, Default and Compact. A field that holds a list, as assignees
+  and its renderings in order, and the stage's own presets, the first the one it opens on: Default and Compact, or for
+  issues All Issues, Backlog, Underway, By Milestone, By Iteration, By Swimlane, and Compact; a table with no presets
+  of its own has Default. A field that holds a list, as assignees
   or labels, names one of its values, assignee or label, and sorts by size while a row holds all of them, how many
   each holds, and by value once flattened. Where a row
   holds more than one, its column says how many, dim, as labels' 3, or, for a list with a glyph for many, after it, as
@@ -104,7 +108,8 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     titled Presets at its left as a dialog is, from the control line, its right edge over the ▼: 📇 Fields…, the columns
     dialog, then Save, Save As…, Rename…, Delete, and the presets. Save As… takes a name in the selector's place, the
     person's preset the line was set to typed already, and ⏎ saves; Rename… takes a new name the same way. Save,
-    Rename…, and Delete act on the person's preset the line was set to, and are dim on Default and Compact. What was
+    Rename…, and Delete act on the person's preset the line was set to, and are dim on the stage's own; Delete sets
+    the table as the one it opens on. What was
     done is said in place of the keys, for five seconds or until a key; why something was not done stays until a key.
   - The columns dialog, in `columns.go`, titled by the stage's fields, opens from Fields… in the presets' menu, the
     header drawing no icon of its own: every field a line, those the rows group by first, then the columns as they
@@ -122,7 +127,7 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     `internal/screens/crumb.go`, keeps the chain for the session. Only the app menu shows an app with no crumb.
   - A menu line's key stands at its right, dim, a letter in upper case, R as ⌃A, as a macOS menu draws it, and the
     letter alone does the same with the menu closed as choosing the line does with it open: r Refresh, w Watch, m
-    Maximize or Restore, o Open Selected, ⌃A Select All, and on backlog n New… and a Assign to Me. With a menu open, a
+    Maximize or Restore, o Open Selected, ⌃A Select All, and on issues n New… and a Assign to Me. With a menu open, a
     line's key chooses it before a letter moves to the next line starting with it.
     [ and ] move the cursor to the group heading before and after it, { and } to the first and the last, as they move
     between the palette's groups.

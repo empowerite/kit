@@ -15,7 +15,7 @@
     ▸ worktree    A checkout of its own, under worktrees/, on one issue's branch. kit …  kit flow worktrees        +1
     ▸ code forge  The service that hosts the repository, its issues, its pull requests…  kit flow incoming --no-fetch
   ▾ Checks 1
-    ▸ stage       One part of the picture kit flow draws, such as the backlog or the b…  kit flow --stages
+    ▸ stage       One part of the picture kit flow draws, such as the issues or the bu…  kit flow --stages
 
 
 

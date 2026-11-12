@@ -86,11 +86,11 @@ signed-in() {
 @test "settings lists every key the settings schema names: the value kit.yml sets, else the schema's default" {
   repo-at "${BATS_TEST_TMPDIR}/r" github.com/o/r
   cd "${BATS_TEST_TMPDIR}/r"
-  printf 'primary: upstream\nflow: [backlog, changes]\n' > kit.yml
+  printf 'primary: upstream\nflow: [issues, changes]\n' > kit.yml
   run --separate-stderr "${kit_root}/bin/kit" platform settings --json
   [ "$status" -eq 0 ]
   expected='[["primary","upstream","set"],["gate",null,"default"],["log_days",14,"default"],'
-  expected+='["flow",["backlog","changes"],"set"]]'
+  expected+='["flow",["issues","changes"],"set"]]'
   [ "$(jq -c '[.rows[] | select(.key | IN("primary", "flow", "log_days", "gate")) | [.setting, .value, .from]]' \
     <<<"$output")" = "${expected}" ]
   [ "$(jq '.rows | length' <<<"$output")" \

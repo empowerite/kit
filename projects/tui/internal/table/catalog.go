@@ -20,8 +20,8 @@ import (
 // the forge, and so spends its rate limits; whether the command prints a document a
 // line, read as jq --slurp reads them; the record its rows are read from, as Records reads them; the paths of each
 // record's key, as KeyOf reads them; the line an empty table shows; its fields, in the order its columns stand; and its
-// own presets, in the order its preset line lists them. A schema without a command is a screen's own, which reads its
-// rows itself, and names its record as it likes.
+// own presets, in the order its preset line lists them, the first the one it opens on. A schema without a command is
+// a screen's own, which reads its rows itself, and names its record as it likes.
 type Schema struct {
 	Stage   string   `json:"stage"`
 	Command []string `json:"command"`
@@ -169,11 +169,11 @@ func ReadCatalog(data []byte) (Catalog, error) {
 }
 
 // check refuses a schema a table cannot index by: one that names no stage; a field declared twice, or without a
-// rendering; a field placed in a group that cannot group or names no depth, one that names a depth but is not placed
-// in a group, and two grouped at one depth; fields without a Default preset; and, for a schema with a command, a record Records does not read, a word
-// it takes that Takes does not name, and staged with no stage after the verb, a command of three words at least, as
-// flow backlog --json, and marked on a stage that is not staged. Words taken, staged, or the forge read without a
-// command are refused too.
+// rendering; a field placed in a group that cannot group or names no depth, one that names a depth but is not placed in
+// a group, and two grouped at one depth; fields without a preset, the first of which a table opens on; and, for a
+// schema with a command, a record Records does not read, a word it takes that Takes does not name, and staged with no
+// stage after the verb, a command of three words at least, as flow issues --json, and marked on a stage that is not
+// staged. Words taken, staged, or the forge read without a command are refused too.
 func (s *Schema) check() error {
 	var errs []error
 	if s.Stage == "" {
@@ -201,8 +201,8 @@ func (s *Schema) check() error {
 		}
 		depths[f.Depth] = f.ID
 	}
-	if len(s.Fields) > 0 && !slices.ContainsFunc(s.Presets, func(p Preset) bool { return p.Name == Opening }) {
-		errs = append(errs, fmt.Errorf("stage %q has no preset named %s", s.Stage, Opening))
+	if len(s.Fields) > 0 && len(s.Presets) == 0 {
+		errs = append(errs, fmt.Errorf("stage %q has no preset to open on", s.Stage))
 	}
 	if len(s.Command) == 0 {
 		if len(s.Takes) > 0 || s.Staged {

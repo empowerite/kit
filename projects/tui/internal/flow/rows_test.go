@@ -3,6 +3,7 @@
 package flow
 
 import (
+	"maps"
 	"slices"
 	"testing"
 
@@ -12,13 +13,50 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
+// Issues draw an issue in the backlog and one underway in one stage: each its status, milestone, iteration, swimlane,
+// and branch, as kit prints them; one underway its pull request beside it, its number, state, and where the work is,
+// and one in the backlog none of those.
+func TestIssuesDrawTheBacklogAndWhatIsUnderwayTogether(t *testing.T) {
+	m := loaded(t, options())
+	values := map[string]map[string][]string{}
+	for _, r := range m.records(*m.find(issuesStage)) {
+		values[r.Key] = map[string][]string{}
+		for id, v := range r.values {
+			values[r.Key][id] = v.Raw
+		}
+	}
+	for key, want := range map[string]map[string][]string{
+		"#7": {"status": {"backlog"}, "milestone": {"v1"}, "iteration": nil, "swimlane": nil, "branch": nil,
+			"change": nil, "state": nil, "where": nil, "pushed": nil},
+		"#46": {"status": {"backlog"}, "milestone": {"v0.2.0"}, "iteration": {"Sprint 4"}, "swimlane": {"tui"},
+			"branch": {"46-a-noun-lists"}, "change": nil},
+		"#1 #2": {"status": {"underway"}, "milestone": {"v0.1.0"}, "iteration": {"Sprint 3"}, "swimlane": {"release"},
+			"branch": {"1-the-first-release-v0-1-0"}, "change": {"#2"}, "state": {"ready"}, "where": {"here"}},
+		"#8 #11": {"status": {"underway"}, "change": {"#11"}, "state": {"draft"}, "where": {"local"}},
+	} {
+		got, ok := values[key]
+		if !ok {
+			t.Errorf("no row %s: %q", key, slices.Collect(maps.Keys(values)))
+			continue
+		}
+		for id, raw := range want {
+			if !slices.Equal(got[id], raw) {
+				t.Errorf("%s's %s: %q, want %q", key, id, got[id], raw)
+			}
+		}
+	}
+	if len(values) != 7 {
+		t.Errorf("%d rows, not 7: %q", len(values), slices.Collect(maps.Keys(values)))
+	}
+}
+
 func TestTheDeskIsHereInIssues(t *testing.T) {
 	p := "/home/kit/worktrees/1-the-first-release-v0-1-0"
 	o := options()
-	o.App, o.Stages = shell.Issues, []string{"backlog", "underway"}
+	o.App, o.Stages = shell.Issues, []string{"issues"}
 	m := loaded(t, o, shell.WorkspaceMsg{Workspace: kit.Workspace{Kind: "repository", Checkout: p}})
 	where := func(m Model) (any, string) {
-		for _, r := range m.records(*m.find("underway")) {
+		for _, r := range m.records(*m.find("issues")) {
 			if r.Key == "#1 #2" {
 				return r.values["where"].Of, r.values["where"].Link
 			}

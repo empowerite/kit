@@ -7,8 +7,8 @@ references, and its three providers are described in [the tracker seam](../track
 is listed in [the integrations index](1st.md).
 
 kit reaches a tracker through `kit/modules/bash/tracker.sh`. `kit work`, `kit assign`, `kit unassign`, `kit close`,
-`kit gather`, `kit settle`, `kit new issue`, `kit linked`, and `kit tidy` call it. The backlog and underway stages of
-`kit flow` draw the code forge's open issues, through `open-issues` in `kit/modules/bash/forge.sh`. kittui has
+`kit gather`, `kit settle`, `kit new issue`, `kit linked`, and `kit tidy` call it. The issues stage of
+`kit flow` draws the code forge's open issues, through `open-issues` in `kit/modules/bash/forge.sh`. kittui has
 iterations and milestones tabs with no data source yet, and this page records where each tracker keeps both.
 
 see: [the code forges](forges.md), whose APIs GitHub Issues, GitLab, Azure Boards, Gitea, and Forgejo share
@@ -23,7 +23,7 @@ see: [the code forges](forges.md), whose APIs GitHub Issues, GitLab, Azure Board
 | The caller's login in the tracker | read | `me`: `kit work` assigns the caller, `kit assign` |
 | An issue's page | read | `url` |
 | The page a new issue is filed at | read | `new-url`: `kit new issue` |
-| The open issues, each with assignees, age, and labels | read | `open-issues` (forge seam): the backlog and underway stages |
+| The open issues, each with assignees, age, labels, milestone, iteration, and swimlane | read | `open-issues` (forge seam): the issues stage |
 | Adds or removes an assignee | write | `assign`, `unassign`: `kit work`, `kit assign`, `kit unassign`, `kit settle` |
 | Closes an issue as completed, not planned, or a duplicate | write | `close`: `kit close`, `kit close --duplicate-of`, `kit settle` |
 | Adds a comment | write | `comment`: `kit settle`, `kit close --duplicate-of` across trackers |
@@ -32,7 +32,7 @@ see: [the code forges](forges.md), whose APIs GitHub Issues, GitLab, Azure Board
 | Links a change to an issue | write | `kit work`: a linked branch, and a `Closes` line in the change's body; `kit linked` reads it |
 | Iterations: sprints or cycles, with dates and their issues | read | planned: kittui's iterations tab |
 | Milestones or versions, with due dates and their issues | read | planned: kittui's milestones tab |
-| A project board's status field | read | planned: a column beside an issue in the backlog |
+| A project board's status field | read | planned: a column beside an issue in the issues stage |
 
 The calls are the seam's, and a provider answers each one. kit's providers call a tracker's command line, which holds
 the sign-in; a call that goes only through a tracker's raw API needs a token of its own.

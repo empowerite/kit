@@ -17,7 +17,7 @@ import (
 func presetting() *host {
 	h := listing()
 	h.views = views()
-	h.tbl = Table{ViewName: Opening, View: h.views.Chosen(Opening).Panel(h.views.Fields, grid.Panel{})}
+	h.tbl = Table{ViewName: Default, View: h.views.Chosen(Default).Panel(h.views.Fields, grid.Panel{})}
 	h.fields = h.views.Fields
 	h.loaded = true
 	return h
@@ -34,7 +34,7 @@ func itemNames(h Host) []string {
 
 func TestThePresetsMenuListsWhatCanBeDoneWithViewsThenTheViews(t *testing.T) {
 	h := presetting()
-	want := []string{FieldsIt, "", SaveIt, SaveAs, RenameIt, DeleteIt, "", Opening, "Grouped", "", "Mine"}
+	want := []string{FieldsIt, "", SaveIt, SaveAs, RenameIt, DeleteIt, "", Default, "Grouped", "", "Mine"}
 	if got := itemNames(h); !slices.Equal(got, want) || PresetItems(h)[7].Glyph != Checked {
 		t.Fatalf("the menu: %q", got)
 	}
@@ -118,15 +118,15 @@ func sgrBefore(s, text string) map[string]bool {
 
 func TestThePresetLineNamesTheViewTheTableIsSetAs(t *testing.T) {
 	h := presetting()
-	if got := PresetLine(h, false); got != SelectorPill(Opening, "75", false) {
+	if got := PresetLine(h, false); got != SelectorPill(Default, "75", false) {
 		t.Errorf("as Default: %q", ansi.Strip(got))
 	}
-	if got := PresetLine(h, true); got != SelectorPill(Opening, SelectorFocus, false) {
+	if got := PresetLine(h, true); got != SelectorPill(Default, SelectorFocus, false) {
 		t.Errorf("with the keyboard: %q", ansi.Strip(got))
 	}
 	// changed from every view, the one it was set to, struck through
 	h.tbl.View = h.tbl.View.Placed("state", grid.Hidden).Placed("title", grid.Hidden)
-	if got := PresetLine(h, false); got != SelectorPill(Opening, "75", true) {
+	if got := PresetLine(h, false); got != SelectorPill(Default, "75", true) {
 		t.Errorf("changed: %q", ansi.Strip(got))
 	}
 	// a name typed for Save As… or Rename…, once the line has the keyboard

@@ -5,7 +5,7 @@
 #
 # The changes stage of kit flow is the reviewer's picture: every open change of the repository on its forge, as
 # forge:open-prs folds them, each drawn as a pull request's row, and under it the issues it closes, each drawn as
-# the backlog stage draws an issue, in flight. The flags are kit flow's: --mine is the changes the caller opened,
+# flow:issue-row draws an issue, in flight. The flags are kit flow's: --mine is the changes the caller opened,
 # --others the rest, --owner=<login> the named authors', --all every open change. Every change's row ends with its
 # branch. In a worktree the stage is the change its branch holds, whoever opened it.
 #

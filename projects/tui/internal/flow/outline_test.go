@@ -17,14 +17,16 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
-// nested gives backlog grouped by hand, by source, then by assignees within it, at 120 columns: the heading over the
-// groups, on the control line, a heading per source, a heading per assignee under each, and their rows.
+// nested gives issues set as Backlog, grouped by hand, by source, then by assignees within it, at 120 columns: the
+// heading over the groups, on the control line, a heading per source, a heading per assignee under each, and their
+// rows.
 func nested(t *testing.T) Model {
 	t.Helper()
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 30})
+	m.apply(m.viewsOf(0).Chosen("Backlog"))
 	m.setPanel(regroup(m.panel(m.stage), "source", "assignees"))
 	if rows := m.rows(0); !grid.OverGroups(rows[0]) || grid.Level(rows[1]) != 2 || grid.Level(rows[2]) != 3 {
-		t.Fatalf("backlog does not group two deep:\n%s", view(m))
+		t.Fatalf("the backlog does not group two deep:\n%s", view(m))
 	}
 	return m
 }

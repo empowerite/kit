@@ -254,8 +254,8 @@ func TestAClickOnTheRuleUnderAColumnsNameSortsByIt(t *testing.T) {
 			t.Fatalf("another click under age: %d keys, age %q, want %q", keys(m), mark(m, "age"), want)
 		}
 	}
-	if m = drive(m, testkit.Click(under(m, "branch"), ruleY(m))); keys(m) != 2 || mark(m, "branch") != "▲²" {
-		t.Errorf("a click under branch: %d keys, branch %q", keys(m), mark(m, "branch"))
+	if m = drive(m, testkit.Click(under(m, "change"), ruleY(m))); keys(m) != 2 || mark(m, "change") != "▲²" {
+		t.Errorf("a click under change: %d keys, change %q", keys(m), mark(m, "change"))
 	}
 	// a list sorts by size while a row holds all its values: the rule has the dim flatten mark under its name's first
 	// cell, and the sort's after it, which a click sorts by how many values each row holds
@@ -288,8 +288,8 @@ func TestAClickOnTheRuleUnderAColumnsNameSortsByIt(t *testing.T) {
 		t.Errorf("sorting moved the names:\n%s\n%s", header, got)
 	}
 	// the name itself drops the column menu down, and sorts nothing
-	if m = drive(m, testkit.Click(after(m, "branch")-2, m.headerTop())); !m.colMenu.Open || keys(m) != 2 {
-		t.Errorf("a click on branch's name: menu %v, %d keys", m.colMenu.Open, keys(m))
+	if m = drive(m, testkit.Click(after(m, "change")-2, m.headerTop())); !m.colMenu.Open || keys(m) != 2 {
+		t.Errorf("a click on change's name: menu %v, %d keys", m.colMenu.Open, keys(m))
 	}
 }
 

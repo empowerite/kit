@@ -167,7 +167,7 @@ func TestKindAsksWithTheAnswers(t *testing.T) {
 func TestStagesAndStatusRunKitStatus(t *testing.T) {
 	r := fake(t, "")
 	stages, err := r.Stages()
-	if err != nil || strings.Join(stages, " ") != "backlog incoming" {
+	if err != nil || strings.Join(stages, " ") != "issues changes builds incoming releases" {
 		t.Fatalf("Stages: %v, %q", err, stages)
 	}
 	// the stage's words are kit flow <stage> --json <args>…, --json first
@@ -538,16 +538,16 @@ func TestAGroupsReadsCarryTheWorkspace(t *testing.T) {
 	r := fake(t, "")
 	r.Group = "w"
 	ctx := context.Background()
-	out, err := r.Status(ctx, "backlog", []string{"--mine"})
-	if err != nil || strings.TrimSpace(string(out)) != `{"stage": "backlog", "args": "--json --mine --workspace w"}` {
+	out, err := r.Status(ctx, "issues", []string{"--mine"})
+	if err != nil || strings.TrimSpace(string(out)) != `{"stage": "issues", "args": "--json --mine --workspace w"}` {
 		t.Errorf("Status over w: %v, %q", err, out)
 	}
-	if stages, err := r.Stages(); err != nil || strings.Join(stages, " ") != "backlog incoming" {
+	if stages, err := r.Stages(); err != nil || strings.Join(stages, " ") != "issues changes builds incoming releases" {
 		t.Errorf("Stages over w: %v, %q", err, stages)
 	}
 	r.Group = ""
-	out, err = r.Status(ctx, "backlog", []string{"--mine"})
-	if err != nil || strings.TrimSpace(string(out)) != `{"stage": "backlog", "args": "--json --mine"}` {
+	out, err = r.Status(ctx, "issues", []string{"--mine"})
+	if err != nil || strings.TrimSpace(string(out)) != `{"stage": "issues", "args": "--json --mine"}` {
 		t.Errorf("Status here: %v, %q", err, out)
 	}
 }
@@ -558,12 +558,12 @@ func TestRowsCarryTheWorkspaceOnlyWhereTheCommandReadsAGroup(t *testing.T) {
 	r := fake(t, "")
 	r.Group = "w"
 	ctx := context.Background()
-	out, err := r.Rows(ctx, []string{"flow", "backlog", "--json", "--mine"}, true)
-	if err != nil || strings.TrimSpace(string(out)) != `{"stage": "backlog", "args": "--json --mine --workspace w"}` {
+	out, err := r.Rows(ctx, []string{"flow", "issues", "--json", "--mine"}, true)
+	if err != nil || strings.TrimSpace(string(out)) != `{"stage": "issues", "args": "--json --mine --workspace w"}` {
 		t.Errorf("Rows over w: %v, %q", err, out)
 	}
-	out, err = r.Rows(ctx, []string{"flow", "backlog", "--json"}, false)
-	if err != nil || strings.TrimSpace(string(out)) != `{"stage": "backlog", "args": "--json"}` {
+	out, err = r.Rows(ctx, []string{"flow", "issues", "--json"}, false)
+	if err != nil || strings.TrimSpace(string(out)) != `{"stage": "issues", "args": "--json"}` {
 		t.Errorf("Rows not over w: %v, %q", err, out)
 	}
 }
@@ -573,13 +573,13 @@ func TestRowsCarryTheWorkspaceOnlyWhereTheCommandReadsAGroup(t *testing.T) {
 func TestARunnerWithNoGroupReadsWithWorkspaceNone(t *testing.T) {
 	r := fake(t, "")
 	r.NoGroup = true
-	out, err := r.Status(context.Background(), "backlog", []string{"--mine"})
-	if err != nil || strings.TrimSpace(string(out)) != `{"stage": "backlog", "args": "--json --mine --workspace none"}` {
+	out, err := r.Status(context.Background(), "issues", []string{"--mine"})
+	if err != nil || strings.TrimSpace(string(out)) != `{"stage": "issues", "args": "--json --mine --workspace none"}` {
 		t.Errorf("Status with no group: %v, %q", err, out)
 	}
 	r.Group = "w"
-	out, err = r.Status(context.Background(), "backlog", nil)
-	if err != nil || strings.TrimSpace(string(out)) != `{"stage": "backlog", "args": "--json --workspace w"}` {
+	out, err = r.Status(context.Background(), "issues", nil)
+	if err != nil || strings.TrimSpace(string(out)) != `{"stage": "issues", "args": "--json --workspace w"}` {
 		t.Errorf("Status over w: %v, %q", err, out)
 	}
 }
@@ -596,11 +596,11 @@ func TestAGroupsQuotaAndMarksCarryTheWorkspace(t *testing.T) {
 		t.Errorf("Quota over w: %v, %+v", err, quotas)
 	}
 	marks, err := r.Marks(ctx)
-	if desk, ok := marks["desk"]; err != nil || marks["backlog"] != "--workspace w" || !ok || desk != "" {
+	if desk, ok := marks["desk"]; err != nil || marks["issues"] != "--workspace w" || !ok || desk != "" {
 		t.Errorf("Marks over w: %v, %+v", err, marks)
 	}
 	r.Group = ""
-	if marks, err := r.Marks(ctx); err != nil || marks["backlog"] != "" {
+	if marks, err := r.Marks(ctx); err != nil || marks["issues"] != "" {
 		t.Errorf("Marks here: %v, %+v", err, marks)
 	}
 }

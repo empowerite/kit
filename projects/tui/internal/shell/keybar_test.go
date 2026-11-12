@@ -179,9 +179,9 @@ func TestAClickOnTheSettingsDialogFlipsASettingOrClosesIt(t *testing.T) {
 // Keys of one control that do the same thing are drawn as one, joined by /, and a key a deeper control takes leaves the
 // others standing.
 func TestKeysThatDoTheSameThingAreDrawnAsOne(t *testing.T) {
-	sidebar := Segment{Bindings: []Binding{Bind("⇥", "backlog", "tab"), Bind("esc", "backlog"), Bind("↑↓", "move",
+	sidebar := Segment{Bindings: []Binding{Bind("⇥", "issues", "tab"), Bind("esc", "issues"), Bind("↑↓", "move",
 		"up", "down")}}
-	if got := (Path{sidebar}).String(); got != "⇥·esc backlog ↑↓ move" {
+	if got := (Path{sidebar}).String(); got != "⇥·esc issues ↑↓ move" {
 		t.Errorf("the sidebar: %q", got)
 	}
 	// the dot is dim, where the keyboard is too, and the keys either side of it are not
@@ -189,7 +189,7 @@ func TestKeysThatDoTheSameThingAreDrawnAsOne(t *testing.T) {
 		t.Errorf("the merged keys drawn: %q", got)
 	}
 	renaming := Segment{Bindings: []Binding{Bind("esc", "cancel")}}
-	if got := (Path{sidebar, renaming}).String(); got != "⇥ backlog ↑↓ move │ esc cancel" {
+	if got := (Path{sidebar, renaming}).String(); got != "⇥ issues ↑↓ move │ esc cancel" {
 		t.Errorf("under a rename: %q", got)
 	}
 }

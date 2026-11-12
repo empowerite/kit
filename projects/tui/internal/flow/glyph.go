@@ -21,6 +21,7 @@ const (
 	Issue     = "🎫" // issue
 	GitHub    = "🐙" // on GitHub
 	GitLab    = "🦊" // on GitLab
+	Waiting   = "💤" // backlog
 	InFlight  = "🛫" // underway
 	Desk      = "💻" // desk
 	Branch    = "🌿" // branch or worktree
@@ -53,6 +54,9 @@ const (
 	Package   = "🧩" // package
 	Active    = "🟢" // active
 	Excluded  = "⛔" // excluded
+	Milestone = "⛳" // milestone
+	Iteration = "📅" // iteration
+	Swimlane  = "🏊" // swimlane
 	Other     = "🔳" // other state
 )
 
@@ -61,24 +65,20 @@ var title = entry{Workspace, "workspace"}
 
 // legends gives each stage's legend: every glyph the stage draws, its own first. A glyph may be in several.
 var legends = map[string][]entry{
-	"backlog": {
+	"issues": {
 		{Issue, "issue"},
-		{GitHub, "on GitHub"},
-		{GitLab, "on GitLab"},
-		{Owner, "assignees or author"},
-		{Branch, "branch or worktree"},
-		{Failed, "failed"},
-	},
-	"underway": {
+		{Waiting, "backlog"},
 		{InFlight, "underway"},
 		{Owner, "assignees or author"},
+		{Milestone, "milestone"},
+		{Iteration, "iteration"},
+		{Swimlane, "swimlane"},
 		{Change, "pull request"},
 		{Desk, "desk"},
 		{Branch, "branch or worktree"},
 		{Sprout, "local branch"},
 		{Fork, "fork owner"},
 		{Pushed, "last push"},
-		{Issue, "issue"},
 		{GitHub, "on GitHub"},
 		{GitLab, "on GitLab"},
 		{Failed, "failed"},
@@ -191,8 +191,7 @@ var legends = map[string][]entry{
 // marks gives the mark after a glyph's meaning in a stage's legend, for each glyph a click on leads somewhere:
 // to the row of another stage, or to a page.
 var marks = map[string]map[string]string{
-	"backlog":             {Issue: ToPage},
-	"underway":            {Change: ToRow, Desk: ToRow, Branch: ToRow, Issue: ToPage},
+	"issues":              {Issue: ToPage, Change: ToRow, Desk: ToRow, Branch: ToRow},
 	"desk":                {Change: ToRow},
 	"worktrees":           {Change: ToRow},
 	"changes":             {Change: ToPage},
@@ -220,8 +219,7 @@ var states = []entry{
 
 // stageGlyphs gives each stage's glyph, drawn beside its name on the line of stages.
 var stageGlyphs = map[string]string{
-	"backlog":             Issue,
-	"underway":            InFlight,
+	"issues":              Issue,
 	"desk":                Desk,
 	"worktrees":           Branch,
 	"changes":             Change,
@@ -239,8 +237,7 @@ var stageGlyphs = map[string]string{
 
 // stageColors gives each stage its group's color, which the bar draws the stage's tab in while it is selected.
 var stageColors = map[string]string{
-	"backlog":             "75",
-	"underway":            "75",
+	"issues":              "75",
 	"desk":                "114",
 	"worktrees":           "114",
 	"changes":             "221",

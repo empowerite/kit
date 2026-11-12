@@ -17,20 +17,20 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/source"
 )
 
-// big gives a backlog of n issues, each with a title long enough to wrap when opened.
+// big gives issues' document of n issues, each with a title long enough to wrap when opened.
 func big(n int) source.Answer[[]byte] {
 	var b []string
 	for i := 1; i <= n; i++ {
 		b = append(b, fmt.Sprintf(`{"number": %d, "title": "issue %d with a reasonably long title that goes on", `+
 			`"assignees": ["ada"], "age": 7200, "branch": null}`, i, i))
 	}
-	return answer("backlog", "["+strings.Join(b, ",")+"]")
+	return answer("issues", "["+strings.Join(b, ",")+"]")
 }
 
-// bigNow gives big's answer as the backlog's latest load on the screen, which the fetch has run again.
+// bigNow gives big's answer as issues' latest load on the screen, which the fetch has run again.
 func bigNow(m Model, n int) source.Answer[[]byte] {
 	msg := big(n)
-	msg.Gen = m.find("backlog").src.Gen()
+	msg.Gen = m.find("issues").src.Gen()
 	return msg
 }
 
@@ -39,7 +39,7 @@ func bigNow(m Model, n int) source.Answer[[]byte] {
 func TestAStagesRowsAreBuiltOnceForItsDataAndTheWidth(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 40})
 	m = drive(m, bigNow(m, 300))
-	i := slices.IndexFunc(m.stages, func(s stage) bool { return s.name == "backlog" })
+	i := slices.IndexFunc(m.stages, func(s stage) bool { return s.name == "issues" })
 	first := m.rows(i)
 	_ = m.View()
 	m = drive(m, down, down, esc, tab, backTab)
@@ -64,7 +64,7 @@ func TestAStagesRowsAreBuiltOnceForItsDataAndTheWidth(t *testing.T) {
 	}
 }
 
-// With three hundred issues in the backlog, drawing the screen takes well under the 16 ms a frame lasts at 60 frames
+// With three hundred issues, drawing the screen takes well under the 16 ms a frame lasts at 60 frames
 // a second, and a step along the bar does too. The race detector slows everything about tenfold, so its bound is ten
 // times as wide. Each is timed as the best of three batches, so a moment the machine is busy elsewhere, or the test
 // runs on a slower core, does not count against the drawing.

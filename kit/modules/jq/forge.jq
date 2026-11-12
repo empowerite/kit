@@ -15,7 +15,7 @@
 #   unresolved  the number of unresolved review threads
 #   labels      [{name, color}] of the labels on it, as labels gives them
 #   closes      [{number, title, assignees, labels, age, source}] of the issues it closes, the assignees as logins,
-#               so a change's issues are drawn as the backlog stage draws an issue without a second call to the forge
+#               so a change's issues are drawn as the issues stage draws an issue without a second call to the forge
 #   reviewers   [{login, state, at}] of the people and teams asked to review it, or who did: state is requested while
 #               one is asked and has not answered, else approved, changes, or commented; at, in seconds since the
 #               epoch, is when they answered, null while asked, or where the forge keeps no time
@@ -276,7 +276,7 @@ def gitlab_pr($now; $jobs; $discussions; $closes; $fork; $approvals):
   | document($now);
 
 # issue($now; $source; $path) reads {number, title, assignees, labels, createdAt, milestone, iteration}, the assignees
-# as logins, the milestone and the iteration each a title or null, and gives the issue document kit backlog draws:
+# as logins, the milestone and the iteration each a title or null, and gives the issue document kit flow issues draws:
 # those, the labels as labels reads them, ref, age in seconds, source, the tracker that holds it: the code forge's own,
 # github or gitlab, for now; and the organization and the repository it is in, as place reads $path.
 def issue($now; $source; $path):

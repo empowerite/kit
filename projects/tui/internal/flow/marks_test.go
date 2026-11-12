@@ -29,35 +29,35 @@ func marking(t *testing.T, marks string) func(string) {
 }
 
 func TestAStageWhoseMarkMovesSinceItLoadedIsStaleUntilItLoadsAgain(t *testing.T) {
-	write := marking(t, `{"backlog": "b1", "changes": "c1", "builds": "u1", "releases": null}`)
+	write := marking(t, `{"issues": "b1", "changes": "c1", "builds": "u1", "releases": null}`)
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
-	if s := m.find("backlog"); s.src.Mark() != "b1" || s.src.Stale {
-		t.Fatalf("after the load, backlog's mark %q, stale %v", s.src.Mark(), s.src.Stale)
+	if s := m.find("issues"); s.src.Mark() != "b1" || s.src.Stale {
+		t.Fatalf("after the load, issues' mark %q, stale %v", s.src.Mark(), s.src.Stale)
 	}
 	if len(clockOf(m).Timers()) == 0 || m.marks.Asking() || m.marks.Off() {
 		t.Errorf("after the read: waits %v, asking %v, off %v", clockOf(m).Timers(), m.marks.Asking(), m.marks.Off())
 	}
-	// the minute's read: backlog's mark moved, changes' did not, builds' is gone, releases never had one
-	write(`{"backlog": "b2", "changes": "c1", "releases": null}`)
+	// the minute's read: issues' mark moved, changes' did not, builds' is gone, releases never had one
+	write(`{"issues": "b2", "changes": "c1", "releases": null}`)
 	m = drive(m, clockOf(m).Fire()...)
-	for name, want := range map[string]bool{"backlog": true, "changes": false, "builds": false, "releases": false} {
+	for name, want := range map[string]bool{"issues": true, "changes": false, "builds": false, "releases": false} {
 		if got := m.find(name).src.Stale; got != want {
 			t.Errorf("%s stale %v, want %v", name, got, want)
 		}
 	}
-	if names := barNames(m); !strings.Contains(names, "backlog"+tabs.Stale) || strings.Contains(names, "changes"+tabs.Stale) {
+	if names := barNames(m); !strings.Contains(names, "issues"+tabs.Stale) || strings.Contains(names, "changes"+tabs.Stale) {
 		t.Errorf("the dots: %q", names)
 	}
 	// stale is stale: a later read keeps it so, though the mark moves on, or back
-	write(`{"backlog": "b1"}`)
-	if m = drive(m, clockOf(m).Fire()...); !m.find("backlog").src.Stale {
+	write(`{"issues": "b1"}`)
+	if m = drive(m, clockOf(m).Fire()...); !m.find("issues").src.Stale {
 		t.Error("a later read cleared the dot")
 	}
 	// Refresh All loads it again, and it takes the next mark as its own
-	write(`{"backlog": "b3", "changes": "c1"}`)
+	write(`{"issues": "b3", "changes": "c1"}`)
 	older := clockOf(m).Fire()
 	m = drive(m, refreshAll...)
-	if s := m.find("backlog"); s.src.Stale || s.src.Mark() != "b3" || strings.Contains(barNames(m), "backlog"+tabs.Stale) {
+	if s := m.find("issues"); s.src.Stale || s.src.Mark() != "b3" || strings.Contains(barNames(m), "issues"+tabs.Stale) {
 		t.Errorf("after Refresh All: stale %v, mark %q", s.src.Stale, s.src.Mark())
 	}
 	// the minute an older read waited from reads nothing
@@ -104,47 +104,47 @@ func TestAKitThatCannotReadTheMarksIsAskedAgainOnRefreshAll(t *testing.T) {
 // dot, and, watched, no load, read after read; the marks kit read beside it still make their stages stale.
 func TestAStageWhoseMarkIsNullIsNeitherStaleNorLoadedAgain(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
-	write := marking(t, `{"backlog": "b1", "changes": "c1"}`)
+	write := marking(t, `{"issues": "b1", "changes": "c1"}`)
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
-	m.find("backlog").src.Watch = true
+	m.find("issues").src.Watch = true
 	t.Setenv("FAKE_FLOW_CALLS", record)
-	write(`{"backlog": null, "changes": "c2"}`)
+	write(`{"issues": null, "changes": "c2"}`)
 	for range 3 {
 		m = drive(m, clockOf(m).Fire()...)
 	}
-	if s := m.find("backlog"); s.src.Stale || strings.Contains(barNames(m), "backlog"+tabs.Stale) {
-		t.Errorf("backlog of a null mark: stale %v, the dots %q", s.src.Stale, barNames(m))
+	if s := m.find("issues"); s.src.Stale || strings.Contains(barNames(m), "issues"+tabs.Stale) {
+		t.Errorf("issues of a null mark: stale %v, the dots %q", s.src.Stale, barNames(m))
 	}
-	if got, _ := os.ReadFile(record); strings.Contains(string(got), "backlog") {
-		t.Errorf("a null mark loaded backlog again: %q", got)
+	if got, _ := os.ReadFile(record); strings.Contains(string(got), "issues") {
+		t.Errorf("a null mark loaded issues again: %q", got)
 	}
 	if !m.find("changes").src.Stale || !strings.Contains(barNames(m), "changes"+tabs.Stale) {
 		t.Errorf("changes, whose mark moved beside the null: the dots %q", barNames(m))
 	}
 	loads := func() int {
 		got, _ := os.ReadFile(record)
-		return strings.Count(string(got), "flow backlog --json")
+		return strings.Count(string(got), "flow issues --json")
 	}
-	// the forge answers again with the mark backlog took: nothing moved, so nothing loads
-	write(`{"backlog": "b1", "changes": "c2"}`)
+	// the forge answers again with the mark issues took: nothing moved, so nothing loads
+	write(`{"issues": "b1", "changes": "c2"}`)
 	for range 2 {
 		m = drive(m, clockOf(m).Fire()...)
 	}
-	if n := loads(); n != 0 || m.find("backlog").src.Stale {
-		t.Errorf("back to its own mark: %d loads, stale %v", n, m.find("backlog").src.Stale)
+	if n := loads(); n != 0 || m.find("issues").src.Stale {
+		t.Errorf("back to its own mark: %d loads, stale %v", n, m.find("issues").src.Stale)
 	}
 	// null again, then a mark that moved: one load, read after read
-	write(`{"backlog": null, "changes": "c2"}`)
+	write(`{"issues": null, "changes": "c2"}`)
 	m = drive(m, clockOf(m).Fire()...)
-	write(`{"backlog": "b2", "changes": "c2"}`)
+	write(`{"issues": "b2", "changes": "c2"}`)
 	for range 3 {
 		m = drive(m, clockOf(m).Fire()...)
 	}
 	if n := loads(); n != 1 {
-		t.Errorf("a mark that moved past a null loaded backlog %d times", n)
+		t.Errorf("a mark that moved past a null loaded issues %d times", n)
 	}
 	// a mark that holds the word null is a mark: kit reads it with exit 0
-	write(`{"backlog": "nullable", "changes": "c2"}`)
+	write(`{"issues": "nullable", "changes": "c2"}`)
 	if err := exec.Command(runner(t).Kit, "flow", "--marks").Run(); err != nil {
 		t.Errorf("a mark holding null: %v", err)
 	}

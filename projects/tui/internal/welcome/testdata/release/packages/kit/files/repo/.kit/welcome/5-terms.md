@@ -86,7 +86,7 @@ default branch, and `kit gate` runs it on your machine.
 
 ### stage
 
-One part of the picture `kit flow` draws, such as the backlog or the builds. The `flow` setting in `kit.yml`
+One part of the picture `kit flow` draws, such as the issues or the builds. The `flow` setting in `kit.yml`
 picks which are drawn.
 
 `kit flow --stages`

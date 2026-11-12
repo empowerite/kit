@@ -1,6 +1,6 @@
 {
   "verb": "flow",
-  "purpose": "shows where the work stands, from backlog to releases",
+  "purpose": "shows where the work stands, from the issues to releases",
   "usage": [
     "kit flow [--no-fetch] [--fresh] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]",
     "kit flow --stages",
@@ -8,14 +8,15 @@
     "kit flow --capabilities",
     "kit flow --quota",
     "kit flow --marks",
-    "kit flow backlog [--json | --jq] [--cached] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]]",
-    "kit flow underway [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]]",
+    "kit flow issues [--json | --jq] [--cached] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]]",
     "kit flow incoming [--no-fetch] [--json | --jq] [--cached]",
     "kit flow desk [--json | --jq] [--cached]",
     "kit flow worktrees [--json | --jq] [--cached]",
     "kit flow changes [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]] [<number>…]",
     "kit flow builds [--json | --jq] [--cached]",
-    "kit flow releases [--json | --jq] [--cached]"
+    "kit flow releases [--json | --jq] [--cached]",
+    "kit flow backlog [--text | --json | --jq] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]]",
+    "kit flow underway [--text | --json | --jq] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]]"
   ],
   "syntax": [
     [
@@ -174,7 +175,7 @@
     [
       {
         "kind": "literal",
-        "name": "backlog",
+        "name": "issues",
         "repeat": false
       },
       {
@@ -234,122 +235,6 @@
             {
               "kind": "flag",
               "name": "today",
-              "repeat": false
-            }
-          ]
-        ],
-        "repeat": false
-      },
-      {
-        "kind": "group",
-        "optional": true,
-        "alternatives": [
-          [
-            {
-              "kind": "flag",
-              "name": "all",
-              "repeat": false
-            }
-          ],
-          [
-            {
-              "kind": "group",
-              "optional": true,
-              "alternatives": [
-                [
-                  {
-                    "kind": "flag",
-                    "name": "mine",
-                    "repeat": false
-                  }
-                ]
-              ],
-              "repeat": false
-            },
-            {
-              "kind": "group",
-              "optional": true,
-              "alternatives": [
-                [
-                  {
-                    "kind": "flag",
-                    "name": "others",
-                    "repeat": false
-                  }
-                ]
-              ],
-              "repeat": false
-            },
-            {
-              "kind": "group",
-              "optional": true,
-              "alternatives": [
-                [
-                  {
-                    "kind": "option",
-                    "inline": true,
-                    "name": "owner",
-                    "value": "login",
-                    "repeat": true
-                  }
-                ]
-              ],
-              "repeat": false
-            }
-          ]
-        ],
-        "repeat": false
-      }
-    ],
-    [
-      {
-        "kind": "literal",
-        "name": "underway",
-        "repeat": false
-      },
-      {
-        "kind": "group",
-        "optional": true,
-        "alternatives": [
-          [
-            {
-              "kind": "flag",
-              "name": "json",
-              "repeat": false
-            }
-          ],
-          [
-            {
-              "kind": "flag",
-              "name": "jq",
-              "repeat": false
-            }
-          ]
-        ],
-        "repeat": false
-      },
-      {
-        "kind": "group",
-        "optional": true,
-        "alternatives": [
-          [
-            {
-              "kind": "flag",
-              "name": "cached",
-              "repeat": false
-            }
-          ]
-        ],
-        "repeat": false
-      },
-      {
-        "kind": "group",
-        "optional": true,
-        "alternatives": [
-          [
-            {
-              "kind": "flag",
-              "name": "fresh",
               "repeat": false
             }
           ]
@@ -770,6 +655,224 @@
         ],
         "repeat": false
       }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "backlog",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "fresh",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "all",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "group",
+              "optional": true,
+              "alternatives": [
+                [
+                  {
+                    "kind": "flag",
+                    "name": "mine",
+                    "repeat": false
+                  }
+                ]
+              ],
+              "repeat": false
+            },
+            {
+              "kind": "group",
+              "optional": true,
+              "alternatives": [
+                [
+                  {
+                    "kind": "flag",
+                    "name": "others",
+                    "repeat": false
+                  }
+                ]
+              ],
+              "repeat": false
+            },
+            {
+              "kind": "group",
+              "optional": true,
+              "alternatives": [
+                [
+                  {
+                    "kind": "option",
+                    "inline": true,
+                    "name": "owner",
+                    "value": "login",
+                    "repeat": true
+                  }
+                ]
+              ],
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ],
+    [
+      {
+        "kind": "literal",
+        "name": "underway",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "text",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
+              "name": "jq",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "fresh",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "all",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "group",
+              "optional": true,
+              "alternatives": [
+                [
+                  {
+                    "kind": "flag",
+                    "name": "mine",
+                    "repeat": false
+                  }
+                ]
+              ],
+              "repeat": false
+            },
+            {
+              "kind": "group",
+              "optional": true,
+              "alternatives": [
+                [
+                  {
+                    "kind": "flag",
+                    "name": "others",
+                    "repeat": false
+                  }
+                ]
+              ],
+              "repeat": false
+            },
+            {
+              "kind": "group",
+              "optional": true,
+              "alternatives": [
+                [
+                  {
+                    "kind": "option",
+                    "inline": true,
+                    "name": "owner",
+                    "value": "login",
+                    "repeat": true
+                  }
+                ]
+              ],
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
     ]
   ],
   "arguments": {
@@ -824,11 +927,8 @@
     "<number>": {
       "description": "only these pull requests, by number or issue closed: #7"
     },
-    "backlog": {
-      "description": "the open issues not closed by any open pull request, oldest first; underway has the rest"
-    },
-    "underway": {
-      "description": "the open issues closed by an open pull request: who works on each, and where"
+    "issues": {
+      "description": "every open issue, oldest first: in the backlog, which no open pull request closes, or underway, closed by one: who works on each, and where"
     },
     "incoming": {
       "description": "what fetching every remote brought: default-branch commits, branches new and gone"
@@ -847,6 +947,12 @@
     },
     "releases": {
       "description": "the releases on the forge, newest first"
+    },
+    "backlog": {
+      "description": "no stage of kit flow: issues lists them; on a terminal it opens issues on its Backlog preset"
+    },
+    "underway": {
+      "description": "no stage of kit flow: issues lists them; on a terminal it opens issues on its Underway preset"
     }
   }
 }

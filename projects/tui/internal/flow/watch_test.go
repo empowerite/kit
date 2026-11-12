@@ -149,29 +149,29 @@ func TestWatchAllWatchesEveryStageAndStopWatchingAllStopsThemAll(t *testing.T) {
 func TestAWatchedStageLoadsAgainOnceItsMarkMoves(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_FLOW_CALLS", record)
-	write := marking(t, `{"backlog": "b1", "releases": "r1"}`)
+	write := marking(t, `{"issues": "b1", "releases": "r1"}`)
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
-	m.find("backlog").src.Watch = true
-	write(`{"backlog": "b2", "releases": "r2"}`)
+	m.find("issues").src.Watch = true
+	write(`{"issues": "b2", "releases": "r2"}`)
 	// the minute passes, and the read of the marks it asks answers
 	next, ask := m.Update(latest(m))
 	next, cmd := next.(Model).Update(ask())
 	m = next.(Model)
-	b := m.find("backlog")
+	b := m.find("issues")
 	if !b.src.Stale || b.src.Loading || len(of[issue](*b)) == 0 || cmd == nil {
-		t.Fatalf("backlog while it loads again: stale %v, loading %v, %d issues", b.src.Stale, b.src.Loading,
+		t.Fatalf("issues while they load again: stale %v, loading %v, %d issues", b.src.Stale, b.src.Loading,
 			len(of[issue](*b)))
 	}
 	if !strings.Contains(raw(m), "Fix the thing") {
-		t.Errorf("backlog's rows did not stay:\n%s", raw(m))
+		t.Errorf("issues' rows did not stay:\n%s", raw(m))
 	}
 	m = drive(m, cmd())
 	got, _ := os.ReadFile(record)
-	if !strings.Contains(string(got), "flow backlog --json --fresh\n") {
-		t.Errorf("backlog did not load again afresh:\n%s", got)
+	if !strings.Contains(string(got), "flow issues --json --fresh\n") {
+		t.Errorf("issues did not load again afresh:\n%s", got)
 	}
-	if b := m.find("backlog"); b.src.Stale || len(of[issue](*b)) != 3 {
-		t.Errorf("backlog after it loaded again: stale %v, %d issues", b.src.Stale, len(of[issue](*b)))
+	if b := m.find("issues"); b.src.Stale || len(of[issue](*b)) != 7 {
+		t.Errorf("issues after they loaded again: stale %v, %d issues", b.src.Stale, len(of[issue](*b)))
 	}
 	if r := m.find("releases"); !r.src.Stale || strings.Contains(string(got), "flow releases --json --fresh") {
 		t.Errorf("releases, not watched: stale %v", r.src.Stale)

@@ -14,9 +14,16 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
-// issue is one of backlog's, and one a pull request closes. Age is seconds, or nothing for an issue without a time;
-// Branch is the one started for it on origin, or empty; Source is the tracker that holds it, as kit names it, and
-// Organization and Repository where in it the issue is, each empty where the tracker has none; Labels are its forge's.
+// issue is one row of issues, and one a pull request closes. Age is seconds, or nothing for an issue without a time;
+// Source is the tracker that holds it, as kit names it, and Organization and Repository where in it the issue is, each
+// empty where the tracker has none; Labels are its forge's; Milestone, Iteration, and Swimlane are the names of each,
+// or empty. Status is backlog, for an issue no open pull request closes, or underway, for one an open pull request
+// closes, one row per issue and pull request, so an issue two pull requests close is two. Branch is, in the backlog,
+// the one started for it, or empty, and underway, the pull request's. PR is that pull request, none in the backlog: its
+// Fork is the owner of the repository its branch is in, when that is not origin; Pushed is its branch's last push, how
+// long ago and by whom, when the forge says. Here says a worktree on this desk has the pull request's branch, and
+// Worktree is its path; Local says this desk has the branch, but no checkout of it. The URLs are kit's when it prints
+// them.
 type issue struct {
 	Number       int           `json:"number"`
 	Title        string        `json:"title"`
@@ -28,43 +35,31 @@ type issue struct {
 	Source       string        `json:"source"`
 	Organization string        `json:"organization"`
 	Repository   string        `json:"repository"`
+	Milestone    string        `json:"milestone"`
+	Iteration    string        `json:"iteration"`
+	Swimlane     string        `json:"swimlane"`
+	Status       string        `json:"status"`
+	PR           *closer       `json:"pr"`
+	Here         bool          `json:"here"`
+	Local        bool          `json:"local"`
+	Worktree     string        `json:"worktree"`
 	Member       string        `json:"member"` // over a group, the member kit read it in, host/path
 }
 
-// underway is one issue an open pull request closes, with that pull request: one per issue and pull request, so an
-// issue two pull requests close is two. Here says a worktree on this desk has the pull request's branch, and
-// Worktree is its path; Local says this desk has the branch, but no checkout of it. The pull request's Fork is the
-// owner of the repository its branch is in, when that is not origin; Pushed is its branch's last push, how long ago
-// and by whom, when the forge says. Source is the tracker that holds the issue, and Organization and Repository where
-// in it the issue is, and Labels the issue's, not the pull request's. The URLs are kit's when it prints them.
-type underway struct {
-	Number       int           `json:"number"`
-	Title        string        `json:"title"`
-	Assignees    []string      `json:"assignees"`
-	Labels       []table.Label `json:"labels"`
-	Age          *int64        `json:"age"`
-	URL          string        `json:"url"`
-	Source       string        `json:"source"`
-	Organization string        `json:"organization"`
-	Repository   string        `json:"repository"`
-	PR           struct {
-		Source string `json:"source"`
-		Number int    `json:"number"`
-		Title  string `json:"title"`
-		Author string `json:"author"`
-		State  string `json:"state"`
-		Branch string `json:"branch"`
-		URL    string `json:"url"`
-		Fork   string `json:"fork"`
-		Pushed *struct {
-			Age int64  `json:"age"`
-			By  string `json:"by"`
-		} `json:"pushed"`
-	} `json:"pr"`
-	Here     bool   `json:"here"`
-	Local    bool   `json:"local"`
-	Worktree string `json:"worktree"`
-	Member   string `json:"member"`
+// closer is the open pull request that closes an issue underway.
+type closer struct {
+	Source string `json:"source"`
+	Number int    `json:"number"`
+	Title  string `json:"title"`
+	Author string `json:"author"`
+	State  string `json:"state"`
+	Branch string `json:"branch"`
+	URL    string `json:"url"`
+	Fork   string `json:"fork"`
+	Pushed *struct {
+		Age int64  `json:"age"`
+		By  string `json:"by"`
+	} `json:"pushed"`
 }
 
 // checkout is one checkout, as a member of the workspace has its desk: its branch, or none where it is detached, and
@@ -328,8 +323,7 @@ type builder struct {
 // builders are the stages whose rows Go builds, by name: kit flow's but incoming, whose rows kit prints flat, and the
 // repos tab. Every other stage's rows are drawn from the catalog alone.
 var builders = map[string]builder{
-	"backlog":         {decoding[issue], Model.backlogRows},
-	"underway":        {decoding[underway], Model.underwayRows},
+	issuesStage:       {decoding[issue], Model.issueRows},
 	"changes":         {decoding[pull], Model.changeRows},
 	"builds":          {decoding[run], Model.buildRows},
 	"releases":        {decoding[release], nil},
@@ -466,70 +460,61 @@ func (m Model) short(member string) string {
 	return strings.TrimPrefix(member, of+"/")
 }
 
-// backlogRows gives each issue: number, source, organization, repository, assignees, age, branch, labels, title, its
-// glyph leading to the issue's page; open, every assignee, the title wrapped, and every label. An issue belongs to its assignees.
-func (m Model) backlogRows(s stage) []record {
+// issueRows gives each issue, oldest first as kit prints them, an issue underway once beside each pull request that
+// closes it: number, source, organization, repository, status, assignees, age, milestone, iteration, swimlane, branch,
+// the issue's labels, and the title, its glyph leading to the issue's page; and underway, the pull request's number and
+// state, where the work is, the fork its branch is in, when last pushed, its age right-aligned after the glyph, and by
+// whom when not the author. Where is here when a checkout on this desk has the branch, as here draws it, local when
+// this desk has the branch but no checkout of it, else the author. The pull request's glyph leads to its row under
+// changes, or to its page when no app draws changes; the state's glyph to its page. Open, every assignee, the title
+// wrapped, and every label; the pull request's title is under changes, and the checkout's path on Repositories'
+// worktrees tab. A row belongs to the issue's assignees, whoever opened the pull request, as kit flow --mine says.
+func (m Model) issueRows(s stage) []record {
 	var out []record
 	for _, i := range of[issue](s) {
-		key := "#" + strconv.Itoa(i.Number)
-		out = append(out, record{row{Key: m.keyOf(i.Member, key)}, map[string]table.Value{
-			"id": table.One(key), "source": table.Some(i.Source), "organization": table.Some(i.Organization),
-			"repository": table.Some(i.Repository), "assignees": {Raw: i.Assignees}, "age": table.Seconds(i.Age),
-			"branch": table.Some(i.Branch), "labels": table.Labelled(i.Labels),
-			"title":  {Raw: []string{i.Title}, Link: m.originOf(i.Member).issue(i.Number, i.URL)},
-			"member": m.memberValue(i.Member),
-		}})
-	}
-	return out
-}
-
-// underwayRows gives each issue underway beside the pull request that closes it, oldest first as kit prints them:
-// number, source, organization, repository, assignees, age, the pull request's number and state, where the work is, the fork its branch is in,
-// when last pushed, its age right-aligned after the glyph, by whom when not the author, the issue's labels, and the
-// title. Where is here
-// when a checkout on this desk has the branch, as here draws it, local when this desk has the branch but no checkout of
-// it, else the author. The pull request's glyph leads to its row under changes, or to its page when no app draws
-// changes; the state's glyph to its page, and the title's to the issue's. Open, every assignee and the issue's
-// title wrapped; the pull request's title is under changes, and the checkout's path on Repositories' worktrees
-// tab. A row belongs to the issue's assignees, whoever opened the pull request, as kit flow --mine says.
-func (m Model) underwayRows(s stage) []record {
-	var out []record
-	for _, u := range of[underway](s) {
-		o := m.originOf(u.Member)
-		issue, pr, page := "#"+strconv.Itoa(u.Number), "#"+strconv.Itoa(u.PR.Number), o.pull(u.PR.Number, u.PR.URL)
-		var where, pushed, by table.Value
-		switch {
-		case u.Here:
-			where = m.here(u.Member, u.Worktree)
-		case u.Local:
-			where = table.Value{Raw: []string{"local"}, Of: "local"}
-		case u.PR.Author != "":
-			where = table.Value{Raw: []string{u.PR.Author}, Of: "author"}
+		o, ref := m.originOf(i.Member), "#"+strconv.Itoa(i.Number)
+		values := map[string]table.Value{
+			"id": table.One(ref), "source": table.Some(i.Source), "organization": table.Some(i.Organization),
+			"repository": table.Some(i.Repository), "status": table.Some(i.Status), "assignees": {Raw: i.Assignees},
+			"age": table.Seconds(i.Age), "milestone": table.Some(i.Milestone), "iteration": table.Some(i.Iteration),
+			"swimlane": table.Some(i.Swimlane), "branch": table.Some(i.Branch), "labels": table.Labelled(i.Labels),
+			"title": {Raw: []string{i.Title}, Link: o.issue(i.Number, i.URL)}, "member": m.memberValue(i.Member),
 		}
-		if p := u.PR.Pushed; p != nil {
-			pushed = table.Seconds(&p.Age)
-			if p.By != u.PR.Author {
-				by = table.Some(p.By)
+		key := ref
+		if u := i.PR; u != nil {
+			pr, page := "#"+strconv.Itoa(u.Number), o.pull(u.Number, u.URL)
+			key += " " + pr
+			var where, pushed, by table.Value
+			switch {
+			case i.Here:
+				where = m.here(i.Member, i.Worktree)
+			case i.Local:
+				where = table.Value{Raw: []string{"local"}, Of: "local"}
+			case u.Author != "":
+				where = table.Value{Raw: []string{u.Author}, Of: "author"}
 			}
+			if p := u.Pushed; p != nil {
+				pushed = table.Seconds(&p.Age)
+				if p.By != u.Author {
+					by = table.Some(p.By)
+				}
+			}
+			change := page
+			if m.reaches("changes") {
+				change = jumpTo("changes", m.pullKey(i.Member, u.Source, u.Number))
+			}
+			values["change"], values["state"] = table.Value{Raw: []string{pr}, Link: change},
+				table.Value{Raw: []string{u.State}, Link: page}
+			values["where"], values["fork"], values["pushed"], values["by"] = where, table.Some(u.Fork), pushed, by
 		}
-		change := page
-		if m.reaches("changes") {
-			change = jumpTo("changes", m.pullKey(u.Member, u.PR.Source, u.PR.Number))
-		}
-		out = append(out, record{row{Key: m.keyOf(u.Member, issue+" "+pr)}, map[string]table.Value{
-			"id": table.One(issue), "source": table.Some(u.Source), "organization": table.Some(u.Organization),
-			"repository": table.Some(u.Repository), "assignees": {Raw: u.Assignees}, "age": table.Seconds(u.Age),
-			"change": {Raw: []string{pr}, Link: change}, "state": {Raw: []string{u.PR.State}, Link: page},
-			"where": where, "fork": table.Some(u.PR.Fork), "pushed": pushed, "by": by, "labels": table.Labelled(u.Labels),
-			"title": {Raw: []string{u.Title}, Link: o.issue(u.Number, u.URL)}, "member": m.memberValue(u.Member),
-		}})
+		out = append(out, record{row{Key: m.keyOf(i.Member, key)}, values})
 	}
 	return out
 }
 
-// here gives underway's where for work in a member's checkout on this desk, at path: the desk, when the path is the
-// member's desk, as deskOf says, else here, a worktree; either way leading to its row on Repositories' worktrees tab,
-// kit workspace's, where the screen reaches it, else nowhere.
+// here gives an issue underway its where for work in a member's checkout on this desk, at path: the desk, when the path
+// is the member's desk, as deskOf says, else here, a worktree; either way leading to its row on Repositories' worktrees
+// tab, kit workspace's, where the screen reaches it, else nowhere.
 func (m Model) here(member, path string) table.Value {
 	where := "here"
 	if d := m.deskOf(member); d != "" && d == path {

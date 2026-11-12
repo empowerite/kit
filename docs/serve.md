@@ -66,7 +66,7 @@ help, the syntax, and the server cannot drift apart.
   - An option, such as `--toolchain <name>`, is a string.
   - An operand, such as `<path>…`, is a string, or an array of strings when it repeats.
   - An argument with a closed set of choices has them as its `enum`, such as the package names for `packages`.
-  - A line's leading word is one property too: `flow`'s `stage`, such as `backlog` or `desk`.
+  - A line's leading word is one property too: `flow`'s `stage`, such as `issues` or `changes`.
   - An argument every offered line needs is `required`, such as `context`'s `path`.
 - **A call that does not fit** is refused with `-32602`, and the verb does not run. The error says what is wrong:
   - a NUL escape, `\u0000`, anywhere in the request, an argument's value among them, which no command line carries

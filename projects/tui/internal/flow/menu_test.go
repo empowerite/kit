@@ -31,7 +31,7 @@ func openRows(m Model) int {
 }
 
 func TestColonDropsTheTabsMenuDownAndItShowsOrHidesALevel(t *testing.T) {
-	m := loaded(t, options(), tab, tab, tab, press(':'))
+	m := loaded(t, options(), tab, tab, press(':'))
 	if !m.tabMenu.Open || m.appMenu.Open || lines(m)[23] != " "+menuKeys ||
 		!strings.Contains(view(m), "│ "+More+" Show More ") || strings.Contains(view(m), "Settings") {
 		t.Fatalf(": did not drop the tab's menu down:\n%s", view(m))
@@ -117,8 +117,8 @@ func TestEqualsDropsTheAppsMenuDownToRefreshAnotherScreenOrQuit(t *testing.T) {
 		return it.Name == "Refresh All"
 	})))
 	got := calls(t, record)
-	if m.appMenu.Open || !slices.Contains(got, "flow underway --json --fresh") || !slices.Contains(got, "flow builds --json") ||
-		len(got) < len(six) {
+	if m.appMenu.Open || !slices.Contains(got, "flow issues --json --fresh") || !slices.Contains(got, "flow builds --json") ||
+		len(got) < len(five) {
 		t.Errorf("refresh all ran %q", got)
 	}
 	// a click on the screen's name drops it down too, its last letter; welcome asks for the welcome, the picture kept
@@ -154,7 +154,7 @@ func TestTheMenuOfAStageWithNothingToOpenHasRefreshAlone(t *testing.T) {
 }
 
 func TestAClickOnTheMenuGlyphDropsItDownAndAClickChoosesOrCloses(t *testing.T) {
-	m := loaded(t, options(), tab, tab, tab)
+	m := loaded(t, options(), tab, tab)
 	glyph := testkit.Click(m.bar().MenuAt(), m.bar().Row+1)
 	if m = drive(m, glyph); !m.tabMenu.Open {
 		t.Fatalf("a click on the menu glyph:\n%s", view(m))
@@ -182,7 +182,7 @@ func TestAClickOnTheMenuGlyphDropsItDownAndAClickChoosesOrCloses(t *testing.T) {
 // A click anywhere on the selected tab, its number as well as its :, on any of the bar's lines, drops its menu down; a
 // click on the tab before it selects that one, its menu closed.
 func TestAClickAnywhereOnTheSelectedTabDropsItsMenu(t *testing.T) {
-	m := loaded(t, options(), tab, tab, tab)
+	m := loaded(t, options(), tab, tab)
 	b := m.bar()
 	first := -1
 	for x := range m.width {
@@ -195,11 +195,11 @@ func TestAClickAnywhereOnTheSelectedTabDropsItsMenu(t *testing.T) {
 		t.Fatalf("the selected tab starts at %d, its : at %d", first, b.MenuAt())
 	}
 	for y := b.Row; y < b.Row+tabs.Height; y++ {
-		if m := drive(m, testkit.Click(first, y)); !m.tabMenu.Open || m.stage != 3 {
+		if m := drive(m, testkit.Click(first, y)); !m.tabMenu.Open || m.stage != 2 {
 			t.Errorf("a click on the tab at %d, %d: menu %v, stage %d", first, y, m.tabMenu.Open, m.stage)
 		}
 	}
-	if m := drive(m, testkit.Click(first-1, b.Row+1)); m.tabMenu.Open || m.stage != 2 {
+	if m := drive(m, testkit.Click(first-1, b.Row+1)); m.tabMenu.Open || m.stage != 1 {
 		t.Errorf("a click on the tab before: menu %v, stage %d", m.tabMenu.Open, m.stage)
 	}
 }
@@ -223,7 +223,7 @@ func TestTheMenusKeysInThePanelDropThemButAreTypedInTheSearch(t *testing.T) {
 	if m = loaded(t, Options{}, press(':')); m.tabMenu.Open || !strings.Contains(view(m), shell.App) {
 		t.Error("a menu with no stage")
 	}
-	m = loaded(t, options(), tea.WindowSizeMsg{Width: 20, Height: 24}, press(':'))
+	m = loaded(t, options(), tea.WindowSizeMsg{Width: 16, Height: 24}, press(':'))
 	if _, left := m.menuBox(); m.bar().MenuAt() >= 0 || left < 0 || !m.tabMenu.Open {
 		t.Errorf("a bar too narrow for the glyph: glyph %d, left %d", m.bar().MenuAt(), left)
 	}
@@ -273,7 +273,7 @@ func TestAfterShowMoreTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T)
 	size := tea.WindowSizeMsg{Width: 100, Height: 12}
 	tall := func() Model {
 		m := loaded(t, options(), size)
-		return drive(m, tallBuild(m, 5), tab, tab, tab, press(':'), typed("s")[0], press(tea.KeyEnter), wheel)
+		return drive(m, tallBuild(m, 5), tab, tab, press(':'), typed("s")[0], press(tea.KeyEnter), wheel)
 	}
 	m := tall()
 	pinned := func(m Model) int { return m.rowLine(m.stages[m.stage].Cursor) }
@@ -295,7 +295,7 @@ func TestAfterShowMoreTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T)
 // has no item to hide them: a header that never scrolls, a thin dim line under it, and no row of its own, so a click
 // on it chooses nothing. Incoming, whose rows are no columns, has none.
 func TestTheHeaderStandsTheColumnsNamesOverTheRows(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 10}, tab, tab)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 10}, tab)
 	if slices.ContainsFunc(m.tabItems(), func(i shell.Item) bool { return strings.Contains(i.Name, "Header") }) {
 		t.Errorf("the tab's menu offers the headers: %+v", m.tabItems())
 	}
@@ -333,10 +333,10 @@ func TestTheHeaderStandsTheColumnsNamesOverTheRows(t *testing.T) {
 // on its gutter, as a row's, a node of its own that Show More and Show Less leave as it stands; the rows then start
 // under every line of it.
 func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
-	backlog := catalog["backlog"]
-	defer func(was []table.Field) { backlog.Fields = was }(backlog.Fields)
-	backlog.Fields = slices.Clone(backlog.Fields)
-	backlog.Fields[len(backlog.Fields)-1].Label = "the title of the issue, as its tracker gives it, in full"
+	issues := catalog["issues"]
+	defer func(was []table.Field) { issues.Fields = was }(issues.Fields)
+	issues.Fields = slices.Clone(issues.Fields)
+	issues.Fields[len(issues.Fields)-1].Label = "the title of the issue, as its tracker gives it, in full"
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 60, Height: 24})
 	// the header stands in as the rows do, under the headings the view grouped them by as it loaded, over the first row
 	top, in := m.headerTop(), strings.Repeat(" ", m.indent(0))
@@ -375,15 +375,16 @@ func TestAHeaderTallerThanALineOpensAsARowDoes(t *testing.T) {
 // nothing, and a heading is no row to select. The keys bar counts the rows selected; the tab's menu opens each
 // selected row's page, and clears the selection.
 func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
-	// the panel not folding, the rows stand under no heading
+	// the backlog's three, the panel not folding, the rows stand under no heading
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 140, Height: 24})
+	m.apply(m.viewsOf(0).Chosen("Backlog"))
 	unfold(&m)
 	m = drive(intoRows(m), press(tea.KeySpace))
 	gutter := func(k int) string { return string([]rune(lines(m)[m.headerTop()+2+k])[0]) }
 	if m.selected() != 1 || gutter(0) != grid.Chosen || !strings.Contains(lines(m)[m.top()], " 1 selected") {
 		t.Fatalf("space on the first row:\n%s", view(m))
 	}
-	if marked, _ := style.In(stageColors["backlog"]); !strings.Contains(m.View().Content, marked(grid.Chosen)) {
+	if marked, _ := style.In(stageColors["issues"]); !strings.Contains(m.View().Content, marked(grid.Chosen)) {
 		t.Error("the selection's mark is not in the tab's group's color")
 	}
 	if m = drive(m, press(tea.KeySpace)); m.selected() != 0 || gutter(0) != " " {
@@ -404,7 +405,7 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 		t.Errorf("ctrl+a again: %d selected", m.selected())
 	}
 	// a click moves the cursor and selects nothing
-	if m = drive(m, testkit.Click(10, rowY(m, "#7"))); m.selected() != 0 || m.stages[0].Cursor != 3 {
+	if m = drive(m, testkit.Click(10, rowY(m, "#45"))); m.selected() != 0 || m.stages[0].Cursor != 3 {
 		t.Errorf("a click: %d selected, cursor %d", m.selected(), m.stages[0].Cursor)
 	}
 	// the tab's menu: open selected and clear selection are dim with nothing selected
@@ -434,7 +435,7 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 	}
 	// space on a group's heading selects every row of the group, those folded away too, its heading marked ▣, and
 	// again none; with some selected, ◩ marks it. Off the rows, space selects nothing
-	m.setPanel(regroup(grid.Panel{Groupable: groupableOf("backlog")}, "source"))
+	m.setPanel(regroup(m.panel(0), "source"))
 	m.stages[0].Cursor = 1
 	m = drive(m, left)
 	if m = drive(m, press(tea.KeySpace)); m.selected() != 3 || table.GroupMarks(m.every(0), m.stages[0].Picked)[m.rows(0)[1].Key] != grid.Chosen ||
@@ -455,11 +456,11 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 
 // With rows selected, the tab's menu shows and hides the selected rows alone; with none, both are dim.
 func TestShowAndHideSelectedActOnTheSelectedRowsAlone(t *testing.T) {
-	m := loaded(t, options(), tab, tab, tab, press(':'))
+	m := loaded(t, options(), tab, tab, press(':'))
 	if m.tabItems()[6].Name != "Show Selected" || m.tabItems()[7].Name != "Hide Selected" || m.enabled(6) || m.enabled(7) {
 		t.Fatalf("the items with no row selected: %+v", m.tabItems()[6:8])
 	}
-	m = loaded(t, options(), tab, tab, tab, down, down, press(tea.KeySpace))
+	m = loaded(t, options(), tab, tab, down, down, press(tea.KeySpace))
 	if m = drive(m, press(':')); !m.enabled(6) || m.enabled(7) {
 		t.Fatalf("with a row selected, hidden: show %v, hide %v", m.enabled(6), m.enabled(7))
 	}

@@ -1,0 +1,24 @@
+  = kit flow · - empowerite/kit                                                                              🔎 /search
+  ➊╶───────────────╮➁╶────────────────╮➂╶───────────────╮➃╶──────────────────╮➄╶─────────────────╮
+  │ 🎫 issues  7 : │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  7    │  📦 releases  3   │
+  ╵                ╰──────────────────╰─────────────────╰────────────────────╰───────────────────╰──────────────────────
+  ▾ source · organization · repository ▾ 7                                                               All Issues ▼
+    ·────────·──────────────·─────────────
+  ▾ github · empowerite 7
+
+        id   status  assignees         age  change  state             where     labels            title
+        ·────·───────×·────────────────·────·───────·─────────────────·─────────×·────────────────·────────────────────
+    ▾ jig 1
+      ▸ #7   💤      ada           +1  40d                                                        🎫 Fix the thing
+    ▾ kit 6
+      ▸ #1   🛫      jeffrey-aguilera   8d  🔀 #2   🏁 ready          🌿 here   priorityh… +1  🎫 The first release…
+        #8   🛫                         2d  🔀 #4   🔥 failing:gate   👤 bob                      🎫 Lint the modules
+        #8   🛫                         2d  🔀 #11  🔨 draft          🌱 local                    🎫 Lint the modules
+      ▸ #46  💤      jeffrey-aguilera   2d                                      bug             🎫 A noun lists, a n…
+      ▸ #31  🛫      ada                3h  🔀 #12  💬 comments:open  👤 ada                      🎫 kit commit, kit s…
+      ▸ #45  💤                         2h                                      kindfeatu… +2  🎫 kit flow is the o…
+
+
+
+
+ = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-5 jump : tab menu

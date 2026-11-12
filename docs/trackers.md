@@ -65,7 +65,7 @@ that matches no declared tracker is refused, and the error lists the known prefi
   finished worktree.
 - `kit new issue AB#` opens the page a person files a new issue at in that tracker, and prints its URL; with no
   prefix, the code forge's own. `--print` prints the URL alone. `kit new issue --list` lists every tracker, the
-  code forge's own first, with its page, and `--json` gives the list as JSON for kittui's New… in backlog's menu.
+  code forge's own first, with its page, and `--json` gives the list as JSON for kittui's New… in the issues tab's menu.
 - `kit tidy` reads a worktree's issue from its branch's key. It removes the worktree when that issue is closed and
   the branch has no change.
 

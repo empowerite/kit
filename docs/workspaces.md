@@ -138,7 +138,7 @@ error, an unknown workspace, or a new name that is refused or taken.
 
 ```sh
 kit --workspace=empowerite flow                   # each cloned member's picture under its name
-kit --workspace=empowerite flow backlog --json    # every member's backlog, each row tagged with its member
+kit --workspace=empowerite flow issues --json     # every member's open issues, each row tagged with its member
 ```
 
 `--workspace=` runs `kit flow` in every member's checkout at once, each under that checkout's own `kit.yml`, so a

@@ -18,10 +18,12 @@
                for the one that holds now; the title links to the page of the project, the
                iteration, or the team's sprints. A repository with no project linked on GitHub has
                none
-   backlog     a tab kit flow prints; on a terminal it opens in kittui, and with a form it is
+   issues      a tab kit flow prints; on a terminal it opens in kittui, and with a form it is
                refused
-   underway    a tab kit flow prints; on a terminal it opens in kittui, and with a form it is
-               refused
+   backlog     the issues tab's Backlog preset; on a terminal it opens in kittui, and with a form it
+               is refused
+   underway    the issues tab's Underway preset; on a terminal it opens in kittui, and with a form
+               it is refused
 
 
  kit issues

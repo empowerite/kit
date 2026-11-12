@@ -111,8 +111,8 @@ setup() {
 @test "a verb's own flag after a trailing operand's first word belongs to the command, and an option meant once is refused twice" {
   run kit-bash 'syntax:match tui flow kit generate --check; echo "$? ${syntax_operands[*]} | ${syntax_options[--check]:-none}"'
   [ "$output" = "0 flow kit generate --check | none" ]
-  run kit-bash 'syntax:match flow backlog --no-fetch; echo "$? ${syntax_refusal}"'
-  [ "$output" = "2 --no-fetch cannot be combined with backlog; run: kit help flow" ]
+  run kit-bash 'syntax:match flow issues --no-fetch; echo "$? ${syntax_refusal}"'
+  [ "$output" = "2 --no-fetch cannot be combined with issues; run: kit help flow" ]
   run kit-bash 'syntax:match packages add --json x; echo "$? ${syntax_refusal}"'
   [ "$output" = "2 --json cannot be combined with add; run: kit help packages" ]
   run kit-bash 'syntax:match commit a.txt --all; echo "$? ${syntax_operands[*]} | ${syntax_options[--all]}"'

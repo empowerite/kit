@@ -110,7 +110,7 @@ func opened(t *testing.T, i int) Model {
 
 func TestEveryGlyphDrawnIsInTheHeaderLegendAndInItsStagesLegend(t *testing.T) {
 	text := legendText(t)
-	for i, name := range six {
+	for i, name := range five {
 		m := opened(t, i)
 		for g := range glyphsOf(raw(m)) {
 			// the bar's numbers are the tabs', and the panel's glyphs its controls', not the picture's
@@ -133,7 +133,7 @@ func TestEveryGlyphDrawnIsInTheHeaderLegendAndInItsStagesLegend(t *testing.T) {
 			pane = append(pane, ansi.Strip(l.Text))
 		}
 		for g := range glyphsOf(strings.Join(pane, "\n") + stageGlyphs[name]) {
-			// underway draws a pull request's state as changes does, and changes' legend names it
+			// issues draw a pull request's state as changes does, and changes' legend names it
 			if _, state := stateGlyphs[stateOf(g)]; !own[g] && !(own[Change] && state) {
 				t.Errorf("%s draws %s, which its legend lacks", name, g)
 			}
@@ -173,7 +173,7 @@ func stateOf(glyph string) string {
 func TestTheLegendFloatsInACornerWithTheGlyphsOnTheScreen(t *testing.T) {
 	for _, width := range []int{80, 120, 200} {
 		m := loaded(t, options(), tea.WindowSizeMsg{Width: width, Height: 40}, tea.KeyPressMsg{Code: tea.KeyF1})
-		for i, name := range six {
+		for i, name := range five {
 			if i > 0 {
 				m = drive(m, tab)
 			}
@@ -217,7 +217,7 @@ func TestTheLegendFloatsInACornerWithTheGlyphsOnTheScreen(t *testing.T) {
 	if m = drive(m, testkit.Click(left+2, top+1)); !m.legend.open || m.legend.at != bottomRight || m.stages[m.stage].Cursor != before {
 		t.Errorf("a click on the legend: open %v, at %d", m.legend.open, m.legend.at)
 	}
-	if m = drive(m, tea.KeyPressMsg{Code: tea.KeyF1}); m.legend.open || strings.Contains(view(m), "backlog legend") {
+	if m = drive(m, tea.KeyPressMsg{Code: tea.KeyF1}); m.legend.open || strings.Contains(view(m), "issues legend") {
 		t.Errorf("F1 kept the legend:\n%s", view(m))
 	}
 	// with no stage, there is no legend to show
@@ -260,15 +260,15 @@ func cellOf(line, text string) int {
 // a page, and each mark is on a glyph that leads there; a pull request's state, marked under changes' state heading,
 // leads to its page wherever it is drawn.
 func TestTheLegendMarksEveryGlyphAClickLeadsSomewhereFrom(t *testing.T) {
-	for i, name := range six {
+	for i, name := range five {
 		m := opened(t, i)
 		asCatalog(&m, i)
-		if name == "underway" {
+		if name == "issues" {
 			// a row whose work is on the desk, as one in a worktree here, leads to its row on Repositories' worktrees
 			// tab
-			s := m.find("underway")
-			of[underway](*s)[1].Here, of[underway](*s)[1].Worktree = true, "/home/kit/worktrees/8-eight"
-			m.ws.Checkout = of[underway](*s)[1].Worktree
+			s := m.find("issues")
+			of[issue](*s)[2].Here, of[issue](*s)[2].Worktree = true, "/home/kit/worktrees/8-eight"
+			m.ws.Checkout = of[issue](*s)[2].Worktree
 			m.rebuild()
 		}
 		drawn := map[string]string{}
@@ -334,13 +334,13 @@ func TestTheGlyphsRegionIsWhatTheKitsTableGives(t *testing.T) {
 // Every stage is in one group of the kit's table, the pair that are about one thing, and the bar draws the selected
 // tab, and the line under the others, in that group's color: a stage of another group, another color.
 func TestTheSelectedTabIsDrawnInItsGroupsColor(t *testing.T) {
-	for _, name := range six {
+	for _, name := range five {
 		if stageColors[name] == "" {
 			t.Errorf("%s is in no group", name)
 		}
 	}
 	m := loaded(t, options())
-	for i, name := range six {
+	for i, name := range five {
 		mark, _ := style.In(stageColors[name])
 		open, _, _ := strings.Cut(mark("x"), "x")
 		bar := strings.Split(m.View().Content, "\n")[1:4]
@@ -349,7 +349,7 @@ func TestTheSelectedTabIsDrawnInItsGroupsColor(t *testing.T) {
 		}
 		m = drive(m, tab)
 	}
-	if stageColors["backlog"] != stageColors["underway"] || stageColors["backlog"] == stageColors["changes"] {
+	if stageColors["issues"] == "" || stageColors["issues"] == stageColors["changes"] {
 		t.Errorf("the groups' colors: %v", stageColors)
 	}
 }
@@ -371,7 +371,7 @@ func TestTheLegendExplainsEveryGlyphOnTheScreenInOrder(t *testing.T) {
 		order = append(order, ansi.Strip(l))
 	}
 	want := []string{shell.App + "  kit menu", shell.Workspaces + "  workspace menu", grid.Search + " search: / or click",
-		tabs.Marker(0, true) + "  selected tab", tabs.Marker(1, false) + "  tab: click to select", Issue + " backlog stage",
+		tabs.Marker(0, true) + "  selected tab", tabs.Marker(1, false) + "  tab: click to select", Issue + " issues stage",
 		table.Presets + "  presets menu", Sortable + "  sortable: click to sort"}
 	at := -1
 	for _, w := range want {

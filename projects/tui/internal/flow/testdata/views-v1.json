@@ -1,6 +1,6 @@
 {
-  "backlog": [
-    {"name": "Mine", "hidden": ["branch", "milestone"], "order": ["title", "id", "source", "assignees", "age", "branch"],
+  "issues": [
+    {"name": "Mine", "hidden": ["branch", "points"], "order": ["title", "id", "source", "assignees", "age", "branch"],
      "sort": [{"column": "age", "desc": true}], "kept": ["source"], "show": "mine", "headers": true},
     {"name": "Others", "group": ["assignees"], "show": "others", "headers": false},
     {"name": "All", "sort": [{"column": "estimate"}], "headers": true}

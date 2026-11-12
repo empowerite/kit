@@ -60,7 +60,13 @@ func TestKitFlowOpensFlowAndKitWorkspacesWordsTheAppWithTheTabNamed(t *testing.T
 	}{
 		{"flow", "", shell.Flow, ""},
 		{"flow", "--mine", shell.Flow, "--mine"},
-		{"flow", "underway --mine", shell.Flow, "underway --mine"},
+		{"flow", "issues --mine", shell.Flow, "issues --mine"},
+		// backlog and underway are no stages of kit flow's: Flow opens on issues, as ParseWords reads them
+		{"flow", "backlog --mine", shell.Flow, "backlog --mine"},
+		{"flow", "underway", shell.Flow, "underway"},
+		{"issues", "backlog", shell.Issues, "backlog"},
+		{"issues", "underway --mine", shell.Issues, "underway --mine"},
+		{"issues", "milestones", shell.Issues, "milestones"},
 		{"flow", "changes", shell.Flow, "changes"},
 		{"flow", "builds", shell.Flow, "builds"},
 		{"flow", "incoming --no-fetch", shell.Flow, "incoming --no-fetch"},
@@ -81,7 +87,7 @@ func TestKitFlowOpensFlowAndKitWorkspacesWordsTheAppWithTheTabNamed(t *testing.T
 // the app built around that stage's entity.
 func TestFlowDrawsEveryStageKitFlowPrintsInItsOrder(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	t.Setenv("FAKE_FLOW_STAGES", "releases desk builds backlog worktrees")
+	t.Setenv("FAKE_FLOW_STAGES", "releases desk builds issues worktrees")
 	m, err := OpenApp(runner(t), shell.Flow, ParseWords([]string{"builds"}))
 	if err != nil {
 		t.Fatal(err)
@@ -91,7 +97,7 @@ func TestFlowDrawsEveryStageKitFlowPrintsInItsOrder(t *testing.T) {
 	for _, s := range m.stages {
 		names = append(names, s.name)
 	}
-	if got := strings.Join(names, " "); got != "releases builds backlog" {
+	if got := strings.Join(names, " "); got != "releases builds issues" {
 		t.Errorf("Flow's tabs: %q", got)
 	}
 	if m.stages[m.stage].name != "builds" {
@@ -136,7 +142,7 @@ func TestEveryTabReadsAKitStage(t *testing.T) {
 		app    shell.Screen
 		stages string
 	}{
-		{shell.Issues, "backlog underway issues/milestones issues/iterations"},
+		{shell.Issues, "issues issues/milestones issues/iterations"},
 		{shell.Changes, "changes changes/reviews changes/checks changes/merged"},
 		{shell.Delivery, "releases builds delivery/artifacts delivery/environments delivery/deployments"},
 		{shell.People, "people/people people/teams people/agents"},
@@ -281,7 +287,7 @@ func TestTheStagesNeverMarkedAreTheCatalogs(t *testing.T) {
 		"people/teams"}; !slices.Equal(never, want) {
 		t.Errorf("never marked: %q", never)
 	}
-	if !everMarked("backlog") || !everMarked("nonesuch") {
+	if !everMarked("issues") || !everMarked("nonesuch") {
 		t.Error("a stage the catalog says nothing of is not marked")
 	}
 }
@@ -313,10 +319,10 @@ func TestATabWithANullMarkIsNeverStale(t *testing.T) {
 	if slices.ContainsFunc(m.stages, func(s stage) bool { return s.src.Watch }) {
 		t.Error("Watch All watches a tab its verb never marks")
 	}
-	// Issues: backlog's mark null now, milestones marked, iterations never
+	// Issues: issues' mark null now, milestones marked, iterations never
 	flowMarks := filepath.Join(t.TempDir(), "flow.json")
 	issuesMarks := filepath.Join(t.TempDir(), "issues.json")
-	for path, marks := range map[string]string{flowMarks: `{"backlog": null, "underway": "u1"}`,
+	for path, marks := range map[string]string{flowMarks: `{"issues": null}`,
 		issuesMarks: `{"milestones": "m1", "iterations": null}`} {
 		if err := os.WriteFile(path, []byte(marks), 0o600); err != nil {
 			t.Fatal(err)
@@ -329,7 +335,7 @@ func TestATabWithANullMarkIsNeverStale(t *testing.T) {
 	for _, c := range []struct {
 		name          string
 		offered, acts bool
-	}{{"backlog", true, false}, {"underway", true, true}, {"issues/milestones", true, true},
+	}{{"issues", true, false}, {"issues/milestones", true, true},
 		{"issues/iterations", false, false}} {
 		i.stage = slices.IndexFunc(i.stages, func(s stage) bool { return s.name == c.name })
 		k := item(i, WatchIt)
@@ -338,7 +344,7 @@ func TestATabWithANullMarkIsNeverStale(t *testing.T) {
 		}
 	}
 	i.watchAll(true)
-	for name, want := range map[string]bool{"backlog": false, "underway": true, "issues/milestones": true,
+	for name, want := range map[string]bool{"issues": false, "issues/milestones": true,
 		"issues/iterations": false} {
 		if got := i.find(name).src.Watch; got != want {
 			t.Errorf("Watch All watches %s: %v", name, got)
@@ -369,7 +375,7 @@ func TestAVerbThatNeverMarksItsTabsIsNotAskedForTheirMarks(t *testing.T) {
 // A load of a stage that reads the forge, as its catalog entry's forge says, reads the rate limits again; one that
 // reads none, as Platform's, does not.
 func TestAForgeStagesLoadReadsTheLimitsAgain(t *testing.T) {
-	for name, forge := range map[string]bool{"backlog": true, "people/teams": true, "audit/findings": true,
+	for name, forge := range map[string]bool{"issues": true, "people/teams": true, "audit/findings": true,
 		"audit/policy": false, "platform/tools": false, "workspace/repos": false, "incoming": false} {
 		if catalog[name].Forge != forge {
 			t.Errorf("%s reads the forge: %v", name, catalog[name].Forge)
@@ -386,16 +392,16 @@ func TestAForgeStagesLoadReadsTheLimitsAgain(t *testing.T) {
 	}
 }
 
-// In an app, a link to a stage another app draws leads there: underway's pull request to its row on Changes, and its
+// In an app, a link to a stage another app draws leads there: an issue's pull request to its row on Changes, and its
 // where, for work in a checkout here, to the worktree's row on Repositories. Following it asks kittui for that app at
 // that row; a stage of no app's, or one this app should draw and does not, leads nowhere.
 func TestALinkToAnotherAppsTabAsksKittuiForThatAppAtTheRow(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	o := options()
-	o.App, o.Stages = shell.Issues, []string{"backlog", "underway"}
+	o.App, o.Stages = shell.Issues, []string{"issues"}
 	m := loaded(t, o)
 	values := map[string]map[string]string{}
-	for _, r := range m.records(*m.find("underway")) {
+	for _, r := range m.records(*m.find("issues")) {
 		values[r.Key] = map[string]string{"change": r.values["change"].Link, "where": r.values["where"].Link}
 	}
 	if got := values["#1 #2"]["change"]; got != jumpTo("changes", "#2") {
@@ -472,9 +478,17 @@ func TestTheWordsReachEachCommandThatTakesThem(t *testing.T) {
 		"flow changes --json --mine --fresh") {
 		t.Errorf("Changes ran %q", got)
 	}
-	want := Words{Tab: "underway", Owner: []string{"--mine", "--owner=bob"}}
-	if got := ParseWords(strings.Fields("underway --mine --owner=bob --jq")); !reflect.DeepEqual(got, want) {
+	want := Words{Tab: "issues", Owner: []string{"--mine", "--owner=bob"}}
+	if got := ParseWords(strings.Fields("issues --mine --owner=bob --jq")); !reflect.DeepEqual(got, want) {
 		t.Errorf("the words: %+v", got)
+	}
+	// backlog and underway are issues, set as the preset of the word's name
+	for word, preset := range map[string]string{"backlog": "Backlog", "underway": "Underway"} {
+		w := ParseWords([]string{word, "--mine"})
+		if !reflect.DeepEqual(w, Words{Tab: "issues", Preset: preset, Owner: []string{"--mine"}}) ||
+			!reflect.DeepEqual(w.Rest(), Words{Owner: []string{"--mine"}}) {
+			t.Errorf("%s: %+v, the rest %+v", word, w, w.Rest())
+		}
 	}
 	all := ParseWords(strings.Fields("--all --others --no-fetch --fresh incoming changes"))
 	if !reflect.DeepEqual(all, Words{Tab: "incoming", NoFetch: true, Fresh: true, Owner: []string{"--all", "--others"}}) ||

@@ -15,7 +15,7 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
-// onStops gives backlog, grouped by assignees, of several values, so the rows' fold is drawn after the name, with the
+// onStops gives issues, grouped by assignees, of several values, so the rows' fold is drawn after the name, with the
 // keyboard on the heading over the groups' first stop.
 func onStops(t *testing.T) Model {
 	t.Helper()

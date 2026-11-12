@@ -235,13 +235,13 @@ EOF
   [[ "${lines[3]}" =~ ^github\.com/o/c\ +github\ +not\ cloned ]]
 }
 
-@test "kit --workspace= flow --stages lists kit's eight stages, and repos is kit workspace's first" {
+@test "kit --workspace= flow --stages lists kit's seven stages, and repos is kit workspace's first" {
   workspaces-file <<<'workspaces: {w: {repos: [github.com/o/a]}}'
   cd "${BATS_TEST_TMPDIR}"
   run "${kit_root}/bin/kit" --workspace=w flow --stages
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = backlog ]
-  [ "${#lines[@]}" -eq 8 ]
+  [ "${lines[0]}" = issues ]
+  [ "${#lines[@]}" -eq 7 ]
   [[ "$output" != *repos* ]]
   run "${kit_root}/bin/kit" workspace --stages
   [ "${lines[0]}" = repos ]
@@ -265,11 +265,11 @@ local-desks() {
   cd "${BATS_TEST_TMPDIR}"
   run "${kit_root}/bin/kit" --workspace=w flow --no-fetch --json
   [ "$status" -eq 0 ]
-  [ "$(jq -r '.stages[0]' <<<"$output")" = backlog ]
+  [ "$(jq -r '.stages[0]' <<<"$output")" = issues ]
   [ "$(jq -r 'has("repos")' <<<"$output")" = false ]
   [ "$(jq -c '[.desk.rows[].member]' <<<"$output")" = '["github.com/o/a","github.com/o/b"]' ]
   [ "$(jq -c '[.worktrees.rows[].member]' <<<"$output")" = '["github.com/o/a","github.com/o/b"]' ]
-  [ "$(jq -c '.backlog.rows' <<<"$output")" = '[]' ]
+  [ "$(jq -c '.issues.rows' <<<"$output")" = '[]' ]
 }
 
 @test "kit --workspace= flow as text draws each cloned member's picture under its name, and no member not cloned" {
@@ -359,7 +359,7 @@ local-desks() {
 @test "a member on a host kit has no forge for draws its forge's stages as nothing to read, and the picture exits 0" {
   local-desks
   d="${BATS_TEST_TMPDIR}/code/b b"
-  printf 'flow: [desk, worktrees, backlog]\n' > "$d/kit.yml"
+  printf 'flow: [desk, worktrees, issues]\n' > "$d/kit.yml"
   git -C "$d" commit --quiet --all --message settings
   git -C "$d" remote set-url origin https://bitbucket.org/o/b.git
   workspaces-file <<EOF
@@ -370,7 +370,7 @@ EOF
   cd "${BATS_TEST_TMPDIR}"
   run --separate-stderr "${kit_root}/bin/kit" --workspace=w flow --no-fetch --json
   [ "$status" -eq 0 ]
-  [ "$(jq -c '.backlog' <<<"$output")" = '{"rows":[],"errors":[]}' ]
+  [ "$(jq -c '.issues' <<<"$output")" = '{"rows":[],"errors":[]}' ]
   [ "$(jq -c '[.[] | objects | .errors[]]' <<<"$output")" = '[]' ]
   [ "$(jq -c '[.desk.rows[].member]' <<<"$output")" = '["github.com/o/a","bitbucket.org/o/b"]' ]
 }
@@ -483,13 +483,13 @@ EOF
   [ "$output" = '{"rows":[{"fetched":true,"member":"github.com/o/a"}],"errors":[{"member":"github.com/o/b","error":"kit flow incoming exited 3"}]}' ]
 }
 
-@test "over a workspace, the stages are kit's eight, whatever the kit.yml where kit runs says" {
+@test "over a workspace, the stages are kit's seven, whatever the kit.yml where kit runs says" {
   local-desks
   cd "${BATS_TEST_TMPDIR}/code/a"
   run "${kit_root}/bin/kit" --workspace=w flow --stages
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = backlog ]
-  [ "${#lines[@]}" -eq 8 ]
+  [ "${lines[0]}" = issues ]
+  [ "${#lines[@]}" -eq 7 ]
 }
 
 @test "on a terminal, kit --workspace= flow hands off to kittui; --json, --text, and a stage stay across the members" {
@@ -506,8 +506,12 @@ EOF
   [[ "$output" != *"kittui"* ]]
   run pty "'${kit_root}/bin/kit' --workspace=w flow desk"
   [[ "$output" != *"kittui"* ]]
+  run pty "'${kit_root}/bin/kit' --workspace=w flow backlog"
+  [[ "$output" == *"kittui native-native flow --workspace=w backlog"* ]]
+  run pty "'${kit_root}/bin/kit' --workspace=w flow underway --json"
+  [[ "$output" == *"underway is no stage of kit flow"* && "$output" != *"kittui"* ]]
   run pty "'${kit_root}/bin/kit' --workspace=w flow --stages"
-  [[ "$output" == *"backlog"* && "$output" != *"kittui"* ]]
+  [[ "$output" == *"issues"* && "$output" != *"kittui"* ]]
   run pty "'${kit_root}/bin/kit' --workspace=w flow --marks"
   [[ "$output" == *'"desk":'* && "$output" != *"kittui"* ]]
   run pty "'${kit_root}/bin/kit' --workspace=w flow --quota"

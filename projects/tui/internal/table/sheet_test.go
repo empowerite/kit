@@ -27,7 +27,7 @@ var things = &Schema{Stage: "things", Fields: []Field{
 		Dim: true, Placement: PlaceColumn},
 	{ID: "tags", Label: "tags", Type: "text", One: "tag", Renderings: []string{"text"}, Placement: PlaceColumn},
 }, Presets: []Preset{
-	{Name: Opening, Fields: map[string]Setting{"kind": {Placement: PlaceGroup, Depth: 1},
+	{Name: Default, Fields: map[string]Setting{"kind": {Placement: PlaceGroup, Depth: 1},
 		"name": {Sort: "asc", Priority: 1}, "tags": {Placement: PlaceHidden}}},
 	{Name: "Compact", Fields: map[string]Setting{"note": {Placement: PlaceHidden}}},
 }}
@@ -347,7 +347,7 @@ func TestThePresetsAreChosenSavedRenamedAndDeleted(t *testing.T) {
 	}
 	// Delete drops the preset, and the table is set as Default
 	s.choose(ItemDelete)
-	if s.tbl.ViewName != Opening || !strings.Contains(s.Notice().Text, "deleted the preset ours") {
+	if s.tbl.ViewName != Default || !strings.Contains(s.Notice().Text, "deleted the preset ours") {
 		t.Errorf("deleted: %q %q", s.tbl.ViewName, s.Notice().Text)
 	}
 	// on a table's own preset, Save does nothing
@@ -486,7 +486,7 @@ func TestAClickOnTheFoldOfAHeaderThatHidesNamesOpensIt(t *testing.T) {
 	s := NewSheet(&Schema{Fields: []Field{
 		{ID: "a", Label: "a name too long for its column", Type: "text", Renderings: []string{"text"}},
 		{ID: "b", Label: "b", Type: "text", Renderings: []string{"text"}, Wrap: true}},
-		Presets: []Preset{{Name: Opening}}}, "narrow", "75", "")
+		Presets: []Preset{{Name: Default}}}, "narrow", "75", "")
 	s.Place(0, 12, 24, 14)
 	s.SetRecords([]Record{{Row: grid.Row{Key: "1"}, Values: map[string]Value{"a": One("x"), "b": One("y")}}})
 	if _, hides := s.Header(); !hides {
@@ -498,14 +498,33 @@ func TestAClickOnTheFoldOfAHeaderThatHidesNamesOpensIt(t *testing.T) {
 	}
 }
 
+// A table opens on the first of its own presets, whatever its name, and a preset the person deleted gives way to it.
+func TestASheetOpensOnTheFirstOfItsOwnPresets(t *testing.T) {
+	grouped := Preset{Name: "By kind", Fields: map[string]Setting{"kind": {Placement: PlaceGroup, Depth: 1}}}
+	s := NewSheet(&Schema{Fields: things.Fields, Presets: []Preset{grouped, {Name: "Flat"}}}, "first", "75", "")
+	s.SetRecords([]Record{thing("a", "fruit", "x"), thing("b", "nut", "y")})
+	if s.tbl.ViewName != "By kind" || s.Views().Is(s.tbl) != "By kind" ||
+		!slices.Equal(s.Panel().Groups(), []string{"kind"}) {
+		t.Errorf("opened on %q, is %q, grouped %q", s.tbl.ViewName, s.Views().Is(s.tbl), s.Panel().Groups())
+	}
+	if names := s.Views().All(); len(names) != 2 || s.Views().Builtin(Default) {
+		t.Errorf("its views: %+v", names)
+	}
+	s.saved = []Preset{{Name: "ours"}}
+	s.apply(s.Views().Chosen("ours"))
+	if s.choose(ItemDelete); s.tbl.ViewName != "By kind" {
+		t.Errorf("after a delete: on %q", s.tbl.ViewName)
+	}
+}
+
 func TestASheetGroupsAsItLoadsAndKnowsItsDefault(t *testing.T) {
 	// a table whose catalog names no Default has one, as it opens, which groups what every row shares
 	s := NewSheet(&Schema{Fields: things.Fields}, "bare", "75", "")
 	s.SetRecords([]Record{thing("a", "fruit", "x"), thing("b", "fruit", "y")})
-	if names := s.Views().All(); len(names) != 1 || names[0].Name != Opening {
+	if names := s.Views().All(); len(names) != 1 || names[0].Name != Default {
 		t.Errorf("its views: %+v", names)
 	}
-	if !slices.Contains(s.Panel().Groups(), "kind") || s.Views().Is(s.tbl) != Opening {
+	if !slices.Contains(s.Panel().Groups(), "kind") || s.Views().Is(s.tbl) != Default {
 		t.Errorf("grouped as it loads: %q, is %q", s.Panel().Groups(), s.Views().Is(s.tbl))
 	}
 }
@@ -678,7 +697,7 @@ func TestTheControlLinesKeysMoveFoldAndDrop(t *testing.T) {
 		t.Error("down from the picker of a table without rows")
 	}
 	// a table without fields has no control line, and its rows take the keyboard first
-	plain := NewSheet(&Schema{Presets: []Preset{{Name: Opening}}}, "plain", "75", "")
+	plain := NewSheet(&Schema{Presets: []Preset{{Name: Default}}}, "plain", "75", "")
 	plain.SetRecords([]Record{{Row: grid.Row{Key: "a", Cells: []grid.Cell{{Values: []string{"a"}}}}}})
 	if plain.Focus(); !plain.InRows() {
 		t.Error("a table without fields")
@@ -815,7 +834,7 @@ func broad(width int) Sheet {
 		return Field{ID: id, Label: id, Type: "text", Renderings: []string{"text"}, Placement: PlaceColumn}
 	}
 	s := NewSheet(&Schema{Fields: []Field{field("id"), field("aa"), field("bb"), field("cc")},
-		Presets: []Preset{{Name: Opening}}}, "broad", "75", "")
+		Presets: []Preset{{Name: Default}}}, "broad", "75", "")
 	s.Place(4, 10, width, 24)
 	var records []Record
 	for _, id := range []string{"1", "2"} {

@@ -221,7 +221,8 @@ func (s Schema) KeyOf(record json.RawMessage) (key string, ok bool) {
 // KeyFrom gives a record's key, from the record decoded, as Decoded gives it, as the schema's key names it, its paths
 // after commas, or .key where it names none: each scalar's text, a space between, and ok when each path gives the text
 // of a scalar, a string, a number, or a boolean, at least. A path that is not there, is null, or gives only objects,
-// and a record that is no object, have none.
+// and a record that is no object, have none; a path that ends in ?, as .pr.number? of an issue no pull request
+// closes, may give none, and adds nothing to the key, so long as another path gives one.
 func (s Schema) KeyFrom(v any) (key string, ok bool) {
 	paths := s.Key
 	if _, object := v.(map[string]any); !object {
@@ -232,6 +233,7 @@ func (s Schema) KeyFrom(v any) (key string, ok bool) {
 	}
 	var texts []string
 	for _, path := range strings.Split(paths, ",") {
+		path, optional := strings.CutSuffix(strings.TrimSpace(path), "?")
 		n := len(texts)
 		for _, each := range flat(walk(v, path)) {
 			switch each := each.(type) {
@@ -243,9 +245,9 @@ func (s Schema) KeyFrom(v any) (key string, ok bool) {
 				texts = append(texts, fmt.Sprint(each))
 			}
 		}
-		if len(texts) == n {
+		if len(texts) == n && !optional {
 			return "", false
 		}
 	}
-	return strings.Join(texts, " "), true
+	return strings.Join(texts, " "), len(texts) > 0
 }

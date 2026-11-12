@@ -1,18 +1,18 @@
   = kit flow · - empowerite/kit                                      🔎 /search
-  ➀╶────────────────╮➁╶─────────────────╴➌╶────────────────╮➃╶───────────────╮➄╶
-    🎫 backlog  3   │  🛫 underway  4    │ 🔀 changes  3 : │  🏭 builds  4   │ ▹
-  ──────────────────╰────────────────────╯                 ╰─────────────────╰──
+  ➀╶───────────────╴➋╶────────────────╮➂╶───────────────╮➃╶──────────────────╮➄╶
+    🎫 issues  7    │ 🔀 changes  3 : │  🏭 builds  4   │  🛬 incoming  7    │ ▹
+  ──────────────────╯                 ╰─────────────────╰────────────────────╰──
   ▾ 3                                          ╭─ changes legend ───── ↖ ↗ ↙ ↘ ╮
   ───                                          │ =  kit menu                   │
     change  title         author  state  age  c│ -  workspace menu             │
     ·───────·─────────────·───────·──────·────·│ 🔎 search: / or click         │
   ▸ 🔀 #2   The first r…  jeffr…  🏁      8d   │ ➀  tab: click to select       │
-  ▸ 🔀 #3   A spike on …  ada     🔨     90m   │ ➌  selected tab               │
-  ▸ 🔀 #4   Lint every …  bob     🔥     25h   │ 🎫 backlog stage              │
-                                               │ 🛫 underway stage             │
+  ▸ 🔀 #3   A spike on …  ada     🔨     90m   │ ➋  selected tab               │
+  ▸ 🔀 #4   Lint every …  bob     🔥     25h   │ 🎫 issues stage               │
                                                │ 🔀 changes stage              │
                                                │ :  tab menu                   │
                                                │ 🏭 builds stage               │
+                                               │ 🛬 incoming stage             │
                                                │ ▹  more tabs: click to scroll │
                                                │ ▾  open: click to close       │
                                                │ ▼  presets menu               │
@@ -29,4 +29,4 @@
                                                │ 🔥 failing:gate 🔗            │
                                                │ ❌ failed                     │
                                                ╰───────────────────────────────╯
- = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-6 jump : tab menu
+ = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-5 jump : tab menu

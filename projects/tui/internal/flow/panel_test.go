@@ -35,7 +35,7 @@ func typed(text string) []tea.Msg {
 	return out
 }
 
-// keys gives the backlog's rows' keys, as the panel lets them through, without the headings of their groups.
+// keys gives issues' rows' keys, as the panel lets them through, without the headings of their groups.
 func keys(m Model) []string {
 	var out []string
 	for _, r := range m.rows(m.stage) {
@@ -65,8 +65,8 @@ func TestSlashGivesTheSearchTheKeyboardAndTypingNarrowsTheRowsAndTheCount(t *tes
 	}
 	m = drive(m, typed("NOUN")...)
 	// the tab says how many rows loaded, however few the search lets through
-	if got := keys(m); !slices.Equal(got, []string{"#46"}) || !shows(m, stageGlyphs["backlog"], "3") ||
-		strings.Contains(barNames(m), "1/3") {
+	if got := keys(m); !slices.Equal(got, []string{"#46"}) || !shows(m, stageGlyphs["issues"], "7") ||
+		strings.Contains(barNames(m), "1/7") {
 		t.Errorf("typing noun: rows %v\n%s", got, view(m))
 	}
 	// a number types into the search, and r does not refresh
@@ -80,7 +80,7 @@ func TestSlashGivesTheSearchTheKeyboardAndTypingNarrowsTheRowsAndTheCount(t *tes
 	for range "NOUN2r" {
 		m = drive(m, press(tea.KeyBackspace))
 	}
-	if len(keys(m)) != 3 || !shows(m, stageGlyphs["backlog"], "3") {
+	if len(keys(m)) != 7 || !shows(m, stageGlyphs["issues"], "7") {
 		t.Errorf("the search emptied: rows %v", keys(m))
 	}
 	// a key neither the search nor the bar takes keeps the keyboard in the search
@@ -113,21 +113,21 @@ func TestSlashFindsAndANumberWithAltLeavesTheSearchForItsStage(t *testing.T) {
 		t.Fatalf("/: in panel %v, in rows %v", m.inPanel, m.inRows)
 	}
 	// the band stays on the row under the cursor while the search has the keyboard
-	if !strings.HasPrefix(cursor(m), "#45") {
+	if !strings.HasPrefix(cursor(m), "#1") {
 		t.Errorf("the cursor's row lost its band: %q", cursor(m))
 	}
-	m = drive(m, tea.KeyPressMsg{Code: '3', Mod: tea.ModAlt})
-	if m.inPanel || m.stage != 2 || !m.bar().Focused {
-		t.Errorf("alt-3 in the search: in panel %v, stage %d", m.inPanel, m.stage)
+	m = drive(m, tea.KeyPressMsg{Code: '2', Mod: tea.ModAlt})
+	if m.inPanel || m.stage != 1 || !m.bar().Focused {
+		t.Errorf("alt-2 in the search: in panel %v, stage %d", m.inPanel, m.stage)
 	}
 	m = drive(m, typed("/x")...)
 	if p := m.panel(m.stage); !m.inPanel || p.Query != "x" {
 		t.Errorf("/ then x: in panel %v, search %q", m.inPanel, p.Query)
 	}
 	m = drive(m, esc)
-	// each stage keeps its own search: backlog's is empty
-	if m.panel(2).Query != "x" || m.panel(0).Query != "" {
-		t.Errorf("the searches: %q, %q", m.panel(2).Query, m.panel(0).Query)
+	// each stage keeps its own search: issues' is empty
+	if m.panel(1).Query != "x" || m.panel(0).Query != "" {
+		t.Errorf("the searches: %q, %q", m.panel(1).Query, m.panel(0).Query)
 	}
 }
 
@@ -218,7 +218,7 @@ func TestAClickOnATitlesGlyphOpensTheIssuesPage(t *testing.T) {
 		t.Fatalf("a click on the glyph: %v, in rows %v", browsed, m.inRows)
 	}
 	// a page the browser cannot open says why in place of the keys, until the next key
-	of[issue](*m.find("backlog"))[0].URL = "https://refuse.example/45"
+	of[issue](*m.find("issues"))[6].URL = "https://refuse.example/45"
 	m.rebuild()
 	m = drive(m, testkit.Click(x, y))
 	if last := lines(m)[23]; !strings.Contains(last, "could not open https://refuse.example/45") || !m.Noticing() {
@@ -239,12 +239,13 @@ func TestAClickOnATitlesGlyphOpensTheIssuesPage(t *testing.T) {
 
 func TestAColumnNoRowFillsHasNoCheckbox(t *testing.T) {
 	m := loaded(t, options())
+	m.apply(m.viewsOf(0).Chosen("Backlog"))
 	m.cols = table.Columns{Open: true}
 	if !strings.Contains(view(m), grid.Ticked+" branch") {
-		t.Fatalf("backlog's branch has no checkbox while an issue has one:\n%s", view(m))
+		t.Fatalf("the backlog's branch has no checkbox while an issue has one:\n%s", view(m))
 	}
-	for k := range of[issue](*m.find("backlog")) {
-		of[issue](*m.find("backlog"))[k].Branch = ""
+	for k := range of[issue](*m.find("issues")) {
+		of[issue](*m.find("issues"))[k].Branch = ""
 	}
 	m.rebuild()
 	if strings.Contains(view(m), grid.Ticked+" branch") || !strings.Contains(view(m), grid.Ticked+" title") {
@@ -253,7 +254,7 @@ func TestAColumnNoRowFillsHasNoCheckbox(t *testing.T) {
 }
 
 func TestTheWheelScrollsTheRowsAndLeavesTheCursor(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 9}, tab, tab, tab, down)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 9}, tab, tab, down)
 	turn := func(b tea.MouseButton) tea.Msg { return tea.MouseWheelMsg{X: 10, Y: m.headerTop() + 1, Button: b} }
 	if m = drive(m, turn(tea.MouseWheelDown)); m.find("builds").Offset == 0 || m.find("builds").Cursor != 0 {
 		t.Fatalf("the wheel down: offset %d, cursor %d\n%s", m.find("builds").Offset, m.find("builds").Cursor, view(m))
@@ -273,6 +274,7 @@ func TestTheWheelScrollsTheRowsAndLeavesTheCursor(t *testing.T) {
 // an option-click adds a column after it; the menu of a name that does not sort, as builds' commit, dims its sorts.
 func TestSortByInAColumnsMenuSortsTheRows(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
+	m.apply(m.viewsOf(0).Chosen("Backlog"))
 	unfold(&m) // the source, one tracker's on every row, a column
 	at := func(name string) int { return strings.Index(lines(m)[m.headerTop()], name) }
 	order := func() string { return strings.Join(keys(m), " ") }
@@ -313,7 +315,7 @@ func TestSortByInAColumnsMenuSortsTheRows(t *testing.T) {
 // leaves the header and the rows, whose heading names its value, and the rows and the header stand in two cells a
 // level, a click on a name finding its column there.
 func TestGroupingNestsAndIndentsTheRows(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, tab)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30})
 	m.setPanel(regroup(m.panel(m.stage)))
 	m.cols = table.Columns{Open: true}
 	for _, id := range []string{"source", "assignees"} {
@@ -347,7 +349,7 @@ func TestGroupingNestsAndIndentsTheRows(t *testing.T) {
 // within the groups there are. The same click, or a right click, on a group's heading stops grouping by its column
 // alone, the other groups kept; on a row, it does nothing.
 func TestACtrlClickGroupsAndOnAHeadingUngroups(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, tab)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30})
 	unfold(&m) // the source, one tracker's on every row, a column
 	at := func(name string) int { return strings.Index(lines(m)[m.headerTop()], name) }
 	heading := func(text string) int {
@@ -379,10 +381,10 @@ func TestACtrlClickGroupsAndOnAHeadingUngroups(t *testing.T) {
 	}
 }
 
-// Underway groups by change: the issues one pull request carries stand under its heading, and those without one under
-// none.
-func TestUnderwayGroupsByChange(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, tab)
+// Issues group by change: the issues one pull request carries stand under its heading, and those without one, in the
+// backlog, under none.
+func TestIssuesGroupByChange(t *testing.T) {
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30})
 	m.setPanel(regroup(m.panel(m.stage), "change"))
 	if got := m.panel(m.stage).Groups(); !slices.Equal(got, []string{"change"}) {
 		t.Fatalf("grouped by change: %q", got)
@@ -399,13 +401,14 @@ func TestUnderwayGroupsByChange(t *testing.T) {
 }
 
 // A view, as it loads, groups the rows by each column whose value is the same on every row, where it groups by nothing:
-// as a view that has underway's source, organization, and repository as columns, while one tracker and one repository
-// hold every issue: a group as any other, under the heading over the groups, ▤₁ in the columns dialog, and the preset
-// line still names the view. Once grouped, it is the person's: a search that leaves one row, or the rows loaded again,
-// change nothing, and Ungroup ungroups it for good. Setting the view again groups again; with kittui's setting,
-// Auto-group, off, a view set groups nothing. Default groups by the three as the catalog says.
+// as a view of the issues underway that has their source, organization, and repository as columns, while one tracker
+// and one repository hold every issue: a group as any other, under the heading over the groups, ▤₁ in the columns
+// dialog, and the preset line still names the view. Once grouped, it is the person's: a search that leaves one row, or
+// the rows loaded again, change nothing, and Ungroup ungroups it for good. Setting the view again groups again; with
+// kittui's setting, Auto-group, off, a view set groups nothing. Underway groups by the three as the catalog says.
 func TestAViewAsItLoadsGroupsByAColumnTheSameOnEveryRow(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, tab)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30})
+	m.apply(m.viewsOf(0).Chosen("Underway"))
 	heading := func(m Model) string {
 		if rows := m.rows(m.stage); len(rows) > 1 && grid.OverGroups(rows[0]) {
 			return ansi.Strip(rows[0].Cells[0].Values[0])
@@ -416,16 +419,17 @@ func TestAViewAsItLoadsGroupsByAColumnTheSameOnEveryRow(t *testing.T) {
 	// others' dim separators, and the rows' would repeat it
 	both := []string{"source", "organization", "repository"}
 	want := grid.Unfolded + " source " + grid.Joined + " organization " + grid.Joined + " repository 4"
-	if got := heading(m); got != want || !slices.Equal(m.panel(m.stage).Groups(), both) || m.is(m.stage) != Opening {
-		t.Fatalf("Default's heading %q, groups %q, view %q:\n%s", got, m.panel(m.stage).Groups(), m.is(m.stage), view(m))
+	if got := heading(m); got != want || !slices.Equal(m.panel(m.stage).Groups(), both) || m.is(m.stage) != "Underway" {
+		t.Fatalf("Underway's heading %q, groups %q, view %q:\n%s", got, m.panel(m.stage).Groups(), m.is(m.stage), view(m))
 	}
 	column := table.Setting{Placement: table.PlaceColumn}
 	flat := table.Preset{Name: "Flat", Fields: map[string]table.Setting{"source": column, "organization": column,
-		"repository": column}}
-	m.saved["underway"] = []table.Preset{flat}
+		"repository": column, "status": {Placement: table.PlaceHidden,
+			Filter: &table.ValueFilter{Include: []string{"underway"}}}}}
+	m.saved["issues"] = []table.Preset{flat}
 	if m.apply(flat); heading(m) != want || !slices.Equal(m.panel(m.stage).Groups(), both) || m.is(m.stage) != "Flat" ||
 		!strings.Contains(m.cols.Line(&m, "source"), grid.GroupMark(1)) {
-		t.Fatalf("underway's heading %q, groups %q, view %q:\n%s", heading(m), m.panel(m.stage).Groups(), m.is(m.stage),
+		t.Fatalf("Flat's heading %q, groups %q, view %q:\n%s", heading(m), m.panel(m.stage).Groups(), m.is(m.stage),
 			view(m))
 	}
 	// a search that leaves one row, and the rows loaded again, leave the group as it is
@@ -436,13 +440,13 @@ func TestAViewAsItLoadsGroupsByAColumnTheSameOnEveryRow(t *testing.T) {
 	}
 	p.Query = ""
 	m.setPanel(p)
-	m = drive(m, m.again("underway", false)())
+	m = drive(m, m.again("issues", false)())
 	if !slices.Equal(m.panel(m.stage).Groups(), both) {
 		t.Errorf("loaded again: %q", m.panel(m.stage).Groups())
 	}
 	// ungrouped, it stays so through a load; the preset line names the view, as the panel is as it says
 	m.setPanel(regroup(m.panel(m.stage)))
-	if m = drive(m, m.again("underway", false)()); len(m.panel(m.stage).Groups()) > 0 || !rowsAlone(heading(m)) ||
+	if m = drive(m, m.again("issues", false)()); len(m.panel(m.stage).Groups()) > 0 || !rowsAlone(heading(m)) ||
 		!strings.Contains(lines(m)[m.headerTop()], "source") {
 		t.Errorf("ungrouped, then loaded again: %q\n%s", m.panel(m.stage).Groups(), view(m))
 	}
@@ -460,7 +464,7 @@ func TestAViewAsItLoadsGroupsByAColumnTheSameOnEveryRow(t *testing.T) {
 // heading, and a click on its ▾ or ▸, and there alone, does either; ▾ turns ▸, the keys say which, and the tab's count
 // stays the rows the panel lets through, folded or not. The heading over the groups never folds.
 func TestAGroupsHeadingFoldsAndUnfoldsItsRows(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30}, tab)
+	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 30})
 	count, rows := m.count(m.stage), len(m.rows(m.stage))
 	// left on the heading over the groups folds nothing
 	m.stages[m.stage].Cursor, m.inRows = 0, true
@@ -554,7 +558,9 @@ func popoverOf(m Model, id string) Model {
 // none. Esc closes it, and the dialog has the keyboard again. A click on a line acts on it, and a click off the box
 // closes it.
 func TestAFieldsPopoverFiltersAndDrawsIt(t *testing.T) {
-	m := popoverOf(loaded(t, viewing("")), "assignees")
+	m := loaded(t, viewing(""))
+	m.apply(m.viewsOf(0).Chosen("Backlog"))
+	m = popoverOf(m, "assignees")
 	if !m.pop.Open || m.pop.Field != "assignees" || !strings.Contains(view(m), "╭─ assignees ") {
 		t.Fatalf("enter on assignees:\n%s", view(m))
 	}
@@ -572,7 +578,7 @@ func TestAFieldsPopoverFiltersAndDrawsIt(t *testing.T) {
 		t.Errorf("@me: %v, %q", keys(m), presetText(m))
 	}
 	// the mode, above it, holds back the values checked
-	if m = drive(m, up, press(tea.KeySpace)); !slices.Equal(keys(m), []string{"#45", "#46"}) ||
+	if m = drive(m, up, press(tea.KeySpace)); !slices.Equal(keys(m), []string{"#46", "#45"}) ||
 		!strings.Contains(presetText(m), "assignees: ¬@me") {
 		t.Errorf("exclude: %v, %q", keys(m), presetText(m))
 	}
