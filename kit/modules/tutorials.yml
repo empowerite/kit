@@ -101,7 +101,7 @@ tutorials:
   - id: search
     file: tutorials/search.md
     title: The search
-    summary: The / key on any screen starts the search, and the rows narrow as you type.
+    summary: The / key on any screen starts the search, rows narrow as you type, and a page's text highlights.
     glyph: "\U0001F50E"
     audience:
       - newcomer

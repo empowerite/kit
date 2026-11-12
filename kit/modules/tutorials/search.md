@@ -1,6 +1,6 @@
 ---
 title: The search
-summary: The / key on any screen starts the search: rows narrow as you type, and a page's text highlights.
+summary: The / key on any screen starts the search, rows narrow as you type, and a page's text highlights.
 glyph: 🔎
 audience: [newcomer, ui]
 order: 17
