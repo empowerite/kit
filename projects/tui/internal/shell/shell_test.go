@@ -13,6 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
@@ -43,14 +44,14 @@ func TestTheMenuHasItsScreensOwnItemsKitsScreensTheSettingsAndQuit(t *testing.T)
 		"People|Trust|Platform|Packages||Refresh All|Settings…||Quit" {
 		t.Fatalf("the items: %q", got)
 	}
-	// its own, another screen, the settings, and quit do something; the screen it is on and the rules do not
-	for k, want := range []bool{false, true, true, false, true, true, true, true, true, true, true, true, true, false,
+	// its own, kit's screens, the one it is on too, the settings, and quit can be chosen; the rules cannot
+	for k, want := range []bool{true, true, true, false, true, true, true, true, true, true, true, true, true, false,
 		true, true, false, true} {
 		if m.enabled(k) != want {
 			t.Errorf("item %d (%s) enabled %v", k, names[k], !want)
 		}
 	}
-	if (Menu{}).Items()[14].Name != "Settings…" || m.At != 1 || !m.Open {
+	if (Menu{}).Items()[14].Name != "Settings…" || m.At != 0 || !m.Open {
 		t.Errorf("a menu with no items of its screen's, or the keyboard on its first that acts: %+v", m)
 	}
 }
@@ -60,7 +61,7 @@ func TestTheMenusKeysMoveChooseAndClose(t *testing.T) {
 	for _, step := range []struct {
 		key  string
 		want int
-	}{{"down", 1}, {"down", 2}, {"down", 4}, {"down", 6}, {"down", 7}, {"down", 8}, {"down", 9}, {"down", 10},
+	}{{"down", 1}, {"down", 2}, {"down", 4}, {"down", 5}, {"down", 6}, {"down", 7}, {"down", 8}, {"down", 9}, {"down", 10},
 		{"down", 11}, {"down", 12}, {"down", 14}, {"down", 16}, {"down", 16}, {"up", 14}, {"w", 0}, {"q", 16},
 		{"z", 16}} {
 		if m, _ = m.Key(key(step.key)); m.At != step.want {
@@ -115,11 +116,11 @@ func TestTheMenuHangsFromTheTitlesGlyphAndAClickChooses(t *testing.T) {
 	if got := (Menu{}).Overlay([]string{"a"}, 60); got[0] != "a" {
 		t.Errorf("a closed menu drew: %q", got)
 	}
-	// a click on welcome chooses it; on issues, where it is, nothing, the menu open; off the box, it closes
+	// a click on welcome chooses it; on issues, where it is, it closes the menu and asks nothing; off the box, it closes
 	if m, c := m.Click(3, Top+1, 60); c != (Choice{Screen: Welcome}) || m.Open {
 		t.Errorf("a click on welcome: %v %+v", m.Open, c)
 	}
-	if m, c := m.Click(3, Top+6, 60); c != (Choice{}) || !m.Open {
+	if m, c := m.Click(3, Top+6, 60); c != (Choice{}) || m.Open {
 		t.Errorf("a click on issues: %v %+v", m.Open, c)
 	}
 	if m, c := m.Click(50, 15, 60); c != (Choice{}) || m.Open {
@@ -364,5 +365,32 @@ func TestABoxTallerThanItsRowsScrollsToTheKeyboard(t *testing.T) {
 	if box, _, first = BoxIn(items, Every, 9, "=", 4, 80, 6); first != 6 || !strings.Contains(box[0], "▴") ||
 		strings.Contains(box[5], "▾") {
 		t.Errorf("at 9, first %d:\n%s", first, ansi.Strip(strings.Join(box, "\n")))
+	}
+}
+
+func TestTheMenusLineForTheScreenItIsOnIsBoldAndClosesTheMenuAskingNothing(t *testing.T) {
+	m := Menu{Here: Issues}.Opened()
+	if items := m.Items(); !items[5].Here || items[0].Here || items[14].Here {
+		t.Fatalf("only issues is here: %+v", items)
+	}
+	box, _ := m.box(60)
+	issues := " " + pane.Pad(Ticket, 2, false) + " " + pane.Pad("Issues", pane.Width([]string{"Repositories"}), false)
+	if !strings.Contains(box[6], style.Label(issues)) || strings.Contains(box[6], style.Off(issues)) ||
+		strings.Contains(box[7], style.Label(" ")) {
+		t.Errorf("issues' line is not bold, or another is:\n%q\n%q", box[6], box[7])
+	}
+	// under the keyboard, it is the bar, bold, across the keys' column too, which Quit's ⌃Q gives every line
+	m.At = 5
+	if box, _ = m.box(60); !strings.Contains(box[6], style.MenuHereIn("")(issues+"    "+" ")) ||
+		strings.Contains(box[6], style.Selected(issues+"    "+" ")) {
+		t.Errorf("issues under the keyboard: %q", box[6])
+	}
+	if m, c := m.Key(key("enter")); m.Open || c != (Choice{}) {
+		t.Errorf("enter on issues: open %v, %+v", m.Open, c)
+	}
+	// a line of a menu that belongs to a group is bold on the group's color
+	lines, _ := BoxColored([]Item{{Name: "Here", Here: true}}, func(int) bool { return true }, 0, App, At, 60, "75")
+	if !strings.Contains(lines[1], style.MenuHereIn("75")(" "+pane.Pad("", 2, false)+" Here ")) {
+		t.Errorf("a colored menu's line here: %q", lines[1])
 	}
 }

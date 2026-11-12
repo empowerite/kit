@@ -113,3 +113,10 @@ func TestInDrawsAGroupsColor(t *testing.T) {
 		t.Errorf("a color: %q %q", m("x"), ti("x"))
 	}
 }
+
+func TestTheMenusLineForWhereItIsIsTheBarBold(t *testing.T) {
+	if MenuHereIn("")("x") == Selected("x") || ansi.Strip(MenuHereIn("")("\x1b[1mx\x1b[0m")) != "x" ||
+		!strings.Contains(MenuHereIn("114")("x"), "48;5;114") {
+		t.Errorf("here: %q, colored %q", MenuHereIn("")("x"), MenuHereIn("114")("x"))
+	}
+}

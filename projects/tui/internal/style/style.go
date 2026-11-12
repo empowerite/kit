@@ -78,6 +78,16 @@ func MenuIn(color string) (edge, under func(string) string) {
 	return func(s string) string { return e.Render(s) }, func(s string) string { return u.Render(ansi.Strip(s)) }
 }
 
+// MenuHereIn gives the line under the keyboard as MenuIn's under draws it, bold as well, for the line of where the menu
+// is, as the app's menu's line for the screen it is on is bold whether the keyboard is on it or not.
+func MenuHereIn(color string) func(string) string {
+	u := selected.Bold(true)
+	if color != "" {
+		u = u.Background(lipgloss.Color(color))
+	}
+	return func(s string) string { return u.Render(ansi.Strip(s)) }
+}
+
 // Tint draws what belongs to the selected tab but is not chosen: in the accent color, not bold.
 func Tint(s string) string { return tint.Render(s) }
 

@@ -73,8 +73,12 @@ const (
 // Item is one line of a menu: a glyph, which may be none; the name it is chosen by; and the keys that do the same with
 // the menu closed, as the keys bar names keys, none when no key does: the menu shows them at its right, dim, where the
 // keys bar would have to name one key apiece, a letter in upper case, R as ⌃A, as a macOS menu draws it, though the
-// press is the letter alone. A line with no name is the rule between groups of items.
-type Item struct{ Glyph, Name, Keys string }
+// press is the letter alone. A line with no name is the rule between groups of items. Here marks the line for where
+// the menu is, as the app's menu marks the screen it is on: it is drawn bold, as one more sign of where you are.
+type Item struct {
+	Glyph, Name, Keys string
+	Here              bool
+}
 
 // screenItem is one of the app's menu's screens, with the item it is chosen by.
 type screenItem struct {
@@ -98,7 +102,7 @@ var sections = [][]screenItem{
 // screens are the app's menu's screens, in its order, without the rules.
 var screens = slices.Concat(sections...)
 
-// Menu is the app's menu on a screen: the screen it is on, whose item is dim; the screen's own items, which come
+// Menu is the app's menu on a screen: the screen it is on, whose item is bold and does nothing; the screen's own items, which come
 // after kit's screens, and the names of those that do nothing now, dim; the name of the screen's crumb, the place a
 // link led from, which the title draws after the workspace, the way back the menu's screens are not, none without one;
 // and, as a dropdown, whether it is open, and then has the keyboard, and the item under the keyboard.
@@ -148,13 +152,15 @@ type JumpMsg struct {
 // ctrl-q reaches kittui.
 const Quit = "ctrl+q"
 
-// Items gives the menu's lines, top to bottom: kit's screens, a rule after each section of them; the screen's own
-// items, when it has any, and the settings; a rule; and quit, which ⌃Q does on every screen.
+// Items gives the menu's lines, top to bottom: kit's screens, a rule after each section of them, the one it is on
+// Here; the screen's own items, when it has any, and the settings; a rule; and quit, which ⌃Q does on every screen.
 func (m Menu) Items() []Item {
 	var items []Item
 	for _, section := range sections {
 		for _, s := range section {
-			items = append(items, s.item)
+			item := s.item
+			item.Here = s.screen == m.Here
+			items = append(items, item)
 		}
 		items = append(items, Item{})
 	}
@@ -165,34 +171,40 @@ func (m Menu) Items() []Item {
 // settingsItem is the menu's line that opens the Settings dialog.
 var settingsItem = Item{Glyph: Configure, Name: "Settings…"}
 
-// enabled says whether the menu's line k does something: the screen's own items but those it dims, a screen other
-// than the one it is on, the settings, and quit; the rules never do.
+// enabled says whether the menu's line k can be chosen: the screen's own items but those it dims, kit's screens, the
+// one it is on too, which closes the menu and does nothing else, the settings, and quit; the rules never can.
 func (m Menu) enabled(k int) bool {
 	item := m.Items()[k]
 	if slices.Contains(m.Own, item) && item.Name != "" {
 		return !slices.Contains(m.Dim, item.Name)
 	}
-	if item.Name == "Quit" || item == settingsItem {
-		return true
-	}
-	for _, s := range screens {
-		if s.item == item {
-			return s.screen != m.Here
-		}
-	}
-	return false
+	_, isScreen := screenOf(item)
+	return isScreen || item.Name == "Quit" || item == settingsItem
 }
 
-// choice gives what the menu's line k asks, the zero Choice for one not enabled, the screen's rows as wide as room.
+// screenOf gives the screen a line of the app's menu moves to, and whether it is one of kit's screens' lines.
+func screenOf(item Item) (Screen, bool) {
+	item.Here = false
+	for _, s := range screens {
+		if s.item == item {
+			return s.screen, true
+		}
+	}
+	return "", false
+}
+
+// choice gives what the menu's line k asks, the screen's rows as wide as room: the zero Choice for one not enabled, and
+// for the screen the menu is on, which is where you are already.
 func (m Menu) choice(k, room int) Choice {
 	if k < 0 || !m.enabled(k) {
 		return Choice{}
 	}
 	item := m.Items()[k]
-	for _, s := range screens {
-		if s.item == item {
-			return Choice{Screen: s.screen}
+	if screen, ok := screenOf(item); ok {
+		if screen == m.Here {
+			return Choice{}
 		}
+		return Choice{Screen: screen}
 	}
 	if item.Name == "Quit" {
 		return Choice{Quit: true}
@@ -318,8 +330,8 @@ func Shortcut(items []Item, enabled func(int) bool, press string) int {
 }
 
 // Box gives a menu's lines, a rounded box in the menu's color around its items, each after the room for a glyph, the
-// one under the keyboard, at, inverse and the ones not enabled dim, a dim rule between groups, a cell short of either
-// side; and the screen column its left edge is drawn at. The box hangs from its glyph, mark, drawn at the column
+// one under the keyboard, at, inverse, the ones not enabled dim, and the one Here bold, under the keyboard too; a dim
+// rule between groups, a cell short of either side; and the screen column its left edge is drawn at. The box hangs from its glyph, mark, drawn at the column
 // glyph: two cells before it, or the screen's first, so the glyph starts at the top edge's third cell; when the box
 // would run past room that way, the column that puts the glyph two cells before the right corner instead, or nearer
 // when room ends there; and against room's right when no glyph is drawn, glyph -1.
@@ -349,6 +361,7 @@ func BoxColored(items []Item, enabled func(int) bool, at int, mark string, glyph
 func boxIn(items []Item, enabled func(int) bool, at int, mark string, glyph, room, rows int, color string) (
 	lines []string, left, first int) {
 	edge, under := style.MenuIn(color)
+	underHere := style.MenuHereIn(color)
 	shown := len(items)
 	if rows-2 < shown {
 		shown = max(1, rows-2)
@@ -414,8 +427,12 @@ func boxIn(items []Item, enabled func(int) bool, at int, mark string, glyph, roo
 		case !enabled(k):
 			// dim, and never under the keyboard, even when what it acts on changed under an open menu
 			text = style.Off(text + shortcut + " ")
+		case k == at && item.Here:
+			text = underHere(text + shortcut + " ")
 		case k == at:
 			text = under(text + shortcut + " ")
+		case item.Here:
+			text = style.Label(text) + style.Off(shortcut) + " "
 		case item.Keys != "":
 			text += style.Off(shortcut) + " "
 		default:
