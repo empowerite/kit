@@ -117,12 +117,15 @@ apps/audit:waivers() {
 # apps/audit:checkouts prints each checkout of the clone here that has a branch, as "<path>\t<branch>" a line: the
 # one here first, its branch the one kit policy judges, which on a runner is the change's and in a detached checkout
 # none; then each other one git lists with a branch, while its directory is there. A detached checkout is no branch's,
-# so only the one here is listed without one.
+# so only the one here is listed without one. It returns 1 when git cannot list the worktrees.
 apps/audit:checkouts() {
   local here line path='' branch=''
+  local -a lines
   here=$(pwd -P)
   printf '%s\t%s\n' "${here}" "$(policy:branch)"
-  while IFS= read -r line
+  list:read lines git worktree list --porcelain || return 1
+  # a blank line ends each worktree's record, the last one's too, which list:read drops
+  for line in "${lines[@]}" ''
   do
     case "${line}" in
       ('worktree '*) path=${line#worktree } branch='' ;;
@@ -132,7 +135,7 @@ apps/audit:checkouts() {
           || printf '%s\t%s\n' "${path}" "${branch}"
         path='' branch=''
     esac
-  done < <(git worktree list --porcelain; printf '\n')
+  done
 }
 
 # apps/audit:where prints where the clone here is, as JSON: {source, organization, repository}: source the primary's
@@ -164,13 +167,15 @@ apps/audit:where() {
 # wherever it runs. It returns 1 when kit policy fails here, its line said; another checkout that fails is
 # {branch, error}, its line, under errors, and the rest still draw.
 apps/audit:policy() {
-  local where path branch out said line here status=0
-  local -a docs=()
+  local where path branch out said line here checkout status=0
+  local -a docs=() checkouts
   where=$(apps/audit:where) || return 1
   here=$(pwd -P)
   file:temp said audit || return 1
-  while IFS=$'\t' read -r path branch
+  list:read checkouts apps/audit:checkouts || return 1
+  for checkout in "${checkouts[@]}"
   do
+    IFS=$'\t' read -r path branch <<<"${checkout}"
     if [[ "${path}" == "${here}" ]]
     then
       out=$(run kit policy --rules --json) || return 1
@@ -187,7 +192,7 @@ apps/audit:policy() {
       import "apps" as apps;
       {rows: map(apps::placed($where + {branch: (if $branch == "" then null else $branch end)})), errors: []}' \
       <<<"${out}")")
-  done < <(apps/audit:checkouts)
+  done
   out=$(apps:merge "${docs[@]}") || return 1
   apps/audit:merged-policy <<<"${out}" || return 1
   return "${status}"
@@ -209,16 +214,17 @@ apps/audit:mark-findings() { apps:forge-mark runs alerts; }
 # apps/audit:mark-checkout prints them, each after its branch; nothing when the clone has the one checkout and none is
 # there. A checkout added or removed changes it, as the rows it draws change.
 apps/audit:mark-policy() {
-  local path branch mark n=0 any=false
-  local -a marks=()
-  while IFS=$'\t' read -r path branch
+  local path branch mark checkout any=false
+  local -a marks=() checkouts
+  list:read checkouts apps/audit:checkouts || return 1
+  for checkout in "${checkouts[@]}"
   do
-    n=$(( n + 1 ))
+    IFS=$'\t' read -r path branch <<<"${checkout}"
     mark=$(cd "${path}" && apps/audit:mark-checkout) || return 1
     [[ -z "${mark}" ]] || any=true
     marks+=("${branch}=${mark}")
-  done < <(apps/audit:checkouts)
-  [[ "${any}" == true ]] || (( n > 1 )) || return 0
+  done
+  [[ "${any}" == true ]] || (( ${#checkouts[@]} > 1 )) || return 0
   printf '%s\n' "${marks[*]}"
 }
 
