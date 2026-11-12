@@ -416,14 +416,24 @@ func refusal(out string) string {
 }
 
 // grouped gives the command kit runs as: in a process group of its own, sent SIGTERM when ctx ends, so what kit
-// started dies with it, and waited for waitDelay at most after that.
+// started dies with it, then, grace later, SIGKILL to whatever of the group is left, and waited for waitDelay at most
+// after the first. A child kit forked while SIGTERM went out was not in the group yet and never saw it: it outlives
+// kit, holding its pipes open, until the second ends it.
 func grouped(ctx context.Context, name string, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM) }
+	cmd.Cancel = func() error {
+		group := -cmd.Process.Pid
+		time.AfterFunc(grace, func() { _ = syscall.Kill(group, syscall.SIGKILL) }) // ESRCH: nothing of it was left
+		return syscall.Kill(group, syscall.SIGTERM)
+	}
 	cmd.WaitDelay = waitDelay
 	return cmd
 }
+
+// grace is how long kit has, once sent SIGTERM, to end itself, its own cleanup run, before what is left of its group
+// is killed.
+const grace = 500 * time.Millisecond
 
 // Check is one of kit welcome's checks, as kit welcome --checks --json prints it. Fix is the command that fixes it,
 // empty when kit knows none. Interactive says the fix needs the person, as gh auth login does. More says where to read

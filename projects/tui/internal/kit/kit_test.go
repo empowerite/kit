@@ -3,6 +3,7 @@
 package kit
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -687,5 +688,52 @@ echo '[{"id": "tool-git", "ok": true}]'`)
 	// without told, kit is not asked for its progress
 	if _, err := script(t, `[ $# = 3 ] && echo '[]'`).WelcomeChecks(context.Background(), nil); err != nil {
 		t.Errorf("without told: %v", err)
+	}
+}
+
+// A command whose context ends is sent SIGTERM, its group whole, and a grace later SIGKILL, so a member that outlives
+// the first, as a child forked while the signal went out does, holding kit's stdout open, dies too: the command ends
+// within the grace, and nothing of its group is left running.
+func TestAnEndedCommandLeavesNothingOfItsGroupBehind(t *testing.T) {
+	dir := t.TempDir()
+	script, pidfile := filepath.Join(dir, "kit"), filepath.Join(dir, "pid")
+	// the child ignores SIGTERM, as a child forked while it went out never saw it, and holds stdout open
+	body := "#!/bin/sh\n( trap '' TERM; exec sleep 10 ) &\necho $! > " + pidfile + "\nwait\n"
+	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cmd := grouped(ctx, script)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	ended := make(chan error, 1)
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	go func() { ended <- cmd.Wait() }()
+	var pid int
+	for start := time.Now(); pid == 0; time.Sleep(10 * time.Millisecond) {
+		if time.Since(start) > 2*time.Second {
+			t.Fatal("the child did not start")
+		}
+		b, _ := os.ReadFile(pidfile)
+		pid, _ = strconv.Atoi(strings.TrimSpace(string(b)))
+	}
+	cancel()
+	start := time.Now()
+	select {
+	case <-ended:
+		if took := time.Since(start); took >= waitDelay {
+			t.Errorf("the command ended %v after its context, as long as waitDelay, %v", took, waitDelay)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("the command outlived its context")
+	}
+	// the child is gone: killed, and reaped by whoever took it in
+	for start := time.Now(); syscall.Kill(pid, 0) == nil; time.Sleep(10 * time.Millisecond) {
+		if time.Since(start) > 2*time.Second {
+			_ = syscall.Kill(pid, syscall.SIGKILL)
+			t.Fatal("the child that ignored SIGTERM outlived the command")
+		}
 	}
 }
