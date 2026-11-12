@@ -401,25 +401,43 @@ func (p Panel) ColumnKeys() []SortKey {
 	return slices.DeleteFunc(p.SortKeys(), func(s SortKey) bool { return slices.Contains(groups, s.Column) })
 }
 
-// Mark gives what stands after a field's name where it sorts the rows: ▲ ascending or ▼ descending, and its place
-// among what orders them, as Place gives it, when more than one thing does, raised after ▲ and lowered after ▼, as
-// each points, ▲² and ▼₂; nothing where it does not sort. A group sorts its rows' values as its field's sort says,
-// ascending where it says none, and is marked only where it says one.
+// Mark gives what stands for a field's sort where it sorts the rows, the one definition of a sort's mark: the place
+// among what orders them, as Place gives it, raised for ascending, ¹, and lowered for descending, ₁, as each points;
+// the number is always there, so a sort is never a full-size triangle, and the one place says it is the first key.
+// Nothing where it does not sort. A group sorts its rows' values as its field's sort says, ascending where it says
+// none, and is marked only where it says one.
 func (p Panel) Mark(id string) string {
 	f := p.Fields[id]
-	place, total := p.Place(id)
+	place, _ := p.Place(id)
 	if f.Sort == Unsorted || place == 0 {
 		return ""
 	}
-	mark, digits := "▲", superscript
-	if f.Sort == Descending {
-		mark, digits = "▼", subscript
-	}
-	if total > 1 {
-		mark += digits(place)
-	}
-	return mark
+	return DirectionMark(f.Sort, place)
 }
+
+// AscendingPlace and DescendingPlace stand for a place not yet known, raised and lowered, where a dialog says what
+// a sort would be before it is one: the field card's Ascending and Descending, while other things order the rows.
+const (
+	AscendingPlace  = "ⁿ"
+	DescendingPlace = "ₙ"
+)
+
+// DirectionMark gives a sort direction's mark at a place among the keys: the place raised for ascending, lowered for
+// descending, ¹ and ₁ for the first; the same small digits the scroll marks' counts are, and never ▲ or ▼, which are
+// not a sort's: ▼ is the presets menu's. It is the mark of the rule, the columns dialog, the field card, and the legend.
+func DirectionMark(d Direction, place int) string {
+	if d == Descending {
+		return subscript(place)
+	}
+	return superscript(place)
+}
+
+// Digits are the small digits a sort's mark is drawn in, raised for ascending and lowered for descending, each a
+// single cell, as the legend lists them.
+const (
+	RaisedDigits  = "¹²³⁴⁵⁶⁷⁸⁹"
+	LoweredDigits = "₁₂₃₄₅₆₇₈₉"
+)
 
 // Joined is the dim separator before each value after the first on a heading that takes the headings under it onto
 // its line: the line is one node, with one fold, the first value's.

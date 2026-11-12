@@ -163,7 +163,8 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     means, the menu bar's, the tab bar's, the control line's, the rule's, the rows', and the status bar's, in the order
     each first appears, reading from the top left, and nothing of a glyph the screen does not show, each glyph a click
     leads somewhere from marked. A glyph means what the line it stands on says: a plain · between items, in the menu bar or a heading, is not
-    explained, only the · on the rule, a column that can sort and is not sorted; and ▼ the presets' menu on the control line and a descending sort on the rule. A
+    explained, only the · on the rule, a column that can sort and is not sorted; ▼ is the presets' menu on the control
+    line and says it is not a sort, a sort being a raised ¹ or a lowered ₁ and never a triangle. A
     legend taller than the room under the tab bar stands in columns. It opens in
     the bottom right corner; the arrows on its top edge, ↖ ↗ ↙ ↘, move it to another, the one it stands in dim. It
     takes no other key or click, so the rows under it go on as they were.
@@ -184,9 +185,10 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     header names, or a depth among the groups, the card with it.
     Sorting always adds to the keys: a column that did not sort comes after the others, and one that did turns in its
     place; grouping always adds the column innermost, and the columns dialog orders both. The groups order the rows
-    before any key, the outermost 1, so a column's ▲ or ▼ carries its place after them, raised after ▲ and lowered after
-    ▼, as each points, ▲² and ▼₂, wherever more than one thing orders the rows; the card's triangles carry ⁿ and ₙ
-    there. The line under the keyboard in a menu or a dialog stands on the menu's bright cyan, in black, and a dialog's
+    before any key, the outermost 1, so a column's sort is its place after them, always a small number, raised for ascending
+    and lowered for descending, as each points, ¹ and ₁ for the first, ² and ₂ for the second, as grid.DirectionMark
+    gives it to the rule, the columns dialog, the card and the legend, never a full-size ▲ or ▼; the card's lines
+    carry ¹ and ₁ alone, ⁿ and ₙ where other things order the rows. The line under the keyboard in a menu or a dialog stands on the menu's bright cyan, in black, and a dialog's
     keys are the keys bar's alone. A column's sort mark stands on the rule under the first cell of its name, wherever
     the name aligns. A dim · there says the column can sort and does not; a column that cannot sort has the rule alone.
     A list has its mark under that first cell, what a click on it does: ×, dim, while a row holds all its values, which

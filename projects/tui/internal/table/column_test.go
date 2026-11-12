@@ -35,7 +35,7 @@ func TestTheCardSortsGroupsAndHidesItsColumn(t *testing.T) {
 	h := listing()
 	p := OpenCard(h, "state", false)
 	got := texts(p, h)
-	if !slices.Equal(got[:7], []string{"sort", grid.Unpicked + " ▲ Ascending", grid.Unpicked + " ▼ Descending",
+	if !slices.Equal(got[:7], []string{"sort", grid.Unpicked + " ¹ Ascending", grid.Unpicked + " ₁ Descending",
 		grid.Picked + " " + Unsorted, "", "rows", grid.Unticked + " " + GroupIt}) || got[8] != "filtering" ||
 		got[len(got)-1] != grid.Ticked+" "+ShowIt || p.At != 1 || !p.Header || p.X != 4 || p.Y != 6 {
 		t.Fatalf("state's card, at %d from %d, %d: %q", p.At, p.X, p.Y, got)
@@ -45,11 +45,11 @@ func TestTheCardSortsGroupsAndHidesItsColumn(t *testing.T) {
 		t.Errorf("title's card: %q", got)
 	}
 	// Ascending sorts, and the card stays open; Descending turns it
-	act(t, &p, h, "▲ Ascending")
+	act(t, &p, h, "¹ Ascending")
 	if !p.Open || h.panel.Field("state").Sort != grid.Ascending || p.Acts(h) {
 		t.Fatalf("ascending: %+v", h.panel.Field("state"))
 	}
-	act(t, &p, h, "▼ Descending")
+	act(t, &p, h, "₁ Descending")
 	if h.panel.Field("state").Sort != grid.Descending {
 		t.Errorf("descending: %+v", h.panel.Field("state"))
 	}
@@ -67,7 +67,7 @@ func TestTheCardSortsGroupsAndHidesItsColumn(t *testing.T) {
 	// with another key sorting the rows, state's sort carries ⁿ and ₙ; Unsorted takes it out of the keys
 	h.panel.Sortable["title"] = true
 	h.panel = h.panel.SortedAs("title", grid.Ascending)
-	if lineOf(p, h, "▼ₙ Descending") < 0 {
+	if lineOf(p, h, "ₙ Descending") < 0 {
 		t.Errorf("a key with another: %q", texts(p, h))
 	}
 	act(t, &p, h, Unsorted)
@@ -93,18 +93,18 @@ func TestTheCardFlattensAListAndGathersItAgain(t *testing.T) {
 	h.panel.Ones = map[string]string{"who": "person"}
 	p := OpenCard(h, "who", false)
 	flatten, gather := FlattenIt("person"), GatherIt("who")
-	if lineOf(p, h, "▲ Ascending"+BySize) < 0 || texts(p, h)[lineOf(p, h, gather)] != grid.Picked+" "+gather ||
+	if lineOf(p, h, "¹ Ascending"+BySize) < 0 || texts(p, h)[lineOf(p, h, gather)] != grid.Picked+" "+gather ||
 		texts(p, h)[lineOf(p, h, flatten)] != grid.Unpicked+" "+flatten {
 		t.Fatalf("who's card: %q", texts(p, h))
 	}
 	act(t, &p, h, flatten)
-	if !h.panel.Field("who").Flat || lineOf(p, h, "▲ Ascending") < 0 || !strings.Contains(Columns{}.Line(h, "who"), "person") {
+	if !h.panel.Field("who").Flat || lineOf(p, h, "¹ Ascending") < 0 || !strings.Contains(Columns{}.Line(h, "who"), "person") {
 		t.Fatalf("who flat: %q, its line %q", texts(p, h), Columns{}.Line(h, "who"))
 	}
-	act(t, &p, h, "▼ Descending")
+	act(t, &p, h, "₁ Descending")
 	act(t, &p, h, gather)
 	if f := h.panel.Field("who"); f.Flat || !slices.Equal(h.panel.SortKeys(), []grid.SortKey{{Column: "who", Desc: true}}) ||
-		lineOf(p, h, "▼ Descending"+BySize) < 0 {
+		lineOf(p, h, "₁ Descending"+BySize) < 0 {
 		t.Errorf("who gathered: %+v, keys %v", f, h.panel.SortKeys())
 	}
 }

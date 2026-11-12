@@ -9,10 +9,10 @@
   ▾ empowerite 2                             │ ☑ organization    enum    ·     ▤₁    ││ ⦾ One row per assignee        │
                                              │ ☑ repository      enum    ·     ▤₂    ││ ⦿ All assignees on one row    │
         id   source  status  age  change  sta│ ───────────────────────────────────── ││                               │
-        ·────·───────·───────▼────·───────·──│ ☑ id              ref     ·           ││ filtering                     │
+        ·────·───────·───────₁────·───────·──│ ☑ id              ref     ·           ││ filtering                     │
     ▾ jig 1                                  │ ☑ source          enum    ·     ·     ││ ⦿ include  ⦾ exclude          │
         #7   github  💤      40d             │ ☑ status          enum    ·     ·     ││ ☑ @me ada                     │
-    ▾ kit 1                                  │ ☑ age             time    ▼           ││ ☐ ada                         │
+    ▾ kit 1                                  │ ☑ age             time    ₁           ││ ☐ ada                         │
       ▸ #31  github  🛫       3h  🔀 #12  💬 │ ☑ change          ref     ·     ·     ││ ☐ bob                         │
                                              │ ☑ state           enum    ·     ·     ││ ☐ jeffrey-aguilera            │
                                              │ ☑ where           text    ·     ·     ││ ☐ none                        │

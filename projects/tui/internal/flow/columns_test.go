@@ -55,7 +55,7 @@ func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 	if top != m.top() || left+ansi.StringWidth(box[0]) != cleft || cleft+ansi.StringWidth(card[0]) != m.paneWidth() ||
 		!strings.Contains(text, "issues fields") ||
 		!strings.Contains(text, "field") || !strings.Contains(text, grid.Ticked+" assignees") ||
-		!strings.Contains(text, "▼") || !strings.Contains(text, grid.Unticked+" organization") ||
+		!strings.Contains(text, "₁") || !strings.Contains(text, grid.Unticked+" organization") ||
 		!strings.Contains(keysOf(m), "s sort") {
 		t.Errorf("the dialog at %d, %d:\n%s\n%q", top, left, text, keysOf(m))
 	}
@@ -86,7 +86,7 @@ func TestTheColumnsDialogAppliesAtOnce(t *testing.T) {
 		t.Fatalf("space on hidden change: %+v", m.panel(0).Field("change"))
 	}
 	at("age")
-	for _, want := range []string{"▲", "▼", ""} {
+	for _, want := range []string{"¹", "₁", ""} {
 		if m = drive(m, typed("s")...); m.panel(0).Mark("age") != want {
 			t.Fatalf("s on age: %q, want %q", m.panel(0).Mark("age"), want)
 		}
@@ -120,7 +120,7 @@ func TestTheColumnsDialogAppliesAtOnce(t *testing.T) {
 		t.Errorf("a click on title's box: %+v", m.panel(0).Field("title"))
 	}
 	x, y = columnsAt(t, m, "age")
-	if m = drive(m, testkit.Click(x+2+table.LabelCells+table.TypeCells, y)); !strings.HasPrefix(m.panel(0).Mark("age"), "▲") {
+	if m = drive(m, testkit.Click(x+2+table.LabelCells+table.TypeCells, y)); !strings.HasPrefix(m.panel(0).Mark("age"), "¹") {
 		t.Errorf("a click on age's sort: %q", m.panel(0).Mark("age"))
 	}
 	x, y = columnsAt(t, m, "assignees")

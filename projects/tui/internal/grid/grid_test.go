@@ -499,7 +499,7 @@ func TestThePanelOrdersTheColumns(t *testing.T) {
 
 // Rows sort by the panel's keys, each in turn: by a cell's sort value when it has one, else its text, naturally, so
 // #7 comes before #31; descending reverses a key; rows alike keep their order, and a row of one cell its place. A click
-// sorts by a column alone, ▲, ▼, then not at all; a shift-click adds it after the others; a column that cannot sort
+// sorts by a column alone, ¹, ₁, then not at all; a shift-click adds it after the others; a column that cannot sort
 // changes nothing.
 func TestThePanelSortsTheRows(t *testing.T) {
 	columns := []string{"id", "age"}
@@ -524,7 +524,7 @@ func TestThePanelSortsTheRows(t *testing.T) {
 	}
 	// by age, then id: the two of 60m by id
 	byAge := p.Sorted("age").Sorted("id")
-	if got := keys(byAge.order(rows, columns)); got != "#7 #100 heading #31" || byAge.Mark("age") != "▲¹" || byAge.Mark("id") != "▲²" {
+	if got := keys(byAge.order(rows, columns)); got != "#7 #100 heading #31" || byAge.Mark("age") != "¹" || byAge.Mark("id") != "²" {
 		t.Errorf("by age, then id: %s, marks %q %q", got, byAge.Mark("age"), byAge.Mark("id"))
 	}
 	// a key on a column the rows do not have orders nothing, and rows alike on every key keep their order
@@ -534,7 +534,7 @@ func TestThePanelSortsTheRows(t *testing.T) {
 	}
 	// a key among several turns in its place; a third time on a column stops it; Unsorted clears every key
 	if got := byAge.Sorted("id").SortKeys(); len(got) != 2 || got[1] != (SortKey{"id", true}) ||
-		byAge.Sorted("id").Mark("id") != "▼₂" {
+		byAge.Sorted("id").Mark("id") != "₂" {
 		t.Errorf("id turned among two keys: %+v", got)
 	}
 	if got := p.Sorted("id").Sorted("id").Sorted("id"); len(got.SortKeys()) != 0 || got.Mark("id") != "" {
@@ -551,14 +551,14 @@ func TestThePanelSortsTheRows(t *testing.T) {
 	// none; a group keeps how it sorts through Unsorted, and is marked only where it sorts
 	g := Panel{Sortable: map[string]bool{"id": true, "age": true}, Groupable: map[string]bool{"age": true}}.
 		Grouped("age", true).Sorted("id")
-	if place, total := g.Place("age"); g.Mark("id") != "▲" || g.Mark("age") != "" || place != 0 || total != 1 {
+	if place, total := g.Place("age"); g.Mark("id") != "¹" || g.Mark("age") != "" || place != 0 || total != 1 {
 		t.Errorf("under a group that does not sort: id %q, age %q at %d of %d", g.Mark("id"), g.Mark("age"), place,
 			total)
 	}
-	if s := g.SortedAs("age", Descending); s.Mark("age") != "▼₁" || s.Mark("id") != "▲²" {
+	if s := g.SortedAs("age", Descending); s.Mark("age") != "₁" || s.Mark("id") != "²" {
 		t.Errorf("under a group that sorts: id %q, age %q", s.Mark("id"), s.Mark("age"))
 	}
-	if g = g.SortedAs("age", Descending).Unsorted(); g.Mark("age") != "▼" || len(g.ColumnKeys()) != 0 {
+	if g = g.SortedAs("age", Descending).Unsorted(); g.Mark("age") != "₁" || len(g.ColumnKeys()) != 0 {
 		t.Errorf("a group sorting, unsorted: %q %+v", g.Mark("age"), g.SortKeys())
 	}
 	if place, _ := g.Place("id"); place != 0 {
@@ -991,16 +991,16 @@ func TestTheOutlinesTreeAndWhatStandsOpen(t *testing.T) {
 func TestAFieldsPopoverSetsItsSortFilterAndRendering(t *testing.T) {
 	p := Panel{Sortable: map[string]bool{"id": true, "age": true}}.Sorted("age").Sorted("id")
 	given := p.Fields
-	if q := p.SortedAs("age", Descending); q.Mark("age") != "▼₁" || q.Mark("id") != "▲²" || given["age"].Sort != Ascending {
+	if q := p.SortedAs("age", Descending); q.Mark("age") != "₁" || q.Mark("id") != "²" || given["age"].Sort != Ascending {
 		t.Errorf("age descending: %q %q", q.Mark("age"), q.Mark("id"))
 	}
-	if q := p.SortedAs("age", Unsorted); len(q.SortKeys()) != 1 || q.Mark("id") != "▲" {
+	if q := p.SortedAs("age", Unsorted); len(q.SortKeys()) != 1 || q.Mark("id") != "¹" {
 		t.Errorf("age off: %+v", q.SortKeys())
 	}
-	if q := p.SortedAs("age", Unsorted).SortedAs("age", Unsorted); len(q.SortKeys()) != 1 || q.Mark("id") != "▲" {
+	if q := p.SortedAs("age", Unsorted).SortedAs("age", Unsorted); len(q.SortKeys()) != 1 || q.Mark("id") != "¹" {
 		t.Errorf("age off twice: %+v", q.SortKeys())
 	}
-	if q := p.SortedAs("age", Unsorted).SortedAs("age", Ascending); q.Mark("age") != "▲²" {
+	if q := p.SortedAs("age", Unsorted).SortedAs("age", Ascending); q.Mark("age") != "²" {
 		t.Errorf("age back on: %q", q.Mark("age"))
 	}
 	if q := p.SortedAs("title", Ascending); len(q.SortKeys()) != 2 {
@@ -1743,5 +1743,28 @@ func TestColumnsAreMeasuredOnceForTheSameRows(t *testing.T) {
 	}
 	if got := columnWidths(short); !slices.Equal(got, []int{3, 2}) {
 		t.Errorf("after a header, the short rows measure %v", got)
+	}
+}
+
+// A sort's mark is always small, never a full-size triangle: its place among the keys raised for ascending and lowered
+// for descending, ¹ and ₁ for the first, each digit one cell wide, as the scroll counts' are.
+func TestASortIsAlwaysARaisedOrLoweredNumber(t *testing.T) {
+	for place, want := range map[int][2]string{1: {"¹", "₁"}, 3: {"³", "₃"}, 12: {"¹²", "₁₂"}} {
+		up, down := DirectionMark(Ascending, place), DirectionMark(Descending, place)
+		if up != want[0] || down != want[1] {
+			t.Errorf("place %d: %q %q", place, up, down)
+		}
+		if w := len(strconv.Itoa(place)); ansi.StringWidth(up) != w || ansi.StringWidth(down) != w {
+			t.Errorf("place %d is not one cell a digit: %d %d", place, ansi.StringWidth(up), ansi.StringWidth(down))
+		}
+	}
+	p := Panel{Sortable: map[string]bool{"id": true, "age": true}}
+	for _, q := range []Panel{p.Sorted("id"), p.Sorted("id").Sorted("id"), p.Sorted("age").Sorted("id").Sorted("id")} {
+		if m := q.Mark("id"); m == "" || strings.ContainsAny(m, "▲▼▴▾") {
+			t.Errorf("a sort's mark: %q", m)
+		}
+	}
+	if len([]rune(RaisedDigits)) != 9 || len([]rune(LoweredDigits)) != 9 {
+		t.Error("the digits the legend lists")
 	}
 }

@@ -8,7 +8,7 @@ order: 14
 
 ```text
       id   assignees   age  labels           title
-      ·────×·──────────▲───·────────────────·──────────
+      ·────×·──────────¹───·────────────────·──────────
     ▸ #45               2h  kind:feat… +2    🎫 kit flow…
     ▸ #46  jeffrey…     2d  bug              🎫 A noun l…
 ```
@@ -18,7 +18,7 @@ order: 14
 - Click a column's **name** for its menu: sort, group, flatten, hide, options.
 - The **rule** under a name says how it sorts. Click it to turn the sort.
 - `·`  can sort, and does not
-- `▲` `▼`  sorts up or down. A small number after it is its place among the sorts.
+- `¹` `₁`  sorts up (raised) or down (lowered). The small number is its place among the sorts: `²` or `₂` is the second.
 - `×`  a list, as labels. Click to give each value its own row.
 - `÷`  a list given a row per value. Click to put it back on one row.
 

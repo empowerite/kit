@@ -438,7 +438,7 @@ func TestTheLegendExplainsEveryGlyphOnTheScreenInOrder(t *testing.T) {
 	}
 	want := []string{shell.App + "  kit menu", shell.Workspaces + "  workspace menu", grid.Search + " search: / or click",
 		tabs.Marker(0, true) + "  selected tab", tabs.Marker(1, false) + "  tab: click to select", Issue + " issues stage",
-		Fields + " fields dialog", table.Presets + "  presets menu", Sortable + "  sortable: click to sort"}
+		Fields + " fields dialog", table.Presets + "  presets menu, not a sort", Sortable + "  sortable: click to sort"}
 	at := -1
 	for _, w := range want {
 		k := slices.Index(order, w)
@@ -448,7 +448,7 @@ func TestTheLegendExplainsEveryGlyphOnTheScreenInOrder(t *testing.T) {
 		at = k
 	}
 	// a glyph the screen does not show is not listed: no tab is stale, and nothing sorts
-	for _, absent := range []string{tabs.Stale, "▲", "▼  descending"} {
+	for _, absent := range []string{tabs.Stale, "¹", "₁", "▲", "▼  descending"} {
 		if slices.ContainsFunc(order, func(l string) bool { return strings.HasPrefix(l, absent) }) {
 			t.Errorf("the legend lists %q, which the screen does not show", absent)
 		}
@@ -504,6 +504,34 @@ func TestTheLegendListsTheDotOnlyAsASortableColumnOnTheRule(t *testing.T) {
 	for _, l := range m.legendLines() {
 		if strings.Contains(ansi.Strip(l), "separator") {
 			t.Errorf("the legend names a separator: %q", l)
+		}
+	}
+}
+
+// A sort on the rule is listed in the glyph the rule draws, a raised digit for ascending and a lowered one for
+// descending, never a triangle, and ▼ is listed as the presets' menu, which says it is not a sort.
+func TestTheLegendListsASortAsTheRaisedOrLoweredDigitTheRuleDraws(t *testing.T) {
+	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 140, Height: 40})
+	p := m.panel(m.stage).SortedAs("age", grid.Ascending).SortedAs("id", grid.Descending)
+	m.setPanel(p)
+	m = drive(m, press('?'))
+	rule := ansi.Strip(lines(m)[ruleY(m)])
+	var got []string
+	for _, l := range m.legendLines() {
+		got = append(got, ansi.Strip(l))
+	}
+	for _, want := range []string{"¹  ascending, its place: click to reverse", "₂  descending, its place: click to clear",
+		table.Presets + "  presets menu, not a sort"} {
+		if !slices.Contains(got, want) {
+			t.Errorf("no %q in the legend:\n%s", want, strings.Join(got, "\n"))
+		}
+	}
+	if !strings.Contains(rule, "¹") || !strings.Contains(rule, "₂") {
+		t.Errorf("the rule does not draw the digits the legend lists: %q", rule)
+	}
+	for _, l := range got {
+		if strings.HasPrefix(l, "▲") || strings.HasPrefix(l, "▼ ") && !strings.Contains(l, "not a sort") {
+			t.Errorf("a triangle as a sort: %q", l)
 		}
 	}
 }

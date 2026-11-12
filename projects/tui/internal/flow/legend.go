@@ -105,12 +105,9 @@ func (m Model) parts(last int) []part {
 	rows := func(y int) bool { return y >= top && y < last }
 	headings := func(y int) bool { return rows(y) && !rule(y) && !control(y) }
 	status := func(y int) bool { return y == last }
-	var numbers, selected, places []string
+	var numbers, selected []string
 	for i := range 10 {
 		numbers, selected = append(numbers, tabs.Marker(i, false)), append(selected, tabs.Marker(i, true))
-	}
-	for _, d := range strings.Split("¹²³⁴⁵⁶⁷⁸⁹₁₂₃₄₅₆₇₈₉", "") {
-		places = append(places, d)
 	}
 	one := func(glyph, meaning string, on func(int) bool) part { return part{[]string{glyph}, meaning, "", on} }
 	out := []part{
@@ -129,11 +126,10 @@ func (m Model) parts(last int) []part {
 		one(grid.Folded, "closed: click to open", rows),
 		one("¬", "filtered out", control),
 		one(Fields, "fields dialog", control),
-		one(table.Presets, "presets menu", control),
+		one(table.Presets, "presets menu, not a sort", control),
 		one(Sortable, "sortable: click to sort", rule),
-		one("▲", "ascending: click to reverse", rule),
-		one("▼", "descending: click to clear", rule),
-		{places, "sort order", "", rule},
+		{strings.Split(grid.RaisedDigits, ""), "ascending, its place: click to reverse", "", rule},
+		{strings.Split(grid.LoweredDigits, ""), "descending, its place: click to clear", "", rule},
 		one(table.FlattenGlyph, "list: click to flatten", rule),
 		one(table.GatherGlyph, "flattened: click to gather", rule),
 		one(grid.Chosen, "group selected", rows),

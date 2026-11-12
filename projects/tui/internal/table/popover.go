@@ -151,9 +151,9 @@ func (p Popover) Lines(h Host) []PopLine {
 	alone := p.hangs()
 	if alone && panel.Sorts(id) {
 		heading("sort")
-		up, down, by := "", "", ""
+		up, down, by := grid.DirectionMark(grid.Ascending, 1), grid.DirectionMark(grid.Descending, 1), ""
 		if place, total := panel.Place(id); total-min(place, 1) > 0 {
-			up, down = "ⁿ", "ₙ"
+			up, down = grid.AscendingPlace, grid.DescendingPlace
 		}
 		if panel.Counts(id) {
 			by = BySize
@@ -161,8 +161,8 @@ func (p Popover) Lines(h Host) []PopLine {
 		sorted := func(d grid.Direction) func(grid.Panel) grid.Panel {
 			return func(q grid.Panel) grid.Panel { return q.SortedAs(id, d) }
 		}
-		radio("▲"+up+" Ascending"+by, g.Sort == grid.Ascending, sorted(grid.Ascending))
-		radio("▼"+down+" Descending"+by, g.Sort == grid.Descending, sorted(grid.Descending))
+		radio(up+" Ascending"+by, g.Sort == grid.Ascending, sorted(grid.Ascending))
+		radio(down+" Descending"+by, g.Sort == grid.Descending, sorted(grid.Descending))
 		radio(Unsorted, g.Sort == grid.Unsorted, sorted(grid.Unsorted))
 	}
 	if alone && panel.Groupable[id] || panel.Lists(id) {

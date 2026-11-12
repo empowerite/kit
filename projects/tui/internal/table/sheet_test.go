@@ -565,7 +565,7 @@ func TestTheRuleAndTheControlLineSayWhatIsSelectedAndFiltered(t *testing.T) {
 		t.Errorf("a control line without a preset line: %q %d", line, at)
 	}
 	// a spot the rule cannot hold is left off it
-	spots := []SortSpot{{Column: "a", Mark: "▲", At: 2, Until: 4}, {Column: "b", Mark: "▼", At: 40, Until: 41}}
+	spots := []SortSpot{{Column: "a", Mark: "¹", At: 2, Until: 4}, {Column: "b", Mark: "₁", At: 40, Until: 41}}
 	if fill := ansi.Strip(RuleFill(spots, 4, 10)); fill != strings.Repeat("─", 10) {
 		t.Errorf("spots off the rule: %q", fill)
 	}
@@ -1095,7 +1095,7 @@ func TestARuleUnderTheGroupsSortsThemAndFlattensAList(t *testing.T) {
 		t.Fatalf("the rule under a heading %d wide: %q", bar, rule)
 	}
 	s.click(x, s.top+1, false)
-	if s.Panel().Mark("kind") == "" || !strings.Contains(screenOf(s)[s.top+1], "▲") {
+	if s.Panel().Mark("kind") == "" || !strings.Contains(screenOf(s)[s.top+1], "¹") {
 		t.Errorf("a click on the sort's mark: %q, %q", s.Panel().Mark("kind"), screenOf(s)[s.top+1])
 	}
 	// a list grouped by: its × makes it a column again, flattened

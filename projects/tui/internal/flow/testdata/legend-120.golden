@@ -15,18 +15,18 @@
     ▾ kit 6
       ▸ #1   🛫      jeffrey-aguilera   8d  🔀 #2   🏁 ready          🌿 here   priorityh… +1  🎫 The first release…
         #8   🛫                         2d  🔀 #4   🔥 failing:gate   👤 bob                      🎫 Lint the modules
-        #8   🛫                         2d  🔀 #11  🔨 draft     ╭─ issues legend ──────────────────────────── ↖ ↗ ↙ ↘ ╮
-      ▸ #46  💤      jeffrey-aguilera   2d                       │ =  kit menu              📇 fields dialog           │
-      ▸ #31  🛫      ada                3h  🔀 #12  💬 comments:o│ -  workspace menu        ▼  presets menu            │
-      ▸ #45  💤                         2h                       │ 🔎 search: / or click    ·  sortable: click to sort │
-                                                                 │ ➊  selected tab          ×  list: click to flatten  │
-                                                                 │ ➁  tab: click to select  ▸  closed: click to open   │
-                                                                 │ 🎫 issues stage          💤 backlog                 │
-                                                                 │ :  tab menu              🎫 issue 🔗                │
-                                                                 │ 🔀 changes stage         🛫 underway                │
-                                                                 │ 🏭 builds stage          🔀 pull request †          │
-                                                                 │ 🛬 incoming stage        🌿 branch or worktree †    │
-                                                                 │ 📦 releases stage        👤 assignees or author     │
-                                                                 │ ▾  open: click to close  🌱 local branch            │
-                                                                 ╰─────────────────────────────────────────────────────╯
+        #8   🛫                         2d  🔀 #11  🔨 draft    ╭─ issues legend ───────────────────────────── ↖ ↗ ↙ ↘ ╮
+      ▸ #46  💤      jeffrey-aguilera   2d                      │ =  kit menu              📇 fields dialog            │
+      ▸ #31  🛫      ada                3h  🔀 #12  💬 comments:│ -  workspace menu        ▼  presets menu, not a sort │
+      ▸ #45  💤                         2h                      │ 🔎 search: / or click    ·  sortable: click to sort  │
+                                                                │ ➊  selected tab          ×  list: click to flatten   │
+                                                                │ ➁  tab: click to select  ▸  closed: click to open    │
+                                                                │ 🎫 issues stage          💤 backlog                  │
+                                                                │ :  tab menu              🎫 issue 🔗                 │
+                                                                │ 🔀 changes stage         🛫 underway                 │
+                                                                │ 🏭 builds stage          🔀 pull request †           │
+                                                                │ 🛬 incoming stage        🌿 branch or worktree †     │
+                                                                │ 📦 releases stage        👤 assignees or author      │
+                                                                │ ▾  open: click to close  🌱 local branch             │
+                                                                ╰──────────────────────────────────────────────────────╯
  = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-5 jump : tab menu
