@@ -112,3 +112,8 @@ import "template" as template; template::parts | template::match("# a:\n#   # b:
 import "template" as template; try template::parts catch .
 "x\n§a\n"
 "line 2: a block needs a prefix before its §, the text each of its lines starts with"
+
+# A block ends at one of the template's own lines too, so a block whose prefix every line has still ends at a label.
+import "template" as template; template::parts | template::match("# a\n#\n#   b\n#\n# Arguments:\n#   --x  y\n")
+"# §description\n#\n# Arguments:\n#   §arguments\n"
+{"ok":true,"values":{"description":"a\n\n  b\n","arguments":"--x  y\n"}}

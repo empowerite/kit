@@ -97,7 +97,9 @@ indentation. The prefix is the text before the `§`, and a block needs one. On a
 Against that template, the lines `#   --json   one JSON object per row`, `#`, and `#   --jq     the same JSON` are
 the block, and `arguments` is `--json   one JSON object per row`, an empty line, and `--jq     the same JSON`. The
 bare `#` between them is a line the prefix starts with, so it stays in the block; the bare `#` after the last is
-left for the template's own `#` line. A block may hold no lines, so a script with no arguments matches too.
+left for the template's own `#` line. A block may hold no lines, so a script with no arguments matches too. A block
+also ends at one of the template's own lines, as below, so `# §description` ends at `# Arguments:` though that line
+starts with the block's prefix too.
 
 Making a file puts the prefix back on each line, and an empty line becomes the prefix without its trailing spaces,
 `#` here. So a block's line that holds less than the prefix comes back as that, which is how such a line is written.

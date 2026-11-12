@@ -10,7 +10,8 @@
 #                          with, such as a bare # between paragraphs, up to the last that starts with it; its value is
 #                          the lines without the prefix; §name=default gives the default's lines
 #
-# A block ends where its indentation ends, so a hole may follow it with no text between. Every other hole ends where
+# A block ends where its indentation ends, or at one of the template's own lines below, so a hole may follow it with
+# no text between. Every other hole ends where
 # the literal after it starts, so a hole's text never holds one of the template's own whole literal lines that has a
 # letter or digit, such as a section's label: a label inside a section would move where the section ends.
 #
@@ -109,10 +110,13 @@ def reserved:
 # prefix starts with, such as a bare # between paragraphs.
 def continues($prefix): rtrimstr("\n") as $l | ($l | startswith($prefix)) or ($prefix | startswith($l));
 
-# block($prefix) reads the lines that follow and gives the block's: the run that continues it, up to the last that
-# starts with the prefix, so the lines after its last that only start the prefix are left for what follows.
-def block($prefix):
-  (first(range(0; length) as $k | select(.[$k] | continues($prefix) | not) | $k) // length) as $run
+# block($prefix; $reserved) reads the lines that follow and gives the block's: the run that continues it, up to the
+# last that starts with the prefix, so the lines after its last that only start the prefix are left for what follows.
+# The run ends at one of the template's reserved lines too, so a block whose prefix every line has ends at a label.
+def block($prefix; $reserved):
+  (first(range(0; length) as $k
+     | select((.[$k] | continues($prefix) | not) or (.[$k] | rtrimstr("\n") | IN($reserved[]))) | $k) // length)
+  as $run
   | .[:$run]
   | ([range(0; length) as $k | select(.[$k] | rtrimstr("\n") | startswith($prefix)) | $k] | last) as $last
   | if $last == null then [] else .[:$last + 1] end;
@@ -149,7 +153,7 @@ def match($text):
       elif $p.kind == "block" then
         # a hole before a block has no literal to end at
         if .hole != null then .ok = false | .line = $p.line
-        else ($text[.pos:] | lines_of | block($p.prefix)) as $lines
+        else ($text[.pos:] | lines_of | block($p.prefix; $reserved)) as $lines
           | ($lines | add // "") as $raw
           | .values |= put($arrays; $p.hole; $lines | unprefix($p.prefix))
           | .raws += [{line: $p.line, text: $raw}]
