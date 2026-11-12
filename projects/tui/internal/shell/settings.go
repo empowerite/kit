@@ -5,6 +5,7 @@ import (
 	"image"
 	"os"
 	"path/filepath"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -155,9 +156,14 @@ func (d SettingsDialog) Overlay(lines []string, s Settings, width int) []string 
 	return Over(lines, box, top, left)
 }
 
-// box gives the dialog's lines, as Overlay draws them on a screen so wide.
+// box gives the dialog's lines, as Overlay draws them on a screen so wide: each setting's name, then what it says, in
+// one column two cells after the longest name.
 func (d SettingsDialog) box(s Settings, width int) []string {
 	var body []string
+	wide := 0
+	for _, set := range settings {
+		wide = max(wide, ansi.StringWidth(set.name))
+	}
 	for k, set := range settings {
 		box := style.Unpicked
 		if set.get(s) {
@@ -167,7 +173,8 @@ func (d SettingsDialog) box(s Settings, width int) []string {
 		if k == d.At {
 			name = style.Selected(name)
 		}
-		body = append(body, name+"  "+style.Off(set.says))
+		pad := strings.Repeat(" ", wide-ansi.StringWidth(set.name)+2)
+		body = append(body, name+pad+style.Off(set.says))
 	}
 	return Dialog(settingsItem.Name, body, width-2)
 }

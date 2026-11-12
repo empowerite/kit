@@ -153,6 +153,24 @@ func TestTheSettingsDialogFlipsASettingAndSavesIt(t *testing.T) {
 	}
 }
 
+// The dialog's settings say what they do in one column, two cells after the longest name, the keyboard's highlight on
+// the name alone.
+func TestTheSettingsDialogsDescriptionsStandInOneColumn(t *testing.T) {
+	s := LoadSettings(filepath.Join(t.TempDir(), "kittui.json"))
+	box := (SettingsDialog{Open: true}).box(s, 200)
+	at := map[int]bool{}
+	for k, set := range settings {
+		at[strings.Index(ansi.Strip(box[k+1]), set.says)] = true
+	}
+	if len(at) != 1 {
+		t.Errorf("the descriptions start at %v:\n%s", at, ansi.Strip(strings.Join(box, "\n")))
+	}
+	if !strings.Contains(box[1], style.Selected(style.Unpicked+" Key hints")+"     ") &&
+		!strings.Contains(box[1], style.Selected(style.Picked+" Key hints")+"     ") {
+		t.Errorf("Key hints: %q", box[1])
+	}
+}
+
 // A left click on a setting puts the keyboard on it and flips it, saved at once; one on the box's edge changes
 // nothing; one off the box closes the dialog; another button does nothing.
 func TestAClickOnTheSettingsDialogFlipsASettingOrClosesIt(t *testing.T) {
