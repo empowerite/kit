@@ -200,23 +200,37 @@ terminal:unreadable() {
 }
 
 # terminal:bad <key> <settings> prints each finding of the terminal <key> by its id, true where its bad holds of the
-# reader's object <settings>. A bad that answers null reads a setting the reader did not give, so it is false: kit
-# fails a finding only on what it read. A bad that does not compile, or answers anything else, is kit's bug: it says
-# so and returns 2.
+# reader's object <settings>. A bad reads the object's own keys, as .option, each of which the reader gives, though
+# it may give one as null where it does not apply; a bad that answers null is false, so kit fails a finding only on
+# what it read. A bad that reads a key the object does not have, does not compile, or answers anything else, is kit's
+# bug: it prints which finding, and why, and returns 2.
 terminal:bad() {
-  local key=$1 settings=$2 id bad answer out='{}'
-  while IFS=$'\t' read -r id bad
+  local key=$1 settings=$2 id bad missing answer out='{}'
+  while IFS=$'\t' read -r id bad missing
   do
+    if [[ -n "${missing}" ]]
+    then
+      printf 'its finding %s reads %s, which its reader did not give\n' "${id}" "${missing}"
+      return 2
+    fi
     answer=$(jq --null-input --argjson s "${settings}" "\$s | (${bad})" 2>/dev/null) || answer=''
     [[ "${answer}" != null ]] || answer=false
-    if [[ "${answer}" != true && "${answer}" != false ]]
+    if [[ -z "${answer}" ]]
     then
-      error "terminals.json: ${key}'s ${id} has a bad that does not answer true or false: ${bad}"
+      printf 'its finding %s does not compile: %s\n' "${id}" "${bad}"
+      return 2
+    elif [[ "${answer}" != true && "${answer}" != false ]]
+    then
+      printf 'its finding %s answers %s, not true or false\n' "${id}" "${answer}"
       return 2
     fi
     out=$(jq --compact-output --arg id "${id}" --argjson answer "${answer}" '.[$id] = $answer' <<<"${out}")
-  done < <(jq --raw-output --arg key "${key}" '.terminals[$key].findings[]? | [.id, .bad] | @tsv' \
-    "${kit_jq}/terminals.json")
+  done < <(jq --raw-output --arg key "${key}" --argjson s "${settings}" '
+      .terminals[$key].findings[]?
+      | [.id, .bad,
+         ([.bad | gsub("\"([^\"\\\\]|\\\\.)*\""; "") | scan("\\.([A-Za-z_][A-Za-z0-9_]*)") | .[0]
+           | select(. as $k | $s | has($k) | not)] | unique | join(", "))]
+      | @tsv' "${kit_jq}/terminals.json")
   printf '%s\n' "${out}"
 }
 
@@ -378,46 +392,71 @@ terminal:kept() {
 }
 
 # terminal:kept-id <id> prints the id a keep of <id> is written as: after @ and the profile the terminal is judged in,
-# where its reader gives one.
+# where its reader gives one. Where the terminal judges a profile and kit cannot read its settings, kit cannot say
+# which profile the keep is for, so it says why and fails.
 terminal:kept-id() {
-  local profile
-  profile=$(terminal:settings "$(terminal:key)" \
-    | jq --raw-output 'if type == "object" then .profile // empty else empty end')
-  printf '%s%s\n' "$1" "${profile:+@${profile}}"
+  local key read name
+  key=$(terminal:key)
+  read=$(terminal:settings "${key}")
+  name=$(jq --raw-output --arg key "${key}" '.terminals[$key].name' "${kit_jq}/terminals.json")
+  if jq --exit-status --arg key "${key}" --argjson read "${read}" \
+    '(.terminals[$key].profiles // false) and ($read | type) == "object" and ($read | has("unreadable"))' \
+    "${kit_jq}/terminals.json" >/dev/null
+  then
+    error "kit cannot keep $1: ${name} judges it in a profile, and kit could not read which:" \
+      "$(jq --raw-output .unreadable <<<"${read}")"
+    return 1
+  fi
+  jq --raw-output --arg id "$1" 'if type == "object" and .profile then "\($id)@\(.profile)" else $id end' <<<"${read}"
 }
 
-# terminal:keep <id> keeps the check <id> in the profile it is judged in, once.
+# terminal:is-kept <id> succeeds where the id <id>, as terminal:kept-id writes it, is kept.
+terminal:is-kept() {
+  terminal:kept | jq --exit-status --arg id "$1" 'any(.[]; . == $id)' >/dev/null
+}
+
+# terminal:keep <id> keeps the check <id> in the profile it is judged in, after those kept before it; a keep of one
+# kept already changes nothing.
 terminal:keep() {
   local file kit_kept
   file=$(terminal:settings-file)
-  kit_kept=$(terminal:kept-id "$1")
+  kit_kept=$(terminal:kept-id "$1") || return 1
   export kit_kept
-  if [[ -f "${file}" ]]
+  if [[ ! -f "${file}" ]]
   then
-    file:replace "${file}" yq '.terminal.kept = ((.terminal.kept // []) + [strenv(kit_kept)] | unique)' "${file}"
-  else
     file:replace "${file}" yq --null-input '.terminal.kept = [strenv(kit_kept)]'
+  elif ! terminal:is-kept "${kit_kept}"
+  then
+    file:replace "${file}" yq '.terminal.kept = (.terminal.kept // []) + [strenv(kit_kept)]' "${file}"
   fi
 }
 
-# terminal:unkeep <id> undoes the keep of <id> in the profile it is judged in; with none, it changes nothing.
+# terminal:unkeep <id> undoes the keep of <id> in the profile it is judged in; with none, it changes nothing. The last
+# keep takes the terminal out of the settings file, and the file goes too when nothing else is in it.
 terminal:unkeep() {
   local file kit_kept
   file=$(terminal:settings-file)
   [[ -f "${file}" ]] || return 0
-  kit_kept=$(terminal:kept-id "$1")
+  kit_kept=$(terminal:kept-id "$1") || return 1
+  terminal:is-kept "${kit_kept}" || return 0
   export kit_kept
-  file:replace "${file}" yq '.terminal.kept = ((.terminal.kept // []) - [strenv(kit_kept)])' "${file}"
+  file:replace "${file}" yq '.terminal.kept -= [strenv(kit_kept)] | del(.terminal.kept | select(length == 0))
+    | del(.terminal | select(length == 0))' "${file}"
+  [[ "$(yq 'length' "${file}")" != 0 ]] || rm -f "${file}"
 }
 
-# terminal:checks prints the terminal's checks, one JSON object a line: its heading, each finding, and each probe.
+# terminal:checks prints the terminal's checks, one JSON object a line: its heading, each finding, and each probe. A
+# bug in a finding, as terminal:bad names it, is kit's, so the heading names it in place of the terminal's settings,
+# and the probes are judged as for settings kit could not read.
 terminal:checks() {
   local key read bad='{}' probes kept
   key=$(terminal:key)
   read=$(terminal:settings "${key}")
-  if jq --exit-status 'type == "object" and (has("unreadable") | not)' <<<"${read}" >/dev/null
+  if jq --exit-status 'type == "object" and (has("unreadable") | not)' <<<"${read}" >/dev/null \
+    && ! bad=$(terminal:bad "${key}" "${read}")
   then
-    bad=$(terminal:bad "${key}" "${read}") || return 2
+    read=$(terminal:unreadable "a bug in kit: ${bad}")
+    bad='{}'
   fi
   probes=$(terminal:probes)
   kept=$(terminal:kept)

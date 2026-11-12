@@ -26,6 +26,7 @@
     "iterm": {
       "name": "iTerm2",
       "anchor": "iterm2",
+      "profiles": true,
       "findings": [
         {
           "id": "triggers",
@@ -96,6 +97,7 @@
     "apple": {
       "name": "Terminal",
       "anchor": "terminal",
+      "profiles": true,
       "heading": "{name}, its default profile {profile}",
       "findings": [
         {
@@ -274,6 +276,7 @@
     "wt": {
       "name": "Windows Terminal",
       "anchor": "windows-terminal",
+      "profiles": true,
       "findings": [
         {
           "id": "kitty-keyboard",

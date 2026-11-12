@@ -28,7 +28,8 @@ kit names the terminal from the environment: a multiplexer first (`TMUX`, `STY`,
 judges the terminal two ways:
 
 - Settings: where it knows the terminal, kit reads the settings the terminal keeps, once, within a second, and never
-  writes them. A finding fails only on a value kit read. A setting kit could not read is not a finding.
+  writes them. A finding fails only on a value kit read. A setting kit could not read is not a finding, and a finding
+  that reads a setting its reader did not give is kit's own bug, which the terminal's heading names.
 - Probes: kit asks the terminal what it does, before it hands the terminal to kittui, and passes the answers down in
   `KIT_TERMINAL_PROBES`. The probes run in every terminal, known or not, over ssh and inside a multiplexer.
 
@@ -54,8 +55,10 @@ kit welcome --keep=terminal-iterm-triggers
 ```
 
 kit writes it under `terminal: kept:` in `~/.kit/settings.yml`, after the profile it was judged in where the terminal
-has profiles, so a keep in one profile never silences another. The finding then holds, and its line starts with
-`kept:`. `kit welcome --unkeep=terminal-iterm-triggers` undoes it. In kittui, a failed finding offers later and keep.
+has profiles, so a keep in one profile never silences another; where it cannot read which profile that is, kit
+refuses the keep. The finding then holds, and its line starts with `kept:`.
+`kit welcome --unkeep=terminal-iterm-triggers` undoes it, and the last one takes `terminal:` out of the file. In
+kittui, a failed finding offers later and keep.
 
 ## iTerm2
 

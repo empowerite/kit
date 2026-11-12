@@ -57,18 +57,51 @@ setup() {
   done < <(jq -r '.terminals[].findings[]?.bad' "${kit_root}/modules/jq/terminals.json")
 }
 
+# iterm-read prints iTerm2's reader's object with every key, as a profile set as kittui needs, with the changes jq
+# makes in $1.
+iterm-read() {
+  jq --null-input --compact-output '{profile: "Default", triggers: 0, triggers_interactive: false, option_left: 2,
+    option_right: 2, apps_change_keys: true, mouse: true, mouse_clicks: true, no_alternate_screen: false,
+    unicode_version: 9, ambiguous_wide: false, encoding: 4}'" | ${1:-.}"
+}
+
+# stub-reader <key> <body> puts a reader for the terminal <key> in the project, ahead of kit's, with the body <body>.
+stub-reader() {
+  mkdir -p bash/terminal
+  printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' > kit.yml
+  printf 'terminal/%s:settings() { %s; }\n' "$1" "$2" > "bash/terminal/$1.sh"
+}
+
 @test "terminal:bad answers each finding of a terminal from the reader's object" {
-  run kit-bash 'terminal:bad iterm "{\"triggers\": 2, \"triggers_interactive\": true}"'
+  run kit-bash "terminal:bad iterm '$(iterm-read '.triggers = 2 | .triggers_interactive = true')'"
   [ "$status" -eq 0 ]
   [ "$(jq -c .triggers <<<"$output")" = true ]
-  run kit-bash 'terminal:bad iterm "{\"triggers\": 0, \"triggers_interactive\": true}"'
+  run kit-bash "terminal:bad iterm '$(iterm-read '.triggers = 0 | .triggers_interactive = true')'"
   [ "$(jq -c .triggers <<<"$output")" = false ]
 }
 
-@test "a finding whose bad answers null, as for a setting the reader did not give, holds" {
-  run kit-bash 'terminal:bad iterm "{\"triggers\": 2, \"triggers_interactive\": true}" | jq -c ".\"alternate-screen\""'
+@test "a finding whose bad answers null, as for a setting the reader gave as null, holds" {
+  run kit-bash "terminal:bad iterm '$(iterm-read '.no_alternate_screen = null')' | jq -c '.\"alternate-screen\"'"
   [ "$status" -eq 0 ]
   [ "$output" = false ]
+}
+
+@test "a finding whose bad reads a setting its reader did not give is kit's bug, and says which, not a failed finding" {
+  run kit-bash "terminal:bad iterm '$(iterm-read 'del(.option_right)')'"
+  [ "$status" -eq 2 ]
+  [ "$output" = "its finding option reads option_right, which its reader did not give" ]
+  run kit-bash "terminal:bad iterm '$(iterm-read 'del(.encoding, .ambiguous_wide)')'"
+  [ "$output" = "its finding ambiguous-wide reads ambiguous_wide, which its reader did not give" ]
+}
+
+@test "a bug in a finding keeps the terminal's checks: its heading names the bug, and its probes are judged" {
+  stub-reader iterm "printf '%s\\n' '$(iterm-read 'del(.mouse_clicks)')'"
+  run kit-bash 'TERM_PROGRAM=iTerm.app KIT_TERMINAL_PROBES={\"answered\":true,\"color\":\"true\"} terminal:checks'
+  [ "$status" -eq 0 ]
+  local want="iTerm2: kit could not read its settings: a bug in kit: its finding mouse reads mouse_clicks, which its"
+  [ "$(jq -sr '.[0].line' <<<"$output")" = "${want} reader did not give" ]
+  [ "$(jq -sc '[.[] | .id | select(startswith("terminal-iterm-"))]' <<<"$output")" = '[]' ]
+  [ "$(jq -sc '[.[] | select(.id == "terminal-probe-color") | .ok]' <<<"$output")" = '[true]' ]
 }
 
 @test "kept is empty with no settings file, a keep is written once however often, and an unkeep of none is fine" {
@@ -90,6 +123,45 @@ setup() {
   [ "$status" -eq 0 ]
   [ "$(yq '.toolchain' "${KIT_HOME}/.kit/settings.yml")" = brew ]
   [ "$(yq -o=json -I=0 '.terminal.kept' "${KIT_HOME}/.kit/settings.yml")" = '["terminal-probe-color"]' ]
+}
+
+@test "a keep goes after those kept before it, and an unkeep of a check not kept leaves the file as it was" {
+  mkdir -p "${KIT_HOME}/.kit"
+  printf 'toolchain: brew\n' > "${KIT_HOME}/.kit/settings.yml"
+  run kit-bash 'SSH_TTY=/dev/ttys1 terminal:unkeep terminal-probe-color'
+  [ "$status" -eq 0 ]
+  [ "$(cat "${KIT_HOME}/.kit/settings.yml")" = 'toolchain: brew' ]
+  run kit-bash 'export SSH_TTY=/dev/ttys1; terminal:keep terminal-probe-emoji-width; terminal:keep terminal-probe-color
+    terminal:keep terminal-probe-emoji-width; terminal:kept'
+  [ "$(jq -c . <<<"$output")" = '["terminal-probe-emoji-width","terminal-probe-color"]' ]
+}
+
+@test "the last unkeep takes the terminal out of the settings file, and the file goes with it when nothing is left" {
+  mkdir -p "${KIT_HOME}/.kit"
+  printf 'toolchain: brew\n' > "${KIT_HOME}/.kit/settings.yml"
+  run kit-bash 'export SSH_TTY=/dev/ttys1; terminal:keep terminal-probe-color; terminal:unkeep terminal-probe-color'
+  [ "$status" -eq 0 ]
+  [ "$(cat "${KIT_HOME}/.kit/settings.yml")" = 'toolchain: brew' ]
+  rm "${KIT_HOME}/.kit/settings.yml"
+  run kit-bash 'export SSH_TTY=/dev/ttys1; terminal:keep terminal-probe-color; terminal:unkeep terminal-probe-color'
+  [ "$status" -eq 0 ]
+  [ ! -e "${KIT_HOME}/.kit/settings.yml" ]
+}
+
+@test "a keep where the terminal judges a profile, and kit cannot read which, is refused and writes nothing" {
+  stub-reader iterm "printf 'no preferences\\n'; return 1"
+  run kit-bash 'TERM_PROGRAM=iTerm.app terminal:keep terminal-probe-color'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"kit cannot keep terminal-probe-color: iTerm2 judges it in a profile, and kit could not read"* ]]
+  [[ "$output" == *"which: no preferences"* ]]
+  [ ! -e "${KIT_HOME}/.kit/settings.yml" ]
+}
+
+@test "a keep where the terminal judges no profile is written even when kit cannot read its settings" {
+  stub-reader kitty "return 1"
+  run kit-bash 'KITTY_PID=1 terminal:keep terminal-probe-color; terminal:kept'
+  [ "$status" -eq 0 ]
+  [ "$(jq -c . <<<"$output")" = '["terminal-probe-color"]' ]
 }
 
 @test "a reader that outlasts a second gives a heading that says so, and welcome goes on" {
@@ -160,11 +232,7 @@ setup() {
 }
 
 @test "a reader's object is judged: a profile with triggers fails the triggers finding" {
-  mkdir -p bash/terminal
-  printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' > kit.yml
-  cat > bash/terminal/iterm.sh <<'EOF'
-terminal/iterm:settings() { echo '{"profile": "Work", "triggers": 1, "triggers_interactive": true}'; }
-EOF
+  stub-reader iterm "printf '%s\\n' '$(iterm-read '.profile = "Work" | .triggers = 1 | .triggers_interactive = true')'"
   run kit-bash 'TERM_PROGRAM=iTerm.app terminal:checks'
   [ "$status" -eq 0 ]
   [ "$(jq -sc 'map(select(.id == "terminal-iterm" or .id == "terminal-iterm-triggers") | [.id, .ok])' <<<"$output")" \
@@ -462,7 +530,8 @@ esac' wslpath 'printf "%s\n" "${WIN_LOCAL}"'
 }
 
 @test "the JSONC reader takes out a comma that only comments and blank lines keep from its closing brace" {
-  run kit-bash 'use terminal/wt; printf "{\"a\": [1, 2, /* two */\n\n],  // a\n  // b\n\n}\n" | terminal/wt:jsonc | jq -c .'
+  run kit-bash 'use terminal/wt
+    printf "{\"a\": [1, 2, /* two */\n\n],  // a\n  // b\n\n}\n" | terminal/wt:jsonc | jq -c .'
   [ "$status" -eq 0 ]
   [ "$output" = '{"a":[1,2]}' ]
 }

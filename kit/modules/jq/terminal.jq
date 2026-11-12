@@ -7,6 +7,7 @@
 #   probes      each probe, in the order its checks come: need, one of speed, clicks, keys, widths, and color; held,
 #               the line where the terminal answered as kittui needs; failed, where it did not
 #   terminals   each terminal by its key, the word in its checks' ids: name; anchor, its section of the docs;
+#               profiles, true where its reader judges one profile of several, so a keep is for that profile;
 #               heading, where it has one, the line its heading says in place of its name and profile; and
 #               findings, each with id, need, bad, a jq expression over the reader's object that is true when the
 #               setting breaks the need, line, held, and fix; or unread, the line its heading says where kit has no
