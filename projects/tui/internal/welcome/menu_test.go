@@ -195,3 +195,21 @@ func maps(o map[string]bool) string {
 	slices.Sort(out)
 	return strings.Join(out, " ")
 }
+
+// Every step's tab draws : while selected, and : drops its menu down, which esc closes, as on every screen with tabs.
+func TestEveryStepsTabHasTheTabMenu(t *testing.T) {
+	m, _ := loaded(t)
+	if len(m.tabs) == 0 {
+		t.Fatal("the welcome has no tabs")
+	}
+	for i := range m.tabs {
+		if m = drive(m, typed(rune('1'+i))); m.step != i || m.bar().MenuAt() < 0 ||
+			!strings.Contains(strings.Split(view(m), "\n")[2], " "+tabs.Menu+" ") {
+			t.Errorf("tab %d: selected %d, its : at %d", i+1, m.step, m.bar().MenuAt())
+		}
+		if m = drive(m, typed(':')); !m.tabMenu.Open {
+			t.Errorf("tab %d: : opened no menu", i+1)
+		}
+		m = drive(m, esc)
+	}
+}

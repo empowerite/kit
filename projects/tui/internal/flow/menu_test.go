@@ -480,3 +480,34 @@ func TestShowAndHideSelectedActOnTheSelectedRowsAlone(t *testing.T) {
 		t.Errorf("hide selected left %d open, the selected one %v", openRows(m), m.stages[m.stage].Open[rows[1].Key])
 	}
 }
+
+// Every tab of every app, Flow and each built around an entity, draws the menu's glyph while selected, and : drops its
+// menu down, which esc closes.
+func TestEveryTabOfEveryAppHasTheTabMenu(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	flow := loaded(t, options(), tea.WindowSizeMsg{Width: 200, Height: 30})
+	defer flow.Close()
+	screens := []shell.Screen{shell.Flow}
+	for _, a := range apps {
+		screens = append(screens, a.screen)
+	}
+	for _, app := range screens {
+		m := flow
+		if app != shell.Flow {
+			m = appOf(t, app, tea.WindowSizeMsg{Width: 200, Height: 30})
+		}
+		if len(m.stages) == 0 {
+			t.Fatalf("%s has no tabs", app)
+		}
+		for i := range m.stages {
+			if m = drive(m, press(rune('1'+i))); m.stage != i || m.bar().MenuAt() < 0 ||
+				!strings.Contains(ansi.Strip(lines(m)[2]), " "+tabs.Menu+" ") {
+				t.Errorf("%s, tab %d: selected %d, its : at %d:\n%s", app, i+1, m.stage, m.bar().MenuAt(), lines(m)[2])
+			}
+			if m = drive(m, press(':')); !m.tabMenu.Open {
+				t.Errorf("%s, tab %d: : opened no menu", app, i+1)
+			}
+			m = drive(m, press(tea.KeyEscape))
+		}
+	}
+}
