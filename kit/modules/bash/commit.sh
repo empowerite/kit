@@ -20,6 +20,10 @@
 # The commit keeps its message as kit commit judged it: --cleanup=whitespace, so a commit.cleanup of strip never drops
 # a subject that starts with #. With require_signing true it is signed, and refused when git cannot sign it.
 #
+# A commit from an index of its own, as GIT_INDEX_FILE names, brings the shared index up to it, for the paths it
+# changed alone: a path the shared index stages as the parent has it takes the commit's copy, and one staged otherwise
+# stays, with a warning. So the next commit from the shared index is not refused as one that would undo it.
+#
 # A commit whose subject names an issue other than the branch's own attaches that issue to the branch's change, so
 # kit commit then adds a `Closes <reference>` line to the change's body, and assigns the caller to the issue when no
 # one is assigned. The commit exists by then, so a forge that fails only warns.
@@ -382,11 +386,156 @@ commit:same-tree() {
   return 1
 }
 
+# commit:made <head> prints the commit kit commit just made on <head>, the HEAD it started on, empty before the first
+# commit: the first commit after <head> on HEAD's first-parent line. A commit another session lands right after it is
+# never taken for it. It returns 1 when that commit's parent is not <head>, as when HEAD was reset meanwhile.
+commit:made() {
+  local head=$1 made parent
+  local -a line=()
+  if [[ -n "${head}" ]]
+  then
+    list:read line git rev-list --first-parent "${head}..HEAD" || return 1
+  else
+    list:read line git rev-list --first-parent HEAD || return 1
+  fi
+  (( ${#line[@]} > 0 )) || return 1
+  made=${line[-1]}
+  parent=$(git rev-parse --verify --quiet "${made}^" || true)  # a first commit has no parent: empty
+  [[ "${parent}" == "${head}" ]] || return 1
+  printf '%s\n' "${made}"
+}
+
+# commit:plan <shared> <base> <commit> decides, for each path <commit> changed from <base>, what the shared index at
+# <shared> does with it, into the caller's arrays: commit_take, the paths whose shared copy is <base>'s, which take the
+# commit's, and commit_keep, the paths the shared index stages otherwise, which stay. A path already as the commit has
+# it is in neither. commit_copy and commit_was map each path to its copy in the commit and in <base>, as
+# `<mode> <object>`, with a mode of 000000 for no file. Unmerged in the shared index is staged otherwise.
+commit:plan() {
+  local shared=$1 base=$2 commit=$3 i path
+  local -a changed=() staged=() mode=()
+  local -A held=()
+  commit_take=() commit_keep=() commit_copy=() commit_was=()
+  # Raw records come in pairs: ':<mode> <mode> <object> <object> <status>', then the path.
+  list:read0 changed git diff-tree -r -z --no-renames "${base}" "${commit}" || return 1
+  # The shared index's paths that differ from <base>: any other path is as <base> has it.
+  GIT_INDEX_FILE=${shared} list:read0 staged git diff-index --cached -z --no-renames "${base}" || return 1
+  for (( i = 0; i + 1 < ${#staged[@]}; i += 2 ))
+  do
+    read -r -a mode <<<"${staged[i]#:}"
+    if [[ "${mode[4]}" == U ]]
+    then
+      held[${staged[i + 1]}]=unmerged
+    elif [[ "${held[${staged[i + 1]}]:-}" != unmerged ]]
+    then
+      held[${staged[i + 1]}]="${mode[1]} ${mode[3]}"
+    fi
+  done
+  for (( i = 0; i + 1 < ${#changed[@]}; i += 2 ))
+  do
+    read -r -a mode <<<"${changed[i]#:}"
+    path=${changed[i + 1]}
+    commit_was[${path}]="${mode[0]} ${mode[2]}"
+    commit_copy[${path}]="${mode[1]} ${mode[3]}"
+    if [[ -z "${held[${path}]+x}" ]]
+    then
+      commit_take+=("${path}")
+    elif [[ "${held[${path}]}" != "${commit_copy[${path}]}" ]]
+    then
+      commit_keep+=("${path}")
+    fi
+  done
+}
+
+# commit:entries <map> <path>… prints, NUL-separated, an entry git update-index --index-info reads for each path: its
+# copy in <map>, commit_copy or commit_was. A mode of 000000 removes the path.
+commit:entries() {
+  local -n commit_entries_map=$1
+  local path
+  shift
+  for path in "$@"
+  do
+    printf '%s\t%s\0' "${commit_entries_map[${path}]}" "${path}"
+  done
+}
+
+# commit:shared-index prints the shared index, the one git uses with no GIT_INDEX_FILE, when kit commit commits from
+# another, as GIT_INDEX_FILE names. It returns 1 when the index in use is the shared one, or there is no shared one.
+commit:shared-index() {
+  local shared current
+  [[ -n "${GIT_INDEX_FILE:-}" ]] || return 1
+  shared=$(unset GIT_INDEX_FILE; git rev-parse --path-format=absolute --git-path index) || return 1
+  current=$(git rev-parse --path-format=absolute --git-path index) || return 1
+  [[ -f "${shared}" && ! "${current}" -ef "${shared}" ]] || return 1
+  printf '%s\n' "${shared}"
+}
+
+# commit:share <shared> <commit> brings the shared index at <shared> up to <commit>, made from another index, which
+# leaves the shared one behind: git status there would show the commit's paths staged as reverted. For each path the
+# commit changed, a shared copy that is the parent's takes the commit's, and one staged otherwise stays, with a warning
+# naming it. No other path is touched, and the file is never copied: git writes it under its own lock. Each try is a
+# two-tree git read-tree -m from the parent to the commit, with the paths that stay put back as the parent has them,
+# so a path staged meanwhile fails the try whole and the next decides again. A lock another git holds fails a try
+# too. After five, git update-index writes the paths to take as last decided, as when the shared index is unmerged,
+# which read-tree refuses; when that fails too, kit warns, naming each path.
+commit:share() {
+  local shared=$1 commit=$2 base target short work path tries=0
+  local -a commit_take=() commit_keep=()
+  # shellcheck disable=SC2034  # commit:plan fills them, and commit:entries reads them by name
+  local -A commit_copy=() commit_was=()
+  short=$(git rev-parse --short "${commit}") || return 1
+  if ! base=$(git rev-parse --verify --quiet "${commit}^")
+  then
+    base=$(git hash-object -t tree -w /dev/null) || return 1
+  fi
+  while true
+  do
+    commit:plan "${shared}" "${base}" "${commit}" || return 1
+    (( ${#commit_take[@]} > 0 )) || break
+    if (( ${#commit_keep[@]} == 0 ))
+    then
+      target=${commit}
+    else
+      file:scratch work || return 1
+      GIT_INDEX_FILE=${work}/index git read-tree "${commit}" || return 1
+      commit:entries commit_was "${commit_keep[@]}" | GIT_INDEX_FILE=${work}/index git update-index -z --index-info \
+        || return 1
+      target=$(GIT_INDEX_FILE=${work}/index git write-tree) || return 1
+      rm -rf "${work}"
+    fi
+    # -i reads the index alone: what the disk holds is no part of it, and stays as it is.
+    if GIT_INDEX_FILE=${shared} git read-tree -m -i "${base}" "${target}" 2>/dev/null
+    then
+      step "the shared index takes ${short}'s copy of ${#commit_take[@]} path(s)"
+      break
+    fi
+    if (( ++tries == 5 ))
+    then
+      if commit:entries commit_copy "${commit_take[@]}" \
+        | GIT_INDEX_FILE=${shared} git update-index -z --index-info 2>/dev/null
+      then
+        step "the shared index takes ${short}'s copy of ${#commit_take[@]} path(s)"
+        break
+      fi
+      for path in "${commit_take[@]}"
+      do
+        warn "${path} is staged as it was before ${short}, and the shared index could not take ${short}'s copy;" \
+          "run, without GIT_INDEX_FILE: git restore --staged -- '${path}'"
+      done
+      break
+    fi
+    sleep 0.2
+  done
+  for path in "${commit_keep[@]}"
+  do
+    warn "${path} is staged differently in the shared index; left as it is"
+  done
+}
+
 # commit:commit <argument>… makes the commit as the file header says, from the options commit:parse reads. The first
 # --message, or the file's first line, is the subject; the rest are the body. <path>… commits those paths alone, as
 # git commit -- <path>… does. It returns 2 on a usage error and 1 on a refusal.
 commit:commit() {
-  local branch subject path rest message head tree names
+  local branch subject path rest message head tree names made shared
   local -a staged=() named=() sign=()
   commit:parse "$@" || return 2
   head=$(git rev-parse --verify --quiet HEAD || true)  # a repository with no commit has no HEAD: empty
@@ -499,8 +648,21 @@ commit:commit() {
     commit:same-tree "${tree}" || { rm -f "${message}"; return 1; }
     commit:git "${message}" "${sign[@]}" || return 1
   fi
-  subject=$(git log -1 --format=%s HEAD)
-  ok "committed $(git rev-parse --short HEAD): ${subject}"
+  made=$(commit:made "${head}") || made=''
+  subject=$(git log -1 --format=%s "${made:-HEAD}")
+  ok "committed $(git rev-parse --short "${made:-HEAD}"): ${subject}"
+  # A commit made from an index of its own leaves the shared one behind, so it is brought up to the commit.
+  if shared=$(commit:shared-index)
+  then
+    if [[ -z "${made}" ]]
+    then
+      warn "HEAD moved past the commit as it was made, so the shared index is left as it is; run, without" \
+        "GIT_INDEX_FILE: git status"
+    elif ! commit:share "${shared}" "${made}"
+    then
+      warn "the shared index could not be read, so it is left as it is; run, without GIT_INDEX_FILE: git status"
+    fi
+  fi
   commit:attach "${branch}" "${subject}"
 }
 

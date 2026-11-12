@@ -9,11 +9,11 @@ of these pages is [1st.md](1st.md).
 
 kit parses only the formats git documents for scripts: the porcelain formats of `git status` and `git worktree list`,
 `git for-each-ref --format`, `git log --format`, the NUL-separated path lists, and the plumbing of `rev-parse`,
-`rev-list`, `ls-files`, `ls-tree`, and `cat-file`. It reads git's human words in three places only: it shows the
-first line of a failed fetch, it tells a push refused as not fast-forward by `non-fast-forward`, `fetch first`, or
-`stale info`, and it tells a commit git could not sign by `failed to sign` or `failed to write commit object`. A
-remote name reaches git after `--end-of-options` and a path as a `:(literal)` pathspec, so neither reads as an option
-or a pattern.
+`rev-list`, `ls-files`, `ls-tree`, `cat-file`, and the raw output of `diff-tree` and `diff-index`. It reads git's
+human words in three places only: it shows the first line of a failed fetch, it tells a push refused as not
+fast-forward by `non-fast-forward`, `fetch first`, or `stale info`, and it tells a commit git could not sign by
+`failed to sign` or `failed to write commit object`. A remote name reaches git after `--end-of-options` and a path as
+a `:(literal)` pathspec, so neither reads as an option or a pattern.
 
 kit states no minimum git version: `kit welcome` checks only that `git --version` answers. It calls
 `git rev-parse --path-format=absolute`, which git 2.31 added, and an older git prints the option back as a path. A
@@ -61,6 +61,7 @@ see: [forges.md](forges.md), [../workspaces.md](../workspaces.md), `kit/modules/
 | The files of the index or a tree, as facts | read | `facts:tree`: `kit facts`, `kit policy`, `kit commit` |
 | A file as the index or a tree holds it | read | `policy:object`, `policy:blob`, `policy:base-held`, `policy:base-tree`: `kit policy` and `kit commit` read `kit.yml` and `.kit/policy/` as the base holds them; `commit:behind`, `commit:unchanged` |
 | The tree a commit would make | write | `commit:index`, `commit:tree`, `commit:same-tree`: `kit commit` builds it in a scratch index and writes its tree objects |
+| The shared index, brought up to a commit made from another | write | `commit:shared-index`, `commit:made`, `commit:plan`, `commit:share`: `kit commit` from the index `GIT_INDEX_FILE` names |
 | Stage every change to a tracked file | write | `commit:commit`: `kit commit --all` |
 | Sweep the desk's work into the worktree | write | `issue:sweep-push`, `issue:sweep-apply`, `issue:sweep-restore`: `kit work` |
 | A path's attributes, and whether it is ignored | read | `template:exempt`: `kit lint`; `issue:start`: `kit work` warns when `worktrees/` is not ignored |
@@ -82,6 +83,8 @@ see: [forges.md](forges.md), [../workspaces.md](../workspaces.md), `kit/modules/
 | The main checkout | `git -C "${path}" rev-parse --path-format=absolute --git-common-dir`, its parent directory |
 | The branch checked out | `git symbolic-ref --quiet --short HEAD`; `git -C "${path}" symbolic-ref --quiet --short HEAD`; `git -C "${root}" symbolic-ref --quiet HEAD` for the full ref; `git -C "${root}" rev-parse --abbrev-ref HEAD`; `git branch --show-current` |
 | HEAD's commit | `git rev-parse --verify --quiet HEAD`; `git -C "${worktree}" rev-parse HEAD`; `git rev-parse --short HEAD` |
+| The commit kit commit made, and its parent | `git rev-list --first-parent "${head}..HEAD"`, its last line; `git rev-list --first-parent HEAD` before the first commit; `git rev-parse --verify --quiet "${made}^"` |
+| The shared index, and the index in use | `git rev-parse --path-format=absolute --git-path index`, with `GIT_INDEX_FILE` unset and as it is |
 | Uncommitted changes | `git -C "${path}" status --porcelain`; empty is clean |
 | The paths git status reports | `git status --porcelain=v1 -z` |
 | A checkout's status with its branch | `git -C "${path}" status --porcelain=v2 --branch` |
@@ -167,6 +170,7 @@ see: [forges.md](forges.md), [../workspaces.md](../workspaces.md), `kit/modules/
 | A tree's entries | `git ls-tree -z -r --full-tree "${rev}"`; `git ls-tree -z -r --full-tree "${base}" -- "${path}/"`; `git ls-tree --full-tree "${rev}" -- "${path}"` |
 | The blobs' sizes and contents | `git cat-file --batch-check='%(objectsize)'`, one object name a line on its input; `git cat-file -s "${blob}"`; `git cat-file blob "${blob}"` |
 | Paths as HEAD or the index has them | `git diff --quiet HEAD -- ":(literal)${path}"…`; `git diff --quiet -- ":(literal)${path}"` |
+| The paths a commit changed, and the shared index's paths that differ from its parent | `git diff-tree -r -z --no-renames "${base}" "${commit}"`; `GIT_INDEX_FILE=${shared} git diff-index --cached -z --no-renames "${base}"` |
 | A path is generated | `git check-attr linguist-generated -- "${path}"` |
 | `worktrees/` is ignored | `git -C "${main_root}" check-ignore --quiet worktrees` |
 | The stash on top, and a stash's slot | `git -C "${root}" rev-parse --quiet --verify refs/stash`; `git -C "${root}" stash list --format='%gd %H'` |
@@ -199,6 +203,7 @@ see: [forges.md](forges.md), [../workspaces.md](../workspaces.md), `kit/modules/
 | Make a commit | `git -C "${path}" commit --quiet --cleanup=whitespace --file "${message}"`, with `--gpg-sign` under `require_signing`, and `-- ":(literal)${path}"…` for named paths |
 | Make the start commit | `git -C "${wt}" commit --quiet --allow-empty --only --cleanup=whitespace --message "${ref} start: ${title}"`, with `--gpg-sign` under `require_signing` |
 | Stage every change to a tracked file | `git add --update` |
+| Bring the shared index up to a commit | `GIT_INDEX_FILE=${shared} git read-tree -m -i "${base}" "${target}"`, the two-tree merge, under git's lock; `GIT_INDEX_FILE=${shared} git update-index -z --index-info` when it refuses; the target built with `GIT_INDEX_FILE=${work}/index git read-tree "${commit}"`, `git update-index -z --index-info`, and `git write-tree`; `git hash-object -t tree -w /dev/null`, the empty tree, as the parent of a first commit |
 | Build the tree a commit would make | `GIT_INDEX_FILE=${index} git read-tree HEAD`, or `GIT_INDEX_FILE=${index} git read-tree --empty` before the first commit; `GIT_INDEX_FILE=${index} git update-index --add --remove --replace -z --stdin`; `GIT_INDEX_FILE=${index} git write-tree`; `git write-tree` for the index itself |
 | Rebase | `git -C "${worktree}" rebase --quiet "${target}"`, with `--gpg-sign` under `require_signing` |
 | Undo a rebase that conflicts | `git -C "${worktree}" rebase --abort`; `git -C "${worktree}" reset --quiet --hard "${before}"` |

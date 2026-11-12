@@ -497,6 +497,121 @@ EOF
   [ "$(git show --name-status --format= HEAD)" = $'D\tmine.txt' ]
 }
 
+@test "a commit from an index of its own brings the shared index up to it, for the paths it changed alone" {
+  local index=${work}/private-index
+  printf 'gone\n' > gone.txt && git add gone.txt && git commit --quiet --message '#7 gone: a file'
+  # another session's staging, in the shared index, of a path the commit never changes
+  printf 'other\n' > other.txt && git add other.txt
+  GIT_INDEX_FILE=${index} git read-tree HEAD
+  printf 'mine\n' > notes.txt && printf 'mine\n' > mine.txt && rm gone.txt
+  GIT_INDEX_FILE=${index} git update-index --add --remove notes.txt mine.txt gone.txt
+  run env GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit --message '#7 notes: mine'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"the shared index takes $(git rev-parse --short HEAD)'s copy of 3 path(s)"* ]]
+  [[ "$output" != *"left as it is"* && "$output" != *"git restore"* ]]
+  [ "$(git show --name-only --format= HEAD | sort | tr '\n' ' ')" = "gone.txt mine.txt notes.txt " ]
+  git diff --cached --quiet HEAD -- notes.txt mine.txt gone.txt
+  [ "$(git status --porcelain)" = "A  other.txt" ]
+  # by name, from the index of its own, too
+  printf 'more\n' > mine.txt
+  run env GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit --message '#7 mine: more' mine.txt
+  [ "$status" -eq 0 ]
+  [ "$(git status --porcelain)" = "A  other.txt" ]
+  # the next commit from the shared index is not refused as one that would undo it, and takes other.txt alone
+  run kit commit --message '#7 other: a file'
+  [ "$status" -eq 0 ]
+  [ "$(git show --name-only --format= HEAD)" = other.txt ]
+  [ "$(git show HEAD:mine.txt)" = more ]
+  [ -z "$(git status --porcelain)" ]
+}
+
+@test "a path the shared index stages differently is left as it is, with one warning that names it" {
+  local index=${work}/private-index blob
+  # the shared index stages notes.txt otherwise, and same.txt as the commit has it
+  printf 'staged\n' > notes.txt && printf 'same\n' > same.txt && git add notes.txt same.txt
+  GIT_INDEX_FILE=${index} git read-tree HEAD
+  printf 'mine\n' > mine.txt
+  GIT_INDEX_FILE=${index} git update-index --add mine.txt same.txt
+  blob=$(printf 'mine\n' | git hash-object -w --stdin)
+  GIT_INDEX_FILE=${index} git update-index --cacheinfo "100644,${blob},notes.txt"
+  run env GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit --message '#7 notes: mine'
+  [ "$status" -eq 0 ]
+  [ "$(grep -c '⚠️ notes.txt is staged differently in the shared index; left as it is' <<<"$output")" -eq 1 ]
+  [ "$(grep -c 'same.txt' <<<"$output")" -eq 0 ]
+  [ "$(git show HEAD:notes.txt)" = mine ]
+  [ "$(git show :notes.txt)" = staged ]
+  [ "$(git status --porcelain)" = "M  notes.txt" ]
+}
+
+@test "a path another session stages in the shared index as kit brings it up is left as that session staged it" {
+  local index=${work}/private-index real
+  real=$(command -v git)
+  mkdir "${work}/bin"
+  # the stand-in git stages notes.txt in the shared index just before kit's first try to bring it up
+  cat > "${work}/bin/git" <<EOF
+#!/usr/bin/env bash
+if [[ "\$*" == "read-tree -m -i "* && ! -e '${work}/staged' ]]
+then
+  touch '${work}/staged'
+  printf 'theirs\n' > notes.txt
+  '${real}' add notes.txt
+fi
+exec '${real}' "\$@"
+EOF
+  chmod +x "${work}/bin/git"
+  GIT_INDEX_FILE=${index} git read-tree HEAD
+  printf 'mine\n' > notes.txt && printf 'mine\n' > mine.txt
+  GIT_INDEX_FILE=${index} git update-index --add notes.txt mine.txt
+  run env PATH="${work}/bin:${PATH}" GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit \
+    --message '#7 notes: mine'
+  [ -e "${work}/staged" ]
+  [ "$status" -eq 0 ]
+  [ "$(grep -c '⚠️ notes.txt is staged differently in the shared index; left as it is' <<<"$output")" -eq 1 ]
+  [ "$(git show HEAD:notes.txt)" = mine ]
+  [ "$(git show :notes.txt)" = theirs ]
+  git diff --cached --quiet HEAD -- mine.txt
+}
+
+@test "the shared index comes up to a first commit made from an index of its own" {
+  local index=${work}/private-index
+  git switch --quiet --orphan 7-the-first
+  printf 'other\n' > other.md && git add other.md
+  printf '# Hello\n' > README.md && GIT_INDEX_FILE=${index} git update-index --add README.md
+  run env GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit --message '#7 readme: the first'
+  [ "$status" -eq 0 ]
+  [ "$(git show --name-only --format= HEAD)" = README.md ]
+  [ "$(git status --porcelain)" = "A  other.md" ]
+}
+
+@test "a shared index that git read-tree refuses, unmerged elsewhere, still takes the commit's copies" {
+  local index=${work}/private-index blob
+  blob=$(printf 'clash\n' | git hash-object -w --stdin)
+  printf '100644 %s 1\tclash.txt\n100644 %s 2\tclash.txt\n' "${blob}" "${blob}" | git update-index --index-info
+  GIT_INDEX_FILE=${index} git read-tree HEAD
+  printf 'mine\n' > notes.txt && GIT_INDEX_FILE=${index} git update-index notes.txt
+  run env GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit --message '#7 notes: mine'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"the shared index takes"* ]]
+  git diff --cached --quiet HEAD -- notes.txt
+  [ "$(git ls-files --unmerged -- clash.txt | wc -l | tr -d ' ')" = 2 ]
+}
+
+@test "a shared index another git holds locked keeps the commit, and says to bring each path up by hand" {
+  local index=${work}/private-index lock
+  lock=$(git rev-parse --path-format=absolute --git-path index).lock
+  GIT_INDEX_FILE=${index} git read-tree HEAD
+  printf 'mine\n' > notes.txt && GIT_INDEX_FILE=${index} git update-index notes.txt
+  : > "${lock}"
+  run env GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit --message '#7 notes: mine'
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%s)" = "#7 notes: mine" ]
+  [[ "$output" == *"⚠️ notes.txt is staged as it was before $(git rev-parse --short HEAD)"* ]]
+  [[ "$output" == *"git restore --staged -- 'notes.txt'"* ]]
+  [ -e "${lock}" ] && [ ! -s "${lock}" ]
+  rm "${lock}"
+  [ "$(git show :notes.txt)" = notes ]
+}
+
 @test "kit commit refuses a file under a directory kit placed, such as the logs and the cache" {
   kit hydrate >/dev/null 2>&1
   mkdir -p .kit/logs .kit/cache

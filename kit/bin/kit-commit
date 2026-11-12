@@ -22,6 +22,12 @@
 #
 # With or without paths, it refuses when a commit landed on HEAD while the checks ran; run kit commit again.
 #
+# A commit from an index of its own, one GIT_INDEX_FILE names, would leave the shared index behind, its paths staged
+# as the commit reverted. So kit commit brings the shared index up to the commit, for the paths the commit changed
+# alone: a path staged there as the commit's parent has it takes the commit's copy, and a path staged otherwise stays
+# as it is, with a warning that names it. git writes the shared index under its own lock, and a path staged there
+# meanwhile is left as staged.
+#
 # A subject that names another issue attaches it to the branch's pull request: kit commit adds a Closes line for it
 # to the pull request's body, and assigns the caller to it when no one is assigned.
 #
