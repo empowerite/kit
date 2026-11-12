@@ -11,7 +11,7 @@
 #
 # see: kit/bin/kit-flow, modules/bash/flow.sh, modules/bash/forge.sh
 
-use forge flow
+use forge flow workspaces
 
 # changes:documents [--all | [--mine] [--others] [--owner=<login>…]] [<number>…] prints the open changes the flags
 # choose as one JSON array, oldest first, each with the issues it closes under closes. The owner flags combine as
@@ -65,14 +65,15 @@ changes:draw() {
 }
 
 # changes:render [--json] [--all | [--mine] [--others] [--owner=<login>…]] [<number>…] prints the changes as
-# changes:draw does, or with --json as changes:documents does, to stdout.
+# changes:draw does, or with --json as changes:documents does, to stdout, each saying where it is from, the forge, as
+# workspaces:placed says.
 changes:render() {
   local doc
   doc=$(changes:documents "$@") || return $?
   if [[ " $* " == *" --json "* ]]
   then
-    printf '%s\n' "${doc}"
-    return 0
+    workspaces:placed forge "${doc}"
+    return
   fi
   changes:draw "${doc}" "$(flow:choice-of "$@")"
 }

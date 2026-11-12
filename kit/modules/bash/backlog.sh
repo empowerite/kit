@@ -18,7 +18,7 @@
 # see: kit/bin/kit-flow, modules/bash/flow.sh, modules/bash/underway.sh, modules/bash/forge.sh,
 # modules/jq/forge.jq
 
-use forge flow
+use forge flow workspaces
 
 # backlog:collect [--except] <login>… prints the open issues not closed by any open change, as one JSON array, oldest
 # first, each with branch: the branch on the primary remote that starts with its number, or null. The branches are the
@@ -72,14 +72,15 @@ backlog:draw() {
 }
 
 # backlog:render [--json] [--today] [--all | [--mine] [--others] [--owner=<login>…]] prints the issues as
-# backlog:draw does, or with --json as backlog:documents does, to stdout.
+# backlog:draw does, or with --json as backlog:documents does, to stdout, each saying where it is from, as
+# workspaces:placed says, the forge its source where the tracker names none.
 backlog:render() {
   local doc
   doc=$(backlog:documents "$@") || return 1
   if [[ " $* " == *" --json "* ]]
   then
-    printf '%s\n' "${doc}"
-    return 0
+    workspaces:placed forge "${doc}"
+    return
   fi
   backlog:draw "${doc}" "$(flow:choice-of "$@")"
 }

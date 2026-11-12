@@ -3,11 +3,13 @@
 package flow
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/source"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
 func TestTheDeskIsHereInIssues(t *testing.T) {
@@ -45,5 +47,27 @@ func TestAnAnswerForAStageTheScreenDoesNotHaveIsDropped(t *testing.T) {
 		if m = drive(m, source.Answer[[]byte]{Name: "nonesuch", Value: []byte(`[]`), Kept: kept}); view(m) != before {
 			t.Errorf("an answer for no stage, kept %v, changed the screen:\n%s", kept, view(m))
 		}
+	}
+}
+
+// A field a stage's builder leaves unset, as where a build is from, is read from the record kit printed by the field's
+// path, as the catalog draws a stage with no builder; a value the builder set stands, and a builder that built another
+// number of records than kit printed is left as it built them.
+func TestAFieldABuilderLeavesUnsetIsReadFromTheRecord(t *testing.T) {
+	s := stage{name: "builds", parsed: []parsed{{value: map[string]any{"organization": "o", "repository": "r",
+		"source": "github", "workflow": "kit"}}}}
+	out := []record{{row{Key: "1"}, map[string]table.Value{"workflow": table.One("built")}}}
+	unbuilt(s, out)
+	for id, want := range map[string]string{"organization": "o", "repository": "r", "source": "github", "workflow": "built"} {
+		if got := out[0].values[id].Raw; !slices.Equal(got, []string{want}) {
+			t.Errorf("%s: %q, want %q", id, got, want)
+		}
+	}
+	if _, ok := out[0].values["member"]; ok {
+		t.Errorf("member is read from the record: %+v", out[0].values["member"])
+	}
+	two := []record{{row{Key: "1"}, map[string]table.Value{}}, {row{Key: "2"}, map[string]table.Value{}}}
+	if unbuilt(s, two); len(two[0].values) != 0 || len(two[1].values) != 0 {
+		t.Errorf("two records of one kit printed: %+v", two)
 	}
 }

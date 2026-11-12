@@ -397,8 +397,8 @@ func TestUnderwayGroupsByChange(t *testing.T) {
 	}
 }
 
-// A view, as it loads, groups the rows by each column whose value is the same on every row, as underway's source while
-// one tracker holds every issue: a group as any other, under the heading over the groups, ▤₁ in the columns dialog,
+// A view, as it loads, groups the rows by each column whose value is the same on every row, as underway's source and
+// repository while one tracker and one repository hold every issue: a group as any other, under the heading over the groups, ▤₁ in the columns dialog,
 // and the preset line still names the view. Once grouped, it is the person's: a search that leaves one row, or the
 // rows loaded again, change nothing, and Ungroup ungroups it for good. Setting the view again groups again; with
 // kittui's setting, Auto-group, off, a view set groups nothing.
@@ -410,31 +410,33 @@ func TestAViewAsItLoadsGroupsByAColumnTheSameOnEveryRow(t *testing.T) {
 		}
 		return ""
 	}
-	// one level, of one value: its fold is the only one, the rows' would repeat it
-	if got := heading(m); got != grid.Unfolded+" source 4" || !slices.Equal(m.panel(m.stage).Groups(), []string{"source"}) ||
+	// two levels, source and repository, each of one value: the first's fold is the only one, the second's a dim
+	// separator, and the rows' would repeat it
+	both := []string{"source", "repository"}
+	if got := heading(m); got != grid.Unfolded+" source "+grid.Joined+" repository 4" || !slices.Equal(m.panel(m.stage).Groups(), both) ||
 		m.is(m.stage) != Opening || !strings.Contains(m.cols.Line(&m, "source"), grid.GroupMark(1)) {
 		t.Fatalf("underway's heading %q, groups %q, view %q:\n%s", got, m.panel(m.stage).Groups(), m.is(m.stage), view(m))
 	}
 	// a search that leaves one row, and the rows loaded again, leave the group as it is
 	p := m.panel(m.stage)
 	p.Query = "kit commit"
-	if m.setPanel(p); !slices.Equal(m.panel(m.stage).Groups(), []string{"source"}) {
+	if m.setPanel(p); !slices.Equal(m.panel(m.stage).Groups(), both) {
 		t.Errorf("one row left: %q", m.panel(m.stage).Groups())
 	}
 	p.Query = ""
 	m.setPanel(p)
 	m = drive(m, m.again("underway", false)())
-	if !slices.Equal(m.panel(m.stage).Groups(), []string{"source"}) {
+	if !slices.Equal(m.panel(m.stage).Groups(), both) {
 		t.Errorf("loaded again: %q", m.panel(m.stage).Groups())
 	}
 	// ungrouped, it stays so through a load; the preset line names the view, as the panel is as it says
-	m.setPanel(m.panel(m.stage).Grouped("source", true))
+	m.setPanel(m.panel(m.stage).Grouped("source", true).Grouped("repository", true))
 	if m = drive(m, m.again("underway", false)()); len(m.panel(m.stage).Groups()) > 0 || !rowsAlone(heading(m)) ||
 		!strings.Contains(lines(m)[m.headerTop()], "source") {
 		t.Errorf("ungrouped, then loaded again: %q\n%s", m.panel(m.stage).Groups(), view(m))
 	}
 	// the view set again groups again; with Auto-group off, it groups nothing
-	if m.apply(m.chosen(m.stage)); !slices.Equal(m.panel(m.stage).Groups(), []string{"source"}) {
+	if m.apply(m.chosen(m.stage)); !slices.Equal(m.panel(m.stage).Groups(), both) {
 		t.Errorf("the view set again: %q", m.panel(m.stage).Groups())
 	}
 	if unfold(&m); !rowsAlone(heading(m)) || m.panel(m.stage).Fold || len(m.panel(m.stage).Groups()) > 0 ||

@@ -39,6 +39,13 @@ def place($path):
   if ($path // "") == "" then {organization: null, repository: null}
   else ($path | split("/")) as $p | {organization: ($p[:-1] | join("/")), repository: $p[-1]} end;
 
+# from($here) gives a row, an object, with where it is from: its own organization, repository, and source, each that
+# it has, even null, as an issue says the repository it is in; else that of $here, {organization, repository, source},
+# the repository kit read it in and the forge or the service it was read from. Anything but an object is as it was.
+def from($here):
+  if type == "object" then . as $row | . + ($here | with_entries(select(.key as $k | $row | has($k) | not)))
+  else . end;
+
 # hex reads a color as a forge writes it, with or without a #, in either case, and gives it as #rrggbb in lower case;
 # null for none.
 def hex: if (. // "") == "" then null else "#" + (ascii_downcase | ltrimstr("#")) end;

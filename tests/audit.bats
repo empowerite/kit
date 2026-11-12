@@ -104,7 +104,7 @@ JSON
   expected='[{"key":"sha256:ab12 https://slsa.dev/provenance/v1","subject":"kit-0.1.0.tar.gz","digest":"sha256:ab12",'
   expected+='"kind":"https://slsa.dev/provenance/v1","signer":"o/r/.github/workflows/release.yml@refs/tags/v0.1.0",'
   expected+='"links":{"subject":"https://github.com/o/r/attestations"}}]'
-  [ "$(jq -c '.rows | map(del(.age))' <<<"$output")" = "${expected}" ]
+  [ "$(jq -c '.rows | map(del(.age, .organization, .repository, .source))' <<<"$output")" = "${expected}" ]
   [ "$(jq -c '.errors' <<<"$output")" = '[]' ]
 }
 
@@ -117,7 +117,7 @@ JSON
   expected+='{"key":"dependabot 1","tool":"dependabot","number":1,"rule":"GHSA-35jh-r3h4-6jhm","severity":"high",'
   expected+='"state":"dismissed","path":"package-lock.json",'
   expected+='"links":{"rule":"https://github.com/o/r/security/dependabot/1"}}]'
-  [ "$(jq -c '.rows | map(del(.age))' <<<"$output")" = "${expected}" ]
+  [ "$(jq -c '.rows | map(del(.age, .organization, .repository, .source))' <<<"$output")" = "${expected}" ]
   [ "$(jq -c '.errors' <<<"$output")" = '[{"feature":"secret-scanning","off":true}]' ]
   run --separate-stderr "${kit_root}/bin/kit" audit findings --text
   [ "$status" -eq 0 ]
@@ -156,14 +156,16 @@ JSON
   [ "$(jq -c '[.rows[].key]' <<<"$output")" = '["7 release","code-scanning 2"]' ]
 }
 
-@test "controls is a row per control on the default branch, keyed by its id, its page the control's link" {
+@test "controls is a row per control on the default branch, keyed by its id, its kind, its page the control's link" {
   github-world
   run --separate-stderr "${kit_root}/bin/kit" audit controls --json
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
   expected='[{"key":7,"id":7,"control":"main","target":["~DEFAULT_BRANCH"],"enforcement":"active",'
-  expected+='"rules":["deletion","pull_request"],"source":"ruleset",'
+  expected+='"rules":["deletion","pull_request"],"kind":"ruleset",'
   expected+='"links":{"control":"https://github.com/o/r/rules/7"}}]'
-  [ "$(jq -c '.rows' <<<"$output")" = "${expected}" ]
+  [ "$(jq -c '.rows | map(del(.organization, .repository, .source))' <<<"$output")" = "${expected}" ]
+  # a ruleset or a protection is its kind, so source says the forge, as every forge row's does
+  [ "$(jq -c '[.rows[] | [.organization, .repository, .source]]' <<<"$output")" = '[["o","r","github"]]' ]
 }
 
 @test "waivers is a row per bypass and dismissal, keyed by what it waives and for whom, each linking its row" {
@@ -175,7 +177,7 @@ JSON
   expected+='{"key":"dependabot 1","waives":"dependabot 1","actor":null,"kind":"dismissal","reason":"tolerable_risk",'
   expected+='"by":"ada","until":null,"hidden":null,"links":{"waives":"row:findings/dependabot 1",'
   expected+='"reason":"https://github.com/o/r/security/dependabot/1"}}]'
-  [ "$(jq -c '.rows' <<<"$output")" = "${expected}" ]
+  [ "$(jq -c '.rows | map(del(.organization, .repository, .source))' <<<"$output")" = "${expected}" ]
   # the scanners off here say so on the waivers too
   [ "$(jq -c '.errors' <<<"$output")" = '[{"feature":"secret-scanning","off":true}]' ]
 }

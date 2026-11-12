@@ -29,8 +29,9 @@
 #
 # Packages is an app verb, as kit platform is: kit packages packages is its one stage, which prints {rows, errors},
 # and kit --workspace=<workspace> packages packages draws it across a workspace's members with checkouts, each row
-# tagged with its member. kit packages --json, with no stage, still prints one object a package, of the repository
-# here.
+# tagged with its member. Each row says where it is from, as kit platform's do: organization and repository, the
+# owner and the name of the repository kit read it in, and source, kit. kit packages --json, with no stage, still
+# prints one object a package, of the repository here.
 #
 #   --active            only the active packages
 #   --inactive          the packages that are not active, excluded ones among them

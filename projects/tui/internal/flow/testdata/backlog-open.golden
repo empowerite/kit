@@ -6,19 +6,19 @@
     ·───────
   ▾ github 3
 
-      id   assignees        age  branch           labels           title
-      ·────×·───────────────·────·────────────────×·───────────────·───────────
-    ▾ #45                    2h                   kindfeature   🎫 kit flow 
-                                                  areatui       is the one  
-                                                  good first      picture:    
-                                                  issue           five stages,
-                                                                   interactive 
-                                                                   on a        
+      id   repository  assignees    age  branch       labels       title
+      ·────·───────────×·───────────·────·────────────×·───────────·───────────
+    ▾ #45  kit                       2h               kindfeatu  🎫 kit flow 
+                                                      re          is the one  
+                                                      areatui   picture:    
+                                                      good        five stages,
+                                                      first        interactive 
+                                                      issue       on a        
                                                                    terminal,   
                                                                    and the     
                                                                    listing     
                                                                    verbs fold  
                                                                    into it     
-    ▸ #46  jeffrey-aguile…   2d  46-a-noun-lists  bug            🎫 A noun l…
-    ▸ #7   ada          +1  40d                                    🎫 Fix the …
+    ▸ #46  kit         jeffrey-ag…   2d  46-a-noun-…  bug        🎫 A noun l…
+    ▸ #7   jig         ada      +1  40d                            🎫 Fix the …
  = menu - workspace / search ? legend │ … │ esc tabs ↑↓ move ␣·⇧↑↓ select ⌃A al…

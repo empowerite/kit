@@ -7,6 +7,10 @@
       "fields": [
         {"id": "repository", "label": "repository", "type": "text", "path": ".repository", "sort": true,
          "renderings": ["member"], "placement": "column"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
         {"id": "forge", "label": "forge", "type": "enum", "path": ".forge", "sort": true, "group": true,
          "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
          "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
@@ -47,7 +51,7 @@
         {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
          "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
         {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
-         "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "assignees", "label": "assignees", "one": "assignee", "type": "person", "path": ".assignees",
          "group": true, "filter": true, "owns": true, "glyph": "👤", "renderings": ["glyph+text", "text"],
          "dim": true, "placement": "column"},
@@ -63,6 +67,7 @@
       "presets": [
         {"name": "Default"},
         {"name": "Compact", "fields": {
+          "repository": {"placement": "hidden"},
           "source": {"placement": "hidden"}, "assignees": {"placement": "hidden"}, "age": {"placement": "hidden"},
           "branch": {"placement": "hidden"}, "labels": {"placement": "hidden"}}}
       ]
@@ -82,7 +87,7 @@
         {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
          "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
         {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
-         "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "assignees", "label": "assignees", "one": "assignee", "type": "person", "path": ".assignees",
          "group": true, "filter": true, "owns": true, "glyph": "👤", "renderings": ["glyph+text", "text"],
          "dim": true, "placement": "column"},
@@ -114,6 +119,7 @@
       "presets": [
         {"name": "Default"},
         {"name": "Compact", "fields": {
+          "repository": {"placement": "hidden"},
           "source": {"placement": "hidden"}, "assignees": {"placement": "hidden"}, "age": {"placement": "hidden"},
           "where": {"placement": "hidden"}, "fork": {"placement": "hidden"}, "pushed": {"placement": "hidden"},
           "by": {"placement": "hidden"}, "labels": {"placement": "hidden"}}}
@@ -128,6 +134,13 @@
          "renderings": ["glyph+text", "text"], "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
+         "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "title", "label": "title", "type": "text", "path": ".title", "sort": true, "renderings": ["text"],
          "wrap": true, "placement": "column"},
         {"id": "author", "label": "author", "type": "person", "path": ".author", "sort": true, "group": true,
@@ -156,6 +169,7 @@
       "presets": [
         {"name": "Default"},
         {"name": "Compact", "fields": {
+          "source": {"placement": "hidden"}, "repository": {"placement": "hidden"},
           "author": {"placement": "hidden"}, "age": {"placement": "hidden"}, "checks": {"placement": "hidden"},
           "threads": {"placement": "hidden"}, "branch": {"placement": "hidden"}, "labels": {"placement": "hidden"}}}
       ]
@@ -171,6 +185,13 @@
          "renderings": ["glyph"], "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
+         "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "workflow", "label": "workflow", "type": "text", "path": ".workflow", "sort": true, "group": true,
          "renderings": ["text"], "placement": "column"},
         {"id": "run", "label": "run", "type": "ref", "path": ".number", "sort": true, "renderings": ["text"],
@@ -193,6 +214,7 @@
       "presets": [
         {"name": "Default"},
         {"name": "Compact", "fields": {
+          "source": {"placement": "hidden"}, "repository": {"placement": "hidden"},
           "run": {"placement": "hidden"}, "event": {"placement": "hidden"}, "branch": {"placement": "hidden"},
           "commit": {"placement": "hidden"}, "took": {"placement": "hidden"}}}
       ]
@@ -212,6 +234,12 @@
          "group": true, "filter": true, "glyph": "📡", "renderings": ["glyph+text", "text"], "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "ref", "label": "ref", "type": "text", "path": ".ref", "sort": true, "renderings": ["text"],
          "width": "whole", "placement": "column"},
         {"id": "change", "label": "change", "type": "enum", "path": ".change", "order": "given", "sort": true,
@@ -259,7 +287,8 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "fields": {"remote": {"placement": "hidden"}, "age": {"placement": "hidden"},
+        {"name": "Compact", "fields": {"repository": {"placement": "hidden"},
+          "remote": {"placement": "hidden"}, "age": {"placement": "hidden"},
                                        "local": {"placement": "hidden"}}}
       ]
     },
@@ -272,6 +301,13 @@
          "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
+         "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "kind", "label": "kind", "type": "enum", "path": ".kind", "sort": true, "group": true, "filter": true,
          "values": [{"value": "release", "glyph": "📦"}, {"value": "pre-release", "glyph": "🧪"},
                     {"value": "draft", "glyph": "📝"}], "other": "📦",
@@ -298,6 +334,7 @@
       "presets": [
         {"name": "Default"},
         {"name": "Compact", "fields": {
+          "source": {"placement": "hidden"}, "repository": {"placement": "hidden"},
           "age": {"placement": "hidden"}, "latest": {"placement": "hidden"}, "assets": {"placement": "hidden"},
           "notes": {"placement": "hidden"}}}
       ]
@@ -310,6 +347,10 @@
          "renderings": ["glyph+text", "text"], "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "forge", "label": "forge", "type": "enum", "path": ".forge", "sort": true, "group": true,
          "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
          "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
@@ -343,6 +384,12 @@
          "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "branch", "label": "branch", "type": "text", "path": ".branch", "sort": true, "renderings": ["text"],
          "placement": "column"},
         {"id": "default", "label": "default", "type": "enum", "path": ".default", "sort": true, "group": true,
@@ -366,6 +413,7 @@
       "presets": [
         {"name": "Default"},
         {"name": "Compact", "fields": {
+          "repository": {"placement": "hidden"},
           "remote": {"placement": "hidden"}, "commit": {"placement": "hidden"}, "subject": {"placement": "hidden"}}}
       ]
     },
@@ -378,6 +426,12 @@
          "renderings": ["glyph", "glyph+text", "text"], "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "path", "label": "path", "type": "text", "path": ".path", "sort": true, "renderings": ["path", "text"],
          "dim": true, "placement": "column"},
         {"id": "branch", "label": "branch", "type": "text", "path": ".branch", "sort": true, "glyph": "🌿",
@@ -404,6 +458,7 @@
       "presets": [
         {"name": "Default"},
         {"name": "Compact", "fields": {
+          "repository": {"placement": "hidden"},
           "head": {"placement": "hidden"}, "upstream": {"placement": "hidden"}, "untracked": {"placement": "hidden"}}}
       ]
     },
@@ -415,6 +470,12 @@
          "renderings": ["glyph+text", "text"], "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "age", "label": "age", "type": "time", "filter": true, "path": ".age", "sort": true, "renderings": ["age"], "dim": true,
          "right": true, "placement": "column"},
         {"id": "author", "label": "author", "type": "enum", "path": ".author", "sort": true, "group": true,
@@ -434,6 +495,7 @@
       "presets": [
         {"name": "Default"},
         {"name": "Compact", "fields": {
+          "repository": {"placement": "hidden"},
           "author": {"placement": "hidden"}, "branches": {"placement": "hidden"}, "worktrees": {"placement": "hidden"}}}
       ]
     },
@@ -445,6 +507,12 @@
          "renderings": ["glyph+text", "text"], "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "kind", "label": "kind", "type": "enum", "path": ".kind", "sort": true, "group": true, "filter": true,
          "values": [{"value": "annotated"}, {"value": "lightweight"}], "renderings": ["text"], "dim": true,
          "placement": "column"},
@@ -459,7 +527,8 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "fields": {"tagger": {"placement": "hidden"}, "commit": {"placement": "hidden"}}}
+        {"name": "Compact", "fields": {"repository": {"placement": "hidden"},
+          "tagger": {"placement": "hidden"}, "commit": {"placement": "hidden"}}}
       ]
     },
     {
@@ -471,6 +540,12 @@
          "renderings": ["glyph+text", "text"], "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "state", "label": "state", "type": "enum", "path": ".state", "sort": true, "group": true,
          "filter": true, "values": [{"value": "active", "glyph": "🟢"}, {"value": "excluded", "glyph": "⛔"},
                                     {"value": "inactive"}],
@@ -490,7 +565,8 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "fields": {"origin": {"placement": "hidden"}, "depends": {"placement": "hidden"},
+        {"name": "Compact", "fields": {"repository": {"placement": "hidden"},
+          "origin": {"placement": "hidden"}, "depends": {"placement": "hidden"},
                                        "dependents": {"placement": "hidden"}}}
       ]
     },
@@ -502,6 +578,13 @@
          "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
+         "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "state", "label": "state", "type": "enum", "path": ".state", "sort": true, "group": true, "filter": true,
          "values": [{"value": "open"}, {"value": "closed"}], "dim": true, "renderings": ["text"],
          "placement": "column"},
@@ -516,7 +599,8 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "fields": {"due": {"placement": "hidden"}, "closed": {"placement": "hidden"}}}
+        {"name": "Compact", "fields": {"source": {"placement": "hidden"}, "repository": {"placement": "hidden"},
+          "due": {"placement": "hidden"}, "closed": {"placement": "hidden"}}}
       ]
     },
     {
@@ -527,6 +611,13 @@
          "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
+         "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "current", "label": "current", "type": "enum", "path": ".current", "sort": true, "group": true,
          "filter": true, "values": [{"value": "current"}], "renderings": ["text"], "placement": "column"},
         {"id": "start", "label": "start", "type": "text", "path": ".start", "sort": true, "dim": true,
@@ -538,7 +629,8 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "fields": {"end": {"placement": "hidden"}}}
+        {"name": "Compact", "fields": {"source": {"placement": "hidden"}, "repository": {"placement": "hidden"},
+          "end": {"placement": "hidden"}}}
       ]
     },
     {
@@ -549,6 +641,13 @@
          "glyph": "🔀", "renderings": ["glyph+text", "text"], "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
+         "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "login", "label": "reviewer", "type": "person", "path": ".login", "sort": true, "group": true,
          "filter": true, "renderings": ["text"], "placement": "column"},
         {"id": "state", "label": "state", "type": "enum", "path": ".state", "sort": true, "group": true, "filter": true,
@@ -563,7 +662,8 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "fields": {"at": {"placement": "hidden"}, "unresolved": {"placement": "hidden"},
+        {"name": "Compact", "fields": {"source": {"placement": "hidden"}, "repository": {"placement": "hidden"},
+          "at": {"placement": "hidden"}, "unresolved": {"placement": "hidden"},
           "title": {"placement": "hidden"}}}
       ]
     },
@@ -575,6 +675,13 @@
          "glyph": "🔀", "renderings": ["glyph+text", "text"], "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
+         "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "name", "label": "check", "type": "text", "path": ".name", "sort": true, "group": true,
          "renderings": ["text"], "placement": "column"},
         {"id": "verdict", "label": "verdict", "type": "enum", "path": ".verdict", "sort": true, "group": true,
@@ -590,7 +697,8 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "fields": {"at": {"placement": "hidden"}, "took": {"placement": "hidden"},
+        {"name": "Compact", "fields": {"source": {"placement": "hidden"}, "repository": {"placement": "hidden"},
+          "at": {"placement": "hidden"}, "took": {"placement": "hidden"},
           "title": {"placement": "hidden"}}}
       ]
     },
@@ -602,6 +710,13 @@
          "renderings": ["glyph+text", "text"], "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
+         "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "title", "label": "title", "type": "text", "path": ".title", "sort": true, "renderings": ["text"],
          "placement": "column"},
         {"id": "author", "label": "author", "type": "person", "path": ".author", "sort": true, "group": true,
@@ -615,7 +730,8 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "fields": {"author": {"placement": "hidden"}, "branch": {"placement": "hidden"},
+        {"name": "Compact", "fields": {"source": {"placement": "hidden"}, "repository": {"placement": "hidden"},
+          "author": {"placement": "hidden"}, "branch": {"placement": "hidden"},
           "by": {"placement": "hidden"}}}
       ]
     },
@@ -627,6 +743,13 @@
          "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
+         "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "size", "label": "size", "type": "number", "path": ".size", "sort": true, "filter": true, "right": true,
          "renderings": ["bytes", "text"], "placement": "column"},
         {"id": "age", "label": "age", "type": "time", "path": ".age", "sort": true, "filter": true, "dim": true,
@@ -642,7 +765,8 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "fields": {"expires": {"placement": "hidden"}, "run": {"placement": "hidden"},
+        {"name": "Compact", "fields": {"source": {"placement": "hidden"}, "repository": {"placement": "hidden"},
+          "expires": {"placement": "hidden"}, "run": {"placement": "hidden"},
           "digest": {"placement": "hidden"}}}
       ]
     },
@@ -654,6 +778,13 @@
          "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
+         "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "protection", "label": "protection", "type": "label", "path": ".protection[]", "one": "rule",
          "group": true, "filter": true, "renderings": ["pills", "text"], "placement": "column"},
         {"id": "approvers", "label": "approvers", "type": "person", "path": ".approvers[]", "one": "approver",
@@ -664,7 +795,8 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "fields": {"approvers": {"placement": "hidden"}, "branches": {"placement": "hidden"}}}
+        {"name": "Compact", "fields": {"source": {"placement": "hidden"}, "repository": {"placement": "hidden"},
+          "approvers": {"placement": "hidden"}, "branches": {"placement": "hidden"}}}
       ]
     },
     {
@@ -679,6 +811,13 @@
          ], "renderings": ["glyph+text", "text", "glyph"], "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
+         "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "environment", "label": "environment", "type": "enum", "path": ".environment", "sort": true,
          "group": true, "filter": true, "renderings": ["text"], "placement": "column"},
         {"id": "ref", "label": "ref", "type": "text", "path": ".ref", "sort": true, "group": true,
@@ -694,7 +833,8 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "fields": {"ref": {"placement": "hidden"}, "sha": {"placement": "hidden"},
+        {"name": "Compact", "fields": {"source": {"placement": "hidden"}, "repository": {"placement": "hidden"},
+          "ref": {"placement": "hidden"}, "sha": {"placement": "hidden"},
           "actor": {"placement": "hidden"}}}
       ]
     },
@@ -706,6 +846,13 @@
          "filter": true, "renderings": ["text"], "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
+         "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "name", "label": "name", "type": "text", "path": ".name", "sort": true, "dim": true,
          "renderings": ["text"], "placement": "column"},
         {"id": "role", "label": "role", "type": "enum", "path": ".role", "sort": true, "group": true, "filter": true,
@@ -716,7 +863,8 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "fields": {"name": {"placement": "hidden"}, "kind": {"placement": "hidden"}}}
+        {"name": "Compact", "fields": {"source": {"placement": "hidden"}, "repository": {"placement": "hidden"},
+          "name": {"placement": "hidden"}, "kind": {"placement": "hidden"}}}
       ]
     },
     {
@@ -727,6 +875,13 @@
          "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
+         "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "role", "label": "role", "type": "enum", "path": ".role", "sort": true, "group": true, "filter": true,
          "renderings": ["text"], "placement": "column"},
         {"id": "members", "label": "members", "type": "person", "path": ".members[]", "one": "member", "group": false,
@@ -736,7 +891,8 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "fields": {"members": {"placement": "hidden"}, "name": {"placement": "hidden"}}}
+        {"name": "Compact", "fields": {"source": {"placement": "hidden"}, "repository": {"placement": "hidden"},
+          "members": {"placement": "hidden"}, "name": {"placement": "hidden"}}}
       ]
     },
     {
@@ -747,6 +903,13 @@
          "renderings": ["text"], "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
+         "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "acted", "label": "acted", "type": "label", "path": ".acted[]", "one": "act", "group": true,
          "filter": true, "renderings": ["pills", "text"], "placement": "column"},
         {"id": "last", "label": "last acted", "type": "text", "path": ".last", "sort": true, "dim": true,
@@ -754,7 +917,8 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "fields": {"last": {"placement": "hidden"}}}
+        {"name": "Compact", "fields": {"source": {"placement": "hidden"}, "repository": {"placement": "hidden"},
+          "last": {"placement": "hidden"}}}
       ]
     },
     {
@@ -765,6 +929,13 @@
          "renderings": ["text"], "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
+         "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "kind", "label": "kind", "type": "enum", "path": ".kind", "sort": true, "group": true, "filter": true,
          "dim": true, "renderings": ["text"], "placement": "column"},
         {"id": "signer", "label": "signer", "type": "enum", "path": ".signer", "sort": true, "group": true,
@@ -776,7 +947,8 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "fields": {"kind": {"placement": "hidden"}, "signer": {"placement": "hidden"},
+        {"name": "Compact", "fields": {"source": {"placement": "hidden"}, "repository": {"placement": "hidden"},
+          "kind": {"placement": "hidden"}, "signer": {"placement": "hidden"},
           "digest": {"placement": "hidden"}}}
       ]
     },
@@ -789,6 +961,13 @@
          "renderings": ["text"], "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
+         "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "number", "label": "number", "type": "ref", "path": ".number", "sort": true, "dim": true,
          "renderings": ["text"], "placement": "column"},
         {"id": "severity", "label": "severity", "type": "enum", "path": ".severity", "sort": true, "group": true,
@@ -807,7 +986,8 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "fields": {"number": {"placement": "hidden"}, "path": {"placement": "hidden"},
+        {"name": "Compact", "fields": {"source": {"placement": "hidden"}, "repository": {"placement": "hidden"},
+          "number": {"placement": "hidden"}, "path": {"placement": "hidden"},
           "age": {"placement": "hidden"}}}
       ]
     },
@@ -819,10 +999,17 @@
          "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
+         "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "enforcement", "label": "enforcement", "type": "enum", "path": ".enforcement", "sort": true,
          "group": true, "filter": true, "values": [{"value": "active"}, {"value": "evaluate"}, {"value": "disabled"}],
          "renderings": ["text"], "placement": "column"},
-        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+        {"id": "kind", "label": "kind", "type": "enum", "path": ".kind", "sort": true, "group": true,
          "filter": true, "values": [{"value": "ruleset"}, {"value": "protection"}], "dim": true, "renderings": ["text"],
          "placement": "column"},
         {"id": "target", "label": "target", "type": "label", "path": ".target[]", "one": "ref", "group": true,
@@ -834,7 +1021,8 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "fields": {"target": {"placement": "hidden"}, "rules": {"placement": "hidden"}}}
+        {"name": "Compact", "fields": {"source": {"placement": "hidden"}, "repository": {"placement": "hidden"},
+          "target": {"placement": "hidden"}, "rules": {"placement": "hidden"}}}
       ]
     },
     {
@@ -845,6 +1033,13 @@
          "renderings": ["text"], "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
+         "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "column"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "kind", "label": "kind", "type": "enum", "path": ".kind", "sort": true, "group": true, "filter": true,
          "values": [{"value": "bypass"}, {"value": "dismissal"}], "renderings": ["text"], "placement": "column"},
         {"id": "actor", "label": "actor", "type": "enum", "path": ".actor", "sort": true, "group": true, "filter": true,
@@ -860,7 +1055,8 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "fields": {"by": {"placement": "hidden"}, "until": {"placement": "hidden"},
+        {"name": "Compact", "fields": {"source": {"placement": "hidden"}, "repository": {"placement": "hidden"},
+          "by": {"placement": "hidden"}, "until": {"placement": "hidden"},
           "hidden": {"placement": "hidden"}}}
       ]
     },
@@ -904,6 +1100,12 @@
          "renderings": ["text"], "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "service", "label": "service", "type": "enum", "path": ".service", "sort": true, "group": true,
          "filter": true, "renderings": ["text"], "placement": "column"},
         {"id": "ready", "label": "ready", "type": "enum", "path": ".ready", "sort": true, "group": true, "filter": true,
@@ -916,7 +1118,8 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "fields": {"chosen": {"placement": "hidden"}, "provider": {"placement": "hidden"}}}
+        {"name": "Compact", "fields": {"repository": {"placement": "hidden"},
+          "chosen": {"placement": "hidden"}, "provider": {"placement": "hidden"}}}
       ]
     },
     {
@@ -927,6 +1130,12 @@
          "filter": true, "renderings": ["text"], "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "role", "label": "role", "type": "enum", "path": ".role", "sort": true, "group": true, "filter": true,
          "values": [{"value": "system"}, {"value": "project"}], "renderings": ["text"], "placement": "column"},
         {"id": "usable", "label": "usable", "type": "enum", "path": ".usable", "sort": true, "group": true,
@@ -940,7 +1149,8 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "fields": {"active": {"placement": "hidden"}, "fills": {"placement": "hidden"}}}
+        {"name": "Compact", "fields": {"repository": {"placement": "hidden"},
+          "active": {"placement": "hidden"}, "fills": {"placement": "hidden"}}}
       ]
     },
     {
@@ -951,6 +1161,12 @@
          "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "from", "label": "from", "type": "enum", "path": ".from", "sort": true, "group": true, "filter": true,
          "renderings": ["text"], "placement": "column"},
         {"id": "installed", "label": "installed", "type": "text", "path": ".installed", "sort": true,
@@ -962,7 +1178,8 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "fields": {"pinned": {"placement": "hidden"}}}
+        {"name": "Compact", "fields": {"repository": {"placement": "hidden"},
+          "pinned": {"placement": "hidden"}}}
       ]
     },
     {
@@ -973,6 +1190,12 @@
          "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
+        {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
+         "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden"},
+        {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "column"},
         {"id": "values", "label": "value", "type": "text", "path": "*", "one": "value", "renderings": ["text"],
          "placement": "column"},
         {"id": "from", "label": "from", "type": "enum", "path": ".from", "sort": true, "group": true, "filter": true,
@@ -980,7 +1203,8 @@
       ],
       "presets": [
         {"name": "Default"},
-        {"name": "Compact", "fields": {"from": {"placement": "hidden"}}}
+        {"name": "Compact", "fields": {"repository": {"placement": "hidden"},
+          "from": {"placement": "hidden"}}}
       ]
     }
   ]

@@ -250,15 +250,16 @@ func TestAPresetSetsThePanel(t *testing.T) {
 		back.Fields["source"] != (table.Setting{Placement: table.PlaceGroup, Depth: 1}) || back.Fields["title"].Position != 1 {
 		t.Errorf("the preset again: %+v", back)
 	}
-	// the stage's own: Default shows every column but member, which only a group's rows hold; Compact, the few that say
-	// what a row is
+	// the stage's own: Default shows every column but member, which only a group's rows hold, and organization;
+	// Compact, the few that say what a row is
 	builds := catalog["builds"]
 	if d := builds.Presets[0].Panel(builds.Fields, grid.Panel{}); builds.Presets[0].Name != Opening ||
-		!slices.Equal(hiddenOf(grid.Panel{Fields: d.Fields, Columns: columnsOf("builds")}), []string{"member"}) {
+		!slices.Equal(hiddenOf(grid.Panel{Fields: d.Fields, Columns: columnsOf("builds")}), []string{"member", "organization"}) {
 		t.Errorf("Default: %+v", d.Fields)
 	}
 	if c := builds.Presets[1].Panel(builds.Fields, grid.Panel{Columns: columnsOf("builds")}); builds.Presets[1].Name != "Compact" ||
-		!slices.Equal(hiddenOf(c), []string{"member", "run", "event", "branch", "commit", "took"}) {
+		!slices.Equal(hiddenOf(c), []string{"member", "source", "organization", "repository", "run", "event", "branch",
+			"commit", "took"}) {
 		t.Errorf("Compact: %+v", c.Fields)
 	}
 	// a rendering pinned draws the field
@@ -271,21 +272,21 @@ func TestAPresetSetsThePanel(t *testing.T) {
 	}
 }
 
-// An issue's organization and repository, as kit prints them, are fields of backlog and of underway, hidden until the
-// person shows them; shown, they draw each row's, and a filter on them offers the values the rows hold.
+// An issue's organization and repository, as kit prints them, are fields of backlog and of underway: the repository a
+// column, the organization hidden until the person shows it; each draws each row's, and a filter on them offers the
+// values the rows hold.
 func TestAnIssuesOrganizationAndRepositoryAreFields(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24})
 	for _, stage := range []string{"backlog", "underway"} {
-		for _, id := range []string{"organization", "repository"} {
-			if f := fieldIn(stage, id); f.Placement != table.PlaceHidden || !f.Filter || !f.Group {
+		for id, placed := range map[string]string{"organization": table.PlaceHidden, "repository": table.PlaceColumn} {
+			if f := fieldIn(stage, id); f.Placement != placed || !f.Filter || !f.Group {
 				t.Errorf("%s.%s: %+v", stage, id, f)
 			}
 		}
 	}
-	if strings.Contains(raw(m), "jig") {
-		t.Errorf("the repository is drawn while hidden:\n%s", raw(m))
+	if strings.Contains(raw(m), "organization") {
+		t.Errorf("the organization is drawn while hidden:\n%s", raw(m))
 	}
-	m.setPanel(m.panel(0).Placed("repository", grid.Column))
 	if !strings.Contains(raw(m), "jig") || !strings.Contains(raw(m), "kit") {
 		t.Errorf("the repository shown:\n%s", raw(m))
 	}

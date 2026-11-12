@@ -73,7 +73,7 @@ JSON
   [ "$status" -eq 0 ]
   expected='[{"key":13,"id":13,"name":"kit-0.1.0.tar.gz","digest":"sha256:ab12","size":2048,"run":103,'
   expected+='"expires":1798624800,"links":{"name":"https://github.com/o/r/actions/runs/103/artifacts/13"}}]'
-  [ "$(jq -c '.rows | map(del(.age))' <<<"$output")" = "${expected}" ]
+  [ "$(jq -c '.rows | map(del(.age, .organization, .repository, .source))' <<<"$output")" = "${expected}" ]
   [ "$(jq -c '.errors' <<<"$output")" = '[]' ]
 }
 
@@ -84,7 +84,7 @@ JSON
   expected='[{"key":"production","name":"production","protection":["branches","reviewers"],"approvers":["ada"],'
   expected+='"branches":["main"],'
   expected+='"links":{"name":"https://github.com/o/r/deployments/activity_log?environments_filter=production"}}]'
-  [ "$(jq -c '.rows' <<<"$output")" = "${expected}" ]
+  [ "$(jq -c '.rows | map(del(.organization, .repository, .source))' <<<"$output")" = "${expected}" ]
 }
 
 @test "deployments is a row per deployment, its environment linked to that row and its commit to the commit's page" {
@@ -94,7 +94,7 @@ JSON
   expected='[{"key":9,"id":9,"environment":"production","ref":"release/0.1.0","sha":"8e817bf0","state":"success",'
   expected+='"actor":"ada","links":{"environment":"row:environments/production",'
   expected+='"sha":"https://github.com/o/r/commit/8e817bf0","state":"https://github.com/o/r/actions/runs/103/job/1"}}]'
-  [ "$(jq -c '.rows | map(del(.age))' <<<"$output")" = "${expected}" ]
+  [ "$(jq -c '.rows | map(del(.age, .organization, .repository, .source))' <<<"$output")" = "${expected}" ]
   [ "$(jq -c 'has("limited")' <<<"$output")" = false ]
   # 60 deployments, of which GitHub's read holds 50, give 50 rows and say so
   jq '.data.repository.deployments |= (.totalCount = 60

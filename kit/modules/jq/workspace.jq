@@ -39,12 +39,15 @@ def track:
         ((capture("(behind |-)(?<n>[0-9]+)") // {n: "0"}) | .n | tonumber)] end;
 
 # remotes($primary) reads each remote of a repository, {name, url, push, forge, member, default, branches}, and gives
-# its rows: the remote, its forge, its repository, the member's path past the host, the host, its URL, its push URL
-# where it differs, its default branch, how many branches it has, and whether it is the primary; the repository leads
-# to its page, and the default branch to its row.
+# its rows: the remote, its forge, the organization and the repository it is, the member's path past the host up to
+# its last segment and that segment, the host, its URL, its push URL where it differs, its default branch, how many
+# branches it has, and whether it is the primary; the repository leads to its page, and the default branch to its
+# row. A remote on this machine has no organization, repository, or host.
 def remotes($primary):
   map(web(.forge; .member) as $web
-    | {key: .name, remote: .name, forge, repository: (.member | if . then sub("^[^/]+/"; "") else null end),
+    | (.member | if . then sub("^[^/]+/"; "") | split("/") else null end) as $path
+    | {key: .name, remote: .name, forge, organization: ($path | if . then .[:-1] | join("/") else null end),
+       repository: ($path | if . then .[-1] else null end),
        host: (.member | if . then sub("/.*$"; "") else null end), url,
        push: (if .push == .url then null else .push end), default, branches,
        primary: (if .name == $primary then "primary" else null end),
@@ -173,8 +176,8 @@ def shown($as):
 def columns($stage):
   {repos: [{id: "repository"}, {id: "forge"}, {id: "branch"}, {id: "ahead"}, {id: "behind"},
           {id: "checkout", as: "checkout"}, {id: "worktrees", as: "worktrees"}, {id: "branches"}, {id: "error"}],
-   remotes: [{id: "remote"}, {id: "repository"}, {id: "forge"}, {id: "url"}, {id: "default"},
-             {id: "branches"}],
+   remotes: [{id: "remote"}, {id: "organization"}, {id: "repository"}, {id: "forge"}, {id: "url"},
+             {id: "default"}, {id: "branches"}],
    branches: [{id: "branch"}, {id: "kind"}, {id: "remote"}, {id: "local"}, {id: "upstream", as: "track"},
               {id: "commit"}, {id: "age", as: "age"}, {id: "worktree"}],
    worktrees: [{id: "path"}, {id: "kind"}, {id: "branch"}, {id: "head"}, {id: "upstream"},

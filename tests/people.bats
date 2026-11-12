@@ -72,7 +72,7 @@ JSON
   expected='[{"key":"ada","login":"ada","name":"Ada","role":"admin","kind":"user","links":{}},'
   expected+='{"key":"bob","login":"bob","name":null,"role":"write","kind":"user","links":{}},'
   expected+='{"key":"dependabot[bot]","login":"dependabot[bot]","name":null,"role":"write","kind":"bot","links":{}}]'
-  [ "$(jq -c '.rows' <<<"$output")" = "${expected}" ]
+  [ "$(jq -c '.rows | map(del(.organization, .repository, .source))' <<<"$output")" = "${expected}" ]
   [ "$(jq -c '.errors' <<<"$output")" = '[]' ]
 }
 
@@ -82,7 +82,7 @@ JSON
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
   expected='[{"key":"core","team":"core","name":"Core","role":"write","members":["ada","bob"],'
   expected+='"links":{"team":"https://github.com/orgs/o/teams/core"}}]'
-  [ "$(jq -c '.rows' <<<"$output")" = "${expected}" ]
+  [ "$(jq -c '.rows | map(del(.organization, .repository, .source))' <<<"$output")" = "${expected}" ]
   [ "$(jq -c 'has("limited")' <<<"$output")" = false ]
   # 25 teams: kit asks for 21, and the 21st says GitHub holds more than the 20 drawn
   jq '[range(21) as $i | .[0] | .slug = "t\(100 + $i)"]' "${FAKE_DIR}/teams.json" > "${FAKE_DIR}/teams.new" \
@@ -100,7 +100,7 @@ JSON
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
   expected='[{"key":"dependabot[bot]","login":"dependabot[bot]","acted":["change"],"last":1790931600,'
   expected+='"links":{"login":"https://github.com/apps/dependabot"}}]'
-  [ "$(jq -c '.rows' <<<"$output")" = "${expected}" ]
+  [ "$(jq -c '.rows | map(del(.organization, .repository, .source))' <<<"$output")" = "${expected}" ]
 }
 
 @test "kit people with --text prints a stage as text, a list of members apart by commas" {

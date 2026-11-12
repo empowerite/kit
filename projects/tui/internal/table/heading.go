@@ -185,18 +185,19 @@ func BarSpots(h Host) []SortSpot {
 
 // BarRule gives the rule under the heading over the groups, on the line under the control line: blank to the first
 // group's name, past its fold, as the rule under the header starts at a column's name, or to BarLeft where the heading
-// names no group; then a thin dim line to the heading's end, the marks of BarSpots on it; nothing where the rows group
-// by nothing.
+// names no group; then a thin dim line to the heading's end, no further than the pane, as the control line clips the
+// heading to it, the marks of BarSpots on it; nothing where the rows group by nothing.
 func BarRule(h Host) string {
 	text := ansi.Strip(BarText(h.Rows()))
 	if text == "" {
 		return ""
 	}
-	from, end := BarLeft, BarLeft+ansi.StringWidth(text)
+	_, width := h.Pane()
+	from, end := BarLeft, min(BarLeft+ansi.StringWidth(text), width)
 	if names := BarNames(h); len(names) > 0 {
 		from = names[0].From
 	}
-	return strings.Repeat(" ", from) + RuleFill(BarSpots(h), from, end-from)
+	return strings.Repeat(" ", from) + RuleFill(BarSpots(h), from, max(0, end-from))
 }
 
 // BarRuleClick takes a plain click at the screen column x on the rule under the heading over the groups, and says

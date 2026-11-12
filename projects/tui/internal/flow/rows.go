@@ -246,6 +246,26 @@ type record struct {
 	values map[string]table.Value
 }
 
+// unbuilt gives each record a builder built its value in each of the stage's fields the builder left unset, as the
+// field's path reads it from the record kit printed, as catalogRows reads every field, so a field every stage has, as
+// where a row is from, needs no Go in a builder. A builder builds one record a row kit printed, in its order; one that
+// built another number is left as it built them.
+func unbuilt(s stage, out []record) {
+	if len(out) != len(s.parsed) {
+		return
+	}
+	for _, f := range catalog[s.name].Of() {
+		if f.ID == "member" || f.Path == "*" {
+			continue
+		}
+		for k := range out {
+			if _, set := out[k].values[f.ID]; !set && out[k].values != nil {
+				out[k].values[f.ID] = f.ReadFrom(s.parsed[k].value)
+			}
+		}
+	}
+}
+
 // laid gives a stage's rows from its records, as table.Lay lays them out in the stage's fields.
 func laid(stage string, records []record, pinned func(id string) string) []row {
 	return table.Lay(fieldsOf(stage), entries(records), pinned)
@@ -338,12 +358,14 @@ func of[T any](s stage) []T {
 	return out
 }
 
-// records gives a stage's records from what it loaded, as its builder builds them, else as the catalog draws them,
-// then, over a group, a line for each member whose read failed; none for a stage kittui does not draw.
+// records gives a stage's records from what it loaded, as its builder builds them, each field it leaves unset as
+// unbuilt reads it, else as the catalog draws them, then, over a group, a line for each member whose read failed; none
+// for a stage kittui does not draw.
 func (m Model) records(s stage) []record {
 	var out []record
 	if b := builders[s.name]; b.rows != nil {
 		out = b.rows(m, s)
+		unbuilt(s, out)
 	} else {
 		out = m.catalogRows(s)
 	}

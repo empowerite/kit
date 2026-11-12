@@ -144,7 +144,9 @@ kit --workspace=empowerite flow backlog --json    # every member's backlog, each
 `--workspace=` runs `kit flow` in every member's checkout at once, each under that checkout's own `kit.yml`, so a
 GitLab member beside GitHub ones keeps its forges and trackers. With `--json`, a stage prints `{rows, errors}`: each
 row, or each desk, worktrees, or incoming object, gains `member`, its host and path; a member that could not be read
-is `{member, error}` under `errors`, and the others still draw. kit flow exits 1 when a member cannot be read: with
+is `{member, error}` under `errors`, and the others still draw. Every row already says where it is from, as each
+member's `kit flow` printed it: `organization` and `repository`, as the member's primary remote names them, and
+`source`, the forge, or `git` for incoming's; see [apps.md](apps.md). kit flow exits 1 when a member cannot be read: with
 `--json`, what was read is still printed. `--marks` names such a member under `errors` beside the marks, and
 `--quota` leaves its rate limits out; both say its line on stderr. A member with no checkout draws no stage; `kit
 workspace repos` lists it. Over a workspace, the stages are kit's eight, whatever the `kit.yml` where you run it says.

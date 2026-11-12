@@ -1,6 +1,8 @@
 # shellcheck shell=bash
 # workspaces.sh - kit's workspaces: the file, members, checkouts, and the workspace kit starts on (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
+# shellcheck disable=SC2154  # kit_jq is set by modules/bash/1st.sh
+#
 # A workspace is what kit looks at: one repository, or a named group of them. A group is personal, kept in
 # workspaces.yml under XDG_CONFIG_HOME, else ~/.config, in kit/; only kit reads and writes it. What kit keeps for
 # itself, as the last group used, is under XDG_CACHE_HOME, else ~/.cache, in kit/workspaces/.
@@ -154,6 +156,48 @@ workspaces:url-member() {
   path=${path%.git}
   [[ "${path}" == */* ]] || return 0
   workspaces:spelled "${host}/${path}"
+}
+
+# workspaces:place prints where the repository here is, as JSON, {organization, repository}: the path the primary
+# remote's URL names past its host, split as place in modules/jq/forge.jq splits it, an owner on GitHub and a group,
+# with its subgroups, on GitLab, and the repository's name; for a primary on this machine, or none, no organization,
+# and the name of the top of the working tree.
+workspaces:place() {
+  local primary url member top
+  primary=$(forge:primary 2>/dev/null) || primary=origin
+  url=$(git remote get-url --end-of-options "${primary}" 2>/dev/null) || url=''
+  member=$(workspaces:url-member "${url}")
+  if [[ -n "${member}" ]]
+  then
+    jq --null-input --compact-output -L "${kit_jq}" --arg path "${member#*/}" 'import "forge" as forge;
+      forge::place($path)'
+    return
+  fi
+  top=$(workspaces:in-repository) || top=${PWD}
+  jq --null-input --compact-output --arg repository "${top##*/}" '{organization: null, repository: $repository}'
+}
+
+# workspaces:placed <source> <document> prints a stage's document, its rows an array or {rows, …}, each row saying where
+# it is from, as from in modules/jq/forge.jq gives it: the repository here, as workspaces:place says, and <source>,
+# the service it was read from, git or kit, or forge for the primary's forge, null where it has none. A row keeps the
+# organization, repository, and source it has. Any other document it prints as it is.
+workspaces:placed() {
+  local source=$1 doc=$2 primary here
+  if [[ "${source}" == forge ]]
+  then
+    source=''
+    if primary=$(forge:primary 2>/dev/null)
+    then
+      source=$(forge:of "${primary}" 2>/dev/null) || source=''
+    fi
+  fi
+  here=$(workspaces:place) || return 1
+  jq --compact-output -L "${kit_jq}" --argjson here "${here}" --arg source "${source}" '
+    import "forge" as forge;
+    ($here + {source: (if $source == "" then null else $source end)}) as $from
+    | if type == "array" then map(forge::from($from))
+      elif type == "object" and (.rows | type) == "array" then .rows |= map(forge::from($from))
+      else . end' <<<"${doc}"
 }
 
 # workspaces:member-of <dir> prints the member of the checkout at <dir>, from its primary remote, or nothing. A kit.yml

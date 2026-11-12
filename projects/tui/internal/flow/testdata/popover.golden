@@ -6,15 +6,15 @@
     ·───────                                                                  │   field         │ filtering            │
   ▾ 🐙 github 1                                                               │ ☑ source        │ ⦿ include  ⦾ exclude │
                                                                               │ ────────────────│ ☑ @me ada            │
-      id  assignees  age  title                                               │ ☑ id            │ ☐ ada                │
-      ·───×·─────────·────·───────────────────────────────────────────────────│ ☑ assignees ⊘   │ ☐ bob                │
-    ▸ #7  👤 ada +1  40d  🎫 Fix the thing                                    │ ☑ age           │ ☐ jeffrey-aguilera   │
-                                                                              │ ☑ branch        │ ☐ none               │
-                                                                              │ ☑ labels        │                      │
-                                                                              │ ☑ title         │ rendering            │
-                                                                              │ ────────────────│ ⦿ auto glyph+text    │
-                                                                              │ ☐ organization  │ ⦾ glyph+text         │
-                                                                              │ ☐ repository    │ ⦾ text               │
+      id  repository  assignees  age  title                                   │ ☑ id            │ ☐ ada                │
+      ·───·───────────×·─────────·────·───────────────────────────────────────│ ☑ repository    │ ☐ bob                │
+    ▸ #7  jig         👤 ada +1  40d  🎫 Fix the thing                        │ ☑ assignees ⊘   │ ☐ jeffrey-aguilera   │
+                                                                              │ ☑ age           │ ☐ none               │
+                                                                              │ ☑ branch        │                      │
+                                                                              │ ☑ labels        │ rendering            │
+                                                                              │ ☑ title         │ ⦿ auto glyph+text    │
+                                                                              │ ────────────────│ ⦾ glyph+text         │
+                                                                              │ ☐ organization  │ ⦾ text               │
                                                                               ╰─────────────────╰──────────────────────╯
 
 

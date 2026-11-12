@@ -36,10 +36,12 @@
 # kit people agents [--text | --json | --jq]
 #
 # With --json, a stage prints {rows, errors}, and limited where the forge holds more than it read. A row is {key, …,
-# links}: key is the row's own in its stage, and links gives where a value leads, by its field. Over a workspace, each
-# row gains member, its host and path, and a member that could not be read is {member, error} under errors, while
-# every other member still draws. A repository with no forge, or a forge without the stage's feature, gives no rows
-# and no errors.
+# links}: key is the row's own in its stage, and links gives where a value leads, by its field. Every row says where it
+# is from: organization and repository, the owner and the name of the repository kit read it in, as its primary remote's
+# URL names them past the host, no organization for a primary on this machine; and source, the forge, as github or
+# gitlab. Over a workspace, each row gains member, its host and path, and a member that could not be read is {member,
+# error} under errors, while every other member still draws. A repository with no forge, or a forge without the stage's
+# feature, gives no rows and no errors.
 #
 #   people              {login, name, role, kind}, keyed by the login: name null where the forge shows none; role the
 #                       forge's own name for it, as GitHub's admin, write, or read, GitLab's owner, developer, or guest,

@@ -43,9 +43,11 @@
 # kit platform settings [--text | --json | --jq]
 #
 # With --json, a stage prints {rows, errors}. A row is {key, …, links}: key is the row's own in its stage, and links
-# gives where a value leads, by its field; no row of these stages leads anywhere. Over a workspace, each row gains
-# member, its host and path, and a member that could not be read is {member, error} under errors, while every other
-# member still draws.
+# gives where a value leads, by its field; no row of these stages leads anywhere. Every row says where it is from:
+# organization and repository, the owner and the name of the repository kit read it in, as its primary remote's URL
+# names them past the host, no organization for a primary on this machine; and source, kit, which reads them here. Over
+# a workspace, each row gains member, its host and path, and a member that could not be read is {member, error} under
+# errors, while every other member still draws.
 #
 #   services            {capability, service, provider, chosen, ready}: capability is hosting, review, ci, releases,
 #                       tracking <prefix>, toolchain, dependencies <provider>, or policy, and dependencies alone where

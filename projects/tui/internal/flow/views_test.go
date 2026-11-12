@@ -506,8 +506,10 @@ func TestViewsJSONBecomesPresetsJSONOnce(t *testing.T) {
 				"assignees": {Placement: table.PlaceColumn, Position: 4, Filter: &table.ValueFilter{Include: []string{caller}}},
 				"age":       {Placement: table.PlaceColumn, Position: 5, Sort: "desc", Priority: 1},
 				"branch":    {Placement: table.PlaceHidden},
-				// a field the version 1 file could not name, as labels, stands after the columns it named
-				"labels": {Placement: table.PlaceColumn, Position: 6},
+				// the fields the version 1 file could not name, as repository and labels, stand after the columns it
+				// named, in the catalog's order
+				"repository": {Placement: table.PlaceColumn, Position: 6},
+				"labels":     {Placement: table.PlaceColumn, Position: 7},
 			}},
 			{Name: "Others", Fields: map[string]table.Setting{
 				"assignees": {Placement: table.PlaceGroup, Depth: 1, Filter: &table.ValueFilter{Exclude: []string{caller}}},

@@ -106,6 +106,12 @@ import "forge" as forge; forge::github_prs(1000000) | .closes[] | [.number, .ass
 [8,[],"empowerite","example"]
 [7,[],"other","place"]
 
+# A row says where it is from: the organization, repository, and source it has, even null, as an issue's own, else
+# those of here; anything but an object is as it was.
+import "forge" as forge; map(forge::from({organization: "o", repository: "r", source: "github"}))
+[{"n": 1}, {"n": 2, "organization": "x", "repository": null}, "text"]
+[{"n":1,"organization":"o","repository":"r","source":"github"},{"n":2,"organization":"x","repository":null,"source":"github"},"text"]
+
 # A rate limit that is spent gives the wait until it resets, in local time, which the suite runs in UTC, and in
 # minutes rounded up, the later of the two when both are; with neither spent, or no answer, nothing.
 import "forge" as forge; [.[] | [forge::github_spent(1000000)]]

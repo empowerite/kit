@@ -6,11 +6,11 @@
     ·───────                                      ╭─ backlog legend ── ↖ ↗ ↙ ↘ ╮
   ▾ github 3                                      │ =  kit menu                │
                                                   │ -  workspace menu          │
-      id   assignees        age  branch           │ 🔎 search: / or click      │
-      ·────×·───────────────·────·────────────────│ ➊  selected tab            │
-    ▸ #45                    2h                   │ ➁  tab: click to select    │
-    ▸ #46  jeffrey-aguile…   2d  46-a-noun-lists  │ 🎫 backlog stage           │
-    ▸ #7   ada          +1  40d                   │ :  tab menu                │
+      id   repository  assignees    age  branch   │ 🔎 search: / or click      │
+      ·────·───────────×·───────────·────·────────│ ➊  selected tab            │
+    ▸ #45  kit                       2h           │ ➁  tab: click to select    │
+    ▸ #46  kit         jeffrey-ag…   2d  46-a-noun│ 🎫 backlog stage           │
+    ▸ #7   jig         ada      +1  40d           │ :  tab menu                │
                                                   │ 🛫 underway stage          │
                                                   │ 🔀 changes stage           │
                                                   │ 🏭 builds stage            │

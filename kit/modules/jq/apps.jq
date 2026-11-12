@@ -111,8 +111,8 @@ def alert($tool):
   ({key: "\($tool) \(.number)", tool: $tool} + del(.url, .by, .reason) + {links: {rule: .url}}) | linked;
 
 # control reads a control the forge's rulesets call prints and gives it keyed by its id, its page the link of the
-# control.
-def control: ({key: .id} + del(.url) + {links: {control: .url}}) | linked;
+# control, and its source, a ruleset or a protection, as its kind, so source says the forge, as every row's does.
+def control: ({key: .id} + del(.url, .source) + {kind: .source, links: {control: .url}}) | linked;
 
 # waiver reads a waiver the forge's bypasses call prints, or one dismissal gives, and gives it keyed by what it waives
 # and for whom, or for those hidden, <waives> hidden: what it waives links to that row, of the findings stage for a
@@ -183,12 +183,13 @@ def shown:
   else tostring end;
 
 # text reads a stage's rows and gives its lines as text: a line of the fields' names, in the order the rows first hold
-# them, less key, links, and member, then a line per row, each column as wide as its widest, two spaces apart, the
-# last unpadded; a stage with no rows gives none.
+# them, less key, links, member, and where each row is from, organization, repository, and source, which the rows
+# of a member are drawn under, then a line per row, each column as wide as its widest, two spaces apart, the last
+# unpadded; a stage with no rows gives none.
 def text:
   . as $rows
   | (reduce ($rows[] | keys_unsorted[]) as $k ([]; if index([$k]) then . else . + [$k] end)
-     | map(select(IN("key", "links", "member") | not))) as $names
+     | map(select(IN("key", "links", "member", "organization", "repository", "source") | not))) as $names
   | [$rows[] | [.[$names[]] | shown]] as $cells
   | [range($names | length) as $k | ([$names[$k], $cells[][$k]] | map(length) | max)] as $widths
   | def line:

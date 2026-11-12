@@ -128,18 +128,22 @@ apps:elsewhere() {
   printf '%s' "${apps_elsewhere_of[${stage}]:-}"
 }
 
-# apps:document <verb> <stage> <workspace> [<word>…] prints the stage's document: the repository here's, or with a
-# workspace, every member's, merged, each member's verb given the words. It returns 1 when it could not be read, or a
-# member could not, after what was read.
+# apps:document <verb> <stage> <workspace> [<word>…] prints the stage's document: the repository here's, each row
+# saying where it is from, as workspaces:placed says, the forge's rows the forge, as apps:forge gives them, and the
+# others kit; or with a workspace, every member's, merged, each member's verb given the words. It returns 1 when it
+# could not be read, or a member could not, after what was read.
 apps:document() {
-  local verb=$1 stage=$2 workspace=$3
+  local verb=$1 stage=$2 workspace=$3 doc status=0
   shift 3
   if [[ -n "${workspace}" ]]
   then
     apps:across "${workspace}" "${stage}" "$@"
     return
   fi
-  "apps/${verb}:${stage}"
+  doc=$("apps/${verb}:${stage}") || status=$?
+  [[ -n "${doc}" ]] || return "${status}"
+  workspaces:placed kit "${doc}" || return 1
+  return "${status}"
 }
 
 # apps:across <workspace> <stage> [<word>…] runs the stage, with --json and the words, in every cloned member's
@@ -238,10 +242,11 @@ apps:marks() {
 
 # apps:forge <feature> <call> <def> [<argument>…] prints the document of forge:<call> with the arguments: each object
 # it prints through apps::<def>, which gives the row, and limited from the {"limited": N} it prints last when capped.
-# A primary with no forge, or a forge that lacks the feature, gives no rows and no errors; a call that says the feature
-# is off here gives no rows and the error {feature, off: true}. Each is no failure. A call that fails returns 1, after
-# its line, printing nothing, and so does a declaration that cannot be read. A def that is not a name, or that apps.jq
-# does not have, returns 2, jq's line said.
+# Each row says where it is from, the repository here and the forge, as workspaces:placed gives it. A primary with no
+# forge, or a forge that lacks the feature, gives no rows and no errors; a call that says the feature is off here
+# gives no rows and the error {feature, off: true}. Each is no failure. A call that fails returns 1, after its line,
+# printing nothing, and so does a declaration that cannot be read. A def that is not a name, or that apps.jq does not
+# have, returns 2, jq's line said.
 apps:forge() {
   local feature=$1 call=$2 def=$3 out status=0
   shift 3
@@ -274,12 +279,14 @@ apps:forge() {
     return 0
   fi
   (( status == 0 )) || return 1
-  if ! jq --slurp --compact-output -L "${kit_jq}" "import \"apps\" as apps; apps::fold(apps::${def})" <<<"${out}" \
-    2>/dev/null
+  if ! out=$(jq --slurp --compact-output -L "${kit_jq}" "import \"apps\" as apps; apps::fold(apps::${def})" \
+    <<<"${out}" 2>/dev/null)
   then
     error "run: kit flow --capabilities (the forge's ${call} is not the JSON kit reads)"
     return 1
   fi
+  # Each row is the forge's, in the repository here, as workspaces:placed says.
+  workspaces:placed forge "${out}"
 }
 
 # apps:merge <document>… prints one document of several: the rows joined in order, the errors joined, and limited the

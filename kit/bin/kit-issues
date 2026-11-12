@@ -44,10 +44,12 @@
 # kit issues underway [--text | --json | --jq]
 #
 # With --json, a stage prints {rows, errors}. A row is {key, …, links}: key is the row's own in its stage, and links
-# gives where a value leads, by its field. Over a workspace, each row gains member, its host and path, and a member
-# that could not be read is {member, error} under errors, while every other member still draws. A repository with no
-# forge, or a forge without the stage's feature, gives no rows and no errors; a forge that has none for this
-# repository, as a GitLab tier without iterations, gives no rows and the error {feature, off: true}.
+# gives where a value leads, by its field. Every row says where it is from: organization and repository, the owner and
+# the name of the repository kit read it in, as its primary remote's URL names them past the host, no organization for a
+# primary on this machine; and source, the forge, as github or gitlab. Over a workspace, each row gains member, its host
+# and path, and a member that could not be read is {member, error} under errors, while every other member still draws. A
+# repository with no forge, or a forge without the stage's feature, gives no rows and no errors; a forge that has none
+# for this repository, as a GitLab tier without iterations, gives no rows and the error {feature, off: true}.
 #
 #   milestones          {number, title, state, due, open, closed}: state is open or closed, due is seconds since the
 #                       epoch or null for none, open and closed count the milestone's issues; the title links to its

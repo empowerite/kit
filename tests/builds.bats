@@ -92,7 +92,11 @@ JSON
 "'{"name":"publish","state":"failed","took":170,"step":"kit release"}]' ]
   [ "$(jq --compact-output '[.[2:][].jobs]' <<<"$output")" = '[[],[]]' ]
   [ "$(jq '.[0] | keys_unsorted' --compact-output <<<"$output")" \
-    = '["id","number","attempt","workflow","branch","tag","event","sha","title","state","age","took","url","jobs"]' ]
+    = '["id","number","attempt","workflow","branch","tag","event","sha","title","state","age","took","url","jobs",'"\
+"'"organization","repository","source"]' ]
+  # each run says where it is from: an origin on this machine names no organization, so the folder names the
+  # repository, and the forge kit.yml sets is the source
+  [ "$(jq -c '[.[] | [.organization, .repository, .source]] | unique' <<<"$output")" = '[[null,"desk","github"]]' ]
 }
 
 @test "a push is a build on the default branch or on a tag the repository has, and on no other branch" {

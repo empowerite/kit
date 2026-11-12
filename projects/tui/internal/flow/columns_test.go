@@ -45,7 +45,7 @@ func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 	if m.choosePreset(table.ItemFields); m.presetsMenu.Open || !m.cols.Open || m.cols.At != 0 {
 		t.Fatalf("Fields… did not open the dialog: menu %v, dialog %+v", m.presetsMenu.Open, m.cols)
 	}
-	if got := m.cols.Listed(&m); got[0] != "assignees" || got[len(got)-1] != "repository" {
+	if got := m.cols.Listed(&m); got[0] != "assignees" || got[len(got)-1] != "organization" {
 		t.Errorf("the fields: %q", got)
 	}
 	box, top, left := m.cols.Box(&m)
@@ -69,7 +69,8 @@ func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 // Options… over the dialog; esc, or a click off the dialog, closes it.
 func TestTheColumnsDialogAppliesAtOnce(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 110, Height: 30})
-	m.setPanel(regroup(m.panel(0)))
+	// the repository, a column between source and assignees, has tests of its own
+	m.setPanel(regroup(m.panel(0)).Placed("repository", grid.Hidden))
 	m.cols = table.Columns{Open: true}
 	at := func(id string) { m.cols.At = slices.Index(m.cols.Listed(&m), id) }
 	at("branch")

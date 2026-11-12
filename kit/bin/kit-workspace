@@ -26,7 +26,8 @@
 #   --marks             prints a mark per stage, as one JSON object, which changes when what the stage draws does
 #   repos               each member of the workspace, cloned or not: its forge, its clone, its desk's branch, its
 #                       worktrees, and the local branches no checkout has
-#   remotes             each remote: its forge, its repository, its URL, its default branch, and its branches, counted
+#   remotes             each remote: its forge, its organization and repository, its URL, its default branch, and its
+#                       branches, counted
 #   branches            each branch: a remote's, with the local branches that pull from it, and each local branch whose
 #                       upstream is gone or that has none, with its commit and the worktree it is checked out in
 #   worktrees           each worktree, the desk first: its branch, what it is ahead and behind its upstream and the
@@ -52,10 +53,13 @@
 # kit workspace tags [--text | --json | --jq]
 #
 # With --json, a stage prints {rows, errors}. A row is {key, …, links}: key is the row's own in its stage, and links
-# gives where a value leads, by its field: a page on the forge, or row:<stage>/<key>, a row of another stage. Over a
-# workspace, each row gains member, its host and path, and a member that could not be read is {member, error} under
-# errors, while every other member still draws. --marks over a workspace names such a member the same way, under
-# errors beside the marks, and says its line.
+# gives where a value leads, by its field: a page on the forge, or row:<stage>/<key>, a row of another stage. Every
+# row says where it is from: organization and repository, the owner and the name of the repository kit read it in,
+# as its primary remote's URL names them past the host, no organization for a primary on this machine; and source,
+# git, kit for a member repos lists that is not cloned. A remote's row says the organization and the repository it
+# is, and repos' repository is the member, host and path. Over a workspace, each row gains member, its host and path,
+# and a member that could not be read is {member, error} under errors, while every other member still draws. --marks
+# over a workspace names such a member the same way, under errors beside the marks, and says its line.
 #
 #   repos               {repository, host, path, forge, remotes, checkout, checkouts, by, branch, ahead, behind,
 #                       worktrees, branches, error}: remotes is [{name, url, forge}]; by is fixed for a group's member,
@@ -63,8 +67,9 @@
 #                       from one of its linked worktrees; branch, ahead, and behind are its desk's; worktrees is
 #                       [{branch, path}]; branches is the local branches no checkout has; each is null for a member not
 #                       cloned; error is the desk's line where it could not be read. Its rows have no key or links
-#   remotes             {remote, forge, repository, host, url, push, default, branches, primary}: repository is the
-#                       path the URL names past its host; push is null where it is the URL; primary is "primary" or null
+#   remotes             {remote, forge, organization, repository, host, url, push, default, branches, primary}:
+#                       organization and repository are the path the URL names past its host, up to its last segment
+#                       and that segment; push is null where it is the URL; primary is "primary" or null
 #   branches            {kind, branch, remote, local, upstream, default, commit, age, subject, worktree}: kind is
 #                       remote, gone, or local; local is the local branches; upstream is [ahead, behind] of the
 #                       first, or null; default is "default" for the remote's default branch, else null; worktree is
@@ -227,7 +232,7 @@ document() {
   local rows into
   if [[ "$1" == repos ]]
   then
-    across:repos "${workspace}"
+    repos
     return
   fi
   if [[ -n "${workspace}" ]]
@@ -238,7 +243,20 @@ document() {
     return
   fi
   rows=$(workspace:stage "$1") || return 1
+  rows=$(workspaces:placed git "${rows}") || return 1
   jq --compact-output '{rows: ., errors: []}' <<<"${rows}"
+}
+
+# repos prints the repos stage's document, as across:repos does, each row saying where it is from: the organization
+# its path names, up to its last segment, and source git, or kit for a member not cloned. It returns 1, after the
+# document, as across:repos does.
+repos() {
+  local doc status=0
+  doc=$(across:repos "${workspace}") || status=$?
+  [[ -n "${doc}" ]] || return "${status}"
+  jq --compact-output '.rows |= map(. + {organization: (.path // "" | split("/") | if length > 1 then .[:-1]
+    | join("/") else null end), source: (if .checkout then "git" else "kit" end)})' <<<"${doc}" || return 1
+  return "${status}"
 }
 
 # shown <stage> <document> prints the stage's document in the form asked for: JSON, formatted, or text.

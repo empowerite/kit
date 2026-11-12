@@ -57,7 +57,7 @@ JSON
   github-world
   run --separate-stderr "${kit_root}/bin/kit" issues milestones --json
   [ "$status" -eq 0 ]
-  [ "$(jq -c '.rows' <<<"$output")" = \
+  [ "$(jq -c '.rows | map(del(.organization, .repository, .source))' <<<"$output")" = \
     '[{"key":2,"number":2,"title":"v0.1","state":"open","due":1796083200,"open":3,"closed":2,"links":{"title":"https://github.com/o/r/milestone/2"}}]' ]
   [ "$(jq -c '.errors' <<<"$output")" = '[]' ]
 }

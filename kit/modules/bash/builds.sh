@@ -14,7 +14,7 @@
 #
 # see: kit/bin/kit-flow, modules/bash/flow.sh, modules/bash/forge.sh, modules/jq/forge.jq
 
-use forge flow
+use forge flow workspaces
 
 # builds:documents prints the forge's runs, newest first, as one JSON array: id, number, attempt, workflow, branch,
 # tag, event, sha, title, state, age, took, url, and jobs, each.
@@ -122,14 +122,15 @@ builds:draw() {
   done
 }
 
-# builds:render [--json] prints the runs as builds:draw does, or with --json as builds:documents does, to stdout.
+# builds:render [--json] prints the runs as builds:draw does, or with --json as builds:documents does, to stdout, each
+# saying where it is from, the forge, as workspaces:placed says.
 builds:render() {
   local doc
   doc=$(builds:documents) || return 1
   if [[ " $* " == *" --json "* ]]
   then
-    printf '%s\n' "${doc}"
-    return 0
+    workspaces:placed forge "${doc}"
+    return
   fi
   builds:draw "${doc}"
 }

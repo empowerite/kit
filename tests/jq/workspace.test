@@ -17,7 +17,7 @@ null
 # links to the repository's page and to its default branch's row.
 import "workspace" as workspace; workspace::remotes("origin")
 [{"name": "origin", "url": "https://github.com/o/r", "push": "https://github.com/o/r", "forge": "github", "member": "github.com/o/r", "default": "main", "branches": 2}, {"name": "mirror", "url": "/srv/r.git", "push": "git@github.com:o/r.git", "forge": null, "member": null, "default": null, "branches": 0}]
-[{"key":"origin","remote":"origin","forge":"github","repository":"o/r","host":"github.com","url":"https://github.com/o/r","push":null,"default":"main","branches":2,"primary":"primary","links":{"repository":"https://github.com/o/r","default":"row:branches/origin/main"}},{"key":"mirror","remote":"mirror","forge":null,"repository":null,"host":null,"url":"/srv/r.git","push":"git@github.com:o/r.git","default":null,"branches":0,"primary":null,"links":{"repository":null,"default":null}}]
+[{"key":"origin","remote":"origin","forge":"github","organization":"o","repository":"r","host":"github.com","url":"https://github.com/o/r","push":null,"default":"main","branches":2,"primary":"primary","links":{"repository":"https://github.com/o/r","default":"row:branches/origin/main"}},{"key":"mirror","remote":"mirror","forge":null,"organization":null,"repository":null,"host":null,"url":"/srv/r.git","push":"git@github.com:o/r.git","default":null,"branches":0,"primary":null,"links":{"repository":null,"default":null}}]
 
 # A remote's branch has the local branches that pull from it, the longest remote name taken first, and its HEAD is
 # no row; a local branch whose upstream is gone has a row of its own, and so does one with no upstream.

@@ -44,11 +44,14 @@
 # kit audit policy [--text | --json | --jq]
 #
 # With --json, a stage prints {rows, errors}, and limited where the forge holds more than it read. A row is {key, …,
-# links}: key is the row's own in its stage, and links gives where a value leads, by its field. Over a workspace, each
-# row gains member, its host and path, and a member that could not be read is {member, error} under errors, while
-# every other member still draws. A repository with no forge, or a forge without the stage's feature, gives no rows
-# and no errors; a feature the forge has off for this repository, as secret scanning disabled, gives no rows and
-# {feature, off: true} under errors, which is no failure.
+# links}: key is the row's own in its stage, and links gives where a value leads, by its field. Every row says where it
+# is from: organization and repository, the owner and the name of the repository kit read it in, as its primary remote's
+# URL names them past the host, no organization for a primary on this machine; and source, the forge, as github or
+# gitlab. policy's rows say where each rule is in force, as policy says below. Over a workspace, each row gains member, its host and path,
+# and a member that could not be read is {member, error} under errors, while every other member still draws. A
+# repository with no forge, or a forge without the stage's feature, gives no rows and no errors; a feature the forge has
+# off for this repository, as secret scanning disabled, gives no rows and {feature, off: true} under errors, which is no
+# failure.
 #
 #   evidence            {subject, digest, kind, signer, age}, keyed by the digest and the kind: subject the asset's
 #                       or artifact's name; kind the statement's predicate type, null where GitHub keeps the bundle
@@ -66,9 +69,9 @@
 #                       scanning for Dependabot, and secret detection, off on a tier without it; GitLab leaves out a
 #                       vulnerability the caller may not see, so the tab reads empty, never refused. Azure DevOps
 #                       keeps none kit reads
-#   controls            {id, control, target, enforcement, rules, source}, keyed by the id: control its name;
+#   controls            {id, control, target, enforcement, rules, kind}, keyed by the id: control its name;
 #                       target the refs it names; enforcement active, evaluate, or disabled; rules its kinds of rule,
-#                       null where the forge shows them only to an admin; source ruleset or protection. The control
+#                       null where the forge shows them only to an admin; kind ruleset or protection. The control
 #                       links to its page. GitHub reads its rulesets, its own and its organization's, in one GraphQL
 #                       request, and the default branch's protection; GitLab its protected branches and push rules;
 #                       Azure DevOps the default branch's policies

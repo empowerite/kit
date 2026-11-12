@@ -922,8 +922,9 @@ func TestChangesCarryTheirChecksThreadsAndIssues(t *testing.T) {
 
 func TestBacklogOpensToItsDetail(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 80, Height: 24})
-	// the source and labels columns have tests of their own
-	m.setPanel(m.panel(m.stage).Placed("source", grid.Hidden).Placed("labels", grid.Hidden))
+	// the source, repository, and labels columns have tests of their own
+	m.setPanel(m.panel(m.stage).Placed("source", grid.Hidden).Placed("repository", grid.Hidden).Placed("labels",
+		grid.Hidden))
 	m = drive(intoRows(m), toggle)
 	v := view(m)
 	// the title has what the other columns leave, with its glyph, which leads to the issue's page, and the branch, which
@@ -1406,7 +1407,8 @@ func TestUnderwayDrawsEachIssueBesideThePullRequestThatClosesIt(t *testing.T) {
 	// underway is the second stage, between backlog and incoming
 	m := loaded(t, bare(), tab)
 	// the source and labels columns have tests of their own
-	m.setPanel(m.panel(m.stage).Placed("source", grid.Hidden).Placed("labels", grid.Hidden))
+	m.setPanel(m.panel(m.stage).Placed("source", grid.Hidden).Placed("repository", grid.Hidden).Placed("labels",
+		grid.Hidden))
 	asCatalog(&m, m.stage) // auto_test has what the screen chooses
 	if m.stages[m.stage].name != "underway" || !shows(m, InFlight, "4") {
 		t.Fatalf("underway is not the second stage:\n%s", view(m))

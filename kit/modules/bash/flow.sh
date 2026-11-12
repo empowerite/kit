@@ -542,10 +542,11 @@ flow:incoming-text() {
 # flow:incoming [--no-fetch] [--json] is the incoming stage. It fetches every remote, the primary first, each with
 # git fetch --prune, and never rebases, merges, or pulls. It prints the fetch's blocks, as flow:incoming-text draws
 # them. With --json it prints one object instead: fetched, true; primary, its name; remotes, one flow:fetch-json
-# object each; and rows, every remote's flow:incoming-rows, the primary's first. A remote whose fetch failed carries
-# error, git's first line, and nothing came from it. With --no-fetch it fetches nothing: fetched is false, each remote
-# is flow:remote-json's object, and the rows are each remote's own and its tracking rows, as the last fetch left
-# them. It returns 1 when a fetch failed, after every remote is tried.
+# object each; and rows, every remote's flow:incoming-rows, the primary's first, each saying where it is from, git, as
+# workspaces:placed says. A remote whose fetch failed carries error, git's first line, and nothing came from it. With
+# --no-fetch it fetches nothing: fetched is false, each remote is flow:remote-json's object, and the rows are each
+# remote's own and its tracking rows, as the last fetch left them. It returns 1 when a fetch failed, after every
+# remote is tried.
 flow:incoming() {
   local json=false no_fetch=false failed=false arg primary primary_default='' remote before after said doc text
   local default
@@ -596,7 +597,7 @@ flow:incoming() {
     '{fetched: $fetched, primary: $primary, remotes: ., rows: $rows}')
   if [[ "${json}" == true ]]
   then
-    printf '%s\n' "${doc}"
+    workspaces:placed git "${doc}" || return 1
   else
     flow:incoming-text "${doc}"
   fi

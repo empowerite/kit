@@ -46,11 +46,16 @@ setup() {
   mkdir -p "${BATS_TEST_TMPDIR}/jq"
   { cat "${kit_root}/modules/jq/apps.jq"; printf 'def probe: {key: .n, n, links: {}};\n'; } \
     > "${BATS_TEST_TMPDIR}/jq/apps.jq"
+  cp "${kit_root}/modules/jq/forge.jq" "${BATS_TEST_TMPDIR}/jq/"
   run --separate-stderr kit-bash "kit_jq=${BATS_TEST_TMPDIR}/jq"'
     forge:releases() { printf "%s\n" "{\"n\": 2}" "{\"n\": 1}" "{\"limited\": 2}"; }
     apps:forge releases releases probe'
   [ "$status" -eq 0 ]
-  [ "$output" = '{"rows":[{"key":2,"n":2,"links":{}},{"key":1,"n":1,"links":{}}],"errors":[],"limited":2}' ]
+  [ "$(jq -c '.rows |= map(del(.organization, .repository, .source))' <<<"$output")" \
+    = '{"rows":[{"key":2,"n":2,"links":{}},{"key":1,"n":1,"links":{}}],"errors":[],"limited":2}' ]
+  # each row says where it is from, as workspaces:placed gives it
+  [ "$(jq -c '[.rows[] | has("organization") and has("repository") and has("source")] | unique' <<<"$output")" \
+    = '[true]' ]
   run --separate-stderr kit-bash 'apps:forge releases releases "probe; 1"'
   [ "$status" -eq 2 ]
   run --separate-stderr kit-bash 'forge:releases() { printf "{}\n"; }; apps:forge releases releases nosuchdef'
@@ -167,11 +172,13 @@ EOF
   [[ "$stderr" == *"run: kit flow backlog --json"* ]]
   run --separate-stderr "${root}/bin/kit" demo one --json
   [ "$status" -eq 0 ]
-  [ "$output" = '{"rows":[{"key":"a","links":{}}],"errors":[]}' ]
+  [ "$(jq -c '.rows |= map(del(.organization, .repository))' <<<"$output")" \
+    = '{"rows":[{"key":"a","links":{},"source":"kit"}],"errors":[]}' ]
   run --separate-stderr "${root}/bin/kit" demo --marks
   [ "$output" = '{"one":null}' ]
   run --separate-stderr "${root}/bin/kit" demo --json
-  [ "$output" = '{"stages":["one"],"one":{"rows":[{"key":"a","links":{}}],"errors":[]}}' ]
+  [ "$(jq -c '.one.rows |= map(del(.organization, .repository))' <<<"$output")" \
+    = '{"stages":["one"],"one":{"rows":[{"key":"a","links":{},"source":"kit"}],"errors":[]}}' ]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

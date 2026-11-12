@@ -84,7 +84,9 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
 "'["origin","tag","new","v1"],["origin","tracking","behind","7-mine"],["origin","tracking","behind","main"],'"\
 "'["upstream","remote","unchanged","main"]]' ]
   [ "$(jq -c '.rows[0] | keys_unsorted' <<<"$output")" = '["key","remote","primary","forge","host","url","default",'"\
-"'"kind","change","ref","sha","old","commits","author","age","subject","local","worktrees","ahead","behind","issues"]' ]
+"'"kind","change","ref","sha","old","commits","author","age","subject","local","worktrees","ahead","behind","issues",'"\
+"'"organization","repository","source"]' ]
+  [ "$(jq -c '[.rows[] | .source] | unique' <<<"$output")" = '["git"]' ]
   [ "$(jq -c '[.rows[] | [.key, .primary]] | .[0], .[1][1], .[-1]' <<<"$output" | paste -sd ' ' -)" \
     = '["origin remote","primary"] "primary" ["upstream remote",null]' ]
   # a commit names the issues its subject does; a branch the one its name starts with, and the local branch and

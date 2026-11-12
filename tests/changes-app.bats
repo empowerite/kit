@@ -73,7 +73,7 @@ JSON
   expected+='"unresolved":1,"links":{}},'
   expected+='{"key":"3 carol","change":3,"title":"Fix the thing","login":"carol","state":"approved","at":1790931600,'
   expected+='"unresolved":1,"links":{}}]'
-  [ "$(jq -c '.rows' <<<"$output")" = "${expected}" ]
+  [ "$(jq -c '.rows | map(del(.organization, .repository, .source))' <<<"$output")" = "${expected}" ]
   [ "$(jq -c '.errors' <<<"$output")" = '[]' ]
 }
 
@@ -155,7 +155,7 @@ JSON
   [ "$status" -eq 0 ]
   expected='[{"key":2,"number":2,"title":"Do the other thing","author":"bob","branch":"9-other","merged":1791018000,'
   expected+='"by":"ada","links":{"title":"https://github.com/o/r/pull/2"}}]'
-  [ "$(jq -c '.rows' <<<"$output")" = "${expected}" ]
+  [ "$(jq -c '.rows | map(del(.organization, .repository, .source))' <<<"$output")" = "${expected}" ]
   [ "$(jq -c 'has("limited")' <<<"$output")" = false ]
   # more merged than GitHub's read held makes the document limited, at the count it drew
   jq '.data.repository.pullRequests.totalCount = 70' "${FAKE_DIR}/merged.json" > "${FAKE_DIR}/merged.new" \

@@ -94,7 +94,10 @@
 #
 # One stage prints without its heading. With --json, a stage prints what the picture holds under its name: an array
 # for backlog, underway, changes, builds, and releases; an object for desk, worktrees, and incoming. Above desks,
-# --json prints an array with one {path, status} per desk.
+# --json prints an array with one {path, status} per desk. Each row of backlog, underway, changes, builds, releases,
+# and incoming's rows says where it is from: organization and repository, the owner and the name of the repository
+# kit read it in, as its primary remote's URL names them past the host, no organization for a primary on this
+# machine; and source, the forge, git for incoming's. An issue keeps those of the tracker that holds it.
 #
 # Every open issue is in backlog or underway, never both. underway has one row per issue and pull request, the oldest
 # issue first. Its owner flags match the issue's assignees. A row's JSON is {number, title, assignees, age, source,

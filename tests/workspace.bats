@@ -74,13 +74,13 @@ fake-tui() {
   [ "$output" = $'repos\nremotes\nbranches\nworktrees\ncommits\ntags' ]
 }
 
-@test "remotes gives each remote: its forge, its repository past the host, its default branch, and its branches" {
+@test "remotes gives each remote: its forge, its organization and repository past the host, its default branch, and its branches" {
   history-at "${BATS_TEST_TMPDIR}/r" github.com/o/r
   cd "${BATS_TEST_TMPDIR}/r"
   run "${kit_root}/bin/kit" workspace remotes --json
   [ "$status" -eq 0 ]
-  [ "$(jq -c '.rows | map({key, forge, repository, host, push, default, branches, primary, links})' <<<"$output")" \
-    = '[{"key":"origin","forge":"github","repository":"o/r","host":"github.com","push":null,"default":"main","branches":2,"primary":"primary","links":{"repository":"https://github.com/o/r","default":"row:branches/origin/main"}}]' ]
+  [ "$(jq -c '.rows | map({key, forge, organization, repository, host, push, default, branches, primary, links, source})' <<<"$output")" \
+    = '[{"key":"origin","forge":"github","organization":"o","repository":"r","host":"github.com","push":null,"default":"main","branches":2,"primary":"primary","links":{"repository":"https://github.com/o/r","default":"row:branches/origin/main"},"source":"git"}]' ]
   [ "$(jq -c .errors <<<"$output")" = '[]' ]
 }
 
@@ -135,13 +135,34 @@ fake-tui() {
   [ "$(jq -c '[.rows[] | del(.age)]' <<<"$output")" = "$(jq -c '[.rows[] | del(.age)]' <<<"${desk}")" ]
 }
 
+@test "every row says where it is from: the organization and the repository its origin names, and git; repos' too" {
+  history-at "${BATS_TEST_TMPDIR}/r" github.com/o/r
+  cd "${BATS_TEST_TMPDIR}/r/worktrees/7-fix"
+  run --separate-stderr "${kit_root}/bin/kit" workspace --json
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq -c '[.branches, .worktrees, .commits, .tags | .rows[] | [.organization, .repository, .source]] | unique' \
+    <<<"$output")" = '[["o","r","git"]]' ]
+  # repos' repository is the member, host and path, as kit workspaces names it
+  [ "$(jq -c '.repos.rows | map([.repository, .organization, .source])' <<<"$output")" \
+    = '[["github.com/o/r","o","git"]]' ]
+}
+
+@test "a repository with no remote says no organization, the name of its folder, and git" {
+  git init --quiet --initial-branch=main "${BATS_TEST_TMPDIR}/lone"
+  git -C "${BATS_TEST_TMPDIR}/lone" commit --quiet --allow-empty --message one
+  cd "${BATS_TEST_TMPDIR}/lone"
+  run --separate-stderr "${kit_root}/bin/kit" workspace worktrees --json
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq -c '.rows | map([.organization, .repository, .source])' <<<"$output")" = '[[null,"lone","git"]]' ]
+}
+
 @test "as text, a stage is a line of its columns' names and a line per row; the picture is every stage under its name" {
   history-at "${BATS_TEST_TMPDIR}/r" github.com/o/r
   cd "${BATS_TEST_TMPDIR}/r"
   run "${kit_root}/bin/kit" workspace remotes --text
   [ "$status" -eq 0 ]
-  [ "${lines[0]}" = 'remote  repository  forge   url                         default  branches' ]
-  [ "${lines[1]}" = 'origin  o/r         github  https://github.com/o/r.git  main     2' ]
+  [ "${lines[0]}" = 'remote  organization  repository  forge   url                         default  branches' ]
+  [ "${lines[1]}" = 'origin  o             r           github  https://github.com/o/r.git  main     2' ]
   run "${kit_root}/bin/kit" workspace --text
   [ "$status" -eq 0 ]
   [ "$(grep -c ':$' <<<"$output")" -eq 6 ]
@@ -173,7 +194,7 @@ EOF
   cd "${BATS_TEST_TMPDIR}"
   run "${kit_root}/bin/kit" --workspace=w workspace remotes --json
   [ "$status" -eq 0 ]
-  [ "$(jq -c '[.rows[] | [.member, .repository]]' <<<"$output")" = '[["github.com/o/a","o/a"],["github.com/o/b","o/b"]]' ]
+  [ "$(jq -c '[.rows[] | [.member, .organization, .repository]]' <<<"$output")" = '[["github.com/o/a","o","a"],["github.com/o/b","o","b"]]' ]
   [ "$(jq -c .errors <<<"$output")" = '[]' ]
   run "${kit_root}/bin/kit" --workspace=w workspace branches --text
   [ "$status" -eq 0 ]

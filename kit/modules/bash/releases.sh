@@ -9,7 +9,7 @@
 #
 # see: kit/bin/kit-release, kit/bin/kit-flow, modules/jq/version.jq, docs/features.md
 
-use git forge flow settings
+use git forge flow settings workspaces
 
 # releases:valid <version> says whether the version has the shape a release tag needs.
 releases:valid() {
@@ -140,14 +140,14 @@ releases:draw() {
 }
 
 # releases:render [--json] prints the releases as releases:draw does, or with --json as releases:documents does, to
-# stdout.
+# stdout, each saying where it is from, the forge, as workspaces:placed says.
 releases:render() {
   local doc
   doc=$(releases:documents) || return 1
   if [[ " $* " == *" --json "* ]]
   then
-    printf '%s\n' "${doc}"
-    return 0
+    workspaces:placed forge "${doc}"
+    return
   fi
   releases:draw "${doc}"
 }

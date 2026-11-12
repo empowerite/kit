@@ -25,7 +25,7 @@
 #
 # see: kit/bin/kit-flow, modules/bash/flow.sh, modules/bash/changes.sh, modules/jq/underway.jq
 
-use forge flow
+use forge flow workspaces
 
 # underway:checkouts prints one JSON object that maps each branch checked out on this desk to its checkout's path:
 # the desk's branch, and each linked worktree's.
@@ -170,14 +170,15 @@ underway:draw() {
 }
 
 # underway:render [--json] [--all | [--mine] [--others] [--owner=<login>…]] prints the rows as underway:draw does, or
-# with --json as underway:documents does, to stdout.
+# with --json as underway:documents does, to stdout, each saying where it is from, as workspaces:placed says, the forge
+# its source where the tracker names none.
 underway:render() {
   local doc
   doc=$(underway:documents "$@") || return 1
   if [[ " $* " == *" --json "* ]]
   then
-    printf '%s\n' "${doc}"
-    return 0
+    workspaces:placed forge "${doc}"
+    return
   fi
   underway:draw "${doc}" "$(flow:choice-of "$@")"
 }

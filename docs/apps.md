@@ -18,7 +18,17 @@ its hand-off to kittui. A verb's own stages live in `modules/bash/apps/<verb>.sh
   error, gains `member`, its host and path, and a member that could not be read is `{member, error}` under `errors`.
 
 A row is `{key, …, links}`: `key` is the row's own within its stage, and `links` gives where a value leads, by its
-field. A stage that reads the forge goes through the forge seam, `modules/bash/forge.sh`. A primary with no forge, or
+field. Every row also says where it is from, in one repository and across a workspace alike:
+
+- `organization`: the owner, or the group with its subgroups, of the repository kit read it in, as its primary
+  remote's URL names it past the host; `null` for a primary on this machine
+- `repository`: that repository's name, or the name of its folder for a primary on this machine
+- `source`: the forge the row was read from, `github`, `gitlab`, or `ado`, or `kit` for one kit reads here, as
+  `platform`'s rows
+
+A row that names its own keeps them, as an issue says the tracker and the repository that hold it, and a rule of
+`audit policy` the place it is in force. A stage that reads
+the forge goes through the forge seam, `modules/bash/forge.sh`. A primary with no forge, or
 a forge that lacks the stage's feature, gives no rows and no errors. A forge that says the feature is off for this
 repository gives no rows and the error `{feature, off: true}`. Neither is a failure. A read that fails prints its one
 line and the verb exits 1.
@@ -211,7 +221,7 @@ branch and who may get past it, and the rules kit's policy judges by. Every tab 
 | --- | --- | --- | --- |
 | `evidence` | attestation of the newest releases' assets and artifacts | `subject, digest, kind, signer, age` | the forge's runs and releases |
 | `findings` | code scanning, Dependabot, or secret scanning alert, open or dismissed | `tool, number, rule, severity, state, path, age` | the forge's runs and alerts |
-| `controls` | ruleset or protection that guards the default branch | `id, control, target, enforcement, rules, source` | none |
+| `controls` | ruleset or protection that guards the default branch | `id, control, target, enforcement, rules, kind` | none |
 | `waivers` | bypass of a control, and alert dismissed | `waives, actor, kind, reason, by, until, hidden` | none |
 | `policy` | rule `kit policy` judges by, where it is in force | `source, organization, repository, branch, scope, rule, pattern, from, engine` | a hash of each checkout's `kit.yml` and `.kit/policy/` |
 
