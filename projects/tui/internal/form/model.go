@@ -22,6 +22,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/fix"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
@@ -741,7 +742,8 @@ func (m *Model) matched(msg matchedMsg) tea.Cmd {
 		if len(match.Literals) > 0 {
 			literals = " " + strings.Join(match.Literals, " ")
 		}
-		m.refusal = fmt.Sprintf("kit %s%s needs %s; run: kit help %s", m.spec.Verb, literals, match.Missing, m.spec.Verb)
+		m.refusal = fmt.Sprintf("kit %s%s needs %s; run: %s", m.spec.Verb, literals, match.Missing,
+			fix.Here("kit help "+m.spec.Verb))
 		if i := FirstEmptyRequired(m.fields); i >= 0 {
 			m.focus = i
 			return m.enter()

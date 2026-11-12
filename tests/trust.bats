@@ -106,7 +106,7 @@ answering() {
   [[ "$output" == *"  - load bash into every kit command from lib/bash/ (bash_path)"* ]]
   [[ "$output" == *"  - run bin/ci for kit gate (gate)"* ]]
   [[ "$output" == *"  - bring packages from the source house (sources)"* ]]
-  [[ "$output" == *"there is no terminal to ask; to trust it without asking, run: kit trust --yes $(pwd -P)"* ]]
+  [[ "$output" == *"there is no terminal to ask; to trust it without asking, run: cd "*" && kit trust --yes $(pwd -P)"* ]]
   [ ! -s "${trusted}" ]
   [ ! -e "${BATS_TEST_TMPDIR}/ran" ]
 }

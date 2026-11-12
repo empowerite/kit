@@ -329,7 +329,7 @@ local-desks() {
   run --separate-stderr kit-bash "across:quota-merge '$d'"
   [ "$status" -eq 1 ]
   [ "$(jq -c '[.[].forge]' <<<"$output")" = '["github"]' ]
-  [ "$stderr" = "❌ gitlab.com/o/b: run: glab auth status (the rate limits could not be read)" ]
+  [[ "$stderr" == "❌ gitlab.com/o/b: run: cd "*" && glab auth status (the rate limits could not be read)" ]]
   printf 1 > "$d/0.status"; : > "$d/0.out"; printf '❌ run: gh auth status\n' > "$d/0.err"
   run --separate-stderr kit-bash "across:quota-merge '$d'"
   [ "$status" -eq 1 ]

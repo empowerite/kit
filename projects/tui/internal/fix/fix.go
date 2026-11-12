@@ -2,13 +2,16 @@
 // the clipboard, and ▶️, run, which hands the terminal to it. A screen draws them on the line under its cursor alone, as
 // Buttons draws them, after the line clipped to leave them room, as On reads a click on them; c copies and r runs from
 // the keyboard. A command comes from the screen's own data, as a welcome check's fix, or from kit's line, which names
-// it after run:, as Command reads it. Copy goes through the terminal, so it reaches the clipboard over ssh too; run
-// hands the terminal over until the command ends, and the screen then reads what the command changed. Run is offered
-// only for a command of plain words, as Words reads them, which runs with no shell between.
+// it after run:, as Command reads it. A command tied to a folder names it, cd and the folder then && in front, as In
+// writes it and kit writes every remedy, so it runs from anywhere it is pasted. Copy goes through the terminal, so it
+// reaches the clipboard over ssh too; run hands the terminal over until the command ends, in the folder the command
+// names, and the screen then reads what the command changed. Run is offered only for a command of plain words, as
+// Words reads them, after its cd, which runs with no shell between.
 package fix
 
 import (
 	"errors"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -140,24 +143,112 @@ func Bindings(runs bool) []shell.Binding {
 // Copying puts a command on the clipboard, through the terminal.
 func Copying(command string) tea.Cmd { return tea.SetClipboard(command) }
 
-// Runs says whether a command can run here: it is words, as Words reads them.
+// Runs says whether a command can run here: it is words, as Words reads them, after the cd to its folder, as Folder
+// reads it, where it names one.
 func Runs(command string) bool {
-	_, ok := Words(command)
+	_, _, ok := Folder(command)
 	return ok
 }
 
+// In gives a command that runs in a folder from anywhere: cd, the folder, and && in front of it, as kit writes a
+// remedy: ~ for the home folder, ~/ before a folder under it, and the rest single-quoted where it holds more than
+// letters, digits, and . _ - / + @ : ,. No folder, the command as it is.
+func In(folder, command string) string {
+	if folder == "" {
+		return command
+	}
+	return "cd " + shown(folder) + " && " + command
+}
+
+// Here gives a command that runs from anywhere in the folder kittui runs in, as In writes it, as kit writes the
+// remedies it prints itself; where that folder cannot be read, the command as it is.
+func Here(command string) string {
+	wd, err := getwd()
+	if err != nil {
+		return command
+	}
+	return In(wd, command)
+}
+
+// getwd reads the folder kittui runs in: os.Getwd, but in tests.
+var getwd = os.Getwd
+
+// shown gives a folder as In writes it.
+func shown(folder string) string {
+	lead := ""
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		switch {
+		case folder == home:
+			return "~"
+		case strings.HasPrefix(folder, home+"/"):
+			lead, folder = "~/", strings.TrimPrefix(folder, home+"/")
+		}
+	}
+	if strings.Trim(folder, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._/+@:,-") == "" {
+		return lead + folder
+	}
+	return lead + "'" + strings.ReplaceAll(folder, "'", `'\''`) + "'"
+}
+
+// Folder gives the folder a command names, as In writes it, cd and the folder then && in front, none where it names
+// none, and the words of the rest, as Words reads them; false where the folder is not one word, as a shell reads it, ~
+// or ~/ in front taken for the home folder, or the rest not words.
+func Folder(command string) (folder string, words []string, ok bool) {
+	if rest, found := strings.CutPrefix(command, "cd "); found {
+		dir, after, and := strings.Cut(rest, " && ")
+		if !and {
+			return "", nil, false
+		}
+		if folder, ok = home(dir); !ok {
+			return "", nil, false
+		}
+		command = after
+	}
+	words, ok = Words(command)
+	return folder, words, ok
+}
+
+// home gives the folder a cd names, ~ or ~/ in front of it the home folder's, and whether it is one word.
+func home(dir string) (string, bool) {
+	lead := ""
+	if dir == "~" || strings.HasPrefix(dir, "~/") {
+		h, err := os.UserHomeDir()
+		if err != nil {
+			return "", false
+		}
+		lead, dir = h, strings.TrimPrefix(strings.TrimPrefix(dir, "~"), "/")
+		if dir == "" {
+			return lead, true
+		}
+		lead += "/"
+	}
+	words, ok := Words(dir)
+	if !ok || len(words) != 1 {
+		return "", false
+	}
+	return lead + words[0], true
+}
+
 // Words gives a command's words, as a shell splits them, or false when the command asks a shell for more than words:
-// a variable, a substitution, a pipe, a redirection, a glob, a second command, or an escape. Quotes group a word, and
-// what a single or double quote holds is the word's own, but a $ or a ` inside double quotes. kit's line can carry
-// what the forge or the disk named, as a path, so a command is never handed to a shell: what is not plain words is
-// copied, never run.
+// a variable, a substitution, a pipe, a redirection, a glob, or a second command. Quotes group a word, and what a
+// single or double quote holds is the word's own, but a $, a `, or a \ inside double quotes; a \ outside quotes makes
+// the character after it the word's own, as a quote is put in a quoted folder: the quote closed, \ and the quote, and
+// the quote opened again. kit's line can carry what the forge or the disk named, as a path, so a command is never
+// handed to a shell: what is not plain words is copied, never run.
 func Words(command string) ([]string, bool) {
 	var words []string
 	var word strings.Builder
 	var quote rune
-	in := false
+	in, escaped := false, false
 	for _, r := range command {
 		switch {
+		case escaped && r == '\n':
+			return nil, false
+		case escaped:
+			word.WriteRune(r)
+			escaped = false
+		case quote == 0 && r == '\\':
+			escaped, in = true, true
 		case quote == '\'' && r == '\'', quote == '"' && r == '"':
 			quote = 0
 		case quote == '"' && (r == '$' || r == '`' || r == '\\'):
@@ -178,7 +269,7 @@ func Words(command string) ([]string, bool) {
 			in = true
 		}
 	}
-	if quote != 0 {
+	if quote != 0 || escaped {
 		return nil, false
 	}
 	if in {
@@ -190,8 +281,8 @@ func Words(command string) ([]string, bool) {
 // Exec hands the terminal to a process until it ends: tea.ExecProcess, but in tests.
 type Exec = func(*exec.Cmd, tea.ExecCallback) tea.Cmd
 
-// Running hands the terminal to a command, its words run in the screen's folder with no shell, through exec; done
-// takes how it ended once the screen has the terminal back. A command that is not words, as Runs says, does not run:
+// Running hands the terminal to a command, its words run with no shell, through exec, in the folder it names, else the
+// screen's; done takes how it ended once the screen has the terminal back. A command that is not words, as Runs says, does not run:
 // done takes ErrNotWords at once.
 func Running(exec Exec, command string, done tea.ExecCallback) tea.Cmd {
 	c, ok := Process(command)
@@ -204,11 +295,14 @@ func Running(exec Exec, command string, done tea.ExecCallback) tea.Cmd {
 // ErrNotWords is why a command did not run: it asks a shell for more than words.
 var ErrNotWords = errors.New("kittui runs only plain words; copy it to run it in your shell")
 
-// Process gives the process that runs a command's words, or false when it is not words.
+// Process gives the process that runs a command's words, in the folder it names, as Folder reads it, or false when it
+// is not words.
 func Process(command string) (*exec.Cmd, bool) {
-	words, ok := Words(command)
+	folder, words, ok := Folder(command)
 	if !ok {
 		return nil, false
 	}
-	return exec.Command(words[0], words[1:]...), true
+	c := exec.Command(words[0], words[1:]...)
+	c.Dir = folder
+	return c, true
 }

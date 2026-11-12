@@ -504,7 +504,7 @@ fake-tui() {
   [[ "${lines[0]}" == *"DESK 1" ]]
   [[ "$output" != *"kittui"* ]]
   run pty "'${kit_root}/bin/kit' flow --bogus"
-  [[ "$output" == *"unknown flag '--bogus'; run: kit help flow"* && "$output" != *"kittui"* ]]
+  [[ "$output" == *"unknown flag '--bogus'; run: cd "*" && kit help flow"* && "$output" != *"kittui"* ]]
 }
 
 @test "on a terminal with no kittui to be had, kit flow prints the text picture and says nothing of kittui" {
@@ -534,7 +534,7 @@ fake-tui() {
   run pty "'${kit_root}/bin/kit' flow underway"
   [[ "$output" == *"kittui native-native flow underway"* ]]
   run pty "'${kit_root}/bin/kit' flow backlog --text"
-  [[ "$output" == *"backlog is no stage of kit flow"*"run: kit flow issues"* && "$output" != *"kittui"* ]]
+  [[ "$output" == *"backlog is no stage of kit flow"*"run: cd "*" && kit flow issues"* && "$output" != *"kittui"* ]]
   run pty "env PATH='$(without-kittui)' '${kit_root}/bin/kit' flow underway"
   [[ "$output" == *"underway is no stage of kit flow"* && "$output" != *"kittui"* ]]
 }
@@ -864,12 +864,12 @@ fake-tui() {
   [ -z "$output" ]
   run "${kit_root}/bin/kit" flow --all --mine
   [ "$status" -eq 2 ]
-  [[ "$output" == *"--all cannot be combined with --mine; run: kit help flow"* ]]
+  [[ "$output" == *"--all cannot be combined with --mine; run: cd "*" && kit help flow"* ]]
   run "${kit_root}/bin/kit" flow --today
   [ "$status" -eq 2 ]
   run "${kit_root}/bin/kit" flow incoming --mine
   [ "$status" -eq 2 ]
-  [[ "$output" == *"--mine cannot be combined with incoming; run: kit help flow"* ]]
+  [[ "$output" == *"--mine cannot be combined with incoming; run: cd "*" && kit help flow"* ]]
 }
 
 @test "kit syntax flow lists the seven stages as a closed set, each described, and the removed verbs are no verbs" {

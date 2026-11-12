@@ -12,49 +12,49 @@ setup() {
 @test "an unknown flag, an unknown argument, and an argument to a verb that takes none are each refused in one line, exit 2" {
   run "${kit_root}/bin/kit" flow --bogus
   [ "$status" -eq 2 ]
-  [[ "$output" == *"unknown flag '--bogus'; run: kit help flow"* ]]
+  [[ "$output" == *"unknown flag '--bogus'; run: cd "*" && kit help flow"* ]]
   run "${kit_root}/bin/kit" flow foo
   [ "$status" -eq 2 ]
-  [[ "$output" == *"unknown argument 'foo'; run: kit help flow"* ]]
+  [[ "$output" == *"unknown argument 'foo'; run: cd "*" && kit help flow"* ]]
   run "${kit_root}/bin/kit" version --json
   [ "$status" -eq 2 ]
-  [[ "$output" == *"kit version takes no arguments; run: kit help version"* ]]
+  [[ "$output" == *"kit version takes no arguments; run: cd "*" && kit help version"* ]]
   run "${kit_root}/bin/kit" new nonesuch
   [ "$status" -eq 2 ]
-  [[ "$output" == *"unknown argument 'nonesuch'; run: kit help new"* ]]
+  [[ "$output" == *"unknown argument 'nonesuch'; run: cd "*" && kit help new"* ]]
   run "${kit_root}/bin/kit" toolchains nope
   [ "$status" -eq 2 ]
-  [[ "$output" == *"unknown argument 'nope'; run: kit help toolchains"* ]]
+  [[ "$output" == *"unknown argument 'nope'; run: cd "*" && kit help toolchains"* ]]
   run "${kit_root}/bin/kit" hydrate --quick=1
   [ "$status" -eq 2 ]
-  [[ "$output" == *"unknown flag '--quick=1'; run: kit help hydrate"* ]]
+  [[ "$output" == *"unknown flag '--quick=1'; run: cd "*" && kit help hydrate"* ]]
 }
 
 @test "a missing required group is refused naming its alternatives, and two alternatives together are refused" {
   run "${kit_root}/bin/kit" commit
   [ "$status" -eq 2 ]
-  [[ "$output" == *"kit commit needs --message or --file; run: kit help commit"* ]]
+  [[ "$output" == *"kit commit needs --message or --file; run: cd "*" && kit help commit"* ]]
   run "${kit_root}/bin/kit" new
   [ "$status" -eq 2 ]
-  [[ "$output" == *"kit new needs file or kind or rule or style or package or template or module or provider or verb or issue; run: kit help new"* ]]
+  [[ "$output" == *"kit new needs file or kind or rule or style or package or template or module or provider or verb or issue; run: cd "*" && kit help new"* ]]
   run "${kit_root}/bin/kit" new file
   [ "$status" -eq 2 ]
-  [[ "$output" == *"kit new file needs <path>; run: kit help new"* ]]
+  [[ "$output" == *"kit new file needs <path>; run: cd "*" && kit help new"* ]]
   run "${kit_root}/bin/kit" packages add
   [ "$status" -eq 2 ]
-  [[ "$output" == *"kit packages add needs <package>; run: kit help packages"* ]]
+  [[ "$output" == *"kit packages add needs <package>; run: cd "*" && kit help packages"* ]]
   run "${kit_root}/bin/kit" context
   [ "$status" -eq 2 ]
-  [[ "$output" == *"kit context needs <path> or --claude; run: kit help context"* ]]
+  [[ "$output" == *"kit context needs <path> or --claude; run: cd "*" && kit help context"* ]]
   run "${kit_root}/bin/kit" commit --message m --file f
   [ "$status" -eq 2 ]
-  [[ "$output" == *"--message cannot be combined with --file; run: kit help commit"* ]]
+  [[ "$output" == *"--message cannot be combined with --file; run: cd "*" && kit help commit"* ]]
   run "${kit_root}/bin/kit" commit --message
   [ "$status" -eq 2 ]
-  [[ "$output" == *"--message needs a value; run: kit help commit"* ]]
+  [[ "$output" == *"--message needs a value; run: cd "*" && kit help commit"* ]]
   run "${kit_root}/bin/kit" new file x --rule=
   [ "$status" -eq 2 ]
-  [[ "$output" == *"--rule needs a value; run: kit help new"* ]]
+  [[ "$output" == *"--rule needs a value; run: cd "*" && kit help new"* ]]
 }
 
 @test "syntax:match sorts what is given: a trailing operand takes the dash-words, -- ends the flags, a value with spaces is whole" {
@@ -93,7 +93,7 @@ setup() {
 @test "a value off a closed set is refused in one line by the verb itself, a glob that matches is not, and an open set never refuses" {
   run "${kit_root}/bin/kit" packages add nonesuch
   [ "$status" -eq 2 ]
-  [[ "$output" == *"<package> 'nonesuch' is not one of the choices; run: kit help packages"* ]]
+  [[ "$output" == *"<package> 'nonesuch' is not one of the choices; run: cd "*" && kit help packages"* ]]
   run kit-bash 'syntax:match packages select "style/*" kit; echo "$?"'
   [ "$output" = 0 ]
   run kit-bash 'syntax:match packages select "nonesuch/*"; echo "$? ${syntax_refusal}"'
@@ -154,10 +154,11 @@ setup() {
   hide-system-toolchains
   fake-tools brew
   run kit-bash 'guard:remedy jq; guard:remedy yq; guard:remedy go; guard:missing git "git is not on PATH"'
-  [ "$output" = "run: brew install jq
+  # guard:remedy names the command alone, for the refusal it ends, which error then writes with its folder's cd
+  [[ "$output" == "run: brew install jq
 run: brew install yq
 run: kit tools install
-❌ run: brew install git (git is not on PATH)" ]
+❌ run: cd "*" && brew install git (git is not on PATH)" ]]
   # beside apt, brew is one of two, and with neither chosen, the remedy names neither, and asks nothing
   fake-tools apt-get
   run kit-bash 'guard:remedy jq' </dev/null
@@ -176,7 +177,7 @@ run: kit tools install
   [ "$(jq '[.[] | select(.arguments | has("--json"))] | length' <<<"$output")" -gt 0 ]
   run "${kit_root}/bin/kit" context README.md --json --jq
   [ "$status" -eq 2 ]
-  [[ "$output" == *"--json cannot be combined with --jq; run: kit help context"* ]]
+  [[ "$output" == *"--json cannot be combined with --jq; run: cd "*" && kit help context"* ]]
 }
 
 @test "--jq prints what --json prints, formatted by jq, from where the command was typed, with the verb's status" {

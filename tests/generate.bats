@@ -136,7 +136,7 @@ SH
   git add a.md && printf 'ignored/\n' > .gitignore && mkdir ignored && cp a.md ignored/d.md
   run "${kit_checkout}/bin/kit" generate --check
   [ "$status" -eq 1 ]
-  [[ "$output" == *"a.md: stale; run: kit generate"* ]]
+  [[ "$output" == *"a.md: stale; run: cd "*" && kit generate"* ]]
   [[ "$output" == *"sub/b.yml: stale"* ]]
   [[ "$output" != *"ignored/d.md"* ]]
   [[ "$output" == *"2 of 2 generated file(s) are stale"* ]]
@@ -181,7 +181,7 @@ SH
   git add docs/deep/a.md
   run "${kit_checkout}/bin/kit" generate --check docs
   [ "$status" -eq 1 ]
-  [[ "$output" == *"docs/deep/a.md: stale; run: kit generate"* ]]
+  [[ "$output" == *"docs/deep/a.md: stale; run: cd "*" && kit generate"* ]]
   [[ "$output" != *"untracked.md"* ]]
   grep --quiet '^stale$' docs/deep/a.md
   mkdir empty

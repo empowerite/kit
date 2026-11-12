@@ -111,7 +111,7 @@ JSON
     run --separate-stderr "${kit_root}/bin/kit" issues "${tab}" --json
     [ "$status" -eq 2 ]
     [ -z "$output" ]
-    [[ "$stderr" == *"run: kit flow issues --json"* ]]
+    [[ "$stderr" == *"run: cd "*" && kit flow issues --json"* ]]
   done
   run --separate-stderr "${kit_root}/bin/kit" issues --stages
   [ "$output" = $'milestones\niterations' ]

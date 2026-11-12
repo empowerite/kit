@@ -252,7 +252,7 @@ setup() {
   mv manifest.off .kit/manifest
   kit_bash_modules=context run kit-bash 'printf "README.md\n" | context:classify'
   [ "$status" -eq 1 ]
-  [[ "$output" == *"no kind is defined under .kit/kinds; run: kit hydrate"* ]]
+  [[ "$output" == *"no kind is defined under .kit/kinds; run: cd "*" && kit hydrate"* ]]
   [[ "$output" != *"README.md"$'\t'* ]]
 }
 
@@ -294,7 +294,7 @@ setup() {
   rm -f .kit/kinds/*.yml
   kit_bash_modules=context run kit-bash 'context:load'
   [ "$status" -eq 1 ]
-  [[ "$output" == *"no kind is defined under .kit/kinds; run: kit hydrate"* ]]
+  [[ "$output" == *"no kind is defined under .kit/kinds; run: cd "*" && kit hydrate"* ]]
   kit_bash_modules=context run kit-bash 'printf "README.md\n" | context:classify'
   [ "$status" -eq 1 ]
   [[ "$output" != *"README.md"$'\t'* ]]

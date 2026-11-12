@@ -38,7 +38,7 @@ tree() {
   [ ! -e .github ]
   run "${kit_checkout}/bin/kit" packages
   [ "$status" -eq 1 ]
-  [[ "$output" == *"run: kit install"* ]]
+  [[ "$output" == *"run: cd "*" && kit install"* ]]
 }
 
 @test "uninstall says a region is taken out only of a file that held one" {
@@ -72,7 +72,7 @@ tree() {
   # lefthook.yml and the hook are the repository's; kit names them and leaves them
   [ "$(sed -n 2p lefthook.yml)" = "extends: [.kit/lefthook.yml]" ]
   [[ "$output" == *"left to do in lefthook.yml: take out the line that names .kit/lefthook.yml"* ]]
-  [[ "$output" == *"left to do: the pre-commit hook still runs lefthook; run: lefthook uninstall"* ]]
+  [[ "$output" == *"left to do: the pre-commit hook still runs lefthook; run: cd "*" && lefthook uninstall"* ]]
 }
 
 @test "uninstall takes out what toolchain detection cached in .kit/cache/" {
@@ -191,7 +191,7 @@ tree() {
   run "${kit_checkout}/bin/kit" packages remove kit
   [ "$status" -eq 1 ]
   [[ "$output" == *"1 path(s) could not be taken out"* ]]
-  [[ "$output" == *"then run: kit packages remove kit"* ]]
+  [[ "$output" == *"then run: cd "*" && kit packages remove kit"* ]]
   [ "$(cat .gitignore)" = "${before}" ]
   [ -f .kit/1st.md ]
   [ -f .kit/rules/bash.md ]

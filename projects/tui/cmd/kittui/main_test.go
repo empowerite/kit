@@ -15,6 +15,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/empowerite/kit/projects/tui/internal/app"
+	"github.com/empowerite/kit/projects/tui/internal/fix"
 	"github.com/empowerite/kit/projects/tui/internal/flow"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
@@ -37,12 +38,12 @@ func TestNoTerminalRefuses(t *testing.T) {
 		t.Fatalf("build: %v\n%s", err, out)
 	}
 	for args, want := range map[string]string{
-		"-- commit": "❌ kit tui needs an interactive terminal; run: kit help tui\n",
-		"flow":      "❌ kit flow needs an interactive terminal for its picture; run: kit flow --text\n",
-		"workspace": "❌ kit workspace needs an interactive terminal for its picture; run: kit workspace --text\n",
-		"packages":  "❌ kit packages needs an interactive terminal for its picture; run: kit packages --text\n",
-		"welcome":   "❌ kit welcome needs an interactive terminal; run: kit welcome --text\n",
-		"tutorials": "❌ kit tutorials needs an interactive terminal; run: kit tutorials --text\n",
+		"-- commit": "❌ kit tui needs an interactive terminal; run: " + fix.Here("kit help tui") + "\n",
+		"flow":      "❌ kit flow needs an interactive terminal for its picture; run: " + fix.Here("kit flow --text") + "\n",
+		"workspace": "❌ kit workspace needs an interactive terminal for its picture; run: " + fix.Here("kit workspace --text") + "\n",
+		"packages":  "❌ kit packages needs an interactive terminal for its picture; run: " + fix.Here("kit packages --text") + "\n",
+		"welcome":   "❌ kit welcome needs an interactive terminal; run: " + fix.Here("kit welcome --text") + "\n",
+		"tutorials": "❌ kit tutorials needs an interactive terminal; run: " + fix.Here("kit tutorials --text") + "\n",
 	} {
 		cmd := exec.Command(binary, strings.Fields(args)...)
 		cmd.Stdin = nil
@@ -273,15 +274,15 @@ func TestTheSeamsDefaultsRunTheProgramExecKitAndEndTheProcess(t *testing.T) {
 
 func TestOffATerminalEachScreenNamesItsTextForm(t *testing.T) {
 	for args, want := range map[string]string{
-		"welcome":   "kit welcome needs an interactive terminal; run: kit welcome --text",
-		"help":      "kit help needs an interactive terminal for its palette; run: kit help --text",
-		"":          "kit tui needs an interactive terminal; run: kit help tui",
-		"flow":      "kit flow needs an interactive terminal for its picture; run: kit flow --text",
-		"workspace": "kit workspace needs an interactive terminal for its picture; run: kit workspace --text",
-		"packages":  "kit packages needs an interactive terminal for its picture; run: kit packages --text",
-		"audit":     "kit audit needs an interactive terminal for its picture; run: kit audit --text",
-		"tutorials": "kit tutorials needs an interactive terminal; run: kit tutorials --text",
-		"-- commit": "kit tui needs an interactive terminal; run: kit help tui",
+		"welcome":   "kit welcome needs an interactive terminal; run: " + fix.Here("kit welcome --text"),
+		"help":      "kit help needs an interactive terminal for its palette; run: " + fix.Here("kit help --text"),
+		"":          "kit tui needs an interactive terminal; run: " + fix.Here("kit help tui"),
+		"flow":      "kit flow needs an interactive terminal for its picture; run: " + fix.Here("kit flow --text"),
+		"workspace": "kit workspace needs an interactive terminal for its picture; run: " + fix.Here("kit workspace --text"),
+		"packages":  "kit packages needs an interactive terminal for its picture; run: " + fix.Here("kit packages --text"),
+		"audit":     "kit audit needs an interactive terminal for its picture; run: " + fix.Here("kit audit --text"),
+		"tutorials": "kit tutorials needs an interactive terminal; run: " + fix.Here("kit tutorials --text"),
+		"-- commit": "kit tui needs an interactive terminal; run: " + fix.Here("kit help tui"),
 	} {
 		var stderr bytes.Buffer
 		if code := run(strings.Fields(args), &stderr); code != 2 || stderr.String() != "❌ "+want+"\n" {

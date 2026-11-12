@@ -647,12 +647,12 @@ JSON
     open-issues runs
   do
     read -r -a words <<<"${c}" && run --separate-stderr call "${words[@]}"
-    [[ "$status" -eq 1 && -z "$output" && "$stderr" == *"run: az login ("*"could not be read)"* ]] \
+    [[ "$status" -eq 1 && -z "$output" && "$stderr" == *"run: cd "*" && az login ("*"could not be read)"* ]] \
       || { echo "${c}: exit ${status}, printed '${output}', said '${stderr}'"; return 1; }
   done
   : > "${FAKE_DIR}/az.routes"
   run --separate-stderr call me
-  [[ "$status" -eq 1 && -z "$output" && "$stderr" == *"run: az login (the caller's login could not be read)"* ]]
+  [[ "$status" -eq 1 && -z "$output" && "$stderr" == *"run: cd "*" && az login (the caller's login could not be read)"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

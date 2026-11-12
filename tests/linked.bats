@@ -22,7 +22,7 @@ setup() {
 @test "linked fails, naming the read, when the forge cannot say which pull request this checkout is working on" {
   PATH=$(shims gh) run env -u GITHUB_EVENT_PATH "${kit_checkout}/bin/kit" linked
   [ "$status" -eq 1 ]
-  [[ "$output" == *"run: gh auth status (the open pull request on main could not be read)"* ]]
+  [[ "$output" == *"run: cd "*" && gh auth status (the open pull request on main could not be read)"* ]]
   [[ "$output" != *"kit linked <number>"* ]]
 }
 
@@ -79,7 +79,7 @@ setup() {
   run "${kit_checkout}/bin/kit" linked 3
   [ "$status" -eq 1 ]
   # origin's HEAD is not recorded, so the default branch is taken to be main, which is not here either
-  [[ "$output" == *"run: git remote set-head origin --auto (origin/HEAD is not recorded"* ]]
+  [[ "$output" == *"run: cd "*" && git remote set-head origin --auto (origin/HEAD is not recorded"* ]]
   [ ! -s "${FAKE_DIR}/gh.calls" ]
   git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main
   run "${kit_checkout}/bin/kit" linked 3

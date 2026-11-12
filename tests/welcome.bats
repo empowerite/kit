@@ -311,9 +311,9 @@ ambient-system() {
   [ "$(jq --raw-output '[.ok, .fix, .interactive, .more] | @tsv' <<<"$output")" = \
     $'false\tkit toolchains use mise\tfalse\tor: kit toolchains use docker' ]
   [ "$(jq --raw-output .line <<<"$output")" = "several toolchains are usable for the project: mise, docker; choose one" ]
-  # what is left keeps the other toolchain's command beside the fix
+  # what is left keeps the other toolchain's command beside the fix, the fix with the cd to its folder in front
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
-  [[ "$output" == *$'\n'"- toolchain-project in $(pwd -P): kit toolchains use mise; or: kit toolchains use"\
+  [[ "$output" == *$'\n'"- toolchain-project in $(pwd -P): cd $(pwd -P) && kit toolchains use mise; or: kit toolchains use"\
 " docker"$'\n'* ]]
   run --separate-stderr check linter-shellcheck
   [ "$(jq --raw-output '[.fix, .more] | @tsv' <<<"$output")" = \
@@ -394,7 +394,7 @@ ambient-system() {
   [[ "$output" == *"kit knows no fix for forge-login-github.com; read: https://cli.github.com"* ]]
   run "${kit_root}/bin/kit" welcome --fix
   [ "$status" -eq 2 ]
-  [[ "$output" == *"--fix needs a value; run: kit help welcome"* ]]
+  [[ "$output" == *"--fix needs a value; run: cd "*" && kit help welcome"* ]]
 }
 
 @test "--fix runs an offer's fix: kit-installed installs the kit, then holds with nothing to offer, and refuses with 2" {

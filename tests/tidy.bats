@@ -303,7 +303,7 @@ idea-on() {
   route 'pr list --head 8-idea --state all*' '!1'
   run "${kit_root}/bin/kit" tidy
   [ "$status" -eq 0 ]
-  [[ "$output" == *"run: gh auth status (the pull requests on 8-idea could not be read)"* ]]
+  [[ "$output" == *"run: cd "*" && gh auth status (the pull requests on 8-idea could not be read)"* ]]
   [[ "$output" == *"keeping 8-idea (its commits could not be counted)"* ]]
   [[ "$output" == *"removed 0 worktree(s) and 0 branch(es)."* ]]
   [ "$(git rev-parse refs/heads/8-idea)" = "${idea}" ]

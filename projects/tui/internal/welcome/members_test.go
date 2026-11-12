@@ -68,7 +68,8 @@ func TestTheSetupStepIsOneTableTheMachineFirstThenARowPerFolder(t *testing.T) {
 		t.Errorf("the machine, then a's desk and worktree, then b:\n%s", v)
 	}
 	// a folder's failed checks and its offers stand under its row; the ones that hold are its row's ✅ alone
-	if !strings.Contains(v, "       "+Offered+" kit is not installed here; it runs on what it infers\n          kit install\n") ||
+	if !strings.Contains(v, "       "+Offered+" kit is not installed here; it runs on what it infers\n"+
+		"          cd /code/a/worktrees/7-the-topic && kit install\n") ||
 		strings.Contains(v, "kit check finds nothing wrong") {
 		t.Errorf("the folders' checks:\n%s", v)
 	}
@@ -103,6 +104,10 @@ func TestAFoldersFailedCheckOffersItsFixUnderItsRow(t *testing.T) {
 	if !strings.Contains(v, "     ▸ ❌ the git hooks are not installed; lefthook runs none   ⧉   ▶️") ||
 		keysAt(m) != choiceKeys {
 		t.Errorf("the desk's hooks, offering ⧉ and ▶️:\n%s\n%s", v, keysAt(m))
+	}
+	// a folder's fix is shown and copied with the cd to its folder, so it runs wherever it is pasted
+	if _, msgs := testkit.Drive(m, nil, press('c')); clipboard(msgs) != "cd /code/a && lefthook install" {
+		t.Errorf("c copied %q", clipboard(msgs))
 	}
 }
 

@@ -126,7 +126,7 @@ JSON
     run --separate-stderr "${kit_root}/bin/kit" delivery "${tab}" --json
     [ "$status" -eq 2 ] || { echo "${tab}: ${status}"; return 1; }
     [ -z "$output" ]
-    [[ "$stderr" == *"run: kit flow ${tab} --json"* ]]
+    [[ "$stderr" == *"run: cd "*" && kit flow ${tab} --json"* ]]
   done
 }
 

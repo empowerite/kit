@@ -39,7 +39,7 @@ tree-digest() {
   [ "$(declared packages)" = "kit" ]
   run "${kit_checkout}/bin/kit" install github/ci
   [ "$status" -eq 1 ]
-  [[ "$output" == *"run: kit update"* ]]
+  [[ "$output" == *"run: cd "*" && kit update"* ]]
   run "${kit_checkout}/bin/kit" packages add github/ci
   [ "$status" -eq 0 ]
   grep --quiet '^    runs-on: "ubuntu-latest"$' .github/workflows/kit-ci.yml
@@ -105,7 +105,7 @@ tree-digest() {
 @test "install refuses a package this release does not know, in the words the form uses, and the choices list the known ones" {
   run "${kit_checkout}/bin/kit" install gemini
   [ "$status" -eq 2 ]
-  [[ "$output" == *"<package> 'gemini' is not one of the choices; run: kit help install"* ]]
+  [[ "$output" == *"<package> 'gemini' is not one of the choices; run: cd "*" && kit help install"* ]]
   run "${kit_checkout}/bin/kit" syntax install --choices '<package>'
   [[ "$(cut -f 1 <<<"$output" | paste -s -d ' ' -)" == "agents/claude agents/copilot agents/cursor agents/gemini agents/generic empowerite github/ci hooks/lefthook kit policy/opa style/bash"* ]]
   [ ! -e .kit/manifest ]
@@ -321,7 +321,7 @@ tree-digest() {
   sed -i.bak 's/Read .kit\/1st.md/Skip .kit\/1st.md/' AGENTS.md && rm AGENTS.md.bak
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 1 ]
-  [[ "$output" == *"AGENTS.md: stale; run: kit generate"* ]]
+  [[ "$output" == *"AGENTS.md: stale; run: cd "*" && kit generate"* ]]
   run "${kit_checkout}/bin/kit" generate
   [ "$status" -eq 0 ]
   [[ "$output" == *"AGENTS.md: regenerated"* ]]
@@ -387,7 +387,7 @@ tree-digest() {
   [[ "$output" == "## Follow rules defined by kit"*"Read .kit/1st.md"* ]]
   run "${kit_checkout}/bin/kit" region
   [ "$status" -eq 2 ]
-  [[ "$output" == *"run: kit help region"* ]]
+  [[ "$output" == *"run: cd "*" && kit help region"* ]]
   run "${kit_checkout}/bin/kit" region README.md
   [ "$status" -eq 1 ]
   [[ "$output" == *"no active package delivers a region at README.md"* ]]
@@ -517,7 +517,7 @@ tree-digest() {
   "${kit_checkout}/bin/kit" install
   run "${kit_checkout}/bin/kit" install
   [ "$status" -eq 1 ]
-  [[ "$output" == *"run: kit update"* ]]
+  [[ "$output" == *"run: cd "*" && kit update"* ]]
 }
 
 @test "check passes after install and fails on a drifted, a missing, and a lost deny entry" {
@@ -539,7 +539,7 @@ tree-digest() {
 @test "check refuses in a repository that declares no kit version, and names install" {
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 1 ]
-  [[ "$output" == *"run: kit install"* ]]
+  [[ "$output" == *"run: cd "*" && kit install"* ]]
   [[ "$output" == *"kit.yml"* ]]
 }
 
@@ -611,7 +611,7 @@ tree-digest() {
     grep '  ' .kit/manifest; } > m && mv m .kit/manifest
   run "${kit_checkout}/bin/kit" install
   [ "$status" -eq 1 ]
-  [[ "$output" == *"run: kit update"* ]]
+  [[ "$output" == *"run: cd "*" && kit update"* ]]
   run "${kit_checkout}/bin/kit" check
   [ "$status" -eq 0 ]
   run env KIT_BASE="${kit_checkout}" "${kit_checkout}/bin/kit" update
@@ -709,7 +709,7 @@ tree-digest() {
   [ -f .kit/styles/yaml.md ]
   run "${kit_checkout}/bin/kit" packages add 'nothing/*'
   [ "$status" -eq 2 ]
-  [[ "$output" == *"<package> 'nothing/*' is not one of the choices; run: kit help packages"* ]]
+  [[ "$output" == *"<package> 'nothing/*' is not one of the choices; run: cd "*" && kit help packages"* ]]
 }
 
 @test "a bundle brings its members in, a member leaves on its own, and the exclusion holds through update" {

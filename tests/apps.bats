@@ -39,7 +39,7 @@ setup() {
     apps:forge releases releases tool'
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  [ "$stderr" = '❌ run: gh auth status (x)' ]
+  [[ "$stderr" == '❌ run: cd '*' && gh auth status (x)' ]]
 }
 
 @test "apps:forge folds each object a call prints through its def, and a capped call's last line into limited" {
@@ -108,7 +108,7 @@ setup() {
     apps:forge-mark deployments runs; printf "|"; apps:forge-mark runs'
   [ "$status" -eq 0 ]
   [ "$output" = $'runs\n||1|deployments runs\n|runs' ]
-  local said='❌ run: gh auth status (the environments mark could not be read)'
+  local said="❌ run: cd ${PWD} && gh auth status (the environments mark could not be read)"
   [ "$stderr" = "asked runs"$'\n'"asked environments"$'\n'"${said}"$'\n'"asked deployments" ]
 }
 
@@ -174,7 +174,7 @@ EOF
   run --separate-stderr "${root}/bin/kit" demo backlog --json
   [ "$status" -eq 2 ]
   [ -z "$output" ]
-  [[ "$stderr" == *"run: kit flow backlog --json"* ]]
+  [[ "$stderr" == *"run: cd "*" && kit flow backlog --json"* ]]
   run --separate-stderr "${root}/bin/kit" demo one --json
   [ "$status" -eq 0 ]
   [ "$(jq -c '.rows |= map(del(.organization, .repository))' <<<"$output")" \

@@ -95,11 +95,11 @@ setup() {
     '[{"name":"kit","state":"active","origin":"release"},{"name":"style/bash","state":"inactive","origin":"release"}]' ]
   run "${kit_checkout}/bin/kit" packages add
   [ "$status" -eq 2 ]
-  [[ "$output" == *"kit packages add needs <package>; run: kit help packages"* ]]
+  [[ "$output" == *"kit packages add needs <package>; run: cd "*" && kit help packages"* ]]
   # a word that is no verb of kit packages is a package name, and one the kit does not know is refused
   run "${kit_checkout}/bin/kit" packages list
   [ "$status" -eq 2 ]
-  [[ "$output" == *"<package> 'list' is not one of the choices; run: kit help packages"* ]]
+  [[ "$output" == *"<package> 'list' is not one of the choices; run: cd "*" && kit help packages"* ]]
 }
 
 @test "kit new kind writes a kind into the repository's own package, which kit kinds then lists and applies to a path" {
@@ -203,7 +203,7 @@ setup() {
   fresh-repo bare >/dev/null
   run --separate-stderr "${kit_checkout}/bin/kit" packages packages --json
   [ "$status" -eq 1 ]
-  [[ "$stderr" == *"run: kit install"* ]]
+  [[ "$stderr" == *"run: cd "*" && kit install"* ]]
 }
 
 @test "kit packages alone, off a terminal or with --text, still lists the packages; on a terminal it opens the app" {

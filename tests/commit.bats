@@ -146,7 +146,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   kit commit --message '#7 x: mine' >/dev/null 2>&1
   run kit submit
   [ "$status" -eq 1 ]
-  [[ "$output" == *"run: kit rebase"* ]]
+  [[ "$output" == *"run: cd "*" && kit rebase"* ]]
   [ "$(git log -1 --format=%s)" = "#7 x: mine" ]
 }
 
@@ -294,7 +294,7 @@ opa-rule() {
   [ "$(git diff --cached --name-only)" = other.txt ]
   run kit commit --message '#7 files: nothing' nowhere.txt
   [ "$status" -eq 1 ]
-  [[ "$output" == *"nowhere.txt is not known to git; run: git add 'nowhere.txt'"* ]]
+  [[ "$output" == *"nowhere.txt is not known to git; run: cd "*" && git add 'nowhere.txt'"* ]]
 }
 
 @test "the tree kit commit judges is HEAD and the named paths, never another session's staging" {
@@ -358,7 +358,7 @@ deny contains sprintf("%s is in the tree", [path]) if {
   [ "$status" -eq 1 ]
   for path in bad.sh notes.txt
   do
-    said="'${path}' is staged but is not on the disk; run: git restore -- '${path}', or git rm --cached -- '${path}'"
+    said="'${path}' is staged but is not on the disk; run: cd $(pwd -P) && git restore -- '${path}', or git rm --cached -- '${path}'"
     [[ "$output" == *"${said}"* ]]
   done
   [[ "$output" != *"committed "* ]]
@@ -641,7 +641,7 @@ EOF
   git add regions.md
   run kit commit --message '#7 regions: a stale one'
   [ "$status" -eq 1 ]
-  [[ "$output" == *"a region is stale; run: kit generate"* ]]
+  [[ "$output" == *"a region is stale; run: cd "*" && kit generate"* ]]
   git reset --quiet -- regions.md
   git switch --quiet --detach
   printf 'x\n' > x && git add x

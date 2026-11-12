@@ -90,10 +90,10 @@ shape() {
   [[ "$output" == *"no template governs data.json: a style package delivers them"* ]]
   run "${kit_root}/bin/kit" new file x.sh --variant=nope --purpose=x
   [ "$status" -eq 2 ]
-  [[ "$output" == *"--variant 'nope' is not one of the choices; run: kit help new"* ]]
+  [[ "$output" == *"--variant 'nope' is not one of the choices; run: cd "*" && kit help new"* ]]
   run "${kit_root}/bin/kit" new file x --rule=nope
   [ "$status" -eq 2 ]
-  [[ "$output" == *"--rule 'nope' is not one of the choices; run: kit help new"* ]]
+  [[ "$output" == *"--rule 'nope' is not one of the choices; run: cd "*" && kit help new"* ]]
   run "${kit_root}/bin/kit" new file bin/tool --rule=bash --purpose="no extension"
   [ "$status" -eq 0 ]
   [ "$(head -n 1 bin/tool)" = "#!/usr/bin/env bash" ]

@@ -56,7 +56,7 @@ on-origin() { git ls-remote origin "refs/tags/$1*" | awk -v want="refs/tags/$1^{
 @test "kit release refuses a word that is not a version, and a tag that exists" {
   run "${kit_root}/bin/kit" release 1.2
   [ "$status" -eq 2 ]
-  [[ "$output" == *"'1.2' is not a version: <major>.<minor>.<patch>, with -<suffix> for a pre-release; run: kit help release"* ]]
+  [[ "$output" == *"'1.2' is not a version: <major>.<minor>.<patch>, with -<suffix> for a pre-release; run: cd "*" && kit help release"* ]]
   "${kit_root}/bin/kit" release 0.1.0
   run "${kit_root}/bin/kit" release 0.1.0
   [ "$status" -eq 1 ]
@@ -78,7 +78,7 @@ on-origin() { git ls-remote origin "refs/tags/$1*" | awk -v want="refs/tags/$1^{
   "${kit_root}/bin/kit" release 0.2.0-rc.2
   run "${kit_root}/bin/kit" release 0.2.0-rc.1
   [ "$status" -eq 1 ]
-  [[ "$output" == *"0.2.0-rc.1 is not higher than 0.2.0-rc.2, the highest release; run: kit release 0.2.0-rc.1 --lower"* ]]
+  [[ "$output" == *"0.2.0-rc.1 is not higher than 0.2.0-rc.2, the highest release; run: cd "*" && kit release 0.2.0-rc.1 --lower"* ]]
   [ -z "$(git tag --list release/0.2.0-rc.1)" ]
   run "${kit_root}/bin/kit" release 0.2.0-rc.10
   [ "$status" -eq 0 ]
@@ -98,7 +98,7 @@ on-origin() { git ls-remote origin "refs/tags/$1*" | awk -v want="refs/tags/$1^{
   git remote set-url --push origin "${repo}/origin.git"
   run "${kit_root}/bin/kit" release 0.2.0-rc.1
   [ "$status" -eq 1 ]
-  [[ "$output" == *"run: git ls-remote --tags origin (the release tags on origin could not be read)"* ]]
+  [[ "$output" == *"run: cd "*" && git ls-remote --tags origin (the release tags on origin could not be read)"* ]]
   [ -z "$(git tag --list release/0.2.0-rc.1)" ]
   [ -z "$(git ls-remote "${repo}/origin.git" 'refs/tags/release/0.2.0-rc.1')" ]
 }

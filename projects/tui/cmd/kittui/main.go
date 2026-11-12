@@ -14,6 +14,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/empowerite/kit/projects/tui/internal/app"
+	"github.com/empowerite/kit/projects/tui/internal/fix"
 	"github.com/empowerite/kit/projects/tui/internal/flow"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/screens"
@@ -134,21 +135,21 @@ func failed(err error, stderr io.Writer) int {
 }
 
 // needsTerminal gives the line kittui prints without a terminal: the picture, the guide, and the tutorials have a text
-// form, the rest a help page.
+// form, the rest a help page, each remedy with the cd to the folder kittui runs in, as fix.Here writes it.
 func needsTerminal(verb string) string {
 	if appVerb(verb) {
-		return "kit " + verb + " needs an interactive terminal for its picture; run: kit " + verb + " --text"
+		return "kit " + verb + " needs an interactive terminal for its picture; run: " + fix.Here("kit "+verb+" --text")
 	}
 	if verb == "welcome" {
-		return "kit welcome needs an interactive terminal; run: kit welcome --text"
+		return "kit welcome needs an interactive terminal; run: " + fix.Here("kit welcome --text")
 	}
 	if verb == "tutorials" {
-		return "kit tutorials needs an interactive terminal; run: kit tutorials --text"
+		return "kit tutorials needs an interactive terminal; run: " + fix.Here("kit tutorials --text")
 	}
 	if verb == "help" {
-		return "kit help needs an interactive terminal for its palette; run: kit help --text"
+		return "kit help needs an interactive terminal for its palette; run: " + fix.Here("kit help --text")
 	}
-	return "kit tui needs an interactive terminal; run: kit help tui"
+	return "kit tui needs an interactive terminal; run: " + fix.Here("kit help tui")
 }
 
 // parse takes the verb and its words from [--] <verb> [<word>…]; no verb opens the welcome guide.

@@ -79,7 +79,7 @@ jq module directory, and defines:
 | `kit:enter` | starts a verb's process: records where the command was typed, and moves to the repository root |
 | `run <command> <argument>…` | runs a command in a new process: see [Processes](#processes) |
 | `info`, `step`, `ok`, `section` | print a message to stderr |
-| `warn`, `error` | print a warning or an error to stderr, and a workflow command on a GitHub runner |
+| `warn`, `error` | print a warning or an error to stderr, and a workflow command on a GitHub runner; each remedy, the command after `run:`, gets `cd <folder> &&` in front, the folder kit runs in, so it runs from anywhere |
 | `summary <line>…` | appends lines to the GitHub step summary, when there is one |
 | `guard:require <predicate>…` | refuses, with the remedy, when a signing key or a tool is missing |
 | `list:among <name> <name>…` | succeeds when the first name is one of the rest |

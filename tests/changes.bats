@@ -86,7 +86,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
 @test "kit flow changes refuses an unknown flag with a pointer to its page" {
   run kit flow changes --bogus
   [ "$status" -eq 2 ]
-  [[ "$output" == *"unknown flag '--bogus'; run: kit help flow"* ]]
+  [[ "$output" == *"unknown flag '--bogus'; run: cd "*" && kit help flow"* ]]
 }
 
 @test "kit flow changes --mine combines with --owner and --others as a union, keeping the author column; --all stands alone" {
@@ -101,7 +101,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [[ "${lines[0]}" == "🔀 #3 Fix the thing  👤 ada  🔨 draft "*"d  🌿 7-fix-the-thing" ]]
   run kit flow changes --all --owner=bob
   [ "$status" -eq 2 ]
-  [[ "$output" == *"--all cannot be combined with --owner; run: kit help flow"* ]]
+  [[ "$output" == *"--all cannot be combined with --owner; run: cd "*" && kit help flow"* ]]
 }
 
 @test "kit flow changes <number>… lists only the changes numbered so or closing an issue so numbered, with or without the #" {
@@ -125,7 +125,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ "$output" = "no open pull request" ]
   run kit flow changes x7
   [ "$status" -eq 2 ]
-  [[ "$output" == *"'x7' is not a number: 7 or #7; run: kit help flow"* ]]
+  [[ "$output" == *"'x7' is not a number: 7 or #7; run: cd "*" && kit help flow"* ]]
 }
 
 @test "a spent rate limit is the stage's refusal, with when it resets, and the stage exits 1" {

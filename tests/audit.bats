@@ -137,8 +137,8 @@ JSON
   run --separate-stderr "${kit_root}/bin/kit" audit findings --json
   [ "$status" -eq 1 ]
   [ "$(jq -c '[.rows[].key]' <<<"$output")" = '["code-scanning 4","code-scanning 2"]' ]
-  [ "$(jq -c '.errors' <<<"$output")" = '[{"feature":"dependabot","error":"run: gh auth refresh --scopes'\
-' security_events (the Dependabot alerts could not be read)"},{"feature":"secret-scanning","off":true}]' ]
+  [[ "$(jq -c '.errors' <<<"$output")" == '[{"feature":"dependabot","error":"run: cd '*' && gh auth refresh --scopes'\
+' security_events (the Dependabot alerts could not be read)"},{"feature":"secret-scanning","off":true}]' ]]
   # the picture of every stage still draws the others: the waivers hold the ruleset's bypass and code scanning's
   # dismissal, Dependabot's line under their errors too, each scanner read once for the findings and the waivers
   : > "${FAKE_DIR}/gh.calls"
@@ -146,8 +146,8 @@ JSON
   [ "$status" -eq 1 ]
   [ "$(jq -c '[(.findings.rows | length), (.controls.rows | length)]' <<<"$output")" = '[2,1]' ]
   [ "$(jq -c '[.waivers.rows[].key]' <<<"$output")" = '["7 release","code-scanning 2"]' ]
-  [ "$(jq -c '[.waivers.errors[] | [.feature, (.error // .off)]]' <<<"$output")" = '[["dependabot","run: gh auth'\
-' refresh --scopes security_events (the Dependabot alerts could not be read)"],["secret-scanning",true]]' ]
+  [[ "$(jq -c '[.waivers.errors[] | [.feature, (.error // .off)]]' <<<"$output")" == '[["dependabot","run: cd '*' && gh auth'\
+' refresh --scopes security_events (the Dependabot alerts could not be read)"],["secret-scanning",true]]' ]]
   [ "$(grep -c 'paginate --slurp repos/{owner}/{repo}/dependabot/alerts' "${FAKE_DIR}/gh.calls")" -eq 1 ]
   [ "$(grep -c 'code-scanning/alerts?state=dismissed' "${FAKE_DIR}/gh.calls")" -eq 1 ]
   # waivers alone read the scanners themselves, and still draw the rest
@@ -294,11 +294,11 @@ two-members() {
   [ "$(jq --compact-output '[.rows[] | [.member, .key]]' <<<"$output")" \
     = '[["github.com/o/a","code-scanning 4"],["github.com/o/a","dependabot 1"]]' ]
   # its scanner off is said as off; the refused member's three scanners each say their line
-  [ "$(jq --compact-output '[.errors[] | [.member, .feature, (.off // .error)]]' <<<"$output")" = \
+  [[ "$(jq --compact-output '[.errors[] | [.member, .feature, (.off // .error)]]' <<<"$output")" == \
     '[["github.com/o/a","secret-scanning",true],'\
-'["gitlab.com/o/b","code-scanning","run: glab auth status (the code scanning alerts could not be read)"],'\
-'["gitlab.com/o/b","dependabot","run: glab auth status (the Dependabot alerts could not be read)"],'\
-'["gitlab.com/o/b","secret-scanning","run: glab auth status (the secret scanning alerts could not be read)"]]' ]
+'["gitlab.com/o/b","code-scanning","run: cd '*' && glab auth status (the code scanning alerts could not be read)"],'\
+'["gitlab.com/o/b","dependabot","run: cd '*' && glab auth status (the Dependabot alerts could not be read)"],'\
+'["gitlab.com/o/b","secret-scanning","run: cd '*' && glab auth status (the secret scanning alerts could not be read)"]]' ]]
 }
 
 @test "over a group, the policy's rules every member agrees on are one row each, wider than any one repository" {
@@ -316,9 +316,9 @@ two-members() {
   run --separate-stderr "${kit_root}/bin/kit" --workspace=w issues --marks
   [ "$status" -eq 1 ]
   [ "$(jq --compact-output .milestones <<<"$output")" = '"W/\"m1\" null"' ]
-  [ "$(jq --compact-output '.errors' <<<"$output")" \
-    = '[{"member":"gitlab.com/o/b","error":"run: glab auth status (the milestones mark could not be read)"}]' ]
-  [[ "$stderr" == *"gitlab.com/o/b: run: glab auth status (the milestones mark could not be read)"* ]]
+  [[ "$(jq --compact-output '.errors' <<<"$output")" \
+    == '[{"member":"gitlab.com/o/b","error":"run: cd '*' && glab auth status (the milestones mark could not be read)"}]' ]]
+  [[ "$stderr" == *"gitlab.com/o/b: run: cd "*" && glab auth status (the milestones mark could not be read)"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

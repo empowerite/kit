@@ -113,7 +113,7 @@ setup() {
 @test "kit hydrate refuses a repository that declares no kit version, and a reading verb does nothing there" {
   run "${kit_checkout}/bin/kit" hydrate
   [ "$status" -eq 1 ]
-  [[ "$output" == *"run: kit install"* ]]
+  [[ "$output" == *"run: cd "*" && kit install"* ]]
   printf 'x\n' > x.md
   run "${kit_checkout}/bin/kit" context x.md
   [ "$status" -eq 0 ]
@@ -228,7 +228,7 @@ setup() {
   run "${repo}.later/bin/kit" hydrate
   [ "$status" -eq 0 ]
   [[ "$output" == *"declares kit unreleased, and this is kit 9.9.9"* ]]
-  [[ "$output" == *"run: kit --version=9.9.9 update"* ]]
+  [[ "$output" == *"run: cd "*" && kit --version=9.9.9 update"* ]]
   [[ "$output" == *"kit 9.9.9 hydrated"* ]]
 }
 

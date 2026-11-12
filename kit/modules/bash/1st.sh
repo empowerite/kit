@@ -493,16 +493,61 @@ step()    { out:emit '→' '36' "$@"; }
 ok()      { out:emit '✅' '32' "$@"; }
 section() { out:emit '' '1' "── $* ──"; }
 
+# warn and error print a message whose remedy, the command after run:, runs from anywhere, as out:remedy writes it.
 warn() {
-  out:emit '⚠️' '33' "$@"
-  [[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::warning::$*" >&2
+  local message
+  message=$(out:remedy "$*")
+  out:emit '⚠️' '33' "${message}"
+  [[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::warning::${message}" >&2
   return 0
 }
 
 error() {
-  out:emit '❌' '31' "$@"
-  [[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::error::$*" >&2
+  local message
+  message=$(out:remedy "$*")
+  out:emit '❌' '31' "${message}"
+  [[ -n "${GITHUB_ACTIONS:-}" ]] && echo "::error::${message}" >&2
   return 0
+}
+
+# out:remedy <message> prints the message with each remedy in it, the command after run:, made to run from anywhere:
+# cd, the folder kit runs in, as out:folder writes it, and && in front of the command, as in run: cd ~/src/app && kit
+# hydrate. A remedy kit wrote a cd for itself keeps it. Pasted into a shell in another folder, or run by kittui in
+# the folder it names, the remedy does what it says where it should.
+out:remedy() {
+  local message=$1 out='' rest folder
+  [[ "${message}" == *'run: '* ]] || { printf '%s\n' "${message}"; return 0; }
+  folder=$(out:folder "${PWD}")
+  while [[ "${message}" == *'run: '* ]]
+  do
+    out+=${message%%'run: '*}'run: '
+    rest=${message#*'run: '}
+    [[ "${rest}" == 'cd '* ]] || out+="cd ${folder} && "
+    message=${rest}
+  done
+  printf '%s\n' "${out}${message}"
+}
+
+# out:folder <path> prints a folder as a shell reads it back: ~ for the home folder, and ~/ before a folder under it;
+# the rest single-quoted where it holds more than letters, digits, and . _ - / + @ : ,.
+out:folder() {
+  local path=$1 lead=''
+  if [[ -n "${HOME:-}" && "${path}" == "${HOME}" ]]
+  then
+    printf '~\n'
+    return 0
+  elif [[ -n "${HOME:-}" && "${path}" == "${HOME}"/* ]]
+  then
+    # shellcheck disable=SC2088  # the ~ is written for the person's shell to expand, not this one
+    lead='~/'
+    path=${path#"${HOME}"/}
+  fi
+  if [[ "${path}" =~ ^[A-Za-z0-9._/+@:,-]+$ ]]
+  then
+    printf '%s%s\n' "${lead}" "${path}"
+  else
+    printf "%s'%s'\n" "${lead}" "${path//\'/\'\\\'\'}"
+  fi
 }
 
 # summary <line>… appends lines to the GitHub Actions step summary when GITHUB_STEP_SUMMARY is set, and does

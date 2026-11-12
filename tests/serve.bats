@@ -549,7 +549,7 @@ call() {
 @test "kit serve takes no arguments" {
   run "${kit_checkout}/bin/kit" serve --stdio
   [ "$status" -eq 2 ]
-  [[ "$output" == *"run: kit help serve"* ]]
+  [[ "$output" == *"run: cd "*" && kit help serve"* ]]
 }
 
 # await <server> <id> waits for the answer to request <id> in ${BATS_TEST_TMPDIR}/out while the server whose process

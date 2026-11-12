@@ -111,7 +111,7 @@ group-has() {
   [[ "$output" != *"Usage"* && "$output" != *"Description"* ]]
   run "${kit_root}/bin/kit" usage che
   [ "$status" -eq 2 ]
-  [ "$output" = "❌ unknown verb 'che'; run: kit help" ]
+  [[ "$output" == "❌ unknown verb 'che'; run: cd "*" && kit help" ]]
 }
 
 @test "every verb prints its page on --help or -h, before any --, as kit help <verb> does, through bin/kit or called directly" {
@@ -145,7 +145,7 @@ group-has() {
     # shellcheck disable=SC2086  # an empty command is bin/kit alone
     run "${kit_root}/bin/kit" ${command} nonesuch
     [ "$status" -eq 2 ] || { echo "kit ${command} nonesuch: exit ${status}"; return 1; }
-    [ "$output" = "❌ unknown verb 'nonesuch'; run: kit help" ] || { echo "kit ${command} nonesuch: ${output}"; return 1; }
+    [[ "$output" == "❌ unknown verb 'nonesuch'; run: cd "*" && kit help" ]] || { echo "kit ${command} nonesuch: ${output}"; return 1; }
   done
 }
 
@@ -156,14 +156,14 @@ group-has() {
     # shellcheck disable=SC2086  # an empty command is bin/kit alone
     run "${kit_root}/bin/kit" ${command} comit
     [ "$status" -eq 2 ] || { echo "kit ${command} comit: exit ${status}"; return 1; }
-    [ "$output" = "❌ unknown verb 'comit'; did you mean commit? run: kit help commit" ] \
+    [[ "$output" == "❌ unknown verb 'comit'; did you mean commit? run: cd "*" && kit help commit" ]] \
       || { echo "kit ${command} comit: ${output}"; return 1; }
   done
   run "${kit_root}/bin/kit" packges
-  [ "$output" = "❌ unknown verb 'packges'; did you mean packages? run: kit help packages" ]
+  [[ "$output" == "❌ unknown verb 'packges'; did you mean packages? run: cd "*" && kit help packages" ]]
   # a word far from every verb does not get a guess
   run "${kit_root}/bin/kit" che
-  [ "$output" = "❌ unknown verb 'che'; run: kit help" ]
+  [[ "$output" == "❌ unknown verb 'che'; run: cd "*" && kit help" ]]
 }
 
 @test "kit help <verb> prints the verb's page: purpose, usage, and description, without its source pointers" {
@@ -275,7 +275,7 @@ group-has() {
 @test "kit help prints a page for each verb named, in order, and refuses a name no verb starts with before printing any" {
   run "${kit_root}/bin/kit" help nonesuch
   [ "$status" -eq 2 ]
-  [[ "$output" == *"unknown verb 'nonesuch'; run: kit help"* ]]
+  [[ "$output" == *"unknown verb 'nonesuch'; run: cd "*" && kit help"* ]]
   run "${kit_root}/bin/kit" help tidy gate
   [ "$status" -eq 0 ]
   [ "$(grep -E '^kit [a-z]+ - ' <<<"$output" | cut -d ' ' -f 2 | paste -s -d ' ' -)" = "tidy gate" ]

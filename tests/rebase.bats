@@ -156,7 +156,7 @@ HOOK
   chmod +x "$(git rev-parse --git-common-dir)/hooks/pre-rebase"
   run "${kit_checkout}/bin/kit" rebase ../wt
   [ "$status" -eq 1 ]
-  [[ "$output" == *"1-x is rebased here and was not pushed; see above, then run: kit rebase"* ]]
+  [[ "$output" == *"1-x is rebased here and was not pushed; see above, then run: cd "*" && kit rebase"* ]]
   [ "$(git -C ../origin.git rev-parse 1-x)" = "${theirs}" ]
   run "${kit_checkout}/bin/kit" rebase ../wt
   [ "$status" -eq 0 ]
@@ -208,7 +208,7 @@ HOOK
   origin_main=$(git rev-parse origin/main)
   run "${kit_checkout}/bin/kit" rebase ../wt
   [ "$status" -eq 1 ]
-  [[ "$output" == *"run: git config user.signingkey <key> (every commit here is signed, and none is configured)"* ]]
+  [[ "$output" == *"run: cd "*" && git config user.signingkey <key> (every commit here is signed, and none is configured)"* ]]
   [ "$(git -C ../wt rev-parse HEAD)" = "${head}" ]
   [ "$(git rev-parse origin/main)" = "${origin_main}" ]
   [ "$(git -C ../origin.git rev-parse 1-x)" = "${head}" ]

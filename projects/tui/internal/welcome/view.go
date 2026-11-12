@@ -420,7 +420,8 @@ func (m Model) checkLines(i int, key, indent string) []line {
 	}
 	out := []line{{i, pane.Clip(row, w)}}
 	if c.Fix != "" {
-		shown := c.Fix
+		// a folder's fix names its folder, so it runs wherever it is pasted
+		shown := fix.In(c.Folder, c.Fix)
 		if c.Interactive {
 			shown += " · it needs you at the keyboard"
 		}

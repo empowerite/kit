@@ -3,6 +3,7 @@ package fix
 import (
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"slices"
 	"strings"
@@ -37,13 +38,13 @@ func TestCommandReadsWhatKitSaysToRun(t *testing.T) {
 // TestWordsRunsOnlyPlainWords splits a command as a shell would, and refuses one that asks a shell for more, so
 // nothing a forge or a path put in kit's line runs as shell.
 func TestWordsRunsOnlyPlainWords(t *testing.T) {
-	words, ok := Words(`git rm --cached 'a b' "c d" e`)
-	if !ok || !slices.Equal(words, []string{"git", "rm", "--cached", "a b", "c d", "e"}) {
+	words, ok := Words(`git rm --cached 'a b' "c d" e f\ g 'it'\''s'`)
+	if !ok || !slices.Equal(words, []string{"git", "rm", "--cached", "a b", "c d", "e", "f g", "it's"}) {
 		t.Errorf("Words gave %q, %v", words, ok)
 	}
 	for _, refused := range []string{
 		"", "  ", `eval "$(brew shellenv)"`, "kit hydrate; rm -rf ~", "a | b", "a > b", "a $HOME", "a `b`",
-		`"a $b"`, "a *", "'open", "a && b", `a\ b`,
+		`"a $b"`, "a *", "'open", "a && b", `a\`, `"a\b"`, "a\\\n",
 	} {
 		if _, ok := Words(refused); ok || Runs(refused) {
 			t.Errorf("Words(%q) ran", refused)
@@ -124,5 +125,62 @@ func TestBindingsNameTheKeysAndCopyingPutsTheCommandOnTheClipboard(t *testing.T)
 	if msg := Copying("kit hydrate")(); !strings.Contains(fmt.Sprintf("%T", msg), "Clipboard") ||
 		fmt.Sprint(msg) != "kit hydrate" {
 		t.Errorf("Copying gives %T %v", msg, msg)
+	}
+}
+
+// TestInNamesTheFolderAndFolderReadsItBack writes a command tied to a folder as kit writes a remedy, cd and the folder
+// then &&, ~ for the home folder, quoted where the folder needs it, and reads the folder and the command's words back
+// from it; a cd that is not one word, or a rest that is not words, does not run.
+func TestInNamesTheFolderAndFolderReadsItBack(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	for folder, want := range map[string]string{
+		"":                  "kit hydrate",
+		home:                "cd ~ && kit hydrate",
+		home + "/src/app":   "cd ~/src/app && kit hydrate",
+		home + "/it's here": `cd ~/'it'\''s here' && kit hydrate`,
+		"/srv/app":          "cd /srv/app && kit hydrate",
+		"/srv/my app":       "cd '/srv/my app' && kit hydrate",
+	} {
+		got := In(folder, "kit hydrate")
+		if got != want {
+			t.Errorf("In(%q) = %q, want %q", folder, got, want)
+			continue
+		}
+		dir, words, ok := Folder(got)
+		if !ok || dir != folder || !slices.Equal(words, []string{"kit", "hydrate"}) || !Runs(got) {
+			t.Errorf("Folder(%q) = %q, %q, %v", got, dir, words, ok)
+		}
+	}
+	for _, command := range []string{"cd ~/a b && kit hydrate", "cd $HOME && kit hydrate", "cd /srv/app && kit hydrate; ls",
+		"cd /srv/app", "cd ~nobody/app && kit hydrate"} {
+		if _, _, ok := Folder(command); ok || Runs(command) {
+			t.Errorf("Folder(%q) runs", command)
+		}
+	}
+	if c, ok := Process("cd ~/src/app && kit hydrate"); !ok || c.Dir != home+"/src/app" ||
+		!slices.Equal(c.Args, []string{"kit", "hydrate"}) {
+		t.Errorf("Process ran %v in %q", c, c.Dir)
+	}
+	if c, ok := Process("kit hydrate"); !ok || c.Dir != "" {
+		t.Errorf("Process without a cd ran in %q", c.Dir)
+	}
+	if got := Command("❌ x is missing; run: cd ~/src/app && kit hydrate (because)"); got != "cd ~/src/app && kit hydrate" {
+		t.Errorf("Command read %q", got)
+	}
+	// Here names the folder kittui runs in, and where that cannot be read, none
+	getwd = func() (string, error) { return home + "/src/app", nil }
+	if got := Here("kit help tui"); got != "cd ~/src/app && kit help tui" {
+		t.Errorf("Here gave %q", got)
+	}
+	getwd = func() (string, error) { return "", errors.New("gone") }
+	if got := Here("kit help tui"); got != "kit help tui" {
+		t.Errorf("Here with no folder gave %q", got)
+	}
+	getwd = os.Getwd
+	// with no home folder, ~ names none, and a folder is written whole
+	t.Setenv("HOME", "")
+	if Runs("cd ~/src/app && kit hydrate") || In(home+"/src", "kit hydrate") != "cd "+home+"/src && kit hydrate" {
+		t.Errorf("~ ran with no home folder")
 	}
 }

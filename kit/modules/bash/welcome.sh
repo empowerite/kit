@@ -777,6 +777,8 @@ welcome:kit-check() {
     if [[ "${line}" == *'run: '* ]]
     then
       command=${line##*run: }
+      # the check's fix runs in its folder, which the check names; the cd kit check wrote in front is not the fix's
+      [[ "${command}" != 'cd '*' && '* ]] || command=${command#* && }
       command=${command%% (*}
       command=${command%%;*}
       command=${command%%,*}
@@ -961,6 +963,7 @@ welcome:show() {
     ! welcome:folded "${check}" || continue
     IFS=$'\x1f' read -r ok line fix more < <(jq --raw-output \
       '[(.ok | tostring), .line, (.fix // ""), (.more // "")] | join("\u001f")' <<<"${check}")
+    fix=$(welcome:fix-line "${check}" "${fix}")
     if [[ "${ok}" == true && -n "${fix}" ]]
     then
       printf '💡 %s\n   %s%s%s\n' "${line}" "$(out:sgr 90)" "${fix}" "$(out:sgr 0)"
@@ -982,16 +985,35 @@ welcome:show() {
   done
 }
 
-# welcome:left <check-json>… prints what is left: each failed check's id, a folder's with its folder, and its fix or
-# where to read more. A fix keeps what more says beside it, as the toolchains check's other choices. With nothing
-# left, it says so.
+# welcome:fix-line <check-json> <fix> prints a check's fix as kit shows it: a folder's with cd and its folder in front,
+# as out:remedy writes a remedy, so it runs from anywhere; a machine's as it is; nothing for none.
+welcome:fix-line() {
+  local folder
+  [[ -n "$2" ]] || return 0
+  folder=$(jq --raw-output '.folder // ""' <<<"$1")
+  if [[ -n "${folder}" ]]
+  then
+    printf 'cd %s && %s\n' "$(out:folder "${folder}")" "$2"
+  else
+    printf '%s\n' "$2"
+  fi
+}
+
+# welcome:left <check-json>… prints what is left: each failed check's id, a folder's with its folder, and its fix, as
+# welcome:fix-line shows it, or where to read more. A fix keeps what more says beside it, as the toolchains check's
+# other choices. With nothing left, it says so.
 welcome:left() {
-  local rows
-  rows=$(printf '%s\n' "$@" | jq --raw-output 'select(.ok | not)
-    | "- \(.id)" + (if .folder then " in \(.folder)" else "" end) + ": "
-      + (if .fix then .fix + (if .more then "; " + .more else "" end)
+  local rows='' check fix
+  for check in "$@"
+  do
+    [[ "$(jq '.ok | not' <<<"${check}")" == true ]] || continue
+    fix=$(welcome:fix-line "${check}" "$(jq --raw-output '.fix // ""' <<<"${check}")")
+    rows+=$(jq --raw-output --arg fix "${fix}" '"- \(.id)" + (if .folder then " in \(.folder)" else "" end) + ": "
+      + (if $fix != "" then $fix + (if .more then "; " + .more else "" end)
         + (if .runs == false then "; kit does not run it" else "" end)
-      else "read " + (.more // "the line above") end)')
+      else "read " + (.more // "the line above") end)' <<<"${check}")$'\n'
+  done
+  rows=${rows%$'\n'}
   printf '# What is left\n\n'
   if [[ -z "${rows}" ]]
   then

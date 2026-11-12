@@ -540,7 +540,7 @@ JSON
   run --separate-stderr call open-issues
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  [[ "$stderr" == *"run: gh auth status (the issues' iterations could not be read)"* ]]
+  [[ "$stderr" == *"run: cd "*" && gh auth status (the issues' iterations could not be read)"* ]]
 }
 
 @test "every provider reaches its tool with color forced off, so a desk's CLICOLOR_FORCE cannot color its data" {
@@ -827,7 +827,7 @@ JSON
   run --separate-stderr call merged-prs
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  [ "$stderr" = '❌ run: glab auth status (the merged merge requests could not be read)' ]
+  [[ "$stderr" == '❌ run: cd '*' && glab auth status (the merged merge requests could not be read)' ]]
   [ "$(grep -c 'order_by=updated_at' "${FAKE_DIR}/glab.calls")" -eq 1 ]
 }
 
@@ -991,7 +991,7 @@ JSON
   run --separate-stderr call environments
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  [[ "$stderr" == *"run: glab auth status (the protected environments could not be read)"* ]]
+  [[ "$stderr" == *"run: cd "*" && glab auth status (the protected environments could not be read)"* ]]
 }
 
 @test "GitHub reads the branch policies of 20 environments at most, and says the list stopped there" {
@@ -1172,7 +1172,7 @@ JSON
   GITHUB_COLLABORATORS='!1 gh-404.txt' world github
   run --separate-stderr call collaborators
   [ "$status" -eq 1 ]
-  [ "$stderr" = '❌ run: gh auth status (the collaborators could not be read)' ]
+  [[ "$stderr" == '❌ run: cd '*' && gh auth status (the collaborators could not be read)' ]]
 }
 
 @test "every provider lists the teams with access in one shape: the role and the members, 20 teams at most" {
@@ -1264,26 +1264,26 @@ JSON
   run --separate-stderr call teams
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  [ "$stderr" = '❌ run: gh auth status (the teams could not be read)' ]
+  [[ "$stderr" == '❌ run: cd '*' && gh auth status (the teams could not be read)' ]]
   world gitlab
   jq '.shared_with_groups[0].group_full_path = null' "${FAKE_DIR}/gl-project.json" | fixture gl-project-nameless.json
   GITLAB_PROJECT=gl-project-nameless.json world gitlab
   run --separate-stderr call teams
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  [ "$stderr" = '❌ run: glab auth status (the teams could not be read)' ]
+  [[ "$stderr" == '❌ run: cd '*' && glab auth status (the teams could not be read)' ]]
   # an answer of errors alone, with no data, could not be read
   fixture gql-errors.json <<<'{"errors": [{"message": "Internal server error"}]}'
   GITHUB_TEAM_MEMBERS=gql-errors.json world github
   run --separate-stderr call teams
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  [ "$stderr" = '❌ run: gh auth status (the teams could not be read)' ]
+  [[ "$stderr" == '❌ run: cd '*' && gh auth status (the teams could not be read)' ]]
   GITLAB_GROUP_MEMBERS=gql-errors.json world gitlab
   run --separate-stderr call teams
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  [ "$stderr" = '❌ run: glab auth status (the teams could not be read)' ]
+  [[ "$stderr" == '❌ run: cd '*' && glab auth status (the teams could not be read)' ]]
 }
 
 @test "GitHub's team members need the read:org scope, and name the command that adds it" {
@@ -1295,7 +1295,7 @@ JSON
   run --separate-stderr call teams
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  [ "$stderr" = '❌ run: gh auth refresh --scopes read:org (the teams could not be read)' ]
+  [[ "$stderr" == '❌ run: cd '*' && gh auth refresh --scopes read:org (the teams could not be read)' ]]
 }
 
 @test "every provider lists the bots that acted, in one shape: what each did, and when last, newest first" {
@@ -1345,7 +1345,7 @@ JSON
   run --separate-stderr call bots
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  [ "$stderr" = '❌ run: gh auth status (the bots could not be read)' ]
+  [[ "$stderr" == '❌ run: cd '*' && gh auth status (the bots could not be read)' ]]
 }
 
 @test "GitLab's members follow the cursor past a page, and an answer with no project fails the call" {
@@ -1364,7 +1364,7 @@ JSON
   run --separate-stderr call collaborators
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  [ "$stderr" = '❌ run: glab auth status (the members could not be read)' ]
+  [[ "$stderr" == '❌ run: cd '*' && glab auth status (the members could not be read)' ]]
 }
 
 @test "GitLab's milestones follow the cursor past a page, and a failing page fails the call" {
@@ -1398,7 +1398,7 @@ JSON
   run --separate-stderr call iterations
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  [[ "$stderr" == *"run: gh auth refresh --scopes read:project (the iterations could not be read)"* ]]
+  [[ "$stderr" == *"run: cd "*" && gh auth refresh --scopes read:project (the iterations could not be read)"* ]]
   [ "$(grep --count '❌' <<<"$stderr")" -eq 1 ]
   fixture gh-many.json <<'JSON'
 {"data": {"repository": {"projectsV2": {"totalCount": 21, "nodes": [{"url": "u", "fields": {"totalCount": 1, "nodes": [{}]}}]}}}}
@@ -1674,7 +1674,7 @@ SH
   run --separate-stderr call merged-prs
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  [ "$stderr" = '❌ run: gh auth refresh --scopes repo (the merged pull requests could not be read)' ]
+  [[ "$stderr" == '❌ run: cd '*' && gh auth refresh --scopes repo (the merged pull requests could not be read)' ]]
 }
 
 @test "a token without read:org still reads the open changes: asked again without teams, it draws none of them" {
@@ -1709,7 +1709,7 @@ SH
   run --separate-stderr call open-prs
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  [ "$stderr" = '❌ run: gh auth status (the pull requests could not be read)' ]
+  [[ "$stderr" == '❌ run: cd '*' && gh auth status (the pull requests could not be read)' ]]
 }
 
 @test "a read GitHub's rate limit stops says which limit, and when it resets, never gh auth status" {
@@ -1740,7 +1740,7 @@ SH
   fixture limited.txt <<<'gh: Bad credentials (HTTP 401)'
   run call open-prs
   [ "$status" -eq 1 ]
-  [[ "$output" == *"run: gh auth status (the pull requests could not be read)"* ]]
+  [[ "$output" == *"run: cd "*" && gh auth status (the pull requests could not be read)"* ]]
 }
 
 @test "a forge that cannot answer fails every read with one line, and never answers nothing" {
@@ -1785,7 +1785,7 @@ SH
   [ "$status" -eq 1 ]
   [ -z "$output" ]
   [ "$(grep --count '❌' <<<"$stderr")" -eq 1 ]
-  [[ "$stderr" == *"run: glab auth status (the jobs of pipeline 11 could not be read)"* ]]
+  [[ "$stderr" == *"run: cd "*" && glab auth status (the jobs of pipeline 11 could not be read)"* ]]
 }
 
 @test "a merge request list that is not a list fails the read, never reads as none" {
@@ -1813,7 +1813,7 @@ SH
   mkdir -p .kit && printf 'forge: gitlab\n' > kit.yml
   run --separate-stderr call issue-title 7
   [ "$status" -eq 1 ]
-  [[ "$stderr" == *"run: git remote add origin <url>"*"(the project could not be read)" ]]
+  [[ "$stderr" == *"run: cd "*" && git remote add origin <url>"*"(the project could not be read)" ]]
 }
 
 @test "a change's state that GitHub's rate limit stops says which limit, never gh auth status" {
@@ -1854,7 +1854,7 @@ JSON
   run --separate-stderr call open-issues
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  [[ "$stderr" == *"run: gh auth status (the issues could not be read)"* ]]
+  [[ "$stderr" == *"run: cd "*" && gh auth status (the issues could not be read)"* ]]
 }
 
 @test "GitHub's open pull requests are read page after page, each after the cursor the one before ended on" {
@@ -2165,7 +2165,7 @@ JSON
   GITHUB_EVIDENCE_RELEASES=gh-object.json world github
   run --separate-stderr call attestations
   [ "$status" -eq 1 ] && [ -z "$output" ] || { echo "${output}"; return 1; }
-  [ "$stderr" = '❌ run: gh auth status (the attestations could not be read)' ]
+  [[ "$stderr" == '❌ run: cd '*' && gh auth status (the attestations could not be read)' ]]
   GITHUB_EVIDENCE_ARTIFACTS=gh-object.json world github
   run --separate-stderr call attestations
   [ "$status" -eq 1 ] && [ -z "$output" ] || { echo "${output}"; return 1; }
@@ -2174,7 +2174,7 @@ JSON
   run --separate-stderr call attestations
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  [ "$stderr" = '❌ run: gh auth status (the attestations of kit-0.1.0.tar.gz could not be read)' ]
+  [[ "$stderr" == '❌ run: cd '*' && gh auth status (the attestations of kit-0.1.0.tar.gz could not be read)' ]]
 }
 
 @test "every provider lists its alerts in one shape, open and dismissed, and one off here answers 3" {
@@ -2284,7 +2284,7 @@ JSON
   run --separate-stderr call dependabot-alerts
   [ "$status" -eq 1 ]
   [ -z "$output" ]
-  [ "$stderr" = '❌ run: gh auth refresh --scopes security_events (the Dependabot alerts could not be read)' ]
+  [[ "$stderr" == '❌ run: cd '*' && gh auth refresh --scopes security_events (the Dependabot alerts could not be read)' ]]
   # a login that has the scope, or a token whose scopes GitHub does not say, is refused the alerts by its role
   printf '%s\n' 'gh: You are not authorized to read code scanning alerts. (HTTP 403)' | fixture gh-said.txt
   printf 'HTTP/2.0 403 Forbidden\r\nX-Oauth-Scopes: repo, read:org\r\n%s\r\n\r\n{}\n' \
@@ -2336,7 +2336,7 @@ JSON
   GITHUB_RULESETS=gh-null.json world github
   run --separate-stderr call rulesets
   [ "$status" -eq 1 ]
-  [ "$stderr" = '❌ run: gh auth status (the rulesets could not be read)' ]
+  [[ "$stderr" == '❌ run: cd '*' && gh auth status (the rulesets could not be read)' ]]
   # GitLab's are the protected branches that name the default branch, and the push rules
   world gitlab
   run --separate-stderr call rulesets
@@ -2419,7 +2419,7 @@ JSON
   printf '%s\n' "${said/'read:org'/'admin:org'}" | sed "s/The 'slug' field/The 'x' field/" | fixture gh-org.txt
   run --separate-stderr call rulesets
   [ "$status" -eq 1 ]
-  [ "$stderr" = '❌ run: gh auth refresh --scopes admin:org (the rulesets could not be read)' ]
+  [[ "$stderr" == '❌ run: cd '*' && gh auth refresh --scopes admin:org (the rulesets could not be read)' ]]
 }
 
 @test "a mark that cannot be read is null, its line said, and every other kind is still read" {
@@ -2431,7 +2431,7 @@ JSON
   run --separate-stderr call marks issues environments runs
   [ "$status" -eq 1 ]
   [ "$output" = '{"issues":"W/\"x\"","environments":null,"runs":"W/\"x\""}' ]
-  [ "$stderr" = '❌ run: gh auth status (the environments mark could not be read)' ]
+  [[ "$stderr" == '❌ run: cd '*' && gh auth status (the environments mark could not be read)' ]]
   # GitLab's, the same
   world gitlab
   local p='projects/empowerite%2Fexample'
@@ -2441,7 +2441,7 @@ JSON
   run --separate-stderr call marks environments runs
   [ "$status" -eq 1 ]
   [ "$output" = '{"environments":null,"runs":"[[11,\"success\",\"2026-11-03T09:00:00.000Z\"]]"}' ]
-  [ "$stderr" = '❌ run: glab auth status (the environments mark could not be read)' ]
+  [[ "$stderr" == '❌ run: cd '*' && glab auth status (the environments mark could not be read)' ]]
 }
 
 @test "a GitHub scanner off or refused is asked again only once ten minutes have passed since it said so" {

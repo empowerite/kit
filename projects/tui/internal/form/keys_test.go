@@ -7,6 +7,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/empowerite/kit/projects/tui/internal/fix"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/syntax"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
@@ -214,14 +215,14 @@ func TestTheCommandLineShowsWhatKitSaysOfIt(t *testing.T) {
 	m := newForm(t, "template", Answers{}, true)
 	m.focus = len(m.fields)
 	m = send(m, key("enter"))
-	if !strings.Contains(m.refusal, "kit template new needs <path>; run: kit help template") || m.focus != 0 {
+	if !strings.Contains(m.refusal, "kit template new needs <path>; run: "+fix.Here("kit help template")) || m.focus != 0 {
 		t.Errorf("a missing part: %q, focus %d", m.refusal, m.focus)
 	}
 	t.Setenv("FAKE_KIT_MATCH_LITERAL", "")
 	m = newForm(t, "generate", Answers{}, true)
 	t.Setenv("FAKE_KIT_MATCH_MISSING", "generate")
 	m.focus = len(m.fields)
-	if m = send(m, key("enter")); m.refusal != "kit generate needs <path>; run: kit help generate" ||
+	if m = send(m, key("enter")); m.refusal != "kit generate needs <path>; run: "+fix.Here("kit help generate") ||
 		m.focus != len(m.fields) {
 		t.Errorf("a missing part with no field required: %q, focus %d", m.refusal, m.focus)
 	}

@@ -150,7 +150,7 @@ commit-all() {
     facts:document ci'
   [ "${status}" -eq 1 ]
   [ -z "${output}" ]
-  said="run: git log --no-merges origin/main..HEAD (the commits past the branch's base could not be read)"
+  said="run: cd ${PWD} && git log --no-merges origin/main..HEAD (the commits past the branch's base could not be read)"
   [[ "${stderr}" == *"${said}"* ]]
 }
 

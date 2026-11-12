@@ -73,7 +73,7 @@ change() {
   run "${kit_root}/bin/kit" policy
   [ "$status" -eq 1 ]
   refusal='the change could not be read, so its title is unchecked: '
-  [[ "$output" == *"${refusal}"*"could not be read"*"; then run: kit policy"* ]]
+  [[ "$output" == *"${refusal}"*"could not be read"*"; then run: cd "*" && kit policy"* ]]
   [[ "$output" != *"policy allows"* ]]
 }
 
@@ -88,13 +88,13 @@ change() {
   [ "$("${kit_root}/bin/kit" policy --input | jq --raw-output '.change | keys[]')" = error ]
   # the error is the provider's line, less its ❌ and its color
   error=$(CLICOLOR_FORCE=1 "${kit_root}/bin/kit" policy --input 2>/dev/null | jq --raw-output .change.error)
-  [[ "${error}" == "run: gh auth status ("*"could not be read)" ]]
+  [[ "${error}" == "run: cd "*" && gh auth status ("*"could not be read)" ]]
   [[ "${error}" != *$'\x1b'* ]]
   # a document that holds the error is refused as kit policy refuses the one it gathers, before either engine runs
   "${kit_root}/bin/kit" policy --input > "${BATS_TEST_TMPDIR}/facts.json" 2>/dev/null
   run "${kit_root}/bin/kit" policy --facts="${BATS_TEST_TMPDIR}/facts.json"
   [ "$status" -eq 1 ]
-  [[ "$output" == *"the change could not be read, so its title is unchecked: ${error}; then run: kit policy"* ]]
+  [[ "$output" == *"the change could not be read, so its title is unchecked: ${error}; then run: cd "*" && kit policy"* ]]
   [[ "$output" != *"refusal(s) by the"* ]]
 }
 
@@ -732,13 +732,13 @@ REGO
   git remote set-head origin --delete
   run "${kit_root}/bin/kit" policy
   [ "$status" -eq 1 ]
-  said='run: git remote set-head origin --auto (origin/HEAD is not recorded, so the default branch is taken to be main)'
+  said="run: cd $(pwd -P) && git remote set-head origin --auto (origin/HEAD is not recorded, so the default branch is taken to be main)"
   [[ "$output" == *"${said}"* ]]
   [[ "$output" != *"policy allows"* ]]
   git remote remove origin
   run "${kit_root}/bin/kit" policy
   [ "$status" -eq 1 ]
-  said='run: git remote add origin <url> (there is no remote origin, so the base, origin/main, and its policy cannot'
+  said="run: cd $(pwd -P) && git remote add origin <url> (there is no remote origin, so the base, origin/main, and its policy cannot"
   [[ "$output" == *"${said} be read)"* ]]
   [[ "$output" != *"policy allows"* ]]
 }

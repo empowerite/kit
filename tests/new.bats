@@ -37,7 +37,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ "$status" -eq 1 ]
   [[ "$output" == *"is there already"* ]]
   run kit new rule ini
-  [[ "$output" == *"no kind ini is defined yet; run: kit new kind ini"* ]]
+  [[ "$output" == *"no kind ini is defined yet; run: cd "*" && kit new kind ini"* ]]
 }
 
 @test "a package depends on kit and the packages named, and a template is listed in its package's style" {

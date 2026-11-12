@@ -154,7 +154,7 @@ YAML
   [[ "$output" == *"kit cannot read its title in the LIN# tracker, which it reaches through its pages alone; open https://linear.app/example/issue/ENG-12"* ]]
   run in_tracker tracker:at 'LIN#' create 'Fix it'
   [ "$status" -eq 1 ]
-  [[ "$output" == *"run: kit new issue LIN#, which opens its page"* ]]
+  [[ "$output" == *"run: cd "*" && kit new issue LIN#, which opens its page"* ]]
   run in_tracker tracker:at 'BZ#' new-url
   [ "$status" -eq 1 ]
   [[ "$output" == *"the BZ# tracker has no new page; set new in its record under trackers in kit.yml"* ]]

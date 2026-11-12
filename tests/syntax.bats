@@ -86,27 +86,27 @@ setup() {
   jq -e '.syntax == [[]] and .usage == ["kit version"]' <<<"$output"
   run "${kit_root}/bin/kit" syntax nonesuch
   [ "$status" -eq 2 ]
-  [[ "$output" == *"unknown verb 'nonesuch'; run: kit help"* ]]
+  [[ "$output" == *"unknown verb 'nonesuch'; run: cd "*" && kit help"* ]]
 }
 
 @test "a word that starts with - is no verb: kit syntax refuses it as the guard refuses an unknown flag, and says its output is JSON already" {
   run "${kit_root}/bin/kit" syntax commit --json
   [ "$status" -eq 2 ]
-  [ "$output" = "❌ kit syntax: unknown option '--json' (its output is JSON already); run: kit help syntax" ]
+  [[ "$output" == "❌ kit syntax: unknown option '--json' (its output is JSON already); run: cd "*" && kit help syntax" ]]
   run "${kit_root}/bin/kit" syntax commit --jq
   [ "$status" -eq 2 ]
-  [ "$output" = "❌ kit syntax: unknown option '--jq' (its output is JSON already); run: kit help syntax" ]
+  [[ "$output" == "❌ kit syntax: unknown option '--jq' (its output is JSON already); run: cd "*" && kit help syntax" ]]
   run "${kit_root}/bin/kit" syntax commit --nope
   [ "$status" -eq 2 ]
-  [ "$output" = "❌ kit syntax: unknown option '--nope'; run: kit help syntax" ]
+  [[ "$output" == "❌ kit syntax: unknown option '--nope'; run: cd "*" && kit help syntax" ]]
   # before any verb, the guard refuses the word itself, in the same words
   run "${kit_root}/bin/kit" syntax --jq
   [ "$status" -eq 2 ]
-  [ "$output" = "❌ unknown flag '--jq'; run: kit help syntax" ]
+  [[ "$output" == "❌ unknown flag '--jq'; run: cd "*" && kit help syntax" ]]
   # after a --, a dash word is an answer or a word to judge, which the usage lines name
   run "${kit_root}/bin/kit" syntax commit --match -- --json
   [ "$status" -eq 0 ]
-  [ "$(jq -r '.status, .refusal' <<<"$output" | paste -sd' ' -)" = "2 unknown flag '--json'; run: kit help commit" ]
+  [[ "$(jq -r '.status, .refusal' <<<"$output" | paste -sd' ' -)" == "2 unknown flag '--json'; run: cd "*" && kit help commit" ]]
 }
 
 @test "kit syntax --check is clean for every verb" {
@@ -201,7 +201,7 @@ setup() {
   [ "$status" -eq 0 ]
   [ "$(jq -c '[.status, .operands]' <<<"$output")" = '[0,["tidy","gate"]]' ]
   run "${kit_root}/bin/kit" syntax help --match -- plumbing --bogus
-  [ "$(jq -r '.status, .refusal' <<<"$output" | paste -sd' ' -)" = "2 unknown flag '--bogus'; run: kit help help" ]
+  [[ "$(jq -r '.status, .refusal' <<<"$output" | paste -sd' ' -)" == "2 unknown flag '--bogus'; run: cd "*" && kit help help" ]]
 }
 
 @test "kit syntax packages --choices lists every package with its state, closed, and a planned set says what it keeps" {
@@ -248,7 +248,7 @@ setup() {
   grep -q $'^tidy\tremoves merged worktrees and gone branches\t\t$' <<<"$output"
   run "${kit_root}/bin/kit" syntax help --choices '--bogus'
   [ "$status" -eq 1 ]
-  [[ "$output" == *"kit help has no choices for '--bogus'; run: kit help syntax"* ]]
+  [[ "$output" == *"kit help has no choices for '--bogus'; run: cd "*" && kit help syntax"* ]]
 }
 
 @test "kit syntax new --extend lists the template's holes as options once the rule and variant are known, and new's syntax says it extends" {
@@ -265,7 +265,7 @@ setup() {
   [ "$output" = '{}' ]
   run "${kit_root}/bin/kit" syntax commit --extend
   [ "$status" -eq 1 ]
-  [[ "$output" == *"kit commit does not extend its arguments; run: kit help syntax"* ]]
+  [[ "$output" == *"kit commit does not extend its arguments; run: cd "*" && kit help syntax"* ]]
 }
 
 @test "only kit new extends its arguments: the verb syntax does not answer with the API's own functions" {
@@ -274,10 +274,10 @@ setup() {
   [ "$(jq -r '[.[] | .arguments[] | select(.choices) | .choices] | unique | join(" ")' <<<"$output")" = "closed open" ]
   run "${kit_root}/bin/kit" syntax syntax --extend
   [ "$status" -eq 1 ]
-  [[ "$output" == *"kit syntax does not extend its arguments; run: kit help syntax"* ]]
+  [[ "$output" == *"kit syntax does not extend its arguments; run: cd "*" && kit help syntax"* ]]
   run "${kit_root}/bin/kit" syntax syntax --choices '<verb>'
   [ "$status" -eq 1 ]
-  [[ "$output" == *"kit syntax has no choices for '<verb>'; run: kit help syntax"* ]]
+  [[ "$output" == *"kit syntax has no choices for '<verb>'; run: cd "*" && kit help syntax"* ]]
 }
 
 @test "the Go fixtures under projects/tui/ are what kit syntax prints today" {
@@ -301,7 +301,7 @@ setup() {
   [ "$(jq -r '.status, .missing' <<<"$output" | paste -sd' ' -)" = "1 --message or --file" ]
   run "${kit_root}/bin/kit" syntax commit --match -- --bogus
   [ "$status" -eq 0 ]
-  [ "$(jq -r '.status, .refusal' <<<"$output" | paste -sd' ' -)" = "2 unknown flag '--bogus'; run: kit help commit" ]
+  [[ "$(jq -r '.status, .refusal' <<<"$output" | paste -sd' ' -)" == "2 unknown flag '--bogus'; run: cd "*" && kit help commit" ]]
   # a word of the group the acting line opens with opens that line, over the listing line's operand
   run "${kit_root}/bin/kit" syntax packages --match -- add
   [ "$(jq -c '[.status, .literals, .missing]' <<<"$output")" = '[1,["add"],"<package>"]' ]
@@ -320,7 +320,7 @@ setup() {
   [ "$(grep -c $'^[a-z-]*\t[^\t]*\t[a-z]*$' <<<"$output")" -eq "${#lines[@]}" ]
   run "${kit_root}/bin/kit" syntax --list --check
   [ "$status" -eq 2 ]
-  [[ "$output" == *"--check cannot be combined with --list; run: kit help syntax"* ]]
+  [[ "$output" == *"--check cannot be combined with --list; run: cd "*" && kit help syntax"* ]]
 }
 
 @test "a list of choices says it is a set only when the answers name the declarative subcommand" {
@@ -350,16 +350,16 @@ setup() {
     >> "${root}/bin/kit-askew"
   run "${root}/bin/kit" askew x
   [ "$status" -eq 2 ]
-  [[ "$output" == *"kit askew: usage does not parse: '[' is not closed in: kit askew [<a>; run: kit syntax --check askew"* ]]
+  [[ "$output" == *"kit askew: usage does not parse: '[' is not closed in: kit askew [<a>; run: cd "*" && kit syntax --check askew"* ]]
 }
 
 @test "--choices tells a verb with no choices for an argument from one that cannot list them for these answers" {
   run "${kit_root}/bin/kit" syntax syntax --choices '<verb>'
   [ "$status" -eq 1 ]
-  [[ "$output" == *"kit syntax has no choices for '<verb>'; run: kit help syntax"* ]]
+  [[ "$output" == *"kit syntax has no choices for '<verb>'; run: cd "*" && kit help syntax"* ]]
   run "${kit_root}/bin/kit" syntax new --choices --variant -- --rule=nonesuch
   [ "$status" -eq 1 ]
-  [[ "$output" == *"kit new lists no --variant for these answers: --rule=nonesuch; run: kit help new"* ]]
+  [[ "$output" == *"kit new lists no --variant for these answers: --rule=nonesuch; run: cd "*" && kit help new"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

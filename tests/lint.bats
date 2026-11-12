@@ -122,7 +122,7 @@ script() {
   rm bad.sh
   run "${kit_checkout}/bin/kit" lint
   [ "$status" -eq 2 ]
-  said="'bad.sh' is staged but is not on the disk; run: git restore -- 'bad.sh', or git rm --cached -- 'bad.sh'"
+  said="'bad.sh' is staged but is not on the disk; run: cd $(pwd -P) && git restore -- 'bad.sh', or git rm --cached -- 'bad.sh'"
   [[ "$output" == *"${said}"* ]]
   [[ "$output" != *"shellcheck"* ]]
   [[ "$output" != *"✅"* ]]

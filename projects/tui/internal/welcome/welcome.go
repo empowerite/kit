@@ -893,12 +893,12 @@ func (m *Model) follow() {
 	m.inPane = true
 }
 
-// copy puts the fix of the check under the cursor on the clipboard, and its row's ⧉ then says copied until the next
-// key or click.
+// copy puts the fix of the check under the cursor on the clipboard, a folder's with the cd to its folder in front, as
+// fix.In writes it, so it runs wherever it is pasted; and its row's ⧉ then says copied until the next key or click.
 func (m *Model) copy() tea.Cmd {
 	c := m.checks[m.cursor]
 	m.copied = c.Key()
-	return fix.Copying(c.Fix)
+	return fix.Copying(fix.In(c.Folder, c.Fix))
 }
 
 // back gives the bar the keyboard, and a step's rows go back to their top; a page keeps where it was scrolled to.

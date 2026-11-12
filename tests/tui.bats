@@ -49,21 +49,21 @@ terminal() {
 @test "with no terminal, kit and kit tui refuse with 2 before they build kittui" {
   run "${kit_root}/bin/kit" </dev/null
   [ "$status" -eq 2 ]
-  [[ "$output" == *"kit tui needs an interactive terminal; run: kit help tui"* ]]
+  [[ "$output" == *"kit tui needs an interactive terminal; run: cd "*" && kit help tui"* ]]
   [[ "$output" != *"building kittui"* ]]
   [ ! -e "${FAKES}/go.calls" ]
   run "${kit_root}/bin/kit" tui -- flow </dev/null
   [ "$status" -eq 2 ]
-  [[ "$output" == *"kit flow needs an interactive terminal for its picture; run: kit flow --text"* ]]
+  [[ "$output" == *"kit flow needs an interactive terminal for its picture; run: cd "*" && kit flow --text"* ]]
 }
 
 @test "a checkout with neither kittui nor go refuses with the line that installs go, which builds it" {
   run terminal "env PATH='$(without-kittui)' '${kit_root}/bin/kit' tui"
   [ "$status" -eq 1 ]
-  [[ "$output" == *"run: kit tools install (go is not on PATH)"* ]]
+  [[ "$output" == *"run: cd "*" && kit tools install (go is not on PATH)"* ]]
   run terminal "env PATH='$(without-kittui)' '${kit_root}/bin/kit'"
   [ "$status" -eq 1 ]
-  [[ "$output" == *"run: kit tools install (go is not on PATH)"* ]]
+  [[ "$output" == *"run: cd "*" && kit tools install (go is not on PATH)"* ]]
 }
 
 @test "a verb short of its arguments hands off to kit tui only when stdin, stdout, and stderr are terminals" {
@@ -73,9 +73,9 @@ terminal() {
   [[ "$output" == *"building kittui from projects/tui/"* ]]
   run "${kit_root}/bin/kit" commit .gitignore </dev/null
   [ "$status" -eq 2 ]
-  [[ "$output" == *"kit commit needs --message or --file; run: kit help commit"* ]]
+  [[ "$output" == *"kit commit needs --message or --file; run: cd "*" && kit help commit"* ]]
   run pty "'${kit_root}/bin/kit' context | cat"
-  [[ "$output" == *"kit context needs <path> or --claude; run: kit help context"* ]]
+  [[ "$output" == *"kit context needs <path> or --claude; run: cd "*" && kit help context"* ]]
   [[ "$output" != *"kittui"* ]]
 }
 
@@ -83,7 +83,7 @@ terminal() {
   run pty "'${kit_root}/bin/kit' version"
   [[ "$output" != *"kittui"* ]]
   run pty "'${kit_root}/bin/kit' flow --bogus"
-  [[ "$output" == *"unknown flag '--bogus'; run: kit help flow"* ]]
+  [[ "$output" == *"unknown flag '--bogus'; run: cd "*" && kit help flow"* ]]
   [[ "$output" != *"kittui"* ]]
 }
 

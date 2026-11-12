@@ -230,7 +230,7 @@ $(pwd -P)/node_modules/.bin" ]
   # the installed version is what pins read: markdownlint-cli2 is locked, but not installed
   grep --quiet -E '^🔺 markdownlint-cli2 +· 0\.18\.1 +· +· 0\.19\.0$' <<<"$output"
   grep --quiet -E '^🔺 pyyaml +· 6\.0\.3 +· 6\.0\.3 +· 6\.0\.4$' <<<"$output"
-  [[ "$output" == *"2 tool(s) are behind; run: kit tools update"* ]]
+  [[ "$output" == *"2 tool(s) are behind; run: cd "*" && kit tools update"* ]]
   run --separate-stderr "${kit_root}/bin/kit" tools --outdated --json
   [ "$(jq --compact-output --slurp 'map([.name, .latest, .from])' <<<"$output")" \
     = '[["markdownlint-cli2","0.19.0","npm"],["pyyaml","6.0.4","uv"]]' ]

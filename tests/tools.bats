@@ -55,10 +55,10 @@ JSON
   [ "$status" -eq 0 ]
   grep --quiet -E 'name +· pinned +· installed +· latest$' <<<"$output"
   grep --quiet -E '^🔺 jq +· 1\.8 +· 1\.8\.0 +· 1\.8\.1$' <<<"$output"
-  [[ "$output" == *"run: kit tools update"* ]]
+  [[ "$output" == *"run: cd "*" && kit tools update"* ]]
   run "${kit_root}/bin/kit" tools --outdated --check
   [ "$status" -eq 1 ]
-  [[ "$output" == *"1 tool(s) are behind; run: kit tools update"* ]]
+  [[ "$output" == *"1 tool(s) are behind; run: cd "*" && kit tools update"* ]]
   run "${kit_root}/bin/kit" tools --outdated --json
   [ "$(jq --compact-output . <<<"$output")" = '{"name":"jq","pinned":"1.8","installed":"1.8.0","latest":"1.8.1","from":"mise"}' ]
   run "${kit_root}/bin/kit" tools --check

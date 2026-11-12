@@ -178,7 +178,7 @@ JSON
   run --separate-stderr "${kit_root}/bin/kit" changes changes --json
   [ "$status" -eq 2 ]
   [ -z "$output" ]
-  [[ "$stderr" == *"run: kit flow changes --json"* ]]
+  [[ "$stderr" == *"run: cd "*" && kit flow changes --json"* ]]
 }
 
 @test "kit changes --json draws every stage, and a repository with no forge draws none" {

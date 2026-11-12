@@ -15,14 +15,14 @@
    github.com/o/a
      💻 a            main         0.3.0  ✅   ✅   ✅    ❌     ✅         ✅     ✅
        ❌ the git hooks are not installed; lefthook runs none
-          lefthook install
+          cd /code/a && lefthook install
      🌳 7-the-topic  7-the-topic  none   ✅   💡   ·     ·      ✅         ·      ·
        💡 kit is not installed here; it runs on what it infers
-          kit install
+          cd /code/a/worktrees/7-the-topic && kit install
    github.com/o/b
      💻 b            main         0.2.0  ✅   ✅   ✅    ·      ❌         ❌     ❌
        ❌ several toolchains are usable for the project: mise, brew; choose one
-          kit toolchains use mise
+          cd /code/b && kit toolchains use mise
           or: kit toolchains use brew
        ❌ shellcheck is not installed; kit lint runs it for .kit/rules/bash.md
    … 2 more

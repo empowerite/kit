@@ -42,7 +42,7 @@ provider() {
   run provider
   [ "$status" -eq 1 ]
   [[ "$output" == *"this repository does not have a remote named origin, so kit cannot tell its forge;"* ]]
-  [[ "$output" == *"run: git remote add origin <url>, or set forge in kit.yml"* ]]
+  [[ "$output" == *"run: cd "*" && git remote add origin <url>, or set forge in kit.yml"* ]]
   [[ "$output" != *"'none'"* ]]
 }
 
@@ -192,7 +192,7 @@ in-forge() {
     git() { [[ "$1" != remote ]] || return 1; command git "$@"; }
     forge:primary'
   [ "$status" -eq 1 ]
-  said="run: git remote (the remotes could not be read, so primary 'origin' in kit.yml cannot be checked)"
+  said="run: cd ${PWD} && git remote (the remotes could not be read, so primary 'origin' in kit.yml cannot be checked)"
   [[ "$output" == *"${said}"* ]]
   [[ "$output" != *"is not a remote"* ]]
 }

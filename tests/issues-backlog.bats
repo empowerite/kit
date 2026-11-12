@@ -184,7 +184,7 @@ JSON
 @test "kit flow issues refuses an unknown flag with a pointer to its page, and kit backlog and kit todo are no verbs" {
   run kit flow issues --bogus
   [ "$status" -eq 2 ]
-  [[ "$output" == *"unknown flag '--bogus'; run: kit help flow"* ]]
+  [[ "$output" == *"unknown flag '--bogus'; run: cd "*" && kit help flow"* ]]
   run kit backlog
   [ "$status" -eq 2 ]
   [[ "$output" == *"backlog"* ]]
@@ -207,7 +207,7 @@ JSON
   [ "$(jq --raw-output 'map(.number) | join(" ")' <<<"$output")" = "7 9 11" ]
   run kit flow issues --all --mine
   [ "$status" -eq 2 ]
-  [[ "$output" == *"--all cannot be combined with --mine; run: kit help flow"* ]]
+  [[ "$output" == *"--all cannot be combined with --mine; run: cd "*" && kit help flow"* ]]
 }
 
 @test "kit flow backlog and kit flow underway are no stages: off a terminal, or with a form, they name kit flow issues" {
@@ -217,7 +217,7 @@ JSON
     do
       run kit flow "${word}" ${form:+"${form}"}
       [ "$status" -eq 2 ]
-      [[ "$output" == *"${word} is no stage of kit flow: issues lists every open issue, its status backlog or underway; run: kit flow issues"* ]]
+      [[ "$output" == *"${word} is no stage of kit flow: issues lists every open issue, its status backlog or underway; run: cd "*" && kit flow issues"* ]]
     done
   done
   run kit flow backlog --mine

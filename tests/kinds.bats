@@ -87,7 +87,7 @@ setup() {
   [ "$output" = 'any' ]
   run "${kit_checkout}/bin/kit" kinds bash README.md
   [ "$status" -eq 2 ]
-  [[ "$output" == *"kit kinds takes kind names or paths, not both: kinds bash; paths README.md; run: kit help kinds"* ]]
+  [[ "$output" == *"kit kinds takes kind names or paths, not both: kinds bash; paths README.md; run: cd "*" && kit help kinds"* ]]
 }
 
 @test "a repository with no kinds says so in one dim line, lists nothing as JSON, and finds no kind for a path" {

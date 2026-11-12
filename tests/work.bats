@@ -92,13 +92,13 @@ desk-world() {
 @test "kit work with nothing is refused: a reference or a title, and no prompt remains" {
   run "${kit_checkout}/bin/kit" work </dev/null
   [ "$status" -eq 2 ]
-  [[ "$output" == *"kit work needs <reference> or --title or --pr; run: kit help work"* ]]
+  [[ "$output" == *"kit work needs <reference> or --title or --pr; run: cd "*" && kit help work"* ]]
   [ "$(grep -c 'read -r -p' "${kit_checkout}/modules/bash/issue.sh")" -eq 0 ]
   # the module takes the title as an argument, and reads nothing the argument check left behind
   [ "$(grep -c syntax_ "${kit_checkout}/modules/bash/issue.sh")" -eq 0 ]
   run "${kit_checkout}/bin/kit" work --pr 3 --title 'Fix the thing' 7
   [ "$status" -eq 2 ]
-  [[ "$output" == *"--title cannot be combined with --pr; run: kit help work"* ]]
+  [[ "$output" == *"--title cannot be combined with --pr; run: cd "*" && kit help work"* ]]
   run "${kit_checkout}/bin/kit" work --pr 3
   [ "$status" -eq 2 ]
 }
