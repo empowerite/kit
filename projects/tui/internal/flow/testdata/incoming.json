@@ -61,6 +61,9 @@
   ],
   "rows": [
     {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
       "key": "origin remote",
       "remote": "origin",
       "primary": "primary",
@@ -84,6 +87,9 @@
       "issues": []
     },
     {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
       "key": "origin commit a1b2c3d",
       "remote": "origin",
       "primary": "primary",
@@ -106,10 +112,12 @@
       "behind": null,
       "issues": [
         "#1"
-      ],
-      "signed": true
+      ]
     },
     {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
       "key": "origin commit e4f5a6b",
       "remote": "origin",
       "primary": "primary",
@@ -135,6 +143,9 @@
       ]
     },
     {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
       "key": "origin branch 42-settings",
       "remote": "origin",
       "primary": "primary",
@@ -160,6 +171,9 @@
       ]
     },
     {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
       "key": "origin branch 46-a-noun-lists",
       "remote": "origin",
       "primary": "primary",
@@ -189,6 +203,9 @@
       ]
     },
     {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
       "key": "origin tracking main",
       "remote": "origin",
       "primary": "primary",
@@ -216,6 +233,9 @@
       ]
     },
     {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
       "key": "upstream remote",
       "remote": "upstream",
       "primary": null,
@@ -239,6 +259,9 @@
       "issues": []
     },
     {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
       "key": "upstream branch old-experiment",
       "remote": "upstream",
       "primary": null,
@@ -262,6 +285,9 @@
       "issues": []
     },
     {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
       "key": "upstream tag release/0.2.0",
       "remote": "upstream",
       "primary": null,
@@ -285,6 +311,9 @@
       "issues": []
     },
     {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
       "key": "backup remote",
       "remote": "backup",
       "primary": null,

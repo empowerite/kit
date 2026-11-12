@@ -8,7 +8,10 @@
       "tagger": null,
       "age": 10,
       "subject": "more of it",
-      "links": {}
+      "links": {},
+      "source": "git",
+      "organization": "o",
+      "repository": "r"
     },
     {
       "key": "v1",
@@ -18,7 +21,10 @@
       "tagger": "Ada",
       "age": 11,
       "subject": "release 1",
-      "links": {}
+      "links": {},
+      "source": "git",
+      "organization": "o",
+      "repository": "r"
     }
   ],
   "errors": []

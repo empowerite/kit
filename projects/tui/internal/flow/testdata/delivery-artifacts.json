@@ -1,4 +1,4 @@
 {"rows": [
-  {"key": 13, "id": 13, "name": "kit-0.1.0.tar.gz", "digest": "sha256:ab12", "size": 2048, "run": 103, "age": 3600, "expires": 1798624800, "links": {"name": "https://github.com/o/r/actions/runs/103/artifacts/13"}},
-  {"key": 14, "id": 14, "name": "coverage", "digest": "sha256:cd34", "size": 1572864, "run": 104, "age": 600, "expires": null, "links": {"name": "https://github.com/o/r/actions/runs/104/artifacts/14"}}
+  {"key": 13, "id": 13, "name": "kit-0.1.0.tar.gz", "digest": "sha256:ab12", "size": 2048, "run": 103, "age": 3600, "expires": 1798624800, "links": {"name": "https://github.com/o/r/actions/runs/103/artifacts/13"}, "source": "github", "organization": "o", "repository": "r"},
+  {"key": 14, "id": 14, "name": "coverage", "digest": "sha256:cd34", "size": 1572864, "run": 104, "age": 600, "expires": null, "links": {"name": "https://github.com/o/r/actions/runs/104/artifacts/14"}, "source": "github", "organization": "o", "repository": "r"}
 ], "errors": []}

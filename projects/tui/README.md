@@ -87,16 +87,17 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
 - `internal/flow/` draws `kit flow`: the stages as tabs, and each stage's rows. `fields.json` is the catalog. It
   declares each stage's fields, each by a stable id, with its label, its type, what it can sort, group, and filter by,
   and its renderings in order, and the stage's own presets, the first the one it opens on: Default and Compact, or for
-  issues All Issues, Backlog, Underway, By Milestone, By Iteration, By Swimlane, and Compact; a table with no presets
-  of its own has Default. A field that holds a list, as assignees
-  or labels, names one of its values, assignee or label, and sorts by size while a row holds all of them, how many
-  each holds, and by value once flattened. Where a row
-  holds more than one, its column says how many, dim, as labels' 3, or, for a list with a glyph for many, after it, as
-  assignees' 👥 2 in place of 👤 and a name; the row open lists them all under its lines. The renderers
-  are Go functions, registered by name with `internal/table`, which has those every table shares. A preset says, per
-  field by id, its placement, its sort, its filter, and the rendering it pins. The person's presets are kept in
-  `~/.config/kit/presets.json`, version 2. Where there is none, kittui reads the `views.json` beside it once, maps each
-  column's label to its field's id, notes a label the catalog no longer knows, and leaves the old file as it is.
+  issues All Issues, Backlog, Underway, By Milestone, By Iteration, By Swimlane, and Compact; a table with no presets of
+  its own has Default. A stage's carries names the keys its rows hold that no field shows, as a change's closes, which the
+  screen reads apart; the bats suite holds the fields and the carries to what kit prints. A field that holds a list,
+  as assignees or labels, names one of its values, assignee or label, and sorts by size while a row holds all of them,
+  how many each holds, and by value once flattened. Where a row holds more than one, its column says how many, dim, as
+  labels' 3, or, for a list with a glyph for many, after it, as assignees' 👥 2 in place of 👤 and a name; the row open
+  lists them all under its lines. The renderers are Go functions, registered by name with `internal/table`, which has
+  those every table shares. A preset says, per field by id, its placement, its sort, its filter, and the rendering it
+  pins. The person's presets are kept in `~/.config/kit/presets.json`, version 2. Where there is none, kittui reads the
+  `views.json` beside it once, maps each column's label to its field's id, notes a label the catalog no longer knows,
+  and leaves the old file as it is.
   - The tab's view starts with the control line: the heading over the groups at its left, which, where the rows group by
     nothing, is the rows' ▾ and their count alone, and the preset line at its right end. After how many rows are
     selected, a chip per filter, which a click opens its field's card under, on its filter, and 📇 Fields, which opens

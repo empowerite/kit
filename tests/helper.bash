@@ -331,6 +331,84 @@ snapshot() {
   fi
 }
 
+# helper_shapes is the jq both same-keys and fields-hold judge a document's keys by. keypath writes a path as shape
+# prints it; shape gives every key path a document holds; and unshown($shape) gives the paths of the input list that
+# the shape does not show. A path is shown when the shape holds it, or holds a part of it, as .pr of .pr.number, that
+# it shows nothing under: a key that is null, or a list that is empty, in every row there, holds no keys to compare.
+# shellcheck disable=SC2016  # a jq program, whose $ names are jq's
+helper_shapes='
+  def keypath: map(if type == "number" then "[]" else "." + . end) | join("");
+  def shape: [paths | keypath] | unique;
+  def unshown($shape):
+    ($shape | map({key: ., value: true}) | from_entries) as $has
+    | map(select(. as $p | $has[$p] | not)
+      | select(. as $p | [scan("\\.[^.\\[]+|\\[\\]")] as $t
+        | [range(1; $t | length) | $t[:.] | join("")] | map(select($has[.])) | last as $q
+        | $q == null or ($shape | any(startswith($q + ".") or startswith($q + "[]")))));'
+
+# shape reads JSON on stdin and prints each key path it holds once, sorted, a list's items under []: .a, .a[], .a[].b.
+shape() {
+  jq --raw-output "${helper_shapes}"' shape[]'
+}
+
+# same-keys <fixture> [<path>…] reads kit's JSON on stdin and succeeds when it holds the key paths of the fixture, a
+# file as snapshot takes one, and no other, as shape writes them. Otherwise it prints, after the fixture's name, the
+# paths only kit prints and those only the fixture has, and fails. A path under a key that one side leaves null or
+# empty in every row is no difference, as unshown says, and neither is a path named after the fixture, one kit prints
+# only sometimes, which the fixture holds and the world of the test does not reach.
+same-keys() {
+  local path=$1 found
+  shift
+  [[ "${path}" == /* ]] || path=${kit_root}/../${path}
+  found=$(jq --raw-output --slurpfile fixture "${path}" --arg name "${path##*/}" --args "${helper_shapes}"'
+    shape as $kit | ($fixture[0] | shape) as $fixture
+    | ($kit | unshown($fixture)) as $kit_only | ($fixture | unshown($kit) - $ARGS.positional) as $fixture_only
+    | if ($kit_only | length) > 0 then "\($name): only kit prints: \($kit_only | join(" "))" else empty end,
+      if ($fixture_only | length) > 0 then "\($name): only the fixture has: \($fixture_only | join(" "))"
+      else empty end' "$@")
+  [[ -z "${found}" ]] || { printf '%s\n' "${found}"; return 1; }
+}
+
+# fields-hold [--catalog=<file>] <stage> [<path>…] reads a stage's JSON on stdin and succeeds when its records, at the
+# stage's record in the catalog, kittui's projects/tui/internal/flow/fields.json unless named, print every path a field
+# or the stage's key declares, as unshown says, and declare every key they print: as the first key of such a path, or
+# in the stage's carries, the keys a record holds that no column shows; key, links, and member, which kittui reads on
+# every stage's rows, are every stage's. A path is split at each comma, a ? after it dropped; .member, which only a
+# workspace's rows hold, a part another stage's, written <stage>:, *, a screen's own gathering, and each path named
+# after the stage, one kit prints only sometimes, as a declared path the world of the test does not reach, are passed
+# over. Otherwise it prints, each where it has any, what is declared and never printed, what is printed and not
+# declared, and what is carried and never printed, and fails; and so it does for a stage whose JSON holds no record.
+fields-hold() {
+  local catalog=${kit_root}/../projects/tui/internal/flow/fields.json stage record found
+  [[ "$1" != --catalog=* ]] || { catalog=${1#--catalog=}; shift; }
+  stage=$1
+  shift
+  record=$(jq --raw-output --arg stage "${stage}" '.stages[] | select(.stage == $stage) | .record' "${catalog}")
+  [[ -n "${record}" ]] || { echo "${stage}: no stage of that name in ${catalog}"; return 1; }
+  found=$(jq --raw-output --arg stage "${stage}" --slurpfile catalog "${catalog}" --args "${helper_shapes}"'
+    [ '"${record}"' ] as $records
+    | ($catalog[0].stages[] | select(.stage == $stage)) as $schema
+    | ([$schema.fields[].path, ($schema.key // empty) | split(",")[] | ltrimstr(" ") | rtrimstr(" ") | rtrimstr("?")
+        | select(. != "*" and . != ".member" and (contains(":") | not))] | unique) as $declared
+    | ([$records[] | paths | keypath] | unique) as $printed
+    | ([$records[] | keys[]] | unique) as $keys
+    | ([$declared[] | capture("^\\.(?<key>[^.\\[]+)").key] + ($schema.carries // []) + ["key", "links", "member"])
+      as $named
+    | if ($records | length) == 0 then "\($stage): no record"
+      else
+        ($declared | unshown($printed) - $ARGS.positional) as $missing
+        | ([$keys[] | select(. as $k | $named | index($k) | not)]
+           | if any($schema.fields[]; .path == "*") then [] else . end) as $undeclared
+        | ([($schema.carries // [])[] | select(. as $k | $keys | index($k) | not)]) as $uncarried
+        | if ($missing | length) > 0 then "\($stage): declared and never printed: \($missing | join(" "))" else empty end,
+          if ($undeclared | length) > 0 then "\($stage): printed and not declared: \($undeclared | join(" "))"
+          else empty end,
+          if ($uncarried | length) > 0 then "\($stage): carried and never printed: \($uncarried | join(" "))"
+          else empty end
+      end' "$@")
+  [[ -z "${found}" ]] || { printf '%s\n' "${found}"; return 1; }
+}
+
 # in-order <text> <word>… succeeds when the text holds each word, each after the one before, and otherwise names the
 # first word it lacks. A test of what a picture holds checks its words this way, so a change to a glyph or a column's
 # padding breaks only the test that pins that drawing.

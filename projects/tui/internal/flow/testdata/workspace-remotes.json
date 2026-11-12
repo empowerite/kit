@@ -4,7 +4,7 @@
       "key": "origin",
       "remote": "origin",
       "forge": "github",
-      "repository": "o/r",
+      "repository": "r",
       "host": "github.com",
       "url": "https://github.com/o/r.git",
       "push": null,
@@ -14,7 +14,9 @@
       "links": {
         "repository": "https://github.com/o/r",
         "default": "row:branches/origin/main"
-      }
+      },
+      "source": "git",
+      "organization": "o"
     }
   ],
   "errors": []

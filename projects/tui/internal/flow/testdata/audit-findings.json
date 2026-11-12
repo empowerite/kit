@@ -1,4 +1,4 @@
 {"rows": [
-  {"key": "code-scanning 4", "tool": "code-scanning", "number": 4, "rule": "js/xss", "severity": "high", "state": "open", "path": "src/app.js", "age": 7200, "links": {"rule": "https://github.com/o/r/security/code-scanning/4"}},
-  {"key": "dependabot 1", "tool": "dependabot", "number": 1, "rule": "GHSA-35jh-r3h4-6jhm", "severity": "high", "state": "dismissed", "path": "package-lock.json", "age": 172800, "links": {"rule": "https://github.com/o/r/security/dependabot/1"}}
+  {"key": "code-scanning 4", "tool": "code-scanning", "number": 4, "rule": "js/xss", "severity": "high", "state": "open", "path": "src/app.js", "age": 7200, "links": {"rule": "https://github.com/o/r/security/code-scanning/4"}, "source": "github", "organization": "o", "repository": "r"},
+  {"key": "dependabot 1", "tool": "dependabot", "number": 1, "rule": "GHSA-35jh-r3h4-6jhm", "severity": "high", "state": "dismissed", "path": "package-lock.json", "age": 172800, "links": {"rule": "https://github.com/o/r/security/dependabot/1"}, "source": "github", "organization": "o", "repository": "r"}
 ], "errors": [{"feature": "secret-scanning", "off": true}]}

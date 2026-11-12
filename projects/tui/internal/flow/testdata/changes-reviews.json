@@ -1,5 +1,5 @@
 {"rows": [
-  {"key": "3 bob", "change": 3, "title": "Fix the thing", "login": "bob", "state": "requested", "at": null, "unresolved": 1, "links": {}},
-  {"key": "3 carol", "change": 3, "title": "Fix the thing", "login": "carol", "state": "approved", "at": 1790931600, "unresolved": 1, "links": {}},
-  {"key": "7 ada", "change": 7, "title": "Draw the deployments", "login": "ada", "state": "changes", "at": 1790935200, "unresolved": 0, "links": {}}
+  {"key": "3 bob", "change": 3, "title": "Fix the thing", "login": "bob", "state": "requested", "at": null, "unresolved": 1, "links": {}, "source": "github", "organization": "o", "repository": "r"},
+  {"key": "3 carol", "change": 3, "title": "Fix the thing", "login": "carol", "state": "approved", "at": 1790931600, "unresolved": 1, "links": {}, "source": "github", "organization": "o", "repository": "r"},
+  {"key": "7 ada", "change": 7, "title": "Draw the deployments", "login": "ada", "state": "changes", "at": 1790935200, "unresolved": 0, "links": {}, "source": "github", "organization": "o", "repository": "r"}
 ], "errors": []}

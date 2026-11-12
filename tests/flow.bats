@@ -860,3 +860,44 @@ the desk its first row; run: cd "*" && kit workspace worktrees" ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
+
+@test "shape gives every key path; same-keys and fields-hold name what a fixture, a catalog, and kit do not share" {
+  run shape <<<'{"a": [{"b": 1}, {"c": null}], "d": []}'
+  [ "$output" = $'.a\n.a[]\n.a[].b\n.a[].c\n.d' ]
+  printf '%s\n' '{"rows": [{"a": 1, "pr": null, "gone": 0, "sometimes": 1}]}' > "${BATS_TEST_TMPDIR}/fixture.json"
+  # a key under one kit leaves null is no difference; one the fixture lacks, or only it has, is
+  run same-keys "${BATS_TEST_TMPDIR}/fixture.json" .rows[].sometimes <<<'{"rows": [{"a": 2, "pr": {"n": 1}, "new": 0}]}'
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = 'fixture.json: only kit prints: .rows[].new' ]
+  [ "${lines[1]}" = 'fixture.json: only the fixture has: .rows[].gone' ]
+  [ "${#lines[@]}" -eq 2 ]
+  printf '%s\n' '{"stages": [{"stage": "s", "record": ".rows[]", "key": ".id?", "carries": ["kept", "gone"],' \
+    '"fields": [{"path": ".a, .b.c"}, {"path": ".member"}, {"path": "t:.x"}, {"path": ".no"}, {"path": ".rare"}]}]}' \
+    > "${BATS_TEST_TMPDIR}/catalog.json"
+  run fields-hold --catalog="${BATS_TEST_TMPDIR}/catalog.json" s .rare \
+    <<<'{"rows": [{"id": 1, "a": 1, "b": {"c": 2}, "kept": "k", "links": {}, "extra": 0}]}'
+  [ "$status" -eq 1 ]
+  [ "${lines[0]}" = "s: declared and never printed: .no" ]
+  [ "${lines[1]}" = "s: printed and not declared: extra" ]
+  [ "${lines[2]}" = "s: carried and never printed: gone" ]
+  [ "${#lines[@]}" -eq 3 ]
+  run fields-hold --catalog="${BATS_TEST_TMPDIR}/catalog.json" s <<<'{"rows": []}'
+  [ "$status" -eq 1 ]
+  [ "$output" = "s: no record" ]
+  run fields-hold --catalog="${BATS_TEST_TMPDIR}/catalog.json" nosuch <<<'{"rows": []}'
+  [ "$status" -eq 1 ]
+}
+
+@test "each stage prints the keys of the fixture kittui's tests decode, and the fields its catalog declares" {
+  local stage failed=0 fixtures=projects/tui/internal/flow/testdata
+  forge-world
+  "${kit_root}/bin/kit" flow incoming --no-fetch --json > "${BATS_TEST_TMPDIR}/no-fetch.json"
+  same-keys "${fixtures}/incoming-no-fetch.json" < "${BATS_TEST_TMPDIR}/no-fetch.json" || failed=1
+  for stage in issues changes builds releases incoming
+  do
+    "${kit_root}/bin/kit" flow "${stage}" --json > "${BATS_TEST_TMPDIR}/${stage}.json"
+    same-keys "${fixtures}/${stage}.json" < "${BATS_TEST_TMPDIR}/${stage}.json" || failed=1
+    fields-hold "${stage}" < "${BATS_TEST_TMPDIR}/${stage}.json" || failed=1
+  done
+  (( failed == 0 ))
+}

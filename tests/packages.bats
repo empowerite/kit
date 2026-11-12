@@ -238,3 +238,10 @@ setup() {
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
+
+@test "the packages stage prints the keys of the fixture kittui's tests decode, and the fields its catalog declares" {
+  "${kit_checkout}/bin/kit" install agents/claude >/dev/null 2>&1
+  "${kit_checkout}/bin/kit" packages packages --json > "${BATS_TEST_TMPDIR}/packages.json"
+  same-keys projects/tui/internal/flow/testdata/packages-packages.json < "${BATS_TEST_TMPDIR}/packages.json"
+  fields-hold packages/packages < "${BATS_TEST_TMPDIR}/packages.json"
+}

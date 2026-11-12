@@ -5,24 +5,24 @@
     {
       "name": "upstream",
       "forge": "gitlab",
-      "host": "git.example.org",
-      "default": "main"
+      "host": "git.example.org"
     },
     {
       "name": "origin",
       "forge": "github",
-      "host": "github.com",
-      "default": "main"
+      "host": "github.com"
     },
     {
       "name": "backup",
       "forge": "",
-      "host": "nas.local",
-      "default": "main"
+      "host": "nas.local"
     }
   ],
   "rows": [
     {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
       "key": "origin remote",
       "remote": "origin",
       "primary": "primary",
@@ -46,6 +46,9 @@
       "issues": []
     },
     {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
       "key": "origin tracking main",
       "remote": "origin",
       "primary": "primary",
@@ -73,6 +76,9 @@
       ]
     },
     {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
       "key": "upstream remote",
       "remote": "upstream",
       "primary": null,
@@ -96,6 +102,9 @@
       "issues": []
     },
     {
+      "source": "git",
+      "organization": "empowerite",
+      "repository": "kit",
       "key": "backup remote",
       "remote": "backup",
       "primary": null,

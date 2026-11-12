@@ -250,3 +250,17 @@ EOF
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
+
+@test "each stage prints the keys of the fixture kittui's tests decode, and the fields its catalog declares" {
+  local stage failed=0
+  history-at "${BATS_TEST_TMPDIR}/r" github.com/o/r
+  cd "${BATS_TEST_TMPDIR}/r"
+  for stage in $("${kit_root}/bin/kit" workspace --stages)
+  do
+    "${kit_root}/bin/kit" workspace "${stage}" --json > "${BATS_TEST_TMPDIR}/${stage}.json" 2>/dev/null || true
+    same-keys "projects/tui/internal/flow/testdata/workspace-${stage}.json" < "${BATS_TEST_TMPDIR}/${stage}.json" \
+      || failed=1
+    fields-hold "workspace/${stage}" < "${BATS_TEST_TMPDIR}/${stage}.json" || failed=1
+  done
+  (( failed == 0 ))
+}

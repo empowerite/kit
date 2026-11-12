@@ -1,4 +1,4 @@
 {"rows": [
-  {"key": 2, "number": 2, "title": "Do the other thing", "author": "bob", "branch": "9-other", "merged": 1791018000, "by": "ada", "links": {"title": "https://github.com/o/r/pull/2"}},
-  {"key": 1, "number": 1, "title": "Start", "author": "ada", "branch": "1-start", "merged": 1790000000, "by": "ada", "links": {"title": "https://github.com/o/r/pull/1"}}
+  {"key": 2, "number": 2, "title": "Do the other thing", "author": "bob", "branch": "9-other", "merged": 1791018000, "by": "ada", "links": {"title": "https://github.com/o/r/pull/2"}, "source": "github", "organization": "o", "repository": "r", "named": []},
+  {"key": 1, "number": 1, "title": "Start", "author": "ada", "branch": "1-start", "merged": 1790000000, "by": "ada", "links": {"title": "https://github.com/o/r/pull/1"}, "source": "github", "organization": "o", "repository": "r", "named": []}
 ], "errors": [], "limited": 2}

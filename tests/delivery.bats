@@ -145,3 +145,15 @@ JSON
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
+
+@test "each stage prints the keys of the fixture kittui's tests decode, and the fields its catalog declares" {
+  local stage failed=0
+  github-world
+  for stage in $("${kit_root}/bin/kit" delivery --stages)
+  do
+    "${kit_root}/bin/kit" delivery "${stage}" --json > "${BATS_TEST_TMPDIR}/${stage}.json" 2>/dev/null || true
+    same-keys "projects/tui/internal/flow/testdata/delivery-${stage}.json" < "${BATS_TEST_TMPDIR}/${stage}.json" || failed=1
+    fields-hold "delivery/${stage}" < "${BATS_TEST_TMPDIR}/${stage}.json" || failed=1
+  done
+  (( failed == 0 ))
+}

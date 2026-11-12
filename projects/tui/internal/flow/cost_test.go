@@ -160,8 +160,10 @@ func TestPagingThroughABuildCostsWhatTheScreenShowsNotTheJobs(t *testing.T) {
 	}
 }
 
-// openBuild gives the screen, at 120×40, with builds' first run open, with n jobs, the rows with the keyboard.
+// openBuild gives the screen, at 120×40, with builds' first run open, with n jobs, the rows with the keyboard, flat:
+// grouped by nothing, though every run is of one source, organization, and repository.
 func openBuild(m Model, n int) Model {
+	unfold(&m)
 	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 40}, tallBuild(m, n))
 	for m.stages[m.stage].name != "builds" {
 		m = drive(m, tab)

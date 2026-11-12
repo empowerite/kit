@@ -4,14 +4,14 @@
   ╵               ╰──────────────────╰───────────────────╰──────────────────────────────────────────────────────────────
   Repos — What is cloned, where, on which branch, and how far from upstream
 
-  ▾ forge 2                                                                                                            
-    ·──────
-  ▾ github 2
+  ▾ source · organization 2                                                                                            
+    ·────────·─────────────
+  ▾ git · empowerite 2
 
-      repository                  remotes      checkout                             branch  ahead  worktrees          ▹
-      ·───────────────────────────×·───────────·────────────────────────────────────·───────·──────×·──────────────────
-    ▸ github.com/empowerite/kit   origin +1  …/empowerite/kit                     main    ↑1 ↓0  1-the-first-relea…
-      github.com/empowerite/edge               not cloned
+      repository                  forge   remotes      checkout                             branch  ahead  worktrees  ▹
+      ·───────────────────────────·───────×·───────────·────────────────────────────────────·───────·──────×·──────────
+    ▸ github.com/empowerite/kit   github  origin +1  …/empowerite/kit                     main    ↑1 ↓0  1-the-fir…
+      github.com/empowerite/edge  github               not cloned
 
 
 

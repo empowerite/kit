@@ -1,5 +1,5 @@
 {"rows": [
-  {"key": "hosting", "capability": "hosting", "service": "github", "provider": "forge/github", "chosen": "inferred", "ready": true, "links": {}},
-  {"key": "tracking #", "capability": "tracking #", "service": "github", "provider": "tracker/forge", "chosen": "inferred", "ready": true, "links": {}},
-  {"key": "policy", "capability": "policy", "service": "opa", "provider": "policy/opa", "chosen": "set", "ready": false, "links": {}}
+  {"key": "hosting", "capability": "hosting", "service": "github", "provider": "forge/github", "chosen": "inferred", "ready": true, "links": {}, "source": "kit", "organization": "o", "repository": "r"},
+  {"key": "tracking #", "capability": "tracking #", "service": "github", "provider": "tracker/forge", "chosen": "inferred", "ready": true, "links": {}, "source": "kit", "organization": "o", "repository": "r"},
+  {"key": "policy", "capability": "policy", "service": "opa", "provider": "policy/opa", "chosen": "set", "ready": false, "links": {}, "source": "kit", "organization": "o", "repository": "r"}
 ], "errors": []}

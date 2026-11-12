@@ -224,3 +224,22 @@ signed-in() {
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
+
+@test "each stage prints the keys of the fixture kittui's tests decode, and the fields its catalog declares" {
+  local stage failed=0
+  repo-at "${BATS_TEST_TMPDIR}/r" github.com/o/r
+  cd "${BATS_TEST_TMPDIR}/r"
+  signed-in
+  printf '[tools]\njq = "1.8.2"\n' > mise.toml
+  git add mise.toml
+  git commit --quiet -m pin
+  for stage in $("${kit_root}/bin/kit" platform --stages)
+  do
+    "${kit_root}/bin/kit" platform "${stage}" --json > "${BATS_TEST_TMPDIR}/${stage}.json" 2>/dev/null || true
+    # a tool found on PATH, outside any toolchain, is the only row with a path: this world runs no linter
+    same-keys "projects/tui/internal/flow/testdata/platform-${stage}.json" .rows[].path \
+      < "${BATS_TEST_TMPDIR}/${stage}.json" || failed=1
+    fields-hold "platform/${stage}" .path < "${BATS_TEST_TMPDIR}/${stage}.json" || failed=1
+  done
+  (( failed == 0 ))
+}

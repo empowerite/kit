@@ -23,7 +23,11 @@
         "assignees": [
           "jeffrey-aguilera"
         ],
-        "age": 714296
+        "age": 714296,
+        "labels": [],
+        "source": "github",
+        "organization": "empowerite",
+        "repository": "kit"
       }
     ],
     "labels": [
@@ -31,6 +35,19 @@
         "name": "kind=fix",
         "color": "#0e8a16"
       }
+    ],
+    "source": "github",
+    "fork": null,
+    "pushed": {
+      "age": 3600,
+      "by": "jeffrey-aguilera"
+    },
+    "reviewers": [],
+    "runs": [],
+    "organization": "empowerite",
+    "repository": "kit",
+    "named": [
+      "#1"
     ]
   },
   {
@@ -50,7 +67,15 @@
     },
     "unresolved": 2,
     "branch": "3-a-spike",
-    "closes": []
+    "closes": [],
+    "source": "github",
+    "fork": null,
+    "pushed": null,
+    "reviewers": [],
+    "runs": [],
+    "organization": "empowerite",
+    "repository": "kit",
+    "named": []
   },
   {
     "number": 4,
@@ -74,7 +99,11 @@
         "number": 8,
         "title": "Lint the modules",
         "assignees": [],
-        "age": 200000
+        "age": 200000,
+        "labels": [],
+        "source": "github",
+        "organization": "empowerite",
+        "repository": "kit"
       },
       {
         "number": 9,
@@ -82,8 +111,26 @@
         "assignees": [
           "bob"
         ],
-        "age": 100
+        "age": 100,
+        "labels": [],
+        "source": "github",
+        "organization": "empowerite",
+        "repository": "kit"
       }
+    ],
+    "source": "github",
+    "fork": "bob",
+    "pushed": {
+      "age": 90000,
+      "by": "cy"
+    },
+    "reviewers": [],
+    "runs": [],
+    "organization": "empowerite",
+    "repository": "kit",
+    "named": [
+      "#8",
+      "#9"
     ]
   }
 ]

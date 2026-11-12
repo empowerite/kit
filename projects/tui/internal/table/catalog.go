@@ -18,8 +18,9 @@ import (
 // verb's --stages and --marks name, which its command's second word is; whether its verb ever marks it, false for a
 // stage whose mark --marks always prints null, as kit people's, none for one it marks; whether the command reads the
 // forge, and so spends its rate limits; whether the command prints a document a line, read as jq --slurp reads them;
-// the record its rows are read from, as Records reads them; the paths of each record's key, as KeyOf reads them; the
-// line an empty table shows; the sentence that says what the stage holds, in the indicative and with no period, which
+// the record its rows are read from, as Records reads them; the keys a record carries that no field shows, as a
+// change's closes, which the screen reads apart from the catalog, as the bats suite's fields-hold holds them to what
+// kit prints; the paths of each record's key, as KeyOf reads them; the line an empty table shows; the sentence that says what the stage holds, in the indicative and with no period, which
 // its title line, under the tab bar, draws after its name; its fields, in the order its columns stand; and its own
 // presets, in the order its preset line lists them, the first the one it opens on. A schema without a command is a
 // screen's own, which reads its rows itself, and names its record as it likes.
@@ -32,6 +33,7 @@ type Schema struct {
 	Forge   bool     `json:"forge"`
 	Slurp   bool     `json:"slurp"`
 	Record  string   `json:"record"`
+	Carries []string `json:"carries"`
 	Key     string   `json:"key"`
 	Empty   string   `json:"empty"`
 	Summary string   `json:"summary"`

@@ -254,7 +254,7 @@ func TestAColumnNoRowFillsHasNoCheckbox(t *testing.T) {
 }
 
 func TestTheWheelScrollsTheRowsAndLeavesTheCursor(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 9 + titleHeight}, tab, tab, down)
+	m := flat(t, options(), tea.WindowSizeMsg{Width: 120, Height: 9 + titleHeight}, tab, tab, down)
 	turn := func(b tea.MouseButton) tea.Msg { return tea.MouseWheelMsg{X: 10, Y: m.headerTop() + 1, Button: b} }
 	if m = drive(m, turn(tea.MouseWheelDown)); m.find("builds").Offset == 0 || m.find("builds").Cursor != 0 {
 		t.Fatalf("the wheel down: offset %d, cursor %d\n%s", m.find("builds").Offset, m.find("builds").Cursor, view(m))
@@ -266,7 +266,7 @@ func TestTheWheelScrollsTheRowsAndLeavesTheCursor(t *testing.T) {
 	if m = drive(m, tea.MouseWheelMsg{X: 10, Y: 1, Button: tea.MouseWheelDown}); m.find("builds").Offset != 0 {
 		t.Errorf("the wheel on the bar scrolled the rows")
 	}
-	loaded(t, Options{}, turn(tea.MouseWheelDown))
+	flat(t, Options{}, turn(tea.MouseWheelDown))
 }
 
 // Sort by, in the menu a click on a sortable column's name drops, sorts the rows by it, ¹ on the rule under the name; a

@@ -27,6 +27,9 @@ func TestASpotPutsThePictureBackWhereItStood(t *testing.T) {
 	m.down(1)
 	m.maximized = true
 	under := m.rows(i)[m.stages[i].Cursor].Key
+	// the view its rows were grouped by as they loaded is kept too, as a copy of its own
+	grouped := m.current(i)
+	m.stages[i].Grouped = &grouped
 	name, spot := m.Spot()
 	if want := "changes › " + label(m.stages[i].name); name != want {
 		t.Errorf("the name is %q, not %q", name, want)
@@ -42,6 +45,9 @@ func TestASpotPutsThePictureBackWhereItStood(t *testing.T) {
 		m.rows(i)[m.stages[i].Cursor].Key != under {
 		t.Errorf("put back on %d, maximized %v, in rows %v, searching %q, under %q", m.stage, m.maximized, m.inRows,
 			m.panel(i).Query, m.rows(i)[m.stages[i].Cursor].Key)
+	}
+	if g := m.stages[i].Grouped; g == nil || g == &grouped {
+		t.Errorf("the view grouped as it loaded is put back as %p, the stage's own %p", g, &grouped)
 	}
 	if m.Restore("nothing").(Model).stage != i {
 		t.Error("what is no spot moved the picture")

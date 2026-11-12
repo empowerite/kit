@@ -18,7 +18,10 @@
         "commit": null,
         "issue": null,
         "worktrees": "row:worktrees//src/r/worktrees/7-fix"
-      }
+      },
+      "source": "git",
+      "organization": "o",
+      "repository": "r"
     },
     {
       "key": "0553f99e2d1e1da2c9cbb14bb16e317710beb4cc",
@@ -36,7 +39,10 @@
         "commit": "https://github.com/o/r/commit/0553f99e2d1e1da2c9cbb14bb16e317710beb4cc",
         "issue": "https://github.com/o/r/issues/7",
         "worktrees": null
-      }
+      },
+      "source": "git",
+      "organization": "o",
+      "repository": "r"
     }
   ],
   "errors": []

@@ -152,6 +152,27 @@ func loaded(t *testing.T, o Options, msgs ...tea.Msg) Model {
 	return drive(m, append(first, msgs...)...)
 }
 
+// flat opens the screen as loaded does, then has the rows of every stage but issues stand flat, the source,
+// organization, and repository hidden, and sends the messages: every row kit prints names the place it is of, which a
+// stage's view groups by, and those have tests of their own, so a test of how the rows move, scroll, and open draws
+// them under no heading and without those columns. The issues are of two repositories, and stand under their
+// headings, as the tests of them say.
+func flat(t *testing.T, o Options, msgs ...tea.Msg) Model {
+	t.Helper()
+	m := loaded(t, o)
+	at := m.stage
+	for i := range m.stages {
+		if m.stages[i].name == "issues" {
+			continue
+		}
+		m.stage = i
+		m.setPanel(regroup(m.panel(i)).Placed("source", grid.Hidden).Placed("organization", grid.Hidden).
+			Placed("repository", grid.Hidden))
+	}
+	m.stage = at
+	return drive(m, msgs...)
+}
+
 func press(code rune) tea.KeyPressMsg { return tea.KeyPressMsg{Code: code} }
 
 // unfold turns Auto-group off, as kittui's settings do, sets each stage's view again, and ungroups it, so its rows,
@@ -306,7 +327,7 @@ func TestEveryStageLoadsAtOnceWithItsWords(t *testing.T) {
 }
 
 func TestLeftAndRightMoveAlongTheBarOnlyWhileItHasTheKeyboard(t *testing.T) {
-	m := loaded(t, options())
+	m := flat(t, options())
 	if mark, _ := style.In(stageColors["issues"]); m.stage != 0 || !strings.Contains(m.View().Content, mark("➊")) {
 		t.Fatalf("the first stage is not selected:\n%s", view(m))
 	}
@@ -343,7 +364,7 @@ func TestLeftAndRightMoveAlongTheBarOnlyWhileItHasTheKeyboard(t *testing.T) {
 // a click on its ▸ opens it, and on its ▾ closes it. A click on a … line, on the legend, or off the pane does nothing.
 func TestAClickOnARowSelectsItAndAgainOpensOrClosesIt(t *testing.T) {
 	click := testkit.Click
-	m := loaded(t, bare(), tabsTo("builds")...)
+	m := flat(t, bare(), tabsTo("builds")...)
 	// the screen line the row is drawn on, as the person sees it
 	if y := slices.IndexFunc(strings.Split(raw(m), "\n"), func(l string) bool { return strings.Contains(l, "#160") }); y != m.rowsTop()+1 {
 		t.Fatalf("the second row is drawn on line %d, not %d", y, m.rowsTop()+1)
@@ -375,7 +396,7 @@ func TestAClickOnARowSelectsItAndAgainOpensOrClosesIt(t *testing.T) {
 		t.Errorf("the clicks changed the screen:\n%s", view(m))
 	}
 	// on a short pane, the … line above is no row's
-	m = loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 10 + titleHeight}, tab, tab, down, down, down, down)
+	m = flat(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 10 + titleHeight}, tab, tab, down, down, down, down)
 	if m.find("builds").Cursor != 3 || !strings.Contains(lines(m)[m.rowsTop()], pane.Up) {
 		t.Fatalf("the short pane: cursor %d\n%s", m.find("builds").Cursor, view(m))
 	}
@@ -409,7 +430,7 @@ func TestANumberOrAClickSelectsAStageFromAnywhere(t *testing.T) {
 }
 
 func TestDownEntersTheRowsAndUpOnTheFirstRowReturnsToTheBar(t *testing.T) {
-	m := loaded(t, options(), tab, tab)
+	m := flat(t, options(), tab, tab)
 	if m.inRows || cursor(m) != "" {
 		t.Fatalf("on the bar, a row has the focus:\n%s", view(m))
 	}
@@ -440,7 +461,7 @@ func TestDownEntersTheRowsAndUpOnTheFirstRowReturnsToTheBar(t *testing.T) {
 }
 
 func TestRightOpensARowAndLeftClosesIt(t *testing.T) {
-	m := loaded(t, options(), tab, tab, down, down, right)
+	m := flat(t, options(), tab, tab, down, down, right)
 	v := view(m)
 	for _, want := range []string{"build", "publish"} {
 		if !strings.Contains(v, want) {
@@ -684,7 +705,7 @@ func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
 			t.Run(fmt.Sprintf("%v at %d", c.msgs, width), func(t *testing.T) {
 				t.Parallel()
 				for _, height := range []int{24, 12, 8, 7, 6, 5, 4, 3, 2, 1} {
-					m := loaded(t, options(), append([]tea.Msg{tea.WindowSizeMsg{Width: width, Height: height}},
+					m := flat(t, options(), append([]tea.Msg{tea.WindowSizeMsg{Width: width, Height: height}},
 						c.msgs...)...)
 					// a bar too narrow for every key keeps the screen's and drops the next control's, … in its place
 					want := fit(keysFor(m, c.keys), width-1)
@@ -698,7 +719,7 @@ func TestTheKeysBarIsTheLastLineInEveryState(t *testing.T) {
 		}
 	}
 	// at a width too narrow for it, the bar keeps the stages' bar's keys, after …, clipped, never wrapped
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 30, Height: 12})
+	m := flat(t, options(), tea.WindowSizeMsg{Width: 30, Height: 12})
 	if got := lines(m); len(got) != 12 || !strings.HasPrefix(got[11], " … │ ⇥·⇧⇥ tab ↓ groups ") ||
 		ansi.StringWidth(got[11]) > 30 || !strings.HasSuffix(got[11], "…") {
 		t.Errorf("the bar at 30 columns: %q", got[len(got)-1])
@@ -910,7 +931,7 @@ func setRows(t *testing.T, m *Model, rows ...map[string]any) {
 
 func TestChangesCarryTheirChecksThreadsAndIssues(t *testing.T) {
 	// a change's row is wide: at 80 columns its right end is clipped, so the screen is wider here
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24}, tab, down, down, toggle)
+	m := flat(t, options(), tea.WindowSizeMsg{Width: 160, Height: 24}, tab, down, down, toggle)
 	v := view(m)
 	// the checks of the failing one are cut at the cap, to give the title room
 	for _, want := range []string{style.Opened + " 🔀 #2", "jeffrey-aguilera  🏁 ready", Passed + " 1 / 1 3m",
@@ -1035,7 +1056,7 @@ func TestAReleaseIsARowOfItsFieldsLeadingToItsPageAndItsAssets(t *testing.T) {
 }
 
 func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
-	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 10 + titleHeight}, tab, tab, down, down, down, down)
+	m := flat(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 10 + titleHeight}, tab, tab, down, down, down, down)
 	got := lines(m)
 	if len(got) != 10+titleHeight {
 		t.Fatalf("%d lines on a screen of %d:\n%s", len(got), 10+titleHeight, view(m))
@@ -1221,7 +1242,7 @@ func TestAgeIsKitStatuss(t *testing.T) {
 }
 
 func TestAPaneTooShortSaysHowManyLinesAreAboveAndBelow(t *testing.T) {
-	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 11 + titleHeight}, tab, tab, down, down, down, toggle)
+	m := flat(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 11 + titleHeight}, tab, tab, down, down, down, toggle)
 	got := lines(m)
 	if len(got) != 11+titleHeight || got[10+titleHeight] != " "+at80(keysFor(m, closes)) {
 		t.Fatalf("the screen is not %d lines with the keys last:\n%s", 11+titleHeight, view(m))
@@ -1232,7 +1253,7 @@ func TestAPaneTooShortSaysHowManyLinesAreAboveAndBelow(t *testing.T) {
 		t.Errorf("the open row is not shown between its … lines:\n%s", v)
 	}
 	// a pane that holds every line says nothing of the kind
-	m = loaded(t, options(), tab, tab)
+	m = flat(t, options(), tab, tab)
 	if strings.Contains(view(m), pane.Up) || strings.Contains(view(m), pane.Down) {
 		t.Errorf("a pane that fits says lines are hidden:\n%s", view(m))
 	}
@@ -1286,7 +1307,7 @@ func TestTheBarScrollsToTheSelectedStage(t *testing.T) {
 
 func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testing.T) {
 	// builds is the third stage; its first row, a run of ten jobs, opened, takes about three panes on a short screen
-	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 120, Height: 12})
+	m := flat(t, bare(), tea.WindowSizeMsg{Width: 120, Height: 12})
 	m = drive(m, tallBuild(m, 10), tab, tab, down, down, toggle)
 	if m.stage != 2 || m.find("builds").Cursor != 1 || !strings.Contains(view(m), pane.Down) {
 		t.Fatalf("the open row does not overflow the pane:\n%s", view(m))
@@ -1331,7 +1352,7 @@ func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testi
 
 func TestBuildsCarryTheirStateAndOpenToTheirCommitAttemptJobsFailedFirstThenTheirURL(t *testing.T) {
 	// builds is the seventh stage, between incoming and releases
-	m := loaded(t, bare(), tab, tab)
+	m := flat(t, bare(), tab, tab)
 	if m.stages[m.stage].name != "builds" || !shows(m, Build, "4") {
 		t.Fatalf("builds is not the seventh stage:\n%s", view(m))
 	}

@@ -517,3 +517,15 @@ rows() { jq -c '.rows[] | [.harness, .mechanism, .status, .evidence]' <<<"$1"; }
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
+
+@test "each stage prints the keys of the fixture kittui's tests decode, and the fields its catalog declares" {
+  local stage failed=0
+  github-world
+  for stage in $("${kit_root}/bin/kit" audit --stages)
+  do
+    "${kit_root}/bin/kit" audit "${stage}" --json > "${BATS_TEST_TMPDIR}/${stage}.json" 2>/dev/null || true
+    same-keys "projects/tui/internal/flow/testdata/audit-${stage}.json" < "${BATS_TEST_TMPDIR}/${stage}.json" || failed=1
+    fields-hold "audit/${stage}" < "${BATS_TEST_TMPDIR}/${stage}.json" || failed=1
+  done
+  (( failed == 0 ))
+}

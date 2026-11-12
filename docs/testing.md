@@ -25,6 +25,14 @@ change to the surface is then a diff a review sees.
 | the form kittui draws from each grammar | `projects/tui/internal/form/testdata/<verb>.golden` | `go test` |
 | the tools and the resources `kit serve` offers | `tests/snapshots/tools.json`, `tests/snapshots/resources.json` | `tests/serve.bats` |
 
+The JSON each stage prints, which kittui reads, is held to the fixtures kittui's tests decode,
+`projects/tui/internal/flow/testdata/<stage>.json`, and to the fields its catalog, `internal/flow/fields.json`,
+declares. In a world of its file, each app verb's bats file, `tests/flow.bats`, `tests/workspace.bats`, and the
+others, runs every stage of its verb: `same-keys` in `tests/helper.bash` fails on a key path only kit prints or only
+the fixture has, and `fields-hold` on a field's path kit never prints, or a key kit prints that no field names and
+the stage's `carries` does not list. A key one side leaves null, or a list it leaves empty, holds no keys to compare.
+These are hand-written fixtures, not snapshots: a key kit adds goes into the fixture, and into the catalog, by hand.
+
 `bin/contracts` writes them all afresh: it runs those tests with `KIT_SNAPSHOTS=write`, and the form's with
 `-update`. Review `git diff`, and commit what changed with the change that changed it. `bin/ci` runs the suite with
 `KIT_SNAPSHOTS` empty, so the gate never writes one.

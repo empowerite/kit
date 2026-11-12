@@ -31,7 +31,7 @@ func openRows(m Model) int {
 }
 
 func TestColonDropsTheTabsMenuDownAndItShowsOrHidesALevel(t *testing.T) {
-	m := loaded(t, options(), tab, tab, press(':'))
+	m := flat(t, options(), tab, tab, press(':'))
 	if !m.tabMenu.Open || m.appMenu.Open || lines(m)[23] != " "+menuKeys ||
 		!strings.Contains(view(m), "│ "+More+" Show More ") || strings.Contains(view(m), "Settings") {
 		t.Fatalf(": did not drop the tab's menu down:\n%s", view(m))
@@ -138,7 +138,7 @@ func TestEqualsDropsTheAppsMenuDownToRefreshAnotherScreenOrQuit(t *testing.T) {
 // On incoming with its remotes' rows alone, where no row hides anything, the keyboard starts on maximize, as
 // everywhere, and expand all and collapse all, dim, are never under it.
 func TestTheMenuOfAStageWithNothingToOpenHasRefreshAlone(t *testing.T) {
-	m := loaded(t, options(), tabsTo("incoming")...)
+	m := flat(t, options(), tabsTo("incoming")...)
 	setRows(t, &m, remoteRow("origin", "remote", "unchanged", ""), remoteRow("upstream", "remote", "unchanged", ""))
 	if m = drive(m, press(':'), down, up, typed("e")[0]); !m.tabMenu.Open || m.tabMenu.At != 0 || m.enabled(4) || m.enabled(5) {
 		t.Errorf("on %s the keyboard is on %d:\n%s", m.stages[m.stage].name, m.tabMenu.At, view(m))
@@ -154,7 +154,7 @@ func TestTheMenuOfAStageWithNothingToOpenHasRefreshAlone(t *testing.T) {
 }
 
 func TestAClickOnTheMenuGlyphDropsItDownAndAClickChoosesOrCloses(t *testing.T) {
-	m := loaded(t, options(), tab, tab)
+	m := flat(t, options(), tab, tab)
 	glyph := testkit.Click(m.bar().MenuAt(), m.bar().Row+1)
 	if m = drive(m, glyph); !m.tabMenu.Open {
 		t.Fatalf("a click on the menu glyph:\n%s", view(m))
@@ -272,7 +272,7 @@ func TestAfterShowMoreTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T)
 	wheel := tea.MouseWheelMsg{X: 10, Y: Model{}.top() + 2, Button: tea.MouseWheelDown}
 	size := tea.WindowSizeMsg{Width: 100, Height: 12 + titleHeight}
 	tall := func() Model {
-		m := loaded(t, options(), size)
+		m := flat(t, options(), size)
 		return drive(m, tallBuild(m, 5), tab, tab, press(':'), typed("s")[0], press(tea.KeyEnter), wheel)
 	}
 	m := tall()
@@ -295,7 +295,7 @@ func TestAfterShowMoreTheRowsHaveTheKeyboardAndThePinnedLineCloses(t *testing.T)
 // has no item to hide them: a header that never scrolls, a thin dim line under it, and no row of its own, so a click
 // on it chooses nothing. Incoming, whose rows are no columns, has none.
 func TestTheHeaderStandsTheColumnsNamesOverTheRows(t *testing.T) {
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 10 + titleHeight}, tab)
+	m := flat(t, options(), tea.WindowSizeMsg{Width: 120, Height: 10 + titleHeight}, tab)
 	if slices.ContainsFunc(m.tabItems(), func(i shell.Item) bool { return strings.Contains(i.Name, "Header") }) {
 		t.Errorf("the tab's menu offers the headers: %+v", m.tabItems())
 	}
@@ -323,7 +323,7 @@ func TestTheHeaderStandsTheColumnsNamesOverTheRows(t *testing.T) {
 		t.Errorf("a hidden column's name:\n%s", view(m))
 	}
 	// incoming is a table as every stage is, its header over its rows
-	m = loaded(t, options(), tabsTo("incoming")...)
+	m = flat(t, options(), tabsTo("incoming")...)
 	if m.stages[m.stage].name != "incoming" || m.headerTop() < 0 || !strings.Contains(lines(m)[m.headerTop()], "change") {
 		t.Errorf("%s has no header:\n%s", m.stages[m.stage].name, view(m))
 	}
@@ -456,11 +456,11 @@ func TestRowsAreSelectedSeveralAtOnceForTheTabsMenuToActOn(t *testing.T) {
 
 // With rows selected, the tab's menu shows and hides the selected rows alone; with none, both are dim.
 func TestShowAndHideSelectedActOnTheSelectedRowsAlone(t *testing.T) {
-	m := loaded(t, options(), tab, tab, press(':'))
+	m := flat(t, options(), tab, tab, press(':'))
 	if m.tabItems()[6].Name != "Show Selected" || m.tabItems()[7].Name != "Hide Selected" || m.enabled(6) || m.enabled(7) {
 		t.Fatalf("the items with no row selected: %+v", m.tabItems()[6:8])
 	}
-	m = loaded(t, options(), tab, tab, down, down, press(tea.KeySpace))
+	m = flat(t, options(), tab, tab, down, down, press(tea.KeySpace))
 	if m = drive(m, press(':')); !m.enabled(6) || m.enabled(7) {
 		t.Fatalf("with a row selected, hidden: show %v, hide %v", m.enabled(6), m.enabled(7))
 	}

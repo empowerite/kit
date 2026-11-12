@@ -1,5 +1,5 @@
 {"rows": [
-  {"key": "ada", "login": "ada", "name": "Ada", "role": "admin", "kind": "user", "links": {}},
-  {"key": "bob", "login": "bob", "name": null, "role": "write", "kind": "user", "links": {}},
-  {"key": "dependabot[bot]", "login": "dependabot[bot]", "name": null, "role": "write", "kind": "bot", "links": {}}
+  {"key": "ada", "login": "ada", "name": "Ada", "role": "admin", "kind": "user", "links": {}, "source": "github", "organization": "o", "repository": "r"},
+  {"key": "bob", "login": "bob", "name": null, "role": "write", "kind": "user", "links": {}, "source": "github", "organization": "o", "repository": "r"},
+  {"key": "dependabot[bot]", "login": "dependabot[bot]", "name": null, "role": "write", "kind": "bot", "links": {}, "source": "github", "organization": "o", "repository": "r"}
 ], "errors": []}

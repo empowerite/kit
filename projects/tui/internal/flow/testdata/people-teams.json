@@ -1,4 +1,4 @@
 {"rows": [
-  {"key": "core", "team": "core", "name": "Core", "role": "write", "members": ["ada", "bob"], "links": {"team": "https://github.com/orgs/o/teams/core"}},
-  {"key": "ops", "team": "ops", "name": "Ops", "role": "admin", "members": null, "links": {"team": "https://github.com/orgs/o/teams/ops"}}
+  {"key": "core", "team": "core", "name": "Core", "role": "write", "members": ["ada", "bob"], "links": {"team": "https://github.com/orgs/o/teams/core"}, "source": "github", "organization": "o", "repository": "r"},
+  {"key": "ops", "team": "ops", "name": "Ops", "role": "admin", "members": null, "links": {"team": "https://github.com/orgs/o/teams/ops"}, "source": "github", "organization": "o", "repository": "r"}
 ], "errors": []}

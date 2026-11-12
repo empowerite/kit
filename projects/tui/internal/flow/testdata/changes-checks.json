@@ -1,5 +1,5 @@
 {"rows": [
-  {"key": "3 CI", "change": 3, "title": "Fix the thing", "name": "CI", "verdict": "passed", "at": 1790931000, "took": 312, "links": {}},
-  {"key": "3 lint", "change": 3, "title": "Fix the thing", "name": "lint", "verdict": "failed", "at": 1790931000, "took": 45, "links": {}},
-  {"key": "7 CI", "change": 7, "title": "Draw the deployments", "name": "CI", "verdict": "pending", "at": 1790935000, "took": null, "links": {}}
+  {"key": "3 CI", "change": 3, "title": "Fix the thing", "name": "CI", "verdict": "passed", "at": 1790931000, "took": 312, "links": {}, "source": "github", "organization": "o", "repository": "r"},
+  {"key": "3 lint", "change": 3, "title": "Fix the thing", "name": "lint", "verdict": "failed", "at": 1790931000, "took": 45, "links": {}, "source": "github", "organization": "o", "repository": "r"},
+  {"key": "7 CI", "change": 7, "title": "Draw the deployments", "name": "CI", "verdict": "pending", "at": 1790935000, "took": null, "links": {}, "source": "github", "organization": "o", "repository": "r"}
 ], "errors": []}

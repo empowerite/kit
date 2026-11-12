@@ -196,3 +196,17 @@ JSON
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
+
+@test "each stage prints the keys of the fixture kittui's tests decode, and the fields its catalog declares" {
+  local stage failed=0
+  github-world
+  for stage in $("${kit_root}/bin/kit" changes --stages)
+  do
+    "${kit_root}/bin/kit" changes "${stage}" --json > "${BATS_TEST_TMPDIR}/${stage}.json" 2>/dev/null || true
+    # limited is there only when a call was capped, as merged's is in its fixture
+    same-keys "projects/tui/internal/flow/testdata/changes-${stage}.json" .limited < "${BATS_TEST_TMPDIR}/${stage}.json" \
+      || failed=1
+    fields-hold "changes/${stage}" < "${BATS_TEST_TMPDIR}/${stage}.json" || failed=1
+  done
+  (( failed == 0 ))
+}

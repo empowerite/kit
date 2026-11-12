@@ -4,7 +4,7 @@
       "stage": "workspace/repos", "command": ["workspace", "repos", "--json"], "staged": true,
       "summary": "What is cloned, where, on which branch, and how far from upstream",
       "takes": ["workspace"], "record": ".rows[]", "key": ".repository",
-      "empty": "no repository",
+      "empty": "no repository", "carries": ["checkouts", "error", "host", "path"],
       "fields": [
         {"id": "repository", "label": "repository", "type": "text", "path": ".repository", "sort": true,
          "renderings": ["member"], "placement": "column"},
@@ -41,7 +41,7 @@
       "stage": "issues", "command": ["flow", "issues", "--json"], "staged": true, "forge": true,
       "summary": "What is open, who has it, and where the work on it stands",
       "takes": ["owner", "fresh", "cached", "workspace"], "record": ".[]", "key": ".tracker?, .number, .pr.number?",
-      "empty": "no open issue",
+      "empty": "no open issue", "carries": ["createdAt", "worktree"],
       "fields": [
         {"id": "id", "label": "id", "type": "ref", "path": ".ref", "sort": true, "renderings": ["text"],
          "placement": "column"},
@@ -114,7 +114,7 @@
       "stage": "changes", "command": ["flow", "changes", "--json"], "staged": true, "forge": true,
       "summary": "Open pull requests, and what stands between each and its merge",
       "takes": ["owner", "fresh", "cached", "workspace"], "record": ".[]", "key": ".number",
-      "empty": "no open pull request",
+      "empty": "no open pull request", "carries": ["closes", "createdAt", "fork", "named", "pushed", "reviewers", "runs"],
       "fields": [
         {"id": "change", "label": "change", "type": "ref", "path": ".ref, .number", "sort": true, "glyph": "🔀",
          "renderings": ["glyph+text", "text"], "placement": "column"},
@@ -163,7 +163,7 @@
       "stage": "builds", "command": ["flow", "builds", "--json"], "staged": true, "forge": true,
       "summary": "Is the default branch green? CI runs outside any pull request",
       "takes": ["cached", "workspace"], "record": ".[]", "key": ".id",
-      "empty": "no build since the last 20 runs",
+      "empty": "no build since the last 20 runs", "carries": ["attempt", "jobs", "url"],
       "fields": [
         {"id": "status", "label": "", "type": "enum", "path": ".state", "filter": true, "values": [
            {"value": "running", "glyph": "🏃"}, {"value": "passed", "glyph": "✅"}, {"value": "failed", "glyph": "❌"},
@@ -698,7 +698,7 @@
     {
       "stage": "changes/merged", "command": ["changes", "merged", "--json"], "staged": true, "forge": true,
       "summary": "What landed lately, who merged it, and when; the last 50",
-      "takes": ["workspace"], "record": ".rows[]", "empty": "no change merged",
+      "takes": ["workspace"], "record": ".rows[]", "empty": "no change merged", "carries": ["named"],
       "fields": [
         {"id": "number", "label": "number", "type": "ref", "path": ".number", "sort": true, "glyph": "🔀",
          "renderings": ["glyph+text", "text"], "placement": "column"},

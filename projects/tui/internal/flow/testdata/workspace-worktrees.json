@@ -22,7 +22,10 @@
       "prunable": null,
       "links": {
         "branch": "row:branches/origin/main"
-      }
+      },
+      "source": "git",
+      "organization": "o",
+      "repository": "r"
     },
     {
       "key": "/src/r/worktrees/7-fix",
@@ -46,7 +49,10 @@
       "prunable": null,
       "links": {
         "branch": "row:branches/origin/7-fix"
-      }
+      },
+      "source": "git",
+      "organization": "o",
+      "repository": "r"
     }
   ],
   "errors": []

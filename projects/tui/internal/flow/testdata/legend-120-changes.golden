@@ -4,15 +4,15 @@
   ──────────────────╯                 ╰─────────────────╰────────────────────╰───────────────────╰──────────────────────
   Changes — Open pull requests, and what stands between each and its merge
 
-  ▾ 3                                                                                            📇 Fields  Default ▼
-  ───
-    change  title                   author            state  age  checks  threads          labels      branch
-    ·───────·───────────────────────·─────────────────·──────·────·───────·────────────────×·──────────·───────────────
-  ▸ 🔀 #2   The first release, v0…  jeffrey-aguilera  🏁      8d  ✅                       kindfix  1-the-first-rel…
-  ▸ 🔀 #3   A spike on the settin…  ada               🔨     90m  🏃      💬 2 unresolved              3-a-spike
-  ▸ 🔀 #4   Lint every module       bob               🔥     25h  ❌                                   4-lint-every-mo…
+  ▾ source · organization · repository 3                                                         📇 Fields  Default ▼
+    ·────────·──────────────·───────────
+  ▾ github · empowerite · kit 3
 
-
+      change  title                 author            state  age  checks  threads          labels      branch
+      ·───────·─────────────────────·─────────────────·──────·────·───────·────────────────×·──────────·───────────────
+    ▸ 🔀 #2   The first release, …  jeffrey-aguilera  🏁      8d  ✅                       kindfix  1-the-first-rel…
+    ▸ 🔀 #3   A spike on the sett…  ada               🔨     90m  🏃      💬 2 unresolved              3-a-spike
+    ▸ 🔀 #4   Lint every module     bob               🔥     25h  ❌                                   4-lint-every-mo…
 
                                                                 ╭─ changes legend ──────────────────────────── ↖ ↗ ↙ ↘ ╮
                                                                 │ =  kit menu              ▼  presets menu, not a sort │

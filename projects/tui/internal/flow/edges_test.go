@@ -82,6 +82,8 @@ func TestADocumentKitFlowCannotDecodeIsARefusal(t *testing.T) {
 // staying on it, and shows every line of it on the way, from its last page up to its first.
 func TestPageUpInsideATallOpenRowScrollsBackThroughIt(t *testing.T) {
 	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 12})
+	// the runs stand flat, so the second is row 1, though they are all of one source, organization, and repository
+	unfold(&m)
 	m = drive(m, tallBuild(m, 10), tab, tab, down, down, toggle)
 	text := func(s string) string {
 		return strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(ansi.Strip(s)), style.Focus+style.Opened))
