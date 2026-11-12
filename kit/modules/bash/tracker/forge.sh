@@ -20,7 +20,7 @@ tracker/forge:comment()   { tracker/forge:own && forge:issue-comment "$1" "$2"; 
 
 tracker/forge:create()    { tracker/forge:own && forge:issue-create "$1" "${2:-}"; }
 
-tracker/forge:me()        { forge:me; }
+tracker/forge:me()        { forge:principal; }
 
 tracker/forge:new-url() {
   local repo_url provider

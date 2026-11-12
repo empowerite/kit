@@ -197,7 +197,9 @@ bots:list() {
   [[ "${#keyed[@]}" -eq 0 ]] || secrets:backend >/dev/null || return 1
   keyed_json=$(printf '%s\n' "${keyed[@]}" | jq --slurp --compact-output .)
   jq --compact-output --arg file "${file}" --argjson keyed "${keyed_json}" \
-    '{file: $file, bots: [.bots | to_entries[] | .value + {owner: (.value.owner // null), key: $keyed[.key]} | {name, host, app, owner, jobs, key}]}' <<<"${doc}"
+    '{file: $file, bots: [.bots | to_entries[]
+       | .value + {owner: (.value.owner // null), key: $keyed[.key]} | {name, host, app, owner, jobs, key}]}' \
+    <<<"${doc}"
 }
 
 # bots:text <list> prints the document bots:list made as a table, one bot a line, or says there are none.
@@ -413,7 +415,8 @@ bots:check() {
          | map({key, value: [.value | to_entries[] | select(($held[.key] | rank) < (.value | rank))
              | "\(.key): \(.value)"]})
          | map(select(.value | length > 0)) | from_entries),
-       extra: [$held | to_entries | sort_by(.key)[] | select(.key != "metadata" and (.value | rank) > ($all[.key] | rank))
+       extra: [$held | to_entries | sort_by(.key)[]
+         | select(.key != "metadata" and (.value | rank) > ($all[.key] | rank))
          | "\(.key): \(.value)"]}'
 }
 
@@ -536,7 +539,7 @@ bots:run() {
   name=$(jq --raw-output .name <<<"${bot}")
   host=$(jq --raw-output .host <<<"${bot}")
   person=${KIT_BOT_FOR:-}
-  [[ -n "${person}" ]] || person=$(forge:me) || return 1
+  [[ -n "${person}" ]] || person=$(forge:principal) || return 1
   start=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
   file:scratch session || return 1
   file:at-exit bots:run-end "${session}"
@@ -612,15 +615,18 @@ then
       > "${fresh}" || minted=$?
     # the token is in spent the moment its mint returns: whatever stops this renewal, the end of the run revokes it
     ! jq --exit-status . "${fresh}" >/dev/null 2>&1 || cat "${fresh}" >> "${session}/spent"
-    if (( minted != 0 )) || ! jq --exit-status '(.token | type == "string" and length > 0) and (.expires_at | fromdateiso8601 | . > 0)' \
+    if (( minted != 0 )) || ! jq --exit-status \
+      '(.token | type == "string" and length > 0) and (.expires_at | fromdateiso8601 | . > 0)' \
       "${fresh}" >/dev/null 2>&1
     then
-      # a mint that failed, or is no token to keep, is revoked here, if it holds a token; where that fails, the file stays, for the end of the run to try
+      # a mint that failed, or is no token to keep, is revoked here, if it holds a token; where that fails, the file
+      # stays, for the end of the run to try
       rejected=$(jq --raw-output '.token | select(type == "string" and length > 0)' "${fresh}" 2>/dev/null) \
         || rejected=''
       # (the token goes to bots:forge on stdin, in the checkout the run started in)
       if [[ -z "${rejected}" ]] || (cd "$(<"${session}/start")" \
-        && bash -c 'source "$1/modules/bash/1st.sh" && use bots && read -r token && bots:forge revoke "${token}" >/dev/null' \
+        && bash -c 'source "$1/modules/bash/1st.sh" && use bots && read -r token \
+          && bots:forge revoke "${token}" >/dev/null' \
           _ "$(<"${session}/root")") <<<"${rejected}"
       then
         [[ -z "${rejected}" ]] || printf '%s\n' "${rejected}" >> "${session}/revoked"
@@ -634,8 +640,8 @@ fi
 jq --raw-output .token "${session}/token.json"
 BODY
   bots:run-script "${session}/bin/gh" "${session}" <<'BODY'
-# the gh that was first on PATH when kit bots run began, with the session's current token. Where the token cannot be had
-# it runs nothing: gh with no token would act as the person.
+# the gh that was first on PATH when kit bots run began, with the session's current token. Where the token cannot be
+# had it runs nothing: gh with no token would act as the person.
 set -o errexit -o nounset -o pipefail
 real=$(<"${session}/gh")
 if [[ -z "${real}" ]]
@@ -646,7 +652,8 @@ fi
 token=$("${session}/refresh") || token=''
 if [[ -z "${token}" ]]
 then
-  printf 'the bot'\''s token could not be renewed, so gh is not run, as it would act as you; run: kit bots --check\n' >&2
+  printf 'the bot'\''s token could not be renewed, so gh is not run, as it would act as you;' >&2
+  printf ' run: kit bots --check\n' >&2
   exit 1
 fi
 host=$(<"${session}/host")

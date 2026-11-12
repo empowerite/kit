@@ -93,6 +93,35 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ -z "$(git status --porcelain)" ]
 }
 
+@test "kit commit under a bot adds one Agent trailer, after the body and any trailer, and none without one" {
+  printf 'x\n' > x && git add x
+  run kit commit --message='x: a file' --message='The body.'
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%B | grep -c '^Agent:')" -eq 0 ]
+  printf 'y\n' > y && git add y
+  run env KIT_BOT_LOGIN='kit-bot[bot]' "${kit_root}/bin/kit" commit --message='y: a file' --message='The body.' \
+    --message='Co-Authored-By: Ada <ada@example.com>'
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%s)" = "#7 y: a file" ]
+  [ "$(git log -1 --format=%B | grep -c '^Agent: kit-bot\[bot\]$')" -eq 1 ]
+  [ "$(git log -1 --format='%(trailers:key=Agent,valueonly)' | head -1)" = 'kit-bot[bot]' ]
+  [ "$(git log -1 --format='%(trailers:key=Co-Authored-By,valueonly)' | head -1)" = 'Ada <ada@example.com>' ]
+  [[ "$(git log -1 --format=%b)" == "The body."* ]]
+  # a message from --file gets it too, and a message that already has it is not given it twice
+  printf 'z\n' > z && git add z
+  printf '#7 z: a file\n\nWhy.\n\n---\n\nAgent: kit-bot[bot]\n' > "${BATS_TEST_TMPDIR}/message"
+  run env KIT_BOT_LOGIN='kit-bot[bot]' "${kit_root}/bin/kit" commit --file="${BATS_TEST_TMPDIR}/message"
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%s)" = "#7 z: a file" ]
+  [ "$(git log -1 --format=%B | grep -c '^Agent:')" -eq 1 ]
+  printf 'w\n' > w && git add w
+  printf '#7 w: a file\n\nWhy.\n' > "${BATS_TEST_TMPDIR}/message"
+  run env KIT_BOT_LOGIN='kit-bot[bot]' "${kit_root}/bin/kit" commit --file="${BATS_TEST_TMPDIR}/message"
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%s)" = "#7 w: a file" ]
+  [ "$(git log -1 --format=%B | grep -c '^Agent: kit-bot\[bot\]$')" -eq 1 ]
+}
+
 # conventional makes policy/conventional active in the worktree's kit.yml, staged, so the commit is judged by it.
 conventional() {
   yq --inplace '.packages += ["policy/conventional"]' kit.yml

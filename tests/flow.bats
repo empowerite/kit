@@ -720,6 +720,22 @@ the desk its first row; run: cd "*" && kit workspace worktrees" ]]
   [ "$status" -eq 2 ]
 }
 
+@test "kit flow --me prints the person under a bot, and the caller without one" {
+  forge-world
+  run env KIT_BOT_LOGIN='kit-bot[bot]' KIT_BOT_FOR=bob "${kit_root}/bin/kit" flow --me
+  [ "$status" -eq 0 ]
+  [ "$output" = "bob" ]
+  run "${kit_root}/bin/kit" flow --me
+  [ "$output" = "ada" ]
+}
+
+@test "kit flow --mine under a bot is the person's, not the bot's" {
+  forge-world
+  run env KIT_BOT_LOGIN='kit-bot[bot]' KIT_BOT_FOR=bob "${kit_root}/bin/kit" flow --no-fetch --mine --json
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '.issues | map(.number)' <<<"$output")" = '[7]' ]
+}
+
 @test "flow:filter turns the owner flags into flow:select's arguments, and kit flow refuses --all beside --mine" {
   run in_flow flow:filter false false bob cy
   [ "$status" -eq 0 ]

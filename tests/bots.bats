@@ -1398,3 +1398,56 @@ COMMAND
   # and the first token, at the end; the printed one is not revoked twice
   [ "$(sent '--request DELETE')" -eq 2 ]
 }
+
+# under-bot-gh is a gh that answers `api user` with octocat, as a token of its own would not, the issue 7 with no one
+# assigned, and everything else with nothing, noting each call.
+under-bot-gh() {
+  rm -f "${FAKE_DIR}/bin/gh"
+  cat > "${FAKE_DIR}/bin/gh" <<'GH'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "${FAKE_DIR}/gh.calls"
+case "$*" in
+  'api user'*) echo octocat ;;
+  'issue view 7'*) echo '{"title": "Fix the thing", "state": "OPEN", "assignees": []}' ;;
+esac
+exit 0
+GH
+  chmod +x "${FAKE_DIR}/bin/gh"
+}
+
+# in-forge <command>… runs a seam function in a shell that has loaded forge, as kit does.
+in-forge() {
+  bash -c 'source "${kit_root}/modules/bash/1st.sh" && use forge && "$@"' _ "$@"
+}
+
+@test "forge:me is the bot's login under KIT_BOT_LOGIN, and forge:principal the person" {
+  under-bot-gh
+  printf 'forge: github\n' > kit.yml
+  run in-forge forge:me
+  [ "$status" -eq 0 ]
+  [ "$output" = octocat ]
+  run in-forge forge:principal
+  [ "$output" = octocat ]
+  run env KIT_BOT_LOGIN='kit-bot[bot]' KIT_BOT_FOR=ada bash -c '
+    source "${kit_root}/modules/bash/1st.sh" && use forge && forge:me && forge:principal'
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = 'kit-bot[bot]' ]
+  [ "${lines[1]}" = ada ]
+  # a bot with no person recorded falls back to the forge's caller
+  run env KIT_BOT_LOGIN='kit-bot[bot]' bash -c '
+    source "${kit_root}/modules/bash/1st.sh" && use forge && forge:principal'
+  [ "$output" = octocat ]
+}
+
+@test "kit assign with no --to assigns the person under a bot, and the caller without one" {
+  under-bot-gh
+  printf 'forge: github\n' > kit.yml
+  run env KIT_BOT_LOGIN='kit-bot[bot]' KIT_BOT_FOR=ada "${kit_root}/bin/kit" assign 7
+  [ "$status" -eq 0 ]
+  grep --quiet --line-regexp 'issue edit 7 --add-assignee ada' "${FAKE_DIR}/gh.calls"
+  ! grep --quiet 'kit-bot' "${FAKE_DIR}/gh.calls"
+  : > "${FAKE_DIR}/gh.calls"
+  run "${kit_root}/bin/kit" assign 7
+  [ "$status" -eq 0 ]
+  grep --quiet --line-regexp 'issue edit 7 --add-assignee octocat' "${FAKE_DIR}/gh.calls"
+}

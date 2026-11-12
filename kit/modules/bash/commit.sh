@@ -729,10 +729,17 @@ commit:commit() {
 # commit:git <message> [--gpg-sign] [-- <path>…] runs git commit with the message file as written: --cleanup=whitespace
 # keeps a line that starts with #, whatever commit.cleanup says. It removes the message file either way. With
 # --gpg-sign, a commit git fails to make is refused as one git could not sign when git's words say the signing failed,
-# and said to have failed otherwise, as when a hook refuses it (git:commit).
+# and said to have failed otherwise, as when a hook refuses it (git:commit). Under a bot, KIT_BOT_LOGIN, the message
+# ends with the trailer Agent: <the bot's login>, once, and never at the subject: it joins the message's last trailer
+# block, or a block of its own after the body, whatever the message's own --- or # lines hold.
 commit:git() {
   local message=$1 status=0
   shift
+  if [[ -n "${KIT_BOT_LOGIN:-}" ]]
+  then
+    git interpret-trailers --in-place --no-divider --if-exists addIfDifferent \
+      --trailer "Agent: ${KIT_BOT_LOGIN}" "${message}" || { rm -f "${message}"; return 1; }
+  fi
   git:commit . "the commit" --quiet --cleanup=whitespace --file "${message}" "$@" || status=$?
   rm -f "${message}"
   (( status == 0 )) || return 1

@@ -62,7 +62,7 @@
 #   repo-url                      the repository's browser URL
 #   noun                          the change's reference sigil and its name, tab-separated: "#\tpull request"
 #   pr-url <n>                    the change's browser URL
-#   me                            the caller's login
+#   me                            the caller's login (forge:me prints the bot's, under kit bots run: KIT_BOT_LOGIN)
 #   marks <dir> [<kind>…]         one JSON object, a mark for each kind of the repository's data named, or for each
 #                                 without one: issues (with the changes), runs, releases, milestones, deployments,
 #                                 environments, and alerts, each a text that changes when that data does, read
@@ -705,7 +705,27 @@ forge:capabilities() {
 forge:require()             { forge:call require "$@"; }
 forge:repo()                { forge:call repo "$@"; }
 forge:repo-url()            { forge:call repo-url "$@"; }
-forge:me()                  { forge:call me "$@"; }
+forge:me() {
+  if [[ -n "${KIT_BOT_LOGIN:-}" ]]
+  then
+    printf '%s\n' "${KIT_BOT_LOGIN}"
+  else
+    forge:call me "$@"
+  fi
+}
+
+# forge:principal prints the person the caller acts for: the person a bot runs for, as kit bots run recorded in
+# KIT_BOT_FOR, else the forge's own answer for the caller's login. It is the seam's own, not a call a provider
+# implements. Under a bot forge:me is the bot's login, KIT_BOT_LOGIN; the tracker's "me" and flow's --mine and --me
+# are the person.
+forge:principal() {
+  if [[ -n "${KIT_BOT_FOR:-}" ]]
+  then
+    printf '%s\n' "${KIT_BOT_FOR}"
+  else
+    forge:call me "$@"
+  fi
+}
 forge:bot-app()             { forge:call bot-app "$@"; }
 forge:bot-installation()    { forge:call bot-installation "$@"; }
 forge:bot-installations()   { forge:call bot-installations "$@"; }

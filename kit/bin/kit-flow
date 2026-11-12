@@ -370,7 +370,7 @@ fi
 if [[ -n "${syntax_options[--me]+x}" ]]
 then
   use forge
-  forge:me || exit $?
+  forge:principal || exit $?
   exit 0
 fi
 

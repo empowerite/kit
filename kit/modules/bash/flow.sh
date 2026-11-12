@@ -688,7 +688,7 @@ flow:filter() {
   if [[ "${mine}" == true || "${others}" == true ]]
   then
     use forge
-    me=$(forge:me) || return 1
+    me=$(forge:principal) || return 1
   fi
   if [[ "${others}" == true ]]
   then
