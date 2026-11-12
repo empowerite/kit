@@ -1,0 +1,33 @@
+[
+  {
+    "Name": "Default",
+    "Guid": "GUID-1",
+    "Triggers": [
+      {"regex": "^(\\w+):([^ ]*) (\\w+)[#]", "action": "MarkTrigger", "partial": true},
+      {"regex": "off", "action": "BellTrigger", "disabled": true}
+    ],
+    "Option Key Sends": 0,
+    "Right Option Key Sends": 0
+  },
+  {
+    "Name": "Work (copy)",
+    "Guid": "GUID-2",
+    "Triggers": [],
+    "Enable Triggers in Interactive Apps": false,
+    "Option Key Sends": 2,
+    "Right Option Key Sends": 0,
+    "Allow modifyOtherKeys": true,
+    "Mouse Reporting": true,
+    "Mouse Reporting allow clicks and drags": true,
+    "Disable Smcup Rmcup": false,
+    "Unicode Version": 9,
+    "Ambiguous Double Width": false,
+    "Character Encoding": 4
+  },
+  {
+    "Name": "Dyn",
+    "Guid": "GUID-3",
+    "Is Dynamic Profile": true,
+    "Dynamic Profile Parent Name": "Work (copy)"
+  }
+]

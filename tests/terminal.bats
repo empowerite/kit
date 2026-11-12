@@ -65,6 +65,12 @@ setup() {
   [ "$(jq -c .triggers <<<"$output")" = false ]
 }
 
+@test "a finding whose bad answers null, as for a setting the reader did not give, holds" {
+  run kit-bash 'terminal:bad iterm "{\"triggers\": 2, \"triggers_interactive\": true}" | jq -c ".\"alternate-screen\""'
+  [ "$status" -eq 0 ]
+  [ "$output" = false ]
+}
+
 @test "kept is empty with no settings file, a keep is written once however often, and an unkeep of none is fine" {
   run kit-bash 'terminal:kept'
   [ "$output" = '[]' ]
@@ -160,7 +166,80 @@ terminal/iterm:settings() { echo '{"profile": "Work", "triggers": 1, "triggers_i
 EOF
   run kit-bash 'TERM_PROGRAM=iTerm.app terminal:checks'
   [ "$status" -eq 0 ]
-  [ "$(jq -sc 'map([.id, .ok])' <<<"$output")" = '[["terminal-iterm",true],["terminal-iterm-triggers",false]]' ]
+  [ "$(jq -sc 'map(select(.id == "terminal-iterm" or .id == "terminal-iterm-triggers") | [.id, .ok])' <<<"$output")" \
+    = '[["terminal-iterm",true],["terminal-iterm-triggers",false]]' ]
+}
+
+# fakes [<tool> <body>]… writes each tool as a bash script with that body into a directory first on PATH.
+fakes() {
+  local dir="${BATS_TEST_TMPDIR}/fakes"
+  mkdir -p "${dir}"
+  while (( $# ))
+  do
+    printf '#!/usr/bin/env bash\n%s\n' "$2" > "${dir}/$1"
+    chmod +x "${dir}/$1"
+    shift 2
+  done
+  [[ ":${PATH}:" == *":${dir}:"* ]] || export PATH="${dir}:${PATH}"
+}
+
+# iterm-fakes stands in defaults and plutil for iTerm2's preferences: its profiles are the fixture's, GUID-1 the
+# default.
+iterm-fakes() {
+  export ITERM_FIXTURE="${BATS_TEST_DIRNAME}/fixtures/terminal/iterm-bookmarks.json"
+  # shellcheck disable=SC2016  # the fakes' bodies expand when they run
+  fakes defaults 'exit 0' plutil 'case "$2" in
+  ("New Bookmarks") cat "${ITERM_FIXTURE}" ;;
+  ("Default Bookmark Guid") printf GUID-1 ;;
+  (*) exit 1
+esac'
+}
+
+@test "iTerm2's profile named by ITERM_PROFILE is read, and one with every setting as kittui needs has no finding" {
+  iterm-fakes
+  run kit-bash 'ITERM_PROFILE="Work (copy)" terminal:settings iterm'
+  [ "$status" -eq 0 ]
+  [ "$(jq -r .profile <<<"$output")" = "Work (copy)" ]
+  run kit-bash 'export ITERM_PROFILE="Work (copy)"; terminal:bad iterm "$(terminal:settings iterm)"'
+  [ "$(jq -c '[to_entries[] | select(.value) | .key]' <<<"$output")" = '[]' ]
+}
+
+@test "with no ITERM_PROFILE, iTerm2's default profile is read, and its defaults fill what it does not set" {
+  local want='{"ambiguous_wide":false,"apps_change_keys":true,"encoding":4,"mouse":false,"mouse_clicks":true,'
+  want+='"no_alternate_screen":false,"option_left":0,"option_right":0,"profile":"Default","triggers":1,'
+  want+='"triggers_interactive":true,"unicode_version":9}'
+  iterm-fakes
+  run kit-bash 'terminal:settings iterm'
+  [ "$(jq -cS . <<<"$output")" = "${want}" ]
+  run kit-bash 'terminal:bad iterm "$(terminal:settings iterm)"'
+  [ "$(jq -c '[to_entries[] | select(.value) | .key]' <<<"$output")" = '["triggers","option","mouse"]' ]
+}
+
+@test "a dynamic profile takes what it does not set from its parent" {
+  iterm-fakes
+  run kit-bash 'ITERM_PROFILE=Dyn terminal:settings iterm'
+  [ "$(jq -c '[.profile, .option_left, .mouse, .triggers_interactive]' <<<"$output")" = '["Dyn",2,true,false]' ]
+}
+
+@test "a profile ITERM_PROFILE names that is not there falls back to the default" {
+  iterm-fakes
+  run kit-bash 'ITERM_PROFILE=Gone terminal:settings iterm'
+  [ "$(jq -r .profile <<<"$output")" = Default ]
+}
+
+@test "in iTerm2, the checks name the profile, and its triggers fail" {
+  iterm-fakes
+  run kit-bash 'TERM_PROGRAM=iTerm.app terminal:checks'
+  [ "$status" -eq 0 ]
+  [ "$(jq -sr '.[0].line' <<<"$output")" = "iTerm2, profile Default" ]
+  [ "$(jq -sr 'map(select(.id == "terminal-iterm-triggers"))[0] | [.ok, .fix] | @tsv' <<<"$output")" = \
+    "false"$'\t'"iTerm2 → Settings → Profiles → Default → Advanced → Triggers: untick Enabled in interactive apps" ]
+}
+
+@test "iTerm2's preferences that cannot be read say so" {
+  fakes defaults 'exit 1'
+  run kit-bash 'TERM_PROGRAM=iTerm.app terminal:checks'
+  [ "$(jq -r .line <<<"$output")" = "iTerm2: kit could not read its settings: kit cannot read iTerm2's preferences" ]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

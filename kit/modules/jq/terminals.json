@@ -34,6 +34,62 @@
           "line": "iTerm2 runs the triggers of profile {profile} on every line kittui repaints",
           "held": "iTerm2 runs no trigger of profile {profile} while kittui is up",
           "fix": "iTerm2 → Settings → Profiles → {profile} → Advanced → Triggers: untick Enabled in interactive apps"
+        },
+        {
+          "id": "option",
+          "need": "keys",
+          "bad": ".option_left != 2 and .option_right != 2",
+          "line": "iTerm2's profile {profile} sends ⌥ as a plain key, so ⌥ with an arrow never reaches kittui as one",
+          "held": "iTerm2's profile {profile} sends ⌥ as Esc+",
+          "fix": "iTerm2 → Settings → Profiles → {profile} → Keys → General: set Left Option key to Esc+"
+        },
+        {
+          "id": "apps-change-keys",
+          "need": "keys",
+          "bad": ".apps_change_keys | not",
+          "line": "iTerm2's profile {profile} does not let apps change how keys are reported, so kittui gets no kitty keyboard protocol",
+          "held": "iTerm2's profile {profile} lets apps change how keys are reported",
+          "fix": "iTerm2 → Settings → Profiles → {profile} → Keys → General: tick Apps can change how keys are reported"
+        },
+        {
+          "id": "mouse",
+          "need": "clicks",
+          "bad": "(.mouse and .mouse_clicks) | not",
+          "line": "iTerm2's profile {profile} does not report mouse clicks, so a click never reaches kittui",
+          "held": "iTerm2's profile {profile} reports mouse clicks",
+          "fix": "iTerm2 → Settings → Profiles → {profile} → Terminal: tick Enable mouse reporting, and Report mouse clicks & drags"
+        },
+        {
+          "id": "alternate-screen",
+          "need": "speed",
+          "bad": ".no_alternate_screen",
+          "line": "iTerm2's profile {profile} turns off the alternate screen, so kittui's frames pile up in the scrollback",
+          "held": "iTerm2's profile {profile} keeps the alternate screen",
+          "fix": "iTerm2 → Settings → Profiles → {profile} → Terminal: untick Disable save/restore alternate screen"
+        },
+        {
+          "id": "unicode-9",
+          "need": "widths",
+          "bad": ".unicode_version < 9",
+          "line": "iTerm2's profile {profile} measures with Unicode 8 widths, so 📚 takes one cell and kittui's columns shift",
+          "held": "iTerm2's profile {profile} measures with Unicode 9 widths",
+          "fix": "iTerm2 → Settings → Profiles → {profile} → Text: tick Use Unicode version 9+ widths"
+        },
+        {
+          "id": "ambiguous-wide",
+          "need": "widths",
+          "bad": ".ambiguous_wide",
+          "line": "iTerm2's profile {profile} draws ambiguous characters double-width, so ↑ and kittui's rules take two cells",
+          "held": "iTerm2's profile {profile} draws ambiguous characters in one cell",
+          "fix": "iTerm2 → Settings → Profiles → {profile} → Text: untick Ambiguous characters are double-width"
+        },
+        {
+          "id": "encoding",
+          "need": "widths",
+          "bad": ".encoding != 4",
+          "line": "iTerm2's profile {profile} does not use UTF-8, so kittui's glyphs draw wrong",
+          "held": "iTerm2's profile {profile} uses UTF-8",
+          "fix": "iTerm2 → Settings → Profiles → {profile} → Terminal: set Character encoding to Unicode (UTF-8)"
         }
       ]
     },

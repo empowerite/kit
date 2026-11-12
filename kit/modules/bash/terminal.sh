@@ -139,13 +139,15 @@ terminal:unreadable() {
 }
 
 # terminal:bad <key> <settings> prints each finding of the terminal <key> by its id, true where its bad holds of the
-# reader's object <settings>. A bad that does not compile, or answers other than true or false, is kit's bug: it
-# says so and returns 2.
+# reader's object <settings>. A bad that answers null reads a setting the reader did not give, so it is false: kit
+# fails a finding only on what it read. A bad that does not compile, or answers anything else, is kit's bug: it says
+# so and returns 2.
 terminal:bad() {
   local key=$1 settings=$2 id bad answer out='{}'
   while IFS=$'\t' read -r id bad
   do
     answer=$(jq --null-input --argjson s "${settings}" "\$s | (${bad})" 2>/dev/null) || answer=''
+    [[ "${answer}" != null ]] || answer=false
     if [[ "${answer}" != true && "${answer}" != false ]]
     then
       error "terminals.json: ${key}'s ${id} has a bad that does not answer true or false: ${bad}"
