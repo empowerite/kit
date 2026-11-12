@@ -17,6 +17,8 @@ setup() {
   # brew is found, so it is the system toolchain; it is never run, except for --prefix where a test asks
   fake-script brew 'exit 1'
   export PATH="${fakes}:${PATH}"
+  # the terminal these tests run in is not judged; a test that wants a terminal's checks sets what it needs
+  unset KIT_TERMINAL_PROBES TMUX STY ZELLIJ SSH_CONNECTION SSH_TTY TERM_PROGRAM ITERM_PROFILE KITTY_PID WT_SESSION
 }
 
 # fake-script <tool> <body> writes a bash script named <tool> into the fakes directory, first on PATH.
@@ -607,6 +609,71 @@ folders() {
   run --separate-stderr "${kit_root}/bin/kit" welcome </dev/null
   [ "${lines[0]}" = "# Welcome" ]
   [[ "$output" != *"kittui"* ]]
+}
+
+# good-probes prints what a terminal that gives kittui all it needs answers, with the emoji width given, 2 by default.
+good-probes() {
+  jq --null-input --compact-output --argjson emoji "${1:-2}" '{answered: true, kitty_keyboard: true,
+    grapheme_width: true, emoji_width: $emoji, ambiguous_width: 1, color: "truecolor"}'
+}
+
+@test "the terminal's checks are machine checks of setup, after the forge logins, with fixes kit never runs" {
+  git remote add origin https://github.com/acme/widget.git
+  fake-gh
+  export SSH_TTY=/dev/ttys1 KIT_TERMINAL_PROBES
+  KIT_TERMINAL_PROBES=$(good-probes 1)
+  local want="forge-login-github.com terminal-ssh terminal-probe-kitty-keyboard terminal-probe-emoji-width"
+  want+=" terminal-probe-ambiguous-width terminal-probe-color"
+  run --separate-stderr checks
+  [ "$status" -eq 0 ]
+  [ "$(jq -r '[.[] | .id | select(startswith("forge-login-") or startswith("terminal-"))] | join(" ")' <<<"$output")" \
+    = "${want}" ]
+  [ "$(jq -c '.[] | select(.id == "terminal-probe-emoji-width") | [.ok, .step, .runs, .interactive, .folder]' \
+    <<<"$output")" = '[false,"setup",false,false,null]' ]
+}
+
+@test "with no terminal and no answers in the environment, no terminal check runs" {
+  export SSH_TTY=/dev/ttys1
+  run --separate-stderr checks
+  [ "$status" -eq 0 ]
+  [ "$(jq '[.[] | select(.id | startswith("terminal-"))] | length' <<<"$output")" = 0 ]
+}
+
+@test "--keep= keeps a terminal check, which then holds and says kept, and --unkeep= undoes it" {
+  export SSH_TTY=/dev/ttys1 KIT_TERMINAL_PROBES
+  KIT_TERMINAL_PROBES=$(good-probes 1)
+  run "${kit_root}/bin/kit" welcome --keep=terminal-probe-emoji-width
+  [ "$status" -eq 0 ]
+  run --separate-stderr check terminal-probe-emoji-width
+  [ "$(jq -r '.ok' <<<"$output")" = true ]
+  [[ "$(jq -r '.line' <<<"$output")" == "kept: "* ]]
+  [ "$(jq -r '.more' <<<"$output")" = "kit welcome --unkeep=terminal-probe-emoji-width" ]
+  run "${kit_root}/bin/kit" welcome --unkeep=terminal-probe-emoji-width
+  [ "$status" -eq 0 ]
+  run --separate-stderr check terminal-probe-emoji-width
+  [ "$(jq -r '.ok' <<<"$output")" = false ]
+}
+
+@test "--keep= refuses with 2 a check that is not a terminal finding, and a terminal's heading" {
+  export SSH_TTY=/dev/ttys1
+  run "${kit_root}/bin/kit" welcome --keep=tool-jq
+  [ "$status" -eq 2 ]
+  run "${kit_root}/bin/kit" welcome --keep=terminal-ssh
+  [ "$status" -eq 2 ]
+  run "${kit_root}/bin/kit" welcome --keep=terminal-iterm-nonsense
+  [ "$status" -eq 2 ]
+  [ ! -e "${HOME}/.kit/settings.yml" ]
+}
+
+@test "the text guide shows a terminal's heading, and only the findings that failed or are kept" {
+  export SSH_TTY=/dev/ttys1 KIT_TERMINAL_PROBES
+  KIT_TERMINAL_PROBES=$(good-probes)
+  run "${kit_root}/bin/kit" welcome --text
+  [[ "$output" == *"The terminal over ssh: kit cannot read its settings"* ]]
+  [[ "$output" != *"draws 📚 in two cells"* ]]
+  KIT_TERMINAL_PROBES=$(good-probes 1)
+  run "${kit_root}/bin/kit" welcome --text
+  [[ "$output" == *"❌ The terminal over ssh draws 📚 in 1 cell(s)"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

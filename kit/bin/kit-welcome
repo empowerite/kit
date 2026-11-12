@@ -7,6 +7,10 @@
 #
 # kit welcome --fix <check> [--folder=<path>]
 #
+# kit welcome --keep=<check>
+#
+# kit welcome --unkeep=<check>
+#
 # A guide for your first hour with kit, in five steps:
 #
 #   1. Introduction: what kit is, who it is for, what it solves, and what the checks found.
@@ -23,11 +27,18 @@
 # Each failed check there offers its fix: now runs it, later moves on. Without a terminal, or with --text, it prints
 # each step's page with its checks under it, then a list of what is left. It runs nothing.
 #
+# On a terminal, setup also judges the terminal kit runs in: kit asks it what it does, reads its settings where it
+# knows the terminal, and names each setting that makes kittui slower or worse. A terminal's fixes are the person's to
+# make in its settings, so kit shows them and never runs them, and --keep= keeps a finding as it is. Every finding, for
+# every terminal: https://github.com/empowerite/kit/blob/main/docs/terminals.md
+#
 #   --text            prints the guide, even on a terminal
 #   --checks          prints the checks alone, one line each
 #   --json            the checks as a JSON array
 #   --jq              the same JSON, formatted by jq for a person
 #   --fix <check>     runs one check's fix, then checks again
+#   --keep=<check>    keeps a terminal's finding as it is: it holds from now on, in the profile it was judged in
+#   --unkeep=<check>  undoes a keep, so the finding is judged again
 #   --folder=<path>   the folder whose working tree holds <path>: --checks prints its checks alone, and --fix runs a
 #                     folder's check there; with none, --fix runs it in the repository here
 #   --progress        with --checks, says on stderr what is being checked as it goes: ⏳ checking <check>, then
@@ -89,6 +100,15 @@ then
   exit 2
 fi
 
+for action in keep unkeep
+do
+  if [[ -n "${syntax_options[--${action}]+x}" ]]
+  then
+    welcome:keep "${action}" "${syntax_options[--${action}]}" && status=0 || status=$?
+    exit "${status}"
+  fi
+done
+
 if [[ -n "${syntax_options[--fix]+x}" ]]
 then
   welcome:fix "${syntax_options[--fix]}" "${folder}" && status=0 || status=$?
@@ -111,6 +131,10 @@ welcome:find-folders() {
     welcome:folders
   fi
 }
+
+# The terminal is asked here, in the main shell, where stdin and stdout are still the person's terminal, and what it
+# answered goes to the checks, and to kittui, in KIT_TERMINAL_PROBES.
+terminal:export-probes
 
 if [[ -n "${syntax_options[--checks]+x}" ]]
 then
@@ -135,7 +159,6 @@ fi
 if [[ -z "${syntax_options[--text]+x}" && -t 0 && -t 1 && -t 2 ]] && tui:binary --probe >/dev/null 2>&1
 then
   binary=$(tui:binary) || exit 1
-  terminal:export-probes
   export KIT="${kit_root}/bin/kit"
   exec "${binary}" welcome ${KIT_WORKSPACE:+--workspace="${KIT_WORKSPACE}"}
 fi

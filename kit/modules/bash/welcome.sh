@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 # welcome.sh - kit welcome's checks, their fixes, and the pages of its steps (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-# shellcheck disable=SC2154  # kit_root is exported by modules/bash/1st.sh
+# shellcheck disable=SC2154  # kit_root and kit_jq are exported by modules/bash/1st.sh
 #
 # kit welcome walks a newcomer through five steps, each a page: the introduction, toolchains, setup, customize, and
 # the terms. Steps 2 and 3 hold checks, run here. A check is the machine's, judged once, or a folder's, judged inside
@@ -36,7 +36,9 @@
 #   - the machine, toolchains: bash, git, jq, and yq, which kit runs on; then, only where brew is installed at a
 #     Homebrew prefix but is not on PATH, brew-path, whose fix kit shows and never runs; then the system toolchain
 #   - the machine, setup: for each distinct forge host among every folder's remotes, its tool installed, then logged
-#     in to that host, once per host
+#     in to that host, once per host; then, where KIT_TERMINAL_PROBES holds what the terminal answered, the terminal
+#     kit runs in: its heading, each finding of its settings, and each probe, as modules/bash/terminal.sh judges them,
+#     each fix shown and never run
 #   - each folder, setup: a git repository; kit installed, with the version kit.yml declares; then, where kit is,
 #     .kit/ hydrated and the git hooks installed when hooks/lefthook is active; the project toolchain; then, where kit
 #     is, lefthook when hooks/lefthook is active, each dependency provider whose manifest is there, installed from its
@@ -64,13 +66,15 @@
 
 # The yq check says what yaml.sh says when it loads without yq, so its own line is not printed twice.
 use yaml 2>/dev/null
-use settings forge materialize render place toolchain dependencies workspaces file
+use settings forge materialize render place toolchain dependencies workspaces file terminal
 
 # welcome_ids holds the machine checks' ids, in order, and welcome_folder_ids the checks of the folder here, in order;
 # the maps beside them hold what judging one needs: the rule that names each linter, and the forge of each host.
 # welcome:plan-machine and welcome:plan-folder fill them.
 declare -ga welcome_ids=() welcome_folder_ids=()
 declare -gA welcome_linter_rule=() welcome_host_forge=()
+# welcome_terminal holds each terminal check by its id, as terminal:checks judged them once, in welcome:plan-machine.
+declare -gA welcome_terminal=()
 
 # welcome_folders holds the workspace's folders, in order, each "<repository>\x1f<desk>\x1f<folder>": its repository,
 # true for a desk and false for a worktree, and its absolute path. welcome:folders fills it.
@@ -105,10 +109,12 @@ welcome:step() {
 }
 
 # welcome:machine <id> succeeds for the id of a machine check, which holds for the whole machine: what kit runs on,
-# brew on PATH, the system toolchain, and each forge host's tool and login. Every other check is a folder's.
+# brew on PATH, the system toolchain, each forge host's tool and login, and the terminal's. Every other check is a
+# folder's.
 welcome:machine() {
   case "$1" in
-    (tool-bash | tool-git | tool-jq | tool-yq | brew-path | toolchain-system | forge-cli-* | forge-login-*) ;;
+    (tool-bash | tool-git | tool-jq | tool-yq | brew-path | toolchain-system) ;;
+    (forge-cli-* | forge-login-* | terminal-*) ;;
     (*) return 1
   esac
 }
@@ -500,10 +506,12 @@ welcome:forges-in() (
 )
 
 # welcome:plan-machine fills welcome_ids with the machine checks, in order, and the forge of each host, and finds the
-# system toolchain. It reads the hosts from welcome_folders, which welcome:folders fills first.
+# system toolchain. It reads the hosts from welcome_folders, which welcome:folders fills first. Where
+# KIT_TERMINAL_PROBES says what the terminal answered, it judges the terminal once, into welcome_terminal; without it,
+# kit runs in no terminal it asked, and the terminal has no checks.
 welcome:plan-machine() {
-  local forge host
-  welcome_ids=(tool-bash tool-git tool-jq tool-yq) welcome_host_forge=()
+  local forge host check id
+  welcome_ids=(tool-bash tool-git tool-jq tool-yq) welcome_host_forge=() welcome_terminal=()
   ! welcome:brew-off-path || welcome_ids+=(brew-path)
   welcome_ids+=(toolchain-system)
   welcome:find system
@@ -512,6 +520,13 @@ welcome:plan-machine() {
     welcome_ids+=("forge-cli-${host}" "forge-login-${host}")
     welcome_host_forge[${host}]=${forge}
   done < <(welcome:hosts)
+  [[ -n "${KIT_TERMINAL_PROBES:-}" ]] || return 0
+  while IFS= read -r check
+  do
+    id=$(jq --raw-output .id <<<"${check}")
+    welcome_terminal[${id}]=${check}
+    welcome_ids+=("${id}")
+  done < <(terminal:checks)
 }
 
 # welcome:plan-folder fills welcome_folder_ids with the checks of the folder here, in order, and the rule of each
@@ -766,6 +781,37 @@ welcome:kit-check() {
   welcome:record kit-check false "${line}" "${fix}" false '' "${runs}"
 }
 
+# welcome:terminal <id> prints the terminal check <id>, as welcome:plan-machine judged it: its fix is the person's to
+# make in their terminal's settings, so kit shows it and never runs it.
+welcome:terminal() {
+  local ok line fix more
+  IFS=$'\x1f' read -r ok line fix more < <(jq --raw-output \
+    '[(.ok | tostring), .line, (.fix // ""), (.more // "")] | join("\u001f")' <<<"${welcome_terminal[$1]}")
+  welcome:record "$1" "${ok}" "${line}" "${fix}" false "${more}" false
+}
+
+# welcome:folded <check-json> succeeds for a terminal's finding or probe that holds and is not kept: the text guide,
+# as kittui, shows it under its terminal's heading by leaving it out.
+welcome:folded() {
+  jq --exit-status '(.id | test("^terminal-[a-z]+-")) and .ok and (.line | startswith("kept: ") | not)' <<<"$1" \
+    >/dev/null
+}
+
+# welcome:keep keep|unkeep <check> keeps the terminal's finding or probe <check>, so it holds from now on, or undoes
+# the keep. It returns 2 for any other check: one of another kind, or a terminal's heading, which always holds.
+welcome:keep() {
+  local action=$1 id=$2
+  if ! jq --exit-status --arg id "${id}" '
+      [(.probes | keys[] | "terminal-probe-\(.)"),
+       (.terminals | to_entries[] | .key as $key | .value.findings[]? | "terminal-\($key)-\(.id)")]
+      | index($id) != null' "${kit_jq}/terminals.json" >/dev/null
+  then
+    error "${id} is not a finding of a terminal, which is all kit welcome --${action}= takes; see: kit welcome --checks"
+    return 2
+  fi
+  "terminal:${action}" "${id}"
+}
+
 # welcome:judge <id> runs one check, which welcome:plan-machine or, in its folder, welcome:plan-folder named, and
 # prints it as JSON. It returns 2 for an id neither plan names.
 welcome:judge() {
@@ -784,6 +830,7 @@ welcome:judge() {
     (linter-*) welcome:linter "${id}" "${id#linter-}" "${welcome_linter_rule[${id#linter-}]}" ;;
     (forge-cli-*) welcome:forge-cli "${id#forge-cli-}" ;;
     (forge-login-*) welcome:forge-login "${id#forge-login-}" ;;
+    (terminal-*) welcome:terminal "${id}" ;;
     (repo-git)
       if welcome:repository
       then
@@ -890,6 +937,7 @@ welcome:show() {
   local check ok line fix more
   for check in "$@"
   do
+    ! welcome:folded "${check}" || continue
     IFS=$'\x1f' read -r ok line fix more < <(jq --raw-output \
       '[(.ok | tostring), .line, (.fix // ""), (.more // "")] | join("\u001f")' <<<"${check}")
     if [[ "${ok}" == true ]]
