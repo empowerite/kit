@@ -13,6 +13,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
@@ -101,7 +102,7 @@ func TestAClickOpensATutorialInTheKitAndAClickOverItGoesBack(t *testing.T) {
 	if m = drive(m, testkit.Click(x, y)); len(b.urls) != 0 || !m.read.open || m.cursor != 2 {
 		t.Fatalf("a click on the kit's card: opened %q, reading %v, cursor %d", b.urls, m.read.open, m.cursor)
 	}
-	// a click on the page itself does nothing
+	// a click on the page, off its links, does nothing
 	if m = drive(m, testkit.Click(10, paneTop+3)); !m.read.open {
 		t.Fatal("a click on the page closed it")
 	}
@@ -135,5 +136,42 @@ func TestATutorialInTheKitWithNoPageSaysWhereItWasLookedFor(t *testing.T) {
 	m = drive(m, at120, catalogue(c), enter)
 	if !m.read.open || !strings.Contains(view(m), Failed+" no page at /nowhere/gone.md") {
 		t.Errorf("reading %v:\n%s", m.read.open, view(m))
+	}
+}
+
+// A link on a tutorial's page to one of kittui's screens opens it, with the page as its crumb: the screen by its name,
+// or one of its tabs by its stage; a click anywhere else on the page asks for nothing.
+func TestALinkOnATutorialsPageOpensTheScreenItLeadsTo(t *testing.T) {
+	m, _ := shipped(t, tabKey, tabKey, enter)
+	asked := func(x, y int) tea.Msg {
+		t.Helper()
+		_, cmd := m.Update(testkit.Click(x, y))
+		if cmd == nil {
+			return nil
+		}
+		return cmd()
+	}
+	x, y := cell(m, "Flow,", paneTop)
+	if got := asked(x, y); got != (shell.SwitchMsg{Screen: shell.Flow, Crumb: true}) {
+		t.Errorf("a click on Flow asked %#v", got)
+	}
+	x, y = cell(m, "Backlog", paneTop)
+	if got := asked(x+6, y); got != (shell.JumpMsg{Screen: shell.Flow, To: "backlog/"}) {
+		t.Errorf("a click on Backlog's last letter asked %#v", got)
+	}
+	if got := asked(x+7, y); got != nil {
+		t.Errorf("a click past Backlog asked %#v", got)
+	}
+	if got := asked(x-1, y+1); got != nil {
+		t.Errorf("a click under the link asked %#v", got)
+	}
+	// the page is the crumb's name, and the crumb puts the page back where it was scrolled to
+	if name, _ := m.Spot(); name != "tutorials › kit's applications" {
+		t.Errorf("the crumb's name %q", name)
+	}
+	_, spot := drive(m, down).Spot()
+	back := drive(m, esc).Restore(spot).(Model)
+	if !back.read.open || back.read.offset != 1 {
+		t.Errorf("put back: reading %v, offset %d", back.read.open, back.read.offset)
 	}
 }

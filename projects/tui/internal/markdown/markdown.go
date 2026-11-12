@@ -1,8 +1,10 @@
 // Package markdown draws a page's markdown as text, for every screen that shows a page alike: headings bold, inline
 // code in the accent, list items kept with a hanging indent, and paragraphs wrapped to the width. It is no markdown
 // library: front matter at the top is dropped, a code block keeps its lines, a table its rows, a comment is dropped,
-// and a link keeps its text, with its URL when it is a web address. A line naming a verb, as `kit packages` does, is
-// text: the screen opens no form.
+// and a link keeps its text, with its URL when it is a web address. A link to one of kittui's screens, kittui: and the
+// screen's name, as [Flow](kittui:flow) is, or the screen's name, a slash, and one of its tabs, as
+// [Backlog](kittui:flow/backlog) is, is drawn as a link, and Page says where each one stands, for a screen that follows
+// it on a click. A line naming a verb, as `kit packages` does, is text: the screen opens no form.
 package markdown
 
 import (
@@ -21,11 +23,90 @@ var (
 	// Item matches a list item's line: its indent, its marker, and its text.
 	Item = regexp.MustCompile(`^(\s*)([-*+]|\d+[.)])\s+(.*)$`)
 	link = regexp.MustCompile(`\[([^\]]+)\]\(([^)\s]+)\)`)
+	// hyperlink matches an OSC 8 hyperlink's sequence, which takes no cell: its target, the first group, opens the link,
+	// and none closes it. A word of a link to a screen is drawn between the two, so it wraps as any word does, and Page
+	// then takes them out, keeping where the word landed.
+	hyperlink = regexp.MustCompile("\x1b\\]8;;([^\x07]*)\x07")
 )
+
+// Scheme starts a link to one of kittui's screens.
+const Scheme = "kittui:"
+
+// A Link is where a link to one of kittui's screens stands among the lines Page gives: its line, the cell its text
+// starts at, and its width in cells; and where it leads, the link's text after kittui:. A link that wraps is a Link
+// for each word.
+type Link struct {
+	Line, Col, Width int
+	To               string
+}
+
+// Page draws a page's markdown as Render does, and says where each link to one of kittui's screens stands in the
+// lines.
+func Page(md string, width int) ([]string, []Link) {
+	lines := render(md, width)
+	var links []Link
+	for i, l := range lines {
+		var at []Link
+		lines[i], at = unmarked(l)
+		for _, k := range at {
+			k.Line = i
+			links = append(links, k)
+		}
+	}
+	return lines, links
+}
+
+// unmarked gives a line without its links' markers, and the links they marked, each where its text stands then.
+func unmarked(line string) (string, []Link) {
+	var out strings.Builder
+	var links []Link
+	open, prev := -1, 0
+	end := func() {
+		if open >= 0 {
+			links[open].Width = ansi.StringWidth(out.String()) - links[open].Col
+			open = -1
+		}
+	}
+	for _, at := range hyperlink.FindAllStringSubmatchIndex(line, -1) {
+		out.WriteString(line[prev:at[0]])
+		prev = at[1]
+		end()
+		if to := line[at[2]:at[3]]; to != "" {
+			links = append(links, Link{Col: ansi.StringWidth(out.String()), To: to})
+			open = len(links) - 1
+		}
+	}
+	out.WriteString(line[prev:])
+	end()
+	return out.String(), links
+}
+
+// marked gives a text with each link to one of kittui's screens in it drawn as a link, each of its words between its
+// markers.
+func marked(text string) string {
+	return link.ReplaceAllStringFunc(text, func(s string) string {
+		parts := link.FindStringSubmatch(s)
+		to, ok := strings.CutPrefix(parts[2], Scheme)
+		if !ok {
+			return s
+		}
+		words := strings.Fields(parts[1])
+		for i, w := range words {
+			words[i] = "\x1b]8;;" + to + "\x07" + style.Link(w) + "\x1b]8;;\x07"
+		}
+		return strings.Join(words, " ")
+	})
+}
 
 // Render draws a page's markdown in lines no wider than the width, in cells, its front matter dropped. Blank lines
 // between blocks are kept, one at most, and none leads or trails.
 func Render(md string, width int) []string {
+	lines, _ := Page(md, width)
+	return lines
+}
+
+// render draws a page's markdown as Render does, each link to one of kittui's screens between its markers.
+func render(md string, width int) []string {
 	width = max(width, 10)
 	var out, para []string
 	prefix, indent := "", ""
@@ -111,10 +192,11 @@ func Unlinked(text string) string {
 	})
 }
 
-// inline gives a paragraph's words, each drawn: `code` in the accent, **strong** bold, and a link as its text, as
-// unlinked gives it. A word is what lies between spaces, so a code span with spaces in it wraps as words do.
+// inline gives a paragraph's words, each drawn: `code` in the accent, **strong** bold, a link to one of kittui's
+// screens as marked gives it, and any other link as its text, as Unlinked gives it. A word is what lies between
+// spaces, so a code span with spaces in it wraps as words do.
 func inline(text string) []string {
-	text = Unlinked(text)
+	text = Unlinked(marked(text))
 	var words []string
 	var word, frag strings.Builder
 	code, strong := false, false

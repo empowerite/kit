@@ -272,14 +272,38 @@ func (m Model) pane() []string {
 // pageLines gives the lines of the tutorial's page open in place of the cards, drawn to the screen's width: its
 // markdown, or where it was looked for, when it could not be read.
 func (m Model) pageLines() []string {
+	lines, _ := m.page()
+	return lines
+}
+
+// page gives the lines of the tutorial's page, as pageLines does, and where each link to one of kittui's screens
+// stands in them, after the blank line over the page and the lead.
+func (m Model) page() ([]string, []markdown.Link) {
 	if m.read.missing {
-		return []string{"", lead + style.Refusal(Failed+" no page at "+m.read.tutorial.File)}
+		return []string{"", lead + style.Refusal(Failed+" no page at "+m.read.tutorial.File)}, nil
 	}
-	var out []string
-	for _, l := range markdown.Render(m.read.page, m.width-len(lead)-1) {
+	lines, links := markdown.Page(m.read.page, m.width-len(lead)-1)
+	out := []string{""}
+	for _, l := range lines {
 		out = append(out, strings.TrimRight(lead+l, " "))
 	}
-	return append([]string{""}, out...)
+	for i := range links {
+		links[i].Line++
+		links[i].Col += len(lead)
+	}
+	return out, links
+}
+
+// linkAt gives where the link at a cell of the screen leads, over the tutorial's page, or "" where there is none.
+func (m Model) linkAt(x, y int) string {
+	lines, links := m.page()
+	k := pane.At(len(lines), m.paneHeight(), m.read.offset, y-paneTop)
+	for _, l := range links {
+		if l.Line == k && x >= l.Col && x < l.Col+l.Width {
+			return l.To
+		}
+	}
+	return ""
 }
 
 // grid gives the bands' lines: the line over them, which says how many cards are scrolled past above, then the bands

@@ -10,7 +10,8 @@ that prints it.
 
 ## Flow
 
-The whole trip of the work, from an issue to a release, one stage to a tab.
+The whole trip of the work, from an issue to a release, one stage to a tab. Open [Flow](kittui:flow), or its
+[Backlog](kittui:flow/backlog).
 
 `kit flow`
 

@@ -27,7 +27,9 @@
 // in place of the cards, and the line over it, the control line's, a 🔙 back to the cards with the tutorial's glyph
 // and title. Up and down scroll the page a line, page up and page down a page, home and end to its ends, as the wheel
 // scrolls it; esc, or a click on the line over it, goes back to the cards, the cursor where it was, and / gives the
-// search focus over them. Left and right, which fold and unfold, have nothing to fold on a card. The
+// search focus over them. A click on a link on the page to one of kittui's screens, as internal/markdown draws it,
+// opens that screen, or one of its tabs, with the page as its crumb, named after the tutorial, which ⌫ goes back to.
+// Left and right, which fold and unfold, have nothing to fold on a card. The
 // mouse wheel scrolls the cards a row, or a heading, at a time, never past their ends, the cursor left where it is
 // until a key moves it. The control line takes the keys it takes on every table, its menus and its dialog every key
 // while open, and down gives the cards the keyboard back; it is the top of the screen, so up and esc leave it where it
@@ -618,12 +620,12 @@ func (m Model) click(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 		m.search.Focused, m.read.open = true, false
 		return m, nil
 	case m.read.open:
-		// over a tutorial's page, the line over it goes back to the cards; the page itself takes no click
+		// over a tutorial's page, the line over it goes back to the cards, and a link opens the screen it leads to
 		if msg.Y == controlTop {
 			m.read.open = false
 			m.fit()
 		}
-		return m, nil
+		return m, follow(m.linkAt(msg.X, msg.Y))
 	case msg.Y == controlTop:
 		if m.sheet.Click(msg) {
 			m.search.Focused, m.inPane = false, !m.sheet.Focused()
@@ -679,6 +681,39 @@ func (m Model) open(t kit.Tutorial) tea.Cmd {
 	}
 	b := m.browse
 	return func() tea.Msg { return browsedMsg{tutorial: t, err: b(t.URL)} }
+}
+
+// follow gives the command that opens the screen a link on a page leads to, its text after kittui:, with the page as
+// its crumb: the screen, by its name, or the screen on one of its tabs, by the screen's name, a slash, and the tab's
+// stage, as the app names it. No link gives none.
+func follow(to string) tea.Cmd {
+	if to == "" {
+		return nil
+	}
+	screen, stage, _ := strings.Cut(to, "/")
+	if stage == "" {
+		return func() tea.Msg { return shell.SwitchMsg{Screen: shell.Screen(screen), Crumb: true} }
+	}
+	return func() tea.Msg { return shell.JumpMsg{Screen: shell.Screen(screen), To: stage + "/"} }
+}
+
+// Spot gives the name of where the screen stands, as the crumb of a screen a link on a tutorial's page led to says
+// it: tutorials, and the tutorial's title while its page is open; and the spot, as Restore puts it back.
+func (m Model) Spot() (string, any) {
+	if !m.read.open {
+		return "tutorials", m.read
+	}
+	return "tutorials › " + m.read.tutorial.Title, m.read
+}
+
+// Restore puts the screen back where a spot says it stood: the tutorial's page open where it was scrolled to, or the
+// cards.
+func (m Model) Restore(v any) tea.Model {
+	if r, ok := v.(reader); ok {
+		m.read = r
+		m.fit()
+	}
+	return m
 }
 
 // paging takes a key while a tutorial's page is open in place of the cards: esc goes back to them, / gives the

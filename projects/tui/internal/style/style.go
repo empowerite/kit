@@ -35,6 +35,7 @@ var (
 	refusal = lipgloss.NewStyle().Foreground(red)
 	mark    = lipgloss.NewStyle().Bold(true).Foreground(accent)
 	tint    = lipgloss.NewStyle().Foreground(accent)
+	link    = lipgloss.NewStyle().Underline(true).Foreground(accent)
 	menu    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("14"))
 	warn    = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
 	gain    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("2"))
@@ -47,6 +48,10 @@ var (
 
 // Mark draws what is selected on a line of stages: bold, in the accent color.
 func Mark(s string) string { return mark.Render(s) }
+
+// Link draws a link on a page, which a click follows: underlined, in the accent color, as a command on the page is
+// bold in it.
+func Link(s string) string { return link.Render(s) }
 
 // Menu draws an open menu, its box and the glyph it hangs from: bold, in bright cyan, a color nothing else on the screen
 // has, so the menu stands out over what it covers.

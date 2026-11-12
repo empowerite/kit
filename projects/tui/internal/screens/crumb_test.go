@@ -3,11 +3,17 @@
 package screens
 
 import (
+	"os"
+	"path"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/markdown"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
@@ -119,4 +125,75 @@ func TestManageLeavesACrumbAndAMoveDropsIt(t *testing.T) {
 		t.Errorf("after the move, on %s: %q", m.here, title(m))
 	}
 	m.Close()
+}
+
+// Every link on a page that ships with the kit's tutorials opens one of kittui's screens with the tutorials as its
+// crumb, which ⌫ goes back to; and a link to a tab names one of its app's stages: one of Flow's, as kit-flow's header
+// orders them, since the fake kit's Flow has two, or one an app built around an entity jumps to. Each is followed by
+// step, as an app such as People ticks while it loads over the fake kit, which drive would wait on for ever.
+func TestEveryLinkOnAShippedTutorialOpensAScreenThatLeadsBack(t *testing.T) {
+	t.Setenv("FAKE_KIT_RECORD", filepath.Join(t.TempDir(), "record"))
+	root := filepath.Join("..", "..", "..", "..", "kit")
+	header, err := os.ReadFile(filepath.Join(root, "bin", "kit-flow"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var flowStages []string
+	for _, l := range strings.Split(string(header), "\n") {
+		if strings.HasPrefix(l, "#   backlog → ") {
+			flowStages = strings.Split(strings.TrimPrefix(l, "#   "), " → ")
+			break
+		}
+	}
+	pages, err := filepath.Glob(filepath.Join(root, "modules", "tutorials", "*.md"))
+	if err != nil || len(pages) == 0 || len(flowStages) == 0 {
+		t.Fatalf("no shipped tutorials, or no stages in kit-flow's header: %v", err)
+	}
+	seen := 0
+	for _, page := range pages {
+		md, err := os.ReadFile(page)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, links := markdown.Page(string(md), 1000)
+		for _, l := range links {
+			seen++
+			where := filepath.Base(page) + ": " + l.To
+			screen, stage, _ := strings.Cut(l.To, "/")
+			m := drive(help(t), shell.SwitchMsg{Screen: shell.Tutorials})
+			var msg tea.Msg = shell.SwitchMsg{Screen: shell.Screen(screen), Crumb: true}
+			switch {
+			case stage == "":
+			case screen == string(shell.Flow):
+				if !slices.Contains(flowStages, stage) {
+					t.Errorf("%s: Flow has no stage %s", where, stage)
+				}
+			default:
+				msg = shell.JumpMsg{Screen: shell.Screen(screen), To: stage + "/"}
+			}
+			if m = step(m, msg); m.here != shell.Screen(screen) || !strings.Contains(title(m), shell.Back+" tutorials") {
+				t.Errorf("%s opened %s, the title %q, %s", where, m.here, title(m), m.refusal)
+				m.Close()
+				continue
+			}
+			if name, _ := m.made[m.here].(spotted).Spot(); msg != (shell.SwitchMsg{Screen: shell.Screen(screen),
+				Crumb: true}) && !strings.HasSuffix(name, path.Base(stage)) {
+				t.Errorf("%s stands on %q", where, name)
+			}
+			if m = step(m, testkit.Press("backspace")); m.here != shell.Tutorials {
+				t.Errorf("%s: ⌫ went to %s", where, m.here)
+			}
+			m.Close()
+		}
+	}
+	if seen == 0 {
+		t.Error("no shipped tutorial has a link")
+	}
+}
+
+// step gives the root one message, and runs none of the commands it starts: the screen shown, its crumb, and the tab
+// a jump selects are the root's at once.
+func step(m Model, msg tea.Msg) Model {
+	next, _ := m.Update(msg)
+	return next.(Model)
 }

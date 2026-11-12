@@ -31,7 +31,7 @@ tutorials:
   - id: applications
     file: tutorials/applications.md
     title: kit's applications
-    summary: What each application shows, from Flow, the trip of the work from an issue to a release, to Platform.
+    summary: What each application shows, from Flow, the trip of the work from an issue to a release, to Packages.
     glyph: "\U0001F9ED"
     audience:
       - newcomer

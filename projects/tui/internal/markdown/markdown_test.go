@@ -72,3 +72,28 @@ func TestFrontMatterIsDropped(t *testing.T) {
 		t.Errorf("a rule under text: %q", got)
 	}
 }
+
+func TestALinkToAScreenIsDrawnAsALinkAndPageSaysWhereItStands(t *testing.T) {
+	md := "1. [Backlog](kittui:flow/backlog): new.\n\nOpen [the Flow app](kittui:flow), or see [the site](https://x.y)."
+	lines, links := Page(md, 22)
+	want := "1. Backlog: new.\n\nOpen the Flow app, or\nsee the site\n(https://x.y)."
+	if got := ansi.Strip(strings.Join(lines, "\n")); got != want {
+		t.Errorf("got %q\nwant %q", got, want)
+	}
+	if !strings.Contains(lines[0], style.Link("Backlog")) || strings.Contains(strings.Join(lines, ""), "\x1b]8") {
+		t.Errorf("a link is drawn in its style, its markers taken out: %q", lines[0])
+	}
+	// a link of several words is one for each word, each where it stands on its line; a web link is no screen's
+	wantLinks := []Link{{0, 3, 7, "flow/backlog"}, {2, 5, 3, "flow"}, {2, 9, 4, "flow"}, {2, 14, 3, "flow"}}
+	if len(links) != len(wantLinks) {
+		t.Fatalf("got %+v", links)
+	}
+	for i, k := range links {
+		if k != wantLinks[i] {
+			t.Errorf("link %d: got %+v, want %+v", i, k, wantLinks[i])
+		}
+	}
+	if Render("[Flow](kittui:flow)", 20)[0] != style.Link("Flow") {
+		t.Errorf("Render draws a link as Page does: %q", Render("[Flow](kittui:flow)", 20))
+	}
+}
