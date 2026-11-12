@@ -185,7 +185,7 @@ func drawn(d Dialog) string { return ansi.Strip(strings.Join(d.placed(30, 100).L
 // keep the highlight in view, saying how many folders it hides above and below; ⇞ and ⇟ move it by a page.
 func TestOpenMovesAHighlightOverTheFoldersAndScrollsToIt(t *testing.T) {
 	d := newOpen(many(t, 20), "/nowhere")
-	if v := drawn(d); !strings.Contains(v, Folder+" f00/") || !strings.Contains(v, "⬇¹²") ||
+	if v := drawn(d); !strings.Contains(v, Folder+" f00/") || !strings.Contains(v, "↓¹²") ||
 		strings.Contains(v, pane.Up) {
 		t.Errorf("at the top:\n%s", v)
 	}
@@ -438,7 +438,7 @@ func TestOpenListsEightFoldersAndCountsTheRest(t *testing.T) {
 	}
 	d := newOpen(folders(t, names...), "/nowhere")
 	v := ansi.Strip(strings.Join(d.Overlay(make([]string, 30), 100), "\n"))
-	if !strings.Contains(v, Folder+" fh/") || strings.Contains(v, Folder+" fi/") || !strings.Contains(v, "⬇³") {
+	if !strings.Contains(v, Folder+" fh/") || strings.Contains(v, Folder+" fi/") || !strings.Contains(v, "↓³") {
 		t.Errorf("drawn:\n%s", v)
 	}
 }

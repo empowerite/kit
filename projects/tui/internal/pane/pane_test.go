@@ -43,7 +43,7 @@ func TestAtGivesTheLineLinesDrawsAtEachPlace(t *testing.T) {
 		}
 		for h := 0; h <= 6; h++ {
 			for o := 0; o <= n; o++ {
-				drawn := Lines(all, o, h, "", "")
+				drawn := Lines(all, o, h, "")
 				for r := -1; r <= h; r++ {
 					want := -1
 					if r >= 0 && r < len(drawn) && !strings.HasPrefix(drawn[r], Up) && !strings.HasPrefix(drawn[r], Down) {
@@ -79,7 +79,7 @@ func TestTheWindowFitsEveryHeight(t *testing.T) {
 					t.Errorf("Window(%d, %d, %d) says lines are hidden in a pane too small for it", n, h, o)
 				}
 				all := make([]string, n)
-				if got := Lines(all, o, h, "", "   "); n > h && len(got) != h {
+				if got := Lines(all, o, h, ""); n > h && len(got) != h {
 					t.Errorf("Lines(%d, %d, %d) gives %d lines", n, h, o, len(got))
 				}
 			}
@@ -89,14 +89,14 @@ func TestTheWindowFitsEveryHeight(t *testing.T) {
 
 func TestLinesSayWhatIsHiddenOrPinTheHead(t *testing.T) {
 	all := []string{"a", "b", "c", "d", "e", "f", "g", "h"}
-	got := Lines(all, 3, 4, "", "  ")
-	if len(got) != 4 || got[0] != "  "+Above(3) || got[1] != "d" || got[2] != "e" || got[3] != "  "+More(3) {
+	got := Lines(all, 3, 4, "")
+	if len(got) != 4 || got[0] != Above(3) || got[1] != "d" || got[2] != "e" || got[3] != More(3) {
 		t.Errorf("Lines from 3 in 4: %q", got)
 	}
-	if got := Lines(all, 3, 4, "head", "  "); got[0] != "head" {
+	if got := Lines(all, 3, 4, "head"); got[0] != "head" {
 		t.Errorf("a head does not take the place of Above: %q", got)
 	}
-	if got := Lines(all[:2], 0, 4, "head", "  "); !slices.Equal(got, all[:2]) {
+	if got := Lines(all[:2], 0, 4, "head"); !slices.Equal(got, all[:2]) {
 		t.Errorf("lines that fit are not shown as they are: %q", got)
 	}
 }

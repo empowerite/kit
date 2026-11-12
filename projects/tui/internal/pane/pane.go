@@ -54,20 +54,20 @@ func At(n, h, o, r int) int {
 	return -1
 }
 
-// Lines gives the lines a pane of h lines shows from offset o, with Above and More after lead where lines are
-// hidden. A head, when given, takes the place of the … above.
-func Lines(all []string, o, h int, head, lead string) []string {
+// Lines gives the lines a pane of h lines shows from offset o, with Above and More, from the pane's first cell,
+// where lines are hidden. A head, when given, takes the place of the … above.
+func Lines(all []string, o, h int, head string) []string {
 	start, end, above, below := Window(len(all), h, o)
 	out := make([]string, 0, max(h, 0))
 	switch {
 	case above && head != "":
 		out = append(out, head)
 	case above:
-		out = append(out, lead+Above(start))
+		out = append(out, Above(start))
 	}
 	out = append(out, all[start:end]...)
 	if below {
-		out = append(out, lead+More(len(all)-end))
+		out = append(out, More(len(all)-end))
 	}
 	return out
 }
@@ -117,10 +117,11 @@ func Frame(n, room, want, first, last int) Span {
 	return Span{Start: start, End: end(start), Above: start > 0, Below: end(start) < n}
 }
 
-// The arrows that say a window hides rows: those above it, and those below.
+// The arrows that say a window hides rows: those above it, and those below. They are the plain arrows, one cell
+// each, drawn at a line's first cell, where the eye looks for a scroll bar.
 const (
-	Up   = "⬆"
-	Down = "⬇"
+	Up   = "↑"
+	Down = "↓"
 )
 
 // Above says how many rows a window hides above it: Up, then the count in subscript digits, dim.

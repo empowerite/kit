@@ -124,11 +124,11 @@ func window(content string, height, header, first, last, at int) string {
 	}
 	shown := lines[:header:header]
 	if s.Above {
-		shown = append(shown, strings.Repeat(" ", gutter)+pane.Above(s.Start))
+		shown = append(shown, pane.Above(s.Start))
 	}
 	shown = append(shown, body[s.Start:s.End]...)
 	if s.Below {
-		shown = append(shown, strings.Repeat(" ", gutter)+pane.More(len(body)-s.End))
+		shown = append(shown, pane.More(len(body)-s.End))
 	}
 	return strings.Join(shown, "\n") + "\n"
 }

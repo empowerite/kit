@@ -41,7 +41,7 @@ func TestThePaneLaysTheHeaderOverTheRowsWindow(t *testing.T) {
 			RowsHeight(h), HeaderTop(h))
 	}
 	if !slices.Equal(places[:3], []Place{HeaderPlace(0), HeaderPlace(1), 0}) || places[len(places)-1] != -1 ||
-		!strings.HasPrefix(texts[len(texts)-1], "   "+pane.Down) {
+		!strings.HasPrefix(texts[len(texts)-1], pane.Down) {
 		t.Errorf("the places %v:\n%q", places, strip(texts))
 	}
 	if line, ok := HeaderLine(h, 7); !ok || line != 1 || !OnRule(h, 7) || OnRule(h, 6) {

@@ -104,14 +104,14 @@ func TestTheCursorScrollsThePane(t *testing.T) {
 		}
 	}
 	whole(0)
-	if !strings.Contains(view(m), "⬇⁶") || strings.Contains(view(m), pane.Up) {
+	if !strings.Contains(view(m), "↓⁶") || marked(view(m), pane.Up) {
 		t.Errorf("at the top:\n%s", view(m))
 	}
 	for k := 1; k < 8; k++ {
 		m = drive(m, down)
 		whole(k)
 	}
-	if !strings.Contains(view(m), "⬆₆") || strings.Contains(view(m), pane.Down) {
+	if !strings.Contains(view(m), "↑₆") || marked(view(m), pane.Down) {
 		t.Errorf("at the bottom:\n%s", view(m))
 	}
 	for k := 6; k >= 0; k-- {
@@ -127,8 +127,8 @@ func TestTheCursorScrollsThePane(t *testing.T) {
 		t.Errorf("at 60×8:\n%s", view(m))
 	}
 	// at 60×20, a card at a time
-	if m = drive(m, at60); m.shownUntil(m.bands(), m.offset)-m.offset != 1 || !strings.Contains(view(m), "⬆₂") ||
-		!strings.Contains(view(m), "⬇⁵") {
+	if m = drive(m, at60); m.shownUntil(m.bands(), m.offset)-m.offset != 1 || !strings.Contains(view(m), "↑₂") ||
+		!strings.Contains(view(m), "↓⁵") {
 		t.Errorf("at 60×20, from band %d:\n%s", m.offset, view(m))
 	}
 }
@@ -607,4 +607,14 @@ func TestTheCatalogReads(t *testing.T) {
 		}
 	}()
 	readCatalog([]byte("{"))
+}
+
+// marked says whether a line of the view starts with an arrow that says rows are hidden; the keys bar has the arrows too.
+func marked(view, arrow string) bool {
+	for _, l := range strings.Split(view, "\n") {
+		if strings.HasPrefix(l, arrow) {
+			return true
+		}
+	}
+	return false
 }

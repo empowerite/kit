@@ -244,7 +244,7 @@ func (m Model) pane() []string {
 		// the table fills the pane under the lead
 		return m.sheetPane()
 	}
-	out := pane.Lines(m.slid(m.lines()), m.offsets[m.step], h, "", lead)
+	out := pane.Lines(m.slid(m.lines()), m.offsets[m.step], h, "")
 	for k := range out {
 		out[k] = pane.Clip(out[k], m.width-1)
 	}

@@ -255,7 +255,7 @@ func (m Model) pane() []string {
 	var out []string
 	switch bands := m.bands(); {
 	case m.read.open:
-		out = pane.Lines(m.pageLines(), m.read.offset, h, "", lead)
+		out = pane.Lines(m.pageLines(), m.read.offset, h, "")
 	case m.reading.Loading:
 		out = []string{"", lead + style.Off("reading…")}
 	case m.refusal != "":
@@ -360,7 +360,7 @@ func (m Model) grid(bands []band) []string {
 	if m.top() > 0 {
 		above := ""
 		if n := count(bands[:m.offset]); n > 0 {
-			above = lead + pane.Above(n)
+			above = pane.Above(n)
 		}
 		out = append(out, above)
 	}
@@ -383,7 +383,7 @@ func (m Model) grid(bands []band) []string {
 		}
 	}
 	if below := count(bands[end:]); below > 0 {
-		out = append(out, lead+pane.More(below))
+		out = append(out, pane.More(below))
 	}
 	return out
 }

@@ -914,7 +914,7 @@ func (m Model) drawList(b *strings.Builder, f Field, indent string) int {
 	span := pane.Frame(len(rows), listWindow, m.cursor-4, m.cursor, m.cursor)
 	start, end, at := span.Start, span.End, -1
 	if span.Above {
-		b.WriteString(indent + pane.Above(start) + "\n")
+		b.WriteString(pane.Above(start) + "\n")
 	}
 	widest := 0
 	for _, row := range rows[start:end] {
@@ -949,7 +949,7 @@ func (m Model) drawList(b *strings.Builder, f Field, indent string) int {
 		b.WriteString(indent[:len(indent)-2] + lead + mark + value + "  " + style.Off(pane.Clip(row.Description, room)) + "\n")
 	}
 	if span.Below {
-		b.WriteString(indent + pane.More(len(rows)-end) + "\n")
+		b.WriteString(pane.More(len(rows)-end) + "\n")
 	}
 	glyphs := ""
 	if named := legend(all, f.Values, planned); states && named != "" {

@@ -24,7 +24,7 @@ func TestTheWheelScrollsTheCardsAndLeavesTheCursor(t *testing.T) {
 	m, _ := withEight(t, tea.WindowSizeMsg{Width: 60, Height: 24})
 	over := paneTop + 3
 	if m = drive(m, turn(10, over, true)); m.offset != 1 || m.cursor != 0 || !m.focused() ||
-		!strings.Contains(view(m), "⬆₁") {
+		!strings.Contains(view(m), "↑₁") {
 		t.Errorf("a turn down: offset %d, cursor %d, cards focused %v\n%s", m.offset, m.cursor, m.focused(), view(m))
 	}
 	if m = drive(m, turn(10, over, true), turn(10, over, false)); m.offset != 1 {
@@ -39,7 +39,7 @@ func TestTheWheelScrollsTheCardsAndLeavesTheCursor(t *testing.T) {
 	}
 	end := m.offset
 	if m = drive(m, turn(10, over, true)); end == 0 || m.offset != end || m.cursor != 0 ||
-		!strings.Contains(view(m), "Tutorial 8") || strings.Contains(view(m), pane.Down) {
+		!strings.Contains(view(m), "Tutorial 8") || marked(view(m), pane.Down) {
 		t.Errorf("past the end: offset %d, then %d, cursor %d\n%s", end, m.offset, m.cursor, view(m))
 	}
 	// off the cards, and with the app's menu open, a turn scrolls nothing

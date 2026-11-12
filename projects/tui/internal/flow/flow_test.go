@@ -1065,8 +1065,8 @@ func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
 		got[9+titleHeight] != " "+at80(keysFor(m, opens)) {
 		t.Errorf("the title, the bar, or the keys moved:\n%s", view(m))
 	}
-	// three lines of pane: ⬆₂, the cursor's row, and the last row, which needs no line about hidden rows
-	if !strings.Contains(got[6+titleHeight], "⬆₂") || !strings.Contains(got[7+titleHeight], "#159") ||
+	// three lines of pane: ↑₂, the cursor's row, and the last row, which needs no line about hidden rows
+	if !strings.Contains(got[6+titleHeight], "↑₂") || !strings.Contains(got[7+titleHeight], "#159") ||
 		!strings.Contains(cursor(m), "#159") || !strings.Contains(got[8+titleHeight], "nightly") ||
 		strings.Contains(view(m), "release/0.1.0") {
 		t.Errorf("the pane did not scroll to the cursor:\n%s", view(m))
@@ -1248,13 +1248,13 @@ func TestAPaneTooShortSaysHowManyLinesAreAboveAndBelow(t *testing.T) {
 		t.Fatalf("the screen is not %d lines with the keys last:\n%s", 11+titleHeight, view(m))
 	}
 	v := view(m)
-	if !strings.Contains(v, "⬆₁") || !strings.Contains(v, "⬇¹²") ||
+	if !strings.Contains(v, "↑₁") || !strings.Contains(v, "↓¹²") ||
 		!strings.Contains(v, style.Opened+" "+Failed+"  kit") {
 		t.Errorf("the open row is not shown between its … lines:\n%s", v)
 	}
 	// a pane that holds every line says nothing of the kind
 	m = flat(t, options(), tab, tab)
-	if strings.Contains(view(m), pane.Up) || strings.Contains(view(m), pane.Down) {
+	if hidden(view(m)) {
 		t.Errorf("a pane that fits says lines are hidden:\n%s", view(m))
 	}
 }
@@ -1321,7 +1321,7 @@ func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testi
 		for _, l := range lines(m) {
 			seen[bare(l)] = true
 		}
-		// scrolled into the row, its own line stays on the pane's first line, where ⬆ would be
+		// scrolled into the row, its own line stays on the pane's first line, where ↑ would be
 		if first := lines(m)[m.rowsTop()]; m.find("builds").Offset > 0 && (!strings.Contains(first, head) ||
 			strings.Contains(first, pane.Up)) {
 			t.Errorf("the open row's line is not pinned atop the pane:\n%s", view(m))
@@ -1840,4 +1840,14 @@ func TestACatalogRowIsDecodedOnce(t *testing.T) {
 // reanswer gives a stage's answer as its latest load's: the JSON its command printed.
 func reanswer(m Model, name, doc string) source.Answer[[]byte] {
 	return source.Answer[[]byte]{Name: name, Gen: m.find(name).src.Gen(), Value: []byte(doc)}
+}
+
+// hidden says whether a line of the view starts with an arrow that says rows are hidden; the keys bar has the arrows too.
+func hidden(view string) bool {
+	for _, l := range strings.Split(view, "\n") {
+		if strings.HasPrefix(l, pane.Up) || strings.HasPrefix(l, pane.Down) {
+			return true
+		}
+	}
+	return false
 }

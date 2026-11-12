@@ -120,7 +120,7 @@ func Laid(h Host) (texts []string, places []Place) {
 		window[i] = l.Text
 	}
 	head := Head(h, lines, height)
-	window = pane.Lines(window, t.Offset, height, head, "   ")
+	window = pane.Lines(window, t.Offset, height, head)
 	for r := range window {
 		k := pane.At(len(lines), height, t.Offset, r)
 		if r == 0 && head != "" {

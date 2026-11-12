@@ -638,7 +638,7 @@ func hidden(lines []string) []string {
 	return out
 }
 
-var marker = regexp.MustCompile(`^ *(⬆[₀-₉]+|⬇[⁰¹²³⁴-⁹]+)$`)
+var marker = regexp.MustCompile(`^ *(↑[₀-₉]+|↓[⁰¹²³⁴-⁹]+)$`)
 
 func TestPageKeysMoveTheListsCursorAPageAndTheWindowFollows(t *testing.T) {
 	m := rows40(t, 40)
@@ -668,9 +668,9 @@ func TestAListsWindowSaysHowManyRowsItHides(t *testing.T) {
 		first  int // the first row shown
 		shown  int
 	}{
-		{nil, "⬇³¹", 0, 9},
-		{[]string{"pgdown", "pgdown"}, "⬆₁₄|⬇¹⁸", 14, 8},
-		{[]string{"end"}, "⬆₃₁", 31, 9},
+		{nil, "↓³¹", 0, 9},
+		{[]string{"pgdown", "pgdown"}, "↑₁₄|↓¹⁸", 14, 8},
+		{[]string{"end"}, "↑₃₁", 31, 9},
 	} {
 		m := rows40(t, 40)
 		for _, k := range c.keys {

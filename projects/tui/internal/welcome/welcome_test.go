@@ -498,16 +498,16 @@ func TestAPageScrollsWithWhatIsHiddenCounted(t *testing.T) {
 	}
 	all := len(m.pageLines(ourTeam))
 	shown := func() []string { return strings.Split(view(m), "\n")[4:10] }
-	if got := shown(); got[0] != "   Our team" || got[5] != "   "+ansi.Strip(pane.More(all-5)) {
+	if got := shown(); got[0] != "   Our team" || got[5] != ansi.Strip(pane.More(all-5)) {
 		t.Fatalf("top:\n%s", strings.Join(got, "\n"))
 	}
 	// the first down gives the page the keyboard, the next scrolls it
 	m = drive(m, down, down)
-	if got := shown(); got[0] != "   ⬆₁" || got[5] != "   "+ansi.Strip(pane.More(all-5)) {
+	if got := shown(); got[0] != "↑₁" || got[5] != ansi.Strip(pane.More(all-5)) {
 		t.Errorf("one down:\n%s", strings.Join(got, "\n"))
 	}
 	m = drive(m, pgdown, pgdown, pgdown, pgdown, pgdown, pgdown)
-	if got := shown(); !strings.HasPrefix(got[0], "   "+pane.Up) || !strings.Contains(got[5], "kit flow desk") {
+	if got := shown(); !strings.HasPrefix(got[0], pane.Up) || !strings.Contains(got[5], "kit flow desk") {
 		t.Errorf("the end:\n%s", strings.Join(got, "\n"))
 	}
 	if m = drive(m, pgup, pgup, pgup, pgup, pgup, up); m.offsets[ourTeam] != 0 {
