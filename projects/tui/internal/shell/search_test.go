@@ -31,3 +31,32 @@ func TestFoundReversesWhatTheSearchFinds(t *testing.T) {
 		}
 	}
 }
+
+// NextFound steps from one line that holds what is typed to the next, or the one before, as n and N do, wrapping; a
+// line is held without regard to case or escapes, and nothing typed, no line, or no match gives -1.
+func TestNextFoundStepsFromMatchToMatch(t *testing.T) {
+	lines := []string{"one", "\x1b[1mTwo\x1b[m kit", "three", "kit four", "five"}
+	for _, c := range []struct {
+		query    string
+		cur, dir int
+		want     int
+	}{
+		{"kit", -1, 1, 1},
+		{"kit", 1, 1, 3},
+		{"kit", 3, 1, 1},
+		{"kit", 1, -1, 3},
+		{"kit", 3, -1, 1},
+		{"kit", -1, -1, 3},
+		{"two", -1, 1, 1},
+		{"four", 3, 1, 3},
+		{"zzz", -1, 1, -1},
+		{"", -1, 1, -1},
+	} {
+		if got := NextFound(lines, c.query, c.cur, c.dir); got != c.want {
+			t.Errorf("NextFound(%q, cur %d, dir %d) = %d, want %d", c.query, c.cur, c.dir, got, c.want)
+		}
+	}
+	if got := NextFound(nil, "kit", -1, 1); got != -1 {
+		t.Errorf("NextFound over no lines = %d", got)
+	}
+}

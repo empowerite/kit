@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/empowerite/kit/projects/tui/internal/pane"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/table"
 )
@@ -222,15 +223,17 @@ func (m Model) eachSheet(do func(*table.Sheet)) {
 	}
 }
 
-// leadLines gives the lead of the step i drawn as a page draws it, a blank line under it, where the pane has room for
+// leadLines gives the lead of the step i drawn as a page draws it, what the search finds in it highlighted, a blank
+// line under it, where the pane has room for
 // it and the table's control line, header, and a few rows; none where it does not.
 func (m Model) leadLines(i int) []string {
 	if m.tabs[i].lead == "" {
 		return nil
 	}
 	var out []string
+	query := m.searches[m.tabs[i].id].Query
 	for _, l := range render(m.tabs[i].lead, m.width-len(lead)-1) {
-		out = append(out, pane.Clip(strings.TrimRight(lead+l, " "), m.width-1))
+		out = append(out, pane.Clip(strings.TrimRight(lead+shell.Found(l, query), " "), m.width-1))
 	}
 	if len(out)+1+sheetRoom > m.paneHeight() {
 		return nil

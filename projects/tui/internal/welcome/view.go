@@ -188,6 +188,9 @@ func (m Model) paneKeys() shell.Segment {
 	}
 	s := shell.Segment{Takes: []string{"home", "end"}, Bindings: []shell.Binding{shell.Bind("esc", "tabs"),
 		shell.Bind("↑↓", move, "up", "down"), shell.Bind("⇞⇟", "page", "pgup", "pgdown")}}
+	if m.search().Query != "" {
+		s.Bindings = append(s.Bindings, shell.Bind("n·N", "match", "n", "N"))
+	}
 	if m.copies() {
 		s.Bindings = append(s.Bindings, fix.Bindings(m.runsHere())...)
 	}

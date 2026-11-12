@@ -129,9 +129,52 @@ func TestAClickOpensATutorialInTheKitAndAClickOverItGoesBack(t *testing.T) {
 	if m = drive(m, testkit.Click(x, y)); m.read.open || !m.focused() || m.cursor != 2 {
 		t.Errorf("a click on the line over the page: reading %v, cards focused %v", m.read.open, m.focused())
 	}
-	// / while reading gives the search focus, over the cards
-	if m = drive(m, enter, press('/')); m.read.open || !m.search.Focused {
+	// / while reading gives the search focus, the page kept under it
+	if m = drive(m, enter, press('/')); !m.read.open || !m.search.Focused {
 		t.Errorf("/ while reading: reading %v, search %v", m.read.open, m.search.Focused)
+	}
+}
+
+// A search while a tutorial's page is open keeps the page, highlights what it finds, and scrolls to the first line
+// that holds it; n and N step through the lines, ⏎ gives the page the keyboard back, and esc goes back to the cards,
+// narrowed as the search narrows them.
+func TestASearchOnATutorialsPageHighlightsWhatItFinds(t *testing.T) {
+	m, _ := shipped(t, tea.WindowSizeMsg{Width: 120, Height: 16}, tabKey, tabKey, enter)
+	m = drive(m, testkit.Click(m.searchAt()+1, shell.Top))
+	if !m.read.open || !m.search.Focused {
+		t.Fatalf("a click on the search closed the page: reading %v, search %v", m.read.open, m.search.Focused)
+	}
+	if !strings.Contains(m.keys().String(), "⏎ page") {
+		t.Errorf("the search's keys over a page: %q", m.keys().String())
+	}
+	m = drive(m, testkit.Typed("kit")...)
+	first := m.read.hit
+	if first <= 0 || m.read.offset == 0 || !strings.Contains(m.View().Content, "\x1b[7mkit\x1b[27m") || !m.read.open {
+		t.Fatalf("typed kit: hit %d, offset %d, reading %v\n%s", first, m.read.offset, m.read.open, view(m))
+	}
+	m = drive(m, enter)
+	if !m.read.open || m.search.Focused || !strings.Contains(m.keys().String(), "n·N match") {
+		t.Fatalf("enter: reading %v, search %v, keys %q", m.read.open, m.search.Focused, m.keys().String())
+	}
+	if m = drive(m, testkit.Typed("n")...); m.read.hit == first {
+		t.Errorf("n stayed on line %d", first)
+	}
+	if m = drive(m, testkit.Typed("N")...); m.read.hit != first {
+		t.Errorf("N went to line %d, not back to %d", m.read.hit, first)
+	}
+	// a search no line holds goes to the page's top; cleared, and with the page back, n and N leave it be, unnamed
+	if m = drive(m, append([]tea.Msg{press('/')}, testkit.Typed("qqqq")...)...); m.read.offset != 0 || m.read.hit != -1 {
+		t.Errorf("qqqq: hit %d, offset %d", m.read.hit, m.read.offset)
+	}
+	if m = drive(m, tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}, enter, press('n')); m.read.hit != -1 ||
+		strings.Contains(m.keys().String(), "n·N") {
+		t.Errorf("n with nothing typed: hit %d, keys %q", m.read.hit, m.keys().String())
+	}
+	// a page opened with a search already typed is scrolled to its first line
+	m = drive(m, esc, press('/'))
+	m = drive(m, append(testkit.Typed("kit"), enter, tabKey, tabKey, enter)...)
+	if !m.read.open || m.read.hit < 0 {
+		t.Errorf("opened over a search: reading %v, hit %d\n%s", m.read.open, m.read.hit, view(m))
 	}
 }
 

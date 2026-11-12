@@ -127,7 +127,7 @@ type readMsg struct {
 
 // reader is a tutorial in the kit open in place of the cards: whether one is, the tutorial, its page's markdown, or
 // that it has none, the first line of the page the pane shows, and how far each of its code blocks and tables is
-// scrolled across.
+// scrolled across, and the line the search last scrolled it to, which n and N step from, -1 before it has.
 type reader struct {
 	open     bool
 	tutorial kit.Tutorial
@@ -135,6 +135,7 @@ type reader struct {
 	missing  bool
 	offset   int
 	across   pane.Across
+	hit      int
 }
 
 // Fades is how long the notice that a tutorial opened stays in place of the keys, short of a key. The link left when
@@ -277,7 +278,8 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case source.Answer[kit.Catalogue]:
 		m.take(msg)
 	case readMsg:
-		m.read = reader{open: true, tutorial: msg.tutorial, page: msg.page, missing: msg.err != nil}
+		m.read = reader{open: true, tutorial: msg.tutorial, page: msg.page, missing: msg.err != nil, hit: -1}
+		m.stepSearch(1)
 	case browsedMsg:
 		if msg.err == nil {
 			m.note = m.note.Did(fmt.Sprintf("%s Opened %s in the browser", Opened, msg.tutorial.Title))
@@ -500,6 +502,10 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case shell.Left:
 			m.search, m.recent = s, m.recent.Remember(s.Query)
+			if m.read.open {
+				// the page keeps the keyboard it was reading with, what is found in it highlighted
+				return m, nil
+			}
 			if len(m.cards()) > 0 {
 				m.toCards()
 			} else {
@@ -631,7 +637,7 @@ func (m Model) click(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 		m.recent = m.recent.Opened()
 		return m, nil
 	case msg.Y == shell.Top && msg.X >= m.searchAt():
-		m.search.Focused, m.read.open = true, false
+		m.search.Focused = true
 		return m, nil
 	case m.read.open:
 		// over a tutorial's page, the line over it goes back to the cards, a block's ◃ or ▹ scrolls it, as pane.Across
@@ -666,6 +672,8 @@ func (m *Model) typed(query string) {
 	if query != m.search.Query {
 		m.search.Query, m.cursor, m.offset = query, 0, 0
 		m.sheet.Search(query)
+		m.read.hit = -1
+		m.stepSearch(1)
 	}
 	m.fit()
 }
@@ -746,8 +754,9 @@ func (m Model) paging(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case shell.Workspaces:
 		m.books = m.books.Opened()
 	case "/":
-		m.read.open, m.search.Focused = false, true
-		m.fit()
+		m.search.Focused = true
+	case "n", "N":
+		m.stepSearch(map[string]int{"n": 1, "N": -1}[k.String()])
 	case "esc":
 		m.read.open = false
 		m.fit()
@@ -765,6 +774,18 @@ func (m Model) paging(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.scroll(len(m.pageLines()))
 	}
 	return m, nil
+}
+
+// stepSearch scrolls the open page to the next line that holds what is typed in the search, or, for a dir below 0, the
+// one before it, wrapping, as n and N do; to its top where none does, or nothing is typed. A page not open is left.
+func (m *Model) stepSearch(dir int) {
+	if !m.read.open || m.read.missing {
+		return
+	}
+	lines, _, _ := m.page()
+	m.read.hit = shell.NextFound(lines, m.search.Query, m.read.hit, dir)
+	m.read.offset = max(m.read.hit, 0)
+	m.scroll(0)
 }
 
 // scroll moves the page's first line shown by d, never before its first line nor past where its last shows.

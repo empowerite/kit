@@ -167,3 +167,29 @@ func Found(text, query string) string {
 	}
 	return out.String()
 }
+
+// Holds says whether a text holds what is typed in a search, without regard to case or escapes; nothing typed holds
+// in no text, as Found marks nothing.
+func Holds(text, query string) bool {
+	return query != "" && strings.Contains(strings.ToLower(ansi.Strip(text)), strings.ToLower(query))
+}
+
+// NextFound gives the line of a page that holds what is typed after the line cur, or before it for a dir below 0, as n and
+// N take less from one match to the next: it wraps from the last to the first and back, and gives cur itself when it
+// is the only one; -1 for nothing typed or no line that holds it. A cur of -1 is before the first line.
+func NextFound(lines []string, query string, cur, dir int) int {
+	n := len(lines)
+	if n == 0 {
+		return -1
+	}
+	for k := 1; k <= n; k++ {
+		i := ((cur+dir*k)%n + n) % n
+		if cur < 0 && dir < 0 {
+			i = n - k
+		}
+		if Holds(lines[i], query) {
+			return i
+		}
+	}
+	return -1
+}

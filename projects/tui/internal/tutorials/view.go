@@ -134,10 +134,18 @@ func (m Model) keys() shell.Path {
 	path := shell.Path{shell.WorkspaceScreenKeys()}
 	switch {
 	case m.read.open && !m.search.Focused:
-		return append(path, shell.Segment{Bindings: []shell.Binding{shell.Bind("esc", "cards"),
-			shell.Bind("↑↓", "scroll", "up", "down"), shell.Bind("⇞⇟", "page", "pgup", "pgdown")}})
+		seg := shell.Segment{Bindings: []shell.Binding{shell.Bind("esc", "cards"),
+			shell.Bind("↑↓", "scroll", "up", "down"), shell.Bind("⇞⇟", "page", "pgup", "pgdown")}}
+		if m.search.Query != "" {
+			seg.Bindings = append(seg.Bindings, shell.Bind("n·N", "match", "n", "N"))
+		}
+		return append(path, seg)
 	case m.search.Focused:
-		return append(path, shell.SearchKeys("cards", m.search.Query, len(m.recent.Items) > 0))
+		view := "cards"
+		if m.read.open {
+			view = "page"
+		}
+		return append(path, shell.SearchKeys(view, m.search.Query, len(m.recent.Items) > 0))
 	case m.controlled():
 		seg.Bindings = slices.DeleteFunc(slices.Clone(seg.Bindings), func(b shell.Binding) bool {
 			return b.Does == table.TabsHint
@@ -274,7 +282,11 @@ func (m Model) pane() []string {
 // be read.
 func (m Model) pageLines() []string {
 	lines, _, blocks := m.page()
-	return m.read.across.Slid(lines, blocks, m.width-1)
+	lines = m.read.across.Slid(lines, blocks, m.width-1)
+	for k := range lines {
+		lines[k] = shell.Found(lines[k], m.search.Query)
+	}
+	return lines
 }
 
 // page gives the lines of the tutorial's page, as pageLines does but each code block and table whole, where each link

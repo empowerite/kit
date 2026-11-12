@@ -188,6 +188,7 @@ type Model struct {
 	height    int
 	appMenu   shell.Menu              // the app's menu, internal/shell's, which has the keyboard while it is open
 	searches  map[string]shell.Search // each step's search, internal/shell's, by the step's id
+	hits      map[string]int          // the line of each page the search last scrolled to, n and N step from it
 	recent    shell.Recent            // the searches remembered, every screen's, and their dropdown
 	presets   string                  // the file the person's presets are kept in; none keeps them for the session
 	settings  shell.Settings          // kittui's settings, as the screen was last told them
@@ -213,7 +214,7 @@ func New(r kit.Runner, repo string) Model {
 	m := Model{runner: r, exec: fix.HandOver, told: make(chan toldMsg, 64), run: &atomic.Int64{},
 		notes: map[string]note{}, width: 80, height: 24, tabs: slices.Clone(known),
 		places: make([]string, len(known)), offsets: make([]int, len(known)), appMenu: shell.Menu{Here: shell.Welcome},
-		books: shell.BooksMenu{Fallback: repo}, searches: map[string]shell.Search{},
+		books: shell.BooksMenu{Fallback: repo}, searches: map[string]shell.Search{}, hits: map[string]int{},
 		settings: shell.Settings{KeysBar: true, FoldShared: true, HideBlank: true}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.checking = source.NewLoad("checks", m.telling(checksOver(r, kit.Workspace{})), nil)
@@ -523,17 +524,33 @@ func (m *Model) setSearch(s shell.Search) {
 }
 
 // firstFound gives the selected step's first line that holds what is typed, 0 when nothing is or none does: a step
-// drawn as a table keeps its own window.
-func (m Model) firstFound(query string) int {
+// drawn as a table keeps its own window. It is where n and N step from.
+func (m *Model) firstFound(query string) int {
+	return m.stepFound(query, -1, 1)
+}
+
+// stepFound gives the line of the selected step's page n or N goes to from the line the search last scrolled to: the
+// next that holds what is typed, or the one before, wrapping; 0 where nothing is typed, none does, or the step is
+// drawn as a table. The line is kept as the one stepped from.
+func (m *Model) stepFound(query string, from, dir int) int {
 	if query == "" || m.gridded() {
 		return 0
 	}
-	for k, l := range m.lines() {
-		if matches(l.text, query) {
-			return k
-		}
+	var texts []string
+	for _, l := range m.lines() {
+		texts = append(texts, l.text)
 	}
-	return 0
+	k := max(shell.NextFound(texts, query, from, dir), 0)
+	m.hits[m.tabs[m.step].id] = k
+	return k
+}
+
+// stepSearch scrolls the selected step's page to the next line that holds what is typed, or the one before it, as
+// n and N do.
+func (m *Model) stepSearch(dir int) {
+	id := m.tabs[m.step].id
+	m.offsets[m.step] = m.stepFound(m.searches[id].Query, m.hits[id], dir)
+	m.scroll(0)
 }
 
 // focusSearch gives the selected step's search the keyboard, or takes it away.
@@ -735,6 +752,10 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		if !m.inPane {
 			m.down(1)
+		}
+	case "n", "N":
+		if m.search().Query != "" {
+			m.stepSearch(map[string]int{"n": 1, "N": -1}[k.String()])
 		}
 	case fix.CopyKey:
 		if m.copies() {

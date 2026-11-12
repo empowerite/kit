@@ -989,3 +989,48 @@ func TestEscSaysItGoesBackToTheTabs(t *testing.T) {
 		t.Errorf("in the pane %v: %q does not hold %q", m.inPane, m.keys().String(), want)
 	}
 }
+
+// On a page, n and N step the pane from the line the search found to the next line that holds it, and back, wrapping,
+// and the keys bar names them while something is typed.
+func TestNAndNStepThroughWhatASearchFindsOnAPage(t *testing.T) {
+	m, _ := loaded(t, tea.KeyPressMsg{Code: tea.KeyEscape})
+	m = drive(m, testkit.Click(m.searchAt()+1, shell.Top))
+	m = drive(m, testkit.Typed("kit")...)
+	first := m.hits[m.tabs[m.step].id]
+	if first == 0 || m.offsets[m.step] == 0 {
+		t.Fatalf("the search did not scroll to its first line: hit %d, offset %d", first, m.offsets[m.step])
+	}
+	m = drive(m, enter, down)
+	if !strings.Contains(keysAt(m), "n·N match") {
+		t.Errorf("the keys bar does not name n and N: %q", keysAt(m))
+	}
+	m = drive(m, testkit.Typed("n")...)
+	second := m.hits[m.tabs[m.step].id]
+	if second <= first {
+		t.Fatalf("n stayed at line %d, from %d", second, first)
+	}
+	m = drive(m, testkit.Typed("N")...)
+	if got := m.hits[m.tabs[m.step].id]; got != first {
+		t.Errorf("N went to line %d, not back to %d", got, first)
+	}
+	// with nothing typed, n and N do nothing
+	m = drive(m, tea.KeyPressMsg{Code: '/', Text: "/"}, tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl}, enter)
+	at := m.offsets[m.step]
+	if m = drive(m, testkit.Typed("n")...); m.offsets[m.step] != at || strings.Contains(keysAt(m), "n·N") {
+		t.Errorf("n with nothing typed moved the page to %d from %d: %q", m.offsets[m.step], at, keysAt(m))
+	}
+}
+
+// A step drawn as a table keeps its lead, which a search highlights as it does a page's text; the table narrows its
+// rows, and a search no row holds says so in one dim line, the lead still there.
+func TestASearchHighlightsATablesLeadAndNarrowsItsRows(t *testing.T) {
+	m, _ := loaded(t, tea.KeyPressMsg{Code: tea.KeyEscape}, stepKey(3))
+	m = drive(m, testkit.Click(m.searchAt()+1, shell.Top))
+	m = drive(m, testkit.Typed("starting")...)
+	if !m.gridded() || !strings.Contains(m.View().Content, "\x1b[7mstarting\x1b[27m") {
+		t.Errorf("the lead's match is not highlighted:\n%s", m.View().Content)
+	}
+	if v := view(m); !strings.Contains(v, "no row matches the search") || !strings.Contains(v, "kit is a starting point") {
+		t.Errorf("a table with no row for the search:\n%s", v)
+	}
+}
