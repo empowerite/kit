@@ -57,9 +57,11 @@ const (
 	Mine    = "👤"
 )
 
-// action is one of the presets dialog's actions: what it reads, and the key that does it.
+// action is one of the presets dialog's actions: what it reads, the key that does it, and whether it does nothing now,
+// which draws it dim.
 type action struct {
 	text, key string
+	off       bool
 }
 
 // ManageDo is what the presets dialog asks of the screen, and of which view, and the favorites to keep.
@@ -104,26 +106,29 @@ func isTeams(h Host, name string) bool {
 }
 
 // actions gives what can be done with the view under the keyboard, as the dialog's last line names them: on one of the
-// person's own, Rename…, Delete, and, where the table keeps the team's, Share with team; on one of the team's, Copy to
-// mine, Rename…, and Delete; nothing on a table's own.
+// person's own, Rename…, Delete, and Share with team, which does nothing now where the table keeps no team's, as in a
+// clone kit does not trust or one without kit; on one of the team's, Copy to mine, Rename…, and Delete; nothing on a
+// table's own.
 func (d Manage) actions(h Host) []action {
 	name, _ := d.view(h)
-	rename, del := action{Renamed + " " + RenameIt, "r"}, action{Deleted + " " + DeleteIt, "d"}
+	rename, del := action{text: Renamed + " " + RenameIt, key: "r"}, action{text: Deleted + " " + DeleteIt, key: "d"}
 	switch {
-	case isMine(h, name) && h.Views().Shares:
-		return []action{rename, del, {Team + " " + ShareIt, "s"}}
 	case isMine(h, name):
-		return []action{rename, del}
+		return []action{rename, del, {text: Team + " " + ShareIt, key: "s", off: !h.Views().Shares}}
 	case isTeams(h, name):
-		return []action{{Mine + " " + CopyIt, "c"}, rename, del}
+		return []action{{text: Mine + " " + CopyIt, key: "c"}, rename, del}
 	}
 	return nil
 }
 
-// acts gives the actions' line, the actions apart by two spaces.
+// acts gives the actions' line, the actions apart by two spaces, each that does nothing now dim.
 func acts(actions []action) string {
 	var out []string
 	for _, a := range actions {
+		if a.off {
+			out = append(out, style.Off(a.text))
+			continue
+		}
 		out = append(out, a.text)
 	}
 	return strings.Join(out, "  ")
@@ -207,7 +212,7 @@ func (d Manage) moved(h Host, step int) ([]string, bool) {
 
 // act gives what a key asks of the screen for the view under the keyboard: space and * star it, or no longer; shift with
 // up or down moves a favorite, the keyboard with it; and the key of each of its actions does that, closing the dialog
-// where it renames.
+// where it renames, but of one that does nothing now.
 func (d *Manage) act(h Host, key string) ManageDo {
 	name, ok := d.view(h)
 	if !ok {
@@ -223,7 +228,7 @@ func (d *Manage) act(h Host, key string) ManageDo {
 			return ManageDo{Act: ManageFavorites, Name: name, Favorites: favorites}
 		}
 	}
-	if !slices.ContainsFunc(d.actions(h), func(a action) bool { return a.key == key }) {
+	if !slices.ContainsFunc(d.actions(h), func(a action) bool { return a.key == key && !a.off }) {
 		return ManageDo{}
 	}
 	if key == "r" {
@@ -275,7 +280,7 @@ func (d *Manage) Click(h Host, x, y int) ManageDo {
 
 // Keys gives the keys bar's segment while the presets dialog is open, each key where it acts on the view under the
 // keyboard: up and down where there is a line that way, shift with either where a favorite moves that way, space where
-// there is a view, and each of its actions' keys.
+// there is a view, and the keys of its actions but those that do nothing now.
 func (d Manage) Keys(h Host) shell.Segment {
 	s := shell.Segment{Owns: true, Bindings: []shell.Binding{shell.Bind("esc", "close")}}
 	var moves, orders []string
@@ -301,7 +306,9 @@ func (d Manage) Keys(h Host) shell.Segment {
 	}
 	does := map[string]string{"r": "rename", "d": "delete", "s": "share", "c": "copy"}
 	for _, a := range d.actions(h) {
-		s.Bindings = append(s.Bindings, shell.Bind(a.key, does[a.key]))
+		if !a.off {
+			s.Bindings = append(s.Bindings, shell.Bind(a.key, does[a.key]))
+		}
 	}
 	return s
 }

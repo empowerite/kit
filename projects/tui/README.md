@@ -121,9 +121,10 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     neither. The team's presets are checked into the workspace, in `team.go` and kit flow's own: a file each, named by
     its preset's slug, under `.kit/presets/<stage>` at the clone's root, read only where kit trust --check says kit
     trusts the clone and its kit.yml declares a kit version, so a clone without the kit gets no `.kit/`. In the dialog,
-    s, Share with team, moves one of the person's own there, refused where the team has its slug already, and c, Copy
-    to mine, copies one of the team's into the person's, named copy after it; Save, r, and d on one of the team's
-    change its file. Each is a change in the working tree, which kit commit carries. Each stage
+    s, Share with team, moves one of the person's own there, refused where the team has its slug already, and dim, as
+    it does nothing, where the clone keeps no team's; c, Copy to mine, copies one of the team's into the person's,
+    named copy after it; Save, r, and d on one of the team's change its file. Each is a change in the working tree,
+    which kit commit carries. Each stage
     opens on its panel as the person last left it, unsaved changes and all, which the presets file keeps as last, a
     stage's own each time the panel changes: set as the view it was, its name struck through where the panel has changed
     from it, or as the stage's opening view where that one is gone; a preset named on the command line wins. What was

@@ -14,6 +14,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
+	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
 func TestASlugIsTheNameInLowerCaseDashed(t *testing.T) {
@@ -157,10 +158,28 @@ func TestThePresetsDialogSharesAndCopies(t *testing.T) {
 	if do := d.Key(h, tea.KeyPressMsg{Code: 's', Text: "s"}); do.Act != ManageNothing {
 		t.Errorf("s on Ours: %+v", do)
 	}
-	// where the table keeps no team's, there is no Share
+	// where the table keeps no team's, Share with team stands dim, and neither its key nor a click does it
 	h.views.Shares = false
 	d.At = slices.Index(d.Listed(h), "Mine")
 	if keys := (shell.Path{d.Keys(h)}).String(); strings.Contains(keys, "share") {
 		t.Errorf("Mine's keys, no team's: %q", keys)
+	}
+	box, top, left = d.Box(h)
+	dim := style.Off(Team + " " + ShareIt)
+	if got := box[len(box)-2]; dim == Team+" "+ShareIt || !strings.Contains(got, dim) {
+		t.Errorf("Mine's actions, no team's: %q", got)
+	}
+	if do := d.Key(h, tea.KeyPressMsg{Code: 's', Text: "s"}); do.Act != ManageNothing {
+		t.Errorf("s on Mine, no team's: %+v", do)
+	}
+	actions := ansi.Strip(box[len(box)-2])
+	share = left + 2 + ansi.StringWidth(actions[:strings.Index(actions, Team)]) + 2
+	h.views.Shares = true
+	if do := d.Click(h, share, top+len(box)-2); do.Act != ManageShare {
+		t.Errorf("a click on Share with team, there to share: %+v", do)
+	}
+	h.views.Shares = false
+	if do := d.Click(h, share, top+len(box)-2); do.Act != ManageNothing {
+		t.Errorf("a click on a dim Share with team: %+v", do)
 	}
 }
