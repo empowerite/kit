@@ -328,3 +328,147 @@ idea-on() {
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
+
+# waiting <log> starts kit tidy --wait=7 in the background, asking every tenth of a second, its output in <log>, and
+# puts its process in the variable pid. Job control is on while it starts, so it leads a process group of its own,
+# as a terminal's foreground job does. A suite started in the background gives every process an interrupt that is
+# ignored, which no bash can take back: perl takes it back before it execs, as bots.bats does.
+waiting() {
+  set -m
+  KIT_TIDY_WAIT_SECONDS=0.1 perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV or die "exec: $!"' \
+    "${kit_root}/bin/kit" tidy --wait=7 3>&- > "$1" 2>&1 &
+  pid=$!
+  set +m
+}
+
+# ended <pid> waits, thirty seconds at most, for the process to end, and kills its group when it does not.
+ended() {
+  local i
+  for (( i = 0; i < 300; i++ ))
+  do
+    kill -0 "$1" 2>/dev/null || return 0
+    sleep 0.1
+  done
+  kill -KILL -- "-$1" 2>/dev/null
+  return 1
+}
+
+# asked <n> waits, ten seconds at most, until the forge has been asked for the change on 7-fix-the-thing <n> times.
+asked() {
+  local i n
+  for (( i = 0; i < 100; i++ ))
+  do
+    n=$(grep -c '^pr list --head 7-fix-the-thing --state all' "${FAKE_DIR}/gh.calls" 2>/dev/null) || true
+    (( ${n:-0} >= $1 )) && return 0
+    sleep 0.1
+  done
+  return 1
+}
+
+@test "kit tidy --wait asks until the change merges, then sweeps that worktree and its branch alone" {
+  local status=0
+  world
+  worktree-on 7-fix-the-thing && gone 7-fix-the-thing
+  worktree-on 9-other && gone 9-other
+  change-on 7-fix-the-thing OPEN
+  change-on 9-other MERGED
+  waiting "${BATS_TEST_TMPDIR}/wait.log"
+  asked 2
+  [ -d worktrees/7-fix-the-thing ]
+  change-on 7-fix-the-thing MERGED
+  ended "${pid}"
+  wait "${pid}" || status=$?
+  [ "${status}" -eq 0 ]
+  output=$(cat "${BATS_TEST_TMPDIR}/wait.log")
+  [[ "$output" == *"waiting for the change on 7-fix-the-thing to merge"* ]]
+  [[ "$output" == *"the change on 7-fix-the-thing merged; sweeping its worktree"* ]]
+  [[ "$output" == *"removing "*"/worktrees/7-fix-the-thing (7-fix-the-thing, MERGED)"* ]]
+  [[ "$output" == *"deleting 7-fix-the-thing"* ]]
+  [ ! -e worktrees/7-fix-the-thing ]
+  run ! git show-ref --verify --quiet refs/heads/7-fix-the-thing
+  # another worktree, though its change merged, is not this wait's to sweep
+  [ -d worktrees/9-other ]
+  git show-ref --verify --quiet refs/heads/9-other
+  [[ "$output" != *"9-other"* ]]
+}
+
+@test "kit tidy --wait says a change closed unmerged, keeps the worktree, and exits 1" {
+  world
+  worktree-on 7-fix-the-thing && gone 7-fix-the-thing
+  change-on 7-fix-the-thing CLOSED
+  KIT_TIDY_WAIT_SECONDS=0.1 run "${kit_root}/bin/kit" tidy --wait=#7
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the change on 7-fix-the-thing closed unmerged; "*"/worktrees/7-fix-the-thing is kept"* ]]
+  [[ "$output" != *"removing"* ]]
+  [ -d worktrees/7-fix-the-thing ]
+  git show-ref --verify --quiet refs/heads/7-fix-the-thing
+}
+
+@test "kit tidy --wait keeps a merged change's worktree with uncommitted work, as kit tidy does, and exits 1" {
+  world
+  worktree-on 7-fix-the-thing && gone 7-fix-the-thing
+  change-on 7-fix-the-thing MERGED
+  printf 'x\n' > worktrees/7-fix-the-thing/x
+  KIT_TIDY_WAIT_SECONDS=0.1 run "${kit_root}/bin/kit" tidy --wait=7
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"keeping "*"/worktrees/7-fix-the-thing (7-fix-the-thing, it has uncommitted changes)"* ]]
+  [[ "$output" == *"7-fix-the-thing merged, and kit tidy kept "*"/worktrees/7-fix-the-thing; see above"* ]]
+  [ -f worktrees/7-fix-the-thing/x ]
+  git show-ref --verify --quiet refs/heads/7-fix-the-thing
+  # it never forces: git is never asked to remove a worktree by force
+  run ! grep -rq -- 'worktree remove --force\|worktree remove -f' "${kit_root}/modules/bash/git.sh"
+}
+
+@test "ctrl-c stops kit tidy --wait, which removes nothing and exits 130" {
+  local status=0
+  world
+  worktree-on 7-fix-the-thing && gone 7-fix-the-thing
+  change-on 7-fix-the-thing OPEN
+  waiting "${BATS_TEST_TMPDIR}/wait.log"
+  asked 1
+  # ctrl-c signals the terminal's whole foreground process group: the loader, and the verb it runs
+  kill -INT -- "-${pid}"
+  ended "${pid}"
+  wait "${pid}" || status=$?
+  [ "${status}" -eq 130 ]
+  output=$(cat "${BATS_TEST_TMPDIR}/wait.log")
+  [[ "$output" == *"stopped waiting for the change on 7-fix-the-thing; nothing was removed, and "* ]]
+  [[ "$output" == *"/worktrees/7-fix-the-thing is kept"* ]]
+  [ -d worktrees/7-fix-the-thing ]
+  git show-ref --verify --quiet refs/heads/7-fix-the-thing
+}
+
+@test "kit tidy --wait refuses no worktree, the worktree it runs in, a branch with no change, and a bad interval" {
+  world
+  run "${kit_root}/bin/kit" tidy --wait=7
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"no worktree under worktrees/ is on a branch for #7, so there is nothing to wait for;"* ]]
+  [[ "$output" == *"run: cd "*" && kit work #7"* ]]
+  worktree-on 7-fix-the-thing
+  # in the worktree itself, the remedy is to run it from the desk
+  (cd worktrees/7-fix-the-thing && "${kit_root}/bin/kit" tidy --wait=7) > "${BATS_TEST_TMPDIR}/here.log" 2>&1 && false
+  grep -q "run: cd .* && kit tidy --wait=#7 (kit tidy keeps the worktree it runs in, " "${BATS_TEST_TMPDIR}/here.log"
+  fixture pr-none.json <<<'[]'
+  route 'pr list --head 7-fix-the-thing --state all*' pr-none.json
+  KIT_TIDY_WAIT_SECONDS=0.1 run "${kit_root}/bin/kit" tidy --wait=7
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"7-fix-the-thing has no change to wait for; "*"/worktrees/7-fix-the-thing is kept"* ]]
+  KIT_TIDY_WAIT_SECONDS=0 run "${kit_root}/bin/kit" tidy --wait=7
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"KIT_TIDY_WAIT_SECONDS must be a number of seconds above 0, not '0'"* ]]
+  run "${kit_root}/bin/kit" tidy --wait=7 --dry-run
+  [ "$status" -eq 2 ]
+  [ -d worktrees/7-fix-the-thing ]
+}
+
+@test "kit tidy --wait asks again when a read fails, and stops after three failures in a row, keeping the worktree" {
+  world
+  worktree-on 7-fix-the-thing
+  route 'pr list --head 7-fix-the-thing --state all*' '!1'
+  KIT_TIDY_WAIT_SECONDS=0.1 run "${kit_root}/bin/kit" tidy --wait=7
+  [ "$status" -eq 1 ]
+  [ "$(grep -c '^pr list --head 7-fix-the-thing --state all' "${FAKE_DIR}/gh.calls")" -eq 3 ]
+  [[ "$output" == *"the change on 7-fix-the-thing could not be read; asking again in 0.1s"* ]]
+  [[ "$output" == *"read three times in a row, so the wait stops; "*"/worktrees/7-fix-the-thing is kept"* ]]
+  [ -d worktrees/7-fix-the-thing ]
+}

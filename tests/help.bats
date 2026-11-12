@@ -170,7 +170,7 @@ group-has() {
   run "${kit_root}/bin/kit" help tidy
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = "kit tidy - removes merged worktrees and gone branches" ]
-  [[ "$output" == *$'Usage\n  kit tidy [--dry-run]\n\nDescription\n  Removes finished worktrees'* ]]
+  [[ "$output" == *$'Usage\n  kit tidy [--dry-run]\n  kit tidy --wait=<reference>\n\nDescription\n  Removes finished worktrees'* ]]
   [[ "$output" != *"# "* ]]
   [[ "$output" != *"see:"* ]]
 }

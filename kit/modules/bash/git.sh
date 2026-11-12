@@ -279,16 +279,18 @@ git:tidy-worktree() {
 #   - a worktree git will not remove, as a locked one
 #   - the worktree it runs in
 #
-# --dry-run prints what it would do and changes nothing.
+# --dry-run prints what it would do and changes nothing. --only=<path> sweeps the one worktree at <path>, as
+# git:tidy-wait does once its change merges: steps 2 and 4 take that worktree and its branch alone.
 git:tidy() {
-  local dry_run=false flag repo default_branch self_root found=false path branch detached remote remotes
-  local removed_worktrees=0 removed_branches=0 checked_out unpushed counted missing row
+  local dry_run=false flag repo default_branch self_root found=false path branch detached remote remotes only=''
+  local only_branch='' removed_worktrees=0 removed_branches=0 checked_out unpushed counted missing row
   local -a worktrees
   local -A freed=()
   for flag in "$@"
   do
     case "${flag}" in
-      (--dry-run) dry_run=true
+      (--dry-run) dry_run=true ;;
+      (--only=*) only=${flag#--only=}
     esac
   done
   forge:require || return 1
@@ -320,6 +322,11 @@ git:tidy() {
   for row in "${worktrees[@]}"
   do
     IFS=$'\t' read -r path detached branch <<<"${row}"
+    if [[ -n "${only}" ]]
+    then
+      [[ "${path}" == "${only}" ]] || continue
+      only_branch=${branch}
+    fi
     found=true
     if git:tidy-worktree "${path}" "${branch}" "${detached}" "${default_branch}" "${self_root}" "${dry_run}"
     then
@@ -344,6 +351,7 @@ git:tidy() {
   while IFS= read -r branch
   do
     [[ -n "${branch}" ]] || continue
+    [[ -z "${only}" || "${branch}" == "${only_branch}" ]] || continue
     [[ "${branch}" == "${default_branch}" ]] && continue
     if [[ -z "${freed[${branch}]+x}" ]] && grep --quiet --line-regexp --fixed-strings "${branch}" <<<"${checked_out}"
     then
@@ -382,6 +390,107 @@ git:tidy() {
   else
     ok "Tidied ${repo}: removed ${removed_worktrees} worktree(s) and ${removed_branches} branch(es)."
   fi
+}
+
+# git:tidy-wait <reference> watches the change on the branch of the issue's worktree, as kit tidy --wait does, through
+# the forge seam: every KIT_TIDY_WAIT_SECONDS, 30 when unset. When the change merges, it runs kit tidy's sweep for
+# that worktree alone, git:tidy --only; it returns 0 when the worktree is removed, and 1 when the sweep keeps it, as
+# for uncommitted work, saying why. When the change closes unmerged, it says so, keeps the worktree, and returns 1.
+# It refuses, and returns 1: no worktree under worktrees/ on a branch for the issue, or several; the worktree it runs
+# in, which the sweep would keep; a branch with no change to wait for; and a change three reads in a row cannot read.
+# A reference no declared tracker reads, or an interval that is no positive number, is a usage error, 2. ctrl-c,
+# SIGINT, stops the wait, removing nothing, and the command exits 130.
+git:tidy-wait() {
+  local ref key interval=${KIT_TIDY_WAIT_SECONDS:-30} row path detached branch desk state failures=0
+  local -a worktrees paths=() branches=()
+  use tracker
+  ref=$(tracker:normal "$1") || return $?
+  key=$(tracker:key "${ref}") || return $?
+  if [[ ! "${interval}" =~ ^([0-9]+\.?[0-9]*|\.[0-9]+)$ || ! "${interval}" =~ [1-9] ]]
+  then
+    error "KIT_TIDY_WAIT_SECONDS must be a number of seconds above 0, not '${interval}'"
+    return 2
+  fi
+  forge:require || return 1
+  list:read worktrees git:worktrees || return 1
+  for row in "${worktrees[@]}"
+  do
+    IFS=$'\t' read -r path detached branch <<<"${row}"
+    if [[ "${branch}" == "${key}-"* ]]
+    then
+      paths+=("${path}")
+      branches+=("${branch}")
+    fi
+  done
+  if (( ${#paths[@]} == 0 ))
+  then
+    error "no worktree under worktrees/ is on a branch for ${ref}, so there is nothing to wait for;" \
+      "run: kit work ${ref}"
+    return 1
+  elif (( ${#paths[@]} > 1 ))
+  then
+    error "several worktrees are on branches for ${ref}, ${branches[*]}, so kit tidy cannot tell which to wait for"
+    return 1
+  fi
+  path=${paths[0]}
+  branch=${branches[0]}
+  if [[ "${path}" == "$(git rev-parse --show-toplevel)" ]]
+  then
+    desk=$(out:folder "$(git:main-root)")
+    error "run: cd ${desk} && kit tidy --wait=${ref} (kit tidy keeps the worktree it runs in, ${path})"
+    return 1
+  fi
+  # shellcheck disable=SC2064  # the branch and the path are the wait's, fixed when it starts
+  trap "git:tidy-wait-stopped '${branch}' '${path}'" INT
+  section "kit tidy --wait=${ref}: waiting for the change on ${branch} to merge"
+  step "asking every ${interval}s; ctrl-c stops the wait, and removes nothing"
+  while :
+  do
+    if ! state=$(forge:pr-state-for-branch "${branch}")
+    then
+      if (( ++failures >= 3 ))
+      then
+        error "the change on ${branch} could not be read three times in a row, so the wait stops; ${path} is kept"
+        trap - INT
+        return 1
+      fi
+      warn "the change on ${branch} could not be read; asking again in ${interval}s"
+    else
+      failures=0
+      case "${state}" in
+        (MERGED)
+          trap - INT
+          ok "the change on ${branch} merged; sweeping its worktree"
+          git:tidy --only="${path}" || return $?
+          if git worktree list --porcelain | grep --quiet --line-regexp --fixed-strings "worktree ${path}"
+          then
+            error "the change on ${branch} merged, and kit tidy kept ${path}; see above"
+            return 1
+          fi
+          return 0
+          ;;
+        (CLOSED)
+          trap - INT
+          warn "the change on ${branch} closed unmerged; ${path} is kept, and nothing is removed"
+          return 1
+          ;;
+        ('')
+          trap - INT
+          error "${branch} has no change to wait for; ${path} is kept; run: kit work ${ref}"
+          return 1
+          ;;
+      esac
+    fi
+    sleep "${interval}"
+  done
+}
+
+# git:tidy-wait-stopped <branch> <path> is the INT trap of the wait: it says the wait stopped, with nothing removed,
+# and exits 130, as a command stopped by ctrl-c does.
+git:tidy-wait-stopped() {
+  printf '\n' >&2
+  warn "stopped waiting for the change on $1; nothing was removed, and $2 is kept"
+  exit 130
 }
 
 # git:pushes-to <branch> [<path>] prints the remote that <branch>, in the repository at <path>, pushes to. When the

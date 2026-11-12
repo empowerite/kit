@@ -95,6 +95,10 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
    desk, the default branch, and a worktree with uncommitted changes.
 5. `kit gate` runs the gate locally, with the same tools CI uses.
 6. A human merges, and `kit tidy` removes the finished worktrees and the branches whose upstream is gone.
+   `kit tidy --wait=7`, run from the desk once `kit submit` has shared the work, waits for issue 7's pull request,
+   asking the code forge every 30 seconds, or every `KIT_TIDY_WAIT_SECONDS`: when it merges, the same sweep removes
+   that worktree and its branch, keeping either for the same reasons, uncommitted work among them; when it closes
+   unmerged, the worktree is kept. It never forces, and ctrl-c stops the wait with nothing removed.
 
 Sessions that work at once say which paths each will change with leases, so kit can tell them who holds what.
 A lease is a ref every worktree of the clone sees, `refs/kit/leases/<N>`, holding the paths an issue's work claims,

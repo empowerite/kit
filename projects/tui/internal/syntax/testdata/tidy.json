@@ -2,7 +2,8 @@
   "verb": "tidy",
   "purpose": "removes merged worktrees and gone branches",
   "usage": [
-    "kit tidy [--dry-run]"
+    "kit tidy [--dry-run]",
+    "kit tidy --wait=<reference>"
   ],
   "syntax": [
     [
@@ -20,11 +21,22 @@
         ],
         "repeat": false
       }
+    ],
+    [
+      {
+        "kind": "option",
+        "name": "wait",
+        "value": "reference",
+        "repeat": false
+      }
     ]
   ],
   "arguments": {
     "--dry-run": {
       "description": "prints what kit tidy would do, and changes nothing"
+    },
+    "--wait": {
+      "description": "the issue whose pull request to wait for: 7, #7, or AB#4521, as kit work names it"
     }
   }
 }

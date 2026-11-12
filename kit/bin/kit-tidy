@@ -3,6 +3,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # Usage:
 #   kit tidy [--dry-run]
+#   kit tidy --wait=<reference>
 #
 # Removes finished worktrees under worktrees/, and deletes each local branch whose upstream is gone. A worktree is
 # finished when:
@@ -23,11 +24,21 @@
 #   - a worktree git will not remove, as a locked one
 #   - the worktree it runs in
 #
+# kit tidy --wait=<reference> waits for the pull request of the issue's worktree, the one under worktrees/ on the
+# issue's branch, asking the forge every 30 seconds, or every KIT_TIDY_WAIT_SECONDS. When it merges, kit tidy runs
+# the sweep above for that worktree alone: the worktree, then its branch once its upstream is gone, each kept for the
+# same reasons, uncommitted work among them. When it closes unmerged, kit tidy says so and keeps the worktree. It
+# never forces. ctrl-c stops the wait and removes nothing. Run it from another checkout, as the desk: kit tidy keeps
+# the worktree it runs in. After kit submit, an agent can run it in the background.
+#
 # Arguments:
-#   --dry-run   prints what kit tidy would do, and changes nothing
+#   --dry-run              prints what kit tidy would do, and changes nothing
+#   --wait=<reference>     the issue whose pull request to wait for: 7, #7, or AB#4521, as kit work names it
 #
 # Exits 0 when the sweep is done, 1 when the forge or git's list of the worktrees cannot be read, and 2 on a usage
-# error.
+# error, as for a reference no declared tracker reads. With --wait, it exits 0 when the change merged and its worktree
+# is removed; 1 when the change closed unmerged, the sweep kept the worktree, or no worktree, or no change, is the
+# issue's; and 130 when ctrl-c stopped the wait.
 #
 # see: modules/bash/git.sh
 
@@ -38,6 +49,12 @@ kit:enter
 use git
 guard:arguments tidy "$@" || exit $?
 
-git:tidy "$@"
+# shellcheck disable=SC2154  # syntax_options is set by guard:arguments
+if [[ -n "${syntax_options[--wait]+x}" ]]
+then
+  git:tidy-wait "${syntax_options[--wait]}"
+else
+  git:tidy "$@"
+fi
 
 # ----------------------------------------------------------------------------------------------------------------------
