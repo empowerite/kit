@@ -107,7 +107,12 @@ func TestThePersonsPresetsAreKeptInAFileOfTheirOwn(t *testing.T) {
 	if got := PresetsPath(); got != "/somewhere/kit/presets.json" {
 		t.Errorf("under XDG_CONFIG_HOME: %q", got)
 	}
+	// with no XDG_CONFIG_HOME, under ~/.config
 	t.Setenv("XDG_CONFIG_HOME", "")
+	t.Setenv("HOME", "/home/ada")
+	if got := PresetsPath(); got != "/home/ada/.config/kit/presets.json" {
+		t.Errorf("under ~/.config: %q", got)
+	}
 	t.Setenv("HOME", "")
 	if got := PresetsPath(); got != "" {
 		t.Errorf("no home: %q", got)

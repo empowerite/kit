@@ -114,19 +114,12 @@ func faded(msg tea.Msg) bool {
 	return ok
 }
 
-// TestMain waits no time for a notice to fade, as drive runs the wait's command in place, and gives every test an empty
-// config home, so no preset or tab the person last chose at their desk opens a test's screen on it; a test that writes
-// settings still sets its own.
+// TestMain waits no time for a notice to fade, as drive runs the wait's command in place, and gives every test a home
+// of its own, as testkit.Main does, so no preset or tab the person last chose at their desk opens a test's screen on
+// it; a test that writes settings still sets its own.
 func TestMain(m *testing.M) {
 	fades = 0
-	home, err := os.MkdirTemp("", "kittui-flow-config-")
-	if err != nil {
-		panic(err)
-	}
-	os.Setenv("XDG_CONFIG_HOME", home)
-	code := m.Run()
-	os.RemoveAll(home)
-	os.Exit(code)
+	os.Exit(testkit.Main(m))
 }
 
 // refreshAll drops the app's menu down and chooses Refresh All, the item r moves to after Repositories, or at once on

@@ -22,7 +22,7 @@ import (
 // TestMain waits no time for a notice to fade, as drive runs the wait's command in place.
 func TestMain(m *testing.M) {
 	fades = 0
-	os.Exit(m.Run())
+	os.Exit(testkit.Main(m))
 }
 
 // at120 is the design size, and at60 the narrow one.

@@ -48,6 +48,12 @@ func TestRecentRemembersTheNewestFirstOnceAndKeepsThemInTheFile(t *testing.T) {
 	if RecentFile() != "/somewhere/kit/search-history.json" {
 		t.Errorf("under XDG_CONFIG_HOME: %q", RecentFile())
 	}
+	// with no XDG_CONFIG_HOME, under ~/.config, beside the views
+	t.Setenv("XDG_CONFIG_HOME", "")
+	t.Setenv("HOME", "/home/ada")
+	if RecentFile() != "/home/ada/.config/kit/search-history.json" {
+		t.Errorf("under ~/.config: %q", RecentFile())
+	}
 }
 
 // The dropdown opens on the newest, moves, chooses, and closes; it hangs from the Recall glyph against the search's 🔎,
