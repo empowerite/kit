@@ -95,7 +95,7 @@ func PresetKeys(h Host) shell.Segment {
 	// up and esc give the tab bar the keyboard, named as the components spec names it
 	var s shell.Segment
 	s.Bindings = append(s.Bindings, shell.Bind("↑", TabsHint, "up"), shell.Bind("esc", TabsHint))
-	if len(h.Rows()) > 0 {
+	if Enters(h.Rows()) {
 		s.Bindings = append(s.Bindings, shell.Bind("↓", "rows", "down"))
 	}
 	if len(Stops(h)) > 0 {
@@ -109,7 +109,7 @@ func PresetKeys(h Host) shell.Segment {
 // presets says, to move to, left and right close and open the stop's level, and enter opens a name's card.
 func HeadingKeys(h Host, stop Stop, presets bool) shell.Segment {
 	s := shell.Segment{Bindings: []shell.Binding{shell.Bind("↑", TabsHint, "up"), shell.Bind("esc", TabsHint)}}
-	if len(h.Rows()) > 0 {
+	if Enters(h.Rows()) {
 		s.Bindings = append(s.Bindings, shell.Bind("↓", "rows", "down"))
 	}
 	if len(Stops(h)) > 1 || presets {
@@ -169,7 +169,7 @@ func HeadingKey(h Keyboard, k tea.KeyPressMsg) bool {
 	case "esc", "up":
 		h.LeaveControls()
 	case "down":
-		if len(h.Rows()) > 0 {
+		if Enters(h.Rows()) {
 			h.LeaveControls()
 			Enter(h)
 		}
@@ -227,7 +227,7 @@ func PresetKey(h Keyboard, k tea.KeyPressMsg) (PresetDo, bool) {
 	case "esc", "up":
 		h.LeaveControls()
 	case "down":
-		if len(h.Rows()) > 0 {
+		if Enters(h.Rows()) {
 			h.LeaveControls()
 			Enter(h)
 		}

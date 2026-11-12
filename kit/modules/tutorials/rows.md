@@ -27,6 +27,7 @@ order: 14
 - `▸`  closed. `→` or a click opens it, to show all it holds.
 - `▾`  open. `←` or a click closes it.
 - A heading groups the rows under it, and folds the same way.
+- The `▾` on the control line folds every row away, and the pane says so. Its `▸`, or `>`, opens them again.
 
 ## Keys
 

@@ -95,6 +95,45 @@ func clickOn(t *testing.T, s *Sheet, text string, dx int) bool {
 	return s.Click(testkit.Click(x+dx, y))
 }
 
+// Ungrouped, the rows' ▾ on the control line folds every row away and leaves no heading: the pane says the rows are
+// folded and how to open them, and down, from the heading or the preset line, has no row to enter and keeps the
+// control line. Its ▸ and > open them; a search that lets some through, folded, says they are folded, and one that
+// lets none through says so.
+func TestRowsFoldedAwaySaySoAndHowToOpenThem(t *testing.T) {
+	const folded = "    every row is folded away: click ▸ above, or press >"
+	s := sheet("")
+	s.SetPanel(s.Panel().GroupedBy(nil))
+	s.Focus()
+	if !clickOn(t, &s, "▾ 5", 0) || !slices.Contains(screenOf(s), folded) || Enters(s.Rows()) {
+		t.Fatalf("every row folded away:\n%s", strings.Join(screenOf(s), "\n"))
+	}
+	if seg, _ := s.Keys(); strings.Contains(shellLine(seg), "↓") {
+		t.Errorf("the heading's keys over no row: %s", shellLine(seg))
+	}
+	if pressed(&s, "down"); !s.Focused() || s.InRows() {
+		t.Errorf("down from the heading over no row: focused %v, rows %v", s.Focused(), s.InRows())
+	}
+	if pressed(&s, "tab"); s.Stop() != -1 {
+		t.Fatalf("tab to the preset line: stop %d", s.Stop())
+	}
+	if seg, _ := s.Keys(); strings.Contains(shellLine(seg), "↓") {
+		t.Errorf("the preset line's keys over no row: %s", shellLine(seg))
+	}
+	if pressed(&s, "down"); !s.Focused() || s.InRows() {
+		t.Errorf("down from the preset line over no row: focused %v, rows %v", s.Focused(), s.InRows())
+	}
+	if pressed(&s, ">"); len(s.Rows()) != 6 || slices.Contains(screenOf(s), folded) {
+		t.Errorf("> over the rows folded away:\n%s", strings.Join(screenOf(s), "\n"))
+	}
+	clickOn(t, &s, "▾ 5", 0)
+	if s.Search("pea"); !slices.Contains(screenOf(s), folded) {
+		t.Errorf("a search that lets a row through, folded:\n%s", strings.Join(screenOf(s), "\n"))
+	}
+	if s.Search("nothing"); !slices.Contains(screenOf(s), "    no row matches the search") {
+		t.Errorf("a search that lets none through, folded:\n%s", strings.Join(screenOf(s), "\n"))
+	}
+}
+
 func TestASheetDrawsItsTableUnderTheControlLine(t *testing.T) {
 	s := sheet("")
 	got := strings.Join(screenOf(s), "\n")

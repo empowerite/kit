@@ -415,3 +415,18 @@ func First(rows []grid.Row) int {
 	}
 	return 0
 }
+
+// Enters says whether a table has a row the cursor can stand on, past the heading over the groups: none while every
+// row folds away under its ▸.
+func Enters(rows []grid.Row) bool { return len(rows) > First(rows) }
+
+// FoldedAway says whether every row of a table folds away under the heading over the groups, its ▸ closed on the
+// control line: the heading stands alone, with rows under it. A search or a filter that lets no row through leaves
+// no heading.
+func FoldedAway(rows []grid.Row) bool {
+	return len(rows) == 1 && grid.OverGroups(rows[0]) && len(rows[0].Folded) > 0
+}
+
+// Unfolds says how to open rows folded away under the heading over the groups: a plain click on its ▸, which every
+// terminal sends, or >, which shows a level more of the whole table.
+const Unfolds = "click ▸ above, or press >"

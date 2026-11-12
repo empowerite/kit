@@ -339,8 +339,9 @@ func (m Model) pane() []string {
 }
 
 // allLines gives a stage's lines: loading, kit's line when it failed, the dim line of an empty stage, then, dim, each
-// feature the forge has off here, where kit said so, or the dim line of one whose panel lets no row through, or its
-// rows as the grid draws them, the one under the cursor on a band while the rows have the keyboard.
+// feature the forge has off here, where kit said so, the dim line of one whose rows all fold away, and how to open
+// them, or of one whose panel lets no row through, or its rows as the grid draws them, the one under the cursor on a
+// band while the rows have the keyboard.
 func (m Model) allLines(i int) []table.Line {
 	s := m.stages[i]
 	switch {
@@ -358,6 +359,8 @@ func (m Model) allLines(i int) []table.Line {
 			out = append(out, table.Line{Row: -1, Text: lead + style.Off(m.offText(f))})
 		}
 		return out
+	case table.FoldedAway(rows):
+		return []table.Line{{Row: -1, Text: lead + style.Off("every row is folded away: "+table.Unfolds)}}
 	case len(rows) > 0:
 	case p.Query != "" || p.Filtering():
 		return []table.Line{{Row: -1, Text: lead + style.Off("no row matches the panel")}}

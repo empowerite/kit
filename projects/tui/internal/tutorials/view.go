@@ -248,7 +248,8 @@ func (m Model) shownUntil(bands []band, from int) int {
 }
 
 // pane gives the pane's lines, as many as it has: reading… until kit answers, kit's refusal, that there is no
-// tutorial, that the search or the filter lets none through, or the cards.
+// tutorial, that every card folds away under the control line's ▸, and how to open them, that the search or the
+// filter lets none through, or the cards.
 func (m Model) pane() []string {
 	h := m.paneHeight()
 	var out []string
@@ -261,6 +262,8 @@ func (m Model) pane() []string {
 		out = []string{"", lead + style.Refusal(Failed+" "+m.refusal)}
 	case len(m.catalog.Tutorials) == 0:
 		out = []string{"", lead + style.Off("No tutorials yet")}
+	case table.FoldedAway(m.sheet.Rows()):
+		out = []string{"", lead + style.Off("Every tutorial is folded away: "+table.Unfolds)}
 	case len(bands) == 0:
 		out = []string{"", lead + style.Off("No tutorial matches the search or the filter")}
 	default:

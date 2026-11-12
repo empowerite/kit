@@ -293,3 +293,33 @@ func TestBracketsMoveBetweenTheGroupsHeadings(t *testing.T) {
 		t.Errorf("the key hints in grouped rows: %q", last)
 	}
 }
+
+// Ungrouped, the rows' ▾ on the control line folds every row away and leaves no heading: the stage says the rows are
+// folded and how to open them, not that it is empty, and its ▸, a plain click, opens them, as > does.
+func TestRowsFoldedAwaySaySoAndHowToOpenThem(t *testing.T) {
+	const folded = "    every row is folded away: click ▸ above, or press >"
+	m := loaded(t, options())
+	unfold(&m)
+	click := func(m Model) Model {
+		for y, l := range lines(m) {
+			if x := strings.Index(l, "▾ 7"); x >= 0 {
+				return drive(m, testkit.Click(ansi.StringWidth(l[:x]), y))
+			}
+			if x := strings.Index(l, "▸ 7"); x >= 0 {
+				return drive(m, testkit.Click(ansi.StringWidth(l[:x]), y))
+			}
+		}
+		t.Fatalf("no rows' fold:\n%s", view(m))
+		return m
+	}
+	if m = click(m); !slices.Contains(lines(m), folded) || table.Enters(m.rows(m.stage)) {
+		t.Fatalf("every row folded away:\n%s", view(m))
+	}
+	if m = click(m); len(m.rows(m.stage)) != 8 || slices.Contains(lines(m), folded) {
+		t.Errorf("a click on the rows' ▸: %d rows\n%s", len(m.rows(m.stage)), view(m))
+	}
+	m = click(m)
+	if m = drive(m, testkit.Typed(">")...); len(m.rows(m.stage)) != 8 {
+		t.Errorf("> over the rows folded away: %d rows\n%s", len(m.rows(m.stage)), view(m))
+	}
+}

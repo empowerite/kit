@@ -71,6 +71,40 @@ func TestAClickOnAHeadingOpensNothingAndTheControlLineFolds(t *testing.T) {
 	}
 }
 
+// Ungrouped, the rows' ▾ on the control line folds every card away and leaves no heading: the pane says the cards are
+// folded and how to open them, not that none matches, and down has no card to enter. Its ▸, a plain click, opens
+// them, and so does >; a search that lets some through, folded, says they are folded, and one that lets none through
+// says so.
+func TestCardsFoldedAwaySaySoAndHowToOpenThem(t *testing.T) {
+	const folded = "Every tutorial is folded away: click ▸ above, or press >"
+	m, _ := withEight(t, at120)
+	x, y := cell(m, "▾ 8", controlTop)
+	if m = drive(m, testkit.Click(x, y)); !strings.Contains(view(m), folded) ||
+		strings.Contains(view(m), "No tutorial matches") || !m.controlled() {
+		t.Fatalf("every card folded away:\n%s", view(m))
+	}
+	if keys := m.keys().String(); strings.Contains(keys, "↓") {
+		t.Errorf("the control line's keys over no card: %q", keys)
+	}
+	if m = drive(m, down); !m.controlled() {
+		t.Errorf("down over no card left the control line:\n%s", view(m))
+	}
+	if m = drive(m, testkit.Click(x, y)); len(m.cards()) != 8 || strings.Contains(view(m), folded) {
+		t.Errorf("a click on the rows' ▸: %d cards\n%s", len(m.cards()), view(m))
+	}
+	m = drive(m, testkit.Click(x, y))
+	if m = drive(m, testkit.Typed(">")...); len(m.cards()) != 8 || !m.controlled() {
+		t.Errorf("> over the cards folded away: %d cards\n%s", len(m.cards()), view(m))
+	}
+	m = drive(m, testkit.Click(x, y), press('/'))
+	if m = drive(m, testkit.Typed("Tutorial 3")...); !strings.Contains(view(m), folded) {
+		t.Errorf("a search that lets a card through, folded:\n%s", view(m))
+	}
+	if m = drive(m, testkit.Typed("x")...); !strings.Contains(view(m), "No tutorial matches the search or the filter") {
+		t.Errorf("a search that lets none through, folded:\n%s", view(m))
+	}
+}
+
 // Moving up onto a group's first row of cards scrolls its heading back over it, where both fit.
 func TestUpOntoAGroupsFirstRowShowsItsHeading(t *testing.T) {
 	m, _ := byAudience(t, tea.WindowSizeMsg{Width: 120, Height: 20})

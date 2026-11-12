@@ -330,11 +330,13 @@ func (s *Sheet) Selector() (from, until int) {
 }
 
 // Lines gives the lines the pane draws, each its row's: the rows as a Drawing draws them, the one under the cursor on
-// a band while the rows have the keyboard; or a dim line where no row shows, saying whether the search let none
-// through.
+// a band while the rows have the keyboard; or a dim line where no row shows, saying whether they fold away, and how
+// to open them, or the search let none through.
 func (s *Sheet) Lines() []Line {
 	rows := s.Rows()
 	switch p := s.filter(); {
+	case FoldedAway(rows):
+		return []Line{{Row: -1, Text: Lead + style.Off("every row is folded away: "+Unfolds)}}
 	case len(rows) > 0:
 	case p.Query != "" || p.Filtering():
 		return []Line{{Row: -1, Text: Lead + style.Off("no row matches the search")}}
