@@ -170,13 +170,13 @@ kit:trust-digest() {
   line=$(
     LC_ALL=C
     local file writable ignore
-    local -a found=()
+    local -a trust_digest_files=()
     cd "$1" 2>/dev/null || exit 1
     for file in kit.yml .kit/manifest .kit/packages/*/files/repo/.kit/rules/*.md \
       .kit/packages/*/files/repo/.kit/styles/*.md .kit/packages/*/*/files/repo/.kit/rules/*.md \
       .kit/packages/*/*/files/repo/.kit/styles/*.md
     do
-      [[ ! -f "${file}" ]] || found+=("${file}")
+      [[ ! -f "${file}" ]] || trust_digest_files+=("${file}")
     done
     # a directory that is not there, as .kit/styles/ in a clone with no style, lists nothing, and find says so
     writable=$'\n'$(find .kit/.gitignore .kit/rules .kit/styles -maxdepth 1 \( -name '*.md' -o -name .gitignore \) \
@@ -195,9 +195,9 @@ kit:trust-digest() {
       else
         [[ "${writable}" == *$'\n'${file}$'\n'* ]] || continue
       fi
-      found+=("${file}")
+      trust_digest_files+=("${file}")
     done
-    { (( ${#found[@]} == 0 )) || awk "${kit_trust_text}" "${found[@]}"; } \
+    { (( ${#trust_digest_files[@]} == 0 )) || awk "${kit_trust_text}" "${trust_digest_files[@]}"; } \
       | if hash sha256sum 2>/dev/null; then sha256sum; else shasum -a 256; fi
   ) || return 1
   printf '%s\n' "${line%% *}"
