@@ -47,7 +47,7 @@ or outside a repository's working tree with no workspace.
 | --- | --- | --- | --- |
 | `services` | capability kit fills | `capability, service, provider, chosen, ready` | a hash of `kit.yml`, the git configuration, `.kit/policy`, and what `toolchains` hashes |
 | `toolchains` | toolchain and role, as `kit toolchains --json` lists them | `provider, role, usable, active, chosen, fills` | a hash of the pin files and kit's choice |
-| `tools` | tool pinned, as `kit tools --json` lists them | `name, pinned, installed, from` | as `toolchains` |
+| `tools` | tool pinned, as `kit tools --json` lists them, in each worktree | `name, pinned, installed, from, worktree, branch` | as `toolchains` |
 | `settings` | key the settings schema names | `setting, value, from` | a hash of `kit.yml` |
 
 - `services` holds `hosting`, `review`, `ci`, and `releases`, the primary's forge; `tracking <prefix>`, each tracker
@@ -57,9 +57,10 @@ or outside a repository's working tree with no workspace.
   is kit's module that reaches it, as `forge/github`. `chosen` is `set` where `kit.yml` or a recorded choice names
   it, else `inferred`. `ready` is whether its tool is there and signed in: a forge whose tool is not signed in is not
   ready, and the stage still draws.
-- `toolchains` keys each row by provider and role, `mise project`, and `tools` by where the tool is pinned and its
-  name. Where `kit tools` refuses, as with several toolchains usable and none chosen, `tools` is its line and the verb
-  exits 1; `toolchains` still draws.
+- `toolchains` keys each row by provider and role, `mise project`, and `tools` by its worktree, where the tool is pinned,
+  and its name: each checkout of the clone is read, and says its folder and its branch, `null` where detached. Where
+  `kit tools` refuses here, as with several toolchains usable and none chosen, `tools` is its line and the verb exits 1;
+  `toolchains` still draws. A linked worktree that refuses is `{worktree, error}` under `errors`, and the rest draw.
 - `settings` lists every key of `.kit/kit.schema.json`, in its order: the value `kit.yml` sets, `from: set`, else the
   schema's default, `null` where it names none, `from: default`.
 - The toolchains' mark hashes every file a toolchain or a dependency provider pins from, and the files that keep

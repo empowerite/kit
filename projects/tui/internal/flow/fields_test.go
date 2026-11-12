@@ -351,8 +351,10 @@ func TestEveryStageGroupsItsOwnViewsBySourceOrganizationAndRepository(t *testing
 		for _, pr := range s.Presets {
 			// issues' By… presets group by their field within the repository, at depth 4
 			by, _ := strings.CutPrefix(strings.ToLower(pr.Name), "by ")
+			// platform's tools are a checkout's, so they group by the worktree and its branch too
 			if got := pr.Panel(s.Fields, grid.Panel{}).Groups(); !slices.Equal(got, want) &&
-				!(name == issuesStage && slices.Equal(got, append(slices.Clone(want), by))) {
+				!(name == issuesStage && slices.Equal(got, append(slices.Clone(want), by))) &&
+				!(name == "platform/tools" && slices.Equal(got, append(slices.Clone(want), "worktree", "branch"))) {
 				t.Errorf("%s %s groups by %q", name, pr.Name, got)
 			}
 		}

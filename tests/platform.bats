@@ -97,6 +97,23 @@ signed-in() {
     -eq "$(jq '.properties | length' "${kit_root}/packages/kit/files/repo/.kit/kit.schema.json")" ]
 }
 
+@test "tools is read in each worktree of the clone, each row saying the worktree and its branch" {
+  repo-at "${BATS_TEST_TMPDIR}/r" github.com/o/r
+  cd "${BATS_TEST_TMPDIR}/r"
+  printf '[tools]\njq = "1.8.2"\n' > mise.toml
+  git add mise.toml
+  git commit --quiet -m pin
+  git worktree add --quiet -b topic "${BATS_TEST_TMPDIR}/r/worktrees/topic"
+  git worktree add --quiet --detach "${BATS_TEST_TMPDIR}/r/worktrees/loose"
+  run --separate-stderr "${kit_root}/bin/kit" platform tools --json
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '[.rows[] | select(.name == "jq") | [.worktree, .branch]] | sort' <<<"$output")" \
+    = '[["loose",null],["r","main"],["topic","topic"]]' ]
+  [ "$(jq -c '[.rows[] | .key | split(" ")[0] | split("/") | last] | unique' <<<"$output")" \
+    = '["loose","r","topic"]' ]
+  [ "$(jq -c .errors <<<"$output")" = '[]' ]
+}
+
 @test "tools that kit tools refuses is its line and exit 1, and toolchains still draws" {
   repo-at "${BATS_TEST_TMPDIR}/r" github.com/o/r
   cd "${BATS_TEST_TMPDIR}/r"

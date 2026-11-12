@@ -37,8 +37,10 @@
 #                       none. A forge or a policy engine kit.yml names wrong is {error}, its line, under errors
 #   toolchains          {provider, role, usable, active, chosen, fills}, as kit toolchains --json prints them, keyed by
 #                       provider and role: mise project
-#   tools               {name, pinned, installed, from}, as kit tools --json prints them, keyed by from and name;
-#                       ambient, {name, path, from}
+#   tools               {name, pinned, installed, from}, as kit tools --json prints them, read in each checkout of the
+#                       clone, the one here and each linked worktree, and each saying its worktree, the checkout's
+#                       folder, and its branch, null in a detached one; keyed by the checkout, from, and name;
+#                       ambient, {name, path, from}. A checkout kit tools refuses is {worktree, error} under errors
 #   settings            {setting, value, from}: value is kit.yml's, or the schema's default, null where it names none;
 #                       from is set or default
 #

@@ -149,9 +149,60 @@ apps/platform:row() {
 # apps/platform:toolchains prints the toolchains document, a row per line kit toolchains --json prints.
 apps/platform:toolchains() { apps/platform:listed toolchains toolchain; }
 
-# apps/platform:tools prints the tools document, a row per line kit tools --json prints. It returns 1, after its line,
-# where kit tools refuses, as with no toolchain chosen among several.
-apps/platform:tools() { apps/platform:listed tools tool; }
+# apps/platform:checkouts prints each checkout of the clone here as "<path>\t<branch>" a line: the one here first, then
+# each other one git lists while its directory is there. The branch is empty in a detached checkout.
+apps/platform:checkouts() {
+  local here line path='' branch=''
+  local -a lines
+  here=$(pwd -P)
+  printf '%s\t%s\n' "${here}" "$(git branch --show-current)"
+  list:read lines git worktree list --porcelain || return 1
+  # a blank line ends each worktree's record, the last one's too, which list:read drops
+  for line in "${lines[@]}" ''
+  do
+    case "${line}" in
+      ('worktree '*) path=${line#worktree } branch='' ;;
+      ('branch refs/heads/'*) branch=${line#branch refs/heads/} ;;
+      ('')
+        [[ -z "${path}" || ! -d "${path}" || "$(cd "${path}" && pwd -P)" == "${here}" ]] \
+          || printf '%s\t%s\n' "${path}" "${branch}"
+        path='' branch=''
+    esac
+  done
+}
+
+# apps/platform:tools prints the tools document: a row per line kit tools --json prints in each checkout of the clone,
+# each saying its worktree, the checkout's folder, and the branch it is on, null in a detached one, as what is installed
+# and pinned is a checkout's. It returns 1, after its line, where kit tools refuses here, as with no toolchain chosen
+# among several; another checkout that refuses is {worktree, error}, its line, under errors, and the rest still draw.
+apps/platform:tools() {
+  local path branch out said line here checkout status=0
+  local -a docs=() checkouts
+  here=$(pwd -P)
+  file:temp said platform || return 1
+  list:read checkouts apps/platform:checkouts || return 1
+  for checkout in "${checkouts[@]}"
+  do
+    IFS=$'\t' read -r path branch <<<"${checkout}"
+    if [[ "${path}" == "${here}" ]]
+    then
+      out=$(run kit tools --json) || return 1
+    # kit_serve_hydrated, as under kit serve, keeps kit tools from placing this release's .kit/ in the checkout
+    elif ! out=$(cd "${path}" && export kit_serve_hydrated=1 && run kit tools --json 2>"${said}")
+    then
+      status=1
+      line=$(apps/platform:said "${said}")
+      docs+=("$(jq --null-input --compact-output --arg worktree "${path##*/}" --arg error "${line}" \
+        '{rows: [], errors: [{worktree: $worktree, error: $error}]}')")
+      continue
+    fi
+    docs+=("$(jq --slurp --compact-output -L "${kit_jq}" --arg path "${path}" --arg branch "${branch}" '
+      import "apps" as apps;
+      {rows: map(apps::checked($path; $branch)), errors: []}' <<<"${out}")")
+  done
+  apps:merge "${docs[@]}" || return 1
+  return "${status}"
+}
 
 # apps/platform:listed <verb> <def> prints the document of kit <verb> --json, each object it prints through apps::<def>.
 # It returns 1 when the verb fails, its line said.
