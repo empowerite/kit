@@ -245,9 +245,6 @@ func TestATabWhoseFeatureTheProviderLacksSaysSo(t *testing.T) {
 	}
 }
 
-// A document kit capped, limited at N, makes its tab's count N+: kit read N of more.
-func TestACappedTabCountsWithAPlus(t *testing.T) {
-	m := appOf(t, shell.Delivery)
 // A check's start is drawn by its day and minute here, so two runs of a day are told apart, and by its day alone where
 // the pane has not the room; its took stays right-aligned under its name, clear of the started column.
 func TestACheckStartsAtItsMinute(t *testing.T) {
@@ -267,6 +264,9 @@ func TestACheckStartsAtItsMinute(t *testing.T) {
 	}
 }
 
+// A document kit capped, limited at N, makes its tab's count N+: kit read N of more.
+func TestACappedTabCountsWithAPlus(t *testing.T) {
+	m := appOf(t, shell.Delivery)
 	rows := make([]map[string]any, 50)
 	for k := range rows {
 		rows[k] = map[string]any{"key": k + 1, "id": k + 1, "environment": "production", "ref": "main",
@@ -580,12 +580,12 @@ func TestADateIsItsDayAndASizeItsUnit(t *testing.T) {
 	if got := dates(table.Field{}, table.One("1798675200")); !slices.Equal(got, []string{day}) {
 		t.Errorf("the date: %q", got)
 	}
-	for raw, want := range map[string]string{"512": "512 B", "2048": "2.0 KiB", "1572864": "1.5 MiB",
-		"3221225472": "3.0 GiB", "1099511627776": "1.0 TiB", "2251799813685248": "2048.0 TiB"} {
-		if got := sizes(table.Field{}, table.One(raw)); !slices.Equal(got, []string{want}) {
 	if got, want := moments(table.Field{}, table.One("1798675200")), time.Unix(1798675200, 0).Format("2006-01-02 15:04"); !slices.Equal(got, []string{want}) || len(want) != 16 {
 		t.Errorf("the moment: %q, want %q", got, want)
 	}
+	for raw, want := range map[string]string{"512": "512 B", "2048": "2.0 KiB", "1572864": "1.5 MiB",
+		"3221225472": "3.0 GiB", "1099511627776": "1.0 TiB", "2251799813685248": "2048.0 TiB"} {
+		if got := sizes(table.Field{}, table.One(raw)); !slices.Equal(got, []string{want}) {
 			t.Errorf("%s bytes: %q", raw, got)
 		}
 	}
