@@ -156,17 +156,25 @@ runs with `kit_depth` one more than the caller's, so a trace can nest it under t
 
 ### Writing a verb
 
-A verb is an executable `kit-<verb>` in `bin/`. Its header is the only place its help is written, and `kit help`
-reads it:
+A verb is an executable `kit-<verb>` in `bin/`. Its header is the only place its help is written, and it has the
+shape of the verb template, `.kit/templates/bash/verb`, which the bash rule holds `kit/bin/kit-*` to: `kit lint`
+refuses a header that leaves it, and `kit new verb <name> --purpose=<text> --group=<group>` makes one in it. `kit help`
+reads the header through the template, every verb in one pass, and refuses one that leaves it, naming the template
+line:
 
 ```bash
 #!/usr/bin/env bash
 # kit-<verb> - <purpose> (kit verb: <group>)
 # ---…
-#
-# kit <verb> [<argument>…]
+# Usage:
+#   kit <verb> [<argument>…]
 #
 # <description>
+#
+# Arguments:
+#   <argument>    what it does
+#
+# Exits 0 when it did it, 1 when it could not, and 2 on a usage error.
 #
 # see: modules/bash/<module>.sh
 
@@ -184,22 +192,25 @@ use <module>
   page names its group and the verbs beside it.
 - `kit usage <verb>` prints the usage lines alone, `kit help <verb>` the whole page, and `kit syntax <verb>` the
   grammar as JSON.
-- A usage line is a paragraph of one line that starts with `kit <verb>`. A verb can have several; a verb with none
-  takes no arguments. After `kit <verb>`, every word is one of:
+- The `Usage:` block holds a usage line for each way to call the verb, each indented three spaces after the `#`. It
+  holds at least one: a verb that takes no arguments has `kit <verb>`. After `kit <verb>`, every word is one of:
   - a flag, `--name`
   - an option, `--name=<value>` or `--name <value>`
   - an operand, `<name>`
   - a lowercase literal
 
   They are grouped by `[ ]`, `( )`, and `|`, with `…` after what repeats. `kit syntax --check` refuses any other
-  word, one with a dot or a capital, or `<a|b>`, naming the verb, the line, and the word. So a one-line sentence
-  that starts with `kit <verb>` is never read as grammar.
-- Every argument a usage line names has a line in the header's argument block: two spaces, the argument as the usage
-  writes it, two or more spaces, and a fragment that says what it does, continued on lines indented further.
-  `kit syntax <verb>` prints the usage and the block as JSON. `kit syntax --check`, which the gate and the
-  pre-commit hook run, reports an argument that has no line.
-- Every other paragraph is the description, which `kit help <verb>` prints, reflowed to 80 columns. `see:` lines
-  point into the source, and are left out.
+  word, one with a dot or a capital, or `<a|b>`, naming the verb, the line, and the word.
+- The description is every paragraph between the `Usage:` block and the `Arguments:` label, which `kit help <verb>`
+  prints, reflowed to 80 columns. An indented list or a legend region stays in it. Its first line is not indented,
+  since an indented line there would read as one more usage line.
+- Every argument a usage line names has a line in the `Arguments:` block, indented three spaces after the `#`: the
+  argument as the usage writes it, two or more spaces, and a fragment that says what it does, continued on lines
+  indented further. A verb that takes none has the label over an empty block. `kit syntax <verb>` prints the usage
+  and the block as JSON. `kit syntax --check`, which the gate and the pre-commit hook run, reports an argument that
+  has no line.
+- `Exits` says what each exit status means, and `see:` points into the source; both are left out of the usage, and
+  `see:` out of the help page too.
 - A verb exits:
   - 0 when it did what was asked
   - 1 when it could not, or when what it checks does not hold

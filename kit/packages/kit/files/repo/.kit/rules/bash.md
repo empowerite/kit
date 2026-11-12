@@ -16,7 +16,7 @@ templates:
   - variant: tracker-provider
     path: "**/tracker/*.sh"
   - variant: verb
-    path: "**/bin/kit-*"
+    path: "kit/bin/kit-*"
     executable: true
 ---
 # Bash
@@ -56,7 +56,7 @@ names, then the line `# The seam's calls end here; what follows is this provider
 own. The seam's template, `.kit/templates/bash/<seam>-provider`, holds that shape, so `kit lint` refuses a provider
 that lacks a call, renames one, or puts one of its own among them. `kit new provider <seam> <name>` makes one.
 
-A verb, `bin/kit-<verb>` in the kit's own source, has the header kit help, kit syntax, and kit serve read. The verb
+A verb, `kit/bin/kit-<verb>` in the kit's own source, has the header kit help, kit syntax, and kit serve read. The verb
 template, `.kit/templates/bash/verb`, holds it: the banner with the verb's purpose and group, a `Usage:` block, the
 description, an `Arguments:` block, `Exits`, and `see:`. So `kit lint` refuses a header that leaves that shape, and
 `kit new verb <name>` makes one in it.

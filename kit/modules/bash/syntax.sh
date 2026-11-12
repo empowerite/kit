@@ -18,7 +18,7 @@
 #
 # A name is lowercase, [a-z][a-z0-9-]*, so a word is --name, --name=<value>, --<hole>=<value>, <name>, or a lowercase
 # literal. Any other word, one with a dot or a capital, or <a|b>, does not parse, and the error names the word and its
-# line: a one-line paragraph that starts with kit <verb> but reads as prose is refused, never read as grammar.
+# line: a line of the Usage: block that reads as prose is refused, never read as grammar.
 #
 # The syntax is JSON: an array of alternatives, each a sequence of nodes. A node's kind is literal, operand, flag,
 # option, or group; every node carries repeat, a group carries optional and its alternatives, an option its value
@@ -50,6 +50,8 @@ declare -Ag syntax_options=() syntax_values=()
 syntax:spec() {
   local verb=$1 syntax arguments extends=false
   local -a usage
+  # the header is read here, so a refusal stops this call, and the readers in subshells below find it read
+  help:values "${verb}" || return 1
   readarray -t usage < <(help:usage "${verb}")
   if ! syntax=$(syntax:parse "${verb}" "${usage[@]}")
   then
@@ -317,6 +319,7 @@ syntax:match() {
   shift
   syntax_refusal='' syntax_missing=''
   syntax_literals=() syntax_operands=() syntax_options=() syntax_values=()
+  help:values "${verb}" || return 1
   readarray -t usage < <(help:usage "${verb}")
   if ! syntax=$(syntax:parse "${verb}" "${usage[@]}")
   then
@@ -482,6 +485,7 @@ syntax:judge() {
   local verb=$1 syntax
   local -a usage
   shift
+  help:values "${verb}" || return 1
   readarray -t usage < <(help:usage "${verb}")
   syntax=$(syntax:parse "${verb}" "${usage[@]}") || return 1
   jq --null-input -L "${kit_jq}" --arg verb "${verb}" --argjson syntax "${syntax}" \

@@ -11,9 +11,9 @@
 #                          the lines without the prefix; §name=default gives the default's lines
 #
 # A block ends where its indentation ends, or at one of the template's own lines below, so a hole may follow it with
-# no text between. Every other hole ends where
-# the literal after it starts, so a hole's text never holds one of the template's own whole literal lines that has a
-# letter or digit, such as a section's label: a label inside a section would move where the section ends.
+# no text between. Every other hole ends where the literal after it starts, so a hole's text never holds one of the
+# template's own whole literal lines that has a letter or digit, such as a section's label: a label inside a section
+# would move where the section ends.
 #
 # A name is [a-z_]+, or a dotted path in kit.yml, such as answers.ci_runner, whose value fills it. path,
 # name, and stem, and a dotted name the settings set, are bound before anything else, so they are literal text. A name that appears once takes a string, and one that appears more than once takes an array, one element per
@@ -156,7 +156,7 @@ def match($text):
         else ($text[.pos:] | lines_of | block($p.prefix; $reserved)) as $lines
           | ($lines | add // "") as $raw
           | .values |= put($arrays; $p.hole; $lines | unprefix($p.prefix))
-          | .raws += [{line: $p.line, text: $raw}]
+          | .raws += [{line: $p.line, text: $raw, from: .pos}]
           | .pos += ($raw | length) end
       elif $p.hole != null then .hole = $p
       elif .hole == null then
@@ -171,23 +171,39 @@ def match($text):
         | if $at == null or (fits($h.kind; $text[$from:$at]) | not) then .ok = false
             # A literal that opens with the newline ending the line before is reported by the line its text is on.
             | .line = $p.line + (if ($p.literal | startswith("\n")) and ($p.literal | length) > 1 then 1 else 0 end)
+            # After a hole within a line, the literal's first line ends where the file's line does, so the report is
+            # the first of the literal's lines the file leaves, as the banner's line holds its first word.
+            | if $at == null and $h.kind == "inline" then
+                ($p.literal | lines_of) as $want
+                | ($want[0] | rtrimstr("\n")) as $first
+                | ($text[$from:] | index("\n") // length) as $eol
+                | (if $first == "" then null else $text[$from:$from + $eol] | rindex($first) end) as $r
+                | if $r == null then .
+                  else ($text[$from + $r:] | lines_of) as $have
+                    | .line = $p.line + (first(range(0; $want | length) as $k | select($have[$k] != $want[$k]) | $k)
+                        // 0)
+                  end
+              else . end
           else .values |= put($arrays; $h.hole; $text[$from:$at])
-            | .raws += (if $h.region then [] else [{line: $h.line, text: $text[$from:$at]}] end)
+            | .raws += (if $h.region then [] else [{line: $h.line, text: $text[$from:$at], from: $from}] end)
             | .pos = $at + ($p.literal | length) | .hole = null end
       end)
   | if .ok and .hole != null then
       .hole as $h | $text[.pos:] as $rest
       | if fits($h.kind; $rest) or ($h.kind == "lines" and ($rest | contains("\n") | not)) then
           .values |= put($arrays; $h.hole; $rest)
-          | .raws += (if $h.region then [] else [{line: $h.line, text: $rest}] end)
+          | .raws += (if $h.region then [] else [{line: $h.line, text: $rest, from: .pos}] end)
           | .pos = ($text | length) | .hole = null
         else .ok = false | .line = $h.line end
     else . end
   | if (.ok | not) then {ok: false, line}
     elif .pos != ($text | length) then {ok: false, line: null}
-    else (first(.raws[] | select(.text | lines_of | any(.[]; rtrimstr("\n") | IN($reserved[]))) | .line) // null)
+    # a clash names the hole's template line, the file's line that holds the reserved line, and that line
+    else (first(.raws[] as $r | ($r.text | lines_of) as $lines | range(0; $lines | length) as $k
+          | ($lines[$k] | rtrimstr("\n")) as $line | select($line | IN($reserved[]))
+          | {line: $r.line, at: (($text[0:$r.from] | [match("\n"; "g")] | length) + 1 + $k), reserved: $line}) // null)
       as $clash
-      | if $clash != null then {ok: false, line: $clash} else {ok: true, values} end
+      | if $clash != null then {ok: false} + $clash else {ok: true, values} end
     end;
 
 # render($values) reads a template's parts and gives the file they make. A hole takes its value, the element for its
@@ -230,7 +246,8 @@ def holes:
 # text, $files is [{path, text, variants}], and $settings the values kit.yml gives dotted names, bound with
 # path, name, and stem. It gives one {path, variants, line} per file that matches none of the variants
 # its path allows: line is the furthest template line any of them reached, and variant the one that reached it, both
-# null when every one ran to its end.
+# null when every one ran to its end; at and reserved, when a hole there holds one of the template's own lines, the
+# file's line that holds it and that line.
 def check($templates; $files; $settings):
   ($templates | map_values(parts)) as $parsed
   | $files[] | . as $f
@@ -240,7 +257,8 @@ def check($templates; $files; $settings):
   | [$f.variants[] as $v | $parsed[$v] | bind_parts($bound) | match($f.text) | .variant = $v] as $results
   | select(any($results[]; .ok) | not)
   | ([$results[] | select(.line != null)] | max_by(.line)) as $furthest
-  | {path: $f.path, variants: $f.variants, line: $furthest.line, variant: $furthest.variant};
+  | {path: $f.path, variants: $f.variants, line: $furthest.line, variant: $furthest.variant}
+    + if $furthest.at then {at: $furthest.at, reserved: $furthest.reserved} else {} end;
 
 # unapply($bound; $text) reads a template's text and gives the values $text fills its holes with, or null when the
 # text does not have the template's shape.

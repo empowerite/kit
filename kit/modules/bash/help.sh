@@ -31,9 +31,13 @@ declare -gA help_value=()
 help:values() {
   local verb field value
   local -a files=()
+  local -A named=()
   for verb in "$@"
   do
-    [[ -n "${help_value[${verb}:purpose]+set}" ]] || files+=("${kit_root}/bin/kit-${verb}")
+    # a verb named twice is read once: jq joins a file's lines by its name, so a second copy would double its text
+    [[ -z "${named[${verb}]+set}" && -z "${help_value[${verb}:purpose]+set}" ]] || continue
+    named[${verb}]=1
+    files+=("${kit_root}/bin/kit-${verb}")
   done
   (( ${#files[@]} )) || return 0
   while IFS= read -r -d '' verb && IFS= read -r -d '' field && IFS= read -r -d '' value
@@ -67,6 +71,13 @@ help:values() {
     if [[ -z "${help_value[${verb}:purpose]+set}" ]]
     then
       error "kit-${verb}: its header could not be read"
+      return 1
+    fi
+    # a verb with no usage line could not be called, so its header is refused as one that leaves the template is
+    if [[ -z "${help_value[${verb}:usage]//[[:space:]]/}" ]]
+    then
+      error "kit-${verb}: its Usage: block holds no usage line; a verb that takes no arguments has kit ${verb}"
+      unset "help_value[${verb}:purpose]"
       return 1
     fi
   done
@@ -392,7 +403,6 @@ help:page() {
 # help:choices <key> [<answer>…] answers kit syntax --choices for <verb>: an open set, every verb with its purpose, since
 # kit help takes the start of a name too.
 help:choices() {
-  help:all || return 1
   local verb group purpose
   [[ "$1" == '<verb>' ]] || return 1
   if [[ "${2:-}" == --kind ]]
@@ -400,6 +410,8 @@ help:choices() {
     printf 'open\n'
     return 0
   fi
+  # the kind reads no header, so a broken one is refused here, by name, and never read as no choices
+  help:all || return 1
   while IFS=$'\t' read -r verb group purpose
   do
     printf '%s\t%s\t\t\n' "${verb}" "${purpose}"

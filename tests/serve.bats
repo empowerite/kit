@@ -613,4 +613,12 @@ await() {
   run ! grep --quiet 'notifications/tools/list_changed' "${BATS_TEST_TMPDIR}/out"
 }
 
+@test "tools/list answers an internal error naming a tool whose header leaves the verb template, never a list without it" {
+  checkout-copy
+  printf '%s\n' '#!/usr/bin/env bash' "# kit-version - prints this release's version (kit verb: installation)" \
+    '# kit version' '#' '# Prints it.' > kit/bin/kit-version
+  printf '%s\n' "$(modern 1 tools/list)" | kit/bin/kit serve >"${BATS_TEST_TMPDIR}/out" 2>"${BATS_TEST_TMPDIR}/err"
+  answer 1 | jq --exit-status '.error.code == -32603 and (.error.message | contains("kit-version"))'
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

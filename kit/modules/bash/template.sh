@@ -192,7 +192,7 @@ template:rules() {
 # holes and nothing between them, or a region that never closes, is refused. Every file, and the variants its path
 # allows, are judged in one jq pass.
 template:check() {
-  local rule=$1 variant glob executable file line failed=0 path variants where verdicts row
+  local rule=$1 variant glob executable file line failed=0 path variants where verdicts row at reserved
   shift
   local -A files=()
   local -a globs=() rows
@@ -235,11 +235,12 @@ template:check() {
         | {path: $path, text: (.[1:] | join("\u001f")),
            variants: [$globs[] | select(.glob as $g | $g == "" or ($path | test($g))) | .variant]}] as $files
     | template::check($templates; $files; $settings)
-    | "\(.path)\t\(.variants | join(" "))\t\(.line // "")\t\(.variant // "")"' "${globs[@]}") || {
+    | "\(.path)\t\(.variants | join(" "))\t\(.line // "")\t\(.variant // "")\t\(.at // "")\t\(.reserved // "")"' \
+    "${globs[@]}") || {
     error "the $(template:rule-name "${rule}") templates could not be checked; see above"
     return 1
   }
-  while IFS=$'\t' read -r path variants line variant
+  while IFS=$'\t' read -r path variants line variant at reserved
   do
     [[ -n "${path}" ]] || continue
     failed=$(( failed + 1 ))
@@ -247,6 +248,10 @@ template:check() {
     if [[ -n "${line}" ]]
     then
       where="${files[${variant}]} line ${line}: $(sed -n "${line}p" "${files[${variant}]}")"
+    fi
+    if [[ -n "${at}" ]]
+    then
+      where+="; the file's line ${at}, ${reserved}, is a line of the template's own, which no hole may hold"
     fi
     error "${path} does not have the shape of the $(template:rule-name "${rule}") template (${variants// /, });" \
       "it leaves ${where}"

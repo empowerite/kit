@@ -102,7 +102,7 @@ import "template" as template; [.[] | template::parts | [template::ambiguous]], 
 # block, the label is the block's text, and the block ends where its indentation does.
 import "template" as template; template::parts as $p | [$p | template::reserved, template::match("# usage:\nkit x\n# usage:\nmore\n# end\n"), template::match("# usage:\nkit x\n# end\n")]
 "# usage:\n«usage»\n# end\n"
-[["# end","# usage:"],{"ok":false,"line":2},{"ok":true,"values":{"usage":"kit x\n"}}]
+[["# end","# usage:"],{"ok":false,"line":2,"at":3,"reserved":"# usage:"},{"ok":true,"values":{"usage":"kit x\n"}}]
 
 import "template" as template; template::parts | template::match("# a:\n#   # b:\n# b:\n")
 "# a:\n#   §a\n# b:\n"
@@ -117,3 +117,14 @@ import "template" as template; try template::parts catch .
 import "template" as template; template::parts | template::match("# a\n#\n#   b\n#\n# Arguments:\n#   --x  y\n")
 "# §description\n#\n# Arguments:\n#   §arguments\n"
 {"ok":true,"values":{"description":"a\n\n  b\n","arguments":"--x  y\n"}}
+
+# A literal after a hole within a line that the file does not hold is reported by the first of its lines the file
+# leaves, not by the line its first word is on.
+import "template" as template; template::parts | template::match("# a - p (kit verb: help)\n# kit a\n")
+"# «name» - «purpose» (kit verb: «group»)\n# Usage:\n«rest»\n"
+{"ok":false,"line":2}
+
+# A hole that holds one of the template's own lines names, beside the template's line, the file's line that holds it.
+import "template" as template; template::parts | template::match("# x\n# Usage:\nkit x\n# end\nset\n# Usage:\nmore\n")
+"# x\n# Usage:\n«usage»\n# end\nset\n«body»\n"
+{"ok":false,"line":6,"at":6,"reserved":"# Usage:"}

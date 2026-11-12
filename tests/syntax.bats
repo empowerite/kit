@@ -125,6 +125,39 @@ setup() {
   jq -e '.arguments | has("--<hole>") | not' <<<"$output"
 }
 
+@test "a header that leaves the template is refused once, with 1, by kit syntax and kit usage, and nothing on stdout" {
+  printf '%s\n' '#!/usr/bin/env bash' '# kit-old - a verb in the old shape (kit verb: help)' '# kit old' '#' '# Does it.' \
+    > "${root}/bin/kit-old"
+  chmod +x "${root}/bin/kit-old"
+  local verb
+  for verb in syntax usage
+  do
+    run --separate-stderr "${root}/bin/kit" "${verb}" old
+    [ "$status" -eq 1 ]
+    [ -z "$output" ]
+    [ "$(grep --count 'kit-old: its header leaves the verb template' <<<"$stderr")" -eq 1 ]
+  done
+  run --separate-stderr "${root}/bin/kit" syntax
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+}
+
+@test "a broken header is what kit help's verb choices refuse with, never that kit help has no choices" {
+  printf '%s\n' '#!/usr/bin/env bash' '# kit-old - a verb in the old shape (kit verb: help)' '# kit old' '#' '# Does it.' \
+    > "${root}/bin/kit-old"
+  chmod +x "${root}/bin/kit-old"
+  run "${root}/bin/kit" syntax help --choices '<verb>'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"kit-old: its header leaves the verb template"* ]]
+  [[ "$output" != *"has no choices"* ]]
+}
+
+@test "a verb named twice is read once and printed twice" {
+  run "${kit_root}/bin/kit" syntax commit commit
+  [ "$status" -eq 0 ]
+  jq -e 'length == 2 and .[0].verb == "commit" and .[1] == .[0]' <<<"$output"
+}
+
 @test "--check names each undescribed argument and each unparsable line, and fails" {
   run "${root}/bin/kit" syntax --check plain broken
   [ "$status" -eq 1 ]

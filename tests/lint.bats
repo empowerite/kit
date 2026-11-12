@@ -37,6 +37,34 @@ script() {
   [[ "$output" == *"every governed path passes"* ]]
 }
 
+@test "a repository's own bin/kit-* script is a script, held to no verb template, which is the kit's own source's" {
+  mkdir bin
+  (cd bin && script kit-bootstrap 'echo "${x:-}"')
+  run "${kit_checkout}/bin/kit" lint bin/kit-bootstrap
+  [ "$status" -eq 0 ]
+}
+
+@test "in the kit's own source, a verb in the old shape is refused by the verb template's Usage: line" {
+  mkdir -p kit/bin
+  printf '%s\n' '#!/usr/bin/env bash' '# kit-old - a verb in the old shape (kit verb: help)' '# kit old' '#' '# Does it.' \
+    '' 'set -o errexit -o nounset -o pipefail' > kit/bin/kit-old
+  chmod +x kit/bin/kit-old
+  run "${kit_checkout}/bin/kit" lint kit/bin/kit-old
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"kit/bin/kit-old does not have the shape of the bash template (verb); it leaves .kit/templates/bash/verb line 3: # Usage:"* ]]
+}
+
+@test "a verb whose body holds a line of the verb template's own is refused, naming the file's line that holds it" {
+  mkdir -p kit/bin
+  printf '%s\n' '#!/usr/bin/env bash' '# kit-heredoc - a verb that prints a label (kit verb: help)' '# Usage:' \
+    '#   kit heredoc' '#' '# Does it.' '#' '# Arguments:' '#' '# Exits 0.' '#' '# see: bin/kit' '' \
+    'set -o errexit -o nounset -o pipefail' "cat <<'TXT'" '# Usage:' 'TXT' > kit/bin/kit-heredoc
+  chmod +x kit/bin/kit-heredoc
+  run "${kit_checkout}/bin/kit" lint kit/bin/kit-heredoc
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the file's line 16, # Usage:, is a line of the template's own, which no hole may hold"* ]]
+}
+
 @test "a kit.yml yq cannot read stops kit lint and kit hydrate, never as a repository with no kit" {
   local placed
   rm -rf .kit/rules

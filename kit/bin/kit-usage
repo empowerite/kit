@@ -30,6 +30,8 @@ do
     guard:unknown-verb "${verb}" || exit $?
   fi
 done
+# every header named is read first, so one that leaves the verb template is refused before anything prints
+help:values "${verbs[@]}" || exit 1
 for verb in "${verbs[@]}"
 do
   help:usage "${verb}"

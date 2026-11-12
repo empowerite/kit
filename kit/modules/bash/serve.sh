@@ -470,11 +470,19 @@ serve:discover() {
     }' --args "${serve_versions[@]}")" cacheable
 }
 
-# serve:tools-list <id> answers tools/list with every tool, built once per process.
+# serve:tools-list <id> answers tools/list with every tool, built once per process. A tool whose header leaves the
+# verb template answers an internal error that names it, never a list without that tool.
 serve:tools-list() {
   if [[ -z "${serve_tool_list}" ]]
   then
-    local tool
+    local tool refusal
+    if ! refusal=$(help:all 2>&1 >/dev/null)
+    then
+      serve:error "$1" -32603 "Internal error: ${refusal##*❌ }"
+      return 0
+    fi
+    # read again in the server's own shell, so each tool below finds its header read
+    help:all
     serve_tool_list=$(for tool in "${serve_tools[@]}"
     do
       serve:tool "${tool}"

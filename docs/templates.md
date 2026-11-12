@@ -106,18 +106,20 @@ Making a file puts the prefix back on each line, and an empty line becomes the p
 
 ### Where a hole ends
 
-A template is matched in one pass, with no regular expression. A block ends where its indentation ends. Every other
-hole extends to the first place the text after it appears, which leaves the most for what follows. So a file
-matches exactly when this pass finds the match, and the time is linear in the file. The same pass gives each hole's
-text, and `template:unapply <template> <file>` prints those values as JSON. Rendering a template with the values a
-file gives it makes that file again; the suite checks this for every file in this repository that a template
-governs.
+A template is matched in one pass, with no regular expression. A block ends where its indentation ends, or at one of the
+template's own lines, as below. Every other hole extends to the first place the text after it appears, which leaves the
+most for what follows. So a file matches exactly when this pass finds the match, and the time is linear in the file. The
+same pass gives each hole's text, and `template:unapply <template> <file>` prints those values as JSON. Rendering a
+template with the values a file gives it makes that file again; the suite checks this for every file in this repository
+that a template governs.
 
 A hole's text never holds one of the template's own whole lines that has a letter or digit, such as a section's
 label. Such a line inside a section would end the section there, and the rest of the file could still match with
-the label inside the next section, read wrong without a word. So the file does not match, at the hole's line. Lines
-of punctuation alone, a bare `#` or a line of dashes, are left free, and so is a region's text. Inside a block, a
-label is indented, so it is the block's text, not the template's line.
+the label inside the next section, read wrong without a word. So the file does not match, at the hole's line, and
+`kit lint` names the file's line that holds it. Lines of punctuation alone, a bare `#` or a line of dashes, are left
+free, and so is a region's text. In a block whose prefix is indented further than the labels, `#   §arguments` under
+`# Arguments:`, a line that reads as a label is the block's text, since it starts with the prefix the label does not.
+A block whose prefix the labels start with too, `# §description`, ends at the label instead.
 
 ## Making a file
 
