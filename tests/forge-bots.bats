@@ -260,6 +260,28 @@ without() {
   grep --quiet -F '"repositories":["kit"]' "${FAKE_DIR}/curl.calls"
 }
 
+@test "forge:bot-token refuses an empty repository, so no token outside one is minted by mistake" {
+  run --separate-stderr call bot-token 1 "${pem}" 99 ''
+  [ "$status" -eq 1 ]
+  [ -z "$output" ]
+  [[ "$stderr" == *"is not the name of a repository"* ]]
+  [ ! -e "${FAKE_DIR}/curl.calls" ]
+}
+
+@test "forge:bot-proof mints a token of metadata read alone, narrowed to no repository" {
+  fixture token.json <<<'{"token":"ghs_abc","expires_at":"2026-11-12T10:00:00Z","permissions":{}}'
+  curl-route '*/app/installations/99/access_tokens' 0 201 token.json
+  run call bot-proof 1 "${pem}" 99
+  [ "$status" -eq 0 ]
+  [ "$output" = '{"token":"ghs_abc","expires_at":"2026-11-12T10:00:00Z"}' ]
+  tr '\n' ' ' < "${FAKE_DIR}/curl.calls" | grep --quiet -F -- '--request POST'
+  tr '\n' ' ' < "${FAKE_DIR}/curl.calls" | grep --quiet -F -- '--data {"permissions":{"metadata":"read"}} '
+  ! grep --quiet -F 'repositories' "${FAKE_DIR}/curl.calls"
+  run --separate-stderr call bot-proof 1 "${pem}" 9x
+  [ "$status" -eq 1 ]
+  [[ "$stderr" == *"is not the ID of an installation"* ]]
+}
+
 @test "an App, an installation, or a repository that cannot go in a URL is refused before any request" {
   run --separate-stderr call bot-app 12x "${pem}"
   [ "$status" -eq 1 ]

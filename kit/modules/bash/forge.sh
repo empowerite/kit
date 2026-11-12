@@ -181,6 +181,9 @@
 #                                 html_url}, account the login that has it (since 6)
 #   bot-token <app> <pem> <installation> <repo>
 #                                 {token, expires_at} of a token narrowed to the one repository (since 6)
+#   bot-proof <app> <pem> <installation>
+#                                 {token, expires_at} of a token narrowed to no repository, holding metadata: read
+#                                 alone, for a proof of the App's key that is revoked at once (since 6)
 #   bot-repositories <token>      the full names of the repositories the token reaches, one a line (since 6)
 #   bot-revoke <token>            revokes the token (since 6)
 #
@@ -231,8 +234,8 @@
 #   check-runs       4      open-prs: each change's runs, [{name, verdict, at, took}], the checks by name
 #   swimlanes        5      open-issues: each issue's swimlane, the lane a board draws it in; no forge kit reaches has
 #                           one it reads the same way, so a repository gives it a stand-in, or every issue has none
-#   bot-accounts     6      bot-app, bot-installation, bot-installations, bot-token, bot-repositories, bot-revoke: an
-#                           app the forge signs in as, with a key of its own
+#   bot-accounts     6      bot-app, bot-installation, bot-installations, bot-proof, bot-token, bot-repositories,
+#                           bot-revoke: an app the forge signs in as, with a key of its own
 #
 # A repository chooses a stand-in for a feature in kit.yml, under the forge it is for, and the seam then answers the
 # feature's calls itself, from the forge's other calls, whether the forge has the feature or not:
@@ -300,8 +303,8 @@ declare -grA forge_feature_of=(
   [environments]=environments [deployments]=deployments [collaborators]=collaborators [teams]=teams [bots]=bots
   [attestations]=attestations [code-scanning-alerts]=code-scanning [dependabot-alerts]=dependabot
   [secret-scanning-alerts]=secret-scanning [rulesets]=rulesets [bypasses]=bypasses
-  [bot-app]=bot-accounts [bot-installation]=bot-accounts [bot-installations]=bot-accounts [bot-token]=bot-accounts
-  [bot-repositories]=bot-accounts [bot-revoke]=bot-accounts
+  [bot-app]=bot-accounts [bot-installation]=bot-accounts [bot-installations]=bot-accounts [bot-proof]=bot-accounts
+  [bot-token]=bot-accounts [bot-repositories]=bot-accounts [bot-revoke]=bot-accounts
 )
 # forge_call_since names the version that added each call added after the first; forge_provider_contract holds, once
 # forge:lacks has read it, the version the provider implements. forge_stand_ins holds the stand-ins, as one JSON object,
@@ -701,6 +704,7 @@ forge:me()                  { forge:call me "$@"; }
 forge:bot-app()             { forge:call bot-app "$@"; }
 forge:bot-installation()    { forge:call bot-installation "$@"; }
 forge:bot-installations()   { forge:call bot-installations "$@"; }
+forge:bot-proof()           { forge:call bot-proof "$@"; }
 forge:bot-token()           { forge:call bot-token "$@"; }
 forge:bot-repositories()    { forge:call bot-repositories "$@"; }
 forge:bot-revoke()          { forge:call bot-revoke "$@"; }

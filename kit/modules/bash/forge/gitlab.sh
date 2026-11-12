@@ -36,6 +36,14 @@ forge/gitlab:artifacts() {
 
 forge/gitlab:attestations() { return 3; }
 
+forge/gitlab:bot-app() { return 3; }
+forge/gitlab:bot-installation() { return 3; }
+forge/gitlab:bot-installations() { return 3; }
+forge/gitlab:bot-proof() { return 3; }
+forge/gitlab:bot-repositories() { return 3; }
+forge/gitlab:bot-revoke() { return 3; }
+forge/gitlab:bot-token() { return 3; }
+
 # forge/gitlab:bots prints one document per bot user among the project's members, the last to act first, as the seam's
 # header says: the members, as forge/gitlab:members reads them, of whom GitLab marks a bot, as a project's or a group's
 # access token makes one, with the day it last acted. GitLab says nothing of what a bot did, so acted is null.

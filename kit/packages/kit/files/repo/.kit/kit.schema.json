@@ -284,6 +284,11 @@
         }
       }
     },
+    "bot": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9-]*$",
+      "description": "The name of this repository's bot: the slug of the GitHub App that acts for you here, as `kit bots` lists it. Without it, the bot is the only one in your bots file on the primary remote's host."
+    },
     "primary": {
       "type": "string",
       "minLength": 1,

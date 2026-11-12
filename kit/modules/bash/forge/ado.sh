@@ -73,6 +73,14 @@ forge/ado:artifacts() {
 
 forge/ado:attestations() { return 3; }
 
+forge/ado:bot-app() { return 3; }
+forge/ado:bot-installation() { return 3; }
+forge/ado:bot-installations() { return 3; }
+forge/ado:bot-proof() { return 3; }
+forge/ado:bot-repositories() { return 3; }
+forge/ado:bot-revoke() { return 3; }
+forge/ado:bot-token() { return 3; }
+
 forge/ado:bots() { return 3; }
 
 forge/ado:branch-for-issue() {

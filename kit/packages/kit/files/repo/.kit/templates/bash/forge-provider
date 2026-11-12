@@ -4,6 +4,7 @@ forge/«stem»:attestations()«call_attestations…= { error "not written yet"; 
 forge/«stem»:bot-app()«call_bot_app…= { error "not written yet"; return 1; }»
 forge/«stem»:bot-installation()«call_bot_installation…= { error "not written yet"; return 1; }»
 forge/«stem»:bot-installations()«call_bot_installations…= { error "not written yet"; return 1; }»
+forge/«stem»:bot-proof()«call_bot_proof…= { error "not written yet"; return 1; }»
 forge/«stem»:bot-repositories()«call_bot_repositories…= { error "not written yet"; return 1; }»
 forge/«stem»:bot-revoke()«call_bot_revoke…= { error "not written yet"; return 1; }»
 forge/«stem»:bot-token()«call_bot_token…= { error "not written yet"; return 1; }»

@@ -150,7 +150,7 @@ added+='"check-runs","swimlanes","bot-accounts"'
   for remote in https://gitlab.com/empowerite/example.git https://dev.azure.com/acme/empowerite/_git/example
   do
     git remote set-url origin "${remote}"
-    for c in bot-app bot-installation bot-installations bot-token bot-repositories bot-revoke
+    for c in bot-app bot-installation bot-installations bot-proof bot-token bot-repositories bot-revoke
     do
       run --separate-stderr call "${c}" 1 /nonexistent.pem x y
       [ "$status" -eq 3 ]

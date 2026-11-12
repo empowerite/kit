@@ -75,6 +75,78 @@ forge/github:attestations() {
   printf '%s' "${out}"
 }
 
+# forge/github:bot-app <app> <pem> prints the App: {slug, owner, permissions, html_url}.
+forge/github:bot-app() {
+  local jwt answer
+  forge/github:app-ok app "$1" || return 1
+  jwt=$(forge/github:jwt "$1" "$2") || return 1
+  answer=$(forge/github:app-api "${jwt}" GET /app) || return 1
+  forge/github:app-fold 'the GitHub App' "${answer}" --compact-output '{slug, owner: .owner.login, permissions, html_url}'
+}
+
+# forge/github:bot-installation <app> <pem> <owner/repo> prints the App's installation on the repository: {id,
+# permissions, repository_selection, html_url}. It returns 1, with no output, where the App has none there.
+forge/github:bot-installation() {
+  local jwt answer
+  forge/github:app-ok app "$1" && forge/github:app-ok repo "$3" || return 1
+  jwt=$(forge/github:jwt "$1" "$2") || return 1
+  answer=$(forge/github:app-api --missing "${jwt}" GET "/repos/$3/installation") || return 1
+  forge/github:app-fold 'the installation' "${answer}" --compact-output \
+    '{id, permissions, repository_selection, html_url}'
+}
+
+# forge/github:bot-installations <app> <pem> prints each installation of the App, one object a line: {id, account,
+# repository_selection, html_url}, account being the login of the user or organization that has it.
+forge/github:bot-installations() {
+  local jwt
+  forge/github:app-ok app "$1" || return 1
+  jwt=$(forge/github:jwt "$1" "$2") || return 1
+  forge/github:app-pages "${jwt}" /app/installations \
+    '.[] | {id, account: .account.login, repository_selection, html_url}'
+}
+
+# forge/github:bot-proof <app> <pem> <installation> prints {token, expires_at}: a token of the installation that is
+# narrowed to no repository and holds metadata: read alone, for a proof of the App's key that is revoked at once. It
+# is no token to act with: bot-token narrows one to a repository.
+forge/github:bot-proof() {
+  local jwt answer
+  forge/github:app-ok app "$1" && forge/github:app-ok installation "$3" || return 1
+  jwt=$(forge/github:jwt "$1" "$2") || return 1
+  answer=$(forge/github:app-api "${jwt}" POST "/app/installations/$3/access_tokens" \
+    '{"permissions":{"metadata":"read"}}') || return 1
+  forge/github:app-fold 'the installation token' "${answer}" --compact-output '{token, expires_at}'
+}
+
+# forge/github:bot-repositories <token> prints the full names of the repositories the installation token reaches, one a
+# line.
+forge/github:bot-repositories() {
+  local names
+  names=$(forge/github:app-pages "$1" /installation/repositories '.repositories[] | .full_name') || return 1
+  [[ -z "${names}" ]] || jq --raw-output . <<<"${names}"
+}
+
+# forge/github:bot-revoke <token> revokes the installation token, which GitHub would keep good for an hour.
+forge/github:bot-revoke() {
+  forge/github:app-api "$1" DELETE /installation/token >/dev/null
+}
+
+# forge/github:bot-token <app> <pem> <installation> <repo> prints {token, expires_at}: a token of the installation
+# narrowed to the one repository, <repo> being its name, with or without its owner.
+forge/github:bot-token() {
+  local jwt answer body
+  forge/github:app-ok app "$1" && forge/github:app-ok installation "$3" || return 1
+  if [[ "$4" == */* ]]
+  then
+    forge/github:app-ok repo "$4" || return 1
+  else
+    forge/github:app-ok name "$4" || return 1
+  fi
+  jwt=$(forge/github:jwt "$1" "$2") || return 1
+  body=$(jq --null-input --compact-output --arg repo "${4##*/}" '{repositories: [$repo]}')
+  answer=$(forge/github:app-api "${jwt}" POST "/app/installations/$3/access_tokens" "${body}") || return 1
+  forge/github:app-fold 'the installation token' "${answer}" --compact-output '{token, expires_at}'
+}
+
 # forge/github:bots prints one document per bot that acted in the repository, the last to act first, as the seam's
 # header says: one GraphQL request, two points, for the authors of the 100 newest commits on the default branch, and
 # of the 100 open pull requests and the 50 merged pull requests updated last, with each one's latest review by each
@@ -1418,66 +1490,6 @@ forge/github:app-pages() {
     page=$(( page + 1 ))
   done
   printf '%s' "${all}"
-}
-
-# forge/github:bot-app <app> <pem> prints the App: {slug, owner, permissions, html_url}.
-forge/github:bot-app() {
-  local jwt answer
-  forge/github:app-ok app "$1" || return 1
-  jwt=$(forge/github:jwt "$1" "$2") || return 1
-  answer=$(forge/github:app-api "${jwt}" GET /app) || return 1
-  forge/github:app-fold 'the GitHub App' "${answer}" --compact-output '{slug, owner: .owner.login, permissions, html_url}'
-}
-
-# forge/github:bot-installation <app> <pem> <owner/repo> prints the App's installation on the repository: {id,
-# permissions, repository_selection, html_url}. It returns 1, with no output, where the App has none there.
-forge/github:bot-installation() {
-  local jwt answer
-  forge/github:app-ok app "$1" && forge/github:app-ok repo "$3" || return 1
-  jwt=$(forge/github:jwt "$1" "$2") || return 1
-  answer=$(forge/github:app-api --missing "${jwt}" GET "/repos/$3/installation") || return 1
-  forge/github:app-fold 'the installation' "${answer}" --compact-output \
-    '{id, permissions, repository_selection, html_url}'
-}
-
-# forge/github:bot-installations <app> <pem> prints each installation of the App, one object a line: {id, account,
-# repository_selection, html_url}, account being the login of the user or organization that has it.
-forge/github:bot-installations() {
-  local jwt
-  forge/github:app-ok app "$1" || return 1
-  jwt=$(forge/github:jwt "$1" "$2") || return 1
-  forge/github:app-pages "${jwt}" /app/installations \
-    '.[] | {id, account: .account.login, repository_selection, html_url}'
-}
-
-# forge/github:bot-token <app> <pem> <installation> <repo> prints {token, expires_at}: a token of the installation
-# narrowed to the one repository, <repo> being its name, with or without its owner.
-forge/github:bot-token() {
-  local jwt answer body
-  forge/github:app-ok app "$1" && forge/github:app-ok installation "$3" || return 1
-  if [[ "$4" == */* ]]
-  then
-    forge/github:app-ok repo "$4" || return 1
-  else
-    forge/github:app-ok name "$4" || return 1
-  fi
-  jwt=$(forge/github:jwt "$1" "$2") || return 1
-  body=$(jq --null-input --compact-output --arg repo "${4##*/}" '{repositories: [$repo]}')
-  answer=$(forge/github:app-api "${jwt}" POST "/app/installations/$3/access_tokens" "${body}") || return 1
-  forge/github:app-fold 'the installation token' "${answer}" --compact-output '{token, expires_at}'
-}
-
-# forge/github:bot-repositories <token> prints the full names of the repositories the installation token reaches, one a
-# line.
-forge/github:bot-repositories() {
-  local names
-  names=$(forge/github:app-pages "$1" /installation/repositories '.repositories[] | .full_name') || return 1
-  [[ -z "${names}" ]] || jq --raw-output . <<<"${names}"
-}
-
-# forge/github:bot-revoke <token> revokes the installation token, which GitHub would keep good for an hour.
-forge/github:bot-revoke() {
-  forge/github:app-api "$1" DELETE /installation/token >/dev/null
 }
 
 # forge/github:fold <what> <answer> <jq argument>… is forge:fold, naming gh auth status.
