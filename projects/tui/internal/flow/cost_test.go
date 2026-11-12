@@ -3,13 +3,12 @@ package flow
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -64,26 +63,30 @@ func TestAStagesRowsAreBuiltOnceForItsDataAndTheWidth(t *testing.T) {
 	}
 }
 
-// With three hundred issues, drawing the screen takes well under the 16 ms a frame lasts at 60 frames
-// a second, and a step along the bar does too. The race detector slows everything about tenfold, so its bound is ten
-// times as wide. Each is timed as the best of three batches, so a moment the machine is busy elsewhere, or the test
-// runs on a slower core, does not count against the drawing.
-func TestADrawingOfThreeHundredIssuesIsWellUnderAFramesTime(t *testing.T) {
-	budget := 16 * time.Millisecond / 2
-	if raceEnabled {
-		budget *= 10
+// Drawing the screen, and a step along the bar with its drawing, cost what the screen shows, not every issue: a stage's
+// rows are built once for what it loaded, as TestAStagesRowsAreBuiltOnceForItsDataAndTheWidth holds them, so with three
+// thousand issues each allocates no more than 64 bytes an issue past what it does with three hundred. What they
+// allocate is counted, not timed, so the machine's load weighs on it not at all; BenchmarkADrawingOfThreeHundredIssues
+// says how long a drawing takes.
+func TestADrawingCostsWhatTheScreenShowsNotTheIssues(t *testing.T) {
+	drawing, step := func(n int) uint64 {
+		m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 40})
+		m = drive(m, bigNow(m, n))
+		return allocated(func() { _ = m.View() })
+	}, func(n int) uint64 {
+		m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 40})
+		m = drive(m, bigNow(m, n))
+		return allocated(func() {
+			next, _ := m.Update(tab)
+			m = next.(Model)
+			_ = m.View()
+		})
 	}
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 40})
-	m = drive(m, bigNow(m, 300))
-	if per := best(func() { _ = m.View() }); per > budget {
-		t.Errorf("a drawing takes %v, over %v", per, budget)
+	if few, many := drawing(300), drawing(3000); many > few+2700*perRow {
+		t.Errorf("a drawing of three thousand issues allocates %d bytes, of three hundred %d", many, few)
 	}
-	if per := best(func() {
-		next, _ := m.Update(tab)
-		m = next.(Model)
-		_ = m.View()
-	}); per > budget {
-		t.Errorf("a step along the bar and its drawing take %v, over %v", per, budget)
+	if few, many := step(300), step(3000); many > few+2700*perRow {
+		t.Errorf("a step along the bar over three thousand issues allocates %d bytes, over three hundred %d", many, few)
 	}
 }
 
@@ -137,43 +140,59 @@ func TestAStagesLinesAreDrawnOnceForWhatItShows(t *testing.T) {
 	}
 }
 
-// With a build of seven hundred jobs open, a page through it and its drawing take well under a frame's time,
-// down and back up: the work a key does follows the lines on the screen, not every line of the open row, so keys
-// held down, or a wheel spun, never pile up behind each other, ^C among them.
-func TestPagingThroughABuildOfSevenHundredJobsIsWellUnderAFramesTime(t *testing.T) {
-	budget := 16 * time.Millisecond / 2
-	if raceEnabled {
-		budget *= 10
-	}
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 40})
-	m = drive(m, tallBuild(m, 700))
-	for m.stages[m.stage].name != "builds" {
-		m = drive(m, tab)
-	}
-	m = drive(intoRows(m), right)
-	for _, key := range []tea.KeyPressMsg{press(tea.KeyPgDown), press(tea.KeyPgUp)} {
-		if per := best(func() {
+// A page through an open build and its drawing, down and back up, cost what the screen shows, not every line of the
+// open row: keys held down, or a wheel spun, never pile up behind each other, ^C among them. With seven hundred jobs
+// open a page allocates no more than 64 bytes a job past what it does with seventy, counted, not timed;
+// BenchmarkPagingThroughABuildOfSevenHundredJobs says how long a page takes.
+func TestPagingThroughABuildCostsWhatTheScreenShowsNotTheJobs(t *testing.T) {
+	paging := func(n int, key tea.KeyPressMsg) uint64 {
+		m := openBuild(loaded(t, options()), n)
+		return allocated(func() {
 			next, _ := m.Update(key)
 			m = next.(Model)
 			_ = m.View()
-		}); per > budget {
-			t.Errorf("%s and its drawing take %v, over %v", key, per, budget)
+		})
+	}
+	for _, key := range []tea.KeyPressMsg{press(tea.KeyPgDown), press(tea.KeyPgUp)} {
+		if few, many := paging(70, key), paging(700, key); many > few+630*perRow {
+			t.Errorf("%s through seven hundred jobs allocates %d bytes, through seventy %d", key, many, few)
 		}
 	}
 }
 
-// best gives how long do takes, the least of three batches of ten.
-func best(do func()) time.Duration {
-	const batches, n = 3, 10
-	least := time.Duration(math.MaxInt64)
-	for range batches {
-		start := time.Now()
-		for range n {
-			do()
-		}
-		least = min(least, time.Since(start)/n)
+// openBuild gives the screen, at 120×40, with builds' first run open, with n jobs, the rows with the keyboard.
+func openBuild(m Model, n int) Model {
+	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 40}, tallBuild(m, n))
+	for m.stages[m.stage].name != "builds" {
+		m = drive(m, tab)
 	}
-	return least
+	return drive(intoRows(m), right)
+}
+
+func BenchmarkPagingThroughABuildOfSevenHundredJobs(b *testing.B) {
+	m := openBuild(New(kit.Runner{}, options()), 700)
+	keys := []tea.KeyPressMsg{press(tea.KeyPgDown), press(tea.KeyPgUp)}
+	for i := 0; b.Loop(); i++ {
+		next, _ := m.Update(keys[i%2])
+		m = next.(Model)
+		_ = m.View()
+	}
+}
+
+// perRow is the most a drawing may allocate for each row past those the smaller of two screens has: the few bytes a
+// slice of each row's text takes, where a copy of the row takes hundreds.
+const perRow = 64
+
+// allocated gives the bytes do allocates, on average over twenty runs, as the runtime counts them.
+func allocated(do func()) uint64 {
+	const runs = 20
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	for range runs {
+		do()
+	}
+	runtime.ReadMemStats(&after)
+	return (after.TotalAlloc - before.TotalAlloc) / runs
 }
 
 func BenchmarkADrawingOfThreeHundredIssues(b *testing.B) {
@@ -205,16 +224,10 @@ func BenchmarkACatalogStagesRows(b *testing.B) {
 	}
 }
 
-// With ten thousand issues, a turn of the mouse wheel over them and its drawing take well under a frame's time: a
-// wheel spun sends dozens of turns, and the screen is drawn after each, so a turn costs what the columns and the lines
-// on the screen do, not every issue, and the rows keep up with the wheel.
-func TestATurnOfTheWheelOverTenThousandIssuesIsWellUnderAFramesTime(t *testing.T) {
-	budget := 16 * time.Millisecond / 2
-	if raceEnabled {
-		budget *= 10
-	}
-	m := loaded(t, options(), tea.WindowSizeMsg{Width: 120, Height: 40})
-	m = drive(m, bigNow(m, 10000))
+// issuesWheel gives the screen, at 120×40, on issues, with n of them, drawn once, and a turn of the wheel down over
+// its rows.
+func issuesWheel(m Model, n int) (Model, tea.MouseWheelMsg) {
+	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 40}, bigNow(m, n))
 	for range m.stages {
 		if m.stages[m.stage].name == "issues" {
 			break
@@ -222,15 +235,36 @@ func TestATurnOfTheWheelOverTenThousandIssuesIsWellUnderAFramesTime(t *testing.T
 		m = drive(m, tab)
 	}
 	_ = m.View()
-	turn := tea.MouseWheelMsg{Button: tea.MouseWheelDown, X: 5, Y: m.top() + m.paneHeight()/2}
-	if per := best(func() {
+	return m, tea.MouseWheelMsg{Button: tea.MouseWheelDown, X: 5, Y: m.top() + m.paneHeight()/2}
+}
+
+// A turn of the mouse wheel and its drawing cost what the screen shows, not every issue: a wheel spun sends dozens of
+// turns, and the screen is drawn after each, so the rows keep up with the wheel however many there are. Over ten
+// thousand issues a turn allocates no more than 64 bytes an issue past what it does over a thousand, counted, not
+// timed; BenchmarkATurnOfTheWheelOverTenThousandIssues says how long a turn takes.
+func TestATurnOfTheWheelCostsWhatTheScreenShowsNotTheIssues(t *testing.T) {
+	turning := func(n int) uint64 {
+		m, turn := issuesWheel(loaded(t, options()), n)
+		bytes := allocated(func() {
+			next, _ := m.Update(turn)
+			m = next.(Model)
+			_ = m.View()
+		})
+		if m.stages[m.stage].Offset == 0 {
+			t.Errorf("the wheel did not scroll %d issues", n)
+		}
+		return bytes
+	}
+	if few, many := turning(1000), turning(10000); many > few+9000*perRow {
+		t.Errorf("a turn over ten thousand issues allocates %d bytes, over a thousand %d", many, few)
+	}
+}
+
+func BenchmarkATurnOfTheWheelOverTenThousandIssues(b *testing.B) {
+	m, turn := issuesWheel(New(kit.Runner{}, options()), 10000)
+	for b.Loop() {
 		next, _ := m.Update(turn)
 		m = next.(Model)
 		_ = m.View()
-	}); per > budget {
-		t.Errorf("a turn of the wheel and its drawing take %v, over %v", per, budget)
-	}
-	if m.stages[m.stage].Offset == 0 {
-		t.Error("the wheel did not scroll the issues")
 	}
 }
