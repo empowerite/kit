@@ -32,8 +32,18 @@ Everything else:
 - `.kit/1st.md`, the file every agent reads first, and a rule file for each kind of file that has rules. Style, how a
   file looks, is optional: one style package per kind of file.
 - `kit work` turns an issue into a worktree, a linked branch, and a draft pull request.
-- `kit toolchains` lists the toolchains kit finds. `kit tools` installs and updates the tools the chosen toolchain
-  pins, along with the packages npm or uv pins, and runs commands with them.
+- `kit toolchains` lists the toolchains kit finds. A toolchain supplies the tools a repository's work runs with, such
+  as its linters and the tools its gate runs. `kit tools` installs and updates the tools the chosen toolchain pins,
+  along with the packages npm or uv pins, and runs commands with them. kit supports these toolchains; see
+  [docs/toolchains.md](docs/toolchains.md):
+  - [kit's own](docs/toolchains/using-kit.md), with `tools:` in `kit.yml`
+  - [mise](docs/toolchains/using-mise.md)
+  - [Nix](docs/toolchains/using-nix.md), with flakes
+  - [Homebrew](docs/toolchains/using-brew.md), with a Brewfile
+  - [a Docker image](docs/toolchains/using-docker.md)
+  - [a dev container](docs/toolchains/using-devcontainer.md)
+  - [apt, dnf, or pacman](docs/toolchains/using-system-packages.md)
+  - [none](docs/toolchains/using-no-toolchain.md): the tools already on the machine
 - `kit flow` shows where work stands in seven stages: issues, desk, worktrees, changes, builds, incoming, and
   releases.
 - `kit workspace` shows what git holds across a workspace: remotes, branches, worktrees, commits, and tags.

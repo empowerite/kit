@@ -1,7 +1,7 @@
 # Install
 
-The README gives the Homebrew install. This page has the other ways to install kit, what kit needs on the machine,
-how kit picks which release to run, and how trust works.
+The README gives the Homebrew install. This page has the other ways to install kit, the toolchains that install a
+repository's tools, what kit needs on the machine, how kit picks which release to run, and how trust works.
 
 ## What a release is
 
@@ -47,10 +47,21 @@ export PATH="${PWD}/kit/bin:${PATH}"
 kit runs on Linux and macOS. On Windows, use WSL, which runs it as Linux. Install WSL with `wsl --install` in
 PowerShell, then use any of the ways above inside it.
 
-### Nix and other toolchains
+## Toolchains
 
-The tools a repository's gate runs can come from Nix, mise, Homebrew, a dev container, and others. That is a separate
-choice from how you install kit; see [toolchains.md](toolchains.md).
+Installing kit and installing a repository's tools are separate steps. The ways above install kit. A toolchain
+installs the tools a repository's work runs with, such as its linters and the tools its gate runs. `kit toolchains`
+lists the toolchains kit finds, and `kit tools install` installs what the chosen one pins. kit supports these
+toolchains; see [toolchains.md](toolchains.md):
+
+- [kit's own](toolchains/using-kit.md), with `tools:` in `kit.yml`
+- [mise](toolchains/using-mise.md)
+- [Nix](toolchains/using-nix.md), with flakes
+- [Homebrew](toolchains/using-brew.md), with a Brewfile
+- [a Docker image](toolchains/using-docker.md)
+- [a dev container](toolchains/using-devcontainer.md)
+- [apt, dnf, or pacman](toolchains/using-system-packages.md)
+- [none](toolchains/using-no-toolchain.md): the tools already on the machine
 
 ## Check the install
 
