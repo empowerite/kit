@@ -5,7 +5,8 @@
 # The whole export holds dates and data that plutil cannot turn into JSON, so the reader takes the two keys it needs
 # from it: the profiles, and Default Bookmark Guid. The profile is the one ITERM_PROFILE names, else the default. A key
 # a profile does not set comes from the parent a dynamic profile names, then from iTerm2's own default, which is the
-# one in its source, not its factory profile's: an absent Mouse Reporting is off.
+# one in its source, not its factory profile's: an absent Mouse Reporting is off. One setting is iTerm2's own, not a
+# profile's: whether apps may set the clipboard, which kittui's ⧉ does through the terminal.
 #
 #   profile                 Name
 #   triggers                the Triggers not marked disabled
@@ -19,14 +20,17 @@
 #   unicode_version         Unicode Version, 9
 #   ambiguous_wide          Ambiguous Double Width, false
 #   encoding                Character Encoding, 4, UTF-8
+#   clipboard               AllowClipboardAccess, Applications in terminal may access clipboard, iTerm2's own; false
 #
-# see: modules/bash/terminal.sh, https://github.com/gnachman/iTerm2/blob/master/sources/Settings/iTermProfilePreferences.m
+# see: modules/bash/terminal.sh,
+#      https://github.com/gnachman/iTerm2/blob/master/sources/Settings/iTermProfilePreferences.m,
+#      https://github.com/gnachman/iTerm2/blob/master/sources/Settings/iTermPreferences.m
 
 use file
 
 # terminal/iterm:settings prints the settings of the profile kit runs in, or why it cannot read them, and fails.
 terminal/iterm:settings() {
-  local dir bookmarks default
+  local dir bookmarks default clipboard
   file:scratch dir || return 1
   if ! defaults export com.googlecode.iterm2 - > "${dir}/preferences" 2>/dev/null
   then
@@ -40,7 +44,10 @@ terminal/iterm:settings() {
     return 1
   fi
   default=$(plutil -extract "Default Bookmark Guid" raw -o - "${dir}/preferences" 2>/dev/null) || default=''
-  jq --compact-output --arg name "${ITERM_PROFILE:-}" --arg default "${default}" '
+  # a key iTerm2 has never saved is its default, off
+  clipboard=$(plutil -extract AllowClipboardAccess raw -o - "${dir}/preferences" 2>/dev/null) || clipboard=false
+  [[ "${clipboard}" == true ]] || clipboard=false
+  jq --compact-output --arg name "${ITERM_PROFILE:-}" --arg default "${default}" --argjson clipboard "${clipboard}" '
     . as $all
     | (first(.[] | select($name != "" and .Name == $name))
        // first(.[] | select(.Guid == $default)) // .[0]) as $p
@@ -62,7 +69,8 @@ terminal/iterm:settings() {
      no_alternate_screen: get("Disable Smcup Rmcup"; false),
      unicode_version: get("Unicode Version"; 9),
      ambiguous_wide: get("Ambiguous Double Width"; false),
-     encoding: get("Character Encoding"; 4)}' <<<"${bookmarks}"
+     encoding: get("Character Encoding"; 4),
+     clipboard: $clipboard}' <<<"${bookmarks}"
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

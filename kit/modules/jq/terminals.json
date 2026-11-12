@@ -91,6 +91,14 @@
           "line": "iTerm2's profile {profile} does not use UTF-8, so kittui's glyphs draw wrong",
           "held": "iTerm2's profile {profile} uses UTF-8",
           "fix": "iTerm2 → Settings → Profiles → {profile} → Terminal: set Character encoding to Unicode (UTF-8)"
+        },
+        {
+          "id": "clipboard",
+          "need": "copy",
+          "bad": ".clipboard | not",
+          "line": "iTerm2 does not let apps set the clipboard, so ⧉ in kittui copies nothing",
+          "held": "iTerm2 lets apps set the clipboard, so ⧉ in kittui copies",
+          "fix": "iTerm2 → Settings → General → Selection: tick Applications in terminal may access clipboard, then quit and reopen iTerm2"
         }
       ]
     },

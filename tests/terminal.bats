@@ -73,7 +73,7 @@ within() {
 iterm-read() {
   jq --null-input --compact-output '{profile: "Default", triggers: 0, triggers_interactive: false, option_left: 2,
     option_right: 2, apps_change_keys: true, mouse: true, mouse_clicks: true, no_alternate_screen: false,
-    unicode_version: 9, ambiguous_wide: false, encoding: 4}'" | ${1:-.}"
+    unicode_version: 9, ambiguous_wide: false, encoding: 4, clipboard: true}'" | ${1:-.}"
 }
 
 # stub-reader <key> <body> puts a reader for the terminal <key> in the project, ahead of kit's, with the body <body>.
@@ -264,13 +264,15 @@ fakes() {
 }
 
 # iterm-fakes stands in defaults and plutil for iTerm2's preferences: its profiles are the fixture's, GUID-1 the
-# default.
+# default, and AllowClipboardAccess ITERM_CLIPBOARD, true unless a test sets it, and never saved where it is empty.
 iterm-fakes() {
   export ITERM_FIXTURE="${BATS_TEST_DIRNAME}/fixtures/terminal/iterm-bookmarks.json"
+  export ITERM_CLIPBOARD=${ITERM_CLIPBOARD-true}
   # shellcheck disable=SC2016  # the fakes' bodies expand when they run
   fakes defaults 'exit 0' plutil 'case "$2" in
   ("New Bookmarks") cat "${ITERM_FIXTURE}" ;;
   ("Default Bookmark Guid") printf GUID-1 ;;
+  (AllowClipboardAccess) [ -n "${ITERM_CLIPBOARD}" ] && printf "%s" "${ITERM_CLIPBOARD}" ;;
   (*) exit 1
 esac'
 }
@@ -285,7 +287,8 @@ esac'
 }
 
 @test "with no ITERM_PROFILE, iTerm2's default profile is read, and its defaults fill what it does not set" {
-  local want='{"ambiguous_wide":false,"apps_change_keys":true,"encoding":4,"mouse":false,"mouse_clicks":true,'
+  local want='{"ambiguous_wide":false,"apps_change_keys":true,"clipboard":true,"encoding":4,"mouse":false,'
+  want+='"mouse_clicks":true,'
   want+='"no_alternate_screen":false,"option_left":0,"option_right":0,"profile":"Default","triggers":1,'
   want+='"triggers_interactive":true,"unicode_version":9}'
   iterm-fakes
@@ -293,6 +296,25 @@ esac'
   [ "$(jq -cS . <<<"$output")" = "${want}" ]
   run kit-bash 'terminal:bad iterm "$(terminal:settings iterm)"'
   [ "$(jq -c '[to_entries[] | select(.value) | .key]' <<<"$output")" = '["triggers","option","mouse"]' ]
+}
+
+@test "iTerm2's clipboard access is its own setting, off where it was never saved, and off fails the copy need" {
+  local clipboard
+  for clipboard in true false ''
+  do
+    export ITERM_CLIPBOARD=${clipboard}
+    iterm-fakes
+    run kit-bash 'terminal:settings iterm'
+    [ "$(jq -c .clipboard <<<"$output")" = "${clipboard:-false}" ]
+  done
+  run kit-bash "terminal:bad iterm '$(iterm-read '.clipboard = false')' | jq -c '.clipboard'"
+  [ "$output" = true ]
+  stub-reader iterm "printf '%s\\n' '$(iterm-read '.clipboard = false')'"
+  run kit-bash 'TERM_PROGRAM=iTerm.app terminal:checks'
+  [ "$(jq -sc 'map(select(.id == "terminal-iterm-clipboard")) | .[0] | [.ok, .line]' <<<"$output")" \
+    = '[false,"iTerm2 does not let apps set the clipboard, so ⧉ in kittui copies nothing"]' ]
+  [[ "$(jq -sr 'map(select(.id == "terminal-iterm-clipboard")) | .[0].fix' <<<"$output")" \
+    == "iTerm2 → Settings → General → Selection: tick Applications in terminal may access clipboard"* ]]
 }
 
 @test "a dynamic profile takes what it does not set from its parent" {

@@ -18,6 +18,7 @@ and draws its menus with two-cell emoji. A terminal must give it:
 | keys | ⌥ arrives as Meta, ⇧⌫ is not ⌫, esc arrives at once, and, where the terminal can, the kitty keyboard protocol. |
 | widths | A two-cell emoji takes two cells, and an arrow or a rule takes one, so every column stays in place. |
 | color | 24-bit color, or at least 256 colors, with `COLORTERM` saying which. |
+| copy | An app may set the clipboard through the terminal (OSC 52), so ⧉ copies, over ssh too. |
 
 A theme, a font, or anything else that is taste is not a finding.
 
@@ -66,7 +67,8 @@ kittui, a failed finding offers later and keep.
 kit knows iTerm2 by `TERM_PROGRAM=iTerm.app`, and judges the profile `ITERM_PROFILE` names, else the default. It reads
 the profiles from iTerm2's preferences (`defaults export com.googlecode.iterm2`); a key a profile does not set comes
 from a dynamic profile's parent, then from iTerm2's own default. Every path below starts at iTerm2 → Settings →
-Profiles → the profile.
+Profiles → the profile, but `clipboard`'s, which is iTerm2's own setting, under General, and takes effect once iTerm2
+starts again.
 
 | Finding | Setting | Bad | Default | Need |
 | --- | --- | --- | --- | --- |
@@ -78,6 +80,7 @@ Profiles → the profile.
 | `unicode-9` | Text → Use Unicode version 9+ widths | off | on | widths |
 | `ambiguous-wide` | Text → Ambiguous characters are double-width | on | off | widths |
 | `encoding` | Terminal → Character encoding | not UTF-8 | UTF-8 | widths |
+| `clipboard` | General → Selection → Applications in terminal may access clipboard | off | off | copy |
 
 iTerm2 runs a trigger's regex on every line a full-screen program repaints; one prompt-detection trigger took 399 ms
 on a single match. iTerm2 keeps ⌥, ⌃, and the right button with a click for its own selection and menu. Ligatures and

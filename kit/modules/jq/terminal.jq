@@ -4,8 +4,8 @@
 # terminals.json beside this module. Its keys:
 #
 #   docs        the page that lists every finding; a check's more is its terminal's section, docs#anchor
-#   probes      each probe, in the order its checks come: need, one of speed, clicks, keys, widths, and color; held,
-#               the line where the terminal answered as kittui needs; failed, where it did not
+#   probes      each probe, in the order its checks come: need, one of speed, clicks, keys, widths, color, and copy;
+#               held, the line where the terminal answered as kittui needs; failed, where it did not
 #   terminals   each terminal by its key, the word in its checks' ids: name; anchor, its section of the docs;
 #               profiles, true where its reader judges one profile of several, so a keep is for that profile;
 #               heading, where it has one, the line its heading says in place of its name and profile; and
