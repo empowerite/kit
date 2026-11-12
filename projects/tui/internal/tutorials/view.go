@@ -270,20 +270,22 @@ func (m Model) pane() []string {
 }
 
 // pageLines gives the lines of the tutorial's page open in place of the cards, drawn to the screen's width: its
-// markdown, or where it was looked for, when it could not be read.
+// markdown, each code block and table scrolled across as far as it is, or where it was looked for, when it could not
+// be read.
 func (m Model) pageLines() []string {
-	lines, _ := m.page()
-	return lines
+	lines, _, blocks := m.page()
+	return m.read.across.Slid(lines, blocks, m.width-1)
 }
 
-// page gives the lines of the tutorial's page, as pageLines does, and where each link to one of kittui's screens
-// stands in them, after the blank line over the page and the lead.
-func (m Model) page() ([]string, []markdown.Link) {
+// page gives the lines of the tutorial's page, as pageLines does but each code block and table whole, where each link
+// to one of kittui's screens stands in them, after the blank line over the page and the lead, and where each such
+// block stands.
+func (m Model) page() ([]string, []markdown.Link, []pane.Block) {
 	if m.read.missing {
-		return []string{"", lead + style.Refusal(Failed+" no page at "+m.read.tutorial.File)}, nil
+		return []string{"", lead + style.Refusal(Failed+" no page at "+m.read.tutorial.File)}, nil, nil
 	}
-	width := m.width - len(lead) - 1
-	lines, links := markdown.Page(m.read.page, width)
+	width := m.pageWidth()
+	lines, links, blocks := markdown.Wide(m.read.page, width)
 	out := []string{""}
 	for _, l := range append(append(markdown.Render(titleOf(m.read.tutorial), width), ""), lines...) {
 		out = append(out, strings.TrimRight(lead+l, " "))
@@ -292,7 +294,20 @@ func (m Model) page() ([]string, []markdown.Link) {
 		links[i].Line += len(out) - len(lines)
 		links[i].Col += len(lead)
 	}
-	return out, links
+	for i := range blocks {
+		blocks[i].From += len(out) - len(lines)
+		blocks[i].To += len(out) - len(lines)
+		blocks[i].Lead = len(lead)
+	}
+	return out, links, blocks
+}
+
+// pageWidth gives the cells a page's text takes, after the lead.
+func (m Model) pageWidth() int { return m.width - len(lead) - 1 }
+
+// lineAt gives the line of the open page a screen line y shows, or -1 for one that shows none, as pane.At says.
+func (m Model) lineAt(y int) int {
+	return pane.At(len(m.pageLines()), m.paneHeight(), m.read.offset, y-paneTop)
 }
 
 // titleOf gives a tutorial's title line, as a page's `# ` heading: its title, then a dash and its summary, without its
@@ -306,8 +321,8 @@ func titleOf(t kit.Tutorial) string {
 
 // linkAt gives where the link at a cell of the screen leads, over the tutorial's page, or "" where there is none.
 func (m Model) linkAt(x, y int) string {
-	lines, links := m.page()
-	k := pane.At(len(lines), m.paneHeight(), m.read.offset, y-paneTop)
+	_, links, _ := m.page()
+	k := m.lineAt(y)
 	for _, l := range links {
 		if l.Line == k && x >= l.Col && x < l.Col+l.Width {
 			return l.To

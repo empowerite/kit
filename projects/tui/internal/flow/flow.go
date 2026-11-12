@@ -433,15 +433,16 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.note.Text, m.copied = "", false
 		return m.key(msg)
 	case tea.MouseWheelMsg:
-		d := 0
-		switch msg.Button {
-		case tea.MouseWheelUp:
-			d = -1
-		case tea.MouseWheelDown:
-			d = 1
-		}
+		// down or up scrolls the rows; across, as shell.Turn says, scrolls the columns, as tab does, where the view
+		// hides one
+		dx, dy := shell.Turn(msg)
 		if msg.X < m.paneWidth() && msg.Y >= m.top() && msg.Y < m.top()+m.paneHeight() {
-			m.scrollRows(d * wheel)
+			if dx != 0 && len(m.stages) > 0 {
+				if _, before, after := table.Scrolled(&m); before || after {
+					table.ScrollColumns(&m, dx)
+				}
+			}
+			m.scrollRows(dy * wheel)
 		}
 	case tea.MouseClickMsg:
 		// an open layer, the topmost, takes the click, as layers.go orders them; the menus leave all but a left one

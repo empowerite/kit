@@ -38,10 +38,44 @@ const (
 // under is what starts a line under a check's: as far in as the check's text.
 const under = lead + "   "
 
-// line is one line of the pane: the check it belongs to, or -1, and its text.
+// line is one line of the pane: the check it belongs to, or -1, and its text; and the block it scrolls across with, as
+// pane.Across keeps them, "" for a line that stays, its first lead cells staying as it does.
 type line struct {
-	row  int
-	text string
+	row   int
+	text  string
+	block string
+	lead  int
+}
+
+// blocksOf gives the blocks the lines stand in, each the lines that follow one another with its name.
+func blocksOf(lines []line) []pane.Block {
+	var out []pane.Block
+	for k, l := range lines {
+		if l.block == "" {
+			continue
+		}
+		wide := ansi.StringWidth(l.text) - l.lead
+		if n := len(out); n > 0 && out[n-1].ID == l.block && out[n-1].To == k {
+			out[n-1].To, out[n-1].Wide = k+1, max(out[n-1].Wide, wide)
+			continue
+		}
+		out = append(out, pane.Block{ID: l.block, From: k, To: k + 1, Lead: l.lead, Wide: wide})
+	}
+	return out
+}
+
+// texts gives the lines' texts, each block's whole.
+func texts(lines []line) []string {
+	out := make([]string, len(lines))
+	for k, l := range lines {
+		out[k] = l.text
+	}
+	return out
+}
+
+// slid gives the lines' texts, each block's scrolled across as far as it is.
+func (m Model) slid(lines []line) []string {
+	return m.across.Slid(texts(lines), blocksOf(lines), m.width-1)
 }
 
 // View draws the screen on the alternate screen, with the mouse on for the bar: the title, the bar, or, maximized, the
@@ -194,11 +228,7 @@ func (m Model) pane() []string {
 		// the table fills the pane under the lead
 		return m.sheetPane()
 	}
-	var texts []string
-	for _, l := range m.lines() {
-		texts = append(texts, l.text)
-	}
-	out := pane.Lines(texts, m.offsets[m.step], h, "", lead)
+	out := pane.Lines(m.slid(m.lines()), m.offsets[m.step], h, "", lead)
 	for k := range out {
 		out[k] = pane.Clip(out[k], m.width-1)
 	}
@@ -217,11 +247,7 @@ func (m Model) lines() []line {
 	case m.hasRows():
 		return append(m.stepLines(), m.notCloned()...)
 	}
-	var out []line
-	for _, l := range m.pageLines(m.step) {
-		out = append(out, line{-1, l})
-	}
-	return out
+	return m.pageText(m.step)
 }
 
 // notCloned gives the lines setup ends with where the workspace's group has members with no checkout: a blank line,
@@ -231,28 +257,47 @@ func (m Model) notCloned() []line {
 	if m.tabs[m.step].id != setupID || len(gone) == 0 {
 		return nil
 	}
-	return []line{{-1, ""}, {-1, pane.Clip(lead+style.Off("not cloned: "+strings.Join(gone, ", ")), m.width-1)}}
+	return []line{{row: -1}, {row: -1, text: pane.Clip(lead+style.Off("not cloned: "+strings.Join(gone, ", ")),
+		m.width-1)}}
 }
 
-// pageLines gives a page's lines: the page drawn to the width, what the search finds in it highlighted, a dim line
-// while the pages are read, or the dim lines saying where the page was looked for, the path broken across lines so all
-// of it shows. The pane clips what a narrow screen cannot hold, since a page keeps ten cells for its words.
+// pageLines gives a page's lines, as pageText does, their texts alone.
 func (m Model) pageLines(i int) []string {
+	var out []string
+	for _, l := range m.pageText(i) {
+		out = append(out, l.text)
+	}
+	return out
+}
+
+// pageText gives a page's lines: the page drawn to the width, what the search finds in it highlighted, each code
+// block and table whole, a block of the step's, a dim line while the pages are read, or the dim lines saying where the
+// page was looked for, the path broken across lines so all of it shows. The pane clips what a narrow screen cannot
+// hold, since a page keeps ten cells for its words.
+func (m Model) pageText(i int) []line {
+	var out []line
+	add := func(text string) { out = append(out, line{row: -1, text: text}) }
 	switch {
 	case m.tabs[i].missing != "":
-		out := []string{lead + style.Off("no page at")}
+		add(lead + style.Off("no page at"))
 		path := ansi.Hardwrap(m.tabs[i].missing, max(m.width-len(lead)-1, 1), false)
 		for _, piece := range strings.Split(path, "\n") {
-			out = append(out, lead+style.Off(piece))
+			add(lead + style.Off(piece))
 		}
 		return out
 	case m.tabs[i].page == "":
-		return []string{lead + style.Off("reading…")}
+		add(lead + style.Off("reading…"))
+		return out
 	}
-	var out []string
 	query := m.searches[m.tabs[i].id].Query
-	for _, l := range render(m.tabs[i].page, m.width-len(lead)-1) {
-		out = append(out, strings.TrimRight(lead+shell.Found(l, query), " "))
+	lines, blocks := wide(m.tabs[i].page, m.width-len(lead)-1)
+	for _, l := range lines {
+		add(strings.TrimRight(lead+shell.Found(l, query), " "))
+	}
+	for _, b := range blocks {
+		for k := b.From; k < b.To; k++ {
+			out[k].block, out[k].lead = m.tabs[i].id+"/"+b.ID, len(lead)
+		}
 	}
 	return out
 }
@@ -262,7 +307,7 @@ func (m Model) pageLines(i int) []string {
 func (m Model) stepLines() []line {
 	w := m.width - 1
 	out := m.stepHead()
-	add := func(row int, text string) { out = append(out, line{row, pane.Clip(text, w)}) }
+	add := func(row int, text string) { out = append(out, line{row: row, text: pane.Clip(text, w)}) }
 	query := m.search().Query
 	rows := m.rows(m.step)
 	if len(rows) == 0 {
@@ -285,12 +330,9 @@ func (m Model) stepLines() []line {
 func (m Model) stepHead() []line {
 	w := m.width - 1
 	var out []line
-	add := func(row int, text string) { out = append(out, line{row, pane.Clip(text, w)}) }
-	query := m.search().Query
+	add := func(row int, text string) { out = append(out, line{row: row, text: pane.Clip(text, w)}) }
 	if t := m.tabs[m.step]; t.missing == "" && t.page != "" {
-		for _, l := range render(t.page, w-len(lead)) {
-			add(-1, strings.TrimRight(lead+shell.Found(l, query), " "))
-		}
+		out = append(out, m.pageText(m.step)...)
 		add(-1, "")
 	}
 	if m.refusal != "" {
@@ -319,7 +361,7 @@ func (m Model) addChecking(add func(row int, text string)) {
 func (m Model) stepTail(rows []int) []line {
 	w := m.width - 1
 	var out []line
-	add := func(row int, text string) { out = append(out, line{row, pane.Clip(text, w)}) }
+	add := func(row int, text string) { out = append(out, line{row: row, text: pane.Clip(text, w)}) }
 	if m.checking.Running() {
 		add(-1, "")
 		m.addChecking(add)
@@ -350,9 +392,13 @@ func (m Model) checkLines(i int, key, indent string) []line {
 	if end := m.rowButtons(c, key); focused && end != "" {
 		row = pane.Clip(row, w-ansi.StringWidth(end)) + end
 	}
-	out := []line{{i, pane.Clip(row, w)}}
+	out := []line{{row: i, text: pane.Clip(row, w)}}
+	// the lines under the row, whole, are a block that scrolls across, the indent staying
+	add := func(text string) {
+		out = append(out, line{row: i, text: indent + under + text, block: "check/" + key, lead: len(indent + under)})
+	}
 	for _, f := range c.Findings {
-		out = append(out, line{i, pane.Clip(indent+under+f, w)})
+		add(f)
 	}
 	if c.Fix != "" {
 		// a folder's fix names its folder, so it runs wherever it is pasted
@@ -360,17 +406,17 @@ func (m Model) checkLines(i int, key, indent string) []line {
 		if c.Interactive {
 			shown += " · it needs you at the keyboard"
 		}
-		out = append(out, line{i, pane.Clip(indent+under+style.Off(shown), w)})
+		add(style.Off(shown))
 	}
 	if !c.OK && c.More != "" {
-		out = append(out, line{i, pane.Clip(indent+under+style.Off(c.More), w)})
+		add(style.Off(c.More))
 	}
 	if n, ok := m.notes[key]; ok {
 		draw := style.Warn
 		if n.refusal {
 			draw = style.Refusal
 		}
-		out = append(out, line{i, pane.Clip(indent+under+draw(n.text), w)})
+		add(draw(n.text))
 	}
 	return out
 }

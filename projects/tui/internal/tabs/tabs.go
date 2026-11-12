@@ -44,8 +44,8 @@ import (
 // The triangles that say the view hides tabs: before the first shown, and after the last. They are white, apart from
 // the black ones the screens draw for the cursor and the legend.
 const (
-	Before = "◃"
-	After  = "▹"
+	Before = pane.Before
+	After  = pane.After
 )
 
 // Stale is the dot after a tab's name while what it shows is stale, as kept from before, or since the source changed:

@@ -11,6 +11,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
 
@@ -46,6 +47,40 @@ func TestTabScrollsTheColumnsOfAStageWiderThanTheScreen(t *testing.T) {
 	}
 	if m = drive(m, backTab); m.stages[0].Shift != 0 || strings.Contains(view(m), grid.Before) {
 		t.Errorf("shift+tab scrolls back:\n%s", view(m))
+	}
+}
+
+// A turn of the wheel across the rows, sideways or with shift, scrolls the columns a column as tab does, never past
+// the last, the rows' window left where it is; off the pane, or across a stage that fits, it scrolls nothing.
+func TestATurnAcrossScrollsTheColumnsOfAStageWiderThanTheScreen(t *testing.T) {
+	m := narrow(t)
+	turn := func(y int, b tea.MouseButton, mod tea.KeyMod) tea.Msg {
+		return tea.MouseWheelMsg{X: 5, Y: y, Button: b, Mod: mod}
+	}
+	y := m.headerTop() + 2
+	if m = drive(m, turn(y, tea.MouseWheelRight, 0)); m.stages[0].Shift != 1 || m.stages[0].Offset != 0 {
+		t.Fatalf("a turn right: shift %d, offset %d\n%s", m.stages[0].Shift, m.stages[0].Offset, view(m))
+	}
+	for range 10 {
+		m = drive(m, turn(y, tea.MouseWheelDown, tea.ModShift))
+	}
+	last := m.stages[0].Shift
+	if _, _, after := table.Scrolled(&m); after || m.stages[0].Offset != 0 {
+		t.Errorf("shift with turns down reaches the last column: shift %d, offset %d", last, m.stages[0].Offset)
+	}
+	if m = drive(m, turn(y, tea.MouseWheelLeft, 0)); m.stages[0].Shift != last-1 {
+		t.Errorf("a turn left: shift %d, want %d", m.stages[0].Shift, last-1)
+	}
+	if m = drive(m, turn(y, tea.MouseWheelUp, tea.ModShift)); m.stages[0].Shift != max(last-2, 0) {
+		t.Errorf("shift with a turn up goes left: shift %d", m.stages[0].Shift)
+	}
+	at := m.stages[0].Shift
+	if m = drive(m, turn(1, tea.MouseWheelRight, 0)); m.stages[0].Shift != at {
+		t.Errorf("a turn across on the bar scrolled: shift %d, want %d", m.stages[0].Shift, at)
+	}
+	fits := intoRows(loaded(t, options()))
+	if fits = drive(fits, turn(fits.headerTop()+2, tea.MouseWheelRight, 0)); fits.stages[0].Shift != 0 {
+		t.Errorf("a turn across a stage that fits: shift %d", fits.stages[0].Shift)
 	}
 }
 

@@ -402,8 +402,8 @@ func Header(rows []Row, names []string, width, shift int, open bool) (lines []st
 // tabs: Before after the first column, for those scrolled past, and After at the right end, for those past the edge.
 // A click on one scrolls the columns that way, as tab and shift-tab do.
 const (
-	Before = "◃"
-	After  = "▹"
+	Before = pane.Before
+	After  = pane.After
 )
 
 // column is one column a row lays out: its index into the row's cells, its width, and the cell it starts on, as view

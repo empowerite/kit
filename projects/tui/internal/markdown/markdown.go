@@ -10,6 +10,7 @@ package markdown
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -44,7 +45,20 @@ type Link struct {
 // Page draws a page's markdown as Render does, and says where each link to one of kittui's screens stands in the
 // lines.
 func Page(md string, width int) ([]string, []Link) {
-	lines := render(md, width)
+	lines, links, blocks := Wide(md, width)
+	for _, b := range blocks {
+		for k := b.From; k < b.To; k++ {
+			lines[k] = pane.Clip(lines[k], max(width, 10))
+		}
+	}
+	return lines, links
+}
+
+// Wide draws a page's markdown as Page does, but leaves each code block's and table's lines whole, wider than the
+// width where they are, and says where each such block stands, by its place among the page's blocks, for a screen
+// that scrolls each one across, as pane.Across does.
+func Wide(md string, width int) ([]string, []Link, []pane.Block) {
+	lines, blocks := render(md, width)
 	var links []Link
 	for i, l := range lines {
 		var at []Link
@@ -54,7 +68,7 @@ func Page(md string, width int) ([]string, []Link) {
 			links = append(links, k)
 		}
 	}
-	return lines, links
+	return lines, links, blocks
 }
 
 // unmarked gives a line without its links' markers, and the links they marked, each where its text stands then.
@@ -106,11 +120,26 @@ func Render(md string, width int) []string {
 	return lines
 }
 
-// render draws a page's markdown as Render does, each link to one of kittui's screens between its markers.
-func render(md string, width int) []string {
+// render draws a page's markdown as Render does, each link to one of kittui's screens between its markers, but a code
+// block's and a table's lines whole, and says where each such block stands.
+func render(md string, width int) ([]string, []pane.Block) {
 	width = max(width, 10)
 	var out, para []string
+	var blocks []pane.Block
 	prefix, indent := "", ""
+	open := -1 // the line the block being drawn starts at, -1 out of one
+	start := func() {
+		if open < 0 {
+			open = len(out)
+		}
+	}
+	end := func() {
+		if open >= 0 && len(out) > open {
+			blocks = append(blocks, pane.Block{ID: strconv.Itoa(len(blocks)), From: open, To: len(out),
+				Wide: pane.Width(out[open:])})
+		}
+		open = -1
+	}
 	blank := func() {
 		if len(out) > 0 && out[len(out)-1] != "" {
 			out = append(out, "")
@@ -125,14 +154,19 @@ func render(md string, width int) []string {
 	fenced, comment := false, false
 	for _, raw := range strings.Split(withoutFront(strings.ReplaceAll(md, "\r\n", "\n")), "\n") {
 		text := strings.TrimSpace(raw)
+		if !fenced && !strings.HasPrefix(text, "|") {
+			end() // a table ends at its first line that is no row
+		}
 		switch {
 		case strings.HasPrefix(text, "```") || strings.HasPrefix(text, "~~~"):
 			flush()
+			end()
 			if fenced = !fenced; fenced {
 				blank()
+				start()
 			}
 		case fenced:
-			out = append(out, pane.Clip("  "+style.Mark(raw), width))
+			out = append(out, "  "+style.Mark(raw))
 		case comment || strings.HasPrefix(text, "<!--"):
 			flush()
 			comment = !strings.Contains(text, "-->")
@@ -153,7 +187,8 @@ func render(md string, width int) []string {
 			blank()
 		case strings.HasPrefix(text, "|"):
 			flush()
-			out = append(out, pane.Clip(text, width))
+			start()
+			out = append(out, text)
 		case Item.MatchString(raw):
 			flush()
 			parts := Item.FindStringSubmatch(raw)
@@ -170,10 +205,11 @@ func render(md string, width int) []string {
 		}
 	}
 	flush()
+	end()
 	for len(out) > 0 && out[len(out)-1] == "" {
 		out = out[:len(out)-1]
 	}
-	return out
+	return out, blocks
 }
 
 // titled gives the words of a page's title line, `# <name> — <about>`: its name bold, then the dash and what it says

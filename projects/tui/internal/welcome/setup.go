@@ -177,7 +177,7 @@ func (m Model) shows(f folderRow, rows []int, query string) bool {
 func (m Model) setupLines() []line {
 	w := m.width - 1
 	out := m.stepHead()
-	add := func(row int, text string) { out = append(out, line{row, pane.Clip(text, w)}) }
+	add := func(row int, text string) { out = append(out, line{row: row, text: pane.Clip(text, w)}) }
 	query := m.search().Query
 	rows := m.rows(m.step)
 	var machine []int

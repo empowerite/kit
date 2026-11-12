@@ -2,11 +2,13 @@
 package markdown
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
@@ -69,6 +71,29 @@ func TestCodeBlocksKeepTheirLinesAndCommentsAreDropped(t *testing.T) {
 	md := "<!-- a note\nfor the linter -->\ntext\n```sh\nkit flow   desk\n```\n<!-- one line -->\n| a | b |\n"
 	if got := plain(md, 40); got != "text\n\n  kit flow   desk\n| a | b |" {
 		t.Errorf("got %q", got)
+	}
+}
+
+// Wide leaves a code block's and a table's lines whole, each a block of its own, which Render cuts at the width;
+// prose wraps, in no block, and a block left open at the page's end ends there.
+func TestWideKeepsABlocksLinesWholeAndSaysWhereItStands(t *testing.T) {
+	code := strings.Repeat("x", 30)
+	md := "Some prose that wraps.\n\n```\n" + code + "\nshort\n```\n| a | " + strings.Repeat("b", 20) +
+		" |\n| c |\nafter\n\n```\nopen"
+	lines, _, blocks := Wide(md, 12)
+	want := []pane.Block{{ID: "0", From: 3, To: 5, Wide: 32}, {ID: "1", From: 5, To: 7, Wide: 28},
+		{ID: "2", From: 9, To: 10, Wide: 6}}
+	if !slices.Equal(blocks, want) {
+		t.Fatalf("blocks %v, want %v\n%s", blocks, want, ansi.Strip(strings.Join(lines, "\n")))
+	}
+	if got := ansi.Strip(lines[3]); got != "  "+code {
+		t.Errorf("a code block's line, whole: %q", got)
+	}
+	if got := ansi.Strip(Render(md, 12)[3]); got != "  xxxxxxxxx…" {
+		t.Errorf("Render cuts it: %q", got)
+	}
+	if got := ansi.Strip(lines[7]); got != "after" {
+		t.Errorf("the prose after the table: %q", got)
 	}
 }
 

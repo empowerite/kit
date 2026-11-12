@@ -181,8 +181,9 @@ type Model struct {
 	refusal   string         // kit's line, when the checks did not run
 	cursor    int            // the check under the cursor, an index into checks, in the selected step
 	notes     map[string]note
-	copied    string // the key of the check whose fix was last copied, until the next key or click
-	offsets   []int  // the first line of each step's pane
+	copied    string      // the key of the check whose fix was last copied, until the next key or click
+	offsets   []int       // the first line of each step's pane
+	across    pane.Across // how far each block of the steps' panes is scrolled across
 	width     int
 	height    int
 	appMenu   shell.Menu              // the app's menu, internal/shell's, which has the keyboard while it is open
@@ -773,12 +774,17 @@ func (m Model) fading(before shell.Notice) tea.Cmd { return m.sheet().Notice().F
 
 // click takes a left click on the pane, at the screen cell x, y: on a check's line, the cursor goes to that check and
 // the pane has the keyboard, and on its row's buttons, as drawn with copied as it was, ⧉ copies its fix, ▶️ runs it,
-// and keep keeps a terminal's failed finding; on a page, the page has the keyboard. A … line, or a line that is no
-// check's, does nothing.
+// and keep keeps a terminal's failed finding; on a page, the page has the keyboard. On a block's ◃ or ▹, a code
+// block's, a table's, or a check's fix's, it scrolls the block across half the pane, as pane.Across does. A … line, or
+// a line that is no check's, does nothing.
 func (m *Model) click(x, y int, copied string) tea.Cmd {
 	r, h := y-m.paneTop(), m.paneHeight()
+	lines := m.lines()
+	k := pane.At(len(lines), h, m.offsets[m.step], r)
 	switch {
 	case r < 0 || r >= h:
+	case m.slides().Click(texts(lines), blocksOf(lines), k, x, m.width-1):
+		// a block's ◃ or ▹ scrolled it across
 	case !m.hasRows():
 		m.inPane = true
 	default:
@@ -971,25 +977,33 @@ const ends = 1 << 30
 const wheel = 3
 
 // wheeled scrolls what a turn of the mouse wheel is over, never past its ends: a step's table, as table.Sheet's Wheel
-// takes it, or the pane's lines, a page's or a step's checks. The keyboard stays where it is, and so does the cursor,
-// until a key moves it and the pane follows it again. A turn off the pane, or while a menu is open, scrolls nothing.
+// takes it, or the pane's lines, a page's or a step's checks; a turn across, as shell.Turn says, scrolls the block
+// under the pointer, a code block, a table, or a check's fix, pane.TurnCells. The keyboard stays where it is, and so
+// does the cursor, until a key moves it and the pane follows it again. A turn off the pane, or while a menu is open,
+// scrolls nothing.
 func (m *Model) wheeled(w tea.MouseWheelMsg) {
-	d := 0
-	switch w.Button {
-	case tea.MouseWheelUp:
-		d = -wheel
-	case tea.MouseWheelDown:
-		d = wheel
-	}
-	if d == 0 || m.appMenu.Open || m.books.Open || m.recent.Open || w.Y < m.paneTop() || w.Y >= m.paneTop()+m.paneHeight() {
+	dx, dy := shell.Turn(w)
+	if m.appMenu.Open || m.books.Open || m.recent.Open || w.Y < m.paneTop() || w.Y >= m.paneTop()+m.paneHeight() {
 		return
 	}
 	switch {
 	case m.gridded():
 		m.sheet().Wheel(w)
+	case dx != 0:
+		lines := m.lines()
+		k := pane.At(len(lines), m.paneHeight(), m.offsets[m.step], w.Y-m.paneTop())
+		m.slides().Turn(blocksOf(lines), k, m.width-1, dx*pane.TurnCells)
 	default:
-		m.scroll(d)
+		m.scroll(dy * wheel)
 	}
+}
+
+// slides gives how far the panes' blocks are scrolled across, kept from the first turn on.
+func (m *Model) slides() pane.Across {
+	if m.across == nil {
+		m.across = pane.Across{}
+	}
+	return m.across
 }
 
 // scroll moves a page's pane n lines, never past its ends.

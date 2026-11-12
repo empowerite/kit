@@ -665,21 +665,23 @@ func (s *Sheet) Click(c tea.MouseClickMsg) bool {
 // WheelLines is the lines a turn of the mouse wheel scrolls the rows' window.
 const WheelLines = 3
 
-// Wheel takes a turn of the mouse wheel, and says whether the sheet took it: over the pane, it scrolls the rows'
-// window WheelLines down or up, never past its ends, the cursor left where it is, until a key moves it. A turn off the
-// pane, or while a layer is open, is not the sheet's.
+// Wheel takes a turn of the mouse wheel, and says whether the sheet took it: over the pane, a turn down or up scrolls
+// the rows' window WheelLines, never past its ends, the cursor left where it is, until a key moves it; a turn across,
+// as shell.Turn says, scrolls the columns a column, as ScrollColumns does, where the view hides one. A turn off the
+// pane, across a table that hides no column, or while a layer is open, is not the sheet's.
 func (s *Sheet) Wheel(w tea.MouseWheelMsg) bool {
-	d := 0
-	switch w.Button {
-	case tea.MouseWheelUp:
-		d = -WheelLines
-	case tea.MouseWheelDown:
-		d = WheelLines
-	}
-	if d == 0 || s.Layered() || w.X >= s.paneWidth() || w.Y < s.top || w.Y >= s.top+s.height {
+	dx, dy := shell.Turn(w)
+	if dx == 0 && dy == 0 || s.Layered() || w.X >= s.paneWidth() || w.Y < s.top || w.Y >= s.top+s.height {
 		return false
 	}
-	s.tbl.Offset, _, _, _ = pane.Window(len(ScrollLines(s)), RowsHeight(s), s.tbl.Offset+d)
+	if dx != 0 {
+		if _, before, after := Scrolled(s); !before && !after {
+			return false
+		}
+		ScrollColumns(s, dx)
+		return true
+	}
+	s.tbl.Offset, _, _, _ = pane.Window(len(ScrollLines(s)), RowsHeight(s), s.tbl.Offset+dy*WheelLines)
 	return true
 }
 

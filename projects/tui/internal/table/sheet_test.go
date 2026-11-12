@@ -1012,6 +1012,38 @@ func TestTabAndATriangleScrollTheColumnsOfATableWiderThanTheScreen(t *testing.T)
 	}
 }
 
+// A turn of the wheel across the pane, sideways or with shift, scrolls the columns a column as tab does, never past
+// either end, the rows' window left where it is; across a table that fits, it is not the sheet's.
+func TestATurnAcrossScrollsTheColumnsOfATableWiderThanTheScreen(t *testing.T) {
+	s := broad(40)
+	turn := func(b tea.MouseButton, mod tea.KeyMod) bool {
+		return s.Wheel(tea.MouseWheelMsg{X: 5, Y: s.top + 3, Button: b, Mod: mod})
+	}
+	if !turn(tea.MouseWheelRight, 0) || s.tbl.Shift != 1 || s.tbl.Offset != 0 {
+		t.Errorf("a turn right: shift %d, offset %d", s.tbl.Shift, s.tbl.Offset)
+	}
+	if turn(tea.MouseWheelRight, 0); s.tbl.Shift != 1 {
+		t.Errorf("a turn right past the last column: shift %d", s.tbl.Shift)
+	}
+	if !turn(tea.MouseWheelUp, tea.ModShift) || s.tbl.Shift != 0 {
+		t.Errorf("shift with a turn up goes left: shift %d", s.tbl.Shift)
+	}
+	if turn(tea.MouseWheelDown, tea.ModShift); s.tbl.Shift != 1 {
+		t.Errorf("shift with a turn down goes right: shift %d", s.tbl.Shift)
+	}
+	if turn(tea.MouseWheelLeft, 0); s.tbl.Shift != 0 ||
+		!strings.Contains(strings.Join(screenOf(s), "\n"), "aaaaaaaaaa1") {
+		t.Errorf("a turn left scrolls back: shift %d", s.tbl.Shift)
+	}
+	if s.Wheel(tea.MouseWheelMsg{X: 5, Y: s.top - 1, Button: tea.MouseWheelRight}) || s.tbl.Shift != 0 {
+		t.Errorf("a turn across off the pane scrolled: shift %d", s.tbl.Shift)
+	}
+	fits := broad(80)
+	if fits.Wheel(tea.MouseWheelMsg{X: 5, Y: fits.top + 3, Button: tea.MouseWheelRight}) || fits.tbl.Shift != 0 {
+		t.Errorf("a turn across a table that fits was taken: shift %d", fits.tbl.Shift)
+	}
+}
+
 func TestATableThatFitsTakesNoTab(t *testing.T) {
 	s := broad(80)
 	s.FocusRows()

@@ -49,6 +49,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"maps"
 	"os"
 	"slices"
 	"strconv"
@@ -59,6 +60,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/source"
 	"github.com/empowerite/kit/projects/tui/internal/table"
@@ -124,13 +126,15 @@ type readMsg struct {
 }
 
 // reader is a tutorial in the kit open in place of the cards: whether one is, the tutorial, its page's markdown, or
-// that it has none, and the first line of the page the pane shows.
+// that it has none, the first line of the page the pane shows, and how far each of its code blocks and tables is
+// scrolled across.
 type reader struct {
 	open     bool
 	tutorial kit.Tutorial
 	page     string
 	missing  bool
 	offset   int
+	across   pane.Across
 }
 
 // Fades is how long the notice that a tutorial opened stays in place of the keys, short of a key. The link left when
@@ -303,25 +307,32 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // wheel scrolls the cards a band for a turn of the mouse wheel over them, a row of cards or a heading, down or up,
 // never past their ends; the keyboard stays where it is, and so does the cursor, until a key moves it, or gives the
-// cards the keyboard, and the pane follows it again. A turn off the cards, or while a menu or a layer of the table is
-// open, scrolls nothing.
+// cards the keyboard, and the pane follows it again. Over a page, a turn across, as shell.Turn says, scrolls the code
+// block or table under the pointer pane.TurnCells, as pane.Across does. A turn off the cards, across them, or while a
+// menu or a layer of the table is open, scrolls nothing.
 func (m *Model) wheel(w tea.MouseWheelMsg) {
-	d := 0
-	switch w.Button {
-	case tea.MouseWheelUp:
-		d = -1
-	case tea.MouseWheelDown:
-		d = 1
-	}
-	if d == 0 || m.appMenu.Open || m.books.Open || m.recent.Open || m.sheet.Layered() || w.Y < paneTop ||
+	dx, dy := shell.Turn(w)
+	if m.appMenu.Open || m.books.Open || m.recent.Open || m.sheet.Layered() || w.Y < paneTop ||
 		w.Y >= paneTop+m.paneHeight() {
 		return
 	}
-	if m.read.open {
-		m.scroll(d * wheelLines)
-		return
+	switch {
+	case m.read.open && dx != 0:
+		_, _, blocks := m.page()
+		m.across().Turn(blocks, m.lineAt(w.Y), m.width-1, dx*pane.TurnCells)
+	case m.read.open:
+		m.scroll(dy * wheelLines)
+	case dy != 0:
+		m.offset, m.wheeled = m.offset+dy, true
 	}
-	m.offset, m.wheeled = m.offset+d, true
+}
+
+// across gives how far the open page's blocks are scrolled across, kept from the first turn on.
+func (m *Model) across() pane.Across {
+	if m.read.across == nil {
+		m.read.across = pane.Across{}
+	}
+	return m.read.across
 }
 
 // place puts the table on the screen's second line, its control line alone, as the cards stand for its rows.
@@ -623,10 +634,14 @@ func (m Model) click(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 		m.search.Focused, m.read.open = true, false
 		return m, nil
 	case m.read.open:
-		// over a tutorial's page, the line over it goes back to the cards, and a link opens the screen it leads to
+		// over a tutorial's page, the line over it goes back to the cards, a block's ◃ or ▹ scrolls it, as pane.Across
+		// does, and a link opens the screen it leads to
 		if msg.Y == controlTop {
 			m.read.open = false
 			m.fit()
+		}
+		if lines, _, blocks := m.page(); m.across().Click(lines, blocks, m.lineAt(msg.Y), msg.X, m.width-1) {
+			return m, nil
 		}
 		return m, follow(m.linkAt(msg.X, msg.Y))
 	case msg.Y == controlTop:
@@ -703,10 +718,12 @@ func follow(to string) tea.Cmd {
 // Spot gives the name of where the screen stands, as the crumb of a screen a link on a tutorial's page led to says
 // it: tutorials, and the tutorial's title while its page is open; and the spot, as Restore puts it back.
 func (m Model) Spot() (string, any) {
-	if !m.read.open {
-		return "tutorials", m.read
+	r := m.read
+	r.across = maps.Clone(r.across) // the spot keeps where the blocks stood, as later turns leave it
+	if !r.open {
+		return "tutorials", r
 	}
-	return "tutorials › " + m.read.tutorial.Title, m.read
+	return "tutorials › " + r.tutorial.Title, r
 }
 
 // Restore puts the screen back where a spot says it stood: the tutorial's page open where it was scrolled to, or the
