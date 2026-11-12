@@ -73,9 +73,10 @@ def nix_refs:
 
 # kit_wanted($platforms) reads the tools under tools: in kit.yml, each {name, version, url, bin, profile, os, arch, ext,
 # platforms}, and gives one line per tool and platform it is locked for: "<name>\t<version>\t<platform>\t<profile>\t
-# <url>\t<bin>". $platforms, space-separated, are the platforms a tool with no platforms: of its own is locked for. In
-# the url and the bin, {version}, {platform}, {os}, {arch}, and {ext} are filled in, os: and arch: renaming kit's linux,
-# macos, x64, and arm64 for the tool's own, and ext: giving each os its file's ending.
+# url:<url>\t<bin>", url:<url> the coordinate the pull path is searched for. $platforms, space-separated, are the
+# platforms a tool with no platforms: of its own is locked for. In the url and the bin, {version}, {platform}, {os},
+# {arch}, and {ext} are filled in, os: and arch: renaming kit's linux, macos, x64, and arm64 for the tool's own, and
+# ext: giving each os its file's ending.
 def kit_wanted($platforms):
   .[] as $tool
   | ($tool.platforms | if length > 0 then . else ($platforms | split(" ")) end)[] as $platform
@@ -83,7 +84,8 @@ def kit_wanted($platforms):
   | def fill: gsub("\\{version\\}"; $tool.version) | gsub("\\{platform\\}"; $platform)
       | gsub("\\{os\\}"; $tool.os[$os] // $os) | gsub("\\{arch\\}"; $tool.arch[$arch] // $arch)
       | gsub("\\{ext\\}"; ($tool.ext // {})[$os] // "");
-    [$tool.name, $tool.version, $platform, $tool.profile, ($tool.url | fill), ($tool.bin | fill)] | join("\t");
+    [$tool.name, $tool.version, $platform, $tool.profile, "url:" + ($tool.url | fill), ($tool.bin | fill)]
+    | join("\t");
 
 # devcontainer_pins reads devcontainer-lock.json and gives one line per locked feature, "<id>\t<pinned>\t<installed>".
 # The lock records the version each feature resolved to, and nothing of what was built, so the two columns agree.

@@ -328,4 +328,114 @@ sources:path() {
     <<<"${layers}"
 }
 
+# sources:direct <coordinate> prints where direct fetches the coordinate from, "<kind>\t<home>": the first kind, in
+# name order, that serves the coordinate and has a home. A url: coordinate is its own address, with no kind. It
+# returns 4 when no kind serves the coordinate at a home.
+sources:direct() {
+  local kind home
+  local -a kinds
+  if [[ "$1" == url:* ]]
+  then
+    printf '\t%s\n' "${1#url:}"
+    return 0
+  fi
+  list:read kinds sources:kinds || return 1
+  for kind in "${kinds[@]}"
+  do
+    sources:call "${kind}" serves "$1" || continue
+    home=$(sources:call "${kind}" home) || continue
+    [[ -n "${home}" ]] || continue
+    printf '%s\t%s\n' "${kind}" "${home}"
+    return 0
+  done
+  return 4
+}
+
+# sources:artifact <coordinate> prints what the coordinate names, as a lock records it, apart from where it is: a
+# url: coordinate as file:<its last part>, and any other as it is, since it names no place.
+sources:artifact() {
+  local url
+  case "$1" in
+    (url:*)
+      url=${1#url:}
+      url=${url%%[?#]*}
+      printf 'file:%s\n' "${url##*/}"
+      ;;
+    (*) printf '%s\n' "$1"
+  esac
+}
+
+# sources:find <coordinate> <hash> <file> [<path>] walks the pull path for the coordinate, writes the first hit whose
+# hash is <hash> at <file>, and prints the hit's hash. With no hash, the first hit wins. A source whose kind does not
+# serve the coordinate's form is passed by, as is one that does not have it. One that cannot be reached, or that
+# serves other bytes, is named, and the walk goes on, so a mirror's other bytes are never installed. When nothing on
+# the path served it, it says what each source said, and that the path ended at off where it did, and returns 1.
+# <path> is what sources:path prints, read once for every artifact of a run; without it, the path is read.
+sources:find() {
+  local coordinate=$1 want=$2 file=$3 path name kind url line status have where artifact
+  local -a said=()
+  if (( $# > 3 ))
+  then path=$4
+  else path=$(sources:path) || return 1
+  fi
+  artifact=$(sources:artifact "${coordinate}")
+  # a kind or a url can be empty, so each tab becomes \x1f, which read never runs together with the next
+  while IFS=$'\x1f' read -r name kind url _
+  do
+    [[ -n "${name}" ]] || continue
+    case "${name}" in
+      (off)
+        said+=("the path ends at off")
+        break
+        ;;
+      (direct)
+        line=$(sources:direct "${coordinate}") || continue
+        IFS=$'\x1f' read -r kind url <<<"${line//$'\t'/$'\x1f'}"
+        where="direct (${url})"
+        ;;
+      (*)
+        [[ "${coordinate}" != url:* ]] || continue
+        sources:call "${kind}" serves "${coordinate}" || continue
+        where=${name}
+    esac
+    status=0
+    rm -f "${file}"
+    if [[ -z "${kind}" ]]
+    then curl --fail --silent --location --output "${file}" "${url}" || status=$?
+    else sources:call "${kind}" fetch "${url}" "${coordinate}" "${file}" || status=$?
+    fi
+    case "${status}" in
+      (0) ;;
+      (4 | 22)
+        said+=("${where} does not have it")
+        continue
+        ;;
+      (*)
+        said+=("${where} could not be reached")
+        continue
+    esac
+    if [[ -z "${kind}" ]]
+    then have="sha256:$(file:digest "${file}")"
+    else have=$(sources:call "${kind}" hash "${file}" "${coordinate}") || return 1
+    fi
+    if [[ -n "${want}" && "${have}" != "${want}" ]]
+    then
+      error "${where} serves ${artifact#file:} with the hash ${have}, not the ${want} the lock pins; kit passed" \
+        "it by"
+      said+=("${where} served other bytes")
+      rm -f "${file}"
+      continue
+    fi
+    printf '%s\n' "${have}"
+    return 0
+  done <<<"${path//$'\t'/$'\x1f'}"
+  rm -f "${file}"
+  if (( ${#said[@]} == 0 ))
+  then said=("no source on it serves ${coordinate%%:*}: artifacts")
+  fi
+  error "no source on the pull path served ${artifact#file:}: $(IFS=';'; printf '%s' "${said[*]}" | sed 's/;/; /g');" \
+    "see: kit tools sources"
+  return 1
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

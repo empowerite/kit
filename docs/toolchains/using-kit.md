@@ -1,8 +1,8 @@
 # Using kit as the toolchain
 
 The kit toolchain is kit itself: `tools:` in `kit.yml` pins each tool by version and the URL of its download, and
-`tools.lock` records each download's sha256 for every platform. It needs only curl and tar, and unzip for a zip. For
-how kit finds and chooses a toolchain, see [toolchains.md](../toolchains.md).
+`tools.lock` records what each download is, and its hash, for every platform, never where it came from. It needs only
+curl and tar, and unzip for a zip. For how kit finds and chooses a toolchain, see [toolchains.md](../toolchains.md).
 
 ## Set up
 
@@ -47,7 +47,10 @@ in `.zip` by unzip. Any other URL is the command itself, saved under the tool's 
 - **Usable**: curl and tar are on `PATH`, and `kit.yml` has `tools:` or `tools.lock` is here.
 - **Active**: each directory `kit tools path` names is on `PATH`.
 - **Pins**: each tool's version in `kit.yml`. `tools.lock` holds one line per tool and platform: the name, version,
-  platform, profile, URL, sha256, and bin, separated by tabs.
+  platform, profile, artifact, hash, and bin, separated by tabs. The artifact is what the download is, its URL's last
+  part, as `file:gh_2.103.2_macOS_arm64.zip`; the hash is its ecosystem's own, with its prefix, `sha256:<hex>` for a
+  file. A lock written before artifacts, with each URL and a bare sha256, reads as the same lock, and the next lock
+  rewrites it.
 
 `kit tools path` and the active check read `tools.lock` alone, so a shell hook that puts the tools on `PATH` stays
 fast.
@@ -63,10 +66,18 @@ fast.
 | What | Where |
 | --- | --- |
 | A tool | `~/.kit/tools/<name>/<version>/<platform>/`, under `KIT_HOME` when it is set, shared by every checkout |
-| A download | `~/.cache/kit/downloads/<sha256>`, under `XDG_CACHE_HOME` when it is set |
+| A download | `~/.cache/kit/downloads/<hex>`, its sha256's, under `XDG_CACHE_HOME` when it is set |
 
-A download whose bytes have another digest than the one `tools.lock` pins is refused, and nothing is installed from
-it. A tool is unpacked apart and moved into place only once its `bin` is there.
+## Where a download comes from
+
+Each download is found on the pull path, the artifact sources kit searches in order, the first that has it winning;
+`kit tools sources` prints it, and [packages.md](../packages.md#kinds-and-the-pull-path) says how it is layered. A
+`url:` names a place, so `direct`, the open internet, alone serves it: a path that ends at `off` before `direct`
+installs none, and kit says so, naming the download and what each source said.
+
+A source whose download has another hash than the one `tools.lock` pins is named and passed by, and the next one is
+asked; when none has the pinned bytes, nothing is installed. A tool is unpacked apart and moved into place only once
+its `bin` is there.
 
 ## A desk and a runner
 

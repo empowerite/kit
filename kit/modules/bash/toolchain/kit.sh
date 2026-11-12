@@ -21,21 +21,25 @@
 # A url that ends in .tar.gz, .tgz, .tar.xz, .txz, .tar.bz2, or .tar is unpacked by tar, one that ends in .zip by
 # unzip, and any other url is the command itself, saved under the tool's name.
 #
-# tools.lock, beside kit.yml, holds one line per tool and platform, tab-separated: name, version, platform, profile,
-# url, sha256, and bin. install locks again each tool whose pin moved, downloading its file for every platform, and a
+# Each download is found on the pull path, sources:find's, the first source that has it winning; a url: names a place,
+# so direct alone serves it. tools.lock, beside kit.yml, holds one line per tool and platform, tab-separated: name,
+# version, platform, profile, artifact, hash, and bin. The artifact is what the download is, never where it came
+# from: a url's last part, as file:gh_2.103.2_macOS_arm64.zip. The hash is its ecosystem's own, with its prefix, as
+# sha256:<hex> for a file. A lock written before artifacts, with the url and a bare sha256, is read as the url's last
+# part and its sha256:. install locks again each tool whose pin moved, downloading its file for every platform, and a
 # runner refuses to. path and active read the lock alone, so a shell hook that asks for the path stays fast.
 #
 # A tool is installed under ${KIT_HOME:-$HOME}/.kit/tools/<name>/<version>/<platform>/, which every checkout shares,
-# and each download is kept under ${XDG_CACHE_HOME:-$HOME/.cache}/kit/downloads/, named by its sha256. A download
-# whose bytes have another digest than the lock's is refused, and nothing is installed from it.
+# and each download is kept under ${XDG_CACHE_HOME:-$HOME/.cache}/kit/downloads/, named by its hash. A download whose
+# bytes have another hash than the lock's is refused, and nothing is installed from it.
 #
 # outdated asks a GitHub release's latest tag, for a release's download or a source archive, through gh where it is
 # installed and GitHub's API otherwise; Node.js's latest LTS; Go's latest release; and the newest file a GNU mirror's
 # directory lists. For any other url, it says it cannot tell.
 #
-# see: docs/toolchains/using-kit.md, issue #181
+# see: docs/toolchains/using-kit.md, modules/bash/sources.sh, issues #181 and #182
 
-use file yaml
+use file yaml sources
 
 # toolchain_kit_platforms are the platforms a tool is locked for, unless its platforms: names others.
 declare -gr toolchain_kit_platforms='linux-x64 linux-arm64 macos-x64 macos-arm64'
@@ -52,15 +56,24 @@ toolchain/kit:inputs() { printf 'tool\tcurl\ntool\ttar\nfile\tkit.yml\nfile\ttoo
 # toolchain/kit:install locks again what moved, then installs each tool this platform and profile take that is not
 # installed at the lock's digest. One tool that fails stops none of the rest.
 toolchain/kit:install() {
-  local row status=0
-  local -a rows
+  local row status=0 name version platform profile coordinate bin path
+  local -a rows wanted
+  local -A coordinates=()
   toolchain/kit:require || return 1
-  toolchain/kit:lock || return 1
+  path=$(sources:path) || return 1
+  toolchain/kit:lock "${path}" || return 1
+  list:read wanted toolchain/kit:wanted || return 1
+  for row in "${wanted[@]}"
+  do
+    IFS=$'\t' read -r name version platform profile coordinate bin <<<"${row}"
+    [[ -z "${name}" ]] || coordinates[${name}$'\t'${platform}]=${coordinate}
+  done
   list:read rows toolchain/kit:here || return 1
   for row in "${rows[@]}"
   do
     [[ -n "${row}" ]] || continue
-    toolchain/kit:place "${row}" || status=1
+    IFS=$'\t' read -r name _ platform _ <<<"${row}"
+    toolchain/kit:place "${row}" "${coordinates[${name}$'\t'${platform}]}" "${path}" || status=1
   done
   return "${status}"
 }
@@ -92,13 +105,13 @@ toolchain/kit:outdated() {
 }
 
 toolchain/kit:path() {
-  local name version platform profile url digest bin row dir root
+  local name version platform profile artifact hash bin row dir root
   local -a rows
   list:read rows toolchain/kit:here || return 1
   root=$(toolchain/kit:root)
   for row in "${rows[@]}"
   do
-    IFS=$'\t' read -r name version platform profile url digest bin <<<"${row}"
+    IFS=$'\t' read -r name version platform profile artifact hash bin <<<"${row}"
     [[ -n "${name}" ]] || continue
     dir="${root}/${name}/${version}/${platform}"
     [[ "${bin}" == . ]] || dir+="/${bin}"
@@ -109,7 +122,7 @@ toolchain/kit:path() {
 # toolchain/kit:pins reads kit.yml, and never the network: each tool this platform and profile take, with its pin,
 # and the pin again where it is installed.
 toolchain/kit:pins() {
-  local name version platform profile url bin row here mine root
+  local name version platform profile coordinate bin row here mine root
   local -a rows
   here=$(toolchain/kit:platform) || return 1
   mine=$(toolchain/kit:profile)
@@ -117,7 +130,7 @@ toolchain/kit:pins() {
   list:read rows toolchain/kit:wanted || return 1
   for row in "${rows[@]}"
   do
-    IFS=$'\t' read -r name version platform profile url bin <<<"${row}"
+    IFS=$'\t' read -r name version platform profile coordinate bin <<<"${row}"
     [[ -n "${name}" && "${platform}" == "${here}" ]] || continue
     [[ "${profile}" == both || "${profile}" == "${mine}" ]] || continue
     if [[ -f "${root}/${name}/${version}/${platform}/.kit-sha256" ]]
@@ -229,8 +242,9 @@ toolchain/kit:spec() {
       "platforms": (.value.platforms // [])}]' --output-format=json --indent=0
 }
 
-# toolchain/kit:wanted prints what kit.yml asks the lock to hold: "<name>\t<version>\t<platform>\t<profile>\t<url>\t
-# <bin>", one line per tool and platform. A tool without a version or a url is refused by name.
+# toolchain/kit:wanted prints what kit.yml asks the lock to hold: "<name>\t<version>\t<platform>\t<profile>\t
+# <coordinate>\t<bin>", one line per tool and platform, the coordinate url:<url> for a url. A tool without a version or
+# a url is refused by name.
 toolchain/kit:wanted() {
   local spec missing
   spec=$(toolchain/kit:spec) || return 1
@@ -252,10 +266,15 @@ toolchain/kit:tools() {
   jq --raw-output '.[] | [.name, .version, .url] | join("\t")' <<<"${spec:-[]}"
 }
 
-# toolchain/kit:locked prints the lines of tools.lock, its comments and blank lines left out.
+# toolchain/kit:locked prints the lines of tools.lock, its comments and blank lines left out. A line written before
+# artifacts, its fifth field a url and its sixth a bare sha256, is printed with the url's last part as file:<part> and
+# the sha256 with its prefix, as the lock is written now.
 toolchain/kit:locked() {
   [[ -f tools.lock ]] || return 0
-  sed -e '/^#/d' -e '/^$/d' tools.lock
+  awk -F '\t' -v OFS='\t' '/^#/ || /^$/ { next }
+    $6 ~ /^[0-9a-f]+$/ && length($6) == 64 { url = $5; sub(/[?#].*/, "", url); sub(/.*\//, "", url)
+      $5 = "file:" url; $6 = "sha256:" $6 }
+    { print }' tools.lock
 }
 
 # toolchain/kit:here prints the lines of tools.lock that this platform and profile install.
@@ -269,27 +288,32 @@ toolchain/kit:here() {
     '$3 == platform && ($4 == "both" || $4 == profile)' <<<"${locked}"
 }
 
-# toolchain/kit:lock rewrites tools.lock when kit.yml asks for other lines than it holds: each tool whose pin moved is
-# downloaded for every platform, a url they share once, and the lines of the rest are kept. Only this platform's
-# downloads stay in the cache; the others were fetched to be hashed. A runner refuses a lock behind kit.yml.
+# toolchain/kit:lock [<path>] rewrites tools.lock when kit.yml asks for other lines than it holds: each tool whose pin
+# moved is found on the pull path for every platform, a coordinate they share once, and the lines of the rest are
+# kept. Only this platform's downloads stay in the cache; the others were fetched to be hashed. A runner refuses a lock
+# behind kit.yml. <path> is sources:path's, read here without it.
 toolchain/kit:lock() {
-  local wanted locked name version platform profile url bin digest key entry names='' rows=0 here cache
+  local wanted locked name version platform profile coordinate artifact bin hash key entry names='' rows=0 here cache
+  local banner
+  local path=${1:-}
   local -A have=() moved=() fetched=() kept=()
   local -a lines=()
   wanted=$(toolchain/kit:wanted) || return 1
   locked=$(toolchain/kit:locked) || return 1
-  while IFS=$'\t' read -r name version platform profile url digest bin
+  while IFS=$'\t' read -r name version platform profile artifact hash bin
   do
     [[ -n "${name}" ]] || continue
-    have[${name}$'\t'${platform}]=${version}$'\t'${profile}$'\t'${url}$'\t'${bin}$'\t'${digest}
+    have[${name}$'\t'${platform}]=${version}$'\t'${profile}$'\t'${artifact}$'\t'${bin}$'\t'${hash}
     rows=$(( rows + 1 ))
   done <<<"${locked}"
-  while IFS=$'\t' read -r name version platform profile url bin
+  while IFS=$'\t' read -r name version platform profile coordinate bin
   do
     [[ -n "${name}" ]] || continue
     rows=$(( rows - 1 ))
     entry=${have[${name}$'\t'${platform}]:-}
-    if [[ "${entry%$'\t'*}" != "${version}"$'\t'"${profile}"$'\t'"${url}"$'\t'"${bin}" && -z "${moved[${name}]:-}" ]]
+    artifact=$(sources:artifact "${coordinate}")
+    if [[ "${entry%$'\t'*}" != "${version}"$'\t'"${profile}"$'\t'"${artifact}"$'\t'"${bin}" \
+      && -z "${moved[${name}]:-}" ]]
     then
       moved[${name}]=1
       names+="${names:+, }${name}"
@@ -302,98 +326,116 @@ toolchain/kit:lock() {
       "at a desk, and commit tools.lock"
     return 1
   fi
+  [[ -n "${path}" ]] || path=$(sources:path) || return 1
   here=$(toolchain/kit:platform) || return 1
   cache=$(toolchain/kit:cache)
-  while IFS=$'\t' read -r name version platform profile url bin
+  while IFS=$'\t' read -r name version platform profile coordinate bin
   do
     [[ -n "${name}" ]] || continue
     key=${name}$'\t'${platform}
     if [[ -z "${moved[${name}]:-}" ]]
-    then digest=${have[${key}]##*$'\t'}
-    elif [[ -n "${fetched[${url}]:-}" ]]
-    then digest=${fetched[${url}]}
+    then hash=${have[${key}]##*$'\t'}
+    elif [[ -n "${fetched[${coordinate}]:-}" ]]
+    then hash=${fetched[${coordinate}]}
     else
-      digest=$(toolchain/kit:fetch "${name}" "${url}") || return 1
-      fetched[${url}]=${digest}
+      hash=$(toolchain/kit:fetch "${name}" "${coordinate}" '' "${path}") || return 1
+      fetched[${coordinate}]=${hash}
     fi
-    [[ "${platform}" != "${here}" ]] || kept[${digest}]=1
-    lines+=("${name}"$'\t'"${version}"$'\t'"${platform}"$'\t'"${profile}"$'\t'"${url}"$'\t'"${digest}"$'\t'"${bin}")
+    [[ "${platform}" != "${here}" ]] || kept[${hash}]=1
+    artifact=$(sources:artifact "${coordinate}")
+    lines+=("${name}"$'\t'"${version}"$'\t'"${platform}"$'\t'"${profile}"$'\t'"${artifact}"$'\t'"${hash}"$'\t'"${bin}")
   done <<<"${wanted}"
-  for digest in "${fetched[@]}"
+  for hash in "${fetched[@]}"
   do
-    [[ -n "${kept[${digest}]:-}" ]] || rm -f "${cache}/${digest}"
+    [[ -n "${kept[${hash}]:-}" ]] || rm -f "${cache}/$(toolchain/kit:kept-as "${hash}")"
   done
-  file:replace tools.lock printf '%s\n' \
-    '# tools.lock - each tool'"'"'s download for every platform, written by kit tools install from tools: in kit.yml' \
-    $'# name\tversion\tplatform\tprofile\turl\tsha256\tbin' "${lines[@]}" || return 1
+  banner="# tools.lock - what each tool's download is, for every platform, written by kit tools install from tools:"
+  file:replace tools.lock printf '%s\n' "${banner} in kit.yml" \
+    $'# name\tversion\tplatform\tprofile\tartifact\thash\tbin' "${lines[@]}" || return 1
   if [[ -n "${names}" ]]
   then ok "tools.lock: locked ${names}; commit it with kit.yml"
   else ok "tools.lock: left out the tools kit.yml no longer pins; commit it with kit.yml"
   fi
 }
 
-# toolchain/kit:fetch <name> <url> [<digest>] keeps the download of the url in the cache, named by its sha256, and
-# prints the sha256. With a digest, a download already kept is not fetched again, and one with other bytes is refused.
+# toolchain/kit:kept-as <hash> prints the name a download with that hash is kept under in the cache: a sha256's hex,
+# as a lock before artifacts kept it, and any other hash with each / as _, so it names one file.
+toolchain/kit:kept-as() {
+  local hash=$1
+  case "${hash}" in
+    (sha256:*) printf '%s\n' "${hash#sha256:}" ;;
+    (*) printf '%s\n' "${hash//\//_}"
+  esac
+}
+
+# toolchain/kit:fetch <name> <coordinate> [<hash>] [<path>] keeps the download of the coordinate in the cache, named by
+# its hash, and prints the hash. It is found on the pull path, <path> as sources:path prints it. With a hash, a
+# download already kept is not fetched again, and a source with other bytes is passed by.
 toolchain/kit:fetch() {
-  local name=$1 url=$2 want=${3:-} cache have download
+  local name=$1 coordinate=$2 want=${3:-} path=${4:-} cache have download artifact
   cache=$(toolchain/kit:cache)
-  if [[ -n "${want}" && -f "${cache}/${want}" ]]
+  if [[ -n "${want}" && -f "${cache}/$(toolchain/kit:kept-as "${want}")" ]]
   then
     printf '%s\n' "${want}"
     return 0
   fi
+  [[ -n "${path}" ]] || path=$(sources:path) || return 1
   file:temp download "${name}" || return 1
-  step "${name}: downloading ${url}"
-  if ! curl --fail --silent --show-error --location --output "${download}" "${url}"
+  artifact=$(sources:artifact "${coordinate}")
+  step "${name}: downloading ${artifact#file:}"
+  if ! have=$(sources:find "${coordinate}" "${want}" "${download}" "${path}")
   then
-    error "${name}: ${url} could not be downloaded"
+    error "${name}: ${artifact#file:} could not be downloaded; nothing was installed"
     return 1
   fi
-  have=$(file:digest "${download}")
-  if [[ -n "${want}" && "${have}" != "${want}" ]]
-  then
-    error "${name}: ${url} has digest sha256:${have}, not the sha256:${want} tools.lock pins; nothing was installed"
-    return 1
-  fi
-  mkdir -p "${cache}" && mv -f "${download}" "${cache}/${have}" || return 1
+  mkdir -p "${cache}" && mv -f "${download}" "${cache}/$(toolchain/kit:kept-as "${have}")" || return 1
   printf '%s\n' "${have}"
 }
 
-# toolchain/kit:place <line> installs the tool a line of tools.lock names, unless it is installed at its digest: the
-# download is unpacked apart, its bin: checked to hold a command named as the tool, and only then moved into place.
+# toolchain/kit:place <line> <coordinate> [<path>] installs the tool a line of tools.lock names, from the coordinate
+# kit.yml gives it, unless it is installed at its hash: the download is unpacked apart, its bin: checked to hold a
+# command named as the tool, and only then moved into place.
 toolchain/kit:place() {
-  local name version platform profile url digest bin dir stage
-  IFS=$'\t' read -r name version platform profile url digest bin <<<"$1"
+  local name version platform profile artifact hash bin dir stage coordinate=$2 path=${3:-} kept
+  IFS=$'\t' read -r name version platform profile artifact hash bin <<<"$1"
   dir="$(toolchain/kit:root)/${name}/${version}/${platform}"
-  if [[ -f "${dir}/.kit-sha256" && "$(cat "${dir}/.kit-sha256")" == "${digest}" ]]
+  if [[ -f "${dir}/.kit-sha256" ]] && toolchain/kit:same "$(cat "${dir}/.kit-sha256")" "${hash}"
   then
     return 0
   fi
-  digest=$(toolchain/kit:fetch "${name}" "${url}" "${digest}") || return 1
+  hash=$(toolchain/kit:fetch "${name}" "${coordinate}" "${hash}" "${path}") || return 1
+  kept="$(toolchain/kit:cache)/$(toolchain/kit:kept-as "${hash}")"
   file:scratch stage || return 1
   mkdir -p "${stage}/tree"
-  if ! toolchain/kit:unpack "$(toolchain/kit:cache)/${digest}" "${url}" "${stage}/tree" "${name}"
+  if ! toolchain/kit:unpack "${kept}" "${artifact}" "${stage}/tree" "${name}"
   then
-    error "${name}: ${url} could not be unpacked"
+    error "${name}: ${artifact#file:} could not be unpacked"
     return 1
   fi
   if [[ ! -d "${stage}/tree/${bin}" ]]
   then
-    error "${name}: ${bin} is not in what ${url} unpacks to; set bin: under tools: ${name} in kit.yml"
+    error "${name}: ${bin} is not in what ${artifact#file:} unpacks to; set bin: under tools: ${name} in kit.yml"
     return 1
   fi
   if [[ ! -x "${stage}/tree/${bin}/${name}" ]]
   then
-    error "${name}: ${bin} in what ${url} unpacks to holds no ${name} command; set bin: under tools: ${name} in kit.yml"
+    error "${name}: ${bin} in what ${artifact#file:} unpacks to holds no ${name} command; set bin: under tools:" \
+      "${name} in kit.yml"
     return 1
   fi
-  printf '%s\n' "${digest}" > "${stage}/tree/.kit-sha256"
+  printf '%s\n' "${hash}" > "${stage}/tree/.kit-sha256"
   mkdir -p "$(dirname "${dir}")" && rm -rf "${dir}" && mv "${stage}/tree" "${dir}" || return 1
   step "${name}: ${version} installed"
 }
 
-# toolchain/kit:unpack <file> <url> <into> <name> unpacks the download as its url's ending says, or saves it as the
-# command <name> when the url ends in no archive's suffix.
+# toolchain/kit:same <installed> <hash> succeeds when the hash an install recorded is the lock's: a bare sha256, as an
+# install before artifacts recorded it, is the same as that sha256 with its prefix.
+toolchain/kit:same() {
+  [[ "$1" == "$2" || "sha256:$1" == "$2" ]]
+}
+
+# toolchain/kit:unpack <file> <artifact> <into> <name> unpacks the download as its artifact's ending says, or saves it
+# as the command <name> when the artifact ends in no archive's suffix.
 toolchain/kit:unpack() {
   case "${2%%\?*}" in
     (*.tar.gz | *.tgz | *.tar.xz | *.txz | *.tar.bz2 | *.tar) tar --extract --file "$1" --directory "$3" ;;

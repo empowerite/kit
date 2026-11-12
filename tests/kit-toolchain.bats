@@ -76,15 +76,16 @@ downloads() {
   run "${kit_root}/bin/kit" tools install --toolchain=kit
   [ "$status" -eq 0 ]
   [[ "$output" == *"tools.lock: locked alpha, beta"* ]]
-  # a row per tool and platform, each with the digest of the file it names
+  # a row per tool and platform, each with what the file is and its hash, and never where it came from
   [ "$(grep -c -v '^#' tools.lock)" -eq 8 ]
-  while IFS=$'\t' read -r _ _ _ _ url digest _
+  while IFS=$'\t' read -r _ _ _ _ artifact hash _
   do
-    [ "${digest}" = "$(shasum -a 256 "${FAKE_RELEASES}/${url##*/}" | cut -d ' ' -f 1)" ]
+    [ "${hash}" = "sha256:$(shasum -a 256 "${FAKE_RELEASES}/${artifact#file:}" | cut -d ' ' -f 1)" ]
   done < <(grep -v '^#' tools.lock)
   t=$'\t'
-  grep --quiet -E "^beta${t}2\.0\.0${t}linux-x64${t}desk${t}https://github\.com/acme/beta/releases/download/v2\.0\.0/\
-beta-2\.0\.0-linux-x64\.tar\.gz${t}[0-9a-f]{64}${t}beta-2\.0\.0/bin$" tools.lock
+  grep --quiet -E "^beta${t}2\.0\.0${t}linux-x64${t}desk${t}file:beta-2\.0\.0-linux-x64\.tar\.gz${t}sha256:[0-9a-f]{64}\
+${t}beta-2\.0\.0/bin$" tools.lock
+  run ! grep --quiet 'https://' tools.lock
   run "${kit_root}/bin/kit" tools path --toolchain=kit
   [ "$status" -eq 0 ]
   [ "$(wc -l <<<"$output" | tr -d ' ')" -eq 2 ]
@@ -154,22 +155,23 @@ YAML
   printf '#!/bin/sh\necho tampered\n' > "${FAKE_RELEASES}/alpha-1.0.0-${os}-${arch}"
   run "${kit_root}/bin/kit" tools install --toolchain=kit
   [ "$status" -eq 1 ]
-  [[ "$output" =~ alpha:\ https://example\.com/alpha/alpha-1\.0\.0-[a-z0-9-]+\ has\ digest\ sha256:[0-9a-f]{64},\ not\ the\ sha256:[0-9a-f]{64}\ tools\.lock\ pins ]]
+  [[ "$output" =~ direct\ \(https://example\.com/alpha/alpha-1\.0\.0-[a-z0-9-]+\)\ serves\ alpha-1\.0\.0-[a-z0-9-]+\ with\ the\ hash\ sha256:[0-9a-f]{64},\ not\ the\ sha256:[0-9a-f]{64}\ the\ lock\ pins ]]
+  [[ "$output" == *"alpha: alpha-1.0.0-${os}-${arch} could not be downloaded; nothing was installed"* ]]
   [ ! -d "${KIT_HOME}/.kit/tools/alpha" ]
 }
 
-@test "a bin: that is not in what the URL unpacks to is refused, naming the tool and its bin:" {
+@test "a bin: that is not in what the download unpacks to is refused, naming the tool and its bin:" {
   sed -i.bak 's|bin: beta-{version}/bin|bin: nowhere|' kit.yml
   run "${kit_root}/bin/kit" tools install --toolchain=kit
   [ "$status" -eq 1 ]
-  [[ "$output" == *"beta: nowhere is not in what https://github.com/acme/beta/releases/download/v2.0.0/beta-2.0.0-${platform}.tar.gz unpacks to; set bin: under tools: beta in kit.yml"* ]]
+  [[ "$output" == *"beta: nowhere is not in what beta-2.0.0-${platform}.tar.gz unpacks to; set bin: under tools: beta in kit.yml"* ]]
 }
 
 @test "a bin: that holds no command named as the tool is refused, and nothing is installed" {
   sed -i.bak 's|bin: beta-{version}/bin|bin: beta-{version}|' kit.yml
   run "${kit_root}/bin/kit" tools install --toolchain=kit
   [ "$status" -eq 1 ]
-  [[ "$output" == *"beta: beta-2.0.0 in what https://github.com/acme/beta/releases/download/v2.0.0/beta-2.0.0-${platform}.tar.gz unpacks to holds no beta command; set bin: under tools: beta in kit.yml"* ]]
+  [[ "$output" == *"beta: beta-2.0.0 in what beta-2.0.0-${platform}.tar.gz unpacks to holds no beta command; set bin: under tools: beta in kit.yml"* ]]
   [ ! -d "${KIT_HOME}/.kit/tools/beta" ]
 }
 
@@ -239,8 +241,8 @@ YAML
 YAML
   run "${kit_root}/bin/kit" tools install --toolchain=kit
   [ "$status" -eq 0 ]
-  grep --quiet $'^gamma\t3\.0\.0\tmacos-arm64\tboth\thttps://example\.com/gamma/gamma-macos\.zip\t' tools.lock
-  grep --quiet $'^gamma\t3\.0\.0\tlinux-x64\tboth\thttps://example\.com/gamma/gamma-linux\.tar\.gz\t' tools.lock
+  grep --quiet $'^gamma\t3\.0\.0\tmacos-arm64\tboth\tfile:gamma-macos\.zip\t' tools.lock
+  grep --quiet $'^gamma\t3\.0\.0\tlinux-x64\tboth\tfile:gamma-linux\.tar\.gz\t' tools.lock
   [ "$(PATH="$("${kit_root}/bin/kit" tools path --toolchain=kit | paste -s -d ':' -):${PATH}" gamma)" = gamma ]
 }
 
@@ -262,6 +264,39 @@ YAML
   [ "$status" -eq 0 ]
   grep --quiet -E '^🔺 delta +· 1\.0\.0 +· +· 1\.2\.0$' <<<"$output"
   grep --quiet -E '^🔺 par +· 20260101 +· +· 20260301$' <<<"$output"
+}
+
+@test "a lock written with each url and a bare sha256 is read as the artifact and its hash, so a runner takes it" {
+  "${kit_root}/bin/kit" tools install --toolchain=kit >/dev/null 2>&1
+  awk -F '\t' -v OFS='\t' '/^#/ { print; next } $1 == "alpha" { $5 = "https://example.com/alpha/" substr($5, 6) }
+    $1 == "beta" { $5 = "https://github.com/acme/beta/releases/download/v2.0.0/" substr($5, 6) }
+    { sub(/^sha256:/, "", $6); print }' tools.lock > old.lock && mv old.lock tools.lock
+  grep --quiet $'\thttps://example.com/alpha/alpha-1.0.0-' tools.lock
+  rm -rf "${KIT_HOME}/.kit/tools"
+  CI=true run "${kit_root}/bin/kit" tools install --toolchain=kit
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"behind"* ]]
+  [ "$(PATH="$(CI=true "${kit_root}/bin/kit" tools path --toolchain=kit):${PATH}" alpha)" = "alpha 1.0.0 ${platform}" ]
+  run "${kit_root}/bin/kit" tools install --toolchain=kit
+  [ "$status" -eq 0 ]
+  grep --quiet 'https://' tools.lock
+}
+
+@test "a download is found on the pull path: a path that ends at off before direct installs no url, and says so" {
+  KIT_SOURCES=off run "${kit_root}/bin/kit" tools install --toolchain=kit
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"no source on the pull path served alpha-1.0.0-"*": the path ends at off; see: kit tools sources"* ]]
+  [ ! -e tools.lock ]
+  [ "$(downloads)" -eq 0 ]
+  KIT_SOURCES=direct,off run "${kit_root}/bin/kit" tools install --toolchain=kit
+  [ "$status" -eq 0 ]
+}
+
+@test "a download direct cannot find is named, with what direct said" {
+  rm "${FAKE_RELEASES}/alpha-1.0.0-"*
+  run "${kit_root}/bin/kit" tools install --toolchain=kit
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"no source on the pull path served alpha-1.0.0-"*": direct (https://example.com/alpha/alpha-1.0.0-"*") does not have it"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
