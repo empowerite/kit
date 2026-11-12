@@ -350,6 +350,49 @@ see: [trackers.md](trackers.md), [architecture.md](architecture.md#code-forges-s
 
 see: [workspaces.md](workspaces.md)
 
+## Bots
+
+- A bot is a GitHub App you have set up to act for you. What an agent does through it, a label, a comment, a pull
+  request, reads as the bot's, `<slug>[bot]`, never as yours. `kit bots` lists your bots, and keeps the public facts
+  of each, its name, host, App ID, owner, and jobs, in `${XDG_CONFIG_HOME:-~/.config}/kit/bots.yml`, your comments
+  kept.
+- `kit bots --add=<name> --app=<id> --key=<source>` adopts an App that exists: `<name>` is its slug, `<source>` a
+  PEM file or `keychain:<service>/<account>`, an item another tool stored. It proves the key before it stores
+  anything: it signs for the App, reads it, finds an installation, mints a token, and revokes it.
+  `--jobs=work:review` sets what the bot does, `work` and `review` without it, or `workflows` as well. `kit bots
+  --remove=<name>` forgets a bot and deletes its key; the App stays on GitHub.
+- The key is in the macOS keychain or the Linux Secret Service, as service `kit-bot`, account `<host>/<app>`, and no
+  form prints it. Where neither store exists, `kit bots` refuses and names the one to install.
+- `kit bots --check` compares the App's permissions with its jobs: what a job lacks, and what no job needs. It says
+  whether the installation reaches this repository and, where not, the page to add it on. It exits 1 when the
+  installation does not reach this repository, the App is installed nowhere, or a job lacks a permission. A
+  permission no job needs is advice, and exits 0. `--json` prints `{name, installation, page, repository, reached,
+  lacks, extra}`.
+- `kit bots token` prints an installation token narrowed to this repository, and only the token, for a pipe;
+  `--json` prints `{token, expires_at}`. It lasts an hour, and kit does not revoke it.
+- `kit bots run <command>…` runs the command as the bot, with every word after `run` the command's, none parsed. The
+  command has:
+  - `GH_TOKEN`, a fresh token narrowed to this repository, and a `gh` on `PATH` that mints a new one within ten
+    minutes of the old one's end, so a session that runs all afternoon keeps working;
+  - git's credential helper for the forge's host answering with the same token, so `git push` pushes as the bot;
+  - `KIT_BOT`, the bot's name, `KIT_BOT_LOGIN`, `<name>[bot]`, and `KIT_BOT_FOR`, your login;
+  - on a host other than github.com, `GH_HOST` and `GH_ENTERPRISE_TOKEN`.
+
+  The tokens live in a directory of the run's own, readable by you alone. They are revoked and the directory removed
+  when the command ends, or when `kit bots` is terminated or hung up, with the status 128 and the signal's number.
+- Under `kit bots run`, kit tells the bot from its person. `forge:me`, the forge seam's caller, answers the bot's
+  login, and `forge:principal` answers the person's, which the tracker's `me` and Flow's `--mine` use. `kit commit`
+  ends the message with the trailer `Agent: <name>[bot]`, once, and the person stays the author and the committer,
+  so signing keeps working.
+- The `bot` check of `kit welcome` judges the bot that acts here. Where none is set up it offers `kit bots --add`.
+  Where one is, it fails, each time with the fix, for a key the secret store lacks, an installation that does not
+  reach this repository, a job that lacks a permission, or a forge that cannot be asked.
+- Not built yet, as later steps of issue #258: `--new`, which registers an App, handing an issue to the bot, the
+  court that says whose move an issue or a change is, reviews by the bot, and its pickup of handed work.
+
+see: [integrations/gh.md](integrations/gh.md#a-github-apps-bot),
+[the design](superpowers/specs/2026-11-12-bots-design.md)
+
 ## Toolchains
 
 - `kit toolchains` lists the toolchains kit found where it runs, and records which one to use.

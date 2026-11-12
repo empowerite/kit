@@ -306,6 +306,34 @@ re-run of an older run, or a new deployment of an older commit.
 - [Octokit webhook JSON Schemas](https://unpkg.com/@octokit/webhooks-schemas/schema.json), community, covering the
   same events.
 
+## A GitHub App's bot
+
+A bot is a GitHub App that acts for a person, as [features.md](../features.md#bots) says. kit needs three things from
+GitHub for it: the App's permissions, a token narrowed to one repository, and a place for the App's key.
+
+- The App's permissions follow the jobs it is set up for, and `kit bots --check` compares them. Write covers read.
+
+  | Job | Permissions |
+  | --- | --- |
+  | always | `metadata`: read |
+  | `work` | `contents`, `issues`, and `pull_requests`: write; `checks`, `statuses`, and `actions`: read |
+  | `review` | `pull_requests`: write; `contents` and `checks`: read |
+  | `workflows` | `workflows`: write |
+
+- An installation token is minted from the App's key. The App signs a JSON Web Token (JWT) with the key, and `POST
+  /app/installations/${installation}/access_tokens` exchanges it for a token that lasts an hour. kit sends
+  `{"repositories": ["${name}"]}`, so the token reaches the current repository alone, whatever else the installation
+  reaches. `DELETE /installation/token` revokes it. `GET /app` and `GET /app/installations` read the App and where
+  it is installed, `GET /repos/${owner}/${repo}/installation` the installation that reaches a repository, and `GET
+  /installation/repositories` what a token reaches.
+- The installation is a page in a browser, and so is a change to which repositories it reaches. `kit bots --check`
+  names the page where the installation does not reach the repository.
+- The key is in the macOS keychain or the Linux Secret Service, as service `kit-bot`, account `${host}/${app}`, kept
+  base64-encoded on one line. It reaches `security` or `secret-tool` on stdin, never in an argument.
+- `gh` is not used for these calls, since its login is the person's. They go through `curl`, with the JWT or the
+  token in a header read from stdin, bounded by `--connect-timeout 10 --max-time 30`.
+- GitHub Enterprise Server answers at `https://${host}/api/v3`, and github.com at `https://api.github.com`.
+
 ## Schemas of its output
 
 `gh` publishes no schema of what its commands print, so each command kit runs whose JSON kit reads has one

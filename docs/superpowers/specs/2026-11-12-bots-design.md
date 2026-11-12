@@ -1,6 +1,6 @@
 # Bots: design
 
-Status: designed, 2026-11-12. see: issue #258
+Status: step 1 built, 2026-11-12; steps 2 to 8 designed. see: issue #258
 
 ## Intent
 
@@ -153,16 +153,18 @@ jobs its permissions allow. Its forms:
 | `kit bots --add=<name> --app=<id> --key=<source> [--jobs=<job>…]` | adopts an App that exists, from its key: a PEM file, or `keychain:<service>/<account>` |
 | `kit bots --check [--bot=<name>]` | compares the App's permissions with its jobs, and its repositories with the current one |
 | `kit bots --repos=<name>` | opens the installation's page to change which repositories it reaches, and waits |
-| `kit bots [--bot=<name>] token` | prints an installation token for the current repository, for a pipe |
-| `kit bots [--bot=<name>] run <command>…` | runs a command as the bot |
+| `kit bots [--bot=<name>] token [--json]` | prints an installation token for the current repository, for a pipe; `--json` prints `{token, expires_at}` |
+| `kit bots [--bot=<name>] run <command>…` | runs a command as the bot; every word after `run` is the command's, and none is parsed |
 | `kit bots --remove=<name>` | forgets a bot and deletes its key from the store; the App stays on the forge |
 
 A list option repeats or joins its values with `:`, `--jobs=work:review`. Without `--bot`, the bot is the one
 `kit.yml` names, else the only one on the primary remote's host.
 
 Every form prints the key never. `--add` proves the key before it stores anything, as the infrastructure script
-does: it mints a JWT (a JSON Web Token signed with the key), reads the App, finds an installation, mints an
-installation token, and revokes it.
+does: it mints a JWT (a JSON Web Token signed with the key), reads the App, finds an installation, and mints a
+token with the forge seam's `bot-proof`, a token narrowed to no repository that holds `metadata: read` alone, where no
+repository is reached, then revokes it. The forge seam's calls for a bot, at contract 6, are `bot-app`,
+`bot-installation`, `bot-installations`, `bot-proof`, `bot-token`, `bot-repositories`, and `bot-revoke`.
 
 The jobs ask for these permissions, and nothing else:
 
@@ -174,8 +176,10 @@ The jobs ask for these permissions, and nothing else:
 | `workflows` | workflows: write |
 
 `--check` names each permission the App lacks for a job, and each one it holds that no job needs: `empowerite-jig`
-holds actions to write, which no job needs. A change of permissions is the App owner's, on the App's page, and every
-installation accepts it on its own page; kit opens both and waits.
+holds actions to write, which no job needs. It exits 1 when a job lacks a permission, since that job would fail when
+the bot acts, and when the installation does not reach this repository; a permission no job needs is advice, and exits
+0. A change of permissions is the App owner's, on the App's page, and every installation accepts it on its own page;
+kit opens both and waits.
 
 ### `kit bots --new`
 
@@ -202,7 +206,8 @@ instead, as jig chose.
 
 - `GH_TOKEN` set to a fresh installation token, and a `gh` on `PATH` that mints a new one when the old is within ten
   minutes of its hour, so a session that runs all afternoon keeps working. Tokens live only in a directory of the
-  session's own, readable by the person alone, removed when the command ends, and are revoked then.
+  session's own, which `file:scratch` makes, readable by the person alone, removed when the command ends, and are
+  revoked then.
 - `KIT_BOT` set to the bot's name, and `KIT_BOT_FOR` to the person's login.
 - git's credential helper for the forge's host answering with the same token, so `git push` and `kit submit` push as
   the bot.
@@ -253,7 +258,9 @@ The forge seam gains `pr-request-review`, `pr-review`, and `pr-comment`, with th
 
 Every issue row and change document gains `court`, one of `you`, `bot`, `others`, or `none`, and `why`, a few words.
 The caller is `forge:principal`, so a bot's session and its person see the same court, and the bot is any login in
-the person's bots file or the repository's `bot:`. Another person's bot is `others`. The first rule that matches wins:
+the person's bots file or the repository's `bot:`. Another person's bot is `others`. A bot's login reads
+`<slug>[bot]` in GitHub's REST API, `<slug>` in its GraphQL API, and `app/<slug>` in `gh`'s output, and the court
+treats all three as the bot; this was verified against empowerite/jig#139. The first rule that matches wins:
 
 A change:
 
