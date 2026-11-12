@@ -208,11 +208,10 @@ type Model struct {
 	marks source.Poll[map[string]string] // each stage's mark, as marks.go reads them
 }
 
-// built holds each stage's rows as they were last built, and the width they were laid out for, and each stage's lines
-// as they were last drawn from them. A stage that loads, a refresh, or a new width replaces it, since a stage's rows
-// may draw from another's, as underway's pull requests' keys from changes'.
+// built holds each stage's rows as they were last built, and each stage's lines as they were last drawn from them. A
+// stage that loads, a refresh, or a new width replaces it, since a stage's rows may draw from another's, as underway's
+// pull requests' keys from changes'; New sets the first, so there always is one, for the width the screen has.
 type built struct {
-	width  int
 	stages map[int]shown
 	lines  map[int]drawnLines
 }
@@ -225,7 +224,7 @@ type drawnLines struct {
 
 // rebuild drops the rows built so far, and the lines drawn from them; each is built again when it is next drawn.
 func (m *Model) rebuild() {
-	m.built = &built{width: m.paneWidth(), stages: map[int]shown{}, lines: map[int]drawnLines{}}
+	m.built = &built{stages: map[int]shown{}, lines: map[int]drawnLines{}}
 }
 
 // open opens the screen on the stages the options name, origin read from git, and kit flow's words: the tab named,
@@ -447,9 +446,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			msg.X < m.paneWidth():
 			m.groupClick(msg.X, msg.Y, extends(msg), msg.Button == tea.MouseRight)
 		case msg.Button != tea.MouseLeft:
-			if bar, ok := m.barTakes(msg); ok {
-				m.choose(bar)
-			}
+			// the bar takes a left click alone, and nothing else here takes another
 		case msg.Y == 0 && msg.X >= m.searchAt():
 			return m, m.enterPanel()
 		case len(m.stages) > 0 && m.controls() && msg.Y == m.top() && msg.X < m.paneWidth():
@@ -690,7 +687,7 @@ func (m *Model) scrollRows(n int) {
 		return
 	}
 	s := &m.stages[m.stage]
-	s.Offset, _, _, _ = pane.Window(len(m.lines(m.stage)), m.rowsHeight(), s.Offset+n)
+	s.Offset, _, _, _ = pane.Window(len(m.lines()), m.rowsHeight(), s.Offset+n)
 }
 
 // askMe runs kit flow --me, once, for the limit at most.
@@ -836,11 +833,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 // panelKey takes a key while the search has the keyboard, as panelKeys says; ctrl+r drops the searches remembered
-// down, and what was typed is remembered once the search gives up the keyboard.
+// down, and what was typed is remembered once the search gives up the keyboard. The search has it only on a stage, as
+// enterPanel gives it.
 func (m Model) panelKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	if len(m.stages) == 0 {
-		return m.panelKeys(k)
-	}
 	before := m.panel(m.stage)
 	searching := before.Focused
 	if searching && k.String() == "ctrl+r" {
@@ -856,13 +851,9 @@ func (m Model) panelKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return next, cmd
 }
 
-// recallAt gives the screen column of the search's Recall glyph, as the title line draws it; -1 with no stage.
-func (m Model) recallAt() int {
-	if len(m.stages) == 0 {
-		return -1
-	}
-	return shell.RecallAt(m.searchAt())
-}
+// recallAt gives the screen column of the search's Recall glyph, as the title line draws it. It is asked only on a
+// stage, whose search alone recalls.
+func (m Model) recallAt() int { return shell.RecallAt(m.searchAt()) }
 
 // panelKeys takes a key while the search has the keyboard, as panelKey says, and as shell.SearchKey takes it on every
 // screen: enter, down, esc, and tab give the rows focus, the filter kept, where the stage has rows to stand on, else
@@ -1024,12 +1015,10 @@ func (m *Model) take(msg source.Answer[[]byte]) {
 // and repository, which the view does not name, is hidden where no row holds a value of it, rather than standing every
 // row under a heading of none. It runs once a view, on the first rows after the view is set, as
 // the screen opens or the preset line sets another; past that, the groups are the person's, as any they chose, and
-// the preset line names the view still.
+// the preset line names the view still. The name is always one of the stages', as the stage that loaded, or was set,
+// names itself.
 func (m *Model) autoGroup(name string) {
 	i := slices.IndexFunc(m.stages, func(s stage) bool { return s.name == name })
-	if i < 0 {
-		return
-	}
 	s := &m.stages[i]
 	if !s.Grouping || s.src.Loading || s.refusal != "" {
 		return
@@ -1290,19 +1279,6 @@ func (m *Model) controlClick(x int) tea.Cmd {
 func (m Model) inHeader(y int) bool {
 	_, ok := m.headerLine(y)
 	return ok && !m.onRule(y)
-}
-
-// rowLine gives the screen line the first line of the selected stage's row k stands on, as the pane is scrolled, or
-// -1 while it is scrolled away.
-func (m Model) rowLine(k int) int {
-	lines := m.allLines(m.stage)
-	_, places := m.laid()
-	for r, at := range places {
-		if at >= 0 && lines[at].Row == k {
-			return m.rowsTop() + r
-		}
-	}
-	return -1
 }
 
 // stageOf gives the stage a link leads to, from the link's text after kittui:, as jump reads it: the stage whose name

@@ -290,9 +290,6 @@ func (m Model) offered(i int) []string { return m.shown(i).names }
 // shown gives a stage's rows as its panel lets them through, built once for what the stages hold, the width, and the
 // panels, then kept until one changes.
 func (m Model) shown(i int) shown {
-	if m.built == nil || m.built.width != m.paneWidth() {
-		return m.build(i)
-	}
 	r, ok := m.built.stages[i]
 	if !ok {
 		r = m.build(i)

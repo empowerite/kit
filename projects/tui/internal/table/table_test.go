@@ -113,6 +113,8 @@ func TestADrawingStylesWhatTheFieldSays(t *testing.T) {
 
 func TestAScreenRegistersItsOwnRenderers(t *testing.T) {
 	Register("test-shout", Each(func(f Field, v Value) []string { return []string{strings.ToUpper(v.Raw[0])} }), true)
+	// the registry outlives the test, so it forgets the name, and the test runs again as it ran
+	t.Cleanup(func() { delete(renderers, "test-shout"); delete(glyphed, "test-shout") })
 	if !Registered("test-shout") || !DrawsGlyph("test-shout") || DrawsGlyph("text") || Registered("nonesuch") {
 		t.Fatal("the registry")
 	}

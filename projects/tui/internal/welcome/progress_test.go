@@ -53,3 +53,20 @@ func TestCheckingSaysWhatEachFolderIsOn(t *testing.T) {
 		t.Errorf("answered:\n%s", got)
 	}
 }
+
+// Running the checks again while the screen listens to kit starts no second listen: the run is all it asks for. Once
+// the screen ends, a listen gives nothing.
+func TestARunAgainListensOnceAndAListenEndsWithTheScreen(t *testing.T) {
+	m, _ := loaded(t)
+	if _, batch := m.again()().(tea.BatchMsg); !batch || !m.listening {
+		t.Errorf("a run again not listening gives no listen with the run: listening %v", m.listening)
+	}
+	if msg, answer := m.again()().(source.Answer[[]kit.Check]); !answer || msg.Err != nil {
+		t.Errorf("a run again while listening gives %#v, not the run's answer alone", msg)
+	}
+	ended, _ := fake(t)
+	ended.Close()
+	if msg := ended.listen()(); msg != nil {
+		t.Errorf("a listen after the screen ended gives %#v", msg)
+	}
+}

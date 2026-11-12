@@ -124,6 +124,12 @@ func TestTheWorkspacesStagesDrawKitsRows(t *testing.T) {
 			t.Errorf("%s %s %s: %q, want %q", c.stage, c.key, c.id, got, c.want)
 		}
 	}
+	// a branch behind draws ↓, one ahead and behind both, and a value that is not kit's pair nothing
+	for raw, want := range map[string][]string{"0 3": {"↓3"}, "2 3": {"↑2 ↓3"}, "4": nil} {
+		if got := trackText(table.Field{}, table.Value{Raw: strings.Fields(raw)}); !slices.Equal(got, want) {
+			t.Errorf("[%s] draws %q, want %q", raw, got, want)
+		}
+	}
 	commits := stageOf(m, "workspace/commits")
 	issues := 0
 	for _, r := range m.records(commits) {

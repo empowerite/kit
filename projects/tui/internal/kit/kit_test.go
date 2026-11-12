@@ -261,7 +261,8 @@ func script(t *testing.T, body string) Runner {
 }
 
 // A kit that cannot run is an error from every call, and so is one that prints what is not the JSON asked for; a
-// check whose fields are of the wrong type is one too. Exec into a directory that is not there fails before it runs.
+// check whose fields are of the wrong type is one too. Exec into a directory that is not there fails before it runs,
+// and so does Exec of a kit the system cannot run.
 func TestEveryCallFailsWhenKitCannotRunOrPrintsWhatIsNotItsJSON(t *testing.T) {
 	missing := Runner{Kit: filepath.Join(t.TempDir(), "no-kit"), Dir: t.TempDir()}
 	garbled := script(t, "echo '{not json'")
@@ -273,7 +274,10 @@ func TestEveryCallFailsWhenKitCannotRunOrPrintsWhatIsNotItsJSON(t *testing.T) {
 		_, calls["Match"] = r.Match("commit", nil)
 		_, calls["WelcomeChecks"] = r.WelcomeChecks(context.Background(), nil)
 		_, calls["Tutorials"] = r.Tutorials(context.Background(), nil)
+		_, calls["Workspace"] = r.Workspace(context.Background(), "")
+		_, calls["Workspaces"] = r.Workspaces(context.Background())
 		if r.Kit == missing.Kit {
+			_, calls["Me"] = r.Me(context.Background())
 			_, calls["List"] = r.List()
 			_, calls["Choices"] = r.Choices("commit", "<path>", nil)
 			_, calls["Stages"] = r.Stages()
@@ -297,6 +301,17 @@ func TestEveryCallFailsWhenKitCannotRunOrPrintsWhatIsNotItsJSON(t *testing.T) {
 	}
 	if err := missing.Exec("commit", nil); err == nil {
 		t.Error("exec of a kit that is not there did not fail")
+	}
+	unrunnable := filepath.Join(t.TempDir(), "kit")
+	if err := os.WriteFile(unrunnable, []byte{0, 0, 0, 0}, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	here, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := (Runner{Kit: unrunnable, Dir: here}).Exec("commit", nil); !errors.Is(err, syscall.ENOEXEC) {
+		t.Errorf("exec of a kit the system cannot run: %v", err)
 	}
 }
 
@@ -418,6 +433,12 @@ func TestWelcomeKeepRunsKitWelcomeKeepAndGivesTheCheckKitSaysOrItsRefusal(t *tes
 	if c != nil || err != nil {
 		t.Errorf("where kit did not ask the terminal: %+v, %v", c, err)
 	}
+	// what kit says that is no check is the error, and no check
+	t.Setenv("FAKE_KIT_KEPT", "kept")
+	if c, err := fake(t, dir).WelcomeKeep(context.Background(), Check{ID: "terminal-probe-color"}); c != nil ||
+		err == nil || !strings.Contains(err.Error(), "is not a check") {
+		t.Errorf("what is not a check: %+v, %v", c, err)
+	}
 	t.Setenv("FAKE_KIT_REFUSE", "welcome")
 	if _, err := fake(t, dir).WelcomeKeep(context.Background(), Check{ID: "tool-jq"}); err == nil {
 		t.Error("a refusal is no error")
@@ -454,7 +475,8 @@ func TestActGivesWhatKitSaidAndItsRefusal(t *testing.T) {
 }
 
 // Tutorials runs kit tutorials --json with a --tag for each tag, and decodes the catalogue: the audiences, and each
-// tutorial with its link, which carries the kit's version; kit's refusal is an ExitError.
+// tutorial with its link, which carries the kit's version, and online, not shipped with the kit; kit's refusal is an
+// ExitError.
 func TestTutorialsDecodesTheCatalogue(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "record")
 	t.Setenv("FAKE_KIT_RECORD", record)
@@ -472,6 +494,9 @@ func TestTutorialsDecodesTheCatalogue(t *testing.T) {
 	if first.ID != "kit-tutorials" || first.Title != "Reading kit's tutorials" || first.Glyph != "🎓" ||
 		!strings.HasPrefix(first.Summary, "How the tutorials") || strings.Join(first.Audience, " ") != "newcomer" {
 		t.Errorf("the first tutorial: %+v", first)
+	}
+	if first.Shipped() || !(Tutorial{Where: InTheKit}).Shipped() {
+		t.Errorf("only a tutorial in the kit is shipped: %q", first.Where)
 	}
 	for k, want := range []string{
 		"https://empowerite.github.io/kit/tutorials/main/kit-tutorials/?kit=unreleased",

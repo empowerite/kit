@@ -3,6 +3,7 @@ package app
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -169,11 +170,24 @@ func TestAnUnknownVerbIsKitsRefusal(t *testing.T) {
 	}
 }
 
+// Words the verb refuses are kit's refusal; a kit that gives the verb's grammar but cannot judge the words at all
+// opens no form, its failure the error.
 func TestWordsTheVerbRefusesAreKitsRefusal(t *testing.T) {
 	t.Setenv("FAKE_KIT_MATCH_REFUSE", "commit")
 	_, err := Open(testkit.Runner(t, "kit"), "commit", []string{"--bogus"})
 	if line, code, ok := Refusal(err); !ok || code != 2 || !strings.Contains(line, "refuses these words") {
 		t.Fatalf("Refusal(%v) = %q %d %v", err, line, code, ok)
+	}
+	r := testkit.Runner(t, "kit")
+	judgeless := filepath.Join(t.TempDir(), "kit")
+	if err := os.WriteFile(judgeless, []byte("#!/bin/sh\n[ \"$3\" != --match ] || exit 3\nexec '"+r.Kit+"' \"$@\"\n"),
+		0o755); err != nil {
+		t.Fatal(err)
+	}
+	r.Kit = judgeless
+	var exit *kit.ExitError
+	if m, err := Open(r, "commit", nil); !errors.As(err, &exit) || exit.Code != 3 || m.InForm() {
+		t.Errorf("a kit that cannot judge the words: %v, in form %v", err, m.InForm())
 	}
 }
 
@@ -241,7 +255,8 @@ func TestCtrlCIsAnInterruptInThePaletteAndInTheForm(t *testing.T) {
 }
 
 // The form's search field asks for the palette's search: from a form the palette opened, the palette comes back with
-// its search focused; a form that stood alone gets a palette made then, told the workspace, its search focused.
+// its search focused, told the workspace that came while the form was open; a form that stood alone gets a palette
+// made then, told the workspace, its search focused, and stays when kit cannot list the verbs for one.
 func TestTheFormsSearchFieldIsThePalettes(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir()) // no searches remembered, here or in the person's file
 	ws := shell.WorkspaceMsg{Workspace: kit.Workspace{Kind: "repository", Member: "github.com/o/r"}}
@@ -254,8 +269,19 @@ func TestTheFormsSearchFieldIsThePalettes(t *testing.T) {
 		!strings.Contains(v, "kit help · - o/r") || len(m.palette.Visible()) == 0 {
 		t.Errorf("a form that stood alone, then its search field: in form %v, palette %v\n%s", m.InForm(), m.hasPalette, v)
 	}
-	m = drive(m, press(tea.KeyEnter), press(tea.KeyEnter), form.FindMsg{})
-	if v := ansi.Strip(m.View().Content); m.InForm() || !strings.Contains(v, "🔎 ▏") {
+	moved := shell.WorkspaceMsg{Workspace: kit.Workspace{Kind: "repository", Member: "github.com/o/s"}}
+	m = drive(m, press(tea.KeyEnter), press(tea.KeyEnter), moved, form.FindMsg{})
+	if v := ansi.Strip(m.View().Content); m.InForm() || !strings.Contains(v, "🔎 ▏") ||
+		!strings.Contains(v, "kit help · - o/s") {
 		t.Errorf("a form the palette opened, then its search field:\n%s", v)
+	}
+	alone, err := Open(testkit.Runner(t, "kit"), "commit", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	alone.runner = kit.Runner{Kit: filepath.Join(t.TempDir(), "no-kit"), Dir: t.TempDir()}
+	if alone = drive(alone, form.FindMsg{}); !alone.InForm() || alone.hasPalette {
+		t.Errorf("a form that stood alone, over a kit that cannot list: in form %v, palette %v", alone.InForm(),
+			alone.hasPalette)
 	}
 }

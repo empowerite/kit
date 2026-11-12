@@ -146,10 +146,7 @@ func Quote(words []string) string {
 	return strings.Join(quoted, " ")
 }
 
-// quote single-quotes one word, a quote inside written as '\”.
+// quote single-quotes one word Quote does not leave bare, a quote inside written as '\”.
 func quote(word string) string {
-	if bare.MatchString(word) {
-		return word
-	}
 	return "'" + strings.ReplaceAll(word, "'", `'\''`) + "'"
 }

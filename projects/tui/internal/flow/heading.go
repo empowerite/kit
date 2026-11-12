@@ -11,13 +11,9 @@ import (
 // first gives the first of a stage's rows the cursor can stand on, as table.First says.
 func (m Model) first(i int) int { return table.First(m.rows(i)) }
 
-// barText gives the heading over the selected stage's groups, as table.BarText says; nothing with no stage.
-func (m Model) barText() string {
-	if len(m.stages) == 0 {
-		return ""
-	}
-	return table.BarText(m.rows(m.stage))
-}
+// barText gives the heading over the selected stage's groups, as table.BarText says. It is asked only on a stage, as
+// controls asks it.
+func (m Model) barText() string { return table.BarText(m.rows(m.stage)) }
 
 // stops gives the stops of the heading over the selected stage's groups, as table.Stops says; none with no stage.
 func (m *Model) stops() []table.Stop {

@@ -84,12 +84,31 @@ func TestATutorialInTheKitOpensHereAndEscGoesBack(t *testing.T) {
 	if m = drive(m, up, up, up); m.read.offset != 0 {
 		t.Errorf("up past the top: offset %d", m.read.offset)
 	}
+	// page down and page up scroll by the pane's lines less the two that count the hidden ones, on a pane shorter than
+	// the page
+	short := drive(m, tea.WindowSizeMsg{Width: 120, Height: 16})
+	if short = drive(short, press(tea.KeyPgDown)); short.read.offset != short.paneHeight()-2 {
+		t.Errorf("page down: offset %d, not %d", short.read.offset, short.paneHeight()-2)
+	}
+	if short = drive(short, press(tea.KeyPgUp)); short.read.offset != 0 {
+		t.Errorf("page up: offset %d", short.read.offset)
+	}
+	// = and the workspace menu's key drop their menus down over the page
+	if menu := drive(m, press('=')); !menu.appMenu.Open || !menu.read.open {
+		t.Errorf("=: the app menu open %v, reading %v", menu.appMenu.Open, menu.read.open)
+	}
+	if books := drive(m, press('-')); !books.books.Open || !books.read.open {
+		t.Errorf("-: the workspace menu open %v, reading %v", books.books.Open, books.read.open)
+	}
 	if m = drive(m, press(tea.KeyEnd)); m.read.offset == 0 || !strings.Contains(view(m), "kit platform") {
 		t.Errorf("end: offset %d\n%s", m.read.offset, view(m))
 	}
 	end := m.read.offset
 	if m = drive(m, down); m.read.offset != end {
 		t.Errorf("down past the end: offset %d, not %d", m.read.offset, end)
+	}
+	if home := drive(m, press(tea.KeyHome)); home.read.offset != 0 {
+		t.Errorf("home: offset %d", home.read.offset)
 	}
 	if m = drive(m, esc); m.read.open || m.cursor != 2 || !m.focused() || !strings.Contains(view(m), "╭") {
 		t.Errorf("esc: reading %v, cursor %d, cards focused %v\n%s", m.read.open, m.cursor, m.focused(), view(m))
@@ -165,9 +184,13 @@ func TestALinkOnATutorialsPageOpensTheScreenItLeadsTo(t *testing.T) {
 	if got := asked(x-1, y+1); got != nil {
 		t.Errorf("a click under the link asked %#v", got)
 	}
-	// the page is the crumb's name, and the crumb puts the page back where it was scrolled to
+	// the page is the crumb's name, and the crumb puts the page back where it was scrolled to; with no page open, the
+	// crumb is the cards'
 	if name, _ := m.Spot(); name != "tutorials › kit's applications" {
 		t.Errorf("the crumb's name %q", name)
+	}
+	if name, _ := drive(m, esc).Spot(); name != "tutorials" {
+		t.Errorf("the cards' crumb's name %q", name)
 	}
 	_, spot := drive(m, down).Spot()
 	back := drive(m, esc).Restore(spot).(Model)

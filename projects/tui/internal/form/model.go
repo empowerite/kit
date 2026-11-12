@@ -877,8 +877,6 @@ func (m Model) expand(i int, indent string) (string, int) {
 		m.hint(&b, indent, "⏎ another line · an empty line ends the list")
 	case Pick, PickMany:
 		at = m.drawList(&b, f, indent)
-	default:
-		return "", -1
 	}
 	return b.String(), at
 }

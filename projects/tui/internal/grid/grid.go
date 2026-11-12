@@ -237,14 +237,14 @@ func (c Cell) first() string {
 	return c.Values[0]
 }
 
-// firstLine gives a text's first line that is not blank, or the text, where it has none.
+// firstLine gives a text's first line that is not blank, or nothing, where it has none: a closed line is one line.
 func firstLine(s string) string {
 	for _, line := range strings.Split(s, "\n") {
 		if strings.TrimSpace(line) != "" {
 			return line
 		}
 	}
-	return s
+	return ""
 }
 
 // face gives what a cell's column shows of it: its summary, when it has one, else its first value.

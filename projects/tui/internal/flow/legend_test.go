@@ -129,7 +129,7 @@ func TestEveryGlyphDrawnIsInTheHeaderLegendAndInItsStagesLegend(t *testing.T) {
 			}
 		}
 		var pane []string
-		for _, l := range m.lines(i) {
+		for _, l := range m.lines() {
 			pane = append(pane, ansi.Strip(l.Text))
 		}
 		for g := range glyphsOf(strings.Join(pane, "\n") + stageGlyphs[name]) {
@@ -386,6 +386,11 @@ func TestTheLegendExplainsEveryGlyphOnTheScreenInOrder(t *testing.T) {
 		if slices.ContainsFunc(order, func(l string) bool { return strings.HasPrefix(l, absent) }) {
 			t.Errorf("the legend lists %q, which the screen does not show", absent)
 		}
+	}
+	// a screen too narrow to show a glyph, its stages still loading and their headers hidden, says it shows none
+	m = drive(New(runner(t), bare()), tea.WindowSizeMsg{Width: 3, Height: 24}, press('?'))
+	if got := m.legendLines(); len(got) != 1 || ansi.Strip(got[0]) != "no glyph on the screen" {
+		t.Errorf("the legend of a screen without a glyph: %q", got)
 	}
 }
 

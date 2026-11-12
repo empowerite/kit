@@ -36,29 +36,33 @@ type NameSpot struct {
 }
 
 // BarNames gives the columns the heading over the groups names, each where the control line draws its name, as
-// NamesIn finds them.
-func BarNames(h Host) []NameSpot { return NamesIn(ansi.Strip(BarText(h.Rows())), h.Panel().Groups()) }
+// NamesIn finds them by the labels the panel gives them.
+func BarNames(h Host) []NameSpot {
+	p := h.Panel()
+	return NamesIn(ansi.Strip(BarText(h.Rows())), p.Groups(), p.Label)
+}
 
 // NamesIn gives where the heading over the groups, its text plain, names each of the groups' columns on the control
-// line, from BarLeft: before the next level's fold, the count, or the heading's end, so a value that holds a column's
-// name is passed over.
-func NamesIn(text string, groups []string) []NameSpot {
+// line, from BarLeft, by the name label gives it, as the heading draws it: before the next level's fold, the count, or
+// the heading's end, so a value that holds a column's name is passed over. Each spot names its column by its id.
+func NamesIn(text string, groups []string, label func(id string) string) []NameSpot {
 	var out []NameSpot
 	for _, column := range groups {
+		name := label(column)
 		for from := 0; ; {
-			k := strings.Index(text[from:], " "+column)
+			k := strings.Index(text[from:], " "+name)
 			if k < 0 {
 				break
 			}
 			at := from + k + 1
 			// a name ends at the line's end, the gap after it, the fold or the separator after it, or, where the rows'
 			// fold is not drawn, the count
-			if end := at + len(column); end == len(text) || strings.HasPrefix(text[end:], "  ") ||
+			if end := at + len(name); end == len(text) || strings.HasPrefix(text[end:], "  ") ||
 				strings.HasPrefix(text[end:], " "+grid.Unfolded) || strings.HasPrefix(text[end:], " "+grid.Folded) ||
 				strings.HasPrefix(text[end:], " "+grid.Joined) || len(text) > end+1 && text[end] == ' ' &&
 				unicode.IsDigit(rune(text[end+1])) {
 				x := BarLeft + ansi.StringWidth(text[:at])
-				out = append(out, NameSpot{column, x, x + ansi.StringWidth(column)})
+				out = append(out, NameSpot{column, x, x + ansi.StringWidth(name)})
 				break
 			}
 			from = at

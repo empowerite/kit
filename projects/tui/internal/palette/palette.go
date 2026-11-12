@@ -46,14 +46,18 @@ var verbsJSON []byte
 // verbsTable is the name of the verbs' table in the catalog, which keys the person's presets of it too.
 const verbsTable = "help/verbs"
 
-// catalog is verbs.json, read; one that does not read is kittui's fault, which the tests catch before it ships.
-var catalog = func() table.Catalog {
-	c, err := table.ReadCatalog(verbsJSON)
+// catalog is verbs.json, read.
+var catalog = readCatalog(verbsJSON)
+
+// readCatalog reads a catalog, as table.ReadCatalog does, and panics on one that does not read: verbs.json is kittui's
+// own, and one that does not read is kittui's fault, which the tests catch before it ships.
+func readCatalog(data []byte) table.Catalog {
+	c, err := table.ReadCatalog(data)
 	if err != nil {
 		panic(fmt.Sprintf("kit help's catalog does not read: %v", err))
 	}
 	return c
-}()
+}
 
 // color is the table's color, the accent's.
 const color = "12"

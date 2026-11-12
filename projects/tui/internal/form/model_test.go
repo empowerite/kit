@@ -158,6 +158,13 @@ func TestOneOfTabsAndChoosesOnTheSpace(t *testing.T) {
 	if m.fields[3].Chosen != -1 {
 		t.Errorf("backspace on an optional row: %+v", m.fields[3])
 	}
+	// with no option under the cursor, the space chooses none; up leaves the row for the field before it
+	if m, _ = drive(t, m, keys("space")...); m.fields[3].Chosen != -1 || m.focus != 3 {
+		t.Errorf("the space with no option under the cursor: %+v", m.fields[3])
+	}
+	if m, _ = drive(t, m, keys("up")...); m.focus != 2 {
+		t.Errorf("up on the owner row: focus %d", m.focus)
+	}
 }
 
 func TestAnyOfSpace(t *testing.T) {
@@ -415,6 +422,18 @@ func TestAFailedExtensionIsTheFocusedFieldsNote(t *testing.T) {
 
 // screen gives the form's lines without their escapes.
 func screen(m Model) []string { return strings.Split(stripANSI(m.View().Content), "\n") }
+
+// lineAt gives the cell where a text first stands on the screen, as a click there would land.
+func lineAt(t *testing.T, m Model, text string) (x, y int) {
+	t.Helper()
+	for k, l := range screen(m) {
+		if at := strings.Index(l, text); at >= 0 {
+			return ansi.StringWidth(l[:at]), k
+		}
+	}
+	t.Fatalf("no line holds %q:\n%s", text, strings.Join(screen(m), "\n"))
+	return 0, 0
+}
 
 // disambiguates is a terminal's answer that it tells shift-Enter from Enter, as kitty, iTerm2, and VS Code's do.
 var disambiguates = tea.KeyboardEnhancementsMsg{Flags: ansi.KittyDisambiguateEscapeCodes}
@@ -809,7 +828,8 @@ func TestRowsAskedBeforeAnAnswerChangedAreAskedAgain(t *testing.T) {
 // The form's menu bar is every screen's: it names the workspace kittui says; a click on = or on the workspace menu
 // drops it down, and = or - does where the field with the keyboard types no text, as on a toggle, while on a text
 // field they are typed; esc closes an open menu and does not go back. A click on the search field, or / where no text
-// is typed, asks for the palette's search.
+// is typed, asks for the palette's search. A click on an open menu's line does what the line says; a click with any
+// button but the left does nothing.
 func TestTheFormsMenuBarIsEveryScreens(t *testing.T) {
 	m := newForm(t, "tidy", Answers{}, true)
 	m, _ = drive(t, m, tea.WindowSizeMsg{Width: 100, Height: 30},
@@ -842,6 +862,33 @@ func TestTheFormsMenuBarIsEveryScreens(t *testing.T) {
 	}
 	if m, _ = drive(t, m, testkit.Click(shell.At, shell.Top)); !m.appMenu.Open {
 		t.Error("a click on = did not drop the kit menu down")
+	}
+	// a click on a screen's line asks kittui for it, and one on Quit, the menu's last line, below the short form's
+	// lines, ends the form
+	x, y := lineAt(t, m, "Welcome")
+	if _, produced = drive(t, m, testkit.Click(x, y)); !slices.Contains(produced, tea.Msg(shell.SwitchMsg{Screen: shell.Welcome})) {
+		t.Errorf("a click on Welcome: %v", produced)
+	}
+	items := m.appMenu.Items()
+	if items[len(items)-1].Name != "Quit" {
+		t.Fatalf("the kit menu's last line: %+v", items[len(items)-1])
+	}
+	if quit, produced := drive(t, m, testkit.Click(x, y+len(items)-1)); !quit.done || !slices.Contains(produced, tea.Msg(tea.QuitMsg{})) {
+		t.Errorf("a click on Quit: done %v, produced %v", quit.done, produced)
+	}
+	// a click on the workspace menu drops it down, and one on its line picks it; a click with another button than
+	// the left does nothing
+	m, _ = drive(t, m, key("esc"))
+	if m, _ = drive(t, m, testkit.Click(m.menuBar().WorkspaceAt(), shell.Top)); !m.books.Open {
+		t.Fatal("a click on the workspace menu did not drop it down")
+	}
+	x, y = lineAt(t, m, "Open…")
+	if _, produced = drive(t, m, testkit.Click(x, y)); !slices.Contains(produced, tea.Msg(shell.OpenMsg{})) {
+		t.Errorf("a click on Open…: %v", produced)
+	}
+	m, _ = drive(t, m, key("esc"))
+	if m, _ = drive(t, m, tea.MouseClickMsg{X: shell.At, Y: shell.Top, Button: tea.MouseRight}); m.appMenu.Open {
+		t.Error("a right click on = dropped the kit menu down")
 	}
 	text := newForm(t, "rebase", Answers{}, true)
 	text.focus = slices.IndexFunc(text.fields, func(f Field) bool { return f.Kind == Text })

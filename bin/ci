@@ -13,7 +13,7 @@
 #   - npm run check over projects/tutorials/, the tutorials site: tsc, its tests, and a build for a base
 #     that fails on an empty page, a dead link, or a bad base
 #   - the bats suite, one job per CPU, each test stopped and failed at five minutes
-#   - gofmt, go vet, and go test over projects/tui/, the kit tui binary, with at least 98% of its statements covered
+#   - gofmt, go vet, and go test over projects/tui/, the kit tui binary, with every one of its statements covered
 #   - kit/bin/kit check over this repository's installed copy of its own kit
 #
 # The pre-commit hook is a faster check over the staged paths only.
@@ -74,12 +74,13 @@ ajv validate --spec=draft2020 -s projects/tutorials/frontmatter.schema.json -d "
 # nearly all their time goes to starting short processes, so more jobs than CPUs only queue.
 BATS_TEST_TIMEOUT=300 bats --jobs "$(getconf _NPROCESSORS_ONLN)" --timing --print-output-on-failure tests/
 (cd projects/tui && test -z "$(gofmt -l .)" && go vet ./... && go test -coverprofile="${frontmatter}/tui.cover" ./...)
-# The TUI's tests hold its statements to a floor: under 98% of them covered, the gate fails, naming the total.
-coverage=$(cd projects/tui && go tool cover -func="${frontmatter}/tui.cover" \
-  | awk '$1 == "total:" { sub("%", "", $3); print $3 }')
-if ! awk -v covered="${coverage}" 'BEGIN { exit !(covered + 0 >= 98) }'
+# The TUI's tests reach every one of its statements: a statement no test reaches fails the gate, naming each function
+# that holds one. The total is no measure of it, as one statement in thousands still rounds to 100.0%.
+short=$(cd projects/tui && go tool cover -func="${frontmatter}/tui.cover" | awk '$NF != "100.0%"')
+if [[ -n "${short}" ]]
 then
-  echo "❌ the TUI's tests cover ${coverage:-none}% of its statements, under the floor of 98%" >&2
+  echo "❌ the TUI's tests leave statements no test reaches, in these functions:" >&2
+  echo "${short}" >&2
   exit 1
 fi
 kit/bin/kit check

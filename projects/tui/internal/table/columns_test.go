@@ -209,8 +209,12 @@ func TestTheColumnsDialogNamesEachFieldsType(t *testing.T) {
 	if !slices.Equal(heads, []string{"field", "type", "sort", "group"}) {
 		t.Errorf("the headings: %q", heads)
 	}
-	for _, c := range []struct{ id, want string }{{"who", "person"}, {"title", title.Type}} {
-		line := ansi.Strip(Columns{}.Line(h, c.id))
+	// n, a column of the outlined host's own, is no field of its catalog, so it has no type
+	for _, c := range []struct {
+		h        *host
+		id, want string
+	}{{h, "who", "person"}, {h, "title", title.Type}, {outlined(), "n", ""}} {
+		line := ansi.Strip(Columns{}.Line(c.h, c.id))
 		if got := strings.TrimSpace(string([]rune(line)[2+LabelCells : 2+LabelCells+TypeCells])); got != c.want {
 			t.Errorf("%s's type: %q in %q", c.id, got, line)
 		}

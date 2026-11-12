@@ -66,19 +66,28 @@ func TestTheRunnerIsTheFakeKitOfThePackageInADirectoryOfItsOwn(t *testing.T) {
 	}
 }
 
-// From a directory that is gone there is no go.mod above to find: on Linux the working directory cannot be read, and
-// on macOS it is read, and has none above it.
+// From a directory that is gone, or one that cannot be searched, there is no go.mod above to find: on Linux the
+// working directory of one that is gone cannot be read, and on macOS it is read, and has none above it; one that cannot
+// be searched cannot be read, unless the test runs as root, and then has none above it.
 func TestTheModuleRootIsNotFoundFromADirectoryThatIsGone(t *testing.T) {
-	gone := filepath.Join(t.TempDir(), "gone")
-	if err := os.Mkdir(gone, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	t.Chdir(gone)
-	if err := os.Remove(gone); err != nil {
-		t.Fatal(err)
-	}
-	if root, err := moduleRoot(); err == nil {
-		t.Errorf("moduleRoot from a removed directory = %q", root)
+	for name, leave := range map[string]func(dir string) error{
+		"gone":       os.Remove,
+		"unsearched": func(dir string) error { return os.Chmod(dir, 0) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			dir := filepath.Join(t.TempDir(), name)
+			if err := os.Mkdir(dir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			t.Chdir(dir)
+			if err := leave(dir); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { os.Chmod(dir, 0o755) })
+			if root, err := moduleRoot(); err == nil {
+				t.Errorf("moduleRoot from a directory %s = %q", name, root)
+			}
+		})
 	}
 }
 
@@ -102,22 +111,24 @@ func (l log) View() tea.View { return tea.NewView("") }
 func say(s string) tea.Cmd { return func() tea.Msg { return s } }
 
 // The driver feeds back what each command gives, a batch's each in turn and before the messages still queued, and
-// gives every message the commands produced; a quit, or a message ends says leaves the model, is produced and not fed
-// back. A command that gives nothing, and a batch's nil command, are passed over.
+// gives every message the commands produced; a quit, or a message ends says leaves the model, a batch's too, is
+// produced and not fed back. A command that gives nothing, and a batch's nil command, are passed over.
 func TestDriveFeedsBackWhatTheCommandsGiveAsTheProgramWould(t *testing.T) {
 	// tea.Batch drops a nil command, so the batch is built as a program may still meet one
-	batch := func() tea.Msg { return tea.BatchMsg{say("a"), nil, func() tea.Msg { return nil }, say("b")} }
+	batch := func() tea.Msg {
+		return tea.BatchMsg{say("a"), nil, func() tea.Msg { return nil }, say("done"), say("b")}
+	}
 	m := log{answers: map[string]tea.Cmd{
 		"start": batch,
 		"a":     say("leave"),
 		"b":     func() tea.Msg { return nil },
 		"next":  tea.Quit,
 	}}
-	got, produced := Drive(m, func(msg tea.Msg) bool { return msg == "leave" }, "start", "idle", "next")
+	got, produced := Drive(m, func(msg tea.Msg) bool { return msg == "leave" || msg == "done" }, "start", "idle", "next")
 	if want := "[start a b idle next]"; fmt.Sprint(got.took) != want {
 		t.Errorf("took %v, want %s", got.took, want)
 	}
-	if len(produced) != 3 || produced[1] != "leave" {
+	if len(produced) != 4 || produced[1] != "done" || produced[2] != "leave" {
 		t.Errorf("produced %v", produced)
 	}
 	if _, quit := produced[len(produced)-1].(tea.QuitMsg); !quit {
@@ -148,9 +159,39 @@ func TestTypedPressesEachRune(t *testing.T) {
 	}
 }
 
-func TestClickAndColumn(t *testing.T) {
+// A press is the key Bubble Tea names so: a named key, ctrl+ or shift+ before it, and space typed as a space; or a
+// character, typed, unless ctrl+ or shift+ comes before it; a modifier with nothing after it is the text it is.
+func TestPressGivesTheKeyBubbleTeaNames(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		want tea.KeyPressMsg
+	}{
+		{"up", tea.KeyPressMsg{Code: tea.KeyUp}},
+		{"ctrl+up", tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModCtrl}},
+		{"shift+tab", tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}},
+		{"space", tea.KeyPressMsg{Code: tea.KeySpace, Text: " "}},
+		{"x", tea.KeyPressMsg{Code: 'x', Text: "x"}},
+		{"🏭", tea.KeyPressMsg{Code: '🏭', Text: "🏭"}},
+		{"ctrl+c", tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}},
+		{"ctrl+", tea.KeyPressMsg{Code: 'c', Text: "ctrl+"}},
+		{"ctrl+shift+x", tea.KeyPressMsg{Code: 'x', Mod: tea.ModCtrl | tea.ModShift}},
+		{"shift+ctrl+up", tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModCtrl | tea.ModShift}},
+	} {
+		if got := Press(c.name); got.Code != c.want.Code || got.Mod != c.want.Mod || got.Text != c.want.Text {
+			t.Errorf("Press(%q) = %+v, want %+v", c.name, got, c.want)
+		}
+	}
+}
+
+func TestClickReleaseDragAndColumn(t *testing.T) {
 	if c := Click(3, 4); c.X != 3 || c.Y != 4 || c.Button != tea.MouseLeft {
 		t.Errorf("Click = %+v", c)
+	}
+	if r := Release(3, 4); r.X != 3 || r.Y != 4 || r.Button != tea.MouseLeft {
+		t.Errorf("Release = %+v", r)
+	}
+	if d := Drag(5, 6); d.X != 5 || d.Y != 6 || d.Button != tea.MouseLeft {
+		t.Errorf("Drag = %+v", d)
 	}
 	// a two-cell glyph before the rune counts as two
 	if Column("a🏭b", 'b') != 3 || Column("abc", 'z') != -1 {

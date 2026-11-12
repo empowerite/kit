@@ -107,6 +107,43 @@ func TestAFoldersFailedCheckOffersItsFixUnderItsRow(t *testing.T) {
 	}
 }
 
+// A folder's check left for later is listed under Left for later with its repository and its folder, which no row
+// draws above it there.
+func TestAFoldersCheckLeftForLaterNamesItsFolder(t *testing.T) {
+	m, _, _ := group(t, stepKey(setupStep))
+	m, found := onKey(m, "/code/a hooks-installed")
+	if !found {
+		t.Fatalf("no hooks-installed at the desk:\n%s", view(m))
+	}
+	m = drive(m, press('l'), tea.WindowSizeMsg{Width: 120, Height: 50})
+	v := view(m)
+	if left := strings.Index(v, "Left for later"); left < 0 || !strings.Contains(v[left:],
+		"• the git hooks are not installed; lefthook runs none · a "+deskGlyph+" a: lefthook install") {
+		t.Errorf("the desk's hooks left for later:\n%s", v)
+	}
+}
+
+// A search on the setup step keeps a folder's row where one of its checks holds what is typed, and drops the
+// repository none of whose folders it keeps; where it keeps nothing the step says so, or checking… while the checks
+// run again.
+func TestTheSetupStepsSearchKeepsTheFoldersOfTheChecksItFinds(t *testing.T) {
+	m, _, _ := group(t, stepKey(setupStep), press('/'))
+	m = drive(m, testkit.Typed("hooks")...)
+	v := view(m)
+	if !strings.Contains(v, deskGlyph+" a ") || !strings.Contains(v, "the git hooks are not installed") ||
+		strings.Contains(v, "7-the-topic") || strings.Contains(v, "github.com/o/b") || strings.Contains(v, "This machine") {
+		t.Errorf("searched for hooks:\n%s", v)
+	}
+	m = drive(m, testkit.Typed("zzz")...)
+	if v := view(m); !strings.Contains(v, "no check matches the search") || strings.Contains(v, "github.com/o/a") {
+		t.Errorf("searched for what no check holds:\n%s", v)
+	}
+	m.checking.Again(m.env(), false)
+	if v := view(m); !strings.Contains(v, "checking…") || strings.Contains(v, "no check matches the search") {
+		t.Errorf("searched for what no check holds, the checks running again:\n%s", v)
+	}
+}
+
 func TestAFoldersFixRunsInItsFolderAndAMachinesOverTheGroup(t *testing.T) {
 	m, r, _ := group(t, stepKey(setupStep))
 	m, found := onKey(m, "/code/a/worktrees/7-the-topic kit-installed")

@@ -211,6 +211,14 @@ func TestCopyLinksCopiesEachIssueAsMarkdown(t *testing.T) {
 	if m = next.(Model); cmd == nil || !strings.Contains(ansi.Strip(lines(m)[len(lines(m))-1]), "copied 2 links") {
 		t.Errorf("copy links: %q", lines(m)[len(lines(m))-1])
 	}
+	// an issue with no page, where the screen knows no origin, is its reference and title alone
+	m = New(runner(t), Options{Stages: []string{"backlog"}, NoPresets: true, Clock: &testkit.Clock{}})
+	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 24},
+		answer("backlog", `[{"number": 7, "title": "seven"}]`))
+	m.stages[0].Picked["#7"] = true
+	if got := m.links(); got != "- #7 seven" {
+		t.Errorf("the link of an issue with no page: %q", got)
+	}
 }
 
 // A menu taller than the screen's room scrolls with the keyboard: it ends above the keys bar, marks the items above
@@ -445,5 +453,16 @@ func TestAMemberWhoseCheckoutKitHasNotSaidIsNotActedOn(t *testing.T) {
 	}
 	if !strings.Contains(m.note.Text, "where github.com/o/a is checked out") {
 		t.Errorf("the note: %q", m.note.Text)
+	}
+	// nor is a new issue filed in the member under the cursor, though none is selected
+	m.note.Text = ""
+	delete(m.stages[0].Picked, "github.com/o/a #1")
+	m.stages[0].Cursor = slices.IndexFunc(m.rows(0), func(r row) bool { return r.Key == "github.com/o/a #1" })
+	m = choose(t, m, "New…")
+	if got := ranIn(t, dirs); len(got) != 0 || m.ask != nil {
+		t.Errorf("asked for the trackers where a is not: %q, %+v", got, m.ask)
+	}
+	if !strings.Contains(m.note.Text, "where github.com/o/a is checked out") {
+		t.Errorf("the note of New…: %q", m.note.Text)
 	}
 }

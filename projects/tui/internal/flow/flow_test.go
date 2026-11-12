@@ -659,7 +659,7 @@ func keysFor(m Model, keys string) string {
 	if _, before, after := table.Scrolled(&m); m.inRows && (before || after) {
 		keys = strings.Replace(keys, "↑↓ move ", "↑↓ move ⇥·⇧⇥ columns ", 1)
 	}
-	if m.inRows && len(m.lines(m.stage)) > m.rowsHeight() {
+	if m.inRows && len(m.lines()) > m.rowsHeight() {
 		keys = strings.Replace(keys, "↑↓ move ", "↑↓ move ⇞⇟ page ", 1)
 	}
 	return keys
@@ -920,6 +920,12 @@ func TestChangesCarryTheirChecksThreadsAndIssues(t *testing.T) {
 	if !strings.Contains(view(m), "closes no issue") {
 		t.Errorf("a pull request that closes nothing says nothing:\n%s", view(m))
 	}
+	// an issue kit gives no age leaves its age's cell empty, so its column can be left out
+	s := m.find("changes")
+	of[pull](*s)[0].Closes[0].Age = nil
+	if c := m.changeRows(*s)[0].Detail[0][3]; len(c.Values) != 0 {
+		t.Errorf("the age of an issue without one: %q", c.Values)
+	}
 }
 
 func TestBacklogOpensToItsDetail(t *testing.T) {
@@ -1174,6 +1180,10 @@ func TestOpenAppReadsTheStagesAndTheWords(t *testing.T) {
 	if !ok || refusal.Code != 2 || refusal.Error() != "kit flow refuses for the test; run: kit help flow" {
 		t.Errorf("Open on a refusal: %v", err)
 	}
+	// Flow's own stages are kit flow's, and its refusal of --stages is the error as well
+	if _, err = OpenApp(runner(t), shell.Flow, Words{}); err == nil || err.Error() != refusal.Error() {
+		t.Errorf("Open Flow on a refusal: %v", err)
+	}
 }
 
 func TestTheSelectedRowIsChosen(t *testing.T) {
@@ -1281,7 +1291,7 @@ func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testi
 		m = drive(m, press(tea.KeyPgDown))
 	}
 	// every line the open row holds was shown on the way down, and only then did the cursor move on
-	for _, l := range m.lines(3) {
+	for _, l := range m.lines() {
 		if l.Row == 1 && !seen[bare(l.Text)] {
 			t.Errorf("page down never showed %q", ansi.Strip(l.Text))
 		}
@@ -1628,6 +1638,19 @@ func TestBacklogAndUnderwaySayWhichTrackerHoldsEachIssue(t *testing.T) {
 
 // last gives a row's last cell, the title's, which stands after every other column.
 func last(cells []grid.Cell) grid.Cell { return cells[len(cells)-1] }
+
+// rowLine gives the screen line the first line of the selected stage's row k stands on, as the pane is scrolled, or
+// -1 while it is scrolled away.
+func (m Model) rowLine(k int) int {
+	lines := m.allLines(m.stage)
+	_, places := m.laid()
+	for r, at := range places {
+		if at >= 0 && lines[at].Row == k {
+			return m.rowsTop() + r
+		}
+	}
+	return -1
+}
 
 // rowY gives the screen line the first line of the selected stage's row of the key stands on, -1 where none shows.
 func rowY(m Model, key string) int {

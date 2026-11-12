@@ -149,17 +149,19 @@ func TestBooksDropsDownTheRecentRepositoriesPickedByTheirFolder(t *testing.T) {
 }
 
 // A worktree is no workspace of its own: in a worktree of o/a, o/a's desk among the recent is the repository shown, and
-// is not drawn again: o/a has the one line of the repository shown, dim.
+// is not drawn again: o/a has the one line of the repository shown, dim. Another forge's o/a reads as the one shown,
+// so each says its folder after it.
 func TestBooksTellsTwoFoldersOfOneRepositoryApart(t *testing.T) {
 	ws := kit.Workspace{Kind: "repository", Name: "github.com/o/a", Member: "github.com/o/a", Checkout: "/code/a/worktrees/1-x",
 		Recent: []kit.WorkspaceRecent{{Name: "github.com/o/a", Member: "github.com/o/a", Checkout: "/code/a/worktrees/1-x"},
 			{Name: "github.com/o/a", Member: "github.com/o/a", Checkout: "/code/a"},
+			{Name: "gitlab.com/o/a", Member: "gitlab.com/o/a", Checkout: "/mirror/gitlab-a"},
 			{Name: "github.com/o/c", Member: "github.com/o/c", Checkout: "/code/c"}}}
 	got, acting := names(BooksMenu{Workspace: ws})
 	for k := range got {
 		got[k] = ansi.Strip(got[k])
 	}
-	if strings.Join(got, "|") != "o/a|o/c||Open…|Manage…" || len(acting) != 3 || acting[0] != 1 {
+	if strings.Join(got, "|") != "o/a · 1-x|o/a · gitlab-a|o/c||Open…|Manage…" || len(acting) != 4 || acting[0] != 1 {
 		t.Errorf("the lines: %q, acting %v", got, acting)
 	}
 }

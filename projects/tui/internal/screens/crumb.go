@@ -89,17 +89,9 @@ func (m Model) toldCrumb() Model {
 	return m
 }
 
-// backs says whether a key or a click goes back to the crumb of the screen shown, as the screen says.
-func (m Model) backs(msg tea.Msg) bool {
+// crumbHere gives the screen shown, which says whether a key or a click goes back to its crumb, while it draws one;
+// false while it has none, or draws none.
+func (m Model) crumbHere() (crumbed, bool) {
 	s, ok := m.made[m.here].(crumbed)
-	if m.crumb == nil || !ok {
-		return false
-	}
-	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		return s.Backs(msg)
-	case tea.MouseClickMsg:
-		return s.OnCrumb(msg)
-	}
-	return false
+	return s, ok && m.crumb != nil
 }

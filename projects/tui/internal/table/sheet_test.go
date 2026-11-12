@@ -601,7 +601,17 @@ func TestTheRowsKeysNameWhatActsUnderTheCursor(t *testing.T) {
 	if strings.Contains(line(), "show") {
 		t.Errorf("past the rows: %s", line())
 	}
+	// a host that acts on the rows selected names space, shift with up or down, and ctrl+a
+	if line := shellLine(RowKeys(selects{&s}, false)); !strings.Contains(line, "␣·⇧↑↓ select") ||
+		!strings.Contains(line, "⌃A all") {
+		t.Errorf("a host that selects: %s", line)
+	}
 }
+
+// selects is a sheet that acts on the rows selected, as a screen that does says.
+type selects struct{ *Sheet }
+
+func (selects) Selects() bool { return true }
 
 func TestTheControlLinesKeysMoveFoldAndDrop(t *testing.T) {
 	s := sheet("")
@@ -920,6 +930,15 @@ func TestARuleUnderTheGroupsSortsThemAndFlattensAList(t *testing.T) {
 	g.click(x, g.top+1, false)
 	if p := g.Panel(); slices.Contains(p.Groups(), "tags") || !p.Field("tags").Flat {
 		t.Errorf("tags after ×: groups %v, flat %v", p.Groups(), p.Field("tags").Flat)
+	}
+	// a group whose column neither sorts nor holds a list has the rule alone, and a click on the rule off every mark
+	// is not taken
+	h := outlined()
+	if spots := BarSpots(h); len(spots) != 1 || spots[0].Column != "state" {
+		t.Errorf("the marks under state and who: %+v", spots)
+	}
+	if BarRuleClick(h, 0, false) || h.sets != 0 {
+		t.Error("a click off every mark was taken")
 	}
 }
 

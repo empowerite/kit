@@ -342,19 +342,16 @@ func (m Model) listed() []string {
 	return out
 }
 
-// issueTitle gives a member's backlog issue's title, by its reference, or nothing.
-func (m Model) issueTitle(member, ref string) string {
+// issueTitle gives a member's backlog issue's title, by its reference, or nothing; it asks only on backlog, whose
+// actions are the only ones that name issues.
+func (m Model) issueTitle(member, ref string) (title string) {
 	n, _ := strconv.Atoi(strings.TrimPrefix(ref, "#"))
-	for _, s := range m.stages {
-		if s.name == "backlog" {
-			for _, i := range of[issue](s) {
-				if i.Number == n && i.Member == member {
-					return i.Title
-				}
-			}
+	for _, i := range of[issue](*m.find("backlog")) {
+		if i.Number == n && i.Member == member {
+			title = i.Title
 		}
 	}
-	return ""
+	return title
 }
 
 // links gives the selected issues as Markdown, one a line: a link to each issue's page, its reference and title the

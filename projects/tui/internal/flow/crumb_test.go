@@ -46,6 +46,10 @@ func TestASpotPutsThePictureBackWhereItStood(t *testing.T) {
 	if m.Restore("nothing").(Model).stage != i {
 		t.Error("what is no spot moved the picture")
 	}
+	// a picture of no app's is flow's
+	if name, _ := loaded(t, Options{Stages: []string{"backlog"}}).Spot(); name != "flow › backlog" {
+		t.Errorf("the name of no app's picture is %q", name)
+	}
 }
 
 // The crumb the picture is told stands last on its title; a plain click on it, or ⌫, is the way back, but while a

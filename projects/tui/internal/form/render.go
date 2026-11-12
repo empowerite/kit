@@ -118,9 +118,6 @@ func window(content string, height, header, first, last, at int, dim func(string
 	header = min(header, height-1)
 	body, room := lines[header:], height-header
 	first, last, at = max(first-header, 0), last-header, at-header
-	if last < 0 {
-		first = 0
-	}
 	s := pane.Frame(len(body), room, 0, first, max(first, last))
 	if at >= 0 && (at < s.Start || at >= s.End) {
 		s = pane.Frame(len(body), room, 0, at, at)
@@ -210,9 +207,6 @@ func (d *drawer) nested(row int) []int {
 // nest under the name, or when the names side by side would not fit the width.
 func (d *drawer) vertical(row int) bool {
 	f := d.fields[row]
-	if f.Kind != OneOf && f.Kind != AnyOf {
-		return false
-	}
 	if f.Kind == OneOf {
 		for _, alternative := range d.alternatives(row) {
 			if len(alternative) > 1 || (len(alternative) == 1 && alternative[0].Kind != "literal" && alternative[0].Kind != "flag") {
@@ -393,8 +387,6 @@ func (d *drawer) row(i int, lead string) {
 		d.b.WriteString(strings.Repeat(" ", ansi.StringWidth(lead)) + oneOf + " " + d.st.Dim(required) + "\n")
 	case f.Kind == OneOf:
 		d.b.WriteString(strings.Repeat(" ", ansi.StringWidth(lead)) + oneOf + "\n")
-	case unanswered(f):
-		d.b.WriteString(strings.Repeat(" ", ansi.StringWidth(lead)) + d.st.Dim(required) + "\n")
 	}
 	room := d.width - ansi.StringWidth(lead) // a name wider than the screen, a whole usage line, is clipped
 	for k, option := range f.Options {

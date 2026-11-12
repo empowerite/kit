@@ -115,15 +115,22 @@ func TestANameInTheHeadingOverTheGroupsDropsItsColumnMenu(t *testing.T) {
 	if m = drive(m, testkit.Click(1, m.rowsTop())); m.colMenu.Open {
 		t.Error("a click did not close the menu of a heading gone")
 	}
+	// a click on the rule under the heading, on a group's sort mark, sorts the groups by it
+	m = nested(t)
+	rule := ansi.Strip(lines(m)[m.top()+1])
+	x = ansi.StringWidth(rule[:strings.Index(rule, Sortable)])
+	if m = drive(m, testkit.Click(x, m.top()+1)); m.panel(0).Mark("source") == "" {
+		t.Errorf("a click on source's mark on the rule %q leaves it unsorted", rule)
+	}
 }
 
 // The names in the heading over the groups are found where it says them, each before the next level's fold, the
 // count, or the end; a value that holds a column's name in it is passed over.
 func TestTheHeadingOverTheGroupsNamesItsColumnsWhereItSaysThem(t *testing.T) {
-	groups := []string{"source", "assignees"}
+	groups, same := []string{"source", "assignees"}, func(id string) string { return id }
 	text := "▾ source ▾ assignees  3"
 	var got []string
-	for _, n := range table.NamesIn(text, groups) {
+	for _, n := range table.NamesIn(text, groups, same) {
 		got = append(got, fmt.Sprintf("%s@%d", n.Column, n.From))
 		if cut := ansi.Cut("  "+text, n.From, n.Until); cut != n.Column {
 			t.Errorf("%s stands at %d, where the heading draws %q", n.Column, n.From, cut)
@@ -132,11 +139,11 @@ func TestTheHeadingOverTheGroupsNamesItsColumnsWhereItSaysThem(t *testing.T) {
 	if len(got) != 2 {
 		t.Errorf("the names of two columns: %q", got)
 	}
-	if names := table.NamesIn("▾ sourcery source ▾ assignees  3", groups); len(names) != 2 ||
+	if names := table.NamesIn("▾ sourcery source ▾ assignees  3", groups, same); len(names) != 2 ||
 		names[0].From != table.BarLeft+ansi.StringWidth("▾ sourcery ") {
 		t.Errorf("past a value that holds source: %+v", names)
 	}
-	if names := table.NamesIn("", groups); names != nil {
+	if names := table.NamesIn("", groups, same); names != nil {
 		t.Errorf("no heading names %+v", names)
 	}
 }

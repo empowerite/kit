@@ -95,6 +95,14 @@ func TestAPillsTextReadsOnItsColorAndAKeyKeepsItsColor(t *testing.T) {
 	}
 }
 
+// The pastels are given in order and counting round, so two drawn one after the other differ.
+func TestThePastelsCountRound(t *testing.T) {
+	if Pastel(0) != pastel[0] || Pastel(len(pastel)) != pastel[0] || Pastel(len(pastel)+1) != pastel[1] ||
+		Pastel(1) == Pastel(0) {
+		t.Errorf("the pastels: %q %q %q", Pastel(0), Pastel(1), Pastel(len(pastel)))
+	}
+}
+
 // A text without a color is drawn on the pastel its name picks, the same every time; a color given is the one drawn.
 func TestAnEmptyColorPicksAPastelByName(t *testing.T) {
 	if pillColor("x", "#123456") != "#123456" {

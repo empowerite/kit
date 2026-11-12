@@ -52,6 +52,10 @@ func TestRefreshAndDownDoNothingWhereThereIsNothingToLoadOrEnter(t *testing.T) {
 	if drive(m, refreshAll...); !slices.Equal(calls(t, record), []string{"flow builds --json"}) {
 		t.Errorf("Refresh All ran %q", calls(t, record))
 	}
+	// a stage the catalog does not name has Default alone, as it opens
+	if vs := m.builtins(0); len(vs) != 1 || vs[0].Name != Opening {
+		t.Errorf("the views of a stage the catalog does not name: %+v", vs)
+	}
 }
 
 // A document that does not parse, or whose fields are of the wrong type, is a refusal naming the stage; nothing is
@@ -82,7 +86,7 @@ func TestPageUpInsideATallOpenRowScrollsBackThroughIt(t *testing.T) {
 		return strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(ansi.Strip(s)), style.Focus+style.Opened))
 	}
 	var row []string
-	for _, l := range m.lines(3) {
+	for _, l := range m.lines() {
 		if l.Row == 1 {
 			row = append(row, text(l.Text))
 		}

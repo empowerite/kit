@@ -148,12 +148,10 @@ func (m Model) enabled(k int) bool {
 
 // pick does what the tab's menu's item at k says to the selected stage's rows, closes the menu, and gives the rows the
 // keyboard, so left and right go on from there; maximize and restore give the rows the bar's lines but one, or take them
-// back, and refresh runs the stage again, as refresh says, each leaving the keyboard where it was. An item that is not
-// enabled does nothing, and leaves the menu open. It gives what refresh runs.
+// back, and refresh runs the stage again, as refresh says, each leaving the keyboard where it was. It gives what
+// refresh runs. The item is always one enabled: the menu's keys and clicks, and a shortcut, choose no other, as
+// shell.Dropdown and shell.Shortcut do.
 func (m *Model) pick(k int) tea.Cmd {
-	if k < 0 || !m.enabled(k) {
-		return nil
-	}
 	s := &m.stages[m.stage]
 	m.tabMenu.Open = false
 	if action, _ := m.acting(m.tabItems()[k].Name); action {

@@ -116,6 +116,15 @@ func TestTheCatalogNamesOnlyWhatIsRegistered(t *testing.T) {
 			t.Errorf("%s: the presets %v", name, presets)
 		}
 	}
+	// a catalog that does not read is kittui's own fault, and stops it as it starts
+	func() {
+		defer func() {
+			if r, _ := recover().(string); !strings.HasPrefix(r, "fields.json does not read: ") {
+				t.Errorf("a catalog that does not read: %q", r)
+			}
+		}()
+		readCatalog([]byte("{"))
+	}()
 }
 
 // The catalog draws a pull request's state, a build's, and a release's kind as the legend does: each known value with

@@ -110,6 +110,49 @@ func TestTheCursorMovesThroughTheRowsAndTheWindowFollows(t *testing.T) {
 	}
 }
 
+// [ and ] move the cursor to the groups' heading before it and after it, [ past the last heading to the last, and
+// neither past the first or the last; { and } to the first and the last; home and end to the first row and the last.
+// Without the keyboard, or with no heading to stand on, the cursor stays where it is.
+func TestTheCursorMovesBetweenTheGroupsHeadingsAndToTheEnds(t *testing.T) {
+	h := viewing()
+	closed, open, ada, bob := at(h, heading("closed")), at(h, heading("open")), at(h, heading("open", "ada")),
+		at(h, heading("open", "bob"))
+	last := len(h.Rows()) - 1
+	for _, c := range []struct {
+		from  int
+		press string
+		want  int
+	}{
+		{last, "[", bob}, {bob, "[", ada}, {ada, "[", open}, {closed, "[", closed},
+		{ada, "]", bob}, {bob, "]", bob}, {last, "{", closed}, {closed, "}", bob},
+	} {
+		h.tbl.Cursor = c.from
+		if Group(h, c.press); h.tbl.Cursor != c.want {
+			t.Errorf("%s from %d: on %d, want %d", c.press, c.from, h.tbl.Cursor, c.want)
+		}
+	}
+	if End(h, 1); h.tbl.Cursor != last {
+		t.Errorf("end: on %d, want %d", h.tbl.Cursor, last)
+	}
+	if End(h, -1); h.tbl.Cursor != First(h.Rows()) || h.tbl.Offset != 0 {
+		t.Errorf("home: on %d, offset %d", h.tbl.Cursor, h.tbl.Offset)
+	}
+	h.keys = false
+	if Group(h, "}"); h.tbl.Cursor != closed {
+		t.Errorf("} without the keyboard: on %d", h.tbl.Cursor)
+	}
+	if End(h, 1); h.tbl.Cursor != closed {
+		t.Errorf("end without the keyboard: on %d", h.tbl.Cursor)
+	}
+	// rows that group by nothing have no heading to stand on but the one over the groups
+	bare := listing()
+	bare.panel.Columns, bare.all, bare.keys = h.panel.Columns, h.all, true
+	bare.tbl.Cursor = 2
+	if Group(bare, "}"); bare.tbl.Cursor != 2 {
+		t.Errorf("} with no heading: on %d", bare.tbl.Cursor)
+	}
+}
+
 // Entering the rows from the line over them, the control line, puts the cursor on the outline's first line, the first
 // group's heading, wherever it stood before; a table without a row stays as it is.
 func TestEnteringTheRowsLandsOnTheOutlinesFirstLine(t *testing.T) {

@@ -45,6 +45,9 @@ func layered() Layers[screen] {
 
 func TestNoLayerOpenLeavesTheScreenItsKeysClicksAndBar(t *testing.T) {
 	ls := layered()
+	if ls.Opened(screen{}) {
+		t.Error("a layer is open while none is")
+	}
 	if _, _, ok := ls.Key(screen{}, key("x")); ok {
 		t.Error("a key went to a layer while none was open")
 	}
@@ -62,6 +65,9 @@ func TestNoLayerOpenLeavesTheScreenItsKeysClicksAndBar(t *testing.T) {
 func TestTheTopmostOpenLayerTakesTheKeysAndTheClicks(t *testing.T) {
 	ls := layered()
 	both := screen{menu: true, dialog: true}
+	if !ls.Opened(both) || !ls.Opened(screen{dialog: true}) {
+		t.Error("no layer is open while one is")
+	}
 	if s, _, ok := ls.Key(both, key("x")); !ok || !slices.Equal(s.got, []string{"menu x"}) {
 		t.Errorf("a key with both open: %v %q", ok, s.got)
 	}

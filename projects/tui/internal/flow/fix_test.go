@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"errors"
 	"os/exec"
 	"slices"
 	"strconv"
@@ -105,5 +106,48 @@ func TestARefusalThatNamesNoCommandOffersNothing(t *testing.T) {
 	}
 	if _, ok := m.remedyKey(press('r')); ok {
 		t.Errorf("r was taken on a refusal naming no command")
+	}
+}
+
+// A refusal of a stage that held rows, grouped, stands under its control line, where a click is read too; a click on
+// a line of a refusal that wraps, past its last, selects it and does nothing more; one under the refusal is not its;
+// and a fix that fails says so in place of the keys, the stage loaded again.
+func TestARefusalUnderTheControlLineAndAFixThatFails(t *testing.T) {
+	var ran [][]string
+	m := loaded(t, options())
+	at := slices.IndexFunc(m.stages, func(s stage) bool { return s.name == "changes" })
+	m = drive(m, typed(strconv.Itoa(at+1))...)
+	t.Setenv("FAKE_FLOW_REFUSE", "changes")
+	m = drive(m, refreshAll...)
+	m.handOver = func(c *exec.Cmd, done tea.ExecCallback) tea.Cmd {
+		ran = append(ran, c.Args)
+		return func() tea.Msg { return done(errors.New("exit status 3")) }
+	}
+	if !m.controls() {
+		t.Fatalf("the refused stage that held rows has no control line:\n%s", raw(m))
+	}
+	y, _ := remedyLine(m)
+	m = drive(m, tea.MouseClickMsg{X: 5, Y: y, Button: tea.MouseLeft})
+	y, l := remedyLine(m)
+	plain := ansi.Strip(l)
+	run := ansi.StringWidth(plain[:strings.LastIndex(plain, " "+fix.RunName+" ")]) + 1
+	m = drive(m, tea.MouseClickMsg{X: run, Y: y, Button: tea.MouseLeft})
+	if !slices.EqualFunc(ran, [][]string{{"kit", "help", "flow"}}, slices.Equal) {
+		t.Fatalf("a click on run under the control line ran %q:\n%s", ran, raw(m))
+	}
+	if !strings.Contains(raw(m), Failed+" kit help flow: exit status 3") {
+		t.Errorf("the fix that failed does not say so:\n%s", raw(m))
+	}
+	if _, taken := m.remedyClick(tea.MouseClickMsg{X: 5, Y: y + 5, Button: tea.MouseLeft}); taken {
+		t.Error("a click under the refusal is the refusal's")
+	}
+	// a pane too narrow for the refusal's line wraps it: a click on its first line selects it, and runs nothing
+	narrow := refusedChanges(t, &ran)
+	narrow = drive(narrow, tea.WindowSizeMsg{Width: 40, Height: 30})
+	first := slices.IndexFunc(strings.Split(raw(narrow), "\n"), func(l string) bool { return strings.Contains(l, Failed) })
+	before := len(ran)
+	if cmd, taken := narrow.remedyClick(tea.MouseClickMsg{X: 5, Y: first, Button: tea.MouseLeft}); !taken || cmd != nil ||
+		!narrow.onRemedy() || len(ran) != before {
+		t.Errorf("a click on the first of the refusal's lines: taken %v, selected %v", taken, narrow.onRemedy())
 	}
 }

@@ -564,3 +564,16 @@ func TestTheTutorialsMenuBarHasTheWorkspaceMenu(t *testing.T) {
 		t.Error("a click on the workspace menu did not drop it down")
 	}
 }
+
+// The screen's catalog reads; one that does not read is a bug in the build, which panics.
+func TestTheCatalogReads(t *testing.T) {
+	if len(readCatalog(catalogJSON)) == 0 {
+		t.Error("tutorials.json reads to no table")
+	}
+	defer func() {
+		if recover() == nil {
+			t.Error("a catalog that does not read does not panic")
+		}
+	}()
+	readCatalog([]byte("{"))
+}

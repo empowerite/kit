@@ -119,12 +119,8 @@ var bandOpen, bandEnd, _ = strings.Cut(band.Render("x"), "x")
 // Band draws a line on a faint background, as the row under the cursor is drawn, to the width: the line's own styles
 // stay, and the band is opened again after each of them ends, so it runs the whole line.
 func Band(line string, width int) string {
-	open, end := bandOpen, bandEnd
-	if open == "" {
-		return line
-	}
 	line += strings.Repeat(" ", max(0, width-ansi.StringWidth(line)))
-	return open + strings.ReplaceAll(line, "\x1b[m", "\x1b[m"+open) + end
+	return bandOpen + strings.ReplaceAll(line, "\x1b[m", "\x1b[m"+bandOpen) + bandEnd
 }
 
 // BarKey draws a key on the keys bar: bold, and in the accent color too in the control the keyboard is in, so the

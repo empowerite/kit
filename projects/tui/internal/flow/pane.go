@@ -13,23 +13,12 @@ func (m Model) rowsTop() int { return table.RowsTop(&m) }
 // rowsHeight gives the lines the rows have, which scroll, as table.RowsHeight says.
 func (m Model) rowsHeight() int { return table.RowsHeight(&m) }
 
-// heightUnder gives the lines the rows have under a header of those lines, as table.HeightUnder says.
-func (m Model) heightUnder(header []string) int { return table.HeightUnder(&m, header) }
-
 // laid gives the pane's lines under the control line, and the place of each, as table.Laid says.
 func (m Model) laid() ([]string, []place) { return table.Laid(&m) }
 
-// frozenLines gives how many of a stage's lines the frozen rows take: the selected stage's, as table.FrozenLines
-// says; none for another, whose pane does not show.
-func (m Model) frozenLines(i int) int {
-	if len(m.stages) == 0 || i != m.stage {
-		return 0
-	}
-	return table.FrozenLines(&m)
-}
-
-// lines gives the lines of a stage that scroll, in the rows' window: those allLines gives, past the frozen lines.
-func (m Model) lines(i int) []table.Line { return m.allLines(i)[m.frozenLines(i):] }
+// lines gives the lines of the selected stage that scroll, in the rows' window: those allLines gives, past the lines
+// the frozen rows take, as table.FrozenLines says.
+func (m Model) lines() []table.Line { return m.allLines(m.stage)[table.FrozenLines(&m):] }
 
 // placeAt gives the place of the screen line y in the pane, as table.PlaceAt says.
 func (m Model) placeAt(y int) (place, bool) { return table.PlaceAt(&m, y) }
@@ -54,14 +43,6 @@ func (m *Model) up(n int) {
 func (m *Model) down(n int) {
 	if len(m.stages) > 0 {
 		table.Down(m, n)
-	}
-}
-
-// enter gives the rows the keyboard from the control line, the cursor on the outline's first line, as table.Enter says.
-func (m *Model) enter() {
-	if len(m.stages) > 0 {
-		m.onPreset = false
-		table.Enter(m)
 	}
 }
 

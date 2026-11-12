@@ -90,7 +90,17 @@ func TestOverSSHOpenSelectedShowsTheFirstLinkAndCountsTheRest(t *testing.T) {
 	if ran(record) {
 		t.Error("an opener ran over SSH")
 	}
+	// three pages asked say two more
+	m.stages[0].Picked["#7"] = true
+	three := m.pages()
+	if len(three) != 3 {
+		t.Fatalf("pages: %q", three)
+	}
+	if m = choose(t, m, "Open Selected"); m.note.Text != "Open "+three[0]+" in a browser, and 2 more pages" {
+		t.Errorf("three pages: %q", m.note.Text)
+	}
 	// one page asked says no more
+	delete(m.stages[0].Picked, "#7")
 	delete(m.stages[0].Picked, "#46")
 	if m = choose(t, m, "Open Selected"); m.note.Text != "Open "+pages[0]+" in a browser" {
 		t.Errorf("one page: %q", m.note.Text)

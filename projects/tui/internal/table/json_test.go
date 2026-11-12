@@ -50,6 +50,10 @@ func TestAJSONFieldDrawsCompactClosedAndPrettyOpen(t *testing.T) {
 	if len(none.Values) != 0 || none.Summary != "" {
 		t.Errorf("no value: %q, %q", none.Values, none.Summary)
 	}
+	// a value a screen made, with no pretty form beside its raw one, draws its raw value as it is
+	if made := f.Draw([]Value{One("bin/ci")}, "")[0]; !slices.Equal(made.Values, []string{"bin/ci"}) || made.Summary != "" {
+		t.Errorf("a value without its pretty form: %q, %q", made.Values, made.Summary)
+	}
 	if !Registered("json") || Types["json"].Filters {
 		t.Error("json is a registered renderer and a type no filter chooses among")
 	}

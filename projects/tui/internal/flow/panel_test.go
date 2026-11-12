@@ -49,7 +49,7 @@ func keys(m Model) []string {
 // drawn gives the stage's rows as the pane draws them, without the side.
 func drawn(m Model) string {
 	var out []string
-	for _, l := range m.lines(m.stage) {
+	for _, l := range m.lines() {
 		out = append(out, l.Text)
 	}
 	return strings.Join(out, "\n")

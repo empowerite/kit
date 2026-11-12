@@ -205,9 +205,8 @@ func scope(h Host, whole bool) (all []grid.Row, from, to int, depth func(j int) 
 		if !h.InRows() || s.Cursor >= len(rows) {
 			return nil, 0, 0, nil
 		}
-		if from = slices.IndexFunc(all, func(r grid.Row) bool { return r.Key == rows[s.Cursor].Key }); from < 0 {
-			return nil, 0, 0, nil
-		}
+		// every row shown stands in the whole outline, as grid.Every gives it
+		from = slices.IndexFunc(all, func(r grid.Row) bool { return r.Key == rows[s.Cursor].Key })
 		to = grid.Span(all, from)
 	}
 	depth = func(j int) (int, bool) {

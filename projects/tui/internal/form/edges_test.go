@@ -65,7 +65,8 @@ func TestAListOfOneTakesTheRowOnEnter(t *testing.T) {
 	}
 }
 
-// A list kit refused takes what is typed: a list of one on Enter, moving on; a list of many keeps each value, with ◼,
+// A list kit refused takes what is typed: a list of one on Enter, moving on, and draws it under the filter when the
+// keyboard is back; a list of many keeps each value, with ◼,
 // and says an empty line ends it. Before the rows answer, a list shows that it waits.
 func TestAListKitRefusedTakesWhatIsTyped(t *testing.T) {
 	t.Setenv("FAKE_KIT_REFUSE", "new")
@@ -79,6 +80,10 @@ func TestAListKitRefusedTakesWhatIsTyped(t *testing.T) {
 	m = send(m, key("enter"))
 	if got := m.fields[i].Values; len(got) != 1 || got[0] != "markdown" || m.focus != i+1 {
 		t.Errorf("a refused list of one took %q, focus %d", got, m.focus)
+	}
+	m = focusOn(m, i)
+	if !slices.ContainsFunc(screen(m), func(l string) bool { return strings.TrimSpace(l) == "markdown" }) {
+		t.Errorf("a refused list of one does not draw what it took:\n%s", stripANSI(m.View().Content))
 	}
 	t.Setenv("FAKE_KIT_REFUSE", "commit")
 	m = focusOn(newForm(t, "commit", Answers{}, true), 2)
@@ -101,7 +106,7 @@ func TestAListKitRefusedTakesWhatIsTyped(t *testing.T) {
 }
 
 // In a list kit calls a set, the hint counts what the command line adds and what it removes: an active row turned off
-// is one to remove.
+// is one to remove, and a row not active turned on one to add.
 func TestASetCountsWhatTheLineAddsAndRemoves(t *testing.T) {
 	m := newForm(t, "packages", Answers{Literals: []string{"select"}, Chosen: map[int]int{0: 1}}, true)
 	i := slices.IndexFunc(m.fields, func(f Field) bool { return f.Kind == PickMany })
@@ -112,6 +117,10 @@ func TestASetCountsWhatTheLineAddsAndRemoves(t *testing.T) {
 	m = send(m, key("space"))
 	if v := stripANSI(m.View().Content); !strings.Contains(v, style.Remove+" 1 to remove") {
 		t.Errorf("an active row turned off is not counted to remove:\n%s", v)
+	}
+	m = send(m, key("down"), key("down"), key("space"))
+	if v := stripANSI(m.View().Content); !strings.Contains(v, style.Add+" 1 to add · "+style.Remove+" 1 to remove") {
+		t.Errorf("a row not active turned on is not counted to add:\n%s", v)
 	}
 }
 

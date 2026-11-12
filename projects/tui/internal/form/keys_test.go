@@ -195,6 +195,14 @@ func TestAnOpenListTakesWhatIsTypedOnCtrlN(t *testing.T) {
 	if m = send(m, key("ctrl+n")); len(m.fields[2].Values) != 1 {
 		t.Errorf("ctrl-n with nothing typed took %q", m.fields[2].Values)
 	}
+	// an open list of one value says that Enter takes the row and ctrl-n what is typed
+	spec := syntax.Spec{Verb: "x", Syntax: [][]syntax.Node{{{Kind: "operand", Name: "name"}}},
+		Arguments: map[string]syntax.Argument{"<name>": {Choices: "open"}}}
+	fields, _ := Fields(spec, Answers{})
+	m = send(New(spec, fields, testkit.Runner(t, "kit"), true), choicesMsg{key: "<name>", rows: []kit.Choice{{Value: "a"}}})
+	if v := stripANSI(m.View().Content); !strings.Contains(v, "⏎ takes it · ctrl-n takes what is typed · type to filter") {
+		t.Errorf("an open list of one's hint:\n%s", v)
+	}
 }
 
 // On the command line, Enter asks kit to judge it: a line short of a part says what it needs, after the words chosen,

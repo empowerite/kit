@@ -125,6 +125,22 @@ func TestPackagesLiteralChoosesItsAlternative(t *testing.T) {
 		len(fields[2].Values) != 0 {
 		t.Errorf("packages add: %s %+v", kinds(fields), fields)
 	}
+	// a word that opens no line, not even through the group the acting line starts with, chooses none: the line that
+	// adds no word stands
+	fields, _ = Fields(specs(t)["packages"], FromMatch(syntax.Match{Literals: []string{"bogus"}}))
+	if kinds(fields) != "OneOf OneOf OneOf PickMany" || fields[0].Chosen != 0 {
+		t.Errorf("packages bogus: %s %+v", kinds(fields), fields[0])
+	}
+	// an alternative of no nodes adds no word, so a word opens the one after it, and without one it stands, named kit
+	// and the verb
+	empty := syntax.Spec{Verb: "x", Syntax: [][]syntax.Node{{{Kind: "group", Alternatives: [][]syntax.Node{
+		{}, {{Kind: "literal", Name: "add"}}}}}}}
+	if fields, _ = Fields(empty, Answers{Literals: []string{"add"}}); fields[0].Chosen != 1 {
+		t.Errorf("x add: %+v", fields[0])
+	}
+	if fields, _ = Fields(empty, Answers{}); fields[0].Chosen != 0 || fields[0].Options[0] != "kit x" {
+		t.Errorf("x: %+v", fields[0])
+	}
 }
 
 func TestStatusRowsAndTheOwnerGroup(t *testing.T) {
@@ -173,6 +189,12 @@ func TestNewChoosesWhatToMakeAndEndsWithTheWildcard(t *testing.T) {
 	}
 	if fields[2].Key != "--rule" || fields[2].Choices != "closed" || fields[4].Key != "--<hole>" {
 		t.Errorf("new file's options: %+v", fields)
+	}
+	// a --x=y the grammar names nowhere, with no word, chooses the line whose wildcard takes it
+	fields, _ = Fields(specs(t)["new"], FromMatch(syntax.Match{Options: map[string][]string{"--color": {"red"}}}))
+	if kinds(fields) != "OneOf Text Pick Pick Wildcard" || fields[0].Chosen != 0 ||
+		strings.Join(fields[4].Values, " ") != "--color=red" {
+		t.Errorf("new --color=red: %s %+v", kinds(fields), fields)
 	}
 }
 
@@ -298,5 +320,9 @@ func TestAChosenRequiredFlagDrawsNoValueUnderItsName(t *testing.T) {
 		if strings.TrimSpace(line) == "1" {
 			t.Fatalf("a 1 under --claude:\n%s", RenderStatic(spec, fields, 100))
 		}
+	}
+	// the flag, required, is on, so it wants no answer
+	if i := FirstEmptyRequired(fields); kinds(fields) != "OneOf Toggle" || !fields[1].Required || i != -1 {
+		t.Errorf("--claude: %s, the first empty required field %d", kinds(fields), i)
 	}
 }

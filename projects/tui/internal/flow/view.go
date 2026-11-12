@@ -247,11 +247,9 @@ func (m Model) header() (lines []string, hides bool) {
 }
 
 // headerLines gives the header's lines and whether they hide lines while closed, as header says, whether a row shows or
-// not: as table.Headed gives them, then the rule under them, as rule draws it.
+// not: as table.Headed gives them, then the rule under them, as rule draws it. It is asked only on a stage, as header
+// asks it.
 func (m Model) headerLines() (lines []string, hides bool) {
-	if len(m.stages) == 0 {
-		return nil, false
-	}
 	if s := m.stages[m.stage]; !m.noHeaders && !s.src.Loading && s.refusal == "" {
 		lines, hides = table.Headed(m.rows(m.stage), m.names(m.stage), m.gridWidth(m.stage), s.Shift, m.indent(m.stage),
 			s.Open[table.HeaderKey])
@@ -336,9 +334,6 @@ func (m Model) allLines(i int) []table.Line {
 	chosen := -1
 	if m.inRows && i == m.stage && s.Cursor < len(rows) {
 		chosen = s.Cursor
-	}
-	if m.built == nil || m.built.width != m.paneWidth() {
-		return m.draw(i, rows, chosen)
 	}
 	key := m.drawnFor(i, rows, chosen)
 	if d, ok := m.built.lines[i]; ok && d.key == key {

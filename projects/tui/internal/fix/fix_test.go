@@ -2,8 +2,10 @@ package fix
 
 import (
 	"errors"
+	"fmt"
 	"os/exec"
 	"slices"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -22,6 +24,7 @@ func TestCommandReadsWhatKitSaysToRun(t *testing.T) {
 		"run: kit help release.": "kit help release",
 		"run: kit install (kit.yml declares no kit version in this repository)": "kit install",
 		"the iterations could not be read":                                      "",
+		"run: kit tidy --path=a(b)c (it moved)":                                 "kit tidy --path=a(b)c",
 	} {
 		if got := Command(line); got != want {
 			t.Errorf("Command(%q) = %q, want %q", line, got, want)
@@ -88,5 +91,27 @@ func TestRunningHandsOverOnlyWords(t *testing.T) {
 	ran = nil
 	if msg := Running(handOver, "kit hydrate; rm -rf ~", done)(); !errors.Is(msg.(error), ErrNotWords) || ran != nil {
 		t.Errorf("Running a second command gave %v, handed over %v", msg, ran)
+	}
+}
+
+// Bindings names c, which copies, and r, which runs, only where the command runs here; Copying puts the command on
+// the clipboard.
+func TestBindingsNameTheKeysAndCopyingPutsTheCommandOnTheClipboard(t *testing.T) {
+	names := func(runs bool) []string {
+		var out []string
+		for _, b := range Bindings(runs) {
+			out = append(out, b.Key+" "+b.Does)
+		}
+		return out
+	}
+	if got := names(false); !slices.Equal(got, []string{"c copy"}) {
+		t.Errorf("a fix kit only shows: %q", got)
+	}
+	if got := names(true); !slices.Equal(got, []string{"c copy", "r run"}) {
+		t.Errorf("a fix that runs here: %q", got)
+	}
+	if msg := Copying("kit hydrate")(); !strings.Contains(fmt.Sprintf("%T", msg), "Clipboard") ||
+		fmt.Sprint(msg) != "kit hydrate" {
+		t.Errorf("Copying gives %T %v", msg, msg)
 	}
 }

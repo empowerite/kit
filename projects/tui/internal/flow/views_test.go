@@ -548,6 +548,23 @@ func TestViewsJSONBecomesPresetsJSONOnce(t *testing.T) {
 		!g.Shows("title") {
 		t.Errorf("Authors' other fields: %+v", g.Fields)
 	}
+	// a views.json that does not read as views is the error, and so is a presets.json that cannot be written
+	other := t.TempDir()
+	if err := os.WriteFile(filepath.Join(other, "views.json"), []byte("{"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := readPresets(filepath.Join(other, "presets.json")); err == nil ||
+		!strings.Contains(err.Error(), "views.json does not read as views") {
+		t.Errorf("a views.json that does not read: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(other, "views.json"), v1, 0o644); err != nil ||
+		os.Mkdir(filepath.Join(other, "presets.json.new"), 0o755) != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := readPresets(filepath.Join(other, "presets.json")); err == nil ||
+		!strings.Contains(err.Error(), "presets.json could not be written from") {
+		t.Errorf("a presets.json that cannot be written: %v", err)
+	}
 }
 
 // Incoming has its catalog's presets, Default and Compact, as every stage, and a view the line was set to that is gone

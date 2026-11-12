@@ -98,14 +98,17 @@ const wheelLines = 3
 // tableColor is the table's color, the accent's.
 const tableColor = "12"
 
-// catalog is tutorials.json, read; a catalog that does not read is a bug in the build, so it panics.
-var catalog = func() table.Catalog {
-	c, err := table.ReadCatalog(catalogJSON)
+// catalog is tutorials.json, read.
+var catalog = readCatalog(catalogJSON)
+
+// readCatalog reads a catalog, as table.ReadCatalog does; one that does not read is a bug in the build, so it panics.
+func readCatalog(data []byte) table.Catalog {
+	c, err := table.ReadCatalog(data)
 	if err != nil {
 		panic(fmt.Sprintf("tutorials.json: %v", err))
 	}
 	return c
-}()
+}
 
 // browsedMsg says whether the browser was asked to open a tutorial: err is why not.
 type browsedMsg struct {

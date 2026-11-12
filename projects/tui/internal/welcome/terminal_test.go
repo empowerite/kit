@@ -88,6 +88,42 @@ func TestTabThenEnterKeeps(t *testing.T) {
 	}
 }
 
+func TestShiftTabThenEnterLeavesItForLater(t *testing.T) {
+	record := filepath.Join(t.TempDir(), "calls")
+	t.Setenv("FAKE_WELCOME_CALLS", record)
+	m, _ := terminal(t, tabKey, backTab)
+	if m.choice != later {
+		t.Errorf("shift-tab from keep chose %v, not later", m.choice)
+	}
+	if m = drive(m, enter); !m.deferred["terminal-iterm-option"] {
+		t.Error("enter on later did not leave it for later")
+	}
+	if got := calls(t, record); strings.Contains(strings.Join(got, "\n"), "--keep=") {
+		t.Errorf("later kept it: %q", got)
+	}
+}
+
+// A click on a terminal finding's row that the cursor is not on chooses the row, and neither keeps it nor leaves it
+// for later: its buttons were not drawn where the click fell.
+func TestAClickOnAFindingsRowOffTheCursorChoosesItAlone(t *testing.T) {
+	record := filepath.Join(t.TempDir(), "calls")
+	t.Setenv("FAKE_WELCOME_CALLS", record)
+	m, _ := terminal(t)
+	x, y := buttonAt(t, m, " keep ")
+	m = drive(m, up)
+	if m.checks[m.cursor].ID == "terminal-iterm-option" {
+		t.Fatal("up left the cursor on the finding")
+	}
+	if m = drive(m, testkit.Click(x, y)); m.checks[m.cursor].ID != "terminal-iterm-option" ||
+		m.deferred["terminal-iterm-option"] {
+		t.Errorf("the click: the cursor on %q, left for later %v", m.checks[m.cursor].ID,
+			m.deferred["terminal-iterm-option"])
+	}
+	if got := calls(t, record); strings.Contains(strings.Join(got, "\n"), "--keep=") {
+		t.Errorf("the click kept it: %q", got)
+	}
+}
+
 func TestAClickOnKeepKeepsAndOnLaterLeavesIt(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_WELCOME_CALLS", record)

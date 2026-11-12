@@ -123,13 +123,19 @@ func Typed(text string) []tea.Msg {
 	return msgs
 }
 
-// Press gives the key press Bubble Tea names so, as a keys bar's binding names its presses: a named key, with ctrl+ or
-// shift+ before it, or a character, typed.
+// Press gives the key press Bubble Tea names so, as a keys bar's binding names its presses: a named key, with ctrl+,
+// shift+, or both, in either order, before it, or a character, typed.
 func Press(name string) tea.KeyPressMsg {
 	var mod tea.KeyMod
-	for prefix, m := range map[string]tea.KeyMod{"ctrl+": tea.ModCtrl, "shift+": tea.ModShift} {
-		if rest, ok := strings.CutPrefix(name, prefix); ok && rest != "" {
-			name, mod = rest, mod|m
+	for cut := true; cut; {
+		cut = false
+		for _, p := range []struct {
+			prefix string
+			mod    tea.KeyMod
+		}{{"ctrl+", tea.ModCtrl}, {"shift+", tea.ModShift}} {
+			if rest, ok := strings.CutPrefix(name, p.prefix); ok && rest != "" {
+				name, mod, cut = rest, mod|p.mod, true
+			}
 		}
 	}
 	codes := map[string]rune{"up": tea.KeyUp, "down": tea.KeyDown, "left": tea.KeyLeft, "right": tea.KeyRight,

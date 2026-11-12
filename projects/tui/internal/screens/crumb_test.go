@@ -80,9 +80,13 @@ func TestCrumbsChainAndEachGoesBackToTheViewItLeft(t *testing.T) {
 }
 
 // The app's menu shows a screen with no crumb, and drops the chain: the app a link showed, shown again by the menu,
-// has none either.
+// has none either; so does a link to a screen that draws no crumb, as the help.
 func TestTheAppsMenuShowsAScreenWithNoCrumb(t *testing.T) {
 	m := onRepositoriesIncoming(t)
+	if m = drive(m, shell.SwitchMsg{Screen: shell.Help, Crumb: true}); m.here != shell.Help || m.crumb != nil {
+		t.Errorf("a link to the help, on %s, kept the crumb %+v", m.here, m.crumb)
+	}
+	m = drive(m, shell.SwitchMsg{Screen: shell.Repositories})
 	m = drive(m, shell.JumpMsg{Screen: shell.Changes, To: "changes/#2"})
 	m = drive(m, shell.SwitchMsg{Screen: shell.Issues})
 	if crumbAt(m) >= 0 {

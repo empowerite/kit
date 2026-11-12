@@ -184,7 +184,7 @@ func TestATabOffHereSaysSo(t *testing.T) {
 		t.Errorf("findings with secret scanning off, count %q:\n%s", m.count(m.stage), v)
 	}
 	m = drive(m, reanswer(m, "audit/findings", `{"rows": [], "errors": [{"feature": "secret-scanning", "off": true}]}`))
-	got := m.lines(m.stage)
+	got := m.lines()
 	if len(got) != 2 || !strings.Contains(got[0].Text, "no alert") ||
 		got[1].Text != lead+style.Off("secret-scanning is off here") || strings.Contains(view(m), Failed) ||
 		m.count(m.stage) != "0" {
@@ -227,7 +227,7 @@ func TestATabWhoseFeatureTheProviderLacksSaysSo(t *testing.T) {
 	m := to(t, appOf(t, shell.Changes, tea.WindowSizeMsg{Width: 160, Height: 30}), "changes/checks")
 	m = drive(m, reanswer(m, "changes/checks",
 		`{"rows": [], "errors": [{"feature": "check-runs", "off": true, "lacked": true}]}`))
-	got := m.lines(m.stage)
+	got := m.lines()
 	if len(got) != 2 || !strings.Contains(got[0].Text, "no check") ||
 		got[1].Text != lead+style.Off("check-runs is lacked by the provider of the forge here") ||
 		strings.Contains(view(m), Failed) || m.count(m.stage) != "0" {
@@ -400,6 +400,10 @@ func TestALinkToAnotherAppsTabAsksKittuiForThatAppAtTheRow(t *testing.T) {
 	}
 	if got := values["#1 #2"]["change"]; got != jumpTo("changes", "#2") {
 		t.Errorf("the change leads to %q", got)
+	}
+	// a merge request changes does not hold is !<number> on GitLab, #<number> elsewhere
+	if got, other := m.pullKey("", "gitlab", 5), m.pullKey("", "github", 5); got != "!5" || other != "#5" {
+		t.Errorf("a pull request changes does not hold: %q on GitLab, %q on GitHub", got, other)
 	}
 	here := jumpTo("workspace/worktrees", "/home/kit/worktrees/1-the-first-release-v0-1-0")
 	if got := values["#1 #2"]["where"]; got != here {
@@ -596,7 +600,7 @@ func TestAnEnvironmentOfAnyBranchSaysAny(t *testing.T) {
 	if s := m.stages[m.stage]; s.name != "delivery/environments" || !strings.Contains(raw(m), "any") {
 		t.Errorf("on %s:\n%s", s.name, view(m))
 	}
-	if !slices.ContainsFunc(m.lines(m.stage), func(l table.Line) bool {
+	if !slices.ContainsFunc(m.lines(), func(l table.Line) bool {
 		return strings.Contains(l.Text, style.Off("any"))
 	}) {
 		t.Error("any is not dim")

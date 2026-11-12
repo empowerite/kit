@@ -285,12 +285,26 @@ func TestOpenSaysKitsLineInTheDialogWhenKitRefuses(t *testing.T) {
 }
 
 // The repository kittui starts in is kept among the recent, as one opened by its folder is, so the workspace menu
-// offers it again once another is switched to.
+// offers it again once another is switched to; one first among them already, by its folder or by its desk, as a
+// worktree's repository is, is not kept again.
 func TestTheRepositoryStartedInIsKeptAmongTheRecent(t *testing.T) {
 	_, record, checkout := workspaced(t, map[string]string{"current.json": repoJSON})
 	if got, _ := os.ReadFile(record); !strings.Contains(string(got), "use "+checkout) {
 		t.Errorf("kit was not told to keep it: %q", got)
 	}
+	for _, first := range []string{`{"name":"a","member":null,"checkout":CHECKOUT}`,
+		`{"name":"github.com/o/a","member":"github.com/o/a","checkout":"/code/a"}`} {
+		recent := strings.Replace(repoJSON, `"favorites":[]`, `"favorites":[],"recent":[`+first+`]`, 1)
+		if _, record, _ := workspaced(t, map[string]string{"current.json": recent}); fileHas(record, "use ") {
+			t.Errorf("kit was told to keep %s again", first)
+		}
+	}
+}
+
+// fileHas says whether the file holds the text; a file that is not there holds none.
+func fileHas(file, text string) bool {
+	got, _ := os.ReadFile(file)
+	return strings.Contains(string(got), text)
 }
 
 func TestARecentRepositoryPickedIsKeptFirstAgain(t *testing.T) {

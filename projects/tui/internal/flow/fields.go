@@ -136,12 +136,11 @@ func checksCells(f table.Field, vs []table.Value) []cell {
 	return out
 }
 
-// memberName draws a row's member by its short name, as its value's Of holds it.
+// memberName draws a row's member by its short name, as its value's Of holds it: every value drawn by member is
+// memberValue's, or the repos tab's repository, each of which gives one; a value that holds none draws nothing.
 func memberName(f table.Field, v table.Value) []string {
-	if name, ok := v.Of.(string); ok {
-		return []string{name}
-	}
-	return v.Raw
+	name, _ := v.Of.(string)
+	return []string{name}
 }
 
 // plainName draws a checkout's name as checkoutName does, without the field's glyph.

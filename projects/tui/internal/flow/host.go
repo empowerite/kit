@@ -3,7 +3,6 @@
 package flow
 
 import (
-	tea "charm.land/bubbletea/v2"
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/table"
 )
@@ -116,13 +115,6 @@ func (m *Model) LeaveRows() {
 
 // EnterRows gives the rows the keyboard.
 func (m *Model) EnterRows() { m.inRows = true }
-
-// openPopover opens a field's popover, as table.OpenPopover does, and asks kit for the caller's login the first time,
-// which @me names.
-func (m *Model) openPopover(id string, x, y int, header bool) tea.Cmd {
-	m.pop = table.OpenPopover(m, id, x, y, header)
-	return m.askMe()
-}
 
 var _ table.Keyboard = (*Model)(nil)
 

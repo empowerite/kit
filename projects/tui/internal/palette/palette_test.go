@@ -126,6 +126,16 @@ func TestTheTableHasAGroupACommandAndADescription(t *testing.T) {
 	}
 }
 
+// A catalog that does not read is kittui's own fault, which panics, saying so.
+func TestACatalogThatDoesNotReadPanics(t *testing.T) {
+	defer func() {
+		if p := recover(); p == nil || !strings.Contains(fmt.Sprint(p), "kit help's catalog does not read") {
+			t.Errorf("a catalog that does not read: %v", p)
+		}
+	}()
+	readCatalog([]byte("{"))
+}
+
 // Opening a row asks kit for the verb's page, once while it is on its way, and shows the rest of the description: the
 // purpose's lines past its first, then the page past its first line, which says the purpose again. Closing it hides
 // it, and opening it again asks for nothing.

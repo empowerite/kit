@@ -315,6 +315,11 @@ func TestTheFilterKeepsWhatTheSearchAndShowLetThroughAndDropsHiddenColumns(t *te
 	if strings.Contains(strings.Join(got, "\n"), "👤") || !strings.HasPrefix(got[1], "    #22  40d  short") {
 		t.Errorf("who hidden:\n%s", strings.Join(got, "\n"))
 	}
+	// a cell past the columns the stage names stays, after them
+	got = plain(Draw(p.Filter(issues(), columns[:3]), nil, 40, 0, -1, func(Row) bool { return false }, nil))
+	if strings.Contains(strings.Join(got, "\n"), "👤") || !strings.HasPrefix(got[1], "    #22  40d  short") {
+		t.Errorf("who hidden, the title unnamed:\n%s", strings.Join(got, "\n"))
+	}
 	// an aside heading no row the search keeps goes with them; without a search, every aside stays
 	headed := []Row{{Key: "a", Aside: true, Cells: []Cell{one("a")}}, {Key: "x", Cells: []Cell{one("x")}},
 		{Key: "b", Aside: true, Cells: []Cell{one("b")}}, {Key: "y", Cells: []Cell{one("y")}},
@@ -386,6 +391,19 @@ func TestALinkToAPageIsDotted(t *testing.T) {
 	}
 	if dotted("\x1b[2m🎫\x1b[m", page) != "\x1b[2m🎫\x1b[m" || dotted("🎫", page) != "\x1b[4:4m🎫\x1b[4:0m" {
 		t.Error("a styled text, or a glyph alone")
+	}
+}
+
+// A closed line is one line: of a text that wraps, it draws the first line that is not blank, and nothing of a text
+// whose every line is blank.
+func TestAClosedLineDrawsOneLineOfAWrappingText(t *testing.T) {
+	for text, want := range map[string]string{"a\nb": "a", "\n  \nc": "c", "\n \n": "", "": ""} {
+		cell := Cell{Values: []string{text}, Wrap: true}
+		got := ansi.Strip(closedLine([]Cell{one("x"), cell}, []int{1, 0}, 2, 40, 0, false))
+		drawn := strings.TrimSpace(strings.TrimPrefix(got, "x"))
+		if firstLine(text) != want || strings.Contains(got, "\n") || drawn != want {
+			t.Errorf("%q closed: %q, its first line %q", text, got, firstLine(text))
+		}
 	}
 }
 
@@ -508,6 +526,11 @@ func TestThePanelSortsTheRows(t *testing.T) {
 	if got := keys(byAge.order(rows, columns)); got != "#7 #100 heading #31" || byAge.Mark("age") != "▲¹" || byAge.Mark("id") != "▲²" {
 		t.Errorf("by age, then id: %s, marks %q %q", got, byAge.Mark("age"), byAge.Mark("id"))
 	}
+	// a key on a column the rows do not have orders nothing, and rows alike on every key keep their order
+	gone := Panel{Sortable: map[string]bool{"gone": true, "age": true}}.Sorted("gone").Sorted("age")
+	if got := keys(gone.order(rows, columns)); got != "#7 #100 heading #31" {
+		t.Errorf("by a column gone, then age: %s", got)
+	}
 	// a key among several turns in its place; a third time on a column stops it; Unsorted clears every key
 	if got := byAge.Sorted("id").SortKeys(); len(got) != 2 || got[1] != (SortKey{"id", true}) ||
 		byAge.Sorted("id").Mark("id") != "▼₂" {
@@ -592,7 +615,8 @@ func TestHeaderNameSaysWhereANameIsDrawn(t *testing.T) {
 
 // Grouping puts the rows under a dim heading per value, the groups in their values' order, the rows in each as they
 // sorted; a second column nests under the first; a cell with no value groups under none; a row of one cell follows
-// the groups. A groupable column moved into the groups groups them, ▤ beside its name; a column that cannot group
+// the groups. A groupable column moved into the groups groups them, ▤ beside its name, with its depth after it, ▤₁ for
+// the outermost; a column the rows group by alone, grouped again, groups them no more; a column that cannot group
 // changes nothing.
 func TestThePanelGroupsTheRows(t *testing.T) {
 	columns := []string{"id", "state", "who"}
@@ -620,6 +644,12 @@ func TestThePanelGroupsTheRows(t *testing.T) {
 	if !OverGroups(grouped[0]) || OverGroups(grouped[1]) || Level(grouped[0]) != 1 || Level(grouped[3]) != 2 ||
 		Level(grouped[4]) != 3 || Levels(grouped) != 2 {
 		t.Errorf("the levels: %d %d %d of %d", Level(grouped[0]), Level(grouped[3]), Level(grouped[4]), Levels(grouped))
+	}
+	if q := p.Grouped("state", false).Grouped("state", false); len(q.Groups()) != 0 || q.Field("state").Placement != Column {
+		t.Errorf("state alone, grouped again: %q", q.Groups())
+	}
+	if GroupMark(1) != "▤₁" || GroupMark(12) != "▤₁₂" {
+		t.Errorf("the marks of depths 1 and 12: %q %q", GroupMark(1), GroupMark(12))
 	}
 	if q := p.Grouped("state", true); !slices.Equal(q.Groups(), []string{"who"}) || q.Field("state").Placement != Column ||
 		q.Field("who").Depth != 1 || p.Grouped("id", false).Groups()[0] != "state" {
@@ -920,7 +950,8 @@ func TestTheOutlinesTreeAndWhatStandsOpen(t *testing.T) {
 }
 
 // A field's popover sets its sort, its filter, and its rendering apart: SortedAs keeps a key's place among the keys in
-// a new direction, adds one after the others, and takes one away; a field that cannot sort changes nothing. The
+// a new direction, adds one after the others, and takes one away, which a field not among them is already; a field
+// that cannot sort changes nothing. The
 // panel's map is never the one it was given.
 func TestAFieldsPopoverSetsItsSortFilterAndRendering(t *testing.T) {
 	p := Panel{Sortable: map[string]bool{"id": true, "age": true}}.Sorted("age").Sorted("id")
@@ -930,6 +961,9 @@ func TestAFieldsPopoverSetsItsSortFilterAndRendering(t *testing.T) {
 	}
 	if q := p.SortedAs("age", Unsorted); len(q.SortKeys()) != 1 || q.Mark("id") != "▲" {
 		t.Errorf("age off: %+v", q.SortKeys())
+	}
+	if q := p.SortedAs("age", Unsorted).SortedAs("age", Unsorted); len(q.SortKeys()) != 1 || q.Mark("id") != "▲" {
+		t.Errorf("age off twice: %+v", q.SortKeys())
 	}
 	if q := p.SortedAs("age", Unsorted).SortedAs("age", Ascending); q.Mark("age") != "▲²" {
 		t.Errorf("age back on: %q", q.Mark("age"))
@@ -946,13 +980,18 @@ func TestAFieldsPopoverSetsItsSortFilterAndRendering(t *testing.T) {
 	}
 }
 
-// Shown and Showing agree: each choice of Show sets the owner's filter so that Showing says the same choice again.
+// Shown and Showing agree: each choice of Show sets the owner's filter so that Showing says the same choice again. A
+// panel with no owner is shown as it is.
 func TestShowingSaysTheChoiceShownSet(t *testing.T) {
 	p := Panel{Owner: "who"}
 	for _, s := range []Show{Mine, Others, All} {
 		if got := p.Shown(s).Showing(); got != s {
 			t.Errorf("shown %v, showing %v", s, got)
 		}
+	}
+	// a panel whose rows no field owns shows them all, whatever is asked
+	if q := (Panel{}).Shown(Mine); q.Filtering() || q.Showing() != All {
+		t.Errorf("mine with no owner: %+v", q.Fields)
 	}
 }
 
@@ -1019,7 +1058,7 @@ func TestThePanelListsItsFieldsAndTypesInItsSearch(t *testing.T) {
 
 // A row's selection takes two cells of the gutter, its mark and a space, so the mark never stands against the ▸ or ▾
 // after it; a heading's mark stands in with the heading, after its indent. A row stands where the screen indents it,
-// two cells in from the innermost heading, as Levels says.
+// two cells in from the innermost heading, as Levels says. A heading's lines after its first stand two cells in.
 func TestASelectionMarkStandsApartFromTheFoldAndInWithItsHeading(t *testing.T) {
 	columns := []string{"id", "state", "who"}
 	row := func(id, state, who string) Row { return Row{Key: id, Cells: []Cell{one(id), one(state), one(who)}} }
@@ -1038,6 +1077,14 @@ func TestASelectionMarkStandsApartFromTheFoldAndInWithItsHeading(t *testing.T) {
 		if !strings.HasPrefix(got[k], w) {
 			t.Errorf("line %d: %q, want %q", k, got[k], w)
 		}
+	}
+	// a heading cut at the width opens on lines of its own, those after its first two cells in, with no mark
+	p = Panel{Groupable: map[string]bool{"state": true}}.Grouped("state", false)
+	grouped = p.group([]Row{row("#1", "a state long enough to be cut at the pane's width", "ada")}, columns)
+	got = plain(Draw(grouped, nil, 24, 0, -1, func(r Row) bool { return Heads(r) }, picked))
+	want = []string{Partly + " ▾ a state long", "  enough to be cut at", "  the pane's width 1"}
+	if !slices.Equal(got[:3], want) {
+		t.Errorf("a heading cut:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
 	}
 }
 
@@ -1393,7 +1440,8 @@ func TestAFlattenedListLeadsFromEachValueToItsOwnLink(t *testing.T) {
 }
 
 // The text that wraps may hold several lines, as a release's notes: closed, the row shows its first line, cut, and
-// hides the rest; open, each line wraps on lines of its own, a blank line between paragraphs kept as one.
+// hides the rest; open, each line wraps on lines of its own, a blank line between paragraphs kept as one. An empty text
+// has no line to show.
 func TestTheTextThatWrapsKeepsItsLines(t *testing.T) {
 	rows := []Row{{Key: "r1", Cells: []Cell{one("0.1.0"),
 		{Values: []string{"## What's Changed\n\n\n* #42 settings, a line long enough to wrap\n* #43 more"}, Wrap: true}}}}
@@ -1410,6 +1458,12 @@ func TestTheTextThatWrapsKeepsItsLines(t *testing.T) {
 	}
 	if got := plain(Draw(rows, nil, 40, 0, -1, func(Row) bool { return true }, nil)); !slices.Equal(got, want) {
 		t.Errorf("open:\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	// a text with nothing in it draws nothing and hides nothing
+	rows[0].Cells[1].Values = []string{""}
+	if got := plain(Draw(rows, nil, 40, 0, -1, func(Row) bool { return true }, nil)); !slices.Equal(got,
+		[]string{"    0.1.0"}) {
+		t.Errorf("empty:\n%s", strings.Join(got, "\n"))
 	}
 }
 
@@ -1570,7 +1624,7 @@ func TestANameOverAColumnNoRowFillsStandsNowhere(t *testing.T) {
 }
 
 // A filter's value that reads as a range, a bound and a number with a unit of time or none, lets through a row that
-// holds a number in it: <1h, ≥30d, >=3, =0, 2-5; one that reads as none is a value the row must hold as it is.
+// holds a number in it: <1h, ≥30d, >=3, ≤2, =0, 2-5; one that reads as none is a value the row must hold as it is.
 func TestARangeLetsThroughTheNumbersInIt(t *testing.T) {
 	for _, c := range []struct {
 		token string
@@ -1582,6 +1636,7 @@ func TestARangeLetsThroughTheNumbersInIt(t *testing.T) {
 		{">=3", []string{"3", "40"}, []string{"2"}},
 		{">5", []string{"6"}, []string{"5"}},
 		{"<=2", []string{"2"}, []string{"3"}},
+		{"≤2", []string{"2"}, []string{"3"}},
 		{"=0", []string{"0"}, []string{"1"}},
 		{"2-5", []string{"2", "5"}, []string{"1", "6"}},
 		{"1m-1h", []string{"60", "3600"}, []string{"59"}},

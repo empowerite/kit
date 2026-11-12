@@ -331,6 +331,39 @@ func TestTheHeadingOverTheGroupsHasAStopPerNameThenTheRows(t *testing.T) {
 			t.Errorf("%q's fold at %d: level %d", s.Column, s.From, level)
 		}
 	}
+	// under a state of one value, who folds as state does: its fold is a dim separator, which is no fold, and its stop
+	// opens or closes state's level
+	// a column the heading names by a label of its own, as merged by names by, is found by it, its stop and its fold
+	// its own
+	labelled := outlined()
+	labelled.panel.Labels["who"] = "person"
+	spots := BarNames(labelled)
+	if len(spots) != 2 || spots[1].Column != "who" ||
+		ansi.Cut("  "+ansi.Strip(BarText(labelled.Rows())), spots[1].From, spots[1].Until) != "person" {
+		t.Errorf("who, labelled person: %+v", spots)
+	}
+	if level, ok := LevelAt(labelled, spots[1].From-2); !ok || level != 1 {
+		t.Errorf("person's fold: level %d, %v", level, ok)
+	}
+	single := outlined()
+	single.all = single.all[:2]
+	under := BarNames(single)
+	if got := Stops(single); len(got) != 3 || got[1] != (Stop{"who", 0, under[1].From - 2, under[1].Until}) {
+		t.Errorf("who under one state: %+v", got)
+	}
+	if _, ok := LevelAt(single, under[1].From-2); ok {
+		t.Error("the dim separator is a fold")
+	}
+	// a ▸ a column's name holds is no fold
+	held := outlined()
+	odd := "who" + grid.Folded
+	held.panel.Columns[1], held.panel.Groupable[odd] = odd, true
+	held.panel = held.panel.Grouped("who", true).Grouped(odd, true)
+	if n := BarNames(held); len(n) != 2 || n[1].Column != odd {
+		t.Fatalf("the names: %+v", n)
+	} else if _, ok := LevelAt(held, n[1].Until-1); ok {
+		t.Errorf("the %s in %s's name is a fold", grid.Folded, odd)
+	}
 	// rows that group by nothing stand under the rows' fold and count alone, one stop, its fold the rows' level
 	bare := listing()
 	bare.panel.Columns, bare.panel.Labels["n"], bare.all = h.panel.Columns, "n", h.all
@@ -383,7 +416,8 @@ func TestTheHeadingOverTheGroupsOpensAndClosesTheirLevels(t *testing.T) {
 	}
 	// a value that holds a column's name is passed over, and a column the heading does not name has no spot
 	text := " " + grid.Unfolded + " who-ish " + grid.Unfolded + " who " + grid.Unfolded + " 2"
-	if got := NamesIn(text, []string{"who", "nonesuch"}); len(got) != 1 || got[0].From != BarLeft+13 {
+	same := func(id string) string { return id }
+	if got := NamesIn(text, []string{"who", "nonesuch"}, same); len(got) != 1 || got[0].From != BarLeft+13 {
 		t.Errorf("names in: %+v", got)
 	}
 }

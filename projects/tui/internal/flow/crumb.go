@@ -114,7 +114,8 @@ func cloneTable(t table.Table) table.Table {
 	return t
 }
 
-// clonePanel gives a copy of a panel that shares nothing a later change to the panel writes into.
+// clonePanel gives a copy of a panel that shares nothing a later change to the panel writes into. Its Given is never
+// a stage's: table.Build fills in its own copy of the panel, from the records.
 func clonePanel(p grid.Panel) grid.Panel {
 	p.Columns = slices.Clone(p.Columns)
 	p.Labels, p.Sortable, p.Groupable, p.Ones = maps.Clone(p.Labels), maps.Clone(p.Sortable),
@@ -127,13 +128,6 @@ func clonePanel(p grid.Panel) grid.Panel {
 			fields[id] = f
 		}
 		p.Fields = fields
-	}
-	if p.Given != nil {
-		given := make(map[string][]string, len(p.Given))
-		for id, values := range p.Given {
-			given[id] = slices.Clone(values)
-		}
-		p.Given = given
 	}
 	return p
 }

@@ -370,7 +370,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.keyboard = &msg
 	case tea.KeyPressMsg:
 		m.refusal = ""
-		if !m.opener.Open && !m.dialog.Open && m.backs(msg) {
+		if s, ok := m.crumbHere(); ok && !m.opener.Open && !m.dialog.Open && s.Backs(msg) {
 			return m.back()
 		}
 		if m.opener.Open && msg.String() != "ctrl+c" {
@@ -384,7 +384,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.changed(was)
 		}
 	case tea.MouseClickMsg:
-		if !m.opener.Open && !m.dialog.Open && m.backs(msg) {
+		if s, ok := m.crumbHere(); ok && !m.opener.Open && !m.dialog.Open && s.OnCrumb(msg) {
 			return m.back()
 		}
 		if m.opener.Open {
