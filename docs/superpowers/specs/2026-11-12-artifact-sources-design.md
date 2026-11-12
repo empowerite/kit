@@ -185,7 +185,8 @@ entry's kind:
 - `sources:settings` prints what each entry's `settings` call prints, the path's order kept: the goproxy entries
   joined into `GOPROXY`, with `direct` and `off` as Go writes them, and `GOPRIVATE` and `GONOSUMDB` from their
   `private`; npm's registry as `npm_config_registry`, and a scoped registry as `npm_config_@<scope>:registry`.
-  `kit tools path --env` prints them, and `kit tools run` runs with them.
+  `kit tools sources --env` prints them, and `kit tools run` runs with them. A path of `direct` alone, because no
+  layer names a source, writes nothing, so each manager reads its own settings.
 
 ### The providers
 
@@ -296,7 +297,7 @@ Each slice is its own #182 commit, with bats tests against fakes in `tests/fakes
    `url:` pin served by `direct` alone, a source with other bytes passed by; the cache keyed by hash.
 3. **github-releases, goproxy, and npm.** The three providers, with the `release:`, `module:`, and `npm:` pins, the
    `h1:` and `sha512-` hashes, `versions` behind `kit tools --outdated` and `update`, and `sources:settings` behind
-   `kit tools path --env` and `kit tools run`. This repository's tools move from `url:` to their coordinates where a
+   `kit tools sources --env` and `kit tools run`. This repository's tools move from `url:` to their coordinates where a
    protocol serves them.
 4. **Push targets, visibility, and `kit release --wait`.** The `targets` seam and its template, `vcs-tag`,
    `github-release`, `artifactory-local`, and `npm-publish`; `publish:` in `kit.yml`; `kit publish`, refused off a

@@ -36,9 +36,11 @@ answers:
   ci_timeout_minutes: "35"
   ci_toolchain: kit
 
-# The tools the gate runs, pinned for the kit toolchain: tools.lock records each download's sha256 for every platform,
-# and kit tools install puts them under ~/.kit/tools/. A runner installs them all but lefthook, a desk's alone. git,
-# bash, and perl come from the machine; see: docs/toolchains/using-kit.md
+# The tools the gate runs, pinned for the kit toolchain: tools.lock records what each download is, and its hash, for
+# every platform, and kit tools install puts them under ~/.kit/tools/, from the first source on the pull path that has
+# them: a tool a GitHub release ships is named by its release, so a mirror serves it as well as github.com. A runner
+# installs them all but lefthook, a desk's alone. git, bash, and perl come from the machine; see:
+# docs/toolchains/using-kit.md
 #
 #   actionlint   the workflows rule's linter, over .github/workflows/, in kit lint and the gate
 #   bats         runs tests/, the suite the gate runs
@@ -56,7 +58,8 @@ answers:
 tools:
   actionlint:
     version: "1.7.12"
-    url: https://github.com/rhysd/actionlint/releases/download/v{version}/actionlint_{version}_{os}_{arch}.tar.gz
+    release: rhysd/actionlint
+    asset: actionlint_{version}_{os}_{arch}.tar.gz
     os: {macos: darwin}
     arch: {x64: amd64}
   bats:
@@ -65,7 +68,8 @@ tools:
     bin: bats-core-{version}/bin
   gh:
     version: "2.103.2"
-    url: https://github.com/cli/cli/releases/download/v{version}/gh_{version}_{os}_{arch}.{ext}
+    release: cli/cli
+    asset: gh_{version}_{os}_{arch}.{ext}
     os: {macos: macOS}
     arch: {x64: amd64}
     ext: {linux: tar.gz, macos: zip}
@@ -78,22 +82,29 @@ tools:
     bin: go/bin
   jq:
     version: "1.8.2"
-    url: https://github.com/jqlang/jq/releases/download/jq-{version}/jq-{os}-{arch}
+    release: jqlang/jq
+    tag: jq-{version}
+    asset: jq-{os}-{arch}
     arch: {x64: amd64}
   just:
     version: "1.59.0"
-    url: https://github.com/casey/just/releases/download/{version}/just-{version}-{arch}-{os}.tar.gz
+    release: casey/just
+    tag: "{version}"
+    asset: just-{version}-{arch}-{os}.tar.gz
     os: {linux: unknown-linux-musl, macos: apple-darwin}
     arch: {x64: x86_64, arm64: aarch64}
   lefthook:
     version: "2.2.2"
-    url: https://github.com/evilmartians/lefthook/releases/download/v{version}/lefthook_{version}_{os}_{arch}
+    release: evilmartians/lefthook
+    asset: lefthook_{version}_{os}_{arch}
     os: {linux: Linux, macos: MacOS}
     arch: {x64: x86_64}
     profile: desk
   lychee:
     version: "0.24.2"
-    url: https://github.com/lycheeverse/lychee/releases/download/lychee-v{version}/lychee-{arch}-{os}.tar.gz
+    release: lycheeverse/lychee
+    tag: lychee-v{version}
+    asset: lychee-{arch}-{os}.tar.gz
     os: {linux: unknown-linux-musl, macos: apple-darwin}
     arch: {x64: x86_64, arm64: aarch64}
     bin: lychee-{arch}-{os}
@@ -104,7 +115,8 @@ tools:
     bin: node-v{version}-{os}-{arch}/bin
   opa:
     version: "1.21.4"
-    url: https://github.com/open-policy-agent/opa/releases/download/v{version}/opa_{os}_{arch}
+    release: open-policy-agent/opa
+    asset: opa_{os}_{arch}
     os: {macos: darwin}
     arch: {x64: amd64}
   parallel:
@@ -113,12 +125,14 @@ tools:
     bin: parallel-{version}/src
   shellcheck:
     version: "0.11.0"
-    url: https://github.com/koalaman/shellcheck/releases/download/v{version}/shellcheck-v{version}.{os}.{arch}.tar.xz
+    release: koalaman/shellcheck
+    asset: shellcheck-v{version}.{os}.{arch}.tar.xz
     os: {macos: darwin}
     arch: {x64: x86_64, arm64: aarch64}
     bin: shellcheck-v{version}
   yq:
     version: "4.54.1"
-    url: https://github.com/mikefarah/yq/releases/download/v{version}/yq_{os}_{arch}
+    release: mikefarah/yq
+    asset: yq_{os}_{arch}
     os: {macos: darwin}
     arch: {x64: amd64}

@@ -350,6 +350,11 @@ sources:
 - A kind is a provider of the `sources` seam, `modules/bash/sources/<kind>.sh`, from the kit or from the
   repository's own bash module path. Each takes the keys its header names, beyond `name`, `kind`, `url`, and
   `expect`, how long a pushed version usually takes to show there, as `30m`, `12h`, or `1d`.
+- The kit's kinds: `kit-packages`; `github-releases`, a release's files at `<url>/<owner>/<repo>/releases/download/`,
+  github.com, a GitHub Enterprise Server, or a mirror laid out the same; `goproxy`, a Go module proxy, which takes
+  `private:`, the module patterns with no checksum database; and `npm`, a registry, which takes `scope:`, as
+  `"@corp"`, for a registry that serves that scope alone. What each serves the kit toolchain, and how, is in
+  [using kit as the toolchain](toolchains/using-kit.md#saying-what-a-tool-is-in-place-of-its-url).
 - The pull path comes in layers, as `PATH` does, the first first: `KIT_SOURCES`, for a runner, entries apart by
   commas, each `direct`, `off`, or `<name>=<kind>:<url>`; `sources:` at the top of your `workspaces.yml` (see
   [workspaces.md](workspaces.md)), which applies to every repository you work in; and `kit.yml`'s, whose default,

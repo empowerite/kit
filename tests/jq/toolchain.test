@@ -57,3 +57,15 @@ import "toolchain" as toolchain; [toolchain::devcontainer_outdated]
 import "toolchain" as toolchain; [toolchain::kit_wanted("linux-x64 macos-arm64")]
 [{"name": "a", "version": "1.20", "url": "u/v{version}/{os}_{arch}/{platform}", "bin": "a-{version}", "profile": "both", "os": {"macos": "darwin"}, "arch": {"x64": "amd64"}, "platforms": []}, {"name": "b", "version": "3", "url": "w/{version}", "bin": ".", "profile": "desk", "os": {}, "arch": {}, "platforms": ["linux-x64"]}]
 ["a\t1.20\tlinux-x64\tboth\turl:u/v1.20/linux_amd64/linux-x64\ta-1.20","a\t1.20\tmacos-arm64\tboth\turl:u/v1.20/darwin_arm64/macos-arm64\ta-1.20","b\t3\tlinux-x64\tdesk\turl:w/3\t."]
+
+# A release, a module, and an npm package are each a coordinate with no place in it, the tag and the module's
+# version v{version} by default, each filled in for the platform.
+import "toolchain" as toolchain; [toolchain::kit_wanted("macos-arm64")]
+[{"name": "gh", "version": "2.1", "release": "cli/cli", "asset": "gh_{version}_{os}_{arch}.zip", "bin": "gh_{version}/bin", "profile": "both", "os": {"macos": "macOS"}, "arch": {}, "platforms": []}, {"name": "jq", "version": "1.8", "release": "jqlang/jq", "tag": "jq-{version}", "asset": "jq-{os}-{arch}", "bin": ".", "profile": "both", "os": {}, "arch": {}, "platforms": []}, {"name": "go", "version": "1.27.3", "module": "golang.org/toolchain", "module_version": "v0.0.1-go{version}.{os}-{arch}", "bin": "golang.org/toolchain@v0.0.1-go{version}.{os}-{arch}/bin", "profile": "both", "os": {"macos": "darwin"}, "arch": {}, "platforms": []}, {"name": "lint", "version": "0.18.1", "npm": "@acme/lint", "bin": "package/bin", "profile": "desk", "os": {}, "arch": {}, "platforms": []}]
+["gh\t2.1\tmacos-arm64\tboth\trelease:cli/cli@v2.1/gh_2.1_macOS_arm64.zip\tgh_2.1/bin","jq\t1.8\tmacos-arm64\tboth\trelease:jqlang/jq@jq-1.8/jq-macos-arm64\t.","go\t1.27.3\tmacos-arm64\tboth\tmodule:golang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64\tgolang.org/toolchain@v0.0.1-go1.27.3.darwin-arm64/bin","lint\t0.18.1\tmacos-arm64\tdesk\tnpm:@acme/lint@0.18.1\tpackage/bin"]
+
+# The latest of a url is read from its template; of any other, from the path, with what its version's template puts
+# around the version.
+import "toolchain" as toolchain; [toolchain::kit_latest("linux-x64")]
+[{"name": "a", "version": "1", "url": "u/{version}", "os": {}, "arch": {}}, {"name": "jq", "version": "1.8", "release": "jqlang/jq", "tag": "jq-{version}", "asset": "jq-{os}", "os": {}, "arch": {}}, {"name": "go", "version": "1.27.3", "module": "golang.org/toolchain", "module_version": "v0.0.1-go{version}.{os}-{arch}", "os": {}, "arch": {"x64": "amd64"}}, {"name": "lint", "version": "2", "npm": "lint", "os": {}, "arch": {}}]
+["a\t1\turl\tu/{version}","jq\t1.8\tpath\trelease:jqlang/jq@jq-1.8/jq-linux\tjq-\t","go\t1.27.3\tpath\tmodule:golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64\tv0.0.1-go\t.linux-amd64","lint\t2\tpath\tnpm:lint@2\t\t"]

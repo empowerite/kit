@@ -592,13 +592,12 @@
     },
     "tools": {
       "type": "object",
-      "description": "The tools the kit toolchain pins, by name: each a version and the url of its download, which tools.lock records for every platform. See docs/toolchains/using-kit.md.",
+      "description": "The tools the kit toolchain pins, by name: each a version and what its download is, a url or a coordinate any source on the pull path that speaks its protocol serves; tools.lock records each download's artifact and hash for every platform. See docs/toolchains/using-kit.md.",
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,
         "required": [
-          "version",
-          "url"
+          "version"
         ],
         "properties": {
           "version": {
@@ -608,7 +607,32 @@
           "url": {
             "type": "string",
             "pattern": "^https?://.+",
-            "description": "The download, with {version}, {platform}, {os}, {arch}, and {ext} filled in."
+            "description": "The download, with {version}, {platform}, {os}, {arch}, and {ext} filled in; only direct, the open internet, serves it."
+          },
+          "release": {
+            "type": "string",
+            "pattern": "^[^/@]+/[^/@]+$",
+            "description": "A GitHub release's repository, <owner>/<repo>, whose file asset names; a github-releases source serves it."
+          },
+          "asset": {
+            "type": "string",
+            "description": "The release's file, filled in as url is."
+          },
+          "tag": {
+            "type": "string",
+            "description": "The release's tag, v{version} by default."
+          },
+          "module": {
+            "type": "string",
+            "description": "A Go module's path, whose zip a goproxy source serves, as golang.org/toolchain."
+          },
+          "module_version": {
+            "type": "string",
+            "description": "The module's version, v{version} by default, filled in as url is."
+          },
+          "npm": {
+            "type": "string",
+            "description": "An npm package, whose tarball at the version an npm source serves."
           },
           "bin": {
             "type": "string",
@@ -654,7 +678,30 @@
             },
             "description": "The platforms it is locked for; all four when absent."
           }
-        }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "url"
+            ]
+          },
+          {
+            "required": [
+              "release",
+              "asset"
+            ]
+          },
+          {
+            "required": [
+              "module"
+            ]
+          },
+          {
+            "required": [
+              "npm"
+            ]
+          }
+        ]
       }
     }
   },

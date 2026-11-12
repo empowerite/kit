@@ -4,7 +4,7 @@
   "usage": [
     "kit tools [--outdated [--check]] [--toolchain=<name>] [--json | --jq]",
     "kit tools [--toolchain=<name>] (install | update | path | run <command>…)",
-    "kit tools sources [--json | --jq]"
+    "kit tools sources [--env | --json | --jq]"
   ],
   "syntax": [
     [
@@ -143,6 +143,13 @@
           [
             {
               "kind": "flag",
+              "name": "env",
+              "repeat": false
+            }
+          ],
+          [
+            {
+              "kind": "flag",
               "name": "json",
               "repeat": false
             }
@@ -189,6 +196,9 @@
     },
     "sources": {
       "description": "prints the pull path: each source, its kind, its url, and its layer (env, workspace, kit.yml)"
+    },
+    "--env": {
+      "description": "with sources: the package managers' settings for the path, NAME=value a line"
     },
     "run": {
       "description": "runs the command with the tools, or in their container"

@@ -127,7 +127,7 @@ image is built only when the daemon is local; with a remote one, no base shows a
 | `kit tools update` | Moves every tool to its latest version, and rewrites the pins: `mise upgrade`, `brew upgrade` of the Brewfile's outdated formulae, new `FROM` digests, or `devcontainer upgrade`. Commit the files it rewrote. |
 | `kit tools path` | Prints the directories that put the tools first on `PATH`, for a runner's `GITHUB_PATH`. |
 | `kit tools run <command>…` | Runs a command with the tools: inside the container for docker, and for devcontainer from outside; otherwise with the tools first on `PATH`. |
-| `kit tools sources` | Prints the pull path, the artifact sources kit searches in order for what it fetches: each source, its kind, its URL, and the layer it came from, `KIT_SOURCES`, the workspace, or `kit.yml`. See [packages.md](packages.md#kinds-and-the-pull-path). |
+| `kit tools sources` | Prints the pull path, the artifact sources kit searches in order for what it fetches: each source, its kind, its URL, and the layer it came from, `KIT_SOURCES`, the workspace, or `kit.yml`. `--env` prints the same path as each language manager's settings, `GOPROXY` and npm's registry among them. See [packages.md](packages.md#kinds-and-the-pull-path). |
 
 Each but `sources` takes `--toolchain=<name>` to name the toolchain for that run.
 

@@ -71,21 +71,57 @@ def nix_refs:
   | select($ref != null)
   | "\(.name)\t\($ref)\t\(.node.locked.rev)";
 
-# kit_wanted($platforms) reads the tools under tools: in kit.yml, each {name, version, url, bin, profile, os, arch, ext,
-# platforms}, and gives one line per tool and platform it is locked for: "<name>\t<version>\t<platform>\t<profile>\t
-# url:<url>\t<bin>", url:<url> the coordinate the pull path is searched for. $platforms, space-separated, are the
-# platforms a tool with no platforms: of its own is locked for. In the url and the bin, {version}, {platform}, {os},
-# {arch}, and {ext} are filled in, os: and arch: renaming kit's linux, macos, x64, and arm64 for the tool's own, and
-# ext: giving each os its file's ending.
+# kit_fill($tool; $platform; $version) fills a template from a tool's entry for a platform: {version} with $version,
+# {platform}, {os}, {arch}, and {ext}, os: and arch: renaming kit's linux, macos, x64, and arm64 for the tool's own,
+# and ext: giving each os its file's ending. A $version of "{version}" leaves {version} as it is.
+def kit_fill($tool; $platform; $version):
+  ($platform | split("-")) as [$os, $arch]
+  | gsub("\\{version\\}"; $version) | gsub("\\{platform\\}"; $platform)
+  | gsub("\\{os\\}"; $tool.os[$os] // $os) | gsub("\\{arch\\}"; $tool.arch[$arch] // $arch)
+  | gsub("\\{ext\\}"; ($tool.ext // {})[$os] // "");
+
+# kit_version_template($tool) is the template a tool's version takes in its coordinate: a release's tag, v{version}
+# by default; a module's version, v{version} by default; an npm package's version itself; and nothing for a url.
+def kit_version_template($tool):
+  if ($tool.release // "") != "" then ($tool.tag // "") | if . == "" then "v{version}" else . end
+  elif ($tool.module // "") != "" then ($tool.module_version // "") | if . == "" then "v{version}" else . end
+  elif ($tool.npm // "") != "" then "{version}"
+  else "" end;
+
+# kit_coordinate($tool; $platform; $version) is what the tool is at the version, for the platform, as the pull path is
+# searched for it: url:<url>, release:<owner>/<repo>@<tag>/<asset>, module:<path>@<version>, or npm:<package>@<version>.
+def kit_coordinate($tool; $platform; $version):
+  (kit_version_template($tool) | kit_fill($tool; $platform; $version)) as $at
+  | if ($tool.url // "") != "" then "url:" + ($tool.url | kit_fill($tool; $platform; $version))
+    elif ($tool.release // "") != "" then
+      "release:\($tool.release)@\($at)/\($tool.asset | kit_fill($tool; $platform; $version))"
+    elif ($tool.module // "") != "" then "module:\($tool.module)@\($at)"
+    else "npm:\($tool.npm)@\($at)" end;
+
+# kit_wanted($platforms) reads the tools under tools: in kit.yml, each {name, version, url, release, asset, tag,
+# module, module_version, npm, bin, profile, os, arch, ext, platforms}, and gives one line per tool and platform it is
+# locked for: "<name>\t<version>\t<platform>\t<profile>\t<coordinate>\t<bin>", the coordinate kit_coordinate's.
+# $platforms, space-separated, are the platforms a tool with no platforms: of its own is locked for. The bin is filled
+# in as the coordinate is.
 def kit_wanted($platforms):
   .[] as $tool
   | ($tool.platforms | if length > 0 then . else ($platforms | split(" ")) end)[] as $platform
-  | ($platform | split("-")) as [$os, $arch]
-  | def fill: gsub("\\{version\\}"; $tool.version) | gsub("\\{platform\\}"; $platform)
-      | gsub("\\{os\\}"; $tool.os[$os] // $os) | gsub("\\{arch\\}"; $tool.arch[$arch] // $arch)
-      | gsub("\\{ext\\}"; ($tool.ext // {})[$os] // "");
-    [$tool.name, $tool.version, $platform, $tool.profile, "url:" + ($tool.url | fill), ($tool.bin | fill)]
+  | [$tool.name, $tool.version, $platform, $tool.profile, kit_coordinate($tool; $platform; $tool.version),
+      ($tool.bin | kit_fill($tool; $platform; $tool.version))]
     | join("\t");
+
+# kit_latest($platform) gives, for each tool, where its latest version is read: "<name>\t<version>\turl\t<url>" for a
+# url, its template as kit.yml writes it, and "<name>\t<version>\tpath\t<coordinate>\t<prefix>\t<suffix>" for any
+# other, the coordinate at its pinned version for the platform, and the text its version template puts before and
+# after the version, so a tag or a module's version read from the path gives the version back.
+def kit_latest($platform):
+  .[] as $tool
+  | if ($tool.url // "") != "" then [$tool.name, $tool.version, "url", $tool.url]
+    else (kit_version_template($tool) | kit_fill($tool; $platform; "{version}") | split("{version}")) as $around
+      | [$tool.name, $tool.version, "path", kit_coordinate($tool; $platform; $tool.version), $around[0],
+          ($around[1:] | join("{version}"))]
+    end
+  | join("\t");
 
 # devcontainer_pins reads devcontainer-lock.json and gives one line per locked feature, "<id>\t<pinned>\t<installed>".
 # The lock records the version each feature resolved to, and nothing of what was built, so the two columns agree.

@@ -175,7 +175,7 @@ exists.
 | `kit/modules/bash/tracker.sh` | `tracker/forge.sh`, `tracker/ado.sh`, and `tracker/web.sh`, a ticket system kit reaches through its pages alone | the reference's prefix, `#7` or `AB#4521`; see [trackers.md](trackers.md) |
 | `kit/modules/bash/toolchain.sh` | `toolchain/kit.sh`, `toolchain/mise.sh`, `toolchain/nix.sh`, `toolchain/brew.sh`, `toolchain/docker.sh`, `toolchain/devcontainer.sh`, and for the system role `toolchain/apt.sh`, `toolchain/dnf.sh`, `toolchain/pacman.sh` | the one active or usable where kit runs, else the person's choice; see [toolchains.md](toolchains.md) |
 | `kit/modules/bash/dependencies.sh` | `dependencies/npm.sh`, `dependencies/uv.sh` | every one usable here at once: its tool on `PATH`, its manifest and its lock at the root; see [toolchains.md](toolchains.md#dependencies) |
-| `kit/modules/bash/sources.sh` | `sources/kit-packages.sh` | each entry's `kind` under `sources:`, on the pull path or as a package source; see [packages.md](packages.md#sources) |
+| `kit/modules/bash/sources.sh` | `sources/kit-packages.sh`, `sources/github-releases.sh`, `sources/goproxy.sh`, `sources/npm.sh` | each entry's `kind` under `sources:`, on the pull path or as a package source; see [packages.md](packages.md#sources) |
 | `kit/modules/bash/policy.sh` | `policy/patterns.sh`, `policy/opa.sh` | `policy_engine: opa` or a `.rego` file under `.kit/policy/`, else patterns; see [policy.md](policy.md) |
 
 Every code forge call the workflow makes goes through `forge:` in `kit/modules/bash/forge.sh`: an issue's title, the

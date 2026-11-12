@@ -295,7 +295,7 @@ sources:workspace-file() {
 
 # sources:layers prints every entry of the three layers, as sources:entries prints them, KIT_SOURCES first, then the
 # workspace's, then kit.yml's, after checking them. kit.yml's package sources are left out, and with no other entry,
-# kit.yml's layer is direct.
+# kit.yml's layer is direct, its entry {"implied": true}.
 sources:layers() {
   local line
   local -a env=() workspace=() repository=() artifacts=()
@@ -307,7 +307,7 @@ sources:layers() {
   do
     [[ -z "${line}" || "${line}" == *'"kind":"kit-packages"'* ]] || artifacts+=("${line}")
   done
-  (( ${#artifacts[@]} )) || artifacts=('{"word":"direct","layer":"kit.yml"}')
+  (( ${#artifacts[@]} )) || artifacts=('{"word":"direct","layer":"kit.yml","entry":{"implied":true}}')
   printf '%s\n' "${env[@]}" "${workspace[@]}" "${artifacts[@]}" | sed '/^$/d'
 }
 
@@ -372,7 +372,8 @@ sources:artifact() {
 # the path served it, it says what each source said, and that the path ended at off where it did, and returns 1.
 # <path> is what sources:path prints, read once for every artifact of a run; without it, the path is read.
 sources:find() {
-  local coordinate=$1 want=$2 file=$3 path name kind url line status have where artifact
+  local coordinate=$1 want=$2 file=$3 path name kind url entry line status have where artifact sources_name
+  local sources_entry
   local -a said=()
   if (( $# > 3 ))
   then path=$4
@@ -380,9 +381,10 @@ sources:find() {
   fi
   artifact=$(sources:artifact "${coordinate}")
   # a kind or a url can be empty, so each tab becomes \x1f, which read never runs together with the next
-  while IFS=$'\x1f' read -r name kind url _
+  while IFS=$'\x1f' read -r name kind url _ entry
   do
     [[ -n "${name}" ]] || continue
+    sources_name=${name} sources_entry=${entry}
     case "${name}" in
       (off)
         said+=("the path ends at off")
@@ -392,6 +394,7 @@ sources:find() {
         line=$(sources:direct "${coordinate}") || continue
         IFS=$'\x1f' read -r kind url <<<"${line//$'\t'/$'\x1f'}"
         where="direct (${url})"
+        sources_name='' sources_entry='{}'
         ;;
       (*)
         [[ "${coordinate}" != url:* ]] || continue
@@ -401,12 +404,12 @@ sources:find() {
     status=0
     rm -f "${file}"
     if [[ -z "${kind}" ]]
-    then curl --fail --silent --location --output "${file}" "${url}" || status=$?
+    then sources:get "${url}" "${file}" || status=$?
     else sources:call "${kind}" fetch "${url}" "${coordinate}" "${file}" || status=$?
     fi
     case "${status}" in
       (0) ;;
-      (4 | 22)
+      (4)
         said+=("${where} does not have it")
         continue
         ;;
@@ -436,6 +439,127 @@ sources:find() {
   error "no source on the pull path served ${artifact#file:}: $(IFS=';'; printf '%s' "${said[*]}" | sed 's/;/; /g');" \
     "see: kit tools sources"
   return 1
+}
+
+# sources:get <url> <file> fetches the url into the file, or prints it for a file of -, with the source's credentials:
+# netrc's, and a bearer token from KIT_SOURCE_TOKEN_<NAME>, the name of the source being asked, sources_name, upper
+# cased with each dash as _. It returns 4 when the source answers that it has no such thing, as an HTTP error, and 1
+# when it cannot be reached.
+sources:get() {
+  local status=0 variable
+  local -a credentials=(--netrc-optional)
+  if [[ -n "${sources_name:-}" ]]
+  then
+    variable=KIT_SOURCE_TOKEN_${sources_name//-/_}
+    variable=${variable^^}
+    [[ -z "${!variable:-}" ]] || credentials+=(--header "Authorization: Bearer ${!variable}")
+  fi
+  [[ "$2" == - ]] || credentials+=(--output "$2")
+  curl --fail --silent --location "${credentials[@]}" "$1" || status=$?
+  case "${status}" in
+    (0) return 0 ;;
+    (22) return 4 ;;
+    (*) return 1
+  esac
+}
+
+# sources:versions <coordinate> [<path>] prints the versions the first source on the pull path that serves the
+# coordinate's form lists, one per line, as that source writes them: a release's tags, a module's versions. A source
+# that serves none is passed by, as one that cannot be reached is, after it is named. It fails when none answered.
+sources:versions() {
+  local coordinate=$1 path name kind url entry line status listed sources_name sources_entry
+  local -a said=()
+  if (( $# > 1 ))
+  then path=$2
+  else path=$(sources:path) || return 1
+  fi
+  while IFS=$'\x1f' read -r name kind url _ entry
+  do
+    [[ -n "${name}" ]] || continue
+    sources_name=${name} sources_entry=${entry}
+    case "${name}" in
+      (off) break ;;
+      (direct)
+        [[ "${coordinate}" != url:* ]] || continue
+        line=$(sources:direct "${coordinate}") || continue
+        IFS=$'\x1f' read -r kind url <<<"${line//$'\t'/$'\x1f'}"
+        # shellcheck disable=SC2034  # read by the provider, as npm reads its scope
+        sources_name='' sources_entry='{}'
+        ;;
+      (*) sources:call "${kind}" serves "${coordinate}" || continue
+    esac
+    status=0
+    listed=$(sources:call "${kind}" versions "${url}" "${coordinate}") || status=$?
+    case "${status}" in
+      (0)
+        printf '%s\n' "${listed}"
+        return 0
+        ;;
+      (4) said+=("${name} serves none") ;;
+      (*) said+=("${name} could not be reached")
+    esac
+  done <<<"${path//$'\t'/$'\x1f'}"
+  (( ${#said[@]} )) || said=("no source on it serves ${coordinate%%:*}: artifacts")
+  error "the versions of $(sources:artifact "${coordinate}") could not be read from the pull path:" \
+    "$(IFS=';'; printf '%s' "${said[*]}" | sed 's/;/; /g'); see: kit tools sources"
+  return 1
+}
+
+# sources:settings [<path>] prints the NAME=value lines each source on the pull path writes for a language's package
+# manager, in the path's order: direct as each kind at its home, with {"direct": true} as its entry, and off as each
+# kind with the url off and {"off": true}. GOPROXY, GOPRIVATE, and GONOSUMDB join their values with commas, as Go reads
+# them; any other name is the first source's. A path that is direct alone, because no layer names a source, writes
+# nothing, so a manager reads what its own settings say.
+sources:settings() {
+  local path name kind url entry line key value
+  local -a order=() lines got kinds
+  local -A values=()
+  if (( $# ))
+  then path=$1
+  else path=$(sources:path) || return 1
+  fi
+  list:read kinds sources:kinds || return 1
+  while IFS=$'\x1f' read -r name kind url _ entry
+  do
+    [[ -n "${name}" ]] || continue
+    [[ "${entry}" != *'"implied":true'* ]] || continue
+    lines=()
+    case "${name}" in
+      (direct | off)
+        for kind in "${kinds[@]}"
+        do
+          if [[ "${name}" == off ]]
+          then url=off
+          else url=$(sources:call "${kind}" home) || continue
+          fi
+          [[ -n "${url}" ]] || continue
+          list:read got sources:call "${kind}" settings "${url}" "{\"${name}\": true}" || return 1
+          lines+=("${got[@]}")
+        done
+        ;;
+      (*) list:read lines sources:call "${kind}" settings "${url}" "${entry:-{\}}" || return 1
+    esac
+    for line in "${lines[@]}"
+    do
+      [[ "${line}" == ?*=* ]] || continue
+      key=${line%%=*} value=${line#*=}
+      if [[ -z "${values[${key}]+x}" ]]
+      then
+        order+=("${key}")
+        values[${key}]=${value}
+      else
+        case "${key}" in
+          (GOPROXY | GOPRIVATE | GONOSUMDB) values[${key}]+=",${value}" ;;
+          (*) ;;
+        esac
+      fi
+    done
+    [[ "${name}" != off ]] || break
+  done <<<"${path//$'\t'/$'\x1f'}"
+  for key in "${order[@]}"
+  do
+    printf '%s=%s\n' "${key}" "${values[${key}]}"
+  done
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

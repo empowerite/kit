@@ -18,24 +18,36 @@
 # one of them; a run where CI is set is a runner's, ci, and any other a desk's. platforms: narrows the platforms it is
 # locked for.
 #
-# A url that ends in .tar.gz, .tgz, .tar.xz, .txz, .tar.bz2, or .tar is unpacked by tar, one that ends in .zip by
-# unzip, and any other url is the command itself, saved under the tool's name.
+# A tool may say what it is in place of a url, so any source on the pull path that speaks its protocol serves it:
+#
+#   release: cli/cli, asset: gh_{version}_{os}_{arch}.zip     a GitHub release's file, tag: v{version} by default
+#   module: golang.org/toolchain, module_version: v0.0.1-go{version}.{os}-{arch}
+#                                                             a Go module's zip, module_version: v{version} by default
+#   npm: markdownlint-cli2                                    an npm package's tarball, at the version
+#
+# A download that ends in .tar.gz, .tgz, .tar.xz, .txz, .tar.bz2, or .tar is unpacked by tar, one that ends in .zip, or
+# is a module, by unzip, an npm package by tar, and any other is the command itself, saved under the tool's name. The commands of a module
+# or an npm package are made executable, as go and npm make them.
 #
 # Each download is found on the pull path, sources:find's, the first source that has it winning; a url: names a place,
 # so direct alone serves it. tools.lock, beside kit.yml, holds one line per tool and platform, tab-separated: name,
 # version, platform, profile, artifact, hash, and bin. The artifact is what the download is, never where it came
-# from: a url's last part, as file:gh_2.103.2_macOS_arm64.zip. The hash is its ecosystem's own, with its prefix, as
-# sha256:<hex> for a file. A lock written before artifacts, with the url and a bare sha256, is read as the url's last
-# part and its sha256:. install locks again each tool whose pin moved, downloading its file for every platform, and a
-# runner refuses to. path and active read the lock alone, so a shell hook that asks for the path stays fast.
+# from: a url's last part, as file:gh_2.103.2_macOS_arm64.zip, or the coordinate, as
+# release:cli/cli@v2.103.2/gh_2.103.2_macOS_arm64.zip. The hash is its ecosystem's own, with its prefix: sha256:<hex>
+# for a file, h1: for a module, and sha512- for an npm package. A lock written before artifacts, with the url and a
+# bare sha256, is read as the url's last part and its sha256:. install locks again each tool whose pin moved,
+# downloading its file for every platform, and a runner refuses to. path and active read the lock alone, so a shell
+# hook that asks for the path stays fast.
 #
 # A tool is installed under ${KIT_HOME:-$HOME}/.kit/tools/<name>/<version>/<platform>/, which every checkout shares,
 # and each download is kept under ${XDG_CACHE_HOME:-$HOME/.cache}/kit/downloads/, named by its hash. A download whose
 # bytes have another hash than the lock's is refused, and nothing is installed from it.
 #
-# outdated asks a GitHub release's latest tag, for a release's download or a source archive, through gh where it is
-# installed and GitHub's API otherwise; Node.js's latest LTS; Go's latest release; and the newest file a GNU mirror's
-# directory lists. For any other url, it says it cannot tell.
+# outdated asks the pull path for a release, a module, or an npm package: the newest version the first source that
+# answers serves, so update never moves to a version the path does not serve yet. For a url, it asks a GitHub
+# release's latest tag, for a release's download or a source archive, through gh where it is installed and GitHub's
+# API otherwise; Node.js's latest LTS; Go's latest release; and the newest file a GNU mirror's directory lists. For any
+# other url, it says it cannot tell.
 #
 # see: docs/toolchains/using-kit.md, modules/bash/sources.sh, issues #181 and #182
 
@@ -79,15 +91,23 @@ toolchain/kit:install() {
 }
 
 toolchain/kit:outdated() {
-  local name version url latest row status=0 asked
+  local name version form url prefix suffix latest row status=0 asked path=''
   local -a tools
   list:read tools toolchain/kit:tools || return 1
   for row in "${tools[@]}"
   do
-    IFS=$'\t' read -r name version url <<<"${row}"
+    # a prefix or a suffix can be empty, so each tab becomes \x1f, which read never runs together with the next
+    IFS=$'\x1f' read -r name version form url prefix suffix <<<"${row//$'\t'/$'\x1f'}"
     [[ -n "${name}" ]] || continue
     asked=0
-    latest=$(toolchain/kit:latest "${url}") || asked=$?
+    if [[ "${form}" == path ]]
+    then
+      [[ -n "${path}" ]] || path=$(sources:path) || return 1
+      latest=$(toolchain/kit:served "${url}" "${prefix}" "${suffix}" "${path}") || asked=$?
+      url=$(sources:artifact "${url}")
+    else
+      latest=$(toolchain/kit:latest "${url}") || asked=$?
+    fi
     if (( asked == 2 ))
     then
       error "${name}: kit cannot tell the latest version from ${url}"
@@ -234,6 +254,12 @@ toolchain/kit:spec() {
       "name": .key,
       "version": ((.value.version // "") | tostring),
       "url": ((.value.url // "") | tostring),
+      "release": ((.value.release // "") | tostring),
+      "asset": ((.value.asset // "") | tostring),
+      "tag": ((.value.tag // "") | tostring),
+      "module": ((.value.module // "") | tostring),
+      "module_version": ((.value.module_version // "") | tostring),
+      "npm": ((.value.npm // "") | tostring),
       "bin": ((.value.bin // ".") | tostring),
       "profile": ((.value.profile // "both") | tostring),
       "os": (.value.os // {}),
@@ -243,15 +269,18 @@ toolchain/kit:spec() {
 }
 
 # toolchain/kit:wanted prints what kit.yml asks the lock to hold: "<name>\t<version>\t<platform>\t<profile>\t
-# <coordinate>\t<bin>", one line per tool and platform, the coordinate url:<url> for a url. A tool without a version or
-# a url is refused by name.
+# <coordinate>\t<bin>", one line per tool and platform. A tool without a version, or without exactly one of url,
+# release with its asset, module, and npm, is refused by name.
 toolchain/kit:wanted() {
   local spec missing
   spec=$(toolchain/kit:spec) || return 1
-  missing=$(jq --raw-output '[.[] | select(.version == "" or .url == "") | .name] | join(", ")' <<<"${spec:-[]}")
+  missing=$(jq --raw-output '[.[] | select(.version == ""
+      or ([.url, .release, .module, .npm] | map(select(. != "")) | length) != 1
+      or (.release != "" and .asset == "")) | .name] | join(", ")' <<<"${spec:-[]}")
   if [[ -n "${missing}" ]]
   then
-    error "kit.yml: each tool under tools: needs a version and a url, and ${missing} lacks one"
+    error "kit.yml: each tool under tools: needs a version and one of url, release with its asset, module, or npm:" \
+      "${missing}"
     return 1
   fi
   # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
@@ -259,11 +288,15 @@ toolchain/kit:wanted() {
     'import "toolchain" as toolchain; toolchain::kit_wanted($platforms)' <<<"${spec:-[]}"
 }
 
-# toolchain/kit:tools prints "<name>\t<version>\t<url>" for each tool under tools:, the url as kit.yml writes it.
+# toolchain/kit:tools prints, for each tool under tools:, where its latest version is read: "<name>\t<version>\turl\t
+# <url>" for a url, as kit.yml writes it, and "<name>\t<version>\tpath\t<coordinate>\t<prefix>\t<suffix>" for any
+# other, as kit_latest in modules/jq/toolchain.jq gives them for this platform.
 toolchain/kit:tools() {
-  local spec
+  local spec here
   spec=$(toolchain/kit:spec) || return 1
-  jq --raw-output '.[] | [.name, .version, .url] | join("\t")' <<<"${spec:-[]}"
+  here=$(toolchain/kit:platform) || return 1
+  jq -L "${kit_jq}" --raw-output --arg platform "${here}" \
+    'import "toolchain" as toolchain; toolchain::kit_latest($platform)' <<<"${spec:-[]}"
 }
 
 # toolchain/kit:locked prints the lines of tools.lock, its comments and blank lines left out. A line written before
@@ -417,6 +450,7 @@ toolchain/kit:place() {
     error "${name}: ${bin} is not in what ${artifact#file:} unpacks to; set bin: under tools: ${name} in kit.yml"
     return 1
   fi
+  toolchain/kit:executable "${artifact}" "${stage}/tree/${bin}"
   if [[ ! -x "${stage}/tree/${bin}/${name}" ]]
   then
     error "${name}: ${bin} in what ${artifact#file:} unpacks to holds no ${name} command; set bin: under tools:" \
@@ -426,6 +460,20 @@ toolchain/kit:place() {
   printf '%s\n' "${hash}" > "${stage}/tree/.kit-sha256"
   mkdir -p "$(dirname "${dir}")" && rm -rf "${dir}" && mv "${stage}/tree" "${dir}" || return 1
   step "${name}: ${version} installed"
+}
+
+# toolchain/kit:executable <artifact> <bin> makes the commands of a module or an npm package executable, as go does
+# when it switches toolchains and npm does when it links a package's bin: neither archive keeps the mode. A module's
+# bin is its commands and the tools under ../pkg/tool/, which go runs; an npm package's, every file in it.
+toolchain/kit:executable() {
+  case "$1" in
+    (module:*)
+      # a module may have no pkg/tool, which find says, and every other file is still made executable
+      find "$2" "$2/../pkg/tool" -maxdepth 2 -type f -exec chmod +x {} + 2>/dev/null || true
+      ;;
+    (npm:*) find "$2" -maxdepth 1 -type f -exec chmod +x {} + ;;
+    (*) ;;
+  esac
 }
 
 # toolchain/kit:same <installed> <hash> succeeds when the hash an install recorded is the lock's: a bare sha256, as an
@@ -438,6 +486,8 @@ toolchain/kit:same() {
 # as the command <name> when the artifact ends in no archive's suffix.
 toolchain/kit:unpack() {
   case "${2%%\?*}" in
+    (module:*) unzip -q "$1" -d "$3" ;;
+    (npm:*) tar --extract --gzip --file "$1" --directory "$3" ;;
     (*.tar.gz | *.tgz | *.tar.xz | *.txz | *.tar.bz2 | *.tar) tar --extract --file "$1" --directory "$3" ;;
     (*.zip) unzip -q "$1" -d "$3" ;;
     (*) cp "$1" "$3/$4" && chmod +x "$3/$4"
@@ -454,6 +504,20 @@ toolchain/kit:listed() {
   listing=$(curl --fail --silent --location "${url%/*}") || return 1
   grep --only-matching --extended-regexp "${pattern}" <<<"${listing}" \
     | sed -E "s/^${pattern}\$/\\1/" | sort --version-sort | tail -n 1
+}
+
+# toolchain/kit:served <coordinate> <prefix> <suffix> <path> prints the newest version the pull path serves of the
+# coordinate's artifact: of what the first source that answers lists, those that are the prefix, a version of digits
+# and dots alone, and the suffix, the version taken out. A pre-release, a version with anything but digits and dots,
+# is passed by.
+toolchain/kit:served() {
+  local listed
+  listed=$(sources:versions "$1" "$4") || return 1
+  awk -v prefix="$2" -v suffix="$3" '
+    substr($0, 1, length(prefix)) == prefix && substr($0, length($0) - length(suffix) + 1) == suffix {
+      v = substr($0, length(prefix) + 1, length($0) - length(prefix) - length(suffix))
+      if (v ~ /^[0-9]+(\.[0-9]+)*$/) print v
+    }' <<<"${listed}" | sort --version-sort | tail -n 1
 }
 
 # toolchain/kit:latest <url> prints the latest version of the tool the url template downloads, with the leading

@@ -144,14 +144,14 @@ path() {
 
 @test "a source of a kind kit lacks, named twice, with a key its kind does not take, or a package source off kit.yml is refused" {
   provider fake
-  printf 'sources:\n  - name: corp\n    kind: goproxy\n    url: https://corp.example\n' >> kit.yml
+  printf 'sources:\n  - name: corp\n    kind: svn\n    url: https://corp.example\n' >> kit.yml
   run kit tools sources
   [ "$status" -eq 1 ]
-  [[ "$output" == *"kit.yml: the source corp has the kind goproxy, which no provider answers; the kinds are fake kit-packages"* ]]
+  [[ "$output" == *"kit.yml: the source corp has the kind svn, which no provider answers; the kinds are fake github-releases goproxy kit-packages npm"* ]]
   run kit toolchains
   [ "$status" -eq 1 ]
-  [[ "$output" == *"the source corp has the kind goproxy"* ]]
-  sed -i.bak 's/kind: goproxy/kind: fake/' kit.yml && rm kit.yml.bak
+  [[ "$output" == *"the source corp has the kind svn"* ]]
+  sed -i.bak 's/kind: svn/kind: fake/' kit.yml && rm kit.yml.bak
   printf '  - name: corp\n    kind: fake\n    url: https://again.example\n' >> kit.yml
   run kit tools sources
   [[ "$output" == *"kit.yml: the source corp is named twice"* ]]

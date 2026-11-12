@@ -4,7 +4,7 @@
 # Usage:
 #   kit tools [--outdated [--check]] [--toolchain=<name>] [--json | --jq]
 #   kit tools [--toolchain=<name>] (install | update | path | run <command>…)
-#   kit tools sources [--json | --jq]
+#   kit tools sources [--env | --json | --jq]
 #
 # Acts on the tools the project toolchain pins. kit toolchains shows which toolchain that is, and records a choice.
 # Then on the packages each dependency provider pins, as npm in package-lock.json or uv in uv.lock: each one whose
@@ -21,6 +21,9 @@
 # sources prints the pull path, the artifact sources searched in order for what kit fetches: KIT_SOURCES first, then
 # sources: in the person's workspaces.yml, then kit.yml's, whose default is direct, the open internet. A row names
 # each source, its kind, its url, and the layer it came from; off ends the path. Package sources are not on it.
+# With --env, it prints instead the settings each language's package manager reads to search the same path, NAME=value
+# a line, as a runner's GITHUB_ENV takes them: GOPROXY, GOPRIVATE, and GONOSUMDB for go, and npm's registry. run runs
+# its command with them.
 #
 # install installs the toolchain first, then finds the dependency providers again, so a tool the toolchain has just
 # installed, such as node's npm, counts. It fails, naming each, when a provider's lock is here and its tool is still
@@ -40,6 +43,7 @@
 #   update              moves every tool and package to its latest, and rewrites the pins
 #   path                prints the directories that put the tools first on PATH, then the packages'
 #   sources             prints the pull path: each source, its kind, its url, and its layer (env, workspace, kit.yml)
+#   --env               with sources: the package managers' settings for the path, NAME=value a line
 #   run <command>…      runs the command with the tools, or in their container
 #   <command>…          the command and its arguments, as typed, dash-words included
 #
@@ -160,6 +164,11 @@ join() {
 sources() {
   local path name kind url layer rows='' glyph
   path=$(sources:path) || exit 1
+  if [[ -n "${syntax_options[--env]+x}" ]]
+  then
+    sources:settings "${path}" || exit 1
+    exit 0
+  fi
   # a kind or a url can be empty, so each tab becomes \x1f, which read never runs together with the next
   while IFS=$'\x1f' read -r name kind url layer _
   do
@@ -332,6 +341,12 @@ case "${verb}" in
     exit
     ;;
   (run)
+    # the package managers search the pull path kit does
+    settings=$(sources:settings) || exit 1
+    while IFS= read -r line
+    do
+      [[ -z "${line}" ]] || export "${line?}"
+    done <<<"${settings}"
     toolchain:run "${syntax_operands[@]}"
     exit
     ;;
