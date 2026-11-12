@@ -193,7 +193,7 @@ setup() {
     yaml:value in.yml answer; yaml:value in.yml answer; echo "$(yaml:value in.yml answer)"'
   [ "$output" = $'42\n42\n42' ]
   [ "$(grep -c '' yq.log)" -eq 1 ]
-  ls "${XDG_CACHE_HOME}/kit/yaml/" | grep --quiet '^value answer '
+  ls "${XDG_CACHE_HOME}/kit/yaml/" | grep --quiet '^facts '
   printf 'answer: 43\n' > in.yml
   touch -r stamp in.yml
   run env PATH="${repo}/shims:${PATH}" bash -c 'source "${kit_root}/modules/bash/1st.sh" && use yaml
@@ -206,7 +206,7 @@ setup() {
   printf 'answer: 42\n' > in.yml
   run kit-bash 'yaml:value in.yml answer'
   [ "$output" = 42 ]
-  entry=$(ls "${XDG_CACHE_HOME}/kit/yaml/" | grep '^value answer ')
+  entry=$(ls "${XDG_CACHE_HOME}/kit/yaml/" | grep '^facts ')
   [ -n "${entry}" ]
   printf 'answer: 42\n\0planted\n' > planted
   ln -sf "${repo}/planted" "${XDG_CACHE_HOME}/kit/yaml/${entry}"
@@ -243,3 +243,20 @@ setup() {
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
+
+@test "yaml:get and yaml:lines take what a read prints in the caller's shell, as \$(…) and list:read would" {
+  printf 'text: |\n  line one\n  line two\nlist: [a, "", b]\nrecords:\n  - {name: x, url: u}\n' > in.yml
+  run kit-bash 'yaml:get value value in.yml text; [[ "${value}" == "$(yaml:value in.yml text)" ]] && echo same
+    yaml:lines items list in.yml list; list:read expected yaml:list in.yml list
+    [[ "${items[*]@Q}" == "${expected[*]@Q}" ]] && echo "${#items[@]} items"
+    yaml:get value value in.yml missing; echo "missing=[${value}]"
+    yaml:lines items records in.yml records name url; printf "%s\n" "${items[@]}" | tr "\037" "|"
+    printf "packages:\n\t- kit\n" > tabs.yml; yaml:get value list tabs.yml packages; echo "status=$?"'
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = same ]
+  [ "${lines[1]}" = "3 items" ]
+  [ "${lines[2]}" = "missing=[]" ]
+  [ "${lines[3]}" = "x|u" ]
+  [[ "${lines[4]}" == *"tabs.yml"* ]]
+  [ "${lines[5]}" = status=1 ]
+}

@@ -13,6 +13,11 @@
 
 use release place manifest settings render file
 
+# materialize_real maps a directory to its real path, for materialize:real: filled in the shell that asks, so every
+# later path under a directory resolved once costs no process. materialize:all empties it first, so a long-running
+# kit serve resolves each pass afresh.
+declare -gA materialize_real=()
+
 # materialize:owned <base> <path> succeeds for a path the kit materializes: one under .kit/ in the repository, with no
 # . or .. segment, other than the repository's own packages. Such a path is a link to its source when the source is
 # inside the worktree, and otherwise a copy without the write bit. .kit/.gitignore names every one, so git never sees
@@ -27,10 +32,11 @@ materialize:owned() {
 # of its own and goes away with kit tidy. This repository's release, kit/, is within. A release that mise or brew
 # installed for a consumer is not, and neither is a rendered template, written under a temporary directory. A link
 # never leaves the worktree: the worktree is what gets bind-mounted, copied, or synced as a unit, and a link that
-# left it would dangle there, and again when the tool manager moved the release.
+# left it would dangle there, and again when the tool manager moved the release. The root is resolved once per shell,
+# from PWD as materialize:real resolves a path, into materialize_root, as pwd -P prints it.
 materialize:within() {
   local dir
-  [[ -n "${materialize_root:-}" ]] || materialize_root=$(pwd -P)
+  [[ -n "${materialize_root:-}" ]] || materialize:real materialize_root "${PWD}"
   [[ "$1" == "${materialize_root}"/* ]] || return 1
   dir=${1%/*}
   while [[ "${dir}" == "${materialize_root}"/* ]]
@@ -40,25 +46,62 @@ materialize:within() {
   done
 }
 
-# materialize:relative <from-dir> <to> prints <to> as a path relative to <from-dir>. Both are absolute real paths.
-materialize:relative() {
-  local from=$1 to=$2 up=''
-  while [[ "${to}" != "${from}"/* && "${from}" != / ]]
+# materialize:real <name> <path> puts in the variable <name> the real path of an existing <path>, as readlink -f
+# prints it. An absolute path's directories are walked up, each checked for a link, to one resolved before, or to /
+# when none is a link, so a path whose directories hold no link, or sit under one already resolved, costs no process.
+# readlink resolves the rest: the first link met, which is remembered in materialize_real, a path that is a link
+# itself, a relative path, and one with a . or .. segment. Its locals are named for it, so <name> can be any of the
+# caller's.
+materialize:real() {
+  local materialize_real_path=$2 materialize_real_dir materialize_real_rest materialize_real_found
+  if [[ "$2" != /* || -L "$2" || "/$2/" == */../* || "/$2/" == */./* ]]
+  then
+    materialize_real_found=$(readlink -f "$2")
+    printf -v "$1" '%s' "${materialize_real_found}"
+    return 0
+  fi
+  materialize_real_dir=${materialize_real_path%/*} materialize_real_rest=/${materialize_real_path##*/}
+  while [[ -n "${materialize_real_dir}" && -z "${materialize_real[${materialize_real_dir}]+x}" \
+    && ! -L "${materialize_real_dir}" ]]
   do
-    from=$(dirname "${from}")
-    up+='../'
+    # An empty segment, as // makes, is no directory.
+    [[ -z "${materialize_real_dir##*/}" ]] \
+      || materialize_real_rest=/${materialize_real_dir##*/}${materialize_real_rest}
+    materialize_real_dir=${materialize_real_dir%/*}
   done
-  printf '%s%s\n' "${up}" "${to#"${from}"/}"
+  if [[ -n "${materialize_real_dir}" ]]
+  then
+    [[ -n "${materialize_real[${materialize_real_dir}]+x}" ]] \
+      || materialize_real[${materialize_real_dir}]=$(readlink -f "${materialize_real_dir}")
+    materialize_real_rest=${materialize_real[${materialize_real_dir}]}${materialize_real_rest}
+  fi
+  printf -v "$1" '%s' "${materialize_real_rest}"
 }
 
-# materialize:state <source> <dest> prints the state the kit keeps a materialized path in: `link <target>`, the relative
-# link to a source inside the worktree, or `copy` for a source outside it.
+# materialize:relative <name> <from-dir> <to> puts in the variable <name> <to> as a path relative to <from-dir>. Both
+# are absolute real paths.
+materialize:relative() {
+  local from=$2 to=$3 up=''
+  while [[ "${to}" != "${from}"/* && "${from}" != / ]]
+  do
+    from=${from%/*}
+    from=${from:-/}
+    up+='../'
+  done
+  printf -v "$1" '%s%s' "${up}" "${to#"${from}"/}"
+}
+
+# materialize:state <name> <source> <dest> puts in the variable <name> the state the kit keeps a materialized path
+# in: `link <target>`, the relative link to a source inside the worktree, or `copy` for a source outside it.
 materialize:state() {
-  local real
-  real=$(readlink -f "$1")
+  local real target
+  materialize:real real "$2"
   if materialize:within "${real}"
-  then printf 'link %s\n' "$(materialize:relative "${materialize_root}/${2%/*}" "${real}")"
-  else printf 'copy\n'
+  then
+    materialize:relative target "${materialize_root}/${3%/*}" "${real}"
+    printf -v "$1" 'link %s' "${target}"
+  else
+    printf -v "$1" 'copy'
   fi
 }
 
@@ -67,7 +110,7 @@ materialize:state() {
 # is not judged here; materialize:one takes it back off a copy without a word.
 materialize:ok() {
   local state=${3:-}
-  [[ -n "${state}" ]] || state=$(materialize:state "$1" "$2")
+  [[ -n "${state}" ]] || materialize:state state "$1" "$2"
   if [[ "${state}" == link* ]]
   then [[ -L "$2" && "$(readlink "$2")" == "${state#link }" ]]
   else [[ ! -L "$2" && -f "$2" ]] && cmp --silent "$1" "$2"
@@ -77,24 +120,40 @@ materialize:ok() {
 # materialize:one <source> <dest> brings a materialized path to its state and prints what it did: kept,
 # placed where nothing was there, or replaced where something else was.
 materialize:one() {
-  local src=$1 dest=$2 state
-  state=$(materialize:state "${src}" "${dest}")
-  if materialize:ok "${src}" "${dest}" "${state}"
+  local did='' status=0
+  materialize:bring did "$1" "$2" || status=$?
+  [[ -z "${did}" ]] || printf '%s\n' "${did}"
+  return "${status}"
+}
+
+# materialize:bring <name> <source> <dest> [<state> [<ok>]] does materialize:one's work and puts what it did in the
+# variable <name> rather than printing it, so a caller in this shell keeps what it resolved and starts no process to
+# read the word. <state> is materialize:state's, computed here when not given; <ok> is true or false when the caller
+# judged the destination already, as materialize:ok does, and is judged here when not given.
+materialize:bring() {
+  local src=$2 dest=$3 state=${4:-} ok=${5:-}
+  [[ -n "${state}" ]] || materialize:state state "${src}" "${dest}"
+  if [[ -z "${ok}" ]]
+  then
+    ok=false
+    ! materialize:ok "${src}" "${dest}" "${state}" || ok=true
+  fi
+  if [[ "${ok}" == true ]]
   then
     if [[ "${state}" == copy && -w "${dest}" ]]
     then
-      chmod a-w "${dest}"
+      chmod a-w "${dest}" || return 1
     fi
-    printf 'kept\n'
+    printf -v "$1" kept
     return 0
   fi
   if [[ -e "${dest}" || -L "${dest}" ]]
-  then printf 'replaced\n'
-  else printf 'placed\n'
+  then printf -v "$1" replaced
+  else printf -v "$1" placed
   fi
-  mkdir -p "$(dirname "${dest}")"
   if [[ "${state}" == link* ]]
   then
+    file:parent "${dest}" || return 1
     ln -sfn "${state#link }" "${dest}"
   else
     file:copy --read-only "${src}" "${dest}"
@@ -103,13 +162,73 @@ materialize:one() {
 
 # materialize:prune <path> removes the directories a removed path leaves empty, up to .kit/ itself, which stays.
 materialize:prune() {
-  local dir
-  dir=$(dirname "$1")
+  local dir=${1%/*}
   while [[ "${dir}" == .kit/* && -d "${dir}" && -z "$(find "${dir}" -mindepth 1 -maxdepth 1 | head -n 1)" ]]
   do
     rmdir "${dir}"
-    dir=$(dirname "${dir}")
+    dir=${dir%/*}
   done
+}
+
+# materialize:judge <ok-map> <state-map> <source-map> <dest>… judges each destination as materialize:ok does, from
+# its state and source in the two maps, and puts true or false for it in <ok-map>. Every copy and its source are
+# digested together, by one process, and every link is read by one readlink, rather than a cmp or a readlink each. A
+# destination a batch could not judge, as when a file cannot be read, is left out, for materialize:ok to judge.
+# shellcheck disable=SC2034  # materialize_judge_ok is the caller's map, filled through the reference
+materialize:judge() {
+  local -n materialize_judge_ok=$1 materialize_judge_state=$2 materialize_judge_source=$3
+  local -a materialize_judge_copies=() materialize_judge_sources=() materialize_judge_links=()
+  local -a materialize_judge_targets=() materialize_judge_found=()
+  local dest i n
+  shift 3
+  for dest in "$@"
+  do
+    if [[ "${materialize_judge_state["${dest}"]}" == link* ]]
+    then
+      if [[ -L "${dest}" ]]
+      then
+        materialize_judge_links+=("${dest}")
+        materialize_judge_targets+=("${materialize_judge_state["${dest}"]#link }")
+      else
+        materialize_judge_ok["${dest}"]=false
+      fi
+    elif [[ ! -L "${dest}" && -f "${dest}" ]]
+    then
+      materialize_judge_copies+=("${dest}")
+      materialize_judge_sources+=("${materialize_judge_source["${dest}"]}")
+    else
+      materialize_judge_ok["${dest}"]=false
+    fi
+  done
+  n=${#materialize_judge_copies[@]}
+  if (( n > 0 )) && file:digests materialize_judge_found \
+    "${materialize_judge_sources[@]}" "${materialize_judge_copies[@]}" 2>/dev/null
+  then
+    for (( i = 0; i < n; i++ ))
+    do
+      dest=${materialize_judge_copies[i]}
+      materialize_judge_ok["${dest}"]=false
+      [[ "${materialize_judge_found[i]}" != "${materialize_judge_found[i + n]}" ]] \
+        || materialize_judge_ok["${dest}"]=true
+    done
+  fi
+  n=${#materialize_judge_links[@]}
+  if (( n > 0 )) && list:read materialize_judge_found readlink -- "${materialize_judge_links[@]}" \
+    && (( ${#materialize_judge_found[@]} == n ))
+  then
+    for (( i = 0; i < n; i++ ))
+    do
+      dest=${materialize_judge_links[i]}
+      materialize_judge_ok["${dest}"]=false
+      [[ "${materialize_judge_found[i]}" != "${materialize_judge_targets[i]}" ]] \
+        || materialize_judge_ok["${dest}"]=true
+    done
+  fi
+}
+
+# materialize:list <dir>… prints what each directory holds, one level down, in byte order.
+materialize:list() {
+  { find "$@" -mindepth 1 -maxdepth 1 || true; } | LC_ALL=C sort  # a directory find cannot read lists what it can
 }
 
 # materialize:ignore-text <path>… prints .kit/.gitignore: each path kit placed under .kit/, the manifest, the file
@@ -134,30 +253,33 @@ materialize:ignore-text() {
 # which a person settles; an empty directory left behind by a removed package is removed without a word. With
 # --check it changes nothing: each of those is an error, and it prints how many on stdout.
 materialize:all() {
-  local check=false path src dir entry state did ignore findings=0 row
-  local -a owned=() tracked=() rows
-  local -A source=() within=()
+  local check=false path src dir entry state did ignore findings=0 row kind
+  local -a owned=() tracked=() rows dirs=()
+  local -A source=() within=() recorded=() states=() ok=() listing=()
   if [[ "${1:-}" == --check ]]
   then
     check=true
     shift
   fi
+  materialize_real=()
   list:read rows place:delivered "${kit_root}" repo "$@" || return 1
   for row in "${rows[@]}"
   do
     IFS=$'\t' read -r path src <<<"${row}"
     [[ -n "${path}" ]] || continue
     materialize:owned repo "${path}" || continue
-    [[ "$(place:kind "${src}" "${path}")" == copy ]] || continue
+    place:kind "${src}" "${path}" kind
+    [[ "${kind}" == copy ]] || continue
     owned+=("${path}")
     source[${path}]=${src}
-    dir=$(dirname "${path}")
+    dir=${path%/*}
     while [[ "${dir}" != .kit ]]
     do
       within[${dir}]=1
-      dir=$(dirname "${dir}")
+      dir=${dir%/*}
     done
   done
+  manifest:records recorded repo || return 1
   # A path the manifest records that no active package delivers any more, as after a pulled declaration dropped a
   # package: removed, and the directories it leaves empty with it.
   list:read rows manifest:paths repo || return 1
@@ -177,18 +299,30 @@ materialize:all() {
       materialize:prune "${path}"
     fi
   done
+  # Each path's state and whether it is in it, judged for all of them at once, before any is changed.
+  for path in "${owned[@]}"
+  do
+    materialize:state state "${source[${path}]}" "${path}"
+    states[${path}]=${state}
+  done
+  (( ${#owned[@]} == 0 )) || materialize:judge ok states source "${owned[@]}"
   for path in "${owned[@]}"
   do
     src=${source[${path}]}
+    state=${states[${path}]}
+    if [[ -z "${ok[${path}]:-}" ]]
+    then
+      ok[${path}]=false
+      ! materialize:ok "${src}" "${path}" "${state}" || ok[${path}]=true
+    fi
     if [[ "${check}" == false ]]
     then
-      if [[ ( -e "${path}" || -L "${path}" ) && -z "$(manifest:recorded repo "${path}")" ]] \
-        && ! materialize:ok "${src}" "${path}"
+      if [[ ( -e "${path}" || -L "${path}" ) && -z "${recorded[${path}]:-}" && "${ok[${path}]}" == false ]]
       then
         warn "${path}: a different file is there already; move it aside, or remove it if it is not yours"
         continue
       fi
-      did=$(materialize:one "${src}" "${path}")
+      materialize:bring did "${src}" "${path}" "${state}" "${ok[${path}]}"
       case "${did}" in
         (placed) step "${path}: placed" ;;
         (replaced) warn "${path} was changed in place, or came from another release; replaced"
@@ -197,18 +331,30 @@ materialize:all() {
     then
       error "${path} is missing; run: kit hydrate"
       findings=$(( findings + 1 ))
-    elif ! materialize:ok "${src}" "${path}"
+    elif [[ "${ok[${path}]}" == false ]]
     then
-      state=$(materialize:state "${src}" "${path}")
       if [[ "${state}" == link* ]]
       then error "${path} is not a link to ${state#link }; run: kit hydrate"
-      elif [[ -z "$(manifest:recorded repo "${path}")" ]]
+      elif [[ -z "${recorded[${path}]:-}" ]]
       then error "${path} holds a different file; move it aside, or remove it if it is not yours, then run: kit hydrate"
       else error "${path} was changed in place; run: kit hydrate (a delivered file changes by a new release, never in place)"
       fi
       findings=$(( findings + 1 ))
     fi
   done
+  # Every delivered directory is listed by one find, its entries filed under the directory they are in.
+  for dir in "${!within[@]}"
+  do
+    [[ ! -d "${dir}" ]] || dirs+=("${dir}")
+  done
+  if (( ${#dirs[@]} > 0 ))
+  then
+    list:read rows materialize:list "${dirs[@]}" || return 1
+    for entry in "${rows[@]}"
+    do
+      listing[${entry%/*}]+=${entry}$'\n'
+    done
+  fi
   for dir in "${!within[@]}"
   do
     [[ -d "${dir}" ]] || continue
@@ -228,7 +374,7 @@ materialize:all() {
       else
         warn "${entry} is not delivered by any active package; add it through a package under .kit/packages/, or remove it"
       fi
-    done < <(find "${dir}" -mindepth 1 -maxdepth 1 | LC_ALL=C sort)
+    done <<<"${listing[${dir}]:-}"
   done
   if (( ${#owned[@]} > 0 )) && git rev-parse --is-inside-work-tree >/dev/null 2>&1
   then
@@ -268,17 +414,18 @@ materialize:all() {
 # materialize:hydrated succeeds when .kit/.gitignore exists and every path it names is there, as a link or without the
 # write bit, and .kit/manifest exists. cache/ and logs/ are named but never placed, so they are skipped. Where this
 # release is itself inside the worktree, as the kit's own kit/ is, every path must be a link: a copy there came from a
-# kit outside the worktree, and the full run turns it into a link. It starts two processes, to resolve the release's
-# root and to look under .kit/packages/, so a reading verb asks on every run. A fresh clone, a `git clean -fdx`, a link
-# an editor's save replaced, and a copy with its write bit back all fail it, and the full materialize:all follows, as
-# it does when kit.yml is newer than .kit/.gitignore: a declaration edited by hand or pulled since the last full run,
-# whose packages may have come or gone. So does a file or directory under .kit/packages/ newer than .kit/.gitignore,
-# or a look there that fails: a repository package's file added, changed, or removed since, by hand or by a pull,
-# which .kit/.gitignore cannot name yet. A caller takes a failure for work to do, never for an error. A copy changed
-# and put back without the write bit passes it: kit check judges that. A template rendered under .kit/ is a copy even
-# inside, so a release that delivers one there takes the full run every time; none does.
+# kit outside the worktree, and the full run turns it into a link. It starts at most three processes, to look under
+# .kit/packages/, and to resolve a link on the worktree's path and on the release's, so a reading verb asks on every
+# run. A fresh clone, a `git clean -fdx`, a link an editor's save replaced, and a copy with its write bit back all
+# fail it, and the full materialize:all follows, as it does when kit.yml is newer than .kit/.gitignore: a declaration
+# edited by hand or pulled since the last full run, whose packages may have come or gone. So does a file or directory
+# under .kit/packages/ newer than .kit/.gitignore, or a look there that fails: a repository package's file added,
+# changed, or removed since, by hand or by a pull, which .kit/.gitignore cannot name yet. A caller takes a failure for
+# work to do, never for an error. A copy changed and put back without the write bit passes it: kit check judges that. A
+# template rendered under .kit/ is a copy even inside, so a release that delivers one there takes the full run every
+# time; none does.
 materialize:hydrated() {
-  local line path newer inside=false
+  local line path newer real inside=false
   [[ -f .kit/.gitignore && -f .kit/manifest ]] || return 1
   [[ ! kit.yml -nt .kit/.gitignore ]] || return 1
   if [[ -d .kit/packages ]]
@@ -288,7 +435,8 @@ materialize:hydrated() {
   fi
   # Both are kit's to write, so both are without the write bit, except as root, where the bit says nothing.
   [[ ! -w .kit/.gitignore && ! -w .kit/manifest ]] || (( EUID == 0 )) || return 1
-  ! materialize:within "$(readlink -f "${kit_root}")" || inside=true
+  materialize:real real "${kit_root}"
+  ! materialize:within "${real}" || inside=true
   while IFS= read -r line
   do
     [[ "${line}" == /* ]] || continue

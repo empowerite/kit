@@ -19,7 +19,21 @@
 
 use release render region materialize manifest file
 
-# place:kind <source> <path> prints how the content is placed:
+# place_delivered maps a key, "<root>|<base>|<package> …" and a tab, to the rows place:delivered prints for it, and
+# place_source maps that key and a delivered path to the path's source. place:delivered fills both in the
+# shell that calls it, and every subshell under it inherits them, so a verb asks once and its subshells answer with no
+# fork: render:packages asks for each base in the verb's own shell. A release's layers do not change while a process
+# runs, since render:package renders each once.
+declare -gA place_delivered=() place_source=()
+
+# place:key <name> <root> <base> <package>… sets the variable <name> to the key place_delivered keeps the rows under.
+place:key() {
+  local IFS=' '
+  printf -v "$1" '%s|%s|%s\t' "$2" "$3" "${*:4}"
+}
+
+# place:kind <source> <path> [<name>] prints how the content is placed, or, given a <name>, sets that variable to it,
+# with no fork:
 #
 #   region   the source is under a package's regions/<base>/
 #   merge    the destination is a merged .json file (see place:merged)
@@ -28,56 +42,99 @@ use release render region materialize manifest file
 # The region test looks only at the source's last packages/ segment, so a checkout under a directory named packages
 # works the same as one anywhere else.
 place:kind() {
+  local place_kind_of=copy
   if [[ "${1##*/packages/}" =~ ^[^/]+(/[^/]+)?/regions/(repo|home)/ ]]
-  then printf 'region\n'
+  then place_kind_of=region
   elif place:merged "$2"
-  then printf 'merge\n'
-  else printf 'copy\n'
+  then place_kind_of=merge
+  fi
+  if [[ -n "${3:-}" ]]
+  then printf -v "$3" '%s' "${place_kind_of}"
+  else printf '%s\n' "${place_kind_of}"
   fi
 }
 
 # place:delivered <root> <base> <package>… prints "<path>\t<source>" for every path under the base's root that
 # the release at <root> delivers for those packages, sorted by path. When layers deliver the same path, the last
 # layer wins. A symlink counts as a source only when it points at a file. A dangling symlink fails here, where it
-# is found.
+# is found, and nothing is printed. It reads the release once per key (place_delivered): one find over every layer
+# and one sort.
 place:delivered() {
-  local layer path src
-  local -a layers
-  list:read layers render:layers "$@" || return 1
-  for layer in "${layers[@]}"
-  do
-    (cd "${layer}" && find . \( -type f -o -type l \) | sed 's@^\./@@' \
-      | awk -v l="${layer}" '{ print $0 "\t" l "/" $0 }') || return 1
-  done | awk -F '\t' '{ src[$1] = $2 } END { for (p in src) print p "\t" src[p] }' \
-    | LC_ALL=C sort \
-    | while IFS=$'\t' read -r path src
-  do
-    if [[ -L "${src}" && ! -e "${src}" ]]
+  local key line path src rows='' i=0
+  local -a layers found paths
+  local -A source_of=()
+  place:key key "$@"
+  if [[ -z "${place_delivered[${key}]+x}" ]]
+  then
+    list:read layers render:layers "$@" || return 1
+    if (( ${#layers[@]} ))
     then
-      error "${src} is a link to nothing; the release is broken"
-      return 1
+      list:read found find -H "${layers[@]}" \( -type f -o -type l \) || return 1
     fi
-    printf '%s\t%s\n' "${path}" "${src}"
-  done
+    # find reads the layers in order, so each line is under the layer it is at, or one after it.
+    for line in "${found[@]}"
+    do
+      until [[ "${line}" == "${layers[i]}/"* ]]
+      do
+        if (( ++i == ${#layers[@]} ))
+        then
+          error "${line}: find printed a path under none of the release's layers"
+          return 1
+        fi
+      done
+      source_of[${line#"${layers[i]}/"}]=${line}
+    done
+    if (( ${#source_of[@]} ))
+    then
+      list:read paths place:sorted "${!source_of[@]}" || return 1
+    fi
+    for path in "${paths[@]}"
+    do
+      src=${source_of[${path}]}
+      if [[ -L "${src}" && ! -e "${src}" ]]
+      then
+        error "${src} is a link to nothing; the release is broken"
+        return 1
+      fi
+      rows+="${path}"$'\t'"${src}"$'\n'
+      place_source[${key}${path}]=${src}
+    done
+    place_delivered[${key}]=${rows}
+  fi
+  printf '%s' "${place_delivered[${key}]}"
+}
+
+# place:sorted <line>… prints the lines, sorted bytewise.
+place:sorted() {
+  local lines
+  printf -v lines '%s\n' "$@"
+  LC_ALL=C sort <<<"${lines%$'\n'}"
 }
 
 # place:source-of <root> <base> <path> <package>… prints the release file behind one delivered path, or nothing.
 place:source-of() {
-  local root=$1 base=$2 path=$3
+  local root=$1 base=$2 path=$3 key
   shift 3
-  place:delivered "${root}" "${base}" "$@" | awk -F '\t' -v p="${path}" '$1 == p { print $2 }'
+  place:delivered "${root}" "${base}" "$@" >/dev/null || return 1
+  place:key key "${root}" "${base}" "$@"
+  [[ -z "${place_source[${key}${path}]+x}" ]] || printf '%s\n' "${place_source[${key}${path}]}"
 }
 
 # place:beyond <root> <base> <before> <after> prints the paths under the base that the package set <after>
-# delivers and <before> does not. Each set is passed as one space-separated word.
+# delivers and <before> does not, sorted. Each set is passed as one space-separated word.
 place:beyond() {
-  local root=$1 base=$2 had has
+  local root=$1 base=$2 had has path
   local -a before after
   read -r -a before <<<"$3"
   read -r -a after <<<"$4"
-  had=$(place:delivered "${root}" "${base}" "${before[@]}" | cut -f 1) || return 1
-  has=$(place:delivered "${root}" "${base}" "${after[@]}" | cut -f 1) || return 1
-  LC_ALL=C comm -13 <(printf '%s' "${had}${had:+$'\n'}") <(printf '%s' "${has}${has:+$'\n'}")
+  place:delivered "${root}" "${base}" "${before[@]}" >/dev/null || return 1
+  place:delivered "${root}" "${base}" "${after[@]}" >/dev/null || return 1
+  place:key had "${root}" "${base}" "${before[@]}"
+  place:key has "${root}" "${base}" "${after[@]}"
+  while IFS=$'\t' read -r path _
+  do
+    [[ -z "${path}" || -n "${place_source[${had}${path}]+x}" ]] || printf '%s\n' "${path}"
+  done <<<"${place_delivered[${has}]}"
 }
 
 # place:merged <path> succeeds for a destination that is merged by key instead of copied: a .json settings
@@ -88,10 +145,11 @@ place:merged() { [[ "$1" == *.json && "$1" != *.schema.json ]]; }
 # modules/jq/merge.jq as merge::. It creates the file, as {}, when it is missing. A file jq cannot read, such as one
 # with comments, is named, left as it was, and fails.
 place:json-write() {
-  local path filter=$2
+  local path filter=$2 dir=.
   path=$(release:target "$1")
   shift 2
-  mkdir -p "$(dirname "${path}")"
+  [[ "${path}" != */* ]] || dir=${path%/*}
+  [[ -d "${dir:-/}" ]] || mkdir -p "${dir}"
   [[ -f "${path}" ]] || printf '{}\n' > "${path}"
   if ! file:replace "${path}" jq -L "${kit_jq}" --indent 2 "import \"merge\" as merge; ${filter}" "$@" "${path}"
   then
@@ -111,8 +169,9 @@ place:json-holds() {
 # writes the region for a region source, brings a materialized path under .kit/ to its state (materialize:owned), and
 # otherwise copies the file, keeping the source's mode.
 place:content() {
-  local src=$1 path=$2 base=${3:-/dev/null}
-  case "$(place:kind "${src}" "${path}")" in
+  local src=$1 path=$2 base=${3:-/dev/null} kind
+  place:kind "${src}" "${path}" kind
+  case "${kind}" in
     (merge)
       place:json-write "${path}" 'merge::apply(.; $base[0]; $new[0])' --slurpfile new "${src}" --slurpfile base "${base}"
       ;;
@@ -132,20 +191,27 @@ place:content() {
 # place:installed <source> <path> prints the repository's copy of the release's content at <path>: the file,
 # or the region's content. It prints nothing and fails when there is none.
 place:installed() {
-  local src=$1 path=$2
-  case "$(place:kind "${src}" "${path}")" in
+  local src=$1 path=$2 kind
+  place:kind "${src}" "${path}" kind
+  case "${kind}" in
     (region) region:read "${path}" ;;
     (*) [[ -f "${path}" ]] && cat "${path}" ;;
   esac
 }
 
 # place:holds <source> <path> succeeds when the repository has the release's content at <path>: the same file,
-# every merged entry, or the same region.
+# every merged entry, or the same region. A file that is not there holds only an empty source.
 place:holds() {
-  local src=$1 path=$2
-  case "$(place:kind "${src}" "${path}")" in
+  local src=$1 path=$2 kind
+  place:kind "${src}" "${path}" kind
+  case "${kind}" in
     (merge) [[ -f "${path}" ]] && place:json-holds "${path}" "${src}" ;;
-    (*) cmp --silent "${src}" <(place:installed "${src}" "${path}") ;;
+    (region) cmp --silent "${src}" <(region:read "${path}") ;;
+    (*)
+      if [[ -f "${path}" ]]
+      then cmp --silent "${src}" "${path}"
+      else [[ -e "${src}" && ! -s "${src}" ]]
+      fi
   esac
 }
 
@@ -160,7 +226,7 @@ place:holds() {
 # regenerated. A different file fails, and is named and left as it is.
 place:new() {
   local src=$1 path=$2 label=${3:-} kind
-  kind=$(place:kind "${src}" "${path}")
+  place:kind "${src}" "${path}" kind
   if [[ -e "${path}" && ! -f "${path}" ]]
   then
     error "${path}: a directory, or something that is not a file, is there; move it aside"
@@ -192,15 +258,19 @@ declare -ga place_placed=()
 # place:all <root> <base> <package>… places every path the packages deliver under the base. A path where a
 # different file exists fails. It returns the number of failures, or 1 when the delivered paths cannot be read.
 place:all() {
-  local root=$1 base=$2 path src refused=0 row
+  local root=$1 base=$2 key root_of row path src refused=0
   local -a rows
   shift 2
-  list:read rows place:delivered "${root}" "${base}" "$@" || return 1
+  place:delivered "${root}" "${base}" "$@" >/dev/null || return 1
+  place:key key "${root}" "${base}" "$@"
+  # release:dest joins the base's root and the path, so the root is read once, as the empty path's destination.
+  root_of=$(release:dest "${base}" '') || return 1
+  readarray -t rows <<<"${place_delivered[${key}]}"
   for row in "${rows[@]}"
   do
     IFS=$'\t' read -r path src <<<"${row}"
     [[ -n "${path}" ]] || continue
-    place:new "${src}" "$(release:dest "${base}" "${path}")" || refused=$(( refused + 1 ))
+    place:new "${src}" "${root_of}${path}" || refused=$(( refused + 1 ))
   done
   return "${refused}"
 }
@@ -210,8 +280,9 @@ place:all() {
 # left as it is, and nothing is said of it. It fails when it cannot take the content out, as for a region whose
 # markers region:has refuses, and the file is left as it is.
 place:remove() {
-  local src=$1 path=$2 status=0
-  case "$(place:kind "${src}" "${path}")" in
+  local src=$1 path=$2 status=0 kind
+  place:kind "${src}" "${path}" kind
+  case "${kind}" in
     (merge)
       [[ -f "${path}" ]] || return 0
       step "${path}: the kit's entries taken out"
@@ -238,10 +309,11 @@ place:remove() {
 # differs from the release's <source>, which means the repository edited it since the kit placed it. A path under
 # .kit/ is the kit's own, so it is never edited.
 place:edited() {
-  local base=$1 path=$2 src=$3 dest
+  local base=$1 path=$2 src=$3 dest kind
   dest=$(release:dest "${base}" "${path}")
   [[ -e "${dest}" || -L "${dest}" ]] || return 1
-  [[ "$(place:kind "${src}" "${dest}")" == copy ]] || return 1
+  place:kind "${src}" "${dest}" kind
+  [[ "${kind}" == copy ]] || return 1
   ! materialize:owned "${base}" "${path}" || return 1
   ! cmp --silent "${src}" "${dest}"
 }
@@ -251,18 +323,31 @@ place:edited() {
 # before it takes anything out. region:has names each file it refuses. It prints how many it refuses, and fails,
 # printing nothing, when the paths the release delivers cannot be read.
 place:refusals() {
-  local base=$1 path src dest status refused=0 delivered
+  local base=$1 key root_of line row path src kind dest status refused=0
+  local -a lines rows
+  local -A wanted=()
   shift
-  # The release's list is read before the loop, whose input loses its status, so a list that cannot be read fails.
-  delivered=$(place:delivered "${kit_root}" "${base}" "$@") || return 1
-  while IFS=$'\t' read -r path src
+  place:delivered "${kit_root}" "${base}" "$@" >/dev/null || return 1
+  place:key key "${kit_root}" "${base}" "$@"
+  readarray -t lines
+  for line in "${lines[@]}"
   do
-    [[ "$(place:kind "${src}" "${path}")" == region ]] || continue
-    dest=$(release:dest "${base}" "${path}")
+    [[ -z "${line}" ]] || wanted[${line}]=1
+  done
+  # release:dest joins the base's root and the path, so the root is read once, as the empty path's destination.
+  root_of=$(release:dest "${base}" '') || return 1
+  readarray -t rows <<<"${place_delivered[${key}]}"
+  for row in "${rows[@]}"
+  do
+    IFS=$'\t' read -r path src <<<"${row}"
+    [[ -n "${path}" && -n "${wanted[${path}]+x}" ]] || continue
+    place:kind "${src}" "${path}" kind
+    [[ "${kind}" == region ]] || continue
+    dest=${root_of}${path}
     status=0
     region:has "${dest}" "$(release:target "${dest}")" || status=$?
     (( status != 2 )) || refused=$(( refused + 1 ))
-  done < <(awk -F '\t' 'NR == FNR { wanted[$0]; next } $1 in wanted' - <(printf '%s' "${delivered}${delivered:+$'\n'}"))
+  done
   printf '%s\n' "${refused}"
 }
 
@@ -279,28 +364,35 @@ place:refusals() {
 # these packages, and nothing without the base release. It fails, and touches nothing, when the manifest or a
 # release's paths cannot be read.
 place:retire() {
-  local base_root=$1 base=$2 previous=$3 current=$4 path dest previous_src candidates recorded delivered
+  local base_root=$1 base=$2 previous=$3 current=$4 path dest previous_src recorded now was='' root_of
+  local -a paths candidates=()
   shift 4
-  # Each list is read before comm compares them, since comm cannot see a list's status: one that cannot be read
-  # would make every recorded path a candidate.
+  # Each list is read before any path is touched, so one that cannot be read touches nothing.
   recorded=$(manifest:paths "${base}" | LC_ALL=C sort) || return 1
-  delivered=$(place:delivered "${kit_root}" "${base}" "$@" | cut -f 1 | LC_ALL=C sort) || return 1
-  candidates=$(LC_ALL=C comm -23 <(printf '%s' "${recorded}${recorded:+$'\n'}") \
-    <(printf '%s' "${delivered}${delivered:+$'\n'}"))
-  if [[ "${base}" != repo ]]
+  place:delivered "${kit_root}" "${base}" "$@" >/dev/null || return 1
+  place:key now "${kit_root}" "${base}" "$@"
+  [[ "${base}" == repo || -n "${base_root}" ]] || return 0
+  if [[ -n "${base_root}" ]]
   then
-    [[ -n "${base_root}" ]] || return 0
-    delivered=$(place:delivered "${base_root}" "${base}" "$@" | cut -f 1 | LC_ALL=C sort) || return 1
-    candidates=$(LC_ALL=C comm -12 <(printf '%s' "${candidates}${candidates:+$'\n'}") \
-      <(printf '%s' "${delivered}${delivered:+$'\n'}"))
+    place:delivered "${base_root}" "${base}" "$@" >/dev/null || return 1
+    place:key was "${base_root}" "${base}" "$@"
   fi
-  while IFS= read -r path
+  readarray -t paths <<<"${recorded}"
+  for path in "${paths[@]}"
   do
-    [[ -n "${path}" ]] || continue
-    dest=$(release:dest "${base}" "${path}")
+    [[ -n "${path}" && -z "${place_source[${now}${path}]+x}" ]] || continue
+    # Under home, a candidate is a path the previous release delivered for these packages.
+    [[ "${base}" == repo || -n "${place_source[${was}${path}]+x}" ]] || continue
+    candidates+=("${path}")
+  done
+  # release:dest joins the base's root and the path, so the root is read once, as the empty path's destination.
+  root_of=$(release:dest "${base}" '') || return 1
+  for path in "${candidates[@]}"
+  do
+    dest=${root_of}${path}
     [[ -e "${dest}" ]] || continue
     previous_src=""
-    [[ -n "${base_root}" ]] && previous_src=$(place:source-of "${base_root}" "${base}" "${path}" "$@")
+    [[ -z "${was}" ]] || previous_src=${place_source[${was}${path}]:-}
     if place:merged "${dest}"
     then
       if [[ -n "${previous_src}" ]]
@@ -323,7 +415,7 @@ place:retire() {
     else
       warn "${dest}: retired in ${current}, but edited since ${previous}; it is left as it was"
     fi
-  done <<<"${candidates}"
+  done
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

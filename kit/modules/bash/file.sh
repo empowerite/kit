@@ -23,6 +23,8 @@ declare -ag file_scratch=() file_at_exit=() file_partial=()
 declare -g file_trapped=''
 # file_temp_dir is the scratch directory file:temp makes its files in, and file_temp_pid the shell that made it.
 declare -g file_temp_dir='' file_temp_pid=''
+# file_umask is the shell's umask as file:copy found it, read once: umask prints it, so reading it starts a process.
+declare -g file_umask=''
 
 # file:scratch <name> makes a fresh directory under TMPDIR and puts its path in the variable <name>, registered for
 # file:sweep to remove at exit. The first call installs the one EXIT trap. It assigns rather than prints: a command
@@ -60,14 +62,18 @@ file:at-exit() {
 
 # file:trap installs file:sweep as this shell's EXIT trap, once per shell. An EXIT trap set before it, by a verb for
 # a cleanup of its own, is kept: its command is the first the sweep runs. trap -p prints the trap quoted for the
-# shell, as "trap -- '<command>' EXIT", so the shell reads it back as words.
+# shell, as "trap -- '<command>' EXIT", so the shell reads it back as words. In POSIX mode, as under POSIXLY_CORRECT,
+# bash prints "trap -- - EXIT" for no trap at all, and - is no command to run.
 file:trap() {
   local -a previous=()
   [[ "${file_trapped}" != "${BASHPID}" ]] || return 0
   [[ -z "${file_trapped}" ]] || file_scratch=() file_at_exit=() file_partial=()
   file_trapped=${BASHPID}
   eval "previous=($(trap -p EXIT))"
-  [[ -z "${previous[2]:-}" || "${previous[2]}" == file:sweep ]] || file_at_exit+=("${previous[2]}")
+  case "${previous[2]:-}" in
+    ('' | - | file:sweep) ;;
+    (*) file_at_exit+=("${previous[2]}")
+  esac
   trap file:sweep EXIT
 }
 
@@ -86,14 +92,26 @@ file:sweep() {
 
 # file:partial <name> <path> puts in the variable <name> the temporary a write of <path> uses in this process, and
 # registers it for the sweep. A read-only temporary of the old fixed name, which an interrupted run of an older kit
-# left, is removed, as it would otherwise stay beside the path. It assigns rather than prints, as file:scratch does,
-# so the registration happens in the shell that writes.
+# left, is removed, as it would otherwise stay beside the path; rm runs only when there is one to remove. It assigns
+# rather than prints, as file:scratch does, so the registration happens in the shell that writes.
 file:partial() {
-  local made=$2.kit-new.${BASHPID}
+  local made=$2.kit-new.${BASHPID} left
   file:trap
-  rm -f "$2.kit-new" "${made}"
+  for left in "$2.kit-new" "${made}"
+  do
+    [[ ! -e "${left}" && ! -L "${left}" ]] || rm -f "${left}"
+  done
   file_partial+=("${made}")
   printf -v "$1" '%s' "${made}"
+}
+
+# file:parent <path> makes the directory <path> is in, as mkdir -p "$(dirname <path>)" does, and starts no process
+# when it is there already.
+file:parent() {
+  local dir=.
+  [[ "$1" != */* ]] || dir=${1%/*}
+  [[ -n "${dir}" ]] || dir=/
+  [[ -d "${dir}" ]] || mkdir -p "${dir}"
 }
 
 # file:replace [--read-only] <path> <command> [<argument>…] runs the command with its stdout to <path>.kit-new, and
@@ -109,7 +127,7 @@ file:replace() {
   fi
   path=$1
   shift
-  mkdir -p "$(dirname "${path}")" || return 1
+  file:parent "${path}" || return 1
   file:partial partial "${path}"
   # The copy carries the mode; the redirection below replaces the content.
   [[ ! -f "${path}" ]] || { cp -p "${path}" "${partial}" && chmod u+w "${partial}"; } || return 1
@@ -124,33 +142,62 @@ file:replace() {
 }
 
 # file:copy [--read-only] <source> <path> copies the source over <path> the same way, keeping the source's mode, or
-# with the write bit taken off.
+# with the write bit taken off. cp makes the temporary with the source's mode less the umask, so the write bit comes
+# off by a umask with the write bits added, for the cp alone, rather than by a chmod after it.
 file:copy() {
-  local strip_write=false src path partial status=0
+  local strip_write=false src path partial status=0 mask
   if [[ "$1" == --read-only ]]
   then
     strip_write=true
     shift
   fi
   src=$1 path=$2
-  mkdir -p "$(dirname "${path}")" || return 1
+  file:parent "${path}" || return 1
   file:partial partial "${path}"
+  if [[ "${strip_write}" == true ]]
+  then
+    [[ -n "${file_umask}" ]] || file_umask=$(umask)
+    printf -v mask '%04o' "$(( 8#${file_umask} | 8#222 ))"
+    umask "${mask}"
+  fi
   cp "${src}" "${partial}" || status=$?
+  [[ "${strip_write}" == false ]] || umask "${file_umask}"
   if (( status != 0 ))
   then
     rm -f "${partial}"
     return "${status}"
   fi
-  [[ "${strip_write}" == false ]] || chmod a-w "${partial}"
   mv -f "${partial}" "${path}"
 }
 
 # file:digest [<path>] prints the sha256 of the file, or of stdin without a path, as 64 hex characters, using
 # sha256sum or shasum, whichever the machine has.
 file:digest() {
+  local line
+  line=$(file:sums "$@") || return 1
+  printf '%s\n' "${line%% *}"
+}
+
+# file:digests <array> <path>… fills the named array with the sha256 of each file, in the order given, from one
+# sha256sum or shasum for all of them. Either one marks a line whose file name it escaped with a leading backslash,
+# which is taken off. It returns 1, the array empty, when a file cannot be read, or the lines are not one per file.
+file:digests() {
+  local -n file_digests_out=$1
+  local -a file_digests_lines=()
+  shift
+  file_digests_out=()
+  (( $# > 0 )) || return 0
+  list:read file_digests_lines file:sums -- "$@" || return 1
+  file_digests_lines=("${file_digests_lines[@]#\\}")
+  file_digests_out=("${file_digests_lines[@]%% *}")
+  (( ${#file_digests_out[@]} == $# )) || { file_digests_out=(); return 1; }
+}
+
+# file:sums [<argument>…] runs sha256sum, or shasum -a 256, whichever the machine has, with the arguments.
+file:sums() {
   if command -v sha256sum >/dev/null 2>&1
-  then sha256sum "$@" | cut -d ' ' -f 1
-  else shasum -a 256 "$@" | cut -d ' ' -f 1
+  then sha256sum "$@"
+  else shasum -a 256 "$@"
   fi
 }
 

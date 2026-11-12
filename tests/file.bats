@@ -154,3 +154,16 @@ EOF
   run grep -l 'mktemp' "${kit_root}"/bin/kit* "${kit_root}"/modules/bash/*.sh "${kit_root}"/modules/bash/*/*.sh
   [ "$output" = "${kit_root}/modules/bash/file.sh" ]
 }
+
+@test "file:trap keeps no earlier trap where there is none, in POSIX mode too, where trap -p prints - for it" {
+  run env POSIXLY_CORRECT=1 bash -c 'source "${kit_root}/modules/bash/1st.sh" && use file && file:trap &&
+    printf "%s\n" "${#file_at_exit[@]}"'
+  [ "$status" -eq 0 ]
+  [ "$output" = 0 ]
+}
+
+@test "a verb runs outside POSIX mode, so a module's <verb>:choices is found under POSIXLY_CORRECT" {
+  run env POSIXLY_CORRECT=1 "${kit_root}/bin/kit" syntax packages --choices '<package>' -- --kind select
+  [ "$status" -eq 0 ]
+  [ "$output" = set ]
+}

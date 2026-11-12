@@ -55,9 +55,11 @@ manifest:kept-text() {
 
 # manifest:text <base> <excluded> <delivered> <package>… prints a manifest: its header; under home, the
 # version, the packages, and the excludes; and one record per "<path>\t<source>" line of <delivered>, the source's
-# digest and the path.
+# digest and the path. The sources are digested together, by one process. It returns 1, having printed the header
+# alone, when a source cannot be read.
 manifest:text() {
-  local base=$1 excluded=$2 delivered=$3 path src
+  local base=$1 excluded=$2 delivered=$3 path src row i
+  local -a rows paths=() srcs=() digests
   shift 3
   printf '# .kit/manifest - written by kit, not by hand\n'
   if [[ "${base}" != repo ]]
@@ -70,14 +72,19 @@ manifest:text() {
     fi
     [[ -z "${excluded}" ]] || printf 'excludes %s\n' "${excluded}"
   fi
-  while IFS=$'\t' read -r path src
+  readarray -t rows <<<"${delivered}"
+  for row in "${rows[@]}"
   do
-    # Use if, not &&: as the last command in the loop body, a false && list would end the script under errexit.
-    if [[ -n "${path}" ]]
-    then
-      printf '%s  %s\n' "$(file:digest < "${src}")" "${path}"
-    fi
-  done <<<"${delivered}"
+    IFS=$'\t' read -r path src <<<"${row}"
+    [[ -n "${path}" ]] || continue
+    paths+=("${path}")
+    srcs+=("${src}")
+  done
+  file:digests digests "${srcs[@]}" || return 1
+  for i in "${!paths[@]}"
+  do
+    printf '%s  %s\n' "${digests[i]}" "${paths[i]}"
+  done
 }
 
 # manifest:write-all <excluded> <package>… writes every base's manifest, then the repository's declaration in
@@ -113,10 +120,28 @@ manifest:paths() {
 
 # manifest:recorded <base> <path> prints the digest the base's manifest records for <path>, or nothing.
 manifest:recorded() {
-  local manifest
-  manifest=$(manifest:path "$1")
-  [[ -f "${manifest}" ]] || return 0
-  awk -v p="$2" 'length($1) == 64 && substr($0, 67) == p { print $1 }' "${manifest}"
+  local -A records
+  manifest:records records "$1" || return 1
+  [[ -z "${records[$2]+x}" ]] || printf '%s\n' "${records[$2]}"
+}
+
+# manifest:records <map> <base> fills the named associative array with the base's manifest, path to digest, read
+# in this shell, so a caller that asks about every path reads the file once and starts no process for each. A record
+# line is 64 hex characters, two spaces, and the path, as manifest:paths reads it; a missing manifest records nothing.
+# A path recorded twice maps to both digests, a line each, as the manifest has them.
+manifest:records() {
+  local -n manifest_records_out=$1
+  local manifest_records_file manifest_records_line manifest_records_path
+  manifest_records_out=()
+  manifest_records_file=$(manifest:path "$2")
+  [[ -f "${manifest_records_file}" ]] || return 0
+  while IFS= read -r manifest_records_line || [[ -n "${manifest_records_line}" ]]
+  do
+    [[ "${manifest_records_line}" =~ ^[0-9a-f]{64}'  '. ]] || continue
+    manifest_records_path=${manifest_records_line:66}
+    manifest_records_out["${manifest_records_path}"]+=${manifest_records_out["${manifest_records_path}"]+$'\n'}
+    manifest_records_out["${manifest_records_path}"]+=${manifest_records_line:0:64}
+  done < "${manifest_records_file}"
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

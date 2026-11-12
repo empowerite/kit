@@ -292,12 +292,12 @@ package:wanted-by() {
   local -a depends members
   for other in "$@"
   do
-    list:read depends resolve:depends "${kit_root}" "${other}" || return 1
+    resolve:field depends "${kit_root}" "${other}" depends || return 1
     for package in "${depends[@]}"
     do
       depended_on[${package}]+=" ${other}"
     done
-    list:read members resolve:includes "${kit_root}" "${other}" || return 1
+    resolve:field members "${kit_root}" "${other}" includes || return 1
     for package in "${members[@]}"
     do
       included_by[${package}]+=" ${other}"

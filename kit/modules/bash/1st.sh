@@ -37,13 +37,16 @@ export kit_root kit_jq
 declare -Ag kit_modules=([1st]=1)
 declare -ag kit_bash_path=()
 
-# kit:enter [--any-clone] starts a verb's process: it exports the directory the command was typed in as
+# kit:enter [--any-clone] starts a verb's process: it turns POSIX mode off, which POSIXLY_CORRECT, or a SHELLOPTS
+# exported by the sh the loader runs in, would turn on, as the kit's modules are bash, each function named
+# <module>:<name>, which declare -F refuses in POSIX mode; it exports the directory the command was typed in as
 # kit_invoked_in, for verbs that take relative paths, refuses a clone you have not trusted, as kit:trust-here says,
 # and changes to the repository root, so every verb reads and writes the same paths wherever it was typed. A
 # repository from a release that kept its settings in .kit/settings.yml has them moved to kit.yml first, before
 # anything reads them. With --any-clone, a verb that runs nothing the clone names, as kit version and kit trust,
 # runs in a clone you have not trusted too, and moves nothing there.
 kit:enter() {
+  set +o posix
   local any_clone=false
   [[ "${1:-}" != --any-clone ]] || any_clone=true
   kit_invoked_in=$(pwd -P)
@@ -481,11 +484,12 @@ out:sgr() {
   return 0
 }
 
-# out:emit <icon> <sgr> <message>… prints one line to stderr.
+# out:emit <icon> <sgr> <message>… prints one line to stderr, painted as out:sgr paints, and forks nothing.
 out:emit() {
-  local icon=$1 sgr=$2
+  local icon=$1 on='' off=''
+  (( out_color )) && on=$'\x1b['$2m off=$'\x1b[0m'
   shift 2
-  printf '%s%s %s%s\n' "$(out:sgr "${sgr}")" "${icon}" "$*" "$(out:sgr 0)" >&2
+  printf '%s%s %s%s\n' "${on}" "${icon}" "$*" "${off}" >&2
 }
 
 info()    { out:emit '•' '' "$@"; }

@@ -14,12 +14,23 @@ use yaml file resolve
 # empty for kit.yml on the disk.
 declare -g settings_file=''
 
-# settings:file prints the path of the repository's settings file: kit.yml, or the judged tree's while the policy
-# judges.
-settings:file() { printf '%s\n' "${settings_file:-kit.yml}"; }
+# settings:file [<name>] prints the path of the repository's settings file: kit.yml, or the judged tree's while the
+# policy judges. With a name, it sets that variable to the path instead, and forks nothing.
+settings:file() {
+  if (( $# ))
+  then
+    printf -v "$1" '%s' "${settings_file:-kit.yml}"
+  else
+    printf '%s\n' "${settings_file:-kit.yml}"
+  fi
+}
 
 # settings:value <key> prints the value of one top-level setting, or nothing.
-settings:value() { yaml:value "$(settings:file)" "$1"; }
+settings:value() {
+  local settings
+  settings:file settings
+  yaml:value "${settings}" "$1"
+}
 
 # settings:validate fails on a settings file that the schema rejects, as far as bash can check:
 #
@@ -34,10 +45,11 @@ settings:value() { yaml:value "$(settings:file)" "$1"; }
 # schema so an editor can validate against it anywhere.
 settings:validate() {
   local settings key value doc row
-  local -a rows
-  settings=$(settings:file)
+  local -a rows keys
+  settings:file settings
   [[ -f "${settings}" ]] || return 0
-  for key in $(yaml:keys "${settings}")
+  yaml:lines keys keys "${settings}" || return 1
+  for key in "${keys[@]}"
   do
     case "${key}" in
       (version | packages | excludes) ;;
@@ -52,19 +64,19 @@ settings:validate() {
         return 1
     esac
   done
-  value=$(yaml:value "${settings}" require_signing)
+  yaml:get value value "${settings}" require_signing
   if [[ -n "${value}" && "${value}" != true && "${value}" != false ]]
   then
     error "${settings}: require_signing must be true or false, not '${value}'"
     return 1
   fi
-  value=$(yaml:value "${settings}" log_days)
+  yaml:get value value "${settings}" log_days
   if [[ -n "${value}" && ! "${value}" =~ ^[0-9]+$ ]]
   then
     error "${settings}: log_days must be a whole number of days, 0 for no logs, not '${value}'"
     return 1
   fi
-  doc=$(yaml:json "${settings}") || return 1
+  yaml:get doc json "${settings}" || return 1
   list:read rows jq --raw-output '.facts | if type == "object" then keys[] else empty end' <<<"${doc}" || return 1
   for key in "${rows[@]}"
   do
@@ -72,7 +84,7 @@ settings:validate() {
     error "${settings}: facts has a key the kit does not know: ${key}; the only one is read, a list of globs"
     return 1
   done
-  list:read rows yaml:map "${settings}" answers || return 1
+  yaml:lines rows map "${settings}" answers || return 1
   for row in "${rows[@]}"
   do
     IFS=$'\t' read -r key value <<<"${row}"
@@ -80,13 +92,13 @@ settings:validate() {
     error "${settings}: the answer key '${key}' is not letters and underscores, as a template's @key@ must be"
     return 1
   done
-  value=$(yaml:value "${settings}" linked_exempt)
+  yaml:get value value "${settings}" linked_exempt
   if [[ -n "${value}" ]]
   then
     error "${settings}: linked_exempt must be a list of logins, one per line under it, not '${value}'"
     return 1
   fi
-  list:read rows yaml:records "${settings}" trackers prefix provider || return 1
+  yaml:lines rows records "${settings}" trackers prefix provider || return 1
   for row in "${rows[@]}"
   do
     IFS=$'\x1f' read -r key value <<<"${row}"
@@ -102,7 +114,10 @@ settings:validate() {
 # settings:context <root> <package> prints "<key>\t<value>" for every key a template or region of the package can
 # use: settings:answers' rows for the package's package.yml and the settings file.
 settings:context() {
-  settings:answers "$(resolve:meta "$1" "$2")" "$(settings:file)"
+  local meta settings
+  meta=$(resolve:meta "$1" "$2") || return 1
+  settings:file settings
+  settings:answers "${meta}" "${settings}"
 }
 
 # settings:answers <meta> <settings> prints "<key>\t<value>" for every key a template or region of the package whose
@@ -112,37 +127,49 @@ settings:context() {
 #   2. <settings>: each top-level scalar as <key>, each map entry as <map>.<name>, and each entry of the
 #      answers map also as <name>
 #
-# A later source overrides an earlier one, so the repository's answer wins over the package's default. It returns 1
-# when a map cannot be read.
+# A later source overrides an earlier one, so the repository's answer wins over the package's default. Each row is
+# taken as a line of "<key>\t<value>", so a value is cut at a tab, and each further line of a value that has more is a
+# row of its own, keyed by its text up to a tab. The rows come in the order their keys first came. It returns 1 when
+# a map cannot be read; all of it is read in this shell, so it forks nothing.
 settings:answers() {
-  local meta=$1 settings=$2 key name value row
-  local -a rows
-  {
-    list:read rows yaml:map "${meta}" answers || exit 1
+  local meta=$1 settings=$2 text='' key name value row line slot
+  local -a rows keys order=()
+  local -A answer=()
+  yaml:lines rows map "${meta}" answers || return 1
+  for row in "${rows[@]}"
+  do
+    IFS=$'\t' read -r name value <<<"${row}"
+    [[ -n "${name}" ]] || continue
+    text+=${name}$'\t'${value}$'\n'answers.${name}$'\t'${value}$'\n'
+  done
+  yaml:lines keys keys "${settings}" || return 1
+  for key in "${keys[@]}"
+  do
+    yaml:get value value "${settings}" "${key}"
+    [[ -z "${value}" ]] || text+=${key}$'\t'${value}$'\n'
+    yaml:lines rows map "${settings}" "${key}" || return 1
     for row in "${rows[@]}"
     do
       IFS=$'\t' read -r name value <<<"${row}"
       [[ -n "${name}" ]] || continue
-      printf '%s\t%s\n%s\t%s\n' "${name}" "${value}" "answers.${name}" "${value}"
+      text+=${key}.${name}$'\t'${value}$'\n'
+      [[ "${key}" != answers ]] || text+=${name}$'\t'${value}$'\n'
     done
-    for key in $(yaml:keys "${settings}")
-    do
-      value=$(yaml:value "${settings}" "${key}")
-      [[ -n "${value}" ]] && printf '%s\t%s\n' "${key}" "${value}"
-      list:read rows yaml:map "${settings}" "${key}" || exit 1
-      for row in "${rows[@]}"
-      do
-        IFS=$'\t' read -r name value <<<"${row}"
-        [[ -n "${name}" ]] || continue
-        printf '%s\t%s\n' "${key}.${name}" "${value}"
-        # an if, not &&: the last row of the last map would otherwise end the group, and the pipe, with status 1
-        if [[ "${key}" == answers ]]
-        then
-          printf '%s\t%s\n' "${name}" "${value}"
-        fi
-      done
-    done
-  } | awk -F '\t' '{ a[$1] = $2 } END { for (k in a) print k "\t" a[k] }'
+  done
+  [[ -n "${text}" ]] || return 0
+  # Each key is held under a slot, _<key>, as a line with no text before its tab has the empty key.
+  while IFS= read -r line
+  do
+    key=${line%%$'\t'*} value=''
+    [[ "${line}" != *$'\t'* ]] || value=${line#*$'\t'}
+    slot=_${key}
+    [[ -n "${answer[${slot}]+x}" ]] || order+=("${key}")
+    answer[${slot}]=${value%%$'\t'*}
+  done <<<"${text%$'\n'}"
+  for key in "${order[@]}"
+  do
+    printf '%s\t%s\n' "${key}" "${answer[_${key}]}"
+  done
 }
 
 # settings:declare <version> <excluded> <package>… writes the repository's declaration into kit.yml: the
@@ -154,7 +181,7 @@ settings:declare() {
   local version=$1 excluded=$2 settings kept declaration item
   local -a excludes=()
   shift 2
-  settings=$(settings:file)
+  settings:file settings
   if [[ -f "${settings}" ]]
   then
     # A marker, \001, takes the first block's place. Command substitution drops the trailing blank lines.
@@ -164,22 +191,19 @@ settings:declare() {
     kept='# yaml-language-server: $schema=.kit/kit.schema.json'
   fi
   [[ -z "${excluded}" ]] || read -r -a excludes <<<"${excluded}"
-  declaration=$(
-    printf 'version: %s\n' "${version}"
-    printf 'packages:\n'
-    for item in "$@"
+  declaration="version: ${version}"$'\n'packages:
+  for item in "$@"
+  do
+    declaration+=$'\n'"  - ${item}"
+  done
+  if (( ${#excludes[@]} > 0 ))
+  then
+    declaration+=$'\n'excludes:
+    for item in "${excludes[@]}"
     do
-      printf '  - %s\n' "${item}"
+      declaration+=$'\n'"  - ${item}"
     done
-    if (( ${#excludes[@]} > 0 ))
-    then
-      printf 'excludes:\n'
-      for item in "${excludes[@]}"
-      do
-        printf '  - %s\n' "${item}"
-      done
-    fi
-  )
+  fi
   file:replace "${settings}" settings:declaration-text "${kept}" "${declaration}"
 }
 
@@ -216,23 +240,33 @@ settings:declaration-text() {
   fi
 }
 
-# settings:version prints the kit version the repository declares in kit.yml. A manifest that
+# settings:version [<name>] prints the kit version the repository declares in kit.yml. A manifest that
 # still carries a version line, from a release before the declaration, is read as the declaration until kit update
 # moves it, and so are its packages and excludes lines below. A kit.yml that is absent, or declares no version,
-# declares no kit, and it prints nothing; it returns 1, after yq's line, when kit.yml cannot be read.
+# declares no kit, and it prints nothing; it returns 1, after yq's line, when kit.yml cannot be read. With a name, it
+# sets that variable to the version instead, and forks nothing where kit.yml declares one; its own variables start
+# settings_version_, so the name does not.
 settings:version() {
-  local version
-  version=$(settings:value version) || return 1
-  [[ -n "${version}" ]] || version=$(sed -n 's/^version //p' .kit/manifest 2>/dev/null)
-  printf '%s\n' "${version}"
+  local settings_version_found settings_version_file
+  settings:file settings_version_file
+  yaml:get settings_version_found value "${settings_version_file}" version || return 1
+  [[ -n "${settings_version_found}" ]] \
+    || settings_version_found=$(sed -n 's/^version //p' .kit/manifest 2>/dev/null)
+  if (( $# ))
+  then
+    printf -v "$1" '%s' "${settings_version_found}"
+  else
+    printf '%s\n' "${settings_version_found}"
+  fi
 }
 
 # settings:declared-line <key> prints the items of an old manifest's <key> line, one per line, where kit.yml
 # declares no version. Where there is no manifest either, nothing is declared, and it prints nothing. It returns 1
 # when kit.yml, or the manifest that is there, cannot be read.
 settings:declared-line() {
-  local version
-  version=$(settings:value version) || return 1
+  local version settings
+  settings:file settings
+  yaml:get version value "${settings}" version || return 1
   [[ -z "${version}" ]] || return 0
   [[ -e .kit/manifest ]] || return 0
   sed -n "s/^$1 *//p" .kit/manifest | tr ' ' '\n' | awk 'NF'
@@ -241,10 +275,11 @@ settings:declared-line() {
 # settings:packages prints the active packages the repository declares in kit.yml, one per line. It returns 1 when
 # kit.yml cannot be read.
 settings:packages() {
-  local version
-  version=$(settings:value version) || return 1
+  local version settings
+  settings:file settings
+  yaml:get version value "${settings}" version || return 1
   if [[ -n "${version}" ]]
-  then yaml:list "$(settings:file)" packages
+  then yaml:list "${settings}" packages
   else settings:declared-line packages
   fi
 }
@@ -253,10 +288,11 @@ settings:packages() {
 # line: members of an active bundle that were removed, which kit update leaves out. It returns 1 when kit.yml cannot
 # be read.
 settings:excludes() {
-  local version
-  version=$(settings:value version) || return 1
+  local version settings
+  settings:file settings
+  yaml:get version value "${settings}" version || return 1
   if [[ -n "${version}" ]]
-  then yaml:list "$(settings:file)" excludes
+  then yaml:list "${settings}" excludes
   else settings:declared-line excludes
   fi
 }
@@ -265,7 +301,7 @@ settings:excludes() {
 # declares no kit version. It fails, after yq's line alone, when kit.yml cannot be read.
 settings:require() {
   local version
-  version=$(settings:version) || return 1
+  settings:version version || return 1
   if [[ -z "${version}" ]]
   then
     error "run: kit install (kit.yml declares no kit version in this repository)"
@@ -283,12 +319,12 @@ declare -gra settings_stages=(issues desk worktrees changes builds incoming rele
 settings:stages() {
   local settings type value stage
   local -a stages=() seen=()
-  settings=$(settings:file)
-  type=$(yaml:type "${settings}" flow) || return 1
+  settings:file settings
+  yaml:get type type "${settings}" flow || return 1
   case "${type}" in
     ('' | '!!null') stages=("${settings_stages[@]}") ;;
     ('!!seq')
-      list:read stages yaml:list "${settings}" flow || return 1
+      yaml:lines stages list "${settings}" flow || return 1
       if (( ${#stages[@]} == 0 ))
       then
         error "flow in ${settings} names no stage; the stages are: ${settings_stages[*]}"
@@ -296,7 +332,7 @@ settings:stages() {
       fi
       ;;
     (*)
-      value=$(yaml:value "${settings}" flow)
+      yaml:get value value "${settings}" flow
       error "flow in ${settings} must be a list of stages, not '${value:-${type#!!}}'"
       return 1
   esac

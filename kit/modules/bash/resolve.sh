@@ -90,58 +90,143 @@ resolve:roots() {
   resolve_sources_read=true
 }
 
-# resolve:home <root> <package> prints the directory that contains the package: the last source that has it, else
-# <root> when the release has it, else the repository's .kit. The package's files are under
-# <home>/packages/<package>/.
-resolve:home() {
-  local i
-  resolve:roots || return 1
-  for (( i = ${#resolve_source_dirs[@]} - 1; i >= 0; i-- ))
-  do
-    if [[ -f "${resolve_source_dirs[i]}/packages/$2/package.yml" ]]
+# resolve_homes maps "<root>|<package>" to the directory that contains the package, and resolve_fields maps
+# "<root>|<package>|<field>" to what the package's metadata holds for a field, space-separated, and
+# "<root>|<package>|" to 1 once that metadata is read:
+#
+#   keys         its top-level keys
+#   description  1 when it has a description, and nothing when it has none
+#   default      true or false, other for any other value, and nothing when it has none
+#   depends      the packages it depends on
+#   includes     the members it includes
+#
+# resolve:locate and resolve:read fill them once per process: filled in a verb's own shell, as render:all fills them,
+# they answer every subshell under it with no fork. resolve:locate sets resolve_home and resolve_meta for its caller
+# to read.
+declare -gA resolve_homes=() resolve_fields=()
+declare -g resolve_home='' resolve_meta=''
+
+# resolve:locate <root> <package> sets resolve_home to the directory that contains the package, and resolve_meta to
+# the path of its metadata: the last source that has it, else <root> when the release has it, else the repository's
+# .kit. The package's files are under <home>/packages/<package>/. It prints nothing, so a caller asks with no fork.
+resolve:locate() {
+  local memo="$1|$2" i home
+  if [[ -z "${resolve_homes[${memo}]+x}" ]]
+  then
+    resolve:roots || return 1
+    home=$1
+    for (( i = ${#resolve_source_dirs[@]} - 1; i >= 0; i-- ))
+    do
+      if [[ -f "${resolve_source_dirs[i]}/packages/$2/package.yml" ]]
+      then
+        home=${resolve_source_dirs[i]}
+        break
+      fi
+    done
+    if (( i < 0 )) && [[ ! -f "$1/packages/$2/package.yml" && -f "${resolve_local}/packages/$2/package.yml" ]]
     then
-      printf '%s\n' "${resolve_source_dirs[i]}"
-      return 0
+      home=${resolve_local}
     fi
-  done
-  if [[ -f "$1/packages/$2/package.yml" || ! -f "${resolve_local}/packages/$2/package.yml" ]]
-  then printf '%s\n' "$1"
-  else printf '%s\n' "${resolve_local}"
+    resolve_homes[${memo}]=${home}
   fi
+  resolve_home=${resolve_homes[${memo}]}
+  resolve_meta=${resolve_home}/packages/$2/package.yml
+}
+
+# resolve:home <root> <package> prints the directory that contains the package, as resolve:locate finds it.
+resolve:home() {
+  resolve:locate "$1" "$2" || return 1
+  printf '%s\n' "${resolve_home}"
 }
 
 # resolve:origin <root> <package> prints where the package comes from: "release", "repository", or the name of the
 # source it comes from.
 resolve:origin() {
-  local home i
-  resolve:roots || return 1
-  home=$(resolve:home "$1" "$2") || return 1
+  local i
+  resolve:locate "$1" "$2" || return 1
   for i in "${!resolve_source_dirs[@]}"
   do
-    if [[ "${home}" == "${resolve_source_dirs[i]}" ]]
+    if [[ "${resolve_home}" == "${resolve_source_dirs[i]}" ]]
     then
       printf '%s\n' "${resolve_source_names[i]}"
       return 0
     fi
   done
-  if [[ "${home}" == "$1" ]]
+  if [[ "${resolve_home}" == "$1" ]]
   then printf 'release\n'
   else printf 'repository\n'
   fi
 }
 
 # resolve:meta <root> <package> prints the path of the package's metadata.
-resolve:meta() { printf '%s/packages/%s/package.yml\n' "$(resolve:home "$1" "$2")" "$2"; }
+resolve:meta() {
+  resolve:locate "$1" "$2" || return 1
+  printf '%s\n' "${resolve_meta}"
+}
 
 # resolve:description <root> <package> prints the package's one-line description.
-resolve:description() { yaml:value "$(resolve:meta "$1" "$2")" description; }
+resolve:description() {
+  resolve:locate "$1" "$2" || return 1
+  yaml:value "${resolve_meta}" description
+}
+
+# resolve:read <root> <package> reads the package's metadata into resolve_fields, once per process, in one read: each
+# read of a package.yml is a yq process, until the yaml module keeps its result. A read that fails is not kept, so it
+# is tried again, and says why again, the next time it is asked.
+resolve:read() {
+  local memo="$1|$2|" row field
+  local -a rows
+  [[ -z "${resolve_fields[${memo}]+x}" ]] || return 0
+  resolve:locate "$1" "$2" || return 1
+  # Each part is an array, taken apart at the end: yq gives a literal a value even where a select matched nothing.
+  yaml:lines rows eval "${resolve_meta}" fields 'explode(.) | (if kind == "map" then . else {} end)
+    | (keys | map("keys\t" + tostring))
+      + ([.description] | map(select(kind == "scalar" and tag != "!!null")) | map(select(tostring | test("[^\n]")))
+        | map("description\t1"))
+      + ([.default] | map(select(kind == "scalar" and tag != "!!null"))
+        | map(if tostring == "true" or tostring == "false" then "default\t" + tostring else "default\tother" end))
+      + (.depends | (if kind == "seq" then . else [] end) | map(select(kind == "scalar" and tag != "!!null"))
+        | map("depends\t" + tostring))
+      + (.includes | (if kind == "seq" then . else [] end) | map(select(kind == "scalar" and tag != "!!null"))
+        | map("includes\t" + tostring))
+    | .[]' || return 1
+  for field in keys description default depends includes
+  do
+    resolve_fields[${memo}${field}]=''
+  done
+  for row in "${rows[@]}"
+  do
+    field=${row%%$'\t'*}
+    resolve_fields[${memo}${field}]+=${resolve_fields[${memo}${field}]:+ }${row#*$'\t'}
+  done
+  resolve_fields[${memo}]=1
+}
+
+# resolve:field <array> <root> <package> <field> fills the named array with the words resolve_fields holds for the
+# field, reading the package's metadata first when this process has not.
+resolve:field() {
+  local -n resolve_field_into=$1
+  local IFS=$' \t\n'
+  resolve_field_into=()
+  resolve:read "$2" "$3" || return 1
+  # shellcheck disable=SC2034  # the caller reads the array
+  read -r -a resolve_field_into <<<"${resolve_fields[$2|$3|$4]}"
+}
 
 # resolve:depends <root> <package> prints the packages this one depends on, one per line.
-resolve:depends() { yaml:list "$(resolve:meta "$1" "$2")" depends; }
+resolve:depends() {
+  local -a depends
+  resolve:field depends "$1" "$2" depends || return 1
+  (( ${#depends[@]} == 0 )) || printf '%s\n' "${depends[@]}"
+}
 
 # resolve:includes <root> <package> prints the members of this bundle, one per line: packages activated with it, each
 # of which can be removed on its own.
-resolve:includes() { yaml:list "$(resolve:meta "$1" "$2")" includes; }
+resolve:includes() {
+  local -a includes
+  resolve:field includes "$1" "$2" includes || return 1
+  (( ${#includes[@]} == 0 )) || printf '%s\n' "${includes[@]}"
+}
 
 # resolve:defaults <root> prints the packages whose default is true. They are active unless removed.
 resolve:defaults() {
@@ -150,7 +235,9 @@ resolve:defaults() {
   list:read reach resolve:reach "$1" || return 1
   for package in "${reach[@]}"
   do
-    [[ "$(yaml:value "$(resolve:meta "$1" "${package}")" default)" == true ]] && printf '%s\n' "${package}"
+    # A read that fails has said so, and the package is not on by default.
+    resolve:read "$1" "${package}" || continue
+    [[ "${resolve_fields[$1|${package}|default]}" == true ]] && printf '%s\n' "${package}"
   done
   return 0
 }
@@ -161,7 +248,8 @@ resolve:require() {
   shift
   for package in "$@"
   do
-    if [[ ! -f "$(resolve:meta "${root}" "${package}")" ]]
+    resolve:locate "${root}" "${package}" || return 1
+    if [[ ! -f "${resolve_meta}" ]]
     then
       error "'${package}' is not a package in reach; the packages are:" \
         "$(resolve:reach "${root}" | paste -s -d ' ' -)"
@@ -179,18 +267,18 @@ resolve:active() {
   shift 2
   (( $# > 0 )) || return 0
   local -A wanted=() placed=()
-  local -a queue=("$@") names=() order=()
+  local -a queue=("$@") names=() order=() depends includes
+  # A read that fails has said so, and the package stands with no depends or includes, as the others are placed.
   while (( ${#queue[@]} > 0 ))
   do
     package=${queue[0]}
     queue=("${queue[@]:1}")
     [[ -n "${wanted[${package}]:-}" ]] && continue
     wanted[${package}]=1
-    for dep in $(resolve:depends "${root}" "${package}")
-    do
-      queue+=("${dep}")
-    done
-    for dep in $(resolve:includes "${root}" "${package}")
+    resolve:field depends "${root}" "${package}" depends || true  # a read that fails has said so
+    resolve:field includes "${root}" "${package}" includes || true  # a read that fails has said so
+    queue+=("${depends[@]}")
+    for dep in "${includes[@]}"
     do
       # shellcheck disable=SC2086  # the list splits on purpose
       list:among "${dep}" ${excluded} || queue+=("${dep}")
@@ -204,7 +292,9 @@ resolve:active() {
     do
       [[ -n "${placed[${package}]:-}" ]] && continue
       # An excluded member is not waited for.
-      for dep in $(resolve:depends "${root}" "${package}") $(resolve:includes "${root}" "${package}")
+      resolve:field depends "${root}" "${package}" depends || true  # a read that fails has said so
+      resolve:field includes "${root}" "${package}" includes || true  # a read that fails has said so
+      for dep in "${depends[@]}" "${includes[@]}"
       do
         [[ -z "${wanted[${dep}]:-}" || -n "${placed[${dep}]:-}" ]] || continue 2
       done
@@ -227,10 +317,12 @@ resolve:active() {
 # resolve:dependents <root> <package> <active>… prints the active packages that depend on <package>.
 resolve:dependents() {
   local root=$1 package=$2 other dep
+  local -a depends
   shift 2
   for other in "$@"
   do
-    for dep in $(resolve:depends "${root}" "${other}")
+    resolve:field depends "${root}" "${other}" depends || true  # a read that fails has said so
+    for dep in "${depends[@]}"
     do
       [[ "${dep}" == "${package}" ]] && printf '%s\n' "${other}"
     done
@@ -241,10 +333,12 @@ resolve:dependents() {
 # resolve:includers <root> <package> <active>… prints the active packages that include <package>.
 resolve:includers() {
   local root=$1 package=$2 other member
+  local -a includes
   shift 2
   for other in "$@"
   do
-    for member in $(resolve:includes "${root}" "${other}")
+    resolve:field includes "${root}" "${other}" includes || true  # a read that fails has said so
+    for member in "${includes[@]}"
     do
       [[ "${member}" == "${package}" ]] && printf '%s\n' "${other}"
     done
@@ -273,44 +367,50 @@ resolve:exclusions() {
 #
 # The gate validates against packages/package.schema.json in full.
 resolve:validate() {
-  local root=$1 package=$2 meta key value dep
-  meta=$(resolve:meta "${root}" "${package}")
-  for key in $(yaml:keys "${meta}")
+  local root=$1 package=$2 meta key value dep kind
+  local -a words
+  local -A says=([depends]='depends on' [includes]=includes)
+  resolve:locate "${root}" "${package}" || return 1
+  meta=${resolve_meta}
+  resolve:read "${root}" "${package}" || return 1
+  resolve:field words "${root}" "${package}" keys
+  for key in "${words[@]}"
   do
     case "${key}" in
       (description | default | depends | includes | answers | expects | notices) ;;
       (*)
-        error "$(resolve:meta "${root}" "${package}") has a key the kit does not know: ${key}" \
+        error "${meta} has a key the kit does not know: ${key}" \
           "(see packages/package.schema.json)"
         return 1
     esac
   done
-  if [[ -z "$(yaml:value "${meta}" description)" ]]
+  if [[ -z "${resolve_fields[${root}|${package}|description]}" ]]
   then
-    error "$(resolve:meta "${root}" "${package}") has no description"
+    error "${meta} has no description"
     return 1
   fi
-  value=$(yaml:value "${meta}" default)
-  if [[ -n "${value}" && "${value}" != true && "${value}" != false ]]
+  # A default that is neither true nor false is read again, as it is written, to be named.
+  if [[ "${resolve_fields[${root}|${package}|default]}" == other ]]
   then
-    error "$(resolve:meta "${root}" "${package}"): default must be true or false, not '${value}'"
-    return 1
+    value=$(yaml:value "${meta}" default)
+    if [[ -n "${value}" && "${value}" != true && "${value}" != false ]]
+    then
+      error "${meta}: default must be true or false, not '${value}'"
+      return 1
+    fi
   fi
-  for dep in $(resolve:depends "${root}" "${package}")
+  for kind in depends includes
   do
-    if [[ ! -f "$(resolve:meta "${root}" "${dep}")" ]]
-    then
-      error "$(resolve:meta "${root}" "${package}") depends on '${dep}', which is not in reach"
-      return 1
-    fi
-  done
-  for dep in $(resolve:includes "${root}" "${package}")
-  do
-    if [[ ! -f "$(resolve:meta "${root}" "${dep}")" ]]
-    then
-      error "$(resolve:meta "${root}" "${package}") includes '${dep}', which is not in reach"
-      return 1
-    fi
+    resolve:field words "${root}" "${package}" "${kind}"
+    for dep in "${words[@]}"
+    do
+      resolve:locate "${root}" "${dep}" || return 1
+      if [[ ! -f "${resolve_meta}" ]]
+      then
+        error "${meta} ${says[${kind}]} '${dep}', which is not in reach"
+        return 1
+      fi
+    done
   done
 }
 
@@ -322,7 +422,8 @@ resolve:expectations() {
   shift
   for package in "$@"
   do
-    yaml:records "$(resolve:meta "${root}" "${package}")" expects path pattern remedy || return 1
+    resolve:locate "${root}" "${package}" || return 1
+    yaml:records "${resolve_meta}" expects path pattern remedy || return 1
   done
 }
 

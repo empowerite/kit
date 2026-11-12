@@ -26,14 +26,33 @@ use yaml file
 # sources:list [<settings>] prints "<name>\x1f<url>\x1f<digest>" for each source in the settings file, kit.yml by
 # default, in order.
 sources:list() {
-  local settings=${1:-kit.yml}
-  [[ -f "${settings}" ]] || return 0
-  yaml:records "${settings}" sources name url digest
+  local -a rows
+  sources:rows rows "$@" || return 1
+  (( ${#rows[@]} == 0 )) || printf '%s\n' "${rows[@]}"
 }
 
-# sources:cache <digest> prints the directory a source with that digest is unpacked into.
+# sources:rows <array> [<settings>] fills the array with the lines sources:list prints, in this shell, so it forks
+# nothing. It returns 1 when the settings file cannot be read. Its own variable starts sources_rows_, so the name of
+# the array does not.
+sources:rows() {
+  local sources_rows_file=${2:-kit.yml}
+  if [[ ! -f "${sources_rows_file}" ]]
+  then
+    mapfile -t "$1" < /dev/null
+    return 0
+  fi
+  yaml:lines "$1" records "${sources_rows_file}" sources name url digest
+}
+
+# sources:cache <digest> [<name>] prints the directory a source with that digest is unpacked into. With a name, it
+# sets that variable to the directory instead, and forks nothing.
 sources:cache() {
-  printf '%s/kit/sources/%s\n' "${XDG_CACHE_HOME:-${HOME}/.cache}" "${1#sha256:}"
+  if (( $# > 1 ))
+  then
+    printf -v "$2" '%s/kit/sources/%s' "${XDG_CACHE_HOME:-${HOME}/.cache}" "${1#sha256:}"
+  else
+    printf '%s/kit/sources/%s\n' "${XDG_CACHE_HOME:-${HOME}/.cache}" "${1#sha256:}"
+  fi
 }
 
 # sources:tarball <url> prints the address of the tarball a url names: a git: url as its forge's tarball of the tag.
@@ -66,7 +85,7 @@ sources:fetch() {
     error "the source ${name} has no digest: pin it as digest: sha256:<hex> under sources: in kit.yml"
     return 1
   fi
-  cache=$(sources:cache "${digest}")
+  sources:cache "${digest}" cache
   if [[ -d "${cache}" ]]
   then
     printf '%s\n' "${cache}"
@@ -105,7 +124,7 @@ sources:fetch() {
 sources:fetch-all() {
   local name url digest row
   local -a rows
-  list:read rows sources:list "$@" || return 1
+  sources:rows rows "$@" || return 1
   for row in "${rows[@]}"
   do
     IFS=$'\x1f' read -r name url digest <<<"${row}"
@@ -120,12 +139,12 @@ sources:fetch-all() {
 sources:roots() {
   local name url digest cache row
   local -a rows
-  list:read rows sources:list "$@" || return 1
+  sources:rows rows "$@" || return 1
   for row in "${rows[@]}"
   do
     IFS=$'\x1f' read -r name url digest <<<"${row}"
     [[ -n "${name}" ]] || continue
-    cache=$(sources:cache "${digest}")
+    sources:cache "${digest}" cache
     if [[ -d "${cache}/packages" ]]
     then
       printf '%s\t%s\n' "${name}" "${cache}"

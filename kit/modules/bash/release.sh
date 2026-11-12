@@ -161,7 +161,8 @@ release:say-notices() {
   local -a rows
   for package in "$@"
   do
-    list:read rows yaml:records "$(resolve:meta "${kit_root}" "${package}")" notices path text || return 1
+    resolve:locate "${kit_root}" "${package}" || return 1
+    yaml:lines rows records "${resolve_meta}" notices path text || return 1
     for row in "${rows[@]}"
     do
       IFS=$'\x1f' read -r path text <<<"${row}"

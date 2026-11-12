@@ -63,8 +63,8 @@ import "terminal" as terminal; terminal::checks({"docs": "D", "probes": {"color"
 null
 [["terminal-iterm",true,"iTerm2: kit could not read its settings: it took more than a second"],["terminal-probe-color",false,"iTerm2 lacks colors; no setting kit knows explains it"]]
 
-# terminals.json: every key and finding id is free of dashes and unique, and every need is one of the five.
-import "terminal" as terminal; terminal::data | [(.terminals | keys[] | select(test("-"))), (.terminals[] | (.findings // []) | map(.id) | select(length != (unique | length))), (.terminals[].findings[]? | select(.need | IN("speed", "clicks", "keys", "widths", "color") | not) | .id), (.probes[] | select(.need | IN("speed", "clicks", "keys", "widths", "color") | not))]
+# terminals.json: every key and finding id is free of dashes and unique, and every need is one of the six.
+import "terminal" as terminal; terminal::data | [(.terminals | keys[] | select(test("-"))), (.terminals[] | (.findings // []) | map(.id) | select(length != (unique | length))), (.terminals[].findings[]? | select(.need | IN("speed", "clicks", "keys", "widths", "color", "copy") | not) | .id), (.probes[] | select(.need | IN("speed", "clicks", "keys", "widths", "color", "copy") | not))]
 null
 []
 
