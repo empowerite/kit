@@ -418,12 +418,27 @@ func TestTheLegendsCornerKeysMoveItAsItsArrowsDo(t *testing.T) {
 	}
 }
 
-// The menu bar's · between the kit menu and the workspace menu is the bar's own, and the legend does not explain it.
-func TestTheLegendLeavesTheMenuBarsSeparatorOut(t *testing.T) {
+// A plain · between items, the menu bar's or a heading's, is not the legend's to explain; the · it lists is the
+// sortable column's on the rule, drawn as the rule draws it, and only there.
+func TestTheLegendListsTheDotOnlyAsASortableColumnOnTheRule(t *testing.T) {
 	m := loaded(t, options(), press('?'))
+	var dots []part
 	for _, p := range m.parts(m.height - 1) {
-		if slices.Contains(p.glyphs, "·") && p.on(0) {
-			t.Errorf("the legend explains the menu bar's ·: %q", p.meaning)
+		if slices.Contains(p.glyphs, "·") {
+			dots = append(dots, p)
+		}
+	}
+	if len(dots) != 1 || dots[0].glyphs[0] != Sortable || dots[0].meaning != "sortable: click to sort" {
+		t.Fatalf("the legend's dots: %+v", dots)
+	}
+	for y := range m.height {
+		if on := dots[0].on(y); on != (y >= m.top() && y < m.height-1 && (m.onRule(y) || m.controls() && y == m.top()+1)) {
+			t.Errorf("the dot is explained on line %d: %v", y, on)
+		}
+	}
+	for _, l := range m.legendLines() {
+		if strings.Contains(ansi.Strip(l), "separator") {
+			t.Errorf("the legend names a separator: %q", l)
 		}
 	}
 }

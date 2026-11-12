@@ -28,7 +28,7 @@ order: 16
 
 A glyph means what its line says:
 
-- `·`  a separator on the menu bar. A sortable column on the rule.
+- `·`  a column on the rule that can sort, and is not sorted. A dot between items is only a separator, and is not listed.
 - `▼`  the presets menu on the control line. A sort, down, on the rule.
 
 The legend is on the apps: Flow, Issues, Changes, and the rest.

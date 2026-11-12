@@ -117,7 +117,6 @@ func (m Model) parts(last int) []part {
 		one(shell.App, "kit menu", menuBar),
 		one(shell.Workspaces, "workspace menu", menuBar),
 		one(shell.Back, "back: click or ⌫", menuBar),
-		one("·", "separator", headings), // the menu bar's, between the kit and the workspace menus, is the bar's own
 		one(grid.Search, "search: / or click", menuBar),
 		one(shell.Recall, "past searches", menuBar),
 		one(tabs.Menu, "tab menu", func(y int) bool { return tabBar(y) || m.maximized && menuBar(y) }),

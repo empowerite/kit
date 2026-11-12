@@ -162,8 +162,8 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   - The legend, in `legend.go`, floats over the rows while F1 or ? shows it: what each glyph on the screen under it
     means, the menu bar's, the tab bar's, the control line's, the rule's, the rows', and the status bar's, in the order
     each first appears, reading from the top left, and nothing of a glyph the screen does not show, each glyph a click
-    leads somewhere from marked. A glyph means what the line it stands on says: · is a separator in the menu bar and a
-    sortable column on the rule, and ▼ the presets' menu on the control line and a descending sort on the rule. A
+    leads somewhere from marked. A glyph means what the line it stands on says: a plain · between items, in the menu bar or a heading, is not
+    explained, only the · on the rule, a column that can sort and is not sorted; and ▼ the presets' menu on the control line and a descending sort on the rule. A
     legend taller than the room under the tab bar stands in columns. It opens in
     the bottom right corner; the arrows on its top edge, ↖ ↗ ↙ ↘, move it to another, the one it stands in dim. It
     takes no other key or click, so the rows under it go on as they were.
