@@ -26,12 +26,14 @@ secrets:backend() {
   fi
 }
 
-# secrets:put <service> <account> stores stdin as the item, base64-encoded, replacing any item of that name. It returns 1
-# where there is no backend or the backend refuses.
+# secrets:put <service> <account> stores stdin as the item, base64-encoded, replacing any item of that name, then reads
+# the item back and compares it: a backend that exits 0 and keeps nothing is caught here, not at the first use of the
+# key. It says which backend failed and returns 1 where there is none, or it refused, or it kept something else.
 secrets:put() {
-  local backend encoded
+  local backend encoded kept
   backend=$(secrets:backend) || return 1
-  encoded=$(base64 | tr -d '\n') || return 1
+  encoded=$(base64) || return 1
+  encoded=${encoded//$'\n'/}
   case "${backend}" in
     (keychain)
       # base64 holds no space or quote, so the one line security -i reads is safe
@@ -39,26 +41,47 @@ secrets:put() {
       ;;
     (secret-service)
       printf '%s' "${encoded}" | secret-tool store --label="$1 $2" service "$1" account "$2"
+  esac || { error "the ${backend} did not store $1 $2"; return 1; }
+  kept=$(secrets:raw "${backend}" "$1" "$2") && [[ "${kept}" == "${encoded}" ]] \
+    || { error "the ${backend} did not keep $1 $2: it gave back something else"; return 1; }
+}
+
+# secrets:raw <backend> <service> <account> prints the item as the backend answers, and returns 1, silent, where there
+# is none.
+secrets:raw() {
+  case "$1" in
+    (keychain) security find-generic-password -s "$2" -a "$3" -w 2>/dev/null ;;
+    (secret-service) secret-tool lookup service "$2" account "$3" 2>/dev/null
   esac
 }
 
 # secrets:get <service> <account> prints the secret secrets:put stored, as it was given. It prints nothing and returns
-# 1, silent, where there is no item.
+# 1, silent, where there is no item. The value is base64, which the keychain never hex-encodes, so it is not un-hexed.
 secrets:get() {
-  local stored
-  stored=$(secrets:foreign "$1" "$2") || return 1
+  local backend stored
+  backend=$(secrets:backend) || return 1
+  stored=$(secrets:raw "${backend}" "$1" "$2") || return 1
   [[ -n "${stored}" ]] || return 1
   printf '%s\n' "${stored}" | base64 -d
 }
 
-# secrets:delete <service> <account> removes the item, and succeeds where there was none.
+# secrets:delete <service> <account> removes the item, and succeeds where there was none. Any other failure is an error
+# naming the backend, and returns 1.
 secrets:delete() {
-  local backend
+  local backend status=0
   backend=$(secrets:backend) || return 1
   case "${backend}" in
-    (keychain) security delete-generic-password -s "$1" -a "$2" >/dev/null 2>&1 || true ;;
-    (secret-service) secret-tool clear service "$1" account "$2" >/dev/null 2>&1 || true
+    (keychain)
+      security delete-generic-password -s "$1" -a "$2" >/dev/null 2>&1 || status=$?
+      # 44 is security's answer for an item that is not there
+      (( status == 0 || status == 44 )) && return 0
+      ;;
+    (secret-service)
+      # secret-tool clear succeeds where there is nothing to clear
+      secret-tool clear service "$1" account "$2" >/dev/null 2>&1 && return 0
   esac
+  error "the ${backend} did not delete $1 $2"
+  return 1
 }
 
 # secrets:foreign <service> <account> prints an item another tool stored, as it stored it: the keychain answers hex
@@ -67,10 +90,7 @@ secrets:delete() {
 secrets:foreign() {
   local backend value
   backend=$(secrets:backend) || return 1
-  case "${backend}" in
-    (keychain) value=$(security find-generic-password -s "$1" -a "$2" -w 2>/dev/null) || return 1 ;;
-    (secret-service) value=$(secret-tool lookup service "$1" account "$2" 2>/dev/null) || return 1
-  esac
+  value=$(secrets:raw "${backend}" "$1" "$2") || return 1
   if [[ "${backend}" == keychain && "${value}" =~ ^([0-9A-Fa-f]{2})+$ ]]
   then
     printf '%s' "${value}" | xxd -r -p

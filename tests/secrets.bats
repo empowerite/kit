@@ -91,7 +91,62 @@ only-secret-tool() {
   [ "$status" -eq 0 ]
   [ "$output" = "${PEM}" ]
   grep -q 'store' "${FAKE_DIR}/secret-tool.calls"
-  ! grep -F MIIEow "${FAKE_DIR}/secret-tool.calls"
-  PATH="${lean}" run kit-bash 'secrets:foreign kit-bot github.com/12 | base64 -d | cat; secrets:delete kit-bot github.com/12 && ! secrets:get kit-bot github.com/12'
+  run ! grep -F -e MIIEow -e "$(printf '%s\n' "${PEM}" | base64 | tr -d '\n' | cut -c1-40)" "${FAKE_DIR}/secret-tool.calls"
+  PATH="${lean}" run kit-bash 'secrets:foreign kit-bot github.com/12'
+  [ "$output" = "$(printf '%s\n' "${PEM}" | base64 | tr -d '\n')" ]
+  PATH="${lean}" run kit-bash 'secrets:delete kit-bot github.com/12 && ! secrets:get kit-bot github.com/12'
+  [ "$status" -eq 0 ]
+}
+
+@test "secrets:get does not un-hex a stored value made only of hex digits" {
+  mkdir -p "${FAKE_DIR}/secrets"
+  printf 'ABCD' > "${FAKE_DIR}/secrets/kit-bot@h_1"
+  run kit-bash 'secrets:get kit-bot h/1 | base64'
+  [ "$status" -eq 0 ]
+  [ "$output" = ABCD ]
+}
+
+@test "secrets:put that the backend does not keep is an error naming the backend, and returns 1" {
+  FAKE_SECRETS_REFUSE=1 run --separate-stderr kit-bash 'printf x | secrets:put kit-bot h/1'
+  [ "$status" -eq 1 ]
+  [[ "$stderr" == *"the keychain did not keep kit-bot h/1"* ]]
+  only-secret-tool
+  FAKE_SECRETS_REFUSE=1 PATH="${lean}" run --separate-stderr kit-bash 'printf x | secrets:put kit-bot h/1'
+  [ "$status" -eq 1 ]
+  [[ "$stderr" == *"the secret-service did not keep kit-bot h/1"* ]]
+}
+
+@test "secrets:put whose backend fails is an error naming the backend, and returns 1" {
+  rm "${FAKE_DIR}/bin/security"
+  printf '#!/usr/bin/env bash\nexit 3\n' > "${FAKE_DIR}/bin/security"
+  chmod +x "${FAKE_DIR}/bin/security"
+  run --separate-stderr kit-bash 'printf x | secrets:put kit-bot h/1'
+  [ "$status" -eq 1 ]
+  [[ "$stderr" == *"the keychain did not store kit-bot h/1"* ]]
+}
+
+@test "secrets:put whose base64 fails stores nothing and returns 1" {
+  printf '#!/usr/bin/env bash\nexit 1\n' > "${FAKE_DIR}/bin/base64"
+  chmod +x "${FAKE_DIR}/bin/base64"
+  run kit-bash 'printf x | secrets:put kit-bot h/1'
+  [ "$status" -eq 1 ]
+  [ ! -e "${FAKE_DIR}/security.calls" ]
+}
+
+@test "secrets:delete of an item the backend will not delete is an error naming the backend, and returns 1" {
+  run kit-bash 'printf x | secrets:put kit-bot h/1'
+  FAKE_SECRETS_FAIL_DELETE=1 run --separate-stderr kit-bash 'secrets:delete kit-bot h/1'
+  [ "$status" -eq 1 ]
+  [[ "$stderr" == *"the keychain did not delete kit-bot h/1"* ]]
+  only-secret-tool
+  PATH="${lean}" run kit-bash 'printf x | secrets:put kit-bot h/2'
+  FAKE_SECRETS_FAIL_DELETE=1 PATH="${lean}" run --separate-stderr kit-bash 'secrets:delete kit-bot h/2'
+  [ "$status" -eq 1 ]
+  [[ "$stderr" == *"the secret-service did not delete kit-bot h/2"* ]]
+}
+
+@test "secrets:delete of no item succeeds through secret-tool too" {
+  only-secret-tool
+  PATH="${lean}" run kit-bash 'secrets:delete kit-bot h/none'
   [ "$status" -eq 0 ]
 }
