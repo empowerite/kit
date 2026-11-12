@@ -120,6 +120,7 @@ var renderers = map[string]Renderer{
 	"age":        Each(func(f Field, v Value) []string { return Mapped(v.Raw, Age) }),
 	"took":       Each(func(f Field, v Value) []string { return Mapped(v.Raw, func(s int64) string { return Took(&s) }) }),
 	"pills":      Each(Pills),
+	"json":       drawJSON,
 }
 
 // glyphed names the renderers that draw a glyph before a value, the field's own or its value's.

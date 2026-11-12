@@ -11,7 +11,7 @@ type ValueType struct {
 
 // Types gives each kind of value a field can hold, by the name the catalog gives it: a reference, as an issue's #45; a
 // text; an enum, one of known values; a person's login; a time, in seconds; a number; and a forge's labels, which a
-// row's column counts and its open row draws, each a pill.
+// row's column counts and its open row draws, each a pill; and json, a value of any shape, drawn as jq draws it.
 var Types = map[string]ValueType{
 	"ref":    {},
 	"text":   {},
@@ -20,6 +20,7 @@ var Types = map[string]ValueType{
 	"time":   {Filters: true},
 	"number": {Filters: true},
 	"label":  {Filters: true},
+	"json":   {},
 }
 
 // Value is what a row holds in one field. Raw is what the row sorts, groups, and filters by, unstyled, one a Value, as

@@ -1189,7 +1189,7 @@
          "group": true, "filter": true, "renderings": ["text"], "dim": true, "placement": "group", "depth": 2},
         {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true, "group": true,
          "filter": true, "renderings": ["text"], "dim": true, "placement": "group", "depth": 3},
-        {"id": "values", "label": "value", "type": "text", "path": "*", "one": "value", "renderings": ["text"],
+        {"id": "value", "label": "value", "type": "json", "path": ".value", "sort": true, "renderings": ["json"],
          "placement": "column"},
         {"id": "from", "label": "from", "type": "enum", "path": ".from", "sort": true, "group": true, "filter": true,
          "values": [{"value": "set"}, {"value": "default"}], "dim": true, "renderings": ["text"], "placement": "column"}

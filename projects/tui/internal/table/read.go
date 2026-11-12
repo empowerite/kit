@@ -181,8 +181,11 @@ func (f Field) Read(record json.RawMessage) Value { return f.ReadFrom(Decoded(re
 // and a path through one maps over it; a string is itself, a number its digits, true the field's id, and false, null,
 // or an object no value. A field that says what null draws, as its Null, draws it for a record that holds null at a
 // path, and no value at any; one that says what empty draws, as its Empty, draws it for a record whose every value
-// there is an empty string, and gives no value.
+// there is an empty string, and gives no value. A json field reads its values whole, as readJSON says.
 func (f Field) ReadFrom(v any) Value {
+	if f.Type == "json" {
+		return f.readJSON(v)
+	}
 	var out Value
 	null := false
 	for _, path := range strings.Split(f.Path, ",") {
