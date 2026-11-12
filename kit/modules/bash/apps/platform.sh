@@ -146,8 +146,9 @@ apps/platform:row() {
      chosen: ($chosen | some), ready: (if $ready == "" then null else $ready == "true" end), links: {}}'
 }
 
-# apps/platform:toolchains prints the toolchains document, a row per line kit toolchains --json prints.
-apps/platform:toolchains() { apps/platform:listed toolchains toolchain; }
+# apps/platform:toolchains prints the toolchains document, a row per line kit toolchains --json prints in each checkout,
+# as apps/platform:checked says.
+apps/platform:toolchains() { apps/platform:checked toolchains toolchain; }
 
 # apps/platform:checkouts prints each checkout of the clone here as "<path>\t<branch>" a line: the one here first, then
 # each other one git lists while its directory is there. The branch is empty in a detached checkout.
@@ -171,12 +172,18 @@ apps/platform:checkouts() {
   done
 }
 
-# apps/platform:tools prints the tools document: a row per line kit tools --json prints in each checkout of the clone,
-# each saying its worktree, the checkout's folder, and the branch it is on, null in a detached one, as what is installed
-# and pinned is a checkout's. It returns 1, after its line, where kit tools refuses here, as with no toolchain chosen
-# among several; another checkout that refuses is {worktree, error}, its line, under errors, and the rest still draw.
-apps/platform:tools() {
-  local path branch out said line here checkout status=0
+# apps/platform:tools prints the tools document: a row per line kit tools --json prints in each checkout, as
+# apps/platform:checked says. It returns 1, after its line, where kit tools refuses here, as with no toolchain chosen
+# among several.
+apps/platform:tools() { apps/platform:checked tools tool; }
+
+# apps/platform:checked <verb> <def> prints the document of kit <verb> --json read in each checkout of the clone, each
+# object it prints through apps::<def>, and each row saying its worktree, the checkout's folder, and the branch it is
+# on, null in a detached one, as what a checkout can install, pins, and uses is its own. It returns 1, after its line,
+# where the verb refuses here; another checkout that refuses is {worktree, error}, its line, under errors, and the rest
+# still draw.
+apps/platform:checked() {
+  local verb=$1 def=$2 path branch out said line here checkout status=0
   local -a docs=() checkouts
   here=$(pwd -P)
   file:temp said platform || return 1
@@ -186,9 +193,9 @@ apps/platform:tools() {
     IFS=$'\t' read -r path branch <<<"${checkout}"
     if [[ "${path}" == "${here}" ]]
     then
-      out=$(run kit tools --json) || return 1
-    # kit_serve_hydrated, as under kit serve, keeps kit tools from placing this release's .kit/ in the checkout
-    elif ! out=$(cd "${path}" && export kit_serve_hydrated=1 && run kit tools --json 2>"${said}")
+      out=$(run kit "${verb}" --json) || return 1
+    # kit_serve_hydrated, as under kit serve, keeps the verb from placing this release's .kit/ in the checkout
+    elif ! out=$(cd "${path}" && export kit_serve_hydrated=1 && run kit "${verb}" --json 2>"${said}")
     then
       status=1
       line=$(apps/platform:said "${said}")
@@ -196,20 +203,12 @@ apps/platform:tools() {
         '{rows: [], errors: [{worktree: $worktree, error: $error}]}')")
       continue
     fi
-    docs+=("$(jq --slurp --compact-output -L "${kit_jq}" --arg path "${path}" --arg branch "${branch}" '
-      import "apps" as apps;
-      {rows: map(apps::checked($path; $branch)), errors: []}' <<<"${out}")")
+    docs+=("$(jq --slurp --compact-output -L "${kit_jq}" --arg path "${path}" --arg branch "${branch}" "
+      import \"apps\" as apps;
+      {rows: map(apps::${def} | apps::checked(\$path; \$branch)), errors: []}" <<<"${out}")")
   done
   apps:merge "${docs[@]}" || return 1
   return "${status}"
-}
-
-# apps/platform:listed <verb> <def> prints the document of kit <verb> --json, each object it prints through apps::<def>.
-# It returns 1 when the verb fails, its line said.
-apps/platform:listed() {
-  local out
-  out=$(run kit "$1" --json) || return 1
-  jq --slurp --compact-output -L "${kit_jq}" "import \"apps\" as apps; {rows: map(apps::$2), errors: []}" <<<"${out}"
 }
 
 # apps/platform:settings prints the settings document, as apps::settings gives it from the settings schema the release

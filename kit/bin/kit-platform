@@ -35,8 +35,8 @@
 #                       kit's module that reaches it, as forge/github; chosen is set where kit.yml or a recorded choice
 #                       names it, else inferred; ready is whether its tool is there and signed in, null where it has
 #                       none. A forge or a policy engine kit.yml names wrong is {error}, its line, under errors
-#   toolchains          {provider, role, usable, active, chosen, fills}, as kit toolchains --json prints them, keyed by
-#                       provider and role: mise project
+#   toolchains          {provider, role, usable, active, chosen, fills}, as kit toolchains --json prints them, read in
+#                       each checkout as tools are, keyed by the checkout, provider, and role: mise project
 #   tools               {name, pinned, installed, from}, as kit tools --json prints them, read in each checkout of the
 #                       clone, the one here and each linked worktree, and each saying its worktree, the checkout's
 #                       folder, and its branch, null in a detached one; keyed by the checkout, from, and name;

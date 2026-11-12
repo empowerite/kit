@@ -25,10 +25,11 @@ def toolchain: {key: "\(.provider) \(.role)"} + . + {links: {}};
 # tool reads a row kit tools --json prints and gives it keyed by where it is pinned and its name.
 def tool: {key: "\(.from) \(.name)"} + . + {links: {}};
 
-# checked($path; $branch) reads a row kit tools --json prints in the checkout at $path, on $branch, "" for none, and
-# gives it as tool does, keyed by the checkout too, and saying the checkout's folder as its worktree and its branch.
+# checked($path; $branch) reads a row of a stage read in the checkout at $path, on $branch, "" for none, keyed as tool
+# or toolchain keys it, and gives it keyed by the checkout too, saying the checkout's folder as its worktree and its
+# branch.
 def checked($path; $branch):
-  tool | .key = "\($path) \(.key)" | . + {worktree: ($path | split("/") | last), branch: (if $branch == "" then null else $branch end)};
+  .key = "\($path) \(.key)" | . + {worktree: ($path | split("/") | last), branch: (if $branch == "" then null else $branch end)};
 
 # settings($schema) reads kit.yml as JSON, null for none, and gives a row per key the schema names, in its order: the
 # value kit.yml sets, from set, else the schema's default, null where it names none, from default.

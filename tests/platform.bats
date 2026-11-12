@@ -34,13 +34,13 @@ signed-in() {
   [ "$output" = $'services\ntoolchains\ntools\nsettings' ]
 }
 
-@test "toolchains is kit toolchains --json, each row keyed by its provider and role, with no links" {
+@test "toolchains is kit toolchains --json, each row keyed by its checkout, provider, and role, with no links" {
   repo-at "${BATS_TEST_TMPDIR}/r" github.com/o/r
   cd "${BATS_TEST_TMPDIR}/r"
   printf '[tools]\n' > mise.toml
   run --separate-stderr "${kit_root}/bin/kit" platform toolchains --json
   [ "$status" -eq 0 ]
-  [ "$(jq -c '.rows[] | select(.key == "mise project") | [.provider, .role, .links]' <<<"$output")" \
+  [ "$(jq -c '.rows[] | select(.key | endswith(" mise project")) | [.provider, .role, .links]' <<<"$output")" \
     = '["mise","project",{}]' ]
   [ "$(jq -c .errors <<<"$output")" = '[]' ]
 }
@@ -112,6 +112,10 @@ signed-in() {
   [ "$(jq -c '[.rows[] | .key | split(" ")[0] | split("/") | last] | unique' <<<"$output")" \
     = '["loose","r","topic"]' ]
   [ "$(jq -c .errors <<<"$output")" = '[]' ]
+  run --separate-stderr "${kit_root}/bin/kit" platform toolchains --json
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '[.rows[] | select(.provider == "mise" and .role == "project") | [.worktree, .branch]] | sort' \
+    <<<"$output")" = '[["loose",null],["r","main"],["topic","topic"]]' ]
 }
 
 @test "tools that kit tools refuses is its line and exit 1, and toolchains still draws" {
