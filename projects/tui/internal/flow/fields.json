@@ -680,7 +680,7 @@
            {"value": "passed", "glyph": "✅"}, {"value": "failed", "glyph": "❌"}, {"value": "pending", "glyph": "🏃"}
          ], "renderings": ["glyph+text", "text", "glyph"], "placement": "column"},
         {"id": "at", "label": "started", "type": "text", "path": ".at", "sort": true, "dim": true,
-         "renderings": ["date"], "placement": "column"},
+         "renderings": ["moment", "date"], "placement": "column"},
         {"id": "took", "label": "took", "type": "time", "path": ".took", "sort": true, "filter": true, "dim": true,
          "right": true, "renderings": ["took", "age"], "placement": "column"},
         {"id": "title", "label": "title", "type": "text", "path": ".title", "sort": true, "dim": true,

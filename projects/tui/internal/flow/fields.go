@@ -79,6 +79,7 @@ func init() {
 		"path":      {pathCells, false},
 		"worktree":  {table.Each(worktreeNames), true},
 		"date":      {table.Each(dates), false},
+		"moment":    {table.Each(moments), false},
 		"day":       {table.Each(days), false},
 		"bytes":     {table.Each(sizes), false},
 	} {
@@ -182,6 +183,12 @@ func whereCells(f table.Field, vs []table.Value) []cell {
 // dates draws an instant kit gives in seconds since the epoch, as a change's merge, by its day here: 2026-11-10.
 func dates(f table.Field, v table.Value) []string {
 	return table.Mapped(v.Raw, func(s int64) string { return time.Unix(s, 0).Format(time.DateOnly) })
+}
+
+// moments draws an instant kit gives in seconds since the epoch, as a check's start, by its day and minute here, where
+// the screen is: 2026-11-10 09:14.
+func moments(f table.Field, v table.Value) []string {
+	return table.Mapped(v.Raw, func(s int64) string { return time.Unix(s, 0).Format("2006-01-02 15:04") })
 }
 
 // days draws a calendar day kit gives in seconds since the epoch, as a milestone's due or an iteration's start, its
