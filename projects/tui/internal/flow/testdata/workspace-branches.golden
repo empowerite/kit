@@ -2,7 +2,7 @@
   ➀╶──────────────╮➁╶────────────────╴➌╶─────────────────╮➃╶──────────────────╮➄╶────────────────╮➅╶─────────────╮
     📚 repos  2   │  📡 remotes  1    │ 🌿 branches  4 : │  🌳 worktrees  2   │  🔘 commits  2   │  📌 tags  2   │
   ────────────────╰───────────────────╯                  ╰────────────────────╰──────────────────╰───────────────╰──────
-  Branches — Each branch stands here: a remote's, with the local branches that pull from it, and each local one
+  Branches — Every branch, local and remote: how far ahead, and how old
 
   ▾ 4
   ───

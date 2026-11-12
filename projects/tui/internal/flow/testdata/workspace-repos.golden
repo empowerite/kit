@@ -2,7 +2,7 @@
   ➊╶──────────────╮➁╶────────────────╮➂╶─────────────────╮
   │ 📚 repos  2 : │  📡 remotes  1   │  🌿 branches  4   │
   ╵               ╰──────────────────╰───────────────────╰──────────────────────────────────────────────────────────────
-  Repos — Each member of the workspace stands here, cloned or not, with its forge, its clone, and its desk's branch
+  Repos — What is cloned, where, on which branch, and how far from upstream
 
   ▾ forge 2                                                                                                            
     ·──────

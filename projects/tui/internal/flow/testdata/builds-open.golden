@@ -2,7 +2,7 @@
   ➀╶───────────────╮➁╶────────────────╴➌╶───────────────╮➃╶──────────────────╮➄╶─────────────────╮
     🎫 issues  7   │  🔀 changes  3    │ 🏭 builds  4 : │  🛬 incoming  7    │  📦 releases  3   │
   ─────────────────╰───────────────────╯                ╰────────────────────╰───────────────────╰──────────────────────
-  Builds — The CI runs no pull request owns stand here, as those on the default branch
+  Builds — Is the default branch green? CI runs outside any pull request
 
   ▾ 4                                                                                            📇 Fields  Default ▼
   ───
