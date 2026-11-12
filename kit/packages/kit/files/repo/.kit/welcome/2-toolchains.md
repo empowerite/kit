@@ -2,12 +2,15 @@
 <!-- see: "Changing what kit adds" in .kit/1st.md, to replace it -->
 # Toolchains — kit checks the four tools it runs on, and the toolchain that installs them on this machine
 
-A toolchain is the set of tools a repository's work runs with, such as Go and its linters. Two kinds of manager
+A [toolchain](kittui:welcome/terms/toolchain) is the set of tools a repository's work runs with, such as Go and its
+linters. Two kinds of manager
 install tools:
 
-- A tool manager, such as mise, installs and pins the versions of this repository's toolchain. `kit tools install`
+- A [tool manager](kittui:welcome/terms/tool%20manager), such as mise, installs and pins the versions of this
+  repository's toolchain. `kit tools install`
   installs it.
-- A package manager, such as brew or apt, installs software on the machine. kit uses one for the tools kit runs on:
+- A [package manager](kittui:welcome/terms/package%20manager), such as brew or apt, installs software on the machine.
+  kit uses one for the tools kit runs on:
   bash, git, jq, and yq. kit names its command for a missing tool, and runs it only when you say so.
 
 kit looks for the managers it can use here, and never assumes one. Each fills a role: the project, for this
@@ -20,13 +23,14 @@ role, kit uses:
 - else, for the project, the one named for the run: `--toolchain <name>` or `KIT_TOOLCHAIN=<name>`
 - else the one you chose, while it is still usable
 - else the only usable one
-- else none: the role is ambient, and kit uses what is on PATH
+- else none: the role is [ambient](kittui:welcome/terms/ambient), and kit uses what is on PATH
 
 With several usable and none chosen, choose one: `kit toolchains use <name>`, with `--system` for the system
 role. Your choice stays on this machine. It is never committed, so each person chooses their own.
 
 This step checks the system's toolchain, once for the machine. Each branch can have files of its own, so setup
-checks the project's toolchain in each folder: the desk, and each worktree.
+checks the project's toolchain in each folder: the [desk](kittui:welcome/terms/desk), and each
+[worktree](kittui:welcome/terms/worktree).
 
 kit runs on four tools:
 

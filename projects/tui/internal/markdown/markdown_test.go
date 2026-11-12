@@ -123,8 +123,9 @@ func TestALinkToAScreenIsDrawnAsALinkAndPageSaysWhereItStands(t *testing.T) {
 	if !strings.Contains(lines[0], style.Link("Issues")) || strings.Contains(strings.Join(lines, ""), "\x1b]8") {
 		t.Errorf("a link is drawn in its style, its markers taken out: %q", lines[0])
 	}
-	// a link of several words is one for each word, each where it stands on its line; a web link is no screen's
-	wantLinks := []Link{{0, 3, 6, "flow/issues"}, {2, 5, 3, "flow"}, {2, 9, 4, "flow"}, {2, 14, 3, "flow"}}
+	// a link of several words is one for each word, each where it stands on its line; a web link's text and its address are links too
+	wantLinks := []Link{{0, 3, 6, "flow/issues"}, {2, 5, 3, "flow"}, {2, 9, 4, "flow"}, {2, 14, 3, "flow"},
+		{3, 4, 3, "https://x.y"}, {3, 8, 4, "https://x.y"}, {4, 1, 11, "https://x.y"}}
 	if len(links) != len(wantLinks) {
 		t.Fatalf("got %+v", links)
 	}
@@ -135,5 +136,34 @@ func TestALinkToAScreenIsDrawnAsALinkAndPageSaysWhereItStands(t *testing.T) {
 	}
 	if Render("[Flow](kittui:flow)", 20)[0] != style.Link("Flow") {
 		t.Errorf("Render draws a link as Page does: %q", Render("[Flow](kittui:flow)", 20))
+	}
+}
+
+// A link to a tutorial or a term is a link as one to a screen is, its target whole after kittui:; a code span in a link's
+// text is drawn as code, and a link to a file is its text.
+func TestALinkToATutorialOrATermLeadsThereAndACodeSpanInALinkIsCode(t *testing.T) {
+	lines, links := Page("Read [the menu bar](kittui:tutorials/menu-bar), the [workspace](kittui:welcome/terms/workspace),"+
+		" `kit flow`, and [`kit flow`](kittui:flow) in [the file](kit.yml).", 120)
+	if got := ansi.Strip(lines[0]); got != "Read the menu bar, the workspace, kit flow, and kit flow in the file." {
+		t.Errorf("got %q", got)
+	}
+	if strings.Contains(lines[0], "\x1b[1;94m\x1b[4") || !strings.Contains(lines[0], style.Link("flow")) {
+		t.Errorf("a code span in a link's text is drawn in the link's style: %q", lines[0])
+	}
+	var to []string
+	for _, k := range links {
+		to = append(to, k.To)
+	}
+	want := []string{"tutorials/menu-bar", "tutorials/menu-bar", "tutorials/menu-bar", "welcome/terms/workspace", "flow", "flow"}
+	if !slices.Equal(to, want) {
+		t.Errorf("links lead to %q, want %q", to, want)
+	}
+}
+
+// Unlinked keeps a link's text, and a web address after it; any other link is its text.
+func TestUnlinkedKeepsTheTextAndAWebAddress(t *testing.T) {
+	got := Unlinked("[the docs](https://x.y/z), [Flow](kittui:flow), and [a file](kit.yml)")
+	if want := "the docs (https://x.y/z), Flow, and a file"; got != want {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }

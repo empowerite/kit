@@ -13,14 +13,17 @@ order: 11
 Left to right:
 
 - `=`  **kit menu.** Press `=`, or click the `=` or the screen's name.
-- `-`  **workspace menu.** The repository, or the group, you are looking at. Press `-`, or click it.
+- `-`  **workspace menu.** The repository, or the group, you are looking at; a
+  [workspace](kittui:welcome/terms/workspace) is what kit looks at. Press `-`, or click it.
 - `↩`  **crumb.** Shows only after a link took you to another app. Click it, or press `⌫`, to go back.
-- `🔎`  **search.** Press `/`, or click it. See `kit tutorials search`.
+- `🔎`  **search.** Press `/`, or click it. See [The search](kittui:tutorials/search).
 
 ## The kit menu
 
-- **Guides:** 🏠 Welcome, 🎓 Tutorials, ❓ Help
-- **Apps:** 🧭 Flow, 🎫 Issues, 🔀 Changes, 📘 Repositories, 🚚 Delivery, 👥 People, 🔏 Trust, 🧰 Platform, 🧩 Packages
+- **Guides:** 🏠 [Welcome](kittui:welcome), 🎓 [Tutorials](kittui:tutorials), ❓ [Help](kittui:help)
+- **Apps:** 🧭 [Flow](kittui:flow), 🎫 [Issues](kittui:issues), 🔀 [Changes](kittui:changes), 📘
+  [Repositories](kittui:repositories), 🚚 [Delivery](kittui:delivery), 👥 [People](kittui:people), 🔏
+  [Trust](kittui:trust), 🧰 [Platform](kittui:platform), 🧩 [Packages](kittui:packages)
 - **This screen's own items**, when it has any
 - 🔧 **Settings…**  kittui's settings
 - 👋 **Quit**  `⌃Q`
@@ -29,7 +32,7 @@ The screen you are on is dim. Each screen keeps its place when you leave it.
 
 ## The workspace menu
 
-- The groups this repository belongs to
+- The groups this [repository](kittui:welcome/terms/repository) belongs to
 - Your favorites, then the other groups
 - Repositories you opened by folder, newest first
 - **Open Repository…**  open a repository by its folder

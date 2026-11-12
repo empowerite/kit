@@ -1,13 +1,14 @@
 ---
 title: kit's applications
-summary: kit has an application for each side of the work, from Flow, the trip of the work from an issue to a release, to Packages.
+summary: kit has an application for each side of the work, from Flow, the trip of the work from an issue to a release,
+to Packages.
 glyph: 🧭
 audience: [newcomer, ui]
 order: 2
 ---
 
 Each app shows one part of your work. Click an app's name to open it. ⌫ brings you back here. You can also open
-any app from the = menu, or run its command.
+any app from the [= menu](kittui:tutorials/menu-bar), or run its command.
 
 ## 🧭 Flow
 
@@ -31,13 +32,14 @@ Open [Issues](kittui:issues), or run `kit issues`.
 
 ## 🔀 Changes
 
-Pull requests, with their reviews and checks, and the ones already merged.
+[Pull requests](kittui:welcome/terms/pull%20request), with their reviews and checks, and the ones already merged.
 
 Open [Changes](kittui:changes), or run `kit changes`.
 
 ## 📘 Repositories
 
-Your repositories, with their worktrees, branches, commits, tags, and remotes. Your desk is the checkout you cloned.
+Your repositories, with their [worktrees](kittui:welcome/terms/worktree), [branches](kittui:welcome/terms/branch),
+commits, tags, and remotes. Your [desk](kittui:welcome/terms/desk) is the checkout you cloned.
 It is yours, and agents never change it. Each issue gets its own worktree.
 
 Open [Repositories](kittui:repositories), or run `kit workspace`.
@@ -74,4 +76,5 @@ Open [Packages](kittui:packages), or run `kit packages`.
 
 ## Need more help?
 
-`kit welcome` walks you through your first hour with kit. `kit help` lists every command.
+[`kit welcome`](kittui:welcome) walks you through your first hour with kit. [`kit help`](kittui:help) lists every
+command.

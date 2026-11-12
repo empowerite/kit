@@ -169,6 +169,7 @@ type Model struct {
 	note    shell.Notice // what opened, or the link to open by hand, in place of the keys
 	search  shell.Search // the search, internal/shell's, which narrows the cards to its text
 	recent  shell.Recent // the searches remembered, every screen's, and their dropdown
+	landing string       // the tutorial a link from another screen asked for, kept until the catalogue lists it
 
 	interrupted bool
 }
@@ -276,6 +277,10 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.sheet.Settings(msg.Settings)
 	case source.Answer[kit.Catalogue]:
 		m.take(msg)
+		return m, m.land()
+	case shell.JumpMsg:
+		m.landing = strings.TrimSuffix(msg.To, "/")
+		return m, m.land()
 	case readMsg:
 		m.read = reader{open: true, tutorial: msg.tutorial, page: msg.page, missing: msg.err != nil, hit: -1}
 		m.stepSearch(1)
@@ -631,7 +636,7 @@ func (m Model) click(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 		if lines, _, blocks := m.page(); m.across().Click(lines, blocks, m.lineAt(msg.Y), msg.X, m.width-1) {
 			return m, nil
 		}
-		return m, follow(m.linkAt(msg.X, msg.Y))
+		return m, m.follow(m.linkAt(msg.X, msg.Y))
 	case msg.Y == controlTop:
 		if m.sheet.Click(msg) {
 			m.search.Focused, m.inPane = false, !m.sheet.Focused()
@@ -688,18 +693,39 @@ func (m Model) open(t kit.Tutorial) tea.Cmd {
 	return func() tea.Msg { return browsedMsg{tutorial: t, err: b(t.URL)} }
 }
 
-// follow gives the command that opens the screen a link on a page leads to, its text after kittui:, with the page as
-// its crumb: the screen, by its name, or the screen on one of its tabs, by the screen's name, a slash, and the tab's
-// stage, as the app names it. No link gives none.
-func follow(to string) tea.Cmd {
-	if to == "" {
+// follow gives the command that opens where a link on a page leads, its target as markdown gives it: a web address, in
+// the browser; a tutorial, as tutorials/ and its id, in place of the page, as a card opens it; any other, a screen of
+// kittui, as shell.Link says. No link, and a tutorial the catalogue does not list, give none.
+func (m Model) follow(to string) tea.Cmd {
+	if id, ok := strings.CutPrefix(to, string(shell.Tutorials)+"/"); ok {
+		return m.opens(id)
+	}
+	if shell.IsWeb(to) {
+		b := m.browse
+		return func() tea.Msg { return browsedMsg{tutorial: kit.Tutorial{Title: to, URL: to}, err: b(to)} }
+	}
+	return shell.Link(to)
+}
+
+// land gives the command that opens the tutorial a link from another screen asked for, once the catalogue has come, and
+// forgets the ask; none while the catalogue has not, and for a tutorial it does not list.
+func (m *Model) land() tea.Cmd {
+	if m.landing == "" || len(m.catalog.Tutorials) == 0 {
 		return nil
 	}
-	screen, stage, _ := strings.Cut(to, "/")
-	if stage == "" {
-		return func() tea.Msg { return shell.SwitchMsg{Screen: shell.Screen(screen), Crumb: true} }
+	id := m.landing
+	m.landing = ""
+	return m.opens(id)
+}
+
+// opens gives the command that opens the tutorial with the id, none for one the catalogue does not list.
+func (m Model) opens(id string) tea.Cmd {
+	for _, t := range m.catalog.Tutorials {
+		if t.ID == id {
+			return m.open(t)
+		}
 	}
-	return func() tea.Msg { return shell.JumpMsg{Screen: shell.Screen(screen), To: stage + "/"} }
+	return nil
 }
 
 // Spot gives the name of where the screen stands, as the crumb of a screen a link on a tutorial's page led to says

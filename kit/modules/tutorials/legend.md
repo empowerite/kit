@@ -28,7 +28,8 @@ order: 16
 
 A glyph means what its line says:
 
-- `·`  a column on the rule that can sort, and is not sorted. A dot between items is only a separator, and is not listed.
+- `·`  a column on the rule that can sort, and is not sorted. A dot between items is only a separator, and is not
+  listed.
 - `▼`  the presets menu on the control line. A sort, down, on the rule.
 
-The legend is on the apps: Flow, Issues, Changes, and the rest.
+The legend is on the apps: [Flow](kittui:flow), [Issues](kittui:issues), [Changes](kittui:changes), and the rest.

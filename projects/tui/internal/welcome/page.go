@@ -15,10 +15,10 @@ var (
 func render(md string, width int) []string { return markdown.Render(md, width) }
 
 // wide draws a page's markdown as render does, but each code block's and table's lines whole, and says where each such
-// block stands, as markdown.Wide does.
-func wide(md string, width int) ([]string, []pane.Block) {
-	lines, _, blocks := markdown.Wide(md, width)
-	return lines, blocks
+// block stands and where each link stands, as markdown.Wide does.
+func wide(md string, width int) ([]string, []pane.Block, []markdown.Link) {
+	lines, links, blocks := markdown.Wide(md, width)
+	return lines, blocks, links
 }
 
 // unlinked gives a text with each link in it as its text, as markdown.Unlinked does.

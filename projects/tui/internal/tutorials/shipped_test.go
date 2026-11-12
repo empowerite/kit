@@ -240,3 +240,59 @@ func TestALinkOnATutorialsPageOpensTheScreenItLeadsTo(t *testing.T) {
 		t.Errorf("put back: reading %v, offset %d", back.read.open, back.read.offset)
 	}
 }
+
+// A link on a tutorial's page leads where its target says: a tutorial, tutorials/ and its id, opens in place of the
+// page, as a card does, one in the kit by its page and one online in the browser; a web address opens the browser; a
+// screen's tab with what it keeps in view is a jump to it; a tutorial the catalogue does not list leads nowhere.
+func TestALinkOnATutorialsPageOpensTheTutorialOrTheAddressItLeadsTo(t *testing.T) {
+	m, b := shipped(t, tabKey, tabKey, enter)
+	if got, ok := m.follow("tutorials/applications")().(readMsg); !ok || got.tutorial.ID != "applications" {
+		t.Errorf("a link to a tutorial in the kit gave %#v", got)
+	}
+	if m.follow("tutorials/applications") == nil || m.follow("tutorials/nowhere") != nil || m.follow("") != nil {
+		t.Error("a link to a tutorial the catalogue lacks, or none, led somewhere")
+	}
+	if cmd := m.follow("tutorials/kittui-tour"); cmd == nil {
+		t.Error("a link to an online tutorial led nowhere")
+	} else if cmd(); !slices.Equal(b.urls, []string{m.catalog.Tutorials[1].URL}) {
+		t.Errorf("an online tutorial opened %q", b.urls)
+	}
+	b.urls = nil
+	if got := m.follow("https://example.com/docs")(); !slices.Equal(b.urls, []string{"https://example.com/docs"}) ||
+		got.(browsedMsg).err != nil {
+		t.Errorf("a web address opened %q: %#v", b.urls, got)
+	}
+	if got := m.follow("welcome/terms/workspace")(); got != (shell.JumpMsg{Screen: shell.Welcome, To: "terms/workspace"}) {
+		t.Errorf("a term asked %#v", got)
+	}
+	if got := m.follow("welcome")(); got != (shell.SwitchMsg{Screen: shell.Welcome, Crumb: true}) {
+		t.Errorf("a screen asked %#v", got)
+	}
+	// a click on a link in the page follows it: opening a tutorial in place of the page
+	m = drive(m, m.follow("tutorials/applications")())
+	if !m.read.open || m.read.tutorial.ID != "applications" {
+		t.Errorf("reading %v: %q", m.read.open, m.read.tutorial.ID)
+	}
+}
+
+// Another screen's link to a tutorial, a JumpMsg, opens it in place of the cards, once the catalogue has come where it
+// had not; a tutorial the catalogue does not list opens nothing, and is forgotten.
+func TestAnotherScreensLinkOpensATutorial(t *testing.T) {
+	m, _ := shipped(t, shell.JumpMsg{Screen: shell.Tutorials, To: "applications/"})
+	if !m.read.open || m.read.tutorial.ID != "applications" || m.landing != "" {
+		t.Errorf("a jump after the catalogue: reading %v, %q, landing %q", m.read.open, m.read.tutorial.ID, m.landing)
+	}
+	catalogueFile(t, "shipped.json")
+	early, _ := fake(t)
+	early = drive(early, shell.JumpMsg{Screen: shell.Tutorials, To: "applications/"})
+	if early.read.open || early.landing != "applications" {
+		t.Fatalf("a jump before the catalogue: reading %v, landing %q", early.read.open, early.landing)
+	}
+	early = drive(early, testkit.Start(early, at120)...)
+	if !early.read.open || early.read.tutorial.ID != "applications" || early.landing != "" {
+		t.Errorf("the catalogue came: reading %v, %q, landing %q", early.read.open, early.read.tutorial.ID, early.landing)
+	}
+	if m = drive(m, esc, shell.JumpMsg{Screen: shell.Tutorials, To: "nowhere/"}); m.read.open || m.landing != "" {
+		t.Errorf("a tutorial not listed: reading %v, landing %q", m.read.open, m.landing)
+	}
+}

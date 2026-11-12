@@ -3,9 +3,11 @@
 // indent, and paragraphs wrapped to the width. It is no markdown library: front matter at the top is dropped, a code
 // block keeps its lines, a table its rows, a comment is dropped, and a link keeps its text, with its URL when it is a
 // web address. A link to one of kittui's screens, kittui: and the screen's name, as [Flow](kittui:flow) is, or the
-// screen's name, a slash, and one of its tabs, as [Issues](kittui:flow/issues) is, is drawn as a link, and Page says
-// where each one stands, for a screen that follows it on a click. A line naming a verb, as `kit packages` does, is
-// text: the screen opens no form.
+// screen's name, a slash, and one of its tabs, as [Issues](kittui:flow/issues) is, is drawn as a link, so is one to a
+// tutorial, as [The menu bar](kittui:tutorials/menu-bar) is, to a term of the welcome's Terms, as
+// [workspace](kittui:welcome/terms/workspace) is, and to a web address, as [the docs](https://example.com) is, its
+// address after it, a link too; and Page says where each one stands, for a screen that follows it on a click. A link
+// to a file is its text, and a code span in a link's text is drawn as the link is. A line naming a verb, as `kit packages` does, is text: the screen opens no form.
 package markdown
 
 import (
@@ -16,6 +18,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/pane"
+	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
@@ -34,8 +37,8 @@ var (
 // Scheme starts a link to one of kittui's screens.
 const Scheme = "kittui:"
 
-// A Link is where a link to one of kittui's screens stands among the lines Page gives: its line, the cell its text
-// starts at, and its width in cells; and where it leads, the link's text after kittui:. A link that wraps is a Link
+// A Link is where a link stands among the lines Page gives: its line, the cell its text starts at, and its width in
+// cells; and where it leads, the link's target after kittui:, or the web address whole. A link that wraps is a Link
 // for each word.
 type Link struct {
 	Line, Col, Width int
@@ -96,20 +99,29 @@ func unmarked(line string) (string, []Link) {
 	return out.String(), links
 }
 
-// marked gives a text with each link to one of kittui's screens in it drawn as a link, each of its words between its
-// markers.
+// marked gives a text with each link to one of kittui's screens, and each web link, in it drawn as a link, each of its
+// words between its markers; a web link's address follows its text in parentheses, a link too.
 func marked(text string) string {
 	return link.ReplaceAllStringFunc(text, func(s string) string {
 		parts := link.FindStringSubmatch(s)
 		to, ok := strings.CutPrefix(parts[2], Scheme)
-		if !ok {
+		web := shell.IsWeb(parts[2])
+		if !ok && !web {
 			return s
 		}
-		words := strings.Fields(parts[1])
+		if web {
+			to = parts[2]
+		}
+		// a link is drawn in its own style, so a code span or strong text in its text is plain text in it
+		words := strings.Fields(strings.NewReplacer("`", "", "**", "").Replace(parts[1]))
 		for i, w := range words {
 			words[i] = "\x1b]8;;" + to + "\x07" + style.Link(w) + "\x1b]8;;\x07"
 		}
-		return strings.Join(words, " ")
+		out := strings.Join(words, " ")
+		if web {
+			out += " (" + "\x1b]8;;" + to + "\x07" + style.Link(to) + "\x1b]8;;\x07" + ")"
+		}
+		return out
 	})
 }
 
@@ -236,7 +248,7 @@ func withoutFront(md string) string {
 func Unlinked(text string) string {
 	return link.ReplaceAllStringFunc(text, func(s string) string {
 		parts := link.FindStringSubmatch(s)
-		if strings.HasPrefix(parts[2], "http://") || strings.HasPrefix(parts[2], "https://") {
+		if shell.IsWeb(parts[2]) {
 			return parts[1] + " (" + parts[2] + ")"
 		}
 		return parts[1]

@@ -12,7 +12,8 @@ order: 12
   ╵                ╰──────────────────╰─────────────────╰──
 ```
 
-Each app has its own tabs: one stage of kit each. The welcome and the tutorials have none.
+Each [app](kittui:welcome/terms/application) has its own tabs: one [stage](kittui:welcome/terms/stage) of kit each.
+[Welcome](kittui:welcome) and [Tutorials](kittui:tutorials) have none.
 
 ## Reading a tab
 
@@ -27,7 +28,7 @@ Each app has its own tabs: one stage of kit each. The welcome and the tutorials 
 
 - `1`–`9`  jump to a tab
 - `⇥` `⇧⇥`  next and previous tab
-- `↓`  down to the control line
+- `↓`  down to the [control line](kittui:tutorials/control-line)
 - `:`  the tab menu
 
 ## The tab menu
@@ -35,7 +36,7 @@ Each app has its own tabs: one stage of kit each. The welcome and the tutorials 
 - **Maximize** `M`  the rows take the whole screen. **Restore** `M` undoes it.
 - **Refresh** `R`  read the stage again
 - **Watch** `W`  read it again whenever it changes
-- **Open Selected** `O`  open the selected rows on the forge
+- **Open Selected** `O`  open the selected [rows](kittui:tutorials/rows) on the forge
 - **Select All** `⌃A`
 - **Show More** `>` and **Show Less** `<`  open or close a level of the rows
 - **Show Selected** and **Hide Selected**

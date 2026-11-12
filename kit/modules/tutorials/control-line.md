@@ -12,7 +12,7 @@ order: 13
 
 ## Left: the groups
 
-- `▾ source`  the rows are grouped by source. Click the name for its settings.
+- `▾ source`  the [rows](kittui:tutorials/rows) are grouped by source. Click the name for its settings.
 - `▾`  open. Click to close that level.
 - `▸`  closed. Click to open it.
 - `3`  how many rows
@@ -35,13 +35,14 @@ With no groups, it is the rows' `▾` and their count alone.
 - The presets, to switch to: your favorites first, then your team's, then the built-in ones, then yours
 
 Save is dim on the built-in presets, and they cannot be renamed or deleted. Click a preset's ☆, or press `*` on it, to
-make it a favorite; ★ marks one. Your team's presets are files in the repository, under `.kit/presets`; in Manage…, Share
+make it a favorite; ★ marks one. Your team's presets are files in the repository, under `.kit/presets`; in Manage…,
+Share
 with team moves one of yours there, for you to commit, and Copy to mine copies one of theirs to yours. A repository
 without kit installed has no team presets.
 
 ## Keys
 
-- `↓` from the tabs reaches the line. `↓` again enters the rows.
+- `↓` from the [tabs](kittui:tutorials/tab-bar) reaches the line. `↓` again enters the rows.
 - `⇥` `⇧⇥`  move between the names, the count, and the preset
 - `→` `←`  open and close the level under the cursor
 - `⏎`  on a name: its settings. On the preset: the presets menu.
