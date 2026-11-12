@@ -1,15 +1,12 @@
 #!/usr/bin/env bash
 # kit-welcome - walks a newcomer through what kit needs, the toolchains, setup, and the workflow (kit verb: help)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit welcome [--text]
-#
-# kit welcome --checks [--json | --jq] [--folder=<path>] [--progress]
-#
-# kit welcome --fix <check> [--folder=<path>]
-#
-# kit welcome --keep=<check> [--json]
-#
-# kit welcome --unkeep=<check> [--json]
+# Usage:
+#   kit welcome [--text]
+#   kit welcome --checks [--json | --jq] [--folder=<path>] [--progress]
+#   kit welcome --fix <check> [--folder=<path>]
+#   kit welcome --keep=<check> [--json]
+#   kit welcome --unkeep=<check> [--json]
 #
 # A guide for your first hour with kit, in five steps:
 #
@@ -31,22 +28,6 @@
 # knows the terminal, and names each setting that makes kittui slower or worse. A terminal's fixes are the person's to
 # make in its settings, so kit shows them and never runs them, and --keep= keeps a finding as it is. Every finding, for
 # every terminal: https://github.com/empowerite/kit/blob/main/docs/terminals.md
-#
-#   --text            prints the guide, even on a terminal
-#   --checks          prints the checks alone, one line each
-#   --json            the checks as a JSON array; with --keep= or --unkeep=, the check as it now is, one JSON object,
-#                     or null where kit did not ask the terminal
-#   --jq              the same JSON, formatted by jq for a person
-#   --fix <check>     runs one check's fix, then checks again
-#   --keep=<check>    keeps a terminal's finding as it is: it holds from now on, in the profile it was judged in;
-#                     then says the check as it now is
-#   --unkeep=<check>  undoes a keep, so the finding is judged again, and says it
-#   --folder=<path>   the folder whose working tree holds <path>: --checks prints its checks alone, and --fix runs a
-#                     folder's check there; with none, --fix runs it in the repository here
-#   --progress        with --checks, says on stderr what is being checked as it goes: ⏳ checking <check>, then
-#                     " in <folder>" for a folder's, as each check starts, and ⏳ checked, then " <folder>" for a
-#                     folder, as the machine's checks or a folder's end; kittui shows them while the checks run
-#   <check>           a check's id, as --checks --json names it: tool-yq, toolchain-project
 #
 # A check is the machine's, judged once, or a folder's, judged in each folder of the workspace. The workspace is the
 # one kit workspaces --current names, or kit --workspace=<workspace> welcome: for a repository, its desk, then each
@@ -80,6 +61,23 @@
 # Nothing runs a fix but --fix, and it runs only the one named. The pages are under .kit/welcome/, from the kit
 # package, named for their order and step: 2-toolchains.md. A house package replaces a page by placing one of the
 # same name, or adds one.
+#
+# Arguments:
+#   --text            prints the guide, even on a terminal
+#   --checks          prints the checks alone, one line each
+#   --json            the checks as a JSON array; with --keep= or --unkeep=, the check as it now is, one JSON object,
+#                     or null where kit did not ask the terminal
+#   --jq              the same JSON, formatted by jq for a person
+#   --fix <check>     runs one check's fix, then checks again
+#   --keep=<check>    keeps a terminal's finding as it is: it holds from now on, in the profile it was judged in;
+#                     then says the check as it now is
+#   --unkeep=<check>  undoes a keep, so the finding is judged again, and says it
+#   --folder=<path>   the folder whose working tree holds <path>: --checks prints its checks alone, and --fix runs a
+#                     folder's check there; with none, --fix runs it in the repository here
+#   --progress        with --checks, says on stderr what is being checked as it goes: ⏳ checking <check>, then
+#                     " in <folder>" for a folder's, as each check starts, and ⏳ checked, then " <folder>" for a
+#                     folder, as the machine's checks or a folder's end; kittui shows them while the checks run
+#   <check>           a check's id, as --checks --json names it: tool-yq, toolchain-project
 #
 # Exits 0 when every check holds, and after --checks prints them; 1 when a check fails, or a fix leaves its check
 # failing, or the workspace file cannot be read; and 2 on a usage error, a workspace or --folder= kit cannot find, or

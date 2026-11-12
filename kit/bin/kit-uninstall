@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # kit-uninstall - takes the kit out of the repository and the home directory (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit uninstall [--dry-run]
+# Usage:
+#   kit uninstall [--dry-run]
 #
 # Undoes kit install, and every kit packages add since. For every path the active packages deliver:
 #
@@ -22,6 +23,7 @@
 # with one end line after it is named, and the run refuses with nothing taken out, --dry-run too. A path that still
 # cannot be taken out, as when a file cannot be removed, is named; the manifests and kit.yml then stay as they are.
 #
+# Arguments:
 #   --dry-run   prints what it would take out, and changes nothing
 #
 # Exits 0 on success, 1 when kit.yml cannot be read, when it declares no kit version, so there is nothing to take

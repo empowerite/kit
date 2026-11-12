@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # kit-kinds - lists the kinds of file, or the kinds a path is of (kit verb: files)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit kinds [--json | --jq] [<kind> | <path>]…
+# Usage:
+#   kit kinds [--json | --jq] [<kind> | <path>]…
 #
 # Alone, it lists every kind under .kit/kinds/, in name order. A row is the kind's name, the file that defines it,
 # and what makes a path of it: its globs, its first-line patterns, the kinds it is made of, and the kinds it embeds.
@@ -13,6 +14,7 @@
 # A path is of every kind whose glob matches it, or whose pattern matches its first line. It is also of every kind
 # made of one of those. A path need not exist; it is then matched by its name alone. kit new kind makes a kind.
 #
+# Arguments:
 #   --json    one JSON object per kind, or per path with its kinds
 #   --jq      the same JSON, formatted by jq for a person
 #   <kind>    the name of a defined kind; only these kinds are listed

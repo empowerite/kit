@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # kit-tools - lists, installs, and updates what the chosen toolchain and the dependencies pin (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit tools [--outdated [--check]] [--toolchain <name>] [--json | --jq]
-#
-# kit tools [--toolchain <name>] (install | update | path | run <command>…)
+# Usage:
+#   kit tools [--outdated [--check]] [--toolchain <name>] [--json | --jq]
+#   kit tools [--toolchain <name>] (install | update | path | run <command>…)
 #
 # Acts on the tools the project toolchain pins. kit toolchains shows which toolchain that is, and records a choice.
 # Then on the packages each dependency provider pins, as npm in package-lock.json or uv in uv.lock: each one whose
@@ -15,6 +15,16 @@
 # The toolchain comes first, then each dependency provider, each in its own table headed by its name when there are
 # several.
 #
+# With --outdated, a source the toolchain cannot read is named, and the run fails, even with no tool behind.
+#
+# install installs the toolchain first, then finds the dependency providers again, so a tool the toolchain has just
+# installed, such as node's npm, counts. It fails, naming each, when a provider's lock is here and its tool is still
+# not on PATH, and then installs no provider.
+#
+# Ambient, install installs nothing. It fails when a tool is missing from PATH, and names each one. A JSON row then
+# has name and path.
+#
+# Arguments:
 #   --outdated          only the tools behind their latest version; reaches the network
 #   --check             with --outdated: fails when any tool is behind
 #   --toolchain <name>  uses this toolchain for the run, as KIT_TOOLCHAIN does; kit takes it even after run's command
@@ -26,15 +36,6 @@
 #   path                prints the directories that put the tools first on PATH, then the packages'
 #   run <command>…      runs the command with the tools, or in their container
 #   <command>…          the command and its arguments, as typed, dash-words included
-#
-# With --outdated, a source the toolchain cannot read is named, and the run fails, even with no tool behind.
-#
-# install installs the toolchain first, then finds the dependency providers again, so a tool the toolchain has just
-# installed, such as node's npm, counts. It fails, naming each, when a provider's lock is here and its tool is still
-# not on PATH, and then installs no provider.
-#
-# Ambient, install installs nothing. It fails when a tool is missing from PATH, and names each one. A JSON row then
-# has name and path.
 #
 # Exits 0 when it did it, 1 when it could not, and 2 on a usage error; run exits with the command's status.
 #
@@ -175,9 +176,9 @@ then
     || { error "${chosen}: the pinned tools could not be read"; exit 1; }
   layers+=("toolchain/${filler}")
 fi
-declare -a usable
-list:read usable dependencies:usable "${toolchain_dirs}" || exit 1
-for provider in "${usable[@]}"
+declare -a usable_providers
+list:read usable_providers dependencies:usable "${toolchain_dirs}" || exit 1
+for provider in "${usable_providers[@]}"
 do
   [[ -z "${provider}" ]] || layers+=("dependencies/${provider}")
 done
@@ -307,18 +308,18 @@ case "${verb}" in
     # The toolchain may have just installed a provider's tool, such as node's npm, so the providers are found again,
     # with the toolchain's directories as they are after the install.
     toolchain_dirs=$(locked-dirs)
-    list:read usable dependencies:usable "${toolchain_dirs}" || exit 1
+    list:read usable_providers dependencies:usable "${toolchain_dirs}" || exit 1
     unusable=0
     for provider in $(dependencies:providers)
     do
       dependencies:locked "${provider}" || continue
-      ! list:among "${provider}" "${usable[@]}" || continue
+      ! list:among "${provider}" "${usable_providers[@]}" || continue
       error "install ${provider}, or pin it in the toolchain ($(dependencies:call "${provider}" lock) is here, but" \
         "${provider} is not on PATH)"
       unusable=1
     done
     (( unusable == 0 )) || exit 1
-    for provider in "${usable[@]}"
+    for provider in "${usable_providers[@]}"
     do
       [[ -z "${provider}" ]] || install-layer "dependencies/${provider}" || exit 1
     done

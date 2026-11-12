@@ -1,22 +1,76 @@
 # shellcheck shell=bash
 # help.sh - the verbs' help, read from each verb's own header (sourced module)
 # ----------------------------------------------------------------------------------------------------------------------
-# A verb is an executable kit-<verb> beside bin/kit. Its header is the only place its help is written:
+# A verb is an executable kit-<verb> beside bin/kit. Its header is the only place its help is written, in the shape
+# of the verb template, packages/kit/files/repo/.kit/templates/bash/verb:
 #
 #   # kit-<verb> - <purpose> (kit verb: <group>)   the banner, on line 2
-#   # ---…                                     a line of dashes, if the verb has one
-#   # kit <verb> <arguments>                   a usage line: a paragraph of one line that ends without . or :
-#   #
-#   # <description>                            every other paragraph, up to the first line that is not a comment
+#   # Usage:                                     then, indented, a usage line for each way to call it
+#   # <description>                              the paragraphs that say what it does
+#   # Arguments:                                 then, indented, each argument and what it means
+#   # Exits <statuses>                           what each exit status means
+#   # see: <paths>                               where in the kit's source to read more, left out of the help
 #
-# A verb with no usage line takes no arguments, and its usage is kit <verb>. A `see:` line points into the kit's
-# source, and is left out of the help. The group in the banner is one of help_groups, and kit help lists the verbs
+# The header is read through the template, every field in one jq pass, and a line of dashes is dropped first, so a
+# house style that adds one reads the same. A header that leaves the template is refused, naming the template line,
+# and kit lint refuses it before it ships. The group in the banner is one of help_groups, and kit help lists the verbs
 # under it.
 
 # The groups kit help lists the verbs under, in the order it lists them. The last, plumbing, holds the verbs that
 # scripts, the hooks, and the TUI call rather than a person: kit help sums them up in one line, and kit help plumbing
 # lists them.
 declare -gra help_groups=(workflow files checks installation interfaces help plumbing)
+
+# The fields of each verb's header help:values has read, keyed <verb>:<field>: purpose, group, usage, description,
+# arguments, exits, and see.
+declare -gA help_value=()
+
+# help:values <verb>… reads the named verbs' headers through the verb template, in one jq pass over the ones not read
+# yet, into help_value. It fails, naming the verb and the template line, when a header leaves the template.
+# shellcheck disable=SC2154  # kit_root and kit_jq are exported by modules/bash/1st.sh
+help:values() {
+  local verb field value
+  local -a files=()
+  for verb in "$@"
+  do
+    [[ -n "${help_value[${verb}:purpose]+set}" ]] || files+=("${kit_root}/bin/kit-${verb}")
+  done
+  (( ${#files[@]} )) || return 0
+  while IFS= read -r -d '' verb && IFS= read -r -d '' field && IFS= read -r -d '' value
+  do
+    if [[ "${field}" == error ]]
+    then
+      error "kit-${verb}: its header leaves the verb template at line ${value}"
+      return 1
+    fi
+    help_value[${verb}:${field}]=${value}
+  # awk hands jq each file's header alone, up to the template's set -o line, each line after its file's name and a
+  # tab, and drops a line of dashes, so a house style that adds one reads the same
+  done < <(awk '
+    FNR == 1 { done = 0 }
+    done || /^# -+$/ { next }
+    { print FILENAME "\t" $0 }
+    $0 == "set -o errexit -o nounset -o pipefail" { done = 1 }' "${files[@]}" |
+    jq --null-input --raw-input --join-output -L "${kit_jq}" \
+      --rawfile template "${kit_root}/packages/kit/files/repo/.kit/templates/bash/verb" '
+      import "template" as template;
+      ($template | template::parts) as $parts
+      | reduce (inputs | capture("^(?<file>[^\t]*)\t(?<line>.*)$")) as $l ({}; .[$l.file] += $l.line + "\n")
+      | to_entries[]
+      | (.key | sub(".*/kit-"; "")) as $verb | .value as $text
+      | ($parts | template::bind_parts({name: "kit-\($verb)"}) | template::match($text)) as $m
+      | if $m.ok then $m.values | to_entries[] | select(.key != "body") | [$verb, .key, .value]
+        else [$verb, "error", ($m.line // "end" | tostring)] end
+      | map(. + "\u0000") | add')
+  for verb in "$@"
+  do
+    if [[ -z "${help_value[${verb}:purpose]+set}" ]]
+    then
+      error "kit-${verb}: its header could not be read"
+      return 1
+    fi
+  done
+}
 
 # help:verbs [<pattern>] prints the name of every verb that matches, sorted: <pattern> itself when it names a verb,
 # otherwise every verb whose name starts with <pattern>. With no pattern, it prints every verb.
@@ -36,39 +90,42 @@ help:verbs() {
 
 # help:purpose <verb> prints the purpose in the verb's banner.
 help:purpose() {
-  sed -n '2{s/^# kit-[a-z-]* - //; s/ (kit verb[^)]*)$//; p;}' "${kit_root}/bin/kit-$1"
+  help:values "$1" || return 1
+  printf '%s\n' "${help_value[$1:purpose]}"
 }
 
-# help:group <verb> prints the group in the verb's banner, or nothing when it names none.
+# help:group <verb> prints the group in the verb's banner.
 help:group() {
-  sed -n '2{s/^.* (kit verb: \([a-z]*\))$/\1/p;}' "${kit_root}/bin/kit-$1"
+  help:values "$1" || return 1
+  printf '%s\n' "${help_value[$1:group]}"
 }
 
-# help:banners prints verb, group, and purpose, tab-separated, for every verb, sorted, read from the banners in one
-# awk pass over every verb's file: a listing of every verb costs one process, where help:purpose and help:group cost
-# one each, and a caller reads it once. The group is empty where the banner names none.
+# help:all reads every verb's header, in the shell that calls it, so the readers a caller runs in a subshell after it
+# find them read, and a header that leaves the template stops the caller before it prints anything.
+help:all() {
+  local -a verbs
+  readarray -t verbs < <(help:verbs)
+  (( ${#verbs[@]} == 0 )) || help:values "${verbs[@]}"
+}
+
+# help:banners prints verb, group, and purpose, tab-separated, for every verb, sorted, read in one pass over every
+# verb's header: a listing of every verb costs one process, and a caller reads it once.
 help:banners() {
   local verb
-  local -a files=()
-  for verb in $(help:verbs)
+  local -a verbs
+  readarray -t verbs < <(help:verbs)
+  (( ${#verbs[@]} )) || return 0
+  help:values "${verbs[@]}" || return 1
+  for verb in "${verbs[@]}"
   do
-    files+=("${kit_root}/bin/kit-${verb}")
+    printf '%s\t%s\t%s\n' "${verb}" "${help_value[${verb}:group]}" "${help_value[${verb}:purpose]}"
   done
-  (( ${#files[@]} )) || return 0
-  awk '
-    FNR == 2 {
-      verb = FILENAME; sub(/.*\/kit-/, "", verb)
-      purpose = $0; sub(/^# kit-[a-z-]* - /, "", purpose)
-      group = ""
-      if (match(purpose, / \(kit verb: [a-z]*\)$/)) group = substr(purpose, RSTART + 12, RLENGTH - 13)
-      sub(/ \(kit verb[^)]*\)$/, "", purpose)
-      printf "%s\t%s\t%s\n", verb, group, purpose
-    }' "${files[@]}"
 }
 
 # help:members <group> prints the name of every verb whose banner names the group, sorted, and for other, every verb
 # whose banner names no group of help_groups.
 help:members() {
+  help:all || return 1
   local verb group purpose
   while IFS=$'\t' read -r verb group purpose
   do
@@ -79,53 +136,40 @@ help:members() {
   done < <(help:banners)
 }
 
-# help:header <verb> prints the verb's header text below the banner, without the comment marks, and without a line of
-# dashes, the blank lines at either end, the see: lines, and the lines that open and close a region kit generate fills,
-# as the legend kit-flow's header has.
-help:header() {
-  awk '
-    NR <= 2 { next }
-    /^# -+$/ { next }
-    !/^#/ { exit }
-    /^# see: / { next }
-    /^# kit:(generate|end) / { next }
-    { sub(/^# ?/, ""); line[++n] = $0 }
-    END {
-      first = 1; while (first <= n && line[first] == "") first++
-      last = n; while (last >= first && line[last] == "") last--
-      for (i = first; i <= last; i++) print line[i]
-    }' "${kit_root}/bin/kit-$1"
-}
-
-# help:usage <verb> prints the verb's usage lines, or kit <verb> when it has none.
+# help:usage <verb> prints the verb's usage lines, the Usage: block's.
 help:usage() {
-  local usage
-  usage=$(help:header "$1" | awk -v verb="$1" '
-    function flush() { if (count == 1 && para ~ "^kit " verb "( |$)" && para !~ /[.:]$/) print para; count = 0 }
-    $0 == "" { flush(); next }
-    { para = $0; count++ }
-    END { flush() }')
-  printf '%s\n' "${usage:-kit $1}"
+  help:values "$1" || return 1
+  grep --invert-match '^$' <<<"${help_value[$1:usage]}" || true  # a block with no line has nothing to print
 }
 
-# help:description <verb> prints the verb's header without its usage lines.
+# help:arguments <verb> prints the verb's Arguments: block, each line indented two spaces, as the description shows
+# it; nothing for a verb that takes none.
+help:arguments() {
+  help:values "$1" || return 1
+  [[ -n "${help_value[$1:arguments]}" ]] || return 0
+  awk '{ print ($0 == "" ? "" : "  " $0) }' <<<"${help_value[$1:arguments]%$'\n'}"
+}
+
+# help:description <verb> prints what the verb's help page says below its usage: the description, without the lines
+# that open and close a region kit generate fills, as the legend kit-flow's header has; then the argument block; then
+# Exits. Paragraphs are one blank line apart.
 help:description() {
-  help:header "$1" | awk -v verb="$1" '
-    function flush(   i) {
-      if (count == 1 && para[1] ~ "^kit " verb "( |$)" && para[1] !~ /[.:]$/) { count = 0; return }
-      if (count > 0 && printed) print ""
-      for (i = 1; i <= count; i++) print para[i]
-      if (count > 0) printed = 1
-      count = 0
-    }
-    $0 == "" { flush(); next }
-    { para[++count] = $0 }
-    END { flush() }'
+  local arguments
+  help:values "$1" || return 1
+  arguments=$(help:arguments "$1") || return 1
+  {
+    # a description of region lines alone leaves nothing, which is no failure
+    grep --invert-match --extended-regexp '^kit:(generate|end) ' <<<"${help_value[$1:description]}" || true
+    printf '\n%s\n\nExits %s\n' "${arguments}" "${help_value[$1:exits]//$'\n# '/$'\n'}"
+  } | awk '
+    $0 == "" { blank = printed; next }
+    { if (blank) print ""; blank = 0; print; printed = 1 }'
 }
 
 # help:summary <verb>… prints each verb's usage and purpose, one block per verb, as kit help lists them. A single
 # usage line short enough shares its line with the purpose; otherwise the purpose follows the usage lines.
 help:summary() {
+  help:all || return 1
   local verb line purpose group
   local -a usage
   local -A purposes=()
@@ -231,6 +275,7 @@ help:heading() {
 # help:listing <group> <verb>… prints the group's heading and each verb named with its purpose, one per line, as kit
 # help lists a group.
 help:listing() {
+  help:all || return 1
   local group=$1 verb named purpose
   local -A purposes=()
   shift
@@ -250,6 +295,7 @@ help:listing() {
 # bold as help:styled says. The banners are read once, and each verb goes under its group, or under other when its
 # banner names no group of help_groups.
 help:overview() {
+  help:all || return 1
   local bold='' plain='' group verb purpose
   local -a members
   local -A purposes=() members_of=()
@@ -297,6 +343,7 @@ help:overview() {
 # columns, and the other verbs of its group, wrapped at 80 columns between verbs. Headings are bold as help:styled
 # says.
 help:page() {
+  help:all || return 1
   local bold='' plain='' line verb group named own='' purpose='' other
   local -a banners others=()
   if help:styled
@@ -345,6 +392,7 @@ help:page() {
 # help:choices <key> [<answer>…] answers kit syntax --choices for <verb>: an open set, every verb with its purpose, since
 # kit help takes the start of a name too.
 help:choices() {
+  help:all || return 1
   local verb group purpose
   [[ "$1" == '<verb>' ]] || return 1
   if [[ "${2:-}" == --kind ]]

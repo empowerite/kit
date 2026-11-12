@@ -256,12 +256,15 @@ syntax:emit-string() {
   syntax_json+="\"${text}\""
 }
 
-# syntax:arguments <verb> prints the arguments object the header's indented block describes: {"<key>": {"description":
-# "<text>"}}. A block line starts with two spaces, the argument as the header writes it, two or more spaces, and the
-# text; a line indented four or more spaces continues the text; a blank line, or any other line, ends the block. The
-# key is the argument without its value and repeat mark: --name, <name>, word, or --<hole>, as syntax.jq's key gives it.
+# syntax:arguments <verb> prints the arguments object the header's Arguments: block describes: {"<key>": {"description":
+# "<text>"}}. As help:arguments indents it, a block line starts with two spaces, the argument as the header writes it,
+# two or more spaces, and the text; a line indented four or more spaces continues the text; a blank line, or any other
+# line, ends the entry. The key is the argument without its value and repeat mark: --name, <name>, word, or --<hole>,
+# as syntax.jq's key gives it.
 syntax:arguments() {
-  help:description "$1" | awk '
+  local arguments
+  arguments=$(help:arguments "$1") || return 1
+  awk '
     function flush() { if (key != "") printf "%s\t%s\n", key, text; key = "" }
     /^  (--|<|[a-z])[^ ]*( [^ ]+)*  +[^ ]/ {
       flush()
@@ -277,7 +280,7 @@ syntax:arguments() {
     }
     /^    / && key != "" { line = $0; sub(/^ +/, "", line); text = text " " line; next }
     { flush() }
-    END { flush() }' |
+    END { flush() }' <<<"${arguments}" |
     jq --raw-input --slurp 'split("\n") | map(select(. != "") | split("\t") | {key: .[0], value: {description: .[1]}})
       | from_entries'
 }

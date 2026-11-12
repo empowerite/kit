@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 # kit-people - lists who has access to the repository, its teams, and the bots that acted (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit people [--text | --json | --jq]
+# Usage:
+#   kit people [--text | --json | --jq]
+#   kit people --stages
+#   kit people --marks
+#   kit people people [--text | --json | --jq]
+#   kit people teams [--text | --json | --jq]
+#   kit people agents [--text | --json | --jq]
 #
 # Draws what the forge says of who works on the repository, a stage for each of People's tabs in kittui. It changes
 # nothing. The stages, in order:
@@ -13,27 +19,6 @@
 # none names no workspace. Without it, the workspace is the repository here, and outside one, the last group used, as
 # kit workspaces --current says. On a terminal, kit people opens People in kittui, and kit people <stage> opens it on
 # that tab, maximized. Without one, or with --text, it prints the stages as text; with --json or --jq, as JSON.
-#
-#   --text              prints the stages as text, even on a terminal
-#   --json              the stages as one JSON object: stages, then each stage's document under its name, null for one
-#                       that could not be read
-#   --jq                the same JSON, formatted by jq for a person
-#   --stages            prints the stages, one per line, in order, the same over any workspace
-#   --marks             prints a mark per stage, as one JSON object: null for each, as each is read again only on
-#                       Refresh, kittui offering no Watch for a tab kit never marks
-#   people              who has access to the repository, people and bots, each with a role
-#   teams               the teams with access, 20 at most, each with its members, 100 at most
-#   agents              the bots that acted in the repository's newest commits, changes, and reviews
-#
-# kit people --stages
-#
-# kit people --marks
-#
-# kit people people [--text | --json | --jq]
-#
-# kit people teams [--text | --json | --jq]
-#
-# kit people agents [--text | --json | --jq]
 #
 # With --json, a stage prints {rows, errors}, and limited where the forge holds more than it read. A row is {key, …,
 # links}: key is the row's own in its stage, and links gives where a value leads, by its field. Every row says where it
@@ -62,6 +47,18 @@
 #                       account, or a login that ends [bot]; past 100 open changes, or 20 reviewers of one, the
 #                       document is limited, at the bots drawn. GitLab's are its bot users among the members, acted
 #                       null, last the day each last acted. Azure DevOps names no bots, and draws none
+#
+# Arguments:
+#   --text              prints the stages as text, even on a terminal
+#   --json              the stages as one JSON object: stages, then each stage's document under its name, null for one
+#                       that could not be read
+#   --jq                the same JSON, formatted by jq for a person
+#   --stages            prints the stages, one per line, in order, the same over any workspace
+#   --marks             prints a mark per stage, as one JSON object: null for each, as each is read again only on
+#                       Refresh, kittui offering no Watch for a tab kit never marks
+#   people              who has access to the repository, people and bots, each with a role
+#   teams               the teams with access, 20 at most, each with its members, 100 at most
+#   agents              the bots that acted in the repository's newest commits, changes, and reviews
 #
 # Exits 0 when the stages are drawn, 1 when a stage could not be read, after what was, and 2 on a usage error, or
 # outside a repository's working tree with no workspace.

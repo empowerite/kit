@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # kit-commit - commits what is staged, after the kit's checks (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit commit [--all] (--message <text>… | --file <path>) [<path>…]
+# Usage:
+#   kit commit [--all] (--message <text>… | --file <path>) [<path>…]
 #
 # Commits in a worktree, never on the desk or the default branch. Before the commit exists, kit commit:
 #
@@ -21,15 +22,16 @@
 #
 # With or without paths, it refuses when a commit landed on HEAD while the checks ran; run kit commit again.
 #
-#   --all             stages every tracked change first, as git commit --all does
-#   --message <text>   the message; the first is the subject, the rest are paragraphs
-#   --file <path>      the message from a file; its first line is the subject
-#   <path>…            commits these paths alone; each must be known to git
-#
 # A subject that names another issue attaches it to the branch's pull request: kit commit adds a Closes line for it
 # to the pull request's body, and assigns the caller to it when no one is assigned.
 #
 # kit commit opens no editor.
+#
+# Arguments:
+#   --all             stages every tracked change first, as git commit --all does
+#   --message <text>   the message; the first is the subject, the rest are paragraphs
+#   --file <path>      the message from a file; its first line is the subject
+#   <path>…            commits these paths alone; each must be known to git
 #
 # Exits 0 on a commit, 1 on a refusal, and 2 on a usage error.
 #

@@ -657,8 +657,8 @@ new:browse() {
   "${opener}" "$1" >/dev/null 2>&1 || warn "${opener} could not open the page; open the URL above"
 }
 
-# new:verb <name> --purpose=<text> --group=<group> writes a verb into the kit's own source: kit/bin/kit-<name>, with
-# the header kit help reads, the loader, and the guard on its arguments.
+# new:verb <name> --purpose=<text> --group=<group> writes a verb into the kit's own source: kit/bin/kit-<name>, from
+# the verb template, so its header is the one kit help reads, with the loader and the guard on its arguments.
 new:verb() {
   local name=$1 purpose='' group='' arg body
   shift
@@ -684,9 +684,8 @@ new:verb() {
   body=$'# shellcheck source=modules/bash/1st.sh\nsource "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"'
   body+=$'\nkit:enter\nguard:arguments '"${name}"' "$@" || exit $?'
   new:clear "kit/bin/kit-${name}" || return 1
-  run kit new file "kit/bin/kit-${name}" --rule=bash --variant=script --purpose="${purpose} (kit verb: ${group})" \
-    --about=$'#\n# kit '"${name}"$'\n#\n# kit '"${name}"' '"${purpose}"$'.\n#\n# Exits 0 on success, and 2 on a usage error.\n' \
-    --body="${body}"
+  run kit new file "kit/bin/kit-${name}" --rule=bash --variant=verb --purpose="${purpose}" --group="${group}" \
+    --usage="kit ${name}" --description="kit ${name} ${purpose}." --body="${body}"
 }
 
 # new:name <word> <what> is true when <word> is a lowercase word with dashes; otherwise it refuses, naming <what>.

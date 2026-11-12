@@ -87,8 +87,17 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
 
 @test "in the kit's own source, a verb has the header kit help reads, and a jq module has its tests" {
   cp -R "${kit_checkout}" kit
+  # the kit's own source tells ShellCheck where a verb's loader is, so the made verb lints as the kit's verbs do
+  cp "${kit_checkout}/../.shellcheckrc" .
   kit/bin/kit hydrate >/dev/null 2>&1 || true
   run kit/bin/kit new verb frob --purpose='frobs the widgets' --group=files
+  [ "$status" -eq 0 ]
+  # the header is the verb template's, so kit lint passes it as made
+  grep --quiet --line-regexp '# Usage:' kit/bin/kit-frob
+  grep --quiet --line-regexp '#   kit frob' kit/bin/kit-frob
+  grep --quiet --line-regexp '# Arguments:' kit/bin/kit-frob
+  grep --quiet --line-regexp '# Exits 0 on success, and 2 on a usage error.' kit/bin/kit-frob
+  run kit/bin/kit lint kit/bin/kit-frob
   [ "$status" -eq 0 ]
   run kit/bin/kit help frob
   [ "${lines[0]}" = "kit frob - frobs the widgets" ]

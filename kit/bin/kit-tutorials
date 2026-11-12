@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # kit-tutorials - lists kit's tutorials, and opens one, in kittui or the browser (kit verb: help)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit tutorials [--text | --json | --jq] [--tag=<audience>…]
-#
-# kit tutorials [--text] [--tag=<audience>…] <tutorial>
+# Usage:
+#   kit tutorials [--text | --json | --jq] [--tag=<audience>…]
+#   kit tutorials [--text] [--tag=<audience>…] <tutorial>
 #
 # The tutorials are short lessons, each for some audiences: some ship with the kit, pages read on this machine, and
 # the others are a site online. On a terminal, it opens kittui's tutorials screen, a card for each tutorial that says
@@ -17,6 +17,10 @@
 # pre-release the one built for it. Each link ends with ?kit=<version>, so a page can tell you when your kit is too old
 # for a passage. Nothing here runs a tutorial's commands.
 #
+# KIT_TUTORIALS_BASE replaces the site the links start from, as a site served on this machine; KIT_TUTORIALS_CATALOGUE
+# names another catalogue.
+#
+# Arguments:
 #   --text            prints the list, even on a terminal
 #   --json            one JSON object: {version, base, audiences, tutorials}, each tutorial {id, title, summary,
 #                     glyph, audience, where, url, file}: where is kit or online, url the link of one online, file the
@@ -25,9 +29,6 @@
 #   --tag=<audience>  keeps the tutorials for that audience; given again, it keeps the tutorials for either
 #   <audience>        an audience's id, as --json names it: newcomer, ui, maintainer
 #   <tutorial>        a tutorial's id, as --json names it; kittui opens on its card, or it opens in the browser
-#
-# KIT_TUTORIALS_BASE replaces the site the links start from, as a site served on this machine; KIT_TUTORIALS_CATALOGUE
-# names another catalogue.
 #
 # Exits 0 when it printed or opened, 1 when the catalogue or a tutorial's page in the kit is missing, and 2 on a usage
 # error, or a tutorial or audience that is unknown.

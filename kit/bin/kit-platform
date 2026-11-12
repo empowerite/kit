@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 # kit-platform - lists the services, toolchains, tools, and settings kit runs with (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit platform [--text | --json | --jq]
+# Usage:
+#   kit platform [--text | --json | --jq]
+#   kit platform --stages
+#   kit platform --marks
+#   kit platform services [--text | --json | --jq]
+#   kit platform toolchains [--text | --json | --jq]
+#   kit platform tools [--text | --json | --jq]
+#   kit platform settings [--text | --json | --jq]
 #
 # Draws what kit runs with here, a stage for each of Platform's tabs in kittui. It changes nothing, and asks the forge
 # only whether its tool is signed in. The stages, in order:
@@ -13,34 +20,6 @@
 # none names no workspace. Without it, the workspace is the repository here, and outside one, the last group used, as
 # kit workspaces --current says. On a terminal, kit platform opens Platform in kittui, and kit platform <stage> opens
 # it on that tab, maximized. Without one, or with --text, it prints the stages as text; with --json or --jq, as JSON.
-#
-#   --text              prints the stages as text, even on a terminal
-#   --json              the stages as one JSON object: stages, then each stage's document under its name, null for one
-#                       that could not be read
-#   --jq                the same JSON, formatted by jq for a person
-#   --stages            prints the stages, one per line, in order, the same over any workspace
-#   --marks             prints a mark per stage, as one JSON object, which changes when what the stage draws does: a
-#                       hash of kit.yml for settings; for toolchains and tools, of the files the toolchains and the
-#                       dependency providers pin from and of those that keep kit's choice; and for services, of all of
-#                       those, the clone's git configuration, which holds its remotes, and .kit/policy
-#   services            each capability kit fills and the service that answers it: hosting, review, ci, and releases,
-#                       the primary's forge; tracking, each tracker prefix; the project toolchain; each dependency
-#                       provider whose manifest and lock are here; and the policy engine
-#   toolchains          each toolchain kit can use, one row for each role it fills, as kit toolchains lists them
-#   tools               each tool the chosen toolchain and the dependency providers pin, as kit tools lists them
-#   settings            each key the settings schema names: the value kit.yml sets, or the schema's default
-#
-# kit platform --stages
-#
-# kit platform --marks
-#
-# kit platform services [--text | --json | --jq]
-#
-# kit platform toolchains [--text | --json | --jq]
-#
-# kit platform tools [--text | --json | --jq]
-#
-# kit platform settings [--text | --json | --jq]
 #
 # With --json, a stage prints {rows, errors}. A row is {key, …, links}: key is the row's own in its stage, and links
 # gives where a value leads, by its field; no row of these stages leads anywhere. Every row says where it is from:
@@ -62,6 +41,23 @@
 #                       ambient, {name, path, from}
 #   settings            {setting, value, from}: value is kit.yml's, or the schema's default, null where it names none;
 #                       from is set or default
+#
+# Arguments:
+#   --text              prints the stages as text, even on a terminal
+#   --json              the stages as one JSON object: stages, then each stage's document under its name, null for one
+#                       that could not be read
+#   --jq                the same JSON, formatted by jq for a person
+#   --stages            prints the stages, one per line, in order, the same over any workspace
+#   --marks             prints a mark per stage, as one JSON object, which changes when what the stage draws does: a
+#                       hash of kit.yml for settings; for toolchains and tools, of the files the toolchains and the
+#                       dependency providers pin from and of those that keep kit's choice; and for services, of all of
+#                       those, the clone's git configuration, which holds its remotes, and .kit/policy
+#   services            each capability kit fills and the service that answers it: hosting, review, ci, and releases,
+#                       the primary's forge; tracking, each tracker prefix; the project toolchain; each dependency
+#                       provider whose manifest and lock are here; and the policy engine
+#   toolchains          each toolchain kit can use, one row for each role it fills, as kit toolchains lists them
+#   tools               each tool the chosen toolchain and the dependency providers pin, as kit tools lists them
+#   settings            each key the settings schema names: the value kit.yml sets, or the schema's default
 #
 # Exits 0 when the stages are drawn, 1 when a stage could not be read, as tools where kit tools refuses: what was
 # read is still drawn, and the line names what was not; and 2 on a usage error, or outside a repository's working

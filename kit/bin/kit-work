@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # kit-work - starts or resumes work on issues (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit work <reference>…
-#
-# kit work --title <text> [<reference>…]
-#
-# kit work --pr <number> <reference>…
+# Usage:
+#   kit work <reference>…
+#   kit work --title <text> [<reference>…]
+#   kit work --pr <number> <reference>…
 #
 # Starts work on issues, or resumes it. kit work makes each of these, and reuses any that already exists:
 #
@@ -23,16 +22,17 @@
 # When another session's stash lands on top of the sweep's, kit work sweeps nothing, and names the stash that holds
 # the desk's work.
 #
+# 7 and #7 name an issue on the forge, the service that hosts the repository: GitHub or GitLab. AB#4521 names an
+# Azure DevOps work item, when kit.yml declares that tracker. kit work asks nothing itself; kit tui asks for the
+# title when kit work is given neither.
+#
+# Arguments:
 #   <reference>…     the issues, each named with its tracker: 7, #7, or AB#4521; the first is the primary, and the
 #                    one pull request closes them all
 #   --title <text>   creates an issue with that title and starts it; with references, creates it as their parent,
 #                    as kit gather does, and starts it with them
 #   --pr <number>    adds the issues to one of the caller's own open pull requests instead: each is assigned to the
 #                    caller and closed by it
-#
-# 7 and #7 name an issue on the forge, the service that hosts the repository: GitHub or GitLab. AB#4521 names an
-# Azure DevOps work item, when kit.yml declares that tracker. kit work asks nothing itself; kit tui asks for the
-# title when kit work is given neither.
 #
 # Exits 0 when the work is started or resumed, 1 on a refusal or when the forge or the trackers in kit.yml cannot be
 # read, and 2 on a usage error or a reference no declared tracker reads.

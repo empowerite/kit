@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 # kit-linked - refuses a pull request not linked to an open issue (kit verb: checks)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit linked [<number>]
+# Usage:
+#   kit linked [<number>]
 #
 # Fails when a pull request is not linked to an open issue of this repository. kit ci runs it in the delivered CI
 # job, and anyone can run it on any pull request.
-#
-#   <number>   the pull request to check; default: this checkout's
 #
 # A linked issue counts when it is open and belongs to this repository. A closed issue, or one in another
 # repository, is reported and does not count. One whose state its tracker cannot read is named, beside the tracker's
@@ -21,6 +20,9 @@
 # request's or a merge group's base commit, or a merge request's target branch at its tip. On a runner the branch is
 # the change's head branch, whatever its name, and kit ci runs kit linked before the gate. A base with no kit.yml,
 # where the kit is not installed yet, leaves the checkout's own kit.yml to say, as on the default branch.
+#
+# Arguments:
+#   <number>   the pull request to check; default: this checkout's
 #
 # Exits 0 when at least one linked issue counts or the author is exempt, 1 when neither holds, there is no pull
 # request to check, the forge cannot say which pull request this checkout is working on, the pull request's body

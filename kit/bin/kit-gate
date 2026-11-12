@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # kit-gate - runs the repository's gate (kit verb: checks)
 # ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit gate
+#
 # kit gate takes no arguments. The gate is the repository's own CI command, the first of:
 #
 #   1. the `gate` setting in kit.yml
@@ -13,6 +16,8 @@
 #
 # kit gate fails, and prints the remedy, when the repository has no gate or the root justfile cannot be read. A gate
 # that cannot run never counts as a pass. On a CI runner, each outcome is also written to the step summary.
+#
+# Arguments:
 #
 # Exits 0 when the gate passes, and 1 otherwise.
 #

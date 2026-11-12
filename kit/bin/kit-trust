@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
 # kit-trust - trusts a clone, so kit runs what it asks for there (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit trust [--yes] [<path>]
-#
-# kit trust --list
-#
-# kit trust --check [<path>]
-#
-# kit trust --revoke [<path>]
+# Usage:
+#   kit trust [--yes] [<path>]
+#   kit trust --list
+#   kit trust --check [<path>]
+#   kit trust --revoke [<path>]
 #
 # kit runs nothing in a clone until you trust it: in a clone you do not trust, bin/kit, the loader, runs kit help,
 # kit version, and kit trust alone, on the kit you installed, and every other verb refuses. kit trust shows what the
@@ -18,15 +16,16 @@
 # Trusting a clone means you accept code from whoever can push to it. kit does not check each pull; review and signed
 # commits do. The trust stays when the clone's files change, as it is a judgment of the clone, not of one commit.
 #
+# The records are in kit/trusted under XDG_CONFIG_HOME, else ~/.config: one absolute path per line, which you may edit
+# by hand.
+#
+# Arguments:
 #   --yes             records the trust without asking, as a CI job does for its own checkout
 #   --list            prints the clones and the folders you trust, one per line
 #   --check           prints the name the clone is trusted by, and exits 0 when it is trusted and 1 when not; it
 #                     asks nothing and runs nothing of the clone's, for a screen that asks for the trust itself
 #   --revoke          takes the trust of a clone or a folder back
 #   <path>            a clone, or a directory in one, the clone here when none is given; or a folder ending in /
-#
-# The records are in kit/trusted under XDG_CONFIG_HOME, else ~/.config: one absolute path per line, which you may edit
-# by hand.
 #
 # Exits 0 when the clone or the folder is trusted, or the list is printed; 1 when you answer no, there is no terminal
 # to ask and no --yes, --revoke finds no record, or --check finds the clone not trusted; and 2 on a usage error or a

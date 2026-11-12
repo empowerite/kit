@@ -1,7 +1,22 @@
 #!/usr/bin/env bash
 # kit-flow - shows where the work stands, from the issues to releases (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit flow [--no-fetch] [--fresh] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]
+# Usage:
+#   kit flow [--no-fetch] [--fresh] [--text | --json | --jq] [--all | [--mine] [--others] [--owner=<login>…]]
+#   kit flow --stages
+#   kit flow --me
+#   kit flow --capabilities
+#   kit flow --quota
+#   kit flow --marks
+#   kit flow issues [--json | --jq] [--cached] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]]
+#   kit flow incoming [--no-fetch] [--json | --jq] [--cached]
+#   kit flow desk [--json | --jq] [--cached]
+#   kit flow worktrees [--json | --jq] [--cached]
+#   kit flow changes [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]] [<number>…]
+#   kit flow builds [--json | --jq] [--cached]
+#   kit flow releases [--json | --jq] [--cached]
+#   kit flow backlog [--text | --json | --jq] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]]
+#   kit flow underway [--text | --json | --jq] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]]
 #
 # Draws the picture of the work. It changes nothing. Work moves left to right through seven stages:
 #
@@ -33,68 +48,7 @@
 # Each stage's JSON is kept there too, per checkout and arguments, whatever its age: --cached prints it, so a picture
 # can show the stage as it last was while it loads.
 #
-#   --no-fetch          fetches nothing; incoming says so
-#   --fresh             reads the open issues and pull requests afresh, not the snapshot of the last minute
-#   --cached            with --json and a stage, prints what that stage printed last here with the same arguments,
-#                       whatever its age, and reads nothing; refuses when it has printed nothing yet
-#   --text              prints the picture as text, even on a terminal
-#   --json              the picture as one JSON object, each stage under its name
-#   --jq                the same JSON, formatted by jq for a person
-#   --mine              only the caller's: assigned issues, and opened pull requests
-#   --others            everyone else's; unassigned issues included
-#   --all               every issue and pull request (the default); it stands alone
-#   --owner=<login>     only the named login's; give it once or more
-#   --stages            prints the stages the picture draws, one per line, in order
-#   --me                prints the caller's login on the primary's forge, the login --mine and --others match
-#   --quota             prints the caller's rate limits on the primary's forge, as one JSON array: each forge's
-#                       {forge, limits}, each limit {name, limit, remaining, reset}; reading them costs a request at most.
-#                       A forge without rate limits gives none, and asks nothing
-#   --capabilities      prints what the primary's forge can do, as one JSON object: {contract, forge, provider,
-#                       features}, each feature native or none, as modules/bash/forge.sh declares them; it asks nothing
-#   --marks             prints a mark per stage, as one JSON object, which changes when what the stage draws does: read
-#                       again, a mark that differs says the stage is stale; on GitHub, nothing changed costs no request
-#   --today             only the issues opened in the last 24 hours
-#   <number>…           only these pull requests, by number or issue closed: #7
-#   issues              every open issue, oldest first: in the backlog, which no open pull request closes, or
-#                       underway, closed by one: who works on each, and where
-#   incoming            what fetching every remote brought: default-branch commits, branches new and gone
-#   desk                the root checkout: branch, ahead and behind, uncommitted paths
-#   worktrees           every linked worktree: branch, ahead and behind, uncommitted paths
-#   changes             the open pull requests, each with the issues it closes
-#   builds              the runs not owned by any pull request: the default branch, tags, schedules
-#   releases            the releases on the forge, newest first
-#   backlog             no stage of kit flow: issues lists them; on a terminal it opens issues on its Backlog preset
-#   underway            no stage of kit flow: issues lists them; on a terminal it opens issues on its Underway preset
-#
 # The filters combine: --mine --owner=bob. --mine alone leaves out the owner column.
-#
-# kit flow --stages
-#
-# kit flow --me
-#
-# kit flow --capabilities
-#
-# kit flow --quota
-#
-# kit flow --marks
-#
-# kit flow issues [--json | --jq] [--cached] [--fresh] [--today] [--all | [--mine] [--others] [--owner=<login>…]]
-#
-# kit flow incoming [--no-fetch] [--json | --jq] [--cached]
-#
-# kit flow desk [--json | --jq] [--cached]
-#
-# kit flow worktrees [--json | --jq] [--cached]
-#
-# kit flow changes [--json | --jq] [--cached] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]] [<number>…]
-#
-# kit flow builds [--json | --jq] [--cached]
-#
-# kit flow releases [--json | --jq] [--cached]
-#
-# kit flow backlog [--text | --json | --jq] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]]
-#
-# kit flow underway [--text | --json | --jq] [--fresh] [--all | [--mine] [--others] [--owner=<login>…]]
 #
 # backlog and underway are no stages: on a terminal, either opens the picture in kittui with issues maximized, on its
 # Backlog or Underway preset; with --text, --json, or --jq, or without a terminal, it exits 2 and names kit flow
@@ -268,6 +222,41 @@
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # kit:end legend
+#
+# Arguments:
+#   --no-fetch          fetches nothing; incoming says so
+#   --fresh             reads the open issues and pull requests afresh, not the snapshot of the last minute
+#   --cached            with --json and a stage, prints what that stage printed last here with the same arguments,
+#                       whatever its age, and reads nothing; refuses when it has printed nothing yet
+#   --text              prints the picture as text, even on a terminal
+#   --json              the picture as one JSON object, each stage under its name
+#   --jq                the same JSON, formatted by jq for a person
+#   --mine              only the caller's: assigned issues, and opened pull requests
+#   --others            everyone else's; unassigned issues included
+#   --all               every issue and pull request (the default); it stands alone
+#   --owner=<login>     only the named login's; give it once or more
+#   --stages            prints the stages the picture draws, one per line, in order
+#   --me                prints the caller's login on the primary's forge, the login --mine and --others match
+#   --quota             prints the caller's rate limits on the primary's forge, as one JSON array: each forge's
+#                       {forge, limits}, each limit {name, limit, remaining, reset}; reading them costs a request at most.
+#                       A forge without rate limits gives none, and asks nothing
+#   --capabilities      prints what the primary's forge can do, as one JSON object: {contract, forge, provider,
+#                       features}, each feature native or none, as modules/bash/forge.sh declares them; it asks nothing
+#   --marks             prints a mark per stage, as one JSON object, which changes when what the stage draws does: read
+#                       again, a mark that differs says the stage is stale; on GitHub, nothing changed costs no request
+#   --today             only the issues opened in the last 24 hours
+#   <number>…           only these pull requests, by number or issue closed: #7
+#   issues              every open issue, oldest first: in the backlog, which no open pull request closes, or
+#                       underway, closed by one: who works on each, and where
+#   incoming            what fetching every remote brought: default-branch commits, branches new and gone
+#   desk                the root checkout: branch, ahead and behind, uncommitted paths
+#   worktrees           every linked worktree: branch, ahead and behind, uncommitted paths
+#   changes             the open pull requests, each with the issues it closes
+#   builds              the runs not owned by any pull request: the default branch, tags, schedules
+#   releases            the releases on the forge, newest first
+#   backlog             no stage of kit flow: issues lists them; on a terminal it opens issues on its Backlog preset
+#   underway            no stage of kit flow: issues lists them; on a terminal it opens issues on its Underway preset
+#
 # Exits 0 when the picture is drawn, 1 when the forge, the fetch, the workspace file, a member of the workspace, a desk
 # below, or git's list of the worktrees, the desks, or the remote branches cannot be read: with --json, what was read
 # is still printed, and names what could not, a remote's error, a member under errors, or a stage of null. It exits 1

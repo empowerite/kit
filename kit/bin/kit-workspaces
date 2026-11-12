@@ -1,29 +1,19 @@
 #!/usr/bin/env bash
 # kit-workspaces - lists, shows, and edits your workspaces, and says which one kit starts on (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit workspaces [--text | --json | --jq]
-#
-# kit workspaces --show=<workspace> [--text | --json | --jq]
-#
-# kit workspaces --current [--text | --json | --jq]
-#
-# kit workspaces --use=<workspace>
-#
-# kit workspaces --new=<name> [--from=<command>] [<repository>…]
-#
-# kit workspaces --add=<name> <repository>…
-#
-# kit workspaces --add=<name> --from=<command> [<repository>…]
-#
-# kit workspaces --remove=<name> <repository>…
-#
-# kit workspaces --rename=<name> <new-name>
-#
-# kit workspaces --delete=<name>
-#
-# kit workspaces --favorite=<workspace>
-#
-# kit workspaces --unfavorite=<workspace>
+# Usage:
+#   kit workspaces [--text | --json | --jq]
+#   kit workspaces --show=<workspace> [--text | --json | --jq]
+#   kit workspaces --current [--text | --json | --jq]
+#   kit workspaces --use=<workspace>
+#   kit workspaces --new=<name> [--from=<command>] [<repository>…]
+#   kit workspaces --add=<name> <repository>…
+#   kit workspaces --add=<name> --from=<command> [<repository>…]
+#   kit workspaces --remove=<name> <repository>…
+#   kit workspaces --rename=<name> <new-name>
+#   kit workspaces --delete=<name>
+#   kit workspaces --favorite=<workspace>
+#   kit workspaces --unfavorite=<workspace>
 #
 # A workspace is what kit looks at: one repository, or a named group of them, as a group of repositories that move
 # together. Groups are yours alone, kept in kit/workspaces.yml under XDG_CONFIG_HOME, else ~/.config, which you may
@@ -34,6 +24,23 @@
 # With no option, it lists the groups and the favorites. Inside a repository, in its working tree, kit starts on that
 # repository; outside one, a bare repository or a .git directory too, on the last group used; with none used, on none.
 #
+# The list's JSON is {file, roots, favorites, workspaces}, each group {name, members, repos, favorite}, members a count
+# and repos the members.
+# --show's is {name, kind, members}: kind is group or repository, and each member is {repository, host, path, forge,
+# remotes, checkout, checkouts, by}, remotes [{name, url, forge}] the primary first, checkout a path or null, and by
+# fixed for a group's member, given for a repository named. --current's is {kind, name, member, checkout, why, members,
+# groups, workspaces, favorites, recent}: kind is repository, group, or none; why is given, repository, last, or none;
+# members a group's, as --show gives each; groups, for a repository, each group that holds it, {name, members},
+# members a count; workspaces, every group in the file, as groups gives each; favorites {name, kind, members,
+# checkout}; and recent, the repositories --use kept by their folder whose working trees are still there, the newest
+# first, {name, member, checkout}. Only the JSON looks for checkouts; the text names the workspace alone. The forms
+# that edit print one line, which says what changed, or that nothing needed to, and take no --json.
+#
+# Each form that edits, and --use, takes the file's lock first, a link in kit/workspaces/ under XDG_CACHE_HOME, else
+# ~/.cache, so two commands that edit the file at once each land. A lock whose process is gone is taken over; one held
+# by a live process is waited for, 30 seconds by the clock.
+#
+# Arguments:
 #   --text            prints as text, even on a terminal
 #   --json            one JSON object, as each form below says
 #   --jq              the same JSON, formatted by jq for a person
@@ -66,22 +73,6 @@
 #                     matches none is refused
 #   <folder>          a folder in a git working tree, written as a path: it starts with /, ./, ../, or ~/, or is ., ..,
 #                     or ~
-#
-# The list's JSON is {file, roots, favorites, workspaces}, each group {name, members, repos, favorite}, members a count
-# and repos the members.
-# --show's is {name, kind, members}: kind is group or repository, and each member is {repository, host, path, forge,
-# remotes, checkout, checkouts, by}, remotes [{name, url, forge}] the primary first, checkout a path or null, and by
-# fixed for a group's member, given for a repository named. --current's is {kind, name, member, checkout, why, members,
-# groups, workspaces, favorites, recent}: kind is repository, group, or none; why is given, repository, last, or none;
-# members a group's, as --show gives each; groups, for a repository, each group that holds it, {name, members},
-# members a count; workspaces, every group in the file, as groups gives each; favorites {name, kind, members,
-# checkout}; and recent, the repositories --use kept by their folder whose working trees are still there, the newest
-# first, {name, member, checkout}. Only the JSON looks for checkouts; the text names the workspace alone. The forms
-# that edit print one line, which says what changed, or that nothing needed to, and take no --json.
-#
-# Each form that edits, and --use, takes the file's lock first, a link in kit/workspaces/ under XDG_CACHE_HOME, else
-# ~/.cache, so two commands that edit the file at once each land. A lock whose process is gone is taken over; one held
-# by a live process is waited for, 30 seconds by the clock.
 #
 # Exits 0 when it printed or edited, 1 when the file does not read, is not a map, gives a group a key other than repos
 # and exclude, holds an entry that is no repository, a list it reads, such as the checkouts under the roots, cannot be

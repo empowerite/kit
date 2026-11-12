@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # kit-toolchains - lists the toolchains kit found here, and records which one to use (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit toolchains [--json | --jq]
-#
-# kit toolchains use <name> [--system]
+# Usage:
+#   kit toolchains [--json | --jq]
+#   kit toolchains use <name> [--system]
 #
 # Alone, it lists each manager kit can use, one row for each role it fills: a tool manager, which installs and pins
 # the versions of the repository's toolchain, the set of tools its work runs with; or a package manager, which installs
@@ -18,6 +18,7 @@
 # With use, it records the choice. The project choice is kept for this repository, and the system choice for the
 # person. A toolchain that is not usable here is refused, and the usable ones are named.
 #
+# Arguments:
 #   --json              one JSON object per row: provider, role, usable, active, chosen, and fills
 #   --jq                the same JSON, formatted by jq for a person
 #   use <name>          records the toolchain for the project; ambient uses none

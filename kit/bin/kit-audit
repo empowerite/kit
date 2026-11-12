@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
 # kit-audit - lists the forge's attestations, alerts, controls, and waivers, and the policy's rules (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit audit [--text | --json | --jq]
+# Usage:
+#   kit audit [--text | --json | --jq]
+#   kit audit --stages
+#   kit audit --marks
+#   kit audit evidence [--text | --json | --jq]
+#   kit audit findings [--text | --json | --jq]
+#   kit audit controls [--text | --json | --jq]
+#   kit audit waivers [--text | --json | --jq]
+#   kit audit policy [--text | --json | --jq]
 #
 # Draws what the forge and the policy say of what the repository can be trusted for, a stage for each of Trust's tabs
 # in kittui. It changes nothing. The stages, in order:
@@ -13,35 +21,6 @@
 # none names no workspace. Without it, the workspace is the repository here, and outside one, the last group used, as
 # kit workspaces --current says. On a terminal, kit audit opens Trust in kittui, and kit audit <stage> opens it on
 # that tab, maximized. Without one, or with --text, it prints the stages as text; with --json or --jq, as JSON.
-#
-#   --text              prints the stages as text, even on a terminal
-#   --json              the stages as one JSON object: stages, then each stage's document under its name, null for one
-#                       that could not be read
-#   --jq                the same JSON, formatted by jq for a person
-#   --stages            prints the stages, one per line, in order, the same over any workspace
-#   --marks             prints a mark per stage, as one JSON object: evidence's moves with the forge's runs and
-#                       releases, findings' with its runs and alerts, each scanner's off or refused where it is,
-#                       policy's with kit.yml and .kit/policy; controls and waivers have none, null, as each is read
-#                       again only on Refresh, kittui offering no Watch for them
-#   evidence            the attestations of the 5 newest releases' assets and the 20 newest artifacts
-#   findings            the code scanning, Dependabot, and secret scanning alerts, open and dismissed
-#   controls            the rulesets and the protection that guard the default branch
-#   waivers             who may bypass each control, and each alert dismissed
-#   policy              each rule kit policy judges by, as kit policy --rules lists them
-#
-# kit audit --stages
-#
-# kit audit --marks
-#
-# kit audit evidence [--text | --json | --jq]
-#
-# kit audit findings [--text | --json | --jq]
-#
-# kit audit controls [--text | --json | --jq]
-#
-# kit audit waivers [--text | --json | --jq]
-#
-# kit audit policy [--text | --json | --jq]
 #
 # With --json, a stage prints {rows, errors}, and limited where the forge holds more than it read. A row is {key, …,
 # links}: key is the row's own in its stage, and links gives where a value leads, by its field. Every row says where it
@@ -91,6 +70,22 @@
 #                       the narrowest place that holds them, scope naming it: branch, repository, organization, source,
 #                       or workspace, the finer fields null; a place the clone has none of, as the organization of
 #                       one with no remote, is ""
+#
+# Arguments:
+#   --text              prints the stages as text, even on a terminal
+#   --json              the stages as one JSON object: stages, then each stage's document under its name, null for one
+#                       that could not be read
+#   --jq                the same JSON, formatted by jq for a person
+#   --stages            prints the stages, one per line, in order, the same over any workspace
+#   --marks             prints a mark per stage, as one JSON object: evidence's moves with the forge's runs and
+#                       releases, findings' with its runs and alerts, each scanner's off or refused where it is,
+#                       policy's with kit.yml and .kit/policy; controls and waivers have none, null, as each is read
+#                       again only on Refresh, kittui offering no Watch for them
+#   evidence            the attestations of the 5 newest releases' assets and the 20 newest artifacts
+#   findings            the code scanning, Dependabot, and secret scanning alerts, open and dismissed
+#   controls            the rulesets and the protection that guard the default branch
+#   waivers             who may bypass each control, and each alert dismissed
+#   policy              each rule kit policy judges by, as kit policy --rules lists them
 #
 # Exits 0 when the stages are drawn, 1 when a stage could not be read, after what was, and 2 on a usage error, or
 # outside a repository's working tree with no workspace.

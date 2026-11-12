@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
 # kit-tui - runs the interactive terminal UI (kit verb: interfaces)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit tui [<verb> [<argument>…]]
+# Usage:
+#   kit tui [<verb> [<argument>…]]
 #
 # Opens the welcome guide, or with a verb that verb's form, filled from the arguments given and asking only for
 # the rest. The form shows the command line it builds. Enter on it runs the verb, leaving that line in the
 # scrollback.
-#
-#   <verb>        the verb whose form to open; with none, the welcome guide, as kit welcome opens it
-#   <argument>…   the arguments given so far, which fill the form
 #
 # kit tui is the kit CLI's default verb: kit with no verb runs it. A verb short of a required argument hands off to
 # it as kit tui -- <verb> <argument>…, when stdin, stdout, and stderr are terminals. The words follow a --, so kit
@@ -17,6 +15,10 @@
 # kit tui runs kittui, which each release carries. In a checkout of the kit, it builds one from projects/tui/ with go,
 # once for each change to its sources or to go; a kittui on PATH is the last resort. kittui needs a terminal on stdin,
 # stdout, and stderr. Without one, kit tui refuses before it builds anything.
+#
+# Arguments:
+#   <verb>        the verb whose form to open; with none, the welcome guide, as kit welcome opens it
+#   <argument>…   the arguments given so far, which fill the form
 #
 # Exits as the verb it runs exits; 1 when the form is cancelled or kittui is missing, 2 without a terminal, and 130
 # on ctrl-c.

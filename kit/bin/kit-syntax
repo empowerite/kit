@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
 # kit-syntax - prints a verb's grammar as JSON, and checks its header (kit verb: plumbing)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit syntax [--check | --list] [<verb>…]
-#
-# kit syntax <verb> --choices <argument> [<answer>…]
-#
-# kit syntax <verb> --extend [<answer>…]
-#
-# kit syntax <verb> --match [<word>…]
+# Usage:
+#   kit syntax [--check | --list] [<verb>…]
+#   kit syntax <verb> --choices <argument> [<answer>…]
+#   kit syntax <verb> --extend [<answer>…]
+#   kit syntax <verb> --match [<word>…]
 #
 # Prints the grammar of a verb's command line as JSON, read from the usage lines in its header. The JSON is the
 # contract between the verbs and whatever needs to know what they take, kit tui first. Its keys:
@@ -17,15 +15,6 @@
 #   - arguments: each argument's description, keyed as the header's block writes it, with its choices when the verb
 #     lists them
 #   - extends: true for a verb whose arguments grow with the answers, kit new
-#
-#   --check                prints no JSON; names each fault in the header, and fails
-#   --list                 prints no JSON; one line per verb: verb, purpose, group, tab-separated
-#   --choices <argument>   prints that argument's choices instead, one per line
-#   <answer>…              an argument answered already, or a subcommand word chosen
-#   --extend               prints the arguments the verb learns from the answers
-#   --match                judges the words as the guard judges a command line
-#   <word>…                the words of the command line to judge, after kit <verb>
-#   <verb>…                the verbs to print; none prints every verb
 #
 # A fault is a usage line that does not parse, or an argument the header does not describe. One verb prints its
 # object; several print an array.
@@ -37,6 +26,16 @@
 # --extend answers with arguments entries marked extended, for a form to add as fields; kit new answers with the
 # template's holes, and {} before it knows them. --match answers with status 0, 1 with missing, or 2 with refusal,
 # and the words sorted into literals, operands, options, and values, for a form to fill; the words follow a --.
+#
+# Arguments:
+#   --check                prints no JSON; names each fault in the header, and fails
+#   --list                 prints no JSON; one line per verb: verb, purpose, group, tab-separated
+#   --choices <argument>   prints that argument's choices instead, one per line
+#   <answer>…              an argument answered already, or a subcommand word chosen
+#   --extend               prints the arguments the verb learns from the answers
+#   --match                judges the words as the guard judges a command line
+#   <word>…                the words of the command line to judge, after kit <verb>
+#   <verb>…                the verbs to print; none prints every verb
 #
 # Exits 0 when every usage line parses (and, with --check, every argument is described), 1 when one does not (its
 # object carries error), the verb has no choices for the argument, or it does not extend its arguments, and 2 when a
@@ -110,6 +109,7 @@ fi
 if [[ -n "${syntax_options[--list]+x}" ]]
 then
   # the banners are read once, and the verbs print in the order named
+  help:all || exit 1
   declare -A banner=()
   while IFS=$'\t' read -r verb group purpose
   do

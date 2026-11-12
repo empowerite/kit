@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # kit-settle - settles the issues a closed pull request names (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit settle [<number>]
+# Usage:
+#   kit settle [<number>]
 #
 # Does for the issues a pull request names what its forge does not do itself, once the pull request is closed:
 #
@@ -11,11 +12,12 @@
 #     backlog again, and its author is taken off it (in another tracker, the caller as that tracker knows the caller)
 #   - open: nothing
 #
-#   <number>   the pull request to settle; default: this checkout's
-#
 # It is safe to run again: an issue already closed, or no longer assigned, is left as it is. The delivered CI runs it
 # when a pull request closes, and kit tidy before it removes a finished worktree, so an issue is settled however the
 # pull request was closed.
+#
+# Arguments:
+#   <number>   the pull request to settle; default: this checkout's
 #
 # Exits 0 when every issue is settled, 1 when the forge or the trackers in kit.yml cannot be read or an issue could not
 # be settled, and 2 on a usage error.

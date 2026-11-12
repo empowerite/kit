@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # kit-hydrate - places what the active packages deliver under .kit/ (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit hydrate [--quick]
+# Usage:
+#   kit hydrate [--quick]
 #
 # Reads the packages kit.yml declares, and brings every path they deliver under .kit/ to its state:
 #
@@ -15,11 +16,12 @@
 # Every verb that reads a delivered file hydrates first. This verb is for a fresh clone or worktree, before any other
 # command.
 #
-#   --quick   for a shell hook: silent when everything is in place
-#
 # --quick is for a shell hook, as in mise's [hooks] enter = "kit hydrate --quick". It then starts nothing and says
 # nothing when everything is in place, or outside a repository that declares a kit version. Otherwise it does the
 # whole job.
+#
+# Arguments:
+#   --quick   for a shell hook: silent when everything is in place
 #
 # Exits 0 on success, 1 when kit.yml cannot be read, with --quick too, and 1 in a repository that declares no kit
 # version, unless --quick.

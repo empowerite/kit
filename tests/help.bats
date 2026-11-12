@@ -195,8 +195,11 @@ group-has() {
   # and with a copy of the kit that has kit-gates beside kit-gate
   local root="${BATS_TEST_TMPDIR}/kit"
   mkdir -p "${root}"
-  cp -R "${kit_root}/bin" "${kit_root}/libexec" "${kit_root}/modules" "${root}/"
-  cp "${root}/bin/kit-gate" "${root}/bin/kit-gates"
+  cp -R "${kit_root}/bin" "${kit_root}/libexec" "${kit_root}/modules" "${kit_root}/packages" "${root}/"
+  # the copy names itself in its banner, as the verb template binds the file's name, and in its usage line
+  sed -e 's/^# kit-gate - /# kit-gates - /' -e 's/^#   kit gate/#   kit gates/' "${root}/bin/kit-gate" \
+    > "${root}/bin/kit-gates"
+  chmod +x "${root}/bin/kit-gates"
   run "${root}/bin/kit" help gat
   [[ "$output" == *"  gate "* && "$output" == *"  gates "* ]]
   run "${root}/bin/kit" help gate
@@ -206,9 +209,10 @@ group-has() {
 @test "a verb with no line of dashes under its banner keeps the line that follows the banner" {
   local root="${BATS_TEST_TMPDIR}/kit"
   mkdir -p "${root}"
-  cp -R "${kit_root}/bin" "${kit_root}/libexec" "${kit_root}/modules" "${root}/"
-  printf '%s\n' '#!/usr/bin/env bash' '# kit-plain - a verb in no house style (kit verb)' '# kit plain <thing>' '#' \
-    '# Does it.' > "${root}/bin/kit-plain"
+  cp -R "${kit_root}/bin" "${kit_root}/libexec" "${kit_root}/modules" "${kit_root}/packages" "${root}/"
+  printf '%s\n' '#!/usr/bin/env bash' '# kit-plain - a verb in no house style (kit verb: help)' '# Usage:' \
+    '#   kit plain <thing>' '#' '# Does it.' '#' '# Arguments:' '#   <thing>   the thing' '#' '# Exits 0.' '#' \
+    '# see: bin/kit' '' 'set -o errexit -o nounset -o pipefail' > "${root}/bin/kit-plain"
   chmod +x "${root}/bin/kit-plain"
   run "${root}/bin/kit" help plain
   [ "$status" -eq 0 ]
@@ -218,7 +222,7 @@ group-has() {
 @test "kit help <verb> rewraps the prose, the argument block, and the bullets to 80 columns, counted in characters" {
   local root="${BATS_TEST_TMPDIR}/kit" prose block bullet first line joined=''
   mkdir -p "${root}"
-  cp -R "${kit_root}/bin" "${kit_root}/libexec" "${kit_root}/modules" "${root}/"
+  cp -R "${kit_root}/bin" "${kit_root}/libexec" "${kit_root}/modules" "${kit_root}/packages" "${root}/"
   # a paragraph at the header's full width, written twice, with multibyte characters a byte count would wrap early;
   # then an argument line and a bullet, each wider than 80
   prose='Does the thing… and says so in a paragraph → written out to the header'"'"'s full width, one hundred and eighteen columns…'
@@ -226,9 +230,10 @@ group-has() {
   bullet='  - a bullet whose text is longer than the room, so it wraps under its own first word, with the mark kept on the first line'
   first='- the first thing, whose text is longer than the room, so it wraps under its own first word, however long'
   [ "${#prose}" -eq 118 ]
-  printf '%s\n' '#!/usr/bin/env bash' '# kit-wide - a verb written wide (kit verb: help)' '#' '# kit wide [--wide=<value>]' '#' \
-    "# ${prose}" "# ${prose}" '#' "# ${block}" '#' "# ${bullet}" '#' '# A second paragraph, short.' '#' \
-    '# The verb does three things:' "# ${first}" '# and goes on in the line after it' '# - the second thing' \
+  printf '%s\n' '#!/usr/bin/env bash' '# kit-wide - a verb written wide (kit verb: help)' '# Usage:' \
+    '#   kit wide [--wide=<value>]' '#' "# ${prose}" "# ${prose}" '#' "# ${bullet}" '#' '# A second paragraph, short.' \
+    '#' '# The verb does three things:' "# ${first}" '# and goes on in the line after it' '# - the second thing' '#' \
+    '# Arguments:' "# ${block}" '#' '# Exits 0.' '#' '# see: bin/kit' '' 'set -o errexit -o nounset -o pipefail' \
     > "${root}/bin/kit-wide"
   chmod +x "${root}/bin/kit-wide"
   run "${root}/bin/kit" help wide
@@ -242,12 +247,12 @@ group-has() {
     [[ "${line}" == '  '[!' ']* ]] && joined+="${joined:+ }${line#  }"
   done < <(sed -n '/^Description$/,/^$/p' <<<"$output")
   [ "${joined}" = "${prose} ${prose}" ]
-  # the argument's description hangs at its own column, the bullet's text after its mark, and the second paragraph
-  # follows them
-  [[ "$output" == *$'\n\n    --wide=<value>   an argument whose description is longer than the room, so\n                     it wraps under its own first word, however wide\n\n    - a bullet whose text is longer than the room, so it wraps under its own\n      first word, with the mark kept on the first line\n\n  A second paragraph, short.\n'* ]]
+  # the bullet's text hangs after its mark, and the second paragraph follows it
+  [[ "$output" == *$'\n\n    - a bullet whose text is longer than the room, so it wraps under its own\n      first word, with the mark kept on the first line\n\n  A second paragraph, short.\n'* ]]
   # a bullet at column 0 starts its own paragraph, never joined to the line before it, hanging after its mark; the
-  # line after it that is no bullet continues it, and the next bullet starts the next
-  [[ "$output" == *$'\n\n  The verb does three things:\n  - the first thing, whose text is longer than the room, so it wraps under its\n    own first word, however long and goes on in the line after it\n  - the second thing\n\nGroup\n'* ]]
+  # line after it that is no bullet continues it, and the next bullet starts the next; then the argument block, its
+  # description hanging at its own column, and Exits
+  [[ "$output" == *$'\n\n  The verb does three things:\n  - the first thing, whose text is longer than the room, so it wraps under its\n    own first word, however long and goes on in the line after it\n  - the second thing\n\n    --wide=<value>   an argument whose description is longer than the room, so\n                     it wraps under its own first word, however wide\n\n  Exits 0.\n\nGroup\n'* ]]
   # a verb's own page, with the widest block, fits too, but for a usage line
   run "${kit_root}/bin/kit" help new
   while IFS= read -r line
@@ -280,3 +285,24 @@ group-has() {
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
+
+@test "a verb whose header leaves the verb template is refused by kit help, naming the template line" {
+  local root="${BATS_TEST_TMPDIR}/kit"
+  mkdir -p "${root}"
+  cp -R "${kit_root}/bin" "${kit_root}/libexec" "${kit_root}/modules" "${kit_root}/packages" "${root}/"
+  printf '%s\n' '#!/usr/bin/env bash' '# kit-zz - a verb in the old shape (kit verb: help)' '# kit zz' '#' '# Does it.' \
+    > "${root}/bin/kit-zz"
+  chmod +x "${root}/bin/kit-zz"
+  run "${root}/bin/kit" help zz
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"kit-zz: its header leaves the verb template at line 2"* ]]
+}
+
+@test "kit help <verb> shows the description, then the argument block, then Exits, as the header holds them" {
+  run "${kit_root}/bin/kit" help toolchains
+  [ "$status" -eq 0 ]
+  local description=${output%%$'\nDescription\n'*} arguments=${output%%$'\n    --json'*} exits=${output%%$'\n  Exits 0'*}
+  (( ${#description} < ${#arguments} && ${#arguments} < ${#exits} ))
+  [[ "$output" == *$'\n  Exits 0 when it did it'* ]]
+  [[ "$output" == *$'\n    --json '* ]]
+}

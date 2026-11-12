@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # kit-update - moves the repository and the home directory to the release that runs it (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit update
+#
 # kit update takes no arguments. It moves the repository and the home directory from the release kit.yml declares,
 # the previous release, to the release that runs it, and writes that release's version into kit.yml. bin/kit, the
 # loader, runs the release kit.yml declares, so the release to move to is named with the kit option: kit
@@ -29,6 +32,8 @@
 # is marked rightly: one directive with one end line after it, or neither. When a base is missing, or a region's
 # markers are out of order, doubled, or never closed, it names each path, writes nothing, and the declared version
 # stays the previous one, so the next run starts from the same place.
+#
+# Arguments:
 #
 # Exits 0 when the update is complete, and 1 when a base is missing, a region is marked wrongly, a file needs to be
 # resolved by hand, the packages' depends and includes lines form a cycle, or a list it reads, such as the packages

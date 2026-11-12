@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
 # kit-issues - lists the forge's milestones and iterations of the repository (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit issues [--text | --json | --jq]
+# Usage:
+#   kit issues [--text | --json | --jq]
+#   kit issues --stages
+#   kit issues --marks
+#   kit issues milestones [--text | --json | --jq]
+#   kit issues iterations [--text | --json | --jq]
+#   kit issues issues [--text | --json | --jq]
+#   kit issues backlog [--text | --json | --jq]
+#   kit issues underway [--text | --json | --jq]
 #
 # Draws the planning the forge keeps, a stage for each of Issues' tabs in kittui that the forge answers. It changes
 # nothing. Its first tab, issues, every open issue, in the backlog or underway, is kit flow's, as kit flow issues prints
@@ -16,37 +24,6 @@
 # that tab, maximized; so does kit issues issues, and kit issues backlog and kit issues underway open it on its Backlog
 # or Underway preset. Without one, or with --text, it prints the stages as text; with --json or --jq, as JSON; the tab
 # of kit flow, and its presets, with a form, are refused, naming kit flow issues.
-#
-#   --text              prints the stages as text, even on a terminal
-#   --json              the stages as one JSON object: stages, then each stage's document under its name, null for one
-#                       that could not be read
-#   --jq                the same JSON, formatted by jq for a person
-#   --stages            prints the stages, one per line, in order, the same over any workspace
-#   --marks             prints a mark per stage, as one JSON object, which changes when what the stage draws does:
-#                       the forge's own mark of its milestones for milestones, null for iterations, which has none
-#                       and is read again only on Refresh
-#   milestones          each milestone of the repository, open and closed, by number
-#   iterations          each iteration, by start: GitHub's from the projects linked to the repository, GitLab's with
-#                       its groups', and Azure DevOps' of its team, the one forge_settings.ado.team names, else the
-#                       project's default team
-#   issues              a tab kit flow prints; on a terminal it opens in kittui, and with a form it is refused
-#   backlog             the issues tab's Backlog preset; on a terminal it opens in kittui, and with a form it is refused
-#   underway            the issues tab's Underway preset; on a terminal it opens in kittui, and with a form it is
-#                       refused
-#
-# kit issues --stages
-#
-# kit issues --marks
-#
-# kit issues milestones [--text | --json | --jq]
-#
-# kit issues iterations [--text | --json | --jq]
-#
-# kit issues issues [--text | --json | --jq]
-#
-# kit issues backlog [--text | --json | --jq]
-#
-# kit issues underway [--text | --json | --jq]
 #
 # With --json, a stage prints {rows, errors}. A row is {key, …, links}: key is the row's own in its stage, and links
 # gives where a value leads, by its field. Every row says where it is from: organization and repository, the owner and
@@ -63,6 +40,24 @@
 #                       second of the last day, null where the iteration has no dates; current is true for the one
 #                       that holds now; the title links to the page of the project, the iteration, or the team's
 #                       sprints. A repository with no project linked on GitHub has none
+#
+# Arguments:
+#   --text              prints the stages as text, even on a terminal
+#   --json              the stages as one JSON object: stages, then each stage's document under its name, null for one
+#                       that could not be read
+#   --jq                the same JSON, formatted by jq for a person
+#   --stages            prints the stages, one per line, in order, the same over any workspace
+#   --marks             prints a mark per stage, as one JSON object, which changes when what the stage draws does:
+#                       the forge's own mark of its milestones for milestones, null for iterations, which has none
+#                       and is read again only on Refresh
+#   milestones          each milestone of the repository, open and closed, by number
+#   iterations          each iteration, by start: GitHub's from the projects linked to the repository, GitLab's with
+#                       its groups', and Azure DevOps' of its team, the one forge_settings.ado.team names, else the
+#                       project's default team
+#   issues              a tab kit flow prints; on a terminal it opens in kittui, and with a form it is refused
+#   backlog             the issues tab's Backlog preset; on a terminal it opens in kittui, and with a form it is refused
+#   underway            the issues tab's Underway preset; on a terminal it opens in kittui, and with a form it is
+#                       refused
 #
 # Exits 0 when the stages are drawn, 1 when a stage could not be read, after what was, and 2 on a usage error, or
 # outside a repository's working tree with no workspace.

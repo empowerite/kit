@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
 # kit-facts - prints the facts a policy engine judges, as JSON (kit verb: plumbing)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit facts [--moment=<moment>]
+# Usage:
+#   kit facts [--moment=<moment>]
 #
 # Prints the facts document: the JSON that kit policy hands its engine, and that a rule is written against. It holds
 # the moment, the branch, the commits, the change, the tree of files git holds, and the policy settings.
 #
-#   --moment=<moment>   the moment to gather for: ci, the default, or commit
-#
 # At ci, the facts are those kit policy judges, and kit policy --input prints the same document. The tree is HEAD.
 # A change the forge cannot answer for is {"error": "<line>"}, the line kit says for the read, which kit policy
 # refuses. At commit, the tree is the index, commits is empty, and change is null; kit commit adds the commit it makes.
+#
+# Arguments:
+#   --moment=<moment>   the moment to gather for: ci, the default, or commit
 #
 # Exits 0, 1 when a fact other than the change cannot be gathered, and 2 on a usage error.
 #

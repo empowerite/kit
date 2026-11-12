@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # kit-ci - runs the delivered CI job's four checks on any machine (kit verb: checks)
 # ----------------------------------------------------------------------------------------------------------------------
+# Usage:
+#   kit ci
+#
 # kit ci takes no arguments. It runs four checks, in order:
 #
 #   1. kit linked: the pull request is linked to an open issue
@@ -11,6 +14,8 @@
 # The two judgements run first, before any command of the branch's own: the gate is one, and kit check runs the
 # commands the repository's kit:generate directives name, so either could move a ref the judgements read. Every
 # check runs even when an earlier one fails, so one run reports every finding.
+#
+# Arguments:
 #
 # Exits 0 when all four pass, 1 when any fails, and 2 on a usage error.
 #

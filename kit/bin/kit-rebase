@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # kit-rebase - rebases a branch onto the default branch and pushes it (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit rebase [<path>]
+# Usage:
+#   kit rebase [<path>]
 #
 # Rebases the branch checked out at <path> onto the default branch at the primary remote, and pushes it to its own
 # name on its remote: the remote of its upstream when the upstream has the branch's name, else origin, which becomes
@@ -17,9 +18,10 @@
 #   - a worktree with uncommitted changes
 #   - with require_signing true, a git with no signing key
 #
-#   <path>   the checkout whose branch to rebase; default: the current one
-#
 # On a conflict, kit rebase aborts and leaves the worktree as it was.
+#
+# Arguments:
+#   <path>   the checkout whose branch to rebase; default: the current one
 #
 # Exits 0 when the branch is rebased and pushed, 1 on a refusal, a conflict, or a failed push, and 2 on a usage
 # error.

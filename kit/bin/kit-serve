@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # kit-serve - serves the kit to an agent over the Model Context Protocol (kit verb: interfaces)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit serve
+# Usage:
+#   kit serve
 #
 # Serves the kit to an agent over the Model Context Protocol (MCP), on stdin and stdout, until stdin ends. It runs in
 # the repository it starts in, and opens no network port. Stdout carries only the protocol's messages, one JSON
@@ -37,6 +38,8 @@
 # An agent's harness starts it from the entry an agents package merges into the harness's MCP configuration. For
 # Claude Code, that is mcpServers.kit in .mcp.json. It answers the 2026-07-28 revision of the protocol, and the ones
 # before it to a client that opens with initialize.
+#
+# Arguments:
 #
 # Exits 0 when stdin ends, and 2 on a usage error.
 #

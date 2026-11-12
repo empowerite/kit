@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
 # kit-lint - runs each rule's linter over the paths it governs (kit verb: checks)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit lint [--all-files] [<path>…]
+# Usage:
+#   kit lint [--all-files] [<path>…]
 #
 # Runs each rule's checks over the files the rule governs.
-#
-#   <path>…       the files to check; default: the staged files
-#   --all-files   with no paths, every tracked file instead of the staged ones
 #
 # A path is relative to the current directory; a directory stands for the tracked files under it, and a path that is
 # neither is refused before anything is linted. The staged files leave out a path the commit deletes, and a staged
@@ -30,6 +28,10 @@
 # manager; the hooks/lefthook package runs it from a pre-commit hook.
 #
 # When no rule governs any of the paths, it says that nothing was linted, and passes.
+#
+# Arguments:
+#   <path>…       the files to check; default: the staged files
+#   --all-files   with no paths, every tracked file instead of the staged ones
 #
 # Exits 0 when every rule passes, 1 when any rule refuses, kit.yml or the kinds cannot be read, a kind's content
 # pattern is no regular expression, or git's list of the paths cannot be read, and 2 on a usage error, a path not

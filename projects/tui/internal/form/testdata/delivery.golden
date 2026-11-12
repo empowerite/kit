@@ -11,28 +11,9 @@
                  draws does: the forge's own mark of its runs, as a run makes each; environments'
                  and deployments' also hold the forge's mark of their own kind, as another tool may
                  deploy and a person may edit one
-   artifacts     {id, name, digest, size, run, age, expires}, keyed by its id, <run>/<id> on Azure
-                 DevOps: digest is the forge's, as sha256:…, null on GitLab and Azure DevOps, which
-                 show none; size in bytes; run the run that kept it; age seconds since it was made;
-                 expires when it goes, in seconds since the epoch, or null. GitLab names one for its
-                 job and its file. The name links to its page. GitHub reads its 100 newest and
-                 leaves out those expired, GitLab the archives of its 100 newest successful jobs,
-                 Azure DevOps those of its 20 newest runs, 100 at most; where there are more, the
-                 document is limited, at how many it drew
-   environments  {name, protection, approvers, branches}, keyed by its name: protection the kinds of
-                 rule that guard it, as reviewers, wait, branches, or deployers; approvers who may
-                 approve, by login; branches those that may deploy there, a tag's as refs/tags/…,
-                 null for any. GitLab names no branches, and a GitLab whose tier, or caller, cannot
-                 read protected environments leaves protection and approvers null. The name links to
-                 its page. GitHub reads the branch policies of 20 environments that have their own,
-                 and the list is limited before a 21st
-   deployments   {id, environment, ref, sha, state, actor, age}, keyed by its id: state is success,
-                 failure, running, waiting, cancelled, or inactive; actor who made it; age seconds
-                 since. environment links to its row in environments, row:environments/<name>, sha
-                 to the commit's page, and state to its log. Azure DevOps reads the newest 51
-                 deployment records of each of the 20 environments changed last, and names each
-                 one's ref, commit, and actor from its run among the 100 newest; where there are
-                 more, the document is limited, at how many it drew
+   artifacts     the artifacts the runs kept, the newest 100 at most
+   environments  the deployment environments, each with what guards it
+   deployments   the deployments, the newest 50 at most
    releases      a tab kit flow prints; on a terminal it opens in kittui, and with a form it is
                  refused
    builds        a tab kit flow prints; on a terminal it opens in kittui, and with a form it is

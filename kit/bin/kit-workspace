@@ -1,7 +1,16 @@
 #!/usr/bin/env bash
 # kit-workspace - shows a workspace's git: its remotes, branches, worktrees, commits, and tags (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit workspace [--text | --json | --jq]
+# Usage:
+#   kit workspace [--text | --json | --jq]
+#   kit workspace --stages
+#   kit workspace --marks
+#   kit workspace repos [--text | --json | --jq]
+#   kit workspace remotes [--text | --json | --jq]
+#   kit workspace branches [--text | --json | --jq]
+#   kit workspace worktrees [--text | --json | --jq]
+#   kit workspace commits [--text | --json | --jq]
+#   kit workspace tags [--text | --json | --jq]
 #
 # Draws what git holds across a workspace: its members, then a stage for each of git's entities. It changes nothing,
 # and asks no remote: what a remote has is what the last fetch left. The stages, in order:
@@ -18,39 +27,6 @@
 # checkout, so a linked worktree draws what the desk draws, and repos lists it alone. On a terminal, kit workspace
 # opens the picture in kittui, and kit workspace <stage> opens it with that stage maximized. Without one, or with
 # --text, --json, or --jq, it prints the stages as text.
-#
-#   --text              prints the picture as text, even on a terminal
-#   --json              the picture as one JSON object: stages, then each stage's document under its name
-#   --jq                the same JSON, formatted by jq for a person
-#   --stages            prints the stages the picture draws, one per line, in order, the same over any workspace
-#   --marks             prints a mark per stage, as one JSON object, which changes when what the stage draws does
-#   repos               each member of the workspace, cloned or not: its forge, its clone, its desk's branch, its
-#                       worktrees, and the local branches no checkout has
-#   remotes             each remote: its forge, its organization and repository, its URL, its default branch, and its
-#                       branches, counted
-#   branches            each branch: a remote's, with the local branches that pull from it, and each local branch whose
-#                       upstream is gone or that has none, with its commit and the worktree it is checked out in
-#   worktrees           each worktree, the desk first: its branch, what it is ahead and behind its upstream and the
-#                       default branch, and its paths changed and untracked
-#   commits             the commits the local branches hold and the default branch does not, the newest first: each
-#                       one's branches, whether a remote has it, and the issue its subject starts with
-#   tags                the tags, the newest first: annotated or lightweight, their commit, and their tagger
-#
-# kit workspace --stages
-#
-# kit workspace --marks
-#
-# kit workspace repos [--text | --json | --jq]
-#
-# kit workspace remotes [--text | --json | --jq]
-#
-# kit workspace branches [--text | --json | --jq]
-#
-# kit workspace worktrees [--text | --json | --jq]
-#
-# kit workspace commits [--text | --json | --jq]
-#
-# kit workspace tags [--text | --json | --jq]
 #
 # With --json, a stage prints {rows, errors}. A row is {key, …, links}: key is the row's own in its stage, and links
 # gives where a value leads, by its field: a page on the forge, or row:<stage>/<key>, a row of another stage. Every
@@ -144,6 +120,25 @@
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #
 # kit:end legend
+#
+# Arguments:
+#   --text              prints the picture as text, even on a terminal
+#   --json              the picture as one JSON object: stages, then each stage's document under its name
+#   --jq                the same JSON, formatted by jq for a person
+#   --stages            prints the stages the picture draws, one per line, in order, the same over any workspace
+#   --marks             prints a mark per stage, as one JSON object, which changes when what the stage draws does
+#   repos               each member of the workspace, cloned or not: its forge, its clone, its desk's branch, its
+#                       worktrees, and the local branches no checkout has
+#   remotes             each remote: its forge, its organization and repository, its URL, its default branch, and its
+#                       branches, counted
+#   branches            each branch: a remote's, with the local branches that pull from it, and each local branch whose
+#                       upstream is gone or that has none, with its commit and the worktree it is checked out in
+#   worktrees           each worktree, the desk first: its branch, what it is ahead and behind its upstream and the
+#                       default branch, and its paths changed and untracked
+#   commits             the commits the local branches hold and the default branch does not, the newest first: each
+#                       one's branches, whether a remote has it, and the issue its subject starts with
+#   tags                the tags, the newest first: annotated or lightweight, their commit, and their tagger
+#
 # Exits 0 when the picture is drawn, 1 when a repository, a member, a member's desk, or the workspace file cannot be
 # read: what was read is still drawn, as text or with --json, and names what could not, a member under errors or a
 # repos row's error, as for a clone whose kit.yml does not parse. It exits 1, printing nothing, when --workspace=, or

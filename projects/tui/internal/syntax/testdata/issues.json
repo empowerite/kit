@@ -249,10 +249,10 @@
       "description": "prints a mark per stage, as one JSON object, which changes when what the stage draws does: the forge's own mark of its milestones for milestones, null for iterations, which has none and is read again only on Refresh"
     },
     "milestones": {
-      "description": "{number, title, state, due, open, closed}: state is open or closed, due is seconds since the epoch or null for none, open and closed count the milestone's issues; the title links to its page. Azure DevOps has no milestones"
+      "description": "each milestone of the repository, open and closed, by number"
     },
     "iterations": {
-      "description": "{id, title, start, end, current}: start and end are seconds since the epoch, end the last second of the last day, null where the iteration has no dates; current is true for the one that holds now; the title links to the page of the project, the iteration, or the team's sprints. A repository with no project linked on GitHub has none"
+      "description": "each iteration, by start: GitHub's from the projects linked to the repository, GitLab's with its groups', and Azure DevOps' of its team, the one forge_settings.ado.team names, else the project's default team"
     },
     "issues": {
       "description": "a tab kit flow prints; on a terminal it opens in kittui, and with a form it is refused"

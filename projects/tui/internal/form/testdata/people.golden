@@ -9,27 +9,9 @@
    --stages    prints the stages, one per line, in order, the same over any workspace
    --marks     prints a mark per stage, as one JSON object: null for each, as each is read again
                only on Refresh, kittui offering no Watch for a tab kit never marks
-   people      {login, name, role, kind}, keyed by the login: name null where the forge shows none;
-               role the forge's own name for it, as GitHub's admin, write, or read, GitLab's owner,
-               developer, or guest, and on Azure DevOps admin for a team's administrator, else
-               member; kind user, bot, or, on Azure DevOps, group. GitHub shows it only to who may
-               push, and a caller who may not is told so. GitLab names its members, those inherited
-               and invited among them, each at the highest role any gives them; Azure DevOps the
-               members of the project's teams, as teams reads them
-   teams       {team, name, role, members}, keyed by the team, GitHub's slug, GitLab's group path,
-               Azure DevOps' name: role the access the team has, null on Azure DevOps; members their
-               logins, null for a team the caller cannot see. The team links to its page. GitHub's
-               need the read:org scope; GitLab's are the groups the project is shared with. Past 20
-               teams, or past 100 members of one, the document is limited, at the teams drawn
-   agents      {login, acted, last}, keyed by the login: acted what it did, commit, change, or
-               review; last when it last did, in seconds since the epoch. The login links to its
-               page, where the forge gives one, and GitHub gives none for a bot seen only in
-               commits. GitHub reads the bots among the authors of the 100 newest commits on the
-               default branch, and of the open changes and the 50 merged last, 100 open at most, and
-               their reviews, in one request: a bot is a Bot account, or a login that ends [bot];
-               past 100 open changes, or 20 reviewers of one, the document is limited, at the bots
-               drawn. GitLab's are its bot users among the members, acted null, last the day each
-               last acted. Azure DevOps names no bots, and draws none
+   people      who has access to the repository, people and bots, each with a role
+   teams       the teams with access, 20 at most, each with its members, 100 at most
+   agents      the bots that acted in the repository's newest commits, changes, and reviews
 
 
  kit people

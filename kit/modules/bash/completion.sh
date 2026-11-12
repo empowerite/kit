@@ -87,6 +87,7 @@ completion:candidates() {
   fi
   if (( $# <= 1 ))
   then
+    help:all || return 1
     while IFS=$'\t' read -r verb _ purpose
     do
       printf '%s\t%s\n' "${verb}" "${purpose}"

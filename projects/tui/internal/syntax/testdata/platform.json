@@ -213,16 +213,16 @@
       "description": "prints a mark per stage, as one JSON object, which changes when what the stage draws does: a hash of kit.yml for settings; for toolchains and tools, of the files the toolchains and the dependency providers pin from and of those that keep kit's choice; and for services, of all of those, the clone's git configuration, which holds its remotes, and .kit/policy"
     },
     "services": {
-      "description": "{capability, service, provider, chosen, ready}: capability is hosting, review, ci, releases, tracking <prefix>, toolchain, dependencies <provider>, or policy, and dependencies alone where no provider's manifest and lock are here; service is what answers it, as github, mise, or patterns, null for none, as for the forge's with no remote or a ci the forge lacks; provider is kit's module that reaches it, as forge/github; chosen is set where kit.yml or a recorded choice names it, else inferred; ready is whether its tool is there and signed in, null where it has none. A forge or a policy engine kit.yml names wrong is {error}, its line, under errors"
+      "description": "each capability kit fills and the service that answers it: hosting, review, ci, and releases, the primary's forge; tracking, each tracker prefix; the project toolchain; each dependency provider whose manifest and lock are here; and the policy engine"
     },
     "toolchains": {
-      "description": "{provider, role, usable, active, chosen, fills}, as kit toolchains --json prints them, keyed by provider and role: mise project"
+      "description": "each toolchain kit can use, one row for each role it fills, as kit toolchains lists them"
     },
     "tools": {
-      "description": "{name, pinned, installed, from}, as kit tools --json prints them, keyed by from and name; ambient, {name, path, from}"
+      "description": "each tool the chosen toolchain and the dependency providers pin, as kit tools lists them"
     },
     "settings": {
-      "description": "{setting, value, from}: value is kit.yml's, or the schema's default, null where it names none; from is set or default"
+      "description": "each key the settings schema names: the value kit.yml sets, or the schema's default"
     }
   }
 }

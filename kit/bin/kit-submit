@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # kit-submit - pushes the branch, and commits nothing (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit submit
+# Usage:
+#   kit submit
 #
 # Runs in a worktree, never on the desk or the default branch. It pushes the branch to its own name on its remote,
 # whatever git's push configuration and the branch's upstream say, and sets that as the upstream on the first push.
@@ -13,6 +14,8 @@
 #
 # kit submit never forces. When the remote has commits this branch lacks, the push is refused and the remedy is kit
 # rebase. A conflict with the default branch never blocks sharing the work that was done.
+#
+# Arguments:
 #
 # Exits 0 when the branch is at its remote, 1 on a refusal, and 2 on a usage error, as for a word given, which kit
 # commit takes.

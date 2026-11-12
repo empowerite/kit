@@ -1,15 +1,12 @@
 #!/usr/bin/env bash
 # kit-help - prints kit's overview, a verb's page, or a group's verbs (kit verb: help)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit help [--text] [<verb> | <group>]…
+# Usage:
+#   kit help [--text] [<verb> | <group>]…
 #
 # Shows the help each verb's header holds. On a terminal, it opens the palette of verbs: on the verb's
 # page, on the group's first verb, or at the top. Enter there opens a verb's form. Without a terminal, with --text,
 # or with more than one name, it prints. kit <verb> --help, or -h, prints the same page as kit help --text <verb>.
-#
-#   --text    prints the help, even on a terminal
-#   <verb>    a verb's name, or its start: re matches rebase and region
-#   <group>   a group's name, as kit help heads them
 #
 #   - With no argument, it prints what kit is, and every verb's purpose under its group. The plumbing, the verbs
 #     that scripts, hooks, and the TUI call, is summed up in one line; kit help plumbing lists them.
@@ -18,6 +15,11 @@
 #   - A group's name, when no verb starts with it, prints the group's verbs with their purposes.
 #
 # The answers follow one another in the order named, a blank line between them.
+#
+# Arguments:
+#   --text    prints the help, even on a terminal
+#   <verb>    a verb's name, or its start: re matches rebase and region
+#   <group>   a group's name, as kit help heads them
 #
 # Exits 0 on success, and 2 when a name matches no verb and no group; it prints nothing then.
 #

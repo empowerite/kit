@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # kit-template - rewrites a template's ASCII holes into guillemets (kit verb: plumbing)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit template fix <path>…
+# Usage:
+#   kit template fix <path>…
 #
 # A template's holes are written «name», «name…», and «name=default». On a US Mac keyboard, « is Option-\, » is
 # Shift-Option-\, and … is Option-;. Anyone without them types <<name>>, <<name...>>, and <<name=default>>, and kit
 # template fix rewrites those in place to the one spelling the language has. It changes nothing else, and says how
 # many holes it rewrote in each file.
 #
+# Arguments:
 #   fix       rewrites the ASCII holes in each file
 #   <path>…   the template files to rewrite
 #

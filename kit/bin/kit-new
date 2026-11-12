@@ -1,25 +1,17 @@
 #!/usr/bin/env bash
 # kit-new - makes a new file, or a new kind, rule, package, template, or verb (kit verb: files)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit new file <path> [--rule=<rule>] [--variant=<variant>] [--<hole>=<value>]…
-#
-# kit new kind <name> [--path=<glob>…] [--content=<regex>…] [--kinds=<kind>…] [--embeds=<kind>…] [--package=<name>]
-#
-# kit new rule <kind> [--lint=<command>] [--package=<name>]
-#
-# kit new style <kind> [--lint=<command>] [--package=<name>]
-#
-# kit new package <name> [--description=<text>] [--depends=<package>…]
-#
-# kit new template <rule> <variant> [--from=<path>] [--package=<name>]
-#
-# kit new module <name> --purpose=<text> [--jq]
-#
-# kit new provider <seam> <name>
-#
-# kit new verb <name> --purpose=<text> --group=<group>
-#
-# kit new issue [<prefix>] [--print] [--list] [--json]
+# Usage:
+#   kit new file <path> [--rule=<rule>] [--variant=<variant>] [--<hole>=<value>]…
+#   kit new kind <name> [--path=<glob>…] [--content=<regex>…] [--kinds=<kind>…] [--embeds=<kind>…] [--package=<name>]
+#   kit new rule <kind> [--lint=<command>] [--package=<name>]
+#   kit new style <kind> [--lint=<command>] [--package=<name>]
+#   kit new package <name> [--description=<text>] [--depends=<package>…]
+#   kit new template <rule> <variant> [--from=<path>] [--package=<name>]
+#   kit new module <name> --purpose=<text> [--jq]
+#   kit new provider <seam> <name>
+#   kit new verb <name> --purpose=<text> --group=<group>
+#   kit new issue [<prefix>] [--print] [--list] [--json]
 #
 # Makes one new thing, in its place and its house shape, and never overwrites anything:
 #
@@ -37,6 +29,23 @@
 # package. A provider has one function for each call its seam makes, each refusing until it is written. A verb gets
 # the header kit help reads; a jq module gets its tests.
 #
+# The defaults, and the limits:
+#
+#   - <path> may be absolute inside the repository; a path outside it is refused
+#   - --rule defaults to the most specific rule that governs the path and has templates; a script with no extension
+#     needs the flag
+#   - --variant defaults to the first variant the rule lists that the path allows
+#   - the holes path, name, and stem take their values from the path; every other hole needs its flag
+#   - <rule> names the directory under .kit/templates/
+#   - a package's or a module's <name> has / between its parts
+#   - --package defaults to the repository's one package under .kit/packages/, or else local
+#   - --from: without it, the template is one body hole
+#   - --group is workflow, files, checks, installation, interfaces, or help
+#
+# A kind needs at least one --path, --content, or --kinds. kit new refuses an existing path, and a kind's name
+# already defined.
+#
+# Arguments:
 #   file                    makes a file from a template
 #   kind                    makes a kind of file
 #   rule                    makes a rule for a kind
@@ -72,22 +81,6 @@
 #   --print                 prints the page's URL, opening nothing
 #   --list                  lists the trackers a new issue can be filed in, and each one's page
 #   --json                  prints the list as JSON: an array of {prefix, provider, label, url, error}
-#
-# The defaults, and the limits:
-#
-#   - <path> may be absolute inside the repository; a path outside it is refused
-#   - --rule defaults to the most specific rule that governs the path and has templates; a script with no extension
-#     needs the flag
-#   - --variant defaults to the first variant the rule lists that the path allows
-#   - the holes path, name, and stem take their values from the path; every other hole needs its flag
-#   - <rule> names the directory under .kit/templates/
-#   - a package's or a module's <name> has / between its parts
-#   - --package defaults to the repository's one package under .kit/packages/, or else local
-#   - --from: without it, the template is one body hole
-#   - --group is workflow, files, checks, installation, interfaces, or help
-#
-# A kind needs at least one --path, --content, or --kinds. kit new refuses an existing path, and a kind's name
-# already defined.
 #
 # Exits 0 when it is made, 1 when the path exists, a template is missing or malformed, or a list it reads, such as the
 # rules that govern the path, cannot be read, and 2 on a usage error.

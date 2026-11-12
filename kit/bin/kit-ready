@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # kit-ready - marks a draft pull request ready for review (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit ready [<number>]
+# Usage:
+#   kit ready [<number>]
 #
 # Marks the pull request ready for review, the last step of the workflow: the forge's own draft ends, or the stand-in
 # the repository chose for drafts in kit.yml is taken off, its label or its title's prefix. A forge without drafts, and
 # no stand-in, opened the pull request ready already, and kit ready says so.
 #
+# Arguments:
 #   <number>   the pull request to mark; default: this checkout's
 #
 # Exits 0 when the pull request is ready for review, 1 when there is none to mark, the forge cannot say which this

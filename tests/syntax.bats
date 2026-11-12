@@ -6,19 +6,38 @@ bats_require_minimum_version 1.5.0
 
 load helper
 
+# verb <name> <usage-line>… [-- <argument-line>…] writes bin/kit-<name> in the copy, in the verb template's shape: the
+# usage lines under Usage:, a description, the argument lines under Arguments:, Exits, and see:.
+verb() {
+  local name=$1 line
+  shift
+  local -a usage=() arguments=()
+  while (( $# )) && [[ "$1" != -- ]]
+  do
+    usage+=("#   $1")
+    shift
+  done
+  (( $# == 0 )) || shift
+  for line in "$@"
+  do
+    arguments+=("#   ${line}")
+  done
+  printf '%s\n' '#!/usr/bin/env bash' "# kit-${name} - a verb written for the tests (kit verb: help)" '# Usage:' \
+    "${usage[@]}" '#' '# Does it.' '#' '# Arguments:' "${arguments[@]}" '#' '# Exits 0.' '#' '# see: bin/kit' '' \
+    'set -o errexit -o nounset -o pipefail' > "${root}/bin/kit-${name}"
+  chmod +x "${root}/bin/kit-${name}"
+}
+
 setup() {
   # a copy of the kit with two verbs whose headers are written for the tests, as help.bats makes one: plain has two
   # usage lines, three dots, a wildcard, and a block that describes --b in the other spelling and <a> over two lines
   # but says nothing of --<hole>; broken has a usage line that does not parse
   root="${BATS_TEST_TMPDIR}/kit"
   mkdir -p "${root}"
-  cp -R "${kit_root}/bin" "${kit_root}/libexec" "${kit_root}/modules" "${root}/"
-  printf '%s\n' '#!/usr/bin/env bash' '# kit-plain - a verb written for the tests (kit verb)' '#' \
-    '# kit plain <a>... [--<hole>=<value>]' '#' '# kit plain --b <v>' '#' '# Does it.' '#' \
-    '#   <a>…      first line' '#       second line' '#   --b=<v>   bee' > "${root}/bin/kit-plain"
-  printf '%s\n' '#!/usr/bin/env bash' '# kit-broken - a verb whose usage line does not parse (kit verb)' '#' \
-    '# kit broken [<a>' > "${root}/bin/kit-broken"
-  chmod +x "${root}/bin/kit-plain" "${root}/bin/kit-broken"
+  cp -R "${kit_root}/bin" "${kit_root}/libexec" "${kit_root}/modules" "${kit_root}/packages" "${root}/"
+  verb plain 'kit plain <a>... [--<hole>=<value>]' 'kit plain --b <v>' -- '<a>…      first line' '    second line' \
+    '--b=<v>   bee'
+  verb broken 'kit broken [<a>'
 }
 
 @test "every verb's usage line parses, and kit syntax with no verb prints one object per verb, in order" {
@@ -115,15 +134,11 @@ setup() {
 }
 
 @test "a usage line is made of flags, options, operands, and lowercase words; any other word is refused by name with its line" {
-  # three verbs whose one-line paragraphs start with kit <verb> but are not usage: a sentence with a dot, alternatives
+  # three verbs whose usage lines are no usage: a sentence with a dot, alternatives
   # inside angle brackets, and a capital
-  printf '%s\n' '#!/usr/bin/env bash' '# kit-prose - a verb whose description reads as a usage line (kit verb: help)' '#' \
-    '# kit prose never touches kit.yml' > "${root}/bin/kit-prose"
-  printf '%s\n' '#!/usr/bin/env bash' '# kit-pick - a verb with alternatives inside angle brackets (kit verb: help)' '#' \
-    '# kit pick [--format=<json|text>] [<path>]' > "${root}/bin/kit-pick"
-  printf '%s\n' '#!/usr/bin/env bash' '# kit-caps - a verb with a capital in an operand (kit verb: help)' '#' \
-    '# kit caps <Path>…' > "${root}/bin/kit-caps"
-  chmod +x "${root}/bin/kit-prose" "${root}/bin/kit-pick" "${root}/bin/kit-caps"
+  verb prose 'kit prose never touches kit.yml'
+  verb pick 'kit pick [--format=<json|text>] [<path>]'
+  verb caps 'kit caps <Path>…'
   local word="is not --name, --name=<value>, <name>, or a lowercase word"
   run "${root}/bin/kit" syntax prose
   [ "$status" -eq 1 ]
@@ -297,10 +312,9 @@ setup() {
 }
 
 @test "a verb whose usage line does not parse refuses with the check that names why" {
-  printf '%s\n' '#!/usr/bin/env bash' '# kit-askew - a verb whose usage line does not parse (kit verb: help)' '#' '# kit askew [<a>' \
-    '#' '# Does it.' '' 'source "$(dirname "$0")/../modules/bash/1st.sh"' 'guard:arguments askew "$@" || exit $?' \
-    > "${root}/bin/kit-askew"
-  chmod +x "${root}/bin/kit-askew"
+  verb askew 'kit askew [<a>'
+  printf '%s\n' 'source "$(dirname "$0")/../modules/bash/1st.sh"' 'guard:arguments askew "$@" || exit $?' \
+    >> "${root}/bin/kit-askew"
   run "${root}/bin/kit" askew x
   [ "$status" -eq 2 ]
   [[ "$output" == *"kit askew: usage does not parse: '[' is not closed in: kit askew [<a>; run: kit syntax --check askew"* ]]

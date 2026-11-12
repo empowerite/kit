@@ -135,16 +135,16 @@ setup() {
 #!/usr/bin/env bash
 # kit-demo - a verb written for the tests (kit verb: plumbing)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit demo [--text | --json | --jq]
+# Usage:
+#   kit demo [--text | --json | --jq]
+#   kit demo --stages
+#   kit demo --marks
+#   kit demo one [--text | --json | --jq]
+#   kit demo backlog [--text | --json | --jq]
 #
-# kit demo --stages
+# Draws a stage of its own, and names another app's tab.
 #
-# kit demo --marks
-#
-# kit demo one [--text | --json | --jq]
-#
-# kit demo backlog [--text | --json | --jq]
-#
+# Arguments:
 #   --text    text
 #   --json    JSON
 #   --jq      formatted
@@ -152,6 +152,11 @@ setup() {
 #   --marks   the marks
 #   one       its own stage
 #   backlog   another app's tab
+#
+# Exits 0, and 2 on a usage error.
+#
+# see: modules/bash/apps.sh
+
 set -o errexit -o nounset -o pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter

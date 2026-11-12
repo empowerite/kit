@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
 # kit-delivery - lists the artifacts, environments, and deployments the forge holds (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit delivery [--text | --json | --jq]
+# Usage:
+#   kit delivery [--text | --json | --jq]
+#   kit delivery --stages
+#   kit delivery --marks
+#   kit delivery artifacts [--text | --json | --jq]
+#   kit delivery environments [--text | --json | --jq]
+#   kit delivery deployments [--text | --json | --jq]
+#   kit delivery releases [--text | --json | --jq]
+#   kit delivery builds [--text | --json | --jq]
 #
 # Draws what the forge says of the repository's delivery, a stage for each of Delivery's tabs in kittui that the forge
 # answers. It changes nothing. The tabs releases and builds are kit flow's, as kit flow releases and kit flow builds
@@ -15,34 +23,6 @@
 # kit workspaces --current says. On a terminal, kit delivery opens Delivery in kittui, and kit delivery <stage> opens it
 # on that tab, maximized; so do kit delivery releases and kit delivery builds. Without one, or with --text, it prints
 # the stages as text; with --json or --jq, as JSON; a tab of kit flow, with a form, is refused, naming kit flow.
-#
-#   --text              prints the stages as text, even on a terminal
-#   --json              the stages as one JSON object: stages, then each stage's document under its name, null for one
-#                       that could not be read
-#   --jq                the same JSON, formatted by jq for a person
-#   --stages            prints the stages, one per line, in order, the same over any workspace
-#   --marks             prints a mark per stage, as one JSON object, which changes when what the stage draws does:
-#                       the forge's own mark of its runs, as a run makes each; environments' and deployments' also
-#                       hold the forge's mark of their own kind, as another tool may deploy and a person may edit one
-#   artifacts           the artifacts the runs kept, the newest 100 at most
-#   environments        the deployment environments, each with what guards it
-#   deployments         the deployments, the newest 50 at most
-#   releases            a tab kit flow prints; on a terminal it opens in kittui, and with a form it is refused
-#   builds              a tab kit flow prints; on a terminal it opens in kittui, and with a form it is refused
-#
-# kit delivery --stages
-#
-# kit delivery --marks
-#
-# kit delivery artifacts [--text | --json | --jq]
-#
-# kit delivery environments [--text | --json | --jq]
-#
-# kit delivery deployments [--text | --json | --jq]
-#
-# kit delivery releases [--text | --json | --jq]
-#
-# kit delivery builds [--text | --json | --jq]
 #
 # With --json, a stage prints {rows, errors}, and limited where the forge holds more than it read. A row is {key, …,
 # links}: key is the row's own in its stage, and links gives where a value leads, by its field. Every row says where it
@@ -71,6 +51,21 @@
 #                       to its log. Azure DevOps reads the newest 51 deployment records of each of the 20 environments
 #                       changed last, and names each one's ref, commit, and actor from its run among the 100 newest;
 #                       where there are more, the document is limited, at how many it drew
+#
+# Arguments:
+#   --text              prints the stages as text, even on a terminal
+#   --json              the stages as one JSON object: stages, then each stage's document under its name, null for one
+#                       that could not be read
+#   --jq                the same JSON, formatted by jq for a person
+#   --stages            prints the stages, one per line, in order, the same over any workspace
+#   --marks             prints a mark per stage, as one JSON object, which changes when what the stage draws does:
+#                       the forge's own mark of its runs, as a run makes each; environments' and deployments' also
+#                       hold the forge's mark of their own kind, as another tool may deploy and a person may edit one
+#   artifacts           the artifacts the runs kept, the newest 100 at most
+#   environments        the deployment environments, each with what guards it
+#   deployments         the deployments, the newest 50 at most
+#   releases            a tab kit flow prints; on a terminal it opens in kittui, and with a form it is refused
+#   builds              a tab kit flow prints; on a terminal it opens in kittui, and with a form it is refused
 #
 # Exits 0 when the stages are drawn, 1 when a stage could not be read, after what was, and 2 on a usage error, or
 # outside a repository's working tree with no workspace.

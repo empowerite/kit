@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 # kit-changes - lists each open change's reviews and checks, and the changes merged last (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
-# kit changes [--text | --json | --jq]
+# Usage:
+#   kit changes [--text | --json | --jq]
+#   kit changes --stages
+#   kit changes --marks
+#   kit changes reviews [--text | --json | --jq] [--fresh]
+#   kit changes checks [--text | --json | --jq] [--fresh]
+#   kit changes merged [--text | --json | --jq]
+#   kit changes changes [--text | --json | --jq]
 #
 # Draws what the forge says of the repository's changes, a stage for each of Changes' tabs in kittui that the forge
 # answers. It changes nothing. The tab changes is kit flow's, as kit flow changes prints it. The stages, in order:
@@ -14,31 +21,6 @@
 # kit workspaces --current says. On a terminal, kit changes opens Changes in kittui, and kit changes <stage> opens it on
 # that tab, maximized; so does kit changes changes. Without one, or with --text, it prints the stages as text; with
 # --json or --jq, as JSON; the tab of kit flow, with a form, is refused, naming kit flow.
-#
-#   --text              prints the stages as text, even on a terminal
-#   --json              the stages as one JSON object: stages, then each stage's document under its name, null for one
-#                       that could not be read
-#   --jq                the same JSON, formatted by jq for a person
-#   --stages            prints the stages, one per line, in order, the same over any workspace
-#   --marks             prints a mark per stage, as one JSON object, which changes when what the stage draws does:
-#                       for each, the forge's own marks of its issues, which move with its changes, and of its runs
-#   --fresh             reviews and checks read the open changes afresh, not the snapshot of the last minute
-#   reviews             each open change's reviewers: those it asks, and those who reviewed it, by login
-#   checks              each open change's checks: the latest run of each name on its head commit
-#   merged              the changes merged last, 50 at most, merged last first
-#   changes             a tab kit flow prints; on a terminal it opens in kittui, and with a form it is refused
-#
-# kit changes --stages
-#
-# kit changes --marks
-#
-# kit changes reviews [--text | --json | --jq] [--fresh]
-#
-# kit changes checks [--text | --json | --jq] [--fresh]
-#
-# kit changes merged [--text | --json | --jq]
-#
-# kit changes changes [--text | --json | --jq]
 #
 # With --json, a stage prints {rows, errors}, and limited where the forge holds more than it read. A row is {key, …,
 # links}: key is the row's own in its stage, and links gives where a value leads, by its field. Every row says where it
@@ -64,6 +46,20 @@
 #                       more, the document is limited, at how many it drew: a forge that lists them by update, as
 #                       GitHub does, keeps only those merged since the oldest update it read, as one merged before
 #                       may be missing
+#
+# Arguments:
+#   --text              prints the stages as text, even on a terminal
+#   --json              the stages as one JSON object: stages, then each stage's document under its name, null for one
+#                       that could not be read
+#   --jq                the same JSON, formatted by jq for a person
+#   --stages            prints the stages, one per line, in order, the same over any workspace
+#   --marks             prints a mark per stage, as one JSON object, which changes when what the stage draws does:
+#                       for each, the forge's own marks of its issues, which move with its changes, and of its runs
+#   --fresh             reviews and checks read the open changes afresh, not the snapshot of the last minute
+#   reviews             each open change's reviewers: those it asks, and those who reviewed it, by login
+#   checks              each open change's checks: the latest run of each name on its head commit
+#   merged              the changes merged last, 50 at most, merged last first
+#   changes             a tab kit flow prints; on a terminal it opens in kittui, and with a form it is refused
 #
 # Exits 0 when the stages are drawn, 1 when a stage could not be read, after what was, and 2 on a usage error, or
 # outside a repository's working tree with no workspace.
