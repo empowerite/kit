@@ -789,12 +789,14 @@ func (m *Model) click(x, y int) tea.Cmd {
 		if k := pane.At(len(lines), h, m.offsets[m.step], r); k >= 0 && lines[k].row >= 0 {
 			m.cursor, m.inPane, m.choice = lines[k].row, true, now
 			plain := ansi.Strip(lines[k].text)
+			// the buttons are on a row's first line; a word of its fix, its more, or its note is none
+			buttons := k == 0 || lines[k-1].row != lines[k].row
 			switch {
 			case m.onLink():
 				m.follow()
-			case m.keeping() && onButton(plain, "keep", x):
+			case buttons && m.keeping() && onButton(plain, "keep", x):
 				return m.keep()
-			case m.keeping() && onButton(plain, "later", x):
+			case buttons && m.keeping() && onButton(plain, "later", x):
 				m.later()
 			}
 		}

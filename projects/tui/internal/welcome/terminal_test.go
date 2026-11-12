@@ -5,6 +5,7 @@ package welcome
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -124,6 +125,21 @@ func TestAKeepKitRefusesIsNoted(t *testing.T) {
 	m, _ := terminal(t, press('k'))
 	if got := view(m); !strings.Contains(got, "kit refused to keep it") {
 		t.Errorf("no note of the refusal:\n%s", got)
+	}
+}
+
+func TestAClickOnKeepInTheRefusalNoteKeepsNothing(t *testing.T) {
+	record := filepath.Join(t.TempDir(), "calls")
+	t.Setenv("FAKE_WELCOME_CALLS", record)
+	t.Setenv("FAKE_WELCOME_REFUSE_KEEP", "terminal-iterm-option")
+	m, _ := terminal(t, press('k'))
+	before := len(calls(t, record))
+	note := rowOf(t, m, "kit refused to keep it")
+	i := strings.Index(note, " keep ")
+	y := slices.Index(strings.Split(view(m), "\n"), note)
+	drive(m, testkit.Click(ansi.StringWidth(note[:i])+1, y))
+	if got := calls(t, record); len(got) > before && strings.Contains(strings.Join(got[before:], "\n"), "--keep=") {
+		t.Errorf("a click on the note kept it again: %q", got[before:])
 	}
 }
 
