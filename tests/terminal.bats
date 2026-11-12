@@ -485,4 +485,28 @@ tabby-config() {
   [ "$(found <<<"$output")" = '["terminal-tabby-option","terminal-tabby-renderer"]' ]
 }
 
+@test "every terminal in terminals.json has its section in docs/terminals.md, which names each of its findings" {
+  local doc="${kit_root}/../docs/terminals.md" key anchor id section missing=''
+  [ -f "${doc}" ]
+  while IFS=$'\t' read -r key anchor
+  do
+    # a section's anchor is its heading as GitHub makes one: lower case, punctuation dropped, spaces to dashes
+    section=$(awk -v anchor="${anchor}" '
+      /^## / {
+        slug = tolower(substr($0, 4)); gsub(/[^a-z0-9 -]/, "", slug); gsub(/ /, "-", slug); on = (slug == anchor)
+      }
+      on' "${doc}")
+    if [[ -z "${section}" ]]
+    then
+      missing+=" ${key}:#${anchor}"
+      continue
+    fi
+    while IFS= read -r id
+    do
+      [[ "${section}" == *"\`${id}\`"* ]] || missing+=" ${key}-${id}"
+    done < <(jq -r --arg key "${key}" '.terminals[$key].findings[]?.id' "${kit_root}/modules/jq/terminals.json")
+  done < <(jq -r '.terminals | to_entries[] | [.key, .value.anchor] | @tsv' "${kit_root}/modules/jq/terminals.json")
+  [ -z "${missing}" ] || { echo "missing:${missing}"; return 1; }
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

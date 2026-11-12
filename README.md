@@ -137,7 +137,8 @@ taken the kit, `kit check` says every delivered file matches the release.
 
 New to a repository that uses kit? Run `kit trust`, then `kit welcome`. It checks your tools, your code forge logins,
 and the repository, and shows the fix for each problem. Then it walks you through how work flows, the terms, and
-what a team can change.
+what a team can change. It also names each setting of your terminal that makes kittui slower or worse; see
+[docs/terminals.md](docs/terminals.md).
 
 `kit tutorials` lists kit's tutorials, by who each is for, and opens one, in kittui or the browser; see
 [docs/tutorials.md](docs/tutorials.md).
