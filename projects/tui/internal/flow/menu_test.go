@@ -38,13 +38,13 @@ func TestColonDropsTheTabsMenuDownAndItShowsOrHidesALevel(t *testing.T) {
 	}
 	// the menu's left edge is two cells before the menu glyph, its top edge on the bar's middle line, through the
 	// glyph, half a line either side of it, all in the menu's color; the keyboard starts on refresh, watch and maximize
-	// after it, and show less, with no row open, is dim; Fields… is the presets' menu's, not this one's
+	// after it, and show less, with no row open, is dim; 📇 Fields is the control line's, not this one's
 	glyph, cells := m.bar().MenuAt(), ansi.StringWidth(tabs.Menu)
 	if box, left := m.menuBox(); left != glyph-2 || len(box) != len(m.tabItems())+2 || m.tabMenu.At != 0 ||
 		ansi.Cut(lines(m)[m.menuTop()], glyph-1, glyph+cells+1) != "╴"+tabs.Menu+"╶" ||
 		!strings.Contains(box[1], " "+Reload+" Refresh") || !strings.Contains(box[2], " "+Unwatched+" Watch") ||
 		!strings.Contains(box[3], " "+Maximize+"  Maximize") ||
-		strings.Contains(view(m), FieldsIt) ||
+		strings.Contains(box[len(box)-2], table.FieldsButton) ||
 		!strings.Contains(box[6], strings.TrimSuffix(style.Off("x"), "x\x1b[m")+" "+Less+" Show Less ") ||
 		box[0] != style.Menu(ansi.Strip(box[0])) {
 		t.Errorf("the menu's left edge %d, the glyph at %d, the keyboard on %d:\n%s", left, glyph, m.tabMenu.At, view(m))

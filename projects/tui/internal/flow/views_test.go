@@ -44,10 +44,11 @@ func onDropdown(t *testing.T, file string) Model {
 }
 
 // presetText gives the preset line as the screen draws it, at the control line's right end, without its escapes:
-// what follows the heading over the groups.
+// what follows the heading over the groups, table.FieldsButton apart.
 func presetText(m Model) string {
 	line, _ := m.control()
-	return strings.TrimSpace(strings.TrimPrefix(ansi.Strip(line), strings.Repeat(" ", table.BarLeft)+ansi.Strip(m.barText())))
+	text := strings.TrimSpace(strings.TrimPrefix(ansi.Strip(line), strings.Repeat(" ", table.BarLeft)+ansi.Strip(m.barText())))
+	return strings.TrimPrefix(strings.Replace(text, "  "+table.FieldsButton+"  ", "  ", 1), table.FieldsButton+"  ")
 }
 
 // selector gives the preset line's selector as the screen draws it, without its escapes: the name and Presets between
@@ -71,7 +72,7 @@ func TestThePresetLineStandsOnTheControlLineAndNamesTheView(t *testing.T) {
 	// the selector stands at its right end, after how many rows are selected, which the rule no longer says
 	m.stages[0].Picked[m.rows(0)[slices.IndexFunc(m.rows(0), func(r row) bool { return !r.Aside })].Key] = true
 	if got := ansi.Truncate(ansi.Strip(lines(m)[m.presetTop()]), m.paneWidth(), ""); !strings.HasPrefix(got, "  ▾ source") ||
-		!strings.HasSuffix(got, " 1 selected  "+selector("All Issues")) || strings.Contains(m.rule(), "selected") {
+		!strings.HasSuffix(got, " 1 selected  "+table.FieldsButton+"  "+selector("All Issues")) || strings.Contains(m.rule(), "selected") {
 		t.Errorf("one row selected: %q", got)
 	}
 	m.stages[0].Picked = map[string]bool{}
@@ -178,9 +179,9 @@ func TestChoosingAViewSetsThePanelAndAChangeStrikesTheNameThrough(t *testing.T) 
 	for _, i := range table.PresetItems(&m) {
 		names = append(names, i.Name)
 	}
-	if !slices.Equal(names, []string{FieldsIt, "", SaveIt, SaveAs, RenameIt, DeleteIt, "", "All Issues", "Backlog", "Underway",
+	if !slices.Equal(names, []string{SaveIt, SaveAs, RenameIt, DeleteIt, "", "All Issues", "Backlog", "Underway",
 		"By Milestone", "By Iteration", "By Swimlane", "Compact"}) ||
-		table.PresetItems(&m)[7].Glyph != Checked || m.presetsMenu.At != 7 {
+		table.PresetItems(&m)[5].Glyph != Checked || m.presetsMenu.At != 5 {
 		t.Fatalf("the presets: %q, at %d", names, m.presetsMenu.At)
 	}
 	if !strings.Contains(keysOf(m), "esc close") {
@@ -239,7 +240,7 @@ func TestChoosingAViewSetsThePanelAndAChangeStrikesTheNameThrough(t *testing.T) 
 	}
 	// the menu's keys: up, a letter to the next item it starts, and esc
 	m = drive(m, press(tea.KeyEnter))
-	if m = drive(m, typed("c")[0]); m.presetsMenu.At != 13 {
+	if m = drive(m, typed("c")[0]); m.presetsMenu.At != 11 {
 		t.Errorf("c in the menu: %d", m.presetsMenu.At)
 	}
 	m = drive(m, up, esc)
@@ -300,8 +301,8 @@ func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 	}
 	// the menu lists it after a rule
 	m = drive(m, press(tea.KeyEnter))
-	if items := table.PresetItems(&m); len(items) != 16 || items[14].Name != "" || items[15].Name != "Triage" ||
-		items[15].Glyph != Checked || m.presetsMenu.At != 15 {
+	if items := table.PresetItems(&m); len(items) != 14 || items[12].Name != "" || items[13].Name != "Triage" ||
+		items[13].Glyph != Checked || m.presetsMenu.At != 13 {
 		t.Errorf("the menu: %+v, at %d", items, m.presetsMenu.At)
 	}
 	m = drive(m, esc)
@@ -323,7 +324,7 @@ func TestSaveAsKeepsThePanelInTheFileAndTheViewComesBack(t *testing.T) {
 	// another session reads it, and choosing it sets the panel
 	n := onDropdown(t, file)
 	n = drive(n, press(tea.KeyEnter))
-	n.presetsMenu.At = 15
+	n.presetsMenu.At = 13
 	if n = drive(n, press(tea.KeyEnter)); n.stages[0].ViewName != "Triage" || n.panel(0).Showing() != grid.Others ||
 		len(n.panel(0).SortKeys()) != 1 || !slices.Equal(n.panel(0).Groups(), []string{"assignees"}) ||
 		!n.panel(0).Fold {
@@ -335,7 +336,7 @@ func TestClicksOpenThePresetsAndChooseOne(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "presets.json")
 	m := loaded(t, viewing(file), tea.WindowSizeMsg{Width: 140, Height: 40})
 	// a click on the line before the name gives it the keyboard, and opens nothing
-	if m = drive(m, testkit.Click(m.dropStart()-4, m.presetTop())); m.presetsMenu.Open || !m.onPreset {
+	if m = drive(m, testkit.Click(m.dropStart()-ansi.StringWidth(table.FieldsButton)-4, m.presetTop())); m.presetsMenu.Open || !m.onPreset {
 		t.Fatalf("a click past the name: menu %v, on the line %v", m.presetsMenu.Open, m.onPreset)
 	}
 	m = drive(m, esc)
@@ -344,7 +345,7 @@ func TestClicksOpenThePresetsAndChooseOne(t *testing.T) {
 		t.Fatalf("a click on the name: menu %v, on the line %v\n%s", m.presetsMenu.Open, m.onPreset, raw(m))
 	}
 	box, top, left := m.presetsMenu.Box(&m)
-	if m = drive(m, testkit.Click(left+3, top+14)); m.presetsMenu.Open || m.stages[0].ViewName != "Compact" {
+	if m = drive(m, testkit.Click(left+3, top+1+table.ItemViews+7)); m.presetsMenu.Open || m.stages[0].ViewName != "Compact" {
 		t.Fatalf("a click on Compact: menu %v, view %q\n%v", m.presetsMenu.Open, m.stages[0].ViewName, box)
 	}
 	// a click anywhere else closes the menu
@@ -359,10 +360,10 @@ func TestClicksOpenThePresetsAndChooseOne(t *testing.T) {
 	// Save As… takes a name, and enter saves under it
 	m = drive(m, testkit.Click(m.dropStart(), m.presetTop()))
 	_, top, left = m.presetsMenu.Box(&m)
-	if m = drive(m, testkit.Click(left+3, top+3)); m.stages[0].SavingAs || !m.presetsMenu.Open {
+	if m = drive(m, testkit.Click(left+3, top+1+table.ItemSave)); m.stages[0].SavingAs || !m.presetsMenu.Open {
 		t.Errorf("a click on Save, dim: naming %v, menu %v", m.stages[0].SavingAs, m.presetsMenu.Open)
 	}
-	m = drive(m, testkit.Click(left+3, top+4))
+	m = drive(m, testkit.Click(left+3, top+1+table.ItemSaveAs))
 	m = drive(m, typed("Mine")...)
 	if m = drive(m, press(tea.KeyEnter)); m.stages[0].ViewName != "Mine" {
 		t.Errorf("Save As… by clicks: view %q, %q", m.stages[0].ViewName, keysOf(m))

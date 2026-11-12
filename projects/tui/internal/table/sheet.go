@@ -427,12 +427,16 @@ func (s *Sheet) presetLine() string {
 
 // control gives the control line and the screen column the selector starts on, as Control draws them: the heading
 // over the groups, the stop under the keyboard drawn as FocusStop draws it, then the preset line's selector.
-func (s *Sheet) control() (string, int) {
+func (s *Sheet) control() (string, int) { return Control(s, s.controlLeft(), s.presetLine()) }
+
+// controlLeft gives the control line's left part: the heading over the groups, the stop under the keyboard drawn as
+// FocusStop draws it.
+func (s *Sheet) controlLeft() string {
 	left := strings.Repeat(" ", BarLeft) + BarText(s.Rows())
 	if stop, ok := s.atStop(); ok {
 		left = FocusStop(left, stop)
 	}
-	return Control(s, left, s.presetLine())
+	return left
 }
 
 // Focused says whether the sheet has the keyboard: its rows, or its control line.
@@ -520,6 +524,8 @@ func (s *Sheet) key(k tea.KeyPressMsg) bool {
 			s.rename()
 		case DoDrop:
 			s.presets = s.presets.Drop(s)
+		case DoFields:
+			s.cols = Columns{Open: true}
 		}
 		return took
 	case s.inRows:
@@ -683,7 +689,8 @@ func (s *Sheet) click(x, y int, shift bool) {
 	}
 }
 
-// controlClick takes a click on the control line, as click says.
+// controlClick takes a click on the control line, as click says: a chip opens its field's card on its filter, and
+// FieldsButton the columns dialog.
 func (s *Sheet) controlClick(x int) {
 	if level, ok := LevelAt(s, x); ok {
 		ToggleLevel(s, level)
@@ -691,6 +698,14 @@ func (s *Sheet) controlClick(x int) {
 	}
 	if name, ok := NameAt(s, x); ok {
 		s.OpenFieldMenu(name.Column)
+		return
+	}
+	if spot, ok := SpotAt(ControlSpots(s, s.controlLeft(), s.presetLine()), x); ok {
+		if spot.Field == "" {
+			s.cols = Columns{Open: true}
+		} else {
+			s.pop = OpenChip(s, spot)
+		}
 		return
 	}
 	s.onControls, s.inRows, s.stop = true, false, -1
@@ -743,7 +758,7 @@ func (s *Sheet) Notice() shell.Notice { return s.note }
 // Faded takes a notice's fade, as shell.Notice's Faded does.
 func (s *Sheet) Faded(f shell.FadedMsg) { s.note = s.note.Faded(f) }
 
-// choose closes the presets' menu and takes its line k: Fields… opens the columns dialog; Save keeps the panel under
+// choose closes the presets' menu and takes its line k: Save keeps the panel under
 // the person's preset the line was set to; Save As… gives the preset line the keyboard, for a name, that preset's
 // typed already; Rename… does too, for its new name; Delete drops it; a preset applies. A line that does not act now
 // does nothing.
@@ -754,8 +769,6 @@ func (s *Sheet) choose(k int) {
 	}
 	v, _ := s.Views().Mine(s.tbl.ViewName)
 	switch k {
-	case ItemFields:
-		s.cols = Columns{Open: true}
 	case ItemSave:
 		s.saveAs(v.Name)
 	case ItemSaveAs, ItemRename:

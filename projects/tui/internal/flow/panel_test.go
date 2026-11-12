@@ -596,6 +596,16 @@ func TestAFieldsPopoverFiltersAndDrawsIt(t *testing.T) {
 	if m = drive(m, esc); m.pop.Open || !m.cols.Open || !strings.Contains(view(m), "assignees ⊘") {
 		t.Errorf("esc: open %v, dialog %v\n%s", m.pop.Open, m.cols.Open, view(m))
 	}
+	// a click on the preset line's chip, the dialog closed, opens the card under it, on its filter
+	m = drive(m, esc)
+	control := lines(m)[m.top()]
+	chip := ansi.StringWidth(control[:strings.Index(control, "assignees: ¬@me")])
+	if m = drive(m, testkit.Click(chip+2, m.top())); !m.pop.Open || !m.pop.Chip || m.pop.Field != "assignees" ||
+		!m.pop.Lines(&m)[m.pop.At].Mode {
+		t.Errorf("a click on the chip: %+v", m.pop)
+	}
+	m = drive(m, esc)
+	m.cols = table.Columns{Open: true}
 	// a click off the box closes it, acting on nothing
 	m = drive(m, press(tea.KeyEnter))
 	before := m.panel(0).Fields

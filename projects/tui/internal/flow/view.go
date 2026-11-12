@@ -274,11 +274,24 @@ func (m Model) controls() bool {
 // rows group, the stop the keyboard stands on drawn as focusStop says; and, where the stage has a preset line, the
 // selector, as presetLine draws it.
 func (m Model) control() (string, int) {
-	left, tail := m.focusStop(strings.Repeat(" ", table.BarLeft)+m.barText()), ""
+	left, tail := m.controlParts()
+	return table.Control(&m, left, tail)
+}
+
+// controlParts gives the control line's left part, the heading over the groups, the stop under the keyboard drawn as
+// focusStop draws it, and its tail, the preset line's selector, where the stage has one.
+func (m Model) controlParts() (left, tail string) {
+	left = m.focusStop(strings.Repeat(" ", table.BarLeft) + m.barText())
 	if m.presets(m.stage) {
 		tail = m.presetLine()
 	}
-	return table.Control(&m, left, tail)
+	return left, tail
+}
+
+// spots gives what a click on the control line's right part reaches, as table.ControlSpots says.
+func (m Model) spots() []table.ControlSpot {
+	left, tail := m.controlParts()
+	return table.ControlSpots(&m, left, tail)
 }
 
 // presetTop gives the screen line the preset line is drawn on, the control line.

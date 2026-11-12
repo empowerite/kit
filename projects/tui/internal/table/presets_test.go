@@ -13,13 +13,12 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 )
 
-// presetting gives a host whose table has the views of views, set as Default, its columns loaded.
+// presetting gives a host whose table has the views of views, set as Default.
 func presetting() *host {
 	h := listing()
 	h.views = views()
 	h.tbl = Table{ViewName: Default, View: h.views.Chosen(Default).Panel(h.views.Fields, grid.Panel{})}
 	h.fields = h.views.Fields
-	h.loaded = true
 	return h
 }
 
@@ -34,13 +33,13 @@ func itemNames(h Host) []string {
 
 func TestThePresetsMenuListsWhatCanBeDoneWithViewsThenTheViews(t *testing.T) {
 	h := presetting()
-	want := []string{FieldsIt, "", SaveIt, SaveAs, RenameIt, DeleteIt, "", Default, "Grouped", "", "Mine"}
-	if got := itemNames(h); !slices.Equal(got, want) || PresetItems(h)[7].Glyph != Checked {
+	want := []string{SaveIt, SaveAs, RenameIt, DeleteIt, "", Default, "Grouped", "", "Mine"}
+	if got := itemNames(h); !slices.Equal(got, want) || PresetItems(h)[5].Glyph != Checked {
 		t.Fatalf("the menu: %q", got)
 	}
-	// set as Default, a table's own: Save, Rename…, and Delete are dim; Fields… and Save As… act
-	for k, acts := range map[int]bool{ItemFields: true, 1: false, ItemSave: false, ItemSaveAs: true, ItemRename: false,
-		ItemDelete: false, 7: true, -1: false, 99: false} {
+	// set as Default, a table's own: Save, Rename…, and Delete are dim; Save As… acts
+	for k, acts := range map[int]bool{ItemViews: false, ItemSave: false, ItemSaveAs: true, ItemRename: false,
+		ItemDelete: false, 5: true, -1: false, 99: false} {
 		if got := PresetEnabled(h, k); got != acts {
 			t.Errorf("line %d acts %v", k, got)
 		}
@@ -51,16 +50,12 @@ func TestThePresetsMenuListsWhatCanBeDoneWithViewsThenTheViews(t *testing.T) {
 	if !PresetEnabled(h, ItemSave) || !PresetEnabled(h, ItemRename) || !PresetEnabled(h, ItemDelete) {
 		t.Error("Mine changed")
 	}
-	h.loaded = false
-	if PresetEnabled(h, ItemFields) {
-		t.Error("Fields… with no columns loaded")
-	}
 }
 
 func TestThePresetsMenuDropsFromTheSelectorAndTakesKeysAndClicks(t *testing.T) {
 	h := presetting()
 	pm := PresetMenu{}.Drop(h)
-	if !pm.Open || pm.At != 7 {
+	if !pm.Open || pm.At != 5 {
 		t.Fatalf("dropped at %d", pm.At)
 	}
 	// set as none of them, it drops at Save As…
@@ -72,10 +67,10 @@ func TestThePresetsMenuDropsFromTheSelectorAndTakesKeysAndClicks(t *testing.T) {
 	if top != 4 || left+ansi.StringWidth(box[0]) != 70 || !strings.Contains(ansi.Strip(box[0]), PresetsTitle) {
 		t.Errorf("the box at %d, %d: %q", top, left, ansi.Strip(box[0]))
 	}
-	if chosen := pm.Key(h, key("down")); chosen != -1 || pm.At != 8 {
+	if chosen := pm.Key(h, key("down")); chosen != -1 || pm.At != 6 {
 		t.Errorf("down: %d, at %d", chosen, pm.At)
 	}
-	if chosen := pm.Key(h, tea.KeyPressMsg{Code: tea.KeyEnter}); chosen != 8 {
+	if chosen := pm.Key(h, tea.KeyPressMsg{Code: tea.KeyEnter}); chosen != 6 {
 		t.Errorf("enter: %d", chosen)
 	}
 	pm = PresetMenu{}.Drop(h)
@@ -137,6 +132,51 @@ func TestThePresetLineNamesTheViewTheTableIsSetAs(t *testing.T) {
 	h.tbl.Renaming = "Mine"
 	if got := ansi.Strip(PresetLine(h, true)); got != RenamingWord+" Triage▏" {
 		t.Errorf("renaming: %q", got)
+	}
+}
+
+// The control line's right part, where it has a selector: a chip per filter, then 📇 Fields, then the selector; a click
+// on a chip opens its field's card under it, on its filter, and one on 📇 Fields the columns dialog. Where the line is
+// short, the chips are clipped first, a chip clipped reaching as far as it shows.
+func TestTheControlLinesChipsAndFieldsButtonAreTargets(t *testing.T) {
+	h := presetting()
+	h.tbl.View = h.tbl.View.FilteredBy("state", grid.Filter{Values: []string{"open"}}).
+		FilteredBy("title", grid.Filter{Values: []string{"fix"}})
+	tail := SelectorPill(Default, "4", false)
+	line, at := Control(h, "  left", tail)
+	spots := ControlSpots(h, "  left", tail)
+	cut := func(s ControlSpot) string { return ansi.Strip(ansi.Cut(line, s.From, s.Until)) }
+	if len(spots) != 3 || spots[0].Field != "state" || spots[1].Field != "title" || spots[2].Field != "" ||
+		cut(spots[0]) != "state: open" || cut(spots[1]) != "title: fix" || cut(spots[2]) != FieldsButton ||
+		at != spots[2].Until+2 {
+		t.Fatalf("the spots: %+v, at %d, in %q", spots, at, ansi.Strip(line))
+	}
+	if s, ok := SpotAt(spots, spots[1].Until-1); !ok || s.Field != "title" {
+		t.Errorf("a click on title's chip: %+v", s)
+	}
+	if _, ok := SpotAt(spots, spots[0].Until); ok {
+		t.Error("a click between the chips reached one")
+	}
+	// a chip's card hangs from it, its title over it, on the filter's mode, with every setting of its field
+	p := OpenChip(h, spots[0])
+	if lines := p.Lines(h); !p.Open || !p.Chip || p.X != spots[0].From || p.Y != 4 || !lines[p.At].Mode ||
+		lines[len(lines)-1].Act == nil {
+		t.Errorf("state's chip's card: %+v", p)
+	}
+	h.h = 40
+	if _, top, left := p.Box(h); top != 4 || left != spots[0].From-3 {
+		t.Errorf("the chip's card at %d, %d", top, left)
+	}
+	// short of width, the chips are clipped: state's shows three cells, title's none, and 📇 Fields stays
+	h.w = 36
+	line, _ = Control(h, "  left", tail)
+	if spots = ControlSpots(h, "  left", tail); len(spots) != 2 || spots[0].Until-spots[0].From != 3 ||
+		cut(spots[1]) != FieldsButton {
+		t.Errorf("clipped: %+v in %q", spots, ansi.Strip(line))
+	}
+	// without a selector, there is no right part to click
+	if ControlSpots(h, "  left", "") != nil {
+		t.Error("spots without a selector")
 	}
 }
 

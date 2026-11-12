@@ -323,7 +323,7 @@ func TestTheControlLineGroupsAndFiltersTheCards(t *testing.T) {
 	if keys := m.keys().String(); keys != "= menu - workspace / search │ ↓ cards ⇥·⇧⇥ move ←→ fold" {
 		t.Errorf("the control line's keys, on the rows' fold: %q", keys)
 	}
-	if m = drive(m, tabKey); m.keys().String() != "= menu - workspace / search │ ↓ cards ⇧⇥ groups ⏎ presets" {
+	if m = drive(m, tabKey); m.keys().String() != "= menu - workspace / search │ ↓ cards ⇧⇥ groups ⏎ presets f fields" {
 		t.Errorf("the control line's keys, on the presets: %q", m.keys().String())
 	}
 	if m = drive(m, enter); !m.sheet.Layered() || !strings.Contains(view(m), "By audience") {

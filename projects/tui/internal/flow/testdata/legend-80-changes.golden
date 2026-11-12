@@ -2,31 +2,31 @@
   ➀╶───────────────╴➋╶────────────────╮➂╶───────────────╮➃╶──────────────────╮➄╶
     🎫 issues  7    │ 🔀 changes  3 : │  🏭 builds  4   │  🛬 incoming  7    │ ▹
   ──────────────────╯                 ╰─────────────────╰────────────────────╰──
-  ▾ 3                                          ╭─ changes legend ───── ↖ ↗ ↙ ↘ ╮
-  ───                                          │ =  kit menu                   │
-    change  title         author  state  age  c│ -  workspace menu             │
-    ·───────·─────────────·───────·──────·────·│ 🔎 search: / or click         │
-  ▸ 🔀 #2   The first r…  jeffr…  🏁      8d   │ ➀  tab: click to select       │
-  ▸ 🔀 #3   A spike on …  ada     🔨     90m   │ ➋  selected tab               │
-  ▸ 🔀 #4   Lint every …  bob     🔥     25h   │ 🎫 issues stage               │
-                                               │ 🔀 changes stage              │
-                                               │ :  tab menu                   │
-                                               │ 🏭 builds stage               │
-                                               │ 🛬 incoming stage             │
-                                               │ ▹  more tabs: click to scroll │
-                                               │ ▾  open: click to close       │
-                                               │ ▼  presets menu               │
-                                               │ ·  sortable: click to sort    │
-                                               │ ×  list: click to flatten     │
-                                               │ ▸  closed: click to open      │
-                                               │ 🔀 pull request 🔗            │
-                                               │ 🏁 ready 🔗                   │
-                                               │ ✅ passed                     │
-                                               │ 🔨 draft 🔗                   │
-                                               │ 🏃 running                    │
-                                               │ 💬 unresolved threads         │
-                                               │ 💬 comments:open 🔗           │
-                                               │ 🔥 failing:gate 🔗            │
-                                               │ ❌ failed                     │
-                                               ╰───────────────────────────────╯
+  ▾ 3                                                    📇 Fields  Default ▼
+  ───
+    change  title         author  state  age  checks  threads  labels   branch
+    ·───────·─────────────·───────·──────·────·───────·────────×·───────·──────
+  ▸ 🔀 #2   The first r…  jeffr…  🏁      8d  ✅               kind…  1-the-…
+  ▸ 🔀 #3   A spike on …  ada     🔨     90m  🏃      💬 2 u…           3-a-sp…
+  ▸ 🔀 #4   Lint every …  bob     🔥     25h  ❌                        4-lint…
+
+
+
+
+
+                   ╭─ changes legend ───────────────────────────────── ↖ ↗ ↙ ↘ ╮
+                   │ =  kit menu                    ▼  presets menu            │
+                   │ -  workspace menu              ·  sortable: click to sort │
+                   │ 🔎 search: / or click          ×  list: click to flatten  │
+                   │ ➀  tab: click to select        ▸  closed: click to open   │
+                   │ ➋  selected tab                🔀 pull request 🔗         │
+                   │ 🎫 issues stage                🏁 ready 🔗                │
+                   │ 🔀 changes stage               ✅ passed                  │
+                   │ :  tab menu                    🔨 draft 🔗                │
+                   │ 🏭 builds stage                🏃 running                 │
+                   │ 🛬 incoming stage              💬 unresolved threads      │
+                   │ ▹  more tabs: click to scroll  💬 comments:open 🔗        │
+                   │ ▾  open: click to close        🔥 failing:gate 🔗         │
+                   │ 📇 fields dialog               ❌ failed                  │
+                   ╰───────────────────────────────────────────────────────────╯
  = menu - workspace / search ? legend │ ⇥·⇧⇥ tab ↓ groups 1-5 jump : tab menu

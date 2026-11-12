@@ -1,7 +1,8 @@
 // The preset line: at the right end of the control line, a selector that names the view the table is set as, and drops
-// the presets' menu down: Fields…, which opens the columns dialog, what can be done with views, and the views to choose
-// from. Chips before it say what the panel's filters hold back. What a line of the menu does is the screen's, which
-// says what it did, and keeps the person's views where it keeps them.
+// the presets' menu down: what can be done with views, and the views to choose from. 📇 Fields stands before it, which
+// opens the columns dialog, and chips before that say what the panel's filters hold back, each opening its field's card
+// at its filter. What a line of the menu does is the screen's, which says what it did, and keeps the person's views
+// where it keeps them.
 package table
 
 import (
@@ -18,13 +19,13 @@ import (
 )
 
 // Presets ends the preset line, after the name of the view the table is set as, and a click on it drops the presets
-// down. FieldsIt is the presets' menu's first item, after its glyph, Fields, and a rule; SaveIt, SaveAs, RenameIt,
-// and DeleteIt follow, Save and Delete after their glyphs, Save and Deleted; those, and Renamed, start what each did
-// says. SavingAsWord and RenamingWord stand, dim, before the name typed for Save As… and Rename…. Checked marks the
+// down. FieldsButton, after its glyph, Fields, stands before the selector, and opens the columns dialog. The presets'
+// menu's items are SaveIt, SaveAs, RenameIt, and DeleteIt, Save and Delete after their glyphs, Save and Deleted;
+// those, and Renamed, start what each did says. SavingAsWord and RenamingWord stand, dim, before the name typed for Save As… and Rename…. Checked marks the
 // view the table is set as.
 const (
 	Presets      = "▼"
-	FieldsIt     = "Fields…"
+	FieldsButton = Fields + " Fields"
 	SaveIt       = "Save"
 	SaveAs       = "Save As…"
 	RenameIt     = "Rename…"
@@ -38,11 +39,9 @@ const (
 	Checked      = "✅"
 )
 
-// The presets' menu's lines: Fields… and a rule, then those that act on views, before a rule and the views themselves.
+// The presets' menu's lines: those that act on views, before a rule and the views themselves.
 const (
-	ItemFields = iota
-	_          // the rule after it
-	ItemSave
+	ItemSave = iota
 	ItemSaveAs
 	ItemRename
 	ItemDelete
@@ -59,12 +58,11 @@ const SelectorFocus = "14"
 // PresetMenu is the presets' menu while it is open: a dropdown.
 type PresetMenu struct{ shell.Dropdown }
 
-// PresetItems gives the presets' menu: Fields… after its glyph, a rule, Save and Delete after their glyphs, Save As…
-// and Rename… between them without, a rule, the table's own views, a rule, and the person's, the one the table is set
-// as checked.
+// PresetItems gives the presets' menu: Save and Delete after their glyphs, Save As… and Rename… between them without, a
+// rule, the table's own views, a rule, and the person's, the one the table is set as checked.
 func PresetItems(h Host) []shell.Item {
-	items := []shell.Item{{Glyph: Fields, Name: FieldsIt}, {}, {Glyph: Save, Name: SaveIt}, {Name: SaveAs},
-		{Name: RenameIt}, {Glyph: Deleted, Name: DeleteIt}, {}}
+	items := []shell.Item{{Glyph: Save, Name: SaveIt}, {Name: SaveAs}, {Name: RenameIt}, {Glyph: Deleted, Name: DeleteIt},
+		{}}
 	v := h.Views()
 	is := v.Is(*h.Table())
 	for k, p := range v.All() {
@@ -80,15 +78,13 @@ func PresetItems(h Host) []shell.Item {
 	return items
 }
 
-// PresetEnabled says whether a line of the presets' menu acts: Fields… while the table has fields to list; Save while
-// the line was set to a view of the person's own that the panel no longer is; Rename… and Delete while it was set to
-// one; Save As… and every view always; a rule never.
+// PresetEnabled says whether a line of the presets' menu acts: Save while the line was set to a view of the person's
+// own that the panel no longer is; Rename… and Delete while it was set to one; Save As… and every view always; a rule
+// never.
 func PresetEnabled(h Host, k int) bool {
 	v := h.Views()
 	mine, own := v.Mine(h.Table().ViewName)
 	switch k {
-	case ItemFields:
-		return h.Columnar()
 	case ItemSave:
 		return own && !v.Same(v.Current(h.Table().View), mine)
 	case ItemRename, ItemDelete:
@@ -176,7 +172,12 @@ func SelectorPill(name, back string, changed bool) string {
 // Chips gives a chip per field the table's panel filters by, in the catalog's order: its label, a colon, and the
 // values it lets through, or, ¬ before each, those it holds back, in the accent.
 func Chips(h Host) []string {
-	var out []string
+	_, chips := chipsOf(h)
+	return chips
+}
+
+// chipsOf gives the fields the table's panel filters by, by id, and their chips, as Chips draws them.
+func chipsOf(h Host) (ids, out []string) {
 	for _, f := range h.Fields() {
 		filter := h.Table().View.Field(f.ID).Filter
 		if len(filter.Values) == 0 {
@@ -188,7 +189,7 @@ func Chips(h Host) []string {
 				values[k] = "¬" + values[k]
 			}
 		}
-		out = append(out, style.Tint(cmp.Or(f.Label, f.ID)+": "+strings.Join(values, ", ")))
+		ids, out = append(ids, f.ID), append(out, style.Tint(cmp.Or(f.Label, f.ID)+": "+strings.Join(values, ", ")))
 	}
-	return out
+	return ids, out
 }

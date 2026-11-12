@@ -84,8 +84,6 @@ func (m *Model) InRows() bool { return m.inRows && len(m.stages) > 0 }
 // Views gives the selected stage's views, its own and the person's.
 func (m *Model) Views() table.Views { return m.viewsOf(m.stage) }
 
-// Columnar says whether the selected stage's table has columns the columns dialog lists, loaded.
-func (m *Model) Columnar() bool { return m.columnar(m.stage) }
 
 // Color gives the selected stage's color, its tab's.
 func (m *Model) Color() string { return stageColors[m.stages[m.stage].name] }

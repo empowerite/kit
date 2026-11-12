@@ -7,7 +7,7 @@ order: 13
 ---
 
 ```text
-  ▾ source ▾ assignees ▾ 3                     Default ▼
+  ▾ source ▾ assignees ▾ 3          📇 Fields  Default ▼
 ```
 
 ## Left: the groups
@@ -23,11 +23,11 @@ With no groups, it is the rows' `▾` and their count alone.
 
 - `Default ▼`  the preset the table is set as. Click it, or `⏎` on it, for the presets menu.
 - A name struck through means you changed the table since.
-- Before it: how many rows are selected, and a chip per filter.
+- 📇 **Fields**  every field: show, hide, sort, group, filter. `f` on the preset opens it too.
+- Before it: how many rows are selected, and a chip per filter. Click a chip to change its filter.
 
 ## The presets menu
 
-- 📇 **Fields…**  every field: show, hide, sort, group, filter
 - **Save**  keep your changes in this preset
 - **Save As…**  keep them as a new preset
 - **Rename…** and **Delete**

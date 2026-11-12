@@ -1281,8 +1281,9 @@ func (m *Model) click(x, y int, subtree bool) tea.Cmd {
 
 // controlClick takes a click on the control line, the pane's first: on the ▾ or ▸ before a column's name in the
 // heading over the groups, or after the last, it opens or closes the level, as toggleLevel says; on a column's name
-// it opens the column's card around it; on the preset's selector it drops the presets down; elsewhere it gives the
-// preset line the keyboard, where the stage has one.
+// it opens the column's card around it; on a filter's chip it opens its field's card under it, on its filter; on
+// table.FieldsButton it opens the columns dialog; on the preset's selector it drops the presets down; elsewhere it
+// gives the preset line the keyboard, where the stage has one.
 func (m *Model) controlClick(x int) tea.Cmd {
 	if level, ok := table.LevelAt(m, x); ok {
 		table.ToggleLevel(m, level)
@@ -1290,6 +1291,14 @@ func (m *Model) controlClick(x int) tea.Cmd {
 	}
 	if name, ok := table.NameAt(m, x); ok {
 		return m.openFieldMenu(name.Column)
+	}
+	if spot, ok := table.SpotAt(m.spots(), x); ok {
+		if spot.Field == "" {
+			m.cols = table.Columns{Open: true}
+			return nil
+		}
+		m.pop = table.OpenChip(m, spot)
+		return m.askMe()
 	}
 	if m.presets(m.stage) {
 		return m.presetClick(x)

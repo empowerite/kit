@@ -172,9 +172,14 @@ func TestTheKeyboardMovesThroughTheControlLineAndTheRows(t *testing.T) {
 	if s.Stop() != -1 || !strings.Contains(ansi.Strip(s.View()[0]), "Default ▼") {
 		t.Errorf("past the stops: %d", s.Stop())
 	}
-	if seg, _ := s.Keys(); !strings.Contains(shellLine(seg), "⏎ presets") {
+	if seg, _ := s.Keys(); !strings.Contains(shellLine(seg), "⏎ presets") || !strings.Contains(shellLine(seg), "f fields") {
 		t.Errorf("on the picker: %s", shellLine(seg))
 	}
+	// f there opens the columns dialog, which esc closes
+	if pressed(&s, "f"); !s.cols.Open {
+		t.Error("f on the picker")
+	}
+	pressed(&s, "esc")
 	if pressed(&s, "shift+tab"); s.Stop() != 1 {
 		t.Errorf("shift-tab: %d", s.Stop())
 	}
@@ -355,10 +360,9 @@ func TestThePresetsAreChosenSavedRenamedAndDeleted(t *testing.T) {
 	if strings.Contains(s.Notice().Text, "saved") {
 		t.Error("Save on Default")
 	}
-	// Fields… opens the fields dialog, whose enter opens a field's popover, which esc closes
-	s.choose(ItemFields)
-	if !s.Layered() || !s.cols.Open {
-		t.Fatal("Fields…")
+	// 📇 Fields opens the fields dialog, whose enter opens a field's card, which esc closes
+	if clickOn(t, &s, FieldsButton, 0); !s.Layered() || !s.cols.Open {
+		t.Fatal("📇 Fields")
 	}
 	pressed(&s, "space")
 	pressed(&s, "enter")
@@ -548,10 +552,15 @@ func TestTheRuleAndTheControlLineSayWhatIsSelectedAndFiltered(t *testing.T) {
 		t.Errorf("the rule under a control line: %q", rule)
 	}
 	s.SetPanel(s.Panel().FilteredBy("kind", grid.Filter{Values: []string{"fruit"}}))
-	if line := ansi.Strip(s.View()[0]); !strings.Contains(line, "1 selected  kind: fruit  ") ||
+	if line := ansi.Strip(s.View()[0]); !strings.Contains(line, "1 selected  kind: fruit  "+FieldsButton+"  ") ||
 		!strings.Contains(line, "Default ▼") {
 		t.Errorf("the control line: %q", line)
 	}
+	// a click on the chip opens kind's card under it, on its filter
+	if clickOn(t, &s, "kind: fruit", 0); !s.pop.Open || !s.pop.Chip || s.pop.Field != "kind" {
+		t.Errorf("a click on kind's chip: %+v", s.pop)
+	}
+	s.pop = Popover{}
 	if line, at := Control(&s, "  left", ""); at != -1 || !strings.HasPrefix(ansi.Strip(line), "  left") {
 		t.Errorf("a control line without a preset line: %q %d", line, at)
 	}
@@ -720,7 +729,7 @@ func TestTheLayersTakeKeysAndClicks(t *testing.T) {
 	s.pop = Popover{}
 	// the fields dialog takes a click, a click on a field's label opening its card over it, and the presets' menu a
 	// click off it
-	s.choose(ItemFields)
+	s.cols = Columns{Open: true}
 	if x, y := spot(s, "☑"); !s.Click(testkit.Click(x, y)) || !s.cols.Open {
 		t.Error("a click in the fields dialog")
 	}

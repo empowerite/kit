@@ -2,20 +2,20 @@
   ➊╶───────────────╮➁╶────────────────╮➂╶───────────────╮➃╶──────────────────╮➄╶─────────────────╮
   │ 🎫 issues  7 : │  🔀 changes  3   │  🏭 builds  4   │  🛬 incoming  7    │  📦 releases  3   │
   ╵                ╰──────────────────╰─────────────────╰────────────────────╰───────────────────╰──────────────────────
-  ▾ source · organization · repository ▾ 7                                                               All Issues ▼
-    ·────────·──────────────·─────────────                                                ╭─ issues legend ─── ↖ ↗ ↙ ↘ ╮
-  ▾ github · empowerite 7                                                                 │ =  kit menu                │
-                                                                                          │ -  workspace menu          │
-        id   status  assignees         age  change  state             where     labels    │ 🔎 search: / or click      │
-        ·────·───────×·────────────────·────·───────·─────────────────·─────────×·────────│ ➊  selected tab            │
-    ▾ jig 1                                                                               │ ➁  tab: click to select    │
-      ▸ #7   💤      ada           +1  40d                                                │ 🎫 issues stage            │
-    ▾ kit 6                                                                               │ :  tab menu                │
-      ▸ #1   🛫      jeffrey-aguilera   8d  🔀 #2   🏁 ready          🌿 here   priority│ 🔀 changes stage           │
-        #8   🛫                         2d  🔀 #4   🔥 failing:gate   👤 bob              │ 🏭 builds stage            │
-        #8   🛫                         2d  🔀 #11  🔨 draft          🌱 local            │ 🛬 incoming stage          │
-      ▸ #46  💤      jeffrey-aguilera   2d                                      bug     │ 📦 releases stage          │
-      ▸ #31  🛫      ada                3h  🔀 #12  💬 comments:open  👤 ada              │ ▾  open: click to close    │
+  ▾ source · organization · repository ▾ 7                                                ╭─ issues legend ─── ↖ ↗ ↙ ↘ ╮
+    ·────────·──────────────·─────────────                                                │ =  kit menu                │
+  ▾ github · empowerite 7                                                                 │ -  workspace menu          │
+                                                                                          │ 🔎 search: / or click      │
+        id   status  assignees         age  change  state             where     labels    │ ➊  selected tab            │
+        ·────·───────×·────────────────·────·───────·─────────────────·─────────×·────────│ ➁  tab: click to select    │
+    ▾ jig 1                                                                               │ 🎫 issues stage            │
+      ▸ #7   💤      ada           +1  40d                                                │ :  tab menu                │
+    ▾ kit 6                                                                               │ 🔀 changes stage           │
+      ▸ #1   🛫      jeffrey-aguilera   8d  🔀 #2   🏁 ready          🌿 here   priority│ 🏭 builds stage            │
+        #8   🛫                         2d  🔀 #4   🔥 failing:gate   👤 bob              │ 🛬 incoming stage          │
+        #8   🛫                         2d  🔀 #11  🔨 draft          🌱 local            │ 📦 releases stage          │
+      ▸ #46  💤      jeffrey-aguilera   2d                                      bug     │ ▾  open: click to close    │
+      ▸ #31  🛫      ada                3h  🔀 #12  💬 comments:open  👤 ada              │ 📇 fields dialog           │
       ▸ #45  💤                         2h                                      kindfeat│ ▼  presets menu            │
                                                                                           │ ·  sortable: click to sort │
                                                                                           │ ·  separator               │

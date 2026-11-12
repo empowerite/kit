@@ -1,4 +1,4 @@
-// The columns dialog: Fields… in the presets' menu opens it under the header's right end, titled by the table's
+// The columns dialog: 📇 Fields on the control line, or f on the preset line, opens it under the header's right end, titled by the table's
 // fields. It lists every field of the table, those the rows group by first, the outermost first, then the columns
 // as the rows stand them, then the hidden, a dim rule between each two of those it has, each a line: whether it shows, its label, its sort, ▲ or ▼ and its place
 // among the keys, and its group's depth. What it sets applies at once. Up and down move between the lines; shift with

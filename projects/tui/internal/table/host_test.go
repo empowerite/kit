@@ -23,7 +23,6 @@ type host struct {
 	built  int  // how many times the rows were built again
 	settle int  // how many times the cursor was kept on a row
 	views  Views
-	loaded bool // whether the table has columns, loaded
 	paneH  int  // the pane's height
 	ctl    bool // whether a control line stands over the rows
 	left   int  // how many times the rows gave up the keyboard
@@ -69,7 +68,6 @@ func (h *host) Rebuild()        { h.built++ }
 func (h *host) Settle()         { h.settle++ }
 func (h *host) InRows() bool    { return h.keys }
 func (h *host) Views() Views    { return h.views }
-func (h *host) Columnar() bool  { return h.loaded }
 func (h *host) Color() string   { return "75" }
 func (h *host) Selector() (int, int) {
 	return 60, 70

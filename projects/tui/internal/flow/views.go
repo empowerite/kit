@@ -32,7 +32,6 @@ import (
 // what each did starts with.
 const (
 	Presets  = table.Presets
-	FieldsIt = table.FieldsIt
 	SaveIt   = table.SaveIt
 	SaveAs   = table.SaveAs
 	RenameIt = table.RenameIt
@@ -235,7 +234,8 @@ func (m *Model) apply(v table.Preset) {
 }
 
 // presetKey takes a key while the keyboard is on the preset line, and says whether it did, as table.PresetKey says;
-// it saves under the name typed, or renames, or drops the presets down, where the key asks it to.
+// it saves under the name typed, or renames, or drops the presets down, or opens the columns dialog, where the key asks
+// it to.
 func (m *Model) presetKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 	do, took := table.PresetKey(m, k)
 	switch do {
@@ -245,6 +245,8 @@ func (m *Model) presetKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 		m.renamePreset()
 	case table.DoDrop:
 		m.presetsMenu = m.presetsMenu.Drop(m)
+	case table.DoFields:
+		m.cols = table.Columns{Open: true}
 	}
 	return nil, took
 }
@@ -334,7 +336,7 @@ func (m *Model) deletePreset() {
 	m.done(Deleted + " deleted the preset " + v.Name)
 }
 
-// choosePreset closes the menu and takes its line k: Fields… opens the columns dialog; Save keeps the panel under the person's view the line was set to;
+// choosePreset closes the menu and takes its line k: Save keeps the panel under the person's view the line was set to;
 // Save As… gives the preset line the keyboard, for a name, that view's typed already; Rename… does too, for its new
 // name; Delete drops it; a view applies. A line that does not act now does nothing.
 func (m *Model) choosePreset(k int) {
@@ -345,8 +347,6 @@ func (m *Model) choosePreset(k int) {
 	s := &m.stages[m.stage]
 	v, _ := m.own()
 	switch k {
-	case table.ItemFields:
-		m.cols = table.Columns{Open: true}
 	case table.ItemSave:
 		m.saveAs(v.Name)
 	case table.ItemSaveAs, table.ItemRename:

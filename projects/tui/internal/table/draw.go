@@ -405,31 +405,73 @@ func BoxAt(h Host, x, y int) bool {
 // Control gives the control line, the pane's first, as wide as the pane, and the screen column the preset's selector
 // starts on, -1 where there is none: the line's left part, as the heading over the groups draws it; and at its right
 // end, how many rows are selected, in the accent, when some are, then, where the tail is the preset line's selector, a
-// chip per filter the panel sets, as Chips gives them, and the selector. The chips are clipped first where the line
-// is short, then the left part.
+// chip per filter the panel sets, as Chips gives them, FieldsButton, and the selector. The chips are clipped first
+// where the line is short, then the left part.
 func Control(h Host, left, tail string) (string, int) {
-	_, width := h.Pane()
-	right := ""
-	if n := len(SelectedRows(h)); n > 0 {
-		right = style.Tint(strconv.Itoa(n)+" selected") + "  "
-	}
-	if tail != "" {
-		if chips := Chips(h); len(chips) > 0 {
-			// two spaces either side of the chips
-			room := width - ansi.StringWidth(left) - 2 - ansi.StringWidth(right) - 2 - ansi.StringWidth(tail)
-			if room > 1 {
-				right += ansi.Truncate(strings.Join(chips, "  "), room, "…") + "  "
-			}
+	line, at, _ := control(h, left, tail)
+	return line, at
+}
+
+// ControlSpot is what a click on the control line's right part reaches, from its first screen column to the one past
+// its last: a filter's chip, by the field it filters, or, with no field, FieldsButton.
+type ControlSpot struct {
+	Field       string
+	From, Until int
+}
+
+// ControlSpots gives what a click on the control line Control draws reaches, as ControlSpot says: each chip it shows,
+// as much of it as shows, then FieldsButton; none where the line has no selector.
+func ControlSpots(h Host, left, tail string) []ControlSpot {
+	_, _, spots := control(h, left, tail)
+	return spots
+}
+
+// SpotAt gives the spot a click at the screen column x reaches, of those ControlSpots gives, and whether one does.
+func SpotAt(spots []ControlSpot, x int) (ControlSpot, bool) {
+	for _, s := range spots {
+		if x >= s.From && x < s.Until {
+			return s, true
 		}
 	}
+	return ControlSpot{}, false
+}
+
+// control lays the control line out, as Control says, and gives its spots, as ControlSpots says.
+func control(h Host, left, tail string) (string, int, []ControlSpot) {
+	_, width := h.Pane()
+	selected, chips, button := "", "", ""
+	if n := len(SelectedRows(h)); n > 0 {
+		selected = style.Tint(strconv.Itoa(n)+" selected") + "  "
+	}
+	ids, texts := chipsOf(h)
+	if tail != "" {
+		button = FieldsButton + "  "
+		// two spaces either side of the chips
+		room := width - ansi.StringWidth(left) - 2 - ansi.StringWidth(selected) - 2 - ansi.StringWidth(button) -
+			ansi.StringWidth(tail)
+		if len(texts) > 0 && room > 1 {
+			chips = ansi.Truncate(strings.Join(texts, "  "), room, "…") + "  "
+		}
+	}
+	right := selected + chips + button
 	room := max(0, width-ansi.StringWidth(right)-ansi.StringWidth(tail)-1)
 	left = ansi.Truncate(left, room, "…")
 	fill := max(1, width-ansi.StringWidth(left)-ansi.StringWidth(right)-ansi.StringWidth(tail))
 	line := ansi.Truncate(left+strings.Repeat(" ", fill)+right+tail, width, "")
 	if tail == "" {
-		return line, -1
+		return line, -1, nil
 	}
-	return line, ansi.StringWidth(left) + fill + ansi.StringWidth(right)
+	// each chip from where it starts, as far as it shows, the ellipsis that clips the last among it
+	start := ansi.StringWidth(left) + fill + ansi.StringWidth(selected)
+	end := start + max(0, ansi.StringWidth(chips)-2)
+	var spots []ControlSpot
+	for k, x := 0, start; k < len(texts) && x < end; k++ {
+		spots = append(spots, ControlSpot{Field: ids[k], From: x, Until: min(x+ansi.StringWidth(texts[k]), end)})
+		x += ansi.StringWidth(texts[k]) + 2
+	}
+	at := start + ansi.StringWidth(chips)
+	spots = append(spots, ControlSpot{From: at, Until: at + ansi.StringWidth(FieldsButton)})
+	return line, at + ansi.StringWidth(button), spots
 }
 
 // FocusStop draws the stop the keyboard stands on in the control line's left part, as the line under the keyboard in

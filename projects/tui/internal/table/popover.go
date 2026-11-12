@@ -2,7 +2,8 @@
 // by it, whether they group by it, whether a list it holds stands a row per value, which of its values the rows must
 // hold, how it is drawn, and whether it shows. A click on a column's name opens it under the name, as the keyboard does
 // on a name in the heading over the groups, and shift with left or right moves the column a place, the card with it; a
-// click on a field in the columns dialog opens it beside the dialog. It has the keyboard while it is open: up and down
+// click on a filter's chip on the control line opens it under the chip, on the filter; a click on a field in the
+// columns dialog opens it beside the dialog. It has the keyboard while it is open: up and down
 // move between its lines, space or enter acts on the one under the keyboard, and esc closes it; a click on a line acts
 // on it, and a click off the box closes it. What it sets applies at once, so the rows, the header, the columns dialog,
 // and the preset line's chips follow it.
@@ -24,7 +25,8 @@ import (
 
 // Popover is a field's card while it is open: the field, by id; its line under the keyboard; and the screen cell it
 // hangs from, the columns dialog's corner, whose right edge it keeps, or its column's name in the header, or, as
-// Heading says, in the heading over the groups, which its title covers, and which it follows as the column moves.
+// Heading says, in the heading over the groups, which its title covers, and which it follows as the column moves; or,
+// as Chip says, its filter's chip on the control line, which its title covers.
 type Popover struct {
 	Open    bool
 	Field   string
@@ -32,8 +34,12 @@ type Popover struct {
 	X, Y    int
 	Header  bool
 	Heading bool
+	Chip    bool
 	Typed   string
 }
+
+// hangs says whether the card hangs from what was clicked, its title over it, rather than beside the columns dialog.
+func (p Popover) hangs() bool { return p.Header || p.Heading || p.Chip }
 
 // PopLine is one line of a card: what it draws, and what space does on it, nil for a heading or a gap. Picked says
 // a choice is the one taken, which space on it again leaves as it is; a box toggles, picked or not. Input is the line a
@@ -62,6 +68,14 @@ func OpenCard(h Host, column string, heading bool) Popover {
 	p.follow(h)
 	p.At = p.Move(h, -1, 1)
 	return p
+}
+
+// OpenChip gives the card of the field a chip on the control line filters by, open, hanging from the chip, its title
+// over it, the keyboard on the filter's mode.
+func OpenChip(h Host, chip ControlSpot) Popover {
+	top, _ := h.Pane()
+	p := Popover{Open: true, Field: chip.Field, X: chip.From, Y: top, Chip: true}
+	return p.AtFilter(h)
 }
 
 // AtFilter gives the card with the keyboard on its filter's mode, where its field filters, else as it was.
@@ -126,7 +140,7 @@ func (p Popover) Lines(h Host) []PopLine {
 		}
 		out = append(out, PopLine{Text: glyph + " " + text, Box: true, Act: act})
 	}
-	alone := p.Header || p.Heading
+	alone := p.hangs()
 	if alone && panel.Sorts(id) {
 		heading("sort")
 		up, down, by := "", "", ""
@@ -420,8 +434,8 @@ func (p *Popover) Key(h Host, k tea.KeyPressMsg) {
 }
 
 // Box gives the card's lines, a dialog titled by the field's label, its keys on the keys bar alone, and the screen
-// line and column it is drawn from: from the header, its title over the name, or nearer the screen's left where it
-// would run past the edge; from the columns dialog, its right edge at the screen's, its top on the dialog's, or higher
+// line and column it is drawn from: from a column's name or a chip, its title over it, or nearer the screen's left
+// where it would run past the edge; from the columns dialog, its right edge at the screen's, its top on the dialog's, or higher
 // where it would run past the keys bar.
 func (p Popover) Box(h Host) (box []string, top, left int) {
 	var body []string
@@ -435,7 +449,7 @@ func (p Popover) Box(h Host) (box []string, top, left int) {
 	width, height := h.Size()
 	box = shell.Dialog(labelOf(h, p.Field), body, width)
 	w := ansi.StringWidth(box[0])
-	if p.Header || p.Heading {
+	if p.hangs() {
 		// the title on its top edge over the name, where the header draws it, after the corner, a rule, and a space
 		top, left = p.Y, min(p.X-3, width-w)
 	} else {
@@ -445,12 +459,12 @@ func (p Popover) Box(h Host) (box []string, top, left int) {
 }
 
 // Click takes a click while the card is open: on one of its lines that acts, it acts on it, as space does; off the
-// box, or on the top edge of a card that hangs from its column's name, which the edge's title covers, it closes it, as
-// a second click on a name closes what the first opened; on the box elsewhere, nothing.
+// box, or on the top edge of a card that hangs from a column's name or a chip, which the edge's title covers, it closes
+// it, as a second click on a name closes what the first opened; on the box elsewhere, nothing.
 func (p *Popover) Click(h Host, x, y int) {
 	box, top, left := p.Box(h)
 	switch line, on := (shell.Placed{Lines: box, Top: top, Left: left}).Hit(x, y); {
-	case !on, (p.Header || p.Heading) && y == top:
+	case !on, p.hangs() && y == top:
 		*p = Popover{}
 	case line >= 0:
 		p.Act(h, line)

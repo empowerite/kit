@@ -4,7 +4,7 @@
 // its id. A tutorial is in the kit, a page that ships with it, read here, or online, a link; the where field says
 // which, as its label, and so does the glyph on its card's top edge, 📦 or 🌐. The control line is the table's, on the
 // screen's second line: the heading over the groups, which names the field the cards are grouped by, and the preset
-// line, Default, By audience, or In the kit or online, the person's presets beside them, and Fields…,
+// line, Default, By audience, or In the kit or online, the person's presets beside them, and 📇 Fields before it,
 // where the cards are sorted, grouped, and filtered by any field a column's card or the columns dialog offers. The cards
 // stand as the table's rows stand: in its order, under its groups' headings, each heading drawn as the table draws it,
 // a tutorial for several audiences under each of theirs, and a closed group's cards folded away. The tags given on the

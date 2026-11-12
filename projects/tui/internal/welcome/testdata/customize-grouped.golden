@@ -7,7 +7,7 @@
    kit is a starting point. Each part below is something teams change first. It ends with where to change it, the file
    first, then the doc that explains it, and with the command that shows it.
 
-  ▾ command ▾ 6                                                                                          By command ▼
+  ▾ command ▾ 6                                                                               📇 Fields  By command ▼
     ·──────────
       part                    settings      where              about                       commands
       ·───────────────────────×·────────────×·─────────────────────────────────────────────×·──────────────────────────
@@ -37,4 +37,4 @@
 
 
 
- = menu - workspace / search │ 1-5 jump │ ↑·esc tabs ↓ rows ⇧⇥ groups ⏎ presets
+ = menu - workspace / search │ 1-5 jump │ ↑·esc tabs ↓ rows ⇧⇥ groups ⏎ presets f fields

@@ -129,6 +129,7 @@ func (m Model) parts(last int) []part {
 		one(grid.Unfolded, "open: click to close", rows),
 		one(grid.Folded, "closed: click to open", rows),
 		one("¬", "filtered out", control),
+		one(Fields, "fields dialog", control),
 		one(table.Presets, "presets menu", control),
 		one(Sortable, "sortable: click to sort", rule),
 		one("▲", "ascending: click to reverse", rule),

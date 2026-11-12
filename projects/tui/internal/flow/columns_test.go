@@ -10,7 +10,6 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
-	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/table"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 )
@@ -29,22 +28,23 @@ func columnsAt(t *testing.T, m Model, id string) (x, y int) {
 	return -1, -1
 }
 
-// Fields… heads the presets' menu, its glyph before it, a rule after it, and opens the dialog under the header's right
-// end, the header drawing no icon of its own: the fields the rows group by first, a rule under them, then the columns
+// 📇 Fields stands on the control line, before the preset line's selector, and a click on it opens the dialog under the
+// header's right end, the header drawing no icon of its own: the fields the rows group by first, a rule under them, then the columns
 // as the rows stand them, then the hidden, each with whether it shows, its sort, and its group's depth.
 func TestTheColumnsDialogListsTheGroupsFirstThenTheColumns(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 110, Height: 30})
-	if strings.Contains(lines(m)[m.top()], "◫") || strings.Contains(lines(m)[m.top()], Fields) {
-		t.Errorf("an icon on the header: %q", lines(m)[m.top()])
+	if strings.Contains(lines(m)[m.headerTop()], "◫") || strings.Contains(lines(m)[m.headerTop()], Fields) {
+		t.Errorf("an icon on the header: %q", lines(m)[m.headerTop()])
 	}
 	// organization, which the view groups by, hidden, to stand among the hidden, after the columns
 	m.setPanel(regroup(m.panel(0).SortedAs("age", grid.Descending), "assignees").Placed("organization", grid.Hidden))
-	if m.presetsMenu = m.presetsMenu.Drop(&m); table.PresetItems(&m)[table.ItemFields] != (shell.Item{Glyph: Fields, Name: FieldsIt}) ||
-		table.PresetItems(&m)[table.ItemFields+1].Name != "" || !table.PresetEnabled(&m, table.ItemFields) {
-		t.Fatalf("the presets' menu: %+v", table.PresetItems(&m))
+	control := lines(m)[m.top()]
+	at := ansi.StringWidth(control[:strings.Index(control, table.FieldsButton)])
+	if at+ansi.StringWidth(table.FieldsButton)+2 != m.dropStart() || !strings.HasPrefix(table.FieldsButton, Fields) {
+		t.Fatalf("📇 Fields at %d, the selector at %d: %q", at, m.dropStart(), control)
 	}
-	if m.choosePreset(table.ItemFields); m.presetsMenu.Open || !m.cols.Open || m.cols.At != 0 {
-		t.Fatalf("Fields… did not open the dialog: menu %v, dialog %+v", m.presetsMenu.Open, m.cols)
+	if m = drive(m, testkit.Click(at+1, m.top())); m.presetsMenu.Open || !m.cols.Open || m.cols.At != 0 {
+		t.Fatalf("📇 Fields did not open the dialog: menu %v, dialog %+v", m.presetsMenu.Open, m.cols)
 	}
 	if got := m.cols.Listed(&m); got[0] != "assignees" || slices.Index(got, "organization") < slices.Index(got, "title") {
 		t.Errorf("the fields: %q", got)

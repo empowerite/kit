@@ -363,7 +363,8 @@ func TestTheTitlesGlyphIsTheWorkspaces(t *testing.T) {
 
 // The legend explains every glyph on the screen, the frame's and the controls' too, each where it means what it says,
 // in the order each first appears, reading from the top left: the kit menu's =, the workspace menu's -, the search,
-// the tabs' numbers, a stage's glyph, the presets' ▼ on the control line, and a sortable column's · on the rule.
+// the tabs' numbers, a stage's glyph, the fields dialog's 📇 and the presets' ▼ on the control line, and a sortable
+// column's · on the rule.
 func TestTheLegendExplainsEveryGlyphOnTheScreenInOrder(t *testing.T) {
 	m := loaded(t, viewing(""), tea.WindowSizeMsg{Width: 120, Height: 40}, press('?'))
 	var order []string
@@ -372,7 +373,7 @@ func TestTheLegendExplainsEveryGlyphOnTheScreenInOrder(t *testing.T) {
 	}
 	want := []string{shell.App + "  kit menu", shell.Workspaces + "  workspace menu", grid.Search + " search: / or click",
 		tabs.Marker(0, true) + "  selected tab", tabs.Marker(1, false) + "  tab: click to select", Issue + " issues stage",
-		table.Presets + "  presets menu", Sortable + "  sortable: click to sort"}
+		Fields + " fields dialog", table.Presets + "  presets menu", Sortable + "  sortable: click to sort"}
 	at := -1
 	for _, w := range want {
 		k := slices.Index(order, w)

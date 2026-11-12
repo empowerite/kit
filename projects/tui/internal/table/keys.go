@@ -79,8 +79,9 @@ func RowKeys(h Host, alt bool) shell.Segment {
 
 // PresetKeys gives the segment of the preset line while it has the keyboard: up or esc gives the bar the keyboard, and
 // down the rows, when the table has some; shift-tab goes back to the heading over the groups, where the rows group;
-// enter or space drops the presets down. While a name is typed for Save As… or Rename…, what is typed is the name,
-// = : and ; apart, which the menus take; enter saves under it, or renames, and esc stops.
+// enter or space drops the presets down, and f opens the columns dialog, as FieldsButton does. While a name is typed
+// for Save As… or Rename…, what is typed is the name, = : and ; apart, which the menus take; enter saves under it, or
+// renames, and esc stops.
 func PresetKeys(h Host) shell.Segment {
 	if t := h.Table(); t.SavingAs {
 		s := shell.Segment{Types: true, Takes: []string{"backspace"}, Passes: []string{"=", ":", ";"}}
@@ -100,7 +101,7 @@ func PresetKeys(h Host) shell.Segment {
 	if len(Stops(h)) > 0 {
 		s.Bindings = append(s.Bindings, shell.Bind("⇧⇥", "groups", "shift+tab"))
 	}
-	return s.With(shell.Bind("⏎", "presets", "enter", "space"))
+	return s.With(shell.Bind("⏎", "presets", "enter", "space"), shell.Bind("f", "fields"))
 }
 
 // HeadingKeys gives the segment of a stop of the heading over the groups while it has the keyboard: up or esc gives
@@ -179,7 +180,7 @@ func HeadingKey(h Keyboard, k tea.KeyPressMsg) bool {
 }
 
 // PresetDo is what a key on the preset line asks of the screen, beyond what PresetKey does itself: nothing, to save
-// the panel under the name typed, to rename the preset to it, or to drop the presets down.
+// the panel under the name typed, to rename the preset to it, to drop the presets down, or to open the columns dialog.
 type PresetDo int
 
 // What a key on the preset line asks.
@@ -188,11 +189,12 @@ const (
 	DoSave
 	DoRename
 	DoDrop
+	DoFields
 )
 
 // PresetKey takes a key while the keyboard is on the preset line, and says whether it took it, and what it asks of the
 // screen: up and esc give the bar the keyboard, down the rows, when the table has some, and shift-tab the heading
-// over the groups' last stop; enter and space drop the presets down. While a name is typed for Save As… or Rename…,
+// over the groups' last stop; enter and space drop the presets down, and f opens the columns dialog. While a name is typed for Save As… or Rename…,
 // what is typed is the name, = : and ; apart, which the menus take; enter saves under it, or renames, esc stops, and
 // up and down stop too, and move as ever.
 func PresetKey(h Keyboard, k tea.KeyPressMsg) (PresetDo, bool) {
@@ -231,6 +233,8 @@ func PresetKey(h Keyboard, k tea.KeyPressMsg) (PresetDo, bool) {
 		}
 	case "enter", "space":
 		return DoDrop, true
+	case "f":
+		return DoFields, true
 	default:
 		return DoNothing, false
 	}
