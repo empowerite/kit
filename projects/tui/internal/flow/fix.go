@@ -15,7 +15,7 @@ import (
 
 // A stage whose command failed with a line that names a command, as kit's run: lines do, offers that command on its
 // line, as internal/fix draws the pair: down, or a click on the line, selects it, and up or esc leaves it, as they
-// leave a row; while it is selected, ⧉ or c copies the command, and run or r, where the command is plain words, hands
+// leave a row; while it is selected, ⧉ or c copies the command, and ▶️ or r, where the command is plain words, hands
 // the terminal to it, then loads the stage again.
 
 // ranMsg says a stage's fix has run, and how it ended.
@@ -80,7 +80,7 @@ func (m *Model) remedyKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 	return nil, false
 }
 
-// remedyClick takes a left click on the refusal's lines: it selects the line, and on ⧉ copies its command, on run runs
+// remedyClick takes a left click on the refusal's lines: it selects the line, and on ⧉ copies its command, on ▶️ runs
 // it. A click elsewhere is not its.
 func (m *Model) remedyClick(msg tea.MouseClickMsg) (tea.Cmd, bool) {
 	if msg.Button != tea.MouseLeft || len(m.stages) == 0 || m.remedy(m.stage) == "" || msg.X >= m.paneWidth() {

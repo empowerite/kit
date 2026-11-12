@@ -1,5 +1,5 @@
 // Package fix is the pair of buttons a line that names a command offers, on every screen: ⧉, which puts the command on
-// the clipboard, and run, which hands the terminal to it. A screen draws them on the line under its cursor alone, as
+// the clipboard, and ▶️, run, which hands the terminal to it. A screen draws them on the line under its cursor alone, as
 // Buttons draws them, after the line clipped to leave them room, as On reads a click on them; c copies and r runs from
 // the keyboard. A command comes from the screen's own data, as a welcome check's fix, or from kit's line, which names
 // it after run:, as Command reads it. Copy goes through the terminal, so it reaches the clipboard over ssh too; run
@@ -20,11 +20,12 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/style"
 )
 
-// The buttons' names, as drawn: copy's glyph, copied in its place once it copied, until the next key or click, and run.
+// The buttons' names, as drawn: copy's glyph, copied in its place once it copied, until the next key or click, and
+// run's, ▶️, two cells wide.
 const (
 	CopyName   = "⧉"
 	CopiedName = "copied"
-	RunName    = "run"
+	RunName    = "▶️"
 )
 
 // The keys that press the buttons on the line under the cursor.
@@ -82,7 +83,7 @@ scan:
 }
 
 // Buttons draws the pair after a line, a cell either side of each name, which a click takes: ⧉, or copied once it
-// copied, and run where the command runs here. A fix kit leaves to the person's own shell, as one that changes the
+// copied, and ▶️ where the command runs here. A fix kit leaves to the person's own shell, as one that changes the
 // shell's own environment, offers ⧉ alone.
 func Buttons(runs, copied bool) string {
 	names := []string{style.Tint(" " + CopyName + " ")}
@@ -103,7 +104,7 @@ func After(line string, width int, runs, copied bool) string {
 }
 
 // On gives the button the cell x of a line drawn by After is on, its styles stripped or not: copy, on ⧉ or copied
-// and a cell either side, run on run and its cells, else none.
+// and a cell either side, run on ▶️ and its cells, else none.
 func On(line string, x int) Button {
 	plain := ansi.Strip(line)
 	if at, ok := cells(plain, " "+RunName+" "); ok && x >= at && x < at+ansi.StringWidth(RunName)+2 {

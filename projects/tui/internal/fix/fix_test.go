@@ -62,10 +62,10 @@ func TestAfterKeepsTheButtonsWhole(t *testing.T) {
 		t.Fatalf("After ended %q, want %q", got, want)
 	}
 	w := ansi.StringWidth(plain)
-	// the line ends " ⧉ ", a cell, " run ": ⧉'s button starts nine cells from the end
-	copyAt := w - 9
-	for x, b := range map[int]Button{copyAt - 1: None, copyAt: Copy, copyAt + 2: Copy, copyAt + 3: None, w - 5: Run,
-		w - 1: Run, 0: None} {
+	// the line ends " ⧉ ", a cell, " ▶️ ", ▶️ two cells wide: ⧉'s button starts eight cells from the end, ▶️'s four
+	copyAt, runAt := w-8, w-4
+	for x, b := range map[int]Button{copyAt - 1: None, copyAt: Copy, copyAt + 2: Copy, copyAt + 3: None, runAt - 1: None,
+		runAt: Run, w - 1: Run, 0: None} {
 		if got := On(line, x); got != b {
 			t.Errorf("On(%d) = %v, want %v", x, got, b)
 		}
