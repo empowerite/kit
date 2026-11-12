@@ -19,7 +19,7 @@
 # so does each of its errors; a member that could not be read is {member, error} under errors.
 #
 # see: modules/jq/apps.jq, bin/kit-workspace, modules/bash/across.sh
-use workspaces across tui forge file
+use workspaces across tui forge file terminal
 
 # apps_forge_marks holds the forge's marks of each kind apps:forge-mark has read in this process, so the stages that
 # share a kind read the forge for it once; apps_forge_served says, once read, whether the forge serves marks.
@@ -53,6 +53,7 @@ apps:main() {
     && tui:binary --probe >/dev/null 2>&1
   then
     command=$(tui:binary) || return 1
+    terminal:export-probes
     export KIT="${kit_root}/bin/kit"
     exec "${command}" "${verb}" ${workspace:+--workspace="${workspace}"} "$@"
   fi

@@ -51,7 +51,7 @@ null
 # A terminal that did not answer fails no probe, and each probe says so.
 import "terminal" as terminal; terminal::checks({"docs": "D", "probes": {"kitty-keyboard": {"need": "keys", "held": "fine", "failed": "bad"}, "color": {"need": "color", "held": "fine", "failed": "bad"}}, "terminals": {"ssh": {"name": "ssh", "anchor": "over-ssh", "unread": "cannot read"}}}; "ssh"; null; {}; {"answered": false}; []) | map([.id, .ok, .line])
 null
-[["terminal-ssh",true,"ssh: cannot read"],["terminal-probe-kitty-keyboard",true,"ssh did not answer kit's question"],["terminal-probe-color",true,"ssh did not answer kit's question"]]
+[["terminal-ssh",true,"ssh: cannot read; it did not answer kit's questions"],["terminal-probe-kitty-keyboard",true,"ssh did not answer kit's question"],["terminal-probe-color",true,"ssh did not answer kit's question"]]
 
 # With no probes there is no probe check.
 import "terminal" as terminal; terminal::checks({"docs": "D", "probes": {"color": {"need": "color", "held": "fine", "failed": "bad"}}, "terminals": {"ssh": {"name": "ssh", "anchor": "over-ssh", "unread": "cannot read"}}}; "ssh"; null; {}; null; []) | map(.id)
@@ -82,3 +82,13 @@ null
 import "terminal" as terminal; terminal::checks({"docs": "D", "probes": {}, "terminals": {"apple": {"name": "Terminal", "anchor": "terminal", "heading": "{name}, its default profile {profile}", "findings": []}}}; "apple"; {"profile": "Basic"}; {}; null; []) | .[0].line
 null
 "Terminal, its default profile Basic: nothing in it slows or breaks kittui"
+
+# A probe no setting can fix holds, and its line joins the heading, which the views always show.
+import "terminal" as terminal; terminal::checks({"docs": "D", "probes": {"kitty-keyboard": {"need": "keys", "held": "fine", "failed": "no kitty"}}, "terminals": {"apple": {"name": "Terminal", "anchor": "terminal", "findings": [], "probes": {"kitty-keyboard": {"none": "Terminal has no kitty keyboard protocol"}}}}}; "apple"; {"profile": "Basic"}; {}; {"answered": true, "kitty_keyboard": false}; []) | .[0].line
+null
+"Terminal, profile Basic: nothing in it slows or breaks kittui; Terminal has no kitty keyboard protocol"
+
+# A terminal that did not answer says so in its heading, which claims nothing it did not measure.
+import "terminal" as terminal; [("iterm", "ssh") as $k | terminal::checks({"docs": "D", "probes": {"color": {"need": "color", "held": "fine", "failed": "bad"}}, "terminals": {"iterm": {"name": "iTerm2", "anchor": "iterm2", "findings": []}, "ssh": {"name": "ssh", "anchor": "over-ssh", "unread": "cannot read"}}}; $k; (if $k == "iterm" then {"profile": "W"} else null end); {}; {"answered": false}; []) | .[0].line]
+null
+["iTerm2, profile W: nothing in its settings slows or breaks kittui; it did not answer kit's questions","ssh: cannot read; it did not answer kit's questions"]

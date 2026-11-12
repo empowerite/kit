@@ -80,20 +80,26 @@ terminal:detect-rest() {
 # terminal:windows-host prints the key of the window WSL runs in, from Windows' default terminal: Windows hands a
 # console session to it without setting WT_SESSION. The Windows console's GUID names the console; none, or zeros, is
 # Windows' own choice, Windows Terminal from Windows 11 (build 22000) and the console before; any other GUID is a
-# terminal Windows hands sessions to, Windows Terminal. Where reg.exe cannot run, as with interop off, it is unknown.
+# terminal Windows hands sessions to, Windows Terminal. Where reg.exe cannot run, as with interop off, or does not
+# answer within a second, it is unknown.
 terminal:windows-host() {
-  local delegation build
+  local answer delegation build status=0
   if ! command -v reg.exe >/dev/null 2>&1
   then
     printf 'unknown\n'
     return 0
   fi
-  delegation=$(reg.exe query 'HKCU\Console\%%Startup' /v DelegationTerminal 2>/dev/null | tr -d '\r' \
-    | awk '$1 == "DelegationTerminal" { print $3 }') || delegation=''
+  answer=$(terminal:timed 1 reg.exe query 'HKCU\Console\%%Startup' /v DelegationTerminal) || status=$?
+  if (( status == 124 ))
+  then
+    printf 'unknown\n'
+    return 0
+  fi
+  delegation=$(tr -d '\r' <<<"${answer}" | awk '$1 == "DelegationTerminal" { print $3 }')
   case "${delegation}" in
     ('{B23D10C0-E52E-411E-9D5B-C09FDF709C7D}') printf 'console\n' ;;
     ('' | '{00000000-0000-0000-0000-000000000000}')
-      build=$( (cd /mnt/c 2>/dev/null || true; cmd.exe /c ver 2>/dev/null) | tr -d '\r' \
+      build=$(terminal:timed 1 terminal:windows-version | tr -d '\r' \
         | sed -n 's/.*Version [0-9]*\.[0-9]*\.\([0-9]*\).*/\1/p')
       if (( ${build:-0} >= 22000 ))
       then
@@ -106,6 +112,13 @@ terminal:windows-host() {
   esac
 }
 
+# terminal:windows-version prints what cmd.exe /c ver says, run from /mnt/c so cmd.exe does not warn of a path it
+# cannot use.
+terminal:windows-version() {
+  cd /mnt/c 2>/dev/null || true
+  cmd.exe /c ver
+}
+
 # terminal:key prints terminal:detect's key, or unknown where terminals.json has no such terminal.
 terminal:key() {
   local key
@@ -116,24 +129,40 @@ terminal:key() {
 }
 
 # terminal:timed <seconds> <command> [<argument>…] runs the command, prints what it printed, and returns its status;
-# when it outlasts the seconds, it is stopped, with its children, and terminal:timed returns 124 and prints nothing.
+# when it outlasts the seconds, it is stopped, with every process under it, and terminal:timed returns 124 and prints
+# nothing. The command reads no stdin, its stderr is dropped, and its TMPDIR is inside terminal:timed's own scratch
+# directory, so nothing it leaves holds kit's output open, or stays behind in the person's TMPDIR, once it is stopped.
 terminal:timed() {
   local seconds=$1 dir pid watcher status=0
   shift
   file:scratch dir || return 1
-  "$@" > "${dir}/out" &
+  mkdir -p "${dir}/tmp"
+  TMPDIR=${dir}/tmp "$@" > "${dir}/out" 2>/dev/null </dev/null &
   pid=$!
   # the watcher marks the run as outlasted before it stops it, so a command that ends as the watcher wakes is never
   # taken for one that was stopped
-  ( sleep "${seconds}"; : > "${dir}/outlasted"; pkill -TERM -P "${pid}"; kill -TERM "${pid}" ) >/dev/null 2>&1 &
+  ( sleep "${seconds}"; : > "${dir}/outlasted"; terminal:stop "${pid}" ) >/dev/null 2>&1 </dev/null &
   watcher=$!
-  wait "${pid}" || status=$?
-  [[ ! -e "${dir}/outlasted" ]] || return 124
-  pkill -TERM -P "${watcher}" 2>/dev/null
-  kill -TERM "${watcher}" 2>/dev/null
+  wait "${pid}" 2>/dev/null || status=$?
+  if [[ -e "${dir}/outlasted" ]]
+  then
+    wait "${watcher}" 2>/dev/null
+    return 124
+  fi
+  terminal:stop "${watcher}"
   wait "${watcher}" 2>/dev/null
   cat "${dir}/out"
   return "${status}"
+}
+
+# terminal:stop <pid> stops the process and every process under it, deepest first, as ps lists them.
+terminal:stop() {
+  local child
+  for child in $(ps -A -o pid= -o ppid= 2>/dev/null | awk -v parent="$1" '$2 == parent { print $1 }')
+  do
+    terminal:stop "${child}"
+  done
+  kill -TERM "$1" 2>/dev/null || true
 }
 
 # terminal:settings <key> prints the reader's object for the terminal <key>, {"unreadable": "<why>"} where it cannot
@@ -194,11 +223,10 @@ terminal:bad() {
 # terminal:ask asks the terminal, on /dev/tty, in one write: does it speak the kitty keyboard protocol (CSI ? u); does
 # it measure by grapheme (DECRQM 2027); where is the cursor after 📚, and after ↑ (CSI 6n), each printed at the line's
 # start; then it clears the line, and asks for the primary attributes (CSI c), which every terminal answers, so their
-# answer, which ends in c, ends the exchange. It prints what the terminal answered, or nothing where it did not answer
-# within half a second. Whatever comes after is read and dropped before the terminal is put back as it was, so a late
-# answer never lands in the person's shell.
+# answer ends the exchange. It prints what the terminal answered within half a second, as terminal:collect reads it,
+# and puts the terminal back as it was.
 terminal:ask() {
-  local tty saved reply=''
+  local tty saved reply
   exec {tty}<>/dev/tty 2>/dev/null || return 0
   if ! saved=$(stty -g <&"${tty}" 2>/dev/null)
   then
@@ -208,27 +236,46 @@ terminal:ask() {
   stty raw -echo <&"${tty}"
   # shellcheck disable=SC2016  # $p is DECRQM's final byte, not an expansion
   printf '\e[?u\e[?2027$p\r📚\e[6n\r↑\e[6n\r\e[2K\e[c' >&"${tty}"
-  if IFS= read -r -s -d c -t 0.5 -u "${tty}" reply
-  then
-    reply+=c
-  else
-    reply=''
-  fi
-  while IFS= read -r -s -n 256 -t 0.05 -u "${tty}" _
-  do
-    :
-  done
+  reply=$(terminal:collect "${tty}" 500 2000)
   stty "${saved}" <&"${tty}"
   exec {tty}>&-
   printf '%s' "${reply}"
 }
 
+# terminal:collect <fd> <judge-ms> <drain-ms> reads the terminal's answers from <fd> until the answer to the primary
+# attributes, ESC [ ? … c, comes. Where it came within <judge-ms> milliseconds, it prints all that came, what the
+# person typed before it among it; later, it prints nothing, as a terminal that did not answer, and reads on until that
+# answer or <drain-ms>, so a late answer never lands in the person's shell.
+terminal:collect() {
+  local fd=$1 judge=$2 drain=$3 got='' chunk start elapsed status
+  local end_re=$'\e''\[\?[0-9;]*c'
+  start=${EPOCHREALTIME/[.,]/}
+  while true
+  do
+    chunk=''
+    status=0
+    IFS= read -r -s -d '' -n 64 -t 0.05 -u "${fd}" chunk || status=$?
+    got+=${chunk}
+    elapsed=$(( (${EPOCHREALTIME/[.,]/} - start) / 1000 ))
+    if [[ "${got}" =~ ${end_re} ]]
+    then
+      (( elapsed > judge )) || printf '%s' "${got}"
+      return 0
+    fi
+    # the end of the input, or the drain's last moment: nothing more comes
+    if (( elapsed > drain )) || { (( status == 1 )) && [[ -z "${chunk}" ]]; }
+    then
+      return 0
+    fi
+  done
+}
+
 # terminal:parse <reply> prints what the terminal answered, as terminal:ask gives it, as JSON: answered; kitty_keyboard;
 # grapheme_width, true where mode 2027 is set, reset, or set for good; emoji_width and ambiguous_width, the columns the
-# cursor moved after 📚 and after ↑, null where it did not say; and color, from COLORTERM and TERM as kittui's library
-# reads them: truecolor, 256, or fewer. An empty reply is a terminal that did not answer.
+# cursor moved after 📚 and after ↑, null where it did not say; and color, as terminal:color reads it. An empty reply is
+# a terminal that did not answer.
 terminal:parse() {
-  local reply=$1 rest kitty=false grapheme=false color=fewer
+  local reply=$1 rest kitty=false grapheme=false
   local -a columns=()
   # shellcheck disable=SC2016  # \$y is DECRPM's final bytes, matched as they are
   local kitty_re=$'\e''\[\?[0-9]+u' mode_re=$'\e''\[\?2027;([0-9])\$y' position_re=$'\e''\[[0-9]+;([0-9]+)R'
@@ -250,40 +297,67 @@ terminal:parse() {
     columns+=("$(( BASH_REMATCH[1] - 1 ))")
     rest=${rest#*"${BASH_REMATCH[0]}"}
   done
-  case "${COLORTERM:-}" in
-    (truecolor | 24bit) color=truecolor ;;
-    (*) [[ "${TERM:-}" != *256color ]] || color=256
-  esac
   jq --null-input --compact-output --argjson kitty "${kitty}" --argjson grapheme "${grapheme}" \
-    --argjson emoji "${columns[0]:-null}" --argjson ambiguous "${columns[1]:-null}" --arg color "${color}" \
+    --argjson emoji "${columns[0]:-null}" --argjson ambiguous "${columns[1]:-null}" --arg color "$(terminal:color)" \
     '{answered: true, kitty_keyboard: $kitty, grapheme_width: $grapheme, emoji_width: $emoji,
       ambiguous_width: $ambiguous, color: $color}'
 }
 
-# terminal:probes prints what the terminal answered: KIT_TERMINAL_PROBES where it holds a JSON object, as a verb that
-# handed the terminal to kittui left it; else, where stdin and stdout are a terminal, what terminal:ask asks it; else
-# null, as kit did not ask.
+# terminal:color prints the colors kittui gets, truecolor, 256, or fewer, as its library, colorprofile 0.4.3, reads
+# them: from the environment as its envColorProfile does, then terminfo's colors where those say more.
+terminal:color() {
+  local term=${TERM:-} colorterm=${COLORTERM:-} profile=fewer colors
+  colorterm=${colorterm,,}
+  case "${term}" in
+    (*alacritty* | *contour* | *foot* | *ghostty* | *kitty* | *rio* | *st* | *wezterm*)
+      printf 'truecolor\n'
+      return 0
+      ;;
+    (tmux* | screen*) profile=256
+  esac
+  case "${WT_SESSION:+set}:${GOOGLE_CLOUD_SHELL:-}" in
+    (set:* | *:1 | *:t | *:T | *:true | *:TRUE | *:True)
+      printf 'truecolor\n'
+      return 0
+  esac
+  if [[ "${colorterm}" =~ ^(truecolor|24bit|yes|true)$ && "${term}" != screen* && "${term}" != tmux* \
+    || "${term}" == *direct ]]
+  then
+    printf 'truecolor\n'
+    return 0
+  fi
+  [[ "${term}" != *256color ]] || profile=256
+  if [[ "${profile}" == fewer && -n "${term}" && "${term}" != dumb ]]
+  then
+    colors=$(tput -T "${term}" colors 2>/dev/null) || colors=0
+    (( ${colors:-0} < 256 )) || profile=256
+  fi
+  printf '%s\n' "${profile}"
+}
+
+# terminal:probes prints what the terminal answered, as a verb that asked it left it in KIT_TERMINAL_PROBES, or null
+# where KIT_TERMINAL_PROBES holds no JSON object, as kit did not ask.
 terminal:probes() {
   if [[ -n "${KIT_TERMINAL_PROBES:-}" ]] \
     && jq --exit-status 'type == "object"' <<<"${KIT_TERMINAL_PROBES}" >/dev/null 2>&1
   then
     jq --compact-output . <<<"${KIT_TERMINAL_PROBES}"
-  elif [[ -t 0 && -t 1 ]]
-  then
-    terminal:parse "$(terminal:ask)"
   else
     printf 'null\n'
   fi
 }
 
-# terminal:export-probes asks the terminal, where KIT_TERMINAL_PROBES is unset, and exports the answers in it, so kittui
-# and every kit welcome --checks it runs read them and never touch the terminal kittui holds. A verb calls it before it
-# hands the terminal to kittui.
+# terminal:export-probes asks the terminal, where stdin and stdout are one and KIT_TERMINAL_PROBES holds no answers
+# yet, and exports what it answered in KIT_TERMINAL_PROBES, so kittui and every kit welcome --checks it runs read them
+# and never touch the terminal kittui holds. A KIT_TERMINAL_PROBES that is no JSON object is dropped, as if unset. A
+# verb calls it in its own shell, where the terminal is still stdin and stdout, before it hands the terminal to kittui.
 terminal:export-probes() {
   local probes
-  [[ -z "${KIT_TERMINAL_PROBES+x}" ]] || return 0
-  probes=$(terminal:probes)
-  [[ "${probes}" == null ]] || export KIT_TERMINAL_PROBES="${probes}"
+  [[ "$(terminal:probes)" == null ]] || return 0
+  unset KIT_TERMINAL_PROBES
+  [[ -t 0 && -t 1 ]] || return 0
+  probes=$(terminal:parse "$(terminal:ask)")
+  export KIT_TERMINAL_PROBES="${probes}"
 }
 
 # terminal:settings-file prints the person's own settings file, where the keeps are.

@@ -13,6 +13,9 @@
 #               reader for it; and probes, by probe, fix, the setting that turns the feature on, or none, the line
 #               that says what kittui does where no setting can
 #
+# The heading is the one line of a terminal the views always show, so it also says each none line a probe gave, and
+# that the terminal did not answer, where it did not.
+#
 # A line, a held line, and a fix name what the reader read in braces: {profile}. jq cannot evaluate a string, so bash
 # evaluates each bad and hands the answers to checks.
 #
@@ -70,22 +73,27 @@ def checks($d; $key; $read; $bad; $probes; $kept):
        elif ($probes | measured_badly($p) | not) then {id: $id, ok: true, line: ($probe.held | fill($po)), fix: null,
                                                         more: $more}
        elif $read_ok and ($probe.need | IN($failed_needs[])) then empty
-       elif $row.none then {id: $id, ok: true, line: $row.none, fix: null, more: $more}
+       elif $row.none then {id: $id, ok: true, line: $row.none, fix: null, more: $more, note: $row.none}
        elif $row.fix then {id: $id, ok: false, line: ($probe.failed | fill($po)), fix: ($row.fix | fill($po)),
                            more: $more}
        else {id: $id, ok: false, line: ($probe.failed | fill($po)) + "; no setting kit knows explains it", fix: null,
              more: $more} end
      | if $p == "emoji-width" and (.ok | not) and $probes.grapheme_width == false
        then .line += ", and it does not measure by grapheme" else . end
-     | kept(.)] as $answers
+     | kept(.)] as $noted
+  | [$noted[] | .note // empty] + (if $probes.answered == false then ["it did not answer kit's questions"] else [] end)
+    as $notes
+  | [$noted[] | del(.note)] as $answers
   | ($findings + $answers) as $body
   | {id: "terminal-\($key)", ok: true,
-     line: (if $read == null then "\($t.name): \($t.unread)"
-            elif $read_ok | not then "\($t.name): kit could not read its settings: \($read.unreadable)"
-            else (if $t.heading then $t.heading | fill($o) else $t.name end)
-                 + (if $t.heading or ($read.profile | not) then "" else ", profile \($read.profile)" end)
-                 + (if all($body[]; .ok and (.line | startswith("kept: ") | not))
-                    then ": nothing in it slows or breaks kittui" else "" end) end),
+     line: ((if $read == null then "\($t.name): \($t.unread)"
+             elif $read_ok | not then "\($t.name): kit could not read its settings: \($read.unreadable)"
+             else (if $t.heading then $t.heading | fill($o) else $t.name end)
+                  + (if $t.heading or ($read.profile | not) then "" else ", profile \($read.profile)" end)
+                  + (if all($body[]; .ok and (.line | startswith("kept: ") | not)) | not then ""
+                     elif $probes.answered == false then ": nothing in its settings slows or breaks kittui"
+                     else ": nothing in it slows or breaks kittui" end) end)
+            + ($notes | map("; " + .) | join(""))),
      fix: null, more: $more}
   | [., $body[]];
 

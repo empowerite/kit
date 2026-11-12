@@ -676,4 +676,16 @@ good-probes() {
   [[ "$output" == *"❌ The terminal over ssh draws 📚 in 1 cell(s)"* ]]
 }
 
+@test "on a terminal, kit welcome asks it what it does, and judges it, even when it does not answer" {
+  run pty "env -u KIT_TERMINAL_PROBES '${kit_root}/bin/kit' welcome --checks --json"
+  [[ "$output" == *'"id":"terminal-unknown"'* ]]
+  [[ "$output" == *'"id":"terminal-probe-kitty-keyboard"'* ]]
+}
+
+@test "a KIT_TERMINAL_PROBES that is no JSON object is ignored, as if it were not set" {
+  KIT_TERMINAL_PROBES=nope run --separate-stderr checks
+  [ "$status" -eq 0 ]
+  [ "$(jq '[.[] | select(.id | startswith("terminal-"))] | length' <<<"$output")" = 0 ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

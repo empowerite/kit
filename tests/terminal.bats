@@ -509,4 +509,76 @@ tabby-config() {
   [ -z "${missing}" ] || { echo "missing:${missing}"; return 1; }
 }
 
+# answering <seconds> <text> stands a terminal on a fifo that writes the text after the seconds, then stays open a
+# while, as a terminal does; the kit-bash code reads it on fd 3.
+answering() {
+  mkfifo "${BATS_TEST_TMPDIR}/tty"
+  { sleep "$1"; printf '%b' "$2"; sleep 3; } > "${BATS_TEST_TMPDIR}/tty" &
+}
+
+@test "an answer within the half second is all read, typed text before it changing nothing" {
+  answering 0.2 'cd src\e[?1u\e[5;3R\e[5;2R\e[?62;22c'
+  SECONDS=0
+  run kit-bash 'exec 3<"${BATS_TEST_TMPDIR}/tty"
+    terminal:parse "$(terminal:collect 3 500 2000)" | jq -c "[.answered, .kitty_keyboard, .emoji_width]"'
+  [ "$output" = '[true,true,2]' ]
+  (( SECONDS < 2 ))
+}
+
+@test "an answer after the half second is not judged, and is read to its end, so none of it is left to the shell" {
+  answering 0.8 '\e[?1u\e[5;3R\e[5;2R\e[?62;22c'
+  run kit-bash 'exec 3<"${BATS_TEST_TMPDIR}/tty"; got=$(terminal:collect 3 500 2000); left=""
+    IFS= read -r -d "" -t 0.2 -u 3 left || true; printf "%s|%s" "${#got}" "${#left}"'
+  [ "$output" = '0|0' ]
+}
+
+@test "a terminal that never answers is read for the drain's seconds, and no longer" {
+  answering 5 ''
+  SECONDS=0
+  run kit-bash 'exec 3<"${BATS_TEST_TMPDIR}/tty"; terminal:collect 3 500 1000 | wc -c'
+  [ "$(tr -d ' ' <<<"$output")" = 0 ]
+  (( SECONDS < 3 ))
+}
+
+@test "a reader cut at a second leaves nothing behind that holds kit's output, and nothing in the person's TMPDIR" {
+  mkdir -p bash/terminal
+  printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' > kit.yml
+  cat > bash/terminal/iterm.sh <<'EOF'
+terminal/iterm:settings() { touch "${TMPDIR:-/tmp}/kit-reader-left"; local x; x=$(sleep 5 | cat); }
+EOF
+  export TMPDIR="${BATS_TEST_TMPDIR}/tmp"
+  mkdir -p "${TMPDIR}"
+  SECONDS=0
+  run kit-bash 'TERM_PROGRAM=iTerm.app terminal:checks 2>&1'
+  (( SECONDS < 3 ))
+  [[ "$output" != *Terminated* ]]
+  [ -z "$(find "${TMPDIR}" -name kit-reader-left)" ]
+}
+
+@test "the colors are read as kittui's library reads them: the terminal's name, Windows Terminal, COLORTERM, terminfo" {
+  run kit-bash 'for t in xterm-ghostty xterm-kitty screen tmux-256color xterm-direct dumb; do
+      TERM=${t} terminal:color; done; TERM=xterm WT_SESSION=1 terminal:color
+    TERM=screen COLORTERM=truecolor terminal:color; TERM=xterm-256color COLORTERM=yes terminal:color'
+  [ "$output" = $'truecolor\ntruecolor\n256\n256\ntruecolor\nfewer\ntruecolor\n256\ntruecolor' ]
+}
+
+@test "every verb that hands the terminal to kittui asks it first" {
+  local file missing=''
+  for file in "${kit_root}"/bin/* "${kit_root}"/modules/bash/*.sh
+  do
+    grep -q '=\$(tui:binary)' "${file}" || continue
+    grep -q 'terminal:export-probes' "${file}" || missing+=" ${file#"${kit_root}"/}"
+  done
+  [ -z "${missing}" ] || { echo "hands kittui an unasked terminal:${missing}"; return 1; }
+}
+
+@test "inside WSL, a reg.exe that hangs makes the window unknown within a second or so" {
+  export WSL_DISTRO_NAME=Ubuntu
+  fakes reg.exe 'sleep 5'
+  SECONDS=0
+  run kit-bash 'terminal:detect'
+  [ "$output" = unknown ]
+  (( SECONDS < 3 ))
+}
+
 # ----------------------------------------------------------------------------------------------------------------------
