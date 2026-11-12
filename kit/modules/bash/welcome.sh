@@ -68,7 +68,7 @@
 
 # The yq check says what yaml.sh says when it loads without yq, so its own line is not printed twice.
 use yaml 2>/dev/null
-use settings forge materialize render place toolchain dependencies workspaces file terminal
+use settings forge materialize render place toolchain dependencies workspaces file terminal markdown
 
 # welcome_ids holds the machine checks' ids, in order, and welcome_folder_ids the checks of the folder here, in order;
 # the maps beside them hold what judging one needs: the rule that names each linter, and the forge of each host.
@@ -1102,9 +1102,10 @@ welcome:page-step() {
   printf '%s\n' "${name#*-}"
 }
 
-# welcome:page <path> prints a page without the kit:generated and see: comments it opens with.
+# welcome:page <path> prints a page without the kit:generated and see: comments it opens with, each link drawn as
+# text, markdown:unlink's.
 welcome:page() {
-  awk 'started || !/^<!--.*-->$/ { started = 1; print }' "$1"
+  awk 'started || !/^<!--.*-->$/ { started = 1; print }' "$1" | markdown:unlink
 }
 
 # welcome:fix <id> [<folder>] runs the fix of one check, with its output on the terminal, then judges the check again

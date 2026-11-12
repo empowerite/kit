@@ -18,7 +18,7 @@
 #
 # KIT_TUTORIALS_BASE, when set, replaces the base. Nothing here runs a tutorial's commands.
 #
-use release yaml
+use release yaml markdown
 
 # tutorials:catalogue prints the path of the catalogue.
 tutorials:catalogue() { printf '%s\n' "${KIT_TUTORIALS_CATALOGUE:-${kit_root}/modules/tutorials.yml}"; }
@@ -82,15 +82,16 @@ tutorials:json() {
     -- "$@"
 }
 
-# tutorials:page <file> prints a tutorial's page that ships with the kit, its front matter left out. It returns 1 where
-# the page is missing.
+# tutorials:page <file> prints a tutorial's page that ships with the kit, its front matter left out and each link drawn
+# as text, markdown:unlink's. It returns 1 where the page is missing.
 tutorials:page() {
   if [[ ! -f "$1" ]]
   then
     error "no page of the tutorial at $1"
     return 1
   fi
-  awk 'NR == 1 && $0 == "---" { front = 1; next } front && $0 == "---" { front = 0; next } !front' "$1"
+  awk 'NR == 1 && $0 == "---" { front = 1; next } front && $0 == "---" { front = 0; next } !front' "$1" \
+    | markdown:unlink
 }
 
 # tutorials:choices <key> [--kind | <answer>…] answers kit syntax --choices for <tutorial> and <audience>, which
