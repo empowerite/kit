@@ -506,7 +506,7 @@ func (m *Model) take(msg source.Answer[[]kit.Check]) {
 	m.refusal, m.checks = "", msg.Value
 	m.cursor = m.find(m.step, key)
 	for _, c := range m.checks {
-		if c.OK {
+		if !asks(c) {
 			delete(m.notes, c.Key())
 			delete(m.deferred, c.Key())
 		}
@@ -517,15 +517,15 @@ func (m *Model) take(msg source.Answer[[]kit.Check]) {
 
 // rows gives the indexes of the step's checks, in order, those its search lets through: whose id, line, or fix holds
 // what is typed, or a folder's check whose folder, repository, or branch does, without regard to case. On the setup
-// step drawn as a table, a folder's check that holds is no row: its folder's row shows it. The introduction's are the
-// links to the failed checks, in the order of their steps.
+// step drawn as a table, a folder's check that holds with nothing to offer is no row: its folder's row shows it. The
+// introduction's are the links to the failed checks, in the order of their steps: an offer needs no attention.
 func (m Model) rows(step int) []int {
 	query := m.searches[m.tabs[step].id].Query
 	intro := m.isIntroduction(step)
 	table := m.foldered(step)
 	var out []int
 	for i, c := range m.checks {
-		mine := m.stepOf(c) == step && !(table && c.Folder != "" && c.OK) && !folded(c)
+		mine := m.stepOf(c) == step && !(table && c.Folder != "" && !asks(c)) && !folded(c)
 		if intro {
 			mine = !c.OK
 		}
@@ -906,14 +906,14 @@ func (m *Model) back() {
 	m.inPane = false
 }
 
-// choosing says whether the cursor is on a row that offers now and later: a failed check with a fix kit runs, in a
-// step with checks.
+// choosing says whether the cursor is on a row that offers now and later: a failed check or an offer with a fix kit
+// runs, in a step with checks.
 func (m Model) choosing() bool {
 	if !m.checked() || !m.inPane || m.cursor >= len(m.checks) {
 		return false
 	}
 	c := m.checks[m.cursor]
-	return !c.OK && c.Fix != "" && c.Runs
+	return c.Fix != "" && c.Runs
 }
 
 // keeping says whether the cursor is on a row that offers later and keep: a terminal's failed finding.
@@ -936,14 +936,18 @@ func (m Model) keep() tea.Cmd {
 	}
 }
 
-// showOnly says whether the cursor is on a failed check whose fix kit shows and never runs.
+// showOnly says whether the cursor is on a failed check or an offer whose fix kit shows and never runs.
 func (m Model) showOnly() bool {
 	if !m.checked() || !m.inPane || m.cursor >= len(m.checks) {
 		return false
 	}
 	c := m.checks[m.cursor]
-	return !c.OK && c.Fix != "" && !c.Runs
+	return c.Fix != "" && !c.Runs
 }
+
+// asks says whether a check asks something of the person: it failed, or it is an offer. A check that holds with nothing
+// to offer asks nothing.
+func asks(c kit.Check) bool { return !c.OK || c.Offer() }
 
 // cursorKey gives the key of the check under the cursor, or nothing when there is none.
 func (m Model) cursorKey() string {

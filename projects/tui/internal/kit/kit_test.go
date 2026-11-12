@@ -340,6 +340,21 @@ func TestAKitThatHangsIsStoppedAtItsLimitOrWhenTheScreenEnds(t *testing.T) {
 	}
 }
 
+func TestACheckThatHoldsWithAFixIsAnOffer(t *testing.T) {
+	for _, c := range []struct {
+		check Check
+		offer bool
+	}{
+		{Check{OK: true, Fix: "kit install"}, true},
+		{Check{OK: true}, false},
+		{Check{Fix: "kit install"}, false},
+	} {
+		if c.check.Offer() != c.offer {
+			t.Errorf("%+v: offer %v", c.check, !c.offer)
+		}
+	}
+}
+
 func TestWelcomeChecksDecodesEachCheck(t *testing.T) {
 	checks, err := fake(t, "").WelcomeChecks(context.Background(), nil)
 	if err != nil || len(checks) != 6 {

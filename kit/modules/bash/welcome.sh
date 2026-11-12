@@ -90,7 +90,8 @@ declare -g welcome_where='{"folder":null,"repository":null,"desk":null,"branch":
 
 # welcome:record <id> <ok> <line> [<fix> [<interactive> [<more> [<runs>]]]] prints one check as JSON, on one line, in
 # the step its id belongs to, with welcome_where's folder. An empty fix or more is null. runs is true unless the check
-# says kit only shows its fix.
+# says kit only shows its fix. A check that holds and still has a fix is an offer: nothing is wrong, and its fix is a
+# step kit suggests, which counts as no failure.
 welcome:record() {
   jq --null-input --compact-output --arg id "$1" --arg step "$(welcome:step "$1")" --argjson ok "$2" --arg line "$3" \
     --arg fix "${4:-}" --argjson interactive "${5:-false}" --arg more "${6:-}" --argjson runs "${7:-true}" \
@@ -869,8 +870,8 @@ welcome:judge() {
       then
         welcome:record kit-installed true "kit.yml declares kit $(settings:version)"
       else
-        welcome:record kit-installed false "kit.yml declares no kit version; kit is not installed here" \
-          'kit install'
+        # kit runs here all the same, on what it infers, so not installing it is a choice: kit offers the install
+        welcome:record kit-installed true "kit is not installed here; it runs on what it infers" 'kit install'
       fi
       ;;
     (kit-hydrated)
@@ -951,8 +952,8 @@ welcome:show-all() {
   done
 }
 
-# welcome:show <check-json>… prints each check as text: ✅ or ❌ and its line, and under a failed one, dim, its fix and
-# what more says beside it, or, with no fix, where to read more.
+# welcome:show <check-json>… prints each check as text: ✅, 💡 for an offer, or ❌, and its line; under an offer, dim, its
+# fix; and under a failed one, dim, its fix and what more says beside it, or, with no fix, where to read more.
 welcome:show() {
   local check ok line fix more
   for check in "$@"
@@ -960,7 +961,11 @@ welcome:show() {
     ! welcome:folded "${check}" || continue
     IFS=$'\x1f' read -r ok line fix more < <(jq --raw-output \
       '[(.ok | tostring), .line, (.fix // ""), (.more // "")] | join("\u001f")' <<<"${check}")
-    if [[ "${ok}" == true ]]
+    if [[ "${ok}" == true && -n "${fix}" ]]
+    then
+      printf '💡 %s\n   %s%s%s\n' "${line}" "$(out:sgr 90)" "${fix}" "$(out:sgr 0)"
+      continue
+    elif [[ "${ok}" == true ]]
     then
       printf '✅ %s\n' "${line}"
       continue
@@ -1024,9 +1029,10 @@ welcome:page() {
 # welcome:fix <id> [<folder>] runs the fix of one check, with its output on the terminal, then judges the check again
 # and prints it as text. A machine check takes no folder. A folder's check runs in the folder whose working tree holds
 # <folder>, as kit welcome --folder= names it, else in the repository here: its fix runs there, and only that folder is
-# judged. It returns 0 when the check now holds, 1 when it does not, and 2 for an id that names no check, a machine
-# check given a folder, a folder's check with no folder here or given, a check that holds already, one kit knows no
-# fix for, or one whose fix kit only shows (runs is false).
+# judged. An offer's fix runs as a failed check's does. It returns 0 when the check now holds with nothing left to
+# offer, 1 when it does not, and 2 for an id that names no check, a machine check given a folder, a folder's check with
+# no folder here or given, a check that holds already with no offer, one kit knows no fix for, or one whose fix kit
+# only shows (runs is false).
 welcome:fix() {
   local id=$1 folder=${2:-} top
   if welcome:machine "${id}"
@@ -1074,7 +1080,7 @@ welcome:fix-one() {
   local id=$1 check fix more
   local -a command
   check=$(welcome:judge "${id}")
-  if [[ "$(jq --raw-output .ok <<<"${check}")" == true ]]
+  if jq --exit-status '.ok and .fix == null' <<<"${check}" >/dev/null
   then
     error "${id} holds already, so there is nothing to fix: $(jq --raw-output .line <<<"${check}")"
     return 2
@@ -1105,7 +1111,8 @@ welcome:fix-one() {
   welcome:find system
   check=$(welcome:judge "${id}")
   welcome:show "${check}"
-  [[ "$(jq --raw-output .ok <<<"${check}")" == true ]] || return 1
+  # an offer still made, as an install that failed, is a fix that did not take
+  jq --exit-status '.ok and .fix == null' <<<"${check}" >/dev/null || return 1
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

@@ -1,7 +1,8 @@
 // The setup step as one table: the machine's checks, its own group first, each a row as any step's check is; then a
 // group per repository, a row per folder, the desk first, as kit gives them: its name, its branch, the kit its kit.yml
-// declares, and the state of each of its checks, a column each; and under a folder's row, its failed checks, each
-// offering its fix as any failed check does. A kit that names no folder draws the step as any other step with checks.
+// declares, and the state of each of its checks, a column each; and under a folder's row, its failed checks and its
+// offers, each offering its fix as any failed check does. A kit that names no folder draws the step as any other step
+// with checks.
 package welcome
 
 import (
@@ -120,16 +121,19 @@ func cell(text string, width int) string {
 }
 
 // states gives the cells of a folder's checks, a column each, with no gap after the last: ❌ where one it draws failed,
-// ✅ where every one it draws holds, and a dim · where kit judged none there, as a folder with no kit.yml has no .kit/
-// to check.
+// else 💡 where one is an offer, ✅ where every one it draws holds, and a dim · where kit judged none there, as a folder
+// with no kit.yml has no .kit/ to check.
 func (m Model) states(f folderRow) string {
-	failed, held := make([]bool, len(columns)), make([]bool, len(columns))
+	failed, offered, held := make([]bool, len(columns)), make([]bool, len(columns)), make([]bool, len(columns))
 	for _, i := range f.checks {
 		k := columnOf(m.checks[i].ID)
-		if m.checks[i].OK {
-			held[k] = true
-		} else {
+		switch c := m.checks[i]; {
+		case !c.OK:
 			failed[k] = true
+		case c.Offer():
+			offered[k] = true
+		default:
+			held[k] = true
 		}
 	}
 	var b strings.Builder
@@ -139,6 +143,8 @@ func (m Model) states(f folderRow) string {
 		switch {
 		case failed[k]:
 			glyph = Failed
+		case offered[k]:
+			glyph = Offered
 		case held[k]:
 			glyph = Passed
 		}
@@ -167,7 +173,7 @@ func (m Model) shows(f folderRow, rows []int, query string) bool {
 }
 
 // setupLines gives the setup step's lines as a table: its page, kit's refusal, the machine's checks, then each
-// repository's folders, each row followed by its failed checks, and the checks left for later.
+// repository's folders, each row followed by its failed checks and its offers, and the checks left for later.
 func (m Model) setupLines() []line {
 	w := m.width - 1
 	out := m.stepHead()

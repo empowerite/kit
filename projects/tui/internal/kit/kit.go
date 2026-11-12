@@ -468,6 +468,10 @@ func (c Check) Key() string {
 	return c.Folder + " " + c.ID
 }
 
+// Offer says whether a check is an offer: it holds, so nothing is wrong, yet it has a fix, a step kit suggests, as
+// kit install where kit.yml declares no kit version. An offer's fix runs as a failed check's does; it is no failure.
+func (c Check) Offer() bool { return c.OK && c.Fix != "" }
+
 // UnmarshalJSON reads a check, runnable unless it says runs is false.
 func (c *Check) UnmarshalJSON(b []byte) error {
 	type plain Check

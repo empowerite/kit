@@ -21,8 +21,9 @@ const appLabel = "kit welcome"
 
 // The glyphs the screen draws besides the tabs'.
 const (
-	Passed = "✅" // a check that passed
-	Failed = "❌" // a check that failed, and a refusal
+	Passed  = "✅" // a check that passed
+	Offered = "💡" // a check that passed and offers a fix all the same
+	Failed  = "❌" // a check that failed, and a refusal
 )
 
 // fixed is how many lines the title, the bar, the gap, and the keys take; the pane has the rest, from paneTop on,
@@ -383,7 +384,7 @@ func (m Model) stepTail(rows []int) []line {
 	}
 	var left []line
 	for _, i := range rows {
-		if c := m.checks[i]; m.deferred[c.Key()] && !c.OK {
+		if c := m.checks[i]; m.deferred[c.Key()] && asks(c) {
 			text := lead + "• " + c.Line + folderOf(c) + ": " + style.Mark(c.Fix)
 			if !c.Runs && c.Fix != "" {
 				text += style.Off(" · kit does not run it")
@@ -402,9 +403,9 @@ func (m Model) stepTail(rows []int) []line {
 	return out
 }
 
-// checkLines gives a check's lines, after the indent: ✅ or ❌ and its line, then, where no folder's row is drawn
-// above it, its folder, the cursor's row drawn as chosen with now and later on it when it offers them; under a failed
-// check, its fix, dim, then where to read more; and the note its fix left.
+// checkLines gives a check's lines, after the indent: ✅, 💡 for an offer, or ❌, and its line, then, where no folder's
+// row is drawn above it, its folder, the cursor's row drawn as chosen with now and later on it when it offers them;
+// under a failed check or an offer, its fix, dim; under a failed check, where to read more; and the note its fix left.
 func (m Model) checkLines(i int, key, indent string) []line {
 	c, w := m.checks[i], m.width-1
 	focused := m.hasRows() && m.inPane && i == m.cursor
@@ -414,15 +415,17 @@ func (m Model) checkLines(i int, key, indent string) []line {
 	}
 	if !c.OK {
 		glyph = Failed
+	} else if c.Offer() {
+		glyph = Offered
 	}
 	row := start + glyph + " " + text
 	if !m.foldered(m.step) {
 		row += folderOf(c)
 	}
-	if m.deferred[key] && !c.OK {
+	if m.deferred[key] && asks(c) {
 		row += style.Off(" · later")
 	}
-	if focused && !c.OK && c.Fix != "" && c.Runs {
+	if focused && c.Fix != "" && c.Runs {
 		buttons := "   " + button("now", m.choice == now) + " " + button("later", m.choice == later)
 		row = pane.Clip(row, w-ansi.StringWidth(buttons)) + buttons
 	}
@@ -431,7 +434,7 @@ func (m Model) checkLines(i int, key, indent string) []line {
 		row = pane.Clip(row, w-ansi.StringWidth(buttons)) + buttons
 	}
 	out := []line{{i, pane.Clip(row, w)}}
-	if !c.OK && c.Fix != "" {
+	if c.Fix != "" {
 		fix := c.Fix
 		if c.Interactive {
 			fix += " · it needs you at the keyboard"

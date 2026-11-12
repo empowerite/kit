@@ -2,16 +2,16 @@
 # fake-kit - stands in for kit in the welcome screen's tests: answers welcome --checks and --fix, and root (test helper)
 # ----------------------------------------------------------------------------------------------------------------------
 # welcome --checks --json prints checks.json, in the directory it runs in, else beside this script, with every check
-# named in the file FAKE_WELCOME_STATE turned ok. welcome --fix jq, toolchain-project, kit-installed, or hooks-installed
-# adds the id to that file, so a later --checks finds it fixed in every folder, and exits 0; a --folder= after it is
-# taken and kept in the calls. --fix gh-auth changes nothing and exits 1, as a fix after which the check still fails.
-# --fix brew-path, a show-only check, and any other id, and the id FAKE_WELCOME_REFUSE_FIX names, is a refusal with exit
-# 2. welcome --keep=<id> adds the id to that file, as a kept check holds, prints the check kept, its line after kept:,
-# or FAKE_WELCOME_KEPT when it is set, and exits 0, or 2 for an id FAKE_WELCOME_REFUSE_KEEP names. Every welcome call is
-# written to the file FAKE_WELCOME_CALLS names, when it is set. --checks refuses as kit does when FAKE_WELCOME_REFUSE is
-# set, and sleeps five seconds first when FAKE_WELCOME_SLOW is; with --progress, it says on stderr that it checks
-# tool-jq, then that the machine's checks end. root prints FAKE_WELCOME_ROOT, else the release directory beside this
-# script, which holds the pages.
+# named in the file FAKE_WELCOME_STATE turned ok, with no fix, as a check that holds has none. welcome --fix jq,
+# toolchain-project, kit-installed, or hooks-installed adds the id to that file, so a later --checks finds it fixed in
+# every folder, and exits 0; a --folder= after it is taken and kept in the calls. --fix gh-auth changes nothing and
+# exits 1, as a fix after which the check still fails. --fix brew-path, a show-only check, and any other id, and the id
+# FAKE_WELCOME_REFUSE_FIX names, is a refusal with exit 2. welcome --keep=<id> adds the id to that file, as a kept check
+# holds, prints the check kept, its line after kept:, or FAKE_WELCOME_KEPT when it is set, and exits 0, or 2 for an id
+# FAKE_WELCOME_REFUSE_KEEP names. Every welcome call is written to the file FAKE_WELCOME_CALLS names, when it is set.
+# --checks refuses as kit does when FAKE_WELCOME_REFUSE is set, and sleeps five seconds first when FAKE_WELCOME_SLOW is;
+# with --progress, it says on stderr that it checks tool-jq, then that the machine's checks end. root prints
+# FAKE_WELCOME_ROOT, else the release directory beside this script, which holds the pages.
 
 set -o errexit -o nounset -o pipefail
 
@@ -42,11 +42,15 @@ case "${1:-}" in
           exit 2
         fi
         fixed=$(cat "${state}" 2>/dev/null || true)
+        # a fix's JSON string, escaped quotes and all
+        fix_value='"fix": "([^"\\]|\\.)*"'
         while IFS= read -r line
         do
           for id in ${fixed}
           do
-            [[ "${line}" != *"\"id\": \"${id}\""* ]] || line=${line/\"ok\": false/\"ok\": true}
+            [[ "${line}" == *"\"id\": \"${id}\""* ]] || continue
+            line=${line/\"ok\": false/\"ok\": true}
+            [[ ! "${line}" =~ ${fix_value} ]] || line=${line/"${BASH_REMATCH[0]}"/\"fix\": null}
           done
           printf '%s\n' "${line}"
         done < "$([[ -f checks.json ]] && echo checks.json || echo "${here}/checks.json")"

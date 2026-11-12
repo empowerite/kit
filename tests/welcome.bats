@@ -55,13 +55,13 @@ esac'
 # outline prints the outline of the text guide on stdin: each page's heading, up to its dash, and ✅ or ❌ for each
 # check, a run of the same glyph once.
 outline() {
-  grep --extended-regexp '^(# |✅|❌)' | sed -E 's/^(✅|❌).*/\1/; s/ — .*//' | uniq | paste -s -d '|' -
+  grep --extended-regexp '^(# |✅|💡|❌)' | sed -E 's/^(✅|💡|❌).*/\1/; s/ — .*//' | uniq | paste -s -d '|' -
 }
 
 # under prints "<heading>|<glyph> <word>" for each check in the text guide on stdin: the heading of the page above
 # it, up to its dash, and the check's glyph and first word.
 under() {
-  awk '/^# / { heading = $0; sub(/ — .*/, "", heading) } /^(✅|❌)/ { print heading "|" $1 " " $2 }'
+  awk '/^# / { heading = $0; sub(/ — .*/, "", heading) } /^(✅|💡|❌)/ { print heading "|" $1 " " $2 }'
 }
 
 # ambient-system chooses ambient for the system role, so no toolchain names a command for a missing tool.
@@ -76,12 +76,12 @@ ambient-system() {
     "more", "ok", "repository", "runs", "step"]] | all' <<<"$output")" = true ]
   [ "$(jq --raw-output 'map(.id) | (unique | length) == length' <<<"$output")" = true ]
   # the machine's checks, what kit runs on and the system toolchain, then this repository's one folder, the desk; no
-  # kit.yml here, so no check of what kit installs
+  # kit.yml here, so no check of what kit installs, and the install is offered: the check holds, with its fix
   [ "$(jq --raw-output '.[] | "\(.id) \(.step)"' <<<"$output")" = "$(printf '%s\n' 'tool-bash toolchains' \
     'tool-git toolchains' 'tool-jq toolchains' 'tool-yq toolchains' 'toolchain-system toolchains' \
     'repo-git setup' 'kit-installed setup' 'toolchain-project setup')" ]
   [ "$(jq --raw-output '.[] | select(.id == "kit-installed") | [.ok, .fix] | @tsv' <<<"$output")" = \
-    $'false\tkit install' ]
+    $'true\tkit install' ]
   # a machine check holds nowhere in particular; a folder's names the folder, the desk, on main, with no kit
   [ "$(jq --compact-output '.[] | select(.id == "tool-git") | [.folder, .repository, .desk, .branch, .kit]' \
     <<<"$output")" = '[null,null,null,null,null]' ]
@@ -107,14 +107,15 @@ ambient-system() {
 
 @test "welcome's steps are introduction, toolchains, setup, customize, terms" {
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
-  [ "$status" -eq 1 ]
+  # kit is not installed here, which kit offers to change, and no check fails
+  [ "$status" -eq 0 ]
   # each step's page in order, the checks of steps 2 and 3 under their pages, then what is left
   [ "$(outline <<<"$output")" = "$(printf '%s|' '# Introduction' '# Toolchains' ✅ '# Setup' \
-    ✅ ❌ ✅ '# Customize' '# Terms' '# What is left' | sed 's/|$//')" ]
+    ✅ 💡 ✅ '# Customize' '# Terms' '# What is left' | sed 's/|$//')" ]
   # bash, git, jq, and yq, then the system toolchain, then the desk's checks, under a line that names it
   [ "$(under <<<"$output")" = "$(printf '%s\n' '# Toolchains|✅ bash' '# Toolchains|✅ git' \
     '# Toolchains|✅ jq' '# Toolchains|✅ yq' '# Toolchains|✅ brew' \
-    '# Setup|✅ this' '# Setup|❌ kit.yml' '# Setup|✅ no')" ]
+    '# Setup|✅ this' '# Setup|💡 kit' '# Setup|✅ no')" ]
   [[ "$output" == *$'\n'"repo, the desk on main, no kit: $(pwd -P)"$'\n✅ this folder is a git repository\n'* ]]
 }
 
@@ -393,6 +394,16 @@ ambient-system() {
   [[ "$output" == *"--fix needs a value; run: kit help welcome"* ]]
 }
 
+@test "--fix runs an offer's fix: kit-installed installs the kit, then holds with nothing to offer, and refuses with 2" {
+  run --separate-stderr "${kit_root}/bin/kit" welcome --fix kit-installed
+  [ "$status" -eq 0 ]
+  [[ "$output" == "✅ kit.yml declares kit "* ]]
+  [[ "$stderr" == *"→ kit install"* ]]
+  run --separate-stderr "${kit_root}/bin/kit" welcome --fix kit-installed
+  [ "$status" -eq 2 ]
+  [[ "$stderr" == *"kit-installed holds already, so there is nothing to fix"* ]]
+}
+
 @test "the text guide prints each page with its step's checks, then what is left, and exits 1 on a failure" {
   fake-script yq 'exit 1'
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
@@ -468,8 +479,9 @@ folders() {
     "tool-bash tool-git tool-jq tool-yq toolchain-system" ]
   [ "$(jq --raw-output --arg f "${desk}/worktrees/none" '[.[] | select(.folder == $f) | .id] | join(" ")' \
     <<<"$output")" = "repo-git kit-installed toolchain-project" ]
-  [ "$(jq --raw-output '[.[] | select(.id == "kit-installed") | .ok] | map(tostring) | join(" ")' <<<"$output")" = \
-    "true false true" ]
+  # the worktree that declares no kit version offers the install; the other two hold with nothing to offer
+  [ "$(jq --raw-output '[.[] | select(.id == "kit-installed") | .fix // "-"] | join(" ")' <<<"$output")" = \
+    "- kit install -" ]
   # kit check runs in each folder on the release that folder pins, and once in each
   [ "$(jq --raw-output '[.[] | select(.id == "kit-check") | [.ok, .line] | @tsv] | join("|")' <<<"$output")" = \
     $'true\tkit check finds nothing wrong|false\tthe 9.9.9 kit check ran in pinned' ]

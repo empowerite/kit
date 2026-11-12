@@ -1,6 +1,6 @@
   = kit welcome · - w 3                                                                                      🔎 /search
   ➀╶────────────────╮➁╶──────────────╴➌╶────────────╮➃╶─────────────╮➄╶─────────╮
-    👋 introduction │  🧰 toolchains  │ 🔧 setup  6 │  🎨 customize │  📖 terms │
+    👋 introduction │  🧰 toolchains  │ 🔧 setup  5 │  🎨 customize │  📖 terms │
   ──────────────────╰─────────────────╯             ╰───────────────╰───────────╰───────────────────────────────────────
    Setup — kit checks this machine, then each folder
 
@@ -16,8 +16,8 @@
      💻 a            main         0.3.0  ✅   ✅   ✅    ❌     ✅         ✅     ✅
        ❌ the git hooks are not installed; lefthook runs none
           lefthook install
-     🌳 7-the-topic  7-the-topic  none   ✅   ❌   ·     ·      ✅         ·      ·
-       ❌ kit.yml declares no kit version; kit is not installed here
+     🌳 7-the-topic  7-the-topic  none   ✅   💡   ·     ·      ✅         ·      ·
+       💡 kit is not installed here; it runs on what it infers
           kit install
    github.com/o/b
      💻 b            main         0.2.0  ✅   ✅   ✅    ·      ❌         ❌     ❌

@@ -179,6 +179,9 @@ with the kit, `kit tutorials applications`; see [tutorials.md](tutorials.md).
   it, later moves on.
 - Without a terminal, or with `--text`, it prints each page with its checks, and does not run anything. It exits 1
   when a check fails.
+- A check that holds can still offer a fix: an offer, drawn 💡, which needs no attention and fails nothing. kit runs in
+  a folder whose `kit.yml` declares no kit version, on what it infers, so there kit installed holds and offers
+  `kit install`.
 - A missing tool's fix is `kit tools install`, or, when ambient, the system toolchain's command. No tool manager is
   assumed.
 - `kit welcome --checks --json` prints the checks alone, a folder's with its folder, repository, branch, and kit;

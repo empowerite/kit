@@ -69,15 +69,16 @@ func TestTheSetupStepIsOneTableTheMachineFirstThenARowPerFolder(t *testing.T) {
 	if machine < 0 || a < machine || desk < a || topic < desk || strings.Index(v, "github.com/o/b") < topic {
 		t.Errorf("the machine, then a's desk and worktree, then b:\n%s", v)
 	}
-	// a folder's failed checks stand under its row; the ones that hold are its row's ✅ alone
-	if !strings.Contains(v, "kit.yml declares no kit version") || strings.Contains(v, "kit check finds nothing wrong") {
+	// a folder's failed checks and its offers stand under its row; the ones that hold are its row's ✅ alone
+	if !strings.Contains(v, "       "+Offered+" kit is not installed here; it runs on what it infers\n          kit install\n") ||
+		strings.Contains(v, "kit check finds nothing wrong") {
 		t.Errorf("the folders' checks:\n%s", v)
 	}
 	if !strings.Contains(v, "7-the-topic") || !strings.Contains(v, "0.3.0") || !strings.Contains(v, "none") {
 		t.Errorf("each folder's branch and kit:\n%s", v)
 	}
-	// the bar counts the failed checks: the login, and five of the folders'
-	if !strings.Contains(v, "setup  6") {
+	// the bar counts the failed checks: the login, and four of the folders'; an offer is no failure
+	if !strings.Contains(v, "setup  5") {
 		t.Errorf("the count:\n%s", v)
 	}
 }
@@ -165,19 +166,42 @@ func TestAFoldersFixRunsInItsFolderAndAMachinesOverTheGroup(t *testing.T) {
 	}
 }
 
+func TestAFoldersOfferOffersNowAndLaterAsAFailedCheckDoes(t *testing.T) {
+	m, r, _ := group(t, stepKey(setupStep))
+	m, found := onKey(m, "/code/a/worktrees/7-the-topic kit-installed")
+	if !found {
+		t.Fatalf("no kit-installed in the worktree:\n%s", view(m))
+	}
+	if v := view(m); !strings.Contains(v, "     ▸ "+Offered+" kit is not installed here; it runs on what it infers    now   later") ||
+		keysAt(m) != choiceKeys {
+		t.Errorf("the worktree's offer, offering now and later:\n%s\n%s", v, keysAt(m))
+	}
+	// later leaves it for later, as a failed check, and runs nothing
+	m = drive(m, press('l'))
+	v := view(m)
+	if !m.deferred["/code/a/worktrees/7-the-topic kit-installed"] || len(r.calls) != 0 ||
+		!strings.Contains(v, Offered+" kit is not installed here; it runs on what it infers · later") {
+		t.Errorf("deferred %v, ran %q:\n%s", m.deferred, r.calls, v)
+	}
+}
+
 func TestTheIntroductionNamesEachFailedChecksFolder(t *testing.T) {
 	m, _, _ := group(t)
 	v := view(m)
 	testkit.Golden(t, filepath.Join("testdata", "introduction-folders.golden"), v)
-	if !strings.Contains(v, "kit.yml declares no kit version; kit is not installed here    a "+worktreeGlyph+
-		" worktrees/7-the-topic on 7-the-topic") || !strings.Contains(v, "💻 this machine") {
-		t.Errorf("the worktree's failed check does not name its folder:\n%s", v)
+	if !strings.Contains(v, "several toolchains are usable") || !strings.Contains(v, "b "+deskGlyph+" code/b on main") ||
+		!strings.Contains(v, "💻 this machine") {
+		t.Errorf("the desk's failed check does not name its folder:\n%s", v)
 	}
-	// a search for a folder's branch keeps that folder's checks
+	// the worktree's offer needs no attention, so neither it nor its folder is named
+	if strings.Contains(v, "kit is not installed here") || strings.Contains(v, "7-the-topic") {
+		t.Errorf("the offer is among the failures:\n%s", v)
+	}
+	// a search for a folder keeps that folder's checks
 	m = drive(m, press('/'))
-	m = drive(m, testkit.Typed("7-the")...)
-	if v := view(m); !strings.Contains(v, "kit.yml declares no kit version") || strings.Contains(v, "several toolchains") {
-		t.Errorf("searched for the branch:\n%s", v)
+	m = drive(m, testkit.Typed("code/b")...)
+	if v := view(m); !strings.Contains(v, "several toolchains") || strings.Contains(v, "lefthook runs none") {
+		t.Errorf("searched for the folder:\n%s", v)
 	}
 }
 
@@ -208,12 +232,12 @@ func TestTheSetupStepsSearchAndLaterNameTheFolder(t *testing.T) {
 			testkit.Typed(text)...)...)
 		return m
 	}
-	if v := view(search("7-the")); !strings.Contains(v, "kit.yml declares no kit version") ||
+	if v := view(search("7-the")); !strings.Contains(v, "kit is not installed here; it runs on what it infers") ||
 		strings.Contains(v, "several toolchains") {
 		t.Errorf("searched for the branch:\n%s", v)
 	}
 	if v := view(search("lefthook runs none")); !strings.Contains(v, "the git hooks are not installed") ||
-		strings.Contains(v, "kit.yml declares") {
+		strings.Contains(v, "kit is not installed here") {
 		t.Errorf("searched for a check's line:\n%s", v)
 	}
 	if v := view(search("zzz")); !strings.Contains(v, "no check matches the search") {
@@ -229,7 +253,7 @@ func TestTheSetupStepsSearchAndLaterNameTheFolder(t *testing.T) {
 	for _, l := range m.stepTail(m.rows(m.step)) {
 		tail = append(tail, ansi.Strip(l.text))
 	}
-	if want := "• kit.yml declares no kit version; kit is not installed here · a " + worktreeGlyph +
+	if want := "• kit is not installed here; it runs on what it infers · a " + worktreeGlyph +
 		" 7-the-topic: kit install"; !slices.ContainsFunc(tail, func(l string) bool { return strings.Contains(l, want) }) {
 		t.Errorf("the worktree's check left for later: %q", tail)
 	}
