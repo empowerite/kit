@@ -95,3 +95,34 @@ func TestAClickOnABoxSelects(t *testing.T) {
 		t.Errorf("a click on the fruit's heading's box selected %q", s.Selected())
 	}
 }
+
+// Shift with down or up selects as it moves, the rows that can be selected alone; a click on an open row's second line
+// is no click on its box.
+func TestShiftSelectsAsItMovesAndAnOpenRowsSecondLineHasNoBox(t *testing.T) {
+	s := fruity()
+	pressed(&s, "down", "shift+down")
+	if got := s.Selected(); !slices.Equal(got, []string{"apple", "fig"}) {
+		t.Errorf("shift+down selected %q", got)
+	}
+	pressed(&s, "down", "shift+up")
+	if got := s.Selected(); !slices.Equal(got, []string{"pear", "apple", "fig"}) {
+		t.Errorf("shift+up selected %q", got)
+	}
+	for s.Rows()[s.tbl.Cursor].Key != "kale" {
+		pressed(&s, "down")
+	}
+	pressed(&s, "right")
+	_, y := spot(s, "kale")
+	if s.Unselect(); s.Click(testkit.Click(0, y+1)) && len(s.Selected()) != 0 {
+		t.Errorf("a click on kale's second line selected %q", s.Selected())
+	}
+}
+
+// A link the screen follows itself, as Followed says, puts up no notice.
+func TestALinkTheScreenFollowsSaysNothing(t *testing.T) {
+	s := sheet("")
+	s.SetBrowse(func(string) error { return Followed })
+	if s.open("check:jq"); s.Notice().Text != "" {
+		t.Errorf("a followed link said %q", s.Notice().Text)
+	}
+}

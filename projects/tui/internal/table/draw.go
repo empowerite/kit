@@ -386,25 +386,18 @@ func RowAt(h Host, x, y int) (row int, link string, fold, ok bool) {
 
 // BoxAt says whether the screen cell x, y is on the box a row's first line draws in the gutter, where Drawing draws a
 // row selected, or one that could be, or the cell after it: a row's stands where its line starts past the indent, and a
-// group's heading's two cells before its ▾ or ▸.
+// group's heading's two cells before its ▾ or ▸. Another aside, which draws no box, SelectRow leaves as it is.
 func BoxAt(h Host, x, y int) bool {
 	lines := h.Lines()
 	k, on := PlaceAt(h, y)
 	if !on || k < 0 || lines[k].Row < 0 || k > 0 && lines[k-1].Row == lines[k].Row {
 		return false
 	}
-	r := h.Rows()[lines[k].Row]
 	box := indent(h)
-	switch {
-	case grid.Heads(r):
+	if grid.Heads(h.Rows()[lines[k].Row]) {
+		// a heading always draws its ▾ or ▸
 		plain := ansi.Strip(lines[k].Text)
-		at := strings.IndexAny(plain, grid.Unfolded+grid.Folded)
-		if at < 0 {
-			return false
-		}
-		box = ansi.StringWidth(plain[:at]) - 2
-	case r.Aside:
-		return false
+		box = ansi.StringWidth(plain[:max(0, strings.IndexAny(plain, grid.Unfolded+grid.Folded))]) - 2
 	}
 	return x >= box && x <= box+1
 }

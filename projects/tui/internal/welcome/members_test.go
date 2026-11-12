@@ -8,10 +8,12 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
@@ -158,5 +160,46 @@ func TestAGroupsChecksEndWithTheScreen(t *testing.T) {
 	read := checksOver(testkit.Runner(t, "welcome"), ws)
 	if _, err := read(ctx, func(kit.Progress) {}); !errors.Is(err, context.Canceled) {
 		t.Errorf("ended: %v", err)
+	}
+}
+
+// The setup step's search keeps a folder whose branch holds it, with its failed checks, and one whose check's line does;
+// a search nothing holds says so. A folder's check left for later names its folder in the list of those left.
+func TestTheSetupStepsSearchAndLaterNameTheFolder(t *testing.T) {
+	search := func(text string) Model {
+		m, _, _ := group(t, append([]tea.Msg{stepKey(setupStep), tea.KeyPressMsg{Code: '/', Text: "/"}},
+			testkit.Typed(text)...)...)
+		return m
+	}
+	if v := view(search("7-the")); !strings.Contains(v, "kit.yml declares no kit version") ||
+		strings.Contains(v, "several toolchains") {
+		t.Errorf("searched for the branch:\n%s", v)
+	}
+	if v := view(search("lefthook runs none")); !strings.Contains(v, "the git hooks are not installed") ||
+		strings.Contains(v, "kit.yml declares") {
+		t.Errorf("searched for a check's line:\n%s", v)
+	}
+	if v := view(search("zzz")); !strings.Contains(v, "no check matches the search") {
+		t.Errorf("searched for nothing there:\n%s", v)
+	}
+	m, _, _ := group(t, stepKey(setupStep))
+	m, found := onKey(m, "/code/a/worktrees/7-the-topic kit-installed")
+	if !found {
+		t.Fatalf("no kit-installed in the worktree:\n%s", view(m))
+	}
+	m = drive(m, press('l'))
+	var tail []string
+	for _, l := range m.stepTail(m.rows(m.step)) {
+		tail = append(tail, ansi.Strip(l.text))
+	}
+	if want := "• kit.yml declares no kit version; kit is not installed here · a " + worktreeGlyph +
+		" 7-the-topic: kit install"; !slices.ContainsFunc(tail, func(l string) bool { return strings.Contains(l, want) }) {
+		t.Errorf("the worktree's check left for later: %q", tail)
+	}
+	// a search nothing holds, while the checks run again, says they run
+	m = search("zzz")
+	m.checking.Again(m.env(), false)
+	if v := view(m); !strings.Contains(v, "checking…") {
+		t.Errorf("checking under a search nothing holds:\n%s", v)
 	}
 }

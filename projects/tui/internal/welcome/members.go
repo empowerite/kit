@@ -55,15 +55,6 @@ func folderName(c kit.Check) string {
 	return glyph + " " + filepath.Base(c.Folder)
 }
 
-// folderLine gives the line that names a folder above its checks: its repository, its name, and its branch.
-func folderLine(c kit.Check) string {
-	text := c.Repository + " · " + folderName(c)
-	if c.Branch != "" {
-		text += " on " + c.Branch
-	}
-	return text
-}
-
 // folderOf gives what a folder's check says after its line where its folder is not drawn above it: its repository's
 // name and its folder's, dim; nothing for a machine check.
 func folderOf(c kit.Check) string {

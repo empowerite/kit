@@ -209,25 +209,14 @@ func (m Model) runButton() string {
 	return style.Tint(" " + runSelected + " (" + strconv.Itoa(n) + ") ")
 }
 
-// onRunButton says whether the screen cell x, y is on Run Selected Fixes.
+// onRunButton says whether the screen cell x, y is on Run Selected Fixes, its count with it, as runButton draws it.
 func (m Model) onRunButton(x, y int) bool {
 	head := m.introHead()
 	k := y - paneTop
 	if k < 0 || k >= len(head) || m.runButton() == "" {
 		return false
 	}
-	return onButton(ansi.Strip(head[k]), runSelected, x) || onSelected(ansi.Strip(head[k]), x)
-}
-
-// onSelected says whether the cell x of the line is on Run Selected Fixes with its count, as runButton draws it.
-func onSelected(line string, x int) bool {
-	i := strings.Index(line, " "+runSelected+" (")
-	if i < 0 {
-		return false
-	}
-	at := ansi.StringWidth(line[:i])
-	end := strings.Index(line[i:], ") ")
-	return end >= 0 && x >= at && x < at+ansi.StringWidth(line[i:i+end+2])
+	return onButton(ansi.Strip(head[k]), strings.TrimSpace(ansi.Strip(m.runButton())), x)
 }
 
 // placeChecks places the failed checks' table under the introduction's head, while it shows there, as tall as its
@@ -352,15 +341,14 @@ func (m Model) introKeys(seg shell.Segment) shell.Segment {
 // runSelected runs the fixes of the checks selected, each in turn, once in a folder however many of its checks name
 // it, the selection then cleared; when the last ends, the checks run again, as after one fix. None selected runs none.
 func (m *Model) runSelected() tea.Cmd {
-	seen := map[string]bool{}
-	m.queue = nil
+	selected, seen := map[string]bool{}, map[string]bool{}
 	for _, key := range m.checksSheet.Selected() {
-		i := m.checkAt(key)
-		if i < 0 || !runnable(m.checks[i]) {
-			continue
-		}
+		selected[key] = true
+	}
+	m.queue = nil
+	for _, i := range m.failed() {
 		c := m.checks[i]
-		if where := c.Folder + "\n" + c.Fix; !seen[where] {
+		if where := c.Folder + "\n" + c.Fix; selected[c.Key()] && runnable(c) && !seen[where] {
 			seen[where] = true
 			m.queue = append(m.queue, c)
 		}

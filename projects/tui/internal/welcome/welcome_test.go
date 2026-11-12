@@ -1239,3 +1239,23 @@ func TestEscSaysItGoesBackToTheTabs(t *testing.T) {
 		t.Errorf("in the pane %v: %q does not hold %q", m.inPane, m.keys().String(), want)
 	}
 }
+
+// Once every check passes, the introduction's table goes, and the keyboard with it, back to the bar; while they run
+// again, checking… follows all checks pass. A fix copied whose check is gone says copied alone.
+func TestTheTableGoesOnceEveryCheckPasses(t *testing.T) {
+	m, _ := loaded(t)
+	if m.copied = "nonesuch"; !strings.Contains(view(m), runSelected+"   "+copiedWord+"\n") {
+		t.Errorf("copied without its check:\n%s", view(m))
+	}
+	m, _ = onCheck(drive(m, esc), "jq")
+	for i := range m.checks {
+		m.checks[i].OK = true
+	}
+	if m.takeChecks(); m.inPane || m.gridded() {
+		t.Fatalf("in the pane %v, gridded %v", m.inPane, m.gridded())
+	}
+	m.checking.Again(m.env(), false)
+	if got := view(m); !strings.Contains(got, "\n   ✅ all checks pass\n\n   checking…\n") {
+		t.Errorf("no checking under all checks pass:\n%s", got)
+	}
+}
