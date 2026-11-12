@@ -13,6 +13,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/fix"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/markdown"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
@@ -39,12 +40,14 @@ const (
 const under = lead + "   "
 
 // line is one line of the pane: the check it belongs to, or -1, and its text; and the block it scrolls across with, as
-// pane.Across keeps them, "" for a line that stays, its first lead cells staying as it does.
+// pane.Across keeps them, "" for a line that stays, its first lead cells staying as it does; and the links on it, each
+// where it stands on the line and where it leads.
 type line struct {
 	row   int
 	text  string
 	block string
 	lead  int
+	links []markdown.Link
 }
 
 // blocksOf gives the blocks the lines stand in, each the lines that follow one another with its name.
@@ -101,6 +104,9 @@ func (m Model) View() tea.View {
 	lines = m.books.Overlay(lines, m.booksAt(), m.width)
 	bottom := m.keys().Line(m.width)
 	if notice := m.sheetNotice(); notice != "" {
+		bottom = notice
+	}
+	if notice := m.linkNotice(); notice != "" {
 		bottom = notice
 	}
 	return shell.View(lines, m.height, bottom)
@@ -298,9 +304,13 @@ func (m Model) pageText(i int) []line {
 		return out
 	}
 	query := m.searches[m.tabs[i].id].Query
-	lines, blocks := wide(m.tabs[i].page, m.width-len(lead)-1)
+	lines, blocks, links := wide(m.tabs[i].page, m.width-len(lead)-1)
 	for _, l := range lines {
 		add(strings.TrimRight(lead+shell.Found(l, query), " "))
+	}
+	for _, l := range links {
+		l.Col += len(lead)
+		out[l.Line].links = append(out[l.Line].links, l)
 	}
 	for _, b := range blocks {
 		for k := b.From; k < b.To; k++ {

@@ -190,6 +190,8 @@ type Model struct {
 	height    int
 	appMenu   shell.Menu              // the app's menu, internal/shell's, which has the keyboard while it is open
 	searches  map[string]shell.Search // each step's search, internal/shell's, by the step's id
+	browse    func(string) error      // opens a link in the browser; a recorder in tests
+	link      string                  // what the opening of a link came to, in place of the keys until a key
 	hits      map[string]int          // the line of each page the search last scrolled to, n and N step from it
 	recent    shell.Recent            // the searches remembered, every screen's, and their dropdown
 	presets   string                  // the file the person's presets are kept in; none keeps them for the session
@@ -213,7 +215,7 @@ func Open(r kit.Runner, ws kit.Workspace) Model {
 
 // New opens the screen on the first step, checking. Init runs the checks and reads the pages.
 func New(r kit.Runner, repo string) Model {
-	m := Model{runner: r, exec: fix.HandOver, told: make(chan toldMsg, 64), run: &atomic.Int64{},
+	m := Model{runner: r, browse: shell.Browse, exec: fix.HandOver, told: make(chan toldMsg, 64), run: &atomic.Int64{},
 		notes: map[string]note{}, width: 80, height: 24, tabs: slices.Clone(known),
 		places: make([]string, len(known)), offsets: make([]int, len(known)), appMenu: shell.Menu{Here: shell.Welcome},
 		books: shell.BooksMenu{Fallback: repo}, searches: map[string]shell.Search{}, hits: map[string]int{},
@@ -361,6 +363,10 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.eachSheet(func(s *table.Sheet) { s.Faded(msg) })
 	case shell.WorkspaceMsg:
 		m.books = m.books.Told(msg)
+	case shell.JumpMsg:
+		m.jump(msg.To)
+	case linkedMsg:
+		m.linked(msg)
 	case source.Answer[[]kit.Check]:
 		m.take(msg)
 	case toldMsg:
@@ -390,7 +396,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case tea.KeyPressMsg:
-		m.copied = ""
+		m.copied, m.link = "", ""
 		return m.key(msg)
 	case tea.MouseWheelMsg:
 		m.wheeled(msg)
@@ -439,6 +445,8 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case ok:
 			m.choose(bar)
+		case m.gridded() && msg.Button == tea.MouseLeft && m.leadLinkAt(msg.X, msg.Y) != "":
+			return m, m.follow(m.leadLinkAt(msg.X, msg.Y))
 		case m.gridded():
 			return m.sheetClick(msg)
 		case msg.Button == tea.MouseLeft:
@@ -831,6 +839,11 @@ func (m *Model) click(x, y int, copied string) tea.Cmd {
 	r, h := y-m.paneTop(), m.paneHeight()
 	lines := m.lines()
 	k := pane.At(len(lines), h, m.offsets[m.step], r)
+	if k >= 0 {
+		if to := linkIn(lines[k].links, x); to != "" {
+			return m.follow(to)
+		}
+	}
 	switch {
 	case r < 0 || r >= h:
 	case m.slides().Click(texts(lines), blocksOf(lines), k, x, m.width-1):
