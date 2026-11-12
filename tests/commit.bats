@@ -122,6 +122,21 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ "$(git log -1 --format=%B | grep -c '^Agent: kit-bot\[bot\]$')" -eq 1 ]
 }
 
+@test "kit commit under a bot says, in kit's words, when git cannot add the Agent trailer, and commits nothing" {
+  printf 'x\n' > x && git add x
+  # a git whose interpret-trailers fails for the Agent trailer, as one with a broken trailer configuration or a full disk would
+  mkdir -p "${BATS_TEST_TMPDIR}/shim"
+  printf '#!/usr/bin/env bash\n[[ "$*" != *addIfDifferent* ]] || { echo "fatal: git cannot" >&2; exit 128; }\nexec %s "$@"\n' \
+    "$(command -v git)" > "${BATS_TEST_TMPDIR}/shim/git"
+  chmod +x "${BATS_TEST_TMPDIR}/shim/git"
+  PATH="${BATS_TEST_TMPDIR}/shim:${PATH}"
+  before=$(git rev-parse --verify --quiet HEAD || true)
+  run --separate-stderr env KIT_BOT_LOGIN='kit-bot[bot]' "${kit_root}/bin/kit" commit --message='x: a file'
+  [ "$status" -eq 1 ]
+  [[ "$stderr" == *"could not add the Agent: kit-bot[bot] trailer to the message"* ]]
+  [ "$(git rev-parse --verify --quiet HEAD || true)" = "${before}" ]
+}
+
 # conventional makes policy/conventional active in the worktree's kit.yml, staged, so the commit is judged by it.
 conventional() {
   yq --inplace '.packages += ["policy/conventional"]' kit.yml

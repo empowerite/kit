@@ -775,3 +775,168 @@ good-probes() {
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
+
+# ----------------------------------------------------------------------------------------------------------------------
+# the bot check: a folder's, where the primary remote is on GitHub
+
+# bot-world sets a GitHub remote, curl as a stub routed by URL, the fake keychain, and a bots file with one bot, so the
+# bot check can run; curl answers with an App and an installation reaching the repository that holds every permission
+# the bot's jobs need.
+bot-world() {
+  fake-tools gh
+  cat > "${FAKE_DIR}/bin/curl" <<'STUB'
+#!/usr/bin/env bash
+dump='' write='' args=("$@")
+for (( i = 0; i < ${#args[@]}; i++ ))
+do
+  [[ "${args[i]}" == --dump-header ]] && dump=${args[i + 1]}
+  [[ "${args[i]}" == --write-out ]] && write=${args[i + 1]}
+done
+cat > /dev/null
+while IFS=$'\t' read -r glob status code body headers
+do
+  # shellcheck disable=SC2053  # the route is a glob on purpose
+  [[ "$*" == ${glob} ]] || continue
+  [[ -z "${dump}" ]] || : > "${dump}"
+  [[ -z "${body}" ]] || cat "${FAKE_DIR}/${body}"
+  printf '%s' "${write/'%{http_code}'/${code}}"
+  exit "${status}"
+done < "${FAKE_DIR}/curl.routes"
+echo "curl: unrouted call: $*" >&2
+exit 99
+STUB
+  chmod +x "${FAKE_DIR}/bin/curl"
+  ln -sf "${BATS_TEST_DIRNAME}/fakes/fake-secrets" "${FAKE_DIR}/bin/security"
+  git remote add origin https://github.com/empowerite/kit.git
+  openssl genrsa -out "${BATS_TEST_TMPDIR}/app.pem" 2048 2>/dev/null
+  mkdir -p "${XDG_CONFIG_HOME}/kit"
+  printf 'bots:\n  - name: kit-bot\n    host: github.com\n    app: 12345\n    owner: empowerite\n    jobs: [work, review]\n' \
+    > "${XDG_CONFIG_HOME}/kit/bots.yml"
+  bot-routes '"metadata":"read","contents":"write","issues":"write","pull_requests":"write","checks":"read","statuses":"read","actions":"read"'
+}
+
+# bot-route <glob> <status> <code> [<body>] adds a route for curl.
+bot-route() { printf '%s\t%s\t%s\t%s\t\n' "$1" "$2" "$3" "${4:-}" >> "${FAKE_DIR}/curl.routes"; }
+
+# bot-routes <permissions> routes the forge: the App, and its installation on the repository holding the permissions.
+bot-routes() {
+  fixture app.json <<<'{"slug":"kit-bot","owner":{"login":"empowerite"},"permissions":{},"html_url":"https://github.com/apps/kit-bot"}'
+  fixture inst.json <<<"{\"id\":99,\"permissions\":{$1},\"repository_selection\":\"selected\",\"html_url\":\"https://github.com/settings/installations/99\"}"
+  : > "${FAKE_DIR}/curl.routes"
+  bot-route '*api.github.com/app' 0 200 app.json
+  bot-route '*/repos/empowerite/kit/installation' 0 200 inst.json
+}
+
+# bot-key puts the bot's key in the fake keychain.
+bot-key() {
+  kit_bash_modules=secrets kit-bash 'secrets:put kit-bot github.com/12345' < "${BATS_TEST_TMPDIR}/app.pem"
+}
+
+@test "the bot check is planned only where the primary remote is GitHub, after the project toolchain" {
+  run --separate-stderr checks
+  [ "$(jq --raw-output 'map(.id) | index("bot")' <<<"$output")" = null ]
+  git remote add origin https://gitlab.com/acme/widget.git
+  run --separate-stderr checks
+  [ "$(jq --raw-output 'map(.id) | index("bot")' <<<"$output")" = null ]
+  git remote remove origin
+  git remote add origin https://github.com/acme/widget.git
+  run --separate-stderr checks
+  [ "$(jq --raw-output '[.[] | select(.folder) | .id] | join(" ")' <<<"$output")" = \
+    'repo-git kit-installed toolchain-project bot' ]
+}
+
+@test "with no bot for the host, the bot check holds and offers to set one up, which kit never runs" {
+  bot-world
+  rm "${XDG_CONFIG_HOME}/kit/bots.yml"
+  run --separate-stderr check bot
+  [ "$(jq --raw-output '[.step, .ok, .line, .fix, .runs, .more] | @tsv' <<<"$output")" = \
+    $'setup\ttrue\tno bot acts for you here; set one up to hand it issues\tkit bots --add=<name> --app=<id> --key=<file>\tfalse\thttps://docs.github.com/en/apps/creating-github-apps' ]
+  [ -z "$stderr" ]
+  # a bot on another host is none here
+  printf 'bots:\n  - name: kit-bot\n    host: ghe.example.com\n    app: 1\n' > "${XDG_CONFIG_HOME}/kit/bots.yml"
+  run --separate-stderr check bot
+  [ "$(jq --raw-output '[.ok, .line] | @tsv' <<<"$output")" = $'true\tno bot acts for you here; set one up to hand it issues' ]
+  [ -z "$stderr" ]
+}
+
+@test "the bot check fails for two bots on the host with none chosen, naming both, and holds once kit.yml names one" {
+  bot-world
+  bot-key
+  printf '  - name: other-bot\n    host: github.com\n    app: 777\n' >> "${XDG_CONFIG_HOME}/kit/bots.yml"
+  run --separate-stderr check bot
+  [ "$(jq --raw-output '[.ok, .fix] | @tsv' <<<"$output")" = $'false\tkit bots --check' ]
+  [[ "$(jq --raw-output .line <<<"$output")" == *'kit-bot, other-bot'* ]]
+  [ -z "$stderr" ]
+  printf 'bot: kit-bot\n' > kit.yml
+  run --separate-stderr check bot
+  [ "$(jq --raw-output '[.ok, .line] | @tsv' <<<"$output")" = $'true\tkit-bot[bot] acts for you here, for work, review' ]
+}
+
+@test "the bot check fails for a bot kit.yml names that the bots file lacks, with the add as its fix" {
+  bot-world
+  printf 'bot: ghost\n' > kit.yml
+  run --separate-stderr check bot
+  [ "$(jq --raw-output '[.ok, .line, .fix, .runs] | @tsv' <<<"$output")" = \
+    $'false\tkit.yml names the bot ghost, which the bots file does not have\tkit bots --add=ghost --app=<id> --key=<file>\tfalse' ]
+}
+
+@test "the bot check fails for a bots file kit cannot read, saying why" {
+  bot-world
+  printf 'bots: 3\n' > "${XDG_CONFIG_HOME}/kit/bots.yml"
+  run --separate-stderr check bot
+  [ "$(jq --raw-output '[.ok, .fix] | @tsv' <<<"$output")" = $'false\tkit bots --check' ]
+  [[ "$(jq --raw-output .line <<<"$output")" == *'bots.yml is not {bots:'* ]]
+  [ -z "$stderr" ]
+}
+
+@test "the bot check fails where the key is missing, with the add as its fix, which kit never runs" {
+  bot-world
+  run --separate-stderr check bot
+  [ "$(jq --raw-output '[.ok, .line, .fix, .runs] | @tsv' <<<"$output")" = \
+    $'false\tthe key of kit-bot is not in the secret store\tkit bots --add=kit-bot --app=12345 --key=<file>\tfalse' ]
+  [ -z "$stderr" ]
+}
+
+@test "the bot check fails where the installation does not reach this repository" {
+  bot-world
+  bot-key
+  fixture none.json <<<'{"message":"Not Found"}'
+  fixture list.json <<<'[{"id":99,"account":{"login":"empowerite"},"repository_selection":"selected","html_url":"https://github.com/settings/installations/99"}]'
+  : > "${FAKE_DIR}/curl.routes"
+  bot-route '*api.github.com/app' 0 200 app.json
+  bot-route '*/repos/empowerite/kit/installation' 22 404 none.json
+  bot-route '*/app/installations?per_page*' 0 200 list.json
+  run --separate-stderr check bot
+  [ "$(jq --raw-output '[.ok, .line, .fix] | @tsv' <<<"$output")" = \
+    $'false\tthe installation of kit-bot does not reach empowerite/kit\tkit bots --check' ]
+}
+
+@test "the bot check fails where a job lacks a permission, naming the job and the permission" {
+  bot-world
+  bot-key
+  bot-routes '"metadata":"read","contents":"write","issues":"write","pull_requests":"write","statuses":"read","actions":"read"'
+  run --separate-stderr check bot
+  [ "$(jq --raw-output '[.ok, .line, .fix] | @tsv' <<<"$output")" = \
+    $'false\tkit-bot lacks permissions its jobs need; the work: checks: read; review: checks: read\tkit bots --check' ]
+}
+
+@test "the bot check fails with the forge's reason where the forge cannot be asked, and does not hang" {
+  bot-world
+  bot-key
+  : > "${FAKE_DIR}/curl.routes"
+  bot-route '*api.github.com/app' 28 000
+  run --separate-stderr check bot
+  [ "$(jq --raw-output '[.ok, .fix] | @tsv' <<<"$output")" = $'false\tkit bots --check' ]
+  [ -n "$(jq --raw-output .line <<<"$output")" ]
+  [[ "$(jq --raw-output .line <<<"$output")" != 'the forge could not be asked'* ]]
+  [ -z "$stderr" ]
+}
+
+@test "the bot check holds where the bot's key, installation, and permissions are in order, naming the bot and its jobs" {
+  bot-world
+  bot-key
+  run --separate-stderr check bot
+  [ "$(jq --raw-output '[.ok, .line, .fix, .runs] | @tsv' <<<"$output")" = \
+    $'true\tkit-bot[bot] acts for you here, for work, review\t\ttrue' ]
+  [ -z "$stderr" ]
+}

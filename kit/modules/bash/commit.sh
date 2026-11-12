@@ -738,7 +738,12 @@ commit:git() {
   if [[ -n "${KIT_BOT_LOGIN:-}" ]]
   then
     git interpret-trailers --in-place --no-divider --if-exists addIfDifferent \
-      --trailer "Agent: ${KIT_BOT_LOGIN}" "${message}" || { rm -f "${message}"; return 1; }
+      --trailer "Agent: ${KIT_BOT_LOGIN}" "${message}" \
+      || {
+        rm -f "${message}"
+        error "git could not add the Agent: ${KIT_BOT_LOGIN} trailer to the message; nothing is committed"
+        return 1
+      }
   fi
   git:commit . "the commit" --quiet --cleanup=whitespace --file "${message}" "$@" || status=$?
   rm -f "${message}"

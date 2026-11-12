@@ -68,7 +68,7 @@
 
 # The yq check says what yaml.sh says when it loads without yq, so its own line is not printed twice.
 use yaml 2>/dev/null
-use settings forge materialize render place toolchain dependencies workspaces file terminal markdown
+use settings forge materialize render place toolchain dependencies workspaces file terminal markdown bots
 
 # welcome_ids holds the machine checks' ids, in order, and welcome_folder_ids the checks of the folder here, in order;
 # the maps beside them hold what judging one needs: the rule that names each linter, and the forge of each host.
@@ -576,6 +576,7 @@ welcome:plan-folder() {
     ! welcome:hooks-active || welcome_folder_ids+=(hooks-installed)
   fi
   welcome_folder_ids+=(toolchain-project)
+  ! welcome:github || welcome_folder_ids+=(bot)
   welcome:installed || return 0
   ! welcome:hooks-active || welcome_folder_ids+=(tool-lefthook)
   for provider in $(dependencies:providers)
@@ -888,6 +889,89 @@ welcome:worktree-scratch() {
   fi
 }
 
+# welcome:github succeeds where the primary remote's forge is github.
+welcome:github() {
+  local remote
+  remote=$(forge:primary 2>/dev/null) || return 1
+  [[ "$(forge:of "${remote}" 2>/dev/null)" == github ]]
+}
+
+# welcome:bot-add <name> <app> prints the command that adds a bot's key.
+welcome:bot-add() { printf 'kit bots --add=%s --app=%s --key=<file>\n' "$1" "$2"; }
+
+# welcome:bot-reason <file> prints the first line of what a command said on stderr, less its marker, or <fallback>.
+welcome:bot-reason() {
+  local line=''
+  IFS= read -r line < "$1" || true  # an empty file has no line
+  line=${line#❌ }
+  printf '%s\n' "${line:-$2}"
+}
+
+# welcome:bot prints the check of the bot that acts for the person in this folder. No bot on the primary remote's
+# host is an offer to add one. It fails for a key the secret store lacks, for an installation that does not reach this
+# repository, for a job that lacks a permission, and for two bots with none chosen or a forge that cannot be asked:
+# each says why, and names the fix. The forge is asked once, for the App, its installation, and its permissions.
+welcome:bot() {
+  local errors bot name app check status=0 jobs lacks pem
+  local more='https://docs.github.com/en/apps/creating-github-apps'
+  file:temp errors welcome-bot-errors || return 1
+  bot=$(bots:choose 2> "${errors}") || status=$?
+  case "${status}" in
+    (0) ;;
+    (2)
+      case "$(cat "${errors}")" in
+        (*[0-9]' bots are on '*)
+          welcome:record bot false "$(welcome:bot-reason "${errors}" 'two bots are on this host')" \
+            'kit bots --check'
+          ;;
+        (*'no bot is named '*)
+          name=$(settings:value bot)
+          welcome:record bot false "kit.yml names the bot ${name}, which the bots file does not have" \
+            "kit bots --add=${name} --app=<id> --key=<file>" false '' false
+          ;;
+        (*)
+          welcome:record bot true 'no bot acts for you here; set one up to hand it issues' \
+            'kit bots --add=<name> --app=<id> --key=<file>' false "${more}" false
+      esac
+      rm -f "${errors}"
+      return 0
+      ;;
+    (*)
+      welcome:record bot false "$(welcome:bot-reason "${errors}" 'the bots file cannot be read')" 'kit bots --check'
+      rm -f "${errors}"
+      return 0
+  esac
+  name=$(jq --raw-output .name <<<"${bot}")
+  app=$(jq --raw-output .app <<<"${bot}")
+  file:temp pem welcome-bot-key || return 1
+  if ! bots:key "${bot}" "${pem}" 2> /dev/null
+  then
+    rm -f "${pem}" "${errors}"
+    welcome:record bot false "the key of ${name} is not in the secret store" "$(welcome:bot-add "${name}" "${app}")" \
+      false '' false
+    return 0
+  fi
+  rm -f "${pem}"
+  check=$(bots:check "${bot}" 2> "${errors}") || status=$?
+  if (( status != 0 ))
+  then
+    welcome:record bot false "$(welcome:bot-reason "${errors}" "the forge could not be asked about ${name}")" \
+      'kit bots --check'
+  elif [[ "$(jq --raw-output .reached <<<"${check}")" == false ]]
+  then
+    welcome:record bot false \
+      "the installation of ${name} does not reach $(jq --raw-output .repository <<<"${check}")" 'kit bots --check'
+  elif lacks=$(jq --raw-output '.lacks | to_entries | map("\(.key): \(.value | join(", "))") | join("; ")' \
+    <<<"${check}") && [[ -n "${lacks}" ]]
+  then
+    welcome:record bot false "${name} lacks permissions its jobs need; the ${lacks}" 'kit bots --check'
+  else
+    jobs=$(jq --raw-output '.jobs | join(", ")' <<<"${bot}")
+    welcome:record bot true "${name}[bot] acts for you here, for ${jobs}"
+  fi
+  rm -f "${errors}"
+}
+
 # welcome:judge <id> runs one check, which welcome:plan-machine or, in its folder, welcome:plan-folder named, and
 # prints it as JSON. It returns 2 for an id neither plan names.
 welcome:judge() {
@@ -907,6 +991,7 @@ welcome:judge() {
     (forge-cli-*) welcome:forge-cli "${id#forge-cli-}" ;;
     (forge-login-*) welcome:forge-login "${id#forge-login-}" ;;
     (terminal-*) welcome:terminal "${id}" ;;
+    (bot) welcome:bot ;;
     (repo-git)
       if welcome:repository
       then
