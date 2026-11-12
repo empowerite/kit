@@ -348,6 +348,13 @@ func TestEveryStageGroupsItsOwnViewsBySourceOrganizationAndRepository(t *testing
 			t.Errorf("policy has no heading %q:\n%s", heading, raw(m))
 		}
 	}
+	// a clone with no remote on a forge has no source and no organization, "", which stand under none, not all
+	m = drive(m, reanswer(m, "audit/policy", `{"rows": [{"key": "branch   r", "source": "", "organization": "",
+		"repository": "r", "branch": null, "scope": "repository", "rule": "branch", "pattern": "^x-", "from": "default",
+		"engine": "patterns", "links": {}}], "errors": []}`))
+	if !strings.Contains(raw(m), "▾ none · none · r 1") || strings.Contains(raw(m), "▾ all") {
+		t.Errorf("a clone with no remote's policy:\n%s", raw(m))
+	}
 }
 
 // A ref names a thing, an issue's id or a run's number, and is no quantity to compare: its column is left-aligned, so

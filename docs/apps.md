@@ -262,8 +262,9 @@ branch and who may get past it, and the rules kit's policy judges by. Every tab 
   branch it is the checkout's own, and on a branch past the default it is the base's. A row says where it is in
   force: `source`, the primary's forge, `github`, `gitlab`, or `ado`; `organization`, the path before the repository,
   a group and its subgroups on GitLab; `repository`; and `branch`. A clone with no remote on a forge is its main
-  checkout's directory. Another checkout is
-  read as it is, nothing placed in it, and one that fails is `{branch, error}` under `errors` while the rest draw.
+  checkout's directory. A place the clone has none of, the organization of a clone with no remote or the source of a
+  remote on no forge, is `""`; `null` is only the place a merged row spans. Another checkout is read as it
+  is, nothing placed in it, and one that fails is `{branch, error}` under `errors` while the rest draw.
 - `policy` merges the rows of a rule that agree, its pattern, from, and engine the same. From the widest place down,
   a place whose rows all agree is one row, at the narrowest place that holds them all: `scope` names it, `branch`,
   `repository`, `organization`, `source`, or `workspace` where even the sources differ, and the fields finer than it are

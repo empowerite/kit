@@ -1058,9 +1058,11 @@
       "fields": [
         {"id": "source", "label": "source", "type": "enum", "path": ".source", "sort": true, "group": true,
          "filter": true, "values": [{"value": "github", "glyph": "🐙"}, {"value": "gitlab", "glyph": "🦊"}],
-         "renderings": ["glyph+text", "text", "glyph"], "dim": true, "placement": "group", "depth": 1},
+         "null": "all", "empty": "none", "renderings": ["glyph+text", "text", "glyph"], "dim": true,
+         "placement": "group", "depth": 1},
         {"id": "organization", "label": "organization", "type": "enum", "path": ".organization", "sort": true,
-         "group": true, "filter": true, "null": "all", "renderings": ["text"], "placement": "group", "depth": 2},
+         "group": true, "filter": true, "null": "all", "empty": "none", "renderings": ["text"], "placement": "group",
+         "depth": 2},
         {"id": "repository", "label": "repository", "type": "enum", "path": ".repository", "sort": true,
          "group": true, "filter": true, "null": "all", "renderings": ["text"], "placement": "group", "depth": 3},
         {"id": "branch", "label": "branch", "type": "enum", "path": ".branch", "sort": true, "group": true,

@@ -204,7 +204,7 @@ JSON
   git worktree add --quiet --detach "${BATS_TEST_TMPDIR}/d"
   # the branch past the default is judged by the base's kit.yml, which main's own agrees with: one row a rule
   run --separate-stderr "${kit_root}/bin/kit" audit policy --json
-  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$status" -eq 0 ] || { echo "S${status} E${stderr} O${output}"; return 1; }
   [ "$(jq -c '[.rows[] | [.key, .scope, .branch]]' <<<"$output")" = "$(printf '%s' \
     '[["branch github o r","repository",null],["commit_subject github o r","repository",null],' \
     '["change_title github o r","repository",null]]')" ]
@@ -238,6 +238,35 @@ JSON
   run --separate-stderr "${kit_root}/bin/kit" audit --marks
   [ "$status" -eq 0 ]
   [ "$output" = '{"evidence":null,"findings":null,"controls":null,"waivers":null,"policy":null}' ]
+}
+
+@test "policy over a clone with no remote on a forge is its main checkout's directory, of no organization or source" {
+  mkdir -p "${BATS_TEST_TMPDIR}/r"
+  git init --quiet --initial-branch=main "${BATS_TEST_TMPDIR}/r"
+  cd "${BATS_TEST_TMPDIR}/r"
+  git commit --quiet --allow-empty --message one
+  # with no remote, the organization and the source it has none of are "", as null is only the place merged rows span
+  run --separate-stderr "${kit_root}/bin/kit" audit policy --json
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq -c '[.rows[] | [.key, .scope, .source, .organization, .repository, .branch]]' <<<"$output")" \
+    = "$(printf '%s' '[["branch   r main","branch","","","r","main"],' \
+    '["commit_subject   r main","branch","","","r","main"],["change_title   r main","branch","","","r","main"]]')" ]
+  # a remote on this machine is on no forge: the branches merge, and the place is still none of either
+  git init --quiet --bare "${BATS_TEST_TMPDIR}/origin.git"
+  git remote add origin "${BATS_TEST_TMPDIR}/origin.git"
+  git push --quiet origin main
+  git fetch --quiet origin
+  git worktree add --quiet -b 2-fix "${BATS_TEST_TMPDIR}/w"
+  run --separate-stderr "${kit_root}/bin/kit" audit policy --json
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq -c '[.rows[] | [.key, .scope, .source, .organization, .repository, .branch]]' <<<"$output")" \
+    = "$(printf '%s' '[["branch   r","repository","","","r",null],' \
+    '["commit_subject   r","repository","","","r",null],["change_title   r","repository","","","r",null]]')" ]
+  # read from the other worktree, the repository is still the main checkout's directory
+  cd "${BATS_TEST_TMPDIR}/w"
+  run --separate-stderr "${kit_root}/bin/kit" audit policy --json
+  [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
+  [ "$(jq -c '[.rows[] | [.scope, .organization, .repository]] | unique' <<<"$output")" = '[["repository","","r"]]' ]
 }
 
 # two-members makes the workspace w of two members under code/o: a, on GitHub, as github-world answers for it, and b,

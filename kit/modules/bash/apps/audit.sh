@@ -139,25 +139,25 @@ apps/audit:checkouts() {
 }
 
 # apps/audit:where prints where the clone here is, as JSON: {source, organization, repository}: source the primary's
-# forge, github, gitlab, or ado, as forge:of names it; and from the member the primary's URL names, the repository its
-# last segment, and the organization the path before it, a group and its subgroups on GitLab. A clone with no remote
-# on a forge is its main checkout's directory, its organization null, and a remote with no forge has a null source.
+# forge, github, gitlab, or ado, as forge:of names it; and from the member the primary's URL names, the organization
+# and the repository as place in modules/jq/forge.jq splits its path, a group and its subgroups on GitLab. A clone with
+# no remote on a forge is its main checkout's directory. A place the clone has none of, the organization of one with no
+# remote or the source of a remote on no forge, is "", as null is the place a merged row spans.
 apps/audit:where() {
-  local member rest common source primary
+  local member common source primary
   primary=$(forge:primary 2>/dev/null) && source=$(forge:of "${primary}" 2>/dev/null) || source=''
   member=$(workspaces:member-of "$(pwd -P)")
   if [[ -n "${member}" ]]
   then
-    rest=${member#*/}
-    jq --null-input --compact-output --arg source "${source}" --arg organization "${rest%/*}" \
-      --arg repository "${rest##*/}" \
-      '{source: (if $source == "" then null else $source end), organization: $organization, repository: $repository}'
+    jq --null-input --compact-output -L "${kit_jq}" --arg source "${source}" --arg path "${member#*/}" '
+      import "forge" as forge;
+      {source: $source} + forge::place($path)'
     return
   fi
   common=$(git rev-parse --path-format=absolute --git-common-dir) || return 1
   common=${common%/.git}
   jq --null-input --compact-output --arg source "${source}" --arg repository "${common##*/}" \
-    '{source: (if $source == "" then null else $source end), organization: null, repository: $repository}'
+    '{source: $source, organization: "", repository: $repository}'
 }
 
 # apps/audit:policy prints the policy's document: a row per rule kit policy judges by in each checkout of the clone
