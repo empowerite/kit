@@ -189,6 +189,29 @@ func TestTheColumnsDialogHoldsTheFieldsCardBesideIt(t *testing.T) {
 	}
 }
 
+// Where the pane is too narrow for the list and the card side by side, the list keeps its whole header, titled by the
+// tab alone, and the card shows over it only while it has the keyboard.
+func TestTheColumnsDialogKeepsItsHeaderWholeWhereTheCardDoesNotFit(t *testing.T) {
+	h := listing()
+	c := Columns{Open: true}
+	box, _, left := c.Box(h)
+	if card, _, _ := c.CardBox(h); card == nil || !strings.Contains(ansi.Strip(box[1]), "group │") ||
+		!strings.Contains(ansi.Strip(box[0]), "things fields") {
+		t.Fatalf("a wide pane: %q, card %v", box, card != nil)
+	}
+	wide := left
+	h.w = 50
+	box, _, left = c.Box(h)
+	if card, _, _ := c.CardBox(h); card != nil || !strings.Contains(ansi.Strip(box[1]), "group │") || left != h.w-1-ansi.StringWidth(box[0]) {
+		t.Errorf("a narrow pane, the card out of reach: %q at %d, not %d", box, left, wide)
+	}
+	c.toCard(h)
+	box, _, _ = c.Box(h)
+	if card, _, _ := c.CardBox(h); card == nil || !strings.Contains(ansi.Strip(box[1]), "group │") {
+		t.Errorf("a narrow pane, the card with the keyboard: %q, card %v", box, card != nil)
+	}
+}
+
 func TestTheColumnsDialogTakesClicksAndNamesItsKeys(t *testing.T) {
 	h := listing()
 	c := Columns{Open: true}

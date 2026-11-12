@@ -244,7 +244,7 @@ func columned(lines []string, rows int) []string {
 // the one it stands in dim; and the screen line and column it is drawn from, in its corner of the rows, under the bar
 // and over the keys bar.
 func (m Model) legendBox() (lines []string, top, left int) {
-	title := m.stages[m.stage].name + " legend"
+	title := label(m.stages[m.stage].name) + " legend"
 	// a blank line, dropped once drawn, wide enough that the title, a dash, and the arrows fit on the top edge
 	room := strings.Repeat(" ", ansi.StringWidth(title)+len(arrows)*2+3)
 	lines = shell.Dialog(title, append(columned(m.legendLines(), m.height-1-m.top()-2), room), m.width)

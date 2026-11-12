@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
@@ -205,5 +206,23 @@ func TestOverAGroupAPackagesActionRunsInEachMembersCheckout(t *testing.T) {
 	if !slices.Equal(got, []string{b + "\tpackages add style/bash",
 		a + "\tpackages remove kit"}) {
 		t.Errorf("the calls, in their checkouts: %q", got)
+	}
+}
+
+// A tab's dialogs are titled by the tab alone, not by its app and the tab: packages fields, not packages/packages
+// fields, and the legend and presets likewise.
+func TestADialogIsTitledByTheTabAlone(t *testing.T) {
+	m, _ := packaged(t)
+	if m.Name() != "packages" {
+		t.Errorf("the table's name: %q", m.Name())
+	}
+	box, _, _ := m.cols.Box(&m)
+	if title := ansi.Strip(box[0]); !strings.Contains(title, "─ packages fields ─") {
+		t.Errorf("the fields dialog's title: %q", title)
+	}
+	m.legend.open = true
+	box, _, _ = m.legendBox()
+	if title := ansi.Strip(box[0]); !strings.Contains(title, "─ packages legend ") {
+		t.Errorf("the legend's title: %q", title)
 	}
 }

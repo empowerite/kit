@@ -1,7 +1,7 @@
 // The columns dialog: 📇 Fields on the control line, or f on the preset line, opens it under the header's right end,
 // titled by the table's fields. It lists every field of the table, those the rows group by first, the outermost first,
 // then the columns as the rows stand them, then the hidden, a dim rule between each two of those it has, each a line:
-// whether it shows, its label, its sort, ▲ or ▼ and its place among the keys, and its group's depth. At its right
+// whether it shows, its label, its sort, its place among the keys raised or lowered, and its group's depth. At its right
 // stands the card of the field under the keyboard, without what the list's line shows, as wide as the widest field's,
 // so the dialog stands still as the keyboard moves. What it sets applies at once. Up and down move between the lines;
 // shift with either moves the field a place, across into the groups or out of them, or into the hidden; space shows or
@@ -14,6 +14,7 @@
 package table
 
 import (
+	"math"
 	"slices"
 	"strings"
 
@@ -95,7 +96,17 @@ func (c Columns) CardBox(h Host) (lines []string, top, left int) {
 	}
 	top, width := h.Pane()
 	lines = shell.Dialog(labelOf(h, p.Field), body, width)
-	return lines, top, max(0, width-ansi.StringWidth(lines[0]))
+	left = max(0, width-ansi.StringWidth(lines[0]))
+	// where the list, whole, would not stand beside it, the card is shown only while it has the keyboard, over the list
+	if !c.InCard && left < c.listWidth(h) {
+		return nil, 0, 0
+	}
+	return lines, top, left
+}
+
+// listWidth gives the cells the list stands in, edges included, with its header and every line whole.
+func (c Columns) listWidth(h Host) int {
+	return ansi.StringWidth(shell.Dialog(h.Name()+" fields", c.listBody(h), math.MaxInt32)[0])
 }
 
 // The cells of a line of the columns dialog, after its box and a space: the label, then the type, then the sort, then
@@ -110,7 +121,7 @@ const (
 func (c Columns) Listed(h Host) []string { return h.Panel().Listed() }
 
 // Line draws a field's line in the columns dialog: its box, ticked where it shows, as a column or a group; its
-// label, dim where it is hidden, ⊘ after it while a filter on it holds rows back; its type, dim; its sort, ▲ or ▼, and its place among the keys while there are several, or a dim dot;
+// label, dim where it is hidden, ⊘ after it while a filter on it holds rows back; its type, dim; its sort, its place among the keys raised for ascending and lowered for descending, or a dim dot;
 // and its group's depth, or a dim dot, or nothing where it cannot group.
 func (c Columns) Line(h Host, id string) string {
 	p := h.Panel()
@@ -170,6 +181,18 @@ func (c Columns) rules(h Host) []int {
 // under the keyboard on the menu's color, dim while the card has the keyboard; and the screen line and column it is
 // drawn from: under the header's right end, its right edge against the card's left, or the pane's.
 func (c Columns) Box(h Host) (lines []string, top, left int) {
+	body := c.listBody(h)
+	top, width := h.Pane()
+	if card, _, left := c.CardBox(h); card != nil && left >= c.listWidth(h) {
+		width = left
+	}
+	lines = shell.Dialog(h.Name()+" fields", body, width)
+	return lines, top, max(0, width-ansi.StringWidth(lines[0]))
+}
+
+// listBody gives the list's lines: its heading, then each field's line, the rules among them, the one under the
+// keyboard marked.
+func (c Columns) listBody(h Host) []string {
 	body := []string{style.Off("  " + pane.Pad("field", LabelCells, false) + pane.Pad("type", TypeCells, false) +
 		pane.Pad("sort", SortCells, false) + "group")}
 	rules := c.rules(h)
@@ -186,12 +209,7 @@ func (c Columns) Box(h Host) (lines []string, top, left int) {
 		}
 		body = append(body, line)
 	}
-	top, width := h.Pane()
-	if card, _, left := c.CardBox(h); card != nil {
-		width = left
-	}
-	lines = shell.Dialog(h.Name()+" fields", body, width)
-	return lines, top, max(0, width-ansi.StringWidth(lines[0]))
+	return body
 }
 
 // Row gives the field a screen line of the columns dialog draws, as an index into the fields it lists, or -1 for
