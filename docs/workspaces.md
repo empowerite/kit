@@ -164,14 +164,15 @@ line in the dialog, which stays open.
 
 **Manage…**, after it, opens the workspaces' screen: every group a row, with whether it is a favorite, how many
 members it has, and the members. The app's menu, `=`, holds what it does to the group under the cursor, each a line
-that a plain click does and a key does with the menu closed, and each a `kit workspaces` command kittui runs: New
-Workspace… (`n`), a name and its repositories; Switch to It (`⏎`); Rename… (`r`); Add Members… (`a`), repositories and
-patterns; Add an Owner's Repositories… (`o`), a GitHub owner and a pattern, which runs `gh repo list` through
-`--from`; Add from a Command… (`c`); Remove Members… (`x`); Favorite or Unfavorite (`f`); and Delete… (`d`), which
-asks first. kit's line, when it refuses, stands in the action's dialog; when it is done, every screen's menu lists
-the groups as they are now, and a group renamed or deleted while it is shown is followed. Its title line has a crumb,
-↩ and the screen Manage… was chosen on, which a plain click or ⌫ goes back to, as a link's crumb does. A switch to
-another workspace drops every crumb, as the apps are made anew there.
+that a plain click does and a key does with the menu closed, and each a `kit workspaces` command kittui runs. It
+keeps the common ones: New Workspace… (`n`), a name and its repositories; Switch to It (`⏎`); and Favorite or
+Unfavorite (`f`). Its Workspace… line drops a menu of the rest down from itself: Rename… (`r`); Add Members… (`a`),
+repositories and patterns; Add an Owner's Repositories… (`o`), a GitHub owner and a pattern, which runs `gh repo list`
+through `--from`; Add from a Command… (`c`); Remove Members… (`x`); and Delete… (`d`), which asks first. Esc goes
+back to the app's menu. kit's line, when it refuses, stands in the action's dialog; when it is done, every screen's
+menu lists the groups as they are now, and a group renamed or deleted while it is shown is followed. Its title line has
+a crumb, ↩ and the screen Manage… was chosen on, which a plain click or ⌫ goes back to, as a link's crumb does. A
+switch to another workspace drops every crumb, as the apps are made anew there.
 
 ## Flow over a workspace in kittui
 

@@ -121,7 +121,7 @@ func TestWithNoGroupOnlyNewActs(t *testing.T) {
 	m, _ = drive(m, tea.KeyPressMsg{Code: '=', Text: "="})
 	v := view(m)
 	lines := strings.Split(v, "\n")
-	if !strings.Contains(v, Rename) || !strings.Contains(v, "╰") || len(lines) != 30 {
+	if !strings.Contains(v, Workspace) || !strings.Contains(v, "╰") || len(lines) != 30 {
 		t.Errorf("the menu over no group, %d lines:\n%s", len(lines), v)
 	}
 }
@@ -150,9 +150,11 @@ func TestNewTypesANameAndItsRepositoriesAndKitMakesTheGroup(t *testing.T) {
 func TestRenameIsDoneByPlainClicksAndFollowsTheGroup(t *testing.T) {
 	m, record := opened(t, listJSON)
 	m, _ = drive(m, left(2, 0))
-	x, y := lineAt(t, m, Rename)
+	x, y := lineAt(t, m, Folder+" "+Workspace)
 	m, _ = drive(m, left(x, y))
-	if !m.prompt.open || m.prompt.typed != "w" {
+	x, y = lineAt(t, m, Rename)
+	m, _ = drive(m, left(x, y))
+	if !m.prompt.open || m.prompt.typed != "w" || m.appMenu.Open || m.group.Open {
 		t.Fatalf("Rename… opened %+v", m.prompt)
 	}
 	m, _ = drive(m, tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl})
@@ -558,5 +560,46 @@ func TestTheWheelScrollsTheRowsAndLeavesTheCursor(t *testing.T) {
 		if n, _ := drive(m, append(before, turn(at, true))...); n.sheet.Table().Offset != 0 {
 			t.Errorf("%s: a turn scrolled to %d", name, n.sheet.Table().Offset)
 		}
+	}
+}
+
+// The app's menu keeps New Workspace…, Switch to It, and Favorite; Workspace… drops the group's menu down from its own
+// line with the rest. Esc goes back to the app's menu, = closes both, a key chooses, and a click off the group's menu
+// lands on the app's menu around it.
+func TestWorkspaceDropsTheGroupsMenuDownFromItsLine(t *testing.T) {
+	m, _ := opened(t, listJSON)
+	m, _ = drive(m, testkit.Press("="))
+	for _, name := range []string{Rename, Add, Owner, Command, Remove, DeleteOne} {
+		if strings.Contains(view(m), name) {
+			t.Errorf("the app's menu lists %q:\n%s", name, view(m))
+		}
+	}
+	x, y := lineAt(t, m, Folder+" "+Workspace)
+	m, _ = drive(m, left(x, y))
+	if !m.group.Open || !m.appMenu.Open {
+		t.Fatalf("Workspace… opened group %v, app %v", m.group.Open, m.appMenu.Open)
+	}
+	// its top edge is drawn on Workspace…'s line, its 📂 where that line's was, its first line under it
+	if gx, gy := lineAt(t, m, Folder); gx != x || gy != y {
+		t.Errorf("the group's menu hangs at %d,%d, Workspace… at %d,%d:\n%s", gx, gy, x, y, view(m))
+	}
+	if _, ry := lineAt(t, m, Rename); ry != y+1 {
+		t.Errorf("Rename… on line %d:\n%s", ry, view(m))
+	}
+	if m, _ = drive(m, testkit.Press("esc")); m.group.Open || !m.appMenu.Open {
+		t.Errorf("esc: group %v, app %v", m.group.Open, m.appMenu.Open)
+	}
+	m, _ = drive(m, left(x, y), testkit.Press("="))
+	if m.group.Open || m.appMenu.Open {
+		t.Errorf("=: group %v, app %v", m.group.Open, m.appMenu.Open)
+	}
+	m, _ = drive(m, testkit.Press("="), left(x, y), testkit.Press("x"))
+	if m.group.Open || m.appMenu.Open || !strings.Contains(view(m), "Remove from") {
+		t.Errorf("x in the group's menu:\n%s", view(m))
+	}
+	m, _ = drive(m, testkit.Press("esc"), testkit.Press("="), left(x, y))
+	hx, hy := lineAt(t, m, "Help")
+	if _, asked := drive(m, left(hx, hy)); len(asked) != 1 || asked[0] != (shell.SwitchMsg{Screen: shell.Help}) {
+		t.Errorf("a click on Help past the group's menu asked %#v", asked)
 	}
 }

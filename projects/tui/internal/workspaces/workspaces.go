@@ -1,10 +1,11 @@
 // Package workspaces is the workspaces' screen, which the workspace menu's Manage… opens: every group kit keeps, as kit
 // workspaces --json lists them, a row each on a table, with whether it is a favorite, how many members it has, and
-// the members. The actions are the app's menu's own lines, each on the row under the cursor but New Workspace…, and
-// each a kit workspaces command kittui runs, never writing the file itself: New Workspace…, Rename…, Add Members…,
-// which takes repositories and patterns, Add an Owner's Repositories…, which lists a GitHub owner's with gh, a pattern
-// keeping those it matches, Add from a Command…, whose every line is a repository, Remove Members…, Favorite or
-// Unfavorite, Switch to It, and Delete…. An action that wants an answer, or that cannot be undone, opens a dialog
+// the members. The actions are in the app's menu, each on the row under the cursor but New Workspace…, and each a kit
+// workspaces command kittui runs, never writing the file itself. The app's menu keeps the common ones as its own lines,
+// New Workspace…, Switch to It, and Favorite or Unfavorite, and its Workspace… line drops the group's menu down from
+// itself with the rest: Rename…, Add Members…, which takes repositories and patterns, Add an Owner's Repositories…,
+// which lists a GitHub owner's with gh, a pattern keeping those it matches, Add from a Command…, whose every line is a
+// repository, Remove Members…, and Delete…; esc there goes back to the app's menu. An action that wants an answer, or that cannot be undone, opens a dialog
 // first; kit's line, when it refuses, stands there. When kit has done it, what it said stands in place of the keys,
 // the groups are read again, and kittui asks kit for the workspace again, so every screen's workspace menu lists the
 // groups as they are now.
@@ -26,6 +27,8 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
@@ -64,6 +67,9 @@ const (
 	Disfavor  = "Unfavorite"
 	SwitchTo  = "Switch to It"
 	DeleteOne = "Delete…"
+	// Workspace is the app menu's line that drops the group's menu down, with the actions on the group under the
+	// cursor that the app's menu keeps off its own lines
+	Workspace = "Workspace…"
 )
 
 // The actions' glyphs, each two cells wide, as every glyph in a menu is.
@@ -78,6 +84,7 @@ const (
 	Go     = "🔀"
 	Trash  = "🚮"
 	NoStar = "🌑"
+	Folder = "📂"
 )
 
 // listedMsg is kit's answer to the read of the groups: its number, and the list, or why there is none.
@@ -108,6 +115,7 @@ type Model struct {
 	width    int
 	height   int
 	appMenu  shell.Menu
+	group    shell.Dropdown // the group's menu, which Workspace… drops down over the app's menu, open
 	books    shell.BooksMenu
 	prompt   prompt
 	search   shell.Search // the search, every screen's, which narrows the rows to its text
@@ -251,8 +259,9 @@ func (m Model) current() (kit.ListedGroup, bool) {
 	return m.list.Workspaces[k], true
 }
 
-// actions gives the app's menu's own lines, in its order, each with its key: New Workspace… first, then those on the
-// group under the cursor, Favorite or Unfavorite as it is one or not.
+// actions gives the app's menu's own lines, in its order, each with its key: New Workspace… first, then the common ones
+// on the group under the cursor, Favorite or Unfavorite as it is one or not, then Workspace…, which drops the group's
+// menu down with the rest.
 func (m Model) actions() []shell.Item {
 	star := shell.Item{Glyph: Star, Name: Favorite, Keys: "F"}
 	if g, ok := m.current(); ok && g.Favorite {
@@ -261,28 +270,55 @@ func (m Model) actions() []shell.Item {
 	return []shell.Item{
 		{Glyph: Write, Name: New, Keys: "N"},
 		{Glyph: Go, Name: SwitchTo, Keys: "⏎"},
+		star,
+		{Glyph: Folder, Name: Workspace},
+	}
+}
+
+// groupActions gives the group's menu's lines, in its order, each with its key, which does the same with every menu
+// closed: the actions on the group under the cursor that the app's menu keeps off its own lines.
+func (m Model) groupActions() []shell.Item {
+	return []shell.Item{
 		{Glyph: Letter, Name: Rename, Keys: "R"},
 		{Glyph: Plus, Name: Add, Keys: "A"},
 		{Glyph: Octo, Name: Owner, Keys: "O"},
 		{Glyph: Shell, Name: Command, Keys: "C"},
 		{Glyph: Minus, Name: Remove, Keys: "X"},
-		star,
 		{Glyph: Trash, Name: DeleteOne, Keys: "D"},
 	}
 }
 
-// menu gives the app's menu with the screen's own lines, those on a group dim while no group is under the cursor, or
-// kit runs an action.
-func (m Model) menu() shell.Menu {
-	menu := m.appMenu
-	menu.Own, menu.Dim = m.actions(), nil
+// dim gives the names of the actions, in either menu, that do nothing now: all of them while kit runs one, and all but
+// New Workspace… while no group is under the cursor.
+func (m Model) dim() []string {
 	_, on := m.current()
-	for _, a := range menu.Own {
+	var dim []string
+	for _, a := range slices.Concat(m.actions(), m.groupActions()) {
 		if (a.Name != New && !on) || m.prompt.busy {
-			menu.Dim = append(menu.Dim, a.Name)
+			dim = append(dim, a.Name)
 		}
 	}
+	return dim
+}
+
+// menu gives the app's menu with the screen's own lines, those dim that do nothing now.
+func (m Model) menu() shell.Menu {
+	menu := m.appMenu
+	menu.Own, menu.Dim = m.actions(), m.dim()
 	return menu
+}
+
+// groupEnabled says whether the group's menu's line k does something now.
+func (m Model) groupEnabled(k int) bool { return !slices.Contains(m.dim(), m.groupActions()[k].Name) }
+
+// groupBox gives the group's menu's lines and the column its left edge is drawn at, and the screen line its top edge
+// is drawn on: Workspace…'s line in the app's menu, its 📂 where that line's is, so it drops down from the line.
+func (m Model) groupBox() (lines []string, left, top int) {
+	items := m.menu().Items()
+	at := slices.IndexFunc(items, func(i shell.Item) bool { return i.Name == Workspace })
+	_, appLeft := shell.Box(items, func(int) bool { return true }, -1, shell.App, shell.At, m.width)
+	lines, left = shell.Box(m.groupActions(), m.groupEnabled, m.group.At, Folder, appLeft+2, m.width)
+	return lines, left, shell.Top + 1 + at
 }
 
 // byKey gives the action a key does with the menu closed, "" for none.
@@ -290,7 +326,7 @@ func (m Model) byKey(press string) string {
 	if press == "enter" {
 		return SwitchTo
 	}
-	for _, a := range m.actions() {
+	for _, a := range slices.Concat(m.actions(), m.groupActions()) {
 		if shell.Press(a.Keys) == press && press != "" {
 			return a.Name
 		}
@@ -303,7 +339,7 @@ var owner = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]*$`)
 
 // do does an action: one that wants an answer, or cannot be undone, opens its prompt; the others run kit at once.
 func (m Model) do(action string) (Model, tea.Cmd) {
-	if slices.Contains(m.menu().Dim, action) {
+	if slices.Contains(m.dim(), action) {
 		return m, nil
 	}
 	g, _ := m.current()
@@ -445,10 +481,24 @@ func (m Model) chose(c shell.Choice) (Model, tea.Cmd) {
 		return m, m.quit()
 	case c.Screen != "":
 		return m, shell.Switch(c.Screen)
+	case c.Own == Workspace:
+		// the app's menu stays open under the group's menu, Workspace… under the keyboard, for esc to go back to
+		m.appMenu.Open = true
+		m.group = m.group.Opened(m.groupActions(), m.groupEnabled)
+		return m, nil
 	case c.Own != "":
 		return m.do(c.Own)
 	}
 	return m, nil
+}
+
+// grouped does what a line of the group's menu, k, asks, -1 for none: once one is chosen, the app's menu closes too.
+func (m Model) grouped(k int) (Model, tea.Cmd) {
+	if k < 0 {
+		return m, nil
+	}
+	m.appMenu.Open = false
+	return m.do(m.groupActions()[k].Name)
 }
 
 // key takes a key press: the quitting keys; an open prompt's, menu's, or workspace menu's; = and -; an action's key;
@@ -466,6 +516,14 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		var words []string
 		m.prompt, words = m.prompt.key(k)
 		return m, m.asked(words)
+	case m.group.Open && k.String() == "=":
+		m.group.Open, m.appMenu.Open = false, false
+		return m, nil
+	case m.group.Open:
+		// esc closes the group's menu alone, back to the app's
+		var at int
+		m.group, at = m.group.Key(k, m.groupActions(), m.groupEnabled)
+		return m.grouped(at)
 	case m.appMenu.Open:
 		menu, c := m.menu().Key(k)
 		m.appMenu.Dropdown = menu.Dropdown
@@ -520,6 +578,17 @@ func (m Model) click(c tea.MouseClickMsg) (tea.Model, tea.Cmd) {
 		var words []string
 		m.prompt, words = m.prompt.click(c, m.height, m.width)
 		return m, m.asked(words)
+	case m.group.Open:
+		box, l, top := m.groupBox()
+		var at int
+		m.group, at = m.group.Click(c.X, c.Y, top, l, ansi.StringWidth(box[0]), m.groupActions(), m.groupEnabled)
+		if m.group.Open || at >= 0 {
+			return m.grouped(at)
+		}
+		// a click off the group's menu closes it, and the app's menu, still drawn around it, takes the click
+		menu, choice := m.menu().Click(c.X, c.Y, m.width)
+		m.appMenu.Dropdown = menu.Dropdown
+		return m.chose(choice)
 	case m.appMenu.Open:
 		menu, choice := m.menu().Click(c.X, c.Y, m.width)
 		m.appMenu.Dropdown = menu.Dropdown
@@ -605,6 +674,10 @@ func (m Model) View() tea.View {
 		lines = append(lines, "")
 	}
 	lines = m.menu().Overlay(lines, m.width)
+	if m.group.Open {
+		box, l, top := m.groupBox()
+		lines = shell.Over(lines, box, top, l)
+	}
 	lines = m.books.Overlay(lines, m.booksAt(), m.width)
 	lines = m.prompt.overlay(lines, m.width)
 	bottom := m.keys().Line(m.width)
