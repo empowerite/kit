@@ -401,7 +401,7 @@ git:tidy() {
 # A reference no declared tracker reads, or an interval that is no positive number, is a usage error, 2. ctrl-c,
 # SIGINT, stops the wait, removing nothing, and the command exits 130.
 git:tidy-wait() {
-  local ref key interval=${KIT_TIDY_WAIT_SECONDS:-30} row path detached branch desk state failures=0
+  local ref key interval=${KIT_TIDY_WAIT_SECONDS:-30} row path detached branch desk state failures=0 kept
   local -a worktrees paths=() branches=()
   use tracker
   ref=$(tracker:normal "$1") || return $?
@@ -462,7 +462,8 @@ git:tidy-wait() {
           trap - INT
           ok "the change on ${branch} merged; sweeping its worktree"
           git:tidy --only="${path}" || return $?
-          if git worktree list --porcelain | grep --quiet --line-regexp --fixed-strings "worktree ${path}"
+          kept=$(git worktree list --porcelain) || return 1
+          if grep --quiet --line-regexp --fixed-strings "worktree ${path}" <<<"${kept}"
           then
             error "the change on ${branch} merged, and kit tidy kept ${path}; see above"
             return 1
