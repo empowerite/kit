@@ -1,7 +1,7 @@
 // Package tabs is the tab bar kit flow and kit welcome share: three lines, as tabs on folders. Each tab's part starts
 // with a cell of its own, which holds its number on the line above; then a space, its glyph, a space, and its name on
 // the middle line, the stale dot's cell, a space, and its count, and the menu's glyph at the tab's end on the selected
-// tab of a bar with menus; then a cell between it and the next. Each line over a tab starts with a half line, ╶, apart
+// tab, as every bar has the tab menu; then a cell between it and the next. Each line over a tab starts with a half line, ╶, apart
 // from the number before it. Each tab but the selected one has a dim border: a line from its number over it to ╮ in
 // that cell, │ under that, and ╰ under that, out to the right over the line under the tab, or a half line, ╵, on the
 // last tab; the tab before the selected
@@ -68,8 +68,8 @@ type Tab struct {
 // screen's width, and the screen line it starts on, which a click is matched against. Reserve is the cells a tab's
 // count is laid out for at least, so a count that grows, as one that loads, does not move the tabs; Reserves is the
 // same for each tab, by index, beside it.
-// Menus says whether the selected tab draws Menu after its count; every tab keeps the room for it, so moving along
-// the bar moves nothing. MenuOpen says whether the tab's menu is open: the glyph is then in the menu's color, and the
+// The selected tab draws Menu after its count, as every bar has the tab menu; every tab keeps the room for it, so
+// moving along the bar moves nothing. MenuOpen says whether the tab's menu is open: the glyph is then in the menu's color, and the
 // count blank. Joined says a line runs
 // down from the bar's last column, as a rule beside what is under the bar: the last cell of the bar's last line turns
 // down into it. Color is what the selected tab, and the line under the others, are drawn in, a 256-color number, as a
@@ -87,7 +87,6 @@ type Bar struct {
 	Row      int
 	Reserve  int
 	Reserves []int
-	Menus    bool
 	MenuOpen bool
 	Joined   bool
 	Color    string
@@ -148,8 +147,8 @@ func (b Bar) Update(msg tea.Msg) (Bar, bool) {
 }
 
 // Keys gives the bar's segment of the keys bar: while it has the keyboard, tab and shift-tab move along it, and down, when
-// it says what down enters, enters it; a tab's number selects it from anywhere; and where the bar has menus, : or ;
-// drops the selected tab's down, as the screen takes it.
+// it says what down enters, enters it; a tab's number selects it from anywhere; and : or ; drops the selected tab's
+// menu down, as the screen takes it.
 func (b Bar) Keys(down string) shell.Segment {
 	var s shell.Segment
 	if len(b.Tabs) == 0 {
@@ -162,9 +161,7 @@ func (b Bar) Keys(down string) shell.Segment {
 		}
 	}
 	s.Bindings = append(s.Bindings, shell.Bind(fmt.Sprintf("1-%d", min(len(b.Tabs), 9)), "jump", shell.Digits...))
-	if b.Menus {
-		s.Bindings = append(s.Bindings, shell.Bind(":", "tab menu", ":", ";"))
-	}
+	s.Bindings = append(s.Bindings, shell.Bind(":", "tab menu", ":", ";"))
 	return s
 }
 
@@ -197,7 +194,7 @@ func Marker(i int, selected bool) string {
 
 // label gives a tab's label on the middle line, as three parts: its glyph and a space, when it has one, and its name,
 // in the accent when selected; its count, dim, or bold and red when it wants attention; and the menu's glyph on the
-// selected tab, when the bar has menus, its count blank while the menu is open. Its number is on the line above.
+// selected tab, its count blank while the menu is open. Its number is on the line above.
 func (b Bar) label(i int) (name, count, menu string) {
 	t := b.Tabs[i]
 	if t.Glyph != "" {
@@ -213,7 +210,7 @@ func (b Bar) label(i int) (name, count, menu string) {
 	if b.alert(i) {
 		count = style.Loss(t.Count)
 	}
-	if b.Menus && i == b.Selected {
+	if i == b.Selected {
 		menu = mark(Menu) // bold, as the tab's name is, so the narrow : reads as a button
 		if b.MenuOpen {
 			// the open menu hangs from the glyph, and the count would show beside its edge: its cells stay, blank
@@ -279,18 +276,15 @@ func (b Bar) reserve(i int) int {
 }
 
 // wants gives the cells a tab's label takes at least: its name; the stale dot's cell, a space, and its count, or its
-// reserve when the count is narrower; room for a space and the menu's glyph on every tab when the bar has menus; and
-// a space after them.
+// reserve when the count is narrower; room for a space and the menu's glyph on every tab; and a
+// space after them.
 func (b Bar) wants(i int) int {
 	name, _, _ := b.label(i)
 	n := ansi.StringWidth(name)
 	if count := ansi.StringWidth(b.Tabs[i].Count); count > 0 || b.reserve(i) > 0 {
 		n += 2 + max(count, b.reserve(i))
 	}
-	if b.Menus {
-		n += 1 + ansi.StringWidth(Menu)
-	}
-	return n + 1
+	return n + 1 + 1 + ansi.StringWidth(Menu)
 }
 
 // Gutter is the cells before the bar on each of its lines, which ◃ stands in the second of when tabs are hidden on
@@ -541,9 +535,9 @@ func (b Bar) dim(s string) string {
 }
 
 // MenuAt gives the screen column the selected tab's menu glyph is drawn at on the bar's middle line, or -1 when the bar
-// has no menus or the view hides the glyph, as past a triangle.
+// has no tabs or the view hides the glyph, as past a triangle.
 func (b Bar) MenuAt() int {
-	if !b.Menus || len(b.Tabs) == 0 {
+	if len(b.Tabs) == 0 {
 		return -1
 	}
 	l, w := b.layout(), b.screen()
@@ -580,9 +574,9 @@ func (b Bar) StaleAt(x, y int) int {
 }
 
 // OnSelected says whether a click at x, y is on the selected tab, anywhere on its part of the bar, on any of the bar's
-// lines, while the bar draws the menus' glyph: a click there drops the tab's menu down, as one on the glyph does.
+// lines: a click there drops the tab's menu down, as one on the glyph does.
 func (b Bar) OnSelected(x, y int) bool {
-	return b.Menus && len(b.Tabs) > 0 && y >= b.Row && y < b.Row+Height && b.hit(x) == b.Selected
+	return len(b.Tabs) > 0 && y >= b.Row && y < b.Row+Height && b.hit(x) == b.Selected
 }
 
 // hit gives the tab a column of the screen falls on: the one whose part covers it. A triangle, which Update takes

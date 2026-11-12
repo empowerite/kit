@@ -101,7 +101,7 @@ func (m Model) bottom() string {
 // panel have it, its view where it was left, the selected stage's group's color, and a dot on each stage that is stale.
 func (m Model) bar() tabs.Bar {
 	b := tabs.Bar{Selected: m.stage, Focused: !m.inRows && !m.inPanel && !m.onPreset, Scroll: m.barView,
-		Width: m.width, Row: 1, Menus: true, MenuOpen: m.tabMenu.Open}
+		Width: m.width, Row: 1, MenuOpen: m.tabMenu.Open}
 	if len(m.stages) > 0 {
 		b.Color = stageColors[m.stages[m.stage].name]
 	}

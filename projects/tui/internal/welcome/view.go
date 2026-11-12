@@ -76,7 +76,7 @@ func (m Model) View() tea.View {
 // when a check failed or kit refused them, the keyboard on it unless the pane has it, its view where it was left, and
 // the selected tab's :, which drops its menu down.
 func (m Model) bar() tabs.Bar {
-	b := tabs.Bar{Selected: m.step, Focused: !m.inPane, Scroll: m.barView, Width: m.width, Row: 1, Menus: true,
+	b := tabs.Bar{Selected: m.step, Focused: !m.inPane, Scroll: m.barView, Width: m.width, Row: 1,
 		MenuOpen: m.tabMenu.Open}
 	for i, t := range m.tabs {
 		count := m.count(i)
