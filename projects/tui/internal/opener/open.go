@@ -536,13 +536,13 @@ func (d Dialog) body(inner int) []openLine {
 	}
 	start, end, above, below := pane.Window(len(list)-head, openRows, d.Top)
 	if above {
-		lines = append(lines, openLine{text: style.Off(pane.Above(start))})
+		lines = append(lines, openLine{text: pane.Above(start)})
 	}
 	for k := start; k < end; k++ {
 		shown(head + k)
 	}
 	if below {
-		lines = append(lines, openLine{text: style.Off(pane.More(len(list) - head - end))})
+		lines = append(lines, openLine{text: pane.More(len(list) - head - end)})
 	}
 	switch {
 	case d.finding:

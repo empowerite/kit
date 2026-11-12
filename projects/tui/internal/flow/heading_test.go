@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/table"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
@@ -282,7 +283,7 @@ func TestTheHeadingsOfOneValueAreFrozenOverTheHeader(t *testing.T) {
 	// down to the last row: the rows scroll under the header, which stays, under github's heading
 	m = drive(m, down, down, down, down, down, down, down, down, down)
 	if s := m.stages[0]; s.Offset == 0 || lines(m)[m.rowsTop()] != github || m.headerTop() != m.rowsTop()+2 ||
-		!strings.Contains(lines(m)[m.headerTop()+2], "above") {
+		!strings.Contains(lines(m)[m.headerTop()+2], pane.Up) {
 		t.Fatalf("scrolled to the last row, offset %d:\n%s", s.Offset, view(m))
 	}
 	// a click on github's ▾, frozen, folds it, and the header goes, as no row shows

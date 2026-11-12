@@ -19,6 +19,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/fix"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/source"
 	"github.com/empowerite/kit/projects/tui/internal/style"
@@ -496,25 +497,25 @@ func TestAPageScrollsWithWhatIsHiddenCounted(t *testing.T) {
 		t.Fatal(m.step)
 	}
 	all := len(m.pageLines(ourTeam))
-	pane := func() []string { return strings.Split(view(m), "\n")[4:10] }
-	if got := pane(); got[0] != "   Our team" || got[5] != "   … "+strconv.Itoa(all-5)+" more" {
+	shown := func() []string { return strings.Split(view(m), "\n")[4:10] }
+	if got := shown(); got[0] != "   Our team" || got[5] != "   "+ansi.Strip(pane.More(all-5)) {
 		t.Fatalf("top:\n%s", strings.Join(got, "\n"))
 	}
 	// the first down gives the page the keyboard, the next scrolls it
 	m = drive(m, down, down)
-	if got := pane(); got[0] != "   … 1 above" || got[5] != "   … "+strconv.Itoa(all-5)+" more" {
+	if got := shown(); got[0] != "   ⬆₁" || got[5] != "   "+ansi.Strip(pane.More(all-5)) {
 		t.Errorf("one down:\n%s", strings.Join(got, "\n"))
 	}
 	m = drive(m, pgdown, pgdown, pgdown, pgdown, pgdown, pgdown)
-	if got := pane(); !strings.HasPrefix(got[0], "   … ") || !strings.Contains(got[5], "kit flow desk") {
+	if got := shown(); !strings.HasPrefix(got[0], "   "+pane.Up) || !strings.Contains(got[5], "kit flow desk") {
 		t.Errorf("the end:\n%s", strings.Join(got, "\n"))
 	}
 	if m = drive(m, pgup, pgup, pgup, pgup, pgup, up); m.offsets[ourTeam] != 0 {
 		t.Errorf("back to the top: offset %d", m.offsets[ourTeam])
 	}
 	// end scrolls a page to its last line, and home back to its first
-	if m = drive(m, down, press(tea.KeyEnd)); !strings.Contains(pane()[5], "kit flow desk") {
-		t.Errorf("end:\n%s", strings.Join(pane(), "\n"))
+	if m = drive(m, down, press(tea.KeyEnd)); !strings.Contains(shown()[5], "kit flow desk") {
+		t.Errorf("end:\n%s", strings.Join(shown(), "\n"))
 	}
 	if m = drive(m, press(tea.KeyHome), up); m.offsets[ourTeam] != 0 {
 		t.Errorf("home: offset %d", m.offsets[ourTeam])
@@ -528,7 +529,7 @@ func TestAPageScrollsWithWhatIsHiddenCounted(t *testing.T) {
 
 func TestTheCursorsRowStaysInViewOnAShortScreen(t *testing.T) {
 	m, _ := atChains(t, tea.WindowSizeMsg{Width: 120, Height: 10}, esc, tabKey, down, down)
-	if got := view(m); !strings.Contains(got, " ▸ ❌ kit check finds") || !strings.Contains(got, "above") {
+	if got := view(m); !strings.Contains(got, " ▸ ❌ kit check finds") || !strings.Contains(got, pane.Up) {
 		t.Errorf("the cursor's row is hidden:\n%s", got)
 	}
 }

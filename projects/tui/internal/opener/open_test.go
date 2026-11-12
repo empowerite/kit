@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
@@ -184,8 +185,8 @@ func drawn(d Dialog) string { return ansi.Strip(strings.Join(d.placed(30, 100).L
 // keep the highlight in view, saying how many folders it hides above and below; ⇞ and ⇟ move it by a page.
 func TestOpenMovesAHighlightOverTheFoldersAndScrollsToIt(t *testing.T) {
 	d := newOpen(many(t, 20), "/nowhere")
-	if v := drawn(d); !strings.Contains(v, Folder+" f00/") || !strings.Contains(v, "… 12 more") ||
-		strings.Contains(v, "above") {
+	if v := drawn(d); !strings.Contains(v, Folder+" f00/") || !strings.Contains(v, "⬇¹²") ||
+		strings.Contains(v, pane.Up) {
 		t.Errorf("at the top:\n%s", v)
 	}
 	lit := func(d Dialog, name string) bool {
@@ -217,8 +218,8 @@ func TestOpenMovesAHighlightOverTheFoldersAndScrollsToIt(t *testing.T) {
 	for range 9 {
 		d, _ = d.keyed(key("down"))
 	}
-	if v := drawn(d); !lit(d, "f09") || strings.Contains(v, " f00/") || !strings.Contains(v, "above") ||
-		!strings.Contains(v, "more") {
+	if v := drawn(d); !lit(d, "f09") || strings.Contains(v, " f00/") || !strings.Contains(v, pane.Up) ||
+		!strings.Contains(v, pane.Down) {
 		t.Errorf("down to f09:\n%s", v)
 	}
 	if v := drawn(d); !strings.Contains(v, Folder+" ../") {
@@ -231,13 +232,13 @@ func TestOpenMovesAHighlightOverTheFoldersAndScrollsToIt(t *testing.T) {
 	for range 5 {
 		d, _ = d.keyed(tea.KeyPressMsg{Code: tea.KeyPgDown})
 	}
-	if v := drawn(d); d.At != 21 || !lit(d, "f19") || strings.Contains(v, "more") {
+	if v := drawn(d); d.At != 21 || !lit(d, "f19") || strings.Contains(v, pane.Down) {
 		t.Errorf("pages to the end: %d\n%s", d.At, v)
 	}
 	for range 5 {
 		d, _ = d.keyed(tea.KeyPressMsg{Code: tea.KeyPgUp})
 	}
-	if v := drawn(d); d.At != 1 || strings.Contains(v, "above") {
+	if v := drawn(d); d.At != 1 || strings.Contains(v, pane.Up) {
 		t.Errorf("pages to the top: %d\n%s", d.At, v)
 	}
 }
@@ -265,19 +266,19 @@ func TestOpenWheelScrollsTheFolders(t *testing.T) {
 	d := newOpen(many(t, 20), "/nowhere")
 	down := tea.MouseWheelMsg{Button: tea.MouseWheelDown}
 	d = d.Wheel(down, 30, 100)
-	if v := drawn(d); strings.Contains(v, " f00/") || !strings.Contains(v, "above") || d.At != 0 {
+	if v := drawn(d); strings.Contains(v, " f00/") || !strings.Contains(v, pane.Up) || d.At != 0 {
 		t.Errorf("a turn down:\n%s", v)
 	}
 	for range 10 {
 		d = d.Wheel(down, 30, 100)
 	}
-	if v := drawn(d); !strings.Contains(v, " f19/") || strings.Contains(v, "more") {
+	if v := drawn(d); !strings.Contains(v, " f19/") || strings.Contains(v, pane.Down) {
 		t.Errorf("turned to the end:\n%s", v)
 	}
 	for range 10 {
 		d = d.Wheel(tea.MouseWheelMsg{Button: tea.MouseWheelUp}, 30, 100)
 	}
-	if v := drawn(d); !strings.Contains(v, " f00/") || strings.Contains(v, "above") {
+	if v := drawn(d); !strings.Contains(v, " f00/") || strings.Contains(v, pane.Up) {
 		t.Errorf("turned to the top:\n%s", v)
 	}
 }
@@ -437,7 +438,7 @@ func TestOpenListsEightFoldersAndCountsTheRest(t *testing.T) {
 	}
 	d := newOpen(folders(t, names...), "/nowhere")
 	v := ansi.Strip(strings.Join(d.Overlay(make([]string, 30), 100), "\n"))
-	if !strings.Contains(v, Folder+" fh/") || strings.Contains(v, Folder+" fi/") || !strings.Contains(v, "… 3 more") {
+	if !strings.Contains(v, Folder+" fh/") || strings.Contains(v, Folder+" fi/") || !strings.Contains(v, "⬇³") {
 		t.Errorf("drawn:\n%s", v)
 	}
 }

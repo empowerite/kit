@@ -105,9 +105,9 @@ func Layout(spec syntax.Spec, fields []Field, o Options) (content string, header
 
 // window clips a form to the height: the header stays, and the lines under it are the window that shows the focused
 // lines, from their first when they all fit, else from their first still, and the line at, a list's cursor, always.
-// A line in dim says how many lines the window hides above it, and one how many it hides below, each in a line's
-// place. A height of zero clips nothing.
-func window(content string, height, header, first, last, at int, dim func(string) string) string {
+// A line says how many lines the window hides above it, and one how many it hides below, as pane.Above and pane.More
+// draw them, each in a line's place. A height of zero clips nothing.
+func window(content string, height, header, first, last, at int) string {
 	if height <= 0 {
 		return content
 	}
@@ -124,11 +124,11 @@ func window(content string, height, header, first, last, at int, dim func(string
 	}
 	shown := lines[:header:header]
 	if s.Above {
-		shown = append(shown, strings.Repeat(" ", gutter)+dim(pane.Above(s.Start)))
+		shown = append(shown, strings.Repeat(" ", gutter)+pane.Above(s.Start))
 	}
 	shown = append(shown, body[s.Start:s.End]...)
 	if s.Below {
-		shown = append(shown, strings.Repeat(" ", gutter)+dim(pane.More(len(body)-s.End)))
+		shown = append(shown, strings.Repeat(" ", gutter)+pane.More(len(body)-s.End))
 	}
 	return strings.Join(shown, "\n") + "\n"
 }

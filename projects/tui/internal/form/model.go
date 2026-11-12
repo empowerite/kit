@@ -219,7 +219,7 @@ func (m Model) View() tea.View {
 	if m.height > 0 {
 		room = max(1, m.height-4) // the menu bar and its rule over the form, and the gap and the status bar under it
 	}
-	lines := strings.Split(strings.TrimSuffix(window(content, room, header, first, last, at, live.Dim), "\n"), "\n")
+	lines := strings.Split(strings.TrimSuffix(window(content, room, header, first, last, at), "\n"), "\n")
 	lines = append([]string{m.menuBar().Line(m.width), shell.RuleLine(m.width, "")}, lines...)
 	lines = m.appMenu.Overlay(lines, m.width)
 	lines = m.books.Overlay(lines, m.menuBar().WorkspaceAt(), m.width)
@@ -914,7 +914,7 @@ func (m Model) drawList(b *strings.Builder, f Field, indent string) int {
 	span := pane.Frame(len(rows), listWindow, m.cursor-4, m.cursor, m.cursor)
 	start, end, at := span.Start, span.End, -1
 	if span.Above {
-		b.WriteString(indent + style.Off(pane.Above(start)) + "\n")
+		b.WriteString(indent + pane.Above(start) + "\n")
 	}
 	widest := 0
 	for _, row := range rows[start:end] {
@@ -949,7 +949,7 @@ func (m Model) drawList(b *strings.Builder, f Field, indent string) int {
 		b.WriteString(indent[:len(indent)-2] + lead + mark + value + "  " + style.Off(pane.Clip(row.Description, room)) + "\n")
 	}
 	if span.Below {
-		b.WriteString(indent + style.Off(pane.More(len(rows)-end)) + "\n")
+		b.WriteString(indent + pane.More(len(rows)-end) + "\n")
 	}
 	glyphs := ""
 	if named := legend(all, f.Values, planned); states && named != "" {

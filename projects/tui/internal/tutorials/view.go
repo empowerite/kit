@@ -331,7 +331,7 @@ func (m Model) grid(bands []band) []string {
 	if m.top() > 0 {
 		above := ""
 		if n := count(bands[:m.offset]); n > 0 {
-			above = lead + style.Off(pane.Above(n))
+			above = lead + pane.Above(n)
 		}
 		out = append(out, above)
 	}
@@ -354,7 +354,7 @@ func (m Model) grid(bands []band) []string {
 		}
 	}
 	if below := count(bands[end:]); below > 0 {
-		out = append(out, lead+style.Off(pane.More(below)))
+		out = append(out, lead+pane.More(below))
 	}
 	return out
 }

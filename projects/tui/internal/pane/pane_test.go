@@ -46,7 +46,7 @@ func TestAtGivesTheLineLinesDrawsAtEachPlace(t *testing.T) {
 				drawn := Lines(all, o, h, "", "")
 				for r := -1; r <= h; r++ {
 					want := -1
-					if r >= 0 && r < len(drawn) && !strings.HasPrefix(ansi.Strip(drawn[r]), "…") {
+					if r >= 0 && r < len(drawn) && !strings.HasPrefix(drawn[r], Up) && !strings.HasPrefix(drawn[r], Down) {
 						want, _ = strconv.Atoi(drawn[r])
 					}
 					if got := At(n, h, o, r); got != want {
@@ -90,12 +90,11 @@ func TestTheWindowFitsEveryHeight(t *testing.T) {
 func TestLinesSayWhatIsHiddenOrPinTheHead(t *testing.T) {
 	all := []string{"a", "b", "c", "d", "e", "f", "g", "h"}
 	got := Lines(all, 3, 4, "", "  ")
-	if len(got) != 4 || !strings.Contains(got[0], "… 3 above") || got[1] != "d" || got[2] != "e" ||
-		!strings.Contains(got[3], "… 3 more") || !strings.HasPrefix(got[0], "  ") {
+	if len(got) != 4 || got[0] != "  "+Above(3) || got[1] != "d" || got[2] != "e" || got[3] != "  "+More(3) {
 		t.Errorf("Lines from 3 in 4: %q", got)
 	}
 	if got := Lines(all, 3, 4, "head", "  "); got[0] != "head" {
-		t.Errorf("a head does not take the place of the … above: %q", got)
+		t.Errorf("a head does not take the place of Above: %q", got)
 	}
 	if got := Lines(all[:2], 0, 4, "head", "  "); !slices.Equal(got, all[:2]) {
 		t.Errorf("lines that fit are not shown as they are: %q", got)
@@ -140,7 +139,7 @@ func TestAFrameHoldsTheRowAndItsLinesNeverGrowTheWindow(t *testing.T) {
 }
 
 func TestTheHiddenLinesAreCounted(t *testing.T) {
-	if Above(3) != "… 3 above" || More(2) != "… 2 more" {
+	if Above(3) != Up+style.Off("₃") || More(12) != Down+style.Off("¹²") {
 		t.Errorf("Above and More: %q %q", Above(3), More(2))
 	}
 }

@@ -13,6 +13,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
@@ -103,14 +104,14 @@ func TestTheCursorScrollsThePane(t *testing.T) {
 		}
 	}
 	whole(0)
-	if !strings.Contains(view(m), "… 6 more") || strings.Contains(view(m), "above") {
+	if !strings.Contains(view(m), "⬇⁶") || strings.Contains(view(m), pane.Up) {
 		t.Errorf("at the top:\n%s", view(m))
 	}
 	for k := 1; k < 8; k++ {
 		m = drive(m, down)
 		whole(k)
 	}
-	if !strings.Contains(view(m), "… 6 above") || strings.Contains(view(m), "more") {
+	if !strings.Contains(view(m), "⬆₆") || strings.Contains(view(m), pane.Down) {
 		t.Errorf("at the bottom:\n%s", view(m))
 	}
 	for k := 6; k >= 0; k-- {
@@ -126,8 +127,8 @@ func TestTheCursorScrollsThePane(t *testing.T) {
 		t.Errorf("at 60×8:\n%s", view(m))
 	}
 	// at 60×20, a card at a time
-	if m = drive(m, at60); m.shownUntil(m.bands(), m.offset)-m.offset != 1 || !strings.Contains(view(m), "… 2 above") ||
-		!strings.Contains(view(m), "… 5 more") {
+	if m = drive(m, at60); m.shownUntil(m.bands(), m.offset)-m.offset != 1 || !strings.Contains(view(m), "⬆₂") ||
+		!strings.Contains(view(m), "⬇⁵") {
 		t.Errorf("at 60×20, from band %d:\n%s", m.offset, view(m))
 	}
 }

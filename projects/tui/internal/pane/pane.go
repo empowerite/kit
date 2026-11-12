@@ -4,8 +4,8 @@
 package pane
 
 import (
-	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/x/ansi"
@@ -54,8 +54,8 @@ func At(n, h, o, r int) int {
 	return -1
 }
 
-// Lines gives the lines a pane of h lines shows from offset o, with a dim … N above and … N more after lead where
-// lines are hidden. A head, when given, takes the place of the … above.
+// Lines gives the lines a pane of h lines shows from offset o, with Above and More after lead where lines are
+// hidden. A head, when given, takes the place of the … above.
 func Lines(all []string, o, h int, head, lead string) []string {
 	start, end, above, below := Window(len(all), h, o)
 	out := make([]string, 0, max(h, 0))
@@ -63,11 +63,11 @@ func Lines(all []string, o, h int, head, lead string) []string {
 	case above && head != "":
 		out = append(out, head)
 	case above:
-		out = append(out, lead+style.Off(Above(start)))
+		out = append(out, lead+Above(start))
 	}
 	out = append(out, all[start:end]...)
 	if below {
-		out = append(out, lead+style.Off(More(len(all)-end)))
+		out = append(out, lead+More(len(all)-end))
 	}
 	return out
 }
@@ -117,11 +117,27 @@ func Frame(n, room, want, first, last int) Span {
 	return Span{Start: start, End: end(start), Above: start > 0, Below: end(start) < n}
 }
 
-// Above says how many rows a window hides above it.
-func Above(n int) string { return fmt.Sprintf("… %d above", n) }
+// The arrows that say a window hides rows: those above it, and those below.
+const (
+	Up   = "⬆"
+	Down = "⬇"
+)
 
-// More says how many rows a window hides below it.
-func More(n int) string { return fmt.Sprintf("… %d more", n) }
+// Above says how many rows a window hides above it: Up, then the count in subscript digits, dim.
+func Above(n int) string { return Up + style.Off(digits(n, "₀₁₂₃₄₅₆₇₈₉")) }
+
+// More says how many rows a window hides below it: Down, then the count in superscript digits, dim.
+func More(n int) string { return Down + style.Off(digits(n, "⁰¹²³⁴⁵⁶⁷⁸⁹")) }
+
+// digits writes a count in a set of ten digits, 0 to 9 in order.
+func digits(n int, set string) string {
+	ten := []rune(set)
+	var b strings.Builder
+	for _, d := range strconv.Itoa(n) {
+		b.WriteRune(ten[d-'0'])
+	}
+	return b.String()
+}
 
 // Clip shortens a text to n cells, with … at the cut. A text that ends a pill, as style draws one, keeps that end, in
 // its color, after the cut, so the pill still reads as one, where n leaves room for it and a cell of text.

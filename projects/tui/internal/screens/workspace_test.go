@@ -13,6 +13,7 @@ import (
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/opener"
+	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
 	"github.com/empowerite/kit/projects/tui/internal/welcome"
@@ -397,7 +398,7 @@ func TestTheWheelScrollsTheOpenDialogsFolders(t *testing.T) {
 	m = drive(m, shell.OpenMsg{}, tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl})
 	m = drive(m, typed(parent+"/")...)
 	m = drive(m, tea.MouseWheelMsg{Button: tea.MouseWheelDown})
-	if v := ansi.Strip(m.View().Content); m.opener.Top == 0 || !strings.Contains(v, "above") ||
+	if v := ansi.Strip(m.View().Content); m.opener.Top == 0 || !strings.Contains(v, pane.Up) ||
 		strings.Contains(v, " fa/") {
 		t.Errorf("the wheel scrolled nothing: top %d\n%s", m.opener.Top, v)
 	}

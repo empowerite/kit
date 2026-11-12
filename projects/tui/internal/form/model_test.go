@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -614,6 +615,19 @@ func path(i int) string {
 }
 
 // hidden gives the lines that say how many rows a window hides, as they read.
+// hiddenCount reads the count a line about hidden lines gives, its digits in subscript or superscript.
+func hiddenCount(line string) int {
+	n := 0
+	for _, r := range line {
+		if d := strings.IndexRune("₀₁₂₃₄₅₆₇₈₉", r); d >= 0 {
+			n = n*10 + utf8.RuneCountInString("₀₁₂₃₄₅₆₇₈₉"[:d])
+		} else if d := strings.IndexRune("⁰¹²³⁴⁵⁶⁷⁸⁹", r); d >= 0 {
+			n = n*10 + utf8.RuneCountInString("⁰¹²³⁴⁵⁶⁷⁸⁹"[:d])
+		}
+	}
+	return n
+}
+
 func hidden(lines []string) []string {
 	var out []string
 	for _, line := range lines {
@@ -624,7 +638,7 @@ func hidden(lines []string) []string {
 	return out
 }
 
-var marker = regexp.MustCompile(`^ *… \d+ (above|more)$`)
+var marker = regexp.MustCompile(`^ *(⬆[₀-₉]+|⬇[⁰¹²³⁴-⁹]+)$`)
 
 func TestPageKeysMoveTheListsCursorAPageAndTheWindowFollows(t *testing.T) {
 	m := rows40(t, 40)
@@ -654,9 +668,9 @@ func TestAListsWindowSaysHowManyRowsItHides(t *testing.T) {
 		first  int // the first row shown
 		shown  int
 	}{
-		{nil, "… 31 more", 0, 9},
-		{[]string{"pgdown", "pgdown"}, "… 14 above|… 18 more", 14, 8},
-		{[]string{"end"}, "… 31 above", 31, 9},
+		{nil, "⬇³¹", 0, 9},
+		{[]string{"pgdown", "pgdown"}, "⬆₁₄|⬇¹⁸", 14, 8},
+		{[]string{"end"}, "⬆₃₁", 31, 9},
 	} {
 		m := rows40(t, 40)
 		for _, k := range c.keys {
@@ -725,9 +739,7 @@ func TestAShortScreenSaysHowManyLinesItHidesAndKeepsTheListsCursor(t *testing.T)
 	counted := 0
 	for _, line := range lines {
 		if marker.MatchString(line) && !strings.HasPrefix(line, "     ") {
-			var n int
-			fmt.Sscanf(strings.TrimSpace(line), "… %d", &n)
-			counted += n
+			counted += hiddenCount(strings.TrimSpace(line))
 		} else {
 			counted++
 		}

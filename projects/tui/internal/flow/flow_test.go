@@ -374,7 +374,7 @@ func TestAClickOnARowSelectsItAndAgainOpensOrClosesIt(t *testing.T) {
 	}
 	// on a short pane, the … line above is no row's
 	m = loaded(t, bare(), tea.WindowSizeMsg{Width: 80, Height: 10 + titleHeight}, tab, tab, down, down, down, down)
-	if m.find("builds").Cursor != 3 || !strings.Contains(lines(m)[m.rowsTop()], "above") {
+	if m.find("builds").Cursor != 3 || !strings.Contains(lines(m)[m.rowsTop()], pane.Up) {
 		t.Fatalf("the short pane: cursor %d\n%s", m.find("builds").Cursor, view(m))
 	}
 	if m = drive(m, click(6, m.rowsTop())); m.find("builds").Cursor != 3 {
@@ -1039,8 +1039,8 @@ func TestThePaneScrollsToKeepTheCursorWhileTheRestStays(t *testing.T) {
 		got[9+titleHeight] != " "+at80(keysFor(m, opens)) {
 		t.Errorf("the title, the bar, or the keys moved:\n%s", view(m))
 	}
-	// three lines of pane: … 2 above, the cursor's row, and the last row, which needs no … line
-	if !strings.Contains(got[6+titleHeight], "… 2 above") || !strings.Contains(got[7+titleHeight], "#159") ||
+	// three lines of pane: ⬆₂, the cursor's row, and the last row, which needs no line about hidden rows
+	if !strings.Contains(got[6+titleHeight], "⬆₂") || !strings.Contains(got[7+titleHeight], "#159") ||
 		!strings.Contains(cursor(m), "#159") || !strings.Contains(got[8+titleHeight], "nightly") ||
 		strings.Contains(view(m), "release/0.1.0") {
 		t.Errorf("the pane did not scroll to the cursor:\n%s", view(m))
@@ -1222,13 +1222,13 @@ func TestAPaneTooShortSaysHowManyLinesAreAboveAndBelow(t *testing.T) {
 		t.Fatalf("the screen is not %d lines with the keys last:\n%s", 11+titleHeight, view(m))
 	}
 	v := view(m)
-	if !strings.Contains(v, "… 1 above") || !strings.Contains(v, "… 12 more") ||
+	if !strings.Contains(v, "⬆₁") || !strings.Contains(v, "⬇¹²") ||
 		!strings.Contains(v, style.Opened+" "+Failed+"  kit") {
 		t.Errorf("the open row is not shown between its … lines:\n%s", v)
 	}
 	// a pane that holds every line says nothing of the kind
 	m = loaded(t, options(), tab, tab)
-	if strings.Contains(view(m), " above") || strings.Contains(view(m), " more") {
+	if strings.Contains(view(m), pane.Up) || strings.Contains(view(m), pane.Down) {
 		t.Errorf("a pane that fits says lines are hidden:\n%s", view(m))
 	}
 }
@@ -1283,7 +1283,7 @@ func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testi
 	// builds is the third stage; its first row, a run of ten jobs, opened, takes about three panes on a short screen
 	m := loaded(t, bare(), tea.WindowSizeMsg{Width: 120, Height: 12})
 	m = drive(m, tallBuild(m, 10), tab, tab, down, down, toggle)
-	if m.stage != 2 || m.find("builds").Cursor != 1 || !strings.Contains(view(m), " more") {
+	if m.stage != 2 || m.find("builds").Cursor != 1 || !strings.Contains(view(m), pane.Down) {
 		t.Fatalf("the open row does not overflow the pane:\n%s", view(m))
 	}
 	bare := func(s string) string {
@@ -1295,8 +1295,9 @@ func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testi
 		for _, l := range lines(m) {
 			seen[bare(l)] = true
 		}
-		// scrolled into the row, its own line stays on the pane's first line, where … above would be
-		if pane := lines(m)[m.rowsTop()]; m.find("builds").Offset > 0 && (!strings.Contains(pane, head) || strings.Contains(pane, "above")) {
+		// scrolled into the row, its own line stays on the pane's first line, where ⬆ would be
+		if first := lines(m)[m.rowsTop()]; m.find("builds").Offset > 0 && (!strings.Contains(first, head) ||
+			strings.Contains(first, pane.Up)) {
 			t.Errorf("the open row's line is not pinned atop the pane:\n%s", view(m))
 		}
 		m = drive(m, press(tea.KeyPgDown))
@@ -1311,7 +1312,7 @@ func TestPageDownScrollsThroughAnOpenRowTallerThanThePaneBeforeMovingOn(t *testi
 		t.Fatalf("page down never left the open row")
 	}
 	// past the row, the pane says … above again
-	if !strings.Contains(lines(m)[m.rowsTop()], " above") {
+	if !strings.Contains(lines(m)[m.rowsTop()], pane.Up) {
 		t.Errorf("past the open row, the pane's first line is not … above:\n%s", view(m))
 	}
 	// page up comes back through the same row, to the top of the pane
