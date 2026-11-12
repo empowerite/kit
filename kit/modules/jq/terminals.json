@@ -244,6 +244,112 @@
         }
       ]
     },
+    "tabby": {
+      "name": "Tabby",
+      "anchor": "tabby",
+      "findings": [
+        {
+          "id": "option",
+          "need": "keys",
+          "bad": ".alt_meta == false",
+          "line": "Tabby sends ⌥ as a plain key, so ⌥ with an arrow never reaches kittui as one",
+          "held": "Tabby sends ⌥ as Meta",
+          "fix": "Tabby → Settings → Terminal → Keyboard: turn on Use ⌥ as the Meta key"
+        },
+        {
+          "id": "renderer",
+          "need": "speed",
+          "bad": ".frontend == \"xterm\" or .disable_gpu",
+          "line": "Tabby draws without the GPU, so kittui repaints slowly",
+          "held": "Tabby draws with WebGL",
+          "fix": "Tabby → Settings → Terminal: set the renderer to WebGL, and turn off Disable GPU acceleration"
+        }
+      ],
+      "probes": {
+        "kitty-keyboard": {
+          "none": "Tabby has no kitty keyboard protocol, so kittui offers > and < for ⌥ with an arrow"
+        }
+      }
+    },
+    "wt": {
+      "name": "Windows Terminal",
+      "anchor": "windows-terminal",
+      "findings": [
+        {
+          "id": "kitty-keyboard",
+          "need": "keys",
+          "bad": ".kitty_keyboard == false",
+          "line": "Windows Terminal's profile {profile} turns the kitty keyboard protocol off, so ⇧⌫ arrives as ⌫",
+          "held": "Windows Terminal's profile {profile} leaves the kitty keyboard protocol on",
+          "fix": "remove \"compatibility.kittyKeyboardMode\": false from the profile {profile} in Windows Terminal's settings.json"
+        },
+        {
+          "id": "force-vt",
+          "need": "keys",
+          "bad": ".force_vt",
+          "line": "Windows Terminal's profile {profile} forces the legacy key encoding, so some keys never reach kittui",
+          "held": "Windows Terminal's profile {profile} uses the modern key encoding",
+          "fix": "remove \"compatibility.input.forceVT\": true from the profile {profile}, or from profiles.defaults, in settings.json"
+        },
+        {
+          "id": "text-measurement",
+          "need": "widths",
+          "bad": ".text_measurement == \"console\"",
+          "line": "Windows Terminal measures text the console's way, so some emoji take the wrong number of cells",
+          "held": "Windows Terminal measures text by grapheme",
+          "fix": "Windows Terminal → Settings → Compatibility: set Text measurement mode to Grapheme clusters"
+        },
+        {
+          "id": "software-rendering",
+          "need": "speed",
+          "bad": ".software",
+          "line": "Windows Terminal renders in software, so kittui repaints slowly",
+          "held": "Windows Terminal renders on the GPU",
+          "fix": "Windows Terminal → Settings → Rendering: turn off Use software rendering"
+        },
+        {
+          "id": "full-repaint",
+          "need": "speed",
+          "bad": ".full_repaint",
+          "line": "Windows Terminal redraws the whole screen every frame, so kittui repaints slowly",
+          "held": "Windows Terminal redraws only what changes",
+          "fix": "Windows Terminal → Settings → Rendering: turn off Redraw entire screen when display updates"
+        }
+      ],
+      "probes": {
+        "kitty-keyboard": {
+          "fix": "set \"compatibility.kittyKeyboardMode\": true in the profile {profile} in settings.json; it needs Windows Terminal 1.25.2733 or later"
+        }
+      }
+    },
+    "console": {
+      "name": "The Windows console",
+      "anchor": "windows-console",
+      "heading": "{name}: a shortcut's own properties override what kit reads from the registry",
+      "findings": [
+        {
+          "id": "console",
+          "need": "speed",
+          "bad": "true",
+          "line": "The Windows console draws kittui: it is slow to repaint, and has no color emoji or kitty keyboard protocol",
+          "held": "The Windows console does not draw kittui",
+          "fix": "use Windows Terminal: Windows Settings → System → For developers → Terminal: Windows Terminal"
+        },
+        {
+          "id": "text-measurement",
+          "need": "widths",
+          "bad": ".text_measurement == 2",
+          "line": "The Windows console measures text the console's way, so some emoji take the wrong number of cells",
+          "held": "The Windows console measures text by grapheme",
+          "fix": "set TextMeasurement to 0 under HKCU\\Console"
+        }
+      ],
+      "probes": {
+        "kitty-keyboard": {
+          "none": "The Windows console has no kitty keyboard protocol; Windows Terminal has"
+        }
+      }
+    },
     "ssh": {
       "name": "The terminal over ssh",
       "anchor": "over-ssh",

@@ -408,4 +408,81 @@ warp-settings() {
   [ "$(found <<<"$output")" = '["terminal-warp-option","terminal-warp-mouse"]' ]
 }
 
+# windows-fakes <delegation> <build> stands in reg.exe, which names the default terminal (none for none), and
+# cmd.exe, which says the Windows build and where LOCALAPPDATA is, and wslpath, which maps it under BATS_TEST_TMPDIR.
+windows-fakes() {
+  export WIN_DELEGATION=$1 WIN_BUILD=$2 WIN_LOCAL="${BATS_TEST_TMPDIR}/Local"
+  # shellcheck disable=SC2016  # the fakes' bodies expand when they run
+  fakes reg.exe 'case "$*" in
+  (*Startup*DelegationTerminal*)
+    [[ "${WIN_DELEGATION}" != none ]] || exit 1
+    printf "\r\nHKEY_CURRENT_USER\\Console\\%%%%Startup\r\n"
+    printf "    DelegationTerminal    REG_SZ    %s\r\n" "${WIN_DELEGATION}" ;;
+  (*TextMeasurement*)
+    [[ -n "${WIN_MEASUREMENT:-}" ]] || exit 1
+    printf "\r\nHKEY_CURRENT_USER\\Console\r\n    TextMeasurement    REG_DWORD    %s\r\n" "${WIN_MEASUREMENT}" ;;
+  (*) exit 1
+esac' cmd.exe 'case "$*" in
+  (*ver*) printf "\r\nMicrosoft Windows [Version 10.0.%s.4317]\r\n" "${WIN_BUILD}" ;;
+  (*LOCALAPPDATA*) printf "C:\\Users\\me\\AppData\\Local\r\n" ;;
+esac' wslpath 'printf "%s\n" "${WIN_LOCAL}"'
+}
+
+@test "inside WSL, the default terminal names the window: the console's GUID, else Windows Terminal from build 22000" {
+  export WSL_DISTRO_NAME=Ubuntu
+  windows-fakes '{B23D10C0-E52E-411E-9D5B-C09FDF709C7D}' 22631
+  run kit-bash 'terminal:detect'
+  [ "$output" = console ]
+  windows-fakes '{00000000-0000-0000-0000-000000000000}' 22631
+  run kit-bash 'terminal:detect'
+  [ "$output" = wt ]
+  windows-fakes none 19045
+  run kit-bash 'terminal:detect'
+  [ "$output" = console ]
+  windows-fakes '{E12CFF52-A866-4C77-9A90-F570A7AA2C6B}' 19045
+  run kit-bash 'terminal:detect'
+  [ "$output" = wt ]
+  path-without reg.exe
+  run kit-bash 'terminal:detect'
+  [ "$output" = unknown ]
+}
+
+@test "Windows Terminal's settings: comments and trailing commas read, the profile found in any case, defaults used" {
+  windows-fakes none 22631
+  mkdir -p "${WIN_LOCAL}/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState"
+  cp "${BATS_TEST_DIRNAME}/fixtures/terminal/wt-settings.jsonc" \
+    "${WIN_LOCAL}/Packages/Microsoft.WindowsTerminal_8wekyb3d8bbwe/LocalState/settings.json"
+  run kit-bash 'WT_SESSION=1 WT_PROFILE_ID="{2c4de342-38b7-51cf-b940-2309a097f518}" terminal:checks'
+  [ "$status" -eq 0 ]
+  [ "$(jq -sr '.[0].line' <<<"$output")" = "Windows Terminal, profile Ubuntu" ]
+  [ "$(found <<<"$output")" = '["terminal-wt-kitty-keyboard","terminal-wt-force-vt"]' ]
+  run kit-bash 'WT_SESSION=1 terminal:settings wt'
+  [ "$(jq -c '[.profile, .kitty_keyboard, .force_vt, .text_measurement]' <<<"$output")" = \
+    '["Windows PowerShell",null,true,"graphemes"]' ]
+}
+
+@test "the Windows console always fails, and its text measurement of 2 fails too" {
+  export WSL_DISTRO_NAME=Ubuntu WIN_MEASUREMENT=0x2
+  windows-fakes '{B23D10C0-E52E-411E-9D5B-C09FDF709C7D}' 22631
+  run kit-bash 'terminal:checks'
+  [ "$(found <<<"$output")" = '["terminal-console-console","terminal-console-text-measurement"]' ]
+}
+
+# tabby-config <yaml>… writes Tabby's config.yaml where TABBY_CONFIG_DIRECTORY names.
+tabby-config() {
+  export TABBY_CONFIG_DIRECTORY="${BATS_TEST_TMPDIR}/tabby"
+  mkdir -p "${TABBY_CONFIG_DIRECTORY}"
+  printf '%s\n' "$@" > "${TABBY_CONFIG_DIRECTORY}/config.yaml"
+}
+
+@test "Tabby: an encrypted config holds with its reason, and the DOM renderer and ⌥ not Meta fail" {
+  tabby-config 'encrypted: true'
+  run kit-bash 'OSTYPE=darwin24 TERM_PROGRAM=Tabby terminal:checks'
+  [ "$(jq -sc 'map([.id, .ok])' <<<"$output")" = '[["terminal-tabby",true]]' ]
+  [ "$(jq -r .line <<<"$output")" = "Tabby: kit could not read its settings: Tabby's config is encrypted" ]
+  tabby-config 'terminal:' '  frontend: xterm'
+  run kit-bash 'OSTYPE=darwin24 TERM_PROGRAM=Tabby terminal:checks'
+  [ "$(found <<<"$output")" = '["terminal-tabby-option","terminal-tabby-renderer"]' ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

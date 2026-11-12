@@ -10,7 +10,7 @@
 #
 #   terminal:detect       the terminal's key, from the environment, the first of these that answers: a multiplexer
 #                         (TMUX, STY, ZELLIJ); ssh (SSH_CONNECTION, SSH_TTY); the terminal's own variables; inside WSL,
-#                         the Windows host; else unknown
+#                         the Windows host, terminal:windows-host; else unknown
 #   terminal:key          terminal:detect's key, or unknown for one terminals.json does not have
 #   terminal:timed        runs a command for at most so many seconds
 #   terminal:settings     the reader's object for a key: modules/bash/terminal/<key>.sh, terminal/<key>:settings
@@ -69,9 +69,41 @@ terminal:detect-rest() {
   elif [[ -n "${WT_SESSION:-}" ]]
   then
     printf 'wt\n'
+  elif [[ -n "${WSL_DISTRO_NAME:-}" ]]
+  then
+    terminal:windows-host
   else
     printf 'unknown\n'
   fi
+}
+
+# terminal:windows-host prints the key of the window WSL runs in, from Windows' default terminal: Windows hands a
+# console session to it without setting WT_SESSION. The Windows console's GUID names the console; none, or zeros, is
+# Windows' own choice, Windows Terminal from Windows 11 (build 22000) and the console before; any other GUID is a
+# terminal Windows hands sessions to, Windows Terminal. Where reg.exe cannot run, as with interop off, it is unknown.
+terminal:windows-host() {
+  local delegation build
+  if ! command -v reg.exe >/dev/null 2>&1
+  then
+    printf 'unknown\n'
+    return 0
+  fi
+  delegation=$(reg.exe query 'HKCU\Console\%%Startup' /v DelegationTerminal 2>/dev/null | tr -d '\r' \
+    | awk '$1 == "DelegationTerminal" { print $3 }') || delegation=''
+  case "${delegation}" in
+    ('{B23D10C0-E52E-411E-9D5B-C09FDF709C7D}') printf 'console\n' ;;
+    ('' | '{00000000-0000-0000-0000-000000000000}')
+      build=$( (cd /mnt/c 2>/dev/null || true; cmd.exe /c ver 2>/dev/null) | tr -d '\r' \
+        | sed -n 's/.*Version [0-9]*\.[0-9]*\.\([0-9]*\).*/\1/p')
+      if (( ${build:-0} >= 22000 ))
+      then
+        printf 'wt\n'
+      else
+        printf 'console\n'
+      fi
+      ;;
+    (*) printf 'wt\n'
+  esac
 }
 
 # terminal:key prints terminal:detect's key, or unknown where terminals.json has no such terminal.

@@ -1,0 +1,24 @@
+// Windows Terminal's settings, as it writes them, with what a person adds
+{
+    "$help": "https://aka.ms/terminal-documentation", // a URL in a string keeps its slashes
+    "defaultProfile": "{61c54bbd-c2c6-5271-96e7-009a87ff44bf}",
+    /* a block
+       comment */
+    "compatibility.textMeasurement": "graphemes",
+    "profiles": {
+        "defaults": {
+            "compatibility.input.forceVT": true,
+        },
+        "list": [
+            {
+                "guid": "{61c54bbd-c2c6-5271-96e7-009a87ff44bf}",
+                "name": "Windows PowerShell"
+            },
+            {
+                "guid": "{2C4DE342-38B7-51CF-B940-2309A097F518}",
+                "name": "Ubuntu",
+                "compatibility.kittyKeyboardMode": false,
+            },
+        ]
+    },
+}
