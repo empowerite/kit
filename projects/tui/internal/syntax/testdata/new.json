@@ -527,7 +527,7 @@
       "description": "the template's name, which kit new file --variant= takes"
     },
     "<seam>": {
-      "description": "the seam the provider answers: dependencies, forge, policy, sources, toolchain, or tracker"
+      "description": "the seam the provider answers: dependencies, forge, policy, sources, targets, toolchain, or tracker"
     },
     "--package": {
       "description": "the package to put it in"

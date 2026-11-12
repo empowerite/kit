@@ -27,6 +27,7 @@ packages	lists the packages in reach, and changes which are active	installation
 people	lists who has access to the repository, its teams, and the bots that acted	workflow
 platform	lists the services, toolchains, tools, and settings kit runs with	installation
 policy	refuses a branch, subject, or title the policy forbids	checks
+publish	pushes a release's artifacts to their targets, from a runner, through their tools	workflow
 ready	marks a draft pull request ready for review	workflow
 rebase	rebases a branch onto the default branch and pushes it	workflow
 region	prints the region an active package delivers at a path	plumbing

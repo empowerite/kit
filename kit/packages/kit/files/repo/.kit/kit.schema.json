@@ -703,6 +703,125 @@
           }
         ]
       }
+    },
+    "publish": {
+      "type": "object",
+      "description": "The repository's own artifacts, by name: what the runner built, what each is on the pull path, and the targets kit publish pushes a release and a pre-release to, from a runner alone. See docs/features.md.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "files",
+          "targets"
+        ],
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "description": "The files the runner built, {version} filled in."
+          },
+          "release": {
+            "type": "string",
+            "pattern": "^[^/@]+/[^/@]+$",
+            "description": "What it is on the pull path: a GitHub release's repository, with asset."
+          },
+          "asset": {
+            "type": "string",
+            "description": "The release's file the pull path serves, {version} filled in."
+          },
+          "tag": {
+            "type": "string",
+            "description": "The release's tag, v{version} by default."
+          },
+          "module": {
+            "type": "string",
+            "description": "What it is on the pull path: a Go module's path."
+          },
+          "module_version": {
+            "type": "string",
+            "description": "The module's version, v{version} by default."
+          },
+          "npm": {
+            "type": "string",
+            "description": "What it is on the pull path: an npm package."
+          },
+          "url": {
+            "type": "string",
+            "description": "What it is on the pull path: a download only direct serves."
+          },
+          "targets": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "release": {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]*$"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "kind"
+                      ],
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9-]*$"
+                        }
+                      },
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    }
+                  ],
+                  "description": "A target's kind, a provider of the targets seam (vcs-tag, github-release, artifactory-local, npm-publish), or a map of its kind and the keys it takes."
+                }
+              },
+              "prerelease": {
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[a-z][a-z0-9-]*$"
+                    },
+                    {
+                      "type": "object",
+                      "required": [
+                        "kind"
+                      ],
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "pattern": "^[a-z][a-z0-9-]*$"
+                        }
+                      },
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    }
+                  ],
+                  "description": "A target's kind, a provider of the targets seam (vcs-tag, github-release, artifactory-local, npm-publish), or a map of its kind and the keys it takes."
+                }
+              }
+            },
+            "description": "Where a release goes, and where a pre-release goes."
+          },
+          "verify": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The pull sources that check its visibility, by name; the whole path by default."
+          }
+        }
+      }
     }
   },
   "$defs": {

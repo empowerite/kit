@@ -26,8 +26,8 @@
 #   npm: markdownlint-cli2                                    an npm package's tarball, at the version
 #
 # A download that ends in .tar.gz, .tgz, .tar.xz, .txz, .tar.bz2, or .tar is unpacked by tar, one that ends in .zip, or
-# is a module, by unzip, an npm package by tar, and any other is the command itself, saved under the tool's name. The commands of a module
-# or an npm package are made executable, as go and npm make them.
+# is a module, by unzip, an npm package by tar, and any other is the command itself, saved under the tool's name. The
+# commands of a module or an npm package are made executable, as go and npm make them.
 #
 # Each download is found on the pull path, sources:find's, the first source that has it winning; a url: names a place,
 # so direct alone serves it. tools.lock, beside kit.yml, holds one line per tool and platform, tab-separated: name,
@@ -44,7 +44,9 @@
 # bytes have another hash than the lock's is refused, and nothing is installed from it.
 #
 # outdated asks the pull path for a release, a module, or an npm package: the newest version the first source that
-# answers serves, so update never moves to a version the path does not serve yet. For a url, it asks a GitHub
+# answers serves, so update never moves to a version the path does not serve yet. Where the path holds a source other
+# than direct, a tool behind adds the newest version tagged upstream, read from direct, where it is newer still: pull
+# behind push, as a consumer sees it. For a url, it asks a GitHub
 # release's latest tag, for a release's download or a source archive, through gh where it is installed and GitHub's
 # API otherwise; Node.js's latest LTS; Go's latest release; and the newest file a GNU mirror's directory lists. For any
 # other url, it says it cannot tell.
@@ -91,7 +93,7 @@ toolchain/kit:install() {
 }
 
 toolchain/kit:outdated() {
-  local name version form url prefix suffix latest row status=0 asked path=''
+  local name version form url prefix suffix latest row status=0 asked path='' upstream tagged
   local -a tools
   list:read tools toolchain/kit:tools || return 1
   for row in "${tools[@]}"
@@ -104,6 +106,13 @@ toolchain/kit:outdated() {
     then
       [[ -n "${path}" ]] || path=$(sources:path) || return 1
       latest=$(toolchain/kit:served "${url}" "${prefix}" "${suffix}" "${path}") || asked=$?
+      tagged=''
+      if (( asked == 0 )) && toolchain/kit:mirrored "${path}"
+      then
+        upstream=$(toolchain/kit:served "${url}" "${prefix}" "${suffix}" "${toolchain_kit_upstream}" 2>/dev/null) \
+          || upstream=''
+        [[ "${upstream}" == "${latest}" ]] || tagged=${upstream}
+      fi
       url=$(sources:artifact "${url}")
     else
       latest=$(toolchain/kit:latest "${url}") || asked=$?
@@ -118,7 +127,7 @@ toolchain/kit:outdated() {
       status=1
     elif [[ "${latest}" != "${version}" ]]
     then
-      printf '%s\t%s\t%s\n' "${name}" "${version}" "${latest}"
+      printf '%s\t%s\t%s%s\n' "${name}" "${version}" "${latest}" "${tagged:+$'\t'${tagged}}"
     fi
   done
   return "${status}"
@@ -418,6 +427,11 @@ toolchain/kit:fetch() {
   step "${name}: downloading ${artifact#file:}"
   if ! have=$(sources:find "${coordinate}" "${want}" "${download}" "${path}")
   then
+    if toolchain/kit:mirrored "${path}" && toolchain/kit:tagged "${coordinate}"
+    then
+      error "${name}: ${artifact#file:} is tagged upstream, and the pull path does not serve it yet: it is pending;" \
+        "pin a version the path serves, or wait for it"
+    fi
     error "${name}: ${artifact#file:} could not be downloaded; nothing was installed"
     return 1
   fi
@@ -504,6 +518,28 @@ toolchain/kit:listed() {
   listing=$(curl --fail --silent --location "${url%/*}") || return 1
   grep --only-matching --extended-regexp "${pattern}" <<<"${listing}" \
     | sed -E "s/^${pattern}\$/\\1/" | sort --version-sort | tail -n 1
+}
+
+# toolchain_kit_upstream is a pull path of direct alone, the open internet, where a tool's newest tag is read.
+declare -gr toolchain_kit_upstream=$'direct\t\t\tenv\t{}'
+
+# toolchain/kit:mirrored <path> succeeds when the pull path holds a source other than direct, so what it serves may be
+# behind what is tagged upstream.
+toolchain/kit:mirrored() {
+  awk -F '\t' '$1 != "direct" && $1 != "off" { found = 1 } END { exit !found }' <<<"$1"
+}
+
+# toolchain/kit:tagged <coordinate> succeeds when the coordinate's version, as its source writes it, a release's tag
+# or a module's or a package's version, is tagged upstream: direct lists it.
+toolchain/kit:tagged() {
+  local at listed
+  case "$1" in
+    (release:*) at=${1#*@}; at=${at%%/*} ;;
+    (module:* | npm:*) at=${1##*@} ;;
+    (*) return 1
+  esac
+  listed=$(sources:versions "$1" "${toolchain_kit_upstream}" 2>/dev/null) || return 1
+  grep --quiet --line-regexp --fixed-strings -- "${at}" <<<"${listed}"
 }
 
 # toolchain/kit:served <coordinate> <prefix> <suffix> <path> prints the newest version the pull path serves of the

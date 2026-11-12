@@ -1,0 +1,38 @@
+{
+  "verb": "publish",
+  "purpose": "pushes a release's artifacts to their targets, from a runner, through their tools",
+  "usage": [
+    "kit publish <version> [--retire]"
+  ],
+  "syntax": [
+    [
+      {
+        "kind": "operand",
+        "name": "version",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "retire",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
+      }
+    ]
+  ],
+  "arguments": {
+    "<version>": {
+      "description": "the version to publish: 0.1.0, or 0.1.0-rc.7 for a pre-release"
+    },
+    "--retire": {
+      "description": "takes the version back from its targets instead"
+    }
+  }
+}

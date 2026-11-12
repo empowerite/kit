@@ -289,6 +289,7 @@ answers:
 | `policy` | The patterns a branch, a commit subject, and a change title must match; see [policy.md](policy.md). |
 | `policy_engine` | `patterns` or `opa`; see [policy.md](policy.md). |
 | `facts` | `facts.read`: the globs of the files whose text the policy's facts carry; see [policy.md](policy.md#reading-a-files-text). |
+| `publish` | The repository's own artifacts: what the runner built, what each is on the pull path, and the push targets `kit publish` sends a release and a pre-release to; see [features.md](features.md#publishing-and-pull-behind-push). |
 | `sources` | The artifact sources: the releases a repository takes packages from, each with a `name`, a `url`, and a `digest`, and the pull path's default; see below. |
 | `trackers` | Trackers other than the code forge's own whose issues the workflow accepts, each with a prefix and a provider; see [trackers.md](trackers.md). |
 | `bash_path` | The bash module path: the directories `use` sources a bash module from, in order, starting with `kit:modules/bash/`. A directory that does not exist is skipped; see [modules.md](modules.md#the-module-path). |

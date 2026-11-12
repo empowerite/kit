@@ -239,7 +239,7 @@ go  1.27.3  macos-arm64  both  module:golang.org/toolchain@v0.0.1-go1.27.3.darwi
 ```yaml
 publish:
   kit:                                   # the artifact, by name
-    files: [dist/kit-{version}.tar.gz]   # what the runner built, {version} filled in
+    files: ["dist/kit-{version}.tar.gz"] # what the runner built, {version} filled in, quoted for YAML's braces
     release: empowerite/kit              # its coordinate on the pull path, as a tool pin's
     asset: kit-{version}.tar.gz
     targets:
@@ -252,34 +252,43 @@ publish:
   `.kit/templates/bash/targets-provider`: `vcs-tag` (git push of the release tag), `github-release` (gh),
   `artifactory-local` (jfrog-cli), and `npm-publish` (npm). Its kind is its own, never the push side of a pull kind:
   a Go module is published by its tag, and the proxy fetches it.
-- Every target implements `connector`, the tool it runs; `pushed <version>`, which succeeds when the target holds
-  the version; `push <version> <file>…`; and `retire <version>`.
+- Every target implements `connector`, the tool it runs; `keys`, the keys it takes beyond `kind`; `pushed <version>
+  <target>`, which succeeds when the target holds the version; `push <version> <target> <file>…`; and `retire
+  <version> <target>`. The target is its JSON, the artifact's own under `artifact`. A target is written as its kind,
+  or as a map of its kind and its keys.
 - `kit publish <version>` pushes each artifact to each target its release or pre-release names. It refuses where
   `GITHUB_ACTIONS`, or the runner's own marker (`GITLAB_CI`, `TF_BUILD`), is not set, unless the version is a
   pre-release. It refuses a version a target already holds, before it pushes to any. It runs each connector with the
   runner's credentials; a workspace may name a target's credentials, never its kind or place.
-- The push is done when the target takes it. `kit publish` records each file's hash in the release tag's annotation,
-  as `kit-hash: <file> <hash>` lines, so anyone who can read the forge knows what was pushed.
+- The push is done when the target takes it. `kit publish` then tags what it pushed as `release-hashes/<version>`, a
+  tag of a blob of one line per artifact, `<artifact>\t<hash>`, the hash its pull kind takes, so anyone who can read
+  the forge knows what was pushed. The release tag is made at a desk before the runner builds anything, so its
+  annotation cannot hold the hashes, and a tag is never rewritten; a tag of its own, one per version, is never
+  overwritten either. A Go module's zip is the proxy's own, so a module records no hash and is visible once served.
 
 ## Visibility
 
 Visibility is a state kit watches, not a step a push waits for. For each release tag on the forge and each pull
 source that serves the artifact's coordinate form (or the `verify` sources alone), it is one of:
 
-- **visible**: served, with the hash the tag's annotation records, or the lock's in a consumer;
+- **visible**: served, with the hash `release-hashes/<version>` records, or with any where none is recorded;
 - **pending**: tagged, not served yet, with its age since the tag; past the source's `expect`, it is **stuck**;
-- **blocked**: the source says it never will serve it, as Artifactory's Xray block or a refused approval;
+- **blocked**: the source says it never will serve it, as Artifactory's Xray block or a refused approval: its
+  provider's `fetch` returns 5;
 - **mismatch**: served, with another hash.
 
 - kit flow's releases stage shows each release's states in the publishing repository, and says when one is stuck.
-- In a consumer, `kit tools --outdated` says, for each tool, the newest version tagged upstream and the newest the
-  path serves.
+- In a consumer, `kit tools --outdated` says, for each tool behind, the newest version the path serves, and, where the
+  path holds a mirror, the newest tagged upstream, read from `direct`, where it is newer: `tagged`.
 - `kit update` and `kit tools update` move to the newest version the path serves, never only the newest tag. A pin
   to a version the path does not serve yet fails, naming it pending.
 - It is read only where a view already reaches the network, and cached under `XDG_CACHE_HOME/kit/visibility/`: a
   visible or blocked answer is kept, and a pending one is asked again after five minutes.
-- `kit release --wait=<duration>` pushes the tag, then waits until every checked source is visible, or blocked, or
-  the duration passes, and exits 0, 1, or 3 for each.
+- `kit release <version> --wait=<duration>` pushes the tag, or with the tag on the primary already only waits, until
+  every checked source is visible, or one is blocked or a mismatch, or the duration passes, and exits 0, 1, or 3. It
+  asks again every 30 seconds, `KIT_RELEASE_POLL` to change it, and never from what is kept.
+- kit flow's releases stage reads the five newest releases that are no drafts, and a row carries `visibility`, a
+  state per artifact and source, which no column shows.
 
 The open question in the issue, whether a target names the pull source that checks it, is settled: the whole path
 checks it by default, and `verify:` narrows it to the sources it names.

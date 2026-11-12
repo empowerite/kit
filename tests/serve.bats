@@ -208,7 +208,7 @@ call() {
 @test "every verb is a tool or is named here as not one, and kit-serve's header names the tools in their groups" {
   # not offered: each writes, needs a terminal, draws one of kittui's apps, or is a gate's, a person's, or a script's
   local tools header withheld='audit bots changes ci commit completion delivery facts gate generate hydrate install
-    issues linked new people platform policy ready rebase region release root serve submit template tidy trust tui
+    issues linked new people platform policy publish ready rebase region release root serve submit template tidy trust tui
     tutorials uninstall update usage welcome workspace workspaces'
   serve "$(modern 1 tools/list)"
   tools=$(answer 1 | jq --raw-output '[.result.tools[].name] | join(" ")')

@@ -161,6 +161,50 @@ release workflow. It refuses:
 - a release, one with no suffix, whose commit is not on the default branch at the primary remote
 - a version not higher than every release on the primary remote, unless `--lower` confirms it
 
+### Publishing, and pull behind push
+
+The repository names its own artifacts under `publish:` in `kit.yml`: what the runner built, what each is on the
+pull path, as a tool pin says it, and the push targets a release and a pre-release go to. A target is never searched;
+the pull path is what consumers search.
+
+```yaml
+publish:
+  kit:
+    files: ["dist/kit-{version}.tar.gz"]
+    release: empowerite/kit
+    tag: release/{version}
+    asset: kit-{version}.tar.gz
+    targets:
+      release: [github-release, vcs-tag]
+      prerelease: [github-release]
+    verify: [corp-files]
+```
+
+- A target is a provider of the `targets` seam, `modules/bash/targets/<kind>.sh`, written as its kind or as a map
+  of its kind and its keys: `vcs-tag` pushes the tag `v<version>` (`prefix:` to change it), as a Go module is
+  published; `github-release` makes the release with gh (`repo:`); `artifactory-local` uploads with jf
+  (`repository:`, `path:`, `url:`); and `npm-publish` publishes with npm (`registry:`), a pre-release under `next`.
+  Each runs its connector, the tool its service ships; kit never speaks a service's upload API, and the runner
+  carries the credentials.
+- `kit publish <version>` pushes each artifact to its targets. It runs on a runner alone, where `GITHUB_ACTIONS`,
+  `GITLAB_CI`, or `TF_BUILD` is set; a pre-release may be published from a desk, at its own risk. It refuses a
+  version whose tag `kit release` has not pushed, a file not built, a connector not on `PATH`, and, before it pushes
+  to any, a target that holds the version already: a version is never overwritten. `--retire` takes a version back
+  where a target can: delete is retire.
+- The push is done when the targets take it. `kit publish` then tags what it pushed as `release-hashes/<version>`, a
+  tag of a blob of one line per artifact and its hash, so anyone who can read the forge can tell the same bytes from
+  others.
+- Visibility is a state kit watches. For each artifact and each pull source that serves its form, or the sources its
+  `verify:` names, a release is visible, pending (stuck once older than the source's `expect:`), blocked (the source
+  says it never will serve it, as a scan's block), or mismatch (served with other bytes). Answers are kept under
+  `XDG_CACHE_HOME/kit/visibility/`: visible, blocked, and mismatch for good, pending for five minutes.
+- `kit flow releases` shows the state of the five newest releases on each row, says when one is stuck, and with
+  `--json` each row carries `visibility`, a state per artifact and source. In a consumer, `kit tools --outdated`
+  adds what is tagged upstream that a mirror does not serve yet, and a pin to such a version fails, naming it pending.
+- `kit release <version> --wait=<duration>` waits for visibility, for whoever wants that: it exits 0 when every source
+  serves the release, 1 when one blocks it or serves other bytes, and 3 when the time passes with one pending. With
+  the tag on the primary already, it only waits.
+
 `kit flow releases` lists the releases on the code forge, newest first, with each one's kind and age. With `--json`,
 each release is a row of its fields, flat: its version, tag, name, kind, whether it is the latest, when it was
 published, its page, its notes, and its assets, each file's name and where it downloads. kittui draws the rows from

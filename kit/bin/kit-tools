@@ -11,7 +11,9 @@
 # manifest and lock are here, and whose tool is on PATH with the toolchain's directories first.
 #
 # Alone, it lists each pinned tool: its name, the version pinned, and the version installed. A row marks what is
-# installed. It never reaches the network. With --outdated, it adds the latest version, which asks the network.
+# installed. It never reaches the network. With --outdated, it adds the latest version, which asks the network. For the
+# kit toolchain that is the newest the pull path serves; where the path holds a mirror, a tool also says the newest
+# tagged upstream, which the mirror does not serve yet.
 # With no toolchain, kit runs ambient. Then it lists the tools the rules' linters need, and where each is on PATH.
 # The toolchain comes first, then each dependency provider, each in its own table headed by its name when there are
 # several.
@@ -37,7 +39,8 @@
 #   --check             with --outdated: fails when any tool is behind
 #   --toolchain=<name>  uses this toolchain for the run, as KIT_TOOLCHAIN does; kit takes it even after run's command
 #   <name>              mise, nix, brew, docker, devcontainer, or ambient
-#   --json              one JSON object per tool: name, pinned, installed, latest with --outdated, and from
+#   --json              one JSON object per tool: name, pinned, installed, latest with --outdated, and from; and
+#                       tagged where a newer version is tagged upstream than the pull path serves
 #   --jq                the same JSON, formatted by jq for a person
 #   install             installs every pinned tool, then every package; ambient, names what else to install
 #   update              moves every tool and package to its latest, and rewrites the pins
@@ -423,6 +426,15 @@ then
   exit 0
 fi
 
+# outdated-header <rows> prints the header of --outdated's table: tagged after latest where a row has a version tagged
+# upstream that its pull path does not serve yet.
+outdated-header() {
+  if awk -F '\t' '$6 != "" { found = 1 } END { exit !found }' <<<"$1"
+  then printf 'name\tpinned\tinstalled\tlatest\ttagged'
+  else printf 'name\tpinned\tinstalled\tlatest'
+  fi
+}
+
 # --outdated: each layer's answer, with the pin and the installed version from its pins where they name the tool.
 # A provider that cannot read a source prints what it could and fails; the rows it read are still shown.
 [[ "${chosen}" != ambient ]] || ambient
@@ -438,7 +450,7 @@ do
   done <<<"${pins//$'\t'/$'\x1f'}"
   outdated=$(call "${layer}" outdated) || failed+=("${name}")
   rows=''
-  while IFS=$'\x1f' read -r tool installed latest
+  while IFS=$'\x1f' read -r tool installed latest tagged
   do
     [[ -n "${tool}" ]] || continue
     behind=$(( behind + 1 ))
@@ -447,16 +459,17 @@ do
     if [[ "${json}" == true ]]
     then
       jq --null-input --compact-output --arg name "${tool}" --arg pinned "${pinned}" --arg installed "${installed}" \
-        --arg latest "${latest}" --arg from "${name}" \
+        --arg latest "${latest}" --arg tagged "${tagged}" --arg from "${name}" \
         '{name: $name, pinned: $pinned, installed: $installed, latest: $latest, from: $from}
-          | map_values(if . == "" then null else . end)'
+          | map_values(if . == "" then null else . end) | if $tagged == "" then . else . + {tagged: $tagged} end'
     else
-      rows+="🔺"$'\t'"${tool}"$'\t'"${pinned}"$'\t'"${installed}"$'\t'"${latest}"$'\n'
+      rows+="🔺"$'\t'"${tool}"$'\t'"${pinned}"$'\t'"${installed}"$'\t'"${latest}"$'\t'"${tagged}"$'\n'
     fi
   done <<<"${outdated//$'\t'/$'\x1f'}"
   unset pinned_of installed_of
   [[ "${json}" == true || -z "${rows}" ]] \
-    || { heading "${name}" "$(described "${layer}")"; printf '%s' "${rows}" | draw $'name\tpinned\tinstalled\tlatest'; }
+    || { heading "${name}" "$(described "${layer}")"
+      printf '%s' "${rows}" | draw "$(outdated-header "${rows}")"; }
 done
 (( ${#layers[@]} )) || exit 0
 # names lists the layers as a sentence does: mise, or mise and npm, or mise, npm, and uv.

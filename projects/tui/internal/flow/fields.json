@@ -282,7 +282,7 @@
       "stage": "releases", "command": ["flow", "releases", "--json"], "staged": true, "forge": true,
       "summary": "What shipped, when, which is latest, and what each one carries",
       "takes": ["cached", "workspace"], "record": ".[]",
-      "empty": "no release",
+      "empty": "no release", "carries": ["visibility"],
       "fields": [
         {"id": "version", "label": "version", "type": "text", "path": ".version", "sort": true, "renderings": ["text"],
          "placement": "column"},

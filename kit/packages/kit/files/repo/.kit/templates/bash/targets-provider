@@ -1,0 +1,8 @@
+«head»
+targets/«stem»:connector()«call_connector…= { error "not written yet"; return 1; }»
+targets/«stem»:keys()«call_keys…= { error "not written yet"; return 1; }»
+targets/«stem»:push()«call_push…= { error "not written yet"; return 1; }»
+targets/«stem»:pushed()«call_pushed…= { error "not written yet"; return 1; }»
+targets/«stem»:retire()«call_retire…= { error "not written yet"; return 1; }»
+# The seam's calls end here; what follows is this provider's own.
+«rest»

@@ -13,6 +13,8 @@ templates:
     path: "**/policy/*.sh"
   - variant: sources-provider
     path: "**/sources/*.sh"
+  - variant: targets-provider
+    path: "**/targets/*.sh"
   - variant: toolchain-provider
     path: "**/toolchain/*.sh"
   - variant: tracker-provider

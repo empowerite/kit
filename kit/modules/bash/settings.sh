@@ -42,6 +42,8 @@ settings:value() {
 #   - a tracker without a prefix (letters and an optional #) or without a provider
 #   - a source, under sources:, that sources:check refuses: an unknown kind, a missing name or url, a name used
 #     twice, or a key its kind does not take
+#   - an artifact, under publish:, that targets:check refuses: one with no files, or a target of an unknown kind or
+#     with a key its kind does not take
 #
 # The gate validates this repository's settings against .kit/kit.schema.json in full. The kit delivers the
 # schema so an editor can validate against it anywhere.
@@ -57,6 +59,7 @@ settings:validate() {
       (version | packages | excludes) ;;
       (forge | gate | require_signing | answers | trackers | policy | policy_engine | bash_path) ;;
       (linked_exempt | sources | flow | primary | forges | forge_settings | log_days | facts | tools | bot) ;;
+      (publish) ;;
       (status)
         error "${settings} has a key the kit does not know: status; the stages kit flow draws are named under flow:"
         return 1
@@ -71,6 +74,12 @@ settings:validate() {
     use sources || return 1
     list:read rows sources:entries "${settings}" kit.yml || return 1
     sources:check "${rows[@]}" || return 1
+  fi
+  if list:among publish "${keys[@]}"
+  then
+    use targets || return 1
+    list:read rows targets:artifacts || return 1
+    targets:check "${rows[@]}" || return 1
   fi
   yaml:get value value "${settings}" require_signing
   if [[ -n "${value}" && "${value}" != true && "${value}" != false ]]

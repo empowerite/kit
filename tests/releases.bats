@@ -163,7 +163,7 @@ JSON
   printf '%s\t%s\n' 'api --paginate repos/{owner}/{repo}/releases?per_page=100' releases.json >> "${FAKE_DIR}/gh.routes"
   run "${kit_root}/bin/kit" flow releases --json
   [ "$status" -eq 0 ]
-  [ "$(jq --compact-output '.[0] | del(.age, .organization, .repository, .source)' <<<"$output")" \
+  [ "$(jq --compact-output '.[0] | del(.age, .organization, .repository, .source, .visibility)' <<<"$output")" \
     = "$(jq --compact-output . <<'JSON'
 {"key": "release/0.1.0", "version": "0.1.0", "tag": "release/0.1.0", "name": "kit 0.1.0", "kind": "release",
  "latest": "latest", "at": "2026-10-27T07:30:14Z",

@@ -253,4 +253,31 @@ npm_config_registry=https://registry.npmjs.org' ]
   [[ "$output" == *"kit.yml: each tool under tools: needs a version and one of url, release with its asset, module, or npm: a, b, c"* ]]
 }
 
+@test "behind a mirror, outdated says what is tagged upstream that the mirror does not serve, and a pin to it is pending" {
+  release 2.1.0 >/dev/null
+  pin-gh 2.1.0
+  "${kit_root}/bin/kit" tools install --toolchain=kit >/dev/null 2>&1
+  mkdir -p "${FAKE_RELEASES}/mirror.example"
+  printf '[{"tag_name": "v2.2.0", "draft": false}, {"tag_name": "v2.1.0", "draft": false}]\n' \
+    > "${FAKE_RELEASES}/mirror.example/releases?per_page=100"
+  route gh 'api repos/cli/cli/releases?per_page=100' 'tags'
+  printf '[{"tag_name": "v2.5.0", "draft": false}, {"tag_name": "v2.2.0", "draft": false}]\n' | fixture tags
+  export KIT_SOURCES='mirror=github-releases:https://mirror.example,off'
+  run "${kit_root}/bin/kit" tools --outdated --toolchain=kit
+  [ "$status" -eq 0 ]
+  grep --quiet -E '^ +name +· pinned +· installed +· latest +· tagged$' <<<"$output"
+  grep --quiet -E '^🔺 gh +· 2\.1\.0 +· 2\.1\.0 +· 2\.2\.0 +· 2\.5\.0$' <<<"$output"
+  run "${kit_root}/bin/kit" tools --outdated --toolchain=kit --json
+  [ "$(jq --compact-output '[.latest, .tagged]' <<<"$output")" = '["2.2.0","2.5.0"]' ]
+  pin-gh 2.5.0
+  run "${kit_root}/bin/kit" tools install --toolchain=kit
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"gh: release:cli/cli@v2.5.0/gh_2.5.0_${os}_${arch}.tar.gz is tagged upstream, and the pull path does not serve it yet: it is pending"* ]]
+  # on the open internet alone, nothing is behind a mirror
+  unset KIT_SOURCES
+  pin-gh 2.1.0
+  run "${kit_root}/bin/kit" tools --outdated --toolchain=kit
+  grep --quiet -E '^🔺 gh +· 2\.1\.0 +· 2\.1\.0 +· 2\.5\.0$' <<<"$output"
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

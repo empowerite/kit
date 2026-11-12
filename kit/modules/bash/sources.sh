@@ -38,8 +38,8 @@
 #   home                    the address direct stands for, for this kind; nothing for a kind with no public home
 #   keys                    the keys an entry of this kind takes beyond name, kind, url, and expect, one per line
 #   fetch <url> <coordinate> <file>
-#                           writes the artifact's bytes at <file>; 4 when the source does not serve it, 1 when it
-#                           cannot be reached
+#                           writes the artifact's bytes at <file>; 4 when the source does not serve it, 5 when it
+#                           says it never will, as a scan's block, and 1 when it cannot be reached
 #   hash <file> <coordinate>
 #                           the ecosystem's own hash of the bytes, with its prefix, as a lock records it
 #   versions <url> <coordinate>
@@ -411,6 +411,10 @@ sources:find() {
       (0) ;;
       (4)
         said+=("${where} does not have it")
+        continue
+        ;;
+      (5)
+        said+=("${where} blocks it")
         continue
         ;;
       (*)

@@ -424,7 +424,7 @@
           "type": "boolean"
         },
         "json": {
-          "description": "one JSON object per tool: name, pinned, installed, latest with --outdated, and from",
+          "description": "one JSON object per tool: name, pinned, installed, latest with --outdated, and from; and tagged where a newer version is tagged upstream than the pull path serves",
           "type": "boolean"
         },
         "toolchain": {

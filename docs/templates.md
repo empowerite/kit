@@ -37,7 +37,7 @@ templates:
 | workflows | `workflow` | | |
 | gitignore | `file` | | |
 | gitignore | `region` | `.gitignore` | a file the kit made of its region alone |
-| bash (the rule) | `dependencies-provider`, `forge-provider`, `policy-provider`, `sources-provider`, `toolchain-provider`, `tracker-provider` | `**/<seam>/*.sh` | a seam's provider; see below |
+| bash (the rule) | `dependencies-provider`, `forge-provider`, `policy-provider`, `sources-provider`, `targets-provider`, `toolchain-provider`, `tracker-provider` | `**/<seam>/*.sh` | a seam's provider; see below |
 
 JSON style has no template. A JSON file has no comments and no fixed opening, so there is no shape to check.
 

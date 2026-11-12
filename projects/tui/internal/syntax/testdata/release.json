@@ -2,7 +2,7 @@
   "verb": "release",
   "purpose": "tags HEAD as a release and pushes the tag",
   "usage": [
-    "kit release <version> [--lower]"
+    "kit release <version> [--lower] [--wait=<duration>]"
   ],
   "syntax": [
     [
@@ -24,6 +24,21 @@
           ]
         ],
         "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "option",
+              "name": "wait",
+              "value": "duration",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
       }
     ]
   ],
@@ -33,6 +48,9 @@
     },
     "--lower": {
       "description": "confirms a version not higher than the primary remote's highest release"
+    },
+    "--wait": {
+      "description": "then waits that long, at most, for every pull source to serve it: 30m, 2h, or 1d"
     }
   }
 }
