@@ -4,6 +4,8 @@
 package shell
 
 import (
+	"image"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -75,8 +77,10 @@ func TestTheMenusKeysMoveChooseAndClose(t *testing.T) {
 	}
 	if m, c := m.Opened().Key(key("s")); !m.Open || c != (Choice{}) {
 		t.Errorf("s: open %v, %+v", m.Open, c)
-	} else if _, c = m.Key(key("enter")); c != (Choice{Screen: SettingsScreen}) {
-		t.Errorf("settings: %+v", c)
+	} else if m, c = m.Key(key("enter")); c.Screen != SettingsScreen || c.From == nil ||
+		*c.From != (image.Point{X: At - 2 + 5, Y: Top + 1 + 14}) || !m.Open || m.At != 14 {
+		// the menu stays open on Settings…, which the dialog then stands over, and esc closes it back to the menu
+		t.Errorf("settings: open %v at %d, %+v", m.Open, m.At, c)
 	}
 	own, _ := Menu{Here: Help, Own: []Item{{Name: "Mine"}}}.Opened().Key(key("m"))
 	if _, c := own.Key(key("enter")); c != (Choice{Own: "Mine"}) {
@@ -91,8 +95,12 @@ func TestTheMenusKeysMoveChooseAndClose(t *testing.T) {
 			t.Errorf("%s did not close the menu", k)
 		}
 	}
-	if Switch(Welcome)() != (SwitchMsg{Screen: Welcome}) {
+	if (Choice{Screen: Welcome}).Switch()() != (SwitchMsg{Screen: Welcome}) {
 		t.Error("Switch")
+	}
+	from := &image.Point{X: 5, Y: 16}
+	if (Choice{Screen: SettingsScreen, From: from}).Switch()() != (SwitchMsg{Screen: SettingsScreen, From: from}) {
+		t.Error("Switch from Settings…")
 	}
 }
 
@@ -117,6 +125,16 @@ func TestTheMenuHangsFromTheTitlesGlyphAndAClickChooses(t *testing.T) {
 	if m, c := m.Click(50, 15, 60); c != (Choice{}) || m.Open {
 		t.Errorf("a click off the menu: %v %+v", m.Open, c)
 	}
+	// a click on Settings… leaves the menu open on it, and says the cell its name starts at, where the Settings dialog
+	// then stands its own Settings…, over the menu
+	if m, c := m.Click(3, Top+15, 60); !m.Open || m.At != 14 || c.Screen != SettingsScreen || c.From == nil ||
+		at(m.Overlay(slices.Clone(screen), 60), "Settings…") != *c.From {
+		t.Errorf("a click on Settings…: open %v at %d, %+v", m.Open, m.At, c)
+	} else if d := (SettingsDialog{Open: true, From: c.From}); at(d.Overlay(m.Overlay(slices.Clone(screen), 60),
+		Settings{}, 60), "╭─ Settings…").Add(image.Point{X: 3}) != *c.From {
+		t.Errorf("the dialog over the menu:\n%s", ansi.Strip(strings.Join(d.Overlay(m.Overlay(slices.Clone(screen), 60),
+			Settings{}, 60), "\n")))
+	}
 	// = and the name after it, "kit", take the click, on the title line alone
 	if !OnApp(At, Top, "kit") || !OnApp(0, Top, "kit") || !OnApp(At+4, Top, "kit") || OnApp(At+5, Top, "kit") ||
 		OnApp(At, Top+1, "kit") {
@@ -124,6 +142,34 @@ func TestTheMenuHangsFromTheTitlesGlyphAndAClickChooses(t *testing.T) {
 	}
 	if Title("kit", false) != "  "+style.Tint(App)+" kit" || Title("kit", true) != "  "+style.Menu(App)+" kit" {
 		t.Errorf("the title: %q %q", Title("kit", false), Title("kit", true))
+	}
+}
+
+// at gives the screen cell the text first starts at among the lines, their styles apart; -1, -1 where none holds it.
+func at(lines []string, text string) image.Point {
+	for y, l := range lines {
+		if before, _, ok := strings.Cut(ansi.Strip(l), text); ok {
+			return image.Point{X: ansi.StringWidth(before), Y: y}
+		}
+	}
+	return image.Point{X: -1, Y: -1}
+}
+
+// The Settings dialog opened from Settings… stands its title on the cell the menu drew it from, as near as the screen
+// lets: against the right edge, or the bottom, where it would run past them.
+func TestTheSettingsDialogStandsOverTheMenusSettings(t *testing.T) {
+	d := SettingsDialog{Open: true, From: &image.Point{X: 7, Y: 3}}
+	box := d.box(Settings{}, 120)
+	if top, left := d.place(box, 30, 120); top != 3 || left != 4 {
+		t.Errorf("placed at %d, %d", top, left)
+	}
+	wide := ansi.StringWidth(box[0])
+	if top, left := (SettingsDialog{From: &image.Point{X: 119, Y: 29}}).place(box, 30, 120); top != 30-len(box) ||
+		left != 120-wide {
+		t.Errorf("against the edges: %d, %d", top, left)
+	}
+	if top, left := (SettingsDialog{From: &image.Point{X: 0, Y: 0}}).place(box, 30, 120); top != 0 || left != 0 {
+		t.Errorf("against the corner: %d, %d", top, left)
 	}
 }
 

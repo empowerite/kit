@@ -131,7 +131,8 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     heading over them, the column grouping on its own; a group the person chooses overrides that, and the rows then
     group as chosen alone. Auto-group, which turns that on or off, Auto-hide, which hides a column no row has a value
     in, and Repeated emoji, which shows an emoji every row has instead of dropping it, are kittui's settings, in
-    = Settings…, every view's alike.
+    = Settings…, every view's alike. The Settings dialog opens over the menu, which stays open, its own Settings…
+    lying over the menu's line; esc closes it back to the menu.
   - The legend, in `legend.go`, floats over the rows while F1 or ? shows it: what each glyph on the screen under it
     means, the menu bar's, the tab bar's, the control line's, the rule's, the rows', and the status bar's, in the order
     each first appears, reading from the top left, and nothing of a glyph the screen does not show, each glyph a click

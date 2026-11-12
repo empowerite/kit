@@ -4,6 +4,8 @@
 package shell
 
 import (
+	"image"
+	"math"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -109,23 +111,28 @@ type Menu struct {
 }
 
 // Choice is what a choice from the app's menu asks of its screen: a screen to open in its place, kittui to quit, or
-// one of the screen's own items, by name. The zero Choice asks nothing.
+// one of the screen's own items, by name; and, for Settings…, the screen cell the menu drew its name from, which the
+// Settings dialog's title then stands on. The zero Choice asks nothing.
 type Choice struct {
 	Screen Screen
 	Quit   bool
 	Own    string
+	From   *image.Point
+}
+
+// Switch gives the command that asks for the screen the choice names, from where the menu drew it.
+func (c Choice) Switch() tea.Cmd {
+	return func() tea.Msg { return SwitchMsg{Screen: c.Screen, From: c.From} }
 }
 
 // SwitchMsg asks kittui to show another of kit's screens in place of the one shown, each kept as it was left: from the
 // app's menu, with no crumb; with Crumb, as a link leads, the one shown left as the crumb of the one asked for, as
-// crumb.go says.
+// crumb.go says. From is the screen cell the menu drew the line chosen from, for the Settings dialog, none else.
 type SwitchMsg struct {
 	Screen Screen
 	Crumb  bool
+	From   *image.Point
 }
-
-// Switch gives the command that asks for the screen, as the app's menu does.
-func Switch(to Screen) tea.Cmd { return func() tea.Msg { return SwitchMsg{Screen: to} } }
 
 // JumpMsg asks kittui to show an app with a row of one of its tabs under the cursor, as a link in another app leads:
 // the app, and where in it, the tab's stage as the app knows it, a slash, and the row's key. kittui shows the app, as
@@ -176,8 +183,8 @@ func (m Menu) enabled(k int) bool {
 	return false
 }
 
-// choice gives what the menu's line k asks, the zero Choice for one not enabled.
-func (m Menu) choice(k int) Choice {
+// choice gives what the menu's line k asks, the zero Choice for one not enabled, the screen's rows as wide as room.
+func (m Menu) choice(k, room int) Choice {
 	if k < 0 || !m.enabled(k) {
 		return Choice{}
 	}
@@ -191,7 +198,9 @@ func (m Menu) choice(k int) Choice {
 		return Choice{Quit: true}
 	}
 	if item == settingsItem {
-		return Choice{Screen: SettingsScreen}
+		// the line's name starts after the box's edge, a cell, the glyph's two cells, and a cell
+		_, left := m.box(room)
+		return Choice{Screen: SettingsScreen, From: &image.Point{X: left + 5, Y: Top + 1 + k}}
 	}
 	return Choice{Own: item.Name}
 }
@@ -203,11 +212,11 @@ func (m Menu) Opened() Menu {
 }
 
 // Key takes a key while the menu is open, as a dropdown does, = closing it as esc does; it gives the menu, closed once
-// a choice is made, and the choice.
+// a choice is made, and the choice. The menu stands as wide as it is, as no screen is too narrow for it.
 func (m Menu) Key(k tea.KeyPressMsg) (Menu, Choice) {
 	var at int
 	m.Dropdown, at = m.Dropdown.Key(k, m.Items(), m.enabled, "=")
-	return m, m.choice(at)
+	return m.chose(at, math.MaxInt)
 }
 
 // Click takes a left click while the menu is open, the screen's rows as wide as room, as a dropdown does; it gives the
@@ -216,7 +225,17 @@ func (m Menu) Click(x, y, room int) (Menu, Choice) {
 	box, left := m.box(room)
 	var at int
 	m.Dropdown, at = m.Dropdown.Click(x, y, Top, left, ansi.StringWidth(box[0]), m.Items(), m.enabled)
-	return m, m.choice(at)
+	return m.chose(at, room)
+}
+
+// chose gives the menu and what its line k asks, the screen's rows as wide as room: Settings… leaves the menu open
+// with the line under the keyboard, as the Settings dialog opens over it and esc closes the dialog back to it.
+func (m Menu) chose(k, room int) (Menu, Choice) {
+	c := m.choice(k, room)
+	if c.Screen == SettingsScreen {
+		m.Open, m.At = true, k
+	}
+	return m, c
 }
 
 // OnApp says whether a click at x, y is on App before the title, the cells either side of it, or the screen's name after

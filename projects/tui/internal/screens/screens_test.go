@@ -137,7 +137,7 @@ func TestWhatAScreenStartsIsTaggedForIt(t *testing.T) {
 	}{
 		{func() tea.Msg { return answer{} }, tagged{to: shell.Issues, msg: answer{}}},
 		{func() tea.Msg { return nil }, nil},
-		{shell.Switch(shell.Help), shell.SwitchMsg{Screen: shell.Help}},
+		{shell.Choice{Screen: shell.Help}.Switch(), shell.SwitchMsg{Screen: shell.Help}},
 		{tea.Quit, tea.QuitMsg{}},
 	} {
 		if got := tag(shell.Issues, 0, c.cmd)(); got != c.want {
@@ -171,7 +171,7 @@ func TestTheSettingsDialogHidesTheKeysBarAndKeepsItHidden(t *testing.T) {
 		t.Fatalf("the keys bar is not shown: %q", bar(m))
 	}
 	m, _ = testkit.Drive(m, nil, shell.SwitchMsg{Screen: shell.SettingsScreen})
-	if v := ansi.Strip(m.View().Content); !m.dialog.Open || !strings.Contains(v, "╭─ Settings ") ||
+	if v := ansi.Strip(m.View().Content); !m.dialog.Open || !strings.Contains(v, "╭─ Settings… ") ||
 		bar(m) != " esc close ↑↓ move ␣ toggle" {
 		t.Fatalf("the dialog is not open over the screen:\n%s", v)
 	}
@@ -205,7 +205,7 @@ func TestAClickFlipsASettingAndOneOutsideTheDialogClosesIt(t *testing.T) {
 	m := help(t)
 	m, _ = testkit.Drive(m, nil, shell.SwitchMsg{Screen: shell.SettingsScreen})
 	lines := strings.Split(ansi.Strip(m.View().Content), "\n")
-	top := slices.IndexFunc(lines, func(l string) bool { return strings.Contains(l, "╭─ Settings ") })
+	top := slices.IndexFunc(lines, func(l string) bool { return strings.Contains(l, "╭─ Settings… ") })
 	if top < 0 || !strings.Contains(lines[top+1], "Key hints") {
 		t.Fatalf("the dialog:\n%s", strings.Join(lines, "\n"))
 	}
@@ -369,4 +369,36 @@ func TestKitFlowsWordsReachAnAppOpenedLater(t *testing.T) {
 	if got := m.made[shell.Repositories].(flow.Model).Words(); !reflect.DeepEqual(got, w) {
 		t.Errorf("Repositories, made anew on w, takes %+v", got)
 	}
+}
+
+// Settings… in the app's menu opens the dialog over the menu, which stays open: the dialog's own Settings…, on its top
+// edge, lies over the menu's, and esc closes the dialog back to the menu, which esc then closes.
+func TestTheSettingsDialogOpensOverTheMenuAndEscGoesBackToIt(t *testing.T) {
+	m := help(t)
+	// cell gives where the text first starts on the screen, its styles apart, and whether it shows
+	cell := func(m Model, text string) (x, y int, ok bool) {
+		for y, l := range strings.Split(ansi.Strip(m.View().Content), "\n") {
+			if before, _, found := strings.Cut(l, text); found {
+				return ansi.StringWidth(before), y, true
+			}
+		}
+		return 0, 0, false
+	}
+	m, _ = testkit.Drive(m, nil, testkit.Click(shell.At, shell.Top))
+	x, y, ok := cell(m, "Settings…")
+	if !ok {
+		t.Fatalf("no Settings… in the menu:\n%s", ansi.Strip(m.View().Content))
+	}
+	m, _ = testkit.Drive(m, nil, testkit.Click(x, y))
+	if dx, dy, ok := cell(m, "╭─ Settings…"); !m.dialog.Open || !ok || dx+3 != x || dy != y {
+		t.Fatalf("the dialog at %d, %d, Settings… at %d, %d:\n%s", dx, dy, x, y, ansi.Strip(m.View().Content))
+	}
+	m, _ = testkit.Drive(m, nil, tea.KeyPressMsg{Code: tea.KeyEscape})
+	if bx, by, ok := cell(m, "Settings…"); m.dialog.Open || !ok || bx != x || by != y {
+		t.Errorf("esc did not go back to the menu:\n%s", ansi.Strip(m.View().Content))
+	}
+	if m, _ = testkit.Drive(m, nil, tea.KeyPressMsg{Code: tea.KeyEscape}); strings.Contains(m.View().Content, "Settings…") {
+		t.Errorf("esc again left the menu open:\n%s", ansi.Strip(m.View().Content))
+	}
+	m.Close()
 }

@@ -163,7 +163,7 @@ func (m *Model) chose(c shell.Choice) tea.Cmd {
 		m.done = true
 		return tea.Quit
 	case c.Screen != "":
-		return shell.Switch(c.Screen)
+		return c.Switch()
 	}
 	return nil
 }

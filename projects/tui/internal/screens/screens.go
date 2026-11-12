@@ -324,7 +324,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case shell.SwitchMsg:
 		if msg.Screen == shell.SettingsScreen {
-			m.dialog = shell.SettingsDialog{Open: true}
+			m.dialog = shell.SettingsDialog{Open: true, From: msg.From}
 			return m, nil
 		}
 		if msg.Crumb {

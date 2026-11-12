@@ -2,6 +2,7 @@ package shell
 
 import (
 	"encoding/json"
+	"image"
 	"os"
 	"path/filepath"
 
@@ -78,7 +79,7 @@ var settings = []setting{
 	{"Auto-group", "groups a table as it opens by each column whose value is the same on every row",
 		func(s Settings) bool { return s.FoldShared },
 		func(s Settings) Settings { s.FoldShared = !s.FoldShared; return s }},
-	{"Auto-hide", "hides a column as a table opens where no row has a value in it",
+	{"Auto-hide", "hides a column while no row has a value in it",
 		func(s Settings) bool { return s.HideBlank },
 		func(s Settings) Settings { s.HideBlank = !s.HideBlank; return s }},
 	{"Repeated emoji", "shows an emoji in a column even where every row has the same one",
@@ -87,10 +88,12 @@ var settings = []setting{
 }
 
 // SettingsDialog is the dialog the app's menu's Settings… opens over the screen shown: whether it is open, which then
-// has the keyboard, and the setting under the keyboard.
+// has the keyboard, and the setting under the keyboard; and the screen cell the menu drew Settings… from, which its own
+// title, Settings…, stands on, none for a dialog opened from nowhere.
 type SettingsDialog struct {
 	Open bool
 	At   int
+	From *image.Point
 }
 
 // settingsKeys are the dialog's keys, on the keys bar.
@@ -141,7 +144,7 @@ func (d SettingsDialog) Click(msg tea.MouseClickMsg, s Settings, height, width i
 	return d, s
 }
 
-// Overlay draws the open dialog over the screen's lines, centered across a screen so wide, near its top: each setting
+// Overlay draws the open dialog over the screen's lines, where place stands it on a screen so wide: each setting
 // a box picked or not, its name, and what it says, dim, the one under the keyboard inverse.
 func (d SettingsDialog) Overlay(lines []string, s Settings, width int) []string {
 	if !d.Open {
@@ -166,11 +169,16 @@ func (d SettingsDialog) box(s Settings, width int) []string {
 		}
 		body = append(body, name+"  "+style.Off(set.says))
 	}
-	return Dialog("Settings", body, width-2)
+	return Dialog(settingsItem.Name, body, width-2)
 }
 
-// place gives the line and the column the dialog's box starts at on a screen of so many lines, so wide: its third
+// place gives the line and the column the dialog's box starts at on a screen of so many lines, so wide: where its
+// title, three cells in from the corner, stands on the menu's Settings…, as near as the screen lets; else its third
 // line, or as near as the screen lets, and centered across it.
 func (d SettingsDialog) place(box []string, height, width int) (top, left int) {
-	return min(2, max(0, height-len(box))), max(0, (width-ansi.StringWidth(box[0]))/2)
+	wide := ansi.StringWidth(box[0])
+	if d.From != nil {
+		return max(0, min(d.From.Y, height-len(box))), max(0, min(d.From.X-3, width-wide))
+	}
+	return min(2, max(0, height-len(box))), max(0, (width-wide)/2)
 }

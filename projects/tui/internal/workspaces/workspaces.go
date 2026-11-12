@@ -480,7 +480,7 @@ func (m Model) chose(c shell.Choice) (Model, tea.Cmd) {
 	case c.Quit:
 		return m, m.quit()
 	case c.Screen != "":
-		return m, shell.Switch(c.Screen)
+		return m, c.Switch()
 	case c.Own == Workspace:
 		// the app's menu stays open under the group's menu, Workspace… under the keyboard, for esc to go back to
 		m.appMenu.Open = true

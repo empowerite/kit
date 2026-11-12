@@ -101,7 +101,7 @@ func (m *Model) chose(c shell.Choice) tea.Cmd {
 	case c.Quit:
 		return m.quit()
 	case c.Screen != "":
-		return shell.Switch(c.Screen)
+		return c.Switch()
 	case c.Own == WatchAll, c.Own == StopAll:
 		return m.watchAll(c.Own == WatchAll)
 	case c.Own == RefreshAll:
