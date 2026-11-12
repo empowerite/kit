@@ -147,7 +147,7 @@ path() {
   printf 'sources:\n  - name: corp\n    kind: svn\n    url: https://corp.example\n' >> kit.yml
   run kit tools sources
   [ "$status" -eq 1 ]
-  [[ "$output" == *"kit.yml: the source corp has the kind svn, which no provider answers; the kinds are fake github-releases goproxy kit-packages npm"* ]]
+  [[ "$output" == *"kit.yml: the source corp has the kind svn, which no provider answers; the kinds are artifactory dist fake github-releases goproxy kit-packages npm oci"* ]]
   run kit toolchains
   [ "$status" -eq 1 ]
   [[ "$output" == *"the source corp has the kind svn"* ]]

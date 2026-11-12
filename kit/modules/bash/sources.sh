@@ -35,7 +35,8 @@
 # Every provider implements the calls below.
 #
 #   serves <coordinate>     succeeds when the kind serves an artifact of the coordinate's form, as release: or module:
-#   home                    the address direct stands for, for this kind; nothing for a kind with no public home
+#   home [<coordinate>]     the address direct stands for, for this kind, or for the coordinate where it says, as an
+#                           image names its registry; nothing for a kind with no public home
 #   keys                    the keys an entry of this kind takes beyond name, kind, url, and expect, one per line
 #   fetch <url> <coordinate> <file>
 #                           writes the artifact's bytes at <file>; 4 when the source does not serve it, 5 when it
@@ -51,6 +52,9 @@
 # see: docs/packages.md, docs/superpowers/specs/2026-11-12-artifact-sources-design.md, issue #182
 
 use yaml file
+
+# sources_http is the HTTP status the last sources:get into a file was answered with, as 200 or 404.
+declare -g sources_http=''
 
 # sources_name_pattern is what a source's name must match.
 declare -gr sources_name_pattern='^[a-z][a-z0-9-]*$'
@@ -343,7 +347,7 @@ sources:direct() {
   for kind in "${kinds[@]}"
   do
     sources:call "${kind}" serves "$1" || continue
-    home=$(sources:call "${kind}" home) || continue
+    home=$(sources:call "${kind}" home "$1") || continue
     [[ -n "${home}" ]] || continue
     printf '%s\t%s\n' "${kind}" "${home}"
     return 0
@@ -448,9 +452,10 @@ sources:find() {
 # sources:get <url> <file> fetches the url into the file, or prints it for a file of -, with the source's credentials:
 # netrc's, and a bearer token from KIT_SOURCE_TOKEN_<NAME>, the name of the source being asked, sources_name, upper
 # cased with each dash as _. It returns 4 when the source answers that it has no such thing, as an HTTP error, and 1
-# when it cannot be reached.
+# when it cannot be reached. Fetching into a file, it sets sources_http to the HTTP status the source answered, so a
+# provider can tell a refusal, as 403, from a miss.
 sources:get() {
-  local status=0 variable
+  local status=0 variable code
   local -a credentials=(--netrc-optional)
   if [[ -n "${sources_name:-}" ]]
   then
@@ -458,8 +463,15 @@ sources:get() {
     variable=${variable^^}
     [[ -z "${!variable:-}" ]] || credentials+=(--header "Authorization: Bearer ${!variable}")
   fi
-  [[ "$2" == - ]] || credentials+=(--output "$2")
-  curl --fail --silent --location "${credentials[@]}" "$1" || status=$?
+  sources_http=''
+  if [[ "$2" == - ]]
+  then curl --fail --silent --location "${credentials[@]}" "$1" || status=$?
+  else
+    code=$(curl --fail --silent --location "${credentials[@]}" --output "$2" --write-out '%{http_code}' "$1") \
+      || status=$?
+    # shellcheck disable=SC2034  # read by a provider, as artifactory tells a 403 from a miss
+    sources_http=${code}
+  fi
   case "${status}" in
     (0) return 0 ;;
     (22) return 4 ;;

@@ -354,7 +354,11 @@ sources:
 - The kit's kinds: `kit-packages`; `github-releases`, a release's files at `<url>/<owner>/<repo>/releases/download/`,
   github.com, a GitHub Enterprise Server, or a mirror laid out the same; `goproxy`, a Go module proxy, which takes
   `private:`, the module patterns with no checksum database; and `npm`, a registry, which takes `scope:`, as
-  `"@corp"`, for a registry that serves that scope alone. What each serves the kit toolchain, and how, is in
+  `"@corp"`, for a registry that serves that scope alone; `dist`, a project's own download directory or a mirror of
+  one, which takes `dist:`, the one it mirrors; `oci`, an OCI registry or a pull-through cache, which takes
+  `prefix:`, the path the cache serves a registry's repositories under; and `artifactory`, an Artifactory
+  repository asked as its `type:`, github-releases, goproxy, npm, or dist, at its `repository:`, a download it
+  refuses with 403, as Xray's block, being blocked. What each serves the kit toolchain, and how, is in
   [using kit as the toolchain](toolchains/using-kit.md#saying-what-a-tool-is-in-place-of-its-url).
 - The pull path comes in layers, as `PATH` does, the first first: `KIT_SOURCES`, for a runner, entries apart by
   commas, each `direct`, `off`, or `<name>=<kind>:<url>`; `sources:` at the top of your `workspaces.yml` (see

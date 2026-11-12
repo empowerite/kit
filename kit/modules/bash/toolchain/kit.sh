@@ -24,6 +24,10 @@
 #   module: golang.org/toolchain, module_version: v0.0.1-go{version}.{os}-{arch}
 #                                                             a Go module's zip, module_version: v{version} by default
 #   npm: markdownlint-cli2                                    an npm package's tarball, at the version
+#   archive: bats-core/bats-core                              a GitHub tag's source tarball, tag: v{version}
+#   dist: node, file: v{version}/node-v{version}-{os}-{arch}.tar.gz
+#                                                             a file of a project's download directory: node, go, gnu
+#   image: ghcr.io/acme/tool                                  an OCI image's first layer, tag: {version} by default
 #
 # A download that ends in .tar.gz, .tgz, .tar.xz, .txz, .tar.bz2, or .tar is unpacked by tar, one that ends in .zip, or
 # is a module, by unzip, an npm package by tar, and any other is the command itself, saved under the tool's name. The
@@ -269,6 +273,10 @@ toolchain/kit:spec() {
       "module": ((.value.module // "") | tostring),
       "module_version": ((.value.module_version // "") | tostring),
       "npm": ((.value.npm // "") | tostring),
+      "archive": ((.value.archive // "") | tostring),
+      "dist": ((.value.dist // "") | tostring),
+      "file": ((.value.file // "") | tostring),
+      "image": ((.value.image // "") | tostring),
       "bin": ((.value.bin // ".") | tostring),
       "profile": ((.value.profile // "both") | tostring),
       "os": (.value.os // {}),
@@ -284,12 +292,12 @@ toolchain/kit:wanted() {
   local spec missing
   spec=$(toolchain/kit:spec) || return 1
   missing=$(jq --raw-output '[.[] | select(.version == ""
-      or ([.url, .release, .module, .npm] | map(select(. != "")) | length) != 1
-      or (.release != "" and .asset == "")) | .name] | join(", ")' <<<"${spec:-[]}")
+      or ([.url, .release, .module, .npm, .archive, .dist, .image] | map(select(. != "")) | length) != 1
+      or (.release != "" and .asset == "") or (.dist != "" and .file == "")) | .name] | join(", ")' <<<"${spec:-[]}")
   if [[ -n "${missing}" ]]
   then
-    error "kit.yml: each tool under tools: needs a version and one of url, release with its asset, module, or npm:" \
-      "${missing}"
+    error "kit.yml: each tool under tools: needs a version and one of url, release with its asset, module, npm," \
+      "archive, dist with its file, or image: ${missing}"
     return 1
   fi
   # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
@@ -501,7 +509,14 @@ toolchain/kit:same() {
 toolchain/kit:unpack() {
   case "${2%%\?*}" in
     (module:*) unzip -q "$1" -d "$3" ;;
-    (npm:*) tar --extract --gzip --file "$1" --directory "$3" ;;
+    (npm:* | archive:*) tar --extract --gzip --file "$1" --directory "$3" ;;
+    (oci:*)
+      # an image's layer is a tarball, or the command itself, as oras pushes a file
+      if tar --list --file "$1" >/dev/null 2>&1
+      then tar --extract --file "$1" --directory "$3"
+      else cp "$1" "$3/$4" && chmod +x "$3/$4"
+      fi
+      ;;
     (*.tar.gz | *.tgz | *.tar.xz | *.txz | *.tar.bz2 | *.tar) tar --extract --file "$1" --directory "$3" ;;
     (*.zip) unzip -q "$1" -d "$3" ;;
     (*) cp "$1" "$3/$4" && chmod +x "$3/$4"
@@ -535,7 +550,8 @@ toolchain/kit:tagged() {
   local at listed
   case "$1" in
     (release:*) at=${1#*@}; at=${at%%/*} ;;
-    (module:* | npm:*) at=${1##*@} ;;
+    (module:* | npm:* | archive:*) at=${1##*@} ;;
+    (oci:*) at=${1##*:} ;;
     (*) return 1
   esac
   listed=$(sources:versions "$1" "${toolchain_kit_upstream}" 2>/dev/null) || return 1

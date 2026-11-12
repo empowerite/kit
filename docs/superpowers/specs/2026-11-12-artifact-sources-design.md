@@ -1,6 +1,6 @@
 # Artifact sources: design
 
-Status: designed, 2026-11-12. see: issue #182, which builds on #181
+Status: built, 2026-11-12. see: issue #182, which builds on #181
 
 ## Intent
 
@@ -137,6 +137,11 @@ Each is filled in as #181 fills `url`: `{version}`, `{platform}`, `{os}`, `{arch
 download no protocol serves, as a GNU mirror's tarball; only `direct` serves it, so a desk with `off` before `direct`
 cannot install it, and kit says so, naming the tool.
 
+Two more forms came with the last slice: `archive: <owner>/<repo>` is a GitHub tag's source tarball,
+`archive:<owner>/<repo>@<tag>`, which github-releases serves; `dist: <dist>` with `file: <path>` is a file of a
+project's own download directory, `dist:<dist>/<path>`, which the `dist` kind serves, at the dist's home for direct
+(`node` at nodejs.org/dist, `go` at go.dev/dl, `gnu` at ftp.gnu.org/gnu) or at a mirror of it.
+
 Go's own toolchain is a module on the proxy, so a Go proxy on the path supplies go:
 
 ```yaml
@@ -196,8 +201,9 @@ entry's kind:
 | github-releases | `release:` | `https://github.com` | `<url>/<owner>/<repo>/releases/download/<tag>/<asset>` | `sha256:` | the releases' tags, through `gh api` for github.com where gh is signed in, else the API | none |
 | goproxy | `module:` | `https://proxy.golang.org` | `<url>/<module>/@v/<version>.zip`, the path case-encoded | `h1:`, Go's dirhash of the zip | `<url>/<module>/@v/list` | `GOPROXY`, `GOPRIVATE`, `GONOSUMDB` |
 | npm | `npm:` | `https://registry.npmjs.org` | the tarball the package document's `dist.tarball` names | `sha512-`, npm's integrity | the package document's `versions` | `npm_config_registry`, or the scope's |
-| oci | `oci:` | the repository's own registry | the manifest's first layer, through the registry's v2 API | `sha256:` | the repository's tags | none |
-| artifactory | as its `type` | none | as its `type`'s provider, at `<url>/api/<type's API>/<repository>` | as its `type` | as its `type`, and Xray's block as blocked | as its `type` |
+| dist | `dist:` | the dist's own: nodejs.org/dist, go.dev/dl, ftp.gnu.org/gnu | `<url>/<path>` | `sha256:` | node's index.json, go's ?mode=json, a GNU project's listing | none |
+| oci | `oci:` | the registry the image names | the manifest's first layer, through the registry's v2 API, `prefix:` before the repository | `sha256:` | the repository's tags | none |
+| artifactory | as its `type` | none | as its `type`'s provider, at `<url>/artifactory/<repository>`, or `api/go/` or `api/npm/` before it | as its `type` | as its `type`; a 403 is blocked | as its `type` |
 
 A provider reaches the network with curl, and its credentials come from netrc (`curl --netrc-optional`), the
 keychain or `gh auth token` for GitHub, or the environment: `KIT_SOURCE_TOKEN_<NAME>`, the name upper-cased with
@@ -293,6 +299,19 @@ source that serves the artifact's coordinate form (or the `verify` sources alone
 The open question in the issue, whether a target names the pull source that checks it, is settled: the whole path
 checks it by default, and `verify:` narrows it to the sources it names.
 
+## This repository's tools
+
+Every tool this repository pins is named by what it is, none by a URL, and each kept the bytes its lock held, so the
+move changed no hash:
+
+- actionlint, gh, jq, just, lefthook, lychee, opa, shellcheck, and yq are files of their GitHub releases.
+- bats is `archive: bats-core/bats-core`: it ships no release file, and its tag's source tarball is what it was
+  locked from, the same address under a URL.
+- node is `dist: node`, and parallel `dist: gnu`, from the same directories their URLs named.
+- go is `dist: go`, the tarball of go.dev/dl, and not the module `golang.org/toolchain`: the module's zip holds the
+  same toolchain in other bytes, under another directory, so moving to it would change every platform's hash and its
+  `bin`, and a desk behind a Go proxy alone can pin it so when it wants to.
+
 ## Implementation slices
 
 Each slice is its own #182 commit, with bats tests against fakes in `tests/fakes`, never the network, and its docs.
@@ -313,4 +332,7 @@ Each slice is its own #182 commit, with bats tests against fakes in `tests/fakes
    runner but for a pre-release; the tag's hash annotation; the four states, cached; kit flow's releases stage, `kit
    tools --outdated`'s upstream column, and `update` held to what the path serves; `kit release --wait=<duration>`.
 5. **oci and artifactory.** The two providers: OCI's v2 API with its bearer token dance, and Artifactory's
-   repositories by type, with Xray's block as blocked.
+   repositories by type, with Xray's block as blocked; with them, the `archive:` form and the `dist` kind, so every
+   tool this repository pins is named by what it is.
+
+All five slices are built.

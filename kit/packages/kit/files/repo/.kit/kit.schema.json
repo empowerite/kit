@@ -620,7 +620,7 @@
           },
           "tag": {
             "type": "string",
-            "description": "The release's tag, v{version} by default."
+            "description": "A release's, an archive's, or an image's tag: v{version} by default, and {version} for an image."
           },
           "module": {
             "type": "string",
@@ -633,6 +633,27 @@
           "npm": {
             "type": "string",
             "description": "An npm package, whose tarball at the version an npm source serves."
+          },
+          "archive": {
+            "type": "string",
+            "pattern": "^[^/@]+/[^/@]+$",
+            "description": "A GitHub tag's source tarball, <owner>/<repo>, at tag: (v{version} by default); a github-releases source serves it."
+          },
+          "dist": {
+            "enum": [
+              "node",
+              "go",
+              "gnu"
+            ],
+            "description": "A project's own download directory, whose file: a dist source serves: node, go, or gnu."
+          },
+          "file": {
+            "type": "string",
+            "description": "The dist's file, its path in the directory, filled in as url is."
+          },
+          "image": {
+            "type": "string",
+            "description": "An OCI image, <registry>/<repository>, whose first layer at tag: ({version} by default) an oci source serves."
           },
           "bin": {
             "type": "string",
@@ -699,6 +720,22 @@
           {
             "required": [
               "npm"
+            ]
+          },
+          {
+            "required": [
+              "archive"
+            ]
+          },
+          {
+            "required": [
+              "dist",
+              "file"
+            ]
+          },
+          {
+            "required": [
+              "image"
             ]
           }
         ]

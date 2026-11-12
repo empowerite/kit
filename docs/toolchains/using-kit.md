@@ -52,6 +52,9 @@ serves it, a mirror as well as the open internet. Each takes the place of `url`,
 | `release`, `asset`, `tag` | A file of a GitHub release: `release: cli/cli`, `asset: gh_{version}_{os}_{arch}.zip`; `tag` is `v{version}` by default. | `github-releases` sources, and `direct` at github.com |
 | `module`, `module_version` | A Go module's zip, unpacked: `module: golang.org/toolchain`, `module_version: v0.0.1-go{version}.{os}-{arch}`; `module_version` is `v{version}` by default. | `goproxy` sources, and `direct` at proxy.golang.org |
 | `npm` | An npm package's tarball, at the version: `npm: markdownlint-cli2`. | `npm` sources, and `direct` at registry.npmjs.org |
+| `archive`, `tag` | A GitHub tag's source tarball: `archive: bats-core/bats-core`; `tag` is `v{version}` by default. | `github-releases` sources, and `direct` at github.com |
+| `dist`, `file` | A file of a project's own download directory: `dist: node`, `file: v{version}/node-v{version}-{os}-{arch}.tar.gz`. The dists are `node` (nodejs.org/dist), `go` (go.dev/dl), and `gnu` (ftp.gnu.org/gnu). | `dist` sources, a mirror of one dist, and `direct` at its home |
+| `image`, `tag` | An OCI image's first layer, as oras pushes a file: `image: ghcr.io/acme/tool`; `tag` is the version by default. | `oci` sources, a pull-through cache, and `direct` at the registry the image names |
 
 Go's own toolchain is the module `golang.org/toolchain`, so a Go proxy supplies go:
 
@@ -67,8 +70,9 @@ tools:
 ```
 
 A module or an npm package keeps no file's mode, so kit makes the commands in its `bin` executable, and a module's
-tools under `pkg/tool/` too, as go and npm do. A tool with none of `url`, `release`, `module`, and `npm`, or with two,
-or a `release` without its `asset`, is refused by name.
+tools under `pkg/tool/` too, as go and npm do. An image's layer is unpacked by tar where it is a tarball, and is the
+command itself otherwise. A tool with none of `url`, `release`, `module`, `npm`, `archive`, `dist`, and `image`, or
+with two, a `release` without its `asset`, or a `dist` without its `file`, is refused by name.
 
 ## What kit reads
 

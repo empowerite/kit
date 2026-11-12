@@ -38,9 +38,9 @@ answers:
 
 # The tools the gate runs, pinned for the kit toolchain: tools.lock records what each download is, and its hash, for
 # every platform, and kit tools install puts them under ~/.kit/tools/, from the first source on the pull path that has
-# them: a tool a GitHub release ships is named by its release, so a mirror serves it as well as github.com. A runner
-# installs them all but lefthook, a desk's alone. git, bash, and perl come from the machine; see:
-# docs/toolchains/using-kit.md
+# them: each tool is named by what it is, a GitHub release's file or tag, or a file of its project's own download
+# directory, so a mirror serves it as well as its home. A runner installs them all but lefthook, a desk's alone. git,
+# bash, and perl come from the machine; see: docs/toolchains/using-kit.md
 #
 #   actionlint   the workflows rule's linter, over .github/workflows/, in kit lint and the gate
 #   bats         runs tests/, the suite the gate runs
@@ -64,7 +64,7 @@ tools:
     arch: {x64: amd64}
   bats:
     version: "1.14.0"
-    url: https://github.com/bats-core/bats-core/archive/refs/tags/v{version}.tar.gz
+    archive: bats-core/bats-core
     bin: bats-core-{version}/bin
   gh:
     version: "2.103.2"
@@ -76,7 +76,8 @@ tools:
     bin: gh_{version}_{os}_{arch}/bin
   go:
     version: "1.27.3"
-    url: https://go.dev/dl/go{version}.{os}-{arch}.tar.gz
+    dist: go
+    file: go{version}.{os}-{arch}.tar.gz
     os: {macos: darwin}
     arch: {x64: amd64}
     bin: go/bin
@@ -110,7 +111,8 @@ tools:
     bin: lychee-{arch}-{os}
   node:
     version: "24.22.2"
-    url: https://nodejs.org/dist/v{version}/node-v{version}-{os}-{arch}.tar.gz
+    dist: node
+    file: v{version}/node-v{version}-{os}-{arch}.tar.gz
     os: {macos: darwin}
     bin: node-v{version}-{os}-{arch}/bin
   opa:
@@ -121,7 +123,8 @@ tools:
     arch: {x64: amd64}
   parallel:
     version: "20260922"
-    url: https://ftp.gnu.org/gnu/parallel/parallel-{version}.tar.bz2
+    dist: gnu
+    file: parallel/parallel-{version}.tar.bz2
     bin: parallel-{version}/src
   shellcheck:
     version: "0.11.0"

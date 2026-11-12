@@ -80,22 +80,29 @@ def kit_fill($tool; $platform; $version):
   | gsub("\\{os\\}"; $tool.os[$os] // $os) | gsub("\\{arch\\}"; $tool.arch[$arch] // $arch)
   | gsub("\\{ext\\}"; ($tool.ext // {})[$os] // "");
 
-# kit_version_template($tool) is the template a tool's version takes in its coordinate: a release's tag, v{version}
-# by default; a module's version, v{version} by default; an npm package's version itself; and nothing for a url.
+# kit_version_template($tool) is the template a tool's version takes in its coordinate: a release's or an archive's
+# tag, v{version} by default; a module's version, v{version} by default; an image's tag, the version by default; an
+# npm package's version, and a dist's, whose source lists bare versions, the version itself; and nothing for a url.
 def kit_version_template($tool):
-  if ($tool.release // "") != "" then ($tool.tag // "") | if . == "" then "v{version}" else . end
+  if ($tool.release // "") != "" or ($tool.archive // "") != "" then
+    ($tool.tag // "") | if . == "" then "v{version}" else . end
   elif ($tool.module // "") != "" then ($tool.module_version // "") | if . == "" then "v{version}" else . end
-  elif ($tool.npm // "") != "" then "{version}"
+  elif ($tool.image // "") != "" then ($tool.tag // "") | if . == "" then "{version}" else . end
+  elif ($tool.npm // "") != "" or ($tool.dist // "") != "" then "{version}"
   else "" end;
 
 # kit_coordinate($tool; $platform; $version) is what the tool is at the version, for the platform, as the pull path is
-# searched for it: url:<url>, release:<owner>/<repo>@<tag>/<asset>, module:<path>@<version>, or npm:<package>@<version>.
+# searched for it: url:<url>, release:<owner>/<repo>@<tag>/<asset>, module:<path>@<version>, archive:<owner>/<repo>@
+# <tag>, dist:<dist>/<file>, oci:<image>:<tag>, or npm:<package>@<version>.
 def kit_coordinate($tool; $platform; $version):
   (kit_version_template($tool) | kit_fill($tool; $platform; $version)) as $at
   | if ($tool.url // "") != "" then "url:" + ($tool.url | kit_fill($tool; $platform; $version))
     elif ($tool.release // "") != "" then
       "release:\($tool.release)@\($at)/\($tool.asset | kit_fill($tool; $platform; $version))"
     elif ($tool.module // "") != "" then "module:\($tool.module)@\($at)"
+    elif ($tool.archive // "") != "" then "archive:\($tool.archive)@\($at)"
+    elif ($tool.dist // "") != "" then "dist:\($tool.dist)/\($tool.file // "" | kit_fill($tool; $platform; $version))"
+    elif ($tool.image // "") != "" then "oci:\($tool.image):\($at)"
     else "npm:\($tool.npm)@\($at)" end;
 
 # kit_wanted($platforms) reads the tools under tools: in kit.yml, each {name, version, url, release, asset, tag,

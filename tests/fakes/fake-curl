@@ -4,17 +4,24 @@
 # Linked as curl on PATH. Every URL asked for is appended to ${FAKE_RELEASES}/curl.calls, and each --header sent with
 # it to ${FAKE_RELEASES}/curl.headers. The response is the file ${FAKE_RELEASES}/<host>/<last part of the URL>, where
 # there is one, so two hosts can serve one name differently, and ${FAKE_RELEASES}/<last part of the URL> otherwise,
-# written to the --output file when there is one and to stdout otherwise, as curl does. A URL with no such file fails
-# with 22, curl's status for an HTTP error under --fail; one whose host is ${FAKE_RELEASES}/unreachable's line fails
-# with 7, curl's status when it cannot connect.
+# written to the --output file when there is one and to stdout otherwise, as curl does. One whose host is
+# ${FAKE_RELEASES}/unreachable's line fails with 7, curl's status when it cannot connect.
+#
+# The HTTP status is 200 for a file served and 404 for none, or what <file>.status holds, as 401 or 403; --write-out
+# prints it for %{http_code}, and --dump-header writes <file>.headers, a status's own headers. Under --fail, a status
+# of 400 or more fails with 22, curl's status for an HTTP error, and serves nothing; without it, the body is served,
+# empty for none, and curl succeeds.
 
 set -o errexit -o nounset -o pipefail
-out='' url=''
+out='' url='' fail=false written='' dump=''
 while (( $# ))
 do
   case "$1" in
     (--output | -o) out=$2; shift 2 ;;
     (--header | -H) printf '%s\n' "$2" >> "${FAKE_RELEASES}/curl.headers"; shift 2 ;;
+    (--write-out | -w) written=$2; shift 2 ;;
+    (--dump-header | -D) dump=$2; shift 2 ;;
+    (--fail | -f) fail=true; shift ;;
     (-*) shift ;;
     (*) url=$1; shift
   esac
@@ -28,11 +35,22 @@ then
   exit 7
 fi
 file="${FAKE_RELEASES}/${host}/${url##*/}"
-[[ -f "${file}" ]] || file="${FAKE_RELEASES}/${url##*/}"
-[[ -f "${file}" ]] || exit 22
-if [[ -n "${out}" ]]
-then cp "${file}" "${out}"
-else cat "${file}"
+[[ -e "${file}" || -e "${file}.status" ]] || file="${FAKE_RELEASES}/${url##*/}"
+code=404
+[[ ! -f "${file}" ]] || code=200
+[[ ! -f "${file}.status" ]] || code=$(cat "${file}.status")
+[[ -z "${dump}" ]] || { if [[ -f "${file}.headers" ]]; then cp "${file}.headers" "${dump}"; else : > "${dump}"; fi; }
+if (( code >= 400 )) && [[ "${fail}" == true ]]
+then
+  [[ -z "${written}" ]] || printf '%s' "${written//%\{http_code\}/${code}}"
+  exit 22
 fi
+body=/dev/null
+[[ ! -f "${file}" ]] || body=${file}
+if [[ -n "${out}" ]]
+then cp "${body}" "${out}"
+else cat "${body}"
+fi
+[[ -z "${written}" ]] || printf '%s' "${written//%\{http_code\}/${code}}"
 
 # ----------------------------------------------------------------------------------------------------------------------

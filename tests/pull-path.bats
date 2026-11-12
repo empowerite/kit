@@ -250,7 +250,7 @@ npm_config_registry=https://registry.npmjs.org' ]
     > kit.yml
   run "${kit_root}/bin/kit" tools install --toolchain=kit
   [ "$status" -eq 1 ]
-  [[ "$output" == *"kit.yml: each tool under tools: needs a version and one of url, release with its asset, module, or npm: a, b, c"* ]]
+  [[ "$output" == *"kit.yml: each tool under tools: needs a version and one of url, release with its asset, module, npm, archive, dist with its file, or image: a, b, c"* ]]
 }
 
 @test "behind a mirror, outdated says what is tagged upstream that the mirror does not serve, and a pin to it is pending" {
@@ -278,6 +278,146 @@ npm_config_registry=https://registry.npmjs.org' ]
   pin-gh 2.1.0
   run "${kit_root}/bin/kit" tools --outdated --toolchain=kit
   grep --quiet -E '^🔺 gh +· 2\.1\.0 +· 2\.1\.0 +· 2\.5\.0$' <<<"$output"
+}
+
+# stage-tool <name> <dir> makes a tarball at <dir>/<name>.tar.gz whose <name>/bin/<name> prints the name, and prints
+# the tarball's path.
+stage-tool() {
+  local stage="${BATS_TEST_TMPDIR}/stage-$1"
+  mkdir -p "${stage}/$1/bin" "$2"
+  printf '#!/bin/sh\necho %s\n' "$1" > "${stage}/$1/bin/$1"
+  chmod +x "${stage}/$1/bin/$1"
+  tar --create --gzip --file "$2/$1.tar.gz" --directory "${stage}" "$1"
+  printf '%s\n' "$2/$1.tar.gz"
+}
+
+@test "a GitHub tag's source tarball is an archive: pin, found where a release's files are, its tag v{version}" {
+  file=$(stage-tool bats "${FAKE_RELEASES}")
+  mv "${file}" "${FAKE_RELEASES}/v1.14.0.tar.gz"
+  cat > kit.yml <<YAML
+tools:
+  bats:
+    version: "1.14.0"
+    archive: bats-core/bats-core
+    bin: bats/bin
+    platforms: [${platform}]
+YAML
+  run "${kit_root}/bin/kit" tools install --toolchain=kit
+  [ "$status" -eq 0 ]
+  grep --quiet --line-regexp 'https://github.com/bats-core/bats-core/archive/refs/tags/v1.14.0.tar.gz' \
+    "${FAKE_RELEASES}/curl.calls"
+  [ "$(awk -F '\t' '{ print $5 }' tools.lock | grep -v '^artifact$' | tail -n 1)" = 'archive:bats-core/bats-core@v1.14.0' ]
+  [ "$(tool bats)" = bats ]
+}
+
+@test "a project's download directory is a dist: pin, at its home or on a mirror of that dist alone, and lists its versions" {
+  mkdir -p "${FAKE_RELEASES}/nodejs.org" "${FAKE_RELEASES}/mirror.example"
+  file=$(stage-tool node "${FAKE_RELEASES}/mirror.example")
+  mv "${file}" "${FAKE_RELEASES}/mirror.example/node-v24.22.2-${os/macos/darwin}-${arch}.tar.gz"
+  cat > kit.yml <<YAML
+tools:
+  node:
+    version: "24.22.2"
+    dist: node
+    file: v{version}/node-v{version}-{os}-{arch}.tar.gz
+    os: {macos: darwin}
+    bin: node/bin
+    platforms: [${platform}]
+YAML
+  # a mirror of another dist is passed by; the node mirror serves it
+  printf 'sources:\n  - name: gnu-mirror\n    kind: dist\n    url: https://gnu.example\n    dist: gnu\n  - name: node-mirror\n    kind: dist\n    url: https://mirror.example/node\n    dist: node\n  - off\n' \
+    > "${XDG_CONFIG_HOME}/kit/workspaces.yml"
+  run "${kit_root}/bin/kit" tools install --toolchain=kit
+  [ "$status" -eq 0 ]
+  run ! grep --quiet 'gnu.example' "${FAKE_RELEASES}/curl.calls"
+  grep --quiet --line-regexp "https://mirror.example/node/v24.22.2/node-v24.22.2-${os/macos/darwin}-${arch}.tar.gz" \
+    "${FAKE_RELEASES}/curl.calls"
+  [ "$(tool node)" = node ]
+  printf '[{"version": "v26.1.0", "lts": false}, {"version": "v24.23.0", "lts": "Krypton"}, {"version": "v24.22.2", "lts": "Krypton"}]\n' \
+    > "${FAKE_RELEASES}/mirror.example/index.json"
+  run "${kit_root}/bin/kit" tools --outdated --toolchain=kit
+  grep --quiet -E '^🔺 node +· 24\.22\.2 +· 24\.22\.2 +· 24\.23\.0$' <<<"$output"
+  # on the open internet, direct is the dist's home
+  rm "${XDG_CONFIG_HOME}/kit/workspaces.yml"
+  [ "$(kit-bash 'use sources && sources:direct dist:node/v1/x.tar.gz && sources:direct dist:gnu/parallel/p.tar.bz2 && sources:direct dist:go/go1.tar.gz')" \
+    = $'dist\thttps://nodejs.org/dist\ndist\thttps://ftp.gnu.org/gnu\ndist\thttps://go.dev/dl' ]
+  # a GNU project's directory lists its tarballs, the newest found by version
+  mkdir -p "${FAKE_RELEASES}/ftp.gnu.org"
+  printf '<a href="parallel-20260922.tar.bz2">x</a> <a href="parallel-20261022.tar.bz2">y</a> <a href="parallel-latest.tar.bz2">z</a>\n' \
+    > "${FAKE_RELEASES}/ftp.gnu.org/parallel"
+  [ "$(sources_entry='{}' kit-bash 'use sources sources/dist && sources/dist:versions https://ftp.gnu.org/gnu dist:gnu/parallel/parallel-1.tar.bz2' | paste -s -d ' ' -)" \
+    = '20260922 20261022' ]
+}
+
+@test "an OCI image's first layer is an image: pin, its pull token had from the realm a 401 names" {
+  local layer="${BATS_TEST_TMPDIR}/layer" digest
+  printf '#!/bin/sh\necho tool 1.0.0\n' > "${layer}"
+  digest=sha256:$(shasum -a 256 "${layer}" | cut -d ' ' -f 1)
+  mkdir -p "${FAKE_RELEASES}/ghcr.io" "${FAKE_RELEASES}/auth.example"
+  # the manifest answers 401 until a token is sent; the fake serves the same name once a token is had
+  printf '401\n' > "${FAKE_RELEASES}/ghcr.io/1.0.0.status"
+  printf 'HTTP/2 401\r\nwww-authenticate: Bearer realm="https://auth.example/token",service="ghcr.io",scope="repository:acme/tool:pull"\r\n' \
+    > "${FAKE_RELEASES}/ghcr.io/1.0.0.headers"
+  # the fake serves a URL by its last part, here the scope's tool:pull
+  printf '{"token": "t0k"}\n' > "${FAKE_RELEASES}/auth.example/tool:pull"
+  printf '{"layers": [{"digest": "%s", "mediaType": "application/octet-stream"}]}\n' "${digest}" \
+    > "${FAKE_RELEASES}/ghcr.io/1.0.0"
+  cp "${layer}" "${FAKE_RELEASES}/ghcr.io/${digest}"
+  cat > kit.yml <<YAML
+tools:
+  widget:
+    version: "1.0.0"
+    image: ghcr.io/acme/tool
+    platforms: [${platform}]
+YAML
+  # the fake answers by name alone, so the second ask, with the token, is answered 200 by taking the status away
+  # after the first; a shim curl does that
+  mkdir -p "${BATS_TEST_TMPDIR}/shim"
+  printf '#!/usr/bin/env bash\nfor a in "$@"; do [[ "$a" != "Authorization: Bearer t0k" ]] || rm -f "%s"; done\nexec "%s" "$@"\n' \
+    "${FAKE_RELEASES}/ghcr.io/1.0.0.status" "${BATS_TEST_DIRNAME}/fakes/fake-curl" > "${BATS_TEST_TMPDIR}/shim/curl"
+  chmod +x "${BATS_TEST_TMPDIR}/shim/curl"
+  PATH="${BATS_TEST_TMPDIR}/shim:${PATH}" run "${kit_root}/bin/kit" tools install --toolchain=kit
+  [ "$status" -eq 0 ]
+  grep --quiet --line-regexp 'https://ghcr.io/v2/acme/tool/manifests/1.0.0' "${FAKE_RELEASES}/curl.calls"
+  grep --quiet --line-regexp 'https://auth.example/token?service=ghcr.io&scope=repository:acme/tool:pull' \
+    "${FAKE_RELEASES}/curl.calls"
+  grep --quiet --line-regexp "https://ghcr.io/v2/acme/tool/blobs/${digest}" "${FAKE_RELEASES}/curl.calls"
+  grep --quiet "oci:ghcr.io/acme/tool:1.0.0"$'\t'"${digest}" tools.lock
+  [ "$(tool widget)" = "tool 1.0.0" ]
+  # a pull-through cache serves it under its prefix, and lists the tags
+  mkdir -p "${FAKE_RELEASES}/cache.example"
+  printf '{"tags": ["1.0.0", "1.2.0", "2.0.0-rc.1"]}\n' > "${FAKE_RELEASES}/cache.example/list"
+  KIT_SOURCES='cache=oci:https://cache.example,off' run "${kit_root}/bin/kit" tools --outdated --toolchain=kit
+  grep --quiet -E '^🔺 widget +· 1\.0\.0 +· 1\.0\.0 +· 1\.2\.0$' <<<"$output"
+  printf 'sources:\n  - name: cache\n    kind: oci\n    url: https://cache.example\n    prefix: ghcr\n  - off\n' \
+    > "${XDG_CONFIG_HOME}/kit/workspaces.yml"
+  run "${kit_root}/bin/kit" tools --outdated --toolchain=kit
+  grep --quiet --line-regexp 'https://cache.example/v2/ghcr/acme/tool/tags/list' "${FAKE_RELEASES}/curl.calls"
+}
+
+@test "an Artifactory repository is asked as its type, a 403 is blocked, and its settings are its type's" {
+  release 2.1.0 >/dev/null
+  pin-gh 2.1.0
+  mkdir -p "${FAKE_RELEASES}/arti.example"
+  cp "${FAKE_RELEASES}/gh_2.1.0_${os}_${arch}.tar.gz" "${FAKE_RELEASES}/arti.example/"
+  printf 'sources:\n  - name: corp\n    kind: artifactory\n    url: https://arti.example\n    repository: github-remote\n    type: github-releases\n  - name: corp-go\n    kind: artifactory\n    url: https://arti.example\n    repository: go-virtual\n    type: goproxy\n  - off\n' \
+    > "${XDG_CONFIG_HOME}/kit/workspaces.yml"
+  run "${kit_root}/bin/kit" tools install --toolchain=kit
+  [ "$status" -eq 0 ]
+  grep --quiet --line-regexp "https://arti.example/artifactory/github-remote/cli/cli/releases/download/v2.1.0/gh_2.1.0_${os}_${arch}.tar.gz" \
+    "${FAKE_RELEASES}/curl.calls"
+  run "${kit_root}/bin/kit" tools sources --env
+  [ "$output" = 'GOPROXY=https://arti.example/artifactory/api/go/go-virtual,off' ]
+  # Xray's block answers 403: the download is blocked, and the next source is not asked for it as for a miss
+  rm -rf "${KIT_HOME}/.kit/tools" "${XDG_CACHE_HOME}/kit/downloads"
+  printf '403\n' > "${FAKE_RELEASES}/arti.example/gh_2.1.0_${os}_${arch}.tar.gz.status"
+  run "${kit_root}/bin/kit" tools install --toolchain=kit
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"corp blocks it"* ]]
+  printf 'sources:\n  - name: corp\n    kind: artifactory\n    url: https://arti.example\n    repository: r\n    type: svn\n' \
+    > "${XDG_CONFIG_HOME}/kit/workspaces.yml"
+  run "${kit_root}/bin/kit" tools install --toolchain=kit
+  [[ "$output" == *"an artifactory source's type: is github-releases, goproxy, npm, or dist, not 'svn'"* ]]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
