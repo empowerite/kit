@@ -202,19 +202,45 @@ setup() {
   [ "$(grep -c '' yq.log)" -eq 2 ]
 }
 
+@test "a kept result is replayed only for the expression and the options that made it, so a newer kit reads the file again" {
+  mkdir shims
+  printf '#!/usr/bin/env bash\n[[ "$1" == --version ]] || echo run >> "%s/yq.log"\nPATH=${PATH#*:} exec yq "$@"\n' \
+    "${repo}" > shims/yq
+  chmod +x shims/yq
+  printf 'answer: 42\nother: 7\n' > in.yml
+  run env PATH="${repo}/shims:${PATH}" bash -c 'source "${kit_root}/modules/bash/1st.sh" && use yaml
+    yaml:eval in.yml pick .answer; yaml:eval in.yml pick .answer; yaml:eval in.yml pick .other
+    yaml:eval in.yml pick .other --output-format=json'
+  [ "$output" = $'42\n42\n7\n7' ]
+  [ "$(grep -c '' yq.log)" -eq 3 ]
+  entry=$(ls "${XDG_CACHE_HOME}/kit/yaml/" | grep '^facts ' || true)
+  [ -z "${entry}" ]
+  run env PATH="${repo}/shims:${PATH}" bash -c 'source "${kit_root}/modules/bash/1st.sh" && use yaml
+    yaml:value in.yml answer'
+  [ "$output" = 42 ]
+  entry=$(ls "${XDG_CACHE_HOME}/kit/yaml/" | grep '^facts ')
+  # a facts entry another expression made, as an older kit's, is read again, not replayed
+  { printf 'an older expression\0'; printf 'answer: 42\nother: 7\n\0'; printf 'V\x1fanswer\x1f99\n'; } \
+    > "${XDG_CACHE_HOME}/kit/yaml/${entry}"
+  run env PATH="${repo}/shims:${PATH}" bash -c 'source "${kit_root}/modules/bash/1st.sh" && use yaml
+    yaml:value in.yml answer'
+  [ "$output" = 42 ]
+  [ "$(grep -c '' yq.log)" -eq 5 ]
+}
+
 @test "a kept result that is a link is neither replayed nor replaced" {
   printf 'answer: 42\n' > in.yml
   run kit-bash 'yaml:value in.yml answer'
   [ "$output" = 42 ]
   entry=$(ls "${XDG_CACHE_HOME}/kit/yaml/" | grep '^facts ')
   [ -n "${entry}" ]
-  printf 'answer: 42\n\0planted\n' > planted
+  printf 'planted\0answer: 42\n\0planted\n' > planted
   ln -sf "${repo}/planted" "${XDG_CACHE_HOME}/kit/yaml/${entry}"
   run kit-bash 'yaml:value in.yml answer'
   [ "$status" -eq 0 ]
   [ "$output" = 42 ]
   [ -L "${XDG_CACHE_HOME}/kit/yaml/${entry}" ]
-  [ "$(tr '\0' '|' < planted)" = $'answer: 42\n|planted' ]
+  [ "$(tr '\0' '|' < planted)" = $'planted|answer: 42\n|planted' ]
 }
 
 @test "kit hydrate reads a kit.yml with CRLF endings and a flow list, and kit check passes" {

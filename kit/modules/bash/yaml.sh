@@ -123,12 +123,13 @@ yaml:cache() {
   return 0
 }
 
-# yaml:entry <file> <read> sets yaml_entry to the entry that keeps <read> of the file, and yaml_text to the file's
-# text, and returns 0 when the entry holds a result read from that text, with the result in yaml_out. Otherwise it
-# returns 1, with yaml_out empty, and with yaml_entry empty where no entry can be kept: the cache cannot be used, or
-# the entry's name, with its temporary file's suffix, would be longer than a file name may be.
+# yaml:entry <file> <read> <query> sets yaml_entry to the entry that keeps <read> of the file, and yaml_text to the
+# file's text, and returns 0 when the entry holds a result of the query, the expression and the options yq ran, read
+# from that text, with the result in yaml_out. A kit whose expression for a read changed reads the file again. It
+# returns 1 otherwise, with yaml_out empty, and with yaml_entry empty where no entry can be kept: the cache cannot be
+# used, or the entry's name, with its temporary file's suffix, would be longer than a file name may be.
 yaml:entry() {
-  local file=$1 name kept LC_ALL=C  # so the name's length is counted in bytes, as a file name's is
+  local file=$1 query=$3 name kept asked LC_ALL=C  # so the name's length is counted in bytes, as a file name's is
   yaml_entry='' yaml_text='' yaml_out=''
   name="$2 ${file}"
   [[ "${file}" == /* ]] || name="$2 ${PWD}/${file}"
@@ -143,8 +144,9 @@ yaml:entry() {
   IFS= read -r -d '' yaml_text < "${file}" || true
   [[ -f "${yaml_entry}" && ! -L "${yaml_entry}" && -O "${yaml_entry}" ]] || return 1
   # Each read stops at a NUL, and the last at the end of the file, where it returns 1 with its text read.
-  { IFS= read -r -d '' kept || true; IFS= read -r -d '' yaml_out || true; } < "${yaml_entry}"
-  [[ "${kept}" == "${yaml_text}" ]] && return 0
+  { IFS= read -r -d '' asked || true; IFS= read -r -d '' kept || true; IFS= read -r -d '' yaml_out || true; } \
+    < "${yaml_entry}"
+  [[ "${asked}" == "${query}" && "${kept}" == "${yaml_text}" ]] && return 0
   yaml_out=''
   return 1
 }
@@ -156,12 +158,12 @@ yaml:writable() {
   [[ ! -e "$1.${BASHPID}.part" && ! -L "$1.${BASHPID}.part" ]]
 }
 
-# yaml:keep <entry> <text> <result> writes the file's text and the result to the entry, through a temporary file in
-# the same directory moved over it, unless yaml:writable says the entry cannot be written.
+# yaml:keep <entry> <query> <text> <result> writes the query, the file's text, and the result to the entry, through a
+# temporary file in the same directory moved over it, unless yaml:writable says the entry cannot be written.
 yaml:keep() {
   local part=$1.${BASHPID}.part
   yaml:writable "$1" || return 0
-  printf '%s\0%s' "$2" "$3" 2>/dev/null > "${part}" || return 0
+  printf '%s\0%s\0%s' "$2" "$3" "$4" 2>/dev/null > "${part}" || return 0
   mv -f "${part}" "$1" 2>/dev/null || rm -f "${part}" 2>/dev/null
   return 0
 }
@@ -192,15 +194,16 @@ yaml:refuse() {
 # the result of a run otherwise. <read> names the read for the entry: the reader and its arguments. It returns 2
 # without yq, 0 for a file that does not exist, and otherwise what yaml:run returns.
 yaml:yq() {
-  local file=$1 read=$2 expression=$3
+  local file=$1 read=$2 expression=$3 query
   shift 3
   [[ "${yaml_ready}" == true ]] || return 2
   [[ -f "${file}" ]] || return 0
-  if ! yaml:entry "${file}" "${read}"
+  query=${expression}$'\n'$*
+  if ! yaml:entry "${file}" "${read}" "${query}"
   then
     yaml_out=$(yaml:run "${file}" "${expression}" "$@") || return $?
     [[ -z "${yaml_out}" ]] || yaml_out+=$'\n'
-    [[ -z "${yaml_entry}" ]] || yaml:keep "${yaml_entry}" "${yaml_text}" "${yaml_out}"
+    [[ -z "${yaml_entry}" ]] || yaml:keep "${yaml_entry}" "${query}" "${yaml_text}" "${yaml_out}"
   fi
   if [[ "${yaml_capture}" == true ]]
   then
@@ -260,13 +263,14 @@ declare -gr yaml_facts_expression='explode(.) | (if kind == "map" then to_entrie
 
 # yaml:facts <file> sets the array yaml_facts to the facts of the one document a reader reads, one per element: the
 # frontmatter when the file's first line is ---, and otherwise the whole file. It replays the facts kept for the file
-# while its text is as it was read. Otherwise yq appends them to the entry's temporary file, after the text, and the
+# while its text, and the expression that reads them, are as they were. Otherwise yq appends them to the entry's
+# temporary file, after the expression and the text, and the
 # file is moved over the entry, so the read forks no shell; what yq says goes to the same file, told apart from the
 # facts by its shape, a line that is not D and does not start with a kind and a unit separator. Where no entry can be
 # written, yq runs as yaml:run runs it. It returns 0 for a file that does not exist, with no facts, 2 without yq, and 1
 # for a file yq cannot parse, after saying so in one line.
 yaml:facts() {
-  local file=$1 first='' part said='' fact status=0
+  local file=$1 first='' part said='' fact status=0 query
   local -a options=()
   local -x kit_yaml_bs=\\ kit_yaml_nl=$'\n' kit_yaml_us=$'\x1f' kit_yaml_nul='\x00'
   yaml_facts=()
@@ -274,15 +278,16 @@ yaml:facts() {
   [[ "${yaml_ready}" == true ]] || return 2
   IFS= read -r first < "${file}" || true  # a first line with no newline is read, and returns 1
   [[ "${first%$'\r'}" != '---' ]] || options=(--front-matter=extract)
-  if yaml:entry "${file}" facts
+  query=${yaml_facts_expression}$'\n'${options[*]}
+  if yaml:entry "${file}" facts "${query}"
   then
-    # the entry opens with the text its facts are of, to its NUL, and one cut short returns 1
-    { IFS= read -r -d '' _ || true; mapfile -t yaml_facts; } < "${yaml_entry}"
+    # the entry opens with the query and the text its facts are of, each to its NUL, and one cut short returns 1
+    { IFS= read -r -d '' _ || true; IFS= read -r -d '' _ || true; mapfile -t yaml_facts; } < "${yaml_entry}"
     return 0
   fi
   part=${yaml_entry}.${BASHPID}.part
   if [[ -z "${yaml_entry}" ]] || ! yaml:writable "${yaml_entry}" \
-    || ! printf '%s\0' "${yaml_text}" 2>/dev/null > "${part}"
+    || ! printf '%s\0%s\0' "${query}" "${yaml_text}" 2>/dev/null > "${part}"
   then
     yaml_out=$(yaml:run "${file}" "${yaml_facts_expression}" "${options[@]}") || return $?
     mapfile -t yaml_facts <<<"${yaml_out}"
@@ -290,8 +295,8 @@ yaml:facts() {
   fi
   yq --no-colors --no-doc --unwrapScalar "${options[@]}" "${yaml_facts_expression}" "${file}" >> "${part}" 2>&1 \
     || status=$?
-  # the entry opens with the text its facts are of, to its NUL, and one cut short returns 1
-  { IFS= read -r -d '' _ || true; mapfile -t yaml_facts; } < "${part}"
+  # the entry opens with the query and the text its facts are of, each to its NUL, and one cut short returns 1
+  { IFS= read -r -d '' _ || true; IFS= read -r -d '' _ || true; mapfile -t yaml_facts; } < "${part}"
   for fact in "${yaml_facts[@]}"
   do
     if [[ "${fact}" != D && "${fact}" != [KTVLMR]$'\x1f'* ]]
