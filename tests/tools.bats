@@ -89,7 +89,7 @@ JSON
   # each missing tool comes with the system toolchain's command that installs it, or else its name alone
   grep --quiet --line-regexp '    brew install kit-test-absent-linter' <<<"$output"
   [[ "$output" != *"shellcheck"* ]]
-  "${kit_root}/bin/kit" toolchains choose ambient --system
+  "${kit_root}/bin/kit" toolchains use ambient --system
   run "${kit_root}/bin/kit" tools install
   [ "$status" -eq 1 ]
   grep --quiet --line-regexp '    kit-test-absent-linter' <<<"$output"
@@ -139,8 +139,8 @@ JSON
   # with two usable and no terminal, kit refuses and names the command that picks each
   run "${kit_root}/bin/kit" tools path </dev/null
   [ "$status" -eq 1 ]
-  [[ "$output" == *"kit toolchains choose mise"* ]]
-  [[ "$output" == *"kit toolchains choose docker"* ]]
+  [[ "$output" == *"kit toolchains use mise"* ]]
+  [[ "$output" == *"kit toolchains use docker"* ]]
   KIT_TOOLCHAIN=mise run "${kit_root}/bin/kit" tools path
   [ "$status" -eq 0 ]
   [ "$output" = '/m/jq/bin' ]
@@ -164,7 +164,7 @@ JSON
   [ "$output" = '/m/jq/bin' ]
   # docker runs commands in its container, so brew fills in for nothing there
   touch toolchain.Dockerfile
-  run "${kit_root}/bin/kit" toolchains choose docker
+  run "${kit_root}/bin/kit" toolchains use docker
   [ "$status" -eq 0 ]
   run "${kit_root}/bin/kit" tools path
   [ "$status" -eq 0 ]
@@ -493,19 +493,19 @@ docker-context() {
   export GITHUB_STEP_SUMMARY="${BATS_TEST_TMPDIR}/summary.md"
   run "${kit_root}/bin/kit" gate </dev/null
   [ "$status" -eq 1 ]
-  [[ "$output" == *"kit toolchains choose docker"* ]]
+  [[ "$output" == *"kit toolchains use docker"* ]]
   [[ "$output" != *"the gate failed"* ]]
   grep --quiet 'The gate cannot run' "${GITHUB_STEP_SUMMARY}"
   grep --quiet 'several toolchains are usable for the project here' "${GITHUB_STEP_SUMMARY}"
   KIT_TOOLCHAIN=brew run "${kit_root}/bin/kit" gate </dev/null
   [ "$status" -eq 1 ]
   grep --quiet 'the toolchain named for this run, brew, is not usable' "${GITHUB_STEP_SUMMARY}"
-  run "${kit_root}/bin/kit" toolchains choose docker
+  run "${kit_root}/bin/kit" toolchains use docker
   [ "$status" -eq 0 ]
   run "${kit_root}/bin/kit" gate
   [ "$status" -eq 0 ]
   grep --quiet --fixed-strings -- ' bash -c echo "${PATH%%:*}"' "${FAKE_DIR}/docker.calls"
-  run "${kit_root}/bin/kit" toolchains choose mise
+  run "${kit_root}/bin/kit" toolchains use mise
   [ "$status" -eq 0 ]
   : > "${FAKE_DIR}/docker.calls"
   run "${kit_root}/bin/kit" gate

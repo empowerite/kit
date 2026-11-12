@@ -41,7 +41,7 @@ competes with another project toolchain:
 
 - Only on macOS is the `Brewfile` read for the project. Elsewhere, as on a Linux runner, brew fills the system role
   alone.
-- Where another project toolchain is usable, brew is not a candidate. `kit toolchains choose brew` is refused.
+- Where another project toolchain is usable, brew is not a candidate. `kit toolchains use brew` is refused.
 - Where it is the only one usable, brew is the project toolchain, as any other is.
 - Otherwise it fills in for the chosen one: it acts on the `Brewfile`'s tools that toolchain does not pin.
 

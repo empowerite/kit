@@ -3,7 +3,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # kit toolchains [--json | --jq]
 #
-# kit toolchains choose <name> [--system]
+# kit toolchains use <name> [--system]
 #
 # Alone, it lists each manager kit can use, one row for each role it fills: a tool manager, which installs and pins
 # the versions of the repository's toolchain, the set of tools its work runs with; or a package manager, which installs
@@ -15,12 +15,12 @@
 #   - 📌 marks the one kit uses for the role. With several usable and none chosen, no row has it.
 #   - ➕ marks brew filling in for the project: it acts on the Brewfile's tools the chosen one does not pin.
 #
-# With choose, it records the choice. The project choice is kept for this repository, and the system choice for the
+# With use, it records the choice. The project choice is kept for this repository, and the system choice for the
 # person. A toolchain that is not usable here is refused, and the usable ones are named.
 #
 #   --json              one JSON object per row: provider, role, usable, active, chosen, and fills
 #   --jq                the same JSON, formatted by jq for a person
-#   choose <name>       records the toolchain for the project; ambient chooses none
+#   use <name>          records the toolchain for the project; ambient uses none
 #   <name>              mise, nix, brew, docker, devcontainer, apt, dnf, pacman, or ambient
 #   --system            records it for the system role, which supplies bash, git, jq, and yq
 #
@@ -38,7 +38,7 @@ guard:arguments toolchains "$@" || exit $?
 settings:validate || exit 1
 
 # shellcheck disable=SC2154  # the syntax_ arrays are set by guard:arguments
-if [[ "${syntax_literals[0]:-}" == choose ]]
+if [[ "${syntax_literals[0]:-}" == use ]]
 then
   role=project
   [[ -z "${syntax_options[--system]:-}" ]] || role=system

@@ -104,7 +104,7 @@ declare -grA serve_acts=(
 # that needs one is not offered, and an optional part that holds one is taken out. Each word is a literal or --flag.
 declare -grA serve_listing_only=(
   [packages]='select add remove'
-  [toolchains]='choose'
+  [toolchains]='use'
   [tools]='install update path run --outdated'
 )
 

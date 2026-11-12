@@ -220,7 +220,7 @@ call() {
   local before
   before=$(cksum kit.yml)
   serve "$(call 1 packages '{"subcommand":"add","package":["style/yaml"]}')" "$(call 2 packages '{"add":true}')" \
-    "$(call 3 toolchains '{"subcommand":"choose","name":"mise"}')" "$(call 4 tools '{"subcommand":"install"}')" \
+    "$(call 3 toolchains '{"subcommand":"use","name":"mise"}')" "$(call 4 tools '{"subcommand":"install"}')" \
     "$(call 5 tools '{"outdated":true}')" "$(call 6 tools '{"command":["touch","ran"]}')" \
     "$(call 7 tools)" "$(call 8 toolchains)" "$(call 9 packages)" "$(modern 10 tools/list)"
   for id in 1 2

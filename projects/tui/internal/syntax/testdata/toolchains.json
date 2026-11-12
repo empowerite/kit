@@ -3,7 +3,7 @@
   "purpose": "lists the toolchains kit found here, and records which one to use",
   "usage": [
     "kit toolchains [--json | --jq]",
-    "kit toolchains choose <name> [--system]"
+    "kit toolchains use <name> [--system]"
   ],
   "syntax": [
     [
@@ -32,7 +32,7 @@
     [
       {
         "kind": "literal",
-        "name": "choose",
+        "name": "use",
         "repeat": false
       },
       {
@@ -63,8 +63,8 @@
     "--jq": {
       "description": "the same JSON, formatted by jq for a person"
     },
-    "choose": {
-      "description": "records the toolchain for the project; ambient chooses none"
+    "use": {
+      "description": "records the toolchain for the project; ambient uses none"
     },
     "<name>": {
       "description": "mise, nix, brew, docker, devcontainer, apt, dnf, pacman, or ambient"

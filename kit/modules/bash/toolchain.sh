@@ -261,7 +261,7 @@ toolchain:chosen() {
   then
     answer=$(toolchain:ask "${role}" "${usable[@]}") || return 1
     toolchain:choose "${role}" "${answer}" || return 1
-    info "kit keeps ${answer} for the ${role}; change it with: kit toolchains choose <name>$(toolchain:flag "${role}")"
+    info "kit keeps ${answer} for the ${role}; change it with: kit toolchains use <name>$(toolchain:flag "${role}")"
     printf '%s\n' "${answer}"
     return 0
   fi
@@ -315,7 +315,7 @@ toolchain:refuse() {
   error "several toolchains are usable for the ${role} here, and there is no terminal to ask which; choose one:"
   for candidate in "$@"
   do
-    printf '    with %s: kit toolchains choose %s%s\n' "${candidate}" "${candidate}" "$(toolchain:flag "${role}")" >&2
+    printf '    with %s: kit toolchains use %s%s\n' "${candidate}" "${candidate}" "$(toolchain:flag "${role}")" >&2
   done
   # The run names only the project toolchain; the system one is chosen and kept.
   [[ "${role}" != project ]] || printf '  or name one for a single run: KIT_TOOLCHAIN=<name>\n' >&2
@@ -400,7 +400,7 @@ toolchain:role() {
   return 1
 }
 
-# toolchain:flag <role> prints what kit toolchains choose adds for the role: --system for system, else nothing.
+# toolchain:flag <role> prints what kit toolchains use adds for the role: --system for system, else nothing.
 toolchain:flag() {
   [[ "$1" != system ]] || printf ' --system'
 }

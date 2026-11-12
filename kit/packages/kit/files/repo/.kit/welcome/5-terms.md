@@ -274,7 +274,7 @@ The set of tools a tool manager installs, such as Go and its linters.
 
 No manager chosen: kit uses the tools already on PATH.
 
-`kit toolchains choose ambient`
+`kit toolchains use ambient`
 
 ## kit itself
 

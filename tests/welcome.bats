@@ -64,7 +64,7 @@ under() {
 
 # ambient-system chooses ambient for the system role, so no toolchain names a command for a missing tool.
 ambient-system() {
-  "${kit_root}/bin/kit" toolchains choose ambient --system >/dev/null 2>&1
+  "${kit_root}/bin/kit" toolchains use ambient --system >/dev/null 2>&1
 }
 
 @test "the checks are a JSON array, in order, each with its fix and its folder, which is null for the machine's" {
@@ -287,11 +287,11 @@ ambient-system() {
   fake-script docker 'exit 0'
   run --separate-stderr check toolchain-project
   [ "$(jq --raw-output '[.ok, .fix, .interactive, .more] | @tsv' <<<"$output")" = \
-    $'false\tkit toolchains choose mise\tfalse\tor: kit toolchains choose docker' ]
+    $'false\tkit toolchains use mise\tfalse\tor: kit toolchains use docker' ]
   [ "$(jq --raw-output .line <<<"$output")" = "several toolchains are usable for the project: mise, docker; choose one" ]
   # what is left keeps the other toolchain's command beside the fix
   run --separate-stderr "${kit_root}/bin/kit" welcome --text
-  [[ "$output" == *$'\n'"- toolchain-project in $(pwd -P): kit toolchains choose mise; or: kit toolchains choose"\
+  [[ "$output" == *$'\n'"- toolchain-project in $(pwd -P): kit toolchains use mise; or: kit toolchains use"\
 " docker"$'\n'* ]]
   run --separate-stderr check linter-shellcheck
   [ "$(jq --raw-output '[.fix, .more] | @tsv' <<<"$output")" = \

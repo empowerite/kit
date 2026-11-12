@@ -22,7 +22,7 @@ role, kit uses:
 - else the only usable one
 - else none: the role is ambient, and kit uses what is on PATH
 
-With several usable and none chosen, choose one: `kit toolchains choose <name>`, with `--system` for the system
+With several usable and none chosen, choose one: `kit toolchains use <name>`, with `--system` for the system
 role. Your choice stays on this machine. It is never committed, so each person chooses their own.
 
 This step checks the system's toolchain, once for the machine. Each branch can have files of its own, so setup

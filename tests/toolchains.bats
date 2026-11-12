@@ -337,8 +337,8 @@ choose() {
   touch mise.toml toolchain.Dockerfile
   run chosen </dev/null
   [ "$status" -eq 1 ]
-  grep --quiet 'kit toolchains choose mise' <<<"$output"
-  grep --quiet 'kit toolchains choose docker' <<<"$output"
+  grep --quiet 'kit toolchains use mise' <<<"$output"
+  grep --quiet 'kit toolchains use docker' <<<"$output"
   [ ! -e .git/kit/toolchain ]
 }
 
@@ -358,7 +358,7 @@ choose() {
   rm mise.toml
   run chosen </dev/null
   [ "$status" -eq 1 ]
-  [[ "$output" == *"kit toolchains choose docker"* ]]
+  [[ "$output" == *"kit toolchains use docker"* ]]
   [ "$(grep --count --line-regexp mise <<<"$output")" -eq 0 ]
   run choose docker
   [ "$status" -eq 0 ]
@@ -441,8 +441,8 @@ choose() {
   rm "${KIT_HOME}/.kit/settings.yml"
   run chosen system
   [ "$status" -eq 1 ]
-  [[ "$output" == *"with brew: kit toolchains choose brew --system"* ]]
-  [[ "$output" == *"with apt: kit toolchains choose apt --system"* ]]
+  [[ "$output" == *"with brew: kit toolchains use brew --system"* ]]
+  [[ "$output" == *"with apt: kit toolchains use apt --system"* ]]
   [[ "$output" != *KIT_TOOLCHAIN* ]]
   printf 'theme: dark\ntoolchain: brew\n' > "${KIT_HOME}/.kit/settings.yml"
   run choose mise system
@@ -509,14 +509,14 @@ choose() {
   [ "$(jq --slurp 'length' <<<"$output")" -eq "$(detect | wc -l | tr -d ' ')" ]
 }
 
-@test "kit toolchains choose records the project choice, and --system the system one" {
+@test "kit toolchains use records the project choice, and --system the system one" {
   touch mise.toml toolchain.Dockerfile
-  run "${kit_root}/bin/kit" toolchains choose docker
+  run "${kit_root}/bin/kit" toolchains use docker
   [ "$status" -eq 0 ]
   [ "$(cat .git/kit/toolchain)" = docker ]
   run "${kit_root}/bin/kit" toolchains --json
   [ "$(jq --slurp 'map(select(.chosen and .role == "project") | .provider) | .[]' --raw-output <<<"$output")" = docker ]
-  run "${kit_root}/bin/kit" toolchains choose brew --system
+  run "${kit_root}/bin/kit" toolchains use brew --system
   [ "$status" -eq 0 ]
   [ "$(yq .toolchain "${KIT_HOME}/.kit/settings.yml")" = brew ]
 }
@@ -527,7 +527,7 @@ choose() {
   git worktree add --quiet "${BATS_TEST_TMPDIR}/feature" -b feature
   cd "${BATS_TEST_TMPDIR}/feature"
   [ ! -e .kit ]
-  run "${kit_root}/bin/kit" toolchains choose docker
+  run "${kit_root}/bin/kit" toolchains use docker
   [ "$status" -eq 0 ]
   [ "$(cat "${repo}/.git/worktrees/feature/kit/toolchain")" = docker ]
   [ ! -e .kit ]
@@ -541,7 +541,7 @@ choose() {
   git add --all && git commit --quiet --message init
   git worktree add --quiet "${BATS_TEST_TMPDIR}/feature" -b feature
   cd "${BATS_TEST_TMPDIR}/feature"
-  run "${kit_root}/bin/kit" toolchains choose docker
+  run "${kit_root}/bin/kit" toolchains use docker
   [ "$status" -eq 0 ]
   [ "$(cat "${repo}/.git/worktrees/feature/kit/toolchain")" = docker ]
   [ ! -e .kit/cache/toolchain ]
@@ -549,19 +549,19 @@ choose() {
   cd "${repo}"
 }
 
-@test "kit toolchains choose refuses a toolchain not usable here, naming the usable ones" {
+@test "kit toolchains use refuses a toolchain not usable here, naming the usable ones" {
   touch mise.toml
-  run "${kit_root}/bin/kit" toolchains choose brew
+  run "${kit_root}/bin/kit" toolchains use brew
   [ "$status" -eq 1 ]
   [[ "$output" == *"brew is not usable for the project here; usable: mise"* ]]
   [ ! -e .git/kit/toolchain ]
   # with a Brewfile, brew fills in for mise, and is never chosen over it
   touch Brewfile
-  run "${kit_root}/bin/kit" toolchains choose brew
+  run "${kit_root}/bin/kit" toolchains use brew
   [ "$status" -eq 1 ]
   [[ "$output" == *"brew fills in for the tools mise does not pin; choose mise"* ]]
   [ ! -e .git/kit/toolchain ]
-  run "${kit_root}/bin/kit" toolchains choose
+  run "${kit_root}/bin/kit" toolchains use
   [ "$status" -eq 2 ]
 }
 

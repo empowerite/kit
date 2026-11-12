@@ -1,7 +1,7 @@
 # Using no toolchain
 
 With no project toolchain usable, kit runs **ambient**: it uses the tools already on `PATH`. A repository can choose
-it on purpose with `kit toolchains choose ambient`. For how kit finds and chooses a toolchain, see
+it on purpose with `kit toolchains use ambient`. For how kit finds and chooses a toolchain, see
 [toolchains.md](../toolchains.md).
 
 Ambient, no toolchain pins anything. `kit tools` lists the tools the rules' linters need, and where each is found on

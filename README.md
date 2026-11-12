@@ -263,7 +263,7 @@ git config user.signingkey "${signing_key}"
 git config commit.gpgsign true
 brew bundle install
 direnv allow
-kit/bin/kit toolchains choose kit
+kit/bin/kit toolchains use kit
 kit tools install
 kit hydrate && lefthook install
 kit welcome

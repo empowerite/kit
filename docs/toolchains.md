@@ -83,10 +83,10 @@ For each role, the first of these that answers is the one:
 5. With several usable, on a terminal, the person's answer, which kit records.
 
 With several usable and no terminal, as for an agent, kit refuses. The refusal lists each candidate with the
-command that picks it, such as `kit toolchains choose mise`. With none usable, kit runs **ambient**: it uses what
+command that picks it, such as `kit toolchains use mise`. With none usable, kit runs **ambient**: it uses what
 is on `PATH`.
 
-`kit toolchains choose <name>` records the project choice, and `--system` records the system one. `ambient` is a
+`kit toolchains use <name>` records the project choice, and `--system` records the system one. `ambient` is a
 name too: it chooses not to use a toolchain.
 
 ## Where things are kept

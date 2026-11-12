@@ -20,7 +20,7 @@ pacman. For how kit finds and chooses a toolchain, see [toolchains.md](../toolch
 ## With brew too
 
 With brew on `PATH` too, both are usable for the system. brew is offered first, and the choice is yours:
-`kit toolchains choose apt --system`.
+`kit toolchains use apt --system`.
 
 ## With no project toolchain
 

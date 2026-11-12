@@ -267,10 +267,10 @@ welcome:toolchain() {
       for candidate in "${usable[@]}"
       do
         names+="${names:+, }${candidate}"
-        [[ "${candidate}" == "${usable[0]}" ]] || others+="${others:+; }kit toolchains choose ${candidate}${flag}"
+        [[ "${candidate}" == "${usable[0]}" ]] || others+="${others:+; }kit toolchains use ${candidate}${flag}"
       done
       welcome:record "toolchain-${role}" false "several toolchains are usable for the ${role}: ${names}; choose one" \
-        "kit toolchains choose ${usable[0]}${flag}" false "or: ${others}"
+        "kit toolchains use ${usable[0]}${flag}" false "or: ${others}"
       ;;
     (*)
       if [[ "${role}" == project ]]

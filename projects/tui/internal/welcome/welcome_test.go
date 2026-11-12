@@ -299,7 +299,7 @@ func TestTheToolchainsStepOffersNowAndLaterWithTheOthersBeside(t *testing.T) {
 	}
 	got := view(m)
 	for _, want := range []string{" ▸ ❌ several toolchains are usable for the project: mise, brew; choose one",
-		"\n      kit toolchains choose mise\n", "\n      or: kit toolchains choose brew\n"} {
+		"\n      kit toolchains use mise\n", "\n      or: kit toolchains use brew\n"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("no %q:\n%s", want, got)
 		}
@@ -320,8 +320,8 @@ func TestLaterKeepsTheOtherToolchainsBesideTheFix(t *testing.T) {
 		t.Fatalf("deferred %v", m.deferred)
 	}
 	want := "\n   • several toolchains are usable for the project: mise, brew; " +
-		"choose one: kit toolchains choose mise\n" +
-		"     or: kit toolchains choose brew\n"
+		"choose one: kit toolchains use mise\n" +
+		"     or: kit toolchains use brew\n"
 	if got := view(m); !strings.Contains(got, want) {
 		t.Errorf("no %q:\n%s", want, got)
 	}

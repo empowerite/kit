@@ -80,4 +80,4 @@ Where it differs from the kit toolchain:
   default `go` is older.
 - An Intel Mac is left out. nixpkgs 26.11 dropped `x86_64-darwin`.
 
-On a desk with both, kit and nix are usable, and kit uses the one recorded. `kit toolchains choose nix` switches.
+On a desk with both, kit and nix are usable, and kit uses the one recorded. `kit toolchains use nix` switches.

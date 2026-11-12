@@ -99,7 +99,7 @@ name, takes no word that acts, reads no path outside the repository, changes no 
 - An action is never offered. `packages` is a listing only, and so are `toolchains` and `tools`, which run the
   toolchain's definition and so do not read only:
   - `packages` does not offer `select`, `add`, or `remove`.
-  - `toolchains` does not offer `choose`.
+  - `toolchains` does not offer `use`.
   - `tools` does not offer `install`, `update`, `path`, `run`, or `--outdated`, which reaches the network.
 
   A call that names one of these is refused, and the error says to run the verb in a terminal.

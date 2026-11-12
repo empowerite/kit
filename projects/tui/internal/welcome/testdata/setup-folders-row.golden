@@ -20,8 +20,8 @@
    github.com/o/b
      💻 b            main         0.2.0  ✅   ✅   ✅    ·      ❌         ❌     ❌
        ❌ several toolchains are usable for the project: mise, brew; choose one
-          kit toolchains choose mise
-          or: kit toolchains choose brew
+          kit toolchains use mise
+          or: kit toolchains use brew
        ❌ shellcheck is not installed; kit lint runs it for .kit/rules/bash.md
           https://docs/toolchains.md
        ❌ kit check finds 2 problem(s); run kit check to see each one
