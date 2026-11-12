@@ -874,7 +874,7 @@ signal-run() {
     echo '#!/usr/bin/env bash'
     [[ "${how}" != catch ]] || echo "trap 'echo got-${sig} >&2; exit 0' ${sig}"
     echo "echo \"\${PPID}\" > '${ready}.pid'; : > '${ready}'"
-    echo 'while :; do sleep 0.1; done'
+    echo 'for (( i = 0; i < 600; i++ )); do sleep 0.1; done'
   } > "${BATS_TEST_TMPDIR}/command"
   chmod +x "${BATS_TEST_TMPDIR}/command"
   # with job control the job is a group of its own, and does not ignore an interrupt, as an asynchronous command does
@@ -882,11 +882,11 @@ signal-run() {
   # A suite started in the background gives every process an interrupt that is ignored, which no bash can take back
   # and kit, as it should, keeps: perl takes it back before it execs.
   set -m
-  perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV' kit bots run "${BATS_TEST_TMPDIR}/command" \
-    > "${BATS_TEST_TMPDIR}/signalled.out" 2> "${BATS_TEST_TMPDIR}/signalled.err" &
+  perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV or die "exec: $!"' kit bots run "${BATS_TEST_TMPDIR}/command" \
+    3>&- > "${BATS_TEST_TMPDIR}/signalled.out" 2> "${BATS_TEST_TMPDIR}/signalled.err" &
   job=$!
   set +m
-  wait-for "${ready}" || { kill -KILL "${job}" 2>/dev/null; return 1; }
+  wait-for "${ready}" || { kill -KILL -- "-${job}" 2>/dev/null; return 1; }
   if [[ "${sig}" == INT ]]
   then kill -INT -- "-${job}"
   elif [[ "${target}" == kit ]]
@@ -900,7 +900,7 @@ signal-run() {
   done
   if kill -0 "${job}" 2>/dev/null
   then
-    kill -KILL "${job}"
+    kill -KILL -- "-${job}" 2>/dev/null
     return 1
   fi
   signalled_status=0
@@ -1174,7 +1174,7 @@ COMMAND
 session=$(dirname "$(dirname "$(command -v gh)")")
 printf '{"token":"ghs_two","expires_at":"%s"}' "$(jq --null-input --raw-output 'now + 3600 | floor | todate')" > "${FAKE_DIR}/token.json"
 # a live holder, slow
-sleep 30 & holder=$!
+bash -c 'for (( i = 0; i < 300; i++ )); do sleep 0.1; done' "${session}/refresh" & holder=$!
 ln -s "${holder}" "${session}/lock"
 gh api user & waiter=$!
 sleep 1.5
@@ -1351,4 +1351,50 @@ COMMAND
   [ "$(wc -l < "${FAKE_DIR}/minted" | tr -d ' ')" -eq 3 ]
   [ "$(sort -u "${FAKE_DIR}/minted")" = "$(sort -u "${FAKE_DIR}/revoked")" ]
   [ -z "$(ls -A "${TMPDIR}")" ]
+}
+
+@test "a lock that points at a live process that is no refresh of this session is stale, and is taken over at once" {
+  run-setup
+  export KIT_BOT_FOR=someone
+  fixture token.json <<<"{\"token\":\"ghs_one\",\"expires_at\":\"$(jq --null-input --raw-output 'now + 60 | floor | todate')\"}"
+  cat > "${BATS_TEST_TMPDIR}/command" <<'COMMAND'
+#!/usr/bin/env bash
+session=$(dirname "$(dirname "$(command -v gh)")")
+printf '{"token":"ghs_two","expires_at":"%s"}' "$(jq --null-input --raw-output 'now + 3600 | floor | todate')" > "${FAKE_DIR}/token.json"
+sleep 30 & other=$!
+ln -s "${other}" "${session}/lock"
+gh api user
+kill "${other}"
+COMMAND
+  chmod +x "${BATS_TEST_TMPDIR}/command"
+  run --separate-stderr kit bots run "${BATS_TEST_TMPDIR}/command"
+  [ "$status" -eq 0 ]
+  grep --quiet 'GH_TOKEN=ghs_two' "${FAKE_DIR}/gh.calls"
+}
+
+@test "a mint that is printed and then fails is revoked, and gh runs nothing" {
+  run-setup
+  export KIT_BOT_FOR=someone
+  fixture token.json <<<"{\"token\":\"ghs_one\",\"expires_at\":\"$(jq --null-input --raw-output 'now + 60 | floor | todate')\"}"
+  cat > "${FAKE_DIR}/failingkit" <<'KIT'
+#!/usr/bin/env bash
+echo '{"token":"ghs_printed","expires_at":"2099-01-01T00:00:00Z"}'
+exit 3
+KIT
+  chmod +x "${FAKE_DIR}/failingkit"
+  cat > "${BATS_TEST_TMPDIR}/command" <<'COMMAND'
+#!/usr/bin/env bash
+session=$(dirname "$(dirname "$(command -v gh)")")
+# the session's kit prints a token and then fails
+printf '%s\n' "${FAKE_DIR}/failingkit" > "${session}/kit"
+gh api user; echo "gh $?"
+echo "revoked during the run: $(tr '\n' ' ' < "${FAKE_DIR}/curl.calls" | grep --only-matching -- '--request DELETE' | wc -l | tr -d ' ')"
+COMMAND
+  chmod +x "${BATS_TEST_TMPDIR}/command"
+  run --separate-stderr kit bots run "${BATS_TEST_TMPDIR}/command"
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = 'gh 1' ]
+  [ "${lines[1]}" = 'revoked during the run: 1' ]
+  # and the first token, at the end; the printed one is not revoked twice
+  [ "$(sent '--request DELETE')" -eq 2 ]
 }

@@ -511,18 +511,23 @@ bots:run-end() {
   rm -rf "${session}"
 }
 
-# bots:run <bot-json> <command>… runs the command as the bot, and returns its status. The command has GH_TOKEN, KIT_BOT,
-# KIT_BOT_LOGIN, and KIT_BOT_FOR, and GH_HOST the forge's, with GH_ENTERPRISE_TOKEN where it is not github.com and none
-# where it is; a gh on PATH
-# that mints a new token within ten minutes of the old one's end; and git's credential helper for the forge's host
-# answering with the token. The tokens live in a session directory, mode 700, which file:scratch
-# makes under TMPDIR and sweeps; it records the checkout the run started in, where the shim and the helper mint, so a token stays narrowed to
-# that repository whichever folder the command works in, and the gh the shim runs: the first on PATH, or, where that
-# is the shim of a run this one is inside, that run's. A token is never in an argument: it is in files of the
-# session, in the environment, and on the helper's stdout. When the command ends, or run is terminated or hung up,
-# every token is revoked and the directory removed; the status is then 128 and the signal's number. A terminal's
-# interrupt reaches the command as it reaches run, so the command's own status stands. It returns 1, saying why, where the person's login, a token, or the
-# directory cannot be had, and runs nothing then.
+# bots:run <bot-json> <command>… runs the command as the bot, and returns its status. The command has:
+#
+#   - GH_TOKEN, KIT_BOT, KIT_BOT_LOGIN, and KIT_BOT_FOR;
+#   - GH_HOST the forge's, with GH_ENTERPRISE_TOKEN where it is not github.com, and none where it is;
+#   - a gh on PATH that mints a new token within ten minutes of the old one's end;
+#   - git's credential helper for the forge's host, answering with the token.
+#
+# The tokens live in a session directory, mode 700, which file:scratch makes under TMPDIR and sweeps. It records the
+# checkout the run started in, where the shim and the helper mint, so a token stays narrowed to that repository
+# whichever folder the command works in, and the gh the shim runs: the first on PATH, or, where that is the shim of a
+# run this one is inside, that run's. A token is never in an argument: it is in files of the session, in the
+# environment, and on the helper's stdout.
+#
+# When the command ends, or run is terminated or hung up, every token is revoked and the directory removed; the
+# status is then 128 and the signal's number. A terminal's interrupt reaches the command as it reaches run, so the
+# command's own status stands. It returns 1, saying why, where the person's login, a token, or the directory cannot be
+# had, and runs nothing then.
 # shellcheck disable=SC2154  # kit_root is set by modules/bash/1st.sh
 bots:run() {
   local bot=$1 name host person start session count real quoted umask_was status=0 child='' signalled=0
@@ -544,6 +549,7 @@ bots:run() {
   printf '%s\n' "${host}" > "${session}/host"
   printf '%s\n' "${start}" > "${session}/start"
   printf '%s\n' "${kit_root}/bin/kit" > "${session}/kit"
+  printf '%s\n' "${kit_root}" > "${session}/root"
   real=$(type -P gh) || real=''  # none is no failure: the shim says so where gh is called
   # the gh of an outer run is its shim, which would hand its own token to this run's command: use the gh it runs
   if [[ "${real}" == */bin/gh && -f "${real%/bin/gh}/refresh" && -f "${real%/bin/gh}/gh" ]]
@@ -570,7 +576,11 @@ then
       break
     fi
     holder=$(readlink "${lock}" 2>/dev/null) || holder=''
-    if [[ "${holder}" =~ ^[0-9]+$ ]] && ! kill -0 "${holder}" 2>/dev/null
+    # a holder is a process whose arguments name this session's refresh: a pid that is gone, that another process
+    # has taken, or that kill cannot reach, holds nothing
+    holder_args=''
+    [[ ! "${holder}" =~ ^[0-9]+$ ]] || holder_args=$(ps -o args= -p "${holder}" 2>/dev/null) || holder_args=''
+    if [[ "${holder}" =~ ^[0-9]+$ && "${holder_args}" != *"${session}/refresh"* ]]
     then
       # its holder is gone: one waiter renames the lock aside, which is atomic, and all try again. A lock taken in
       # between, which was not the dead one's, is lost to its holder, and two mint: harmless, as every mint is in spent
@@ -597,24 +607,21 @@ then
     done
     PATH=${clean}
     fresh=${session}/token.mint.$$
-    if ! (cd "$(<"${session}/start")" && "$(<"${session}/kit")" bots --bot="$(<"${session}/bot")" token --json) \
-      > "${fresh}"
-    then
-      rm -f "${fresh}"
-      exit 1
-    fi
+    minted=0
+    (cd "$(<"${session}/start")" && "$(<"${session}/kit")" bots --bot="$(<"${session}/bot")" token --json) \
+      > "${fresh}" || minted=$?
     # the token is in spent the moment its mint returns: whatever stops this renewal, the end of the run revokes it
-    cat "${fresh}" >> "${session}/spent"
-    if ! jq --exit-status '(.token | type == "string" and length > 0) and (.expires_at | fromdateiso8601 | . > 0)' \
+    ! jq --exit-status . "${fresh}" >/dev/null 2>&1 || cat "${fresh}" >> "${session}/spent"
+    if (( minted != 0 )) || ! jq --exit-status '(.token | type == "string" and length > 0) and (.expires_at | fromdateiso8601 | . > 0)' \
       "${fresh}" >/dev/null 2>&1
     then
-      # a mint that is no token to keep is revoked here; where that fails, the file stays, for the end of the run to try
+      # a mint that failed, or is no token to keep, is revoked here, if it holds a token; where that fails, the file stays, for the end of the run to try
       rejected=$(jq --raw-output '.token | select(type == "string" and length > 0)' "${fresh}" 2>/dev/null) \
         || rejected=''
       # (the token goes to bots:forge on stdin, in the checkout the run started in)
       if [[ -z "${rejected}" ]] || (cd "$(<"${session}/start")" \
         && bash -c 'source "$1/modules/bash/1st.sh" && use bots && read -r token && bots:forge revoke "${token}" >/dev/null' \
-          _ "$(dirname "$(dirname "$(<"${session}/kit")")")") <<<"${rejected}"
+          _ "$(<"${session}/root")") <<<"${rejected}"
       then
         [[ -z "${rejected}" ]] || printf '%s\n' "${rejected}" >> "${session}/revoked"
         rm -f "${fresh}"
