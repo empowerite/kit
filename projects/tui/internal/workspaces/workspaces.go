@@ -185,7 +185,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.place()
 	case shell.SettingsMsg:
 		m.settings = msg.Settings
-		m.sheet.Settings(msg.Settings.FoldShared, msg.Settings.SharedEmoji)
+		m.sheet.Settings(msg.Settings)
 	case shell.WorkspaceMsg:
 		m.books = m.books.Told(msg)
 	case listedMsg:

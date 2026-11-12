@@ -44,7 +44,8 @@ type Sheet struct {
 	records       []Record
 	tbl           Table
 	saved         []Preset
-	fold, glyphs  bool
+	fold, hide    bool
+	glyphs        bool
 	top, height   int
 	width, screen int
 	inRows        bool
@@ -67,7 +68,7 @@ var _ Keyboard = (*Sheet)(nil)
 // the catalog's name for the table, or the sheet's where the catalog names it not; none keeps them for the session
 // alone. A file that does not read is said in place of the keys, and left as it is.
 func NewSheet(schema *Schema, name, color, path string) Sheet {
-	s := Sheet{schema: schema, name: name, color: color, path: path, store: name, fold: true, stop: -1, width: 80,
+	s := Sheet{schema: schema, name: name, color: color, path: path, store: name, fold: true, hide: true, stop: -1, width: 80,
 		browse: shell.Browse,
 		screen: 24, height: 20, tbl: Table{Open: grid.Outline{}, Picked: map[string]bool{}, ViewName: Opening,
 			Grouping: true}}
@@ -86,9 +87,12 @@ func NewSheet(schema *Schema, name, color, path string) Sheet {
 }
 
 // SetRecords gives the sheet its records, which its rows are built from; the first rows the view is set for group as
-// it loads them, as autoGroup says, and the cursor stays on a row.
+// it loads them, as autoGroup says, the columns none of them holds a value in are blank, as Table's Blank says, and the
+// cursor stays on a row.
 func (s *Sheet) SetRecords(records []Record) {
 	s.records = records
+	s.tbl.Blank = grid.Blanks(Lay(s.schema.Of(), records, func(id string) string { return s.tbl.View.Field(id).Rendering }),
+		s.schema.Columns())
 	s.prune()
 	s.rebuild()
 	s.autoGroup()
@@ -103,10 +107,10 @@ func (s *Sheet) Place(top, height, width, screen int) {
 	s.Settle()
 }
 
-// Settings sets whether the rows fold a value every row shares and draw an emoji every row shows, as kittui's
-// settings say.
-func (s *Sheet) Settings(fold, glyphs bool) {
-	s.fold, s.glyphs = fold, glyphs
+// Settings sets whether the rows fold a value every row shares, keep the columns no row holds a value in from showing,
+// and draw an emoji every row shows, as kittui's settings say.
+func (s *Sheet) Settings(set shell.Settings) {
+	s.fold, s.hide, s.glyphs = set.FoldShared, set.HideBlank, set.SharedEmoji
 	s.rebuild()
 	s.Settle()
 }
@@ -176,10 +180,14 @@ func (s *Sheet) shown() Shown {
 }
 
 // filter gives the sheet's panel as its rows are let through: what the person set in it, what the catalog says of its
-// fields, what stands open, and the settings; the columns it offers are drawn from the rows, so it has none.
+// fields, what stands open, and the settings, the blank columns held empty where they hide them; the columns it offers
+// are drawn from the rows, so it has none.
 func (s *Sheet) filter() grid.Panel {
 	p := s.schema.Ready(s.tbl.View)
-	p.Outline, p.Fold, p.Glyphs = s.tbl.Open, s.fold, s.glyphs
+	p.Outline, p.Fold, p.Glyphs, p.Empty = s.tbl.Open, s.fold, s.glyphs, nil
+	if s.hide {
+		p = p.Blanked(s.tbl.Blank, s.schema.Columns())
+	}
 	return p
 }
 

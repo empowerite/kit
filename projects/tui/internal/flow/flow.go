@@ -186,6 +186,7 @@ type Model struct {
 	presetsMenu   table.PresetMenu          // the preset line's menu of views: whether it is open, and its line under the keyboard
 	colMenu       table.ColumnMenu          // the menu a click on a column's name drops, while it is open
 	fold          bool                      // whether the tables fold a value every row of a group shares, as kittui's settings say
+	hide          bool                      // whether the tables keep the columns no row holds a value in from showing, as kittui's settings say
 	glyphs        bool                      // whether the tables draw an emoji every row shown shares, as kittui's settings say
 	cols          table.Columns             // the columns dialog, while it is open
 	legend        legend                    // the legend, which F1 and ? show and hide, and the corner it stands in
@@ -247,7 +248,7 @@ func open(r kit.Runner, o Options, w Words) Model {
 func New(r kit.Runner, o Options) Model {
 	m := Model{app: o.App, runner: r, limit: deadline, origin: o.Origin, noFetch: o.NoFetch, fresh: o.Fresh,
 		filters: o.Filters, width: 80, height: 24, browse: browser, handOver: tea.ExecProcess, appMenu: shell.Menu{Here: o.App},
-		books: shell.BooksMenu{Fallback: o.Origin.Repo}, fold: true, legend: legend{at: bottomRight}}
+		books: shell.BooksMenu{Fallback: o.Origin.Repo}, fold: true, hide: true, legend: legend{at: bottomRight}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.clock = o.Clock
 	m.quota = source.NewPoll("quota", QuotaEvery, r.Quota)
@@ -393,7 +394,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.ws = msg.Workspace
 		}
 	case shell.SettingsMsg:
-		m.fold, m.glyphs = msg.Settings.FoldShared, msg.Settings.SharedEmoji
+		m.fold, m.hide, m.glyphs = msg.Settings.FoldShared, msg.Settings.HideBlank, msg.Settings.SharedEmoji
 		m.rebuild()
 		m.fit()
 	case trackersMsg:
@@ -590,12 +591,16 @@ func (m Model) panel(i int) grid.Panel {
 }
 
 // filter gives a stage's panel as its rows are let through: what the person set in it, whether its rows belong to
-// people, and the caller's login; the columns it offers are drawn from the rows, so it has none.
+// people, and the caller's login, the blank columns held empty where kittui's settings hide them; the columns it
+// offers are drawn from the rows, so it has none.
 func (m Model) filter(i int) grid.Panel {
 	s := m.stages[i]
 	p := catalog[s.name].Ready(s.View)
 	p.Me = m.me
-	p.Focused, p.Outline, p.Fold, p.Glyphs = m.inPanel && i == m.stage, s.Open, m.fold, m.glyphs
+	p.Focused, p.Outline, p.Fold, p.Glyphs, p.Empty = m.inPanel && i == m.stage, s.Open, m.fold, m.glyphs, nil
+	if m.hide {
+		p = p.Blanked(s.Blank, columnsOf(s.name))
+	}
 	return p
 }
 
@@ -1000,6 +1005,7 @@ func (m *Model) take(msg source.Answer[[]byte]) {
 	if err != nil {
 		s.refusal = refusalOf(s.name, err)
 	}
+	m.blank(s)
 	m.rebuild()
 	m.autoGroup(s.name)
 	for i := range m.stages {
@@ -1007,6 +1013,12 @@ func (m *Model) take(msg source.Answer[[]byte]) {
 	}
 	m.land(s.name, true)
 	m.fit()
+}
+
+// blank keeps which of a stage's columns no row it holds has a value in, as Table's Blank says.
+func (m *Model) blank(s *stage) {
+	s.Blank = grid.Blanks(laid(s.name, m.records(*s), func(id string) string { return s.View.Field(id).Rendering }),
+		columnsOf(s.name))
 }
 
 // autoGroup groups a stage's rows as its view groups them as it loads, once it has rows to look at: by each column

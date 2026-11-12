@@ -5,6 +5,7 @@ package table
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -144,7 +145,7 @@ func TestASheetsSearchAndSettingsNarrowAndFoldItsRows(t *testing.T) {
 	if s.Search("nothing"); !slices.Contains(screenOf(s), "    no row matches the search") {
 		t.Errorf("none searched:\n%s", strings.Join(screenOf(s), "\n"))
 	}
-	if s.Settings(false, true); s.Panel().Fold || !s.Panel().Glyphs {
+	if s.Settings(shell.Settings{SharedEmoji: true}); s.Panel().Fold || !s.Panel().Glyphs {
 		t.Error("the settings")
 	}
 	empty := NewSheet(things, "things", "75", "")
@@ -968,5 +969,37 @@ func TestAClickOnALinkOpensIt(t *testing.T) {
 	x, y = spot(s, "kit.yml")
 	if s.click(x, y, false); !strings.Contains(s.Notice().Text, "/repo/kit.yml") {
 		t.Errorf("no opener: %q", s.Notice().Text)
+	}
+}
+
+// While kittui's settings hide them, a column no row loaded holds a value in does not show, its header with it, and
+// shows again once a load gives a row a value in it; nothing is placed, so the columns dialog and the view are as they
+// were. Two columns stay shown all the same. With Auto-hide off, the column stands, its header over nothing.
+func TestAColumnNoRowHoldsAValueInHidesUntilOneDoes(t *testing.T) {
+	bare := func() []Record {
+		var out []Record
+		for _, r := range stock() {
+			r.Values["note"] = One("")
+			out = append(out, r)
+		}
+		return out
+	}
+	s := sheet("")
+	s.SetPanel(s.Panel().Placed("tags", grid.Column))
+	view := s.tbl.View
+	if s.SetRecords(bare()); s.Panel().Shows("note") || !s.Panel().Shows("tags") || slices.Contains(s.Names(), "note") ||
+		s.Panel().Field("note").Placement != grid.Column || !reflect.DeepEqual(s.tbl.View.Fields, view.Fields) {
+		t.Errorf("no note: shows %v, names %q", s.Panel().Shows("note"), s.Names())
+	}
+	if s.SetRecords(stock()); !s.Panel().Shows("note") || !slices.Contains(s.Names(), "note") {
+		t.Errorf("noted again: names %q", s.Names())
+	}
+	two := sheet("")
+	if two.SetRecords(bare()); !two.Panel().Shows("note") {
+		t.Errorf("two columns: names %q", two.Names())
+	}
+	s.Settings(shell.Settings{FoldShared: true})
+	if s.SetRecords(bare()); !s.Panel().Shows("note") || !slices.Contains(s.Names(), "note") {
+		t.Errorf("Auto-hide off: names %q", s.Names())
 	}
 }

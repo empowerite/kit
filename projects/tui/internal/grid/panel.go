@@ -94,7 +94,8 @@ const (
 // its id where it gives none. Fields holds what the panel says of each field, by id, as Field says; a field it
 // does not name is a column, unsorted and unfiltered. The panel never changes the map it was given, but gives a new
 // one. Fold says whether a view, as it loads, groups the rows by each column whose value is the same on every row, as
-// AutoGrouped says, where it groups by none. Glyphs says whether a glyph every row shown shares is drawn still, where
+// AutoGrouped says, where it groups by none. Empty names the columns the rows show not, though placed as columns,
+// as Blanked gives them: none of the rows holds a value in them. Glyphs says whether a glyph every row shown shares is drawn still, where
 // the screen would drop it as saying nothing. Sortable and Groupable name the columns that can sort and group, which the
 // stage says. Ones names one value of each field that holds a list, as assignee of assignees: such a field sorts the
 // rows by size while a row holds all its values, how many each holds, as Counts says; flattened, or grouped by, it
@@ -110,6 +111,7 @@ type Panel struct {
 	Labels    map[string]string
 	Fields    map[string]Field
 	Fold      bool
+	Empty     map[string]bool
 	Glyphs    bool
 	Sortable  map[string]bool
 	Groupable map[string]bool
@@ -961,6 +963,33 @@ func (p Panel) AutoGrouped(rows []Row, columns []string) Panel {
 	return p.GroupedBy(ids)
 }
 
+// Blanked gives the panel with each of the blank columns, those no row holds a value in, as Blanks gives them, kept
+// from showing, as kittui's Auto-hide asks, left to right while two columns stay shown: a row of one cell would read as
+// a heading. Nothing is placed: once a row holds a value in one, the panel blanked again shows it. columns names the
+// stage's columns, in its order.
+func (p Panel) Blanked(blank, columns []string) Panel {
+	p.Empty = nil
+	shown := len(slices.DeleteFunc(slices.Clone(columns), func(id string) bool { return !p.Shows(id) }))
+	for _, id := range columns {
+		if shown > 2 && p.Shows(id) && slices.Contains(blank, id) {
+			if p.Empty == nil {
+				p.Empty = map[string]bool{}
+			}
+			p.Empty[id], shown = true, shown-1
+		}
+	}
+	return p
+}
+
+// Blanks gives those of the columns no row of the rows holds a value in, as Blank says, in their order; none for no
+// rows.
+func Blanks(rows []Row, columns []string) []string {
+	if !slices.ContainsFunc(rows, func(r Row) bool { return !r.Aside && len(r.Cells) > 1 }) {
+		return nil
+	}
+	return slices.DeleteFunc(slices.Clone(columns), func(id string) bool { return id == "" || !Blank(rows, columns, id) })
+}
+
 // Blank says whether no row of the rows holds a value in the named column, as its sort key says; columns names each
 // cell's column, in the stage's order. A column the rows do not have is blank.
 func Blank(rows []Row, columns []string, name string) bool {
@@ -1272,7 +1301,7 @@ func (p Panel) passes(f Filter, raw []string) bool {
 // hide gives the row with its cells in the panel's order, without the cells of the columns it does not show; a row of
 // one cell spans the columns, and keeps it.
 func (p Panel) hide(r Row, columns []string) Row {
-	if len(r.Cells) < 2 || len(p.Fields) == 0 {
+	if len(r.Cells) < 2 || len(p.Fields) == 0 && len(p.Empty) == 0 {
 		return r
 	}
 	var cells []Cell
@@ -1289,8 +1318,10 @@ func (p Panel) hide(r Row, columns []string) Row {
 }
 
 // Shows says whether the rows show a field as a column: one hidden does not, nor one grouped, whose value each group's
-// heading names.
-func (p Panel) Shows(column string) bool { return p.Fields[column].Placement == Column }
+// heading names, nor one the panel holds empty, as Blanked says.
+func (p Panel) Shows(column string) bool {
+	return p.Fields[column].Placement == Column && !p.Empty[column]
+}
 
 // arrangement gives the order the columns stand in, as indexes into them: a column without a name keeps its place, and
 // the named ones fill the other places, those with a position first, by it, then the rest, in their order.

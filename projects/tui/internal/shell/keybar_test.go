@@ -128,20 +128,24 @@ func TestTheSettingsDialogFlipsASettingAndSavesIt(t *testing.T) {
 	if d, _ = d.Key(key("esc"), s); d.Open {
 		t.Error("esc did not close the dialog")
 	}
-	// shared values fold, and shared emoji are dropped, until the dialog flips them, for every view, and the file keeps
-	// what it flips
-	if !s.FoldShared || s.SharedEmoji {
-		t.Errorf("with no file: fold %v, emoji %v", s.FoldShared, s.SharedEmoji)
+	// shared values fold, empty columns hide, and shared emoji are dropped, until the dialog flips them, for every
+	// view, and the file keeps what it flips
+	if !s.FoldShared || !s.HideBlank || s.SharedEmoji {
+		t.Errorf("with no file: fold %v, hide %v, emoji %v", s.FoldShared, s.HideBlank, s.SharedEmoji)
 	}
 	d = SettingsDialog{Open: true}
 	lines = d.Overlay(strings.Split(strings.Repeat(strings.Repeat(" ", 120)+"\n", 10), "\n"), s, 120)
 	if v := ansi.Strip(strings.Join(lines, "\n")); !strings.Contains(v, style.Picked+" Auto-group") ||
-		!strings.Contains(v, style.Unpicked+" Repeated emoji") {
+		!strings.Contains(v, style.Picked+" Auto-hide") || !strings.Contains(v, style.Unpicked+" Repeated emoji") {
 		t.Errorf("the dialog's settings:\n%s", v)
 	}
 	d, s = d.Key(key("down"), s)
 	if d, s = d.Key(key("space"), s); s.FoldShared || LoadSettings(path).FoldShared {
 		t.Errorf("space on Auto-group: %v, saved %v", s.FoldShared, LoadSettings(path).FoldShared)
+	}
+	d, s = d.Key(key("down"), s)
+	if d, s = d.Key(key("space"), s); s.HideBlank || LoadSettings(path).HideBlank {
+		t.Errorf("space on Auto-hide: %v, saved %v", s.HideBlank, LoadSettings(path).HideBlank)
 	}
 	d, s = d.Key(key("down"), s)
 	if _, s = d.Key(key("space"), s); !s.SharedEmoji || !LoadSettings(path).SharedEmoji {

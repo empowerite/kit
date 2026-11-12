@@ -395,7 +395,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case shell.WorkspaceMsg:
 		m = m.Told(msg)
 	case shell.SettingsMsg:
-		m.sheet.Settings(msg.Settings.FoldShared, msg.Settings.SharedEmoji)
+		m.sheet.Settings(msg.Settings)
 	case shell.FadedMsg:
 		m.sheet.Faded(msg)
 	case tea.MouseClickMsg:

@@ -229,7 +229,7 @@ func New(r kit.Runner, repo string) Model {
 		deferred: map[string]bool{}, notes: map[string]note{}, width: 80, height: 24, tabs: slices.Clone(known),
 		places: make([]string, len(known)), offsets: make([]int, len(known)), appMenu: shell.Menu{Here: shell.Welcome},
 		books: shell.BooksMenu{Fallback: repo}, searches: map[string]shell.Search{},
-		settings: shell.Settings{KeysBar: true, FoldShared: true}}
+		settings: shell.Settings{KeysBar: true, FoldShared: true, HideBlank: true}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.checking = source.NewLoad("checks", m.telling(checksOver(r, kit.Workspace{})), nil)
 	return m
@@ -368,9 +368,9 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.fit()
 	case shell.SettingsMsg:
 		m.settings = msg.Settings
-		m.eachSheet(func(s *table.Sheet) { s.Settings(msg.Settings.FoldShared, msg.Settings.SharedEmoji) })
+		m.eachSheet(func(s *table.Sheet) { s.Settings(msg.Settings) })
 		if m.checksSheet != nil {
-			m.checksSheet.Settings(msg.Settings.FoldShared, msg.Settings.SharedEmoji)
+			m.checksSheet.Settings(msg.Settings)
 		}
 	case shell.FadedMsg:
 		m.eachSheet(func(s *table.Sheet) { s.Faded(msg) })

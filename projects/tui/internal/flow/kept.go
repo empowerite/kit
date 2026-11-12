@@ -42,6 +42,7 @@ func (m *Model) takeKept(msg source.Answer[[]byte]) {
 		return
 	}
 	s.src.Loading, s.src.Stale = false, true
+	m.blank(s)
 	m.rebuild()
 	m.autoGroup(s.name)
 	for i := range m.stages {

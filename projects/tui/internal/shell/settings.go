@@ -13,13 +13,15 @@ import (
 
 // Settings are kittui's own, the same on every screen and every view, which the Settings dialog changes and kittui's
 // file keeps: whether the keys bar shows on the screen's last line; whether a table folds a value every row of a group
-// shares, said once in the group's heading; and whether it draws an emoji every row shown shares, which it drops
+// shares, said once in the group's heading; whether it hides, as a view loads, each column no row holds a value in;
+// and whether it draws an emoji every row shown shares, which it drops
 // otherwise. With no file, or one that does not read, each is as kittui starts: the keys bar shown, shared values
-// folded, and shared emoji dropped.
+// folded, empty columns hidden, and shared emoji dropped.
 type Settings struct {
 	Path        string `json:"-"`
 	KeysBar     bool   `json:"keysBar"`
 	FoldShared  bool   `json:"foldShared"`
+	HideBlank   bool   `json:"hideBlank"`
 	SharedEmoji bool   `json:"sharedEmoji"`
 }
 
@@ -39,7 +41,7 @@ func SettingsFile() string {
 
 // LoadSettings gives the settings the file keeps, each it does not keep as kittui starts.
 func LoadSettings(path string) Settings {
-	s := Settings{KeysBar: true, FoldShared: true}
+	s := Settings{KeysBar: true, FoldShared: true, HideBlank: true}
 	if data, err := os.ReadFile(path); path != "" && err == nil {
 		_ = json.Unmarshal(data, &s)
 	}
@@ -76,6 +78,9 @@ var settings = []setting{
 	{"Auto-group", "groups a table as it opens by each column whose value is the same on every row",
 		func(s Settings) bool { return s.FoldShared },
 		func(s Settings) Settings { s.FoldShared = !s.FoldShared; return s }},
+	{"Auto-hide", "hides a column as a table opens where no row has a value in it",
+		func(s Settings) bool { return s.HideBlank },
+		func(s Settings) Settings { s.HideBlank = !s.HideBlank; return s }},
 	{"Repeated emoji", "shows an emoji in a column even where every row has the same one",
 		func(s Settings) bool { return s.SharedEmoji },
 		func(s Settings) Settings { s.SharedEmoji = !s.SharedEmoji; return s }},

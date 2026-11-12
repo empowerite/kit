@@ -53,7 +53,7 @@ const checkLink = "check:"
 // where a click on a row's step asks to go, which the screen then follows.
 func newChecksSheet(path string, settings shell.Settings) (*table.Sheet, *string) {
 	s := table.NewSheet(checksCatalog[checksTable], "checks", sheetColor, path)
-	s.Settings(settings.FoldShared, settings.SharedEmoji)
+	s.Settings(settings)
 	jump := new(string)
 	s.SetBrowse(func(link string) error {
 		*jump = link

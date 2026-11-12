@@ -269,7 +269,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 		m.place()
 	case shell.SettingsMsg:
-		m.sheet.Settings(msg.Settings.FoldShared, msg.Settings.SharedEmoji)
+		m.sheet.Settings(msg.Settings)
 	case source.Answer[kit.Catalogue]:
 		m.take(msg)
 	case readMsg:

@@ -129,8 +129,9 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
   - The search stands at the menu bar's right end, every screen's, and ⏎ or esc there gives the rows focus. No sidebar:
     the rows take the screen's width. While the person groups by no column, a value every row shares moves into one
     heading over them, the column grouping on its own; a group the person chooses overrides that, and the rows then
-    group as chosen alone. Auto-group, which turns that on or off, and Repeated emoji, which shows an emoji every row
-    has instead of dropping it, are kittui's settings, in = Settings…, every view's alike.
+    group as chosen alone. Auto-group, which turns that on or off, Auto-hide, which hides a column no row has a value
+    in, and Repeated emoji, which shows an emoji every row has instead of dropping it, are kittui's settings, in
+    = Settings…, every view's alike.
   - The legend, in `legend.go`, floats over the rows while F1 or ? shows it: what each glyph on the screen under it
     means, the menu bar's, the tab bar's, the control line's, the rule's, the rows', and the status bar's, in the order
     each first appears, reading from the top left, and nothing of a glyph the screen does not show, each glyph a click
@@ -213,6 +214,10 @@ Each screen reads what it shows from kit as JSON. A form reads `kit syntax <verb
     when the view groups by nothing: by each groupable column shown whose value is the same on every row, left to
     right. From then on they are groups like any other, to move, ungroup, or save; a reload changes nothing, and
     the preset line still names the view.
+  - Auto-hide, a setting, keeps a column no row loaded holds a value in from showing, its header with it: a header
+    over nothing says nothing. It places nothing, so the view, the columns dialog, and a preset saved are as they
+    were, and the column shows again once a load gives a row a value in it. Two columns always stay, as a row of one
+    cell reads as a heading.
   - An open row breaks a value too wide for its column across lines, and one a field draws with a glyph hangs: the
     lines after its first start under the text, not under the glyph.
 - `internal/welcome/` draws `kit welcome`: one tab per page under `.kit/welcome/`. A page of `##` sections can stand

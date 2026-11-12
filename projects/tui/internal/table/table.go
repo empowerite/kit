@@ -9,7 +9,8 @@ import "github.com/empowerite/kit/projects/tui/internal/grid"
 // renames; its panel, its search, what it says of each field, and its cursor; and whether the view it was last set to
 // still waits for rows to group by, as its rows load, and the view as that grouping left it, which the preset line
 // names as the view still; and the columns its view has scrolled past, after the first, as grid.Scroll says, where
-// they are wider than the pane.
+// they are wider than the pane; and the columns no row it loaded last holds a value in, as grid.Blanks gives them,
+// which Auto-hide keeps from showing.
 type Table struct {
 	Cursor   int
 	Offset   int
@@ -23,4 +24,5 @@ type Table struct {
 	Grouping bool
 	Grouped  *Preset
 	Shift    int
+	Blank    []string
 }

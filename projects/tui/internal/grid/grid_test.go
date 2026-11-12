@@ -738,6 +738,40 @@ func TestAGroupIsTheRawValueAndItsHeadingTheDrawnOne(t *testing.T) {
 	}
 }
 
+// Blanks gives the columns no row holds a value in, rows of one cell apart, and none for no rows; Blanked keeps each
+// from showing, left to right while two columns stay shown, placing nothing, and a panel blanked again shows what
+// holds a value now.
+func TestABlankColumnShowsNotWhileTwoColumnsStay(t *testing.T) {
+	columns := []string{"id", "state", "where", "who"}
+	row := func(id, state, where, who string) Row {
+		return Row{Key: id, Cells: []Cell{one(id), one(state), one(where), one(who)}}
+	}
+	rows := []Row{row("#1", "draft", "", ""), row("#2", "ready", "", "bob"), {Key: "gone", Cells: []Cell{one("x")}}}
+	if got := Blanks(rows, columns); !slices.Equal(got, []string{"where"}) {
+		t.Fatalf("blanks: %q", got)
+	}
+	if got := Blanks(rows[2:], columns); got != nil {
+		t.Errorf("no rows: %q", got)
+	}
+	p := Panel{Columns: columns}
+	q := p.Blanked([]string{"where", "who"}, columns)
+	if q.Shows("where") || q.Shows("who") || !q.Shows("id") || q.Field("where").Placement != Column {
+		t.Errorf("blanked: %v", q.Empty)
+	}
+	if got := q.Filter(rows[:1], columns); len(got) != 2 || len(got[1].Cells) != 2 {
+		t.Errorf("the cells blanked: %+v", got)
+	}
+	if q.Blanked(nil, columns).Shows("where") != true {
+		t.Error("blanked again, where shows not")
+	}
+	if r := p.Placed("id", Hidden).Blanked([]string{"where", "who"}, columns); r.Shows("where") || !r.Shows("who") {
+		t.Errorf("three shown: %v", r.Empty)
+	}
+	if r := p.Placed("id", Hidden).Placed("state", Hidden).Blanked([]string{"where"}, columns); !r.Shows("where") {
+		t.Errorf("two shown: %v", r.Empty)
+	}
+}
+
 // While the panel folds and groups by nothing, a view as it loads groups the rows by each column that can group whose
 // value is the same on every row it lets through, left to right in the panel's order: groups as any other, which the
 // panel then moves and ungroups as it would. A column blank on some rows, one with several values, a hidden column,

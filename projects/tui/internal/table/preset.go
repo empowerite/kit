@@ -56,8 +56,9 @@ func (pr Preset) Panel(fields []Field, p grid.Panel) grid.Panel {
 // PresetOf gives a stage's panel as a preset keeps it, of the stage's fields, unnamed: of each field, what differs from
 // what a preset that names none of them says. A column's position is said only while the columns stand in another order
 // than the stage's, and then for every column, from 1; a group's depth and a sort's priority are numbered from 1, the
-// outermost and the first first.
+// outermost and the first first. A column the panel holds empty is kept as a column: what the rows held is no view's.
 func PresetOf(p grid.Panel, fields []Field) Preset {
+	p.Empty = nil
 	var out Preset
 	var ids []string
 	for _, f := range fields {
