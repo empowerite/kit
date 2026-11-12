@@ -6,7 +6,10 @@
 // says, without its page's heading, which its tab names. A failed check with a fix offers now and later on the cursor's
 // row: now runs kit welcome --fix <id> with the terminal handed over, then reads the checks again; later leaves it for
 // this session and moves to the step's next failed check. A fix kit only shows, as one that must run in the person's
-// own shell, is drawn with its lines and no choices: n and enter do nothing there, and l still leaves it for later. The
+// own shell, is drawn with its lines and no choices: n and enter do nothing there, and l still leaves it for later. A
+// terminal's failed finding offers later and keep instead, its fix shown under it and never run: keep runs kit welcome
+// --keep=<id>, then reads the checks again, so it holds from then on; k keeps it at once. A terminal's findings that
+// hold, not kept, are drawn on no row: its heading says the terminal, and what failed or is kept stands under it. The
 // other steps are markdown pages drawn as text, but the terms and customize, whose pages of sections are tables, as
 // sections.go draws them, each table's keys and clicks its own while the pane has the keyboard. The introduction's page
 // ends with what the checks found: checking… while they run, then that all of them pass, or how many need the person's
@@ -114,11 +117,30 @@ func (m Model) stepOf(c kit.Check) int {
 	return last
 }
 
-// The choices on a failed check's row.
+// The choices on a failed check's row: now and later, or, on a terminal's finding, later and keep.
 const (
 	now = iota
 	later
+	keep
 )
+
+// keptMsg says kit welcome --keep= has run for a check, and how it ended.
+type keptMsg struct {
+	id, key string // the check's id and its key on the screen
+	err     error
+}
+
+// terminalFinding says whether a check is a terminal's finding or probe, terminal-<terminal>-<finding> or
+// terminal-probe-<probe>, and not its heading, terminal-<terminal>, which always holds.
+func terminalFinding(c kit.Check) bool {
+	rest, ok := strings.CutPrefix(c.ID, "terminal-")
+	return ok && strings.Contains(rest, "-")
+}
+
+// folded says whether a check is a terminal's finding that holds and is not kept, which no row draws.
+func folded(c kit.Check) bool {
+	return terminalFinding(c) && c.OK && !strings.HasPrefix(c.Line, "kept:")
+}
 
 // pagesMsg brings the steps the pages make, each with its page's markdown, or the path it was looked for at.
 type pagesMsg struct {
@@ -343,15 +365,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.takeSheets()
 		m.fit()
 	case fixedMsg:
-		// the checks run again, superseding a run still out
 		m.fixed(msg)
-		m.running = nil
-		again := m.checking.Again(m.env(), false)
-		m.run.Store(int64(m.checking.Gen()))
-		if m.listening {
-			return m, again
+		return m, m.again()
+	case keptMsg:
+		if msg.err != nil {
+			m.notes[msg.key] = note{text: fmt.Sprintf("kit refused to keep it: %v", msg.err), refusal: true}
+		} else {
+			delete(m.notes, msg.key)
 		}
-		return m, tea.Batch(again, m.listen())
+		return m, m.again()
 	case tea.KeyPressMsg:
 		return m.key(msg)
 	case tea.MouseWheelMsg:
@@ -396,11 +418,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case m.gridded():
 			return m.sheetClick(msg)
 		case msg.Button == tea.MouseLeft:
-			m.click(msg.Y)
+			cmd := m.click(msg.X, msg.Y)
+			m.fit()
+			return m, cmd
 		}
 		m.fit()
 	}
 	return m, nil
+}
+
+// again runs the checks again, superseding a run still out, as after a fix or a keep.
+func (m *Model) again() tea.Cmd {
+	m.running = nil
+	again := m.checking.Again(m.env(), false)
+	m.run.Store(int64(m.checking.Gen()))
+	if m.listening {
+		return again
+	}
+	return tea.Batch(again, m.listen())
 }
 
 // take keeps the latest run's checks, or kit's refusal, and keeps the cursor on the check it was on. The step stays
@@ -437,7 +472,7 @@ func (m Model) rows(step int) []int {
 	table := m.foldered(step)
 	var out []int
 	for i, c := range m.checks {
-		mine := m.stepOf(c) == step && !(table && c.Folder != "" && c.OK)
+		mine := m.stepOf(c) == step && !(table && c.Folder != "" && c.OK) && !folded(c)
 		if intro {
 			mine = !c.OK
 		}
@@ -662,17 +697,23 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
-	choosing := m.choosing()
+	choosing, keeping := m.choosing(), m.keeping()
 	switch k.String() {
 	case "esc":
 		m.back()
 	case "shift+tab":
-		if choosing {
+		switch {
+		case choosing:
 			m.choice = now
+		case keeping:
+			m.choice = later
 		}
 	case "tab":
-		if choosing {
+		switch {
+		case choosing:
 			m.choice = later
+		case keeping:
+			m.choice = keep
 		}
 	case "up":
 		m.up(1)
@@ -694,15 +735,21 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.follow()
 		case choosing && m.choice == now:
 			return m, m.now()
-		case choosing:
+		case keeping && m.choice == keep:
+			return m, m.keep()
+		case choosing || keeping:
 			m.later()
 		}
 	case "n":
 		if choosing {
 			return m, m.now()
 		}
+	case "k":
+		if keeping {
+			return m, m.keep()
+		}
 	case "l":
-		if choosing || m.showOnly() {
+		if choosing || keeping || m.showOnly() {
 			m.later()
 		}
 	}
@@ -727,10 +774,11 @@ var fades = table.Fades
 // before.
 func (m Model) fading(before shell.Notice) tea.Cmd { return m.sheet().Notice().Fading(before, fades) }
 
-// click takes a left click on the pane, on the screen line y: on a check's line, the cursor goes to that check and the
-// pane has the keyboard; on a link in the introduction, the screen goes to its check; on a page, the page has the
-// keyboard. A … line, or a line that is no check's, does nothing.
-func (m *Model) click(y int) {
+// click takes a left click on the pane, at the screen cell x, y: on a check's line, the cursor goes to that check and
+// the pane has the keyboard, and on a terminal's failed finding, a click on keep keeps it and one on later leaves it;
+// on a link in the introduction, the screen goes to its check; on a page, the page has the keyboard. A … line, or a
+// line that is no check's, does nothing.
+func (m *Model) click(x, y int) tea.Cmd {
 	r, h := y-paneTop, m.paneHeight()
 	switch {
 	case r < 0 || r >= h:
@@ -740,11 +788,28 @@ func (m *Model) click(y int) {
 		lines := m.lines()
 		if k := pane.At(len(lines), h, m.offsets[m.step], r); k >= 0 && lines[k].row >= 0 {
 			m.cursor, m.inPane, m.choice = lines[k].row, true, now
-			if m.onLink() {
+			plain := ansi.Strip(lines[k].text)
+			switch {
+			case m.onLink():
 				m.follow()
+			case m.keeping() && onButton(plain, "keep", x):
+				return m.keep()
+			case m.keeping() && onButton(plain, "later", x):
+				m.later()
 			}
 		}
 	}
+	return nil
+}
+
+// onButton says whether the cell x of a drawn line is on the button named, the last one on the line.
+func onButton(line, name string, x int) bool {
+	i := strings.LastIndex(line, " "+name+" ")
+	if i < 0 {
+		return false
+	}
+	at := ansi.StringWidth(line[:i])
+	return x >= at && x < at+ansi.StringWidth(name)+2
 }
 
 // onLink says whether the cursor is on a link in the introduction, with the pane's keyboard.
@@ -781,6 +846,23 @@ func (m Model) choosing() bool {
 	}
 	c := m.checks[m.cursor]
 	return !c.OK && c.Fix != "" && c.Runs
+}
+
+// keeping says whether the cursor is on a row that offers later and keep: a terminal's failed finding.
+func (m Model) keeping() bool {
+	if !m.checked() || !m.inPane || m.cursor >= len(m.checks) {
+		return false
+	}
+	c := m.checks[m.cursor]
+	return !c.OK && terminalFinding(c)
+}
+
+// keep runs kit welcome --keep=<id> for the check under the cursor, so it holds from now on; the checks are read again
+// when it ends.
+func (m Model) keep() tea.Cmd {
+	c := m.checks[m.cursor]
+	r, key := m.over(), c.Key()
+	return func() tea.Msg { return keptMsg{id: c.ID, key: key, err: r.WelcomeKeep(context.Background(), c)} }
 }
 
 // showOnly says whether the cursor is on a failed check whose fix kit shows and never runs.

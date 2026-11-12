@@ -7,8 +7,8 @@
 # file FAKE_KIT_RECORD names; workspace --stages names two stages, each other app verb's --stages its own, as kit
 # audit's five, and a stage of theirs answers with no rows; root prints a fixed directory, and welcome --checks the
 # welcome screen's fixture; any
-# other verb's arguments and working directory, welcome --fix's too, are written to that file, for the exec test to
-# read. Every syntax answer about the verb FAKE_KIT_REFUSE names (its grammar, choices, extension, and match) is a
+# other verb's arguments and working directory, welcome --fix's and --keep='s too, are written to that file, for the
+# exec test to read; FAKE_KIT_REFUSE=welcome refuses those two with exit 2. Every syntax answer about the verb FAKE_KIT_REFUSE names (its grammar, choices, extension, and match) is a
 # refusal instead, as the kit prints one, with exit 2. The grammar of the verb FAKE_KIT_UNPARSED names carries a usage
 # that does not parse, and a match on the verb FAKE_KIT_MATCH_REFUSE names judges the words refused; one on the verb
 # FAKE_KIT_MATCH_MISSING names judges <path> missing, after the literal FAKE_KIT_MATCH_LITERAL when it is set. assign
@@ -269,11 +269,17 @@ case "${1:-}" in
     cat "${file}"
     ;;
   (welcome)
-    # --checks prints the welcome screen's fixture; --fix falls through to the record below
+    # --checks prints the welcome screen's fixture; --fix and --keep= fall through to the record below, where
+    # FAKE_KIT_REFUSE=welcome refuses them with exit 2
     if [[ "${2:-}" == --checks ]]
     then
       cat "${here}/../../welcome/testdata/checks.json"
       exit 0
+    fi
+    if [[ "${FAKE_KIT_REFUSE:-}" == welcome ]]
+    then
+      echo "❌ kit welcome refuses for the test" >&2
+      exit 2
     fi
     printf '%s\n' "$*" > "${FAKE_KIT_RECORD:?}"
     pwd -P >> "${FAKE_KIT_RECORD}"

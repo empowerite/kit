@@ -553,6 +553,13 @@ func (r Runner) WelcomeFix(c Check) *exec.Cmd {
 	return cmd
 }
 
+// WelcomeKeep runs kit welcome --keep=<id>, over the workspace, as over names it: a terminal's finding kept as it is,
+// so it holds from now on. Kit's refusal, as for a check that is no terminal's finding, is the error.
+func (r Runner) WelcomeKeep(ctx context.Context, c Check) error {
+	_, err := r.within(ctx, callLimit, append(os.Environ(), "NO_COLOR=1"), r.over("welcome", "--keep="+c.ID)...)
+	return err
+}
+
 // Catalogue is the tutorials kit knows, as kit tutorials --json prints them: the kit's version, the base every link
 // starts with, the audiences in the order they are shown, and the tutorials in theirs.
 type Catalogue struct {

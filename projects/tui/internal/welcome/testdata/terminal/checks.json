@@ -1,0 +1,7 @@
+[
+{"id": "bash", "step": "toolchains", "ok": true, "line": "bash 5.2 runs kit", "fix": null, "interactive": false, "more": null, "runs": true},
+{"id": "terminal-iterm", "step": "setup", "ok": true, "line": "iTerm2, profile Default", "fix": null, "interactive": false, "more": "https://example.com/terminals.md#iterm2", "runs": false},
+{"id": "terminal-iterm-triggers", "step": "setup", "ok": true, "line": "iTerm2 runs no trigger of profile Default while kittui is up", "fix": null, "interactive": false, "more": "https://example.com/terminals.md#iterm2", "runs": false},
+{"id": "terminal-iterm-option", "step": "setup", "ok": false, "line": "iTerm2's profile Default sends ⌥ as a plain key", "fix": "iTerm2 → Settings → Profiles → Default → Keys → General: set Left Option key to Esc+", "interactive": false, "more": "https://example.com/terminals.md#iterm2", "runs": false},
+{"id": "terminal-iterm-mouse", "step": "setup", "ok": true, "line": "kept: iTerm2's profile Default does not report mouse clicks", "fix": null, "interactive": false, "more": "kit welcome --unkeep=terminal-iterm-mouse", "runs": false}
+]

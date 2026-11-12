@@ -398,6 +398,23 @@ func TestWelcomeFixIsACommandNotYetStarted(t *testing.T) {
 	}
 }
 
+func TestWelcomeKeepRunsKitWelcomeKeepAndGivesKitsRefusal(t *testing.T) {
+	record := filepath.Join(t.TempDir(), "record")
+	t.Setenv("FAKE_KIT_RECORD", record)
+	dir := t.TempDir()
+	if err := fake(t, dir).WelcomeKeep(context.Background(), Check{ID: "terminal-iterm-option"}); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := os.ReadFile(record)
+	if !strings.HasPrefix(string(got), "welcome --keep=terminal-iterm-option\n") {
+		t.Errorf("kept as %q", got)
+	}
+	t.Setenv("FAKE_KIT_REFUSE", "welcome")
+	if err := fake(t, dir).WelcomeKeep(context.Background(), Check{ID: "tool-jq"}); err == nil {
+		t.Error("a refusal is no error")
+	}
+}
+
 func TestRootIsKitRoot(t *testing.T) {
 	if root, err := fake(t, "").Root(); err != nil || root != "/the/release" {
 		t.Errorf("Root: %q, %v", root, err)

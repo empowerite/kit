@@ -142,6 +142,9 @@ func (m Model) paneKeys() shell.Segment {
 	case m.choosing():
 		s.Bindings = append(s.Bindings, shell.Bind("⇥·⇧⇥", "now or later", "tab", "shift+tab"), shell.Bind("n", "now"),
 			shell.Bind("l", "later"), shell.Bind("⏎", "choose", "enter"))
+	case m.keeping():
+		s.Bindings = append(s.Bindings, shell.Bind("⇥·⇧⇥", "later or keep", "tab", "shift+tab"),
+			shell.Bind("l", "later"), shell.Bind("k", "keep"), shell.Bind("⏎", "choose", "enter"))
 	case m.showOnly():
 		s.Bindings = append(s.Bindings, shell.Bind("l", "later"))
 	}
@@ -468,6 +471,10 @@ func (m Model) checkLines(i int, key, indent string) []line {
 	}
 	if focused && !c.OK && c.Fix != "" && c.Runs {
 		buttons := "   " + button("now", m.choice == now) + " " + button("later", m.choice == later)
+		row = pane.Clip(row, w-ansi.StringWidth(buttons)) + buttons
+	}
+	if focused && !c.OK && terminalFinding(c) {
+		buttons := "   " + button("later", m.choice != keep) + " " + button("keep", m.choice == keep)
 		row = pane.Clip(row, w-ansi.StringWidth(buttons)) + buttons
 	}
 	out := []line{{i, pane.Clip(row, w)}}
