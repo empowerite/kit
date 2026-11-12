@@ -1,6 +1,7 @@
 package fix
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -92,16 +93,19 @@ func TestAfterKeepsTheButtonsWhole(t *testing.T) {
 // not words: done takes ErrNotWords instead.
 func TestRunningHandsOverOnlyWords(t *testing.T) {
 	var ran *exec.Cmd
-	handOver := func(c *exec.Cmd, cb tea.ExecCallback) tea.Cmd { ran = c; return func() tea.Msg { return cb(nil) } }
+	handOver := func(c *exec.Cmd, _, _ string, cb tea.ExecCallback) tea.Cmd {
+		ran = c
+		return func() tea.Msg { return cb(nil) }
+	}
 	done := func(err error) tea.Msg { return err }
-	if msg := Running(handOver, "gh auth refresh --scopes read:project", done)(); msg != nil {
+	if msg := Running(handOver, "gh auth refresh --scopes read:project", "why", done)(); msg != nil {
 		t.Fatalf("Running gave %v", msg)
 	}
 	if ran == nil || !slices.Equal(ran.Args, []string{"gh", "auth", "refresh", "--scopes", "read:project"}) {
 		t.Fatalf("Running handed over %v", ran)
 	}
 	ran = nil
-	if msg := Running(handOver, "kit hydrate; rm -rf ~", done)(); !errors.Is(msg.(error), ErrNotWords) || ran != nil {
+	if msg := Running(handOver, "kit hydrate; rm -rf ~", "why", done)(); !errors.Is(msg.(error), ErrNotWords) || ran != nil {
 		t.Errorf("Running a second command gave %v, handed over %v", msg, ran)
 	}
 }
@@ -182,5 +186,41 @@ func TestInNamesTheFolderAndFolderReadsItBack(t *testing.T) {
 	t.Setenv("HOME", "")
 	if Runs("cd ~/src/app && kit hydrate") || In(home+"/src", "kit hydrate") != "cd "+home+"/src && kit hydrate" {
 		t.Errorf("~ ran with no home folder")
+	}
+}
+
+// A hand-off clears the screen, says what runs and why, runs the process on the terminal handed to it, says how it
+// ended, and waits for ⏎; the process's own failure is what done takes.
+func TestHandOverSaysWhatRunsAndHowItEndedThenWaitsForEnter(t *testing.T) {
+	for _, tc := range []struct {
+		command, why, want string
+		fails              bool
+	}{
+		{"echo hello", "the check asked", "succeeded.", false},
+		{"false", "", "failed: exit status 1.", true},
+		{"/no/such/tool", "x", "failed:", true},
+	} {
+		var out bytes.Buffer
+		c, _ := Process(tc.command)
+		in := strings.NewReader("\nafter")
+		h := &handover{cmd: c, what: tc.command, why: tc.why}
+		h.SetStdin(in)
+		h.SetStdout(&out)
+		h.SetStderr(&out)
+		err := h.Run()
+		got := out.String()
+		if (err != nil) != tc.fails || !strings.HasPrefix(got, "\x1b[2J\x1b[3J\x1b[H"+"Running `"+tc.command+"`:") ||
+			!strings.Contains(got, tc.want) || !strings.HasSuffix(got, "Press ⏎ to return to kit.\n") {
+			t.Errorf("%s: err %v, terminal %q", tc.command, err, got)
+		}
+		if tc.command == "echo hello" && (!strings.Contains(got, "\nhello\n") || in.Len() != len("after")) {
+			t.Errorf("the process's output, or ⏎ waited for: %q, %d left", got, in.Len())
+		}
+		if tc.why != "" && !strings.Contains(got, tc.why+";") {
+			t.Errorf("no why in %q", got)
+		}
+	}
+	if HandOver(exec.Command("true"), "true", "", nil) == nil {
+		t.Error("HandOver gave no command")
 	}
 }

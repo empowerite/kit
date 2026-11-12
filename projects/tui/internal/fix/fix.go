@@ -11,6 +11,8 @@ package fix
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -278,18 +280,20 @@ func Words(command string) ([]string, bool) {
 	return words, len(words) > 0
 }
 
-// Exec hands the terminal to a process until it ends: tea.ExecProcess, but in tests.
-type Exec = func(*exec.Cmd, tea.ExecCallback) tea.Cmd
+// Exec hands the terminal to a process until it ends, as HandOver does, but in tests. what is the command as the
+// person knows it, and why it runs, as HandOver says them.
+type Exec = func(c *exec.Cmd, what, why string, done tea.ExecCallback) tea.Cmd
 
 // Running hands the terminal to a command, its words run with no shell, through exec, in the folder it names, else the
 // screen's; done takes how it ended once the screen has the terminal back. A command that is not words, as Runs says, does not run:
-// done takes ErrNotWords at once.
-func Running(exec Exec, command string, done tea.ExecCallback) tea.Cmd {
+// done takes ErrNotWords at once. why is what the person is told it is for.
+func Running(exec Exec, command, why string, done tea.ExecCallback) tea.Cmd {
 	c, ok := Process(command)
 	if !ok {
 		return func() tea.Msg { return done(ErrNotWords) }
 	}
-	return exec(c, done)
+	_, words, _ := Folder(command)
+	return exec(c, strings.Join(words, " "), why, done)
 }
 
 // ErrNotWords is why a command did not run: it asks a shell for more than words.
@@ -305,4 +309,68 @@ func Process(command string) (*exec.Cmd, bool) {
 	c := exec.Command(words[0], words[1:]...)
 	c.Dir = folder
 	return c, true
+}
+
+// HandOver is Exec for the real terminal, the one way every screen hands it over, so no hand-off lands in the middle
+// of what the terminal showed before. It clears the screen, says in one line what is about to run and why, runs the
+// process with the terminal its own, says how it ended, and waits for ⏎ before the screen returns, so what the process
+// printed can be read first. done takes how the process ended, as tea.ExecProcess gives it.
+func HandOver(c *exec.Cmd, what, why string, done tea.ExecCallback) tea.Cmd {
+	return tea.Exec(&handover{cmd: c, what: what, why: why}, done)
+}
+
+// handover is the tea.ExecCommand HandOver runs: the process, between what is said before it and after it.
+type handover struct {
+	cmd       *exec.Cmd
+	what, why string
+	in        io.Reader
+	out, err  io.Writer
+}
+
+func (h *handover) SetStdin(r io.Reader)  { h.in = r }
+func (h *handover) SetStdout(w io.Writer) { h.out = w }
+func (h *handover) SetStderr(w io.Writer) { h.err = w }
+
+// Run says what runs, runs it, and waits for ⏎, giving how the process ended; a process the terminal could not start
+// is told of too, so the person reads why before the screen returns.
+func (h *handover) Run() error {
+	if h.cmd.Stdin == nil {
+		h.cmd.Stdin = h.in
+	}
+	if h.cmd.Stdout == nil {
+		h.cmd.Stdout = h.out
+	}
+	if h.cmd.Stderr == nil {
+		h.cmd.Stderr = h.err
+	}
+	fmt.Fprint(h.out, Announce(h.what, h.why))
+	err := h.cmd.Run()
+	fmt.Fprint(h.out, Report(h.what, err))
+	key := make([]byte, 1)
+	for {
+		if n, err := h.in.Read(key); n == 1 && key[0] == '\n' || err != nil {
+			break
+		}
+	}
+	return err
+}
+
+// Announce is what the terminal reads before a hand-off: cleared, then a line saying what runs and why, and that the
+// screen returns when it ends.
+func Announce(what, why string) string {
+	if why != "" {
+		why = " " + why + ";"
+	} else {
+		why = ""
+	}
+	return "\x1b[2J\x1b[3J\x1b[H" + "Running `" + what + "`:" + why + " it has the terminal until it ends, so answer its questions if it asks any; kit returns when it ends.\n\n"
+}
+
+// Report is what the terminal reads once the process ends: how it ended, and that ⏎ brings the screen back.
+func Report(what string, err error) string {
+	how := "`" + what + "` succeeded."
+	if err != nil {
+		how = "`" + what + "` failed: " + err.Error() + "."
+	}
+	return "\n" + how + " Press ⏎ to return to kit.\n"
 }

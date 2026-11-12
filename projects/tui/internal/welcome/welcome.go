@@ -162,17 +162,17 @@ type note struct {
 // Model is the welcome screen.
 type Model struct {
 	runner    kit.Runner
-	ctx       context.Context                           // ends with the screen, and the checks still running with it
-	cancel    context.CancelFunc                        // ends ctx
-	exec      func(*exec.Cmd, tea.ExecCallback) tea.Cmd // hands the terminal to a fix; tea.ExecProcess but in tests
-	workspace kit.Workspace                             // the workspace kittui opened the screen on, zero while unknown
-	books     shell.BooksMenu                           // the title's workspace menu, which has the keyboard while open
-	tabs      []tab                                     // the steps, in order: the known ones until the pages are read
-	step      int                                       // the selected step
-	inPane    bool                                      // whether the pane, a check's row or the page, has the keyboard
-	barView   int                                       // the cells the bar's view scrolled past, as the bar last chose
-	places    []string                                  // the check each step's cursor was on when it was left
-	checking  source.Load[[]kit.Check]                  // kit welcome --checks --json: loading until it first answers
+	ctx       context.Context          // ends with the screen, and the checks still running with it
+	cancel    context.CancelFunc       // ends ctx
+	exec      fix.Exec                 // hands the terminal to a fix: fix.HandOver but in tests
+	workspace kit.Workspace            // the workspace kittui opened the screen on, zero while unknown
+	books     shell.BooksMenu          // the title's workspace menu, which has the keyboard while open
+	tabs      []tab                    // the steps, in order: the known ones until the pages are read
+	step      int                      // the selected step
+	inPane    bool                     // whether the pane, a check's row or the page, has the keyboard
+	barView   int                      // the cells the bar's view scrolled past, as the bar last chose
+	places    []string                 // the check each step's cursor was on when it was left
+	checking  source.Load[[]kit.Check] // kit welcome --checks --json: loading until it first answers
 	checks    []kit.Check
 	told      chan toldMsg   // what kit says as the checks run, to the screen as it comes
 	run       *atomic.Int64  // the run of the checks the screen waits on, as the load numbers them
@@ -210,7 +210,7 @@ func Open(r kit.Runner, ws kit.Workspace) Model {
 
 // New opens the screen on the first step, checking. Init runs the checks and reads the pages.
 func New(r kit.Runner, repo string) Model {
-	m := Model{runner: r, exec: tea.ExecProcess, told: make(chan toldMsg, 64), run: &atomic.Int64{},
+	m := Model{runner: r, exec: fix.HandOver, told: make(chan toldMsg, 64), run: &atomic.Int64{},
 		notes: map[string]note{}, width: 80, height: 24, tabs: slices.Clone(known),
 		places: make([]string, len(known)), offsets: make([]int, len(known)), appMenu: shell.Menu{Here: shell.Welcome},
 		books: shell.BooksMenu{Fallback: repo}, searches: map[string]shell.Search{},
@@ -1017,7 +1017,11 @@ func (m *Model) scroll(n int) {
 func (m *Model) runFix() tea.Cmd {
 	c := m.checks[m.cursor]
 	id, key := c.ID, c.Key()
-	return m.exec(m.over().WelcomeFix(c), func(err error) tea.Msg { return fixedMsg{id: id, key: key, err: err} })
+	what := c.Fix
+	if what == "" {
+		what = "kit welcome --fix " + c.ID
+	}
+	return m.exec(m.over().WelcomeFix(c), what, c.Line, func(err error) tea.Msg { return fixedMsg{id: id, key: key, err: err} })
 }
 
 // over gives the runner over the workspace the screen shows, as checksOver reads the checks over it.

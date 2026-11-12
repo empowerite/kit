@@ -183,7 +183,7 @@ type Model struct {
 	browse        func(url string) error    // opens a page in the browser
 	note          shell.Notice              // what kit did, or why something was not done, in place of the keys
 	copied        bool                      // whether the refusal's command was just copied, until the next key or click
-	handOver      fix.Exec                  // hands the terminal to a fix: tea.ExecProcess but in tests
+	handOver      fix.Exec                  // hands the terminal to a fix: fix.HandOver but in tests
 	ask           *ask                      // what an issues action asks before kit runs, while it asks
 	saved         map[string][]table.Preset // the person's views, by stage, as their file keeps them
 	starred       map[string][]string       // the names of the views the person starred, by stage, in their order
@@ -257,7 +257,7 @@ func open(r kit.Runner, o Options, w Words) Model {
 // they are on any maximized tab's.
 func New(r kit.Runner, o Options) Model {
 	m := Model{app: o.App, runner: r, limit: deadline, origin: o.Origin, noFetch: o.NoFetch, fresh: o.Fresh,
-		filters: o.Filters, width: 80, height: 24, browse: browser, handOver: tea.ExecProcess, appMenu: shell.Menu{Here: o.App},
+		filters: o.Filters, width: 80, height: 24, browse: browser, handOver: fix.HandOver, appMenu: shell.Menu{Here: o.App},
 		books: shell.BooksMenu{Fallback: o.Origin.Repo}, fold: true, hide: true, legend: legend{at: bottomRight}}
 	m.ctx, m.cancel = context.WithCancel(context.Background())
 	m.clock = o.Clock

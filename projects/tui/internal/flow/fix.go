@@ -120,7 +120,7 @@ func (m *Model) copyRemedy(command string) tea.Cmd {
 // runRemedy hands the terminal to a command; when it ends, the stage loads again.
 func (m *Model) runRemedy(command string) tea.Cmd {
 	name := m.stages[m.stage].name
-	return fix.Running(m.handOver, command, func(err error) tea.Msg { return ranMsg{stage: name, command: command, err: err} })
+	return fix.Running(m.handOver, command, "the "+name+" tab asked for it", func(err error) tea.Msg { return ranMsg{stage: name, command: command, err: err} })
 }
 
 // ran takes how a fix ended: the stage loads again, and a fix that failed says so in place of the keys.

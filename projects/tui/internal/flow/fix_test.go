@@ -22,7 +22,7 @@ func refusedChanges(t *testing.T, ran *[][]string) Model {
 	m := loaded(t, options())
 	at := slices.IndexFunc(m.stages, func(s stage) bool { return s.name == "changes" })
 	m = drive(m, typed(strconv.Itoa(at+1))...)
-	m.handOver = func(c *exec.Cmd, done tea.ExecCallback) tea.Cmd {
+	m.handOver = func(c *exec.Cmd, _, _ string, done tea.ExecCallback) tea.Cmd {
 		*ran = append(*ran, c.Args)
 		return func() tea.Msg { return done(nil) }
 	}
@@ -119,7 +119,7 @@ func TestARefusalUnderTheControlLineAndAFixThatFails(t *testing.T) {
 	m = drive(m, typed(strconv.Itoa(at+1))...)
 	t.Setenv("FAKE_FLOW_REFUSE", "changes")
 	m = drive(m, refreshAll...)
-	m.handOver = func(c *exec.Cmd, done tea.ExecCallback) tea.Cmd {
+	m.handOver = func(c *exec.Cmd, _, _ string, done tea.ExecCallback) tea.Cmd {
 		ran = append(ran, c.Args)
 		return func() tea.Msg { return done(errors.New("exit status 3")) }
 	}

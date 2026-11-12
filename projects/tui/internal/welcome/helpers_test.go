@@ -48,7 +48,7 @@ func fake(t *testing.T) (Model, *ran) {
 	t.Setenv("FAKE_WELCOME_STATE", filepath.Join(t.TempDir(), "state"))
 	m := New(testkit.Runner(t, "welcome"), "empowerite/kit")
 	r := &ran{}
-	m.exec = func(cmd *exec.Cmd, done tea.ExecCallback) tea.Cmd {
+	m.exec = func(cmd *exec.Cmd, _, _ string, done tea.ExecCallback) tea.Cmd {
 		r.calls = append(r.calls, cmd.Args[1:])
 		r.dirs = append(r.dirs, cmd.Dir)
 		return func() tea.Msg { return done(cmd.Run()) }

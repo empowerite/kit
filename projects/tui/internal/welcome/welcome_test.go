@@ -875,7 +875,7 @@ func TestAShowOnlyFixDrawsItsLinesAndOffersCopyAlone(t *testing.T) {
 
 func TestRAndEnterRunNothingOnAShowOnlyFix(t *testing.T) {
 	m, r := showOnly(t)
-	m.exec = func(*exec.Cmd, tea.ExecCallback) tea.Cmd {
+	m.exec = func(*exec.Cmd, string, string, tea.ExecCallback) tea.Cmd {
 		t.Error("a show-only fix handed the terminal over")
 		return nil
 	}
