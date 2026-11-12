@@ -589,7 +589,7 @@ YAML
   [ "$status" -eq 2 ]
   run --separate-stderr kit bots --check token
   [ "$status" -eq 2 ]
-  run --separate-stderr kit bots token --json
+  run --separate-stderr kit bots token --text
   [ "$status" -eq 2 ]
   run --separate-stderr kit bots --check --add=x --app=1 --key=k
   [ "$status" -eq 2 ]
@@ -648,7 +648,8 @@ run-gh() {
   rm -f "${FAKE_DIR}/bin/gh"
   cat > "${FAKE_DIR}/bin/gh" <<'GH'
 #!/usr/bin/env bash
-printf '%s GH_TOKEN=%s\n' "$*" "${GH_TOKEN-}" >> "${FAKE_DIR}/gh.calls"
+printf '%s GH_TOKEN=%s GH_ENTERPRISE_TOKEN=%s GH_HOST=%s\n' "$*" "${GH_TOKEN-}" "${GH_ENTERPRISE_TOKEN-}" "${GH_HOST-}" \
+  >> "${FAKE_DIR}/gh.calls"
 [[ "$*" == 'api user'* ]] && echo octocat
 exit 0
 GH
@@ -680,9 +681,9 @@ run-setup() {
   run --separate-stderr env KIT_BOT_FOR=someone kit bots run bash -c 'echo "${KIT_BOT_FOR} $*"' x --other -v
   [ "$status" -eq 0 ]
   [ "$output" = 'someone --other -v' ]
-  run --separate-stderr kit bots run echo --json
-  [ "$status" -eq 2 ]
-  ! grep --quiet '^api user' "${FAKE_DIR}/gh.calls" 2> /dev/null
+  run --separate-stderr kit bots run echo --json --bot=x -c
+  [ "$status" -eq 0 ]
+  [ "$output" = '--json --bot=x -c' ]
 }
 
 @test "run passes stdin to the command" {
@@ -771,12 +772,50 @@ without-gh() {
   run --separate-stderr kit bots run bash -c 'printf "protocol=https\nhost=github.com\n\n" | git credential fill'
   [ "$status" -eq 0 ]
   [[ "$output" == *$'username=x-access-token\npassword=ghs_abc'* ]]
-  # a host that is not the forge's gets no answer from the helper, so git has none to give
-  run --separate-stderr kit bots run bash -c 'printf "protocol=https\nhost=example.com\nusername=u\npassword=p\n\n" | git credential fill'
-  [[ "$output" != *ghs_abc* ]]
   # and storing or erasing asks nothing of it
   run --separate-stderr kit bots run bash -c 'git credential-kit-bot erase </dev/null; echo "erase $?"'
   [[ "$output" == *'erase 0'* ]]
+}
+
+@test "the helper answers only get, for exactly the forge's host, and gives no answer, exit 0, for any other" {
+  run-setup
+  cat > "${BATS_TEST_TMPDIR}/command" <<'COMMAND'
+#!/usr/bin/env bash
+helper=$(dirname "$(command -v gh)")/git-credential-kit-bot
+printf 'protocol=https\nhost=example.com\n\n' | "${helper}" get; echo "other $?"
+printf 'protocol=https\nhost=github.com.evil.example\n\n' | "${helper}" get; echo "prefix $?"
+printf 'protocol=https\n\n' | "${helper}" get; echo "none $?"
+printf 'protocol=https\nhost=github.com\n\n' | "${helper}" store; echo "store $?"
+printf 'protocol=https\nhost=github.com\n\n' | "${helper}" get; echo "right $?"
+printf 'host=github.com' | "${helper}" get; echo "unterminated $?"
+COMMAND
+  chmod +x "${BATS_TEST_TMPDIR}/command"
+  run --separate-stderr kit bots run "${BATS_TEST_TMPDIR}/command"
+  [ "$status" -eq 0 ]
+  [ "$output" = "$(printf '%s\n' 'other 0' 'prefix 0' 'none 0' 'store 0' username=x-access-token password=ghs_abc 'right 0' \
+    username=x-access-token password=ghs_abc 'unterminated 0')" ]
+}
+
+@test "a token that cannot be renewed gives gh no token to act as the person with, and the helper none to print" {
+  run-setup
+  export KIT_BOT_FOR=someone
+  fixture gone.json <<<'{"message":"Server Error"}'
+  fixture token.json <<<"{\"token\":\"ghs_one\",\"expires_at\":\"$(jq --null-input --raw-output 'now + 60 | floor | todate')\"}"
+  cat > "${BATS_TEST_TMPDIR}/command" <<'COMMAND'
+#!/usr/bin/env bash
+printf '*access_tokens*\t22\t500\tgone.json\t\n' | cat - "${FAKE_DIR}/curl.routes" > "${FAKE_DIR}/routes.new"
+mv "${FAKE_DIR}/routes.new" "${FAKE_DIR}/curl.routes"
+gh api user; echo "gh $?"
+helper=$(dirname "$(command -v gh)")/git-credential-kit-bot
+printf 'protocol=https\nhost=github.com\n\n' | "${helper}" get; echo "helper $?"
+COMMAND
+  chmod +x "${BATS_TEST_TMPDIR}/command"
+  run --separate-stderr kit bots run "${BATS_TEST_TMPDIR}/command"
+  [ "$status" -eq 0 ]
+  [ "$output" = "$(printf '%s\n' 'gh 1' 'helper 1')" ]
+  [[ "$stderr" == *'could not be renewed'*'act as you'* ]]
+  [[ "$stderr" == *'git is given none'* ]]
+  [ ! -e "${FAKE_DIR}/gh.calls" ]
 }
 
 @test "run keeps the git configuration the caller exported, and the helper comes after it" {
@@ -812,7 +851,7 @@ without-gh() {
   [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
 }
 
-@test "run revokes when the command is interrupted by TERM or INT, and the command is signalled too" {
+@test "run revokes when the command is terminated, or interrupted as a terminal does, and the command is signalled" {
   run-setup
   run --separate-stderr kit bots run bash -c 'trap "echo got-term >&2; exit 0" TERM; kill -TERM "${PPID}"; sleep 1; echo late'
   [ "$status" -eq 143 ]
@@ -821,9 +860,20 @@ without-gh() {
   [ "$(last-sent)" = '--request DELETE' ]
   [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
   : > "${FAKE_DIR}/curl.calls"
-  run --separate-stderr kit bots run bash -c 'trap "echo got-int >&2; exit 0" INT; kill -INT "${PPID}"; sleep 1; echo late'
+  # a terminal sends an interrupt to the whole group, the command's with it: a job of its own is a group of its own
+  run --separate-stderr bash -c 'set -m; kit bots run bash -c "trap \"echo got-int >&2; exit 0\" INT; kill -INT 0; sleep 1; echo late" & wait $!'
   [ "$status" -eq 130 ]
-  [[ "$stderr" == *got-int* ]]
+  [ "$(grep --count got-int <<<"$stderr")" -eq 1 ]
+  [[ "$output" != *late* ]]
+  [ "$(last-sent)" = '--request DELETE' ]
+  [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
+}
+
+@test "run revokes when the command is hung up, and the command is signalled" {
+  run-setup
+  run --separate-stderr kit bots run bash -c 'trap "echo got-hup >&2; exit 0" HUP; kill -HUP "${PPID}"; sleep 1; echo late'
+  [ "$status" -eq 129 ]
+  [[ "$stderr" == *got-hup* ]]
   [ "$(last-sent)" = '--request DELETE' ]
   [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
 }
@@ -882,4 +932,163 @@ GH
   [ "$status" -eq 0 ]
   [[ "$output" == "${BATS_TEST_TMPDIR}/tmpdir/kit-bot."*/bin/gh ]]
   [ -z "$(ls -A "${BATS_TEST_TMPDIR}/tmpdir")" ]
+}
+
+@test "token --json prints {token, expires_at}" {
+  one-bot work
+  run --separate-stderr kit bots token --json
+  [ "$status" -eq 0 ]
+  [ "$output" = '{"token":"ghs_abc","expires_at":"2026-11-12T10:00:00Z"}' ]
+  run --separate-stderr kit bots --bot=kit-bot token --json
+  [ "$output" = '{"token":"ghs_abc","expires_at":"2026-11-12T10:00:00Z"}' ]
+}
+
+@test "run's token is in no argument of jq, nor of curl, when it is renewed" {
+  run-setup
+  real_jq=$(type -P jq)
+  cat > "${FAKE_DIR}/bin/jq" <<JQ
+#!/usr/bin/env bash
+printf '%s\\n' "\$*" >> "\${FAKE_DIR}/jq.calls"
+exec "${real_jq}" "\$@"
+JQ
+  chmod +x "${FAKE_DIR}/bin/jq"
+  fixture token.json <<<"{\"token\":\"ghs_one\",\"expires_at\":\"$(jq --null-input --raw-output 'now + 60 | floor | todate')\"}"
+  cat > "${BATS_TEST_TMPDIR}/command" <<'COMMAND'
+#!/usr/bin/env bash
+printf '{"token":"ghs_two","expires_at":"%s"}' "$(jq --null-input --raw-output 'now + 3600 | floor | todate')" > "${FAKE_DIR}/token.json"
+gh api user
+COMMAND
+  chmod +x "${BATS_TEST_TMPDIR}/command"
+  run --separate-stderr kit bots run "${BATS_TEST_TMPDIR}/command"
+  [ "$status" -eq 0 ]
+  grep --quiet 'GH_TOKEN=ghs_two' "${FAKE_DIR}/gh.calls"
+  [ -s "${FAKE_DIR}/jq.calls" ]
+  run ! grep --quiet ghs_ "${FAKE_DIR}/jq.calls" "${FAKE_DIR}/curl.calls"
+}
+
+@test "a run inside a run of another bot gives its command its own token, not the outer's" {
+  run-setup
+  write-bots <<'YAML'
+bots:
+  - name: kit-bot
+    host: github.com
+    app: 12345
+    jobs: [work]
+  - name: other-bot
+    host: github.com
+    app: 777
+    jobs: [work]
+YAML
+  kit-bash 'secrets:put kit-bot github.com/777' < "${pem}"
+  export KIT_BOT_FOR=someone
+  cat > "${BATS_TEST_TMPDIR}/command" <<'COMMAND'
+#!/usr/bin/env bash
+echo "outer ${KIT_BOT} ${GH_TOKEN}"
+printf '{"token":"ghs_inner","expires_at":"%s"}' "$(jq --null-input --raw-output 'now + 3600 | floor | todate')" > "${FAKE_DIR}/token.json"
+kit bots --bot=other-bot run bash -c 'echo "inner ${KIT_BOT} ${KIT_BOT_FOR} ${GH_TOKEN}"; gh api user'
+COMMAND
+  chmod +x "${BATS_TEST_TMPDIR}/command"
+  run --separate-stderr kit bots --bot=kit-bot run "${BATS_TEST_TMPDIR}/command"
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = 'outer kit-bot ghs_abc' ]
+  [ "${lines[1]}" = 'inner other-bot someone ghs_inner' ]
+  [ "$(tail -n 1 "${FAKE_DIR}/gh.calls")" = 'api user GH_TOKEN=ghs_inner GH_ENTERPRISE_TOKEN= GH_HOST=' ]
+}
+
+@test "run on another host than github.com sets GH_ENTERPRISE_TOKEN and GH_HOST, in the command and in gh" {
+  run-gh
+  fixture none.json <<<''
+  git remote set-url origin https://ghe.example.com/empowerite/kit.git
+  printf 'forge: github\n' > kit.yml
+  write-bots <<'YAML'
+bots:
+  - name: kit-bot
+    host: ghe.example.com
+    app: 12345
+    jobs: [work]
+YAML
+  kit-bash 'secrets:put kit-bot ghe.example.com/12345' < "${pem}"
+  github-routes ghe.example.com 12345 kit-bot
+  fixture token.json <<<"{\"token\":\"ghs_abc\",\"expires_at\":\"$(jq --null-input --raw-output 'now + 3600 | floor | todate')\"}"
+  export XDG_RUNTIME_DIR="${BATS_TEST_TMPDIR}/runtime" KIT_BOT_FOR=someone
+  mkdir -p "${XDG_RUNTIME_DIR}"
+  run --separate-stderr kit bots run bash -c 'echo "${GH_TOKEN} ${GH_ENTERPRISE_TOKEN} ${GH_HOST}"; env -u GH_TOKEN -u GH_ENTERPRISE_TOKEN -u GH_HOST gh api user'
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = 'ghs_abc ghs_abc ghe.example.com' ]
+  [ "$(tail -n 1 "${FAKE_DIR}/gh.calls")" = 'api user GH_TOKEN=ghs_abc GH_ENTERPRISE_TOKEN=ghs_abc GH_HOST=ghe.example.com' ]
+}
+
+@test "two renewals at once mint one token, both callers get it, and every token minted is revoked" {
+  run-setup
+  export KIT_BOT_FOR=someone
+  mv "${FAKE_DIR}/bin/curl" "${FAKE_DIR}/curl.real"
+  cat > "${FAKE_DIR}/bin/curl" <<CURL
+#!/usr/bin/env bash
+[[ "\$*" != *access_tokens* ]] || sleep 1
+exec "${FAKE_DIR}/curl.real" "\$@"
+CURL
+  chmod +x "${FAKE_DIR}/bin/curl"
+  fixture token.json <<<"{\"token\":\"ghs_one\",\"expires_at\":\"$(jq --null-input --raw-output 'now + 60 | floor | todate')\"}"
+  cat > "${BATS_TEST_TMPDIR}/command" <<'COMMAND'
+#!/usr/bin/env bash
+printf '{"token":"ghs_two","expires_at":"%s"}' "$(jq --null-input --raw-output 'now + 3600 | floor | todate')" > "${FAKE_DIR}/token.json"
+gh api user & gh api user & wait
+COMMAND
+  chmod +x "${BATS_TEST_TMPDIR}/command"
+  run --separate-stderr kit bots run "${BATS_TEST_TMPDIR}/command"
+  [ "$status" -eq 0 ]
+  [ "$(grep --count 'GH_TOKEN=ghs_two' "${FAKE_DIR}/gh.calls")" -eq 2 ]
+  [ "$(sent '--request POST')" -eq 2 ]
+  # the first token, which the renewal replaced, and the second
+  [ "$(sent '--request DELETE')" -eq 2 ]
+  [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
+}
+
+@test "the renewal takes the session's directory off PATH wherever it stands" {
+  run-setup
+  export KIT_BOT_FOR=someone
+  fixture token.json <<<"{\"token\":\"ghs_one\",\"expires_at\":\"$(jq --null-input --raw-output 'now + 60 | floor | todate')\"}"
+  cat > "${BATS_TEST_TMPDIR}/command" <<'COMMAND'
+#!/usr/bin/env bash
+session=$(dirname "$(dirname "$(command -v gh)")")
+real=$(<"${session}/kit")
+printf '#!/usr/bin/env bash\nprintf "%%s\\n" "${PATH}" > "%s/path.seen"\nexec "%s" "$@"\n' "${FAKE_DIR}" "${real}" > "${FAKE_DIR}/fakekit"
+chmod +x "${FAKE_DIR}/fakekit"
+printf '%s\n' "${FAKE_DIR}/fakekit" > "${session}/kit"
+printf '{"token":"ghs_two","expires_at":"%s"}' "$(jq --null-input --raw-output 'now + 3600 | floor | todate')" > "${FAKE_DIR}/token.json"
+PATH="${PATH#"${session}/bin:"}:${session}/bin"
+"${session}/bin/gh" api user
+COMMAND
+  chmod +x "${BATS_TEST_TMPDIR}/command"
+  run --separate-stderr kit bots run "${BATS_TEST_TMPDIR}/command"
+  [ "$status" -eq 0 ]
+  [ -s "${FAKE_DIR}/path.seen" ]
+  [[ "$(<"${FAKE_DIR}/path.seen")" != *"${XDG_RUNTIME_DIR}"* ]]
+  grep --quiet 'GH_TOKEN=ghs_two' "${FAKE_DIR}/gh.calls"
+}
+
+@test "the helper is configured quote-safe, for a directory with a quote and a space in its name" {
+  run-setup
+  unset XDG_RUNTIME_DIR
+  mkdir "${BATS_TEST_TMPDIR}/it's here"
+  run --separate-stderr env TMPDIR="${BATS_TEST_TMPDIR}/it's here" kit bots run bash -c 'printf "protocol=https\nhost=github.com\n\n" | git credential fill'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *$'username=x-access-token\npassword=ghs_abc'* ]]
+  [ -z "$(ls -A "${BATS_TEST_TMPDIR}/it's here")" ]
+}
+
+@test "a session token file that does not read is a warning, and the tokens that do are revoked" {
+  run-setup
+  cat > "${BATS_TEST_TMPDIR}/command" <<'COMMAND'
+#!/usr/bin/env bash
+session=$(dirname "$(dirname "$(command -v gh)")")
+echo garbage > "${session}/token.json"
+printf '{"token":"ghs_spent","expires_at":"%s"}\n' "$(jq --null-input --raw-output 'now + 3600 | floor | todate')" > "${session}/spent"
+COMMAND
+  chmod +x "${BATS_TEST_TMPDIR}/command"
+  run --separate-stderr kit bots run "${BATS_TEST_TMPDIR}/command"
+  [ "$status" -eq 0 ]
+  [[ "$stderr" == *'token.json did not read'* ]]
+  [ "$(sent '--request DELETE')" -eq 1 ]
+  [ -z "$(ls -A "${XDG_RUNTIME_DIR}")" ]
 }

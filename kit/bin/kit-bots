@@ -6,7 +6,7 @@
 #   kit bots --add=<name> --app=<id> --key=<source> [--jobs=<job>…]
 #   kit bots --remove=<name>
 #   kit bots --check [--bot=<name>] [--text | --json | --jq]
-#   kit bots [--bot=<name>] token
+#   kit bots [--bot=<name>] token [--json]
 #   kit bots [--bot=<name>] run <command>…
 #
 # A bot is a GitHub App you have set up to act for you. Its public facts are in kit/bots.yml under XDG_CONFIG_HOME, else
@@ -33,8 +33,8 @@
 # and where a job lacks a permission, since that job would fail when the bot acts; a permission no job needs is advice,
 # and exits 0.
 #
-# token prints an installation token narrowed to this repository, and only the token, for a pipe. It is good for an
-# hour, and kit does not revoke it; it refuses outside a repository.
+# token prints an installation token narrowed to this repository, and only the token, for a pipe; with --json, the
+# object {token, expires_at}. It is good for an hour, and kit does not revoke it; it refuses outside a repository.
 #
 # run runs the command as the bot, for as long as it runs, and exits with its status. The command has GH_TOKEN, a fresh
 # installation token narrowed to this repository; a gh on PATH that mints a new token when the old is within ten
@@ -43,12 +43,14 @@
 # <name>[bot], and KIT_BOT_FOR the person's login, which a run inside a run keeps. The tokens live in a directory of the
 # run's own, readable by you alone, and are revoked and the directory removed when the command ends, or kit bots is
 # interrupted or terminated, the status then being 128 and the signal's number. A token that could not be revoked is
-# a warning, since it expires within the hour. The words after run are the command's, its dash-words included; one
-# that is an option of kit bots, such as --json, is refused there.
+# a warning, since it expires within the hour. Every word after run is the command's, kit bots' own options included,
+# and none is parsed. A TERM ends the run only where it reaches the verb's process, which the kit command does not yet
+# guarantee (see #290); an interrupt from the terminal reaches the command with the verb, as the terminal sends it to
+# the whole group.
 #
 # Arguments:
 #   --text            prints the bots as text, even on a terminal
-#   --json            one JSON object, as above
+#   --json            one JSON object, as above; for token, {token, expires_at}
 #   --jq              the same JSON, formatted by jq for a person
 #   --add             adopts the App that <name> is the slug of, with --app and --key
 #   --app             the App's ID, a number
@@ -80,13 +82,21 @@ set -o errexit -o nounset -o pipefail
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use bots
-guard:arguments bots "$@" || exit $?
-
-action=list form=text formed='' name='' app='' key='' bot='' forms=0 seen=0
-jobs=() command=()
-for word in "$@"
+# The words after the first run are the command's, and are never parsed: only what stands before them, and run, is
+# judged, with a word standing for the command.
+head=("$@") command=()
+for (( position = 1; position <= $#; position++ ))
 do
-  seen=$(( seen + 1 ))
+  [[ "${!position}" == run ]] || continue
+  head=("${@:1:position}") command=("${@:position + 1}")
+  break
+done
+guard:arguments bots "${head[@]}" ${command[@]:+command} || exit $?
+
+action=list form=text formed='' name='' app='' key='' bot='' forms=0
+jobs=()
+for word in "${head[@]}"
+do
   case "${word}" in
     (--text | --json | --jq) form=${word#--} formed=1 ;;
     (--add=* | --remove=*)
@@ -99,10 +109,8 @@ do
       forms=$(( forms + 1 ))
       ;;
     (run)
-      # everything after run is the command's, options too
-      action=run command=("${@:seen+1}")
+      action=run
       forms=$(( forms + 1 ))
-      break
       ;;
     (--bot=)
       error "--bot names a bot: --bot=<name>"
@@ -139,9 +147,14 @@ then
   error "--app, --key, and --jobs go with --add; see: kit help bots"
   exit 2
 fi
-if [[ "${action}" != @(list|check) && -n "${formed}" ]]
+if [[ "${action}" != @(list|check|token) && -n "${formed}" ]]
 then
   error "--text, --json, and --jq are the forms of the list and --check; ${action} prints one line"
+  exit 2
+fi
+if [[ "${action}" == token && -n "${formed}" && "${form}" != json ]]
+then
+  error "token prints a token, or with --json {token, expires_at}; see: kit help bots"
   exit 2
 fi
 
@@ -166,7 +179,10 @@ case "${action}" in
   (token)
     bot_json=$(bots:choose "${bot}") || exit $?
     token=$(bots:token "${bot_json}") || exit $?
-    jq --raw-output .token <<<"${token}"
+    if [[ "${form}" == json && -n "${formed}" ]]
+    then jq --compact-output . <<<"${token}"
+    else jq --raw-output .token <<<"${token}"
+    fi
     ;;
   (run)
     bot_json=$(bots:choose "${bot}") || exit $?
