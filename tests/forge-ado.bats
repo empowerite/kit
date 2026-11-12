@@ -111,10 +111,10 @@ JSON
   az-route 'boards iteration team list --team Alpha --project empowerite --output json' iterations.json
 }
 
-# added is what contracts 4 and 5 add that Azure DevOps lacks, as JSON strings: it has iterations, reviewers, the
+# added is what contracts 4, 5, and 6 add that Azure DevOps lacks, as JSON strings: it has iterations, reviewers, the
 # changes merged, artifacts, environments, deployments, who has access, teams, and the default branch's policies, and
 # no milestone, bot, attestation, alert, waiver, or swimlane.
-added='"milestones","bots","attestations","code-scanning","dependabot","secret-scanning","bypasses","swimlanes"'
+added='"milestones","bots","attestations","code-scanning","dependabot","secret-scanning","bypasses","swimlanes","bot-accounts"'
 
 @test "dev.azure.com, its ssh host, and a host under visualstudio.com are Azure DevOps, and each names the repository" {
   run call provider

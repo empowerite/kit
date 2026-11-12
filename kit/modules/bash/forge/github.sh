@@ -862,8 +862,8 @@ forge/github:teams() {
     'import "forge" as forge; forge::github_teams($members; 20)'
 }
 
-# The provider implements contract 5, and its forge lacks only swimlanes, which no forge kit reaches has.
-forge/github:contract() { printf '5\n'; }
+# The provider implements contract 6, and its forge lacks only swimlanes, which no forge kit reaches has.
+forge/github:contract() { printf '6\n'; }
 
 forge/github:lacks() {
   printf '%s\n' swimlanes
@@ -1260,6 +1260,134 @@ forge/github:refused() {
     return 1
   fi
   printf -v "${refused_into}" '%s' "${refused_out}"
+}
+
+# bot-accounts: a GitHub App's own calls. They go to the REST API with curl, signed by the App's key or by a token it
+# minted, and never through gh, whose login is the person's. A header, which holds the JWT or the token, reaches curl
+# on its standard input, so no argv shows it, and the key is only ever a path openssl reads.
+
+# forge/github:api-base prints the base of the REST API of the primary remote's host: https://api.github.com for
+# github.com, and https://<host>/api/v3 for any other, as GitHub Enterprise Server serves it.
+forge/github:api-base() {
+  local host
+  host=$(forge:host "$(forge:primary 2>/dev/null)" 2>/dev/null) || host=''
+  if [[ -z "${host}" || "${host}" == github.com ]]
+  then
+    printf 'https://api.github.com\n'
+  else
+    printf 'https://%s/api/v3\n' "${host}"
+  fi
+}
+
+# forge/github:base64url prints its standard input as base64url without padding, on one line, as a JWT writes it.
+forge/github:base64url() {
+  openssl base64 -A | tr '+/' '-_' | tr -d '='
+}
+
+# forge/github:jwt <app> <pem-file> prints an RS256 JWT for the App: issued 60 seconds back, to allow for a clock that
+# runs ahead of GitHub's, and good for 540 seconds more, 10 minutes being GitHub's limit; iss is <app>, the App's ID.
+forge/github:jwt() {
+  local app=$1 pem=$2 now head body signature
+  guard:require tool:openssl || return 1
+  [[ -r "${pem}" ]] || { error "the key of the GitHub App ${app} is not a readable file: ${pem}"; return 1; }
+  now=$(date +%s)
+  head=$(printf '{"alg":"RS256","typ":"JWT"}' | forge/github:base64url)
+  body=$(jq --null-input --compact-output --argjson now "${now}" --arg app "${app}" \
+    '{iat: ($now - 60), exp: ($now + 540), iss: $app}' | forge/github:base64url)
+  signature=$(printf '%s.%s' "${head}" "${body}" | openssl dgst -sha256 -sign "${pem}" 2>/dev/null \
+    | forge/github:base64url) && [[ -n "${signature}" ]] \
+    || { error "the key of the GitHub App ${app} is no RSA private key in PEM form: ${pem}"; return 1; }
+  printf '%s.%s.%s\n' "${head}" "${body}" "${signature}"
+}
+
+# forge/github:app-api [--missing] <bearer> <method> <path> [<data>] prints GitHub's answer to the request, <bearer>
+# being a JWT or an installation token. It fails with a line that says what GitHub refused, as GitHub says it. With
+# --missing, a 404 fails with no line, for a caller that takes a missing thing as an answer.
+forge/github:app-api() {
+  local missing=false bearer method path out base
+  local -a body=()
+  [[ "$1" != --missing ]] || { missing=true; shift; }
+  bearer=$1 method=$2 path=$3
+  (( $# < 4 )) || body=(--header 'Content-Type: application/json' --data "$4")
+  guard:require tool:curl || return 1
+  base=$(forge/github:api-base)
+  if out=$(printf 'Authorization: Bearer %s\n' "${bearer}" | curl --fail-with-body --silent --request "${method}" \
+    --header @- --header 'Accept: application/vnd.github+json' --header 'X-GitHub-Api-Version: 2022-11-28' \
+    "${body[@]}" "${base}${path}")
+  then
+    printf '%s\n' "${out}"
+    return 0
+  fi
+  if [[ "${missing}" == true && "$(jq --raw-output '.message // empty' <<<"${out}" 2>/dev/null)" == 'Not Found' ]]
+  then
+    return 1
+  fi
+  forge/github:limited "the GitHub App's ${path}" "${out}" \
+    || error "check the App's ID and key (GitHub refused ${method} ${path}: $(jq --raw-output '.message // empty' \
+      <<<"${out}" 2>/dev/null || true))"
+  return 1
+}
+
+# forge/github:app-pages <bearer> <path> <expression> prints the items of a list that GitHub pages, one JSON object per
+# line, by the jq <expression> of each page's answer; <path> has no query.
+forge/github:app-pages() {
+  local bearer=$1 path=$2 expression=$3 page=1 answer items count
+  while :
+  do
+    answer=$(forge/github:app-api "${bearer}" GET "${path}?per_page=100&page=${page}") || return 1
+    items=$(jq --compact-output "${expression}" <<<"${answer}") || return 1
+    [[ -z "${items}" ]] || printf '%s\n' "${items}"
+    count=$(jq --slurp 'length' <<<"${items}")
+    (( count == 100 )) || return 0
+    page=$(( page + 1 ))
+  done
+}
+
+# forge/github:bot-app <app> <pem> prints the App: {slug, owner, permissions, html_url}.
+forge/github:bot-app() {
+  local jwt answer
+  jwt=$(forge/github:jwt "$1" "$2") || return 1
+  answer=$(forge/github:app-api "${jwt}" GET /app) || return 1
+  forge/github:fold 'the GitHub App' "${answer}" --compact-output '{slug, owner: .owner.login, permissions, html_url}'
+}
+
+# forge/github:bot-installation <app> <pem> <owner/repo> prints the App's installation on the repository: {id,
+# permissions, repository_selection, html_url}. It returns 1, with no output, where the App has none there.
+forge/github:bot-installation() {
+  local jwt answer
+  jwt=$(forge/github:jwt "$1" "$2") || return 1
+  answer=$(forge/github:app-api --missing "${jwt}" GET "/repos/$3/installation") || return 1
+  forge/github:fold 'the installation' "${answer}" --compact-output '{id, permissions, repository_selection, html_url}'
+}
+
+# forge/github:bot-installations <app> <pem> prints each installation of the App, one object a line: {id, account,
+# repository_selection, html_url}, account being the login of the user or organization that has it.
+forge/github:bot-installations() {
+  local jwt
+  jwt=$(forge/github:jwt "$1" "$2") || return 1
+  forge/github:app-pages "${jwt}" /app/installations \
+    '.[] | {id, account: .account.login, repository_selection, html_url}'
+}
+
+# forge/github:bot-token <app> <pem> <installation> <repo> prints {token, expires_at}: a token of the installation
+# narrowed to the one repository, <repo> being its name, with or without its owner.
+forge/github:bot-token() {
+  local jwt answer body
+  jwt=$(forge/github:jwt "$1" "$2") || return 1
+  body=$(jq --null-input --compact-output --arg repo "${4##*/}" '{repositories: [$repo]}')
+  answer=$(forge/github:app-api "${jwt}" POST "/app/installations/$3/access_tokens" "${body}") || return 1
+  forge/github:fold 'the installation token' "${answer}" --compact-output '{token, expires_at}'
+}
+
+# forge/github:bot-repositories <token> prints the full names of the repositories the installation token reaches, one a
+# line.
+forge/github:bot-repositories() {
+  forge/github:app-pages "$1" /installation/repositories '.repositories[] | .full_name' | jq --raw-output .
+}
+
+# forge/github:bot-revoke <token> revokes the installation token, which GitHub would keep good for an hour.
+forge/github:bot-revoke() {
+  forge/github:app-api "$1" DELETE /installation/token >/dev/null
 }
 
 # forge/github:fold <what> <answer> <jq argument>… is forge:fold, naming gh auth status.

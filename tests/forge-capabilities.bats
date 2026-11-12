@@ -39,24 +39,24 @@ provider() {
   } > "bash/forge/${name}.sh"
 }
 
-# added is what contracts 4 and 5 add, as JSON strings: a provider that has written none of it lacks all of it.
+# added is what contracts 4, 5, and 6 add, as JSON strings: a provider that has written none of it lacks all of it.
 added='"milestones","iterations","reviewers","merged","artifacts","environments","deployments","collaborators",'
 added+='"teams","bots","attestations","code-scanning","dependabot","secret-scanning","rulesets","bypasses",'
-added+='"check-runs","swimlanes"'
+added+='"check-runs","swimlanes","bot-accounts"'
 
-@test "GitHub and GitLab implement contract 5, and lack the features no call of theirs answers, swimlanes among them" {
+@test "GitHub implements contract 6 and GitLab 5, and each lacks the features no call of its own answers, swimlanes among them" {
   git remote set-url origin https://github.com/empowerite/example.git
   run "${kit_root}/bin/kit" flow --capabilities
   [ "$status" -eq 0 ]
-  [ "$(jq -c '{contract, forge, provider}' <<<"$output")" = '{"contract":5,"forge":"github","provider":5}' ]
-  [ "$(jq -c '[.features | to_entries[] | select(.value == "native") | .key] | length' <<<"$output")" = 29 ]
+  [ "$(jq -c '{contract, forge, provider}' <<<"$output")" = '{"contract":6,"forge":"github","provider":6}' ]
+  [ "$(jq -c '[.features | to_entries[] | select(.value == "native") | .key] | length' <<<"$output")" = 30 ]
   [ "$(jq -c '.features.milestones, .features.swimlanes' <<<"$output" | paste -sd ' ' -)" = '"native" "none"' ]
   [ "$(jq -r '.features | keys_unsorted | join(" ")' <<<"$output")" \
-    = 'issues sub-issues linked-branches drafts closing-issues review-threads checks quota marks releases runs labels milestones iterations reviewers merged artifacts environments deployments collaborators teams bots attestations code-scanning dependabot secret-scanning rulesets bypasses check-runs swimlanes' ]
+    = 'issues sub-issues linked-branches drafts closing-issues review-threads checks quota marks releases runs labels milestones iterations reviewers merged artifacts environments deployments collaborators teams bots attestations code-scanning dependabot secret-scanning rulesets bypasses check-runs swimlanes bot-accounts' ]
   git remote set-url origin https://gitlab.com/empowerite/example.git
   run "${kit_root}/bin/kit" flow --capabilities
   [ "$(jq -c '{forge, provider, none: [.features | to_entries[] | select(.value == "none") | .key]}' <<<"$output")" \
-    = '{"forge":"gitlab","provider":5,"none":["attestations","bypasses","swimlanes"]}' ]
+    = '{"forge":"gitlab","provider":5,"none":["attestations","bypasses","swimlanes","bot-accounts"]}' ]
 }
 
 @test "a provider that declares nothing implements contract 1: every feature of it, none added since" {
@@ -122,10 +122,10 @@ added+='"check-runs","swimlanes"'
 }
 
 @test "a declaration of a contract above the kit's, or of a feature the contract does not have, is refused" {
-  provider ahead 6
+  provider ahead 7
   run call quota
   [ "$status" -eq 1 ]
-  [[ "$output" == *"the ahead forge implements contract '6', and this kit knows 1 to 5; move to a later kit: kit --version=<version> update"* ]]
+  [[ "$output" == *"the ahead forge implements contract '7', and this kit knows 1 to 6; move to a later kit: kit --version=<version> update"* ]]
   provider odd 2 telepathy
   run call quota
   [ "$status" -eq 1 ]
@@ -144,3 +144,19 @@ added+='"check-runs","swimlanes"'
 }
 
 # ----------------------------------------------------------------------------------------------------------------------
+
+@test "GitLab and Azure DevOps lack bot-accounts: every call of it answers 3, prints nothing, and runs no tool" {
+  for remote in https://gitlab.com/empowerite/example.git https://dev.azure.com/acme/empowerite/_git/example
+  do
+    git remote set-url origin "${remote}"
+    for c in bot-app bot-installation bot-installations bot-token bot-repositories bot-revoke
+    do
+      run --separate-stderr call "${c}" 1 /nonexistent.pem x y
+      [ "$status" -eq 3 ]
+      [ -z "$output" ]
+      [ -z "$stderr" ]
+    done
+  done
+  [ ! -e "${FAKE_DIR}/gh.calls" ]
+  [ ! -e "${FAKE_DIR}/glab.calls" ]
+}

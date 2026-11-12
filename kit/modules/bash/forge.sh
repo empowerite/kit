@@ -172,6 +172,17 @@
 #                                 null where the forge does not say; those the forge hides, or that kit cannot name,
 #                                 are one object a control, actor and reason null, hidden how many, hidden null on
 #                                 every other. A dismissed alert is no bypass: the alerts calls give it (since 4)
+#   bot-app <app> <pem>           the App as {slug, owner, permissions, html_url}; <app> its ID, <pem> the path of its
+#                                 private key, which no call prints or puts in an argument (since 6)
+#   bot-installation <app> <pem> <owner/repo>
+#                                 the App's installation on the repository: {id, permissions, repository_selection,
+#                                 html_url}; returns 1 with no output where it has none (since 6)
+#   bot-installations <app> <pem> one JSON object per installation of the App: {id, account, repository_selection,
+#                                 html_url}, account the login that has it (since 6)
+#   bot-token <app> <pem> <installation> <repo>
+#                                 {token, expires_at} of a token narrowed to the one repository (since 6)
+#   bot-repositories <token>      the full names of the repositories the token reaches, one a line (since 6)
+#   bot-revoke <token>            revokes the token (since 6)
 #
 # A call that lists is capped when the call says so above: it prints {"limited": N} as its last line when it stopped
 # at N items, and the N before it are the newest.
@@ -220,6 +231,8 @@
 #   check-runs       4      open-prs: each change's runs, [{name, verdict, at, took}], the checks by name
 #   swimlanes        5      open-issues: each issue's swimlane, the lane a board draws it in; no forge kit reaches has
 #                           one it reads the same way, so a repository gives it a stand-in, or every issue has none
+#   bot-accounts     6      bot-app, bot-installation, bot-installations, bot-token, bot-repositories, bot-revoke: an
+#                           app the forge signs in as, with a key of its own
 #
 # A repository chooses a stand-in for a feature in kit.yml, under the forge it is for, and the seam then answers the
 # feature's calls itself, from the forge's other calls, whether the forge has the feature or not:
@@ -271,12 +284,12 @@ declare -g forge_list_limit=10000
 # forge_contract is the version of the contract the file header states. forge_features lists each feature with the
 # version that added it, in the header's order, and forge_feature_of names the feature each gated call belongs to.
 # forge_lacking holds, once read, the features the primary's forge lacks, one per line; forge_lacking_read says it was.
-declare -gr forge_contract=5
+declare -gr forge_contract=6
 declare -gra forge_features=(issues:1 sub-issues:1 linked-branches:1 drafts:1 closing-issues:1 review-threads:1
   checks:1 quota:1 marks:1 releases:1 runs:1 labels:3
   milestones:4 iterations:4 reviewers:4 merged:4 artifacts:4 environments:4 deployments:4 collaborators:4 teams:4
   bots:4 attestations:4 code-scanning:4 dependabot:4 secret-scanning:4 rulesets:4 bypasses:4 check-runs:4
-  swimlanes:5)
+  swimlanes:5 bot-accounts:6)
 declare -grA forge_feature_of=(
   [issue-create]=issues [issue-title]=issues [issue-state]=issues [issue-assignees]=issues [issue-assign]=issues
   [issue-unassign]=issues [issue-close]=issues [issue-comment]=issues [open-issues]=issues
@@ -287,6 +300,8 @@ declare -grA forge_feature_of=(
   [environments]=environments [deployments]=deployments [collaborators]=collaborators [teams]=teams [bots]=bots
   [attestations]=attestations [code-scanning-alerts]=code-scanning [dependabot-alerts]=dependabot
   [secret-scanning-alerts]=secret-scanning [rulesets]=rulesets [bypasses]=bypasses
+  [bot-app]=bot-accounts [bot-installation]=bot-accounts [bot-installations]=bot-accounts [bot-token]=bot-accounts
+  [bot-repositories]=bot-accounts [bot-revoke]=bot-accounts
 )
 # forge_call_since names the version that added each call added after the first; forge_provider_contract holds, once
 # forge:lacks has read it, the version the provider implements. forge_stand_ins holds the stand-ins, as one JSON object,
@@ -683,6 +698,12 @@ forge:require()             { forge:call require "$@"; }
 forge:repo()                { forge:call repo "$@"; }
 forge:repo-url()            { forge:call repo-url "$@"; }
 forge:me()                  { forge:call me "$@"; }
+forge:bot-app()             { forge:call bot-app "$@"; }
+forge:bot-installation()    { forge:call bot-installation "$@"; }
+forge:bot-installations()   { forge:call bot-installations "$@"; }
+forge:bot-token()           { forge:call bot-token "$@"; }
+forge:bot-repositories()    { forge:call bot-repositories "$@"; }
+forge:bot-revoke()          { forge:call bot-revoke "$@"; }
 forge:quota()               { forge:call quota "$@"; }
 
 # forge:marks [<kind>…] prints the forge's marks of the kinds, or of each kind without one, as the seam's header says,
