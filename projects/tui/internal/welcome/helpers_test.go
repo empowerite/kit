@@ -108,8 +108,30 @@ func house(t *testing.T, msgs ...tea.Msg) (Model, *ran) {
 
 // drive sends the messages, running every command each update returns and feeding its messages back.
 func drive(m Model, msgs ...tea.Msg) Model {
-	m, _ = testkit.Drive(m, nil, msgs...)
+	for _, msg := range msgs {
+		if c, ok := msg.(clickMsg); ok {
+			msg = c.at(m)
+		}
+		m, _ = testkit.Drive(m, nil, msg)
+	}
 	return m
+}
+
+// clickMsg stands, in drive, for a click on a button of the row that holds text, read off the screen as drawn when the
+// click comes: the button's first cell past the space before it.
+type clickMsg struct{ text, button string }
+
+// at gives the click on the screen as m draws it.
+func (c clickMsg) at(m Model) tea.Msg {
+	for y, l := range strings.Split(view(m), "\n") {
+		if !strings.Contains(l, c.text) {
+			continue
+		}
+		if i := strings.LastIndex(l, " "+c.button+" "); i >= 0 {
+			return testkit.Click(ansi.StringWidth(l[:i])+1, y)
+		}
+	}
+	panic("no " + c.button + " on the row of " + c.text + ":\n" + view(m))
 }
 
 // view gives the screen without its escapes.
@@ -127,7 +149,7 @@ func calls(t *testing.T, path string) []string {
 
 // The keys bar in each place the keyboard can be, as the path to it draws it, STEP for the step's name, which esc names
 // as it gives the bar the keyboard: on the bar over a step with checks or the introduction with failed checks, and over
-// a page; on a check's row that offers no fix, on a row that offers now and later, on a row whose fix kit only shows;
+// a page; on a check's row that offers no fix, on a row whose fix kit runs, on a row whose fix kit only shows;
 // and in a page. jump names the number keys of the known steps.
 var (
 	jump       = "1-" + strconv.Itoa(len(known)) + " jump"
@@ -135,8 +157,8 @@ var (
 	pageKeys   = "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ page " + jump
 	paneKeys   = "= menu - workspace / search │ " + jump + " │ esc tabs ↑↓ move ⇞⇟ page"
 	rowKeys    = paneKeys
-	choiceKeys = paneKeys + " ⇥·⇧⇥ now or later n now l later ⏎ choose"
-	showKeys   = paneKeys + " l later"
+	choiceKeys = paneKeys + " c copy r run"
+	showKeys   = paneKeys + " c copy"
 	scrollKeys = "= menu - workspace / search │ " + jump + " │ esc tabs ↑↓ scroll ⇞⇟ page"
 )
 
@@ -164,7 +186,7 @@ func rowRuns(m Model) bool {
 	if m.introGridded() && m.inPane {
 		i = m.checkUnder()
 	}
-	return i >= 0 && runnable(m.checks[i])
+	return i >= 0 && runnable(m.checks[i]) || m.runsHere()
 }
 
 // rowCopies says whether c copies a fix where the keyboard is: on a row of the introduction's table with a fix.
@@ -173,7 +195,7 @@ func rowCopies(m Model) bool {
 	if m.introGridded() && m.inPane {
 		i = m.checkUnder()
 	}
-	return i >= 0 && m.checks[i].Fix != ""
+	return i >= 0 && m.checks[i].Fix != "" || m.copies()
 }
 
 // where gives where the keyboard is in the pane: the check under the cursor, and the cursor of the introduction's

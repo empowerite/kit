@@ -18,7 +18,6 @@ func TestGoldenViews(t *testing.T) {
 		"introduction.golden":          nil,
 		"introduction-selected.golden": {down, down, down, press(' ')},
 		"toolchains.golden":            {down, down, down, enter},
-		"toolchains-later.golden":      {down, down, down, enter, press('l')},
 		"setup.golden":                 {tabKey, tabKey, down},
 		"terms.golden":                 {stepKey(terms)},
 		"terms-search.golden":          searched("kit flow"),

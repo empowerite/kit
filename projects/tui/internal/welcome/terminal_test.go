@@ -62,49 +62,45 @@ func TestAKeptTerminalFindingStays(t *testing.T) {
 	}
 }
 
-func TestAFailedTerminalFindingOffersLaterAndKeep(t *testing.T) {
-	m, r := terminal(t, press('n'), enter)
+// A terminal's failed finding offers ⧉ and keep, never ▶️: its fix is never run, so r and enter run nothing.
+func TestAFailedTerminalFindingOffersCopyAndKeep(t *testing.T) {
+	m, r := terminal(t, press('r'), enter)
 	row := rowOf(t, m, "sends ⌥ as a plain key")
-	if !strings.HasSuffix(row, "   later   keep ") || strings.Contains(row, " now ") {
-		t.Errorf("the row does not offer later and keep alone: %q", row)
+	if !strings.HasSuffix(row, "  ⧉   keep ") || strings.Contains(row, "▶️") {
+		t.Errorf("the row does not offer ⧉ and keep alone: %q", row)
 	}
-	if want := paneKeys + " ⇥·⇧⇥ later or keep l later k keep ⏎ choose"; keysAt(m) != want {
+	if want := paneKeys + " c copy k keep"; keysAt(m) != want {
 		t.Errorf("keys %q, want %q", keysAt(m), want)
 	}
 	if len(r.calls) != 0 {
-		t.Errorf("n or enter ran %q", r.calls)
-	}
-	if !m.deferred["terminal-iterm-option"] {
-		t.Errorf("enter on later did not leave it for later")
+		t.Errorf("r or enter ran %q", r.calls)
 	}
 }
 
-func TestTabThenEnterKeeps(t *testing.T) {
+func TestKKeeps(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_WELCOME_CALLS", record)
-	terminal(t, tabKey, enter)
+	terminal(t, press('k'))
 	if got := calls(t, record); !strings.Contains(strings.Join(got, "\n"), "welcome --keep=terminal-iterm-option") {
 		t.Errorf("calls %q", got)
 	}
 }
 
-func TestShiftTabThenEnterLeavesItForLater(t *testing.T) {
+// c copies a finding's fix, which ⧉ then says, and keeps nothing.
+func TestCCopiesAFindingsFix(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_WELCOME_CALLS", record)
-	m, _ := terminal(t, tabKey, backTab)
-	if m.choice != later {
-		t.Errorf("shift-tab from keep chose %v, not later", m.choice)
-	}
-	if m = drive(m, enter); !m.deferred["terminal-iterm-option"] {
-		t.Error("enter on later did not leave it for later")
+	m, _ := terminal(t, press('c'))
+	if m.copied != "terminal-iterm-option" || !strings.Contains(rowOf(t, m, "sends ⌥ as a plain key"), "copied   keep") {
+		t.Errorf("c: copied %q, row %q", m.copied, rowOf(t, m, "sends ⌥ as a plain key"))
 	}
 	if got := calls(t, record); strings.Contains(strings.Join(got, "\n"), "--keep=") {
-		t.Errorf("later kept it: %q", got)
+		t.Errorf("c kept it: %q", got)
 	}
 }
 
-// A click on a terminal finding's row that the cursor is not on chooses the row, and neither keeps it nor leaves it
-// for later: its buttons were not drawn where the click fell.
+// A click on a terminal finding's row that the cursor is not on chooses the row, and neither keeps it nor copies its
+// fix: its buttons were not drawn where the click fell.
 func TestAClickOnAFindingsRowOffTheCursorChoosesItAlone(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_WELCOME_CALLS", record)
@@ -114,17 +110,15 @@ func TestAClickOnAFindingsRowOffTheCursorChoosesItAlone(t *testing.T) {
 	if m.checks[m.cursor].ID == "terminal-iterm-option" {
 		t.Fatal("up left the cursor on the finding")
 	}
-	if m = drive(m, testkit.Click(x, y)); m.checks[m.cursor].ID != "terminal-iterm-option" ||
-		m.deferred["terminal-iterm-option"] {
-		t.Errorf("the click: the cursor on %q, left for later %v", m.checks[m.cursor].ID,
-			m.deferred["terminal-iterm-option"])
+	if m = drive(m, testkit.Click(x, y)); m.checks[m.cursor].ID != "terminal-iterm-option" || m.copied != "" {
+		t.Errorf("the click: the cursor on %q, copied %q", m.checks[m.cursor].ID, m.copied)
 	}
 	if got := calls(t, record); strings.Contains(strings.Join(got, "\n"), "--keep=") {
 		t.Errorf("the click kept it: %q", got)
 	}
 }
 
-func TestAClickOnKeepKeepsAndOnLaterLeavesIt(t *testing.T) {
+func TestAClickOnKeepKeepsAndOnCopyCopies(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_WELCOME_CALLS", record)
 	m, _ := terminal(t)
@@ -134,9 +128,9 @@ func TestAClickOnKeepKeepsAndOnLaterLeavesIt(t *testing.T) {
 		t.Errorf("a click on keep ran %q", got)
 	}
 	m, _ = terminal(t)
-	x, y = buttonAt(t, m, " later ")
-	if m = drive(m, testkit.Click(x, y)); !m.deferred["terminal-iterm-option"] {
-		t.Errorf("a click on later did not leave it for later")
+	x, y = buttonAt(t, m, " ⧉ ")
+	if m = drive(m, testkit.Click(x, y)); m.copied != "terminal-iterm-option" {
+		t.Errorf("a click on ⧉ did not copy the fix")
 	}
 }
 

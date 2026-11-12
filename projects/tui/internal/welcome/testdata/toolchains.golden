@@ -7,7 +7,7 @@
    A toolchain installs tools. When several are usable, choose one.
 
    ✅ bash 5.2 runs kit
- ▸ ❌ jq is not installed    now   later 
+ ▸ ❌ jq is not installed   ⧉   ▶️ 
       brew install jq
    ❌ several toolchains are usable for the project: mise, brew; choose one
       kit toolchains use mise
@@ -27,4 +27,4 @@
 
 
 
- = menu - workspace / search │ 1-5 jump │ esc tabs ↑↓ move ⇞⇟ page ⇥·⇧⇥ now or later n now l later ⏎ choose
+ = menu - workspace / search │ 1-5 jump │ esc tabs ↑↓ move ⇞⇟ page c copy r run

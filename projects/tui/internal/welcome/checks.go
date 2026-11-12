@@ -82,7 +82,7 @@ func folderValue(c kit.Check) string {
 
 // checkRecords gives the failed checks as the table's records, in the order of their steps, each keyed by its check's
 // key: its place; its line; its fix, or none; its folder, as folderValue draws it; its step, by its glyph and name; and
-// its note, later where it was left for later, and what its fix's run said.
+// its note, what its fix's run said.
 func (m Model) checkRecords() []table.Record {
 	var out []table.Record
 	for n, i := range m.failed() {
@@ -92,17 +92,14 @@ func (m Model) checkRecords() []table.Record {
 		if c.Fix == "" {
 			fix.Else = noFix
 		}
-		var notes []string
-		if m.deferred[c.Key()] {
-			notes = append(notes, "later")
-		}
+		var note string
 		if nt, ok := m.notes[c.Key()]; ok {
-			notes = append(notes, nt.text)
+			note = nt.text
 		}
 		out = append(out, table.Record{Row: grid.Row{Key: c.Key()},
 			Values: map[string]table.Value{"order": table.One(strconv.Itoa(n + 1)), "check": table.Some(c.Line),
 				"fix": fix, "folder": table.One(folderValue(c)), "step": {Raw: []string{t.glyph + " " + t.name}, Link: checkLink + c.Key()},
-				"note": table.Some(strings.Join(notes, " · "))}})
+				"note": table.Some(note)}})
 	}
 	return out
 }
@@ -379,7 +376,7 @@ func (m *Model) introKey(k tea.KeyPressMsg) (tea.Cmd, bool) {
 	switch c := m.checks[i]; k.String() {
 	case "r":
 		if runnable(c) {
-			return m.now(), true
+			return m.runFix(), true
 		}
 	case "c":
 		if c.Fix != "" {
@@ -436,7 +433,6 @@ func (m *Model) runNext() tea.Cmd {
 	}
 	c := m.queue[0]
 	m.queue = m.queue[1:]
-	delete(m.deferred, c.Key())
 	id, key := c.ID, c.Key()
 	return m.exec(m.over().WelcomeFix(c), func(err error) tea.Msg { return fixedMsg{id: id, key: key, err: err} })
 }

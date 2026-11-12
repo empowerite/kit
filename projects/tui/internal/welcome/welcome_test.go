@@ -18,6 +18,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/fix"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/source"
@@ -120,10 +121,9 @@ func TestEnterOnARowGoesToItsCheckOnItsStep(t *testing.T) {
 	if !found || keysAt(m) != paneKeysOf(m)+" ⏎ go to the check r run c copy" {
 		t.Fatalf("on jq: found %v, keys %q", found, keysAt(m))
 	}
-	if m = drive(m, enter); m.step != chains || !m.inPane || m.cursor != 1 || m.choice != now || !m.choosing() ||
+	if m = drive(m, enter); m.step != chains || !m.inPane || m.cursor != 1 || !m.runsHere() ||
 		keysAt(m) != choiceKeys || len(r.calls) != 0 {
-		t.Fatalf("enter on jq's row: step %d, in the pane %v, cursor %d, choice %d, ran %q", m.step, m.inPane,
-			m.cursor, m.choice, r.calls)
+		t.Fatalf("enter on jq's row: step %d, in the pane %v, cursor %d, ran %q", m.step, m.inPane, m.cursor, r.calls)
 	}
 	m = drive(m, press('1'))
 	if rows, at := m.sheet().Rows(), m.sheet().Table().Cursor; m.step != introduction || at >= len(rows) ||
@@ -152,7 +152,7 @@ func TestAClickOnARowsStepGoesToItsCheck(t *testing.T) {
 		t.Errorf("a click on gh-auth's line: step %d, in the pane %v", m.step, m.inPane)
 	}
 	if m = drive(m, testkit.Click(x, y)); m.step != setup || m.checks[m.cursor].ID != "gh-auth" || !m.inPane ||
-		!m.choosing() || strings.Contains(view(m), "opened") {
+		!m.runsHere() || strings.Contains(view(m), "opened") {
 		t.Errorf("a click on gh-auth's step: step %d, cursor %d, in the pane %v:\n%s", m.step, m.cursor, m.inPane,
 			view(m))
 	}
@@ -318,9 +318,9 @@ func TestARowClearsASearchThatHidesItsCheck(t *testing.T) {
 
 // The introduction follows the checks as they run again: a fix that holds takes its row away, and while they run, the
 // line over the table says checking…, and the folders they are on follow the table. Kit's refusal when they run again
-// stands over the table, and a check left for later says so in its note.
+// stands over the table.
 func TestTheIntroductionFollowsTheChecksAsTheyRunAgain(t *testing.T) {
-	m, _ := atChains(t, press('n'), press('1'))
+	m, _ := atChains(t, press('r'), press('1'))
 	if got := view(m); m.step != introduction || !strings.Contains(got, "\n   4 checks need your attention ") ||
 		strings.Contains(got, "jq is not installed") {
 		t.Errorf("step %d:\n%s", m.step, got)
@@ -337,12 +337,6 @@ func TestTheIntroductionFollowsTheChecksAsTheyRunAgain(t *testing.T) {
 	m = drive(m, refused, press('1'))
 	if got := view(m); !strings.Contains(got, "\n   ❌ kit welcome refuses\n\n   4 checks need your attention ") {
 		t.Errorf("no refusal over the table:\n%s", got)
-	}
-	m, _ = atChains(t, press('l'), press('1'))
-	drawn := strings.Split(view(m), "\n")
-	if y := slices.IndexFunc(drawn, func(l string) bool { return strings.Contains(l, "jq is not installed") }); y < 0 ||
-		!strings.HasSuffix(strings.TrimRight(drawn[y], " "), "later") {
-		t.Errorf("jq's row does not say it is left for later:\n%s", view(m))
 	}
 }
 
@@ -410,7 +404,7 @@ func TestLeftAndRightMoveAlongTheStepsAndStopAtTheEnds(t *testing.T) {
 	}
 	// down enters the rows where the cursor was, once the bar has moved away and back
 	m = drive(m, backTab, backTab, down, down)
-	if m.step != setup || m.cursor != 4 || m.choosing() {
+	if m.step != setup || m.cursor != 4 || m.runsHere() {
 		t.Fatalf("step %d, cursor %d", m.step, m.cursor)
 	}
 	if m = drive(m, esc, tabKey); m.step != custom || m.inPane {
@@ -421,35 +415,16 @@ func TestLeftAndRightMoveAlongTheStepsAndStopAtTheEnds(t *testing.T) {
 	}
 }
 
-func TestLeftAndRightOnAFailedRowMoveBetweenNowAndLater(t *testing.T) {
-	m, r := atChains(t, tabKey)
-	if m.step != chains || m.choice != later {
-		t.Fatalf("step %d, choice %d", m.step, m.choice)
-	}
-	if !strings.Contains(m.View().Content, style.Cursor(" later ")) {
-		t.Errorf("later is not highlighted: %q", m.View().Content)
-	}
-	m = drive(m, backTab)
-	if m.choice != now {
-		t.Errorf("shift-tab: choice %d", m.choice)
-	}
-	// enter on later leaves the check, as l does, and moves to the step's next failed check, the project's toolchain
-	m = drive(m, tabKey, enter)
-	if !m.deferred["jq"] || m.cursor != 2 || m.step != chains || len(r.calls) != 0 {
-		t.Errorf("enter on later: deferred %v, cursor %d, ran %q", m.deferred, m.cursor, r.calls)
-	}
-}
-
-func TestNRunsTheFixWithTheTerminalThenReadsTheChecksAgain(t *testing.T) {
+func TestRRunsTheFixWithTheTerminalThenReadsTheChecksAgain(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "calls")
 	t.Setenv("FAKE_WELCOME_CALLS", record)
-	for _, key := range []tea.Msg{press('n'), enter} {
+	for _, key := range []tea.Msg{press('r'), buttonClick("jq is not installed", fix.RunName)} {
 		m, r := atChains(t, key)
 		if len(r.calls) != 1 || strings.Join(r.calls[0], " ") != "welcome --fix jq" {
 			t.Fatalf("%v ran %q", key, r.calls)
 		}
 		// the checks ran again, jq is fixed now, and the cursor stays on its row
-		if !m.checks[1].OK || m.cursor != 1 || m.step != chains || m.checking.Running() || m.choosing() {
+		if !m.checks[1].OK || m.cursor != 1 || m.step != chains || m.checking.Running() || m.runsHere() {
 			t.Errorf("%v: jq %+v, cursor %d, checking %v", key, m.checks[1], m.cursor, m.checking.Running())
 		}
 		if !strings.Contains(view(m), " ▸ ✅ jq is not installed") || strings.Contains(view(m), "brew install jq") {
@@ -462,9 +437,9 @@ func TestNRunsTheFixWithTheTerminalThenReadsTheChecksAgain(t *testing.T) {
 	}
 }
 
-func TestTheToolchainsStepOffersNowAndLaterWithTheOthersBeside(t *testing.T) {
+func TestTheToolchainsStepOffersCopyAndRunWithTheOthersBeside(t *testing.T) {
 	m, r := atChains(t, down)
-	if m.step != chains || m.cursor != 2 || !m.choosing() {
+	if m.step != chains || m.cursor != 2 || !m.runsHere() {
 		t.Fatalf("step %d, cursor %d", m.step, m.cursor)
 	}
 	got := view(m)
@@ -474,7 +449,7 @@ func TestTheToolchainsStepOffersNowAndLaterWithTheOthersBeside(t *testing.T) {
 			t.Errorf("no %q:\n%s", want, got)
 		}
 	}
-	m = drive(m, press('n'))
+	m = drive(m, press('r'))
 	if len(r.calls) != 1 || strings.Join(r.calls[0], " ") != "welcome --fix toolchain-project" || !m.checks[2].OK {
 		t.Errorf("ran %q, check %+v", r.calls, m.checks[2])
 	}
@@ -484,21 +459,8 @@ func TestTheToolchainsStepOffersNowAndLaterWithTheOthersBeside(t *testing.T) {
 	}
 }
 
-func TestLaterKeepsTheOtherToolchainsBesideTheFix(t *testing.T) {
-	m, _ := atChains(t, down, press('l'))
-	if !m.deferred["toolchain-project"] {
-		t.Fatalf("deferred %v", m.deferred)
-	}
-	want := "\n   • several toolchains are usable for the project: mise, brew; " +
-		"choose one: kit toolchains use mise\n" +
-		"     or: kit toolchains use brew\n"
-	if got := view(m); !strings.Contains(got, want) {
-		t.Errorf("no %q:\n%s", want, got)
-	}
-}
-
-func TestNOnACheckThatStillFailsSaysSo(t *testing.T) {
-	m, r := atChains(t, esc, tabKey, down, press('n'))
+func TestROnACheckThatStillFailsSaysSo(t *testing.T) {
+	m, r := atChains(t, esc, tabKey, down, press('r'))
 	if len(r.calls) != 1 || strings.Join(r.calls[0], " ") != "welcome --fix gh-auth" {
 		t.Fatalf("ran %q", r.calls)
 	}
@@ -509,49 +471,57 @@ func TestNOnACheckThatStillFailsSaysSo(t *testing.T) {
 
 func TestARefusedFixShowsInRed(t *testing.T) {
 	t.Setenv("FAKE_WELCOME_REFUSE_FIX", "jq")
-	m, _ := atChains(t, press('n'))
+	m, _ := atChains(t, press('r'))
 	want := "kit refused the fix; quit to read what kit welcome --fix jq printed"
 	if !strings.Contains(m.View().Content, style.Refusal(want)) {
 		t.Errorf("no refusal in red: %q", m.View().Content)
 	}
 	// a later fix that holds clears it
 	t.Setenv("FAKE_WELCOME_REFUSE_FIX", "")
-	if m = drive(m, press('n')); strings.Contains(view(m), "refused") {
+	if m = drive(m, press('r')); strings.Contains(view(m), "refused") {
 		t.Errorf("the refusal stayed:\n%s", view(m))
 	}
 }
 
-func TestLaterLeavesTheCheckAndMovesToTheNextFailedOne(t *testing.T) {
-	m, r := atChains(t, esc, tabKey, down, press('l'))
-	if !m.deferred["gh-auth"] || m.cursor != 4 || len(r.calls) != 0 {
-		t.Fatalf("deferred %v, cursor %d, ran %q", m.deferred, m.cursor, r.calls)
-	}
+// The row under the cursor offers ⧉ and ▶️ alone, no other row, and a check with no fix offers neither: c, r, and enter
+// do nothing there.
+func TestOnlyTheCursorsRowOffersCopyAndRun(t *testing.T) {
+	m, r := atChains(t, esc, tabKey, down)
 	got := view(m)
-	for _, want := range []string{"   ❌ gh is not logged in to github.com · later", "   Left for later",
-		"   • gh is not logged in to github.com: gh auth login --hostname github.com"} {
-		if !strings.Contains(got, want) {
-			t.Errorf("no %q:\n%s", want, got)
-		}
+	if n := strings.Count(got, fix.CopyName); n != 1 || !strings.Contains(got, "gh is not logged in to github.com   ⧉   ▶️") {
+		t.Errorf("%d ⧉ drawn, gh-auth's row:\n%s", n, got)
 	}
-	// the next failed check has no fix: no choices, and n and l do nothing there
-	if m.choosing() || keysAt(m) != rowKeys {
-		t.Fatalf("cursor %d, keys %q", m.cursor, keysAt(m))
+	m = drive(m, down)
+	if m.copies() || m.runsHere() || keysAt(m) != rowKeys || strings.Contains(view(m), fix.CopyName) {
+		t.Fatalf("cursor %d, keys %q:\n%s", m.cursor, keysAt(m), view(m))
 	}
-	m = drive(m, press('n'), press('l'), enter)
-	if len(r.calls) != 0 || m.deferred["kit-check"] {
-		t.Errorf("n and l acted on a check without a fix: %q, %v", r.calls, m.deferred)
-	}
-	// now on a check left for later takes it off the list
-	m = drive(m, up, press('n'))
-	if m.deferred["gh-auth"] || strings.Contains(view(m), "Left for later") {
-		t.Errorf("gh-auth is still left:\n%s", view(m))
-	}
-	// a step lists only its own checks left for later
-	m = drive(m, press('l'), esc, backTab, down, press('l'))
-	if !m.deferred["jq"] || strings.Contains(view(m), "• gh is not logged in") {
-		t.Errorf("another step's check is listed:\n%s", view(m))
+	if m = drive(m, press('r'), press('c'), enter); len(r.calls) != 0 || m.copied != "" {
+		t.Errorf("r, c, or enter acted on a check without a fix: ran %q, copied %q", r.calls, m.copied)
 	}
 }
+
+// c copies the fix of the row under the cursor, and its ⧉ says copied until the next key; a click on ⧉ does the same.
+func TestCCopiesTheFixAndSaysCopied(t *testing.T) {
+	m, r := atChains(t, press('c'))
+	if m.copied != "jq" || !strings.Contains(view(m), "jq is not installed   copied   ▶️") || len(r.calls) != 0 {
+		t.Fatalf("copied %q, ran %q:\n%s", m.copied, r.calls, view(m))
+	}
+	if m = drive(m, down); m.copied != "" || strings.Contains(view(m), "copied") {
+		t.Errorf("copied stayed past the next key:\n%s", view(m))
+	}
+	m, _ = atChains(t)
+	if m = drive(m, buttonClick("jq is not installed", fix.CopyName)); m.copied != "jq" {
+		t.Errorf("a click on ⧉: copied %q", m.copied)
+	}
+	// a click on ▶️ beside copied runs, read where it was drawn
+	m, r = atChains(t, press('c'))
+	if drive(m, buttonClick("jq is not installed", fix.RunName)); len(r.calls) != 1 {
+		t.Errorf("a click on ▶️ beside copied ran %q", r.calls)
+	}
+}
+
+// buttonClick gives a click on a button of the row that holds the text, as the screen draws it when the click comes.
+func buttonClick(text, button string) tea.Msg { return clickMsg{text, button} }
 
 func TestAFailedCheckWithoutAFixShowsWhereToReadMore(t *testing.T) {
 	m, _ := atChains(t, esc, tabKey, down, down)
@@ -611,11 +581,8 @@ func TestCtrlQQuitsAndNoEscDoes(t *testing.T) {
 
 func TestLeftAndRightMoveStepsOnlyFromTheBar(t *testing.T) {
 	m, _ := atChains(t)
-	// the screen opens in the toolchains' rows, on a check without choices
+	// tab and shift-tab in the rows move nothing, on any row
 	m = drive(m, down, down, down)
-	if m.choosing() {
-		t.Fatalf("cursor %d offers choices", m.cursor)
-	}
 	if m = drive(m, tabKey, backTab); m.step != chains || !m.inPane {
 		t.Errorf("left and right in the rows: step %d, in the pane %v", m.step, m.inPane)
 	}
@@ -797,8 +764,8 @@ func TestLeavingTheScreenEndsTheChecksStillRunning(t *testing.T) {
 	}
 }
 
-// On every step, on the bar and on each of its rows, the keys bar names n and Enter only where they act, on a row that
-// offers now or later, and l there and on a fix kit only shows.
+// On every step, on the bar and on each of its rows, the keys bar names r and c only where they act: c on a row with a
+// fix, r where kit runs it; and never the keys now and later took.
 func TestTheKeysBarNamesOnlyTheKeysThatActThere(t *testing.T) {
 	m, _ := loaded(t)
 	for range len(m.tabs) {
@@ -808,9 +775,8 @@ func TestTheKeysBarNamesOnlyTheKeysThatActThere(t *testing.T) {
 				key  string
 				acts bool
 			}{
-				{"n now", m.choosing()},
-				{"⏎ choose", m.choosing()},
-				{"l later", m.choosing() || m.showOnly()},
+				{"n now", false},
+				{"l later", false},
 				{"r run", rowRuns(m)},
 				{"c copy", rowCopies(m)},
 			} {
@@ -972,8 +938,8 @@ func TestAHousePackagesPagesAreStepsAndItsReplacementKeepsTheStep(t *testing.T) 
 	if m.step != introduction {
 		t.Errorf("step %d", m.step)
 	}
-	if m = drive(m, down, down, down, enter); m.step != chains || !m.choosing() {
-		t.Errorf("step %d, choosing %v", m.step, m.choosing())
+	if m = drive(m, down, down, down, enter); m.step != chains || !m.runsHere() {
+		t.Errorf("step %d, runs here %v", m.step, m.runsHere())
 	}
 	// the replaced page shows under terms; the added one last, a page with no checks
 	if m = drive(m, esc, stepKey(terms)); m.step != terms || !strings.Contains(view(m), "\n   Our terms\n") {
@@ -1095,10 +1061,10 @@ func showOnly(t *testing.T, msgs ...tea.Msg) (Model, *ran) {
 	return atChains(t, append([]tea.Msg{down, down}, msgs...)...)
 }
 
-func TestAShowOnlyFixDrawsItsLinesAndNoChoices(t *testing.T) {
+func TestAShowOnlyFixDrawsItsLinesAndOffersCopyAlone(t *testing.T) {
 	m, _ := showOnly(t)
-	if m.checks[m.cursor].ID != "brew-path" || m.choosing() || !m.showOnly() || keysAt(m) != showKeys {
-		t.Fatalf("cursor %d, choosing %v, keys %q", m.cursor, m.choosing(), keysAt(m))
+	if m.checks[m.cursor].ID != "brew-path" || m.runsHere() || !m.copies() || keysAt(m) != showKeys {
+		t.Fatalf("cursor %d, runs here %v, keys %q", m.cursor, m.runsHere(), keysAt(m))
 	}
 	got := view(m)
 	for _, want := range []string{"brew is installed but not on PATH", `eval "$(/opt/homebrew/bin/brew shellenv)"`,
@@ -1107,38 +1073,21 @@ func TestAShowOnlyFixDrawsItsLinesAndNoChoices(t *testing.T) {
 			t.Errorf("no %q:\n%s", want, got)
 		}
 	}
-	// no choice of now or later on the row, and no way to run it; l still defers it, and the keys say so
-	for _, no := range []string{" now ", "n now", "⏎ choose"} {
-		if strings.Contains(got, no) {
-			t.Errorf("show-only row offers %q:\n%s", no, got)
-		}
-	}
-	if !strings.Contains(got, "l later") {
-		t.Errorf("the keys do not say l defers the row:\n%s", got)
+	// ⧉ on the row, and no ▶️: no way to run it
+	if !strings.Contains(got, "brew is installed but not on PATH   ⧉") || strings.Contains(got, fix.RunName) ||
+		strings.Contains(got, "r run") {
+		t.Errorf("the show-only row offers more than ⧉:\n%s", got)
 	}
 }
 
-func TestNAndEnterRunNothingOnAShowOnlyFix(t *testing.T) {
+func TestRAndEnterRunNothingOnAShowOnlyFix(t *testing.T) {
 	m, r := showOnly(t)
 	m.exec = func(*exec.Cmd, tea.ExecCallback) tea.Cmd {
 		t.Error("a show-only fix handed the terminal over")
 		return nil
 	}
-	m = drive(m, press('n'), enter, backTab, tabKey)
-	if len(r.calls) != 0 || len(m.deferred) != 0 {
-		t.Errorf("ran %q, deferred %v", r.calls, m.deferred)
-	}
-}
-
-func TestLaterLeavesAShowOnlyFixWithANote(t *testing.T) {
-	m, r := showOnly(t, press('l'))
-	if !m.deferred["brew-path"] || len(r.calls) != 0 {
-		t.Fatalf("deferred %v, ran %q", m.deferred, r.calls)
-	}
-	want := "   • brew is installed but not on PATH: eval \"$(/opt/homebrew/bin/brew shellenv)\" · " +
-		"kit does not run it\n"
-	if got := view(m); !strings.Contains(got, want) {
-		t.Errorf("no %q:\n%s", want, got)
+	if drive(m, press('r'), enter, backTab, tabKey); len(r.calls) != 0 {
+		t.Errorf("ran %q", r.calls)
 	}
 }
 

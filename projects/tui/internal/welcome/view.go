@@ -10,6 +10,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/fix"
+	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
 	"github.com/empowerite/kit/projects/tui/internal/style"
@@ -131,8 +133,7 @@ func (m Model) keys() shell.Path {
 // paneKeys gives the segment of the pane while it has the keyboard: esc gives the bar the keyboard, named by the step
 // it has selected; up and down move between the rows, or scroll a page with none, a page at a time too, and home and
 // end to the first and the last, unnamed until a test shows the keys arrive in Terminal.app and iTerm; and on a
-// check whose fix kit runs, tab and shift-tab choose now or later, n and l take one at once, and enter the one chosen;
-// on one whose fix kit only shows, l takes later.
+// check with a fix, c copies it and r runs it, where kit runs it; on a terminal's failed finding, k keeps it.
 func (m Model) paneKeys() shell.Segment {
 	move := "move"
 	if !m.hasRows() {
@@ -140,15 +141,11 @@ func (m Model) paneKeys() shell.Segment {
 	}
 	s := shell.Segment{Takes: []string{"home", "end"}, Bindings: []shell.Binding{shell.Bind("esc", "tabs"),
 		shell.Bind("↑↓", move, "up", "down"), shell.Bind("⇞⇟", "page", "pgup", "pgdown")}}
-	switch {
-	case m.choosing():
-		s.Bindings = append(s.Bindings, shell.Bind("⇥·⇧⇥", "now or later", "tab", "shift+tab"), shell.Bind("n", "now"),
-			shell.Bind("l", "later"), shell.Bind("⏎", "choose", "enter"))
-	case m.keeping():
-		s.Bindings = append(s.Bindings, shell.Bind("⇥·⇧⇥", "later or keep", "tab", "shift+tab"),
-			shell.Bind("l", "later"), shell.Bind("k", "keep"), shell.Bind("⏎", "choose", "enter"))
-	case m.showOnly():
-		s.Bindings = append(s.Bindings, shell.Bind("l", "later"))
+	if m.copies() {
+		s.Bindings = append(s.Bindings, fix.Bindings(m.runsHere())...)
+	}
+	if m.keeping() {
+		s.Bindings = append(s.Bindings, shell.Bind("k", keepName))
 	}
 	return s
 }
@@ -307,9 +304,8 @@ func (m Model) pageLines(i int) []string {
 	return out
 }
 
-// stepLines gives the lines of a step with checks: its page, kit's refusal, its checks, each failed one's fix and
-// where to read more under it, and the list of its checks left for later, each with its fix and, under it, what more
-// says, as the toolchains check's other choices.
+// stepLines gives the lines of a step with checks: its page, kit's refusal, its checks, and each failed one's fix and
+// where to read more under it, as the toolchains check's other choices.
 func (m Model) stepLines() []line {
 	w := m.width - 1
 	out := m.stepHead()
@@ -372,8 +368,7 @@ func (m Model) addChecking(add func(row int, text string)) {
 	}
 }
 
-// stepTail gives the lines a step with checks ends with, after its rows: checking… while the checks run again, and the
-// list of its checks left for later.
+// stepTail gives the lines a step with checks ends with, after its rows: checking… while the checks run again.
 func (m Model) stepTail(rows []int) []line {
 	w := m.width - 1
 	var out []line
@@ -382,30 +377,12 @@ func (m Model) stepTail(rows []int) []line {
 		add(-1, "")
 		m.addChecking(add)
 	}
-	var left []line
-	for _, i := range rows {
-		if c := m.checks[i]; m.deferred[c.Key()] && asks(c) {
-			text := lead + "• " + c.Line + folderOf(c) + ": " + style.Mark(c.Fix)
-			if !c.Runs && c.Fix != "" {
-				text += style.Off(" · kit does not run it")
-			}
-			left = append(left, line{-1, pane.Clip(text, w)})
-			if c.More != "" {
-				left = append(left, line{-1, pane.Clip(lead+"  "+style.Mark(c.More), w)})
-			}
-		}
-	}
-	if len(left) > 0 {
-		add(-1, "")
-		add(-1, lead+style.Label("Left for later"))
-		out = append(out, left...)
-	}
 	return out
 }
 
 // checkLines gives a check's lines, after the indent: ✅, 💡 for an offer, or ❌, and its line, then, where no folder's
-// row is drawn above it, its folder, the cursor's row drawn as chosen with now and later on it when it offers them;
-// under a failed check or an offer, its fix, dim; under a failed check, where to read more; and the note its fix left.
+// row is drawn above it, its folder, the cursor's row drawn as chosen with its buttons, as rowButtons draws them; under
+// a failed check or an offer, its fix, dim; under a failed check, where to read more; and the note its fix left.
 func (m Model) checkLines(i int, key, indent string) []line {
 	c, w := m.checks[i], m.width-1
 	focused := m.hasRows() && m.inPane && i == m.cursor
@@ -422,24 +399,16 @@ func (m Model) checkLines(i int, key, indent string) []line {
 	if !m.foldered(m.step) {
 		row += folderOf(c)
 	}
-	if m.deferred[key] && asks(c) {
-		row += style.Off(" · later")
-	}
-	if focused && c.Fix != "" && c.Runs {
-		buttons := "   " + button("now", m.choice == now) + " " + button("later", m.choice == later)
-		row = pane.Clip(row, w-ansi.StringWidth(buttons)) + buttons
-	}
-	if focused && !c.OK && terminalFinding(c) {
-		buttons := "   " + button("later", m.choice != keep) + " " + button("keep", m.choice == keep)
-		row = pane.Clip(row, w-ansi.StringWidth(buttons)) + buttons
+	if end := m.rowButtons(c, key); focused && end != "" {
+		row = pane.Clip(row, w-ansi.StringWidth(end)) + end
 	}
 	out := []line{{i, pane.Clip(row, w)}}
 	if c.Fix != "" {
-		fix := c.Fix
+		shown := c.Fix
 		if c.Interactive {
-			fix += " · it needs you at the keyboard"
+			shown += " · it needs you at the keyboard"
 		}
-		out = append(out, line{i, pane.Clip(indent+under+style.Off(fix), w)})
+		out = append(out, line{i, pane.Clip(indent+under+style.Off(shown), w)})
 	}
 	if !c.OK && c.More != "" {
 		out = append(out, line{i, pane.Clip(indent+under+style.Off(c.More), w)})
@@ -454,12 +423,21 @@ func (m Model) checkLines(i int, key, indent string) []line {
 	return out
 }
 
-// button draws a choice on a row: inverse when highlighted, dim when not, a space either side.
-func button(name string, highlighted bool) string {
-	if highlighted {
-		return style.Cursor(" " + name + " ")
+// rowButtons gives the buttons the cursor's row ends with: a check with a fix, its pair, as fix.Buttons draws it, ⧉, or
+// copied once c copied it, and ▶️ where kit runs it, never on a terminal's finding; then keep, on a terminal's failed
+// finding, which keeps it. None where the check offers neither.
+func (m Model) rowButtons(c kit.Check, key string) string {
+	var end string
+	if c.Fix != "" {
+		end = fix.Buttons(c.Runs && !terminalFinding(c), m.copied == key)
 	}
-	return style.Off(" " + name + " ")
+	if !c.OK && terminalFinding(c) {
+		if end == "" {
+			end = " "
+		}
+		end += " " + style.Tint(" "+keepName+" ")
+	}
+	return end
 }
 
 // fit keeps the pane's offset within its lines, and in a step with rows scrolls so the row under the cursor shows,

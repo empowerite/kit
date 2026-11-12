@@ -173,7 +173,7 @@ func (m Model) shows(f folderRow, rows []int, query string) bool {
 }
 
 // setupLines gives the setup step's lines as a table: its page, kit's refusal, the machine's checks, then each
-// repository's folders, each row followed by its failed checks and its offers, and the checks left for later.
+// repository's folders, each row followed by its failed checks and its offers.
 func (m Model) setupLines() []line {
 	w := m.width - 1
 	out := m.stepHead()

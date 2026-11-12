@@ -176,8 +176,8 @@ see: [architecture.md](architecture.md#the-workflow-and-the-gate)
 kit's screens and what each shows, Flow first, how work moves from an issue to a release, are a tutorial that ships
 with the kit, `kit tutorials applications`; see [tutorials.md](tutorials.md).
 
-- On a terminal, it opens in kittui, on the first step with a failed check. A failed check offers its fix: now runs
-  it, later moves on.
+- On a terminal, it opens in kittui, on the first step with a failed check. A failed check offers its fix on the row
+  under the cursor: ⧉, or `c`, copies it, and ▶️, or `r`, runs it where kit can.
 - Without a terminal, or with `--text`, it prints each page with its checks, and does not run anything. It exits 1
   when a check fails.
 - A check that holds can still offer a fix: an offer, drawn 💡, which needs no attention and fails nothing. kit runs in

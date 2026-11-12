@@ -8,12 +8,10 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
@@ -102,25 +100,9 @@ func TestAFoldersFailedCheckOffersItsFixUnderItsRow(t *testing.T) {
 	}
 	v := view(m)
 	testkit.Golden(t, filepath.Join("testdata", "setup-folders-row.golden"), v)
-	if !strings.Contains(v, "     ▸ ❌ the git hooks are not installed; lefthook runs none    now   later") ||
+	if !strings.Contains(v, "     ▸ ❌ the git hooks are not installed; lefthook runs none   ⧉   ▶️") ||
 		keysAt(m) != choiceKeys {
-		t.Errorf("the desk's hooks, offering now and later:\n%s\n%s", v, keysAt(m))
-	}
-}
-
-// A folder's check left for later is listed under Left for later with its repository and its folder, which no row
-// draws above it there.
-func TestAFoldersCheckLeftForLaterNamesItsFolder(t *testing.T) {
-	m, _, _ := group(t, stepKey(setupStep))
-	m, found := onKey(m, "/code/a hooks-installed")
-	if !found {
-		t.Fatalf("no hooks-installed at the desk:\n%s", view(m))
-	}
-	m = drive(m, press('l'), tea.WindowSizeMsg{Width: 120, Height: 50})
-	v := view(m)
-	if left := strings.Index(v, "Left for later"); left < 0 || !strings.Contains(v[left:],
-		"• the git hooks are not installed; lefthook runs none · a "+deskGlyph+" a: lefthook install") {
-		t.Errorf("the desk's hooks left for later:\n%s", v)
+		t.Errorf("the desk's hooks, offering ⧉ and ▶️:\n%s\n%s", v, keysAt(m))
 	}
 }
 
@@ -151,7 +133,7 @@ func TestAFoldersFixRunsInItsFolderAndAMachinesOverTheGroup(t *testing.T) {
 	if !found {
 		t.Fatalf("no kit-installed in the worktree:\n%s", view(m))
 	}
-	m = drive(m, press('n'))
+	m = drive(m, press('r'))
 	if len(r.calls) != 1 ||
 		strings.Join(r.calls[0], " ") != "--workspace=w welcome --fix kit-installed --folder=/code/a/worktrees/7-the-topic" {
 		t.Errorf("the fix: %q", r.calls)
@@ -160,28 +142,26 @@ func TestAFoldersFixRunsInItsFolderAndAMachinesOverTheGroup(t *testing.T) {
 	if !found {
 		t.Fatalf("no login:\n%s", view(m))
 	}
-	drive(m, press('n'))
+	drive(m, press('r'))
 	if len(r.calls) != 2 || strings.Join(r.calls[1], " ") != "--workspace=w welcome --fix forge-login-github.com" {
 		t.Errorf("the login's fix: %q", r.calls)
 	}
 }
 
-func TestAFoldersOfferOffersNowAndLaterAsAFailedCheckDoes(t *testing.T) {
+func TestAFoldersOfferOffersCopyAndRunAsAFailedCheckDoes(t *testing.T) {
 	m, r, _ := group(t, stepKey(setupStep))
 	m, found := onKey(m, "/code/a/worktrees/7-the-topic kit-installed")
 	if !found {
 		t.Fatalf("no kit-installed in the worktree:\n%s", view(m))
 	}
-	if v := view(m); !strings.Contains(v, "     ▸ "+Offered+" kit is not installed here; it runs on what it infers    now   later") ||
+	if v := view(m); !strings.Contains(v, "     ▸ "+Offered+" kit is not installed here; it runs on what it infers   ⧉   ▶️") ||
 		keysAt(m) != choiceKeys {
-		t.Errorf("the worktree's offer, offering now and later:\n%s\n%s", v, keysAt(m))
+		t.Errorf("the worktree's offer, offering ⧉ and ▶️:\n%s\n%s", v, keysAt(m))
 	}
-	// later leaves it for later, as a failed check, and runs nothing
-	m = drive(m, press('l'))
-	v := view(m)
-	if !m.deferred["/code/a/worktrees/7-the-topic kit-installed"] || len(r.calls) != 0 ||
-		!strings.Contains(v, Offered+" kit is not installed here; it runs on what it infers · later") {
-		t.Errorf("deferred %v, ran %q:\n%s", m.deferred, r.calls, v)
+	// r runs it, as a failed check's, in its folder
+	if drive(m, press('r')); len(r.calls) != 1 ||
+		strings.Join(r.calls[0], " ") != "--workspace=w welcome --fix kit-installed --folder=/code/a/worktrees/7-the-topic" {
+		t.Errorf("the offer's fix: %q", r.calls)
 	}
 }
 
@@ -225,8 +205,8 @@ func TestAGroupsChecksEndWithTheScreen(t *testing.T) {
 }
 
 // The setup step's search keeps a folder whose branch holds it, with its failed checks, and one whose check's line does;
-// a search nothing holds says so. A folder's check left for later names its folder in the list of those left.
-func TestTheSetupStepsSearchAndLaterNameTheFolder(t *testing.T) {
+// a search nothing holds says so.
+func TestTheSetupStepsSearchNamesTheFolder(t *testing.T) {
 	search := func(text string) Model {
 		m, _, _ := group(t, append([]tea.Msg{stepKey(setupStep), tea.KeyPressMsg{Code: '/', Text: "/"}},
 			testkit.Typed(text)...)...)
@@ -243,22 +223,8 @@ func TestTheSetupStepsSearchAndLaterNameTheFolder(t *testing.T) {
 	if v := view(search("zzz")); !strings.Contains(v, "no check matches the search") {
 		t.Errorf("searched for nothing there:\n%s", v)
 	}
-	m, _, _ := group(t, stepKey(setupStep))
-	m, found := onKey(m, "/code/a/worktrees/7-the-topic kit-installed")
-	if !found {
-		t.Fatalf("no kit-installed in the worktree:\n%s", view(m))
-	}
-	m = drive(m, press('l'))
-	var tail []string
-	for _, l := range m.stepTail(m.rows(m.step)) {
-		tail = append(tail, ansi.Strip(l.text))
-	}
-	if want := "• kit is not installed here; it runs on what it infers · a " + worktreeGlyph +
-		" 7-the-topic: kit install"; !slices.ContainsFunc(tail, func(l string) bool { return strings.Contains(l, want) }) {
-		t.Errorf("the worktree's check left for later: %q", tail)
-	}
 	// a search nothing holds, while the checks run again, says they run
-	m = search("zzz")
+	m := search("zzz")
 	m.checking.Again(m.env(), false)
 	if v := view(m); !strings.Contains(v, "checking…") {
 		t.Errorf("checking under a search nothing holds:\n%s", v)

@@ -3,28 +3,26 @@
 // an id, which kit's checks name as their step, a glyph, a name, and its page. A page kit knows keeps its glyph, its
 // name, and its checks; any other, as a house package adds, is a plain page. A step with checks draws its page, then
 // its checks, one row each; the setup step, where kit names each check's folder, draws them as one table, as setup.go
-// says. A failed check with a fix offers now and later on the cursor's row: now runs kit welcome --fix <id> with the
-// terminal handed over, then reads the checks again; later leaves it for this session and moves to the step's next
-// failed check. A fix kit only shows, as one that must run in the person's own shell, is drawn with its lines and no
-// choices: n and enter do nothing there, and l still leaves it for later. A terminal's failed finding offers later and
-// keep instead, its fix shown under it and never run: keep runs kit welcome --keep=<id> and takes the check kit says,
-// so it holds from then on; k keeps it at once. A terminal's findings that hold, not kept, are drawn on no row: its
+// says. A check with a fix offers the fix's pair on the cursor's row, as internal/fix draws it: ⧉, or c, puts the fix
+// on the clipboard, and ▶️, or r, where kit runs the fix, runs kit welcome --fix <id> with the terminal handed over,
+// then reads the checks again. A fix kit only shows, as one that must run in the person's own shell, offers ⧉ alone. A
+// terminal's failed finding offers ⧉ and keep, its fix shown under it and never run: keep, or k, runs kit welcome
+// --keep=<id> and takes the check kit says, so it holds from then on. A terminal's findings that hold, not kept, are drawn on no row: its
 // heading says the terminal, and what failed or is kept stands under it. The other steps are markdown pages drawn as
 // text, but the terms and customize, whose pages of sections are tables, as sections.go draws them, each table's keys
 // and clicks its own while the pane has the keyboard. The introduction's page ends with what the checks found:
 // checking… while they run, then that all of them pass, or how many need the person's attention, under a rule, each
 // failed check's line a link to it, with the glyph and name of its step, and its fix under it with Run, where kit runs
 // it, and Copy. Enter or a click on a link goes to that check, on its step, with the cursor on it; Run, or r on the
-// link, runs the fix as now does, and Copy, or c, puts it on the clipboard. When kit refused the checks, the
+// link, runs the fix as ▶️ does, and Copy, or c, puts it on the clipboard. When kit refused the checks, the
 // introduction says what kit said.
 //
 // The steps are a tab bar, internal/tabs. While it has the keyboard, tab and shift-tab move between the steps; a step's
 // number, or a click on the bar, selects it from anywhere and gives the bar the keyboard. Down, or enter, gives the
 // pane the keyboard: a step's rows, or the introduction's links, where up on the first gives it back, or its page,
 // which up and down then scroll, and up at the top gives it back; a click on a check's line puts the cursor there. The
-// mouse wheel scrolls the pane under it, or the step's table, the keyboard and the cursor left where they are. Inside a
-// row with choices, tab and shift-tab move between now and later, its stops, as they move between the stops on any
-// line. Esc gives the bar the keyboard back. Ctrl-c quits with 130 from anywhere, and ctrl-q quits with 0; esc never
+// mouse wheel scrolls the pane under it, or the step's table, the keyboard and the cursor left where they are. Esc gives
+// the bar the keyboard back. Ctrl-c quits with 130 from anywhere, and ctrl-q quits with 0; esc never
 // quits. The screen opens on the introduction while the checks run, and stays there when they answer. A step with
 // failed checks counts them in red on the bar, which every step shows.
 package welcome
@@ -41,6 +39,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/empowerite/kit/projects/tui/internal/fix"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/shell"
@@ -118,12 +117,8 @@ func (m Model) stepOf(c kit.Check) int {
 	return last
 }
 
-// The choices on a failed check's row: now and later, or, on a terminal's finding, later and keep.
-const (
-	now = iota
-	later
-	keep
-)
+// keepName is the button a terminal's failed finding offers after its fix's pair, which keeps it.
+const keepName = "keep"
 
 // keptMsg says kit welcome --keep= has run for a check, and how it ended: the check as kit now judges it, or nil where
 // kit did not say it.
@@ -193,8 +188,6 @@ type Model struct {
 	running     []kit.Progress // the check each folder, and the machine, is on, in the order kit first named them
 	refusal     string         // kit's line, when the checks did not run
 	cursor      int            // the check under the cursor, an index into checks, in the selected step
-	choice      int            // now or later, on a row that offers them
-	deferred    map[string]bool
 	notes       map[string]note
 	copied      string // the key of the check whose fix was last copied, until the next key or click
 	offsets     []int  // the first line of each step's pane
@@ -226,7 +219,7 @@ func Open(r kit.Runner, ws kit.Workspace) Model {
 // New opens the screen on the first step, checking. Init runs the checks and reads the pages.
 func New(r kit.Runner, repo string) Model {
 	m := Model{runner: r, exec: tea.ExecProcess, told: make(chan toldMsg, 64), run: &atomic.Int64{},
-		deferred: map[string]bool{}, notes: map[string]note{}, width: 80, height: 24, tabs: slices.Clone(known),
+		notes: map[string]note{}, width: 80, height: 24, tabs: slices.Clone(known),
 		places: make([]string, len(known)), offsets: make([]int, len(known)), appMenu: shell.Menu{Here: shell.Welcome},
 		books: shell.BooksMenu{Fallback: repo}, searches: map[string]shell.Search{},
 		settings: shell.Settings{KeysBar: true, FoldShared: true, HideBlank: true}}
@@ -427,6 +420,8 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseWheelMsg:
 		m.wheeled(msg)
 	case tea.MouseClickMsg:
+		// a click on a row's buttons is read where they were drawn, copied or not
+		drawn := m.copied
 		m.copied = ""
 		switch {
 		case m.appMenu.Open && msg.Button == tea.MouseLeft:
@@ -469,7 +464,7 @@ func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case m.gridded():
 			return m.sheetClick(msg)
 		case msg.Button == tea.MouseLeft:
-			cmd := m.click(msg.X, msg.Y)
+			cmd := m.click(msg.X, msg.Y, drawn)
 			m.fit()
 			return m, cmd
 		}
@@ -508,7 +503,6 @@ func (m *Model) take(msg source.Answer[[]kit.Check]) {
 	for _, c := range m.checks {
 		if !asks(c) {
 			delete(m.notes, c.Key())
-			delete(m.deferred, c.Key())
 		}
 	}
 	m.takeChecks()
@@ -756,24 +750,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	}
-	choosing, keeping := m.choosing(), m.keeping()
 	switch k.String() {
 	case "esc":
 		m.back()
-	case "shift+tab":
-		switch {
-		case choosing:
-			m.choice = now
-		case keeping:
-			m.choice = later
-		}
-	case "tab":
-		switch {
-		case choosing:
-			m.choice = later
-		case keeping:
-			m.choice = keep
-		}
 	case "up":
 		m.up(1)
 	case "down":
@@ -787,27 +766,22 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "end":
 		m.page(ends)
 	case "enter":
-		switch {
-		case !m.inPane:
+		if !m.inPane {
 			m.down(1)
-		case choosing && m.choice == now:
-			return m, m.now()
-		case keeping && m.choice == keep:
-			return m, m.keep()
-		case choosing || keeping:
-			m.later()
 		}
-	case "n":
-		if choosing {
-			return m, m.now()
+	case fix.CopyKey:
+		if m.copies() {
+			// copy marks the model, so it runs before m is returned
+			cmd := m.copy()
+			return m, cmd
+		}
+	case fix.RunKey:
+		if m.runsHere() {
+			return m, m.runFix()
 		}
 	case "k":
-		if keeping {
+		if m.keeping() {
 			return m, m.keep()
-		}
-	case "l":
-		if choosing || keeping || m.showOnly() {
-			m.later()
 		}
 	}
 	m.fit()
@@ -841,26 +815,33 @@ var fades = table.Fades
 func (m Model) fading(before shell.Notice) tea.Cmd { return m.sheet().Notice().Fading(before, fades) }
 
 // click takes a left click on the pane, at the screen cell x, y: on a check's line, the cursor goes to that check and
-// the pane has the keyboard, and on a terminal's failed finding, a click on keep keeps it and one on later leaves it;
-// on a page, the page has the keyboard. A … line, or a line that is no check's, does nothing.
-func (m *Model) click(x, y int) tea.Cmd {
+// the pane has the keyboard, and on its row's buttons, as drawn with copied as it was, ⧉ copies its fix, ▶️ runs it,
+// and keep keeps a terminal's failed finding; on a page, the page has the keyboard. A … line, or a line that is no
+// check's, does nothing.
+func (m *Model) click(x, y int, copied string) tea.Cmd {
 	r, h := y-paneTop, m.paneHeight()
 	switch {
 	case r < 0 || r >= h:
 	case !m.hasRows():
 		m.inPane = true
 	default:
+		m.copied = copied
 		lines := m.lines()
+		m.copied = ""
 		if k := pane.At(len(lines), h, m.offsets[m.step], r); k >= 0 && lines[k].row >= 0 {
-			m.cursor, m.inPane, m.choice = lines[k].row, true, now
+			m.cursor, m.inPane = lines[k].row, true
 			plain := ansi.Strip(lines[k].text)
 			// the buttons are on a row's first line; a word of its fix, its more, or its note is none
-			buttons := k == 0 || lines[k-1].row != lines[k].row
+			if k > 0 && lines[k-1].row == lines[k].row {
+				return nil
+			}
 			switch {
-			case buttons && m.keeping() && onButton(plain, "keep", x):
+			case m.keeping() && onButton(plain, keepName, x):
 				return m.keep()
-			case buttons && m.keeping() && onButton(plain, "later", x):
-				m.later()
+			case m.copies() && fix.On(plain, x) == fix.Copy:
+				return m.copy()
+			case m.runsHere() && fix.On(plain, x) == fix.Run:
+				return m.runFix()
 			}
 		}
 	}
@@ -887,7 +868,7 @@ func (m *Model) follow() {
 		delete(m.searches, m.tabs[m.step].id)
 		m.offsets[m.step] = 0
 	}
-	m.inPane, m.choice = true, now
+	m.inPane = true
 }
 
 // copy puts the fix of the check under the cursor on the clipboard, which the introduction then says until the next
@@ -895,7 +876,7 @@ func (m *Model) follow() {
 func (m *Model) copy() tea.Cmd {
 	c := m.checks[m.cursor]
 	m.copied = c.Key()
-	return tea.SetClipboard(c.Fix)
+	return fix.Copying(c.Fix)
 }
 
 // back gives the bar the keyboard, and a step's rows go back to their top; a page keeps where it was scrolled to.
@@ -906,17 +887,30 @@ func (m *Model) back() {
 	m.inPane = false
 }
 
-// choosing says whether the cursor is on a row that offers now and later: a failed check or an offer with a fix kit
-// runs, in a step with checks.
-func (m Model) choosing() bool {
-	if !m.checked() || !m.inPane || m.cursor >= len(m.checks) {
-		return false
+// fixUnder gives the check under the cursor in a step with checks drawn as rows while the pane has the keyboard, and
+// whether there is one with a fix: a failed check's, or one that holds and offers a fix all the same. A step drawn as a
+// table, as the introduction's failed checks, takes its rows' keys itself.
+func (m Model) fixUnder() (kit.Check, bool) {
+	if !m.checked() || !m.inPane || m.gridded() || m.cursor >= len(m.checks) {
+		return kit.Check{}, false
 	}
 	c := m.checks[m.cursor]
-	return c.Fix != "" && c.Runs
+	return c, c.Fix != ""
 }
 
-// keeping says whether the cursor is on a row that offers later and keep: a terminal's failed finding.
+// copies says whether the cursor is on a row whose fix ⧉ and c copy.
+func (m Model) copies() bool {
+	_, ok := m.fixUnder()
+	return ok
+}
+
+// runsHere says whether the cursor is on a row whose fix ▶️ and r run: one kit runs, never a terminal's finding's.
+func (m Model) runsHere() bool {
+	c, ok := m.fixUnder()
+	return ok && c.Runs && !terminalFinding(c)
+}
+
+// keeping says whether the cursor is on a row that offers keep: a terminal's failed finding.
 func (m Model) keeping() bool {
 	if !m.checked() || !m.inPane || m.cursor >= len(m.checks) {
 		return false
@@ -934,15 +928,6 @@ func (m Model) keep() tea.Cmd {
 		kept, err := r.WelcomeKeep(context.Background(), c)
 		return keptMsg{id: c.ID, key: key, check: kept, err: err}
 	}
-}
-
-// showOnly says whether the cursor is on a failed check or an offer whose fix kit shows and never runs.
-func (m Model) showOnly() bool {
-	if !m.checked() || !m.inPane || m.cursor >= len(m.checks) {
-		return false
-	}
-	c := m.checks[m.cursor]
-	return c.Fix != "" && !c.Runs
 }
 
 // asks says whether a check asks something of the person: it failed, or it is an offer. A check that holds with nothing
@@ -965,7 +950,6 @@ func (m *Model) choose(bar tabs.Bar) {
 		m.places[m.step] = m.cursorKey()
 		m.step = bar.Selected
 		m.cursor = m.find(m.step, m.places[m.step])
-		m.choice = now
 	}
 	m.inPane = !bar.Focused
 	// a step's table holds no keyboard while the bar, or another step, has it
@@ -997,7 +981,6 @@ func (m *Model) up(n int) {
 		return
 	}
 	m.cursor = rows[at-n]
-	m.choice = now
 }
 
 // down moves the cursor n rows down in a step with rows, and on a page scrolls; from the bar it gives the pane the
@@ -1021,7 +1004,6 @@ func (m *Model) down(n int) {
 		n--
 	}
 	m.cursor = rows[min(at+n, len(rows)-1)]
-	m.choice = now
 }
 
 // page moves the cursor n rows in a step with rows, or scrolls a page n lines, and never leaves the pane: it stops at
@@ -1034,7 +1016,7 @@ func (m *Model) page(n int) {
 	default:
 		rows := m.rows(m.step)
 		at := max(0, slices.Index(rows, m.cursor))
-		m.cursor, m.choice = rows[min(max(at+n, 0), len(rows)-1)], now
+		m.cursor = rows[min(max(at+n, 0), len(rows)-1)]
 	}
 }
 
@@ -1075,12 +1057,10 @@ func (m *Model) scroll(n int) {
 	m.offsets[m.step] = start
 }
 
-// now hands the terminal to the fix of the check under the cursor, over the workspace the checks were read over, a
+// runFix hands the terminal to the fix of the check under the cursor, over the workspace the checks were read over, a
 // folder's in its folder; when it ends, the checks run again.
-func (m *Model) now() tea.Cmd {
+func (m *Model) runFix() tea.Cmd {
 	c := m.checks[m.cursor]
-	delete(m.deferred, c.Key())
-	m.choice = now
 	id, key := c.ID, c.Key()
 	return m.exec(m.over().WelcomeFix(c), func(err error) tea.Msg { return fixedMsg{id: id, key: key, err: err} })
 }
@@ -1092,28 +1072,4 @@ func (m Model) over() kit.Runner {
 		r.Group, r.NoGroup = m.workspace.Name, false
 	}
 	return r
-}
-
-// later leaves the check under the cursor for later and moves to the step's next failed check not left, if there is
-// one.
-func (m *Model) later() {
-	m.deferred[m.checks[m.cursor].Key()] = true
-	if next := m.nextFailed(m.cursor); next >= 0 {
-		m.cursor = next
-	}
-	m.choice = now
-	m.takeChecks()
-}
-
-// nextFailed gives the step's first failed check after the check from, round the end, not left for later, or -1.
-func (m Model) nextFailed(from int) int {
-	rows := m.rows(m.step)
-	n, at := len(rows), slices.Index(rows, from)
-	for k := 1; k <= n; k++ {
-		i := rows[(at+k+n)%n]
-		if c := m.checks[i]; !c.OK && !m.deferred[c.Key()] && i != from {
-			return i
-		}
-	}
-	return -1
 }
