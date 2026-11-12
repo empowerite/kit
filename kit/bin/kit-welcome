@@ -7,9 +7,9 @@
 #
 # kit welcome --fix <check> [--folder=<path>]
 #
-# kit welcome --keep=<check>
+# kit welcome --keep=<check> [--json]
 #
-# kit welcome --unkeep=<check>
+# kit welcome --unkeep=<check> [--json]
 #
 # A guide for your first hour with kit, in five steps:
 #
@@ -34,11 +34,13 @@
 #
 #   --text            prints the guide, even on a terminal
 #   --checks          prints the checks alone, one line each
-#   --json            the checks as a JSON array
+#   --json            the checks as a JSON array; with --keep= or --unkeep=, the check as it now is, one JSON object,
+#                     or null where kit did not ask the terminal
 #   --jq              the same JSON, formatted by jq for a person
 #   --fix <check>     runs one check's fix, then checks again
-#   --keep=<check>    keeps a terminal's finding as it is: it holds from now on, in the profile it was judged in
-#   --unkeep=<check>  undoes a keep, so the finding is judged again
+#   --keep=<check>    keeps a terminal's finding as it is: it holds from now on, in the profile it was judged in;
+#                     then says the check as it now is
+#   --unkeep=<check>  undoes a keep, so the finding is judged again, and says it
 #   --folder=<path>   the folder whose working tree holds <path>: --checks prints its checks alone, and --fix runs a
 #                     folder's check there; with none, --fix runs it in the repository here
 #   --progress        with --checks, says on stderr what is being checked as it goes: ⏳ checking <check>, then
@@ -100,12 +102,26 @@ then
   exit 2
 fi
 
+# The terminal is asked here, in the main shell, where stdin and stdout are still the person's terminal, and what it
+# answered goes to the checks, and to kittui, in KIT_TERMINAL_PROBES. A fix asks it nothing, as kit never runs a
+# terminal's fix.
+[[ -n "${syntax_options[--fix]+x}" ]] || terminal:export-probes
+
 for action in keep unkeep
 do
   if [[ -n "${syntax_options[--${action}]+x}" ]]
   then
-    welcome:keep "${action}" "${syntax_options[--${action}]}" && status=0 || status=$?
-    exit "${status}"
+    check=$(welcome:keep "${action}" "${syntax_options[--${action}]}") || exit $?
+    if [[ -n "${syntax_options[--json]+x}" ]]
+    then
+      printf '%s\n' "${check:-null}"
+    elif [[ -n "${check}" ]]
+    then
+      # shellcheck disable=SC2034  # read by modules/bash/welcome.sh
+      welcome_fold=false
+      welcome:show "${check}"
+    fi
+    exit 0
   fi
 done
 
@@ -131,10 +147,6 @@ welcome:find-folders() {
     welcome:folders
   fi
 }
-
-# The terminal is asked here, in the main shell, where stdin and stdout are still the person's terminal, and what it
-# answered goes to the checks, and to kittui, in KIT_TERMINAL_PROBES.
-terminal:export-probes
 
 if [[ -n "${syntax_options[--checks]+x}" ]]
 then

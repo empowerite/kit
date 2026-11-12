@@ -654,6 +654,34 @@ good-probes() {
   [ "$(jq -r '.ok' <<<"$output")" = false ]
 }
 
+@test "--keep= says the check as it now holds, --json gives it as --checks does, and --unkeep= says it again" {
+  export SSH_TTY=/dev/ttys1 KIT_TERMINAL_PROBES
+  KIT_TERMINAL_PROBES=$(good-probes 1)
+  run --separate-stderr "${kit_root}/bin/kit" welcome --keep=terminal-probe-emoji-width --json
+  [ "$status" -eq 0 ]
+  [ "$(jq -c '[.id, .ok, .step, .runs, .folder, (.line | startswith("kept: "))]' <<<"$output")" = \
+    '["terminal-probe-emoji-width",true,"setup",false,null,true]' ]
+  run --separate-stderr "${kit_root}/bin/kit" welcome --unkeep=terminal-probe-emoji-width
+  [ "$status" -eq 0 ]
+  [[ "$output" == "❌ "* ]]
+  run --separate-stderr "${kit_root}/bin/kit" welcome --keep=terminal-probe-color
+  [ "$status" -eq 0 ]
+  [[ "$output" == "✅ "* ]]
+}
+
+@test "--fix of a check that is not the terminal's leaves the terminal's settings unread" {
+  mkdir -p bash/terminal
+  printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' > kit.yml
+  printf 'terminal/iterm:settings() { touch "%s"; return 1; }\n' "${BATS_TEST_TMPDIR}/read" > bash/terminal/iterm.sh
+  export TERM_PROGRAM=iTerm.app KIT_TERMINAL_PROBES='{"answered":false}'
+  run "${kit_root}/bin/kit" welcome --fix tool-jq
+  [ "$status" -eq 2 ]
+  [ ! -e "${BATS_TEST_TMPDIR}/read" ]
+  run "${kit_root}/bin/kit" welcome --fix terminal-iterm-option
+  [ "$status" -eq 2 ]
+  [ -e "${BATS_TEST_TMPDIR}/read" ]
+}
+
 @test "--keep= refuses with 2 a check that is not a terminal finding, and a terminal's heading" {
   export SSH_TTY=/dev/ttys1
   run "${kit_root}/bin/kit" welcome --keep=tool-jq

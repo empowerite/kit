@@ -506,12 +506,11 @@ welcome:forges-in() (
 )
 
 # welcome:plan-machine fills welcome_ids with the machine checks, in order, and the forge of each host, and finds the
-# system toolchain. It reads the hosts from welcome_folders, which welcome:folders fills first. Where
-# KIT_TERMINAL_PROBES says what the terminal answered, it judges the terminal once, into welcome_terminal; without it,
-# kit runs in no terminal it asked, and the terminal has no checks.
+# system toolchain. It reads the hosts from welcome_folders, which welcome:folders fills first. Then it judges the
+# terminal, as welcome:plan-terminal does; with <id>, a check that is not the terminal's, as for a fix of that one, it
+# leaves the terminal unjudged.
 welcome:plan-machine() {
-  local forge host check id
-  local -a terminal_checks=()
+  local forge host
   welcome_ids=(tool-bash tool-git tool-jq tool-yq) welcome_host_forge=() welcome_terminal=()
   ! welcome:brew-off-path || welcome_ids+=(brew-path)
   welcome_ids+=(toolchain-system)
@@ -521,8 +520,20 @@ welcome:plan-machine() {
     welcome_ids+=("forge-cli-${host}" "forge-login-${host}")
     welcome_host_forge[${host}]=${forge}
   done < <(welcome:hosts)
+  [[ -z "${1:-}" || "$1" == terminal-* ]] || return 0
+  welcome:plan-terminal
+}
+
+# welcome:plan-terminal judges the terminal once, where KIT_TERMINAL_PROBES says what it answered, into
+# welcome_terminal, and adds its checks to welcome_ids; without it, kit runs in no terminal it asked, and the terminal
+# has no checks.
+welcome:plan-terminal() {
+  local check id
+  local -a terminal_checks=()
+  welcome_terminal=()
   [[ -n "${KIT_TERMINAL_PROBES:-}" ]] || return 0
-  # a terminal kit cannot judge, as for a bug in terminals.json, which terminal:checks names, has no checks
+  # terminal:checks names a bug in terminals.json in the terminal's heading; were it to fail all the same, the
+  # terminal has no checks, and the rest of welcome goes on
   list:read terminal_checks terminal:checks || return 0
   for check in "${terminal_checks[@]}"
   do
@@ -794,14 +805,18 @@ welcome:terminal() {
 }
 
 # welcome:folded <check-json> succeeds for a terminal's finding or probe that holds and is not kept: the text guide,
-# as kittui, shows it under its terminal's heading by leaving it out.
+# as kittui, shows it under its terminal's heading by leaving it out. With welcome_fold false, as for the one check
+# kit welcome --keep= says, nothing is folded.
+declare -g welcome_fold=true
 welcome:folded() {
+  [[ "${welcome_fold}" == true ]] || return 1
   jq --exit-status '(.id | test("^terminal-[a-z]+-")) and .ok and (.line | startswith("kept: ") | not)' <<<"$1" \
     >/dev/null
 }
 
 # welcome:keep keep|unkeep <check> keeps the terminal's finding or probe <check>, so it holds from now on, or undoes
-# the keep. It returns 2 for any other check: one of another kind, or a terminal's heading, which always holds.
+# the keep, then prints the check as the terminal is now judged, where KIT_TERMINAL_PROBES says what it answered. It
+# returns 2 for any other check: one of another kind, or a terminal's heading, which always holds.
 welcome:keep() {
   local action=$1 id=$2
   if ! jq --exit-status --arg id "${id}" '
@@ -812,7 +827,9 @@ welcome:keep() {
     error "${id} is not a finding of a terminal, which is all kit welcome --${action}= takes; see: kit welcome --checks"
     return 2
   fi
-  "terminal:${action}" "${id}"
+  "terminal:${action}" "${id}" || return $?
+  welcome:plan-terminal
+  [[ -z "${welcome_terminal[${id}]+x}" ]] || welcome:terminal "${id}"
 }
 
 # welcome:judge <id> runs one check, which welcome:plan-machine or, in its folder, welcome:plan-folder named, and
@@ -1021,7 +1038,7 @@ welcome:fix() {
     fi
     # Only a forge's checks read the folders, for their hosts.
     [[ "${id}" != forge-* ]] || welcome:folders || return $?
-    welcome:plan-machine
+    welcome:plan-machine "${id}"
     if ! list:among "${id}" "${welcome_ids[@]}"
     then
       error "no check is named '${id}'; the checks are: ${welcome_ids[*]}"
@@ -1037,7 +1054,7 @@ welcome:fix() {
     return 2
   fi
   welcome:folder "${folder}" || return $?
-  welcome:plan-machine
+  welcome:plan-machine "${id}"
   top=${welcome_folders[0]##*$'\x1f'}
   (
     cd "${top}" || exit 2

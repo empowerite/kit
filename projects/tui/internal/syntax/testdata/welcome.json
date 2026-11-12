@@ -5,8 +5,8 @@
     "kit welcome [--text]",
     "kit welcome --checks [--json | --jq] [--folder=<path>] [--progress]",
     "kit welcome --fix <check> [--folder=<path>]",
-    "kit welcome --keep=<check>",
-    "kit welcome --unkeep=<check>"
+    "kit welcome --keep=<check> [--json]",
+    "kit welcome --unkeep=<check> [--json]"
   ],
   "syntax": [
     [
@@ -115,6 +115,20 @@
         "name": "keep",
         "value": "check",
         "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ]
+        ],
+        "repeat": false
       }
     ],
     [
@@ -123,6 +137,20 @@
         "inline": true,
         "name": "unkeep",
         "value": "check",
+        "repeat": false
+      },
+      {
+        "kind": "group",
+        "optional": true,
+        "alternatives": [
+          [
+            {
+              "kind": "flag",
+              "name": "json",
+              "repeat": false
+            }
+          ]
+        ],
         "repeat": false
       }
     ]
@@ -135,7 +163,7 @@
       "description": "prints the checks alone, one line each"
     },
     "--json": {
-      "description": "the checks as a JSON array"
+      "description": "the checks as a JSON array; with --keep= or --unkeep=, the check as it now is, one JSON object, or null where kit did not ask the terminal"
     },
     "--jq": {
       "description": "the same JSON, formatted by jq for a person"
@@ -144,10 +172,10 @@
       "description": "runs one check's fix, then checks again"
     },
     "--keep": {
-      "description": "keeps a terminal's finding as it is: it holds from now on, in the profile it was judged in"
+      "description": "keeps a terminal's finding as it is: it holds from now on, in the profile it was judged in; then says the check as it now is"
     },
     "--unkeep": {
-      "description": "undoes a keep, so the finding is judged again"
+      "description": "undoes a keep, so the finding is judged again, and says it"
     },
     "--folder": {
       "description": "the folder whose working tree holds <path>: --checks prints its checks alone, and --fix runs a folder's check there; with none, --fix runs it in the repository here"
