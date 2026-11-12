@@ -234,9 +234,9 @@ func (m Model) notCloned() []line {
 	return []line{{-1, ""}, {-1, pane.Clip(lead+style.Off("not cloned: "+strings.Join(gone, ", ")), m.width-1)}}
 }
 
-// pageLines gives a page's lines: the page drawn to the width, a dim line while the pages are read, or the dim lines
-// saying where the page was looked for, the path broken across lines so all of it shows. The pane clips what a narrow
-// screen cannot hold, since a page keeps ten cells for its words.
+// pageLines gives a page's lines: the page drawn to the width, what the search finds in it highlighted, a dim line
+// while the pages are read, or the dim lines saying where the page was looked for, the path broken across lines so all
+// of it shows. The pane clips what a narrow screen cannot hold, since a page keeps ten cells for its words.
 func (m Model) pageLines(i int) []string {
 	switch {
 	case m.tabs[i].missing != "":
@@ -252,12 +252,7 @@ func (m Model) pageLines(i int) []string {
 	var out []string
 	query := m.searches[m.tabs[i].id].Query
 	for _, l := range render(m.tabs[i].page, m.width-len(lead)-1) {
-		if matches(l, query) {
-			out = append(out, strings.TrimRight(lead+l, " "))
-		}
-	}
-	if len(out) == 0 {
-		return []string{lead + style.Off("no line matches the search")}
+		out = append(out, strings.TrimRight(lead+shell.Found(l, query), " "))
 	}
 	return out
 }
@@ -285,7 +280,7 @@ func (m Model) stepLines() []line {
 	return append(out, m.stepTail(rows)...)
 }
 
-// stepHead gives the lines a step with checks starts with: its page, the lines the search lets through, and kit's
+// stepHead gives the lines a step with checks starts with: its page, what the search finds in it highlighted, and kit's
 // refusal.
 func (m Model) stepHead() []line {
 	w := m.width - 1
@@ -293,16 +288,10 @@ func (m Model) stepHead() []line {
 	add := func(row int, text string) { out = append(out, line{row, pane.Clip(text, w)}) }
 	query := m.search().Query
 	if t := m.tabs[m.step]; t.missing == "" && t.page != "" {
-		shown := 0
 		for _, l := range render(t.page, w-len(lead)) {
-			if matches(l, query) {
-				add(-1, strings.TrimRight(lead+l, " "))
-				shown++
-			}
+			add(-1, strings.TrimRight(lead+shell.Found(l, query), " "))
 		}
-		if shown > 0 {
-			add(-1, "")
-		}
+		add(-1, "")
 	}
 	if m.refusal != "" {
 		for _, l := range wrapWords(strings.Fields(Failed+" "+m.refusal), w-len(lead), "", "") {

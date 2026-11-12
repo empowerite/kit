@@ -923,8 +923,8 @@ func TestEqualsDropsTheAppsMenuDownOverTheGuide(t *testing.T) {
 }
 
 // The guide's search is every screen's, one for each step: on a step with checks it narrows them to those whose id,
-// line, or fix holds what is typed; on a page, to the lines that hold it.
-func TestTheGuidesSearchNarrowsEachStep(t *testing.T) {
+// line, or fix holds what is typed; on a page, it keeps every line and highlights what it finds.
+func TestTheGuidesSearchNarrowsChecksAndHighlightsPages(t *testing.T) {
 	m, _ := loaded(t, tea.WindowSizeMsg{Width: 100, Height: 40}, tea.KeyPressMsg{Code: tea.KeyEscape})
 	for !m.tabs[m.step].checked {
 		m = drive(m, tabKey)
@@ -959,16 +959,24 @@ func TestTheGuidesSearchNarrowsEachStep(t *testing.T) {
 	if m.search().Query != "" {
 		t.Errorf("the step before shares the search: %q", m.search().Query)
 	}
-	// on a page, the search keeps the lines that hold it; one no line holds says so
+	// on a page, the search keeps every line, highlights what it finds, and scrolls to the first line holding it
 	for m.tabs[m.step].checked {
 		m = drive(m, backTab)
 	}
+	lines := len(m.lines())
 	m = drive(m, testkit.Click(m.searchAt()+1, shell.Top))
 	if !m.search().Focused {
 		t.Fatal("a click on the search did not give it the keyboard")
 	}
-	if m = drive(m, testkit.Typed("qqqq")...); !strings.Contains(view(m), "no line matches the search") {
-		t.Errorf("a page no line of which holds the search:\n%s", view(m))
+	m = drive(m, testkit.Typed("Improvises")...)
+	found := strings.Contains(m.View().Content, "\x1b[7mimprovises\x1b[27m")
+	if len(m.lines()) != lines || m.offsets[m.step] == 0 || !found {
+		t.Errorf("a search on a page: %d of %d lines, offset %d:\n%s", len(m.lines()), lines, m.offsets[m.step], view(m))
+	}
+	m = drive(m, tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl})
+	m = drive(m, testkit.Typed("qqqq")...)
+	if len(m.lines()) != lines || m.offsets[m.step] != 0 || strings.Contains(m.View().Content, "\x1b[7m") {
+		t.Errorf("a search no line holds: %d of %d lines, offset %d:\n%s", len(m.lines()), lines, m.offsets[m.step], view(m))
 	}
 }
 

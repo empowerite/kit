@@ -205,7 +205,8 @@ These rules hold on every screen, in every control.
   themselves.
 - **Search works the same everywhere** (#97). `/` or a click on the search field gives it focus; typing filters as it
   goes; ⏎ or ↓ gives focus to the view and keeps the filter; esc does too; ⌃U clears the field; ⌃R recalls the past
-  searches.
+  searches. A table's search drops the rows that do not match; a page's text keeps every line, each match reversed,
+  as less draws what it finds, and scrolls to the first line holding one (#271).
 - **Each key moves one way** (#128). ⇥ and ⇧⇥ move to the next and the previous stop on the line the keyboard is on,
   stopping at its ends, or going on to the line after or before where the line is one field of several, as a form's
   row of options does. A stop is anything on the line the keyboard can stand on: the tab bar's tabs, the heading's

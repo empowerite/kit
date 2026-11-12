@@ -501,13 +501,15 @@ func matches(text, query string) bool {
 func (m Model) search() shell.Search { return m.searches[m.tabs[m.step].id] }
 
 // setSearch keeps the selected step's search, the cursor on the check it was on when the search lets it through, else
-// on the first it does, and the pane back at its top when what is typed changed.
+// on the first it does, and, when what is typed changed, the pane scrolled to the first line it finds, or back at its
+// top when it finds none.
 func (m *Model) setSearch(s shell.Search) {
 	id := m.tabs[m.step].id
-	if s.Query != m.searches[id].Query {
-		m.offsets[m.step] = 0
-	}
+	typed := s.Query != m.searches[id].Query
 	m.searches[id] = s
+	if typed {
+		m.offsets[m.step] = m.firstFound(s.Query)
+	}
 	if m.gridded() {
 		m.sheet().Search(s.Query)
 	}
@@ -515,6 +517,20 @@ func (m *Model) setSearch(s shell.Search) {
 		m.cursor = m.find(m.step, m.checks[m.cursor].Key())
 	}
 	m.fit()
+}
+
+// firstFound gives the selected step's first line that holds what is typed, 0 when nothing is or none does: a step
+// drawn as a table keeps its own window.
+func (m Model) firstFound(query string) int {
+	if query == "" || m.gridded() {
+		return 0
+	}
+	for k, l := range m.lines() {
+		if matches(l.text, query) {
+			return k
+		}
+	}
+	return 0
 }
 
 // focusSearch gives the selected step's search the keyboard, or takes it away.

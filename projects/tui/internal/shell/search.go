@@ -1,6 +1,8 @@
 package shell
 
 import (
+	"strings"
+
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
@@ -14,9 +16,10 @@ const Find = "🔎"
 const Idle = "/search"
 
 // Search is the search every screen of kittui has, the same on each: on the menu bar's right, 🔎 and what is typed,
-// which the screen narrows its view to. / or a click on it gives it focus, and a screen may open with focus there; then
-// a printable key is typed, / and = too, as the filter goes, backspace takes one back, and ⌃U clears it; ⏎, ↓, esc,
-// and tab give the view focus, the filter kept; and ⌃R recalls the past searches.
+// which a table narrows its rows to, and a page's text keeps every line of, each match drawn as Found draws it. / or a
+// click on it gives it focus, and a screen may open with focus there; then a printable key is typed, / and = too, as
+// the filter goes, backspace takes one back, and ⌃U clears it; ⏎, ↓, esc, and tab give the view focus, the filter
+// kept; and ⌃R recalls the past searches.
 type Search struct {
 	Query   string
 	Focused bool
@@ -93,4 +96,74 @@ func SearchLine(query string, focused bool) string {
 // and grows leftward only once what is typed needs the room.
 func SearchAt(width int, line string) int {
 	return max(0, width-1-max(ansi.StringWidth(line), ansi.StringWidth(Find+" "+Idle)))
+}
+
+// The escapes Found draws a match between: reversed, and back, which leaves the rest of the text's style alone.
+const (
+	reverse   = "\x1b[7m"
+	unreverse = "\x1b[27m"
+)
+
+// Found gives a text with each stretch of it that holds what is typed in a search reversed, as less draws what it
+// finds, without regard to case; nothing typed, or nothing found, gives the text as it is. The text's own escapes are
+// kept, and the reversing taken up again after each inside a stretch, so a style or link ending in it does not end it.
+func Found(text, query string) string {
+	if query == "" {
+		return text
+	}
+	// each grapheme and escape of the text, a grapheme with its place in the plain text, lowered; an escape at -1
+	type piece struct {
+		s          string
+		start, end int
+	}
+	var pieces []piece
+	var plain strings.Builder
+	var state byte
+	for rest := text; rest != ""; {
+		seq, _, n, next := ansi.DecodeSequence(rest, state, nil)
+		state, rest = next, rest[n:]
+		if seq[0] < 0x20 || seq[0] == 0x7f {
+			pieces = append(pieces, piece{seq, -1, -1})
+			continue
+		}
+		start := plain.Len()
+		plain.WriteString(strings.ToLower(seq))
+		pieces = append(pieces, piece{seq, start, plain.Len()})
+	}
+	low, p := strings.ToLower(query), plain.String()
+	marked := make([]bool, len(pieces))
+	for from := 0; ; {
+		i := strings.Index(p[from:], low)
+		if i < 0 {
+			break
+		}
+		a, b := from+i, from+i+len(low)
+		for k, pc := range pieces {
+			marked[k] = marked[k] || pc.start >= 0 && pc.start < b && pc.end > a
+		}
+		from = b
+	}
+	var out strings.Builder
+	on := false
+	for k, pc := range pieces {
+		switch {
+		case pc.start < 0:
+			out.WriteString(pc.s)
+			if on {
+				out.WriteString(reverse)
+			}
+			continue
+		case marked[k] && !on:
+			out.WriteString(reverse)
+			on = true
+		case !marked[k] && on:
+			out.WriteString(unreverse)
+			on = false
+		}
+		out.WriteString(pc.s)
+	}
+	if on {
+		out.WriteString(unreverse)
+	}
+	return out.String()
 }
