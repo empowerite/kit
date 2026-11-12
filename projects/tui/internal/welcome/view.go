@@ -170,6 +170,13 @@ func (m Model) keys() shell.Path {
 		return append(path, search)
 	case m.inPane && m.gridded():
 		seg, _ := m.sheet().Keys()
+		seg.Bindings = slices.Clone(seg.Bindings)
+		if m.copies() {
+			seg.Bindings = append(seg.Bindings, fix.Bindings(m.runsHere())...)
+		}
+		if m.keeping() {
+			seg.Bindings = append(seg.Bindings, shell.Bind("k", keepName))
+		}
 		return append(path, seg)
 	case m.inPane:
 		return append(path, m.paneKeys())
@@ -245,8 +252,6 @@ func (m Model) pane() []string {
 // workspace's group with no checkout, and any other step its page.
 func (m Model) lines() []line {
 	switch {
-	case m.foldered(m.step):
-		return append(m.setupLines(), m.notCloned()...)
 	case m.hasRows():
 		return append(m.stepLines(), m.notCloned()...)
 	}

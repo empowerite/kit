@@ -469,6 +469,23 @@ welcome:repository() {
   git rev-parse --git-dir >/dev/null 2>&1
 }
 
+# welcome:scratch succeeds in a linked worktree that stands outside its desk's tree, in a temporary folder: /tmp,
+# /var/tmp, macOS's /var/folders, or where TMPDIR names, each as its physical path. It is one a person or an agent made for a task and left
+# behind, so it is no checkout of the repository, and a person finds it by its path alone. It fails in the desk, in a
+# worktree in the desk's own tree, and in a folder that is gone.
+welcome:scratch() {
+  local here desk dir
+  here=$(pwd -P 2>/dev/null) || return 1
+  [[ "$(jq --raw-output .desk <<<"${welcome_where}")" == false ]] || return 1
+  desk=$(workspaces:desk "${here}")
+  [[ "${here}/" != "${desk}/"* ]] || return 1
+  for dir in /tmp /var/tmp /var/folders "${TMPDIR:-}"
+  do
+    [[ -n "${dir}" ]] && dir=$(welcome:physical "${dir}") && [[ "${dir}" != / && "${here}/" == "${dir}/"* ]] && return 0
+  done
+  return 1
+}
+
 # welcome:installed succeeds where kit.yml declares a kit version.
 welcome:installed() {
   [[ "${yaml_ready}" == true && -n "$(settings:version 2>/dev/null)" ]]
@@ -551,6 +568,7 @@ welcome:plan-terminal() {
 welcome:plan-folder() {
   local linter rule provider
   welcome_folder_ids=(repo-git kit-installed) welcome_linter_rule=()
+  ! welcome:scratch || welcome_folder_ids=(repo-git worktree-scratch kit-installed)
   welcome:find project
   if welcome:installed
   then
@@ -846,6 +864,30 @@ welcome:keep() {
   [[ -z "${welcome_terminal[${id}]+x}" ]] || welcome:terminal "${id}"
 }
 
+# welcome:worktree-scratch prints the check that the worktree here is no scratch worktree: it fails for one in a
+# temporary folder, outside its desk, whose fix removes it as git does, never one with changes, and holds for one that
+# is gone. A path with a space in it, which a fix cannot carry, names the command in more instead of the fix.
+welcome:worktree-scratch() {
+  local here desk
+  if ! welcome:scratch
+  then
+    welcome:record worktree-scratch true "this worktree is no scratch worktree"
+    return 0
+  fi
+  here=$(pwd -P)
+  desk=$(workspaces:desk "${here}")
+  if [[ "${here}${desk}" == *[[:space:]]* ]]
+  then
+    welcome:record worktree-scratch false \
+      "this worktree is in a temporary folder, outside ${desk}: a scratch worktree, left behind" '' false \
+      "remove it from ${desk}: git worktree remove, then its path"
+  else
+    welcome:record worktree-scratch false \
+      "this worktree is in a temporary folder, outside ${desk}: a scratch worktree, left behind" \
+      "git -C ${desk} worktree remove ${here}"
+  fi
+}
+
 # welcome:judge <id> runs one check, which welcome:plan-machine or, in its folder, welcome:plan-folder named, and
 # prints it as JSON. It returns 2 for an id neither plan names.
 welcome:judge() {
@@ -874,6 +916,7 @@ welcome:judge() {
           'https://git-scm.com/book/en/v2/Git-Basics-Getting-a-Git-Repository'
       fi
       ;;
+    (worktree-scratch) welcome:worktree-scratch ;;
     (kit-installed)
       if [[ "${yaml_ready}" != true ]]
       then

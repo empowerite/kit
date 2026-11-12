@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/charmbracelet/x/ansi"
 
 	"github.com/empowerite/kit/projects/tui/internal/kit"
 	"github.com/empowerite/kit/projects/tui/internal/testkit"
@@ -60,10 +59,8 @@ func TestAGroupsChecksAreReadOnceOverTheGroupWithTheUnclonedNamed(t *testing.T) 
 	}
 	// a screen tall enough for every line of the step
 	m = drive(m, tea.WindowSizeMsg{Width: 120, Height: 60}, stepKey(setupStep))
-	lines := m.lines()
-	if n := len(lines); n < 2 || lines[n-2].text != "" || ansi.Strip(lines[n-1].text) != "   not cloned: o/c" ||
-		!strings.Contains(view(m), "\n   not cloned: o/c\n") {
-		t.Errorf("setup does not end with the members not cloned:\n%s", view(m))
+	if v := view(m); !strings.Contains(v, "github.com/o/c") || !strings.Contains(v, "not cloned") {
+		t.Errorf("setup does not name the members not cloned, a row each:\n%s", v)
 	}
 }
 
@@ -72,15 +69,15 @@ func TestAGroupsChecksAreReadOnceOverTheGroupWithTheUnclonedNamed(t *testing.T) 
 func TestSetupNamesEachProblemKitCheckFinds(t *testing.T) {
 	m, _, _ := group(t, tea.WindowSizeMsg{Width: 120, Height: 60}, stepKey(setupStep))
 	// as far in as the check's text, as its fix is
-	want := "       ❌ kit check finds 2 problems\n" +
-		"          .gitignore is missing; run: cd /code/b && kit update\n" +
-		"          .kit/1st.md is missing; run: cd /code/b && kit hydrate\n"
+	want := "         ❌ kit check finds 2 problems\n" +
+		"            .gitignore is missing; run: cd /code/b && kit update\n" +
+		"            .kit/1st.md is missing; run: cd /code/b && kit hydrate\n"
 	if v := view(m); !strings.Contains(v, want) {
 		t.Errorf("no finding under kit check's line:\n%s", v)
 	}
 	m = drive(m, typed('/'))
 	m = drive(m, testkit.Typed("1st.md")...)
-	if v := view(m); !strings.Contains(v, "kit check finds 2 problems") || strings.Contains(v, "shellcheck") {
+	if v := view(m); !strings.Contains(v, "kit check finds 2 problems") || strings.Contains(v, "the git hooks") {
 		t.Errorf("a search for a finding:\n%s", v)
 	}
 }
@@ -99,8 +96,8 @@ func TestTheSetupStepIsOneTableTheMachineFirstThenARowPerFolder(t *testing.T) {
 		t.Errorf("the machine, then a's desk and worktree, then b:\n%s", v)
 	}
 	// a folder's failed checks and its offers stand under its row; the ones that hold are its row's ✅ alone
-	if !strings.Contains(v, "       "+Offered+" kit is not installed here; it runs on what it infers\n"+
-		"          cd /code/a/worktrees/7-the-topic && kit install\n") ||
+	if !strings.Contains(v, "         "+Offered+" kit is not installed here; it runs on what it infers\n"+
+		"            cd /code/a/worktrees/7-the-topic && kit install\n") ||
 		strings.Contains(v, "kit check finds nothing wrong") {
 		t.Errorf("the folders' checks:\n%s", v)
 	}
@@ -116,7 +113,7 @@ func TestTheSetupStepIsOneTableTheMachineFirstThenARowPerFolder(t *testing.T) {
 // onKey moves the cursor, in the pane, down to the check with the key, and says whether it found it.
 func onKey(m Model, key string) (Model, bool) {
 	for range 12 {
-		if m.inPane && m.checks[m.cursor].Key() == key {
+		if m.focused() && m.checks[m.cursor].Key() == key {
 			return m, true
 		}
 		m = drive(m, down)
@@ -132,8 +129,7 @@ func TestAFoldersFailedCheckOffersItsFixUnderItsRow(t *testing.T) {
 	}
 	v := view(m)
 	testkit.Golden(t, filepath.Join("testdata", "setup-folders-row.golden"), v)
-	if !strings.Contains(v, "     ▸ ❌ the git hooks are not installed; lefthook runs none   ⧉   ▶️") ||
-		keysAt(m) != choiceKeys {
+	if !strings.Contains(v, "cd /code/a && lefthook install   ⧉   ▶️") || !strings.Contains(keysAt(m), "c copy r run") {
 		t.Errorf("the desk's hooks, offering ⧉ and ▶️:\n%s\n%s", v, keysAt(m))
 	}
 	// a folder's fix is shown and copied with the cd to its folder, so it runs wherever it is pasted
@@ -154,11 +150,11 @@ func TestTheSetupStepsSearchKeepsTheFoldersOfTheChecksItFinds(t *testing.T) {
 		t.Errorf("searched for hooks:\n%s", v)
 	}
 	m = drive(m, testkit.Typed("zzz")...)
-	if v := view(m); !strings.Contains(v, "no check matches the search") || strings.Contains(v, "github.com/o/a") {
+	if v := view(m); !strings.Contains(v, "no row matches the search") || strings.Contains(v, "github.com/o/a") {
 		t.Errorf("searched for what no check holds:\n%s", v)
 	}
 	m.checking.Again(m.env(), false)
-	if v := view(m); !strings.Contains(v, "checking…") || strings.Contains(v, "no check matches the search") {
+	if v := view(m); !strings.Contains(v, "checking…") {
 		t.Errorf("searched for what no check holds, the checks running again:\n%s", v)
 	}
 }
@@ -190,8 +186,8 @@ func TestAFoldersOfferOffersCopyAndRunAsAFailedCheckDoes(t *testing.T) {
 	if !found {
 		t.Fatalf("no kit-installed in the worktree:\n%s", view(m))
 	}
-	if v := view(m); !strings.Contains(v, "     ▸ "+Offered+" kit is not installed here; it runs on what it infers   ⧉   ▶️") ||
-		keysAt(m) != choiceKeys {
+	if v := view(m); !strings.Contains(v, "cd /code/a/worktrees/7-the-topic && kit install   ⧉   ▶️") ||
+		!strings.Contains(keysAt(m), "c copy r run") {
 		t.Errorf("the worktree's offer, offering ⧉ and ▶️:\n%s\n%s", v, keysAt(m))
 	}
 	// r runs it, as a failed check's, in its folder
@@ -240,7 +236,7 @@ func TestTheSetupStepsSearchNamesTheFolder(t *testing.T) {
 	if v := view(search("code/b")); !strings.Contains(v, "several toolchains") || strings.Contains(v, "lefthook runs none") {
 		t.Errorf("searched for a folder:\n%s", v)
 	}
-	if v := view(search("zzz")); !strings.Contains(v, "no check matches the search") {
+	if v := view(search("zzz")); !strings.Contains(v, "no row matches the search") {
 		t.Errorf("searched for nothing there:\n%s", v)
 	}
 	// a search nothing holds, while the checks run again, says they run

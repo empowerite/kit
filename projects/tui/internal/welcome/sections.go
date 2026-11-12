@@ -227,13 +227,17 @@ func (m Model) eachSheet(do func(*table.Sheet)) {
 // line under it, where the pane has room for
 // it and the table's control line, header, and a few rows; none where it does not.
 func (m Model) leadLines(i int) []string {
-	if m.tabs[i].lead == "" {
-		return nil
-	}
 	var out []string
 	query := m.searches[m.tabs[i].id].Query
-	for _, l := range render(m.tabs[i].lead, m.width-len(lead)-1) {
-		out = append(out, pane.Clip(strings.TrimRight(lead+shell.Found(l, query), " "), m.width-1))
+	switch {
+	case m.tabs[i].id == setupID:
+		out = m.setupLead()
+	case m.tabs[i].lead == "":
+		return nil
+	default:
+		for _, l := range render(m.tabs[i].lead, m.width-len(lead)-1) {
+			out = append(out, pane.Clip(strings.TrimRight(lead+shell.Found(l, query), " "), m.width-1))
+		}
 	}
 	if len(out)+1+sheetRoom > m.paneHeight() {
 		return nil

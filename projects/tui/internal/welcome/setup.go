@@ -1,38 +1,63 @@
-// The setup step as one table: the machine's checks, its own group first, each a row as any step's check is; then a
-// group per repository, a row per folder, the desk first, as kit gives them: its name, its branch, the kit its kit.yml
-// declares, and the state of each of its checks, a column each; and under a folder's row, its failed checks and its
-// offers, each offering its fix as any failed check does. A kit that names no folder draws the step as any other step
-// with checks.
+// The setup step's folders as a table, internal/table's sheet, as every other screen draws one: a row a folder, the
+// desk first, as kit gives them, its name, its branch, the kit its kit.yml declares, and the state of each of its checks,
+// a column each; the machine's checks first, a row each, in a group of their own; the members of a group with no
+// checkout last. Under a row that is open, its failed checks and its offers, each with its fix as any failed check has
+// one, and its buttons while the row is under the cursor. A row that has something to say stands open until it is
+// closed. A kit that names no folder draws the step as any other step with checks.
 package welcome
 
 import (
+	_ "embed"
+	"path/filepath"
 	"slices"
 	"strings"
 
-	"github.com/charmbracelet/x/ansi"
-
+	"github.com/empowerite/kit/projects/tui/internal/fix"
+	"github.com/empowerite/kit/projects/tui/internal/grid"
 	"github.com/empowerite/kit/projects/tui/internal/kit"
-	"github.com/empowerite/kit/projects/tui/internal/pane"
 	"github.com/empowerite/kit/projects/tui/internal/style"
+	"github.com/empowerite/kit/projects/tui/internal/table"
 )
+
+//go:embed folders.json
+var foldersJSON []byte
+
+// foldersTable is the name of the folders' table in the catalog, which keys the person's presets of it too.
+const foldersTable = "welcome/folders"
+
+// foldersCatalog is folders.json, read.
+var foldersCatalog = readCatalog(foldersJSON)
 
 // setupID is the id of the setup step, whose checks are drawn as a table where kit names their folders.
 const setupID = "setup"
 
-// column is one of a folder row's columns of checks: its heading, and whether a check's id is one it draws.
+// machineGroup is the group of the machine's checks, which name no repository.
+const machineGroup = "This machine"
+
+// The glyphs of a folder's name: a scratch worktree, one left in a temporary folder, besides the desk's and a
+// worktree's, members.go's.
+const scratchGlyph = "🧹"
+
+// scratchID is the id of the check that a worktree stands in a temporary folder, outside its desk.
+const scratchID = "worktree-scratch"
+
+// column is one of a folder row's columns of checks: its field, and whether a check's id is one it draws.
 type column struct {
-	head  string
+	field string
 	holds func(id string) bool
 }
 
-// is gives the test of a column that draws the one id.
-func is(id string) func(string) bool { return func(other string) bool { return other == id } }
+// is gives the test of a column that draws the one of the ids.
+func is(ids ...string) func(string) bool {
+	return func(other string) bool { return slices.Contains(ids, other) }
+}
 
 // columns are a folder row's columns of checks, in order. tools draws every check the others do not: lefthook, the
 // dependency providers, the linters, and any a later kit adds.
 var columns = []column{
-	{"git", is("repo-git")}, {"kit", is("kit-installed")}, {".kit", is("kit-hydrated")}, {"hooks", is("hooks-installed")},
-	{"toolchain", is("toolchain-project")}, {"tools", nil}, {"check", is("kit-check")},
+	{"git", is("repo-git", scratchID)}, {"installed", is("kit-installed")}, {"hydrated", is("kit-hydrated")},
+	{"hooks", is("hooks-installed")}, {"toolchain", is("toolchain-project")}, {"tools", nil},
+	{"check", is("kit-check")},
 }
 
 // columnOf gives the index of the column that draws a check's id.
@@ -48,12 +73,14 @@ func columnOf(id string) int {
 	return tools
 }
 
-// The widths of a folder row's columns before its checks', in cells, at most: a folder's name, its branch, its kit.
-const (
-	nameMost   = 28
-	branchMost = 22
-	kitMost    = 12
-)
+// foldered says whether the setup step's checks name their folders, as a kit that judges each folder does, so the step
+// draws them as a table.
+func (m Model) foldered(step int) bool {
+	if m.tabs[step].id != setupID {
+		return false
+	}
+	return slices.ContainsFunc(m.checks, func(c kit.Check) bool { return c.Folder != "" && m.stepOf(c) == step })
+}
 
 // folderRow is one folder of the table: the first of its checks, which says the folder, and the indexes of all its
 // checks, in kit's order.
@@ -66,15 +93,6 @@ type folderRow struct {
 type repoGroup struct {
 	repository string
 	folders    []folderRow
-}
-
-// foldered says whether the setup step's checks name their folders, as a kit that judges each folder does, so the step
-// draws them as a table.
-func (m Model) foldered(step int) bool {
-	if m.tabs[step].id != setupID {
-		return false
-	}
-	return slices.ContainsFunc(m.checks, func(c kit.Check) bool { return c.Folder != "" && m.stepOf(c) == step })
 }
 
 // groups gives the setup step's folders by repository, each in the order kit first names it.
@@ -99,140 +117,192 @@ func (m Model) groups(step int) []repoGroup {
 	return out
 }
 
-// widths gives the widths of the name, branch, and kit columns: as wide as the widest of each, or its heading, and no
-// wider than its most.
-func widths(groups []repoGroup) (name, branch, version int) {
-	name, branch, version = len("folder"), len("branch"), len("kit")
-	for _, g := range groups {
-		for _, f := range g.folders {
-			name = max(name, ansi.StringWidth(folderName(f.head)))
-			branch = max(branch, ansi.StringWidth(f.head.Branch))
-			version = max(version, ansi.StringWidth(f.head.Kit))
+// folderNames gives each folder of a repository its name: its folder's, and, where another folder of the repository
+// has the same, as scratch worktrees under different parents do, its parent's before it, and as many parents as it
+// takes to tell them apart. A folder is by its path, so two never share a name for long.
+func folderNames(folders []folderRow) map[string]string {
+	depth := make([]int, len(folders))
+	segments := make([][]string, len(folders))
+	for k, f := range folders {
+		segments[k] = strings.Split(strings.Trim(filepath.ToSlash(f.head.Folder), "/"), "/")
+		depth[k] = 1
+	}
+	name := func(k int) string { return strings.Join(segments[k][len(segments[k])-depth[k]:], "/") }
+	for changed := true; changed; {
+		changed = false
+		now := make([]string, len(folders))
+		for k := range folders {
+			now[k] = name(k)
 		}
-	}
-	return min(name, nameMost), min(branch, branchMost), min(version, kitMost)
-}
-
-// cell gives a text fitted to a column of the width: cut with … where it is wider, padded where it is narrower, and a
-// gap after it.
-func cell(text string, width int) string {
-	text = ansi.Truncate(text, width, "…")
-	return text + strings.Repeat(" ", max(0, width-ansi.StringWidth(text))) + "  "
-}
-
-// states gives the cells of a folder's checks, a column each, with no gap after the last: ❌ where one it draws failed,
-// else 💡 where one is an offer, ✅ where every one it draws holds, and a dim · where kit judged none there, as a folder
-// with no kit.yml has no .kit/ to check.
-func (m Model) states(f folderRow) string {
-	failed, offered, held := make([]bool, len(columns)), make([]bool, len(columns)), make([]bool, len(columns))
-	for _, i := range f.checks {
-		k := columnOf(m.checks[i].ID)
-		switch c := m.checks[i]; {
-		case !c.OK:
-			failed[k] = true
-		case c.Offer():
-			offered[k] = true
-		default:
-			held[k] = true
-		}
-	}
-	var b strings.Builder
-	for k, c := range columns {
-		w := max(ansi.StringWidth(c.head), 2)
-		glyph := style.Off("·") + " "
-		switch {
-		case failed[k]:
-			glyph = Failed
-		case offered[k]:
-			glyph = Offered
-		case held[k]:
-			glyph = Passed
-		}
-		b.WriteString(glyph + strings.Repeat(" ", w-2) + "  ")
-	}
-	return strings.TrimRight(b.String(), " ")
-}
-
-// headings gives the table's heading line: folder, branch, kit, and each column of checks, dim.
-func headings(name, branch, version int) string {
-	text := cell("folder", name) + cell("branch", branch) + cell("kit", version)
-	for _, c := range columns {
-		text += cell(c.head, max(ansi.StringWidth(c.head), 2))
-	}
-	return style.Off(strings.TrimRight(text, " "))
-}
-
-// shows says whether the table draws a folder's row under the search: with nothing typed; where its repository, path,
-// or branch holds what is typed; or where one of its checks is among the step's rows.
-func (m Model) shows(f folderRow, rows []int, query string) bool {
-	if query == "" || matches(f.head.Repository, query) || matches(f.head.Folder, query) ||
-		matches(f.head.Branch, query) {
-		return true
-	}
-	return slices.ContainsFunc(f.checks, func(i int) bool { return slices.Contains(rows, i) })
-}
-
-// setupLines gives the setup step's lines as a table: its page, kit's refusal, the machine's checks, then each
-// repository's folders, each row followed by its failed checks and its offers.
-func (m Model) setupLines() []line {
-	w := m.width - 1
-	out := m.stepHead()
-	add := func(row int, text string) { out = append(out, line{row: row, text: pane.Clip(text, w)}) }
-	query := m.search().Query
-	rows := m.rows(m.step)
-	var machine []int
-	for _, i := range rows {
-		if m.checks[i].Folder == "" {
-			machine = append(machine, i)
-		}
-	}
-	if len(machine) > 0 {
-		add(-1, lead+style.Label("This machine"))
-		for _, i := range machine {
-			out = append(out, m.checkLines(i, m.checks[i].Key(), "")...)
-		}
-		add(-1, "")
-	}
-	groups := m.groups(m.step)
-	name, branch, version := widths(groups)
-	headed := false
-	for _, g := range groups {
-		var shown []folderRow
-		for _, f := range g.folders {
-			if m.shows(f, rows, query) {
-				shown = append(shown, f)
+		var clashes []int
+		for k := range folders {
+			if n := slices.Index(now, now[k]); n != k || slices.Index(now[k+1:], now[k]) >= 0 {
+				clashes = append(clashes, k)
 			}
 		}
-		if len(shown) == 0 {
+		for _, k := range clashes {
+			if depth[k] < len(segments[k]) {
+				depth[k]++
+				changed = true
+			}
+		}
+	}
+	out := map[string]string{}
+	for k, f := range folders {
+		out[f.head.Folder] = name(k)
+	}
+	return out
+}
+
+// scratch says whether a folder's checks say it is a scratch worktree: the check of that, failed.
+func (m Model) scratch(f folderRow) bool {
+	return slices.ContainsFunc(f.checks, func(i int) bool { return m.checks[i].ID == scratchID && !m.checks[i].OK })
+}
+
+// glyphOf gives the glyph a folder's name starts with: the desk's, a worktree's, or a scratch worktree's.
+func (m Model) glyphOf(f folderRow) string {
+	switch {
+	case m.scratch(f):
+		return scratchGlyph
+	case f.head.Desk:
+		return deskGlyph
+	}
+	return worktreeGlyph
+}
+
+// state gives the value of a column from its checks: failed where one it draws failed, else offered where one is an
+// offer, else held where every one holds; none where kit judged none there, as a folder with no kit.yml has no .kit/
+// to check.
+func (m Model) state(checks []int, k int) table.Value {
+	state := ""
+	for _, i := range checks {
+		if columnOf(m.checks[i].ID) != k {
 			continue
 		}
-		if !headed {
-			add(-1, lead+"  "+headings(name, branch, version))
-			headed = true
+		switch c := m.checks[i]; {
+		case !c.OK:
+			state = "failed"
+		case c.Offer() && state != "failed":
+			state = "offered"
+		case state == "":
+			state = "held"
 		}
-		add(-1, lead+style.Repo(g.repository))
-		for _, f := range shown {
-			kitText := f.head.Kit
-			if kitText == "" {
-				kitText = style.Off("none")
-			}
-			add(-1, lead+"  "+cell(folderName(f.head), name)+cell(f.head.Branch, branch)+cell(kitText, version)+
-				m.states(f))
-			for _, i := range f.checks {
-				if slices.Contains(rows, i) {
-					out = append(out, m.checkLines(i, m.checks[i].Key(), "    ")...)
+	}
+	return table.Some(state)
+}
+
+// current gives the check whose buttons the table draws, or -1: the one the cursor is on, while the rows have the
+// keyboard.
+func (m Model) current() int {
+	if m.gridded() && m.sheet().InRows() && m.cursor < len(m.checks) {
+		return m.cursor
+	}
+	return -1
+}
+
+// details gives the lines under a check's row: ✅, 💡 for an offer, or ❌, and its line, its findings, its fix, where to
+// read more, and what the screen said of its fix, each line under the first indented; the buttons last on the fix, or
+// on the line, while the check is the current one.
+func (m Model) details(i int) [][]grid.Cell {
+	c := m.checks[i]
+	glyph := Passed
+	if !c.OK {
+		glyph = Failed
+	} else if c.Offer() {
+		glyph = Offered
+	}
+	end := ""
+	if i == m.current() {
+		end = m.rowButtons(c, c.Key())
+	}
+	lines := []string{glyph + " " + c.Line}
+	for _, f := range c.Findings {
+		lines = append(lines, "   "+f)
+	}
+	if c.Fix != "" {
+		shown := fix.In(c.Folder, c.Fix)
+		if c.Interactive {
+			shown += " · it needs you at the keyboard"
+		}
+		for _, l := range strings.Split(shown, "\n") {
+			lines = append(lines, "   "+style.Off(l))
+		}
+		lines[len(lines)-1] += end
+		end = ""
+	}
+	if !c.OK && c.More != "" {
+		lines = append(lines, "   "+style.Off(c.More))
+	}
+	if n, ok := m.notes[c.Key()]; ok {
+		draw := style.Warn
+		if n.refusal {
+			draw = style.Refusal
+		}
+		lines = append(lines, "   "+draw(n.text))
+	}
+	lines[0] += end
+	out := make([][]grid.Cell, len(lines))
+	for k, l := range lines {
+		out[k] = []grid.Cell{{Values: []string{l}, Wrap: true}}
+	}
+	return out
+}
+
+// setupRecords gives the table's records: the machine's checks, each a row, then each folder, then the members of the
+// workspace's group with no checkout.
+func (m Model) setupRecords(step int) []table.Record {
+	var out []table.Record
+	for i, c := range m.checks {
+		if c.Folder != "" || m.stepOf(c) != step || folded(c) {
+			continue
+		}
+		values := map[string]table.Value{"repository": table.One(machineGroup), "folder": table.One(c.ID)}
+		k := columnOf(c.ID)
+		for j, col := range columns {
+			values[col.field] = table.Value{}
+			if j == k {
+				values[col.field] = table.One(map[bool]string{true: "held", false: "failed"}[c.OK])
+				if c.Offer() {
+					values[col.field] = table.One("offered")
 				}
 			}
 		}
+		out = append(out, table.Record{Row: grid.Row{Key: c.Key(), Detail: m.details(i)}, Values: values})
 	}
-	if !headed && len(machine) == 0 {
-		switch {
-		case m.checking.Running():
-			m.addChecking(add)
-		case query != "":
-			add(-1, lead+style.Off("no check matches the search"))
+	for _, g := range m.groups(step) {
+		names := folderNames(g.folders)
+		for _, f := range g.folders {
+			var detail [][]grid.Cell
+			for _, i := range f.checks {
+				if asks(m.checks[i]) {
+					detail = append(detail, m.details(i)...)
+				}
+			}
+			branch := table.Value{Else: "none"}
+			if f.head.Branch != "" {
+				branch = table.One(f.head.Branch)
+			}
+			version := table.Value{Else: "none"}
+			if f.head.Kit != "" {
+				version = table.One(f.head.Kit)
+			}
+			values := map[string]table.Value{"repository": table.One(g.repository),
+				"folder": table.One(m.glyphOf(f) + " " + names[f.head.Folder]), "branch": branch, "kit": version}
+			for k, col := range columns {
+				values[col.field] = m.state(f.checks, k)
+				if len(values[col.field].Raw) == 0 {
+					values[col.field] = table.Value{Else: "·"}
+				}
+			}
+			out = append(out, table.Record{Row: grid.Row{Key: f.head.Folder, Detail: detail}, Values: values})
 		}
-		return out
 	}
-	return append(out, m.stepTail(rows)...)
+	for _, member := range m.workspace.Members {
+		if member.Checkout == "" && m.foldered(step) {
+			values := map[string]table.Value{"repository": table.One(member.Repository),
+				"folder": {Else: "not cloned"}}
+			out = append(out, table.Record{Row: grid.Row{Key: "uncloned " + member.Repository}, Values: values})
+		}
+	}
+	return out
 }

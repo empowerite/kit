@@ -28,3 +28,5 @@ This repository is the source for kit as well as its first consumer.
   pre-commit hook refreshes the copies into the same commit, and a desk without the hook runs `bin/refresh` and
   commits both.
 - `kit gate` runs the gate, `bin/ci`, which says what it runs.
+- An agent removes any git worktree it adds, with `git worktree remove --force` and `git worktree prune`, before it
+  finishes; a scratch worktree left under a temporary folder shows in `kit welcome` as one to remove.

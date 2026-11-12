@@ -517,6 +517,27 @@ folders() {
   [[ "$output" == *$'\n'"repo, a worktree on pinned, kit 9.9.9: ${desk}/worktrees/pinned"$'\n'* ]]
 }
 
+@test "a worktree outside its desk's tree, in a temporary folder, is a scratch worktree, a finding whose fix removes it" {
+  installed-desk
+  local desk
+  desk=$(pwd -P)
+  git worktree add --quiet -b inside worktrees/inside
+  git worktree add --quiet -b scratch "${TMPDIR}/scratch"
+  run --separate-stderr checks
+  [ "$status" -eq 0 ]
+  # the desk, and a worktree in its own tree, are no scratch; the one beside it, in the temporary folder, is
+  [ "$(jq --raw-output '[.[] | select(.id == "worktree-scratch") | .folder] | join(" ")' <<<"$output")" = \
+    "$(cd "${TMPDIR}/scratch" && pwd -P)" ]
+  [ "$(jq --raw-output '.[] | select(.id == "worktree-scratch") | [.ok, .line, .fix] | @tsv' <<<"$output")" = \
+    "$(printf 'false\tthis worktree is in a temporary folder, outside %s: a scratch worktree, left behind\t' "${desk}"
+      printf 'git -C %s worktree remove %s' "${desk}" "$(cd "${TMPDIR}/scratch" && pwd -P)")" ]
+  # the fix removes it, and the check then holds: the folder is gone
+  run --separate-stderr "${kit_root}/bin/kit" welcome --fix worktree-scratch --folder="${TMPDIR}/scratch"
+  [ "$status" -eq 0 ]
+  [ ! -e "${TMPDIR}/scratch" ]
+  [ -z "$(git worktree list --porcelain | grep scratch)" ]
+}
+
 @test "with no workspace only the machine's checks run, and --workspace=none names no group: the repository here" {
   git remote add origin https://github.com/acme/widget.git
   fake-gh

@@ -53,6 +53,8 @@ type tab struct {
 	page, missing         string
 	sheet                 *table.Sheet
 	lead                  string
+	records               []table.Record // the records the setup step's table was last given
+	placed                [4]int         // where the setup step's table was last placed
 }
 
 // known gives the pages kit knows, in the kit package's order. A check whose step has no page shows under the last
@@ -335,8 +337,18 @@ func (m Model) read() tea.Cmd {
 	}
 }
 
-// Update takes a message.
+// Update takes a message, then keeps the setup step's table as the message left the screen.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	next, cmd := m.update(msg)
+	if after, ok := next.(Model); ok {
+		after.followSheet()
+		next = after
+	}
+	return next, cmd
+}
+
+// update takes a message.
+func (m Model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
@@ -732,6 +744,9 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.sheet().Focus()
 			m.inPane = m.sheet().Focused()
 		}
+		if cmd, ok := m.fixKey(k.String()); ok {
+			return m, cmd
+		}
 		return m, nil
 	}
 	switch k.String() {
@@ -757,28 +772,42 @@ func (m Model) key(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if m.search().Query != "" {
 			m.stepSearch(map[string]int{"n": 1, "N": -1}[k.String()])
 		}
-	case fix.CopyKey:
-		if m.copies() {
-			// copy marks the model, so it runs before m is returned
-			cmd := m.copy()
+	default:
+		if cmd, ok := m.fixKey(k.String()); ok {
 			return m, cmd
-		}
-	case fix.RunKey:
-		if m.runsHere() {
-			return m, m.runFix()
-		}
-	case "k":
-		if m.keeping() {
-			return m, m.keep()
 		}
 	}
 	m.fit()
 	return m, nil
 }
 
+// fixKey takes c, r, and k on the check under the cursor, and says whether it took them: c copies its fix and r runs
+// it, where it has one kit runs; k keeps a terminal's failed finding.
+func (m *Model) fixKey(key string) (tea.Cmd, bool) {
+	switch key {
+	case fix.CopyKey:
+		if m.copies() {
+			// copy marks the model, so it runs before m is returned
+			return m.copy(), true
+		}
+	case fix.RunKey:
+		if m.runsHere() {
+			return m.runFix(), true
+		}
+	case "k":
+		if m.keeping() {
+			return m.keep(), true
+		}
+	}
+	return nil, false
+}
+
 // sheetClick gives a click to the selected step's table, which then has the keyboard where it took it, and the notice
 // it puts up fades in its while.
 func (m Model) sheetClick(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
+	if cmd, ok := m.pressed(msg); ok {
+		return m, cmd
+	}
 	before := m.sheet().Notice()
 	if m.sheet().Click(msg) {
 		m.inPane = m.sheet().Focused()
@@ -860,9 +889,9 @@ func (m *Model) back() {
 
 // fixUnder gives the check under the cursor in a step with checks drawn as rows while the pane has the keyboard, and
 // whether there is one with a fix: a failed check's, or one that holds and offers a fix all the same. A step drawn as a
-// table takes its rows' keys itself.
+// table has the cursor's row's.
 func (m Model) fixUnder() (kit.Check, bool) {
-	if !m.hasRows() || !m.inPane || m.gridded() || m.cursor >= len(m.checks) {
+	if !m.hasRows() || !m.focused() || m.cursor >= len(m.checks) {
 		return kit.Check{}, false
 	}
 	c := m.checks[m.cursor]
@@ -883,7 +912,7 @@ func (m Model) runsHere() bool {
 
 // keeping says whether the cursor is on a row that offers keep: a terminal's failed finding.
 func (m Model) keeping() bool {
-	if !m.hasRows() || !m.inPane || m.cursor >= len(m.checks) {
+	if !m.hasRows() || !m.focused() || m.cursor >= len(m.checks) {
 		return false
 	}
 	c := m.checks[m.cursor]
