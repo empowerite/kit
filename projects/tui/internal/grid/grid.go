@@ -207,6 +207,10 @@ const Chosen = "▣"
 // are: a square half filled, as Chosen is filled.
 const Partly = "◩"
 
+// Unchosen marks, dim, a row that could be selected and is not, where a table lets only some of its rows be: an empty
+// square, as Chosen is filled, so the rows that can be stand apart from those that cannot, and a click on it selects.
+const Unchosen = "□"
+
 // gap is the cells between two columns. The cell that wraps, the title, is the last to give up room: while it has less
 // than its widest text needs, every other column wider than capWidth gives up the cells past it, the widest first, a
 // column of Whole cells apart; while it has fewer than minFill, they give up more, down to floorWidth, and then the

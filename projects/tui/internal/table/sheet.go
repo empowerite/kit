@@ -36,7 +36,7 @@ const Fades = 5 * time.Second
 // a value every row shares and draws an emoji every row shows, as kittui's settings say; the pane it is placed in, its
 // first line, its height, and the screen's width and height; where the keyboard is in it, the rows, or the control
 // line on a stop of the heading over the groups, -1 the preset picker; its layers; what it did, or why not, in place
-// of the keys; and its rows as last built.
+// of the keys; its rows as last built; how it opens a link; and which of its rows can be selected, none while nil.
 type Sheet struct {
 	schema        *Schema
 	name, color   string
@@ -57,6 +57,7 @@ type Sheet struct {
 	note          shell.Notice
 	built         *Shown
 	browse        func(string) error
+	picks         func(key string) bool
 }
 
 var _ Keyboard = (*Sheet)(nil)
@@ -88,6 +89,7 @@ func NewSheet(schema *Schema, name, color, path string) Sheet {
 // it loads them, as autoGroup says, and the cursor stays on a row.
 func (s *Sheet) SetRecords(records []Record) {
 	s.records = records
+	s.prune()
 	s.rebuild()
 	s.autoGroup()
 	s.Settle()
@@ -115,6 +117,49 @@ func (s *Sheet) Search(query string) {
 	if p := s.Panel(); p.Query != query {
 		p.Query = query
 		s.SetPanel(p)
+	}
+}
+
+// SetPicks lets the rows picks says of, by key, be selected, as one of several: space, shift with up or down, ctrl+a,
+// and a plain click on a row's box, as Drawing draws it, select them, a group's heading every one of its rows that can
+// be. nil, as a new sheet has it, lets none be. A row selected that can no longer be is no longer selected.
+func (s *Sheet) SetPicks(picks func(key string) bool) {
+	s.picks = picks
+	s.prune()
+}
+
+// Selects says whether any row can be selected, as SetPicks says.
+func (s *Sheet) Selects() bool { return s.picks != nil }
+
+// Picks says whether the row with the key can be selected, as SetPicks says: any, where it set none, as by a host that
+// selects for itself, since the sheet's own keys and clicks then select none.
+func (s *Sheet) Picks(key string) bool { return s.picks == nil || s.picks(key) }
+
+// Selected gives the keys of the rows selected, in the order the rows stand, each once, though its closed groups
+// fold them away or the search hides them.
+func (s *Sheet) Selected() []string {
+	var out []string
+	for _, r := range s.records {
+		if s.tbl.Picked[r.Row.Key] && !slices.Contains(out, r.Row.Key) {
+			out = append(out, r.Row.Key)
+		}
+	}
+	return out
+}
+
+// Unselect selects no row.
+func (s *Sheet) Unselect() { clear(s.tbl.Picked) }
+
+// prune unselects each row that is no longer a record's, or can no longer be selected.
+func (s *Sheet) prune() {
+	keys := map[string]bool{}
+	for _, r := range s.records {
+		keys[r.Row.Key] = true
+	}
+	for k := range s.tbl.Picked {
+		if !keys[k] || !s.Picks(k) {
+			delete(s.tbl.Picked, k)
+		}
 	}
 }
 
@@ -291,6 +336,9 @@ func (s *Sheet) Lines() []Line {
 	}
 	d := Drawing{Names: s.Names(), Width: s.GridWidth(), Shift: s.tbl.Shift, Pane: s.paneWidth(),
 		Indent: s.paneWidth() - s.GridWidth(), Open: s.tbl.Open, Picked: s.tbl.Picked, Color: s.color}
+	if s.picks != nil {
+		d.Picks = s.Picks
+	}
 	return d.Draw(rows, chosen)
 }
 
@@ -478,8 +526,27 @@ func (s *Sheet) key(k tea.KeyPressMsg) bool {
 // the rows' window back at its top; up and down move, past the first row to the control line; a page, home, and end
 // move further; tab and shift-tab scroll the columns a column, while the view hides some; [ ] { } move between the
 // groups' headings; right and left show and hide what the node under the cursor
-// holds, a level at a time with ⌥. A sheet selects no row: nothing acts on a selection there.
+// holds, a level at a time with ⌥. Where rows can be selected, as SetPicks says, space selects the row under the
+// cursor, shift with up or down selects as it moves, and ctrl+a every row, or none.
 func (s *Sheet) rowKey(k tea.KeyPressMsg) bool {
+	switch key := k.String(); {
+	case !s.Selects():
+	case key == "space":
+		SelectRow(s, false)
+		return true
+	case key == "ctrl+a":
+		SelectAll(s)
+		return true
+	case key == "shift+up" || key == "shift+down":
+		SelectRow(s, true)
+		if key == "shift+up" {
+			Up(s, 1)
+		} else {
+			Down(s, 1)
+		}
+		SelectRow(s, true)
+		return true
+	}
 	switch key := k.String(); key {
 	case "esc":
 		s.tbl.Cursor, s.tbl.Offset, s.inRows = 0, 0, false
@@ -563,7 +630,8 @@ func (s *Sheet) Wheel(w tea.MouseWheelMsg) bool {
 // sort's target turns its sort, a shift-click off, and a list's ×
 // flattens or gathers it; on the header, its ▹ or ◃ scrolls the columns, its fold opens or closes it, and a column's
 // name drops the column's menu down; on a row, the cursor goes there, the rows have the keyboard, and its ▸ or ▾ opens
-// or closes it, and a value that leads somewhere, a page or a file, is opened, as open says. A line about the table does nothing.
+// or closes it, and a value that leads somewhere, a page or a file, is opened, as open says; where rows can be
+// selected, a click on a row's box, as BoxAt says, selects it or unselects it. A line about the table does nothing.
 func (s *Sheet) click(x, y int, shift bool) {
 	switch _, onHeader := HeaderLine(s, y); {
 	case s.Controls() && y == s.top:
@@ -590,6 +658,12 @@ func (s *Sheet) click(x, y int, shift bool) {
 	default:
 		row, link, fold, ok := RowAt(s, x, y)
 		if !ok {
+			return
+		}
+		if s.Selects() && BoxAt(s, x, y) {
+			s.tbl.Cursor, s.inRows, s.onControls = row, true, false
+			SelectRow(s, false)
+			Fit(s)
 			return
 		}
 		if link != "" {
@@ -764,13 +838,21 @@ func (s *Sheet) keep(saved []Preset, what string) bool {
 	return true
 }
 
-// SetBrowse sets what opens a link a click falls on: the person's opener, shell.Browse, unless a test records it.
+// Followed is what a sheet's browse gives for a link the screen follows itself, as to another of its rows: the sheet
+// then says nothing of it.
+var Followed = errors.New("the screen follows the link")
+
+// SetBrowse sets what opens a link a click falls on: the person's opener, shell.Browse, unless a test records it, or
+// the screen, which gives Followed for a link it follows itself.
 func (s *Sheet) SetBrowse(browse func(string) error) { s.browse = browse }
 
 // open opens a link, a page or a file, as the person's opener does, and says so in the notice; where no opener can be
-// asked, as over SSH, the notice holds the link instead, to open by hand.
+// asked, as over SSH, the notice holds the link instead, to open by hand; one the screen follows, nothing.
 func (s *Sheet) open(link string) {
-	if err := s.browse(link); err != nil {
+	switch err := s.browse(link); {
+	case errors.Is(err, Followed):
+		return
+	case err != nil:
 		s.note.Text = fmt.Sprintf("%s no opener here; open it by hand: %s", Failed, link)
 		return
 	}

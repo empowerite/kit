@@ -126,13 +126,13 @@ func TestAFoldersFixRunsInItsFolderAndAMachinesOverTheGroup(t *testing.T) {
 	}
 }
 
-func TestTheIntroductionNamesEachFolderAboveItsFailedChecks(t *testing.T) {
+func TestTheIntroductionNamesEachFailedChecksFolder(t *testing.T) {
 	m, _, _ := group(t)
 	v := view(m)
 	testkit.Golden(t, filepath.Join("testdata", "introduction-folders.golden"), v)
-	head := strings.Index(v, "github.com/o/a · "+worktreeGlyph+" 7-the-topic on 7-the-topic")
-	if head < 0 || !strings.Contains(v[head:], "\n     ❌ kit.yml declares no kit version") {
-		t.Errorf("the worktree's failed check under its line:\n%s", v)
+	if !strings.Contains(v, "kit.yml declares no kit version; kit is not installed here    a "+worktreeGlyph+
+		" worktrees/7-the-topic on 7-the-topic") || !strings.Contains(v, "💻 this machine") {
+		t.Errorf("the worktree's failed check does not name its folder:\n%s", v)
 	}
 	// a search for a folder's branch keeps that folder's checks
 	m = drive(m, press('/'))

@@ -4,27 +4,27 @@
   ╵                 ╰────────────────╰──────────────╰───────────────╰───────────╰───────────────────────────────────────
    Welcome
 
-   6 checks need your attention
+   6 checks need your attention    Run Selected Fixes 
    ────────────────────────────
-   ❌ gh is not logged in to github.com → 🔧 setup
-      gh auth login --hostname github.com   Run   Copy 
-   github.com/o/a · 💻 a on main
-     ❌ the git hooks are not installed; lefthook runs none → 🔧 setup
-        lefthook install   Run   Copy 
-   github.com/o/a · 🌳 7-the-topic on 7-the-topic
-     ❌ kit.yml declares no kit version; kit is not installed here → 🔧 setup
-        kit install   Run   Copy 
-   github.com/o/b · 💻 b on main
-     ❌ several toolchains are usable for the project: mise, brew; choose one → 🔧 setup
-        kit toolchains use mise   Run   Copy 
-     ❌ shellcheck is not installed; kit lint runs it for .kit/rules/bash.md → 🔧 setup
-     ❌ kit check finds 2 problem(s); run kit check to see each one → 🔧 setup
+  ▾ fix ▾ 6                                                                                                 Default ▼
+    ×·─────
+      check                                                         folder                                     step
+      ·─────────────────────────────────────────────────────────────·──────────────────────────────────────────────────
+□ ▾ gh auth login --hostname github.com 1
+  □   gh is not logged in to github.com                             💻 this machine                            🔧 setup
+□ ▾ kit install 1
+  □   kit.yml declares no kit version; kit is not installed here    a 🌳 worktrees/7-the-topic on 7-the-topic  🔧 setup
+□ ▾ kit toolchains use mise 1
+  □ ▸ several toolchains are usable for the project: mise, brew; …  b 💻 code/b on main                        🔧 setup
+□ ▾ lefthook install 1
+  □   the git hooks are not installed; lefthook runs none           a 💻 code/a on main                        🔧 setup
+  ▾ no fix 2
+    ▸ shellcheck is not installed; kit lint runs it for .kit/rule…  b 💻 code/b on main                        🔧 setup
+      kit check finds 2 problem(s); run kit check to see each one   b 💻 code/b on main                        🔧 setup
+
    not cloned: o/c
 
    kit keeps a repository trustworthy while people and agents work in it side by side.
 
-   What kit is
-
-   … 43 more
 
  = menu - workspace / search │ ⇥·⇧⇥ tab ↓ checks 1-5 jump

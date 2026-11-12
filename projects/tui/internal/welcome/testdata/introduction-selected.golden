@@ -1,0 +1,30 @@
+  = kit welcome · - empowerite/kit                                                                           🔎 /search
+  ➊╶────────────────╮➁╶─────────────────╮➂╶────────────╮➃╶─────────────╮➄╶─────────╮
+  │ 👋 introduction │  🧰 toolchains  3 │  🔧 setup  2 │  🎨 customize │  📖 terms │
+  ╵                 ╰───────────────────╰──────────────╰───────────────╰───────────╰────────────────────────────────────
+   Welcome
+
+   5 checks need your attention    Run Selected Fixes (1) 
+   ────────────────────────────
+  ▾ fix ▾ 5                                                                                     1 selected  Default ▼
+    ×·─────
+      check                                                                  folder           step
+      ·──────────────────────────────────────────────────────────────────────·─────────────────────────────────────────
+▣ ▾ brew install jq 1
+  ▣   jq is not installed                                                    💻 this machine  🧰 toolchains            
+  ▾ eval "$(/opt/homebrew/bin/brew shellenv)" 1
+      brew is installed but not on PATH                                      💻 this machine  🧰 toolchains
+□ ▾ gh auth login --hostname github.com 1
+  □   gh is not logged in to github.com                                      💻 this machine  🔧 setup
+□ ▾ kit toolchains use mise 1
+  □   several toolchains are usable for the project: mise, brew; choose one  💻 this machine  🧰 toolchains
+  ▾ no fix 1
+      kit check finds 2 differences from the release                         💻 this machine  🔧 setup
+
+   kit keeps a repository trustworthy while people and agents work in it side by side.
+
+   What kit is
+
+   kit is your house rules as a versioned release, and the checks that hold the work to them. It places the rules where
+
+ = menu - workspace / search │ … │ esc tabs ↑↓ move [] group ␣·⇧↑↓ select ⌃A all ← group ⏎ go to the check r run c copy…

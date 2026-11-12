@@ -49,14 +49,27 @@ type Drawing struct {
 	Open   grid.Outline
 	Picked map[string]bool
 	Color  string
+	Picks  func(key string) bool
 }
 
 // Draw draws a table's rows as the grid does, the one under the cursor, chosen, on a band the pane's width; -1 for
 // none. A selected row has the grid's mark in the table's color, and a group's heading the mark of how many of its
-// rows are, all or some; every line but an aside's stands in by the indent.
+// rows are, all or some; every line but an aside's stands in by the indent. Where Picks says which rows can be
+// selected, one that can and is not, and a group's heading with such a row and none selected, has grid.Unchosen, dim.
 func (d Drawing) Draw(rows []grid.Row, chosen int) []Line {
 	marked, _ := style.In(d.Color)
-	groups := GroupMarks(grid.Every(rows), d.Picked)
+	every := grid.Every(rows)
+	groups := GroupMarks(every, d.Picked)
+	pickable := func(r grid.Row) bool {
+		if d.Picks == nil || r.Aside && !grid.Heads(r) {
+			return false
+		}
+		if !grid.Heads(r) {
+			return d.Picks(r.Key)
+		}
+		j := slices.IndexFunc(every, func(e grid.Row) bool { return e.Key == r.Key })
+		return j >= 0 && slices.ContainsFunc(GroupRows(every, j), d.Picks)
+	}
 	drawn := grid.Draw(rows, d.Names, d.Width, d.Shift, chosen, d.Open.Open,
 		func(r grid.Row) string {
 			switch {
@@ -64,6 +77,8 @@ func (d Drawing) Draw(rows []grid.Row, chosen int) []Line {
 				return marked(groups[r.Key])
 			case d.Picked[r.Key] && !r.Aside:
 				return marked(grid.Chosen)
+			case pickable(r):
+				return style.Off(grid.Unchosen)
 			}
 			return ""
 		})
@@ -367,6 +382,31 @@ func RowAt(h Host, x, y int) (row int, link string, fold, ok bool) {
 		fold = link == "" && slices.Contains(FoldsAt(rows[row]), x)
 	}
 	return row, link, fold, true
+}
+
+// BoxAt says whether the screen cell x, y is on the box a row's first line draws in the gutter, where Drawing draws a
+// row selected, or one that could be, or the cell after it: a row's stands where its line starts past the indent, and a
+// group's heading's two cells before its ▾ or ▸.
+func BoxAt(h Host, x, y int) bool {
+	lines := h.Lines()
+	k, on := PlaceAt(h, y)
+	if !on || k < 0 || lines[k].Row < 0 || k > 0 && lines[k-1].Row == lines[k].Row {
+		return false
+	}
+	r := h.Rows()[lines[k].Row]
+	box := indent(h)
+	switch {
+	case grid.Heads(r):
+		plain := ansi.Strip(lines[k].Text)
+		at := strings.IndexAny(plain, grid.Unfolded+grid.Folded)
+		if at < 0 {
+			return false
+		}
+		box = ansi.StringWidth(plain[:at]) - 2
+	case r.Aside:
+		return false
+	}
+	return x >= box && x <= box+1
 }
 
 // Control gives the control line, the pane's first, as wide as the pane, and the screen column the preset's selector

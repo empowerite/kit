@@ -115,6 +115,9 @@ func (m Model) keys() shell.Path {
 		search := shell.SearchKeys(down, m.search().Query, m.recalls())
 		search.Owns = true
 		return append(path, search)
+	case m.inPane && m.introGridded():
+		seg, _ := m.sheet().Keys()
+		return append(path, m.introKeys(seg))
 	case m.inPane && m.gridded():
 		seg, _ := m.sheet().Keys()
 		return append(path, seg)
@@ -126,8 +129,7 @@ func (m Model) keys() shell.Path {
 
 // paneKeys gives the segment of the pane while it has the keyboard: esc gives the bar the keyboard, named by the step
 // it has selected; up and down move between the rows, or scroll a page with none, a page at a time too, and home and
-// end to the first and the last, unnamed until a test shows the keys arrive in Terminal.app and iTerm; enter on a link
-// goes to its check, r runs its fix and c copies it, where its line under the link offers Run and Copy; and on a
+// end to the first and the last, unnamed until a test shows the keys arrive in Terminal.app and iTerm; and on a
 // check whose fix kit runs, tab and shift-tab choose now or later, n and l take one at once, and enter the one chosen;
 // on one whose fix kit only shows, l takes later.
 func (m Model) paneKeys() shell.Segment {
@@ -138,14 +140,6 @@ func (m Model) paneKeys() shell.Segment {
 	s := shell.Segment{Takes: []string{"home", "end"}, Bindings: []shell.Binding{shell.Bind("esc", "tabs"),
 		shell.Bind("↑↓", move, "up", "down"), shell.Bind("⇞⇟", "page", "pgup", "pgdown")}}
 	switch {
-	case m.onLink():
-		s.Bindings = append(s.Bindings, shell.Bind("⏎", "go to the check", "enter"))
-		if m.runsHere() {
-			s.Bindings = append(s.Bindings, shell.Bind("r", "run"))
-		}
-		if m.copies() {
-			s.Bindings = append(s.Bindings, shell.Bind("c", "copy"))
-		}
 	case m.choosing():
 		s.Bindings = append(s.Bindings, shell.Bind("⇥·⇧⇥", "now or later", "tab", "shift+tab"), shell.Bind("n", "now"),
 			shell.Bind("l", "later"), shell.Bind("⏎", "choose", "enter"))
@@ -185,7 +179,10 @@ func (m Model) count(i int) string {
 // table, its lead and its table.
 func (m Model) pane() []string {
 	h := m.paneHeight()
-	if m.gridded() {
+	switch {
+	case m.introGridded():
+		return m.introPane()
+	case m.gridded():
 		// the table fills the pane under the lead
 		return m.sheetPane()
 	}
@@ -237,23 +234,18 @@ func (m Model) introductionLines() []line {
 	return out
 }
 
-// findings gives what the checks found, as the introduction draws it. That is checking… until they first answer; then ✅
-// when every check passed, or how many failed and a link to each, in the order of their steps: ❌, its line, and the
-// glyph and name of its step, then, under it, its fix with Run and Copy, as remedy draws them, and the note its fix
-// left; a folder's links under a dim line that names the folder, its repository, and its branch,
-// the cursor's link drawn as chosen, and the search narrowing them as it does a step's checks. Kit's refusal, in red,
-// comes first when kit refused them, and checking… last while they run again.
+// findings gives what the checks found, as the introduction draws it while no check failed, as its failed checks'
+// table, checks.go's, draws them: checking… until they first answer; then ✅ when every check passed, and the folders not
+// cloned. Kit's refusal, in red, comes first when kit refused them, and checking… last while they run again.
 func (m Model) findings() []line {
 	w := m.width - 1
 	var out []line
 	add := func(row int, text string) { out = append(out, line{row, pane.Clip(text, w)}) }
-	if m.refusal != "" {
-		for _, l := range wrapWords(strings.Fields(Failed+" "+m.refusal), w-len(lead), "", "") {
-			add(-1, lead+style.Refusal(l))
-		}
-		if !m.checking.Loading {
-			add(-1, "")
-		}
+	for _, l := range m.refusalLines() {
+		add(-1, l)
+	}
+	if m.refusal != "" && !m.checking.Loading {
+		add(-1, "")
 	}
 	if m.checking.Loading {
 		if m.checking.Running() && m.refusal == "" {
@@ -261,57 +253,8 @@ func (m Model) findings() []line {
 		}
 		return out
 	}
-	failed := 0
-	for _, c := range m.checks {
-		if !c.OK {
-			failed++
-		}
-	}
-	if failed == 0 {
+	if len(m.failed()) == 0 && m.refusal == "" {
 		add(-1, lead+Passed+" "+style.Label("all checks pass"))
-	} else {
-		head := strconv.Itoa(failed) + " checks need your attention"
-		if failed == 1 {
-			head = "1 check needs your attention"
-		}
-		add(-1, lead+style.Label(head))
-		add(-1, lead+style.Off(strings.Repeat("─", ansi.StringWidth(head))))
-		rows := m.rows(m.step)
-		folder := ""
-		for _, i := range rows {
-			c := m.checks[i]
-			t := m.tabs[m.stepOf(c)]
-			// a folder's links stand under a line that names it, the first time one comes
-			indent := ""
-			if c.Folder != "" {
-				indent = "  "
-				if c.Folder != folder {
-					add(-1, lead+style.Off(folderLine(c)))
-				}
-			}
-			folder = c.Folder
-			start, text := indent+lead, c.Line
-			if m.inPane && i == m.cursor {
-				start, text = indent+focus, style.Chosen(c.Line)
-			}
-			if m.deferred[c.Key()] {
-				text += style.Off(" · later")
-			}
-			add(i, start+Failed+" "+text+" "+style.Tint("→ "+t.glyph+" "+t.name))
-			if c.Fix != "" {
-				add(i, m.remedy(i, indent))
-			}
-			if n, ok := m.notes[c.Key()]; ok {
-				draw := style.Warn
-				if n.refusal {
-					draw = style.Refusal
-				}
-				add(i, indent+under+draw(n.text))
-			}
-		}
-		if len(rows) == 0 {
-			add(-1, lead+style.Off("no check matches the search"))
-		}
 	}
 	if gone := uncloned(m.workspace); len(gone) > 0 {
 		add(-1, lead+style.Off("not cloned: "+strings.Join(gone, ", ")))
@@ -323,30 +266,16 @@ func (m Model) findings() []line {
 	return out
 }
 
-// The links on a fix's line in the introduction: run hands the terminal to the fix, as now does on its step; copy puts
-// the fix on the clipboard, and copied stands in its place until the next key or click.
-const (
-	runLink    = "Run"
-	copyLink   = "Copy"
-	copiedLink = "copied"
-)
-
-// remedy gives the line under a failed check's link in the introduction: its fix, dim, as far in as the check's line,
-// then Run, when kit runs the fix, and Copy, each drawn as a link with a cell either side, which a click takes. A narrow
-// screen clips the fix, never the links.
-func (m Model) remedy(i int, indent string) string {
-	c := m.checks[i]
-	var links []string
-	if c.Runs {
-		links = append(links, style.Tint(" "+runLink+" "))
+// refusalLines gives kit's refusal of the checks, ❌ before it, in red, wrapped to the screen; none when kit ran them.
+func (m Model) refusalLines() []string {
+	if m.refusal == "" {
+		return nil
 	}
-	if m.copied == c.Key() {
-		links = append(links, style.Off(" "+copiedLink+" "))
-	} else {
-		links = append(links, style.Tint(" "+copyLink+" "))
+	var out []string
+	for _, l := range wrapWords(strings.Fields(Failed+" "+m.refusal), m.width-1-len(lead), "", "") {
+		out = append(out, lead+style.Refusal(l))
 	}
-	end := "  " + strings.Join(links, " ")
-	return pane.Clip(indent+under+style.Off(c.Fix), m.width-1-ansi.StringWidth(end)) + end
+	return out
 }
 
 // pageLines gives a page's lines: the page drawn to the width, a dim line while the pages are read, or the dim lines

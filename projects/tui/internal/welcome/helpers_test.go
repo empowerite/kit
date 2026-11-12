@@ -61,11 +61,12 @@ func loaded(t *testing.T, msgs ...tea.Msg) (Model, *ran) {
 	return drive(m, append(testkit.Start(m, at120), msgs...)...), r
 }
 
-// atChains opens the screen as loaded does, then follows the introduction's first link, to jq, the first failed check
-// under the toolchains, as a newcomer would. Then it sends the messages.
+// atChains opens the screen as loaded does, then follows the introduction's first failed check, jq, the first under
+// the toolchains, as a newcomer would: down to the table's control line, its first group's heading, and its first row,
+// then enter. Then it sends the messages.
 func atChains(t *testing.T, msgs ...tea.Msg) (Model, *ran) {
 	t.Helper()
-	return loaded(t, append([]tea.Msg{down, enter}, msgs...)...)
+	return loaded(t, append([]tea.Msg{down, down, down, enter}, msgs...)...)
 }
 
 // repoWith makes a git repository with the pages under .kit/welcome, and gives the fake runner in it.
@@ -125,9 +126,9 @@ func calls(t *testing.T, path string) []string {
 }
 
 // The keys bar in each place the keyboard can be, as the path to it draws it, STEP for the step's name, which esc names
-// as it gives the bar the keyboard: on the bar over a step with checks or the introduction with links, and over a page;
-// on a check's row that offers no fix, on a row that offers now and later, on a row whose fix kit only shows; on a link
-// in the introduction; and in a page. jump names the number keys of the known steps.
+// as it gives the bar the keyboard: on the bar over a step with checks or the introduction with failed checks, and over
+// a page; on a check's row that offers no fix, on a row that offers now and later, on a row whose fix kit only shows;
+// and in a page. jump names the number keys of the known steps.
 var (
 	jump       = "1-" + strconv.Itoa(len(known)) + " jump"
 	stepKeys   = "= menu - workspace / search │ ⇥·⇧⇥ tab ↓ checks " + jump
@@ -136,7 +137,6 @@ var (
 	rowKeys    = paneKeys
 	choiceKeys = paneKeys + " ⇥·⇧⇥ now or later n now l later ⏎ choose"
 	showKeys   = paneKeys + " l later"
-	linkKeys   = paneKeys + " ⏎ go to the check r run c copy"
 	scrollKeys = "= menu - workspace / search │ " + jump + " │ esc tabs ↑↓ scroll ⇞⇟ page"
 )
 
@@ -157,3 +157,31 @@ var ourTeam = len(known)
 
 // keysAt gives the keys bar where the keyboard is, as the path to it draws it.
 func keysAt(m Model) string { return m.keys().String() }
+
+// rowRuns says whether r runs a fix where the keyboard is: on a row of the introduction's table whose fix kit runs.
+func rowRuns(m Model) bool {
+	i := -1
+	if m.introGridded() && m.inPane {
+		i = m.checkUnder()
+	}
+	return i >= 0 && runnable(m.checks[i])
+}
+
+// rowCopies says whether c copies a fix where the keyboard is: on a row of the introduction's table with a fix.
+func rowCopies(m Model) bool {
+	i := -1
+	if m.introGridded() && m.inPane {
+		i = m.checkUnder()
+	}
+	return i >= 0 && m.checks[i].Fix != ""
+}
+
+// where gives where the keyboard is in the pane: the check under the cursor, and the cursor of the introduction's
+// table.
+func where(m Model) string {
+	at := strconv.Itoa(m.cursor)
+	if m.introGridded() {
+		at += " " + strconv.Itoa(m.sheet().Table().Cursor) + " " + strconv.FormatBool(m.sheet().InRows())
+	}
+	return at
+}

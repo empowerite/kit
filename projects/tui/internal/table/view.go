@@ -368,6 +368,7 @@ func Fit(h Host) {
 // SelectRow selects the row under the cursor, as one of several, or unselects it, while the rows have the keyboard;
 // with keep, it selects it whether it was or not, as shift with up or down selects as it moves. On a group's heading it
 // selects every row of the group, those folded away too, or, once every one is, none; another aside selects nothing.
+// A row that cannot be selected, as Pickable says, is left as it is.
 func SelectRow(h Host, keep bool) {
 	if !h.InRows() {
 		return
@@ -384,6 +385,10 @@ func SelectRow(h Host, keep bool) {
 	case rows[t.Cursor].Aside:
 		return
 	}
+	keys = slices.DeleteFunc(keys, func(k string) bool { return !Pickable(h, k) })
+	if len(keys) == 0 {
+		return
+	}
 	every := !slices.ContainsFunc(keys, func(k string) bool { return !t.Picked[k] })
 	for _, key := range keys {
 		if keep || !every {
@@ -394,19 +399,29 @@ func SelectRow(h Host, keep bool) {
 	}
 }
 
-// SelectAll selects every row the table shows, those its closed groups fold away too, or, when every one is, none.
+// SelectAll selects every row the table shows that can be, as Pickable says, those its closed groups fold away too,
+// or, when every one is, none.
 func SelectAll(h Host) {
 	t, rows := h.Table(), grid.Every(h.Rows())
+	rows = slices.DeleteFunc(slices.Clone(rows), func(r grid.Row) bool { return r.Aside || !Pickable(h, r.Key) })
 	all := len(SelectedRows(h)) == Counted(rows)
 	clear(t.Picked)
 	if all {
 		return
 	}
 	for _, r := range rows {
-		if !r.Aside {
-			t.Picked[r.Key] = true
-		}
+		t.Picked[r.Key] = true
 	}
+}
+
+// Picking is a host only some of whose rows can be selected, which Picks says of a row by its key, as the welcome's
+// failed checks, of which only those whose fix kit runs are.
+type Picking interface{ Picks(key string) bool }
+
+// Pickable says whether the host's row with the key can be selected: any row, unless the host is Picking.
+func Pickable(h Host, key string) bool {
+	p, ok := h.(Picking)
+	return !ok || p.Picks(key)
 }
 
 // SelectedRows gives the table's rows that are selected, of those it shows, its closed groups' too, each once, though
