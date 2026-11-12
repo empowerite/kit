@@ -117,18 +117,19 @@ setup() {
 @test "a terminal's answers are read: the kitty protocol, mode 2027, both widths, and the colors from the variables" {
   run kit-bash $'COLORTERM=truecolor terminal:parse \'\e[?1u\e[?2027;2$y\e[5;3R\e[5;2R\e[?62;22c\''
   [ "$status" -eq 0 ]
-  [ "$(jq -cS . <<<"$output")" = \
-    '{"ambiguous_width":1,"answered":true,"color":"truecolor","emoji_width":2,"grapheme_width":true,"kitty_keyboard":true}' ]
+  [ "$(jq -c '[.answered, .kitty_keyboard, .grapheme_width, .emoji_width, .ambiguous_width, .color]' <<<"$output")" \
+    = '[true,true,true,2,1,"truecolor"]' ]
 }
 
 @test "a terminal that answers neither kitty nor 2027 and draws 📚 in one cell is read so, with 256 colors from TERM" {
   run kit-bash $'TERM=xterm-256color terminal:parse \'\e[5;2R\e[5;2R\e[?1;2c\''
-  [ "$(jq -cS . <<<"$output")" = \
-    '{"ambiguous_width":1,"answered":true,"color":"256","emoji_width":1,"grapheme_width":false,"kitty_keyboard":false}' ]
+  [ "$(jq -c '[.answered, .kitty_keyboard, .grapheme_width, .emoji_width, .ambiguous_width, .color]' <<<"$output")" \
+    = '[true,false,false,1,1,"256"]' ]
 }
 
-@test "mode 2027 counts as measured by grapheme when set, reset, or set for good, and not when unknown or off for good" {
-  run kit-bash $'for p in 0 1 2 3 4; do terminal:parse "\e[?2027;${p}\\$y\e[5;3R\e[5;2R\e[?1c" | jq -c .grapheme_width; done'
+@test "mode 2027 counts as measured by grapheme when set, reset, or set for good, not when unknown or off for good" {
+  local reply=$'"\e[?2027;${p}\\$y\e[5;3R\e[5;2R\e[?1c"'
+  run kit-bash "for p in 0 1 2 3 4; do terminal:parse ${reply} | jq -c .grapheme_width; done"
   [ "$output" = $'false\ntrue\ntrue\ntrue\nfalse' ]
 }
 
@@ -140,7 +141,7 @@ setup() {
 @test "KIT_TERMINAL_PROBES is what was answered when it is a JSON object, and is ignored otherwise" {
   run kit-bash 'KIT_TERMINAL_PROBES="{\"answered\":false}" terminal:probes'
   [ "$output" = '{"answered":false}' ]
-  run kit-bash 'KIT_TERMINAL_PROBES=nope terminal:probes; KIT_TERMINAL_PROBES= terminal:probes; KIT_TERMINAL_PROBES=[] terminal:probes'
+  run kit-bash 'for p in nope "" "[]"; do KIT_TERMINAL_PROBES=${p} terminal:probes; done'
   [ "$output" = $'null\nnull\nnull' ]
 }
 
@@ -152,7 +153,7 @@ setup() {
 
 @test "the answers in KIT_TERMINAL_PROBES are judged: one cell for 📚 fails the emoji width" {
   export SSH_TTY=/dev/ttys1
-  export KIT_TERMINAL_PROBES='{"answered":true,"kitty_keyboard":true,"grapheme_width":true,"emoji_width":1,"ambiguous_width":1,"color":"truecolor"}'
+  export KIT_TERMINAL_PROBES='{"answered":true,"kitty_keyboard":true,"grapheme_width":true,"emoji_width":1}'
   run kit-bash 'terminal:checks'
   [ "$status" -eq 0 ]
   [ "$(jq -sc 'map(select(.id == "terminal-probe-emoji-width") | .ok)' <<<"$output")" = '[false]' ]
@@ -240,6 +241,52 @@ esac'
   fakes defaults 'exit 1'
   run kit-bash 'TERM_PROGRAM=iTerm.app terminal:checks'
   [ "$(jq -r .line <<<"$output")" = "iTerm2: kit could not read its settings: kit cannot read iTerm2's preferences" ]
+}
+
+# apple-fakes <default-profile> [<key>=<value>]… stands in defaults and plutil for Terminal's preferences: the default
+# profile named, and each key given set in it; any other key is not there.
+apple-fakes() {
+  local profile=$1 pair body
+  shift
+  body='case "$2" in'$'\n'"  (\"Default Window Settings\") printf '%s' '${profile}' ;;"$'\n'
+  for pair in "$@"
+  do
+    body+="  (\"Window Settings.${profile}.${pair%%=*}\") printf '%s' '${pair#*=}' ;;"$'\n'
+  done
+  body+='  (*) exit 1'$'\n''esac'
+  fakes defaults 'exit 0' plutil "${body}"
+}
+
+@test "Terminal's default profile is read, Terminal's own defaults filling what it does not set" {
+  apple-fakes Basic
+  run kit-bash 'terminal:settings apple'
+  [ "$(jq -cS . <<<"$output")" = '{"ambiguous_wide":false,"encoding":4,"option_meta":false,"profile":"Basic"}' ]
+  apple-fakes Basic useOptionAsMetaKey=true EastAsianAmbiguousWide=true CharacterEncoding=30
+  run kit-bash 'terminal:settings apple'
+  [ "$(jq -cS . <<<"$output")" = '{"ambiguous_wide":true,"encoding":30,"option_meta":true,"profile":"Basic"}' ]
+}
+
+@test "in Terminal, ⌥ not Meta fails, the heading says it judged the default profile, and no kitty protocol holds" {
+  apple-fakes Basic
+  export KIT_TERMINAL_PROBES='{"answered":true,"kitty_keyboard":false,"emoji_width":2,"ambiguous_width":1}'
+  run kit-bash 'TERM_PROGRAM=Apple_Terminal terminal:checks'
+  [ "$status" -eq 0 ]
+  [ "$(jq -sr '.[0].line' <<<"$output")" = "Terminal, its default profile Basic" ]
+  [ "$(jq -sc 'map(select(.id == "terminal-apple-option") | .ok)' <<<"$output")" = '[false]' ]
+  # with ⌥ as Meta, no finding explains the keys, so the probe says what kittui does instead
+  apple-fakes Basic useOptionAsMetaKey=true
+  run kit-bash 'TERM_PROGRAM=Apple_Terminal terminal:checks'
+  [ "$(jq -sr 'map(select(.id == "terminal-probe-kitty-keyboard"))[0] | [.ok, .line] | @tsv' <<<"$output")" \
+    = "true"$'\t'"Terminal has no kitty keyboard protocol, so kittui offers > and < for ⌥ with an arrow" ]
+}
+
+@test "a default profile with a dot in its name cannot be read, and the heading says so and holds" {
+  apple-fakes Pro.Dark
+  run kit-bash 'TERM_PROGRAM=Apple_Terminal terminal:checks'
+  [ "$(jq -sc 'map([.id, .ok])' <<<"$output")" = '[["terminal-apple",true]]' ]
+  local want="Terminal: kit could not read its settings: its default profile Pro.Dark has a dot in its name,"
+  want+=" which kit cannot read"
+  [ "$(jq -r .line <<<"$output")" = "${want}" ]
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

@@ -6,7 +6,8 @@
 #   docs        the page that lists every finding; a check's more is its terminal's section, docs#anchor
 #   probes      each probe, in the order its checks come: need, one of speed, clicks, keys, widths, and color; held,
 #               the line where the terminal answered as kittui needs; failed, where it did not
-#   terminals   each terminal by its key, the word in its checks' ids: name; anchor, its section of the docs; and
+#   terminals   each terminal by its key, the word in its checks' ids: name; anchor, its section of the docs;
+#               heading, where it has one, the line its heading says in place of its name and profile; and
 #               findings, each with id, need, bad, a jq expression over the reader's object that is true when the
 #               setting breaks the need, line, held, and fix; or unread, the line its heading says where kit has no
 #               reader for it; and probes, by probe, fix, the setting that turns the feature on, or none, the line
@@ -81,7 +82,8 @@ def checks($d; $key; $read; $bad; $probes; $kept):
   | {id: "terminal-\($key)", ok: true,
      line: (if $read == null then "\($t.name): \($t.unread)"
             elif $read_ok | not then "\($t.name): kit could not read its settings: \($read.unreadable)"
-            else $t.name + (if $read.profile then ", profile \($read.profile)" else "" end)
+            else (if $t.heading then $t.heading | fill($o) else $t.name end)
+                 + (if $t.heading or ($read.profile | not) then "" else ", profile \($read.profile)" end)
                  + (if all($body[]; .ok and (.line | startswith("kept: ") | not))
                     then ": nothing in it slows or breaks kittui" else "" end) end),
      fix: null, more: $more}

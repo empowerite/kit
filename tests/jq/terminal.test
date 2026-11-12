@@ -77,3 +77,8 @@ null
 import "terminal" as terminal; terminal::checks({"docs": "D", "probes": {"emoji-width": {"need": "widths", "held": "{name} is fine", "failed": "{name} is not"}, "ambiguous-width": {"need": "widths", "held": "{name} is fine", "failed": "{name} is not"}}, "terminals": {"ssh": {"name": "ssh", "anchor": "over-ssh", "unread": "cannot read"}}}; "ssh"; null; {}; {"answered": true}; []) | map(.ok)
 null
 [true,true,true]
+
+# A terminal's own heading, where it has one, takes the place of its name and profile.
+import "terminal" as terminal; terminal::checks({"docs": "D", "probes": {}, "terminals": {"apple": {"name": "Terminal", "anchor": "terminal", "heading": "{name}, its default profile {profile}", "findings": []}}}; "apple"; {"profile": "Basic"}; {}; null; []) | .[0].line
+null
+"Terminal, its default profile Basic: nothing in it slows or breaks kittui"

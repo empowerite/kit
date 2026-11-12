@@ -93,6 +93,42 @@
         }
       ]
     },
+    "apple": {
+      "name": "Terminal",
+      "anchor": "terminal",
+      "heading": "{name}, its default profile {profile}",
+      "findings": [
+        {
+          "id": "option",
+          "need": "keys",
+          "bad": ".option_meta | not",
+          "line": "Terminal's profile {profile} does not use ⌥ as Meta, so ⌥ with an arrow never reaches kittui as one; turning it on breaks layouts such as AZERTY",
+          "held": "Terminal's profile {profile} uses ⌥ as Meta",
+          "fix": "Terminal → Settings → Profiles → {profile} → Keyboard: tick Use Option as Meta key"
+        },
+        {
+          "id": "ambiguous-wide",
+          "need": "widths",
+          "bad": ".ambiguous_wide",
+          "line": "Terminal's profile {profile} draws ambiguous characters wide, so ↑ and kittui's rules take two cells",
+          "held": "Terminal's profile {profile} draws ambiguous characters in one cell",
+          "fix": "Terminal → Settings → Profiles → {profile} → Advanced: untick Unicode East Asian Ambiguous characters are wide"
+        },
+        {
+          "id": "encoding",
+          "need": "widths",
+          "bad": ".encoding != 4",
+          "line": "Terminal's profile {profile} does not use UTF-8, so kittui's glyphs draw wrong",
+          "held": "Terminal's profile {profile} uses UTF-8",
+          "fix": "Terminal → Settings → Profiles → {profile} → Advanced: set Text encoding to Unicode (UTF-8)"
+        }
+      ],
+      "probes": {
+        "kitty-keyboard": {
+          "none": "Terminal has no kitty keyboard protocol, so kittui offers > and < for ⌥ with an arrow"
+        }
+      }
+    },
     "ssh": {
       "name": "The terminal over ssh",
       "anchor": "over-ssh",
