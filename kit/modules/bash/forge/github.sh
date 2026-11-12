@@ -1380,14 +1380,15 @@ forge/github:app-header() {
 forge/github:app-fold() { forge:fold "check the App's ID and key" "$@"; }
 
 # forge/github:app-ok <kind> <value> succeeds when <value> may go into the URL of a call of the App as a <kind>: app or
-# installation, an ID of digits; repo, owner/name; name, the name alone. Anything else says so and fails, before any
-# request is made.
+# installation, an ID of digits; repo, owner/name; name, the name alone. A part of a name is never . or .. and never
+# starts with -, as GitHub's own names never do. Anything else says so and fails, before any request is made.
 forge/github:app-ok() {
-  local kind=$1 value=$2 part='[A-Za-z0-9_.-]+'
+  local kind=$1 value=$2 part='[A-Za-z0-9_.][A-Za-z0-9_.-]*'
   case "${kind}" in
     (app | installation) [[ "${value}" =~ ^[0-9]+$ ]] && return 0 ;;
-    (repo) [[ "${value}" =~ ^${part}/${part}$ && "${value}" != *..* ]] && return 0 ;;
-    (name) [[ "${value}" =~ ^${part}$ && "${value}" != *..* ]] && return 0 ;;
+    (repo) [[ "${value}" =~ ^${part}/${part}$ && "${value}" != *..* && "${value}" != ./* && "${value}" != */. ]] \
+      && return 0 ;;
+    (name) [[ "${value}" =~ ^${part}$ && "${value}" != *..* && "${value}" != . ]] && return 0 ;;
   esac
   case "${kind}" in
     (repo) error "'${value}' is not a repository: it is owner/name" ;;
@@ -1453,8 +1454,13 @@ forge/github:bot-installations() {
 # narrowed to the one repository, <repo> being its name, with or without its owner.
 forge/github:bot-token() {
   local jwt answer body
-  forge/github:app-ok app "$1" && forge/github:app-ok installation "$3" && forge/github:app-ok name "${4##*/}" \
-    || return 1
+  forge/github:app-ok app "$1" && forge/github:app-ok installation "$3" || return 1
+  if [[ "$4" == */* ]]
+  then
+    forge/github:app-ok repo "$4" || return 1
+  else
+    forge/github:app-ok name "$4" || return 1
+  fi
   jwt=$(forge/github:jwt "$1" "$2") || return 1
   body=$(jq --null-input --compact-output --arg repo "${4##*/}" '{repositories: [$repo]}')
   answer=$(forge/github:app-api "${jwt}" POST "/app/installations/$3/access_tokens" "${body}") || return 1

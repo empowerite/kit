@@ -266,17 +266,23 @@ without() {
   [ "$stderr" = "❌ '12x' is not the ID of a GitHub App: it is a number" ]
   run --separate-stderr call bot-token 1 "${pem}" '9/../x' kit
   [ "$stderr" = "❌ '9/../x' is not the ID of an installation: it is a number" ]
-  for repo in 'a/b?x' 'a/b#x' 'a/../b' 'a/b/c' 'ab' '/b' 'a/'
+  for repo in 'a/b?x' 'a/b#x' 'a/../b' 'a/b/c' 'ab' '/b' 'a/' 'a/.' './b' '-a/b' 'a/-b' '../b'
   do
     run --separate-stderr call bot-installation 1 "${pem}" "${repo}"
     [ "$status" -eq 1 ]
     [ "$stderr" = "❌ '${repo}' is not a repository: it is owner/name" ]
   done
-  for repo in 'a?x' '..' 'a#'
+  for repo in 'a?x' '..' '.' '-a' 'a#'
   do
     run --separate-stderr call bot-token 1 "${pem}" 9 "${repo}"
     [ "$status" -eq 1 ]
     [ "$stderr" = "❌ '${repo}' is not the name of a repository" ]
+  done
+  for repo in 'a/b/c' '-a/b' 'a/.' './b' 'a?/b'
+  do
+    run --separate-stderr call bot-token 1 "${pem}" 9 "${repo}"
+    [ "$status" -eq 1 ]
+    [ "$stderr" = "❌ '${repo}' is not a repository: it is owner/name" ]
   done
   run --separate-stderr call bot-installations x "${pem}"
   [ "$status" -eq 1 ]
@@ -320,4 +326,14 @@ without() {
   run github api-base
   [ "$status" -eq 0 ]
   [ "$output" = https://api.github.com ]
+}
+
+@test "a repository whose name starts with a dot, as .github does, is narrowed to by its name, with or without its owner" {
+  fixture token.json <<<'{"token":"t","expires_at":"2026-11-12T10:00:00Z"}'
+  curl-route '*/app/installations/9/access_tokens' 0 201 token.json
+  run call bot-token 1 "${pem}" 9 empowerite/.github
+  [ "$status" -eq 0 ]
+  grep --quiet -F '"repositories":[".github"]' "${FAKE_DIR}/curl.calls"
+  run call bot-token 1 "${pem}" 9 .github
+  [ "$status" -eq 0 ]
 }
