@@ -40,10 +40,10 @@
     {
       "stage": "issues", "command": ["flow", "issues", "--json"], "staged": true, "forge": true,
       "summary": "What is open, who has it, and where the work on it stands",
-      "takes": ["owner", "fresh", "cached", "workspace"], "record": ".[]", "key": ".number, .pr.number?",
+      "takes": ["owner", "fresh", "cached", "workspace"], "record": ".[]", "key": ".tracker?, .number, .pr.number?",
       "empty": "no open issue",
       "fields": [
-        {"id": "id", "label": "id", "type": "ref", "path": ".number", "sort": true, "renderings": ["text"],
+        {"id": "id", "label": "id", "type": "ref", "path": ".ref", "sort": true, "renderings": ["text"],
          "placement": "column"},
         {"id": "member", "label": "member", "type": "enum", "path": ".member", "sort": true, "group": true,
          "filter": true, "renderings": ["member"], "dim": true, "placement": "hidden"},
@@ -90,7 +90,9 @@
         {"id": "labels", "label": "labels", "one": "label", "type": "label", "path": ".labels[].name", "filter": true,
          "group": true, "renderings": ["pills", "text"], "placement": "column"},
         {"id": "title", "label": "title", "type": "text", "path": ".title", "sort": true, "glyph": "🎫",
-         "renderings": ["glyph+text", "text"], "wrap": true, "placement": "column"}
+         "renderings": ["glyph+text", "text"], "wrap": true, "placement": "column"},
+        {"id": "tracker", "label": "tracker", "type": "enum", "path": ".tracker", "sort": true, "group": true,
+         "filter": true, "renderings": ["text"], "dim": true, "placement": "hidden", "apart": true}
       ],
       "presets": [
         {"name": "All Issues"},

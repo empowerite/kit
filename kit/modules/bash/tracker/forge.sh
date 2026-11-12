@@ -36,6 +36,10 @@ tracker/forge:new-url() {
   fi
 }
 
+# tracker/forge:open-issues prints the forge's open issues, as forge:open-issues does; a forge without issues of its own
+# answers 3, as the seam does.
+tracker/forge:open-issues() { forge:open-issues; }
+
 tracker/forge:state()     { tracker/forge:own && forge:issue-state "$1"; }
 
 tracker/forge:title()     { tracker/forge:own && forge:issue-title "$1"; }

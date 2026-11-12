@@ -14,7 +14,8 @@ import (
 	"github.com/empowerite/kit/projects/tui/internal/table"
 )
 
-// issue is one row of issues, and one a pull request closes. Age is seconds, or nothing for an issue without a time;
+// issue is one row of issues, and one a pull request closes. Ref is its reference, its tracker's prefix first, #7 or
+// AB#4521, and Tracker that prefix, each empty where kit printed none, as an issue a pull request closes. Age is seconds, or nothing for an issue without a time;
 // Source is the tracker that holds it, as kit names it, and Organization and Repository where in it the issue is, each
 // empty where the tracker has none; Labels are its forge's; Milestone, Iteration, and Swimlane are the names of each,
 // or empty. Status is underway, for an issue an open pull request closes, one row per issue and pull request, so an
@@ -26,6 +27,8 @@ import (
 // checkout of it. The URLs are kit's when it prints them.
 type issue struct {
 	Number       int           `json:"number"`
+	Ref          string        `json:"ref"`
+	Tracker      string        `json:"tracker"`
 	Title        string        `json:"title"`
 	Assignees    []string      `json:"assignees"`
 	Labels       []table.Label `json:"labels"`
@@ -473,13 +476,19 @@ func (m Model) short(member string) string {
 func (m Model) issueRows(s stage) []record {
 	var out []record
 	for _, i := range of[issue](s) {
-		o, ref := m.originOf(i.Member), "#"+strconv.Itoa(i.Number)
+		o, ref, page := m.originOf(i.Member), "#"+strconv.Itoa(i.Number), i.URL
+		if i.Ref != "" {
+			ref = i.Ref
+		}
+		if strings.HasPrefix(ref, "#") {
+			page = o.issue(i.Number, i.URL)
+		}
 		values := map[string]table.Value{
-			"id": table.One(ref), "source": table.Some(i.Source), "organization": table.Some(i.Organization),
+			"id": table.One(ref), "tracker": table.Some(i.Tracker), "source": table.Some(i.Source), "organization": table.Some(i.Organization),
 			"repository": table.Some(i.Repository), "status": table.Some(i.Status), "assignees": {Raw: i.Assignees},
 			"age": table.Seconds(i.Age), "milestone": table.Some(i.Milestone), "iteration": table.Some(i.Iteration),
 			"swimlane": table.Some(i.Swimlane), "branch": table.Some(i.Branch), "labels": table.Labelled(i.Labels),
-			"title": {Raw: []string{i.Title}, Link: o.issue(i.Number, i.URL)}, "member": m.memberValue(i.Member),
+			"title": {Raw: []string{i.Title}, Link: page}, "member": m.memberValue(i.Member),
 		}
 		key := ref
 		switch {

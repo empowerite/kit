@@ -1066,7 +1066,8 @@ func (m *Model) blank(s *stage) {
 // whose value is the same on every row the panel lets through, as the panel's AutoGrouped says, where kittui's
 // settings auto-group and the view groups by nothing. A group the catalog places a field in, as source, organization,
 // and repository, which the view does not name, is hidden where no row holds a value of it, rather than standing every
-// row under a heading of none. It runs once a view, on the first rows after the view is set, as
+// row under a heading of none; and one the catalog stands the rows apart by, as issues' tracker, which the view does not
+// name, groups them first, outermost, where they hold more than one value of it, as several says. It runs once a view, on the first rows after the view is set, as
 // the screen opens or the preset line sets another; past that, the groups are the person's, as any they chose, and
 // the preset line names the view still. The name is always one of the stages', as the stage that loaded, or was set,
 // names itself.
@@ -1088,6 +1089,11 @@ func (m *Model) autoGroup(name string) {
 		}
 	}
 	next := base.AutoGrouped(all, columns)
+	for _, f := range fieldsOf(s.name) {
+		if _, own := named[f.ID]; f.Apart && !own && base.Fold && several(m.records(*s), f.ID) {
+			next = next.GroupedBy(append([]string{f.ID}, next.Groups()...))
+		}
+	}
 	if m.runner.Group != "" && base.Fold && base.Groupable["member"] && len(base.Groups()) == 0 {
 		// over a group, the rows stand under their member first, then under what they share
 		ids := slices.DeleteFunc(next.Groups(), func(id string) bool { return id == "member" })
@@ -1100,6 +1106,18 @@ func (m *Model) autoGroup(name string) {
 	grouped := m.current(i)
 	s.Grouped = &grouped
 	m.rebuild()
+}
+
+// several says whether the records hold more than one value of a field, as the text of its values; a record that
+// holds none counts for none.
+func several(records []record, id string) bool {
+	seen := map[string]bool{}
+	for _, r := range records {
+		if v := r.values[id].Raw; len(v) > 0 {
+			seen[strings.Join(v, "\x00")] = true
+		}
+	}
+	return len(seen) > 1
 }
 
 // decode keeps what the stage's command printed, as its catalog entry reads it: its records, by the entry's record,

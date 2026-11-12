@@ -26,10 +26,18 @@ import "issues" as issues; issues::rows([{"number": 3, "branch": "b", "closes": 
 [{"number": 7, "age": 100, "milestone": "v1", "iteration": "Sprint 4", "swimlane": "ops"}]
 [[7,"v1","Sprint 4","ops"],[8,null,null,null]]
 
-# Every row's keys start in one order, whatever its status, any other the issue holds after them.
-import "issues" as issues; issues::rows([{"number": 3, "branch": "b", "closes": [{"number": 7, "age": 100}]}]; []; {}; []) | map(keys_unsorted)
-[{"number": 7, "age": 100}, {"ref": "#9", "number": 9, "age": 300}]
-[["number","title","assignees","labels","age","source","organization","repository","milestone","iteration","swimlane","status","branch","pr","here","local","worktree","ref"],["number","title","assignees","labels","age","source","organization","repository","milestone","iteration","swimlane","status","branch","pr","here","local","worktree"]]
+# Every row's keys start in one order, whatever its status, any other the issue holds after them, but its key; an issue
+# that names no reference is #<number>.
+import "issues" as issues; issues::rows([{"number": 3, "branch": "b", "closes": [{"number": 7, "age": 100}]}]; []; {}; []) | map(keys_unsorted + [.ref])
+[{"number": 7, "age": 100}, {"ref": "#9", "number": 9, "age": 300, "url": "u"}, {"ref": "AB#4", "key": "ab4", "number": 4, "age": 200}]
+[["number","ref","tracker","title","assignees","labels","age","source","organization","repository","milestone","iteration","swimlane","status","branch","pr","here","local","worktree","url","#9"],["number","ref","tracker","title","assignees","labels","age","source","organization","repository","milestone","iteration","swimlane","status","branch","pr","here","local","worktree","AB#4"],["number","ref","tracker","title","assignees","labels","age","source","organization","repository","milestone","iteration","swimlane","status","branch","pr","here","local","worktree","#7"]]
+
+# An issue of another tracker, one with a key, is underway beside each open change that names it, by its branch or a
+# closing keyword in its body, whatever number the change closes on the forge; done, with no row, once a merged change
+# names it; underway on a branch its key names with no change; else in the backlog. The forge's #4 is not AB#4.
+import "issues" as issues; issues::rows([{"number": 3, "branch": "ab4-fix", "closes": [{"number": 4, "age": 10}]}, {"number": 5, "branch": "x", "named": ["ab#4", "#4"], "closes": []}]; ["ab6-start", "6-forge"]; {}; []; [{"number": 1, "branch": "ab5-done"}, {"number": 2, "branch": "y", "named": ["AB#7"]}]) | map([.ref, .status, .branch, .pr.number])
+[{"ref": "AB#4", "key": "ab4", "number": 4, "age": 400}, {"ref": "AB#5", "key": "ab5", "number": 5, "age": 300}, {"ref": "AB#6", "key": "ab6", "number": 6, "age": 200}, {"ref": "AB#7", "key": "ab7", "number": 7, "age": 150}, {"ref": "AB#8", "key": "ab8", "number": 8, "age": 100}]
+[["AB#4","underway","ab4-fix",3],["AB#4","underway","x",5],["AB#6","underway","ab6-start",null],["AB#8","backlog",null,null],["#4","underway","ab4-fix",3]]
 
 # The owners keep the rows of an issue one of them is assigned, or with except, none of them; none keeps every row.
 import "issues" as issues; [issues::by_owners(["ada"]; false), issues::by_owners(["ada"]; true), issues::by_owners([]; false)] | map(map(.number))

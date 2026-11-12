@@ -103,7 +103,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ "$status" -eq 0 ]
   [ "$(jq -c 'map([.number, .status, .pr.number, .here])' <<<"$output")" \
     = '[[7,"underway",3,true],[7,"underway",5,false],[11,"underway",5,false]]' ]
-  [ "$(jq -c '.[0] | keys_unsorted' <<<"$output")" = '["number","title","assignees","labels","age","source",'\
+  [ "$(jq -c '.[0] | keys_unsorted' <<<"$output")" = '["number","ref","tracker","title","assignees","labels","age","source",'\
 '"organization","repository","milestone","iteration","swimlane","status","branch","pr","here","local","worktree"]' ]
   [ "$(jq -c '.[0].pr' <<<"$output")" = '{"number":3,"source":"github","title":"Fix the thing","author":"ada",'\
 '"state":"draft","branch":"7-fix-the-thing","fork":null,"pushed":null}' ]

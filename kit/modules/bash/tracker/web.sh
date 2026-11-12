@@ -12,7 +12,8 @@
 #       url: https://linear.app/example/issue/ENG-{id}
 #
 # kit opens those pages and does nothing else there: it cannot read, assign, close, or comment on an issue, nor say who
-# the caller is, so those calls refuse, naming the page to do it on.
+# the caller is, so those calls refuse, naming the page to do it on; nor list its open issues, so kit flow issues has
+# none of them.
 
 tracker/web:assign() { tracker/web:refuse "$1" 'assign it'; }
 
@@ -42,6 +43,9 @@ tracker/web:new-url() {
     printf '%s\n' "${page}"
   fi
 }
+
+# tracker/web:open-issues lists none, and answers 3: kit reads nothing of a tracker it reaches through its pages alone.
+tracker/web:open-issues() { return 3; }
 
 tracker/web:state() { tracker/web:refuse "$1" 'read its state'; }
 

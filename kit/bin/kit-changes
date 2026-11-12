@@ -41,8 +41,9 @@
 #                       or null; took is how long it ran, in seconds, null while it runs. A forge whose provider lacks
 #                       check-runs, as one written to a contract before 4, has no runs on its changes: the document
 #                       has no rows, and {feature: check-runs, off: true, lacked: true} under errors
-#   merged              {number, title, author, branch, merged, by}, keyed by its number: merged is when, in seconds
-#                       since the epoch, and by who merged it; the title links to its page. Where the forge holds
+#   merged              {number, title, author, branch, merged, by, named}, keyed by its number: merged is when, in
+#                       seconds since the epoch, by who merged it, and named the references a closing keyword names
+#                       in its body, Fixes AB#12; the title links to its page. Where the forge holds
 #                       more, the document is limited, at how many it drew: a forge that lists them by update, as
 #                       GitHub does, keeps only those merged since the oldest update it read, as one merged before
 #                       may be missing

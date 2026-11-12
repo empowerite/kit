@@ -258,7 +258,7 @@ func TestAPresetSetsThePanel(t *testing.T) {
 	g := p.Panel(fields, grid.Panel{Owner: ownerOf("issues"), Ones: onesOf("issues")})
 	if got := g.Arrange(columnsOf("issues")); !slices.Equal(got, []string{"title", "id", "member", "source",
 		"organization", "repository", "status", "assignees", "age", "milestone", "iteration", "swimlane", "branch",
-		"change", "state", "where", "fork", "pushed", "by", "labels"}) ||
+		"change", "state", "where", "fork", "pushed", "by", "labels", "tracker"}) ||
 		!slices.Equal(g.Groups(), []string{"source", "organization", "repository"}) ||
 		g.Field("branch").Placement != grid.Hidden ||
 		!slices.Equal(g.SortKeys(), []grid.SortKey{{Column: "age", Desc: true}, {Column: "assignees"}}) ||

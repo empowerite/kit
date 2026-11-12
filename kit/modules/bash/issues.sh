@@ -3,17 +3,23 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh; flow_gap is set by modules/bash/flow.sh
 #
-# The issues stage of kit flow lists every open issue of the repository on its forge, as forge:open-issues folds them,
-# each with its status:
+# The issues stage of kit flow lists every open issue of the repository: its forge's, as forge:open-issues folds them,
+# and those of each tracker kit.yml declares off the forge, as its provider's open-issues lists them, each by its
+# reference, #7 or AB#4521, with its status:
 #
 #   - underway: an open pull request closes it, whoever opened it. The row names the pull request, and where its work
-#     is. An issue two pull requests close has a row for each. One no pull request closes is underway too while a
-#     branch is named for it, its number and a dash, as kit work names one: the desk's, or the primary remote's as of
-#     the last fetch. Its row names the branch, and no pull request.
+#     is. An issue two pull requests close has a row for each. The forge closes none of another tracker's on a merge,
+#     so kit stands in: a pull request closes one when its branch starts with the issue's key, ab4521-, or a closing
+#     keyword in its body names it, Closes AB#4521, and one a pull request merged last names is closed, and left out,
+#     whether or not its tracker closed it. One no pull request closes is underway too while a branch is named for it,
+#     its key and a dash, as kit work names one: the desk's, or the primary remote's as of the last fetch. Its row names
+#     the branch, and no pull request.
 #   - backlog: no open pull request closes it, and no branch is named for it. It is for the next kit work <N>.
 #
 # The rows come from forge:open-issues and forge:open-prs, the call the changes stage makes, and the stages of one load
-# share their snapshot, as modules/bash/forge.sh says, so the stage asks the forge nothing new. The oldest issue first:
+# share their snapshot, as modules/bash/forge.sh says, so the stage asks the forge nothing new where no tracker is off
+# the forge. Each such tracker is asked for its open issues, and the forge for the pull requests merged last. A
+# tracker that cannot be read fails the stage. The oldest issue first:
 #
 #    #7  👤 bob  45d  🛫  🔀 #3 🔨 draft  🌿 here          📤  3d          ⛳ v0.1  🎫 Fix the thing
 #    #9  👤 ada  34d  🛫  🔀 #4 🏁 ready  🌱 local                        ⛳ v0.1  🎫 Nine
@@ -32,7 +38,7 @@
 #
 # see: kit/bin/kit-flow, modules/bash/flow.sh, modules/bash/changes.sh, modules/bash/forge.sh, modules/jq/issues.jq
 
-use forge flow workspaces
+use forge flow tracker workspaces
 
 # issues:checkouts prints one JSON object that maps each branch checked out on this desk to its checkout's path:
 # the desk's branch, and each linked worktree's.
@@ -51,12 +57,49 @@ issues:branches() {
     | jq --raw-input --slurp --compact-output 'split("\n") | map(select(. != ""))'
 }
 
+# issues:open prints, on its first line, the prefix of the forge's own tracker, as tracker:records names it, or nothing
+# where a record claims every prefix of the forge's; then the open issues of every tracker, one JSON object each: the
+# forge's own, as forge:open-issues prints them, and those of each tracker kit.yml declares off the forge, as its
+# provider's open-issues prints them, each with its key, as tracker:key gives it, ab4521. Each says its tracker, by
+# its prefix. A forge without issues of its own, and a tracker that cannot list its issues, as web, have none open. A
+# tracker that cannot be read fails it, its provider's line said.
+issues:open() {
+  local prefix provider own='' docs row status
+  local -a rows
+  list:read rows tracker:records || return 1
+  for row in "${rows[@]}"
+  do
+    IFS=$'\x1f' read -r prefix provider <<<"${row}"
+    [[ -n "${own}" || "${provider}" != forge ]] || own=${prefix}
+  done
+  printf '%s\n' "${own}"
+  if [[ -n "${own}" ]]
+  then
+    docs=$(forge:open-issues) || (( $? == 3 )) || return 1
+    [[ -z "${docs}" ]] || jq --compact-output --arg prefix "${own}" '.tracker = $prefix' <<<"${docs}" || return 1
+  fi
+  for row in "${rows[@]}"
+  do
+    IFS=$'\x1f' read -r prefix provider <<<"${row}"
+    [[ "${provider}" != forge ]] || continue
+    status=0
+    docs=$(tracker:at "${prefix}" open-issues) || status=$?
+    (( status == 0 || status == 3 )) || { error "the ${prefix} tracker's open issues could not be read"; return 1; }
+    [[ -z "${docs}" ]] || jq --compact-output --arg prefix "${prefix}" '
+      .tracker = $prefix | .ref //= "\($prefix)\(.number)"
+      | .key = ($prefix | ascii_downcase | gsub("[^a-z0-9]"; "")) + "\(.number)"' <<<"${docs}" || return 1
+  done
+}
+
 # issues:documents [--today] [--all | [--mine] [--others] [--owner=<login>…]] prints the rows the flags choose as one
-# JSON array, the oldest issue first, as issues.jq's rows gives them. The owner flags combine as flow:filter says, and
-# match the issue's assignees. The branches named for an issue are the desk's and the primary's as of the last fetch,
-# which the picture's incoming stage makes first, not asked of the remote, which takes seconds a stage cannot spare.
+# JSON array, the oldest issue first, as issues.jq's rows gives them, from every tracker's open issues, as issues:open
+# lists them; a row of the forge's own tracker says it, by its prefix, where its issue came by a change alone. The
+# owner flags combine as flow:filter says, and match the issue's assignees. The branches named for an issue are the
+# desk's and the primary's as of the last fetch, which the picture's incoming stage makes first, not asked of the
+# remote, which takes seconds a stage cannot spare. A tracker off the forge asks the forge for the changes merged last
+# too, as forge:merged-prs gives them: one that names an issue of it closes the issue here.
 issues:documents() {
-  local filter issues prs heads primary doc except=false
+  local filter open own issues prs merged='' heads primary doc except=false
   local -a selection=()
   filter=$(flow:filter-of "$@") || return 1
   read -r -a selection <<<"${filter}"
@@ -66,15 +109,24 @@ issues:documents() {
     selection=("${selection[@]:1}")
   fi
   primary=$(forge:primary) || return $?
-  # A forge without issues of its own has none open.
-  issues=$(forge:open-issues) || (( $? == 3 )) || return 1
+  open=$(issues:open) || return 1
+  own=$(head -n 1 <<<"${open}")
+  issues=$(tail -n +2 <<<"${open}")
   prs=$(forge:open-prs) || return 1
+  if jq --exit-status --slurp 'any(.[]; .key != null)' <<<"${issues}" >/dev/null
+  then
+    # A forge that keeps no merged changes has none to read.
+    merged=$(forge:merged-prs) || (( $? == 3 )) || return 1
+  fi
   heads=$(git for-each-ref --format='%(refname:lstrip=3)' -- "refs/remotes/${primary}/") || return 1
   doc=$(jq --compact-output --slurp -L "${kit_jq}" --argjson changes "$(jq --slurp . <<<"${prs}")" \
+    --argjson merged "$(jq --slurp 'map(select(.number != null))' <<<"${merged}")" --arg own "${own}" \
     --arg heads "${heads}" --argjson worktrees "$(issues:checkouts)" --argjson branches "$(issues:branches)" \
     --argjson except "${except}" '
     import "issues" as issues;
-    issues::rows($changes; $heads | split("\n") | map(select(. != "" and . != "HEAD")); $worktrees; $branches)
+    issues::rows($changes; $heads | split("\n") | map(select(. != "" and . != "HEAD")); $worktrees; $branches;
+                 $merged)
+    | map(.tracker //= (if $own == "" then null else $own end))
     | issues::by_owners($ARGS.positional; $except)' --args "${selection[@]}" <<<"${issues}") || return 1
   [[ " $* " != *" --today "* ]] || doc=$(jq --compact-output 'map(select(.age != null and .age < 86400))' <<<"${doc}")
   printf '%s\n' "${doc}"
@@ -84,7 +136,7 @@ issues:documents() {
 # <choice> mine leaves the assignee column out, as a change's row drops the author column under --mine. The cells, in
 # columns:
 #
-#   1. the issue's number, cyan and right-aligned
+#   1. the issue's reference, its tracker's prefix first, #7 or AB#4521, cyan and right-aligned
 #   2. 👤 and its assignees, dim
 #   3. the issue's age, dim and right-aligned
 #   4. 💤 for an issue in the backlog, 🛫 for one underway
@@ -113,7 +165,7 @@ issues:draw() {
   # The desk is the first checkout git lists; issues:checkouts names each checkout's path as git lists it. A change is
   # drawn as the forge it is on names one: !<number> on GitLab and Azure DevOps, #<number> elsewhere.
   desk=$(git worktree list --porcelain 2>/dev/null | sed -n '1s/^worktree //p') || true
-  readarray -t rows < <(jq --raw-output --arg desk "${desk}" '.[] | ["#\(.number)", ((.assignees // []) | join(" ")),
+  readarray -t rows < <(jq --raw-output --arg desk "${desk}" '.[] | [(.ref // "#\(.number)"), ((.assignees // []) | join(" ")),
     (.age // "" | tostring), .status,
     (.pr // null | if . == null then "" else (if .source | IN("gitlab", "ado") then "!" else "#" end) + "\(.number)"
                    end),

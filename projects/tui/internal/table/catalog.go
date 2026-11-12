@@ -65,7 +65,8 @@ var Takes = []string{"owner", "no-fetch", "fresh", "cached", "workspace"}
 // repository groups them by source, organization, and repository in each of its own views. Order
 // says how its groups stand: none, sorted; OrderGiven, in the order the data gives them, an enum's known values first,
 // as the catalog lists them, then every other value as the records first hold it, as kit lists a repository's primary
-// remote first.
+// remote first. Apart says the rows stand apart under each of its values first, outermost, as a view that names it not
+// loads, where they hold more than one: issues under their tracker, where the repository has more than one.
 type Field struct {
 	ID         string      `json:"id"`
 	Label      string      `json:"label"`
@@ -89,6 +90,7 @@ type Field struct {
 	Placement  string      `json:"placement"`
 	Depth      int         `json:"depth"`
 	Order      string      `json:"order"`
+	Apart      bool        `json:"apart"`
 }
 
 // EnumValue is one of an enum's known values, and its glyph, if it has one.

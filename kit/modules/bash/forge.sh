@@ -120,8 +120,9 @@
 #                                 seconds since the epoch (since 4); a repository with none prints none, and a forge
 #                                 whose tier has none answers 3
 #   merged-prs                    one JSON object per merged change, the 50 merged last, merged last first: {number,
-#                                 title, author, branch, merged, by, url}, merged seconds since the epoch, by who
-#                                 merged it (since 4)
+#                                 title, author, branch, merged, by, url, named}, merged seconds since the epoch, by who
+#                                 merged it (since 4), named the references its body closes, as forge.jq's named reads
+#                                 them, none where a provider gives no body
 #   artifacts                     one JSON object per artifact of a run that can still be downloaded, newest first,
 #                                 the newest 100 at most: {id, name, digest, size, run, age, expires, url}; id unique
 #                                 among them, as <run>/<id> where the forge numbers them within a run; digest

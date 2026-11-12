@@ -68,6 +68,17 @@ that matches no declared tracker is refused, and the error lists the known prefi
   code forge's own first, with its page, and `--json` gives the list as JSON for kittui's New… in the issues tab's menu.
 - `kit tidy` reads a worktree's issue from its branch's key. It removes the worktree when that issue is closed and
   the branch has no change.
+- `kit flow issues` lists the open issues of every tracker, the code forge's own and each `kit.yml` declares, oldest
+  first, each by its reference: `#7`, `AB#4521`. A `web` tracker lists none, and a tracker that cannot be read fails
+  the stage. The code forge closes none of another tracker's issues on a merge, so kit stands in for it there:
+  - such an issue is underway while an open change names it: its branch starts with the issue's key, `ab4521-`, or a
+    closing keyword in its body names it, `Closes AB#4521`;
+  - it is done, and left out, once one of the 50 changes merged last names it, whether or not its tracker has closed
+    it yet, as `kit settle` does after the merge;
+  - before any change, a branch named for it, `ab4521-<slug>`, on the desk or the primary remote, makes it underway.
+
+  kittui's issues tab stands the issues under their tracker first, by its prefix, where there is more than one; with
+  the code forge's alone, it draws as ever.
 
 ## Providers
 
@@ -104,9 +115,11 @@ A provider is `kit/modules/bash/tracker/<name>.sh`. It implements these calls:
 | `comment <id> <text>` | nothing; adds a comment |
 | `me` | the caller's login in this tracker, which can differ from the code forge's |
 | `new-url [<title>]` | the browser URL a person files a new issue at, the title filled in where the page takes one |
+| `open-issues` | one JSON document per open issue, oldest first, as the issues stage of `kit flow` draws it, its `ref` the reference; `3`, and none, for a tracker that cannot list them |
 | `create <title> [<body>]` | the number of the issue it creates |
 | `url <id>` | the issue's browser URL |
 
 `tests/tracker.bats` tests the Azure DevOps provider against a fake `az`, and the `web` provider and every new-issue
-page against `kit.yml` alone. It cannot prove that a real organization's
+page against `kit.yml` alone; `tests/issues-trackers.bats` tests the issues stage over the code forge's issues and an
+Azure DevOps tracker's. It cannot prove that a real organization's
 `az` responds the way the fixtures do.

@@ -523,7 +523,7 @@ forge/github:merged-prs() {
   query='query($owner: String!, $name: String!) {
     repository(owner: $owner, name: $name) {
       pullRequests(states: MERGED, first: 50, orderBy: {field: UPDATED_AT, direction: DESC}) {
-        totalCount nodes { number title url headRefName mergedAt updatedAt author { login } mergedBy { login } }
+        totalCount nodes { number title url body headRefName mergedAt updatedAt author { login } mergedBy { login } }
       }
     }
   }'
@@ -598,7 +598,7 @@ forge/github:open-prs() {
       pullRequests(states: OPEN, first: 100, after: $after, orderBy: {field: CREATED_AT, direction: ASC}) {
         pageInfo { hasNextPage endCursor }
         nodes {
-          number title isDraft headRefName createdAt mergeStateStatus reviewDecision isCrossRepository
+          number title body isDraft headRefName createdAt mergeStateStatus reviewDecision isCrossRepository
           author { login }
           headRepositoryOwner { login }
           labels(first: 20) { nodes { name color } }

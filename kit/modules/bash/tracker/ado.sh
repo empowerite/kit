@@ -79,6 +79,36 @@ tracker/ado:new-url() {
   tracker:query "${org}/${project// /%20}/_workitems/create/${type// /%20}" '[System.Title]' "${1:-}"
 }
 
+# tracker/ado:open-issues prints one document per open work item of the record's project, oldest first, as the seam's
+# header says: those an Azure Boards query finds in no closing state, each its reference under the record's prefix, its
+# page, and the project as its organization, as an Azure DevOps forge's work items have it.
+tracker/ado:open-issues() {
+  local org project items
+  org=$(tracker/ado:organization) || return 1
+  project=$(tracker:field "${TRACKER_PREFIX}" project)
+  if [[ -z "${project}" ]]
+  then
+    error "add project: <name> to the ${TRACKER_PREFIX} tracker in kit.yml"
+    return 1
+  fi
+  guard:require tool:az || return 1
+  if ! items=$(az boards query --project "${project}" --org "${org}" --output json --wiql \
+    "SELECT [System.Id], [System.Title], [System.AssignedTo], [System.Tags], [System.CreatedDate],
+            [System.IterationPath] FROM WorkItems
+     WHERE [System.TeamProject] = @project AND [System.State] NOT IN ('Closed', 'Done', 'Removed')
+     ORDER BY [System.CreatedDate] ASC" 2>/dev/null) || ! jq --exit-status 'type == "array"' <<<"${items}" >/dev/null 2>&1
+  then
+    error "run: az login (the work items of ${project} could not be read from ${org})"
+    return 1
+  fi
+  # shellcheck disable=SC2154  # kit_jq is exported by modules/bash/1st.sh
+  jq --compact-output -L "${kit_jq}" --argjson now "$(date +%s)" --arg prefix "${TRACKER_PREFIX}" \
+    --arg path "${project}/" --arg page "${org}/${project// /%20}/_workitems/edit/" '
+    import "forge" as forge;
+    forge::ado_issues($now; $path) | .ref = "\($prefix)\(.number)" | .repository = null | .url = "\($page)\(.number)"' \
+    <<<"${items}"
+}
+
 tracker/ado:state() {
   tracker/ado:read "$1" 'if (.fields["System.State"] | IN("Closed", "Done", "Removed")) then "CLOSED" else "OPEN" end'
 }

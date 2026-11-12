@@ -63,11 +63,17 @@
 # primary remote's URL names them past the host, no organization for a primary on this machine; and source, the
 # forge, git for incoming's. An issue keeps those of the tracker that holds it.
 #
-# issues lists every open issue, the oldest first, each with its status: underway, with a row per issue and pull
-# request that closes it; underway too, with no pull request, when no open pull request closes it and a branch is
-# named for it, its number and a dash, as 9-other, the desk's or the primary's as of the last fetch; else backlog. Its
-# owner flags match the issue's assignees. A row's JSON is {number, title, assignees, labels, age, source,
-# organization, repository, milestone, iteration, swimlane, status, branch, pr, here, local, worktree}. milestone,
+# issues lists every open issue of every tracker, the oldest first: the forge's own, and those of each tracker kit.yml
+# declares under trackers, as its provider lists them, a web tracker's none. Each is its reference, #7 or AB#4521, with
+# its status: underway, with a row per issue and pull request that closes it; underway too, with no pull request, when
+# no open pull request closes it and a branch is named for it, its key and a dash, as 9-other or ab4521-fix, the desk's
+# or the primary's as of the last fetch; else backlog. The forge closes no issue of another tracker on a merge, so kit
+# stands in: a pull request closes one when its branch starts with the issue's key and a dash, or a closing keyword in
+# its body names it, Closes AB#4521; one that a pull request among the 50 merged last names is closed, and left out,
+# whether or not its tracker closed it. A tracker that cannot be read fails the stage. Its owner flags match the
+# issue's assignees. A row's JSON is {number, ref, tracker, title, assignees, labels, age, source, organization,
+# repository, milestone, iteration, swimlane, status, branch, pr, here, local, worktree}: ref the issue's reference,
+# its tracker's prefix first, and tracker that prefix; an issue of another tracker adds url, its page. milestone,
 # iteration, and swimlane are each a name or null: the forge's own, or what a stand-in in kit.yml chooses, as
 # modules/bash/forge.sh says. branch is the pull request's branch, or the branch named for an issue no pull request
 # closes, a checked-out one first, then the desk's, then the primary's; null in the backlog. pr is null for an issue no
@@ -78,10 +84,11 @@
 # cheaply: age in seconds, by a login or null. GitHub's is the head commit's, and GitLab's the head pipeline's. here is
 # true when a checkout on this desk has the branch, and worktree is that checkout's path, or null. local is true when
 # the desk has the branch and no checkout has it. A change's JSON, under changes, carries the same source, fork, and
-# pushed. An issue's source, under issues and in each issue a change closes, names the tracker that holds it: github or
-# gitlab, the code forge's own; trackers kit.yml declares add their own. organization and repository say where in that
-# tracker the issue is: on GitHub, the repository's owner and name; on GitLab, its group, subgroups and all, and the
-# project. Each is null where the tracker has none.
+# pushed, and named, the references a closing keyword names in its body. An issue's source, under issues and in each
+# issue a change closes, names the service that holds it: github or gitlab, the code forge's own, or ado, an Azure
+# DevOps forge's or tracker's. organization and repository say where in it the issue is: on GitHub, the repository's
+# owner and name; on GitLab, its group, subgroups and all, and the project; on Azure DevOps, the project and the
+# repository, none for a tracker's work item. Each is null where the tracker has none.
 #
 # incoming's JSON is {fetched, primary, remotes, rows}. Each remote is {name, forge, host, default, commits, branches,
 # tags}: forge and host are null when it has none; branches is {new, updated, gone}. A remote whose fetch failed adds

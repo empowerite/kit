@@ -154,7 +154,7 @@ JSON
   run --separate-stderr "${kit_root}/bin/kit" changes merged --json
   [ "$status" -eq 0 ]
   expected='[{"key":2,"number":2,"title":"Do the other thing","author":"bob","branch":"9-other","merged":1791018000,'
-  expected+='"by":"ada","links":{"title":"https://github.com/o/r/pull/2"}}]'
+  expected+='"by":"ada","named":[],"links":{"title":"https://github.com/o/r/pull/2"}}]'
   [ "$(jq -c '.rows | map(del(.organization, .repository, .source))' <<<"$output")" = "${expected}" ]
   [ "$(jq -c 'has("limited")' <<<"$output")" = false ]
   # more merged than GitHub's read held makes the document limited, at the count it drew

@@ -97,7 +97,8 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
 
 `kit flow` draws where the work stands. Work moves left to right through five stages:
 
-- `issues`: every open issue, oldest first, each with its assignees, its age, its milestone, iteration, and swimlane,
+- `issues`: every open issue of every tracker, the code forge's own and each `kit.yml` declares, by its reference,
+  `#7` or `AB#4521`, oldest first, each with its assignees, its age, its milestone, iteration, and swimlane,
   and its status. One underway has a row per pull request that closes it: the pull request and its state, and where
   the work is, here or on the author's desk. One no pull request closes is underway too while a branch is named for
   it, `<N>-<slug>`, on the desk or the primary remote: its row names the branch. One with neither is in the backlog.

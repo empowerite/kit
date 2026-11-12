@@ -257,7 +257,7 @@ from arguments, stays inline where it is used.
 | `flow.jq` | a checkout's document, what of it fits on the screen, and the changes the owner flags keep |
 | `toolchain.jq` | what a tool manager pins and has installed, and which of its outdated packages the repository pins |
 | `syntax.jq` | a syntax node's usage text, an argument's key, and how a command line matches a verb's syntax |
-| `issues.jq` | every open issue, in the backlog or underway, with its change and its milestone, iteration, and swimlane |
+| `issues.jq` | every open issue of every tracker, in the backlog or underway, with its change and its milestone, iteration, and swimlane |
 | `backlog.jq` | the issues not closed by any open change, with the branch named for each, its number and a dash |
 | `underway.jq` | the issues closed by an open change, one row per issue and change, and the rows the owner flags keep |
 | `changes.jq` | the open changes that close one of the issues named |

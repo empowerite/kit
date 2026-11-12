@@ -1,6 +1,8 @@
 [
   {
     "number": 7,
+    "ref": "#7",
+    "tracker": "#",
     "title": "Fix the thing",
     "assignees": [
       "ada",
@@ -20,11 +22,12 @@
     "here": null,
     "local": null,
     "worktree": null,
-    "ref": "#7",
     "createdAt": "2026-10-02T00:00:00Z"
   },
   {
     "number": 1,
+    "ref": "#1",
+    "tracker": "#",
     "title": "The first release, v0.1.0: the kit verbs, the picture, and the forge seam on GitHub and GitLab",
     "assignees": [
       "jeffrey-aguilera"
@@ -66,6 +69,8 @@
   },
   {
     "number": 8,
+    "ref": "#8",
+    "tracker": "#",
     "title": "Lint the modules",
     "assignees": [],
     "labels": [],
@@ -96,6 +101,8 @@
   },
   {
     "number": 8,
+    "ref": "#8",
+    "tracker": "#",
     "title": "Lint the modules",
     "assignees": [],
     "labels": [],
@@ -126,6 +133,8 @@
   },
   {
     "number": 46,
+    "ref": "#46",
+    "tracker": "#",
     "title": "A noun lists, a noun with a verb acts",
     "assignees": [
       "jeffrey-aguilera"
@@ -149,11 +158,12 @@
     "here": null,
     "local": null,
     "worktree": null,
-    "ref": "#46",
     "createdAt": "2026-11-09T00:00:00Z"
   },
   {
     "number": 31,
+    "ref": "#31",
+    "tracker": "#",
     "title": "kit commit, kit submit, and kit land: one verb per step from a worktree to a merged pull request",
     "assignees": [
       "ada"
@@ -183,6 +193,8 @@
   },
   {
     "number": 45,
+    "ref": "#45",
+    "tracker": "#",
     "title": "kit flow is the one picture: five stages, interactive on a terminal, and the listing verbs fold into it",
     "assignees": [],
     "labels": [
@@ -212,7 +224,6 @@
     "here": null,
     "local": null,
     "worktree": null,
-    "ref": "#45",
     "createdAt": "2026-11-10T22:00:00Z"
   }
 ]

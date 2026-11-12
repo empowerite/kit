@@ -45,6 +45,11 @@
 #   comment <id> <text>     adds a comment
 #   me                      the caller's login in this tracker, which can differ from the forge login
 #   new-url [<title>]       the browser URL a person files a new issue at, the title filled in where the page takes one
+#   open-issues             one JSON object per open issue, oldest first, the documents the issues stage of kit flow
+#                           draws, as modules/jq/forge.jq's issue gives them: {number, ref, title, assignees, labels,
+#                           createdAt, milestone, iteration, age, source, organization, repository}, ref the issue's
+#                           reference, its prefix first, and url its page where the forge's are not; a tracker that
+#                           cannot list its issues prints none and answers 3
 #   create <title> [<body>] the number of the issue it creates
 #   url <id>                the issue's browser URL
 #

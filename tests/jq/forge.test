@@ -83,7 +83,7 @@ import "forge" as forge; forge::gitlab_runs | map([.name, .verdict, .took])
 # A merge request folds into the document, with its ref written !<iid>; with no pipeline, its last push is unknown.
 import "forge" as forge; forge::gitlab_pr(1000000; [{"name": "test", "status": "success", "started_at": "1970-01-12T13:45:00Z", "finished_at": "1970-01-12T13:46:40Z"}]; [{"notes": [{"resolvable": true, "resolved": false}, {"resolvable": false}]}]; [{"iid": 7, "title": "Fix the thing", "created_at": "1970-01-12T13:40:00Z", "assignees": [{"username": "bob"}], "references": {"full": "empowerite/tools/example#7"}}]; null; {"approved_by": null})
 {"iid": 3, "source_branch": "7-fix-the-thing", "title": "Fix it", "author": {"username": "ada"}, "created_at": "1970-01-12T13:30:00Z", "draft": false, "has_conflicts": false, "detailed_merge_status": "mergeable"}
-{"number":3,"ref":"!3","source":"gitlab","branch":"7-fix-the-thing","fork":null,"title":"Fix it","author":"ada","createdAt":"1970-01-12T13:30:00Z","age":1000,"pushed":null,"state":"comments:open","checks":{"state":"SUCCESS","passed":1,"total":1,"failing":"","took":100},"unresolved":1,"labels":[],"closes":[{"number":7,"title":"Fix the thing","assignees":["bob"],"labels":[],"source":"gitlab","organization":"empowerite/tools","repository":"example","age":400}],"reviewers":[],"runs":[{"name":"test","verdict":"passed","at":999900,"took":100}]}
+{"number":3,"ref":"!3","source":"gitlab","branch":"7-fix-the-thing","fork":null,"title":"Fix it","author":"ada","createdAt":"1970-01-12T13:30:00Z","age":1000,"pushed":null,"state":"comments:open","checks":{"state":"SUCCESS","passed":1,"total":1,"failing":"","took":100},"unresolved":1,"labels":[],"closes":[{"number":7,"title":"Fix the thing","assignees":["bob"],"labels":[],"source":"gitlab","organization":"empowerite/tools","repository":"example","age":400}],"named":[],"reviewers":[],"runs":[{"name":"test","verdict":"passed","at":999900,"took":100}]}
 
 # A merge request from a fork names the fork's owner, and its head pipeline gives the last push: its age, and who
 # started it; a pipeline that names no one gives a null by.
@@ -286,41 +286,41 @@ import "forge" as forge; [.[] | {vote, isContainer, hasDeclined, uniqueName, dis
 [{"uniqueName": "a", "vote": 10}, {"uniqueName": "b", "vote": 5}, {"uniqueName": "c", "vote": -5}, {"uniqueName": "d", "vote": -10}, {"uniqueName": "e", "vote": 0}, {"uniqueName": "f", "vote": 0, "hasDeclined": true}, {"uniqueName": "vstfs:///x", "displayName": "Core Team", "isContainer": true, "vote": 0}]
 [{"login":"a","state":"approved","at":null},{"login":"b","state":"approved","at":null},{"login":"c","state":"changes","at":null},{"login":"d","state":"changes","at":null},{"login":"e","state":"requested","at":null},{"login":"Core Team","state":"requested","at":null}]
 
-# GitHub's merged pull requests come merged last first, each merger and author null for a deleted account; with every
-# one read, one merged long ago and updated since is among them.
+# GitHub's merged pull requests come merged last first, each merger and author null for a deleted account, each with
+# the references its body closes; with every one read, one merged long ago and updated since is among them.
 import "forge" as forge; forge::github_merged
-{"data": {"repository": {"pullRequests": {"totalCount": 3, "nodes": [{"number": 3, "title": "Three", "url": "u3", "headRefName": "b3", "mergedAt": "1970-01-12T13:00:00Z", "updatedAt": "1970-01-12T13:50:00Z", "author": null, "mergedBy": null}, {"number": 4, "title": "Four", "url": "u4", "headRefName": "b4", "mergedAt": "1970-01-12T13:40:00Z", "updatedAt": "1970-01-12T13:40:00Z", "author": null, "mergedBy": null}, {"number": 5, "title": "Five", "url": "u5", "headRefName": "b5", "mergedAt": "1970-01-12T13:45:00Z", "updatedAt": "1970-01-12T13:46:00Z", "author": {"login": "bob"}, "mergedBy": {"login": "ada"}}]}}}}
-{"number":5,"title":"Five","author":"bob","branch":"b5","merged":999900,"by":"ada","url":"u5"}
-{"number":4,"title":"Four","author":null,"branch":"b4","merged":999600,"by":null,"url":"u4"}
-{"number":3,"title":"Three","author":null,"branch":"b3","merged":997200,"by":null,"url":"u3"}
+{"data": {"repository": {"pullRequests": {"totalCount": 3, "nodes": [{"number": 3, "title": "Three", "url": "u3", "headRefName": "b3", "mergedAt": "1970-01-12T13:00:00Z", "updatedAt": "1970-01-12T13:50:00Z", "author": null, "mergedBy": null}, {"number": 4, "title": "Four", "url": "u4", "headRefName": "b4", "mergedAt": "1970-01-12T13:40:00Z", "updatedAt": "1970-01-12T13:40:00Z", "author": null, "mergedBy": null}, {"number": 5, "title": "Five", "url": "u5", "headRefName": "b5", "mergedAt": "1970-01-12T13:45:00Z", "updatedAt": "1970-01-12T13:46:00Z", "author": {"login": "bob"}, "mergedBy": {"login": "ada"}, "body": "Closes AB#4521"}]}}}}
+{"number":5,"title":"Five","author":"bob","branch":"b5","merged":999900,"by":"ada","url":"u5","named":["AB#4521"]}
+{"number":4,"title":"Four","author":null,"branch":"b4","merged":999600,"by":null,"url":"u4","named":[]}
+{"number":3,"title":"Three","author":null,"branch":"b3","merged":997200,"by":null,"url":"u3","named":[]}
 
 # Past the nodes GitHub read, a pull request merged before the oldest update among them may be missing, so only those
 # merged since are kept, then limited counts them: one merged long ago and updated since is left out.
 import "forge" as forge; forge::github_merged
 {"data": {"repository": {"pullRequests": {"totalCount": 9, "nodes": [{"number": 3, "title": "Three", "url": "u3", "headRefName": "b3", "mergedAt": "1970-01-12T13:00:00Z", "updatedAt": "1970-01-12T13:50:00Z", "author": null, "mergedBy": null}, {"number": 4, "title": "Four", "url": "u4", "headRefName": "b4", "mergedAt": "1970-01-12T13:40:00Z", "updatedAt": "1970-01-12T13:40:00Z", "author": null, "mergedBy": null}, {"number": 5, "title": "Five", "url": "u5", "headRefName": "b5", "mergedAt": "1970-01-12T13:45:00Z", "updatedAt": "1970-01-12T13:46:00Z", "author": {"login": "bob"}, "mergedBy": {"login": "ada"}}]}}}}
-{"number":5,"title":"Five","author":"bob","branch":"b5","merged":999900,"by":"ada","url":"u5"}
-{"number":4,"title":"Four","author":null,"branch":"b4","merged":999600,"by":null,"url":"u4"}
+{"number":5,"title":"Five","author":"bob","branch":"b5","merged":999900,"by":"ada","url":"u5","named":[]}
+{"number":4,"title":"Four","author":null,"branch":"b4","merged":999600,"by":null,"url":"u4","named":[]}
 {"limited":2}
 
 # GitLab's merged merge requests name who merged one by merge_user, else the deprecated merged_by; past the limit,
 # the list says it stopped there.
 import "forge" as forge; forge::gitlab_merged(1)
 [{"iid": 9, "title": "Nine", "author": {"username": "bob"}, "source_branch": "b9", "merged_at": "1970-01-12T13:40:00.000Z", "merged_by": {"username": "ada"}, "web_url": "u9"}, {"iid": 8, "title": "Eight", "merged_at": "1970-01-12T13:30:00Z", "web_url": "u8"}]
-{"number":9,"title":"Nine","author":"bob","branch":"b9","merged":999600,"by":"ada","url":"u9"}
+{"number":9,"title":"Nine","author":"bob","branch":"b9","merged":999600,"by":"ada","url":"u9","named":[]}
 {"limited":1}
 
 # Azure DevOps' completed pull requests are dated by when they closed, by who closed them, each page under the
 # repository's.
 import "forge" as forge; forge::ado_merged(5; "https://dev.azure.com/o/p/_git/r")
 [{"pullRequestId": 2, "title": "Two", "sourceRefName": "refs/heads/b2", "createdBy": {"uniqueName": "bob"}, "closedBy": {"uniqueName": "ada"}, "closedDate": "1970-01-12T13:40:00.1234567Z"}, {"pullRequestId": 3, "title": "Three", "sourceRefName": "refs/heads/b3", "closedDate": "1970-01-12T13:45:00Z"}]
-{"number":3,"title":"Three","author":null,"branch":"b3","merged":999900,"by":null,"url":"https://dev.azure.com/o/p/_git/r/pullrequest/3"}
-{"number":2,"title":"Two","author":"bob","branch":"b2","merged":999600,"by":"ada","url":"https://dev.azure.com/o/p/_git/r/pullrequest/2"}
+{"number":3,"title":"Three","author":null,"branch":"b3","merged":999900,"by":null,"url":"https://dev.azure.com/o/p/_git/r/pullrequest/3","named":[]}
+{"number":2,"title":"Two","author":"bob","branch":"b2","merged":999600,"by":"ada","url":"https://dev.azure.com/o/p/_git/r/pullrequest/2","named":[]}
 
 # A GitLab older than 17.2 lists its merged merge requests by update instead: of the first $limit, those merged since
 # the oldest update among them are kept when it read more, so one merged long ago and updated since is left out.
 import "forge" as forge; forge::gitlab_merged_by_update(2)
 [{"iid": 7, "title": "Seven", "merged_at": "1970-01-12T13:00:00Z", "updated_at": "1970-01-12T13:50:00Z", "web_url": "u7"}, {"iid": 9, "title": "Nine", "author": {"username": "bob"}, "source_branch": "b9", "merged_at": "1970-01-12T13:45:00Z", "updated_at": "1970-01-12T13:45:00Z", "merge_user": {"username": "ada"}, "web_url": "u9"}, {"iid": 8, "title": "Eight", "merged_at": "1970-01-12T13:40:00Z", "updated_at": "1970-01-12T13:40:00Z", "web_url": "u8"}]
-{"number":9,"title":"Nine","author":"bob","branch":"b9","merged":999900,"by":"ada","url":"u9"}
+{"number":9,"title":"Nine","author":"bob","branch":"b9","merged":999900,"by":"ada","url":"u9","named":[]}
 {"limited":1}
 
 # A GitHub artifact of a run GitHub no longer names is its download, one with no digest, no time, or no expiry has
@@ -463,3 +463,9 @@ false
 import "forge" as forge; [forge::gitlab_vulnerabilities(100)]
 [{"id": "gid://gitlab/Vulnerability/12", "title": "T", "severity": null, "state": "CONFIRMED", "detectedAt": null, "primaryIdentifier": null, "location": null, "webUrl": null}]
 [{"number":12,"rule":"T","severity":null,"state":"open","path":null,"age":null,"url":null,"by":null,"reason":null}]
+
+# A change's body names the references a closing keyword names, in either case, each once, in the order it names them;
+# a keyword inside a word, as enclosed, names none, and no body names none.
+import "forge" as forge; map(forge::named)
+["Some text.\nCloses AB#4521\nfixes ab#9 and Resolves: AB#10.\nCloses #7, closes LIN#3; Closes AB#4521 enclosed #8", null]
+[["AB#4521","ab#9","AB#10","#7","LIN#3"],[]]

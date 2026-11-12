@@ -74,7 +74,7 @@ JSON
 {"data": {"repository": {"nameWithOwner": "empowerite/example",
   "issues": {"nodes": [{"number": 7, "assignees": {"nodes": [{"login": "bob"}]}}]},
   "pullRequests": {"nodes": [{
-  "number": 3, "title": "Fix the thing", "isDraft": false, "headRefName": "7-fix-the-thing",
+  "number": 3, "title": "Fix the thing", "body": "Closes #7", "isDraft": false, "headRefName": "7-fix-the-thing",
   "createdAt": "2026-10-01T09:00:00Z", "mergeStateStatus": "CLEAN", "reviewDecision": null,
   "author": {"login": "ada"}, "labels": {"nodes": [{"name": "kind=fix", "color": "0E8A16"}]},
   "closingIssuesReferences": {"nodes": [{"number": 7, "title": "Fix the thing", "createdAt": "2026-09-20T09:00:00Z",
@@ -139,7 +139,7 @@ JSON
 {"data": {"repository": {"pullRequests": {"totalCount": 1, "nodes": [
   {"number": 2, "title": "Do the other thing", "url": "https://github.com/empowerite/example/pull/2",
    "headRefName": "9-other", "mergedAt": "2026-10-03T09:00:00Z", "updatedAt": "2026-10-03T09:00:00Z",
-   "author": {"login": "bob"},
+   "author": {"login": "bob"}, "body": "Fixes AB#12",
    "mergedBy": {"login": "ada"}}]}}}}
 JSON
   route gh 'api graphql*states: MERGED*' "${GITHUB_MERGED:-gh-merged.json}"
@@ -174,7 +174,8 @@ JSON
 {"approved": true, "approved_by": [{"user": {"username": "carol"}, "approved_at": "2026-10-02T09:00:00.000Z"}]}
 JSON
   fixture gl-merged.json <<'JSON'
-[{"iid": 2, "title": "Do the other thing", "author": {"username": "bob"}, "source_branch": "9-other",
+[{"iid": 2, "title": "Do the other thing", "description": "Fixes AB#12", "author": {"username": "bob"},
+  "source_branch": "9-other",
   "merged_at": "2026-10-03T09:00:00.000Z", "merge_user": {"username": "ada"}, "merged_by": {"username": "ada"},
   "web_url": "https://gitlab.com/empowerite/example/-/merge_requests/2"}]
 JSON
@@ -333,6 +334,8 @@ JSON
   expected+='"unresolved":1,"labels":[{"name":"kind=fix","color":"#0e8a16"}],'
   expected+='"closes":[{"number":7,"title":"Fix the thing","assignees":["bob"],'
   expected+='"labels":[{"name":"bug","color":"#d73a4a"}]}],'
+  # the references a closing keyword names in its body, as a tracker the forge does not link reads them
+  expected+='"named":["#7"],'
   # the author's own comment is no review; bob is asked and has not answered; carol approved, then commented, and
   # her approval stands
   expected+='"reviewers":[{"login":"bob","state":"requested","at":null},'
@@ -768,7 +771,7 @@ JSON
 
 @test "every provider lists the changes merged last in one shape, and says when it stopped at 50" {
   local expected='{"number":2,"title":"Do the other thing","author":"bob","branch":"9-other",'
-  expected+='"merged":1791018000,"by":"ada"}'
+  expected+='"merged":1791018000,"by":"ada","named":["AB#12"]}'
   for forge in github gitlab
   do
     world "${forge}"
@@ -798,7 +801,7 @@ JSON
   run --separate-stderr call merged-prs
   [ "$status" -eq 0 ]
   [ "$(jq --slurp --compact-output 'map(.number // .)' <<<"$output")" = '[2,{"limited":1}]' ]
-  grep --quiet 'totalCount nodes { number title url headRefName mergedAt updatedAt author { login }' \
+  grep --quiet 'totalCount nodes { number title url body headRefName mergedAt updatedAt author { login }' \
     "${FAKE_DIR}/gh.calls"
 }
 

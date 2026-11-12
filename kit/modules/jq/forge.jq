@@ -17,6 +17,8 @@
 #   labels      [{name, color}] of the labels on it, as labels gives them
 #   closes      [{number, title, assignees, labels, age, source}] of the issues it closes, the assignees as logins,
 #               so a change's issues are drawn as the issues stage draws an issue without a second call to the forge
+#   named       the references a closing keyword names in its body, as named reads them: AB#4521 of Closes AB#4521,
+#               how a change closes an issue of a tracker the forge does not link by itself
 #   reviewers   [{login, state, at}] of the people and teams asked to review it, or who did: state is requested while
 #               one is asked and has not answered, else approved, changes, or commented; at, in seconds since the
 #               epoch, is when they answered, null while asked, or where the forge keeps no time
@@ -109,8 +111,15 @@ def reviewers($author):
     if any(.[]; .login == $r.login) then . else . + [$r] end)
   | map({login, state, at: (if .at == null then null else .at | epoch end)}) | sort_by(.login);
 
+# named reads a change's body, or null, and gives the references a closing keyword names in it, each once, in the order
+# it names them: Closes AB#4521, fixes #7, and Resolves: LIN#12 name AB#4521, #7, and LIN#12, as kit work writes the
+# line, and modules/bash/tracker.sh's tracker:body-refs reads it.
+def named:
+  [(. // "") | scan("(?i)(?:^|[^a-z0-9])(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?):? +([^\\s,;()]*[0-9]+)") | .[0]]
+  | reduce .[] as $ref ([]; if index([$ref]) then . else . + [$ref] end);
+
 # document($now) reads {number, ref, source, branch, fork, title, author, createdAt, pushed, draft, conflicted,
-# approval, runs, unresolved, labels, closes, reviewers} and gives the document. pushed is {at, by}, or null, and comes
+# approval, runs, unresolved, labels, closes, reviewers, body} and gives the document, the body as named reads it. pushed is {at, by}, or null, and comes
 # out with its age in place of at. labels are the forge's, as labels reads them. Each of closes is {number, title,
 # assignees, labels, createdAt, source, organization, repository}, and comes out with its age; an issue an older answer
 # gives without a time has a null age, one without a source, an organization, or a repository a null one, and one
@@ -126,6 +135,7 @@ def document($now):
                              source: (.source // null),
                              organization: (.organization // null), repository: (.repository // null),
                              age: (if .createdAt == null then null else $now - (.createdAt | epoch) end) }],
+      named: (.body | named),
       reviewers: (.author as $author | .reviewers // [] | reviewers($author)),
       runs: [.runs[] | {name, verdict, at: (if (.at // "") == "" then null else .at | epoch end), took}] };
 
@@ -157,7 +167,7 @@ def github_prs($now):
     as $assigned
   | $repository.pullRequests.nodes[]
   | { number, ref: "#\(.number)", source: "github", branch: .headRefName, title, author: (.author.login // ""),
-      createdAt,
+      createdAt, body,
       fork: (if .isCrossRepository then .headRepositoryOwner.login // null else null end),
       pushed: (.commits.nodes[0].commit // {}
                | if .committedDate == null then null else {at: .committedDate, by: .author.user.login} end),
@@ -266,7 +276,8 @@ def gitlab_pipeline_jobs:
 # each reviewer it names without an approval, asked.
 def gitlab_pr($now; $jobs; $discussions; $closes; $fork; $approvals):
   { number: .iid, ref: "!\(.iid)", source: "gitlab", branch: .source_branch, title,
-    author: (.author.username // ""), createdAt: .created_at, draft, conflicted: .has_conflicts, fork: $fork,
+    author: (.author.username // ""), createdAt: .created_at, body: .description, draft, conflicted: .has_conflicts,
+    fork: $fork,
     pushed: (.head_pipeline // {}
              | if .created_at == null then null else {at: .created_at, by: (.user.username // null)} end),
     approval: ((.detailed_merge_status // "") == "not_approved"), labels,
@@ -514,7 +525,7 @@ def ado_reviewers:
 def ado_pr($now; $policies; $threads; $closes; $path):
   { number: .pullRequestId, ref: "!\(.pullRequestId)", source: "ado",
     branch: (.sourceRefName | ltrimstr("refs/heads/")), title, author: (.createdBy.uniqueName // ""),
-    createdAt: .creationDate, draft: (.isDraft // false),
+    createdAt: .creationDate, body: .description, draft: (.isDraft // false),
     conflicted: (.mergeStatus == "conflicts"), fork: (.forkSource.repository.name // null), pushed: null,
     approval: ado_blocked($policies), labels: [.labels[]? | .name], reviewers: ado_reviewers,
     runs: ado_runs($policies), unresolved: ado_unresolved($threads),
@@ -552,10 +563,12 @@ def ado_builds($now; $default; $tags; $results):
         started: .startTime, ended: .finishTime, url: (._links.web.href // "\($results)?buildId=\(.id)") })
   | builds($default; $tags) | map(build($now));
 
-# merged_last reads merged changes, each {number, title, author, branch, merged, url}, merged an ISO 8601 time or null,
-# and gives each with merged in seconds since the epoch, merged last first, one with no time last.
+# merged_last reads merged changes, each {number, title, author, branch, merged, url, body}, merged an ISO 8601 time or
+# null, and gives each with merged in seconds since the epoch and named, as named reads its body, in place of the body,
+# merged last first, one with no time last.
 def merged_last:
-  map(.merged |= (if . == null then null else epoch end)) | sort_by(-(.merged // 0)) | .[];
+  map(.merged |= (if . == null then null else epoch end) | .named = (.body | named) | del(.body))
+  | sort_by(-(.merged // 0)) | .[];
 
 # merged_window($more) reads merged changes a forge listed by their update, the latest first, each as merged_last reads
 # one with updated, an ISO 8601 time, beside, and gives them as merged_last does. When $more, the forge holds more than
@@ -576,14 +589,14 @@ def github_merged:
   .data.repository.pullRequests as $prs
   | [$prs.nodes[] | select(. != null)
      | { number, title, author: .author.login, branch: .headRefName, merged: .mergedAt, by: .mergedBy.login, url,
-         updated: .updatedAt }]
+         body, updated: .updatedAt }]
   | merged_window(($prs.totalCount // 0) > length);
 
 # gitlab_merged_row reads a GitLab merge request and gives it as merged_last reads one, updated beside: who merged
 # it is merge_user, else the deprecated merged_by.
 def gitlab_merged_row:
   { number: .iid, title, author: .author.username, branch: .source_branch, merged: .merged_at,
-    by: ((.merge_user // .merged_by).username), url: .web_url, updated: .updated_at };
+    by: ((.merge_user // .merged_by).username), url: .web_url, body: .description, updated: .updated_at };
 
 # gitlab_merged($limit) reads GitLab's merged merge requests, newest merged first, and gives the same documents, the
 # first $limit, then {"limited": $limit} when it read more.
@@ -604,7 +617,8 @@ def ado_merged($limit; $url):
   (.[:$limit]
    | map({ number: .pullRequestId, title, author: .createdBy.uniqueName,
            branch: ((.sourceRefName // "") | ltrimstr("refs/heads/")), merged: .closedDate,
-           by: .closedBy.uniqueName, url: "\($url)/pullrequest/\(.pullRequestId)" }) | merged_last),
+           by: .closedBy.uniqueName, url: "\($url)/pullrequest/\(.pullRequestId)", body: .description })
+   | merged_last),
   (if length > $limit then {limited: $limit} else empty end);
 
 # day reads a day, as GitLab and Azure DevOps give one, 2026-12-01, or an ISO 8601 time, and gives its seconds since

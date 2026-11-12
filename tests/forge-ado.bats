@@ -93,7 +93,8 @@ JSON
   az-route "${list} --status active --top 100 --skip 0 --output json" prs.json
   fixture merged.json <<'JSON'
 [{"pullRequestId": 2, "title": "Do the other thing", "status": "completed", "sourceRefName": "refs/heads/9-other",
-  "createdBy": {"uniqueName": "bob"}, "closedBy": {"uniqueName": "ada"}, "closedDate": "2026-10-03T09:00:00.1234567Z"}]
+  "createdBy": {"uniqueName": "bob"}, "closedBy": {"uniqueName": "ada"}, "closedDate": "2026-10-03T09:00:00.1234567Z",
+  "description": "Fixes AB#12"}]
 JSON
   az-route "${list} --status completed --top 51 --output json" merged.json
   az-route 'repos pr show --id 3 --output json' pr.json
@@ -240,6 +241,8 @@ added='"milestones","bots","attestations","code-scanning","dependabot","secret-s
   expected+='"unresolved":1,"labels":[{"name":"kind=fix","color":null}],'
   expected+='"closes":[{"number":7,"title":"Fix the thing","assignees":["bob"],'
   expected+='"labels":[{"name":"bug","color":null}]}],'
+  # the references a closing keyword names in its body, as a tracker the forge does not link reads them
+  expected+='"named":["#7"],'
   # a vote of 10 approves; 0 is a reviewer asked, who has not voted; Azure DevOps keeps no time of a vote
   expected+='"reviewers":[{"login":"bob","state":"requested","at":null},'
   expected+='{"login":"carol","state":"approved","at":null}],'
@@ -270,7 +273,7 @@ added='"milestones","bots","attestations","code-scanning","dependabot","secret-s
 
 @test "the provider lists the pull requests completed last, as the others do, and says when it stopped at 50" {
   expected='{"number":2,"title":"Do the other thing","author":"bob","branch":"9-other","merged":1791018000,"by":"ada",'
-  expected+='"url":"https://dev.azure.com/acme/empowerite/_git/example/pullrequest/2"}'
+  expected+='"url":"https://dev.azure.com/acme/empowerite/_git/example/pullrequest/2","named":["AB#12"]}'
   run --separate-stderr call merged-prs
   [ "$status" -eq 0 ]
   [ "$output" = "${expected}" ]

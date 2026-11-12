@@ -91,12 +91,12 @@ type memberRefs struct {
 }
 
 // refOf gives a row's member and what it names, from the row's key, which holds the member before it over a group: an
-// issues row's issue's reference, #45, the pull request's after it for an issue underway, as #45 #46, left out; or a
-// packages row's package.
+// issues row's issue's reference, #45 or AB#4521, its first word that holds a #, the pull request's after it for an
+// issue underway, as #45 #46, left out; or a packages row's package.
 func refOf(key string) (member, ref string) {
-	if k := strings.Index(key, "#"); k >= 0 {
-		ref, _, _ = strings.Cut(key[k:], " ")
-		return strings.TrimSuffix(key[:k], " "), ref
+	words := strings.Fields(key)
+	if k := slices.IndexFunc(words, func(w string) bool { return strings.Contains(w, "#") }); k >= 0 {
+		return strings.Join(words[:k], " "), words[k]
 	}
 	if k := strings.LastIndex(key, " "); k >= 0 {
 		return key[:k], key[k+1:]
