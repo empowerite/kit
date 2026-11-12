@@ -9,7 +9,9 @@
 #   - refuses when nothing is staged, and refuses a staged path the kit placed under .kit/
 #   - runs kit lint and kit generate --check over the staged paths; no hook manager is needed
 #   - refuses a path staged as added or changed that is not on the disk: run git restore, or git rm --cached
-#   - puts the branch's issue in front of a subject that names none: 7-fix-the-thing gives #7
+#   - puts the branch's issue in front of a subject that names none: 7-fix-the-thing gives #7; with
+#     policy.commit_reference trailer, as the policy/conventional package sets it, it adds a Refs: #7 trailer instead,
+#     to a message that has none
 #   - judges the subject and the tree the commit will make by the repository's policy, as kit policy does in CI
 #   - with require_signing true in kit.yml, refuses when git has no user.signingkey; otherwise it warns when commits
 #     here are not signed
@@ -28,8 +30,8 @@
 # as it is, with a warning that names it. git writes the shared index under its own lock, and a path staged there
 # meanwhile is left as staged.
 #
-# A subject that names another issue attaches it to the branch's pull request: kit commit adds a Closes line for it
-# to the pull request's body, and assigns the caller to it when no one is assigned.
+# A subject or a Refs: trailer that names another issue attaches it to the branch's pull request: kit commit adds a
+# Closes line for it to the pull request's body, and assigns the caller to it when no one is assigned.
 #
 # kit commit opens no editor.
 #

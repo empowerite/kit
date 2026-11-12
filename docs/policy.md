@@ -24,7 +24,8 @@ kit policy
 `kit facts --moment=<moment>` chooses the point the facts are gathered for:
 
 - `ci`, the default: the commits past the fork, the open change, and the tree at HEAD.
-- `commit`: the tree in the index, `commits` as `[]`, and `change` as `null`. `kit commit` fills in the commit it makes.
+- `commit`: the tree in the index, `commits` as `[]`, and `change` as `null`. `kit commit` fills in the commit it makes,
+  its trailers read from its message.
 
 ```json
 {
@@ -32,13 +33,13 @@ kit policy
   "branch": "7-fix-the-thing",
   "default_branch": "main",
   "worktree": "worktrees/7-fix-the-thing",
-  "commits": [{"sha": "56d4f4b…", "subject": "#7 cli: fix the thing"}],
+  "commits": [{"sha": "56d4f4b…", "subject": "#7 cli: fix the thing", "trailers": []}],
   "change": {"number": 3, "title": "Fix the thing", "body": "Closes #7", "author": "ada"},
   "tree": {
     "kit/bin/kit": {"type": "file", "executable": true, "size": 2048, "blob": "9f2c1a…", "kinds": ["bash"]}
   },
   "policy": {
-    "branch": "…", "worktree": "…", "commit_subject": "…", "change_title": "…",
+    "branch": "…", "worktree": "…", "commit_subject": "…", "change_title": "…", "commit_reference": "prefix",
     "remedy": {"branch": "…", "worktree": "…", "commit_subject": "…", "change_title": "…"}
   }
 }
@@ -50,10 +51,10 @@ kit policy
 | `branch` | On a runner, the change's head branch. Elsewhere, at the desk or in any worktree, the current branch. On the default branch or a detached checkout it is `null`, and nothing is checked. |
 | `default_branch` | The repository's default branch. |
 | `worktree` | In a linked worktree, its path from the main checkout's root, as `worktrees/7-fix-the-thing`, or its absolute path where it lies outside that root. `null` in the main checkout, which a runner's checkout is, where `branch` is `null`, and at commit. |
-| `commits` | Each commit past the fork from the branch's base, merges excluded: the primary remote's default branch, or on a runner the commit the change's event names as its base. The delivered workflow fetches full history for this. When the fork is not found, as in a shallow clone, `commits` is `null`, the commits cannot be checked, and `kit policy` fails. |
+| `commits` | Each commit past the fork from the branch's base, merges excluded, as its `sha`, its `subject`, and its `trailers`, `[{key, value}]` in order, as git reads them from the message's last paragraph: the primary remote's default branch, or on a runner the commit the change's event names as its base. The delivered workflow fetches full history for this. When the fork is not found, as in a shallow clone, `commits` is `null`, the commits cannot be checked, and `kit policy` fails. |
 | `change` | The open change, read through the code forge (the service that hosts the repository): an object with its number, title, body, and author's login. `null` when the repository has no code forge, as when the primary is a path on this machine, or the code forge answered that the branch has no open change, and `null` at commit. A primary on a host that nothing names, neither the `forge` setting, the host, a CI runner's own server, nor a login of `gh` or `glab`, has a code forge kit cannot tell, and its `change` is an error that names the `forge` setting; `forge: none` says it has none, and its `change` is `null`. A `null` change leaves `change_title` unchecked. When the code forge cannot answer, for which change is open or for its title, body, or author, `change` is `{"error": "<line>"}`, the line kit says for the read that failed, such as `run: gh auth status (the open pull request on 7-fix-the-thing could not be read)`. `kit policy` refuses such facts before either engine runs, and so refuses a document given with `--facts` that holds one. |
 | `tree` | The files git holds, keyed by path, read from git: the index at commit, and HEAD at ci. At either moment, a kind matched by its first line, such as a script's shebang, reads that line from the disk. |
-| `policy` | The patterns, with the kit's defaults filled in, and under `remedy` each rule's remedy, `""` where it has none. |
+| `policy` | The patterns, with the defaults and the active packages' filled in, `commit_reference`, and under `remedy` each rule's remedy, `""` where it has none. |
 
 Each entry in `tree` has these fields:
 
@@ -176,11 +177,12 @@ Edit the fixture to test a rule against facts that the repository does not have.
 `policy:` in `kit.yml` holds one rule per subject. A rule is an extended regular expression, or a map of a
 `pattern` and a `remedy`: what to do instead, which every refusal by the rule names after it, in parentheses.
 
-- A subject that is absent takes the kit's default: the workflow's own naming from `.kit/1st.md`. The defaults are
-  data, the `policy:` map in the kit package's `package.yml`, with the same keys, so a repository that says nothing
-  gets the loop's names, and one that says otherwise gets its own.
-- A pattern set without a remedy has none, since the default's remedy was written for another pattern. A remedy set
-  alone keeps the default's pattern.
+- A subject that is absent takes the kit's default: the workflow's own naming from `.kit/1st.md`, unless an active
+  package sets it; see [Packages that set rules](#packages-that-set-rules). The defaults are data, the `policy:` map
+  in the kit package's `package.yml`, with the same keys, so a repository that says nothing gets the loop's names,
+  and one that says otherwise gets its own.
+- A pattern set without a remedy has none, since the remedy below it was written for another pattern. A remedy set
+  alone keeps the pattern below it.
 - An empty pattern turns that rule off.
 - A pattern bash cannot compile is refused, naming the file that sets it.
 - A subject the kit does not know is refused.
@@ -195,6 +197,7 @@ Edit the fixture to test a rule against facts that the repository does not have.
 | `worktree` | a linked worktree's path from the main checkout | `^worktrees/[a-z0-9]+-[a-z0-9][a-z0-9-]*$`, where `kit work` puts it |
 | `commit_subject` | every commit's subject past the fork | `^([A-Z]+)?#[0-9]+ [^ ]`, starting with its issue's reference |
 | `change_title` | the open change's title | `^[^[:cntrl:]]{1,120}$`, one line of at most 120 characters |
+| `commit_reference` | where each commit carries its issue's reference: `prefix` or `trailer`; see below | `prefix` |
 
 ```yaml
 policy:
@@ -207,13 +210,43 @@ policy:
 A refusal then reads `branch 'topic' does not match policy.branch: ^(feature|fix)/[a-z0-9-]+$ (name the branch
 feature/<slug> or fix/<slug>)`.
 
-`kit policy --rules` lists each rule, its pattern, and where it is set, and judges nothing; `kit policy --input`
-shows the remedies, under `policy.remedy`. `--json` prints an object a line, `{rule, pattern, from, engine}`, and
-`--jq` the same formatted by jq. `from` is `kit.yml` where the
-`policy:` map sets the rule, an empty pattern included, else `default`; `engine` is the engine that judges, `patterns`
-or `opa`. It reads no forge. On a branch past the default it lists the base's rules, as `kit policy` judges by them,
-and fails as `kit policy` does when the base cannot be named or read. The patterns are the same whichever the engine:
-the opa package's `kit.rego` reads them from the facts.
+### Packages that set rules
+
+A package's `package.yml` can carry a `policy:` map with the same keys. The rules are layered, a later layer's
+winning:
+
+1. the kit's defaults, the kit package's `policy:` in the release
+2. each active package's `policy:`, in the order `packages:` in `kit.yml` lists them, which is dependency order as
+   `kit install` writes it, so the later package wins
+3. `kit.yml`'s `policy:`, which wins over all; an empty pattern turns a rule off
+
+A package that `packages:` lists and that is not in reach fails `kit policy`, naming it, so none of its rules is
+dropped. Both engines read the result from `input.policy`. On a branch past the default, the packages are the base's,
+each `package.yml` as the base holds it where the package is the repository's own; at commit, as the tree being
+committed holds it. So a branch that drops a package, or loosens its rules, changes nothing until it is merged.
+[`policy/conventional`](packages/policy/conventional.md) is such a package.
+
+### Where a commit's issue reference goes
+
+`commit_reference` says where each commit carries its issue's reference:
+
+- `prefix`, the kit's default: in front of the subject, as `#7 cli: fix the thing`. The default `commit_subject`
+  pattern holds every commit to it, and `kit commit` supplies it from the branch.
+- `trailer`: in a `Refs: #7` trailer in the message's last paragraph. Every commit past the fork must carry one that
+  names an issue, `#7`, `AB#4521`, or several apart by commas, and is refused without. `kit commit` adds it from the
+  branch to a message that has none, and `kit work`'s start commit carries it. The `policy/conventional` package sets
+  it, since Conventional Commits keeps references in a footer.
+
+A `Refs:` trailer that names an issue other than the branch's attaches it to the branch's pull request, as a
+subject's reference does.
+
+`kit policy --rules` lists each rule, its pattern, and where it is set, then `commit_reference` and its value, and
+judges nothing; `kit policy --input` shows the remedies, under `policy.remedy`. `--json` prints an object a line,
+`{rule, pattern, from, engine}`, and `--jq` the same formatted by jq. `from` is `kit.yml` where its `policy:` map
+sets the rule, an empty pattern included, an active package's name where its `package.yml` does, else `default`;
+`engine` is the engine that judges, `patterns` or `opa`. It reads no forge. On a branch past the default it lists the
+base's rules, as `kit policy` judges by them, and fails as `kit policy` does when the base cannot be named or read.
+The patterns are the same whichever the engine: the opa package's `kit.rego` reads them from the facts.
 
 ```sh
 kit policy --rules --json
@@ -249,7 +282,8 @@ and OPA's RE2 share, so both engines read them the same way:
 The `opa` engine needs `opa`. Pin it in the repository's toolchain, then run `kit tools install`.
 
 The `policy/opa` package delivers `.kit/policy/kit.rego`: the patterns engine's rules written in Rego, with the same
-refusals. Because it is a `.rego` file, adding the package selects the `opa` engine, and the results stay the same.
+refusals, the `Refs:` trailer that `commit_reference: trailer` asks for among them. Because it is a `.rego` file,
+adding the package selects the `opa` engine, and the results stay the same.
 
 Rules over `tree` need `opa`. The `patterns` engine ignores `tree`.
 

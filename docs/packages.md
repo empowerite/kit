@@ -98,7 +98,7 @@ answers:
 | `answers` | The default value of each template key. A repository overrides one under `answers:` in `kit.yml`. |
 | `expects` | Lines the package expects in files the repository owns, each a `path`, a `pattern`, and a `remedy`; see below. |
 | `notices` | What happens next, told when the kit places a path afresh or merges a new entry into it, each a `path` and a `text`; see below. |
-| `policy` | Policy rules, with the keys of `kit.yml`'s `policy:`: each a pattern, or a map of a `pattern` and a `remedy`. The kit package's are the kit's defaults; see [policy.md](policy.md#the-rules). |
+| `policy` | Policy rules, with the keys of `kit.yml`'s `policy:`: each a pattern, or a map of a `pattern` and a `remedy`, and `commit_reference`. The kit package's are the kit's defaults; an active package's win over them, and `kit.yml`'s over all; see [policy.md](policy.md#packages-that-set-rules). |
 
 [package.schema.json](../kit/packages/package.schema.json) is the schema, in JSON Schema 2020-12. This repository's gate
 (its own CI command) validates every `package.yml` against it with `ajv`. Without a validator, `kit install` applies
@@ -108,8 +108,8 @@ the same contract and refuses, naming the problem:
 - a missing `description`
 - a `default` that is not `true` or `false`
 - a dependency, or a member, the release does not have
-- a `policy:` map with a subject the kit does not know, or a rule that is neither a pattern nor a map of `pattern`
-  and `remedy`
+- a `policy:` map with a subject the kit does not know, a rule that is neither a pattern nor a map of `pattern`
+  and `remedy`, or a `commit_reference` that is neither `prefix` nor `trailer`
 
 ## Delivery
 
@@ -364,6 +364,7 @@ A directory `.kit/packages/<name>/` in the repository is a package in every resp
 | [`agents/copilot`](packages/agents/copilot.md) | no | `kit`, `agents/generic` | `.github/instructions/kit-<kind>.instructions.md`, one per kit rule, applied to the rule's paths, pointing at the rule; `.vscode/mcp.json`, merged: the kit's MCP server |
 | [`agents/gemini`](packages/agents/gemini.md) | no | `kit`, `agents/generic` | `.gemini/settings.json`, merged: `AGENTS.md` among the context files, the deny list as `run_shell_command` exclusions, and the kit's MCP server |
 | [`policy/opa`](packages/policy/opa.md) | no | `kit` | `.kit/policy/kit.rego`, the naming policy in Rego, so `kit policy` runs on Open Policy Agent |
+| [`policy/conventional`](packages/policy/conventional.md) | no | `kit` | no file: policy rules that hold commit subjects and pull request titles to Conventional Commits, the issue in a `Refs:` trailer |
 | [`empowerite`](packages/empowerite.md) | no | `kit`; includes every `style/*`, `github/ci`, `agents/claude`, `hooks/lefthook`, and `workflow` | nothing of its own: it is the bundle Empowerite's repositories take |
 
 No package in this release delivers to `home`. Each package's page, linked above, describes what it places and why.

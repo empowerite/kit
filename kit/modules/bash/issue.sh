@@ -477,14 +477,16 @@ issue:hydrate() {
 
 # issue:start-commit <worktree> <default-branch> <reference> <title> adds an empty first commit when the branch has
 # no commits beyond the default branch, because a forge cannot open a pull request with nothing to compare. --only
-# keeps the commit empty, so work already staged in a reused worktree stays in the index. The subject starts with
-# the reference, as the workflow's commit subjects do: "<reference> start: <title>", kept whatever commit.cleanup
-# says. With require_signing true, the commit is signed, and refused when git cannot sign it; a commit that fails for
-# another reason, as when a hook refuses it, is said to have failed.
+# keeps the commit empty, so work already staged in a reused worktree stays in the index. Its subject is
+# issue:start-subject's, kept whatever commit.cleanup says, and with policy.commit_reference trailer its message ends
+# in a Refs: <reference> trailer. With require_signing true, the commit is signed, and refused when git cannot sign
+# it; a commit that fails for another reason, as when a hook refuses it, is said to have failed.
 issue:start-commit() {
-  local wt=$1 default_branch=$2 ref=$3 title=$4
-  local -a sign=()
+  local wt=$1 default_branch=$2 ref=$3 title=$4 subject
+  local -a sign=() trailer=()
   [[ -z "$(git -C "${wt}" rev-list "origin/${default_branch}..HEAD" 2>/dev/null)" ]] || return 0
+  subject=$(issue:start-subject "${ref}" "${title}") || return 1
+  [[ "${subject}" == "${ref} "* ]] || trailer=(--message "Refs: ${ref}")
   if [[ "$(settings:value require_signing)" == true ]]
   then
     guard:require signing-key || return 1
@@ -492,7 +494,34 @@ issue:start-commit() {
   fi
   step "Adding the start commit"
   git:commit "${wt}" "the start commit" --quiet --allow-empty --only --cleanup=whitespace "${sign[@]}" \
-    --message "${ref} start: ${title}" || return 1
+    --message "${subject}" "${trailer[@]}" || return 1
+}
+
+# issue:start-subject <reference> <title> prints the start commit's subject, the first of these that
+# policy.commit_subject allows (policy:refusal): "<reference> start: <title>", or, with policy.commit_reference
+# trailer, where the reference goes in a trailer, "start: <title>", then "chore: start <title>", the form Conventional
+# Commits takes. It refuses, naming the rule's pattern, and returns 1, when the rule allows none, or the policy cannot
+# be read.
+issue:start-subject() {
+  local ref=$1 title=$2 rules subject refusal=''
+  local -a subjects=("${ref} start: ${title}")
+  rules=$(policy:rules) || return 1
+  if [[ "$(jq --raw-output .commit_reference <<<"${rules}")" == trailer ]]
+  then
+    subjects=("start: ${title}" "chore: start ${title}")
+  fi
+  for subject in "${subjects[@]}"
+  do
+    if refusal=$(policy:refusal commit_subject "${subject}")
+    then
+      printf '%s\n' "${subject}"
+      return 0
+    fi
+    [[ -n "${refusal}" ]] || return 1
+  done
+  error "refusing to start ${ref}: the start commit kit work makes, ${refusal}; set policy.commit_subject in kit.yml" \
+    "to allow it"
+  return 1
 }
 
 # issue:sweep-push <root> <message> stashes all uncommitted work at <root>, including untracked files, and prints
@@ -663,6 +692,11 @@ issue:start() {
 
   branch=$(issue:branch "${primary}" "${default_branch}" "${title}") || return
   issue:held "${main_root}" "${branch}" || return 1
+  # A branch with no commit of its own gets the start commit, whose subject must pass before anything is assigned.
+  if [[ -z "$(git rev-list "origin/${default_branch}..origin/${branch}" 2>/dev/null)" ]]
+  then
+    issue:start-subject "${primary}" "${title}" >/dev/null || return 1
+  fi
   if [[ "$(git -C "${main_root}" symbolic-ref --quiet HEAD)" == "refs/heads/${branch}" ]]
   then
     error "refusing to start ${primary}: its branch ${branch} is checked out on the desk, ${main_root}, which is the" \

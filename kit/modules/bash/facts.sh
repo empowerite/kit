@@ -12,7 +12,8 @@
 #     main checkout, as on a CI runner, with no branch, and at commit
 #   - `commits`: at ci, those past the fork from the branch's base, merges excluded: the primary remote's default
 #     branch, or on a runner the base the change's event names (policy:base-name), the same base whose policy judges
-#     them; or null when the fork is not here, as in a shallow clone; at commit, the one commit
+#     them; or null when the fork is not here, as in a shallow clone; at commit, the one commit. Each is its sha, its
+#     subject, and its trailers, [{key, value}] in order, as git reads them from the message's last paragraph
 #   - `change`: at ci, the open change on the branch, with its title, body, and author; null where the primary has no
 #     forge or the forge answered that there is no open change; {"error": "<line>"}, the provider's line, where a read
 #     of the forge failed; at commit, always null
@@ -46,6 +47,12 @@ use context git policy yaml
 
 # The most bytes of a blob that facts:tree gives as text.
 declare -gri facts_text_limit=65536
+
+# facts_trailers_jq defines, for jq, trailers: a list of a commit's trailer lines, "Key: value" as git prints them,
+# read as [{key, value}], in order; a line that is no trailer is left out.
+declare -gr facts_trailers_jq='
+  def trailers:
+    map(capture("^(?<key>[^:[:space:]][^:]*):[[:space:]]*(?<value>.*)$")?);'
 
 # The moments a document can be for.
 declare -gra facts_moments=(commit ci)
@@ -87,8 +94,11 @@ facts:document() {
     if git rev-parse --verify --quiet "${base}^{commit}" >/dev/null && git merge-base "${base}" HEAD >/dev/null 2>&1
     then
       # A caller may not set pipefail, so the substitution sets it: a log that fails is never a branch of no commits.
-      if ! commits=$(set -o pipefail; git log --no-merges --format='%H%x1f%s' "${base}..HEAD" \
-        | jq --raw-input --slurp 'split("\n") | map(select(. != "") | split("\u001f") | {sha: .[0], subject: .[1]})')
+      if ! commits=$(set -o pipefail
+        git log --no-merges --format='%H%x1f%s%x1f%(trailers:only=true,unfold=true,separator=%x1e)' "${base}..HEAD" \
+          | jq --raw-input --slurp "${facts_trailers_jq}"'
+            split("\n") | map(select(. != "") | split("\u001f")
+              | {sha: .[0], subject: .[1], trailers: (.[2] // "" | split("\u001e") | trailers)})')
       then
         error "run: git log --no-merges ${base#refs/remotes/}..HEAD (the commits past the branch's base could not be" \
           "read)"

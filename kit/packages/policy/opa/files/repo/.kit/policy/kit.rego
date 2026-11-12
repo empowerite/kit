@@ -51,3 +51,26 @@ deny contains msg if {
 		[input.change.title, pattern, remedy("change_title")],
 	)
 }
+
+# reference_trailer is the value of a Refs: trailer, one issue reference or more apart by commas, as
+# modules/bash/policy.sh's policy_reference_trailer.
+reference_trailer := `^([A-Z]+)?#[0-9]+(, *([A-Z]+)?#[0-9]+)*$`
+
+referenced(commit) if {
+	some trailer in object.get(commit, "trailers", [])
+	lower(trailer.key) == "refs"
+	regex.match(reference_trailer, trailer.value)
+}
+
+deny contains msg if {
+	object.get(input.policy, "commit_reference", "prefix") == "trailer"
+	some commit in input.commits
+	not referenced(commit)
+	msg := sprintf(
+		"commit %s '%s' has no Refs: trailer naming its issue, which policy.commit_reference: trailer asks for%s",
+		[
+			substring(commit.sha, 0, 7), commit.subject,
+			" (add Refs: #<N> as its last paragraph; kit commit adds it from the branch)",
+		],
+	)
+}

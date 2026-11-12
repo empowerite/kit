@@ -52,7 +52,11 @@ change() {
   [ "${subjects}" = "AB#4521 docs: say so|#7 cli: fix the thing" ]
   [ "$(jq --raw-output .change.title <<<"$output")" = "Fix the thing" ]
   [ "$(jq --raw-output .change.author <<<"$output")" = "ada" ]
-  [ "$(jq --raw-output '.policy | keys | join(" ")' <<<"$output")" = "branch change_title commit_subject remedy worktree" ]
+  [ "$(jq --raw-output '.policy | keys | join(" ")' <<<"$output")" \
+    = "branch change_title commit_reference commit_subject remedy worktree" ]
+  [ "$(jq --raw-output .policy.commit_reference <<<"$output")" = prefix ]
+  # each commit carries its trailers, none here
+  [ "$(jq --compact-output '[.commits[].trailers]' <<<"$output")" = '[[],[]]' ]
   [ "$(jq --raw-output '.policy.remedy | keys | join(" ")' <<<"$output")" = "branch change_title commit_subject worktree" ]
   # the desk is the main checkout, so no worktree is judged
   [ "$(jq --compact-output .worktree <<<"$output")" = null ]
@@ -854,6 +858,127 @@ REGO
   [ "$status" -eq 0 ]
 }
 
+# conventional <subject>… makes a branch past main for issue 7 with one empty commit per subject, each with a
+# Refs: #7 trailer but one whose subject is "no trailer", and makes policy/conventional active.
+conventional() {
+  grep --quiet 'policy/conventional' kit.yml 2>/dev/null \
+    || "${kit_root}/bin/kit" install policy/conventional >/dev/null 2>&1
+  git switch --quiet --create 7-fix-the-thing
+  for subject in "$@"
+  do
+    if [[ "${subject}" == "no trailer" ]]
+    then
+      git commit --quiet --allow-empty --message "feat: no trailer"
+    else
+      git commit --quiet --allow-empty --message "${subject}" --message "Refs: #7"
+    fi
+  done
+}
+
+@test "an active package's policy wins over the kit's defaults, the later in packages winning, and kit.yml over all" {
+  mkdir -p .kit/packages/a .kit/packages/b
+  printf 'description: "a"\npolicy:\n  branch: "^a-"\n  change_title: "^A"\n' > .kit/packages/a/package.yml
+  printf 'description: "b"\ndepends:\n  - a\npolicy:\n  branch:\n    pattern: "^b-"\n    remedy: "start it b-"\n' \
+    > .kit/packages/b/package.yml
+  printf 'packages:\n  - kit\n  - a\n  - b\n' > kit.yml
+  run "${kit_root}/bin/kit" policy --rules --json
+  [ "$status" -eq 0 ]
+  [ "$(jq --slurp --compact-output 'map([.rule, .pattern, .from])' <<<"$output")" = "$(printf '%s' \
+    '[["branch","^b-","b"],["worktree","^worktrees/[a-z0-9]+-[a-z0-9][a-z0-9-]*$","default"],' \
+    '["commit_subject","^([A-Z]+)?#[0-9]+ [^ ]","default"],["change_title","^A","a"],' \
+    '["commit_reference","prefix","default"]]')" ]
+  branch topic "#7 cli: fine"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"branch 'topic' does not match policy.branch: ^b- (start it b-)"* ]]
+  # kit.yml wins over every package, and an empty pattern turns the rule off
+  printf "packages:\n  - kit\n  - a\n  - b\npolicy:\n  branch: ''\n" > kit.yml
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 0 ]
+  # a package listed that is not in reach drops none of its rules: the policy cannot be read
+  printf 'packages:\n  - kit\n  - gone\n' > kit.yml
+  run "${kit_root}/bin/kit" policy --rules
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the package gone, which kit.yml lists, is not in reach, so its policy cannot be read"* ]]
+}
+
+@test "a package's policy the kit cannot read is refused by kit install, naming the package" {
+  mkdir -p .kit/packages/odd
+  printf 'description: "odd"\npolicy:\n  branche: "^x"\n' > .kit/packages/odd/package.yml
+  run "${kit_root}/bin/kit" install odd
+  [ "$status" -ne 0 ]
+  [[ "$output" == *".kit/packages/odd/package.yml: policy has a subject the kit does not know: branche"* ]]
+  printf 'description: "odd"\npolicy:\n  commit_reference: footer\n' > .kit/packages/odd/package.yml
+  run "${kit_root}/bin/kit" install odd
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"policy.commit_reference must be prefix or trailer, not \"footer\""* ]]
+}
+
+@test "a branch is judged by the policy of the packages its base lists, as the base holds them" {
+  mkdir -p .kit/packages/mine
+  printf 'description: "mine"\npolicy:\n  branch: "^m-"\n' > .kit/packages/mine/package.yml
+  printf 'packages:\n  - kit\n  - mine\n' > kit.yml
+  git add kit.yml .kit/packages
+  git commit --quiet --message "#2 kit: a policy of our own" && git push --quiet origin main
+  branch 7-fix-the-thing "#7 cli: fine"
+  # the branch loosens the package, then drops it, and neither counts
+  printf 'description: "mine"\npolicy:\n  branch: ""\n' > .kit/packages/mine/package.yml
+  git commit --quiet --all --message "#7 kit: loosen it"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"branch '7-fix-the-thing' does not match policy.branch: ^m-"* ]]
+  printf 'packages:\n  - kit\n' > kit.yml
+  git commit --quiet --all --message "#7 kit: drop it"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"branch '7-fix-the-thing' does not match policy.branch: ^m-"* ]]
+  [ "$("${kit_root}/bin/kit" policy --rules --json | jq --raw-output 'select(.rule == "branch") | .from')" = mine ]
+}
+
+@test "policy/conventional holds every commit and the change's title to Conventional Commits, the issue in a trailer" {
+  conventional "feat: the thing" "fix(cli)!: the flag" "#7 feat: a prefix" "no trailer"
+  change "feat: fix the thing"
+  [ "$("${kit_root}/bin/kit" policy --input | jq --raw-output .policy.commit_reference)" = trailer ]
+  [ "$("${kit_root}/bin/kit" policy --input | jq --compact-output '.commits[-1].trailers')" \
+    = '[{"key":"Refs","value":"#7"}]' ]
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"'#7 feat: a prefix' does not match policy.commit_subject: ^(build|chore|"*"(write the subject as"* ]]
+  [[ "$output" == *"'feat: no trailer' has no Refs: trailer naming its issue, which policy.commit_reference:"* ]]
+  [[ "$output" == *"2 refusal(s) by the patterns policy"* ]]
+  [[ "$output" != *"'feat: the thing'"* && "$output" != *"'fix(cli)!: the flag'"* ]]
+  # a title off the form is refused apart from the commits
+  change "Fix the thing"
+  run "${kit_root}/bin/kit" policy
+  [[ "$output" == *"change title 'Fix the thing' does not match policy.change_title: "*"(write the title as"* ]]
+  # a repository that squash-merges holds the title alone, and still each commit's reference
+  yq --inplace '.policy.commit_subject = ""' kit.yml
+  run "${kit_root}/bin/kit" policy
+  [[ "$output" == *"change title 'Fix the thing' does not match"* && "$output" != *"'#7 feat: a prefix'"* ]]
+  [[ "$output" == *"'feat: no trailer' has no Refs: trailer"* ]]
+  # one that wants only the commits sets the title back
+  yq --inplace '.policy = {"change_title": "^[^[:cntrl:]]{1,120}$"}' kit.yml
+  run "${kit_root}/bin/kit" policy
+  [[ "$output" != *"change title"* && "$output" == *"'#7 feat: a prefix' does not match"* ]]
+}
+
+@test "both engines judge policy/conventional's commits, titles, and trailers in the same words" {
+  command -v opa >/dev/null || skip "opa, the opa policy engine, is not on PATH"
+  "${kit_root}/bin/kit" install policy/opa policy/conventional >/dev/null 2>&1
+  conventional "feat: the thing" "#7 feat: a prefix" "no trailer"
+  change "Fix the thing"
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"by the opa policy"* ]]
+  by_opa=$(grep '^❌ ' <<<"$output" | grep --invert-match 'refusal(s)' | LC_ALL=C sort)
+  printf 'policy_engine: patterns\n' >> kit.yml
+  run "${kit_root}/bin/kit" policy
+  [ "$status" -eq 1 ]
+  by_patterns=$(grep '^❌ ' <<<"$output" | grep --invert-match 'refusal(s)' | LC_ALL=C sort)
+  [ "$(wc -l <<<"${by_opa}")" -eq 3 ]
+  [ "${by_opa}" = "${by_patterns}" ]
+}
+
 @test "the opa engine, given the policy/opa package's Rego, refuses exactly what the patterns engine does" {
   command -v opa >/dev/null || skip "opa, the opa policy engine, is not on PATH"
   "${kit_root}/bin/kit" install policy/opa >/dev/null 2>&1
@@ -1018,10 +1143,11 @@ REGO
 @test "kit policy --rules --json lists each rule, its pattern, where it is set, and the engine" {
   printf "policy:\n  branch: '^feature/[a-z-]+\$'\n  change_title: ''\n" > kit.yml
   run "${kit_root}/bin/kit" policy --rules --json
-  [[ "$status" -eq 0 && "${#lines[@]}" -eq 4 && "$(jq --raw-output .from <<<"${lines[2]}")" == default ]]
+  [[ "$status" -eq 0 && "${#lines[@]}" -eq 5 && "$(jq --raw-output .from <<<"${lines[2]}")" == default ]]
   [ "${lines[0]}" = '{"rule":"branch","pattern":"^feature/[a-z-]+$","from":"kit.yml","engine":"patterns"}' ]
   [ "$(jq --raw-output .rule <<<"${lines[1]}")" = worktree ]
   [ "${lines[3]}" = '{"rule":"change_title","pattern":"","from":"kit.yml","engine":"patterns"}' ]
+  [ "${lines[4]}" = '{"rule":"commit_reference","pattern":"prefix","from":"default","engine":"patterns"}' ]
 }
 
 @test "kit policy --rules on a branch past the default lists the base's rules, not the branch's own" {
@@ -1035,11 +1161,12 @@ REGO
   [ "${lines[0]}" = '{"rule":"branch","pattern":"^base-[a-z]+$","from":"kit.yml","engine":"patterns"}' ]
 }
 
-@test "kit policy --rules prints a table of the four rules, (off) for an empty pattern, and --jq formats the JSON" {
+@test "kit policy --rules prints a table of the five rules, (off) for an empty pattern, and --jq formats the JSON" {
   printf "policy:\n  change_title: ''\n" > kit.yml
   run "${kit_root}/bin/kit" policy --rules
   [ "$status" -eq 0 ]
-  [[ "${lines[0]}" == *rule*from*engine*pattern* && "${#lines[@]}" -eq 5 ]]
+  [[ "${lines[0]}" == *rule*from*engine*pattern* && "${#lines[@]}" -eq 6 ]]
+  [[ "${lines[5]}" == commit_reference*default*patterns*prefix ]]
   [[ "${lines[1]}" == branch*default*patterns*'^[a-z0-9]+-[a-z0-9][a-z0-9-]*$' ]]
   [[ "${lines[2]}" == worktree*default*patterns*'^worktrees/[a-z0-9]+-[a-z0-9][a-z0-9-]*$' ]]
   [[ "${lines[4]}" == change_title*kit.yml*patterns*'(off)' ]]
@@ -1047,5 +1174,5 @@ REGO
   [ "$status" -eq 0 ]
   [ "${lines[0]}" = '{' ]
   [ "$(jq --slurp --raw-output '[.[].rule] | join(",")' <<<"${output}")" \
-    = branch,worktree,commit_subject,change_title ]
+    = branch,worktree,commit_subject,change_title,commit_reference ]
 }

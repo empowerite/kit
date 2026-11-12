@@ -17,7 +17,9 @@
 #
 # The names kit work makes are held to the policy in kit.yml, as kit policy holds them in CI: a branch, <key>-<slug>,
 # or a worktree, worktrees/<branch>, that the policy refuses is never made, and kit work refuses, naming the rule's
-# pattern, before it assigns or sweeps anything. A branch or a worktree that already exists, and a draft's title,
+# pattern, before it assigns or sweeps anything. So is a start commit whose subject the policy refuses: it is
+# <reference> start: <title>, or with policy.commit_reference trailer, start: <title> or chore: start <title>, the
+# first that passes, its issue in a Refs: trailer. A branch or a worktree that already exists, and a draft's title,
 # the issue's, that the policy refuses are warned of instead.
 #
 # The desk, the root checkout, is the human's. kit work refuses an issue whose branch the desk has checked out,

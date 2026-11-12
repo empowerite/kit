@@ -11,7 +11,8 @@
 #   - refuses a staged path the kit placed under .kit/, read from .kit/.gitignore, which names every one
 #   - runs kit lint and kit generate --check over the staged paths, so the pre-commit checks hold with no hook manager,
 #     and refuses a path staged as added or changed that is not on the disk, which no check could read
-#   - supplies the issue's reference from the branch when the subject carries none
+#   - supplies the issue's reference from the branch when the message carries none: in front of the subject, as
+#     #7 <subject>, or with policy.commit_reference trailer, as a Refs: #7 trailer in the message's last paragraph
 #   - judges the subject, and the tree the commit will make, by the repository's policy through the policy seam, as
 #     kit policy judges them in CI
 #   - with require_signing true in kit.yml, refuses when git has no user.signingkey; otherwise it warns when commits
@@ -24,9 +25,9 @@
 # changed alone: a path the shared index stages as the parent has it takes the commit's copy, and one staged otherwise
 # stays, with a warning. So the next commit from the shared index is not refused as one that would undo it.
 #
-# A commit whose subject names an issue other than the branch's own attaches that issue to the branch's change, so
-# kit commit then adds a `Closes <reference>` line to the change's body, and assigns the caller to the issue when no
-# one is assigned. The commit exists by then, so a forge that fails only warns.
+# A commit whose subject, or a Refs: trailer, names an issue other than the branch's own attaches that issue to the
+# branch's change, so kit commit then adds a `Closes <reference>` line to the change's body, and assigns the caller to
+# the issue when no one is assigned. The commit exists by then, so a forge that fails only warns.
 #
 # kit submit commits when there is something to commit, then pushes the branch to the branch of its own name on its
 # remote, setting the upstream on the first push. Its remote is origin, unless its upstream is a branch of its own
@@ -121,10 +122,11 @@ commit:guard() {
 }
 
 # commit:with-reference <branch> <subject> prints the subject with the branch's issue reference in front, when the
-# subject carries no reference of its own and the branch was made for an issue.
+# subject carries no reference of its own and the branch was made for an issue. With policy.commit_reference trailer,
+# the reference goes in a trailer instead (commit:with-trailer), and the subject is printed as it is.
 commit:with-reference() {
   local branch=$1 subject=$2 reference
-  if [[ "${subject}" =~ ^([A-Z]+)?#[0-9]+\  ]]
+  if [[ "${subject}" =~ ^([A-Z]+)?#[0-9]+\  || "$(commit:reference-mode)" == trailer ]]
   then
     printf '%s\n' "${subject}"
     return 0
@@ -139,13 +141,57 @@ commit:with-reference() {
   fi
 }
 
-# commit:attach <branch> <subject> closes the issue the subject names in the branch's open change, and assigns the
-# caller to it when it has no assignee, when that issue is not the branch's own. It asks the forge nothing otherwise,
-# nor in a repository with no forge, and it only warns: the commit exists already.
+# commit:reference-mode prints where a commit carries its issue's reference, policy.commit_reference by the disk's
+# policy: prefix, or trailer. A policy that cannot be read is prefix here; the judge reads it again, and refuses.
+commit:reference-mode() {
+  local rules
+  rules=$(policy:rules 2>/dev/null) || rules='{}'
+  jq --raw-output '.commit_reference // "prefix"' <<<"${rules}"
+}
+
+# commit:with-trailer <branch> <message> adds a Refs: <reference> trailer, the branch's issue, to the message file,
+# in its last paragraph as git interpret-trailers puts it, where policy.commit_reference is trailer, the branch was
+# made for an issue, and the message has no Refs: trailer of its own.
+commit:with-trailer() {
+  local branch=$1 message=$2 reference trailers
+  [[ "$(commit:reference-mode)" == trailer ]] || return 0
+  trailers=$(git interpret-trailers --parse < "${message}") || return 1
+  ! grep --quiet --ignore-case '^refs:' <<<"${trailers}" || return 0
+  reference=$(tracker:branch-ref "${branch}")
+  [[ -n "${reference}" ]] || return 0
+  git interpret-trailers --in-place --trailer "Refs: ${reference}" "${message}" || return 1
+  step "trailer: Refs: ${reference} supplied from the branch"
+}
+
+# commit:attach <branch> <subject> attaches each issue HEAD names that is not the branch's own: the reference in
+# front of the subject, and each in a Refs: trailer of HEAD's message (commit:attach-one).
 commit:attach() {
-  local branch=$1 subject=$2 ref pr prefix me assignees
-  [[ "${subject}" =~ ^(([A-Z]+)?#[0-9]+)\  ]] || return 0
-  ref=$(tracker:normal "${BASH_REMATCH[1]}" 2>/dev/null) || return 0
+  local branch=$1 subject=$2 ref trailed
+  local -a refs=() trailed_refs=()
+  [[ ! "${subject}" =~ ^(([A-Z]+)?#[0-9]+)\  ]] || refs+=("${BASH_REMATCH[1]}")
+  # HEAD is the commit just made; one whose trailers cannot be read attaches what its subject names alone.
+  if trailed=$(git log -1 --format='%(trailers:key=Refs,valueonly=true,unfold=true,separator=%x2c)' HEAD 2>/dev/null)
+  then
+    IFS=, read -r -a trailed_refs <<<"${trailed}"
+    for ref in "${trailed_refs[@]}"
+    do
+      ref=${ref#"${ref%%[! ]*}"}
+      ref=${ref%"${ref##*[! ]}"}
+      [[ -z "${ref}" ]] || refs+=("${ref}")
+    done
+  fi
+  for ref in "${refs[@]}"
+  do
+    commit:attach-one "${branch}" "${ref}"
+  done
+}
+
+# commit:attach-one <branch> <reference> closes the issue in the branch's open change, and assigns the caller to it
+# when it has no assignee, when that issue is not the branch's own. It asks the forge nothing otherwise, nor in a
+# repository with no forge, and it only warns: the commit exists already.
+commit:attach-one() {
+  local branch=$1 ref pr prefix me assignees
+  ref=$(tracker:normal "$2" 2>/dev/null) || return 0
   [[ "${ref}" != "$(tracker:branch-ref "${branch}")" ]] || return 0
   use issue
   forge:provider >/dev/null 2>&1 || return 0
@@ -172,13 +218,17 @@ commit:attach() {
   fi
 }
 
-# commit:judge <branch> <subject> [<path>…] refuses a subject, a branch, or a tree the policy does not allow. It prints
-# warnings first, and they never refuse. It uses the engine kit policy uses, with the facts of the commit moment: this
-# one commit, and the tree it will make. With
+# commit:judge <branch> <message> [<path>…] refuses a subject, a branch, or a tree the policy does not allow, the
+# subject and the trailers read from the message file. It prints warnings first, and they never refuse. It uses the
+# engine kit policy uses, with the facts of the commit moment: this one commit, and the tree it will make. With
 # <path>…, that tree is HEAD and those paths as the disk has them, as git commit --only makes it. It is built in an
 # index of its own, so what another session staged never shows in it. With no path, the tree is the index.
 commit:judge() {
-  local branch=$1 subject=$2 work warnings refusals line
+  local branch=$1 subject trailers work warnings refusals line
+  subject=$(head -n 1 "$2")
+  # shellcheck disable=SC2154  # facts_trailers_jq is set by modules/bash/facts.sh
+  trailers=$(git interpret-trailers --parse < "$2" | jq --raw-input --slurp --compact-output "${facts_trailers_jq}"'
+    split("\n") | map(select(. != "")) | trailers') || return 1
   shift 2
   file:scratch work || return 1
   if (( $# > 0 ))
@@ -195,8 +245,9 @@ commit:judge() {
     policy:from '' "${work}/policy" || { commit:unjudged "${work}"; return 1; }
     facts:document commit > "${work}/facts" || { commit:unjudged "${work}"; return 1; }
   fi
-  jq --arg branch "${branch}" --arg subject "${subject}" \
-    '.branch = $branch | .commits = [{sha: "0000000", subject: $subject}]' "${work}/facts" > "${work}/input" \
+  jq --arg branch "${branch}" --arg subject "${subject}" --argjson trailers "${trailers}" \
+    '.branch = $branch | .commits = [{sha: "0000000", subject: $subject, trailers: $trailers}]' "${work}/facts" \
+    > "${work}/input" \
     || { commit:unjudged "${work}"; return 1; }
   # An engine that cannot judge refuses the commit: unjudged is never allowed.
   if ! refusals=$(policy:deny "${work}/input")
@@ -609,19 +660,6 @@ commit:commit() {
     subject=${commit_messages[0]%%$'\n'*}
   fi
   subject=$(commit:with-reference "${branch}" "${subject}")
-  commit:guard "${staged[@]}" || return 1
-  commit:checks "${staged[@]}" || return 1
-  # Named paths are committed alone, so the policy judges the tree they make; otherwise, the index is the tree.
-  if (( ${#commit_paths[@]} > 0 ))
-  then
-    commit:judge "${branch}" "${subject}" "${staged[@]}" || return 1
-  else
-    commit:judge "${branch}" "${subject}" || return 1
-  fi
-  if (( ${#sign[@]} == 0 )) && [[ "$(git config --type=bool commit.gpgsign 2>/dev/null)" != true ]]
-  then
-    warn "commits here are not signed; set commit.gpgsign to true, with user.signingkey, so the work is signed"
-  fi
   file:temp message message || return 1
   {
     printf '%s\n' "${subject}"
@@ -637,6 +675,20 @@ commit:commit() {
       done
     fi
   } > "${message}"
+  commit:with-trailer "${branch}" "${message}" || return 1
+  commit:guard "${staged[@]}" || return 1
+  commit:checks "${staged[@]}" || return 1
+  # Named paths are committed alone, so the policy judges the tree they make; otherwise, the index is the tree.
+  if (( ${#commit_paths[@]} > 0 ))
+  then
+    commit:judge "${branch}" "${message}" "${staged[@]}" || return 1
+  else
+    commit:judge "${branch}" "${message}" || return 1
+  fi
+  if (( ${#sign[@]} == 0 )) && [[ "$(git config --type=bool commit.gpgsign 2>/dev/null)" != true ]]
+  then
+    warn "commits here are not signed; set commit.gpgsign to true, with user.signingkey, so the work is signed"
+  fi
   # A HEAD that moved during the checks was never judged, so the commit is refused either way, and so is a tree that
   # changed under the checks.
   commit:moved "${head}" || { rm -f "${message}"; return 1; }

@@ -176,6 +176,8 @@ The packages:
   - `kit check`
 - `policy/opa`: `.kit/policy/kit.rego`, the naming policy in Rego. With it, `kit policy` runs on Open Policy
   Agent, and a rule can express what a pattern cannot.
+- `policy/conventional`: no file, but policy rules that hold commit subjects and pull request titles to Conventional
+  Commits. The issue's reference moves out of the subject into a `Refs: #7` trailer, which `kit commit` supplies.
 - `agents/generic`: support for any agent that reads `AGENTS.md`. Every `agents/<harness>` package below depends
   on it. It delivers a region in the repository's `AGENTS.md`, filled by `kit region`, that points to this file.
 - `agents/claude`: support for Claude Code, which reads `AGENTS.md` only when it finds no `CLAUDE.md`. It delivers:

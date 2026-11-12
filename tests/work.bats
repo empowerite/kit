@@ -489,4 +489,26 @@ issue-call() {
   [ "${lines[-1]}" = 5 ]
 }
 
+@test "with policy/conventional, kit work's start commit is chore: start <title>, the issue in a Refs: trailer" {
+  "${kit_checkout}/bin/kit" install policy/conventional >/dev/null 2>&1
+  printf 'forge: github\n' >> kit.yml
+  git add --all && git commit --quiet --message init
+  world
+  run "${kit_checkout}/bin/kit" work 7
+  [ "$status" -eq 0 ]
+  [ "$(git -C worktrees/7-fix-the-thing log --format=%s -1)" = "chore: start Fix the thing" ]
+  [ "$(git -C worktrees/7-fix-the-thing log --format=%b -1)" = "Refs: #7" ]
+}
+
+@test "a start commit no subject of kit work's passes is refused before anything is assigned, naming the pattern" {
+  desk-world
+  printf "policy:\n  commit_subject: '^never'\n" >> kit.yml
+  run "${kit_checkout}/bin/kit" work 7
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"refusing to start #7: the start commit kit work makes, commit subject '#7 start: Fix the thing'"* ]]
+  [[ "$output" == *"does not match policy.commit_subject: ^never; set policy.commit_subject in kit.yml to allow it"* ]]
+  run ! grep --quiet 'add-assignee' "${FAKE_DIR}/gh.calls"
+  [ ! -e worktrees/7-fix-the-thing ]
+}
+
 # ----------------------------------------------------------------------------------------------------------------------

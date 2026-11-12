@@ -14,8 +14,9 @@
 #   - the tree of files at HEAD
 #
 # Each rule is a pattern, with a remedy that a refusal names after it. The kit's defaults are the kit package's
-# policy, the workflow's names; kit.yml's policy: map sets a rule of its own. The policy engine then reports every
-# refusal and every warning. A warning is printed and never fails. The engine
+# policy, the workflow's names; an active package's policy, as policy/conventional's, wins over them, the later in
+# kit.yml's packages winning; and kit.yml's policy: map wins over all. With commit_reference trailer, each commit must
+# carry a Refs: trailer naming its issue. The policy engine then reports every refusal and every warning. A warning is printed and never fails. The engine
 # is patterns (the default) or Open Policy Agent. kit policy first refuses facts it cannot judge: a branch whose
 # commits are null, as the fork is not here, and a change that holds an error, as the forge could not answer for it.
 # The refusal comes before either engine runs, and a document given with --facts is refused the same way.
@@ -43,12 +44,13 @@
 # Arguments:
 #   --input           prints the facts as JSON instead of judging them
 #   --facts=<file>    judges the facts document in <file>, and gathers nothing; for testing a rule against a fixture
-#   --rules           lists each rule the policy judges by: its name, its pattern, and where the pattern is set, as a
-#                     table; it reads no forge and judges nothing. On a branch past the default it lists the base's
-#                     rules, as kit policy judges by them, and fails as kit policy does when the base cannot be named
-#                     or read
-#   --json            with --rules, one JSON object a line: rule, pattern, from, and engine; from is kit.yml where the
-#                     policy: map sets the rule, else default, and engine is the engine that judges, patterns or opa
+#   --rules           lists each rule the policy judges by, commit_reference last: its name, its pattern or value, and
+#                     where it is set, as a table; it reads no forge and judges nothing. On a branch past the default
+#                     it lists the base's rules, as kit policy judges by them, and fails as kit policy does when the
+#                     base cannot be named or read
+#   --json            with --rules, one JSON object a line: rule, pattern, from, and engine; from is kit.yml where its
+#                     policy: map sets the rule, an active package's name where its package.yml does, else default,
+#                     and engine is the engine that judges, patterns or opa
 #   --jq              the same JSON, formatted by jq for a person
 #
 # Exits 0 when the policy refuses nothing, with or without warnings, 1 on any refusal, when the forge cannot answer for

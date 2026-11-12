@@ -4,7 +4,8 @@
 # modules/bash/policy.sh uses this provider unless the repository picks another. It needs no tool. It matches each rule in
 # the facts' policy object against its subject with bash's =~. A rule with an empty pattern is off. The refusals
 # use the same wording as the policy/opa package's Rego, so both providers print the same messages: the subject, the
-# pattern, and the rule's remedy in parentheses where policy.remedy has one.
+# pattern, and the rule's remedy in parentheses where policy.remedy has one. With policy.commit_reference trailer, it
+# refuses each commit past the fork that carries no Refs: trailer naming an issue (policy_reference_trailer).
 
 # policy/patterns:deny <input-file> prints one refusal per subject that does not match its pattern.
 policy/patterns:deny() {
@@ -28,6 +29,17 @@ policy/patterns:deny() {
       policy/patterns:refusal "${input}" commit_subject "commit ${sha:0:7} '${subject}'" "${pattern}"
     done < <(jq --raw-output '.commits // [] | .[] | "\(.sha)\u001f\(.subject)"' "${input}")
   fi
+  # shellcheck disable=SC2154  # policy_reference_trailer is set by modules/bash/policy.sh
+  while IFS=$'\x1f' read -r sha subject
+  do
+    [[ -n "${sha}" ]] || continue
+    printf "commit %s '%s' has no Refs: trailer naming its issue, which policy.commit_reference: trailer asks for%s\n" \
+      "${sha:0:7}" "${subject}" ' (add Refs: #<N> as its last paragraph; kit commit adds it from the branch)'
+  done < <(jq --raw-output --arg value "${policy_reference_trailer}" '
+    select(.policy.commit_reference == "trailer") | .commits // [] | .[]
+    | select([.trailers // [] | .[] | select((.key | ascii_downcase) == "refs" and (.value | test($value)))]
+      | length == 0)
+    | "\(.sha)\u001f\(.subject)"' "${input}")
   [[ "$(jq --raw-output '.change != null' "${input}")" == true ]] || return 0
   name=$(jq --raw-output '.change.title // ""' "${input}")
   pattern=$(jq --raw-output '.policy.change_title // ""' "${input}")

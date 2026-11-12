@@ -50,7 +50,7 @@
     "policy": {
       "type": "object",
       "additionalProperties": false,
-      "description": "The policy rules the package sets, with the same keys as kit.yml's policy: each a pattern, or a map of a pattern and the remedy a refusal names. The kit package's are the kit's defaults; kit.yml's policy wins over them.",
+      "description": "The policy rules the package sets, with the same keys as kit.yml's policy: each a pattern, or a map of a pattern and the remedy a refusal names. The kit package's are the kit's defaults; an active package's win over them, the later in kit.yml's packages winning, and kit.yml's policy wins over all.",
       "properties": {
         "branch": {
           "$ref": "#/$defs/rule"
@@ -63,6 +63,13 @@
         },
         "change_title": {
           "$ref": "#/$defs/rule"
+        },
+        "commit_reference": {
+          "enum": [
+            "prefix",
+            "trailer"
+          ],
+          "description": "Where a commit carries its issue's reference: prefix, in front of the subject, or trailer, in a Refs: trailer."
         }
       }
     },

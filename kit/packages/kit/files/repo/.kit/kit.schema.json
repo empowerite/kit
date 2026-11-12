@@ -409,7 +409,7 @@
     "policy": {
       "type": "object",
       "additionalProperties": false,
-      "description": "The rules that the branch name, the worktree's path, commit subjects, and the open change's title must meet. Each is a pattern, an extended regular expression limited to the subset RE2 also supports, or a map of a pattern and its remedy, which a refusal names. An absent key takes the kit's default, the kit package's policy. An empty pattern turns that rule off. A pattern set without a remedy has none; a remedy set alone keeps the default pattern.",
+      "description": "The rules that the branch name, the worktree's path, commit subjects, and the open change's title must meet. Each is a pattern, an extended regular expression limited to the subset RE2 also supports, or a map of a pattern and its remedy, which a refusal names. An absent key takes the kit's default, the kit package's policy, or an active package's, the later in packages winning; these win over both. An empty pattern turns that rule off. A pattern set without a remedy has none; a remedy set alone keeps the pattern below it.",
       "properties": {
         "branch": {
           "$ref": "#/$defs/rule",
@@ -426,6 +426,13 @@
         "change_title": {
           "$ref": "#/$defs/rule",
           "description": "The rule for the open change's title, a pull request on GitHub or a merge request on GitLab. Default: ^[^[:cntrl:]]{1,120}$."
+        },
+        "commit_reference": {
+          "enum": [
+            "prefix",
+            "trailer"
+          ],
+          "description": "Where a commit carries its issue's reference: prefix, in front of the subject, as #7 <subject>; or trailer, in a Refs: #7 trailer in the message's last paragraph, which every commit past the fork must then carry, and kit commit and kit work supply. Default: prefix; the policy/conventional package sets trailer."
         }
       }
     },

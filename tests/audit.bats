@@ -191,7 +191,8 @@ JSON
     '"source":"github","organization":"o","repository":"r","branch":"main","scope":"branch","rule":"branch",' \
     '"pattern":"^[0-9]+-","from":"kit.yml","engine":"patterns","links":{}}')" ]
   [ "$(jq -c '[.rows[] | [.rule, .from]]' <<<"$output")" \
-    = '[["branch","kit.yml"],["worktree","default"],["commit_subject","default"],["change_title","default"]]' ]
+    = '[["branch","kit.yml"],["worktree","default"],["commit_subject","default"],["change_title","default"],'\
+'["commit_reference","default"]]' ]
 }
 
 @test "policy reads each checked-out branch, merges a rule its branches agree on, and keeps apart those they do not" {
@@ -207,7 +208,8 @@ JSON
   [ "$status" -eq 0 ] || { echo "S${status} E${stderr} O${output}"; return 1; }
   [ "$(jq -c '[.rows[] | [.key, .scope, .branch]]' <<<"$output")" = "$(printf '%s' \
     '[["branch github o r","repository",null],["worktree github o r","repository",null],' \
-    '["commit_subject github o r","repository",null],["change_title github o r","repository",null]]')" ]
+    '["commit_subject github o r","repository",null],["change_title github o r","repository",null],' \
+    '["commit_reference github o r","repository",null]]')" ]
   # main's own kit.yml now differs from what it holds, which still judges 2-fix: the rule is a row a branch
   printf 'policy:\n  branch: "^x-"\n' > kit.yml
   run --separate-stderr "${kit_root}/bin/kit" audit policy --json
@@ -216,7 +218,7 @@ JSON
     '[["branch","branch","2-fix","^[0-9]+-"],["branch","branch","main","^x-"],' \
     '["worktree","repository",null,"^worktrees/[a-z0-9]+-[a-z0-9][a-z0-9-]*$"],' \
     '["commit_subject","repository",null,"^([A-Z]+)?#[0-9]+ [^ ]"],' \
-    '["change_title","repository",null,"^[^[:cntrl:]]{1,120}$"]]')" ]
+    '["change_title","repository",null,"^[^[:cntrl:]]{1,120}$"],["commit_reference","repository",null,"prefix"]]')" ]
   # nothing is placed in the other checkout
   [ ! -e "${BATS_TEST_TMPDIR}/w/.kit" ]
   # the marks follow each checkout's policy
@@ -235,7 +237,7 @@ JSON
   [ "$(jq -c '.stages' <<<"$output")" = '["evidence","findings","controls","waivers","policy"]' ]
   [ "$(jq -c '[.evidence, .findings, .controls, .waivers]' <<<"$output")" = "$(printf '[%s]' \
     '{"rows":[],"errors":[]},{"rows":[],"errors":[]},{"rows":[],"errors":[]},{"rows":[],"errors":[]}')" ]
-  [ "$(jq -c '.policy.rows | length' <<<"$output")" -eq 4 ]
+  [ "$(jq -c '.policy.rows | length' <<<"$output")" -eq 5 ]
   run --separate-stderr "${kit_root}/bin/kit" audit --marks
   [ "$status" -eq 0 ]
   [ "$output" = '{"evidence":null,"findings":null,"controls":null,"waivers":null,"policy":null}' ]
@@ -251,7 +253,8 @@ JSON
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
   [ "$(jq -c '[.rows[] | [.key, .scope, .source, .organization, .repository, .branch]]' <<<"$output")" \
     = "$(printf '%s' '[["branch   r main","branch","","","r","main"],["worktree   r main","branch","","","r","main"],' \
-    '["commit_subject   r main","branch","","","r","main"],["change_title   r main","branch","","","r","main"]]')" ]
+    '["commit_subject   r main","branch","","","r","main"],["change_title   r main","branch","","","r","main"],' \
+    '["commit_reference   r main","branch","","","r","main"]]')" ]
   # a remote on this machine is on no forge: the branches merge, and the place is still none of either
   git init --quiet --bare "${BATS_TEST_TMPDIR}/origin.git"
   git remote add origin "${BATS_TEST_TMPDIR}/origin.git"
@@ -262,7 +265,8 @@ JSON
   [ "$status" -eq 0 ] || { echo "${stderr}"; return 1; }
   [ "$(jq -c '[.rows[] | [.key, .scope, .source, .organization, .repository, .branch]]' <<<"$output")" \
     = "$(printf '%s' '[["branch   r","repository","","","r",null],["worktree   r","repository","","","r",null],' \
-    '["commit_subject   r","repository","","","r",null],["change_title   r","repository","","","r",null]]')" ]
+    '["commit_subject   r","repository","","","r",null],["change_title   r","repository","","","r",null],' \
+    '["commit_reference   r","repository","","","r",null]]')" ]
   # read from the other worktree, the repository is still the main checkout's directory
   cd "${BATS_TEST_TMPDIR}/w"
   run --separate-stderr "${kit_root}/bin/kit" audit policy --json
@@ -310,7 +314,7 @@ two-members() {
   [ "$(jq -c '[.rows[] | [.rule, .scope, .source, .repository, .member]]' <<<"$output")" = "$(printf '%s' \
     '[["branch","branch","github","a","github.com/o/a"],["branch","branch","gitlab","b","gitlab.com/o/b"],' \
     '["worktree","workspace",null,null,null],["commit_subject","workspace",null,null,null],' \
-    '["change_title","workspace",null,null,null]]')" ]
+    '["change_title","workspace",null,null,null],["commit_reference","workspace",null,null,null]]')" ]
 }
 
 @test "an app verb's marks over a group join each member's, and name the member they could not be read of" {

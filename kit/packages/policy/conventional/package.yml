@@ -1,0 +1,22 @@
+# packages/policy/conventional/package.yml - the policy/conventional package: Conventional Commits subjects and titles
+# ----------------------------------------------------------------------------------------------------------------------
+# It delivers no file. Its policy layers over the kit's defaults, and kit.yml's policy: map wins over it: a repository
+# that squash-merges sets commit_subject: '' there, so only the change's title is held; one that wants only the
+# commits sets change_title back. The issue reference moves out of the subject into a Refs: trailer.
+# see: docs/packages/policy/conventional.md
+
+description: "Commit subjects and change titles held to Conventional Commits, the issue in a Refs: trailer"
+depends:
+  - kit
+policy:
+  commit_subject:
+    pattern: '^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([a-z0-9-]+\))?!?: [^ ]'
+    remedy: >-
+      write the subject as <type>[(<scope>)][!]: <description>, the type one of build, chore, ci, docs, feat, fix,
+      perf, refactor, revert, style, test
+  change_title:
+    pattern: '^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([a-z0-9-]+\))?!?: [^ ]'
+    remedy: >-
+      write the title as <type>[(<scope>)][!]: <description>, the type one of build, chore, ci, docs, feat, fix,
+      perf, refactor, revert, style, test
+  commit_reference: trailer

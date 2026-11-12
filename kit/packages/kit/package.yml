@@ -19,3 +19,4 @@ policy:
   change_title:
     pattern: '^[^[:cntrl:]]{1,120}$'
     remedy: 'make the title one line of at most 120 characters'
+  commit_reference: prefix

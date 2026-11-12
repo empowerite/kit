@@ -11,15 +11,25 @@
 # rule against, and so does `kit policy --input`. It holds the moment, the branch, the commits, the change, the tree
 # of files git holds, and the policy settings, with the kit's defaults filled in.
 #
-# The rules are the `policy:` map in kit.yml, one extended regular expression per subject, each with an optional
-# remedy: a rule is a pattern, or a map of pattern and remedy. A subject kit.yml does not set takes the kit's
-# default, which is data, the `policy:` map in the kit package's package.yml: the workflow's names in .kit/1st.md. An
-# empty pattern turns that rule off.
+# The rules are `policy:` maps, one extended regular expression per subject, each with an optional remedy: a rule is a
+# pattern, or a map of pattern and remedy. They are layered, a later layer's rule winning:
+#
+#   1. the kit's defaults, the `policy:` map in the release's kit package's package.yml: the workflow's names in
+#      .kit/1st.md
+#   2. each active package's `policy:` map in its package.yml, in the order kit.yml's packages: lists them, which is
+#      dependency order as kit install writes it, so the later package wins
+#   3. kit.yml's `policy:` map, which wins over all
+#
+# An empty pattern turns that rule off.
 #
 #   branch            the branch's name
 #   worktree          the worktree's path under the main checkout, as worktrees/7-fix-the-thing
 #   commit_subject    the subject of every commit past the fork, merges excluded
 #   change_title      the open change's title
+#
+# One more key says where a commit carries its issue's reference, commit_reference: prefix, the kit's default, in
+# front of the subject, as #7 <subject>, which commit_subject's default pattern holds it to; or trailer, in a
+# Refs: <reference> trailer, which each commit past the fork must then carry, and kit commit and kit work supply.
 #
 # A refusal names the subject, the pattern, and the rule's remedy after it in parentheses, where it has one. A pattern
 # set without a remedy has none, since the remedy below it was written for another pattern; a remedy set alone keeps
@@ -103,35 +113,63 @@ declare -g policy_rego=.kit/policy
 # policy_subjects are the rules a pattern judges, in the order kit policy --rules lists them.
 declare -gra policy_subjects=(branch worktree commit_subject change_title)
 
+# policy_reference_trailer is what the value of a Refs: trailer is, with policy.commit_reference trailer: one issue
+# reference or more, #7 or AB#4521, apart by commas. The policy/opa package's kit.rego holds the same expression, and
+# jq and RE2 read it the same way.
+# shellcheck disable=SC2034  # read by modules/bash/policy/patterns.sh
+declare -gr policy_reference_trailer='^([A-Z]+)?#[0-9]+(, *([A-Z]+)?#[0-9]+)*$'
+
 # policy_defaults is the package.yml whose `policy:` map holds the kit's defaults, relative to the release.
 declare -gr policy_defaults=packages/kit/package.yml
 
+# policy_metas lists, while policy:from or policy:from-base has the policy read from a tree, the package.yml of each
+# package that tree's kit.yml lists, but the kit, as "<package>\t<path>", in that order; policy_metas_read is true
+# then. While it is false, policy:packages reads them from the disk.
+declare -ga policy_metas=()
+declare -g policy_metas_read=false
+
 # policy_jq defines, for jq, problem($subjects): what is wrong with a layer, {file, policy}, one line naming its file,
-# or null where the kit can read it: a policy that is no map, a subject not among $subjects, or a rule that is
-# neither a pattern nor a map of pattern and remedy.
+# or null where the kit can read it: a policy that is no map, a subject not among $subjects nor commit_reference, a
+# rule that is neither a pattern nor a map of pattern and remedy, or a commit_reference neither prefix nor trailer.
 # shellcheck disable=SC2016  # the $variables and \(…) are jq's, in a jq program
 declare -gr policy_jq='
   def problem($subjects):
     . as $l
     | if $l.policy != null and ($l.policy | type) != "object" then "\($l.file): policy must be a map of rules"
       else [($l.policy // {}) | to_entries[]
-        | if (.key | IN($subjects[]) | not) then
-            "\($l.file): policy has a subject the kit does not know: \(.key) (the subjects: \($subjects | join(", ")))"
+        | if .key == "commit_reference" then
+            if .value | IN("prefix", "trailer") then empty
+            else "\($l.file): policy.commit_reference must be prefix or trailer, not \(.value | tojson)" end
+          elif (.key | IN($subjects[]) | not) then
+            "\($l.file): policy has a subject the kit does not know: \(.key) (the subjects:"
+            + " \($subjects + ["commit_reference"] | join(", ")))"
           elif (.value | type) == "string" or .value == null then empty
           elif (.value | type) == "object" and (.value | keys - ["pattern", "remedy"]) == []
             and ([.value[] | type] - ["string", "null"]) == [] then empty
           else "\($l.file): policy.\(.key) must be a pattern, or a map of pattern and remedy" end] | .[0]
       end;'
 
-# policy:resolved prints the rules as one JSON object, each subject's {pattern, remedy, from}: the kit's defaults, from
-# default, then kit.yml's `policy:` map, from kit.yml, each rule it sets winning. It fails, naming the file, on a map
-# the kit cannot read, as problem in policy_jq finds it, or a pattern bash cannot compile.
+# policy:resolved prints the rules as one JSON object, each subject's {pattern, remedy, from}, and commit_reference's
+# {value, from}, layered as the file header describes: from is default for the kit's defaults, the package's name for
+# an active package's, and kit.yml for kit.yml's. It fails, naming the file, on a map the kit cannot read, as problem
+# in policy_jq finds it, or a pattern bash cannot compile, and when an active package's package.yml cannot be read.
 policy:resolved() {
-  local settings doc layers out key pattern from compiled
+  local settings doc layers out key pattern from compiled package meta row
+  local -a rows
   # shellcheck disable=SC2154  # kit_root is exported by modules/bash/1st.sh
   doc=$(yaml:json "${kit_root}/${policy_defaults}") || return 1
   layers=$(jq --null-input --compact-output --arg file "${policy_defaults}" --argjson doc "${doc:-null}" \
     '[{from: "default", file: $file, policy: (($doc | objects | .policy) // null)}]') || return 1
+  list:read rows policy:packages || return 1
+  for row in "${rows[@]}"
+  do
+    IFS=$'\t' read -r package meta <<<"${row}"
+    [[ -n "${package}" ]] || continue
+    doc=$(yaml:json "${meta}") || return 1
+    layers=$(jq --compact-output --arg from "${package}" --arg file "${package}'s package.yml" \
+      --argjson doc "${doc:-null}" '. + [{from: $from, file: $file, policy: (($doc | objects | .policy) // null)}]' \
+      <<<"${layers}") || return 1
+  done
   settings=$(settings:file)
   doc=$(yaml:json "${settings}") || return 1
   out=$(jq --null-input --compact-output --argjson layers "${layers}" --argjson doc "${doc:-null}" \
@@ -143,7 +181,8 @@ policy:resolved() {
       else reduce $layers[] as $l ({};
           reduce (($l.policy // {}) | to_entries[]) as $e (.;
             $e.value as $v
-            | if ($v | type) == "object" then
+            | if $e.key == "commit_reference" then .commit_reference = {value: $v, from: $l.from}
+              elif ($v | type) == "object" then
                 .[$e.key] = {
                   pattern: (if $v | has("pattern") then $v.pattern // "" else .[$e.key].pattern // "" end),
                   remedy: (if $v | has("remedy") then $v.remedy // ""
@@ -152,6 +191,7 @@ policy:resolved() {
               else .[$e.key] = {pattern: ($v // ""), remedy: "", from: $l.from} end))
         | . as $rules
         | reduce $subjects[] as $key ({}; .[$key] = ($rules[$key] // {pattern: "", remedy: "", from: "default"}))
+        | .commit_reference = ($rules.commit_reference // {value: "prefix", from: "default"})
       end') || return 1
   if [[ "$(jq --raw-output 'has("error")' <<<"${out}")" == true ]]
   then
@@ -169,7 +209,8 @@ policy:resolved() {
     [[ "${from}" != default ]] || from=${policy_defaults}
     error "${from}: policy.${key} is no extended regular expression: ${pattern}"
     return 1
-  done < <(jq --raw-output 'to_entries[] | [.key, .value.pattern, .value.from] | join("\u001f")' <<<"${out}")
+  done < <(jq --raw-output 'to_entries[] | select(.value | has("pattern")) | [.key, .value.pattern, .value.from]
+    | join("\u001f")' <<<"${out}")
   printf '%s\n' "${out}"
 }
 
@@ -188,23 +229,57 @@ policy:validate() {
 }
 
 # policy:rules prints the policy settings with the kit's defaults filled in, as a JSON object: each subject's pattern,
-# and under remedy, each subject's remedy, empty where it has none. It fails as policy:resolved does.
+# commit_reference, prefix or trailer, and under remedy, each subject's remedy, empty where it has none. It fails as
+# policy:resolved does.
 policy:rules() {
   local resolved
   resolved=$(policy:resolved) || return 1
-  jq --compact-output '(map_values(.pattern)) + {remedy: map_values(.remedy)}' <<<"${resolved}"
+  jq --compact-output 'del(.commit_reference) as $rules
+    | ($rules | map_values(.pattern)) + {commit_reference: .commit_reference.value, remedy: ($rules | map_values(.remedy))}' \
+    <<<"${resolved}"
 }
 
-# policy:listed prints each rule as "<rule>\t<pattern>\t<from>", in the order of policy_subjects: <from> is kit.yml
-# where the policy: map sets the rule's pattern, an empty pattern included, else default. Read as fields on a tab, an
-# empty pattern is a field of its own. It reads the kit.yml settings:file names, which is the base's once
-# policy:from-base has read it, as bin/kit-policy does with --rules on a branch past the default; it judges nothing,
-# and fails as policy:resolved does.
+# policy:listed prints each rule as "<rule>\t<pattern>\t<from>", in the order of policy_subjects, then
+# commit_reference, its value in the pattern's place: <from> is kit.yml where kit.yml's policy: map sets the rule's
+# pattern, an empty pattern included, the package's name where an active package's does, else default. Read as
+# fields on a tab, an empty pattern is a field of its own. It reads the kit.yml settings:file names, which is the
+# base's once policy:from-base has read it, as bin/kit-policy does with --rules on a branch past the default; it
+# judges nothing, and fails as policy:resolved does.
 policy:listed() {
   local resolved
   resolved=$(policy:resolved) || return 1
-  jq --raw-output --arg subjects "${policy_subjects[*]}" \
-    '. as $rules | $subjects | split(" ")[] | [., $rules[.].pattern, $rules[.].from] | join("\t")' <<<"${resolved}"
+  jq --raw-output --arg subjects "${policy_subjects[*]}" '. as $rules
+    | ($subjects | split(" ")[] | [., $rules[.].pattern, $rules[.].from] | join("\t")),
+      (["commit_reference", $rules.commit_reference.value, $rules.commit_reference.from] | join("\t"))' \
+    <<<"${resolved}"
+}
+
+# policy:packages prints "<package>\t<path>" for each package kit.yml lists, but the kit, whose policy is the kit's
+# defaults: the path of its package.yml, as resolve:locate finds it, in the order kit.yml lists them; or policy_metas,
+# once policy:from or policy:from-base has read them from a tree. It returns 1, naming it, for a package listed that
+# is not in reach, so none of its rules is dropped.
+policy:packages() {
+  local package
+  local -a packages
+  if [[ "${policy_metas_read}" == true ]]
+  then
+    (( ${#policy_metas[@]} == 0 )) || printf '%s\n' "${policy_metas[@]}"
+    return 0
+  fi
+  list:read packages yaml:list "$(settings:file)" packages || return 1
+  for package in "${packages[@]}"
+  do
+    [[ -n "${package}" && "${package}" != kit ]] || continue
+    resolve:locate "${kit_root}" "${package}" || return 1
+    # shellcheck disable=SC2154  # resolve_meta is set by resolve:locate
+    if [[ ! -f "${resolve_meta}" ]]
+    then
+      error "run: kit packages (the package ${package}, which kit.yml lists, is not in reach, so its policy cannot be" \
+        "read)"
+      return 1
+    fi
+    printf '%s\t%s\n' "${package}" "${resolve_meta}"
+  done
 }
 
 # policy:refusal <subject> <name> prints the refusal of <name> by the rule <subject>, as both engines word it, and
@@ -487,12 +562,15 @@ policy:settings() {
 # policy:from <rev> <dir> makes the policy read its settings and its Rego as <rev> holds them, an empty <rev> being the
 # index that GIT_INDEX_FILE names, or the default one. It writes them under <dir>, which it makes. A tree with no
 # kit.yml reads as one with no settings, the kit's defaults, and a source of a link under .kit/policy/ that the tree
-# lacks is not part of its policy. It returns 1 when a file the tree holds cannot be read.
+# lacks is not part of its policy. The package.yml of each package that kit.yml lists is read as the tree holds it
+# where the package is the repository's own, under its root, and from where it is otherwise (policy:tree-metas). It
+# returns 1 when a file the tree holds cannot be read, or a package listed is in reach of neither.
 policy:from() {
   local rev=$1 dir=$2 rego target root object where=${1:-the index}
   mkdir -p "${dir}/rego" || return 1
   policy:settings "${rev}" "${dir}/kit.yml" || return 1
   root=$(git rev-parse --show-toplevel) || return 1
+  policy:tree-metas "${rev}" "${dir}" "${where}" || return 1
   for rego in .kit/policy/*.rego
   do
     [[ -e "${rego}" ]] || continue
@@ -510,6 +588,46 @@ policy:from() {
   # shellcheck disable=SC2034  # settings:file reads settings_file
   settings_file=${dir}/kit.yml
   policy_rego=${dir}/rego
+}
+
+# policy:tree-metas <rev> <dir> <where> fills policy_metas with the package.yml of each package <dir>/kit.yml lists,
+# but the kit: one under the repository's root, as resolve:locate finds it, as <rev> holds it, written under
+# <dir>/metas/, and one elsewhere, a source's or a release's outside the repository, from where it is. It returns 1,
+# naming <where>, when a package is in neither, or a file cannot be read.
+policy:tree-metas() {
+  local rev=$1 dir=$2 where=$3 root package meta object
+  local -a packages
+  local -i n=0
+  policy_metas=()
+  policy_metas_read=true
+  root=$(cd "$(git rev-parse --show-toplevel)" && pwd -P) || return 1
+  list:read packages yaml:list "${dir}/kit.yml" packages || return 1
+  mkdir -p "${dir}/metas" || return 1
+  for package in "${packages[@]}"
+  do
+    [[ -n "${package}" && "${package}" != kit ]] || continue
+    resolve:locate "${kit_root}" "${package}" || return 1
+    meta=''
+    [[ ! -f "${resolve_meta}" ]] || meta=$(cd "$(dirname "${resolve_meta}")" && pwd -P)/package.yml
+    if [[ -n "${meta}" && "${meta}" == "${root}/"* ]]
+    then
+      object=$(policy:object "${rev}" "${meta#"${root}/"}") || return 1
+      meta=''
+      if [[ -n "${object}" ]]
+      then
+        n+=1
+        meta=${dir}/metas/${n}.yml
+        policy:blob "${object}" "${meta}" "${resolve_meta} in ${where}" || return 1
+      fi
+    fi
+    if [[ -z "${meta}" ]]
+    then
+      error "run: kit packages (the package ${package}, which kit.yml in ${where} lists, is in neither it nor reach," \
+        "so its policy cannot be read)"
+      return 1
+    fi
+    policy_metas+=("${package}"$'\t'"${meta}")
+  done
 }
 
 # policy:from-base <dir> makes the policy read, under <dir>, what judges a branch past the default one, as the file
@@ -559,8 +677,10 @@ policy:base-tree() {
   local base=$1 dir=$2 package root home row object
   local -a packages rows homes=()
   root=$(cd "$(git rev-parse --show-toplevel)" && pwd -P) || return 1
-  rm -rf "${dir:?}/rego" "${dir:?}/kinds" "${dir:?}/kinds.awk" "${dir:?}/home" || return 1
-  mkdir -p "${dir}/rego" "${dir}/kinds" || return 1
+  rm -rf "${dir:?}/rego" "${dir:?}/kinds" "${dir:?}/kinds.awk" "${dir:?}/home" "${dir:?}/metas" || return 1
+  mkdir -p "${dir}/rego" "${dir}/kinds" "${dir}/metas" || return 1
+  policy_metas=()
+  policy_metas_read=true
   policy:base-held "${base}" .kit/policy "${dir}/rego" || return 1
   policy:base-held "${base}" .kit/kinds "${dir}/kinds" || return 1
   list:read packages yaml:list "${dir}/base.yml" packages || return 1
@@ -597,6 +717,16 @@ policy:base-tree() {
     fi
     policy:home-held "${base}" "${root}" "${home}" "${package}" "${dir}" policy "${dir}/rego" || return 1
     policy:home-held "${base}" "${root}" "${home}" "${package}" "${dir}" kinds "${dir}/kinds" || return 1
+    [[ "${package}" != kit ]] || continue
+    if [[ "${home}/" == "${root}/"* ]]
+    then
+      # object is the package.yml the base holds, which the search above found
+      policy:blob "${object}" "${dir}/metas/${#policy_metas[@]}.yml" \
+        "${home#"${root}/"}/packages/${package}/package.yml in ${base}" || return 1
+      policy_metas+=("${package}"$'\t'"${dir}/metas/${#policy_metas[@]}.yml")
+    else
+      policy_metas+=("${package}"$'\t'"${home}/packages/${package}/package.yml")
+    fi
   done
 }
 
@@ -707,11 +837,13 @@ policy:tree-path() {
   printf '%s\n' "${kept[*]}"
 }
 
-# policy:from-disk makes the policy read kit.yml and .kit/policy from the disk again.
+# policy:from-disk makes the policy read kit.yml, .kit/policy, and the packages' package.yml from the disk again.
 policy:from-disk() {
   # shellcheck disable=SC2034  # settings:file reads settings_file
   settings_file=''
   policy_rego=.kit/policy
+  policy_metas=()
+  policy_metas_read=false
 }
 
 # policy:deny <input-file> prints every refusal the provider finds in the facts, one per line, sorted and without

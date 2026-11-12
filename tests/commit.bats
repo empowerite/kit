@@ -93,6 +93,58 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ -z "$(git status --porcelain)" ]
 }
 
+# conventional makes policy/conventional active in the worktree's kit.yml, staged, so the commit is judged by it.
+conventional() {
+  yq --inplace '.packages += ["policy/conventional"]' kit.yml
+  git add kit.yml
+}
+
+@test "with policy/conventional, kit commit adds the branch's reference as a Refs: trailer, never as a prefix" {
+  conventional
+  printf 'x\n' > x && git add x
+  run kit commit --message='feat: a file' --message='The body.'
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"trailer: Refs: #7 supplied from the branch"* ]]
+  [ "$(git log -1 --format=%s)" = "feat: a file" ]
+  [ "$(git log -1 --format=%b)" = $'The body.\n\nRefs: #7' ]
+  # a trailer block of the message's own gains the reference; one with a Refs: trailer is left as it is
+  printf 'y\n' > y && git add y
+  run kit commit --message='fix: y' --message='Co-Authored-By: Ada <ada@example.com>'
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%b)" = $'Co-Authored-By: Ada <ada@example.com>\nRefs: #7' ]
+  printf 'z\n' > z && git add z
+  run kit commit --message='docs: z' --message='Refs: #7, #8'
+  [ "$status" -eq 0 ]
+  [ "$(git log -1 --format=%b)" = 'Refs: #7, #8' ]
+}
+
+@test "with policy/conventional, kit commit refuses a subject off the form, and a commit with no reference to give" {
+  conventional
+  printf 'x\n' > x && git add x
+  run kit commit --message='#7 x: a file'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the subject '#7 x: a file' does not match policy.commit_subject: ^(build|"* ]]
+  git switch --quiet --create no-issue
+  run kit commit --message='feat: a file'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the subject 'feat: a file' has no Refs: trailer naming its issue"* ]]
+  [ "$(git log --oneline | wc -l | tr -d ' ')" = 1 ]
+}
+
+@test "the policy of a package is the committed tree's: an unstaged package.yml that weakens it changes nothing" {
+  mkdir -p .kit/packages/mine
+  printf 'description: "mine"\npolicy:\n  commit_subject: "^#7 ok"\n' > .kit/packages/mine/package.yml
+  yq --inplace '.packages += ["mine"]' kit.yml
+  git add kit.yml .kit/packages/mine
+  run kit commit --message='#7 ok: our own policy'
+  [ "$status" -eq 0 ]
+  printf 'description: "mine"\npolicy:\n  commit_subject: ""\n' > .kit/packages/mine/package.yml
+  printf 'x\n' > x && git add x
+  run kit commit --message='#7 x: a file'
+  [ "$status" -eq 1 ]
+  [[ "$output" == *"the subject '#7 x: a file' does not match policy.commit_subject: ^#7 ok"* ]]
+}
+
 @test "kit commit refuses a subject the policy refuses, and names the pattern" {
   git switch --quiet --create no-issue
   printf 'x\n' > x && git add x
@@ -223,6 +275,16 @@ forge-world() {
   [ "$status" -eq 0 ]
   run ! grep --quiet '^pr edit' "${FAKE_DIR}/gh.calls"
   run ! grep --quiet '^issue edit' "${FAKE_DIR}/gh.calls"
+}
+
+@test "kit commit with a Refs: trailer for another issue closes it in the branch's change, as a subject's would" {
+  forge-world
+  yq --inplace '.packages += ["policy/conventional"]' kit.yml
+  printf 'x\n' > x && git add x kit.yml
+  run kit commit --message='feat: a file' --message='Refs: #7, #9'
+  [ "$status" -eq 0 ]
+  grep --quiet --line-regexp 'Closes #9' "${FAKE_DIR}/gh.calls"
+  grep --quiet --line-regexp 'issue edit 9 --add-assignee ada' "${FAKE_DIR}/gh.calls"
 }
 
 @test "kit commit for the branch's own issue asks the forge nothing" {
