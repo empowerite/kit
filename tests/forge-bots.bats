@@ -180,6 +180,14 @@ without() {
   done
 }
 
+@test "every call to GitHub is bounded, in the time to connect and in all, so none waits on a host that stalls" {
+  fixture app.json <<<'{"slug":"kit-bot"}'
+  curl-route '*/app' 0 200 app.json
+  run --separate-stderr call bot-app 1 "${pem}"
+  [ "$status" -eq 0 ]
+  grep --quiet -- '--connect-timeout 10 --max-time 30' "${FAKE_DIR}/curl.calls"
+}
+
 @test "a 5xx says GitHub failed, with its status, and does not blame the key" {
   fixture down.json <<<'{"message":"Server Error"}'
   curl-route '*/app' 22 503 down.json

@@ -786,6 +786,7 @@ bot-world() {
   fake-tools gh
   cat > "${FAKE_DIR}/bin/curl" <<'STUB'
 #!/usr/bin/env bash
+printf '%s\n' "$*" >> "${FAKE_DIR}/curl.calls"
 dump='' write='' args=("$@")
 for (( i = 0; i < ${#args[@]}; i++ ))
 do
@@ -865,7 +866,8 @@ bot-key() {
   printf '  - name: other-bot\n    host: github.com\n    app: 777\n' >> "${XDG_CONFIG_HOME}/kit/bots.yml"
   run --separate-stderr check bot
   [ "$(jq --raw-output '[.ok, .fix] | @tsv' <<<"$output")" = $'false\tkit bots --check' ]
-  [[ "$(jq --raw-output .line <<<"$output")" == *'kit-bot, other-bot'* ]]
+  [ "$(jq --raw-output .line <<<"$output")" = \
+    '2 bots are on github.com: kit-bot, other-bot; set bot: in kit.yml to the one that acts here' ]
   [ -z "$stderr" ]
   printf 'bot: kit-bot\n' > kit.yml
   run --separate-stderr check bot
@@ -878,6 +880,16 @@ bot-key() {
   run --separate-stderr check bot
   [ "$(jq --raw-output '[.ok, .line, .fix, .runs] | @tsv' <<<"$output")" = \
     $'false\tkit.yml names the bot ghost, which the bots file does not have\tkit bots --add=ghost --app=<id> --key=<file>\tfalse' ]
+}
+
+@test "the bot check fails for a bot kit.yml names that is on another host, saying so" {
+  bot-world
+  printf 'bots:\n  - name: kit-bot\n    host: ghe.example.com\n    app: 1\n' > "${XDG_CONFIG_HOME}/kit/bots.yml"
+  printf 'bot: kit-bot\n' > kit.yml
+  run --separate-stderr check bot
+  [ "$(jq --raw-output '[.ok, .line] | @tsv' <<<"$output")" = \
+    $'false\tkit.yml names the bot kit-bot, which is on ghe.example.com, not on github.com, the primary remote\'s host' ]
+  [ -z "$stderr" ]
 }
 
 @test "the bot check fails for a bots file kit cannot read, saying why" {
@@ -894,6 +906,15 @@ bot-key() {
   run --separate-stderr check bot
   [ "$(jq --raw-output '[.ok, .line, .fix, .runs] | @tsv' <<<"$output")" = \
     $'false\tthe key of kit-bot is not in the secret store\tkit bots --add=kit-bot --app=12345 --key=<file>\tfalse' ]
+  [ -z "$stderr" ]
+}
+
+@test "the bot check says the store could not be read, apart from a key not stored, and offers no add" {
+  bot-world
+  bot-key
+  FAKE_SECRETS_FAIL_READ=1 run --separate-stderr check bot
+  [ "$(jq --raw-output '[.ok, .fix, .runs] | @tsv' <<<"$output")" = $'false\t\ttrue' ]
+  [[ "$(jq --raw-output .line <<<"$output")" == 'the keychain could not be read for kit-bot github.com/12345;'* ]]
   [ -z "$stderr" ]
 }
 
@@ -917,7 +938,7 @@ bot-key() {
   bot-routes '"metadata":"read","contents":"write","issues":"write","pull_requests":"write","statuses":"read","actions":"read"'
   run --separate-stderr check bot
   [ "$(jq --raw-output '[.ok, .line, .fix] | @tsv' <<<"$output")" = \
-    $'false\tkit-bot lacks permissions its jobs need; the work: checks: read; review: checks: read\tkit bots --check' ]
+    $'false\tkit-bot lacks checks: read (work), checks: read (review)\tkit bots --check' ]
 }
 
 @test "the bot check fails with the forge's reason where the forge cannot be asked, and does not hang" {
@@ -927,8 +948,10 @@ bot-key() {
   bot-route '*api.github.com/app' 28 000
   run --separate-stderr check bot
   [ "$(jq --raw-output '[.ok, .fix] | @tsv' <<<"$output")" = $'false\tkit bots --check' ]
-  [ -n "$(jq --raw-output .line <<<"$output")" ]
-  [[ "$(jq --raw-output .line <<<"$output")" != 'the forge could not be asked'* ]]
+  [ "$(jq --raw-output .line <<<"$output")" = \
+    'check the network (https://api.github.com could not be reached: curl exit 28; GET /app was not made)' ]
+  # the call is bounded, so a host that does not answer cannot hold welcome up
+  grep --quiet -- '--connect-timeout 10 --max-time 30' "${FAKE_DIR}/curl.calls"
   [ -z "$stderr" ]
 }
 

@@ -912,51 +912,76 @@ welcome:bot-reason() {
 }
 
 # welcome:bot prints the check of the bot that acts for the person in this folder. No bot on the primary remote's
-# host is an offer to add one. It fails for a key the secret store lacks, for an installation that does not reach this
-# repository, for a job that lacks a permission, and for two bots with none chosen or a forge that cannot be asked:
-# each says why, and names the fix. The forge is asked once, for the App, its installation, and its permissions.
+# host is an offer to add one. It fails for a bot kit.yml names that the bots file lacks or has on another host, for
+# two bots with none chosen, for a key the secret store lacks or cannot be read for, for an installation that does not
+# reach this repository, for a job that lacks a permission, and for a forge that cannot be asked: each says why, and
+# names the fix where kit knows one. The case is told from the bots file, kit.yml, and the primary remote's host, never
+# from what bots:choose says. The forge is asked once, for the App, its installation, and its permissions.
 welcome:bot() {
-  local errors bot name app check status=0 jobs lacks pem
-  local more='https://docs.github.com/en/apps/creating-github-apps'
+  local errors pem
   file:temp errors welcome-bot-errors || return 1
-  bot=$(bots:choose 2> "${errors}") || status=$?
+  file:temp pem welcome-bot-key || { rm -f "${errors}"; return 1; }
+  welcome:bot-judge "${errors}" "${pem}"
+  rm -f "${errors}" "${pem}"
+}
+
+# welcome:bot-judge <errors file> <key file> is welcome:bot's judging, with the two scratch files it fills.
+welcome:bot-judge() {
+  local errors=$1 pem=$2 doc name host row at onhost bot app check status=0 lacks jobs
+  local more='https://docs.github.com/en/apps/creating-github-apps'
+  doc=$(bots:json 2> "${errors}") \
+    || { welcome:record bot false "$(welcome:bot-reason "${errors}" 'the bots file cannot be read')" 'kit bots --check'; return 0; }
+  name=$(settings:value bot)
+  host=$(bots:host)
+  if [[ -n "${name}" ]]
+  then
+    row=$(jq --compact-output --arg name "${name}" '[.bots[] | select(.name == $name)] | first // empty' <<<"${doc}")
+    if [[ -z "${row}" ]]
+    then
+      welcome:record bot false "kit.yml names the bot ${name}, which the bots file does not have" \
+        "kit bots --add=${name} --app=<id> --key=<file>" false '' false
+      return 0
+    fi
+    at=$(jq --raw-output .host <<<"${row}")
+    if [[ "${at}" != "${host}" ]]
+    then
+      welcome:record bot false "kit.yml names the bot ${name}, which is on ${at}, not on ${host}, the primary remote's host"
+      return 0
+    fi
+  else
+    # shellcheck disable=SC2016  # $host is jq's
+    onhost=$(jq --raw-output --arg host "${host}" '[.bots[] | select(.host == $host) | .name]
+      | if length > 1 then "\(length) bots are on \($host): \(join(", ")); set bot: in kit.yml to the one that acts here"
+        elif length == 0 then "" else "one" end' <<<"${doc}")
+    case "${onhost}" in
+      ('')
+        welcome:record bot true 'no bot acts for you here; set one up to hand it issues' \
+          'kit bots --add=<name> --app=<id> --key=<file>' false "${more}" false
+        return 0
+        ;;
+      (one) ;;
+      (*)
+        welcome:record bot false "${onhost}" 'kit bots --check'
+        return 0
+    esac
+  fi
+  bot=$(bots:choose 2> "${errors}") \
+    || { welcome:record bot false "$(welcome:bot-reason "${errors}" 'no bot could be chosen')" 'kit bots --check'; return 0; }
+  name=$(jq --raw-output .name <<<"${bot}")
+  app=$(jq --raw-output .app <<<"${bot}")
+  bots:key "${bot}" "${pem}" 2> "${errors}" || status=$?
   case "${status}" in
     (0) ;;
-    (2)
-      case "$(cat "${errors}")" in
-        (*[0-9]' bots are on '*)
-          welcome:record bot false "$(welcome:bot-reason "${errors}" 'two bots are on this host')" \
-            'kit bots --check'
-          ;;
-        (*'no bot is named '*)
-          name=$(settings:value bot)
-          welcome:record bot false "kit.yml names the bot ${name}, which the bots file does not have" \
-            "kit bots --add=${name} --app=<id> --key=<file>" false '' false
-          ;;
-        (*)
-          welcome:record bot true 'no bot acts for you here; set one up to hand it issues' \
-            'kit bots --add=<name> --app=<id> --key=<file>' false "${more}" false
-      esac
-      rm -f "${errors}"
+    (1)
+      welcome:record bot false "the key of ${name} is not in the secret store" "$(welcome:bot-add "${name}" "${app}")" \
+        false '' false
       return 0
       ;;
     (*)
-      welcome:record bot false "$(welcome:bot-reason "${errors}" 'the bots file cannot be read')" 'kit bots --check'
-      rm -f "${errors}"
+      welcome:record bot false "$(welcome:bot-reason "${errors}" "the secret store could not be read for ${name}")"
       return 0
   esac
-  name=$(jq --raw-output .name <<<"${bot}")
-  app=$(jq --raw-output .app <<<"${bot}")
-  file:temp pem welcome-bot-key || return 1
-  if ! bots:key "${bot}" "${pem}" 2> /dev/null
-  then
-    rm -f "${pem}" "${errors}"
-    welcome:record bot false "the key of ${name} is not in the secret store" "$(welcome:bot-add "${name}" "${app}")" \
-      false '' false
-    return 0
-  fi
-  rm -f "${pem}"
-  check=$(bots:check "${bot}" 2> "${errors}") || status=$?
+  check=$(bots:check "${bot}" "${pem}" 2> "${errors}") || status=$?
   if (( status != 0 ))
   then
     welcome:record bot false "$(welcome:bot-reason "${errors}" "the forge could not be asked about ${name}")" \
@@ -965,15 +990,14 @@ welcome:bot() {
   then
     welcome:record bot false \
       "the installation of ${name} does not reach $(jq --raw-output .repository <<<"${check}")" 'kit bots --check'
-  elif lacks=$(jq --raw-output '.lacks | to_entries | map("\(.key): \(.value | join(", "))") | join("; ")' \
+  elif lacks=$(jq --raw-output '[.lacks | to_entries[] | .key as $job | .value[] | "\(.) (\($job))"] | join(", ")' \
     <<<"${check}") && [[ -n "${lacks}" ]]
   then
-    welcome:record bot false "${name} lacks permissions its jobs need; the ${lacks}" 'kit bots --check'
+    welcome:record bot false "${name} lacks ${lacks}" 'kit bots --check'
   else
     jobs=$(jq --raw-output '.jobs | join(", ")' <<<"${bot}")
     welcome:record bot true "${name}[bot] acts for you here, for ${jobs}"
   fi
-  rm -f "${errors}"
 }
 
 # welcome:judge <id> runs one check, which welcome:plan-machine or, in its folder, welcome:plan-folder named, and

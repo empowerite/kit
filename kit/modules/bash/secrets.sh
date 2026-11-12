@@ -47,20 +47,35 @@ secrets:put() {
 }
 
 # secrets:raw <backend> <service> <account> prints the item as the backend answers, and returns 1, silent, where there
-# is none.
+# is none, and 2, silent, where the backend failed to answer, as a locked keychain does. security says 44 for no item;
+# secret-tool says 1.
 secrets:raw() {
+  local status=0
   case "$1" in
-    (keychain) security find-generic-password -s "$2" -a "$3" -w 2>/dev/null ;;
-    (secret-service) secret-tool lookup service "$2" account "$3" 2>/dev/null
+    (keychain)
+      security find-generic-password -s "$2" -a "$3" -w 2>/dev/null || status=$?
+      (( status == 0 || status == 44 )) || return 2
+      ;;
+    (secret-service)
+      secret-tool lookup service "$2" account "$3" 2>/dev/null || status=$?
+      (( status <= 1 )) || return 2
   esac
+  (( status == 0 )) || return 1
 }
 
 # secrets:get <service> <account> prints the secret secrets:put stored, as it was given. It prints nothing and returns
-# 1, silent, where there is no item. The value is base64, which the keychain never hex-encodes, so it is not un-hexed.
+# 1, silent, where there is no item, and 2, saying why, where the store cannot be read: no backend, or one that failed.
+# The value is base64, which the keychain never hex-encodes, so it is not un-hexed.
 secrets:get() {
-  local backend stored
-  backend=$(secrets:backend) || return 1
-  stored=$(secrets:raw "${backend}" "$1" "$2") || return 1
+  local backend stored status=0
+  backend=$(secrets:backend) || return 2
+  stored=$(secrets:raw "${backend}" "$1" "$2") || status=$?
+  if (( status == 2 ))
+  then
+    error "the ${backend} could not be read for $1 $2; unlock it, or check that it works"
+    return 2
+  fi
+  (( status == 0 )) || return 1
   [[ -n "${stored}" ]] || return 1
   printf '%s\n' "${stored}" | base64 -d
 }

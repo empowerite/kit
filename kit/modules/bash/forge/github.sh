@@ -1401,8 +1401,9 @@ forge/github:app-api() {
   file:temp headers curl-headers || return 1
   base=$(forge/github:api-base)
   status=0
-  out=$(printf 'Authorization: Bearer %s\n' "${bearer}" | curl --fail-with-body --silent --request "${method}" \
-    --dump-header "${headers}" --write-out $'\n%{http_code}' \
+  # a host that does not answer, or a server that stalls, ends the call: nothing waits on the forge for long
+  out=$(printf 'Authorization: Bearer %s\n' "${bearer}" | curl --fail-with-body --silent --connect-timeout 10 \
+    --max-time 30 --request "${method}" --dump-header "${headers}" --write-out $'\n%{http_code}' \
     --header @- --header 'Accept: application/vnd.github+json' --header 'X-GitHub-Api-Version: 2022-11-28' \
     "${body[@]}" "${base}${path}") || status=$?
   code=${out##*$'\n'}

@@ -119,20 +119,21 @@ bots:choose() {
 }
 
 # bots:key <bot-json> <file> writes the bot's PEM to <file>, mode 600, from the secret store. It says how to add the
-# key, and returns 1, where the store has none.
+# key, and returns 1, where the store has none. It returns 2, saying why, where the store cannot be read at all: no
+# backend, or one that failed, as a locked keychain does.
 bots:key() {
-  local name host app backend
+  local name host app backend status=0
   name=$(jq --raw-output .name <<<"$1")
   host=$(jq --raw-output .host <<<"$1")
   app=$(jq --raw-output .app <<<"$1")
-  backend=$(secrets:backend) || return 1
+  backend=$(secrets:backend) || return 2
   : > "$2" && chmod 600 "$2" || return 1
-  if ! secrets:get kit-bot "${host}/${app}" > "$2"
-  then
-    : > "$2"
-    error "no key for ${name} in the ${backend}; run: kit bots --add=${name} --app=${app} --key=<file>"
-    return 1
-  fi
+  secrets:get kit-bot "${host}/${app}" > "$2" || status=$?
+  (( status == 0 )) && return 0
+  : > "$2"
+  (( status == 2 )) && return 2
+  error "no key for ${name} in the ${backend}; run: kit bots --add=${name} --app=${app} --key=<file>"
+  return 1
 }
 
 # bots:jobs-ok <job>… succeeds when every job is one a bot can be set up for. It says which is not, and returns 2.
@@ -363,14 +364,19 @@ bots:prove() {
 # page is the installation's settings page, else the App's page to install it. lacks maps each job to the permissions
 # it needs that are not held, as "<permission>: <level>"; extra lists each permission held beyond what every job needs,
 # metadata aside, sorted by permission name, a write held where read is needed being "<permission>: write". It
-# returns 1, saying why, where the key or a call fails.
+# returns 1, saying why, where the key or a call fails. With <pem-file>, the key bots:key wrote there is the key, read
+# once by the caller, and it is left in place.
 bots:check() {
-  local pem app repo installation='' installations reached=null held app_json html job needs='{}' status=0
+  local pem=${2:-} own=false app repo installation='' installations reached=null held app_json html job needs='{}' status=0
   local -a jobs
   app=$(jq --raw-output .app <<<"$1")
   list:read jobs jq --raw-output '.jobs[]' <<<"$1" || return 1
-  file:temp pem bots-key || return 1
-  bots:key "$1" "${pem}" || return 1
+  if [[ -z "${pem}" ]]
+  then
+    own=true
+    file:temp pem bots-key || return 1
+    bots:key "$1" "${pem}" || return 1
+  fi
   app_json=$(bots:forge app "${app}" "${pem}") || status=$?
   if (( status == 0 ))
   then
@@ -392,7 +398,7 @@ bots:check() {
   then
     installations=$(bots:forge installations "${app}" "${pem}") && installation=${installations%%$'\n'*} || status=$?
   fi
-  rm -f "${pem}"
+  [[ "${own}" != true ]] || rm -f "${pem}"
   (( status == 0 )) || return "${status}"
   for job in "${jobs[@]}"
   do

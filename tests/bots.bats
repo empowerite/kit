@@ -879,10 +879,11 @@ signal-run() {
   chmod +x "${BATS_TEST_TMPDIR}/command"
   # with job control the job is a group of its own, and does not ignore an interrupt, as an asynchronous command does
   # without it
-  # A suite started in the background gives every process an interrupt that is ignored, which no bash can take back
-  # and kit, as it should, keeps: perl takes it back before it execs.
+  # A suite started in the background gives every process an interrupt that is ignored, and one started with nohup a
+  # hangup that is ignored, which no bash can take back and kit, as it should, keeps: perl takes both back before it
+  # execs.
   set -m
-  perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV or die "exec: $!"' kit bots run "${BATS_TEST_TMPDIR}/command" \
+  perl -e '$SIG{INT} = "DEFAULT"; $SIG{HUP} = "DEFAULT"; exec @ARGV or die "exec: $!"' kit bots run "${BATS_TEST_TMPDIR}/command" \
     3>&- > "${BATS_TEST_TMPDIR}/signalled.out" 2> "${BATS_TEST_TMPDIR}/signalled.err" &
   job=$!
   set +m
