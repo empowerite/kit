@@ -340,7 +340,7 @@ help:overview() {
     done
   done
   printf '\n%sEXAMPLES%s\n' "${bold}" "${plain}"
-  printf '  kit work 42\n  kit context src/main.sh\n  kit commit --message %s\n' "'#42 area: subject'"
+  printf '  kit work 42\n  kit context src/main.sh\n  kit commit --message=%s\n' "'#42 area: subject'"
   printf '\n%sLEARN MORE%s\n' "${bold}" "${plain}"
   printf '  • kit help <verb>… prints more about each verb, as kit <verb> --help does: its\n'
   printf '    usage, what it does, and the verbs beside it\n'

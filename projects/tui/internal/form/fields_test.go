@@ -217,10 +217,10 @@ func TestCommandLineAndQuote(t *testing.T) {
 	fields, _ := Fields(commit, FromMatch(syntax.Match{Options: map[string][]string{"--message": {"#1 tui: x"}},
 		Values: map[string][]string{"--message": {"#1 tui: x"}, "<path>": {".gitignore"}}}))
 	args := CommandLine(commit, fields)
-	if strings.Join(args, "\x00") != "--message\x00#1 tui: x\x00.gitignore" {
+	if strings.Join(args, "\x00") != "--message=#1 tui: x\x00.gitignore" {
 		t.Errorf("args: %q", args)
 	}
-	if Quote(args) != "--message '#1 tui: x' .gitignore" {
+	if Quote(args) != "--message='#1 tui: x' .gitignore" {
 		t.Errorf("Quote = %q", Quote(args))
 	}
 	if Quote([]string{"it's", "", "a=b"}) != `'it'\''s' '' a=b` {

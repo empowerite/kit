@@ -116,7 +116,7 @@ YML
 @test "--show resolves a group's members to their checkouts, and a missing one to none" {
   empowerite-file
   fresh-repo >/dev/null
-  run --separate-stderr "${kit_root}/bin/kit" workspaces --show empowerite --json
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --show=empowerite --json
   [ "$status" -eq 0 ]
   [ "$(jq --raw-output .kind <<<"$output")" = group ]
   [ "$(jq --compact-output '.members[0] | [.repository, .checkout, .forge, .by]' <<<"$output")" \
@@ -134,23 +134,23 @@ workspaces:
     repos: [git@github.com:empowerite/edge.git]
 YML
   fresh-repo >/dev/null
-  run --separate-stderr "${kit_root}/bin/kit" workspaces --show w --json
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --show=w --json
   [ "$(jq --raw-output '.members[0].repository' <<<"$output")" = github.com/empowerite/edge ]
   workspaces-file <<YML
 workspaces:
   w:
     repos: [/srv/nowhere]
 YML
-  run --separate-stderr "${kit_root}/bin/kit" workspaces --show w --json
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --show=w --json
   [ "$status" -eq 1 ]
   [[ "$stderr" == *"workspaces.yml"*"/srv/nowhere"* ]]
 }
 
 @test "an unknown workspace is a usage error; a member is a workspace of one" {
   fresh-repo >/dev/null
-  run --separate-stderr "${kit_root}/bin/kit" workspaces --show nonesuch
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --show=nonesuch
   [ "$status" -eq 2 ]
-  run --separate-stderr "${kit_root}/bin/kit" workspaces --show github.com/me/x --json
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --show=github.com/me/x --json
   [ "$status" -eq 0 ]
   [ "$(jq --compact-output '[.kind, .members[0].by, .members[0].checkout]' <<<"$output")" \
     = '["repository","given",null]' ]
@@ -192,14 +192,14 @@ YML
   mkdir -p "${BATS_TEST_TMPDIR}/outside" && cd "${BATS_TEST_TMPDIR}/outside"
   run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
   [ "$(jq --compact-output '[.kind, .why]' <<<"$output")" = '["none","none"]' ]
-  run "${kit_root}/bin/kit" workspaces --use empowerite
+  run "${kit_root}/bin/kit" workspaces --use=empowerite
   [ "$status" -eq 0 ]
   run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
   [ "$(jq --compact-output '[.kind, .name, .why]' <<<"$output")" = '["group","empowerite","last"]' ]
 }
 
 @test "a workspace given before the verb names the one --current says, and every other form refuses it with 2" {
-  run "${kit_root}/bin/kit" --workspace=w workspaces --use w
+  run "${kit_root}/bin/kit" --workspace=w workspaces --use=w
   [ "$status" -eq 2 ]
   [[ "$output" == *"kit --workspace=<workspace> names the workspace kit workspaces --current says, and no other form's"* ]]
   run "${kit_root}/bin/kit" --workspace=none workspaces
@@ -211,7 +211,7 @@ YML
   git remote add origin git@github.com:empowerite/edge.git
   run --separate-stderr "${kit_root}/bin/kit" --workspace=none workspaces --current --json
   [ "$(jq --compact-output '[.kind, .why]' <<<"$output")" = '["none","given"]' ]
-  run --separate-stderr "${kit_root}/bin/kit" workspaces --use github.com/empowerite/edge
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --use=github.com/empowerite/edge
   [ "$status" -eq 2 ]
 }
 
@@ -225,15 +225,15 @@ YML
 @test "--new makes the file and its directory, and the group with its members" {
   fresh-repo >/dev/null
   git remote add origin git@github.com:empowerite/edge.git
-  run "${kit_root}/bin/kit" workspaces --new empowerite . \
+  run "${kit_root}/bin/kit" workspaces --new=empowerite . \
     https://github.com/empowerite/kit.git github.com/empowerite/kit
   [ "$status" -eq 0 ]
-  run --separate-stderr "${kit_root}/bin/kit" workspaces --show empowerite --json
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --show=empowerite --json
   [ "$(jq --compact-output '[.members[].repository]' <<<"$output")" \
     = '["github.com/empowerite/edge","github.com/empowerite/kit"]' ]
-  run "${kit_root}/bin/kit" workspaces --new empowerite
+  run "${kit_root}/bin/kit" workspaces --new=empowerite
   [ "$status" -eq 2 ]
-  run "${kit_root}/bin/kit" workspaces --new Bad/Name
+  run "${kit_root}/bin/kit" workspaces --new=Bad/Name
   [ "$status" -eq 2 ]
 }
 
@@ -247,26 +247,34 @@ workspaces:
     repos: [github.com/a/one]
 YML
   fresh-repo >/dev/null
-  "${kit_root}/bin/kit" workspaces --add w github.com/a/two github.com/a/one
-  "${kit_root}/bin/kit" workspaces --remove w github.com/a/one
-  "${kit_root}/bin/kit" workspaces --favorite w
-  "${kit_root}/bin/kit" workspaces --favorite w
+  "${kit_root}/bin/kit" workspaces --add=w github.com/a/two github.com/a/one
+  "${kit_root}/bin/kit" workspaces --remove=w github.com/a/one
+  "${kit_root}/bin/kit" workspaces --favorite=w
+  "${kit_root}/bin/kit" workspaces --favorite=w
   run --separate-stderr "${kit_root}/bin/kit" workspaces --json
   [ "$(jq --compact-output '[.favorites, .workspaces[0].members]' <<<"$output")" = '[["w"],1]' ]
   grep --quiet '^# mine$' "${XDG_CONFIG_HOME}/kit/workspaces.yml"
   grep --quiet '# where I clone' "${XDG_CONFIG_HOME}/kit/workspaces.yml"
   grep --quiet '# the core' "${XDG_CONFIG_HOME}/kit/workspaces.yml"
-  "${kit_root}/bin/kit" workspaces --unfavorite w
+  "${kit_root}/bin/kit" workspaces --unfavorite=w
   run --separate-stderr "${kit_root}/bin/kit" workspaces --json
   [ "$(jq --compact-output .favorites <<<"$output")" = '[]' ]
 }
 
 @test "editing a group that is not there is a usage error" {
   fresh-repo >/dev/null
-  run "${kit_root}/bin/kit" workspaces --add nope github.com/a/one
+  run "${kit_root}/bin/kit" workspaces --add=nope github.com/a/one
   [ "$status" -eq 2 ]
-  run "${kit_root}/bin/kit" workspaces --favorite nope
+  run "${kit_root}/bin/kit" workspaces --favorite=nope
   [ "$status" -eq 2 ]
+}
+
+@test "a group's name given as the next word is refused, naming the = form, and the file is not touched" {
+  fresh-repo >/dev/null
+  run "${kit_root}/bin/kit" workspaces --new w github.com/a/one
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"--new takes its value after =: --new=<name>; run: cd "*" && kit help workspaces"* ]]
+  [ ! -e "${XDG_CONFIG_HOME}/kit/workspaces.yml" ]
 }
 
 @test "twelve --add at once all land; a dead holder's lock is taken over, and a live one's refuses with 1" {
@@ -386,7 +394,7 @@ YML
   clone-at "${BATS_TEST_TMPDIR}/code/one" https://GitHub.com/A/One.git
   printf 'roots: ["%s", "%s/"]\nfavorites: [w, gone]\nworkspaces:\n  # the core\n  w: {repos: [github.com/a/one]}\n' \
     "${BATS_TEST_TMPDIR}/code" "${BATS_TEST_TMPDIR}/code" | workspaces-file
-  for words in "--use w" "--new=z github.com/a/two" "--rename=w core" "--unfavorite=gone" \
+  for words in "--use=w" "--new=z github.com/a/two" "--rename=w core" "--unfavorite=gone" \
     "--add=core GitHub.com/A/One github.com/a/three"
   do
     "${kit_root}/bin/kit" workspaces ${words}
@@ -436,19 +444,19 @@ workspaces:
     repos: [./code/edge]
 YML
   fresh-repo >/dev/null
-  run --separate-stderr "${kit_root}/bin/kit" workspaces --show w --json
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --show=w --json
   [ "$status" -eq 1 ]
   [[ "$stderr" == *"./code/edge"* ]]
   rm "${XDG_CONFIG_HOME}/kit/workspaces.yml"
   git remote add origin git@github.com:empowerite/edge.git
   clone-at "${BATS_TEST_TMPDIR}/jig" git@github.com:empowerite/jig.git
   mkdir -p src && cd src
-  run "${kit_root}/bin/kit" workspaces --new w .. ../../jig
+  run "${kit_root}/bin/kit" workspaces --new=w .. ../../jig
   [ "$status" -eq 0 ]
-  run --separate-stderr "${kit_root}/bin/kit" workspaces --show w --json
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --show=w --json
   [ "$(jq --compact-output '[.members[].repository]' <<<"$output")" \
     = '["github.com/empowerite/edge","github.com/empowerite/jig"]' ]
-  run "${kit_root}/bin/kit" workspaces --new x ./nonexistent/a/b
+  run "${kit_root}/bin/kit" workspaces --new=x ./nonexistent/a/b
   [ "$status" -eq 2 ]
 }
 
@@ -479,7 +487,7 @@ YML
 @test "a group named none is refused with 1, and the file is as it was" {
   workspaces-file <<<'workspaces: {none: {repos: [github.com/o/a]}}'
   cp "${XDG_CONFIG_HOME}/kit/workspaces.yml" "${BATS_TEST_TMPDIR}/before.yml"
-  run --separate-stderr "${kit_root}/bin/kit" workspaces --add none github.com/o/b
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --add=none github.com/o/b
   [ "$status" -eq 1 ]
   [[ "$stderr" == *"workspaces.yml: 'none' is not a workspace's name: --workspace=none names no workspace"* ]]
   cmp "${BATS_TEST_TMPDIR}/before.yml" "${XDG_CONFIG_HOME}/kit/workspaces.yml"
@@ -508,7 +516,7 @@ YML
   [ "$(jq --raw-output .kind <<<"$output")" = group ]
   run "${kit_root}/bin/kit" workspaces --new=n github.com/a/two
   [ "$status" -eq 0 ]
-  run --separate-stderr "${kit_root}/bin/kit" workspaces --show n --json
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --show=n --json
   [ "$(jq --raw-output '.members[0].repository' <<<"$output")" = github.com/a/two ]
 }
 
@@ -522,7 +530,7 @@ workspaces:
     repos: [github.com/a/one]
 YML
   mkdir -p "${BATS_TEST_TMPDIR}/outside" && cd "${BATS_TEST_TMPDIR}/outside"
-  for args in "workspaces --use w" "workspaces --favorite w" "workspaces --unfavorite w" \
+  for args in "workspaces --use=w" "workspaces --favorite=w" "workspaces --unfavorite=w" \
     "--workspace=w workspaces --current"
   do
     # shellcheck disable=SC2086  # each holds its words
@@ -535,7 +543,7 @@ YML
 @test "a workspace file that does not parse stops --use, --favorite, and --current with 1; an unknown group is 2" {
   workspaces-file <<<'workspaces: [x'
   mkdir -p "${BATS_TEST_TMPDIR}/outside" && cd "${BATS_TEST_TMPDIR}/outside"
-  for args in "workspaces --use w" "workspaces --favorite w" "workspaces --unfavorite w" \
+  for args in "workspaces --use=w" "workspaces --favorite=w" "workspaces --unfavorite=w" \
     "--workspace=w workspaces --current"
   do
     # shellcheck disable=SC2086  # each holds its words
@@ -544,7 +552,7 @@ YML
   done
   [ "$(cat "${XDG_CONFIG_HOME}/kit/workspaces.yml")" = 'workspaces: [x' ]
   workspaces-file <<<'workspaces: {w: {repos: [github.com/a/one]}}'
-  run --separate-stderr "${kit_root}/bin/kit" workspaces --use nosuch
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --use=nosuch
   [ "$status" -eq 2 ]
 }
 
@@ -576,7 +584,7 @@ workspaces:
     repos: [github.com/o/a, github.com/o/b]
 YML
   mkdir -p "${BATS_TEST_TMPDIR}/outside" && cd "${BATS_TEST_TMPDIR}/outside"
-  "${kit_root}/bin/kit" workspaces --use w
+  "${kit_root}/bin/kit" workspaces --use=w
   run --separate-stderr "${kit_root}/bin/kit" workspaces --current --json
   [ "$status" -eq 0 ]
   [ "$(jq --raw-output .kind <<<"$output")" = group ]

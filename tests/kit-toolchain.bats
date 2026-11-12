@@ -73,7 +73,7 @@ downloads() {
 }
 
 @test "install locks every tool for every platform, installs this platform's, and kit tools path names them" {
-  run "${kit_root}/bin/kit" tools install --toolchain kit
+  run "${kit_root}/bin/kit" tools install --toolchain=kit
   [ "$status" -eq 0 ]
   [[ "$output" == *"tools.lock: locked alpha, beta"* ]]
   # a row per tool and platform, each with the digest of the file it names
@@ -85,7 +85,7 @@ downloads() {
   t=$'\t'
   grep --quiet -E "^beta${t}2\.0\.0${t}linux-x64${t}desk${t}https://github\.com/acme/beta/releases/download/v2\.0\.0/\
 beta-2\.0\.0-linux-x64\.tar\.gz${t}[0-9a-f]{64}${t}beta-2\.0\.0/bin$" tools.lock
-  run "${kit_root}/bin/kit" tools path --toolchain kit
+  run "${kit_root}/bin/kit" tools path --toolchain=kit
   [ "$status" -eq 0 ]
   [ "$(wc -l <<<"$output" | tr -d ' ')" -eq 2 ]
   [ "$(PATH="$(paste -s -d ':' - <<<"$output"):${PATH}" alpha)" = "alpha 1.0.0 ${platform}" ]
@@ -101,26 +101,26 @@ beta-2\.0\.0-linux-x64\.tar\.gz${t}[0-9a-f]{64}${t}beta-2\.0\.0/bin$" tools.lock
     version: "1"
     url: https://example.com/omega/{version}/omega
 YAML
-  run "${kit_root}/bin/kit" tools install --toolchain kit
+  run "${kit_root}/bin/kit" tools install --toolchain=kit
   [ "$status" -eq 0 ]
   [ "$(grep -c '/omega$' "${FAKE_RELEASES}/curl.calls")" -eq 1 ]
 }
 
 @test "an install with the lock up to date and the tools in place downloads nothing" {
-  "${kit_root}/bin/kit" tools install --toolchain kit >/dev/null 2>&1
+  "${kit_root}/bin/kit" tools install --toolchain=kit >/dev/null 2>&1
   before=$(downloads)
-  run "${kit_root}/bin/kit" tools install --toolchain kit
+  run "${kit_root}/bin/kit" tools install --toolchain=kit
   [ "$status" -eq 0 ]
   [ "$(downloads)" -eq "${before}" ]
   [[ "$output" != *"locked"* ]]
 }
 
 @test "a pin that moves is locked again at a desk, and the tools of other pins are left as they were" {
-  "${kit_root}/bin/kit" tools install --toolchain kit >/dev/null 2>&1
+  "${kit_root}/bin/kit" tools install --toolchain=kit >/dev/null 2>&1
   beta_rows=$(grep '^beta' tools.lock)
   releases 1.1.0 2.0.0
   pins 1.1.0 2.0.0
-  run "${kit_root}/bin/kit" tools install --toolchain kit
+  run "${kit_root}/bin/kit" tools install --toolchain=kit
   [ "$status" -eq 0 ]
   [[ "$output" == *"tools.lock: locked alpha"* ]]
   [ "$(grep '^beta' tools.lock)" = "${beta_rows}" ]
@@ -129,30 +129,30 @@ YAML
 }
 
 @test "a runner refuses a lock behind kit.yml, naming the tool, and installs none of a desk's tools" {
-  "${kit_root}/bin/kit" tools install --toolchain kit >/dev/null 2>&1
+  "${kit_root}/bin/kit" tools install --toolchain=kit >/dev/null 2>&1
   releases 1.1.0 2.0.0
   pins 1.1.0 2.0.0
-  CI=true run "${kit_root}/bin/kit" tools install --toolchain kit
+  CI=true run "${kit_root}/bin/kit" tools install --toolchain=kit
   [ "$status" -eq 1 ]
   [[ "$output" == *"tools.lock is behind tools: in kit.yml for alpha; run kit tools install at a desk"* ]]
   # with the lock up to date, a runner installs alpha alone: beta is a desk's
   pins 1.0.0 2.0.0
   rm -rf "${KIT_HOME}/.kit/tools"
-  CI=true run "${kit_root}/bin/kit" tools install --toolchain kit
+  CI=true run "${kit_root}/bin/kit" tools install --toolchain=kit
   [ "$status" -eq 0 ]
   [ -d "${KIT_HOME}/.kit/tools/alpha/1.0.0/${platform}" ]
   [ ! -d "${KIT_HOME}/.kit/tools/beta" ]
-  CI=true run "${kit_root}/bin/kit" tools path --toolchain kit
+  CI=true run "${kit_root}/bin/kit" tools path --toolchain=kit
   [ "$output" = "${KIT_HOME}/.kit/tools/alpha/1.0.0/${platform}" ]
 }
 
 @test "a download whose bytes are not the ones the lock pins is refused, naming both digests, and nothing is installed" {
-  "${kit_root}/bin/kit" tools install --toolchain kit >/dev/null 2>&1
+  "${kit_root}/bin/kit" tools install --toolchain=kit >/dev/null 2>&1
   rm -rf "${KIT_HOME}/.kit/tools" "${XDG_CACHE_HOME}/kit/downloads"
   os=${platform%-*} arch=${platform#*-}
   [[ "${os}" == macos ]] && os=darwin
   printf '#!/bin/sh\necho tampered\n' > "${FAKE_RELEASES}/alpha-1.0.0-${os}-${arch}"
-  run "${kit_root}/bin/kit" tools install --toolchain kit
+  run "${kit_root}/bin/kit" tools install --toolchain=kit
   [ "$status" -eq 1 ]
   [[ "$output" =~ alpha:\ https://example\.com/alpha/alpha-1\.0\.0-[a-z0-9-]+\ has\ digest\ sha256:[0-9a-f]{64},\ not\ the\ sha256:[0-9a-f]{64}\ tools\.lock\ pins ]]
   [ ! -d "${KIT_HOME}/.kit/tools/alpha" ]
@@ -160,42 +160,42 @@ YAML
 
 @test "a bin: that is not in what the URL unpacks to is refused, naming the tool and its bin:" {
   sed -i.bak 's|bin: beta-{version}/bin|bin: nowhere|' kit.yml
-  run "${kit_root}/bin/kit" tools install --toolchain kit
+  run "${kit_root}/bin/kit" tools install --toolchain=kit
   [ "$status" -eq 1 ]
   [[ "$output" == *"beta: nowhere is not in what https://github.com/acme/beta/releases/download/v2.0.0/beta-2.0.0-${platform}.tar.gz unpacks to; set bin: under tools: beta in kit.yml"* ]]
 }
 
 @test "a bin: that holds no command named as the tool is refused, and nothing is installed" {
   sed -i.bak 's|bin: beta-{version}/bin|bin: beta-{version}|' kit.yml
-  run "${kit_root}/bin/kit" tools install --toolchain kit
+  run "${kit_root}/bin/kit" tools install --toolchain=kit
   [ "$status" -eq 1 ]
   [[ "$output" == *"beta: beta-2.0.0 in what https://github.com/acme/beta/releases/download/v2.0.0/beta-2.0.0-${platform}.tar.gz unpacks to holds no beta command; set bin: under tools: beta in kit.yml"* ]]
   [ ! -d "${KIT_HOME}/.kit/tools/beta" ]
 }
 
 @test "kit tools lists each pin and whether it is installed, with no network, and a runner leaves a desk's out" {
-  "${kit_root}/bin/kit" tools install --toolchain kit >/dev/null 2>&1
+  "${kit_root}/bin/kit" tools install --toolchain=kit >/dev/null 2>&1
   rm -rf "${KIT_HOME}/.kit/tools/beta"
   before=$(downloads)
-  run "${kit_root}/bin/kit" tools --toolchain kit --json
+  run "${kit_root}/bin/kit" tools --toolchain=kit --json
   [ "$status" -eq 0 ]
   [ "$(jq --compact-output --slurp 'map([.name, .pinned, .installed])' <<<"$output")" \
     = '[["alpha","1.0.0","1.0.0"],["beta","2.0.0",null]]' ]
-  CI=true run "${kit_root}/bin/kit" tools --toolchain kit --json
+  CI=true run "${kit_root}/bin/kit" tools --toolchain=kit --json
   [ "$(jq --compact-output --slurp 'map(.name)' <<<"$output")" = '["alpha"]' ]
   [ "$(downloads)" -eq "${before}" ]
 }
 
 @test "a verb that runs the repository's tools outside kit gate finds them on the chosen toolchain's path" {
-  "${kit_root}/bin/kit" tools install --toolchain kit >/dev/null 2>&1
+  "${kit_root}/bin/kit" tools install --toolchain=kit >/dev/null 2>&1
   KIT_TOOLCHAIN=kit run kit-bash 'use dependencies && dependencies:onto-path && command -v alpha'
   [ "$status" -eq 0 ]
   [ "$output" = "${KIT_HOME}/.kit/tools/alpha/1.0.0/${platform}/alpha" ]
 }
 
 @test "the toolchain is active once each directory it names is on PATH" {
-  "${kit_root}/bin/kit" tools install --toolchain kit >/dev/null 2>&1
-  dirs=$("${kit_root}/bin/kit" tools path --toolchain kit | paste -s -d ':' -)
+  "${kit_root}/bin/kit" tools install --toolchain=kit >/dev/null 2>&1
+  dirs=$("${kit_root}/bin/kit" tools path --toolchain=kit | paste -s -d ':' -)
   run kit-bash 'use toolchain && toolchain:detect'
   grep --quiet --line-regexp $'kit\tproject\tyes\tno' <<<"$output"
   PATH="${dirs}:${PATH}" run kit-bash 'use toolchain && toolchain:detect'
@@ -205,7 +205,7 @@ YAML
 @test "outdated asks each GitHub release's latest tag, and says which tool's source it cannot read" {
   route gh 'api repos/acme/beta/releases/latest --jq .tag_name' 'beta-tag'
   printf '{"tag_name": "v2.1.0"}\n' | fixture beta-tag
-  run "${kit_root}/bin/kit" tools --outdated --toolchain kit
+  run "${kit_root}/bin/kit" tools --outdated --toolchain=kit
   [ "$status" -eq 1 ]
   # beta is behind, and not installed here
   grep --quiet -E '^🔺 beta +· 2\.0\.0 +· +· 2\.1\.0$' <<<"$output"
@@ -217,7 +217,7 @@ YAML
   route gh 'api repos/acme/beta/releases/latest --jq .tag_name' 'beta-tag'
   printf '{"tag_name": "v2.1.0"}\n' | fixture beta-tag
   releases 1.0.0 2.1.0
-  run "${kit_root}/bin/kit" tools update --toolchain kit
+  run "${kit_root}/bin/kit" tools update --toolchain=kit
   [ "$status" -eq 0 ]
   [ "$(yq '.tools.beta.version' kit.yml)" = 2.1.0 ]
   [ "$(grep -c $'^beta\t2\.1\.0\t' tools.lock)" -eq 4 ]
@@ -237,11 +237,11 @@ YAML
     ext: {linux: tar.gz, macos: zip}
     bin: gamma
 YAML
-  run "${kit_root}/bin/kit" tools install --toolchain kit
+  run "${kit_root}/bin/kit" tools install --toolchain=kit
   [ "$status" -eq 0 ]
   grep --quiet $'^gamma\t3\.0\.0\tmacos-arm64\tboth\thttps://example\.com/gamma/gamma-macos\.zip\t' tools.lock
   grep --quiet $'^gamma\t3\.0\.0\tlinux-x64\tboth\thttps://example\.com/gamma/gamma-linux\.tar\.gz\t' tools.lock
-  [ "$(PATH="$("${kit_root}/bin/kit" tools path --toolchain kit | paste -s -d ':' -):${PATH}" gamma)" = gamma ]
+  [ "$(PATH="$("${kit_root}/bin/kit" tools path --toolchain=kit | paste -s -d ':' -):${PATH}" gamma)" = gamma ]
 }
 
 @test "outdated reads a GitHub source archive's repository, and a GNU mirror's directory, for the latest version" {
@@ -258,7 +258,7 @@ YAML
   printf '{"tag_name": "v1.2.0"}\n' | fixture delta-tag
   printf '<a href="par-20251201.tar.bz2">x</a> <a href="par-20260301.tar.bz2">x</a>\n<a href="par-20260301.tar.bz2.sig">s</a>\n' \
     > "${FAKE_RELEASES}/par"
-  run "${kit_root}/bin/kit" tools --outdated --toolchain kit
+  run "${kit_root}/bin/kit" tools --outdated --toolchain=kit
   [ "$status" -eq 0 ]
   grep --quiet -E '^🔺 delta +· 1\.0\.0 +· +· 1\.2\.0$' <<<"$output"
   grep --quiet -E '^🔺 par +· 20260101 +· +· 20260301$' <<<"$output"

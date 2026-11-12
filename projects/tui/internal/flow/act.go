@@ -282,7 +282,7 @@ func (m *Model) act(name string) tea.Cmd {
 		return m.run(calls)
 	case "Start Local Work Together…":
 		question("Title of the parent issue", func(t string) []call {
-			return one(append([]string{"work", "--title", t}, refs...)...)
+			return one(append([]string{"work", "--title=" + t}, refs...)...)
 		})
 	case "Add to Pull Request…":
 		numbers, lines := m.mine()
@@ -291,22 +291,22 @@ func (m *Model) act(name string) tea.Cmd {
 			picks = append(picks, strconv.Itoa(n))
 		}
 		m.ask = &ask{title: "Add to which of your pull requests?", lines: lines, pick: picks,
-			run: func(n string) []call { return one(append([]string{"work", "--pr", n}, refs...)...) }}
+			run: func(n string) []call { return one(append([]string{"work", "--pr=" + n}, refs...)...) }}
 	case "Assign to Me":
 		return m.run(each("assign")(""))
 	case "Assign to…":
-		question("Assign to which login?", func(login string) []call { return each("assign", "--to", login)("") })
+		question("Assign to which login?", func(login string) []call { return each("assign", "--to="+login)("") })
 	case "Unassign":
 		confirm("Take yourself off these issues?", "unassign")
 	case "Gather Under a Parent…":
 		question("Title of the parent issue", func(t string) []call {
-			return one(append([]string{"gather", "--title", t}, refs...)...)
+			return one(append([]string{"gather", "--title=" + t}, refs...)...)
 		})
 	case "Close as Not Planned":
 		confirm("Close these issues as not planned?", "close", "--not-planned")
 	case "Close as Duplicate of…":
 		question("Duplicate of which issue?", func(original string) []call {
-			return one(append([]string{"close", "--duplicate-of", original}, refs...)...)
+			return one(append([]string{"close", "--duplicate-of=" + original}, refs...)...)
 		})
 	case "Copy Links":
 		m.done(fmt.Sprintf("%s copied %d links", ToPage, len(refs)))

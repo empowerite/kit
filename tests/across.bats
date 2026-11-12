@@ -364,7 +364,7 @@ local-desks() {
   [ "$output" = '' ]
   [[ "$stderr" == *"❌ github.com/o/a: "*"❌ github.com/o/b: "* ]]
   printf 'primary: [\n' > "${BATS_TEST_TMPDIR}/code/a/kit.yml"
-  run --separate-stderr "${kit_root}/bin/kit" workspaces --show github.com/o/c --json
+  run --separate-stderr "${kit_root}/bin/kit" workspaces --show=github.com/o/c --json
   [ "$status" -eq 0 ]
   [ -z "$stderr" ]
   run --separate-stderr "${kit_root}/bin/kit" workspaces --show=github.com/o/a --json
@@ -552,7 +552,7 @@ EOF
   run "${kit_root}/bin/kit" workspace repos --json
   [ "$status" -eq 2 ]
   workspaces-file < "${BATS_TEST_TMPDIR}/kept.yml"
-  "${kit_root}/bin/kit" workspaces --use w
+  "${kit_root}/bin/kit" workspaces --use=w
   run --separate-stderr "${kit_root}/bin/kit" flow --json --no-fetch
   [ "$(jq -c '[.incoming.rows[].member]' <<<"$output")" = '["github.com/o/a","github.com/o/b"]' ]
   run --separate-stderr "${kit_root}/bin/kit" workspace repos --json
@@ -561,7 +561,7 @@ EOF
   [ "$(jq -r type <<<"$output")" = array ]
   run "${kit_root}/bin/kit" --workspace=none workspace repos --json
   [[ "$status" -eq 2 && "$output" == *"kit workspace reads a repository"* ]]
-  run "${kit_root}/bin/kit" workspaces --new none github.com/o/a
+  run "${kit_root}/bin/kit" workspaces --new=none github.com/o/a
   [[ "$status" -eq 2 && "$output" == *"--workspace=none names no workspace"* ]]
   cd code/a && workspaces-file <<<'workspaces: [unclosed'
   run --separate-stderr "${kit_root}/bin/kit" flow incoming --no-fetch --json

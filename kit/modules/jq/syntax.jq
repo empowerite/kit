@@ -13,8 +13,13 @@ def key:
   elif .kind == "operand" then "<\(.name)>"
   else .name end;
 
+# joins says whether an option is a list whose values may also come joined by :, --tag=a:b for --tag=a --tag=b: one
+# that repeats and whose value is a name, a <login>, an <audience>, a <kind>, or a <package>, which never holds a
+# colon. A list whose value may hold one, as a <text>, a <glob>, or a <regex>, takes each value in an option of its own.
+def joins: .kind == "option" and .repeat and (.value | IN("login", "audience", "kind", "package"));
+
 # render gives a node, or a sequence of nodes, as usage text: a group in its brackets with its alternatives
-# separated by |, an option with its value inline or apart, and … after what repeats.
+# separated by |, an option with its value after =, and … after what repeats.
 def render:
   def mark: if .repeat then "…" else "" end;
   if type == "array" then map(render) | join(" ")
@@ -25,8 +30,7 @@ def render:
   elif .kind == "operand" then "<\(.name)>" + mark
   elif .kind == "flag" then "--\(.name)"
   elif .wildcard then "--<\(.name)>=<\(.value)>" + mark
-  elif .inline then "--\(.name)=<\(.value)>" + mark
-  else "--\(.name) <\(.value)>" + mark end;
+  else "--\(.name)=<\(.value)>" + mark end;
 
 # undescribed gives the keys a spec's syntax names, in order of first appearance, that its arguments object does not
 # describe.
@@ -119,7 +123,7 @@ def walk_sequence($nodes; $st):
     | if $w.refusal != null or $w.missing != null or ($w.pos | length) == 0 or ($w.pos | length) == ($s.pos | length)
       then $w else walk_repeat($node; $w) end;
   reduce $nodes[] as $node ($st;
-    # a wildcard here, or in an optional group of its own, is open to the inline options nothing else takes
+    # a wildcard here, or in an optional group of its own, is open to the options nothing else takes
     (if $node.wildcard or ($node.kind == "group" and ($node.alternatives | length) == 1
           and any($node.alternatives[0][]; .wildcard)) then .wild_open = true else . end)
     | if .refusal != null or .missing != null then .
@@ -141,9 +145,10 @@ def walk_sequence($nodes; $st):
     end);
 
 # lex($words; $i; $st; $by_key; $wild) sorts the words from the one at $i on: a named flag or option is taken wherever
-# it stands, with its value inline or as the next word, and the indices it took are kept in spans; an option written
-# once is refused twice; -- ends the flags; every other word is kept in order with its index, a dash-word tentatively,
-# for a repeated operand to take or the walk to refuse. A wildcard option may be empty: a hole may be filled with nothing.
+# it stands, an option with its value after =, a list that joins split at each :, and the index of each word it took
+# is kept in spans; an option given with no = is refused, naming the --name=<value> form, as is one written once and
+# given twice; -- ends the flags; every other word is kept in order with its index, a dash-word tentatively, for a
+# repeated operand to take or the walk to refuse. A wildcard option may be empty: a hole may be filled with nothing.
 def lex($words; $i; $st; $by_key; $wild):
   if $st.refusal != null or $i >= ($words | length) then $st
   else $words[$i] as $w
@@ -152,23 +157,26 @@ def lex($words; $i; $st; $by_key; $wild):
     elif $w == "--" then lex($words; $i + 1; $st | .plain = true | .dashdash = $i; $by_key; $wild)
     else ($w | index("=")) as $eq
     | (if $eq == null then $w else $w[:$eq] end) as $name
-    | (if $eq == null then null else $w[$eq + 1:] end) as $inline
+    | (if $eq == null then null else $w[$eq + 1:] end) as $value
     | $by_key[$name] as $node
     | if $node != null and $node.kind == "flag" then
         if $eq != null then lex($words; $i + 1; $st | .pos += [{word: $w, dash: true, at: $i}]; $by_key; $wild)
-        else lex($words; $i + 1; $st | .given[$name] = ["1"] | .spans[$name] += [[$i]]; $by_key; $wild) end
+        else lex($words; $i + 1; $st | .given[$name] = ["1"] | .spans[$name] += [$i]; $by_key; $wild) end
       elif $node != null then
         if ($st.given[$name] // [] | length) > 0 and ($node.repeat | not) then $st | .refusal = "\($name) is given twice"
         elif $eq != null then
-          if $inline == "" and $wild then
+          if $value == "" and $wild then
             # empty, it may yet be a wildcard's hole, which may be empty; match refuses it if a named option keeps it
-            lex($words; $i + 1; $st | .given[$name] += [""] | .spans[$name] += [[$i]] | .empty += [$name]; $by_key; $wild)
-          elif $inline == "" then $st | .refusal = "\($name) needs a value"
-          else lex($words; $i + 1; $st | .given[$name] += [$inline] | .spans[$name] += [[$i]]; $by_key; $wild) end
-        elif $node.inline or $i + 1 >= ($words | length) then $st | .refusal = "\($name) needs a value"
-        else lex($words; $i + 2; $st | .given[$name] += [$words[$i + 1]] | .spans[$name] += [[$i, $i + 1]]; $by_key; $wild) end
+            lex($words; $i + 1; $st | .given[$name] += [""] | .spans[$name] += [$i] | .empty += [$name]; $by_key; $wild)
+          elif $value == "" then $st | .refusal = "\($name) needs a value"
+          elif ($node | joins) and ($value | split(":") | any(. == "")) then
+            $st | .refusal = "\($name)=\($value) holds an empty value; join its values with one : each"
+          elif $node | joins then
+            lex($words; $i + 1; $st | .given[$name] += ($value | split(":")) | .spans[$name] += [$i]; $by_key; $wild)
+          else lex($words; $i + 1; $st | .given[$name] += [$value] | .spans[$name] += [$i]; $by_key; $wild) end
+        else $st | .refusal = "\($name) takes its value after =: \($name)=<\($node.value)>" end
       elif $wild and $eq != null and ($name | test("^--[^=]+$")) then
-        lex($words; $i + 1; $st | .given[$name] += [$inline] | .spans[$name] += [[$i]]
+        lex($words; $i + 1; $st | .given[$name] += [$value] | .spans[$name] += [$i]
           | if (.wild | index($name)) == null then .wild += [$name] else . end; $by_key; $wild)
       else lex($words; $i + 1; $st | .pos += [{word: $w, dash: true, at: $i}]; $by_key; $wild) end
     end
@@ -181,8 +189,8 @@ def reclaim($words):
   . as $st
   | ((.given | keys_unsorted) - .used) as $unused
   | if ($unused | length) == 0 or .trailing == null then .
-    elif any($unused[] as $k | $st.spans[$k][][]; . < $st.trailing.at) then .
-    else [.used[] as $k | .spans[$k][][]] as $taken
+    elif any($unused[] as $k | $st.spans[$k][]; . < $st.trailing.at) then .
+    else [.used[] as $k | .spans[$k][]] as $taken
     | [range(.trailing.at; $words | length) as $j | select(($taken | index($j)) == null and $j != $st.dashdash) | $words[$j]]
         as $words_of_it
     | (.values[.trailing.key] | length) as $had
@@ -192,14 +200,13 @@ def reclaim($words):
     | .values = (.values | with_entries(select(.key as $k | $unused | index($k) | . == null)))
     end;
 
-# absorb($by_key) hands an open wildcard the options nothing else used that were given inline, --name=value: in kit new's
-# file alternative, --purpose=x is a template's hole even though another alternative names --purpose. Given apart, or
-# with no wildcard open, they are left for the refusal.
+# absorb($by_key) hands an open wildcard the options nothing else used, each given --name=value: in kit new's file
+# alternative, --purpose=x is a template's hole even though another alternative names --purpose. With no wildcard
+# open, they are left for the refusal.
 def absorb($by_key):
   . as $st
   | if .wild_open then
-      [((.given | keys_unsorted) - .used)[] | select($by_key[.].kind == "option" and ($st.spans[.] | all(length == 1)))]
-        as $taken
+      [((.given | keys_unsorted) - .used)[] | select($by_key[.].kind == "option")] as $taken
       | .used += $taken | .wild += $taken
     else . end;
 

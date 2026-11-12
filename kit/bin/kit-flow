@@ -235,7 +235,7 @@
 #   --mine              only the caller's: assigned issues, and opened pull requests
 #   --others            everyone else's; unassigned issues included
 #   --all               every issue and pull request (the default); it stands alone
-#   --owner=<login>     only the named login's; give it once or more
+#   --owner=<login>     only the named login's; give it once or more, or join the logins with :, --owner=a:b
 #   --stages            prints the stages the picture draws, one per line, in order
 #   --me                prints the caller's login on the primary's forge, the login --mine and --others match
 #   --quota             prints the caller's rate limits on the primary's forge, as one JSON array: each forge's

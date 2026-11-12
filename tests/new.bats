@@ -46,6 +46,11 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [[ "$output" == *"run: kit packages add team"* ]]
   [ "$(grep -v '^#' .kit/packages/team/package.yml | awk 'NF' | paste -s -d '|' -)" = \
     'description: "The team rules"|depends:|  - kit|  - style/bash' ]
+  # the packages it depends on may come joined by :
+  run kit new package pair --depends=style/bash:style/markdown
+  [ "$status" -eq 0 ]
+  [ "$(grep -v '^#' .kit/packages/pair/package.yml | awk 'NF' | paste -s -d '|' -)" = \
+    "description: \"This repository's own pair package\"|depends:|  - kit|  - style/bash|  - style/markdown" ]
   run kit packages add team
   [ "$status" -eq 0 ]
   kit new style notes --package=team >/dev/null 2>&1

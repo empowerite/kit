@@ -151,7 +151,7 @@ func TestEscFromThePaletteEndsZero(t *testing.T) {
 }
 
 func TestAVerbThatCannotRunIsKittuisLine(t *testing.T) {
-	m, _ := app.Open(testkit.Runner(t, "kit"), "commit", []string{"--message", "hi"})
+	m, _ := app.Open(testkit.Runner(t, "kit"), "commit", []string{"--message=hi"})
 	m = drive(m, tea.KeyPressMsg{Code: tea.KeyEnter, Mod: tea.ModShift})
 	var stderr bytes.Buffer
 	code := finish(m, &stderr, func(string, []string) error { return errors.New("no such file") })
@@ -204,7 +204,7 @@ func TestEveryScreenOpensOnATerminalAndEndsAsThePersonEndedIt(t *testing.T) {
 		{[]string{"help"}, ctrlQ, 0, "", true},
 		{[]string{"help", "commit"}, ctrlQ, 0, "", true},
 		{[]string{"--", "commit"}, ctrlQ, 1, "", true},
-		{[]string{"--", "commit", "--message", "hi"}, tea.KeyPressMsg{Code: tea.KeyEnter, Mod: tea.ModShift}, 0,
+		{[]string{"--", "commit", "--message=hi"}, tea.KeyPressMsg{Code: tea.KeyEnter, Mod: tea.ModShift}, 0,
 			"kit commit ", false},
 		{[]string{"flow"}, ctrlQ, 0, "", true},
 		{[]string{"welcome"}, ctrlQ, 0, "", true},
@@ -292,7 +292,7 @@ func TestOffATerminalEachScreenNamesItsTextForm(t *testing.T) {
 }
 
 func TestRunPrintsTheTranscriptThenExecs(t *testing.T) {
-	m, _ := app.Open(testkit.Runner(t, "kit"), "commit", []string{"--message", "hi"})
+	m, _ := app.Open(testkit.Runner(t, "kit"), "commit", []string{"--message=hi"})
 	m = drive(m, tea.KeyPressMsg{Code: tea.KeyEnter, Mod: tea.ModShift})
 	var stderr bytes.Buffer
 	var ran []string
@@ -337,11 +337,11 @@ func TestTutorialsOpensItsScreen(t *testing.T) {
 		onTerminal(t, ending(k))
 		t.Setenv("KIT", r.Kit)
 		var stderr bytes.Buffer
-		if got := run([]string{"tutorials", "--tag", "x", "stray"}, &stderr); got != code || stderr.Len() != 0 {
+		if got := run([]string{"tutorials", "--tag=x", "stray"}, &stderr); got != code || stderr.Len() != 0 {
 			t.Errorf("%s: exit %d, stderr %q", key, got, stderr.String())
 		}
 	}
-	screen, m, err := open(r, "tutorials", []string{"--tag", "x"})
+	screen, m, err := open(r, "tutorials", []string{"--tag=x"})
 	if _, ok := m.(tutorials.Model); err != nil || !ok || screen != shell.Tutorials {
 		t.Errorf("open: %s, %T, %v", screen, m, err)
 	}
@@ -394,8 +394,7 @@ func TestFlowAndWorkspaceOpenTheAppWithTheTabNamed(t *testing.T) {
 }
 
 func TestFlowTakesTheWorkspaceFromItsWords(t *testing.T) {
-	for _, words := range [][]string{{"--workspace", "w", "--no-fetch"}, {"--workspace=w", "--no-fetch"},
-		{"--no-fetch", "--workspace", "w"}} {
+	for _, words := range [][]string{{"--workspace=w", "--no-fetch"}, {"--no-fetch", "--workspace=w"}} {
 		group, rest := workspaceOf(words)
 		if group != "w" || strings.Join(rest, " ") != "--no-fetch" {
 			t.Errorf("%q gives %q and %q", words, group, rest)
@@ -403,6 +402,10 @@ func TestFlowTakesTheWorkspaceFromItsWords(t *testing.T) {
 	}
 	if group, rest := workspaceOf([]string{"--no-fetch"}); group != "" || len(rest) != 1 {
 		t.Errorf("no workspace gives %q and %q", group, rest)
+	}
+	// a workspace is given after =, never as the next word
+	if group, rest := workspaceOf([]string{"--workspace", "w"}); group != "" || len(rest) != 2 {
+		t.Errorf("--workspace w gives %q and %q", group, rest)
 	}
 }
 

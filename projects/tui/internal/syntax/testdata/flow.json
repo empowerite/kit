@@ -123,7 +123,6 @@
                 [
                   {
                     "kind": "option",
-                    "inline": true,
                     "name": "owner",
                     "value": "login",
                     "repeat": true
@@ -288,7 +287,6 @@
                 [
                   {
                     "kind": "option",
-                    "inline": true,
                     "name": "owner",
                     "value": "login",
                     "repeat": true
@@ -460,7 +458,6 @@
                 [
                   {
                     "kind": "option",
-                    "inline": true,
                     "name": "owner",
                     "value": "login",
                     "repeat": true
@@ -737,7 +734,6 @@
                 [
                   {
                     "kind": "option",
-                    "inline": true,
                     "name": "owner",
                     "value": "login",
                     "repeat": true
@@ -846,7 +842,6 @@
                 [
                   {
                     "kind": "option",
-                    "inline": true,
                     "name": "owner",
                     "value": "login",
                     "repeat": true
@@ -890,7 +885,7 @@
       "description": "every issue and pull request (the default); it stands alone"
     },
     "--owner": {
-      "description": "only the named login's; give it once or more"
+      "description": "only the named login's; give it once or more, or join the logins with :, --owner=a:b"
     },
     "--stages": {
       "description": "prints the stages the picture draws, one per line, in order"

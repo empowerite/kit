@@ -58,13 +58,13 @@ func TestCommitShape(t *testing.T) {
 		t.Errorf("node 2: %+v", seq[1])
 	}
 	message := seq[1].Alternatives[0][0]
-	if message.Kind != "option" || message.Name != "message" || message.Value != "text" || message.Inline || !message.Repeat {
+	if message.Kind != "option" || message.Name != "message" || message.Value != "text" || !message.Repeat {
 		t.Errorf("message: %+v", message)
 	}
 	if Key(message) != "--message" {
 		t.Errorf("Key(message) = %q", Key(message))
 	}
-	if Render(seq) != "[--all] (--message <text>… | --file <path>) [<path>…]" {
+	if Render(seq) != "[--all] (--message=<text>… | --file=<path>) [<path>…]" {
 		t.Errorf("Render = %q", Render(seq))
 	}
 	if commit.Arguments["<path>"].Choices != "open" || commit.Arguments["--message"].Description == "" {
@@ -78,8 +78,8 @@ func TestCommitShape(t *testing.T) {
 func TestKeyOfEveryKind(t *testing.T) {
 	cases := map[string]Node{
 		"--all":    {Kind: "flag", Name: "all"},
-		"--rule":   {Kind: "option", Name: "rule", Value: "rule", Inline: true},
-		"--<hole>": {Kind: "option", Name: "hole", Value: "value", Inline: true, Wildcard: true},
+		"--rule":   {Kind: "option", Name: "rule", Value: "rule"},
+		"--<hole>": {Kind: "option", Name: "hole", Value: "value", Wildcard: true},
 		"<path>":   {Kind: "operand", Name: "path", Repeat: true},
 		"list":     {Kind: "literal", Name: "list"},
 	}

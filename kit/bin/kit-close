@@ -2,7 +2,7 @@
 # kit-close - closes issues as not planned, or as a duplicate of another (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
 # Usage:
-#   kit close (--not-planned | --duplicate-of <original>) <reference>…
+#   kit close (--not-planned | --duplicate-of=<original>) <reference>…
 #
 # Closes each open issue with a reason. Work that is done closes its issues itself, when its pull request merges;
 # kit close is for the issues no work will close.
@@ -14,7 +14,7 @@
 #
 # Arguments:
 #   --not-planned              closes them as not planned
-#   --duplicate-of <original>  closes them as duplicates of the original issue
+#   --duplicate-of=<original>  closes them as duplicates of the original issue
 #   <reference>…               the issues, each named with its tracker: 7, #7, or AB#4521
 #
 # Exits 0 when every issue is closed, 1 when one could not be or the trackers in kit.yml cannot be read, and 2 on a

@@ -738,7 +738,7 @@ the desk its first row; run: cd "*" && kit workspace worktrees" ]]
 }
 
 @test "kit syntax flow lists the five stages as a closed set, each described, and the removed verbs are no verbs" {
-  run "${kit_root}/bin/kit" syntax flow --choices '<stage>'
+  run "${kit_root}/bin/kit" syntax flow --choices='<stage>'
   [ "$status" -eq 0 ]
   [ "$(cut -f 1 <<<"$output" | paste -s -d ' ' -)" = "issues changes builds incoming releases" ]
   [[ "${lines[1]}" == $'changes\tthe open pull requests, each with the issues it closes\t\t' ]]

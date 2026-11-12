@@ -110,7 +110,7 @@ commit-all() {
   run "${kit_root}/bin/kit" facts --moment=push
   [ "${status}" -eq 2 ]
   [[ "${output}" == *"--moment 'push' is not one of the choices"* ]]
-  run "${kit_root}/bin/kit" syntax facts --choices --moment
+  run "${kit_root}/bin/kit" syntax facts --choices=--moment
   [ "${status}" -eq 0 ]
   [ "$(cut -f 1 <<<"${output}" | tr '\n' ' ')" = "commit ci " ]
 }

@@ -541,7 +541,7 @@ commit:commit() {
   head=$(git rev-parse --verify --quiet HEAD || true)  # a repository with no commit has no HEAD: empty
   if (( ${#commit_messages[@]} == 0 )) && [[ -z "${commit_file}" ]]
   then
-    error "say what the commit is: --message <text>, or --file <path>; kit commit opens no editor; run: kit help commit"
+    error "say what the commit is: --message=<text>, or --file=<path>; kit commit opens no editor; run: kit help commit"
     return 2
   fi
   if [[ -n "${commit_file}" ]]

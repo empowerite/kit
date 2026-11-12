@@ -46,12 +46,19 @@ setup() {
   run "${kit_root}/bin/kit" context
   [ "$status" -eq 2 ]
   [[ "$output" == *"kit context needs <path> or --claude; run: cd "*" && kit help context"* ]]
-  run "${kit_root}/bin/kit" commit --message m --file f
+  run "${kit_root}/bin/kit" commit --message=m --file=f
   [ "$status" -eq 2 ]
   [[ "$output" == *"--message cannot be combined with --file; run: cd "*" && kit help commit"* ]]
-  run "${kit_root}/bin/kit" commit --message
+  run "${kit_root}/bin/kit" commit --message=
   [ "$status" -eq 2 ]
   [[ "$output" == *"--message needs a value; run: cd "*" && kit help commit"* ]]
+  # a value given as the next word is refused, naming the = form, as is an option given no value at all
+  run "${kit_root}/bin/kit" commit --message m
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"--message takes its value after =: --message=<text>; run: cd "*" && kit help commit"* ]]
+  run "${kit_root}/bin/kit" commit --message
+  [ "$status" -eq 2 ]
+  [[ "$output" == *"--message takes its value after =: --message=<text>; run: cd "*" && kit help commit"* ]]
   run "${kit_root}/bin/kit" new file x --rule=
   [ "$status" -eq 2 ]
   [[ "$output" == *"--rule needs a value; run: cd "*" && kit help new"* ]]
@@ -60,10 +67,12 @@ setup() {
 @test "syntax:match sorts what is given: a trailing operand takes the dash-words, -- ends the flags, a value with spaces is whole" {
   run kit-bash 'syntax:match tui run bash -c "echo hi"; echo "$? ${syntax_literals[*]} | ${#syntax_operands[@]} | ${syntax_operands[*]}"'
   [ "$output" = "0  | 4 | run bash -c echo hi" ]
-  run kit-bash 'syntax:match commit --message "a b" -- --weird; echo "$? ${syntax_options[--message]} | ${syntax_operands[*]}"'
+  run kit-bash 'syntax:match commit --message="a b" -- --weird; echo "$? ${syntax_options[--message]} | ${syntax_operands[*]}"'
   [ "$output" = "0 a b | --weird" ]
   run kit-bash 'syntax:match flow --owner=ada --owner=bob; echo "$? ${syntax_options[--owner]}"'
   [ "$output" = $'0 ada\nbob' ]
+  run kit-bash 'syntax:match flow --owner=ada:bob --owner=cy; echo "$? ${syntax_options[--owner]}"'
+  [ "$output" = $'0 ada\nbob\ncy' ]
   run kit-bash 'syntax:match context a.md --json; echo "$? ${syntax_operands[*]} ${syntax_options[--json]}"'
   [ "$output" = "0 a.md 1" ]
   run kit-bash 'syntax:match commit --all; echo "$? ${syntax_missing} | ${syntax_options[--all]}"'
@@ -117,11 +126,11 @@ setup() {
   [ "$output" = "2 --json cannot be combined with add; run: kit help packages" ]
   run kit-bash 'syntax:match commit a.txt --all; echo "$? ${syntax_operands[*]} | ${syntax_options[--all]}"'
   [ "$output" = "1  | 1" ]
-  run kit-bash 'syntax:match commit --message m a.txt --all; echo "$? ${syntax_operands[*]} | ${syntax_options[--all]}"'
+  run kit-bash 'syntax:match commit --message=m a.txt --all; echo "$? ${syntax_operands[*]} | ${syntax_options[--all]}"'
   [ "$output" = "0 a.txt | 1" ]
-  run kit-bash 'syntax:match work --title a --title b; echo "$? ${syntax_refusal}"'
+  run kit-bash 'syntax:match work --title=a --title=b; echo "$? ${syntax_refusal}"'
   [ "$output" = "2 --title is given twice; run: kit help work" ]
-  run kit-bash 'syntax:match commit --message a --message b; echo "$? ${syntax_options[--message]}"'
+  run kit-bash 'syntax:match commit --message=a --message=b; echo "$? ${syntax_options[--message]}"'
   [ "$output" = $'0 a\nb' ]
 }
 

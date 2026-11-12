@@ -88,31 +88,7 @@ source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/../modules/bash/1st.sh"
 kit:enter
 use workspaces
 
-# The forms that name a group or a workspace are written --option=<value>; given as the next word, the value is joined
-# to its option first, so --add w reads as --add=w. The list below names every option the usage lines write as
-# --option=<value>, so an option given that form joins the list too.
 workspaces:misplaced workspaces "$@" || exit $?
-words=()
-while (( $# ))
-do
-  if [[ "$1" == -- ]]
-  then
-    words+=("$@")
-    break
-  fi
-  case "$1" in
-    (--show | --use | --new | --add | --remove | --rename | --delete | --favorite | --unfavorite | --from)
-      if (( $# > 1 )) && [[ "$2" != -* ]]
-      then
-        words+=("$1=$2")
-        shift 2
-        continue
-      fi
-  esac
-  words+=("$1")
-  shift
-done
-set -- "${words[@]}"
 guard:arguments workspaces "$@" || exit $?
 
 action=list target='' form='' from='' fromed=''
@@ -122,7 +98,7 @@ workspace=${KIT_WORKSPACE:-}
 args=()
 while (( $# ))
 do
-  # --option=value is --option value, as kit syntax reads it
+  # --option=value is split into --option and its value, which the case reads as the next word
   [[ "$1" != --*=* ]] || set -- "${1%%=*}" "${1#*=}" "${@:2}"
   case "$1" in
     (--show | --use | --new | --add | --remove | --rename | --delete | --favorite | --unfavorite)

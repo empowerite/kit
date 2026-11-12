@@ -4,7 +4,7 @@
 # Usage:
 #   kit welcome [--text]
 #   kit welcome --checks [--json | --jq] [--folder=<path>] [--progress]
-#   kit welcome --fix <check> [--folder=<path>]
+#   kit welcome --fix=<check> [--folder=<path>]
 #   kit welcome --keep=<check> [--json]
 #   kit welcome --unkeep=<check> [--json]
 #
@@ -68,7 +68,7 @@
 #   --json            the checks as a JSON array; with --keep= or --unkeep=, the check as it now is, one JSON object,
 #                     or null where kit did not ask the terminal
 #   --jq              the same JSON, formatted by jq for a person
-#   --fix <check>     runs one check's fix, then checks again
+#   --fix=<check>     runs one check's fix, then checks again
 #   --keep=<check>    keeps a terminal's finding as it is: it holds from now on, in the profile it was judged in;
 #                     then says the check as it now is
 #   --unkeep=<check>  undoes a keep, so the finding is judged again, and says it

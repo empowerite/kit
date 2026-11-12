@@ -84,7 +84,7 @@ func TestARefusalWithNothingOnStderrSaysHowKitEnded(t *testing.T) {
 func TestAFixThatCannotRunSaysWhy(t *testing.T) {
 	m, _ := loaded(t)
 	m.fixed(fixedMsg{id: "jq", key: "jq", err: errors.New("no such file")})
-	if n := m.notes["jq"]; !n.refusal || n.text != "kit welcome --fix jq: no such file" {
+	if n := m.notes["jq"]; !n.refusal || n.text != "kit welcome --fix=jq: no such file" {
 		t.Errorf("the note: %+v", n)
 	}
 }

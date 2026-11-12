@@ -23,7 +23,7 @@ how kit finds and chooses a toolchain, see [toolchains.md](../toolchains.md).
        profile: desk
    ```
 
-2. Run `kit tools install --toolchain kit`. It downloads each tool for every platform, writes `tools.lock`, and
+2. Run `kit tools install --toolchain=kit`. It downloads each tool for every platform, writes `tools.lock`, and
    installs this platform's.
 3. Commit `kit.yml` and `tools.lock`.
 

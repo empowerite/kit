@@ -1079,7 +1079,7 @@ welcome:left() {
     printf 'Nothing is left: every check holds.\n'
     return 0
   fi
-  printf '%s\n\nRun a command yourself, or have kit run one and check again: kit welcome --fix <id>, and for a %s\n' \
+  printf '%s\n\nRun a command yourself, or have kit run one and check again: kit welcome --fix=<id>, and for a %s\n' \
     "${rows}" "folder's check, --folder=<path>."
 }
 
@@ -1120,7 +1120,7 @@ welcome:fix() {
   then
     if [[ -n "${folder}" ]]
     then
-      error "${id} is the machine's check, not a folder's, so it takes no --folder=; run: kit welcome --fix ${id}"
+      error "${id} is the machine's check, not a folder's, so it takes no --folder=; run: kit welcome --fix=${id}"
       return 2
     fi
     # Only a forge's checks read the folders, for their hosts.
@@ -1137,7 +1137,7 @@ welcome:fix() {
   if [[ -z "${folder}" ]] && ! folder=$(workspaces:in-repository)
   then
     error "${id} is a folder's check, and kit runs outside a repository; name the folder:" \
-      "kit welcome --fix ${id} --folder=<path>"
+      "kit welcome --fix=${id} --folder=<path>"
     return 2
   fi
   welcome:folder "${folder}" || return $?

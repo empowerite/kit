@@ -143,7 +143,7 @@ ambient-system() {
   [ "$(jq --raw-output 'map(.id) | .[0:6] | join(" ")' <<<"$output")" = \
     "tool-bash tool-git tool-jq tool-yq brew-path toolchain-system" ]
   # --fix does not run it: kit cannot change the shell it was started from
-  run --separate-stderr "${kit_root}/bin/kit" welcome --fix brew-path
+  run --separate-stderr "${kit_root}/bin/kit" welcome --fix=brew-path
   [ "$status" -eq 2 ]
   [[ "$stderr" == *"must run in your own shell"* ]]
   # the check says so, and the guide names the line without offering to run it
@@ -341,7 +341,7 @@ ambient-system() {
   [ "$(jq --raw-output '[.fix, .more] | @tsv' <<<"$output")" = \
     $'\thttps://github.com/empowerite/kit/blob/main/docs/toolchains.md' ]
   # the toolchains check's fix records the first; the others' commands stand beside it
-  run --separate-stderr "${kit_root}/bin/kit" welcome --fix toolchain-project
+  run --separate-stderr "${kit_root}/bin/kit" welcome --fix=toolchain-project
   [ "$status" -eq 0 ]
   [ "$output" = "✅ mise is the project toolchain; kit tools lists what it pins" ]
   # with mise and docker gone, brew is the only one again, and the recorded mise gives way to it
@@ -387,11 +387,11 @@ ambient-system() {
 @test "--fix runs the check's fix, checks again, and exits 0 when it now holds and 1 when it does not" {
   git remote add origin https://github.com/acme/widget.git
   fake-gh
-  run --separate-stderr env LOGIN_FAILS=1 "${kit_root}/bin/kit" welcome --fix forge-login-github.com
+  run --separate-stderr env LOGIN_FAILS=1 "${kit_root}/bin/kit" welcome --fix=forge-login-github.com
   [ "$status" -eq 1 ]
   [ "$output" = $'❌ gh is not logged in to github.com\n   gh auth login --hostname github.com' ]
   grep --quiet --line-regexp 'auth login --hostname github.com' "${BATS_TEST_TMPDIR}/gh.calls"
-  run --separate-stderr "${kit_root}/bin/kit" welcome --fix forge-login-github.com
+  run --separate-stderr "${kit_root}/bin/kit" welcome --fix=forge-login-github.com
   [ "$status" -eq 0 ]
   [ "$output" = "✅ gh is logged in to github.com" ]
   [[ "$stderr" == *"→ gh auth login --hostname github.com"* ]]
@@ -401,30 +401,30 @@ ambient-system() {
   fake-gh
   touch "${BATS_TEST_TMPDIR}/logged-in"
   git remote add origin https://github.com/acme/widget.git
-  run "${kit_root}/bin/kit" welcome --fix tool-nothing
+  run "${kit_root}/bin/kit" welcome --fix=tool-nothing
   [ "$status" -eq 2 ]
   [[ "$output" == *"no check is named 'tool-nothing'; the checks are: tool-bash "* ]]
-  run "${kit_root}/bin/kit" welcome --fix forge-login-github.com
+  run "${kit_root}/bin/kit" welcome --fix=forge-login-github.com
   [ "$status" -eq 2 ]
   [[ "$output" == *"forge-login-github.com holds already, so there is nothing to fix"* ]]
   run grep --quiet 'auth login' "${BATS_TEST_TMPDIR}/gh.calls"
   [ "$status" -eq 1 ]
   # gh gone: its login has no fix, only a page to read
   fake-script gh 'exit 1'
-  run "${kit_root}/bin/kit" welcome --fix forge-login-github.com
+  run "${kit_root}/bin/kit" welcome --fix=forge-login-github.com
   [ "$status" -eq 2 ]
   [[ "$output" == *"kit knows no fix for forge-login-github.com; read: https://cli.github.com"* ]]
   run "${kit_root}/bin/kit" welcome --fix
   [ "$status" -eq 2 ]
-  [[ "$output" == *"--fix needs a value; run: cd "*" && kit help welcome"* ]]
+  [[ "$output" == *"--fix takes its value after =: --fix=<check>; run: cd "*" && kit help welcome"* ]]
 }
 
 @test "--fix runs an offer's fix: kit-installed installs the kit, then holds with nothing to offer, and refuses with 2" {
-  run --separate-stderr "${kit_root}/bin/kit" welcome --fix kit-installed
+  run --separate-stderr "${kit_root}/bin/kit" welcome --fix=kit-installed
   [ "$status" -eq 0 ]
   [[ "$output" == "✅ kit.yml declares kit "* ]]
   [[ "$stderr" == *"→ kit install"* ]]
-  run --separate-stderr "${kit_root}/bin/kit" welcome --fix kit-installed
+  run --separate-stderr "${kit_root}/bin/kit" welcome --fix=kit-installed
   [ "$status" -eq 2 ]
   [[ "$stderr" == *"kit-installed holds already, so there is nothing to fix"* ]]
 }
@@ -459,7 +459,7 @@ ambient-system() {
   rm .kit/1st.md
   run --separate-stderr check kit-hydrated
   [ "$(jq --raw-output '[.ok, .fix] | @tsv' <<<"$output")" = $'false\tkit hydrate' ]
-  run --separate-stderr "${kit_root}/bin/kit" welcome --fix kit-hydrated
+  run --separate-stderr "${kit_root}/bin/kit" welcome --fix=kit-hydrated
   [ "$status" -eq 0 ]
   [ "$output" = "✅ .kit/ is in place: every file kit placed there is present" ]
 }
@@ -532,7 +532,7 @@ folders() {
     "$(printf 'false\tthis worktree is in a temporary folder, outside %s: a scratch worktree, left behind\t' "${desk}"
       printf 'git -C %s worktree remove %s' "${desk}" "$(cd "${TMPDIR}/scratch" && pwd -P)")" ]
   # the fix removes it, and the check then holds: the folder is gone
-  run --separate-stderr "${kit_root}/bin/kit" welcome --fix worktree-scratch --folder="${TMPDIR}/scratch"
+  run --separate-stderr "${kit_root}/bin/kit" welcome --fix=worktree-scratch --folder="${TMPDIR}/scratch"
   [ "$status" -eq 0 ]
   [ ! -e "${TMPDIR}/scratch" ]
   [ -z "$(git worktree list --porcelain | grep scratch)" ]
@@ -604,23 +604,23 @@ folders() {
   [ "$(jq --raw-output '[.[] | .folder] | unique | join(" ")' <<<"$output")" = "${desk}/worktrees/topic" ]
   [ "$(jq --raw-output '.[] | select(.id == "kit-hydrated") | [.ok, .fix] | @tsv' <<<"$output")" = \
     $'false\tkit hydrate' ]
-  run --separate-stderr "${kit_root}/bin/kit" welcome --fix kit-hydrated --folder=./worktrees/topic
+  run --separate-stderr "${kit_root}/bin/kit" welcome --fix=kit-hydrated --folder=./worktrees/topic
   [ "$status" -eq 0 ]
   [ "$output" = "✅ .kit/ is in place: every file kit placed there is present" ]
   [ -e worktrees/topic/.kit/1st.md ]
   # with no folder, a folder's check is the repository's here
   cd worktrees/topic
-  run --separate-stderr "${kit_root}/bin/kit" welcome --fix kit-hydrated
+  run --separate-stderr "${kit_root}/bin/kit" welcome --fix=kit-hydrated
   [ "$status" -eq 2 ]
   [[ "$stderr" == *"kit-hydrated holds already"* ]]
   # a machine check takes no folder; outside a repository, a folder's check needs one
-  run --separate-stderr "${kit_root}/bin/kit" welcome --fix tool-git --folder=.
+  run --separate-stderr "${kit_root}/bin/kit" welcome --fix=tool-git --folder=.
   [ "$status" -eq 2 ]
   [[ "$stderr" == *"tool-git is the machine's check, not a folder's, so it takes no --folder="* ]]
   cd "${BATS_TEST_TMPDIR}"
-  run --separate-stderr "${kit_root}/bin/kit" welcome --fix kit-hydrated
+  run --separate-stderr "${kit_root}/bin/kit" welcome --fix=kit-hydrated
   [ "$status" -eq 2 ]
-  [[ "$stderr" == *"name the folder: kit welcome --fix kit-hydrated --folder=<path>"* ]]
+  [[ "$stderr" == *"name the folder: kit welcome --fix=kit-hydrated --folder=<path>"* ]]
   run --separate-stderr "${kit_root}/bin/kit" welcome --checks --folder="${BATS_TEST_TMPDIR}"
   [ "$status" -eq 2 ]
   [[ "$stderr" == *"is no git working tree"* ]]
@@ -732,10 +732,10 @@ good-probes() {
   printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' > kit.yml
   printf 'terminal/iterm:settings() { touch "%s"; return 1; }\n' "${BATS_TEST_TMPDIR}/read" > bash/terminal/iterm.sh
   export TERM_PROGRAM=iTerm.app KIT_TERMINAL_PROBES='{"answered":false}'
-  run "${kit_root}/bin/kit" welcome --fix tool-jq
+  run "${kit_root}/bin/kit" welcome --fix=tool-jq
   [ "$status" -eq 2 ]
   [ ! -e "${BATS_TEST_TMPDIR}/read" ]
-  run "${kit_root}/bin/kit" welcome --fix terminal-iterm-option
+  run "${kit_root}/bin/kit" welcome --fix=terminal-iterm-option
   [ "$status" -eq 2 ]
   [ -e "${BATS_TEST_TMPDIR}/read" ]
 }

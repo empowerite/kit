@@ -32,7 +32,6 @@
           [
             {
               "kind": "option",
-              "inline": true,
               "name": "rule",
               "value": "rule",
               "repeat": false
@@ -48,7 +47,6 @@
           [
             {
               "kind": "option",
-              "inline": true,
               "name": "variant",
               "value": "variant",
               "repeat": false
@@ -65,7 +63,6 @@
             {
               "kind": "option",
               "wildcard": true,
-              "inline": true,
               "name": "hole",
               "value": "value",
               "repeat": false
@@ -93,7 +90,6 @@
           [
             {
               "kind": "option",
-              "inline": true,
               "name": "path",
               "value": "glob",
               "repeat": true
@@ -109,7 +105,6 @@
           [
             {
               "kind": "option",
-              "inline": true,
               "name": "content",
               "value": "regex",
               "repeat": true
@@ -125,7 +120,6 @@
           [
             {
               "kind": "option",
-              "inline": true,
               "name": "kinds",
               "value": "kind",
               "repeat": true
@@ -141,7 +135,6 @@
           [
             {
               "kind": "option",
-              "inline": true,
               "name": "embeds",
               "value": "kind",
               "repeat": true
@@ -157,7 +150,6 @@
           [
             {
               "kind": "option",
-              "inline": true,
               "name": "package",
               "value": "name",
               "repeat": false
@@ -185,7 +177,6 @@
           [
             {
               "kind": "option",
-              "inline": true,
               "name": "lint",
               "value": "command",
               "repeat": false
@@ -201,7 +192,6 @@
           [
             {
               "kind": "option",
-              "inline": true,
               "name": "package",
               "value": "name",
               "repeat": false
@@ -229,7 +219,6 @@
           [
             {
               "kind": "option",
-              "inline": true,
               "name": "lint",
               "value": "command",
               "repeat": false
@@ -245,7 +234,6 @@
           [
             {
               "kind": "option",
-              "inline": true,
               "name": "package",
               "value": "name",
               "repeat": false
@@ -273,7 +261,6 @@
           [
             {
               "kind": "option",
-              "inline": true,
               "name": "description",
               "value": "text",
               "repeat": false
@@ -289,7 +276,6 @@
           [
             {
               "kind": "option",
-              "inline": true,
               "name": "depends",
               "value": "package",
               "repeat": true
@@ -322,7 +308,6 @@
           [
             {
               "kind": "option",
-              "inline": true,
               "name": "from",
               "value": "path",
               "repeat": false
@@ -338,7 +323,6 @@
           [
             {
               "kind": "option",
-              "inline": true,
               "name": "package",
               "value": "name",
               "repeat": false
@@ -361,7 +345,6 @@
       },
       {
         "kind": "option",
-        "inline": true,
         "name": "purpose",
         "value": "text",
         "repeat": false
@@ -411,14 +394,12 @@
       },
       {
         "kind": "option",
-        "inline": true,
         "name": "purpose",
         "value": "text",
         "repeat": false
       },
       {
         "kind": "option",
-        "inline": true,
         "name": "group",
         "value": "group",
         "repeat": false
@@ -558,10 +539,10 @@
       "description": "an extended regular expression the first line matches"
     },
     "--kinds": {
-      "description": "a kind this kind is made of"
+      "description": "a kind this kind is made of; several repeat it, or join with :, --kinds=a:b"
     },
     "--embeds": {
-      "description": "a kind whose text appears inside this kind's files"
+      "description": "a kind whose text appears inside this kind's files; several repeat it, or join with :"
     },
     "--lint": {
       "description": "the linter kit lint runs over the files"
@@ -570,7 +551,7 @@
       "description": "the package's one line, which kit packages shows"
     },
     "--depends": {
-      "description": "a package this one depends on, beside kit"
+      "description": "a package this one depends on, beside kit; several repeat it, or join with :"
     },
     "--from": {
       "description": "a file to start the template from"

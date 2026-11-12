@@ -120,7 +120,7 @@ func TestAFormOpenedLaterKnowsWhatTheTerminalSaidOfItsKeyboard(t *testing.T) {
 }
 
 func TestAHandOffOpensTheFormAloneFilledFromTheWords(t *testing.T) {
-	m, err := Open(testkit.Runner(t, "kit"), "commit", []string{"--message", "hi"})
+	m, err := Open(testkit.Runner(t, "kit"), "commit", []string{"--message=hi"})
 	if err != nil {
 		t.Fatal(err)
 	}

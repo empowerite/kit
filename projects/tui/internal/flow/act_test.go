@@ -158,10 +158,10 @@ func TestAClosingActionListsTheIssuesAndRunsOnlyOnYes(t *testing.T) {
 
 func TestAnActionThatAsksTakesTheTypedAnswer(t *testing.T) {
 	for _, c := range []struct{ name, answer, want string }{
-		{"Start Local Work Together…", "The plan", "work --title The plan #46 #45"},
-		{"Gather Under a Parent…", "The plan", "gather --title The plan #46 #45"},
-		{"Assign to…", "bob", "assign --to bob #46 #45"},
-		{"Close as Duplicate of…", "#7", "close --duplicate-of #7 #46 #45"},
+		{"Start Local Work Together…", "The plan", "work --title=The plan #46 #45"},
+		{"Gather Under a Parent…", "The plan", "gather --title=The plan #46 #45"},
+		{"Assign to…", "bob", "assign --to=bob #46 #45"},
+		{"Close as Duplicate of…", "#7", "close --duplicate-of=#7 #46 #45"},
 	} {
 		m, record := selecting(t)
 		m = choose(t, m, c.name)
@@ -196,7 +196,7 @@ func TestAddToPullRequestPicksOneOfTheCallersOwn(t *testing.T) {
 		t.Fatalf("the dialog:\n%s", view(m))
 	}
 	m = drive(m, up, down, up, press(tea.KeyEnter))
-	if got := acted(t, record); !slices.Equal(got, []string{"work --pr " + strconv.Itoa(numbers[0]) + " #46 #45"}) {
+	if got := acted(t, record); !slices.Equal(got, []string{"work --pr=" + strconv.Itoa(numbers[0]) + " #46 #45"}) {
 		t.Errorf("the calls: %q", got)
 	}
 	// someone with no open pull request has nothing to add to: the item is dim

@@ -106,7 +106,7 @@ tree-digest() {
   run "${kit_checkout}/bin/kit" install gemini
   [ "$status" -eq 2 ]
   [[ "$output" == *"<package> 'gemini' is not one of the choices; run: cd "*" && kit help install"* ]]
-  run "${kit_checkout}/bin/kit" syntax install --choices '<package>'
+  run "${kit_checkout}/bin/kit" syntax install --choices='<package>'
   [[ "$(cut -f 1 <<<"$output" | paste -s -d ' ' -)" == "agents/claude agents/copilot agents/cursor agents/gemini agents/generic empowerite github/ci hooks/lefthook kit policy/opa style/bash"* ]]
   [ ! -e .kit/manifest ]
 }

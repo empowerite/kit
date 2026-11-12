@@ -29,15 +29,16 @@ candidates() {
 @test "a dash before any verb offers the kit options, and a verb after them completes as it does alone" {
   run "${kit_checkout}/bin/kit" completion candidates kit -
   [ "$(cut -f 1 <<<"$output")" = $'--version=\n--workspace=\n--help\n--version' ]
-  [ "$(candidates --workspace=w commit -)" = $'--all\n--file\n--message' ]
+  [ "$(candidates --workspace=w commit -)" = $'--all\n--file=\n--message=' ]
   run "${kit_checkout}/bin/kit" completion candidates kit --version=9.9.9 ''
   [[ "$output" == *$'commit\tcommits what is staged, after the kit\'s checks'* ]]
 }
 
-@test "a dash offers the flags and options not given yet, and an inline option ends in =" {
-  [ "$(candidates commit -)" = $'--all\n--file\n--message' ]
-  [ "$(candidates commit --all --)" = $'--file\n--message' ]
-  [ "$(candidates commit --message x --message y -)" = $'--all\n--file\n--message' ]
+@test "a dash offers the flags and options not given yet, and an option ends in =" {
+  [ "$(candidates commit -)" = $'--all\n--file=\n--message=' ]
+  [ "$(candidates commit --all --)" = $'--file=\n--message=' ]
+  [ "$(candidates commit --message=x --message=y -)" = $'--all\n--file=\n--message=' ]
+  [ "$(candidates commit --file=x -)" = $'--all\n--message=' ]
   [[ "$(candidates new file x -)" == *"--rule="* ]]
 }
 
@@ -48,11 +49,11 @@ candidates() {
   [ "$(candidates help '' | head -n 1)" = assign ]
 }
 
-@test "an option's value comes from its choices, after --name= or apart, and a path asks for the files" {
+@test "an option's value comes from its choices, after --name=, and a path asks for the files" {
   "${kit_checkout}/bin/kit" packages add style/bash style/markdown >/dev/null 2>&1
   run candidates new file x --rule=
   [[ "$output" == *"--rule=bash"* && "$output" == *"--rule=markdown"* ]]
-  [ "$(candidates commit --file '')" = ':files' ]
+  [ "$(candidates commit --file='')" = ':files' ]
   [ "$(candidates new file '')" = ':files' ]
   [ -z "$(candidates nosuchverb '')" ]
 }

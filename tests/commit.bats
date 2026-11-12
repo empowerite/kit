@@ -38,7 +38,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
 @test "kit commit refuses the desk, and the default branch in a worktree, before it looks at anything else" {
   cd "${work}/desk"
   printf 'x\n' > x && git add x
-  run kit commit --message '#1 x: a file'
+  run kit commit --message='#1 x: a file'
   [ "$status" -eq 1 ]
   [[ "$output" == *"the root checkout, the human's desk"* ]]
   git reset --quiet -- x
@@ -46,14 +46,14 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   git worktree add --quiet worktrees/main-too main
   cd worktrees/main-too
   printf 'y\n' > y && git add y
-  run kit commit --message '#1 y: a file'
+  run kit commit --message='#1 y: a file'
   [ "$status" -eq 1 ]
   [[ "$output" == *"it is the default branch"* ]]
   [ "$(git log --oneline | wc -l | tr -d ' ')" = 1 ]
 }
 
 @test "kit commit refuses when nothing is staged, and when the message is missing" {
-  run kit commit --message '#7 x: nothing'
+  run kit commit --message='#7 x: nothing'
   [ "$status" -eq 1 ]
   [[ "$output" == *"nothing is staged"* ]]
   printf 'x\n' > x && git add x
@@ -66,7 +66,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
 @test "kit commit refuses a staged path the kit placed under .kit/" {
   kit hydrate >/dev/null 2>&1
   git add --force .kit/1st.md
-  run kit commit --message '#7 kit: a delivered file'
+  run kit commit --message='#7 kit: a delivered file'
   [ "$status" -eq 1 ]
   [[ "$output" == *".kit/1st.md is kit's"* ]]
   [[ "$output" == *"git rm --cached"* ]]
@@ -75,7 +75,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
 @test "kit commit runs the linters over the staged paths and refuses a file that fails one, so no commit is made" {
   printf '#!/usr/bin/env bash\nset -o errexit -o nounset -o pipefail\necho $1\n' > bad.sh
   git add bad.sh
-  run kit commit --message '#7 bad: a script'
+  run kit commit --message='#7 bad: a script'
   [ "$status" -eq 1 ]
   [[ "$output" == *"bad.sh"* ]]
   [[ "$output" == *"linter"* ]]
@@ -84,7 +84,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
 
 @test "kit commit supplies the issue's reference from the branch, judges the subject by the policy, and commits" {
   printf 'x\n' > x && git add x
-  run kit commit --message 'x: a file' --message 'The body.'
+  run kit commit --message='x: a file' --message='The body.'
   [ "$status" -eq 0 ]
   [[ "$output" == *"#7 supplied from the branch"* ]]
   [[ "$output" == *"committed "*"#7 x: a file"* ]]
@@ -96,7 +96,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
 @test "kit commit refuses a subject the policy refuses, and names the pattern" {
   git switch --quiet --create no-issue
   printf 'x\n' > x && git add x
-  run kit commit --message 'plain words'
+  run kit commit --message='plain words'
   [ "$status" -eq 1 ]
   [[ "$output" == *"policy.commit_subject"* ]]
   [ "$(git log --oneline | wc -l | tr -d ' ')" = 1 ]
@@ -105,13 +105,13 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
 @test "kit commit --all takes every change to a tracked file, --file reads the message, and paths commit those alone" {
   printf 'more\n' >> notes.txt
   printf '#7 notes: more\n\nFrom a file.\n' > "${work}/message"
-  run kit commit --all --file "${work}/message"
+  run kit commit --all --file="${work}/message"
   [ "$status" -eq 0 ]
   [ "$(git log -1 --format=%s)" = "#7 notes: more" ]
   [ "$(git log -1 --format=%b)" = "From a file." ]
   [ -z "$(git status --porcelain)" ]
   printf 'a\n' > a && printf 'b\n' > b && git add a b
-  run kit commit --message '#7 a: only a' a
+  run kit commit --message='#7 a: only a' a
   [ "$status" -eq 0 ]
   [ "$(git show --name-only --format= HEAD)" = a ]
   [ "$(git status --porcelain)" = "A  b" ]
@@ -119,7 +119,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
 
 @test "kit submit pushes what kit commit committed, setting the upstream the first time; with nothing new it says so" {
   printf 'x\n' > x && git add x
-  kit commit --message 'x: a file' >/dev/null 2>&1
+  kit commit --message='x: a file' >/dev/null 2>&1
   run kit submit
   [ "$status" -eq 0 ]
   [[ "$output" != *"committed "* ]]
@@ -143,7 +143,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   git -C "${work}/other" commit --quiet --allow-empty --message '#7 other: theirs'
   git -C "${work}/other" push --quiet
   printf 'x\n' > x && git add x
-  kit commit --message '#7 x: mine' >/dev/null 2>&1
+  kit commit --message='#7 x: mine' >/dev/null 2>&1
   run kit submit
   [ "$status" -eq 1 ]
   [[ "$output" == *"run: cd "*" && kit rebase"* ]]
@@ -155,13 +155,13 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   git config push.default upstream
   main=$(git -C "${work}/origin.git" rev-parse main)
   printf 'x\n' > x && git add x
-  kit commit --message 'x: a file' >/dev/null 2>&1
+  kit commit --message='x: a file' >/dev/null 2>&1
   run kit submit
   [ "$status" -eq 0 ]
   [ "$(git rev-parse --abbrev-ref '@{upstream}')" = origin/7-fix-the-thing ]
   [ "$(git -C "${work}/origin.git" rev-parse 7-fix-the-thing)" = "$(git rev-parse HEAD)" ]
   printf 'y\n' > y && git add y
-  kit commit --message 'y: a file' >/dev/null 2>&1
+  kit commit --message='y: a file' >/dev/null 2>&1
   run kit submit
   [ "$status" -eq 0 ]
   [[ "$output" == *"pushed 7-fix-the-thing: 1 commit(s)"* ]]
@@ -171,7 +171,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
 
 @test "kit submit pushes a branch whose remote-tracking ref is gone, and never says it is at origin" {
   printf 'x\n' > x && git add x
-  kit commit --message 'x: a file' >/dev/null 2>&1
+  kit commit --message='x: a file' >/dev/null 2>&1
   run kit submit
   [ "$status" -eq 0 ]
   # the forge deletes the branch, and a fetch with --prune takes origin/7-fix-the-thing away
@@ -179,7 +179,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   git fetch --quiet --prune origin
   run ! git rev-parse --quiet --verify refs/remotes/origin/7-fix-the-thing
   printf 'y\n' > y && git add y
-  kit commit --message 'y: a file' >/dev/null 2>&1
+  kit commit --message='y: a file' >/dev/null 2>&1
   run kit submit
   [ "$status" -eq 0 ]
   [[ "$output" != *"nothing to submit"* ]]
@@ -209,7 +209,7 @@ forge-world() {
 @test "kit commit for another issue closes it in the branch's change, and assigns the caller when no one is" {
   forge-world
   printf 'x\n' > x && git add x
-  run kit commit --message '#9 x: a file' x
+  run kit commit --message='#9 x: a file' x
   [ "$status" -eq 0 ]
   grep --quiet --line-regexp 'Closes #9' "${FAKE_DIR}/gh.calls"
   grep --quiet --line-regexp 'issue edit 9 --add-assignee ada' "${FAKE_DIR}/gh.calls"
@@ -219,7 +219,7 @@ forge-world() {
   forge-world bob
   printf '{"body": "Closes #7\\nfixes #9"}\n' > "${FAKE_DIR}/pr.json"
   printf 'x\n' > x && git add x
-  run kit commit --message '#9 x: a file' x
+  run kit commit --message='#9 x: a file' x
   [ "$status" -eq 0 ]
   run ! grep --quiet '^pr edit' "${FAKE_DIR}/gh.calls"
   run ! grep --quiet '^issue edit' "${FAKE_DIR}/gh.calls"
@@ -228,10 +228,10 @@ forge-world() {
 @test "kit commit for the branch's own issue asks the forge nothing" {
   forge-world
   printf 'x\n' > x && git add x
-  run kit commit --message '#7 x: a file' x
+  run kit commit --message='#7 x: a file' x
   [ "$status" -eq 0 ]
   printf 'y\n' > y && git add y
-  run kit commit --message 'y: no reference' y
+  run kit commit --message='y: no reference' y
   [ "$status" -eq 0 ]
   [ ! -e "${FAKE_DIR}/gh.calls" ]
 }
@@ -240,7 +240,7 @@ forge-world() {
   forge-world
   printf '[]\n' > "${FAKE_DIR}/pr-open.json"
   printf 'x\n' > x && git add x
-  run kit commit --message '#9 x: a file' x
+  run kit commit --message='#9 x: a file' x
   [ "$status" -eq 0 ]
   [[ "$output" == *"committed "* && "$output" == *"#9"*"no open change"* ]]
 }
@@ -249,7 +249,7 @@ forge-world() {
   forge-world
   sed -i.bak '/^pr view 3 /d' "${FAKE_DIR}/gh.routes"
   printf 'x\n' > x && git add x
-  run kit commit --message '#9 x: a file' x
+  run kit commit --message='#9 x: a file' x
   [ "$status" -eq 0 ]
   [[ "$output" == *"could not be added to change 3's body"* ]]
   run ! grep --quiet '^pr edit' "${FAKE_DIR}/gh.calls"
@@ -260,7 +260,7 @@ forge-world() {
   head=$(git rev-parse HEAD)
   printf 'primary: upstream\n' >> kit.yml
   printf 'x\n' > x && git add x
-  run kit commit --message '#9 x: a file' x
+  run kit commit --message='#9 x: a file' x
   [ "$status" -eq 1 ]
   [[ "$output" == *"is not a remote"* ]]
   [[ "$output" != *"✅ committed"* ]]
@@ -279,20 +279,20 @@ opa-rule() {
   printf 'old\n' > old.txt && git add old.txt && git commit --quiet --message '#7 files: an old file'
   git mv old.txt new.txt
   printf 'other\n' > other.txt && git add other.txt
-  run kit commit --message '#7 files: old is new' old.txt new.txt
+  run kit commit --message='#7 files: old is new' old.txt new.txt
   [ "$status" -eq 0 ]
   [ "$(git show --no-renames --name-status --format= HEAD | sort)" = $'A\tnew.txt\nD\told.txt' ]
   [ "$(git diff --cached --name-only)" = other.txt ]
   git rm --quiet new.txt
-  run kit commit --message '#7 files: new is gone' new.txt
+  run kit commit --message='#7 files: new is gone' new.txt
   [ "$status" -eq 0 ]
   [ "$(git show --name-status --format= HEAD)" = $'D\tnew.txt' ]
   rm notes.txt
-  run kit commit --message '#7 files: the notes are gone' notes.txt
+  run kit commit --message='#7 files: the notes are gone' notes.txt
   [ "$status" -eq 0 ]
   [ "$(git show --name-status --format= HEAD)" = $'D\tnotes.txt' ]
   [ "$(git diff --cached --name-only)" = other.txt ]
-  run kit commit --message '#7 files: nothing' nowhere.txt
+  run kit commit --message='#7 files: nothing' nowhere.txt
   [ "$status" -eq 1 ]
   [[ "$output" == *"nowhere.txt is not known to git; run: cd "*" && git add 'nowhere.txt'"* ]]
 }
@@ -302,7 +302,7 @@ opa-rule() {
 
 deny contains "mine.md is not in the tree" if not input.tree["mine.md"]'
   printf 'mine\n' > mine.md && printf 'theirs\n' > theirs.md && git add mine.md theirs.md
-  run kit commit --message '#1 a: b' mine.md
+  run kit commit --message='#1 a: b' mine.md
   [ "$status" -eq 0 ]
   [ "$(git show --name-only --format= HEAD)" = mine.md ]
   [ "$(git status --porcelain -- theirs.md)" = "A  theirs.md" ]
@@ -319,7 +319,7 @@ deny contains sprintf("%s is in the tree", [path]) if {
   git commit --quiet --message '#7 kit: the opa engine' kit.yml
   git switch --quiet --orphan 7-the-first
   printf '# Hello\n' > README.md && printf 'other\n' > other.md && git add README.md other.md
-  run kit commit --message '#7 readme: the first' README.md
+  run kit commit --message='#7 readme: the first' README.md
   [ "$status" -eq 0 ]
   [ "$(git show --name-only --format= HEAD)" = README.md ]
   [ "$(git status --porcelain -- other.md)" = "A  other.md" ]
@@ -328,7 +328,7 @@ deny contains sprintf("%s is in the tree", [path]) if {
 @test "a policy the engine cannot evaluate refuses the commit, naming the engine's error" {
   opa-rule 'deny contains "never" if {'
   printf 'x\n' > x && git add x
-  run kit commit --message '#7 x: a file' x
+  run kit commit --message='#7 x: a file' x
   [ "$status" -eq 1 ]
   [[ "$output" == *"opa could not evaluate .kit/policy"* ]]
   [ "$(git log --oneline | wc -l | tr -d ' ')" = 1 ]
@@ -338,12 +338,12 @@ deny contains sprintf("%s is in the tree", [path]) if {
   printf 'x\n' > x.txt && git add x.txt && git commit --quiet --message '#7 x: a file' -- x.txt
   git rm --quiet notes.txt
   printf 'y\n' > y.txt && git add y.txt
-  run kit commit --message '#7 files: notes go, y comes'
+  run kit commit --message='#7 files: notes go, y comes'
   [ "$status" -eq 0 ]
   [[ "$output" != *"is not a file or a directory here"* ]]
   [ "$(git show --name-status --format= HEAD | sort)" = $'A\ty.txt\nD\tnotes.txt' ]
   git rm --quiet x.txt
-  run kit commit --message '#7 x: gone'
+  run kit commit --message='#7 x: gone'
   [ "$status" -eq 0 ]
   [ "$(git show --name-status --format= HEAD)" = $'D\tx.txt' ]
 }
@@ -354,7 +354,7 @@ deny contains sprintf("%s is in the tree", [path]) if {
   git add bad.sh notes.txt
   rm bad.sh notes.txt
   head=$(git rev-parse HEAD)
-  run kit commit --message '#7 bad: a script'
+  run kit commit --message='#7 bad: a script'
   [ "$status" -eq 1 ]
   for path in bad.sh notes.txt
   do
@@ -369,7 +369,7 @@ deny contains sprintf("%s is in the tree", [path]) if {
 @test "a named path deleted from the disk is committed as a deletion" {
   # notes.txt is in HEAD from the start commit
   rm notes.txt
-  run kit commit --message '#1 a: b' notes.txt
+  run kit commit --message='#1 a: b' notes.txt
   [ "$status" -eq 0 ]
   [ -z "$(git ls-tree HEAD -- notes.txt)" ]
 }
@@ -377,7 +377,7 @@ deny contains sprintf("%s is in the tree", [path]) if {
 @test "a named folder the disk now holds as a file is committed as that file" {
   mkdir d && printf 'c\n' > d/c.md && git add d && git commit --quiet --message '#7 d: a folder' -- d
   rm -r d && printf 'd\n' > d && git add d
-  run kit commit --message '#1 a: b' d
+  run kit commit --message='#1 a: b' d
   [ "$status" -eq 0 ]
   [ "$(git cat-file -t HEAD:d)" = blob ]
   [ -z "$(git ls-tree -r HEAD -- d/c.md)" ]
@@ -391,7 +391,7 @@ deny contains sprintf("%s is in the tree", [path]) if {
   not f.executable
 }'
   mkdir bin && printf 'x\n' > bin/x && git add bin/x
-  run kit commit --message '#7 bin: x'
+  run kit commit --message='#7 bin: x'
   [ "$status" -eq 1 ]
   [[ "$output" == *"bin/x is not executable"* ]]
   [ "$(git log --oneline | wc -l | tr -d ' ')" = 1 ]
@@ -400,7 +400,7 @@ deny contains sprintf("%s is in the tree", [path]) if {
 @test "kit commit prints a warning and commits" {
   opa-rule 'warn contains "x is new" if input.tree.x'
   printf 'x\n' > x && git add x
-  run kit commit --message '#7 x: a file' x
+  run kit commit --message='#7 x: a file' x
   [ "$status" -eq 0 ]
   [[ "$output" == *"⚠️ x is new"* ]]
   [ "$(git log -1 --format=%s)" = "#7 x: a file" ]
@@ -432,7 +432,7 @@ EOF
   GIT_INDEX_FILE=${index} git read-tree HEAD
   printf 'mine\n' > mine.txt && GIT_INDEX_FILE=${index} git update-index --add mine.txt
   peer=$("${work}/peer" '#7 notes: theirs' notes.txt theirs)
-  run env GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit --message '#7 mine: a file'
+  run env GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit --message='#7 mine: a file'
   [ "$status" -eq 1 ]
   [[ "$output" == *"notes.txt"*"${peer:0:7}"* ]]
   [ "$(git rev-parse HEAD)" = "${peer}" ]
@@ -440,7 +440,7 @@ EOF
   GIT_INDEX_FILE=${index} git read-tree HEAD
   GIT_INDEX_FILE=${index} git update-index --add mine.txt
   peer=$("${work}/peer" '#7 peer: a file' peer.txt peer)
-  run env GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit --message '#7 mine: a file'
+  run env GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit --message='#7 mine: a file'
   [ "$status" -eq 1 ]
   [[ "$output" == *"peer.txt"*"${peer:0:7}"* ]]
   [ "$(git rev-parse HEAD)" = "${peer}" ]
@@ -455,7 +455,7 @@ EOF
     "${work}/landed" "${work}/landed" "${work}/peer" "$(command -v opa)" > "${work}/bin/opa"
   chmod +x "${work}/bin/opa"
   printf 'mine\n' > mine.txt && git add mine.txt
-  PATH="${work}/bin:${PATH}" run kit commit --message '#7 mine: a file'
+  PATH="${work}/bin:${PATH}" run kit commit --message='#7 mine: a file'
   [ -e "${work}/landed" ]
   [ "$status" -eq 1 ]
   [[ "$output" == *"$(git rev-parse --short HEAD)"* ]]
@@ -472,7 +472,7 @@ EOF
     "${work}/landed" "${work}/landed" "${work}/peer" "$(command -v opa)" > "${work}/bin/opa"
   chmod +x "${work}/bin/opa"
   printf 'mine\n' > mine.txt && git add mine.txt
-  PATH="${work}/bin:${PATH}" run kit commit --message '#7 mine: a file' mine.txt
+  PATH="${work}/bin:${PATH}" run kit commit --message='#7 mine: a file' mine.txt
   [ -e "${work}/landed" ]
   [ "$status" -eq 1 ]
   [[ "$output" == *"$(git rev-parse --short HEAD)"* ]]
@@ -483,16 +483,16 @@ EOF
 @test "the shared index commits as before: after a commit by name, a change put back on purpose, and a file removed" {
   printf 'mine\n' > mine.txt && git add mine.txt
   printf 'theirs\n' > notes.txt && git commit --quiet --message '#7 notes: theirs' -- notes.txt
-  run kit commit --message '#7 mine: a file'
+  run kit commit --message='#7 mine: a file'
   [ "$status" -eq 0 ]
   [ "$(git show --name-only --format= HEAD)" = mine.txt ]
   [ "$(git show HEAD:notes.txt)" = theirs ]
   printf 'notes\n' > notes.txt && git add notes.txt
-  run kit commit --message '#7 notes: back as they were'
+  run kit commit --message='#7 notes: back as they were'
   [ "$status" -eq 0 ]
   [ "$(git show HEAD:notes.txt)" = notes ]
   rm mine.txt
-  run kit commit --all --message '#7 mine: gone'
+  run kit commit --all --message='#7 mine: gone'
   [ "$status" -eq 0 ]
   [ "$(git show --name-status --format= HEAD)" = $'D\tmine.txt' ]
 }
@@ -505,7 +505,7 @@ EOF
   GIT_INDEX_FILE=${index} git read-tree HEAD
   printf 'mine\n' > notes.txt && printf 'mine\n' > mine.txt && rm gone.txt
   GIT_INDEX_FILE=${index} git update-index --add --remove notes.txt mine.txt gone.txt
-  run env GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit --message '#7 notes: mine'
+  run env GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit --message='#7 notes: mine'
   [ "$status" -eq 0 ]
   [[ "$output" == *"the shared index takes $(git rev-parse --short HEAD)'s copy of 3 path(s)"* ]]
   [[ "$output" != *"left as it is"* && "$output" != *"git restore"* ]]
@@ -514,11 +514,11 @@ EOF
   [ "$(git status --porcelain)" = "A  other.txt" ]
   # by name, from the index of its own, too
   printf 'more\n' > mine.txt
-  run env GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit --message '#7 mine: more' mine.txt
+  run env GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit --message='#7 mine: more' mine.txt
   [ "$status" -eq 0 ]
   [ "$(git status --porcelain)" = "A  other.txt" ]
   # the next commit from the shared index is not refused as one that would undo it, and takes other.txt alone
-  run kit commit --message '#7 other: a file'
+  run kit commit --message='#7 other: a file'
   [ "$status" -eq 0 ]
   [ "$(git show --name-only --format= HEAD)" = other.txt ]
   [ "$(git show HEAD:mine.txt)" = more ]
@@ -534,7 +534,7 @@ EOF
   GIT_INDEX_FILE=${index} git update-index --add mine.txt same.txt
   blob=$(printf 'mine\n' | git hash-object -w --stdin)
   GIT_INDEX_FILE=${index} git update-index --cacheinfo "100644,${blob},notes.txt"
-  run env GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit --message '#7 notes: mine'
+  run env GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit --message='#7 notes: mine'
   [ "$status" -eq 0 ]
   [ "$(grep -c '⚠️ notes.txt is staged differently in the shared index; left as it is' <<<"$output")" -eq 1 ]
   [ "$(grep -c 'same.txt' <<<"$output")" -eq 0 ]
@@ -563,7 +563,7 @@ EOF
   printf 'mine\n' > notes.txt && printf 'mine\n' > mine.txt
   GIT_INDEX_FILE=${index} git update-index --add notes.txt mine.txt
   run env PATH="${work}/bin:${PATH}" GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit \
-    --message '#7 notes: mine'
+    --message='#7 notes: mine'
   [ -e "${work}/staged" ]
   [ "$status" -eq 0 ]
   [ "$(grep -c '⚠️ notes.txt is staged differently in the shared index; left as it is' <<<"$output")" -eq 1 ]
@@ -577,7 +577,7 @@ EOF
   git switch --quiet --orphan 7-the-first
   printf 'other\n' > other.md && git add other.md
   printf '# Hello\n' > README.md && GIT_INDEX_FILE=${index} git update-index --add README.md
-  run env GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit --message '#7 readme: the first'
+  run env GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit --message='#7 readme: the first'
   [ "$status" -eq 0 ]
   [ "$(git show --name-only --format= HEAD)" = README.md ]
   [ "$(git status --porcelain)" = "A  other.md" ]
@@ -589,7 +589,7 @@ EOF
   printf '100644 %s 1\tclash.txt\n100644 %s 2\tclash.txt\n' "${blob}" "${blob}" | git update-index --index-info
   GIT_INDEX_FILE=${index} git read-tree HEAD
   printf 'mine\n' > notes.txt && GIT_INDEX_FILE=${index} git update-index notes.txt
-  run env GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit --message '#7 notes: mine'
+  run env GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit --message='#7 notes: mine'
   [ "$status" -eq 0 ]
   [[ "$output" == *"the shared index takes"* ]]
   git diff --cached --quiet HEAD -- notes.txt
@@ -602,7 +602,7 @@ EOF
   GIT_INDEX_FILE=${index} git read-tree HEAD
   printf 'mine\n' > notes.txt && GIT_INDEX_FILE=${index} git update-index notes.txt
   : > "${lock}"
-  run env GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit --message '#7 notes: mine'
+  run env GIT_INDEX_FILE="${index}" "${kit_checkout}/bin/kit" commit --message='#7 notes: mine'
   [ "$status" -eq 0 ]
   [ "$(git log -1 --format=%s)" = "#7 notes: mine" ]
   [[ "$output" == *"⚠️ notes.txt is staged as it was before $(git rev-parse --short HEAD)"* ]]
@@ -618,7 +618,7 @@ EOF
   printf 'a line\n' > .kit/logs/kit-test.log
   printf 'a probe\n' > .kit/cache/probe
   git add --force .kit/logs/kit-test.log .kit/cache/probe
-  run kit commit --message '#7 logs: the day'
+  run kit commit --message='#7 logs: the day'
   [ "$status" -eq 1 ]
   [[ "$output" == *".kit/logs/kit-test.log is kit's"* ]]
   [[ "$output" == *".kit/cache/probe is kit's"* ]]
@@ -628,7 +628,7 @@ EOF
 @test "kit commit refuses a directory named by path when it holds a file kit placed" {
   kit hydrate >/dev/null 2>&1
   git add --force .kit/1st.md
-  run kit commit --message '#7 kit: the directory' -- .kit
+  run kit commit --message='#7 kit: the directory' -- .kit
   [ "$status" -eq 1 ]
   [[ "$output" == *".kit/1st.md is kit's"* ]]
   [ "$(git log --oneline | wc -l | tr -d ' ')" = 1 ]
@@ -636,12 +636,12 @@ EOF
 
 @test "a named path is a path, never a pattern: a glob matches no file, and a name with [ ] is that file" {
   printf 'a\n' > a.md && printf 'b\n' > b.md && git add a.md b.md
-  run kit commit --message '#7 md: a glob' -- '*.md'
+  run kit commit --message='#7 md: a glob' -- '*.md'
   [ "$status" -eq 1 ]
   [[ "$output" == *"*.md is not known to git"* ]]
   [ "$(git log --oneline | wc -l | tr -d ' ')" = 1 ]
   printf 'x\n' > x.txt && printf 'bracket\n' > '[x].txt' && git add x.txt '[x].txt'
-  run kit commit --message '#7 txt: the bracket file' -- '[x].txt'
+  run kit commit --message='#7 txt: the bracket file' -- '[x].txt'
   [ "$status" -eq 0 ]
   [ "$(git show --name-only --format= HEAD)" = '[x].txt' ]
 }
@@ -650,7 +650,7 @@ EOF
   mkdir scripts
   printf '#!/usr/bin/env bash\nset -o errexit -o nounset -o pipefail\necho $1\n' > scripts/bad.sh
   git add scripts
-  run kit commit --message '#7 scripts: a bad one' -- scripts
+  run kit commit --message='#7 scripts: a bad one' -- scripts
   [ "$status" -eq 1 ]
   [[ "$output" == *"linter"* ]]
   [ "$(git log --oneline | wc -l | tr -d ' ')" = 1 ]
@@ -661,10 +661,10 @@ EOF
   git add kit.yml && git commit --quiet --message '#7 policy: strict' -- kit.yml
   git show HEAD:kit.yml | sed '/^policy:/,$d' > kit.yml
   printf 'x\n' > x && git add x
-  run kit commit --message '#7 x: loose'
+  run kit commit --message='#7 x: loose'
   [ "$status" -eq 1 ]
   [[ "$output" == *"#7 x: loose"* ]]
-  run kit commit --message '#7 x: loose' -- x
+  run kit commit --message='#7 x: loose' -- x
   [ "$status" -eq 1 ]
   [ "$(git log --oneline | wc -l | tr -d ' ')" = 2 ]
 }
@@ -673,7 +673,7 @@ EOF
   opa-rule 'deny contains "never" if true'
   printf 'policy_engine: patterns\n' >> kit.yml
   printf 'x\n' > x && git add x
-  run kit commit --message '#7 x: a file' -- x
+  run kit commit --message='#7 x: a file' -- x
   [ "$status" -eq 1 ]
   [[ "$output" == *"never"* ]]
   [ "$(git log --oneline | wc -l | tr -d ' ')" = 1 ]
@@ -686,7 +686,7 @@ EOF
     "${work}/staged" "${work}/staged" "$(command -v opa)" > "${work}/bin/opa"
   chmod +x "${work}/bin/opa"
   printf 'mine\n' > mine.txt && git add mine.txt
-  PATH="${work}/bin:${PATH}" run kit commit --message '#7 mine: a file'
+  PATH="${work}/bin:${PATH}" run kit commit --message='#7 mine: a file'
   [ -e "${work}/staged" ]
   [ "$status" -eq 1 ]
   [[ "$output" == *"the index changed while kit commit checked"* ]]
@@ -701,7 +701,7 @@ EOF
     "${work}/judging" "$(command -v opa)" > "${work}/bin/opa"
   chmod +x "${work}/bin/opa"
   printf 'mine\n' > mine.txt && git add mine.txt
-  PATH="${work}/bin:${PATH}" TMPDIR="${work}/tmp" "${kit_checkout}/bin/kit-commit" --message '#7 mine: a file' \
+  PATH="${work}/bin:${PATH}" TMPDIR="${work}/tmp" "${kit_checkout}/bin/kit-commit" --message='#7 mine: a file' \
     >/dev/null 2>&1 &
   local pid=$! tries=0 input
   until [[ -s "${work}/judging" ]] || (( tries++ > 300 ))
@@ -718,21 +718,21 @@ EOF
 
 @test "kit commit refuses --all beside named paths, as git does" {
   printf 'x\n' > x && git add x
-  run kit commit --all --message '#7 x: a file' -- x
+  run kit commit --all --message='#7 x: a file' -- x
   [ "$status" -eq 2 ]
   [[ "$output" == *"--all"* ]]
   [ "$(git log --oneline | wc -l | tr -d ' ')" = 1 ]
 }
 
 @test "a named path that matches HEAD is nothing to commit, said plainly" {
-  run kit commit --message '#7 notes: the same' -- notes.txt
+  run kit commit --message='#7 notes: the same' -- notes.txt
   [ "$status" -eq 1 ]
   [[ "$output" == *"nothing to commit: notes.txt is as HEAD has it"* ]]
 }
 
 @test "kit submit commits nothing: what is staged stays staged and out of the push, and every word given is refused" {
   printf 'x\n' > x && git add x
-  kit commit --message '#7 x: a file' >/dev/null 2>&1
+  kit commit --message='#7 x: a file' >/dev/null 2>&1
   head=$(git rev-parse HEAD)
   printf 'y\n' > y && git add y
   run kit submit
@@ -754,13 +754,13 @@ EOF
 @test "kit commit refuses a stale region, and a detached HEAD" {
   printf '# notes\n\n<!-- kit:generate echo fresh -->\nstale\n<!-- kit:end -->\n' > regions.md
   git add regions.md
-  run kit commit --message '#7 regions: a stale one'
+  run kit commit --message='#7 regions: a stale one'
   [ "$status" -eq 1 ]
   [[ "$output" == *"a region is stale; run: cd "*" && kit generate"* ]]
   git reset --quiet -- regions.md
   git switch --quiet --detach
   printf 'x\n' > x && git add x
-  run kit commit --message '#7 x: a file'
+  run kit commit --message='#7 x: a file'
   [ "$status" -eq 1 ]
   [[ "$output" == *"no branch is checked out here"* ]]
 }
@@ -768,7 +768,7 @@ EOF
 @test "kit commit warns when commits are not signed, and commits" {
   git config commit.gpgsign false
   printf 'x\n' > x && git add x
-  run kit commit --message '#7 x: a file'
+  run kit commit --message='#7 x: a file'
   [ "$status" -eq 0 ]
   [[ "$output" == *"commits here are not signed"* ]]
 }
@@ -778,13 +778,13 @@ EOF
   git config commit.cleanup strip
   printf 'x\n' > x && git add x
   head=$(git rev-parse HEAD)
-  run kit commit --message 'x: a file'
+  run kit commit --message='x: a file'
   [ "$status" -eq 1 ]
   [[ "$output" == *"git config user.signingkey"* ]]
   [ "$(git rev-parse HEAD)" = "${head}" ]
   [ "$(git diff --cached --name-only)" = x ]
   signer
-  run kit commit --message 'x: a file' --message 'WIP'
+  run kit commit --message='x: a file' --message='WIP'
   [ "$status" -eq 0 ]
   [[ "$output" != *"commits here are not signed"* ]]
   [ "$(git log -1 --format=%s)" = "#7 x: a file" ]
@@ -792,7 +792,7 @@ EOF
   signer 2
   head=$(git rev-parse HEAD)
   printf 'y\n' > y && git add y
-  run kit commit --message 'y: a file'
+  run kit commit --message='y: a file'
   [ "$status" -eq 1 ]
   [[ "$output" == *"require_signing is true and git could not sign it"* ]]
   [ "$(git rev-parse HEAD)" = "${head}" ]
@@ -807,7 +807,7 @@ EOF
   chmod +x "$(git rev-parse --git-common-dir)/hooks/pre-commit"
   head=$(git rev-parse HEAD)
   printf 'x\n' > x && git add x
-  run kit commit --message 'x: a file'
+  run kit commit --message='x: a file'
   [ "$status" -eq 1 ]
   [[ "$output" == *"the hook says no"* ]]
   [[ "$output" == *"the commit failed; see above"* ]]
@@ -824,7 +824,7 @@ EOF
   printf 'the first line\n' > "${BATS_TEST_TMPDIR}/err"
   printf 'x\n' > x && git add x
   status=0
-  kit commit --message 'x: a file' 2>>"${BATS_TEST_TMPDIR}/err" >/dev/null || status=$?
+  kit commit --message='x: a file' 2>>"${BATS_TEST_TMPDIR}/err" >/dev/null || status=$?
   [ "$status" -eq 1 ]
   [ "$(head -n 1 "${BATS_TEST_TMPDIR}/err")" = 'the first line' ]
   grep --quiet --text 'no rule governs the 1 path(s); nothing was linted' "${BATS_TEST_TMPDIR}/err"
@@ -835,7 +835,7 @@ EOF
 @test "facts that cannot be gathered refuse the commit" {
   printf 'policy:\n  colour: blue\n' >> kit.yml
   git add kit.yml
-  run kit commit --message '#7 kit: a broken policy'
+  run kit commit --message='#7 kit: a broken policy'
   [ "$status" -eq 1 ]
   [[ "$output" == *"the commit is refused"* ]]
   [ "$(git log --oneline | wc -l | tr -d ' ')" = 1 ]

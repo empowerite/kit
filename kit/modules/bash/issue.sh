@@ -251,14 +251,14 @@ issue:join() {
   me=$(forge:me) || return 1
   if [[ "${author}" != "${me}" ]]
   then
-    error "${noun} ${sigil}${pr} is ${author}'s; hand the issues over instead: kit assign --to ${author} ${refs[*]}"
+    error "${noun} ${sigil}${pr} is ${author}'s; hand the issues over instead: kit assign --to=${author} ${refs[*]}"
     return 1
   fi
   issue:assign "${refs[@]}" \
     || warn "the issues are added to ${noun} ${sigil}${pr} without every assignment; each one is named above"
   if ! issue:link-in-body "${pr}" "${refs[@]}"
   then
-    error "run: kit work --pr ${pr} ${refs[*]} (${refs[*]} could not be linked in ${noun} ${sigil}${pr}'s body)"
+    error "run: kit work --pr=${pr} ${refs[*]} (${refs[*]} could not be linked in ${noun} ${sigil}${pr}'s body)"
     return 1
   fi
   ok "Added ${refs[*]} to ${noun} ${sigil}${pr}"

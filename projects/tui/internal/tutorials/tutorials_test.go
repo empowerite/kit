@@ -239,18 +239,19 @@ func TestTheTagsFromTheCommandLineFilterTheCards(t *testing.T) {
 	}
 }
 
-// kit tutorials' words are --tag=<tag> words, or --tag pairs, whose values are the tags, and the tutorial named, the
-// first other word that is no option; anything else is ignored.
+// kit tutorials' words are --tag=<tag> words, whose values are the tags, one by one where they are joined by :, and
+// the tutorial named, the first other word that is no option; anything else is ignored.
 func TestTheWordsAreTheTagsAndTheTutorialNamed(t *testing.T) {
 	for words, want := range map[string]struct {
 		tags  []string
 		focus string
 	}{
 		"":                           {nil, ""},
-		"--tag a --tag b":            {[]string{"a", "b"}, ""},
-		"stray --tag a --tag":        {[]string{"a"}, "stray"},
-		"--tag a --other --tag c t9": {[]string{"a", "c"}, "t9"},
+		"--tag=a --tag=b":            {[]string{"a", "b"}, ""},
+		"stray --tag=a --tag":        {[]string{"a"}, "stray"},
+		"--tag=a --other --tag=c t9": {[]string{"a", "c"}, "t9"},
 		"--tag=a t9 --tag=b":         {[]string{"a", "b"}, "t9"},
+		"--tag=a:b t9":               {[]string{"a", "b"}, "t9"},
 	} {
 		if tags, focus := parse(strings.Fields(words)); !slices.Equal(tags, want.tags) || focus != want.focus {
 			t.Errorf("%q: tags %q and %q, want %q and %q", words, tags, focus, want.tags, want.focus)

@@ -208,7 +208,7 @@ func TestRRunsTheFixWithTheTerminalThenReadsTheChecksAgain(t *testing.T) {
 	t.Setenv("FAKE_WELCOME_CALLS", record)
 	for _, key := range []tea.Msg{press('r'), buttonClick("jq is not installed", fix.RunName)} {
 		m, r := atChains(t, key)
-		if len(r.calls) != 1 || strings.Join(r.calls[0], " ") != "welcome --fix jq" {
+		if len(r.calls) != 1 || strings.Join(r.calls[0], " ") != "welcome --fix=jq" {
 			t.Fatalf("%v ran %q", key, r.calls)
 		}
 		// the checks ran again, jq is fixed now, and the cursor stays on its row
@@ -219,7 +219,7 @@ func TestRRunsTheFixWithTheTerminalThenReadsTheChecksAgain(t *testing.T) {
 			t.Errorf("%v:\n%s", key, view(m))
 		}
 	}
-	want := []string{"welcome --checks --json --progress", "welcome --fix jq", "welcome --checks --json --progress"}
+	want := []string{"welcome --checks --json --progress", "welcome --fix=jq", "welcome --checks --json --progress"}
 	if got := calls(t, record); !slices.Equal(got, append(want, want...)) {
 		t.Errorf("the calls: %q", got)
 	}
@@ -238,7 +238,7 @@ func TestTheToolchainsStepOffersCopyAndRunWithTheOthersBeside(t *testing.T) {
 		}
 	}
 	m = drive(m, press('r'))
-	if len(r.calls) != 1 || strings.Join(r.calls[0], " ") != "welcome --fix toolchain-project" || !m.checks[2].OK {
+	if len(r.calls) != 1 || strings.Join(r.calls[0], " ") != "welcome --fix=toolchain-project" || !m.checks[2].OK {
 		t.Errorf("ran %q, check %+v", r.calls, m.checks[2])
 	}
 	if labels := regexp.MustCompile(` +`).ReplaceAllString(strings.Split(view(m), "\n")[2], " "); !strings.Contains(
@@ -249,7 +249,7 @@ func TestTheToolchainsStepOffersCopyAndRunWithTheOthersBeside(t *testing.T) {
 
 func TestROnACheckThatStillFailsSaysSo(t *testing.T) {
 	m, r := atChains(t, esc, tabKey, down, press('r'))
-	if len(r.calls) != 1 || strings.Join(r.calls[0], " ") != "welcome --fix gh-auth" {
+	if len(r.calls) != 1 || strings.Join(r.calls[0], " ") != "welcome --fix=gh-auth" {
 		t.Fatalf("ran %q", r.calls)
 	}
 	if m.cursor != 3 || m.checks[3].OK || !strings.Contains(view(m), "the fix ran, and the check still fails") {
@@ -260,7 +260,7 @@ func TestROnACheckThatStillFailsSaysSo(t *testing.T) {
 func TestARefusedFixShowsInRed(t *testing.T) {
 	t.Setenv("FAKE_WELCOME_REFUSE_FIX", "jq")
 	m, _ := atChains(t, press('r'))
-	want := "kit refused the fix; quit to read what kit welcome --fix jq printed"
+	want := "kit refused the fix; quit to read what kit welcome --fix=jq printed"
 	if !strings.Contains(m.View().Content, style.Refusal(want)) {
 		t.Errorf("no refusal in red: %q", m.View().Content)
 	}

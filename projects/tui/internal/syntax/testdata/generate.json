@@ -27,7 +27,6 @@
           [
             {
               "kind": "option",
-              "inline": true,
               "name": "iterations",
               "value": "n",
               "repeat": false

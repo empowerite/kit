@@ -2,7 +2,7 @@
 # kit-commit - commits what is staged, after the kit's checks (kit verb: workflow)
 # ----------------------------------------------------------------------------------------------------------------------
 # Usage:
-#   kit commit [--all] (--message <text>… | --file <path>) [<path>…]
+#   kit commit [--all] (--message=<text>… | --file=<path>) [<path>…]
 #
 # Commits in a worktree, never on the desk or the default branch. Before the commit exists, kit commit:
 #
@@ -35,8 +35,8 @@
 #
 # Arguments:
 #   --all             stages every tracked change first, as git commit --all does
-#   --message <text>   the message; the first is the subject, the rest are paragraphs
-#   --file <path>      the message from a file; its first line is the subject
+#   --message=<text>   the message; the first is the subject, the rest are paragraphs
+#   --file=<path>      the message from a file; its first line is the subject
 #   <path>…            commits these paths alone; each must be known to git
 #
 # Exits 0 on a commit, 1 on a refusal, and 2 on a usage error.

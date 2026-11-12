@@ -104,8 +104,7 @@ def emit($a; $word):
   elif .kind == "flag" then (if $a[.name] == true then ["--" + .name] else [] end)
   else . as $node | ([$a[$node.name] // empty] | flatten) as $values
     | if $node.kind == "operand" then $values
-      elif $node.inline then $values | map("--\($node.name)=" + .)
-      else [$values[] | "--\($node.name)", .] end
+      else $values | map("--\($node.name)=" + .) end
   end;
 
 # cut gives a value as an error quotes it: its first 200 characters.

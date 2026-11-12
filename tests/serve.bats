@@ -253,7 +253,7 @@ call() {
     == "Usage:\n  kit packages [--active | --inactive] [--text | --json | --jq] [<package>…]\n  kit packages --stages"
       + "\n  kit packages --marks\n  kit packages packages [--text | --json | --jq]"'
   answer 1 | jq --exit-status '.result.tools[] | select(.name == "tools") | .description | split("\n\n")[1]
-    == "Usage:\n  kit tools [--toolchain <name>] [--json | --jq]"'
+    == "Usage:\n  kit tools [--toolchain=<name>] [--json | --jq]"'
   answer 1 | jq --exit-status '.result.tools[] | select(.name == "toolchains") | .description | split("\n\n")[1]
     == "Usage:\n  kit toolchains [--json | --jq]"'
   answer 1 | jq --exit-status '.result.tools[] | select(.name == "context") | .description | split("\n\n")[1]

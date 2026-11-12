@@ -2,8 +2,8 @@
 # kit-tools - lists, installs, and updates what the chosen toolchain and the dependencies pin (kit verb: installation)
 # ----------------------------------------------------------------------------------------------------------------------
 # Usage:
-#   kit tools [--outdated [--check]] [--toolchain <name>] [--json | --jq]
-#   kit tools [--toolchain <name>] (install | update | path | run <command>…)
+#   kit tools [--outdated [--check]] [--toolchain=<name>] [--json | --jq]
+#   kit tools [--toolchain=<name>] (install | update | path | run <command>…)
 #
 # Acts on the tools the project toolchain pins. kit toolchains shows which toolchain that is, and records a choice.
 # Then on the packages each dependency provider pins, as npm in package-lock.json or uv in uv.lock: each one whose
@@ -27,7 +27,7 @@
 # Arguments:
 #   --outdated          only the tools behind their latest version; reaches the network
 #   --check             with --outdated: fails when any tool is behind
-#   --toolchain <name>  uses this toolchain for the run, as KIT_TOOLCHAIN does; kit takes it even after run's command
+#   --toolchain=<name>  uses this toolchain for the run, as KIT_TOOLCHAIN does; kit takes it even after run's command
 #   <name>              mise, nix, brew, docker, devcontainer, or ambient
 #   --json              one JSON object per tool: name, pinned, installed, latest with --outdated, and from
 #   --jq                the same JSON, formatted by jq for a person

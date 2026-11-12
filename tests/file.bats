@@ -163,7 +163,7 @@ EOF
 }
 
 @test "a verb runs outside POSIX mode, so a module's <verb>:choices is found under POSIXLY_CORRECT" {
-  run env POSIXLY_CORRECT=1 "${kit_root}/bin/kit" syntax packages --choices '<package>' -- --kind select
+  run env POSIXLY_CORRECT=1 "${kit_root}/bin/kit" syntax packages --choices='<package>' -- --kind select
   [ "$status" -eq 0 ]
   [ "$output" = set ]
 }

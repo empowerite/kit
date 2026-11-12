@@ -189,7 +189,7 @@ with the kit, `kit tutorials applications`; see [tutorials.md](tutorials.md).
 - A missing tool's fix is `kit tools install`, or, when ambient, the system toolchain's command. No tool manager is
   assumed.
 - `kit welcome --checks --json` prints the checks alone, a folder's with its folder, repository, branch, and kit;
-  `kit welcome --fix <check>` runs one fix and checks again, and `--folder=<path>` names a folder's check.
+  `kit welcome --fix=<check>` runs one fix and checks again, and `--folder=<path>` names a folder's check.
 - The workspace is the one kit starts on, or `kit --workspace=<workspace> welcome`'s: a repository's desk and
   worktrees, or every member's. With none, only the machine is checked; see [workspaces.md](workspaces.md).
 - Each step is a page under `.kit/welcome/`, from the `kit` package. A house package replaces or adds a page.

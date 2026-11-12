@@ -2,8 +2,8 @@
   "verb": "tools",
   "purpose": "lists, installs, and updates what the chosen toolchain and the dependencies pin",
   "usage": [
-    "kit tools [--outdated [--check]] [--toolchain <name>] [--json | --jq]",
-    "kit tools [--toolchain <name>] (install | update | path | run <command>…)"
+    "kit tools [--outdated [--check]] [--toolchain=<name>] [--json | --jq]",
+    "kit tools [--toolchain=<name>] (install | update | path | run <command>…)"
   ],
   "syntax": [
     [
@@ -42,7 +42,6 @@
           [
             {
               "kind": "option",
-              "inline": false,
               "name": "toolchain",
               "value": "name",
               "repeat": false
@@ -81,7 +80,6 @@
           [
             {
               "kind": "option",
-              "inline": false,
               "name": "toolchain",
               "value": "name",
               "repeat": false

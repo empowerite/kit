@@ -2,7 +2,7 @@
   "verb": "commit",
   "purpose": "commits what is staged, after the kit's checks",
   "usage": [
-    "kit commit [--all] (--message <text>… | --file <path>) [<path>…]"
+    "kit commit [--all] (--message=<text>… | --file=<path>) [<path>…]"
   ],
   "syntax": [
     [
@@ -27,7 +27,6 @@
           [
             {
               "kind": "option",
-              "inline": false,
               "name": "message",
               "value": "text",
               "repeat": true
@@ -36,7 +35,6 @@
           [
             {
               "kind": "option",
-              "inline": false,
               "name": "file",
               "value": "path",
               "repeat": false

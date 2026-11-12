@@ -20,7 +20,6 @@
           [
             {
               "kind": "option",
-              "inline": true,
               "name": "facts",
               "value": "file",
               "repeat": false

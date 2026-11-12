@@ -184,18 +184,15 @@ func Open(r kit.Runner, words []string) Model {
 	return m
 }
 
-// parse gives the values of the --tag words, as --tag=<audience> or --tag <audience>, and the first other word that
-// is no option.
+// parse gives the values of the --tag=<audience> words, audiences joined by : taken one by one, and the first other
+// word that is no option.
 func parse(words []string) (tags []string, focus string) {
-	for i := 0; i < len(words); i++ {
-		switch tag, ok := strings.CutPrefix(words[i], "--tag="); {
+	for _, word := range words {
+		switch joined, ok := strings.CutPrefix(word, "--tag="); {
 		case ok:
-			tags = append(tags, tag)
-		case words[i] == "--tag" && i+1 < len(words):
-			tags = append(tags, words[i+1])
-			i++
-		case focus == "" && !strings.HasPrefix(words[i], "-"):
-			focus = words[i]
+			tags = append(tags, strings.Split(joined, ":")...)
+		case focus == "" && !strings.HasPrefix(word, "-"):
+			focus = word
 		}
 	}
 	return tags, focus

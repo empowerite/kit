@@ -3,7 +3,7 @@
 # ----------------------------------------------------------------------------------------------------------------------
 # Usage:
 #   kit syntax [--check | --list] [<verb>…]
-#   kit syntax <verb> --choices <argument> [<answer>…]
+#   kit syntax <verb> --choices=<argument> [<answer>…]
 #   kit syntax <verb> --extend [<answer>…]
 #   kit syntax <verb> --match [<word>…]
 #
@@ -30,7 +30,7 @@
 # Arguments:
 #   --check                prints no JSON; names each fault in the header, and fails
 #   --list                 prints no JSON; one line per verb: verb, purpose, group, tab-separated
-#   --choices <argument>   prints that argument's choices instead, one per line
+#   --choices=<argument>   prints that argument's choices instead, one per line
 #   <answer>…              an argument answered already, or a subcommand word chosen
 #   --extend               prints the arguments the verb learns from the answers
 #   --match                judges the words as the guard judges a command line

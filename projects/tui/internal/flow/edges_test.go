@@ -235,7 +235,7 @@ func TestAStageReadInPartDrawsWhatWasReadAndNamesWhatWasNot(t *testing.T) {
 	}
 	write(`{"rows": [{"key": "origin", "remote": "origin", "forge": "github", "repository": "o/a",
 		"member": "github.com/o/a", "host": "github.com", "url": "https://github.com/o/a.git", "links": {}}],
-		"errors": [{"member": "github.com/o/b", "error": "/code/b is gone; run: kit workspaces --show w"}]}`)
+		"errors": [{"member": "github.com/o/b", "error": "/code/b is gone; run: kit workspaces --show=w"}]}`)
 	t.Setenv("FAKE_FLOW_PART", "workspace/remotes")
 	m = loaded(t, Options{Stages: []string{"workspace/remotes"}, NoPresets: true, Clock: &testkit.Clock{}})
 	if s, v := m.find("workspace/remotes"), view(m); s.refusal != "" || len(s.rows) != 1 ||

@@ -2,10 +2,10 @@
 # fake-kit - stands in for kit in the welcome screen's tests: answers welcome --checks and --fix, and root (test helper)
 # ----------------------------------------------------------------------------------------------------------------------
 # welcome --checks --json prints checks.json, in the directory it runs in, else beside this script, with every check
-# named in the file FAKE_WELCOME_STATE turned ok, with no fix, as a check that holds has none. welcome --fix jq,
+# named in the file FAKE_WELCOME_STATE turned ok, with no fix, as a check that holds has none. welcome --fix=jq,
 # toolchain-project, kit-installed, or hooks-installed adds the id to that file, so a later --checks finds it fixed in
-# every folder, and exits 0; a --folder= after it is taken and kept in the calls. --fix gh-auth changes nothing and
-# exits 1, as a fix after which the check still fails. --fix brew-path, a show-only check, and any other id, and the id
+# every folder, and exits 0; a --folder= after it is taken and kept in the calls. --fix=gh-auth changes nothing and
+# exits 1, as a fix after which the check still fails. --fix=brew-path, a show-only check, and any other id, and the id
 # FAKE_WELCOME_REFUSE_FIX names, is a refusal with exit 2. welcome --keep=<id> adds the id to that file, as a kept check
 # holds, prints the check kept, its line after kept:, or FAKE_WELCOME_KEPT when it is set, and exits 0, or 2 for an id
 # FAKE_WELCOME_REFUSE_KEEP names. Every welcome call is written to the file FAKE_WELCOME_CALLS names, when it is set.
@@ -72,22 +72,22 @@ case "${1:-}" in
             | sed -e 's/"ok": false/"ok": true/' -e 's/"line": "/"line": "kept: /' -e 's/},$/}/'
         fi
         ;;
-      (--fix)
-        id=${3:?}
+      (--fix=?*)
+        id=${2#--fix=}
         if [[ "${id}" == "${FAKE_WELCOME_REFUSE_FIX:-}" ]]
         then
-          echo "❌ kit welcome --fix ${id} refuses for the test" >&2
+          echo "❌ kit welcome --fix=${id} refuses for the test" >&2
           exit 2
         fi
         case "${id}" in
           (jq | toolchain-project | kit-installed | hooks-installed) printf '%s\n' "${id}" >> "${state}" ;;
           (gh-auth) exit 1 ;;
           (brew-path)
-            echo "❌ kit welcome --fix: brew-path is shown, not run" >&2
+            echo "❌ kit welcome --fix=brew-path: it is shown, not run" >&2
             exit 2
             ;;
           (*)
-            echo "❌ kit welcome --fix: no fix for '${id}'" >&2
+            echo "❌ kit welcome --fix=${id}: no fix for it" >&2
             exit 2
         esac
         ;;

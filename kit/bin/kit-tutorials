@@ -26,7 +26,8 @@
 #                     glyph, audience, where, url, file}: where is kit or online, url the link of one online, file the
 #                     page of one in the kit, and the other empty
 #   --jq              the same JSON, formatted by jq for a person
-#   --tag=<audience>  keeps the tutorials for that audience; given again, it keeps the tutorials for either
+#   --tag=<audience>  keeps the tutorials for that audience; given again, or with audiences joined by :, as
+#                     --tag=ui:maintainer, it keeps the tutorials for any of them
 #   <audience>        an audience's id, as --json names it: newcomer, ui, maintainer
 #   <tutorial>        a tutorial's id, as --json names it; kittui opens on its card, or it opens in the browser
 #
@@ -42,11 +43,15 @@ kit:enter
 use tutorials tui new terminal
 guard:arguments tutorials "$@" || exit $?
 
+# A --tag's audiences may come joined by :, --tag=a:b for --tag=a --tag=b.
 tags=() tutorial='' form=''
 while (( $# ))
 do
   case "$1" in
-    (--tag=*) tags+=("${1#--tag=}") ;;
+    (--tag=*)
+      IFS=: read -ra joined <<<"${1#--tag=}"
+      tags+=("${joined[@]}")
+      ;;
     (--text | --json) form=$1 ;;
     (--jq) form=--json ;;
     (*) tutorial=$1

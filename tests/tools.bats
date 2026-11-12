@@ -102,10 +102,10 @@ JSON
   [ "$status" -eq 0 ]
   [ "$output" = ran ]
   # --toolchain is kit's wherever it stands, so the usage names it before run; the command never sees it
-  run "${kit_root}/bin/kit" tools --toolchain ambient run echo ran
+  run "${kit_root}/bin/kit" tools --toolchain=ambient run echo ran
   [ "$status" -eq 0 ]
   [ "$output" = ran ]
-  run "${kit_root}/bin/kit" tools run echo ran --toolchain ambient
+  run "${kit_root}/bin/kit" tools run echo ran --toolchain=ambient
   [ "$status" -eq 0 ]
   [ "$output" = ran ]
 }
@@ -144,7 +144,7 @@ JSON
   KIT_TOOLCHAIN=mise run "${kit_root}/bin/kit" tools path
   [ "$status" -eq 0 ]
   [ "$output" = '/m/jq/bin' ]
-  run "${kit_root}/bin/kit" tools path --toolchain brew
+  run "${kit_root}/bin/kit" tools path --toolchain=brew
   [ "$status" -eq 1 ]
   [[ "$output" == *"brew"*"not usable"* ]]
 }

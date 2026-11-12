@@ -54,7 +54,7 @@ that matches no declared tracker is refused, and the error lists the known prefi
   passes when the change's body names an open issue of a declared tracker with a closing keyword:
   `Closes AB#4521`, `Fixes AB#4521`, or `Resolves AB#4521`. A change by a login under `linked_exempt` in
   `kit.yml` passes without an issue, and the output says so.
-- `kit work --title <text> 7 AB#4521` gathers the issues under a new parent issue and starts the parent, as
+- `kit work --title=<text> 7 AB#4521` gathers the issues under a new parent issue and starts the parent, as
   `kit gather` does without starting it: a forge issue is a sub-issue on GitHub, a linked item on GitLab; a work
   item is a task line in the parent's body.
 - `kit assign`, `kit unassign`, and `kit close` take references from any tracker. `kit close --duplicate-of` a

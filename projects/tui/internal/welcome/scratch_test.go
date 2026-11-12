@@ -82,7 +82,7 @@ func TestAClickOnAFoldersButtonsCopiesAndRunsItsFix(t *testing.T) {
 		t.Errorf("the click on ⧉: %q\n%s", clipboard(msgs), view(copied))
 	}
 	testkit.Drive(m, nil, clickMsg{"lefthook install", fix.RunName}.at(m))
-	if len(r.calls) != 1 || strings.Join(r.calls[0], " ") != "--workspace=w welcome --fix hooks-installed --folder=/code/a" {
+	if len(r.calls) != 1 || strings.Join(r.calls[0], " ") != "--workspace=w welcome --fix=hooks-installed --folder=/code/a" {
 		t.Errorf("the click on ▶️: %q", r.calls)
 	}
 	// a click on the row's name, off the buttons, selects the row and runs nothing

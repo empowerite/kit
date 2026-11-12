@@ -35,7 +35,7 @@
 #   --all              every one (the default)
 #   --mine             the pull requests the caller opened, and the issues assigned to the caller; no owner column
 #   --others           anyone else's; unassigned issues included
-#   --owner=<login>    the named login's; repeat the flag for more
+#   --owner=<login>    the named login's; repeat the flag for more, or join the logins with :, --owner=a:b
 #
 # A pull request's state is the first of these that applies. Its color shows the state's family, never the
 # single state: green when nothing is left to decide, yellow when a human owes a decision, and blue when the next
@@ -642,16 +642,20 @@ flow:choice() {
 }
 
 # flow:owner-flags <argument>… reads the owner flags among the arguments into mine, others, and owners, variables
-# the caller declares.
+# the caller declares; an --owner's logins may come joined by :, --owner=a:b for --owner=a --owner=b.
 flow:owner-flags() {
   local arg
+  local -a joined
   mine=false others=false owners=()
   for arg in "$@"
   do
     case "${arg}" in
       (--mine) mine=true ;;
       (--others) others=true ;;
-      (--owner=?*) owners+=("${arg#--owner=}") ;;
+      (--owner=?*)
+        IFS=: read -ra joined <<<"${arg#--owner=}"
+        owners+=("${joined[@]}")
+        ;;
     esac
   done
 }

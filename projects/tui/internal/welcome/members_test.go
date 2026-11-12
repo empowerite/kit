@@ -167,7 +167,7 @@ func TestAFoldersFixRunsInItsFolderAndAMachinesOverTheGroup(t *testing.T) {
 	}
 	m = drive(m, press('r'))
 	if len(r.calls) != 1 ||
-		strings.Join(r.calls[0], " ") != "--workspace=w welcome --fix kit-installed --folder=/code/a/worktrees/7-the-topic" {
+		strings.Join(r.calls[0], " ") != "--workspace=w welcome --fix=kit-installed --folder=/code/a/worktrees/7-the-topic" {
 		t.Errorf("the fix: %q", r.calls)
 	}
 	m, found = onKey(drive(m, press('3'), down), "forge-login-github.com")
@@ -175,7 +175,7 @@ func TestAFoldersFixRunsInItsFolderAndAMachinesOverTheGroup(t *testing.T) {
 		t.Fatalf("no login:\n%s", view(m))
 	}
 	drive(m, press('r'))
-	if len(r.calls) != 2 || strings.Join(r.calls[1], " ") != "--workspace=w welcome --fix forge-login-github.com" {
+	if len(r.calls) != 2 || strings.Join(r.calls[1], " ") != "--workspace=w welcome --fix=forge-login-github.com" {
 		t.Errorf("the login's fix: %q", r.calls)
 	}
 }
@@ -192,7 +192,7 @@ func TestAFoldersOfferOffersCopyAndRunAsAFailedCheckDoes(t *testing.T) {
 	}
 	// r runs it, as a failed check's, in its folder
 	if drive(m, press('r')); len(r.calls) != 1 ||
-		strings.Join(r.calls[0], " ") != "--workspace=w welcome --fix kit-installed --folder=/code/a/worktrees/7-the-topic" {
+		strings.Join(r.calls[0], " ") != "--workspace=w welcome --fix=kit-installed --folder=/code/a/worktrees/7-the-topic" {
 		t.Errorf("the offer's fix: %q", r.calls)
 	}
 }

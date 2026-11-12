@@ -109,7 +109,7 @@ func TestExecArgsAndDir(t *testing.T) {
 		t.Fatal(err)
 	}
 	lines := strings.Split(strings.TrimSpace(string(got)), "\n")
-	if len(lines) != 2 || lines[0] != "commit --message a b x.txt" {
+	if len(lines) != 2 || lines[0] != "commit --message=a b x.txt" {
 		t.Errorf("argv: %q", lines)
 	}
 	want, _ := filepath.EvalSymlinks(dir)
@@ -126,7 +126,7 @@ func TestHelperExec(t *testing.T) {
 	path, _ := filepath.Abs("testdata/fake-kit")
 	os.Setenv("KIT", path)
 	r := New()
-	if err := r.Exec("commit", []string{"--message", "a b", "x.txt"}); err != nil {
+	if err := r.Exec("commit", []string{"--message=a b", "x.txt"}); err != nil {
 		t.Fatalf("Exec: %v", err)
 	}
 }
@@ -148,8 +148,8 @@ func TestNewReadsTheEnvironment(t *testing.T) {
 }
 
 func TestMatchJudgesTheWordsAfterADoubleDash(t *testing.T) {
-	m, err := fake(t, "").Match("commit", []string{"--message", "hi"})
-	if err != nil || m.Status != 0 || m.Operands[0] != "x" || m.Options["--message"][0] != "--message hi" {
+	m, err := fake(t, "").Match("commit", []string{"--message=hi"})
+	if err != nil || m.Status != 0 || m.Operands[0] != "x" || m.Options["--message"][0] != "--message=hi" {
 		t.Fatalf("Match: %v, %+v", err, m)
 	}
 }
@@ -412,12 +412,12 @@ func TestWelcomeChecksReadEachFoldersCheck(t *testing.T) {
 func TestWelcomeFixNamesTheWorkspaceAndAFoldersFolder(t *testing.T) {
 	r := Runner{Kit: "kit", Dir: "/w", Group: "w"}
 	if got := strings.Join(r.WelcomeFix(Check{ID: "kit-hydrated", Folder: "/a/t"}).Args[1:], " "); got !=
-		"--workspace=w welcome --fix kit-hydrated --folder=/a/t" {
+		"--workspace=w welcome --fix=kit-hydrated --folder=/a/t" {
 		t.Errorf("over a group: %s", got)
 	}
 	r.Group, r.NoGroup = "", true
 	if got := strings.Join(r.WelcomeFix(Check{ID: "forge-login-github.com"}).Args[1:], " "); got !=
-		"--workspace=none welcome --fix forge-login-github.com" {
+		"--workspace=none welcome --fix=forge-login-github.com" {
 		t.Errorf("over no group: %s", got)
 	}
 }
@@ -427,7 +427,7 @@ func TestWelcomeFixIsACommandNotYetStarted(t *testing.T) {
 	t.Setenv("FAKE_KIT_RECORD", record)
 	dir := t.TempDir()
 	cmd := fake(t, dir).WelcomeFix(Check{ID: "jq"})
-	if cmd.Process != nil || strings.Join(cmd.Args[1:], " ") != "welcome --fix jq" || cmd.Dir != dir {
+	if cmd.Process != nil || strings.Join(cmd.Args[1:], " ") != "welcome --fix=jq" || cmd.Dir != dir {
 		t.Fatalf("WelcomeFix: %q in %q", cmd.Args, cmd.Dir)
 	}
 	if err := cmd.Run(); err != nil {
@@ -435,7 +435,7 @@ func TestWelcomeFixIsACommandNotYetStarted(t *testing.T) {
 	}
 	got, _ := os.ReadFile(record)
 	want, _ := filepath.EvalSymlinks(dir)
-	if string(got) != "welcome --fix jq\n"+want+"\n" {
+	if string(got) != "welcome --fix=jq\n"+want+"\n" {
 		t.Errorf("the fix ran as %q", got)
 	}
 }
@@ -544,7 +544,7 @@ func TestTutorialsDecodesTheCatalogue(t *testing.T) {
 			t.Errorf("tutorial %d: %q", k, c.Tutorials[k].URL)
 		}
 	}
-	if got, _ := os.ReadFile(record); string(got) != "tutorials --json --tag ui --tag newcomer\n" {
+	if got, _ := os.ReadFile(record); string(got) != "tutorials --json --tag=ui --tag=newcomer\n" {
 		t.Errorf("kit ran as %q", got)
 	}
 	t.Setenv("FAKE_KIT_REFUSE", "tutorials")

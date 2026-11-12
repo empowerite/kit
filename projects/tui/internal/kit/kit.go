@@ -146,10 +146,10 @@ func withoutColor(env []string) []string {
 	return kept
 }
 
-// Choices gives the rows of kit syntax <verb> --choices <key>, given the answers so far, each <key>=<value>; they
+// Choices gives the rows of kit syntax <verb> --choices=<key>, given the answers so far, each <key>=<value>; they
 // follow a --, so an answer that starts with - is never read as kit's own.
 func (r Runner) Choices(verb, key string, answers []string) ([]Choice, error) {
-	out, err := r.run(withAnswers([]string{"syntax", verb, "--choices", key}, answers)...)
+	out, err := r.run(withAnswers([]string{"syntax", verb, "--choices=" + key}, answers)...)
 	if err != nil {
 		return nil, err
 	}
@@ -167,7 +167,7 @@ func (r Runner) Choices(verb, key string, answers []string) ([]Choice, error) {
 // Kind asks whether a key's choices, given the answers so far, are closed, open, or a set: closed choices that name the
 // whole of something, as kit packages select does, so the form starts from the active rows and marks each by plan.
 func (r Runner) Kind(verb, key string, answers []string) (string, error) {
-	out, err := r.run(append([]string{"syntax", verb, "--choices", key, "--", "--kind"}, answers...)...)
+	out, err := r.run(append([]string{"syntax", verb, "--choices=" + key, "--", "--kind"}, answers...)...)
 	return strings.TrimSpace(string(out)), err
 }
 
@@ -555,12 +555,12 @@ func (w *toldWriter) line(l []byte) {
 	w.rest.Write(l)
 }
 
-// WelcomeFix gives the command that runs a check's fix, kit welcome --fix <id>, where the command was typed, over the
+// WelcomeFix gives the command that runs a check's fix, kit welcome --fix=<id>, where the command was typed, over the
 // workspace, as over names it, so a forge's login finds its host among the folders; a folder's check, with
 // --folder=<folder>, runs there. It is not started: the caller hands it the terminal, since a fix may print and ask.
 // It exits 0 when the check now holds, 1 when it still fails, and 2 when kit refuses.
 func (r Runner) WelcomeFix(c Check) *exec.Cmd {
-	args := r.over("welcome", "--fix", c.ID)
+	args := r.over("welcome", "--fix="+c.ID)
 	if c.Folder != "" {
 		args = append(args, "--folder="+c.Folder)
 	}
@@ -623,12 +623,12 @@ const InTheKit = "kit"
 // place is online.
 func (t Tutorial) Shipped() bool { return t.Where == InTheKit }
 
-// Tutorials gives the catalogue, as kit tutorials --json prints it with a --tag for each tag, which keeps the
+// Tutorials gives the catalogue, as kit tutorials --json prints it with a --tag=<tag> for each tag, which keeps the
 // tutorials for any of those audiences; no tag keeps them all. It has callLimit at most, and ends when ctx does.
 func (r Runner) Tutorials(ctx context.Context, tags []string) (Catalogue, error) {
 	args := []string{"tutorials", "--json"}
 	for _, tag := range tags {
-		args = append(args, "--tag", tag)
+		args = append(args, "--tag="+tag)
 	}
 	var c Catalogue
 	out, err := r.within(ctx, callLimit, append(os.Environ(), "NO_COLOR=1"), args...)

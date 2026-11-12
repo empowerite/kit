@@ -83,11 +83,7 @@ func (e *emitter) sequence(nodes []syntax.Node) {
 				continue
 			}
 			for _, value := range e.answers.values(syntax.Key(n)) {
-				if n.Inline {
-					e.words = append(e.words, "--"+n.Name+"="+value)
-				} else {
-					e.words = append(e.words, "--"+n.Name, value)
-				}
+				e.words = append(e.words, "--"+n.Name+"="+value)
 			}
 		case "operand":
 			e.words = append(e.words, e.answers.values(syntax.Key(n))...)

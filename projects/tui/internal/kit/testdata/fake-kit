@@ -73,10 +73,10 @@ case "${1:-}" in
       printf ','
       cat "${fixtures}/version.json"
       printf ']\n'
-    elif [[ "${2:-}" == --choices ]]
+    elif [[ "${2:-}" == --choices=* ]]
     then
-      verb=$1 key=$3
-      shift 3
+      verb=$1 key=${2#--choices=}
+      shift 2
       [[ "${1:-}" != -- ]] || shift
       if [[ "${1:-}" == --kind ]]
       then

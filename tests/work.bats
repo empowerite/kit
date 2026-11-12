@@ -96,10 +96,10 @@ desk-world() {
   [ "$(grep -c 'read -r -p' "${kit_checkout}/modules/bash/issue.sh")" -eq 0 ]
   # the module takes the title as an argument, and reads nothing the argument check left behind
   [ "$(grep -c syntax_ "${kit_checkout}/modules/bash/issue.sh")" -eq 0 ]
-  run "${kit_checkout}/bin/kit" work --pr 3 --title 'Fix the thing' 7
+  run "${kit_checkout}/bin/kit" work --pr=3 --title='Fix the thing' 7
   [ "$status" -eq 2 ]
   [[ "$output" == *"--title cannot be combined with --pr; run: cd "*" && kit help work"* ]]
-  run "${kit_checkout}/bin/kit" work --pr 3
+  run "${kit_checkout}/bin/kit" work --pr=3
   [ "$status" -eq 2 ]
 }
 
@@ -126,7 +126,7 @@ desk-world() {
   route 'pr list --head 12-the-parent --state open*' pr-open-12.json
   route 'pr view 5 --json *' pr-5.json
   route 'pr edit 5 --body *' '!0'
-  run "${kit_checkout}/bin/kit" work --title 'The parent' 7 9
+  run "${kit_checkout}/bin/kit" work --title='The parent' 7 9
   [ "$status" -eq 0 ]
   [[ "$output" == *"Created #12: The parent"* ]]
   [[ "$output" == *"Gathered #7 #9 under #12"* ]]
@@ -151,10 +151,10 @@ desk-world() {
   route 'api repos/empowerite/example/pulls/6 *' pull-bob.json
   route 'pr view 4 --json *' pr-4.json
   route 'pr edit 4 --body *' '!0'
-  run "${kit_checkout}/bin/kit" work --pr 6 7
+  run "${kit_checkout}/bin/kit" work --pr=6 7
   [ "$status" -eq 1 ]
-  [[ "$output" == *"pull request #6 is bob's; hand the issues over instead: kit assign --to bob #7"* ]]
-  run "${kit_checkout}/bin/kit" work --pr 4 7
+  [[ "$output" == *"pull request #6 is bob's; hand the issues over instead: kit assign --to=bob #7"* ]]
+  run "${kit_checkout}/bin/kit" work --pr=4 7
   [ "$status" -eq 0 ]
   [[ "$output" == *"Added #7 to pull request #4"* ]]
   grep -q '^issue edit 7 --add-assignee ada$' "${FAKE_DIR}/gh.calls"
@@ -171,7 +171,7 @@ desk-world() {
   run "${kit_checkout}/bin/kit" assign 7
   [ "$status" -eq 0 ]
   [[ "$output" == *"#7 is already assigned to bob; adding you as well"* ]]
-  run "${kit_checkout}/bin/kit" assign --to carol 7
+  run "${kit_checkout}/bin/kit" assign --to=carol 7
   [ "$status" -eq 0 ]
   [[ "$output" == *"#7 assigned to carol"* ]]
   run "${kit_checkout}/bin/kit" unassign 7
@@ -210,11 +210,11 @@ desk-world() {
   [ "$status" -eq 0 ]
   [[ "$output" == *"#7 closed as not planned"* ]]
   [[ "$output" == *"#8 is closed already"* ]]
-  run "${kit_checkout}/bin/kit" close --duplicate-of 9 7
+  run "${kit_checkout}/bin/kit" close --duplicate-of=9 7
   [ "$status" -eq 0 ]
   [[ "$output" == *"#7 closed as duplicate of #9"* ]]
   grep -q '^issue close 7 --reason duplicate --duplicate-of 9$' "${FAKE_DIR}/gh.calls"
-  run "${kit_checkout}/bin/kit" close --duplicate-of 7 7
+  run "${kit_checkout}/bin/kit" close --duplicate-of=7 7
   [ "$status" -eq 1 ]
   [[ "$output" == *"#7 cannot be a duplicate of itself"* ]]
   run "${kit_checkout}/bin/kit" close 7
@@ -228,7 +228,7 @@ desk-world() {
   fixture created.txt <<<'https://github.com/empowerite/example/issues/12'
   route 'issue create --title Plan --body *' created.txt
   route 'issue edit 12 --add-sub-issue *' '!0'
-  run --separate-stderr "${kit_checkout}/bin/kit" gather --title Plan 7 9
+  run --separate-stderr "${kit_checkout}/bin/kit" gather --title=Plan 7 9
   [ "$status" -eq 0 ]
   [ "$output" = "#12" ]
   [[ "$stderr" == *"Gathered #7 #9 under #12"* ]]
@@ -242,7 +242,7 @@ desk-world() {
   world
   fixture created.txt <<<'https://github.com/empowerite/example/issues/7'
   route 'issue create --title Fix the thing *' created.txt
-  run "${kit_checkout}/bin/kit" work --title 'Fix the thing'
+  run "${kit_checkout}/bin/kit" work --title='Fix the thing'
   [ "$status" -eq 0 ]
   [[ "$output" == *"Created #7: Fix the thing"* ]]
   [ -d worktrees/7-fix-the-thing ]

@@ -134,6 +134,11 @@ fake-openers() {
   [ "$(jq '.audiences | length' <<<"$output")" -eq 3 ]
   run --separate-stderr "${kit_root}/bin/kit" tutorials --json --tag=ui --tag=maintainer
   [ "$(jq --raw-output '.tutorials[].id' <<<"$output" | paste -s -d ' ' -)" = "screens releasing" ]
+  # the audiences may come joined by :, each one checked
+  run --separate-stderr "${kit_root}/bin/kit" tutorials --json --tag=ui:maintainer
+  [ "$(jq --raw-output '.tutorials[].id' <<<"$output" | paste -s -d ' ' -)" = "screens releasing" ]
+  run --separate-stderr "${kit_root}/bin/kit" tutorials --json --tag=ui:nonesuch
+  [ "$status" -eq 2 ]
 }
 
 @test "an unknown tutorial or audience is a usage error" {
@@ -230,10 +235,10 @@ fake-openers() {
 }
 
 @test "the choices list the tutorials and the audiences, closed" {
-  run --separate-stderr "${kit_root}/bin/kit" syntax tutorials --choices '<tutorial>'
+  run --separate-stderr "${kit_root}/bin/kit" syntax tutorials --choices='<tutorial>'
   [ "$status" -eq 0 ]
   [[ "$output" == *"first"* && "$output" == *"Where to begin."* ]] || [[ "$output" == *"The first tutorial"* ]]
-  run --separate-stderr "${kit_root}/bin/kit" syntax tutorials --choices '<audience>'
+  run --separate-stderr "${kit_root}/bin/kit" syntax tutorials --choices='<audience>'
   [[ "$output" == *"newcomer"* && "$output" == *"Just starting"* ]]
 }
 

@@ -63,7 +63,7 @@ help, the syntax, and the server cannot drift apart.
   resource `kit://help/<verb>`, and the description says so.
 - **The input** has one property per argument:
   - A flag, such as `--json`, is a boolean.
-  - An option, such as `--toolchain <name>`, is a string.
+  - An option, such as `--toolchain=<name>`, is a string.
   - An operand, such as `<path>…`, is a string, or an array of strings when it repeats.
   - An argument with a closed set of choices has them as its `enum`, such as the package names for `packages`.
   - A line's leading word is one property too: `flow`'s `stage`, such as `issues` or `changes`.

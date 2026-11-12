@@ -110,20 +110,16 @@ func open(r kit.Runner, verb string, words []string) (shell.Screen, tea.Model, e
 // for a picture off a terminal.
 func appVerb(verb string) bool { return verb == "flow" || flow.AppVerb(verb) }
 
-// workspaceOf takes the workspace kit flow or an app verb was given, --workspace <w> or --workspace=<w>, out of its
-// words: the group the picture's reads span, which kit refuses to give empty, and the words without it.
+// workspaceOf takes the workspace kit flow or an app verb was given, --workspace=<w>, out of its words: the group the
+// picture's reads span, which kit refuses to give empty, and the words without it.
 func workspaceOf(words []string) (string, []string) {
 	group, rest := "", []string{}
-	for k := 0; k < len(words); k++ {
-		switch w := words[k]; {
-		case w == "--workspace" && k+1 < len(words):
-			group = words[k+1]
-			k++
-		case strings.HasPrefix(w, "--workspace="):
-			group = strings.TrimPrefix(w, "--workspace=")
-		default:
-			rest = append(rest, w)
+	for _, w := range words {
+		if g, ok := strings.CutPrefix(w, "--workspace="); ok {
+			group = g
+			continue
 		}
+		rest = append(rest, w)
 	}
 	return group, rest
 }

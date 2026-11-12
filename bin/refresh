@@ -22,7 +22,7 @@ set -o errexit -o nounset -o pipefail
 pinned-tools-first() {
   local dirs
   [[ -f tools.lock ]] || return 0
-  dirs=$(kit/bin/kit tools path --toolchain kit | paste -s -d ':' -)
+  dirs=$(kit/bin/kit tools path --toolchain=kit | paste -s -d ':' -)
   PATH=${dirs:+${dirs}:}${PATH}
 }
 

@@ -117,6 +117,11 @@ setup() {
   [[ "$output" == *"the conf kind is in place"* ]]
   run "${kit_checkout}/bin/kit" kinds --json conf
   [ "$(jq -c '{file, kinds}' <<<"$output")" = '{"file":".kit/kinds/conf.yml","kinds":["toml","json"]}' ]
+  # kinds may come joined by :, as a list of names does; a glob keeps its colon
+  run "${kit_checkout}/bin/kit" new kind pair --path='*.pair:x' --embeds=bash:json
+  [ "$status" -eq 0 ]
+  run "${kit_checkout}/bin/kit" kinds --json pair
+  [ "$(jq -c '{paths, embeds}' <<<"$output")" = '{"paths":["*.pair:x"],"embeds":["bash","json"]}' ]
   run "${kit_checkout}/bin/kit" kinds Cargo.toml
   [ "$output" = $'any\nconf\ntoml' ]
   run "${kit_checkout}/bin/kit" new kind toml --path='*.tml'

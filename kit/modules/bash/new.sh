@@ -195,6 +195,8 @@ new:kind() {
           error "--${key%s}=${value}: a kind's value cannot hold a double quote"
           return 2
         fi
+        # kinds are names, which may come joined by :, --kinds=a:b; a glob or a regex keeps its colons
+        [[ "${key}" != kinds && "${key}" != embeds ]] || value=${value//:/$'\n'}
         lists[${key}]+=${value}$'\n'
         ;;
       (*) name=${arg}
@@ -347,13 +349,16 @@ new:rule() {
 # on kit and the packages named.
 new:package() {
   local name=$1 description="This repository's own $1 package" arg file
-  local -a depends=(kit)
+  local -a depends=(kit) joined
   shift
   for arg in "$@"
   do
     case "${arg}" in
       (--description=?*) description=${arg#--description=} ;;
-      (--depends=?*) depends+=("${arg#--depends=}")
+      (--depends=?*)
+        IFS=: read -ra joined <<<"${arg#--depends=}"
+        depends+=("${joined[@]}")
+        ;;
     esac
   done
   if [[ ! "${name}" =~ ^[a-z][a-z0-9-]*(/[a-z][a-z0-9-]*)?$ ]]

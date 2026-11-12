@@ -3,8 +3,8 @@
   "purpose": "starts or resumes work on issues",
   "usage": [
     "kit work <reference>…",
-    "kit work --title <text> [<reference>…]",
-    "kit work --pr <number> <reference>…"
+    "kit work --title=<text> [<reference>…]",
+    "kit work --pr=<number> <reference>…"
   ],
   "syntax": [
     [
@@ -17,7 +17,6 @@
     [
       {
         "kind": "option",
-        "inline": false,
         "name": "title",
         "value": "text",
         "repeat": false
@@ -40,7 +39,6 @@
     [
       {
         "kind": "option",
-        "inline": false,
         "name": "pr",
         "value": "number",
         "repeat": false

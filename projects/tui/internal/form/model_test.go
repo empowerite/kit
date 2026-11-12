@@ -88,12 +88,12 @@ func TestEnterWalksToCommandLineAndRuns(t *testing.T) {
 	m := newForm(t, "commit", FromMatch(syntax.Match{Options: map[string][]string{"--message": {"hi"}},
 		Values: map[string][]string{"--message": {"hi"}}}), false)
 	m, _ = drive(t, m, keys("enter", "enter", "enter", "enter")...)
-	if !strings.Contains(stripANSI(m.View().Content), "kit commit --message hi") {
+	if !strings.Contains(stripANSI(m.View().Content), "kit commit --message=hi") {
 		t.Errorf("the command line:\n%s", stripANSI(m.View().Content))
 	}
 	m, produced := drive(t, m, key("enter"))
 	run, args := m.Done()
-	if !run || strings.Join(args, " ") != "--message hi" {
+	if !run || strings.Join(args, " ") != "--message=hi" {
 		t.Fatalf("Done = %v %q", run, args)
 	}
 	if _, quit := produced[len(produced)-1].(tea.QuitMsg); !quit {
@@ -109,7 +109,7 @@ func TestKeyboardLandsOnTheFirstEmptyRequiredField(t *testing.T) {
 	m, _ = drive(t, m, keys("tab", "space")...)
 	m, _ = drive(t, m, keys("down")...)
 	m, _ = drive(t, m, testkit.Typed("#1 tui: x")...)
-	if got := strings.Join(m.CommandLine(), "\x00"); got != "--message\x00#1 tui: x" {
+	if got := strings.Join(m.CommandLine(), "\x00"); got != "--message=#1 tui: x" {
 		t.Errorf("a line being typed counts: %q", got)
 	}
 }

@@ -4,7 +4,7 @@
 // name, and its checks; any other, as a house package adds, is a plain page. A step with checks draws its page, then
 // its checks, one row each; the setup step, where kit names each check's folder, draws them as one table, as setup.go
 // says. A check with a fix offers the fix's pair on the cursor's row, as internal/fix draws it: ⧉, or c, puts the fix
-// on the clipboard, and ▶️, or r, where kit runs the fix, runs kit welcome --fix <id> with the terminal handed over,
+// on the clipboard, and ▶️, or r, where kit runs the fix, runs kit welcome --fix=<id> with the terminal handed over,
 // then reads the checks again. A fix kit only shows, as one that must run in the person's own shell, offers ⧉ alone. A
 // terminal's failed finding offers ⧉ and keep, its fix shown under it and never run: keep, or k, runs kit welcome
 // --keep=<id> and takes the check kit says, so it holds from then on. A terminal's findings that hold, not kept, are drawn on no row: its
@@ -651,10 +651,10 @@ func (m *Model) fixed(msg fixedMsg) {
 	case errors.As(msg.err, &exit) && exit.ExitCode() == 1:
 		m.notes[msg.key] = note{text: "the fix ran, and the check still fails"}
 	case errors.As(msg.err, &exit) && exit.ExitCode() == 2:
-		m.notes[msg.key] = note{text: fmt.Sprintf("kit refused the fix; quit to read what kit welcome --fix %s printed",
+		m.notes[msg.key] = note{text: fmt.Sprintf("kit refused the fix; quit to read what kit welcome --fix=%s printed",
 			msg.id), refusal: true}
 	default:
-		m.notes[msg.key] = note{text: fmt.Sprintf("kit welcome --fix %s: %v", msg.id, msg.err), refusal: true}
+		m.notes[msg.key] = note{text: fmt.Sprintf("kit welcome --fix=%s: %v", msg.id, msg.err), refusal: true}
 	}
 }
 

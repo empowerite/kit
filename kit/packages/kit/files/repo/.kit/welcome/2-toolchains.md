@@ -20,7 +20,7 @@ A manager is usable when its tool is on PATH. For the project, its file must als
 role, kit uses:
 
 - the one you are already inside, such as a shell it opened
-- else, for the project, the one named for the run: `--toolchain <name>` or `KIT_TOOLCHAIN=<name>`
+- else, for the project, the one named for the run: `--toolchain=<name>` or `KIT_TOOLCHAIN=<name>`
 - else the one you chose, while it is still usable
 - else the only usable one
 - else none: the role is [ambient](kittui:welcome/terms/ambient), and kit uses what is on PATH

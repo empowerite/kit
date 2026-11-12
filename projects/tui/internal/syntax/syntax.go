@@ -23,14 +23,12 @@ type Spec struct {
 }
 
 // Node is one element of a sequence. Kind is literal, operand, flag, option, or group. Name is the literal's word, the
-// operand's or option's name; Value an option's value name; Inline whether the value is written --name=<value>;
-// Wildcard an option that stands for any --x=y; Repeat whether the node may repeat; Optional and Alternatives a
-// group's.
+// operand's or option's name; Value an option's value name, written --name=<value>; Wildcard an option that stands
+// for any --x=y; Repeat whether the node may repeat; Optional and Alternatives a group's.
 type Node struct {
 	Kind         string   `json:"kind"`
 	Name         string   `json:"name"`
 	Value        string   `json:"value"`
-	Inline       bool     `json:"inline"`
 	Wildcard     bool     `json:"wildcard"`
 	Repeat       bool     `json:"repeat"`
 	Optional     bool     `json:"optional"`
@@ -75,7 +73,7 @@ func Key(n Node) string {
 }
 
 // Render gives a sequence of nodes as usage text: a group in its brackets with its alternatives separated by |, an
-// option with its value inline or apart, and … after what repeats.
+// option with its value after =, and … after what repeats.
 func Render(seq []Node) string {
 	parts := make([]string, 0, len(seq))
 	for _, n := range seq {
@@ -110,10 +108,7 @@ func render(n Node) string {
 	if n.Wildcard {
 		return "--<" + n.Name + ">=<" + n.Value + ">" + mark
 	}
-	if n.Inline {
-		return "--" + n.Name + "=<" + n.Value + ">" + mark
-	}
-	return "--" + n.Name + " <" + n.Value + ">" + mark
+	return "--" + n.Name + "=<" + n.Value + ">" + mark
 }
 
 // Match is what kit syntax <verb> --match prints: the judgment of a command line against the verb's syntax. Status is

@@ -3,7 +3,7 @@
   "purpose": "prints a verb's grammar as JSON, and checks its header",
   "usage": [
     "kit syntax [--check | --list] [<verb>…]",
-    "kit syntax <verb> --choices <argument> [<answer>…]",
+    "kit syntax <verb> --choices=<argument> [<answer>…]",
     "kit syntax <verb> --extend [<answer>…]",
     "kit syntax <verb> --match [<word>…]"
   ],
@@ -53,7 +53,6 @@
       },
       {
         "kind": "option",
-        "inline": false,
         "name": "choices",
         "value": "argument",
         "repeat": false

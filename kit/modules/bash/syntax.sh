@@ -11,18 +11,19 @@
 #   a | b               alternatives; several usage lines are alternatives too
 #   <name>              an operand; <name>… repeats
 #   --name              a flag
-#   --name=<value>      an option whose value is inline; --name <value> takes it as the next word
+#   --name=<value>      an option, its value after =; repeated, a list of names may join them with :
 #   --<hole>=<value>    a wildcard option: any --x=y
 #   [ … ]               optional; ( … ) a required group
 #   …                   after a word or a group: it may repeat; ... is read as …
 #
 # A name is lowercase, [a-z][a-z0-9-]*, so a word is --name, --name=<value>, --<hole>=<value>, <name>, or a lowercase
 # literal. Any other word, one with a dot or a capital, or <a|b>, does not parse, and the error names the word and its
-# line: a line of the Usage: block that reads as prose is refused, never read as grammar.
+# line: a line of the Usage: block that reads as prose is refused, never read as grammar. So is --name <value>: an
+# option takes its value after =, never as the next word.
 #
 # The syntax is JSON: an array of alternatives, each a sequence of nodes. A node's kind is literal, operand, flag,
-# option, or group; every node carries repeat, a group carries optional and its alternatives, an option its value
-# and inline, and a wildcard option wildcard. The jq module syntax.jq renders a node back as usage text and gives
+# option, or group; every node carries repeat, a group carries optional and its alternatives, an option its value,
+# and a wildcard option wildcard. The jq module syntax.jq renders a node back as usage text and gives
 # the key an argument is known by.
 
 use help
@@ -32,8 +33,8 @@ use help
 declare -ag syntax_tokens=()
 declare -g syntax_pos=0 syntax_json='' syntax_error=''
 
-# The shape of a name, of the words a usage line is made of (a flag, an inline option, a wildcard option, an operand,
-# or a literal), and of a value, the word after an option that takes its value apart.
+# The shape of a name, of the words a usage line is made of (a flag, an option, a wildcard option, an operand, or a
+# literal), and of a value, which a flag followed by one writes as --name <value> in place of --name=<value>.
 declare -gr syntax_name='[a-z][a-z0-9-]*'
 declare -gr syntax_word="^(--${syntax_name}(=<${syntax_name}>)?|--<${syntax_name}>=<${syntax_name}>|<${syntax_name}>|${syntax_name})$"
 declare -gr syntax_value="^<${syntax_name}>$"
@@ -189,8 +190,8 @@ syntax:parse-item() {
 }
 
 # syntax:parse-word <word> appends the node of one word by its shape, left open for the repeat mark: a wildcard
-# option, an inline option, a flag or an option whose value is the next word, an operand, or a literal. A word of no
-# such shape is refused: it sets syntax_error, naming the word, and returns 1.
+# option, an option, a flag, an operand, or a literal. A word of no such shape is refused, and so is a flag followed
+# by a value, --name <value>, which names the --name=<value> form: it sets syntax_error, naming the word, and returns 1.
 syntax:parse-word() {
   local word=$1 name value
   if [[ ! "${word}" =~ ${syntax_word} ]]
@@ -203,7 +204,7 @@ syntax:parse-word() {
       name=${word#--<}
       name=${name%%>=*}
       value=${word#*=}
-      syntax_json+='{"kind":"option","wildcard":true,"inline":true,"name":'
+      syntax_json+='{"kind":"option","wildcard":true,"name":'
       syntax:emit-string "${name}"
       syntax_json+=',"value":'
       syntax:emit-value "${value}"
@@ -212,7 +213,7 @@ syntax:parse-word() {
       name=${word#--}
       name=${name%%=*}
       value=${word#*=}
-      syntax_json+='{"kind":"option","inline":true,"name":'
+      syntax_json+='{"kind":"option","name":'
       syntax:emit-string "${name}"
       syntax_json+=',"value":'
       syntax:emit-value "${value}"
@@ -222,15 +223,11 @@ syntax:parse-word() {
       if (( syntax_pos < ${#syntax_tokens[@]} )) && [[ "${syntax_tokens[syntax_pos]}" =~ ${syntax_value} ]]
       then
         value=${syntax_tokens[syntax_pos]}
-        syntax_pos=$(( syntax_pos + 1 ))
-        syntax_json+='{"kind":"option","inline":false,"name":'
-        syntax:emit-string "${name}"
-        syntax_json+=',"value":'
-        syntax:emit-value "${value}"
-      else
-        syntax_json+='{"kind":"flag","name":'
-        syntax:emit-string "${name}"
+        syntax_error="'${word} ${value}' takes its value after =: ${word}=${value}"
+        return 1
       fi
+      syntax_json+='{"kind":"flag","name":'
+      syntax:emit-string "${name}"
       ;;
     (\<*\>)
       syntax_json+='{"kind":"operand","name":'
@@ -305,7 +302,7 @@ syntax:check() {
 }
 
 # syntax:match <verb> <argument>… judges the arguments against the verb's syntax, as syntax.jq's match does: a named
-# flag or option is taken wherever it stands, with its value inline or as the next word; -- ends the flags; a literal
+# flag or option is taken wherever it stands, an option with its value after =; -- ends the flags; a literal
 # selects its alternative, as does a flag or option given; operands fill in order, and a repeated one takes every word
 # left, dash-words included. It returns 0 when the arguments complete the syntax, 1 when a required literal, operand, or
 # group is missing, and 2 when a word is refused, and sets what it sorted: syntax_refusal (the whole line, on 2),
@@ -510,8 +507,8 @@ syntax:kinds() {
     jq --raw-input --slurp 'split("\n") | map(select(. != "") | split("\t") | {key: .[0], value: .[1]}) | from_entries'
 }
 
-# syntax:render <json> prints a node, or a sequence of nodes, as usage text: --message <text>…, [--all],
-# (--message <text>… | --file <path>), list, <path>….
+# syntax:render <json> prints a node, or a sequence of nodes, as usage text: --message=<text>…, [--all],
+# (--message=<text>… | --file=<path>), list, <path>….
 syntax:render() {
   jq --raw-output -L "${kit_jq}" 'import "syntax" as syntax; syntax::render' <<<"$1"
 }

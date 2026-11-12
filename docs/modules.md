@@ -195,7 +195,8 @@ use <module>
 - The `Usage:` block holds a usage line for each way to call the verb, each indented three spaces after the `#`. It
   holds at least one: a verb that takes no arguments has `kit <verb>`. After `kit <verb>`, every word is one of:
   - a flag, `--name`
-  - an option, `--name=<value>` or `--name <value>`
+  - an option, `--name=<value>`; a list repeats it, `--name=a --name=b`, and a list of names, a `<login>`,
+    `<audience>`, `<kind>`, or `<package>`, may join them with `:`, `--name=a:b`
   - an operand, `<name>`
   - a lowercase literal
 

@@ -76,7 +76,7 @@ Each toolchain's page says more about when it is usable and active.
 For each role, the first of these that answers is the one:
 
 1. An active toolchain. A run that names a different one is refused, and the refusal says which is active.
-2. For the project, the one named for the run: `--toolchain <name>`, or `KIT_TOOLCHAIN=<name>`. One that is not
+2. For the project, the one named for the run: `--toolchain=<name>`, or `KIT_TOOLCHAIN=<name>`. One that is not
    usable here is refused; kit never falls back to another.
 3. The one recorded earlier, while it is still usable here.
 4. The only usable one.
@@ -128,7 +128,7 @@ image is built only when the daemon is local; with a remote one, no base shows a
 | `kit tools path` | Prints the directories that put the tools first on `PATH`, for a runner's `GITHUB_PATH`. |
 | `kit tools run <command>…` | Runs a command with the tools: inside the container for docker, and for devcontainer from outside; otherwise with the tools first on `PATH`. |
 
-Each takes `--toolchain <name>` to name the toolchain for that run.
+Each takes `--toolchain=<name>` to name the toolchain for that run.
 
 Ambient, no toolchain pins anything; see [using no toolchain](toolchains/using-no-toolchain.md) for what each
 command does then.
@@ -193,8 +193,8 @@ kit hydrate --quick
 ```
 
 - It does not put any tools on `PATH`. A toolchain that activates through direnv adds its own line, as nix does with
-  `use flake`. This repository's `.envrc` adds the kit toolchain's directories, which `kit tools path --toolchain
-  kit` reads from `tools.lock` alone; see [using kit as the toolchain](toolchains/using-kit.md).
+  `use flake`. This repository's `.envrc` adds the kit toolchain's directories, which `kit tools path
+  --toolchain=kit` reads from `tools.lock` alone; see [using kit as the toolchain](toolchains/using-kit.md).
 - An agent's subprocess shell and a CI runner have neither. There the verbs' own call and `kit ci` do the work.
 
 ## On a runner

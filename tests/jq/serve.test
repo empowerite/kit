@@ -4,7 +4,7 @@
 
 # A switch is a boolean, an operand that repeats is an array, an option is a string, and each takes its description.
 import "serve" as serve; serve::schema({})
-{"verb":"lint","usage":["kit lint [--all-files] [<path>…] [--rule=<rule>]"],"syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"all-files","repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"path","repeat":true}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","inline":true,"name":"rule","value":"rule","repeat":false}]],"repeat":false}]],"arguments":{"--all-files":{"description":"every file"},"<path>":{"description":"the files","choices":"open"},"--rule":{"description":"the rule"}}}
+{"verb":"lint","usage":["kit lint [--all-files] [<path>…] [--rule=<rule>]"],"syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"all-files","repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"path","repeat":true}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","name":"rule","value":"rule","repeat":false}]],"repeat":false}]],"arguments":{"--all-files":{"description":"every file"},"<path>":{"description":"the files","choices":"open"},"--rule":{"description":"the rule"}}}
 {"type":"object","properties":{"all-files":{"type":"boolean","description":"every file"},"path":{"type":"array","items":{"type":"string"},"description":"the files"},"rule":{"type":"string","description":"the rule"}},"additionalProperties":false}
 
 # An argument every usage line requires is required; one that some line leaves out is not.
@@ -32,10 +32,10 @@ import "serve" as serve; serve::schema({choices: {"<package>": ["kit", "workflow
 {"verb":"packages","usage":["kit packages [<package>…]"],"syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"package","repeat":true}]],"repeat":false}]],"arguments":{"<package>":{"description":"a name","choices":"closed"}}}
 {"type":"array","items":{"type":"string","enum":["kit","workflow"]},"description":"a name"}
 
-# The arguments become the words of the first line they fit: operands, flags, inline and apart options, in order.
+# The arguments become the words of the first line they fit: operands, flags, and options, in order.
 import "serve" as serve; serve::argv({"path": ["a b", "c"], "all-files": true, "rule": "bash", "toolchain": "mise"}; {})
-{"verb":"lint","usage":["kit lint [--all-files] [<path>…] [--rule=<rule>] [--toolchain <name>]"],"syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"all-files","repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"path","repeat":true}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","inline":true,"name":"rule","value":"rule","repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","inline":false,"name":"toolchain","value":"name","repeat":false}]],"repeat":false}]],"arguments":{}}
-{"argv":["--all-files","a b","c","--rule=bash","--toolchain","mise"]}
+{"verb":"lint","usage":["kit lint [--all-files] [<path>…] [--rule=<rule>] [--toolchain=<name>]"],"syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"all-files","repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"path","repeat":true}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","name":"rule","value":"rule","repeat":false}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"option","name":"toolchain","value":"name","repeat":false}]],"repeat":false}]],"arguments":{}}
+{"argv":["--all-files","a b","c","--rule=bash","--toolchain=mise"]}
 
 # A false switch and an empty list are not given; nothing given is the bare verb.
 import "serve" as serve; serve::argv({"json": false, "path": []}; {})
@@ -52,10 +52,10 @@ import "serve" as serve; [serve::argv({"file": "x"}; {}), serve::argv({"json": "
 {"verb":"lint","usage":["kit lint [<path>…] [--json]"],"syntax":[[{"kind":"group","optional":true,"alternatives":[[{"kind":"operand","name":"path","repeat":true}]],"repeat":false},{"kind":"group","optional":true,"alternatives":[[{"kind":"flag","name":"json","repeat":false}]],"repeat":false}]],"arguments":{}}
 [{"error":"unknown argument file; kit lint takes: path, json"},{"error":"json is true or false"},{"error":"path is a list of strings"},{"error":"path's value -x starts with -, so the verb would read it as a flag"}]
 
-# An option's value may start with -, since the option takes the word after it: kit syntax names a flag so.
+# An option's value may start with -, since it follows the =: kit syntax names a flag so.
 import "serve" as serve; serve::argv({"verb": "context", "choices": "--json"}; {})
-{"verb":"syntax","usage":["kit syntax <verb> --choices <argument>"],"syntax":[[{"kind":"operand","name":"verb","repeat":false},{"kind":"option","inline":false,"name":"choices","value":"argument","repeat":false}]],"arguments":{}}
-{"argv":["context","--choices","--json"]}
+{"verb":"syntax","usage":["kit syntax <verb> --choices=<argument>"],"syntax":[[{"kind":"operand","name":"verb","repeat":false},{"kind":"option","name":"choices","value":"argument","repeat":false}]],"arguments":{}}
+{"argv":["context","--choices=--json"]}
 
 # Arguments that fit no line, or leave out what every fitting line requires, are refused, naming the usage lines.
 import "serve" as serve; [serve::argv({"stage": "desk", "today": true}; {word: "stage"}), serve::argv({}; {})]

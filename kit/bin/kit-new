@@ -70,11 +70,11 @@
 #   --package=<name>        the package to put it in
 #   --path=<glob>           a glob the kind's paths match; ** matches any depth
 #   --content=<regex>       an extended regular expression the first line matches
-#   --kinds=<kind>          a kind this kind is made of
-#   --embeds=<kind>         a kind whose text appears inside this kind's files
+#   --kinds=<kind>          a kind this kind is made of; several repeat it, or join with :, --kinds=a:b
+#   --embeds=<kind>         a kind whose text appears inside this kind's files; several repeat it, or join with :
 #   --lint=<command>        the linter kit lint runs over the files
 #   --description=<text>    the package's one line, which kit packages shows
-#   --depends=<package>     a package this one depends on, beside kit
+#   --depends=<package>     a package this one depends on, beside kit; several repeat it, or join with :
 #   --from=<path>           a file to start the template from
 #   --purpose=<text>        what the module or verb does, for its banner
 #   --jq                    makes a jq module, with its tests

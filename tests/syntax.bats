@@ -29,15 +29,16 @@ verb() {
 }
 
 setup() {
-  # a copy of the kit with two verbs whose headers are written for the tests, as help.bats makes one: plain has two
-  # usage lines, three dots, a wildcard, and a block that describes --b in the other spelling and <a> over two lines
-  # but says nothing of --<hole>; broken has a usage line that does not parse
+  # a copy of the kit with three verbs whose headers are written for the tests, as help.bats makes one: plain has two
+  # usage lines, three dots, a wildcard, and a block that describes --b and <a> over two lines but says nothing of
+  # --<hole>; broken has a usage line that does not parse; apart takes an option's value as the next word
   root="${BATS_TEST_TMPDIR}/kit"
   mkdir -p "${root}"
   cp -R "${kit_root}/bin" "${kit_root}/libexec" "${kit_root}/modules" "${kit_root}/packages" "${root}/"
-  verb plain 'kit plain <a>... [--<hole>=<value>]' 'kit plain --b <v>' -- '<a>…      first line' '    second line' \
+  verb plain 'kit plain <a>... [--<hole>=<value>]' 'kit plain --b=<v>' -- '<a>…      first line' '    second line' \
     '--b=<v>   bee'
   verb broken 'kit broken [<a>'
+  verb apart 'kit apart --b <v>' -- '--b <v>   bee'
 }
 
 @test "every verb's usage line parses, and kit syntax with no verb prints one object per verb, in order" {
@@ -59,25 +60,28 @@ setup() {
   jq -e '.purpose == "commits what is staged, after the kit'"'"'s checks"' <<<"$output"
   jq -e '.syntax[0][0] | .kind == "group" and .optional and (.alternatives[0][0] | .kind == "flag" and .name == "all")' <<<"$output"
   jq -e '.syntax[0][1] | .kind == "group" and (.optional | not) and (.alternatives | length == 2)' <<<"$output"
-  jq -e '.syntax[0][1].alternatives[0][0] | .kind == "option" and .name == "message" and .value == "text" and .repeat and (.inline | not)' <<<"$output"
+  jq -e '.syntax[0][1].alternatives[0][0] | .kind == "option" and .name == "message" and .value == "text" and .repeat' <<<"$output"
   jq -e '.syntax[0][1].alternatives[1][0] | .kind == "option" and .name == "file" and .value == "path" and (.repeat | not)' <<<"$output"
   jq -e '.syntax[0][2].alternatives[0][0] | .kind == "operand" and .name == "path" and .repeat' <<<"$output"
 }
 
-@test "two usage lines are two alternatives, three dots are an ellipsis, a wildcard option is marked, and an unclosed bracket is an error" {
+@test "two usage lines are two alternatives, three dots are an ellipsis, a wildcard option is marked, and an unclosed bracket and an option's value as the next word are errors" {
   run "${root}/bin/kit" syntax plain
   [ "$status" -eq 0 ]
-  jq -e '.usage == ["kit plain <a>... [--<hole>=<value>]", "kit plain --b <v>"]' <<<"$output"
+  jq -e '.usage == ["kit plain <a>... [--<hole>=<value>]", "kit plain --b=<v>"]' <<<"$output"
   jq -e '.syntax | length == 2' <<<"$output"
   jq -e '.syntax[0][0] | .kind == "operand" and .name == "a" and .repeat' <<<"$output"
-  jq -e '.syntax[0][1] | .kind == "group" and .optional and (.alternatives[0][0] | .kind == "option" and .wildcard and .name == "hole" and .value == "value" and .inline)' <<<"$output"
-  jq -e '.syntax[1][0] | .kind == "option" and .name == "b" and .value == "v" and (.inline | not)' <<<"$output"
+  jq -e '.syntax[0][1] | .kind == "group" and .optional and (.alternatives[0][0] | .kind == "option" and .wildcard and .name == "hole" and .value == "value")' <<<"$output"
+  jq -e '.syntax[1][0] | .kind == "option" and .name == "b" and .value == "v"' <<<"$output"
   run "${root}/bin/kit" syntax broken
   [ "$status" -eq 1 ]
   [ "$(jq -r .error <<<"$output")" = "'[' is not closed in: kit broken [<a>" ]
+  run "${root}/bin/kit" syntax apart
+  [ "$status" -eq 1 ]
+  [ "$(jq -r .error <<<"$output")" = "'--b <v>' takes its value after =: --b=<v> in: kit apart --b <v>" ]
   run "${root}/bin/kit" syntax
   [ "$status" -eq 1 ]
-  [ "$(jq -r 'map(select(.error)) | .[0].verb' <<<"$output")" = broken ]
+  [ "$(jq -r 'map(select(.error) | .verb) | join(" ")' <<<"$output")" = "apart broken" ]
 }
 
 @test "a verb with no usage line has one empty alternative, and kit syntax refuses a name that is not a verb" {
@@ -115,7 +119,7 @@ setup() {
   [[ "$output" == *"every verb's usage parses, and every argument is described"* ]]
 }
 
-@test "the argument block is read by key, in either spelling, with continuation lines joined" {
+@test "the argument block is read by key, with continuation lines joined" {
   run "${kit_root}/bin/kit" syntax commit
   [ "$(jq -r '.arguments["--message"].description' <<<"$output")" = "the message; the first is the subject, the rest are paragraphs" ]
   jq -e '.arguments | has("--all") and has("--file") and has("<path>")' <<<"$output"
@@ -146,7 +150,7 @@ setup() {
   printf '%s\n' '#!/usr/bin/env bash' '# kit-old - a verb in the old shape (kit verb: help)' '# kit old' '#' '# Does it.' \
     > "${root}/bin/kit-old"
   chmod +x "${root}/bin/kit-old"
-  run "${root}/bin/kit" syntax help --choices '<verb>'
+  run "${root}/bin/kit" syntax help --choices='<verb>'
   [ "$status" -eq 1 ]
   [[ "$output" == *"kit-old: its header leaves the verb template"* ]]
   [[ "$output" != *"has no choices"* ]]
@@ -206,26 +210,26 @@ setup() {
 
 @test "kit syntax packages --choices lists every package with its state, closed, and a planned set says what it keeps" {
   checkout-copy
-  run "${kit_root}/bin/kit" syntax packages --choices '<package>'
+  run "${kit_root}/bin/kit" syntax packages --choices='<package>'
   [ "$status" -eq 0 ]
   grep -q $'^agents/claude\t.*\tactive\t$' <<<"$output"
   grep -q $'^agents/copilot\t.*\t\t$' <<<"$output"
   run "${kit_root}/bin/kit" syntax packages
   [ "$(jq -r '.arguments["<package>"].choices' <<<"$output")" = closed ]
   [ "$(jq -r '.arguments["list"].choices' <<<"$output")" = null ]
-  run "${kit_root}/bin/kit" syntax packages --choices '<package>' '<package>=empowerite' '<package>=agents/claude'
+  run "${kit_root}/bin/kit" syntax packages --choices='<package>' '<package>=empowerite' '<package>=agents/claude'
   [ "$status" -eq 0 ]
   grep -q $'^hooks/lefthook\t.*\tactive\thooks/lefthook: kept, a member of empowerite$' <<<"$output"
   grep -q $'^kit\t.*\tactive\tkit: kept, .* depend(s) on it$' <<<"$output"
   grep -q $'^agents/copilot\t.*\t\t$' <<<"$output"
 }
 
-@test "kit syntax new --choices --variant lists the rule's variants, and --rule the rules with templates; both closed" {
+@test "kit syntax new --choices=--variant lists the rule's variants, and --rule the rules with templates; both closed" {
   checkout-copy
-  run "${kit_root}/bin/kit" syntax new --choices --variant -- --rule=markdown
+  run "${kit_root}/bin/kit" syntax new --choices=--variant -- --rule=markdown
   [ "$status" -eq 0 ]
   [ "$(cut -f1 <<<"$output" | paste -sd' ' -)" = "document notice frontmatter" ]
-  run "${kit_root}/bin/kit" syntax new --choices --rule
+  run "${kit_root}/bin/kit" syntax new --choices=--rule
   [ "$status" -eq 0 ]
   grep -q $'^bash\t' <<<"$output"
   grep -q $'^markdown\t' <<<"$output"
@@ -238,15 +242,15 @@ setup() {
   printf 'x\n' > new.txt
   printf 'y\n' > staged.txt
   git add staged.txt
-  run "${kit_root}/bin/kit" syntax commit --choices '<path>'
+  run "${kit_root}/bin/kit" syntax commit --choices='<path>'
   [ "$status" -eq 0 ]
   grep -q $'^new.txt\tuntracked\t\t$' <<<"$output"
   grep -q $'^staged.txt\tadded\tactive\t$' <<<"$output"
   run "${kit_root}/bin/kit" syntax commit
   [ "$(jq -r '.arguments["<path>"].choices' <<<"$output")" = open ]
-  run "${kit_root}/bin/kit" syntax help --choices '<verb>'
+  run "${kit_root}/bin/kit" syntax help --choices='<verb>'
   grep -q $'^tidy\tremoves merged worktrees and gone branches\t\t$' <<<"$output"
-  run "${kit_root}/bin/kit" syntax help --choices '--bogus'
+  run "${kit_root}/bin/kit" syntax help --choices='--bogus'
   [ "$status" -eq 1 ]
   [[ "$output" == *"kit help has no choices for '--bogus'; run: cd "*" && kit help syntax"* ]]
 }
@@ -275,7 +279,7 @@ setup() {
   run "${kit_root}/bin/kit" syntax syntax --extend
   [ "$status" -eq 1 ]
   [[ "$output" == *"kit syntax does not extend its arguments; run: cd "*" && kit help syntax"* ]]
-  run "${kit_root}/bin/kit" syntax syntax --choices '<verb>'
+  run "${kit_root}/bin/kit" syntax syntax --choices='<verb>'
   [ "$status" -eq 1 ]
   [[ "$output" == *"kit syntax has no choices for '<verb>'; run: cd "*" && kit help syntax"* ]]
 }
@@ -293,7 +297,7 @@ setup() {
 }
 
 @test "kit syntax <verb> --match judges a command line and prints what it sorted, as the form reads it" {
-  run "${kit_root}/bin/kit" syntax commit --match -- --message hi x.txt
+  run "${kit_root}/bin/kit" syntax commit --match -- --message=hi x.txt
   [ "$status" -eq 0 ]
   [ "$(jq -c '[.status, .operands, .options["--message"], .values["<path>"]]' <<<"$output")" = '[0,["x.txt"],["hi"],["x.txt"]]' ]
   run "${kit_root}/bin/kit" syntax commit --match -- --all
@@ -324,11 +328,11 @@ setup() {
 }
 
 @test "a list of choices says it is a set only when the answers name the declarative subcommand" {
-  run "${kit_root}/bin/kit" syntax packages --choices '<package>' -- --kind select
+  run "${kit_root}/bin/kit" syntax packages --choices='<package>' -- --kind select
   [ "$output" = set ]
-  run "${kit_root}/bin/kit" syntax packages --choices '<package>' -- --kind add
+  run "${kit_root}/bin/kit" syntax packages --choices='<package>' -- --kind add
   [ "$output" = closed ]
-  run "${kit_root}/bin/kit" syntax packages --choices '<package>' -- --kind
+  run "${kit_root}/bin/kit" syntax packages --choices='<package>' -- --kind
   [ "$output" = closed ]
   run "${kit_root}/bin/kit" packages add nonesuch
   [[ "$output" == *"<package> 'nonesuch' is not one of the choices"* ]]
@@ -338,7 +342,7 @@ setup() {
   fresh-repo >/dev/null
   mkdir docs && printf '# Features\n' > docs/features.md && git add docs/features.md
   cd docs
-  run "${kit_root}/bin/kit" syntax lint --choices '<path>'
+  run "${kit_root}/bin/kit" syntax lint --choices='<path>'
   [ "$status" -eq 0 ]
   grep -q $'^features.md\t' <<<"$output"
   run ! grep -q $'^docs/features.md\t' <<<"$output"
@@ -354,10 +358,10 @@ setup() {
 }
 
 @test "--choices tells a verb with no choices for an argument from one that cannot list them for these answers" {
-  run "${kit_root}/bin/kit" syntax syntax --choices '<verb>'
+  run "${kit_root}/bin/kit" syntax syntax --choices='<verb>'
   [ "$status" -eq 1 ]
   [[ "$output" == *"kit syntax has no choices for '<verb>'; run: cd "*" && kit help syntax"* ]]
-  run "${kit_root}/bin/kit" syntax new --choices --variant -- --rule=nonesuch
+  run "${kit_root}/bin/kit" syntax new --choices=--variant -- --rule=nonesuch
   [ "$status" -eq 1 ]
   [[ "$output" == *"kit new lists no --variant for these answers: --rule=nonesuch; run: cd "*" && kit help new"* ]]
 }
