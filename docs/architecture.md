@@ -145,9 +145,10 @@ commands that replace raw git commands.
 
 `kit flow` draws where the work stands in seven stages: issues, desk, worktrees, changes, builds, incoming,
 releases. On a terminal the picture is interactive; without one, or with `--text`, it prints. `kit flow <stage>` prints
-one stage. issues lists every open issue with its status. One in the backlog, which no open pull request closes, shows
-the branch that claims it, so the next `kit work <N>` is a pick, not a search. One underway shows who works on it, and
-where. Backlog and underway are one stage, not two, so an issue is found wherever its work stands; kittui's presets
+one stage. issues lists every open issue with its status. One in the backlog, which no open pull request closes and
+no branch names, is the next `kit work <N>`, a pick, not a search. One underway shows who works on it, and where: the
+pull request that closes it, or, before there is one, the branch named for it, `<N>-<slug>`, on the desk or the
+primary remote. Backlog and underway are one stage, not two, so an issue is found wherever its work stands; kittui's presets
 show either alone, or the issues by milestone, iteration, or swimlane.
 
 ### Code forges, seams, and providers

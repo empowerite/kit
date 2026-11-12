@@ -84,13 +84,15 @@ names its tracker: `#7` is the code forge's, and `AB#4521` is one that kit.yml d
 
 ### backlog
 
-The open issues that no one has started: no open pull request closes them. 💤 marks one.
+The open issues that no one has started: no open pull request closes them, and no branch is named for them. 💤 marks
+one.
 
 `kit flow issues`
 
 ### underway
 
-An issue someone started. `kit work` gave it a branch, a worktree, and a draft pull request. 🛫 marks one.
+An issue someone started: a branch is named for it, `7-fix-the-form`, as `kit work` names one, or a pull request
+closes it. 🛫 marks one.
 
 `kit flow issues`
 

@@ -24,8 +24,8 @@
    --marks                    prints a mark per stage, as one JSON object, which changes when what
                               the stage draws does: read again, a mark that differs says the stage
                               is stale; on GitHub, nothing changed costs no request
-   issues                     every open issue, oldest first: in the backlog, which no open pull
-                              request closes, or underway, closed by one: who works on each, and
+   issues                     every open issue, oldest first: in the backlog, or underway, closed by
+                              an open pull request or named by a branch: who works on each, and
                               where
    incoming                   what fetching every remote brought: default-branch commits, branches
                               new and gone

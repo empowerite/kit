@@ -1,11 +1,12 @@
 #!/usr/bin/env bats
-# issues-backlog.bats - kit flow issues lists the open issues no open pull request closes as the backlog, oldest first,
-# beside those underway
+# issues-backlog.bats - kit flow issues lists the open issues no open pull request closes and no branch names as the
+# backlog, oldest first, beside those underway
 # ----------------------------------------------------------------------------------------------------------------------
 # The world is forge-conformance.bats's, seen through a fake gh: the caller ada; issue 7 "Fix the thing", assigned to
 # bob, with change 3 open on branch 7-fix-the-thing and closing it, so 7 is underway; issue 9 "Other thing", assigned
-# to nobody, with the branch 9-other on origin and no change, so it is in the backlog with its branch; and issue 11,
-# with neither. A test that draws the backlog alone opens no change, as no-changes does.
+# to nobody, with the branch 9-other on origin and no change, so it is underway on that branch with no change; and
+# issue 11, with neither, so it is in the backlog. A test that draws the backlog alone opens no change, as no-changes
+# does.
 
 bats_require_minimum_version 1.5.0
 
@@ -64,11 +65,11 @@ title-of() {
   printf '%s\n' "${1##*🎫 }"
 }
 
-@test "kit flow issues draws an issue in the backlog: number, assignees, age, 💤, the branch if any, then title" {
+@test "kit flow issues draws an issue in the backlog: number, assignees, age, 💤, then title; one a branch names, 🛫" {
   run kit flow issues
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == " #7  👤 bob  "*"d  🛫  🔀 #3 🔨 draft  👤 ada      🎫 Fix the thing" ]]
-  [[ "${lines[1]}" == " #9          "*"d  💤                  🌿 9-other  🎫 Other thing" ]]
+  [[ "${lines[1]}" == " #9          "*"d  🛫                  🌿 9-other  🎫 Other thing" ]]
   [[ "${lines[2]}" == "#11  👤 ada  "*"d  💤                              🎫 Third thing" ]]
   [ "${#lines[@]}" -eq 3 ]
 }
@@ -106,7 +107,7 @@ JSON
 @test "kit flow issues --others is every issue --mine leaves out, unassigned ones included, with the assignee column" {
   run kit flow issues --others --json
   [ "$status" -eq 0 ]
-  [ "$(jq --raw-output 'map("\(.number) \(.status)") | join(", ")' <<<"$output")" = "7 underway, 9 backlog" ]
+  [ "$(jq --raw-output 'map("\(.number) \(.status)") | join(", ")' <<<"$output")" = "7 underway, 9 underway" ]
   run kit flow issues --others
   [ "$status" -eq 0 ]
   in-order "${lines[0]}" '#7' 'bob' 'Fix the thing'
@@ -114,14 +115,26 @@ JSON
   [ "${#lines[@]}" -eq 2 ]
 }
 
-@test "kit flow issues --json says the same as data, each issue in the backlog with its branch on origin or null" {
+@test "kit flow issues --json says the same as data: a branch on origin, no change, makes an issue underway" {
   run kit flow issues --json
   [ "$status" -eq 0 ]
-  [ "$(jq --raw-output 'map(select(.status == "backlog") | .number) | join(" ")' <<<"$output")" = "9 11" ]
-  [ "$(jq --raw-output '.[1].branch' <<<"$output")" = "9-other" ]
+  [ "$(jq --raw-output 'map(select(.status == "backlog") | .number) | join(" ")' <<<"$output")" = "11" ]
+  [ "$(jq --compact-output '.[1] | [.status, .branch, .pr, .here, .local, .worktree]' <<<"$output")" \
+    = '["underway","9-other",null,false,false,null]' ]
   [ "$(jq --compact-output '.[2] | [.branch, .pr, .here, .local, .worktree]' <<<"$output")" \
     = '[null,null,null,null,null]' ]
   [ "$(jq --compact-output '.[2] | [.milestone, .iteration, .swimlane]' <<<"$output")" = '[null,null,null]' ]
+}
+
+@test "a branch on the desk alone names an issue underway too, 🌱 local, and 9-x names issue 9, not 90 nor 1" {
+  git branch 11-third-thing
+  git push --quiet origin main:90-x main:1x-other
+  run kit flow issues --json
+  [ "$status" -eq 0 ]
+  [ "$(jq --compact-output 'map([.number, .status, .branch, .local])' <<<"$output")" \
+    = '[[7,"underway","7-fix-the-thing",false],[9,"underway","9-other",false],[11,"underway","11-third-thing",true]]' ]
+  run kit flow issues
+  [[ "${lines[2]}" == "#11  👤 ada  "*"d  🛫                  🌱 local    🎫 Third thing" ]]
 }
 
 @test "kit flow issues paints the number cyan and the detail dim, and no color without a terminal" {
@@ -252,7 +265,7 @@ JSON
   run kit flow issues --json
   [ "$status" -eq 0 ]
   [ "$(jq --compact-output 'map([.number, .status, .milestone, .swimlane])' <<<"$output")" \
-    = '[[7,"underway",null,"dev"],[9,"backlog",null,"none"],[11,"backlog","v0.1","ops"]]' ]
+    = '[[7,"underway",null,"dev"],[9,"underway",null,"none"],[11,"backlog","v0.1","ops"]]' ]
   run kit flow issues
   [[ "${lines[2]}" == "#11  "*"⛳ v0.1  🏊 ops   🎫 Third thing" ]]
 }

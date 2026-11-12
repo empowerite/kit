@@ -17,13 +17,13 @@ import (
 // issue is one row of issues, and one a pull request closes. Age is seconds, or nothing for an issue without a time;
 // Source is the tracker that holds it, as kit names it, and Organization and Repository where in it the issue is, each
 // empty where the tracker has none; Labels are its forge's; Milestone, Iteration, and Swimlane are the names of each,
-// or empty. Status is backlog, for an issue no open pull request closes, or underway, for one an open pull request
-// closes, one row per issue and pull request, so an issue two pull requests close is two. Branch is, in the backlog,
-// the one started for it, or empty, and underway, the pull request's. PR is that pull request, none in the backlog: its
-// Fork is the owner of the repository its branch is in, when that is not origin; Pushed is its branch's last push, how
-// long ago and by whom, when the forge says. Here says a worktree on this desk has the pull request's branch, and
-// Worktree is its path; Local says this desk has the branch, but no checkout of it. The URLs are kit's when it prints
-// them.
+// or empty. Status is underway, for an issue an open pull request closes, one row per issue and pull request, so an
+// issue two pull requests close is two, or one no open pull request closes that a branch is named for, its number and a
+// dash; else backlog. Branch is the pull request's, or the one named for the issue, and empty in the backlog. PR is
+// that pull request, none for an issue no pull request closes: its Fork is the owner of the repository its branch is
+// in, when that is not origin; Pushed is its branch's last push, how long ago and by whom, when the forge says. Here
+// says a worktree on this desk has the branch, and Worktree is its path; Local says this desk has the branch, but no
+// checkout of it. The URLs are kit's when it prints them.
 type issue struct {
 	Number       int           `json:"number"`
 	Title        string        `json:"title"`
@@ -465,7 +465,8 @@ func (m Model) short(member string) string {
 // the issue's labels, and the title, its glyph leading to the issue's page; and underway, the pull request's number and
 // state, where the work is, the fork its branch is in, when last pushed, its age right-aligned after the glyph, and by
 // whom when not the author. Where is here when a checkout on this desk has the branch, as here draws it, local when
-// this desk has the branch but no checkout of it, else the author. The pull request's glyph leads to its row under
+// this desk has the branch but no checkout of it, else the author, or, for an issue underway that no pull request
+// closes, the branch named for it, on the primary. The pull request's glyph leads to its row under
 // changes, or to its page when no app draws changes; the state's glyph to its page. Open, every assignee, the title
 // wrapped, and every label; the pull request's title is under changes, and the checkout's path on Repositories'
 // worktrees tab. A row belongs to the issue's assignees, whoever opened the pull request, as kit flow --mine says.
@@ -481,18 +482,20 @@ func (m Model) issueRows(s stage) []record {
 			"title": {Raw: []string{i.Title}, Link: o.issue(i.Number, i.URL)}, "member": m.memberValue(i.Member),
 		}
 		key := ref
+		switch {
+		case i.Here:
+			values["where"] = m.here(i.Member, i.Worktree)
+		case i.Local:
+			values["where"] = table.Value{Raw: []string{"local"}, Of: "local"}
+		case i.PR != nil && i.PR.Author != "":
+			values["where"] = table.Value{Raw: []string{i.PR.Author}, Of: "author"}
+		case i.PR == nil && i.Branch != "":
+			values["where"] = table.Value{Raw: []string{i.Branch}, Of: "branch"}
+		}
 		if u := i.PR; u != nil {
 			pr, page := "#"+strconv.Itoa(u.Number), o.pull(u.Number, u.URL)
 			key += " " + pr
-			var where, pushed, by table.Value
-			switch {
-			case i.Here:
-				where = m.here(i.Member, i.Worktree)
-			case i.Local:
-				where = table.Value{Raw: []string{"local"}, Of: "local"}
-			case u.Author != "":
-				where = table.Value{Raw: []string{u.Author}, Of: "author"}
-			}
+			var pushed, by table.Value
 			if p := u.Pushed; p != nil {
 				pushed = table.Seconds(&p.Age)
 				if p.By != u.Author {
@@ -505,7 +508,7 @@ func (m Model) issueRows(s stage) []record {
 			}
 			values["change"], values["state"] = table.Value{Raw: []string{pr}, Link: change},
 				table.Value{Raw: []string{u.State}, Link: page}
-			values["where"], values["fork"], values["pushed"], values["by"] = where, table.Some(u.Fork), pushed, by
+			values["fork"], values["pushed"], values["by"] = table.Some(u.Fork), pushed, by
 		}
 		out = append(out, record{row{Key: m.keyOf(i.Member, key)}, values})
 	}

@@ -258,7 +258,7 @@ from arguments, stays inline where it is used.
 | `toolchain.jq` | what a tool manager pins and has installed, and which of its outdated packages the repository pins |
 | `syntax.jq` | a syntax node's usage text, an argument's key, and how a command line matches a verb's syntax |
 | `issues.jq` | every open issue, in the backlog or underway, with its change and its milestone, iteration, and swimlane |
-| `backlog.jq` | the issues not closed by any open change, with the branch on the primary remote that claims each |
+| `backlog.jq` | the issues not closed by any open change, with the branch named for each, its number and a dash |
 | `underway.jq` | the issues closed by an open change, one row per issue and change, and the rows the owner flags keep |
 | `changes.jq` | the open changes that close one of the issues named |
 | `completion.jq` | what the word being typed may be, from a verb's syntax: a flag, an option's value, a literal word, or an operand |

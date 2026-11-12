@@ -940,10 +940,10 @@ func TestTheBacklogOpensToItsDetail(t *testing.T) {
 		grid.Hidden).Placed("labels", grid.Hidden))
 	m = drive(intoRows(m), down, down, toggle)
 	v := view(m)
-	// the title has what the other columns leave, with its glyph, which leads to the issue's page, and the branch, which
-	// one row alone has, with its own; two assignees are the first and +1, as any list's are; every row's assignee
-	// draws Owner, which then says nothing, so the names stand alone
-	for _, want := range []string{"#45", "#46  jeffrey-aguilera   2d  🌿 46-a-noun-li…  " + Issue + " A noun lists",
+	// the title has what the other columns leave, with its glyph, which leads to the issue's page, and no branch, which
+	// no issue in the backlog has; two assignees are the first and +1, as any list's are; every row's assignee draws
+	// Owner, which then says nothing, so the names stand alone
+	for _, want := range []string{"#45", "#46  jeffrey-aguilera   2d  " + Issue + " A noun lists",
 		"#7   ada           +1  40d", "picture: five stages,", "interactive on a terminal,"} {
 		if !strings.Contains(v, want) {
 			t.Errorf("the backlog lacks %q:\n%s", want, v)

@@ -79,7 +79,7 @@
            {"value": "comments:open", "glyph": "💬"}, {"value": "blocked:approval", "glyph": "👀"},
            {"value": "ready", "glyph": "🏁"}], "other": "🔳",
          "renderings": ["glyph+text", "text", "glyph"], "placement": "column"},
-        {"id": "where", "label": "where", "type": "text", "path": ".here, .local, .pr.author", "sort": true,
+        {"id": "where", "label": "where", "type": "text", "path": ".here, .local, .pr.author, .branch", "sort": true,
          "group": true, "renderings": ["where"], "placement": "column"},
         {"id": "fork", "label": "fork", "type": "person", "path": ".pr.fork", "sort": true, "group": true,
          "filter": true, "glyph": "🍴", "renderings": ["glyph+text", "text"], "dim": true, "placement": "hidden"},
@@ -95,8 +95,8 @@
       "presets": [
         {"name": "All Issues"},
         {"name": "Backlog", "fields": {
-          "status": {"placement": "hidden", "filter": {"include": ["backlog"]}}, "branch": {"placement": "column"},
-          "change": {"placement": "hidden"}, "state": {"placement": "hidden"}, "where": {"placement": "hidden"}}},
+          "status": {"placement": "hidden", "filter": {"include": ["backlog"]}}, "change": {"placement": "hidden"},
+          "state": {"placement": "hidden"}, "where": {"placement": "hidden"}}},
         {"name": "Underway", "fields": {
           "status": {"placement": "hidden", "filter": {"include": ["underway"]}}, "fork": {"placement": "column"},
           "pushed": {"placement": "column"}, "by": {"placement": "column"}}},

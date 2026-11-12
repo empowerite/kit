@@ -158,8 +158,8 @@ func threadsText(f table.Field, v table.Value) []string {
 }
 
 // whereCells draws where the work of an issue underway is, as its value's Of says: here, after the desk's glyph or a
-// worktree's, for a checkout on this desk; local for a branch this desk has without a checkout; else the pull
-// request's author, dim.
+// worktree's, for a checkout on this desk; local for a branch this desk has without a checkout; the branch named for an
+// issue no pull request closes, after a branch's glyph, dim; else the pull request's author, dim.
 func whereCells(f table.Field, vs []table.Value) []cell {
 	out := make([]cell, len(vs))
 	for k, v := range vs {
@@ -173,6 +173,8 @@ func whereCells(f table.Field, vs []table.Value) []cell {
 			out[k] = text(Branch + " here")
 		case "local":
 			out[k] = text(Sprout + " local")
+		case "branch":
+			out[k] = dim(Branch + " " + v.Raw[0])
 		default:
 			out[k] = dim(Owner + " " + v.Raw[0])
 		}

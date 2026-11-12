@@ -6,26 +6,27 @@
 # The issues stage of kit flow lists every open issue of the repository on its forge, as forge:open-issues folds them,
 # each with its status:
 #
-#   - backlog: no open pull request closes it. One with a branch for it on the primary remote is claimed, and its row
-#     names the branch; one with neither is for the next kit work <N>.
 #   - underway: an open pull request closes it, whoever opened it. The row names the pull request, and where its work
-#     is. An issue two pull requests close has a row for each.
+#     is. An issue two pull requests close has a row for each. One no pull request closes is underway too while a
+#     branch is named for it, its number and a dash, as kit work names one: the desk's, or the primary remote's as of
+#     the last fetch. Its row names the branch, and no pull request.
+#   - backlog: no open pull request closes it, and no branch is named for it. It is for the next kit work <N>.
 #
 # The rows come from forge:open-issues and forge:open-prs, the call the changes stage makes, and the stages of one load
 # share their snapshot, as modules/bash/forge.sh says, so the stage asks the forge nothing new. The oldest issue first:
 #
 #    #7  👤 bob  45d  🛫  🔀 #3 🔨 draft  🌿 here          📤  3d          ⛳ v0.1  🎫 Fix the thing
 #    #9  👤 ada  34d  🛫  🔀 #4 🏁 ready  🌱 local                        ⛳ v0.1  🎫 Nine
-#   #10  👤 bob  32d  💤                  🌿 10-ten                                🎫 Ten
+#   #10  👤 bob  32d  🛫                  🌿 10-ten                                🎫 Ten
 #   #11  👤 ada  30d  🛫  🔀 #5 🏁 ready  👤 cy     🍴 cy  📤  2h  👤 dee          🎫 Third thing
 #   #12          20d  💤                                                           🎫 Twelve
 #
 # 💤 says the issue is in the backlog, and 🛫 that it is underway. 💻 here means the desk, the root checkout, has the
 # pull request's branch, and 🌿 here that a linked worktree has it. 🌱 local means the desk has the branch and no
-# checkout has it. Otherwise the cell names the pull request's author, whose desk the work is on, or for an issue in
-# the backlog, the branch that claims it. 🍴 names the owner of the fork the branch lives in, 📤 the age of the
-# branch's last push, and the 👤 after it who pushed, when that is not the author; each is blank when the forge does
-# not tell it. ⛳ names the issue's milestone, 📅 its iteration, and 🏊 its swimlane, each the forge's own or the
+# checkout has it. Otherwise the cell names the pull request's author, whose desk the work is on, or for an issue
+# underway with no pull request, 🌿 and the branch named for it. 🍴 names the owner of the fork the branch lives in,
+# 📤 the age of the branch's last push, and the 👤 after it who pushed, when that is not the author; each is blank
+# when the forge does not tell it. ⛳ names the issue's milestone, 📅 its iteration, and 🏊 its swimlane, each the forge's own or the
 # stand-in kit.yml chooses, as modules/bash/forge.sh says. The owner flags are kit flow's, and match the issue's
 # assignees; who opened the change does not count. --today keeps only the issues opened in the last 24 hours.
 #
@@ -52,8 +53,8 @@ issues:branches() {
 
 # issues:documents [--today] [--all | [--mine] [--others] [--owner=<login>…]] prints the rows the flags choose as one
 # JSON array, the oldest issue first, as issues.jq's rows gives them. The owner flags combine as flow:filter says, and
-# match the issue's assignees. The branches that claim an issue are the primary's as of the last fetch, which the
-# picture's incoming stage makes first, not asked of the remote, which takes seconds a stage cannot spare.
+# match the issue's assignees. The branches named for an issue are the desk's and the primary's as of the last fetch,
+# which the picture's incoming stage makes first, not asked of the remote, which takes seconds a stage cannot spare.
 issues:documents() {
   local filter issues prs heads primary doc except=false
   local -a selection=()
@@ -89,7 +90,7 @@ issues:documents() {
 #   4. 💤 for an issue in the backlog, 🛫 for one underway
 #   5. 🔀, the pull request's number, magenta and right-aligned, then its state glyph and state, as changes draws it
 #   6. 💻 here for the desk, 🌿 here for a linked worktree, 🌱 local, or 👤 and the pull request's author, dim; for an
-#      issue in the backlog, 🌿 and the branch that claims it
+#      issue underway with no pull request and no branch on this desk, 🌿 and the primary's branch named for it, dim
 #   7. 🍴 and the owner of the fork the branch lives in, dim
 #   8. 📤 and the last push's age, dim and right-aligned
 #   9. 👤 and who pushed last, dim, when that is not the pull request's author
@@ -97,7 +98,7 @@ issues:documents() {
 #  11. 🎫 and the issue's title, clipped to what the terminal's width leaves
 #
 # A cell is blank in a row that has none, and a column takes no room when no row has one: column 5 when no issue is
-# underway, and column 6 when none is underway or claimed.
+# underway, and column 6 when none is underway.
 issues:draw() {
   local doc=$1 choice=$2 desk row ref assignees age status number state where author fork pushed by branch
   local milestone iteration swimlane title width glyph
@@ -117,8 +118,8 @@ issues:draw() {
     (.pr // null | if . == null then "" else (if .source | IN("gitlab", "ado") then "!" else "#" end) + "\(.number)"
                    end),
     (.pr.state // ""),
-    (if .status == "backlog" then (if .branch then "branch" else "none" end)
-     elif .here then (if .worktree == $desk then "desk" else "linked" end) elif .local then "local" else "" end),
+    (if .here then (if .worktree == $desk then "desk" else "linked" end) elif .local then "local"
+     elif .pr == null then (if .branch then "branch" else "none" end) else "" end),
     (.pr.author // ""), (.pr.fork // ""), (.pr.pushed.age // "" | tostring),
     (.pr as $pr | $pr.pushed.by // "" | if . == $pr.author then "" else . end), (.branch // ""),
     (.milestone // ""), (.iteration // ""), (.swimlane // ""), .title] | join("\u001f")' <<<"${doc}")

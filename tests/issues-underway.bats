@@ -206,16 +206,17 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
   [ "$status" -eq 2 ]
 }
 
-@test "with no open pull request, every open issue is in the backlog, and with no open issue the stage says so" {
+@test "with no open pull request, an issue a branch names is underway on it, here or on origin; none says so" {
   local esc=$'\x1b'
   fixture open-prs.json <<<'{"data": {"repository": {"issues": {"nodes": []}, "pullRequests": {"nodes": []}}}}'
   run kit flow issues --json
   [ "$status" -eq 0 ]
-  [ "$(jq -c 'map([.number, .status, .branch])' <<<"$output")" \
-    = '[[7,"backlog","7-fix-the-thing"],[11,"backlog","11-third"]]' ]
+  [ "$(jq -c 'map([.number, .status, .branch, .pr, .here, .local])' <<<"$output")" \
+    = '[[7,"underway","7-fix-the-thing",null,true,false],[11,"underway","11-third",null,false,false]]' ]
+  [ "$(jq -r '.[0].worktree' <<<"$output")" -ef worktrees/7-fix-the-thing ]
   run kit flow issues
-  [[ "${lines[0]}" == " #7  👤 bob  "*"d  💤  🌿 7-fix-the-thing  ⛳ v0.1  🎫 Fix the thing" ]]
-  [[ "${lines[1]}" == "#11  👤 ada  "*"d  💤  🌿 11-third                  🎫 Third thing" ]]
+  [[ "${lines[0]}" == " #7  👤 bob  "*"d  🛫  🌿 here      ⛳ v0.1  🎫 Fix the thing" ]]
+  [[ "${lines[1]}" == "#11  👤 ada  "*"d  🛫  🌿 11-third           🎫 Third thing" ]]
   fixture issues.json <<<'[]'
   forge-forget
   run kit flow issues
@@ -250,7 +251,7 @@ kit() { "${kit_checkout}/bin/kit" "$@"; }
 @test "kit help flow holds the issues legend, backlog and underway alike, and names backlog and underway as no stages" {
   run kit help flow
   [ "$status" -eq 0 ]
-  [[ "$output" == *$'\n  issues:\n\n    🎫  issue: its number and title\n    💤  backlog: an open issue no open pull request closes\n    🛫  underway: an issue an open pull request closes\n'* ]]
+  [[ "$output" == *$'\n  issues:\n\n    🎫  issue: its number and title\n    💤  backlog: an open issue no open pull request closes, nor a branch names\n    🛫  underway: an issue an open pull request closes, or a branch names\n'* ]]
   [[ "$output" == *$'\n    🏊  swimlane: '* ]]
   [[ "$output" == *"    issues              every open issue, oldest first: in the backlog,"* ]]
   [[ "$output" == *"    backlog             no stage of kit flow: issues lists them;"* ]]

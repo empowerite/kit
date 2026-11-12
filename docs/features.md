@@ -98,10 +98,11 @@ delivers these steps to agents as `.kit/workflow.md`; a repository that leaves i
 `kit flow` draws where the work stands. Work moves left to right through seven stages:
 
 - `issues`: every open issue, oldest first, each with its assignees, its age, its milestone, iteration, and swimlane,
-  and its status. One in the backlog, which no open pull request closes, names the branch started for it on the
-  primary remote. One underway has a row per pull request that closes it: the pull request and its state, and where
-  the work is, here or on the author's desk. A forge that lacks milestones, iterations, or swimlanes can take each from
-  a label, or a default, as `forge_settings.<forge>.stand_ins` in `kit.yml` says.
+  and its status. One underway has a row per pull request that closes it: the pull request and its state, and where
+  the work is, here or on the author's desk. One no pull request closes is underway too while a branch is named for
+  it, `<N>-<slug>`, on the desk or the primary remote: its row names the branch. One with neither is in the backlog.
+  A forge that lacks milestones, iterations, or swimlanes can take each from a label, or a default, as
+  `forge_settings.<forge>.stand_ins` in `kit.yml` says.
 - `incoming`: what fetching every remote brought, the primary first: commits on each default branch, branches new,
   updated, force-pushed, and gone, new tags, and each local branch now behind its upstream. It never rebases, merges,
   or pulls. Its JSON holds every one as a flat row, which kittui draws as a table that sorts, groups, filters, and

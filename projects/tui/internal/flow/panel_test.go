@@ -239,10 +239,10 @@ func TestAClickOnATitlesGlyphOpensTheIssuesPage(t *testing.T) {
 
 func TestAColumnNoRowFillsHasNoCheckbox(t *testing.T) {
 	m := loaded(t, options())
-	m.apply(m.viewsOf(0).Chosen("Backlog"))
+	m.setPanel(m.panel(0).Placed("branch", grid.Column))
 	m.cols = table.Columns{Open: true}
 	if !strings.Contains(view(m), grid.Ticked+" branch") {
-		t.Fatalf("the backlog's branch has no checkbox while an issue has one:\n%s", view(m))
+		t.Fatalf("the issues' branch has no checkbox while an issue has one:\n%s", view(m))
 	}
 	for k := range of[issue](*m.find("issues")) {
 		of[issue](*m.find("issues"))[k].Branch = ""

@@ -15,7 +15,7 @@ import (
 
 // Issues draw an issue in the backlog and one underway in one stage: each its status, milestone, iteration, swimlane,
 // and branch, as kit prints them; one underway its pull request beside it, its number, state, and where the work is,
-// and one in the backlog none of those.
+// and one in the backlog none of those, nor a branch.
 func TestIssuesDrawTheBacklogAndWhatIsUnderwayTogether(t *testing.T) {
 	m := loaded(t, options())
 	values := map[string]map[string][]string{}
@@ -29,7 +29,7 @@ func TestIssuesDrawTheBacklogAndWhatIsUnderwayTogether(t *testing.T) {
 		"#7": {"status": {"backlog"}, "milestone": {"v1"}, "iteration": nil, "swimlane": nil, "branch": nil,
 			"change": nil, "state": nil, "where": nil, "pushed": nil},
 		"#46": {"status": {"backlog"}, "milestone": {"v0.2.0"}, "iteration": {"Sprint 4"}, "swimlane": {"tui"},
-			"branch": {"46-a-noun-lists"}, "change": nil},
+			"branch": nil, "change": nil, "where": nil},
 		"#1 #2": {"status": {"underway"}, "milestone": {"v0.1.0"}, "iteration": {"Sprint 3"}, "swimlane": {"release"},
 			"branch": {"1-the-first-release-v0-1-0"}, "change": {"#2"}, "state": {"ready"}, "where": {"here"}},
 		"#8 #11": {"status": {"underway"}, "change": {"#11"}, "state": {"draft"}, "where": {"local"}},
@@ -47,6 +47,37 @@ func TestIssuesDrawTheBacklogAndWhatIsUnderwayTogether(t *testing.T) {
 	}
 	if len(values) != 7 {
 		t.Errorf("%d rows, not 7: %q", len(values), slices.Collect(maps.Keys(values)))
+	}
+}
+
+// An issue underway that no pull request closes, as kit prints one a branch is named for, has no change: where draws
+// the branch after a branch's glyph, dim, on the primary; here, or local, where this desk has it, as for a pull
+// request's.
+func TestAnIssueABranchNamesIsUnderwayOnIt(t *testing.T) {
+	m := loaded(t, options())
+	s := stage{name: issuesStage}
+	if err := s.decode([]byte(`[
+	  {"number": 9, "title": "Nine", "status": "underway", "branch": "9-other", "pr": null, "here": false, "local": false},
+	  {"number": 10, "title": "Ten", "status": "underway", "branch": "10-ten", "pr": null, "here": false, "local": true},
+	  {"number": 11, "title": "Eleven", "status": "backlog", "branch": null, "pr": null, "here": null, "local": null}]`),
+		false); err != nil {
+		t.Fatal(err)
+	}
+	where := map[string]table.Value{}
+	for _, r := range m.records(s) {
+		where[r.Key] = r.values["where"]
+		if r.values["change"].Raw != nil {
+			t.Errorf("%s has a change: %q", r.Key, r.values["change"].Raw)
+		}
+	}
+	if v := where["#9"]; v.Of != "branch" || !slices.Equal(v.Raw, []string{"9-other"}) {
+		t.Errorf("#9's where: %+v", v)
+	}
+	if v := where["#10"]; v.Of != "local" || where["#11"].Raw != nil {
+		t.Errorf("#10's where: %+v, #11's: %+v", v, where["#11"])
+	}
+	if got := whereCells(table.Field{}, []table.Value{where["#9"]}); !slices.Equal(got[0].Values, dim(Branch+" 9-other").Values) {
+		t.Errorf("the branch drawn: %+v", got)
 	}
 }
 

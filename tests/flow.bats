@@ -50,7 +50,7 @@ stages() {
 }
 
 # forge-world puts a fake gh on PATH that answers for the forge: the caller ada; issue 7, assigned to bob and closed
-# by change 3, a draft by ada on 7-fix-the-thing; issue 9, claimed by the branch 9-other on origin; issue 11; a run
+# by change 3, a draft by ada on 7-fix-the-thing; issue 9, underway on the branch 9-other on origin; issue 11; a run
 # on main and one for change 3; and three releases. The settings name the forge.
 forge-world() {
   fake-tools gh
@@ -293,7 +293,7 @@ the desk its first row; run: cd "*" && kit workspace worktrees" ]]
   # each stage's rows are drawn as its own tests pin them; here, the stages, their counts, and what each holds
   [[ "${lines[0]}" == *"ISSUES 3" ]]
   in-order "${lines[1]}" '#7' 'bob' '🛫' '#3' 'draft' 'ada' 'Fix the thing'
-  in-order "${lines[2]}" '#9' '💤' '9-other' 'Other thing'
+  in-order "${lines[2]}" '#9' '🛫' '9-other' 'Other thing'
   in-order "${lines[3]}" '#11' 'ada' '💤' 'Third thing'
   [ "${lines[4]}" = "" ]
   [[ "${lines[5]}" == *"CHANGES 1" ]]
@@ -317,7 +317,7 @@ the desk its first row; run: cd "*" && kit workspace worktrees" ]]
   [ "$(jq -c 'keys_unsorted' <<<"$output")" = '["stages","issues","changes","builds","incoming","releases"]' ]
   [ "$(jq -c '[(.issues | map([.number, .status, .pr.number, .here])), (.changes | map(.number)),
                (.builds | map(.id)), (.releases | map(.version))]' <<<"$output")" \
-    = '[[[7,"underway",3,false],[9,"backlog",null,null],[11,"backlog",null,null]],[3],[11],["0.1.0-rc.7","0.1.0-rc.6","0.0.9"]]' ]
+    = '[[[7,"underway",3,false],[9,"underway",null,false],[11,"backlog",null,null]],[3],[11],["0.1.0-rc.7","0.1.0-rc.6","0.0.9"]]' ]
   [ "$(jq -c '.issues | del(.. | .age?)' <<<"$output")" \
     = "$("${kit_root}/bin/kit" flow issues --json | jq -c 'del(.. | .age?)')" ]
   # the ages count seconds from now, so they are left out of the comparison

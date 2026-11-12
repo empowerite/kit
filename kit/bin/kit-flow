@@ -63,16 +63,18 @@
 # primary remote's URL names them past the host, no organization for a primary on this machine; and source, the
 # forge, git for incoming's. An issue keeps those of the tracker that holds it.
 #
-# issues lists every open issue, the oldest first, each with its status: backlog, when no open pull request closes it,
-# or underway, with a row per issue and pull request that closes it. Its owner flags match the issue's assignees. A
-# row's JSON is {number, title, assignees, labels, age, source, organization, repository, milestone, iteration,
-# swimlane, status, branch, pr, here, local, worktree}. milestone, iteration, and swimlane are each a name or null: the
-# forge's own, or what a stand-in in kit.yml chooses, as modules/bash/forge.sh says. branch is the pull request's branch
-# for an issue underway, and for one in the backlog the primary's branch whose name starts with its number and a dash,
-# which claims it, or null. pr, here, local, and worktree are null for an issue in the backlog. pr is {number, source,
-# title, author, state, branch, fork, pushed}: source is the forge the change is on, github, gitlab, or ado. fork is the
-# owner of the repository the branch lives in when that is not the base repository, a login on GitHub and a namespace's
-# path on GitLab, or null. pushed is {age, by} of the branch's last push, or null when the forge does not tell it
+# issues lists every open issue, the oldest first, each with its status: underway, with a row per issue and pull
+# request that closes it; underway too, with no pull request, when no open pull request closes it and a branch is
+# named for it, its number and a dash, as 9-other, the desk's or the primary's as of the last fetch; else backlog. Its
+# owner flags match the issue's assignees. A row's JSON is {number, title, assignees, labels, age, source,
+# organization, repository, milestone, iteration, swimlane, status, branch, pr, here, local, worktree}. milestone,
+# iteration, and swimlane are each a name or null: the forge's own, or what a stand-in in kit.yml chooses, as
+# modules/bash/forge.sh says. branch is the pull request's branch, or the branch named for an issue no pull request
+# closes, a checked-out one first, then the desk's, then the primary's; null in the backlog. pr is null for an issue no
+# pull request closes, and here, local, and worktree null for one in the backlog. pr is {number, source, title, author,
+# state, branch, fork, pushed}: source is the forge the change is on, github, gitlab, or ado. fork is the owner of the
+# repository the branch lives in when that is not the base repository, a login on GitHub and a namespace's path on
+# GitLab, or null. pushed is {age, by} of the branch's last push, or null when the forge does not tell it
 # cheaply: age in seconds, by a login or null. GitHub's is the head commit's, and GitLab's the head pipeline's. here is
 # true when a checkout on this desk has the branch, and worktree is that checkout's path, or null. local is true when
 # the desk has the branch and no checkout has it. A change's JSON, under changes, carries the same source, fork, and
@@ -135,8 +137,8 @@
 # issues:
 #
 #   🎫  issue: its number and title
-#   💤  backlog: an open issue no open pull request closes
-#   🛫  underway: an issue an open pull request closes
+#   💤  backlog: an open issue no open pull request closes, nor a branch names
+#   🛫  underway: an issue an open pull request closes, or a branch names
 #   👤  assignees or author: an issue's assignees, a pull request's author, or who pushed last when not the author
 #   ⛳  milestone: a goal the forge gathers issues under, with its due day
 #   📅  iteration: a span of days the forge plans work in
@@ -174,7 +176,7 @@
 #   ✅  passed: every check, or a build
 #   ❌  failed: a check, a build, or a fetch, or kit could not read the forge
 #   💬  unresolved threads: review threads, with how many
-#   🛫  underway: an issue an open pull request closes
+#   🛫  underway: an issue an open pull request closes, or a branch names
 #   🎫  issue: its number and title
 #
 # changes: a pull request's state, the first of these that holds:
@@ -247,8 +249,8 @@
 #                       again, a mark that differs says the stage is stale; on GitHub, nothing changed costs no request
 #   --today             only the issues opened in the last 24 hours
 #   <number>…           only these pull requests, by number or issue closed: #7
-#   issues              every open issue, oldest first: in the backlog, which no open pull request closes, or
-#                       underway, closed by one: who works on each, and where
+#   issues              every open issue, oldest first: in the backlog, or underway, closed by an open pull
+#                       request or named by a branch: who works on each, and where
 #   incoming            what fetching every remote brought: default-branch commits, branches new and gone
 #   changes             the open pull requests, each with the issues it closes
 #   builds              the runs not owned by any pull request: the default branch, tags, schedules

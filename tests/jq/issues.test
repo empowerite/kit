@@ -3,11 +3,17 @@
 # Each case is a program, an input, and the outputs it gives, one JSON value per line, then a blank line. The input
 # is the open issues.
 
-# An issue no change closes is in the backlog, with the branch that claims it; one a change closes is underway, a row
-# per change, with the change's branch; the oldest issue first.
+# An issue a change closes is underway, a row per change, with the change's branch; one no change closes is underway
+# too when a branch is named for it, with that branch and no change, and else in the backlog; the oldest issue first.
 import "issues" as issues; issues::rows([{"number": 3, "branch": "7-fix", "closes": [{"number": 7, "age": 100}]}, {"number": 4, "branch": "x", "closes": [{"number": 7, "age": 100}]}]; ["9-other", "main"]; {}; []) | map([.number, .status, .branch, .pr.number])
 [{"number": 7, "age": 100}, {"number": 9, "age": 300}, {"number": 11, "age": 50}]
-[[9,"backlog","9-other",null],[7,"underway","7-fix",3],[7,"underway","x",4],[11,"backlog",null,null]]
+[[9,"underway","9-other",null],[7,"underway","7-fix",3],[7,"underway","x",4],[11,"backlog",null,null]]
+
+# The branch named for an issue no change closes is the desk's before the primary's, a checked-out one first, and says
+# where it is: here, in a checkout, or local, on the desk alone. Only a number and a dash name an issue: 90-x is not 9's.
+import "issues" as issues; issues::rows([]; ["8-remote", "9-remote", "90-x"]; {"8-here": "/desk/worktrees/8-here"}; ["8-local", "8-here", "10-local"]) | map([.number, .status, .branch, .here, .local, .worktree])
+[{"number": 8, "age": 300}, {"number": 9, "age": 200}, {"number": 10, "age": 100}, {"number": 11, "age": 50}]
+[[8,"underway","8-here",true,false,"/desk/worktrees/8-here"],[9,"underway","9-remote",false,false,null],[10,"underway","10-local",false,true,null],[11,"backlog",null,null,null,null]]
 
 # A backlog row has no change: pr, here, local, and worktree are null.
 import "issues" as issues; issues::rows([]; []; {}; []) | map([.pr, .here, .local, .worktree])

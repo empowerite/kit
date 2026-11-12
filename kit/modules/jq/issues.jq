@@ -8,17 +8,24 @@ import "backlog" as backlog;
 import "underway" as underway;
 
 # rows($changes; $heads; $worktrees; $branches) reads the open issues, as an array of forge.jq's issue documents, and
-# gives every one: a row with status backlog for an issue no change in $changes closes, as backlog.jq gives it, with
-# the branch of $heads that claims it; and a row with status underway for each issue and change that closes it, as
-# underway.jq gives it, with the change's branch as its branch, and the issue's milestone, iteration, and swimlane as
-# the open issue of its number has them. A backlog row's pr, here, local, and worktree are null. Every row's keys
-# start number, title, assignees, labels, age, source, organization, repository, milestone, iteration, swimlane,
-# status, branch, pr, here, local, and worktree, in that order, any other the issue holds after them. The oldest issue
-# comes first; one issue that two changes close gives two rows, by the changes' numbers.
+# gives every one a row. An issue no change in $changes closes is underway when a branch is named for it, its number
+# and a dash, as 9-other: one of the desk's, $branches, a checked-out one first, else one of $heads, the primary's;
+# its row has that branch, no pr, and here, local, and worktree as the branch has them. One no change closes and no
+# branch names is in the backlog, its branch, pr, here, local, and worktree null. A row with status underway comes for
+# each issue and change that closes it, as underway.jq gives it, with the change's branch as its branch, and the
+# issue's milestone, iteration, and swimlane as the open issue of its number has them. Every row's keys start number,
+# title, assignees, labels, age, source, organization, repository, milestone, iteration, swimlane, status, branch, pr,
+# here, local, and worktree, in that order, any other the issue holds after them. The oldest issue comes first; one
+# issue that two changes close gives two rows, by the changes' numbers.
 def rows($changes; $heads; $worktrees; $branches):
   (map({key: (.number | tostring), value: .}) | from_entries) as $open
-  | (backlog::unclaimed($changes; $heads; []; false)
-     | map(. + {status: "backlog", pr: null, here: null, local: null, worktree: null}))
+  | ([$branches[] | select($worktrees[.] != null)] + [$branches[] | select($worktrees[.] == null)] + $heads)
+    as $started
+  | (backlog::unclaimed($changes; $started; []; false)
+     | map(if .branch == null then . + {status: "backlog", pr: null, here: null, local: null, worktree: null}
+           else ($worktrees[.branch] != null) as $here
+           | . + {status: "underway", pr: null, here: $here, local: (($here | not) and (.branch | IN($branches[]))),
+                  worktree: ($worktrees[.branch] // null)} end))
     + ($changes | underway::rows($worktrees; $branches)
        | map(($open[.number | tostring] // {}) as $issue
              | . + {milestone: ($issue.milestone // null), iteration: ($issue.iteration // null),
