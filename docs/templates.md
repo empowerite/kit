@@ -60,6 +60,8 @@ rewrites them.
 | `«name…»` | Replaced by a value. | Matches any text, across lines. |
 | `«name»` on a line of its own | Replaced by the value's lines. With no value, one blank line, or nothing when it is the template's last line. | Matches any run of whole lines, including none. |
 | `«name=default»`, `«name…=default»` | The value, else the default; `\n` in a default is a newline. | As without the default. |
+| `<prefix>§name` on a line of its own, a block | Each of the value's lines after the prefix. With no value, no lines. | Matches the lines that start with the prefix, and the lines the prefix starts with, up to the last that starts with it. Its value is those lines without the prefix. |
+| `<prefix>§name=default` | The value's lines, else the default's. | As without the default. |
 
 - A name may be a dotted path in `kit.yml`, such as `«answers.ci_runner»`, which is `ci_runner` under
   `answers:`. Making a file fills it with that setting's value, and `kit new file` refuses when the settings leave it
@@ -78,13 +80,42 @@ rewrites them.
   command. A file may hold anything there, and `kit new file` keeps the directive and fills the region with
   `kit generate`.
 - Two holes with nothing between them could split a file any way at all, so `kit lint` refuses such a template,
-  naming its line.
+  naming its line. A hole may follow a block, which ends where its indentation ends.
 
-A template is matched in one pass, with no regular expression. Each hole extends to the first place the text after
-it appears, which leaves the most for what follows. So a file matches exactly when this pass finds the match, and
-the time is linear in the file. The same pass gives each hole's text, and `template:unapply <template> <file>`
-prints those values as JSON. Rendering a template with the values a file gives it makes that file again; the suite
-checks this for every file in this repository that a template governs.
+### Blocks
+
+A block reads an indented section, such as a script header's argument list, and gives it back without its
+indentation. The prefix is the text before the `§`, and a block needs one. On a Mac, type `§` with Option-6.
+
+```text
+# Arguments:
+#   §arguments
+#
+# see: «see»
+```
+
+Against that template, the lines `#   --json   one JSON object per row`, `#`, and `#   --jq     the same JSON` are
+the block, and `arguments` is `--json   one JSON object per row`, an empty line, and `--jq     the same JSON`. The
+bare `#` between them is a line the prefix starts with, so it stays in the block; the bare `#` after the last is
+left for the template's own `#` line. A block may hold no lines, so a script with no arguments matches too.
+
+Making a file puts the prefix back on each line, and an empty line becomes the prefix without its trailing spaces,
+`#` here. So a block's line that holds less than the prefix comes back as that, which is how such a line is written.
+
+### Where a hole ends
+
+A template is matched in one pass, with no regular expression. A block ends where its indentation ends. Every other
+hole extends to the first place the text after it appears, which leaves the most for what follows. So a file
+matches exactly when this pass finds the match, and the time is linear in the file. The same pass gives each hole's
+text, and `template:unapply <template> <file>` prints those values as JSON. Rendering a template with the values a
+file gives it makes that file again; the suite checks this for every file in this repository that a template
+governs.
+
+A hole's text never holds one of the template's own whole lines that has a letter or digit, such as a section's
+label. Such a line inside a section would end the section there, and the rest of the file could still match with
+the label inside the next section, read wrong without a word. So the file does not match, at the hole's line. Lines
+of punctuation alone, a bare `#` or a line of dashes, are left free, and so is a region's text. Inside a block, a
+label is indented, so it is the block's text, not the template's line.
 
 ## Making a file
 

@@ -79,3 +79,36 @@ import "template" as template; try template::parts catch .
 "# «title»\n# kit:generate x\nstub\n"
 "the region opened at line 2 never closes: no kit:end line follows"
 
+
+# A block takes the lines that start with its prefix, and a bare line between them, without the prefix; a bare line
+# after its last is left for the literal that follows. Rendering its value makes the file again.
+import "template" as template; template::parts | template::match("# usage:\n#   kit x\n#\n#   kit x y\n#\n# see: a\n") as $m | [$m, template::render($m.values)]
+"# usage:\n#   §usage\n#\n# see: «see»\n"
+[{"ok":true,"values":{"usage":"kit x\n\nkit x y\n","see":"a"}},"# usage:\n#   kit x\n#\n#   kit x y\n#\n# see: a\n"]
+
+# A block may hold no lines, and makes none without a value; with a default, it makes the default's lines.
+import "template" as template; template::parts as $p | [($p | template::match("# a:\n# b\n")), ($p | template::render({})), ("# a:\n#   §a=x\\ny\n# b\n" | template::parts | template::render({}))]
+"# a:\n#   §a\n# b\n"
+[{"ok":true,"values":{"a":""}},"# a:\n# b\n","# a:\n#   x\n#   y\n# b\n"]
+
+# A hole may follow a block, which ends where its indentation ends; a block may not follow a hole of lines, which
+# would have no literal to end at. A block is no hole a caller must fill.
+import "template" as template; [.[] | template::parts | [template::ambiguous]], (.[0] | template::parts | template::holes)
+["#   §a\n«b» x\n", "«a»\n#   §b\n"]
+[[],[2]]
+["b"]
+
+# A label inside a section is refused, by the hole's line, since it would move where the section ends; indented in a
+# block, the label is the block's text, and the block ends where its indentation does.
+import "template" as template; template::parts as $p | [$p | template::reserved, template::match("# usage:\nkit x\n# usage:\nmore\n# end\n"), template::match("# usage:\nkit x\n# end\n")]
+"# usage:\n«usage»\n# end\n"
+[["# end","# usage:"],{"ok":false,"line":2},{"ok":true,"values":{"usage":"kit x\n"}}]
+
+import "template" as template; template::parts | template::match("# a:\n#   # b:\n# b:\n")
+"# a:\n#   §a\n# b:\n"
+{"ok":true,"values":{"a":"# b:\n"}}
+
+# A block names its prefix, the text each of its lines starts with, so a § at a line's start is refused.
+import "template" as template; try template::parts catch .
+"x\n§a\n"
+"line 2: a block needs a prefix before its §, the text each of its lines starts with"
