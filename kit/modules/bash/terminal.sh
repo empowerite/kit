@@ -115,7 +115,7 @@ terminal:windows-host() {
 # terminal:windows-version prints what cmd.exe /c ver says, run from /mnt/c so cmd.exe does not warn of a path it
 # cannot use.
 terminal:windows-version() {
-  cd /mnt/c 2>/dev/null || true
+  cd /mnt/c 2>/dev/null || true  # outside WSL's /mnt/c, cmd.exe runs where it is, and only warns
   cmd.exe /c ver
 }
 
@@ -162,7 +162,7 @@ terminal:stop() {
   do
     terminal:stop "${child}"
   done
-  kill -TERM "$1" 2>/dev/null || true
+  kill -TERM "$1" 2>/dev/null || true  # a process that ended already is stopped
 }
 
 # terminal:settings <key> prints the reader's object for the terminal <key>, {"unreadable": "<why>"} where it cannot

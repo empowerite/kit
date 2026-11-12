@@ -20,7 +20,7 @@
 # terminal/wt:settings prints the settings of the profile kit runs in, or why it cannot read them, and fails.
 terminal/wt:settings() {
   local local_dir file='' candidate
-  local_dir=$( (cd /mnt/c 2>/dev/null || true; cmd.exe /c 'echo %LOCALAPPDATA%' 2>/dev/null) | tr -d '\r')
+  local_dir=$(terminal/wt:local-app-data 2>/dev/null | tr -d '\r')
   if [[ -z "${local_dir}" || "${local_dir}" == *%* ]] || ! local_dir=$(wslpath -u "${local_dir}" 2>/dev/null)
   then
     printf "kit cannot reach Windows' LOCALAPPDATA from here\n"
@@ -62,6 +62,13 @@ terminal/wt:settings() {
     printf "kit cannot read Windows Terminal's settings.json as JSON\n"
     return 1
   fi
+}
+
+# terminal/wt:local-app-data prints Windows' LOCALAPPDATA, as cmd.exe says it, run from /mnt/c so it does not warn of
+# a path it cannot use.
+terminal/wt:local-app-data() {
+  cd /mnt/c 2>/dev/null || true  # outside WSL's /mnt/c, cmd.exe runs where it is, and only warns
+  cmd.exe /c 'echo %LOCALAPPDATA%'
 }
 
 # terminal/wt:jsonc reads JSONC on stdin and prints it as JSON: // and /* */ comments outside strings taken out, and

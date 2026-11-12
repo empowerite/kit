@@ -511,6 +511,7 @@ welcome:forges-in() (
 # kit runs in no terminal it asked, and the terminal has no checks.
 welcome:plan-machine() {
   local forge host check id
+  local -a terminal_checks=()
   welcome_ids=(tool-bash tool-git tool-jq tool-yq) welcome_host_forge=() welcome_terminal=()
   ! welcome:brew-off-path || welcome_ids+=(brew-path)
   welcome_ids+=(toolchain-system)
@@ -521,12 +522,14 @@ welcome:plan-machine() {
     welcome_host_forge[${host}]=${forge}
   done < <(welcome:hosts)
   [[ -n "${KIT_TERMINAL_PROBES:-}" ]] || return 0
-  while IFS= read -r check
+  # a terminal kit cannot judge, as for a bug in terminals.json, which terminal:checks names, has no checks
+  list:read terminal_checks terminal:checks || return 0
+  for check in "${terminal_checks[@]}"
   do
     id=$(jq --raw-output .id <<<"${check}")
     welcome_terminal[${id}]=${check}
     welcome_ids+=("${id}")
-  done < <(terminal:checks)
+  done
 }
 
 # welcome:plan-folder fills welcome_folder_ids with the checks of the folder here, in order, and the rule of each

@@ -65,6 +65,9 @@ helper:isolate-in() {
   export LC_ALL=C.UTF-8 NO_COLOR=1
   # one time zone on every desk and runner, so a date the kit writes reads the same in every test
   export TZ=UTC
+  # a pseudo-terminal a test runs kit in has no terminal behind it to answer kit's questions, so kit is told it did
+  # not answer, and asks nothing; a test of the asking, or of what welcome makes of no answers at all, unsets it
+  export KIT_TERMINAL_PROBES='{"answered":false}'
   # what a CI runner's environment would hand the verbs that read it: the workflow commands an error adds, the step
   # summary, the toolchain the job names, and the pull request
   unset GITHUB_ACTIONS GITHUB_STEP_SUMMARY KIT_TOOLCHAIN
