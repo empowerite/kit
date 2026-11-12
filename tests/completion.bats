@@ -42,7 +42,7 @@ candidates() {
 }
 
 @test "the literal words come first, then the values a verb lists for its operand" {
-  [ "$(candidates packages '')" = $'add\nremove\nselect' ]
+  [ "$(candidates packages '')" = $'add\npackages\nremove\nselect' ]
   run candidates packages add ''
   [[ "$output" == *"agents/claude"* && "$output" == *"style/bash"* ]]
   [ "$(candidates help '' | head -n 1)" = assign ]

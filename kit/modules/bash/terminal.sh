@@ -155,14 +155,26 @@ terminal:timed() {
   return "${status}"
 }
 
-# terminal:stop <pid> stops the process and every process under it, deepest first, as ps lists them.
+# terminal:stop <pid> stops the process and every process under it, deepest first, as terminal:tree lists them; where
+# ps cannot list them, the process alone.
 terminal:stop() {
-  local child
-  for child in $(ps -A -o pid= -o ppid= 2>/dev/null | awk -v parent="$1" '$2 == parent { print $1 }')
-  do
-    terminal:stop "${child}"
-  done
-  kill -TERM "$1" 2>/dev/null || true  # a process that ended already is stopped
+  local -a tree
+  list:read tree terminal:tree "$1" || tree=("$1")
+  kill -TERM "${tree[@]}" 2>/dev/null || true  # a process that ended already is stopped
+}
+
+# terminal:tree <pid> prints the process and every process under it, one a line, deepest first, from one ps listing
+# for the whole tree, not one for each process in it: ps lists every process on the machine, which takes a tenth of a
+# second or more on a busy desk, and a reader's pipeline is half a dozen processes deep.
+terminal:tree() {
+  ps -A -o pid= -o ppid= 2>/dev/null | awk -v root="$1" '
+    function walk(pid,   n, i, under) {
+      n = split(children[pid], under, " ")
+      for (i = 1; i <= n; i++) walk(under[i])
+      print pid
+    }
+    $1 != $2 { children[$2] = children[$2] " " $1 }
+    END { walk(root) }'
 }
 
 # terminal:settings <key> prints the reader's object for the terminal <key>, {"unreadable": "<why>"} where it cannot

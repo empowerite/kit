@@ -271,7 +271,10 @@ YML
 
 @test "twelve --add at once all land; a dead holder's lock is taken over, and a live one's refuses with 1" {
   workspaces-file <<<'workspaces: {w: {repos: [github.com/a/m0]}}'
-  for n in 1 2 3 4 5 6 7 8 9 10 11 12; do "${kit_root}/bin/kit" workspaces --add=w "github.com/a/m${n}" & done; wait
+  # each --add's own process is waited for: a bare wait would wait for every job, bats's BATS_TEST_TIMEOUT watchdog too
+  local -a adds=()
+  for n in {1..12}; do "${kit_root}/bin/kit" workspaces --add=w "github.com/a/m${n}" & adds+=($!); done
+  wait "${adds[@]}"
   lock="${XDG_CACHE_HOME}/kit/workspaces/workspaces.yml.lock"
   true & gone=$!; wait "${gone}"; ln -s "${gone}" "${lock}"   # ln fails when an --add left its lock behind
   kit-bash 'workspaces:add w github.com/a/m13'

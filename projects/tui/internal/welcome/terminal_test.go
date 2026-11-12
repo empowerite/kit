@@ -75,6 +75,11 @@ func TestAFailedTerminalFindingOffersCopyAndKeep(t *testing.T) {
 	if len(r.calls) != 0 {
 		t.Errorf("r or enter ran %q", r.calls)
 	}
+	// one that names no fix offers keep alone
+	m.checks[m.cursor].Fix = ""
+	if row := rowOf(t, m, "sends ⌥ as a plain key"); !strings.HasSuffix(row, "   keep ") || strings.Contains(row, "⧉") {
+		t.Errorf("a finding with no fix does not offer keep alone: %q", row)
+	}
 }
 
 func TestKKeeps(t *testing.T) {

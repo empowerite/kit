@@ -731,11 +731,25 @@ tree-digest() {
   [ "$status" -eq 0 ]
   [ ! -e .kit/styles/just.md ]
   [ "$(declared excludes)" = "style/just" ]
+}
+
+# The bundle's tests stand apart, each with three of its renders at most, so none holds more than a loaded gate gives
+# one test.
+@test "a member removed from a bundle comes back when it is added, and is no longer an exclusion" {
+  run "${kit_checkout}/bin/kit" install empowerite
+  [ "$status" -eq 0 ]
+  run "${kit_checkout}/bin/kit" packages remove style/just
+  [ "$status" -eq 0 ]
+  [ "$(declared excludes)" = "style/just" ]
   run "${kit_checkout}/bin/kit" packages add style/just
   [ "$status" -eq 0 ]
   [ -f .kit/styles/just.md ]
   [ -z "$(declared excludes)" ]
-  # a package the bundle depends on is still refused; the bundle itself leaves without its members
+}
+
+@test "a package a bundle depends on is refused, the bundle leaves without its members, and a member then is no exclusion" {
+  run "${kit_checkout}/bin/kit" install empowerite
+  [ "$status" -eq 0 ]
   run "${kit_checkout}/bin/kit" packages remove kit
   [ "$status" -eq 1 ]
   [[ "$output" == *"kit cannot be removed while"* ]]

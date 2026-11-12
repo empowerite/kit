@@ -575,15 +575,15 @@ guard:remedy() {
 # path is still being read, as when bash_path in kit.yml needs yq, it uses the release's own modules.
 guard:system-command() (
   local provider
-  local -a usable=()
+  local -a candidates=()
   (( ${#kit_bash_path[@]} )) || kit_bash_path=("${kit_root}/modules/bash")
   use toolchain || return 1
   # The choice kept for the system is read through yq; without it, the only usable toolchain is the one kit uses.
   if ! provider=$(toolchain:chosen system list)
   then
-    list:read usable toolchain:usable system || return 1
-    (( ${#usable[@]} == 1 )) || return 1
-    provider=${usable[0]}
+    list:read candidates toolchain:usable system || return 1
+    (( ${#candidates[@]} == 1 )) || return 1
+    provider=${candidates[0]}
   fi
   toolchain:remedy "${provider}" "$1"
 ) 2>/dev/null

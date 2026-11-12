@@ -562,8 +562,12 @@ serve:tools-call() {
   problem=$(jq --raw-output '.error // empty' <<<"${made}")
   if [[ -n "${problem}" ]]
   then
+    # A listing-only tool that offers a leading word, as packages offers its stage, has a property for it, and a
+    # leading word that acts, such as add, is a value off that property's enum.
+    local leading="${serve_leading[${name}]:-subcommand}'s value ([^ ]+) is not one of: "
     if [[ -n "${serve_listing_only[${name}]+x}" \
-      && ( "${problem}" == 'unknown argument'* || "${problem}" == *" is a word kit ${name} acts on" ) ]]
+      && ( "${problem}" == 'unknown argument'* || "${problem}" == *" is a word kit ${name} acts on" \
+        || ( "${problem}" =~ ^${leading} && " ${serve_listing_only[${name}]} " == *" ${BASH_REMATCH[1]} "* ) ) ]]
     then
       problem+="; kit serve offers kit ${name} as a listing only; run it in a terminal to ${serve_listing_acts[${name}]}"
     fi

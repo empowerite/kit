@@ -22,6 +22,17 @@ setup() {
   export TERM=xterm
 }
 
+# clock-start marks now, for within. within <seconds> holds when less than that many seconds have passed since, to the
+# microsecond, and says how many milliseconds did when not. SECONDS will not do for a bound near a second: it counts
+# whole seconds from the whole second it was set in, so it reads up to a second more than has passed.
+clock-start() {
+  clock_start=${EPOCHREALTIME/[.,]/}
+}
+within() {
+  local took=$(( ${EPOCHREALTIME/[.,]/} - clock_start ))
+  (( took < $1 * 1000000 )) || { echo "took $(( took / 1000 )) ms, not under $1 s"; return 1; }
+}
+
 @test "a multiplexer comes before the terminal outside it, ssh before the terminal's own variables, else unknown" {
   run kit-bash 'TMUX=/tmp/t TERM_PROGRAM=iTerm.app terminal:detect'
   [ "$output" = tmux ]
@@ -42,10 +53,10 @@ setup() {
   run kit-bash 'terminal:timed 1 echo hi'
   [ "$status" -eq 0 ]
   [ "$output" = hi ]
-  SECONDS=0
+  clock-start
   run kit-bash 'terminal:timed 1 sleep 5'
   [ "$status" -eq 124 ]
-  (( SECONDS < 3 ))
+  within 3
 }
 
 @test "every finding's bad in terminals.json is a jq expression that compiles" {
@@ -168,10 +179,10 @@ stub-reader() {
   mkdir -p bash/terminal
   printf 'bash_path:\n  - kit:modules/bash/\n  - bash/\n' > kit.yml
   printf 'terminal/iterm:settings() { sleep 5; }\n' > bash/terminal/iterm.sh
-  SECONDS=0
+  clock-start
   run kit-bash 'TERM_PROGRAM=iTerm.app terminal:checks'
   [ "$status" -eq 0 ]
-  (( SECONDS < 3 ))
+  within 3
   [ "$(jq -r 'select(.id == "terminal-iterm") | .line' <<<"$output")" \
     = "iTerm2: kit could not read its settings: it took more than a second" ]
 }
@@ -612,11 +623,11 @@ answering() {
 
 @test "an answer within the half second is all read, typed text before it changing nothing" {
   answering 0.2 'cd src\e[?1u\e[5;3R\e[5;2R\e[?62;22c'
-  SECONDS=0
+  clock-start
   run kit-bash 'exec 3<"${BATS_TEST_TMPDIR}/tty"
     terminal:parse "$(terminal:collect 3 500 2000)" | jq -c "[.answered, .kitty_keyboard, .emoji_width]"'
   [ "$output" = '[true,true,2]' ]
-  (( SECONDS < 2 ))
+  within 2
 }
 
 @test "an answer after the half second is not judged, and is read to its end, so none of it is left to the shell" {
@@ -628,10 +639,10 @@ answering() {
 
 @test "a terminal that never answers is read for the drain's seconds, and no longer" {
   answering 5 ''
-  SECONDS=0
+  clock-start
   run kit-bash 'exec 3<"${BATS_TEST_TMPDIR}/tty"; terminal:collect 3 500 1000 | wc -c'
   [ "$(tr -d ' ' <<<"$output")" = 0 ]
-  (( SECONDS < 3 ))
+  within 3
 }
 
 @test "a reader cut at a second leaves nothing behind that holds kit's output, and nothing in the person's TMPDIR" {
@@ -642,9 +653,9 @@ terminal/iterm:settings() { touch "${TMPDIR:-/tmp}/kit-reader-left"; local x; x=
 EOF
   export TMPDIR="${BATS_TEST_TMPDIR}/tmp"
   mkdir -p "${TMPDIR}"
-  SECONDS=0
+  clock-start
   run kit-bash 'TERM_PROGRAM=iTerm.app terminal:checks 2>&1'
-  (( SECONDS < 3 ))
+  within 3
   [[ "$output" != *Terminated* ]]
   [ -z "$(find "${TMPDIR}" -name kit-reader-left)" ]
 }
@@ -669,10 +680,10 @@ EOF
 @test "inside WSL, a reg.exe that hangs makes the window unknown within a second or so" {
   export WSL_DISTRO_NAME=Ubuntu
   fakes reg.exe 'sleep 5'
-  SECONDS=0
+  clock-start
   run kit-bash 'terminal:detect'
   [ "$output" = unknown ]
-  (( SECONDS < 3 ))
+  within 3
 }
 
 # ----------------------------------------------------------------------------------------------------------------------

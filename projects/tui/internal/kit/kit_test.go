@@ -210,21 +210,32 @@ func TestStatusEndsWithItsContextAndKitsChildrenDieWithIt(t *testing.T) {
 	record := filepath.Join(t.TempDir(), "record")
 	t.Setenv("FAKE_KIT_SLEEP", "5")
 	t.Setenv("FAKE_KIT_RECORD", record)
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	ended := make(chan error, 1)
+	go func() {
+		_, err := fake(t, "").Status(ctx, "incoming", nil)
+		ended <- err
+	}()
+	// the context ends once kit has started the sleep and written its pid, not at a time kit may not have reached yet
+	var pid int
+	for start := time.Now(); pid == 0; time.Sleep(10 * time.Millisecond) {
+		if time.Since(start) > 5*time.Second {
+			t.Fatal("kit did not start the sleep")
+		}
+		got, _ := os.ReadFile(record)
+		pid, _ = strconv.Atoi(strings.TrimSpace(string(got)))
+	}
+	cancel()
 	start := time.Now()
-	_, err := fake(t, "").Status(ctx, "incoming", nil)
-	// the sleep holds kit's pipes: Status returns at the deadline only when the sleep is killed with kit
-	if took := time.Since(start); !errors.Is(err, context.DeadlineExceeded) || took > time.Second {
-		t.Fatalf("Status past its deadline: %v after %s", err, took)
-	}
-	got, err := os.ReadFile(record)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pid, err := strconv.Atoi(strings.TrimSpace(string(got)))
-	if err != nil {
-		t.Fatal(err)
+	// the sleep holds kit's pipes: Status returns as its context ends only when the sleep is killed with kit
+	select {
+	case err := <-ended:
+		if took := time.Since(start); !errors.Is(err, context.Canceled) || took > time.Second {
+			t.Fatalf("Status past its context: %v after %s", err, took)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Status outlived its context")
 	}
 	for syscall.Kill(pid, 0) == nil {
 		if time.Since(start) > 2*time.Second {

@@ -251,14 +251,17 @@ ambient-system() {
   printf 'version = 1\n' > uv.lock
   fake-script npm 'exit 0'
   fake-script uv 'exit 0'
-  local run
-  for run in {1..20}
-  do
-    run --separate-stderr check dependencies-npm
-    [ "$status" -eq 0 ]
-    [ -n "$output" ]
-    [[ "$(jq --raw-output .line <<<"$output")" != *"is not on PATH"* ]] || { echo "run ${run}: $output"; return 1; }
-  done
+  run --separate-stderr check dependencies-npm
+  [ "$status" -eq 0 ]
+  [[ "$(jq --raw-output .line <<<"$output")" != *"is not on PATH"* ]]
+  # a read of the list that stops at the first name it wants can lose its race only now and then, so the check is
+  # judged twenty times over, in one process with kit welcome's options: twenty kit welcome runs would run kit check
+  # twenty times too, and take minutes under load
+  kit_bash_modules=welcome run --separate-stderr kit-bash 'set -o errexit -o nounset -o pipefail
+    for run in {1..20}; do welcome:dependencies npm; done'
+  [ "$status" -eq 0 ]
+  [ "$(jq --slurp --raw-output 'map(select(.id == "dependencies-npm")) | length' <<<"$output")" -eq 20 ]
+  [[ "$output" != *"is not on PATH"* ]]
 }
 
 @test "welcome holds a linter npm installed, off PATH, since kit lint looks in its directory" {

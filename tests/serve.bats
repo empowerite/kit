@@ -241,14 +241,17 @@ call() {
   answer 7 | jq --exit-status '.result | .isError == false and (.content[0].text | contains("jq"))'
   answer 8 | jq --exit-status '.result | .isError == false and (.content[0].text | contains("mise"))'
   answer 9 | jq --exit-status '.result.isError == false'
+  # a leading word is offered only where it lists, as packages' stage does
   answer 10 | jq --exit-status '[.result.tools[] | select(.name == "packages" or .name == "toolchains" or .name == "tools")
-    | .inputSchema.properties | keys[]] | any(IN("subcommand", "add", "outdated", "check", "command", "name")) | not'
+    | .inputSchema.properties | (keys[] | select(IN("add", "outdated", "check", "command", "name"))),
+      ((.subcommand.enum // [])[] | select(. != "packages"))] == []'
 }
 
 @test "a listing-only tool's description shows only its listing usage, without the parts it refuses" {
   serve "$(modern 1 tools/list)"
   answer 1 | jq --exit-status '.result.tools[] | select(.name == "packages") | .description | split("\n\n")[1]
-    == "Usage:\n  kit packages [--active | --inactive] [--json | --jq] [<package>…]"'
+    == "Usage:\n  kit packages [--active | --inactive] [--text | --json | --jq] [<package>…]\n  kit packages --stages"
+      + "\n  kit packages --marks\n  kit packages packages [--text | --json | --jq]"'
   answer 1 | jq --exit-status '.result.tools[] | select(.name == "tools") | .description | split("\n\n")[1]
     == "Usage:\n  kit tools [--toolchain <name>] [--json | --jq]"'
   answer 1 | jq --exit-status '.result.tools[] | select(.name == "toolchains") | .description | split("\n\n")[1]
@@ -279,13 +282,13 @@ call() {
   server=$!
   exec 7>"${BATS_TEST_TMPDIR}/in"
   modern 1 tools/list >&7
-  await 1
+  await "${server}" 1
   # the server placed .kit/ as it started; a call after a delivered file went missing leaves it missing
   rm -f .kit/rules/json.md
   call 2 kinds >&7
   call 3 flow '{"stage":"incoming","json":true}' >&7
   call 4 flow '{"json":true}' >&7
-  await 4
+  await "${server}" 4
   exec 7>&-
   wait "${server}"
   [ ! -e .kit/rules/json.md ]
@@ -429,13 +432,13 @@ call() {
   server=$!
   exec 7>"${BATS_TEST_TMPDIR}/in"
   modern 1 server/discover >&7
-  await 1
+  await "${server}" 1
   cd "${BATS_TEST_TMPDIR}"
   rm -rf "${repo}"
   call 2 context "${arguments}" >&7
   call 3 kinds "${arguments}" >&7
   call 4 lint "${arguments}" >&7
-  await 4
+  await "${server}" 4
   exec 7>&-
   wait "${server}" || true
   for id in 2 3 4
@@ -450,12 +453,12 @@ call() {
   server=$!
   exec 7>"${BATS_TEST_TMPDIR}/in"
   modern 1 server/discover >&7
-  await 1
+  await "${server}" 1
   [ ! -e .kit/workflow.md ]
   yq --inplace '.packages += ["workflow"]' kit.yml
   touch -t 209901010000 kit.yml
   modern 2 resources/list >&7
-  await 2
+  await "${server}" 2
   exec 7>&-
   wait "${server}"
   [ -e .kit/workflow.md ]
@@ -469,19 +472,19 @@ call() {
   server=$!
   exec 7>"${BATS_TEST_TMPDIR}/in"
   modern 1 server/discover >&7
-  await 1
+  await "${server}" 1
   cp kit.yml "${BATS_TEST_TMPDIR}/kit.yml"
   printf 'packages: [\n' > kit.yml
   touch -t 209901010000 kit.yml
   call 2 version >&7
-  await 2
+  await "${server}" 2
   modern 3 resources/read '{"uri":"kit://1st.md"}' >&7
-  await 3
+  await "${server}" 3
   cp "${BATS_TEST_TMPDIR}/kit.yml" kit.yml
   yq --inplace '.packages += ["workflow"]' kit.yml
   touch -t 209901010001 kit.yml
   call 4 version >&7
-  await 4
+  await "${server}" 4
   exec 7>&-
   wait "${server}"
   for id in 2 3
@@ -549,12 +552,15 @@ call() {
   [[ "$output" == *"run: kit help serve"* ]]
 }
 
-# await <id> waits up to ten seconds for the answer to request <id> in ${BATS_TEST_TMPDIR}/out.
+# await <server> <id> waits for the answer to request <id> in ${BATS_TEST_TMPDIR}/out while the server whose process
+# is <server> runs, and fails when it ended without one. It waits on the server, not the clock: before an answer the
+# server may place .kit/, as it does when it starts and after kit.yml changes, and a loaded desk stretches that past
+# any fixed wait.
 await() {
-  local tries=100
-  until [[ -n "$(answer "$1" 2>/dev/null)" ]]
+  until [[ -n "$(answer "$2" 2>/dev/null)" ]]
   do
-    (( tries-- > 0 )) || return 1
+    # the server may have answered as it ended, so a server gone looks at the answer once more
+    kill -0 "$1" 2>/dev/null || [[ -n "$(answer "$2" 2>/dev/null)" ]] || return 1
     sleep 0.1
   done
 }
@@ -573,16 +579,16 @@ await() {
   server=$!
   exec 7>"${BATS_TEST_TMPDIR}/in"
   modern 1 server/discover >&7
-  await 1
+  await "${server}" 1
   sed -i.bak "s/^serve_instructions='kit holds/serve_instructions='edited: kit holds/" kit/modules/bash/serve.sh
   modern 2 server/discover >&7
-  await 2
+  await "${server}" 2
   answer 2 | jq --exit-status '.result.instructions | startswith("edited: ")'
   [ "$(grep --count '"method":"notifications/tools/list_changed"' "${BATS_TEST_TMPDIR}/out")" -eq 1 ]
   [ "$(grep --count '"method":"notifications/resources/list_changed"' "${BATS_TEST_TMPDIR}/out")" -eq 1 ]
   printf 'serve:broken() {\n' >> kit/modules/bash/serve.sh
   modern 3 server/discover >&7
-  await 3
+  await "${server}" 3
   answer 3 | jq --exit-status '.result.instructions | startswith("edited: ")'
   grep --quiet 'does not parse; the server keeps the code it runs until the next change' "${BATS_TEST_TMPDIR}/err"
   exec 7>&-
@@ -597,10 +603,10 @@ await() {
   server=$!
   exec 7>"${BATS_TEST_TMPDIR}/in"
   modern 1 server/discover >&7
-  await 1
+  await "${server}" 1
   touch .kit/.gitignore
   modern 2 server/discover >&7
-  await 2
+  await "${server}" 2
   exec 7>&-
   wait "${server}"
   grep --quiet '"method":"notifications/resources/list_changed"' "${BATS_TEST_TMPDIR}/out"

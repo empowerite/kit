@@ -155,7 +155,7 @@ JSON
 @test "kit help flow holds the builds legend: the stage, and each state's glyph" {
   run "${kit_root}/bin/kit" help flow
   [ "$status" -eq 0 ]
-  [[ "$output" == *$'\n  builds:\n\n    🏭  a build: a workflow run not owned by any pull request\n    🏃  running:'* ]]
+  [[ "$output" == *$'\n  builds:\n\n    🏭  build: a workflow run not owned by any pull request\n    🏃  running:'* ]]
   [[ "$output" == *$'\n    🛑  cancelled or skipped: a build\n'* ]]
 }
 

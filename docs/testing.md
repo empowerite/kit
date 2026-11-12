@@ -20,6 +20,9 @@ on a terminal, and run 41556526134 waited two hours before it was cancelled.
 
 - Each test fails at 300 seconds. `bin/ci` sets `BATS_TEST_TIMEOUT`. The check of every governed file against its
   template took over two minutes at a desk, so it runs as eight shards of about 44 seconds each.
+- bats counts down that limit in a background job of the test's own shell, so a test waits for the jobs it started
+  by their process IDs, `wait "${pids[@]}"`. A bare `wait` waits for the countdown too, and the test fails at the
+  limit however soon its own jobs end.
 - The CI job fails at 35 minutes. `ci_timeout_minutes` in `kit.yml` sets it; see
   [packages/github/ci.md](packages/github/ci.md). It is about twice the longest run.
 

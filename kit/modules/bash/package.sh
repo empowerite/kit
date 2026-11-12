@@ -222,6 +222,7 @@ package:remove() {
 package:select() {
   local package names
   local -a named active excluded wanted drop=() take=() dependents includers
+  local -A depended_on=() included_by=()
   names=$(package:named "$@") || return 2
   readarray -t named <<<"${names}"
   list:read active settings:packages || return 1
@@ -240,12 +241,13 @@ package:select() {
   do
     list:among "${package}" "${active[@]}" || take+=("${package}")
   done
+  package:wanted-by "${wanted[@]}" || return 1
   for package in "${active[@]}"
   do
     list:among "${package}" "${named[@]}" && continue
     list:among "${package}" "${wanted[@]}" || continue
-    list:read dependents resolve:dependents "${kit_root}" "${package}" "${wanted[@]}" || return 1
-    list:read includers resolve:includers "${kit_root}" "${package}" "${wanted[@]}" || return 1
+    read -r -a dependents <<<"${depended_on[${package}]:-}"
+    read -r -a includers <<<"${included_by[${package}]:-}"
     if (( ${#dependents[@]} > 0 ))
     then
       step "${package}: kept, ${dependents[*]} depend(s) on it"
@@ -269,6 +271,28 @@ package:select() {
   fi
 }
 
+# package:wanted-by <wanted>… fills the caller's depended_on and included_by, associative arrays: for each package the
+# wanted packages depend on, or include, the wanted ones that do, in the set's order, a space before each. Each wanted
+# package's metadata is read once, where resolve:dependents and resolve:includers, asked of each package in turn, would
+# read every one of them again.
+package:wanted-by() {
+  local other package
+  local -a depends members
+  for other in "$@"
+  do
+    list:read depends resolve:depends "${kit_root}" "${other}" || return 1
+    for package in "${depends[@]}"
+    do
+      depended_on[${package}]+=" ${other}"
+    done
+    list:read members resolve:includes "${kit_root}" "${other}" || return 1
+    for package in "${members[@]}"
+    do
+      included_by[${package}]+=" ${other}"
+    done
+  done
+}
+
 # package:choices <key> [<answer>…] answers kit syntax --choices for <package>: every package in reach with its
 # description and its state (active, excluded, or none); closed choices, and a set when the answers name select. When
 # the answers name packages, as <package>=house, a package they omit but kit packages select would keep or bring, a
@@ -276,6 +300,7 @@ package:select() {
 package:choices() {
   local key=$1 answer package expanded state note word
   local -a active excluded named=() known=() wanted=() dependents includers
+  local -A depended_on=() included_by=()
   shift
   [[ "${key}" == '<package>' ]] || return 1
   # kit packages select names the whole set, so its list is a set: the form starts from the active packages and marks
@@ -314,6 +339,7 @@ package:choices() {
       readarray -t kept < <(list:without "${package}" "${kept[@]}")
     done
     list:read wanted resolve:active "${kit_root}" "${kept[*]}" "${known[@]}" || return 1
+    package:wanted-by "${wanted[@]}" || return 1
   fi
   for package in $(resolve:reach)
   do
@@ -329,8 +355,8 @@ package:choices() {
     then
       word='comes along'
       [[ "${state}" != active ]] || word=kept
-      list:read dependents resolve:dependents "${kit_root}" "${package}" "${wanted[@]}" || return 1
-      list:read includers resolve:includers "${kit_root}" "${package}" "${wanted[@]}" || return 1
+      read -r -a dependents <<<"${depended_on[${package}]:-}"
+      read -r -a includers <<<"${included_by[${package}]:-}"
       if (( ${#dependents[@]} > 0 ))
       then
         note="${package}: ${word}, ${dependents[*]} depend(s) on it"

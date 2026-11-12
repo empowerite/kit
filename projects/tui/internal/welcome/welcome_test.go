@@ -305,6 +305,26 @@ func TestRunSelectedFixesRunsAFixOnceInAFolder(t *testing.T) {
 	}
 }
 
+// A folder's check on a step that draws no folder above its checks says its repository and its folder after its line,
+// dim; a machine check says neither.
+func TestAFoldersCheckOffSetupSaysItsFolderAfterItsLine(t *testing.T) {
+	m, _ := loaded(t)
+	m.checks = []kit.Check{
+		{ID: "tool-jq", Step: "toolchains", Line: "jq is not installed", Fix: "brew install jq", Runs: true},
+		{ID: "dependencies-npm", Step: "toolchains", Line: "npm has not installed every package", Fix: "kit tools install",
+			Runs: true, Folder: "/c/a", Repository: "github.com/o/a"},
+	}
+	m = drive(m, press('2'))
+	drawn := strings.Split(view(m), "\n")
+	for line, after := range map[string]string{"npm has not installed every package": " · a " + worktreeGlyph + " a",
+		"jq is not installed": ""} {
+		y := slices.IndexFunc(drawn, func(l string) bool { return strings.Contains(l, line) })
+		if y < 0 || !strings.HasSuffix(strings.TrimRight(drawn[y], " "), line+after) {
+			t.Errorf("%q's row: %q", line, drawn[max(y, 0)])
+		}
+	}
+}
+
 // A row's step leads to a check its step's search hides: the search is cleared, so the check shows under the cursor.
 func TestARowClearsASearchThatHidesItsCheck(t *testing.T) {
 	keys := append([]tea.Msg{press('3'), tea.KeyPressMsg{Code: '/', Text: "/"}}, testkit.Typed("zzz")...)

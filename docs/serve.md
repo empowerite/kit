@@ -98,11 +98,12 @@ name, takes no word that acts, reads no path outside the repository, changes no 
   in a terminal to fetch.
 - An action is never offered. `packages` is a listing only, and so are `toolchains` and `tools`, which run the
   toolchain's definition and so do not read only:
-  - `packages` does not offer `select`, `add`, or `remove`.
+  - `packages` does not offer `select`, `add`, or `remove`. It offers its one stage, `packages`, as `subcommand`.
   - `toolchains` does not offer `use`.
   - `tools` does not offer `install`, `update`, `path`, `run`, or `--outdated`, which reaches the network.
 
-  A call that names one of these is refused, and the error says to run the verb in a terminal.
+  A call that names one of these is refused, as an argument or as a leading word's value, such as `add` for
+  `packages`' `subcommand`, and the error says to run the verb in a terminal.
 - `context` does not offer `--claude`, the hook mode. It is the harness's own.
 - A path stays inside the repository. `context` and `kinds` refuse a path that leads outside it, as `lint` does,
   and every path when the server cannot read its own directory, as when that directory is gone. `flow` does not

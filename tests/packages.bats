@@ -78,7 +78,8 @@ setup() {
   [ "$status" -eq 0 ]
   [ ! -e .kit/lefthook.yml ]
   grep -q 'hooks/lefthook' kit.yml
-  run "${kit_checkout}/bin/kit" packages select empowerite hooks/lefthook
+  # agents/cursor stays, so the select only adds: a remove as well would render the whole set once more
+  run "${kit_checkout}/bin/kit" packages select empowerite agents/cursor hooks/lefthook
   [ "$status" -eq 0 ]
   [ -e .kit/lefthook.yml ]
 }
